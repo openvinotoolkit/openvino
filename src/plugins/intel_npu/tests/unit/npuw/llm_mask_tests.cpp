@@ -12,6 +12,7 @@
 #include "openvino/pass/stateful_to_stateless.hpp"
 
 using ov::test::npuw::LLMConfig;
+using ov::test::npuw::make_causal_mask_boolean;
 using ov::test::npuw::make_sliding_window_mask_phi3;
 using ov::test::npuw::ModelBuilder;
 
@@ -32,6 +33,55 @@ TEST(LLMMaskTest, SlidingWindow_AllLayers_Builds) {
     auto model = ov::test::npuw::build_sliding_window_test_model();
     ASSERT_NE(model, nullptr);
     EXPECT_TRUE(has_param_named(model, "attention_mask"));
+}
+
+// Boolean causal mask variant — exercises NPUW handlers that lift bool SDPA masks
+// to float (optimize_value_tensors.cpp:271, prepare_whisper_model.cpp:140).
+TEST(LLMMaskTest, CausalMask_Boolean_Builds) {
+    auto cfg = ov::test::npuw::make_test_model_config();
+    cfg.causal_mask_fn = make_causal_mask_boolean;
+
+    ModelBuilder mb;
+    auto model = mb.build_llm(cfg);
+    ASSERT_NE(model, nullptr);
+
+    bool found_bool_sdpa_mask = false;
+    for (const auto& op : model->get_ordered_ops()) {
+        auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(op);
+        if (!sdpa) {
+            continue;
+        }
+        if (sdpa->input_value(3).get_element_type() == ov::element::boolean) {
+            found_bool_sdpa_mask = true;
+            break;
+        }
+    }
+    EXPECT_TRUE(found_bool_sdpa_mask);
+}
+
+// Whisper decoder boolean causal mask — covers the bool path of
+// prepare_whisper_model.cpp:140 (Select(mask, 0, -inf) on bool source).
+// The shared causal_mask_fn on BaseModelConfig acts as the toggle.
+TEST(LLMMaskTest, WhisperDecoder_CausalMask_Boolean_Builds) {
+    auto cfg = ov::test::npuw::make_test_model_config<ov::test::npuw::WhisperConfig>();
+    cfg.causal_mask_fn = make_causal_mask_boolean;
+
+    ModelBuilder mb;
+    auto model = mb.build_whisper_decoder(cfg);
+    ASSERT_NE(model, nullptr);
+
+    bool found_bool_sdpa_mask = false;
+    for (const auto& op : model->get_ordered_ops()) {
+        auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(op);
+        if (!sdpa) {
+            continue;
+        }
+        if (sdpa->input_value(3).get_element_type() == ov::element::boolean) {
+            found_bool_sdpa_mask = true;
+            break;
+        }
+    }
+    EXPECT_TRUE(found_bool_sdpa_mask);
 }
 
 TEST(LLMMaskTest, SlidingWindow_Alternating_Builds) {

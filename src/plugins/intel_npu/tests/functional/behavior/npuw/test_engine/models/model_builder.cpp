@@ -1723,7 +1723,8 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
 
     // Need full causal mask unless every layer is sliding
     if (!has_sliding || config.alternating_attention) {
-        full_mask = make_causal_mask(seq_source, attention_mask->output(0), prec);
+        full_mask = config.causal_mask_fn ? config.causal_mask_fn(seq_source, attention_mask->output(0), prec)
+                                          : make_causal_mask(seq_source, attention_mask->output(0), prec);
     }
     if (has_sliding) {
         const auto& mask_fn = config.sliding_mask_fn ? config.sliding_mask_fn : SlidingMaskFn(make_sliding_window_mask);
@@ -1980,7 +1981,9 @@ static CachePositionResult make_cache_position_ids(const ov::Output<ov::Node>& i
             ids_shape->output(0)};
 }
 
-static ov::Output<ov::Node> make_whisper_causal_mask(const CachePositionResult& cache_pos, const std::string& prefix) {
+static ov::Output<ov::Node> make_whisper_causal_mask(const CachePositionResult& cache_pos,
+                                                     const std::string& prefix,
+                                                     bool boolean_output = false) {
     // kv_idx: Range -> 3x Unsqueeze -> [1, 1, 1, total_seq]
     auto mask_range = std::make_shared<ov::op::v4::Range>(
         ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {0})->output(0),
@@ -2036,11 +2039,18 @@ static ov::Output<ov::Node> make_whisper_causal_mask(const CachePositionResult& 
         std::make_shared<ov::op::v3::Broadcast>(causal_bool, broadcast_shape, ov::op::BroadcastType::BIDIRECTIONAL);
     causal_broadcast->set_friendly_name(prefix + "causal_mask_broadcast");
 
-    // Always f32 — NPUW's AttentionMask matchers inject f32 nodes
-    auto select_true = ov::opset11::Constant::create(ov::element::f32, ov::Shape{}, {0.0f});
-    auto select_false = ov::opset11::Constant::create(ov::element::f32, ov::Shape{}, {kAttentionMaskPaddingFP16Min});
-    auto causal_float = std::make_shared<ov::op::v1::Select>(causal_broadcast, select_true, select_false);
-    causal_float->set_friendly_name(prefix + "causal_mask");
+    // Float path: Select to f32. Boolean path: skip Select, feed bool tensor to Slice
+    // so the boolean handler at prepare_whisper_model.cpp:140 is exercised.
+    ov::Output<ov::Node> mask_for_slice;
+    if (boolean_output) {
+        mask_for_slice = causal_broadcast->output(0);
+    } else {
+        auto select_true = ov::opset11::Constant::create(ov::element::f32, ov::Shape{}, {0.0f});
+        auto select_false = ov::opset11::Constant::create(ov::element::f32, ov::Shape{}, {kAttentionMaskPaddingFP16Min});
+        auto causal_float = std::make_shared<ov::op::v1::Select>(causal_broadcast, select_true, select_false);
+        causal_float->set_friendly_name(prefix + "causal_mask");
+        mask_for_slice = causal_float->output(0);
+    }
 
     // Structural no-op Slice — AttentionMaskInput (prefill) needs Slice -> SDPA input[3]
     auto slice_start = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {0});
@@ -2051,7 +2061,7 @@ static ov::Output<ov::Node> make_whisper_causal_mask(const CachePositionResult& 
     auto slice_step = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {1});
     auto slice_axes = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {3});
     auto causal_sliced =
-        std::make_shared<ov::opset11::Slice>(causal_float, slice_start, slice_stop, slice_step, slice_axes);
+        std::make_shared<ov::opset11::Slice>(mask_for_slice, slice_start, slice_stop, slice_step, slice_axes);
     causal_sliced->set_friendly_name(prefix + "causal_mask_sliced");
 
     return causal_sliced->output(0);
@@ -2128,7 +2138,13 @@ std::shared_ptr<ov::Model> ModelBuilder::build_whisper_decoder(const WhisperConf
                                                            d,
                                                            prec,
                                                            "model.decoder.");
-    auto shared_mask = make_whisper_causal_mask(cache_pos, "model.decoder.");
+    // Detect bool intent: user wires causal_mask_fn = make_causal_mask_boolean.
+    using CausalFnPtr = ov::Output<ov::Node> (*)(const ov::Output<ov::Node>&,
+                                                 const ov::Output<ov::Node>&,
+                                                 ov::element::Type);
+    auto* fn_target = config.causal_mask_fn.target<CausalFnPtr>();
+    const bool boolean_mask = fn_target && *fn_target == &make_causal_mask_boolean;
+    auto shared_mask = make_whisper_causal_mask(cache_pos, "model.decoder.", boolean_mask);
 
     // Self-attention (layer-0 reuses pre-built key Variable)
     Attention self_attn{};

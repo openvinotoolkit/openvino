@@ -26,6 +26,15 @@ ov::Output<ov::Node> make_causal_mask(const ov::Output<ov::Node>& seq_source,
                                       const ov::Output<ov::Node>& attention_mask,
                                       ov::element::Type prec);
 
+/// Boolean variant of the causal mask: 4D bool (true = attend), no Select-to-float.
+/// Element type argument is ignored. Exists to test NPUW handlers that lift bool
+/// SDPA masks to float via Select(mask, 0, -inf) — see optimize_value_tensors.cpp:271
+/// and prepare_whisper_model.cpp:140. Shape: causal LessEqual + bool padding combined
+/// via BitwiseAnd.
+ov::Output<ov::Node> make_causal_mask_boolean(const ov::Output<ov::Node>& seq_source,
+                                              const ov::Output<ov::Node>& attention_mask,
+                                              ov::element::Type /*unused*/);
+
 /// Sliding window + causal mask (transformers >= 5 / Gemma-4 style):
 /// Range(0, seq_len)+Add(offset), single Unsqueeze, Subtract for lower bound,
 /// LogicalAnd combine, Select to float. Returns 4D float mask.

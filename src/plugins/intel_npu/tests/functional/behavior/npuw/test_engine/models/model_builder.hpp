@@ -419,6 +419,15 @@ struct BaseModelConfig {
     RoPEFn rope;                        ///< Empty = auto HalfRotationRoPE. Set identity lambda to disable.
     ov::Output<ov::Node> position_ids;  ///< Empty = auto-creates 2D Parameter + HalfRotationRoPE
     NormFn qk_norm;
+    /// Causal mask builder. Empty = default float make_causal_mask.
+    /// Set to make_causal_mask_boolean to test NPUW boolean-mask handlers
+    /// (optimize_value_tensors.cpp:271 for LLM, prepare_whisper_model.cpp:140 for Whisper).
+    /// Whisper doesn't call this functor directly (signature differs from its
+    /// internal cache_pos based mask), but inspects its target — if it points to
+    /// make_causal_mask_boolean, the decoder mask is built as bool.
+    std::function<ov::Output<ov::Node>(const ov::Output<ov::Node>&,
+                                       const ov::Output<ov::Node>&,
+                                       ov::element::Type)> causal_mask_fn;
 
     BaseModelConfig() : lm_head_weight(weight) {}
 
