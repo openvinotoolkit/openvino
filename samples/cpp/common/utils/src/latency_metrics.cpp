@@ -14,8 +14,19 @@
 
 void LatencyMetrics::write_to_stream(std::ostream& stream) const {
     std::ios::fmtflags fmt(std::cout.flags());
-    stream << data_shape << ";" << std::fixed << std::setprecision(2) << median_or_percentile << ";" << avg << ";"
-           << min << ";" << max;
+    int precision = high_precision ? 6 : 2;
+    
+    if (high_precision) {
+        // Convert to microseconds for ultra low latency applications
+        stream << data_shape << ";" << std::fixed << std::setprecision(precision) 
+               << (median_or_percentile * 1000.0) << ";" << (avg * 1000.0) << ";"
+               << (min * 1000.0) << ";" << (max * 1000.0);
+    } else {
+        stream << data_shape << ";" << std::fixed << std::setprecision(precision) 
+               << median_or_percentile << ";" << avg << ";"
+               << min << ";" << max;
+    }
+    
     std::cout.flags(fmt);
 }
 
@@ -24,10 +35,21 @@ void LatencyMetrics::write_to_slog() const {
                                     ? "   Median:           "
                                     : "   " + std::to_string(percentile_boundary) + " percentile:     ";
 
-    slog::info << percentileStr << double_to_string(median_or_percentile) << " ms" << slog::endl;
-    slog::info << "   Average:          " << double_to_string(avg) << " ms" << slog::endl;
-    slog::info << "   Min:              " << double_to_string(min) << " ms" << slog::endl;
-    slog::info << "   Max:              " << double_to_string(max) << " ms" << slog::endl;
+    auto format_value = [this](double value) -> std::string {
+        if (high_precision) {
+            // Convert milliseconds to microseconds for ultra low latency applications
+            return double_to_string_high_precision(value * 1000.0);
+        } else {
+            return double_to_string(value);
+        }
+    };
+    
+    std::string unit = high_precision ? " µs" : " ms";
+
+    slog::info << percentileStr << format_value(median_or_percentile) << unit << slog::endl;
+    slog::info << "   Average:          " << format_value(avg) << unit << slog::endl;
+    slog::info << "   Min:              " << format_value(min) << unit << slog::endl;
+    slog::info << "   Max:              " << format_value(max) << unit << slog::endl;
 }
 
 void LatencyMetrics::fill_data(std::vector<double> latencies, size_t percentile_boundary) {

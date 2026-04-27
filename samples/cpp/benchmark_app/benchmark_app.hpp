@@ -195,6 +195,12 @@ static const char infer_latency_percentile_message[] =
     "Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value "
     "is 50 (median).";
 
+// @brief message for high precision latency option
+static const char high_precision_latency_message[] =
+    "Optional. Enable high precision latency reporting in microseconds for ultra low latency applications. "
+    "When enabled, latency values are displayed in microseconds (µs) with high precision. "
+    "Default is disabled (milliseconds with 2 decimal places).";
+
 // @brief message for report_type option
 static const char report_type_message[] =
     "Optional. Enable collecting statistics report. \"no_counters\" report contains "
@@ -359,6 +365,9 @@ DEFINE_bool(use_device_mem, false, use_device_mem_message);
 /// @brief The percentile which will be reported in latency metric
 DEFINE_uint64(latency_percentile, 50, infer_latency_percentile_message);
 
+/// @brief Enable high precision latency reporting
+DEFINE_bool(high_precision_latency, false, high_precision_latency_message);
+
 /// @brief Enables statistics report collecting
 DEFINE_string(report_type, "", report_type_message);
 
@@ -438,6 +447,7 @@ static void show_usage() {
     std::cout << std::endl;
     std::cout << "Statistics dumping options:" << std::endl;
     std::cout << "    -latency_percentile     " << infer_latency_percentile_message << std::endl;
+    std::cout << "    -high_precision_latency " << high_precision_latency_message << std::endl;
     std::cout << "    -report_type  <type>    " << report_type_message << std::endl;
     std::cout << "    -report_folder          " << report_folder_message << std::endl;
     std::cout << "    -json_stats             " << json_stats_message << std::endl;

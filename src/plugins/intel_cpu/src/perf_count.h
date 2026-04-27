@@ -38,7 +38,8 @@ private:
 
     void finish_itr() {
         _finish = std::chrono::high_resolution_clock::now();
-        total_duration += std::chrono::duration_cast<std::chrono::microseconds>(_finish - _start).count();
+        // Use nanoseconds for higher precision in latency measurements
+        total_duration += std::chrono::duration_cast<std::chrono::nanoseconds>(_finish - _start).count();
         num++;
     }
 
