@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cstring>
-
 #include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "internal_properties.hpp"
@@ -96,7 +94,8 @@ public:
                                          ov::Dimension::value_type head_size = 64,
                                          ov::Dimension::value_type head_num = 8,
                                          bool use_sink_input = true,
-                                         int32_t sliding_window = 0) {
+                                         int32_t sliding_window = 0,
+                                         bool add_shared_reader = false) {
         // q [batch_in_tokens, head_num * head_size]
         // k [batch_in_tokens, head_num * head_size]
         // v [batch_in_tokens, head_num * head_size]
@@ -202,6 +201,32 @@ public:
         paged_attn->get_rt_info()["k_head_size"] = head_size;
         paged_attn->get_rt_info()["num_v_heads"] = head_num;
         paged_attn->get_rt_info()["v_head_size"] = head_size;
+
+        if (add_shared_reader) {
+            // Second PA node with write_kv_cache=false sharing the same cache.
+            // Enforce execution order: q2 = q + PA1_output * 0, so PA1 runs first.
+            auto zero_const = ov::op::v0::Constant::create(data_type, ov::Shape{}, {0.0f});
+            auto pa1_times_zero = std::make_shared<ov::op::v1::Multiply>(paged_attn->output(0), zero_const);
+            auto q2 = std::make_shared<ov::op::v1::Add>(q, pa1_times_zero);
+
+            // PA2 receives zero k/v, simulating a layer with no K/V projections
+            // (as in Gemma 4 shared-cache layers). If write_kv_cache=false is not
+            // honored, PA2 would overwrite PA1's valid cache with zeros → wrong output.
+            auto zero_k = std::make_shared<ov::op::v1::Multiply>(k, zero_const);
+            auto zero_v = std::make_shared<ov::op::v1::Multiply>(v, zero_const);
+
+            OutputVector pa2_inputs = paged_attn_inputs;
+            pa2_inputs[0] = q2;
+            pa2_inputs[1] = zero_k;
+            pa2_inputs[2] = zero_v;
+            auto paged_attn_2 = std::make_shared<op::PagedAttentionExtension>(pa2_inputs, /*write_kv_cache=*/false);
+            paged_attn_2->get_rt_info()["num_k_heads"] = head_num;
+            paged_attn_2->get_rt_info()["k_head_size"] = head_size;
+            paged_attn_2->get_rt_info()["num_v_heads"] = head_num;
+            paged_attn_2->get_rt_info()["v_head_size"] = head_size;
+            return std::make_shared<ov::Model>(OutputVector{paged_attn, paged_attn_2}, params);
+        }
+
         return std::make_shared<ov::Model>(OutputVector{paged_attn}, params);
     }
 
@@ -560,6 +585,43 @@ public:
             state.reset();
         }
     }
+    void init_kv_cache(size_t block_nums) {
+        for (const auto& input : compiledModel.inputs()) {
+            for (auto& name : input.get_names()) {
+                auto cache_precision = input.get_element_type();
+                ov::PartialShape pshape;
+                if (name.find("key_cache.") == 0) {
+                    pshape = input.get_partial_shape();
+                    pshape[0] = block_nums;
+                    key_cache = ov::Tensor(cache_precision, pshape.get_shape());
+                    break;
+                } else if (name.find("value_cache.") == 0) {
+                    pshape = input.get_partial_shape();
+                    pshape[0] = block_nums;
+                    value_cache = ov::Tensor(cache_precision, pshape.get_shape());
+                    break;
+                }
+            }
+        }
+    }
+
+    std::vector<ov::Tensor> run_pa_inference(bool extendBlockIndices, bool sinkInput, size_t output_idx = 0) {
+        std::vector<ov::Tensor> outputs;
+        int idx = 0;
+        for (auto&& shapes : targetStaticShapes) {
+            generate(idx++, true, shapes, extendBlockIndices, sinkInput);
+            for (const auto& input : inputs) {
+                inferRequest.set_tensor(input.first, input.second);
+            }
+            inferRequest.infer();
+            auto outputTensor = inferRequest.get_output_tensor(output_idx);
+            ov::Tensor copy{outputTensor.get_element_type(), outputTensor.get_shape()};
+            outputTensor.copy_to(copy);
+            outputs.push_back(copy);
+        }
+        return outputs;
+    }
+
     std::vector<size_t> transposeOrder;
     size_t keyGroupSize = 0;
     bool quantKeyByChannel = false;
@@ -575,38 +637,8 @@ public:
     std::vector<ov::Tensor> run_test(std::shared_ptr<ov::Model> model, bool extendBlockIndices, bool sinkInput = true) {
         function = model;
         prepare();
-        for (const auto& input : compiledModel.inputs()) {
-            for (auto& name : input.get_names()) {
-                auto cache_precision = input.get_element_type();
-                const size_t block_nums = 1024 / 32;
-                ov::PartialShape pshape;
-                if (name.find("key_cache.") == 0) {
-                    pshape = input.get_partial_shape();
-                    pshape[0] = block_nums;
-                    key_cache = ov::Tensor(cache_precision, pshape.get_shape());
-                    break;
-                } else if (name.find("value_cache.") == 0) {
-                    pshape = input.get_partial_shape();
-                    pshape[0] = block_nums;
-                    value_cache = ov::Tensor(cache_precision, pshape.get_shape());
-                    break;
-                }
-            }
-        }
-        std::vector<ov::Tensor> outputs;
-        int idx = 0;
-        for (auto&& shapes : targetStaticShapes) {
-            generate(idx++, true, shapes, extendBlockIndices, sinkInput);
-            for (const auto& input : inputs) {
-                inferRequest.set_tensor(input.first, input.second);
-            }
-            inferRequest.infer();
-            auto outputTensor = inferRequest.get_output_tensor(0);
-            ov::Tensor copy{outputTensor.get_element_type(), outputTensor.get_shape()};
-            outputTensor.copy_to(copy);
-            outputs.push_back(copy);
-        }
-        return outputs;
+        init_kv_cache(1024 / 32);
+        return run_pa_inference(extendBlockIndices, sinkInput);
     }
 
     std::vector<ov::Tensor> run_ref_test(std::shared_ptr<ov::Model> model, bool sinkInput) {
@@ -689,6 +721,77 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnVSSDPATest_WithSlidingWindowAndSinks,
                                             ::testing::Values(false),        // enableXattn
                                             ::testing::Values(true, false),  // sinkInput
                                             ::testing::Values(0, 8),         // sliding_window = 8
+                                            ::testing::Values(ov::AnyMap{
+                                                {ov::intel_cpu::enable_sage_attn.name(), false}})),
+                         PagedAttnTestBase::getTestCaseName);
+}  // namespace
+
+// ---------------------------------------------------------------------------
+// Test: PA1(write=true) + PA2(write=false) sharing the same KV cache.
+// Verifies that PA2 reads the cache populated by PA1 and produces matching output.
+// ---------------------------------------------------------------------------
+class PagedAttnSharedKVCacheTest : public PagedAttnVSSDPATest {
+public:
+    void SetUp() override {
+        PagedAttnTestBase::SetUp();
+        const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput, slidingWindow, additional_config] =
+            this->GetParam();
+        function = get_model(inType, enableXattn, 64, 8, sinkInput, slidingWindow, /*add_shared_reader=*/true);
+    }
+
+    std::vector<ov::Tensor> run_test(std::shared_ptr<ov::Model> model, bool extendBlockIndices, bool sinkInput = true) {
+        function = model;
+        prepare();
+        init_kv_cache(1024 / 32);
+
+        std::vector<ov::Tensor> outputs;
+        int idx = 0;
+        for (auto&& shapes : targetStaticShapes) {
+            generate(idx++, true, shapes, extendBlockIndices, sinkInput);
+            for (const auto& input : inputs) {
+                inferRequest.set_tensor(input.first, input.second);
+            }
+            inferRequest.infer();
+
+            // Output 0: PA1 (write=true)
+            auto out0 = inferRequest.get_output_tensor(0);
+            ov::Tensor copy0{out0.get_element_type(), out0.get_shape()};
+            out0.copy_to(copy0);
+            outputs.push_back(copy0);
+
+            // Output 1: PA2 (write=false, shared cache) — must match PA1
+            auto out1 = inferRequest.get_output_tensor(1);
+            ov::test::utils::compare(copy0, out1, abs_threshold, rel_threshold);
+        }
+        return outputs;
+    }
+};
+
+TEST_P(PagedAttnSharedKVCacheTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput, slidingWindow, additional_config] =
+        this->GetParam();
+    if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
+        GTEST_SKIP();
+
+    past_len_count = 0;
+    auto actualOutputs = run_test(function, extendBlockIndices, sinkInput);
+    past_len_count = 0;
+    auto expectedOutputs = run_ref_test(functionRefs, sinkInput);
+    for (size_t i = 0; i < actualOutputs.size(); i++) {
+        ov::test::utils::compare(expectedOutputs[i], actualOutputs[i], abs_threshold, rel_threshold);
+    }
+}
+
+namespace {
+INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnSharedKVCache,
+                         PagedAttnSharedKVCacheTest,
+                         ::testing::Combine(::testing::Values(ElementType::f32, ElementType::bf16),
+                                            ::testing::ValuesIn(inputShapeAndReorders),
+                                            ::testing::Values(false),   // extendBlockIndices
+                                            ::testing::Values(false),   // enableXattn
+                                            ::testing::Values(false),   // sinkInput
+                                            ::testing::Values(0),       // slidingWindow
                                             ::testing::Values(ov::AnyMap{
                                                 {ov::intel_cpu::enable_sage_attn.name(), false}})),
                          PagedAttnTestBase::getTestCaseName);
@@ -837,38 +940,8 @@ public:
         configuration[ov::hint::kv_cache_precision.name()] = ov::element::f16;
         function = model;
         prepare();
-        for (const auto& input : compiledModel.inputs()) {
-            for (auto& name : input.get_names()) {
-                auto cache_precision = input.get_element_type();
-                const size_t block_nums = 4;
-                ov::PartialShape pshape;
-                if (name.find("key_cache.") == 0) {
-                    pshape = input.get_partial_shape();
-                    pshape[0] = block_nums;
-                    key_cache = ov::Tensor(cache_precision, pshape.get_shape());
-                    break;
-                } else if (name.find("value_cache.") == 0) {
-                    pshape = input.get_partial_shape();
-                    pshape[0] = block_nums;
-                    value_cache = ov::Tensor(cache_precision, pshape.get_shape());
-                    break;
-                }
-            }
-        }
-        std::vector<ov::Tensor> outputs;
-        int idx = 0;
-        for (auto&& shapes : targetStaticShapes) {
-            generate(idx++, true, shapes, extendBlockIndices, false);
-            for (const auto& input : inputs) {
-                inferRequest.set_tensor(input.first, input.second);
-            }
-            inferRequest.infer();
-            auto outputTensor = inferRequest.get_output_tensor(0);
-            ov::Tensor copy{outputTensor.get_element_type(), outputTensor.get_shape()};
-            outputTensor.copy_to(copy);
-            outputs.push_back(copy);
-        }
-        return outputs;
+        init_kv_cache(4);
+        return run_pa_inference(extendBlockIndices, false);
     }
 
     std::vector<ov::Tensor> run_ref_test(std::shared_ptr<ov::Model> model) {
@@ -935,221 +1008,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnVSMatmulTest,
                                             ::testing::ValuesIn(additional_configs)),
                          PagedAttnTestBase::getTestCaseName);
 }  // namespace
-
-// ---------------------------------------------------------------------------
-// Test: write_kv_cache=false must NOT modify KV-cache buffers
-// ---------------------------------------------------------------------------
-class PagedAttnNoKVWriteTest : public testing::Test, public CPUTestsBase {
-protected:
-    void run_and_check(ov::element::Type data_type) {
-        const size_t head_num   = 8;
-        const size_t head_size  = 64;
-        const size_t block_size = 32;
-        const size_t block_nums = 4;
-        const size_t token_dim  = head_num * head_size;
-        // Use past_tokens > 0 so the kernel has cache data to attend to.
-        // The cache is pre-filled with valid data. With write_kv_cache=false,
-        // the new k/v should NOT be written to cache, but the kernel still
-        // attends to past_tokens from the cache.
-        const int32_t past_tokens = 0;  // no pre-cached tokens (first-token scenario)
-
-        auto make_p = [&](ov::PartialShape ps, ov::element::Type et, const std::string& name) {
-            auto p = std::make_shared<ov::op::v0::Parameter>(et, ps);
-            p->set_friendly_name(name);
-            p->get_output_tensor(0).set_names({name});
-            return p;
-        };
-
-        auto q          = make_p(ov::PartialShape{-1, (int64_t)token_dim}, data_type, "q");
-        auto k          = make_p(ov::PartialShape{-1, (int64_t)token_dim}, data_type, "k");
-        auto v          = make_p(ov::PartialShape{-1, (int64_t)token_dim}, data_type, "v");
-        // Cache must be 4D: [num_blocks, num_kv_heads, block_size, head_size]
-        auto key_cache  = make_p(ov::PartialShape{-1, (int64_t)head_num, (int64_t)block_size, (int64_t)head_size},
-                                  data_type, "key_cache.0");
-        auto val_cache  = make_p(ov::PartialShape{-1, (int64_t)head_num, (int64_t)block_size, (int64_t)head_size},
-                                  data_type, "value_cache.0");
-        auto past_lens          = make_p(ov::PartialShape{-1},  ov::element::i32, "past_lens");
-        auto subseq_begins      = make_p(ov::PartialShape{-1},  ov::element::i32, "subsequence_begins");
-        auto block_indices      = make_p(ov::PartialShape{-1},  ov::element::i32, "block_indices");
-        auto block_idx_begins   = make_p(ov::PartialShape{-1},  ov::element::i32, "block_indices_begins");
-
-        auto make_scalar_const = [](ov::element::Type et, float val) {
-            return ov::op::v0::Constant::create(et, ov::Shape{}, {val});
-        };
-        auto make_empty_1d = [](ov::element::Type et) {
-            return ov::op::v0::Constant::create(et, ov::Shape{0}, std::vector<int32_t>{});
-        };
-
-        auto scale              = make_p(ov::PartialShape{},   ov::element::f32, "scale");
-        auto sliding_window_p   = make_scalar_const(ov::element::i32, 0.f);
-        auto alibi_slopes       = make_empty_1d(ov::element::f32);
-        auto max_ctx_len_p      = make_p(ov::PartialShape{},   ov::element::i32, "max_context_len");
-        auto score_agg_win      = make_scalar_const(ov::element::i32, 0.f);
-        auto empty_i32_1d       = make_empty_1d(ov::element::i32);
-        auto empty_f32_1d       = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{0}, std::vector<float>{});
-        auto zero_i32_scalar    = make_scalar_const(ov::element::i32, 0.f);
-        auto empty_sinks        = ov::op::v0::Constant::create(data_type, ov::Shape{0}, std::vector<float>{});
-        auto empty_u8           = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{0}, std::vector<uint8_t>{});
-
-        ov::OutputVector pa_args = {
-            q, k, v, key_cache, val_cache,
-            past_lens, subseq_begins, block_indices, block_idx_begins,
-            scale, sliding_window_p, alibi_slopes, max_ctx_len_p,
-            score_agg_win,
-            empty_i32_1d,            // rotated_block_indices
-            empty_i32_1d,            // rotation_deltas
-            empty_f32_1d,            // rotation_trig_lut
-            empty_f32_1d,            // xattention_threshold
-            zero_i32_scalar,         // xattention_block_size
-            zero_i32_scalar,         // xattention_stride
-            empty_sinks,             // sinks
-            zero_i32_scalar,         // adaptive_rkv_start_size
-            empty_i32_1d,            // adaptive_rkv_evictable_sizes
-            empty_i32_1d,            // adaptive_rkv_diversity_block_set_indices
-            empty_i32_1d,            // adaptive_rkv_diversity_block_set_indices_begins
-            empty_i32_1d,            // token_type_ids
-            empty_u8,                // qq_bias
-            empty_i32_1d,            // qq_bias_begins
-        };
-
-        auto pa_node = std::make_shared<ov::op::PagedAttentionExtension>(pa_args, /*write_kv_cache=*/false);
-        pa_node->set_out_type(0, data_type);
-
-        auto model = std::make_shared<ov::Model>(
-            ov::OutputVector{pa_node->output(0)},
-            ov::ParameterVector{q, k, v, key_cache, val_cache,
-                                past_lens, subseq_begins, block_indices, block_idx_begins,
-                                scale, max_ctx_len_p});
-
-        // ---- Compile ----
-        ov::Core core;
-        ov::AnyMap config;
-        config[ov::hint::inference_precision.name()] = ov::element::f32;
-        config[ov::hint::kv_cache_precision.name()] = data_type;  // disable cache quantization
-        auto compiled = core.compile_model(model, "CPU", config);
-        auto req = compiled.create_infer_request();
-
-        // ---- Determine actual cache precision & shape from compiled model ----
-        ov::element::Type cache_prec = data_type;
-        ov::Shape kv_cache_shape;
-        ov::Shape val_cache_shape_actual;
-        for (const auto& inp : compiled.inputs()) {
-            for (const auto& name : inp.get_names()) {
-                if (name.find("key_cache.") == 0 && kv_cache_shape.empty()) {
-                    cache_prec = inp.get_element_type();
-                    auto pshape = inp.get_partial_shape();
-                    pshape[0] = static_cast<int64_t>(block_nums);
-                    kv_cache_shape = pshape.get_shape();
-                }
-                if (name.find("value_cache.") == 0 && val_cache_shape_actual.empty()) {
-                    auto pshape = inp.get_partial_shape();
-                    pshape[0] = static_cast<int64_t>(block_nums);
-                    val_cache_shape_actual = pshape.get_shape();
-                }
-            }
-        }
-        ASSERT_FALSE(kv_cache_shape.empty()) << "Could not determine key cache shape";
-        if (val_cache_shape_actual.empty()) val_cache_shape_actual = kv_cache_shape;
-
-        // ---- Allocate & fill KV cache tensors with deterministic non-zero data ----
-        ov::Tensor key_cache_tensor(cache_prec, kv_cache_shape);
-        ov::Tensor val_cache_tensor(cache_prec, val_cache_shape_actual);
-
-        auto fill_tensor = [](ov::Tensor& t, uint8_t pattern) {
-            std::memset(t.data(), pattern, t.get_byte_size());
-        };
-        fill_tensor(key_cache_tensor, 0x3E);
-        fill_tensor(val_cache_tensor, 0x3D);
-
-        // Save copies to compare after inference
-        ov::Tensor key_cache_before(cache_prec, kv_cache_shape);
-        ov::Tensor val_cache_before(cache_prec, val_cache_shape_actual);
-        key_cache_tensor.copy_to(key_cache_before);
-        val_cache_tensor.copy_to(val_cache_before);
-
-        // ---- Build runtime inputs ----
-        const size_t B_token = 1;
-        const int32_t total_blocks_needed = static_cast<int32_t>((past_tokens + B_token + block_size - 1) / block_size);
-
-        auto make_typed_tensor = [&](const ov::Shape& shape, float val) {
-            ov::Tensor t(data_type, shape);
-            if (data_type == ov::element::f32) {
-                auto* d = t.data<float>();
-                for (size_t i = 0; i < t.get_size(); ++i) d[i] = val + static_cast<float>(i) * 0.01f;
-            } else if (data_type == ov::element::f16) {
-                auto* d = t.data<ov::float16>();
-                for (size_t i = 0; i < t.get_size(); ++i) d[i] = ov::float16(val + static_cast<float>(i) * 0.01f);
-            } else {
-                auto* d = t.data<ov::bfloat16>();
-                for (size_t i = 0; i < t.get_size(); ++i) d[i] = ov::bfloat16(val + static_cast<float>(i) * 0.01f);
-            }
-            return t;
-        };
-        auto q_tensor = make_typed_tensor({B_token, token_dim}, 0.5f);
-        auto k_tensor = make_typed_tensor({B_token, token_dim}, 0.6f);
-        auto v_tensor = make_typed_tensor({B_token, token_dim}, 0.7f);
-
-        ov::Tensor past_lens_t(ov::element::i32, {1});
-        past_lens_t.data<int32_t>()[0] = past_tokens;
-
-        ov::Tensor subseq_t(ov::element::i32, {2});
-        subseq_t.data<int32_t>()[0] = 0;
-        subseq_t.data<int32_t>()[1] = static_cast<int32_t>(B_token);
-
-        ov::Tensor blk_idx_t(ov::element::i32, {static_cast<size_t>(total_blocks_needed)});
-        for (int32_t i = 0; i < total_blocks_needed; ++i) blk_idx_t.data<int32_t>()[i] = i;
-
-        ov::Tensor blk_idx_begins_t(ov::element::i32, {2});
-        blk_idx_begins_t.data<int32_t>()[0] = 0;
-        blk_idx_begins_t.data<int32_t>()[1] = total_blocks_needed;
-
-        ov::Tensor scale_t(ov::element::f32, ov::Shape{});
-        scale_t.data<float>()[0] = 1.0f / std::sqrt(static_cast<float>(head_size));
-
-        ov::Tensor max_ctx_t(ov::element::i32, ov::Shape{});
-        max_ctx_t.data<int32_t>()[0] = past_tokens + static_cast<int32_t>(B_token);
-
-        req.set_tensor("q",                    q_tensor);
-        req.set_tensor("k",                    k_tensor);
-        req.set_tensor("v",                    v_tensor);
-        req.set_tensor("key_cache.0",          key_cache_tensor);
-        req.set_tensor("value_cache.0",        val_cache_tensor);
-        req.set_tensor("past_lens",            past_lens_t);
-        req.set_tensor("subsequence_begins",   subseq_t);
-        req.set_tensor("block_indices",        blk_idx_t);
-        req.set_tensor("block_indices_begins", blk_idx_begins_t);
-        req.set_tensor("scale",                scale_t);
-        req.set_tensor("max_context_len",      max_ctx_t);
-
-        // ---- Infer ----
-        req.infer();
-
-        // ---- Assert: KV cache must be byte-identical to before inference ----
-        {
-            auto* before_k = static_cast<const uint8_t*>(key_cache_before.data());
-            auto* after_k  = static_cast<const uint8_t*>(key_cache_tensor.data());
-            ASSERT_EQ(0, std::memcmp(before_k, after_k, key_cache_before.get_byte_size()))
-                << "key_cache was modified despite write_kv_cache=false";
-
-            auto* before_v = static_cast<const uint8_t*>(val_cache_before.data());
-            auto* after_v  = static_cast<const uint8_t*>(val_cache_tensor.data());
-            ASSERT_EQ(0, std::memcmp(before_v, after_v, val_cache_before.get_byte_size()))
-                << "value_cache was modified despite write_kv_cache=false";
-        }
-    }
-};
-
-TEST_F(PagedAttnNoKVWriteTest, smoke_PagedAttnNoKVWrite_f32) {
-    if (!ov::with_cpu_x86_sse42())
-        GTEST_SKIP() << "Skipping on unsupported platform";
-    run_and_check(ov::element::f32);
-}
-
-TEST_F(PagedAttnNoKVWriteTest, smoke_PagedAttnNoKVWrite_bf16) {
-    if (!ov::with_cpu_x86_bfloat16())
-        GTEST_SKIP() << "bf16 not supported on this CPU";
-    run_and_check(ov::element::bf16);
-}
 
 }  // namespace test
 }  // namespace ov
