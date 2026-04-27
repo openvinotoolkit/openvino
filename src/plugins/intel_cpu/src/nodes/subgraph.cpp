@@ -58,7 +58,6 @@
 #    include "executors/aarch64/subgraph.hpp"
 #    include "snippets/lowered/pass/init_loops.hpp"
 #    include "snippets/lowered/pass/insert_buffers.hpp"
-#    include "snippets/lowered/pass/insert_reg_spills.hpp"
 #    include "transformations/snippets/aarch64/pass/brgemm_to_gemm_cpu.hpp"
 #    include "transformations/snippets/aarch64/pass/lowered/adjust_gemm_copy_b_loop_ports.hpp"
 #    include "transformations/snippets/aarch64/pass/lowered/gemm_cpu_blocking.hpp"
@@ -831,10 +830,6 @@ void Subgraph::optimizeIR() {
 
     const auto control_flow_config = std::make_shared<ov::snippets::lowered::pass::PassConfig>();
     const auto control_flow_passes = getControlFlowPasses();
-#if defined(OPENVINO_ARCH_ARM64)
-    // enable it after emitters for RegSpillBegin and RegSpillEnd are implemented on ARM in CVS-162498
-    control_flow_config->disable<ov::snippets::lowered::pass::InsertRegSpills>();
-#endif
 
 #ifdef SNIPPETS_LIBXSMM_TPP
     // Note: temporary disabled. Re-enable after ticket 132833 is resolved

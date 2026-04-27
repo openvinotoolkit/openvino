@@ -25,6 +25,7 @@
 #include "emitters/snippets/aarch64/jit_kernel_emitter.hpp"
 #include "emitters/snippets/aarch64/jit_loop_emitters.hpp"
 #include "emitters/snippets/aarch64/jit_memory_emitters.hpp"
+#include "emitters/snippets/aarch64/jit_reg_spill_emitters.hpp"
 #include "emitters/snippets/common/emitter_factory.hpp"
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
 #include "jit_snippets_emitters.hpp"
@@ -91,6 +92,7 @@
 #include "snippets/op/powerstatic.hpp"
 #include "snippets/op/rank_normalization.hpp"
 #include "snippets/op/reduce.hpp"
+#include "snippets/op/reg_spill.hpp"
 #include "snippets/op/reorder.hpp"
 #include "snippets/op/reshape.hpp"
 #include "snippets/op/result.hpp"
@@ -351,6 +353,9 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
         emitter_factory.from_expr<jit_kernel_dynamic_emitter>();
     jitters[snippets::op::LoopBegin::get_type_info_static()] = emitter_factory.from_expr<jit_loop_begin_emitter>();
     jitters[snippets::op::LoopEnd::get_type_info_static()] = emitter_factory.from_expr<jit_loop_end_emitter>();
+    jitters[snippets::op::RegSpillBegin::get_type_info_static()] =
+        emitter_factory.from_expr<jit_reg_spill_begin_emitter>();
+    jitters[snippets::op::RegSpillEnd::get_type_info_static()] = emitter_factory.from_expr<jit_reg_spill_end_emitter>();
 
     // others
     jitters[snippets::op::Scalar::get_type_info_static()] = emitter_factory.from_expr<jit_scalar_emitter>();
