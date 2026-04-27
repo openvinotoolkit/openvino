@@ -37,6 +37,7 @@
 #include "openvino/runtime/infer_request.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/general_utils.h"
 
@@ -175,6 +176,10 @@ public:
         paged_attn->get_rt_info()["k_head_size"] = head_size;
         paged_attn->get_rt_info()["num_v_heads"] = head_num;
         paged_attn->get_rt_info()["v_head_size"] = head_size;
+        
+        enable_keep_const_precision(paged_attn->get_input_node_shared_ptr(3));
+        enable_keep_const_precision(paged_attn->get_input_node_shared_ptr(4));
+        
         OutputVector outputs{paged_attn};
         if (score_aggregation_window) {
             outputs.push_back(paged_attn->output(1));
