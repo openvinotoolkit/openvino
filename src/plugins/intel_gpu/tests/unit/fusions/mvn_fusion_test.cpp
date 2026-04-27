@@ -99,6 +99,14 @@ public:
 #define CASE_MVN_3D_U8_4    { 2, 16, 8, 8, 8 }, { 1, 1, 1, 1, 1 },  data_types::u8, format::bfzyx, {2, 3, 4}, true, data_types::f32, format::bfzyx
 #define CASE_MVN_3D_U8_5    { 2, 16, 1, 8, 8 }, { 1, 1, 8, 1, 1 },  data_types::u8, format::bfzyx, {2, 3, 4}, true, data_types::f32, format::bfzyx
 
+// F16 with blocked formats (fsv16/fsv32) - covers new float support in imad kernel
+#define CASE_MVN_F16_FSV16_1  { 1, 16, 8, 8 },    { 1, 16, 8, 8 },    data_types::f16, format::b_fs_yx_fsv16, {2, 3}, true, data_types::f16, format::bfyx
+#define CASE_MVN_F16_FSV16_2  { 2, 32, 8, 8 },    { 2, 32, 8, 8 },    data_types::f16, format::b_fs_yx_fsv16, {1, 2, 3}, true, data_types::f16, format::bfyx
+#define CASE_MVN_F16_FSV32_1  { 1, 32, 8, 8 },    { 1, 32, 8, 8 },    data_types::f16, format::b_fs_yx_fsv32, {2, 3}, true, data_types::f16, format::bfyx
+#define CASE_MVN_F16_FSV32_2  { 2, 32, 8, 8 },    { 2, 32, 8, 8 },    data_types::f16, format::b_fs_yx_fsv32, {1, 2, 3}, true, data_types::f16, format::bfyx
+#define CASE_MVN_3D_F16_FSV16_1 { 1, 16, 8, 8, 8 }, { 1, 16, 8, 8, 8 }, data_types::f16, format::b_fs_zyx_fsv16, {2, 3, 4}, true, data_types::f16, format::bfzyx
+#define CASE_MVN_3D_F16_FSV32_1 { 1, 32, 8, 8, 8 }, { 1, 32, 8, 8, 8 }, data_types::f16, format::b_fs_zyx_fsv32, {2, 3, 4}, true, data_types::f16, format::bfzyx
+
 class mvn_activation : public MVNFusingTest {};
 TEST_P(mvn_activation, basic) {
     auto p = GetParam();
@@ -135,6 +143,12 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, mvn_activation, ::testing::ValuesIn(std::v
     mvn_test_params{ CASE_MVN_U8_4, 2, 3, 3 },
     mvn_test_params{ CASE_MVN_3D_U8_1, 2, 3, 3 },
     mvn_test_params{ CASE_MVN_3D_U8_2, 2, 3, 3 },
+    mvn_test_params{ CASE_MVN_F16_FSV16_1, 2, 3, 3 },
+    mvn_test_params{ CASE_MVN_F16_FSV16_2, 2, 3, 3 },
+    mvn_test_params{ CASE_MVN_F16_FSV32_1, 2, 3, 3 },
+    mvn_test_params{ CASE_MVN_F16_FSV32_2, 2, 3, 3 },
+    mvn_test_params{ CASE_MVN_3D_F16_FSV16_1, 2, 3, 3 },
+    mvn_test_params{ CASE_MVN_3D_F16_FSV32_1, 2, 3, 3 },
 }));
 
 class mvn_scale_quantize_i8 : public MVNFusingTest {};
@@ -299,4 +313,6 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, mvn_eltwise_f16, ::testing::ValuesIn(std::
     mvn_test_params{ CASE_MVN_I8_8, 3, 3, 3 },
     mvn_test_params{ CASE_MVN_U8_2, 2, 2, 3 },
     mvn_test_params{ CASE_MVN_F16_1, 2, 2, 3},
+    mvn_test_params{ CASE_MVN_F16_FSV16_1, 2, 2, 3},
+    mvn_test_params{ CASE_MVN_F16_FSV32_1, 2, 2, 3},
 }));
