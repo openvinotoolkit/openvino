@@ -14,6 +14,9 @@
 #include "edge.h"
 #include "graph_context.h"
 #include "node.h"
+#include "nodes/executors/concat.hpp"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/memory_arguments.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 
@@ -41,6 +44,7 @@ public:
     [[nodiscard]] bool isExecutable() const override;
     [[nodiscard]] bool needPrepareParams() const override;
     void prepareParams() override;
+    void createPrimitive() override;
     // TODO: Move to base Node class when more nodes support fuse convert
     bool supportConvertFusion() const {
         return supportFuseConvert;
@@ -70,6 +74,10 @@ private:
     bool doFuseConvert = false;      // whether to perform FP16 to FP32 conversion
     static constexpr size_t MAX_RANK_REF = 6;
     dnnl::primitive prim;
+    bool useExecutor = false;
+    ConcatAttrs m_attrs;
+    MemoryArgs m_memory;
+    ExecutorPtr m_executor = nullptr;
 };
 
 }  // namespace ov::intel_cpu::node

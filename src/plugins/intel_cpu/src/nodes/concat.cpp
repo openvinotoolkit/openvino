@@ -34,6 +34,9 @@
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/executor_factory.hpp"
+#include "nodes/executors/memory_arguments.hpp"
 #include "nodes/node_config.h"
 #include "onednn/dnnl.h"
 #include "openvino/core/except.hpp"
@@ -92,6 +95,7 @@ Concat::Concat(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
     }
     CPU_NODE_ASSERT(axis < static_cast<int64_t>(inRank) && axis >= 0, "has invalid value of axis parameter: ", axis);
     this->axis = axis;
+    m_attrs.axis = axis;
 }
 
 void Concat::getSupportedDescriptors() {
@@ -242,12 +246,40 @@ void Concat::initSupportedPrimitiveDescriptors() {
     // Optimized inplace case
     for (auto refPdIndex : pdIndexesToReuse) {
         auto config = supportedPrimitiveDescriptors[refPdIndex].getConfig();
-        ;
         for (auto& inConf : config.inConfs) {
             inConf.inPlace(0);
         }
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
     }
+
+    auto pushExecutorDesc = [&](LayoutType layoutType) {
+        NodeConfig nodeConfig;
+        nodeConfig.outConfs.resize(1);
+        nodeConfig.inConfs.resize(getParentEdges().size());
+
+        MemoryDescArgs descs;
+        descs.reserve(getParentEdges().size() + 1);
+        for (size_t i = 0; i < getParentEdges().size(); ++i) {
+            auto srcDesc = creatorsMap.at(layoutType)->createSharedDesc(inputPrecision, getInputShapeAtPort(i));
+            nodeConfig.inConfs[i].setMemDesc(srcDesc);
+            nodeConfig.inConfs[i].inPlace(-1);
+            nodeConfig.inConfs[i].constant(false);
+            descs[ARG_SRC + i] = srcDesc;
+        }
+
+        auto dstDesc = creatorsMap.at(layoutType)->createSharedDesc(outputPrecision, getOutputShapeAtPort(0));
+        nodeConfig.outConfs[0].setMemDesc(dstDesc);
+        nodeConfig.outConfs[0].inPlace(-1);
+        nodeConfig.outConfs[0].constant(false);
+        descs[ARG_DST] = dstDesc;
+
+        if (ExecutorFactory<ConcatAttrs>::hasSuitableImplementation(m_attrs, descs, memoryFormatFilter)) {
+            supportedPrimitiveDescriptors.emplace_back(nodeConfig, impl_desc_type::undef);
+        }
+    };
+
+    pushExecutorDesc(LayoutType::ncsp);
+    pushExecutorDesc(LayoutType::nspc);
 }
 
 void Concat::selectOptimalPrimitiveDescriptor() {
@@ -354,9 +386,22 @@ void Concat::selectOptimalPrimitiveDescriptor() {
         return;
     }
 
-    // if there are more than one PD with similar data layouts - select the optimized one
+    for (auto indx : canSelectPrimitive) {
+        if (supportedPrimitiveDescriptors[indx].getImplementationType() == impl_desc_type::undef) {
+            selectPrimitiveDescriptorByIndex(static_cast<int>(indx));
+            return;
+        }
+    }
+
     for (auto indx : canSelectPrimitive) {
         if (supportedPrimitiveDescriptors[indx].getImplementationType() == impl_desc_type::unknown) {
+            selectPrimitiveDescriptorByIndex(static_cast<int>(indx));
+            return;
+        }
+    }
+
+    for (auto indx : canSelectPrimitive) {
+        if (supportedPrimitiveDescriptors[indx].getImplementationType() == impl_desc_type::ref) {
             selectPrimitiveDescriptorByIndex(static_cast<int>(indx));
             return;
         }
@@ -389,10 +434,29 @@ void Concat::prepareParams() {
         return;
     }
 
+    auto* selectedPd = getSelectedPrimitiveDescriptor();
+    CPU_NODE_ASSERT(selectedPd, "Preferable primitive descriptor is not set.");
+
+    if (useExecutor && m_executor) {
+        for (size_t i = 0; i < getParentEdges().size(); ++i) {
+            m_memory[ARG_SRC + i] = getSrcMemoryAtPort(i);
+        }
+        m_memory[ARG_DST] = getDstMemoryAtPort(0);
+
+        if (m_executor->update(m_memory)) {
+            selectedPd->setImplementationType(m_executor->implType());
+            return;
+        }
+
+        // Fallback to oneDNN/ref concat when executor update is not applicable for runtime shapes.
+        useExecutor = false;
+        m_executor.reset();
+        selectedPd->setImplementationType(impl_desc_type::ref);
+    }
+
     const auto& dstMemPtr = getDstMemoryAtPort(0);
     CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "Destination memory is undefined.");
     auto dstMemDesc = dstMemPtr->getDescWithType<BlockedMemoryDesc>();
-    CPU_NODE_ASSERT(getSelectedPrimitiveDescriptor(), "Preferable primitive descriptor is not set.");
 
     const auto& outputStrides = dstMemDesc->getStrides();
     size_t curConcatOffset = 0;
@@ -502,6 +566,46 @@ size_t Concat::inverseOrder(const VectorDims& order, size_t axis) {
     return -1;
 }
 
+void Concat::createPrimitive() {
+    auto* selectedPd = getSelectedPrimitiveDescriptor();
+    CPU_NODE_ASSERT(selectedPd, "Preferable primitive descriptor is not set.");
+
+    if (!isInPlace()) {
+        m_memory.clear();
+        m_memory.reserve(getParentEdges().size() + 1);
+        for (size_t i = 0; i < getParentEdges().size(); ++i) {
+            m_memory[ARG_SRC + i] = getSrcMemoryAtPort(i);
+        }
+        m_memory[ARG_DST] = getDstMemoryAtPort(0);
+
+        useExecutor = selectedPd->getImplementationType() == impl_desc_type::undef && !canOptimizeNspc;
+        m_executor.reset();
+
+        if (useExecutor) {
+            MemoryDescArgs descs;
+            descs.reserve(m_memory.size());
+            for (const auto& [arg, mem] : m_memory) {
+                descs[arg] = mem->getDescPtr();
+            }
+
+            try {
+                auto executionContext = std::make_shared<ExecutorContext>(context, getImplPriority());
+                auto factory = std::make_shared<ExecutorFactory<ConcatAttrs>>(m_attrs,
+                                                                              executionContext,
+                                                                              descs,
+                                                                              memoryFormatFilter);
+                m_executor = factory->make(m_memory);
+                selectedPd->setImplementationType(m_executor->implType());
+            } catch (...) {
+                useExecutor = false;
+                m_executor.reset();
+            }
+        }
+    }
+
+    Node::createPrimitive();
+}
+
 void Concat::initOptimalPrimitiveDescriptor() {
     auto* selected_pd = getSelectedPrimitiveDescriptor();
     CPU_NODE_ASSERT(selected_pd, "Preferable primitive descriptor is not set.");
@@ -524,6 +628,8 @@ void Concat::initOptimalPrimitiveDescriptor() {
             initDescriptor(config);
         }
     }
+
+    useExecutor = selected_pd->getImplementationType() == impl_desc_type::undef;
 
     // block layout may have axis greater than rank, disable ref_concat
     auto* primDesc = getSelectedPrimitiveDescriptor();
@@ -555,6 +661,11 @@ void Concat::initOptimalPrimitiveDescriptor() {
 
 void Concat::execute(const dnnl::stream& strm) {
     if (isInPlace()) {
+        return;
+    }
+
+    if (useExecutor && m_executor) {
+        m_executor->execute(m_memory);
         return;
     }
 
