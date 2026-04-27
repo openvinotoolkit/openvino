@@ -173,10 +173,12 @@ class TorchFXPythonDecoder (BaseFXDecoder):
 
     def __init__(self, pt_module, fx_gm=None, nodes=None,
                  mark_node_callback=None, input_shapes=None,
-                 input_types=None, dynamic_shapes=False):
+                 input_types=None, dynamic_shapes=False,
+                 op_type_mapping=None):
         super().__init__(mark_node_callback)
         self.pt_module = pt_module
         self.fx_gm = fx_gm if fx_gm is not None else pt_module
+        self._module_extension_target_ops = op_type_mapping or {}
         self.input_types = input_types or []
         self.input_types = [OVAny(pt_to_ov_type_map[str(t)])
                             for t in self.input_types]
@@ -264,14 +266,24 @@ class TorchFXPythonDecoder (BaseFXDecoder):
 
     @classmethod
     def from_exported_program(
-        cls, exported_program: torch.export.ExportedProgram, dynamic_shapes=True
+        cls, exported_program: torch.export.ExportedProgram, dynamic_shapes=True,
+        op_type_mapping=None,
     ) -> "TorchFXPythonDecoder":
-        """Create a TorchFXPythonDecoder instance from an exported PyTorch program."""
+        """Create a TorchFXPythonDecoder instance from an exported PyTorch program.
+
+        :param op_type_mapping: Optional mapping from registered
+            ``namespace::op_name`` strings (e.g. ``"ov_ext::MySinOp"``) to the
+            user-provided ``target_op`` labels from ``ModuleExtension``
+            (e.g. ``"MySinOp"``).  Built by ``patch_model_for_export()`` and
+            used by ``get_op_type()`` to translate the FX graph node name back
+            to the ``target_op`` that the C++ frontend expects for
+            ``ConversionExtension`` lookup.
+        """
         from packaging import version
         if version.parse(torch.__version__) >= version.parse("2.6"):
             if cls._decomp_table is None:
                 from torch.export.decomp_utils import CustomDecompTable
-                from openvino.frontend.pytorch.torchdynamo.decompositions import ops_to_not_decompose
+                from openvino.frontend.pytorch.torchdynamo.export_decompositions import ops_to_not_decompose
                 cls._decomp_table = CustomDecompTable()
                 for op in ops_to_not_decompose():
                     try:
@@ -281,32 +293,57 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             exported_program = exported_program.run_decompositions(cls._decomp_table)
         elif version.parse(torch.__version__) >= version.parse("2.2"):
             from torch._decomp import get_decompositions
-            from openvino.frontend.pytorch.torchdynamo.decompositions import get_export_decomposition_list
+            from openvino.frontend.pytorch.torchdynamo.export_decompositions import get_export_decomposition_list
             decomp = get_decompositions(get_export_decomposition_list())
             exported_program = exported_program.run_decompositions(decomp_table=decomp)
         gm = exported_program.module()
         logger.debug(gm.code)
-        return cls(gm, dynamic_shapes=dynamic_shapes)
+        return cls(gm, dynamic_shapes=dynamic_shapes,
+                   op_type_mapping=op_type_mapping)
 
     @classmethod
     def from_model(
         cls, model: torch.nn.Module, example_inputs,
         dynamic_shapes=None,
+        module_extensions=None,
     ) -> "TorchFXPythonDecoder":
-        """Export a model and create a decoder, auto-patching quantized models.
+        """Export a model and create a decoder, applying module extensions and auto-patching.
 
         This is the ``torch.export`` counterpart of TorchScriptPythonDecoder's
-        auto-patching of quantized models.  The method patches the model before
-        ``torch.export.export`` so that custom ``ov_ext`` ops are captured in
-        the FX graph, then unpatches afterwards.
+        module extension support.  User-provided ``ModuleExtension`` objects and
+        automatic quantized-model patches are applied before
+        ``torch.export.export`` so that custom ops are captured in the FX graph,
+        then unpatched afterwards.
 
         :param model: The ``torch.nn.Module`` to export and decode.
         :param example_inputs: Example inputs for ``torch.export.export``.
         :param dynamic_shapes: Dynamic shapes specification built by
             ``_build_dynamic_shapes`` for ``torch.export.export``, or ``None``
             for a fully static graph.
+        :param module_extensions: A dict mapping module class/instance/name to
+            ``ModuleExtension`` objects, as returned by
+            ``extract_module_extensions``.  ``None`` means no user extensions.
         """
         from openvino.frontend.pytorch import quantized
+        from openvino.frontend.pytorch.patch_model import (
+            patch_model_for_export, unpatch_model, _clear_export_cache)
+
+        orig_forward_name = "_openvino_module_extension_patch_orig_forward"
+
+        op_type_mapping = {}
+        ext_patched = False
+        if module_extensions:
+            try:
+                op_type_mapping = patch_model_for_export(
+                    model, module_extensions, orig_forward_name)
+                ext_patched = True
+            except Exception:
+                # Clean up any partial patches before re-raising.
+                try:
+                    unpatch_model(model, orig_forward_name)
+                except Exception:
+                    pass
+                raise
 
         quant_patched = False
         if quantized.detect_quantized_model(model) is not None:
@@ -329,9 +366,15 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         finally:
             if quant_patched:
                 quantized.unpatch_quantized_for_export(model)
+            if ext_patched:
+                unpatch_model(model, orig_forward_name)
 
-        return cls.from_exported_program(
-            exported_program, dynamic_shapes=dynamic_shapes is not None)
+        try:
+            return cls.from_exported_program(
+                exported_program, dynamic_shapes=dynamic_shapes is not None,
+                op_type_mapping=op_type_mapping)
+        finally:
+            _clear_export_cache()
 
     @staticmethod
     def _export(model, inputs, dynamic_shapes=None):
@@ -516,7 +559,9 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                 if is_subgraph:
                     continue
             decoder = TorchFXPythonDecoder(
-                node, self.fx_gm, self._nodes, mark_node_callback=self.mark_node_callback)
+                node, self.fx_gm, self._nodes,
+                mark_node_callback=self.mark_node_callback,
+                op_type_mapping=self._module_extension_target_ops)
             self.m_decoders.append(decoder)
             node_visitor(decoder)
 
@@ -541,7 +586,8 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         decoder = TorchFXPythonDecoder(
             subgraph,
             subgraph,  # Use subgraph as fx_gm for proper constant resolution
-            mark_node_callback=self.mark_node_callback
+            mark_node_callback=self.mark_node_callback,
+            op_type_mapping=self._module_extension_target_ops
         )
         self.m_decoders.append(decoder)
         return decoder
@@ -549,8 +595,13 @@ class TorchFXPythonDecoder (BaseFXDecoder):
     def get_op_type(self):
         if self.pt_module.op == "call_function":
             if type(self.pt_module.target).__name__ == "EdgeOpOverload":
-                return self.pt_module.target.__name__
-            return str(self.pt_module.target)
+                name = self.pt_module.target.__name__
+            else:
+                name = str(self.pt_module.target)
+            if self._module_extension_target_ops:
+                if name in self._module_extension_target_ops:
+                    return self._module_extension_target_ops[name]
+            return name
         elif self.pt_module.op == "get_attr":
             return "get_attr"  # FIXME should be aligned with get_attr from TS implementation
         else:
