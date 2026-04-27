@@ -12,8 +12,7 @@ namespace ov {
 namespace test {
 
 using MatMulTransposeToReshapeParams = std::tuple<ov::element::Type,  // Network precision
-                                                  std::string,        // Target device
-                                                  ov::AnyMap>;        // Configuration
+                                                  std::string>;        // Target device
 
 class MatMulTransposeToReshape : public testing::WithParamInterface<MatMulTransposeToReshapeParams>,
                                  virtual public ov::test::SubgraphBaseStaticTest {
