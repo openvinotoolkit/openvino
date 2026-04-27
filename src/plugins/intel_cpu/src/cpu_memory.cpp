@@ -255,6 +255,7 @@ bool MemoryBlockWithReuse::resize(size_t size) {
     if (size > m_memUpperBound) {
         void* ptr = dnnl::impl::malloc(size, cacheLineSize);
         OPENVINO_ASSERT(ptr, "Failed to allocate ", size, " bytes of memory");
+        std::memset(ptr, 0, size);
         m_memUpperBound = size;
         m_useExternalStorage = false;
         m_data = decltype(m_data)(ptr, destroy);
