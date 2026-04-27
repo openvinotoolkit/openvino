@@ -134,6 +134,45 @@ protected:
         return args;
     }
 
+    // Verify that each compiled kernel's shape-agnostic status matches what this impl expects.
+    // Nodes with identical kernel_impl_params legitimately share compiled kernels (kernel reuse),
+    // so entry point names may differ by their unique counter. However, a mismatch in the __sa
+    // (shape-agnostic) suffix indicates a static impl received a dynamic kernel or vice versa.
+    void validate_compiled_kernels(const std::vector<kernel::ptr>& compiled_kernels,
+                                   const kernel_impl_params& params) const {
+        OPENVINO_ASSERT(compiled_kernels.size() == _kernel_data.kernels.size(),
+                        "[GPU] Compiled kernels count mismatch for node '", params.desc->id, "': "
+                        "expected ", _kernel_data.kernels.size(), " but got ", compiled_kernels.size());
+
+        constexpr size_t SA_LEN = 4;
+
+        for (size_t i = 0; i < compiled_kernels.size(); ++i) {
+            OPENVINO_ASSERT(compiled_kernels[i] != nullptr,
+                            "[GPU] Null compiled kernel handle for node '", params.desc->id,
+                            "' kernel[", i, "]. "
+                            "This indicates an incomplete or inconsistent kernel_part_idx mapping.");
+
+            const auto& expected = _kernel_data.kernels[i].code.kernelString->entry_point;
+            const auto& actual = compiled_kernels[i]->get_id();
+
+            const bool expected_sa =
+                expected.size() >= SA_LEN &&
+                expected.compare(expected.size() - SA_LEN, SA_LEN, "__sa") == 0;
+            const bool actual_sa =
+                actual.size() >= SA_LEN &&
+                actual.compare(actual.size() - SA_LEN, SA_LEN, "__sa") == 0;
+
+            OPENVINO_ASSERT(expected_sa == actual_sa,
+                            "[GPU] Kernel shape-agnostic mismatch for node '", params.desc->id,
+                            "' kernel[", i, "]: "
+                            "expected '", expected, "' (sa=", expected_sa, ") but got '",
+                            actual, "' (sa=", actual_sa, "). "
+                            "This indicates that the impl metadata and compiled kernel handle are inconsistent "
+                            "(e.g. incorrect impl reselection in propagate_constants). "
+                            "Verify implementation selection logic for this node.");
+        }
+    }
+
     void init_kernels(const kernels_cache& kernels_cache, const kernel_impl_params& params) override {
         if (is_cpu()) {
             return;
@@ -141,6 +180,7 @@ protected:
         _kernels.clear();
         if (!_kernel_data.kernels.empty()) {
             auto compiled_kernels = kernels_cache.get_kernels(params);
+            validate_compiled_kernels(compiled_kernels, params);
             _kernels.insert(_kernels.begin(), compiled_kernels.begin(), compiled_kernels.end());
             kernel_dump_info.set_batch_hash(std::to_string(kernels_cache.get_kernel_batch_hash(params)));
         }
