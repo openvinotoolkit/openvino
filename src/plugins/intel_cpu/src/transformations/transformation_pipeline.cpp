@@ -796,7 +796,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                 //    snippets pipeline as well, where MVN is decomposed to simple ops, these simple ops will not
                 //    tokenized into subgraph again.
                 // CVS-134277 to fully enable GN as snippets to disable this GroupNormalizationDecomposition entirly.
-                if (node->is_dynamic() || none_of(config.inferencePrecision, element::f32, element::dynamic) ||
+                if (none_of(config.inferencePrecision, element::f32, element::dynamic) ||
                     config.snippetsMode == Config::SnippetsMode::Disable)
                     return false;
                 if (config.snippetsMode != Config::SnippetsMode::IgnoreCallback) {
@@ -1542,7 +1542,7 @@ void Transformations::MainSnippets() {
         snippetsManager,
         [&](const std::shared_ptr<const ov::Node>& n) -> bool {
             if (!ignoreCallback) {
-                if (n->is_dynamic() || !is_supported_op(n))
+                if (!is_supported_op(n))
                     return true;
             }
 
