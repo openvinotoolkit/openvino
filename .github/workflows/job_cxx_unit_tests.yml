@@ -184,6 +184,17 @@ jobs:
           ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_transformations_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-Transformations.xml
 
+      - name: GRUFusionTest stress repeat (debug)
+        # tmp debug: repeats the flaky GRUFusionTest.GRUCellPattern/7 many times in a single
+        # process to maximise the chance of catching the random shape-mismatch failure with
+        # the OV_TMP_DEBUG dumps captured.  always() so this runs even if the regular
+        # Transformations func tests step above failed (it does on Debian ARM due to
+        # unrelated SDPA test issues hidden by the previous ARM64 gate).
+        if: ${{ always() && fromJSON(inputs.affected-components).transformations.test }}
+        run: |
+          ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
+          ${{ env.INSTALL_TEST_DIR }}/ov_transformations_tests --gtest_filter='GRUFusionTest/GRUFusionTest.GRUCellPattern/7' --gtest_repeat=500 --gtest_break_on_failure=0 --gtest_print_time=1
+
       - name: Common test utils tests
         if: ${{ runner.os != 'macOS' }} # Ticket: 134469
         run: |
