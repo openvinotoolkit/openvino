@@ -49,7 +49,9 @@ protected:
 
     // Model A attention mask input (auto-filled from input_ids)
     ov::Output<const ov::Node> m_a_text_mask;
-    // Original input_ids port (used to compute text_mask at runtime)
+    // Model A input_lengths input (auto-filled from input_ids)
+    ov::Output<const ov::Node> m_a_input_lengths;
+    // Original input_ids port (used to compute text_mask and input_lengths at runtime)
     ov::Output<const ov::Node> m_orig_input_ids;
     // Real (unpadded) sequence length — set by fill_text_mask(), used to
     // truncate pred_dur so Model B only processes valid tokens.
