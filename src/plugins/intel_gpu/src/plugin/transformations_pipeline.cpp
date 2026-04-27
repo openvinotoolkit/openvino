@@ -556,6 +556,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::KeepConstantsPrecisionAndAddConverts>();
         pass_config->set_callback<ov::pass::KeepConstantsPrecisionAndAddConverts>(
             [](const_node_ptr& node) -> bool {
+                // Don't preserve bf16 constants — bf16 compute is not natively supported
+                // on most GPU devices. Let ConvertPrecision convert bf16 to f16/f32.
+                if (node->get_output_element_type(0) == ov::element::bf16)
+                    return true;
                 auto next_node = node->get_output_target_inputs(0).begin()->get_node();
                 if (is_type<ov::op::v0::Convert>(next_node)) {
                     next_node = next_node->get_output_target_inputs(0).begin()->get_node();
@@ -1612,6 +1616,18 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
         manager.register_pass<ov::pass::Validate>();
         manager.run_passes(func);
+    }
+
+    // Final bf16 cleanup: convert any remaining bf16 tensors to f16.
+    // Some bf16 may survive earlier ConvertPrecision passes due to
+    // KeepConstantsPrecision/KeepDequantization interactions.
+    // bf16 is not natively supported by GPU kernels — f16 is used instead.
+    if (!fp_precision_supported(ov::element::bf16)) {
+        ov::pass::Manager bf16_cleanup("Plugin:GPU:BF16_Cleanup");
+        precisions_map bf16_map = {{ov::element::bf16, ov::element::f16}};
+        type_to_fuse_map empty_fuse = {};
+        bf16_cleanup.register_pass<ov::pass::ConvertPrecision>(bf16_map, empty_fuse, false, true);
+        bf16_cleanup.run_passes(func);
     }
 }
 }  // namespace ov::intel_gpu
