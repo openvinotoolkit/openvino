@@ -191,9 +191,17 @@ protected:
      */
     void check_tensors() const override;
 
+    void run_first_stage(const Pipeline::iterator itBeginStage,
+                         const Pipeline::iterator itEndStage,
+                         const std::shared_ptr<ov::threading::ITaskExecutor> callbackExecutor = {});
+
     Pipeline m_pipeline;       //!< Pipeline variable that should be filled by inherited class.
     Pipeline m_sync_pipeline;  //!< Synchronous pipeline variable that should be filled by inherited class.
     uint64_t m_infer_id;       //!< Id of inference request execution. Should be increased on each inference start.
+
+    std::shared_ptr<ov::threading::ITaskExecutor> m_request_executor;  //!< Used to run inference CPU tasks.
+    std::shared_ptr<ov::threading::ITaskExecutor>
+        m_callback_executor;  //!< Used to run post inference callback in asynchronous pipline
 
 private:
     enum InferState { IDLE, BUSY, CANCELLED, STOP };
@@ -216,10 +224,6 @@ private:
         IAsyncInferRequest* _this = nullptr;
         std::function<void(std::exception_ptr)> m_callback;
     };
-
-    void run_first_stage(const Pipeline::iterator itBeginStage,
-                         const Pipeline::iterator itEndStage,
-                         const std::shared_ptr<ov::threading::ITaskExecutor> callbackExecutor = {});
 
     ov::threading::Task make_next_stage_task(const Pipeline::iterator itStage,
                                              const Pipeline::iterator itEndStage,
@@ -271,9 +275,6 @@ private:
 
     std::shared_ptr<IInferRequest> m_sync_request;
 
-    std::shared_ptr<ov::threading::ITaskExecutor> m_request_executor;  //!< Used to run inference CPU tasks.
-    std::shared_ptr<ov::threading::ITaskExecutor>
-        m_callback_executor;  //!< Used to run post inference callback in asynchronous pipline
     std::shared_ptr<ov::threading::ITaskExecutor>
         m_sync_callback_executor;  //!< Used to run post inference callback in synchronous pipline
     mutable std::mutex m_mutex;

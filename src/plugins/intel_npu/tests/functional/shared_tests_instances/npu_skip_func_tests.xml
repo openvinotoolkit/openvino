@@ -186,7 +186,6 @@ Example:
     <skip_config>
         <message>TensorIterator layer is not supported</message>
         <filters>
-            <filter>.*ReturnResultNotReadyFromWaitInAsyncModeForTooSmallTimeout.*</filter>
             <filter>.*OVInferRequestDynamicTests.*</filter>
             <filter>.*OVInferenceChaining.*</filter>
         </filters>
@@ -549,7 +548,6 @@ Example:
         </enable_rules>
         <filters>
             <filter>.*OVCheckMetricsPropsTests_ModelDependceProps.*</filter>
-            <filter>.*OVClassCompileModelAndCheckSecondaryPropertiesTest.*</filter>
         </filters>
     </skip_config>
 

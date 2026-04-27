@@ -54,12 +54,10 @@ std::vector<std::pair<std::string, ov::Any>> plugin_internal_mutable_properties 
 std::vector<std::pair<std::string, ov::Any>> plugin_public_immutable_properties = {
     {ov::device::uuid.name(), ov::Any("deadbeef")},
     {ov::supported_properties.name(), {ov::device::full_name.name()}},
-    {ov::num_streams.name(), ov::Any(ov::streams::Num(4))},
     {ov::available_devices.name(), ov::Any(std::vector<std::string>{"deadbeef"})},
     {ov::device::capabilities.name(), ov::Any(std::vector<std::string>{"deadbeef"})},
     {ov::range_for_async_infer_requests.name(),
      ov::Any(std::tuple<unsigned int, unsigned int, unsigned int>{0, 10, 1})},
-    {ov::range_for_streams.name(), ov::Any(std::tuple<unsigned int, unsigned int>{0, 10})},
     {ov::optimal_number_of_infer_requests.name(), ov::Any(4)},
     {ov::intel_npu::device_alloc_mem_size.name(), ov::Any(2)},
     {ov::intel_npu::device_total_mem_size.name(), ov::Any(2)},

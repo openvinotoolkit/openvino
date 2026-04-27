@@ -17,7 +17,6 @@ Metrics::Metrics(const ov::SoPtr<IEngineBackend>& backend) : _backend(backend) {
                          ov::device::full_name.name(),
                          ov::device::capabilities.name(),
                          ov::range_for_async_infer_requests.name(),
-                         ov::range_for_streams.name(),
                          ov::device::capability::EXPORT_IMPORT,
                          ov::device::architecture.name(),
                          ov::internal::caching_properties.name(),
@@ -34,7 +33,6 @@ Metrics::Metrics(const ov::SoPtr<IEngineBackend>& backend) : _backend(backend) {
                             ov::enable_profiling.name(),
                             ov::device::id.name(),
                             ov::hint::performance_mode.name(),
-                            ov::num_streams.name(),
                             ov::hint::num_requests.name(),
                             ov::intel_npu::compilation_mode_params.name(),
                             ov::intel_npu::dynamic_shape_to_static.name()};
@@ -68,10 +66,6 @@ const std::vector<std::string> Metrics::GetOptimizationCapabilities() const {
 
 const std::tuple<uint32_t, uint32_t, uint32_t>& Metrics::GetRangeForAsyncInferRequest() const {
     return _rangeForAsyncInferRequests;
-}
-
-const std::tuple<uint32_t, uint32_t>& Metrics::GetRangeForStreams() const {
-    return _rangeForStreams;
 }
 
 std::string Metrics::GetDeviceArchitecture(const std::string& specifiedDeviceName) const {
