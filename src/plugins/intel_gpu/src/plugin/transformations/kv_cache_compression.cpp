@@ -233,9 +233,10 @@ KVCacheCompressionMatcher::KVCacheCompressionMatcher(ov::element::Type compressi
         config.output_storage_type = output_storage_type;
 
         if (config.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric) {
-            // For INT4 KV cache, zero-point must be stored as fp16 to preserve the fractional part.
-            // Rounding ZP to integer causes a per-token bias of (zp_frac * scale) per head dimension,
-            // which can be catastrophically large for tokens with wide value ranges.
+            // For INT4 KV cache, zero-point must be stored as fp16 (not integer).
+            // u4 has only 16 quantization levels, so rounding ZP to integer
+            // introduces a large systematic bias: error = (zp - round(zp)) * scale
+            // applied uniformly to every element in the group.
             bool is_int4 = ov::element::Type(compression_dt).bitwidth() == 4;
             config.zp_dt = (supports_immad && !is_int4) ? element::i8 : query_node->get_output_element_type(0);
         }

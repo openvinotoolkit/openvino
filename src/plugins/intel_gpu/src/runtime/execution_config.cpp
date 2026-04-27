@@ -3,6 +3,7 @@
 //
 
 #include <algorithm>
+#include <cstdlib>
 
 #include "intel_gpu/op/indirect_sdpa.hpp"
 #include "intel_gpu/op/kv_cache.hpp"
@@ -239,14 +240,21 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
         }
     };
 
+    // Note: debug options (env vars) are not yet applied at this stage
+    // So we read the env var directly here for early model-inspection logic.
+    bool auto_enable_4bit_kv = false;
+#ifdef ENABLE_DEBUG_CAPS
+    if (auto env = std::getenv("OV_GPU_AUTO_ENABLE_KV_CACHE_4BIT"))
+        auto_enable_4bit_kv = std::string(env) == "1";
+#endif
+
     bool has_4bit_weights = false;
     for (const auto& op : ops) {
         process_op(op);
 
         // Detect 4-bit compressed weights by tracing MatMul weight input
         // through the decompression subgraph (Convert→Subtract→Multiply→Reshape→Convert→Constant)
-        // WA: blocked default-enable 4bit KV-cache until full-range validation
-        if (false && !has_4bit_weights && ov::is_type<ov::op::v0::MatMul>(op)) {
+        if (auto_enable_4bit_kv && !has_4bit_weights && ov::is_type<ov::op::v0::MatMul>(op)) {
             auto weight = op->get_input_node_shared_ptr(1);
             // Follow input 0 through the decompression chain to reach the leaf Constant
             for (int depth = 0; depth < 8 && weight->get_input_size() > 0; ++depth) {
@@ -275,7 +283,7 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
             m_key_cache_quant_mode != ov::internal::CacheQuantMode::BY_TOKEN) {
             // Enable 4-bit KV-cache compression for PA models with 4-bit compressed weights
             m_kv_cache_precision = ov::element::u4;
-            GPU_DEBUG_COUT << "[Info] 4-bit weights detected. Setting KV-cache precision to u4." << std::endl;
+            GPU_DEBUG_INFO << "[Info] 4-bit weights detected. Setting KV-cache precision to u4." << std::endl;
         } else if (is_paged_attention_model || !info.supports_immad || is_auxiliary_kv_update_model(model) ) {
             // Enable KV-cache compression by default for:
             // 1) Non-systolic platforms in case of SDPA-based models
@@ -293,7 +301,7 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
     if (!is_set_by_user(ov::internal::value_cache_quant_mode) || get_value_cache_quant_mode() == ov::internal::CacheQuantMode::AUTO) {
         m_value_cache_quant_mode = ov::internal::CacheQuantMode::BY_TOKEN;
     } else if (get_value_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL) {
-        GPU_DEBUG_COUT << "[Warning] Value cache quantization mode BY_CHANNEL is not supported for GPU plugin. "
+        GPU_DEBUG_INFO << "[Warning] Value cache quantization mode BY_CHANNEL is not supported for GPU plugin. "
             << "Switching to BY_TOKEN mode." << std::endl;
         m_value_cache_quant_mode = ov::internal::CacheQuantMode::BY_TOKEN;
     }

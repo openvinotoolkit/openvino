@@ -64,11 +64,10 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
         k_head_size = get_head_size(k_layout, extended_input_k_transpose_order);
         v_head_size = get_head_size(v_layout, extended_input_v_transpose_order);
 
-        // For INT4 KV-cache, override k/v head size from query (layout is physically halved)
+        // 4-bit KV-cache: K/V layouts have head_size/2 due to u4→i8 packing.
+        // Override with logical head size from query (which is not packed).
         {
-            const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
-            const bool is_int4 = desc->is_kv_compressed && ov::element::Type(kv_cache_dt).bitwidth() == 4;
-            if (is_int4) {
+            if (desc->is_kv_compressed && SDPABase::is_int4_kv_cache(params)) {
                 auto extended_input_q_transpose_order = extend_order_in_num_heads_dim(desc->input_q_transpose_order);
                 auto q_head_size = get_head_size(params.get_input_layout(0), extended_input_q_transpose_order);
                 k_head_size = q_head_size;
@@ -203,12 +202,10 @@ DispatchDataFunc SDPAOptGeneratorSingleToken::get_dispatch_data_func() const {
             const size_t num_of_partitions = get_partitions_num(params, SDPAStage::SINGLE_TOKEN);
             auto head_size = get_head_size(params.get_input_layout(2), extended_input_v_transpose_order);
 
-            // For INT4 KV-cache, use logical head size from query
-            if (desc->is_kv_compressed) {
-                const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
-                if (ov::element::Type(kv_cache_dt).bitwidth() == 4) {
-                    head_size = get_head_size(params.get_input_layout(0), extended_input_q_transpose_order);
-                }
+            // 4-bit KV-cache: V layout has head_size/2 due to u4→i8 packing.
+            // Use logical head size from query for work-group dispatch.
+            if (desc->is_kv_compressed && SDPABase::is_int4_kv_cache(params)) {
+                head_size = get_head_size(params.get_input_layout(0), extended_input_q_transpose_order);
             }
 
             const size_t sg_num_scale = get_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::SINGLE_TOKEN);
@@ -251,12 +248,10 @@ DispatchDataFunc SDPAOptGeneratorMultiToken::get_dispatch_data_func() const {
             const size_t target_seq_len_block_size = get_target_seq_len_block_size();
             auto head_size = get_head_size(params.get_input_layout(2), extended_input_v_transpose_order);
 
-            // For INT4 KV-cache, use logical head size from query
-            if (desc->is_kv_compressed) {
-                const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
-                if (ov::element::Type(kv_cache_dt).bitwidth() == 4) {
-                    head_size = get_head_size(params.get_input_layout(0), extended_input_q_transpose_order);
-                }
+            // 4-bit KV-cache: V layout has head_size/2 due to u4→i8 packing.
+            // Use logical head size from query for work-group dispatch.
+            if (desc->is_kv_compressed && SDPABase::is_int4_kv_cache(params)) {
+                head_size = get_head_size(params.get_input_layout(0), extended_input_q_transpose_order);
             }
 
             const size_t sg_num_scale = get_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::MULTI_TOKENS);
@@ -303,12 +298,10 @@ DispatchDataFunc SDPAOptGeneratorFinalization::get_dispatch_data_func() const {
             const size_t num_of_partitions = get_partitions_num(params, SDPAStage::FINALIZATION);
             auto head_size = get_head_size(params.get_input_layout(2), extended_input_v_transpose_order);
 
-            // For INT4 compressed KV-cache, use logical head size from query (value layout is halved)
-            if (desc->is_kv_compressed) {
-                const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
-                if (ov::element::Type(kv_cache_dt).bitwidth() == 4) {
-                    head_size = get_head_size(params.get_input_layout(0), extended_input_q_transpose_order);
-                }
+            // 4-bit KV-cache: V layout has head_size/2 due to u4→i8 packing.
+            // Use logical head size from query for finalization dispatch.
+            if (desc->is_kv_compressed && SDPABase::is_int4_kv_cache(params)) {
+                head_size = get_head_size(params.get_input_layout(0), extended_input_q_transpose_order);
             }
 
             GPU_DEBUG_TRACE_DETAIL << "batch_size = " << batch_size << ", target_seq_len = " << target_seq_len << ", heads_num = " << heads_num << "\n";

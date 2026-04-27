@@ -74,6 +74,14 @@ size_t get_beam_table_id(const std::shared_ptr<const scaled_dot_product_attentio
 
 }  // namespace
 
+// 4-bit KV-cache packs two u4 values into one i8 byte, halving the physical
+// innermost dimension (head_size) of K/V layouts.  Any code that reads head_size
+// from K/V layouts must use the logical (un-halved) size from the query layout.
+bool SDPABase::is_int4_kv_cache(const kernel_impl_params& params) {
+    const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
+    return ov::element::Type(kv_cache_dt).bitwidth() == 4;
+}
+
 std::pair<int64_t, int64_t> SDPABase::get_gqa_params(const kernel_impl_params& params) const {
     if (params.is_type<scaled_dot_product_attention>()) {
         auto desc = params.typed_desc<scaled_dot_product_attention>();
@@ -157,10 +165,10 @@ sdpa_configuration SDPABase::get_sdpa_configuration(const kernel_impl_params& im
     if (value_shape[value_shape.size() - 1].is_static())
         config.v_head_size = value_shape[value_shape.size() - 1].get_length();
 
-    // For INT4 KV-cache, use logical head size from query
-    if (desc->is_kv_compressed) {
-        const auto kv_cache_dt = impl_param.get_program().get_config().get_kv_cache_precision();
-        if (ov::element::Type(kv_cache_dt).bitwidth() == 4 && query_shape[query_shape.size() - 1].is_static()) {
+    // 4-bit KV-cache: physical V layout has head_size/2 due to u4 packing.
+    // Use logical head size from query to get the correct un-halved value.
+    if (desc->is_kv_compressed && SDPABase::is_int4_kv_cache(impl_param)) {
+        if (query_shape[query_shape.size() - 1].is_static()) {
             config.v_head_size = query_shape[query_shape.size() - 1].get_length();
         }
     }
@@ -220,11 +228,7 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
             jit.make("HAS_SINK_INPUT", 1);
         }
         jit.make("IS_KV_COMPRESSED", desc->is_kv_compressed);
-        {
-            const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
-            const bool is_int4 = desc->is_kv_compressed && ov::element::Type(kv_cache_dt).bitwidth() == 4;
-            jit.make("IS_INT4_COMPRESSED", is_int4);
-        }
+        jit.make("IS_INT4_COMPRESSED", desc->is_kv_compressed && SDPABase::is_int4_kv_cache(params));
         GPU_DEBUG_TRACE_DETAIL << "desc->is_kv_compressed = " << desc->is_kv_compressed << std::endl;
 
         const auto& in_offsets_map = params.in_port_to_shape_info_offset;
@@ -312,11 +316,10 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
         const auto k_num_head = get_num_heads(params.get_input_layout(1), extended_input_k_transpose_order);
         auto v_head_size = get_head_size(params.get_input_layout(2), extended_input_v_transpose_order);
 
-        // For INT4 KV-cache, override k/v head size from query (layout is physically halved)
+        // 4-bit KV-cache: K/V layouts have head_size/2 due to u4→i8 packing.
+        // Override with logical head size from query (which is not packed).
         {
-            const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
-            const bool is_int4 = desc->is_kv_compressed && ov::element::Type(kv_cache_dt).bitwidth() == 4;
-            if (is_int4) {
+            if (desc->is_kv_compressed && SDPABase::is_int4_kv_cache(params)) {
                 k_head_size = q_head_size;
                 v_head_size = q_head_size;
             }

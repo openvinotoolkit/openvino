@@ -540,13 +540,14 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         for (;k0 < past_lens[gws_mapping];) {
     #endif
             int k_block_num = k0 / PAGED_ATTENTION_BLOCK_SIZE + sg_i_kq;
-            global KEY_DATA_T *K0 = K + KV_HEADS_NUM * ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE * block_indices[base_block_index + k_block_num]
             #if IS_INT4_KV_CACHE
-                                // INT4 BY_CHANNEL Layout::N: micro-kernel adds sg_i_kq * tile_sg_m * sizeof(u4)
-                                // = sg_i_kq * PAGED_ATTENTION_BLOCK_SIZE / 2 bytes
-                                - (uint)(PAGED_ATTENTION_BLOCK_SIZE / 2) * sg_i_kq;
+                // INT4 BY_CHANNEL Layout::N: micro-kernel adds sg_i_kq * tile_sg_m * sizeof(u4)
+                // = sg_i_kq * PAGED_ATTENTION_BLOCK_SIZE / 2 bytes
+                global KEY_DATA_T *K0 = K + KV_HEADS_NUM * ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE * block_indices[base_block_index + k_block_num]
+                                        - (uint)(PAGED_ATTENTION_BLOCK_SIZE / 2) * sg_i_kq;
             #else
-                                - PAGED_ATTENTION_BLOCK_SIZE * sg_i_kq;
+                global KEY_DATA_T *K0 = K + KV_HEADS_NUM * ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE * block_indices[base_block_index + k_block_num]
+                                        - PAGED_ATTENTION_BLOCK_SIZE * sg_i_kq;
             #endif
             #if IS_KV_COMPRESSED_PA
                 #if IS_INT4_KV_CACHE
