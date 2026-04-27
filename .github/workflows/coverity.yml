@@ -153,7 +153,7 @@ jobs:
           cmake \
             -G "${{ env.CMAKE_GENERATOR }}" \
             -DENABLE_STRICT_DEPENDENCIES=OFF \
-            -DCMAKE_VERBOSE_MAKEFILE=ON \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
             -DENABLE_FASTER_BUILD=ON \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
@@ -167,7 +167,7 @@ jobs:
           popd
 
       - name: Cmake build - OpenVINO with Coverity
-        run: ${COVERITY_TOOL_DIR}/cov-analysis*/bin/cov-build --dir ${BUILD_DIR}/cov-int cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}
+        run: ${COVERITY_TOOL_DIR}/cov-analysis*/bin/cov-build --dir ${BUILD_DIR}/cov-int cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
 
       - name: Pack Artefacts
         run: tar -cvf - cov-int | pigz > openvino.tgz

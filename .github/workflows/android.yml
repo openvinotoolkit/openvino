@@ -217,7 +217,7 @@ jobs:
             -B ${TBB_BUILD}
 
       - name: Build OneTBB project
-        run: cmake --build ${TBB_BUILD} --parallel $(nproc)
+        run: cmake --build ${TBB_BUILD} --parallel $(nproc) -- --quiet
 
       - name: Install OneTBB project
         run: cmake --install ${TBB_BUILD}
@@ -255,7 +255,7 @@ jobs:
             -B ${BUILD_DIR}
 
       - name: CMake - build OpenVINO
-        run: cmake --build ${BUILD_DIR} --parallel $(nproc)
+        run: cmake --build ${BUILD_DIR} --parallel $(nproc) -- --quiet
 
       - name: Show ccache stats
         run: ${SCCACHE_PATH} --show-stats
