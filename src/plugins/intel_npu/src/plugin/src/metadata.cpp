@@ -375,7 +375,7 @@ void Metadata<METADATA_VERSION_2_2>::read_human_readable() {
 
     const auto it = _hr_fields.find("batch");
     if (it == _hr_fields.end()) {
-        OPENVINO_THROW("Human-readable metadata missing 'batch' field");
+        return;
     }
     const int64_t batchValue = std::stoll(it->second);
     _batchSize = (batchValue != 0) ? std::optional<int64_t>(batchValue) : std::nullopt;
@@ -447,9 +447,7 @@ void Metadata<METADATA_VERSION_2_1>::write(std::ostream& stream) {
 void Metadata<METADATA_VERSION_2_1>::write_human_readable(std::ostream& stream) {
     Metadata<METADATA_VERSION_2_0>::write_human_readable(stream);
 
-    if (!_initSizes.has_value() || _initSizes->empty()) {
-        write_hr_field(stream, "ws_inits", 0);
-    } else {
+    if (_initSizes.has_value() && !_initSizes->empty()) {
         std::ostringstream oss;
         write_hr_bracketed_list(oss, _initSizes.value());
         write_hr_field(stream, "ws_inits", oss.str());
@@ -466,7 +464,9 @@ void Metadata<METADATA_VERSION_2_2>::write(std::ostream& stream) {
 void Metadata<METADATA_VERSION_2_2>::write_human_readable(std::ostream& stream) {
     Metadata<METADATA_VERSION_2_1>::write_human_readable(stream);
 
-    write_hr_field(stream, "batch", _batchSize.value_or(0));
+    if (_batchSize.has_value() && _batchSize.value() > 0) {
+        write_hr_field(stream, "batch", _batchSize.value());
+    }
 }
 
 void Metadata<METADATA_VERSION_2_3>::write(std::ostream& stream) {

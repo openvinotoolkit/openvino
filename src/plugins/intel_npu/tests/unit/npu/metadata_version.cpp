@@ -428,7 +428,7 @@ TEST_F(MetadataHumanReadableTests, minimalMetadata) {
     std::unique_ptr<MetadataBase> storedMeta;
     OV_ASSERT_NO_THROW(storedMeta = read_human_readable(tensor));
 
-    ASSERT_TRUE(storedMeta->get_init_sizes().has_value());
+    ASSERT_FALSE(storedMeta->get_init_sizes().has_value());
     ASSERT_FALSE(storedMeta->get_batch_size().has_value());
     ASSERT_FALSE(storedMeta->get_input_layouts().has_value());
     ASSERT_FALSE(storedMeta->get_output_layouts().has_value());
@@ -437,7 +437,14 @@ TEST_F(MetadataHumanReadableTests, minimalMetadata) {
 
 TEST_F(MetadataHumanReadableTests, initSizes) {
     const std::vector<uint64_t> initSizes{16, 32, 64};
-    auto meta = MetadataTest(0, CURRENT_OPENVINO_VERSION, initSizes);
+    auto meta = MetadataTest(0,
+                             CURRENT_OPENVINO_VERSION,
+                             initSizes,
+                             std::nullopt,
+                             std::nullopt,
+                             std::nullopt,
+                             std::nullopt,
+                             std::nullopt);
     const auto tensor = makeHRTensor(meta);
 
     std::unique_ptr<MetadataBase> storedMeta;
@@ -457,7 +464,7 @@ TEST_F(MetadataHumanReadableTests, emptyInitSizes) {
     std::unique_ptr<MetadataBase> storedMeta;
     OV_ASSERT_NO_THROW(storedMeta = read_human_readable(tensor));
 
-    ASSERT_TRUE(storedMeta->get_init_sizes().has_value());
+    ASSERT_FALSE(storedMeta->get_init_sizes().has_value());
 }
 
 TEST_F(MetadataHumanReadableTests, batchSize) {
