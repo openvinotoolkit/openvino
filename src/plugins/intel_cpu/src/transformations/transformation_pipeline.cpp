@@ -237,6 +237,7 @@
 #    include "low_precision/reduce_min.hpp"
 #    include "low_precision/reduce_sum.hpp"
 #    include "openvino/opsets/opset1_decl.hpp"
+#    include "transformations/cpu_opset/arm/pass/align_unsupported_lp_conv_fq_precision.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_conv_bias.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_group_conv.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_group_conv1d.hpp"
@@ -964,6 +965,7 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
                              quantizationRestrictions,
                              LayerTransformation::Params(true, ov::element::f32, defaultPrecisions));
 
+    CPU_REGISTER_PASS_ARM(lptManager, AlignUnsupportedLPConvFQPrecision);
     CPU_REGISTER_PASS_ARM(lptManager, ConvertConvolutionBias);
     CPU_REGISTER_PASS_ARM(lptManager, FallbackUnsupportedLPConvToFP16);
     CPU_SET_CALLBACK_ARM(
