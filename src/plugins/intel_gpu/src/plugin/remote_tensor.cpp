@@ -14,19 +14,81 @@
 namespace ov::intel_gpu {
 
 namespace {
+static size_t ceil_div(size_t value, size_t divisor) {
+    OPENVINO_ASSERT(divisor != 0, "[GPU] Division by zero");
+    return (value + divisor - 1) / divisor;
+}
+
+static size_t calculate_packed_bytes(size_t elements_count, const ov::element::Type& element_type) {
+    if (element_type.bitwidth() >= 8) {
+        return elements_count * element_type.size();
+    }
+
+    return ceil_div(elements_count * element_type.bitwidth(), static_cast<size_t>(8));
+}
+
+static size_t calculate_contiguous_chunk_size(const ov::Shape& shape,
+                                              const size_t start_axis,
+                                              const ov::element::Type& element_type) {
+    if (shape.empty()) {
+        return 0;
+    }
+
+    const size_t inner_elements = std::accumulate(shape.begin() + start_axis,
+                                                  shape.end(),
+                                                  static_cast<size_t>(1),
+                                                  std::multiplies<size_t>());
+    return calculate_packed_bytes(inner_elements, element_type);
+}
+
 static ov::Strides calculate_strides(const ov::Shape& shape, const ov::element::Type& element_type) {
     ov::Strides strides{};
-    if (element_type.bitwidth() < 8)
-        return strides;
 
-    if (!shape.empty()) {
-        strides.resize(shape.size());
+    if (shape.empty()) {
+        return strides;
+    }
+
+    strides.resize(shape.size());
+
+    if (element_type.bitwidth() >= 8) {
+        // Original logic for byte-aligned types
         strides.back() = shape.back() == 0 ? 0 : element_type.size();
         std::copy(shape.rbegin(), shape.rend() - 1, strides.rbegin() + 1);
         std::partial_sum(strides.rbegin(), strides.rend(), strides.rbegin(), std::multiplies<size_t>());
+    } else {
+        const auto bitwidth = element_type.bitwidth();
+        OPENVINO_ASSERT(8 % bitwidth == 0, "[GPU] Unsupported sub-byte element type bitwidth: ", bitwidth);
+        const auto elements_per_byte = static_cast<size_t>(8 / bitwidth);
+
+        strides.back() = shape.back() == 0 ? 0 : 1;
+        for (size_t axis = shape.size() - 1; axis > 0; --axis) {
+            const size_t inner_elements = std::accumulate(shape.begin() + axis,
+                                                          shape.end(),
+                                                          static_cast<size_t>(1),
+                                                          std::multiplies<size_t>());
+            strides[axis - 1] = ceil_div(inner_elements, elements_per_byte);
+        }
     }
 
     return strides;
+}
+
+// Helper function to validate int4 copy operations
+static void validate_int4_copy(const ov::Shape& src_shape,
+                               const ov::Shape& dst_shape,
+                               const ov::Shape& roi_shape,
+                               const ov::element::Type& element_type) {
+    const auto bitwidth = element_type.bitwidth();
+    OPENVINO_ASSERT(bitwidth < 8, "[GPU] Invalid sub-byte element type for validation");
+    OPENVINO_ASSERT(8 % bitwidth == 0, "[GPU] Unsupported sub-byte element type bitwidth: ", bitwidth);
+    const auto elements_per_byte = static_cast<size_t>(8 / bitwidth);
+
+    if (!roi_shape.empty()) {
+        OPENVINO_ASSERT(!src_shape.empty() && !dst_shape.empty(),
+                        "[GPU] Invalid ROI shape for sub-byte copy");
+        OPENVINO_ASSERT(roi_shape.back() % elements_per_byte == 0,
+                        "[GPU] Sub-byte unaligned view requires repack: innermost ROI dimension must be byte-addressable");
+    }
 }
 
 struct MemWrapper {
@@ -69,10 +131,11 @@ static void copy_roi_recursively(const MemWrapper& src_mem,
                                  const ov::Shape& roi_shape,
                                  const ov::Strides& src_strides,
                                  const ov::Strides& dst_strides,
-                                 const ov::Strides& roi_strides) {
+                                 const ov::Strides& roi_strides,
+                                 const ov::element::Type& element_type) {
     if (axis == roi_shape.size() - 1) {
         // Copy the innermost dimension
-        const auto size = roi_strides[axis] * roi_shape[axis];
+        const auto size = calculate_contiguous_chunk_size(roi_shape, axis, element_type);
         src_mem.copy_to(dst_mem, src_offset, dst_offset, size);
     } else {
         // Check if the current dimension and all inner dimensions can be copied as a single chunk
@@ -85,13 +148,22 @@ static void copy_roi_recursively(const MemWrapper& src_mem,
         }
 
         if (can_copy_as_chunk) {
-            const auto chunk_size = roi_strides[axis] * roi_shape[axis];
+            const auto chunk_size = calculate_contiguous_chunk_size(roi_shape, axis, element_type);
             src_mem.copy_to(dst_mem, src_offset, dst_offset, chunk_size);
         } else {
             for (size_t i = 0; i < roi_shape[axis]; i++) {
                 const auto src_offset_new = src_offset + i * src_strides[axis];
                 const auto dst_offset_new = dst_offset + i * dst_strides[axis];
-                copy_roi_recursively(src_mem, dst_mem, axis + 1, src_offset_new, dst_offset_new, roi_shape, src_strides, dst_strides, roi_strides);
+                copy_roi_recursively(src_mem,
+                                     dst_mem,
+                                     axis + 1,
+                                     src_offset_new,
+                                     dst_offset_new,
+                                     roi_shape,
+                                     src_strides,
+                                     dst_strides,
+                                     roi_strides,
+                                     element_type);
             }
         }
     }
@@ -104,11 +176,19 @@ static void copy_roi(const MemWrapper& src_mem,
                      const ov::Strides& src_strides,
                      const ov::Strides& dst_strides,
                      const ov::Strides& roi_strides,
-                     const ov::Shape& src_shape,
-                     const ov::Shape& dst_shape,
-                     const ov::Shape& roi_shape) {
+                     const ov::Shape& roi_shape,
+                     const ov::element::Type& element_type) {
     const size_t start_axis = 0;
-    copy_roi_recursively(src_mem, dst_mem, start_axis, src_offset, dst_offset, roi_shape, src_strides, dst_strides, roi_strides);
+    copy_roi_recursively(src_mem,
+                         dst_mem,
+                         start_axis,
+                         src_offset,
+                         dst_offset,
+                         roi_shape,
+                         src_strides,
+                         dst_strides,
+                         roi_strides,
+                         element_type);
 }
 
 static void validate_and_check_shapes(const std::shared_ptr<const ov::ITensor>& src,
@@ -120,7 +200,7 @@ static void validate_and_check_shapes(const std::shared_ptr<const ov::ITensor>& 
                     " != dst: ",
                     dst->get_element_type(),
                     ")");
-    OPENVINO_ASSERT(src->get_element_type().bitwidth() >= 8, "[GPU] Unsupported element type for copying: ", src->get_element_type());
+    //OPENVINO_ASSERT(src->get_element_type().bitwidth() >= 8, "[GPU] Unsupported element type for copying: ", src->get_element_type());
 
     // If it's a simple copy_to/copy_from call, then change dst shape
     if (roi_shape.empty()) {
@@ -188,6 +268,11 @@ void RemoteTensorImpl::copy_to(const std::shared_ptr<ov::ITensor>& dst,
                                const ov::Shape& roi_shape) const {
     validate_and_check_shapes(shared_from_this(), dst, roi_shape);
 
+    // Add int4-specific validation
+    if (m_element_type.bitwidth() < 8) {
+        validate_int4_copy(get_shape(), dst->get_shape(), roi_shape, m_element_type);
+    }
+
     auto& stream = m_context->get_engine().get_service_stream();
     auto dst_remote_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(dst);
     auto shape = roi_shape.empty() ? get_shape() : roi_shape;
@@ -201,7 +286,15 @@ void RemoteTensorImpl::copy_to(const std::shared_ptr<ov::ITensor>& dst,
         auto src_mem = MemWrapper(stream, get_memory(), nullptr);
         auto dst_mem = MemWrapper(stream, dst_remote_tensor->get_memory(), nullptr);
 
-        copy_roi(src_mem, dst_mem, src_offset, dst_offset, get_strides(), dst->get_strides(), roi_strides, get_shape(), dst->get_shape(), shape);
+        copy_roi(src_mem,
+                 dst_mem,
+                 src_offset,
+                 dst_offset,
+                 get_strides(),
+                 dst->get_strides(),
+                 roi_strides,
+                 shape,
+                 m_element_type);
     } else {
         GPU_DEBUG_TRACE_DETAIL << "Copying from RemoteTensor (" << get_memory()->get_allocation_type() << ") to host tensor, src_offset="
                                << src_offset << ", dst_offset=" << dst_offset << ", roi_shape=" << shape << ", src_shape=" << get_shape()
@@ -212,7 +305,15 @@ void RemoteTensorImpl::copy_to(const std::shared_ptr<ov::ITensor>& dst,
         auto src_mem = MemWrapper(stream, get_memory(), nullptr);
         auto dst_mem = MemWrapper(stream, nullptr, dst->data());
 
-        copy_roi(src_mem, dst_mem, src_offset, dst_offset, get_strides(), dst->get_strides(), roi_strides, get_shape(), dst->get_shape(), shape);
+        copy_roi(src_mem,
+                 dst_mem,
+                 src_offset,
+                 dst_offset,
+                 get_strides(),
+                 dst->get_strides(),
+                 roi_strides,
+                 shape,
+                 m_element_type);
     }
 }
 
@@ -221,6 +322,11 @@ void RemoteTensorImpl::copy_from(const std::shared_ptr<const ov::ITensor>& src,
                                  size_t dst_offset,
                                  const ov::Shape& roi_shape) {
     validate_and_check_shapes(src, shared_from_this(), roi_shape);
+
+    if (m_element_type.bitwidth() < 8) {
+        validate_int4_copy(src->get_shape(), get_shape(), roi_shape, m_element_type);
+    }
+
     auto shape = roi_shape.empty() ? get_shape() : roi_shape;
 
     auto& stream = m_context->get_engine().get_service_stream();
@@ -235,7 +341,15 @@ void RemoteTensorImpl::copy_from(const std::shared_ptr<const ov::ITensor>& src,
         auto src_mem = MemWrapper(stream, src_remote_tensor->get_memory(), nullptr);
         auto dst_mem = MemWrapper(stream, get_memory(), nullptr);
 
-        copy_roi(src_mem, dst_mem, src_offset, dst_offset, src->get_strides(), get_strides(), roi_strides, src->get_shape(), get_shape(), shape);
+        copy_roi(src_mem,
+                 dst_mem,
+                 src_offset,
+                 dst_offset,
+                 src->get_strides(),
+                 get_strides(),
+                 roi_strides,
+                 shape,
+                 m_element_type);
     } else {
         GPU_DEBUG_TRACE_DETAIL << "Copying from host tensor to RemoteTensor (" << get_memory()->get_allocation_type() << "), src_offset="
                                << src_offset << ", dst_offset=" << dst_offset << ", roi_shape=" << shape << ", src_shape" << src->get_shape()
@@ -247,7 +361,15 @@ void RemoteTensorImpl::copy_from(const std::shared_ptr<const ov::ITensor>& src,
         auto src_mem = MemWrapper(stream, nullptr, const_cast<void*>(src->data()));
         auto dst_mem = MemWrapper(stream, get_memory(), nullptr);
 
-        copy_roi(src_mem, dst_mem, src_offset, dst_offset, src->get_strides(), get_strides(), roi_strides, src->get_shape(), get_shape(), shape);
+        copy_roi(src_mem,
+                 dst_mem,
+                 src_offset,
+                 dst_offset,
+                 src->get_strides(),
+                 get_strides(),
+                 roi_strides,
+                 shape,
+                 m_element_type);
     }
 }
 
@@ -289,6 +411,13 @@ void RemoteTensorImpl::allocate() {
 
     if (is_surface()) {
         m_layout.format = cldnn::format::nv12;  // Other formats are not supported
+    }
+
+    // For int4, ensure we're using the correct data type in the layout
+    if (m_element_type.bitwidth() < 8) {
+        // Make sure the cldnn layout properly handles the int4 type
+        // You may need to adjust this based on how cldnn handles int4
+        m_layout = cldnn::layout{ov::PartialShape{m_shape}, m_element_type, cldnn::format::get_default_format(m_shape.size())};
     }
 
     if (enable_caching) {

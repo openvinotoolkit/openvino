@@ -19,6 +19,53 @@
 namespace ov {
 
 namespace {
+size_t ceil_div(size_t value, size_t divisor) {
+    OPENVINO_ASSERT(divisor != 0, "Division by zero");
+    return (value + divisor - 1) / divisor;
+}
+
+Strides make_packed_reference_strides(const Shape& shape, const element::Type& element_type) {
+    Strides strides{};
+
+    if (shape.empty()) {
+        return strides;
+    }
+
+    strides.resize(shape.size());
+    if (element_type.bitwidth() >= 8) {
+        strides.back() = shape.back() == 0 ? 0 : element_type.size();
+        std::copy(shape.rbegin(), shape.rend() - 1, strides.rbegin() + 1);
+        std::partial_sum(strides.rbegin(), strides.rend(), strides.rbegin(), std::multiplies<size_t>());
+    } else {
+        OPENVINO_ASSERT(8 % element_type.bitwidth() == 0,
+                        "Unsupported sub-byte element type bitwidth: ",
+                        element_type.bitwidth());
+        const auto elements_per_byte = static_cast<size_t>(8 / element_type.bitwidth());
+        strides.back() = shape.back() == 0 ? 0 : 1;
+        for (size_t axis = shape.size() - 1; axis > 0; --axis) {
+            const size_t inner_elements =
+                std::accumulate(shape.begin() + axis, shape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
+            strides[axis - 1] = ceil_div(inner_elements, elements_per_byte);
+        }
+    }
+
+    return strides;
+}
+
+size_t calculate_contiguous_linear_offset_in_elements(const Shape& shape, const Coordinate& coord) {
+    OPENVINO_ASSERT(shape.size() == coord.size(), "Coordinate rank mismatch");
+
+    size_t linear_offset = 0;
+    size_t axis_stride = 1;
+    for (size_t axis = shape.size(); axis > 0; --axis) {
+        const auto idx = axis - 1;
+        linear_offset += coord[idx] * axis_stride;
+        axis_stride *= shape[idx];
+    }
+
+    return linear_offset;
+}
+
 Shape make_roi_shape(const Shape& tensor_shape, const Coordinate& begin, const Coordinate& end) {
     OPENVINO_ASSERT(tensor_shape.size() == begin.size());
     OPENVINO_ASSERT(begin.size() == end.size());
@@ -39,6 +86,27 @@ Shape make_roi_shape(const Shape& tensor_shape, const Coordinate& begin, const C
 
     return roi_shape;
 }
+
+void validate_int4_roi(const std::shared_ptr<ITensor>& owner, const Coordinate& begin, const Coordinate& end) {
+    if (owner->get_element_type().bitwidth() < 8) {
+        const auto elements_per_byte = static_cast<size_t>(8 / owner->get_element_type().bitwidth());
+        const auto& owner_shape = owner->get_shape();
+        const auto& owner_strides = owner->get_strides();
+        const auto reference_strides = make_packed_reference_strides(owner_shape, owner->get_element_type());
+
+        OPENVINO_ASSERT(owner_strides == reference_strides,
+                        "Sub-byte ROI is supported only for contiguous packed tensors");
+
+        const auto begin_offset = calculate_contiguous_linear_offset_in_elements(owner_shape, begin);
+        const auto end_offset = calculate_contiguous_linear_offset_in_elements(owner_shape, end);
+
+        OPENVINO_ASSERT(begin_offset % elements_per_byte == 0,
+                        "Sub-byte ROI begin offset must be aligned to byte boundary");
+        OPENVINO_ASSERT(end_offset % elements_per_byte == 0,
+                        "Sub-byte ROI end offset must be aligned to byte boundary");
+    }
+}
+
 }  // namespace
 
 /**
@@ -113,9 +181,9 @@ public:
     }
 
     const Strides& get_strides() const override {
-        OPENVINO_ASSERT(m_element_type.bitwidth() >= 8,
+        /*OPENVINO_ASSERT(m_element_type.bitwidth() >= 8,
                         "Could not get strides for types with bitwidths less then 8 bit. Tensor type: ",
-                        m_element_type);
+                        m_element_type);*/
         std::call_once(m_strides_once, &ViewTensor::update_strides, this);
         return m_strides;
     }
@@ -136,6 +204,13 @@ protected:
             // gets type info to reduce validation to access speed, due to performance issues
             const auto& other_type_info = element::get_type_info(element_type);
             const auto& this_type_info = element::get_type_info(get_element_type());
+
+            // For sub-byte types, we need special handling
+            if (get_element_type().bitwidth() < 8 || element_type.bitwidth() < 8) {
+                // Only allow exact type matches for sub-byte types
+                return get_element_type() == element_type;
+            }
+
             return (get_element_type() != element::string && element_type != element::string &&
                     other_type_info.m_bitwidth == this_type_info.m_bitwidth &&
                     other_type_info.m_is_real == this_type_info.m_is_real) ||
@@ -144,18 +219,9 @@ protected:
     }
 
     void update_strides() const {
-        if (m_element_type.bitwidth() < 8)
-            return;
-
         auto& shape = get_shape();
         if (m_strides.empty() && !shape.empty()) {
-            m_strides.resize(shape.size());
-            m_strides.back() = shape.back() == 0 ? 0 : m_element_type.size();
-            std::transform(shape.crbegin(),
-                           shape.crend() - 1,
-                           m_strides.rbegin(),
-                           m_strides.rbegin() + 1,
-                           std::multiplies<size_t>());
+            m_strides = make_packed_reference_strides(shape, m_element_type);
         }
     }
 
@@ -195,10 +261,12 @@ class StridedViewTensor : public ViewTensor {
 public:
     StridedViewTensor(const element::Type element_type, const Shape& shape, void* ptr, const Strides& strides)
         : ViewTensor{element_type, shape, ptr} {
-        OPENVINO_ASSERT(
-            get_element_type().bitwidth() >= 8,
-            "Could not create strided access tensor for types with bitwidths less then 8 bit. Tensor type: ",
-            get_element_type());
+        // Remove the bitwidth restriction for int4 support
+        // OPENVINO_ASSERT(
+        //     get_element_type().bitwidth() >= 8,
+        //     "Could not create strided access tensor for types with bitwidths less then 8 bit. Tensor type: ",
+        //     get_element_type());
+
         // Save default strides
         auto shape_strides = get_strides();
         // Change strides
@@ -211,11 +279,20 @@ public:
                             shape_strides[i],
                             ", stride: ",
                             m_strides[i]);
-            OPENVINO_ASSERT((m_strides[i] % get_element_type().size()) == 0,
-                            "shape stride: ",
-                            shape_strides[i],
-                            ", stride: ",
-                            m_strides[i]);
+
+            // For sub-byte types, we need different validation logic
+            if (get_element_type().bitwidth() >= 8) {
+                OPENVINO_ASSERT((m_strides[i] % get_element_type().size()) == 0,
+                                "shape stride: ",
+                                shape_strides[i],
+                                ", stride: ",
+                                m_strides[i]);
+            } else {
+                // For int4, strides should be byte-aligned
+                // Since we're dealing with packed data, ensure stride alignment makes sense
+                OPENVINO_ASSERT(m_strides[i] > 0, "Invalid stride for int4 type: ", m_strides[i]);
+            }
+
             if (i) {
                 OPENVINO_ASSERT(m_strides[i - 1] >= m_strides[i] * shape[i],
                                 "Strides: ",
@@ -409,11 +486,11 @@ public:
         : m_owner{owner},
           m_shape{make_roi_shape(owner->get_shape(), begin, end)},
           m_capacity{m_shape},
-          m_offset{
-              std::inner_product(begin.begin(), begin.end(), m_owner->get_strides().begin(), static_cast<size_t>(0))} {
-        OPENVINO_ASSERT(m_owner->get_element_type().bitwidth() >= 8,
-                        "ROI Tensor for types with bitwidths less than 8 bit is not implemented. Tensor type: ",
-                        m_owner->get_element_type());
+          m_offset{calculate_roi_offset(owner, begin)} {
+        // Remove the bitwidth restriction
+        // OPENVINO_ASSERT(m_owner->get_element_type().bitwidth() >= 8,
+        //                 "ROI Tensor for types with bitwidths less than 8 bit is not implemented. Tensor type: ",
+        //                 m_owner->get_element_type());
     }
 
     void set_shape(ov::Shape new_shape) {
@@ -446,6 +523,20 @@ public:
         return m_offset;
     }
 
+private:
+    static size_t calculate_roi_offset(const std::shared_ptr<ITensor>& owner, const Coordinate& begin) {
+        if (owner->get_element_type().bitwidth() < 8) {
+            const auto elements_per_byte = static_cast<size_t>(8 / owner->get_element_type().bitwidth());
+            const auto linear_offset = calculate_contiguous_linear_offset_in_elements(owner->get_shape(), begin);
+            OPENVINO_ASSERT(linear_offset % elements_per_byte == 0,
+                            "Sub-byte ROI begin offset must be aligned to byte boundary");
+            return linear_offset / elements_per_byte;
+        } else {
+            // Original calculation for byte-aligned types
+            return std::inner_product(begin.begin(), begin.end(), owner->get_strides().begin(), static_cast<size_t>(0));
+        }
+    }
+
 protected:
     std::shared_ptr<ITensor> m_owner;
     Shape m_shape;
@@ -460,7 +551,9 @@ protected:
 class RoiTensor : public BaseRoiTensor, public ITensor {
 public:
     RoiTensor(const std::shared_ptr<ITensor>& owner, const Coordinate& begin, const Coordinate& end)
-        : BaseRoiTensor(owner, begin, end) {}
+        : BaseRoiTensor(owner, begin, end) {
+        validate_int4_roi(owner, begin, end);
+    }
 
     const element::Type& get_element_type() const override {
         return m_owner->get_element_type();
@@ -510,7 +603,9 @@ public:
 class RoiRemoteTensor : public BaseRoiTensor, public IRemoteTensor {
 public:
     RoiRemoteTensor(const std::shared_ptr<ITensor>& owner, const Coordinate& begin, const Coordinate& end)
-        : BaseRoiTensor(owner, begin, end) {}
+        : BaseRoiTensor(owner, begin, end) {
+        validate_int4_roi(owner, begin, end);
+    }
 
     const element::Type& get_element_type() const override {
         return m_owner->get_element_type();
