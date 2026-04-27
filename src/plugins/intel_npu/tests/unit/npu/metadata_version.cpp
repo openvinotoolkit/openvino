@@ -406,10 +406,6 @@ TEST_F(MetadataUnitTests, writeAndReadMetadataWithRemovedField) {
     EXPECT_ANY_THROW(storedMeta = read_metadata_from(tensor));
 }
 
-// ---------------------------------------------------------------------------
-// Human-readable metadata tests
-// ---------------------------------------------------------------------------
-
 namespace {
 
 ov::Tensor makeHRTensor(MetadataTest& meta) {
@@ -432,7 +428,7 @@ TEST_F(MetadataHumanReadableTests, minimalMetadata) {
     std::unique_ptr<MetadataBase> storedMeta;
     OV_ASSERT_NO_THROW(storedMeta = read_human_readable(tensor));
 
-    ASSERT_FALSE(storedMeta->get_init_sizes().has_value());
+    ASSERT_TRUE(storedMeta->get_init_sizes().has_value());
     ASSERT_FALSE(storedMeta->get_batch_size().has_value());
     ASSERT_FALSE(storedMeta->get_input_layouts().has_value());
     ASSERT_FALSE(storedMeta->get_output_layouts().has_value());
@@ -455,14 +451,13 @@ TEST_F(MetadataHumanReadableTests, initSizes) {
 }
 
 TEST_F(MetadataHumanReadableTests, emptyInitSizes) {
-    // Empty init sizes should not be written — field absent on read-back
     auto meta = MetadataTest(0, CURRENT_OPENVINO_VERSION, std::vector<uint64_t>{});
     const auto tensor = makeHRTensor(meta);
 
     std::unique_ptr<MetadataBase> storedMeta;
     OV_ASSERT_NO_THROW(storedMeta = read_human_readable(tensor));
 
-    ASSERT_FALSE(storedMeta->get_init_sizes().has_value());
+    ASSERT_TRUE(storedMeta->get_init_sizes().has_value());
 }
 
 TEST_F(MetadataHumanReadableTests, batchSize) {
@@ -478,7 +473,6 @@ TEST_F(MetadataHumanReadableTests, batchSize) {
 }
 
 TEST_F(MetadataHumanReadableTests, zeroBatchSize) {
-    // batch_size=0 is written as 0 and read back as nullopt
     auto meta = MetadataTest(0, CURRENT_OPENVINO_VERSION, std::nullopt, std::nullopt);
     const auto tensor = makeHRTensor(meta);
 
@@ -488,29 +482,7 @@ TEST_F(MetadataHumanReadableTests, zeroBatchSize) {
     ASSERT_FALSE(storedMeta->get_batch_size().has_value());
 }
 
-TEST_F(MetadataHumanReadableTests, layouts) {
-    const std::vector<ov::Layout> inputLayouts{"NCHW", "NC"};
-    const std::vector<ov::Layout> outputLayouts{"NHWC"};
-    auto meta = MetadataTest(0, CURRENT_OPENVINO_VERSION, std::nullopt, std::nullopt, inputLayouts, outputLayouts);
-    const auto tensor = makeHRTensor(meta);
-
-    std::unique_ptr<MetadataBase> storedMeta;
-    OV_ASSERT_NO_THROW(storedMeta = read_human_readable(tensor));
-
-    ASSERT_TRUE(storedMeta->get_input_layouts().has_value());
-    ASSERT_TRUE(storedMeta->get_output_layouts().has_value());
-    ASSERT_EQ(storedMeta->get_input_layouts()->size(), inputLayouts.size());
-    ASSERT_EQ(storedMeta->get_output_layouts()->size(), outputLayouts.size());
-    for (size_t i = 0; i < inputLayouts.size(); ++i) {
-        EXPECT_EQ(storedMeta->get_input_layouts()->at(i), inputLayouts.at(i));
-    }
-    for (size_t i = 0; i < outputLayouts.size(); ++i) {
-        EXPECT_EQ(storedMeta->get_output_layouts()->at(i), outputLayouts.at(i));
-    }
-}
-
 TEST_F(MetadataHumanReadableTests, noLayouts) {
-    // Layouts field is omitted entirely when no input layouts are present
     auto meta = MetadataTest(0, CURRENT_OPENVINO_VERSION, std::nullopt, std::nullopt, std::nullopt, std::nullopt);
     const auto tensor = makeHRTensor(meta);
 
@@ -558,22 +530,37 @@ TEST_F(MetadataHumanReadableTests, emptyCompilerReqs) {
 }
 
 TEST_F(MetadataHumanReadableTests, compilerVersion) {
-    auto meta = MetadataTest(0, CURRENT_OPENVINO_VERSION, std::nullopt, std::nullopt, std::nullopt, std::nullopt, 42u);
+    const uint32_t compilerVersion = 0xCAFECAFE;
+    auto meta = MetadataTest(0,
+                             CURRENT_OPENVINO_VERSION,
+                             std::nullopt,
+                             std::nullopt,
+                             std::nullopt,
+                             std::nullopt,
+                             compilerVersion,
+                             std::nullopt);
     const auto tensor = makeHRTensor(meta);
 
     std::unique_ptr<MetadataBase> storedMeta;
     OV_ASSERT_NO_THROW(storedMeta = read_human_readable(tensor));
 
     ASSERT_TRUE(storedMeta->get_compiler_version().has_value());
-    EXPECT_EQ(storedMeta->get_compiler_version().value(), 42u);
+    EXPECT_EQ(storedMeta->get_compiler_version().value(), compilerVersion);
 }
 
 TEST_F(MetadataHumanReadableTests, allFields) {
     const std::vector<uint64_t> initSizes{10, 20, 30};
     const int64_t batchSize = 8;
-    const std::vector<ov::Layout> inputLayouts{"NCHW", "NC"};
-    const std::vector<ov::Layout> outputLayouts{"N"};
-    auto meta = MetadataTest(0, CURRENT_OPENVINO_VERSION, initSizes, batchSize, inputLayouts, outputLayouts, 7u);
+    const uint32_t compilerVersion = 0xDEADBEEF;
+    const std::string reqs = "platform=NPU3720;tiles=2;etc=...";
+    auto meta = MetadataTest(0,
+                             CURRENT_OPENVINO_VERSION,
+                             initSizes,
+                             batchSize,
+                             std::nullopt,
+                             std::nullopt,
+                             compilerVersion,
+                             reqs);
     const auto tensor = makeHRTensor(meta);
 
     std::unique_ptr<MetadataBase> storedMeta;
@@ -586,16 +573,8 @@ TEST_F(MetadataHumanReadableTests, allFields) {
     }
     ASSERT_TRUE(storedMeta->get_batch_size().has_value());
     EXPECT_EQ(storedMeta->get_batch_size().value(), batchSize);
-    ASSERT_TRUE(storedMeta->get_input_layouts().has_value());
-    ASSERT_TRUE(storedMeta->get_output_layouts().has_value());
-    ASSERT_EQ(storedMeta->get_input_layouts()->size(), inputLayouts.size());
-    ASSERT_EQ(storedMeta->get_output_layouts()->size(), outputLayouts.size());
-    for (size_t i = 0; i < inputLayouts.size(); ++i) {
-        EXPECT_EQ(storedMeta->get_input_layouts()->at(i), inputLayouts.at(i));
-    }
-    for (size_t i = 0; i < outputLayouts.size(); ++i) {
-        EXPECT_EQ(storedMeta->get_output_layouts()->at(i), outputLayouts.at(i));
-    }
+    ASSERT_FALSE(storedMeta->get_input_layouts().has_value());
+    ASSERT_FALSE(storedMeta->get_output_layouts().has_value());
     ASSERT_TRUE(storedMeta->get_compiler_version().has_value());
-    EXPECT_EQ(storedMeta->get_compiler_version().value(), 7u);
+    EXPECT_EQ(storedMeta->get_compiler_version().value(), compilerVersion);
 }

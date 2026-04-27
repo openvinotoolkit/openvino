@@ -18,7 +18,10 @@ namespace {
 
 template <typename T>
 void write_hr_field(std::ostream& stream, std::string_view key, const T& value) {
-    stream << key << '=' << value << ';';
+    if (stream.tellp() != std::streampos(0)) {
+        stream << ';';
+    }
+    stream << key << '=' << value;
 }
 
 template <typename Container>
@@ -27,7 +30,7 @@ void write_hr_bracketed_list(std::ostream& stream, const Container& items) {
     bool first = true;
     for (const auto& item : items) {
         if (!first) {
-            stream << ',';
+            stream << '|';
         }
         stream << item;
         first = false;
@@ -332,9 +335,9 @@ void Metadata<METADATA_VERSION_2_5>::read() {
 }
 
 void Metadata<METADATA_VERSION_2_0>::read_human_readable() {
-    const auto it = _hr_fields.find("openvino_version");
+    const auto it = _hr_fields.find("ov");
     if (it == _hr_fields.end()) {
-        OPENVINO_THROW("Human-readable metadata missing 'openvino_version' field.");
+        OPENVINO_THROW("Human-readable metadata missing 'ov' field.");
     }
     const std::string& s = it->second;
     const size_t dot1 = s.find('.');
@@ -344,11 +347,11 @@ void Metadata<METADATA_VERSION_2_0>::read_human_readable() {
                                  static_cast<uint16_t>(std::stoul(s.substr(dot2 + 1))));
 }
 
-// "[6,9,4,2]"
+// "[6|9|4|2]"
 void Metadata<METADATA_VERSION_2_1>::read_human_readable() {
     Metadata<METADATA_VERSION_2_0>::read_human_readable();
 
-    const auto it = _hr_fields.find("inits");
+    const auto it = _hr_fields.find("ws_inits");
     if (it == _hr_fields.end()) {
         return;
     }
@@ -358,11 +361,11 @@ void Metadata<METADATA_VERSION_2_1>::read_human_readable() {
     // skip '['
     size_t pos = 1;
     while (pos < s.size() && s[pos] != ']') {
-        const size_t comma = s.find(',', pos);
+        const size_t pipe = s.find('|', pos);
         const size_t bracket = s.find(']', pos);
-        const size_t end = std::min(comma, bracket);
+        const size_t end = std::min(pipe, bracket);
         inits.push_back(std::stoull(s.substr(pos, end - pos)));
-        pos = s[end] == ',' ? end + 1 : end;
+        pos = s[end] == '|' ? end + 1 : end;
     }
     _initSizes = std::move(inits);
 }
@@ -370,9 +373,9 @@ void Metadata<METADATA_VERSION_2_1>::read_human_readable() {
 void Metadata<METADATA_VERSION_2_2>::read_human_readable() {
     Metadata<METADATA_VERSION_2_1>::read_human_readable();
 
-    const auto it = _hr_fields.find("batch_value");
+    const auto it = _hr_fields.find("batch");
     if (it == _hr_fields.end()) {
-        OPENVINO_THROW("Human-readable metadata missing 'batch_value' field");
+        OPENVINO_THROW("Human-readable metadata missing 'batch' field");
     }
     const int64_t batchValue = std::stoll(it->second);
     _batchSize = (batchValue != 0) ? std::optional<int64_t>(batchValue) : std::nullopt;
@@ -382,60 +385,16 @@ void Metadata<METADATA_VERSION_2_2>::read_human_readable() {
 void Metadata<METADATA_VERSION_2_3>::read_human_readable() {
     Metadata<METADATA_VERSION_2_2>::read_human_readable();
 
-    const auto parseLayoutGroupField = [&](const std::string& key) -> std::optional<std::vector<ov::Layout>> {
-        const auto it = _hr_fields.find(key);
-        if (it == _hr_fields.end()) {
-            return std::nullopt;
-        }
-
-        // "[[N,C,H,W],[N,C]]"
-        const std::string& s = it->second;
-        if (s.size() < 2 || s.front() != '[' || s.back() != ']') {
-            return std::nullopt;
-        }
-        const std::string content = s.substr(1, s.size() - 2);
-
-        std::vector<ov::Layout> layouts;
-        size_t pos = 0, itemStart = 0;
-        int depth = 0;
-        while (pos <= content.size()) {
-            const bool atEnd = (pos == content.size());
-            const char c = atEnd ? '\0' : content[pos];
-            if (c == '[') {
-                depth++;
-            } else if (c == ']') {
-                depth--;
-            }
-            if ((c == ',' && depth == 0) || atEnd) {
-                const std::string layoutStr = content.substr(itemStart, pos - itemStart);
-                if (!layoutStr.empty()) {
-                    try {
-                        layouts.push_back(ov::Layout(layoutStr));
-                    } catch (const ov::Exception&) {
-                        _logger.warning("Error encountered while constructing an ov::Layout object during "
-                                        "human-readable metadata read. Value: %s. A default value will be "
-                                        "used instead.",
-                                        layoutStr.c_str());
-                        layouts.push_back(ov::Layout());
-                    }
-                }
-                itemStart = pos + 1;
-            }
-            pos++;
-        }
-        return layouts.empty() ? std::nullopt : std::make_optional(std::move(layouts));
-    };
-
-    _inputLayouts = parseLayoutGroupField("input_layouts");
-    _outputLayouts = parseLayoutGroupField("output_layouts");
+    _inputLayouts = std::nullopt;
+    _outputLayouts = std::nullopt;
 }
 
 void Metadata<METADATA_VERSION_2_4>::read_human_readable() {
     Metadata<METADATA_VERSION_2_3>::read_human_readable();
 
-    const auto it = _hr_fields.find("compiler_version");
+    const auto it = _hr_fields.find("compiler");
     if (it == _hr_fields.end()) {
-        OPENVINO_THROW("Human-readable metadata missing 'compiler_version' field");
+        OPENVINO_THROW("Human-readable metadata missing 'compiler' field");
     }
     const auto compilerVersion = static_cast<uint32_t>(std::stoul(it->second));
     _compilerVersion = (compilerVersion != 0) ? std::optional<uint32_t>(compilerVersion) : std::nullopt;
@@ -465,9 +424,9 @@ void Metadata<METADATA_VERSION_2_0>::write(std::ostream& stream) {
 void Metadata<METADATA_VERSION_2_0>::write_human_readable(std::ostream& stream) {
     const uint16_t meta_major = MetadataBase::get_major(_version);
     const uint16_t meta_minor = MetadataBase::get_minor(_version);
-    write_hr_field(stream, "metadata_version", std::to_string(meta_major) + "." + std::to_string(meta_minor));
+    write_hr_field(stream, "meta", std::to_string(meta_major) + "." + std::to_string(meta_minor));
     write_hr_field(stream,
-                   "openvino_version",
+                   "ov",
                    std::to_string(OPENVINO_VERSION_MAJOR) + "." + std::to_string(OPENVINO_VERSION_MINOR) + "." +
                        std::to_string(OPENVINO_VERSION_PATCH));
 }
@@ -489,11 +448,12 @@ void Metadata<METADATA_VERSION_2_1>::write_human_readable(std::ostream& stream) 
     Metadata<METADATA_VERSION_2_0>::write_human_readable(stream);
 
     if (!_initSizes.has_value() || _initSizes->empty()) {
-        return;
+        write_hr_field(stream, "ws_inits", 0);
+    } else {
+        std::ostringstream oss;
+        write_hr_bracketed_list(oss, _initSizes.value());
+        write_hr_field(stream, "ws_inits", oss.str());
     }
-    std::ostringstream oss;
-    write_hr_bracketed_list(oss, _initSizes.value());
-    write_hr_field(stream, "inits", oss.str());
 }
 
 void Metadata<METADATA_VERSION_2_2>::write(std::ostream& stream) {
@@ -506,7 +466,7 @@ void Metadata<METADATA_VERSION_2_2>::write(std::ostream& stream) {
 void Metadata<METADATA_VERSION_2_2>::write_human_readable(std::ostream& stream) {
     Metadata<METADATA_VERSION_2_1>::write_human_readable(stream);
 
-    write_hr_field(stream, "batch_value", _batchSize.value_or(0));
+    write_hr_field(stream, "batch", _batchSize.value_or(0));
 }
 
 void Metadata<METADATA_VERSION_2_3>::write(std::ostream& stream) {
@@ -534,28 +494,8 @@ void Metadata<METADATA_VERSION_2_3>::write(std::ostream& stream) {
 
 // example output: input_layouts=[[N,C,H,W],[N,C]];output_layouts=[[N,H,W,C]];
 void Metadata<METADATA_VERSION_2_3>::write_human_readable(std::ostream& stream) {
+    // omitted from compat string
     Metadata<METADATA_VERSION_2_2>::write_human_readable(stream);
-
-    const auto writeLayoutGroupField = [&](std::string_view key, const std::optional<std::vector<ov::Layout>>& opt) {
-        if (!opt.has_value() || opt->empty()) {
-            return;
-        }
-
-        std::ostringstream oss;
-        oss << '[';
-        bool first = true;
-        for (const auto& layout : opt.value()) {
-            if (!first) {
-                oss << ',';
-            }
-            oss << layout.to_string();
-            first = false;
-        }
-        oss << ']';
-        write_hr_field(stream, key, oss.str());
-    };
-    writeLayoutGroupField("input_layouts", _inputLayouts);
-    writeLayoutGroupField("output_layouts", _outputLayouts);
 }
 
 void Metadata<METADATA_VERSION_2_4>::write(std::ostream& stream) {
@@ -563,6 +503,12 @@ void Metadata<METADATA_VERSION_2_4>::write(std::ostream& stream) {
 
     uint32_t compilerVersion = _compilerVersion.value_or(0);
     stream.write(reinterpret_cast<const char*>(&compilerVersion), sizeof(compilerVersion));
+}
+
+void Metadata<METADATA_VERSION_2_4>::write_human_readable(std::ostream& stream) {
+    Metadata<METADATA_VERSION_2_3>::write_human_readable(stream);
+
+    write_hr_field(stream, "compiler", _compilerVersion.value_or(0));
 }
 
 void Metadata<METADATA_VERSION_2_5>::write(std::ostream& stream) {
@@ -578,18 +524,18 @@ void Metadata<METADATA_VERSION_2_5>::write(std::ostream& stream) {
     append_padding_blob_size_and_magic(stream);
 }
 
-void Metadata<METADATA_VERSION_2_4>::write_human_readable(std::ostream& stream) {
-    Metadata<METADATA_VERSION_2_3>::write_human_readable(stream);
-
-    write_hr_field(stream, "compiler_version", _compilerVersion.value_or(0));
-}
-
 void Metadata<METADATA_VERSION_2_5>::write_human_readable(std::ostream& stream) {
     Metadata<METADATA_VERSION_2_4>::write_human_readable(stream);
 
     if (_compilerReqs.has_value() && !_compilerReqs->empty()) {
         write_hr_field(stream, "compiler_reqs", '[' + _compilerReqs.value() + ']');
     }
+}
+
+std::string MetadataBase::generate_compatibility_string(MetadataBase& metadata) {
+    std::ostringstream oss;
+    metadata.write_human_readable(oss);
+    return oss.str();
 }
 
 std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSize) {
@@ -721,14 +667,14 @@ std::unique_ptr<MetadataBase> read_human_readable(const ov::Tensor& tensor) {
     const char* data = tensor.data<const char>();
     const size_t size = tensor.get_byte_size();
 
-    std::cout << "human string: " << data << '\n';
+    std::cout << "human string: " << std::string_view(data, size) << '\n';
 
     size_t pos = 0;
     while (pos < size && data[pos] != '=') {
         pos++;
     }
     if (pos >= size) {
-        OPENVINO_THROW("Invalid human-readable metadata: missing metadata_version field");
+        OPENVINO_THROW("Invalid human-readable metadata: missing 'meta' field");
     }
     // skip '='
     pos++;
