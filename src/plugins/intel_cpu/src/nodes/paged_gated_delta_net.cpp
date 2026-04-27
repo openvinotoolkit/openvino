@@ -39,7 +39,7 @@ PagedGatedDeltaNet::PagedGatedDeltaNet(const std::shared_ptr<ov::Node>& op, cons
 
     const auto& pgdn = ov::as_type_ptr<ov::op::internal::PagedGatedDeltaNet>(op);
     OPENVINO_ASSERT(pgdn != nullptr, "Expected PagedGatedDeltaNet node");
-    m_fuse_qk_l2norm = pgdn->get_use_qk_l2norm();
+    m_use_qk_l2norm = pgdn->get_use_qk_l2norm();
     m_q_l2_norm_eps = pgdn->get_q_l2_norm_eps();
     m_k_l2_norm_eps = pgdn->get_k_l2_norm_eps();
 }
