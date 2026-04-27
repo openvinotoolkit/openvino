@@ -557,7 +557,7 @@ inline void scale_add2_reduce_max(float* a,
         }
 
         if (has_attn_mask) {
-            float32x4_t v_mask = __vld1q_f32(attn_mask + i);
+            float32x4_t v_mask = loadq_f32(attn_mask + i);
             v_a = vaddq_f32(v_a, v_mask);
         }
 

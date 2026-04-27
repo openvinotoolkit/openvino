@@ -122,8 +122,8 @@ template <>
 void cvt_copy(float* dst, float* src, size_t n) {
     size_t i = 0;
     for (; i + vec_len_f32_neon <= n; i += vec_len_f32_neon) {
-        float32x4_t vb1 = __vld1q_f32(src + i);
-        __vst1q_f32(dst + i, vb1);
+        float32x4_t vb1 = loadq_f32(src + i);
+        storeq_f32(dst + i, vb1);
     }
     for (; i < n; i++) {
         dst[i] = src[i];
@@ -175,10 +175,10 @@ static void attn_acc_value(float* out, float weight, T* v, size_t S, float* scal
 #    else
     float32x4_t attn_w_vec_fp32 = vdupq_n_f32(weight);
     for (; i + vec_len_f32_neon <= S; i += vec_len_f32_neon) {
-        float32x4_t v_value = __vld1q_f32(v + i);
-        float32x4_t v_out = __vld1q_f32(out + i);
+        float32x4_t v_value = loadq_f32(v + i);
+        float32x4_t v_out = loadq_f32(out + i);
         v_out = vmlaq_f32(v_out, attn_w_vec_fp32, v_value);
-        __vst1q_f32(out + i, v_out);
+        storeq_f32(out + i, v_out);
     }
 #    endif
 #endif
@@ -1165,11 +1165,11 @@ static void attn_reduce(T* dst, float* temp, size_t M, size_t S, size_t temp_str
         auto* src = temp + i;
         auto result_vec_fp32 = vdupq_n_f32(0.0f);
         for (size_t m = 0; m < M; m++) {
-            auto o_vec_fp32 = __vld1q_f32(src);
+            auto o_vec_fp32 = loadq_f32(src);
             result_vec_fp32 = vaddq_f32(result_vec_fp32, o_vec_fp32);
             src += temp_stride;
         }
-        __vst1q_f32(dst + i, result_vec_fp32);
+        storeq_f32(dst + i, result_vec_fp32);
     }
 #    endif
 #endif

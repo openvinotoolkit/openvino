@@ -11,6 +11,7 @@
 #    include <immintrin.h>
 #endif
 
+#include <cfloat>
 #include <cstddef>
 #include <cstdint>
 #if defined(HAVE_SVE)
@@ -186,11 +187,11 @@ void quant_u8(const T* src, uint8_t* dst, size_t n, float& scale, float& zp) {
     find_minmax(src, n, min, max);
     scale = (max - min) / 255;
     if (scale == 0) {
-        scale = 0.0001f;
+        scale = 0.0001F;
 #ifdef __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
         // For FP16 in ARM we use FP16 accumulator
         if constexpr (std::is_same_v<T, ov::float16>) {
-            scale = std::max(0.05f, std::abs(min) / 65504.0f);
+            scale = std::max(0.05F, std::abs(min) / 65504.0F);
         }
 #endif
     }
@@ -225,7 +226,7 @@ void quant_u8(const T* src, uint8_t* dst, size_t n, float& scale, float& zp) {
 #endif
     for (; i < n; i++) {
         float tmp = src[i];
-        tmp = std::max(tmp / scale + zp, 0.0f);
+        tmp = std::max(tmp / scale + zp, 0.0F);
         dst[i] = static_cast<uint8_t>(std::round(tmp));
     }
 }
@@ -239,7 +240,7 @@ void quant_i8(const T* src, int8_t* dst, size_t n, float& scale) {
     float max_abs = std::max(std::abs(min), std::abs(max));
     scale = max_abs / ((1 << 7) - 1);
     if (scale == 0) {
-        scale = 0.0001f;
+        scale = 0.0001F;
     }
 #if defined(HAVE_AVX512F)
     auto v_scale = _mm512_set1_ps(1 / scale);
@@ -274,8 +275,8 @@ void quant_i8(const T* src, int8_t* dst, size_t n, float& scale) {
     for (; i < n; i++) {
         float tmp = src[i];
         tmp = std::round(tmp / scale);
-        tmp = std::max(tmp, -128.0f);
-        tmp = std::min(tmp, 127.0f);
+        tmp = std::max(tmp, -128.0F);
+        tmp = std::min(tmp, 127.0F);
         dst[i] = static_cast<int8_t>(tmp);
     }
 }
@@ -285,12 +286,12 @@ void find_params_by_channel(const T* src,
                             size_t seq_dim,
                             size_t hidden_dims,
                             size_t src_stride,
-                            size_t dst_stride,
+                            [[maybe_unused]] size_t dst_stride,
                             float* scale,
                             float* zp,
                             size_t bits) {
     size_t j = 0;
-    float integer_range = static_cast<float>((1 << bits) - 1);
+    auto integer_range = static_cast<float>((1 << bits) - 1);
 #if defined(HAVE_AVX512F)
     for (; j + vec_len_f32_avx512 <= hidden_dims; j += vec_len_f32_avx512) {
         auto v_max = _mm512_set1_ps(-std::numeric_limits<float>::max());
@@ -303,8 +304,8 @@ void find_params_by_channel(const T* src,
         auto v_scale = _mm512_sub_ps(v_max, v_min);
         v_scale = _mm512_mul_ps(v_scale, _mm512_set1_ps(1 / integer_range));
         auto v_mask = _mm512_cmp_ps_mask(v_scale, _mm512_setzero_ps(), _CMP_EQ_OQ);
-        v_scale = _mm512_mask_add_ps(v_scale, v_mask, v_scale, _mm512_set1_ps(0.0001f));
-        auto v_zp = _mm512_mul_ps(v_min, _mm512_set1_ps(-1.0f));
+        v_scale = _mm512_mask_add_ps(v_scale, v_mask, v_scale, _mm512_set1_ps(0.0001F));
+        auto v_zp = _mm512_mul_ps(v_min, _mm512_set1_ps(-1.0F));
         v_zp = _mm512_div_ps(v_zp, v_scale);
 
         _mm512_storeu_ps(scale + j, v_scale);
@@ -323,9 +324,9 @@ void find_params_by_channel(const T* src,
         auto v_scale = _mm256_sub_ps(v_max, v_min);
         v_scale = _mm256_mul_ps(v_scale, _mm256_set1_ps(1 / integer_range));
         auto v_cond = _mm256_cmp_ps(v_scale, _mm256_setzero_ps(), _CMP_EQ_OQ);
-        auto v_comp = _mm256_and_ps(v_cond, _mm256_set1_ps(0.0001f));
+        auto v_comp = _mm256_and_ps(v_cond, _mm256_set1_ps(0.0001F));
         v_scale = _mm256_add_ps(v_scale, v_comp);
-        auto v_zp = _mm256_mul_ps(v_min, _mm256_set1_ps(-1.0f));
+        auto v_zp = _mm256_mul_ps(v_min, _mm256_set1_ps(-1.0F));
         v_zp = _mm256_div_ps(v_zp, v_scale);
         _mm256_storeu_ps(scale + j, v_scale);
         _mm256_storeu_ps(zp + j, v_zp);
@@ -341,7 +342,7 @@ void find_params_by_channel(const T* src,
         }
         float temp_scale = (max - min) / integer_range;
         if (temp_scale == 0) {
-            temp_scale = 0.0001f;
+            temp_scale = 0.0001F;
         }
         float temp_zp = -min / temp_scale;
         scale[j] = temp_scale;
@@ -364,7 +365,7 @@ void quantize_by_channel(const T* src,
 #if defined(HAVE_AVX512F)
     for (; j + vec_len_f32_avx512 <= hidden_dims; j += vec_len_f32_avx512) {
         auto v_scale = mm512_uni_loadu_ps(scale + j);
-        v_scale = _mm512_div_ps(_mm512_set1_ps(1.0f), v_scale);
+        v_scale = _mm512_div_ps(_mm512_set1_ps(1.0F), v_scale);
         auto v_zero = _mm512_setzero_epi32();
         auto v_zp = mm512_uni_loadu_ps(zp + j);
         for (size_t i = 0; i < seq_dim; i++) {
@@ -380,7 +381,7 @@ void quantize_by_channel(const T* src,
 #if defined(HAVE_AVX2)
     for (; j + vec_len_f32_avx2 <= hidden_dims; j += vec_len_f32_avx2) {
         auto v_scale = mm256_uni_loadu_ps(scale + j);
-        v_scale = _mm256_div_ps(_mm256_set1_ps(1.0f), v_scale);
+        v_scale = _mm256_div_ps(_mm256_set1_ps(1.0F), v_scale);
         auto v_zp = mm256_uni_loadu_ps(zp + j);
         auto v_zero = _mm256_setzero_si256();
         for (size_t i = 0; i < seq_dim; i++) {
@@ -400,7 +401,7 @@ void quantize_by_channel(const T* src,
     for (; j < hidden_dims; j++) {
         for (size_t i = 0; i < seq_dim; ++i) {
             float tmp = src[i * src_stride + j];
-            tmp = std::max(tmp / scale[j] + zp[j], 0.0f);
+            tmp = std::max(tmp / scale[j] + zp[j], 0.0F);
             dst[i * dst_stride + j] = static_cast<uint8_t>(std::round(tmp));
         }
     }
@@ -420,9 +421,9 @@ void quantize_by_channel(const T* src,
 #if defined(HAVE_AVX512F)
     for (; j + vec_len_f32_avx512 * 2 <= hidden_dims; j += vec_len_f32_avx512 * 2) {
         auto v_scale0 = mm512_uni_loadu_ps(scale + j);
-        v_scale0 = _mm512_div_ps(_mm512_set1_ps(1.0f), v_scale0);
+        v_scale0 = _mm512_div_ps(_mm512_set1_ps(1.0F), v_scale0);
         auto v_scale1 = mm512_uni_loadu_ps(scale + j + vec_len_f32_avx512);
-        v_scale1 = _mm512_div_ps(_mm512_set1_ps(1.0f), v_scale1);
+        v_scale1 = _mm512_div_ps(_mm512_set1_ps(1.0F), v_scale1);
 
         auto v_zero = _mm512_setzero_epi32();
         auto v_upper = _mm512_set1_epi32(15);
@@ -447,9 +448,9 @@ void quantize_by_channel(const T* src,
 #if defined(HAVE_AVX2)
     for (; j + vec_len_f32_avx2 * 2 <= hidden_dims; j += vec_len_f32_avx2 * 2) {
         auto v_scale0 = mm256_uni_loadu_ps(scale + j);
-        v_scale0 = _mm256_div_ps(_mm256_set1_ps(1.0f), v_scale0);
+        v_scale0 = _mm256_div_ps(_mm256_set1_ps(1.0F), v_scale0);
         auto v_scale1 = mm256_uni_loadu_ps(scale + j + vec_len_f32_avx2);
-        v_scale1 = _mm256_div_ps(_mm256_set1_ps(1.0f), v_scale1);
+        v_scale1 = _mm256_div_ps(_mm256_set1_ps(1.0F), v_scale1);
 
         auto v_zero = _mm256_setzero_si256();
         auto v_upper = _mm256_set1_epi32(15);
@@ -493,10 +494,10 @@ void quant_u4(const T* src, void* dst, size_t n, float& scale, float& zp) {
     float max = -FLT_MAX;
     float min = FLT_MAX;
     find_minmax(src, n, min, max);
-    auto dst_ptr = reinterpret_cast<uint8_t*>(dst);
+    auto* dst_ptr = reinterpret_cast<uint8_t*>(dst);
     scale = (max - min) / ((1 << 4) - 1);
     if (scale == 0) {
-        scale = 0.0001f;
+        scale = 0.0001F;
     }
     zp = -min / scale;
 #if defined(HAVE_AVX512F)
@@ -551,16 +552,19 @@ void quant_u4(const T* src, void* dst, size_t n, float& scale, float& zp) {
 }
 
 template <typename T, ov::element::Type_t DST_PREC, std::enable_if_t<DST_PREC == ov::element::u8, bool> = true>
+// NOLINTNEXTLINE(readability-non-const-parameter) scale_zp stores quantization outputs.
 void quantize(const T* src, uint8_t* dst, size_t n, float* scale_zp) {
     quant_u8(src, dst, n, *scale_zp, *(scale_zp + 1));
 }
 
 template <typename T, ov::element::Type_t DST_PREC, std::enable_if_t<DST_PREC == ov::element::i8, bool> = true>
+// NOLINTNEXTLINE(readability-non-const-parameter) scale_zp stores quantization outputs.
 void quantize(const T* src, uint8_t* dst, size_t n, float* scale_zp) {
     quant_i8(src, reinterpret_cast<int8_t*>(dst), n, *scale_zp);
 }
 
 template <typename T, ov::element::Type_t DST_PREC, std::enable_if_t<DST_PREC == ov::element::u4, bool> = true>
+// NOLINTNEXTLINE(readability-non-const-parameter) scale_zp stores quantization outputs.
 void quantize(const T* src, void* dst, size_t n, float* scale_zp) {
     quant_u4(src, dst, n, *scale_zp, *(scale_zp + 1));
 }
@@ -581,9 +585,9 @@ void quantize_q_by_dims(const ov::intel_cpu::PlainTensor& src,
     size_t m = 0;
     for (size_t src_offset = 0, dst_offset = 0; src_offset < S;
          src_offset += group_size, dst_offset += group_size / sub_byte_multiplier + param_size) {
-        auto base = dst.ptr<uint8_t, DST_PREC>(b, h, 0);
+        auto* base = dst.ptr<uint8_t, DST_PREC>(b, h, 0);
         base += dst_offset;
-        auto p = reinterpret_cast<float*>(base);
+        auto* p = reinterpret_cast<float*>(base);
         uint8_t* ptr = base + param_size;
         quantize<T, DST_PREC>(src.ptr<T>(b, h, m, src_offset), ptr, group_size, p);
     }
@@ -592,17 +596,16 @@ void quantize_q_by_dims(const ov::intel_cpu::PlainTensor& src,
 template <typename TDST,
           ov::element::Type_t SRC_PREC,
           typename std::enable_if_t<SRC_PREC == ov::element::u8, bool> = true>
-void attn_dequant_kernel(const void* src, TDST* dst, size_t n, float* params) {
+void attn_dequant_kernel(const void* src, TDST* dst, size_t n, const float* params) {
     size_t i = 0;
-    // loadu_si128/epi64 does not support const qualifier
-    uint8_t* src_nc = const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(src));
+    const auto* src_nc = reinterpret_cast<const uint8_t*>(src);
     float scale = params[0];
     float zp = params[1];
 #if defined(HAVE_AVX512F)
     auto v_zp = _mm512_set1_ps(zp);
     auto v_scale = _mm512_set1_ps(scale);
     for (; i + vec_len_f32_avx512 <= n; i += vec_len_f32_avx512) {
-        auto v0_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(src_nc + i));
+        auto v0_128 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(src_nc + i));
         auto v0_512 = _mm512_cvtepu8_epi32(v0_128);
         auto v0_value = _mm512_cvtepi32_ps(v0_512);
         v0_value = _mm512_sub_ps(v0_value, v_zp);
@@ -613,7 +616,7 @@ void attn_dequant_kernel(const void* src, TDST* dst, size_t n, float* params) {
     auto v_zp = _mm256_set1_ps(zp);
     auto v_scale = _mm256_set1_ps(scale);
     for (; i + vec_len_f32_avx2 <= n; i += vec_len_f32_avx2) {
-        auto v0_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(src_nc + i));
+        auto v0_128 = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(src_nc + i));
         auto v0_256 = _mm256_cvtepu8_epi32(v0_128);
         auto v0_value = _mm256_cvtepi32_ps(v0_256);
         v0_value = _mm256_sub_ps(v0_value, v_zp);
@@ -631,15 +634,14 @@ void attn_dequant_kernel(const void* src, TDST* dst, size_t n, float* params) {
 template <typename TDST,
           ov::element::Type_t SRC_PREC,
           typename std::enable_if_t<SRC_PREC == ov::element::i8, bool> = true>
-void attn_dequant_kernel(const void* src, TDST* dst, size_t n, float* params) {
+void attn_dequant_kernel(const void* src, TDST* dst, size_t n, const float* params) {
     size_t i = 0;
-    // loadu_si128/epi64 does not support const qualifier
-    int8_t* src_nc = const_cast<int8_t*>(reinterpret_cast<const int8_t*>(src));
+    const auto* src_nc = reinterpret_cast<const int8_t*>(src);
     float scale = params[0];
 #if defined(HAVE_AVX512F)
     auto v_scale = _mm512_set1_ps(scale);
     for (; i + vec_len_f32_avx512 <= n; i += vec_len_f32_avx512) {
-        auto v0_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(src_nc + i));
+        auto v0_128 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(src_nc + i));
         auto v0_512 = _mm512_cvtepi8_epi32(v0_128);
         auto v0_value = _mm512_cvtepi32_ps(v0_512);
         auto v0_out = _mm512_mul_ps(v0_value, v_scale);
@@ -648,7 +650,7 @@ void attn_dequant_kernel(const void* src, TDST* dst, size_t n, float* params) {
 #elif defined(HAVE_AVX2)
     auto v_scale = _mm256_set1_ps(scale);
     for (; i + vec_len_f32_avx2 <= n; i += vec_len_f32_avx2) {
-        auto v0_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(src_nc + i));
+        auto v0_128 = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(src_nc + i));
         auto v0_256 = _mm256_cvtepi8_epi32(v0_128);
         auto v0_value = _mm256_cvtepi32_ps(v0_256);
         auto v0_out = _mm256_mul_ps(v0_value, v_scale);
@@ -664,8 +666,8 @@ void attn_dequant_kernel(const void* src, TDST* dst, size_t n, float* params) {
 
 template <typename TDST,
           ov::element::Type_t SRC_PREC,
-          typename std::enable_if<SRC_PREC == ov::element::u4, bool>::type = true>
-void attn_dequant_kernel(const void* src, TDST* dst, size_t n, float* params) {
+          typename std::enable_if_t<SRC_PREC == ov::element::u4, bool> = true>
+void attn_dequant_kernel(const void* src, TDST* dst, size_t n, const float* params) {
     // 2 4bit data form a byte
     /* 0,1|2,3|4,5|6,7
           /      \
@@ -676,14 +678,14 @@ void attn_dequant_kernel(const void* src, TDST* dst, size_t n, float* params) {
        0,1,2,3,4,5,6,7
     */
     size_t i = 0;
-    uint8_t* src_nc = const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(src));
+    const auto* src_nc = reinterpret_cast<const uint8_t*>(src);
     float scale = params[0];
     float zp = params[1];
 #if defined(HAVE_AVX512F)
     auto v_scale = _mm512_set1_ps(scale);
     auto v_zp_scale = _mm512_set1_ps(zp * scale);
     for (; i + vec_len_f32_avx512 * 2 <= n; i += vec_len_f32_avx512 * 2) {
-        auto data = _mm_loadu_si128(reinterpret_cast<__m128i*>(src_nc + i / 2));
+        auto data = _mm_loadu_si128(reinterpret_cast<const __m128i*>(src_nc + i / 2));
         auto v_i32 = _mm512_cvtepu8_epi32(data);
 
         auto v_512_low_half = _mm512_srli_epi32(v_i32, 4);
@@ -706,7 +708,7 @@ void attn_dequant_kernel(const void* src, TDST* dst, size_t n, float* params) {
     auto v256_zp = _mm256_set1_ps(zp);
     auto v256_scale = _mm256_set1_ps(scale);
     for (; i + vec_len_f32_avx2 * 2 <= n; i += vec_len_f32_avx2 * 2) {
-        auto data = _mm_loadl_epi64(reinterpret_cast<__m128i*>(src_nc + i / 2));
+        auto data = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(src_nc + i / 2));
 
         auto v_i32 = _mm256_cvtepu8_epi32(data);
         auto v_256_low_half = _mm256_srli_epi32(v_i32, 4);
@@ -751,15 +753,15 @@ void attn_dequant_by_channel_kernel(const void* src,
                                     size_t hidden_dims,
                                     size_t src_stride,
                                     size_t dst_stride,
-                                    float* scale,
-                                    float* zp) {
-    uint8_t* src_nc = const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(src));
+                                    const float* scale,
+                                    const float* zp) {
+    const auto* src_nc = reinterpret_cast<const uint8_t*>(src);
 
     for (size_t i = 0; i < seq_dim; ++i) {
         size_t j = 0;
 #if defined(HAVE_AVX512F)
         while (j + vec_len_f32_avx512 <= hidden_dims) {
-            auto v0_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(src_nc + j + i * src_stride));
+            auto v0_128 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(src_nc + j + i * src_stride));
             auto v0_512 = _mm512_cvtepu8_epi32(v0_128);
             auto v0_value = _mm512_cvtepi32_ps(v0_512);
             v0_value = _mm512_sub_ps(v0_value, _mm512_loadu_ps(zp + j));
@@ -770,7 +772,7 @@ void attn_dequant_by_channel_kernel(const void* src,
 #endif
 #if defined(HAVE_AVX2)
         while (j + vec_len_f32_avx2 <= hidden_dims) {
-            auto v0_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(src_nc + j + i * src_stride));
+            auto v0_128 = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(src_nc + j + i * src_stride));
             auto v0_256 = _mm256_cvtepu8_epi32(v0_128);
             auto v0_value = _mm256_cvtepi32_ps(v0_256);
             v0_value = _mm256_sub_ps(v0_value, _mm256_loadu_ps(zp + j));
@@ -795,9 +797,9 @@ void attn_dequant_by_channel_kernel(const void* src,
                                     size_t hidden_dims,
                                     size_t src_stride,
                                     size_t dst_stride,
-                                    float* scale,
-                                    float* zp) {
-    uint8_t* src_nc = const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(src));
+                                    const float* scale,
+                                    const float* zp) {
+    const auto* src_nc = reinterpret_cast<const uint8_t*>(src);
     size_t j = 0;
 #if defined(HAVE_AVX512F)
     for (; j + vec_len_f32_avx512 * 2 <= hidden_dims; j += vec_len_f32_avx512 * 2) {
@@ -846,9 +848,9 @@ void attn_dequant_by_channel_kernel(const void* src,
 }
 
 #if defined(HAVE_SVE)
-void inline attn_dequant_u8_kernel(const uint8_t* src, float* dst, size_t n, float* params) {
+void inline attn_dequant_u8_kernel(const uint8_t* src, float* dst, size_t n, const float* params) {
     size_t i = 0;
-    uint8_t* src_nc = const_cast<uint8_t*>(src);
+    const auto* src_nc = src;
     float scale = params[0];
     float zp = params[1];
     size_t nvec = n / svcntw();
