@@ -26,10 +26,12 @@ public:
 /// on 64 byte alignment will allocate 65 bytes.
 class OPENVINO_API AlignedBuffer {
 public:
+    static constexpr size_t s_default_alignment = 64;
+
     // Allocator objects and the allocation interfaces are owned by the
     // creators of AlignedBuffers. They need to ensure that the lifetime of
     // allocator exceeds the lifetime of this AlignedBuffer.
-    AlignedBuffer(size_t byte_size, size_t alignment = 64);
+    AlignedBuffer(size_t byte_size, size_t alignment = s_default_alignment);
 
     AlignedBuffer();
     virtual ~AlignedBuffer();
@@ -41,20 +43,25 @@ public:
         return m_byte_size;
     }
     void* get_ptr(size_t offset) const {
+        load();
         return m_aligned_buffer + offset;
     }
     void* get_ptr() {
+        load();
         return m_aligned_buffer;
     }
     const void* get_ptr() const {
+        load();
         return m_aligned_buffer;
     }
     template <typename T>
     T* get_ptr() {
+        load();
         return reinterpret_cast<T*>(m_aligned_buffer);
     }
     template <typename T>
     const T* get_ptr() const {
+        load();
         return reinterpret_cast<const T*>(m_aligned_buffer);
     }
 
@@ -70,8 +77,10 @@ public:
 
 protected:
     char* m_allocated_buffer;
-    char* m_aligned_buffer;
-    size_t m_byte_size;
+    mutable char* m_aligned_buffer;
+    mutable size_t m_byte_size;
+
+    virtual void load() const {}
 };
 
 template <>
