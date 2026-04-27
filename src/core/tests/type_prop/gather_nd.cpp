@@ -680,3 +680,112 @@ TEST(type_prop, gather_nd_v8_fail_indices_tuple_greater_data_rank_batch_dims2) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
+
+TEST(evaluate, gather_nd_v8_full_rank_index_depth) {
+    std::vector<float> data_vals(2 * 3 * 3);
+    std::iota(data_vals.begin(), data_vals.end(), 0.f);
+
+    auto data_c = v0::Constant::create(element::f32, Shape{2, 3, 3}, data_vals);
+    auto idx_c = v0::Constant::create(element::i32, Shape{2, 3}, {0, 1, 2, 1, 0, 0});
+    auto op = make_shared<v8::GatherND>(data_c, idx_c, 0);
+
+    TensorVector outputs{Tensor(element::f32, Shape{2})};
+    TensorVector inputs{data_c->get_tensor_view(), idx_c->get_tensor_view()};
+    ASSERT_TRUE(op->evaluate(outputs, inputs));
+    ASSERT_EQ(outputs[0].get_shape(), (Shape{2}));
+    auto* out = outputs[0].data<float>();
+    EXPECT_FLOAT_EQ(out[0], 5.f);
+    EXPECT_FLOAT_EQ(out[1], 9.f);
+}
+
+TEST(evaluate, gather_nd_v8_slice_gather) {
+    std::vector<float> data_vals(3 * 4 * 5);
+    std::iota(data_vals.begin(), data_vals.end(), 0.f);
+
+    auto data_c = v0::Constant::create(element::f32, Shape{3, 4, 5}, data_vals);
+    auto idx_c = v0::Constant::create(element::i32, Shape{2, 2}, {1, 2, 0, 3});
+    auto op = make_shared<v8::GatherND>(data_c, idx_c, 0);
+
+    TensorVector outputs{Tensor(element::f32, Shape{2, 5})};
+    TensorVector inputs{data_c->get_tensor_view(), idx_c->get_tensor_view()};
+    ASSERT_TRUE(op->evaluate(outputs, inputs));
+    ASSERT_EQ(outputs[0].get_shape(), (Shape{2, 5}));
+    auto* out = outputs[0].data<float>();
+    for (int k = 0; k < 5; ++k)
+        EXPECT_FLOAT_EQ(out[k], 30.f + k);
+    for (int k = 0; k < 5; ++k)
+        EXPECT_FLOAT_EQ(out[5 + k], 15.f + k);
+}
+
+TEST(evaluate, gather_nd_v5_batch_dims1) {
+    std::vector<float> data_vals(2 * 3 * 4);
+    std::iota(data_vals.begin(), data_vals.end(), 0.f);
+
+    auto data_c = v0::Constant::create(element::f32, Shape{2, 3, 4}, data_vals);
+    auto idx_c = v0::Constant::create(element::i32, Shape{2, 2, 1}, {2, 0, 1, 2});
+    auto op = make_shared<v5::GatherND>(data_c, idx_c, 1);
+
+    TensorVector outputs{Tensor(element::f32, Shape{2, 2, 4})};
+    TensorVector inputs{data_c->get_tensor_view(), idx_c->get_tensor_view()};
+    ASSERT_TRUE(op->evaluate(outputs, inputs));
+    ASSERT_EQ(outputs[0].get_shape(), (Shape{2, 2, 4}));
+    auto* out = outputs[0].data<float>();
+    for (int k = 0; k < 4; ++k)
+        EXPECT_FLOAT_EQ(out[k], 8.f + k);
+    for (int k = 0; k < 4; ++k)
+        EXPECT_FLOAT_EQ(out[4 + k], 0.f + k);
+    for (int k = 0; k < 4; ++k)
+        EXPECT_FLOAT_EQ(out[8 + k], 16.f + k);
+    for (int k = 0; k < 4; ++k)
+        EXPECT_FLOAT_EQ(out[12 + k], 20.f + k);
+}
+
+TEST(evaluate, gather_nd_v8_has_evaluate) {
+    auto data_f32 = make_shared<v0::Parameter>(element::f32, Shape{2, 3});
+    auto idx_i32 = make_shared<v0::Parameter>(element::i32, Shape{2, 1});
+    auto op = make_shared<v8::GatherND>(data_f32, idx_i32, 0);
+    EXPECT_TRUE(op->has_evaluate());
+}
+
+TEST(evaluate, gather_nd_v5_batch_dims2_fused_output) {
+    std::vector<float> data_vals(2 * 2 * 2);
+    std::iota(data_vals.begin(), data_vals.end(), 0.f);
+
+    auto data_c = v0::Constant::create(element::f32, Shape{2, 2, 2}, data_vals);
+    auto idx_c = v0::Constant::create(element::i32, Shape{2, 2, 1}, {0, 1, 0, 1});
+    auto op = make_shared<v5::GatherND>(data_c, idx_c, 2);
+
+    TensorVector outputs{Tensor(element::f32, Shape{4})};
+    TensorVector inputs{data_c->get_tensor_view(), idx_c->get_tensor_view()};
+    ASSERT_TRUE(op->evaluate(outputs, inputs));
+    ASSERT_EQ(outputs[0].get_shape(), (Shape{4}));
+    auto* out = outputs[0].data<float>();
+    EXPECT_FLOAT_EQ(out[0], 0.f);
+    EXPECT_FLOAT_EQ(out[1], 3.f);
+    EXPECT_FLOAT_EQ(out[2], 4.f);
+    EXPECT_FLOAT_EQ(out[3], 7.f);
+}
+
+TEST(evaluate, gather_nd_v8_i64_indices) {
+    std::vector<float> data_vals(2 * 3 * 3);
+    std::iota(data_vals.begin(), data_vals.end(), 0.f);
+
+    auto data_c = v0::Constant::create(element::f32, Shape{2, 3, 3}, data_vals);
+    auto idx_c = v0::Constant::create(element::i64, Shape{2, 3}, std::vector<int64_t>{0, 1, 2, 1, 0, 0});
+    auto op = make_shared<v8::GatherND>(data_c, idx_c, 0);
+
+    TensorVector outputs{Tensor(element::f32, Shape{2})};
+    TensorVector inputs{data_c->get_tensor_view(), idx_c->get_tensor_view()};
+    ASSERT_TRUE(op->evaluate(outputs, inputs));
+    ASSERT_EQ(outputs[0].get_shape(), (Shape{2}));
+    auto* out = outputs[0].data<float>();
+    EXPECT_FLOAT_EQ(out[0], 5.f);
+    EXPECT_FLOAT_EQ(out[1], 9.f);
+}
+
+TEST(evaluate, gather_nd_v8_has_evaluate_unsupported_data_type) {
+    auto data = make_shared<v0::Parameter>(element::u2, Shape{2, 3});
+    auto idx = make_shared<v0::Parameter>(element::i32, Shape{2, 1});
+    auto op = make_shared<v8::GatherND>(data, idx, 0);
+    EXPECT_FALSE(op->has_evaluate());
+}
