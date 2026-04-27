@@ -1,55 +1,58 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+// NOLINTBEGIN(misc-include-cleaner)
+#include <oneapi/dnnl/dnnl_common_types.h>
+#include <oneapi/dnnl/dnnl_debug.h>
+
+#include <algorithm>
+#include <common/c_types_map.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <exception>
+#include <ios>
+#include <iostream>
+#include <ostream>
+#include <set>
+#include <sstream>
+#include <string>
+#include <type_traits>
+#include <vector>
+
+#include "cpu_types.h"
+#include "memory_control.hpp"
+#include "nodes/executors/eltwise_config.hpp"
+#include "nodes/node_config.h"
+#include "openvino/core/attribute_adapter.hpp"
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
+#include "utils/general_utils.h"
+// NOLINTEND(misc-include-cleaner)
+
 #ifdef CPU_DEBUG_CAPS
 
-#    include "debug_capabilities.h"
-
-#    include <oneapi/dnnl/dnnl_common_types.h>
-#    include <oneapi/dnnl/dnnl_debug.h>
-
-#    include <algorithm>
-#    include <common/c_types_map.hpp>
-#    include <cstddef>
-#    include <cstdint>
-#    include <cstdlib>
-#    include <exception>
 #    include <iomanip>
-#    include <ios>
-#    include <iostream>
 #    include <memory>
-#    include <ostream>
-#    include <set>
-#    include <sstream>
-#    include <string>
-#    include <type_traits>
-#    include <vector>
 
 #    include "common/primitive_desc_iface.hpp"
 #    include "cpu_memory.h"
-#    include "cpu_types.h"
+#    include "debug_capabilities.h"
 #    include "edge.h"
 #    include "graph.h"
-#    include "memory_control.hpp"
 #    include "memory_desc/cpu_memory_desc.h"
 #    include "node.h"
 #    include "nodes/eltwise.h"
-#    include "nodes/executors/eltwise_config.hpp"
 #    include "nodes/input.h"
-#    include "nodes/node_config.h"
 #    include "oneapi/dnnl/dnnl.hpp"
 #    include "onednn/iml_type_mapper.h"
-#    include "openvino/core/attribute_adapter.hpp"
-#    include "openvino/core/attribute_visitor.hpp"
-#    include "openvino/core/model.hpp"
-#    include "openvino/core/shape.hpp"
-#    include "openvino/core/type.hpp"
-#    include "openvino/core/type/element_type.hpp"
-#    include "openvino/op/constant.hpp"
 #    include "openvino/op/util/multi_subgraph_base.hpp"
 #    include "openvino/util/env_util.hpp"
 #    include "transformations/rt_info/disable_fp16_compression.hpp"
-#    include "utils/general_utils.h"
 
 namespace dnnl::impl {
 std::ostream& operator<<(std::ostream& ss, const primitive_attr_t* attr);
