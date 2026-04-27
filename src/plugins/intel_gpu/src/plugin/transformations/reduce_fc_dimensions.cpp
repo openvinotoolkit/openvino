@@ -37,12 +37,15 @@ ReduceFCDimensions::ReduceFCDimensions() {
         squeeze->set_friendly_name(activations->get_friendly_name() + "_squeeze");
 
         auto fc_new = fc->clone_with_new_inputs({squeeze, weights, no_bias});
+        ov::copy_runtime_info(fc, fc_new);
 
         auto shape_out = fc_new->get_output_partial_shape(0);
         auto unsqueeze_const =
             std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{1, 1, -1, shape_out[-1].get_length()});
+        ov::copy_runtime_info(fc, unsqueeze_const);
         auto unsqueeze = std::make_shared<ov::op::v1::Reshape>(fc_new, unsqueeze_const, false);
         unsqueeze->set_friendly_name(fc->get_friendly_name() + "_unsqueeze");
+        ov::copy_runtime_info(fc, unsqueeze);
 
         ov::replace_node(fc, unsqueeze);
         return true;
