@@ -262,11 +262,11 @@ void ScatterElementsUpdateKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) c
         if (prim_params.mode != ScatterUpdateReduction::NONE) {
             kd.internalBuffers.clear();
             kd.internalBuffers.push_back(output.PhysicalSizeInBytes() * 2);
-
-            if (!use_local_memory) {
+            if (prim_params.mode == ScatterUpdateReduction::MEAN) {
                 kd.internalBuffers.push_back(output.PhysicalSizeInBytes() * 2);
             }
-            if (prim_params.mode == ScatterUpdateReduction::MEAN) {
+
+            if (!use_local_memory) {
                 kd.internalBuffers.push_back(output.PhysicalSizeInBytes() * 2);
             }
             kd.internalBufferDataType = Datatype::INT32;
@@ -318,15 +318,15 @@ KernelsData ScatterElementsUpdateKernelRef::GetKernelsData(const Params& params)
     if (!params.is_shape_agnostic && newParams.mode != ScatterUpdateReduction::NONE) {
         kd.internalBuffers.clear();
         kd.internalBuffers.push_back(output.PhysicalSizeInBytes() * 2); // fixed point output
+        if (newParams.mode == ScatterUpdateReduction::MEAN) {
+            kd.internalBuffers.push_back(output.PhysicalSizeInBytes() * 2); // count for mean
+        }
 
         if (!use_local_memory_for_static_shape) {
             kd.internalBuffers.push_back(output.PhysicalSizeInBytes() * 2); // reduction value output
             kd.internalBuffers.push_back(output.PhysicalSizeInBytes() * 2); // reduction_thread_count output
         }
         kd.internalBufferDataType = Datatype::INT32;
-        if (newParams.mode == ScatterUpdateReduction::MEAN) {
-            kd.internalBuffers.push_back(output.PhysicalSizeInBytes() * 2); // calculate mean
-        }
     }
 
     // Define adjustment map for ITER based on kernel index
@@ -377,6 +377,11 @@ KernelsData ScatterElementsUpdateKernelRef::GetKernelsData(const Params& params)
             // store output in fixed point
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, buf_idx++});
 
+            // count_k buffer for mean (available for all ITERs including ITER=0)
+            if (newParams.mode == ScatterUpdateReduction::MEAN) {
+                kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, buf_idx++});
+            }
+
             if (i >= 1) {
                 bool use_local_memory = use_local_memory_for_static_shape;
                 if (params.is_shape_agnostic) {
@@ -388,9 +393,6 @@ KernelsData ScatterElementsUpdateKernelRef::GetKernelsData(const Params& params)
                     kernel.params.arguments.push_back({ArgumentDescriptor::Types::LOCAL_MEMORY_SIZE, 0});
                 } else {
                     // identify thread for perform write
-                    kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, buf_idx++});
-                }
-                if (newParams.mode == ScatterUpdateReduction::MEAN) {
                     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, buf_idx++});
                 }
             }

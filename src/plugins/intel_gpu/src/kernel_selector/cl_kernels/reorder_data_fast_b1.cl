@@ -122,8 +122,13 @@ KERNEL (reorder_data_fast_b1)(
     const uint b = data_idx - tmp_data_idx * OUTPUT_BATCH_NUM;
     data_idx = tmp_data_idx;
 
+#if defined FILL_FEATURE_PADDING
+    tmp_data_idx = data_idx / PADDED_FEATURE_NUM;
+    const uint f = data_idx - tmp_data_idx * PADDED_FEATURE_NUM;
+#else
     tmp_data_idx = data_idx / OUTPUT_FEATURE_NUM;
     const uint f = data_idx - tmp_data_idx * OUTPUT_FEATURE_NUM;
+#endif
     data_idx = tmp_data_idx;
 
     tmp_data_idx = data_idx / OUTPUT_SIZE_X;
@@ -160,7 +165,7 @@ KERNEL (reorder_data_fast_b1)(
 
     tmp_data_idx  = data_idx / OUTPUT_SIZE_W;
     const uint w = data_idx - tmp_data_idx * OUTPUT_SIZE_W;
-#else // BYXF?
+#else // BYXF or blocked formats (b_fs_yx_fsv16, etc.)
     uint tmp_data_idx = data_idx / OUTPUT_BATCH_NUM;
     const uint b = data_idx - tmp_data_idx * OUTPUT_BATCH_NUM;
     data_idx = tmp_data_idx;
@@ -173,11 +178,35 @@ KERNEL (reorder_data_fast_b1)(
     const uint x = data_idx - tmp_data_idx * OUTPUT_SIZE_X;
     data_idx = tmp_data_idx;
 
+#if defined FILL_FEATURE_PADDING
+    tmp_data_idx  = data_idx / PADDED_FEATURE_NUM;
+    const uint f = data_idx - tmp_data_idx * PADDED_FEATURE_NUM;
+#else
     tmp_data_idx  = data_idx / OUTPUT_FEATURE_NUM;
     const uint f = data_idx - tmp_data_idx * OUTPUT_FEATURE_NUM;
+#endif
     const uint z = 0;
     const uint w = 0;
 #endif
+#endif
+
+#if defined FILL_FEATURE_PADDING
+    // For blocked output formats with unaligned features, zero-fill padding positions.
+    // This prevents NaN propagation when pooled/reused memory contains NaN values,
+    // since NaN * 0 = NaN in IEEE 754.
+    // Cannot use get_output_index(b,f,...) because OUTPUT_GET_INDEX may be JIT-optimized
+    // to a constant when the tensor is scalar (LogicalSize()==1), or use clamping that
+    // wraps out-of-range feature values. Use OUTPUT_GET_INDEX_RAW which always calls the
+    // actual layout-specific index function.
+    if (f >= OUTPUT_FEATURE_NUM) {
+#if defined OUTPUT_LAYOUT_B_FS_ZYX_FSV16
+        const uint output_idx = OUTPUT_GET_INDEX_RAW(b, f, z, y, x);
+#else
+        const uint output_idx = OUTPUT_GET_INDEX_RAW(b, f, y, x);
+#endif
+        output[output_idx] = TO_OUTPUT_REORDER_TYPE(0);
+        return;
+    }
 #endif
 
 #if CHANGE_DATA_TYPE_ONLY

@@ -8599,7 +8599,11 @@ public:
                         tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
                         size_t offset = out_lay.get_linear_offset(coords);
                         if (is_output_fp) {
-                            ASSERT_NEAR(out_ptr[offset], expected[bi][fi][yi][xi], 1e-5f)
+                            // Use relative tolerance for large values where absolute 1e-5 is too tight.
+                            // IMAD kernels may reorder f32 accumulation, causing magnitude-proportional diffs.
+                            auto ref_val = expected[bi][fi][yi][xi];
+                            auto abs_tol = std::max(1e-5, static_cast<double>(std::abs(ref_val)) * 1e-7);
+                            ASSERT_NEAR(out_ptr[offset], ref_val, abs_tol)
                                 << "at b= " << bi << ", f= " << fi << ", y= " << yi << ", x= " << xi << std::endl
                                 << description.str();
                         } else {
@@ -11762,6 +11766,17 @@ TEST_P(conv_dyn_test, convolution_gpu_bfyx_os_iyx_osv32_no_bias) {
         GTEST_SKIP() << "The test is skipped (group convolution is not supported).";
     }
 
+    // convolution_gpu_bfyx_os_iyx_osv32 is disabled for dynamic shapes on Xe2+
+    // because its scatter input reads can access memory beyond the allocated
+    // buffer (OOB), which causes CL_OUT_OF_RESOURCES on Xe2+ (pre-Xe2 hardware
+    // silently returns zero for OOB reads). See Validate() in
+    // convolution_kernel_bfyx_os_iyx_osv32.cpp.
+    const auto& device_info = engine.get_device_info();
+    if (device_info.gfx_ver.major >= 20) {
+        GTEST_SKIP() << "convolution_gpu_bfyx_os_iyx_osv32 is disabled for dynamic shapes on Xe2+ "
+                     << "(OOB scatter reads cause CL_OUT_OF_RESOURCES)";
+    }
+
     auto groups_num = 1;
 
     auto calculate_ref = [&](memory::ptr input, memory::ptr weights, ExecutionConfig config) {
@@ -11807,7 +11822,8 @@ TEST_P(conv_dyn_test, convolution_gpu_bfyx_os_iyx_osv32_no_bias) {
 
     auto inst = network.get_primitive("conv");
     auto impl = inst->get_impl();
-    ASSERT_TRUE(impl != nullptr);
+    ASSERT_NE(impl, nullptr) << "Forced convolution_gpu_bfyx_os_iyx_osv32 implementation was not selected; "
+                             << "if this platform is expected to lack support, add an explicit skip above";
     ASSERT_TRUE(impl->is_dynamic());
 
     auto outputs = network.execute();
@@ -12275,9 +12291,21 @@ TEST_P(conv_dyn_3d_test, convolution_gpu_b_fs_zyx_fsv16_imad_quantized) {
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
     cldnn::mem_lock<float> output_ptr_ref(output_memory_ref, get_test_stream());
 
-    ASSERT_EQ(outputs.at("conv").get_layout(), output_memory_ref->get_layout());
-    for (size_t i = 0; i < output_ptr.size(); i++) {
-        ASSERT_EQ(output_ptr[i], output_ptr_ref[i]);
+    // Compare only valid output elements using coordinate-based indexing to skip
+    // FSV16 padding positions which may differ between dynamic and static networks
+    {
+        auto out_lay = outputs.at("conv").get_layout();
+        ASSERT_EQ(out_lay, output_memory_ref->get_layout());
+        for (int bi = 0; bi < out_lay.batch(); ++bi)
+            for (int fi = 0; fi < out_lay.feature(); ++fi)
+                for (int zi = 0; zi < out_lay.spatial(2); ++zi)
+                    for (int yi = 0; yi < out_lay.spatial(1); ++yi)
+                        for (int xi = 0; xi < out_lay.spatial(0); ++xi) {
+                            tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, zi, 0));
+                            auto offset = out_lay.get_linear_offset(coords);
+                            ASSERT_EQ(output_ptr[offset], output_ptr_ref[offset])
+                                << "Mismatch at b=" << bi << " f=" << fi << " z=" << zi << " y=" << yi << " x=" << xi;
+                        }
     }
 
     {
@@ -12299,9 +12327,19 @@ TEST_P(conv_dyn_3d_test, convolution_gpu_b_fs_zyx_fsv16_imad_quantized) {
         cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
         cldnn::mem_lock<float> output_ptr_ref(output_memory_ref, get_test_stream());
 
-        ASSERT_EQ(outputs.at("conv").get_layout(), output_memory_ref->get_layout());
-        for (size_t i = 0; i < output_ptr.size(); i++) {
-            ASSERT_EQ(output_ptr[i], output_ptr_ref[i]);
+        {
+            auto out_lay = outputs.at("conv").get_layout();
+            ASSERT_EQ(out_lay, output_memory_ref->get_layout());
+            for (int bi = 0; bi < out_lay.batch(); ++bi)
+                for (int fi = 0; fi < out_lay.feature(); ++fi)
+                    for (int zi = 0; zi < out_lay.spatial(2); ++zi)
+                        for (int yi = 0; yi < out_lay.spatial(1); ++yi)
+                            for (int xi = 0; xi < out_lay.spatial(0); ++xi) {
+                                tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, zi, 0));
+                                auto offset = out_lay.get_linear_offset(coords);
+                                ASSERT_EQ(output_ptr[offset], output_ptr_ref[offset])
+                                    << "Mismatch at b=" << bi << " f=" << fi << " z=" << zi << " y=" << yi << " x=" << xi;
+                            }
         }
     }
 }
@@ -12598,7 +12636,7 @@ TEST(conv_dyn_test, changed_batch_convolution_test_reorder_cache_mismatch) {
         // Change original shape to 'new_shape' for the second run
         auto input = engine.allocate_memory({ new_shape, data_types::f32, format::bfyx });
 
-        VF<float> input_rnd = rg.generate_random_1d<float>(ov::shape_size(in_shape), -10, 10);
+        VF<float> input_rnd = rg.generate_random_1d<float>(ov::shape_size(new_shape), -10, 10);
         set_values(input, input_rnd);
 
         network.set_input_data("input", input);

@@ -112,34 +112,69 @@ void* gpu_usm::lock(const stream& stream, mem_lock_type type) {
     if (0 == _lock_count) {
         auto& _ze_stream = downcast<const ze_stream>(stream);
         if (get_allocation_type() == allocation_type::usm_device) {
-            if (type != mem_lock_type::read) {
-                throw std::runtime_error("Unable to lock allocation_type::usm_device with write lock_type.");
-            }
             GPU_DEBUG_LOG << "Copy usm_device buffer to host buffer." << std::endl;
             _host_buffer.allocateHost(_bytes_count);
-            OV_ZE_EXPECT(ze::zeCommandListAppendMemoryCopy(_ze_stream.get_queue(),
+            if (type != mem_lock_type::write) {
+                OV_ZE_EXPECT(zeCommandListAppendMemoryCopy(_ze_stream.get_queue(),
+                                        _host_buffer.get(),
+                                        _buffer.get(),
+                                        _bytes_count,
+                                        nullptr,
+                                        0,
+                                        nullptr));
+                OV_ZE_EXPECT(zeCommandListHostSynchronize(_ze_stream.get_queue(), endless_wait));
+                _host_buffer_has_device_data = true;
+            } else {
+                _host_buffer_has_device_data = false;
+            }
+            _copy_back_to_device = (type != mem_lock_type::read);
+            _mapped_ptr = _host_buffer.get();
+        } else {
+            _mapped_ptr = _buffer.get();
+        }
+    } else if (get_allocation_type() == allocation_type::usm_device) {
+        if (type != mem_lock_type::read) {
+            _copy_back_to_device = true;
+        }
+        // If the nested lock needs to read but the host buffer was not populated
+        // from device (initial lock was write-only), copy device data now
+        if (type != mem_lock_type::write && !_host_buffer_has_device_data) {
+            auto& _ze_stream = downcast<const ze_stream>(stream);
+            OV_ZE_EXPECT(zeCommandListAppendMemoryCopy(_ze_stream.get_queue(),
                                     _host_buffer.get(),
                                     _buffer.get(),
                                     _bytes_count,
                                     nullptr,
                                     0,
                                     nullptr));
-            OV_ZE_EXPECT(ze::zeCommandListHostSynchronize(_ze_stream.get_queue(), endless_wait));
-            _mapped_ptr = _host_buffer.get();
-        } else {
-            _mapped_ptr = _buffer.get();
+            OV_ZE_EXPECT(zeCommandListHostSynchronize(_ze_stream.get_queue(), endless_wait));
+            _host_buffer_has_device_data = true;
         }
     }
     _lock_count++;
     return _mapped_ptr;
 }
 
-void gpu_usm::unlock(const stream& /* stream */) {
+void gpu_usm::unlock(const stream& stream) {
     std::lock_guard<std::mutex> locker(_mutex);
+    OPENVINO_ASSERT(_lock_count != 0, "Trying to unlock an already unlocked buffer");
     _lock_count--;
     if (0 == _lock_count) {
         if (get_allocation_type() == allocation_type::usm_device) {
+            if (_copy_back_to_device) {
+                auto& _ze_stream = downcast<const ze_stream>(stream);
+                OV_ZE_EXPECT(zeCommandListAppendMemoryCopy(_ze_stream.get_queue(),
+                                        _buffer.get(),
+                                        _host_buffer.get(),
+                                        _bytes_count,
+                                        nullptr,
+                                        0,
+                                        nullptr));
+                OV_ZE_EXPECT(zeCommandListHostSynchronize(_ze_stream.get_queue(), endless_wait));
+            }
             _host_buffer.freeMem();
+            _copy_back_to_device = false;
+            _host_buffer_has_device_data = false;
         }
         _mapped_ptr = nullptr;
     }

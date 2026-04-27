@@ -157,7 +157,14 @@ ReorderWeightsOpt::DispatchData ReorderWeightsOpt::SetDefault(
                                        : subgroup_size;
 
     if (osv_first) {
-        dispatchData.gws = { output.G().v * (output.IFM().v / ifm_block),
+        // When IFM is not aligned to the ISV block size, expand GWS to cover padding
+        // positions so they can be zero-filled by the kernel.
+        auto slice_sizes = GetSliceSizes(output_layout);
+        size_t isv_size = slice_sizes.first;
+        size_t ifm_padded = (isv_size > 1 && (output.IFM().v % isv_size) != 0)
+                                ? Align(output.IFM().v, isv_size)
+                                : output.IFM().v;
+        dispatchData.gws = { output.G().v * (ifm_padded / ifm_block),
                              output.Z().v * output.Y().v * output.X().v,
                              Align(output.OFM().v, ofm_block) };
     } else {
@@ -196,6 +203,18 @@ JitConstants ReorderWeightsOpt::GetJitConstants(const reorder_weights_params& pa
 
     if (leftovers)
         jit.AddConstant(MakeJitConstant("OUTPUT_LEFTOVERS", leftovers));
+
+    // For blocked weight formats with OSV_FIRST (e.g., os_is_yx_isv16_osv16), when the
+    // input feature count is not aligned to the ISV block size, we must zero-fill IFM
+    // padding positions. Otherwise, uninitialized memory (potentially containing NaN)
+    // in weight padding can propagate through convolution via NaN * 0 = NaN (IEEE 754).
+    if (osv_first) {
+        size_t isv_size = slice_sizes.first;
+        if (isv_size > 1 && (output.IFM().v % isv_size) != 0) {
+            jit.AddConstant(MakeJitConstant("IFM_PADDING", 1));
+            jit.AddConstant(MakeJitConstant("ACTUAL_IFM_NUM", output.IFM().v));
+        }
+    }
 
     return jit;
 }

@@ -125,9 +125,11 @@ TEST(lru_cache, custom_data_type) {
 }
 
 namespace {
-struct ImplHasher {
-    size_t operator()(const kernel_impl_params &k) const {
-        return k.hash();
+// Force all entries to collide so the test exercises the cache's collision-handling
+// logic regardless of the std::hash implementation (which is not portable across compilers).
+struct CollidingImplHasher {
+    size_t operator()(const kernel_impl_params& /*k*/) const {
+        return 42;
     }
 };
 }  // namespace
@@ -141,7 +143,7 @@ TEST(lru_cache, collisions) {
     auto shape_of1_prim = std::make_shared<shape_of>("shape_of1", input_info("input1"), data_types::i64);
     auto shape_of2_prim = std::make_shared<shape_of>("shape_of2", input_info("input2"), data_types::i64);
 
-    using ImplementationsCache = cldnn::LruCacheThreadSafe<kernel_impl_params, std::shared_ptr<primitive_impl>, ImplHasher>;
+    using ImplementationsCache = cldnn::LruCacheThreadSafe<kernel_impl_params, std::shared_ptr<primitive_impl>, CollidingImplHasher>;
     ImplementationsCache cache(0);
 
     program prog(get_test_engine());
@@ -167,15 +169,12 @@ TEST(lru_cache, collisions) {
     auto impl1 = shape_of1_node.type()->create_impl(shape_of1_node);
     auto impl2 = shape_of2_node.type()->create_impl(shape_of2_node);
 
-    // Ensure that hashes for primitive, input layouts and full impl params are same due to collision
-    ASSERT_EQ(shape_of1_prim->hash(), shape_of2_prim->hash());
-    ASSERT_EQ(l1.hash(), l2.hash());
-    ASSERT_EQ(shape_of1_node.get_kernel_impl_params()->hash(), shape_of2_node.get_kernel_impl_params()->hash());
+    // Params must differ so the cache stores both despite the forced hash collision
     ASSERT_FALSE(shape_of1_node.get_kernel_impl_params() == shape_of2_node.get_kernel_impl_params());
 
     cache.add(*shape_of1_node.get_kernel_impl_params(), impl1->clone());
     cache.add(*shape_of2_node.get_kernel_impl_params(), impl2->clone());
 
-    // But cache still contains both entries, as input layouts are differenet - thus kernels are different
+    // Cache still contains both entries, as input layouts are different — thus kernels are different
     ASSERT_EQ(cache.size(), 2);
 }

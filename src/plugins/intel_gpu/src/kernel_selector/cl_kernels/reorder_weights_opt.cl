@@ -81,29 +81,61 @@ KERNEL(reorder_weights_opt)(const __global INPUT0_TYPE* input, __global OUTPUT_T
     int input_idx = GET_INDEX(INPUT0, IDX_ORDER);
     const int output_idx = GET_INDEX(OUTPUT, BLOCK_IDX_ORDER);
 
+#if OUTPUT_LEFTOVERS
+#if OSV_FIRST
+    const bool valid_lane = o < OUTPUT_OFM_NUM;
+#else
+    const bool valid_lane = i < OUTPUT_IFM_NUM;
+#endif
+#else
+    const bool valid_lane = true;
+#endif
+
+    // For blocked formats with IFM padding (e.g., isv16 with IFM=3), skip input reads
+    // for padding positions and write zero. This prevents NaN in weight padding from
+    // propagating through convolution (NaN * 0 = NaN in IEEE 754).
+#if defined(IFM_PADDING) && OSV_FIRST
+    const bool ifm_valid = (i < ACTUAL_IFM_NUM);
+#else
+    const bool ifm_valid = true;
+#endif
+
 #if SECOND_BLOCK_SIZE == 1
-    const OUTPUT_TYPE val = TO_OUTPUT_TYPE(input[input_idx]);
+    OUTPUT_TYPE val;
+#if defined(IFM_PADDING) && OSV_FIRST
+    if (ifm_valid && valid_lane) {
+        val = TO_OUTPUT_TYPE(input[input_idx]);
+    } else {
+        val = (OUTPUT_TYPE)0;
+    }
+#else
+    val = valid_lane ? TO_OUTPUT_TYPE(input[input_idx]) : (OUTPUT_TYPE)0;
+#endif
 #else
     OUTPUT_VEC_TYPE val = 0;
     unroll_for (int b = 0; b < SECOND_BLOCK_SIZE; b++) {
-        val[b] = TO_OUTPUT_TYPE(input[input_idx]);
+#if defined(IFM_PADDING) && OSV_FIRST
+        if (valid_lane && (i + b) < ACTUAL_IFM_NUM) {
+            val[b] = TO_OUTPUT_TYPE(input[input_idx]);
+        }
+#else
+        val[b] = valid_lane ? TO_OUTPUT_TYPE(input[input_idx]) : (OUTPUT_TYPE)0;
+#endif
         input_idx += PITCH;
     }
 #endif  // SECOND_BLOCK_SIZE == 1
 #if OUTPUT_LEFTOVERS
 #if OSV_FIRST
-    const bool doWrite = o < OUTPUT_OFM_NUM;
     if (o_blocked >= OUTPUT_OFM_NUM - FIRST_BLOCK_SIZE) {
 #else
-    const bool doWrite = i < OUTPUT_IFM_NUM;
     if (i_blocked >= OUTPUT_IFM_NUM - FIRST_BLOCK_SIZE) {
 #endif  // OSV_FIRST
 #if SECOND_BLOCK_SIZE > 1
         unroll_for(int b = 0; b < SECOND_BLOCK_SIZE; b++)
-            if (doWrite)
+            if (valid_lane)
                 output[output_idx + b * SECOND_SIZE + lid] = val[b];
 #else
-            if (doWrite)
+            if (valid_lane)
                 output[output_idx + lid] = val;
 #endif  // SECOND_BLOCK_SIZE > 1
     }
