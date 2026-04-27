@@ -35,19 +35,19 @@
 namespace ov::intel_cpu {
 namespace {
 
-[[maybe_unused]] bool is_supported_copy_b(const std::shared_ptr<ov::Node>& node) {
 #if defined(OPENVINO_ARCH_X86_64)
+bool is_supported_copy_b(const std::shared_ptr<ov::Node>& node) {
     const auto copy_b = ov::as_type_ptr<BrgemmCopyB>(node);
     OPENVINO_ASSERT(copy_b, "EliminateCopyB expects BrgemmCopyB node on x64");
     // TODO [157340]: support external repacking for copyB with compensations.
     return !copy_b->get_config().with_compensations();
+}
 #elif defined(OPENVINO_ARCH_ARM64)
+bool is_supported_copy_b(const std::shared_ptr<ov::Node>& node) {
     OPENVINO_ASSERT(ov::is_type<aarch64::GemmCopyB>(node), "EliminateCopyB expects GemmCopyB node on aarch64");
     return true;
-#else
-    return false;
-#endif
 }
+#endif
 
 }  // namespace
 
@@ -55,11 +55,14 @@ bool pass::EliminateCopyB::should_extract(size_t param_idx) const {
     return m_runtime_repacking_supported || m_compile_time_repacking_idxs.count(param_idx) > 0;
 }
 
-bool pass::EliminateCopyB::run_on_model(const std::shared_ptr<ov::Model>& model) {
+bool pass::EliminateCopyB::run_on_model([[maybe_unused]] const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(EliminateCopyB);
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::EliminateCopyB")
 
-#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
+#if !defined(OPENVINO_ARCH_X86_64) && !defined(OPENVINO_ARCH_ARM64)
+    [[maybe_unused]] auto& input_repackers = m_input_repackers;
+    return false;
+#else
     auto m_param = ov::pass::pattern::wrap_type<ov::op::v0::Parameter>();
     auto m_rank_norm = ov::pass::pattern::optional<ov::snippets::op::RankNormalization>(m_param);
 #    if defined(OPENVINO_ARCH_X86_64)
@@ -124,8 +127,6 @@ bool pass::EliminateCopyB::run_on_model(const std::shared_ptr<ov::Model>& model)
     }
 
     return status;
-#else
-    return false;
 #endif
 }
 }  // namespace ov::intel_cpu

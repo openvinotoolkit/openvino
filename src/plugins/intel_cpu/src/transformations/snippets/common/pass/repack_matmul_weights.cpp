@@ -15,9 +15,9 @@
 #include <utility>
 #include <vector>
 
-#include "common/utils.hpp"
 #include "cpu_memory.h"
 #include "cpu_types.h"
+#include "graph_context.h"
 #include "memory_desc/cpu_blocked_memory_desc.h"
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/except.hpp"
@@ -32,6 +32,7 @@
 #include "snippets/utils/utils.hpp"
 
 #if defined(OPENVINO_ARCH_X86_64)
+#    include "common/utils.hpp"
 #    include "dnnl_extension_utils.h"
 #    include "memory_desc/cpu_memory_desc_utils.h"
 #    include "memory_desc/dnnl_memory_desc.h"
@@ -249,11 +250,13 @@ MemoryPtr prepare_aarch64_weights_memory(const GraphContext::CPtr& context,
 
 }  // namespace
 
-bool RepackMatMulWeights::run_on_model(const std::shared_ptr<ov::Model>& model) {
+bool RepackMatMulWeights::run_on_model([[maybe_unused]] const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(RepackMatMulWeights);
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::RepackMatMulWeights")
 
-#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
+#if !defined(OPENVINO_ARCH_X86_64) && !defined(OPENVINO_ARCH_ARM64)
+    return false;
+#else
     const auto& params = model->get_parameters();
     std::unordered_set<size_t> weights_idxs;
     for (const auto& [i, input_repacker] : m_input_repackers) {
@@ -312,8 +315,6 @@ bool RepackMatMulWeights::run_on_model(const std::shared_ptr<ov::Model>& model) 
     }
 
     return !weights_idxs.empty();
-#else
-    return false;
 #endif
 }
 }  // namespace ov::intel_cpu::pass
