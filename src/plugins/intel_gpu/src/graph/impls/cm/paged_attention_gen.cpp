@@ -629,7 +629,6 @@ JitConstants XAttentionEstimateGeneratorBase::get_jit_constants(const kernel_imp
     if (get_kv_compressed(params)) {
         if (desc->is_key_by_channel) {
             jit.make("KV_CACHE_COMPRESSION", 2);
-            jit.make("SUB_BLOCK_SIZE", KV_SUB_BLOCK_SIZE);
             jit.make("HEAD_SIZE_KEY", desc->k_head_size + 4 * desc->k_head_size / KV_SUB_BLOCK_SIZE);
         } else {
             jit.make("KV_CACHE_COMPRESSION", 1);
@@ -639,6 +638,7 @@ JitConstants XAttentionEstimateGeneratorBase::get_jit_constants(const kernel_imp
         jit.make("KV_CACHE_COMPRESSION", 0);
         jit.make("HEAD_SIZE_KEY", desc->k_head_size);
     }
+    jit.make("SUB_BLOCK_SIZE", KV_SUB_BLOCK_SIZE);
     jit.make("SOFTMAX_TYPE", "float");
 
     return jit;
