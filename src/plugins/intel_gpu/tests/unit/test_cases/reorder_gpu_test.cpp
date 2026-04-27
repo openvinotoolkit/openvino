@@ -343,13 +343,13 @@ static void compare_bfyx2blocked_with_ref_dynamic(const std::string& kernel_name
 
     cldnn::network network_dyn(engine, topo_dyn, config_dyn);
 
+    network_dyn.set_input_data("input", input);
+    auto outputs_dyn = network_dyn.execute();
+
     auto reorder_inst = network_dyn.get_primitive("reorder");
     auto reorder_impl = reorder_inst->get_impl();
     ASSERT_TRUE(reorder_impl != nullptr);
-    ASSERT_TRUE(reorder_impl->is_dynamic());
-
-    network_dyn.set_input_data("input", input);
-    auto outputs_dyn = network_dyn.execute();
+    ASSERT_NE(reorder_impl->get_kernel_name().find(kernel_name), std::string::npos);
 
     // Compare ref vs dynamic
     if (output_data_type == data_types::i8)

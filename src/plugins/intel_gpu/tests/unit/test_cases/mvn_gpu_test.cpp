@@ -896,7 +896,11 @@ struct mvn_random_test_bsv32 : ::testing::TestWithParam<mvn_basic_test_params> {
         topo_opt.add(prim_opt);
         ExecutionConfig config_opt = get_test_default_config(engine);
         config_opt.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"mvn_opt", "input_to_target_layout"}));
-        config_opt.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"mvn_opt", {params.input_format, "mvn_gpu_b_fs_yx_fsv16_imad"}} }));
+          const auto opt_kernel = (params.input_format == format::bs_fs_yx_bsv32_fsv16 ||
+                                            params.input_format == format::bs_fs_yx_bsv32_fsv32)
+                                                ? "mvn_gpu_b_fs_yx_bsv32"
+                                                : "mvn_gpu_b_fs_yx_fsv16_imad";
+        config_opt.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"mvn_opt", {params.input_format, opt_kernel}} }));
 
         cldnn::network::ptr net_opt = get_network(engine, topo_opt, config_opt, get_test_stream_ptr(), is_caching_test);
 
