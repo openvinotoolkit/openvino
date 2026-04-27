@@ -24,7 +24,7 @@ static void CreatePagedGatedDeltaNetOp(ProgramBuilder& p, const std::shared_ptr<
 
     auto inputs = p.GetInputInfo(op);
     const std::string layer_name = layer_type_name_ID(op);
-    cldnn::paged_gated_delta_net prim(layer_name, inputs, op->get_fuse_qk_l2norm(), op->get_q_l2_norm_eps(), op->get_k_l2_norm_eps());
+    cldnn::paged_gated_delta_net prim(layer_name, inputs, op->get_use_qk_l2norm(), op->get_q_l2_norm_eps(), op->get_k_l2_norm_eps());
 
     const auto query_ps = op->get_input_partial_shape(0);
     const auto key_ps = op->get_input_partial_shape(1);

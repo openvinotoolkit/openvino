@@ -95,7 +95,7 @@ protected:
         jit.make("V_BLOCK_SIZE", get_v_block_size(v_head_dims));
         jit.make("SUBGROUP_SIZE", get_subgroup_size(params.get_device_info().arch));
         jit.make("K_VEC_SIZE", m_force_ref_path ? 1 : get_vec_size(params));
-        jit.make("FUSE_QK_L2NORM", desc->fuse_qk_l2norm ? 1 : 0);
+        jit.make("FUSE_QK_L2NORM", desc->use_qk_l2norm ? 1 : 0);
         jit.make("Q_L2_NORM_EPS", desc->q_l2_norm_eps);
         jit.make("K_L2_NORM_EPS", desc->k_l2_norm_eps);
         jit.make("SCALE_FACTOR", scale_factor);

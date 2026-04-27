@@ -60,7 +60,7 @@ private:
     stream& m_stream;
     const network& m_network;
     const program* m_program;
-    const size_t m_iter;
+    const int64_t m_iter;
 };
 
 class NetworkDebugHelper {
@@ -71,7 +71,7 @@ public:
 private:
     void dump_memory_pool(std::string dump_path, int64_t curr_iter) const;
     network& m_network;
-    const size_t m_iter;
+    const int64_t m_iter;
 };
 
 #define NETWORK_DEBUG(net) NetworkDebugHelper __network_debug_helper(net)

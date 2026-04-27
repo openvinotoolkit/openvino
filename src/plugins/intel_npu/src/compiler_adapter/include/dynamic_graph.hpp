@@ -10,8 +10,8 @@
 
 #include "intel_npu/common/idynamic_graph.hpp"
 #include "intel_npu/common/network_metadata.hpp"
+#include "intel_npu/utils/vm/npu_vm_runtime_api.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
-#include "npu_vm_runtime_api.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace intel_npu {
@@ -77,10 +77,17 @@ public:
         }
     };
 
-    struct GraphArgumentsImpl : public GraphArguments {
+    struct GraphArgumentsImpl {
         std::vector<npu_vm_runtime_mem_ref_handle_t> _inputMemRefs;
         std::vector<npu_vm_runtime_mem_ref_handle_t> _outputMemRefs;
         npu_vm_runtime_execute_params_t _executeParams = {};
+
+        ~GraphArgumentsImpl() {
+            if (_executeParams.executionContext != nullptr) {
+                npuVMRuntimeDestroyExecutionContext(_executeParams.executionContext);
+                _executeParams.executionContext = nullptr;
+            }
+        }
     };
 
     class Impl {

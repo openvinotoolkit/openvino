@@ -4,100 +4,83 @@
 
 #pragma once
 
+#include "openvino/op/paged_gated_delta_net.hpp"
 #include "utils.hpp"
 
 namespace ov::op::internal {
-template <class OpType, class T, class TRShape = result_shape_t<T>>
-std::vector<TRShape> shape_infer(const OpType* op, const std::vector<T>& input_shapes) {
-    NODE_SHAPE_INFER_CHECK(op,
-                           input_shapes,
-                           input_shapes.size() == 11,
-                           "Incorrect number of inputs for PagedGatedDeltaNet");
+
+template <class T, class TRShape = result_shape_t<T>>
+std::vector<TRShape> shape_infer(const PagedGatedDeltaNet* op, const std::vector<T>& input_shapes) {
+    NODE_VALIDATION_CHECK(op, input_shapes.size() == 11);
+
+    NODE_SHAPE_INFER_CHECK(op, input_shapes, input_shapes[0].rank().compatible(3));
+    NODE_SHAPE_INFER_CHECK(op, input_shapes, input_shapes[1].rank().compatible(3));
+    NODE_SHAPE_INFER_CHECK(op, input_shapes, input_shapes[2].rank().compatible(3));
+    NODE_SHAPE_INFER_CHECK(op, input_shapes, input_shapes[3].rank().compatible(4));
+    NODE_SHAPE_INFER_CHECK(op, input_shapes, input_shapes[4].rank().compatible(2));
+    NODE_SHAPE_INFER_CHECK(op, input_shapes, input_shapes[5].rank().compatible(2));
+    NODE_SHAPE_INFER_CHECK(op, input_shapes, input_shapes[6].rank().compatible(1));
+    NODE_SHAPE_INFER_CHECK(op, input_shapes, input_shapes[7].rank().compatible(1));
+    NODE_SHAPE_INFER_CHECK(op, input_shapes, input_shapes[8].rank().compatible(1));
+    NODE_SHAPE_INFER_CHECK(op, input_shapes, input_shapes[9].rank().compatible(1));
+    NODE_SHAPE_INFER_CHECK(op, input_shapes, input_shapes[10].rank().compatible(1));
 
     // [batch_size_in_tokens, num_heads, key_head_dim]
     const auto& query_ps = input_shapes[0];
     const auto& key_ps = input_shapes[1];
     // [batch_size_in_tokens, v_num_heads, value_head_dim]
     const auto& value_ps = input_shapes[2];
-    // [num_blocks, v_num_heads, key_head_dim, value_head_dim]
+    // [num_blocks, v_num_heads, value_head_dim, key_head_dim]
     const auto& state_ps = input_shapes[3];
     // [batch_size_in_tokens, v_num_heads]
     const auto& gate_ps = input_shapes[4];
     const auto& beta_ps = input_shapes[5];
 
-    const auto q_head_num = query_ps[1];
-    const auto k_head_num = key_ps[1];
-    const auto v_head_num = value_ps[1];
+    const auto query_rank_is_static = query_ps.rank().is_static();
+    const auto key_rank_is_static = key_ps.rank().is_static();
+    const auto value_rank_is_static = value_ps.rank().is_static();
+    const auto state_rank_is_static = state_ps.rank().is_static();
+    const auto gate_rank_is_static = gate_ps.rank().is_static();
+    const auto beta_rank_is_static = beta_ps.rank().is_static();
 
-    const auto q_head_size = query_ps[2];
-    const auto k_head_size = key_ps[2];
-    const auto v_head_size = value_ps[2];
+    if (query_rank_is_static && key_rank_is_static) {
+        NODE_SHAPE_INFER_CHECK(op,
+                               input_shapes,
+                               query_ps[1].compatible(key_ps[1]),
+                               "The number of heads in query and key inputs must be equal.");
 
-    NODE_SHAPE_INFER_CHECK(op,
-                           input_shapes,
-                           q_head_num.compatible(k_head_num),
-                           "The number of heads in query and key should be the same, but got ",
-                           q_head_num,
-                           " and ",
-                           k_head_num,
-                           ".");
+        NODE_SHAPE_INFER_CHECK(op,
+                               input_shapes,
+                               key_ps[2].compatible(query_ps[2]),
+                               "The head size of query and key inputs must be equal.");
+    }
 
-    NODE_SHAPE_INFER_CHECK(op,
-                           input_shapes,
-                           k_head_size.compatible(q_head_size),
-                           "The head size in key and query should be the same, but got ",
-                           k_head_size,
-                           " and ",
-                           q_head_size,
-                           ".");
+    if (value_rank_is_static && gate_rank_is_static && beta_rank_is_static) {
+        NODE_SHAPE_INFER_CHECK(op,
+                               input_shapes,
+                               gate_ps[1].compatible(value_ps[1]) && beta_ps[1].compatible(value_ps[1]),
+                               "The number of heads in gate, beta, and value inputs must be equal.");
+    }
 
-    const auto gate_head_num = gate_ps[1];
-    const auto beta_head_num = beta_ps[1];
+    if (state_rank_is_static && value_rank_is_static && key_rank_is_static) {
+        // [num_blocks, v_num_heads, value_head_dim, key_head_dim]
+        NODE_SHAPE_INFER_CHECK(op,
+                               input_shapes,
+                               state_ps[1].compatible(value_ps[1]),
+                               "The number of heads in recurrent_state_table and value inputs must be equal.");
 
-    NODE_SHAPE_INFER_CHECK(op,
-                           input_shapes,
-                           gate_head_num.compatible(v_head_num) && beta_head_num.compatible(v_head_num),
-                           "The number of heads in gate, beta, and value should be the same, but got gate=",
-                           gate_head_num,
-                           ", beta=",
-                           beta_head_num,
-                           ", value=",
-                           v_head_num,
-                           ".");
+        NODE_SHAPE_INFER_CHECK(
+            op,
+            input_shapes,
+            state_ps[2].compatible(value_ps[2]),
+            "The value dimension of recurrent_state_table and the head size of value input must be equal.");
 
-    // [num_blocks, v_num_heads, key_head_dim, value_head_dim]
-    const auto state_head_num = state_ps[1];
-    const auto state_key_dim = state_ps[3];
-    const auto state_value_dim = state_ps[2];
-
-    NODE_SHAPE_INFER_CHECK(op,
-                           input_shapes,
-                           state_head_num.compatible(v_head_num),
-                           "The number of heads in recurrent_state_table and value should be the same, but got ",
-                           state_head_num,
-                           " and ",
-                           v_head_num,
-                           ".");
-
-    NODE_SHAPE_INFER_CHECK(
-        op,
-        input_shapes,
-        state_key_dim.compatible(k_head_size),
-        "The key_head_dim of recurrent_state_table and head size of key should be the same, but got ",
-        state_key_dim,
-        " and ",
-        k_head_size,
-        ".");
-
-    NODE_SHAPE_INFER_CHECK(
-        op,
-        input_shapes,
-        state_value_dim.compatible(v_head_size),
-        "The value_head_dim of recurrent_state_table and head size of value should be the same, but got ",
-        state_value_dim,
-        " and ",
-        v_head_size,
-        ".");
+        NODE_SHAPE_INFER_CHECK(
+            op,
+            input_shapes,
+            state_ps[3].compatible(key_ps[2]),
+            "The key dimension of recurrent_state_table and the head size of key input must be equal.");
+    }
 
     // output: [batch_size_in_tokens, v_num_heads, value_head_dim] — same shape as value input
     return {value_ps};

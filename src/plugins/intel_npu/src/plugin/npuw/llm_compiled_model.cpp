@@ -197,7 +197,13 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
     if (!plugin->get_core()) {
         return std::nullopt;
     }
-    const auto all_devices = plugin->get_core()->get_property("NPU", ov::available_devices);
+    std::vector<std::string> all_devices;
+    try {
+        all_devices = plugin->get_core()->get_property("NPU", ov::available_devices);
+    } catch (const ov::Exception& ex) {
+        LOG_WARN("Failed to query NPU capabilities, defaulting LLM config to backend-agnostic path: " << ex.what());
+        return std::nullopt;
+    }
     if (all_devices.empty()) {
         return std::nullopt;
     }
@@ -1137,7 +1143,7 @@ void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
     }
 }
 
-void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw::s11n::CompiledContext& ctx) const {
+void ov::npuw::LLMCompiledModel::serialize(std::ostream& raw_stream, const ov::npuw::s11n::CompiledContext& ctx) const {
     LOG_INFO("Serializing LLMCompiledModel...");
     LOG_BLOCK();
 
@@ -1152,38 +1158,26 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
     }
 
     auto write_model_meta = [&](std::ostream& model_stream) {
+        auto stream = Stream::writer(model_stream);
         // Serialize name
-        write(model_stream, m_name);
+        stream & m_name;
 
         // Serialize inputs and outputs
-        write(model_stream, inputs());
-        write(model_stream, outputs());
+        stream& inputs() & outputs();
 
         // Serialize LLMCompiledModel-specific data
-        write(model_stream, m_kvcache_desc.max_prompt_size);
-        write(model_stream, m_kvcache_desc.total_size);
-        write(model_stream, m_kvcache_desc.num_stored_tokens);
-        write(model_stream, m_kvcache_desc.dim);
-        write(model_stream, m_kvcache_desc.max_generation_token_len);
-        write(model_stream, m_kvcache_desc.v_tensors_transposed_pre);
-        write(model_stream, m_kvcache_desc.v_tensors_transposed_gen);
-        write(model_stream, m_prefill_chunk_size);
-        write(model_stream, m_use_chunk_prefill);
-        write(model_stream, m_max_lora_rank);
-        write(model_stream, m_enable_prefix_caching);
-        write(model_stream, m_prefix_caching_block_size);
-        write(model_stream, m_prefix_caching_max_num_blocks);
-        write(model_stream, m_is_whisper);
-        write(model_stream, m_eos_token_id);
-        write(model_stream, m_is_eagle);
-        write(model_stream, m_is_embedding);
+        stream & m_kvcache_desc.max_prompt_size & m_kvcache_desc.total_size & m_kvcache_desc.num_stored_tokens &
+            m_kvcache_desc.dim & m_kvcache_desc.max_generation_token_len & m_kvcache_desc.v_tensors_transposed_pre &
+            m_kvcache_desc.v_tensors_transposed_gen & m_prefill_chunk_size & m_use_chunk_prefill & m_max_lora_rank &
+            m_enable_prefix_caching & m_prefix_caching_block_size & m_prefix_caching_max_num_blocks & m_is_whisper &
+            m_eos_token_id & m_is_eagle & m_is_embedding;
 
         // Write config
-        write(model_stream, m_cfg);
+        stream & m_cfg;
 
         // Serialize KV cache model variants
-        write(model_stream, m_kvcache_sizes);
-        write(model_stream, static_cast<uint32_t>(m_generate_compiled_variants.size()));
+        auto variant_count = static_cast<uint32_t>(m_generate_compiled_variants.size());
+        stream & m_kvcache_sizes & variant_count;
 
         // Serialize CompiledModels
         // Note: no need to pass any encryption here as it's done in export_model()
@@ -1196,7 +1190,7 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
 
         m_prefill_compiled->serialize(model_stream, enc_ctx);
         const bool is_shared_lm_head = m_lm_head_compiled != nullptr;
-        write(model_stream, is_shared_lm_head);
+        stream & is_shared_lm_head;
         if (is_shared_lm_head) {
             m_lm_head_compiled->serialize(model_stream, enc_ctx);
         }
@@ -1205,24 +1199,24 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
     std::stringstream non_encrypted_stream;
     if (ctx.encrypted) {
         NPUW_ASSERT(ctx.encrypt && "Encryption function isn't provided!");
-        non_encrypted_stream.copyfmt(stream);
+        non_encrypted_stream.copyfmt(raw_stream);
         write_model_meta(non_encrypted_stream);
         std::string encrypted_str = ctx.encrypt(non_encrypted_stream.str());
-        write(stream, encrypted_str);
+        write(raw_stream, encrypted_str);
     } else {
-        write_model_meta(stream);
+        write_model_meta(raw_stream);
     }
 
     // Serialize bank name
     const auto& kv_bank = m_kvcache_compiled->get_weights_bank();
     const auto& p_bank = m_prefill_compiled->get_weights_bank();
     NPUW_ASSERT(kv_bank && p_bank && kv_bank == p_bank && "Prefill and KVCache models' weight bank should be shared!");
-    write(stream, kv_bank->get_name());
+    auto stream = Stream::writer(raw_stream);
+    auto bank_name = kv_bank->get_name();
+    stream & bank_name;
 
     if (!is_weightless) {
-        // Serialize weights bank
-        // Note: no need to encrypt weights in full flow
-        kv_bank->serialize(stream);
+        ov::npuw::s11n::serialize(stream, *kv_bank);
     }
 
     LOG_INFO("Done.");
@@ -1283,9 +1277,9 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
 
     auto read_and_finalize_banks = [&](std::istream& model_stream,
                                        const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled) {
-        // Deserialize weights bank name
+        auto stream = Stream::reader(model_stream);
         std::string bank_name;
-        read(model_stream, bank_name);
+        stream & bank_name;
 
         if (is_weightless) {
             auto bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
@@ -1303,8 +1297,8 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
                 compiled->m_lm_head_compiled->finalize_weights_bank();
             }
         } else {
-            auto bank =
-                ov::npuw::weights::Bank::deserialize(model_stream, compiled->get_plugin()->get_core(), bank_name);
+            auto bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
+            ov::npuw::s11n::serialize(stream, *bank);
 
             compiled->m_kvcache_compiled->set_weights_bank(bank);
             for (const auto& compiled_variant : compiled->m_generate_compiled_variants) {
@@ -1369,49 +1363,39 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     using namespace ov::npuw::s11n;
 
     auto read_model_meta = [&](std::istream& model_stream) {
+        auto stream = Stream::reader(model_stream);
         // Deserialize model name first
         std::string model_name;
-        read(model_stream, model_name);
+        stream & model_name;
 
         // Create a dummy CompiledModel with an empty ov::Model - this will skip the constructor flow
         // to continue deserialization
         ov::ParameterVector parameters;
         ov::NodeVector results;
 
-        read(model_stream, parameters);
-        read(model_stream, results);
+        stream & parameters & results;
 
         auto ov_model = std::make_shared<ov::Model>(ov::as_output_vector(results), parameters, model_name);
 
         auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(ov_model, plugin, true);
 
         // Deserialize LLMCompiledModel-specific data
-        read(model_stream, compiled->m_kvcache_desc.max_prompt_size);
-        read(model_stream, compiled->m_kvcache_desc.total_size);
-        read(model_stream, compiled->m_kvcache_desc.num_stored_tokens);
-        read(model_stream, compiled->m_kvcache_desc.dim);
-        read(model_stream, compiled->m_kvcache_desc.max_generation_token_len);
-        read(model_stream, compiled->m_kvcache_desc.v_tensors_transposed_pre);
-        read(model_stream, compiled->m_kvcache_desc.v_tensors_transposed_gen);
-        read(model_stream, compiled->m_prefill_chunk_size);
-        read(model_stream, compiled->m_use_chunk_prefill);
-        read(model_stream, compiled->m_max_lora_rank);
-        read(model_stream, compiled->m_enable_prefix_caching);
-        read(model_stream, compiled->m_prefix_caching_block_size);
-        read(model_stream, compiled->m_prefix_caching_max_num_blocks);
-        read(model_stream, compiled->m_is_whisper);
-        read(model_stream, compiled->m_eos_token_id);
-        read(model_stream, compiled->m_is_eagle);
-        read(model_stream, compiled->m_is_embedding);
+        stream & compiled->m_kvcache_desc.max_prompt_size & compiled->m_kvcache_desc.total_size &
+            compiled->m_kvcache_desc.num_stored_tokens & compiled->m_kvcache_desc.dim &
+            compiled->m_kvcache_desc.max_generation_token_len & compiled->m_kvcache_desc.v_tensors_transposed_pre &
+            compiled->m_kvcache_desc.v_tensors_transposed_gen & compiled->m_prefill_chunk_size &
+            compiled->m_use_chunk_prefill & compiled->m_max_lora_rank & compiled->m_enable_prefix_caching &
+            compiled->m_prefix_caching_block_size & compiled->m_prefix_caching_max_num_blocks & compiled->m_is_whisper &
+            compiled->m_eos_token_id & compiled->m_is_eagle & compiled->m_is_embedding;
 
         // Deserialize config
-        read(model_stream, compiled->m_cfg);
+        stream & compiled->m_cfg;
         compiled->implement_properties();
 
         // Deserialize KV cache model variants
-        read(model_stream, compiled->m_kvcache_sizes);
+        stream & compiled->m_kvcache_sizes;
         uint32_t num_variants = 0;
-        read(model_stream, num_variants);
+        stream & num_variants;
 
         compiled->m_generate_compiled_variants.reserve(num_variants);
 
@@ -1432,7 +1416,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
 
         compiled->m_prefill_compiled = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
         bool is_shared_lm_head = false;
-        read(model_stream, is_shared_lm_head);
+        stream & is_shared_lm_head;
         if (is_shared_lm_head) {
             compiled->m_lm_head_compiled =
                 ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
