@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "model_builder_masks.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset11.hpp"
 
@@ -428,6 +429,16 @@ struct BaseModelConfig {
     }
 };
 
+/// Sliding-window mask construction. Inputs: seq_source (input_ids/inputs_embeds),
+/// attention_mask, output element type, window size. Returns a 4D mask suitable
+/// for SDPA. Empty = default Gemma-4-style float construction; set to a builder
+/// like make_sliding_window_mask_phi3 to test the older boolean Phi3 pattern.
+/// Builder declarations live in model_builder_masks.hpp.
+using SlidingMaskFn = std::function<ov::Output<ov::Node>(const ov::Output<ov::Node>&,
+                                                         const ov::Output<ov::Node>&,
+                                                         ov::element::Type,
+                                                         size_t)>;
+
 struct LLMConfig : public BaseModelConfig {
     bool use_kv_cache = true;
     bool use_inputs_embeds = false;
@@ -440,8 +451,9 @@ struct LLMConfig : public BaseModelConfig {
     size_t moe_intermediate_size = 0; ///< Expert FFN intermediate size. 0 = use intermediate_size.
 
     size_t sliding_window_size = 0;      ///< 0 = no sliding window. >0 = window size (Phi-3, Gemma 2/3)
-    bool alternating_attention = false;  ///< false = all layers same mask. true = even=sliding, odd=full (Gemma 2)
+    bool alternating_attention = false;  ///< false = all layers same mask. true = even=sliding, odd=full (Gemma 2/3)
     bool use_token_type_ids = false;     ///< Gemma 3 VLM: token_type_ids param (0=text/causal, 1=image/bidir)
+    SlidingMaskFn sliding_mask_fn;       ///< Empty = default float (Gemma-4) construction.
 };
 
 struct WhisperConfig : public BaseModelConfig {
