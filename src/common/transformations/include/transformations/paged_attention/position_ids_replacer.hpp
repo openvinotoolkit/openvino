@@ -85,6 +85,13 @@ public:
  *  │Gather├──────────┘
  *  └──────┘
  */
+
+class ov::pass::PositionIDsReplacerCodeGen2 : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("PositionIDsReplacerCodeGen2");
+    explicit PositionIDsReplacerCodeGen2(const std::shared_ptr<ov::op::v0::Parameter>& position_ids);
+};
+
 /**
  * @brief LFM2-style models compute RoPE positions from an internal arange (aten::arange) rather
  * than from the explicit position_ids input. This transformation replaces that arange output with
@@ -94,10 +101,4 @@ class ov::pass::PositionIDsReplacerLFM2 : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("PositionIDsReplacerLFM2");
     explicit PositionIDsReplacerLFM2(const Output<Node>& position_ids);
-};
-
-class ov::pass::PositionIDsReplacerCodeGen2 : public ov::pass::MatcherPass {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("PositionIDsReplacerCodeGen2");
-    explicit PositionIDsReplacerCodeGen2(const std::shared_ptr<ov::op::v0::Parameter>& position_ids);
 };
