@@ -8,6 +8,8 @@
 #include <limits>
 #include <unordered_map>
 
+#include "model_builder_masks.hpp"
+
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/assign.hpp"
 #include "openvino/op/ops.hpp"
@@ -38,7 +40,6 @@ void annotate_constants_with_weightless_cache(const std::shared_ptr<ov::Model>& 
 
 // Named constants for magic values used throughout model construction.
 constexpr float kRoPEBaseFrequency = 10000.0f;
-constexpr float kAttentionMaskPadding = -10000.0f;
 constexpr float kAttentionMaskPaddingFP16Min = -65504.0f;
 
 // Deterministic single fill value from tensor name (for scalars, norms, biases).
@@ -1127,90 +1128,9 @@ ov::Output<ov::Node> Attention::operator()(const ov::Output<ov::Node>& input,
     return (*this)(q, k, v, prefix, layer_idx);
 }
 
-/// Padding-only mask: [batch, seq] -> [batch, 1, 1, seq] float (0.0=attend, -10000.0=pad)
-static ov::Output<ov::Node> make_padding_mask(const ov::Output<ov::Node>& attention_mask_output,
-                                              ov::element::Type prec) {
-    auto mask_float = std::make_shared<ov::opset11::Convert>(attention_mask_output, prec);
-    mask_float->set_friendly_name("model.mask_convert");
-
-    auto one_const = ov::opset11::Constant::create(prec, ov::Shape{}, {1.0f});
-    auto inv_mask = std::make_shared<ov::opset11::Subtract>(one_const, mask_float);
-    inv_mask->set_friendly_name("model.mask_invert");
-
-    auto neg_inf = ov::opset11::Constant::create(prec, ov::Shape{}, {kAttentionMaskPadding});
-    auto padding_mask = std::make_shared<ov::opset11::Multiply>(inv_mask, neg_inf);
-    padding_mask->set_friendly_name("model.padding_mask");
-
-    auto pad_shape = ov::opset11::Constant::create(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 1, 1, -1});
-    auto padding_4d = std::make_shared<ov::opset11::Reshape>(padding_mask, pad_shape, true);
-    padding_4d->set_friendly_name("model.padding_mask_4d");
-
-    return padding_4d->output(0);
-}
-
-static ov::Output<ov::Node> make_causal_mask(const ov::Output<ov::Node>& input_ids_output,
-                                             const ov::Output<ov::Node>& attention_mask_output,
-                                             ov::element::Type prec) {
-    auto padding_4d = make_padding_mask(attention_mask_output, prec);
-
-    auto ids_shape = std::make_shared<ov::opset11::ShapeOf>(input_ids_output, ov::element::i64);
-    ids_shape->set_friendly_name("model.ids_shape");
-
-    auto mask_shape_node = std::make_shared<ov::opset11::ShapeOf>(attention_mask_output, ov::element::i64);
-    mask_shape_node->set_friendly_name("model.mask_shape");
-
-    auto idx1 = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {1});
-    auto gather_axis = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {0});
-
-    auto seq_len_s = std::make_shared<ov::opset11::Gather>(ids_shape, idx1, gather_axis);
-    seq_len_s->set_friendly_name("model.seq_len");
-
-    auto total_seq_s = std::make_shared<ov::opset11::Gather>(mask_shape_node, idx1, gather_axis);
-    total_seq_s->set_friendly_name("model.total_seq");
-
-    auto offset = std::make_shared<ov::opset11::Subtract>(total_seq_s, seq_len_s);
-    offset->set_friendly_name("model.causal_offset");
-
-    auto range_start = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {0});
-    auto range_step = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {1});
-
-    auto kv_range = std::make_shared<ov::op::v4::Range>(range_start, total_seq_s, range_step, ov::element::i64);
-    kv_range->set_friendly_name("model.kv_range");
-
-    auto q_range = std::make_shared<ov::op::v4::Range>(range_start, seq_len_s, range_step, ov::element::i64);
-    q_range->set_friendly_name("model.q_range");
-
-    auto q_abs = std::make_shared<ov::opset11::Add>(q_range, offset);
-    q_abs->set_friendly_name("model.q_abs_positions");
-
-    auto axis_last = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {1});
-    auto axis_first = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {0});
-
-    auto q_col = std::make_shared<ov::opset11::Unsqueeze>(q_abs, axis_last);
-    q_col->set_friendly_name("model.q_col");
-
-    auto kv_row = std::make_shared<ov::opset11::Unsqueeze>(kv_range, axis_first);
-    kv_row->set_friendly_name("model.kv_row");
-
-    auto causal_bool = std::make_shared<ov::op::v1::LessEqual>(kv_row, q_col);
-    causal_bool->set_friendly_name("model.causal_bool");
-
-    auto select_true = ov::opset11::Constant::create(prec, ov::Shape{}, {0.0f});
-    auto select_false = ov::opset11::Constant::create(prec, ov::Shape{}, {kAttentionMaskPadding});
-
-    auto causal_float = std::make_shared<ov::op::v1::Select>(causal_bool, select_true, select_false);
-    causal_float->set_friendly_name("model.causal_mask");
-
-    auto unsqueeze_axes = ov::opset11::Constant::create(ov::element::i64, ov::Shape{2}, {0, 1});
-
-    auto causal_4d = std::make_shared<ov::opset11::Unsqueeze>(causal_float, unsqueeze_axes);
-    causal_4d->set_friendly_name("model.causal_mask_4d");
-
-    auto combined = std::make_shared<ov::opset11::Add>(padding_4d, causal_4d);
-    combined->set_friendly_name("model.mask_4d");
-
-    return combined->output(0);
-}
+// Mask construction helpers (make_padding_mask, make_causal_mask,
+// make_sliding_window_mask, make_sliding_window_mask_phi3,
+// make_vlm_bidirectional_modifier) live in model_builder_masks.{hpp,cpp}.
 
 std::shared_ptr<ov::Model> ModelBuilder::get_model_with_one_op() {
     auto param = std::make_shared<ov::opset11::Parameter>(ov::element::i64, ov::PartialShape{1, 3, 2, 2});
@@ -1790,7 +1710,36 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
         beam_idx_output = beam_idx->output(0);
     }
 
-    auto sdpa_mask = make_causal_mask(seq_source, attention_mask->output(0), prec);
+    ov::Output<ov::Node> token_type_ids_output;
+    if (config.use_token_type_ids) {
+        auto tti = parameter(ov::element::i64, ov::PartialShape{-1, -1}, "token_type_ids");
+        token_type_ids_output = tti->output(0);
+    }
+
+    const bool has_sliding = config.sliding_window_size > 0;
+
+    ov::Output<ov::Node> full_mask;
+    ov::Output<ov::Node> sliding_mask;
+
+    // Need full causal mask unless every layer is sliding
+    if (!has_sliding || config.alternating_attention) {
+        full_mask = config.causal_mask_fn ? config.causal_mask_fn(seq_source, attention_mask->output(0), prec)
+                                          : make_causal_mask(seq_source, attention_mask->output(0), prec);
+    }
+    if (has_sliding) {
+        const auto& mask_fn = config.sliding_mask_fn ? config.sliding_mask_fn : SlidingMaskFn(make_sliding_window_mask);
+        sliding_mask = mask_fn(seq_source, attention_mask->output(0), prec, config.sliding_window_size);
+    }
+
+    // Apply VLM bidirectional modifier for image tokens
+    if (config.use_token_type_ids && token_type_ids_output.get_node()) {
+        if (full_mask.get_node())
+            full_mask = make_vlm_bidirectional_modifier(full_mask, token_type_ids_output, seq_source, prec);
+        if (sliding_mask.get_node())
+            sliding_mask = make_vlm_bidirectional_modifier(sliding_mask, token_type_ids_output, seq_source, prec);
+    }
+
+    auto default_mask = full_mask.get_node() ? full_mask : sliding_mask;
 
     // Shared GQA broadcast shape (embedding models only)
     ov::Output<ov::Node> shared_broadcast;
@@ -1814,7 +1763,7 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     attn.bias_fn = config.attn_bias;
     attn.qk_norm = config.qk_norm;
     attn.rope_fn = config.rope;
-    attn.sdpa_mask = sdpa_mask;
+    attn.sdpa_mask = default_mask;
     attn.shared_broadcast_shape = shared_broadcast;
 
     if (config.use_kv_cache) {
@@ -1847,6 +1796,10 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
                                 config.num_layers,
                                 "model.layers.",
                                 [&](const ov::Output<ov::Node>& input, const std::string& prefix, size_t layer) {
+                                    // Per-layer mask: alternating = even->sliding, odd->full
+                                    if (has_sliding && config.alternating_attention) {
+                                        attn.sdpa_mask = (layer % 2 == 0) ? sliding_mask : full_mask;
+                                    }
                                     if (config.pre_norm) {
                                         return make_pre_norm_layer(
                                             input,
@@ -2028,7 +1981,9 @@ static CachePositionResult make_cache_position_ids(const ov::Output<ov::Node>& i
             ids_shape->output(0)};
 }
 
-static ov::Output<ov::Node> make_whisper_causal_mask(const CachePositionResult& cache_pos, const std::string& prefix) {
+static ov::Output<ov::Node> make_whisper_causal_mask(const CachePositionResult& cache_pos,
+                                                     const std::string& prefix,
+                                                     bool boolean_output = false) {
     // kv_idx: Range -> 3x Unsqueeze -> [1, 1, 1, total_seq]
     auto mask_range = std::make_shared<ov::op::v4::Range>(
         ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {0})->output(0),
@@ -2084,11 +2039,18 @@ static ov::Output<ov::Node> make_whisper_causal_mask(const CachePositionResult& 
         std::make_shared<ov::op::v3::Broadcast>(causal_bool, broadcast_shape, ov::op::BroadcastType::BIDIRECTIONAL);
     causal_broadcast->set_friendly_name(prefix + "causal_mask_broadcast");
 
-    // Always f32 — NPUW's AttentionMask matchers inject f32 nodes
-    auto select_true = ov::opset11::Constant::create(ov::element::f32, ov::Shape{}, {0.0f});
-    auto select_false = ov::opset11::Constant::create(ov::element::f32, ov::Shape{}, {kAttentionMaskPaddingFP16Min});
-    auto causal_float = std::make_shared<ov::op::v1::Select>(causal_broadcast, select_true, select_false);
-    causal_float->set_friendly_name(prefix + "causal_mask");
+    // Float path: Select to f32. Boolean path: skip Select, feed bool tensor to Slice
+    // so the boolean handler at prepare_whisper_model.cpp:140 is exercised.
+    ov::Output<ov::Node> mask_for_slice;
+    if (boolean_output) {
+        mask_for_slice = causal_broadcast->output(0);
+    } else {
+        auto select_true = ov::opset11::Constant::create(ov::element::f32, ov::Shape{}, {0.0f});
+        auto select_false = ov::opset11::Constant::create(ov::element::f32, ov::Shape{}, {kAttentionMaskPaddingFP16Min});
+        auto causal_float = std::make_shared<ov::op::v1::Select>(causal_broadcast, select_true, select_false);
+        causal_float->set_friendly_name(prefix + "causal_mask");
+        mask_for_slice = causal_float->output(0);
+    }
 
     // Structural no-op Slice — AttentionMaskInput (prefill) needs Slice -> SDPA input[3]
     auto slice_start = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {0});
@@ -2099,7 +2061,7 @@ static ov::Output<ov::Node> make_whisper_causal_mask(const CachePositionResult& 
     auto slice_step = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {1});
     auto slice_axes = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {3});
     auto causal_sliced =
-        std::make_shared<ov::opset11::Slice>(causal_float, slice_start, slice_stop, slice_step, slice_axes);
+        std::make_shared<ov::opset11::Slice>(mask_for_slice, slice_start, slice_stop, slice_step, slice_axes);
     causal_sliced->set_friendly_name(prefix + "causal_mask_sliced");
 
     return causal_sliced->output(0);
@@ -2176,7 +2138,13 @@ std::shared_ptr<ov::Model> ModelBuilder::build_whisper_decoder(const WhisperConf
                                                            d,
                                                            prec,
                                                            "model.decoder.");
-    auto shared_mask = make_whisper_causal_mask(cache_pos, "model.decoder.");
+    // Detect bool intent: user wires causal_mask_fn = make_causal_mask_boolean.
+    using CausalFnPtr = ov::Output<ov::Node> (*)(const ov::Output<ov::Node>&,
+                                                 const ov::Output<ov::Node>&,
+                                                 ov::element::Type);
+    auto* fn_target = config.causal_mask_fn.target<CausalFnPtr>();
+    const bool boolean_mask = fn_target && *fn_target == &make_causal_mask_boolean;
+    auto shared_mask = make_whisper_causal_mask(cache_pos, "model.decoder.", boolean_mask);
 
     // Self-attention (layer-0 reuses pre-built key Variable)
     Attention self_attn{};

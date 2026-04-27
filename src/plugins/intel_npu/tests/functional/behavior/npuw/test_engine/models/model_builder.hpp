@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "model_builder_masks.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset11.hpp"
 
@@ -418,6 +419,15 @@ struct BaseModelConfig {
     RoPEFn rope;                        ///< Empty = auto HalfRotationRoPE. Set identity lambda to disable.
     ov::Output<ov::Node> position_ids;  ///< Empty = auto-creates 2D Parameter + HalfRotationRoPE
     NormFn qk_norm;
+    /// Causal mask builder. Empty = default float make_causal_mask.
+    /// Set to make_causal_mask_boolean to test NPUW boolean-mask handlers
+    /// (optimize_value_tensors.cpp:271 for LLM, prepare_whisper_model.cpp:140 for Whisper).
+    /// Whisper doesn't call this functor directly (signature differs from its
+    /// internal cache_pos based mask), but inspects its target — if it points to
+    /// make_causal_mask_boolean, the decoder mask is built as bool.
+    std::function<ov::Output<ov::Node>(const ov::Output<ov::Node>&,
+                                       const ov::Output<ov::Node>&,
+                                       ov::element::Type)> causal_mask_fn;
 
     BaseModelConfig() : lm_head_weight(weight) {}
 
@@ -427,6 +437,16 @@ struct BaseModelConfig {
         return num_kv_heads == 0 ? num_heads : num_kv_heads;
     }
 };
+
+/// Sliding-window mask construction. Inputs: seq_source (input_ids/inputs_embeds),
+/// attention_mask, output element type, window size. Returns a 4D mask suitable
+/// for SDPA. Empty = default Gemma-4-style float construction; set to a builder
+/// like make_sliding_window_mask_phi3 to test the older boolean Phi3 pattern.
+/// Builder declarations live in model_builder_masks.hpp.
+using SlidingMaskFn = std::function<ov::Output<ov::Node>(const ov::Output<ov::Node>&,
+                                                         const ov::Output<ov::Node>&,
+                                                         ov::element::Type,
+                                                         size_t)>;
 
 struct LLMConfig : public BaseModelConfig {
     bool use_kv_cache = true;
@@ -438,6 +458,11 @@ struct LLMConfig : public BaseModelConfig {
     size_t num_experts = 0;           ///< Total experts. 0 = dense model.
     size_t num_experts_per_tok = 0;   ///< Top-K. 0 = default to 2.
     size_t moe_intermediate_size = 0; ///< Expert FFN intermediate size. 0 = use intermediate_size.
+
+    size_t sliding_window_size = 0;      ///< 0 = no sliding window. >0 = window size (Phi-3, Gemma 2/3)
+    bool alternating_attention = false;  ///< false = all layers same mask. true = even=sliding, odd=full (Gemma 2/3)
+    bool use_token_type_ids = false;     ///< Gemma 3 VLM: token_type_ids param (0=text/causal, 1=image/bidir)
+    SlidingMaskFn sliding_mask_fn;       ///< Empty = default float (Gemma-4) construction.
 };
 
 struct WhisperConfig : public BaseModelConfig {
