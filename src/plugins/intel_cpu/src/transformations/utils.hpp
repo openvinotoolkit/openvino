@@ -59,6 +59,8 @@ bool match_acl_int8_conv_fq_chain(const std::shared_ptr<const ov::Node>& node);
 
 bool match_acl_int8_pooling_fq_chain(const std::shared_ptr<const ov::Node>& node);
 
+bool match_acl_int8_pad_fq_chain(const std::shared_ptr<const ov::Node>& node);
+
 bool match_conv_stride_oc_ic_limit(const std::shared_ptr<const ov::Node>& node,
                                    const std::vector<int64_t>& strides,
                                    const ov::Shape& kernel_shape,

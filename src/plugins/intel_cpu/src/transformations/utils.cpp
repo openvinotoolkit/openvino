@@ -20,6 +20,7 @@
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/pad.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
@@ -77,6 +78,23 @@ bool match_acl_int8_pooling_fq_chain(const std::shared_ptr<const ov::Node>& node
     return any_of(node->get_output_element_type(0), ov::element::Type_t::u8, ov::element::Type_t::i8) &&
            (ov::is_type_any_of<ov::op::v1::AvgPool, ov::op::v14::AvgPool, ov::op::v16::AvgPool>(pool) ||
             ov::is_type_any_of<ov::op::v1::MaxPool, ov::op::v8::MaxPool, ov::op::v14::MaxPool>(pool));
+}
+
+bool match_acl_int8_pad_fq_chain(const std::shared_ptr<const ov::Node>& node) {
+    if (!node || !ov::is_type<const ov::op::v0::FakeQuantize>(node) || node->outputs().empty()) {
+        return false;
+    }
+
+    const auto output = node->output(0);
+    if (!any_of(output.get_element_type(), ov::element::Type_t::u8, ov::element::Type_t::i8)) {
+        return false;
+    }
+
+    const auto consumers = output.get_target_inputs();
+    return !consumers.empty() &&
+           std::all_of(consumers.begin(), consumers.end(), [](const ov::Input<ov::Node>& consumer) {
+               return ov::is_type_any_of<ov::op::v1::Pad, ov::op::v12::Pad>(consumer.get_node()->shared_from_this());
+           });
 }
 
 bool match_acl_int8_conv_fq_chain(const std::shared_ptr<const ov::Node>& node) {

@@ -24,6 +24,9 @@
 #include "memory_desc/blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
+#if defined(OV_CPU_WITH_ACL)
+#    include "nodes/executors/pad_list.hpp"
+#endif
 #include "nodes/common/blocked_desc_creator.h"
 #include "nodes/node_config.h"
 #include "onednn/iml_type_mapper.h"
@@ -160,6 +163,23 @@ void Pad::initSupportedPrimitiveDescriptors() {
 
         config.outConfs[0].setMemDesc(
             creatorsMap.at(memoryFormat)->createSharedDesc(precision, getOutputShapeAtPort(DATA_ID)));
+
+#if defined(OV_CPU_WITH_ACL)
+        if (!shapeHasDataDependency) {
+            std::vector<MemoryDescPtr> srcMemoryDescs = {config.inConfs[0].getMemDesc()};
+            std::vector<MemoryDescPtr> dstMemoryDescs = {config.outConfs[0].getMemDesc()};
+
+            auto factory = std::make_shared<ov::intel_cpu::PadExecutorFactory>(
+                attrs,
+                srcMemoryDescs,
+                dstMemoryDescs,
+                std::make_shared<ExecutorContext>(context, getImplPriority()));
+            if (!factory->isEmpty()) {
+                supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::acl, factory);
+            }
+        }
+#endif
+
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
     };
 
@@ -236,6 +256,36 @@ bool Pad::isExecutable() const {
 void Pad::prepareParams() {
     updateLastInputDims();
     attrs.cpuParallel = context->getCpuParallel();
+
+#if defined(OV_CPU_WITH_ACL)
+    auto* selectedPD = getSelectedPrimitiveDescriptor();
+    if (selectedPD && selectedPD->getExecutorFactory()) {
+        auto runtimeAttrs = attrs;
+        if (runtimeAttrs.padsBegin.empty()) {
+            const auto* ptr = srcMemory[PADS_BEGIN_ID]->getDataAs<const int32_t>();
+            runtimeAttrs.padsBegin.assign(ptr, ptr + getInputShapeAtPort(DATA_ID).getRank());
+        }
+        if (runtimeAttrs.padsEnd.empty()) {
+            const auto* ptr = srcMemory[PADS_END_ID]->getDataAs<const int32_t>();
+            runtimeAttrs.padsEnd.assign(ptr, ptr + getInputShapeAtPort(DATA_ID).getRank());
+        }
+        if (isPadValueSpecified && !runtimeAttrs.constPadValue) {
+            runtimeAttrs.padValue = srcMemory[PAD_VALUE_ID]->getDataAs<const float>()[0];
+        }
+
+        std::vector<MemoryDescPtr> srcMemoryDescs = {getSrcMemoryAtPort(DATA_ID)->getDescPtr()};
+        std::vector<MemoryDescPtr> dstMemoryDescs = {getDstMemoryAtPort(DATA_ID)->getDescPtr()};
+        aclExecPtr = selectedPD->getExecutorFactoryAs<ov::intel_cpu::PadExecutorFactory>()->makeExecutor(runtimeAttrs,
+                                                                                                           srcMemoryDescs,
+                                                                                                           dstMemoryDescs,
+                                                                                                           {});
+        selectedPD->setImplementationType(aclExecPtr->getImplType());
+        execPtr.reset();
+        return;
+    }
+    aclExecPtr.reset();
+#endif
+
     execPtr = std::make_shared<PadExecutor>(attrs, srcMemory, dstMemory);
 }
 
@@ -428,6 +478,11 @@ void Pad::PadExecutor::exec(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemP
 }
 
 void Pad::execute([[maybe_unused]] const dnnl::stream& strm) {
+    if (aclExecPtr) {
+        aclExecPtr->exec({getSrcMemoryAtPort(DATA_ID)}, {getDstMemoryAtPort(DATA_ID)}, nullptr);
+        return;
+    }
+
     CPU_NODE_ASSERT(execPtr, "has not compiled executor.");
 
     execPtr->exec(getSrcMemoryAtPort(0), getDstMemoryAtPort(0));
