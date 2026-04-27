@@ -3,12 +3,14 @@
 //
 
 #include "include/auto_unit_test.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 
 using Config = std::map<std::string, std::string>;
 using namespace ov::mock_auto_plugin;
 
 const std::vector<std::string> availableDevs = {"CPU", "GPU", "NPU"};
 const std::vector<std::string> availableDevsWithId = {"CPU", "GPU.0", "GPU.1", "NPU"};
+const std::vector<std::string> netPrecisions = {"FP32", "FP16", "INT8", "BIN"};
 using Params = std::tuple<std::string, std::string, int>;
 using ConfigParams = std::tuple<std::vector<std::string>,  // Available devices retrieved from Core
                                 Params                     // Params {devicePriority, expect metaDevices}

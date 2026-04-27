@@ -12,12 +12,14 @@ file(GLOB_RECURSE PUBLIC_HEADERS ${UTIL_INCLUDE_DIR}/*.hpp)
 if (WIN32)
     # Remove linux specific files
     file(GLOB_RECURSE LIN_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.cpp
-                                ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.hpp)
+                                ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.hpp
+                                ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/lin/*.cpp)
     list(REMOVE_ITEM LIBRARY_SRC ${LIN_FILES})
 else()
     # Remove windows specific files
     file(GLOB_RECURSE WIN_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.cpp
-                                ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.hpp)
+                                ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.hpp
+                                ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/win/*.cpp)
     list(REMOVE_ITEM LIBRARY_SRC ${WIN_FILES})
 endif()
 
@@ -43,7 +45,13 @@ target_link_libraries(${TARGET_NAME}
            $<$<AND:$<CXX_COMPILER_ID:Clang>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0>>:c++fs>)
 
 if (WIN32)
-    target_link_libraries(${TARGET_NAME} PRIVATE Shlwapi)
+    set(MONITORS_WIN_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/win/)
+    target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${MONITORS_WIN_INCLUDE_DIR}>)
+
+    # IPF (Intel Platform Framework) SDK for device monitoring
+    if(TARGET IPF::ClientApi)
+        target_link_libraries(${TARGET_NAME} PRIVATE IPF::ClientApi)
+    endif()
 endif()
 
 target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${UTIL_INCLUDE_DIR}>)

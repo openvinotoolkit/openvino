@@ -642,6 +642,17 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/json/nlohmann_json
         PATTERN WORKSPACE.bazel EXCLUDE
         PATTERN wsjcpp.yml EXCLUDE)
 
+#
+# IPF (Intel Platform Framework) SDK — Windows only
+#
+
+if(WIN32)
+    set(IPF_SDK_ROOT "" CACHE PATH "Path to Intel Platform Framework (IPF) SDK root directory")
+    if(IPF_SDK_ROOT)
+        add_subdirectory(thirdparty/ipf EXCLUDE_FROM_ALL)
+    endif()
+endif()
+
 # restore state
 
 set(CMAKE_CXX_FLAGS "${_old_CMAKE_CXX_FLAGS}")

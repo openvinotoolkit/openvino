@@ -584,6 +584,29 @@ def test_properties_device_properties():
            "GPU": {"INFERENCE_PRECISION_HINT": Type.f16, "NUM_STREAMS": streams.Num(1)}})
 
 
+def test_properties_devices_utilization_threshold():
+    # Assert the property name is correctly registered
+    assert intel_auto.devices_utilization_threshold == "DEVICES_UTILIZATION_THRESHOLD"
+
+    def check(value1, value2):
+        ret = intel_auto.devices_utilization_threshold(value1)
+        assert ret[0] == "DEVICES_UTILIZATION_THRESHOLD"
+        assert ret[1].value == value2
+
+    # Test cases for different input formats and expected outputs
+    check({"GPU": 88}, {"GPU": 88})
+    check({"CPU": 75, "GPU": 88}, {"CPU": 75, "GPU": 88})
+    with pytest.raises(TypeError) as e:
+        value = {"GPU": "75"}
+        intel_auto.devices_utilization_threshold(value)
+    assert "incompatible function arguments." in str(e.value)
+
+    with pytest.raises(TypeError) as e:
+        value = {23: "CPU"}
+        intel_auto.devices_utilization_threshold(value)
+    assert "incompatible function arguments." in str(e.value)
+
+
 def test_properties_streams():
     # Test extra Num class
     assert streams.Num().to_integer() == -1
