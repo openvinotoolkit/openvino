@@ -12,7 +12,6 @@
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <string>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -37,6 +36,7 @@
 #    include <ios>
 #    include <iostream>
 #    include <sstream>
+#    include <unordered_map>
 
 #    include "openvino/pass/manager.hpp"
 #    include "openvino/pass/serialize.hpp"

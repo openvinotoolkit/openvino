@@ -84,7 +84,7 @@ private:
     using ControlFlowPasses = std::vector<ov::snippets::lowered::pass::PassPipeline::PositionedPassLowered>;
 
     DataFlowPasses getDataFlowPasses();
-    ControlFlowPasses getControlFlowPasses();  // NOLINT(readability-convert-member-functions-to-static)
+    ControlFlowPasses getControlFlowPasses();
 
     // Holds ISA version used is codeGeneration target
 #if defined(OPENVINO_ARCH_ARM64)

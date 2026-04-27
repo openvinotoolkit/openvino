@@ -215,6 +215,10 @@ if (NOT ENABLE_SNIPPETS_LIBXSMM_TPP)
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/tpp/*)
 endif ()
 
+if(NOT ENABLE_CPU_DEBUG_CAPS)
+    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/debug_capabilities.cpp)
+endif()
+
 file(GLOB_RECURSE FILES_TO_REMOVE ${EXCLUDE_PATHS})
 list(REMOVE_ITEM SOURCES ${FILES_TO_REMOVE})
 list(REMOVE_ITEM HEADERS ${FILES_TO_REMOVE})
