@@ -212,10 +212,8 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
 
     constexpr int SG_SIZE = details::get_dpas_execution_size((CmPrecisionType)9);    
     // constexpr int BLOCK_WG_K = 64;	// same in sg  // because unroll 4 times along K ??
-#if (KV_CACHE_COMPRESSION == 2)
     // Only SUB_BLOCK_SIZE==STRIDE(16) supported: dec/load_scale_zp assume BLOCK_REG_K==SUB_BLOCK_SIZE.
     static constexpr int NUM_SUB_BLOCKS = KV_BLOCK_SIZE / SUB_BLOCK_SIZE;
-#endif
     constexpr int SUM_N = BLOCK_SG_N / (BLOCK_SIZE/STRIDE);
     // xehpg DPAS spec: dst: [8, 8], repeat: 1~8, depth: 8
     static constexpr int REPEAT = 8;
