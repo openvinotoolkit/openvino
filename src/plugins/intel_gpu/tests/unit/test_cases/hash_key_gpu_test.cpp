@@ -93,17 +93,22 @@ public:
         auto bias_prim = engine.allocate_memory({ { out_f }, data_types::f16, format::bfyx });
 
         const auto key_prim_id = "fc";
-        topology topology(
-            input_layout("input", input_prim->get_layout()),
-            data("weights", weights_prim),
-            data("bias", bias_prim),
-            fully_connected(key_prim_id, input_info("input"), "weights", "bias")
-        );
+        // Program build may detach primitive data memory, so use independent topologies.
+        auto make_topology = [&]() {
+            return topology(
+                input_layout("input", input_prim->get_layout()),
+                data("weights", weights_prim),
+                data("bias", bias_prim),
+                fully_connected(key_prim_id, input_info("input"), "weights", "bias")
+            );
+        };
 
-        auto ref_net = std::make_shared<cldnn::network>(engine, topology, get_test_default_config(engine));
+        auto ref_topology = make_topology();
+        auto ref_net = std::make_shared<cldnn::network>(engine, ref_topology, get_test_default_config(engine));
         auto ref = get_fc_hashes(*ref_net, key_prim_id);
         verify_hash(ref, "fc");
 
+        auto topology = make_topology();
         cldnn::network::ptr net = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
         auto h = get_fc_hashes(*net, key_prim_id);
         verify_hash_consistency(ref, h, "fc");
@@ -234,16 +239,20 @@ public:
         auto biases = engine.allocate_memory({ { 1, 1, 1, 1 }, data_types::f32, format::bfyx });
 
         auto key_prim_id = "convolution";
-        topology topology(
-            input_layout("input", input->get_layout()),
-            data("weights", weights),
-            data("biases", biases),
-            convolution(key_prim_id, input_info("input"), "weights", "biases", 1, {1, 1, 1}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0}, false));
+        auto make_topology = [&]() {
+            return topology(
+                input_layout("input", input->get_layout()),
+                data("weights", weights),
+                data("biases", biases),
+                convolution(key_prim_id, input_info("input"), "weights", "biases", 1, {1, 1, 1}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0}, false));
+        };
 
-        auto ref_net = std::make_shared<cldnn::network>(engine, topology, get_test_default_config(engine));
+        auto ref_topology = make_topology();
+        auto ref_net = std::make_shared<cldnn::network>(engine, ref_topology, get_test_default_config(engine));
         auto ref = get_hashes(*ref_net, key_prim_id);
         verify_hash(ref, "conv");
 
+        auto topology = make_topology();
         cldnn::network::ptr net = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
         auto h = get_hashes(*net, key_prim_id);
         verify_hash_consistency(ref, h, "conv");
@@ -259,20 +268,25 @@ public:
         auto output_high = engine.allocate_memory({ { 1, 1, 1, 1 }, data_types::f32,format::bfyx });
 
         auto key_prim_id = "quantize";
-        topology topology;
-        topology.add(
-            input_layout("input", input->get_layout()),
-            data("input_low", input_low),
-            data("input_high", input_high),
-            data("output_low", output_low),
-            data("output_high", output_high),
-            quantize(key_prim_id, input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 256, data_types::u8)
-        );
+        auto make_topology = [&]() {
+            topology topology;
+            topology.add(
+                input_layout("input", input->get_layout()),
+                data("input_low", input_low),
+                data("input_high", input_high),
+                data("output_low", output_low),
+                data("output_high", output_high),
+                quantize(key_prim_id, input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 256, data_types::u8)
+            );
+            return topology;
+        };
 
-        auto ref_net = std::make_shared<cldnn::network>(engine, topology, get_test_default_config(engine));
+        auto ref_topology = make_topology();
+        auto ref_net = std::make_shared<cldnn::network>(engine, ref_topology, get_test_default_config(engine));
         auto ref = get_hashes(*ref_net, key_prim_id);
         verify_hash(ref, "quantize");
 
+        auto topology = make_topology();
         cldnn::network::ptr net = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
         auto h = get_hashes(*net, key_prim_id);
         verify_hash_consistency(ref, h, "quantize");
