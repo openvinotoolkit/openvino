@@ -5,6 +5,8 @@
 #include "reorder_kernel_fast_b1.h"
 #include "kernel_selector_utils.h"
 
+#include <limits>
+
 namespace kernel_selector {
 ParamsKey ReorderKernelFastBatch1::GetSupportedKey() const {
     ParamsKey k;
@@ -114,7 +116,7 @@ ReorderKernelFastBatch1::DispatchData ReorderKernelFastBatch1::SetDefault(const 
 
     const auto& output = params.outputs[0];
 
-    unsigned int gws = (unsigned int)output.LogicalSize();
+    size_t gws = output.LogicalSize();
 
     // For blocked output formats with unaligned features, expand GWS to cover padding positions
     size_t fsv = GetOutputFeatureBlockSize(output.GetLayout());
@@ -122,10 +124,14 @@ ReorderKernelFastBatch1::DispatchData ReorderKernelFastBatch1::SetDefault(const 
     if (fsv > 0 && (feature_count % fsv) != 0) {
         size_t padded_features = Align(feature_count, fsv);
         size_t spatial_size = output.LogicalSize() / (output.Batch().v * feature_count);
-        gws = (unsigned int)(output.Batch().v * padded_features * spatial_size);
+        gws = output.Batch().v * padded_features * spatial_size;
     }
 
-    dispatchData.gws[0] = Align(gws, 32);
+    OPENVINO_ASSERT(gws <= static_cast<size_t>(std::numeric_limits<unsigned int>::max()),
+                    "[GPU] reorder_data_fast_b1 global work size exceeds 32-bit index range: ",
+                    gws);
+
+    dispatchData.gws[0] = Align(gws, size_t{32});
     dispatchData.gws[1] = 1;
     dispatchData.gws[2] = 1;
 
