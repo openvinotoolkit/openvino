@@ -81,9 +81,11 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     int* block_indices [[type("svmptr_t")]],
     int* block_indices_begins [[type("svmptr_t")]],
     int* subsequence_begins [[type("svmptr_t")]],
+    int* selected_sequence_ids [[type("svmptr_t")]],
     float* output [[type("svmptr_t")]],
     float* lse [[type("svmptr_t")]],
-    int q_len// 1
+    int q_len,// 1
+    int selected_sequence_count
     ) {
     //# batch=1, seq_num=1 or >1
     //# query [seq_idx, seq_num, head_num, head_size]
@@ -121,6 +123,10 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     //# Each WG processes a partition, which is KV_PARTITION_SIZE long and multiple of KV_BLOCK_SIZE.
     //# KV_BLOCK_SIZE can be 32/64/128/256, etc.
     const uint seq_idx = cm_global_id(0);
+    if (seq_idx >= selected_sequence_count) {
+        return;
+    }
+    const uint orig_seq_idx = selected_sequence_ids[seq_idx];
     const uint kv_head_num_idx = cm_global_id(1) / Q_head_chunks_per_kv_head;
     const uint head_num_idx = cm_global_id(1) * Q_head_chunk_size;
     //# KV_PARTITION_SIZE --> EU thread
@@ -128,18 +134,47 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     const uint kv_partition_num = cm_group_count(2);
     const uint kv_partition_idx = cm_group_id(2);
 
-    const uint kv_len = past_lens[seq_idx] + 1;
-    // The code here requires KV_PARTITION_SIZE to be an integer multiple of KV_BLOCK_SIZE.
-    const uint start_block_idx = block_indices_begins[seq_idx] + kv_partition_idx * (KV_PARTITION_SIZE / KV_BLOCK_SIZE);
-
-    if(kv_partition_idx * KV_PARTITION_SIZE > kv_len) {
+    const uint subseq_q_begin = subsequence_begins[orig_seq_idx];
+    const uint subseq_q_end = subsequence_begins[orig_seq_idx + 1];
+    const uint subseq_q_len = subseq_q_end - subseq_q_begin;
+    if (subseq_q_len == 0) {
         return;
     }
-    const uint total_blocks_num = (kv_len + KV_BLOCK_SIZE - 1) / KV_BLOCK_SIZE;
+
+    // Single-token path uses the latest token from each subsequence.
+    const uint q_token_idx = subseq_q_end - 1;
+    const uint kv_len = past_lens[orig_seq_idx] + subseq_q_len;
+    const uint seq_kv_partition_num = (kv_len + KV_PARTITION_SIZE - 1) / KV_PARTITION_SIZE;
+
+    const uint block_begin = block_indices_begins[orig_seq_idx];
+    const uint block_end = block_indices_begins[orig_seq_idx + 1];
+    const uint total_blocks_num = block_end - block_begin;
+
+    // The code here requires KV_PARTITION_SIZE to be an integer multiple of KV_BLOCK_SIZE.
+    const uint blocks_per_partition = (KV_PARTITION_SIZE / KV_BLOCK_SIZE);
+    const uint start_block_idx = block_begin + kv_partition_idx * blocks_per_partition;
+
+    if(kv_partition_idx * KV_PARTITION_SIZE >= kv_len || start_block_idx >= block_end) {
+        // For sequences shorter than global kv_partition_num, this partition is inactive.
+        // Write neutral values so reduction kernel can safely process all partitions.
+        #pragma unroll
+        for (int qi = 0; qi < Q_head_chunk_size; qi++) {
+            matrix<float, REG_M, REG_N> zero = 0.0f;
+            uint o_offset = seq_idx * kv_partition_num * HEADS_NUM * HEAD_SIZE + kv_partition_num * (head_num_idx + qi) * HEAD_SIZE + wg_thread_id * HEAD_SIZE;
+            #pragma unroll
+            for (int k = 0; k < HEAD_SIZE; k += REG_N) {
+                cm_svm_block_write<float, REG_N>((svmptr_t)(output + o_offset + k), zero.format<float>());
+            }
+
+            uint lse_offset = seq_idx * HEADS_NUM * kv_partition_num + (head_num_idx + qi) * kv_partition_num + wg_thread_id;
+            lse[lse_offset] = -3e38f;
+        }
+        return;
+    }
     constexpr uint kv_pitch = HEAD_SIZE * sizeof(KV_ELEMENT_TYPE);
 
     //# Load Q into register(as dpas-A tile)
-    const uint qo_offset = (seq_idx * HEADS_NUM * q_len + head_num_idx) * HEAD_SIZE;
+    const uint qo_offset = (q_token_idx * HEADS_NUM + head_num_idx) * HEAD_SIZE;
 
     matrix <half, Q_head_chunk_size, HEAD_SIZE> Qmat = 0;
     cm_svm_block_read<half, Q_head_chunk_size * HEAD_SIZE>((svmptr_t)(query + qo_offset), Qmat.format<half>());
@@ -152,15 +187,15 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     #else
         constexpr uint per_k_block_element_num = KV_BLOCK_SIZE * KV_HEADS_NUM * HEAD_SIZE;
     #endif
-    uint block_num = KV_PARTITION_SIZE / KV_BLOCK_SIZE;
+    uint block_num = blocks_per_partition;
 
     uint leftover_size = 0;
-    if(kv_partition_idx == kv_partition_num - 1) {
+    if(kv_partition_idx == seq_kv_partition_num - 1) {
         // last partition
         leftover_size = (kv_len - KV_PARTITION_SIZE * kv_partition_idx) % KV_PARTITION_SIZE;
     }
-    if(block_num > total_blocks_num - start_block_idx) {
-        block_num = total_blocks_num - start_block_idx;
+    if(block_num > block_end - start_block_idx) {
+        block_num = block_end - start_block_idx;
     }
 
     //# rS = Q @ Kt

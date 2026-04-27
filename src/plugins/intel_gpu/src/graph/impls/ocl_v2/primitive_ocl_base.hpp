@@ -5,6 +5,9 @@
 #pragma once
 
 #include <algorithm>
+#include <chrono>
+#include <cstdio>
+#include <cstdlib>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -23,6 +26,20 @@
 #include "utils/kernel_generator.hpp"
 
 namespace ov::intel_gpu::ocl {
+
+namespace {
+
+inline bool is_exec_stage_cpu_probe_enabled() {
+    const char* env = std::getenv("OV_GPU_EXEC_STAGE_CPU_PROBE");
+    return env != nullptr && env[0] != '\0' && env[0] != '0';
+}
+
+inline const char* get_exec_stage_cpu_probe_filter() {
+    const char* env = std::getenv("OV_GPU_EXEC_STAGE_CPU_PROBE_FILTER");
+    return (env != nullptr && env[0] != '\0') ? env : "kv_cache_update";
+}
+
+}  // namespace
 
 class Stage {
 public:
@@ -223,21 +240,41 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
     }
 
     cldnn::event::ptr execute_stage(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& instance, Stage& stage) const {
+        using probe_clock = std::chrono::steady_clock;
         cldnn::stream& stream = instance.get_network().get_stream();
         // If any user of the desc's users is CPU implementation or network's output, set desc as a output event (event
         // won't be nullptr)
         bool needs_completion_event = instance.needs_completion_event();
+        const bool cpu_probe_enabled = is_exec_stage_cpu_probe_enabled();
+        const auto kernel_id = stage.kernel->get_id();
+        const std::string cpu_probe_filter = get_exec_stage_cpu_probe_filter();
+        const bool is_probe_target = cpu_probe_enabled && kernel_id.find(cpu_probe_filter) != std::string::npos;
+        const auto host_total_begin = is_probe_target ? probe_clock::now() : probe_clock::time_point{};
+        double host_dispatch_update_ms = 0.0;
+        double host_get_arguments_ms = 0.0;
+        double host_set_arguments_ms = 0.0;
+        double host_enqueue_ms = 0.0;
 
         auto& kd = stage.kd;
         auto& params = kd.params;
+        const bool had_dispatch_update = kd.need_dispatch_data_update;
+        const bool had_args_update = kd.need_args_update;
 
         if (kd.need_dispatch_data_update) {
+            const auto dispatch_begin = is_probe_target ? probe_clock::now() : probe_clock::time_point{};
             kd.update_dispatch_data_func(*instance.get_impl_params(), kd, m_rt_params.get());
+            if (is_probe_target) {
+                host_dispatch_update_ms = std::chrono::duration<double, std::milli>(probe_clock::now() - dispatch_begin).count();
+            }
             kd.need_dispatch_data_update = false;
         }
 
         if (kd.need_args_update) {
+            const auto get_args_begin = is_probe_target ? probe_clock::now() : probe_clock::time_point{};
             auto args = get_arguments(instance);
+            if (is_probe_target) {
+                host_get_arguments_ms = std::chrono::duration<double, std::milli>(probe_clock::now() - get_args_begin).count();
+            }
             args.scalars = &params.scalars;
             args.local_memory_args = &params.local_memory_args;
 
@@ -250,19 +287,55 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
             GPU_DEBUG_TRACE_DETAIL << "Memory buffers:" << "shape_info=" << args.shape_info << " " << "inputs=" << args.inputs.size() << " "
                                    << "outputs=" << args.outputs.size() << " " << "intermediates=" << args.intermediates.size() << " "
                                    << "weights=" << args.weights << " " << "scalars=" << (args.scalars ? args.scalars->size() : 0) << "\n";
+            const auto set_args_begin = is_probe_target ? probe_clock::now() : probe_clock::time_point{};
             stream.set_arguments(*stage.kernel, params, args);
+            if (is_probe_target) {
+                host_set_arguments_ms = std::chrono::duration<double, std::milli>(probe_clock::now() - set_args_begin).count();
+            }
             kd.need_args_update = false;
         }
 
         const auto& gws = params.workGroups.global;
         const auto& lws = params.workGroups.local;
+        const size_t deps_count = events.size();
+        const size_t arg_desc_count = params.arguments.size();
+        const size_t input_count = instance.inputs_memory_count();
+        const size_t output_count = instance.outputs_memory_count();
+        const size_t intermediate_count = instance.get_intermediates_memories().size();
 
         GPU_DEBUG_TRACE_DETAIL << "Enqueue stage " << stage.kernel->get_id() << " : gws=[" << gws[0] << ", " << gws[1] << ", " << gws[2] << "] " << "lws=["
                                << lws[0] << ", " << lws[1] << ", " << lws[2] << "]" << (needs_completion_event ? " has_completion_event=true" : "") << '\n';
+        const auto enqueue_begin = is_probe_target ? probe_clock::now() : probe_clock::time_point{};
+        auto ev = stream.enqueue_kernel(*stage.kernel, params, {}, events, needs_completion_event);
+        if (is_probe_target) {
+            host_enqueue_ms = std::chrono::duration<double, std::milli>(probe_clock::now() - enqueue_begin).count();
+            const double host_total_ms = std::chrono::duration<double, std::milli>(probe_clock::now() - host_total_begin).count();
+            std::fprintf(stderr,
+                         "[EXEC_STAGE_CPU_PROBE] kernel=%s host_total_ms=%.6f host_dispatch_update_ms=%.6f host_get_arguments_ms=%.6f host_set_arguments_ms=%.6f host_enqueue_ms=%.6f need_dispatch_update=%d need_args_update=%d deps_count=%zu arg_desc_count=%zu input_count=%zu output_count=%zu intermediate_count=%zu gws=[%zu,%zu,%zu] lws=[%zu,%zu,%zu]\n",
+                         kernel_id.c_str(),
+                         host_total_ms,
+                         host_dispatch_update_ms,
+                         host_get_arguments_ms,
+                         host_set_arguments_ms,
+                         host_enqueue_ms,
+                         had_dispatch_update ? 1 : 0,
+                         had_args_update ? 1 : 0,
+                         deps_count,
+                         arg_desc_count,
+                         input_count,
+                         output_count,
+                         intermediate_count,
+                         gws[0],
+                         gws[1],
+                         gws[2],
+                         lws[0],
+                         lws[1],
+                         lws[2]);
+        }
 
         kernel_dump_info.add_entry_point(stage.kernel->get_id());
 
-        return stream.enqueue_kernel(*stage.kernel, params, {}, events, needs_completion_event);
+        return ev;
     }
 
     virtual std::vector<size_t> get_stages_execution_order(const cldnn::kernel_impl_params& impl_params) const {

@@ -280,32 +280,7 @@ void pa_lsc_u8(
             //# St = k @ Qt
             matrix<float, kv_step, q_step> St = ugemm_KQ(slm_K, rQ, slm_offset);
             if constexpr (use_causal_mask) {
-                if constexpr (kv_step == q_step) {
-                    // since kv_step == q_step == 16, causal_left is n * kv_step
-                    if (causal_left == 0) {
-                        apply_causal_mask<1>(St);
-                    } else if (causal_left < 0) {
-                        St = -3.4e38f;
-                    } else if (causal_left < kv_step) {
-                        for (int p = causal_left; p < kv_step; p++)
-                            St[p] = -3.4e38f;
-                    }
-                } else {
-                    if (causal_left == 0) {
-                        // q_step is half of kv_step
-                        // calsual mask first half of the kv
-                        apply_causal_mask<1>(St.select<q_step, 1, q_step, 1>(0, 0));
-                        St.select<q_step, 1, q_step, 1>(q_step, 0) = -3.4e38f;
-                    } else if (causal_left < 0) {
-                        St = -3.4e38f;
-                    } else if (causal_left < kv_step) {
-                        // q_step is half of kv_step
-                        // Workaround for an IGC ICE on ARL-H triggered by submatrix in-place masking.
-                        // Materialize St before applying the partial causal mask.
-                        St += 0.f;
-                        apply_causal_mask<1>(St.select<q_step, 1, q_step, 1>(q_step, 0));
-                    }
-                }
+                apply_causal_mask_with_offset(St, causal_left);
                 causal_left -= kv_step;
             }
             int kv_tokens = kv_stop - kv_pos;
@@ -524,33 +499,7 @@ void pa_kernel_lsc_prefetch_f16(
             }
         }
         if constexpr (use_causal_mask) {
-            if constexpr (kv_step == q_step) {
-            // since kv_step == q_step == 16, causal_left is n * kv_step
-            if (causal_left == 0) {
-                apply_causal_mask<1>(St);
-            } else if (causal_left < 0) {
-                St = -3.4e38f;
-            } else if (causal_left < kv_step) {
-                for (int p = causal_left; p < kv_step; p++)
-                    St[p] = -3.4e38f;
-            }
-            }
-            } else {
-            if (causal_left == 0) {
-                // q_step is half of kv_step
-                // calsual mask first half of the kv
-                apply_causal_mask<1>(St.select<q_step, 1, q_step, 1>(0, 0));
-                St.select<q_step, 1, q_step, 1>(q_step, 0) = -3.4e38f;
-            } else if (causal_left < 0) {
-                St = -3.4e38f;
-            } else if (causal_left < kv_step) {
-                // q_step is half of kv_step
-                // calsual mask second half of the kv
-                // if w/o St += 0.f;, I will meet IGC: Internal Compiler Error: Access violation on ARL-H
-                St += 0.f;
-                apply_causal_mask<1>(St.select<q_step, 1, q_step, 1>(q_step, 0));
-            }
-            }
+            apply_causal_mask_with_offset(St, causal_left);
             causal_left -= kv_step;
         }
         int kv_tokens = kv_stop - kv_pos;

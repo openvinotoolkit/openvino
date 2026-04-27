@@ -4,7 +4,9 @@
 
 #pragma once
 
+#include <cstdlib>
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "intel_gpu/runtime/layout.hpp"
@@ -30,12 +32,23 @@ struct PagedAttentionImplementationManager : public ImplementationManager {
             ov::element::i8,
         };
 
-        // Enable CM PA only in case of XAttention been enabled. May decouple them in future.
-        auto desc = node.as<paged_attention>().get_primitive();
-        if (!desc->has_xattention) {
-            GPU_DEBUG_TRACE_DETAIL << "validate_impl() - false because we enable CM PA when XAttention is enabled. " << std::endl;
-            return false;
+        const char* impl_env = std::getenv("OV_GPU_PAGED_ATTENTION_IMPL");
+        if (impl_env) {
+            const std::string impl_value(impl_env);
+            if (impl_value == "OCL" || impl_value == "ocl") {
+                GPU_DEBUG_TRACE_DETAIL << "validate_impl() - false because OV_GPU_PAGED_ATTENTION_IMPL=OCL. " << std::endl;
+                return false;
+            }
+        } else {
+            // Enable CM PA only in case of XAttention been enabled. May decouple them in future.
+            auto desc = node.as<paged_attention>().get_primitive();
+            if (!desc->has_xattention) {
+                GPU_DEBUG_TRACE_DETAIL << "validate_impl() - false because xattention is not enabled. " << std::endl;
+                return false;
+            }
         }
+
+        auto desc = node.as<paged_attention>().get_primitive();
 
         // PA CM kernel only supports cases when kv_head_size is divisible by 16
         if (desc->k_head_size % 16 != 0 && desc->v_head_size % 16 != 0) {

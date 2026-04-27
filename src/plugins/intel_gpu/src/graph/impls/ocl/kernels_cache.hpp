@@ -105,6 +105,7 @@ private:
     kernels_code _kernels_code;
     std::atomic<bool> _pending_compilation{false};
     compiled_kernels _kernels;
+    std::unordered_map<size_t, std::vector<uint8_t>> _in_memory_batch_binaries;
     std::map<std::vector<unsigned char>, uint32_t> _cached_binaries;
     std::unordered_map<std::string, kernel::ptr> _cached_kernels;
     std::map<std::string, std::string> batch_headers;

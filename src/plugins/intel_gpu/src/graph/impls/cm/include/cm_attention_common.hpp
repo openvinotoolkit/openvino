@@ -390,6 +390,31 @@ constexpr void apply_causal_mask(matrix_ref<float, N, M> St) {
     }
 }
 
+template <int N, int M>
+inline void apply_causal_mask_with_offset(matrix_ref<float, N, M> St, int causal_left) {
+    if (causal_left >= (N - 1)) {
+        return;
+    }
+
+    #pragma unroll
+    for (int r = 0; r < N; r++) {
+        int mask_cols = r - causal_left;
+        if (mask_cols <= 0) {
+            continue;
+        }
+        if (mask_cols >= M) {
+            St.row(r) = -3.4e38f;
+            continue;
+        }
+        #pragma unroll
+        for (int c = 0; c < M; c++) {
+            if (c < mask_cols) {
+                St(r, c) = -3.4e38f;
+            }
+        }
+    }
+}
+
 //prepack [K, N] to [K/2, N, 2] layout.
 template <typename T1, typename T2, int K, int N>
 inline void prepackAsVNNIWidth2(matrix_ref<T1, K, N> input, matrix_ref<T2, K/2, N*2> out) {

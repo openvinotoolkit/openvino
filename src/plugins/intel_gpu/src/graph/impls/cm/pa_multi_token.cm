@@ -39,6 +39,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     int32_t* block_indices [[type("svmptr_t")]],
     int32_t* block_indices_begins [[type("svmptr_t")]],
     int32_t* subsequence_begins [[type("svmptr_t")]],
+    int32_t* blocked_q_starts_and_subseq_mapping [[type("svmptr_t")]],
     half* output [[type("svmptr_t")]],
     int q_len
 #if SPARSE_BLOCK_SIZE > 1
@@ -73,7 +74,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     auto batch = cm_group_id(0);
     auto h = cm_group_id(1);
     auto hkv = h / (num_heads/num_kv_heads);
-    auto wg_id = cm_group_id(2); // each work-group handles a sequence
+    auto wg_id = cm_group_id(2);
     auto wg_local_id = cm_local_id(2);
     int local_size = cm_local_size(2);
 
@@ -81,19 +82,61 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 
     // multiple work-groups are required to split a sequence,
     // need to figure out which part of query-tokens to process
-#if defined(CMPA_WG_SEQ_LEN)
-    constexpr int wg_seq_len = CMPA_WG_SEQ_LEN;
+    // Hybrid dispatch selection:
+    // - dynamic path: derive wg_seq_len from runtime local_size
+    // - optimized path: pass compile-time CMPA_WG_SEQ_LEN in build options
+#if defined(CMPA_WG_SEQ_LEN) && (CMPA_WG_SEQ_LEN > 0)
+    const int wg_seq_len = CMPA_WG_SEQ_LEN;
 #else
-    int wg_seq_len = local_size * q_step;
+    const int wg_seq_len = local_size * q_step;
 #endif
-    int past_q_lens = past_lens[0];
-    kv_start = 0;
-    kv_seq_len = q_len + past_q_lens;
-    q_start_sg = (wg_id * local_size + wg_local_id) * q_step;
-    q_len_sg = q_step;
-    if (q_start_sg + q_len_sg > q_len) {
-        q_len_sg = q_len - q_start_sg;
+
+    const int blocked_query_idx = wg_id * 2;
+    int block_start_pos = blocked_q_starts_and_subseq_mapping[blocked_query_idx];
+    int subsequence_id = blocked_q_starts_and_subseq_mapping[blocked_query_idx + 1];
+    int subseq_q_begin = subsequence_begins[subsequence_id];
+    if (subseq_q_begin >= q_len) {
+        return;
     }
+    int subseq_q_end = subsequence_begins[subsequence_id + 1];
+    if (subseq_q_end > q_len) {
+        subseq_q_end = q_len;
+    }
+    int subseq_q_len = subseq_q_end - subseq_q_begin;
+    if (subseq_q_len <= 0) {
+        return;
+    }
+
+    int past_q_lens = past_lens[subsequence_id];
+    kv_start = 0;
+    kv_seq_len = subseq_q_len + past_q_lens;
+
+    int q_start_local = (block_start_pos - subseq_q_begin) + (wg_local_id * q_step);
+#if KV_CACHE_COMPRESSION
+    // U8 path uses workgroup-level barriers in `pa_lsc_u8`, so every lane in
+    // the workgroup must participate. For out-of-range lanes, pass q_len_sg=0
+    // so no output is written while still participating in synchronization.
+    bool lane_active = (q_start_local < subseq_q_len);
+    q_start_sg = subseq_q_begin + q_start_local;
+    q_len_sg = q_step;
+    if (lane_active) {
+        if (q_start_local + q_len_sg > subseq_q_len) {
+            q_len_sg = subseq_q_len - q_start_local;
+        }
+    } else {
+        q_start_sg = subseq_q_begin + subseq_q_len;
+        q_len_sg = 0;
+    }
+#else
+    if (q_start_local >= subseq_q_len) {
+        return;
+    }
+    q_start_sg = subseq_q_begin + q_start_local;
+    q_len_sg = q_step;
+    if (q_start_local + q_len_sg > subseq_q_len) {
+        q_len_sg = subseq_q_len - q_start_local;
+    }
+#endif
 
     // qkv is fused
     int kv_stop = kv_seq_len;
@@ -122,9 +165,11 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         //todo:kv_stop is wg level, should we change to sg level?
                sglevel would cause sgs in one wg diverge. so leave for now. also one wg has same kvstop makes eaiser for kv copying/loading into SLM/cache.
     */
-        kv_stop = (wg_id + 1) * wg_seq_len + past_q_lens;
+        kv_stop = (block_start_pos - subseq_q_begin) + wg_seq_len + past_q_lens;
         if (kv_stop > kv_seq_len) kv_stop = kv_seq_len;
     }
+
+    int32_t* block_indices_base = block_indices + block_indices_begins[subsequence_id];
 
     //Q/O[B, L, H, S]
     uint q_offset = (q_start_sg*num_heads + h)*head_size;
@@ -154,7 +199,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                             slm_V,
                             wg_local_id,
                             local_size,
-                            q_start_sg, //q_start for SG,
+                            q_start_local, //q_start within current subsequence,
                             kv_stop,
                             q_len_sg, //q_step,
                             kv_seq_len, //kv_len,
@@ -177,7 +222,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 #endif
                             reinterpret_cast<svmptr_t>(output + q_offset),
                             past_q_lens,
-                            block_indices);
+                            block_indices_base);
 #else
     uint kv_offset = hkv*head_size*pa_block_sz;
 #ifndef CM_HAS_LSC_UNTYPED_2D
@@ -185,7 +230,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 #endif
     pa_kernel_lsc_prefetch_f16<is_causal, num_heads, num_kv_heads, head_size, 0, 16>(
                             wg_local_id,
-                            q_start_sg, //q_start for SG,
+                            q_start_local, //q_start within current subsequence,
                             kv_stop,
                             q_len_sg, //q_step,
                             kv_seq_len, //kv_len,
@@ -208,7 +253,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 #endif
                             reinterpret_cast<svmptr_t>(output + q_offset),
                             past_q_lens,
-                            block_indices);
+                            block_indices_base);
 #endif
 }
 } // namespace KERNEL_NAME

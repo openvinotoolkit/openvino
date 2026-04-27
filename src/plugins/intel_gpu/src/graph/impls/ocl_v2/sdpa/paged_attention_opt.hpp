@@ -4,8 +4,10 @@
 
 #pragma once
 
+#include <cstdlib>
 #include <iostream>
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "../utils/kernel_generator.hpp"
@@ -48,10 +50,19 @@ struct PagedAttentionOpt : public ImplementationManager {
             ov::element::i8,
         };
 
-        auto desc = node.as<paged_attention>().get_primitive();
-        if (desc->has_xattention) {
-            GPU_DEBUG_TRACE_DETAIL << "validate_impl() - false because XAttention is not supported with ocl. " << std::endl;
-            return false;
+        const char* impl_env = std::getenv("OV_GPU_PAGED_ATTENTION_IMPL");
+        if (impl_env) {
+            const std::string impl_value(impl_env);
+            if (impl_value == "CM" || impl_value == "cm") {
+                GPU_DEBUG_TRACE_DETAIL << "validate_impl() - false because OV_GPU_PAGED_ATTENTION_IMPL=CM. " << std::endl;
+                return false;
+            }
+        } else {
+            auto desc = node.as<paged_attention>().get_primitive();
+            if (desc->has_xattention) {
+                GPU_DEBUG_TRACE_DETAIL << "validate_impl() - false because XAttention is not supported with ocl. " << std::endl;
+                return false;
+            }
         }
 
         const auto& q_layout = node.get_input_layout(0);
