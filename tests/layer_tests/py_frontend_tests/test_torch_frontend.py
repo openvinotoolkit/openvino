@@ -525,6 +525,8 @@ def test_module_extension_dynamo_condition():
         extension=[me, ConversionExtension("MySinOp", sin_op)])
     assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
         "Parameter", "Cos", "Result"]
+    assert converted_model.get_results()[0].get_output_partial_shape(0) == \
+        PartialShape([100])
 
     # condition True → extension applies, Sin replaces Cos
     model = ModelWithCosModule()
@@ -534,6 +536,8 @@ def test_module_extension_dynamo_condition():
         extension=[me, ConversionExtension("MySinOp", sin_op)])
     assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
         "Parameter", "Sin", "Result"]
+    assert converted_model.get_results()[0].get_output_partial_shape(0) == \
+        PartialShape([100])
 
 
 def test_module_extension_dynamo_unpatch():
@@ -553,6 +557,12 @@ def test_module_extension_dynamo_unpatch():
 
     for _, m in model.named_modules():
         assert not hasattr(m, "_openvino_module_extension_patch_orig_forward")
+
+    # Verify model still produces correct output after unpatching
+    x = torch.randn(100)
+    result = model(x)
+    expected = torch.cos(x.to(torch.float32))
+    assert torch.allclose(result, expected)
 
 
 def test_module_extension_dynamo_fx_op_reuse():
@@ -690,13 +700,11 @@ def test_module_extension_dynamo_scalar_args():
                             convert=scalar_convert),
             ConversionExtension("ScalarOp", pass_op)])
     assert converted_model
-    # pass_op returns input unchanged; verify shape preserved
+    # pass_op returns input unchanged → only Parameter and Result remain
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
+        "Parameter", "Result"]
     assert converted_model.get_results()[0].get_output_partial_shape(0) == \
         PartialShape([100])
-    # Verify the custom op was used (no original Multiply ops from forward)
-    op_types = [n.get_type_name() for n in converted_model.get_ordered_ops()]
-    assert "Parameter" in op_types
-    assert "Result" in op_types
 
 
 def test_module_extension_dynamo_shape_changing():
@@ -798,6 +806,8 @@ def test_module_extension_dynamo_custom_callbacks():
         extension=[me, ce])
     assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
         "Parameter", "Cos", "Result"]
+    assert converted_model.get_results()[0].get_output_partial_shape(0) == \
+        PartialShape([100])
 
 
 def verify_model(model, example_input, expected_ops):
