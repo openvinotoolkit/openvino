@@ -22,9 +22,9 @@ def stack(axis, input1, input2, input3):
             'data3', shape=input3.shape, dtype=input3.dtype)
 
         if (axis == None):
-            out = paddle.paddle.stack([data1, data2, data3])
+            out = paddle.stack([data1, data2, data3])
         else:
-            out = paddle.paddle.stack([data1, data2, data3], axis)
+            out = paddle.stack([data1, data2, data3], axis)
 
         cpu = paddle.static.cpu_places(1)
         exe = paddle.static.Executor(cpu[0])
