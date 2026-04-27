@@ -927,7 +927,7 @@ uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
     auto context = get_default_contexts().at(device_id);
     const auto& device_info = context->get_device().get_info();
 
-    auto closest_pow_of_2 = [] (float x) {
+    auto closest_pow_of_2 = [] (double x) {
         int lower_power = static_cast<int>(floor(std::log(x) / std::log(2)));
         double lower_value = pow(2, lower_power);        // Current power of 2
         double upper_value = pow(2, lower_power + 1);   // Next power of 2
@@ -963,7 +963,7 @@ uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
     // Initialize the context before use
     context->initialize();
 
-    size_t L3_cache_size = device_info.max_global_cache_size;
+    float L3_cache_size = static_cast<float>(device_info.max_global_cache_size);
     auto config = m_configs_map.at(device_id);
     auto cloned_model = clone_and_transform_model(model, config, context);
     ov::MemBandwidthPressure memPressure = ov::mem_bandwidth_pressure_tolerance(cloned_model, L3_cache_size);

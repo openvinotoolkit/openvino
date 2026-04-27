@@ -29,11 +29,6 @@ if(CMAKE_COMPILER_IS_GNUCXX)
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    # 4267 4244 conversion from 'XXX' to 'YYY', possible loss of data
-    ov_add_compiler_flags(/wd4244)
-    # '<': signed/unsigned mismatch
-    ov_add_compiler_flags(/wd4018)
-
     add_compile_definitions(_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING)
     # see https://github.com/oneapi-src/oneDNN/issues/2028
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zc:__cplusplus")

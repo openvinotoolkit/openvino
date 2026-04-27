@@ -134,14 +134,14 @@ static int64_t get_aligned_seq_len(const kernel_impl_params& impl_param, const P
         const auto subsequence_begins_mem = input_mem.at(PagedAttentionInputIdx::SUBSEQUENCE_BEGINS);
         mem_lock<int32_t, mem_lock_type::read> subsequence_begins_mem_lock(subsequence_begins_mem, *impl_param.strm);
 
-        auto aligned_seq_len = 0;
+        int64_t aligned_seq_len = 0;
         if (stage == PagedAttentionStage::MIXED) {
             const auto past_lens_mem = input_mem.at(PagedAttentionInputIdx::PAST_LENS);
             mem_lock<int32_t, mem_lock_type::read> past_lens_mem_lock(past_lens_mem, *impl_param.strm);
 
             for (size_t i = 0; i < subsequence_begins_mem_lock.size() - 1; i++) {
                 auto past_len = past_lens_mem_lock[i];
-                auto seq_length = subsequence_begins_mem_lock[i + 1] - subsequence_begins_mem_lock[i];
+                int64_t seq_length = subsequence_begins_mem_lock[i + 1] - subsequence_begins_mem_lock[i];
 
                 // Since in MIXED execution mode the present KV-cache can be appended to the past KV-cache at any offset inside block,
                 // to ensure proper alignment and update_kv_cache kernel scheduling, we need to account for the number of unaligned tokens
