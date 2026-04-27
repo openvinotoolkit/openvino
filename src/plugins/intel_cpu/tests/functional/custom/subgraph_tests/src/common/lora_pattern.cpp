@@ -287,16 +287,16 @@ TEST_P(LoraPatternMatmulCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     targetStaticShapes = {{{{1, 20, K}}, {{N, K}}}};
     run_test();
-    CPUTestUtils::CheckNumberOfNodesWithType(compiledModel, "LoRA", 1);
-    CPUTestUtils::CheckNumberOfNodesWithType(compiledModel, "MatMul", 1);
+    CheckNumberOfNodesWithType(compiledModel, "LoRA", 1);
+    CheckNumberOfNodesWithType(compiledModel, "MatMul", 1);
 }
 
 TEST_P(LoraPatternConvolutionCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     targetStaticShapes = {{{1, num_channels, 10, 15}}};
     run_test();
-    CPUTestUtils::CheckNumberOfNodesWithType(compiledModel, "LoRA", 1);
-    CPUTestUtils::CheckNumberOfNodesWithType(compiledModel, "MatMul", 0);
+    CheckNumberOfNodesWithType(compiledModel, "LoRA", 1);
+    CheckNumberOfNodesWithType(compiledModel, "MatMul", 0);
 }
 
 const ov::element::TypeVector states_precisions {ov::element::f32, ov::element::f16};
