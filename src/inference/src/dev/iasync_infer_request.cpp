@@ -44,9 +44,9 @@ ov::IAsyncInferRequest::IAsyncInferRequest(const std::shared_ptr<IInferRequest>&
                                            const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
                                            const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor)
     : m_infer_id(0),
-      m_sync_request(request),
       m_request_executor(task_executor),
-      m_callback_executor(callback_executor) {
+      m_callback_executor(callback_executor),
+      m_sync_request(request) {
     if (m_request_executor && m_sync_request)
         m_pipeline = {{m_request_executor, [this] {
                            m_sync_request->infer();

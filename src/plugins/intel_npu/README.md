@@ -190,10 +190,8 @@ The following properties are supported (may differ based on current system confi
 | `ov::supported_properties`/</br>`SUPPORTED_METRICS`/</br>`SUPPORTED_CONFIG_KEYS` | RO | Returns a list of all supported properties.</br> Can be queried on runtime. | `N/A` | `N/A` |
 | `ov::caching_properties`/</br>`CACHING_PROPERTIES` | RW | Returns a list of all properties that are used by OpenVINO cache to build the hash key. | `N/A` | `N/A` |
 | `ov::compilation_num_threads`/</br>`COMPILATION_NUM_THREADS` | RW | Maximum number of threads that can be used for compilation tasks. | `N/A` | `N/A` |
-| `ov::num_streams`/</br>`NUM_STREAMS` | RO | Not used by the NPU plugin.</br> Always set to 1. | `AUTO/`</br>`INT` | `1` |
 | `ov::optimal_number_of_infer_requests`/</br>`OPTIMAL_NUMBER_OF_INFER_REQUESTS` | RO | Returns the optimal number of inference requests to be used by the application. Depends on the platform version and on ov::hint::performance_mode. Please see the table below. | `N/A` | `N/A` |
 | `ov::range_for_async_infer_requests`/</br>`RANGE_FOR_ASYNC_INFER_REQUESTS` | RO | Returns a tuple (bottom, top, step). </br> Not used by the NPU plugin. | `N/A` | `N/A` |
-| `ov::range_for_streams`/</br>`RANGE_FOR_STREAMS` | RO | Returns a tuple (bottom, top).</br> Not used by the NPU plugin. | `N/A`| `N/A` |
 | `ov::enable_profiling`/</br>`PERF_COUNT` | RW | Enables or disables performance counters. | `YES`/ `NO` | `NO` |
 | `ov::workload_type`/</br>`WORKLOAD_TYPE` | RW | Selects the NPU workload profile for model execution. | `DEFAULT`/ `EFFICIENT`| `DEFAULT` |
 | `ov::hint::performance_mode`/</br>`PERFORMANCE_HINT` | RW | Sets the performance profile used to determine default values of Tiles/DMAs/NIREQs.</br>Default values for each profile are documented below. | `THROUGHPUT`/</br>`LATENCY`/</br>`UNDEFINED` | `UNDEFINED` |

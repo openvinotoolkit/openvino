@@ -524,7 +524,6 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::cache_mode, CACHE_MODE);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::compiled_blob, COMPILED_BLOB);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::device::id, DEVICE_ID);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::num_streams, NUM_STREAMS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::weights_path, WEIGHTS_PATH);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::internal::exclusive_async_requests, EXCLUSIVE_ASYNC_REQUESTS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::compilation_mode_params, COMPILATION_MODE_PARAMS);
@@ -624,7 +623,6 @@ void Properties::registerPluginProperties() {
                                         : _backend->getDevice(config.get<DEVICE_ID>())->getName(),
                     _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames())))));
         REGISTER_SIMPLE_METRIC(ov::range_for_async_infer_requests, true, _metrics->GetRangeForAsyncInferRequest());
-        REGISTER_SIMPLE_METRIC(ov::range_for_streams, true, _metrics->GetRangeForStreams());
         REGISTER_SIMPLE_METRIC(ov::device::pci_info, true, _metrics->GetPciInfo(get_specified_device_name(config)));
         REGISTER_SIMPLE_METRIC(ov::device::gops, true, _metrics->GetGops(get_specified_device_name(config)));
         REGISTER_SIMPLE_METRIC(ov::device::type, true, _metrics->GetDeviceType(get_specified_device_name(config)));
