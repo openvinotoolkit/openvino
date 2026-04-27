@@ -1124,6 +1124,13 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                             compatible &= od.get_length() == id.get_length();
                         } else if (id.is_static()) {
                             compatible &= id.get_length() != 1;
+                        } else if (od.is_static() && id.is_dynamic()) {
+                            // If parent dim is dynamic with upper bound smaller than the expected output dim,
+                            // it can never match at runtime, so fusion would always fail in is_valid_fusion()
+                            auto id_max = id.get_max_length();
+                            if (id_max > 0 && static_cast<int64_t>(id_max) < static_cast<int64_t>(od.get_length())) {
+                                compatible = false;
+                            }
                         }
                     }
                     return compatible;
