@@ -45,7 +45,20 @@ CachePositionResult make_cache_position_ids(const ov::Output<ov::Node>& input_id
 /// Whisper-style decoder self-attn causal mask. Uses cache_pos based ranges
 /// (different shape from make_causal_mask). Includes the structural Slice that
 /// AttentionMaskInput (prefill) requires on SDPA input[3].
-ov::Output<ov::Node> make_whisper_causal_mask(const CachePositionResult& cache_pos, const std::string& prefix);
+/// boolean_output = true skips the Select-to-float so a bool mask reaches SDPA,
+/// exercising the boolean handler at prepare_whisper_model.cpp:140.
+ov::Output<ov::Node> make_whisper_causal_mask(const CachePositionResult& cache_pos,
+                                              const std::string& prefix,
+                                              bool boolean_output = false);
+
+/// Boolean variant of the causal mask: 4D bool (true = attend), no Select-to-float.
+/// Element type argument is ignored. Exists to test NPUW handlers that lift bool
+/// SDPA masks to float via Select(mask, 0, -inf) — see optimize_value_tensors.cpp:271
+/// and prepare_whisper_model.cpp:140. Shape: causal LessEqual + bool padding combined
+/// via BitwiseAnd.
+ov::Output<ov::Node> make_causal_mask_boolean(const ov::Output<ov::Node>& seq_source,
+                                              const ov::Output<ov::Node>& attention_mask,
+                                              ov::element::Type /*unused*/);
 
 /// Sliding window + causal mask (transformers >= 5 / Gemma-4 style):
 /// Range(0, seq_len)+Add(offset), single Unsqueeze, Subtract for lower bound,

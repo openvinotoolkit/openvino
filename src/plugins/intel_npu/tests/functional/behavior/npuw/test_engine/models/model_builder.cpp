@@ -732,7 +732,8 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
 
     // Need full causal mask unless every layer is sliding
     if (!has_sliding || config.alternating_attention) {
-        full_mask = make_causal_mask(seq_source, attention_mask->output(0), prec);
+        full_mask = config.causal_mask_fn ? config.causal_mask_fn(seq_source, attention_mask->output(0), prec)
+                                          : make_causal_mask(seq_source, attention_mask->output(0), prec);
     }
     if (has_sliding) {
         const auto& mask_fn = config.sliding_mask_fn ? config.sliding_mask_fn : SlidingMaskFn(make_sliding_window_mask);
@@ -967,7 +968,13 @@ std::shared_ptr<ov::Model> ModelBuilder::build_whisper_decoder(const WhisperConf
                                                            d,
                                                            prec,
                                                            "model.decoder.");
-    auto shared_mask = make_whisper_causal_mask(cache_pos, "model.decoder.");
+    // Detect bool intent: user wires causal_mask_fn = make_causal_mask_boolean.
+    using CausalFnPtr = ov::Output<ov::Node> (*)(const ov::Output<ov::Node>&,
+                                                 const ov::Output<ov::Node>&,
+                                                 ov::element::Type);
+    auto* fn_target = config.causal_mask_fn.target<CausalFnPtr>();
+    const bool boolean_mask = fn_target && *fn_target == &make_causal_mask_boolean;
+    auto shared_mask = make_whisper_causal_mask(cache_pos, "model.decoder.", boolean_mask);
 
     // Self-attention (layer-0 reuses pre-built key Variable)
     Attention self_attn{};
