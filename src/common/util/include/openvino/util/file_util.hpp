@@ -93,10 +93,15 @@ inline auto path_to_string(const std::filesystem::path& path) -> decltype(path_t
     return path_to_string(path.native());
 }
 
-/// \brief Remove path components which would allow traversing up a directory tree.
-/// \param path A path to file
-/// \return A sanitized path
-std::string sanitize_path(const std::string& path);
+/**
+ * @brief Resolves and validates a path relative to a base directory to prevent path traversal.
+ *
+ * @param dir           Base directory. If empty, the current working directory is used.
+ * @param relative_path Path relative to @p dir (may contain '.', '..', symlinks).
+ * @return              Absolute, normalized path within @p dir.
+ * @throw std::runtime_error if the resolved path escapes the base directory.
+ */
+std::filesystem::path sanitize_path(const std::filesystem::path& dir, const std::filesystem::path& relative_path);
 
 /**
  * @brief Interface function to get absolute path of file
