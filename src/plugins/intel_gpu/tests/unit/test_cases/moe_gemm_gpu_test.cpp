@@ -11,7 +11,7 @@
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/moe_gemm.hpp>
 #include <intel_gpu/primitives/fully_connected.hpp>
-#include "intel_gpu/op/moe_compressed.hpp"
+#include "ov_ops/moe_compressed.hpp"
 
 using namespace cldnn;
 using namespace ov::intel_gpu;
@@ -274,7 +274,7 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
 
     void create_weight_data_and_topology(T& p, topology& topo, std::vector<ov::float16>& experts_data_f16, std::vector<uint8_t>& experts_data_quant,
                          std::vector<ov::float16>& scales_data, std::vector<ov::float16>& zp_data_f16, std::vector<uint8_t>& zp_data, bool is_weight_compressed) {
-        ov::intel_gpu::op::MOECompressed::Config moe_config;
+        ov::op::internal::MOECompressed::Config moe_config;
         moe_config.top_k = p.num_experts_per_token;
         moe_config.num_expert = p.num_total_experts;
         moe_config.has_batch_dim = !p.is_pa;

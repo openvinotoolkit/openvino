@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/op/moe_compressed.hpp"
+#include "ov_ops/moe_compressed.hpp"
 #include "intel_gpu/op/moe_3gemm_fused_compressed.hpp"
+#include "ov_ops/moe_compressed.hpp"
 
 namespace ov::intel_gpu::op {
 
-MOE3GemmFusedCompressed::MOE3GemmFusedCompressed(const OutputVector& args, const MOECompressed::Config config) : MOECompressed(args, config) {
+MOE3GemmFusedCompressed::MOE3GemmFusedCompressed(const OutputVector& args, const ov::op::internal::MOECompressed::Config config) : ov::op::internal::MOECompressed(args, config) {
     constructor_validate_and_infer_types();
 }
 

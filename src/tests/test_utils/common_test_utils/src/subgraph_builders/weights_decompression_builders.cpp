@@ -199,7 +199,8 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraphQuantization(
     const DecompressionType decompression_subtract_type,
     const bool reshape_on_decompression_constant,
     const std::optional<bool>& insert_transpose_node,
-    const size_t seed) {
+    const size_t seed,
+    const std::optional<InputGenerateData>& fp32_weights_gen_data) {
     // Validate that the precision is supported for real quantization
     OPENVINO_ASSERT(weights_precision == ov::element::u2 || weights_precision == ov::element::u4 ||
                         weights_precision == ov::element::i4 || weights_precision == ov::element::u8 ||
@@ -236,11 +237,19 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraphQuantization(
         transformed_weights_shape.insert(transformed_weights_shape.begin() + in_channel_idx + 1, group_size);
     }
 
-    // Step 1: Generate FP32 weights for real quantization
-    auto fp32_weights_tensor =
-        ov::test::utils::create_and_fill_tensor(ov::element::f32,
-                                                transformed_weights_shape,
-                                                ov::test::utils::InputGenerateData(1, 6, 8, seed));
+    // Step 1: Generate FP32 weights for real quantization. Use the mt19937-backed real
+    // distribution so per-group min/max (which determines scale/zp) are actually diverse
+    // — `create_and_fill_tensor` with InputGenerateData uses gtest's LCG with state mod
+    // k_range, whose period collapses to k_range and produces a repeating block pattern
+    // that gives many groups the same min/max → same scale/zp.
+    const float fp32_min =
+        fp32_weights_gen_data.has_value() ? static_cast<float>(fp32_weights_gen_data->start_from) : 1.0f;
+    const float fp32_max =
+        fp32_weights_gen_data.has_value() ? static_cast<float>(fp32_weights_gen_data->start_from +
+                                                                 static_cast<double>(fp32_weights_gen_data->range))
+                                          : 7.0f;
+    auto fp32_weights_tensor = ov::test::utils::create_and_fill_tensor_real_distribution(
+        ov::element::f32, transformed_weights_shape, fp32_min, fp32_max, static_cast<int>(seed));
 
     // Calculate quantization parameters
     const auto qmin = weights_precision == ov::element::u2   ? 0.0f

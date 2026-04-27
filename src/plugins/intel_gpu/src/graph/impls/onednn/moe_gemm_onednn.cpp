@@ -50,22 +50,48 @@ protected:
         }
 
         if (moe_cfg.is_weight_quantized) {
+            // cldnn logical shape is [E, N, G]. onednn's set_scales expects scale dims to match
+            // weight dim order [E, K, N] -> [E, G, N]. After prepare_quantization's byfx reorder
+            // physical bytes are [E, G, N, 1]; declare dims swapped to {E, G, N} and use abc so
+            // onednn's walk order matches physical.
             auto& wei_scales = instance.input_memory(moe_cfg.weight_scale_idx);
             auto wei_scales_shape = wei_scales.get_layout().get_shape();
             dnnl::memory::dim d0 = wei_scales_shape[0];
             dnnl::memory::dim d1 = wei_scales_shape[1];
             dnnl::memory::dim d2 = wei_scales_shape[2];
-            dnnl::memory::dims wei_scales_dims = (moe_cfg.weight_group_size == -1) ? dnnl::memory::dims{d0, d2} : dnnl::memory::dims{d0, d1, d2};
-            dnnl::memory::format_tag wei_scales_fmt = (moe_cfg.weight_group_size == -1) ? dnnl::memory::format_tag::ab : dnnl::memory::format_tag::abc;
+            // Cross-check: weight_group_size in moe_cfg must agree with the actual scale
+            // tensor's group dim. Catches drift between MoEGemmImplementationManager::get_moe_cfg
+            // (which derives weight_group_size from scale_shape[2] at compile time) and the
+            // memory passed at runtime.
+            const auto& weight_layout = instance.get_input_layout(moe_gemm::MoEGemmInputIdx::WEIGHT);
+            const auto& w_shape = weight_layout.get_shape();
+            const dnnl::memory::dim K = (w_shape.size() == 4) ? w_shape[2] * w_shape[3] : w_shape[2];
+            const dnnl::memory::dim runtime_num_groups = (moe_cfg.weight_group_size == -1)
+                ? 1
+                : (K / moe_cfg.weight_group_size);
+            const dnnl::memory::dim scale_num_groups = (wei_scales_shape.size() >= 3) ? d2 : 1;
+            OPENVINO_ASSERT(scale_num_groups == runtime_num_groups,
+                            "moe_gemm scale shape ", wei_scales_shape, " implies num_groups=",
+                            scale_num_groups, " but moe_cfg.weight_group_size=", moe_cfg.weight_group_size,
+                            " (K=", K, ") implies ", runtime_num_groups);
+            dnnl::memory::dims wei_scales_dims = (moe_cfg.weight_group_size == -1)
+                ? dnnl::memory::dims{d0, d1}
+                : dnnl::memory::dims{d0, d2, d1};
+            dnnl::memory::format_tag wei_scales_fmt = (moe_cfg.weight_group_size == -1)
+                ? dnnl::memory::format_tag::ab
+                : dnnl::memory::format_tag::abc;
             dnnl::memory::desc wei_scales_md(
-                    wei_scales_dims, convert_data_type(wei_scales.get_layout().data_type), wei_scales_fmt);
+                wei_scales_dims, convert_data_type(wei_scales.get_layout().data_type), wei_scales_fmt);
             dnnl::memory wei_scales_mem = wei_scales.get_onednn_memory(wei_scales_md, 0);
             args.insert({DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, wei_scales_mem});
 
             if (!moe_cfg.is_weight_symmetric_quantized) {
                 auto& wei_zp = instance.input_memory(moe_cfg.weight_zp_idx);
+                const auto& zp_shape = wei_zp.get_layout().get_shape();
+                OPENVINO_ASSERT(zp_shape == wei_scales_shape,
+                                "moe_gemm scale shape ", wei_scales_shape, " does not match zp shape ", zp_shape);
                 dnnl::memory::desc wei_zp_md(
-                        wei_scales_dims, convert_data_type(wei_zp.get_layout().data_type), wei_scales_fmt);
+                    wei_scales_dims, convert_data_type(wei_zp.get_layout().data_type), wei_scales_fmt);
                 dnnl::memory wei_zp_mem = wei_zp.get_onednn_memory(wei_zp_md, 0);
                 args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, wei_zp_mem});
             }

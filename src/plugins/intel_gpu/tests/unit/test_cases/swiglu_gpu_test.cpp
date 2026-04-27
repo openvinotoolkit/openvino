@@ -208,3 +208,67 @@ TEST(swiglu_gpu_test, swiglu_test_bfyx_dyn_clamp_swish_beta_up_add_val) {
         EXPECT_NEAR(output_ptr[i], output_ref_ptr[i], 1e-3);
     }
 }
+
+// Regression: stride==2 alternating with gate_idx=1 (gate at the odd neighbor, up at the
+// even position) — the GPT-OSS pattern that fires from both SwiGluFusionWithClamp and the
+// 2-GEMM fused MoE path. The OPT kernel's gate_idx!=0 branch previously reused the split-mode
+// formula and read input[y+GLU_STRIDE] for gate; on the last x that reads past the input
+// buffer (silently zero on padded shapes, CL_OUT_OF_RESOURCES otherwise). Uses static shape
+// with no padding so the OPT kernel (FORCE_PRIORITY_1) is selected — the dynamic-shape
+// variant of this test falls back to the REF kernel which has correct logic and would not
+// catch the OPT bug.
+TEST(swiglu_gpu_test, swiglu_test_bfyx_static_clamp_swish_beta_up_add_val_gate_idx_1) {
+    auto& engine = get_test_engine();
+    auto input_layout_static = layout{ov::PartialShape{2, 1, 12}, data_types::f32, format::bfyx};
+    auto input_mem = engine.allocate_memory({ov::PartialShape{2, 1, 12}, data_types::f32, format::bfyx});
+    auto output_ref = engine.allocate_memory({ov::PartialShape{2, 1, 6}, data_types::f32, format::bfyx});
+
+    auto clamp_min = -0.7f;
+    auto clamp_max = 7.0f;
+
+    int32_t gate_idx = 1;
+    int32_t glu_stride = 2;
+    float swish_beta = 1.2f;
+    float up_add_val = 1.0f;
+
+    // Use sequential moderate-magnitude values so that reading input[y+1] (correct, the odd
+    // neighbor) vs input[y+2] (buggy, two ahead) produces visibly different swish results —
+    // and stays inside the swish "active" region so the bug doesn't get masked by saturation.
+    set_values(input_mem, {
+        0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f,
+        0.5f, 1.5f, 2.5f, 3.5f, 4.5f, 5.5f, 6.5f, 7.5f, 8.5f, 9.5f, 10.5f, 11.5f,
+    });
+
+    swiglu_ref<float>(input_mem, output_ref, 2, gate_idx, glu_stride, clamp_min, clamp_max, swish_beta, up_add_val);
+
+    topology topology;
+    topology.add(input_layout("input", input_layout_static));
+    // bfyx tensor for {2, 1, 6} -> b=2, f=1, x=6, y=1 (cldnn::tensor takes b, f, x, y)
+    topology.add(swiglu("swiglu", input_info("input"), -1, glu_stride, ov::op::internal::GLU::GluType::Swish, gate_idx, clamp_min, clamp_max, swish_beta, up_add_val, cldnn::tensor(2, 1, 6, 1)));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    // Force the OPT kernel: REF supports tensor offsets/pitches, so the selector picks it
+    // by default for these shapes — but the bug we are guarding against lives in the OPT
+    // kernel's stride==2 + gate_idx!=0 path, which only fires in production for clean,
+    // contiguous tensors (e.g. the gather output in fused MoE).
+    ov::intel_gpu::ImplForcingMap forced{
+        {"swiglu", ov::intel_gpu::ImplementationDesc{format::bfyx, "swiglu_gpu_opt"}},
+    };
+    config.set_property(ov::intel_gpu::force_implementations(forced));
+
+    network network(engine, topology, config);
+
+    network.set_input_data("input", input_mem);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "swiglu");
+
+    auto output = outputs.begin()->second.get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
+
+    for (unsigned int i = 0; i < output_ref->count(); ++i) {
+        EXPECT_NEAR(output_ptr[i], output_ref_ptr[i], 1e-3);
+    }
+}

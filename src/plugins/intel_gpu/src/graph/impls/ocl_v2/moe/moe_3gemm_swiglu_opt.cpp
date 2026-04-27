@@ -13,7 +13,6 @@
 #    include <algorithm>
 #    include <initializer_list>
 #    include <oneapi/dnnl/dnnl.hpp>
-#    include <sstream>
 #    include <string_view>
 #    include <tuple>
 #    include <utility>
@@ -21,15 +20,12 @@
 #    include "../primitive_ocl_base.hpp"
 #    include "../utils/kernel_generator.hpp"
 #    include "common_utils/jitter.hpp"
-#    include "debug_helper.hpp"
 #    include "intel_gpu/graph/kernel_impl_params.hpp"
 #    include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
 #    include "intel_gpu/runtime/lru_cache.hpp"
 #    include "intel_gpu/runtime/stream.hpp"
-#    include "intel_gpu/runtime/utils.hpp"
 #    include "moe_3gemm_fused_inst.h"
 #    include "moe_3gemm_gen_micro.hpp"
-#    include "ocl_v2/utils/fused_ops_jitter.hpp"
 #    include "ocl_v2/utils/jitter.hpp"
 #    include "primitive_inst.h"
 
@@ -1012,9 +1008,9 @@ public:
 
         // Don't change the order of stages
         auto routing_type = node.as<moe_3gemm_fused_compressed>().get_primitive()->_config.routing_type;
-        if (routing_type == ov::intel_gpu::op::MOECompressed::RoutingType::SOFTMAX) {
+        if (routing_type == ov::op::internal::MOECompressed::RoutingType::SOFTMAX) {
             add_stage(softmax_topk, params);
-        } else if (routing_type == ov::intel_gpu::op::MOECompressed::RoutingType::SIGMOID_BIAS) {
+        } else if (routing_type == ov::op::internal::MOECompressed::RoutingType::SIGMOID_BIAS) {
             add_stage(sigmoid_bias_topk, params);
         } else {
             OPENVINO_THROW("Unsupported routing type for moe_3gemm_swiglu_opt_impl: ", static_cast<int>(routing_type));
@@ -1075,19 +1071,55 @@ public:
         };
 
         _dnnl_weights.resize(cur_moe->_config.num_expert);
+        // Per-GEMM ic_group_size derived from each scale tensor's shape — the MOECompressed
+        // config carries a single `group_size` field that can't represent cases where gate/up
+        // and down have different group counts (e.g. hidden_size != intermediate_size with
+        // gate K=hidden_size matching group_size → 1 group, while down K=intermediate_size
+        // has multiple groups). The scale's group dim (axis 2 in the rank-3 logical layout
+        // [E, ofm, num_groups]) is the authoritative signal.
+        const auto ic_group_size_from_scale = [](size_t ic, const cldnn::memory::ptr& scale_mem) {
+            const auto& scale_shape = scale_mem->get_layout().get_shape();
+            const size_t num_groups = (scale_shape.size() >= 3) ? scale_shape[2] : 1;
+            return (num_groups <= 1) ? static_cast<int>(ic) : static_cast<int>(ic / num_groups);
+        };
         for (size_t j = 0; j < cur_moe->_config.num_expert; j++) {
             auto& dnnl_weights = _dnnl_weights[j];
             dnnl_weights.resize(3);
             dnnl_weights[0].ic = _hidden_size;
-            dnnl_weights[0].ic_group_size = _gate_up_group_size;
+            dnnl_weights[0].ic_group_size = ic_group_size_from_scale(_hidden_size, moe_fusion_wei_addr.scale[0]);
             dnnl_weights[0].oc = _intermediate_size;
             dnnl_weights[1].ic = _hidden_size;
-            dnnl_weights[1].ic_group_size = _gate_up_group_size;
+            dnnl_weights[1].ic_group_size = ic_group_size_from_scale(_hidden_size, moe_fusion_wei_addr.scale[1]);
             dnnl_weights[1].oc = _intermediate_size;
             dnnl_weights[2].ic = _intermediate_size;
-            dnnl_weights[2].ic_group_size = _down_group_size;
+            dnnl_weights[2].ic_group_size = ic_group_size_from_scale(_intermediate_size, moe_fusion_wei_addr.scale[2]);
             dnnl_weights[2].oc = _hidden_size;
             for (int i = 0; i < 3; i++) {
+                // Defense-in-depth: validate per-GEMM that ic_group_size, ic, and the
+                // scale/zp tensor shapes are mutually consistent. Catches silent drift
+                // between MOECompressed::Config and the actual scale tensor (e.g. when
+                // _config.group_size is the SIZE_MAX sentinel but a GEMM has multi-group
+                // scales — was the cause of u8 producing inf before the fix).
+                {
+                    const auto& sshape = moe_fusion_wei_addr.scale[i]->get_layout().get_shape();
+                    const size_t scale_num_groups = (sshape.size() >= 3) ? sshape[2] : 1;
+                    OPENVINO_ASSERT(dnnl_weights[i].ic_group_size > 0,
+                                    "moe_3gemm GEMM ", i, " ic_group_size must be > 0");
+                    OPENVINO_ASSERT(dnnl_weights[i].ic % dnnl_weights[i].ic_group_size == 0,
+                                    "moe_3gemm GEMM ", i, " ic=", dnnl_weights[i].ic,
+                                    " not divisible by ic_group_size=", dnnl_weights[i].ic_group_size);
+                    const auto expected_groups = dnnl_weights[i].ic / dnnl_weights[i].ic_group_size;
+                    OPENVINO_ASSERT(static_cast<size_t>(expected_groups) == scale_num_groups,
+                                    "moe_3gemm GEMM ", i, " ic_group_size=", dnnl_weights[i].ic_group_size,
+                                    " (=> ", expected_groups, " groups) disagrees with scale num_groups=",
+                                    scale_num_groups, " (scale shape=", sshape, ")");
+                    if (cur_moe->_config.has_zp && moe_fusion_wei_addr.zp[i]) {
+                        const auto& zshape = moe_fusion_wei_addr.zp[i]->get_layout().get_shape();
+                        OPENVINO_ASSERT(zshape == sshape,
+                                        "moe_3gemm GEMM ", i, " scale shape ", sshape,
+                                        " does not match zp shape ", zshape);
+                    }
+                }
                 // weight shape: [ic, oc], type: u4/i8
                 int64_t wei_offset = j * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc, moe_fusion_wei_addr.weight[i]->get_layout());
                 dnnl_weights[i].weight =
@@ -2452,7 +2484,7 @@ public:
         // routing: softmax+topk or sigmoid+bias+topk
         auto lws_size = config.num_expert;
         cldnn::event::ptr topk_event;
-        if (config.routing_type == ov::intel_gpu::op::MOECompressed::RoutingType::SOFTMAX) {
+        if (config.routing_type == ov::op::internal::MOECompressed::RoutingType::SOFTMAX) {
             topk_event = execute_stage(events,
                                        instance,
                                        *softmax_topk,
@@ -2461,7 +2493,7 @@ public:
                                        {token_num, lws_size},
                                        {1, lws_size},
                                        instance.needs_completion_event());
-        } else if (config.routing_type == ov::intel_gpu::op::MOECompressed::RoutingType::SIGMOID_BIAS) {
+        } else if (config.routing_type == ov::op::internal::MOECompressed::RoutingType::SIGMOID_BIAS) {
             topk_event = execute_stage(events,
                                        instance,
                                        *sigmoid_bias_topk,

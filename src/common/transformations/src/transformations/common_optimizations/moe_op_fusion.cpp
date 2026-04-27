@@ -24,6 +24,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/gather_matmul.hpp"
@@ -41,7 +42,7 @@ namespace v1 = ov::op::v1;
 namespace v4 = ov::op::v4;
 namespace v8 = ov::op::v8;
 
-Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(size_t has_batch_dim) {
+Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool has_batch_dim) {
     MATCHER_SCOPE(Convert3GatherMatmulMoeBlockToMoeOp);
 
     auto experts_reshape_m = pattern::any_input();
@@ -158,16 +159,35 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(size_t 
             auto topk_shape = topk_indices.get_partial_shape();
             OPENVINO_ASSERT(topk_shape[1].is_static(), "K dimension in moe topk input should be static.");
 
+            // Derive `group_size` from the down-projection's scale shape, not from the gate
+            // weight rank. After `reshape_on_decompression` collapses unit dims, both
+            // grouped and per-channel weights can come back rank-3 — the rank-only check
+            // misses cases where gate has 1 group along K (per-channel-equivalent) but down
+            // has multiple groups (e.g. hidden_size != intermediate_size). Down has the
+            // largest K, so its num_groups is what determines the meaningful group_size for
+            // the whole MoE block.
+            const auto gate_K = group_compressed ? weight_shape[2] * weight_shape[3] : weight_shape[2];
+            auto down_scale_shape = pm.at(down_scale_m).get_partial_shape().to_shape();
+            const auto down_K = pm.at(down_w_m).get_partial_shape().to_shape().back();
+            const size_t down_num_groups = (down_scale_shape.size() >= 3) ? down_scale_shape[2] : 1;
+            const size_t group_size = (down_num_groups <= 1)
+                                          ? std::numeric_limits<size_t>::max()
+                                          : (down_K / down_num_groups);
+            // The 6-input GatherMatmulCompressed pattern always produces a zp slot. Use the
+            // matched zp's element type to distinguish real (asymmetric) zp from the dynamic
+            // placeholder constant emitted for symmetric quantization.
+            const bool has_zp = pm.at(gate_zp_m).get_element_type() != ov::element::dynamic;
+
             MOECompressed::Config compressed_config{
                 {ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU, 0.0f, expert_beta},
-                group_compressed ? weight_shape[2] * weight_shape[3] : weight_shape[2],
+                gate_K,
                 weight_shape[1],
                 weight_shape[0],
                 0,  // num_shared_expert
                 static_cast<size_t>(topk_shape[1].get_length()),
-                group_compressed ? weight_shape[3] : std::numeric_limits<size_t>::max(),
+                group_size,
                 has_batch_dim,
-                false,
+                has_zp,
                 ov::element::f16,
             };
 
@@ -203,7 +223,7 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(size_t 
     this->register_matcher(matcher, callback);
 }
 
-Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(size_t has_batch_dim) {
+Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(bool has_batch_dim) {
     MATCHER_SCOPE(Convert2GatherMatmulMoeBlockToMoeOp);
 
     auto experts_reshape_m = pattern::any_input();
@@ -247,9 +267,13 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(size_t 
         {multiply2_m, down_w_m, topk_indices_m, down_bias_m, down_scale_m, down_zp_m});
     auto bgm_down_m = bgm_down_4_m | bgm_down_6_m;
 
-    // Compact routing: Transpose → Unsqueeze
+    // Compact routing: Transpose → [optional Reshape] → Unsqueeze.
+    // Some models (e.g. gpt-oss) keep a no-op trailing-1 Reshape between the Transpose and
+    // the Unsqueeze that isn't folded by common optimizations; make it optional so the pattern
+    // matches both shapes.
     auto routing_transpose_m = pattern::wrap_type<v1::Transpose>({pattern::any_input(), pattern::any_input()});
-    auto routing_unsqueeze_m = pattern::wrap_type<v0::Unsqueeze>({routing_transpose_m, pattern::any_input()});
+    auto routing_reshape_m = pattern::optional<v1::Reshape>({routing_transpose_m, pattern::any_input()});
+    auto routing_unsqueeze_m = pattern::wrap_type<v0::Unsqueeze>({routing_reshape_m, pattern::any_input()});
 
     auto final_mul_m = pattern::wrap_type<v1::Multiply>({bgm_down_m, routing_unsqueeze_m});
     auto reduce_sum_m = pattern::wrap_type<v1::ReduceSum>({final_mul_m, pattern::any_input()}, {{"keep_dims", false}});
@@ -266,7 +290,17 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(size_t 
         auto experts_reshape_node = pm.at(experts_reshape_m).get_node_shared_ptr();
         auto hidden_states = experts_reshape_node->input_value(0);
 
-        auto routing = pm.at(routing_unsqueeze_m).get_node_shared_ptr();
+        // The matched `Transpose -> Unsqueeze` produces routing in [topk, tokens, ...] layout
+        // (the Transpose permutes {1, 0}). moe_scatter_reduction consumes `expert_weights` with
+        // stride `token_id * topk + e_iter`, i.e. the [tokens, topk] layout. Bypass the Transpose
+        // by taking its input directly, so we keep the tokens-major order the kernel expects.
+        auto routing_transpose_node = pm.at(routing_transpose_m).get_node_shared_ptr();
+        auto transpose_order = ov::as_type_ptr<v0::Constant>(
+            routing_transpose_node->input_value(1).get_node_shared_ptr());
+        if (!transpose_order || transpose_order->cast_vector<int64_t>() != std::vector<int64_t>{1, 0}) {
+            return false;  // unexpected permutation — abort rewrite
+        }
+        ov::Output<ov::Node> routing = routing_transpose_node->input_value(0);
         auto topk_indices = pm.at(topk_indices_m);
         auto gate_up_w = pm.at(gate_up_w_m);
         auto gate_up_bias = pm.at(gate_up_bias_m);
@@ -278,11 +312,10 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(size_t 
         float expert_beta = swish_beta_const->cast_vector<float>()[0];
 
         // Extract expert_alpha from Clamp max
-        float expert_alpha = 0.0f;
-
         auto clamp_node = pm.at(clamp_m).get_node_shared_ptr();
         auto clamp_op = ov::as_type_ptr<v0::Clamp>(clamp_node);
         OPENVINO_ASSERT(clamp_op, "Unexpected node type matched for clamp: ", *clamp_node);
+        float expert_alpha = static_cast<float>(clamp_op->get_max());
 
         std::shared_ptr<ov::Node> moe_node;
 
@@ -335,6 +368,14 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(size_t 
             OPENVINO_ASSERT(topk_indices_shape[topk_rank - 1].is_static(),
                             "K dimension in moe topk_indices input should be static.");
 
+            // Derive group_size from down's scale shape rather than gate_up's weight rank
+            // (see GEMM3 branch above for the rationale).
+            auto down_scale_shape = pm.at(down_scale_m).get_partial_shape().to_shape();
+            const auto down_K = pm.at(down_w_m).get_partial_shape().to_shape().back();
+            const size_t down_num_groups = (down_scale_shape.size() >= 3) ? down_scale_shape[2] : 1;
+            const size_t group_size = (down_num_groups <= 1) ? std::numeric_limits<size_t>::max()
+                                                             : (down_K / down_num_groups);
+
             MOECompressed::Config compressed_config{
                 {ov::op::internal::MOE::Expert_type::GEMM2_BIAS_SWIGLU_CLAMP, expert_alpha, expert_beta},
                 hidden,
@@ -342,7 +383,7 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(size_t 
                 weight_shape[0],
                 0,  // num_shared_expert
                 static_cast<size_t>(topk_indices_shape[topk_rank - 1].get_length()),
-                group_compressed ? weight_shape[3] : std::numeric_limits<size_t>::max(),
+                group_size,
                 has_batch_dim,
                 has_zp,
                 ov::element::dynamic,

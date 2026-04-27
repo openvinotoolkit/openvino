@@ -3,6 +3,9 @@
 //
 
 #include "fully_connected_inst.h"
+#include "gather_matmul_inst.h"
+#include "moe_3gemm_fused_inst.h"
+#include "moe_gemm_inst.h"
 #include "pooling_inst.h"
 #include "quantize_inst.h"
 #include "reorder_inst.h"
@@ -13,6 +16,7 @@
 #include "to_string_utils.h"
 
 #include <algorithm>
+#include <array>
 #include <string>
 #include <memory>
 #include <vector>
@@ -580,6 +584,82 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
     }
 }
 
+// GatherMatmulCompressed and MOECompressed carry per-group scales (and zp) with logical shape
+// [E, N, G] (rank 3) or [E, N, G, 1] (rank 4). Downstream GPU kernels want N innermost so each
+// sub-group block read walks contiguous N for a fixed group. bfyx pads rank 3 to [E, N, G, 1];
+// reordering to byfx (order {0, 2, 1, 3}) swaps f and y physically, producing physical
+// [E, G, N, 1] while the logical shape stays the same. This mirrors
+// optimize_weights_decompression_parameters for FullyConnected — shape is consistent across
+// plugins, only the cldnn format differs.
+static void reorder_decompression_param_to_byfx(program_node& node, size_t dep_id, program& p) {
+    if (dep_id >= node.get_dependencies().size())
+        return;
+    auto& dep = node.get_dependency(dep_id);
+    const auto dep_layout = dep.get_output_layout();
+    const auto dep_pshape = dep_layout.get_partial_shape();
+    if (dep_pshape.rank().is_dynamic())
+        return;
+    const auto rank = dep_pshape.size();
+    // Rank-1 placeholders (no-zp signal) and 2D per-OC scales have nothing to swap.
+    if (rank != 3 && rank != 4)
+        return;
+    // Groups axis is at index 2 for both shapes: [E, N, G] and [E, N, G, 1].
+    if (dep_pshape[2].is_dynamic() || dep_pshape[2].get_length() <= 1)
+        return;
+    // For rank-4, trailing dim must be 1 so the bfyx→byfx swap maps f↔y cleanly.
+    if (rank == 4 && (dep_pshape[3].is_dynamic() || dep_pshape[3].get_length() != 1))
+        return;
+    if (dep_layout.format == cldnn::format::byfx)
+        return;
+
+    auto target_layout = dep_layout;
+    target_layout.format = cldnn::format::byfx;
+    auto reorder_prim =
+        std::make_shared<reorder>(dep.id() + "_byfx_" + node.id(), dep.id(), target_layout);
+    p.add_intermediate(reorder_prim, node, dep_id, true);
+    node.get_dependency(dep_id).recalc_output_layout(false);
+}
+
+static void optimize_gather_matmul_decompression_parameters(gather_matmul_node& node, program& p) {
+    auto prim = node.get_primitive();
+    reorder_decompression_param_to_byfx(node, gather_matmul::WEIGHT_SCALE, p);
+    if (prim->has_zp)
+        reorder_decompression_param_to_byfx(node, gather_matmul::WEIGHT_ZP, p);
+}
+
+static void optimize_moe_gemm_decompression_parameters(moe_gemm_node& node, program& p) {
+    auto prim = node.get_primitive();
+    // Production moe_gemm always has bias; tests may run without it.
+    const size_t scale_idx = prim->has_bias ? static_cast<size_t>(moe_gemm::WEIGHT_SCALE)
+                                            : static_cast<size_t>(moe_gemm::WEIGHT_SCALE) - 1;
+    const size_t zp_idx = scale_idx + 1;
+    if (scale_idx >= node.get_dependencies().size())
+        return;
+    reorder_decompression_param_to_byfx(node, scale_idx, p);
+    if (zp_idx < node.get_dependencies().size())
+        reorder_decompression_param_to_byfx(node, zp_idx, p);
+}
+
+static void optimize_moe_3gemm_fused_decompression_parameters(moe_node& node, program& p) {
+    auto prim = node.get_primitive();
+    const auto& cfg = prim->_config;
+    // Routed-expert scales are always present at 3, 6, 9 (gate, up, down); zp at +1 when has_zp.
+    constexpr std::array<size_t, 3> routed_scale_indices{3u, 6u, 9u};
+    for (size_t idx : routed_scale_indices) {
+        reorder_decompression_param_to_byfx(node, idx, p);
+        if (cfg.has_zp)
+            reorder_decompression_param_to_byfx(node, idx + 1, p);
+    }
+    if (cfg.num_shared_expert > 0) {
+        constexpr std::array<size_t, 3> shared_scale_indices{14u, 17u, 20u};
+        for (size_t idx : shared_scale_indices) {
+            reorder_decompression_param_to_byfx(node, idx, p);
+            if (cfg.has_zp)
+                reorder_decompression_param_to_byfx(node, idx + 1, p);
+        }
+    }
+}
+
 void prepare_quantization::run(program& p) {
     auto itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
@@ -592,6 +672,12 @@ void prepare_quantization::run(program& p) {
             remove_fake_reorders(p, node->as<reorder>());
         } else if (node->is_type<fully_connected>()) {
             optimize_weights_decompression_parameters(node->as<fully_connected>(), p);
+        } else if (node->is_type<gather_matmul>()) {
+            optimize_gather_matmul_decompression_parameters(node->as<gather_matmul>(), p);
+        } else if (node->is_type<moe_gemm>()) {
+            optimize_moe_gemm_decompression_parameters(node->as<moe_gemm>(), p);
+        } else if (node->is_type<moe_3gemm_fused_compressed>()) {
+            optimize_moe_3gemm_fused_decompression_parameters(node->as<moe_3gemm_fused_compressed>(), p);
         }
     }
 }

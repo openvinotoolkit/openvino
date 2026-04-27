@@ -9,10 +9,10 @@
 #include <intel_gpu/primitives/swiglu.hpp>
 #include <limits>
 
-#include "intel_gpu/op/moe_3gemm_fused_compressed.hpp"
-#include "intel_gpu/op/moe_compressed.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
+#include "ov_ops/moe_compressed.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
+#include "intel_gpu/op/moe_3gemm_fused_compressed.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
 #include "intel_gpu/primitives/moe_gemm.hpp"
 #include "intel_gpu/primitives/moe_mask_gen.hpp"
@@ -22,7 +22,6 @@ namespace ov {
 namespace op {
 namespace internal {
 using MOE3GemmFusedCompressed = ov::intel_gpu::op::MOE3GemmFusedCompressed;
-using MOECompressed = ov::intel_gpu::op::MOECompressed;
 }  // namespace internal
 }  // namespace op
 }  // namespace ov
@@ -80,7 +79,7 @@ static void CreateMOE3GemmFusedCompressedOp(ProgramBuilder& p, const std::shared
     ///   22: shared_gate_gate_weight - shared expert gate weight for gating,
     ///                   shape [hidden_size]
     const size_t expected_inputs = config.num_shared_expert > 0 ? 23
-                                 : config.routing_type == op::MOECompressed::RoutingType::SIGMOID_BIAS ? 13
+                                 : config.routing_type == ov::op::internal::MOECompressed::RoutingType::SIGMOID_BIAS ? 13
                                  : 11;
     validate_inputs_count(op, {expected_inputs});
 
@@ -199,12 +198,17 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         // - config.expert_alpha : clamp_max
         // - config.expert_beta : swish_beta
         // TODO : update for each new pattern
+        // GPT-OSS swiglu interleaves gate/up along the last axis with stride 2.
+        // Test/IR pattern: slice[0::2] -> Clamp(-α, α) + bias  (the "up" path)
+        //                  slice[1::2] -> Min(cap) -> Swish(β) (the "gate" path)
+        // Kernel assigns swish + upper-clamp to "gate", full-clamp + add to "up";
+        // gate_idx=1 puts gate at odd positions (slice[1::2]) — matches the IR.
         auto moe_swiglu_prim = cldnn::swiglu(moe_swiglu_name,
                                              input_info(moe_gemm_up_name),
                                              2,  // axis
                                              2,  // glu_stride
                                              ov::op::internal::GLU::GluType::Swish,
-                                             0,                     // gate idx
+                                             1,                     // gate idx
                                              -config.expert_alpha,  // clamp_min
                                              config.expert_alpha,   // clamp_max
                                              config.expert_beta,    // swish beta

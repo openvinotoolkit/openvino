@@ -116,11 +116,10 @@ void add_required_reorders::add_reorder(program& p, program_node* node, program_
     if (keep_original_dt)
         reorder_layout.data_type = node->get_output_layout().data_type;
 
-    auto new_reorder = std::make_shared<reorder>(node->id() + "_reorder_" + usr->id(), node->id(), reorder_layout);
-    auto& new_reorder_node = p.get_or_create(new_reorder);
-    new_reorder_node.set_output_layout(reorder_layout, false);
-
-    // ToDo: add a method to program class which adds an intermediate node given a node and its user
+    // Include the dep index in the reorder id so multi-output sources (node feeds `usr` through
+    // more than one port) get distinct reorders per port; using just node->id()+usr->id() leads
+    // get_or_create to return the same reorder for every iteration, and add_intermediate then
+    // trips on "node already has dependencies".
     auto it = std::find_if(usr->get_dependencies().begin(), usr->get_dependencies().end(),
     [&](const std::pair<program_node*, int32_t>& dep) {
         return node == dep.first;
@@ -132,6 +131,12 @@ void add_required_reorders::add_reorder(program& p, program_node* node, program_
     if (idx < 0 || (size_t)idx >= usr->get_dependencies().size()) {
         throw std::runtime_error("Internal Error: container index out of range exception.");
     }
+
+    auto new_reorder = std::make_shared<reorder>(
+        node->id() + "_reorder_" + usr->id() + "_p" + std::to_string(idx), node->id(), reorder_layout);
+    auto& new_reorder_node = p.get_or_create(new_reorder);
+    new_reorder_node.set_output_layout(reorder_layout, false);
+
     p.add_intermediate(new_reorder_node, *usr, idx);
     new_reorder_node.recalc_output_layouts(false);
 }

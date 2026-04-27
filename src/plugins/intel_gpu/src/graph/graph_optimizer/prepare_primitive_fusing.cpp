@@ -39,6 +39,7 @@
 #include "cum_sum_inst.h"
 #include "embedding_bag_inst.h"
 #include "swiglu_inst.h"
+#include "gather_matmul_inst.h"
 #include "extract_image_patches_inst.h"
 #include "reduce_inst.h"
 #include "group_normalization_inst.h"
@@ -204,8 +205,7 @@ void prepare_primitive_fusing::fuse_swiglu(program &p) {
     if (disable_fc_swiglu_fusion || p.get_engine().get_device_info().execution_units_count < 128)
         return;
 
-    if (p.get_engine().get_device_info().supports_immad)
-        return;
+    const bool supports_immad = p.get_engine().get_device_info().supports_immad;
 
     // TODO: to support other glu types && other weight data types
     auto itr = p.get_processing_order().begin();
@@ -213,29 +213,48 @@ void prepare_primitive_fusing::fuse_swiglu(program &p) {
     while (itr != p.get_processing_order().end()) {
         auto node_itr = itr++;
         auto& node = (*node_itr);
-        if (node->is_type<swiglu>()) {
-            if (!node->get_dependency(0).is_type<fully_connected>())
+        if (!node->is_type<swiglu>())
+            continue;
+
+        auto swiglu_prim = node->get_kernel_impl_params()->typed_desc<swiglu>();
+        if (node->get_dependencies().size() > 1)
+            continue;
+        if (swiglu_prim->glu_type != ov::op::internal::GLU::GluType::Swish ||
+           !(swiglu_prim->axis == -1 || swiglu_prim->axis == static_cast<int64_t>(node->get_output_layout(0).get_partial_shape().size()) - 1))
+            continue;
+
+        auto& dep_node = node->get_dependency(0);
+
+        // FC + SwiGLU fusion (non-systolic platforms only)
+        if (!supports_immad && dep_node.is_type<fully_connected>()) {
+            if (!dep_node.get_fused_primitives().empty())
                 continue;
-            auto swiglu_prim = node->get_kernel_impl_params()->typed_desc<swiglu>();
-            auto& fc_node = node->get_dependency(0);
-            if (node->get_dependencies().size() > 1)
-                continue;
-            if (!fc_node.get_fused_primitives().empty())
-                continue;
-            auto in_dt = fc_node.get_input_layout(0).data_type;
+            auto in_dt = dep_node.get_input_layout(0).data_type;
             if (in_dt != data_types::f16)
                 continue;
-            auto wt_dt = fc_node.get_input_layout(1).data_type;
+            auto wt_dt = dep_node.get_input_layout(1).data_type;
             if (!data_type_traits::is_i4_u4(wt_dt))
                 continue;
-            if (swiglu_prim->glu_type != ov::op::internal::GLU::GluType::Swish ||
-               !(swiglu_prim->axis == -1 || swiglu_prim->axis == static_cast<int64_t>(node->get_output_layout(0).get_partial_shape().size()) - 1))
+            GPU_DEBUG_TRACE_DETAIL << node->id() << " : fuse swiglu to FC " << dep_node.id() << std::endl;
+            p.fuse_nodes(dep_node, *node, &fusing_history);
+            continue;
+        }
+
+        // GatherMatmul + SwiGLU fusion (systolic platforms)
+        if (dep_node.is_type<gather_matmul>()) {
+            if (!dep_node.get_fused_primitives().empty())
                 continue;
-            GPU_DEBUG_TRACE_DETAIL << node->id() << " : fuse swiglu to " << fc_node.id() << std::endl;
-            GPU_DEBUG_TRACE_DETAIL << " - split axis : " << swiglu_prim->axis << std::endl;
+            auto in_dt = dep_node.get_input_layout(0).data_type;
+            if (in_dt != data_types::f16)
+                continue;
+            auto wt_dt = dep_node.get_input_layout(1).data_type;
+            if (!data_type_traits::is_i4_u4(wt_dt))
+                continue;
+            GPU_DEBUG_TRACE_DETAIL << node->id() << " : fuse swiglu to GatherMatmul " << dep_node.id() << std::endl;
             GPU_DEBUG_TRACE_DETAIL << " - glu stride : " << swiglu_prim->glu_stride << std::endl;
             GPU_DEBUG_TRACE_DETAIL << " - gate idx : " << swiglu_prim->gate_idx << std::endl;
-            p.fuse_nodes(fc_node, *node, &fusing_history);
+            p.fuse_nodes(dep_node, *node, &fusing_history);
+            continue;
         }
     }
 }

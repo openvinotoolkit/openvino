@@ -214,6 +214,12 @@ std::shared_ptr<ov::Node> build_matmul_weights(
                         "reshape_on_decompression must be set when use_weight_decompression is true");
         OPENVINO_ASSERT(decompression_group_size.has_value(),
                         "decompression_group_size must be set when use_weight_decompression is true");
+        // Generate fp32 weights centered around 0 with span 2 (range [-1, 1)). After u4
+        // quantization this gives a dequantized scale ~= 2/15 ≈ 0.13 with zp ~ 8, so dequant
+        // values land in [-1, 1] mean 0 — much closer to real quantized-LLM weight magnitudes
+        // than the historical [1, 6] range. This keeps the down-gemm accumulator well within
+        // fp16 range across the whole MoE chain on both CPU and GPU references.
+        auto fp32_weights_gen = ov::test::utils::InputGenerateData(-1.0, 2, 1000, static_cast<int32_t>(seed));
         return ov::test::utils::initMatMulDecompressionSubgraphQuantization(weights_shape,
                                                                             decompression_group_size.value(),
                                                                             data_precision,
@@ -225,7 +231,8 @@ std::shared_ptr<ov::Node> build_matmul_weights(
                                                                             decompression_subtract_type.value(),
                                                                             reshape_on_decompression.value(),
                                                                             false,
-                                                                            seed);
+                                                                            seed,
+                                                                            fp32_weights_gen);
     }
 }
 
@@ -298,10 +305,18 @@ std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(
 
     gate_up_matmul->set_friendly_name("GateUpMatMul");
 
+    // Use small zero-centered biases so gate_up does not sit at the [-7, 7] clamp threshold.
+    // The default `make_constant` range is [1, 10] (mean ~5.5), which alone pushes gate_up
+    // close to the clamp cliff regardless of input/weight magnitudes — small precision
+    // differences between CPU TEMPLATE (f16 sequential sum) and GPU (f32 block-reduction
+    // accumulator) then turn into large output differences as the clamp non-linearity
+    // amplifies them.
+    auto small_bias_data = ov::test::utils::InputGenerateData(-0.5, 1, 1000);
     auto gate_up_add = std::make_shared<ov::op::v1::Add>(
         gate_up_matmul,
         ov::test::utils::make_constant(data_precision,
-                                       ov::Shape{number_of_experts, 1, intermediate_size * fusion_factor}));
+                                       ov::Shape{number_of_experts, 1, intermediate_size * fusion_factor},
+                                       small_bias_data));
 
     // Slice the last axis, every second element
     auto slice1 = std::make_shared<ov::op::v8::Slice>(
@@ -313,7 +328,12 @@ std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{2}),
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{2}));
     auto clamp = std::make_shared<ov::op::v0::Clamp>(slice1, -expert_beta, expert_beta);
-    auto add1 = std::make_shared<ov::op::v1::Add>(clamp, ov::test::utils::make_constant(data_precision, ov::Shape{1}));
+    // GPT-OSS adds a constant 1.0 to the up path (the "+1" of SwiGLU). The fused kernel
+    // hardcodes UP_ADD_VAL=1.0 for this; using a different value here would diverge from
+    // the kernel's semantics regardless of the matmul precision.
+    auto add1 = std::make_shared<ov::op::v1::Add>(
+        clamp,
+        ov::op::v0::Constant::create(data_precision, ov::Shape{1}, std::vector<float>{1.0f}));
 
     auto slice2 = std::make_shared<ov::op::v8::Slice>(
         gate_up_add,
@@ -323,9 +343,12 @@ std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(
                                      std::vector<int64_t>{std::numeric_limits<int64_t>::max()}),
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{2}),
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{2}));
-    auto minimum1 =
-        std::make_shared<ov::op::v1::Minimum>(slice2,
-                                              ov::op::v0::Constant::create(data_precision, ov::Shape{1}, {10.0f}));
+    // GPT-OSS uses the same value as the clamp range to upper-bound the swish input. The
+    // fused kernel reuses CLAMP_MAX for this; using a different `min` value here would diverge
+    // whenever the gate path's value lies between the two thresholds.
+    auto minimum1 = std::make_shared<ov::op::v1::Minimum>(
+        slice2,
+        ov::op::v0::Constant::create(data_precision, ov::Shape{1}, {expert_beta}));
     auto swish_beta = ov::op::v0::Constant::create(data_precision, ov::Shape{}, std::vector<float>{expert_alpha});
     auto swish = std::make_shared<ov::op::v4::Swish>(minimum1, swish_beta);
 
@@ -350,7 +373,7 @@ std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(
 
     auto down_proj_add = std::make_shared<ov::op::v1::Add>(
         down_proj_matmul,
-        ov::test::utils::make_constant(data_precision, ov::Shape{number_of_experts, 1, hidden_size}));
+        ov::test::utils::make_constant(data_precision, ov::Shape{number_of_experts, 1, hidden_size}, small_bias_data));
 
     auto router_weights = build_matmul_weights(ov::Shape{hidden_size, number_of_experts},
                                                weights_precision,
@@ -369,7 +392,7 @@ std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(
 
     auto router_bias = std::make_shared<ov::op::v1::Add>(
         reshape_2nd_consumer_router_matmul,
-        ov::test::utils::make_constant(data_precision, ov::Shape{1, number_of_experts}));
+        ov::test::utils::make_constant(data_precision, ov::Shape{1, number_of_experts}, small_bias_data));
 
     auto router_topk_values_and_indices =
         std::make_shared<ov::op::v11::TopK>(router_bias,
