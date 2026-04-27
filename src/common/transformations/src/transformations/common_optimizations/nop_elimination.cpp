@@ -542,6 +542,199 @@ EliminateConcat::EliminateConcat() {
     this->register_matcher(m, callback);
 }
 
+namespace {
+
+// Extracts [begin, end_inclusive] range along `concat_axis` from a slice-like user of Concat.
+// Returns false if the user is not a supported slice-like op or does not produce a clean
+// axis-aligned slice along concat_axis.
+bool extract_slice_range_along_axis(const std::shared_ptr<ov::Node>& user,
+                                    int64_t concat_axis,
+                                    const ov::Shape& concat_shape,
+                                    int64_t& out_begin,
+                                    int64_t& out_end_inclusive) {
+    if (auto strided_slice_node = ov::as_type_ptr<v1::StridedSlice>(user)) {
+        auto check_mask = [](const std::vector<int64_t>& mask_to_check) {
+            auto it = std::find_if(mask_to_check.begin(), mask_to_check.end(), [](const int64_t& value) {
+                return value != 0;
+            });
+            return mask_to_check.empty() || it == mask_to_check.end();
+        };
+        if (!check_mask(strided_slice_node->get_shrink_axis_mask()) ||
+            !check_mask(strided_slice_node->get_new_axis_mask()) ||
+            !check_mask(strided_slice_node->get_ellipsis_mask())) {
+            return false;
+        }
+
+        auto check_axis = [concat_axis](const std::vector<int64_t>& masks) {
+            for (size_t axis = 0; axis < masks.size(); ++axis) {
+                if (masks[axis] != 1 && axis != static_cast<size_t>(concat_axis)) {
+                    return false;
+                }
+                if (masks[axis] != 0 && axis == static_cast<size_t>(concat_axis)) {
+                    return false;
+                }
+            }
+            return true;
+        };
+        if (!check_axis(strided_slice_node->get_begin_mask()) || !check_axis(strided_slice_node->get_end_mask())) {
+            return false;
+        }
+
+        const auto& begin_constant_node =
+            ov::util::get_constant_from_source(strided_slice_node->get_input_node_shared_ptr(1));
+        if (!begin_constant_node)
+            return false;
+        auto begin_values = begin_constant_node->cast_vector<int64_t>();
+
+        const auto& end_constant_node =
+            ov::util::get_constant_from_source(strided_slice_node->get_input_node_shared_ptr(2));
+        if (!end_constant_node)
+            return false;
+        auto end_values = end_constant_node->cast_vector<int64_t>();
+        if (end_values[concat_axis] > static_cast<int64_t>(concat_shape[concat_axis]))
+            end_values[concat_axis] = static_cast<int64_t>(concat_shape[concat_axis]);
+
+        out_begin = begin_values[concat_axis];
+        out_end_inclusive = end_values[concat_axis] - 1;
+        return true;
+    }
+
+    if (auto slice_node = ov::as_type_ptr<v8::Slice>(user)) {
+        const auto& start_constant = ov::util::get_constant_from_source(slice_node->get_input_node_shared_ptr(1));
+        if (!start_constant)
+            return false;
+        const auto& stop_constant = ov::util::get_constant_from_source(slice_node->get_input_node_shared_ptr(2));
+        if (!stop_constant)
+            return false;
+        const auto& step_constant = ov::util::get_constant_from_source(slice_node->get_input_node_shared_ptr(3));
+        if (!step_constant)
+            return false;
+
+        auto start_values = start_constant->cast_vector<int64_t>();
+        auto stop_values = stop_constant->cast_vector<int64_t>();
+        auto step_values = step_constant->cast_vector<int64_t>();
+
+        std::vector<int64_t> axes_values;
+        if (slice_node->get_input_size() == 5) {
+            const auto& axes_constant = ov::util::get_constant_from_source(slice_node->get_input_node_shared_ptr(4));
+            if (!axes_constant)
+                return false;
+            axes_values = axes_constant->cast_vector<int64_t>();
+        } else {
+            for (int64_t i = 0; i < static_cast<int64_t>(start_values.size()); ++i)
+                axes_values.push_back(i);
+        }
+
+        const auto rank = static_cast<int64_t>(concat_shape.size());
+        for (auto& ax : axes_values) {
+            if (ax < 0)
+                ax += rank;
+        }
+
+        int64_t axis_pos = -1;
+        for (size_t i = 0; i < axes_values.size(); ++i) {
+            if (axes_values[i] == concat_axis) {
+                axis_pos = static_cast<int64_t>(i);
+                break;
+            }
+        }
+        if (axis_pos == -1)
+            return false;
+
+        for (const auto& s : step_values) {
+            if (s != 1)
+                return false;
+        }
+
+        for (size_t i = 0; i < axes_values.size(); ++i) {
+            if (static_cast<int64_t>(i) == axis_pos)
+                continue;
+            auto ax = axes_values[i];
+            auto dim_size = static_cast<int64_t>(concat_shape[ax]);
+            if (start_values[i] != 0 || stop_values[i] < dim_size)
+                return false;
+        }
+
+        auto slice_stop = stop_values[axis_pos];
+        if (slice_stop > static_cast<int64_t>(concat_shape[concat_axis]))
+            slice_stop = static_cast<int64_t>(concat_shape[concat_axis]);
+
+        out_begin = start_values[axis_pos];
+        out_end_inclusive = slice_stop - 1;
+        return true;
+    }
+
+    return false;
+}
+
+// Rebuilds a slice-like node that consumes the shrunken concat, with its range shifted
+// by new_start_value. Dispatches by runtime type of slice_node (StridedSlice or v8::Slice).
+std::shared_ptr<ov::Node> build_residual_slice(const std::shared_ptr<ov::Node>& slice_node,
+                                               const std::shared_ptr<ov::Node>& new_concat_node,
+                                               int64_t concat_axis,
+                                               int64_t slice_begin,
+                                               int64_t slice_end,
+                                               int64_t new_start_value) {
+    if (ov::is_type<v1::StridedSlice>(slice_node)) {
+        std::vector<std::shared_ptr<ov::Node>> new_slice_in_nodes{new_concat_node};
+
+        const auto& begin_constant_node = ov::util::get_constant_from_source(slice_node->get_input_node_shared_ptr(1));
+        auto begin_values = begin_constant_node->cast_vector<int64_t>();
+        begin_values[concat_axis] = slice_begin - new_start_value;
+        new_slice_in_nodes.push_back(
+            v0::Constant::create(ov::element::i64, ov::Shape{begin_values.size()}, begin_values));
+
+        const auto& end_constant_node = ov::util::get_constant_from_source(slice_node->get_input_node_shared_ptr(2));
+        auto end_values = end_constant_node->cast_vector<int64_t>();
+        end_values[concat_axis] = slice_end - new_start_value + 1;
+        new_slice_in_nodes.push_back(v0::Constant::create(ov::element::i64, ov::Shape{end_values.size()}, end_values));
+
+        return slice_node->clone_with_new_inputs(ov::as_output_vector(new_slice_in_nodes));
+    }
+
+    // v8::Slice: sparse axes indexing — update only the axis_pos entry, keep step/axes as-is.
+    const auto& start_constant = ov::util::get_constant_from_source(slice_node->get_input_node_shared_ptr(1));
+    auto start_values = start_constant->cast_vector<int64_t>();
+    const auto& stop_constant = ov::util::get_constant_from_source(slice_node->get_input_node_shared_ptr(2));
+    auto stop_values = stop_constant->cast_vector<int64_t>();
+
+    std::vector<int64_t> axes_values;
+    if (slice_node->get_input_size() == 5) {
+        const auto& axes_constant = ov::util::get_constant_from_source(slice_node->get_input_node_shared_ptr(4));
+        axes_values = axes_constant->cast_vector<int64_t>();
+    } else {
+        for (int64_t i = 0; i < static_cast<int64_t>(start_values.size()); ++i)
+            axes_values.push_back(i);
+    }
+    const auto rank = static_cast<int64_t>(new_concat_node->get_output_partial_shape(0).size());
+    for (auto& ax : axes_values) {
+        if (ax < 0)
+            ax += rank;
+    }
+    int64_t axis_pos = 0;
+    for (size_t i = 0; i < axes_values.size(); ++i) {
+        if (axes_values[i] == concat_axis) {
+            axis_pos = static_cast<int64_t>(i);
+            break;
+        }
+    }
+
+    start_values[axis_pos] = slice_begin - new_start_value;
+    stop_values[axis_pos] = slice_end - new_start_value + 1;
+
+    ov::OutputVector new_slice_inputs;
+    new_slice_inputs.push_back(new_concat_node);
+    new_slice_inputs.push_back(v0::Constant::create(ov::element::i64, ov::Shape{start_values.size()}, start_values));
+    new_slice_inputs.push_back(v0::Constant::create(ov::element::i64, ov::Shape{stop_values.size()}, stop_values));
+    new_slice_inputs.push_back(slice_node->input_value(3));
+    if (slice_node->get_input_size() == 5)
+        new_slice_inputs.push_back(slice_node->input_value(4));
+
+    return slice_node->clone_with_new_inputs(new_slice_inputs);
+}
+
+}  // namespace
+
 EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
     using node_index_info_map = std::vector<std::tuple<std::shared_ptr<Node>, int64_t, int64_t>>;
     MATCHER_SCOPE(EliminateConcatStridedSlice);
@@ -562,65 +755,12 @@ EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
 
         node_index_info_map slice_out_index_in_concat;
         for (const auto& user : concat_users) {
-            if (ov::is_type<v1::StridedSlice>(user)) {
-                auto strided_slice_node = ov::as_type_ptr<v1::StridedSlice>(user);
-                if (!strided_slice_node) {
-                    return false;
-                }
-                // check that all values of the mask is equal 0
-                auto check_mask = [](const std::vector<int64_t>& mask_to_check) {
-                    auto it = std::find_if(mask_to_check.begin(), mask_to_check.end(), [](const int64_t& value) {
-                        return value != 0;
-                    });
-                    if (mask_to_check.empty() || it == mask_to_check.end()) {
-                        return true;
-                    }
-                    return false;
-                };
-                // check that we won't do change dimension rank
-                if (!check_mask(strided_slice_node->get_shrink_axis_mask()) ||
-                    !check_mask(strided_slice_node->get_new_axis_mask()) ||
-                    !check_mask(strided_slice_node->get_ellipsis_mask())) {
-                    return false;
-                }
-
-                // check that concatenated and split axis is the same
-                auto check_axis = [concat_axis](const std::vector<int64_t>& masks) {
-                    for (size_t axis = 0; axis < masks.size(); ++axis) {
-                        if (masks[axis] != 1 && axis != static_cast<size_t>(concat_axis)) {
-                            return false;
-                        }
-                        if (masks[axis] != 0 && axis == static_cast<size_t>(concat_axis)) {
-                            return false;
-                        }
-                    }
-                    return true;
-                };
-                auto begin_mask = strided_slice_node->get_begin_mask();
-                auto end_mask = strided_slice_node->get_end_mask();
-                if (!check_axis(begin_mask) || !check_axis(end_mask)) {
-                    return false;
-                }
-
-                auto begin_node = strided_slice_node->get_input_node_shared_ptr(1);
-                const auto& begin_constant_node = ov::util::get_constant_from_source(begin_node);
-                if (begin_constant_node == nullptr)
-                    return false;
-                auto begin_values = begin_constant_node->cast_vector<int64_t>();
-
-                auto end_node = strided_slice_node->get_input_node_shared_ptr(2);
-                const auto& end_constant_node = ov::util::get_constant_from_source(end_node);
-                if (end_constant_node == nullptr)
-                    return false;
-                auto end_values = end_constant_node->cast_vector<int64_t>();
-                if (end_values[concat_axis] > static_cast<int64_t>(concat->get_shape()[concat_axis]))
-                    end_values[concat_axis] = static_cast<int64_t>(concat->get_shape()[concat_axis]);
-
-                slice_out_index_in_concat.push_back(
-                    std::make_tuple(strided_slice_node, begin_values[concat_axis], end_values[concat_axis] - 1));
-            } else {
+            int64_t begin_idx = 0;
+            int64_t end_idx_inclusive = 0;
+            if (!extract_slice_range_along_axis(user, concat_axis, concat->get_shape(), begin_idx, end_idx_inclusive)) {
                 return false;
             }
+            slice_out_index_in_concat.push_back(std::make_tuple(user, begin_idx, end_idx_inclusive));
         }
         if (slice_out_index_in_concat.size() == 1)
             return false;
@@ -713,23 +853,12 @@ EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
                 auto new_next_concat_node = next_concat->clone_with_new_inputs(new_next_concat_inputs);
                 replace_output_update_name(next_concat, new_next_concat_node);
             } else {
-                std::vector<std::shared_ptr<Node>> new_slice_in_nodes{};
-                new_slice_in_nodes.push_back(new_concat_node);
-
-                auto begin_node = slice_node->get_input_node_shared_ptr(1);
-                const auto& begin_constant_node = ov::util::get_constant_from_source(begin_node);
-                auto begin_values = begin_constant_node->cast_vector<int64_t>();
-                begin_values[concat_axis] = slice_begin - new_start_value;
-                new_slice_in_nodes.push_back(
-                    v0::Constant::create(ov::element::i64, ov::Shape{begin_values.size()}, begin_values));
-
-                auto end_node = slice_node->get_input_node_shared_ptr(2);
-                const auto& end_constant_node = ov::util::get_constant_from_source(end_node);
-                auto end_values = end_constant_node->cast_vector<int64_t>();
-                end_values[concat_axis] = slice_end - new_start_value + 1;
-                new_slice_in_nodes.push_back(
-                    v0::Constant::create(ov::element::i64, ov::Shape{end_values.size()}, end_values));
-                auto new_slice_node = slice_node->clone_with_new_inputs(ov::as_output_vector(new_slice_in_nodes));
+                auto new_slice_node = build_residual_slice(slice_node,
+                                                           new_concat_node,
+                                                           concat_axis,
+                                                           slice_begin,
+                                                           slice_end,
+                                                           new_start_value);
                 replace_output_update_name(slice_node, new_slice_node);
             }
         }

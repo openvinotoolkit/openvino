@@ -99,8 +99,9 @@ public:
 
 /**
  * @ingroup ov_transformation_common_api
- * @brief EliminateConcatStridedSlice eliminates StrideSlice & Concat,
- * if the StridedSlices split the tensor into the parts and these parts be equal to the original parts before Concat.
+ * @brief EliminateConcatStridedSlice eliminates StridedSlice/v8::Slice & Concat,
+ * if the slice users split the tensor into parts that match the original inputs of the Concat.
+ * Handles v1::StridedSlice and v8::Slice uniformly (mixed users are also supported).
 // Before:
           ┌─────────┐             ┌─────────┐             ┌─────────┐
           │ Input A │             │ Input B │             │ Input C │
