@@ -4,6 +4,7 @@
 #include "read_value_with_subgraph.hpp"
 
 #include <cstddef>
+#include <iostream>
 #include <memory>
 #include <string>
 
@@ -38,6 +39,9 @@ std::string ov::intel_cpu::ReadValueWithSubgraph::get_variable_id() const {
 
 void ov::intel_cpu::ReadValueWithSubgraph::set_input(const Output<Node>& value,
                                                      const std::shared_ptr<op::v0::Parameter>& body_parameter) {
+    std::cerr << "[ReadValueWithSubgraph] set_input: body_parameter="
+              << (body_parameter ? body_parameter->get_friendly_name() : std::string("<null>"))
+              << std::endl;
     OPENVINO_ASSERT(body_parameter, "Missing parameter! parameter is is nullptr!");
     auto param_index = m_bodies[0]->get_parameter_index(body_parameter);
 
@@ -48,6 +52,9 @@ void ov::intel_cpu::ReadValueWithSubgraph::set_input(const Output<Node>& value,
 
 ov::Output<ov::Node> ov::intel_cpu::ReadValueWithSubgraph::set_output(
     const std::shared_ptr<op::v0::Result>& body_result) {
+    std::cerr << "[ReadValueWithSubgraph] set_output: body_result="
+              << (body_result ? body_result->get_friendly_name() : std::string("<null>"))
+              << std::endl;
     OPENVINO_ASSERT(body_result, "Incorrect result in \"body\"! Result cant be \'nullptr\'");
     auto result_id = m_bodies[0]->get_result_index(body_result);
 
@@ -59,6 +66,7 @@ ov::Output<ov::Node> ov::intel_cpu::ReadValueWithSubgraph::set_output(
 std::shared_ptr<ov::Node> ov::intel_cpu::ReadValueWithSubgraph::clone_with_new_inputs(
     const OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(intel_cpu_ReadValueWithSubgraphNode_clone_with_new_inputs);
+    std::cerr << "[ReadValueWithSubgraph] clone_with_new_inputs: new_args=" << new_args.size() << std::endl;
 
     check_new_args_count(this, new_args);
     auto op =
@@ -82,6 +90,7 @@ std::shared_ptr<ov::Node> ov::intel_cpu::ReadValueWithSubgraph::clone_with_new_i
 
 bool ov::intel_cpu::ReadValueWithSubgraph::visit_attributes(AttributeVisitor& visitor) {
     INTERNAL_OP_SCOPE(intel_cpu_ReadValueWithSubgraphNode_visit_attributes);
+    std::cerr << "[ReadValueWithSubgraph] visit_attributes: body_count=" << m_bodies.size() << std::endl;
     visitor.on_attribute("variable_id", m_variable);
 
     auto variable_info = m_variable->get_info();
@@ -90,13 +99,17 @@ bool ov::intel_cpu::ReadValueWithSubgraph::visit_attributes(AttributeVisitor& vi
     m_variable->update(variable_info);
 
     visitor.on_attribute("body", m_bodies[0]);
-    visitor.on_attribute("inputs", m_input_descriptions[0]);
-    visitor.on_attribute("outputs", m_output_descriptions[0]);
+    visitor.on_attribute("input_descriptions", m_input_descriptions[0]);
+    visitor.on_attribute("output_descriptions", m_output_descriptions[0]);
     return true;
 }
 
 void ov::intel_cpu::ReadValueWithSubgraph::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(intel_cpu_ReadValueWithSubgraphNode_validate_and_infer_types);
+    std::cerr << "[ReadValueWithSubgraph] validate_and_infer_types: body_count=" << m_bodies.size()
+              << " input_desc_size=" << m_input_descriptions[0].size()
+              << " output_desc_size=" << m_output_descriptions[0].size()
+              << std::endl;
 
     NODE_VALIDATION_CHECK(this,
                           m_bodies.size() == 1,

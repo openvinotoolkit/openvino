@@ -4,6 +4,8 @@
 
 #include <gtest/gtest.h>
 
+#include <iostream>
+#include <sstream>
 #include <transformations/cpu_opset/common/pass/move_readvalue_inputs_to_subgraph.hpp>
 #include <transformations/init_node_info.hpp>
 
@@ -12,6 +14,7 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/read_value.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "transformations/cpu_opset/common/op/read_value_with_subgraph.hpp"
 
 using namespace testing;
@@ -229,4 +232,46 @@ TEST(TransformationTests, ReadValueWithSubgraph_2) {
         auto res = compare_functions(model, model_ref, 0, 0, 0, 0, 0, 0);
         ASSERT_TRUE(res.first) << res.second;
     }
+}
+
+TEST(TransformationTests, ReadValueWithSubgraph_Serialize) {
+    auto log_stage = [](const std::string& stage) {
+        std::cerr << "[ReadValueWithSubgraph_Serialize] " << stage << std::endl;
+    };
+
+    log_stage("start");
+    const ov::PartialShape shape{1, 1, 2};
+    const ov::element::Type type = ov::element::f32;
+    auto variable =
+        std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{ov::PartialShape{1, 1, 2}, type, "var_id"});
+    log_stage("variable_created");
+
+    auto input = std::make_shared<ov::op::v0::Parameter>(type, shape);
+    log_stage("input_created");
+    auto readvalue = constructRVWithSubGraph(input, type, variable);
+    log_stage("readvalue_constructed");
+    auto assign = std::make_shared<ov::op::v6::Assign>(readvalue, variable);
+    auto result = std::make_shared<ov::op::v0::Result>(readvalue);
+    log_stage("assign_and_result_created");
+
+    auto model =
+        std::make_shared<ov::Model>(ov::ResultVector{result}, ov::SinkVector{assign}, ov::ParameterVector{input});
+    ASSERT_NE(readvalue, nullptr);
+    ASSERT_NE(readvalue->get_function(), nullptr);
+    std::cerr << "[ReadValueWithSubgraph_Serialize] body_params="
+              << readvalue->get_function()->get_parameters().size()
+              << " body_results="
+              << readvalue->get_function()->get_results().size()
+              << " inputs="
+              << readvalue->input_values().size()
+              << " outputs="
+              << readvalue->outputs().size()
+              << std::endl;
+    log_stage("model_created");
+
+    std::stringstream model_ss;
+    std::stringstream weights_ss;
+    log_stage("before_serialize");
+    ASSERT_NO_THROW(ov::pass::Serialize(model_ss, weights_ss).run_on_model(model));
+    log_stage("after_serialize");
 }
