@@ -23,7 +23,7 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<fully
             [](const program_node& node) {
                 if (node.can_use(impl_types::onednn))
                     return false;
-                return node.get_output_pshape().size() <= 3;
+                return node.get_output_pshape().size() <= 4;
         })
     };
 
