@@ -1,7 +1,6 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 #include "gathermatmul.h"
 
 #include <oneapi/dnnl/dnnl_common_types.h>
@@ -46,6 +45,16 @@
 #include "shape_inference/custom/gathermatmul.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils/general_utils.h"
+
+#ifdef OPENVINO_ARCH_ARM64
+#    include <limits>
+
+#    include "nodes/executors/executor.hpp"
+#    include "nodes/executors/fullyconnected_config.hpp"
+#    include "nodes/executors/kleidiai/kleidiai_mm.hpp"
+#    include "nodes/executors/memory_arguments.hpp"
+#    include "utils/precision_support.h"
+#endif
 
 namespace ov::intel_cpu::node {
 
@@ -299,7 +308,7 @@ bool GatherMatmul::isSupportedCompressedOperation([[maybe_unused]] const std::sh
                                                   [[maybe_unused]] size_t OC,
                                                   [[maybe_unused]] size_t G,
                                                   [[maybe_unused]] const Config& config) noexcept {
-#ifdef OPENVINO_ARCH_X86_64
+#if defined(OPENVINO_ARCH_X86_64)
     // copy paste from FullyConnected
     try {
         std::string errorMessage;
@@ -341,6 +350,31 @@ bool GatherMatmul::isSupportedCompressedOperation([[maybe_unused]] const std::sh
         return false;
     }
     return true;
+#elif defined(OPENVINO_ARCH_ARM64)
+    try {
+        std::string errorMessage;
+        if (!isSupportedOperation(op, errorMessage)) {
+            return false;
+        }
+        if (!hasIntDotProductSupport()) {
+            return false;
+        }
+        if (config.fcDynamicQuantizationGroupSize != UINT64_MAX) {
+            return false;
+        }
+        // supports only symmetric quantization, only scales should be present.
+        if (op->get_input_size() > WEIGHT_SCALES &&
+            op->input(WEIGHT_SCALES).get_element_type() == ov::element::dynamic) {
+            return false;
+        }
+        if (op->get_input_size() > WEIGHT_ZERO_POINTS &&
+            op->input(WEIGHT_ZERO_POINTS).get_element_type() != ov::element::dynamic) {
+            return false;
+        }
+    } catch (...) {
+        return false;
+    }
+    return true;
 #else
     return false;
 #endif
@@ -349,8 +383,10 @@ bool GatherMatmul::isSupportedCompressedOperation([[maybe_unused]] const std::sh
 ov::element::TypeVector GatherMatmul::getSupportedCompressedWeightsTypes([[maybe_unused]] bool apply_fp8) {
     using ov::element::Type_t;
 
-#ifdef OPENVINO_ARCH_X86_64
+#if defined(OPENVINO_ARCH_X86_64)
     return {Type_t::u8, Type_t::i8, Type_t::u4, Type_t::i4};
+#elif defined(OPENVINO_ARCH_ARM64)
+    return {Type_t::i8, Type_t::i4};
 #else
     return {};
 #endif
@@ -376,6 +412,9 @@ GatherMatmul::GatherMatmul(const std::shared_ptr<ov::Node>& op, const GraphConte
     } else {
         algorithm = Algorithm::GatherMatmulDefault;
     }
+#if defined(OPENVINO_ARCH_ARM64)
+    KType = algorithm == Algorithm::GatherMatmulCompressed ? KT_KLEIDIAI : KT_ONEDNN;
+#endif
 }
 
 void GatherMatmul::initSupportedPrimitiveDescriptors() {
@@ -411,7 +450,8 @@ void GatherMatmul::initSupportedPrimitiveDescriptors() {
     supportedPrimitiveDescriptors.emplace_back(nodeConfig, impl_desc_type::undef);
 }
 
-void GatherMatmul::createPrimitive() {
+template <>
+void GatherMatmul::createPrimitiveforType<GatherMatmul::KernelTypes::KT_ONEDNN>() {
     // we use gemv here and the shapes of this op in fact are determined as the weigths are const
     auto weightsMemoryDesc = getBaseMemDescAtInputPort(WEIGHTS);
     CPU_NODE_ASSERT(weightsMemoryDesc->isDefined(), "Weights memory descriptor is not defined");
@@ -545,7 +585,146 @@ void GatherMatmul::createPrimitive() {
     getSelectedPrimitiveDescriptor()->setImplementationType(gemv_impl->get_impl_type());
 }
 
+#if defined(OPENVINO_ARCH_ARM64)
+template <>
+void GatherMatmul::createPrimitiveforType<GatherMatmul::KernelTypes::KT_KLEIDIAI>() {
+    auto srcMemoryDesc = getBaseMemDescAtInputPort(DATA);
+    auto weiMemoryDesc = getBaseMemDescAtInputPort(WEIGHTS);
+    auto biasMemoryDesc = getBaseMemDescAtInputPort(BIAS);
+
+    const auto& weiDims = weiMemoryDesc->getShape().getStaticDims();
+    auto weiPrec = weiMemoryDesc->getPrecision();
+    auto SrcPrec = srcMemoryDesc->getPrecision();
+    size_t N = weiDims[weiDims.size() - 2];
+    size_t K = weiDims[weiDims.size() - 1];
+    numExperts = weiDims[0];
+
+    MemoryPtr m_scalesMemory = nullptr;
+
+    CPU_NODE_ASSERT(weiMemoryDesc->isDefined(), "Weights memory descriptor is not defined");
+    CPU_NODE_ASSERT(SrcPrec == ov::element::f32, "Activation currently supported only in f32");
+
+    auto addBatchDim = [](const BlockedMemoryDescPtr& desc, size_t batchDim) -> DnnlMemoryDescPtr {
+        const auto& weightsDims = desc->getShape().getStaticDims();
+        const auto& weightsBlockDims = desc->getBlockDims();
+        const auto& weightsOrder = desc->getOrder();
+        // at this point we assume that the tensors are dense and have no padded dims
+        VectorDims newDims = {batchDim};
+        newDims.insert(newDims.end(), weightsDims.begin(), weightsDims.end());
+        VectorDims newBlockDims = {batchDim};
+        newBlockDims.insert(newBlockDims.end(), weightsBlockDims.begin(), weightsBlockDims.end());
+        VectorDims newOrder(weightsOrder.size() + 1);
+        newOrder[0] = 0;
+        for (size_t i = 0; i < weightsOrder.size(); i++) {
+            newOrder[i + 1] = weightsOrder[i] + 1;
+        }
+        auto targetDesc =
+            std::make_shared<CpuBlockedMemoryDesc>(desc->getPrecision(), Shape(newDims), newBlockDims, newOrder);
+        return MemoryDescUtils::convertToDnnlMemoryDesc(targetDesc);
+    };
+
+    const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+    if (algorithm == Algorithm::GatherMatmulCompressed) {
+        auto scaleDesc = getBaseMemDescAtInputPort(WEIGHT_SCALES);
+        if (scaleDesc && !scaleDesc->empty()) {
+            const auto& fullScalesShape = scaleDesc->getShape().getStaticDims();
+            if (1 == fullScalesShape.size()) {
+                OPENVINO_THROW(" broadcastable scales shape not supported ");
+            } else {
+                auto expertScaleDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::f32, Shape({N}));
+                auto expectedScaleMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(expertScaleDesc);
+                auto scales = getSrcMemoryAtPort(WEIGHT_SCALES);
+                CPU_NODE_ASSERT(scales && scales->isDefined(), "Weight scales memory is not defined");
+                expectedScaleMemDesc =
+                    addBatchDim(MemoryDescUtils::convertToBlockedMemoryDesc(expectedScaleMemDesc), numExperts);
+                if (expectedScaleMemDesc->isCompatible(scales->getDesc())) {
+                    m_scalesMemory = scales;
+                } else {
+                    m_scalesMemory = std::make_shared<Memory>(getEngine(), expectedScaleMemDesc);
+                    m_scalesMemory->load(*scales, false, false);
+                }
+            }
+        } else {
+            OPENVINO_THROW(" Scales cannot be empty for GatherMatmulCompressed op ");
+        }
+    }
+
+    auto expertWeiDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(weiPrec, Shape({N, K}));
+
+    auto targetWeightsDesc = addBatchDim(expertWeiDesc, numExperts);
+    auto weightsMemory =
+        prepareWeightMemory(targetWeightsDesc, MemoryDescUtils::convertToDnnlMemoryDesc(weiMemoryDesc));
+
+    // Only weights and bias are required at this stage.
+    // Others are just placeholders, data is only available at execution stage.
+    MemoryDescArgs memDescArgs;
+    memDescArgs[ARG_SRC] = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(SrcPrec, Shape({1, K}));
+    memDescArgs[ARG_DST] = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(SrcPrec, Shape({1, N}));
+    memDescArgs[ARG_WEI] = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(weiPrec, Shape({N, K}));
+    if (biasMemoryDesc && !biasMemoryDesc->empty()) {
+        memDescArgs[ARG_BIAS] = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::f32, Shape({N}));
+    } else {
+        memDescArgs[ARG_BIAS] = MemoryDescUtils::makeEmptyDesc();
+    }
+
+    FCAttrs fcArgs;
+    if (algorithm == Algorithm::GatherMatmulCompressed) {
+        // set as uint64_max to enable dynamic quantization by default
+        fcArgs.dynamicQuantizationGroupSize = std::numeric_limits<uint64_t>::max();
+        memDescArgs[ARG_WEI | ARG_ATTR_SCALES] =
+            creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::f32, Shape({N}));
+    }
+
+    // As we call executors sequentially, execution-context can be shared
+    auto executionContext = std::make_shared<ExecutorContext>(context, getImplPriority(), privateWeightCache);
+    memArgs.reserve(numExperts);
+    for (size_t expert = 0; expert < numExperts; ++expert) {
+        MemoryArgs mArgs;
+        mArgs[ARG_WEI] = split_horizontal(context->getEngine(), weightsMemory, 0, expert, numExperts, true);
+        // wei_shape shape after split becomes: [1, N, K] --> redefine desc to [N, K]
+        mArgs[ARG_WEI]->redefineDesc(memDescArgs[ARG_WEI]);
+        if (biasMemoryDesc && !biasMemoryDesc->empty()) {
+            auto bias = getSrcMemoryAtPort(BIAS);
+            mArgs[ARG_BIAS] = split_horizontal(context->getEngine(), bias, 0, expert, numExperts, true);
+            mArgs[ARG_BIAS]->redefineDesc(memDescArgs[ARG_BIAS]);
+        } else {
+            mArgs[ARG_BIAS] = std::make_shared<Memory>(context->getEngine(), MemoryDescUtils::makeEmptyDesc());
+        }
+        if (algorithm == Algorithm::GatherMatmulCompressed) {
+            mArgs[ARG_WEI | ARG_ATTR_SCALES] =
+                split_horizontal(context->getEngine(), m_scalesMemory, 0, expert, numExperts, true);
+            mArgs[ARG_WEI | ARG_ATTR_SCALES]->redefineDesc(memDescArgs[ARG_WEI | ARG_ATTR_SCALES]);
+        }
+        mArgs[ARG_SRC] = std::make_shared<Memory>(context->getEngine(), memDescArgs[ARG_SRC]);
+        memArgs.emplace_back(mArgs);
+        auto kai_executor = std::make_shared<MatMulKleidiAIExecutor>(fcArgs, mArgs, executionContext);
+        kai_executor->setKaiExecutorImplAsGatherMatmul();
+        executor.push_back(kai_executor);
+    }
+
+    Node::createPrimitive();
+
+    // set the actual implementation type to Kleidiai
+    getSelectedPrimitiveDescriptor()->setImplementationType(ov::intel_cpu::impl_desc_type::kleidiai);
+}
+#endif
+
+void GatherMatmul::createPrimitive() {
+#if defined(OPENVINO_ARCH_ARM64)
+    if (KType == KT_ONEDNN) {
+        GatherMatmul::createPrimitiveforType<GatherMatmul::KernelTypes::KT_ONEDNN>();
+    } else {
+        GatherMatmul::createPrimitiveforType<GatherMatmul::KernelTypes::KT_KLEIDIAI>();
+    }
+#else
+    GatherMatmul::createPrimitiveforType<GatherMatmul::KernelTypes::KT_ONEDNN>();
+#endif
+}
+
 bool GatherMatmul::needPrepareParams() const {
+    if (KType == KT_KLEIDIAI) {
+        return true;
+    }
     if (bf16_amx_mode && Node::needPrepareParams()) {
         auto srcMem = getSrcMemoryAtPort(DATA);
         const auto& srcShape = srcMem->getStaticDims();
@@ -568,8 +747,8 @@ static Dim normalizeM(Dim M) {
     }
     return M;
 }
-
-void GatherMatmul::prepareParams() {
+template <>
+void GatherMatmul::prepareParamsforType<GatherMatmul::KernelTypes::KT_ONEDNN>() {
     auto srcMem = getSrcMemoryAtPort(DATA);
     const auto& srcShape = srcMem->getStaticDims();
     const Dim M = normalizeM(srcShape[1]);
@@ -625,6 +804,29 @@ void GatherMatmul::prepareParams() {
     std::tie(gemm_impl, std::ignore) = cache->getOrCreate(key, [&eng](const onednn_matmul_key& k) {
         return std::make_shared<onednn_matmul>(eng, k);
     });
+}
+
+#if defined(OPENVINO_ARCH_ARM64)
+template <>
+void GatherMatmul::prepareParamsforType<GatherMatmul::KernelTypes::KT_KLEIDIAI>() {
+    for (size_t expert = 0; expert < numExperts; ++expert) {
+        memArgs[expert][ARG_SRC] = getSrcMemoryAtPort(DATA);
+        memArgs[expert][ARG_DST] = getDstMemoryAtPort(0);
+        executor[expert]->update(memArgs[expert]);
+    }
+}
+#endif
+
+void GatherMatmul::prepareParams() {
+#if defined(OPENVINO_ARCH_ARM64)
+    if (KType == KT_ONEDNN) {
+        GatherMatmul::prepareParamsforType<GatherMatmul::KernelTypes::KT_ONEDNN>();
+    } else {
+        GatherMatmul::prepareParamsforType<GatherMatmul::KernelTypes::KT_KLEIDIAI>();
+    }
+#else
+    GatherMatmul::prepareParamsforType<GatherMatmul::KernelTypes::KT_ONEDNN>();
+#endif
 }
 
 bool GatherMatmul::isExecutable() const {
@@ -702,8 +904,8 @@ private:
     std::bitset<2> m_broadcast_mask;
 };
 }  // namespace
-
-void GatherMatmul::execute(const dnnl::stream& strm) {
+template <>
+void GatherMatmul::executeforType<GatherMatmul::KernelTypes::KT_ONEDNN>(const dnnl::stream& strm) {
     const auto& cpu_parallel = context->getCpuParallel();
     const auto& srcMem = getParentEdgeAt(DATA)->getMemoryPtr();
     const auto& biasMem = getParentEdgeAt(BIAS)->getMemoryPtr();
@@ -849,6 +1051,62 @@ void GatherMatmul::execute(const dnnl::stream& strm) {
             gemv_impl->exec(strm, src, dst, wei, bias, scale, zp);
         }
     }
+}
+
+#if defined(OPENVINO_ARCH_ARM64)
+template <>
+void GatherMatmul::executeforType<GatherMatmul::KernelTypes::KT_KLEIDIAI>([[maybe_unused]] const dnnl::stream& strm) {
+    const auto& indexMem = getParentEdgeAt(INDICES)->getMemoryPtr();
+    auto index_offset = OffsetHelper::createOffsetHelper(indexMem);
+
+    const auto& indexShape = indexMem->getStaticDims();
+    size_t M = indexShape[0];
+    size_t B = indexShape[1];
+
+    // all the gather idx for corresponding m index
+    const size_t gather_axis_size = numExperts;
+    std::vector<std::pair<int32_t, int32_t>> gather_idx_map(gather_axis_size * M);
+    std::vector<int32_t> elements_per_gather_indx(gather_axis_size, 0);
+    for (size_t m = 0; m < M; m++) {
+        const auto* gather_ids = static_cast<const int32_t*>(index_offset(m));
+        for (size_t i = 0; i < B; i++) {
+            int32_t gather_axis_index = gather_ids[i];
+            CPU_NODE_ASSERT(gather_axis_index >= 0 && static_cast<size_t>(gather_axis_index) < gather_axis_size,
+                            "Invalid gather_id ",
+                            gather_axis_index,
+                            " for m ",
+                            m);
+            auto& index = elements_per_gather_indx[gather_axis_index];
+            gather_idx_map[gather_axis_index * M + index] = {m, i};
+            index++;
+        }
+    }
+
+    for (size_t gather_axis_index = 0; gather_axis_index < gather_axis_size; gather_axis_index++) {
+        const size_t num_valid_rows = elements_per_gather_indx[gather_axis_index];
+        if (0 == num_valid_rows) {
+            continue;
+        }
+        memArgs[gather_axis_index][ARG_SRC] = getSrcMemoryAtPort(DATA);
+        memArgs[gather_axis_index][ARG_DST] = getDstMemoryAtPort(0);
+        auto gather_idx_expertOffset = gather_idx_map.begin() + gather_axis_index * M;
+        std::vector<std::pair<int32_t, int32_t>> kai_gather_idx(gather_idx_expertOffset,
+                                                                gather_idx_expertOffset + num_valid_rows);
+        executor[gather_axis_index]->set_gather_idx(kai_gather_idx);
+        executor[gather_axis_index]->execute(memArgs[gather_axis_index]);
+    }
+}
+#endif
+void GatherMatmul::execute(const dnnl::stream& strm) {
+#if defined(OPENVINO_ARCH_ARM64)
+    if (KType == KT_ONEDNN) {
+        GatherMatmul::executeforType<GatherMatmul::KernelTypes::KT_ONEDNN>(strm);
+    } else {
+        GatherMatmul::executeforType<GatherMatmul::KernelTypes::KT_KLEIDIAI>(strm);
+    }
+#else
+    GatherMatmul::executeforType<GatherMatmul::KernelTypes::KT_ONEDNN>(strm);
+#endif
 }
 
 void GatherMatmul::executeDynamicImpl(const dnnl::stream& strm) {

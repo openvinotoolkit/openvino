@@ -208,6 +208,10 @@ protected:
             abs_threshold = 0.1f;
             inType = outType = ov::element::bf16;
         }
+         if(ov::with_cpu_arm_dotprod() || ov::with_cpu_arm_i8mm()){
+            rel_threshold = 5e-3f;
+            abs_threshold = 5e-3f;
+         }
 
         if (moe_type == MoEType::MoE2GeMM) {
             function = initMoE2GeMMSubgraph(shape_params,
@@ -278,6 +282,10 @@ TEST_P(MoESubgraphTest, CompareWithRefs) {
 
 TEST_P(MoECompressedWeightsSubgraphTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    #if !defined(OPENVINO_ARCH_X86) && !defined(OPENVINO_ARCH_X86_64)
+        if (!ov::with_cpu_arm_dotprod() && !ov::with_cpu_arm_i8mm())
+            GTEST_SKIP();
+    #endif
     run();
     check_results();
 }
@@ -303,11 +311,46 @@ const std::vector<MoeTestShapeParams> moe_params_smoke = {
 
 std::vector<ov::AnyMap> generate_additional_config() {
     std::vector<ov::AnyMap> additional_config = {{{ov::hint::inference_precision.name(), ov::element::f32}}};
+    if(ov::with_cpu_arm_dotprod() || ov::with_cpu_arm_i8mm()){
+        // To enable dynamic qunatization on ARM
+        additional_config = {{{ov::hint::dynamic_quantization_group_size.name(), std::numeric_limits<uint64_t>::max()}}};   
+    }
     if (ov::with_cpu_x86_bfloat16()) {
         additional_config.push_back({{ov::hint::inference_precision.name(), ov::element::bf16}});
     }
     return additional_config;
 }
+
+std::vector<ov::test::ElementType> get_weights_precisions(){
+    std::vector<ov::test::ElementType> weights_precisions = {ov::element::u8,
+                                                             ov::element::i8,
+                                                             ov::element::u4,
+                                                             ov::element::i4};
+    if(ov::with_cpu_arm_dotprod() || ov::with_cpu_arm_i8mm()){
+        // only symmetric quantization supported on ARM
+        weights_precisions = {ov::element::i8,
+                              ov::element::i4};
+    }
+    return weights_precisions;
+}
+
+int get_decompression_group_size(){
+    if(ov::with_cpu_arm_dotprod() || ov::with_cpu_arm_i8mm()){
+        // only channel quantization supported on ARM
+        return -1;
+    }
+    return 16;
+}
+
+ov::test::utils::DecompressionType get_decompression_subtract_type(){
+    if(ov::with_cpu_arm_dotprod() || ov::with_cpu_arm_i8mm()){
+        // only symmetric quantization supported on ARM
+        return ov::test::utils::DecompressionType::empty;
+    }
+    return ov::test::utils::DecompressionType::full;
+}
+
+
 
 }  // namespace
 
@@ -319,22 +362,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoESubgraph_basic,
                          MoESubgraphTest::getTestCaseName);
 
 const std::vector<ov::test::ElementType> decompression_precisions = {ov::element::f32};
-const std::vector<ov::test::ElementType> weights_precisions = {ov::element::u8,
-                                                               ov::element::i8,
-                                                               ov::element::u4,
-                                                               ov::element::i4};
 
 INSTANTIATE_TEST_SUITE_P(smoke_MoeCompressedWeights,
                          MoECompressedWeightsSubgraphTest,
                          ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
                                             ::testing::ValuesIn(moe_types),
-                                            ::testing::ValuesIn(weights_precisions),
+                                            ::testing::ValuesIn(get_weights_precisions()),
                                             ::testing::ValuesIn(decompression_precisions),
                                             ::testing::Values(ov::element::f32),
                                             ::testing::Values(ov::test::utils::DecompressionType::full),
-                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(get_decompression_subtract_type()),
                                             ::testing::Values(false),  // reshape on decompression
-                                            ::testing::Values(16),     // decompression group size
+                                            ::testing::Values(get_decompression_group_size()),
                                             ::testing::ValuesIn(generate_additional_config()),
                                             ::testing::Values(true)),  // use_matmul_decompression_impl
                          MoECompressedWeightsSubgraphTest::getTestCaseName);

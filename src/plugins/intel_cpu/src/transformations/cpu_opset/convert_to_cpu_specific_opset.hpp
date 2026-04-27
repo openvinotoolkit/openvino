@@ -43,9 +43,9 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
     manager.set_per_pass_validation(false);
 
     // TransformMoeBlockToGatherMatmuls
-    CPU_REGISTER_PASS_X64(manager, ov::pass::ConvertTiledMoeBlockToGatherMatmuls);
-    CPU_REGISTER_PASS_X64(manager, ov::pass::Validate);
-    CPU_REGISTER_PASS_X64(
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertTiledMoeBlockToGatherMatmuls);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
+    CPU_REGISTER_PASS_COMMON(
         manager,
         ov::pass::ConvertGatherMatmulToGatherMatmulCompressed,
         ov::intel_cpu::node::GatherMatmul::getSupportedCompressedActivationsTypes(),
