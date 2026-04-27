@@ -1523,14 +1523,13 @@ inline constexpr Property<Tensor, PropertyMutability::RW> runtime_requirements{"
  * @code
  * auto compiled_model = core.compile_model(model, "NPU");
  * auto requirements = compiled_model.get_property(ov::runtime_requirements);
- * auto compat = core.get_property("NPU", ov::blob_compatibility, ov::runtime_requirements(requirements));
- * * if (compat == ov::BlobCompatibility::OPTIMAL ||
+ * auto compat = core.get_property("NPU", ov::compatibility_check, ov::runtime_requirements(requirements));
+ * if (compat == ov::BlobCompatibility::OPTIMAL ||
  *     compat == ov::BlobCompatibility::PREFER_RECOMPILATION) {
  *     auto imported = core.import_model(blob_stream, "NPU");
  * }
  * @endcode
  */
-// [DO NOT MERGE]: Will rename this to BLOB_COMPATIBILITY once a new compiler is integrated
-static constexpr Property<BlobCompatibility, PropertyMutability::RO> runtime_requirements_met{"RUNTIME_REQUIREMENTS_MET"};
+static constexpr Property<BlobCompatibility, PropertyMutability::RO> compatibility_check{"COMPATIBILITY_CHECK"};
 
 }  // namespace ov

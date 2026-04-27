@@ -590,7 +590,7 @@ void Properties::registerPluginProperties() {
         }
         return false;
     }());
-    TRY_REGISTER_CUSTOM_PROPERTY(ov::runtime_requirements_met, RUNTIME_REQUIREMENTS_MET,
+    TRY_REGISTER_CUSTOM_PROPERTY(ov::compatibility_check, COMPATIBILITY_CHECK,
                                  true,
                                  ov::PropertyMutability::RO,
                                  [](const Config& /* unusedConfig */) {

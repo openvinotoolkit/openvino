@@ -1577,9 +1577,11 @@ struct RUNTIME_REQUIREMENTS final : OptionBase<RUNTIME_REQUIREMENTS, std::string
     }
 };
 
-struct RUNTIME_REQUIREMENTS_MET final : OptionBase<RUNTIME_REQUIREMENTS_MET, bool> {
+// The type of this option is bool, while the corresponding property is an enum.
+// Compiler currently reports a boolean value for the compatibility check.
+struct COMPATIBILITY_CHECK final : OptionBase<COMPATIBILITY_CHECK, bool> {
     static std::string_view key() {
-        return ov::runtime_requirements_met.name();
+        return ov::compatibility_check.name();
     }
 
     static bool defaultValue() {
