@@ -200,6 +200,9 @@
 #include "transformations/rt_info/dequantization_node.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
+#ifdef ENABLE_EXPERIMENTAL_OPSET
+#    include "transformations/scaled_shifted_clamp_experimental_fusion.hpp"
+#endif
 #include "transformations/smart_reshape/matmul_sr.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -508,6 +511,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ov::intel_gpu::FuseMOE3GemmCompressed>();
         }
         manager.register_pass<ov::pass::GatedDeltaNetFusion>();
+#ifdef ENABLE_EXPERIMENTAL_OPSET
+        manager.register_pass<ov::pass::experimental::ScaledShiftedClampFusion>();
+#endif
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<EinsumDecomposition>();
 

@@ -111,7 +111,10 @@ enum class KernelType {
     STFT,
     ISTFT,
     COL2IM,
-    LORA
+    LORA,
+#ifdef ENABLE_EXPERIMENTAL_OPSET
+    SCALED_SHIFTED_CLAMP_EXPERIMENTAL,
+#endif
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

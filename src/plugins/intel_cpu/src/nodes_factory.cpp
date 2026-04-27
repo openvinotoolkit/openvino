@@ -88,6 +88,9 @@
 #include "nodes/roll.h"
 #include "nodes/rope.h"
 #include "nodes/scaled_attn.h"
+#ifdef ENABLE_EXPERIMENTAL_OPSET
+#    include "nodes/scaled_shifted_clamp_experimental.h"
+#endif
 #include "nodes/scatter_update.h"
 #include "nodes/search_sorted.h"
 #include "nodes/segment_max.h"
@@ -244,6 +247,9 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(LoRA, Type::LoRA);
     INTEL_CPU_NODE(GatherMatmul, Type::GatherMatmul);
     INTEL_CPU_NODE(GatedDeltaNet, Type::GatedDeltaNet);
+#ifdef ENABLE_EXPERIMENTAL_OPSET
+    INTEL_CPU_NODE(ScaledShiftedClamp, Type::ScaledShiftedClampExperimental);
+#endif
 #if defined(OPENVINO_ARCH_X86_64)
     INTEL_CPU_NODE(FakeQuantize, Type::FakeQuantize);
     INTEL_CPU_NODE(GridSample, Type::GridSample);

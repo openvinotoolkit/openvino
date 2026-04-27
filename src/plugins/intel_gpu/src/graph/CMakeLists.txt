@@ -16,6 +16,13 @@ foreach(SUBDIR IN LISTS SUBDIRS)
     endif()
 endforeach()
 
+if(NOT ENABLE_EXPERIMENTAL_OPSET)
+    list(APPEND EXCLUDE_PATHS
+        ${CMAKE_CURRENT_SOURCE_DIR}/scaled_shifted_clamp_experimental.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/scaled_shifted_clamp_experimental_inst.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/registry/scaled_shifted_clamp_experimental_impls.cpp)
+endif()
+
 if(SUGGEST_OVERRIDE_SUPPORTED)
     set(COMMON_COMPILE_OPTIONS $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os -Wno-suggest-override>>)
 else()
