@@ -53,7 +53,7 @@
     ]
   },
   "dependencies": {
-    "@actions/core": "^3.0.0",
+    "@actions/core": "^3.0.1",
     "fs": "^0.0.1-security",
     "tar": "^7.5.13"
   },
