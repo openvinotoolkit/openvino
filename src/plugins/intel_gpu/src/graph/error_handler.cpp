@@ -169,16 +169,16 @@ void error_on_tensor_dims_not_dividable_by_other_tensor_dims(const std::string& 
                                                              const tensor& tens_to_compre,
                                                              const std::string& additional_message) {
     std::vector<std::string> errors;
-    if (tens.batch[0] % tens_to_compre.batch[0] != 0) {
+    if (tens_to_compre.batch[0] != 0 && tens.batch[0] % tens_to_compre.batch[0] != 0) {
         errors.push_back("Batch");
     }
-    if (tens.feature[0] % tens_to_compre.feature[0] != 0) {
+    if (tens_to_compre.feature[0] != 0 && tens.feature[0] % tens_to_compre.feature[0] != 0) {
         errors.push_back("Feature");
     }
-    if (tens.spatial[0] % tens_to_compre.spatial[0] != 0) {
+    if (tens_to_compre.spatial[0] != 0 && tens.spatial[0] % tens_to_compre.spatial[0] != 0) {
         errors.push_back("Spatial x");
     }
-    if (tens.spatial[1] % tens_to_compre.spatial[1] != 0) {
+    if (tens_to_compre.spatial[1] != 0 && tens.spatial[1] % tens_to_compre.spatial[1] != 0) {
         errors.push_back("Spatial y");
     }
 
