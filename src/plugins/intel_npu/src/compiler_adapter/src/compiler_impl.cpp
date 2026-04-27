@@ -38,44 +38,27 @@ UsedVersion getUsedVclVersion(uint16_t pluginMajor, uint16_t pluginMinor, const 
     return {usedMajor, usedMinor};
 }
 
-struct vcl_allocator : vcl_allocator2_t {
-    vcl_allocator() : vcl_allocator2_t{allocate, deallocate} {}
+struct vcl_allocator_3 : vcl_allocator2_t {
+    vcl_allocator_3() : vcl_allocator2_t{allocate, deallocate}, m_allocator(intel_npu::utils::STANDARD_PAGE_SIZE) {}
 
-    static uint8_t* allocate(vcl_allocator2_t* allocator, size_t size) {
-        vcl_allocator* vclAllocator = static_cast<vcl_allocator*>(allocator);
-        vclAllocator->m_size = intel_npu::utils::align_size_to_standard_page_size(size);
-        auto allocatedPtr = reinterpret_cast<uint8_t*>(
-            vclAllocator->m_allocator.allocate(vclAllocator->m_size, intel_npu::utils::STANDARD_PAGE_SIZE));
-        if (allocatedPtr == nullptr) {
-            OPENVINO_THROW("Failed to allocate aligned memory for allocator");
+    ~vcl_allocator_3() {
+        for (auto& item : m_info) {
+            if (item.first) {
+                m_allocator.deallocate(item.first, item.second, intel_npu::utils::STANDARD_PAGE_SIZE);
+            }
         }
-        memset(allocatedPtr + size, 0, vclAllocator->m_size - size);
-        vclAllocator->m_allocated = allocatedPtr;
-        return allocatedPtr;
+        m_info.clear();
     }
 
-    static void deallocate(vcl_allocator2_t* allocator, uint8_t* ptr) {
-        if (ptr == nullptr) {
-            OPENVINO_THROW("Pointer is nullptr in deallocate!");
-        }
-        vcl_allocator* vclAllocator = static_cast<vcl_allocator*>(allocator);
-        vclAllocator->m_allocator.deallocate(ptr, vclAllocator->m_size, intel_npu::utils::STANDARD_PAGE_SIZE);
-    }
-    ov::Allocator m_allocator;
-    uint8_t* m_allocated = nullptr;
-    size_t m_size = 0;
-};
-
-struct vcl_allocator_2 : vcl_allocator2_t {
-    vcl_allocator_2() : vcl_allocator2_t{allocate, deallocate} {}
-
     static uint8_t* allocate(vcl_allocator2_t* allocator, size_t size) {
-        vcl_allocator_2* vclAllocator = static_cast<vcl_allocator_2*>(allocator);
+        vcl_allocator_3* vclAllocator = static_cast<vcl_allocator_3*>(allocator);
         size_t alignedSize = intel_npu::utils::align_size_to_standard_page_size(size);
-        auto allocatedPtr = reinterpret_cast<uint8_t*>(
+
+        uint8_t* allocatedPtr = static_cast<uint8_t*>(
             vclAllocator->m_allocator.allocate(alignedSize, intel_npu::utils::STANDARD_PAGE_SIZE));
+
         if (allocatedPtr == nullptr) {
-            OPENVINO_THROW("Failed to allocate aligned memory for allocator");
+            OPENVINO_THROW("Failed to allocate aligned memory in vcl_allocator_3");
         }
         memset(allocatedPtr + size, 0, alignedSize - size);
         vclAllocator->m_info.emplace_back(std::make_pair(allocatedPtr, alignedSize));
@@ -86,23 +69,32 @@ struct vcl_allocator_2 : vcl_allocator2_t {
         if (ptr == nullptr) {
             OPENVINO_THROW("Pointer is nullptr in deallocate!");
         }
-        vcl_allocator_2* vclAllocator = static_cast<vcl_allocator_2*>(allocator);
+        vcl_allocator_3* vclAllocator = static_cast<vcl_allocator_3*>(allocator);
+
+        for (auto it = vclAllocator->m_info.begin(); it != vclAllocator->m_info.end(); ++it) {
+            if (it->first == ptr) {
+                vclAllocator->m_info.erase(it);
+                break;
+            }
+        }
+
         // 1 is the placeholder value, as size is not needed in deallocate
         vclAllocator->m_allocator.deallocate(ptr, 1, intel_npu::utils::STANDARD_PAGE_SIZE);
     }
-    ov::Allocator m_allocator;
+    intel_npu::utils::AlignedAllocator m_allocator;
     std::vector<std::pair<uint8_t*, size_t>> m_info;
 };
 
-ov::Tensor make_tensor_from_aligned_addr(uint8_t* allocated, size_t size) {
-    ov::Allocator allocator;
+ov::Tensor make_tensor_from_aligned_addr(uint8_t* allocated,
+                                         size_t size,
+                                         std::shared_ptr<vcl_allocator_3> sourceAllocator) {
     auto tensor = ov::Tensor(ov::element::u8, ov::Shape{size}, allocated);
     auto impl = ov::get_tensor_impl(std::move(tensor));
-    std::shared_ptr<void> ptr(allocated, [allocator = std::move(allocator), size](uint8_t* p) mutable {
+    std::shared_ptr<void> ptr(allocated, [sourceAllocator](uint8_t* p) {
         if (p == nullptr) {
             OPENVINO_THROW("Pointer is nullptr in memory deallocation of make_tensor_from_aligned_addr!");
         }
-        allocator.deallocate(p, size, intel_npu::utils::STANDARD_PAGE_SIZE);
+        vcl_allocator_3::deallocate(sourceAllocator.get(), p);
     });
     impl._so = std::move(ptr);
     return ov::make_tensor(impl);
@@ -311,7 +303,7 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
 
     if (usedVersion.Major >= 7 && usedVersion.Minor >= 7) {
         // Support only the lastest VCL api
-        vcl_allocator_2 allocator;
+        auto allocator = std::make_shared<vcl_allocator_3>();
         uint8_t* blob = nullptr;
         size_t blobSize = 0;
         uint8_t* compatibilityStringBuffer = nullptr;
@@ -319,7 +311,7 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
 
         auto result = vclAllocatedExecutableCreate3(_compilerHandle,
                                                     exeDesc,
-                                                    &allocator,
+                                                    allocator.get(),
                                                     &blob,
                                                     &blobSize,
                                                     &compatibilityStringBuffer,
@@ -337,7 +329,7 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
 
         // Retrieve the real allocated size for the blob from the allocator
         std::optional<size_t> alignedBlobSize;
-        for (auto [buffer, size] : allocator.m_info) {
+        for (auto [buffer, size] : allocator->m_info) {
             if (buffer == blob) {
                 alignedBlobSize = size;
                 break;
@@ -350,7 +342,7 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
         _logger.debug("Blob size from VCL: %zu ptr %p", blobSize, static_cast<void*>(blob));
         _logger.debug("Allocated vector size: %zu ptr: %p", *alignedBlobSize, static_cast<void*>(blob));
 
-        ov::Tensor alignedBlob = make_tensor_from_aligned_addr(blob, *alignedBlobSize);
+        ov::Tensor alignedBlob = make_tensor_from_aligned_addr(blob, *alignedBlobSize, allocator);
         std::optional<std::string> compatibilityString;
 
         if (!storeWeightlessCacheAttributeFlag) {
@@ -361,6 +353,8 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
             compatibilityString =
                 std::string(reinterpret_cast<char*>(compatibilityStringBuffer), compatibilityStringSize);
         }
+        // Clean up m_info, delegating actual physical frees strictly to the Tensor deleter going forward
+        allocator->m_info.clear();
 
         _logger.debug("compile end, blob size:%zu", *alignedBlobSize);
         return std::make_pair<ov::Tensor, std::optional<std::string>>(std::move(alignedBlob),
@@ -423,20 +417,23 @@ std::vector<ov::Tensor> VCLCompilerImpl::compileWsOneShot(const std::shared_ptr<
     _logger.debug("compiler vcl version: %d.%d", _vclVersion.major, _vclVersion.minor);
 
     _logger.debug("Using vclAllocatedExecutableCreateWSOneShot");
-    vcl_allocator_2 allocator;
+    auto allocator = std::make_shared<vcl_allocator_3>();
 
     THROW_ON_FAIL_FOR_VCL("vclAllocatedExecutableCreateWSOneShot",
-                          vclAllocatedExecutableCreateWSOneShot(_compilerHandle, exeDesc, &allocator),
+                          vclAllocatedExecutableCreateWSOneShot(_compilerHandle, exeDesc, allocator.get()),
                           _logHandle);
 
-    if (allocator.m_info.size() == 0) {
+    if (allocator->m_info.size() == 0) {
         OPENVINO_THROW("Failed to create VCL executable, blobCount is zero");
     }
 
     std::vector<ov::Tensor> initMainTensors;
-    for (auto& blob : allocator.m_info) {
-        initMainTensors.emplace_back(make_tensor_from_aligned_addr(blob.first, blob.second));
+    for (const auto& blob : allocator->m_info) {
+        initMainTensors.emplace_back(make_tensor_from_aligned_addr(blob.first, blob.second, allocator));
     }
+    // Clean up m_info, delegating actual physical frees strictly to the Tensor/Deleter from now on.
+    allocator->m_info.clear();
+
     return initMainTensors;
 }
 
@@ -611,8 +608,8 @@ bool VCLCompilerImpl::is_option_supported(std::string option, std::optional<std:
     return false;
 }
 
-bool VCLCompilerImpl::validate_compatibility_descriptor(const std::string& compatibilityDescriptor, vcl_device_desc_t* in_device_desc) const {
-
+bool VCLCompilerImpl::validate_compatibility_descriptor(const std::string& compatibilityDescriptor,
+                                                        vcl_device_desc_t* in_device_desc) const {
     vcl_compiler_desc_t compilerDesc;
     compilerDesc.version = _vclVersion;
     compilerDesc.debugLevel = static_cast<__vcl_log_level_t>(static_cast<int>(Logger::global().level()) + 1);
@@ -626,11 +623,10 @@ bool VCLCompilerImpl::validate_compatibility_descriptor(const std::string& compa
     vcl_compiler_handle_t compilerHandle = nullptr;
     try {
         THROW_ON_FAIL_FOR_VCL("vclCompilerCreate",
-                          vclCompilerCreate(&compilerDesc, in_device_desc, &compilerHandle, &logHandle),
-                          nullptr);
+                              vclCompilerCreate(&compilerDesc, in_device_desc, &compilerHandle, &logHandle),
+                              nullptr);
 
-        _logger.debug("is_option_supported start for option: %s, value: %s",
-                      optname_ch, optvalue_ch);
+        _logger.debug("is_option_supported start for option: %s, value: %s", optname_ch, optvalue_ch);
         THROW_ON_FAIL_FOR_VCL("vclGetCompilerIsOptionSupported",
                               vclGetCompilerIsOptionSupported(compilerHandle, optname_ch, optvalue_ch),
                               logHandle);
