@@ -167,7 +167,7 @@ jobs:
           popd
 
           pushd ${INSTALL_TEST_DIR}
-            pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_TEST_DIR}
+            pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_DIR}
           popd
 
       - name: Setup Variables
