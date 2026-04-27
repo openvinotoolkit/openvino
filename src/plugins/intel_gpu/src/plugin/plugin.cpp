@@ -41,7 +41,6 @@
 #include "common_utils/parallel_mem_streambuf.hpp"
 #include "openvino/runtime/weightless_properties_utils.hpp"
 #include "openvino/util/file_util.hpp"
-#include "openvino/util/weights_path.hpp"
 #include "transformations/common_optimizations/dimension_tracking.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
@@ -173,9 +172,9 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
     // Set weightless cache attribute only for non IR (e.g. onnxruntime) models
     // This is a temporary solution. A common way of handling weightless caching will be defined later.
     if (config_copy.get_enable_weightless()) {
-        const std::string& weights_path = config.get_weights_path();
+        const auto weight_path = ov::util::make_path(config.get_weights_path());
 
-        if (!ov::util::validate_weights_path(weights_path) && !is_weightless_cache_attributes_set(cloned_model))
+        if (weight_path.extension() != ".bin" && !is_weightless_cache_attributes_set(cloned_model))
             set_weightless_cache_attributes(cloned_model);
     }
 
@@ -427,9 +426,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     }
 
     if (ov::util::is_weightless_enabled(config.get_user_properties()).value_or(false)) {
-        const std::string& weights_path = config.get_weights_path();
+        const auto& weights_path = ov::util::make_path(config.get_weights_path());
 
-        if (!ov::util::validate_weights_path(weights_path)) {
+        if (weights_path.extension() != ".bin") {
             // This is non IR case, e.g. onnxruntime.
             // This may not be required. Constant nodes should have the information already.
             // This is a temporary solution. A more robust solution will be implemented in future.

@@ -12,6 +12,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <memory>
+#include <optional>
 #include <pugixml.hpp>
 #include <sstream>
 #include <string>
@@ -28,13 +29,11 @@
  */
 #define FOREACH_CHILD(c, p, tag) for (auto c = p.child(tag); !c.empty(); c = c.next_sibling(tag))
 
-namespace ov {
-namespace util {
+namespace ov::util::pugixml {
 
 /**
  * @brief XML helpers function to extract values from `pugi::xml_node`
  */
-namespace pugixml {
 
 /**
  * @brief      Gets the integer attribute from `pugi::xml_node`
@@ -242,6 +241,13 @@ inline ParseResult parse_xml(const std::filesystem::path& file_path) {
         return {std::move(nullptr), std::string("Error loading XML file: ") + e.what()};
     }
 }
-}  // namespace pugixml
-}  // namespace util
-}  // namespace ov
+
+/**
+ * @brief Get the string view on attribute value.
+ *
+ * @param node The XML node.
+ * @param name The attribute name.
+ * @return String view on attribute value if attribute exists, std::nullopt otherwise.
+ */
+std::optional<std::string_view> get_attribute_view(const pugi::xml_node& node, std::string_view name);
+}  // namespace ov::util::pugixml
