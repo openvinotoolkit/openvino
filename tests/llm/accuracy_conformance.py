@@ -119,7 +119,7 @@ def setup_model(model_id):
     int8_model_path = get_model_path(model_id, PREC_INT8)
     if not os.path.exists(int8_model_path):
         logger.info(f'Creating INT8 OpenVINO model: {int8_model_path}')
-        ov_model = OVModelForCausalLM.from_pretrained(model_path, load_in_8bit=True)
+        ov_model = OVModelForCausalLM.from_pretrained(model_path, load_in_8bit=True, library_name="transformers")
         ov_model.save_pretrained(int8_model_path)
         tokenizer.save_pretrained(int8_model_path)
         del ov_model
@@ -132,7 +132,7 @@ def setup_model(model_id):
     if not os.path.exists(int4_model_path):
         logger.info(f'Creating INT4 OpenVINO model: {int4_model_path}')
         quantization_config = OVWeightQuantizationConfig(bits=4, ratio=0.8)
-        quantized_model = OVModelForCausalLM.from_pretrained(model_path, quantization_config=quantization_config)
+        quantized_model = OVModelForCausalLM.from_pretrained(model_path, quantization_config=quantization_config, library_name="transformers")
         quantized_model.save_pretrained(int4_model_path)
         tokenizer.save_pretrained(int4_model_path)
         del quantized_model
