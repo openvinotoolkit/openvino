@@ -39,6 +39,9 @@ protected:
         if (!engine.get_device_info().supports_usm) {
             GTEST_SKIP() << "USM not supported on this device, skipping zero-copy output test";
         }
+        if (engine.get_device_info().dev_type == device_type::discrete_gpu) {
+            GTEST_SKIP() << "Dynamic output tensor substitution is disabled on dGPU";
+        }
 
         weight_data.resize(K * N);
         for (size_t i = 0; i < K * N; ++i)
