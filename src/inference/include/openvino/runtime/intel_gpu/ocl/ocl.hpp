@@ -354,9 +354,6 @@ public:
      * @param shape Tensor shape
      * @param shared_buffer A shared OpenCL buffer handle passed as void*
      * @param memory_type Memory type to use (default: SHARED_BUF)
-     * @note CPU_VA memory type is currently not supported in GPU OCL context API.
-     *       For CPU virtual address allocations, pointer and allocation size must be aligned to 4KB,
-     *       and allocation lifetime must outlive all infer requests and remote tensor lifetime.
      * @return A remote tensor instance
      */
 #ifdef _WIN32

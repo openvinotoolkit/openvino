@@ -8,7 +8,6 @@
 # define NOMINMAX
 #endif
 
-#include <optional>
 
 // Do not include DirectX / VA wrappers when running with L0 runtime as they depend on OCL
 #ifndef OV_GPU_WITH_ZE_RT
@@ -70,9 +69,6 @@ public:
     std::shared_ptr<RemoteContextImpl> get_context() const;
 
 private:
-    void acquire_external_mem_if_needed();
-    void release_external_mem_if_needed() noexcept;
-
     std::shared_ptr<RemoteContextImpl> m_context;
 
     ov::element::Type m_element_type;
@@ -88,8 +84,6 @@ private:
     cldnn::shared_surface m_surf;
     uint32_t m_plane;
     size_t m_hash = 0;
-    cldnn::shared_handle m_acquired_external_mem = nullptr;
-    bool m_external_mem_acquired = false;
 
     bool supports_caching() const;
     void update_hash();

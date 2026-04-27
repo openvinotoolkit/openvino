@@ -8,12 +8,7 @@
 #include "intel_gpu/plugin/plugin.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/memory_caps.hpp"
-#ifdef OV_GPU_WITH_OCL_RT
-#include <CL/cl_ext.h>
-#include "ocl/ocl_engine.hpp"
-#include "ocl/ocl_ext.hpp"
-#include "ocl/ocl_stream.hpp"
-#endif
+
 #include <memory>
 
 namespace ov::intel_gpu {
@@ -168,7 +163,6 @@ RemoteTensorImpl::RemoteTensorImpl(RemoteContextImpl::Ptr context,
 }
 
 RemoteTensorImpl::~RemoteTensorImpl() {
-    release_external_mem_if_needed();
     deallocate();
 }
 
@@ -279,7 +273,6 @@ void RemoteTensorImpl::set_shape(ov::Shape shape) {
 }
 
 bool RemoteTensorImpl::deallocate() noexcept {
-    release_external_mem_if_needed();
     m_memory_object.reset();
     return m_memory_object == nullptr;
 }
@@ -301,7 +294,6 @@ void RemoteTensorImpl::allocate() {
     if (enable_caching) {
         m_memory_object = context->try_get_cached_memory(m_hash);
         if (m_memory_object) {
-            acquire_external_mem_if_needed();
             update_properties();
             update_strides();
             return;
@@ -375,101 +367,11 @@ void RemoteTensorImpl::allocate() {
         m_memory_object.reset();
     }
 
-    acquire_external_mem_if_needed();
-
     update_properties();
     update_strides();
 
     if (enable_caching)
         context->add_to_cache(m_hash, m_memory_object);
-}
-
-void RemoteTensorImpl::acquire_external_mem_if_needed() {
-    if (!m_memory_object || m_external_mem_acquired || !m_context) {
-        return;
-    }
-
-    const auto alloc_type = m_memory_object->get_allocation_type();
-    const bool is_external_cl_mem = (m_mem_type == TensorType::BT_BUF_SHARED) &&
-                                    (alloc_type == cldnn::allocation_type::cl_mem);
-    if (!is_external_cl_mem) {
-        return;
-    }
-
-#ifdef OV_GPU_WITH_OCL_RT
-    auto* ocl_eng = dynamic_cast<cldnn::ocl::ocl_engine*>(&m_context->get_engine());
-    const bool ext_mem_supported = ocl_eng && ocl_eng->extension_supported("cl_khr_external_memory");
-    if (!ext_mem_supported) {
-        return;
-    }
-
-    auto& stream = m_context->get_engine().get_service_stream();
-    auto* ocl_stream = dynamic_cast<cldnn::ocl::ocl_stream*>(&stream);
-    OPENVINO_ASSERT(ocl_stream != nullptr, "[GPU] Failed to cast service stream to OCL stream for external acquire");
-
-    auto* ocl_mem = m_memory_object->buffer_ptr();
-    OPENVINO_ASSERT(ocl_mem != nullptr, "[GPU] Failed to get OpenCL memory handle for external acquire");
-
-    cl_mem mem_obj = static_cast<cl_mem>(ocl_mem);
-    cl_command_queue queue = ocl_stream->get_cl_queue().get();
-    auto acquire_external_mem = load_entrypoint<clEnqueueAcquireExternalMemObjectsKHR_fn>(
-        queue,
-        "clEnqueueAcquireExternalMemObjectsKHR");
-
-    cl_event acquire_event = nullptr;
-    cl_int err = acquire_external_mem(queue, 1, &mem_obj, 0, nullptr, &acquire_event);
-    OPENVINO_ASSERT(err == CL_SUCCESS,
-                    "[GPU] clEnqueueAcquireExternalMemObjectsKHR failed with error: ",
-                    err);
-
-    err = clWaitForEvents(1, &acquire_event);
-    OPENVINO_ASSERT(err == CL_SUCCESS,
-                    "[GPU] clWaitForEvents for external acquire failed with error: ",
-                    err);
-    clReleaseEvent(acquire_event);
-
-    m_acquired_external_mem = static_cast<cldnn::shared_handle>(mem_obj);
-    m_external_mem_acquired = true;
-#endif
-}
-
-void RemoteTensorImpl::release_external_mem_if_needed() noexcept {
-    if (!m_external_mem_acquired || m_acquired_external_mem == nullptr || !m_context) {
-        return;
-    }
-
-    try {
-#ifdef OV_GPU_WITH_OCL_RT
-        auto* ocl_eng_rel = dynamic_cast<cldnn::ocl::ocl_engine*>(&m_context->get_engine());
-        if (ocl_eng_rel && ocl_eng_rel->extension_supported("cl_khr_external_memory")) {
-            auto& stream = m_context->get_engine().get_service_stream();
-            auto* ocl_stream = dynamic_cast<cldnn::ocl::ocl_stream*>(&stream);
-            OPENVINO_ASSERT(ocl_stream != nullptr, "[GPU] Failed to cast service stream to OCL stream for external release");
-            cl_command_queue queue = ocl_stream->get_cl_queue().get();
-            auto release_external_mem = load_entrypoint<clEnqueueReleaseExternalMemObjectsKHR_fn>(
-                queue,
-                "clEnqueueReleaseExternalMemObjectsKHR");
-
-            cl_mem mem_obj = static_cast<cl_mem>(m_acquired_external_mem);
-            cl_event release_event = nullptr;
-            cl_int err = release_external_mem(queue, 1, &mem_obj, 0, nullptr, &release_event);
-            if (err != CL_SUCCESS) {
-                GPU_DEBUG_INFO << "[GPU] Warning: clEnqueueReleaseExternalMemObjectsKHR failed with error: " << err << std::endl;
-            } else {
-                err = clWaitForEvents(1, &release_event);
-                if (err != CL_SUCCESS) {
-                    GPU_DEBUG_INFO << "[GPU] Warning: clWaitForEvents for external release failed with error: " << err << std::endl;
-                }
-                clReleaseEvent(release_event);
-            }
-        }
-#endif
-    } catch (...) {
-        GPU_DEBUG_INFO << "[GPU] Warning: exception while releasing external memory object" << std::endl;
-    }
-
-    m_acquired_external_mem = nullptr;
-    m_external_mem_acquired = false;
 }
 
 const std::string& RemoteTensorImpl::get_device_name() const {
