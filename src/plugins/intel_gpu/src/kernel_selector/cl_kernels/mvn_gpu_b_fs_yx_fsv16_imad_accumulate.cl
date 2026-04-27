@@ -94,3 +94,49 @@ inline MAKE_VECTOR_TYPE(AccT, SliceSize) FUNC(Name)(const __global InputT* input
 
 #define DECLARE_PACKED_ACCUMULATE(Name, AccT, InputT, SliceSize, SlicePitch, Items, Workers, AccOp)                                     \
     DECLARE_PACKED_ACCUMULATE_EARGS(Name, AccT, InputT, SliceSize, SlicePitch, Items, Workers, AccOp, , )
+
+// ==============================================================================================================================
+// Dynamic variants — Items is a function parameter (uint) instead of a compile-time constant.
+// Used in IS_DYNAMIC mode where spatial dimensions are not known at OpenCL compile time.
+// ==============================================================================================================================
+
+#define DECLARE_PACKED_ACCUMULATE_DYN_EARGS(Name, AccT, InputT, SliceSize, SlicePitch, Workers, AccOp, ExtraArgsDecl, ExtraArgs)        \
+inline MAKE_VECTOR_TYPE(AccT, SliceSize) FUNC(Name)(const __global InputT* input,                                                       \
+                                                    uint offset,                                                                        \
+                                                    uint worker_id,                                                                     \
+                                                    uint items_count                                                                    \
+                                                    ExtraArgsDecl) {                                                                    \
+    typedef MAKE_VECTOR_TYPE(InputT, SliceSize) packed_in_t;                                                                            \
+    typedef MAKE_VECTOR_TYPE(AccT, SliceSize) packed_acc_t;                                                                             \
+                                                                                                                                        \
+    packed_acc_t acc = 0;  /* Accumulation variable */                                                                                  \
+                                                                                                                                        \
+    uint input_offset = offset + worker_id * (SlicePitch);  /* Current input offset */                                                  \
+                                                                                                                                        \
+    for (uint spatial_idx = 0; spatial_idx < items_count / (Workers); ++spatial_idx) {                                                  \
+        packed_in_t in_pack = ((const __global packed_in_t*)(input + input_offset))[0];                                                 \
+                                                                                                                                        \
+        input_offset += (Workers) * (SlicePitch);                                                                                       \
+                                                                                                                                        \
+        __attribute__((opencl_unroll_hint))                                                                                             \
+        for (uint set_idx = 0; set_idx < (SliceSize); ++set_idx) {                                                                      \
+            acc[set_idx] = AccOp(acc[set_idx], in_pack[set_idx], set_idx  ExtraArgs);                                                   \
+        }                                                                                                                               \
+    }                                                                                                                                   \
+                                                                                                                                        \
+    const uint leftovers = items_count % (Workers);                                                                                     \
+                                                                                                                                        \
+    if (leftovers > 0 && worker_id < leftovers) {                                                                                       \
+        packed_in_t in_pack = ((const __global packed_in_t*)(input + input_offset))[0];                                                 \
+                                                                                                                                        \
+        __attribute__((opencl_unroll_hint))                                                                                             \
+        for (uint set_idx = 0; set_idx < (SliceSize); ++set_idx) {                                                                      \
+            acc[set_idx] = AccOp(acc[set_idx], in_pack[set_idx], set_idx  ExtraArgs);                                                   \
+        }                                                                                                                               \
+    }                                                                                                                                   \
+                                                                                                                                        \
+    return acc;                                                                                                                         \
+}
+
+#define DECLARE_PACKED_ACCUMULATE_DYN(Name, AccT, InputT, SliceSize, SlicePitch, Workers, AccOp)                                        \
+    DECLARE_PACKED_ACCUMULATE_DYN_EARGS(Name, AccT, InputT, SliceSize, SlicePitch, Workers, AccOp, , )

@@ -826,23 +826,23 @@ TEST_P(deconv_scale_actv_quant_u8_eltw_scale_actv_quant_i8, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, deconv_scale_actv_quant_u8_eltw_scale_actv_quant_i8, ::testing::ValuesIn(std::vector<deconv_test_params>{
-    deconv_test_params{ CASE_DECONV_FP32_1, 2, 2, 9 },
-    deconv_test_params{ CASE_DECONV_FP32_2, 2, 2, 9 },
+    deconv_test_params{ CASE_DECONV_FP32_1, 2, 4, 9 },
+    deconv_test_params{ CASE_DECONV_FP32_2, 2, 4, 9 },
     // deconv_test_params{ CASE_DECONV_FP32_3, 2, 9 },
-    deconv_test_params{ CASE_DECONV_FP32_4, 2, 2, 9 },
-    deconv_test_params{ CASE_DECONV_FP32_5, 2, 2, 9 },
-    deconv_test_params{ CASE_DECONV_FP32_6, 2, 2, 9 },
-    deconv_test_params{ CASE_DECONV_FP32_7, 2, 2, 9 },
-    deconv_test_params{ CASE_DECONV_FP32_8, 2, 2, 9 },
+    deconv_test_params{ CASE_DECONV_FP32_4, 2, 4, 9 },
+    deconv_test_params{ CASE_DECONV_FP32_5, 2, 4, 9 },
+    deconv_test_params{ CASE_DECONV_FP32_6, 2, 4, 9 },
+    deconv_test_params{ CASE_DECONV_FP32_7, 2, 4, 9 },
+    deconv_test_params{ CASE_DECONV_FP32_8, 2, 4, 9 },
 
-    deconv_test_params{ CASE_DECONV_FP16_1, 2, 2, 9 },
-    deconv_test_params{ CASE_DECONV_FP16_2, 2, 2, 9 },
-    deconv_test_params{ CASE_DECONV_FP16_3, 2, 2, 9 },
-    deconv_test_params{ CASE_DECONV_FP16_4, 2, 2, 9 },
-    deconv_test_params{ CASE_DECONV_FP16_5, 2, 2, 9 },
-    deconv_test_params{ CASE_DECONV_FP16_6, 2, 2, 9 },
-    deconv_test_params{ CASE_DECONV_FP16_7, 2, 2, 9 },
-    deconv_test_params{ CASE_DECONV_FP16_8, 2, 2, 9 },
+    deconv_test_params{ CASE_DECONV_FP16_1, 2, 4, 9 },
+    deconv_test_params{ CASE_DECONV_FP16_2, 2, 4, 9 },
+    deconv_test_params{ CASE_DECONV_FP16_3, 2, 4, 9 },
+    deconv_test_params{ CASE_DECONV_FP16_4, 2, 4, 9 },
+    deconv_test_params{ CASE_DECONV_FP16_5, 2, 4, 9 },
+    deconv_test_params{ CASE_DECONV_FP16_6, 2, 4, 9 },
+    deconv_test_params{ CASE_DECONV_FP16_7, 2, 4, 9 },
+    deconv_test_params{ CASE_DECONV_FP16_8, 2, 4, 9 },
 
     deconv_test_params{ CASE_DECONV_U8S8_1, 2, 2, 9 },
     deconv_test_params{ CASE_DECONV_U8S8_2, 2, 2, 9 },
@@ -862,25 +862,25 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, deconv_scale_actv_quant_u8_eltw_scale_actv
     deconv_test_params{ CASE_DECONV_S8S8_7, 2, 2, 9 },
     deconv_test_params{ CASE_DECONV_S8S8_8, 2, 2, 9 },
 
-    deconv_test_params{ CASE_DECONV_FP32_3D_1, 2, 2, 9 },
+    deconv_test_params{ CASE_DECONV_FP32_3D_1, 2, 4, 9 },
     // deconv_test_params{ CASE_DECONV_FP32_3D_2, 2, 9 },
     // Commented out due to sporadic CI failures
     // deconv_test_params{ CASE_DECONV_FP32_3D_3, 2, 9 },
-    deconv_test_params{ CASE_DECONV_FP32_3D_4, 2, 2, 9 },
-    deconv_test_params{ CASE_DECONV_FP32_3D_5, 2, 2, 9 },
-    deconv_test_params{ CASE_DECONV_FP32_3D_6, 2, 2, 9 },
+    deconv_test_params{ CASE_DECONV_FP32_3D_4, 2, 4, 9 },
+    deconv_test_params{ CASE_DECONV_FP32_3D_5, 2, 4, 9 },
+    deconv_test_params{ CASE_DECONV_FP32_3D_6, 2, 4, 9 },
     // deconv_test_params{ CASE_DECONV_FP32_3D_7, 2, 9 },
-    deconv_test_params{ CASE_DECONV_FP32_3D_8, 2, 2, 9 },
+    deconv_test_params{ CASE_DECONV_FP32_3D_8, 2, 4, 9 },
     // deconv_test_params{ CASE_DECONV_FP32_3D_9, 6, 9 },
 
-    deconv_test_params{ CASE_DECONV_FP16_3D_1, 2, 2, 9 },
-    deconv_test_params{ CASE_DECONV_FP16_3D_2, 2, 2, 9 },
-    deconv_test_params{ CASE_DECONV_FP16_3D_3, 2, 2, 9 },
-    deconv_test_params{ CASE_DECONV_FP16_3D_4, 2, 2, 9 },
-    deconv_test_params{ CASE_DECONV_FP16_3D_5, 2, 2, 9 },
-    deconv_test_params{ CASE_DECONV_FP16_3D_6, 2, 2, 9 },
-    deconv_test_params{ CASE_DECONV_FP16_3D_7, 2, 2, 9 },
-    deconv_test_params{ CASE_DECONV_FP16_3D_8, 2, 2, 9 },
+    deconv_test_params{ CASE_DECONV_FP16_3D_1, 2, 4, 9 },
+    deconv_test_params{ CASE_DECONV_FP16_3D_2, 2, 4, 9 },
+    deconv_test_params{ CASE_DECONV_FP16_3D_3, 2, 4, 9 },
+    deconv_test_params{ CASE_DECONV_FP16_3D_4, 2, 4, 9 },
+    deconv_test_params{ CASE_DECONV_FP16_3D_5, 2, 4, 9 },
+    deconv_test_params{ CASE_DECONV_FP16_3D_6, 2, 4, 9 },
+    deconv_test_params{ CASE_DECONV_FP16_3D_7, 2, 4, 9 },
+    deconv_test_params{ CASE_DECONV_FP16_3D_8, 2, 4, 9 },
     // deconv_test_params{ CASE_DECONV_FP16_3D_9, 6, 9 },
 
     deconv_test_params{ CASE_DECONV_U8S8_3D_1, 2, 2, 9 },
@@ -937,14 +937,14 @@ TEST_P(deconv_scale_activation_quantize_i8_eltwise_quantize_u8, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, deconv_scale_activation_quantize_i8_eltwise_quantize_u8, ::testing::ValuesIn(std::vector<deconv_eltw_test_params>{
-    deconv_eltw_test_params{ CASE_DECONV_ELTW_FP32_1, 2, 2, 7 },
-    deconv_eltw_test_params{ CASE_DECONV_ELTW_FP32_2, 2, 2, 7 },
-    deconv_eltw_test_params{ CASE_DECONV_ELTW_FP32_3, 2, 2, 7 },
-    deconv_eltw_test_params{ CASE_DECONV_ELTW_FP32_4, 2, 2, 7 },
-    deconv_eltw_test_params{ CASE_DECONV_ELTW_FP32_5, 2, 2, 7 },
-    deconv_eltw_test_params{ CASE_DECONV_ELTW_FP32_6, 2, 2, 7 },
-    deconv_eltw_test_params{ CASE_DECONV_ELTW_FP32_7, 2, 2, 7 },
-    deconv_eltw_test_params{ CASE_DECONV_ELTW_FP32_8, 2, 2, 7 },
+    deconv_eltw_test_params{ CASE_DECONV_ELTW_FP32_1, 2, 4, 7 },
+    deconv_eltw_test_params{ CASE_DECONV_ELTW_FP32_2, 2, 4, 7 },
+    deconv_eltw_test_params{ CASE_DECONV_ELTW_FP32_3, 2, 4, 7 },
+    deconv_eltw_test_params{ CASE_DECONV_ELTW_FP32_4, 2, 4, 7 },
+    deconv_eltw_test_params{ CASE_DECONV_ELTW_FP32_5, 2, 4, 7 },
+    deconv_eltw_test_params{ CASE_DECONV_ELTW_FP32_6, 2, 4, 7 },
+    deconv_eltw_test_params{ CASE_DECONV_ELTW_FP32_7, 2, 4, 7 },
+    deconv_eltw_test_params{ CASE_DECONV_ELTW_FP32_8, 2, 4, 7 },
 
     deconv_eltw_test_params{ CASE_DECONV_ELTW_i8_1, 2, 2, 7 },
     deconv_eltw_test_params{ CASE_DECONV_ELTW_i8_2, 2, 2, 7 },
@@ -986,4 +986,84 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, deconv_activation_eltwise_diff_sizes, ::te
     deconv_eltw_test_params{ CASE_DECONV_ELTW_i8_3, 2, 2, 4 },
     deconv_eltw_test_params{ CASE_DECONV_ELTW_i8_4, 2, 2, 4 },
     deconv_eltw_test_params{ CASE_DECONV_ELTW_i8_5, 2, 2, 4 },
+}));
+
+/* ----------------------------------------------------------------------------------------------------- */
+/* -------- Prevent quantize fusion into oneDNN deconv for float->int8 narrowing ----------------------- */
+/* ----------------------------------------------------------------------------------------------------- */
+
+// Checks: executed primitive count after fusion pass (static shape).
+//  - On OCL path  : quantize fuses into deconv → expected_fused = 2 (deconv+reorder)
+//  - On oneDNN path: quantize must NOT fuse   → expected_fused = 3 (deconv+quant+reorder)
+//  - Without any fusion                       → expected_not_fused = 3
+// Why: oneDNN deconv uses conv backward-data internally, which cannot produce int8
+// output (f16→u8). Fusing quantize forces u8 output → oneDNN falls back to ocl:ref.
+class deconv_quantize_u8_onednn_prevent_fuse : public DeconvolutionFusingTest {};
+TEST_P(deconv_quantize_u8_onednn_prevent_fuse, basic) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
+        data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
+        data("out_lo", get_mem(get_single_element_layout(p), 0)),
+        data("out_hi", get_mem(get_single_element_layout(p), 255)),
+        deconvolution("deconv", input_info("input"), { "weights" }, p.groups, p.stride, p.pad),
+        quantize("quant", input_info("deconv"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 256, data_types::u8),
+        reorder("out", input_info("quant"), p.default_format, data_types::f32)
+    );
+
+    tolerance = 1.f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, deconv_quantize_u8_onednn_prevent_fuse, ::testing::ValuesIn(std::vector<deconv_test_params>{
+    // On oneDNN, quantize should NOT fuse (float->int8 narrowing is blocked).
+    // expected_fused=2 (OCL: fused), expected_fused_onednn=3 (oneDNN: NOT fused), expected_not_fused=3
+    // 2D cases
+    deconv_test_params{ CASE_DECONV_FP16_2, 2, 3, 3 },
+    deconv_test_params{ CASE_DECONV_FP16_5, 2, 3, 3 },
+    deconv_test_params{ CASE_DECONV_FP16_6, 2, 3, 3 },
+    // 3D cases (b_fs_zyx_fsv16, stride=2)
+    deconv_test_params{ CASE_DECONV_FP16_3D_2, 2, 3, 3 },
+    deconv_test_params{ CASE_DECONV_FP16_3D_5, 2, 3, 3 },
+    deconv_test_params{ CASE_DECONV_FP16_3D_6, 2, 3, 3 },
+}));
+
+// Checks: executed primitive count — positive counter-test (static shape).
+//  - On both OCL and oneDNN: quantize fuses → expected_fused = 2 (deconv+reorder)
+//  - Without fusion                         → expected_not_fused = 3
+// Why: int8→u8 narrowing IS supported by oneDNN deconv, so fusion is correct.
+// Ensures the FIX_B guard does not over-block valid int8-to-int8 fusion.
+class deconv_i8_quantize_u8_still_fuses : public DeconvolutionFusingTest {};
+TEST_P(deconv_i8_quantize_u8_still_fuses, basic) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
+        data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
+        data("out_lo", get_mem(get_single_element_layout(p), 0)),
+        data("out_hi", get_mem(get_single_element_layout(p), 255)),
+        deconvolution("deconv", input_info("input"), { "weights" }, p.groups, p.stride, p.pad),
+        quantize("quant", input_info("deconv"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 256, data_types::u8),
+        reorder("out", input_info("quant"), p.default_format, data_types::f32)
+    );
+
+    tolerance = 1.f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, deconv_i8_quantize_u8_still_fuses, ::testing::ValuesIn(std::vector<deconv_test_params>{
+    // int8 input → u8 output via quantize should still fuse on both OCL and oneDNN.
+    // expected_fused=2, expected_fused_onednn=2, expected_not_fused=3
+    deconv_test_params{ CASE_DECONV_U8S8_2, 2, 2, 3 },
+    deconv_test_params{ CASE_DECONV_U8S8_5, 2, 2, 3 },
+    deconv_test_params{ CASE_DECONV_S8S8_2, 2, 2, 3 },
+    deconv_test_params{ CASE_DECONV_S8S8_5, 2, 2, 3 },
+    // 3D
+    deconv_test_params{ CASE_DECONV_U8S8_3D_2, 2, 2, 3 },
+    deconv_test_params{ CASE_DECONV_S8S8_3D_2, 2, 2, 3 },
 }));

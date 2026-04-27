@@ -32,15 +32,24 @@ KERNEL (mvn_gpu_bfyx_opt)(
     float my_sum = 0;
     float tmp;
 
-    //each WI reads items_num consecutive items from batch*feature
-    for (uint i=0; i<iters_num; ++i)
+#if NORMALIZE_VARIANCE == 0
+    //each WI reads items_num consecutive items from batch*feature (4x unrolled)
+    const uint iters_main_mean = iters_num & ~3u;
+    for (uint i=0; i<iters_main_mean; i+=4)
+    {
+        float v0 = (float)input[my_data_offset + (i    ) * workers_per_data_set];
+        float v1 = (float)input[my_data_offset + (i + 1) * workers_per_data_set];
+        float v2 = (float)input[my_data_offset + (i + 2) * workers_per_data_set];
+        float v3 = (float)input[my_data_offset + (i + 3) * workers_per_data_set];
+        my_sum += v0 + v1 + v2 + v3;
+    }
+    for (uint i=iters_main_mean; i<iters_num; ++i)
     {
         my_sum += (float)input[my_data_offset + i * workers_per_data_set];
     }
 
     my_sum = work_group_reduce_add(my_sum) / data_set_size;
 
-#if NORMALIZE_VARIANCE == 0
     for (uint i=0; i<iters_num; ++i) {
         uint iteration_in_data_set_offset = i * workers_per_data_set;
         ACTIVATION_TYPE result = TO_ACTIVATION_TYPE(input[my_data_offset + iteration_in_data_set_offset]) - TO_ACTIVATION_TYPE(my_sum);
@@ -53,21 +62,35 @@ KERNEL (mvn_gpu_bfyx_opt)(
     }
 #else
 
-    float my_variance = 0.f;
+    float my_sum_sq = 0.f;
     //each WI reads items_num consecutive items from batch*feature
-    for (uint i=0; i<iters_num; ++i)
+    //combined sum and sum-of-squares in single pass to reduce global memory reads (4x unrolled)
+    const uint iters_main = iters_num & ~3u;
+    for (uint i=0; i<iters_main; i+=4)
+    {
+        float v0 = (float)input[my_data_offset + (i    ) * workers_per_data_set];
+        float v1 = (float)input[my_data_offset + (i + 1) * workers_per_data_set];
+        float v2 = (float)input[my_data_offset + (i + 2) * workers_per_data_set];
+        float v3 = (float)input[my_data_offset + (i + 3) * workers_per_data_set];
+        my_sum += v0 + v1 + v2 + v3;
+        my_sum_sq = fma(v0, v0, my_sum_sq);
+        my_sum_sq = fma(v1, v1, my_sum_sq);
+        my_sum_sq = fma(v2, v2, my_sum_sq);
+        my_sum_sq = fma(v3, v3, my_sum_sq);
+    }
+    for (uint i=iters_main; i<iters_num; ++i)
     {
         tmp = (float)input[my_data_offset + i * workers_per_data_set];
-        tmp -= my_sum;
-        my_variance = fma(tmp, tmp, my_variance);
+        my_sum += tmp;
+        my_sum_sq = fma(tmp, tmp, my_sum_sq);
     }
 
-    my_variance = work_group_reduce_add(my_variance);
+    my_sum = work_group_reduce_add(my_sum) / data_set_size;
+
+    float my_variance = fmax(work_group_reduce_add(my_sum_sq) / data_set_size - my_sum * my_sum, 0.0f);
 
     if (in_data_set_idx == 0)
     {
-        my_variance /= data_set_size;
-
 #   if defined EPS_OUTSIDE_SQRT
         my_variance = native_powr(native_sqrt(my_variance) + (float)EPSILON, -1.f);
 #   elif defined EPS_INSIDE_SQRT

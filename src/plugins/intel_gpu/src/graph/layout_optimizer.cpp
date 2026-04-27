@@ -137,10 +137,6 @@ bool layout_optimizer::is_format_supported(program_node& node, format::type fmt)
     if (node.is_type<fully_connected>() && fmt == format::byxf)
         return false;
 
-    if (node.is_type<mvn>() && fmt == format::b_fs_yx_fsv16 &&
-        node.get_input_layout(0).data_type != data_types::i8 &&
-        node.get_input_layout(0).data_type != data_types::u8)
-        return false;
     if (node.is_type<input_layout>())
         return node.get_output_layout().format == fmt;
 
@@ -160,7 +156,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     auto next_dt = next.get_output_layout().data_type;
     auto use_onednn_impls = has_all_enabled_onednn_impls_optimization_attribute();
 
-    if ((prev.is_dynamic() || next.is_dynamic()) && !next.is_type<convolution>())
+    if ((prev.is_dynamic() || next.is_dynamic()) && !next.is_type<convolution>() && !next.is_type<mvn>())
         return false;
 
     // Not to fuse reorder if this removal changes input format of its next node which has reuse in fused_op
@@ -206,6 +202,15 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         (fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_yx_fsv32
             || fmt_next == format::bs_fs_yx_bsv16_fsv16 || fmt_next == format::bs_fs_yx_bsv16_fsv32
             || fmt_next == format::bs_fs_yx_bsv32_fsv16 || fmt_next == format::bs_fs_yx_bsv32_fsv32))
+        return true;
+
+    // MVN kernel can accept cross-layout input between fsv16 and fsv32.
+    // Symmetric to the producer-direction rule in can_fuse_reorder_to_prev.
+    if (next.is_type<mvn>() &&
+        (fmt_prev == format::b_fs_yx_fsv16 || fmt_prev == format::b_fs_yx_fsv32 ||
+         fmt_prev == format::b_fs_zyx_fsv16 || fmt_prev == format::b_fs_zyx_fsv32) &&
+        (fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_yx_fsv32 ||
+         fmt_next == format::b_fs_zyx_fsv16 || fmt_next == format::b_fs_zyx_fsv32))
         return true;
 
     if (next.is_type<pooling>() &&
@@ -403,7 +408,8 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
     bool is_dynamic = false;
     if (prev.is_dynamic() || (!node.get_users().empty() && node.get_users().front()->is_dynamic())) {
         if (!prev.is_type<permute>() &&
-            !prev.is_type<group_normalization>()) {
+            !prev.is_type<group_normalization>() &&
+            !prev.is_type<mvn>()) {
             return false;
         }
         is_dynamic = true;
@@ -446,6 +452,15 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
         (fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_yx_fsv32
             || fmt_next == format::bs_fs_yx_bsv16_fsv16 || fmt_next == format::bs_fs_yx_bsv16_fsv32
             || fmt_next == format::bs_fs_yx_bsv32_fsv16 || fmt_next == format::bs_fs_yx_bsv32_fsv32))
+        return true;
+
+    // MVN kernel can work cross-layout between fsv16 and fsv32.
+    // Actual kernel support is verified by has_impl_for check in remove_redundant_reorders.
+    if (prev.is_type<mvn>() &&
+        (fmt_prev == format::b_fs_yx_fsv16 || fmt_prev == format::b_fs_yx_fsv32 ||
+         fmt_prev == format::b_fs_zyx_fsv16 || fmt_prev == format::b_fs_zyx_fsv32) &&
+        (fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_yx_fsv32 ||
+         fmt_next == format::b_fs_zyx_fsv16 || fmt_next == format::b_fs_zyx_fsv32))
         return true;
 
     if (prev.is_type<one_hot>() &&
@@ -1415,10 +1430,7 @@ format layout_optimizer::get_preferred_format(program_node& node) {
     } else if (node.is_type<deconvolution>()) {
         expected = get_expected_format(node.as<deconvolution>());
     } else if (node.is_type<mvn>()) {
-        auto input_layout = node.get_input_layout(0);
-        if (input_layout.data_type == data_types::f32 || input_layout.data_type == data_types::f16) {
-            expected = format::get_default_format(input_layout.get_rank());
-        }
+        expected = format::any;
     } else if (node.is_type<resample>()) {
         // if the resample is in the last part of the network and there are no users using blocked format,
         // it is better to reorder to bfyx before resample is done.

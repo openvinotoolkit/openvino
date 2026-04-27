@@ -107,18 +107,14 @@ std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node c
     auto weights_layout = *impl_param.weights_layout;
     weights_layout = weights_layout.convert_to_weights_layout(desc->grouped_weights_shape);
 
-    if (input_layout.is_dynamic())
-        return {layout{ShapeType::dynamic(input_layout.get<ShapeType>().rank()), input_layout.data_type, input_layout.format}};
-
     auto input_type = input_layout.data_type;
-    auto output_type = input_type;
-    if ((input_type == data_types::i8 || input_type == data_types::u8) && !impl_param.has_fused_primitives()) {
-        output_type = data_types::f32;
-    }
-
+    auto output_type = (input_type == data_types::u8 || input_type == data_types::i8) ? data_types::f32 : input_type;
     if (impl_param.has_fused_primitives()) {
         output_type = impl_param.get_output_element_type();
     }
+
+    if (input_layout.is_dynamic())
+        return {layout{ShapeType::dynamic(input_layout.get<ShapeType>().rank()), output_type, input_layout.format}};
 
     auto strides = desc->stride;
     auto dilations = desc->dilations;

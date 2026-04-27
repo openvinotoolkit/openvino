@@ -976,7 +976,12 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             should_fuse |= input_data.is_type<normalize>() && quantize_node.get_scale_shift_opt() &&
                            in_dt_is_i8_u8;
 
-            should_fuse |= input_data.is_type<deconvolution>() && quantize_node.get_scale_shift_opt();
+            // oneDNN deconv uses conv backward-data internally, which does not support
+            // float-to-int8 output narrowing (e.g., f16->u8). Prevent fusion in this case
+            // to keep deconv output as float (optimized kernel) + separate quantize.
+            should_fuse |= input_data.is_type<deconvolution>() && quantize_node.get_scale_shift_opt() &&
+                           !(lo.has_all_enabled_onednn_impls_optimization_attribute() &&
+                             !in_dt_is_i8_u8 && out_dt_is_i8_u8);
 
             should_fuse |= input_data.is_type<gather>() && quantize_node.get_scale_shift_opt();
 
