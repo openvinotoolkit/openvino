@@ -22,11 +22,11 @@ permissions: read-all
 env:
   HF_HUB_CACHE_LIN: /mount/caches/huggingface
   HF_HUB_CACHE_WIN: "C:\\mount\\caches\\huggingface"
-  # To switch to the primary HF token, change the filename suffix to remove `-secondary`:
-  #   HF_TOKEN_PATH_LIN: /home/runner/secrets/huggingface/hf-token
-  #   HF_TOKEN_PATH_WIN: "C:\\mount\\secrets\\huggingface\\hf-token"
-  HF_TOKEN_PATH_LIN: /home/runner/secrets/huggingface/hf-token-secondary
-  HF_TOKEN_PATH_WIN: "C:\\mount\\secrets\\huggingface\\hf-token-secondary"
+  # To switch to the primary HF token, change the filename from `token-secondary` to `token-primary`:
+  #   HF_TOKEN_PATH_LIN: /home/runner/secrets/huggingface/token-primary
+  #   HF_TOKEN_PATH_WIN: "C:\\mount\\secrets\\huggingface\\token-primary"
+  HF_TOKEN_PATH_LIN: /home/runner/secrets/huggingface/token-secondary
+  HF_TOKEN_PATH_WIN: "C:\\mount\\secrets\\huggingface\\token-secondary"
 
 jobs:
   TensorFlow_Models_Tests:
