@@ -58,20 +58,28 @@ void PagedGatedDeltaNet::validate_and_infer_types() {
 
     NODE_VALIDATION_CHECK(this, get_input_size() == 11);
 
+    // query (0), key (1), value (2), gate (4), and beta (5) participate in the main arithmetic
+    // and therefore must share a common float element type; it also determines the output precision.
+    // recurrent_state_table (3) is an in-place state cache and is allowed to use an independent
+    // float element type so plugins can maintain lower-precision state without breaking in-place semantics.
     ov::element::Type common_float_type = get_input_element_type(0);
     const bool float_types_merge =
         ov::element::Type::merge(common_float_type, common_float_type, get_input_element_type(1)) &&
         ov::element::Type::merge(common_float_type, common_float_type, get_input_element_type(2)) &&
-        ov::element::Type::merge(common_float_type, common_float_type, get_input_element_type(3)) &&
         ov::element::Type::merge(common_float_type, common_float_type, get_input_element_type(4)) &&
         ov::element::Type::merge(common_float_type, common_float_type, get_input_element_type(5));
     NODE_VALIDATION_CHECK(this,
                           float_types_merge,
-                          "PagedGatedDeltaNet expects query, key, value, recurrent_state_table, gate, and beta to "
-                          "have the same element type.");
+                          "PagedGatedDeltaNet expects query, key, value, gate, and beta to have the same element "
+                          "type.");
     NODE_VALIDATION_CHECK(this,
                           common_float_type.is_dynamic() || common_float_type == ov::element::f32 ||
                               common_float_type == ov::element::f16 || common_float_type == ov::element::bf16,
+                          "Float inputs must have f32, f16, or bf16 element type.");
+    const auto& state_et = get_input_element_type(3);
+    NODE_VALIDATION_CHECK(this,
+                          state_et.is_dynamic() || state_et == ov::element::f32 || state_et == ov::element::f16 ||
+                              state_et == ov::element::bf16,
                           "Float inputs must have f32, f16, or bf16 element type.");
     for (size_t i = 6; i < 11; ++i) {
         const auto& et = get_input_element_type(i);
