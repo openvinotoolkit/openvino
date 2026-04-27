@@ -1029,6 +1029,7 @@ void ZeroInferRequest::prepare_inputs() {
 
         const auto& levelZeroTensor = get_level_zero_input(inputIndex);
         OPENVINO_ASSERT(levelZeroTensor, "Input zero tensor is not allocated.");
+        OPENVINO_ASSERT(userTensor.at(SINGLE_TENSOR)._ptr, "Input tensor is not set for index ", inputIndex);
 
         void* userBuffer = get_tensor_data_ptr(userTensor.at(SINGLE_TENSOR)._ptr);
         void* levelZeroBuffer = levelZeroTensor->data();
@@ -1093,6 +1094,7 @@ void ZeroInferRequest::get_result() {
         }
 
         const auto& levelZeroTensor = _levelZeroOutputTensors.at(outputIndex);
+        OPENVINO_ASSERT(userTensor._ptr, "Output tensor is not set for index ", outputIndex);
         void* userBuffer = get_tensor_data_ptr(userTensor._ptr);
         void* levelZeroBuffer = levelZeroTensor->data();
 
