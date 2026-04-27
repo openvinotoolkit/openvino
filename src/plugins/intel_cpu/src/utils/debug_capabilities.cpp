@@ -1,6 +1,9 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#include "debug_capabilities.h"
+
 #include <oneapi/dnnl/dnnl_common_types.h>
 #include <oneapi/dnnl/dnnl_debug.h>
 
@@ -10,8 +13,10 @@
 #include <cstdint>
 #include <cstdlib>
 #include <exception>
+#include <iomanip>
 #include <ios>
 #include <iostream>
+#include <memory>
 #include <ostream>
 #include <set>
 #include <sstream>
@@ -19,10 +24,20 @@
 #include <type_traits>
 #include <vector>
 
+#include "common/primitive_desc_iface.hpp"
+#include "cpu_memory.h"
 #include "cpu_types.h"
+#include "edge.h"
+#include "graph.h"
 #include "memory_control.hpp"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/eltwise.h"
 #include "nodes/executors/eltwise_config.hpp"
+#include "nodes/input.h"
 #include "nodes/node_config.h"
+#include "oneapi/dnnl/dnnl.hpp"
+#include "onednn/iml_type_mapper.h"
 #include "openvino/core/attribute_adapter.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/model.hpp"
@@ -30,26 +45,10 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
+#include "openvino/util/env_util.hpp"
+#include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "utils/general_utils.h"
-#ifdef CPU_DEBUG_CAPS
-
-#    include <iomanip>
-#    include <memory>
-
-#    include "common/primitive_desc_iface.hpp"
-#    include "cpu_memory.h"
-#    include "debug_capabilities.h"
-#    include "edge.h"
-#    include "graph.h"
-#    include "memory_desc/cpu_memory_desc.h"
-#    include "node.h"
-#    include "nodes/eltwise.h"
-#    include "nodes/input.h"
-#    include "oneapi/dnnl/dnnl.hpp"
-#    include "onednn/iml_type_mapper.h"
-#    include "openvino/op/util/multi_subgraph_base.hpp"
-#    include "openvino/util/env_util.hpp"
-#    include "transformations/rt_info/disable_fp16_compression.hpp"
 
 namespace dnnl::impl {
 std::ostream& operator<<(std::ostream& ss, const primitive_attr_t* attr);
@@ -133,14 +132,13 @@ void DebugLogEnabled::break_at(const std::string& log) {
     static const char* p_brk = std::getenv("OV_CPU_DEBUG_LOG_BRK");
     if (p_brk && log.find(p_brk) != std::string::npos) {
         std::cout << "[ DEBUG ] Debug log breakpoint hit\n";
-#    if defined(_MSC_VER)
+#if defined(_MSC_VER)
         __debugbreak();
-#    elif defined(__APPLE__) || defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64) || \
-        defined(OPENVINO_ARCH_RISCV64)
+#elif defined(__APPLE__) || defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
         __builtin_trap();
-#    else
+#else
         asm("int3");
-#    endif
+#endif
     }
 }
 
@@ -729,5 +727,3 @@ bool getEnvBool(const char* name) {
     static const bool env = ov::util::getenv_bool(name);
     return env;
 }
-
-#endif

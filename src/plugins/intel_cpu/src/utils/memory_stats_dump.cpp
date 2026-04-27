@@ -2,22 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "memory_stats_dump.hpp"
+
 #include <cstddef>
 #include <deque>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <ostream>
 #include <string>
 
 #include "compiled_model.h"
+#include "debug_capabilities.h"
 #include "openvino/core/except.hpp"
 #include "utils/debug_caps_config.h"
 #include "weights_cache.hpp"
-#ifdef CPU_DEBUG_CAPS
-#    include <filesystem>
-#    include <fstream>
-
-#    include "debug_capabilities.h"
-#    include "memory_stats_dump.hpp"
 
 namespace ov::intel_cpu {
 
@@ -132,4 +131,3 @@ void dumpMemoryStats(const DebugCapsConfig& conf,
 }
 
 }  // namespace ov::intel_cpu
-#endif  // CPU_DEBUG_CAPS
