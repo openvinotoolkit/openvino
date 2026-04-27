@@ -1,0 +1,47 @@
+---
+name: Post Environment Comment
+
+on:
+  workflow_run:
+    workflows: ["Capture Environment Info"]
+    types:
+      - completed
+
+permissions:
+  pull-requests: write
+
+jobs:
+  post-comment:
+    runs-on: ubuntu-latest
+    if: >
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success'
+
+    steps:
+      - name: Download Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: env-data
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Read PR Number
+        id: pr_num
+        run: echo "pr_number=$(cat pr_number.txt)" >> $GITHUB_OUTPUT
+
+      - name: Find Existing Comment
+        uses: peter-evans/find-comment@v3
+        id: fc
+        with:
+          issue-number: ${{ steps.pr_num.outputs.pr_number }}
+          comment-author: 'github-actions[bot]'
+          body-includes: '🛠️ Contributor Build/Test Environment Details'
+
+      - name: Create or Update Comment
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ steps.pr_num.outputs.pr_number }}
+          comment-id: ${{ steps.fc.outputs.comment-id }}
+          body-path: env_info.md
+          edit-mode: replace
+
