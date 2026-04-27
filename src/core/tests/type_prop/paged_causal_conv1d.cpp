@@ -162,10 +162,36 @@ TEST_F(TypePropPagedCausalConv1DTest, invalid_float_type) {
                     testing::HasSubstr("Float inputs must have f32, f16, or bf16 element type."));
 }
 
-TEST_F(TypePropPagedCausalConv1DTest, float_type_mismatch) {
+TEST_F(TypePropPagedCausalConv1DTest, state_float_type_independent_from_embeds) {
     const auto input_embeds = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 256});
     const auto conv_state_table = std::make_shared<op::v0::Parameter>(element::f16, Shape{5, 256, 4});
     const auto conv_weight = std::make_shared<op::v0::Parameter>(element::f32, Shape{256, 256, 4});
+    const auto conv_bias = std::make_shared<op::v0::Parameter>(element::f32, Shape{256});
+    const auto subsequence_begins = std::make_shared<op::v0::Parameter>(element::i32, Shape{3});
+    const auto la_block_indices = std::make_shared<op::v0::Parameter>(element::i32, Shape{5});
+    const auto la_block_indices_begins = std::make_shared<op::v0::Parameter>(element::i32, Shape{3});
+    const auto processed_tokens = std::make_shared<op::v0::Parameter>(element::i32, Shape{2});
+    const auto cache_interval = std::make_shared<op::v0::Parameter>(element::i32, Shape{2});
+
+    const auto op = make_op(OutputVector{input_embeds,
+                                         conv_state_table,
+                                         conv_weight,
+                                         conv_bias,
+                                         subsequence_begins,
+                                         la_block_indices,
+                                         la_block_indices_begins,
+                                         processed_tokens,
+                                         cache_interval});
+
+    EXPECT_EQ(op->get_output_size(), 1);
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape(Shape{10, 256}));
+}
+
+TEST_F(TypePropPagedCausalConv1DTest, float_type_mismatch_among_embeds_weight_bias) {
+    const auto input_embeds = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 256});
+    const auto conv_state_table = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 256, 4});
+    const auto conv_weight = std::make_shared<op::v0::Parameter>(element::f16, Shape{256, 256, 4});
     const auto conv_bias = std::make_shared<op::v0::Parameter>(element::f32, Shape{256});
     const auto subsequence_begins = std::make_shared<op::v0::Parameter>(element::i32, Shape{3});
     const auto la_block_indices = std::make_shared<op::v0::Parameter>(element::i32, Shape{5});
@@ -183,8 +209,8 @@ TEST_F(TypePropPagedCausalConv1DTest, float_type_mismatch) {
                                                        processed_tokens,
                                                        cache_interval}),
                     NodeValidationFailure,
-                    testing::HasSubstr("PagedCausalConv1D expects input_embeds, conv_state_table, conv_weight, and "
-                                       "conv_bias to have the same element type."));
+                    testing::HasSubstr("PagedCausalConv1D expects input_embeds, conv_weight, and conv_bias to have "
+                                       "the same element type."));
 }
 
 TEST_F(TypePropPagedCausalConv1DTest, hidden_size_mismatch) {
