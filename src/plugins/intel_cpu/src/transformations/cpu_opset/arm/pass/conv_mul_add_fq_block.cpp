@@ -13,6 +13,8 @@
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/swish.hpp"
+#include "openvino/op/relu.hpp"
 #include "openvino/pass/pattern/op/block.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
@@ -38,11 +40,13 @@ ov::intel_cpu::ConvMulAddFQBlock::ConvMulAddFQBlock(const bool require_int_fq_ou
         return !type_matches(ov::element::i32)(output);
     });
     auto add = wrap_type<ov::op::v1::Add>({multiply, bias_const});
+    auto activation = wrap_type<ov::op::v4::Swish, ov::op::v0::Relu>({add});
+    auto activation_or_add = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{activation, add});
 
     ov::pass::pattern::op::Predicate predicate =
         require_int_fq_output ? type_matches_any({element::i8, element::u8}) : ov::pass::pattern::op::Predicate();
     auto fake_quantize =
-        wrap_type<ov::op::v0::FakeQuantize>({add, any_input(), any_input(), any_input(), any_input()}, predicate);
+        wrap_type<ov::op::v0::FakeQuantize>({activation_or_add, any_input(), any_input(), any_input(), any_input()}, predicate);
 
     m_inputs = ov::OutputVector{conv};
     m_outputs = ov::OutputVector{fake_quantize};
@@ -50,5 +54,6 @@ ov::intel_cpu::ConvMulAddFQBlock::ConvMulAddFQBlock(const bool require_int_fq_ou
     register_anchor("convolution", conv);
     register_anchor("multiply", multiply);
     register_anchor("add", add);
+    register_anchor("activation", activation);
     register_anchor("fake_quantize", fake_quantize);
 }

@@ -25,6 +25,7 @@
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/swish.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
@@ -56,6 +57,7 @@ ov::intel_cpu::FallbackUnsupportedLPConvToFP16::FallbackUnsupportedLPConvToFP16(
         const auto conv_out = conv_mul_add_fq->get_anchor("convolution", pattern_map);
         const auto mul_out = conv_mul_add_fq->get_anchor("multiply", pattern_map);
         const auto add_out = conv_mul_add_fq->get_anchor("add", pattern_map);
+        const auto activation_out = conv_mul_add_fq->get_anchor("activation", pattern_map);
         const auto fq_out = conv_mul_add_fq->get_anchor("fake_quantize", pattern_map);
         if (!conv_out || !mul_out || !add_out || !fq_out) {
             return false;
@@ -105,6 +107,14 @@ ov::intel_cpu::FallbackUnsupportedLPConvToFP16::FallbackUnsupportedLPConvToFP16(
         ov::copy_runtime_info(rt_info_sources, {reshape_const, scales_reshape, scales_to_weights, conv_scaled});
 
         ov::replace_node(mul, conv_scaled);
+        
+        if (activation_out) {
+            const auto activation_node = activation_out->get_node_shared_ptr();
+            if (auto type_relaxed = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(activation_node)){
+                type_relaxed->set_overridden_output_type(ov::element::f16, 0);
+                activation_node->validate_and_infer_types();
+            }
+        }
 
         // Keep this matched Conv->Mul->Add->FQ pattern in FP16 end-to-end for CPU plugin selection.
         if (add->get_output_element_type(0) == ov::element::f16) {

@@ -566,6 +566,18 @@ static MemoryPtr memoryViewToVector(const std::vector<T>& vec, const dnnl::engin
 bool Convolution::canFuse(const NodePtr& node) const {
 #if defined(OV_CPU_WITH_ACL)
     if (!fusedWith.empty()) {
+        // Allow FakeQuantize to fuse after a single Eltwise activation
+        // to enable Conv -> Activation -> FakeQuantize for the ACL INT8 path.
+        if (fusedWith.back()->getType() == Type::Eltwise &&
+            node->getType() == Type::FakeQuantize) {
+            const auto fqOutPrc = node->getOriginalOutputPrecisionAtPort(0);
+            const auto convInPrc = getOriginalInputPrecisionAtPort(0);
+            if (any_of(convInPrc, ov::element::u8, ov::element::i8) && fqOutPrc != convInPrc) {
+                return false;
+            }
+            return canFuseSimpleOperation(node);
+        }
+
         return false;
     }
 
