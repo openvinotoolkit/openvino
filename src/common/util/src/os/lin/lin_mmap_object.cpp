@@ -8,9 +8,11 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <cstring>
 #include <iostream>
 #include <sstream>
+#include <tuple>
 
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
@@ -21,6 +23,59 @@ namespace util {
 int64_t get_system_page_size() {
     static auto page_size = static_cast<int64_t>(sysconf(_SC_PAGE_SIZE));
     return page_size;
+}
+
+/** @brief Represents a memory region aligned to system page boundaries. */
+struct PageAlignedRegion {
+    uintptr_t m_address = 0;  //!< Page-aligned base address (rounded down to page boundary)
+    size_t m_length = 0;      //!< Total length of the aligned region including the gap
+    size_t m_gap = 0;         //!< Gap from the aligned address to the original unaligned address
+};
+
+/**
+ * @brief Aligns a memory region to system page boundaries.
+ *
+ * @param base      The base address of the memory region.
+ * @param raw_len   The length of the memory region.
+ * @param page_size The system page size.
+ * @return The aligned memory region.
+ */
+constexpr PageAlignedRegion align_to_page(uintptr_t base, size_t raw_len, size_t page_size) {
+    const auto aligned = (base / page_size) * page_size;
+    const auto gap = base - aligned;
+    return {aligned, raw_len + gap, gap};
+}
+
+/**
+ * @brief Creates a memory region for mmap operations.
+ *
+ * @param offset The offset within the mmap region.
+ * @param size   The size of the region.
+ * @return PageAlignedRegion The aligned memory region.
+ */
+inline PageAlignedRegion make_mmap_region(size_t offset, size_t size) {
+    const auto page_size = static_cast<size_t>(util::get_system_page_size());
+    return align_to_page(static_cast<uintptr_t>(offset), size, page_size);
+}
+
+/**
+ * @brief Creates a memory region for madvise operations.
+ *
+ * @param data         The base address of the mapped memory region.
+ * @param mapping_size The size of the mapped memory region.
+ * @param offset       The offset within the mapped memory region.
+ * @param size         The size of the region.
+ * @return PageAlignedRegion The aligned memory region.
+ */
+inline PageAlignedRegion make_madvise_region(const void* data, size_t mapping_size, size_t offset, size_t size) {
+    const auto page_size = static_cast<size_t>(util::get_system_page_size());
+    if (data == nullptr || mapping_size == 0 || offset >= mapping_size || size < page_size) {
+        return {};
+    } else {
+        const auto available = mapping_size - offset;
+        const auto raw_len = (size == auto_size) ? available : std::min(size, available);
+        return align_to_page(reinterpret_cast<uintptr_t>(data) + offset, raw_len, page_size);
+    }
 }
 }  // namespace util
 
@@ -98,15 +153,14 @@ public:
         }
 
         if (m_size > 0) {
-            const auto page_size = util::get_system_page_size();
-            const auto aligned_offset = (offset / page_size) * page_size;
-            m_mapped_view_size = offset + m_size - aligned_offset;
-            m_mapped_view = mmap(nullptr, m_mapped_view_size, PROT_READ, MAP_SHARED, fd, aligned_offset);
+            const auto& [address, length, gap] = util::make_mmap_region(offset, m_size);
+            m_mapped_view_size = length;
+            m_mapped_view = mmap(nullptr, length, PROT_READ, MAP_SHARED, fd, address);
             if (m_mapped_view == MAP_FAILED) {
                 throw std::runtime_error("Can not create file mapping for " + std::to_string(fd) +
                                          ", err=" + std::strerror(errno));
             }
-            m_data = static_cast<char*>(m_mapped_view) + (offset - aligned_offset);
+            m_data = static_cast<char*>(m_mapped_view) + gap;
         }
         m_id =
             util::u64_hash_combine(static_cast<uint64_t>(sb.st_ino), {static_cast<uint64_t>(sb.st_dev), offset, size});
@@ -128,6 +182,14 @@ public:
 
     size_t size() const noexcept override {
         return m_size;
+    }
+
+    void hint_evict(size_t offset, size_t size) noexcept override {
+        if (m_mapped_view != MAP_FAILED) {
+            if (const auto region = util::make_madvise_region(m_data, m_size, offset, size); region.m_length > 0) {
+                std::ignore = madvise(reinterpret_cast<void*>(region.m_address), region.m_length, MADV_DONTNEED);
+            }
+        }
     }
 };
 

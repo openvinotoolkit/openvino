@@ -97,6 +97,8 @@ public:
         return m_id;
     }
 
+    void hint_evict(size_t offset, size_t size) noexcept override {}
+
 private:
     void set_id(const HANDLE h, const size_t offset, const size_t size) {
         if (FILE_ID_INFO info; GetFileInformationByHandleEx(h, FileIdInfo, &info, sizeof(info))) {

@@ -6,6 +6,7 @@
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/op/convolution.hpp"
 
+#include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/convert.hpp"
@@ -145,6 +146,7 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
         } else {
             std::memcpy(&buf[0], &data[0], bufSize);
         }
+        ov::wsh::Extension::hint_evict(*op);
         p.add_primitive(*op, cldnn::data(initialconstPrimID, mem));
         p.blobMemCache[cache_key] = initialconstPrimID;
         constPrimID = initialconstPrimID;
