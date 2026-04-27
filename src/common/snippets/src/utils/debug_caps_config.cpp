@@ -1,13 +1,14 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <algorithm>
 #include <cstdlib>
 
-#include "openvino/core/except.hpp"
-#include "openvino/util/common_util.hpp"
 #ifdef SNIPPETS_DEBUG_CAPS
 
+#    include <algorithm>
+
+#    include "openvino/core/except.hpp"
+#    include "openvino/util/common_util.hpp"
 #    include "snippets/utils/debug_caps_config.hpp"
 
 namespace ov::snippets {

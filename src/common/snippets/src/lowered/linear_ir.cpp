@@ -48,7 +48,11 @@
 namespace ov::snippets::lowered {
 
 LinearIR::LinearIR(Config config, const std::shared_ptr<IShapeInferSnippetsFactory>& factory)
+#ifdef SNIPPETS_DEBUG_CAPS
     : m_config(std::move(config)),
+#else
+    : m_config(config),
+#endif
       m_loop_manager(std::make_shared<LoopManager>()),
       m_shape_infer_factory(factory),
       m_shape_infer(std::make_shared<LIRShapeInfer>(m_expressions, m_parameter_expressions, m_result_expressions)),
@@ -57,7 +61,11 @@ LinearIR::LinearIR(Config config, const std::shared_ptr<IShapeInferSnippetsFacto
 LinearIR::LinearIR(const std::shared_ptr<ov::Model>& model,
                    const std::shared_ptr<IShapeInferSnippetsFactory>& factory,
                    Config config)
+#ifdef SNIPPETS_DEBUG_CAPS
     : LinearIR(std::move(config), factory) {
+#else
+    : LinearIR(config, factory) {
+#endif
     const auto total_nodes = model->get_ops().size();
     const auto inputs_count = model->get_parameters().size();
     const auto outputs_count = model->get_results().size();

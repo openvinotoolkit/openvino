@@ -1,31 +1,30 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <algorithm>
-#include <cstdint>
 #include <cstdio>
 #include <cstring>
-#include <utility>
-
-#include "dnnl_extension_utils.h"
-#include "memory_desc/cpu_memory_desc.h"
-#include "onednn/iml_type_mapper.h"
-#include "utils/general_utils.h"
 #ifdef CPU_DEBUG_CAPS
 
 #    include <node.h>
 
+#    include <algorithm>
+#    include <cstdint>
 #    include <cstdlib>
 #    include <iostream>
 #    include <sstream>
 #    include <string>
+#    include <utility>
 #    include <vector>
 
 #    include "common/c_types_map.hpp"
 #    include "common/verbose.hpp"
 #    include "cpu_types.h"
+#    include "dnnl_extension_utils.h"
+#    include "memory_desc/cpu_memory_desc.h"
 #    include "memory_desc/cpu_memory_desc_utils.h"
+#    include "onednn/iml_type_mapper.h"
 #    include "openvino/util/common_util.hpp"
+#    include "utils/general_utils.h"
 #    include "verbose.h"
 
 namespace ov::intel_cpu {

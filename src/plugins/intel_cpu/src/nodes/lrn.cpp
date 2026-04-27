@@ -32,8 +32,10 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/lrn.hpp"
-#include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
+#ifdef CPU_DEBUG_CAPS
+#    include "utils/debug_capabilities.h"
+#endif
 
 namespace ov::intel_cpu::node {
 namespace {

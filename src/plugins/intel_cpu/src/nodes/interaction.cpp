@@ -31,7 +31,9 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
-#include "utils/debug_capabilities.h"
+#ifdef CPU_DEBUG_CAPS
+#    include "utils/debug_capabilities.h"
+#endif
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include <xbyak/xbyak.h>

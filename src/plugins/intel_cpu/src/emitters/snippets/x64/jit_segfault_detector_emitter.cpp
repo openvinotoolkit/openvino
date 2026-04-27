@@ -2,22 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <xbyak/xbyak.h>
-
-#include <cpu/x64/cpu_isa_traits.hpp>
-#include <cpu/x64/jit_generator.hpp>
-#include <cstddef>
-#include <cstdint>
-#include <string>
-
-#include "emitters/plugin/x64/jit_emitter.hpp"
 #ifdef SNIPPETS_DEBUG_CAPS
 
+#    include "jit_segfault_detector_emitter.hpp"
+
+#    include <xbyak/xbyak.h>
+
+#    include <cpu/x64/cpu_isa_traits.hpp>
+#    include <cpu/x64/jit_generator.hpp>
+#    include <cstddef>
+#    include <cstdint>
+#    include <string>
 #    include <utility>
 
+#    include "emitters/plugin/x64/jit_emitter.hpp"
 #    include "emitters/plugin/x64/utils.hpp"
 #    include "emitters/snippets/common/jit_segfault_detector_emitter_base.hpp"
-#    include "jit_segfault_detector_emitter.hpp"
 
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl;

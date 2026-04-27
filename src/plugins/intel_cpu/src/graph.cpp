@@ -58,7 +58,6 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/parallel.hpp"
-#include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/itt.hpp"
@@ -76,6 +75,9 @@
 #include "utils/node_dumper.h"
 #include "utils/verbose.h"
 #include "weights_cache.hpp"
+#ifdef CPU_DEBUG_CAPS
+#    include "openvino/core/partial_shape.hpp"
+#endif
 
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE || \
      OV_THREAD == OV_THREAD_OMP)

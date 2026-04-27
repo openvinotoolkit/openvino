@@ -31,7 +31,6 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/cpu_utils.hpp"
-#include "utils/debug_capabilities.h"
 #include "utils/precision_support.h"
 
 #define FLOAT_MAX 3.4028235e38f

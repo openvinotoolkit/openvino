@@ -10,8 +10,6 @@
 #include <cstdint>
 #include <iterator>
 #include <optional>
-#include <sstream>
-#include <string>
 #include <tuple>
 #include <vector>
 
@@ -26,9 +24,14 @@
 #include "snippets/utils/utils.hpp"
 #include "utils/general_utils.h"
 
+#ifdef SNIPPETS_DEBUG_CAPS
+#    include <sstream>
+#    include <string>
+#endif
+
 #define PRINT(X) ss << #X << " = " << (X) << "\n"
 #define EQ(X)    X == rhs.X
-#define HASH(X)  seed = dnnl::impl::hash_combine(seed, X)
+#define HASH(X) seed = dnnl::impl::hash_combine(seed, X)
 
 namespace ov::intel_cpu {
 using namespace ov::snippets::lowered;

@@ -1,23 +1,23 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <algorithm>
-#include <cstddef>
-#include <filesystem>
-#include <iostream>
-
-#include "cpu_types.h"
-#include "openvino/core/except.hpp"
-#include "openvino/core/type/element_type.hpp"
 #ifdef CPU_DEBUG_CAPS
 
+#    include "node_dumper.h"
+
+#    include <algorithm>
+#    include <cstddef>
+#    include <filesystem>
+#    include <iostream>
 #    include <regex>
 #    include <sstream>
 #    include <string>
 
+#    include "cpu_types.h"
 #    include "memory_desc/cpu_memory_desc_utils.h"
 #    include "node.h"
-#    include "node_dumper.h"
+#    include "openvino/core/except.hpp"
+#    include "openvino/core/type/element_type.hpp"
 #    include "utils/blob_dump.h"
 #    include "utils/debug_caps_config.h"
 

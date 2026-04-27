@@ -38,7 +38,9 @@
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 #include "utils/graph_serializer/serializer.hpp"
-#include "utils/memory_stats_dump.hpp"
+#ifdef CPU_DEBUG_CAPS
+#    include "utils/memory_stats_dump.hpp"
+#endif
 
 #if defined(OV_CPU_WITH_ACL)
 #    include <arm_compute/runtime/IScheduler.h>

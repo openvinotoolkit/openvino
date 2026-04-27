@@ -9,9 +9,12 @@
 #include "op/brgemm_copy_b.hpp"
 #include "op/brgemm_cpu.hpp"
 #include "op/load_convert.hpp"
-#include "op/perf_count_rdtsc.hpp"
 #include "op/store_convert.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
+
+#ifdef SNIPPETS_DEBUG_CAPS
+#    include "op/perf_count_rdtsc.hpp"
+#endif
 
 namespace ov::snippets {
 const CPUShapeInferSnippetsFactory::TRegistry CPUShapeInferSnippetsFactory::specific_ops_registry = []() {

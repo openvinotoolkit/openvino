@@ -9,14 +9,16 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
-#include <numeric>
-#include <queue>
 #include <string>
-#include <type_traits>
 #include <unordered_map>
-#include <unordered_set>
 #include <utility>
 #include <vector>
+#ifdef CPU_DEBUG_CAPS
+#    include <numeric>
+#    include <queue>
+#    include <type_traits>
+#    include <unordered_set>
+#endif
 
 #include "cpu_memory.h"
 #include "openvino/core/except.hpp"
@@ -302,7 +304,7 @@ private:
     }
 #else
     using InternalBlock = MemoryBlockWithRelease;
-    std::shared_ptr<InternalBlock> internalBlock(const std::shared_ptr<MemoryBlockWithRelease>& block) {
+    static std::shared_ptr<InternalBlock> internalBlock(const std::shared_ptr<MemoryBlockWithRelease>& block) {
         return block;
     }
 #endif  // CPU_DEBUG_CAPS
@@ -619,6 +621,7 @@ std::vector<std::pair<std::string, MemoryStatistics>> NetworkMemoryControl::dump
     }
     return retVal;
 #else
+    (void)m_controlUnits;
     return {};
 #endif  // CPU_DEBUG_CAPS
 }
