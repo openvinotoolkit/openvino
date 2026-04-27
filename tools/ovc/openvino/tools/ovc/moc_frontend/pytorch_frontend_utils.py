@@ -198,7 +198,7 @@ def get_pytorch_decoder_for_model_on_disk(argv, args):
     # attempt to load scripted model
     try:
         inputs = prepare_torch_inputs(example_inputs)
-        model = torch.jit.load(input_model)
+        model = torch.jit.load(input_model, weights_only=True)  # load in weights-only mode to avoid executing user code in __setstate__
         model.eval()
         decoder = TorchScriptPythonDecoder(
             model,
