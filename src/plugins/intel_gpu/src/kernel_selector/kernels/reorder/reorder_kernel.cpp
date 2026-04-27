@@ -20,6 +20,9 @@ ParamsKey ReorderKernelRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::INT64);
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
+    k.EnableInputDataType(Datatype::F8E4M3);
+    k.EnableInputDataType(Datatype::F8E5M2);
+    k.EnableInputDataType(Datatype::F8E8M0);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::INT8);
@@ -32,6 +35,9 @@ ParamsKey ReorderKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::UINT4);
     k.EnableOutputDataType(Datatype::INT4);
     k.EnableOutputDataType(Datatype::BF16);
+    k.EnableOutputDataType(Datatype::F8E4M3);
+    k.EnableOutputDataType(Datatype::F8E5M2);
+    k.EnableOutputDataType(Datatype::F8E8M0);
     k.EnableSurfaceInputSupport();
     k.EnableDifferentTypes();
     k.EnableAllInputLayout();
@@ -83,6 +89,11 @@ JitConstants ReorderKernelRef::GetJitConstants(const reorder_params& params) con
     if ( params.outputs[0].GetDType() == Datatype::INT4 ) {
          jit.AddConstant(MakeJitConstant("INT4_OUTPUT", true));
     }
+
+    jit.AddConstant(MakeJitConstant("F8E5M2_INPUT", params.inputs[0].GetDType() == Datatype::F8E5M2 ? 1 : 0));
+    jit.AddConstant(MakeJitConstant("F8E4M3_INPUT", params.inputs[0].GetDType() == Datatype::F8E4M3 ? 1 : 0));
+    jit.AddConstant(MakeJitConstant("F8E5M2_OUTPUT", params.outputs[0].GetDType() == Datatype::F8E5M2 ? 1 : 0));
+    jit.AddConstant(MakeJitConstant("F8E4M3_OUTPUT", params.outputs[0].GetDType() == Datatype::F8E4M3 ? 1 : 0));
 
     return jit;
 }

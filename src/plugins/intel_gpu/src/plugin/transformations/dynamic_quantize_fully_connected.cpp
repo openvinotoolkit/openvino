@@ -13,6 +13,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/utils.hpp"
 #include "openvino/core/graph_util.hpp"
 
 namespace ov::intel_gpu {
@@ -46,7 +47,6 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
 
         const bool has_wzp = m_fc->get_input_size() > 4;
         auto optional_w_zp = has_wzp ? m_fc->get_input_node_shared_ptr(4) : std::make_shared<ov::intel_gpu::op::Placeholder>();
-        auto rank = m_fc->get_input_partial_shape(0).size();
         ov::op::internal::DynamicQuantize::Attributes config;
         const bool has_static_wzp = m_fc->get_input_size() > 4 && optional_w_zp->get_output_partial_shape(0).rank().is_static();
         const bool is_wei_i8_u8 = cldnn::one_of(m_fc->get_input_element_type(1), {ov::element::i8, ov::element::u8});
@@ -84,6 +84,7 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
             return false;
         }
 
+        const auto rank = m_fc->get_input_partial_shape(0).size();
         if (adj_group_size < 32) {
             GPU_DEBUG_LOG << "Dynamic quantization: quantized activation by group size " << adj_group_size
                             << " is not supported by onednn matmul if it is less than 32" << std::endl;
@@ -93,9 +94,23 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
         std::vector<uint64_t> shape_group_size(rank, 1);
         shape_group_size.back() = adj_group_size;
 
-        config.quantization_dt = element::i8;
+        auto weight_dtype = m_fc->get_input_element_type(1);
+        auto scale_dtype = m_fc->get_input_element_type(3);
+        if (weight_dtype.is_integral()) {
+            config.quantization_dt = element::i8;
+        } else if (weight_dtype == element::f8e4m3) {
+            config.quantization_dt = element::f8e4m3;
+        } else if (weight_dtype == element::f8e5m2) {
+            config.quantization_dt = element::f8e5m2;
+        } else if (weight_dtype == element::f4e2m1) {
+            config.quantization_dt = element::f4e2m1;
+        } else {
+            OPENVINO_THROW("Unexpected weight data type: " + weight_dtype.to_string());
+        }
+        const bool is_mxfp = scale_dtype == element::f8e8m0;
+
         config.quantization_type = QuantizationType::Symmetric;
-        config.scale_dt = element::f16;
+        config.scale_dt = is_mxfp ? element::f8e8m0 : element::f16;
         config.group_sizes = shape_group_size;
 
         if (asymmetric && adj_group_size == UINT64_MAX) {
@@ -104,7 +119,26 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
             config.zp_dt = element::u8; // it supports u8 only now
         }
 
-        auto dyn_quan = std::make_shared<ov::op::internal::DynamicQuantize>(m_fc->input_value(0), config);
+        std::shared_ptr<ov::op::internal::DynamicQuantize> dyn_quan = nullptr;
+
+        // If the parent already has an identical dynamic quantize as a user, reuse it instead of creating a new one.
+        const auto siblings = m_fc->get_input_node_shared_ptr(0)->get_users();
+        for (const auto& sibling : siblings) {
+            if (auto dyn_quan_sibling = as_type_ptr<ov::op::internal::DynamicQuantize>(sibling)) {
+                if (dyn_quan_sibling->is_config_equal(config)) {
+                    dyn_quan = dyn_quan_sibling;
+                }
+            }
+
+            if (dyn_quan) {
+                break;
+            }
+        }
+
+        if (!dyn_quan) {
+            dyn_quan = std::make_shared<ov::op::internal::DynamicQuantize>(m_fc->input_value(0), config);
+        }
+
         int dyn_quan_output_idx = 2;
         auto optional_a_zp = config.quantization_type == QuantizationType::Symmetric ?
                                 std::make_shared<ov::intel_gpu::op::Placeholder>() : dyn_quan->output(dyn_quan_output_idx++);
