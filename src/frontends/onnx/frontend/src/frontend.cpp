@@ -172,8 +172,12 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
     if (variants.empty()) {
         return nullptr;
     }
+
     // enable mmap by default
-    const bool enable_mmap = variants[variants.size() - 1].is<bool>() ? variants[variants.size() - 1].as<bool>() : true;
+    bool enable_mmap = true;
+
+    if (variants.size() > 1 && variants[1].is<bool>())
+        enable_mmap = variants[1].as<bool>();
 
     const auto create_iterator_model = [&](const std::filesystem::path& model_path) {
         OPENVINO_DEBUG("[ONNX Frontend] Enabled an experimental GraphIteratorProto interface!!!");
@@ -186,7 +190,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
 
     if (const auto path = get_path_from_any(variants[0])) {
         if (!gi_enabled) {
-            return std::make_shared<InputModel>(path.value().native(), enable_mmap, m_extensions);
+            return std::make_shared<InputModel>(path.value(), enable_mmap, m_extensions);
         }
         return create_iterator_model(path.value());
     }
@@ -194,7 +198,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
         const auto stream = variants[0].as<std::istream*>();
         if (variants.size() > 1)
             if (const auto path = get_path_from_any(variants[1])) {
-                return std::make_shared<InputModel>(*stream, path.value().native(), enable_mmap, m_extensions);
+                return std::make_shared<InputModel>(*stream, path.value(), enable_mmap, m_extensions);
             }
         return std::make_shared<InputModel>(*stream, enable_mmap, m_extensions);
     }
@@ -209,10 +213,19 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
         return std::make_shared<InputModel>(std::make_shared<ModelProto>(*model_proto_ptr), m_extensions);
     }
     // !!! End of Experimental feature
+
     if (variants[0].is<GraphIterator::Ptr>()) {
         auto graph_iterator = variants[0].as<GraphIterator::Ptr>();
+        bool reuse_const_data = false;
+
+        if (variants.size() > 2 && variants[2].is<bool>())
+            reuse_const_data = variants[2].as<bool>();
+
         // enable_mmap is a hint for a fallback in case external GraphIterator cannot work with external data
-        return std::make_shared<unify::InputModel>(graph_iterator, enable_mmap, m_extensions.telemetry);
+        auto inputModel =
+            std::make_shared<unify::InputModel>(graph_iterator, enable_mmap, m_extensions.telemetry, reuse_const_data);
+
+        return inputModel;
     }
     return nullptr;
 }

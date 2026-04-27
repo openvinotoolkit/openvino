@@ -806,7 +806,8 @@ cldnn::format_traits convert_memory_desc_to_traits(const dnnl::memory::desc& des
 
     std::vector<std::pair<size_t, int>> block_sizes(inner_nblks);
     for (int i = 0; i < inner_nblks; i++) {
-        block_sizes[i] = std::make_pair(inner_idxs[i] + (is_grouped && inner_idxs[i] == 0 ? 9 : 0) + (is_grouped ? -1 : 0), inner_blks[i]);
+        const auto idx = inner_idxs[i] + (is_grouped && inner_idxs[i] == 0 ? 9 : 0) + (is_grouped ? -1 : 0);
+        block_sizes[i] = {static_cast<size_t>(idx), static_cast<int>(inner_blks[i])};
     }
 
     // all fmts has at least batch and feature dim for now
@@ -832,7 +833,7 @@ cldnn::format_traits convert_memory_desc_to_traits(const dnnl::memory::desc& des
         auto pos = outer_order.find(c);
         OPENVINO_ASSERT(pos != std::string::npos, "[GPU] Unknown coord type: ", c);
 
-        logic_block_sizes[i] = std::make_pair(order[pos], inner_blks[i]);
+        logic_block_sizes[i] = std::make_pair(order[pos], static_cast<int>(inner_blks[i]));
     }
 
     format_traits traits;
