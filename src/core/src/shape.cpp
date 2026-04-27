@@ -15,17 +15,6 @@ std::ostream& ov::operator<<(std::ostream& s, const Shape& shape) {
     return s;
 }
 
-namespace {
-size_t stringToSizeT(const std::string& valStr) {
-    size_t ret{0};
-    std::istringstream ss(valStr);
-    if (!ss.eof()) {
-        ss >> ret;
-    }
-    return ret;
-}
-}  // namespace
-
 ov::Shape::Shape() : std::vector<size_t>() {}
 
 ov::Shape::Shape(const std::initializer_list<size_t>& axis_lengths) : std::vector<size_t>(axis_lengths) {}
@@ -38,17 +27,23 @@ ov::Shape::Shape(size_t n, size_t initial_value) : std::vector<size_t>(n, initia
 
 ov::Shape::Shape(const std::string& value) {
     auto val = ov::util::trim(value);
-    if (val[0] == '[' && val[val.size() - 1] == ']')
-        val = val.substr(1, val.size() - 2);
-    val = ov::util::trim(val);
-    std::vector<size_t> dims;
-    std::stringstream ss(val);
-    std::string field;
-    while (getline(ss, field, ',')) {
-        OPENVINO_ASSERT(!field.empty(), "Cannot get vector of dimensions! \"" + value + "\" is incorrect");
-        dims.insert(dims.end(), stringToSizeT(field));
+    if (!val.empty() && val[0] == '[' && val[val.size() - 1] == ']') {
+        val.remove_prefix(1);
+        val.remove_suffix(1);
+        val = ov::util::trim(val);
     }
-    *this = dims;
+
+    util::view_transform_if(
+        val,
+        std::back_inserter(*this),
+        ",",
+        [](auto&& dim_field) {
+            OPENVINO_ASSERT(!dim_field.empty(), "Cannot get vector of dimensions! \"", dim_field, "\" is incorrect");
+            return true;
+        },
+        [](auto&& dim_field) {
+            return util::view_to_number<size_t>(util::trim(dim_field)).value_or(0);
+        });
 }
 
 ov::Shape::~Shape() = default;
