@@ -13,6 +13,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
@@ -41,13 +42,20 @@ UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
     auto input_b_rope_m = wrap_type<ov::op::internal::RoPE>({any_input(), any_input(), any_input()});
     auto input_c_kvcache_m = wrap_type<ov::intel_gpu::op::KVCache>({any_input(), any_input()});
     auto input_c_transpose_m = wrap_type<ov::op::v1::Transpose>({any_input(), any_input()});
+    auto input_c_reshape_m = wrap_type<ov::op::v1::Reshape>({any_input(), any_input()});
+
+    auto concat_b_m = wrap_type<ov::op::v0::Concat>({input_b_rope_m, any_input()});
+    auto concat_c_m = wrap_type<ov::op::v0::Concat>({input_c_reshape_m, any_input()});
+
+    auto pre_reshape_input_b_m = std::make_shared<Or>(OutputVector{input_b_rope_m, concat_b_m});
+    auto pre_reshape_input_c_m = std::make_shared<Or>(OutputVector{input_c_transpose_m, input_c_reshape_m, concat_c_m});
 
     auto axes_const_b_m = wrap_type<ov::op::v0::Constant>();
     auto axes_const_c_m = wrap_type<ov::op::v0::Constant>();
     auto unsqueeze_b_m = wrap_type<ov::op::v0::Unsqueeze>({input_b_kvcache_m, axes_const_b_m}, unsqueeze_predicate);
     auto unsqueeze_c_m = wrap_type<ov::op::v0::Unsqueeze>({input_c_kvcache_m, axes_const_c_m}, unsqueeze_predicate);
-    auto pre_reshape_b_m = wrap_type<ov::op::v1::Reshape>({input_b_rope_m, any_input()}, unsqueeze_predicate);
-    auto pre_reshape_c_m = wrap_type<ov::op::v1::Reshape>({input_c_transpose_m, any_input()}, unsqueeze_predicate);
+    auto pre_reshape_b_m = wrap_type<ov::op::v1::Reshape>({pre_reshape_input_b_m, any_input()}, unsqueeze_predicate);
+    auto pre_reshape_c_m = wrap_type<ov::op::v1::Reshape>({pre_reshape_input_c_m, any_input()}, unsqueeze_predicate);
 
     auto broadcast_input_b_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{unsqueeze_b_m, pre_reshape_b_m});
     auto broadcast_input_c_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{unsqueeze_c_m, pre_reshape_c_m});
@@ -143,6 +151,8 @@ UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
             data_inputs.push_back(pattern_map.at(input_c_kvcache_m).get_node_shared_ptr());   // V input from KVCache
         if (pattern_map.find(input_c_transpose_m) != pattern_map.end())
             data_inputs.push_back(pattern_map.at(input_c_transpose_m).get_node_shared_ptr()); // V input from Transpose
+        if (pattern_map.find(input_c_reshape_m) != pattern_map.end())
+            data_inputs.push_back(pattern_map.at(input_c_reshape_m).get_node_shared_ptr()); // V input from Reshape
 
         auto sdpa = ov::as_type_ptr<op::SDPA>(m.get_match_root());
         if (pattern_map.find(sdpa_with_attn_mask_m) != pattern_map.end()) {
