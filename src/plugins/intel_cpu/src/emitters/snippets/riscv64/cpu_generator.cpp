@@ -105,8 +105,10 @@
 
 #ifdef SNIPPETS_DEBUG_CAPS
 #    include "emitters/snippets/riscv64/jit_debug_emitter.hpp"
+#    include "emitters/snippets/riscv64/jit_perf_count_chrono_emitters.hpp"
 #    include "emitters/snippets/riscv64/jit_segfault_detector_emitter.hpp"
 #    include "emitters/snippets/riscv64/verbose.hpp"
+#    include "snippets/op/perf_count.hpp"
 #endif
 
 #define CREATE_GELU_V7_EMITTER(e_type_erf, e_type_tanh)                                           \
@@ -300,6 +302,13 @@ CPUTargetMachine::CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, o
     jitters[snippets::op::KernelDynamic::get_type_info_static()] =
         emitter_factory.from_expr<jit_kernel_dynamic_emitter>();
 
+#ifdef SNIPPETS_DEBUG_CAPS
+    jitters[snippets::op::PerfCountBegin::get_type_info_static()] =
+        emitter_factory.from_expr<jit_perf_count_chrono_start_emitter>();
+    jitters[snippets::op::PerfCountEnd::get_type_info_static()] =
+        emitter_factory.from_expr<jit_perf_count_chrono_end_emitter>();
+#endif
+
     // fused operations
     jitters[intel_cpu::FusedMulAdd::get_type_info_static()] = emitter_factory.from_node<jit_mul_add_emitter>();
 
@@ -458,7 +467,9 @@ bool CPUGenerator::uses_precompiled_kernel([[maybe_unused]] const std::shared_pt
     bool need = false;
 #ifdef SNIPPETS_DEBUG_CAPS
     const auto cpu_target_machine = std::dynamic_pointer_cast<CPUTargetMachine>(target);
-    need = need || (cpu_target_machine && cpu_target_machine->debug_config.enable_segfault_detector);
+    need = need || (cpu_target_machine && cpu_target_machine->debug_config.enable_segfault_detector) ||
+           std::dynamic_pointer_cast<jit_perf_count_chrono_start_emitter>(e) ||
+           std::dynamic_pointer_cast<jit_perf_count_chrono_end_emitter>(e);
 #endif
     return need;
 }
