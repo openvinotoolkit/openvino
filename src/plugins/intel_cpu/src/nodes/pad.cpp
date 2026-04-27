@@ -53,6 +53,10 @@ bool Pad::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
             return false;
         }
 
+        if (op->get_input_element_type(0) == element::string) {
+            return false;
+        }
+
         const auto* pad = ov::as_type<const op::util::PadBase>(op.get());
         const auto pad_mode = pad->get_pad_mode();
         if (none_of(pad_mode, op::PadMode::CONSTANT, op::PadMode::EDGE, op::PadMode::REFLECT, op::PadMode::SYMMETRIC)) {
@@ -429,7 +433,6 @@ void Pad::PadExecutor::exec(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemP
 
 void Pad::execute([[maybe_unused]] const dnnl::stream& strm) {
     CPU_NODE_ASSERT(execPtr, "has not compiled executor.");
-
     execPtr->exec(getSrcMemoryAtPort(0), getDstMemoryAtPort(0));
 }
 
