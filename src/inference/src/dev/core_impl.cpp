@@ -30,6 +30,7 @@
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/single_file_storage.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
+#include "openvino/runtime/weightless_properties_utils.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/log.hpp"
@@ -885,6 +886,15 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
             return ModelCache::compute_hash(model, cache_content.m_model_path, compiled_config);
         });
         cache_content.model = model;
+
+        if (ov::util::is_weightless_enabled(config).value_or(false)) {
+            const auto& rt_info = model->get_rt_info();
+            auto weights_path = rt_info.find("__weights_path");
+            if (weights_path != rt_info.end()) {
+                parsed.m_config[ov::weights_path.name()] = weights_path->second;
+            }
+        }
+
         const auto lock = m_cache_guard.get_hash_lock(cache_content.m_blob_id);
         compiled_model = load_model_from_cache(cache_content, plugin, parsed.m_config, {}, [&]() {
             return compile_model_and_cache(plugin, model, parsed.m_config, {}, cache_content);

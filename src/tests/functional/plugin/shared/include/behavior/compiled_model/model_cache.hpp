@@ -5,11 +5,9 @@
 #include "gtest/gtest.h"
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace test {
-namespace behavior {
+namespace ov::test::behavior {
 
-typedef std::tuple<bool, bool, ov::element::Type, ov::element::Type, ov::AnyMap, const char*>
+typedef std::tuple<bool, ov::element::Type, ov::element::Type, ov::AnyMap, const char*>
     WeightlessCacheAccuracyTestParams;
 
 class WeightlessCacheAccuracy : public ::testing::Test, public ::testing::WithParamInterface<WeightlessCacheAccuracyTestParams> {
@@ -18,12 +16,12 @@ public:
 
 protected:
     std::shared_ptr<ov::Model> m_model;
-    std::string m_xml_path;
-    std::string m_bin_path;
-    std::string m_cache_path;
-    std::string m_cache_dir;
+    std::filesystem::path m_xml_path;
+    std::filesystem::path m_bin_path;
+    std::filesystem::path m_cache_path;
+    std::filesystem::path m_cache_dir_ir;
+    std::filesystem::path m_cache_dir_model;
     const char* m_target_device;
-    bool m_use_compile_model_api;
     bool m_do_encryption;
     ov::element::Type m_inference_mode;
     ov::element::Type m_model_dtype;
@@ -52,6 +50,4 @@ static const std::vector<ov::element::Type> low_precision_dtypes = {
     ov::element::i4,
 };
 
-}  // namespace behavior
-}  // namespace test
-}  // namespace ov
+}  // namespace ov::test::behavior

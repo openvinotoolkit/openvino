@@ -460,9 +460,8 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             }
         } else if (key == ov::cache_mode.name()) {
             try {
-                m_cache_mode = val.as<ov::CacheMode>();
                 if (const auto enable_weightless = ov::util::is_weightless_enabled(prop); enable_weightless) {
-                    enableWeightless = *enable_weightless;
+                    m_enable_weightless = *enable_weightless;
                 }
             } catch (...) {
                 OPENVINO_THROW("Wrong value for property key ", ov::cache_mode.name());
@@ -478,7 +477,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             }
         } else if (key == ov::enable_weightless.name()) {
             try {
-                enableWeightless = val.as<bool>();
+                m_enable_weightless = val.as<bool>();
             } catch (...) {
                 OPENVINO_THROW("Wrong value for property key ", ov::enable_weightless.name());
             }
