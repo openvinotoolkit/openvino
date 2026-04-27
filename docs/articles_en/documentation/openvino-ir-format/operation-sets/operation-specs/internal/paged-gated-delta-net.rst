@@ -50,8 +50,9 @@ value head ``h_v`` (``0 .. v_num_heads - 1``), where the corresponding query/key
     # Project with query to get output
     output[t, h_v] = q[t, h_q] @ S[h_v].transpose(1, 0)              # shape: [value_head_dim]
 
-The recurrent state is initialized to an all-zeros tensor. It is updated token by token within
-each sequence in causal order. The operation caches intermediate states at regular intervals
+For new input sequence the initial recurrent state should be zeroed. User can set own state if needed.
+It is updated token by token within each sequence in causal order.
+The operation caches intermediate states at regular intervals
 (controlled per sequence by ``cache_interval``) into the paged ``recurrent_state_table``, allowing
 efficient prefill replay and incremental decode.
 
@@ -67,13 +68,10 @@ These indices address rows in ``recurrent_state_table``. The first block stores 
 When ``cache_interval[s] <= 0``, no state caching is performed for that sequence.
 
 The ``num_processed_tokens[s]`` value indicates how many tokens have already been processed for sequence
-``s``. Combined with the cached blocks, it determines the starting state for new tokens:
-the most recent cached block before ``num_processed_tokens[s]`` is loaded, and the remaining
-tokens up to ``num_processed_tokens[s]`` are replayed from that checkpoint.
-
-Denote ``num_current_tokens[s]`` as the number of current tokens to process.
+``s``. Denote ``num_current_tokens[s]`` as the number of current tokens to process.
 It can be computed as: ``subsequence_begins[s+1] - subsequence_begins[s]``.
-Then `N`, the number of blocks for writing, is computed as: ``(num_current_tokens[s] + cache_interval[s] - 1) // cache_interval[s]``
+Then `N`, the number of blocks for writing, is computed as:
+``N = ceil((num_processed_tokens[s] % cache_interval[s] + num_current_tokens[s]) / cache_interval[s])``
 Let the blocks passed through `la_block_indices` be indexed as block `0, 1, ..., N`.
 Cases for reading and updating blocks:
 
