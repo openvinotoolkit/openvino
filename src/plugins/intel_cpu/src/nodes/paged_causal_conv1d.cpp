@@ -10,6 +10,7 @@
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include "graph_context.h"
@@ -51,8 +52,24 @@ void PagedCausalConv1D::initSupportedPrimitiveDescriptors() {
         return;
     }
 
-    const auto data_precision = ov::element::f32;
+    // Natively accept f32/f16/bf16 on the float-typed ports. The kernel treats input_embeds,
+    // conv_weight, conv_bias and output uniformly as DataT; we declare all of them with the
+    // same precision as input_embeds (port 0). Upstream passes (constant folding, ConvertPrecision,
+    // enforceInferencePrecision) or an inserted reorder are expected to make the incoming
+    // weight/bias edges match this declared precision by the time execute() runs.
+    // conv_state_table (port 1) is declared independently; the kernel converts its elements
+    // to/from f32 during accumulation and write-back.
+    const auto data_precision = getOriginalInputPrecisionAtPort(0);
+    OPENVINO_ASSERT(
+        data_precision == ov::element::f32 || data_precision == ov::element::f16 || data_precision == ov::element::bf16,
+        "PagedCausalConv1D supports only f32/f16/bf16 input_embeds precision, got ",
+        data_precision);
     const auto state_precision = getOriginalInputPrecisionAtPort(1);
+    OPENVINO_ASSERT(state_precision == ov::element::f32 || state_precision == ov::element::f16 ||
+                        state_precision == ov::element::bf16,
+                    "PagedCausalConv1D supports only f32/f16/bf16 conv_state_table precision, got ",
+                    state_precision);
+
     std::vector<PortConfigurator> input_configs;
     input_configs.reserve(getParentEdges().size());
     input_configs.emplace_back(LayoutType::ncsp, data_precision, getInputShapeAtPort(0), false, -1);
@@ -103,18 +120,19 @@ void PagedCausalConv1D::execute([[maybe_unused]] const dnnl::stream& strm) {
 
     const bool has_bias = bias_shape[0] != 0;
 
-    const auto* input_embeds = getSrcDataAtPortAs<const float>(0);
+    const auto data_precision = getSrcMemoryAtPort(0)->getDescPtr()->getPrecision();
     const auto state_precision = getSrcMemoryAtPort(1)->getDescPtr()->getPrecision();
+    auto* input_embeds_raw = getSrcMemoryAtPort(0)->getData();
     auto* conv_state_raw = getSrcMemoryAtPort(1)->getData();
-    const auto* conv_weight = getSrcDataAtPortAs<const float>(2);
-    const float* conv_bias = has_bias ? getSrcDataAtPortAs<const float>(3) : nullptr;
+    auto* conv_weight_raw = getSrcMemoryAtPort(2)->getData();
+    auto* conv_bias_raw = has_bias ? getSrcMemoryAtPort(3)->getData() : nullptr;
     const auto* subsequence_begins = getSrcDataAtPortAs<const int32_t>(4);
     const auto* block_indices = getSrcDataAtPortAs<const int32_t>(5);
     const auto* block_indices_begins = getSrcDataAtPortAs<const int32_t>(6);
     const auto* past_lens = getSrcDataAtPortAs<const int32_t>(7);
     const auto* cache_interval = getSrcDataAtPortAs<const int32_t>(8);
 
-    auto* output_embeds = getDstDataAtPortAs<float>(0);
+    auto* output_embeds_raw = getDstMemoryAtPort(0)->getData();
 
     const auto& subseq_shape = getSrcMemoryAtPort(4)->getStaticDims();
     OPENVINO_ASSERT(!subseq_shape.empty(), "PagedCausalConv1D expects non-empty subsequence_begins input.");
@@ -124,7 +142,12 @@ void PagedCausalConv1D::execute([[maybe_unused]] const dnnl::stream& strm) {
     const size_t state_stride = hidden_size * kernel_size;
     std::vector<float> local_state(state_stride);
 
-    auto dispatch_kernel = [&](auto* conv_state_table) {
+    auto dispatch_state = [&](auto* data_tag, auto* conv_state_table) {
+        using DataT = std::remove_pointer_t<decltype(data_tag)>;
+        const auto* input_embeds = static_cast<const DataT*>(input_embeds_raw);
+        const auto* conv_weight = static_cast<const DataT*>(conv_weight_raw);
+        const auto* conv_bias = has_bias ? static_cast<const DataT*>(conv_bias_raw) : nullptr;
+        auto* output_embeds = static_cast<DataT*>(output_embeds_raw);
         kernels::paged_causal_conv1d_optimized(input_embeds,
                                                conv_state_table,
                                                conv_weight,
@@ -144,16 +167,31 @@ void PagedCausalConv1D::execute([[maybe_unused]] const dnnl::stream& strm) {
                                                local_state.data());
     };
 
-    if (state_precision == ov::element::f32) {
-        dispatch_kernel(static_cast<float*>(conv_state_raw));
-    } else if (state_precision == ov::element::f16) {
-        dispatch_kernel(static_cast<ov::float16*>(conv_state_raw));
-    } else if (state_precision == ov::element::bf16) {
-        dispatch_kernel(static_cast<ov::bfloat16*>(conv_state_raw));
+    auto dispatch_data = [&](auto* data_tag) {
+        if (state_precision == ov::element::f32) {
+            dispatch_state(data_tag, static_cast<float*>(conv_state_raw));
+        } else if (state_precision == ov::element::f16) {
+            dispatch_state(data_tag, static_cast<ov::float16*>(conv_state_raw));
+        } else if (state_precision == ov::element::bf16) {
+            dispatch_state(data_tag, static_cast<ov::bfloat16*>(conv_state_raw));
+        } else {
+            OPENVINO_ASSERT(false,
+                            "PagedCausalConv1D: unsupported conv_state_table precision ",
+                            state_precision,
+                            ". Expected f32, f16, or bf16.");
+        }
+    };
+
+    if (data_precision == ov::element::f32) {
+        dispatch_data(static_cast<float*>(nullptr));
+    } else if (data_precision == ov::element::f16) {
+        dispatch_data(static_cast<ov::float16*>(nullptr));
+    } else if (data_precision == ov::element::bf16) {
+        dispatch_data(static_cast<ov::bfloat16*>(nullptr));
     } else {
         OPENVINO_ASSERT(false,
-                        "PagedCausalConv1D: unsupported conv_state_table precision ",
-                        state_precision,
+                        "PagedCausalConv1D: unsupported input_embeds precision ",
+                        data_precision,
                         ". Expected f32, f16, or bf16.");
     }
 }

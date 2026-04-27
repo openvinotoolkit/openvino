@@ -116,12 +116,15 @@ void maybe_flush_state(StateType* conv_state_table,
 
 // Scalar conv1d computation for a channel range [h_begin, h_end).
 // Shifts state, inserts new token, computes dot product with weight.
+// DataT may be f32/bf16/f16 for token_ptr/conv_weight/conv_bias/out_ptr;
+// local_state remains f32 to preserve accumulation precision.
+template <typename DataT>
 inline void conv1d_scalar(float* local_state,
-                          const float* token_ptr,
-                          const float* conv_weight,
-                          const float* conv_bias,
+                          const DataT* token_ptr,
+                          const DataT* conv_weight,
+                          const DataT* conv_bias,
                           bool has_bias,
-                          float* out_ptr,
+                          DataT* out_ptr,
                           size_t h_begin,
                           size_t h_end,
                           size_t kernel_size) {
@@ -130,29 +133,29 @@ inline void conv1d_scalar(float* local_state,
         for (size_t k = 0; k + 1 < kernel_size; k++) {
             state_h[k] = state_h[k + 1];
         }
-        state_h[kernel_size - 1] = token_ptr[h];
+        state_h[kernel_size - 1] = static_cast<float>(token_ptr[h]);
 
-        const float* weight_h = conv_weight + h * kernel_size;
-        float sum = has_bias ? conv_bias[h] : 0.0F;
+        const DataT* weight_h = conv_weight + h * kernel_size;
+        float sum = has_bias ? static_cast<float>(conv_bias[h]) : 0.0F;
         for (size_t k = 0; k < kernel_size; k++) {
-            sum += state_h[k] * weight_h[k];
+            sum += state_h[k] * static_cast<float>(weight_h[k]);
         }
-        out_ptr[h] = sum;
+        out_ptr[h] = static_cast<DataT>(sum);
     }
 }
 
-template <typename StateType>
-void paged_causal_conv1d_ref(const float* input_embeds,
+template <typename DataT, typename StateType>
+void paged_causal_conv1d_ref(const DataT* input_embeds,
                              StateType* conv_state_table,
-                             const float* conv_weight,
-                             const float* conv_bias,
+                             const DataT* conv_weight,
+                             const DataT* conv_bias,
                              bool has_bias,
                              const int32_t* subsequence_begins,
                              const int32_t* block_indices,
                              const int32_t* block_indices_begins,
                              const int32_t* past_lens,
                              const int32_t* cache_interval,
-                             float* output_embeds,
+                             DataT* output_embeds,
                              size_t batch_size_in_tokens,
                              size_t hidden_size,
                              size_t kernel_size,
@@ -249,18 +252,18 @@ void paged_causal_conv1d_ref(const float* input_embeds,
     }
 }
 
-template <typename StateType>
-void paged_causal_conv1d_optimized(const float* input_embeds,
+template <typename DataT, typename StateType>
+void paged_causal_conv1d_optimized(const DataT* input_embeds,
                                    StateType* conv_state_table,
-                                   const float* conv_weight,
-                                   const float* conv_bias,
+                                   const DataT* conv_weight,
+                                   const DataT* conv_bias,
                                    bool has_bias,
                                    const int32_t* subsequence_begins,
                                    const int32_t* block_indices,
                                    const int32_t* block_indices_begins,
                                    const int32_t* past_lens,
                                    const int32_t* cache_interval,
-                                   float* output_embeds,
+                                   DataT* output_embeds,
                                    size_t batch_size_in_tokens,
                                    size_t hidden_size,
                                    size_t kernel_size,
@@ -403,6 +406,7 @@ void paged_causal_conv1d_optimized(const float* input_embeds,
 
 #    if defined(HAVE_AVX512F)
                 if (use_avx512) {
+                    using namespace ov::Extensions::Cpu::XARCH;
                     for (; h + 16 <= h_end; h += 16) {
                         alignas(64) float st[4][16];
                         alignas(64) float wt[4][16];
@@ -413,26 +417,27 @@ void paged_causal_conv1d_optimized(const float* input_embeds,
                             for (size_t k = 0; k + 1 < kernel_size; k++) {
                                 state_h[k] = state_h[k + 1];
                             }
-                            state_h[kernel_size - 1] = token_ptr[ch];
+                            state_h[kernel_size - 1] = static_cast<float>(token_ptr[ch]);
                             for (size_t k = 0; k < kernel_size; k++) {
                                 st[k][i] = state_h[k];
                             }
-                            const float* weight_h = conv_weight + ch * kernel_size;
+                            const DataT* weight_h = conv_weight + ch * kernel_size;
                             for (size_t k = 0; k < kernel_size; k++) {
-                                wt[k][i] = weight_h[k];
+                                wt[k][i] = static_cast<float>(weight_h[k]);
                             }
-                            bias_buf[i] = has_bias ? conv_bias[ch] : 0.0F;
+                            bias_buf[i] = has_bias ? static_cast<float>(conv_bias[ch]) : 0.0F;
                         }
                         __m512 acc = _mm512_loadu_ps(bias_buf);
                         for (size_t k = 0; k < kernel_size; k++) {
                             acc = _mm512_add_ps(acc, _mm512_mul_ps(_mm512_loadu_ps(st[k]), _mm512_loadu_ps(wt[k])));
                         }
-                        _mm512_storeu_ps(out_ptr + h, acc);
+                        mm512_uni_storeu_ps(out_ptr + h, acc);
                     }
                 }
 #    endif
 #    if defined(HAVE_AVX2)
                 if (use_avx2) {
+                    using namespace ov::Extensions::Cpu::XARCH;
                     for (; h + 8 <= h_end; h += 8) {
                         alignas(32) float st[4][8];
                         alignas(32) float wt[4][8];
@@ -443,21 +448,21 @@ void paged_causal_conv1d_optimized(const float* input_embeds,
                             for (size_t k = 0; k + 1 < kernel_size; k++) {
                                 state_h[k] = state_h[k + 1];
                             }
-                            state_h[kernel_size - 1] = token_ptr[ch];
+                            state_h[kernel_size - 1] = static_cast<float>(token_ptr[ch]);
                             for (size_t k = 0; k < kernel_size; k++) {
                                 st[k][i] = state_h[k];
                             }
-                            const float* weight_h = conv_weight + ch * kernel_size;
+                            const DataT* weight_h = conv_weight + ch * kernel_size;
                             for (size_t k = 0; k < kernel_size; k++) {
-                                wt[k][i] = weight_h[k];
+                                wt[k][i] = static_cast<float>(weight_h[k]);
                             }
-                            bias_buf[i] = has_bias ? conv_bias[ch] : 0.0F;
+                            bias_buf[i] = has_bias ? static_cast<float>(conv_bias[ch]) : 0.0F;
                         }
                         __m256 acc = _mm256_loadu_ps(bias_buf);
                         for (size_t k = 0; k < kernel_size; k++) {
                             acc = _mm256_add_ps(acc, _mm256_mul_ps(_mm256_loadu_ps(st[k]), _mm256_loadu_ps(wt[k])));
                         }
-                        _mm256_storeu_ps(out_ptr + h, acc);
+                        mm256_uni_storeu_ps(out_ptr + h, acc);
                     }
                 }
 #    endif
