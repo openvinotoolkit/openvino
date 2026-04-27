@@ -39,20 +39,31 @@ KERNEL(paged_causal_conv1d_ref)
     const int blk_begin = block_indices_begins[seq];
     const int blk_end = block_indices_begins[seq + 1];
 
-    if (token_begin < 0 || token_end < token_begin || blk_end <= blk_begin)
+    if (token_begin < 0 || token_end <= token_begin)
         return;
 
+    const int seq_tokens = token_end - token_begin;
     const int block_span = blk_end - blk_begin;
-    if (block_span <= 1)
+
+    if (blk_end <= blk_begin || block_span <= 1) {
+        for (int t = 0; t < seq_tokens; t++) {
+            const int out_off = (token_begin + t) * output_token_stride + h * output_hidden_stride;
+            output_embeds[out_off] = TO_OUTPUT_TYPE(0.0f);
+        }
         return;
+    }
 
     const int read_physical_block = block_indices[blk_begin];
-    if (read_physical_block < 0 || read_physical_block >= num_blocks)
+    if (read_physical_block < 0 || read_physical_block >= num_blocks) {
+        for (int t = 0; t < seq_tokens; t++) {
+            const int out_off = (token_begin + t) * output_token_stride + h * output_hidden_stride;
+            output_embeds[out_off] = TO_OUTPUT_TYPE(0.0f);
+        }
         return;
+    }
 
     const int seq_interval = cache_interval[seq];
     const int prev_nums = (seq_interval > 0) ? (past_lens[seq] % seq_interval) : 0;
-    const int seq_tokens = token_end - token_begin;
 
     float state[KERNEL_SIZE];
 
