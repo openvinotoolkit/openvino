@@ -674,10 +674,17 @@ void SyncInferRequest::allocate_output(const ov::Output<const ov::Node>& port, s
 
     // For dynamic outputs with USM host support, create an OutputMemoryBlock
     // that will be plugged into the graph to enable zero-copy output.
-    if (shape.is_dynamic() && can_use_usm_host(m_graph->get_engine(), total_output_bytes)) {
+    auto&& engine = m_graph->get_engine();
+    const auto& device_info = engine.get_device_info();
+    // In the case of dynamic shapes, the total_output_bytes is useless as the actual output size is determined only at runtime.
+    // For dGPUs, using USM Host memory for outputs may lead to performance degradation in some scenarios (see can_use_usm_host impl).
+    // We have to be conservative and enable USM Host memory for dynamic outputs only on iGPUs. 
+    if (cldnn::device_type::integrated_gpu == device_info.dev_type &&
+        shape.is_dynamic() &&
+        can_use_usm_host(engine, total_output_bytes)) {
         auto device_et = convert_to_supported_device_type(element_type);
         if (!is_convert_required(device_et, element_type)) {
-            m_output_memory_blocks[output_idx] = std::make_unique<OutputMemoryBlock>(m_graph->get_engine());
+            m_output_memory_blocks[output_idx] = std::make_unique<OutputMemoryBlock>(engine);
         }
     }
 }
