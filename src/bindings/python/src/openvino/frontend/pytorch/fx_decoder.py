@@ -326,7 +326,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         """
         from openvino.frontend.pytorch import quantized
         from openvino.frontend.pytorch.patch_model import (
-            patch_model_for_export, unpatch_model)
+            patch_model_for_export, unpatch_model, _clear_export_cache)
 
         orig_forward_name = "_openvino_module_extension_patch_orig_forward"
 
@@ -369,9 +369,12 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             if ext_patched:
                 unpatch_model(model, orig_forward_name)
 
-        return cls.from_exported_program(
-            exported_program, dynamic_shapes=dynamic_shapes is not None,
-            op_type_mapping=op_type_mapping)
+        try:
+            return cls.from_exported_program(
+                exported_program, dynamic_shapes=dynamic_shapes is not None,
+                op_type_mapping=op_type_mapping)
+        finally:
+            _clear_export_cache()
 
     @staticmethod
     def _export(model, inputs, dynamic_shapes=None):
@@ -583,7 +586,8 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         decoder = TorchFXPythonDecoder(
             subgraph,
             subgraph,  # Use subgraph as fx_gm for proper constant resolution
-            mark_node_callback=self.mark_node_callback
+            mark_node_callback=self.mark_node_callback,
+            op_type_mapping=self._module_extension_target_ops
         )
         self.m_decoders.append(decoder)
         return decoder
@@ -595,13 +599,8 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             else:
                 name = str(self.pt_module.target)
             if self._module_extension_target_ops:
-                # Convert FX dotted name to target_op style:
-                # "namespace.op_name.overload" → "namespace::op_name"
-                parts = name.split(".")
-                if len(parts) >= 2:
-                    candidate = parts[0] + "::" + ".".join(parts[1:-1])
-                    if candidate in self._module_extension_target_ops:
-                        return self._module_extension_target_ops[candidate]
+                if name in self._module_extension_target_ops:
+                    return self._module_extension_target_ops[name]
             return name
         elif self.pt_module.op == "get_attr":
             return "get_attr"  # FIXME should be aligned with get_attr from TS implementation

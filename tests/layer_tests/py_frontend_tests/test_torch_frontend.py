@@ -311,6 +311,15 @@ class CosModel(torch.nn.Module):
         return torch.cos(x.to(torch.float32))
 
 
+class ModelWithCosModule(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.cos_module = CosModel()
+
+    def forward(self, x):
+        return self.cos_module(x)
+
+
 def test_op_extension():
     from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino.frontend.pytorch import OpExtension
@@ -471,75 +480,102 @@ def test_multiple_module_extension():
         "Parameter", "Sin", "Tan", "Add", "Result"]
 
 
-def test_module_extension_dynamo():
-    """Verify ModuleExtension works with convert_model(dynamo=True) via torch.export."""
+@pytest.mark.parametrize("match_key_fn", [
+    pytest.param(lambda m: type(m.cos_module), id="by_class"),
+    pytest.param(lambda m: m.cos_module, id="by_instance"),
+    pytest.param(lambda m: "cos_module", id="by_name"),
+])
+def test_module_extension_dynamo_match(match_key_fn):
+    """ModuleExtension matches by class, instance, or name with dynamo=True."""
     from openvino.frontend.pytorch import ModuleExtension, ConversionExtension
     from openvino import convert_model
-
-    class ModelWithModule(torch.nn.Module):
-        def __init__(self):
-            super().__init__()
-            self.cos_module = CosModel()
-
-        def forward(self, x):
-            return self.cos_module(x)
 
     def sin_op(context):
         return ops.sin(context.get_input(0)).outputs()
 
-    # Match by class, instance, and name
-    for match_key_fn in [
-        lambda m: CosModel,          # by class
-        lambda m: m.cos_module,       # by instance
-        lambda m: "cos_module",       # by name
-    ]:
-        model = ModelWithModule()
-        converted_model = convert_model(
-            model, example_input=[torch.randn(100)], dynamo=True,
-            extension=[
-                ModuleExtension(match_key_fn(model), "MySinOp"),
-                ConversionExtension("MySinOp", sin_op)])
-        assert converted_model
-        assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
-            "Parameter", "Sin", "Result"]
+    model = ModelWithCosModule()
+    converted_model = convert_model(
+        model, example_input=[torch.randn(100)], dynamo=True,
+        extension=[
+            ModuleExtension(match_key_fn(model), "MySinOp"),
+            ConversionExtension("MySinOp", sin_op)])
+    assert converted_model
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
+        "Parameter", "Sin", "Result"]
+    assert converted_model.get_results()[0].get_output_partial_shape(0) == \
+        PartialShape([100])
 
-    # Condition: should not apply when condition returns False
-    model = ModelWithModule()
-    model.cos_module.flag = False
+
+def test_module_extension_dynamo_condition():
+    """ModuleExtension condition callback controls whether extension is applied."""
+    from openvino.frontend.pytorch import ModuleExtension, ConversionExtension
+    from openvino import convert_model
+
+    def sin_op(context):
+        return ops.sin(context.get_input(0)).outputs()
+
     me = ModuleExtension(CosModel, "MySinOp",
                          condition=lambda m: getattr(m, "flag", False))
+
+    # condition False → extension skipped, original Cos runs
+    model = ModelWithCosModule()
+    model.cos_module.flag = False
     converted_model = convert_model(
         model, example_input=[torch.randn(100)], dynamo=True,
         extension=[me, ConversionExtension("MySinOp", sin_op)])
-    assert converted_model
     assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
         "Parameter", "Cos", "Result"]
 
-    # Condition: should apply when condition returns True
-    model = ModelWithModule()
+    # condition True → extension applies, Sin replaces Cos
+    model = ModelWithCosModule()
     model.cos_module.flag = True
     converted_model = convert_model(
         model, example_input=[torch.randn(100)], dynamo=True,
         extension=[me, ConversionExtension("MySinOp", sin_op)])
-    assert converted_model
     assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
         "Parameter", "Sin", "Result"]
 
-    # Verify model is unpatched after conversion
+
+def test_module_extension_dynamo_unpatch():
+    """Model is unpatched after conversion (no leftover attributes)."""
+    from openvino.frontend.pytorch import ModuleExtension, ConversionExtension
+    from openvino import convert_model
+
+    def sin_op(context):
+        return ops.sin(context.get_input(0)).outputs()
+
+    model = ModelWithCosModule()
+    convert_model(
+        model, example_input=[torch.randn(100)], dynamo=True,
+        extension=[
+            ModuleExtension(CosModel, "MySinOp"),
+            ConversionExtension("MySinOp", sin_op)])
+
     for _, m in model.named_modules():
         assert not hasattr(m, "_openvino_module_extension_patch_orig_forward")
 
-    # Reuse existing FX conversion by specifying FX-style op name as target_op
-    # (no ConversionExtension needed — resolved from built-in FX op table)
-    model = ModelWithModule()
+
+def test_module_extension_dynamo_fx_op_reuse():
+    """FX-style op name as target_op reuses built-in FX translator."""
+    from openvino.frontend.pytorch import ModuleExtension
+    from openvino import convert_model
+
+    model = ModelWithCosModule()
     converted_model = convert_model(
         model, example_input=[torch.randn(100)], dynamo=True,
         extension=[ModuleExtension(CosModel, "aten.sin.default")])
     assert converted_model
     assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
         "Parameter", "Sin", "Result"]
+    assert converted_model.get_results()[0].get_output_partial_shape(0) == \
+        PartialShape([100])
 
-    # Multi-input module: op schema is generated with correct arity
+
+def test_module_extension_dynamo_multi_input():
+    """Multi-input module: schema generated with correct arity."""
+    from openvino.frontend.pytorch import ModuleExtension, ConversionExtension
+    from openvino import convert_model
+
     class AddModule(torch.nn.Module):
         def forward(self, x, y):
             return x + y
@@ -553,25 +589,28 @@ def test_module_extension_dynamo():
             return self.add_mod(a, b)
 
     def mul_op(context):
-        return ops.multiply(context.get_input(0), context.get_input(1)).outputs()
+        return ops.multiply(context.get_input(0),
+                            context.get_input(1)).outputs()
 
     model = ModelWithAdd()
     converted_model = convert_model(
-        model, example_input=[torch.randn(100), torch.randn(100)], dynamo=True,
+        model, example_input=[torch.randn(100), torch.randn(100)],
+        dynamo=True,
         extension=[
             ModuleExtension(AddModule, "MyMulOp"),
             ConversionExtension("MyMulOp", mul_op)])
     assert converted_model
     assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
         "Parameter", "Parameter", "Multiply", "Result"]
+    assert converted_model.get_results()[0].get_output_partial_shape(0) == \
+        PartialShape([100])
 
 
 def test_module_extension_dynamo_weight_carrying():
-    """Verify ModuleExtension for modules whose convert() passes extra module
-    parameters (weight, bias, scalars) to target_op — not just forward args.
+    """convert() passes extra module params (weight, bias) to target_op.
 
-    The auto-registered torch.library schema must match what convert()
-    actually calls, not the module.forward signature.
+    The auto-registered schema must match what convert() actually calls
+    (3 args: input, weight, bias), not the forward signature (1 arg: x).
     """
     from openvino.frontend.pytorch import ModuleExtension, ConversionExtension
     from openvino import convert_model
@@ -593,8 +632,6 @@ def test_module_extension_dynamo_weight_carrying():
         def forward(self, x):
             return self.linear(x)
 
-    # convert passes 3 args to target_op (input, weight, bias)
-    # but forward only has 1 positional param (x).
     def custom_convert(module, target_op, *args, **kwargs):
         return target_op(args[0], module.weight, module.bias)
 
@@ -612,8 +649,16 @@ def test_module_extension_dynamo_weight_carrying():
     assert converted_model
     op_types = [n.get_type_name() for n in converted_model.get_ordered_ops()]
     assert "MatMul" in op_types
+    # Weight is [5, 10], input is [2, 10], MatMul(input, weight^T) → [2, 5]
+    assert converted_model.get_results()[0].get_output_partial_shape(0) == \
+        PartialShape([2, 5])
 
-    # Scalar args: convert passes int/bool alongside tensors
+
+def test_module_extension_dynamo_scalar_args():
+    """convert() passes scalar args (int, bool) alongside tensors."""
+    from openvino.frontend.pytorch import ModuleExtension, ConversionExtension
+    from openvino import convert_model
+
     class ScalarArgModule(torch.nn.Module):
         def __init__(self):
             super().__init__()
@@ -645,10 +690,24 @@ def test_module_extension_dynamo_weight_carrying():
                             convert=scalar_convert),
             ConversionExtension("ScalarOp", pass_op)])
     assert converted_model
+    # pass_op returns input unchanged; verify shape preserved
+    assert converted_model.get_results()[0].get_output_partial_shape(0) == \
+        PartialShape([100])
+    # Verify the custom op was used (no original Multiply ops from forward)
+    op_types = [n.get_type_name() for n in converted_model.get_ordered_ops()]
+    assert "Parameter" in op_types
+    assert "Result" in op_types
 
-    # Shape-changing module: input (2, 10) → output (2, 5).
-    # The Meta impl must use evaluate to infer the correct output shape;
-    # otherwise downstream ops see the wrong shape and export fails.
+
+def test_module_extension_dynamo_shape_changing():
+    """Shape-changing module: input [2,10] → output [2,5].
+
+    The Meta impl must use evaluate to infer correct output shape;
+    otherwise downstream ops see the wrong shape and export fails.
+    """
+    from openvino.frontend.pytorch import ModuleExtension, ConversionExtension
+    from openvino import convert_model
+
     class ShapeChangingModule(torch.nn.Module):
         def __init__(self, in_features, out_features):
             super().__init__()
@@ -688,31 +747,23 @@ def test_module_extension_dynamo_weight_carrying():
     op_types = [n.get_type_name() for n in converted_model.get_ordered_ops()]
     assert "MatMul" in op_types
     assert "Add" in op_types
+    # Final output shape must be [2, 5] (proj [2,10]→[2,5], then + ones(5))
+    assert converted_model.get_results()[0].get_output_partial_shape(0) == \
+        PartialShape([2, 5])
 
 
 def test_module_extension_dynamo_custom_callbacks():
-    """Verify ModuleExtension with non-default evaluate, convert, and condition."""
+    """Custom evaluate, convert, and condition callbacks."""
     from openvino.frontend.pytorch import ModuleExtension, ConversionExtension
     from openvino import convert_model
 
-    class ModelWithModule(torch.nn.Module):
-        def __init__(self):
-            super().__init__()
-            self.cos_module = CosModel()
-
-        def forward(self, x):
-            return self.cos_module(x)
-
     # Custom convert: negate input before calling target_op.
-    # This adds a Negative node before the custom op in the FX graph.
     def custom_convert(module, target_op, *args, **kwargs):
         return target_op(-args[0])
 
-    # Custom evaluate: produce valid output for shape tracing (used by TS path).
     def custom_evaluate(module, *args, **kwargs):
         return torch.zeros_like(args[0])
 
-    # Custom condition: only apply when flag is set.
     def custom_condition(module):
         return getattr(module, "apply_ext", False)
 
@@ -725,28 +776,26 @@ def test_module_extension_dynamo_custom_callbacks():
                          condition=custom_condition)
     ce = ConversionExtension("CustomNegOp", sin_op)
 
-    # Case 1: condition True → extension applies
-    # custom_convert negates input, ConversionExtension converts CustomNegOp → Sin
-    model = ModelWithModule()
+    # condition True → custom_convert negates input, then Sin
+    model = ModelWithCosModule()
     model.cos_module.apply_ext = True
     converted_model = convert_model(
         model, example_input=[torch.randn(100)], dynamo=True,
         extension=[me, ce])
     assert converted_model
     op_types = [n.get_type_name() for n in converted_model.get_ordered_ops()]
-    # custom_convert does: target_op(-x) → negation (Multiply * -1) then Sin
     assert "Sin" in op_types
-    assert "Multiply" in op_types
-    # Original Cos must NOT appear
+    assert "Multiply" in op_types  # negation: x * -1
     assert "Cos" not in op_types
+    assert converted_model.get_results()[0].get_output_partial_shape(0) == \
+        PartialShape([100])
 
-    # Case 2: condition False → extension does NOT apply, original module runs
-    model = ModelWithModule()
+    # condition False → extension skipped, original Cos runs
+    model = ModelWithCosModule()
     model.cos_module.apply_ext = False
     converted_model = convert_model(
         model, example_input=[torch.randn(100)], dynamo=True,
         extension=[me, ce])
-    assert converted_model
     assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
         "Parameter", "Cos", "Result"]
 

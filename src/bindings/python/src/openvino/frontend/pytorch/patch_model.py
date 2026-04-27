@@ -187,7 +187,20 @@ _export_tracing_ctx = threading.local()
 # Populated during dynamo tracing (phase 1 of torch.export) when the
 # evaluate stack is available.  Consumed during aot_export metadata
 # collection (phase 2) when the stack is no longer on the call path.
+# Module-level (not thread-local) because phase 2 may run in a context
+# where thread-local attributes are reset.  Cleared after each export
+# by ``_clear_export_cache()``.
 _meta_shape_cache = {}
+
+
+def _clear_export_cache():
+    """Clear per-export shape cache.
+
+    Called after ``torch.export`` completes to prevent stale shape
+    metadata from leaking across independent exports in long-lived
+    processes.
+    """
+    _meta_shape_cache.clear()
 
 
 def _auto_register_module_extension_op(namespace, op_name, schema_args):
@@ -207,7 +220,15 @@ def _auto_register_module_extension_op(namespace, op_name, schema_args):
 
     with _module_ext_lock:
         if _module_ext_lib is None:
-            kind = "FRAGMENT" if hasattr(torch.ops, namespace) else "DEF"
+            # hasattr() is insufficient: torch.ops.__getattr__ raises
+            # RuntimeError (not AttributeError) for missing namespaces,
+            # so hasattr() may propagate the exception instead of
+            # returning False.
+            try:
+                getattr(torch.ops, namespace)
+                kind = "FRAGMENT"
+            except (AttributeError, RuntimeError):
+                kind = "DEF"
             _module_ext_lib = torch.library.Library(namespace, kind)
 
         if op_name in _module_ext_registered_ops:
@@ -225,8 +246,8 @@ def _auto_register_module_extension_op(namespace, op_name, schema_args):
 
         @torch.library.impl(_module_ext_lib, op_name, "Meta")
         def _meta(*xs):
-            # Build a cache key from tensor shapes/dtypes for cross-phase
-            # shape lookup (phase 1 populates, phase 2 consumes).
+            # Build a cache key from tensor shapes/dtypes for
+            # cross-phase lookup (phase 1 populates, phase 2 consumes).
             cache_key = (op_name,) + tuple(
                 (tuple(a.shape), a.dtype) if isinstance(a, torch.Tensor)
                 else (type(a).__name__, a) for a in xs)
@@ -372,21 +393,23 @@ def patch_model_for_export(model, module_extensions, orig_forward_name):
         # Always register under ov_ext — target_op is just a label.
         # Sanitize dots in op_name (torch.library rejects them).
         safe_op_name = op_name.replace(".", "_")
-        registered_name = f"ov_ext::{safe_op_name}"
+        # Use the FX-style dotted name as the mapping key so that
+        # get_op_type() can do a direct dict lookup without parsing.
+        fx_name = f"ov_ext.{safe_op_name}.default"
 
-        # Detect mapping collisions: same registered_name but different target_op.
-        if (registered_name in op_type_mapping
-                and op_type_mapping[registered_name] != target_op):
+        # Detect mapping collisions: same fx_name but different target_op.
+        if (fx_name in op_type_mapping
+                and op_type_mapping[fx_name] != target_op):
             raise RuntimeError(
                 f"ModuleExtension target_op collision: '{target_op}' and "
-                f"'{op_type_mapping[registered_name]}' both map to "
-                f"registered name '{registered_name}' (after dot "
+                f"'{op_type_mapping[fx_name]}' both map to "
+                f"FX name '{fx_name}' (after dot "
                 "sanitization). Use distinct target_op names.")
 
         # Reuse if already registered (pre-registered or previous extension).
         try:
             op_fn = getattr(torch.ops.ov_ext, safe_op_name)
-            op_type_mapping[registered_name] = target_op
+            op_type_mapping[fx_name] = target_op
             return op_fn
         except (AttributeError, RuntimeError):
             pass
@@ -400,7 +423,7 @@ def patch_model_for_export(model, module_extensions, orig_forward_name):
             schema_args = _derive_schema_from_args(call_args, target_op)
             op_fn = _auto_register_module_extension_op(
                 "ov_ext", safe_op_name, schema_args)
-            op_type_mapping[registered_name] = target_op
+            op_type_mapping[fx_name] = target_op
             return op_fn(*call_args)
 
         return _lazy_register_and_call
