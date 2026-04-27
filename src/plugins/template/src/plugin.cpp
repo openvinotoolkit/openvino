@@ -353,7 +353,8 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
                                                     ov::device::capabilities,
                                                     ov::device::type,
                                                     ov::range_for_async_infer_requests,
-                                                    ov::execution_devices};
+                                                    ov::execution_devices,
+                                                    ov::blob_compatibility};
         return ro_properties;
     };
     const auto& default_rw_properties = []() {
@@ -416,6 +417,21 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
         return decltype(ov::execution_devices)::value_type{get_device_name()};
     } else if (ov::range_for_async_infer_requests == name) {
         return decltype(ov::range_for_async_infer_requests)::value_type{1, 1, 1};
+    } else if (ov::blob_compatibility == name) {
+        if (auto it = arguments.find(ov::runtime_requirements.name()); it != arguments.end()) {
+            const auto& requirements = it->second.as<ov::Tensor>();
+            if (requirements && requirements.get_size() == 1 &&
+                requirements.get_element_type() == ov::element::string) {
+                if (const auto pos = requirements.data<std::string>()[0].find(get_compile_requirements()); pos == 0) {
+                    return ov::BlobCompatibility::OPTIMAL;
+                } else if (pos != std::string::npos) {
+                    return ov::BlobCompatibility::PREFER_RECOMPILATION;
+                } else {
+                    return ov::BlobCompatibility::UNSUPPORTED;
+                }
+            }
+        }
+        return ov::BlobCompatibility::NOT_APPLICABLE;
     } else {
         return m_cfg.Get(name);
     }
@@ -426,3 +442,9 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
 static const ov::Version version = {CI_BUILD_NUMBER, "openvino_template_plugin"};
 OV_DEFINE_PLUGIN_CREATE_FUNCTION(ov::template_plugin::Plugin, version)
 // ! [plugin:create_plugin_engine]
+
+// ! [plugin:get_compile_requirements]
+std::string_view ov::template_plugin::Plugin::get_compile_requirements() const {
+    return "TEMPLATE_PLUGIN_CAPABILITIES_v1";
+}
+// ! [plugin:get_compile_requirements]
