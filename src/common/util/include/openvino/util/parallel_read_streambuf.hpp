@@ -50,6 +50,27 @@ public:
     ParallelReadStreamBuf(const ParallelReadStreamBuf&) = delete;
     ParallelReadStreamBuf& operator=(const ParallelReadStreamBuf&) = delete;
 
+    /**
+     * @brief Preload @p size bytes starting at the current logical position into
+     *        an internal buffer using one parallel positional read.
+     *
+     * After a successful prefetch, subsequent xsgetn()/underflow() calls that
+     * fall inside [current_pos, current_pos + size) are served from memory via
+     * memcpy instead of issuing per-call pread(). Reads that fall outside the
+     * prefetched window transparently fall back to the normal file-IO path and
+     * invalidate the prefetched window.
+     *
+     * Intended call site: the producer of a long serialized region (e.g.
+     * program::weights_load in the GPU plugin) calls prefetch() once at the
+     * start of the region to collapse thousands of small ib >> ... small-reads
+     * into a single bulk parallel pread.
+     *
+     * @param size  Number of bytes to preload. Clamped to remaining file size.
+     * @return true if the prefetch read succeeded (buffer is now valid), false
+     *         otherwise (buffer is left empty; reads fall back to file I/O).
+     */
+    bool prefetch(std::streamsize size);
+
 protected:
     std::streamsize xsgetn(char_type* dst, std::streamsize n) override;
     int_type underflow() override;
@@ -71,6 +92,16 @@ private:
     std::streamoff m_file_size = 0;
     size_t m_threshold = default_parallel_io_threshold;
     std::unique_ptr<char_type[]> m_underflow_buf;  ///< lazily allocated buffer for underflow()
+
+    /// Prefetch buffer state. When m_prefetch_size > 0, reads in the range
+    /// [m_prefetch_begin, m_prefetch_begin + m_prefetch_size) are served from
+    /// m_prefetch_buf without touching the file.
+    std::unique_ptr<char_type[]> m_prefetch_buf;
+    std::streamoff m_prefetch_begin = 0;  ///< absolute file offset of prefetch buffer[0]
+    size_t m_prefetch_size = 0;           ///< bytes loaded into m_prefetch_buf
+
+    bool serve_from_prefetch(char* dst, size_t size, std::streamoff abs_offset);
+    void invalidate_prefetch();
 };
 
 }  // namespace ov::util
