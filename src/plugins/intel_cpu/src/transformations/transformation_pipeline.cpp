@@ -993,7 +993,7 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
     CPU_DISABLE_PASS_COMMON(lptManager, MultiplyToGroupConvolutionTransformation);
 
     // ConvolutionTransformation is disabled temporary until ACL issues are fixed: #1252, #1253
-    CPU_DISABLE_PASS_ARM(lptManager, ConvolutionTransformation);
+    // CPU_DISABLE_PASS_ARM(lptManager, ConvolutionTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, ConvolutionBackpropDataTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, InterpolateTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, GroupConvolutionTransformation);
