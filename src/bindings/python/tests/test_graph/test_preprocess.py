@@ -802,3 +802,50 @@ def test_pad_vector_type_and_ops(pads_begin, pads_end, values, mode):
     assert len(model_operators) == 6
     for op in expected_ops:
         assert op in model_operators
+
+
+def test_graph_preprocess_clamp():
+    shape = [1, 3, 2, 2]
+    parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
+    model = parameter_a
+    model = Model(model, [parameter_a], "TestModel")
+    ppp = PrePostProcessor(model)
+    ppp.input().preprocess().clamp(0.0, 1.0)
+    model = ppp.build()
+    model_operators = [op.get_name().split("_")[0] for op in model.get_ordered_ops()]
+    assert model.get_output_size() == 1
+    assert list(model.get_output_shape(0)) == shape
+    assert model.get_output_element_type(0) == Type.f32
+    assert "Clamp" in model_operators
+
+
+def test_graph_preprocess_clamp_chained_with_mean_scale():
+    shape = [1, 3, 2, 2]
+    parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
+    model = parameter_a
+    model = Model(model, [parameter_a], "TestModel")
+    ppp = PrePostProcessor(model)
+    ppp.input().preprocess().mean(127.5).scale(127.5).clamp(0.0, 1.0)
+    model = ppp.build()
+    model_operators = [op.get_name().split("_")[0] for op in model.get_ordered_ops()]
+    assert model.get_output_size() == 1
+    assert list(model.get_output_shape(0)) == shape
+    assert model.get_output_element_type(0) == Type.f32
+    assert "Clamp" in model_operators
+    assert "Subtract" in model_operators
+    assert "Divide" in model_operators
+
+
+def test_graph_preprocess_postprocess_clamp():
+    shape = [1, 3, 2, 2]
+    parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
+    model = parameter_a
+    model = Model(model, [parameter_a], "TestModel")
+    ppp = PrePostProcessor(model)
+    ppp.output().postprocess().clamp(0.0, 255.0)
+    model = ppp.build()
+    model_operators = [op.get_name().split("_")[0] for op in model.get_ordered_ops()]
+    assert model.get_output_size() == 1
+    assert list(model.get_output_shape(0)) == shape
+    assert model.get_output_element_type(0) == Type.f32
+    assert "Clamp" in model_operators
