@@ -8,6 +8,7 @@
 #include "exceptions.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/decompositions/rope.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
@@ -126,24 +127,9 @@ ov::OutputVector rotary_embedding(const ov::frontend::onnx::Node& node) {
         rope_input = std::make_shared<v1::Reshape>(transposed_5d, input_4d_shape, false);
     }
 
-    // Core RoPE formula (matches RoPEFusionGPTOSS pattern for both modes)
-    // first_ = first_half * cos - second_half * sin
-    // second_ = second_half * cos + first_half * sin
-    const auto split_axis = v0::Constant::create(ov::element::i64, ov::Shape{}, {-1});
-    const auto split_lengths =
-        v0::Constant::create(ov::element::i64, ov::Shape{2}, {half_head_size_val, half_head_size_val});
-    // Split along last axis using constant split_lengths to enable RoPE fusion pattern matching
-    auto in_split = std::make_shared<v1::VariadicSplit>(rope_input, split_axis, split_lengths)->outputs();
-    auto first_half_mul_cos = std::make_shared<v1::Multiply>(in_split[0], cos_4d);
-    auto second_half_mul_sin = std::make_shared<v1::Multiply>(in_split[1], sin_4d);
-    const auto neg_one = v0::Constant::create(ov::element::f32, ov::Shape{}, {-1.0f});
-    auto neg_second_sin = std::make_shared<v1::Multiply>(second_half_mul_sin, neg_one);
-    auto res_0 = std::make_shared<v1::Add>(first_half_mul_cos, neg_second_sin);
-    auto second_half_mul_cos = std::make_shared<v1::Multiply>(in_split[1], cos_4d);
-    auto first_half_mul_sin = std::make_shared<v1::Multiply>(in_split[0], sin_4d);
-    auto res_1 = std::make_shared<v1::Add>(second_half_mul_cos, first_half_mul_sin);
-    ov::Output<ov::Node> output =
-        std::make_shared<v0::Concat>(ov::NodeVector{res_0, res_1}, -1);  // [bs,num_heads,seqlen,head_size]
+    // Core RoPE formula via shared decomposition helper.
+    ov::pass::NodeRegistry rope_reg;
+    ov::Output<ov::Node> output = ov::decompositions::rope(rope_reg, rope_input, cos_4d, sin_4d, half_head_size_val);
 
     // For interleaved mode, re-interleave the result
     if (interleaved) {

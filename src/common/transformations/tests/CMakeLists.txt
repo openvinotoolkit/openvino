@@ -15,6 +15,7 @@ ov_add_test_target(
     LINK_LIBRARIES
         gmock
         func_test_utils
+        openvino::decompositions
         openvino::offline_transformations
         openvino::reference
         ov_lpt_models
