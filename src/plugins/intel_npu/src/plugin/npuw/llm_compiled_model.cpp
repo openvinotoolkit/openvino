@@ -15,7 +15,7 @@
 #include "npuw_transformations/decompose_gqa.hpp"
 #include "npuw_transformations/lora_stateful_to_stateless.hpp"
 #include "npuw_transformations/optimize_value_tensors.hpp"
-#include "npuw_transformations/patch_phi3_sliding_mask.hpp"
+#include "npuw_transformations/patch_sliding_window_mask.hpp"
 #include "npuw_transformations/reshape_sliced_head_to_static.hpp"
 #include "npuw_transformations/reshape_to_static.hpp"
 #include "npuw_transformations/slice_out_embeds.hpp"
@@ -788,8 +788,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto lm_head_model = check_and_cut_lm_head(kvcache_model, m_cfg);
 
     if (!m_is_whisper) {
-        LOG_DEBUG("Try patch Phi-3 sliding window mask, if it exists.");
-        ov::npuw::PatchPhi3SlidingMask().run_on_model(kvcache_model);
+        LOG_DEBUG("Try patch sliding window attention mask (Phi-3, Gemma-2, Gemma-3, Gemma-4), if it exists.");
+        ov::npuw::PatchSlidingWindowMask().run_on_model(kvcache_model);
     }
 
     LOG_DEBUG("Creating prefill model as clone of transformed kvcache one.");
