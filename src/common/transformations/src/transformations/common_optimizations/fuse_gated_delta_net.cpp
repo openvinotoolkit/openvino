@@ -8,13 +8,17 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <unordered_set>
+#include <vector>
 
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -22,6 +26,7 @@
 #include "openvino/op/exp.hpp"
 #include "openvino/op/gated_delta_net.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/gather_nd.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/power.hpp"
@@ -30,12 +35,17 @@
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/op/split.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/gather_base.hpp"
+#include "openvino/op/util/gather_nd_base.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/op/util/squeeze_base.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -358,6 +368,158 @@ ov::pass::FuseL2NormIntoGDN::FuseL2NormIntoGDN() {
     register_matcher(m, callback);
 }
 
+namespace {
+
+bool is_allowed_qk_path_node(const std::shared_ptr<ov::Node>& node) {
+    return ov::is_type<v1::Reshape>(node) || ov::is_type<v1::Transpose>(node) ||
+           ov::is_type<ov::op::util::GatherBase>(node) || ov::is_type<ov::op::v3::Broadcast>(node) ||
+           ov::is_type<v0::Unsqueeze>(node) || ov::is_type<ov::op::util::SqueezeBase>(node) ||
+           ov::is_type<ov::op::util::GatherNDBase>(node);
+}
+
+bool is_qk_anchor_node(const std::shared_ptr<ov::Node>& node) {
+    return ov::is_type<ov::op::v1::Split>(node) || ov::is_type<ov::op::v1::VariadicSplit>(node) ||
+           ov::is_type<ov::op::v8::Slice>(node) || ov::is_type<ov::op::v0::Concat>(node);
+}
+
+// Traverse backward from `start` along input(0), through allowed reshaping ops,
+// until a Split/Slice/Concat anchor is found. Returns the anchor output or {}.
+ov::Output<ov::Node> find_qk_anchor(const ov::Output<ov::Node>& start) {
+    auto current = start;
+    while (true) {
+        const auto node = current.get_node_shared_ptr();
+        if (!node) {
+            break;
+        }
+        if (is_qk_anchor_node(node)) {
+            return current;
+        }
+        if (!is_allowed_qk_path_node(node) || node->inputs().empty()) {
+            break;
+        }
+        current = node->input_value(0);
+    }
+    return {};
+}
+
+ov::Output<ov::Node> align_to_reference_shape(const ov::Output<ov::Node>& src,
+                                              const ov::Output<ov::Node>& reference,
+                                              ov::pass::MatcherPass* pass) {
+    const auto& src_ps = src.get_partial_shape();
+    const auto& ref_ps = reference.get_partial_shape();
+    if (src_ps.compatible(ref_ps)) {
+        return src;
+    }
+
+    if (src_ps.is_static() && ref_ps.is_static()) {
+        const auto src_shape = src_ps.to_shape();
+        const auto ref_shape = ref_ps.to_shape();
+        if (ov::shape_size(src_shape) != ov::shape_size(ref_shape)) {
+            return {};
+        }
+    }
+
+    // Accumulate product of all static source dimensions: n.
+    uint64_t n = 1;
+    bool has_static_dims = false;
+    for (const auto& dim : src_ps) {
+        if (!dim.is_static()) {
+            continue;
+        }
+        has_static_dims = true;
+        n *= static_cast<uint64_t>(dim.get_length());
+    }
+
+    const auto ref_rank = ref_ps.rank();
+    if (has_static_dims && ref_rank.is_static() && ref_rank.get_length() >= 2) {
+        const auto head_size_idx = ref_rank.get_length() - 1;
+        const auto head_num_idx = ref_rank.get_length() - 2;
+        const auto& head_size_dim = ref_ps[head_size_idx];
+
+        if (head_size_dim.is_static()) {
+            const auto head_size = static_cast<uint64_t>(head_size_dim.get_length());
+            if (head_size == 0 || n % head_size != 0) {
+                return {};
+            }
+
+            const auto head_num = static_cast<int64_t>(n / head_size);
+            auto ref_shape = std::make_shared<ov::op::v3::ShapeOf>(reference);
+            auto indices = v0::Constant::create(ov::element::i64, {1}, {head_num_idx});
+            auto updates = v0::Constant::create(ov::element::i64, {1}, {head_num});
+            auto axis = v0::Constant::create(ov::element::i64, {}, {0});
+            auto updated_shape = std::make_shared<ov::op::v3::ScatterUpdate>(ref_shape, indices, updates, axis);
+            auto reshaped = std::make_shared<v1::Reshape>(src, updated_shape, false);
+
+            pass->register_new_node(ref_shape);
+            pass->register_new_node(updated_shape);
+            pass->register_new_node(reshaped);
+            return reshaped;
+        }
+    }
+
+    auto ref_shape = std::make_shared<ov::op::v3::ShapeOf>(reference);
+    auto reshaped = std::make_shared<v1::Reshape>(src, ref_shape, false);
+    pass->register_new_node(ref_shape);
+    pass->register_new_node(reshaped);
+    return reshaped;
+}
+
+}  // namespace
+
+ov::pass::FuseGroupedQueryIntoGDN::FuseGroupedQueryIntoGDN() {
+    auto gdn = pattern::wrap_type<ov::op::internal::GatedDeltaNet>();
+
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
+        auto gdn_node = ov::as_type_ptr<ov::op::internal::GatedDeltaNet>(pattern_map.at(gdn).get_node_shared_ptr());
+        if (!gdn_node) {
+            return false;
+        }
+
+        const auto q_anchor = find_qk_anchor(gdn_node->input_value(0));
+        const auto k_anchor = find_qk_anchor(gdn_node->input_value(1));
+        const auto v_anchor = find_qk_anchor(gdn_node->input_value(2));
+
+        // All Q/K/V must trace back to the same anchor node.
+        if (!q_anchor.get_node_shared_ptr() || !k_anchor.get_node_shared_ptr() || !v_anchor.get_node_shared_ptr() ||
+            q_anchor.get_node_shared_ptr() != k_anchor.get_node_shared_ptr() ||
+            k_anchor.get_node_shared_ptr() != v_anchor.get_node_shared_ptr()) {
+            return false;
+        }
+
+        // If already directly connected from anchor outputs, skip.
+        if (gdn_node->input_value(0) == q_anchor && gdn_node->input_value(1) == k_anchor &&
+            gdn_node->input_value(2) == v_anchor) {
+            return false;
+        }
+
+        auto q_aligned = align_to_reference_shape(q_anchor, gdn_node->input_value(0), this);
+        auto k_aligned = align_to_reference_shape(k_anchor, gdn_node->input_value(1), this);
+        auto v_aligned = align_to_reference_shape(v_anchor, gdn_node->input_value(2), this);
+
+        if (!q_aligned.get_node_shared_ptr() || !k_aligned.get_node_shared_ptr() || !v_aligned.get_node_shared_ptr()) {
+            return false;
+        }
+
+        auto new_gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(q_aligned,
+                                                                         k_aligned,
+                                                                         v_aligned,
+                                                                         gdn_node->input_value(3),
+                                                                         gdn_node->input_value(4),
+                                                                         gdn_node->input_value(5),
+                                                                         gdn_node->get_fuse_qk_l2norm(),
+                                                                         gdn_node->get_q_l2_norm_eps(),
+                                                                         gdn_node->get_k_l2_norm_eps());
+        new_gdn->set_friendly_name(gdn_node->get_friendly_name());
+        ov::copy_runtime_info(gdn_node, new_gdn);
+        ov::replace_node(gdn_node, new_gdn);
+        return true;
+    };
+
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(gdn, "FuseGroupedQueryIntoGDN");
+    register_matcher(m, callback);
+}
+
 bool ov::pass::GatedDeltaNetFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(GatedDeltaNetFusion);
     ov::pass::SymbolicOptimizations symbolic_optimizations(false, get_pass_config());
@@ -367,5 +529,6 @@ bool ov::pass::GatedDeltaNetFusion::run_on_model(const std::shared_ptr<ov::Model
     // remove redundant transpose after loop fusion, which are inserted by FuseGDNLoop
     symbolic_ctx_manager->register_pass<ov::pass::TransposeFuse>();
     symbolic_ctx_manager->register_pass<ov::pass::FuseL2NormIntoGDN>();
+    symbolic_ctx_manager->register_pass<ov::pass::FuseGroupedQueryIntoGDN>();
     return symbolic_optimizations.run_on_model(model);
 }
