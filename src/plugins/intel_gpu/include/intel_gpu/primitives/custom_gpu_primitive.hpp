@@ -23,6 +23,7 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
     enum arg_type {
         arg_input,
         arg_output,
+        arg_internal,
     };
     //
     /// @brief Custom primitive kernel argument index
@@ -32,6 +33,7 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
     struct arg_desc {
         arg_type type;
         arg_index index;
+        std::string size_expr;
 
         bool operator==(const arg_desc& rhs) const {
             return (type == rhs.type && index == rhs.index);
@@ -40,11 +42,13 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
         void save(BinaryOutputBuffer& ob) const {
             ob << make_data(&type, sizeof(arg_type));
             ob << index;
+            ob << size_expr;
         }
 
         void load(BinaryInputBuffer& ib) {
             ib >> make_data(&type, sizeof(arg_type));
             ib >> index;
+            ib >> size_expr;
         }
     };
 

@@ -92,6 +92,104 @@ TEST(CustomOp, NoRedundantReordersInserted) {
     ASSERT_STREQ(ops[2]->get_rt_info()[ov::exec_model_info::LAYER_TYPE].as<std::string>().c_str(), "Result");
 }
 
+class CustomOpIntBuf : public ov::op::Op {
+public:
+    OPENVINO_OP("CustomOpIntBuf", "gpu_opset");  // must match XML layer name
+
+    CustomOpIntBuf() = default;
+
+    CustomOpIntBuf(const ov::Output<ov::Node>& input) : Op({input}) {
+        constructor_validate_and_infer_types();
+    }
+
+    void validate_and_infer_types() override {
+        set_output_size(1);
+        set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    }
+
+    std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override {
+        return std::make_shared<CustomOpIntBuf>(inputs[0]);
+    }
+
+    bool has_evaluate() const override { return true; }
+
+    bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override {
+        auto in = inputs[0];
+        auto out = outputs[0];
+        out.set_shape(in.get_shape());
+
+        // minimal test: copy input to output
+        for (size_t i = 0; i < out.get_size(); i++)
+            out.data<float>()[i] = in.data<float>()[i];
+
+        return true;
+    }
+};
+
+static std::shared_ptr<ov::Model> get_simple_model_with_internal_buffer_static() {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3, 4});
+    auto op = std::make_shared<CustomOpIntBuf>(param);
+    auto result = std::make_shared<ov::op::v0::Result>(op);
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param}, "model_with_internal_buffer");
+}
+
+static std::shared_ptr<ov::Model> get_simple_model_with_internal_buffer_dynamic() {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 2, 3, 4});
+    auto op = std::make_shared<CustomOpIntBuf>(param);
+    auto result = std::make_shared<ov::op::v0::Result>(op);
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param}, "model_with_internal_buffer");
+}
+
+TEST(CustomOpIntBuf, InternalBufferKernelStaticRuns) {
+    ov::Core core;
+
+    ov::AnyMap config = { {"CONFIG_FILE", TEST_CUSTOM_OP_CONFIG_PATH} };
+    auto model = get_simple_model_with_internal_buffer_static();
+    auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU, config);
+    auto infer_request = compiled_model.create_infer_request();
+
+    std::vector<float> input_data(1*2*3*4);
+    for (size_t i = 0; i < input_data.size(); i++) input_data[i] = float(i);
+
+    ov::Tensor input_tensor(ov::element::f32, {1,2,3,4}, input_data.data());
+    infer_request.set_input_tensor(input_tensor);
+
+    infer_request.infer();
+
+    auto output_tensor = infer_request.get_output_tensor();
+    const float* out = output_tensor.data<const float>();
+
+    for (size_t i = 0; i < input_data.size(); i++) {
+        ASSERT_NEAR(out[i], input_data[i], 1e-5);
+    }
+}
+
+TEST(CustomOpIntBuf, InternalBufferKernelDynamicRuns) {
+    ov::Core core;
+
+    ov::AnyMap config = { {"CONFIG_FILE", TEST_CUSTOM_OP_CONFIG_PATH} };
+    auto model = get_simple_model_with_internal_buffer_dynamic();
+    auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU, config);
+    auto infer_request = compiled_model.create_infer_request();
+
+    std::vector<float> input_data(1*2*3*4);
+    for (size_t i = 0; i < input_data.size(); i++) input_data[i] = float(i);
+
+    ov::Tensor input_tensor(ov::element::f32, {1,2,3,4}, input_data.data());
+    infer_request.set_input_tensor(input_tensor);
+
+    infer_request.infer();
+
+    auto output_tensor = infer_request.get_output_tensor();
+    const float* out = output_tensor.data<const float>();
+
+    for (size_t i = 0; i < input_data.size(); i++) {
+        ASSERT_NEAR(out[i], input_data[i], 1e-5);
+    }
+}
+
+
+
 } // namespace intel_gpu
 } // namespace test
 } // namespace ov
