@@ -56,6 +56,9 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       SOURCE_COMMAND: ${{ contains(inputs.runner, 'linux') && 'source' || '.' }}
       SETUPVARS: ${{ github.workspace }}/install/${{ contains(inputs.runner, 'win') && 'setupvars.ps1' || 'setupvars.sh' }}
+      # tmp debug: extra dumps in TransformationTestsF / GRUCellFusion / accuracy_check
+      # for the flaky GRUFusionTest.GRUCellPattern case.  No-op when unset.
+      OV_TMP_DEBUG: '1'
     steps:
       - name: Download OpenVINO artifacts (package)
         uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0

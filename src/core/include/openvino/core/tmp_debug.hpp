@@ -1,3 +1,7 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 // TEMPORARY DEBUG INSTRUMENTATION — for investigating the flaky
 // GRUFusionTest.GRUCellPattern case on macOS arm64.
 //
@@ -38,17 +42,15 @@ inline std::ostream& log() {
 
 template <typename ParamVector>
 inline void dump_params(const char* tag, const ParamVector& params) {
-    if (!enabled()) return;
+    if (!enabled())
+        return;
     log() << "-- params dump: " << tag << " (count=" << params.size() << ") --\n";
     for (size_t i = 0; i < params.size(); ++i) {
         const auto& p = params[i];
         std::ostringstream shape_s;
         shape_s << p->get_partial_shape();
-        std::cerr << "[OV_TMP_DEBUG]   i=" << i
-                  << "  ptr=" << static_cast<const void*>(p.get())
-                  << "  shape=" << shape_s.str()
-                  << "  name=" << p->get_friendly_name()
-                  << "\n";
+        std::cerr << "[OV_TMP_DEBUG]   i=" << i << "  ptr=" << static_cast<const void*>(p.get())
+                  << "  shape=" << shape_s.str() << "  name=" << p->get_friendly_name() << "\n";
     }
 }
 

@@ -20,14 +20,14 @@ on:
    branches:
      - 'master'
      - 'releases/**'
-  # pull_request:
-  #  paths-ignore:
-  #    - '**/docs/**'
-  #    - 'docs/**'
-  #    - '**/**.md'
-  #    - '**.md'
-  #    - '**/layer_tests_summary/**'
-  #    - '**/conformance/**'
+  pull_request:
+    paths-ignore:
+      - '**/docs/**'
+      - 'docs/**'
+      - '**/**.md'
+      - '**.md'
+      - '**/layer_tests_summary/**'
+      - '**/conformance/**'
 
 concurrency:
   # github.ref is not unique in post-commit
@@ -42,6 +42,9 @@ env:
   MANIFEST_FILE: manifest.yml
   PRODUCT_TYPE: public_macos_arm64_release
   TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
+  # tmp debug: enable extra dumps in TransformationTestsF / GRUCellFusion / accuracy_check
+  # for the flaky GRUFusionTest.GRUCellPattern case.  No-op when unset.
+  OV_TMP_DEBUG: '1'
 
 jobs:
   Smart_CI:
