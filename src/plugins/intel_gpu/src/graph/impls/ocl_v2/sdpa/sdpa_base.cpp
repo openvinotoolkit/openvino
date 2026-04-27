@@ -157,6 +157,14 @@ sdpa_configuration SDPABase::get_sdpa_configuration(const kernel_impl_params& im
     if (value_shape[value_shape.size() - 1].is_static())
         config.v_head_size = value_shape[value_shape.size() - 1].get_length();
 
+    // For INT4 KV-cache, use logical head size from query
+    if (desc->is_kv_compressed) {
+        const auto kv_cache_dt = impl_param.get_program().get_config().get_kv_cache_precision();
+        if (ov::element::Type(kv_cache_dt).bitwidth() == 4 && query_shape[query_shape.size() - 1].is_static()) {
+            config.v_head_size = query_shape[query_shape.size() - 1].get_length();
+        }
+    }
+
     config.is_causal = desc->is_causal;
 
     if (desc->scale_val.has_value()) {
@@ -212,6 +220,11 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
             jit.make("HAS_SINK_INPUT", 1);
         }
         jit.make("IS_KV_COMPRESSED", desc->is_kv_compressed);
+        {
+            const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
+            const bool is_int4 = desc->is_kv_compressed && ov::element::Type(kv_cache_dt).bitwidth() == 4;
+            jit.make("IS_INT4_COMPRESSED", is_int4);
+        }
         GPU_DEBUG_TRACE_DETAIL << "desc->is_kv_compressed = " << desc->is_kv_compressed << std::endl;
 
         const auto& in_offsets_map = params.in_port_to_shape_info_offset;
@@ -295,9 +308,20 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
 
         const auto q_head_size = get_head_size(params.get_input_layout(0), extended_input_q_transpose_order);
         const auto q_num_head = get_num_heads(params.get_input_layout(0), extended_input_q_transpose_order);
-        const auto k_head_size = get_head_size(params.get_input_layout(1), extended_input_k_transpose_order);
+        auto k_head_size = get_head_size(params.get_input_layout(1), extended_input_k_transpose_order);
         const auto k_num_head = get_num_heads(params.get_input_layout(1), extended_input_k_transpose_order);
-        const auto v_head_size = get_head_size(params.get_input_layout(2), extended_input_v_transpose_order);
+        auto v_head_size = get_head_size(params.get_input_layout(2), extended_input_v_transpose_order);
+
+        // For INT4 KV-cache, override k/v head size from query (layout is physically halved)
+        {
+            const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
+            const bool is_int4 = desc->is_kv_compressed && ov::element::Type(kv_cache_dt).bitwidth() == 4;
+            if (is_int4) {
+                k_head_size = q_head_size;
+                v_head_size = q_head_size;
+            }
+        }
+
         jit.make("HEAD_SIZE", q_head_size);
         jit.make("NUM_HEADS", q_num_head);
         jit.make("K_HEAD_SIZE", k_head_size);

@@ -55,6 +55,10 @@ micro::Type convert_type(ov::element::Type t) {
         return micro::Type::u8;
     case ov::element::i32:
         return micro::Type::s32;
+    case ov::element::u4:
+        return micro::Type::u4;
+    case ov::element::i4:
+        return micro::Type::s4;
     default:
         break;
     }
@@ -1123,16 +1127,32 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         auto pa_desc = params.typed_desc<paged_attention>();
         jit.make("IS_KV_COMPRESSED_PA", true);
 
+        const auto kv_precision = params.get_program().get_config().get_kv_cache_precision();
+        const bool is_int4_logical = data_type_traits::is_i4_u4(kv_precision);
+
         auto scales_zp_size = 4;  // scale + zp
-        if (pa_desc->is_key_by_channel) {
+        if (is_int4_logical) {
+            // INT4 KV cache with BY_CHANNEL K quantization:
+            // K: dim order {0,1,3,2} (col-major), packed block_size in innermost dim
+            //    physical: [blocks, heads, head_size, packed_block + scales] u8
+            //    packed_block = block_size/2 bytes, scales = 4 bytes
+            // V: dim order {0,1,2,3} (row-major), packed head_size in innermost dim
+            //    physical: [blocks, heads, block_size, packed_head + scales] u8
+            jit.make("IS_INT4_KV_CACHE", 1);
+            jit.make("IS_KEY_BY_CHANNEL", 1);
+            jit.make("ADJUSTED_K_HEAD_SIZE", k_head_size);
+            jit.make("ADJUSTED_V_HEAD_SIZE", v_head_size / 2 + scales_zp_size);
+            jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", config.paged_attention_block_size / 2 + scales_zp_size);
+        } else if (pa_desc->is_key_by_channel) {
             jit.make("IS_KEY_BY_CHANNEL", 1);
             jit.make("ADJUSTED_K_HEAD_SIZE", k_head_size);
             jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", config.paged_attention_block_size + scales_zp_size);
+            jit.make("ADJUSTED_V_HEAD_SIZE", v_head_size + scales_zp_size);
         } else {
             jit.make("ADJUSTED_K_HEAD_SIZE", k_head_size + scales_zp_size);
             jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", config.paged_attention_block_size);
+            jit.make("ADJUSTED_V_HEAD_SIZE", v_head_size + scales_zp_size);
         }
-        jit.make("ADJUSTED_V_HEAD_SIZE", v_head_size + scales_zp_size);
     } else if (config.is_paged_attention) {
         jit.make("ADJUSTED_K_HEAD_SIZE", k_head_size);
         jit.make("ADJUSTED_V_HEAD_SIZE", v_head_size);
@@ -1502,11 +1522,21 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     problem.Ta_ext = convert_type(K.data_type);
     problem.Tb_ext = convert_type(Q.data_type);
 
+    // Detect INT4 KV cache: stored as u8 but logical precision is u4/i4
+    const auto kv_cache_precision = is_paged_attention ? params.get_program().get_config().get_kv_cache_precision() : ov::element::dynamic;
+    const bool is_int4_kv_cache = data_type_traits::is_i4_u4(kv_cache_precision);
+
+    // For INT4 PA generate: override Ta_ext to u4/i4 so micro-kernel handles u4 unpacking
+    if (is_int4_kv_cache && is_paged_attention && !is_prefill) {
+        problem.Ta_ext = convert_type(kv_cache_precision);
+    }
+
     problem.Ta = problem.Tb = micro::Type::f16;
     problem.Tc = problem.Tc_ext = micro::Type::f32;
     problem.Ts = problem.Tc;
 
     auto problem_kq = problem;
+    // Both INT4 and INT8 K cache use dim order {0,1,3,2} (column-major / Layout::N).
     problem_kq.A.layout = (is_paged_attention && !is_prefill) ? micro::MatrixLayout::N : micro::MatrixLayout::T;
 
     /* Set up microkernel options */
@@ -1517,7 +1547,9 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     const bool use_asymmetric_quantization = configuration.use_asymmetric_quantization;
 
     if (is_paged_attention && !is_prefill && is_quantized) {
-        problem.Ta = micro::Type::s8;
+        if (!is_int4_kv_cache) {
+            problem.Ta = micro::Type::s8;
+        }
 
         const auto scale_dt = convert_type(ov::element::f16);
         problem_kq.Ta_scale = scale_dt;
@@ -1533,7 +1565,13 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         problem_kq.aOffset = micro::ABOffset::Calc;
 
         auto pa_desc = params.typed_desc<paged_attention>();
-        if (pa_desc->is_key_by_channel) {
+        if (is_int4_kv_cache) {
+            // INT4 BY_CHANNEL: per-channel quantization (one scale/zp per head dim for all tokens in block)
+            // Same quantization grouping as INT8 BY_CHANNEL.
+            problem_kq.aqGroupM = config->unroll_m_kq * config->wg_m_kq;
+            problem_kq.aqGroupK = 1;
+            // BY_CHANNEL scales: Layout::N (stride-1 between rows, ldkq stride between columns)
+        } else if (pa_desc->is_key_by_channel) {
             problem_kq.aqGroupM = config->unroll_m_kq * config->wg_m_kq;
             problem_kq.aqGroupK = 1;
         } else {
@@ -1580,9 +1618,15 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     if (is_paged_attention && !is_prefill) {
         auto pa_desc = params.typed_desc<paged_attention>();
         const auto paged_attention_block_size = static_cast<int>(paged_attention::block_size);
-        problem_kq.A.setAlignment(paged_attention_block_size * problem.Ta);
-        if (is_quantized && pa_desc->is_key_by_channel) {
-            problem_kq.A.setAlignment(paged_attention_block_size * problem.Ta + 4);  // scale - 2 bytes, zp - 2 bytes
+        if (is_int4_kv_cache) {
+            // INT4 BY_CHANNEL Layout::N: lda = packed_block_bytes + scales
+            // = block_size * u4 + 4 = 16 * 0.5 + 4 = 12 bytes
+            problem_kq.A.setAlignment(paged_attention_block_size * problem.Ta_ext + 4);
+        } else {
+            problem_kq.A.setAlignment(paged_attention_block_size * problem.Ta);
+            if (is_quantized && pa_desc->is_key_by_channel) {
+                problem_kq.A.setAlignment(paged_attention_block_size * problem.Ta + 4);  // scale - 2 bytes, zp - 2 bytes
+            }
         }
     }
     problem_kq.B.setAlignment(64);  // Q is packed in VNNI format in SLM
@@ -1651,6 +1695,10 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     /* Update for second GEMM: V*S */
     auto problem_vs = problem;
     problem_vs.Ta_ext = convert_type(V.data_type);
+    // For INT4 V: override Ta_ext to u4/i4
+    if (is_int4_kv_cache && is_paged_attention && !is_prefill) {
+        problem_vs.Ta_ext = convert_type(kv_cache_precision);
+    }
     problem_vs.A.layout = micro::MatrixLayout::N;
 
     if (is_paged_attention && !is_prefill && is_quantized) {
@@ -1669,6 +1717,13 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
 
         problem_vs.aqGroupM = static_cast<int>(v_head_size);
         problem_vs.aqGroupK = 1;
+
+        // NOTE: V*S scale Layout stays ::N (the default set above), which is correct.
+        // V*S A = V[m=head_dim, k=tokens], so per-token scales form a [1, tokens] matrix.
+        // With Layout::N: scale(0, token) = base + token * ldvq = 68-byte stride. Correct.
+        // (Layout::T would give stride-1 = 2-byte intervals, which is wrong.)
+        // This differs from K*Q where A = K[m=tokens, k=head_dim], scale is [tokens, 1],
+        // and Layout::T is needed to get the token stride via ldkq.
 
         opts_vs.scaleA = true;
         opts_vs.offsetA = true;
@@ -1705,7 +1760,14 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
 
     problem_vs.B.layout = micro::MatrixLayout::Pr;
     problem_vs.C.layout = micro::MatrixLayout::N;
-    problem_vs.A.setAlignment(micro::alignment_for_ld(static_cast<int>(v_head_size * problem.Ta)));
+
+    if (is_int4_kv_cache && is_paged_attention && !is_prefill) {
+        // INT4 V: ldv = packed_head_bytes + scales = v_head_size * u4 + 4 = 68
+        problem_vs.A.setAlignment(static_cast<int>(v_head_size * problem_vs.Ta_ext) + 4);
+    } else {
+        problem_vs.A.setAlignment(micro::alignment_for_ld(static_cast<int>(v_head_size * problem.Ta)));
+    }
+
     problem_vs.B.setAlignment(64);  // S is packed in SLM
     problem_vs.B.crosspack = 16;
     sizes.m = n_values.is_dynamic() ? -1 : n_values.get_length();

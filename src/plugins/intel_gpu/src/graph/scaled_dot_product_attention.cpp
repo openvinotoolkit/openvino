@@ -63,6 +63,16 @@ std::vector<layout> scaled_dot_product_attention_inst::calc_output_layouts(scale
         input_shapes.push_back(impl_param.get_input_layout(i).get<ShapeType>());
     }
 
+    // For INT4 KV-cache, restore logical head size from query for shape inference
+    if (prim->is_kv_compressed) {
+        const auto kv_cache_dt = impl_param.get_program().get_config().get_kv_cache_precision();
+        if (ov::element::Type(kv_cache_dt).bitwidth() == 4 && input_shapes.size() >= 3) {
+            auto q_last = input_shapes[0][input_shapes[0].size() - 1];
+            input_shapes[1][input_shapes[1].size() - 1] = q_last;
+            input_shapes[2][input_shapes[2].size() - 1] = q_last;
+        }
+    }
+
     std::vector<ShapeType> output_shapes = ov::intel_gpu::op::shape_infer(&op,
                                                                           input_shapes,
                                                                           prim->input_q_transpose_order,

@@ -711,15 +711,17 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                             block_size);
                             block_size += (block_size / kv_sub_block_size) * infer_precision.size() * 2;
                         } else if (precision == ov::element::i4 || precision == ov::element::u4) {
-                            head_size = align_to(head_size / 2, 16);
-                            block_size += infer_precision.size() * 4;
+                            // INT4 BY_CHANNEL with {0,1,3,2}: block_size is innermost dim (packed)
+                            // Pack 16 u4 tokens → 8 bytes, plus scale/zp = 4 bytes → 12 bytes per column
+                            block_size = block_size / 2 + infer_precision.size() * 2;
                         }
                     } else {
                         if (precision == ov::element::i8 || precision == ov::element::u8) {
                             head_size += infer_precision.size() * 2 * group_num;
                         } else if (precision == ov::element::i4 || precision == ov::element::u4) {
                             head_size = align_to(head_size / 2, 16);
-                            head_size += infer_precision.size() * 4 * group_num;
+                            // INT4 per-token quantization: always need scale + zp per token row
+                            head_size += infer_precision.size() * 2;  // fp16 scale + fp16 zp = 4 bytes
                         }
                     }
                 },

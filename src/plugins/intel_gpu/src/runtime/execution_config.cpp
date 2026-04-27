@@ -18,6 +18,7 @@
 #include "openvino/op/istft.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/search_sorted.hpp"
@@ -226,18 +227,40 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
         // w/a : key_by_channel quant mode does not support cache rotation yet
         // CVS-170994
         if (auto paged_attn_op = ov::as_type_ptr<ov::op::PagedAttentionExtension>(op)) {
-            const size_t rotated_block_indices_idx = paged_attn_op->get_input_size() > cldnn::paged_attention::PagedAttentionInputIdx::ROTATED_BLOCK_INDICES;
-            auto rotated_block_indices_input = ov::as_type_ptr<ov::op::v0::Parameter>(paged_attn_op->get_input_node_shared_ptr(rotated_block_indices_idx));
-            bool has_rotated_blocks = rotated_block_indices_input && rotated_block_indices_input->get_output_partial_shape(0).is_dynamic();
-            if (has_rotated_blocks && m_key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
-                GPU_DEBUG_COUT << "[Warning] BY_CHANNEL quant mode is not supported for cache rotation yet. Switching to BY_TOKEN mode." << std::endl;
-                m_key_cache_quant_mode = ov::internal::CacheQuantMode::BY_TOKEN;
+            if (paged_attn_op->get_input_size() > cldnn::paged_attention::PagedAttentionInputIdx::ROTATED_BLOCK_INDICES) {
+                const size_t rotated_block_indices_idx = cldnn::paged_attention::PagedAttentionInputIdx::ROTATED_BLOCK_INDICES;
+                auto rotated_block_indices_input = ov::as_type_ptr<ov::op::v0::Parameter>(paged_attn_op->get_input_node_shared_ptr(rotated_block_indices_idx));
+                bool has_rotated_blocks = rotated_block_indices_input && rotated_block_indices_input->get_output_partial_shape(0).is_dynamic();
+                if (has_rotated_blocks && m_key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
+                    GPU_DEBUG_COUT << "[Warning] BY_CHANNEL quant mode is not supported for cache rotation yet. Switching to BY_TOKEN mode." << std::endl;
+                    m_key_cache_quant_mode = ov::internal::CacheQuantMode::BY_TOKEN;
+                }
             }
         }
     };
 
+    bool has_4bit_weights = false;
     for (const auto& op : ops) {
         process_op(op);
+
+        // Detect 4-bit compressed weights by tracing MatMul weight input
+        // through the decompression subgraph (Convert→Subtract→Multiply→Reshape→Convert→Constant)
+        // WA: blocked default-enable 4bit KV-cache until full-range validation
+        if (false && !has_4bit_weights && ov::is_type<ov::op::v0::MatMul>(op)) {
+            auto weight = op->get_input_node_shared_ptr(1);
+            // Follow input 0 through the decompression chain to reach the leaf Constant
+            for (int depth = 0; depth < 8 && weight->get_input_size() > 0; ++depth) {
+                if (ov::is_type<ov::op::v0::Constant>(weight))
+                    break;
+                weight = weight->get_input_node_shared_ptr(0);
+            }
+            if (auto constant = ov::as_type_ptr<ov::op::v0::Constant>(weight)) {
+                auto et = constant->get_element_type();
+                if (et == ov::element::i4 || et == ov::element::u4) {
+                    has_4bit_weights = true;
+                }
+            }
+        }
     }
 
     const auto& info = dynamic_cast<const RemoteContextImpl*>(context)->get_engine().get_device_info();
@@ -248,7 +271,12 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
         return false;
     };
     if (!is_set_by_user(ov::hint::kv_cache_precision) || get_kv_cache_precision() == ov::element::dynamic) {
-        if (is_paged_attention_model || !info.supports_immad || is_auxiliary_kv_update_model(model)) {
+        if (is_paged_attention_model && has_4bit_weights &&
+            m_key_cache_quant_mode != ov::internal::CacheQuantMode::BY_TOKEN) {
+            // Enable 4-bit KV-cache compression for PA models with 4-bit compressed weights
+            m_kv_cache_precision = ov::element::u4;
+            GPU_DEBUG_COUT << "[Info] 4-bit weights detected. Setting KV-cache precision to u4." << std::endl;
+        } else if (is_paged_attention_model || !info.supports_immad || is_auxiliary_kv_update_model(model) ) {
             // Enable KV-cache compression by default for:
             // 1) Non-systolic platforms in case of SDPA-based models
             // 2) For any platforms in case of PagedAttention-based model
@@ -269,6 +297,13 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
             << "Switching to BY_TOKEN mode." << std::endl;
         m_value_cache_quant_mode = ov::internal::CacheQuantMode::BY_TOKEN;
     }
+    // 4-bit KV cache with PA backend does not support BY_TOKEN quantization mode.
+    if (is_paged_attention_model && ov::element::Type(get_kv_cache_precision()).bitwidth() == 4) {
+        OPENVINO_ASSERT(get_key_cache_quant_mode() != ov::internal::CacheQuantMode::BY_TOKEN,
+                        "[GPU] 4-bit KV cache (u4/i4) with PagedAttention backend does not support BY_TOKEN quantization mode. "
+                        "Please use BY_CHANNEL mode or switch to 8-bit (i8) KV cache precision.");
+    }
+
     // Disable FlashAttn V2 online softmax tricks by default for non-LLMs.
     if (!is_set_by_user(ov::intel_gpu::could_use_flashattn_v2) && !is_LLM) {
         m_could_use_flashattn_v2 = false;
@@ -310,6 +345,10 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
     // Replace UINT8 KV-cache compression data type with INT8, as plugin is supposed to work with INT8 internally
     if (get_kv_cache_precision() == ov::element::u8) {
         m_kv_cache_precision = ov::element::i8;
+    }
+    // Replace INT4 KV-cache compression data type with UINT4, as plugin is supposed to work with UINT4 internally
+    if (get_kv_cache_precision() == ov::element::i4) {
+        m_kv_cache_precision = ov::element::u4;
     }
 
 #ifdef ENABLE_DEBUG_CAPS

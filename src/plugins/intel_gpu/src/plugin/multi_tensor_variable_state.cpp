@@ -165,7 +165,7 @@ VariableStateIndirectKVCacheCompressed::VariableStateIndirectKVCacheCompressed(
     const std::vector<cldnn::layout>& output_layouts,
     size_t beam_idx,
     size_t concat_idx,
-    bool has_zp_state = false)
+    bool has_zp_state)
     : VariableStateIndirectKVCache(info, context, shape_predictor, beam_idx, concat_idx),
       m_has_zp_state(has_zp_state) {
     OPENVINO_ASSERT((has_zp_state && output_layouts.size() == 3) ||

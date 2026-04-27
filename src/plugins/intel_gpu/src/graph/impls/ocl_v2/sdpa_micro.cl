@@ -231,17 +231,34 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         uint ldk = HEAD_SIZE * KV_HEADS_NUM + INPUT1_PAD_BEFORE_FEATURE_NUM + INPUT1_PAD_AFTER_FEATURE_NUM;
         uint ldv = HEAD_SIZE * KV_HEADS_NUM + INPUT2_PAD_BEFORE_FEATURE_NUM + INPUT2_PAD_AFTER_FEATURE_NUM;
     #else
+        #if IS_INT4_KV_CACHE
+        // INT4 K BY_CHANNEL Layout::N: ldk = column stride in u4 elements.
+        // ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE is in bytes (packed_block + scale = 12).
+        // Multiply by 2 for u4: 12 * 2 = 24 u4 elements → 12 byte stride.
+        uint ldk = ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE * 2;
+        // INT4 V per-token Layout::N: ldv = row stride in u4 elements.
+        // ADJUSTED_V_HEAD_SIZE is in bytes (packed_head + scale = 68).
+        // Multiply by 2 for u4: 68 * 2 = 136 u4 elements → 68 byte stride.
+        uint ldv = ADJUSTED_V_HEAD_SIZE * 2;
+        #else
         uint ldk = ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
         uint ldv = HEAD_SIZE;
+        #endif
         uint ldkc = HEAD_SIZE * KV_HEADS_NUM + INPUT1_PAD_BEFORE_FEATURE_NUM + INPUT1_PAD_AFTER_FEATURE_NUM;
         uint ldvc = HEAD_SIZE * KV_HEADS_NUM + INPUT2_PAD_BEFORE_FEATURE_NUM + INPUT2_PAD_AFTER_FEATURE_NUM;
         #if IS_KV_COMPRESSED_PA
-            #if IS_KEY_BY_CHANNEL
+            #if IS_INT4_KV_CACHE
+                // INT4 K BY_CHANNEL: scale stride = ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE bytes / 2 in f16 elements
                 uint ldkq = ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE / 2;
+                // INT4 V per-token: scale stride = ADJUSTED_V_HEAD_SIZE bytes / 2 in f16 elements
+                uint ldvq = ADJUSTED_V_HEAD_SIZE / 2;
+            #elif IS_KEY_BY_CHANNEL
+                uint ldkq = ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE / 2;
+                uint ldvq = 1;
             #else
                 uint ldkq = 1;
+                uint ldvq = 1;
             #endif
-            uint ldvq = 1;
         #endif
     #endif
 #else
@@ -524,9 +541,20 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     #endif
             int k_block_num = k0 / PAGED_ATTENTION_BLOCK_SIZE + sg_i_kq;
             global KEY_DATA_T *K0 = K + KV_HEADS_NUM * ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE * block_indices[base_block_index + k_block_num]
+            #if IS_INT4_KV_CACHE
+                                // INT4 BY_CHANNEL Layout::N: micro-kernel adds sg_i_kq * tile_sg_m * sizeof(u4)
+                                // = sg_i_kq * PAGED_ATTENTION_BLOCK_SIZE / 2 bytes
+                                - (uint)(PAGED_ATTENTION_BLOCK_SIZE / 2) * sg_i_kq;
+            #else
                                 - PAGED_ATTENTION_BLOCK_SIZE * sg_i_kq;
+            #endif
             #if IS_KV_COMPRESSED_PA
-                #if IS_KEY_BY_CHANNEL
+                #if IS_INT4_KV_CACHE
+                    // INT4 BY_CHANNEL: scales at packed_block_size offset within each column
+                    // packed_block_size = PAGED_ATTENTION_BLOCK_SIZE / 2 = 8 bytes
+                    global KEY_DATA_T *K0_scales = K0 + (PAGED_ATTENTION_BLOCK_SIZE / 2) * (sg_i_kq + 1);
+                    global KEY_DATA_T *K0_zp = K0_scales + 2;
+                #elif IS_KEY_BY_CHANNEL
                     global KEY_DATA_T *K0_scales = K0 + PAGED_ATTENTION_BLOCK_SIZE * (sg_i_kq + 1);
                     global KEY_DATA_T *K0_zp = K0_scales + 2;
                 #else
@@ -905,8 +933,14 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             global VAL_DATA_T *Vb0 = V + KV_HEADS_NUM * ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE * block_indices[base_block_index + v_block_num];
             int kb_chunk = min(k - k0 - kb0, PAGED_ATTENTION_BLOCK_SIZE);
             #if IS_KV_COMPRESSED_PA
+                #if IS_INT4_KV_CACHE
+                // INT4: scales embedded at HEAD_SIZE/2 offset within each token row
+                global VAL_DATA_T *Vb0_scales = Vb0 + HEAD_SIZE / 2;
+                global VAL_DATA_T *Vb0_zp = Vb0_scales + 2;
+                #else
                 global VAL_DATA_T *Vb0_scales = Vb0 + HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
                 global VAL_DATA_T *Vb0_zp = Vb0_scales + PAGED_ATTENTION_BLOCK_SIZE * 2;
+                #endif
             #endif
 
             a_tile_type A_tile1 = ugemm_vs(
