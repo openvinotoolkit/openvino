@@ -166,7 +166,7 @@ inline std::vector<float> makeAlignedBuffer(size_t targetSize, const std::vector
 
     auto alignedBuffer = buffer;
     if (align == -1) {
-        align = targetSize;
+        align = static_cast<int>(targetSize);
     }
     const size_t bufferSizeAligned = rnd_up(targetSize, align);
 

@@ -1236,7 +1236,7 @@ int get_model_prefer_threads(const int num_streams,
         // use a fallback value for L2 cache size.
         const float L2_cache_size = 1.0F;
 #    else
-        const float L2_cache_size = dnnl::utils::get_cache_size(2 /*level*/, true /*per core */);
+        const float L2_cache_size = static_cast<float>(dnnl::utils::get_cache_size(2 /*level*/, true /*per core */));
 #    endif
         ov::MemBandwidthPressure networkToleranceForLowCache =
             ov::mem_bandwidth_pressure_tolerance(model,

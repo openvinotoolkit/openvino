@@ -8,8 +8,14 @@ endif()
 
 set(TARGET_NAME "openvino_intel_cpu_plugin")
 
-# Warning suppressions are now in thirdparty/CMakeLists.txt only
-# This allows intel_cpu/src warnings to be visible for developer attention
+# Warning suppressions strategy:
+# - Thirdparty code warnings are suppressed in thirdparty/CMakeLists.txt
+# - intel_cpu/src subdirectories warnings will be suppressed per-file via set_source_files_properties
+# - intel_cpu/src root-level files warnings are visible for developer attention
+
+if(OV_COMPILER_IS_INTEL_LLVM AND WIN32)
+    ov_add_compiler_flags("/Wno-microsoft-include")
+endif()
 if(NOT BUILD_SHARED_LIBS)
     # Symbols are located in both src and include folders
     file(GLOB_RECURSE onednn_files
@@ -219,6 +225,37 @@ ov_add_plugin(NAME ${TARGET_NAME}
               ADD_CLANG_FORMAT
               ADD_CLANG_TIDY)
 
+# Suppress warnings for specific src subdirectories only (not root-level src files)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # Define subdirectories where warnings should be suppressed
+    set(SUPPRESS_WARNING_SUBDIRS
+        cache
+        emitters
+        memory_desc
+        mlas
+        nodes
+        onednn
+        shape_inference
+        transformations
+        utils)
+
+    # Collect files from these subdirectories
+    set(FILES_TO_SUPPRESS_WARNINGS)
+    foreach(subdir ${SUPPRESS_WARNING_SUBDIRS})
+        file(GLOB_RECURSE subdir_files
+            "${CMAKE_CURRENT_SOURCE_DIR}/src/${subdir}/*.cpp"
+            "${CMAKE_CURRENT_SOURCE_DIR}/src/${subdir}/*.hpp"
+            "${CMAKE_CURRENT_SOURCE_DIR}/src/${subdir}/*.h")
+        list(APPEND FILES_TO_SUPPRESS_WARNINGS ${subdir_files})
+    endforeach()
+
+    # Apply warning suppressions to these files
+    if(FILES_TO_SUPPRESS_WARNINGS)
+        set_source_files_properties(${FILES_TO_SUPPRESS_WARNINGS} PROPERTIES
+            COMPILE_FLAGS "/wd4018 /wd4267 /wd4244 /wd4334 /wd4146 /wd5002")
+    endif()
+endif()
+
 # Suppress warnings from thirdparty headers in version target
 # (flags are exported from thirdparty/CMakeLists.txt)
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND OV_CPU_THIRDPARTY_MSVC_SUPPRESS_FLAGS)
@@ -332,6 +369,54 @@ cross_compiled_file(${TARGET_NAME}
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 
+# Suppress warnings for cross-compiled files (generated in build directory)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # List all cross-compiled source files based on the cross_compiled_file() calls above
+    set(CROSS_COMPILED_SOURCES
+        # proposal_imp: AVX2 ANY
+        cross-compiled/AVX2/proposal_imp.cpp
+        cross-compiled/ANY/proposal_imp.cpp
+        # softmax: AVX512F AVX2 SVE NEON_FP16 ANY
+        cross-compiled/AVX512F/softmax.cpp
+        cross-compiled/AVX2/softmax.cpp
+        cross-compiled/ANY/softmax.cpp
+        # mha_single_token: AVX512F AVX2 SVE NEON_FP16 ANY
+        cross-compiled/AVX512F/mha_single_token.cpp
+        cross-compiled/AVX2/mha_single_token.cpp
+        cross-compiled/ANY/mha_single_token.cpp
+        # executor_pa: AVX512F AVX2 SVE ANY
+        cross-compiled/AVX512F/executor_pa.cpp
+        cross-compiled/AVX2/executor_pa.cpp
+        cross-compiled/ANY/executor_pa.cpp
+        # attn_memcpy: AVX512F AVX2 SVE ANY
+        cross-compiled/AVX512F/attn_memcpy.cpp
+        cross-compiled/AVX2/attn_memcpy.cpp
+        cross-compiled/ANY/attn_memcpy.cpp
+        # attn_quant: AVX512F AVX2 SVE NEON_FP16 ANY
+        cross-compiled/AVX512F/attn_quant.cpp
+        cross-compiled/AVX2/attn_quant.cpp
+        cross-compiled/ANY/attn_quant.cpp
+        # mlp_utils: AVX512F ANY
+        cross-compiled/AVX512F/mlp_utils.cpp
+        cross-compiled/ANY/mlp_utils.cpp
+        # recurrent_linear_attn: AVX512F AVX2 ANY
+        cross-compiled/AVX512F/recurrent_linear_attn.cpp
+        cross-compiled/AVX2/recurrent_linear_attn.cpp
+        cross-compiled/ANY/recurrent_linear_attn.cpp
+    )
+
+    # Apply warning suppression to each file
+    # Use separate set_property calls for each flag to avoid MSVC D8021 error
+    foreach(src_file ${CROSS_COMPILED_SOURCES})
+        set_property(SOURCE ${src_file} APPEND_STRING PROPERTY COMPILE_OPTIONS " /wd4018")
+        set_property(SOURCE ${src_file} APPEND_STRING PROPERTY COMPILE_OPTIONS " /wd4267")
+        set_property(SOURCE ${src_file} APPEND_STRING PROPERTY COMPILE_OPTIONS " /wd4244")
+        set_property(SOURCE ${src_file} APPEND_STRING PROPERTY COMPILE_OPTIONS " /wd4334")
+        set_property(SOURCE ${src_file} APPEND_STRING PROPERTY COMPILE_OPTIONS " /wd4146")
+        set_property(SOURCE ${src_file} APPEND_STRING PROPERTY COMPILE_OPTIONS " /wd5002")
+    endforeach()
+endif()
+
 # system dependencies must go last
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::pugixml)
 ov_set_threading_interface_for(${TARGET_NAME})
@@ -371,6 +456,12 @@ if(BUILD_SHARED_LIBS)
     ov_link_system_libraries(${TARGET_NAME}_obj PUBLIC ${CPU_OBJ_LINK_SYSTEM})
 
     ov_add_version_defines(src/plugin.cpp ${TARGET_NAME}_obj)
+
+    # Suppress warnings for specific src subdirectories in object library too
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND FILES_TO_SUPPRESS_WARNINGS)
+        set_source_files_properties(${FILES_TO_SUPPRESS_WARNINGS} TARGET_DIRECTORY ${TARGET_NAME}_obj
+            PROPERTIES COMPILE_FLAGS "/wd4018 /wd4267 /wd4244 /wd4334 /wd4146 /wd5002")
+    endif()
 
     # Suppress warnings from thirdparty headers in version targets
     # (flags are exported from thirdparty/CMakeLists.txt)
