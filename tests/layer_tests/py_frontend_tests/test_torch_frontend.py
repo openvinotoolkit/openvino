@@ -645,23 +645,42 @@ def test_module_extension_dynamo_weight_carrying():
     def custom_convert(module, target_op, *args, **kwargs):
         return target_op(args[0], module.weight, module.bias)
 
-    def matmul_op(context):
-        return ops.matmul(context.get_input(0),
-                          context.get_input(1), False, True).outputs()
+    def linear_op(context):
+        mm = ops.matmul(context.get_input(0),
+                        context.get_input(1), False, True)
+        return ops.add(mm, context.get_input(2)).outputs()
 
     model = ModelWithWeighted()
+    ref_weight = model.linear.weight.detach().numpy().copy()
+    ref_bias = model.linear.bias.detach().numpy().copy()
+
     converted_model = convert_model(
         model, example_input=[torch.randn(2, 10)], dynamo=True,
         extension=[
             ModuleExtension(WeightedModule, "WeightedLinear",
                             convert=custom_convert),
-            ConversionExtension("WeightedLinear", matmul_op)])
+            ConversionExtension("WeightedLinear", linear_op)])
     assert converted_model
     op_types = [n.get_type_name() for n in converted_model.get_ordered_ops()]
     assert "MatMul" in op_types
+    assert "Add" in op_types
     # Weight is [5, 10], input is [2, 10], MatMul(input, weight^T) → [2, 5]
     assert converted_model.get_results()[0].get_output_partial_shape(0) == \
         PartialShape([2, 5])
+
+    # Verify weight and bias constant values match the original parameters
+    found_weight = False
+    found_bias = False
+    for n in converted_model.get_ordered_ops():
+        if n.get_type_name() != "Constant":
+            continue
+        data = n.get_data()
+        if data.shape == ref_weight.shape and np.allclose(data, ref_weight):
+            found_weight = True
+        if data.size == ref_bias.size and np.allclose(data.flatten(), ref_bias.flatten()):
+            found_bias = True
+    assert found_weight, "Weight constant not found or values don't match"
+    assert found_bias, "Bias constant not found or values don't match"
 
 
 def test_module_extension_dynamo_scalar_args():
@@ -689,8 +708,19 @@ def test_module_extension_dynamo_scalar_args():
     def scalar_convert(module, target_op, *args, **kwargs):
         return target_op(args[0], module.scale, module.negate)
 
-    def pass_op(context):
-        return [context.get_input(0)]
+    def scalar_op(context):
+        inp = context.get_input(0)
+        scale = context.get_values_from_const_input(1)
+        negate = context.get_values_from_const_input(2)
+        assert scale == 2, f"Expected scale=2, got {scale}"
+        assert negate == True, f"Expected negate=True, got {negate}"
+        # Apply: x * scale * (-1 if negate else 1)
+        scale_const = ops.constant(np.array([scale], dtype=np.float32))
+        result = ops.multiply(inp, scale_const)
+        if negate:
+            neg_one = ops.constant(np.array([-1], dtype=np.float32))
+            result = ops.multiply(result, neg_one)
+        return result.outputs()
 
     model = ModelWithScalar()
     converted_model = convert_model(
@@ -698,11 +728,10 @@ def test_module_extension_dynamo_scalar_args():
         extension=[
             ModuleExtension(ScalarArgModule, "ScalarOp",
                             convert=scalar_convert),
-            ConversionExtension("ScalarOp", pass_op)])
+            ConversionExtension("ScalarOp", scalar_op)])
     assert converted_model
-    # pass_op returns input unchanged → only Parameter and Result remain
-    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
-        "Parameter", "Result"]
+    op_types = [n.get_type_name() for n in converted_model.get_ordered_ops()]
+    assert "Multiply" in op_types, f"Expected Multiply in ops, got {op_types}"
     assert converted_model.get_results()[0].get_output_partial_shape(0) == \
         PartialShape([100])
 
