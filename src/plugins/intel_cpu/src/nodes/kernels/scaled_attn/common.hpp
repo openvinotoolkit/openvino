@@ -19,6 +19,17 @@
 #    include <immintrin.h>
 #endif
 
+#if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
+#    define prefetch_bytes(bytes, sel, advance, src)        \
+        {                                                   \
+            auto* _pf = reinterpret_cast<const char*>(src); \
+            for (size_t _i = 0; _i < (bytes); _i += 64)     \
+                _mm_prefetch(_pf + _i + (advance), sel);    \
+        }
+#else
+#    define prefetch_bytes(bytes, sel, advance, src)
+#endif
+
 #if defined(OPENVINO_ARCH_ARM64)
 #    if defined(HAVE_SVE)
 #        include "arm_sve.h"
@@ -165,8 +176,8 @@ inline void mm512_uni_storeu_tail_ps(ov::float16* addr, __m512 v, size_t count) 
     _mm256_mask_storeu_epi16(reinterpret_cast<__m256i*>(addr), mask_addr, vec_f16);
 }
 
-inline void mm512_loadu_u4_to_f32(uint8_t* src_data, __m512& first_half, __m512& second_half) {
-    auto data = _mm_loadu_si128(reinterpret_cast<__m128i*>(src_data));
+inline void mm512_loadu_u4_to_f32(const uint8_t* src_data, __m512& first_half, __m512& second_half) {
+    auto data = _mm_loadu_si128(reinterpret_cast<const __m128i*>(src_data));
     auto v_i32 = _mm512_cvtepu8_epi32(data);
 
     auto v_512_low_half = _mm512_srli_epi32(v_i32, 4);
@@ -307,8 +318,8 @@ inline void mm256_uni_storeu_tail_ps(ov::bfloat16* addr, __m256 v, size_t count)
     return _mm_maskmoveu_si128(bf16_o, mask, reinterpret_cast<char*>(addr));
 }
 
-inline void mm256_loadu_u4_to_f32(uint8_t* src, __m256& first_half, __m256& second_half) {
-    auto data = _mm_loadl_epi64(reinterpret_cast<__m128i*>(src));
+inline void mm256_loadu_u4_to_f32(const uint8_t* src, __m256& first_half, __m256& second_half) {
+    auto data = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(src));
 
     auto v_i32 = _mm256_cvtepu8_epi32(data);
     auto v_256_low_half = _mm256_srli_epi32(v_i32, 4);

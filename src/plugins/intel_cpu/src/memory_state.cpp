@@ -322,7 +322,7 @@ void VariableStateKVcache::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
     m_internal_mem = std::make_shared<Memory>(get_engine(), dense_internal_desc);
     Memory external_mem(get_engine(), state_desc, m_state->data());
 
-    if (dense_internal_desc->getPrecision() == element::u8) {
+    if (dense_internal_desc->getPrecision() == element::u8 || dense_internal_desc->getPrecision() == element::u4) {
         PlainTensor external;
         PlainTensor internal;
         auto&& actual_internal_order = m_dense_internal_desc->getOrder();

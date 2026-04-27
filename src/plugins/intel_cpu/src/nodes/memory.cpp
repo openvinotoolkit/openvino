@@ -996,7 +996,7 @@ MemStatePtr MemoryInputSDPA::makeState() const {
     CPU_NODE_ASSERT(node, "SDPA node is not available");
     auto kv_precision = node->getKVCachePrecision();
     ScaledDotProductAttention::SDPAQuantParam quant_param;
-    if (kv_precision == ov::element::u8) {
+    if (kv_precision == ov::element::u8 || kv_precision == ov::element::u4) {
         const auto& edges_to_past_key = node->getParentEdgeAt(node->getParentEdges().size() - 2);
         const auto& past_key = std::dynamic_pointer_cast<node::MemoryInputBase>(edges_to_past_key->getParent());
         OPENVINO_ASSERT(past_key);
