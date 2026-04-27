@@ -2,26 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cstddef>
-#include <cstdint>
-#include <iterator>
-#include <memory>
-#include <sstream>
-#include <string>
-#include <vector>
-
-#include "openvino/core/except.hpp"
-#include "openvino/core/type.hpp"
-#include "openvino/core/type/element_type.hpp"
-#include "openvino/util/common_util.hpp"
-#include "snippets/lowered/expression.hpp"
-#include "snippets/lowered/port_connector.hpp"
-#include "snippets/op/brgemm.hpp"
-#include "snippets/op/perf_count.hpp"
 #ifdef SNIPPETS_DEBUG_CAPS
-#    include "snippets/itt.hpp"
-#    include "snippets/lowered/linear_ir.hpp"
 #    include "snippets/lowered/pass/insert_perf_count_verbose.hpp"
+
+#    include <cstddef>
+#    include <cstdint>
+#    include <iterator>
+#    include <memory>
+#    include <sstream>
+#    include <string>
+#    include <vector>
+
+#    include "openvino/core/except.hpp"
+#    include "openvino/core/type.hpp"
+#    include "openvino/core/type/element_type.hpp"
+#    include "openvino/util/common_util.hpp"
+#    include "snippets/itt.hpp"
+#    include "snippets/lowered/expression.hpp"
+#    include "snippets/lowered/linear_ir.hpp"
+#    include "snippets/lowered/port_connector.hpp"
+#    include "snippets/op/brgemm.hpp"
+#    include "snippets/op/perf_count.hpp"
 #    include "snippets/utils/utils.hpp"
 
 namespace ov::snippets::lowered::pass {

@@ -3,24 +3,22 @@
 //
 #pragma once
 
-#include <cstddef>
-#include <cstdint>
-#include <cstdlib>
-#include <map>
-#include <oneapi/dnnl/dnnl.hpp>
-#include <type_traits>
-#include <vector>
-
-#include "cpu_shape.h"
 #ifdef CPU_DEBUG_CAPS
-
 #    include <chrono>
+#    include <cstddef>
+#    include <cstdint>
+#    include <cstdlib>
 #    include <iostream>
+#    include <map>
+#    include <oneapi/dnnl/dnnl.hpp>
 #    include <regex>
 #    include <sstream>
 #    include <string>
+#    include <type_traits>
 #    include <utility>
+#    include <vector>
 
+#    include "cpu_shape.h"
 #    include "edge.h"
 #    include "memory_control.hpp"
 #    include "nodes/node_config.h"

@@ -1,37 +1,39 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <oneapi/dnnl/dnnl_common_types.h>
-#include <oneapi/dnnl/dnnl_debug.h>
 
-#include <algorithm>
-#include <common/c_types_map.hpp>
-#include <cstddef>
-#include <cstdint>
-#include <cstdlib>
-#include <exception>
-#include <ios>
-#include <iostream>
-#include <ostream>
-#include <set>
-#include <sstream>
-#include <string>
-#include <type_traits>
-#include <vector>
-
-#include "cpu_types.h"
-#include "memory_control.hpp"
-#include "nodes/executors/eltwise_config.hpp"
-#include "nodes/node_config.h"
-#include "openvino/core/attribute_adapter.hpp"
-#include "openvino/core/attribute_visitor.hpp"
-#include "openvino/core/model.hpp"
-#include "openvino/core/shape.hpp"
-#include "openvino/core/type.hpp"
-#include "openvino/core/type/element_type.hpp"
-#include "openvino/op/constant.hpp"
-#include "utils/general_utils.h"
 #ifdef CPU_DEBUG_CAPS
+
+#    include <oneapi/dnnl/dnnl_common_types.h>
+#    include <oneapi/dnnl/dnnl_debug.h>
+
+#    include <algorithm>
+#    include <common/c_types_map.hpp>
+#    include <cstddef>
+#    include <cstdint>
+#    include <cstdlib>
+#    include <exception>
+#    include <ios>
+#    include <iostream>
+#    include <ostream>
+#    include <set>
+#    include <sstream>
+#    include <string>
+#    include <type_traits>
+#    include <vector>
+
+#    include "cpu_types.h"
+#    include "memory_control.hpp"
+#    include "nodes/executors/eltwise_config.hpp"
+#    include "nodes/node_config.h"
+#    include "openvino/core/attribute_adapter.hpp"
+#    include "openvino/core/attribute_visitor.hpp"
+#    include "openvino/core/model.hpp"
+#    include "openvino/core/shape.hpp"
+#    include "openvino/core/type.hpp"
+#    include "openvino/core/type/element_type.hpp"
+#    include "openvino/op/constant.hpp"
+#    include "utils/general_utils.h"
 
 #    include <iomanip>
 #    include <memory>
