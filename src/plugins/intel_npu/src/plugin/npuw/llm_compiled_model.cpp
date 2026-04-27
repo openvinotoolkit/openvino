@@ -373,7 +373,7 @@ void merge_config_with(ov::AnyMap& lhs, const ov::AnyMap& rhs) {
 
 void split_llm_properties(const ov::AnyMap& properties, ov::AnyMap& llm_properties, ov::AnyMap& other_properties) {
     for (auto it = properties.begin(); it != properties.end(); ++it) {
-        if (it->first.find("NPUW_LLM") != it->first.npos) {
+        if (it->first.find("NPUW_LLM") != it->first.npos || it->first.find("NPUW_WHISPER") != it->first.npos) {
             llm_properties.insert(*it);
         } else {
             other_properties.insert(*it);
@@ -637,8 +637,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     ov::AnyMap other_props;
     split_llm_properties(properties, npuw_llm_props, other_props);
     const auto npudesc = extract_npu_descriptor(plugin, other_props);
-    auto use_whisper_key = pop_option(other_props, std::string("NPUW_WHISPER"));
-    auto whisper_eos_token = pop_option(other_props, std::string("NPUW_WHISPER_EOS_TOKEN"));
     auto use_eagle_key = pop_option(other_props, std::string("NPUW_EAGLE"));
 
     // Remove map-valued section configs before m_cfg.update(any_copy(...)), since Config expects string options.
@@ -672,14 +670,14 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_INFO("Set NPUW_ATTN_HFA_FUSED to YES");
     }
 
-    m_is_whisper = use_whisper_key.value_or(false).as<bool>() == true;
+    m_is_whisper = m_cfg.get<::intel_npu::NPUW_WHISPER>();
     if (m_is_whisper) {
         m_cfg.update({{"NPUW_LLM_SHARED_HEAD", "NO"}});
         m_cfg.update({{"NPUW_LLM_PREFILL_CHUNK_SIZE", "0"}});
         m_cfg.update({{"NPUW_LLM_CACHE_ROPE", "NO"}});
         m_cfg.update({{"NPUW_LLM_OPTIMIZE_V_TENSORS", "NO"}});
 
-        m_eos_token_id = whisper_eos_token.value_or(50257).as<uint64_t>();
+        m_eos_token_id = m_cfg.get<::intel_npu::NPUW_WHISPER_EOS_TOKEN>();
     }
 
     m_is_eagle = use_eagle_key.value_or(false).as<bool>() == true;
@@ -805,11 +803,32 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         m_kvcache_desc = KVCacheDesc{whisper_max_prompt_size, whisper_kvcache_size, 0u, whisper_seq_len_dim, 1u};
         whisper_lhs_seq_size =
             static_cast<uint32_t>(prefill_model->input("encoder_hidden_states").get_partial_shape()[1].get_length());
+        auto whisper_decompose_sdpa = m_cfg.get<::intel_npu::NPUW_WHISPER_DECOMPOSE_SDPA>();
+        if (whisper_decompose_sdpa) {
+            m_kvcache_desc.max_prompt_size = whisper_kvcache_size - 1;
+        }
 
-        ov::npuw::util::PrepareWhisperPrefillModel(m_kvcache_desc.max_prompt_size,
-                                                   whisper_lhs_seq_size)
-            .run_on_model(prefill_model);                                          // Whisper decoder model
+        auto prepare_prefill_model = ov::npuw::util::PrepareWhisperPrefillModel(m_kvcache_desc.max_prompt_size,
+                                                                                whisper_lhs_seq_size,
+                                                                                whisper_decompose_sdpa);
+        prepare_prefill_model.run_on_model(prefill_model);                         // Whisper decoder model
         ov::npuw::util::PrepareWhisperKVCacheModel().run_on_model(kvcache_model);  // Whisper decoder_with_past model
+
+        // FIXME: Whisper Decompose SDPA
+        // WA: to mock new "cross_attention_qk_scaled_scores" outputs in original model
+        if (whisper_decompose_sdpa) {
+            m_decomposed_sdpa_size = prepare_prefill_model.get_decomposed_sdpa_size();
+            auto& mutable_outputs = const_cast<std::vector<ov::Output<const ov::Node>>&>(this->outputs());
+            for (size_t idx = 0; idx < m_decomposed_sdpa_size; idx++) {
+                auto fake_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{});
+                auto fake_result = std::make_shared<ov::op::v0::Result>(fake_param);
+                fake_result->output(0).get_tensor().add_names(
+                    {WhisperInferRequest::whisper_layer_names::qk_scores,
+                     WhisperInferRequest::whisper_layer_names::qk_scores_ + std::to_string(idx)});
+
+                mutable_outputs.emplace_back(fake_result->output(0));
+            }
+        }
     }
 
     LOG_DEBUG("Make prefill model with static shapes");
@@ -1170,7 +1189,7 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& raw_stream, const ov::n
             m_kvcache_desc.dim & m_kvcache_desc.max_generation_token_len & m_kvcache_desc.v_tensors_transposed_pre &
             m_kvcache_desc.v_tensors_transposed_gen & m_prefill_chunk_size & m_use_chunk_prefill & m_max_lora_rank &
             m_enable_prefix_caching & m_prefix_caching_block_size & m_prefix_caching_max_num_blocks & m_is_whisper &
-            m_eos_token_id & m_is_eagle & m_is_embedding;
+            m_eos_token_id & m_decomposed_sdpa_size & m_is_eagle & m_is_embedding;
 
         // Write config
         stream & m_cfg;
@@ -1386,7 +1405,8 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
             compiled->m_kvcache_desc.v_tensors_transposed_gen & compiled->m_prefill_chunk_size &
             compiled->m_use_chunk_prefill & compiled->m_max_lora_rank & compiled->m_enable_prefix_caching &
             compiled->m_prefix_caching_block_size & compiled->m_prefix_caching_max_num_blocks & compiled->m_is_whisper &
-            compiled->m_eos_token_id & compiled->m_is_eagle & compiled->m_is_embedding;
+            compiled->m_eos_token_id & compiled->m_decomposed_sdpa_size & compiled->m_is_eagle &
+            compiled->m_is_embedding;
 
         // Deserialize config
         stream & compiled->m_cfg;
@@ -1519,6 +1539,7 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::shared_lm_head, NPUW_LLM_SHARED_HEAD, get),
                           BIND(npuw::whisper::enabled, NPUW_WHISPER, get),
                           BIND(npuw::whisper::whisper_eos_token, NPUW_WHISPER_EOS_TOKEN, get),
+                          BIND(npuw::whisper::whisper_decompose_sdpa, NPUW_WHISPER_DECOMPOSE_SDPA, get),
                           BIND(npuw::eagle::enabled, NPUW_EAGLE, get),
                           BIND(npuw::text_embed::enabled, NPUW_TEXT_EMBED, get)});
 #undef BIND
