@@ -367,7 +367,7 @@ public:
         // port a node was fused into parent one.
         for (size_t i = 0; i < getParentEdges().size(); i++) {
             if (getParentEdgeAt(i)->getParent().get() == parentNode.get()) {
-                setFusingPort(i);
+                setFusingPort(static_cast<int>(i));
                 break;
             }
         }
@@ -376,7 +376,7 @@ public:
         if (getFusingPort() < 0 && !parentFusedNodes.empty()) {
             for (size_t i = 0; i < getParentEdges().size(); i++) {
                 if (getParentEdgeAt(i)->getParent().get() == parentFusedNodes[parentFusedNodes.size() - 1].get()) {
-                    setFusingPort(i);
+                    setFusingPort(static_cast<int>(i));
                     break;
                 }
             }

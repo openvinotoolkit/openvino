@@ -144,7 +144,14 @@ function(ov_add_onednn)
         ov_add_compiler_flags(/wd4849)
         # C4661 no suitable definition provided for explicit template instantiation request
         ov_add_compiler_flags(/wd4661)
-        # Note: C4267, C4244, C4334, C5002 already suppressed globally for thirdparty (lines 10-19)
+        # Re-apply warning suppressions inside ov_add_onednn() function scope
+        # (needed because function() creates new variable scope in CMake)
+        ov_add_compiler_flags(/wd4018)
+        ov_add_compiler_flags(/wd4267)
+        ov_add_compiler_flags(/wd4244)
+        ov_add_compiler_flags(/wd4334)
+        ov_add_compiler_flags(/wd4146)
+        ov_add_compiler_flags(/wd5002)
     endif()
 
     if(SUGGEST_OVERRIDE_SUPPORTED)
