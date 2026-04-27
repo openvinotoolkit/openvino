@@ -344,6 +344,25 @@ OutputVector translate_normal(const NodeContext& context) {
     }
 }
 
+
+OutputVector translate_poisson(const NodeContext& context) {
+
+    auto p_rate = context.get_input(0);
+
+    auto shape = context.mark_node(std::make_shared<ov::op::v0::ShapeOf>(p_rate));
+    
+    auto min_val = context.mark_node(ov::op::v0::Constant::create(ov::element::f32, {}, {0.0}));
+    auto max_val = p_rate; 
+    
+    auto random_node = std::make_shared<ov::op::v13::RandomUniform>(
+        shape, 
+        min_val, 
+        max_val, 
+        ov::element::f32
+    );
+
+    return {context.mark_node(random_node)};
+};
 }  // namespace op
 }  // namespace pytorch
 }  // namespace frontend

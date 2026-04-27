@@ -681,6 +681,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::rand_like", op::translate_rand_like},
         {"aten::randint", op::translate_randint},
         {"aten::randn", op::translate_randn},
+        {"aten::poisson", op::translate_poisson},
         {"aten::randn_like", op::translate_randn_like},
         {"aten::real", common_translators::translate_real},
         {"aten::reciprocal", op::optional_out<op::translate_reciprocal, 1>},
