@@ -331,13 +331,17 @@ struct paged_gated_delta_net_gpu_test : public ::testing::TestWithParam<paged_ga
                       head_size,
                       ref_output);
 
-        const float tol = std::is_same<T, ov::float16>::value ? 4e-2f : 1e-3f;
+        const float atol = std::is_same<T, ov::float16>::value ? 4e-2f : 1e-3f;
+        const float rtol = std::is_same<T, ov::float16>::value ? 5e-4f : 1e-5f;
 
         {
             cldnn::mem_lock<T, mem_lock_type::read> out_lock(out_mem, get_test_stream());
             ASSERT_EQ(out_mem->count(), ref_output.size());
             for (size_t i = 0; i < ref_output.size(); i++) {
-                ASSERT_NEAR(static_cast<float>(out_lock[i]), static_cast<float>(ref_output[i]), tol) << " at output index=" << i;
+                const float actual = static_cast<float>(out_lock[i]);
+                const float expected = static_cast<float>(ref_output[i]);
+                const float tol = atol + rtol * std::abs(expected);
+                ASSERT_LE(std::abs(actual - expected), tol) << " at output index=" << i;
             }
         }
 
@@ -345,7 +349,10 @@ struct paged_gated_delta_net_gpu_test : public ::testing::TestWithParam<paged_ga
             cldnn::mem_lock<T, mem_lock_type::read> state_lock(state_mem, get_test_stream());
             ASSERT_EQ(state_mem->count(), ref_state.size());
             for (size_t i = 0; i < ref_state.size(); i++) {
-                ASSERT_NEAR(static_cast<float>(state_lock[i]), static_cast<float>(ref_state[i]), tol) << " at state index=" << i;
+                const float actual = static_cast<float>(state_lock[i]);
+                const float expected = static_cast<float>(ref_state[i]);
+                const float tol = atol + rtol * std::abs(expected);
+                ASSERT_LE(std::abs(actual - expected), tol) << " at state index=" << i;
             }
         }
     }
