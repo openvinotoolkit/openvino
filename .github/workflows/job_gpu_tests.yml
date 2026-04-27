@@ -91,26 +91,26 @@ jobs:
 
       - name: Install compute runtime drivers
         run: |
-          wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.15985.7/intel-igc-core_1.0.15985.7_amd64.deb
-          wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.15985.7/intel-igc-opencl_1.0.15985.7_amd64.deb
-          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-level-zero-gpu-dbgsym_1.3.28454.6_amd64.ddeb
-          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-level-zero-gpu_1.3.28454.6_amd64.deb
-          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-opencl-icd-dbgsym_24.05.28454.6_amd64.ddeb
-          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-opencl-icd_24.05.28454.6_amd64.deb
-          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/libigdgmm12_22.3.11_amd64.deb
+          wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.17791.9/intel-igc-core_1.0.17791.9_amd64.deb
+          wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.17791.9/intel-igc-opencl_1.0.17791.9_amd64.deb
+          wget https://github.com/intel/compute-runtime/releases/download/24.39.31294.12/intel-level-zero-gpu-dbgsym_1.6.31294.12_amd64.ddeb
+          wget https://github.com/intel/compute-runtime/releases/download/24.39.31294.12/intel-level-zero-gpu_1.6.31294.12_amd64.deb
+          wget https://github.com/intel/compute-runtime/releases/download/24.39.31294.12/intel-opencl-icd-dbgsym_24.39.31294.12_amd64.ddeb
+          wget https://github.com/intel/compute-runtime/releases/download/24.39.31294.12/intel-opencl-icd_24.39.31294.12_amd64.deb
+          wget https://github.com/intel/compute-runtime/releases/download/24.39.31294.12/libigdgmm12_22.5.2_amd64.deb
           dpkg -i *.deb
 
-      - name: Install media & display runtimes
-        if: ${{ inputs.device == 'dgpu' }}
-        run: |
-          apt-get update && apt-get install -y \
-            libegl-mesa0 libegl1-mesa libegl1-mesa-dev libgbm1 libgl1-mesa-dev libgl1-mesa-dri \
-            libglapi-mesa libgles2-mesa-dev libglx-mesa0 libxatracker2 mesa-va-drivers \
-            mesa-vdpau-drivers mesa-vulkan-drivers va-driver-all
-            wget -qO - https://repositories.intel.com/gpu/intel-graphics.key |  gpg --yes --dearmor --output /usr/share/keyrings/intel-graphics.gpg
-            echo "deb [arch=amd64,i386 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu jammy unified" | tee /etc/apt/sources.list.d/intel-gpu-jammy.list
-            apt update
-            apt-get install -y libze-intel-gpu1 libze1 intel-opencl-icd libze-dev intel-ocloc intel-level-zero-gpu-raytracing
+      # - name: Install media & display runtimes
+      #   if: ${{ inputs.device == 'dgpu' }}
+      #   run: |
+      #     apt-get update && apt-get install -y \
+      #       libegl-mesa0 libegl1-mesa libegl1-mesa-dev libgbm1 libgl1-mesa-dev libgl1-mesa-dri \
+      #       libglapi-mesa libgles2-mesa-dev libglx-mesa0 libxatracker2 mesa-va-drivers \
+      #       mesa-vdpau-drivers mesa-vulkan-drivers va-driver-all
+      #       wget -qO - https://repositories.intel.com/gpu/intel-graphics.key |  gpg --yes --dearmor --output /usr/share/keyrings/intel-graphics.gpg
+      #       echo "deb [arch=amd64,i386 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu jammy unified" | tee /etc/apt/sources.list.d/intel-gpu-jammy.list
+      #       apt update
+      #       apt-get install -y libze-intel-gpu1 libze1 libze-dev intel-ocloc intel-level-zero-gpu-raytracing
 
       - name: Verify devices
         run: clinfo
@@ -119,7 +119,7 @@ jobs:
       # Tests
       #
 
-      - name: OpenVINO GPU ${{ inputs.test_type }} Tests
+      - name: OpenVINO GPU ${{ inputs.test_type }} Tests on ${{ inputs.device }}
         id: run_tests
         env:
           TEST_TYPE: ${{ inputs.test_type }}
@@ -140,8 +140,7 @@ jobs:
             test_filter='*smoke*'
           fi
           python3 ${GTEST_PARALLEL_SCRIPT} ${INSTALL_TEST_DIR}/ov_gpu_"${TEST_TYPE}"_tests --dump_json_test_results=${INSTALL_TEST_DIR}/${TEST_RESULTS_DIR}/ov_gpu_"${TEST_TYPE}"_tests.json -- --report_unique_name --gtest_filter=$test_filter
-
-
+        
       - name: Upload Test Results
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2 We are not using newest version v6.0.0 due to very frequent issues with 'Error: Unable to make request: ECONNRESET'
         if: always()
