@@ -988,39 +988,23 @@ public:
         if (_lru_expert_num > 0) {
             _lru_cache = std::make_shared<LRUCache>(_lru_expert_num);
 
-            // CPU L2 cache is enabled by default in OTD mode.
-            // Set MOE_OTD_CPU_CACHE_MB=0 to disable, or to a specific value to override the default budget.
+            // CPU L2 cache is disabled by default.
+            // Set MOE_OTD_CPU_CACHE_EXPERTS to a positive number to enable (capped at total expert count).
             const auto& config = params.typed_desc<moe_3gemm_fused_compressed>()->_config;
-            size_t h = static_cast<size_t>(config.hidden_size);
-            size_t inter = static_cast<size_t>(config.inter_size);
-            size_t gs = static_cast<size_t>(config.group_size);
-            size_t groups_gate_up = (gs > 0 && gs < h) ? h / gs : 1;
-            size_t groups_down = (gs > 0 && gs < inter) ? inter / gs : 1;
-            size_t w_bytes = inter * h / 2;
-            size_t s_gate_up = groups_gate_up * inter * 2;
-            size_t s_down = groups_down * h * 2;
-            size_t z_gate_up = groups_gate_up * inter / 2;
-            size_t z_down = groups_down * h / 2;
-            size_t per_expert = 2 * w_bytes + w_bytes + 2 * s_gate_up + s_down + 2 * z_gate_up + z_down;
+            size_t total_experts = static_cast<size_t>(config.num_expert);
 
-            // Default: cache the offloaded experts (total - GPU cached), capped at 2048 MB.
-            size_t total_experts = config.num_expert;
-            size_t offloaded = total_experts > _lru_expert_num ? total_experts - _lru_expert_num : total_experts;
-            size_t default_budget_mb = per_expert > 0 ? (offloaded * per_expert + 1024ULL * 1024ULL - 1) / (1024ULL * 1024ULL) : 2048;
-            default_budget_mb = std::min(default_budget_mb, size_t{2048});
-
-            size_t budget_mb = default_budget_mb;
-            auto cpu_cache_mb_str = std::getenv("MOE_OTD_CPU_CACHE_MB");
-            if (cpu_cache_mb_str) {
-                budget_mb = std::stoul(cpu_cache_mb_str);
+            size_t max_cpu_experts = 0;
+            auto cpu_cache_experts_str = std::getenv("MOE_OTD_CPU_CACHE_EXPERTS");
+            if (cpu_cache_experts_str) {
+                max_cpu_experts = std::stoul(cpu_cache_experts_str);
+                max_cpu_experts = std::min(max_cpu_experts, total_experts);
             }
 
-            if (budget_mb > 0) {
-                size_t max_cpu_experts = per_expert > 0 ? (budget_mb * 1024ULL * 1024ULL) / per_expert : total_experts;
-                max_cpu_experts = std::max(max_cpu_experts, size_t{1});
+            if (max_cpu_experts > 0) {
                 _cpu_cache = std::make_shared<ov::intel_gpu::ocl::CpuExpertCache>(max_cpu_experts);
-                GPU_DEBUG_TRACE_DETAIL << "[OTD] CPU cache enabled: budget=" << budget_mb
-                                       << "MB, per_expert~" << per_expert / 1024 << "KB, max_entries=" << max_cpu_experts << std::endl;
+                GPU_DEBUG_TRACE_DETAIL << "[OTD] CPU cache enabled: max_experts=" << max_cpu_experts
+                                       << ", total_experts=" << total_experts
+                                       << ", lru_expert_num=" << _lru_expert_num << std::endl;
             }
         }
         if (_lru_expert_num > 0 && use_micro_gemm_prefill) {
