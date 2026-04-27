@@ -29,25 +29,37 @@ using memory_ptr = std::shared_ptr<memory>;
 template<typename Key, typename Hash = std::hash<Key>, typename KeyEqual = std::equal_to<Key>>
 class memory_restricter {
     private:
-        const std::unordered_set<Key, Hash, KeyEqual>* set1;  // Const reference to immutable set
-        std::unordered_set<Key, Hash, KeyEqual> set2;         // Internal mutable set
+        const std::vector<Key>* set1;  // Const reference to immutable set
+        std::vector<Key> set2;         // Internal mutable set
 
     public:
         memory_restricter() : set1(nullptr) {};
 
         // Constructor to initialize with a const reference for set1
-        explicit memory_restricter(const std::unordered_set<Key, Hash, KeyEqual>* externalSet)
-            : set1(externalSet) {}
+        explicit memory_restricter(const std::vector<Key>* externalSet)
+            : set1(externalSet) {
+        }
 
         // Insert into set2 (set1 is read-only)
         void insert(const Key& key) {
-            if (set1->find(key) == set1->end())
-                set2.insert(key);
+
+            auto it = std::find(set1->begin(), set1->end(), key);
+            if (it != set1->end()) {
+                set2.emplace_back(key);
+            }
         }
 
         // Check existence in either set
         bool contains(const Key& key) const {
-            return set1->find(key) != set1->end() || set2.find(key) != set2.end();
+            auto it = std::find(set1->begin(), set1->end(), key);
+            if (it != set1->end()) {
+                return true;
+            }
+            it = std::find(set2.begin(), set2.end(), key);
+            if (it != set2.end()) {
+                return true;
+            }
+            return false;
         }
 
         // Total size of both sets
