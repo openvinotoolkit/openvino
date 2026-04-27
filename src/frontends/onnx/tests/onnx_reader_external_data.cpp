@@ -26,7 +26,6 @@ using namespace frontend;
 using namespace frontend::onnx::tests;
 using testing::AnyOf, testing::HasSubstr;
 
-
 // API 2.0 tests
 class OnnxFeMmapFixture : public ::testing::TestWithParam<bool> {};
 
