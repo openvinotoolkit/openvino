@@ -60,16 +60,14 @@ ov::snippets::VectorDims get_repacked_offsets(const ov::snippets::VectorDims& pl
 
 }  // namespace
 
-GemmExternalRepackingAdjuster::GemmExternalRepackingAdjuster(
-    const ov::snippets::lowered::LinearIRCPtr& linear_ir,
-    const CPURuntimeConfigurator* configurator)
+GemmExternalRepackingAdjuster::GemmExternalRepackingAdjuster(const ov::snippets::lowered::LinearIRCPtr& linear_ir,
+                                                             const CPURuntimeConfigurator* configurator)
     : ov::snippets::lowered::pass::RuntimeOptimizer(configurator) {
     const auto& cpu_config = ov::as_type_ptr<CPURuntimeConfig>(m_configurator->get_config());
     const auto& params = linear_ir->get_parameters();
     for (const auto& [idx, input_repacker] : cpu_config->input_repackers) {
         OPENVINO_ASSERT(idx < params.size(), "Incorrect index of repacked input");
-        OPENVINO_ASSERT(input_repacker.already_repacked(),
-                        "Runtime aarch64 GEMM weights repacking is not supported");
+        OPENVINO_ASSERT(input_repacker.already_repacked(), "Runtime aarch64 GEMM weights repacking is not supported");
         m_repacked_inputs.push_back(idx);
     }
 }

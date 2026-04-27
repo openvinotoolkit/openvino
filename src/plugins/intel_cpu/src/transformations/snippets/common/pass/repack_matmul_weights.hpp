@@ -34,9 +34,9 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
 private:
-    const GraphContext::CPtr m_context;
-    ov::intel_cpu::InputRepackerMap& m_input_repackers;
-    std::vector<MemoryPtr>& m_src_mem_ptrs;
+    [[maybe_unused]] const GraphContext::CPtr m_context;
+    [[maybe_unused]] ov::intel_cpu::InputRepackerMap& m_input_repackers;
+    [[maybe_unused]] std::vector<MemoryPtr>& m_src_mem_ptrs;
 };
 
 }  // namespace ov::intel_cpu::pass

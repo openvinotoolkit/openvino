@@ -35,7 +35,7 @@
 namespace ov::intel_cpu {
 namespace {
 
-bool is_supported_copy_b(const std::shared_ptr<ov::Node>& node) {
+[[maybe_unused]] bool is_supported_copy_b(const std::shared_ptr<ov::Node>& node) {
 #if defined(OPENVINO_ARCH_X86_64)
     const auto copy_b = ov::as_type_ptr<BrgemmCopyB>(node);
     OPENVINO_ASSERT(copy_b, "EliminateCopyB expects BrgemmCopyB node on x64");

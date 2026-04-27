@@ -36,9 +36,9 @@ public:
 private:
     bool should_extract(size_t param_idx) const;
 
-    ov::intel_cpu::InputRepackerMap& m_input_repackers;
-    bool m_runtime_repacking_supported = false;
-    std::set<size_t> m_compile_time_repacking_idxs;
+    [[maybe_unused]] ov::intel_cpu::InputRepackerMap& m_input_repackers;
+    [[maybe_unused]] bool m_runtime_repacking_supported = false;
+    [[maybe_unused]] std::set<size_t> m_compile_time_repacking_idxs;
 };
 
 }  // namespace ov::intel_cpu::pass
