@@ -13,6 +13,7 @@
 
 #include "intel_npu/utils/utils.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "intel_npu/config/config.hpp"
 
 namespace {
 
@@ -325,7 +326,7 @@ void Metadata<METADATA_VERSION_2_5>::read() {
 }
 
 void Metadata<METADATA_VERSION_2_0>::read_human_readable() {
-    const auto it = _hr_fields.find("openvino_version");
+    const auto it = _hr_fields.find("ov_ver");
     if (it == _hr_fields.end()) {
         OPENVINO_THROW("Human-readable metadata missing 'openvino_version' field.");
     }
@@ -363,7 +364,7 @@ void Metadata<METADATA_VERSION_2_1>::read_human_readable() {
 void Metadata<METADATA_VERSION_2_2>::read_human_readable() {
     Metadata<METADATA_VERSION_2_1>::read_human_readable();
 
-    const auto it = _hr_fields.find("batch_value");
+    const auto it = _hr_fields.find("b");
     if (it == _hr_fields.end()) {
         OPENVINO_THROW("Human-readable metadata missing 'batch_value' field");
     }
@@ -426,18 +427,27 @@ void Metadata<METADATA_VERSION_2_3>::read_human_readable() {
 void Metadata<METADATA_VERSION_2_4>::read_human_readable() {
     Metadata<METADATA_VERSION_2_3>::read_human_readable();
 
-    const auto it = _hr_fields.find("compiler_version");
+    const auto it = _hr_fields.find("compiler_ver");
     if (it == _hr_fields.end()) {
-        OPENVINO_THROW("Human-readable metadata missing 'compiler_version' field");
+        OPENVINO_THROW("Human-readable metadata missing 'compiler_ver' field");
     }
-    const auto compilerVersion = static_cast<uint32_t>(std::stoul(it->second));
+    const std::string& versionStr = it->second;
+    size_t dotPos = versionStr.find('.');
+    uint32_t compilerVersion = 0;
+    if (dotPos != std::string::npos) {
+        uint32_t major = static_cast<uint32_t>(std::stoul(versionStr.substr(0, dotPos)));
+        uint32_t minor = static_cast<uint32_t>(std::stoul(versionStr.substr(dotPos + 1)));
+        compilerVersion = ONEAPI_MAKE_VERSION(major, minor);
+    } else {
+        compilerVersion = static_cast<uint32_t>(std::stoul(versionStr));
+    }
     _compilerVersion = (compilerVersion != 0) ? std::optional<uint32_t>(compilerVersion) : std::nullopt;
 }
 
 void Metadata<METADATA_VERSION_2_5>::read_human_readable() {
     Metadata<METADATA_VERSION_2_4>::read_human_readable();
 
-    const auto it = _hr_fields.find("compiler_reqs");
+    const auto it = _hr_fields.find("runtime_reqs");
     if (it == _hr_fields.end() || it->second.empty()) {
         return;
     }
@@ -458,9 +468,9 @@ void Metadata<METADATA_VERSION_2_0>::write(std::ostream& stream) {
 void Metadata<METADATA_VERSION_2_0>::write_human_readable(std::ostream& stream) {
     const uint16_t meta_major = MetadataBase::get_major(_version);
     const uint16_t meta_minor = MetadataBase::get_minor(_version);
-    write_hr_field(stream, "metadata_version", std::to_string(meta_major) + "." + std::to_string(meta_minor));
+    write_hr_field(stream, "meta_ver", std::to_string(meta_major) + "." + std::to_string(meta_minor));
     write_hr_field(stream,
-                   "openvino_version",
+                   "ov_ver",
                    std::to_string(OPENVINO_VERSION_MAJOR) + "." + std::to_string(OPENVINO_VERSION_MINOR) + "." +
                        std::to_string(OPENVINO_VERSION_PATCH));
 }
@@ -499,7 +509,7 @@ void Metadata<METADATA_VERSION_2_2>::write(std::ostream& stream) {
 void Metadata<METADATA_VERSION_2_2>::write_human_readable(std::ostream& stream) {
     Metadata<METADATA_VERSION_2_1>::write_human_readable(stream);
 
-    write_hr_field(stream, "batch_value", _batchSize.value_or(0));
+    write_hr_field(stream, "b", _batchSize.value_or(0));
 }
 
 void Metadata<METADATA_VERSION_2_3>::write(std::ostream& stream) {
@@ -524,12 +534,6 @@ void Metadata<METADATA_VERSION_2_3>::write(std::ostream& stream) {
     writeLayouts(_inputLayouts);
     writeLayouts(_outputLayouts);
 }
-
-void Metadata<METADATA_VERSION_2_4>::write(std::ostream& stream) {
-    Metadata<METADATA_VERSION_2_3>::write(stream);
-
-    uint32_t compilerVersion = _compilerVersion.value_or(0);
-    stream.write(reinterpret_cast<const char*>(&compilerVersion), sizeof(compilerVersion));
 
 // example output: input_layouts=[[N,C,H,W],[N,C]];output_layouts=[[N,H,W,C]];
 void Metadata<METADATA_VERSION_2_3>::write_human_readable(std::ostream& stream) {
@@ -580,7 +584,8 @@ void Metadata<METADATA_VERSION_2_5>::write(std::ostream& stream) {
 void Metadata<METADATA_VERSION_2_4>::write_human_readable(std::ostream& stream) {
     Metadata<METADATA_VERSION_2_3>::write_human_readable(stream);
 
-    write_hr_field(stream, "compiler_version", _compilerVersion.value_or(0));
+    write_hr_field(stream, "compiler_ver", std::to_string(ONEAPI_VERSION_MAJOR(_compilerVersion.value_or(0))) + "." +
+                std::to_string(ONEAPI_VERSION_MINOR(_compilerVersion.value_or(0))));
 }
 
 void Metadata<METADATA_VERSION_2_5>::write_human_readable(std::ostream& stream) {
@@ -588,7 +593,7 @@ void Metadata<METADATA_VERSION_2_5>::write_human_readable(std::ostream& stream) 
 
     if (_compilerReqs.has_value() && !_compilerReqs->empty()) {
         // _compilerReqs ends with '\0', remove it before writing human-readable metadata
-        write_hr_field(stream, "compiler_reqs", "[" + _compilerReqs->substr(0, _compilerReqs->length() - 1) + "]");
+        write_hr_field(stream, "runtime_reqs", "[" + _compilerReqs->substr(0, _compilerReqs->length() - 1) + "]");
     }
 }
 
