@@ -38,6 +38,7 @@ Operation Specifications
    Broadcast-1 <operation-specs/movement/broadcast-1>
    Broadcast-3 <operation-specs/movement/broadcast-3>
    Bucketize-3 <operation-specs/condition/bucketize-3>
+   CausalConv1D <operation-specs/sequence/causal-conv1d>
    CTCGreedyDecoder-1 <operation-specs/sequence/ctc-greedy-decoder-1>
    CTCGreedyDecoderSeqLen-6 <operation-specs/sequence/ctc-greedy-decoder-seq-len-6>
    Ceiling-1 <operation-specs/arithmetic/ceiling-1>
