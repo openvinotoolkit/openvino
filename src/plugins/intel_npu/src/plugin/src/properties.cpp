@@ -10,6 +10,7 @@
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
+#include "plugin_compiler_adapter.hpp"
 
 namespace {
 
@@ -589,6 +590,15 @@ void Properties::registerPluginProperties() {
         }
         return false;
     }());
+    TRY_REGISTER_CUSTOM_PROPERTY(ov::runtime_requirements_met, RUNTIME_REQUIREMENTS_MET,
+                                 true,
+                                 ov::PropertyMutability::RO,
+                                 [](const Config& /* unusedConfig */) {
+                                    // TODO: log an error here as the code shouldn't have gotten here
+                                    // this property is implemented in compiled model directly
+                                    // this implementation here serves only to publish it in supported_properties
+                                    return false;
+                                 });
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::enable_cpu_pinning, ENABLE_CPU_PINNING);
 
     FORCE_REGISTER_CUSTOM_PROPERTY(ov::hint::model,
@@ -785,6 +795,16 @@ void Properties::registerCompiledModelProperties() {
                                    [](const Config& /* unusedConfig */) {
                                        return std::shared_ptr<const ov::Model>(nullptr);
                                    });
+    TRY_REGISTER_CUSTOM_PROPERTY(ov::runtime_requirements,
+                                 RUNTIME_REQUIREMENTS,
+                                 true,
+                                 ov::PropertyMutability::RO,
+                                 [](const Config& /* unusedConfig */) {
+                                    // TODO: log an error here as the code shouldn't have gotten here
+                                    // this property is implemented in compiled model directly
+                                    // this implementation here serves only to publish it in supported_properties
+                                    return std::string("");
+                                 });
 
     // 2. Metrics (static device and enviroment properties)
     // ========
@@ -794,7 +814,7 @@ void Properties::registerCompiledModelProperties() {
     REGISTER_CUSTOM_METRIC(ov::model_name, true, [](const Config&) {
         // TODO: log an error here as the code shouldn't have gotten here
         // this property is implemented in compiled model directly
-        // this implementation here servers only to publish it in supported_properties
+        // this implementation here serves only to publish it in supported_properties
         return std::string("invalid");
     });
     REGISTER_SIMPLE_METRIC(ov::optimal_number_of_infer_requests,
@@ -803,7 +823,7 @@ void Properties::registerCompiledModelProperties() {
     REGISTER_CUSTOM_METRIC(ov::execution_devices, true, [](const Config&) {
         // TODO: log an error here as the code shouldn't have gotten here
         // this property is implemented in compiled model directly
-        // this implementation here servers only to publish it in supported_properties
+        // this implementation here serves only to publish it in supported_properties
         return std::string("NPU");
     });
 }

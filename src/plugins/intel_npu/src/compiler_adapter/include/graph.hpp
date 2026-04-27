@@ -25,6 +25,7 @@ public:
           NetworkMetadata metadata,
           std::optional<ov::Tensor> blob,
           const FilteredConfig& config,
+          const std::optional<std::string>& compatibilityDescriptor = std::nullopt,
           const bool blobIsPersistent = false,
           const bool calledFromWeightlessGraph = false);
 
@@ -61,6 +62,8 @@ public:
 
     void evict_memory() override;
 
+    std::optional<std::string> get_compatibility_descriptor() const override;
+
     ~Graph() override;
 
 protected:
@@ -81,6 +84,7 @@ protected:
     std::vector<std::shared_ptr<Event>> _lastSubmittedEvent;
 
     std::optional<ov::Tensor> _blob;
+    std::optional<std::string> _compatibilityDescriptor;
 
     // In the case of the import path, the blob is released after graph initialization so it can not be any longer
     // exported

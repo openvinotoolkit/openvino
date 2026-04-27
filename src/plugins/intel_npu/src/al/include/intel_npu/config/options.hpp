@@ -1553,4 +1553,48 @@ struct SHARED_COMMON_QUEUE final : OptionBase<SHARED_COMMON_QUEUE, bool> {
     }
 };
 
+struct RUNTIME_REQUIREMENTS final : OptionBase<RUNTIME_REQUIREMENTS, std::string> {
+    static std::string_view key() {
+        return ov::runtime_requirements.name();
+    }
+
+    static std::string defaultValue() {
+        return {};
+    }
+
+    static OptionMode mode() {
+        // This is a read-only option, marking it as CompileTime to have the corresponding property
+        // registered only when the selected compiler (adapter) supports it.
+        return OptionMode::CompileTime;
+    }
+
+    static bool isPublic() {
+        return true;
+    }
+
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RO;
+    }
+};
+
+struct RUNTIME_REQUIREMENTS_MET final : OptionBase<RUNTIME_REQUIREMENTS_MET, bool> {
+    static std::string_view key() {
+        return ov::runtime_requirements_met.name();
+    }
+
+    static bool defaultValue() {
+        return false;
+    }
+
+    static OptionMode mode() {
+        // This is a read-only option, marking it as CompileTime to have the corresponding property
+        // registered only when the selected compiler (adapter) supports it.
+        return OptionMode::CompileTime;
+    }
+
+    static bool isPublic() {
+        return true;
+    }
+};
+
 }  // namespace intel_npu

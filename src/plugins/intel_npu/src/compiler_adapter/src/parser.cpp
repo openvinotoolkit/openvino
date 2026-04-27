@@ -66,12 +66,17 @@ std::shared_ptr<IGraph> Parser::parse(const ov::Tensor& mainBlob,
                                                                     : false;
 
     if (!initBlobs.has_value()) {
+        std::optional<std::string> compatibilityDescriptor;
+        if (_zeGraphExt->isCompatibilityDescriptorSupported()) {
+            compatibilityDescriptor = _zeGraphExt->getCompatibilityDescriptor(mainGraphDesc._handle);
+        }
         return std::make_shared<Graph>(_zeGraphExt,
                                        _zeroInitStruct,
                                        mainGraphDesc,
                                        std::move(mainNetworkMetadata),
                                        mainBlob,
                                        config,
+                                       compatibilityDescriptor,
                                        blobIsPersistent);
     }
 

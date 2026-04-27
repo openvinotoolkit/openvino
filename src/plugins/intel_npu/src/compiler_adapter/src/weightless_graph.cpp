@@ -176,6 +176,7 @@ WeightlessGraph::WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGr
             std::move(mainMetadata),
             std::move(mainBlob),
             config,
+            std::nullopt,
             blobIsPersistent,
             true),
       _initsGraphDesc(initGraphDesc),

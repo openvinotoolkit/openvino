@@ -89,12 +89,18 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     auto networkMeta = _zeGraphExt->getNetworkMeta(graphDesc);
     networkMeta.name = model->get_friendly_name();
 
+    std::optional<std::string> compatibilityDescriptor;
+    if (_zeGraphExt->isCompatibilityDescriptorSupported()) {
+        compatibilityDescriptor = _zeGraphExt->getCompatibilityDescriptor(graphDesc._handle);
+    }
+
     return std::make_shared<Graph>(_zeGraphExt,
                                    _zeroInitStruct,
                                    graphDesc,
                                    std::move(networkMeta),
                                    /* blob = */ std::nullopt,
-                                   updatedConfig);
+                                   updatedConfig,
+                                   compatibilityDescriptor);
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Model>&& model,
@@ -287,6 +293,25 @@ std::optional<std::vector<std::string>> DriverCompilerAdapter::get_supported_opt
 }
 
 bool DriverCompilerAdapter::is_option_supported(std::string optName, std::optional<std::string> optValue) const {
+    // This is a special case, as RUNTIME_REQUIREMENTS is a read-only compiler property
+    // used to retrieve a compatibility string through a dedicated VCL compiler method, and not a regular settable option.
+    // Therefore, we cannot rely on the compiler's usual option support checking method
+    if(optName == RUNTIME_REQUIREMENTS::key()) {
+        if(optValue.has_value())
+            OPENVINO_THROW("The option '", RUNTIME_REQUIREMENTS::key(), "' is a read-only property and does not accept any value.");
+
+        // Compatibility string generation is not yet supported through the L0 API
+        return false;
+    }
+    // RUNTIME_REQUIREMENTS_MET must signal if compiler adapter supports validateCompatibilityDescriptor
+    if(optName == RUNTIME_REQUIREMENTS_MET::key()) {
+        if(optValue.has_value())
+            OPENVINO_THROW("Compatibility string should be verified with validate_compatibility_descriptor()");
+
+        // Compatibility string validation is not yet supported through the L0 API
+        return false;
+    }
+
     auto isOptionSupported = _zeGraphExt->isOptionSupported(std::move(optName), std::move(optValue));
     return isOptionSupported.value_or(false);
 }
@@ -309,6 +334,12 @@ bool DriverCompilerAdapter::isCompilerOptionSupported(const FilteredConfig& conf
     return (compilerVersion.major > majorCompilerOptSupportValue) ||
            ((compilerVersion.major == majorCompilerOptSupportValue) &&
             (compilerVersion.minor >= minorCompilerOptSupportValue));
+}
+
+bool DriverCompilerAdapter::validate_compatibility_descriptor(const std::string& compatibilityDescriptor) const {
+    OPENVINO_THROW("NOT_IMPLEMENTED: Compatibility descriptor validation is not yet supported through the L0 API");
+
+    return false;
 }
 
 }  // namespace intel_npu

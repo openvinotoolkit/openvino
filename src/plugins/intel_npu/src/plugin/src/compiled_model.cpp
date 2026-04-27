@@ -11,6 +11,7 @@
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/options.hpp"
+#include "intel_npu/utils/compatibility_string.hpp"
 #include "metadata.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -35,8 +36,15 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
       _batchSize(batchSize) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
 
+    // Support for specific properties might depend on the characteristics of the compiled model.
+    // Adjust lower level config availability to influence the supported properties list if needed
+    FilteredConfig localConfig = config;
+    if(!_graph->get_compatibility_descriptor().has_value()) {
+        localConfig.enable(ov::runtime_requirements.name(), false);
+    }
+
     OV_ITT_TASK_CHAIN(COMPILED_MODEL, itt::domains::NPUPlugin, "CompiledModel::CompiledModel", "initialize_properties");
-    _propertiesManager = std::make_unique<Properties>(PropertiesType::COMPILED_MODEL, config);
+    _propertiesManager = std::make_unique<Properties>(PropertiesType::COMPILED_MODEL, localConfig);
 
     configure_stream_executors();
 
@@ -183,10 +191,41 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     if (name == ov::model_name.name()) {
         OPENVINO_ASSERT(_graph != nullptr, "Missing graph");
         return _graph->get_metadata().name;
-    } else {
-        // default behaviour
-        return _propertiesManager->getProperty(name);
+    } else if (name == ov::runtime_requirements.name()) {
+        // Reading the (dummy) property content to check if it is supported
+        _propertiesManager->getProperty(name);
+
+        OPENVINO_ASSERT(_graph != nullptr, "Missing graph");
+        // The weights-separation case is not supported for now
+        // OPENVINO_ASSERT(_graph->get_init_sizes().empty());
+
+        auto compatibilityDescriptorOpt = _graph->get_compatibility_descriptor();
+        OPENVINO_ASSERT(compatibilityDescriptorOpt.has_value());
+        std::string compilerDescriptor = compatibilityDescriptorOpt.value();
+
+        std::ostringstream requirementsString;
+        _logger.debug("Compatibility string from compiler %s length: %zu", compilerDescriptor.c_str(), compilerDescriptor.size());
+
+        // The layouts are not useful compatibility information
+        Metadata<CURRENT_METADATA_VERSION>(compilerDescriptor.size(),
+                                           CURRENT_OPENVINO_VERSION,
+                                           std::nullopt/*_graph->get_init_sizes()*/,
+                                           _batchSize,
+                                           std::nullopt,
+                                           std::nullopt,
+                                           524289, // hardcoded 8.1 for now
+                                           compilerDescriptor)
+            .write_human_readable(requirementsString);
+
+        _logger.debug("Encoded compatibility string: %s length: %zu", requirementsString.str().c_str(), requirementsString.str().length());
+
+        ov::Tensor requirements(ov::element::string, {});
+        *requirements.data<std::string>() = requirementsString.str();
+        return requirements;
     }
+
+    // default behaviour
+    return _propertiesManager->getProperty(name);
 }
 
 const std::shared_ptr<IGraph>& CompiledModel::get_graph() const {
