@@ -62,6 +62,10 @@ extern template bool evaluate_node<ov::op::v0::Interpolate>(std::shared_ptr<ov::
                                                             ov::TensorVector& outputs,
                                                             const ov::TensorVector& inputs);
 
+extern template bool evaluate_node<ov::op::v4::Interpolate>(std::shared_ptr<ov::Node> node,
+                                                            ov::TensorVector& outputs,
+                                                            const ov::TensorVector& inputs);
+
 extern template bool evaluate_node<ov::op::v11::Interpolate>(std::shared_ptr<ov::Node> node,
                                                              ov::TensorVector& outputs,
                                                              const ov::TensorVector& inputs);

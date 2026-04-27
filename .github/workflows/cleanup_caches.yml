@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   schedule:
     # at 00:00 on the 1st day of every month
-    - cron: '0 0 1 * *'
+    - cron: "0 0 1 * *"
 
 permissions: read-all
 
@@ -64,7 +64,7 @@ jobs:
   Cleanup_HF_Cache_Windows:
     name: Cleanup Windows HuggingFace cache
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
-    runs-on: 'aks-win-4-cores-8gb-test'
+    runs-on: "aks-win-4-cores-8gb-test"
     defaults:
       run:
         shell: pwsh
@@ -115,12 +115,12 @@ jobs:
           max-cache-size: 750
           cache-path: ${{ env.CCACHE_PATH }}
           recursive: true
-          key: '.'
+          key: "."
 
 
   Cleanup_ccache_win:
     name: Cleanup Windows ccache
-    runs-on: 'aks-win-4-cores-8gb-test'
+    runs-on: "aks-win-4-cores-8gb-test"
     env:
       CCACHE_PATH: C:\\mount\\caches\\ccache
 
@@ -138,4 +138,4 @@ jobs:
           max-cache-size: 750
           cache-path: C:\\mount\\caches\\ccache
           recursive: true
-          key: '.'
+          key: "."
