@@ -91,6 +91,7 @@
 #include "plugin/transformations/increase_position_ids_precision.hpp"
 #include "plugin/transformations/indirect_kv_cache.hpp"
 #include "plugin/transformations/keep_moe_3gemm_const_precision.hpp"
+#include "plugin/transformations/keep_xattention_threshold_precision.hpp"
 #include "plugin/transformations/kv_cache_compression.hpp"
 #include "plugin/transformations/kv_cache_fusion.hpp"
 #include "plugin/transformations/lora_horizontal_fusion.hpp"
@@ -111,7 +112,6 @@
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
-#include "transformations/common_optimizations/convert_pagedattn_inputs.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
@@ -195,6 +195,7 @@
 #include "transformations/op_conversions/softplus_decomposition.hpp"
 #include "transformations/opset_conversions/convert_opset2_to_opset1.hpp"
 #include "transformations/opset_conversions/convert_opset3_to_opset2.hpp"
+#include "transformations/paged_attention/convert_pagedattn_inputs.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
@@ -590,6 +591,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::KeepDequantizationPrecision>(
             ov::element::TypeVector{ov::element::i32, ov::element::u32, ov::element::u16}, add_precision_sensitive_convert);
+        // Keep xattention threshold in fp32 to avoid boundary issues caused by fp16 quantization.
+        manager.register_pass<ov::intel_gpu::KeepXAttentionThresholdPrecision>();
 
         manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
                                                           empty_fuse_map,
