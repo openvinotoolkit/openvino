@@ -5,19 +5,15 @@
 # mypy: ignore-errors
 
 
+
 import torch
-from torch.nn import Module
 from torch.fx import GraphModule, Node
 from torch.fx.passes.infra.partitioner import CapabilityBasedPartitioner, Partition
 
-from torch.fx.experimental.proxy_tensor import DecompositionInterpreter
-from torch._decomp import decomposition_table
 from torch.fx.experimental.proxy_tensor import make_fx
-from torch.utils._pytree import tree_flatten, tree_map, tree_unflatten
 from openvino.frontend.pytorch.torchdynamo.op_support import OperatorSupport
 from openvino.frontend.pytorch.torchdynamo.backend_utils import _is_testing
 
-import typing as t
 import logging
 
 logger = logging.getLogger(__name__)
@@ -144,5 +140,19 @@ class Partitioner:
         self.add_get_attr_inputs(partitions)
         fused_graph_module = partitioner.fuse_partitions(partitions)
         logger.debug(f"Graph module after partitioning {fused_graph_module}")
+
+        # Count OpenVINO partitions and determine support level
+        num_partitions = 0
+        num_non_partition_nodes = 0
+        for node in fused_graph_module.graph.nodes:
+            # NOTE: Currently relying on naming convention "fused_" to identify fused nodes.
+            # This may need to be replaced with a more robust mechanism in future.
+            if node.op == "call_module" and "fused_" in node.name:
+                num_partitions += 1
+            elif node.op != "placeholder" and node.op != "output":
+                num_non_partition_nodes += 1
+
+        support_level = "fully supported" if num_non_partition_nodes == 0 else "partially supported"
+        logger.info(f"Model partitioning complete: {num_partitions} OpenVINO partition(s) created ({support_level})")
 
         return fused_graph_module
