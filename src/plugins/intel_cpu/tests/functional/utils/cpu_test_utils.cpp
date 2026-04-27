@@ -321,21 +321,6 @@ std::string CPUTestsBase::getISA(bool skip_amx) const {
     return isaType;
 }
 
-static std::string setToString(const std::unordered_set<std::string> s) {
-    if (s.empty())
-        return {};
-
-    std::string result;
-    result.append("{");
-    for (const auto& str : s) {
-        result.append(str);
-        result.append(",");
-    }
-    result.append("}");
-
-    return result;
-}
-
 CPUTestsBase::CPUInfo CPUTestsBase::makeCPUInfo(const std::vector<cpu_memory_format_t>& inFmts,
                                                 const std::vector<cpu_memory_format_t>& outFmts,
                                                 const std::vector<std::string>& priority) {
