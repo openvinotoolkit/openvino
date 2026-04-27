@@ -7,6 +7,7 @@
 #include "openvino/op/ops.hpp"
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
+#include "ov_ops/gated_delta_net.hpp"
 #include "ov_ops/rms.hpp"
 
 #include "shared_test_classes/base/utils/compare_results.hpp"

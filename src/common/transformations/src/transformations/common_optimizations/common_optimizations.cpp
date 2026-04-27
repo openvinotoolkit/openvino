@@ -26,6 +26,7 @@
 #include "transformations/common_optimizations/eliminate_unsqueeze_gather.hpp"
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
 #include "transformations/common_optimizations/fq_reshape_fusion.hpp"
+#include "transformations/common_optimizations/gated_delta_net_fusion.hpp"
 #include "transformations/common_optimizations/gelu_fusion.hpp"
 #include "transformations/common_optimizations/hsigmoid_fusion.hpp"
 #include "transformations/common_optimizations/hswish_fusion.hpp"
@@ -151,6 +152,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     ADD_MATCHER(common_fusions, InterpolateSequenceFusion)
     ADD_MATCHER(common_fusions, SkipGatherBeforeTransposeAndReshape)
     ADD_MATCHER(common_fusions, ReduceMerge)
+    ADD_MATCHER(common_fusions, GatedDeltaNetFusion)
     common_fusions->set_name("ov::pass::CommonFusions");
 
     manager.register_pass<ConcatReduceFusion>();
