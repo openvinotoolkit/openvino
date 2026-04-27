@@ -125,21 +125,29 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
         feature = std::max({input_layout.spatial(0), input_layout.spatial(1), input_layout.spatial(2)});
     }
 
+    bool is_3dweight = false;
     if (weights_pshape.size() != 2) {
-        weights_layout.set_partial_shape(reshape_to_2d(weights_pshape, feature));
+        // Detect 3D weights being passed to oneDNN
+        if (supports_immad && weights_pshape.size() == 4 && weights_layout.batch() > 1 && weights_layout.spatial(1) == feature) {
+            is_3dweight = true;
+        } else {
+            weights_layout.set_partial_shape(reshape_to_2d(weights_pshape, feature));
+        }
     }
 
+    auto out_dim = is_3dweight ? weights_layout.feature() : weights_layout.batch();
+    auto out_batch = (is_3dweight && input_layout.batch() == 1) ? weights_layout.batch() : input_layout.batch();
+
     if (supports_immad) {
-        ov::PartialShape out_pshape = {input_layout.batch(), weights_layout.batch(), 1, 1};
+        ov::PartialShape out_pshape = {out_batch, out_dim, 1, 1};
         if (desc->input_size == 3) {
-            out_pshape = {input_layout.batch(), input_layout.feature(), weights_layout.batch(), 1};
+            out_pshape = {out_batch, input_layout.feature(), out_dim, 1};
         } else if (desc->input_size == 4) {
-            out_pshape = {input_layout.batch(), input_layout.feature(), input_layout.spatial(1), weights_layout.batch()};
+            out_pshape = {out_batch, input_layout.feature(), input_layout.spatial(1), out_dim};
         } else if (desc->input_size == 5) {
-            out_pshape = {input_layout.batch(), input_layout.feature(), input_layout.spatial(2), input_layout.spatial(1), weights_layout.batch()};
+            out_pshape = {out_batch, input_layout.feature(), input_layout.spatial(2), input_layout.spatial(1), out_dim};
         } else if (desc->input_size == 6) {
-            out_pshape = {input_layout.batch(), input_layout.feature(), input_layout.spatial(3),
-                          input_layout.spatial(2), input_layout.spatial(1), weights_layout.batch()};
+            out_pshape = {out_batch, input_layout.feature(), input_layout.spatial(3), input_layout.spatial(2), input_layout.spatial(1), out_dim};
         }
 
         format output_format = get_preferred_format(node, impl_param);
@@ -147,16 +155,18 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
         return layout(out_pshape, output_type, output_format);
     } else {
         if (desc->input_size > 5) {
+            OPENVINO_ASSERT(!is_3dweight, "3D weight only supports up to a 5D activation");
             input_layout.set_partial_shape(reshape_to_2d(input_pshape, feature));
+            out_batch = input_layout.batch();
         }
 
-        auto output_size = tensor(input_layout.batch(), weights_layout.batch(), 1, 1);
+        auto output_size = tensor(out_batch, out_dim, 1, 1);
         if (desc->input_size == 3) {
-            output_size = tensor(input_layout.batch(), input_layout.feature(), 1, weights_layout.batch());
+            output_size = tensor(out_batch, input_layout.feature(), 1, out_dim);
         } else if (desc->input_size == 4) {
-            output_size = tensor(input_layout.batch(), input_layout.feature(), weights_layout.batch(), input_layout.spatial(1));
+            output_size = tensor(out_batch, input_layout.feature(), out_dim, input_layout.spatial(1));
         } else if (desc->input_size == 5) {
-            output_size = tensor(input_layout.batch(), input_layout.feature(), weights_layout.batch(), input_layout.spatial(1), input_layout.spatial(2));
+            output_size = tensor(out_batch, input_layout.feature(), out_dim, input_layout.spatial(1), input_layout.spatial(2));
         }
 
         format output_format = get_preferred_format(node, impl_param);
