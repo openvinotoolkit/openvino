@@ -1,0 +1,82 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+#!/usr/bin/env python3
+"""Run the GPU plugin agent.
+
+Designs and implements OpenCL kernels for a new OpenVINO operator,
+integrates oneDNN-backed paths, and applies hardware-aware optimisations
+(sub-groups, block reads, LWS tuning). Runs in parallel with the
+Transformation and CPU agents after Core OpSpec publishes the op spec.
+
+Usage:
+    python .github/scripts/meat/run_gpu.py <context-file>
+
+Run from the openvino repo root.
+
+The context file should include the op spec path produced by the Core OpSpec
+agent. If agent-results/pipeline_state.json exists, the agent will read it
+automatically.
+
+Example context file:
+
+    Operator: aten::erfinv
+    Op spec: agent-results/core-opspec/erfinv_spec.md
+
+Output goes to agent-results/gpu/.
+
+Note: the agent reports `skipped` when no GPU hardware is available.
+
+Copilot CLI reference:
+  https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference
+"""
+
+import os
+import subprocess
+import sys
+
+AGENT_FILE = ".github/agents/gpu.agent.md"
+
+
+def main() -> None:
+    if len(sys.argv) != 2:
+        print(f"Usage: {sys.argv[0]} <context-file>", file=sys.stderr)
+        sys.exit(1)
+
+    context_file_path = sys.argv[1]
+
+    if not os.path.isfile(context_file_path):
+        print(f"Error: context file not found: {context_file_path}", file=sys.stderr)
+        sys.exit(1)
+
+    if not os.path.isfile(AGENT_FILE):
+        print(
+            f"Error: agent file not found: {AGENT_FILE}\n"
+            "Make sure you are running from the openvino repo root.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    output_dir = "agent-results/gpu"
+    os.makedirs(output_dir, exist_ok=True)
+
+    with open(context_file_path) as f:
+        prompt = f.read()
+
+    cmd = [
+        "copilot",
+        "--agent", "gpu",
+        "--share", f"{output_dir}/session.md",
+        "--allow-all",
+        "--no-ask-user",
+        "--autopilot",
+        "--stream", "on",
+        "--log-level", "all",
+        "-p", prompt,
+    ]
+
+    sys.exit(subprocess.run(cmd, shell=(sys.platform == "win32")).returncode)
+
+
+if __name__ == "__main__":
+    main()
