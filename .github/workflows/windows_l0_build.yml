@@ -1,0 +1,92 @@
+name: Windows L0 Build
+on:
+  workflow_dispatch:
+    inputs:
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+    # paths:
+    #   - 'src/plugins/intel_gpu/**'
+
+concurrency:
+  # github.ref is not unique in post-commit
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-windows-l0-build
+  cancel-in-progress: true
+
+permissions: read-all
+
+env:
+  TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
+
+jobs:
+  Smart_CI:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false || github.run_attempt > 1
+    outputs:
+      affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
+      skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
+      target_branch: ${{ steps.set_target_branch.outputs.target_branch }}
+    steps:
+      - name: checkout action
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        with:
+          sparse-checkout: .github/actions/smart-ci
+
+      - name: Get affected components
+        id: smart_ci
+        uses: ./.github/actions/smart-ci
+        with:
+          repository: ${{ github.repository }}
+          pr: ${{ github.event.number }}
+          commit_sha: ${{ github.sha }}
+          ref_name: ${{ github.ref_name }}
+          component_pattern: "category: (.*)"
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          skip_when_only_listed_labels_set: 'docs'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
+
+      - name: Get target branch
+        id: set_target_branch
+        run: |
+          echo "target_branch=${TARGET_BRANCH#refs/heads/}" >> $GITHUB_OUTPUT
+
+  Build:
+    needs: [ Smart_CI ]
+    if: "!needs.smart_ci.outputs.skip_workflow"
+    uses: ./.github/workflows/job_build_windows.yml
+    with:
+      runner: 'aks-win-32-cores-64gb-build'
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      build-type: 'Debug'
+      target-branch: ${{ needs.smart_ci.outputs.target_branch }}
+      cmake-options: >-
+        -G 'Ninja'
+        -DENABLE_PYTHON=OFF
+        -DENABLE_TESTS=ON
+        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+        -DENABLE_STRICT_DEPENDENCIES=OFF
+        -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON
+        -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja"
+        -DGPU_RT_TYPE=L0
+
+  Overall_Status:
+    name: ci/gha_overall_status_windows_l0_debug
+    needs: [ Smart_CI, Build ]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check status of all jobs
+        if: >-
+          ${{
+            contains(needs.*.result, 'failure') ||
+            contains(needs.*.result, 'cancelled')
+          }}
+        run: exit 1
