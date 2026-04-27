@@ -2393,6 +2393,12 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
             // sum post-op can use the input buffer as the output buffer
             auto& eltw_node = node.get_dependency(reused_eltwmem_idx);
             const auto& eltw_inst = _network.get_primitive(eltw_node.id());
+            if (eltw_node.is_type<input_layout>() && !eltw_inst->outputs_allocated()) {
+                auto eltw_mem = _network.get_engine().allocate_memory(eltw_node.get_output_layout(), 
+                                                                      _network.get_engine().get_preferred_memory_allocation_type(), 
+                                                                      /*reset*/false);
+                eltw_inst->set_output_memory(eltw_mem, /*check*/false);
+            }
             auto& eltw_mem = eltw_inst->output_memory();
             auto new_mem = eltw_mem.get_engine()->reinterpret_buffer(eltw_mem, node.get_output_layout());
             _outputs.push_back(new_mem);
