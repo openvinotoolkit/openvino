@@ -186,7 +186,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"LogicalAnd", CreatorFunction(translate_binary_op<v1::LogicalAnd>)},
         {"LogicalOr", CreatorFunction(translate_binary_op<v1::LogicalOr>)},
         {"LogicalXor", CreatorFunction(translate_binary_op<v1::LogicalXor>)},
-        {"Maximum", CreatorFunction(translate_binary_op<v1::Maximum>)},
+        {"Maximum", CreatorFunction(translate_max_op)},
         {"Minimum", CreatorFunction(translate_binary_op<v1::Minimum>)},
         {"Mul", CreatorFunction(translate_mul_op)},
         {"Mod", CreatorFunction(translate_binary_op<v1::Mod>)},

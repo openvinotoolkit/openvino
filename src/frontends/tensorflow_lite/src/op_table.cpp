@@ -112,7 +112,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         {"MATRIX_DIAG", DEQUANTIZE_INPUTS(translate_matrix_diag_op)},
         // MATRIX_SET_DIAG
         {"MAX_POOL_2D", DEQUANTIZE_INPUTS(max_pool_2d)},
-        {"MAXIMUM", translate_binary<opset10::Maximum>},
+        {"MAXIMUM", translate_max_op},
         {"MEAN", translate_reduce_op<opset10::ReduceMean>},
         {"MINIMUM", translate_binary<opset10::Minimum>},
         {"MIRROR_PAD", DEQUANTIZE_INPUTS(translate_mirror_pad_op)},
