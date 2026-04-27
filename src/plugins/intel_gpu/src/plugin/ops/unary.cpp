@@ -3,6 +3,7 @@
 //
 
 #include "intel_gpu/plugin/program_builder.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 #include "transformations/utils/utils.hpp"
 
 #include "openvino/op/tanh.hpp"
@@ -44,6 +45,9 @@
 #include "openvino/op/round.hpp"
 
 #include "intel_gpu/primitives/activation.hpp"
+#include "intel_gpu/primitives/reshape.hpp"
+
+#include <algorithm> 
 
 namespace ov::intel_gpu {
 
@@ -92,6 +96,36 @@ static void CreatePReluOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::P
                                                      inputs[1].pid,
                                                      cldnn::activation_func::relu_negative_slope);
         p.add_primitive(*op, activationPrimitive);
+    } else if (out_shape.size() == 1) {
+        OPENVINO_ASSERT(out_shape.is_static(), "[GPU] Rank-1 PRelu expects static output shape in this path");
+        OPENVINO_ASSERT(slope_shape.is_static(), "[GPU] Rank-1 PRelu expects static slope shape in this path");
+
+        const auto out_dims = out_shape.to_shape();
+        const auto slope_dims = slope_shape.to_shape();
+        const auto C = out_dims.at(0);
+        const auto slope_elems = ov::shape_size(slope_dims);
+
+        OPENVINO_ASSERT(slope_elems == 1 || slope_elems == C, "[GPU] Unsupported rank-1 PRelu slope shape for ", op->get_friendly_name(), ": expected 1 or ", C, " elements, got ", slope_elems);
+
+        auto inputs = p.GetInputInfo(op);
+        const auto& x = inputs[0];
+        const auto& s = inputs[1];
+        const std::string baseName = layer_type_name_ID(op);
+        const std::string x2_id = baseName + "/r1_x2";
+        cldnn::tensor x2_tensor{1, static_cast<int32_t>(C), 1, 1};  // b,f,y,x
+        auto x2_prim = cldnn::reshape(x2_id, x, x2_tensor, cldnn::reshape::reshape_mode::base);
+        p.add_primitive(*op, x2_prim);
+        const std::string s2_id = baseName + "/r1_s2";
+        cldnn::tensor s2_tensor = slope_elems == 1 ? cldnn::tensor{1, 1, 1, 1} : cldnn::tensor{1, static_cast<int32_t>(C), 1, 1};
+        auto s2_prim = cldnn::reshape(s2_id, cldnn::input_info{s.pid}, s2_tensor, cldnn::reshape::reshape_mode::base);
+        p.add_primitive(*op, s2_prim);
+        const std::string act_id = baseName + "/r1_act";
+        auto act_prim = cldnn::activation(act_id, cldnn::input_info{x2_id}, s2_id, cldnn::activation_func::relu_negative_slope);
+        p.add_primitive(*op, act_prim);
+        auto out_prim = cldnn::reshape(baseName, cldnn::input_info{act_id}, tensor_from_dims(out_dims), cldnn::reshape::reshape_mode::base);
+        p.add_primitive(*op, out_prim);
+    } else {
+        OPENVINO_THROW("[GPU] Unsupported PRelu configuration for ", op->get_friendly_name(), ": out rank=", out_shape.size(), ", slope shape=", slope_shape);
     }
 }
 
