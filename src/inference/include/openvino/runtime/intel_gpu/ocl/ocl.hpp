@@ -211,7 +211,7 @@ protected:
 
     /**
      * @brief Default constructor which can be used in derived classes to avoid multiple create_context() calls
-    */
+     */
     ClContext() = default;
 
 public:
@@ -266,19 +266,11 @@ public:
         return static_cast<cl_context>(get_params().at(ov::intel_gpu::ocl_context.name()).as<gpu_handle_param>());
     }
 
-    cl_context get() const {
-        return static_cast<cl_context>(get_params().at(ov::intel_gpu::ocl_context.name()).as<gpu_handle_param>());
-    }
-
     /**
      * @brief OpenCL context handle conversion operator for the ClContext object.
      * @return `cl_context`
      */
     operator cl_context() {
-        return get();
-    }
-
-    operator cl_context() const {
         return get();
     }
 
