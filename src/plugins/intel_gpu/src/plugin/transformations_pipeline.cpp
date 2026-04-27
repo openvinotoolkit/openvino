@@ -1370,6 +1370,22 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         float activations_scale_factor = config.get_activations_scale_factor();
 
+        // Temporary solution, should set activations_scale_factor only when it's truly necessary.
+        if (activations_scale_factor < 0.f) {
+            size_t num_gpt_oss_moe_ops = 0;
+            for (auto& node : func->get_ops()) {
+                if (ov::is_type<ov::op::internal::MOE>(node) &&
+                    ov::as_type_ptr<const ov::op::internal::MOE>(node)->get_config().expert_type ==
+                    ov::op::internal::MOE::Expert_type::GEMM2_BIAS_SWIGLU_CLAMP) {
+                    num_gpt_oss_moe_ops += 1;
+                }
+            }
+
+            // gpt-oss-120b
+            if (num_gpt_oss_moe_ops == 36)
+                activations_scale_factor = 8.f;
+        }
+
         if (activations_scale_factor > 0.f && infer_precision == ov::element::f16) {
             using namespace ov::pass::low_precision;
 
