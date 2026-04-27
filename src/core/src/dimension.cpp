@@ -41,22 +41,10 @@ std::shared_ptr<ov::Symbol> merge_symbols(std::shared_ptr<ov::Symbol> lhs,
         return nullptr;
 }
 
-int64_t stringToInt64(const std::string& valStr) {
-    int64_t ret{0};
-    std::istringstream ss(valStr);
-    if (!ss.eof()) {
-        ss >> ret;
-    }
-    return ret;
-}
-
-bool check_all_digits(const std::string& value) {
-    auto val = ov::util::trim(value);
-    for (const auto& c : val) {
-        if (!std::isdigit(c) || c == '-')
-            return false;
-    }
-    return true;
+bool check_all_digits(std::string_view value) {
+    return std::all_of(value.begin(), value.end(), [](unsigned char c) {
+        return std::isdigit(c);
+    });
 }
 Dimension::value_type dimension_length(Interval::value_type vt) {
     return vt == Interval::s_max ? -1 : vt;
@@ -85,45 +73,38 @@ Dimension::Dimension(value_type dimension)
 Dimension::Dimension(value_type min_dimension, value_type max_dimension)
     : m_dimension(min_dimension == -1 ? 0 : min_dimension, max_dimension == -1 ? Interval::s_max : max_dimension) {}
 
-Dimension::Dimension(const std::string& value) {
-    auto val = ov::util::trim(value);
-    if (val == "?" || val == "-1") {
-        m_dimension = {0, Interval::s_max};
-        return;
-    }
-    if (val.find("..") == std::string::npos) {
-        OPENVINO_ASSERT(check_all_digits(val), "Cannot parse dimension: \"" + val + "\"");
-        m_dimension = {stringToInt64(val)};
+Dimension::Dimension(const std::string& value) : Dimension(std::string_view(value)) {}
+
+Dimension::Dimension(std::string_view sv) {
+    auto trimmed_value = ov::util::trim(sv);
+    if (trimmed_value == "?" || trimmed_value == "-1") {
         return;
     }
 
-    std::string min_value_str = val.substr(0, val.find(".."));
-    min_value_str = ov::util::trim(min_value_str);
+    const auto interval_pos = trimmed_value.find("..");
+    auto dim_str = trimmed_value.substr(0, interval_pos);
 
-    int64_t min_value;
-    if (min_value_str.empty())
-        min_value = 0;
-    else {
-        OPENVINO_ASSERT(check_all_digits(min_value_str), "Cannot parse min bound: \"" + min_value_str + "\"");
-        min_value = stringToInt64(min_value_str);
+    const auto no_interval = interval_pos == std::string_view::npos;
+    OPENVINO_ASSERT(check_all_digits(dim_str),
+                    "Cannot parse ",
+                    (no_interval) ? "dimension: \"" : "min bound: \"",
+                    dim_str,
+                    "\"");
+    const auto lower = util::view_to_number<value_type>(dim_str).value_or(0);
+
+    if (no_interval) {
+        m_dimension = Interval(lower);
+    } else {
+        dim_str = trimmed_value.substr(interval_pos + 2);
+        OPENVINO_ASSERT(check_all_digits(dim_str), "Cannot parse max bound: \"", dim_str, "\"");
+        const auto upper = util::view_to_number<value_type>(dim_str).value_or(Interval::s_max);
+        m_dimension = Interval(lower, upper);
     }
-
-    std::string max_value_str = val.substr(val.find("..") + 2);
-    max_value_str = ov::util::trim(max_value_str);
-
-    int64_t max_value;
-    if (max_value_str.empty())
-        max_value = Interval::s_max;
-    else {
-        OPENVINO_ASSERT(check_all_digits(max_value_str), "Cannot parse max bound: \"" + max_value_str + "\"");
-        max_value = stringToInt64(max_value_str);
-    }
-    m_dimension = Interval(min_value, max_value);
 }
 
 std::string Dimension::to_string() const {
     std::stringstream dim_str_stream;
-    dim_str_stream << Dimension(m_dimension);
+    dim_str_stream << *this;
     return dim_str_stream.str();
 }
 

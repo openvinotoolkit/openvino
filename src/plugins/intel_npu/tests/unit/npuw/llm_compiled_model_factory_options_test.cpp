@@ -40,6 +40,10 @@ protected:
         return ov::test::npuw::build_embedding_test_model();
     }
 
+    std::shared_ptr<ov::Model> build_embedding_decoder_model() const {
+        return ov::test::npuw::build_embedding_decoder_test_model();
+    }
+
     static ov::AnyMap base_props() {
         return {{"NPUW_LLM", "YES"}, {"NPUW_LLM_MAX_PROMPT_LEN", "128"}, {"NPUW_LLM_MIN_RESPONSE_LEN", "64"}};
     }
@@ -452,6 +456,56 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, CacheRopeDisabledRoundsTripThroughCom
     EXPECT_EQ(recorder.count_contains("_kv"), 1u);
 }
 
+// RopeCache replaces Sin/Cos with a Gather-from-LUT. When enabled the prefill
+// sub-model must have no Sin/Cos nodes left.
+TEST_F(LLMCompiledModelFactoryOptionsTest, CacheRopeEnabledRemovesSinCosFromPrefill) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_llm_model(),
+                                                     {{"NPUW_LLM_SHARED_HEAD", "NO"},
+                                                      {"NPUW_LLM_CACHE_ROPE", "YES"},
+                                                      {"NPUW_LLM_MAX_PROMPT_LEN", "2048"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto* prefill = recorder.find_suffix("_prefill");
+    ASSERT_NE(prefill, nullptr);
+
+    const auto& ops = prefill->model->get_ops();
+    auto sin_count = std::count_if(ops.begin(), ops.end(),
+                                   [](const auto& op) { return ov::is_type<ov::op::v0::Sin>(op); });
+    auto cos_count = std::count_if(ops.begin(), ops.end(),
+                                   [](const auto& op) { return ov::is_type<ov::op::v0::Cos>(op); });
+    EXPECT_EQ(sin_count, 0) << "RopeCache should have replaced all Sin nodes in the prefill model";
+    EXPECT_EQ(cos_count, 0) << "RopeCache should have replaced all Cos nodes in the prefill model";
+}
+
+// When rope caching is disabled the prefill model must still contain Sin/Cos
+// (i.e. the RoPE pattern is present but untransformed).
+TEST_F(LLMCompiledModelFactoryOptionsTest, CacheRopeDisabledKeepsSinCosInPrefill) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_llm_model(),
+                                                     {{"NPUW_LLM_SHARED_HEAD", "NO"},
+                                                      {"NPUW_LLM_CACHE_ROPE", "NO"},
+                                                      {"NPUW_LLM_MAX_PROMPT_LEN", "2048"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto* prefill = recorder.find_suffix("_prefill");
+    ASSERT_NE(prefill, nullptr);
+
+    const auto& ops = prefill->model->get_ops();
+    auto sin_count = std::count_if(ops.begin(), ops.end(),
+                                   [](const auto& op) { return ov::is_type<ov::op::v0::Sin>(op); });
+    auto cos_count = std::count_if(ops.begin(), ops.end(),
+                                   [](const auto& op) { return ov::is_type<ov::op::v0::Cos>(op); });
+    EXPECT_GT(sin_count, 0) << "Sin nodes must remain when rope caching is disabled";
+    EXPECT_GT(cos_count, 0) << "Cos nodes must remain when rope caching is disabled";
+}
+
 TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperOptionCompilesSyntheticDecoderModel) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
@@ -498,6 +552,19 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperPrefillPreparationAddsCrossAtt
     EXPECT_TRUE(has_input_name(prepared, "attention_mask"));
     EXPECT_FALSE(has_input_name(prepared, "cache_position"));
     EXPECT_TRUE(has_output_name(prepared, "present"));
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, TextEmbedOptionCompilesEmbeddingDecoderModel) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_embedding_decoder_model(),
+                                                      {{"NPUW_TEXT_EMBED", "YES"},
+                                                       {"NPUW_LLM_SHARED_HEAD", "NO"}},
+                                                      recorder));
+    ASSERT_NE(compiled, nullptr);
+    EXPECT_GE(recorder.calls().size(), 1u);
+    EXPECT_NE(recorder.find_suffix("_prefill"), nullptr);
 }
 
 }  // namespace
