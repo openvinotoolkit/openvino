@@ -7,9 +7,11 @@
 #include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h>
 #include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
 
+#include <algorithm>
 #include <cpu/aarch64/jit_generator.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <iterator>
 #include <set>
 #include <unordered_set>
 #include <utility>

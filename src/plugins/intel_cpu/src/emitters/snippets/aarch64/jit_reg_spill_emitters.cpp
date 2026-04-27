@@ -4,6 +4,8 @@
 
 #include "jit_reg_spill_emitters.hpp"
 
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
+
 #include <algorithm>
 #include <cpu/aarch64/cpu_isa_traits.hpp>
 #include <cpu/aarch64/jit_generator.hpp>
