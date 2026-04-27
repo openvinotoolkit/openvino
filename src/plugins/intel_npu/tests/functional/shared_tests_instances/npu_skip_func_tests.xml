@@ -739,7 +739,7 @@ Example:
 
     <!-- E###### -->
     <skip_config>
-        <message>NPU cannot set properties for compiled models</message>
+        <message>NPU cannot set properties for compiled models except CACHE_ENCRYPTION_CALLBACKS, but is not convertible to string</message>
         <filters>
             <filter>.*OVClassCompiledModelSetCorrectConfigTest.canSetConfig.*</filter>
         </filters>
@@ -877,7 +877,42 @@ Example:
             <device>3720</device>
         </enable_rules>
         <filters>
-            <filter>.*ZeroGraphTest.SetAlignedBlob.*zeGraphNpuExtVersion=(1.13|1.14|1.15|1.16).*</filter>
+            <filter>.*ZeroGraphTest.SetAlignedBlob.*zeGraphNpuExtVersion=(1.13|1.14|1.15|1.16|1.17).*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- E#213889 -->
+    <skip_config>
+        <message>Cannot use ENABLE_WEIGHTLESS with current driver</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+        </enable_rules>
+        <filters>
+            <filter>.*WeightlessCacheAccuracy.*ENABLE_WEIGHTLESS.*NPU3720.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>TiWithLstmCell model won't provide `WeightlessCacheAttribute` in constants' rt_info</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+        </enable_rules>
+        <filters>
+            <filter>.*WeightlessCacheAccuracy.TiWithLstmCell.*ENABLE_WEIGHTLESS.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>Write only (WO) properties will return empty ov::Any objects</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+        </enable_rules>
+        <filters>
+            <filter>.*OVClassCompiledModelPropertiesTests.canCompileModelWithPropertiesAndCheckGetProperty.*CACHE_ENCRYPTION_CALLBACKS.*</filter>
+            <filter>.*OVPropertiesTests.canSetPropertyAndCheckGetProperty.*CACHE_ENCRYPTION_CALLBACKS.*</filter>
+            <filter>.*OVPropertiesDefaultSupportedTests.CanSetDefaultValueBackToPlugin.*</filter>
+            <filter>.*OVClassCompiledModelGetConfigTest.GetConfigNoThrow.*</filter>
+            <filter>.*OVSpecificDeviceGetConfigTest.GetConfigSpecificDeviceNoThrow.*</filter>
         </filters>
     </skip_config>
 

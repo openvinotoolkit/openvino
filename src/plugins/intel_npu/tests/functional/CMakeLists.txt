@@ -36,6 +36,7 @@ ov_add_test_target(
   # OpenVINO headers need to be added before the NPU headers
   # Otherwise, the compiler may mistake OpenVINO headers for the NPU headers
   "${OpenVINO_SOURCE_DIR}/src/tests/functional/base_func_tests/include"
+  "${OpenVINO_SOURCE_DIR}/src/tests/functional/plugin/shared/include"
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${OPTIONAL_FUNC_TESTS_INCLUDES}
   "${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances"

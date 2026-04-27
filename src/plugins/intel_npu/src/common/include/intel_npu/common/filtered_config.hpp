@@ -36,6 +36,14 @@ public:
     void update(const ConfigMap& options) override;
 
     /**
+     * @brief Additional update method for properties that don't have their values convertible to string objects.
+     * @note In the future, code will be refactored to use only this update method to optimize redundant flow
+     * ov::Any-->std::string-->Opt::ValueType
+     * @param options A map of key-value pairs representing the new configuration options.
+     */
+    void updateAny(const ov::AnyMap& options) override;
+
+    /**
      * @brief Checks if a specific option exists in the configuration's descriptorDesc.
      * @param key The key of the option to check.
      * @return True if the option exists, false otherwise.

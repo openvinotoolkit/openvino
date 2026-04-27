@@ -4,6 +4,9 @@
 
 #include "plugin.hpp"
 
+#include <fstream>
+#include <numeric>
+
 #include "compiled_model.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/device_helpers.hpp"
@@ -253,6 +256,7 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     REGISTER_OPTION(MODEL_SERIALIZER_VERSION);
     REGISTER_OPTION(ENABLE_STRIDES_FOR);
     REGISTER_OPTION(SHARED_COMMON_QUEUE);
+    REGISTER_OPTION(CACHE_ENCRYPTION_CALLBACKS);
 
     if (backend) {
         // Options registered only if drivers is present and supports the corresponding extension
@@ -415,8 +419,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
 
-    // ov::hint::model has no corresponding "Config" implementation thus we need to remove it from the
-    // list of properties
+    // ov::hint::model has no corresponding "Config" implementation thus we need to
+    // remove it from the list of properties
     if (exclude_model_ptr_from_map(localProperties)) {
         _logger.warning("Model received in config will be ignored as it was already provided by parameter.");
     }
@@ -533,11 +537,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         const bool cacheModeOptimizeSize = (localConfig.get<CACHE_MODE>() == ov::CacheMode::OPTIMIZE_SIZE);
         if (localConfig.get<ENABLE_WEIGHTLESS>() && !cacheModeOptimizeSize) {
             _logger.warning(
-                "The cache mode was not set to \"optimize size\" but the \"ENABLE_WEIGHTLESS\" configuration option"
+                "The cache mode was not set to \"optimize size\" but the \"ENABLE_WEIGHTLESS\" configuration option "
                 "was set to true. Weights separation WILL NOT be performed in this case.");
         } else if (!localConfig.get<ENABLE_WEIGHTLESS>() && cacheModeOptimizeSize) {
             _logger.warning(
-                "The cache mode was set to \"optimize size\" but the \"ENABLE_WEIGHTLESS\" configuration option"
+                "The cache mode was set to \"optimize size\" but the \"ENABLE_WEIGHTLESS\" configuration option "
                 "was set to false. Weights separation WILL be performed in this case.");
         }
 
@@ -601,6 +605,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             // Initial batch setup for static cases
             graph->set_batch_size(batch.value());
         }
+    }
+
+    if (localConfig.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
+        !localConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt) {
+        _logger.warning("Encryption callbacks were provided for compiled model creation, but the encrypt "
+                        "callback is null. Proceeding with unencrypted compilation; encrypted blob export "
+                        "will be disabled.");
     }
 
     std::shared_ptr<ov::ICompiledModel> compiledModel;
@@ -681,6 +692,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         } else {
             _logger.info("Blob compatibility check skipped.");
         }
+        OPENVINO_ASSERT(blobSize > 0, "Parsed blob size is empty from the given stream!");
 
         ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
         ov::Tensor tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
@@ -745,6 +757,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
         } else {
             _logger.info("Blob compatibility check skipped.");
         }
+        OPENVINO_ASSERT(blobSize > 0, "Parsed blob size is empty from the given buffer!");
         const ov::Tensor roiTensor(compiledBlob,
                                    ov::Coordinate{0},
                                    ov::Coordinate{blobSize});  // ROI tensor to skip NPU plugin metadata
@@ -816,8 +829,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
 
     auto localProperties = properties;
 
-    // ov::hint::model has no corresponding "Config" implementation thus we need to remove it from the
-    // list of properties
+    // ov::hint::model has no corresponding "Config" implementation thus we need to
+    // remove it from the list of properties
     auto originalModel = exclude_model_ptr_from_map(localProperties);
 
     std::shared_ptr<IDevice> device =
@@ -836,11 +849,47 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
             "The usage of a compiled model can lead to undefined behavior. Please use OpenVINO IR instead!");
     }
 
-    uint64_t mainSize = tensorBig.get_byte_size();
+    const bool isNotNullDecryption = localConfig.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
+                                     localConfig.get<CACHE_ENCRYPTION_CALLBACKS>().decrypt != nullptr;
+    if (!metadata && isNotNullDecryption) {
+        _logger.warning(
+            "Received decryption callback, but metadata parsing is skipped and cannot determine if blob was "
+            "encrypted or not.");
+    }
+
+    ov::Tensor tensor = tensorBig;
+    if (isNotNullDecryption && (metadata == nullptr || (metadata != nullptr && metadata->is_encrypted_blob()))) {
+        {
+            std::string decryptedBlobStr;
+            {
+                std::string encryptedBlobStr(tensor.data<const char>(), tensor.get_byte_size());  // +1x blob size
+                decryptedBlobStr =
+                    localConfig.get<CACHE_ENCRYPTION_CALLBACKS>().decrypt(encryptedBlobStr);  // +2x blob size
+            }  // -1x blob size when deallocating temporary encrypted blob string
+            ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
+            size_t alignedSize = utils::align_size_to_standard_page_size(decryptedBlobStr.size());
+            size_t paddingSize = alignedSize - decryptedBlobStr.size();
+            tensor = ov::Tensor(ov::element::u8, ov::Shape{alignedSize},
+                                customAllocator);  // +1x blob size
+            std::memcpy(tensor.data<char>(), decryptedBlobStr.c_str(), decryptedBlobStr.size());
+            if (paddingSize > 0) {
+                // If user altered in some way initial blob during encryption, check if its size is still paged aligned
+                _logger.warning("Decrypted blob size was not page aligned, additional %zu bytes padding will be added",
+                                paddingSize);
+                std::memset(tensor.data<char>() + decryptedBlobStr.size(), 0, paddingSize);
+            }
+        }  // -1x blob size when deallocating decrypted blob string
+    }
+
+    uint64_t mainSize = tensor.get_byte_size();
     std::optional<std::vector<uint64_t>> initSizes;
     std::optional<int64_t> batchSize = std::nullopt;
 
     if (metadata) {
+        if (metadata->is_encrypted_blob() && !isNotNullDecryption) {
+            OPENVINO_THROW("Blob is encrypted, but no decryption callback was provided!");
+        }
+
         size_t accumulator = 0;
         initSizes = metadata->get_init_sizes();
         mainSize = initSizes.has_value()
@@ -856,10 +905,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
                           ONEAPI_VERSION_MINOR(compilerVersion.value()));
         }
     } else {
-        _logger.info("Blob compatibility check skipped.");
+        _logger.warning(
+            "Metadata parsing is skipped, if this is a weightless blob, init schedules cannot be parsed from it!");
     }
 
-    const ov::Tensor tensorMain(tensorBig,
+    const ov::Tensor tensorMain(tensor,
                                 ov::Coordinate{0},
                                 ov::Coordinate{mainSize});  // ROI tensor to skip NPU plugin metadata
 
@@ -870,7 +920,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
         // Read the init compiled models as well
         size_t cursorPosition = mainSize;
         for (uint64_t initSize : initSizes.value()) {
-            const ov::Tensor tensorInit(tensorBig,
+            const ov::Tensor tensorInit(tensor,
                                         ov::Coordinate{cursorPosition},
                                         ov::Coordinate{cursorPosition + initSize});
             tensorsInits.push_back(tensorInit);
