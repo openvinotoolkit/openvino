@@ -4,6 +4,7 @@
 
 #include "openvino/xml_util/xml_serialize_util.hpp"
 
+#include <cassert>
 #include <functional>
 #include <pugixml.hpp>
 #include <string_view>
@@ -738,25 +739,41 @@ void XmlSerializer::on_adapter(const std::string& name, ov::ValueAccessor<void>&
                 chunks.emplace_back(raw_string_ptr, raw_string_size);
             }
 
-            size_t new_size = 0;
-            const auto offset = get_constant_write_handler().write(chunks, new_size);
+            if (m_postponed_constant_writer) {
+                m_postponed_constant_writer->insert(m_xml_node,
+                                                    get_constant_write_handler(),
+                                                    std::move(chunks),
+                                                    std::move(header_ptr));
+            } else {
+                size_t new_size = 0;
+                const auto offset = get_constant_write_handler().write(chunks, new_size);
 
-            m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
-            m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
+                m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
+                m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
+            }
         }
     } else if (const auto& a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>>(&adapter)) {
         if (name == "value" && translate_type_name(m_node_type_name) == "Const") {
-            const auto size = a->get()->size();
-            size_t new_size = 0lu;
-            int64_t offset = get_constant_write_handler().write(static_cast<const char*>(a->get()->get_ptr()),
-                                                                size,
-                                                                new_size,
-                                                                m_compress_to_fp16,
-                                                                m_output_element_type,
-                                                                m_data_is_temporary);
+            if (m_postponed_constant_writer) {
+                m_postponed_constant_writer->insert(m_xml_node,
+                                                    get_constant_write_handler(),
+                                                    a->get(),
+                                                    m_compress_to_fp16,
+                                                    m_output_element_type,
+                                                    m_data_is_temporary);
+            } else {
+                const auto size = a->get()->size();
+                size_t new_size = 0lu;
+                int64_t offset = get_constant_write_handler().write(a->get()->get_ptr<const char>(),
+                                                                    size,
+                                                                    new_size,
+                                                                    m_compress_to_fp16,
+                                                                    m_output_element_type,
+                                                                    m_data_is_temporary);
 
-            m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
-            m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
+                m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
+                m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
+            }
         }
     } else if (const auto& a = ov::as_type<ov::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
         const auto& attrs = a->get();
@@ -936,7 +953,6 @@ void XmlSerializer::serialize(pugi::xml_node& net_xml, const ov::Model& model) {
         net_xml.append_attribute("name").set_value(model.get_friendly_name().c_str());
     }
     net_xml.append_attribute("version").set_value(static_cast<long long>(m_version));
-    pugi::xml_node layers = net_xml.append_child("layers");
 
     const bool exec_graph = is_exec_graph(model);
 
@@ -972,6 +988,9 @@ void XmlSerializer::serialize(pugi::xml_node& net_xml, const ov::Model& model) {
 
     find_postponed_constants_and_exclude_nodes(sorted_ops, postponed_constants, nodes_to_exclude);
 
+    // <layers>
+    pugi::xml_node layers = net_xml.append_child("layers");
+    m_postponed_constant_writer = std::make_shared<PostponedConstantWriter>();
     for (const auto& n : sorted_ops) {
         ov::Node* node = n.get();
 
@@ -991,7 +1010,7 @@ void XmlSerializer::serialize(pugi::xml_node& net_xml, const ov::Model& model) {
 
         const std::string& node_type_name{node->get_type_name()};
 
-        // <layers>
+        // <layer>
         pugi::xml_node layer = layers.append_child("layer");
         layer.append_attribute("id").set_value(node_id);
         // If determinism is not required, include auto-generated names into xml
@@ -1011,7 +1030,7 @@ void XmlSerializer::serialize(pugi::xml_node& net_xml, const ov::Model& model) {
         }
 
         int port_id = 0;
-        // <layers/input>
+        // <layer><input>
         if (node->get_input_size() > 0) {
             pugi::xml_node input = layer.append_child("input");
             for (auto& i : node->inputs()) {
@@ -1047,7 +1066,7 @@ void XmlSerializer::serialize(pugi::xml_node& net_xml, const ov::Model& model) {
                 layer.prepend_move(input);
             }
         }
-        // <layers/output>
+        // <layer><output>
         if (node->get_output_size() > 0) {
             auto serialize_tensor_names = [](const std::unordered_set<std::string>& names) -> std::string {
                 auto sorted_names = std::vector<std::string>(names.begin(), names.end());
@@ -1106,7 +1125,7 @@ void XmlSerializer::serialize(pugi::xml_node& net_xml, const ov::Model& model) {
             }
         }
 
-        // <layers/data> general attributes
+        // <layer><data> general attributes
         {
             bool compress_to_fp16 = false;
             ov::element::Type output_element_type = ov::element::dynamic;
@@ -1124,6 +1143,7 @@ void XmlSerializer::serialize(pugi::xml_node& net_xml, const ov::Model& model) {
                                         compress_to_fp16,
                                         output_element_type,
                                         modified_node.data_is_temporary());
+            visitor->m_postponed_constant_writer = m_postponed_constant_writer;
             OPENVINO_ASSERT(visitor->append_node_attributes(*fixed_node.get_node()),
                             "Visitor API is not supported in ",
                             node);
@@ -1138,7 +1158,14 @@ void XmlSerializer::serialize(pugi::xml_node& net_xml, const ov::Model& model) {
                 layer.remove_child(data);
             }
         }
+    }  // </layers>
+
+    if (m_postponed_constant_writer) {
+        assert(m_postponed_constant_writer.use_count() == 1);
+        m_postponed_constant_writer->write_all(layers);
+        m_postponed_constant_writer.reset();
     }
+
     // <edges>
     const std::vector<Edge> edge_mapping = create_edge_mapping(layer_ids, sorted_ops);
     pugi::xml_node edges = net_xml.append_child("edges");
@@ -1188,6 +1215,71 @@ bool XmlSerializer::append_node_attributes(ov::Node& node) {
 
 util::ConstantWriter& XmlSerializer::get_constant_write_handler() {
     return m_constant_node_write_handler.get();
+}
+
+void XmlSerializer::PostponedConstantWriter::insert(pugi::xml_node& xml_node,
+                                                    std::reference_wrapper<ConstantWriter> writer,
+                                                    std::vector<std::string_view> chunks,
+                                                    std::shared_ptr<uint8_t> header) {
+    const auto idx = constants_to_write.size();
+    constants_to_write.emplace_back(StringConstantPack{std::move(writer), std::move(chunks), std::move(header)});
+    xml_node.append_attribute("__offset_size_placeholder").set_value(idx);
+}
+
+void XmlSerializer::PostponedConstantWriter::insert(pugi::xml_node& xml_node,
+                                                    std::reference_wrapper<ConstantWriter> writer,
+                                                    std::shared_ptr<AlignedBuffer> buffer,
+                                                    bool compress_to_fp16,
+                                                    element::Type output_element_type,
+                                                    bool data_is_temporary) {
+    const auto idx = constants_to_write.size();
+    constants_to_write.emplace_back(RawConstantPack{std::move(writer),
+                                                    std::move(buffer),
+                                                    compress_to_fp16,
+                                                    output_element_type,
+                                                    data_is_temporary});
+    xml_node.append_attribute("__offset_size_placeholder").set_value(idx);
+}
+
+void XmlSerializer::PostponedConstantWriter::write_all(pugi::xml_node& layers) {
+    std::vector<pugi::xml_node> const_nodes(constants_to_write.size());
+    for (pugi::xml_node layer : layers.children("layer")) {
+        auto data = layer.child("data");
+        if (!data) {
+            continue;
+        }
+        const auto placeholder = data.attribute("__offset_size_placeholder");
+        if (!placeholder) {
+            continue;
+        }
+        const auto idx = static_cast<size_t>(placeholder.as_ullong());
+        data.remove_attribute(placeholder);
+        const_nodes[idx] = std::move(data);
+    }
+
+    for (size_t idx = 0; idx < constants_to_write.size(); ++idx) {
+        auto& pack = constants_to_write[idx];
+        size_t size = 0;
+        ConstantWriter::FilePosition offset = 0;
+        if (std::holds_alternative<StringConstantPack>(pack)) {
+            auto& [constant_write_handler, chunks, _] = std::get<StringConstantPack>(pack);
+            offset = constant_write_handler.get().write(chunks, size);
+        } else if (std::holds_alternative<RawConstantPack>(pack)) {
+            auto& [constant_write_handler, buffer, compress_to_fp16, output_element_type, data_is_temporary] =
+                std::get<RawConstantPack>(pack);
+            offset = constant_write_handler.get().write(buffer->get_ptr<const char>(),
+                                                        buffer->size(),
+                                                        size,
+                                                        compress_to_fp16,
+                                                        output_element_type,
+                                                        data_is_temporary);
+        }
+        auto& data = const_nodes[idx];
+        assert(data);
+        data.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
+        data.append_attribute("size").set_value(static_cast<unsigned long long>(size));
+    }
+    constants_to_write.clear();
 }
 
 std::string get_ir_precision_name(const element::Type& precision) {
