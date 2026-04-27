@@ -32,15 +32,18 @@ protected:
     bool Validate(const Params&) const override;
     DispatchData SetDefault(const mvn_params& params) const override;
     JitConstants GetJitConstants(const mvn_params& params, DispatchData dispatchData) const override;
+    void GetUpdateDispatchDataFunc(KernelData& kd) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return {
             FusedOpType::ACTIVATION,
             FusedOpType::QUANTIZE,
-            FusedOpType::ELTWISE
+            FusedOpType::ELTWISE,
+            FusedOpType::REORDER
         };
     }
 
     KernelsData GetMultiStageKernelsData(const mvn_params& params) const;
+    KernelsData GetDynamicMultiStageKernelsData(const mvn_params& params) const;
     MultiDispatchData SetDefaultForMulti(const mvn_params& params) const;
 
 private:
