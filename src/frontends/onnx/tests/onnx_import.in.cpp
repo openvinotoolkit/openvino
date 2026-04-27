@@ -7485,6 +7485,39 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_layer_normalization_biased) {
     test_case.run_with_tolerance_as_fp(0.0001f);
 }
 
+// Minimal smoke test for the standard ONNX opset-23 RMSNormalization translator.
+// Verifies that the decomposition built via ov::decompositions::rms_norm produces
+// the expected RMS-normalized output. Comprehensive coverage lives in the ONNX
+// node conformance suite (test_rms_normalization_*).
+OPENVINO_TEST(${BACKEND_NAME}, onnx_rms_normalization) {
+    const auto model = convert_model("rms_normalization.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    test_case.add_input<float>(Shape{2, 4}, {1.0f, 2.0f, 3.0f, 4.0f, 1.0f, 1.0f, 1.0f, 1.0f});
+    // RMS over last axis: sqrt(mean(x^2) + 1e-5)
+    //   Row 0: sqrt(7.5 + 1e-5) ~ 2.738614
+    //   Row 1: sqrt(1.0 + 1e-5) ~ 1.0000050
+    test_case.add_expected_output<float>(
+        Shape{2, 4},
+        {0.36514688f, 0.73029375f, 1.09544063f, 1.46058750f, 0.99999499f, 0.99999499f, 0.99999499f, 0.99999499f});
+    test_case.run_with_tolerance_as_fp(1e-4f);
+}
+
+// Minimal smoke test for the standard ONNX opset-23 RotaryEmbedding translator.
+// Uses cos=1, sin=0 so the rotation is identity — the test verifies that the
+// reshape/transpose/decomposition pipeline plumbs the input through unchanged.
+// Comprehensive correctness coverage lives in the ONNX node conformance suite
+// (test_rotary_embedding_*).
+OPENVINO_TEST(${BACKEND_NAME}, onnx_rotary_embedding_identity) {
+    const auto model = convert_model("rotary_embedding.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    const std::vector<float> input = {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f};
+    test_case.add_input<float>(Shape{1, 1, 2, 4}, input);
+    test_case.add_expected_output<float>(Shape{1, 1, 2, 4}, input);
+    test_case.run_with_tolerance_as_fp(1e-5f);
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_mha_4d) {
     auto model = convert_model("attention_mha_4d.onnx");
     auto test_case = test::TestCase(model, s_device);

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/decompositions/rms_norm.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
@@ -369,21 +370,14 @@ OutputVector translate_rms_norm(const NodeContext& context) {
     auto axes_range = context.mark_node(std::make_shared<v4::Range>(num_axes, zero, minus_one, element::i32));
     auto axes = context.mark_node(std::make_shared<v1::Multiply>(axes_range, minus_one));
 
-    // decomposition of RMSNorm to be fused by plugins
-    auto power_const = context.mark_node(v0::Constant::create(ov::element::f32, {}, {2.f}));
-    power_const = context.mark_node(std::make_shared<v1::ConvertLike>(power_const, x));
-    auto power = context.mark_node(std::make_shared<v1::Power>(x, power_const));
-    auto mean = context.mark_node(std::make_shared<v1::ReduceMean>(power, axes, true));
-    auto add_eps = context.mark_node(std::make_shared<v1::Add>(mean, eps));
-    auto sqrt = context.mark_node(std::make_shared<v0::Sqrt>(add_eps));
-    auto div_const = context.mark_node(v0::Constant::create(ov::element::f32, {}, {-1}));
-    div_const = context.mark_node(std::make_shared<v1::ConvertLike>(div_const, x));
-    auto div = context.mark_node(std::make_shared<v1::Power>(sqrt, div_const));
-    auto result = context.mark_node(std::make_shared<v1::Multiply>(x, div));
-
+    // Build the RMSNorm decomposition via the shared helper.
+    ov::Output<ov::Node> scale;
     if (!context.input_is_none(2)) {
-        result = context.mark_node(std::make_shared<v1::Multiply>(context.get_input(2), result));
+        scale = context.get_input(2);
     }
+    ov::pass::NodeRegistry reg;
+    auto result = ov::decompositions::rms_norm(reg, x, axes, eps, scale);
+    context.mark_nodes(reg.get());
     return {result};
 }
 
