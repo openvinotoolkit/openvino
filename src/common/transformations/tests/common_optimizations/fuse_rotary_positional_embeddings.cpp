@@ -2124,7 +2124,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_LtxVideo) {
     }
 }
 
-TEST_F(TransformationTestsF, ConvertToROPE_GPTOSS_concat_axis_negative) {
+TEST_F(TransformationTestsF, ConvertToROPE_GPTOSS_negative_axis) {
     disable_rt_info_check();
     const int batch = 2;
     const int num_head = 32;
@@ -2185,7 +2185,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTOSS_concat_axis_negative) {
     }
 }
 
-TEST_F(TransformationTestsF, ConvertToROPE_GPTOSS_concat_axis_positive) {
+TEST_F(TransformationTestsF, ConvertToROPE_GPTOSS_positive_axis) {
     disable_rt_info_check();
     const int batch = 2;
     const int num_head = 32;
@@ -2194,13 +2194,13 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTOSS_concat_axis_positive) {
     const int half_ndims = ndims / 2;
     using namespace ov;
     {
-        // gpt-oss style RoPE pattern with concat axis = 3 (positive last axis for rank-4 tensor)
+        // gpt-oss style RoPE pattern with positive axis = 3 for both VariadicSplit and Concat
         auto input = std::make_shared<opset1::Parameter>(element::f32, PartialShape{batch, num_head, seq_len, ndims});
         auto t_cos = std::make_shared<opset1::Parameter>(element::f32, PartialShape{batch, 1, seq_len, half_ndims});
         auto t_sin = std::make_shared<opset1::Parameter>(element::f32, PartialShape{batch, 1, seq_len, half_ndims});
 
         auto split_lengths = makeConst(element::i64, {2}, std::vector<int64_t>{half_ndims, half_ndims});
-        auto axis_const = makeConst(element::i64, {}, std::vector<int64_t>{-1});
+        auto axis_const = makeConst(element::i64, {}, std::vector<int64_t>{3});
         auto vsplit = makeOP<opset1::VariadicSplit>({input, axis_const, split_lengths});
 
         // first_ = first_half * cos - second_half * sin
