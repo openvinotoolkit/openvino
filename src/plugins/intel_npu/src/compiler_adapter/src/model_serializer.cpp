@@ -751,8 +751,7 @@ std::string serializeConfig(const FilteredConfig& config,
     }
 
     // As a consequence of complying to the conventions established in the 2.0 OV API, the set of values
-    // corresponding to the "model priority" key has been modified cpu_pinning property is not supported in
-    // compilers < v5.2 - need to remove it
+    // corresponding to the "model priority" key has been modified
     if ((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 2)) {
         const auto& getTargetRegex = [](const ov::hint::Priority& priorityValue) -> std::regex {
             std::ostringstream result;

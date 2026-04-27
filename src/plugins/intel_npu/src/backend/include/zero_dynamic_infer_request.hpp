@@ -16,10 +16,10 @@ public:
                                      const std::shared_ptr<const ICompiledModel>& compiledModel,
                                      const Config& config);
 
-    void infer_async() override;
-
 protected:
     void create_pipeline_impl() override;
+
+    void start_impl() override;
 
     std::shared_ptr<ZeroTensor> allocate_tensor(
         const size_t index,

@@ -37,10 +37,9 @@ public:
                   const std::optional<int64_t>& batchSize);
 
     CompiledModel(const CompiledModel&) = delete;
-
     CompiledModel& operator=(const CompiledModel&) = delete;
 
-    ~CompiledModel() override;
+    ~CompiledModel() override = default;
 
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
 
@@ -61,11 +60,8 @@ public:
     void release_memory() override;
 
 private:
-    void configure_stream_executors();
-
     Logger _logger;
     const std::shared_ptr<IDevice> _device;
-    std::shared_ptr<ov::threading::ITaskExecutor> _resultExecutor;
 
     std::unique_ptr<Properties> _propertiesManager;
 
