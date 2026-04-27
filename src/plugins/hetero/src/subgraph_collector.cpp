@@ -4,7 +4,9 @@
 
 #include "subgraph_collector.hpp"
 
+#include <algorithm>
 #include <cstdint>
+#include <iterator>
 #include <map>
 #include <numeric>
 #include <unordered_map>
