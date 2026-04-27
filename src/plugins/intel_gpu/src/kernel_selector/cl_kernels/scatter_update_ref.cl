@@ -13,6 +13,9 @@
 
 #define GET_OUTPUT_INDEX(idx_order) OUTPUT_GET_INDEX(idx_order)
 #define GET_INPUT_INDEX(idx_order) INPUT0_GET_INDEX(idx_order)
+#define GET_UPDATES_INDEX(idx_order) UPDATES_GET_INDEX(idx_order)
+
+#define INDICES_SIZE INPUT1_LENGTH
 
 #if OUTPUT_DIMS == 4
     #define ORDER b,f,y,x
@@ -22,7 +25,7 @@
     #define ORDER b,f,w,z,y,x
 #endif
 
-#ifdef BLOCKED_LAYOUT
+#ifdef USE_LAYOUT_AWARE_INDEXING
 inline void FUNC(planar_to_bfyx)(const uint planar_index,
                                  const uint batch_num, const uint channel_num, const uint height, const uint width,
                                  uint* dst_b, uint* dst_f, uint* dst_y, uint* dst_x)
@@ -85,7 +88,7 @@ inline void FUNC(planar_to_bfwzyx)(const uint planar_index,
     *dst_x = dst_xy % width;
 }
 #endif // INPUT2_DIMS
-#endif // BLOCKED_LAYOUT
+#endif // USE_LAYOUT_AWARE_INDEXING
 
 KERNEL(scatter_update_ref)(OPTIONAL_SHAPE_INFO_ARG
                    const __global INPUT0_TYPE* dictionary,
@@ -187,7 +190,7 @@ KERNEL(scatter_update_ref)(OPTIONAL_SHAPE_INFO_ARG
         #endif
     #endif
 
-    #ifdef BLOCKED_LAYOUT
+    #ifdef USE_LAYOUT_AWARE_INDEXING
         const uint planar_axis_idx = OUTPUT_INDEX_ON_AXIS;
         uint b_b, b_f, b_w, b_z, b_y, b_x;
         FUNC_CALL(planar_to_bfyx)(planar_axis_idx, INPUT1_BATCH_NUM, INPUT1_FEATURE_NUM, INPUT1_SIZE_Y, INPUT1_SIZE_X,
@@ -200,7 +203,7 @@ KERNEL(scatter_update_ref)(OPTIONAL_SHAPE_INFO_ARG
 
     const uint output_idx = GET_OUTPUT_INDEX(SECOND_ITER_OUTPUT_INDEX_ORDER);
 
-    #ifdef BLOCKED_LAYOUT
+    #ifdef USE_LAYOUT_AWARE_INDEXING
         const uint planar_updates_idx = GET_UPDATES_INDEX(UPDATES_INDEX_ORDER);
 
         #if INPUT2_DIMS == 4
@@ -235,6 +238,8 @@ KERNEL(scatter_update_ref)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 }
 
+#undef INDICES_SIZE
+#undef GET_UPDATES_INDEX
 #undef GET_OUTPUT_INDEX
 #undef GET_INPUT_INDEX
 #undef ORDER
