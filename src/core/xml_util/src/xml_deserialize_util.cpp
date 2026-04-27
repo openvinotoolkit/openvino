@@ -4,6 +4,7 @@
 
 #include "openvino/xml_util/xml_deserialize_util.hpp"
 
+#include <fstream>
 #include <regex>
 #include <stack>
 #include <string_view>
@@ -29,6 +30,36 @@
 #include "transformations/rt_info/attributes.hpp"
 
 namespace ov::util {
+
+FileWeightsProvider::FileWeightsProvider(std::filesystem::path weights_path) : m_weights_path(std::move(weights_path)) {
+    m_weights_size = static_cast<size_t>(std::filesystem::file_size(m_weights_path));
+}
+
+std::shared_ptr<ov::AlignedBuffer> FileWeightsProvider::load_region(size_t offset, size_t size) const {
+    OPENVINO_ASSERT(offset <= m_weights_size && size <= m_weights_size - offset, "Incorrect weights in bin file!");
+
+    std::ifstream weights_stream(m_weights_path, std::ios::binary);
+    OPENVINO_ASSERT(weights_stream.is_open(), "Weights file ", m_weights_path, " cannot be opened!");
+
+    weights_stream.seekg(static_cast<std::streamoff>(offset), std::ios::beg);
+    OPENVINO_ASSERT(weights_stream.good(), "Failed to seek weights file ", m_weights_path, " to offset ", offset);
+
+    auto buffer = std::make_shared<ov::AlignedBuffer>(size);
+    weights_stream.read(buffer->get_ptr<char>(), static_cast<std::streamsize>(size));
+    OPENVINO_ASSERT(static_cast<size_t>(weights_stream.gcount()) == size,
+                    "Failed to read ",
+                    size,
+                    " bytes from weights file ",
+                    m_weights_path,
+                    " at offset ",
+                    offset);
+
+    return buffer;
+}
+
+size_t FileWeightsProvider::size() const {
+    return m_weights_size;
+}
 
 template <>
 void str_to_container<std::vector<std::string>>(const std::string& value, std::vector<std::string>& res) {
@@ -414,13 +445,37 @@ XmlDeserializer::XmlDeserializer(const pugi::xml_node& node,
                                  const std::unordered_map<std::string, ov::OpSet>& opsets,
                                  const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
                                  std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>>& variables,
-                                 size_t version)
+                                 size_t version,
+                                 std::shared_ptr<WeightsProvider> weights_provider)
     : m_node(node),
       m_weights(weights),
+      m_weights_provider(std::move(weights_provider)),
       m_opsets(opsets),
       m_extensions(extensions),
       m_variables(variables),
       m_version(version) {}
+
+std::shared_ptr<ov::AlignedBuffer> XmlDeserializer::load_weights_region(size_t offset, size_t size) const {
+    if (m_weights) {
+        OPENVINO_ASSERT(offset <= m_weights->size() && size <= m_weights->size() - offset,
+                        "Incorrect weights in bin file!");
+        auto* data = m_weights->get_ptr<char>() + offset;
+        return std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(data, size, m_weights);
+    }
+
+    OPENVINO_ASSERT(m_weights_provider, "Empty weights data in bin file or bin file cannot be found!");
+    return m_weights_provider->load_region(offset, size);
+}
+
+size_t XmlDeserializer::get_available_weights_size() const {
+    if (m_weights) {
+        return m_weights->size();
+    }
+    if (m_weights_provider) {
+        return m_weights_provider->size();
+    }
+    return 0;
+}
 
 ov::Any XmlDeserializer::parse_weightless_cache_attribute(const pugi::xml_node& node) const {
     ov::Any wl_attr;
@@ -826,13 +881,10 @@ void XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<void
             if (!getParameters<int64_t>(dn, "shape", shape))
                 return;
 
-            if (!m_weights)
-                OPENVINO_THROW("Empty weights data in bin file or bin file cannot be found!");
-            if (m_weights->size() < offset + size)
-                OPENVINO_THROW("Incorrect weights in bin file!");
-            char* data = m_weights->get_ptr<char>() + offset;
-            auto buffer =
-                ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>::unpack_string_tensor(data, size);
+            auto raw_buffer = load_weights_region(offset, size);
+            auto buffer = ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>::unpack_string_tensor(
+                raw_buffer->get_ptr<char>(),
+                size);
             a->set(buffer);
         }
     } else if (auto a = ov::as_type<ov::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
@@ -881,7 +933,6 @@ void XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<std:
 }
 
 void XmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>& adapter) {
-    OPENVINO_ASSERT(m_weights, "Empty weights data in bin file or bin file cannot be found!");
     std::vector<int64_t> shape;
     std::string el_type_str;
     const auto& dn = m_node.child("data");
@@ -895,13 +946,15 @@ void XmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_p
 
     const auto size = static_cast<size_t>(pugixml::get_uint64_attr(dn, "size"));
     const auto offset = static_cast<size_t>(pugixml::get_uint64_attr(dn, "offset"));
-    OPENVINO_ASSERT(m_weights->size() >= offset + size, "Incorrect weights in bin file!");
-
-    char* data = m_weights->get_ptr<char>() + offset;
+    OPENVINO_ASSERT(offset <= get_available_weights_size() && size <= get_available_weights_size() - offset,
+                    "Incorrect weights in bin file!");
 
     const auto el_type = ov::element::Type(el_type_str);
     if (el_type == element::string) {
-        auto buffer = ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>::unpack_string_tensor(data, size);
+        auto raw_buffer = load_weights_region(offset, size);
+        auto buffer = ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>::unpack_string_tensor(
+            raw_buffer->get_ptr<char>(),
+            size);
         adapter.set(buffer);
     } else {
         if (size < ((ov::shape_size(shape) * el_type.bitwidth() + 7) >> 3)) {
@@ -916,7 +969,7 @@ void XmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_p
                            ov::util::get_memory_size(el_type, ov::shape_size(shape)));
         }
 
-        auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(data, size, m_weights);
+        auto buffer = load_weights_region(offset, size);
         adapter.set(buffer);
     }
 }
