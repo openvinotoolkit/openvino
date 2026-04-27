@@ -287,6 +287,7 @@ OP_CONVERTER(translate_upsample_nearest3d);
 OP_CONVERTER(translate_upsample_trilinear3d);
 OP_CONVERTER(translate_var);
 OP_CONVERTER(translate_var_mean);
+OP_CONVERTER(translate_values);
 OP_CONVERTER(translate_view_as_complex);
 OP_CONVERTER(translate_view_as_real);
 OP_CONVERTER(translate_weight_norm);
@@ -780,6 +781,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::upsample_trilinear3d", op::translate_upsample_trilinear3d},
         {"aten::var", op::translate_var},
         {"aten::var_mean", op::translate_var_mean},
+        {"aten::values", op::translate_values},
         {"aten::view", op::quantizable_op<op::translate_reshape>},
         {"aten::view_as", op::translate_reshape_as},
         {"aten::view_as_complex", op::translate_view_as_complex},
