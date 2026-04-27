@@ -109,13 +109,6 @@ function(ov_download_tbb)
                 ENVIRONMENT "TBBROOT"
                 SHA256 "60d130cc34c3ad9643ed652e1ad03231d28e431917492e5baee07476f9de16b6"
                 USE_NEW_LOCATION TRUE)
-    elseif(ANDROID AND X86_64)
-        RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_ANDROID "tbb2020_20200404_android.tgz"
-                TARGET_PATH "${TEMP}/${PLATFORM_SUBDIR}/tbb"
-                ENVIRONMENT "TBBROOT"
-                SHA256 "f42d084224cc2d643314bd483ad180b081774608844000f132859fca3e9bf0ce"
-                USE_NEW_LOCATION TRUE)
     elseif(LINUX AND X86_64 AND OPENVINO_GNU_LIBC AND OV_LIBC_VERSION VERSION_GREATER_EQUAL 2.17)
         # build oneTBB with gcc 4.8 (glibc 2.17)
         RESOLVE_DEPENDENCY(TBB
@@ -171,7 +164,9 @@ function(ov_download_tbb)
                 SHA256 "ead39877d182dc6ce6bcdc92fa000def79fa9fc19f78979e4faab5d6f560a434"
                 USE_NEW_LOCATION TRUE)
     else()
-        message(WARNING "Prebuilt TBB is not available on current platform")
+        message(WARNING
+            "Prebuilt TBB is not available on current platform. "
+            "Build oneTBB from sources and set TBB_DIR before OpenVINO cmake configure")
     endif()
 
     update_deps_cache(TBBROOT "${TBB}" "Path to TBB root folder")
@@ -236,7 +231,7 @@ function(ov_download_tbbbind_2_5)
         # TMP: for Apple Silicon TBB does not provide TBBBind
         if(NOT (APPLE AND AARCH64))
             message(WARNING "prebuilt TBBBIND_2_5 is not available.
-Build oneTBB from sources and set TBBROOT environment var before OpenVINO cmake configure")
+Build oneTBB from sources and set TBB_DIR before OpenVINO cmake configure")
         endif()
         return()
     endif()

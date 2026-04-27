@@ -238,7 +238,6 @@ jobs:
             -DENABLE_SYSTEM_TBB=OFF \
             -DTHREADING=TBB \
             -DTBB_DIR=${{ env.TBB_CMAKE_DIR }} \
-            -DTBBROOT=${{ env.TBB_INSTALL }} \
             -DENABLE_FASTER_BUILD=ON \
             -DOPENVINO_EXTRA_MODULES=${{ env.OPENVINO_GENAI_REPO }} \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
