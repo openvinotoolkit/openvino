@@ -355,6 +355,16 @@ void OutputInfo::OutputInfoImpl::build(ov::ResultVector& results) {
         node = std::get<0>(action_result);
         post_processing_applied = true;
     }
+
+    // Capture NV12 two-plane convert node to apply implicit steps on UV plane
+    std::shared_ptr<op::util::ConvertColorToNV12Base> convert_nv12_node;
+    Layout pre_implicit_layout;
+    if (auto nv12 = ov::as_type_ptr<op::util::ConvertColorToNV12Base>(node.get_node_shared_ptr())) {
+        if (!nv12->is_single_plane()) {
+            convert_nv12_node = nv12;
+            pre_implicit_layout = context.layout();
+        }
+    }
     // Implicit: Convert element type + layout to user's tensor implicitly
     PostStepsList implicit_steps;
     if (node.get_element_type() != get_tensor_data()->get_element_type() && get_tensor_data()->is_element_type_set() &&
@@ -414,13 +424,19 @@ void OutputInfo::OutputInfoImpl::build(ov::ResultVector& results) {
         result->set_layout(context.layout());
     }
 
-    // Handle NV12_TWO_PLANES
-    auto convert_nv12 = ov::as_type_ptr<op::util::ConvertColorToNV12Base>(node.get_node_shared_ptr());
-    if (convert_nv12 && !convert_nv12->is_single_plane()) {
-        // Current result becomes Y plane (output 0 of the convert op)
-        // Create UV plane result from output 1
-        auto uv_output = convert_nv12->output(1);
-        auto uv_result = std::make_shared<op::v0::Result>(uv_output);
+    // Handle NV12_TWO_PLANES - use previously captured node (before implicit steps)
+    if (convert_nv12_node) {
+        // Re-apply the same implicit steps to the UV plane (output 1) using a
+        // new context initialized with the pre-implicit layout.
+        PostprocessingContext uv_context(pre_implicit_layout);
+
+        Output<Node> uv_node = convert_nv12_node->output(1);
+        for (const auto& action : implicit_steps.actions()) {
+            auto action_result = action.m_op(uv_node, uv_context);
+            uv_node = std::get<0>(action_result);
+        }
+
+        auto uv_result = std::make_shared<op::v0::Result>(uv_node);
 
         // Setting subnames for Y and UV planes
         auto original_names = result->get_output_tensor(0).get_names();
@@ -436,6 +452,11 @@ void OutputInfo::OutputInfoImpl::build(ov::ResultVector& results) {
 
         uv_result->get_output_tensor(0).set_names(uv_names);
         uv_result->set_friendly_name(original_friendly_name + "/UV");
+
+        // Update UV result layout
+        if (!context.layout().empty()) {
+            uv_result->set_layout(context.layout());
+        }
 
         auto it = std::find(results.begin(), results.end(), result);
         if (it != results.end()) {
