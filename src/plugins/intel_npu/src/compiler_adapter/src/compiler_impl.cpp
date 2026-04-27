@@ -40,21 +40,37 @@ UsedVersion getUsedVclVersion(uint16_t pluginMajor, uint16_t pluginMinor, const 
     return {usedMajor, usedMinor};
 }
 
-struct vcl_allocator_2 : vcl_allocator2_t {
-    vcl_allocator_2() : vcl_allocator2_t{allocate, deallocate} {}
+struct vcl_allocator_3 : vcl_allocator2_t {
+    vcl_allocator_3() : vcl_allocator2_t{allocate, deallocate}, m_allocator(intel_npu::utils::STANDARD_PAGE_SIZE) {
+        std::cout << "[vcl_allocator_3] Constructor called!" << std::endl;
+    }
+
+    ~vcl_allocator_3() {
+        std::cout << "[vcl_allocator_3] Destructor called! Initial m_info size: " << m_info.size() << std::endl;
+        for (auto& item : m_info) {
+            if (item.first) {
+                m_allocator.deallocate(item.first, item.second, intel_npu::utils::STANDARD_PAGE_SIZE);
+            }
+        }
+        m_info.clear();
+        std::cout << "[vcl_allocator_3] Destructor finished!" << std::endl;
+    }
 
     static uint8_t* allocate(vcl_allocator2_t* allocator, size_t size) {
-        vcl_allocator_2* vclAllocator = static_cast<vcl_allocator_2*>(allocator);
+        vcl_allocator_3* vclAllocator = static_cast<vcl_allocator_3*>(allocator);
         size_t alignedSize = intel_npu::utils::align_size_to_standard_page_size(size);
-        auto allocatedPtr = reinterpret_cast<uint8_t*>(
+
+        uint8_t* allocatedPtr = static_cast<uint8_t*>(
             vclAllocator->m_allocator.allocate(alignedSize, intel_npu::utils::STANDARD_PAGE_SIZE));
+
         if (allocatedPtr == nullptr) {
-            OPENVINO_THROW("Failed to allocate aligned memory for allocator");
+            OPENVINO_THROW("Failed to allocate aligned memory in vcl_allocator_3");
         }
         memset(allocatedPtr + size, 0, alignedSize - size);
         vclAllocator->m_info.emplace_back(std::make_pair(allocatedPtr, alignedSize));
-        std::cout << "[vcl_allocator_2] allocate requested size:" << size << " alignedSize:" << alignedSize
-                  << " ptr:" << static_cast<void*>(allocatedPtr) << std::endl;
+        std::cout << "[vcl_allocator_3] allocate requested size:" << size << " alignedSize:" << alignedSize
+                  << " ptr:" << static_cast<void*>(allocatedPtr) << " | m_info size: " << vclAllocator->m_info.size()
+                  << std::endl;
         return allocatedPtr;
     }
 
@@ -62,23 +78,46 @@ struct vcl_allocator_2 : vcl_allocator2_t {
         if (ptr == nullptr) {
             OPENVINO_THROW("Pointer is nullptr in deallocate!");
         }
-        vcl_allocator_2* vclAllocator = static_cast<vcl_allocator_2*>(allocator);
+        vcl_allocator_3* vclAllocator = static_cast<vcl_allocator_3*>(allocator);
+        std::cout << "[vcl_allocator_3] deallocate called for ptr: " << static_cast<void*>(ptr) << std::endl;
+
+        for (auto it = vclAllocator->m_info.begin(); it != vclAllocator->m_info.end(); ++it) {
+            if (it->first == ptr) {
+                vclAllocator->m_info.erase(it);
+                std::cout << "[vcl_allocator_3] deallocate: ptr removed from m_info. new m_info size: "
+                          << vclAllocator->m_info.size() << std::endl;
+                break;
+            }
+        }
+
         // 1 is the placeholder value, as size is not needed in deallocate
         vclAllocator->m_allocator.deallocate(ptr, 1, intel_npu::utils::STANDARD_PAGE_SIZE);
+        std::cout << "[vcl_allocator_3] deallocate: physical memory freed for ptr: " << static_cast<void*>(ptr)
+                  << std::endl;
     }
-    ov::Allocator m_allocator;
+    intel_npu::utils::AlignedAllocator m_allocator;
     std::vector<std::pair<uint8_t*, size_t>> m_info;
 };
 
-ov::Tensor make_tensor_from_aligned_addr(uint8_t* allocated, size_t size) {
-    ov::Allocator allocator;
+ov::Tensor make_tensor_from_aligned_addr(uint8_t* allocated,
+                                         size_t size,
+                                         std::shared_ptr<vcl_allocator_3> sourceAllocator) {
+    std::cout << "[vcl_allocator_3] sourceAllocator use_count at start of make_tensor: " << sourceAllocator.use_count()
+              << std::endl;
+    std::cout << "[vcl_allocator_3] Tensor created for ptr: " << static_cast<void*>(allocated) << " size: " << size
+              << std::endl;
     auto tensor = ov::Tensor(ov::element::u8, ov::Shape{size}, allocated);
     auto impl = ov::get_tensor_impl(std::move(tensor));
-    std::shared_ptr<void> ptr(allocated, [allocator, size](uint8_t* p) mutable {
+    std::shared_ptr<void> ptr(allocated, [sourceAllocator](uint8_t* p) {
+        std::cout << "[vcl_allocator_3] Tensor Deleter called for ptr: " << static_cast<void*>(p)
+                  << " | allocator use_count inside lambda: " << sourceAllocator.use_count() << std::endl;
         if (p == nullptr) {
             OPENVINO_THROW("Pointer is nullptr in memory deallocation of make_tensor_from_aligned_addr!");
         }
-        allocator.deallocate(p, size, intel_npu::utils::STANDARD_PAGE_SIZE);
+        vcl_allocator_3::deallocate(sourceAllocator.get(), p);
+        std::cout << "[vcl_allocator_3] Tensor Deleter finished for ptr: " << static_cast<void*>(p)
+                  << " | allocator use_count after deallocate (still inside lambda): " << sourceAllocator.use_count()
+                  << std::endl;
     });
     impl._so = ptr;
     return ov::make_tensor(impl);
@@ -291,7 +330,9 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
         // support the lastest vcl api
         // For VCL 8.1 and later, we can use vclAllocatedExecutableCreate3
         _logger.debug("Using vclAllocatedExecutableCreate3 for 8.1 <= VCL");
-        vcl_allocator_2 allocator;
+        auto allocator = std::make_shared<vcl_allocator_3>();
+        std::cout << "[vcl_allocator_3] Created std::shared_ptr<vcl_allocator_3> with use_count: "
+                  << allocator.use_count() << std::endl;
         uint8_t* blob = nullptr;
         size_t blobSize = 0;
         uint8_t* compatibilityStringBuffer = nullptr;
@@ -299,7 +340,7 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
 
         auto result = vclAllocatedExecutableCreate3(_compilerHandle,
                                                     exeDesc,
-                                                    &allocator,
+                                                    allocator.get(),
                                                     &blob,
                                                     &blobSize,
                                                     &compatibilityStringBuffer,
@@ -316,7 +357,7 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
                         "Failed to create VCL executable, the blob size is zero or the blob is null");
 
         std::optional<size_t> alignedBlobSize;
-        for (auto [buffer, size] : allocator.m_info) {
+        for (auto [buffer, size] : allocator->m_info) {
             if (buffer == blob) {
                 alignedBlobSize = size;
                 break;
@@ -329,7 +370,7 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
         _logger.debug("Blob size from VCL: %zu ptr %p", blobSize, static_cast<void*>(blob));
         _logger.debug("Allocated vector size: %zu ptr: %p", *alignedBlobSize, static_cast<void*>(blob));
 
-        ov::Tensor alignedBlob = make_tensor_from_aligned_addr(blob, *alignedBlobSize);
+        ov::Tensor alignedBlob = make_tensor_from_aligned_addr(blob, *alignedBlobSize, allocator);
         std::optional<std::string> compatibilityString;
 
         if (!storeWeightlessCacheAttributeFlag) {
@@ -344,10 +385,19 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
                           static_cast<void*>(compatibilityStringBuffer),
                           compatibilityStringSize,
                           compatibilityString->c_str());
-
-            // Free the memory allocated by vclAllocatedExecutableCreate3 for the compatibility string
-            allocator.deallocate(&allocator, compatibilityStringBuffer);
         }
+
+        if (compatibilityStringBuffer != nullptr) {
+            // Free the memory allocated by vclAllocatedExecutableCreate3 for the compatibility string
+            vcl_allocator_3::deallocate(allocator.get(), compatibilityStringBuffer);
+        }
+
+        // Clean up m_info, delegating actual physical frees strictly to the Tensor deleter going forward
+        std::cout << "[vcl_allocator_3] compile: clearing m_info. Size before clear: " << allocator->m_info.size()
+                  << std::endl;
+        allocator->m_info.clear();
+        std::cout << "[vcl_allocator_3] compile: m_info cleared. Size after clear: " << allocator->m_info.size()
+                  << std::endl;
 
         _logger.debug("compile end, blob size:%zu", *alignedBlobSize);
         _logger.debug("compile end, compatibilityString:%s",
@@ -412,20 +462,29 @@ std::vector<ov::Tensor> VCLCompilerImpl::compileWsOneShot(const std::shared_ptr<
     _logger.debug("compiler vcl version: %d.%d", _vclVersion.major, _vclVersion.minor);
 
     _logger.debug("Using vclAllocatedExecutableCreateWSOneShot");
-    vcl_allocator_2 allocator;
+    auto allocator = std::make_shared<vcl_allocator_3>();
+    std::cout << "[vcl_allocator_3] Created std::shared_ptr<vcl_allocator_3> (WSOneShot) with use_count: "
+              << allocator.use_count() << std::endl;
 
     THROW_ON_FAIL_FOR_VCL("vclAllocatedExecutableCreateWSOneShot",
-                          vclAllocatedExecutableCreateWSOneShot(_compilerHandle, exeDesc, &allocator),
+                          vclAllocatedExecutableCreateWSOneShot(_compilerHandle, exeDesc, allocator.get()),
                           _logHandle);
 
-    if (allocator.m_info.size() == 0) {
+    if (allocator->m_info.size() == 0) {
         OPENVINO_THROW("Failed to create VCL executable, blobCount is zero");
     }
 
     std::vector<ov::Tensor> initMainTensors;
-    for (auto& blob : allocator.m_info) {
-        initMainTensors.emplace_back(make_tensor_from_aligned_addr(blob.first, blob.second));
+    for (const auto& blob : allocator->m_info) {
+        initMainTensors.emplace_back(make_tensor_from_aligned_addr(blob.first, blob.second, allocator));
     }
+    // Clean up m_info, delegating actual physical frees strictly to the Tensor/Deleter from now on.
+    std::cout << "[vcl_allocator_3] compileWsOneShot: clearing m_info. Size before clear: " << allocator->m_info.size()
+              << std::endl;
+    allocator->m_info.clear();
+    std::cout << "[vcl_allocator_3] compileWsOneShot: m_info cleared. Size after clear: " << allocator->m_info.size()
+              << std::endl;
+
     return initMainTensors;
 }
 
