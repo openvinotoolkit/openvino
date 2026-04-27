@@ -32,13 +32,22 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/itt.hpp"
 #include "openvino/op/abs.hpp"
+#include "openvino/op/acos.hpp"
+#include "openvino/op/acosh.hpp"
+#include "openvino/op/asin.hpp"
+#include "openvino/op/asinh.hpp"
+#include "openvino/op/atan.hpp"
+#include "openvino/op/atanh.hpp"
 #include "openvino/op/avg_pool.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/ceiling.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/cos.hpp"
+#include "openvino/op/cosh.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/hard_sigmoid.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/paged_attention.hpp"
@@ -46,6 +55,13 @@
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/selu.hpp"
+#include "openvino/op/sign.hpp"
+#include "openvino/op/sin.hpp"
+#include "openvino/op/sinh.hpp"
+#include "openvino/op/softplus.hpp"
+#include "openvino/op/softsign.hpp"
+#include "openvino/op/tan.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "ov_ops/gather_compressed.hpp"
@@ -548,6 +564,63 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     };
 
     type_to_fuse_map type_to_fuse = {{ov::op::v0::Convert::get_type_info_static(), fuse_type_to_convert}};
+
+    // Preserve f16 precision at the output of Math-type operations during f16->f32 conversion.
+    // The CPU Math node only computes in f32 so normally ConvertPrecision converts all f16
+    // edges to f32. This eliminates the f16 rounding, which changes results for downstream operations
+    auto wrap_math_to_preserve_f16 = [](const std::shared_ptr<ov::Node>& node,
+                                        const precisions_map& precisions) -> bool {
+        auto it = precisions.find(node->get_output_element_type(0));
+        if (it == precisions.end()) {
+            return false;
+        }
+        // Only apply for f16->f32 conversion
+        if (it->first != ov::element::f16) {
+            return false;
+        }
+
+        const auto& original_type = it->first;
+        const auto& target_type = it->second;
+
+        // Convert inputs back to the original f16 type so the node keeps f16 I/O
+        for (size_t i = 0; i < node->get_input_size(); i++) {
+            auto convert = std::make_shared<ov::op::v0::Convert>(node->input_value(i), original_type);
+            node->input(i).replace_source_output(convert);
+        }
+
+        // Insert Convert(f16->f32) after the node so downstream f32 consumers get f32 data.
+        if (node->get_output_size() == 1) {
+            auto consumers = node->output(0).get_target_inputs();
+            auto convert = std::make_shared<ov::op::v0::Convert>(node, target_type);
+            for (auto& input : consumers) {
+                if (ov::is_type<ov::op::v0::Result>(input.get_node()) ||
+                    ov::is_type<ov::op::v0::Convert>(input.get_node())) {
+                    continue;
+                }
+                input.replace_source_output(convert);
+            }
+        }
+        return true;
+    };
+
+    for (const auto& type_info : {ov::op::v0::Cos::get_type_info_static(),
+                                  ov::op::v0::Cosh::get_type_info_static(),
+                                  ov::op::v0::Sin::get_type_info_static(),
+                                  ov::op::v0::Sinh::get_type_info_static(),
+                                  ov::op::v0::Acos::get_type_info_static(),
+                                  ov::op::v3::Acosh::get_type_info_static(),
+                                  ov::op::v0::Asin::get_type_info_static(),
+                                  ov::op::v3::Asinh::get_type_info_static(),
+                                  ov::op::v0::Atan::get_type_info_static(),
+                                  ov::op::v3::Atanh::get_type_info_static(),
+                                  ov::op::v0::Tan::get_type_info_static(),
+                                  ov::op::v0::Sign::get_type_info_static(),
+                                  ov::op::v4::SoftPlus::get_type_info_static(),
+                                  ov::op::v9::SoftSign::get_type_info_static(),
+                                  ov::op::v0::Selu::get_type_info_static(),
+                                  ov::op::v0::HardSigmoid::get_type_info_static()}) {
+        type_to_fuse[type_info] = wrap_math_to_preserve_f16;
+    }
 
     // It cannot be static data, because it may be difference for different inferencePrecision
     const auto precisions = get_convert_precisions();
