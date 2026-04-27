@@ -1,0 +1,101 @@
+ir_version: 9
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "X"
+    input: "W"
+    input: "offset"
+    input: "B"
+    output: "Y"
+    op_type: "DeformConv"
+  }
+  name: "test_deform_conv_2d_with_bias"
+  input {
+    name: "X"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 1 }
+          dim { dim_value: 1 }
+          dim { dim_value: 4 }
+          dim { dim_value: 4 }
+        }
+      }
+    }
+  }
+  input {
+    name: "W"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 1 }
+          dim { dim_value: 1 }
+          dim { dim_value: 2 }
+          dim { dim_value: 2 }
+        }
+      }
+    }
+  }
+  input {
+    name: "offset"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 1 }
+          dim { dim_value: 8 }
+          dim { dim_value: 3 }
+          dim { dim_value: 3 }
+        }
+      }
+    }
+  }
+  input {
+    name: "B"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 1 }
+        }
+      }
+    }
+  }
+  initializer {
+    name: "W"
+    dims: 1
+    dims: 1
+    dims: 2
+    dims: 2
+    data_type: 1
+    float_data: 0.1
+    float_data: 0.2
+    float_data: 0.3
+    float_data: 0.4
+  }
+  initializer {
+    name: "B"
+    dims: 1
+    data_type: 1
+    float_data: 0.5
+  }
+  output {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 1 }
+          dim { dim_value: 1 }
+          dim { dim_value: 3 }
+          dim { dim_value: 3 }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 19
+}
