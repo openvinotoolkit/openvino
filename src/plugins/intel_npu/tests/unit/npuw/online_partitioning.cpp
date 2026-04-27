@@ -125,6 +125,7 @@ TEST(OnlinePartitioningTest, Partitioning_IsTheSame_SmallModel) {
     }
 }
 
+
 TEST(OnlinePartitioningTest, Partitioning_IsTheSame_RepeatedModel) {
     ModelBuilder mb;
     auto model = mb.get_model_with_repeated_blocks();

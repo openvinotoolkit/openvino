@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "../../logging.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 
@@ -160,6 +161,7 @@ void InferRequest::infer() {
     }
 
     if (!accurate) {
+        LOG_WARN("Accuracy issue spotted, switching inference to the reference target");
         // Copy reference outputs into the main output buffers so that any
         // downstream request already bound to those buffers sees the corrected
         // values immediately.
