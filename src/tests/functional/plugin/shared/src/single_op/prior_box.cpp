@@ -65,6 +65,7 @@ std::string PriorBoxLayerTest::getTestCaseName(const testing::TestParamInfo<prio
 }
 
 void PriorBoxLayerTest::SetUp() {
+    m_parallel_validation = true;
     const auto& [spec_params, model_type, shapes, _targetDevice] = GetParam();
     targetDevice = _targetDevice;
 
