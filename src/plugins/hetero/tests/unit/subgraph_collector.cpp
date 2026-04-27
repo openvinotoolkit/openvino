@@ -6,6 +6,8 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
+
 #include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "op/device_subgraph.hpp"
@@ -15,7 +17,8 @@
 using namespace ov::hetero;
 
 namespace {
-std::shared_ptr<ov::Model> create_test_model() {
+// input -> add -> sub -> reshape -> result
+std::shared_ptr<ov::Model> create_linear_chain_model() {
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, 3, 2, 2});
     param->set_friendly_name("input");
     auto const_value = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1, 1, 1, 1}, {1});
@@ -32,7 +35,9 @@ std::shared_ptr<ov::Model> create_test_model() {
     result->set_friendly_name("res");
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
 }
-std::shared_ptr<ov::Model> create_test_model2() {
+// input -> add1 -> add2 -> sub -> add3 -> reshape -> result
+//                  └──────────────────→ add3 (diamond topology)
+std::shared_ptr<ov::Model> create_diamond_chain_model() {
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, 3, 2, 2});
     param->set_friendly_name("input");
     auto const_value = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1, 1, 1, 1}, {1});
@@ -53,6 +58,7 @@ std::shared_ptr<ov::Model> create_test_model2() {
     result->set_friendly_name("res");
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
 }
+// Subgraph: param -> add -> result (output: add)
 std::shared_ptr<ov::Model> create_subgraph_add() {
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, 3, 2, 2});
     param->set_friendly_name("input");
@@ -62,6 +68,7 @@ std::shared_ptr<ov::Model> create_subgraph_add() {
     add->set_friendly_name("add");
     return std::make_shared<ov::Model>(ov::OutputVector{add->output(0)}, ov::ParameterVector{param});
 }
+// Subgraph: input -> add1 -> add2 (outputs: add2, add1)
 std::shared_ptr<ov::Model> create_subgraph_add_add() {
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, 3, 2, 2});
     param->set_friendly_name("input");
@@ -73,6 +80,7 @@ std::shared_ptr<ov::Model> create_subgraph_add_add() {
     add2->set_friendly_name("add2");
     return std::make_shared<ov::Model>(ov::OutputVector{add2->output(0), add1->output(0)}, ov::ParameterVector{param});
 }
+// Subgraph: input -> sub (output: sub)
 std::shared_ptr<ov::Model> create_subgraph_sub() {
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, 3, 2, 2});
     auto const_value = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1, 1, 1, 1}, {1});
@@ -81,6 +89,7 @@ std::shared_ptr<ov::Model> create_subgraph_sub() {
     sub->set_friendly_name("sub");
     return std::make_shared<ov::Model>(ov::OutputVector{sub->output(0)}, ov::ParameterVector{param});
 }
+// Subgraph: (param0, param1) -> add -> reshape -> result
 std::shared_ptr<ov::Model> create_subgraph_add_reshape() {
     auto param0 = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, 3, 2, 2});
     auto param1 = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, 3, 2, 2});
@@ -94,6 +103,7 @@ std::shared_ptr<ov::Model> create_subgraph_add_reshape() {
     result->set_friendly_name("res");
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param0, param1});
 }
+// Subgraph: input -> reshape -> result
 std::shared_ptr<ov::Model> create_subgraph_reshape() {
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, 3, 2, 2});
     auto reshape_val = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
@@ -104,11 +114,136 @@ std::shared_ptr<ov::Model> create_subgraph_reshape() {
     result->set_friendly_name("res");
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
 }
+// Model: param → A → B → C → D → result (linear chain for alternating device tests)
+std::shared_ptr<ov::Model> create_alternating_chain_model() {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{4});
+    param->set_friendly_name("input");
+    auto c1 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1.0f});
+    c1->set_friendly_name("c1");
+    auto a = std::make_shared<ov::op::v1::Add>(param, c1);
+    a->set_friendly_name("A");
+    auto b = std::make_shared<ov::op::v1::Subtract>(a, c1);
+    b->set_friendly_name("B");
+    auto c = std::make_shared<ov::op::v1::Add>(b, c1);
+    c->set_friendly_name("C");
+    auto d = std::make_shared<ov::op::v1::Subtract>(c, c1);
+    d->set_friendly_name("D");
+    auto result = std::make_shared<ov::op::v0::Result>(d);
+    result->set_friendly_name("res");
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+}
+// Model: param1 → add1 → res1, param2 → add2 → res2 (two independent paths)
+std::shared_ptr<ov::Model> create_independent_paths_model() {
+    auto param1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2});
+    param1->set_friendly_name("input1");
+    auto param2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2});
+    param2->set_friendly_name("input2");
+    auto c1 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1.0f});
+    c1->set_friendly_name("c1");
+    auto c2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1.0f});
+    c2->set_friendly_name("c2");
+    auto add1 = std::make_shared<ov::op::v1::Add>(param1, c1);
+    add1->set_friendly_name("add1");
+    auto add2 = std::make_shared<ov::op::v1::Add>(param2, c2);
+    add2->set_friendly_name("add2");
+    auto result1 = std::make_shared<ov::op::v0::Result>(add1);
+    result1->set_friendly_name("res1");
+    auto result2 = std::make_shared<ov::op::v0::Result>(add2);
+    result2->set_friendly_name("res2");
+    return std::make_shared<ov::Model>(ov::ResultVector{result1, result2}, ov::ParameterVector{param1, param2});
+}
+// Model: param1 → add1(+c1) → add2(+c2) → res, param2 unused (for merge_independent test)
+std::shared_ptr<ov::Model> create_merge_independent_model() {
+    auto param1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 2, 2});
+    param1->set_friendly_name("input1");
+    auto param2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 2, 2});
+    param2->set_friendly_name("input2");
+    auto const_value1 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 1, 1}, {1});
+    const_value1->set_friendly_name("const_val1");
+    auto add1 = std::make_shared<ov::op::v1::Add>(param1, const_value1);
+    add1->set_friendly_name("add1");
+    auto const_value2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 1, 1}, {1});
+    const_value2->set_friendly_name("const_val2");
+    auto add2 = std::make_shared<ov::op::v1::Add>(add1, const_value2);
+    add2->set_friendly_name("add2");
+    auto result = std::make_shared<ov::op::v0::Result>(add2);
+    result->set_friendly_name("res");
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param1, param2});
+}
+// Model: param → add → sub1 → res1, add → sub2 → res2 (diverging paths from shared node)
+std::shared_ptr<ov::Model> create_diverging_paths_model() {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2});
+    param->set_friendly_name("input");
+    auto c1 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1.0f});
+    c1->set_friendly_name("c1");
+    auto add = std::make_shared<ov::op::v1::Add>(param, c1);
+    add->set_friendly_name("add");
+    auto sub1 = std::make_shared<ov::op::v1::Subtract>(add, c1);
+    sub1->set_friendly_name("sub1");
+    auto sub2 = std::make_shared<ov::op::v1::Subtract>(add, c1);
+    sub2->set_friendly_name("sub2");
+    auto result1 = std::make_shared<ov::op::v0::Result>(sub1);
+    result1->set_friendly_name("res1");
+    auto result2 = std::make_shared<ov::op::v0::Result>(sub2);
+    result2->set_friendly_name("res2");
+    return std::make_shared<ov::Model>(ov::ResultVector{result1, result2}, ov::ParameterVector{param});
+}
+
+// Model: input → a1 → b1 → a2 → b2 → a3 → res, with a1 also feeding a3 (skip edge).
+// Designed to stress SubgraphCollector::split_cyclic_dependencies() with nested cycles:
+// when {a1, a2, a3} are on MOCK.0 and {b1, b2} on MOCK.1, the initial M0 group contains
+// two stacked cyclic dependencies (via b1 and via b2) that require multiple split iterations
+// of the fixed-point loop to resolve.
+std::shared_ptr<ov::Model> create_nested_cyclic_chain_model() {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{4});
+    param->set_friendly_name("input");
+    auto c1 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1.0f});
+    c1->set_friendly_name("c1");
+    auto a1 = std::make_shared<ov::op::v1::Add>(param, c1);
+    a1->set_friendly_name("a1");
+    auto b1 = std::make_shared<ov::op::v1::Subtract>(a1, c1);
+    b1->set_friendly_name("b1");
+    auto a2 = std::make_shared<ov::op::v1::Add>(b1, c1);
+    a2->set_friendly_name("a2");
+    auto b2 = std::make_shared<ov::op::v1::Subtract>(a2, c1);
+    b2->set_friendly_name("b2");
+    auto a3 = std::make_shared<ov::op::v1::Add>(b2, a1);
+    a3->set_friendly_name("a3");
+    auto result = std::make_shared<ov::op::v0::Result>(a3);
+    result->set_friendly_name("res");
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+}
+
+// Stateful model: param → read_value → add(+c1) → {result, assign(sink)}.
+// Single-device by design — exercises Subgraph::_sinks wire-through and
+// create_submodel_from_collected_subgraph()'s sink-preserving construction without
+// depending on the (currently unspecified) cross-affinity Assign/ReadValue contract.
+std::shared_ptr<ov::Model> create_stateful_single_device_model() {
+    const ov::op::util::VariableInfo variable_info{ov::PartialShape{4}, ov::element::f32, "var0"};
+    auto variable = std::make_shared<ov::op::util::Variable>(variable_info);
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{4});
+    param->set_friendly_name("input");
+    auto read_value = std::make_shared<ov::op::v6::ReadValue>(param, variable);
+    read_value->set_friendly_name("read_value");
+    auto c1 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1.0f});
+    c1->set_friendly_name("c1");
+    auto add = std::make_shared<ov::op::v1::Add>(read_value, c1);
+    add->set_friendly_name("add");
+    auto assign = std::make_shared<ov::op::v6::Assign>(add, variable);
+    assign->set_friendly_name("assign");
+    auto result = std::make_shared<ov::op::v0::Result>(add);
+    result->set_friendly_name("res");
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::SinkVector{assign}, ov::ParameterVector{param});
+}
+
+std::shared_ptr<ov::Model> create_submodel_from_collected_subgraph(const ov::hetero::Subgraph& sg) {
+    return std::make_shared<ov::Model>(sg._results, sg._sinks, sg._parameters);
+}
 }  // namespace
 
 class SubgraphCollectorTest : public testing::Test {
     void SetUp() override {
-        m_model = create_test_model();
+        m_model = create_linear_chain_model();
         m_model_ref = m_model->clone();
         m_submodels = {};
         m_submodels.push_back(create_subgraph_add());
@@ -124,74 +259,7 @@ protected:
     std::vector<std::shared_ptr<ov::Model>> m_submodels;
 };
 
-TEST_F(SubgraphCollectorTest, submodel_split_and_merge) {
-    const std::map<std::string, std::string> supported_ops = {
-        {"input", "MOCK.0"},
-        {"const_val", "MOCK.0"},
-        {"add", "MOCK.0"},
-        {"sub", "MOCK.1"},
-        {"reshape_val", "MOCK.0"},
-        {"reshape", "MOCK.0"},
-        {"res", "MOCK.0"},
-    };
-    const std::map<std::string, SubgraphCollector::SubgraphId> expected_ids = {
-        {"input", 0},
-        {"const_val", 0},
-        {"add", 0},
-        {"sub", 2},
-        {"reshape_val", 3},
-        {"reshape", 3},
-        {"res", 3},
-    };
-    const SubgraphsMappingInfo exptected_mapping_info = {{// inputs to submodel inputs
-                                                          NodeInfo{0, 0}},
-                                                         {// outputs to submodel outpts
-                                                          NodeInfo{2, 0}},
-                                                         {// submodel input to previous output
-                                                          {NodeInfo{1, 0}, NodeInfo{0, 0}},
-                                                          {NodeInfo{2, 0}, NodeInfo{1, 0}}}};
-    SubgraphCollector::AffinitiesMap affinities;
-    SubgraphCollector::SubgraphIdsMap exptected_subgraphs_ids;
-    const auto ordered_ops = m_model->get_ordered_ops();
-    for (const auto& node : ordered_ops) {
-        const auto name = node->get_friendly_name();
-        OPENVINO_ASSERT(supported_ops.count(name));
-        affinities[node] = supported_ops.at(name);
-        OPENVINO_ASSERT(expected_ids.count(name));
-        exptected_subgraphs_ids[node] = expected_ids.at(name);
-    }
-    // Collect subgraphs
-    SubgraphCollector subgraph_collector(m_model, affinities);
-    auto actual_subgraphs_ids = subgraph_collector.get_subgraph_ids();
-    ASSERT_EQ(exptected_subgraphs_ids, actual_subgraphs_ids);
-
-    const auto& [actual_subgraphs, actual_mapping_info] = subgraph_collector.run();
-
-    ASSERT_EQ(3, actual_subgraphs.size());
-    std::vector<std::shared_ptr<ov::Model>> actual_submodels;
-    for (auto& actual_subgraph : actual_subgraphs) {
-        actual_submodels.push_back(std::make_shared<ov::Model>(actual_subgraph._results, actual_subgraph._parameters));
-    }
-    for (size_t i = 0; i < actual_submodels.size(); i++) {
-        auto res = compare_functions(m_submodels.at(i), actual_submodels.at(i));
-        ASSERT_TRUE(res.first) << res.second;
-    }
-
-    // Check mapping info
-    ASSERT_EQ(exptected_mapping_info._inputs_to_submodels_inputs, actual_mapping_info._inputs_to_submodels_inputs);
-    ASSERT_EQ(exptected_mapping_info._outputs_to_submodels_outputs, actual_mapping_info._outputs_to_submodels_outputs);
-    ASSERT_EQ(exptected_mapping_info._submodels_input_to_prev_output,
-              actual_mapping_info._submodels_input_to_prev_output);
-
-    // Merge submodels into one model back
-    ov::hetero::merge_submodels(actual_submodels, actual_mapping_info._submodels_input_to_prev_output);
-    ASSERT_EQ(1, actual_submodels.size());
-    auto& actual_model = actual_submodels[0];
-    auto res = compare_functions(m_model_ref, actual_model);
-    ASSERT_TRUE(res.first) << res.second;
-}
-
-TEST_F(SubgraphCollectorTest, submodel_replacement_first_device) {
+TEST_F(SubgraphCollectorTest, mask_ops_single_device) {
     const std::map<std::string, std::string> supported_ops_mock0 = {
         {"input", "MOCK.0"},
         {"const_val", "MOCK.0"},
@@ -232,7 +300,7 @@ TEST_F(SubgraphCollectorTest, submodel_replacement_first_device) {
     ASSERT_TRUE(actual_mapping_info.empty());
 }
 
-TEST_F(SubgraphCollectorTest, submodel_replacement_both_devices) {
+TEST_F(SubgraphCollectorTest, mask_ops_all_devices) {
     const std::map<std::string, std::string> supported_ops_mock0 = {
         {"input", "MOCK.0"},
         {"const_val", "MOCK.0"},
@@ -299,7 +367,7 @@ TEST_F(SubgraphCollectorTest, submodel_replacement_both_devices) {
 
 class SubgraphCollectorTest2 : public SubgraphCollectorTest {
     void SetUp() override {
-        m_model = create_test_model2();
+        m_model = create_diamond_chain_model();
         m_model_ref = m_model->clone();
         m_submodels = {};
         m_submodels.push_back(create_subgraph_add_add());
@@ -308,63 +376,7 @@ class SubgraphCollectorTest2 : public SubgraphCollectorTest {
     }
 };
 
-TEST_F(SubgraphCollectorTest2, submodel_split_and_merge) {
-    const std::map<std::string, std::string> supported_ops = {
-        {"input", "MOCK.0"},
-        {"const_val", "MOCK.0"},
-        {"add1", "MOCK.0"},
-        {"add2", "MOCK.0"},
-        {"sub", "MOCK.1"},
-        {"add3", "MOCK.0"},
-        {"reshape_val", "MOCK.0"},
-        {"reshape", "MOCK.0"},
-        {"res", "MOCK.0"},
-    };
-    const SubgraphsMappingInfo exptected_mapping_info = {{// inputs to submodel inputs
-                                                          NodeInfo{0, 0}},
-                                                         {// outputs to submodel outpts
-                                                          NodeInfo{2, 0}},
-                                                         {// submodel input to previous output
-                                                          {NodeInfo{1, 0}, NodeInfo{0, 0}},
-                                                          {NodeInfo{2, 0}, NodeInfo{0, 1}},
-                                                          {NodeInfo{2, 1}, NodeInfo{1, 0}}}};
-    SubgraphCollector::AffinitiesMap affinities;
-    const auto ordered_ops = m_model->get_ordered_ops();
-    for (const auto& node : ordered_ops) {
-        const auto name = node->get_friendly_name();
-        OPENVINO_ASSERT(supported_ops.count(name));
-        affinities[node] = supported_ops.at(name);
-    }
-    // Collect subgraphs
-    SubgraphCollector subgraph_collector(m_model, affinities);
-
-    const auto& [actual_subgraphs, actual_mapping_info] = subgraph_collector.run();
-
-    ASSERT_EQ(3, actual_subgraphs.size());
-    std::vector<std::shared_ptr<ov::Model>> actual_submodels;
-    for (auto& actual_subgraph : actual_subgraphs) {
-        actual_submodels.push_back(std::make_shared<ov::Model>(actual_subgraph._results, actual_subgraph._parameters));
-    }
-    for (size_t i = 0; i < actual_submodels.size(); i++) {
-        auto res = compare_functions(m_submodels.at(i), actual_submodels.at(i));
-        ASSERT_TRUE(res.first) << res.second;
-    }
-
-    // Check mapping info
-    ASSERT_EQ(exptected_mapping_info._inputs_to_submodels_inputs, actual_mapping_info._inputs_to_submodels_inputs);
-    ASSERT_EQ(exptected_mapping_info._outputs_to_submodels_outputs, actual_mapping_info._outputs_to_submodels_outputs);
-    ASSERT_EQ(exptected_mapping_info._submodels_input_to_prev_output,
-              actual_mapping_info._submodels_input_to_prev_output);
-
-    // Merge submodels into one model back
-    ov::hetero::merge_submodels(actual_submodels, actual_mapping_info._submodels_input_to_prev_output);
-    ASSERT_EQ(1, actual_submodels.size());
-    auto& actual_model = actual_submodels[0];
-    auto res = compare_functions(m_model_ref, actual_model);
-    ASSERT_TRUE(res.first) << res.second;
-}
-
-TEST_F(SubgraphCollectorTest2, submodel_replacement_first_device) {
+TEST_F(SubgraphCollectorTest2, mask_ops_single_device) {
     const std::map<std::string, std::string> supported_ops_mock0 = {
         {"input", "MOCK.0"},
         {"const_val", "MOCK.0"},
@@ -411,7 +423,7 @@ TEST_F(SubgraphCollectorTest2, submodel_replacement_first_device) {
     ASSERT_TRUE(actual_mapping_info.empty());
 }
 
-TEST_F(SubgraphCollectorTest2, submodel_replacement_both_devices) {
+TEST_F(SubgraphCollectorTest2, mask_ops_all_devices) {
     const std::map<std::string, std::string> supported_ops_mock0 = {
         {"input", "MOCK.0"},
         {"const_val", "MOCK.0"},
@@ -479,7 +491,7 @@ TEST_F(SubgraphCollectorTest2, submodel_replacement_both_devices) {
               actual_mapping_info._submodels_input_to_prev_output);
 }
 
-TEST_F(SubgraphCollectorTest, submodel_with_different_affinity_parameter) {
+TEST_F(SubgraphCollectorTest, mask_ops_mixed_affinity_no_throw) {
     const std::map<std::string, std::string> supported_ops_with_affinity = {
         {"input", "MOCK.0"},
         {"const_val", "MOCK.0"},
@@ -492,7 +504,7 @@ TEST_F(SubgraphCollectorTest, submodel_with_different_affinity_parameter) {
     OV_ASSERT_NO_THROW(ov::hetero::mask_model_subgraphs_by_ops(m_model, supported_ops, false, "TEST"));
 }
 
-TEST_F(SubgraphCollectorTest, submodel_with_constant_subgraphs) {
+TEST_F(SubgraphCollectorTest, constant_subgraphs_follow_consumer_affinity) {
     auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::PartialShape{1, 3, 16, 16});
     input->set_friendly_name("input");
     auto convert = std::make_shared<ov::op::v0::Convert>(input, ov::element::f32);
@@ -535,6 +547,7 @@ TEST_F(SubgraphCollectorTest, submodel_with_constant_subgraphs) {
         {"constant2", "MOCK.0"},
         {"transpose", "MOCK.1"},
         {"shapeOf", "MOCK.0"},
+
         {"reshape_val", "MOCK.0"},
         {"reshape", "MOCK.1"},
         {"zero", "MOCK.0"},
@@ -548,7 +561,7 @@ TEST_F(SubgraphCollectorTest, submodel_with_constant_subgraphs) {
     const auto& [ordered_subgraphs, actual_mapping_info] = get_model_subgraphs(model, supported_ops, true, false);
     for (const auto& subgraph : ordered_subgraphs) {
         std::set<std::string> node_set;
-        auto sub_model = std::make_shared<ov::Model>(subgraph._results, subgraph._sinks, subgraph._parameters);
+        auto sub_model = create_submodel_from_collected_subgraph(subgraph);
         for (auto& node : sub_model->get_ordered_ops()) {
             node_set.insert(node->get_friendly_name());
         }
@@ -562,51 +575,379 @@ TEST_F(SubgraphCollectorTest, submodel_with_constant_subgraphs) {
     }
 }
 
-TEST_F(SubgraphCollectorTest, merge_independent_submodel) {
-    auto param1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 2, 2});
-    param1->set_friendly_name("input1");
-    auto param2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 2, 2});
-    param2->set_friendly_name("input2");
-    auto const_value1 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 1, 1}, {1});
-    const_value1->set_friendly_name("const_val1");
-    auto add1 = std::make_shared<ov::op::v1::Add>(param1, const_value1);
-    add1->set_friendly_name("add1");
-    auto const_value2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 1, 1}, {1});
-    const_value2->set_friendly_name("const_val1");
-    auto add2 = std::make_shared<ov::op::v1::Add>(add1, const_value2);
-    add2->set_friendly_name("add2");
-    auto result = std::make_shared<ov::op::v0::Result>(add2);
-    result->set_friendly_name("res");
-    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param1, param2});
+// --- Parameterized SubgraphCollector tests ---
+// Unified test for all scenarios that directly use SubgraphCollector:
+// split_and_merge, merge_independent, and affinity-based subgraph counting.
+// Each param specifies model, affinities, and expected results. Optional fields control extra checks.
+//
+// Sink coverage: the single-device stateful_assign_readvalue case below exercises
+// Subgraph::_sinks wire-through (collection → create_submodel_from_collected_subgraph →
+// merge_submodels). The cross-affinity case — where paired Assign/ReadValue land in different
+// subgraphs — is intentionally not covered here: the expected SubgraphCollector contract for
+// splitting stateful variable pairs is not yet specified; that case should be added in a
+// follow-up once the contract is clarified.
 
-    const std::map<std::string, std::string> supported_ops = {
-        {"input1", "MOCK.0"},
-        {"input2", "MOCK.0"},
-        {"const_val1", "MOCK.0"},
-        {"add1", "MOCK.0"},
-        {"const_val2", "MOCK.1"},
-        {"add2", "MOCK.1"},
-        {"res", "MOCK.1"},
-    };
+struct SubgraphCollectorTestParam {
+    using ModelFactory = std::function<std::shared_ptr<ov::Model>()>;
+    // --- required fields ---
+    std::string test_name;
+    ModelFactory create_model;                        // factory to build the model under test
+    std::map<std::string, std::string> affinity_map;  // node_name → device; empty = broadcast default
+    std::string default_affinity;                     // used when affinity_map is empty
+    size_t expected_subgraph_count;                   // number of subgraphs from run()
+    // --- optional checks (a default-constructed/empty/false value disables the check) ---
+    std::vector<std::string> expected_affinities = {};                       // sorted affinity list per subgraph
+    std::map<std::string, SubgraphCollector::SubgraphId> expected_ids = {};  // node_name → expected subgraph ID
+    std::vector<ModelFactory> expected_submodel_factories = {};              // reference submodel per subgraph
+    SubgraphsMappingInfo expected_mapping = {};                              // expected mapping info from run()
+    size_t expected_total_sinks = 0;      // sum of sg._sinks.size() across subgraphs (0 = no check)
+    bool verify_merge_roundtrip = false;  // merge submodels back and check size == 1
+    bool verify_merge_compare = false;    // compare_functions(original, merged)
+};
+
+class SubgraphCollectorParamTest : public testing::TestWithParam<SubgraphCollectorTestParam> {};
+
+TEST_P(SubgraphCollectorParamTest, split_by_affinity) {
+    const auto& param = GetParam();
+    auto model = param.create_model();
+    auto model_ref = model->clone();
+
+    // Test fixture guard: friendly_name uniqueness is not an ov::Model invariant, but every
+    // factory above relies on it to key affinity_map / expected_ids by name. A duplicate would
+    // silently corrupt those lookups, so fail fast with a clear message instead.
+    {
+        std::set<std::string> seen_names;
+        for (const auto& node : model->get_ordered_ops()) {
+            ASSERT_TRUE(seen_names.insert(node->get_friendly_name()).second)
+                << "Test fixture bug: duplicate friendly_name '" << node->get_friendly_name() << "'";
+        }
+    }
+
     SubgraphCollector::AffinitiesMap affinities;
-    const auto ordered_ops = model->get_ordered_ops();
-    for (const auto& node : ordered_ops) {
-        const auto name = node->get_friendly_name();
-        OPENVINO_ASSERT(supported_ops.count(name));
-        affinities[node] = supported_ops.at(name);
+    for (const auto& node : model->get_ordered_ops()) {
+        if (param.affinity_map.empty()) {
+            affinities[node] = param.default_affinity;
+        } else {
+            const auto& name = node->get_friendly_name();
+            const auto it = param.affinity_map.find(name);
+            ASSERT_TRUE(it != param.affinity_map.end()) << "Missing affinity for node '" << name << "'";
+            affinities[node] = it->second;
+        }
     }
-    // Collect subgraphs
-    SubgraphCollector subgraph_collector(model, affinities);
 
-    const auto& [actual_subgraphs, actual_mapping_info] = subgraph_collector.run();
+    SubgraphCollector collector(model, affinities);
 
-    ASSERT_EQ(3, actual_subgraphs.size());
-    std::vector<std::shared_ptr<ov::Model>> actual_submodels;
-    for (auto& actual_subgraph : actual_subgraphs) {
-        actual_submodels.push_back(std::make_shared<ov::Model>(actual_subgraph._results, actual_subgraph._parameters));
+    // Check subgraph IDs if expected
+    if (!param.expected_ids.empty()) {
+        auto actual_ids = collector.get_subgraph_ids();
+        ASSERT_EQ(param.expected_ids.size(), actual_ids.size());
+        for (const auto& [node, actual_id] : actual_ids) {
+            const auto& name = node->get_friendly_name();
+            auto it = param.expected_ids.find(name);
+            ASSERT_TRUE(it != param.expected_ids.end()) << "No expected ID for node: " << name;
+            ASSERT_EQ(it->second, actual_id) << "ID mismatch for node: " << name;
+        }
     }
-    // Merge submodels into one model back
-    OV_ASSERT_NO_THROW(
-        ov::hetero::merge_submodels(actual_submodels, actual_mapping_info._submodels_input_to_prev_output));
-    ASSERT_EQ(1, actual_submodels.size());
+
+    const auto& [subgraphs, mapping] = collector.run();
+
+    ASSERT_EQ(param.expected_subgraph_count, subgraphs.size());
+
+    // Check affinities (sorted comparison)
+    if (!param.expected_affinities.empty()) {
+        std::vector<std::string> actual_affinities;
+        for (const auto& sg : subgraphs) {
+            actual_affinities.push_back(sg._affinity);
+        }
+        std::sort(actual_affinities.begin(), actual_affinities.end());
+        auto expected_sorted = param.expected_affinities;
+        std::sort(expected_sorted.begin(), expected_sorted.end());
+        ASSERT_EQ(expected_sorted, actual_affinities);
+    }
+
+    // Check submodel structure if reference factories provided
+    if (!param.expected_submodel_factories.empty()) {
+        std::vector<std::shared_ptr<ov::Model>> actual_submodels;
+        for (const auto& sg : subgraphs) {
+            actual_submodels.push_back(create_submodel_from_collected_subgraph(sg));
+        }
+        ASSERT_EQ(param.expected_submodel_factories.size(), actual_submodels.size());
+
+        auto unmatched_actual_submodels = actual_submodels;
+        for (size_t i = 0; i < param.expected_submodel_factories.size(); i++) {
+            auto expected_submodel = param.expected_submodel_factories[i]();
+            bool matched = false;
+            std::string mismatch_details;
+
+            // Order-independent match: scan remaining actuals, take the first that compares equal,
+            // and remove it from the pool so each expected pairs with a distinct actual submodel.
+            for (auto it = unmatched_actual_submodels.begin(); it != unmatched_actual_submodels.end(); ++it) {
+                auto res = compare_functions(expected_submodel, *it);
+                if (res.first) {
+                    unmatched_actual_submodels.erase(it);
+                    matched = true;
+                    break;
+                }
+                if (mismatch_details.empty()) {
+                    mismatch_details = res.second;
+                }
+            }
+
+            ASSERT_TRUE(matched) << "Failed to find a matching actual submodel for expected submodel at index " << i
+                                 << (mismatch_details.empty() ? "" : ". Example mismatch: ") << mismatch_details;
+        }
+    }
+
+    // Check mapping info if provided
+    const bool check_mapping = !param.expected_mapping._inputs_to_submodels_inputs.empty() ||
+                               !param.expected_mapping._outputs_to_submodels_outputs.empty() ||
+                               !param.expected_mapping._submodels_input_to_prev_output.empty();
+    if (check_mapping) {
+        ASSERT_EQ(param.expected_mapping._inputs_to_submodels_inputs, mapping._inputs_to_submodels_inputs);
+        ASSERT_EQ(param.expected_mapping._outputs_to_submodels_outputs, mapping._outputs_to_submodels_outputs);
+        ASSERT_EQ(param.expected_mapping._submodels_input_to_prev_output, mapping._submodels_input_to_prev_output);
+    }
+
+    // Check total sink count across subgraphs if expected
+    if (param.expected_total_sinks > 0) {
+        size_t actual_total_sinks = 0;
+        for (const auto& sg : subgraphs) {
+            actual_total_sinks += sg._sinks.size();
+        }
+        ASSERT_EQ(param.expected_total_sinks, actual_total_sinks);
+    }
+
+    // Test merge roundtrip if requested
+    if (param.verify_merge_roundtrip) {
+        std::vector<std::shared_ptr<ov::Model>> submodels;
+        for (const auto& sg : subgraphs) {
+            submodels.push_back(create_submodel_from_collected_subgraph(sg));
+        }
+        OV_ASSERT_NO_THROW(ov::hetero::merge_submodels(submodels, mapping._submodels_input_to_prev_output));
+        ASSERT_EQ(1, submodels.size());
+        if (param.verify_merge_compare) {
+            auto res = compare_functions(model_ref, submodels[0]);
+            ASSERT_TRUE(res.first) << res.second;
+        }
+    }
 }
+
+// clang-format off
+INSTANTIATE_TEST_SUITE_P(
+    SubgraphCollector,
+    SubgraphCollectorParamTest,
+    testing::Values(
+        // --- split_and_merge: linear chain model (input → add → sub → reshape → result) ---
+        SubgraphCollectorTestParam{
+            "split_and_merge_linear_chain_model",
+            create_linear_chain_model,
+            {{"input", "MOCK.0"}, {"const_val", "MOCK.0"}, {"add", "MOCK.0"},
+             {"sub", "MOCK.1"}, {"reshape_val", "MOCK.0"}, {"reshape", "MOCK.0"}, {"res", "MOCK.0"}},
+            "",
+            3,
+            {"MOCK.0", "MOCK.1", "MOCK.0"},
+            {{"input", 0}, {"const_val", 0}, {"add", 0},
+             {"sub", 2}, {"reshape_val", 3}, {"reshape", 3}, {"res", 3}},
+            {create_subgraph_add, create_subgraph_sub, create_subgraph_reshape},
+            {{NodeInfo{0, 0}},
+             {NodeInfo{2, 0}},
+             {{NodeInfo{1, 0}, NodeInfo{0, 0}},
+              {NodeInfo{2, 0}, NodeInfo{1, 0}}}},
+            0,
+            true,
+            true,
+        },
+        // --- split_and_merge: diamond chain with subgraph-level cycle.
+        // Topology: input → add1(MOCK.0) ─┬→ add2(MOCK.0) → sub(MOCK.1) ─┐
+        //                                 └──────────────────────────────┴→ add3(MOCK.0) → reshape → res
+        // Without cycle splitting, all MOCK.0 nodes (add1/add2/add3/reshape/res) would merge into one
+        // subgraph that depends on sub(MOCK.1) which itself depends on the same subgraph → cycle.
+        // Exercises SubgraphCollector::split_cyclic_dependencies(): MOCK.0 must be split into two
+        // subgraphs ({add1, add2} and {add3, reshape, res}) yielding 3 subgraphs total.
+        SubgraphCollectorTestParam{
+            "split_cyclic_dependency_diamond",
+            create_diamond_chain_model,
+            {{"input", "MOCK.0"}, {"const_val", "MOCK.0"}, {"add1", "MOCK.0"},
+             {"add2", "MOCK.0"}, {"sub", "MOCK.1"}, {"add3", "MOCK.0"},
+             {"reshape_val", "MOCK.0"}, {"reshape", "MOCK.0"}, {"res", "MOCK.0"}},
+            "",
+            3,
+            {"MOCK.0", "MOCK.1", "MOCK.0"},
+            {},
+            {create_subgraph_add_add, create_subgraph_sub, create_subgraph_add_reshape},
+            {{NodeInfo{0, 0}},
+             {NodeInfo{2, 0}},
+             {{NodeInfo{1, 0}, NodeInfo{0, 0}},
+              {NodeInfo{2, 0}, NodeInfo{0, 1}},
+              {NodeInfo{2, 1}, NodeInfo{1, 0}}}},
+            0,
+            true,
+            true,
+        },
+        // --- split_cyclic: nested cycles requiring multi-iteration fixed-point splitting.
+        // Topology: input → a1(M0) → b1(M1) → a2(M0) → b2(M1) → a3(M0) → res(M0)
+        //                    └────────────────────────────────────┘  (a1 also feeds a3)
+        // Initial M0 group {a1,a2,a3} contains two stacked cyclic deps (via b1 and b2).
+        // A single split iteration cannot resolve both; the outer fixed-point loop in
+        // split_cyclic_dependencies() must run >=2 iterations. Expected: 5 subgraphs
+        // alternating MOCK.0 / MOCK.1 / MOCK.0 / MOCK.1 / MOCK.0 (3×M0 + 2×M1).
+        SubgraphCollectorTestParam{
+            "split_cyclic_dependency_nested",
+            create_nested_cyclic_chain_model,
+            {{"input", "MOCK.0"}, {"c1", "MOCK.0"}, {"a1", "MOCK.0"},
+             {"b1", "MOCK.1"}, {"a2", "MOCK.0"}, {"b2", "MOCK.1"},
+             {"a3", "MOCK.0"}, {"res", "MOCK.0"}},
+            "",
+            5,
+            {"MOCK.0", "MOCK.0", "MOCK.0", "MOCK.1", "MOCK.1"},
+            // expected_ids: locks in the partition produced by collect_subgraphs_ids() after
+            // split_cyclic_dependencies() promotes boundaries for {a2 ← c1} and {a3 ← a1}.
+            // Union-find keeps-first merging causes the c1 placeholder id (1) to be absorbed
+            // into the input/a1 group (id 0), so allocated ids are {0, 2, 3, 4, 5} — non-contiguous
+            // by design (same pattern as split_and_merge_linear_chain_model).
+            {{"input", 0}, {"c1", 0}, {"a1", 0},
+             {"b1", 2}, {"a2", 3}, {"b2", 4},
+             {"a3", 5}, {"res", 5}},
+            {},
+            {},
+            0,
+            true,
+            true,
+        },
+        // --- merge_independent: param1 → add1(MOCK.0) → add2(MOCK.1) → res, plus unused param2.
+        // Splits into 3 subgraphs (M0 chain, M1 chain, and an isolated subgraph for the unused
+        // param2). The merge roundtrip is verified to not throw and to collapse back to a single
+        // model, but structural equality (verify_merge_compare) is intentionally skipped:
+        // merge_submodels does not guarantee preservation of the original Parameter ordering when
+        // an isolated/unused-input subgraph is involved, so compare_functions would report a
+        // benign ordering mismatch rather than a real regression.
+        SubgraphCollectorTestParam{
+            "merge_independent_submodel",
+            create_merge_independent_model,
+            {{"input1", "MOCK.0"}, {"input2", "MOCK.0"}, {"const_val1", "MOCK.0"},
+             {"add1", "MOCK.0"}, {"const_val2", "MOCK.1"}, {"add2", "MOCK.1"}, {"res", "MOCK.1"}},
+            "",
+            3,
+            {},
+            {},
+            {},
+            {},
+            0,
+            true,
+            false,
+        },
+        // --- Affinity: all same device → single subgraph ---
+        SubgraphCollectorTestParam{
+            "all_same_affinity",
+            create_linear_chain_model,
+            {},
+            "MOCK.0",
+            1,
+            {"MOCK.0"},
+            {},
+            {},
+            {},
+            0,
+            false,
+            false,
+        },
+        // --- Affinity: each computational node on different device ---
+        SubgraphCollectorTestParam{
+            "all_different_affinities",
+            create_linear_chain_model,
+            {{"input", "MOCK.0"}, {"const_val", "MOCK.0"}, {"add", "MOCK.1"},
+             {"sub", "MOCK.2"}, {"reshape_val", "MOCK.3"}, {"reshape", "MOCK.3"}, {"res", "MOCK.3"}},
+            "",
+            4,
+            {"MOCK.0", "MOCK.1", "MOCK.2", "MOCK.3"},
+            {},
+            {},
+            {},
+            0,
+            false,
+            false,
+        },
+        // --- Affinity: result inherits affinity from its input ---
+        SubgraphCollectorTestParam{
+            "result_inherits_input_affinity",
+            create_linear_chain_model,
+            {{"input", "MOCK.0"}, {"const_val", "MOCK.0"}, {"add", "MOCK.0"},
+             {"sub", "MOCK.0"}, {"reshape_val", "MOCK.0"}, {"reshape", "MOCK.0"}, {"res", "MOCK.1"}},
+            "",
+            1,
+            {"MOCK.0"},
+            {},
+            {},
+            {},
+            0,
+            false,
+            false,
+        },
+        // --- Affinity: alternating devices A→B→C→D → 4 subgraphs ---
+        SubgraphCollectorTestParam{
+            "alternating_devices",
+            create_alternating_chain_model,
+            {{"input", "MOCK.0"}, {"c1", "MOCK.0"}, {"A", "MOCK.0"},
+             {"B", "MOCK.1"}, {"C", "MOCK.0"}, {"D", "MOCK.1"}, {"res", "MOCK.1"}},
+            "",
+            4,
+            {"MOCK.0", "MOCK.0", "MOCK.1", "MOCK.1"},
+            {},
+            {},
+            {},
+            0,
+            false,
+            false,
+        },
+        // --- Affinity: two disconnected paths, same device → 2 subgraphs ---
+        SubgraphCollectorTestParam{
+            "independent_paths_same_affinity",
+            create_independent_paths_model,
+            {},
+            "MOCK.0",
+            2,
+            {"MOCK.0", "MOCK.0"},
+            {},
+            {},
+            {},
+            0,
+            false,
+            false,
+        },
+        // --- Affinity: diverging paths from shared node → 1 subgraph ---
+        SubgraphCollectorTestParam{
+            "diverging_paths_no_split",
+            create_diverging_paths_model,
+            {},
+            "MOCK.0",
+            1,
+            {"MOCK.0"},
+            {},
+            {},
+            {},
+            0,
+            false,
+            false,
+        },
+        // --- Sink coverage: single-device stateful model (ReadValue/Assign on MOCK.0).
+        // Verifies that Subgraph::_sinks is populated, survives create_submodel_from_collected_subgraph,
+        // and is preserved by merge_submodels (compare_functions checks sink-set equality).
+        SubgraphCollectorTestParam{
+            "stateful_assign_readvalue_single_device",
+            create_stateful_single_device_model,
+            {},
+            "MOCK.0",
+            1,
+            {"MOCK.0"},
+            {},
+            {},
+            {},
+            1,
+            true,
+            true,
+        }
+    ),
+    [](const testing::TestParamInfo<SubgraphCollectorTestParam>& info) {
+        return info.param.test_name;
+    });
+// clang-format on
