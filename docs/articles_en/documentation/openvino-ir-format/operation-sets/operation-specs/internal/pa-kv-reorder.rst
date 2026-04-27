@@ -24,9 +24,11 @@ are discarded, requiring reordering of the KV cache to maintain sequence consist
 The KV cache may use quantization (by-channel or by-token) for memory efficiency. The operation handles:
 
 - **Non-quantized caches** (fp32, bf16, fp16): Direct memory copy of token embeddings.
-- **By-token quantized caches** (i8, u8, u4): Direct copy of quantized data with scale/zero-point parameters.
+- **By-token quantized caches** (u8, u4): Direct copy of quantized data with scale/zero-point parameters.
 - **By-channel quantized caches** (u8, u4): Requires dequantization, token movement in float space, and requantization
   with updated per-channel scale/zero-point parameters when the block's data distribution changes.
+
+Signed ``int8`` KV cache is not supported by this operation.
 
 **Paged memory organization**
 
@@ -174,6 +176,7 @@ For each update operation ``(src_token_idx, dst_token_idx)``:
 
 * **T**: ``float32``, ``bfloat16``, ``float16``, ``uint8``, ``uint4``.
   Determines the data type of KV cache. Quantized types (``uint8``, ``uint4``) require scale/zero-point parameters.
+  Signed ``int8`` KV cache is not supported.
 
 * **T_IND**: ``int32``.
   Index type for all index tensors.

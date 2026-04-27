@@ -38,6 +38,22 @@ bool PaKVReorder::visit_attributes(ov::AttributeVisitor& /*visitor*/) {
 void PaKVReorder::validate_and_infer_types() {
     OPENVINO_ASSERT(get_input_size() == 6, "PaKVReorder expects 6 inputs");
 
+    const auto key_type = get_input_element_type(0);
+    const auto value_type = get_input_element_type(1);
+    const auto is_supported_cache_type = [](const ov::element::Type& type) {
+        return type.is_dynamic() || type == ov::element::f32 || type == ov::element::bf16 || type == ov::element::f16 ||
+               type == ov::element::u8 || type == ov::element::u4;
+    };
+
+    NODE_VALIDATION_CHECK(this,
+                          is_supported_cache_type(key_type),
+                          "PaKVReorder supports only f32, bf16, f16, u8, and u4 KV cache precisions. ",
+                          "int8 key_cache is not supported.");
+    NODE_VALIDATION_CHECK(this,
+                          is_supported_cache_type(value_type),
+                          "PaKVReorder supports only f32, bf16, f16, u8, and u4 KV cache precisions. ",
+                          "int8 value_cache is not supported.");
+
     // Output is a dummy u8 scalar (placeholder for in-place operation)
     set_output_type(0, ov::element::u8, ov::PartialShape{});
 }

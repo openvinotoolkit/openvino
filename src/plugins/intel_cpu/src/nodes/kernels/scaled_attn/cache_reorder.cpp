@@ -12,6 +12,7 @@
 #include "attn_quant_kernel.hpp"
 #include "common.hpp"
 #include "cpu_parallel.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "utils/plain_tensor.hpp"
@@ -196,14 +197,15 @@ void dispatch_and_process_cache(ov::element::Type_t prec,
         process_cache_batch_quantized<ov::element::u8>(cache, ctx, by_channel, kv_heads, cpu_parallel);
     } else if (prec == ov::element::u4) {
         process_cache_batch_quantized<ov::element::u4>(cache, ctx, by_channel, kv_heads, cpu_parallel);
+    } else if (prec == ov::element::f32) {
+        process_cache_batch_non_quantized<ov::element::f32>(cache, ctx, kv_heads, cpu_parallel);
+    } else if (prec == ov::element::bf16) {
+        process_cache_batch_non_quantized<ov::element::bf16>(cache, ctx, kv_heads, cpu_parallel);
+    } else if (prec == ov::element::f16) {
+        process_cache_batch_non_quantized<ov::element::f16>(cache, ctx, kv_heads, cpu_parallel);
     } else {
-        if (prec == ov::element::f32) {
-            process_cache_batch_non_quantized<ov::element::f32>(cache, ctx, kv_heads, cpu_parallel);
-        } else if (prec == ov::element::bf16) {
-            process_cache_batch_non_quantized<ov::element::bf16>(cache, ctx, kv_heads, cpu_parallel);
-        } else if (prec == ov::element::f16) {
-            process_cache_batch_non_quantized<ov::element::f16>(cache, ctx, kv_heads, cpu_parallel);
-        }
+        OPENVINO_THROW("PaKVReorder supports only f32, bf16, f16, u8, and u4 KV cache precisions. ",
+                       "int8 KV cache is not supported.");
     }
 }
 
