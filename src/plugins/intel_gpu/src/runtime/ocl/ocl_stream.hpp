@@ -18,6 +18,7 @@ namespace ocl {
 class ocl_stream : public stream {
 public:
     const ocl_queue_type& get_cl_queue() const { return _command_queue; }
+    void* get_handle() const override { return static_cast<void*>(get_cl_queue().get()); }
 
     ocl_stream(const ocl_engine& engine, const ExecutionConfig& config);
     ocl_stream(const ocl_engine &engine, const ExecutionConfig& config, void *handle);
@@ -46,7 +47,7 @@ public:
     void wait_for_events(const std::vector<event::ptr>& events) override;
     void enqueue_barrier() override;
     event::ptr create_user_event(bool set) override;
-    event::ptr create_base_event() override;
+    event::ptr create_base_event(void* handle = nullptr) override;
     std::unique_ptr<surfaces_lock> create_surfaces_lock(const std::vector<memory::ptr> &mem) const override;
 
     const cl::UsmHelper& get_usm_helper() const { return _engine.get_usm_helper(); }

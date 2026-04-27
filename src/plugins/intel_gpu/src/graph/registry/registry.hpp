@@ -143,6 +143,7 @@ REGISTER_IMPLS(gather);
 REGISTER_IMPLS(gather_nd);
 REGISTER_IMPLS(gated_delta_net);
 REGISTER_IMPLS(gemm);
+REGISTER_IMPLS(generic_primitive);
 REGISTER_IMPLS(group_normalization);
 REGISTER_IMPLS(loop);
 REGISTER_IMPLS(lora);

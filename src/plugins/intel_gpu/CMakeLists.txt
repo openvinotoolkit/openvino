@@ -73,10 +73,12 @@ ov_add_plugin(NAME ${TARGET_NAME}
 target_compile_options(${TARGET_NAME} PRIVATE
     $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)
 
-target_link_libraries(${TARGET_NAME} PRIVATE openvino_intel_gpu_graph openvino::pugixml)
+target_link_libraries(
+    ${TARGET_NAME} PRIVATE openvino_intel_gpu_graph openvino::pugixml ${GRAPH_COMPILER_LIBS})
 
 target_include_directories(${TARGET_NAME} PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/include/)
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/
+        "${GRAPH_COMPILER_INCLUDES}")
 
 ov_set_threading_interface_for(${TARGET_NAME})
 ov_gpu_set_runtime_interface_for(${TARGET_NAME})
