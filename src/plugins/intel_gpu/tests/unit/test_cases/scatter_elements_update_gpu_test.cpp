@@ -82,7 +82,7 @@ void test_d2411_axisF(bool is_caching_test) {
     auto outputs = network->execute();
 
     auto output = outputs.at("scatter_elements_update").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<T> expected_results = {
         10.f, 11.f, 5.f, 4.f,
@@ -340,7 +340,7 @@ public:
 
         const auto outputs = network->execute();
         const auto output = outputs.at("ScatterEelementsUpdatePlain").get_memory();
-        const cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+        const cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(params.data.size(), output_ptr.size());
         ASSERT_EQ(expected.size(), output_ptr.size());
@@ -428,7 +428,7 @@ public:
 
         const auto outputs = network->execute();
         const auto output = outputs.at("ScatterElementsUpdate").get_memory();
-        const cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+        const cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(params.data.size(), output_ptr.size());
         ASSERT_EQ(expected.size(), output_ptr.size());
@@ -740,7 +740,7 @@ TEST(scatter_elements_update_gpu_fp32, smoke_multiple_indices_mean_big_1d_dynami
     auto outputs = network.execute();
 
     auto output = outputs.at("scatter_elements_update").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results(num, 0);
     expected_results.front() = 1;
@@ -797,7 +797,7 @@ TEST(scatter_elements_update_gpu_fp32, smoke_multiple_indices_sum_big_1d_dynamic
     auto outputs = network.execute();
 
     auto output = outputs.at("scatter_elements_update").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results(num, 0);
     for (auto pos : target_update_positions) {

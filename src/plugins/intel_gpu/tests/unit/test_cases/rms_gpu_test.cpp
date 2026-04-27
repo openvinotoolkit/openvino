@@ -100,7 +100,7 @@ TEST(rms_gpu_test, rms_test_bfyx_ref) {
     ASSERT_EQ(outputs.begin()->first, "rms");
 
     auto output = outputs.begin()->second.get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
 
     for (unsigned int i = 0; i < output_ref->count(); ++i) {
@@ -143,7 +143,7 @@ TEST(rms_gpu_test, rms_test_bfyx_opt) {
     ASSERT_EQ(outputs.begin()->first, "rms");
 
     auto output = outputs.begin()->second.get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
 
     for (unsigned int i = 0; i < output_ref->count(); ++i) {
@@ -186,7 +186,7 @@ TEST(rms_gpu_test, rms_test_bfyx_opt_leftovers) {
     ASSERT_EQ(outputs.begin()->first, "rms");
 
     auto output = outputs.begin()->second.get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
 
     for (unsigned int i = 0; i < output_ref->count(); ++i) {
@@ -231,7 +231,7 @@ TEST(rms_gpu_test, rms_test_bfyx_opt_dyn) {
     ASSERT_EQ(outputs.begin()->first, "rms");
 
     auto output = outputs.begin()->second.get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
 
     for (unsigned int i = 0; i < output_ref->count(); ++i) {
@@ -276,7 +276,7 @@ TEST(rms_gpu_test, rms_test_bfyx_opt_all_dims_dyn) {
     ASSERT_EQ(outputs.begin()->first, "rms");
 
     auto output = outputs.begin()->second.get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
 
     for (unsigned int i = 0; i < output_ref->count(); ++i) {
@@ -321,7 +321,7 @@ TEST(rms_gpu_test, rms_test_bfyx_opt_leftovers_dyn) {
     ASSERT_EQ(outputs.begin()->first, "rms");
 
     auto output = outputs.begin()->second.get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
 
     for (unsigned int i = 0; i < output_ref->count(); ++i) {
@@ -366,7 +366,7 @@ TEST(rms_gpu_test, rms_test_bfyx_opt_unaligned_dyn) {
     ASSERT_EQ(outputs.begin()->first, "rms");
 
     auto output = outputs.begin()->second.get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
 
     for (unsigned int i = 0; i < output_ref->count(); ++i) {
@@ -422,7 +422,7 @@ TEST(rms_gpu_test, rms_test_bfyx_opt_padding) {
     ASSERT_EQ(outputs.begin()->first, "rms");
 
     auto output = outputs.begin()->second.get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
 
     for (unsigned int i = 0; i < output_ref->count(); ++i) {
@@ -456,7 +456,7 @@ TEST(rms_gpu_test, rms_test_without_gamma_bfyx_ref) {
     ASSERT_EQ(outputs.begin()->first, "rms");
 
     auto output = outputs.begin()->second.get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
 
     for (unsigned int i = 0; i < output_ref->count(); ++i) {
@@ -492,7 +492,7 @@ TEST(rms_gpu_test, rms_test_without_gamma_bfyx_opt) {
     ASSERT_EQ(outputs.begin()->first, "rms");
 
     auto output = outputs.begin()->second.get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
 
     for (unsigned int i = 0; i < output_ref->count(); ++i) {
@@ -533,7 +533,7 @@ TEST(rms_gpu_test, rms_test_without_gamma_dyn) {
     ASSERT_EQ(outputs.begin()->first, "rms");
 
     auto output = outputs.begin()->second.get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
 
     for (unsigned int i = 0; i < output_ref->count(); ++i) {

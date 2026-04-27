@@ -191,7 +191,7 @@ void runRegionTest(region_yolo_test_params& params, bool is_caching_test = false
 
     auto outputs = network->execute();
     auto output = outputs.at("reorder_post").get_memory();
-    cldnn::mem_lock<T> outputData(output, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> outputData(output, get_test_stream());
 
     /// reference value
     std::vector<T> refOutputData(inputData.size());

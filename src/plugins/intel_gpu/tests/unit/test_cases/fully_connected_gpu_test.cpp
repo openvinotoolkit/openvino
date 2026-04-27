@@ -127,7 +127,7 @@ void generic_fully_connected_test(cldnn::format test_input_fmt, cldnn::format te
 
     auto output_memory = outputs.at(out_id).get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<T> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     //ASSERT_EQ(output_layout.format.value, test_input_fmt);
     tensor output_tensor = output_layout.get_tensor();
@@ -1134,7 +1134,7 @@ TEST(fully_connected_gpu, DISABLED_fs_byx_fsv32_b12) {
     auto outputs = network.execute();
 
     auto output_prim = outputs.at("out").get_memory();
-    cldnn::mem_lock<ov::float16> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     for (size_t bi = 0; bi < batch_num; ++bi)
     {
@@ -1218,7 +1218,7 @@ TEST(fully_connected_gpu, bf_tiled_with_pad) {
 
     auto outputs = network.execute();
     auto output_mem = outputs.at("fc_prim").get_memory();
-    cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
     ASSERT_EQ(output_mem->count(), batch_num * feature_num * output_y);
 
     for (size_t i = 0; i < batch_num * feature_num * output_y; ++i) {
@@ -1272,7 +1272,7 @@ TEST(fully_connected_gpu, bf_tiled_with_unaligned_batch) {
 
     auto outputs = network.execute();
     auto output_mem = outputs.at("fc_prim").get_memory();
-    cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
     ASSERT_EQ(output_mem->count(), batch_num * feature_num * output_y);
 
     for (size_t i = 0; i < batch_num * feature_num * output_y; ++i) {
@@ -1336,7 +1336,7 @@ TEST(fully_connected_gpu, DISABLED_fs_byx_fsv32_b34)
     auto outputs = network.execute();
 
     auto output_prim = outputs.at("out").get_memory();
-    cldnn::mem_lock<ov::float16> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     for (size_t bi = 0; bi < batch_num; ++bi)
     {
@@ -1403,7 +1403,7 @@ TEST(fully_connected_gpu, fully_connected_gpu_fb_io_block_fp16) {
 
     auto outputs = network.execute();
     auto output_mem = outputs.at("fc_prim").get_memory();
-    cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
     ASSERT_EQ(output_mem->count(), batch_num * out_feature_num);
 
     for (int b = 0; b < batch_num; b++) {
@@ -2893,7 +2893,7 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
 
         auto output_mem = outputs.begin()->second.get_memory();
 
-        cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
 
         ov::PartialShape expected_shape{1, 1, 32};
         ASSERT_EQ(expected_shape, output_mem->get_layout().get_partial_shape());
@@ -3169,7 +3169,7 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         ASSERT_EQ(outputs.begin()->first, "fc_prim");
 
         auto output_mem = outputs.begin()->second.get_memory();
-        cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
 
         ov::PartialShape expected_shape{1, 8};
         ASSERT_EQ(expected_shape, output_mem->get_layout().get_partial_shape());
@@ -3938,7 +3938,7 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         auto output_mem = outputs.begin()->second.get_memory();
         auto ref_output_mem = get_ref_results();
 
-        cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
         cldnn::mem_lock<ov::float16> ref_ptr(ref_output_mem, get_test_stream());
 
         // Count INF/NaN in both test and reference outputs
@@ -4060,7 +4060,7 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         auto output_mem = outputs.begin()->second.get_memory();
         auto ref_output_mem = get_ref_results();
 
-        cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
         cldnn::mem_lock<ov::float16> ref_ptr(ref_output_mem, get_test_stream());
 
         size_t test_inf = 0, test_nan = 0, ref_inf = 0;
@@ -5822,7 +5822,7 @@ public:
 
         auto output = net.execute();
         auto out_mem = output.at("output").get_memory();
-        cldnn::mem_lock<WeightsT> out_ptr(out_mem, get_test_stream());
+        cldnn::mem_lock<WeightsT, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
         for (size_t bi = 0; bi < batch_num(); ++bi) {
             for (size_t fi = 0; fi < output_f(); ++fi) {

@@ -49,7 +49,7 @@ TEST(crop_gpu, basic_in2x3x2x2_crop_all) {
     auto outputs = network.execute();
 
     auto output = outputs.at("crop").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int b = 0; b < crop_batch_num; ++b) { //B
         for (int f = 0; f < crop_feature_num; ++f) { //F
@@ -95,7 +95,7 @@ TEST(crop_gpu, basic_in2x2x2x3_crop_all) {
     auto outputs = network.execute();
 
     auto output = outputs.at("crop").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int b = 0; b < crop_batch_num; ++b) { //B
         for (int f = 0; f < crop_feature_num; ++f) { //F
@@ -144,7 +144,7 @@ TEST(crop_gpu, basic_i32_in2x3x2x2_crop_all) {
     auto outputs = network.execute();
 
     auto output = outputs.at("crop").get_memory();
-    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int b = 0; b < crop_batch_num; ++b) { //B
         for (int f = 0; f < crop_feature_num; ++f) { //F
@@ -193,7 +193,7 @@ TEST(crop_gpu, basic_i64_in2x3x2x2_crop_all) {
     auto outputs = network.execute();
 
     auto output = outputs.at("crop").get_memory();
-    cldnn::mem_lock<int64_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int64_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int b = 0; b < crop_batch_num; ++b) { //B
         for (int f = 0; f < crop_feature_num; ++f) { //F
@@ -242,7 +242,7 @@ TEST(crop_gpu, basic_in2x3x2x2_crop_all_bfyx) {
     auto outputs = network.execute();
 
     auto output = outputs.at("crop").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     std::vector<float> a;
     for (int b = 0; b < crop_batch_num; ++b) { //B
         for (int f = 0; f < crop_feature_num; ++f) { //F
@@ -292,7 +292,7 @@ TEST(crop_gpu, basic_i32_in2x3x2x2_crop_all_bfyx) {
     auto outputs = network.execute();
 
     auto output = outputs.at("crop").get_memory();
-    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(output, get_test_stream());
     std::vector<int32_t> a;
     for (int b = 0; b < crop_batch_num; ++b) { //B
         for (int f = 0; f < crop_feature_num; ++f) { //F
@@ -342,7 +342,7 @@ TEST(crop_gpu, basic_i64_in2x3x2x2_crop_all_bfyx) {
     auto outputs = network.execute();
 
     auto output = outputs.at("crop").get_memory();
-    cldnn::mem_lock<int64_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int64_t, mem_lock_type::read> output_ptr(output, get_test_stream());
     std::vector<int64_t> a;
     for (int b = 0; b < crop_batch_num; ++b) { //B
         for (int f = 0; f < crop_feature_num; ++f) { //F
@@ -392,7 +392,7 @@ TEST(crop_gpu, basic_in2x3x2x2_crop_all_fyxb) {
     auto outputs = network.execute();
 
     auto output = outputs.at("crop").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (int b = 0; b < crop_batch_num; ++b) { //B
         for (int f = 0; f < crop_feature_num; ++f) { //F
             for (int y = 0; y < crop_y_size; ++y) { //Y
@@ -440,7 +440,7 @@ TEST(crop_gpu, basic_i32_in2x3x2x2_crop_all_fyxb) {
     auto outputs = network.execute();
 
     auto output = outputs.at("crop").get_memory();
-    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (int b = 0; b < crop_batch_num; ++b) { //B
         for (int f = 0; f < crop_feature_num; ++f) { //F
             for (int y = 0; y < crop_y_size; ++y) { //Y
@@ -488,7 +488,7 @@ TEST(crop_gpu, basic_i64_in2x3x2x2_crop_all_fyxb) {
     auto outputs = network.execute();
 
     auto output = outputs.at("crop").get_memory();
-    cldnn::mem_lock<int64_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int64_t, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (int b = 0; b < crop_batch_num; ++b) { //B
         for (int f = 0; f < crop_feature_num; ++f) { //F
             for (int y = 0; y < crop_y_size; ++y) { //Y
@@ -552,7 +552,7 @@ TEST(crop_gpu, basic_in2x3x2x2_crop_offsets) {
     auto outputs = network.execute();
 
     auto output = outputs.at("crop").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int b = 0; b < crop_batch_num; ++b) { //B
         for (int f = 0; f < crop_feature_num; ++f) { //F
@@ -617,7 +617,7 @@ TEST(crop_gpu, basic_i32_in2x3x2x2_crop_offsets) {
     auto outputs = network.execute();
 
     auto output = outputs.at("crop").get_memory();
-    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int b = 0; b < crop_batch_num; ++b) { //B
         for (int f = 0; f < crop_feature_num; ++f) { //F
@@ -682,7 +682,7 @@ TEST(crop_gpu, basic_i64_in2x3x2x2_crop_offsets) {
     auto outputs = network.execute();
 
     auto output = outputs.at("crop").get_memory();
-    cldnn::mem_lock<int64_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int64_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int b = 0; b < crop_batch_num; ++b) { //B
         for (int f = 0; f < crop_feature_num; ++f) { //F
@@ -760,14 +760,14 @@ TEST(crop_gpu, basic_in1x4x1x1_split) {
     auto outputs = network.execute();
 
     auto output = outputs.at("crop1").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < out1.size();i++)
         ASSERT_EQ(output_ptr[i], out1[i]);
 
     std::cout << std::endl;
     auto output_2 = outputs.at("crop2").get_memory();
-    cldnn::mem_lock<float> output_ptr_2(output_2, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr_2(output_2, get_test_stream());
 
     for (size_t i = 0; i < out2.size();i++)
         ASSERT_EQ(output_ptr_2[i], out2[i]);
@@ -807,7 +807,7 @@ TEST(crop_gpu, basic_in1x4x1x1_crop_pad) {
     auto outputs = network.execute();
 
     auto output = outputs.at("out_reorder").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < out1.size();i++)
         ASSERT_EQ(output_ptr[i], out1[i]);
@@ -876,13 +876,13 @@ TEST(crop_gpu, basic_i32_in1x4x1x1_split) {
     auto outputs = network.execute();
 
     auto output = outputs.at("crop1").get_memory();
-    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < out1.size(); i++)
         ASSERT_EQ(output_ptr[i], out1[i]);
 
     auto output_2 = outputs.at("crop2").get_memory();
-    cldnn::mem_lock<int32_t> output_ptr_2(output_2, get_test_stream());
+    cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr_2(output_2, get_test_stream());
 
     for (size_t i = 0; i < out2.size(); i++)
         ASSERT_EQ(output_ptr_2[i], out2[i]);
@@ -951,13 +951,13 @@ TEST(crop_gpu, basic_i64_in1x4x1x1_split) {
     auto outputs = network.execute();
 
     auto output = outputs.at("crop1").get_memory();
-    cldnn::mem_lock<int64_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int64_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < out1.size(); i++)
         ASSERT_EQ(output_ptr[i], out1[i]);
 
     auto output_2 = outputs.at("crop2").get_memory();
-    cldnn::mem_lock<int64_t> output_ptr_2(output_2, get_test_stream());
+    cldnn::mem_lock<int64_t, mem_lock_type::read> output_ptr_2(output_2, get_test_stream());
 
     for (size_t i = 0; i < out2.size(); i++)
         ASSERT_EQ(output_ptr_2[i], out2[i]);
@@ -1029,7 +1029,7 @@ TEST(crop_gpu, basic_in1x4x1x1_split_w_relu) {
     auto outputs = network.execute();
 
     auto output = outputs.at("relu1").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     // check if crop has been executed in place
     auto in_place = engine->is_the_same_buffer(*network.get_output_memory("crop1"), *network.get_output_memory("relu"));
@@ -1039,7 +1039,7 @@ TEST(crop_gpu, basic_in1x4x1x1_split_w_relu) {
         ASSERT_EQ(output_ptr[i], out1[i]);
 
     auto output_2 = outputs.at("relu2").get_memory();
-    cldnn::mem_lock<float> output_ptr_2(output_2, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr_2(output_2, get_test_stream());
 
     for (size_t i = 0; i < out2.size();i++)
         ASSERT_EQ(output_ptr_2[i], out2[i]);
@@ -1081,7 +1081,7 @@ TEST(crop_gpu, basic_in3x1x2x2x1_crop_all_bfzyx) {
     auto outputs = network.execute();
 
     auto output = outputs.at("crop").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (int b = 0; b < crop_batch_num; ++b) { //B
         for (int f = 0; f < crop_feature_num; ++f) { //F
             for (int z = 0; z < crop_z_size; ++z) { //Z
@@ -1138,7 +1138,7 @@ TEST(crop_gpu, basic_in3x1x3x2x2x1_crop_all_bfwzyx) {
     auto outputs = network.execute();
 
     auto output = outputs.at("crop").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (int b = 0; b < crop_batch_num; ++b) { //B
         for (int f = 0; f < crop_feature_num; ++f) { //F
             for (int w = 0; w < crop_w_size; ++w) { //W
@@ -1221,7 +1221,7 @@ TEST_P(crop_gpu, pad_test) {
     auto outputs = network->execute();
 
     auto output = outputs.at("out").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < res.size(); i++)
         ASSERT_EQ(output_ptr[i], res[i]);
@@ -1304,7 +1304,7 @@ TEST_P(crop_gpu_dynamic, i32_in2x3x2x2_crop_offsets) {
     network1.set_input_data("input", input);
     auto outputs1 = network1.execute();
     auto output1 = outputs1.at("crop").get_memory();
-    cldnn::mem_lock<float> output1_ptr(output1, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output1_ptr(output1, get_test_stream());
     for (int b = 0; b < crop_batch_num; ++b) { //B
         for (int f = 0; f < crop_feature_num; ++f) { //F
             for (int y = 0; y < crop_y_size; ++y) { //Y
@@ -1320,7 +1320,7 @@ TEST_P(crop_gpu_dynamic, i32_in2x3x2x2_crop_offsets) {
     network2.set_input_data("input", input);
     auto outputs2 = network2.execute();
     auto output2 = outputs2.at("crop").get_memory();
-    cldnn::mem_lock<float> output2_ptr(output2, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output2_ptr(output2, get_test_stream());
     for (int b = 0; b < crop_batch_num; ++b) { //B
         for (int f = 0; f < crop_feature_num; ++f) { //F
             for (int y = 0; y < crop_y_size; ++y) { //Y
@@ -1377,7 +1377,7 @@ TEST(crop_cpu, basic_in2x3x2x2_crop_all_bfyx_disable_usm) {
     auto outputs = network.execute();
 
     auto output = outputs.at("crop").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     std::vector<float> a;
     for (int b = 0; b < crop_batch_num; ++b) { //B
         for (int f = 0; f < crop_feature_num; ++f) { //F
@@ -1433,7 +1433,7 @@ TEST(crop_gpu, basic_in1x176x52x52_crop_b_fs_yx_fsv16) {
     auto outputs = network.execute();
 
     auto output = outputs.at("crop1").get_memory();
-    cldnn::mem_lock<test_data_type> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<test_data_type, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     auto offset = 0;
     for (auto b = 0; b < batch_num; b++) {
@@ -1458,7 +1458,7 @@ TEST(crop_gpu, basic_in1x176x52x52_crop_b_fs_yx_fsv16) {
     }
 
     auto output_2 = outputs.at("crop2").get_memory();
-    cldnn::mem_lock<test_data_type> output_ptr_2(output_2, get_test_stream());
+    cldnn::mem_lock<test_data_type, mem_lock_type::read> output_ptr_2(output_2, get_test_stream());
 
     auto f = 0, fs_orig = 0, fsv_orig = 0, offset_orig = 0;
     for (auto b = 0; b < batch_num; b++) {
@@ -1546,13 +1546,13 @@ TEST(crop_gpu, dynamic_in1x4x1x1_split) {
     ASSERT_TRUE(impl2->is_dynamic());
 
     auto output1 = outputs.at("crop1").get_memory();
-    cldnn::mem_lock<float> output_ptr_1(output1, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr_1(output1, get_test_stream());
 
     for (size_t i = 0; i < out1.size(); i++)
         ASSERT_EQ(output_ptr_1[i], out1[i]);
 
     auto output_2 = outputs.at("crop2").get_memory();
-    cldnn::mem_lock<float> output_ptr_2(output_2, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr_2(output_2, get_test_stream());
 
     for (size_t i = 0; i < out2.size(); i++)
         ASSERT_EQ(output_ptr_2[i], out2[i]);
@@ -1616,13 +1616,13 @@ TEST(crop_gpu, dynamic_in1x4x1x1_varaidic_split) {
     ASSERT_TRUE(impl2->is_dynamic());
 
     auto output = outputs.at("crop1").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < out1.size(); i++)
         ASSERT_EQ(output_ptr[i], out1[i]);
 
     auto output_2 = outputs.at("crop2").get_memory();
-    cldnn::mem_lock<float> output_ptr_2(output_2, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr_2(output_2, get_test_stream());
 
     for (size_t i = 0; i < out2.size(); i++)
         ASSERT_EQ(output_ptr_2[i], out2[i]);
@@ -1691,7 +1691,7 @@ TEST(crop_gpu, dynamic_input_padding_varaidic_split) {
 
         auto output_layout = output.get_layout();
         auto output_mem = output.get_memory();
-        cldnn::mem_lock<float> output_ptr(output_mem, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
         for (size_t b = 0; b < static_cast<size_t>(batch_num); b++) {
             for (size_t f = 0; f < static_cast<size_t>(feature_num); f++) {
                 for (size_t y = 0; y < static_cast<size_t>(y_size_output); y++) {
@@ -1751,19 +1751,19 @@ TEST(crop_gpu, static_split_batch) {
     auto outputs = network.execute();
 
     auto output = outputs.at("crop1").get_memory();
-    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < out1.size(); i++)
         ASSERT_EQ(output_ptr[i], out1[i]);
 
     auto output_2 = outputs.at("crop2").get_memory();
-    cldnn::mem_lock<int32_t> output_ptr_2(output_2, get_test_stream());
+    cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr_2(output_2, get_test_stream());
 
     for (size_t i = 0; i < out2.size(); i++)
         ASSERT_EQ(output_ptr_2[i], out2[i]);
 
     auto output_3 = outputs.at("crop3").get_memory();
-    cldnn::mem_lock<int32_t> output_ptr_3(output_3, get_test_stream());
+    cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr_3(output_3, get_test_stream());
 
     for (size_t i = 0; i < out3.size(); i++)
         ASSERT_EQ(output_ptr_3[i], out3[i]);
@@ -1805,7 +1805,7 @@ TEST(crop_gpu, optimized_out_crop) {
     auto outputs = network.execute();
 
     auto output = outputs.at("reorder_out").get_memory();
-    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < out_vec.size(); i++)
         ASSERT_EQ(output_ptr[i], out_vec[i]);
@@ -1839,7 +1839,7 @@ TEST(crop_single_axis, simple_Baxis) {
 
     auto outputs = network.execute();
     auto output = outputs.at("reorder").get_memory();
-    cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<int8_t> expected_results = {
         5, 6, 7, 8
@@ -1889,7 +1889,7 @@ TEST(crop_single_axis, simple_Xaxis) {
 
     auto outputs = network.execute();
     auto output = outputs.at("reorder").get_memory();
-    cldnn::mem_lock<int> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<int> expected_results = {
         2, 5, 8, 11, 14, 17,
@@ -1927,7 +1927,7 @@ TEST(crop_single_axis, simple_all_axis) {
 
     auto outputs = network.execute();
     auto output = outputs.at("reorder").get_memory();
-    cldnn::mem_lock<int> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<int> expected_results = {
         40,
@@ -2029,7 +2029,7 @@ public:
         net.set_input_data("input", in_mem);
         auto result = net.execute();
         auto output = result.at("out_reorder").get_memory();
-        cldnn::mem_lock<float_t> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         // blocked format
         cldnn::topology topo_blocked;
@@ -2047,7 +2047,7 @@ public:
         net_blk.set_input_data("input_blk", in_mem);
         auto result_blk = net_blk.execute();
         auto output_blk = result_blk.at("out_blk_reorder").get_memory();
-        cldnn::mem_lock<float_t> output_blk_ptr(output_blk, get_test_stream());
+        cldnn::mem_lock<float_t, mem_lock_type::read> output_blk_ptr(output_blk, get_test_stream());
         if (is_checking) {
             for (size_t i = 0; i < output_ptr.size(); ++i) {
                 ASSERT_EQ(output_ptr[i], output_blk_ptr[i]);

@@ -44,7 +44,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("space_to_depth").get_memory();
-        cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
                 0.f, 1.f, 2.f, 3.f
@@ -86,7 +86,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("space_to_depth").get_memory();
-        cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
                 0.0f, 4.0f, 1.0f, 5.0f, 2.0f, 6.0f, 3.0f, 7.0f
@@ -134,7 +134,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("space_to_depth").get_memory();
-        cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
                 0.0f, 2.0f, 8.0f, 10.0f, 16.0f, 18.0f,
@@ -196,7 +196,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("space_to_depth").get_memory();
-        cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
                 0.0f, 3.0f, 6.0f, 27.0f, 30.0f, 33.0f, 54.0f, 57.0f, 60.0f, 1.0f,
@@ -244,7 +244,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("space_to_depth").get_memory();
-        cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
                 0.f, 1.f, 2.f, 3.f
@@ -286,7 +286,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("space_to_depth").get_memory();
-        cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
                 0.0f, 4.0f, 1.0f, 5.0f, 2.0f, 6.0f, 3.0f, 7.0f
@@ -334,7 +334,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("space_to_depth").get_memory();
-        cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
                 0.0f, 2.0f, 8.0f, 10.0f, 16.0f, 18.0f,
@@ -396,7 +396,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("space_to_depth").get_memory();
-        cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
                 0.0f, 3.0f, 6.0f, 27.0f, 30.0f, 33.0f, 54.0f, 57.0f, 60.0f, 1.0f,
@@ -446,7 +446,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("space_to_depth").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
                 0.f, 1.f, 2.f, 3.f
@@ -485,7 +485,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("space_to_depth").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
                 0.0f, 4.0f, 1.0f, 5.0f, 2.0f, 6.0f, 3.0f, 7.0f
@@ -533,7 +533,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("space_to_depth").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
                 0.0f, 2.0f, 8.0f, 10.0f, 16.0f, 18.0f,
@@ -587,7 +587,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("space_to_depth").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
                 0.0f, 3.0f, 6.0f, 27.0f, 30.0f, 33.0f, 54.0f, 57.0f, 60.0f, 1.0f,
@@ -634,7 +634,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("space_to_depth").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
                 0.f, 1.f, 2.f, 3.f
@@ -673,7 +673,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("space_to_depth").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
                 0.0f, 4.0f, 1.0f, 5.0f, 2.0f, 6.0f, 3.0f, 7.0f
@@ -721,7 +721,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("space_to_depth").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
                 0.0f, 2.0f, 8.0f, 10.0f, 16.0f, 18.0f,
@@ -775,7 +775,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("space_to_depth").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
                 0.0f, 3.0f, 6.0f, 27.0f, 30.0f, 33.0f, 54.0f, 57.0f, 60.0f, 1.0f,
@@ -830,7 +830,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("reorder_out").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
                 0.0f, 3.0f, 6.0f, 27.0f, 30.0f, 33.0f, 54.0f, 57.0f, 60.0f, 1.0f,
@@ -885,7 +885,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("reorder_out").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
                 0.0f, 3.0f, 6.0f, 27.0f, 30.0f, 33.0f, 54.0f, 57.0f, 60.0f, 1.0f,

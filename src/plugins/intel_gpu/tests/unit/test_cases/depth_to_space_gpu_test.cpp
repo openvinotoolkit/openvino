@@ -46,7 +46,7 @@ TEST(depth_to_space_fp16_gpu, d1411_bs2) {
     auto outputs = network.execute();
 
     auto output = outputs.at("depth_to_space").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         0.f, 1.f, 2.f, 3.f
@@ -88,7 +88,7 @@ TEST(depth_to_space_fp16_gpu, d1421_bs2) {
     auto outputs = network.execute();
 
     auto output = outputs.at("depth_to_space").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         0.0f, 2.0f, 4.0f, 6.0f, 1.0f, 3.0f, 5.0f, 7.0f
@@ -143,7 +143,7 @@ TEST(depth_to_space_fp16_gpu, d1933_bs3) {
     auto outputs = network.execute();
 
     auto output = outputs.at("depth_to_space").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         0.0f, 9.0f, 18.0f, 1.0f, 10.0f, 19.0f, 2.0f, 11.0f, 20.0f, 27.0f,
@@ -298,7 +298,7 @@ TEST(depth_to_space_fp32_gpu, d1933_bs3) {
     auto outputs = network.execute();
 
     auto output = outputs.at("depth_to_space").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         0.0f, 9.0f, 18.0f, 1.0f, 10.0f, 19.0f, 2.0f, 11.0f, 20.0f, 27.0f,
@@ -353,7 +353,7 @@ TEST(depth_to_space_fp32_gpu, d1822_bs2_blocks_first) {
     auto outputs = network.execute();
 
     auto output = outputs.at("depth_to_space").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         0.0f, 8.0f, 1.0f, 9.0f, 16.0f, 24.0f, 17.0f, 25.0f,
@@ -403,7 +403,7 @@ void test_depth_to_space_fp32_gpu_d1822_bs2_depth_first(bool is_caching_test) {
     auto outputs = network->execute();
 
     auto output = outputs.at("depth_to_space").get_memory();
-    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<T> expected_results = {
         0.0f, 4.0f, 1.0f, 5.0f, 8.0f, 12.0f, 9.0f, 13.0f,
@@ -465,7 +465,7 @@ static void test_depth_to_space_fp16_input_fp32_output(bool is_caching_test) {
     auto outputs = network->execute();
 
     auto output = outputs.at("result:output/sink_port_0").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         24.0f, 24.0f, 32.0f, 28.0f
@@ -520,7 +520,7 @@ TEST(depth_to_space_fp32_gpu, d1811_bs2_no_rank_changing_fusion) {
     // Output should be 5D bfzyx
     ASSERT_EQ(out_layout.format, format::bfzyx);
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     std::vector<float> expected = { 0.f, 2.f, 4.f, 6.f, 1.f, 3.f, 5.f, 7.f };
 
     for (size_t i = 0; i < expected.size(); ++i) {
@@ -565,6 +565,7 @@ TEST(depth_to_space_fp16_gpu, d8_12_576x672_bs2_with_eltwise_and_bfzyx_reshape) 
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
+    using output_lock_t = cldnn::mem_lock<ov::float16, mem_lock_type::read>;
 
     // The key assertion: this must not crash during kernel compilation.
     // Previously clBuildProgram would fail because of INPUT0_GET_INDEX
@@ -579,7 +580,7 @@ TEST(depth_to_space_fp16_gpu, d8_12_576x672_bs2_with_eltwise_and_bfzyx_reshape) 
         auto out_layout = output->get_layout();
         ASSERT_EQ(out_layout.format, format::bfyx);
 
-        cldnn::mem_lock<ov::float16> output_ptr(output, get_test_stream());
+        output_lock_t output_ptr(output, get_test_stream());
         // depth_to_space output: 1x3x8x8, eltwise adds 1.0 to each element
         // Check a few samples are within reasonable range
         ASSERT_GT(static_cast<float>(output_ptr[0]), -1000.f);

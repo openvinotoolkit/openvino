@@ -101,7 +101,7 @@ struct roi_align_test : public testing::Test {
         auto outputs = network->execute();
 
         auto output = outputs.at("out").get_memory();
-        cldnn::mem_lock<TD> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<TD, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), expected_output.size());
         for (uint32_t i = 0; i < expected_output.size(); ++i) {
@@ -260,7 +260,7 @@ TEST(roi_align_gpu_fp32, bfyx_inpad_1x1) {
         3.f, 3.75f, 4.75f, 5.f, 3.f, 5.5f, 2.75f, 3.75f
     };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     ASSERT_EQ(output_ptr.size(), expected_output.size());
     for (uint32_t i = 0; i < expected_output.size(); ++i) {

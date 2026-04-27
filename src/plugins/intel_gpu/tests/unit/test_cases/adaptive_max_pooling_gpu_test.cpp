@@ -170,7 +170,7 @@ public:
         auto result = network->execute();
 
         auto out_mem = result.at(result_id).get_memory();
-        cldnn::mem_lock<T> out_ptr(out_mem, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
         ASSERT_EQ(params.outputTensor.count(), out_ptr.size());
         ASSERT_EQ(params.outputTensor.count(), expected.size());

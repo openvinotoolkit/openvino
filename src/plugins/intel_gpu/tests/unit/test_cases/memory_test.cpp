@@ -243,7 +243,7 @@ public:
 
         auto output_memory_first = outputs.at("relu6").get_memory();
         auto output_layout_first = output_memory_first->get_layout();
-        cldnn::mem_lock<float> output_ptr_first(output_memory_first, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr_first(output_memory_first, get_test_stream());
 
         ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t) 2560);
 
@@ -253,7 +253,7 @@ public:
 
         auto output_memory_second = outputs_second.at("relu6").get_memory();
         auto output_layout_second = output_memory_second->get_layout();
-        cldnn::mem_lock<float> output_ptr_second(output_memory_second, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr_second(output_memory_second, get_test_stream());
 
         ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t) 3328);
 
@@ -323,7 +323,7 @@ public:
 
         auto output_memory_first = outputs.at("softmax").get_memory();
         auto output_layout_first = output_memory_first->get_layout();
-        cldnn::mem_lock<float> output_ptr_first(output_memory_first, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr_first(output_memory_first, get_test_stream());
 
         network network_second(*engine, topology, config);
         network_second.set_input_data("input", input);
@@ -331,7 +331,7 @@ public:
 
         auto output_memory_second = outputs_second.at("softmax").get_memory();
         auto output_layout_second = output_memory_second->get_layout();
-        cldnn::mem_lock<float> output_ptr_second(output_memory_second, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr_second(output_memory_second, get_test_stream());
 
         cl_mem_result = 1224;
         usm_result = 1992; // USM have a higher peak, since transfering memory to device adds temporay memory bytes allocated. Old memory is deallocated quickly, but max peak is higher.

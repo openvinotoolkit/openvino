@@ -166,7 +166,7 @@ TEST(arg_max_gpu_min_axis_batch_bfzyx, i32) {
     ASSERT_EQ(outputs.begin()->first, "arg_max");
     const int out_size = y_size * feature_num * x_size * top_k;
     auto output = outputs.at("arg_max").get_memory();
-    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(output, get_test_stream());
     int32_t out_buffer[out_size];
     for (uint32_t i = 0; i < out_size; i++) {
         out_buffer[i] = get_value<int32_t>(output_ptr.data(), i);
@@ -233,7 +233,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb, f32) {
     ASSERT_EQ(outputs.begin()->first, "arg_max");
     const int out_size = y_size * feature_num * x_size * top_k;
     auto output = outputs.at("arg_max").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     float out_buffer[out_size];
     for (uint32_t i = 0; i < out_size; i++) {
         out_buffer[i] = get_value<float>(output_ptr.data(), i);
@@ -298,7 +298,7 @@ TEST(arg_max_gpu_min_axis_batch_yxfb, f32) {
     ASSERT_EQ(outputs.begin()->first, "arg_max");
     const int out_size = y_size * feature_num * x_size * top_k;
     auto output = outputs.at("arg_max").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     float out_buffer[out_size];
     for (uint32_t i = 0; i < out_size; i++) {
         out_buffer[i] = get_value<float>(output_ptr.data(), i);
@@ -355,7 +355,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, f32) {
     ASSERT_EQ(outputs.begin()->first, "arg_max");
     const int out_size = y_size * feature_num * x_size * top_k;
     auto output = outputs.at("arg_max").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     float out_buffer[out_size];
     for (uint32_t i = 0; i < out_size; i++) {
         out_buffer[i] = get_value<float>(output_ptr.data(), i);
@@ -399,7 +399,7 @@ TEST(top_k_layer_tests, second_output) {
     ASSERT_EQ(outputs.begin()->first, "arg_max");
     const int out_size = y_size * feature_num * x_size * top_k;
     auto output = outputs.at("arg_max").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     cldnn::mem_lock<float> second_output_ptr(second_output, get_test_stream());
 
     float out_buffer[out_size];
@@ -493,7 +493,7 @@ TEST(top_k_layer_tests, second_output2) {
     ASSERT_EQ(outputs.begin()->first, "arg_max");
     const int out_size = y_size * feature_num * x_size * top_k;
     auto output = outputs.at("arg_max").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     cldnn::mem_lock<float> second_output_ptr(second_output, get_test_stream());
     float out_buffer[out_size];
     float second_out_buffer[out_size];
@@ -582,7 +582,7 @@ TEST(top_k_layer_tests, multiple_outputs) {
     ASSERT_EQ(outputs.begin()->first, "concat");
     const int out_size = y_size * feature_num * x_size * top_k * 2;
     auto output = outputs.at("concat").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     float out_buffer[out_size];
     for (uint32_t i = 0; i < out_size; i++) {
@@ -640,7 +640,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, sort_by_values) {
     ASSERT_EQ(outputs.begin()->first, "arg_max");
     const int out_size = y_size * feature_num * x_size * top_k;
     auto output = outputs.at("arg_max").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     float out_buffer[out_size];
     for (uint32_t i = 0; i < out_size; i++) {
         out_buffer[i] = get_value<float>(output_ptr.data(), i);
@@ -697,7 +697,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, sort_by_indices) {
     ASSERT_EQ(outputs.begin()->first, "arg_max");
     const int out_size = y_size * feature_num * x_size * top_k;
     auto output = outputs.at("arg_max").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     float out_buffer[out_size];
     for (uint32_t i = 0; i < out_size; i++) {
         out_buffer[i] = get_value<float>(output_ptr.data(), i);
@@ -769,7 +769,7 @@ void test_top_k_layer_tests_sort_probabilities_by_indices(bool is_caching_test) 
     ASSERT_EQ(outputs.begin()->first, "arg_max");
     const int out_size = top_k;
     auto output = outputs.at("arg_max").get_memory();
-    cldnn::mem_lock<int> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int, mem_lock_type::read> output_ptr(output, get_test_stream());
     int out_buffer[out_size];
     for (uint32_t i = 0; i < out_size; i++) {
         out_buffer[i] = get_value<int>(output_ptr.data(), i);
@@ -971,7 +971,7 @@ TEST(arg_max_min_gpu, dynamic) {
 
     const int out_size = y_size * feature_num * x_size * top_k;
     auto output = outputs.at("arg_max").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     ASSERT_EQ(output_ptr.size(), out_size);
     for (uint32_t i = 0; i < out_size; i++) {
@@ -1077,7 +1077,7 @@ TEST_P(TopKRadixValueTest, values_match) {
     auto outputs = network.execute();
 
     auto output = outputs.at("arg_max").get_memory();
-    cldnn::mem_lock<ov::float16> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (size_t i = 0; i < p.ref_values.size(); i++) {
         float val = static_cast<float>(output_ptr[i]);
         ASSERT_NEAR(val, p.ref_values[i], 0.02f) << "value mismatch at i=" << i;
@@ -1143,7 +1143,7 @@ TEST(arg_max_gpu_topk_radix, f16_max_large_n_axis_batch) {
     auto outputs = network.execute();
 
     auto output = outputs.at("arg_max").get_memory();
-    cldnn::mem_lock<ov::float16> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (int i = 0; i < top_k; i++) {
         float expected = static_cast<float>(batch_num - 1 - i) * 0.01f;
         ASSERT_NEAR(static_cast<float>(output_ptr[i]), expected, 0.02f) << "mismatch at i=" << i;
@@ -1182,7 +1182,7 @@ TEST(arg_max_gpu_topk_radix, f16_max_second_output_indices) {
     auto outputs = network.execute();
 
     auto output = outputs.at("arg_max").get_memory();
-    cldnn::mem_lock<ov::float16> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (int i = 1; i < top_k; i++) {
         ASSERT_GE(static_cast<float>(output_ptr[i - 1]), static_cast<float>(output_ptr[i]))
             << "values not sorted descending at i=" << i;
@@ -1219,7 +1219,7 @@ TEST(arg_max_gpu_topk_radix, f16_max_duplicate_values_tiebreak) {
     auto outputs = network.execute();
 
     auto output = outputs.at("arg_max").get_memory();
-    cldnn::mem_lock<ov::float16> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (int i = 0; i < top_k; i++)
         ASSERT_NEAR(static_cast<float>(output_ptr[i]), 5.0f, 0.01f) << "value mismatch at i=" << i;
 
@@ -1254,7 +1254,7 @@ TEST(arg_max_gpu_topk_radix, f16_max_yolov26n_like) {
     auto outputs = network.execute();
 
     auto output = outputs.at("arg_max").get_memory();
-    cldnn::mem_lock<ov::float16> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (int i = 1; i < top_k; i++) {
         ASSERT_GE(static_cast<float>(output_ptr[i - 1]), static_cast<float>(output_ptr[i]))
             << "values not sorted descending at i=" << i;
@@ -1293,7 +1293,7 @@ TEST(arg_max_gpu_topk_radix, f16_max_duplicates_n70_k5_indices_tiebreak) {
     auto outputs = network.execute();
 
     auto output = outputs.at("arg_max").get_memory();
-    cldnn::mem_lock<ov::float16> val_ptr(output, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> val_ptr(output, get_test_stream());
     cldnn::mem_lock<float> idx_ptr(second_output, get_test_stream());
 
     for (int b = 0; b < batch_num; b++) {
@@ -1340,7 +1340,7 @@ TEST(arg_max_gpu_topk_radix, fallback_to_axis_for_small_sort_size_and_topk1) {
         << "Expected arg_max_min_axis, got: " << info;
 
     auto output = outputs.at("arg_max").get_memory();
-    cldnn::mem_lock<ov::float16> out_ptr(output, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(output, get_test_stream());
     ASSERT_NEAR(static_cast<float>(out_ptr[0]), 9.0f, 0.01f);
 }
 
@@ -1399,7 +1399,7 @@ TEST(arg_max_gpu_dynamic_large_input, f32) {
 
     auto outputs = network.execute();
     auto output = outputs.at("arg_max").get_memory();
-    cldnn::mem_lock<int32_t> out_ptr(output, get_test_stream());
+    cldnn::mem_lock<int32_t, mem_lock_type::read> out_ptr(output, get_test_stream());
 
     for (int fi = 0; fi < f; fi++) {
         std::vector<float> row(

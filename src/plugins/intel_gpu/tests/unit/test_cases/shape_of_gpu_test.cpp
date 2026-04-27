@@ -35,7 +35,7 @@ TEST(shape_of_gpu, bfyx) {
     auto outputs = network.execute();
 
     auto output = outputs.at("shape_of").get_memory();
-    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<int32_t> expected_results = {1, 2, 3, 3};
 
@@ -60,7 +60,7 @@ TEST(shape_of_gpu, bfyx_i64) {
     auto outputs = network.execute();
 
     auto output = outputs.at("shape_of").get_memory();
-    cldnn::mem_lock<int64_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int64_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<int64_t> expected_results = {1, 2, 3, 3};
 
@@ -89,7 +89,7 @@ void shape_of_cpu_impl_bfyx_i64(bool disable_usm) {
     auto outputs = network.execute();
 
     auto output = outputs.at("shape_of").get_memory();
-    cldnn::mem_lock<int64_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int64_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<int64_t> expected_results = {1, 2, 3, 3};
 
@@ -122,7 +122,7 @@ TEST(shape_of_gpu, yxfb) {
     auto outputs = network.execute();
 
     auto output = outputs.at("shape_of").get_memory();
-    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<int32_t> expected_results = {1, 2, 3, 3};
 
@@ -147,7 +147,7 @@ TEST(shape_of_gpu, bfzyx) {
     auto outputs = network.execute();
 
     auto output = outputs.at("shape_of").get_memory();
-    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<int32_t> expected_results = {1, 2, 4, 3, 3};
 
@@ -184,7 +184,7 @@ TEST(shape_of_gpu, dynamic) {
         auto outputs = network.execute();
 
         auto output = outputs.at("shape_of").get_memory();
-        cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<int32_t> expected_results = {1, 2, 3, 4};
 
@@ -199,7 +199,7 @@ TEST(shape_of_gpu, dynamic) {
         auto outputs = network.execute();
 
         auto output = outputs.at("shape_of").get_memory();
-        cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<int32_t> expected_results = {4, 3, 2, 1};
 
@@ -239,7 +239,7 @@ TEST(shape_of_gpu, shape_infer_optimization_dynamic) {
         auto outputs = network.execute();
 
         auto output = outputs.at("shape_of").get_memory();
-        cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < input.size(); ++i) {
             ASSERT_EQ(input[i], output_ptr[i]);
@@ -308,7 +308,7 @@ TEST_P(smoke_shape_of_test, basic) {
         auto outputs = network.execute();
 
         auto output = outputs.at("shape_of").get_memory();
-        cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < input.size(); ++i) {
             ASSERT_EQ(input[i], output_ptr[i]);

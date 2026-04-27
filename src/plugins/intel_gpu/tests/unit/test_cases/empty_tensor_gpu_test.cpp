@@ -57,7 +57,7 @@ TEST_P(test_empty_tensor, concat_two_inputs) {
     network.set_input_data("nonzero_input", nonzero_input_mem);
     auto outputs = network.execute();
     auto output = outputs.at("concat").get_memory();
-    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (size_t i = 0; i < output->get_layout().count(); ++i) {
         ASSERT_EQ(concat_another_input_data[i], output_ptr[i]);
     }
