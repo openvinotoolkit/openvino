@@ -954,28 +954,156 @@ inline SEQ_RANGE FUNC(calc_sliding_window_seq_range)(const SEQ_RANGE default_seq
     // This is a REFERENCE implementation.
     inline SEQ_RANGE FUNC(calc_bi_dir_seq_range)(
                             const __global int* token_type_ids, 
+                            __local int* reduction_buffer,
                             const int seq_len, 
                             const SEQ_RANGE default_seq_range) {
+
+        // For this block, each subgroup's work item min and max will be in 
+        // in the range of:
+        // [default_seq_range.subgroup_max - SUBGROUP_SIZE, default_seq_range.subgroup_max]
+        // So we can safetly assume that whole block have to check 
+        // 1) where ends token group starting from default_seq_range.subgroup_max
+        // 2) where begins token group starting from default_seq_range.subgroup_max - SUBGROUP_SIZE
+        // Block will simply cooperatively calculate the first idx for each the token_type_id
+        // is equal to zero to the left and right from the above range.
+
+        const int default_block_range_begin = max(0, default_seq_range.subgroup_max - SUBGROUP_SIZE);
+        const int default_block_range_end = default_seq_range.subgroup_max;
+        int found_block_range_end = default_block_range_end;
+        int found_block_range_begin = default_block_range_begin;
+
+                    const int sgid = get_sub_group_id();
+            const int sglid = get_sub_group_local_id();
+            const int lid = get_local_id(2);
+
+        // block cooperative search for token group end
+        if (token_type_ids[default_block_range_end - 1] == 1) {
+
+            const int sgid = get_sub_group_id();
+            const int sglid = get_sub_group_local_id();
+            const int lid = get_local_id(2);
+            // Now whole block needs to find first index with token_type_id equal to zero starting from block_range_end and going to the right
+
+            int base = default_block_range_end;
+            int idx_this_thread = base + lid;
+
+            const int MAX_INT = INT_MAX;
+            int block_min_idx = MAX_INT;
+            bool work_group_should_contine_loop = true;
+            while (work_group_should_contine_loop) {                
+                // if(get_global_id(0) == 0 && get_global_id(1) == 23 && sgid == 0 && sglid == 0) {
+                //     printf("block: %d, warp: %d, thread: %d, block_range_end: %d, idx: %d, block_min_idx: %d\n", 
+                //     get_global_id(1), sgid, sglid, block_range_end, idx_this_thread, block_min_idx);
+                // }
+
+                const bool is_zero = idx_this_thread < seq_len ? token_type_ids[idx_this_thread] == 0 : true;
+                int min_idx_this_subgroup = sub_group_reduce_min(is_zero ? idx_this_thread : MAX_INT);
+
+                if( sglid == 0 )
+                    reduction_buffer[sgid] = min_idx_this_subgroup;
+
+                // PK: barrier has to be executed by all threads.
+
+                barrier(CLK_LOCAL_MEM_FENCE);
+
+                block_min_idx = sub_group_reduce_min(reduction_buffer[sglid]);
+
+                idx_this_thread += get_global_size(2); //< # of threads in block
+
+                work_group_should_contine_loop = (block_min_idx == MAX_INT);
+            }
+
+            // if(get_global_id(0) == 0 && get_global_id(1) == 0) {
+            //     printf("sgid: %d, sglid: %d, block_min_idx: %d\n", 
+            //     sgid, sglid, block_min_idx);
+            // }
+
+            found_block_range_end = block_min_idx;
+
+        }
+
+        // block cooperative search for token group start
+        if (token_type_ids[default_block_range_begin] == 1) {
+            const int CLEAR_VAL = -2;
+            reduction_buffer[sglid] = CLEAR_VAL;
+
+            const int sgid = get_sub_group_id();
+            const int sglid = get_sub_group_local_id();
+            const int lid = get_local_id(2);
+            // Now whole block needs to find first index with token_type_id equal to zero starting from block_range_end and going to the right
+
+            int base = default_block_range_begin - 1;
+            int idx_this_thread = base - get_global_size(2) + lid;
+
+            
+            int block_first_idx = CLEAR_VAL;
+            bool work_group_should_contine_loop = true;
+            while (work_group_should_contine_loop) {                
+                // if(get_global_id(0) == 0 && get_global_id(1) == 23 && sgid == 0 && sglid == 0) {
+                //     printf("block: %d, warp: %d, thread: %d, block_range_end: %d, idx: %d, block_first_idx: %d\n", 
+                //     get_global_id(1), sgid, sglid, block_range_end, idx_this_thread, block_first_idx);
+                // }
+
+                const bool is_zero = idx_this_thread >= 0 ? token_type_ids[idx_this_thread] == 0 : true;
+                int min_idx_this_subgroup = sub_group_reduce_max(is_zero ? max(-1, idx_this_thread) : CLEAR_VAL);
+
+                if( sglid == 0 )
+                    reduction_buffer[sgid] = min_idx_this_subgroup;
+
+                // PK: barrier has to be executed by all threads.
+
+                barrier(CLK_LOCAL_MEM_FENCE);
+
+                block_first_idx = sub_group_reduce_max(reduction_buffer[sglid]);
+
+                idx_this_thread -= get_global_size(2); //< # of threads in block
+
+
+                work_group_should_contine_loop = (block_first_idx == CLEAR_VAL);
+            }
+
+            found_block_range_begin = block_first_idx + 1;
+
+            // if(get_global_id(0) == 0 && get_global_id(1) == 2) {
+            //     printf("sgid: %d, sglid: %d, found_block_range_begin: %d\n", 
+            //     sgid, sglid, found_block_range_begin);
+            // }
+
+        }
+
         int token_group_end = default_seq_range.max;
         int token_group_begin = default_seq_range.max;
 
         if (token_type_ids[token_group_end] == 1) {
             int new_group_end = token_group_end + 1;
-            while (new_group_end < seq_len && token_type_ids[new_group_end] == 1) {
+            while (new_group_end < default_block_range_end && token_type_ids[new_group_end] == 1) {
                 new_group_end++;
             }
             token_group_end = new_group_end - 1;
 
+            if (token_group_end == (default_block_range_end - 1)) {
+                token_group_end = found_block_range_end - 1;
+            }
+
             int new_group_begin = token_group_begin - 1;
-            while (new_group_begin >= 0 && token_type_ids[new_group_begin] == 1) {
+            while (new_group_begin >= default_block_range_begin && token_type_ids[new_group_begin] == 1) {
                 new_group_begin--;
             }
             token_group_begin = new_group_begin + 1;
+
+            if (token_group_begin == default_block_range_begin) {
+                token_group_begin = found_block_range_begin;
+            }
+        }
+
+        if (token_group_begin != found_block_range_begin && token_group_begin <= default_block_range_begin) {
+            printf("sgid: %d, sglid: %d, get_global_id(1): %d, token_group_begin: %d, found_block_range_begin: %d\n", 
+            sgid, sglid, get_global_id(1), token_group_begin, found_block_range_begin);
         }
         SEQ_RANGE range;
         range.min = token_group_begin;
         range.max = token_group_end;
-        range.subgroup_max = sub_group_reduce_max(token_group_end) + 1;
+        range.subgroup_max = found_block_range_end;
         return range;
     }
 #endif
@@ -1084,6 +1212,9 @@ KERNEL(sdpa_opt)(
     __local SOFTMAX_ACCUMULATOR_TYPE slm_max_val_cur[TARGET_SEQ_LEN_BLOCK_SIZE];
 #endif
 
+    __local int reduce_buffer[TARGET_SEQ_LEN_BLOCK_SIZE];
+    reduce_buffer[sglid] = INT_MAX;
+
 #if IS_PAGED_ATTENTION
     const uint block_start_pos = blocked_indexes_start[target_seq_dim];
     const uint block_end_pos = blocked_indexes_end[target_seq_dim];
@@ -1099,6 +1230,7 @@ KERNEL(sdpa_opt)(
     #if IS_PAGED_ATTENTION
         #if HAS_TOKEN_TYPE_IDS
             const SEQ_RANGE bi_dir_range = FUNC_CALL(calc_bi_dir_seq_range)(token_type_ids, 
+                                                                            reduce_buffer,
                                                                             SOURCE_SEQ_LEN, 
                                                                             default_this_work_item_seq_range);
             this_work_item_seq_range_temp = bi_dir_range;
@@ -1121,6 +1253,13 @@ KERNEL(sdpa_opt)(
     #endif //< IS_PAGED_ATTENTION
 
     const SEQ_RANGE this_work_item_seq_range = this_work_item_seq_range_temp;
+
+    // if(get_global_id(0) == 0 && get_global_id(1) == 11) {
+    //     printf("sgid: %d, sglid: %d, target_seq_idx: %d, default_seq_range: [%d, %d, %d], this_seq_range: [%d, %d, %d]\n", 
+    //             sgid, sglid, target_seq_idx, 
+    //             default_this_work_item_seq_range.min, default_this_work_item_seq_range.max, default_this_work_item_seq_range.subgroup_max,
+    //             this_work_item_seq_range.min, this_work_item_seq_range.max, this_work_item_seq_range.subgroup_max);
+    // }
 #endif //< IS_CAUSAL
 
     const uint num_read_blocks = K_HEAD_SIZE == V_HEAD_SIZE ? 1 :  CEIL_DIV(K_HEAD_SIZE, V_HEAD_SIZE);
