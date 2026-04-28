@@ -26,6 +26,7 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/read_value_base.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 
@@ -88,10 +89,11 @@ PagedGatedDeltaNetFusion::PagedGatedDeltaNetFusion(ov::pass::paged_attention::Pa
     auto gate = any_input();
     auto beta = any_input();
 
-    // recurrent_state must come from ReadValue(cache_param).
+    // recurrent_state must come from ReadValue(cache_param) directly or via Gather(ReadValue, beam_idx, axis).
     auto cache_param = any_input();
     auto read_value = wrap_type<ov::op::util::ReadValueBase>({cache_param});
-    auto gdn = wrap_type<ov::op::internal::GatedDeltaNet>({query, key, value, read_value, gate, beta});
+    auto gathered_state = ov::pass::pattern::optional<ov::op::v8::Gather>({read_value, any_input(), any_input()});
+    auto gdn = wrap_type<ov::op::internal::GatedDeltaNet>({query, key, value, gathered_state, gate, beta});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         if (transformation_callback(m.get_match_root())) {
