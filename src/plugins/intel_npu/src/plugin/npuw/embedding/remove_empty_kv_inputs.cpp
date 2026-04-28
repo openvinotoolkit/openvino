@@ -4,6 +4,7 @@
 
 #include "remove_empty_kv_inputs.hpp"
 
+#include "../util.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/util/node_util.hpp"
@@ -13,8 +14,6 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/validate.hpp"
-
-#include <regex>
 
 namespace opp = ov::pass::pattern;
 
@@ -63,10 +62,10 @@ public:
             auto& node_to_output = m.get_pattern_value_map();
             auto matched_param = ov::as_type_ptr<ov::op::v0::Parameter>(node_to_output.at(param).get_node_shared_ptr());
 
-            // Note: Additional precaution if Linear Cache got matched by mistake
+            // Note: Additional precaution for only KVCache parameters to match.
+            //       As an example linear cache of GDN blocks can match pattern above too.
             std::string param_name = matched_param->get_friendly_name();
-            std::regex regex_pattern(R"(^(past_key_values\.(\d+)\.(key|value))$)");
-            if (!std::regex_match(param_name, regex_pattern)) {
+            if (!ov::npuw::util::isPastKeyValuesKey(param_name) && !ov::npuw::util::isPastKeyValuesValue(param_name)) {
                 return false;
             }
 

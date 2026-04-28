@@ -68,11 +68,13 @@ struct Variable {
                                   const std::string& original_prefix,
                                   const std::string& past_or_present) {
                 if (type == "key" || type == "value") {
-                    std::string prefix =  past_or_present == "past" ? "past_key_values" : "present";
+                    std::string prefix = past_or_present == "past" ? "past_key_values" : "present";
                     return prefix + "." + idx + "." + type;
                 } else if (type == "conv" || type == "ssm") {
                     return original_prefix + "." + past_or_present + "." + type + "." + idx;
-                } 
+                } else {
+                    OPENVINO_ASSERT("Incorrect type of state: ", type);
+                }
             };
 
             input_name = create_name(past_type, past_idx, prefix, "past");
@@ -127,7 +129,6 @@ void restore_kv_cache_order(Variables& variables, const std::unordered_map<std::
 bool ov::pass::StatefulToStateless::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(StatefulToStateless);
 
-    std::cout << "Running StatefulToStateless transformation" << std::endl;
     auto beam_idx = get_parameter_by_tensor_name(model, "beam_idx");
     Variables variables;  // to collect variables corresponding to future_params
     variables.reserve(model->get_sinks().size());
@@ -135,7 +136,6 @@ bool ov::pass::StatefulToStateless::run_on_model(const std::shared_ptr<ov::Model
     std::unordered_map<std::string, std::shared_ptr<ov::Node>>
         future_params;  // to collect nodes, each with a single output that will be replaced by new parameters
     std::unordered_set<std::string> processed_variable_ids;  // Track which ReadValues we've processed
-    std::cout << "Collecting variables and corresponding future params." << std::endl;
     if (beam_idx) {
         for (const ov::Input<ov::Node>& input : beam_idx->get_output_target_inputs(0)) {
             if (auto gather = ov::as_type_ptr<op::util::GatherBase>(input.get_node()->shared_from_this())) {
@@ -155,14 +155,13 @@ bool ov::pass::StatefulToStateless::run_on_model(const std::shared_ptr<ov::Model
             "Stateful models without `beam_idx` input are not supported in StatefulToStateless transformation");
     }
 
-    std::cout << "Processing ReadValues that are NOT connected via beam_idx: Conv and SSM caches in models with Linear Attention." << std::endl;
     // Process ReadValues that are NOT connected via beam_idx: Conv and SSM caches in models with Linear Attention.
     for (const auto& op : model->get_ops()) {
         if (auto read_value = ov::as_type_ptr<op::util::ReadValueBase>(op)) {
             auto variable_name = read_value->get_variable_id();
             std::smatch match;
-            if (std::regex_match(variable_name, match, context.lin_cache_naming_convention) &&
-                (processed_variable_ids.find(variable_name) == processed_variable_ids.end())) {
+            if ((processed_variable_ids.find(variable_name) == processed_variable_ids.end()) &&
+                std::regex_match(variable_name, match, context.lin_cache_naming_convention)) {
                 variables.push_back(Variable(context, variable_name));
                 // For models with Linear Attention, ReadValue for Conv and SSM caches connects directly to the useful
                 // Ops after.
@@ -184,17 +183,7 @@ bool ov::pass::StatefulToStateless::run_on_model(const std::shared_ptr<ov::Model
         }
     }
 
-    std::cout << "before restore_kv_cache_order, variables order is: " << std::endl;
-    for (const auto& var : variables) {
-        std::cout << "variable_name: " << var.variable_name << ", input_name: " << var.input_name
-                  << ", output_name: " << var.output_name << ", index: " << var.index << std::endl;
-    }
     restore_kv_cache_order(variables, assign_index_by_var_id);
-    std::cout << "after restore_kv_cache_order, variables order is: " << std::endl;
-    for (const auto& var : variables) {
-        std::cout << "variable_name: " << var.variable_name << ", input_name: " << var.input_name
-                  << ", output_name: " << var.output_name << ", index: " << var.index << std::endl;
-    }
 
     ov::ParameterVector new_parameters;
     ov::ResultVector new_results;

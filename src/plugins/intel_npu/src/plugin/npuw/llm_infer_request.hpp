@@ -33,7 +33,6 @@ protected:
     void prepare_for_new_conversation(int64_t prompt_length);
     void apply_lora();
     void clear_chunk_prefill_kv_cache();
-    void clear_prefill_lincache();
     void copy_kvcache();
     void update_kvcache_for(std::shared_ptr<ov::IAsyncInferRequest> request,
                             const PortsMap& in_ports,
@@ -107,12 +106,8 @@ protected:
 
     ov::Output<const ov::Node> m_lm_head_logits_port;
 
-    std::vector<ov::Output<const ov::Node>> m_generate_kvcache_past_ports;
-    std::vector<ov::Output<const ov::Node>> m_generate_lincache_past_ports;
-
-    // Cache past_key_values ports for efficient clearing in prepare_for_new_conversation
-    std::vector<ov::Output<const ov::Node>> m_prefill_past_kv_ports;
-    std::vector<ov::Output<const ov::Node>> m_prefill_past_lin_cache_ports;
+    std::vector<std::string> m_kvcache_past_names;
+    std::vector<std::string> m_lincache_past_names;
 
     // NB: It can be either input_ids(LLM) or inputs_embeds(VLM)
     std::string m_input_ids_name;

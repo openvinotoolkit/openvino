@@ -10,14 +10,14 @@
 
 #include "llm_pass_test_fixture.hpp"
 #include "../util.hpp"
-#include "npuw_transformations/convert_kvcache_to_precision.hpp"
+#include "npuw_transformations/convert_cache_to_precision.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "whisper/prepare_whisper_model.hpp"
 
 // --- Design note -------------------------------------------------------------------------
 // The model builder creates KV cache state with ov::element::f32 (the default
-// BaseModelConfig::precision).  ConvertKVCacheToPrecision is therefore doing *real*
+// BaseModelConfig::precision).  ConvertCacheToPrecision is therefore doing *real*
 // work on the test model: it lowers f32 past_key inputs and present outputs to
 // the requested storage type (f16 by default, or whatever
 // ov::hint::kv_cache_precision selects).

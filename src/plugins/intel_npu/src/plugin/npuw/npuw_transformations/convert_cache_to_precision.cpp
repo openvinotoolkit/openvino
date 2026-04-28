@@ -98,7 +98,6 @@ std::shared_ptr<ov::Model> cvt_kvcache_to_low_precision(const std::shared_ptr<ov
             ppp.output(name).tensor().set_element_type(value_storage_type);
         }
     }
-
     auto new_model = ppp.build();
 
     if (use_integer_kv_storage) {
@@ -120,15 +119,13 @@ std::shared_ptr<ov::Model> cvt_lincache_to_low_precision(const std::shared_ptr<o
     ov::preprocess::PrePostProcessor ppp(model);
 
     for (const auto& tensor : model->inputs()) {
-        if (tensor.get_any_name().rfind("cache_params.past.conv", 0) == 0 ||
-            tensor.get_any_name().rfind("cache_params.past.ssm", 0) == 0) {
+        if (ov::npuw::util::matchLinCacheString(tensor.get_any_name(), "past")) {
             ppp.input(tensor.get_any_name()).tensor().set_element_type(lptype);
         }
     }
 
     for (const auto& tensor : model->outputs()) {
-        if (tensor.get_any_name().rfind("cache_params.present.conv", 0) == 0 ||
-            tensor.get_any_name().rfind("cache_params.present.ssm", 0) == 0) {
+        if (ov::npuw::util::matchLinCacheString(tensor.get_any_name(), "present")) {
             ppp.output(tensor.get_any_name()).tensor().set_element_type(lptype);
         }
     }

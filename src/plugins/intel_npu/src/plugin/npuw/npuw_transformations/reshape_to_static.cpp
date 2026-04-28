@@ -42,11 +42,11 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             // NB: Regular LLM uses 2D shapes, Qwen2.5 VL/Omni, Qwen3.5 VL use 3D shapes
             // The first dimension (3) represents the three components of position encoding: time, height, and width
             // enabling alignment across multimodal inputs like text, audio, and video
-            // Update: Qwen3.5 has first dimenstion = 4.
+            // Update: Qwen3.5 has first dimension = 4.
             NPUW_ASSERT(partial_shape_size == 3u || partial_shape_size == 2u);
             auto first_dim_value = input.get_partial_shape()[0];
-            new_shape =
-                partial_shape_size == 3u ? ov::PartialShape({first_dim_value, 1, input_size}) : ov::PartialShape({1, input_size});
+            new_shape = partial_shape_size == 3u ? ov::PartialShape({first_dim_value, 1, input_size})
+                                                 : ov::PartialShape({1, input_size});
         } else if (input_name.find("cache_position") != std::string::npos) {
             // NB: Whisper case
             new_shape = ov::PartialShape({1});
@@ -108,7 +108,10 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
         } else if (ov::npuw::util::matchLinCacheString(input_name)) {
             const auto& partial_shape = input.get_partial_shape();
             new_shape = partial_shape;
-            // FIXME: Does batch axes of KVCache and Linear Cache have same positions?
+            // NOTE: Batch axes of KVCache and Linear Cache have same positions, however
+            //       need to track that this assumption holds in future versions.
+            auto shape_batch_dim = partial_shape[kv_axes_position.batch];
+            NPUW_ASSERT(shape_batch_dim.is_dynamic() || shape_batch_dim.get_length() <= 1);
             new_shape[kv_axes_position.batch] = 1;  // batch_dim
         } else {
             const auto& partial_shape = input.get_partial_shape();

@@ -29,9 +29,7 @@ void set_node_name(std::shared_ptr<ov::Node> node, const std::string& name) {
     node->get_output_tensor(0).set_names({name});
 }
 
-using NodePair = std::pair<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>>;
-
-// FIXME: Return PositionIds transformation for Embedded models back. Preserve this transformation only for models with Linear Attention
+// TODO: Consolidate with similar pattern in prepare_embedding_model.cpp
 class PositionIdsMatcher : public ov::pass::MultiMatcher {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ov::npuw::PositionIdsMatcher");
@@ -53,13 +51,13 @@ public:
 
         ov::pass::MultiMatcher::Callback callback = [=, &new_params](const auto& m) {
             // NOTE: Range that mimics `position_ids` is consumed by RoPE operation as well as by Causal Mask creation
-            //       (LessEqual operation).
+            //       (LessEqual operation) and Gated Short Convolution Block's ScattedNDUpdate operation.
             //       For static shapes case, it is not right to use actual `position_ids` for the second argument of
             //       LessEqual operation (=Q range), because causal triangular mask will only allow positions from
             //       the left till the real current positions in the sequence (inclusively), while our current items
             //       are lied at the right end of the static `input_ids` after a window of padding.
             //       Thus, the Range is preserved for Causal Mask creation, while added `position_ids` parameter is
-            //       used only for RoPE.
+            //       used only for RoPE and ScatterNDUpdate in Gated Short Convolution Block.
             auto& pattern_to_output = m.at(cos).front();
 
             auto range_node = pattern_to_output.at(range).get_node_shared_ptr();
@@ -69,15 +67,21 @@ public:
             auto convert_node = pattern_to_output.at(convert).get_node_shared_ptr();
 
             // Create `position_ids` parameter
-            auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1,-1});
+            auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
             set_node_name(position_ids, "position_ids");
 
             // Create new Unsqueeze node for point of branching
-            auto unsqueeze1_node_copy = unsqueeze1_node->clone_with_new_inputs({position_ids, unsqueeze1_node->input_value(1)});
+            auto unsqueeze1_node_copy =
+                unsqueeze1_node->clone_with_new_inputs({position_ids, unsqueeze1_node->input_value(1)});
             convert_node->input(0).replace_source_output(unsqueeze1_node_copy->output(0));
 
-            // FIXME: Understand do we really need actual position_ids for ScatterNDUpdate in case of static shape???
-            auto position_ids_squeezed = std::make_shared<ov::op::v0::Squeeze>(position_ids, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
+            // FIXME: For Gated Short Convolution Block, there is ScatterNDUpdate that also consumes generated
+            // positions.
+            //        It seems to right to use the newly created `position_ids` for it as well, however, real tests show
+            //        no difference against usage of hardcoded QRange: both are similarly accurate.
+            auto position_ids_squeezed = std::make_shared<ov::op::v0::Squeeze>(
+                position_ids,
+                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
             OPENVINO_ASSERT(range_node->get_output_size() == 1, "Range node should have exactly one output");
             auto range_consumers = range_node->get_output_target_inputs(0);
             for (auto&& consumer : range_consumers) {

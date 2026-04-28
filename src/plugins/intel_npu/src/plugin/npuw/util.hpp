@@ -190,7 +190,7 @@ bool matchLoRAMatMulBString(const std::string& input);
 
 bool matchLoRAMatMulAlphaString(const std::string& input);
 
-bool matchLinCacheString(const std::string& input);
+bool matchLinCacheString(const std::string& input, const std::string& past_or_present = "past");
 
 // Structure to hold SDPA pattern nodes
 struct SDPAPatternNodes {

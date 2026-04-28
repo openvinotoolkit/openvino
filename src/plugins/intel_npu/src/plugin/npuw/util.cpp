@@ -913,8 +913,10 @@ bool ov::npuw::util::matchLoRAMatMulAlphaString(const std::string& input) {
     return ov::npuw::util::matchStringWithLoRAPattern(input, LoRANames::MatMul_alpha);
 }
 
-bool ov::npuw::util::matchLinCacheString(const std::string& input) {
-    std::regex regex_pattern(R"(^cache_params\.past\.(conv|ssm)\.(\d+)$)");
+bool ov::npuw::util::matchLinCacheString(const std::string& input, const std::string& past_or_present) {
+    static std::regex past_regex_pattern("^cache_params\\.past\\.(conv|ssm)\\.(\\d+)$");
+    static std::regex present_regex_pattern("^cache_params\\.present\\.(conv|ssm)\\.(\\d+)$");
+    const std::regex& regex_pattern = (past_or_present == "past") ? past_regex_pattern : present_regex_pattern;
     return std::regex_match(input, regex_pattern);
 }
 
