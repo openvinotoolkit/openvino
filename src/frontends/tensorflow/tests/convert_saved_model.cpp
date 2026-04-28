@@ -217,6 +217,62 @@ TEST(FrontEndConvertModelTest, SavedModelMaliciousOverflowOffset) {
     }
 }
 
+// Crafted SavedModel where AssignVariableOp input references "save/RestoreV2:999"
+// but the Const(tensor_names) has only 1 string_val entry → OOB positive index.
+TEST(FrontEndConvertModelTest, SavedModelOobPositiveIndex) {
+    shared_ptr<Model> model = nullptr;
+    try {
+        model = convert_model("saved_model_oob_pos_index");
+        FAIL() << "Expected exception for OOB positive RestoreV2 output index";
+    } catch (const ov::Exception& e) {
+        string msg = e.what();
+        EXPECT_TRUE(msg.find("out of range") != string::npos || msg.find("missing") != string::npos)
+            << "Unexpected error message: " << msg;
+        EXPECT_EQ(model, nullptr);
+    } catch (const std::exception& e) {
+        FAIL() << "Unexpected std::exception: " << e.what();
+    } catch (...) {
+        FAIL() << "Unexpected non-std exception";
+    }
+}
+
+// Crafted SavedModel where AssignVariableOp input references "save/RestoreV2:-1" → negative OOB.
+TEST(FrontEndConvertModelTest, SavedModelOobNegativeIndex) {
+    shared_ptr<Model> model = nullptr;
+    try {
+        model = convert_model("saved_model_oob_neg_index");
+        FAIL() << "Expected exception for negative RestoreV2 output index";
+    } catch (const ov::Exception& e) {
+        string msg = e.what();
+        EXPECT_TRUE(msg.find("out of range") != string::npos || msg.find("missing") != string::npos)
+            << "Unexpected error message: " << msg;
+        EXPECT_EQ(model, nullptr);
+    } catch (const std::exception& e) {
+        FAIL() << "Unexpected std::exception: " << e.what();
+    } catch (...) {
+        FAIL() << "Unexpected non-std exception";
+    }
+}
+
+// Crafted SavedModel where AssignVariableOp input references "save/RestoreV2" (no colon)
+// → parse_node_name produces only 1 token → size<2 guard fires.
+TEST(FrontEndConvertModelTest, SavedModelOobMissingColon) {
+    shared_ptr<Model> model = nullptr;
+    try {
+        model = convert_model("saved_model_oob_no_colon");
+        FAIL() << "Expected exception for RestoreV2 input without output index";
+    } catch (const ov::Exception& e) {
+        string msg = e.what();
+        EXPECT_TRUE(msg.find("out of range") != string::npos || msg.find("missing") != string::npos)
+            << "Unexpected error message: " << msg;
+        EXPECT_EQ(model, nullptr);
+    } catch (const std::exception& e) {
+        FAIL() << "Unexpected std::exception: " << e.what();
+    } catch (...) {
+        FAIL() << "Unexpected non-std exception";
+    }
+}
+
 // Same test with mmap disabled to verify the stream code path is also protected
 TEST(FrontEndConvertModelTest, SavedModelMaliciousOverflowOffsetNoMmap) {
     shared_ptr<Model> model = nullptr;
