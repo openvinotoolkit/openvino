@@ -237,6 +237,11 @@ bool LowPrecision::run_on_model(const std::shared_ptr<ov::Model>& m) {
                                                               quantizationRestrictions,
                                                               attributeParams);
 
+    const auto additional_prerequisites = manager.register_pass<GraphRewrite>();
+    for (const auto& tr : additional_prerequisite_passes) {
+        additional_prerequisites->add_matcher(tr);
+    }
+
     const auto common = manager.register_pass<GraphRewrite>();
     ADD_MATCHER(common, AddTransformation, params)
     ADD_MATCHER(common, AssignAndReadValueTransformation, m, params)

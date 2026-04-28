@@ -959,13 +959,12 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
         PrecisionsRestriction::create<ov::op::v5::GRUSequence>({{{0, 1}, {ov::element::u8}}}),
     });
 #endif
-    CPU_REGISTER_PASS_COMMON(lptManager,
+    auto lowPrecPass = CPU_REGISTER_PASS_COMMON(lptManager,
                              LowPrecision,
                              supportedPrecisions,
                              quantizationRestrictions,
                              LayerTransformation::Params(true, ov::element::f32, defaultPrecisions));
-
-    CPU_REGISTER_PASS_ARM(lptManager, AlignUnsupportedLPConvFQPrecision);
+    lowPrecPass->add_prerequisite<AlignUnsupportedLPConvFQPrecision>();
     CPU_REGISTER_PASS_ARM(lptManager, ConvertConvolutionBias);
     CPU_REGISTER_PASS_ARM(lptManager, FallbackUnsupportedLPConvToFP16);
     CPU_SET_CALLBACK_ARM(

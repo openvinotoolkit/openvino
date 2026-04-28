@@ -81,10 +81,18 @@ public:
         return tr;
     }
 
+    template <typename T, class... Args>
+    std::shared_ptr<T> add_prerequisite(Args&&... args) {
+        const auto tr = std::make_shared<T>(std::forward<Args>(args)...);
+        additional_prerequisite_passes.push_back(tr);
+        return tr;
+    }
+
 protected:
     std::vector<PrecisionsRestriction> precisionRestrictions;
     std::vector<QuantizationGranularityRestriction> quantizationRestrictions;
     LayerTransformation::Params params;
 
     std::vector<std::shared_ptr<MatcherPass>> additional_main_passes;
+    std::vector<std::shared_ptr<MatcherPass>> additional_prerequisite_passes;
 };

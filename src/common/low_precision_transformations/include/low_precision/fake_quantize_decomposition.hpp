@@ -12,6 +12,10 @@ namespace ov {
 namespace pass {
 namespace low_precision {
 
+namespace fq_decomposition {
+LP_TRANSFORMATIONS_API DataPrecision getDataPrecisionByOutputPort(std::shared_ptr<ov::op::v0::FakeQuantize> layer);
+}  // namespace fq_decomposition
+
 /**
  * @ingroup ov_transformation_common_api
  * @brief FakeQuantizeDecompositionTransformation decomposes FakeQuantize operations to quantize

@@ -8,83 +8,51 @@
 
 /*
  * Description:
- *     AlignUnsupportedLPConvFQPrecision detects quantized Convolution patterns with
- *     Convolution -> Multiply -> Add -> FakeQuantize and retargets the FakeQuantize
- *     output precision to the Convolution activation precision.
+ *     AlignUnsupportedLPConvFQPrecision aligns the output FakeQuantize's
+ *     PrecisionsAttribute to match the Convolution's input precision.
  *
- *     ARM ACL low-precision convolution supports only the same low-precision type
- *     on the activation input and the post-convolution FakeQuantize output. When the
- *     FakeQuantize output type differs between u8 and i8, later ARM-specific passes
- *     skip the pattern and the convolution falls back to fp16.
+ *     Pattern matched: Convolution → Add (bias) → FakeQuantize
+ *
+ *     ARM ACL int8 convolution requires the same quantized element type (u8 or i8)
+ *     for both the activation input and the post-convolution FakeQuantize output.
+ *     When PrecisionsAttribute on the output FakeQuantize differs from the
+ *     Convolution's input precision, FallbackUnsupportedLPConvToFP16 detects the
+ *     mismatch and falls back to fp16, losing the int8 performance benefit.
+ *
+ *     This pass runs as an LPT prerequisite (after MarkupOptimizations) to force
+ *     the output FakeQuantize PrecisionsAttribute to the Convolution's input type,
+ *     enabling FakeQuantizeDecomposition to produce matching quantization types
+ *     that ACL can fuse into the convolution.
  *
  * Before:
  *
- * +--------------+      +---------------+
- * | Input (u8/i8)|      | Weights (i8)  |
- * +------+-------+      +-------+-------+
- *        |                      |
- *        +----------+-----------+
- *                   |
- *             +-----v------+
- *             | Convolution |
- *             | act=u8/i8   |
- *             +------+------+
- *                    |
- *                    v
- *             +-------------+
- *             |  Multiply   |
- *             +------+------+
- *                    |
- *                    v
- *             +-------------+
- *             |     Add     |
- *             +------+------+
- *                    |
- *                    v
- *             +------------------------------+
- *             | FakeQuantize                 |
- *             | out=i8/u8 (mismatch)         |
- *             +------+-----------------------+
- *                    |
- *                    v
- *             +-------------+
- *             |   Result    |
- *             +-------------+
+ *               +-----+------+
+ *               | Convolution |  (input precision = u8)
+ *               +-----+------+
+ *                     |
+ *               +-----v------+
+ *               |  Add (bias)|
+ *               +-----+------+
+ *                     |
+ *     +---------------------------------+
+ *     |         FakeQuantize            |
+ *     | PrecisionsAttribute = { i8 }   |  <-- mismatch with conv input
+ *     +---------------------------------+
  *
  * After:
  *
- * +--------------+      +---------------+
- * | Input (u8/i8)|      | Weights (i8)  |
- * +------+-------+      +-------+-------+
- *        |                      |
- *        +----------+-----------+
- *                   |
- *             +-----v------+
- *             | Convolution |
- *             | act=u8/i8   |
- *             +------+------+
- *                    |
- *                    v
- *             +-------------+
- *             |  Multiply   |
- *             +------+------+
- *                    |
- *                    v
- *             +-------------+
- *             |     Add     |
- *             +------+------+
- *                    |
- *                    v
- *             +------------------------------+
- *             | FakeQuantize                 |
- *             | out=Convolution act type     |
- *             | PrecisionsAttribute={act}    |
- *             +------+-----------------------+
- *                    |
- *                    v
- *             +-------------+
- *             |   Result    |
- *             +-------------+
+ *               +-----+------+
+ *               | Convolution |  (input precision = u8)
+ *               +-----+------+
+ *                     |
+ *               +-----v------+
+ *               |  Add (bias)|
+ *               +-----+------+
+ *                     |
+ *     +---------------------------------+
+ *     |         FakeQuantize            |
+ *     | PrecisionsAttribute = { u8 }   |  <-- aligned to conv input
+ *     +---------------------------------+
  */
 
 namespace ov::intel_cpu {

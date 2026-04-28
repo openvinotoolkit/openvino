@@ -205,7 +205,7 @@ bool AclPoolingExecutor::init(const PoolingAttrs& poolingAttrs,
             OPENVINO_THROW("AclPoolingExecutor: ACL does not support more than 1 post op");
         }
 
-        srcTensorInfo.set_quantization_info(arm_compute::QuantizationInfo(1.0F));
+        srcTensorInfo.set_quantization_info(arm_compute::QuantizationInfo(1.0F, 0));
         dstTensorInfo.set_quantization_info(
             getDstQuantizationInfo(fqInputScale, fqInputShift, dstDescs[0]->getPrecision()));
     }

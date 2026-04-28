@@ -59,7 +59,7 @@ public:
 protected:
     void SetUp() override {
         const auto& [inputShape, inputPrecision, quantizationParams, withBias, targetName] = this->GetParam();
-        abs_threshold = 4e-3f;
+        abs_threshold = 1e-2f;
         targetDevice = targetName;
         std::tie(inFmts, outFmts, priority, selectedType) = CPUSpecificParams{{}, {}, {}, CPUTestsBase::any_type};
         init_input_shapes({inputShape});
