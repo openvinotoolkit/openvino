@@ -103,11 +103,8 @@ EventPool::~EventPool() {
     }
 }
 
-Event::Event(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-             const std::shared_ptr<EventPool>& event_pool,
-             uint32_t event_index)
-    : _init_structs(init_structs),
-      _event_pool(event_pool),
+Event::Event(const std::shared_ptr<EventPool>& event_pool, uint32_t event_index)
+    : _event_pool(event_pool),
       _log("Event", Logger::global().level()) {
     ze_event_desc_t event_desc = {ZE_STRUCTURE_TYPE_EVENT_DESC, nullptr, event_index, 0, 0};
     THROW_ON_FAIL_FOR_LEVELZERO("zeEventCreate", zeEventCreate(_event_pool->handle(), &event_desc, &_handle));
@@ -131,7 +128,7 @@ void Event::reset() const {
     THROW_ON_FAIL_FOR_LEVELZERO("zeEventHostReset", zeEventHostReset(_handle));
 }
 Event::~Event() {
-    if (_init_structs->getContext() == nullptr || _handle == nullptr) {
+    if (_event_pool->getZeroContext() == nullptr || _handle == nullptr) {
         _log.warning("Context or Event handle is null during destruction. Event might be already destroyed.");
         return;
     }
@@ -369,10 +366,8 @@ CommandQueue::~CommandQueue() {
     }
 }
 
-Fence::Fence(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-             const std::shared_ptr<CommandQueue>& command_queue)
-    : _init_structs(init_structs),
-      _command_queue(command_queue),
+Fence::Fence(const std::shared_ptr<CommandQueue>& command_queue)
+    : _command_queue(command_queue),
       _log("Fence", Logger::global().level()) {
     ze_fence_desc_t fence_desc = {ZE_STRUCTURE_TYPE_FENCE_DESC, nullptr, 0};
     THROW_ON_FAIL_FOR_LEVELZERO("zeFenceCreate", zeFenceCreate(_command_queue->handle(), &fence_desc, &_handle));
@@ -384,7 +379,7 @@ void Fence::hostSynchronize() const {
     THROW_ON_FAIL_FOR_LEVELZERO("zeFenceHostSynchronize", zeFenceHostSynchronize(_handle, UINT64_MAX));
 }
 Fence::~Fence() {
-    if (_init_structs->getContext() == nullptr || _handle == nullptr) {
+    if (_command_queue->getZeroContext() == nullptr || _handle == nullptr) {
         _log.warning("Context or Fence handle is null during destruction. Fence might be already destroyed.");
         _handle = nullptr;
         return;

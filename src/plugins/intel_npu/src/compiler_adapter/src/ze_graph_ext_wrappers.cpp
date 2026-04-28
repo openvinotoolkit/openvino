@@ -284,7 +284,7 @@ void ZeGraphExtWrappers::initializeGraphThroughCommandList(ze_graph_handle_t gra
     const auto graphCommandQueue = ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroInitStruct, CommandQueueDesc{});
 
     _logger.debug("initializeGraphThroughCommandList - create fence");
-    Fence fence(_zeroInitStruct, graphCommandQueue);
+    Fence fence(graphCommandQueue);
 
     _logger.debug("initializeGraphThroughCommandList - performing appendGraphInitialize");
     graphCommandList.appendGraphInitialize(graphHandle);

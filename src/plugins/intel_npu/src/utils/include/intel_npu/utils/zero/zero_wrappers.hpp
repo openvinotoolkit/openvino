@@ -118,8 +118,7 @@ private:
 class Fence {
 public:
     Fence() = delete;
-    Fence(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-          const std::shared_ptr<CommandQueue>& command_queue);
+    Fence(const std::shared_ptr<CommandQueue>& command_queue);
     Fence(const Fence&) = delete;
     Fence(Fence&&) = delete;
     Fence& operator=(const Fence&) = delete;
@@ -133,7 +132,6 @@ public:
     }
 
 private:
-    std::shared_ptr<ZeroInitStructsHolder> _init_structs;
     std::shared_ptr<CommandQueue> _command_queue;
 
     ze_fence_handle_t _handle = nullptr;
@@ -159,6 +157,9 @@ public:
     inline CommandQueueDesc desc() const {
         return _desc;
     }
+    inline ze_context_handle_t getZeroContext() const {
+        return _init_structs->getContext();
+    }
 
 private:
     std::shared_ptr<ZeroInitStructsHolder> _init_structs;
@@ -181,6 +182,9 @@ public:
     inline ze_event_pool_handle_t handle() const {
         return _handle;
     }
+    inline ze_context_handle_t getZeroContext() const {
+        return _init_structs->getContext();
+    }
 
 private:
     std::shared_ptr<ZeroInitStructsHolder> _init_structs;
@@ -193,9 +197,7 @@ private:
 class Event {
 public:
     Event() = delete;
-    Event(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-          const std::shared_ptr<EventPool>& event_pool,
-          uint32_t event_index);
+    Event(const std::shared_ptr<EventPool>& event_pool, uint32_t event_index);
     Event(const Event&) = delete;
     Event(Event&&) = delete;
     Event& operator=(const Event&) = delete;
@@ -209,8 +211,6 @@ public:
     ~Event();
 
 private:
-    std::shared_ptr<ZeroInitStructsHolder> _init_structs;
-
     std::shared_ptr<EventPool> _event_pool;
     ze_event_handle_t _handle = nullptr;
 
