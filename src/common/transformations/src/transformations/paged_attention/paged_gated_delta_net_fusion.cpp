@@ -52,27 +52,19 @@ ov::PartialShape make_gated_delta_state_table_shape(const ov::PartialShape& stat
     return ov::PartialShape::dynamic(4);
 }
 
-ov::Output<ov::Node> flatten_blhd_to_thd(const ov::Output<ov::Node>& input, ov::NodeVector& created_nodes) {
+ov::Output<ov::Node> flatten_batch_length(const ov::Output<ov::Node>& input,
+                                          const std::vector<int64_t>& tail_dim_indices) {
+    // Flattens [B, L, ...tail_dims] to [B*L, ...tail_dims] by preserving tail_dim_indices.
     const auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(input, ov::element::i64);
-    const auto idx_hd = v0::Constant::create(ov::element::i64, ov::Shape{2}, {2, 3});
+    const auto idx_const = v0::Constant::create(ov::element::i64, ov::Shape{tail_dim_indices.size()}, tail_dim_indices);
     const auto axis_0 = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
-    const auto dims_hd = std::make_shared<ov::op::v8::Gather>(shape_of, idx_hd, axis_0);
+    const auto tail_dims = std::make_shared<ov::op::v8::Gather>(shape_of, idx_const, axis_0);
     const auto flat_dim = v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
-    const auto flat_shape = std::make_shared<v0::Concat>(ov::OutputVector{flat_dim, dims_hd}, 0);
+    const auto flat_shape = std::make_shared<v0::Concat>(ov::OutputVector{flat_dim, tail_dims}, 0);
     const auto reshaped = std::make_shared<ov::op::v1::Reshape>(input, flat_shape, false);
-    created_nodes.insert(created_nodes.end(), {shape_of, idx_hd, axis_0, dims_hd, flat_dim, flat_shape, reshaped});
-    return reshaped;
-}
 
-ov::Output<ov::Node> flatten_blh_to_th(const ov::Output<ov::Node>& input, ov::NodeVector& created_nodes) {
-    const auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(input, ov::element::i64);
-    const auto idx_h = v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
-    const auto axis_0 = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
-    const auto dim_h = std::make_shared<ov::op::v8::Gather>(shape_of, idx_h, axis_0);
-    const auto flat_dim = v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
-    const auto flat_shape = std::make_shared<v0::Concat>(ov::OutputVector{flat_dim, dim_h}, 0);
-    const auto reshaped = std::make_shared<ov::op::v1::Reshape>(input, flat_shape, false);
-    created_nodes.insert(created_nodes.end(), {shape_of, idx_h, axis_0, dim_h, flat_dim, flat_shape, reshaped});
+    ov::copy_runtime_info(input.get_node_shared_ptr(), {shape_of, tail_dims, flat_shape, reshaped});
+
     return reshaped;
 }
 }  // namespace
@@ -93,7 +85,8 @@ PagedGatedDeltaNetFusion::PagedGatedDeltaNetFusion(ov::pass::paged_attention::Pa
     auto gathered_state = ov::pass::pattern::optional<ov::op::v8::Gather>({read_value, any_input(), any_input()});
     auto gdn = wrap_type<ov::op::internal::GatedDeltaNet>({query, key, value, gathered_state, gate, beta});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS, &pa_params, &var_ids_to_remove](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS, &pa_params, &var_ids_to_remove](
+                                             ov::pass::pattern::Matcher& m) {
         if (transformation_callback(m.get_match_root())) {
             return false;
         }
@@ -115,21 +108,19 @@ PagedGatedDeltaNetFusion::PagedGatedDeltaNetFusion(ov::pass::paged_attention::Pa
         const auto& state_out = pm.at(read_value);
 
         const auto state_table_param = pa_params.add(make_gated_delta_state_table_name(m_layer_index++),
-                                                    state_out.get_element_type(),
-                                                    make_gated_delta_state_table_shape(state_out.get_partial_shape()));
+                                                     state_out.get_element_type(),
+                                                     make_gated_delta_state_table_shape(state_out.get_partial_shape()));
         enable_keep_const_precision(state_table_param);
 
         const auto rv = ov::as_type_ptr<ov::op::util::ReadValueBase>(pm.at(read_value).get_node_shared_ptr());
         OPENVINO_ASSERT(rv, "Matched cache node is expected to be ReadValue");
         var_ids_to_remove.insert(rv->get_variable_id());
 
-        ov::NodeVector reshape_nodes;
-        reshape_nodes.reserve(24);
-        const auto query_flat = flatten_blhd_to_thd(pm.at(query), reshape_nodes);
-        const auto key_flat = flatten_blhd_to_thd(pm.at(key), reshape_nodes);
-        const auto value_flat = flatten_blhd_to_thd(pm.at(value), reshape_nodes);
-        const auto gate_flat = flatten_blh_to_th(pm.at(gate), reshape_nodes);
-        const auto beta_flat = flatten_blh_to_th(pm.at(beta), reshape_nodes);
+        const auto query_flat = flatten_batch_length(pm.at(query), {2, 3});
+        const auto key_flat = flatten_batch_length(pm.at(key), {2, 3});
+        const auto value_flat = flatten_batch_length(pm.at(value), {2, 3});
+        const auto gate_flat = flatten_batch_length(pm.at(gate), {2});
+        const auto beta_flat = flatten_batch_length(pm.at(beta), {2});
 
         // Inputs 0-5 are flattened from matched GatedDeltaNet [B,L,H,*] to PagedGDN [B*L,H,*].
         const auto paged_gdn =
@@ -159,17 +150,9 @@ PagedGatedDeltaNetFusion::PagedGatedDeltaNetFusion(ov::pass::paged_attention::Pa
         const auto out0_shape = std::make_shared<v0::Concat>(ov::OutputVector{q_dims, v_dim}, 0);
         const auto paged_gdn_out = std::make_shared<ov::op::v1::Reshape>(paged_gdn, out0_shape, false);
         paged_gdn_out->set_friendly_name(gdn_node->get_friendly_name());
-        reshape_nodes.push_back(paged_gdn);
-        reshape_nodes.push_back(query_shape);
-        reshape_nodes.push_back(value_shape);
-        reshape_nodes.push_back(axis_0);
-        reshape_nodes.push_back(idx_q);
-        reshape_nodes.push_back(idx_v);
-        reshape_nodes.push_back(q_dims);
-        reshape_nodes.push_back(v_dim);
-        reshape_nodes.push_back(out0_shape);
-        reshape_nodes.push_back(paged_gdn_out);
-        ov::copy_runtime_info(gdn_node, reshape_nodes);
+
+        ov::copy_runtime_info(gdn_node,
+                              {paged_gdn, query_shape, value_shape, q_dims, v_dim, out0_shape, paged_gdn_out});
 
         // Disconnect GDN state output consumers; cleanup is driven by ReadValue variable ids.
         for (const auto& state_consumer : state_consumers) {

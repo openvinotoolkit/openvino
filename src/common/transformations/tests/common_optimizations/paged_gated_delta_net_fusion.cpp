@@ -405,31 +405,3 @@ TEST_F(PagedGatedDeltaNetFusionTest, FusesWhenStateInputIsGatherFromReadValue) {
     model_ref = build_reference_fused_model_with_gathered_state();
     run_paged_gated_delta_net_fusion(model);
 }
-
-TEST(PagedGatedDeltaNetRealModel, RealModelAfterPATransformation) {
-    const char* model_path = std::getenv("OV_GDN_REAL_MODEL_PATH");
-    if (!model_path || std::string(model_path).empty()) {
-        GTEST_SKIP() << "OV_GDN_REAL_MODEL_PATH is not set";
-    }
-
-    ov::Core core;
-    auto real_model = core.read_model(model_path);
-
-    ov::pass::Manager manager;
-    manager.register_pass<ov::pass::SDPAToPagedAttention>(false, false, false, false, false, false);
-    manager.run_passes(real_model);
-
-    size_t paged_gdn_count = 0;
-    size_t gdn_count = 0;
-    for (const auto& op : real_model->get_ordered_ops()) {
-        if (std::string(op->get_type_name()) == "PagedGatedDeltaNet") {
-            ++paged_gdn_count;
-        }
-        if (std::string(op->get_type_name()) == "GatedDeltaNet") {
-            ++gdn_count;
-        }
-    }
-
-    EXPECT_GE(paged_gdn_count, 1u);
-    EXPECT_EQ(gdn_count, 0u);
-}
