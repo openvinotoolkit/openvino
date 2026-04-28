@@ -869,6 +869,10 @@ fp8e4m3_t16 __attribute__((overloadable)) _convert_fp8e4m3_t16_sat(half16 val) {
     return res;
 }
 
+fp8e8m0_t __attribute__((overloadable)) _convert_fp8e8m0_t(fp8e8m0_t val) {
+    return val;
+}
+
 fp8e8m0_t __attribute__((overloadable)) _convert_fp8e8m0_t(float val) {
     fp8e8m0_t res;
     res.data = _intel_convert_f32_fo_e8m0(val);

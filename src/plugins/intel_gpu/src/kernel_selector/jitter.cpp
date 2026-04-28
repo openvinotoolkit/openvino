@@ -1505,8 +1505,8 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             min_val = "-" + macroName + "_VAL_MAX";
             val_one = "1.0h";
             val_zero = "0.0h";
-            to_type = "_convert_half(v)";
-            to_type_sat = "_convert_half(v)";
+            to_type = "convert_half(v)";
+            to_type_sat = "convert_half(v)";
             as_type = "as_half(v)";
             max_func = "fmax";
             min_func = "fmin";
@@ -1579,8 +1579,8 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             min_val = "-" + macroName + "_VAL_MAX";
             val_one = "1.0f";
             val_zero = "0.0f";
-            to_type = "_convert_float(v)";
-            to_type_sat = "_convert_float(v)";
+            to_type = "convert_float(v)";
+            to_type_sat = "convert_float(v)";
             as_type = "as_float(v)";
             max_func = "fmax";
             min_func = "fmin";
