@@ -606,7 +606,7 @@ jobs:
     with:
       device: 'igpu'
       test_type: ${{ matrix.TEST_TYPE }}
-      runner: "[ 'self-hosted', 'staging', 'Linux' ]"
+      runner: "[ 'self-hosted', 'igpu', 'Linux' ]"
       runner-group: 'Intel-GPU'
       image: ubuntu:22.04
       options: "--group-add 44 --group-add 993 --device /dev/dri/renderD128:/dev/dri/renderD128"
@@ -648,8 +648,7 @@ jobs:
   Overall_Status:
     name: ci/gha_overall_status
     needs: [Smart_CI, Build, Debian_Packages, Samples, Conformance, CXX_Unit_Tests, Python_Unit_Tests, TensorFlow_Layer_Tests, Pytorch_Layer_Tests,
-            # CPU_Functional_Tests, TensorFlow_Models_Tests_Precommit, PyTorch_Models_Tests, JAX_Models_Tests_Precommit, NVIDIA_Plugin, Openvino_tokenizers, iGPU,
-            CPU_Functional_Tests, TensorFlow_Models_Tests_Precommit, PyTorch_Models_Tests, JAX_Models_Tests_Precommit, NVIDIA_Plugin, Openvino_tokenizers, #TO BE REMOVED
+            CPU_Functional_Tests, TensorFlow_Models_Tests_Precommit, PyTorch_Models_Tests, JAX_Models_Tests_Precommit, NVIDIA_Plugin, Openvino_tokenizers, iGPU,
             Keras3_OpenVINO_Backend]
     if: ${{ always() }}
     runs-on: ubuntu-latest
