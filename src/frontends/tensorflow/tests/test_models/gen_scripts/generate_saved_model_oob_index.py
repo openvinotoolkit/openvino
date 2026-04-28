@@ -16,9 +16,8 @@
 #         saved_model_oob_no_colon/   — Identity.input = "save/RestoreV2"     (no colon,
 #                                       triggers restore_output.size()<2 check)
 #
-# Why:  Reproduces CVS-182685 (CWE-125) without a TF install. SSTable builder is copied
-#       verbatim from generate_saved_model_malicious_overflow.py. Generator is run by
-#       WORK/run_oob_repro.sh and (after validation) by the CMake build system.
+# Why:  SSTable builder is copied verbatim from generate_saved_model_malicious_overflow.py.
+#       Generator is run by the CMake build system.
 #
 # Usage: python3 generate_saved_model_oob_index.py <output_dir>
 #        Output dirs are created under <output_dir>/.
