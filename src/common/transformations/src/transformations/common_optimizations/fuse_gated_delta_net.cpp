@@ -476,6 +476,12 @@ ov::pass::FuseGroupedQueryIntoGDN::FuseGroupedQueryIntoGDN() {
             return false;
         }
 
+        // If already directly connected from anchor outputs, skip.
+        if (gdn_node->input_value(0) == q_anchor && gdn_node->input_value(1) == k_anchor &&
+            gdn_node->input_value(2) == v_anchor) {
+            return false;
+        }
+        
         const auto q_anchor = find_qk_anchor(gdn_node->input_value(0));
         const auto k_anchor = find_qk_anchor(gdn_node->input_value(1));
         const auto v_anchor = find_qk_anchor(gdn_node->input_value(2));
@@ -484,12 +490,6 @@ ov::pass::FuseGroupedQueryIntoGDN::FuseGroupedQueryIntoGDN() {
         if (!q_anchor.get_node_shared_ptr() || !k_anchor.get_node_shared_ptr() || !v_anchor.get_node_shared_ptr() ||
             q_anchor.get_node_shared_ptr() != k_anchor.get_node_shared_ptr() ||
             k_anchor.get_node_shared_ptr() != v_anchor.get_node_shared_ptr()) {
-            return false;
-        }
-
-        // If already directly connected from anchor outputs, skip.
-        if (gdn_node->input_value(0) == q_anchor && gdn_node->input_value(1) == k_anchor &&
-            gdn_node->input_value(2) == v_anchor) {
             return false;
         }
 
