@@ -563,9 +563,9 @@ namespace {
 // Build a model where Q, K, V share one Split anchor, each connected via a single Transpose.
 // After FuseGroupedQueryIntoGDN the Transposes are removed and GDN is directly fed from Split outputs.
 std::shared_ptr<ov::Model> build_grouped_query_gdn_before() {
-    // src: {1, 4, 4, 8} — Split along H into 2 groups → outputs {1, 2, 4, 8}
+    // src: {1, 4, 4, 8} — Split along dim=1 (H) into 2 groups → outputs {1, 2, 4, 8}
     auto src = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4, 4, 8});
-    auto state = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 8, 8});
+    auto state = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4, 8, 8});
     auto gate = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 4});
     auto beta = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 4});
 
@@ -588,7 +588,7 @@ std::shared_ptr<ov::Model> build_grouped_query_gdn_before() {
 // align_to_reference_shape: {1,2,4,8} compatible with {1,2,4,8} → no Reshape inserted.
 std::shared_ptr<ov::Model> build_grouped_query_gdn_after() {
     auto src = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4, 4, 8});
-    auto state = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 8, 8});
+    auto state = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4, 8, 8});
     auto gate = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 4});
     auto beta = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 4});
 
@@ -611,7 +611,7 @@ std::shared_ptr<ov::Model> build_grouped_query_gdn_different_anchors() {
     auto src_q = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4, 4, 8});
     auto src_k = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4, 4, 8});
     auto src_v = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4, 4, 8});
-    auto state = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 8, 8});
+    auto state = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4, 8, 8});
     auto gate = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 4});
     auto beta = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 4});
 
