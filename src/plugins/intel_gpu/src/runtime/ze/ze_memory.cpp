@@ -346,7 +346,6 @@ gpu_image2d::gpu_image2d(ze_engine* engine, const layout& layout)
     : lockable_gpu_mem()
     , memory(engine, layout, allocation_type::ze_image, nullptr)
     , _host_buffer(engine->get_context(), engine->get_device())
-    , _fill_buffer(engine->get_context(), engine->get_device())
     , _width(0)
     , _height(0) {
     ze_image_desc_t image_desc = {};
@@ -446,8 +445,7 @@ gpu_image2d::gpu_image2d(ze_engine* engine, const layout& new_layout, ze_image_h
     : lockable_gpu_mem()
     , memory(engine, new_layout, allocation_type::ze_image, mem_tracker)
     , _image(std::make_shared<image_holder>(image, true))
-    , _host_buffer(engine->get_context(), engine->get_device())
-    , _fill_buffer(engine->get_context(), engine->get_device()) {
+    , _host_buffer(engine->get_context(), engine->get_device()) {
     // No way to get width and height from Level Zero so we have to assume layout is correct
     std::tie(_width, _height) = get_width_height(new_layout);
 }
@@ -515,42 +513,34 @@ event::ptr gpu_image2d::fill(stream& stream, unsigned char pattern, const std::v
     ze_dep_events.push_back(ev_fill_handle);
     // Level Zero does not have API to fill image directly
     // Workaround is to fill usm buffer and then copy it to image
-    // Reuse fill buffer if possible to avoid unnecessary allocations
-    // Assume bytes_count does not change
-    ze_event_handle_t last_fill_event_handle = nullptr;
-    if (_fill_buffer.is_empty()) {
-        _fill_buffer.allocateDevice(_bytes_count, zero_stream.get_engine().get_device_info().device_memory_ordinal);
-    } else {
-        OPENVINO_ASSERT(_last_fill_event != nullptr, "[GPU] Non empty fill buffer should have valid event after last fill operation");
-        last_fill_event_handle = _last_fill_event->get_handle();
-    }
-    bool has_last_fill_event = last_fill_event_handle != nullptr;
+    auto context = zero_stream.get_engine().get_context();
+    auto device = zero_stream.get_engine().get_device();
+    ze::UsmMemory fill_buffer(context, device);
+    fill_buffer.allocateDevice(_bytes_count, zero_stream.get_engine().get_device_info().device_memory_ordinal);
+
     OV_ZE_EXPECT(ze::zeCommandListAppendMemoryFill(zero_stream.get_queue(),
-        _fill_buffer.get(),
+        fill_buffer.get(),
         &pattern,
         sizeof(unsigned char),
         _bytes_count,
         ev_fill_handle,
-        has_last_fill_event ? 1 : 0,
-        has_last_fill_event ? &last_fill_event_handle : nullptr));
+        0,
+        nullptr));
     auto ev_result_handle = downcast<ze::ze_base_event>(result_event.get())->get_handle();
     OV_ZE_EXPECT(ze::zeCommandListAppendImageCopyFromMemory(zero_stream.get_queue(),
                 _image->get_handle(),
-                _fill_buffer.get(),
+                fill_buffer.get(),
                 nullptr,
                 ev_result_handle,
                 ze_dep_events.size(),
                 ze_dep_events.data()));
+    if (!blocking) {
+        // Need to ensure that fill is finished before returning from this function and releasing fill_buffer
+        blocking = true;
+        GPU_DEBUG_TRACE << "[GPU] Forcing blocking fill for ze::gpu_image2d" << std::endl;
+    }
     if (blocking) {
         result_event->wait();
-        _fill_buffer.freeMem();
-        _last_fill_event.reset();
-    } else {
-        // If the fill is not blocking we can not free fill buffer immediately
-        // Instead store the event to free the buffer later
-        // This can cause increased memory usage
-        _last_fill_event = std::dynamic_pointer_cast<ze::ze_base_event>(result_event);
-        OPENVINO_ASSERT(_last_fill_event != nullptr, "[GPU] Fill event should not be set immediately after command list submission");
     }
     return result_event;
 }
