@@ -85,7 +85,7 @@ public:
 private:
     ov::pass::paged_attention::PaParams& m_params;
     std::unordered_set<std::string>& m_var_ids_to_remove;
-    int m_layer_index = 0;
+    static int m_layer_index;
 };
 
 }  // namespace pass

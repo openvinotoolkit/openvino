@@ -98,6 +98,8 @@ ov::PartialShape make_conv_state_table_shape(const ov::PartialShape& past_state_
 
 namespace ov::pass {
 
+int PagedCausalConv1DFusion::m_layer_index = 0;
+
 PagedCausalConv1DFusion::PagedCausalConv1DFusion(ov::pass::paged_attention::PaParams& pa_params,
                                                  std::unordered_set<std::string>& var_ids_to_remove)
     : m_params(pa_params),
