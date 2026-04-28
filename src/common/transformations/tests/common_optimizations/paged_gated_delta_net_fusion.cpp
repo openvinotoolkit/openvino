@@ -87,19 +87,15 @@ std::shared_ptr<ov::Model> build_non_fusable_model() {
 class PagedGatedDeltaNetFusionTest : public ::TransformationTestsF {};
 
 void run_paged_gated_delta_net_fusion(const std::shared_ptr<ov::Model>& model) {
-    ov::pass::paged_attention::PaParams pa_params;
+    ov::pass::paged_attention::PaParams pa_params{model->get_parameters()};
     std::unordered_set<std::string> var_ids_to_remove;
-    const ov::pass::paged_attention::Options options{/*use_per_layer_block_indices_inputs*/ false,
-                                                     /*use_score_outputs*/ false,
-                                                     /*allow_score_aggregation*/ false,
-                                                     /*allow_cache_rotation*/ false,
-                                                     /*allow_xattention*/ false,
-                                                     /*allow_adaptive_rkv*/ false,
-                                                     /*allow_qq_bias*/ false};
 
     ov::pass::Manager manager;
-    manager.register_pass<ov::pass::PagedGatedDeltaNetFusion>(pa_params, options, var_ids_to_remove);
+    manager.set_per_pass_validation(false);
+    manager.register_pass<ov::pass::PagedGatedDeltaNetFusion>(pa_params, var_ids_to_remove);
     manager.run_passes(model);
+    model->add_parameters(pa_params.items());
+    model->validate_nodes_and_infer_types();
 }
 
 TEST_F(PagedGatedDeltaNetFusionTest, FusesWhenStateOutputIsOnlyResultConsumer) {

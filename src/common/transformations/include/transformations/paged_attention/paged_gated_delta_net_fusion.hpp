@@ -6,7 +6,7 @@
 
 #include <unordered_set>
 
-#include "openvino/pass/pass.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/sdpa_to_paged_attention.hpp"
 #include "transformations_visibility.hpp"
 
@@ -53,18 +53,16 @@ namespace pass {
  *                                         v
  *                                        ...
  */
-class TRANSFORMATIONS_API PagedGatedDeltaNetFusion : public ov::pass::ModelPass {
+class TRANSFORMATIONS_API PagedGatedDeltaNetFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MODEL_PASS_RTTI("PagedGatedDeltaNetFusion");
+    OPENVINO_MATCHER_PASS_RTTI("PagedGatedDeltaNetFusion");
     PagedGatedDeltaNetFusion(ov::pass::paged_attention::PaParams& pa_params,
-                             const ov::pass::paged_attention::Options& options,
                              std::unordered_set<std::string>& var_ids_to_remove);
-    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
 private:
     ov::pass::paged_attention::PaParams& m_params;
-    const ov::pass::paged_attention::Options& m_options;
     std::unordered_set<std::string>& m_var_ids_to_remove;
+    size_t m_layer_index = 0;
 };
 
 }  // namespace pass
