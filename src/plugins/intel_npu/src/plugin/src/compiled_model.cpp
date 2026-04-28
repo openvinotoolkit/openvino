@@ -99,7 +99,7 @@ CompiledModel::~CompiledModel() {
     _logger.debug("~CompiledModel()");
 
     auto streams_executor = std::dynamic_pointer_cast<ov::threading::IStreamsExecutor>(get_task_executor());
-    if (streams_executor != nullptr) {
+    if (streams_executor) {
         streams_executor->cpu_reset();
     }
 }
@@ -122,15 +122,26 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
 
     const auto& syncInferRequest = _device->createInferRequest(shared_from_this(), _propertiesManager->getConfig());
 
+    const bool exclusiveAsyncRequests =
+        get_plugin()->get_property(ov::internal::exclusive_async_requests.name(), {}).as<bool>();
+    auto requestExecutor = create_stream_executors("Intel NPU plugin executor",
+                                                   false,
+                                                   exclusiveAsyncRequests,
+                                                   _propertiesManager->getConfig().get<ENABLE_CPU_PINNING>());
+
     return std::make_shared<AsyncInferRequest>(
         syncInferRequest,
-        create_stream_executors(
-            "Intel NPU plugin executor",
-            false,
-            get_plugin()->get_property(ov::internal::exclusive_async_requests.name(), {}).as<bool>(),
-            _propertiesManager->getConfig().get<ENABLE_CPU_PINNING>()),
+        requestExecutor,
         get_callback_executor(),
-        _propertiesManager->getConfig().get<RUN_INFERENCES_SEQUENTIALLY>() ? get_task_executor() : nullptr);
+        _propertiesManager->getConfig().get<RUN_INFERENCES_SEQUENTIALLY>() ? get_task_executor() : nullptr,
+        [requestExecutor, exclusiveAsyncRequests]() {
+            if (!exclusiveAsyncRequests) {
+                auto streams_executor = std::dynamic_pointer_cast<ov::threading::IStreamsExecutor>(requestExecutor);
+                if (streams_executor) {
+                    streams_executor->cpu_reset();
+                }
+            }
+        });
 }
 
 std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request() const {

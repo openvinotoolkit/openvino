@@ -56,9 +56,6 @@ private:
     // Metric to provide a hint for a range for number of async infer requests. (bottom bound, upper bound, step)
     const std::tuple<uint32_t, uint32_t, uint32_t> _rangeForAsyncInferRequests{1u, 10u, 1u};
 
-    // Metric to provide information about a range for streams.(bottom bound, upper bound)
-    const std::tuple<uint32_t, uint32_t> _rangeForStreams{1u, 1u};
-
     std::string getDeviceName(const std::string& specifiedDeviceName) const;
     std::shared_ptr<intel_npu::IDevice> getDevice(const std::string& specifiedDeviceName) const;
 };
