@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#if defined(OV_GPU_WITH_OCL_RT) && defined(_WIN32) && defined(ENABLE_DX11)
+#if defined(OV_GPU_WITH_OCL_RT) && (defined(_WIN32) || defined(__linux__))
 #include <array>
 #include <algorithm>
 #include <cstring>
@@ -11,10 +11,12 @@
 #include <sstream>
 #include <vector>
 
-
-
-#define VK_USE_PLATFORM_WIN32_KHR
+#ifdef _WIN32
+#    define VK_USE_PLATFORM_WIN32_KHR
 #include <windows.h>
+#elif defined(__linux__)
+#    include <unistd.h>
+#endif
 #include <vulkan/vulkan.h>
 
 #include "openvino/runtime/core.hpp"
@@ -107,14 +109,85 @@ std::shared_ptr<ov::Model> make_copy_model(const ov::Shape& shape) {
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
 }
 
+#ifdef _WIN32
+using ExternalMemoryHandle = HANDLE;
 
+constexpr ExternalMemoryHandle invalid_external_memory_handle() {
+    return nullptr;
+}
 
-void close_nt_handle(HANDLE& handle) {
-    if (handle != nullptr) {
+constexpr VkExternalMemoryHandleTypeFlagBits k_external_memory_handle_type =
+    VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+constexpr cl_uint k_cl_external_memory_handle_type = CL_EXTERNAL_MEMORY_HANDLE_OPAQUE_WIN32_KHR;
+constexpr const char* k_vulkan_external_memory_extension = VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME;
+constexpr const char* k_get_memory_handle_proc_name = "vkGetMemoryWin32HandleKHR";
+
+void close_external_memory_handle(ExternalMemoryHandle& handle) {
+    if (handle != invalid_external_memory_handle()) {
         CloseHandle(handle);
-        handle = nullptr;
+        handle = invalid_external_memory_handle();
     }
 }
+
+bool export_vulkan_memory_handle(VkDevice device, VkDeviceMemory memory, ExternalMemoryHandle& handle) {
+    auto get_memory_handle = reinterpret_cast<PFN_vkGetMemoryWin32HandleKHR>(
+        vkGetDeviceProcAddr(device, k_get_memory_handle_proc_name));
+    if (!get_memory_handle) {
+        ADD_FAILURE() << "Failed to get " << k_get_memory_handle_proc_name;
+        return false;
+    }
+
+    VkMemoryGetWin32HandleInfoKHR handle_info{};
+    handle_info.sType = VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR;
+    handle_info.memory = memory;
+    handle_info.handleType = k_external_memory_handle_type;
+
+    const VkResult res = get_memory_handle(device, &handle_info, &handle);
+    EXPECT_EQ(res, VK_SUCCESS);
+    EXPECT_NE(handle, invalid_external_memory_handle());
+    return res == VK_SUCCESS && handle != invalid_external_memory_handle();
+}
+#elif defined(__linux__)
+using ExternalMemoryHandle = int;
+
+constexpr ExternalMemoryHandle invalid_external_memory_handle() {
+    return -1;
+}
+
+constexpr VkExternalMemoryHandleTypeFlagBits k_external_memory_handle_type =
+    VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
+constexpr cl_uint k_cl_external_memory_handle_type = CL_EXTERNAL_MEMORY_HANDLE_OPAQUE_FD_KHR;
+constexpr const char* k_vulkan_external_memory_extension = VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME;
+constexpr const char* k_get_memory_handle_proc_name = "vkGetMemoryFdKHR";
+
+void close_external_memory_handle(ExternalMemoryHandle& handle) {
+    if (handle != invalid_external_memory_handle()) {
+        close(handle);
+        handle = invalid_external_memory_handle();
+    }
+}
+
+bool export_vulkan_memory_handle(VkDevice device, VkDeviceMemory memory, ExternalMemoryHandle& handle) {
+    auto get_memory_handle =
+        reinterpret_cast<PFN_vkGetMemoryFdKHR>(vkGetDeviceProcAddr(device, k_get_memory_handle_proc_name));
+    if (!get_memory_handle) {
+        ADD_FAILURE() << "Failed to get " << k_get_memory_handle_proc_name;
+        return false;
+    }
+
+    VkMemoryGetFdInfoKHR handle_info{};
+    handle_info.sType = VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR;
+    handle_info.memory = memory;
+    handle_info.handleType = k_external_memory_handle_type;
+
+    const VkResult res = get_memory_handle(device, &handle_info, &handle);
+    EXPECT_EQ(res, VK_SUCCESS);
+    EXPECT_NE(handle, invalid_external_memory_handle());
+    return res == VK_SUCCESS && handle != invalid_external_memory_handle();
+}
+#endif
+
+
 
 struct VulkanTestContext {
     VkInstance instance = VK_NULL_HANDLE;
@@ -163,7 +236,7 @@ struct VulkanSharedBuffer {
     VkDevice device = VK_NULL_HANDLE;
     VkBuffer buffer = VK_NULL_HANDLE;
     VkDeviceMemory memory = VK_NULL_HANDLE;
-    HANDLE shared_handle = nullptr;
+    ExternalMemoryHandle shared_handle = invalid_external_memory_handle();
 
     VulkanSharedBuffer() = default;
     VulkanSharedBuffer(const VulkanSharedBuffer&) = delete;
@@ -177,7 +250,7 @@ struct VulkanSharedBuffer {
         other.device = VK_NULL_HANDLE;
         other.buffer = VK_NULL_HANDLE;
         other.memory = VK_NULL_HANDLE;
-        other.shared_handle = nullptr;
+        other.shared_handle = invalid_external_memory_handle();
     }
 
     VulkanSharedBuffer& operator=(VulkanSharedBuffer&& other) noexcept {
@@ -190,13 +263,13 @@ struct VulkanSharedBuffer {
             other.device = VK_NULL_HANDLE;
             other.buffer = VK_NULL_HANDLE;
             other.memory = VK_NULL_HANDLE;
-            other.shared_handle = nullptr;
+            other.shared_handle = invalid_external_memory_handle();
         }
         return *this;
     }
 
     ~VulkanSharedBuffer() {
-        close_nt_handle(shared_handle);
+        close_external_memory_handle(shared_handle);
         if (buffer != VK_NULL_HANDLE && device != VK_NULL_HANDLE) {
             vkDestroyBuffer(device, buffer, nullptr);
             buffer = VK_NULL_HANDLE;
@@ -311,10 +384,7 @@ VulkanTestContext create_vulkan_test_context(const std::array<unsigned char, CL_
         queue_info.queueCount = 1;
         queue_info.pQueuePriorities = &queue_priority;
 
-        const char* device_extensions[] = {
-            VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME,
-            VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME,
-        };
+        const char* device_extensions[] = {VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME, k_vulkan_external_memory_extension};
 
         VkDeviceCreateInfo device_info{};
         device_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -340,19 +410,12 @@ VulkanSharedBuffer create_vulkan_shared_buffer(VulkanTestContext& context, size_
     VulkanSharedBuffer shared_buffer;
     shared_buffer.device = context.device;
 
-    auto get_win32_handle = reinterpret_cast<PFN_vkGetMemoryWin32HandleKHR>(
-        vkGetDeviceProcAddr(context.device, "vkGetMemoryWin32HandleKHR"));
-    if (!get_win32_handle) {
-        ADD_FAILURE() << "Failed to get vkGetMemoryWin32HandleKHR";
-        return {};
-    }
-
     VkPhysicalDeviceMemoryProperties mem_properties{};
     vkGetPhysicalDeviceMemoryProperties(context.physical_device, &mem_properties);
 
     VkExternalMemoryBufferCreateInfo external_buffer_info{};
     external_buffer_info.sType = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO;
-    external_buffer_info.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+    external_buffer_info.handleTypes = k_external_memory_handle_type;
 
     VkBufferCreateInfo buffer_info{};
     buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -380,7 +443,7 @@ VulkanSharedBuffer create_vulkan_shared_buffer(VulkanTestContext& context, size_
 
     VkExportMemoryAllocateInfo export_info{};
     export_info.sType = VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO;
-    export_info.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+    export_info.handleTypes = k_external_memory_handle_type;
 
     VkMemoryAllocateInfo alloc_info{};
     alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -400,15 +463,7 @@ VulkanSharedBuffer create_vulkan_shared_buffer(VulkanTestContext& context, size_
         return {};
     }
 
-    VkMemoryGetWin32HandleInfoKHR handle_info{};
-    handle_info.sType = VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR;
-    handle_info.memory = shared_buffer.memory;
-    handle_info.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
-
-    res = get_win32_handle(context.device, &handle_info, &shared_buffer.shared_handle);
-    EXPECT_EQ(res, VK_SUCCESS);
-    EXPECT_NE(shared_buffer.shared_handle, nullptr);
-    if (res == VK_SUCCESS && shared_buffer.shared_handle != nullptr) {
+    if (export_vulkan_memory_handle(context.device, shared_buffer.memory, shared_buffer.shared_handle)) {
         std::cout << "[INFO] Vulkan shared buffer config: usage=STORAGE|XFER_SRC|XFER_DST, memory=DEVICE_LOCAL\n";
     }
 
@@ -435,8 +490,8 @@ TEST(GpuSharedBufferRemoteTensor, smoke_VulkanRemoteInputToRemoteOutputCopyAndCo
     auto cl_ctx = static_cast<cl_context>(it->second.as<ov::intel_gpu::ocl::gpu_handle_param>());
     cl_device_id cl_device = nullptr;
     ASSERT_TRUE(get_context_first_device(cl_ctx, cl_device));
-    if (!supports_external_import_handle_type(cl_device, CL_EXTERNAL_MEMORY_HANDLE_OPAQUE_WIN32_KHR)) {
-        GTEST_SKIP() << "Device does not support OPAQUE_WIN32 handle import for external memory";
+    if (!supports_external_import_handle_type(cl_device, k_cl_external_memory_handle_type)) {
+        GTEST_SKIP() << "Device does not support required external-memory handle import type";
     }
 
     std::array<unsigned char, CL_LUID_SIZE_KHR> cl_luid{};
@@ -454,8 +509,8 @@ TEST(GpuSharedBufferRemoteTensor, smoke_VulkanRemoteInputToRemoteOutputCopyAndCo
 
     auto vk_input_shared = create_vulkan_shared_buffer(vk_ctx, byte_size);
     auto vk_output_shared = create_vulkan_shared_buffer(vk_ctx, byte_size);
-    ASSERT_NE(vk_input_shared.shared_handle, nullptr);
-    ASSERT_NE(vk_output_shared.shared_handle, nullptr);
+    ASSERT_NE(vk_input_shared.shared_handle, invalid_external_memory_handle());
+    ASSERT_NE(vk_output_shared.shared_handle, invalid_external_memory_handle());
 
     auto ov_ctx = core.get_default_context(selected_gpu_device).as<ov::intel_gpu::ocl::ClContext>();
 
@@ -464,11 +519,11 @@ TEST(GpuSharedBufferRemoteTensor, smoke_VulkanRemoteInputToRemoteOutputCopyAndCo
     try {
         remote_input_tensor = ov_ctx.create_tensor(ov::element::f32,
                                                    shape,
-                                                   vk_input_shared.shared_handle,
+                                                   reinterpret_cast<void*>(static_cast<intptr_t>(vk_input_shared.shared_handle)),
                                                    ov::intel_gpu::MemType::SHARED_BUF);
         remote_output_tensor = ov_ctx.create_tensor(ov::element::f32,
                                                     shape,
-                                                    vk_output_shared.shared_handle,
+                                                    reinterpret_cast<void*>(static_cast<intptr_t>(vk_output_shared.shared_handle)),
                                                     ov::intel_gpu::MemType::SHARED_BUF);
     } catch (const ov::Exception& ex) {
         std::cout << "[INFO] Vulkan NT handle import not supported on this device: " << ex.what() << "\n";

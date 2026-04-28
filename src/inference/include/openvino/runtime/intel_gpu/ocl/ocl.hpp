@@ -346,7 +346,6 @@ public:
      * @param memory_type Memory type to use (default: SHARED_BUF)
      * @return A remote tensor instance
      */
-#ifdef _WIN32
     ClBufferTensor create_tensor(const element::Type type,
                                  const Shape& shape,
                                  void* shared_buffer,
@@ -399,7 +398,11 @@ public:
         auto try_import_external_mem = [&](void* shared_buffer) -> cl_mem {
             const auto shared_handle = static_cast<cl_mem_properties>(reinterpret_cast<intptr_t>(shared_buffer));
             cl_mem_properties ext_mem_props[] = {
+            #ifdef _WIN32
                 static_cast<cl_mem_properties>(CL_EXTERNAL_MEMORY_HANDLE_OPAQUE_WIN32_KHR),
+            #elif defined(__linux__)
+                static_cast<cl_mem_properties>(CL_EXTERNAL_MEMORY_HANDLE_OPAQUE_FD_KHR),
+            #endif
                 shared_handle,
                 0,
             };
@@ -435,7 +438,7 @@ public:
             "External memory import requires OpenCL 1.2+ headers and clCreateFromExternalMemoryBufferINTEL support");
         return {};
     }
-#endif  //_WIN32
+
     /**
      * @brief This function is used to obtain remote tensor object from user-supplied USM pointer
      * @param type Tensor element type
