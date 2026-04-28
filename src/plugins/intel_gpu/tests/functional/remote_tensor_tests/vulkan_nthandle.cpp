@@ -1,3 +1,6 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
 
 #if defined(OV_GPU_WITH_OCL_RT) && defined(_WIN32) && defined(ENABLE_DX11)
 #include <array>
