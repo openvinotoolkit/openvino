@@ -86,10 +86,13 @@ macro(ov_gpu_add_backend_target)
     endif()
     # Onednn headers use OCL/L0 headers
     ov_gpu_set_runtime_interface_for(openvino_intel_gpu_${IMPL_TYPE}_obj)
-    # Onednn needs OCL headers even when running L0
-    # Don't link to OBJECT_LIBRARY targets - linking happens at the final STATIC library level
+    # Onednn needs OCL headers even when running L0 (transitively via onednn xpu/ocl headers)
+    # Always propagate OpenCL include dirs regardless of runtime type, but only link for non-OBJECT targets
     get_target_property(target_type openvino_intel_gpu_${IMPL_TYPE}_obj TYPE)
-    if(NOT target_type STREQUAL "OBJECT_LIBRARY")
+    if(target_type STREQUAL "OBJECT_LIBRARY")
+        target_include_directories(openvino_intel_gpu_${IMPL_TYPE}_obj SYSTEM PRIVATE
+            $<TARGET_PROPERTY:OpenCL::OpenCL,INTERFACE_INCLUDE_DIRECTORIES>)
+    else()
         target_link_libraries(openvino_intel_gpu_${IMPL_TYPE}_obj PRIVATE OpenCL::OpenCL)
     endif()
 endmacro()

@@ -36,7 +36,6 @@ if(ENABLE_ONEDNN_FOR_GPU)
         if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
             ov_add_compiler_flags(-Wno-undef)
             ov_add_compiler_flags(-Wno-missing-declarations)
-            ov_add_compiler_flags(-Wno-ignored-attributes)
             if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11 AND CMAKE_COMPILER_IS_GNUCXX)
                 ov_add_compiler_flags(-Wno-array-bounds)
                 ov_add_compiler_flags(-Wno-stringop-overflow)
@@ -96,6 +95,12 @@ if(ENABLE_ONEDNN_FOR_GPU)
         endif()
         if(OpenCL_INCLUDE_DIR)
             list(APPEND cmake_extra_args "-DOpenCL_INCLUDE_DIR=${OpenCL_INCLUDE_DIR}")
+        elseif(TARGET OpenCL::OpenCL)
+            # If OpenCL target exists but OpenCL_INCLUDE_DIR is not set, extract from target
+            get_target_property(opencl_include_dirs OpenCL::OpenCL INTERFACE_INCLUDE_DIRECTORIES)
+            if(opencl_include_dirs)
+                list(APPEND cmake_extra_args "-DOpenCL_INCLUDE_DIR=${opencl_include_dirs}")
+            endif()
         endif()
 
         set(onednn_gpu_lib "${CMAKE_STATIC_LIBRARY_PREFIX}${DNNL_GPU_LIBRARY_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX}")
@@ -135,9 +140,6 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 "-DDNNL_EXPERIMENTAL_PROFILING=ON"
                 "-DONEDNN_BUILD_GRAPH=OFF"
                 "-DDNNL_EXPERIMENTAL_GROUPED_MEMORY=ON"
-                # specifically for Conan, because it overrides CMAKE_PREFIX_PATH and oneDNN's FindOpenCL.cmake is ignored
-                # Conan's FindOpenCL.cmake module does not set OpenCL_INCLUDE_DIRS, so we need to set it manually
-                "-DOpenCL_INCLUDE_DIRS=$<TARGET_PROPERTY:OpenCL::OpenCL,INTERFACE_INCLUDE_DIRECTORIES>"
                 # Conan calls cmake with default value for CMP0091, so we have to bypass it to oneDNN build
                 # because we bypass conan_toolchain.cmake via CMAKE_TOOLCHAIN_FILE
                 "-DCMAKE_POLICY_DEFAULT_CMP0091=NEW"
