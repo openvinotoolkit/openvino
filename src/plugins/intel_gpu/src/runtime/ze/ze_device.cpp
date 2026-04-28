@@ -198,7 +198,11 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
 
     if (mem_properties != device_memory_properties.end()) {
         info.max_global_mem_size = mem_properties->totalSize;
-        info.device_memory_ordinal = std::distance(device_memory_properties.begin(), mem_properties);
+        const auto device_memory_ordinal_i64 = std::distance(device_memory_properties.begin(), mem_properties);
+        OPENVINO_ASSERT(device_memory_ordinal_i64 >= 0 &&
+                        device_memory_ordinal_i64 <= static_cast<decltype(device_memory_ordinal_i64)>((std::numeric_limits<uint32_t>::max)()),
+                "Possible lost of data in type conversion device_memory_ordinal from int64 to uint32");
+        info.device_memory_ordinal = static_cast<uint32_t>(device_memory_ordinal_i64);
     } else {
         info.max_global_mem_size = 0;
         info.device_memory_ordinal = 0;
@@ -249,7 +253,11 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
 
     info.kernel_timestamp_valid_bits  = device_properties.kernelTimestampValidBits;
     info.timer_resolution  = device_properties.timerResolution;
-    info.compute_queue_group_ordinal = std::distance(queue_properties.begin(), compute_queue_props);
+    auto const compute_queue_group_ordinal_i64 = std::distance(queue_properties.begin(), compute_queue_props);
+    OPENVINO_ASSERT(compute_queue_group_ordinal_i64 >= 0 &&
+                    compute_queue_group_ordinal_i64 <= static_cast<decltype(compute_queue_group_ordinal_i64)>((std::numeric_limits<uint32_t>::max)()),
+                "Possible lost of data in type conversion compute_queue_group_oridinal from int64 to uint32");
+    info.compute_queue_group_ordinal = static_cast<uint32_t>(compute_queue_group_ordinal_i64);
 
     static_assert(ZE_MAX_DEVICE_UUID_SIZE == ov::device::UUID::MAX_UUID_SIZE, "");
     static_assert(ZE_MAX_DEVICE_LUID_SIZE_EXT == ov::device::LUID::MAX_LUID_SIZE, "");
