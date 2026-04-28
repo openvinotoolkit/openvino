@@ -37,6 +37,9 @@
 #include "transformations/utils/utils.hpp"
 
 using ov::pass::pattern::any_input;
+using ov::pass::pattern::has_static_rank;
+using ov::pass::pattern::has_static_shape;
+using ov::pass::pattern::rank_equals;
 using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
@@ -45,46 +48,9 @@ namespace v8 = ov::op::v8;
 
 namespace {
 
-constexpr const char* CONV_STATE_TABLE_PREFIX = "conv_state_table.";
-
-bool is_conv_cache_readvalue(const std::shared_ptr<ov::op::util::ReadValueBase>& rv) {
-    const auto& pshape = rv->get_output_partial_shape(0);
-    return pshape.rank().is_static() && pshape.rank().get_length() == 3;
-}
-
-bool is_concat_axis_minus_one(const ov::Output<ov::Node>& output) {
-    const auto concat = ov::as_type_ptr<v0::Concat>(output.get_node_shared_ptr());
-    if (!concat) {
-        return false;
-    }
-    const int64_t axis = concat->get_axis();
-    if (axis == -1) {
-        return true;
-    }
-    const auto rank = output.get_partial_shape().rank();
-    return rank.is_static() && axis == rank.get_length() - 1;
-}
-
-bool is_slice_axis_2(const std::shared_ptr<ov::Node>& node) {
-    const auto slice = ov::as_type_ptr<v8::Slice>(node);
-    if (!slice) {
-        return false;
-    }
-    const auto axis_const = ov::as_type_ptr<v0::Constant>(slice->get_input_node_shared_ptr(4));
-    if (!axis_const) {
-        return false;
-    }
-    const auto axis_vec = axis_const->cast_vector<int64_t>();
-    return axis_vec.size() == 1 && (axis_vec[0] == 2 || axis_vec[0] == -1);
-}
-
 std::shared_ptr<ov::Node> make_zero_bias(const ov::element::Type& type, const size_t channels) {
     std::vector<float> values(channels, 0.0f);
     return v0::Constant::create(type, ov::Shape{channels}, values);
-}
-
-std::string make_conv_state_table_name(const size_t layer_index) {
-    return std::string(CONV_STATE_TABLE_PREFIX) + std::to_string(layer_index);
 }
 
 ov::PartialShape make_conv_state_table_shape(const ov::PartialShape& past_state_shape) {
@@ -98,11 +64,9 @@ ov::PartialShape make_conv_state_table_shape(const ov::PartialShape& past_state_
 
 namespace ov::pass {
 
-int PagedCausalConv1DFusion::m_layer_index = 0;
-
 PagedCausalConv1DFusion::PagedCausalConv1DFusion(ov::pass::paged_attention::PaParams& pa_params,
-                                                 std::unordered_set<std::string>& var_ids_to_remove)
-                                                 {
+                                                 std::unordered_set<std::string>& var_ids_to_remove) {
+    // Define parameters for the fused PagedCausalConv1D
     pa_params.add("subsequence_begins", ov::element::i32, ov::PartialShape{-1});
     pa_params.add("la.block_indices", ov::element::i32, ov::PartialShape{-1});
     pa_params.add("la.block_indices_begins", ov::element::i32, ov::PartialShape{-1});
@@ -111,114 +75,56 @@ PagedCausalConv1DFusion::PagedCausalConv1DFusion(ov::pass::paged_attention::PaPa
 
     MATCHER_SCOPE(PagedCausalConv1DFusion);
 
-    // ReadValue (rank-3) → optional Gather → Concat(past, token) OR Concat(token, past)
-    auto read_value = wrap_type<ov::op::util::ReadValueBase>([](const ov::Output<ov::Node>& out) {
-        const auto rv = ov::as_type_ptr<ov::op::util::ReadValueBase>(out.get_node_shared_ptr());
-        return rv && is_conv_cache_readvalue(rv);
-    });
-    auto past_via_gather = ov::pass::pattern::optional<v8::Gather>({read_value, any_input(), any_input()});
-    auto token_input = any_input();
-    auto token_input_rev = any_input();
-    auto state_concat_past_first = wrap_type<v0::Concat>({past_via_gather, token_input});
-    auto state_concat_token_first = wrap_type<v0::Concat>({token_input_rev, past_via_gather});
-    auto state_concat = std::make_shared<ov::pass::pattern::op::Or>(
-        ov::OutputVector{state_concat_past_first->output(0), state_concat_token_first->output(0)});
+    auto p_read_value = wrap_type<ov::op::util::ReadValueBase>(has_static_rank() && rank_equals(3));
+    auto p_past_via_gather = ov::pass::pattern::optional<v8::Gather>({p_read_value, any_input(), any_input()});
+    auto p_token_input = any_input(rank_equals(3));
+    auto p_concat_past_first = wrap_type<v0::Concat>({p_past_via_gather, p_token_input}, {{"axis", -1}});
+    auto p_concat_token_first = wrap_type<v0::Concat>({p_token_input, p_past_via_gather}, {{"axis", -1}});
+    auto p_state_concat =
+        std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{p_concat_past_first, p_concat_token_first});
 
-    auto weight_input = any_input();
-    auto group_conv = wrap_type<v1::GroupConvolution>({state_concat, weight_input});
+    auto p_weight_input = any_input(has_static_shape() && rank_equals(4));
+    auto p_group_conv = wrap_type<v1::GroupConvolution>({p_state_concat, p_weight_input});
 
-    auto slice2 = wrap_type<v8::Slice>({group_conv, any_input(), any_input(), any_input(), any_input()});
+    auto p_slice_out = wrap_type<v8::Slice>({p_group_conv, any_input(), any_input(), any_input(), any_input()});
 
-    ov::matcher_pass_callback callback =
-        [OV_CAPTURE_CPY_AND_THIS, &pa_params, &var_ids_to_remove](ov::pass::pattern::Matcher& m) {
-            if (transformation_callback(m.get_match_root())) {
-                return false;
-            }
-
-            const auto& pm = m.get_pattern_value_map();
-
-            const auto conv_input_output = pm.at(state_concat);
-            const auto conv_input_node = conv_input_output.get_node_shared_ptr();
-            const auto group_conv_node = ov::as_type_ptr<v1::GroupConvolution>(pm.at(group_conv).get_node_shared_ptr());
-            const auto weight_node = pm.at(weight_input).get_node_shared_ptr();
-
-        if (!group_conv_node || !weight_node) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS, &pa_params, &var_ids_to_remove](
+                                             ov::pass::pattern::Matcher& m) {
+        if (transformation_callback(m.get_match_root())) {
             return false;
         }
 
-        if (!is_slice_axis_2(pm.at(slice2).get_node_shared_ptr())) {
-            return false;
-        }
+        const auto& pm = m.get_pattern_value_map();
 
-        if (!pm.count(read_value)) {
-            return false;
-        }
-        const auto cache_param = pm.at(read_value).get_node_shared_ptr();
-        const auto cache_rv = ov::as_type_ptr<ov::op::util::ReadValueBase>(cache_param);
-        OPENVINO_ASSERT(cache_rv, "Matched cache node is expected to be ReadValue");
+        const auto state_concat = pm.at(p_state_concat).get_node_shared_ptr();
+        const auto group_conv_node = ov::as_type_ptr<v1::GroupConvolution>(pm.at(p_group_conv).get_node_shared_ptr());
+        const auto weight_node = pm.at(p_weight_input).get_node_shared_ptr();
+        const auto cache_rv = ov::as_type_ptr<ov::op::util::ReadValueBase>(pm.at(p_read_value).get_node_shared_ptr());
+        const auto slice_out = pm.at(p_slice_out).get_node_shared_ptr();
 
-        const size_t layer_index = static_cast<size_t>(m_layer_index++);
-        const auto conv_state_table =
-            pa_params.add(make_conv_state_table_name(layer_index),
-                          cache_param->get_output_element_type(0),
-                          make_conv_state_table_shape(cache_param->get_output_partial_shape(0)));
+        const auto conv_state_table = pa_params.add("conv_state_table." + std::to_string(m_layer_index++),
+                                                    cache_rv->get_output_element_type(0),
+                                                    make_conv_state_table_shape(cache_rv->get_output_partial_shape(0)));
+
         enable_keep_const_precision(conv_state_table);
         var_ids_to_remove.insert(cache_rv->get_variable_id());
 
-        const auto& weight_pshape = weight_node->get_output_partial_shape(0);
-        if (weight_pshape.rank().is_dynamic() || weight_pshape.rank().get_length() != 4 || !weight_pshape.is_static()) {
-            return false;
-        }
+        auto token_input = pm.at(p_token_input).get_node_shared_ptr();
+        const auto past_state = pm.count(p_past_via_gather) ? pm.at(p_past_via_gather).get_node_shared_ptr() : cache_rv;
 
-        const auto weight_shape = weight_pshape.get_shape();
-        if (weight_shape[1] != 1 || weight_shape[2] != 1) {
-            return false;
-        }
-
-        ov::Output<ov::Node> token_node = conv_input_output;
-        ov::Output<ov::Node> past_state_output;
-        std::shared_ptr<v0::Concat> state_concat_node;
-
-        if (pm.count(state_concat_past_first)) {
-            state_concat_node = ov::as_type_ptr<v0::Concat>(pm.at(state_concat_past_first).get_node_shared_ptr());
-            OPENVINO_ASSERT(state_concat_node, "state_concat_past_first is expected to be Concat");
-            past_state_output = state_concat_node->input_value(0);
-            token_node = state_concat_node->input_value(1);
-        } else if (pm.count(state_concat_token_first)) {
-            state_concat_node = ov::as_type_ptr<v0::Concat>(pm.at(state_concat_token_first).get_node_shared_ptr());
-            OPENVINO_ASSERT(state_concat_node, "state_concat_token_first is expected to be Concat");
-            past_state_output = state_concat_node->input_value(1);
-            token_node = state_concat_node->input_value(0);
-        } else if (const auto concat = ov::as_type_ptr<v0::Concat>(conv_input_node)) {
-            if (concat->get_input_size() == 2 && is_concat_axis_minus_one(concat->output(0))) {
-                state_concat_node = concat;
-            }
-        }
-
-        const auto& state_pshape = past_state_output.get_node() ? past_state_output.get_partial_shape()
-                                                                : conv_state_table->get_partial_shape();
-        if (state_pshape.rank().is_dynamic() || state_pshape.rank().get_length() != 3) {
-            return false;
-        }
-
-        if (!state_pshape[1].compatible(weight_shape[0]) || !state_pshape[2].compatible(weight_shape[3])) {
-            return false;
-        }
-
+        const auto& weight_shape = weight_node->get_output_shape(0);
         const size_t hidden_size = weight_shape[0];
         const size_t kernel_size = weight_shape[3];
 
-        const auto& token_pshape = token_node.get_partial_shape();
-        if (token_pshape.rank().is_dynamic() || token_pshape.rank().get_length() != 3) {
+        const auto& state_pshape = past_state->get_output_partial_shape(0);
+        if (!state_pshape[1].compatible(hidden_size) || !state_pshape[2].compatible(kernel_size)) {
             return false;
         }
 
-        ov::Output<ov::Node> token_for_reshape = token_node;
-        std::shared_ptr<ov::Node> token_transpose_to_2d;
+        const auto& token_pshape = token_input->get_output_partial_shape(0);
         if (token_pshape[1].compatible(hidden_size)) {
             const auto order = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 2, 1});
-            token_transpose_to_2d = std::make_shared<v1::Transpose>(token_node, order);
-            token_for_reshape = token_transpose_to_2d;
+            token_input = std::make_shared<v1::Transpose>(token_input, order);
         } else if (!token_pshape[2].compatible(hidden_size)) {
             return false;
         }
@@ -227,52 +133,21 @@ PagedCausalConv1DFusion::PagedCausalConv1DFusion(ov::pass::paged_attention::PaPa
             v0::Constant::create(ov::element::i64,
                                  ov::Shape{2},
                                  std::vector<int64_t>{-1, static_cast<int64_t>(hidden_size)});
-        const auto input_embeds_node = std::make_shared<v1::Reshape>(token_for_reshape, input_embeds_shape, false);
+        const auto input_embeds_node = std::make_shared<v1::Reshape>(token_input, input_embeds_shape, false);
 
-        const auto& strides = group_conv_node->get_strides();
-        const auto& pads_begin = group_conv_node->get_pads_begin();
-        const auto& pads_end = group_conv_node->get_pads_end();
-        const auto& dilations = group_conv_node->get_dilations();
-        if (strides != ov::Strides{1} || dilations != ov::Strides{1}) {
-            return false;
-        }
-        if (pads_begin.size() != 1 || pads_end.size() != 1 || pads_begin[0] != pads_end[0]) {
-            return false;
-        }
-
-        std::shared_ptr<v8::Slice> state_slice;
-        if (state_concat_node) {
-            for (const auto& input : state_concat_node->output(0).get_target_inputs()) {
-                const auto consumer = input.get_node()->shared_from_this();
-                const auto candidate = ov::as_type_ptr<v8::Slice>(consumer);
-                if (!candidate || !is_slice_axis_2(candidate)) {
-                    continue;
-                }
-                state_slice = candidate;
-                break;
-            }
-
-            // Keep strict requirement for non-stateful cache sources (Parameter-based paths),
-            // but allow stateful ReadValue-based real-model paths without legacy state slice.
-            const bool stateful_cache = pm.count(read_value) > 0;
-            if (!state_slice && !stateful_cache) {
-                return false;
-            }
-        }
-
-        const auto weight_reshape_shape = v0::Constant::create(ov::element::i64,
-                                                               ov::Shape{3},
-                                                               std::vector<int64_t>{static_cast<int64_t>(hidden_size),
-                                                                                    static_cast<int64_t>(1),
-                                                                                    static_cast<int64_t>(kernel_size)});
-        const auto weight_reshape = std::make_shared<v1::Reshape>(weight_node, weight_reshape_shape, false);
+        const auto pa_weight_shape = v0::Constant::create(ov::element::i64,
+                                                          ov::Shape{3},
+                                                          std::vector<int64_t>{static_cast<int64_t>(hidden_size),
+                                                                               static_cast<int64_t>(1),
+                                                                               static_cast<int64_t>(kernel_size)});
+        const auto weight_reshaped = std::make_shared<v1::Reshape>(weight_node, pa_weight_shape, false);
 
         const auto bias_node = make_zero_bias(input_embeds_node->get_output_element_type(0), hidden_size);
 
         const auto paged_conv =
             std::make_shared<ov::op::internal::PagedCausalConv1D>(input_embeds_node,
                                                                   conv_state_table,
-                                                                  weight_reshape,
+                                                                  weight_reshaped,
                                                                   bias_node,
                                                                   pa_params["subsequence_begins"],
                                                                   pa_params["la.block_indices"],
@@ -286,31 +161,20 @@ PagedCausalConv1DFusion::PagedCausalConv1DFusion(ov::pass::paged_attention::PaPa
         const auto unsqueeze = std::make_shared<v0::Unsqueeze>(paged_conv, unsqueeze_axis);
         unsqueeze->set_friendly_name(group_conv_node->get_friendly_name());
 
-        // Keep legacy concat branch independent from new conv_state_table parameter.
-        // Old present-state consumers are rewired to the original past-state data path,
-        // while conv_state_table remains connected only to PagedCausalConv1D input[1].
-        if (state_slice && past_state_output.get_node()) {
-            state_slice->output(0).replace(past_state_output);
-        }
+        ov::NodeVector new_nodes{input_embeds_shape,
+                                 input_embeds_node,
+                                 pa_weight_shape,
+                                 weight_reshaped,
+                                 bias_node,
+                                 paged_conv,
+                                 unsqueeze};
 
-        ov::NodeVector new_nodes;
-        new_nodes.reserve(8);
-        new_nodes.push_back(input_embeds_shape);
-        new_nodes.push_back(input_embeds_node);
-        new_nodes.push_back(weight_reshape_shape);
-        new_nodes.push_back(weight_reshape);
-        new_nodes.push_back(bias_node);
-        new_nodes.push_back(paged_conv);
-        new_nodes.push_back(unsqueeze);
-        if (token_transpose_to_2d) {
-            new_nodes.push_back(token_transpose_to_2d);
-        }
         ov::copy_runtime_info(m.get_matched_nodes(), new_nodes);
-        ov::replace_node(pm.at(slice2).get_node_shared_ptr(), unsqueeze);
+        ov::replace_node(slice_out, unsqueeze);
         return true;
     };
 
-    const auto matcher = std::make_shared<ov::pass::pattern::Matcher>(slice2, matcher_name);
+    const auto matcher = std::make_shared<ov::pass::pattern::Matcher>(p_slice_out, matcher_name);
     register_matcher(matcher, callback);
 }
 
