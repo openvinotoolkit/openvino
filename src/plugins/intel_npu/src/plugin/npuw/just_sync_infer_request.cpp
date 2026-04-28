@@ -526,10 +526,12 @@ void ov::npuw::JustInferRequest::initialize_subgraph_behaviors() {
         if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
             continue;
         }
-        if (!comp_model_desc.pipeline.runtime_behavior.has_value()) {
+        const auto behavior_idx = comp_model_desc.replaced_by.value_or(idx);
+        const auto& behavior_desc = m_npuw_model->m_compiled_submodels[behavior_idx];
+        if (!behavior_desc.pipeline.runtime_behavior.has_value()) {
             continue;
         }
-        const auto& spec = comp_model_desc.pipeline.runtime_behavior.value();
+        const auto& spec = behavior_desc.pipeline.runtime_behavior.value();
         if (spec.factory) {
             m_subgraph_behaviors[idx] = spec.factory(spec.context);
         }
@@ -552,6 +554,16 @@ ov::npuw::v1::subgraphs::InferContext ov::npuw::JustInferRequest::make_behavior_
                                                                                         std::size_t idx) {
     return ov::npuw::v1::subgraphs::InferContext{*m_npuw_model, *this, idx, real_idx, [this, real_idx, idx]() {
                                                      legacy_infer(real_idx, idx);
+                                                 },
+                                                 [this, idx]() {
+                                                     OPENVINO_ASSERT(m_moe_executor != nullptr,
+                                                                     "Expected MoE executor for opaque MoE prologue");
+                                                     function_prologue(idx);
+                                                 },
+                                                 [this, real_idx, idx]() {
+                                                     OPENVINO_ASSERT(m_moe_executor != nullptr,
+                                                                     "Expected MoE executor for opaque MoE run");
+                                                     m_moe_executor->run(real_idx, idx);
                                                  }};
 }
 
@@ -560,6 +572,20 @@ ov::npuw::v1::subgraphs::ISubgraphBehavior* ov::npuw::JustInferRequest::get_subg
         return nullptr;
     }
     return m_subgraph_behaviors[idx].get();
+}
+
+bool ov::npuw::JustInferRequest::behavior_handles_function_prologue(std::size_t idx) const {
+    if (idx >= m_npuw_model->m_compiled_submodels.size()) {
+        return false;
+    }
+    const auto& desc = m_npuw_model->m_compiled_submodels[idx];
+    const auto behavior_idx = desc.replaced_by.value_or(idx);
+    const auto& behavior_desc = m_npuw_model->m_compiled_submodels[behavior_idx];
+    if (!behavior_desc.pipeline.runtime_behavior.has_value()) {
+        return false;
+    }
+    const auto* policy = behavior_desc.pipeline.runtime_behavior->context.get_if<ov::npuw::moe::BindingPolicy>();
+    return policy != nullptr && policy->handles_function_prologue;
 }
 
 void ov::npuw::JustInferRequest::set_tensor(const ov::Output<const ov::Node>& port,
@@ -1308,7 +1334,7 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx) {
     // the subrequest' outputs to global Results, if relevant.
     bind_global_results(idx);
 
-    if (comp_model_desc.replaced_by) {
+    if (comp_model_desc.replaced_by && !behavior_handles_function_prologue(idx)) {
         function_prologue(idx);
     }
     if (behavior != nullptr) {
@@ -1816,9 +1842,6 @@ void ov::npuw::JustInferRequest::legacy_infer(std::size_t real_idx, std::size_t 
         unsafe_infer_spatial(real_idx, idx);
     } else if (comp_model_desc.host_flash_attention) {
         run_hfa_tiled_inference(real_idx, idx);
-    } else if (comp_model_desc.moe_experts.has_value()) {
-        // Use MoEExecutor
-        m_moe_executor->run(real_idx, idx);
     } else {
         r->infer();  // Run normally
     }

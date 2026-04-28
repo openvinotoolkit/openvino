@@ -6,6 +6,9 @@
 
 #include "../compiled_model.hpp"  // For CompiledModel::CompiledModelDesc
 #include "../logging.hpp"
+#include "../moe_transformations/moe_transformation.hpp"
+#include "../partitioning/patterns/moe.hpp"
+#include "../v1/subgraph_pipeline.hpp"
 #include "moe_infer_utils.hpp"
 #include "moe_types.hpp"  // For MoEIO definition
 #include "openvino/core/except.hpp"
@@ -14,6 +17,197 @@
 namespace ov {
 namespace npuw {
 namespace moe {
+namespace {
+
+const char* behavior_name(const BehaviorRole role) {
+    switch (role) {
+    case BehaviorRole::EXPERTS:
+        return ov::npuw::patterns::moe::GPTOSSExpert::pattern_name();
+    case BehaviorRole::DOWNSTREAM:
+        return "MoEDownstream";
+    }
+    OPENVINO_THROW("Unsupported MoE behavior role");
+}
+
+ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
+    return [](const ov::npuw::v1::subgraphs::Context& ctx) -> ov::npuw::v1::subgraphs::ISubgraphBehavior::Ptr {
+        class MoEBehavior final : public ov::npuw::v1::subgraphs::ISubgraphBehavior {
+        public:
+            explicit MoEBehavior(const BehaviorRole role) : m_role(role) {}
+
+            void prologue(ov::npuw::v1::subgraphs::InferContext& ctx) override {
+                if (ctx.subgraph_idx != ctx.real_subgraph_idx) {
+                    OPENVINO_ASSERT(static_cast<bool>(ctx.opaque_prologue),
+                                    "Expected opaque prologue callback for MoE subgraph behavior");
+                    ctx.opaque_prologue();
+                }
+            }
+
+            void run(ov::npuw::v1::subgraphs::InferContext& ctx) override {
+                if (m_role != BehaviorRole::EXPERTS) {
+                    ctx.legacy_infer();
+                    return;
+                }
+
+                OPENVINO_ASSERT(static_cast<bool>(ctx.opaque_run),
+                                "Expected opaque run callback for MoE subgraph behavior");
+                ctx.opaque_run();
+            }
+
+        private:
+            BehaviorRole m_role = BehaviorRole::EXPERTS;
+        };
+
+        return std::make_unique<MoEBehavior>(ctx.get<BehaviorRole>());
+    };
+}
+
+void attach_runtime_behavior(ov::npuw::v1::subgraphs::CompiledPipeline& compiled_pipeline,
+                             ov::npuw::v1::subgraphs::Context& compiled_context,
+                             const BehaviorRole role,
+                             const bool handles_function_prologue) {
+    compiled_context.put<BehaviorRole>(role);
+    compiled_context.put<BindingPolicy>({handles_function_prologue});
+    compiled_pipeline.registration.group = ov::npuw::patterns::moe::GPTOSSExpert::group_name();
+    compiled_pipeline.registration.name = behavior_name(role);
+    ov::npuw::v1::subgraphs::RuntimeBehaviorSpec spec;
+    spec.registration = compiled_pipeline.registration;
+    spec.context = compiled_context;
+    spec.factory = make_runtime_factory();
+    compiled_pipeline.runtime_behavior = std::move(spec);
+}
+
+void partition_expert(ov::npuw::Function& function,
+                      ov::npuw::v1::subgraphs::Context& ctx,
+                      const std::function<std::shared_ptr<ov::Model>()>& get_router_model,
+                      const std::size_t moe_chunk_size) {
+    auto router_model = get_router_model();
+    if (!router_model) {
+        return;
+    }
+    auto experts = ov::npuw::function::MoEExperts::from(function._model, router_model, moe_chunk_size);
+    if (experts.has_value()) {
+        ctx.put<ov::npuw::function::MoEExperts>(std::move(experts.value()));
+    }
+}
+
+void compile_expert_models(const CompileHooks& hooks, ov::npuw::v1::subgraphs::CompileContext& compile_ctx) {
+    auto& runtime_experts = hooks.get_moe_experts();
+    LOG_INFO("Compiling MoE expert models...");
+    LOG_BLOCK();
+    for (const auto& entry : runtime_experts._models_to_compile) {
+        runtime_experts.set_compiled_model(entry.first,
+                                           compile_ctx.compile_model(entry.second,
+                                                                     "/moe_chunk_" + std::to_string(entry.first),
+                                                                     compile_ctx.devices));
+    }
+    const auto& compiled_models = runtime_experts._compiled_models;
+    OPENVINO_ASSERT(!compiled_models.empty(), "Expected at least one compiled MoE expert model");
+    compile_ctx.compiled_model = compiled_models.begin()->second;
+}
+
+void compile_expert(ov::npuw::v1::subgraphs::CompiledPipeline& compiled_pipeline,
+                    ov::npuw::v1::subgraphs::Context& compiled_context) {
+    auto* experts = compiled_context.get_if<ov::npuw::function::MoEExperts>();
+    if (experts == nullptr) {
+        return;
+    }
+    auto& hooks = compiled_context.get<CompileHooks>();
+    hooks.set_moe_experts(*experts);
+    auto& compiled_experts = hooks.get_moe_experts();
+    const auto& models_to_compile = compiled_experts._models_to_compile;
+    OPENVINO_ASSERT(!models_to_compile.empty(), "Fatal: MoEExperts has no models to compile!");
+    hooks.set_model(models_to_compile.begin()->second);
+
+    attach_runtime_behavior(compiled_pipeline, compiled_context, BehaviorRole::EXPERTS, true);
+    compiled_pipeline.compile_executor = [hooks](ov::npuw::v1::subgraphs::CompileContext& compile_ctx) {
+        compile_expert_models(hooks, compile_ctx);
+    };
+    compiled_context.erase<CompileHooks>();
+}
+
+void partition_downstream(ov::npuw::Function& function,
+                          ov::npuw::v1::subgraphs::Context& ctx,
+                          const std::function<std::shared_ptr<ov::Model>()>& get_router_model) {
+    auto router_model = get_router_model();
+    if (!router_model) {
+        return;
+    }
+    auto downstream = ov::npuw::function::create_moe_downstream(function._model, router_model);
+    if (downstream.has_value()) {
+        ctx.put<ov::npuw::function::MoEDownstream>(std::move(downstream.value()));
+    }
+}
+
+void compile_downstream_model(const ov::npuw::v1::subgraphs::CompileExecutor& previous_compile_executor,
+                              const CompileHooks& hooks,
+                              ov::npuw::v1::subgraphs::CompileContext& compile_ctx) {
+    if (previous_compile_executor) {
+        previous_compile_executor(compile_ctx);
+    } else {
+        compile_ctx.compiled_model = compile_ctx.compile_model(compile_ctx.model, "", compile_ctx.devices);
+    }
+    auto& runtime_downstream = hooks.get_moe_downstream();
+    OPENVINO_ASSERT(compile_ctx.compiled_model, "Expected compiled model before wrapping MoE downstream");
+    runtime_downstream.set_compiled_model(std::move(compile_ctx.compiled_model));
+    compile_ctx.compiled_model = runtime_downstream._compiled_model;
+}
+
+void compile_downstream(ov::npuw::v1::subgraphs::CompiledPipeline& compiled_pipeline,
+                        ov::npuw::v1::subgraphs::Context& compiled_context) {
+    auto* downstream = compiled_context.get_if<ov::npuw::function::MoEDownstream>();
+    if (downstream == nullptr) {
+        return;
+    }
+    auto& hooks = compiled_context.get<CompileHooks>();
+    hooks.set_moe_downstream(*downstream);
+    auto& compiled_downstream = hooks.get_moe_downstream();
+    hooks.set_model(compiled_downstream._model_to_compile);
+
+    attach_runtime_behavior(compiled_pipeline, compiled_context, BehaviorRole::DOWNSTREAM, true);
+    const auto previous_compile_executor = compiled_pipeline.compile_executor;
+    compiled_pipeline.compile_executor =
+        [previous_compile_executor, hooks](ov::npuw::v1::subgraphs::CompileContext& compile_ctx) {
+            compile_downstream_model(previous_compile_executor, hooks, compile_ctx);
+        };
+    compiled_context.erase<CompileHooks>();
+}
+
+}  // namespace
+
+std::vector<ov::npuw::v1::subgraphs::ScopedPatternRegistration> register_patterns(
+    ov::npuw::v1::subgraphs::PatternRegistry& registry,
+    const std::function<std::shared_ptr<ov::Model>()>& get_router_model,
+    const std::size_t moe_chunk_size) {
+    std::vector<ov::npuw::v1::subgraphs::ScopedPatternRegistration> registrations;
+    registrations.reserve(3);
+
+    registrations.emplace_back(registry.on<ov::npuw::patterns::moe::GPTOSSRouter>().scoped());
+
+    registrations.emplace_back(registry.on<ov::npuw::patterns::moe::GPTOSSExpert>()
+                                   .at_partition([get_router_model, moe_chunk_size](ov::npuw::Function& function,
+                                                                                    ov::npuw::v1::subgraphs::Context& ctx) {
+                                       partition_expert(function, ctx, get_router_model, moe_chunk_size);
+                                   })
+                                   .at_compile([](ov::npuw::v1::subgraphs::CompiledPipeline& compiled_pipeline,
+                                                  ov::npuw::v1::subgraphs::Context& compiled_context) {
+                                       compile_expert(compiled_pipeline, compiled_context);
+                                   })
+                                   .scoped());
+
+    ov::npuw::v1::subgraphs::PatternRegistration downstream_registration;
+    downstream_registration.partition_stage = [get_router_model](ov::npuw::Function& function,
+                                                                 ov::npuw::v1::subgraphs::Context& ctx) {
+        partition_downstream(function, ctx, get_router_model);
+    };
+    downstream_registration.compile_stage = [](ov::npuw::v1::subgraphs::CompiledPipeline& compiled_pipeline,
+                                               ov::npuw::v1::subgraphs::Context& compiled_context) {
+        compile_downstream(compiled_pipeline, compiled_context);
+    };
+    registrations.emplace_back(registry.add(std::move(downstream_registration)));
+
+    return registrations;
+}
 
 MoEExecutor::MoEExecutor(ISubrequestAccessor& accessor, AllocatorFn allocator)
     : m_accessor(accessor),

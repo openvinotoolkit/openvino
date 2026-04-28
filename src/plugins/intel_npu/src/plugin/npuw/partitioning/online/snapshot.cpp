@@ -728,6 +728,9 @@ void Snapshot::earlyRegroup() {
                     m_ctx.subgraph_patterns->register_matcher(rewr, shared_from_this(), isolate.pattern, isolate.tag) ||
                     handle_patterns;
             }
+            if (!handle_patterns) {
+                // Keep the legacy built-in matcher list as a fallback so existing ISOLATE pattern names
+                // continue to work unchanged when they are not handled by the injected pattern registry.
 #define HNDL(p)                                                                            \
     if (isolate.pattern == #p) {                                                           \
         rewr.add_matcher<ov::npuw::patterns::compute::p>(shared_from_this(), isolate.tag); \
@@ -769,6 +772,7 @@ void Snapshot::earlyRegroup() {
 #undef HNDL_ATTN
 #undef HNDL_FAKE
 #undef HNDL
+            }
         }
         }
     }

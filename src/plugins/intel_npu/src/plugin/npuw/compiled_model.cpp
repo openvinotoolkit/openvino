@@ -12,6 +12,7 @@
 #include "intel_npu/npu_private_properties.hpp"
 #include "just_sync_infer_request.hpp"
 #include "logging.hpp"
+#include "moe/moe_executor.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
@@ -471,24 +472,6 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                         compiled::HostFlashAttention(fcn_template._host_flash_attention.value());
                 }
 
-                if (fcn_template._moe_experts) {
-                    m_compiled_submodels[id].moe_experts = compiled::MoEExperts(fcn_template._moe_experts.value());
-
-                    // Point model to first chunk size model (actual compilation handled by compile_for_success)
-                    const auto& models_to_compile = m_compiled_submodels[id].moe_experts.value()._models_to_compile;
-                    NPUW_ASSERT(!models_to_compile.empty() && "Fatal: MoEExperts has no models to compile!");
-                    m_compiled_submodels[id].model = models_to_compile.begin()->second;
-                }
-
-                if (fcn_template._moe_experts_downstream) {
-                    m_compiled_submodels[id].moe_experts_downstream =
-                        compiled::MoEDownstream(fcn_template._moe_experts_downstream.value());
-
-                    // Set the model to compile from MoEDownstream
-                    m_compiled_submodels[id].model =
-                        m_compiled_submodels[id].moe_experts_downstream.value()._model_to_compile;
-                }
-
                 LOG_INFO("Subgraph[" << id << "] is a function body for " << subgraph._funcall);
             } else {
                 // ...and refer to it in other calls
@@ -500,6 +483,27 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             m_compiled_submodels[id].pipeline.registration = fcn_template._pipeline.registration;
             m_compiled_submodels[id].pipeline.context = fcn_template._pipeline.context;
             if (compiled_fcn_iter == compiledFunctions.end()) {
+                auto& pipeline_context = m_compiled_submodels[id].pipeline.context;
+                pipeline_context.put<ov::npuw::moe::CompileHooks>({
+                    [&desc = m_compiled_submodels[id]](std::shared_ptr<ov::Model> model_to_compile) {
+                        desc.model = std::move(model_to_compile);
+                    },
+                    [&desc = m_compiled_submodels[id]](const ov::npuw::function::MoEExperts& experts) {
+                        desc.moe_experts = compiled::MoEExperts(experts);
+                    },
+                    [&desc = m_compiled_submodels[id]]() -> compiled::MoEExperts& {
+                        OPENVINO_ASSERT(desc.moe_experts.has_value(), "Expected compiled MoE experts in compile hooks");
+                        return desc.moe_experts.value();
+                    },
+                    [&desc = m_compiled_submodels[id]](const ov::npuw::function::MoEDownstream& downstream) {
+                        desc.moe_experts_downstream = compiled::MoEDownstream(downstream);
+                    },
+                    [&desc = m_compiled_submodels[id]]() -> compiled::MoEDownstream& {
+                        OPENVINO_ASSERT(desc.moe_experts_downstream.has_value(),
+                                        "Expected compiled MoE downstream in compile hooks");
+                        return desc.moe_experts_downstream.value();
+                    },
+                });
                 if (fcn_template._pipeline.compile_stage) {
                     fcn_template._pipeline.compile_stage(m_compiled_submodels[id].pipeline,
                                                          m_compiled_submodels[id].pipeline.context);
@@ -1834,34 +1838,11 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
         return main_cm;
     };
 
-    if (auto& moe_experts_opt = desc.moe_experts; moe_experts_opt.has_value()) {
-        LOG_INFO("Compiling MoE expert models for Subgraph[" << id << "]...");
-        LOG_BLOCK();
-
-        auto& moe_experts = moe_experts_opt.value();
-        LOG_INFO("Total MoE models to compile: " << moe_experts._models_to_compile.size());
-
-        for (const auto& entry : moe_experts._models_to_compile) {
-            LOG_INFO("Compiling MoE expert model for chunk_size=" << entry.first);
-            moe_experts.set_compiled_model(
-                entry.first,
-                make_wrapped(entry.second, "/moe_chunk_" + std::to_string(entry.first), devices));
-            LOG_INFO("Successfully compiled MoE expert model for chunk_size=" << entry.first);
-        }
-
-        const auto& compiled_models = moe_experts._compiled_models;
-        OPENVINO_ASSERT(!compiled_models.empty(), "Expected at least one compiled MoE expert model");
-        desc.compiled_model = compiled_models.begin()->second;
-        LOG_INFO("MoE expert compilation complete for Subgraph[" << id << "]");
+    if (desc.pipeline.compile_executor) {
+        ov::npuw::v1::subgraphs::CompileContext compile_context{desc.model, desc.compiled_model, devices, make_wrapped};
+        desc.pipeline.compile_executor(compile_context);
     } else {
         desc.compiled_model = make_wrapped(desc.model, "", main_candidates);
-    }
-
-    if (auto& moe_downstream_opt = desc.moe_experts_downstream; moe_downstream_opt.has_value()) {
-        LOG_INFO("Wrapping compiled model into MoE downstream for Subgraph[" << id << "]...");
-        OPENVINO_ASSERT(desc.compiled_model, "Expected compiled model before wrapping MoE downstream");
-        moe_downstream_opt->set_compiled_model(std::move(desc.compiled_model));
-        desc.compiled_model = moe_downstream_opt->_compiled_model;
     }
 
     if (desc.pyramid_attention.has_value()) {
