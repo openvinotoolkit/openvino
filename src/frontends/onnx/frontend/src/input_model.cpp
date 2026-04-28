@@ -689,7 +689,7 @@ void InputModel::InputModelONNXImpl::load_model() {
             tensor_place->set_input_index(tensor_decoder->get_input_idx());
             tensor_place->set_output_index(output_idx);
 
-            const bool has_data = tensor_place->get_data() != nullptr;
+            const bool has_data = tensor_place->get_data() != nullptr || tensor_place->get_data_location() != nullptr;
             // Skip constants that are not graph outputs — they don't contribute to the model graph.
             if (has_data && output_idx < 0)
                 continue;

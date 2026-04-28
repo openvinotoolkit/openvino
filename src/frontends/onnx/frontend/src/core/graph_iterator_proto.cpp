@@ -141,6 +141,14 @@ void collect_subgraph_external_refs(const GraphProto& subgraph, std::unordered_s
             }
         }
     }
+    // Subgraph outputs may directly reference outer-scope tensors when the body
+    // has no node producing them (e.g., an If branch returning a parent value).
+    for (const auto& output : subgraph.output()) {
+        const auto& name = output.name();
+        if (!name.empty() && subgraph_defined.count(name) == 0) {
+            deps.insert(name);
+        }
+    }
 }
 
 /// \brief Collect all dependencies for a node (direct inputs + subgraph external references).

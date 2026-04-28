@@ -215,7 +215,11 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                 // lookup_tensor resolved the name from a parent scope and may have
                 // created a new Parameter — the value is now in m_tensor_values.
             } else {
-                continue;
+                FRONT_END_GENERAL_CHECK(false,
+                                        "Output tensor \"",
+                                        name,
+                                        "\" was declared as a graph output but is not produced by any operation, "
+                                        "is not an initializer, and cannot be resolved from a parent scope.");
             }
         }
         const auto& output_value = m_tensor_values[name];
