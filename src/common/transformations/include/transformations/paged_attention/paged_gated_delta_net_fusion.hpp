@@ -60,8 +60,6 @@ public:
                              std::unordered_set<std::string>& var_ids_to_remove);
 
 private:
-    ov::pass::paged_attention::PaParams& m_params;
-    std::unordered_set<std::string>& m_var_ids_to_remove;
     size_t m_layer_index = 0;
 };
 

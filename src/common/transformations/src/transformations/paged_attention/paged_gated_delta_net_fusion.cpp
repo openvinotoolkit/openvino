@@ -80,9 +80,7 @@ ov::Output<ov::Node> flatten_blh_to_th(const ov::Output<ov::Node>& input, ov::No
 namespace ov::pass {
 
 PagedGatedDeltaNetFusion::PagedGatedDeltaNetFusion(ov::pass::paged_attention::PaParams& pa_params,
-                                                   std::unordered_set<std::string>& var_ids_to_remove)
-    : m_params(pa_params),
-      m_var_ids_to_remove(var_ids_to_remove) {
+                                                   std::unordered_set<std::string>& var_ids_to_remove) {
     auto query = any_input();
     auto key = any_input();
     auto value = any_input();
@@ -95,7 +93,7 @@ PagedGatedDeltaNetFusion::PagedGatedDeltaNetFusion(ov::pass::paged_attention::Pa
     auto gathered_state = ov::pass::pattern::optional<ov::op::v8::Gather>({read_value, any_input(), any_input()});
     auto gdn = wrap_type<ov::op::internal::GatedDeltaNet>({query, key, value, gathered_state, gate, beta});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS, &pa_params, &var_ids_to_remove](ov::pass::pattern::Matcher& m) {
         if (transformation_callback(m.get_match_root())) {
             return false;
         }
@@ -107,23 +105,23 @@ PagedGatedDeltaNetFusion::PagedGatedDeltaNetFusion(ov::pass::paged_attention::Pa
         }
 
         // Add la.* params lazily on first match — PaParams::add is idempotent.
-        m_params.add("subsequence_begins", ov::element::i32, ov::PartialShape{-1});
-        m_params.add("la.block_indices", ov::element::i32, ov::PartialShape{-1});
-        m_params.add("la.block_indices_begins", ov::element::i32, ov::PartialShape{-1});
-        m_params.add("la.past_lens", ov::element::i32, ov::PartialShape{-1});
-        m_params.add("la.cache_interval", ov::element::i32, ov::PartialShape{-1});
+        pa_params.add("subsequence_begins", ov::element::i32, ov::PartialShape{-1});
+        pa_params.add("la.block_indices", ov::element::i32, ov::PartialShape{-1});
+        pa_params.add("la.block_indices_begins", ov::element::i32, ov::PartialShape{-1});
+        pa_params.add("la.past_lens", ov::element::i32, ov::PartialShape{-1});
+        pa_params.add("la.cache_interval", ov::element::i32, ov::PartialShape{-1});
 
         const auto state_consumers = gdn_node->output(1).get_target_inputs();
         const auto& state_out = pm.at(read_value);
 
-        const auto state_table_param = m_params.add(make_gated_delta_state_table_name(m_layer_index++),
+        const auto state_table_param = pa_params.add(make_gated_delta_state_table_name(m_layer_index++),
                                                     state_out.get_element_type(),
                                                     make_gated_delta_state_table_shape(state_out.get_partial_shape()));
         enable_keep_const_precision(state_table_param);
 
         const auto rv = ov::as_type_ptr<ov::op::util::ReadValueBase>(pm.at(read_value).get_node_shared_ptr());
         OPENVINO_ASSERT(rv, "Matched cache node is expected to be ReadValue");
-        m_var_ids_to_remove.insert(rv->get_variable_id());
+        var_ids_to_remove.insert(rv->get_variable_id());
 
         ov::NodeVector reshape_nodes;
         reshape_nodes.reserve(24);
@@ -141,11 +139,11 @@ PagedGatedDeltaNetFusion::PagedGatedDeltaNetFusion(ov::pass::paged_attention::Pa
                                                                    state_table_param->output(0),
                                                                    gate_flat,
                                                                    beta_flat,
-                                                                   m_params["subsequence_begins"],
-                                                                   m_params["la.block_indices"],
-                                                                   m_params["la.block_indices_begins"],
-                                                                   m_params["la.past_lens"],
-                                                                   m_params["la.cache_interval"],
+                                                                   pa_params["subsequence_begins"],
+                                                                   pa_params["la.block_indices"],
+                                                                   pa_params["la.block_indices_begins"],
+                                                                   pa_params["la.past_lens"],
+                                                                   pa_params["la.cache_interval"],
                                                                    gdn_node->get_fuse_qk_l2norm(),
                                                                    gdn_node->get_q_l2_norm_eps(),
                                                                    gdn_node->get_k_l2_norm_eps());
