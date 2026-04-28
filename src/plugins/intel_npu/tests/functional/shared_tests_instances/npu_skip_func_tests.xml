@@ -877,7 +877,7 @@ Example:
             <device>3720</device>
         </enable_rules>
         <filters>
-            <filter>.*ZeroGraphTest.SetAlignedBlob.*zeGraphNpuExtVersion=(1.13|1.14|1.15|1.16|1.17).*</filter>
+            <filter>.*ZeroGraphTest.SetAlignedBlob.*</filter>
         </filters>
     </skip_config>
 
@@ -902,6 +902,7 @@ Example:
         </filters>
     </skip_config>
 
+    <!-- C#185847 -->
     <skip_config>
         <message>Write only (WO) properties will return empty ov::Any objects</message>
         <enable_rules>

@@ -400,8 +400,13 @@ GraphDescriptor ZeGraphExtWrappers::getGraphDescriptor(SerializedIR serializedIR
         flags |= ZE_GRAPH_FLAG_DISABLE_CACHING;
     }
     if (secureCompile) {
-        _logger.debug("getGraphDescriptor - set ZE_GRAPH_FLAG_SECURE_COMPILE");
-        flags |= ZE_GRAPH_FLAG_SECURE_COMPILE;
+        if (_graphExtVersion < ZE_MAKE_VERSION(1, 17)) {
+            _logger.warning("Secure compilation was requested, but the current driver version does not support it. "
+                            "Ignoring the flag.");
+        } else {
+            _logger.debug("getGraphDescriptor - set ZE_GRAPH_FLAG_SECURE_COMPILE");
+            flags |= ZE_GRAPH_FLAG_SECURE_COMPILE;
+        }
     }
 
     ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_2,

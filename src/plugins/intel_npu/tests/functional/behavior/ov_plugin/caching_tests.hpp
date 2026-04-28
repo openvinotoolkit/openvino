@@ -49,6 +49,11 @@ TEST_P(OVCompileModelLoadFromFileTestBaseNPU, BlobWithOVHeaderAligmentCanBeImpor
 TEST_P(OVCompileModelLoadFromFileTestBaseNPU, EncryptionCallbacksSetSecureCompileFlag) {
     core->set_property(ov::cache_dir(m_cacheFolderName));
 
+    if (::intel_npu::ZeroInitStructsHolder::getInstance()->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 17)) {
+        GTEST_SKIP()
+            << "Secure compilation when blob encryption is requested requires ze_graph_ext version 1.17 or higher.";
+    }
+
     if (auto it = configuration.find(ov::intel_npu::compiler_type.name()); it != configuration.end()) {
         if (it->second.as<ov::intel_npu::CompilerType>() == ov::intel_npu::CompilerType::PLUGIN) {
             GTEST_SKIP() << "Compiler in Plugin doesn't need yet secure compilation when blob encryption is requested.";

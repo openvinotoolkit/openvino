@@ -182,10 +182,15 @@ TEST_P(OVCompiledGraphImportExportTestNPU, SameEncryptedBlobViaExportAndManualFu
     std::stringstream unencrypted_blob_stream, encrypted_blob_stream;
 
     auto model = ov::test::utils::make_conv_pool_relu();
-    configuration.insert(ov::intel_npu::export_raw_blob(true));  // metadata is not encrypted, avoid exporting it
+    // metadata is not encrypted, exclude it from blob
+    configuration.insert(ov::intel_npu::import_raw_blob(true));
+    configuration.insert(ov::intel_npu::export_raw_blob(true));
+
+    configuration.insert(ov::intel_npu::defer_weights_load(true));
+
     core.compile_model(model, target_device, configuration).export_model(unencrypted_blob_stream);
     configuration.insert(ov::cache_encryption_callbacks(ov::EncryptionCallbacks{ov::util::codec_xor, nullptr}));
-    core.compile_model(model, target_device, configuration).export_model(encrypted_blob_stream);
+    core.import_model(unencrypted_blob_stream, target_device, configuration).export_model(encrypted_blob_stream);
 
     std::string manual_encrypted_blob_str = ov::util::codec_xor(unencrypted_blob_stream.str());
     std::string encrypted_blob_str = encrypted_blob_stream.str();
