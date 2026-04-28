@@ -14,6 +14,7 @@ on:
       - ready_for_review
     paths:
       - 'src/plugins/intel_gpu/**'
+      - '.github/workflows/windows_l0_build.yml'
 
 concurrency:
   # github.ref is not unique in post-commit
