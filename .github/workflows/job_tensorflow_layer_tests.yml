@@ -121,7 +121,7 @@ jobs:
       - name: Install Python Layer tests dependencies
         run: |
           # tensorflow test requirements
-          ${{ env.PIP_INSTALL_COMMAND }} -r ${{ env.INSTALL_TEST_DIR }}/requirements_tensorflow
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/requirements_tensorflow
 
       - name: TensorFlow 1 Layer Tests - TF FE
         if: ${{ fromJSON(inputs.affected-components).TF_FE.test }}
