@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "openvino/core/op_extension.hpp"
+#include "openvino/util/common_util.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/visibility.hpp"
 #include "openvino/op/loop.hpp"
@@ -29,8 +30,10 @@ void str_to_container(const std::string& value, T& res) {
         if (field.empty())
             OPENVINO_THROW("Cannot get vector of parameters! \"", value, "\" is incorrect");
         typename T::value_type val;
-        if constexpr (std::is_floating_point_v<typename T::value_type>) {
-            val = static_cast<typename T::value_type>(std::stod(field));
+        if constexpr (std::is_arithmetic_v<typename T::value_type>) {
+            auto parsed = ov::util::view_to_number<typename T::value_type>(ov::util::trim(field));
+            OPENVINO_ASSERT(parsed.has_value(), "Cannot parse '", field, "' in \"", value, "\"");
+            val = *parsed;
         } else {
             std::stringstream fs(field);
             fs >> val;
