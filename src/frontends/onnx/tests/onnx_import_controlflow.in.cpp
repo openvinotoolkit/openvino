@@ -776,6 +776,69 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_if_negative_missing_branches) {
     }
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_if_with_initializer_as_output) {
+    /*
+       if (condition) {
+         return identity(x)
+       } else {
+         return initializer constant [0, 0, 0]
+       }
+       Tests that an If branch whose output is directly an initializer
+       (no compute nodes, no graph inputs) converts correctly.
+    */
+    const auto model = convert_model("controlflow/if_with_initializer_as_output.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // condition == true => return x
+    test_case.add_input<bool>({true});
+    test_case.add_input<float>({1.0f, 2.0f, 3.0f});
+    test_case.add_expected_output<float>({1.0f, 2.0f, 3.0f});
+    test_case.run();
+
+    // condition == false => return initializer [0, 0, 0]
+    test_case.add_input<bool>({false});
+    test_case.add_input<float>({1.0f, 2.0f, 3.0f});
+    test_case.add_expected_output<float>({0.0f, 0.0f, 0.0f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_loop_with_initializer_as_output) {
+    /*
+       Loop body declares an initializer ("step") as one of its graph outputs
+       in addition to the canonical [cond_out, loop_carried_out].
+       The body output count therefore exceeds 1 + node.get_outputs_size(); the
+       trailing Constant pass-through must be trimmed so num_scan_outputs is 0
+       and the Loop converts correctly.
+    */
+    const auto model = convert_model("controlflow/loop_with_initializer_as_output.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int64_t>({3});   // trip_count
+    test_case.add_input<bool>({true});   // cond_in
+    test_case.add_input<float>({0.0f});  // x_init
+    test_case.add_expected_output<float>(Shape{1}, {3.0f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_scan_with_initializer_as_output) {
+    /*
+       Scan body declares an initializer ("leak") as a trailing graph output.
+       The body output count would otherwise be miscounted as an extra scan
+       output; the trailing Constant pass-through must be trimmed so the
+       Scan converts with num_scan_outputs equal to node.get_outputs_size() -
+       num_initial_values.
+    */
+    const auto model = convert_model("controlflow/scan_with_initializer_as_output.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1}, {0.0f});                           // init_state
+    test_case.add_input<float>(Shape{3, 1}, {1.0f, 2.0f, 3.0f});            // seq
+    test_case.add_expected_output<float>(Shape{1}, {6.0f});                 // final_state = 0+1+2+3
+    test_case.add_expected_output<float>(Shape{3, 1}, {1.0f, 3.0f, 6.0f});  // scan outputs
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_if_negative_mismatch_between_branches_output) {
     try {
         const auto model = convert_model("controlflow/if_negative_mismatch_between_branches_output.onnx");
