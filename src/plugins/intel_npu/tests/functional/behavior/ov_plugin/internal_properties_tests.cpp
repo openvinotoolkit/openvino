@@ -1,5 +1,4 @@
-//
-// Copyright (C) Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +17,7 @@ std::string OVPropertiesTestsNPU::getTestCaseName(const testing::TestParamInfo<P
     std::ostringstream result;
     result << "target_device=" << target_device << "_";
     if (!properties.empty()) {
-        result << "properties=" << util::join(util::split(util::to_string(properties), ' '), "_");
+        result << "properties=" << util::join(util::split(util::to_string(properties), " "), "_");
     }
     return result.str();
 }
@@ -46,7 +45,7 @@ std::string OVPropertiesTestsWithCompileModelPropsNPU::getTestCaseName(
     std::ostringstream result;
     result << "target_device=" << target_device << "_";
     if (!properties.empty()) {
-        result << "properties=" << util::join(util::split(util::to_string(properties), ' '), "_");
+        result << "properties=" << util::join(util::split(util::to_string(properties), " "), "_");
     }
     return result.str();
 }
