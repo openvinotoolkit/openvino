@@ -532,12 +532,6 @@ void Metadata<METADATA_VERSION_2_5>::write_human_readable(std::ostream& stream) 
     }
 }
 
-std::string MetadataBase::generate_compatibility_string(MetadataBase& metadata) {
-    std::ostringstream oss;
-    metadata.write_human_readable(oss);
-    return oss.str();
-}
-
 std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSize) {
     uint16_t major = MetadataBase::get_major(version), minor = MetadataBase::get_minor(version);
     if (major != CURRENT_METADATA_MAJOR_VERSION || minor > CURRENT_METADATA_MINOR_VERSION) {

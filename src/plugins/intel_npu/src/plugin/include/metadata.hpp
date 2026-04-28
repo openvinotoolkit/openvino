@@ -53,13 +53,6 @@ public:
 
     virtual void write_human_readable(std::ostream& stream) = 0;
 
-    /**
-     * @brief Generates a human-readable compatibility string containing some metadata fields
-     * @details Produces the same format as write_human_readable but intentionally omits layout
-     * fields. Init sizes are always emitted: "inits=0" when blob was not compiled with WS, or "inits=[v1|v2|...]"
-     */
-    static std::string generate_compatibility_string(MetadataBase& metadata);
-
     virtual uint64_t get_blob_size() const;
 
     /**
