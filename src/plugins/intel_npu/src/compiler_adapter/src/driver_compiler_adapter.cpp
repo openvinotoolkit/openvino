@@ -92,18 +92,13 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     auto networkMeta = _zeGraphExt->getNetworkMeta(graphDesc);
     networkMeta.name = model->get_friendly_name();
 
-    std::optional<std::string> compatibilityDescriptor;
-    if (_zeGraphExt->isCompatibilityDescriptorSupported()) {
-        compatibilityDescriptor = _zeGraphExt->getCompatibilityDescriptor(graphDesc._handle);
-    }
-
     return std::make_shared<Graph>(_zeGraphExt,
                                    _zeroInitStruct,
                                    graphDesc,
                                    std::move(networkMeta),
                                    /* blob = */ std::nullopt,
                                    updatedConfig,
-                                   compatibilityDescriptor);
+                                   std::nullopt);
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Model>&& model,

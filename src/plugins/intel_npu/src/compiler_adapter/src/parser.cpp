@@ -64,19 +64,16 @@ std::shared_ptr<IGraph> Parser::parse(const ov::Tensor& mainBlob,
     const bool blobIsPersistent = config.has<COMPILED_BLOB>()       ? true
                                   : config.has<LOADED_FROM_CACHE>() ? config.get<LOADED_FROM_CACHE>()
                                                                     : false;
-
+    // Compatibility descriptor cannot be retrieved neither from the tensor nor from the
+    // level zero API for a precompiled model. Passing nullopt to the graph constructor.
     if (!initBlobs.has_value()) {
-        std::optional<std::string> compatibilityDescriptor;
-        if (_zeGraphExt->isCompatibilityDescriptorSupported()) {
-            compatibilityDescriptor = _zeGraphExt->getCompatibilityDescriptor(mainGraphDesc._handle);
-        }
         return std::make_shared<Graph>(_zeGraphExt,
                                        _zeroInitStruct,
                                        mainGraphDesc,
                                        std::move(mainNetworkMetadata),
                                        mainBlob,
                                        config,
-                                       compatibilityDescriptor,
+                                       std::nullopt,
                                        blobIsPersistent);
     }
 

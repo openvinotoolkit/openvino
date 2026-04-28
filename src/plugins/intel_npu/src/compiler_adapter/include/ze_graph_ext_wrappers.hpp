@@ -72,12 +72,6 @@ public:
      */
     bool isPluginModelHashSupported() const;
 
-    bool isCompatibilityDescriptorSupported() const;
-
-    std::string getCompatibilityDescriptor(const ze_graph_handle_t handle) const;
-
-    bool validateCompatibilityDescriptor(const std::string& descriptor) const;
-
     void getGraphBinary(const GraphDescriptor& graphDescriptor,
                         std::vector<uint8_t>& blob,
                         const uint8_t*& blobPtr,
