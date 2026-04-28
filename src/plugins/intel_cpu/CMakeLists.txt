@@ -215,6 +215,12 @@ if (NOT ENABLE_SNIPPETS_LIBXSMM_TPP)
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/tpp/*)
 endif ()
 
+if(NOT ENABLE_EXPERIMENTAL_OPSET)
+    list(APPEND EXCLUDE_PATHS
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/scaled_shifted_clamp_experimental.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/scaled_shifted_clamp_experimental.h)
+endif()
+
 file(GLOB_RECURSE FILES_TO_REMOVE ${EXCLUDE_PATHS})
 list(REMOVE_ITEM SOURCES ${FILES_TO_REMOVE})
 list(REMOVE_ITEM HEADERS ${FILES_TO_REMOVE})

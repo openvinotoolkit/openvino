@@ -127,6 +127,9 @@
 #include "transformations/opset_conversions/convert_opset2_to_opset1.hpp"
 #include "transformations/paged_attention/convert_pagedattn_inputs.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
+#ifdef ENABLE_EXPERIMENTAL_OPSET
+#    include "transformations/scaled_shifted_clamp_experimental_fusion.hpp"
+#endif
 #include "transformations/smart_reshape/matmul_sr.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 #include "utils/general_utils.h"
@@ -584,6 +587,9 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
     CPU_REGISTER_PASS_COMMON(manager, SDPASubgraphFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::GatedDeltaNetFusion);
+#ifdef ENABLE_EXPERIMENTAL_OPSET
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::experimental::ScaledShiftedClampFusion);
+#endif
     ov::pass::ConvertPagedAttnInputs::KVCacheConfig cacheConfig;
     cacheConfig.keyCachePrecision = config.keyCachePrecision;
     cacheConfig.valueCachePrecision = config.valueCachePrecision;

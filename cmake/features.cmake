@@ -8,6 +8,8 @@
 
 ov_option (ENABLE_PROXY "Proxy plugin for OpenVINO Runtime" ON)
 
+ov_option (ENABLE_EXPERIMENTAL_OPSET "Include experimental ops into binaries" OFF)
+
 if(WIN32 AND AARCH64 AND NOT CMAKE_CL_64)
     set(ENABLE_INTEL_CPU_DEFAULT OFF)
 else()
@@ -236,6 +238,10 @@ endif()
 
 if (ENABLE_SNIPPETS_DEBUG_CAPS)
     add_definitions(-DSNIPPETS_DEBUG_CAPS)
+endif()
+
+if(ENABLE_EXPERIMENTAL_OPSET)
+    add_definitions(-DENABLE_EXPERIMENTAL_OPSET)
 endif()
 
 ov_print_enabled_features()

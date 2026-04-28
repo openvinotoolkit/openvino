@@ -64,6 +64,11 @@ add_subdirectory(src/graph)
 
 file(GLOB_RECURSE PLUGIN_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_gpu/plugin/*.hpp)
 
+if(NOT ENABLE_EXPERIMENTAL_OPSET)
+    list(REMOVE_ITEM PLUGIN_SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin/ops/scaled_shifted_clamp_experimental.cpp)
+endif()
+
 ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "GPU"
               SOURCES ${PLUGIN_SOURCES}

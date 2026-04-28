@@ -49,6 +49,9 @@
 #include "intel_gpu/primitives/reshape.hpp"
 #include "intel_gpu/primitives/reverse_sequence.hpp"
 #include "intel_gpu/primitives/rms.hpp"
+#ifdef ENABLE_EXPERIMENTAL_OPSET
+#    include "intel_gpu/primitives/scaled_shifted_clamp_experimental.hpp"
+#endif
 #include "intel_gpu/primitives/roi_align.hpp"
 #include "intel_gpu/primitives/roi_pooling.hpp"
 #include "intel_gpu/primitives/roll.hpp"
@@ -126,6 +129,9 @@ REGISTER_OCL(reshape);
 REGISTER_OCL(reverse);
 REGISTER_OCL(reverse_sequence);
 REGISTER_OCL(rms);
+#ifdef ENABLE_EXPERIMENTAL_OPSET
+REGISTER_OCL(scaled_shifted_clamp_experimental);
+#endif
 REGISTER_OCL(roi_align);
 REGISTER_OCL(roi_pooling);
 REGISTER_OCL(roll);

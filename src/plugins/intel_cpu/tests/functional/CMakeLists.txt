@@ -96,6 +96,11 @@ if(NOT X86_64)
          ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/low_precision_transformations/x64)
 endif()
 
+if(NOT ENABLE_EXPERIMENTAL_OPSET)
+    list(APPEND EXCLUDED_SOURCE_PATHS
+         ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/scaled_shifted_clamp_experimental.cpp)
+endif()
+
 ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}

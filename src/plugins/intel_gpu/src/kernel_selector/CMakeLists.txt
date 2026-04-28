@@ -16,6 +16,16 @@ file(GLOB_RECURSE KERNELS
     "${CMAKE_CURRENT_SOURCE_DIR}/cl_kernels/*.cl"
   )
 
+if(NOT ENABLE_EXPERIMENTAL_OPSET)
+    list(REMOVE_ITEM LIBRARY_SRC
+        ${CMAKE_CURRENT_SOURCE_DIR}/kernels/scaled_shifted_clamp_experimental/scaled_shifted_clamp_experimental_kernel_ref.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/kernels/scaled_shifted_clamp_experimental/scaled_shifted_clamp_experimental_kernel_ref.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/kernels/scaled_shifted_clamp_experimental/scaled_shifted_clamp_experimental_kernel_selector.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/kernels/scaled_shifted_clamp_experimental/scaled_shifted_clamp_experimental_kernel_selector.h)
+    list(REMOVE_ITEM KERNELS
+        ${CMAKE_CURRENT_SOURCE_DIR}/cl_kernels/scaled_shifted_clamp_experimental_ref.cl)
+endif()
+
 # Path which points to root directory where code generated elements are created
 # (specific to build configuration).
 set(CODEGEN_DIR "${CMAKE_CURRENT_BINARY_DIR}/codegen")

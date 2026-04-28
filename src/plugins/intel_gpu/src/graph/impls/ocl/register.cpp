@@ -48,6 +48,9 @@ void register_implementations() {
     REGISTER_OCL(prior_box);
     REGISTER_OCL(quantize);
     REGISTER_OCL(random_uniform);
+#ifdef ENABLE_EXPERIMENTAL_OPSET
+    REGISTER_OCL(scaled_shifted_clamp_experimental);
+#endif
     REGISTER_OCL(range);
     REGISTER_OCL(reduce);
     REGISTER_OCL(region_yolo);
