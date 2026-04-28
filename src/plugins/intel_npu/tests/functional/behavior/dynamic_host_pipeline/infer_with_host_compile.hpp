@@ -115,12 +115,13 @@ public:
                 break;
             }
         }
+        originalLogLevel = core->get_property("NPU", ov::log::level.name()).as<ov::log::Level>();
 
         APIBaseTest::SetUp();
     }
 
     void TearDown() {
-        core->set_property("NPU", ov::log::level(ov::log::Level::ERR));
+        core->set_property("NPU", ov::log::level(originalLogLevel));
     }
 
     static void compareInferenceResult(const std::shared_ptr<ov::Model>& model,
@@ -146,6 +147,7 @@ protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     ov::AnyMap configuration;
     bool isTargetDevice = false;
+    ov::log::Level originalLogLevel = ov::log::Level::ERR;
 };
 
 InferWithHostCompileTests::ScopedLogCapture::ScopedLogCapture()
@@ -261,7 +263,7 @@ TEST_P(InferWithHostCompileTests, CompileAndImportAndInfer) {
     OV_ASSERT_NO_THROW(compiledModel.export_model(modelStream));
 
     ov::CompiledModel importedModel;
-    OV_ASSERT_NO_THROW(importedModel = core->import_model(modelStream, target_device, configuration));
+    OV_ASSERT_NO_THROW(importedModel = core->import_model(modelStream, target_device));
 
     ov::InferRequest reqDynamic;
     try {
