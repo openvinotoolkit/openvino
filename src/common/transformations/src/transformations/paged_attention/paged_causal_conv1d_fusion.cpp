@@ -102,13 +102,12 @@ int PagedCausalConv1DFusion::m_layer_index = 0;
 
 PagedCausalConv1DFusion::PagedCausalConv1DFusion(ov::pass::paged_attention::PaParams& pa_params,
                                                  std::unordered_set<std::string>& var_ids_to_remove)
-    : m_params(pa_params),
-      m_var_ids_to_remove(var_ids_to_remove) {
-    m_params.add("subsequence_begins", ov::element::i32, ov::PartialShape{-1});
-    m_params.add("la.block_indices", ov::element::i32, ov::PartialShape{-1});
-    m_params.add("la.block_indices_begins", ov::element::i32, ov::PartialShape{-1});
-    m_params.add("la.past_lens", ov::element::i32, ov::PartialShape{-1});
-    m_params.add("la.cache_interval", ov::element::i32, ov::PartialShape{-1});
+                                                 {
+    pa_params.add("subsequence_begins", ov::element::i32, ov::PartialShape{-1});
+    pa_params.add("la.block_indices", ov::element::i32, ov::PartialShape{-1});
+    pa_params.add("la.block_indices_begins", ov::element::i32, ov::PartialShape{-1});
+    pa_params.add("la.past_lens", ov::element::i32, ov::PartialShape{-1});
+    pa_params.add("la.cache_interval", ov::element::i32, ov::PartialShape{-1});
 
     MATCHER_SCOPE(PagedCausalConv1DFusion);
 
@@ -130,17 +129,18 @@ PagedCausalConv1DFusion::PagedCausalConv1DFusion(ov::pass::paged_attention::PaPa
 
     auto slice2 = wrap_type<v8::Slice>({group_conv, any_input(), any_input(), any_input(), any_input()});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
-        if (transformation_callback(m.get_match_root())) {
-            return false;
-        }
+    ov::matcher_pass_callback callback =
+        [OV_CAPTURE_CPY_AND_THIS, &pa_params, &var_ids_to_remove](ov::pass::pattern::Matcher& m) {
+            if (transformation_callback(m.get_match_root())) {
+                return false;
+            }
 
-        const auto& pm = m.get_pattern_value_map();
+            const auto& pm = m.get_pattern_value_map();
 
-        const auto conv_input_output = pm.at(state_concat);
-        const auto conv_input_node = conv_input_output.get_node_shared_ptr();
-        const auto group_conv_node = ov::as_type_ptr<v1::GroupConvolution>(pm.at(group_conv).get_node_shared_ptr());
-        const auto weight_node = pm.at(weight_input).get_node_shared_ptr();
+            const auto conv_input_output = pm.at(state_concat);
+            const auto conv_input_node = conv_input_output.get_node_shared_ptr();
+            const auto group_conv_node = ov::as_type_ptr<v1::GroupConvolution>(pm.at(group_conv).get_node_shared_ptr());
+            const auto weight_node = pm.at(weight_input).get_node_shared_ptr();
 
         if (!group_conv_node || !weight_node) {
             return false;
@@ -159,11 +159,11 @@ PagedCausalConv1DFusion::PagedCausalConv1DFusion(ov::pass::paged_attention::PaPa
 
         const size_t layer_index = static_cast<size_t>(m_layer_index++);
         const auto conv_state_table =
-            m_params.add(make_conv_state_table_name(layer_index),
-                         cache_param->get_output_element_type(0),
-                         make_conv_state_table_shape(cache_param->get_output_partial_shape(0)));
+            pa_params.add(make_conv_state_table_name(layer_index),
+                          cache_param->get_output_element_type(0),
+                          make_conv_state_table_shape(cache_param->get_output_partial_shape(0)));
         enable_keep_const_precision(conv_state_table);
-        m_var_ids_to_remove.insert(cache_rv->get_variable_id());
+        var_ids_to_remove.insert(cache_rv->get_variable_id());
 
         const auto& weight_pshape = weight_node->get_output_partial_shape(0);
         if (weight_pshape.rank().is_dynamic() || weight_pshape.rank().get_length() != 4 || !weight_pshape.is_static()) {
@@ -274,11 +274,11 @@ PagedCausalConv1DFusion::PagedCausalConv1DFusion(ov::pass::paged_attention::PaPa
                                                                   conv_state_table,
                                                                   weight_reshape,
                                                                   bias_node,
-                                                                  m_params["subsequence_begins"],
-                                                                  m_params["la.block_indices"],
-                                                                  m_params["la.block_indices_begins"],
-                                                                  m_params["la.past_lens"],
-                                                                  m_params["la.cache_interval"]);
+                                                                  pa_params["subsequence_begins"],
+                                                                  pa_params["la.block_indices"],
+                                                                  pa_params["la.block_indices_begins"],
+                                                                  pa_params["la.past_lens"],
+                                                                  pa_params["la.cache_interval"]);
 
         paged_conv->set_friendly_name(group_conv_node->get_friendly_name() + "/PagedCausalConv1D");
 
