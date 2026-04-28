@@ -115,7 +115,8 @@ public:
         for (auto node : model->get_ops()) {
             if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(node)) {
                 if (node->inputs().size() > kAttnMaskPort &&
-                    ov::is_type<ov::op::v8::Slice>(node->input(kAttnMaskPort).get_source_output().get_node())) {
+                    (ov::is_type<ov::op::v8::Slice>(node->input(kAttnMaskPort).get_source_output().get_node()) ||
+                     ov::is_type<ov::op::v1::Select>(node->input(kAttnMaskPort).get_source_output().get_node()))) {
                     self_attn_nodes.push_back(node);
                 } else {
                     cross_attn_nodes.push_back(node);

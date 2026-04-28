@@ -19,6 +19,7 @@
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "spatial.hpp"
+#include "v1/subgraph_pipeline.hpp"
 
 namespace ov {
 namespace npuw {
@@ -120,6 +121,9 @@ protected:
     void unsafe_run_this_prep_next(std::size_t idx, bool& next_prepared_p);
 
     void run_hfa_tiled_inference(std::size_t real_idx, std::size_t idx);
+    void legacy_infer(std::size_t real_idx, std::size_t idx);
+    ov::npuw::v1::subgraphs::InferContext make_behavior_context(std::size_t real_idx, std::size_t idx);
+    ov::npuw::v1::subgraphs::ISubgraphBehavior* get_subgraph_behavior(std::size_t idx) const;
 
     // HFA helper functions
     static void hfa_extract_and_copy_tile(const ov::SoPtr<ov::ITensor>& source_tensor,
@@ -136,6 +140,7 @@ protected:
                                                int64_t tile_length);
 
     void connect_subrequests();
+    void initialize_subgraph_behaviors();
 
     // Helper function to setup pyramid attention infer requests
     void setup_pyramid_infer_requests(std::size_t real_idx, bool is_piped);
@@ -186,6 +191,10 @@ protected:
     // freeing the buffer while pyramid requests still hold raw pointers into it.
     // Each entry is {real_idx, tensor} so recreate can selectively remove by submodel.
     std::vector<std::pair<std::size_t, ov::SoPtr<ov::ITensor>>> m_pyramid_anchor_tensors;
+
+    // Foundation for the upcoming behavior-driven execution pipeline.
+    // These slots are populated now but legacy execution still owns the scheduling.
+    std::vector<ov::npuw::v1::subgraphs::ISubgraphBehavior::Ptr> m_subgraph_behaviors;
 };
 
 }  // namespace npuw
