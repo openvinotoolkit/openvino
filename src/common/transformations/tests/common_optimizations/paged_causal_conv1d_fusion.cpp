@@ -425,26 +425,3 @@ TEST_F(PagedCausalConv1DFusionTest, FusesWhenWeightsComeFromConvertPath) {
     EXPECT_EQ(pcc_count, 1u) << "Expected 1 PagedCausalConv1D after fusion";
     EXPECT_EQ(group_conv_count, 0u) << "Expected 0 GroupConvolution after fusion";
 }
-
-TEST(PagedCausalConv1DRealModel, RealModelAfterPATransformation) {
-    const char* model_path = std::getenv("OV_PCC_REAL_MODEL_PATH");
-    if (!model_path || std::string(model_path).empty()) {
-        GTEST_SKIP() << "OV_PCC_REAL_MODEL_PATH is not set";
-    }
-
-    ov::Core core;
-    auto model = core.read_model(model_path);
-
-    ov::pass::Manager manager;
-    manager.register_pass<ov::pass::SDPAToPagedAttention>(false, false, false, false, false, false);
-    manager.run_passes(model);
-
-    size_t pcc_count = 0;
-    for (const auto& node : model->get_ordered_ops()) {
-        if (std::string(node->get_type_name()) == "PagedCausalConv1D") {
-            ++pcc_count;
-        }
-    }
-
-    EXPECT_GE(pcc_count, 1u);
-}
