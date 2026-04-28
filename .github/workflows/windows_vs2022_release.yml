@@ -321,12 +321,13 @@ jobs:
           should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'
 
-      - name: Install `uv` to install Python dependencies
+      - name: Install and configure `uv` to install Python dependencies
         run: |
           python3 -m pip install uv==0.11.7
-          echo "UV_CACHE_DIR=${{ env.PIP_CACHE_PATH }}\\uv\\0.11.7" >> $env:GITHUB_ENV
           echo "UV_SYSTEM_PYTHON=1" >> $env:GITHUB_ENV
-          echo "UV_LINK_MODE=copy" >> $env:GITHUB_ENV
+          echo "UV_DEFAULT_INDEX=http://pip-proxy.pip-proxy.svc.cluster.local/simple/" >> $env:GITHUB_ENV
+          echo "UV_INSECURE_HOST=pip-proxy.pip-proxy.svc.cluster.local" >> $env:GITHUB_ENV
+          echo "UV_NO_CACHE=true" >> $env:GITHUB_ENV
 
       - name: Install OpenVINO Python wheels
         uses: ./openvino/.github/actions/install_ov_wheels
