@@ -248,26 +248,30 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
         auto_enable_4bit_kv = std::string(env) == "1";
 #endif
 
+    // Trace MatMul weight input through the decompression subgraph
+    // (Convert→Subtract→Multiply→Reshape→Convert→Constant) to check for 4-bit weights.
+    auto has_4bit_matmul_weights = [](const std::shared_ptr<Node>& op) -> bool {
+        if (!ov::is_type<ov::op::v0::MatMul>(op))
+            return false;
+        auto weight = op->get_input_node_shared_ptr(1);
+        for (int depth = 0; depth < 8 && weight->get_input_size() > 0; ++depth) {
+            if (ov::is_type<ov::op::v0::Constant>(weight))
+                break;
+            weight = weight->get_input_node_shared_ptr(0);
+        }
+        if (auto constant = ov::as_type_ptr<ov::op::v0::Constant>(weight)) {
+            auto et = constant->get_element_type();
+            return et == ov::element::i4 || et == ov::element::u4;
+        }
+        return false;
+    };
+
     bool has_4bit_weights = false;
     for (const auto& op : ops) {
         process_op(op);
 
-        // Detect 4-bit compressed weights by tracing MatMul weight input
-        // through the decompression subgraph (Convert→Subtract→Multiply→Reshape→Convert→Constant)
-        if (auto_enable_4bit_kv && !has_4bit_weights && ov::is_type<ov::op::v0::MatMul>(op)) {
-            auto weight = op->get_input_node_shared_ptr(1);
-            // Follow input 0 through the decompression chain to reach the leaf Constant
-            for (int depth = 0; depth < 8 && weight->get_input_size() > 0; ++depth) {
-                if (ov::is_type<ov::op::v0::Constant>(weight))
-                    break;
-                weight = weight->get_input_node_shared_ptr(0);
-            }
-            if (auto constant = ov::as_type_ptr<ov::op::v0::Constant>(weight)) {
-                auto et = constant->get_element_type();
-                if (et == ov::element::i4 || et == ov::element::u4) {
-                    has_4bit_weights = true;
-                }
-            }
+        if (auto_enable_4bit_kv && !has_4bit_weights && has_4bit_matmul_weights(op)) {
+            has_4bit_weights = true;
         }
     }
 

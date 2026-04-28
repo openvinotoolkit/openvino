@@ -305,7 +305,7 @@ KERNEL(sdpa_opt)(
 #if IS_KV_COMPRESSED
                 const uint comp_offset = GET_COMPRESSION_INDEX(KEY_COMPRESSION_SCALE, b_idx, b1_idx / BROADCAST_GROUP_SIZE, start_partition_idx + seq_len, 0);
                 KEY_COMPRESSION_SCALE_TYPE comp_scale = GET_SCALE(key_zp, key_scale, comp_offset);
-#if USE_ASYMMETRIC_QUANTIZATION || IS_INT4_COMPRESSED
+#if USE_ASYMMETRIC_QUANTIZATION
                 KEY_COMPRESSION_SCALE_TYPE comp_zp = GET_ZP(key_zp, key_scale, comp_offset);
 #endif
 #endif
@@ -771,7 +771,7 @@ KERNEL(sdpa_opt)(
 #if IS_KV_COMPRESSED
             const uint comp_offset = GET_COMPRESSION_INDEX(VALUE_COMPRESSION_SCALE, b_idx, b1_idx / BROADCAST_GROUP_SIZE, start_partition_idx + (seq_len * SUBGROUP_SIZE) + sglid, 0);
             VALUE_COMPRESSION_SCALE_TYPE comp_scale = GET_SCALE(val_zp, val_scale, comp_offset);
-#if USE_ASYMMETRIC_QUANTIZATION || IS_INT4_COMPRESSED
+#if USE_ASYMMETRIC_QUANTIZATION
             VALUE_COMPRESSION_SCALE_TYPE comp_zp = GET_ZP(val_zp, val_scale, comp_offset);
 #endif
 #endif
@@ -849,7 +849,7 @@ KERNEL(sdpa_opt)(
 #if IS_KV_COMPRESSED
             const uint comp_offset = GET_COMPRESSION_INDEX(VALUE_COMPRESSION_SCALE, b_idx, b1_idx / BROADCAST_GROUP_SIZE, start_partition_idx + seq_len, 0);
             VALUE_COMPRESSION_SCALE_TYPE comp_scale = GET_SCALE(val_zp, val_scale, comp_offset);
-#if USE_ASYMMETRIC_QUANTIZATION || IS_INT4_COMPRESSED
+#if USE_ASYMMETRIC_QUANTIZATION
             VALUE_COMPRESSION_SCALE_TYPE comp_zp = GET_ZP(val_zp, val_scale, comp_offset);
 #endif
 #endif
@@ -1487,7 +1487,7 @@ KERNEL(sdpa_opt)(
 #if IS_KV_COMPRESSED
                 const uint comp_offset = GET_COMPRESSION_INDEX(KEY_COMPRESSION_SCALE, b_idx, b1_idx / BROADCAST_GROUP_SIZE, seq_len + sglid, 0);
                 KEY_COMPRESSION_SCALE_TYPE comp_scale = GET_SCALE(key_zp, key_scale, comp_offset);
-#if USE_ASYMMETRIC_QUANTIZATION || IS_INT4_COMPRESSED
+#if USE_ASYMMETRIC_QUANTIZATION
                 KEY_COMPRESSION_SCALE_TYPE comp_zp = GET_ZP(key_zp, key_scale, comp_offset);
 #endif
 #endif
@@ -1619,7 +1619,7 @@ KERNEL(sdpa_opt)(
 #if IS_KV_COMPRESSED
                 const uint comp_offset = GET_COMPRESSION_INDEX(KEY_COMPRESSION_SCALE, b_idx, b1_idx / BROADCAST_GROUP_SIZE, seq_len + min(sglid, (uint)seq_len_calc_size - 1), 0);
                 KEY_COMPRESSION_SCALE_TYPE comp_scale = GET_SCALE(key_zp, key_scale, comp_offset);
-#if USE_ASYMMETRIC_QUANTIZATION || IS_INT4_COMPRESSED
+#if USE_ASYMMETRIC_QUANTIZATION
                 KEY_COMPRESSION_SCALE_TYPE comp_zp = GET_ZP(key_zp, key_scale, comp_offset);
 #endif
 #endif
@@ -2119,7 +2119,7 @@ KERNEL(sdpa_opt)(
 #if IS_KV_COMPRESSED
                     const uint comp_offset = GET_COMPRESSION_INDEX(VALUE_COMPRESSION_SCALE, b_idx, b1_idx / BROADCAST_GROUP_SIZE, start_partition_idx + seq_len + sglid, 0);
                     VALUE_COMPRESSION_SCALE_TYPE comp_scale = GET_SCALE(val_zp, val_scale, comp_offset);
-#if USE_ASYMMETRIC_QUANTIZATION || IS_INT4_COMPRESSED
+#if USE_ASYMMETRIC_QUANTIZATION
                     VALUE_COMPRESSION_SCALE_TYPE comp_zp = GET_ZP(val_zp, val_scale, comp_offset);
 #endif
 #endif
@@ -2230,7 +2230,7 @@ KERNEL(sdpa_opt)(
 #if IS_KV_COMPRESSED
                     const uint comp_offset = GET_COMPRESSION_INDEX(VALUE_COMPRESSION_SCALE, b_idx, b1_idx / BROADCAST_GROUP_SIZE, start_partition_idx + (seq_len * SUBGROUP_SIZE) + sglid, 0);
                     VALUE_COMPRESSION_SCALE_TYPE comp_scale = GET_SCALE(val_zp, val_scale, comp_offset);
-#if USE_ASYMMETRIC_QUANTIZATION || IS_INT4_COMPRESSED
+#if USE_ASYMMETRIC_QUANTIZATION
                     VALUE_COMPRESSION_SCALE_TYPE comp_zp = GET_ZP(val_zp, val_scale, comp_offset);
 #endif
 #endif // IS_KV_COMPRESSED
@@ -2349,7 +2349,7 @@ KERNEL(sdpa_opt)(
 #if IS_KV_COMPRESSED
                     const uint comp_offset = GET_COMPRESSION_INDEX(VALUE_COMPRESSION_SCALE, b_idx, b1_idx / BROADCAST_GROUP_SIZE, start_partition_idx + min(seq_len_leftovers_start + sglid, seq_len_end - 1), 0);
                     VALUE_COMPRESSION_SCALE_TYPE comp_scale = GET_SCALE(val_zp, val_scale, comp_offset);
-#if USE_ASYMMETRIC_QUANTIZATION || IS_INT4_COMPRESSED
+#if USE_ASYMMETRIC_QUANTIZATION
                     VALUE_COMPRESSION_SCALE_TYPE comp_zp = GET_ZP(val_zp, val_scale, comp_offset);
 #endif
 #endif
