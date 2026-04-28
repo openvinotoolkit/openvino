@@ -2,25 +2,11 @@ name: Windows (VS 2026, Python 3.11, Release)
 on:
 #  schedule:
 #    - cron: '0 0 * * 3,6'
-#  workflow_dispatch:
-#    inputs:
-#      target-branch:
-#        description: 'Target branch for the build; taken from event context by default'
-#        type: string
-#        required: false
   pull_request:
     types:
-      - ready_for_review
-#  merge_group:
-#  push:
-#    branches:
-#      - master
-#      - 'releases/**'
-#concurrency:
-#  # github.ref is not unique in post-commit
-#  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-windows
-#  cancel-in-progress: true
-
+      - opened
+    branches:
+      - 'cvs-182953-vs-2026'
 env:
   TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
   PIP_CACHE_PATH: "C:\\mount\\caches\\pip\\win"
