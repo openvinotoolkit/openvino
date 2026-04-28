@@ -82,7 +82,6 @@ PagedGatedDeltaNetFusion::PagedGatedDeltaNetFusion(ov::pass::paged_attention::Pa
                                                    std::unordered_set<std::string>& var_ids_to_remove)
     : m_params(pa_params),
       m_var_ids_to_remove(var_ids_to_remove) {
-
     auto query = any_input();
     auto key = any_input();
     auto value = any_input();
@@ -94,8 +93,7 @@ PagedGatedDeltaNetFusion::PagedGatedDeltaNetFusion(ov::pass::paged_attention::Pa
     auto read_value = wrap_type<ov::op::util::ReadValueBase>({cache_param});
     auto gdn = wrap_type<ov::op::internal::GatedDeltaNet>({query, key, value, read_value, gate, beta});
 
-    ov::matcher_pass_callback callback =
-        [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         if (transformation_callback(m.get_match_root())) {
             return false;
         }
@@ -116,10 +114,9 @@ PagedGatedDeltaNetFusion::PagedGatedDeltaNetFusion(ov::pass::paged_attention::Pa
         const auto state_consumers = gdn_node->output(1).get_target_inputs();
         const auto& state_out = pm.at(read_value);
 
-        const auto state_table_param =
-            m_params.add(make_gated_delta_state_table_name(m_layer_index++),
-                         state_out.get_element_type(),
-                         make_gated_delta_state_table_shape(state_out.get_partial_shape()));
+        const auto state_table_param = m_params.add(make_gated_delta_state_table_name(m_layer_index++),
+                                                    state_out.get_element_type(),
+                                                    make_gated_delta_state_table_shape(state_out.get_partial_shape()));
         enable_keep_const_precision(state_table_param);
 
         const auto rv = ov::as_type_ptr<ov::op::util::ReadValueBase>(pm.at(read_value).get_node_shared_ptr());
