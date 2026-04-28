@@ -2,6 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+# Level Zero is only needed when:
+#   - NPU plugin is enabled (ENABLE_INTEL_NPU), OR
+#   - GPU plugin uses Level Zero runtime (ENABLE_INTEL_GPU AND GPU_RT_TYPE=L0)
+# Skip the entire module otherwise.
+if(NOT ENABLE_INTEL_NPU AND NOT (ENABLE_INTEL_GPU AND GPU_RT_TYPE STREQUAL "L0"))
+    return()
+endif()
+
 set(BUILD_SHARED_LIBS OFF)
 
 
