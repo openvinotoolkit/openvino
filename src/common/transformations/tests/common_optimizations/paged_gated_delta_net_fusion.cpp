@@ -12,8 +12,8 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/constant.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/gated_delta_net.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/paged_gated_delta_net.hpp"
@@ -117,8 +117,8 @@ std::shared_ptr<ov::Model> build_fusable_model_with_gathered_state() {
 }
 
 std::shared_ptr<v0::Parameter> make_pa_param(const std::string& name,
-                                              ov::element::Type et,
-                                              const ov::PartialShape& shape) {
+                                             ov::element::Type et,
+                                             const ov::PartialShape& shape) {
     auto p = std::make_shared<v0::Parameter>(et, shape);
     p->set_friendly_name(name);
     p->get_output_tensor(0).set_names({name});
@@ -150,17 +150,17 @@ ov::Output<ov::Node> ref_flatten_blh_to_th(const ov::Output<ov::Node>& input) {
 // Builds the PagedGDN block + output reshape that replaces GDN in the fused graph.
 // Returns {paged_gdn_out, paged_gdn} where paged_gdn_out is the final reshaped output.
 ov::Output<ov::Node> build_paged_gdn_block(const std::shared_ptr<v0::Parameter>& query,
-                                            const std::shared_ptr<v0::Parameter>& key,
-                                            const std::shared_ptr<v0::Parameter>& value,
-                                            const std::shared_ptr<v0::Parameter>& gate,
-                                            const std::shared_ptr<v0::Parameter>& beta,
-                                            const std::shared_ptr<v0::Parameter>& state_table,
-                                            const std::shared_ptr<v0::Parameter>& subseq_begins,
-                                            const std::shared_ptr<v0::Parameter>& block_indices,
-                                            const std::shared_ptr<v0::Parameter>& block_indices_begins,
-                                            const std::shared_ptr<v0::Parameter>& past_lens,
-                                            const std::shared_ptr<v0::Parameter>& cache_interval,
-                                            const std::string& gdn_friendly_name) {
+                                           const std::shared_ptr<v0::Parameter>& key,
+                                           const std::shared_ptr<v0::Parameter>& value,
+                                           const std::shared_ptr<v0::Parameter>& gate,
+                                           const std::shared_ptr<v0::Parameter>& beta,
+                                           const std::shared_ptr<v0::Parameter>& state_table,
+                                           const std::shared_ptr<v0::Parameter>& subseq_begins,
+                                           const std::shared_ptr<v0::Parameter>& block_indices,
+                                           const std::shared_ptr<v0::Parameter>& block_indices_begins,
+                                           const std::shared_ptr<v0::Parameter>& past_lens,
+                                           const std::shared_ptr<v0::Parameter>& cache_interval,
+                                           const std::string& gdn_friendly_name) {
     const auto query_flat = ref_flatten_blhd_to_thd(query);
     const auto key_flat = ref_flatten_blhd_to_thd(key);
     const auto value_flat = ref_flatten_blhd_to_thd(value);
@@ -234,9 +234,18 @@ std::shared_ptr<ov::Model> build_reference_fused_model() {
     auto present_state = std::make_shared<v0::Result>(read_value->output(0));
     present_state->get_output_tensor(0).set_names({"cache_params.present.recurrent_state.0"});
 
-    ParameterVector params{query,        key,         value,         recurrent_state,
-                           gate,         beta,        subseq_begins, block_indices,
-                           block_indices_begins, past_lens, cache_interval, state_table};
+    ParameterVector params{query,
+                           key,
+                           value,
+                           recurrent_state,
+                           gate,
+                           beta,
+                           subseq_begins,
+                           block_indices,
+                           block_indices_begins,
+                           past_lens,
+                           cache_interval,
+                           state_table};
     return std::make_shared<ov::Model>(ResultVector{out, present_state}, params);
 }
 
@@ -281,9 +290,19 @@ std::shared_ptr<ov::Model> build_reference_fused_non_fusable_model() {
     auto present_state = std::make_shared<v0::Result>(state_add);
     present_state->get_output_tensor(0).set_names({"cache_params.present.recurrent_state.0"});
 
-    ParameterVector params{query,        key,         value,         recurrent_state,
-                           gate,         beta,        add_rhs,       subseq_begins,
-                           block_indices, block_indices_begins, past_lens, cache_interval, state_table};
+    ParameterVector params{query,
+                           key,
+                           value,
+                           recurrent_state,
+                           gate,
+                           beta,
+                           add_rhs,
+                           subseq_begins,
+                           block_indices,
+                           block_indices_begins,
+                           past_lens,
+                           cache_interval,
+                           state_table};
     return std::make_shared<ov::Model>(ResultVector{out, present_state}, params);
 }
 
@@ -332,9 +351,19 @@ std::shared_ptr<ov::Model> build_reference_fused_model_with_gathered_state() {
     auto present_state = std::make_shared<v0::Result>(gathered_state->output(0));
     present_state->get_output_tensor(0).set_names({"cache_params.present.recurrent_state.0"});
 
-    ParameterVector params{query,        key,         value,         recurrent_state,
-                           beam_idx,     gate,        beta,          subseq_begins,
-                           block_indices, block_indices_begins, past_lens, cache_interval, state_table};
+    ParameterVector params{query,
+                           key,
+                           value,
+                           recurrent_state,
+                           beam_idx,
+                           gate,
+                           beta,
+                           subseq_begins,
+                           block_indices,
+                           block_indices_begins,
+                           past_lens,
+                           cache_interval,
+                           state_table};
     return std::make_shared<ov::Model>(ResultVector{out, present_state}, params);
 }
 
