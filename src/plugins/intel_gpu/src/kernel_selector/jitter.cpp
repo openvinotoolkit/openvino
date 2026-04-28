@@ -1546,7 +1546,7 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             to_type = "_convert_fp4e2m1_t(v)";
             to_type_sat = "_convert_fp4e2m1_t_sat(v)";
             as_type = "as_fp4e2m1_t(v)";
-            type_size = "1";
+            type_size = "0.5f";
             is_fp = true;
             break;
         case Datatype::F8E4M3:

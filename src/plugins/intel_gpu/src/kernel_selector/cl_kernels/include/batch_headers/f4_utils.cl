@@ -153,10 +153,10 @@ half16 __attribute__((overloadable)) _convert_half16(fp4e2m1_t16 val) {
 }
 
 float __attribute__((overloadable)) _convert_float(fp4e2m1_t val) {
-    return (float)_convert_half(val.data);
+    return (float)_convert_half(val);
 }
 float __attribute__((overloadable)) _convert_float(fp4e2m1_t1 val) {
-    return (float)_convert_half(val.data);
+    return (float)_convert_half(val);
 }
 float2 __attribute__((overloadable)) _convert_float2(fp4e2m1_t2 val) {
     return _convert_float2(_convert_half2(val));

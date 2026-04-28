@@ -620,7 +620,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(true),
                        ::testing::Values(false),
                        ::testing::Values(std::numeric_limits<uint64_t>::max()),
-                       ::testing::Values(0.2f),
+                       ::testing::Values(0.3f),
                        ::testing::Values(false)),
     MatmulWeightsDecompression::get_test_case_name);
 

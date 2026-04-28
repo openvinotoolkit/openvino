@@ -848,7 +848,7 @@ ov::element::Type optimize_kv_cache_storage(const std::shared_ptr<ov::Model>& mo
     std::set<ov::element::Type> fcTypesInput, fcTypesRemained;
 
     ov::pass::Manager manager("optimize_fp8");
-    params.defaultPrecisions = ov::pass::low_precision::precision_set::get_fp8_support();
+    params.defaultPrecisions = ov::pass::low_precision::precision_set::get_low_bit_float_support();
     manager.register_pass<FakeConvertDestinationTypeExtractor>(fcTypesInput);
     manager.register_pass<ov::pass::low_precision::MoveFakeConvertUpThroughKVCacheConcat>();
     auto graph_rewrite = manager.register_pass<ov::pass::GraphRewrite>();

@@ -329,7 +329,7 @@ JitConstants make_type_jit_constants(const std::string& name, const ov::element:
         to_type = "_convert_fp4e2m1_t(v)";
         to_type_sat = "_convert_fp4e2m1_t_sat(v)";
         as_type = "as_fp4e2m1_t(v)";
-        type_size = "1";
+        type_size = "0.5f";
         is_fp = true;
         break;
     case ov::element::f8e4m3:

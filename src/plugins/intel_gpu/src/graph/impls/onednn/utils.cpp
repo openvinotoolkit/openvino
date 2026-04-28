@@ -259,10 +259,10 @@ int64_t get_offset(const cldnn::layout& l, dnnl::memory::desc&& desc) {
     switch (desc.get_data_type()) {
         case dnnl::memory::data_type::s4:
         case dnnl::memory::data_type::u4:
+        case dnnl::memory::data_type::f4_e2m1:
             return offset / 2;
         case dnnl::memory::data_type::s8:
         case dnnl::memory::data_type::u8:
-        case dnnl::memory::data_type::f4_e2m1:
         case dnnl::memory::data_type::f8_e4m3:
         case dnnl::memory::data_type::f8_e5m2:
         case dnnl::memory::data_type::e8m0:
