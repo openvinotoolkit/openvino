@@ -449,10 +449,9 @@ void MapHolder::legacy_setup(HANDLE file_handle, size_t aligned_offset, size_t h
 void MapHolder::setup(HANDLE file_handle, size_t offset, size_t size) {
     m_size = size;
     const auto gran = util::get_system_alloc_granularity();
-    const size_t m_aligned_offset = (offset / gran) * gran;
+    m_aligned_offset = (offset / gran) * gran;
     const size_t head_pad = offset - m_aligned_offset;
     const size_t total_va_size = ((head_pad + m_size + gran - 1) / gran) * gran;
-    const size_t slot_count = total_va_size / gran;
 
     // Create a read-only file-mapping object (no size limit needed for read).
     m_mapping = HandleHolder{::CreateFileMappingW(file_handle, nullptr, PAGE_READONLY, 0, 0, nullptr)};
