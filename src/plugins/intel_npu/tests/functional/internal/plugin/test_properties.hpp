@@ -40,39 +40,6 @@ using ::testing::HasSubstr;
 using ConfigParams = std::tuple<std::string,   // Device name
                                 std::string>;  // Config name
 
-namespace {
-class LogCallbackGuard {
-public:
-    explicit LogCallbackGuard(const std::function<void(std::string_view)>& callback) {
-        ov::util::set_log_callback(callback);
-    }
-
-    ~LogCallbackGuard() {
-        ov::util::reset_log_callback();
-    }
-
-    LogCallbackGuard(const LogCallbackGuard&) = delete;
-    LogCallbackGuard& operator=(const LogCallbackGuard&) = delete;
-};
-
-class LoggerLevelGuard {
-public:
-    explicit LoggerLevelGuard(ov::log::Level level) : _previousLevel(::intel_npu::Logger::global().level()) {
-        ::intel_npu::Logger::global().setLevel(level);
-    }
-
-    ~LoggerLevelGuard() {
-        ::intel_npu::Logger::global().setLevel(_previousLevel);
-    }
-
-    LoggerLevelGuard(const LoggerLevelGuard&) = delete;
-    LoggerLevelGuard& operator=(const LoggerLevelGuard&) = delete;
-
-private:
-    ov::log::Level _previousLevel;
-};
-}  // namespace
-
 namespace ov {
 namespace test {
 namespace behavior {
@@ -235,8 +202,8 @@ TEST_P(PropertiesManagerTests, ExpectRunTimeSpecialBothPropertyIsSupported) {
     };
 
     {
-        LogCallbackGuard log_callback_guard(log_cb);
-        LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
+        utils::LogCallbackGuard log_callback_guard(log_cb);
+        utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
         propertiesManager->setProperty({{ov::log::level(ov::log::Level::INFO)}});
         propertiesManager->setProperty({{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}});
         isSupported = propertiesManager->isPropertySupported(configuration);
@@ -263,8 +230,8 @@ TEST_P(PropertiesManagerTests, ExpectArgumentIsNotSupported) {
                             {"DUMMY_PROPERTY", "DUMMY_VALUE"}};
 
     {
-        LogCallbackGuard log_callback_guard(log_cb);
-        LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
+        utils::LogCallbackGuard log_callback_guard(log_cb);
+        utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
 
         try {
             propertiesManager->setProperty(arguments);
@@ -294,8 +261,8 @@ TEST_P(ExpectLoadingCompilerPropertySupported, ExpectCompilerPropertyIsSupported
     };
 
     {
-        LogCallbackGuard log_callback_guard(log_cb);
-        LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
+        utils::LogCallbackGuard log_callback_guard(log_cb);
+        utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
         propertiesManager->setProperty({{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}});
         isSupported = propertiesManager->isPropertySupported(configuration);
     }
@@ -320,8 +287,8 @@ TEST_P(ExpectLoadingCompilerPropertyNotSupported, ExpectCompilerPropertyIsNotSup
     };
 
     {
-        LogCallbackGuard log_callback_guard(log_cb);
-        LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
+        utils::LogCallbackGuard log_callback_guard(log_cb);
+        utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
         propertiesManager->setProperty({{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}});
         isSupported = propertiesManager->isPropertySupported(configuration);
     }

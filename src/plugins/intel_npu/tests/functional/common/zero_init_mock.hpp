@@ -45,15 +45,18 @@ public:
         return _zero_mem_pool;
     }
 
+    static void destroyContextForInstance(std::shared_ptr<ZeroInitStructsMock>& instance);
+
 private:
     void initNpuDriver();
     void getExtensionFunctionAddress(const std::string& name, const uint32_t version, void** function_address);
+    void destroyContextLocked();
 
     std::shared_ptr<intel_npu::ZeroApi> _zero_api;
 
     Logger _log;
 
-    ze_context_handle_t _context = nullptr;
+    std::atomic<ze_context_handle_t> _context{nullptr};
     ze_driver_handle_t _driver_handle = nullptr;
     ze_device_handle_t _device_handle = nullptr;
 
