@@ -1491,7 +1491,7 @@ inline std::istream& operator>>(std::istream& is, BlobCompatibility& compatibili
  * @brief Read-write property carrying plugin-specific runtime requirements of a compiled model blob.
  * @ingroup ov_runtime_cpp_prop_api
  *
- * The property value is an ov::Tensor containing data encoding the device environment requirements  at the time
+ * The property value is a std::string containing data encoding the device environment requirements  at the time
  * a model was compiled. The format and content are plugin-dependent and may encode information such as
  * plugin version, required hardware capabilities, or driver version.
  *
@@ -1502,10 +1502,10 @@ inline std::istream& operator>>(std::istream& is, BlobCompatibility& compatibili
  * @code
  * ov::Core core;
  * auto compiled_model = core.compile_model(model, "NPU");
- * ov::Tensor requirements = compiled_model.get_property(ov::runtime_requirements);
+ * std::string requirements = compiled_model.get_property(ov::runtime_requirements);
  * @endcode
  */
-inline constexpr Property<Tensor, PropertyMutability::RW> runtime_requirements{"RUNTIME_REQUIREMENTS"};
+inline constexpr Property<std::string, PropertyMutability::RW> runtime_requirements{"RUNTIME_REQUIREMENTS"};
 
 /**
  * @brief Read-only property to check whether a device satisfies the runtime requirements of a compiled model blob.

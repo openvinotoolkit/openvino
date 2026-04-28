@@ -213,15 +213,12 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
                                            _batchSize,
                                            std::nullopt,
                                            std::nullopt,
-                                           524289, // hardcoded 8.1 for now
+                                           std::nullopt,
                                            compilerDescriptor)
             .write_human_readable(requirementsString);
-
         _logger.debug("Encoded compatibility string: %s length: %zu", requirementsString.str().c_str(), requirementsString.str().length());
 
-        ov::Tensor requirements(ov::element::string, {});
-        *requirements.data<std::string>() = requirementsString.str();
-        return requirements;
+        return requirementsString.str();
     }
 
     // default behaviour
