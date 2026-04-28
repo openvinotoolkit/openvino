@@ -187,4 +187,5 @@ std::unique_ptr<primitive_impl> MoEGemmImplementationManager::create_impl(const 
 }  // namespace onednn
 }  // namespace cldnn
 
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::moe_gemm)
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::moe_gemm_onednn)

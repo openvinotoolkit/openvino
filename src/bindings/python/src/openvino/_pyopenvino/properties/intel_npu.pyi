@@ -104,11 +104,7 @@ def enable_strides_for() -> str:
 @typing.overload
 def enable_strides_for(arg0: str) -> tuple[str, openvino._pyopenvino.OVAny]:
     ...
-@typing.overload
 def max_tiles() -> str:
-    ...
-@typing.overload
-def max_tiles(arg0: typing.SupportsInt | typing.SupportsIndex) -> tuple[str, openvino._pyopenvino.OVAny]:
     ...
 @typing.overload
 def platform() -> str:

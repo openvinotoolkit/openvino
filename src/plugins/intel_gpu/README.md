@@ -4,7 +4,7 @@ GPU plugin in [OpenVINO toolkit](https://github.com/openvinotoolkit/openvino) su
 
 ## Key Contacts
 
-For assistance regarding GPU, contact a member of [openvino-ie-gpu-maintainers](https://github.com/orgs/openvinotoolkit/teams/openvino-ie-gpu-maintainers) group.
+For assistance regarding GPU, contact a member of openvino-ie-gpu-maintainers group.
 
 ## Components
 

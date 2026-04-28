@@ -863,6 +863,28 @@ struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, ov::intel_npu::CompilerTy
     }
 };
 
+struct COMPILER_VERSION final : OptionBase<COMPILER_VERSION, uint32_t> {
+    static std::string_view key() {
+        return ov::intel_npu::compiler_version.name();
+    }
+
+    static uint32_t defaultValue() {
+        return 0;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+
+    static bool isPublic() {
+        return true;
+    }
+
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RO;
+    }
+};
+
 struct COMPILATION_MODE final : OptionBase<COMPILATION_MODE, std::string> {
     static std::string_view key() {
         return ov::intel_npu::compilation_mode.name();
@@ -1360,20 +1382,6 @@ struct BATCH_COMPILER_MODE_SETTINGS final : OptionBase<BATCH_COMPILER_MODE_SETTI
 struct ENABLE_WEIGHTLESS final : OptionBase<ENABLE_WEIGHTLESS, bool> {
     static std::string_view key() {
         return ov::enable_weightless.name();
-    }
-
-    static bool defaultValue() {
-        return false;
-    }
-
-    static OptionMode mode() {
-        return OptionMode::CompileTime;
-    }
-};
-
-struct WEIGHTLESS_BLOB final : OptionBase<WEIGHTLESS_BLOB, bool> {
-    static std::string_view key() {
-        return ov::intel_npu::weightless_blob.name();
     }
 
     static bool defaultValue() {

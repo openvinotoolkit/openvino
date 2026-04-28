@@ -37,9 +37,16 @@ void default_op_checks(const Node& node, size_t min_inputs_size);
 /// \param[in]  max_inputs_size  Maximum amount of inputs expected
 void default_op_checks(const Node& node, size_t min_inputs_size, size_t max_inputs_size);
 
-/// \brief Function does a returns if input exists and is not null
+/// @brief Function checks if input exists and is not null
+/// @param[in] inputs Node inputs to check
+/// @param[in] index Input index to check
+/// \return True if input exists and is not null, false otherwise
+bool is_input_valid(const ov::OutputVector& inputs, size_t index);
+
+/// @brief Function checks if input exists and is not null
 /// \param[in]  node   Node to check
 /// \param[in]  index  Input index to check
+/// \return True if input exists and is not null, false otherwise
 bool is_input_valid(const Node& node, size_t index);
 
 /// \brief      Return a monotonic sequence.
