@@ -264,7 +264,7 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
             m_sha1_digest = entry.value();
         }
     }
-    if (ext_location == "*/_ORT_MEM_ADDR_/*") {
+    if (ext_location == detail::ORT_MEM_ADDR) {
         // Specific ONNX Runtime Case when it passes a model with self-managed data
         tensor_meta_info.m_is_raw = true;
         tensor_meta_info.m_tensor_data = reinterpret_cast<uint8_t*>(ext_data_offset);

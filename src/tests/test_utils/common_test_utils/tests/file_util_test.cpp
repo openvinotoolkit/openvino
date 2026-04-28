@@ -656,7 +656,8 @@ protected:
 };
 
 TEST_F(SanitizePathTest, valid_nested_relative_path) {
-    EXPECT_NO_THROW(ov::util::sanitize_path(base, "workspace/data/tensor.data"));
+    const auto result = ov::util::sanitize_path(base, "workspace/data/tensor.data");
+    EXPECT_EQ(result, base / "workspace/data/tensor.data");
 }
 
 TEST_F(SanitizePathTest, invalid_single_dotdot) {
