@@ -17,7 +17,6 @@ class TestUnsortedSegmentMax(CommonTFLayerTest):
         segment_ids_shape = inputs_info['segment_ids:0']
         inputs_data = {}
         inputs_data['data:0'] = rng.integers(-50, 50, data_shape).astype(self.data_type)
-        # segment_ids are non-negative for UnsortedSegmentMax (TF requires >= 0)
         inputs_data['segment_ids:0'] = rng.integers(0, self.num_segments_val,
                                                     segment_ids_shape).astype(self.segment_ids_type)
         return inputs_data
@@ -60,7 +59,6 @@ class TestUnsortedSegmentMax(CommonTFLayerTest):
                                                          num_segments_type=num_segments_type),
                    ie_device, precision, ir_version, temp_dir=temp_dir)
 
-    # Test with empty segments (num_segments > max segment_id) to verify FillMode::LOWEST
     test_data_empty_segments = [
         dict(data_shape=[4], segment_ids_shape=[4], num_segments_val=10),
         dict(data_shape=[3, 5], segment_ids_shape=[3], num_segments_val=8),
