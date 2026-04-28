@@ -1224,8 +1224,8 @@ dnnl::post_ops program_node::try_optimize_post_ops(std::vector<fused_primitive_d
         }
     };
 
-    int64_t cur_post_op_idx = 1;
-    int64_t prev_post_op_idx = 0;
+    int cur_post_op_idx = 1;
+    int prev_post_op_idx = 0;
     bool optimization_done = false;
 
     GPU_DEBUG_TRACE << "================================================" << std::endl;
@@ -1251,7 +1251,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(std::vector<fused_primitive_d
     GPU_DEBUG_TRACE << "----------------------------------->>>>>>>>>>>>>" << std::endl;
 
     // Get post-ops size for current node
-    int64_t post_ops_size = cur_post_ops.size();
+    int post_ops_size = static_cast<int>(cur_post_ops.size());
 
     auto get_optimized_eltwise_type = [](onednn_post_op_type type) {
         switch (type) {

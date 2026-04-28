@@ -28,6 +28,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/general_utils.h"
 
@@ -107,6 +108,10 @@ public:
         auto value_cache = make_param(PartialShape{ov::Dimension::dynamic(), 32, ov::Dimension::dynamic()},
                                       ov::element::dynamic,
                                       "value_cache.0");
+
+        enable_keep_const_precision(key_cache);
+        enable_keep_const_precision(value_cache);
+        
         auto past_lens = make_param(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "past_lens");
         auto subsequence_begins =
             make_param(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "subsequence_begins");

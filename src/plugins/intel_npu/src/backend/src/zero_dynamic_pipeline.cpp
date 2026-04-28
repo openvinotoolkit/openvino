@@ -220,7 +220,7 @@ void DynamicPipeline::push() {
         command_lists->resetCommandList();
 
         dynamicGraph->execute(_init_structs,
-                              command_lists->getBinding(),
+                              graphArguments,
                               command_lists->getHandles(),
                               commandQueueHandle,
                               fence,

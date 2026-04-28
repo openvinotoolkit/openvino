@@ -106,7 +106,7 @@ static void rearrange_cache(cldnn::memory::ptr kv_in_mem, cldnn::memory::ptr bt_
 
                     if (ov::element::Type(kv_layout.data_type).size() == 2)
                         copy_element<uint16_t>(kv_in_ptr.data(), kv_out_ptr.data(), in_offset, out_offset);
-                    else if (ov::element::Type(kv_layout.data_type).size() == 2)
+                    else if (ov::element::Type(kv_layout.data_type).size() == 4)
                         copy_element<uint32_t>(kv_in_ptr.data(), kv_out_ptr.data(), in_offset, out_offset);
                 }
             }
