@@ -79,7 +79,8 @@ class ocl_kernel_builder : public kernel_builder{
             }
             for (auto& k : kernels) {
                 const auto &entry_point = k.getInfo<CL_KERNEL_FUNCTION_NAME>();
-                // Workaround for GSD-12674
+                // Intel_Symbol_Table_Void_Program does not correspond to any real kernel
+                // Ignore this entry point as workaround for GSD-12674
                 if (entry_point == "Intel_Symbol_Table_Void_Program") {
                     continue;
                 }
