@@ -2,9 +2,7 @@ name: Windows (VS 2026, Python 3.11, Release)
 on:
 #  schedule:
 #    - cron: '0 0 * * 3,6'
-  pull_request:
-    types:
-      - opened
+  push:
     branches:
       - 'cvs-182953-vs-2026'
 env:
