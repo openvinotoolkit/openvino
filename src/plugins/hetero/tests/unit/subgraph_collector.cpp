@@ -717,7 +717,8 @@ TEST_P(SubgraphCollectorParamTest, split_by_affinity) {
         ASSERT_EQ(param.expected_total_sinks, actual_total_sinks);
     }
 
-    // Test merge roundtrip if requested
+    // Optional stronger validation: after the baseline partition checks above,
+    // verify that merging submodels reconstructs a structurally equivalent model.
     if (param.verify_merge_roundtrip) {
         std::vector<std::shared_ptr<ov::Model>> submodels;
         for (const auto& sg : subgraphs) {
@@ -726,6 +727,7 @@ TEST_P(SubgraphCollectorParamTest, split_by_affinity) {
         OV_ASSERT_NO_THROW(ov::hetero::merge_submodels(submodels, mapping._submodels_input_to_prev_output));
         ASSERT_EQ(1, submodels.size());
         if (param.verify_merge_compare) {
+            // This compare is intentionally optional; some cases only check that merge succeeds.
             auto res = compare_functions(model_ref, submodels[0]);
             ASSERT_TRUE(res.first) << res.second;
         }
