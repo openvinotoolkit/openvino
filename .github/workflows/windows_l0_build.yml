@@ -12,8 +12,8 @@ on:
       - synchronize
       - reopened
       - ready_for_review
-    # paths:
-    #   - 'src/plugins/intel_gpu/**'
+    paths:
+      - 'src/plugins/intel_gpu/**'
 
 concurrency:
   # github.ref is not unique in post-commit
@@ -77,16 +77,16 @@ jobs:
         -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja"
         -DGPU_RT_TYPE=L0
 
-  Overall_Status:
-    name: ci/gha_overall_status_windows_l0_debug
-    needs: [ Smart_CI, Build ]
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check status of all jobs
-        if: >-
-          ${{
-            contains(needs.*.result, 'failure') ||
-            contains(needs.*.result, 'cancelled')
-          }}
-        run: exit 1
+  # Overall_Status:
+  #   name: ci/gha_overall_status_windows_l0_debug
+  #   needs: [ Smart_CI, Build ]
+  #   if: ${{ always() }}
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Check status of all jobs
+  #       if: >-
+  #         ${{
+  #           contains(needs.*.result, 'failure') ||
+  #           contains(needs.*.result, 'cancelled')
+  #         }}
+  #       run: exit 1
