@@ -54,8 +54,8 @@ void PaKVReorder::validate_and_infer_types() {
                           "PaKVReorder supports only f32, bf16, f16, u8, and u4 KV cache precisions. ",
                           "int8 value_cache is not supported.");
 
-    // Output is a dummy u8 scalar (placeholder for in-place operation)
-    set_output_type(0, ov::element::u8, ov::PartialShape{});
+    // Output is a dummy u8 tensor with shape [1] (placeholder for in-place operation)
+    set_output_type(0, ov::element::u8, ov::PartialShape{1});
 }
 
 std::shared_ptr<Node> PaKVReorder::clone_with_new_inputs(const ov::OutputVector& new_args) const {
