@@ -1183,12 +1183,6 @@ RoPEFusionGPTOSS::RoPEFusionGPTOSS() {
         if (concat_axis != -1 && concat_axis != concat_rank.get_length() - 1)
             return false;
 
-        auto symbols = m.get_symbols();
-        const auto& half_ndims = symbols["half_ndims"];
-        if (!half_ndims.is_integer()) {
-            return false;
-        }
-
         // Verify VariadicSplit axis is the last dimension (accepts both -1 and positive equivalent)
         auto vsplit_node = pattern_map.at(vsplit_out0).get_node_shared_ptr();
         auto axis_const = ov::as_type_ptr<v0::Constant>(vsplit_node->input_value(1).get_node_shared_ptr());
@@ -1202,6 +1196,12 @@ RoPEFusionGPTOSS::RoPEFusionGPTOSS() {
             return false;
         if (axis_val[0] != -1 && axis_val[0] != input_rank.get_length() - 1)
             return false;
+
+        auto symbols = m.get_symbols();
+        const auto& half_ndims = symbols["half_ndims"];
+        if (!half_ndims.is_integer()) {
+            return false;
+        }
 
         op::internal::RoPE::Config config;
         OutputVector new_args;
