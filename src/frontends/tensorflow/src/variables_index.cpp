@@ -405,15 +405,14 @@ void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::Grap
                     FRONT_END_THROW("Unexpected topology near AssignVariableOp");
                 }
 
-                FRONT_END_GENERAL_CHECK(restore_output.size() >= 2,
-                                        "RestoreV2 input is missing output index");
+                FRONT_END_GENERAL_CHECK(restore_output.size() >= 2, "RestoreV2 input is missing output index");
                 int output_index = std::atoi(restore_output[restore_output.size() - 1].c_str());
 
                 // Expected path is: Const(tensor_names) -(0)-(1)-> RestoreV2
-                const auto& tensor =
-                    restorev2_nodes[0]->inputs[1]->node->attr().at("value").tensor();
+                const auto& tensor = restorev2_nodes[0]->inputs[1]->node->attr().at("value").tensor();
                 FRONT_END_GENERAL_CHECK(output_index >= 0 && output_index < tensor.string_val_size(),
-                                        "RestoreV2 output index out of range: ", output_index);
+                                        "RestoreV2 output index out of range: ",
+                                        output_index);
                 const auto& variable_name = tensor.string_val(output_index);
 
                 variables_map[varhandle_nodes[0]->node->name()] = variable_name;
@@ -438,15 +437,14 @@ void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::Grap
                 // Expected path is: RestoreV2 -(output_index)-(1)-> Assign
                 PtrNode::parse_node_name(node.second->node->input(1), restore_output);
 
-                FRONT_END_GENERAL_CHECK(restore_output.size() >= 2,
-                                        "RestoreV2 input is missing output index");
+                FRONT_END_GENERAL_CHECK(restore_output.size() >= 2, "RestoreV2 input is missing output index");
                 int output_index = std::atoi(restore_output[restore_output.size() - 1].c_str());
 
                 // Expected path is: Const(tensor_names) -(0)-(1)-> RestoreV2
-                const auto& tensor =
-                    restorev2_nodes[0]->inputs[1]->node->attr().at("value").tensor();
+                const auto& tensor = restorev2_nodes[0]->inputs[1]->node->attr().at("value").tensor();
                 FRONT_END_GENERAL_CHECK(output_index >= 0 && output_index < tensor.string_val_size(),
-                                        "RestoreV2 output index out of range: ", output_index);
+                                        "RestoreV2 output index out of range: ",
+                                        output_index);
                 const auto& variable_name = tensor.string_val(output_index);
 
                 variables_map[variablev2_nodes[0]->node->name()] = variable_name;
