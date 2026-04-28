@@ -91,7 +91,7 @@ public:
         network->set_input_data("input", input);
         auto outputs = network->execute();
 
-        // input_layout no longer pre-allocates memory at network construction time,
+        // input_layout no longer pre-allocates memory at network construction time
         const uint64_t input_buf_size = sizeof(float) * batch_num * feature_num * x_size * y_size;
         ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t)(64 - input_buf_size));
     }
