@@ -833,7 +833,7 @@ cldnn::format_traits convert_memory_desc_to_traits(const dnnl::memory::desc& des
         auto pos = outer_order.find(c);
         OPENVINO_ASSERT(pos != std::string::npos, "[GPU] Unknown coord type: ", c);
 
-        logic_block_sizes[i] = std::make_pair(order[pos], inner_blks[i]);
+        logic_block_sizes[i] = std::make_pair(order[pos], static_cast<int>(inner_blks[i]));
     }
 
     format_traits traits;

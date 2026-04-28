@@ -57,7 +57,7 @@ jobs:
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
-          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*,.github/workflows/ci-doctor.lock.yml'
 
   Build:
     needs: Smart_CI
@@ -359,13 +359,6 @@ jobs:
           version: ${{ env.PYTHON_VERSION }}
           should-setup-pip-paths: 'false'
           self-hosted-runner: 'false'
-
-      - name: Install Python's certifi for newer ca-certificates bundle for wget
-        run: |
-          python3 c:/pip_diag.py install certifi
-
-      - name: Set SSL_CERT_FILE for model downloading for unit tests
-        run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
 
       - name: CMake configure - CC ON
         run: |
