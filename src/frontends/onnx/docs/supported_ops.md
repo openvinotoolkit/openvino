@@ -156,7 +156,9 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |Reshape                                                 |1                       |21, 19, 14, 13, 5, 1            |                                |
 |                        |Resize                                                  |11, 10                  |19, 18, 13, 11, 10              |                                |
 |                        |ReverseSequence                                         |10                      |10                              |                                |
+|                        |RMSNormalization                                        |23                      |23                              |                                |
 |                        |RoiAlign                                                |16, 10                  |22, 16, 10                      |                                |
+|                        |RotaryEmbedding                                         |23                      |23                              |                                |
 |                        |Round                                                   |11                      |22, 11                          |                                |
 |                        |STFT                                                    |17                      |17                              |                                |
 |                        |Scan                                                    |9, 8                    |21, 19, 16, 11, 9, 8            |                                |
