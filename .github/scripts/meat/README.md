@@ -12,6 +12,10 @@ local machine using the [GitHub Copilot CLI](https://docs.github.com/en/copilot/
 Run from the repo root:
 
 ```bash
+# Linux — must be run as root to install system packages (gh, copilot CLI)
+sudo python .github/scripts/meat/setup.py
+
+# macOS / Windows — no sudo needed
 python .github/scripts/meat/setup.py
 ```
 

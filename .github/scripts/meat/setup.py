@@ -93,32 +93,32 @@ def _try_install_gh() -> bool:
             r = run("brew", "install", "gh")
             return r.returncode == 0
     else:  # Linux
-        if shutil.which("apt-get") and shutil.which("sudo"):
+        if shutil.which("apt-get"):
             info("Attempting apt-based gh install …")
             cmds = [
-                ["sudo", "mkdir", "-p", "/etc/apt/keyrings"],
-                ["sudo", "bash", "-c",
+                ["mkdir", "-p", "/etc/apt/keyrings"],
+                ["bash", "-c",
                  "curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg"
                  " -o /etc/apt/keyrings/githubcli-archive-keyring.gpg"],
-                ["sudo", "chmod", "go+r", "/etc/apt/keyrings/githubcli-archive-keyring.gpg"],
-                ["sudo", "bash", "-c",
+                ["chmod", "go+r", "/etc/apt/keyrings/githubcli-archive-keyring.gpg"],
+                ["bash", "-c",
                  "echo \"deb [arch=$(dpkg --print-architecture)"
                  " signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg]"
                  " https://cli.github.com/packages stable main\""
-                 " | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null"],
-                ["sudo", "apt-get", "update", "-qq"],
-                ["sudo", "apt-get", "install", "-y", "--no-install-recommends", "gh"],
+                 " | tee /etc/apt/sources.list.d/github-cli.list > /dev/null"],
+                ["apt-get", "update", "-qq"],
+                ["apt-get", "install", "-y", "--no-install-recommends", "gh"],
             ]
             for cmd in cmds:
                 if run(*cmd).returncode != 0:
                     return False
             return True
-        if shutil.which("dnf") and shutil.which("sudo"):
+        if shutil.which("dnf"):
             info("Attempting dnf-based gh install …")
             cmds = [
-                ["sudo", "dnf", "config-manager", "--add-repo",
+                ["dnf", "config-manager", "--add-repo",
                  "https://cli.github.com/packages/rpm/gh-cli.repo"],
-                ["sudo", "dnf", "install", "-y", "gh"],
+                ["dnf", "install", "-y", "gh"],
             ]
             for cmd in cmds:
                 if run(*cmd).returncode != 0:

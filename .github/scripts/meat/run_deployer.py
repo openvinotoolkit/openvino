@@ -59,7 +59,6 @@ def main() -> None:
         "copilot",
         "--agent", "deployer",
         "--share", f"{output_dir}/session.md",
-        "--allow-all",
         "--no-ask-user",
         "--autopilot",
         "--stream", "on",
