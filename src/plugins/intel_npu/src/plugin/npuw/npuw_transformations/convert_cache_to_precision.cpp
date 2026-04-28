@@ -65,7 +65,6 @@ public:
         register_matcher(std::make_shared<opp::Matcher>(pattern, "ConvertTypeRelaxedToRegular"), callback);
     }
 };
-}
 
 std::shared_ptr<ov::Model> cvt_kvcache_to_low_precision(const std::shared_ptr<ov::Model>& model,
                                                         const ov::element::Type lptype) {
@@ -97,6 +96,7 @@ std::shared_ptr<ov::Model> cvt_kvcache_to_low_precision(const std::shared_ptr<ov
             ppp.output(name).tensor().set_element_type(key_storage_type);
         } else if (ov::npuw::util::isPresentKeyValuesValue(name).has_value()) {
             ppp.output(name).tensor().set_element_type(value_storage_type);
+        }
     }
 
     auto new_model = ppp.build();
