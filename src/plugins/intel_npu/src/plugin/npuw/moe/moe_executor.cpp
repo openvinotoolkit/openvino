@@ -116,6 +116,7 @@ void MoEExecutor::prepare(size_t idx, size_t real_idx, size_t num_sublayers, siz
         });
 
         // Initialize cache layer with pre-allocated requests
+        NPUW_ASSERT(m_resources.request_cache && "Request cache must be initialized for batch mode with pool_size > 0");
         m_resources.request_cache->initialize_layer(idx, std::move(requests));
         LOG_DEBUG("Request pool created with " << pool_size << " requests");
     } else {

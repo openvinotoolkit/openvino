@@ -40,7 +40,7 @@ using namespace dnnl::impl::cpu;
 using namespace dnnl::impl::cpu::aarch64;
 
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
-struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, jit_generator {
+struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, jit_generator_t {
 public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_eltwise_generic)
 
@@ -50,7 +50,7 @@ public:
                             dnnl::post_ops post_ops);
 
     void create_ker() override {
-        jit_generator::create_kernel();
+        jit_generator_t::create_kernel();
         ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
 

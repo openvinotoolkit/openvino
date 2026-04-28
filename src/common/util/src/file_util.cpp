@@ -250,8 +250,8 @@ std::filesystem::path ov::util::get_plugin_path(const std::filesystem::path& plu
 std::vector<uint8_t> ov::util::load_binary(const std::filesystem::path& path) {
     std::vector<uint8_t> buffer;
     if (auto input = std::ifstream(path, std::ios::binary); input.is_open()) {
-        buffer.reserve(std::filesystem::file_size(path));
-        input.read(reinterpret_cast<char*>(buffer.data()), buffer.capacity());
+        buffer.resize(std::filesystem::file_size(path));
+        input.read(reinterpret_cast<char*>(buffer.data()), buffer.size());
     }
     return buffer;
 }

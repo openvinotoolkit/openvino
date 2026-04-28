@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -71,6 +71,9 @@ private:
 
     static uint64_t getBodyHash(const std::shared_ptr<snippets::op::Subgraph>& snippet);
     uint32_t getBroadcastingMask(const std::vector<VectorDims>& input_shapes);
+#if defined(OPENVINO_ARCH_X86_64)
+    uint32_t getConstantRepackedMask() const;
+#endif
     std::set<size_t> getConstantInputIndexes() const;
 
     using DataFlowPasses = std::vector<ov::snippets::pass::Manager::PositionedPassBase>;

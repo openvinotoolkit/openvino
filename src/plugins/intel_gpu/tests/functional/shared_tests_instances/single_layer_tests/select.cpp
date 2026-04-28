@@ -47,7 +47,28 @@ const std::vector<std::vector<ov::Shape>> numpyShapes = {
     {{5, 1, 1, 1}, {5, 7, 8, 6}, {1, 8, 6}},
     {{1, 1, 3}, {1, 3, 1}, {3, 1, 1}},
     {{2, 2, 2, 2, 2}, {2, 2, 2, 2}, {2, 2, 2, 2, 2}},
-    {{2, 2, 2, 2, 2}, {2, 2, 2, 2, 2}, {2, 2, 2, 2}}
+    {{2, 2, 2, 2, 2}, {2, 2, 2, 2, 2}, {2, 2, 2, 2}},
+};
+
+const std::vector<std::vector<ov::test::InputShape>> numpyDynShapesMask4d = {
+    // mask 4D, then 5D, else 5D → output 5D
+    {
+        {{-1, -1, -1, -1}, {{2, 2, 2, 2}}},
+        {{-1, -1, -1, -1, -1}, {{2, 2, 2, 2, 2}}},
+        {{-1, -1, -1, -1, -1}, {{2, 2, 2, 2, 2}}},
+    },
+    // mask 4D, then 5D, else 4D → output 5D
+    {
+        {{-1, -1, -1, -1}, {{2, 2, 2, 2}}},
+        {{-1, -1, -1, -1, -1}, {{2, 2, 2, 2, 2}}},
+        {{-1, -1, -1, -1}, {{2, 2, 2, 2}}},
+    },
+    // mask 4D, then 4D, else 5D → output 5D
+    {
+        {{-1, -1, -1, -1}, {{2, 2, 2, 2}}},
+        {{-1, -1, -1, -1}, {{2, 2, 2, 2}}},
+        {{-1, -1, -1, -1, -1}, {{2, 2, 2, 2, 2}}},
+    },
 };
 
 const std::vector<std::vector<ov::Shape>> pdpdShapes = {
@@ -79,6 +100,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_CLDNN_TestsSelect_none,
 INSTANTIATE_TEST_SUITE_P(smoke_CLDNN_TestsSelect_numpy,
                          SelectLayerTest,
                          ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(numpyShapes)),
+                                            ::testing::ValuesIn(inputPrecision),
+                                            ::testing::Values(ov::op::AutoBroadcastType::NUMPY),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                         SelectLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_CLDNN_TestsSelect_numpy_broadcast_mask4d,
+                         SelectLayerTest,
+                         ::testing::Combine(::testing::ValuesIn(numpyDynShapesMask4d),
                                             ::testing::ValuesIn(inputPrecision),
                                             ::testing::Values(ov::op::AutoBroadcastType::NUMPY),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),

@@ -448,25 +448,19 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
                                                                reinterpret_cast<size_t>(m_tensor_place->get_data()),
                                                                m_tensor_place->get_data_size())
                                   : detail::TensorExternalData(*m_tensor_proto);
+
+        std::shared_ptr<ov::AlignedBuffer> constant_buffer;
         if (ext_data.data_location() == detail::ORT_MEM_ADDR) {
-            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, ext_data.load_external_mem_data());
+            constant_buffer = ext_data.load_external_mem_data();
         } else if (m_mmap_cache) {
-            constant = std::make_shared<ov::op::v0::Constant>(
-                ov_type,
-                m_shape,
-                ext_data.load_external_mmap_data(m_model_dir.string(), m_mmap_cache));
+            constant_buffer = ext_data.load_external_mmap_data(m_model_dir.string(), m_mmap_cache);
         } else {
-            constant = std::make_shared<ov::op::v0::Constant>(ov_type,
-                                                              m_shape,
-                                                              ext_data.load_external_data(m_model_dir.string()));
+            constant_buffer = ext_data.load_external_data(m_model_dir.string());
         }
-        // ext_data.size() might be zero, need to recalc by using info about actually red data (for byte-size)
-        element_count = constant->get_byte_size() / ov_type.size();
-        if (ov::element::is_nibble_type(ov_type)) {
-            element_count *= 2;  // Each byte contains 2 data items, so byte size must be multiplicated
-        }
-        if (element_count != ov::shape_size(m_shape) ||
-            (ext_data.size() != 0 && constant->get_byte_size() != ext_data.size())) {
+
+        try {
+            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, constant_buffer);
+        } catch (const ov::Exception&) {
             throw error::invalid_external_data(
                 "The size of the external data file does not match the byte size of an initializer '" + get_name() +
                 "' in the model");

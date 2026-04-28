@@ -59,17 +59,26 @@ CM_INLINE void get_mn(uint& id_wg_m, uint& id_wg_n, uint M, uint N, int slice_no
     }
 }
 
+
 extern "C" _GENX_MAIN_ void KERNEL_NAME(
+    #ifdef CM_HAS_LSC_UNTYPED_2D
     svmptr_t key_cache ATTR,
     svmptr_t query ATTR,
+    #else
+    SurfaceIndex key_cache [[type("buffer_t")]],
+    SurfaceIndex query [[type("buffer_t")]],
+    #endif
     svmptr_t block_indices ATTR,
     svmptr_t block_indices_begins ATTR,
     svmptr_t kq_max_wg ATTR,
+    #ifdef CM_HAS_LSC_UNTYPED_2D
     svmptr_t kq_exp_partial_sum ATTR,
+    #else
+    SurfaceIndex kq_exp_partial_sum [[type("buffer_t")]],
+    #endif
     uint M, uint N, uint K, uint query_stride, int slice_no, int slice, uint q_start_strided) {
     const uint BLOCK_WG_M = BLOCK_SG_M * SG_M;
     const uint BLOCK_WG_N = BLOCK_SG_N * SG_N;
-    const uint size_slm_b = 0;
     uint hq = cm_group_id(2) * WALK_HQ;
     hq += cm_group_id(0) & (WALK_HQ - 1);
     if (hq >= HQ) return;
@@ -83,14 +92,16 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     uint id_wg_m, id_wg_n;
     get_mn(id_wg_m, id_wg_n, M, N, slice_no, slice, BLOCK_WG_M, BLOCK_WG_N);
 
+    #ifdef CM_HAS_LSC_UNTYPED_2D
     // key cache: [block, HQ, KV_BLOCK_SIZE, HEAD_SIZE_KEY]
 #if USE_INT8
     key_cache += hk * (KV_BLOCK_SIZE * HEAD_SIZE_KEY * (uint)sizeof(char));
 #else
     key_cache += hk * (KV_BLOCK_SIZE * HEAD_SIZE_KEY * (uint)sizeof(half));
 #endif
-    // query: [l_q, HQ * HEAD_SIZE]
     query += hq * HEAD_SIZE * (uint)sizeof(half);
+    #endif
+    
 
     // kq_max: [hq, m_pad]
     // kq_max_wg: [hq, n_groups, m_pad]
@@ -102,12 +113,15 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     const uint sum_per_n_token_in_block = BLOCK_SIZE / STRIDE;
     const uint n_after_sum_in_group = BLOCK_WG_N / sum_per_n_token_in_block;
     const uint n_after_sum_pad = n_after_sum_in_group * n_groups;
-    kq_exp_partial_sum += hq * n_after_sum_pad * m_pad * (uint)sizeof(SOFTMAX_TYPE);
+    const uint offset_partial_sum = hq * n_after_sum_pad * m_pad * (uint)sizeof(SOFTMAX_TYPE);
+    #ifdef CM_HAS_LSC_UNTYPED_2D
+    kq_exp_partial_sum += offset_partial_sum;
+    #endif
 
-#define CONCAT_IMPL(a, b) gemm_qk_ ##a ##x ##b ##_xe2
+#define CONCAT_IMPL(a, b) KERNEL_NAME::gemm_qk
 #define CONCAT(x, y) CONCAT_IMPL(x, y)
 #define FUNC CONCAT(BLOCK_SG_M, BLOCK_SG_N)
-    FUNC(id_wg_m, id_wg_n, hq, slm, key_cache, query, block_indices, block_indices_begins, kq_max_wg, kq_exp_partial_sum, M, N, K, query_stride, q_start_strided);
+    FUNC(id_wg_m, id_wg_n, hq, slm, key_cache, query, block_indices, block_indices_begins, kq_max_wg, kq_exp_partial_sum, M, N, K, query_stride, q_start_strided, offset_partial_sum);
 }
 
 }  // NAMESPACE

@@ -9,7 +9,6 @@
 #include <string>
 #include <vector>
 
-#include "openvino/core/shape.hpp"
 #include "utils/caseless.hpp"
 
 namespace ov::intel_cpu {
@@ -139,7 +138,8 @@ enum class Type : uint8_t {
     SearchSorted,
     SegmentMax,
     LoRA,
-    GatherMatmul
+    GatherMatmul,
+    GatedDeltaNet
 };
 
 enum class Algorithm : uint8_t {

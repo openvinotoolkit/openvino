@@ -21,7 +21,6 @@
 #include <utility>
 #include <vector>
 
-#include "../../core/src/itt.hpp"
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"

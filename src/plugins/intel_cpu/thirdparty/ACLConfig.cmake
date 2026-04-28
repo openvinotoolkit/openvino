@@ -528,4 +528,3 @@ elseif(NOT TARGET arm_compute::arm_compute)
     set(ACL_INCLUDE_DIR "${ARM_COMPUTE_SOURCE_DIR}")
     set(ENV{ACL_ROOT_DIR} "${ARM_COMPUTE_SOURCE_DIR}")
 endif()
-

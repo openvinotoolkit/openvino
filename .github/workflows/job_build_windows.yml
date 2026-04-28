@@ -63,14 +63,14 @@ jobs:
       PRODUCT_TYPE: 'public_windows_vs2022_${{ inputs.build-type }}'
     steps:
       - name: Clone OpenVINO
-        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           path: 'openvino'
           submodules: 'true'
 
       - name: Clone OpenVINO Contrib
-        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           repository: 'openvinotoolkit/openvino_contrib'
@@ -227,6 +227,16 @@ jobs:
           should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'
 
+      # Setup additional Python versions for wheels building
+      - name: Setup Python 3.14
+        if: ${{ inputs.build-additional-python-wheels }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: '3.14'
+          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
+          should-setup-pip-paths: 'true'
+          self-hosted-runner: 'true'
+
       - name: Build additional Python wheels
         if: ${{ inputs.build-additional-python-wheels }}
         run: |
@@ -273,7 +283,6 @@ jobs:
           should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'
           allow-prereleases: 'true'
-      
       - name: Build additional Python wheels - Python 3.14t
         if: ${{ inputs.build-additional-python-wheels }}
         run: |

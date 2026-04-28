@@ -47,7 +47,6 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(std::vector<element::Type>{}),
                        ::testing::Values(ov::element::f32),
                        ::testing::Values(false),  // The graph doesn't contain Multiply
-                       ::testing::Values(MHA::default_thread_count),
                        ::testing::Values(7),  // FQx3, Transpose1 on inputs + MHA + Transpose on output + Deq Mul
                        ::testing::Values(5),  // FQx3 on inputs + MHA + Deq Mul
                        ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -62,7 +61,6 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(std::vector<element::Type>{}),
         ::testing::Values(ov::element::f32),
         ::testing::Values(false),  // The graph doesn't contain Multiply
-        ::testing::Values(MHA::default_thread_count),
         ::testing::Values(6),  // FQx2, Transpose1 on inputs + MHA + Transpose on output + Deq Mul
         ::testing::Values(4),  // FQx2 on inputs + MHA + Deq Mul
         ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -76,7 +74,6 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(std::vector<element::Type>{}),
                        ::testing::Values(ov::element::f32),
                        ::testing::Values(false),  // The graph doesn't contain Multiply
-                       ::testing::Values(MHA::default_thread_count),
                        ::testing::Values(4),  // Transpose1 + MHA + Transpose on output + Deq Mul
                        ::testing::Values(3),  // Transpose1 + MHA + Deq Mul
                        ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -90,7 +87,6 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(std::vector<element::Type>{}),
                        ::testing::Values(ov::element::f32),
                        ::testing::Values(false),  // The graph doesn't contain Multiply
-                       ::testing::Values(MHA::default_thread_count),
                        ::testing::Values(8),  // Transposex3 + Subgraphsx5
                        ::testing::Values(5),  // MHA + Deq Mul on output + Deqs on inputs + 2 xFQ on inputs
                        ::testing::Values(ov::test::utils::DEVICE_CPU),

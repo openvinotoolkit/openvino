@@ -343,12 +343,4 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream);
  */
 std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor);
 
-/**
- * @brief Reads metadata from a blob (ov::Tensor).
- *
- * @return If the blob is versioned and its major version is supported, returns an unique pointer to the read
- * MetadataBase object; otherwise, returns 'nullptr'.
- */
-std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor);
-
 }  // namespace intel_npu

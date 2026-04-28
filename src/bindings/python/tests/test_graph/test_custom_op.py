@@ -143,7 +143,6 @@ def prepared_paths(request, tmp_path):
     ),
     ({"wrong": {}}, pytest.raises(TypeError), "Unsupported attribute type: <class 'dict'>")
 ])
-@pytest.mark.skipif(sysconfig.get_config_var("Py_GIL_DISABLED"), reason="Ticket: 171534")
 def test_visit_attributes_custom_op(device, prepared_paths, attributes, expectation, raise_msg):
     input_shape = [2, 1]
 
@@ -203,7 +202,6 @@ def test_custom_add_model():
     assert op_types == ["Parameter", "Parameter", "CustomAdd", "Result"]
 
 
-@pytest.mark.skipif(sysconfig.get_config_var("Py_GIL_DISABLED"), reason="Ticket: 171534")
 def test_custom_op(device):
     model = create_snake_model()
     compiled_model = compile_model(model, device)

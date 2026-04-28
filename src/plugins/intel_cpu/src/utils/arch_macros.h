@@ -107,13 +107,5 @@
 #    define OV_CPU_RISCV64(...)
 #endif
 
-#if defined(OPENVINO_ARCH_RISCV64)
-#    define OV_CPU_INSTANCE_RISCV64(...) {__VA_ARGS__},
-#    define OV_CPU_RISCV64(...)          __VA_ARGS__
-#else
-#    define OV_CPU_INSTANCE_RISCV64(...)
-#    define OV_CPU_RISCV64(...)
-#endif
-
 #define OV_CPU_INSTANCE_COMMON(...) {__VA_ARGS__},
 #define OV_CPU_COMMON(...)          __VA_ARGS__

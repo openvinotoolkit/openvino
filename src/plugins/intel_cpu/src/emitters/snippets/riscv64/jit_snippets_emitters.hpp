@@ -39,6 +39,10 @@ public:
         return 1;
     }
 
+    size_t aux_vecs_count() const override {
+        return 1;
+    }
+
 private:
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
 

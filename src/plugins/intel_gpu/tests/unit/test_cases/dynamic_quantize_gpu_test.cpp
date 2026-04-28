@@ -186,12 +186,12 @@ public:
             cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr_ref(ref_output_buffers[i], get_test_stream());
 
             for (size_t j = 0; j < output_ptr_ref.size(); ++j) {
-                auto abs_diff = std::abs(output_ptr_ref[j] - output_ptr[j]);
                 if (ov::element::Type(quant_dt).is_real()) {
+                    auto abs_diff = std::abs(output_ptr_ref[j] - output_ptr[j]);
                     ASSERT_EQ(abs_diff, 0);
                 } else { // (u)int8
                     const int abs_error_threshold = 2;
-                    ASSERT_NEAR(output_ptr_ref[i], output_ptr[i], abs_error_threshold);
+                    ASSERT_NEAR(output_ptr_ref[j], output_ptr[j], abs_error_threshold);
                 }
             }
         }

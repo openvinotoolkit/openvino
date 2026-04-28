@@ -2,9 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#define IS_LOW_BIT_FP (F4E2M1_INPUT || F8E5M2_INPUT || F8E4M3_INPUT || F4E2M1_OUTPUT || F8E5M2_OUTPUT || F8E4M3_OUTPUT)
+
+#if IS_LOW_BIT_FP
 #include "include/batch_headers/common.cl"
 #include "include/batch_headers/f8_utils.cl"
 #include "include/batch_headers/f4_utils.cl"
+#endif
+
 #include "include/reshape_dims.cl"
 #include "include/fetch_utils.cl"
 

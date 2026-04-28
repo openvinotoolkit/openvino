@@ -112,7 +112,9 @@ void MoEResources::initialize_expert_batch_mode(
 
 void MoEResources::reset_cache() {
     LOG_DEBUG("Resetting request cache...");
-    request_cache.reset();
+    if (request_cache) {
+        request_cache.reset();
+    }
 
     // Keep sorted_chunk_sizes (static data)
     // Keep expert_output_accumulator (reusable allocation)

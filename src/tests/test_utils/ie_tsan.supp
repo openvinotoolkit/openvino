@@ -1,0 +1,14 @@
+# ThreadSanitizer suppression file for OpenVINO
+
+# global const variables from CPU plugin
+race:^ov::intel_cpu::type_to_name_tbl[abi:cxx11]$
+
+# global variable from CPU plugin which is initialized during plugin loading
+race:^ov::intel_cpu::Node::GetNodesHolder()::localHolder$
+
+# global const variable from pugixml
+race:^pugi::impl::(anonymous namespace)::dummy_node_set$
+
+# Issue 114114 ThreadSanitizer: signal-unsafe call inside of a signal
+# Suppress it since it's caused by signal handler from tests utilities that not uses threads
+signal:src/tests/ie_test_utils/functional_test_utils/src/crash_handler.cpp

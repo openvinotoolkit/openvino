@@ -14,10 +14,6 @@ class aten_cat(torch.nn.Module):
 
     def prepare_input(self, x):
         return [x, x]
-    
-class aten_single_cat(aten_cat):
-    def prepare_input(self, x):
-        return [x]
 
 class aten_single_cat(aten_cat):
     def prepare_input(self, x):
@@ -126,7 +122,7 @@ class TestCat(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.parametrize("out", [False, pytest.param(True, marks=pytest.mark.xfail(reason="out case is not supported"))])
+    @pytest.mark.parametrize("out", [False, True])
     def test_loop_append_cat(self, out, ie_device, precision, ir_version):
         model = aten_loop_append_cat() if not out else aten_loop_append_cat_out()
         self._test(model, ["aten::cat", "aten::append", "prim::ListConstruct", "prim::Loop"],
@@ -154,13 +150,6 @@ class TestCat(PytorchLayerTest):
     def test_cat_single_complex(self, ie_device, precision, ir_version):
         model = aten_cat_single_complex()
         self._test(model, ["aten::cat", "prim::ListConstruct"],
-                   ie_device, precision, ir_version, freeze_model=False)
-        
-    @pytest.mark.nightly
-    @pytest.mark.precommit
-    def test_cat_single_complex(self, ie_device, precision, ir_version):
-        model = aten_cat_single_complex()
-        self._test(model, None, ["aten::cat", "prim::ListConstruct"],
                    ie_device, precision, ir_version, freeze_model=False)
 
 

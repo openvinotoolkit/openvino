@@ -38,10 +38,6 @@ export interface Core {
    */
   new (): Core;
   /**
-   * It constructs a new Core object.
-   */
-  new (): Core;
-  /**
    * Registers extensions to a Core object.
    * @param libraryPath Path to the library with ov::Extension.
    */
@@ -245,11 +241,6 @@ export interface Core {
 }
 
 export interface Model {
-  /**
-   * It constructs a default Model object. Use {@link Core.readModel}
-   * to read Model from supported file format.
-   */
-  new (): Model;
   /**
    * It constructs a default Model object. Use {@link Core.readModel}
    * to read Model from supported file format.
@@ -486,28 +477,6 @@ export interface Tensor {
    */
   new (tensorData: string[]): Tensor;
   /**
-   * It constructs a tensor using the element type and shape. The new tensor
-   * data will be allocated by default.
-   * @param type The element type of the new tensor.
-   * @param shape The shape of the new tensor.
-   */
-  new (type: element | elementTypeString, shape: number[]): Tensor;
-  /**
-   * It constructs a tensor using the element type and shape. The new tensor
-   * wraps allocated host memory.
-   * @param type The element type of the new tensor.
-   * @param shape The shape of the new tensor.
-   * @param tensorData A subclass of TypedArray that will be wrapped
-   * by a {@link Tensor}.
-   */
-  new (type: element | elementTypeString, shape: number[], tensorData: SupportedTypedArray): Tensor;
-  /**
-   * It constructs a tensor using the element type and shape. The strings from
-   * the array are used to fill the new tensor. Each element of a string tensor
-   * is a string of arbitrary length, including an empty string.
-   */
-  new (tensorData: string[]): Tensor;
-  /**
    * This property provides access to the tensor's data.
    *
    * Its getter returns a subclass of TypedArray that corresponds to the
@@ -560,12 +529,6 @@ export interface Tensor {
  * asynchronous or synchronous manners.
  */
 export interface InferRequest {
-  /**
-   * It constructs a default InferRequest object.
-   * Use {@link CompiledModel.createInferRequest}
-   * to get InferRequest object specific for a given deployed model.
-   */
-  new (): InferRequest;
   /**
    * It constructs a default InferRequest object.
    * Use {@link CompiledModel.createInferRequest}

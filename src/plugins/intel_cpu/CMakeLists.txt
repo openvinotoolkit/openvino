@@ -328,6 +328,14 @@ cross_compiled_file(${TARGET_NAME}
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 
+cross_compiled_file(${TARGET_NAME}
+        ARCH AVX512F AVX2 ANY
+                    src/nodes/kernels/linear_attn/recurrent_linear_attn.cpp
+        API         src/nodes/kernels/linear_attn/recurrent_linear_attn.hpp
+        NAME        recurrent_linear_attn
+        NAMESPACE   ov::Extensions::Cpu::XARCH
+)
+
 # system dependencies must go last
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::pugixml)
 ov_set_threading_interface_for(${TARGET_NAME})
@@ -342,11 +350,9 @@ set(PCH_EXCLUDE_FILES
     src/emitters/plugin/x64/debug_capabilities.cpp
     src/emitters/plugin/aarch64/debug_capabilities.cpp
     src/nodes/executors/printers.cpp
-    src/emitters/snippets/x64/jit_debug_emitter.cpp
     src/emitters/snippets/x64/jit_perf_count_rdtsc_emitters.cpp
     src/emitters/snippets/x64/jit_segfault_detector_emitter.cpp
     src/emitters/snippets/x64/verbose.cpp
-    src/emitters/snippets/aarch64/jit_debug_emitter.cpp
     src/emitters/snippets/aarch64/jit_segfault_detector_emitter.cpp
     src/emitters/snippets/aarch64/verbose.cpp
     src/transformations/snippets/x64/op/perf_count_rdtsc.cpp)

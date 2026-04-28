@@ -266,7 +266,7 @@ ov::Shape ov::PartialShape::to_shape() const {
         OPENVINO_THROW("to_shape was called on a dynamic shape.");
     }
 
-    ov::Shape shape_dimensions(m_dimensions.size());
+    std::vector<size_t> shape_dimensions(m_dimensions.size());
     std::transform(m_dimensions.begin(), m_dimensions.end(), shape_dimensions.begin(), [](const Dimension& d) {
         return d.get_length();
     });

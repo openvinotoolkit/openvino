@@ -11,6 +11,7 @@
 #include <memory>
 #include <numeric>
 #include <oneapi/dnnl/dnnl.hpp>
+#include <vector>
 
 #include "cpu_memory_desc.h"
 #include "cpu_types.h"

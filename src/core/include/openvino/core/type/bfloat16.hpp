@@ -13,7 +13,6 @@
 #include <vector>
 
 #include "openvino/core/core_visibility.hpp"
-#include "openvino/core/deprecated.hpp"
 
 #define ROUND_MODE_TO_NEAREST_EVEN
 

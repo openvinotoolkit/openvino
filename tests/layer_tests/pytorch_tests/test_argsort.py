@@ -70,6 +70,7 @@ class TestArgSort(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_argsort(self, tensor_stable_pair, descending, ie_device, precision, ir_version):
         input_shape, stable = tensor_stable_pair
         if type(input_shape) is list:

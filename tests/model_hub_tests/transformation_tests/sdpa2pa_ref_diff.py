@@ -917,11 +917,4 @@ ref_diff_map_optimizations = {
 		"ReadValue" : -4,
 		"ScaledDotProductAttention" : -2,
 	},
-	#"tiny-random/gpt-oss" : {
-	#	"Assign" : -4,
-	#	"PagedAttentionExtension" : 2,
-	#	"Parameter" : 18,
-	#	"ReadValue" : -4,
-	#	"ScaledDotProductAttention" : -2,
-	#},
 }

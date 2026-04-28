@@ -118,6 +118,8 @@ private:
     void init_mappings();
     bool is_batched_input(const ov::Output<const ov::Node>& port) const;
     uint64_t total_output_bytes = 0;
-};
+    // Variable to hold the inference request string with compiled model name
+    // to prevent this string being constructed for each inference call
+    std::string m_itt_infer_request_str;};
 
 }  // namespace ov::intel_gpu

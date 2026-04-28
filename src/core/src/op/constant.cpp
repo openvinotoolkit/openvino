@@ -302,6 +302,14 @@ Constant::Constant(const element::Type& type, const Shape& shape, const std::sha
       m_shape(shape),
       m_byte_strides(calc_byte_strides(m_shape, m_element_type)),
       m_data(data) {
+    const auto constant_size = ov::util::get_memory_size_safe(m_element_type, m_shape);
+    OPENVINO_ASSERT(constant_size, "Cannot calculate byte size for type: ", m_element_type, " and shape: ", m_shape);
+    const auto data_size = ((*constant_size > 0) && data) ? data->size() : 0;
+    OPENVINO_ASSERT(*constant_size == data_size,
+                    "The Constant byte size and input data byte size not same: ",
+                    *constant_size,
+                    " != ",
+                    data_size);
     constructor_validate_and_infer_types();
 }
 
@@ -383,7 +391,6 @@ std::string Constant::convert_value_to_string(size_t index) const {
 }
 
 size_t Constant::get_byte_size() const {
-    // Returns 0 when shape is "empty" (equals 0).
     // TODO: refactor shape_size(m_shape) calculations and store it as a member.
     return shape_size(m_shape) ? m_data->size() : 0;
 }

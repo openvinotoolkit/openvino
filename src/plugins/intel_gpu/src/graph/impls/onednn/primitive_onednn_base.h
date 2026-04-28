@@ -12,7 +12,6 @@
 #include "intel_gpu/runtime/file_util.hpp"
 #include "to_string_utils.h"
 #include "utils.hpp"
-#include "runtime/ocl/ocl_event.hpp"
 
 #include "intel_gpu/primitives/reorder.hpp"
 
@@ -547,8 +546,7 @@ protected:
             try {
                 _prim.execute(stream.get_onednn_stream(), _args[net_id]);
             } catch (dnnl::error& err) {
-                auto err_code = err.status == dnnl_status_t::dnnl_out_of_memory ? CL_OUT_OF_RESOURCES : CL_INVALID_OPERATION;
-                ocl::rethrow(err.what(), err_code, _engine->get_device_info());
+                OPENVINO_THROW(err.what());
             }
 
             if (_enable_profiling) {
@@ -557,12 +555,11 @@ protected:
                 stream.wait();
 
                 std::vector<uint64_t> duration = dnnl::get_profiling_data(stream.get_onednn_stream(), dnnl::profiling_data_kind::time);
-                if (duration.empty()) {
-                    event = std::make_shared<ocl::ocl_event>(0);
-                } else {
+                event = stream.create_user_event(true);
+                if (!duration.empty()) {
                     OPENVINO_ASSERT(duration.size() == 1, "[GPU] oneDNN profiling data is expected to have info only for single primitive ",
                                                       "actual number is ", duration.size());
-                    event = std::make_shared<ocl::ocl_event>(duration[0]);
+                    event->set_profiling_duration(duration[0]);
                 }
 
             } else {

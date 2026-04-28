@@ -34,8 +34,9 @@ void VariablesIndex::read_variables_index_block(std::ifstream& fs,
     data.resize(block_size + BLOCK_TRAILER_SIZE);
     FRONT_END_GENERAL_CHECK(index.m_offset <= m_variables_index_size,
                             "Block offset is bigger than variables index size");
-    FRONT_END_GENERAL_CHECK(index.m_offset + data.size() <= m_variables_index_size,
-                            "Block size is bigger than variables index size");
+    FRONT_END_GENERAL_CHECK(
+        data.size() <= m_variables_index_size && index.m_offset <= m_variables_index_size - data.size(),
+        "Block size is bigger than variables index size");
     fs.seekg(index.m_offset, std::ios::beg);
     fs.read(data.data(), data.size());
 #ifndef ENABLE_SNAPPY_COMPRESSION
@@ -156,13 +157,33 @@ void VariablesIndex::read_checkpointable_object_graph() {
     auto shard = m_data_files.find(entry.shard_id());
     FRONT_END_GENERAL_CHECK(shard != m_data_files.end(), "CMO: data files isn't found");
 
-    std::vector<char> data(entry.size());
-    ::tensorflow::TrackableObjectGraph tog;
-
     // TODO: have to understand this offset
     // It looks like reinterpret_cast artifact
     // https://github.com/tensorflow/tensorflow/blob/d90f1947ebcf510b23c238f43c2191e5b3817cb3/tensorflow/cc/experimental/libexport/load.cc#L70
     int chg = 6;
+
+    // Validate entry.size() >= chg to avoid underflow in (entry.size() - chg)
+    FRONT_END_GENERAL_CHECK(entry.size() >= chg, "CMO: Bundle entry size is too small");
+
+    // Validate offset and size bounds before any pointer arithmetic or memory allocation
+    if (m_mmap_enabled) {
+        validate_bundle_entry_bounds(entry.offset(),
+                                     entry.size(),
+                                     static_cast<uint64_t>(shard->second.mmap->size()),
+                                     "CMO (mmap)");
+    } else {
+        shard->second.stream->seekg(0, std::ios::end);
+        FRONT_END_GENERAL_CHECK(*shard->second.stream, "CMO (stream): failed to seek to end of data file");
+        auto pos = shard->second.stream->tellg();
+        FRONT_END_GENERAL_CHECK(pos != static_cast<std::streampos>(-1),
+                                "CMO (stream): failed to determine data file size");
+        auto file_size = static_cast<uint64_t>(pos);
+        validate_bundle_entry_bounds(entry.offset(), entry.size(), file_size, "CMO (stream)");
+    }
+
+    std::vector<char> data(entry.size());
+    ::tensorflow::TrackableObjectGraph tog;
+
     if (m_mmap_enabled) {
         auto srcPtr = static_cast<char*>(shard->second.mmap->data() + entry.offset() + chg);
         std::copy(srcPtr, srcPtr + entry.size() - chg, data.data());

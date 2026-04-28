@@ -373,7 +373,6 @@ enum class gpu_arch {
     xe3p_35_10 = 9,
     xe3p_35_11 = 10,
     xe3p_unknown = 11,
-    xe4 = 12,
 };
 
 

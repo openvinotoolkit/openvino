@@ -12,11 +12,44 @@ using namespace ov::test::behavior;
 namespace {
 
 const std::vector<ov::AnyMap> configsInferRequestRunTests = {{}};
+const std::vector<ov::AnyMap> configsBooleanPrecisionInferRequestRunTests = {
+    {{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN),
+      ov::intel_npu::batch_mode(ov::intel_npu::BatchMode::PLUGIN),
+      // platform needed only for NPU_COMPILER_TYPE_PLUGIN
+      ov::intel_npu::platform(ov::intel_npu::Platform::standardize(
+          ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU)))}},
+    {{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN),
+      ov::intel_npu::batch_mode(ov::intel_npu::BatchMode::COMPILER),
+      // platform needed only for NPU_COMPILER_TYPE_PLUGIN
+      ov::intel_npu::platform(ov::intel_npu::Platform::standardize(
+          ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU)))}},
+    {{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
+      ov::intel_npu::batch_mode(ov::intel_npu::BatchMode::PLUGIN)}},
+    {{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
+      ov::intel_npu::batch_mode(ov::intel_npu::BatchMode::COMPILER)}}};
 
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
                          InferRequestRunTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(configsInferRequestRunTests)),
+                         InferRequestRunTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
+                         BooleanPrecisionInferRequestRunTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(configsBooleanPrecisionInferRequestRunTests),
+                                            ::testing::ValuesIn(std::vector<bool>{true, false}),  // with warmup infer
+                                            ::testing::ValuesIn(std::vector<bool>{true,
+                                                                                  false})),  // with reset infer request
+                         ov::test::utils::appendPlatformTypeTestName<BooleanPrecisionInferRequestRunTests>);
+
+const std::vector<ov::AnyMap> profilingConfigs{{ov::intel_npu::profiling_type(ov::intel_npu::ProfilingType::MODEL)},
+                                               {ov::intel_npu::profiling_type(ov::intel_npu::ProfilingType::INFER)}};
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
+                         ProfilingBlob,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(profilingConfigs)),
                          InferRequestRunTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
@@ -43,10 +76,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                                             ::testing::ValuesIn(configsInferRequestRunTests)),
                          InferRequestRunTests::getTestCaseName);
 
-const std::vector<ov::AnyMap> batchingConfigs = {
-    {ov::log::level(ov::log::Level::WARNING), ov::intel_npu::batch_mode(ov::intel_npu::BatchMode::PLUGIN)},
-    {ov::log::level(ov::log::Level::WARNING), ov::intel_npu::batch_mode(ov::intel_npu::BatchMode::COMPILER)},
-    {ov::log::level(ov::log::Level::WARNING), ov::intel_npu::batch_mode(ov::intel_npu::BatchMode::AUTO)}};
+const std::vector<ov::AnyMap> batchingConfigs = {{ov::intel_npu::batch_mode(ov::intel_npu::BatchMode::PLUGIN)},
+                                                 {ov::intel_npu::batch_mode(ov::intel_npu::BatchMode::COMPILER)},
+                                                 {ov::intel_npu::batch_mode(ov::intel_npu::BatchMode::AUTO)}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                          BatchingRunTests,

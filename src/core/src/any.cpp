@@ -85,10 +85,6 @@ void Any::Base::read_to(Base& other) const {
     }
 }
 
-bool Any::Base::is_base_type_info(const std::type_info& user_type) const {
-    return contains_type_index(base_type_info(), user_type);
-}
-
 bool Any::Base::is_signed_integral() const {
     return std::is_signed<char>::value ? contains_type_index(std::initializer_list<std::type_index>{typeid(char),
                                                                                                     typeid(signed char),

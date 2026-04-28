@@ -28,7 +28,7 @@ using namespace Xbyak_aarch64;
 namespace ov::intel_cpu::aarch64 {
 
 jit_perf_count_chrono_start_emitter::jit_perf_count_chrono_start_emitter(
-    dnnl::impl::cpu::aarch64::jit_generator* host,
+    dnnl::impl::cpu::aarch64::jit_generator_t* host,
     dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
     const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_binary_call_emitter(host, host_isa, expr->get_live_regs()) {
@@ -56,7 +56,7 @@ void jit_perf_count_chrono_start_emitter::emit_impl([[maybe_unused]] const std::
     restore_context({});
 }
 
-jit_perf_count_chrono_end_emitter::jit_perf_count_chrono_end_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+jit_perf_count_chrono_end_emitter::jit_perf_count_chrono_end_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
                                                                      dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                                                      const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_binary_call_emitter(host, host_isa, expr->get_live_regs()) {

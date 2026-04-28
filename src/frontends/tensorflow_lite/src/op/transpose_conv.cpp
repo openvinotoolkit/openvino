@@ -25,9 +25,9 @@ OutputVector transpose_conv(const ov::frontend::tensorflow_lite::NodeContext& no
     auto outputs = translate_conv_2d_backprop_input_op(context);
     del_output_names(outputs);
     if (node.get_input_size() == 4) {
-        const OutputVector& inputs_for_bias = {outputs[0], node.get_input(3)};
+        const OutputVector inputs_for_bias = {outputs[0], node.get_input(3)};
         auto context_bias = ov::frontend::tensorflow_lite::NodeContext(decoder, inputs_for_bias);
-        auto outputs = translate_binary_op<ov::opset10::Add>(context_bias);
+        outputs = translate_binary_op<ov::opset10::Add>(context_bias);
         del_output_names(outputs);
     }
     outputs[0].get_node_shared_ptr()->set_friendly_name(node.get_name());

@@ -251,15 +251,15 @@ KERNEL(dynamic_quantize_gpu_opt)(
 #if F4E2M1_OUTPUT
         val_scaled = clamp(val_scaled, -TO_SCALE_TYPE(OUTPUT_VAL_MAX), TO_SCALE_TYPE(OUTPUT_VAL_MAX));
         MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE) out_f4 = TO_TYPE_N_SAT(OUTPUT_TYPE, VEC_SIZE, val_scaled);
-        VSTORE_F4(out_f4.data, 0, (uchar*)(&output[output_byte_offset + (local_id  * block_size) / ELEMENTS_PER_BYTE]));
+        VSTORE_F4(out_f4.data, 0, (uchar*)(&output[output_byte_offset + (blockid  * block_size) / ELEMENTS_PER_BYTE]));
 #elif IS_F8
     MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE) out = TO_TYPE_N_SAT(OUTPUT_TYPE, VEC_SIZE, val);
-    VSTORE_N(out.data, 0, (char*)(&output[output_offset + (local_id * block_size)]));
+    VSTORE_N(out.data, 0, (char*)(&output[output_offset + (blockid * block_size)]));
 #elif ASYMMETRIC_QUANTIZATION
     val += zp;
-    VSTORE_N(CAT(CONVERT_UCHAR_N, _rte)(val), 0, output + output_offset + (local_id * block_size));
+    VSTORE_N(CAT(CONVERT_UCHAR_N, _rte)(val), 0, output + output_offset + (blockid * block_size));
 #else // i8 symmetric
-    VSTORE_N(CAT(CONVERT_CHAR_N, _rte)(val), 0, output + output_offset + (local_id * block_size));
+    VSTORE_N(CAT(CONVERT_CHAR_N, _rte)(val), 0, output + output_offset + (blockid * block_size));
 #endif
 
 #if GENERATE_PRECOMPUTED_REDUCTION

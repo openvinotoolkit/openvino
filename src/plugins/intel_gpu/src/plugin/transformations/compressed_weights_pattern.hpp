@@ -1,5 +1,7 @@
 #pragma once
 
+#include "openvino/pass/pattern/op/optional.hpp"
+
 using namespace ov::pass::pattern;
 #define FC_COMPRESSED_WEIGHT_PATTERN\
         auto compressed_constant = [](const ov::Output<ov::Node>& output) {\

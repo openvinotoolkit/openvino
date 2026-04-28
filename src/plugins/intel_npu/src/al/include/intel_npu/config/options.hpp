@@ -40,7 +40,7 @@ struct PERFORMANCE_HINT final : OptionBase<PERFORMANCE_HINT, ov::hint::Performan
     }
 
     static OptionMode mode() {
-        return OptionMode::CompileTime;
+        return OptionMode::Both;
     }
 
     static ov::hint::PerformanceMode parse(std::string_view val) {
@@ -1357,6 +1357,20 @@ struct BATCH_COMPILER_MODE_SETTINGS final : OptionBase<BATCH_COMPILER_MODE_SETTI
     }
 };
 
+struct ENABLE_WEIGHTLESS final : OptionBase<ENABLE_WEIGHTLESS, bool> {
+    static std::string_view key() {
+        return ov::enable_weightless.name();
+    }
+
+    static bool defaultValue() {
+        return false;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::CompileTime;
+    }
+};
+
 struct WEIGHTLESS_BLOB final : OptionBase<WEIGHTLESS_BLOB, bool> {
     static std::string_view key() {
         return ov::intel_npu::weightless_blob.name();
@@ -1436,16 +1450,6 @@ struct WS_COMPILE_CALL_NUMBER final : OptionBase<WS_COMPILE_CALL_NUMBER, uint32_
     }
 };
 
-struct USE_BASE_MODEL_SERIALIZER final : OptionBase<USE_BASE_MODEL_SERIALIZER, bool> {
-    static std::string_view key() {
-        return ov::intel_npu::use_base_model_serializer.name();
-    }
-
-    static bool defaultValue() {
-        return true;
-    }
-};
-
 struct MODEL_SERIALIZER_VERSION final : OptionBase<MODEL_SERIALIZER_VERSION, ov::intel_npu::ModelSerializerVersion> {
     static std::string_view key() {
         return ov::intel_npu::model_serializer_version.name();
@@ -1505,7 +1509,11 @@ struct DISABLE_IDLE_MEMORY_PRUNING final : OptionBase<DISABLE_IDLE_MEMORY_PRUNIN
     }
 
     static OptionMode mode() {
-        return OptionMode::CompileTime;
+        return OptionMode::RunTime;
+    }
+
+    static bool isPublic() {
+        return true;
     }
 };
 

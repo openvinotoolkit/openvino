@@ -9,7 +9,6 @@
 #include "intel_npu/config/options.hpp"
 
 #ifdef _WIN32
-#    ifdef ENABLE_DX12
 
 using namespace ov::test::behavior;
 
@@ -21,5 +20,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                                             ::testing::ValuesIn(remoteConfigs)),
                          DX12RemoteRunTests::getTestCaseName);
 
-#    endif
 #endif

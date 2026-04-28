@@ -1,4 +1,3 @@
-//
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -431,6 +430,9 @@ struct convert<ONNXRTParams> {
         }
         if (node["opt_level"]) {
             params.opt_level = node["opt_level"].as<int>();
+        }
+        if (node["reshape"]) {
+            params.reshape = node["reshape"].as<LayerVariantAttr<std::vector<size_t>>>();
         }
         return true;
     }
