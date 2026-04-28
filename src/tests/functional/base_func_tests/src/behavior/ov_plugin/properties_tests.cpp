@@ -19,7 +19,7 @@ std::string OVPropertiesTests::getTestCaseName(testing::TestParamInfo<Properties
     std::ostringstream result;
     result << "target_device=" << target_device << "_";
     if (!properties.empty()) {
-        result << "properties=" << util::join(util::split(util::to_string(properties), ' '), "_");
+        result << "properties=" << util::join(util::split(util::to_string(properties), " "), "_");
     }
     return result.str();
 }
@@ -45,10 +45,10 @@ std::string OVSetPropComplieModleGetPropTests::getTestCaseName(testing::TestPara
     std::ostringstream result;
     result << "target_device=" << target_device << "_";
     if (!properties.empty()) {
-        result << "properties=" << util::join(util::split(util::to_string(properties), ' '), "_");
+        result << "properties=" << util::join(util::split(util::to_string(properties), " "), "_");
     }
     if (!compileModelProperties.empty()) {
-        result << "_compileModelProp=" << util::join(util::split(util::to_string(compileModelProperties), ' '), "_");
+        result << "_compileModelProp=" << util::join(util::split(util::to_string(compileModelProperties), " "), "_");
     }
     return result.str();
 }
@@ -66,7 +66,7 @@ std::string OVPropertiesTestsWithCompileModelProps::getTestCaseName(testing::Tes
     std::ostringstream result;
     result << "target_device=" << target_device << "_";
     if (!properties.empty()) {
-        result << "properties=" << util::join(util::split(util::to_string(properties), ' '), "_");
+        result << "properties=" << util::join(util::split(util::to_string(properties), " "), "_");
     }
     return result.str();
 }
