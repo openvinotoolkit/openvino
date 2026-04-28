@@ -51,7 +51,7 @@ struct PagedAttentionExecutor {
     static const size_t ID_QQ_BIAS_BEGINS = 27;  // [B_seq + 1], int32
     virtual void execute(const std::vector<ov::intel_cpu::MemoryPtr>& inputs,
                          std::vector<ov::intel_cpu::MemoryPtr> outputs,
-                         bool write_kv_cache = true) = 0;
+                         bool write_kv_cache) = 0;
     virtual ~PagedAttentionExecutor() = default;
 };
 

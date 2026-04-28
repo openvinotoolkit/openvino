@@ -2500,7 +2500,9 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         }
     }
 
-    void execute(const std::vector<MemoryPtr>& inputs, const std::vector<MemoryPtr> outputs, bool write_kv_cache = true) override {
+    void execute(const std::vector<MemoryPtr>& inputs,
+                 const std::vector<MemoryPtr> outputs,
+                 bool write_kv_cache) override {
         PlainTensor q;
         PlainTensor k;
         PlainTensor v;
