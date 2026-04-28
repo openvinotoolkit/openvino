@@ -100,7 +100,14 @@ namespace detail {
 ov::OutputVector loop_legacy(const ov::frontend::onnx::Node& node) {
     const auto& ng_inputs = node.get_ov_inputs();
 
-    const ov::OutputVector loop_carried_dependencies{std::next(ng_inputs.begin(), 2), ng_inputs.end()};
+    constexpr size_t control_inputs_count = 2;
+
+    FRONT_END_GENERAL_CHECK(
+        ng_inputs.size() >= control_inputs_count,
+        "Expecting at least two canonical inputs for Loop op: trip count and termination condition");
+
+    const ov::OutputVector loop_carried_dependencies{std::next(ng_inputs.begin(), control_inputs_count),
+                                                     ng_inputs.end()};
 
     const auto& subgraphs = node.get_subgraphs();
     auto body_graph_it = subgraphs.find("body");
@@ -109,10 +116,32 @@ ov::OutputVector loop_legacy(const ov::frontend::onnx::Node& node) {
     auto body_outputs = body_graph->get_ov_outputs();
     const auto& body_inputs = body_graph->get_ng_parameters();
 
+    // NOTE: We're relaxing the check on body_inputs size here to allow extra parameters that are not loop-carried
+    // dependencies and are not control inputs (iteration number and termination condition). These extra parameters are
+    // expected to be invariant inputs that are wired from the parent graph via Loop::set_invariant_input, and their
+    // presence does not violate ONNX spec as long as the loop body graph is well-formed and can be executed by ONNX
+    // Runtime.
+    CHECK_VALID_NODE(node,
+                     body_inputs.size() >= control_inputs_count &&
+                         body_inputs.size() - control_inputs_count >= loop_carried_dependencies.size(),
+                     "The provided loop body graph canonical inputs size (",
+                     body_inputs.size(),
+                     "), does not match the sum of loop carried dependencies "
+                     "and two mandatory inputs (",
+                     loop_carried_dependencies.size() + control_inputs_count,
+                     ")");
+
+    CHECK_VALID_NODE(node,
+                     body_outputs.size() >= 1 && body_outputs.size() - 1 >= loop_carried_dependencies.size(),
+                     "The provided loop body graph outputs size (",
+                     body_outputs.size(),
+                     ") is smaller than number of outputs. Required at least: ",
+                     loop_carried_dependencies.size() + 1);
+
     // Infer loop body inputs' element type based on carried dependencies
     for (size_t i = 0; i < loop_carried_dependencies.size(); i++) {
-        body_inputs[i + 2]->set_element_type(loop_carried_dependencies[i].get_element_type());
-        body_inputs[i + 2]->set_partial_shape(loop_carried_dependencies[i].get_partial_shape());
+        body_inputs[i + control_inputs_count]->set_element_type(loop_carried_dependencies[i].get_element_type());
+        body_inputs[i + control_inputs_count]->set_partial_shape(loop_carried_dependencies[i].get_partial_shape());
     }
 
     // optional inputs
@@ -165,29 +194,12 @@ ov::OutputVector loop_legacy(const ov::frontend::onnx::Node& node) {
         body_outputs[0] = v0::Constant::create(ov::element::boolean, {1}, {true});
         // Construct body_params without the condition parameter (body_inputs[1])
         body_params = ov::ParameterVector{body_inputs[0]};
-        body_params.insert(body_params.end(), body_inputs.begin() + 2, body_inputs.end());
+        body_params.insert(body_params.end(), body_inputs.begin() + control_inputs_count, body_inputs.end());
         needs_condition_param = false;
     } else {
         // Construct body_params with all body_inputs
         body_params = ov::ParameterVector(body_inputs.begin(), body_inputs.end());
     }
-
-    CHECK_VALID_NODE(node,
-                     body_inputs.size() >= loop_carried_dependencies.size() + 2,
-                     "The provided loop body graph inputs size (",
-                     body_inputs.size(),
-                     "), is not greater than the sum of loop carried dependencies "
-                     "and two mandatory"
-                     " inputs (",
-                     loop_carried_dependencies.size() + 2,
-                     ")");
-
-    CHECK_VALID_NODE(node,
-                     body_outputs.size() >= loop_carried_dependencies.size() + 1,
-                     "The provided loop body graph outputs size (",
-                     body_outputs.size(),
-                     ") is not greater than number of outputs. Required at least: ",
-                     loop_carried_dependencies.size() + 1);
 
     const auto body = std::make_shared<ov::Model>(body_outputs, body_params);
     auto loop = std::make_shared<v5::Loop>(trip_count, termination_cond);
@@ -200,7 +212,7 @@ ov::OutputVector loop_legacy(const ov::frontend::onnx::Node& node) {
     }
     // Setting up other Loop body inputs.
     // body_inputs[0] is iteration number, body_inputs[1] is termination condition
-    auto body_inputs_it = std::next(body_inputs.begin(), 2);
+    auto body_inputs_it = std::next(body_inputs.begin(), control_inputs_count);
     // body_outputs[0] is termination condition output
     auto body_outputs_it = std::next(body_outputs.begin(), 1);
 
@@ -246,7 +258,14 @@ ov::OutputVector loop_legacy(const ov::frontend::onnx::Node& node) {
 ov::OutputVector loop(const ov::frontend::onnx::Node& node) {
     const auto& ng_inputs = node.get_ov_inputs();
 
-    const ov::OutputVector loop_carried_dependencies{std::next(ng_inputs.begin(), 2), ng_inputs.end()};
+    constexpr size_t control_inputs_count = 2;
+
+    FRONT_END_GENERAL_CHECK(
+        ng_inputs.size() >= control_inputs_count,
+        "Expecting at least two canonical inputs for Loop op: trip count and termination condition");
+
+    const ov::OutputVector loop_carried_dependencies{std::next(ng_inputs.begin(), control_inputs_count),
+                                                     ng_inputs.end()};
 
     auto body_graph = node.get_attribute_value<std::shared_ptr<ov::Model>>("body");
     const auto& body_results = body_graph->get_results();
@@ -277,14 +296,18 @@ ov::OutputVector loop(const ov::frontend::onnx::Node& node) {
     body_outputs = std::move(filtered_body_outputs);
 
     CHECK_VALID_NODE(node,
-                     canonical_inputs.size() >= 2,
-                     "The provided loop body graph inputs size (",
+                     canonical_inputs.size() >= control_inputs_count &&
+                         canonical_inputs.size() - control_inputs_count == loop_carried_dependencies.size(),
+                     "The provided loop body graph canonical inputs size (",
                      canonical_inputs.size(),
-                     ") is not greater than the mandatory iteration and condition inputs (2)");
+                     "), does not match the sum of loop carried dependencies "
+                     "and two mandatory inputs (",
+                     loop_carried_dependencies.size() + control_inputs_count,
+                     ")");
 
     auto iteration_param = canonical_inputs[0];
     auto condition_param = canonical_inputs[1];
-    ov::ParameterVector state_parameters(canonical_inputs.begin() + 2, canonical_inputs.end());
+    ov::ParameterVector state_parameters(canonical_inputs.begin() + control_inputs_count, canonical_inputs.end());
 
     const auto default_trip_count = v0::Constant::create(ov::element::i64, {1}, {-1});
     const auto true_condition = v0::Constant::create(ov::element::boolean, {1}, {true});
@@ -338,14 +361,6 @@ ov::OutputVector loop(const ov::frontend::onnx::Node& node) {
         }
     }
 
-    CHECK_VALID_NODE(node,
-                     state_parameters.size() == loop_carried_dependencies.size(),
-                     "The provided loop body state parameters size (",
-                     state_parameters.size(),
-                     ") must match the number of loop carried dependencies (",
-                     loop_carried_dependencies.size(),
-                     ")");
-
     const auto mapped = loop_carried_dependencies.size();
 
     // Infer loop body inputs' element type based on carried dependencies
@@ -355,11 +370,11 @@ ov::OutputVector loop(const ov::frontend::onnx::Node& node) {
     }
 
     CHECK_VALID_NODE(node,
-                     body_outputs.size() >= state_parameters.size() + 1,
+                     body_outputs.size() >= 1 && body_outputs.size() - 1 >= loop_carried_dependencies.size(),
                      "The provided loop body graph outputs size (",
                      body_outputs.size(),
-                     ") is not greater than number of outputs. Required at least: ",
-                     state_parameters.size() + 1);
+                     ") is smaller than number of outputs. Required at least: ",
+                     loop_carried_dependencies.size() + 1);
 
     ov::ParameterVector body_params;
     body_params.push_back(iteration_param);

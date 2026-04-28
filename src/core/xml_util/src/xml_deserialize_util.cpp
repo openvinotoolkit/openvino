@@ -81,14 +81,6 @@ bool get_partial_shape_from_attribute(const pugi::xml_node& node, const std::str
     return true;
 }
 
-bool get_dimension_from_attribute(const pugi::xml_node& node, const std::string& name, Dimension& value) {
-    std::string param;
-    if (!getStrAttribute(node, name, param))
-        return false;
-    value = Dimension(param);
-    return true;
-}
-
 void str_to_set_of_strings(const std::string& value, std::set<std::string>& res) {
     std::stringstream ss(value);
     std::string field;
@@ -750,10 +742,9 @@ void XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<void
             return;
         a->set(shape);
     } else if (auto a = ov::as_type<ov::AttributeAdapter<Dimension>>(&adapter)) {
-        Dimension dim;
-        if (!get_dimension_from_attribute(m_node.child("data"), name, dim))
-            return;
-        a->set(dim);
+        if (const auto dim_str = util::pugixml::get_attribute_view(m_node.child("data"), name); dim_str.has_value()) {
+            a->set(Dimension(*dim_str));
+        }
     } else if (auto a = ov::as_type<ov::AttributeAdapter<ov::Shape>>(&adapter)) {
         std::vector<size_t> shape;
         if (!getParameters<size_t>(m_node.child("data"), name, shape))

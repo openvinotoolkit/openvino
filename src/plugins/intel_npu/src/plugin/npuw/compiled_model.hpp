@@ -279,17 +279,12 @@ private:
 
         bool forced_to_fcall = false;
 
-        // FIXME: Take it out of structure
-        ov::SoPtr<ov::ICompiledModel> ref_compiled_model;
-        bool switched_to_ref = false;
-
         // Metrics
         execution_stats stat;
 
-        void serialize(std::ostream& stream, const ov::npuw::s11n::WeightsContext& ctx) const;
-        void deserialize(std::istream& stream,
-                         const ov::npuw::s11n::WeightsContext& ctx,
-                         const ov::npuw::s11n::SubmodelDeserializeCtx& submodel_ctx);
+        void serialize(ov::npuw::s11n::Stream& stream,
+                       const ov::npuw::s11n::WeightsContext& ctx,
+                       const ov::npuw::s11n::SubmodelDeserializeCtx* submodel_ctx = nullptr);
     };
     std::vector<CompiledModelDesc> m_compiled_submodels;
 
