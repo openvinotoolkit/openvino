@@ -723,6 +723,11 @@ void Snapshot::earlyRegroup() {
             break;
         }
         case PatternType::PATTERN: {
+            if (m_ctx.subgraph_patterns != nullptr) {
+                handle_patterns =
+                    m_ctx.subgraph_patterns->register_matcher(rewr, shared_from_this(), isolate.pattern, isolate.tag) ||
+                    handle_patterns;
+            }
 #define HNDL(p)                                                                            \
     if (isolate.pattern == #p) {                                                           \
         rewr.add_matcher<ov::npuw::patterns::compute::p>(shared_from_this(), isolate.tag); \
