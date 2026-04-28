@@ -11,18 +11,9 @@
 #include "utils/kernel_generator.hpp"
 
 #include <algorithm>
-#include <cstdlib>
 
 namespace ov::intel_gpu::ocl {
 namespace {
-
-#ifndef OV_GPU_BEVPOOL_V2_ENABLE_OPT_BLOCK8
-#define OV_GPU_BEVPOOL_V2_ENABLE_OPT_BLOCK8 1
-#endif
-
-#ifndef OV_GPU_BEVPOOL_V2_ENABLE_OPT_BLOCK4
-#define OV_GPU_BEVPOOL_V2_ENABLE_OPT_BLOCK4 1
-#endif
 
 enum KernelsTypes {
     REF = 0,
@@ -40,8 +31,8 @@ protected:
         const auto& desc = params.typed_desc<bevpool_v2>();
 
         const auto inputs_count = params.input_layouts.size();
-        const auto input1_length = params.is_dynamic() ? 1 : params.get_input_layout(1).count();
-        const auto input3_length = params.is_dynamic() ? 1 : params.get_input_layout(3).count();
+        const auto input1_length = params.get_input_layout(1).count();
+        const auto input3_length = params.get_input_layout(3).count();
 
         jit.add(make_jit_constant("INPUTS_COUNT", inputs_count));
         jit.add(make_jit_constant("INPUT_CHANNELS", desc->input_channels));
@@ -61,11 +52,6 @@ protected:
 
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
         Arguments args;
-
-        if (params.is_dynamic()) {
-            args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
-        }
-
         args.push_back({ArgumentDescriptor::Types::INPUT, 0});
         args.push_back({ArgumentDescriptor::Types::INPUT, 1});
         args.push_back({ArgumentDescriptor::Types::INPUT, 2});
@@ -80,7 +66,7 @@ protected:
             const auto& desc = params.typed_desc<bevpool_v2>();
 
             const size_t output_channels = static_cast<size_t>(desc->output_channels);
-            const size_t interval_count = params.is_dynamic() ? 1 : static_cast<size_t>(params.get_input_layout(3).count() / 3);
+            const size_t interval_count = static_cast<size_t>(params.get_input_layout(3).count() / 3);
 
             const size_t gws0 = ((output_channels + 15) / 16) * 16;
             wgs.global = {gws0, std::max(interval_count, static_cast<size_t>(1)), 1};
@@ -100,8 +86,8 @@ protected:
         const auto& desc = params.typed_desc<bevpool_v2>();
 
         const auto inputs_count = params.input_layouts.size();
-        const auto input1_length = params.is_dynamic() ? 1 : params.get_input_layout(1).count();
-        const auto input3_length = params.is_dynamic() ? 1 : params.get_input_layout(3).count();
+        const auto input1_length = params.get_input_layout(1).count();
+        const auto input3_length = params.get_input_layout(3).count();
 
         jit.add(make_jit_constant("INPUTS_COUNT", inputs_count));
         jit.add(make_jit_constant("INPUT_CHANNELS", desc->input_channels));
@@ -122,11 +108,6 @@ protected:
 
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
         Arguments args;
-
-        if (params.is_dynamic()) {
-            args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
-        }
-
         args.push_back({ArgumentDescriptor::Types::INPUT, 0});
         args.push_back({ArgumentDescriptor::Types::INPUT, 1});
         args.push_back({ArgumentDescriptor::Types::INPUT, 2});
@@ -141,7 +122,7 @@ protected:
             const auto& desc = params.typed_desc<bevpool_v2>();
 
             const size_t output_channels = static_cast<size_t>(desc->output_channels);
-            const size_t interval_count = params.is_dynamic() ? 1 : static_cast<size_t>(params.get_input_layout(3).count() / 3);
+            const size_t interval_count = static_cast<size_t>(params.get_input_layout(3).count() / 3);
 
             const size_t gws0 = (output_channels + BlockSize - 1) / BlockSize;
             wgs.global = {std::max(gws0, static_cast<size_t>(1)), std::max(interval_count, static_cast<size_t>(1)), 1};
@@ -191,13 +172,6 @@ bool support_opt_kernel(const kernel_impl_params& params) {
     return true;
 }
 
-bool env_enabled(const char* name) {
-    if (const char* value = std::getenv(name)) {
-        return value[0] == '1' || value[0] == 'y' || value[0] == 'Y' || value[0] == 't' || value[0] == 'T';
-    }
-    return false;
-}
-
 class BevPoolV2Impl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::BevPoolV2Impl)
@@ -231,24 +205,12 @@ public:
     std::vector<size_t> get_stages_execution_order(const cldnn::primitive_inst& instance) const override {
         auto params = instance.get_impl_params();
 
-        // P5 helper switches for deterministic benchmarking.
-        if (env_enabled("OV_GPU_BEVPOOL_V2_FORCE_REF"))
-            return {KernelsTypes::REF};
-        if (env_enabled("OV_GPU_BEVPOOL_V2_FORCE_OPT8") && support_opt_kernel<8>(*params))
+        if (support_opt_kernel<8>(*params))
             return {KernelsTypes::OPT8};
-        if (env_enabled("OV_GPU_BEVPOOL_V2_FORCE_OPT4") && support_opt_kernel<4>(*params))
+
+        if (support_opt_kernel<4>(*params))
             return {KernelsTypes::OPT4};
 
-#if OV_GPU_BEVPOOL_V2_ENABLE_OPT_BLOCK8
-        if (support_opt_kernel<8>(*params)) {
-            return {KernelsTypes::OPT8};
-        }
-#endif
-#if OV_GPU_BEVPOOL_V2_ENABLE_OPT_BLOCK4
-        if (support_opt_kernel<4>(*params)) {
-            return {KernelsTypes::OPT4};
-        }
-#endif
         return {KernelsTypes::REF};
     }
 };
