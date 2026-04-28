@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "npu_vm_runtime_api.hpp"
+#include "intel_npu/utils/vm/npu_vm_runtime_api.hpp"
 
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"

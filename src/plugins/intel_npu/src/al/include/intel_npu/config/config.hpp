@@ -528,7 +528,7 @@ typename Opt::ValueType Config::get() const {
     OPENVINO_ASSERT(it->second != nullptr, "Got NULL OptionValue for :", Opt::key().data());
 
     const auto optVal = std::dynamic_pointer_cast<details::OptionValueImpl<Opt, ValueType>>(it->second);
-#if defined(__CHROMIUMOS__)
+#if defined(__CHROMIUMOS__) || defined(__ANDROID__)
     if (optVal == nullptr) {
         if (Opt::getTypeName() == it->second->getTypeName()) {
             const auto val = std::static_pointer_cast<details::OptionValueImpl<Opt, ValueType>>(it->second);

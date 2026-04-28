@@ -66,7 +66,13 @@ RMSFusion::RMSFusion(bool force_tail_convert, bool enable_div_x, bool enable_wit
     auto const_div = pattern::wrap_type<v0::Constant>(pattern::value_matches("1"));
     auto const_div_convert = pattern::optional<v0::Convert>(const_div);
     auto div = pattern::wrap_type<v1::Divide>({const_div_convert, sqrt});
-    auto div_or_pow = std::make_shared<pattern::op::Or>(OutputVector{div, pow});
+
+    // Power(ReduceMean(x^2,axes)+eps, -0.5) — direct rsqrt without Sqrt node
+    auto const_neg_half = pattern::wrap_type<v0::Constant>(pattern::value_matches("-0.5"));
+    auto const_neg_half_convert = pattern::optional<v0::Convert>(const_neg_half);
+    auto pow_direct = pattern::wrap_type<v1::Power>({add_eps, const_neg_half_convert});
+
+    std::shared_ptr<pattern::op::Or> div_or_pow = std::make_shared<pattern::op::Or>(OutputVector{div, pow, pow_direct});
 
     // x * 1/Sqrt(ReduceMean(x^2,axes)+eps)
     auto mul1 = pattern::wrap_type<v1::Multiply>({x, div_or_pow});

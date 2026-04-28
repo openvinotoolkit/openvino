@@ -224,14 +224,7 @@ MetadataBase::HRFields MetadataBase::parse_hr_fields(const ov::Tensor& tensor) {
     return fields;
 }
 
-void MetadataBase::append_padding_blob_size_and_magic(std::ostream& stream) {
-    size_t metadataSize = get_metadata_size() + sizeof(_blobDataSize) + MAGIC_BYTES.size();
-    size_t size = utils::align_size_to_standard_page_size(metadataSize);
-    size_t paddingSize = size - metadataSize;
-    if (paddingSize > 0) {
-        std::fill_n(std::ostream_iterator<char>(stream), paddingSize, 0);
-    }
-
+void MetadataBase::append_blob_size_and_magic(std::ostream& stream) {
     stream.write(reinterpret_cast<const char*>(&_blobDataSize), sizeof(_blobDataSize));
     stream.write(MAGIC_BYTES.data(), MAGIC_BYTES.size());
 }
@@ -521,7 +514,7 @@ void Metadata<METADATA_VERSION_2_5>::write(std::ostream& stream) {
         stream.write(reqs.data(), static_cast<std::streamsize>(reqs_len));
     }
 
-    append_padding_blob_size_and_magic(stream);
+    append_blob_size_and_magic(stream);
 }
 
 void Metadata<METADATA_VERSION_2_5>::write_human_readable(std::ostream& stream) {
