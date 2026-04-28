@@ -707,13 +707,10 @@ TEST_P(DynamicQuantizeAccuracyTest, SplitModelRoundtripAccuracy) {
 TEST_P(DynamicQuantizeAccuracyTest, DeviceRoundtripAccuracy) {
     const auto& p = GetParam();
     std::string device = get_test_device();
-    const bool enable_skipped_error_case = p.decompose_version == 3 &&
-                                           p.dist_kind == DistributionKind::GenGaussian &&
-                                           p.seed == 42 &&
-                                           p.ggd_mu == 0.018f &&
-                                           p.ggd_alpha == 1.121f &&
-                                           p.ggd_beta == 0.923f &&
-                                           p.shape == Shape({1, 8, 1024, 128});
+    const bool enable_skipped_error_case =
+        (p.decompose_version == 2 || p.decompose_version == 3) &&
+        p.dist_kind == DistributionKind::GenGaussian &&
+        p.shape == Shape({1, 8, 1024, 128});
 
     if (device.empty() && enable_skipped_error_case) {
         device = "NPU";
