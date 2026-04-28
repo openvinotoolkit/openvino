@@ -37,7 +37,7 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node, ke
     auto pad = desc->pad;
     auto strd = desc->stride;
 
-    int32_t number_of_features = weights_layout.group() * weights_layout.ofm();
+    auto number_of_features = weights_layout.group() * weights_layout.ofm();
 
     format out_fmt = input_layout.format;
     if (node.get_preferred_impl_type() == impl_types::onednn && node.get_preferred_output_fmt() != format::any) {
@@ -127,7 +127,7 @@ std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node c
     auto output_padding = desc->out_padding;
     auto output_partial_shape = desc->output_partial_shape;
 
-    int32_t number_of_features = weights_layout.group() * weights_layout.ofm();
+    auto number_of_features = weights_layout.group() * weights_layout.ofm();
 
     format out_fmt = input_layout.format;
     if (node.get_preferred_impl_type() == impl_types::onednn && node.get_preferred_output_fmt() != format::any) {

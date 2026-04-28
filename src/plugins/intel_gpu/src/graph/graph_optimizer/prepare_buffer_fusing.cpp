@@ -141,7 +141,7 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         // which would affect a form of its output (unless debug flag is set),
         // we also need to restrict input types to those which support padding on all axis
         if (!pred.first->is_dynamic() || is_runtime) {
-            if (!pred.first->is_padding_supported(static_cast<int>(concat_axis), lower_padd_in_axis))
+            if (!pred.first->is_padding_supported(static_cast<int>(concat_axis), static_cast<int>(lower_padd_in_axis)))
                 return false;
         }
         // TODO: handle optimized reshape
@@ -454,7 +454,7 @@ static bool can_read_value_be_optimize(const read_value_node& node) {
         return true;
 
     // following pattern should be optimized, otherwise it could lead to corruptted data.
-    // readvalue's users eventually need to pass kvcache before assign, which makes kvcache node the dominator of assign node, 
+    // readvalue's users eventually need to pass kvcache before assign, which makes kvcache node the dominator of assign node,
     // it could be safely treated as if readvalue is directly connecting to kvcache.
     // readvalue --> any
     //       |         |
@@ -706,7 +706,7 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
                     // output_pattern[0] == -1 means the batch dim is absorbed (squeezed).
                     reshape_axis = 0;
                 } else {
-                    auto mul = 1;
+                    ov::Dimension::value_type mul = 1;
                     auto reshape_ps = user_info.second.get_partial_shape();
                     reshape_axis = reshape_ps.size() - 1;
                     auto crop_dim_val = crop_layout.get_partial_shape()[crop_axis].get_length();
@@ -778,7 +778,7 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
                     reshape_upper_sizes[0] = upper_sizes[0] * batch_stride_factor;
                     reshape_dyn_pad_mask[0] = 1;
                 } else {
-                    auto divider = 1;
+                    ov::Dimension::value_type divider = 1;
                     auto reshape_axis = reshape_ps.size();
                     for (size_t i = reshape_ps.size(); i > 1; i--) {
                         const auto& dim_value = reshape_ps[i - 1].get_length();
