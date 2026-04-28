@@ -130,7 +130,7 @@ public:
         const uint32_t block_wg_n = XAttentionEstimateGeneratorBase::get_block_wg_n(params);
         const uint32_t block_wg_m = XAttentionEstimateGeneratorBase::get_block_wg_m(params);
         const size_t heads_num = desc->heads_num;
-        const size_t merged_q_num = PagedAttentionGeneratorMultiToken::get_wg_seq_len(params) / block_size;
+        const size_t merged_q_num = XAttentionEstimateGeneratorBase::get_wg_seq_len(params) / block_size;
         const size_t sum_per_token_in_block = block_size / STRIDE;
         const size_t k_block_in_group = block_wg_n / sum_per_token_in_block;
         const size_t sizeof_softmax = sizeof(float);

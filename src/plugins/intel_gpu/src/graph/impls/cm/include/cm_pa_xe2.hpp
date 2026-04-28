@@ -47,6 +47,7 @@ template<bool use_causal_mask, int num_heads, int num_kv_heads, int head_size, i
 void pa_lsc_u8(
     uint slm_K,
     uint slm_V,
+    uint slm_St_base,
     int wg_local_id,
     int local_size,
     int q_start,
@@ -71,6 +72,17 @@ void pa_lsc_u8(
 
     constexpr uint kv_pitch = head_size * sizeof(uint8_t);
 
+    constexpr bool enable_head_size_partition = (head_size == 256);
+    constexpr int num_team = enable_head_size_partition ? 4 : 16;
+    constexpr int num_worker = 16 / num_team;
+    constexpr int process_head_size = head_size / num_worker;
+
+    static_assert(head_size % num_worker == 0, "head_size must be divisible by num_worker");
+
+    int team_id = enable_head_size_partition ? (wg_local_id / num_team) : wg_local_id;
+    int worker_id = enable_head_size_partition ? (wg_local_id % num_team) : 0;
+    int worker_offset = worker_id * process_head_size;
+
     vector<float, q_step> cur_max;
     vector<float, q_step> cur_sum;
 
@@ -78,8 +90,11 @@ void pa_lsc_u8(
     cur_sum = 0;
 
     constexpr int num_P_tiles = REG_N / REG_M;
-    matrix<half, head_size / REG_K, REG_K * REG_N> rQ;
-    matrix<float, head_size / REG_N * num_P_tiles, REG_M * REG_N> rO;
+    matrix<half, process_head_size / REG_K, REG_K * REG_N> rQ;
+    constexpr int rO_half_rows = process_head_size / 2 / REG_N * num_P_tiles;
+    static_assert(process_head_size % (2 * REG_N) == 0, "process_head_size must be divisible by 2*REG_N for rO split");
+    matrix<float, rO_half_rows, REG_M * REG_N> rO_lo;
+    matrix<float, rO_half_rows, REG_M * REG_N> rO_hi;
     bool first_active = true;
 
     // clamp per-tile valid query tokens to [0, q_step]
@@ -93,17 +108,17 @@ void pa_lsc_u8(
     if (q_tokens_in_tile < 0) q_tokens_in_tile = 0;
     if (q_tokens_in_tile > q_step) q_tokens_in_tile = q_step;
 
-    // ---- Load Q (unchanged) ----
+    // Each worker loads its 1/num_worker chunk of Q
     if (q_tokens_in_tile > 0) {
         lsc::block_2d_desc<uint, 1, REG_N, REG_K / 2> b2dQ(
             reinterpret_cast<uint*>(q_base),
             q_tokens_in_tile - 1,
             head_size * sizeof(half) - 1,
             q_pitch - 1,
-            0, 0);
+            0, worker_offset);
 
         #pragma unroll
-        for (int k = 0, ri = 0; k < head_size / 2; k += REG_K / 2, ri++) {
+        for (int k = 0, ri = 0; k < process_head_size / 2; k += REG_K / 2, ri++) {
             cm_load<lsc::Transpose>(rQ[ri].format<uint>(), b2dQ.set_block_x(k));
             rQ[ri].format<half>() = cm_mul<half>(rQ[ri].format<half>(), (half)scale_factor);
         }
@@ -328,13 +343,35 @@ void pa_lsc_u8(
                     cm_slm_fence(CM_LOCAL_BARRIER);
                 }
 
-                if (kv_pos + kv_step < blk_end)
-                    cm_sbarrier(1);
-
                 {
                     uint slm_offset = (slm_buff_id_read & 3) * slm_buff_size;
 
-                    matrix<float, kv_step, q_step> St = ugemm_KQ(slm_K, rQ, slm_offset);
+                    // Each worker computes partial St using its head_size chunk
+                    uint slm_K_worker_offset = slm_offset + worker_offset * kv_step * sizeof(half);
+                    matrix<float, kv_step, q_step> St = ugemm_KQ(slm_K, rQ, slm_K_worker_offset);
+
+                    // Head_size partitioning: synchronize and accumulate partial St
+                    if constexpr (enable_head_size_partition) {
+                        int slm_offset_bytes = wg_local_id * kv_step * q_step * sizeof(float);
+                        cm_slm_block_write(slm_St_base, slm_offset_bytes, St.format<float>());
+
+                        cm_slm_fence(CM_GLOBAL_COHERENT_FENCE);
+                        cm_barrier();
+
+                        St = 0.0f;
+                        #pragma unroll
+                        for (int g = 0; g < num_worker; g++) {
+                            int src_wi = team_id * num_worker + g;
+                            int src_slm_offset_bytes = src_wi * kv_step * q_step * sizeof(float);
+                            matrix<float, kv_step, q_step> partial_st;
+                            cm_slm_block_read(slm_St_base, GENX_NONE, src_slm_offset_bytes, partial_st.format<float>());
+                            St += partial_st;
+                        }
+                    }
+
+                    // Signal AFTER St reduction: ensures both KV load and St reduction are complete
+                    if (kv_pos + kv_step < blk_end)
+                        cm_sbarrier(1);
 
                     if constexpr (use_causal_mask) {
                         apply_causal_mask_with_offset(St, causal_left);
@@ -347,11 +384,16 @@ void pa_lsc_u8(
                     matrix<half, REG_N, REG_K> P;
                     Transpose2DMatrix(St, P);
 
+                    // Each worker reads its chunk of V from SLM
+                    uint slm_V_worker_lo_offset = worker_offset * REG_K * sizeof(half);
+                    uint slm_V_worker_hi_offset = (worker_offset + process_head_size / 2) * REG_K * sizeof(half);
                     if (first_active) {
-                        ugemm_PV0(slm_V, P, rO, slm_offset);
+                        ugemm_PV0(slm_V, P, rO_lo, slm_offset + slm_V_worker_lo_offset);
+                        ugemm_PV0(slm_V, P, rO_hi, slm_offset + slm_V_worker_hi_offset);
                         first_active = false;
                     } else {
-                        ugemm_PV1(slm_V, P, max_comp, rO, slm_offset);
+                        ugemm_PV1(slm_V, P, max_comp, rO_lo, slm_offset + slm_V_worker_lo_offset);
+                        ugemm_PV1(slm_V, P, max_comp, rO_hi, slm_offset + slm_V_worker_hi_offset);
                     }
                 }
             }
@@ -490,22 +532,19 @@ void pa_lsc_u8(
     cm_sbarrier(1);
 
     for (int kv_pos = 0; kv_pos < kv_stop; kv_pos += kv_step, slm_buff_id_read++) {
+        //  With head_size partitioning, cm_sbarrier(1) is postponed to after St reduction:
         //  load0, load1, signal1,
-        //  [wait1, signal2, load2, read0, compute0]
-        //  [wait2, signal3, load3, read1, compute1]
-        //  [wait3, signal4, load4, read2, compute2]
-        //  [wait4, signal5, load5, read3, compute3]
+        //  [wait1, load2, partial_St0, St_reduce0, signal2, read0, compute0]
+        //  [wait2, load3, partial_St1, St_reduce1, signal3, read1, compute1]
         //
-        //  after wait3, all workers have reached signal3, so:
-        //     - all workers have finished load2 & read0.
-        //     - we can start to load 4 into SLM slot 0 (i & 3) safely
-        //     - we can start to read 2 ((i-2) & 3) safely
+        //  after wait2, all workers have reached signal2, so:
+        //     - all workers have finished load2, partial_St0, St_reduce0
+        //     - we can start to load 3 into SLM slot
+        //     - we can start to read slot 1
 
         cm_fence(CM_LOCAL_BARRIER);
         cm_sbarrier(0);
 
-        if (kv_pos + kv_step < kv_stop)
-            cm_sbarrier(1);
         load_slm_KV(kv_pos + kv_step * 2);
 
 #if SPARSE_BLOCK_SIZE > 1
@@ -513,6 +552,8 @@ void pa_lsc_u8(
             if constexpr (use_causal_mask) {
                 causal_left -= kv_step;
             }
+            if (kv_pos + kv_step < kv_stop)
+                cm_sbarrier(1);
             continue;
         }
 #endif
@@ -520,7 +561,32 @@ void pa_lsc_u8(
         {
             uint slm_offset = (slm_buff_id_read & 3) * slm_buff_size;
 
-            matrix<float, kv_step, q_step> St = ugemm_KQ(slm_K, rQ, slm_offset);
+            // Each worker computes partial St using its head_size chunk
+            uint slm_K_worker_offset = slm_offset + worker_offset * kv_step * sizeof(half);
+            matrix<float, kv_step, q_step> St = ugemm_KQ(slm_K, rQ, slm_K_worker_offset);
+
+            // Head_size partitioning: synchronize and accumulate partial St
+            if constexpr (enable_head_size_partition) {
+                int slm_offset_bytes = wg_local_id * kv_step * q_step * sizeof(float);
+                cm_slm_block_write(slm_St_base, slm_offset_bytes, St.format<float>());
+
+                cm_slm_fence(CM_GLOBAL_COHERENT_FENCE);
+                cm_barrier();
+
+                St = 0.0f;
+                #pragma unroll
+                for (int g = 0; g < num_worker; g++) {
+                    int src_wi = team_id * num_worker + g;
+                    int src_slm_offset_bytes = src_wi * kv_step * q_step * sizeof(float);
+                    matrix<float, kv_step, q_step> partial_st;
+                    cm_slm_block_read(slm_St_base, GENX_NONE, src_slm_offset_bytes, partial_st.format<float>());
+                    St += partial_st;
+                }
+            }
+
+            // Signal after St reduction: ensures both KV load and St reduction are complete
+            if (kv_pos + kv_step < kv_stop)
+                cm_sbarrier(1);
 
             if constexpr (use_causal_mask) {
                 apply_causal_mask_with_offset(St, causal_left);
@@ -533,11 +599,16 @@ void pa_lsc_u8(
             matrix<half, REG_N, REG_K> P;
             Transpose2DMatrix(St, P);
 
+            // Each worker reads its chunk of V from SLM
+            uint slm_V_worker_lo_offset = worker_offset * REG_K * sizeof(half);
+            uint slm_V_worker_hi_offset = (worker_offset + process_head_size / 2) * REG_K * sizeof(half);
             if (first_active) {
-                ugemm_PV0(slm_V, P, rO, slm_offset);
+                ugemm_PV0(slm_V, P, rO_lo, slm_offset + slm_V_worker_lo_offset);
+                ugemm_PV0(slm_V, P, rO_hi, slm_offset + slm_V_worker_hi_offset);
                 first_active = false;
             } else {
-                ugemm_PV1(slm_V, P, max_comp, rO, slm_offset);
+                ugemm_PV1(slm_V, P, max_comp, rO_lo, slm_offset + slm_V_worker_lo_offset);
+                ugemm_PV1(slm_V, P, max_comp, rO_hi, slm_offset + slm_V_worker_hi_offset);
             }
         }
     }
@@ -566,12 +637,13 @@ void pa_lsc_u8(
         o_pitch - 1,
         0, 0);
 
+    // Store lower half of worker's chunk from rO_lo
     #pragma unroll
-    for (int k = 0, ri = 0; k < head_size; k += REG_N, ri += num_P_tiles) {
+    for (int k = 0, ri = 0; k < process_head_size / 2; k += REG_N, ri += num_P_tiles) {
 
         #pragma unroll
         for (int p = 0; p < num_P_tiles; p++) {
-            auto cO = rO[ri + p].format<float, REG_M, REG_N>();
+            auto cO = rO_lo[ri + p].format<float, REG_M, REG_N>();
 
             #pragma unroll
             for (int r = 0; r < cO.n_rows(); r++) {
@@ -579,7 +651,30 @@ void pa_lsc_u8(
             }
         }
 
-        b2dO.set_block_x(k);
+        int o_offset = worker_offset + k;
+        b2dO.set_block_x(o_offset);
+        cm_store(b2dO.set_block_y(0),
+                 cur_O_f16.format<half, num_P_tiles, REG_M * REG_N>().row(0));
+        cm_store(b2dO.set_block_y(REG_M),
+                 cur_O_f16.format<half, num_P_tiles, REG_M * REG_N>().row(1));
+    }
+
+    // Store upper half of worker's chunk from rO_hi
+    #pragma unroll
+    for (int k = process_head_size / 2, ri = 0; k < process_head_size; k += REG_N, ri += num_P_tiles) {
+
+        #pragma unroll
+        for (int p = 0; p < num_P_tiles; p++) {
+            auto cO = rO_hi[ri + p].format<float, REG_M, REG_N>();
+
+            #pragma unroll
+            for (int r = 0; r < cO.n_rows(); r++) {
+                cur_O_f16[r + p * REG_M] = cm_mul<float>(cO.row(r), cur_sum[r + p * REG_M]);
+            }
+        }
+
+        int o_offset = worker_offset + k;
+        b2dO.set_block_x(o_offset);
         cm_store(b2dO.set_block_y(0),
                  cur_O_f16.format<half, num_P_tiles, REG_M * REG_N>().row(0));
         cm_store(b2dO.set_block_y(REG_M),
@@ -591,6 +686,7 @@ void pa_lsc_u8(
 
 template<bool use_causal_mask, int num_heads, int num_kv_heads, int head_size, int is_qkv_fused, int wg_local_size>
 void pa_kernel_lsc_prefetch_f16(
+    uint slm_St_base,
     int wg_local_id,
     int q_start,
     int kv_stop, //
@@ -614,14 +710,30 @@ void pa_kernel_lsc_prefetch_f16(
     constexpr uint k_pitch =  head_size * sizeof(half);
     constexpr uint v_pitch = k_pitch;
 
+    constexpr bool enable_head_size_partition = (head_size == 256);
+    constexpr int num_team = enable_head_size_partition ? 4 : wg_local_size;
+    constexpr int num_worker = wg_local_size / num_team;
+    constexpr int process_head_size = head_size / num_worker;
+
+    static_assert(wg_local_size == 16, "wg_local_size must be 16");
+    static_assert(head_size % num_worker == 0, "head_size must be divisible by num_worker");
+
+    int team_id = enable_head_size_partition ? (wg_local_id / num_team) : wg_local_id;
+    int worker_id = enable_head_size_partition ? (wg_local_id % num_team) : 0;
+
     vector<float, q_step> cur_max;
     vector<float, q_step> cur_sum;
 
     cur_max = -3e38f;
     cur_sum = 0;
     constexpr int num_P_tiles = REG_N / REG_M;
-    matrix<half, head_size/REG_K, REG_K*REG_N> rQ;
-    matrix <float, head_size/REG_N*num_P_tiles, REG_M*REG_N> rO;
+
+    // Each worker only allocates 1/4 of head_size
+    matrix<half, process_head_size/REG_K, REG_K*REG_N> rQ;
+    constexpr int rO_half_rows_f16 = process_head_size / 2 / REG_N * num_P_tiles;
+    static_assert(process_head_size % (2 * REG_N) == 0, "process_head_size must be divisible by 2*REG_N for rO split");
+    matrix<float, rO_half_rows_f16, REG_M * REG_N> rO_lo;
+    matrix<float, rO_half_rows_f16, REG_M * REG_N> rO_hi;
     bool first_active = true;
 
 #if SPARSE_BLOCK_SIZE > 1
@@ -647,14 +759,20 @@ void pa_kernel_lsc_prefetch_f16(
     if (q_tokens_in_tile < 0) q_tokens_in_tile = 0;
     if (q_tokens_in_tile > q_step) q_tokens_in_tile = q_step;
 
-    // Fp16 path does not use workgroup-level barriers as in `pa_lsc_u8`, so lanes with zero valid query tokens can early exit.
-    if (q_tokens_in_tile == 0) return;
+    // Threads with zero valid query tokens can early exit if there is no barrier.
+    if constexpr (!enable_head_size_partition) {
+        if (q_tokens_in_tile == 0) return;
+    }
 
-    lsc::block_2d_desc<uint, 1, REG_N, REG_K/2> b2dQ(reinterpret_cast<uint*>(q_base), q_tokens_in_tile - 1, head_size*sizeof(half) - 1, q_pitch - 1, 0, 0);
-    #pragma unroll
-    for(int k = 0, ri = 0; k < head_size/2; k += REG_K/2, ri++) {
-        cm_load<lsc::Transpose>(rQ[ri].format<uint>(), b2dQ.set_block_x(k));
-        rQ[ri].format<half>() = cm_mul<half>(rQ[ri].format<half>(), (half)scale_factor);
+    // Each worker loads its 1/num_worker chunk of Q
+    int worker_offset = worker_id * process_head_size;
+    if (q_tokens_in_tile > 0) {
+        lsc::block_2d_desc<uint, 1, REG_N, REG_K/2> b2dQ(reinterpret_cast<uint*>(q_base), q_tokens_in_tile - 1, head_size*sizeof(half) - 1, q_pitch - 1, 0, worker_offset);
+        #pragma unroll
+        for(int k = 0, ri = 0; k < process_head_size/2; k += REG_K/2, ri++) {
+            cm_load<lsc::Transpose>(rQ[ri].format<uint>(), b2dQ.set_block_x(k));
+            rQ[ri].format<half>() = cm_mul<half>(rQ[ri].format<half>(), (half)scale_factor);
+        }
     }
 
     lsc::block_2d_desc<half, 1, kv_step, REG_K> b2dK(k_cache_base, CMPA_BLOCK_SZ - 1, head_size*sizeof(half) - 1, k_pitch - 1, 0, 0);
@@ -670,6 +788,10 @@ void pa_kernel_lsc_prefetch_f16(
     // ====================================================================================
     // Optimized block-granular sparse pipeline when SPARSE_BLOCK_SIZE == WG_SEQ_LEN
     // ====================================================================================
+    // Use SLM passed from kernel for accumulating partial attention scores across workers
+    constexpr int slm_size_per_wi = kv_step * q_step;  // St matrix size
+    auto slm_St = slm_St_base;
+
     constexpr int kv_block = SPARSE_BLOCK_SIZE;
     for (int kv_blk = 0; kv_blk < kv_stop; kv_blk += kv_block) {
         int blk_end = kv_blk + kv_block;
@@ -700,7 +822,7 @@ void pa_kernel_lsc_prefetch_f16(
 
             prefetch_K.set_base_ptr((reinterpret_cast<half*>(k_cache_base)+prefetch_block_id*blk_stride));
             prefetch_K.set_block_y((prefetch_kv_pos + wg_local_id) % CMPA_BLOCK_SZ);
-            cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_K.set_block_x(0));
+            cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_K.set_block_x(worker_offset));
 
             if (skip_compute(kv_pos)) {
                 if constexpr (use_causal_mask)
@@ -709,7 +831,7 @@ void pa_kernel_lsc_prefetch_f16(
             }
             b2dK.set_base_ptr((reinterpret_cast<half*>(k_cache_base)+cur_block_id*blk_stride));
             b2dK.set_block_y(kv_pos%CMPA_BLOCK_SZ);
-            cm_load<lsc::Normal>(Kmat.format<half>(), b2dK.set_block_x(0));
+            cm_load<lsc::Normal>(Kmat.format<half>(), b2dK.set_block_x(worker_offset));
             // sometimes KV cache would be filled with random Nan, so need to clean up the unused key data.
             if ((kv_pos + kv_step) > kv_stop) {
                 auto valid_rows = kv_stop - kv_pos;
@@ -724,9 +846,10 @@ void pa_kernel_lsc_prefetch_f16(
                                 Kmat[k].format<int32_t>());
 
             #pragma unroll
-            for(int ri = 1; ri < head_size/REG_K; ri++) {
-                cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_K.set_block_x(ri*REG_K));
-                cm_load<lsc::Normal>(Kmat.format<half>(), b2dK.set_block_x(ri*REG_K));
+            for(int ri = 1; ri < process_head_size/REG_K; ri++) {
+                int k_offset = worker_offset + ri*REG_K;
+                cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_K.set_block_x(k_offset));
+                cm_load<lsc::Normal>(Kmat.format<half>(), b2dK.set_block_x(k_offset));
                 #pragma unroll
                 for(int k = 0; k < num_K; k++) {
                     St2.row(k) = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount, float>(
@@ -735,6 +858,31 @@ void pa_kernel_lsc_prefetch_f16(
                         Kmat[k].format<int32_t>());
                 }
             }
+
+        // Head_size partitioning: synchronize and accumulate partial St
+        // Work-items with same team_id accumulate across head_size chunks
+        if constexpr (enable_head_size_partition) {
+            // Store partial St to SLM for this work-item
+            int slm_offset_bytes = wg_local_id * kv_step * q_step * sizeof(float);
+            cm_slm_block_write(slm_St, slm_offset_bytes, St.format<float>());
+
+            // Barrier: ensure all work-items have written their partial St
+            cm_slm_fence(CM_GLOBAL_COHERENT_FENCE);
+            cm_barrier();
+
+            // Accumulate partial St from all 4 head_size chunks for this query slice
+            // Work-items [team_id*4, team_id*4+1, team_id*4+2, team_id*4+3] cooperate
+            St = 0.0f;
+            #pragma unroll
+            for(int g = 0; g < num_worker; g++) {
+                int src_wi = team_id * num_worker + g;  // Same query slice (team_id), different head_size chunk (g)
+                int src_slm_offset_bytes = src_wi * kv_step * q_step * sizeof(float);
+                matrix<float, kv_step, q_step> partial_st;
+                cm_slm_block_read(slm_St, GENX_NONE, src_slm_offset_bytes, partial_st.format<float>());
+                St += partial_st;
+            }
+        }
+
         }
         if constexpr (use_causal_mask) {
             apply_causal_mask_with_offset(St, causal_left);
@@ -757,11 +905,13 @@ void pa_kernel_lsc_prefetch_f16(
         if (first_active) {
             // ugemm_PV0(slm_V, P, rO, slm_offset);
             auto P2 = P.format<half, num_P_tiles, REG_M * REG_K>();
+            // PV0 lower half - Each worker loads its 1/4 chunk of V
             #pragma unroll
-            for(int k = 0, ri = 0; k < head_size; k += REG_N, ri += num_P_tiles) {
+            for(int k = 0, ri = 0; k < process_head_size / 2; k += REG_N, ri += num_P_tiles) {
                 matrix<half, REG_K/2, REG_N*2> Vmat;
-                cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_V.set_block_x(k));
-                cm_load<lsc::VNNI>(Vmat.format<half>(), b2dV.set_block_x(k));
+                int v_offset = worker_offset + k;
+                cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_V.set_block_x(v_offset));
+                cm_load<lsc::VNNI>(Vmat.format<half>(), b2dV.set_block_x(v_offset));
                 // sometimes KV cache would be filled with random Nan, so need to clean up the unused value data.
                 if ((kv_pos + kv_step) > kv_stop) {
                     uint valid_rows = kv_stop - kv_pos;
@@ -773,7 +923,30 @@ void pa_kernel_lsc_prefetch_f16(
                 }
                 #pragma unroll
                 for(int p = 0; p < num_P_tiles; p++) {
-                    rO[ri + p] = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount, float>(
+                    rO_lo[ri + p] = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount, float>(
+                                    0,
+                                    Vmat.format<int32_t>(),
+                                    P2.row(p).format<int32_t>());
+                }
+            }
+            // PV0 upper half - Second half of this worker's chunk
+            #pragma unroll
+            for(int k = process_head_size / 2, ri = 0; k < process_head_size; k += REG_N, ri += num_P_tiles) {
+                matrix<half, REG_K/2, REG_N*2> Vmat;
+                int v_offset = worker_offset + k;
+                cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_V.set_block_x(v_offset));
+                cm_load<lsc::VNNI>(Vmat.format<half>(), b2dV.set_block_x(v_offset));
+                if ((kv_pos + kv_step) > kv_stop) {
+                    uint valid_rows = kv_stop - kv_pos;
+                    uint valid_rows_vnni = (valid_rows+1)/2;
+                    for (int r = valid_rows_vnni; r < kv_step / 2; r++)
+                        Vmat.row(r) = 0.f;
+                    if (valid_rows % 2 == 1)
+                        Vmat.row(valid_rows_vnni-1).select<REG_N,2>(1) = 0.f;
+                }
+                #pragma unroll
+                for(int p = 0; p < num_P_tiles; p++) {
+                    rO_hi[ri + p] = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount, float>(
                                     0,
                                     Vmat.format<int32_t>(),
                                     P2.row(p).format<int32_t>());
@@ -784,12 +957,14 @@ void pa_kernel_lsc_prefetch_f16(
         else {
             //ugemm_PV1(slm_V, P, max_comp, rO, slm_offset);
             auto P2 = P.format<half, num_P_tiles, REG_M * REG_K>();
+            // PV1 lower half - Each worker loads its 1/4 chunk of V
             #pragma unroll
-            for(int k = 0, ri=0; k < head_size; k += REG_N, ri += num_P_tiles) {
+            for(int k = 0, ri=0; k < process_head_size / 2; k += REG_N, ri += num_P_tiles) {
                 matrix<half, REG_K/2, REG_N*2> Vmat;
 
-                cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_V.set_block_x(k));
-                cm_load<lsc::VNNI>(Vmat.format<half>(), b2dV.set_block_x(k));
+                int v_offset = worker_offset + k;
+                cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_V.set_block_x(v_offset));
+                cm_load<lsc::VNNI>(Vmat.format<half>(), b2dV.set_block_x(v_offset));
                  // sometimes KV cache would be filled with random Nan, so need to clean up the unused value data.
                 if ((kv_pos + kv_step) > kv_stop) {
                     uint valid_rows = kv_stop - kv_pos;
@@ -803,7 +978,7 @@ void pa_kernel_lsc_prefetch_f16(
                 //  matrix <float, head_size/REG_K*2, REG_M*REG_N> rO;
                 #pragma unroll
                 for(int p = 0; p < num_P_tiles; p++) {
-                    auto cO = rO[ri + p].format<float, REG_M, REG_N>();
+                    auto cO = rO_lo[ri + p].format<float, REG_M, REG_N>();
                     #pragma unroll
                     for(int r = 0; r < REG_M; r++)
                         cO.row(r) = cm_mul<float>(cO.row(r), max_comp[r + p*REG_M]);
@@ -811,8 +986,40 @@ void pa_kernel_lsc_prefetch_f16(
 
                 #pragma unroll
                 for(int p = 0; p < num_P_tiles; p++) {
-                    rO[ri + p] = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount>(
-                                rO[ri + p].format<float>(),
+                    rO_lo[ri + p] = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount>(
+                                rO_lo[ri + p].format<float>(),
+                                Vmat.format<int32_t>(),
+                                P2.row(p).format<int32_t>());
+                }
+            }
+            // PV1 upper half - Second half of this worker's chunk
+            #pragma unroll
+            for(int k = process_head_size / 2, ri=0; k < process_head_size; k += REG_N, ri += num_P_tiles) {
+                matrix<half, REG_K/2, REG_N*2> Vmat;
+
+                int v_offset = worker_offset + k;
+                cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_V.set_block_x(v_offset));
+                cm_load<lsc::VNNI>(Vmat.format<half>(), b2dV.set_block_x(v_offset));
+                if ((kv_pos + kv_step) > kv_stop) {
+                    uint valid_rows = kv_stop - kv_pos;
+                    uint valid_rows_vnni = (valid_rows+1)/2;
+                    for (int r = valid_rows_vnni; r < kv_step / 2; r++)
+                        Vmat.row(r) = 0.f;
+                    if (valid_rows % 2 == 1)
+                        Vmat.row(valid_rows_vnni-1).select<REG_N,2>(1) = 0.f;
+                }
+                #pragma unroll
+                for(int p = 0; p < num_P_tiles; p++) {
+                    auto cO = rO_hi[ri + p].format<float, REG_M, REG_N>();
+                    #pragma unroll
+                    for(int r = 0; r < REG_M; r++)
+                        cO.row(r) = cm_mul<float>(cO.row(r), max_comp[r + p*REG_M]);
+                }
+
+                #pragma unroll
+                for(int p = 0; p < num_P_tiles; p++) {
+                    rO_hi[ri + p] = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount>(
+                                rO_hi[ri + p].format<float>(),
                                 Vmat.format<int32_t>(),
                                 P2.row(p).format<int32_t>());
                 }
@@ -824,6 +1031,10 @@ void pa_kernel_lsc_prefetch_f16(
     // ========================================================================
     // Legacy per-step pipeline for any SPARSE_BLOCK_SIZE (including 1)
     // ======================================================================
+    // Use SLM passed from kernel for accumulating partial attention scores across workers
+    constexpr int slm_size_per_wi = kv_step * q_step;  // St matrix size
+    auto slm_St = slm_St_base;
+
     for(int kv_pos = 0; kv_pos < kv_stop; kv_pos += kv_step) {
         auto cur_block_id = block_indices[kv_pos / CMPA_BLOCK_SZ];
         //For the last step, duplicate prefetch here.
@@ -839,7 +1050,7 @@ void pa_kernel_lsc_prefetch_f16(
 
             prefetch_K.set_base_ptr((reinterpret_cast<half*>(k_cache_base)+prefetch_block_id*blk_stride));
             prefetch_K.set_block_y((prefetch_kv_pos + wg_local_id) % CMPA_BLOCK_SZ);
-            cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_K.set_block_x(0));
+            cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_K.set_block_x(worker_offset));
 
 #if SPARSE_BLOCK_SIZE > 1
             if (skip_compute(kv_pos)) {
@@ -850,13 +1061,17 @@ void pa_kernel_lsc_prefetch_f16(
 #endif
             b2dK.set_base_ptr((reinterpret_cast<half*>(k_cache_base)+cur_block_id*blk_stride));
             b2dK.set_block_y(kv_pos%CMPA_BLOCK_SZ);
-            cm_load<lsc::Normal>(Kmat.format<half>(), b2dK.set_block_x(0));
+
+            // Each work-item loads its 1/4 chunk of K and computes partial St
+            cm_load<lsc::Normal>(Kmat.format<half>(), b2dK.set_block_x(worker_offset));
             // sometimes KV cache would be filled with random Nan, so need to clean up the unused key data.
             if ((kv_pos + kv_step) > kv_stop) {
                 auto valid_rows = kv_stop - kv_pos;
                 for (int r = valid_rows; r < kv_step; r++)
                     Kmat.format<half, num_K*REG_M, REG_N>().row(r) = 0.f;
             }
+
+            // Compute partial St with this worker's Q chunk
             #pragma unroll
             for(int k = 0; k < num_K; k++)
                 St2.row(k) = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount, float>(
@@ -865,9 +1080,10 @@ void pa_kernel_lsc_prefetch_f16(
                                 Kmat[k].format<int32_t>());
 
             #pragma unroll
-            for(int ri = 1; ri < head_size/REG_K; ri++) {
-                cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_K.set_block_x(ri*REG_K));
-                cm_load<lsc::Normal>(Kmat.format<half>(), b2dK.set_block_x(ri*REG_K));
+            for(int ri = 1; ri < process_head_size/REG_K; ri++) {
+                int k_offset = worker_offset + ri*REG_K;
+                cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_K.set_block_x(k_offset));
+                cm_load<lsc::Normal>(Kmat.format<half>(), b2dK.set_block_x(k_offset));
                 #pragma unroll
                 for(int k = 0; k < num_K; k++) {
                     St2.row(k) = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount, float>(
@@ -876,6 +1092,31 @@ void pa_kernel_lsc_prefetch_f16(
                         Kmat[k].format<int32_t>());
                 }
             }
+
+        // Head_size partitioning: synchronize and accumulate partial St
+        // Work-items with same team_id (processing same query slice) accumulate across head_size chunks
+        if constexpr (enable_head_size_partition) {
+            // Store partial St to SLM for this work-item
+            int slm_offset_bytes = wg_local_id * kv_step * q_step * sizeof(float);
+            cm_slm_block_write(slm_St, slm_offset_bytes, St.format<float>());
+
+            // Barrier: ensure all work-items have written their partial St
+            cm_slm_fence(CM_GLOBAL_COHERENT_FENCE);
+            cm_barrier();
+
+            // Accumulate partial St from all 4 head_size chunks for this query slice
+            // Work-items [team_id*4, team_id*4+1, team_id*4+2, team_id*4+3] cooperate
+            St = 0.0f;
+            #pragma unroll
+            for(int g = 0; g < num_worker; g++) {
+                int src_wi = team_id * num_worker + g;  // Same query slice (team_id), different head_size chunk (g)
+                int src_slm_offset_bytes = src_wi * kv_step * q_step * sizeof(float);
+                matrix<float, kv_step, q_step> partial_st;
+                cm_slm_block_read(slm_St, GENX_NONE, src_slm_offset_bytes, partial_st.format<float>());
+                St += partial_st;
+            }
+        }
+
         }
         if constexpr (use_causal_mask) {
             apply_causal_mask_with_offset(St, causal_left);
@@ -898,11 +1139,13 @@ void pa_kernel_lsc_prefetch_f16(
         if (first_active) {
             // ugemm_PV0(slm_V, P, rO, slm_offset);
             auto P2 = P.format<half, num_P_tiles, REG_M * REG_K>();
+            // PV0 lower half - Each worker loads its 1/4 chunk of V
             #pragma unroll
-            for(int k = 0, ri = 0; k < head_size; k += REG_N, ri += num_P_tiles) {
+            for(int k = 0, ri = 0; k < process_head_size / 2; k += REG_N, ri += num_P_tiles) {
                 matrix<half, REG_K/2, REG_N*2> Vmat;
-                cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_V.set_block_x(k));
-                cm_load<lsc::VNNI>(Vmat.format<half>(), b2dV.set_block_x(k));
+                int v_offset = worker_offset + k;
+                cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_V.set_block_x(v_offset));
+                cm_load<lsc::VNNI>(Vmat.format<half>(), b2dV.set_block_x(v_offset));
                 // sometimes KV cache would be filled with random Nan, so need to clean up the unused value data.
                 if ((kv_pos + kv_step) > kv_stop) {
                     uint valid_rows = kv_stop - kv_pos;
@@ -914,7 +1157,30 @@ void pa_kernel_lsc_prefetch_f16(
                 }
                 #pragma unroll
                 for(int p = 0; p < num_P_tiles; p++) {
-                    rO[ri + p] = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount, float>(
+                    rO_lo[ri + p] = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount, float>(
+                                    0,
+                                    Vmat.format<int32_t>(),
+                                    P2.row(p).format<int32_t>());
+                }
+            }
+            // PV0 upper half - Second half of this worker's chunk
+            #pragma unroll
+            for(int k = process_head_size / 2, ri = 0; k < process_head_size; k += REG_N, ri += num_P_tiles) {
+                matrix<half, REG_K/2, REG_N*2> Vmat;
+                int v_offset = worker_offset + k;
+                cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_V.set_block_x(v_offset));
+                cm_load<lsc::VNNI>(Vmat.format<half>(), b2dV.set_block_x(v_offset));
+                if ((kv_pos + kv_step) > kv_stop) {
+                    uint valid_rows = kv_stop - kv_pos;
+                    uint valid_rows_vnni = (valid_rows+1)/2;
+                    for (int r = valid_rows_vnni; r < kv_step / 2; r++)
+                        Vmat.row(r) = 0.f;
+                    if (valid_rows % 2 == 1)
+                        Vmat.row(valid_rows_vnni-1).select<REG_N,2>(1) = 0.f;
+                }
+                #pragma unroll
+                for(int p = 0; p < num_P_tiles; p++) {
+                    rO_hi[ri + p] = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount, float>(
                                     0,
                                     Vmat.format<int32_t>(),
                                     P2.row(p).format<int32_t>());
@@ -925,12 +1191,14 @@ void pa_kernel_lsc_prefetch_f16(
         else {
             //ugemm_PV1(slm_V, P, max_comp, rO, slm_offset);
             auto P2 = P.format<half, num_P_tiles, REG_M * REG_K>();
+            // PV1 lower half - Each worker loads its 1/4 chunk of V
             #pragma unroll
-            for(int k = 0, ri=0; k < head_size; k += REG_N, ri += num_P_tiles) {
+            for(int k = 0, ri=0; k < process_head_size / 2; k += REG_N, ri += num_P_tiles) {
                 matrix<half, REG_K/2, REG_N*2> Vmat;
 
-                cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_V.set_block_x(k));
-                cm_load<lsc::VNNI>(Vmat.format<half>(), b2dV.set_block_x(k));
+                int v_offset = worker_offset + k;
+                cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_V.set_block_x(v_offset));
+                cm_load<lsc::VNNI>(Vmat.format<half>(), b2dV.set_block_x(v_offset));
                  // sometimes KV cache would be filled with random Nan, so need to clean up the unused value data.
                 if ((kv_pos + kv_step) > kv_stop) {
                     uint valid_rows = kv_stop - kv_pos;
@@ -944,7 +1212,7 @@ void pa_kernel_lsc_prefetch_f16(
                 //  matrix <float, head_size/REG_K*2, REG_M*REG_N> rO;
                 #pragma unroll
                 for(int p = 0; p < num_P_tiles; p++) {
-                    auto cO = rO[ri + p].format<float, REG_M, REG_N>();
+                    auto cO = rO_lo[ri + p].format<float, REG_M, REG_N>();
                     #pragma unroll
                     for(int r = 0; r < REG_M; r++)
                         cO.row(r) = cm_mul<float>(cO.row(r), max_comp[r + p*REG_M]);
@@ -952,8 +1220,40 @@ void pa_kernel_lsc_prefetch_f16(
 
                 #pragma unroll
                 for(int p = 0; p < num_P_tiles; p++) {
-                    rO[ri + p] = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount>(
-                                rO[ri + p].format<float>(),
+                    rO_lo[ri + p] = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount>(
+                                rO_lo[ri + p].format<float>(),
+                                Vmat.format<int32_t>(),
+                                P2.row(p).format<int32_t>());
+                }
+            }
+            // PV1 upper half - Second half of this worker's chunk
+            #pragma unroll
+            for(int k = process_head_size / 2, ri=0; k < process_head_size; k += REG_N, ri += num_P_tiles) {
+                matrix<half, REG_K/2, REG_N*2> Vmat;
+
+                int v_offset = worker_offset + k;
+                cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_V.set_block_x(v_offset));
+                cm_load<lsc::VNNI>(Vmat.format<half>(), b2dV.set_block_x(v_offset));
+                if ((kv_pos + kv_step) > kv_stop) {
+                    uint valid_rows = kv_stop - kv_pos;
+                    uint valid_rows_vnni = (valid_rows+1)/2;
+                    for (int r = valid_rows_vnni; r < kv_step / 2; r++)
+                        Vmat.row(r) = 0.f;
+                    if (valid_rows % 2 == 1)
+                        Vmat.row(valid_rows_vnni-1).select<REG_N,2>(1) = 0.f;
+                }
+                #pragma unroll
+                for(int p = 0; p < num_P_tiles; p++) {
+                    auto cO = rO_hi[ri + p].format<float, REG_M, REG_N>();
+                    #pragma unroll
+                    for(int r = 0; r < REG_M; r++)
+                        cO.row(r) = cm_mul<float>(cO.row(r), max_comp[r + p*REG_M]);
+                }
+
+                #pragma unroll
+                for(int p = 0; p < num_P_tiles; p++) {
+                    rO_hi[ri + p] = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount>(
+                                rO_hi[ri + p].format<float>(),
                                 Vmat.format<int32_t>(),
                                 P2.row(p).format<int32_t>());
                 }
@@ -972,22 +1272,44 @@ void pa_kernel_lsc_prefetch_f16(
     matrix<half, num_P_tiles*REG_M, REG_N> cur_O_f16;
     cur_sum = cm_inv(cur_sum);
 
-    lsc::block_2d_desc<half, 1, REG_M, REG_N> b2dO(o_base, q_tokens_in_tile - 1, head_size*sizeof(half) - 1, o_pitch - 1, 0, 0);
+    // Inactive threads (q_tokens_in_tile==0) participated in barriers but must not write output.
+    if (q_tokens_in_tile > 0) {
+        lsc::block_2d_desc<half, 1, REG_M, REG_N> b2dO(o_base, q_tokens_in_tile - 1, head_size*sizeof(half) - 1, o_pitch - 1, 0, 0);
 
-    #pragma unroll
-    for(int k = 0, ri=0; k < head_size; k += REG_N, ri += num_P_tiles) {
+        // Each worker stores its 1/4 chunk of output
+        // Store lower half of worker's chunk from rO_lo
         #pragma unroll
-        for(int p = 0; p < num_P_tiles; p++) {
-            auto cO = rO[ri + p].format<float, REG_M, REG_N>();
+        for(int k = 0, ri=0; k < process_head_size / 2; k += REG_N, ri += num_P_tiles) {
             #pragma unroll
-            for(int r = 0; r < cO.n_rows(); r++) {
-                cur_O_f16[r + p*REG_M] = cm_mul<float>(cO.row(r), cur_sum[r + p*REG_M]);
-
+            for(int p = 0; p < num_P_tiles; p++) {
+                auto cO = rO_lo[ri + p].format<float, REG_M, REG_N>();
+                #pragma unroll
+                for(int r = 0; r < cO.n_rows(); r++) {
+                    cur_O_f16[r + p*REG_M] = cm_mul<float>(cO.row(r), cur_sum[r + p*REG_M]);
+                }
             }
+            int o_offset = worker_offset + k;
+            b2dO.set_block_x(o_offset);
+            cm_store(b2dO.set_block_y(0), cur_O_f16.format<half, num_P_tiles, REG_M * REG_N>().row(0));
+            cm_store(b2dO.set_block_y(REG_M), cur_O_f16.format<half, num_P_tiles, REG_M * REG_N>().row(1));
         }
-        b2dO.set_block_x(k);
-        cm_store(b2dO.set_block_y(0), cur_O_f16.format<half, num_P_tiles, REG_M * REG_N>().row(0));
-        cm_store(b2dO.set_block_y(REG_M), cur_O_f16.format<half, num_P_tiles, REG_M * REG_N>().row(1));
+
+        // Store upper half of worker's chunk from rO_hi
+        #pragma unroll
+        for(int k = process_head_size / 2, ri=0; k < process_head_size; k += REG_N, ri += num_P_tiles) {
+            #pragma unroll
+            for(int p = 0; p < num_P_tiles; p++) {
+                auto cO = rO_hi[ri + p].format<float, REG_M, REG_N>();
+                #pragma unroll
+                for(int r = 0; r < cO.n_rows(); r++) {
+                    cur_O_f16[r + p*REG_M] = cm_mul<float>(cO.row(r), cur_sum[r + p*REG_M]);
+                }
+            }
+            int o_offset = worker_offset + k;
+            b2dO.set_block_x(o_offset);
+            cm_store(b2dO.set_block_y(0), cur_O_f16.format<half, num_P_tiles, REG_M * REG_N>().row(0));
+            cm_store(b2dO.set_block_y(REG_M), cur_O_f16.format<half, num_P_tiles, REG_M * REG_N>().row(1));
+        }
     }
 }
 

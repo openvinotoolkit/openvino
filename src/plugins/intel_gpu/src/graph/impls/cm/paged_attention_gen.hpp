@@ -199,7 +199,14 @@ public:
         return 16;  // For Xe2+
     }
 
+    // For head_size = 256, work is split across 4 cooperative workers per team,
+    // so each work-group only covers 4 query slices (4 * q_step tokens).
     static size_t get_wg_seq_len(const kernel_impl_params& params) {
+        const auto desc = params.typed_desc<paged_attention>();
+        if (desc->k_head_size == 256) {
+            constexpr size_t num_groups = 4;
+            return num_groups * get_q_step(params);
+        }
         return _wg_size * get_q_step(params);
     }
 
@@ -259,6 +266,12 @@ public:
 
     static uint32_t get_block_wg_n(const kernel_impl_params& params) {
         return get_block_sg_n(params) * SG_N;
+    }
+
+    // XAttention metadata is built at WG-level Q-tile granularity, ignoring the
+    // head_size=256 worker subdivision used inside the multi-token kernel.
+    static size_t get_wg_seq_len(const kernel_impl_params& params) {
+        return PagedAttentionGeneratorMultiToken::_wg_size * PagedAttentionGeneratorMultiToken::get_q_step(params);
     }
 
     [[nodiscard]] std::string get_build_options(const RuntimeParams& params) const override {
