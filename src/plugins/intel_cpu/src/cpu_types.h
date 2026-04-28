@@ -139,7 +139,8 @@ enum class Type : uint8_t {
     SegmentMax,
     LoRA,
     GatherMatmul,
-    GatedDeltaNet
+    GatedDeltaNet,
+    PagedGatedDeltaNet
 };
 
 enum class Algorithm : uint8_t {
@@ -211,6 +212,7 @@ enum class Algorithm : uint8_t {
     EltwiseRoundHalfAwayFromZero,
     EltwiseErf,
     EltwiseSoftSign,
+    EltwiseErfInv,
     EltwiseLog,
     EltwiseBitwiseAnd,
     EltwiseBitwiseNot,

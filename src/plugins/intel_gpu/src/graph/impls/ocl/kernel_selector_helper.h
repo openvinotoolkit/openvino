@@ -311,5 +311,6 @@ inline void update_shapes(kernel_selector::Params& p, const kernel_impl_params& 
 
 bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config);
 bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config);
+bool query_register_file_size_option_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config);
 
 }  // namespace cldnn

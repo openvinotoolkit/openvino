@@ -691,7 +691,7 @@ Example:
 
     <!-- E#118045 -->
     <skip_config>
-        <message>NPU needs to implement ROITensor logic in zero_infer_request</message>
+        <message>A property with the name of the tensors must be set to support ROI Tensors</message>
         <filters>
             <filter>.*OVInferRequestInferenceTests.Inference_ROI_Tensor/roi_nchw.*</filter>
         </filters>
@@ -859,16 +859,6 @@ Example:
     </skip_config>
 
     <skip_config>
-        <message>Skip test-cases failing with Win Drv UD48</message>
-        <enable_rules>
-            <operating_system>windows</operating_system>
-        </enable_rules>
-        <filters>
-            <filter>.*DX12RemoteRunTests.*</filter>
-        </filters>
-    </skip_config>
-
-    <skip_config>
         <message>PV driver cannot create infer request for models with boolean inputs</message>
         <enable_rules>
             <backend>LEVEL0</backend>
@@ -876,6 +866,18 @@ Example:
         </enable_rules>
         <filters>
             <filter>.*BooleanPrecisionInferRequestRunTests.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- E#206393 -->
+    <skip_config>
+        <message>Skip memory standard allocation tests for Win NPU3720 due to OS issue, E#206393.</message>
+        <enable_rules>
+            <operating_system>windows</operating_system>
+            <device>3720</device>
+        </enable_rules>
+        <filters>
+            <filter>.*ZeroGraphTest.SetAlignedBlob.*zeGraphNpuExtVersion=(1.13|1.14|1.15|1.16).*</filter>
         </filters>
     </skip_config>
 

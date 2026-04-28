@@ -4,8 +4,6 @@
 
 #include "plugin.hpp"
 
-#include <fstream>
-
 #include "compiled_model.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/device_helpers.hpp"
@@ -17,7 +15,6 @@
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
-#include "intel_npu/utils/zero/zero_init.hpp"
 #include "metrics.hpp"
 #include "npuw/compiled_model.hpp"
 #include "npuw/llm_compiled_model.hpp"
@@ -230,6 +227,7 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     REGISTER_OPTION(TILES);
     REGISTER_OPTION(COMPILATION_MODE);
     REGISTER_OPTION(COMPILER_TYPE);
+    REGISTER_OPTION(COMPILER_VERSION);
     REGISTER_OPTION(PLATFORM);
     REGISTER_OPTION(CREATE_EXECUTOR);
     REGISTER_OPTION(DYNAMIC_SHAPE_TO_STATIC);
@@ -244,22 +242,22 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     REGISTER_OPTION(QDQ_OPTIMIZATION);
     REGISTER_OPTION(QDQ_OPTIMIZATION_AGGRESSIVE);
     REGISTER_OPTION(STEPPING);
-    REGISTER_OPTION(MAX_TILES);
     REGISTER_OPTION(DISABLE_VERSION_CHECK);
     REGISTER_OPTION(EXPORT_RAW_BLOB);
     REGISTER_OPTION(IMPORT_RAW_BLOB);
     REGISTER_OPTION(BATCH_COMPILER_MODE_SETTINGS);
     REGISTER_OPTION(TURBO);
     REGISTER_OPTION(ENABLE_WEIGHTLESS);
-    // WEIGHTLESS_BLOB can be removed once
-    // NPU Compilers support ENABLE_WEIGHTLESS
-    REGISTER_OPTION(WEIGHTLESS_BLOB);
     REGISTER_OPTION(SEPARATE_WEIGHTS_VERSION);
     REGISTER_OPTION(WS_COMPILE_CALL_NUMBER);
     REGISTER_OPTION(MODEL_SERIALIZER_VERSION);
     REGISTER_OPTION(ENABLE_STRIDES_FOR);
+    REGISTER_OPTION(SHARED_COMMON_QUEUE);
 
     if (backend) {
+        // Options registered only if drivers is present and supports the corresponding extension
+        REGISTER_OPTION(MAX_TILES);
+
         if (backend->isCommandQueueExtSupported()) {
             REGISTER_OPTION(WORKLOAD_TYPE);
         }
@@ -440,7 +438,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // available devices (if any)
     const auto compilationPlatform =
         utils::getCompilationPlatform(_propertiesManager->determinePlatform(localProperties),
-                                      device == nullptr ? deviceId : device->getName(),
+                                      device == nullptr ? std::move(deviceId) : device->getName(),
                                       _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
     CompilerAdapterFactory factory;
@@ -453,6 +451,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
     FilteredConfig localConfig = _propertiesManager->getConfigForSpecificCompiler(localProperties, compiler.get());
+    localConfig.update({{ov::intel_npu::compiler_version.name(), std::to_string(compiler->get_version())}});
 
     auto updateBatchMode = [&](ov::intel_npu::BatchMode mode) {
         std::stringstream strStream;
@@ -507,7 +506,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
 
     // Update stepping w/ information from driver, unless provided by user or we are off-device
-    // Ignore, if compilation was requested for platform, different from current
+    // Ignore if compilation was requested for a platform that is different from the current one
     if (!localConfig.has<STEPPING>() && device != nullptr && device->getName() == compilationPlatform) {
         try {
             localConfig.update({{ov::intel_npu::stepping.name(), std::to_string(device->getSubDevId())}});
@@ -517,37 +516,38 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
     // Update max_tiles w/ information from driver, unless provided by user or we are off-device
-    // Ignore, if compilation was requested for platform, different from current
+    // Ignore if compilation was requested for a platform that is different from the current one
     if (!localConfig.has<MAX_TILES>() && device != nullptr && device->getName() == compilationPlatform) {
         try {
             localConfig.update({{ov::intel_npu::max_tiles.name(), std::to_string(device->getMaxNumSlices())}});
         } catch (...) {
-            _logger.warning("Max tiles information not implemented by selected backend. Skipping. Please provide "
-                            "NPU_MAX_TILES if required.");
+            _logger.warning("Max tiles information not implemented by selected backend. Default value will be used.");
         }
     }
 
     OV_ITT_TASK_NEXT(PLUGIN_COMPILE_MODEL, "compile");
 
-    if (localConfig.isAvailable(ov::intel_npu::weightless_blob.name()) && !localConfig.get<CACHE_DIR>().empty()) {
+    if (localConfig.isAvailable(ov::enable_weightless.name()) && !localConfig.get<CACHE_DIR>().empty()) {
         // If OV caching is enabled, then weights separation is performed only if the user opted for optimizing the
         // size of the binary object
         const bool cacheModeOptimizeSize = (localConfig.get<CACHE_MODE>() == ov::CacheMode::OPTIMIZE_SIZE);
-        if (localConfig.get<WEIGHTLESS_BLOB>() && !cacheModeOptimizeSize) {
-            _logger.warning("The cache mode was not set to \"optimize size\" but the \"WEIGHTLESS_BLOB\" configuration "
-                            "option was set to true. Weights separation WILL NOT be performed in this case.");
-        } else if (!localConfig.get<WEIGHTLESS_BLOB>() && cacheModeOptimizeSize) {
-            _logger.warning("The cache mode was set to \"optimize size\" but the \"WEIGHTLESS_BLOB\" configuration "
-                            "option was set to false. Weights separation WILL be performed in this case.");
+        if (localConfig.get<ENABLE_WEIGHTLESS>() && !cacheModeOptimizeSize) {
+            _logger.warning(
+                "The cache mode was not set to \"optimize size\" but the \"ENABLE_WEIGHTLESS\" configuration option"
+                "was set to true. Weights separation WILL NOT be performed in this case.");
+        } else if (!localConfig.get<ENABLE_WEIGHTLESS>() && cacheModeOptimizeSize) {
+            _logger.warning(
+                "The cache mode was set to \"optimize size\" but the \"ENABLE_WEIGHTLESS\" configuration option"
+                "was set to false. Weights separation WILL be performed in this case.");
         }
 
-        localConfig.update({{ov::intel_npu::weightless_blob.name(), cacheModeOptimizeSize ? "YES" : "NO"}});
+        localConfig.update({{ov::enable_weightless.name(), cacheModeOptimizeSize ? "YES" : "NO"}});
     }
 
     std::shared_ptr<intel_npu::IGraph> graph;
 
     auto compileWithConfig = [&](auto&& modelToCompile, const auto& config) {
-        if (!localConfig.get<WEIGHTLESS_BLOB>() && !localConfig.get<ENABLE_WEIGHTLESS>()) {
+        if (!localConfig.get<ENABLE_WEIGHTLESS>()) {
             return compiler->compile(modelToCompile, config);
         } else {
             check_weightless_cache_attribute_occurrence(model);
@@ -559,7 +559,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         _logger.debug("performing compile");
 
         // Determine which model to use
-        auto modelToCompile = successfullyDebatched ? batchedModel : model->clone();
+        auto modelToCompile = successfullyDebatched ? std::move(batchedModel) : model->clone();
 
         const bool performanceHintSetByUser = localConfig.has(ov::hint::performance_mode.name());
         const bool shouldForceThroughput = successfullyDebatched && !performanceHintSetByUser;
@@ -785,7 +785,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 
     const auto compilationPlatform =
         utils::getCompilationPlatform(_propertiesManager->determinePlatform(localProperties),
-                                      device == nullptr ? deviceId : device->getName(),
+                                      device == nullptr ? std::move(deviceId) : device->getName(),
                                       _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
     CompilerAdapterFactory factory;
@@ -847,6 +847,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
                        ? metadata->get_blob_size() - std::accumulate(initSizes->begin(), initSizes->end(), accumulator)
                        : metadata->get_blob_size();
         batchSize = metadata->get_batch_size();
+
+        std::optional<uint32_t> compilerVersion = metadata->get_compiler_version();
+        if (compilerVersion.has_value()) {
+            localConfig.update({{ov::intel_npu::compiler_version.name(), std::to_string(compilerVersion.value())}});
+            _logger.debug("Imported model was compiled with compiler version: %u.%u",
+                          ONEAPI_VERSION_MAJOR(compilerVersion.value()),
+                          ONEAPI_VERSION_MINOR(compilerVersion.value()));
+        }
     } else {
         _logger.info("Blob compatibility check skipped.");
     }

@@ -18,6 +18,7 @@
 #include <functional>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
+#include <optional>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -62,16 +63,22 @@ bool AclPoolingExecutor::isSupported(const TensorInfo& srcTensorInfo,
     unsigned int stride_x = (poolingAttrs.stride.size() >= 2U) ? poolingAttrs.stride[1] : poolingAttrs.stride[0];
     unsigned int stride_y = (poolingAttrs.stride.size() >= 2U) ? poolingAttrs.stride[0] : 1;
 
-    auto [pool_type, exclude_padding] = [&]() -> std::pair<PoolingType, bool> {
+    const auto poolTypeOpt = [&]() -> std::optional<PoolingType> {
         if (poolingAttrs.algorithm == Algorithm::PoolingMax) {
-            return {PoolingType::MAX, (poolingAttrs.pad_type != op::PadType::EXPLICIT)};
+            return PoolingType::MAX;
         }
         if (poolingAttrs.algorithm == Algorithm::PoolingAvg) {
-            return {PoolingType::AVG, poolingAttrs.exclude_pad};
+            return PoolingType::AVG;
         }
         DEBUG_LOG("Unknown pooling algorithm: ", static_cast<int>(poolingAttrs.algorithm));
-        return {PoolingType::MAX, false};
+        return std::nullopt;
     }();
+    if (!poolTypeOpt) {
+        return false;
+    }
+    const auto pool_type = poolTypeOpt.value();
+    const bool exclude_padding =
+        (pool_type == PoolingType::MAX) ? (poolingAttrs.pad_type != op::PadType::EXPLICIT) : poolingAttrs.exclude_pad;
 
     // The combination of parameters: NCHW + CEIL gives an accuracy problem in AvgPool.
     // One workaround is to disable the ACL executor for these parameters.
@@ -81,7 +88,7 @@ bool AclPoolingExecutor::isSupported(const TensorInfo& srcTensorInfo,
         DEBUG_LOG("NCHW + CEIL gives an accuracy problem in ACL AvgPool. ACL executor will not be created.");
         return false;
     }
-    auto round = [&]() -> DimensionRoundingType {
+    const auto roundOpt = [&]() -> std::optional<DimensionRoundingType> {
         switch (poolingAttrs.rounding) {
         case op::RoundingType::FLOOR:
             return DimensionRoundingType::FLOOR;
@@ -90,9 +97,13 @@ bool AclPoolingExecutor::isSupported(const TensorInfo& srcTensorInfo,
             return DimensionRoundingType::CEIL;
         default:
             DEBUG_LOG("Unknown rounding type: ", poolingAttrs.rounding);
-            return DimensionRoundingType::FLOOR;
+            return std::nullopt;
         }
     }();
+    if (!roundOpt) {
+        return false;
+    }
+    const auto round = roundOpt.value();
 
     if (srcDimsSize == 5) {
         if (dstDescsSize > 1) {

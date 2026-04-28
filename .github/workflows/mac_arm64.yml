@@ -68,7 +68,7 @@ jobs:
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
-          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,.github/workflows/ci-doctor.lock.yml'
 
   Build:
     needs: Smart_CI
@@ -145,7 +145,7 @@ jobs:
 
       - name: Setup NodeJS
         if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version: ${{ env.NODEJS_VERSION }}
 

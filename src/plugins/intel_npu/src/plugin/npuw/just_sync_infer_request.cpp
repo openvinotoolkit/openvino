@@ -5,6 +5,8 @@
 #include "just_sync_infer_request.hpp"
 
 #include <algorithm>
+#include <cstring>
+#include <fstream>
 #include <memory>
 #include <string>
 
@@ -17,6 +19,7 @@
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "plugin.hpp"
 #include "pyramid_attention.hpp"
+#include "v1/elements/failsafe.hpp"
 #include "weights_bank.hpp"
 
 // ====================================================================================================
@@ -47,6 +50,10 @@ bool ov::npuw::JustInferRequest::unpack_required(size_t idx, size_t cidx) {
 
 bool ov::npuw::JustInferRequest::needs_copy_closure(size_t idx, size_t cidx) {
     return IBaseInferRequest::needs_copy(idx, cidx);
+}
+
+std::string ov::npuw::JustInferRequest::subgraph_device(size_t idx) {
+    return m_npuw_model->submodel_device(idx);
 }
 
 // ====================================================================================================
@@ -89,7 +96,16 @@ const ov::npuw::MemAccessSim::ReadList& ov::npuw::MemAccessSim::read_list(std::s
 }
 
 std::size_t ov::npuw::MemAccessSim::remaining_reads(const LinkFrom& from) {
-    return m_remaining_reads.at(from);
+    auto it = m_remaining_reads.find(from);
+    if (it == m_remaining_reads.end()) {
+        // No cross-subgraph consumers for this output. This can legitimately happen
+        // when a prototype output is unused by some call instances (e.g. in KV-sharing
+        // models like Gemma4, non-head layers receive shared K/V directly and never
+        // consume the layernorm output that head layers forward to K/V projection).
+        // Return 0 so the tensor slot is immediately available for reuse.
+        return 0u;
+    }
+    return it->second;
 }
 
 void ov::npuw::MemAccessSim::register_read(const LinkFrom& from) {
@@ -236,7 +252,6 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
 
     // Create infer requests
     // Preallocate funcall tensors & substitute function call requests
-    bool failover_happened = false;
     bool has_spatial = false;
     bool has_dynamic = false;
     bool has_pyramid = false;
@@ -350,11 +365,8 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
 
         // Special cases are handled -- so nothing to do here
         const bool is_piped = is_pipelined(i);
-        bool recompiled = false;
-        auto rqs = create_infer_requests(i, is_piped ? 2 : 1, &recompiled);
-        failover_happened |= recompiled;
+        auto rqs = create_infer_requests(i, is_piped ? 2 : 1);
         m_subrequests[i] = rqs.at(0);
-        m_subrequest_devices[i] = *comp_model_desc.device_it;
         if (is_piped) {
             m_funcall_pipeline[i].subrequest = rqs.at(1);
         }
@@ -366,25 +378,18 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
             const auto real_idx = comp_model_desc.replaced_by.value();
             auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
             if (proto_comp_model_desc.pyramid_attention) {
-                setup_pyramid_infer_requests(real_idx, is_piped, false);
+                setup_pyramid_infer_requests(real_idx, is_piped);
             }
             // Create HFA tile infer requests if this function has host flash attention
             if (proto_comp_model_desc.host_flash_attention) {
                 setup_hfa_infer_requests(real_idx,
                                          is_piped,
-                                         /* is_recreate */ false,
                                          /* enable_hfa_optimizations */ true);
             }
         }
 
         LOG_INFO("DONE");
     }  // for(submodels)
-
-    if (failover_happened) {
-        LOG_INFO("Refined device distribution:");
-        LOG_BLOCK();
-        m_npuw_model->log_device_dist();
-    }
 
     // Identify connections for the funcall pipeline, if needed
     if (m_use_function_pipelining) {
@@ -419,6 +424,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
 
     alloc_quant_gather();
     connect_subrequests();
+    initialize_subgraph_behaviors();
     init_gio();
 
     for (size_t i = 0; i < m_num_submodels; i++) {
@@ -511,6 +517,49 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     if (has_moe) {
         initialize_moe_executor();
     }
+}
+
+void ov::npuw::JustInferRequest::initialize_subgraph_behaviors() {
+    m_subgraph_behaviors.resize(m_num_submodels);
+    for (std::size_t idx = 0; idx < m_num_submodels; idx++) {
+        const auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
+        if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
+            continue;
+        }
+        if (!comp_model_desc.pipeline.runtime_behavior.has_value()) {
+            continue;
+        }
+        const auto& spec = comp_model_desc.pipeline.runtime_behavior.value();
+        if (spec.factory) {
+            m_subgraph_behaviors[idx] = spec.factory(spec.context);
+        }
+        if (m_subgraph_behaviors[idx]) {
+            continue;
+        }
+        const auto* post_legacy_hook = spec.context.get_if<ov::npuw::v1::subgraphs::PostLegacyHook>();
+        if (!post_legacy_hook) {
+            continue;
+        }
+        m_subgraph_behaviors[idx] = std::make_unique<ov::npuw::v1::subgraphs::DirectBehavior>(
+            [post_legacy_hook = *post_legacy_hook](ov::npuw::v1::subgraphs::InferContext& ctx) {
+                ctx.legacy_infer();
+                post_legacy_hook(ctx);
+            });
+    }
+}
+
+ov::npuw::v1::subgraphs::InferContext ov::npuw::JustInferRequest::make_behavior_context(std::size_t real_idx,
+                                                                                        std::size_t idx) {
+    return ov::npuw::v1::subgraphs::InferContext{*m_npuw_model, *this, idx, real_idx, [this, real_idx, idx]() {
+                                                     legacy_infer(real_idx, idx);
+                                                 }};
+}
+
+ov::npuw::v1::subgraphs::ISubgraphBehavior* ov::npuw::JustInferRequest::get_subgraph_behavior(std::size_t idx) const {
+    if (idx >= m_subgraph_behaviors.size()) {
+        return nullptr;
+    }
+    return m_subgraph_behaviors[idx].get();
 }
 
 void ov::npuw::JustInferRequest::set_tensor(const ov::Output<const ov::Node>& port,
@@ -1016,48 +1065,6 @@ void ov::npuw::JustInferRequest::function_prologue_pyramid_attn(std::size_t real
     }
 }
 
-void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
-    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
-    auto real_idx = comp_model_desc.replaced_by.value_or(idx);
-
-    const auto is_piped = is_pipelined(idx);
-    auto new_rqs = create_infer_requests(idx, is_piped ? 2 : 1);
-
-    // NB: Regardless if this subrequest was a function call
-    // or not, always use the real_idx here - for regular
-    // subrequests, real_id == idx, but for function calls it
-    // is critical here to update the function body, not the
-    // function calls (which are left empty now in the vector)
-    m_subrequests[real_idx] = new_rqs.at(0);
-    if (is_piped) {
-        m_funcall_pipeline[real_idx].subrequest = new_rqs.at(1);
-    }
-
-    // Recreate pyramid infer requests if this function has pyramid attention
-    if (comp_model_desc.replaced_by) {
-        auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
-        if (proto_comp_model_desc.pyramid_attention) {
-            setup_pyramid_infer_requests(real_idx, is_piped, true);
-        }
-        // Recreate HFA tile infer requests if this function has host flash attention
-        if (proto_comp_model_desc.host_flash_attention) {
-            setup_hfa_infer_requests(real_idx, is_piped, /* is_recreate */ true, /* enable_hfa_optimizations */ true);
-        }
-        // Recreate MoE resources if this function has MoE
-        if (proto_comp_model_desc.moe_experts) {
-            recreate_moe_resources(idx, real_idx);
-        }
-    }
-
-    // After an infer request is recreated, the internal cross-request
-    // connections should be re-established (in/out tensors reset properly)
-    // Note: these two proceduers do the full I/O reset procedure what's
-    // overkill - only affected subrequest(s) could be updated instead,
-    // but it is a more complex thing and can be implemented separately
-    connect_subrequests();
-    m_subrequest_devices[idx] = *comp_model_desc.device_it;
-}
-
 void ov::npuw::JustInferRequest::initialize_moe_executor() {
     LOG_INFO("Creating MoE executor...");
 
@@ -1088,41 +1095,17 @@ void ov::npuw::JustInferRequest::initialize_moe_executor() {
     LOG_INFO("MoE executor initialized successfully");
 }
 
-void ov::npuw::JustInferRequest::recreate_moe_resources(std::size_t idx, std::size_t real_idx) {
-    LOG_INFO("Recreating MoE resources for submodel[" << idx << "] (real_idx=" << real_idx << ")...");
-    LOG_BLOCK();
-
-    // Re-prepare MoE resources for this specific submodel
-    size_t pool_size = m_npuw_model->m_cfg.get<::intel_npu::NPUW_MOE_POOL_SIZE>();
-    m_moe_executor->prepare(idx, real_idx, m_num_submodels, pool_size);
-
-    LOG_INFO("MoE resources recreated successfully");
-}
-
-void ov::npuw::JustInferRequest::setup_pyramid_infer_requests(std::size_t real_idx, bool is_piped, bool is_recreate) {
+void ov::npuw::JustInferRequest::setup_pyramid_infer_requests(std::size_t real_idx, bool is_piped) {
     auto& submodel_desc = m_npuw_model->m_compiled_submodels[real_idx];
     if (!submodel_desc.pyramid_attention.has_value()) {
         return;
     }
 
-    LOG_INFO((is_recreate ? "Recreating" : "Creating") << " pyramid infer requests...");
+    LOG_INFO("Creating pyramid infer requests...");
     LOG_BLOCK();
 
     const auto& pyramid_models = submodel_desc.pyramid_attention.value()._compiled_models;
     const size_t num_pyramid_models = pyramid_models.size();
-
-    // Clear existing requests if recreating
-    if (is_recreate) {
-        submodel_desc.pyramid_infer_requests.clear();
-        submodel_desc.pyramid_pipeline_requests.clear();
-        // Also release anchor tensors for this submodel so stale buffers are not retained
-        m_pyramid_anchor_tensors.erase(std::remove_if(m_pyramid_anchor_tensors.begin(),
-                                                      m_pyramid_anchor_tensors.end(),
-                                                      [real_idx](const auto& e) {
-                                                          return e.first == real_idx;
-                                                      }),
-                                       m_pyramid_anchor_tensors.end());
-    }
 
     // Allocate storage for infer requests
     submodel_desc.pyramid_infer_requests.resize(num_pyramid_models);
@@ -1132,21 +1115,9 @@ void ov::npuw::JustInferRequest::setup_pyramid_infer_requests(std::size_t real_i
 
     // Create infer requests for all but the last pyramid model
     for (size_t model_idx = 0; model_idx + 1 < num_pyramid_models; ++model_idx) {
-        try {
-            // Create main infer request
-            submodel_desc.pyramid_infer_requests[model_idx] = pyramid_models[model_idx]->create_infer_request();
-            // Create pipeline infer request if pipelined
-            if (is_piped) {
-                submodel_desc.pyramid_pipeline_requests[model_idx] = pyramid_models[model_idx]->create_infer_request();
-            }
-        } catch (const std::exception& ex) {
-            LOG_ERROR("Failed to " << (is_recreate ? "recreate" : "create") << " infer request for pyramid model["
-                                   << model_idx << "]: " << ex.what());
-            NPUW_ASSERT(false && "Pyramid model infer request creation/recreation failed");
-        } catch (...) {
-            LOG_ERROR("Failed to " << (is_recreate ? "recreate" : "create") << " infer request for pyramid model["
-                                   << model_idx << "]: Unknown error");
-            NPUW_ASSERT(false && "Pyramid model infer request creation/recreation failed with unknown error");
+        submodel_desc.pyramid_infer_requests[model_idx] = pyramid_models[model_idx]->create_infer_request();
+        if (is_piped) {
+            submodel_desc.pyramid_pipeline_requests[model_idx] = pyramid_models[model_idx]->create_infer_request();
         }
 
         // Share input tensors between pyramid and main infer requests
@@ -1177,8 +1148,7 @@ void ov::npuw::JustInferRequest::setup_pyramid_infer_requests(std::size_t real_i
     // For the last pyramid model, reuse the original model's infer requests
     if (num_pyramid_models > 0) {
         const size_t last_model_idx = num_pyramid_models - 1;
-        LOG_INFO("Reusing " << (is_recreate ? "recreated " : "") << "original infer requests for last pyramid model["
-                            << last_model_idx << "]");
+        LOG_INFO("Reusing original infer requests for last pyramid model[" << last_model_idx << "]");
         submodel_desc.pyramid_infer_requests[last_model_idx] = m_subrequests[real_idx];
         if (is_piped) {
             submodel_desc.pyramid_pipeline_requests[last_model_idx] = m_funcall_pipeline[real_idx].subrequest;
@@ -1196,7 +1166,7 @@ void ov::npuw::JustInferRequest::setup_pyramid_infer_requests(std::size_t real_i
         }
     }
 
-    if (!is_recreate && num_pyramid_models > 0) {
+    if (num_pyramid_models > 0) {
         LOG_INFO("Successfully created " << (num_pyramid_models - 1)
                                          << " new pyramid infer requests and reused 1 original request");
     }
@@ -1204,23 +1174,16 @@ void ov::npuw::JustInferRequest::setup_pyramid_infer_requests(std::size_t real_i
 
 void ov::npuw::JustInferRequest::setup_hfa_infer_requests(std::size_t real_idx,
                                                           bool is_piped,
-                                                          bool is_recreate,
                                                           bool enable_hfa_optimizations) {
     auto& submodel_desc = m_npuw_model->m_compiled_submodels[real_idx];
     if (!submodel_desc.host_flash_attention.has_value()) {
         return;
     }
 
-    LOG_INFO((is_recreate ? "Recreating" : "Creating") << " HFA tile infer requests...");
+    LOG_INFO("Creating HFA tile infer requests...");
     LOG_BLOCK();
 
     const auto& hfa = submodel_desc.host_flash_attention.value();
-
-    // Clear existing requests if recreating
-    if (is_recreate) {
-        submodel_desc.hfa_infer_requests.clear();
-        submodel_desc.hfa_pipeline_requests.clear();
-    }
 
     // Allocate storage for infer requests: [REGULAR_TILE] and [FINAL_TILE]
     submodel_desc.hfa_infer_requests.resize(CompiledModel::CompiledModelDesc::HFATileIdx::COUNT);
@@ -1228,28 +1191,17 @@ void ov::npuw::JustInferRequest::setup_hfa_infer_requests(std::size_t real_idx,
         submodel_desc.hfa_pipeline_requests.resize(CompiledModel::CompiledModelDesc::HFATileIdx::COUNT);
     }
 
-    // Create infer request for regular tile model
-    try {
-        LOG_INFO("Creating infer request for HFA regular tile model...");
-        submodel_desc.hfa_infer_requests[CompiledModel::CompiledModelDesc::HFATileIdx::REGULAR_TILE] =
+    LOG_INFO("Creating infer request for HFA regular tile model...");
+    submodel_desc.hfa_infer_requests[CompiledModel::CompiledModelDesc::HFATileIdx::REGULAR_TILE] =
+        hfa._compiled_tile_model->create_infer_request();
+    if (is_piped) {
+        submodel_desc.hfa_pipeline_requests[CompiledModel::CompiledModelDesc::HFATileIdx::REGULAR_TILE] =
             hfa._compiled_tile_model->create_infer_request();
-        if (is_piped) {
-            submodel_desc.hfa_pipeline_requests[CompiledModel::CompiledModelDesc::HFATileIdx::REGULAR_TILE] =
-                hfa._compiled_tile_model->create_infer_request();
-        }
-    } catch (const std::exception& ex) {
-        LOG_ERROR("Failed to " << (is_recreate ? "recreate" : "create")
-                               << " infer request for HFA regular tile model: " << ex.what());
-        OPENVINO_THROW("HFA regular tile model infer request creation failed: ", ex.what());
-    } catch (...) {
-        LOG_ERROR("Failed to " << (is_recreate ? "recreate" : "create")
-                               << " infer request for HFA regular tile model: Unknown error");
-        OPENVINO_THROW("HFA regular tile model infer request creation failed with unknown error");
     }
 
     // For final tile model, reuse the main compiled_model's infer request
     // because compiled_model points to _compiled_final_tile_model for HFA
-    LOG_INFO("Reusing " << (is_recreate ? "recreated " : "") << "main infer request for HFA final tile model");
+    LOG_INFO("Reusing main infer request for HFA final tile model");
     submodel_desc.hfa_infer_requests[CompiledModel::CompiledModelDesc::HFATileIdx::FINAL_TILE] =
         m_subrequests[real_idx];
     if (is_piped) {
@@ -1279,8 +1231,7 @@ void ov::npuw::JustInferRequest::setup_hfa_infer_requests(std::size_t real_idx,
         }
     }
 
-    LOG_INFO("Successfully " << (is_recreate ? "recreated" : "created")
-                             << " HFA tile infer requests with shared input tensors");
+    LOG_INFO("Successfully created HFA tile infer requests with shared input tensors");
 
     // Initialize HFA optimizations (mask cache + state double-buffering) if enabled
     if (enable_hfa_optimizations) {
@@ -1291,16 +1242,12 @@ void ov::npuw::JustInferRequest::setup_hfa_infer_requests(std::size_t real_idx,
             m_hfa_runtime_ctx.emplace();
         }
 
-        if (is_recreate) {
-            m_hfa_runtime_ctx->reset();
-        }
-
         LOG_INFO("Pre-allocating HFA mask tile buffers...");
 
         // Initialize pre-allocated buffers
         m_hfa_runtime_ctx->initialize_mask_cache(
             hfa,
-            *submodel_desc.device_it,
+            m_npuw_model->submodel_device(real_idx),
             [this](const ov::element::Type& dtype, const ov::Shape& shape, const std::string& device) {
                 return allocMem(dtype, shape, device);
             });
@@ -1333,7 +1280,7 @@ void ov::npuw::JustInferRequest::setup_hfa_infer_requests(std::size_t real_idx,
         m_hfa_runtime_ctx->initialize_state_buffers(
             initial_buffers,
             hfa,
-            *submodel_desc.device_it,
+            m_npuw_model->submodel_device(real_idx),
             [this](const ov::element::Type& dtype, const ov::Shape& shape, const std::string& device) {
                 return allocMem(dtype, shape, device);
             });
@@ -1349,82 +1296,42 @@ void ov::npuw::JustInferRequest::setup_hfa_infer_requests(std::size_t real_idx,
     }
 }
 
-void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, bool& failover) {
-    failover = false;
+void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
-    auto real_idx = comp_model_desc.replaced_by.value_or(idx);
-
-    // Infer is also fail-safe...
-    bool job_done = false;
-    bool dump_in = false;
+    const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
     bool next_prepared = false;
-    while (!job_done) {
-        bool should_recreate = false;
-        if (m_subrequest_devices[real_idx] != *m_npuw_model->m_compiled_submodels[real_idx].device_it) {
-            // This may happen when there's multiple NPUW's infer
-            // requests created and some failure occurs in one of
-            // those before another reaches this point.
-            LOG_INFO("Recreating subrequest[" << real_idx << "] because model was recompiled for "
-                                              << *m_npuw_model->m_compiled_submodels[real_idx].device_it << " device.");
-            recreate_subrequests(real_idx);
-        }
+    auto* behavior = get_subgraph_behavior(idx);
 
-        // Feeding the global Parameters is now part of the common
-        // execution pipeline: See how it is done in
-        // `unsafe_run_this_prep_next()`.  Now we only need to bind
-        // the subrequest' outputs to global Results, if relevant.
-        bind_global_results(idx);
+    // Feeding the global Parameters is now part of the common
+    // execution pipeline: See how it is done in
+    // `unsafe_run_this_prep_next()`.  Now we only need to bind
+    // the subrequest' outputs to global Results, if relevant.
+    bind_global_results(idx);
 
-        if (comp_model_desc.replaced_by) {
-            function_prologue(idx);
-        }
-        if (!dump_in) {
-            dump_in = true;
-            dump_input_tensors(idx);
-        }
+    if (comp_model_desc.replaced_by) {
+        function_prologue(idx);
+    }
+    if (behavior != nullptr) {
+        auto ctx = make_behavior_context(real_idx, idx);
+        behavior->prologue(ctx);
+    }
+    dump_input_tensors(idx);
 
-        std::string error_text;
-        try {
-            LOG_DEBUG("Trying to run subrequest[" << idx << "]...");
-            LOG_BLOCK();
-            unsafe_run_this_prep_next(idx, next_prepared);
-            job_done = true;
-            LOG_DEBUG("Done: " << idx << "(exec subrequest)");
-        } catch (const std::exception& ex) {
-            error_text = ex.what();
-            LOG_ERROR("Subgraph [" << idx << "] - FAILED to run infer request:" << std::endl
-                                   << error_text << std::endl);
-            should_recreate = true;
-        } catch (...) {
-            LOG_ERROR("Subgraph [" << idx << "] - FAILED to run infer request: REASON UNKNOWN");
-            should_recreate = true;
-        }
-        if (should_recreate) {
-            // Altering iterators here!! Contracts should be changed!
-            comp_model_desc.device_it++;
+    LOG_DEBUG("Trying to run subrequest[" << idx << "]...");
+    LOG_BLOCK();
+    unsafe_run_this_prep_next(idx, next_prepared);
 
-            // Check if failover is actually possible
-            if ((m_npuw_model->m_dev_list.cend() == comp_model_desc.device_it) ||
-                !m_npuw_model->m_cfg.get<::intel_npu::NPUW_FALLBACK_EXEC>()) {
-                OPENVINO_THROW("Execution error: \"", error_text, "\" - no fallback possible");
-            }
+    LOG_DEBUG("Done: " << idx << "(exec subrequest)");
 
-            failover = true;
-            LOG_INFO("- Trying next device...");
-            if (!m_npuw_model->compile_for_success(real_idx)) {
-                OPENVINO_THROW("Execution error: \"", error_text, "\" - failed to recompile the model in runtime");
-            }
-            recreate_subrequests(idx);
-        }
-    }  // while(job_done)
-
-    if (job_done) {
-        dump_output_tensors(idx);  // FIXME: Called here unconditionally, need to refactor
-        if (is_pipelined(idx) && m_funcall_pipeline[idx].next) {
-            // Swap the next (pipelined, semi-prepared) infer request in the chain
-            // with the default (to be accessed next) one.
-            std::swap(m_subrequests[real_idx], m_funcall_pipeline[real_idx].subrequest);
-        }
+    dump_output_tensors(idx);  // FIXME: Called here unconditionally, need to refactor
+    if (behavior != nullptr) {
+        auto ctx = make_behavior_context(real_idx, idx);
+        behavior->epilogue(ctx);
+    }
+    if (is_pipelined(idx) && m_funcall_pipeline[idx].next) {
+        // Swap the next (pipelined, semi-prepared) infer request in the chain
+        // with the default (to be accessed next) one.
+        std::swap(m_subrequests[real_idx], m_funcall_pipeline[real_idx].subrequest);
     }
 }
 
@@ -1661,6 +1568,9 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
         // Extract K tile
         if (hfa_can_reuse_tensor_zero_copy(k_source, k_tile_buffer, K_SEQ_DIM, kv_offset, tile_length)) {
             request->set_tensor(model->inputs()[tile_in.k], k_source);
+        } else if (hfa_desc._can_use_tensor_view) {
+            request->set_tensor(model->inputs()[tile_in.k],
+                                ov::npuw::util::view(k_source, K_SEQ_DIM, kv_offset, tile_length));
         } else {
             hfa_extract_and_copy_tile(k_source, k_tile_buffer, K_SEQ_DIM, kv_offset, tile_length, "K");
         }
@@ -1668,10 +1578,13 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
         // Extract V tile
         if (hfa_can_reuse_tensor_zero_copy(v_source, v_tile_buffer, V_SEQ_DIM, kv_offset, tile_length)) {
             request->set_tensor(model->inputs()[tile_in.v], v_source);
+        } else if (hfa_desc._can_use_tensor_view) {
+            request->set_tensor(model->inputs()[tile_in.v],
+                                ov::npuw::util::view(v_source, V_SEQ_DIM, kv_offset, tile_length));
+
         } else {
             hfa_extract_and_copy_tile(v_source, v_tile_buffer, V_SEQ_DIM, kv_offset, tile_length, "V");
         }
-
         // Extract mask tile with caching (if enabled) to avoid redundant extraction
         if (attention_mask_tensor) {
             // Check if zero-copy is possible (rare case where full mask matches tile)
@@ -1896,7 +1809,7 @@ void ov::npuw::JustInferRequest::unsafe_infer_spatial(std::size_t real_idx, std:
     }
 }
 
-void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t idx) {
+void ov::npuw::JustInferRequest::legacy_infer(std::size_t real_idx, std::size_t idx) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
     auto& r = m_subrequests[real_idx];
     if (comp_model_desc.spatial) {
@@ -1909,6 +1822,15 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t 
     } else {
         r->infer();  // Run normally
     }
+}
+
+void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t idx) {
+    if (auto* behavior = get_subgraph_behavior(idx)) {
+        auto ctx = make_behavior_context(real_idx, idx);
+        behavior->run(ctx);
+        return;
+    }
+    legacy_infer(real_idx, idx);
 }
 
 void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool& next_prepared) {

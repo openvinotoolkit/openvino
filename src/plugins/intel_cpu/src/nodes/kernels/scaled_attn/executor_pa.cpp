@@ -1982,7 +1982,9 @@ struct AttentionExecutor : public PagedAttentionExecutor {
               PlainTensor& output_score,
               std::vector<PlainTensor>& sparse_attention_mask,
               PlainTensor& output_arkv_similarity,
-              PlainTensor& token_type_ids) {
+              PlainTensor& token_type_ids,
+              PlainTensor& qq_bias,
+              PlainTensor& qq_bias_begins) {
         q.reset(inputs[ID_Q]);  // [B_token, H * S]
         k.reset(inputs[ID_K]);
         v.reset(inputs[ID_V]);
@@ -2004,7 +2006,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         }
 
         size_t inputs_size = inputs.size();
-        OPENVINO_ASSERT(inputs_size == 26);
+        OPENVINO_ASSERT(inputs_size == 28);
         if (!inputs[ID_ROTATED_BLOCK_INDICES]->getShape().hasZeroDims()) {
             rotated_block_indices.reset(inputs[ID_ROTATED_BLOCK_INDICES]);  // [num_blocks]
         }
@@ -2049,6 +2051,9 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                 token_type_ids = token_type_ids.reshape({total});
             }
         }
+
+        OPENVINO_ASSERT(inputs[ID_QQ_BIAS]->getShape().hasZeroDims(),
+                        "CPU plugin doesn't support qq_bias (tree mask) in paged attention yet");
 
         output_emb.reset(outputs[0]);
         if (outputs.size() >= 2) {
@@ -2346,6 +2351,9 @@ struct AttentionExecutor : public PagedAttentionExecutor {
 
         PlainTensor token_type_ids;
 
+        PlainTensor qq_bias;
+        PlainTensor qq_bias_begins;
+
         std::vector<PlainTensor>
             sparse_attention_mask;  // Each vector element corresponds to a batch, and each PlainTensor corresponds to a
                                     // batch, with shape: [H, q_blocks, k_blocks], type: bool
@@ -2381,7 +2389,9 @@ struct AttentionExecutor : public PagedAttentionExecutor {
              output_score,
              sparse_attention_mask,
              output_arkv_similarity,
-             token_type_ids);
+             token_type_ids,
+             qq_bias,
+             qq_bias_begins);
 
         if (token_type_ids) {
             _helper.set_token_type(token_type_ids, subsequence_begins, past_lens);

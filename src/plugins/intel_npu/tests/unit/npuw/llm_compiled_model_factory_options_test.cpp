@@ -12,10 +12,10 @@
 #include <utility>
 #include <vector>
 
-#include "embedding_model_utils.hpp"
 #include "llm_test_helpers.hpp"
-#include "llm_compiled_model_utils.hpp"
+#include "whisper/prepare_whisper_model.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
+#include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
 
 namespace {
 using ov::test::npuw::CompileCall;
@@ -38,6 +38,10 @@ protected:
 
     std::shared_ptr<ov::Model> build_embedding_model() const {
         return ov::test::npuw::build_embedding_test_model();
+    }
+
+    std::shared_ptr<ov::Model> build_embedding_decoder_model() const {
+        return ov::test::npuw::build_embedding_decoder_test_model();
     }
 
     static ov::AnyMap base_props() {
@@ -325,7 +329,7 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, CommonRuntimeAndDebugOptionsForwardTo
     }
 }
 
-TEST_F(LLMCompiledModelFactoryOptionsTest, FastCompileGenerateHintKeepsUnfoldedGenerateDefaults) {
+TEST_F(LLMCompiledModelFactoryOptionsTest, FastCompileGenerateHintKeepsCurrentGenerateDefaults) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
@@ -336,7 +340,30 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, FastCompileGenerateHintKeepsUnfoldedG
     ASSERT_NE(compiled, nullptr);
     const auto& generate = require_call_containing(recorder, "_kv");
     expect_prop(generate.props, "NPUW_UNFOLD_IREQS", "YES");
+    expect_prop(generate.props, "NPUW_DQ", "YES");
     expect_missing_prop(generate.props, "NPUW_SLICE_OUT");
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, MissingNpuBackendKeepsCurrentGenerateDefaults) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    auto core = std::make_shared<testing::NiceMock<ov::MockICore>>();
+    m_plugin->set_core(core);
+    ON_CALL(*core, get_property(testing::StrEq("NPU"), testing::StrEq(ov::available_devices.name()), testing::_))
+        .WillByDefault([](const std::string&, const std::string&, const ov::AnyMap&) -> ov::Any {
+            OPENVINO_THROW("No available backend");
+        });
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_llm_model(),
+                                                     {{"NPUW_LLM_SHARED_HEAD", "NO"},
+                                                      {"NPUW_LLM_GENERATE_HINT", "FAST_COMPILE"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& generate = require_call_containing(recorder, "_kv");
+    expect_prop(generate.props, "NPUW_UNFOLD_IREQS", "YES");
+    expect_prop(generate.props, "NPUW_DQ", "YES");
 }
 
 TEST_F(LLMCompiledModelFactoryOptionsTest, BestPerfGenerateHintForcesStandaloneGeneratePartitioning) {
@@ -429,13 +456,67 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, CacheRopeDisabledRoundsTripThroughCom
     EXPECT_EQ(recorder.count_contains("_kv"), 1u);
 }
 
-TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperOptionRejectsCurrentSyntheticDecoderModel) {
+// RopeCache replaces Sin/Cos with a Gather-from-LUT. When enabled the prefill
+// sub-model must have no Sin/Cos nodes left.
+TEST_F(LLMCompiledModelFactoryOptionsTest, CacheRopeEnabledRemovesSinCosFromPrefill) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
-    EXPECT_ANY_THROW(compiled = create_compiled_model(build_whisper_decoder_model(),
-                                                      {{"NPUW_WHISPER", "YES"}, {"NPUW_WHISPER_EOS_TOKEN", "42"}},
-                                                      recorder));
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_llm_model(),
+                                                     {{"NPUW_LLM_SHARED_HEAD", "NO"},
+                                                      {"NPUW_LLM_CACHE_ROPE", "YES"},
+                                                      {"NPUW_LLM_MAX_PROMPT_LEN", "2048"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto* prefill = recorder.find_suffix("_prefill");
+    ASSERT_NE(prefill, nullptr);
+
+    const auto& ops = prefill->model->get_ops();
+    auto sin_count = std::count_if(ops.begin(), ops.end(),
+                                   [](const auto& op) { return ov::is_type<ov::op::v0::Sin>(op); });
+    auto cos_count = std::count_if(ops.begin(), ops.end(),
+                                   [](const auto& op) { return ov::is_type<ov::op::v0::Cos>(op); });
+    EXPECT_EQ(sin_count, 0) << "RopeCache should have replaced all Sin nodes in the prefill model";
+    EXPECT_EQ(cos_count, 0) << "RopeCache should have replaced all Cos nodes in the prefill model";
+}
+
+// When rope caching is disabled the prefill model must still contain Sin/Cos
+// (i.e. the RoPE pattern is present but untransformed).
+TEST_F(LLMCompiledModelFactoryOptionsTest, CacheRopeDisabledKeepsSinCosInPrefill) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_llm_model(),
+                                                     {{"NPUW_LLM_SHARED_HEAD", "NO"},
+                                                      {"NPUW_LLM_CACHE_ROPE", "NO"},
+                                                      {"NPUW_LLM_MAX_PROMPT_LEN", "2048"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto* prefill = recorder.find_suffix("_prefill");
+    ASSERT_NE(prefill, nullptr);
+
+    const auto& ops = prefill->model->get_ops();
+    auto sin_count = std::count_if(ops.begin(), ops.end(),
+                                   [](const auto& op) { return ov::is_type<ov::op::v0::Sin>(op); });
+    auto cos_count = std::count_if(ops.begin(), ops.end(),
+                                   [](const auto& op) { return ov::is_type<ov::op::v0::Cos>(op); });
+    EXPECT_GT(sin_count, 0) << "Sin nodes must remain when rope caching is disabled";
+    EXPECT_GT(cos_count, 0) << "Cos nodes must remain when rope caching is disabled";
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperOptionCompilesSyntheticDecoderModel) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_whisper_decoder_model(),
+                                                     {{"NPUW_WHISPER", "YES"}, {"NPUW_WHISPER_EOS_TOKEN", "42"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+    EXPECT_GE(recorder.calls().size(), 2u);
+    EXPECT_NE(recorder.find_suffix("_prefill"), nullptr);
+    EXPECT_EQ(recorder.count_contains("_kv"), 1u);
 }
 
 TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperPreparationAddsKvCacheInputsAndPresentOutputs) {
@@ -463,12 +544,28 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperPrefillPreparationAddsCrossAtt
     ov::pass::StatefulToStateless().run_on_model(model);
     model = model->clone();
 
-    EXPECT_TRUE(ov::npuw::util::PrepareWhisperPrefillModel(128, 256).run_on_model(model));
+    EXPECT_TRUE(ov::npuw::util::PrepareWhisperPrefillModel(
+                    128, static_cast<uint32_t>(ov::test::npuw::WhisperConfig{}.max_source_positions),
+                    false /*decompose_sdpa*/)
+                    .run_on_model(model));
     auto prepared = model;
 
     EXPECT_TRUE(has_input_name(prepared, "attention_mask"));
     EXPECT_FALSE(has_input_name(prepared, "cache_position"));
     EXPECT_TRUE(has_output_name(prepared, "present"));
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, TextEmbedOptionCompilesEmbeddingDecoderModel) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_embedding_decoder_model(),
+                                                      {{"NPUW_TEXT_EMBED", "YES"},
+                                                       {"NPUW_LLM_SHARED_HEAD", "NO"}},
+                                                      recorder));
+    ASSERT_NE(compiled, nullptr);
+    EXPECT_GE(recorder.calls().size(), 1u);
+    EXPECT_NE(recorder.find_suffix("_prefill"), nullptr);
 }
 
 }  // namespace

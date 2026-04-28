@@ -50,6 +50,8 @@ using namespace ::tests;
  * [18]: adaptive_rkv_evictable_sizes, optional, shape: [batch_size_in_sequences], type: i32
  * [19]: adaptive_rkv_diversity_block_set_indices, optional, shape: [total_blocks], type: i32
  * [20]: adaptive_rkv_diversity_block_set_indices_begins, optional, shape: [batch_size_in_sequences + 1], type: i32
+ * [21]: qq_bias, optional, shape: [total_mask_size], type: u8
+ * [22]: qq_bias_begins, optional, shape: [batch_size_in_sequences + 1], type: i32
  */
 
 enum class ScoresMode {
@@ -69,6 +71,11 @@ struct CacheRotationDescriptor {
     // if per_block is true, single value is used for all tokens inside the block
     // otherwise, each token uses an independent value
     bool per_block;
+};
+
+struct QueryToQueryAttentionDescriptor {
+    std::vector<std::vector<uint8_t>> qq_bias;
+    std::vector<int> qq_bias_begins;
 };
 
 struct PagedAttentionManager {
@@ -119,6 +126,8 @@ struct PagedAttentionManager {
     std::vector<int> adaptive_rkv_diversity_block_set_indices;
     std::vector<int> adaptive_rkv_diversity_block_set_indices_begins;
 
+    std::vector<std::vector<uint8_t>> qq_bias;
+    std::vector<int> qq_bias_begins;
     cldnn::engine& test_engine;
     cldnn::stream& test_stream;
     tests::random_generator& rg;
@@ -234,14 +243,24 @@ struct PagedAttentionManager {
     }
 
     memory::ptr get_key_cache_memory_cm() {
+        constexpr int kv_sub_block_size = 16;
         auto key_cache_dt = kv_cache_compression ? data_types::i8 : data_types::f16;
         const int head_size = k_head_size;
-        const int adjusted_head_size = head_size + (kv_cache_compression ? 4 : 0);
+        int adjusted_head_size = head_size;
+        int adjusted_block_size = block_size;
+        if (kv_cache_compression) {
+            if (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
+                OPENVINO_ASSERT(block_size % kv_sub_block_size == 0);
+                adjusted_block_size += block_size / kv_sub_block_size * 4;
+            } else {
+                adjusted_head_size += 4;
+            }
+        }
 
         const auto num_blocks = block_indices.back() + 1;
         auto key_cache_shape = ov::PartialShape{static_cast<int64_t>(num_blocks),
                                                 static_cast<int64_t>(num_kv_heads),
-                                                static_cast<int64_t>(block_size),
+                                                static_cast<int64_t>(adjusted_block_size),
                                                 static_cast<int64_t>(adjusted_head_size)};
         auto key_cache_layout = layout{key_cache_shape, key_cache_dt, format::bfyx};
         auto memory = test_engine.allocate_memory(key_cache_layout);
@@ -268,7 +287,7 @@ struct PagedAttentionManager {
                                                 (static_cast<size_t>(head_idx) * block_size * head_size);
                             const size_t off = base + static_cast<size_t>(token_idx) * head_size;
                             set_values(test_stream, memory, src_ptr, head_size, off);
-                        } else {
+                        } else if (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_TOKEN) {
                             // Compressed Key cache layout:
                             // logical shape: [num_blocks, num_kv_heads, block_size, adjusted_head_size], dt=i8 (adjusted_head_size=head_size+4).
                             // Per (block, head) region starts at block_base_i8, byte-packed as:
@@ -293,6 +312,49 @@ struct PagedAttentionManager {
 
                             set_values(test_stream, memory, &scale, 1, scale_off_f16);
                             set_values(test_stream, memory, &zp, 1, zp_off_f16);
+                        } else {
+                            // Compressed Key cache layout for BY_CHANNEL:
+                            // shape: [num_blocks, num_kv_heads, adjusted_block_size, head_size], dt=i8.
+                            // Per (block, head):
+                            //   data bytes region                            : [block_size * head_size]
+                            //   scale fp16 region per-subblock per-channel   : [(block_size / sub_block) * head_size]
+                            //   zp fp16 region per-subblock per-channel      : [(block_size / sub_block) * head_size]
+                            const size_t block_stride_i8 = static_cast<size_t>(adjusted_block_size) * static_cast<size_t>(head_size);
+                            const size_t block_base_i8 = (static_cast<size_t>(start_block_idx + block_idx) * static_cast<size_t>(num_kv_heads) +
+                                                          static_cast<size_t>(head_idx)) *
+                                                         block_stride_i8;
+
+                            const int subblock_count = block_size / kv_sub_block_size;
+                            const size_t scale_base_i8 = block_base_i8 + static_cast<size_t>(block_size) * static_cast<size_t>(head_size);
+                            const size_t zp_base_i8 = scale_base_i8 +
+                                                      static_cast<size_t>(subblock_count) * static_cast<size_t>(head_size) * sizeof(ov::float16);
+
+                            for (int channel = 0; channel < head_size; channel++) {
+                                for (int sub_start = 0; sub_start < last_token_idx; sub_start += kv_sub_block_size) {
+                                    const int cur_sub_block_size = std::min(kv_sub_block_size, last_token_idx - sub_start);
+                                    std::vector<ov::float16> token_block(cur_sub_block_size);
+
+                                    for (int t = 0; t < cur_sub_block_size; t++) {
+                                        const size_t input_token_offset = static_cast<size_t>(block_idx) * block_size + static_cast<size_t>(sub_start + t);
+                                        token_block[t] = *(key_data[i].data() + input_token_offset * static_cast<size_t>(num_kv_heads) * head_size +
+                                                           static_cast<size_t>(head_idx) * head_size + channel);
+                                    }
+
+                                    auto [quantized_data, scale, zp] = quantize_data(token_block.data(), cur_sub_block_size, true, true);
+
+                                    for (int t = 0; t < cur_sub_block_size; t++) {
+                                        const size_t data_off_i8 = block_base_i8 + static_cast<size_t>(sub_start + t) * head_size + channel;
+                                        set_values(test_stream, memory, quantized_data.data() + t, 1, data_off_i8);
+                                    }
+
+                                    const size_t sub_idx = static_cast<size_t>(sub_start / kv_sub_block_size);
+                                    const size_t scale_off_f16 = scale_base_i8 / 2 + sub_idx * static_cast<size_t>(head_size) + channel;
+                                    const size_t zp_off_f16 = zp_base_i8 / 2 + sub_idx * static_cast<size_t>(head_size) + channel;
+
+                                    set_values(test_stream, memory, &scale, 1, scale_off_f16);
+                                    set_values(test_stream, memory, &zp, 1, zp_off_f16);
+                                }
+                            }
                         }
                     }
                 }
@@ -786,6 +848,20 @@ struct PagedAttentionManager {
         return get_memory_from_vec(token_type_ids);
     }
 
+    memory::ptr get_qq_bias_memory() {
+        std::vector<uint8_t> flat_qq_bias;
+        for (const auto& matrix : qq_bias) {
+            for (bool val : matrix) {
+                flat_qq_bias.push_back(static_cast<int8_t>(val));
+            }
+        }
+        return get_memory_from_vec(flat_qq_bias);
+    }
+
+    memory::ptr get_qq_bias_begins_memory() {
+        return get_memory_from_vec(qq_bias_begins);
+    }
+
     float get_default_scale() {
         return static_cast<float>(1.f / std::sqrt(k_head_size));
     }
@@ -997,7 +1073,7 @@ struct PagedAttentionReference {
         std::vector<ov::float16> ref_data_output;
         std::vector<ov::float16> ref_scores_output;
         std::vector<ov::float16> ref_diversity_output;
-
+        size_t qq_bias_offset = 0;
         for (size_t i = 0; i < pam.subsequence_descs.size(); i++) {
             const auto& subsequence_desc = pam.subsequence_descs[i];
             const auto kv_seq_len = subsequence_desc.num_tokens + subsequence_desc.past_len;
@@ -1031,6 +1107,11 @@ struct PagedAttentionReference {
 
             auto window_size = pam.has_score_aggregation ? pam.score_aggregation[i] : 1;
 
+            const std::vector<uint8_t>* qq_bias_ptr = nullptr;
+            if (pam.qq_bias.size() > 0 && pam.subsequence_descs[i].past_len != 0) {
+                qq_bias_ptr = &pam.qq_bias[qq_bias_offset++];
+            }
+
             double xattn_threshold = 1.0;
             size_t xattn_block_size = 128;
             if (has_xattention) {
@@ -1059,7 +1140,8 @@ struct PagedAttentionReference {
                                                          pam.sliding_window_size,
                                                          pam.get_default_scale(),
                                                          xattn_threshold,
-                                                         xattn_block_size);
+                                                         xattn_block_size,
+                                                         qq_bias_ptr);
 
             // concatenate all subsequences into one vector
             ref_data_output.insert(ref_data_output.end(),
@@ -1093,6 +1175,7 @@ private:
                                                                                 float scale,
                                                                                 double xattention_threshold,
                                                                                 size_t block_size,
+                                                                                const std::vector<uint8_t>* qq_bias = nullptr,
                                                                                 size_t stride = 16) {
         auto query_shape = ov::PartialShape{1, num_queries, num_heads, k_head_size};
         auto key_shape = ov::PartialShape{1, num_keys, num_kv_heads, k_head_size};
@@ -1211,7 +1294,8 @@ private:
                                                          num_kv_heads,
                                                          sliding_window_size,
                                                          retained_blocks,
-                                                         static_cast<int>(block_size));
+                                                         static_cast<int>(block_size),
+                                                         qq_bias);
         topology topology;
         if (num_heads == num_kv_heads) {
             topology.add(input_layout("query", query_layout),
@@ -1313,7 +1397,8 @@ private:
                                                  int num_kv_heads,
                                                  int sliding_window_size,
                                                  const ov::reference::XAttentionRetainedBlockIndicesForAllHeads& retained_blocks,
-                                                 int block_size) {
+                                                 int block_size,
+                                                 const std::vector<uint8_t>* qq_bias) {
         int heads_per_kv = num_heads / num_kv_heads;
 
         ov::PartialShape mask_shape;
@@ -1403,6 +1488,33 @@ private:
                             }
                         }
                     }
+                }
+            }
+        }
+
+        if (qq_bias && !qq_bias->empty()) {
+            OPENVINO_ASSERT(qq_bias->size() == static_cast<size_t>(num_queries * num_queries));
+
+            auto apply_mask_for_head = [&](size_t head_offset) {
+                for (int i = 0; i < num_queries; i++) {
+                    for (int j = 0; j < num_queries; j++) {
+                        if (!(*qq_bias)[static_cast<size_t>(i) * static_cast<size_t>(num_queries) + static_cast<size_t>(j)]) {
+                            mem_ptr[head_offset + static_cast<size_t>(i) * static_cast<size_t>(num_keys) + (num_keys - num_queries) + static_cast<size_t>(j)] =
+                                std::numeric_limits<ov::float16>::lowest();
+                        }
+                    }
+                }
+            };
+
+            if (retained_blocks.empty()) {
+                apply_mask_for_head(0);
+            } else {
+                for (int h = 0; h < num_heads; ++h) {
+                    int kv_idx = (num_heads == num_kv_heads) ? 0 : (h / heads_per_kv);
+                    int head_in_kv = (num_heads == num_kv_heads) ? h : (h % heads_per_kv);
+                    size_t head_offset = (static_cast<size_t>(kv_idx) * static_cast<size_t>(heads_per_kv) + static_cast<size_t>(head_in_kv)) *
+                                         static_cast<size_t>(num_queries) * static_cast<size_t>(num_keys);
+                    apply_mask_for_head(head_offset);
                 }
             }
         }
@@ -1763,6 +1875,11 @@ public:
             }
         }
 
+        if (p.has_qq_bias) {
+            pam.qq_bias = p.qq_bias_config.qq_bias;
+            pam.qq_bias_begins = p.qq_bias_config.qq_bias_begins;
+        }
+
         if (p.kv_cache_compression)
             tolerance = 25e-3;
 
@@ -1806,6 +1923,8 @@ public:
         auto adaptive_rkv_diversity_block_set_indices_begins_mem = pam.get_adaptive_rkv_diversity_block_set_indices_begins_memory();
         auto token_type_ids_mem = pam.get_token_type_ids_memory();
 
+        auto qq_bias = pam.get_qq_bias_memory();
+        auto qq_bias_begins = pam.get_qq_bias_begins_memory();
         auto query_layout = query_mem->get_layout();
         auto key_layout = key_mem->get_layout();
         auto value_layout = value_mem->get_layout();
@@ -1832,6 +1951,8 @@ public:
         auto adaptive_rkv_diversity_block_set_indices_layout = adaptive_rkv_diversity_block_set_indices_mem->get_layout();
         auto adaptive_rkv_diversity_block_set_indices_begins_layout = adaptive_rkv_diversity_block_set_indices_begins_mem->get_layout();
         auto token_type_ids_layout = token_type_ids_mem->get_layout();
+        auto qq_bias_layout = qq_bias->get_layout();
+        auto qq_bias_begins_layout = qq_bias_begins->get_layout();
 
         // make layouts dynamic
         query_layout.set_partial_shape(ov::PartialShape{ -1, p.num_heads * p.k_head_size });
@@ -1861,6 +1982,8 @@ public:
         adaptive_rkv_evictable_sizes_layout.set_partial_shape(ov::PartialShape{ -1 });
         adaptive_rkv_diversity_block_set_indices_layout.set_partial_shape(ov::PartialShape{ -1 });
         adaptive_rkv_diversity_block_set_indices_begins_layout.set_partial_shape(ov::PartialShape{ -1 });
+        qq_bias_layout.set_partial_shape(ov::PartialShape{ -1 });
+        qq_bias_begins_layout.set_partial_shape(ov::PartialShape{ -1 });
 
         if (p.dynamic_paddings) {
             const auto padding_axis = 1;
@@ -1920,6 +2043,8 @@ public:
             input_info("adaptive_rkv_diversity_block_set_indices"),
             input_info("adaptive_rkv_diversity_block_set_indices_begins"),
             input_info("token_type_ids"),
+            input_info("qq_bias"),
+            input_info("qq_bias_begins")
         };
 
         auto pa_prim = paged_attention("paged_attention", pa_inputs);
@@ -1943,6 +2068,8 @@ public:
         if (p.has_xattention) {
             pa_prim.has_xattention = true;
         }
+
+        pa_prim.has_qq_bias = p.has_qq_bias;
 
         topology topology;
 
@@ -1992,6 +2119,8 @@ public:
             topology.add(input_layout("adaptive_rkv_diversity_block_set_indices", adaptive_rkv_diversity_block_set_indices_layout));
             topology.add(input_layout("adaptive_rkv_diversity_block_set_indices_begins", adaptive_rkv_diversity_block_set_indices_begins_layout));
             topology.add(input_layout("token_type_ids", token_type_ids_layout));
+            topology.add(input_layout("qq_bias", qq_bias_layout));
+            topology.add(input_layout("qq_bias_begins", qq_bias_begins_layout));
         }
 
         ExecutionConfig config = get_test_default_config(get_test_engine());
@@ -2031,6 +2160,8 @@ public:
         network->set_input_data("adaptive_rkv_diversity_block_set_indices", adaptive_rkv_diversity_block_set_indices_mem);
         network->set_input_data("adaptive_rkv_diversity_block_set_indices_begins", adaptive_rkv_diversity_block_set_indices_begins_mem);
         network->set_input_data("token_type_ids", token_type_ids_mem);
+        network->set_input_data("qq_bias", qq_bias);
+        network->set_input_data("qq_bias_begins", qq_bias_begins);
 
         auto outputs = network->execute();
 
@@ -2143,6 +2274,10 @@ struct paged_attention_test_params {
     std::optional<std::vector<int>> xattention_block_size = std::nullopt;
      
     ov::element::Type kv_cache_precision = ov::element::dynamic;
+
+    // test query-to-query attention bias
+    bool has_qq_bias = false;
+    QueryToQueryAttentionDescriptor qq_bias_config = {};
 };
 
 class paged_attention_test : public PagedAttentionTest<paged_attention_test_params> {};
@@ -2197,6 +2332,13 @@ TEST_P(adaptive_rkv_diversity_test, basic) {
     execute(p);
 }
 
+class qq_bias_test : public PagedAttentionTest<paged_attention_test_params> {};
+TEST_P(qq_bias_test, basic) {
+    auto p = GetParam();
+
+    execute(p);
+}
+
 const auto ENABLE_CACHE_COMPRESSION = true;
 const auto DISABLE_CACHE_COMPRESSION = false;
 const auto DISABLE_SCORES = ScoresMode::DISABLED;
@@ -2211,6 +2353,7 @@ const auto ENABLE_FA_V2 = false;
 const auto DISABLE_FA_V2 = true;
 const auto ENABLE_DIVERSITY = true;
 const auto DISABLE_DIVERSITY = false;
+const auto ENABLE_QQ_BIAS = QueryToQueryAttentionDescriptor{{{{1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}}}, {0, 16}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_paged_attention, paged_attention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
     /* with scores output, use SnapKV */
@@ -2402,6 +2545,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_cm_xattention, xattention_test, ::testing::Values
     paged_attention_test_params{ {{1, 32}},   2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 2nd toke
     paged_attention_test_params{ {{1, 1023}},   2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 2nd token
     paged_attention_test_params{ {{1, 1024}}, 2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 2nd token
+
+    paged_attention_test_params{ {{32, 0}},   2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 1st token
+    paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 1st token
+    paged_attention_test_params{ {{2048, 0}}, 2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 1st token
+    paged_attention_test_params{ {{32, 0}},   4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 1st token
+    paged_attention_test_params{ {{1024, 0}}, 4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 1st token
+    paged_attention_test_params{ {{2048, 0}}, 4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 1st token
+
+    paged_attention_test_params{ {{1, 31}},   2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 2nd token
+    paged_attention_test_params{ {{1, 32}},   2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 2nd token
+    paged_attention_test_params{ {{1, 1023}},   2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 2nd token
+    paged_attention_test_params{ {{1, 1024}}, 2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 2nd token
 }));
 
 INSTANTIATE_TEST_SUITE_P(smoke_cm_xattention_block_size, xattention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
@@ -2468,4 +2623,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_adaptive_rkv, adaptive_rkv_diversity_test, ::test
     // Different head sizes
     paged_attention_test_params{ {{128, 0}}, 2, 2, 128, 128, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 32, {64} },  // head_size=128, start+evict=96
     paged_attention_test_params{ {{160, 0}}, 4, 4, 256, 256, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 32, {48} },  // head_size=256, start+evict=80
+}));
+
+INSTANTIATE_TEST_SUITE_P(smoke_qq_bias, qq_bias_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+    // basic tests with 1 sequence
+    paged_attention_test_params{ {{4, 32}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic ,true, ENABLE_QQ_BIAS },
+    paged_attention_test_params{ {{4, 32}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, ENABLE_QQ_BIAS },
+    paged_attention_test_params{ {{4, 32}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, ENABLE_QQ_BIAS },
+
+    // multi sequences tests
+    paged_attention_test_params{ {{4, 32}, {128, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, QueryToQueryAttentionDescriptor{{{{1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}}}, {0, 16, 16}} },
+    paged_attention_test_params{ {{128, 0}, {4, 32}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, QueryToQueryAttentionDescriptor{{{{1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}}}, {0, 0, 16}} },
+    paged_attention_test_params{ {{4, 20}, {4, 32}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, QueryToQueryAttentionDescriptor{{{{1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}, {1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}}}, {0, 16, 32}} },
+
+    // multi sequence with different qq bias patterns
+    paged_attention_test_params{ {{4, 20}, {2, 32}, {4, 25}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, QueryToQueryAttentionDescriptor{{{{1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}, {1, 0, 1, 1}, {1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}}}, {0, 16, 20, 36}} },
 }));

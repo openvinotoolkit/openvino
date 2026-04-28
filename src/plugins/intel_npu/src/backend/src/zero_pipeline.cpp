@@ -4,12 +4,13 @@
 
 #include "zero_pipeline.hpp"
 
-#include <ze_api.h>
+#include <level_zero/ze_api.h>
 #include <ze_graph_ext.h>
 
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
 #include "intel_npu/utils/zero/zero_types.hpp"
 
 namespace {
@@ -56,6 +57,8 @@ IPipeline::IPipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                                    _config.get<RUN_INFERENCES_SEQUENTIALLY>()),
       _pipeline_unique_id_per_graph(get_graph_unique_id_or_throw(graph)),
       _logger(logName, _config.get<LOG_LEVEL>()) {
+    _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, _graph->get_command_queue_desc());
+
     bool perf_count_enabled = _config.has<PERF_COUNT>() && _config.get<PERF_COUNT>();
     std::optional<bool> compiled_with_profiling = _graph->is_profiling_blob();
 
@@ -159,17 +162,16 @@ Pipeline::Pipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
         }
     }
 
+    if (_sync_output_with_fences) {
+        _fences.reserve(_batch_size);
+        for (size_t i = 0; i < _batch_size; i++) {
+            _fences.emplace_back(std::make_unique<Fence>(_command_queue));
+        }
+    }
+
     _command_lists.reserve(_batch_size);
     for (size_t i = 0; i < _batch_size; i++) {
         _command_lists.emplace_back(std::make_unique<CommandList>(_init_structs));
-    }
-
-    if (_sync_output_with_fences) {
-        _fences.reserve(_batch_size);
-
-        for (size_t i = 0; i < _batch_size; i++) {
-            _fences.emplace_back(std::make_unique<Fence>(_graph->get_command_queue()));
-        }
     }
 
     for (size_t i = 0; i < _batch_size; i++) {
@@ -283,6 +285,18 @@ void Pipeline::push() {
         _graph->set_last_submitted_id(_pipeline_unique_id_per_graph);
     }
 
+    const auto command_queue_desc = _graph->get_command_queue_desc();
+    const bool command_queue_version_changed = (command_queue_desc.key() != _command_queue->desc().key());
+    if (command_queue_version_changed) {
+        _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, command_queue_desc);
+
+        if (_sync_output_with_fences) {
+            for (size_t i = 0; i < _fences.size(); i++) {
+                _fences[i] = std::make_unique<Fence>(_command_queue);
+            }
+        }
+    }
+
     for (size_t i = 0; i < _command_lists.size(); ++i) {
         _command_lists.at(i)->close();
         // Emit a marker for pipeline::push() with the command list handle as the metadata
@@ -292,9 +306,9 @@ void Pipeline::push() {
                                 (uintptr_t)_command_lists.at(i)->handle());
         OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PUSH, itt::domains::LevelZeroBackend, "Pipeline", "push");
         if (_sync_output_with_fences) {
-            _graph->get_command_queue()->executeCommandList(*_command_lists.at(i), *_fences.at(i));
+            _command_queue->executeCommandList(*_command_lists.at(i), *_fences.at(i));
         } else {
-            _graph->get_command_queue()->executeCommandList(*_command_lists.at(i));
+            _command_queue->executeCommandList(*_command_lists.at(i));
         }
     }
 

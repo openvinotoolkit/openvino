@@ -90,13 +90,14 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
             std::shared_ptr<ov::Node> result = nullptr;
             // Convert ZP to u8
             if (constant->get_element_type() == ov::element::u8)
-                result = std::dynamic_pointer_cast<ov::Node>(constant);
+                result = constant;
             else if (constant->get_element_type() == ov::element::u4)
-                result = std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Convert>(node, ov::element::u8));
-            else if (weight_u8 && sub_with_convert)
-                result = std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Convert>(node, ov::element::u8));
+                result = std::make_shared<ov::op::v0::Convert>(node, ov::element::u8);
+            // Only unsigned ZP types can be converted to u8.
+            else if (weight_u8 && sub_with_convert && !constant->get_element_type().is_signed())
+                result = std::make_shared<ov::op::v0::Convert>(node, ov::element::u8);
             else
-                result = std::dynamic_pointer_cast<ov::Node>(constant);
+                result = constant;
 
             ov::copy_weightless_cache_attr(node, result);
             return result;
