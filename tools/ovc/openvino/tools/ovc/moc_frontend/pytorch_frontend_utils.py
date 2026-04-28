@@ -114,38 +114,6 @@ def _build_dynamic_shapes(inputs, input_specs=None):
     return tree_unflatten(flat_dim_specs, tree_spec)
 
 
-def _export_torch_model(model, inputs, input_specs=None):
-    """Export a torch.nn.Module using torch.export.export with Dim.AUTO dynamic shapes."""
-    import torch
-
-    model.eval()
-    dynamic_shapes = _build_dynamic_shapes(inputs, input_specs=input_specs)
-
-    # Normalize inputs to a tuple for torch.export.export
-    if isinstance(inputs, dict):
-        export_args = ()
-        export_kwargs = inputs
-    else:
-        if isinstance(inputs, torch.Tensor):
-            export_args = (inputs,)
-        elif isinstance(inputs, (list, tuple)):
-            export_args = tuple(inputs)
-        else:
-            export_args = (inputs,)
-        export_kwargs = None
-
-    if export_kwargs is not None:
-        export_args_dict = dict(args=export_args, kwargs=export_kwargs)
-    else:
-        export_args_dict = dict(args=export_args)
-
-    if dynamic_shapes is not None:
-        export_args_dict["dynamic_shapes"] = dynamic_shapes
-
-    exported_program = torch.export.export(model, **export_args_dict)
-    return exported_program
-
-
 def get_pytorch_decoder(model, example_inputs, args):
     try:
         from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
@@ -184,10 +152,11 @@ def get_pytorch_decoder(model, example_inputs, args):
             # because _build_dynamic_shapes expects _InputCutInfo objects with .shape attribute.
             raw_input = args.get('input', None) or None
             input_specs = input_to_input_cut_info(raw_input) if raw_input is not None else None
-            exported_program = _export_torch_model(model, inputs, input_specs=input_specs)
-            has_dynamic = input_specs is not None
-            decoder = TorchFXPythonDecoder.from_exported_program(
-                exported_program, dynamic_shapes=has_dynamic)
+            dynamic_shapes = _build_dynamic_shapes(inputs, input_specs=input_specs)
+            decoder = TorchFXPythonDecoder.from_model(
+                model,
+                example_inputs=inputs,
+                dynamic_shapes=dynamic_shapes)
         else:
             decoder = TorchScriptPythonDecoder(
                 model,

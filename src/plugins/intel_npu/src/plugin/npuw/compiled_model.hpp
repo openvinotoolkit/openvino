@@ -124,14 +124,9 @@ private:
     friend class LLMInferRequest;
     friend class moe::MoEExecutor;
 
-    bool compile_for_success(std::size_t id);
-    bool compile_for_device(std::size_t id, const std::string& device_to_try);
+    bool compile_for_success(std::size_t id, const std::vector<std::string>& devices);
     ov::SoPtr<ov::ICompiledModel> compile_submodel(const std::shared_ptr<ov::Model>& submodel,
                                                    const std::string& device);
-    void compile_main_model(std::size_t id, const std::string& device);
-    void compile_moe_models(std::size_t id, const std::string& device);
-    void compile_pyramid_attention_models(std::size_t id, const std::string& device);
-    void compile_host_flash_attention_model(std::size_t id, const std::string& device);
 
     void dump_on_fail(std::size_t id, const std::string& device_to_stry, const char* extra);
     std::string format_subgraph_name(std::size_t id, const std::string& funcall) const;
@@ -217,7 +212,6 @@ private:
     void init_profiling();
 
     struct CompiledModelDesc {
-        DevList::const_iterator device_it;
         std::set<std::string> devices_to_avoid;
         std::shared_ptr<ov::Model> model;
         ov::SoPtr<ov::ICompiledModel> compiled_model;
@@ -285,17 +279,12 @@ private:
 
         bool forced_to_fcall = false;
 
-        // FIXME: Take it out of structure
-        ov::SoPtr<ov::ICompiledModel> ref_compiled_model;
-        bool switched_to_ref = false;
-
         // Metrics
         execution_stats stat;
 
-        void serialize(std::ostream& stream, const ov::npuw::s11n::WeightsContext& ctx) const;
-        void deserialize(std::istream& stream,
-                         const ov::npuw::s11n::WeightsContext& ctx,
-                         const ov::npuw::s11n::SubmodelDeserializeCtx& submodel_ctx);
+        void serialize(ov::npuw::s11n::Stream& stream,
+                       const ov::npuw::s11n::WeightsContext& ctx,
+                       const ov::npuw::s11n::SubmodelDeserializeCtx* submodel_ctx = nullptr);
     };
     std::vector<CompiledModelDesc> m_compiled_submodels;
 

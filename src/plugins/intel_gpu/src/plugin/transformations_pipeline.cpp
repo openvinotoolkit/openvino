@@ -91,6 +91,7 @@
 #include "plugin/transformations/increase_position_ids_precision.hpp"
 #include "plugin/transformations/indirect_kv_cache.hpp"
 #include "plugin/transformations/keep_moe_3gemm_const_precision.hpp"
+#include "plugin/transformations/keep_xattention_threshold_precision.hpp"
 #include "plugin/transformations/kv_cache_compression.hpp"
 #include "plugin/transformations/kv_cache_fusion.hpp"
 #include "plugin/transformations/lora_horizontal_fusion.hpp"
@@ -111,7 +112,6 @@
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
-#include "transformations/common_optimizations/convert_pagedattn_inputs.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
@@ -195,6 +195,7 @@
 #include "transformations/op_conversions/softplus_decomposition.hpp"
 #include "transformations/opset_conversions/convert_opset2_to_opset1.hpp"
 #include "transformations/opset_conversions/convert_opset3_to_opset2.hpp"
+#include "transformations/paged_attention/convert_pagedattn_inputs.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
@@ -590,6 +591,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::KeepDequantizationPrecision>(
             ov::element::TypeVector{ov::element::i32, ov::element::u32, ov::element::u16}, add_precision_sensitive_convert);
+        // Keep xattention threshold in fp32 to avoid boundary issues caused by fp16 quantization.
+        manager.register_pass<ov::intel_gpu::KeepXAttentionThresholdPrecision>();
 
         manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
                                                           empty_fuse_map,
@@ -662,7 +665,14 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             // k: [num_blocks, num_kv_heads, block_size(256), head_size]
             // v: [num_blocks, num_kv_heads, block_size(256), head_size]
             ov::pass::ConvertPagedAttnInputs::KVCacheConfig kv_cache_config;
-            const auto kv_cache_precision = config.get_kv_cache_precision();
+            const auto key_cache_quant_mode = config.get_key_cache_quant_mode();
+            auto kv_cache_precision = config.get_kv_cache_precision();
+            // Plain PA already falls back to compressed KV cache for BY_TOKEN on GPU.
+            // XAttention builds its dedicated KV layout in this pass, so normalize the
+            // precision here before ConvertPagedAttnInputs materializes that layout.
+            if (use_xattention && key_cache_quant_mode == ov::internal::CacheQuantMode::BY_TOKEN) {
+                kv_cache_precision = ov::element::i8;
+            }
             kv_cache_config.keyCachePrecision = kv_cache_precision;
             kv_cache_config.valueCachePrecision = kv_cache_precision;
             kv_cache_config.inferencePrecision = infer_precision;
@@ -673,13 +683,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 kv_cache_config.keyCacheBlockSize = cldnn::paged_attention::block_size;
                 kv_cache_config.keyCacheDimOrder = {0, 1, 3, 2};
             }
-            kv_cache_config.keyCacheQuantBychannel = (config.get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL);
-            kv_cache_config.keyCacheGroupSize = (config.get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL) ? 16 : 0;
+            kv_cache_config.keyCacheQuantBychannel = (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL);
+            kv_cache_config.keyCacheGroupSize = (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) ? 16 : 0;
             if (use_xattention) {
-                if (kv_cache_config.keyCacheQuantBychannel &&
-                    ((kv_cache_precision == ov::element::i8 || kv_cache_precision == ov::element::u8)) )
-                    OPENVINO_THROW("[GPU] XAttention does not currently support per-channel quantized key cache.");
-
                 kv_cache_config.valueCacheBlockSize = cldnn::paged_attention::block_size_xattn;
                 kv_cache_config.valueCacheDimOrder = {0, 1, 2, 3};
             } else {
@@ -699,7 +705,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     if (bychannel) {
                         // TODO: need to handle group size != block size case
                         if (precision == ov::element::i8 || precision == ov::element::u8) {
-                            block_size += infer_precision.size() * 2;
+                            constexpr int64_t kv_sub_block_size = 16;
+                            OPENVINO_ASSERT(block_size % kv_sub_block_size == 0,
+                                            "[GPU] Invalid key cache block size for BY_CHANNEL quantization: ",
+                                            block_size);
+                            block_size += (block_size / kv_sub_block_size) * infer_precision.size() * 2;
                         } else if (precision == ov::element::i4 || precision == ov::element::u4) {
                             head_size = align_to(head_size / 2, 16);
                             block_size += infer_precision.size() * 4;
