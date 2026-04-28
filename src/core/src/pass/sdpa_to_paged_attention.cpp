@@ -156,6 +156,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     manager.register_pass<PositionIDsReplacer>(unsqueezed_position_ids);
     manager.register_pass<PositionIDsReplacerQwen>(unsqueezed_position_ids);
     manager.register_pass<PositionIDsReplacerCodeGen2>(position_ids);
+    manager.register_pass<PositionIDsReplacerLFM2>(position_ids);
     manager.run_passes(model);
 
     {
