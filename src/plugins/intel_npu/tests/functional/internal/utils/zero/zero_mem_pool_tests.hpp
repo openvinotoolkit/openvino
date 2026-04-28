@@ -17,6 +17,7 @@
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
+#include "common/zero_init_mock.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/config/config.hpp"
@@ -25,8 +26,8 @@
 #include "intel_npu/utils/zero/zero_mem.hpp"
 #include "intel_npu/utils/zero/zero_mem_pool.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
-#include "internal/compiler_adapter/zero_init_mock.hpp"
 #include "openvino/core/any.hpp"
+#include "openvino/core/log.hpp"
 #include "openvino/runtime/core.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
@@ -365,6 +366,41 @@ TEST_P(ZeroMemPoolTests, MultiThreadingImportMemoryReUseAndDestroyItWithMultiple
             ::operator delete(data[s][i], std::align_val_t(4096));
         }
     }
+}
+
+TEST_P(ZeroMemPoolTests, DontDestroyZeroMemoryWhenZeroContextIsDestroyed) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    std::string logs;
+    std::mutex logs_mutex;
+
+    // Keep this std::function alive while logging is active.
+    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
+        std::lock_guard<std::mutex> lock(logs_mutex);
+        logs.append(msg);
+        logs.push_back('\n');
+    };
+
+    auto zero_init_mock = std::make_shared<::intel_npu::ZeroInitStructsMock>();
+
+    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> zero_init_struct =
+        std::reinterpret_pointer_cast<::intel_npu::ZeroInitStructsHolder>(zero_init_mock);
+
+    {
+        utils::LogCallbackGuard log_callback_guard(log_cb);
+        utils::LoggerLevelGuard logger_level_guard(ov::log::Level::WARNING);
+
+        auto zero_memory = ::intel_npu::zero_mem::allocate_memory(zero_init_struct, 4096, 4096);
+        ::intel_npu::ZeroInitStructsMock::destroyContextForInstance(zero_init_mock);
+
+        try {
+            zero_memory = {};
+        } catch (const std::exception& ex) {
+            ASSERT_FALSE(true) << ex.what();
+        }
+    }
+    ASSERT_NE(logs.find("Context is null while trying to free memory with id"), std::string::npos);
+    ASSERT_EQ(logs.find("L0 zeMemFree result:"), std::string::npos);
 }
 
 }  // namespace behavior
