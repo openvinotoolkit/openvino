@@ -211,9 +211,13 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             if (place_it != all_tensor_places.end() &&
                 (place_it->second->get_data() != nullptr || place_it->second->get_data_location() != nullptr)) {
                 create_const_or_param(name, place_it->second);
-            } else if (lookup_tensor(name).get_node() != nullptr) {
-                // lookup_tensor resolved the name from a parent scope and may have
-                // created a new Parameter — the value is now in m_tensor_values.
+            } else if (auto parent_value = lookup_tensor(name); parent_value.get_node() != nullptr) {
+                // lookup_tensor() resolved the name from a parent scope. For non-constant
+                // parent values it already cached a Parameter in m_tensor_values; for
+                // parent-scope Constants it returns the Constant directly without caching,
+                // so insert it here to make the subsequent m_tensor_values[name] lookup
+                // safe.
+                m_tensor_values.emplace(name, parent_value);
             } else {
                 FRONT_END_GENERAL_CHECK(false,
                                         "Output tensor \"",

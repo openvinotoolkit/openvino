@@ -8,6 +8,8 @@
 #include "core/operator_set.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/frontend/exception.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
 #include "translate_session.hpp"
 using namespace ov::op;
 
