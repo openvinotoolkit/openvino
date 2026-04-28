@@ -175,7 +175,7 @@ TEST(DISABLED_fully_connected_gpu, generic_random_short) {
     auto& engine = get_test_engine();
     bool f16_supported = !!engine.get_device_info().supports_fp16;
     if (!f16_supported) {
-        std::cout << "[ SKIPPED ] float16 combinations are skipped (cl_khr_fp16 is not supported)." << std::endl;
+        GTEST_SKIP() << "float16 combinations are skipped (cl_khr_fp16 is not supported).";
     }
 
     for (cldnn::format test_input_fmt : test_input_fmts) {
@@ -1084,9 +1084,7 @@ TEST(fully_connected_gpu, DISABLED_fs_byx_fsv32_b12) {
 
     if (!engine.get_device_info().supports_fp16)
     {
-        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
     }
     // Test parameters
     const int batch_num = 12;
@@ -1288,9 +1286,7 @@ TEST(fully_connected_gpu, DISABLED_fs_byx_fsv32_b34)
 
     if (!engine.get_device_info().supports_fp16)
     {
-        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
     }
     // Test parameters
     const int batch_num = 34;

@@ -1638,7 +1638,7 @@ TEST_P(CachingTest, TestNoCachingProperties) {
     }
 }
 
-TEST_P(CachingTest, TestThrowOnExport) {
+TEST_P(CachingTest, TestThrowOnExportFailure) {
     EXPECT_CALL(*mockPlugin, get_property(ov::supported_properties.name(), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, get_property(ov::device::capability::EXPORT_IMPORT, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, get_property(ov::device::architecture.name(), _)).Times(AnyNumber());
@@ -1657,6 +1657,66 @@ TEST_P(CachingTest, TestThrowOnExport) {
         testLoad([&](ov::Core& core) {
             core.set_property(ov::cache_dir(m_cacheDir));
             EXPECT_ANY_THROW(m_testFunction(core));
+            EXPECT_FALSE(std::filesystem::exists(ov::util::make_path(m_cacheDir)) &&
+                         std::filesystem::directory_iterator(ov::util::make_path(m_cacheDir)) !=
+                             std::filesystem::directory_iterator{});
+        });
+    }
+}
+
+TEST_P(CachingTest, TestIgnoreOvExceptionExportFailure) {
+    EXPECT_CALL(*mockPlugin, get_property(ov::supported_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::device::capability::EXPORT_IMPORT, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::device::architecture.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::internal::supported_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::device::capabilities.name(), _)).Times(AnyNumber());
+    {
+        EXPECT_CALL(*mockPlugin, compile_model(_, _, _)).Times(m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _))
+            .Times(!m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _)).Times(0);
+        m_post_mock_net_callbacks.emplace_back([&](MockICompiledModelImpl& net) {
+            EXPECT_CALL(net, export_model(_)).Times(1).WillOnce(Invoke([&](std::ostream&) {
+                OPENVINO_THROW("export failed");
+            }));
+        });
+        testLoad([&](ov::Core& core) {
+            core.set_property(ov::cache_dir(m_cacheDir));
+            OV_ASSERT_NO_THROW(m_testFunction(core));
+            EXPECT_FALSE(std::filesystem::exists(ov::util::make_path(m_cacheDir)) &&
+                         std::filesystem::directory_iterator(ov::util::make_path(m_cacheDir)) !=
+                             std::filesystem::directory_iterator{});
+        });
+    }
+}
+
+TEST_P(CachingTest, TestIgnoreStreamExportFailure) {
+    EXPECT_CALL(*mockPlugin, get_property(ov::supported_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::device::capability::EXPORT_IMPORT, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::device::architecture.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::internal::supported_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::device::capabilities.name(), _)).Times(AnyNumber());
+    {
+        EXPECT_CALL(*mockPlugin, compile_model(_, _, _)).Times(m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _))
+            .Times(!m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _)).Times(0);
+        m_post_mock_net_callbacks.emplace_back([&](MockICompiledModelImpl& net) {
+            EXPECT_CALL(net, export_model(_)).Times(1).WillOnce(Invoke([&](std::ostream& stream) {
+                stream << "partial";
+                stream.setstate(std::ios_base::badbit);
+            }));
+        });
+        testLoad([&](ov::Core& core) {
+            core.set_property(ov::cache_dir(m_cacheDir));
+            OV_ASSERT_NO_THROW(m_testFunction(core));
+            EXPECT_FALSE(std::filesystem::exists(ov::util::make_path(m_cacheDir)) &&
+                         std::filesystem::directory_iterator(ov::util::make_path(m_cacheDir)) !=
+                             std::filesystem::directory_iterator{});
         });
     }
 }

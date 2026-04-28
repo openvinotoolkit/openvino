@@ -220,7 +220,7 @@ void DynamicPipeline::push() {
         command_lists->resetCommandList();
 
         dynamicGraph->execute(_init_structs,
-                              command_lists->getBinding(),
+                              graphArguments,
                               command_lists->getHandles(),
                               commandQueueHandle,
                               fence,
@@ -310,19 +310,11 @@ void DynamicPipeline::update_graph_arguments(uint32_t index,
                     "Command list index is higher than the number of Command lists ",
                     batch_index);
 
-    if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
-        _command_lists.at(batch_index)
-            ->updateMutableCommandList(index,
-                                       zeroTensor->data(),
-                                       get_strides(tensor->get_strides(), elementSize),
-                                       tensor->get_shape());
-    } else {
-        _command_lists.at(batch_index)
-            ->updateMutableCommandList(index,
-                                       zeroTensor->data(),
-                                       get_strides(tensor->get_strides(), elementSize),
-                                       tensor->get_shape());
-    }
+    _command_lists.at(batch_index)
+        ->updateMutableCommandList(index,
+                                   zeroTensor->data(),
+                                   get_strides(tensor->get_strides(), elementSize),
+                                   tensor->get_shape());
 }
 
 }  // namespace intel_npu

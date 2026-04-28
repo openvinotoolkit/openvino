@@ -19,6 +19,7 @@
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "spatial.hpp"
+#include "v1/subgraph_pipeline.hpp"
 
 namespace ov {
 namespace npuw {
@@ -81,6 +82,7 @@ public:
     bool is_gather_closure(size_t idx, size_t cidx) override;
     bool unpack_required(size_t idx, size_t cidx) override;
     bool needs_copy_closure(size_t idx, size_t cidx) override;
+    std::string subgraph_device(size_t idx) override;
 
 protected:
     ////////////////////////////////////
@@ -88,7 +90,7 @@ protected:
     void prepare_for_infer() override;
     bool valid_subrequest(std::size_t idx) const override;
     void start_subrequest(std::size_t idx) override;
-    void run_subrequest_for_success(std::size_t idx, bool& failover) override;
+    void run_subrequest_for_success(std::size_t idx) override;
     void subscribe_subrequest(std::size_t idx, Completed cb) override;
     void complete_subrequest(std::size_t idx) override;
     void cancel_subrequest(std::size_t idx) override;
@@ -119,6 +121,9 @@ protected:
     void unsafe_run_this_prep_next(std::size_t idx, bool& next_prepared_p);
 
     void run_hfa_tiled_inference(std::size_t real_idx, std::size_t idx);
+    void legacy_infer(std::size_t real_idx, std::size_t idx);
+    ov::npuw::v1::subgraphs::InferContext make_behavior_context(std::size_t real_idx, std::size_t idx);
+    ov::npuw::v1::subgraphs::ISubgraphBehavior* get_subgraph_behavior(std::size_t idx) const;
 
     // HFA helper functions
     static void hfa_extract_and_copy_tile(const ov::SoPtr<ov::ITensor>& source_tensor,
@@ -135,22 +140,16 @@ protected:
                                                int64_t tile_length);
 
     void connect_subrequests();
-    void recreate_subrequests(std::size_t idx);
+    void initialize_subgraph_behaviors();
 
     // Helper function to setup pyramid attention infer requests
-    void setup_pyramid_infer_requests(std::size_t real_idx, bool is_piped, bool is_recreate);
+    void setup_pyramid_infer_requests(std::size_t real_idx, bool is_piped);
 
     // Helper function to setup host flash attention tile infer requests
-    void setup_hfa_infer_requests(std::size_t real_idx,
-                                  bool is_piped,
-                                  bool is_recreate,
-                                  bool enable_hfa_optimizations = true);
+    void setup_hfa_infer_requests(std::size_t real_idx, bool is_piped, bool enable_hfa_optimizations = true);
 
     // Helper function to initialize/reinitialize MoE executor
     void initialize_moe_executor();
-
-    // Helper function to recreate MoE resources after subrequest recreation
-    void recreate_moe_resources(std::size_t idx, std::size_t real_idx);
 
     FuncMemMgr m_func_mem_mgr;                       // Owns memory
     std::map<LinkFrom, TensorPtr> m_funcall_result;  // Provides a convenient link
@@ -192,6 +191,10 @@ protected:
     // freeing the buffer while pyramid requests still hold raw pointers into it.
     // Each entry is {real_idx, tensor} so recreate can selectively remove by submodel.
     std::vector<std::pair<std::size_t, ov::SoPtr<ov::ITensor>>> m_pyramid_anchor_tensors;
+
+    // Foundation for the upcoming behavior-driven execution pipeline.
+    // These slots are populated now but legacy execution still owns the scheduling.
+    std::vector<ov::npuw::v1::subgraphs::ISubgraphBehavior::Ptr> m_subgraph_behaviors;
 };
 
 }  // namespace npuw

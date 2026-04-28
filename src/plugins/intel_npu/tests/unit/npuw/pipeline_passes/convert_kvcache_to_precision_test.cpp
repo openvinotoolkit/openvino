@@ -10,7 +10,10 @@
 
 #include "llm_pass_test_fixture.hpp"
 #include "../util.hpp"
+#include "npuw_transformations/convert_kvcache_to_precision.hpp"
+#include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "whisper/prepare_whisper_model.hpp"
 
 // --- Design note -------------------------------------------------------------------------
 // The model builder creates KV cache state with ov::element::f32 (the default
@@ -65,7 +68,9 @@ ov::AnyMap make_kv_precision_props(const ov::element::Type kv_type) {
     return props;
 }
 
-void expect_kv_cache_input_types(const std::shared_ptr<ov::Model>& model, const ov::element::Type kv_type) {
+void expect_kv_cache_input_types(const std::shared_ptr<ov::Model>& model,
+                                 const ov::element::Type kv_type,
+                                 const bool check_quant_aux_ports = true) {
     // Key cache: asymmetric quantization -> value tensor + scale (f32) + zero_point (same as quant type).
     // Value cache: symmetric quantization -> value tensor (i4) + scale (f32), no zero_point.
     const bool is_quantized = is_quantized_kv_type(kv_type);
@@ -109,28 +114,28 @@ void expect_kv_cache_input_types(const std::shared_ptr<ov::Model>& model, const 
                 << "past_key_values.<N>.value input must have type " << expected;
         }
 
-        if (any_name_contains(input, past_key_scale_name)) {
+        if (check_quant_aux_ports && any_name_contains(input, past_key_scale_name)) {
             found_key_scale_input = true;
             const auto expected = precision_key_matrix().at(kv_type).at("scale");
             EXPECT_EQ(input.get_element_type(), expected)
                 << "past_key scale input must have type " << expected;
         }
 
-        if (any_name_contains(input, past_key_zp_name)) {
+        if (check_quant_aux_ports && any_name_contains(input, past_key_zp_name)) {
             found_key_zp_input = true;
             const auto expected = precision_key_matrix().at(kv_type).at("zero_point");
             EXPECT_EQ(input.get_element_type(), expected)
                 << "past_key zero-point input must have type " << expected;
         }
 
-        if (any_name_contains(input, past_value_scale_name)) {
+        if (check_quant_aux_ports && any_name_contains(input, past_value_scale_name)) {
             found_value_scale_input = true;
             const auto expected = precision_value_matrix().at(kv_type).at("scale");
             EXPECT_EQ(input.get_element_type(), expected)
                 << "past_value scale input must have type " << expected;
         }
 
-        if (any_name_contains(input, past_value_zp_name)) {
+        if (check_quant_aux_ports && any_name_contains(input, past_value_zp_name)) {
             found_value_zp_input = true;
         }
     }
@@ -138,7 +143,7 @@ void expect_kv_cache_input_types(const std::shared_ptr<ov::Model>& model, const 
     EXPECT_TRUE(found_key_cache_input) << "No past_key_values.<N>.key input found in model";
     EXPECT_TRUE(found_value_cache_input) << "No past_key_values.<N>.value input found in model";
 
-    if (is_quantized) {
+    if (is_quantized && check_quant_aux_ports) {
         EXPECT_TRUE(found_key_scale_input)
             << "Asymmetric quantized KV key-cache must expose scale input";
         EXPECT_TRUE(found_key_zp_input)
@@ -147,7 +152,7 @@ void expect_kv_cache_input_types(const std::shared_ptr<ov::Model>& model, const 
             << "Symmetric quantized KV value-cache must expose scale input";
         EXPECT_FALSE(found_value_zp_input)
             << "Symmetric quantized KV value-cache must not expose zero-point input";
-    } else {
+    } else if (!is_quantized && check_quant_aux_ports) {
         EXPECT_FALSE(found_key_scale_input) << "Non-quantized KV-cache must not expose key scale input";
         EXPECT_FALSE(found_key_zp_input) << "Non-quantized KV-cache must not expose key zero-point input";
         EXPECT_FALSE(found_value_scale_input) << "Non-quantized KV-cache must not expose value scale input";
@@ -155,7 +160,9 @@ void expect_kv_cache_input_types(const std::shared_ptr<ov::Model>& model, const 
     }
 }
 
-void expect_kv_cache_present_output_types(const std::shared_ptr<ov::Model>& model, const ov::element::Type kv_type) {
+void expect_kv_cache_present_output_types(const std::shared_ptr<ov::Model>& model,
+                                          const ov::element::Type kv_type,
+                                          const bool check_quant_aux_ports = true) {
     const bool is_quantized = is_quantized_kv_type(kv_type);
 
     constexpr std::string_view present_key_scale_name = "/present/key/scale";
@@ -197,28 +204,28 @@ void expect_kv_cache_present_output_types(const std::shared_ptr<ov::Model>& mode
                 << "present.<N>.value output must have type " << expected;
         }
 
-        if (any_name_contains(output, present_key_scale_name)) {
+        if (check_quant_aux_ports && any_name_contains(output, present_key_scale_name)) {
             found_present_key_scale = true;
             const auto expected = precision_key_matrix().at(kv_type).at("scale");
             EXPECT_EQ(output.get_element_type(), expected)
                 << "present key scale output must have type " << expected;
         }
 
-        if (any_name_contains(output, present_key_zp_name)) {
+        if (check_quant_aux_ports && any_name_contains(output, present_key_zp_name)) {
             found_present_key_zp = true;
             const auto expected = precision_key_matrix().at(kv_type).at("zero_point");
             EXPECT_EQ(output.get_element_type(), expected)
                 << "present key zero-point output must have type " << expected;
         }
 
-        if (any_name_contains(output, present_value_scale_name)) {
+        if (check_quant_aux_ports && any_name_contains(output, present_value_scale_name)) {
             found_present_value_scale = true;
             const auto expected = precision_value_matrix().at(kv_type).at("scale");
             EXPECT_EQ(output.get_element_type(), expected)
                 << "present value scale output must have type " << expected;
         }
 
-        if (any_name_contains(output, present_value_zp_name)) {
+        if (check_quant_aux_ports && any_name_contains(output, present_value_zp_name)) {
             found_present_value_zp = true;
         }
     }
@@ -226,7 +233,7 @@ void expect_kv_cache_present_output_types(const std::shared_ptr<ov::Model>& mode
     EXPECT_TRUE(found_present_key) << "No present.<N>.key output found in model";
     EXPECT_TRUE(found_present_value) << "No present.<N>.value output found in model";
 
-    if (is_quantized) {
+    if (is_quantized && check_quant_aux_ports) {
         EXPECT_TRUE(found_present_key_scale)
             << "Asymmetric quantized KV key-cache must expose present scale output";
         EXPECT_TRUE(found_present_key_zp)
@@ -235,7 +242,7 @@ void expect_kv_cache_present_output_types(const std::shared_ptr<ov::Model>& mode
             << "Symmetric quantized KV value-cache must expose present scale output";
         EXPECT_FALSE(found_present_value_zp)
             << "Symmetric quantized KV value-cache must not expose present zero-point output";
-    } else {
+    } else if (!is_quantized && check_quant_aux_ports) {
         EXPECT_FALSE(found_present_key_scale)
             << "Non-quantized KV-cache must not expose present key scale output";
         EXPECT_FALSE(found_present_key_zp)
@@ -309,6 +316,31 @@ TEST_P(ConvertKVCacheHintPrecisionTest, PrefillModelPresentOutputsHaveExpectedPr
     expect_kv_cache_present_output_types(prefill.model, kv_type);
 }
 
+// Whisper decoder_with_past model uses names like:
+//   past_key_values.<idx>.decoder.key / present.<idx>.decoder.key
+//   past_key_values.<idx>.encoder.key / present.<idx>.encoder.key
+// Ensure KV-cache precision conversion handles those variants too.
+TEST_P(ConvertKVCacheHintPrecisionTest, WhisperKVCacheModelPastKeyInputsHaveExpectedPrecision) {
+    const auto kv_type = GetParam();
+    auto model = ov::test::npuw::build_whisper_decoder_test_model();
+    ov::pass::StatefulToStateless().run_on_model(model);
+    model = model->clone();
+    ASSERT_TRUE(ov::npuw::util::PrepareWhisperKVCacheModel().run_on_model(model));
+    ASSERT_TRUE(ov::npuw::ConvertKVCacheToPrecision(kv_type).run_on_model(model));
+
+    expect_kv_cache_input_types(model, kv_type, false);
+}
+
+TEST_P(ConvertKVCacheHintPrecisionTest, WhisperKVCacheModelPresentOutputsHaveExpectedPrecision) {
+    const auto kv_type = GetParam();
+    auto model = ov::test::npuw::build_whisper_decoder_test_model();
+    ov::pass::StatefulToStateless().run_on_model(model);
+    model = model->clone();
+    ASSERT_TRUE(ov::npuw::util::PrepareWhisperKVCacheModel().run_on_model(model));
+    ASSERT_TRUE(ov::npuw::ConvertKVCacheToPrecision(kv_type).run_on_model(model));
+
+    expect_kv_cache_present_output_types(model, kv_type, false);
+}
 
 // --- Non-parametric tests -------------------------------------------------------------------------
 

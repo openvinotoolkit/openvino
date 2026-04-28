@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <filesystem>
+
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/paddle/frontend.hpp"
 
@@ -16,10 +18,7 @@ class TensorPlace;
 
 class InputModel : public ov::frontend::InputModel {
 public:
-    explicit InputModel(const std::string& path, const std::shared_ptr<TelemetryExtension>& telemetry = {});
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    explicit InputModel(const std::wstring& path, const std::shared_ptr<TelemetryExtension>& telemetry = {});
-#endif
+    explicit InputModel(const std::filesystem::path& path, const std::shared_ptr<TelemetryExtension>& telemetry = {});
     explicit InputModel(const std::vector<std::istream*>& streams,
                         const std::shared_ptr<TelemetryExtension>& telemetry = {});
     std::vector<Place::Ptr> get_inputs() const override;
