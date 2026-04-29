@@ -208,22 +208,27 @@ public:
         paged_attn->get_rt_info()["v_head_size"] = head_size;
 
         if (add_shared_reader) {
-            // Second PA node with write_kv_cache=false sharing the same cache.
-            // Enforce execution order: q2 = q + PA1_output * 0, so PA1 runs first.
-            auto zero_const = ov::op::v0::Constant::create(data_type, ov::Shape{}, {0.0f});
-            auto pa1_times_zero = std::make_shared<ov::op::v1::Multiply>(paged_attn->output(0), zero_const);
-            auto q2 = std::make_shared<ov::op::v1::Add>(q, pa1_times_zero);
+            // Gemma 4-style architecture: the writer layer's output feeds into the
+            // reader layer via a residual connection (hidden = q + PA1_output).
+            auto hidden = std::make_shared<ov::op::v1::Add>(q, paged_attn->output(0));
 
-            // PA2 receives zero k/v, simulating a layer with no K/V projections
-            // (as in Gemma 4 shared-cache layers). If write_kv_cache=false is not
-            // honored, PA2 would overwrite PA1's valid cache with zeros → wrong output.
-            auto zero_k = std::make_shared<ov::op::v1::Multiply>(k, zero_const);
-            auto zero_v = std::make_shared<ov::op::v1::Multiply>(v, zero_const);
+            // PA2 K/V inputs: separate parameters filled with distinct values at runtime.
+            //
+            // In a real Gemma 4 reader layer there are no K/V linear projections, but the
+            // PA op signature still requires K/V inputs. The SDPAToPA transformation wires
+            // whatever the original graph had into these ports. When write_kv_cache=false,
+            // the kernel ignores them entirely — it only reads from the shared cache.
+            auto k_reader =
+                make_param(PartialShape{ov::Dimension::dynamic(), head_num * head_size}, data_type, "k_reader");
+            auto v_reader =
+                make_param(PartialShape{ov::Dimension::dynamic(), head_num * head_size}, data_type, "v_reader");
+            params.push_back(k_reader);
+            params.push_back(v_reader);
 
             OutputVector pa2_inputs = paged_attn_inputs;
-            pa2_inputs[0] = q2;
-            pa2_inputs[1] = zero_k;
-            pa2_inputs[2] = zero_v;
+            pa2_inputs[0] = hidden;
+            pa2_inputs[1] = k_reader;
+            pa2_inputs[2] = v_reader;
             auto paged_attn_2 = std::make_shared<op::PagedAttentionExtension>(pa2_inputs, /*write_kv_cache=*/false);
             paged_attn_2->get_rt_info()["num_k_heads"] = head_num;
             paged_attn_2->get_rt_info()["k_head_size"] = head_size;
@@ -238,7 +243,8 @@ public:
     virtual std::shared_ptr<ov::Model> get_ref_model(ov::element::Type data_type,
                                                      ov::Dimension::value_type head_size = 64,
                                                      ov::Dimension::value_type head_num = 8,
-                                                     bool use_sink_input = true) {
+                                                     bool use_sink_input = true,
+                                                     bool add_shared_reader = false) {
         // q, k, v use L,B,H,S layout
         ov::PartialShape q_shape, kv_shape, past_shape, atten_mask_shape, scale_shape, sink_shape;
         ov::ParameterVector inputParams;
@@ -307,6 +313,7 @@ public:
         // Parameters order: q, k, v, atten_mask, scale, [sink], past_kv, beam_idx
         size_t atten_mask_idx = 3;
         size_t scale_idx = 4;
+        size_t sink_idx = use_sink_input ? 5 : 0;
 
         std::shared_ptr<ov::op::v13::ScaledDotProductAttention> sdp;
         // For sliding window case, set causal=false because we provide explicit mask with sliding window logic
@@ -316,7 +323,6 @@ public:
         if (use_sink_input) {
             // 7-parameter SDPA constructor with sink support
             // Parameters: query, key, value, attn_mask, scale, sink, causal
-            size_t sink_idx = 5;
             sdp = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q_in,
                                                                            k_in,
                                                                            v_in,
@@ -358,6 +364,36 @@ public:
                                                   true);  // use LBHS to better compare data between pa and sdpa
         SinkVector sinks{pastk_assign, pastv_assign};
         ov::OutputVector results{reshapeSDP};
+
+        if (add_shared_reader) {
+            // SDPA2 (reader): uses residual query (q + SDPA1_output), reads same KV cache.
+            // transposeSDP is SDPA1 output in [L, B, H, S], same as inputParams[0] (q).
+            auto hidden_4d = std::make_shared<ov::op::v1::Add>(inputParams[0], transposeSDP);
+            auto hidden_query = std::make_shared<ov::op::v1::Transpose>(hidden_4d, preOrder);
+
+            std::shared_ptr<ov::op::v13::ScaledDotProductAttention> sdp2;
+            if (use_sink_input) {
+                sdp2 = std::make_shared<ov::op::v13::ScaledDotProductAttention>(hidden_query,
+                                                                                k_in,
+                                                                                v_in,
+                                                                                inputParams[atten_mask_idx],
+                                                                                inputParams[scale_idx],
+                                                                                inputParams[sink_idx],
+                                                                                use_causal);
+            } else {
+                sdp2 = std::make_shared<ov::op::v13::ScaledDotProductAttention>(hidden_query,
+                                                                                k_in,
+                                                                                v_in,
+                                                                                inputParams[atten_mask_idx],
+                                                                                inputParams[scale_idx],
+                                                                                use_causal);
+            }
+            sdp2->set_friendly_name("mha_reader");
+            auto transposeSDP2 = std::make_shared<ov::op::v1::Transpose>(sdp2, postOrder);
+            auto reshapeSDP2 = std::make_shared<ov::op::v1::Reshape>(transposeSDP2, constReshape, true);
+            results.push_back(reshapeSDP2);
+        }
+
         auto model = std::make_shared<Model>(results, sinks, inputParams, "sdpa_model");
         return model;
     }
@@ -512,6 +548,18 @@ public:
             inputs.insert({function->get_parameters()[7], block_indices});
             inputs.insert({function->get_parameters()[8], block_indices_begins});
 
+            // Reader layer K/V inputs (params [9] and [10], only present when model
+            // has a shared-cache reader PA). Values differ from writer's K/V so that
+            // an incorrect write would visibly corrupt the cache.
+            if (function->get_parameters().size() > 9) {
+                create_input(function->get_parameters()[9],
+                             {qkv_shape[0] * qkv_shape[1], qkv_shape[2] * qkv_shape[3]},
+                             idx + 20.0f);  // k_reader: distinct from k (idx+2)
+                create_input(function->get_parameters()[10],
+                             {qkv_shape[0] * qkv_shape[1], qkv_shape[2] * qkv_shape[3]},
+                             idx + 30.0f);  // v_reader: distinct from v (idx+3)
+            }
+
             // Note: sink is a Constant in the model, not a Parameter, so no need to provide input for it
 
             past_len_count += static_cast<int32_t>(qkv_shape[0]);
@@ -610,7 +658,7 @@ public:
         }
     }
 
-    std::vector<ov::Tensor> run_pa_inference(bool extendBlockIndices, bool sinkInput, size_t output_idx = 0) {
+    std::vector<ov::Tensor> run_pa_inference(bool extendBlockIndices, bool sinkInput) {
         std::vector<ov::Tensor> outputs;
         int idx = 0;
         for (auto&& shapes : targetStaticShapes) {
@@ -619,10 +667,12 @@ public:
                 inferRequest.set_tensor(input.first, input.second);
             }
             inferRequest.infer();
-            auto outputTensor = inferRequest.get_output_tensor(output_idx);
-            ov::Tensor copy{outputTensor.get_element_type(), outputTensor.get_shape()};
-            outputTensor.copy_to(copy);
-            outputs.push_back(copy);
+            for (size_t out_idx = 0; out_idx < compiledModel.outputs().size(); out_idx++) {
+                auto tensor = inferRequest.get_output_tensor(out_idx);
+                ov::Tensor copy{tensor.get_element_type(), tensor.get_shape()};
+                tensor.copy_to(copy);
+                outputs.push_back(copy);
+            }
         }
         return outputs;
     }
@@ -657,10 +707,12 @@ public:
                 inferRequest.set_tensor(input.first, input.second);
             }
             inferRequest.infer();
-            auto outputTensor = inferRequest.get_output_tensor(0);
-            ov::Tensor copy{outputTensor.get_element_type(), outputTensor.get_shape()};
-            outputTensor.copy_to(copy);
-            outputs.push_back(copy);
+            for (size_t out_idx = 0; out_idx < compiledModel.outputs().size(); out_idx++) {
+                auto tensor = inferRequest.get_output_tensor(out_idx);
+                ov::Tensor copy{tensor.get_element_type(), tensor.get_shape()};
+                tensor.copy_to(copy);
+                outputs.push_back(copy);
+            }
         }
         reset();
         return outputs;
@@ -732,43 +784,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnVSSDPATest_WithSlidingWindowAndSinks,
 }  // namespace
 
 // ---------------------------------------------------------------------------
-// Test: PA1(write=true) + PA2(write=false) sharing the same KV cache.
-// Verifies that PA2 reads the cache populated by PA1 and produces matching output.
-// ---------------------------------------------------------------------------
 class PagedAttnSharedKVCacheTest : public PagedAttnVSSDPATest {
 public:
     void SetUp() override {
         PagedAttnTestBase::SetUp();
         const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput, slidingWindow, additional_config] =
             this->GetParam();
-        function = get_model(inType, enableXattn, 64, 8, sinkInput, slidingWindow, /*add_shared_reader=*/true);
-    }
-
-    std::vector<ov::Tensor> run_test(std::shared_ptr<ov::Model> model, bool extendBlockIndices, bool sinkInput = true) {
-        function = model;
-        prepare();
-        init_kv_cache(1024 / 32);
-
-        std::vector<ov::Tensor> outputs;
-        int idx = 0;
-        for (auto&& shapes : targetStaticShapes) {
-            generate(idx++, true, shapes, extendBlockIndices, sinkInput);
-            for (const auto& input : inputs) {
-                inferRequest.set_tensor(input.first, input.second);
-            }
-            inferRequest.infer();
-
-            // Output 0: PA1 (write=true)
-            auto out0 = inferRequest.get_output_tensor(0);
-            ov::Tensor copy0{out0.get_element_type(), out0.get_shape()};
-            out0.copy_to(copy0);
-            outputs.push_back(copy0);
-
-            // Output 1: PA2 (write=false, shared cache) — must match PA1
-            auto out1 = inferRequest.get_output_tensor(1);
-            ov::test::utils::compare(copy0, out1, abs_threshold, rel_threshold);
-        }
-        return outputs;
+        function = get_model(inType, enableXattn, 64, 8, sinkInput, slidingWindow, true);
+        functionRefs = get_ref_model(inType, 64, 8, sinkInput, true);
     }
 };
 
@@ -807,9 +830,11 @@ public:
     std::shared_ptr<ov::Model> get_ref_model(ov::element::Type data_type,
                                              ov::Dimension::value_type head_size = 64,
                                              ov::Dimension::value_type head_num = 8,
-                                             bool use_sink_input = false) override {
-        // PagedAttnVSMatmulTest reference model doesn't use sink input
+                                             bool use_sink_input = false,
+                                             bool add_shared_reader = false) override {
+        // PagedAttnVSMatmulTest reference model doesn't use sink input or shared reader
         (void)use_sink_input;  // Suppress unused parameter warning
+        (void)add_shared_reader;
         // q, k, v use L,B,H,S layout
         ov::PartialShape q_shape, kv_shape, past_shape, atten_mask_shape, scale_shape;
         ov::ParameterVector inputParams;

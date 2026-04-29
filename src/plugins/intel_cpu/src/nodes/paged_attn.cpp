@@ -88,9 +88,9 @@ PagedAttention::PagedAttention(const std::shared_ptr<ov::Node>& op, const GraphC
     // output score may have no child
     m_hasScore = !op->get_output_target_inputs(1).empty();
     m_has_adaptive_rkv_diversity_output = !op->get_output_target_inputs(2).empty();
-    if (const auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(op)) {
-        m_write_kv_cache = pa->get_write_kv_cache();
-    }
+    const auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(op);
+    CPU_NODE_ASSERT(pa, "Only PagedAttentionExtension is supported in PagedAttention node.");
+    m_write_kv_cache = pa->get_write_kv_cache();
 }
 
 void PagedAttention::initSupportedPrimitiveDescriptors() {
