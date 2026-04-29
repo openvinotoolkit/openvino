@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "cpu/aarch64/cpu_isa_traits.hpp"
+#include "emitters/plugin/aarch64/jit_conversion_helpers.hpp"
 #include "emitters/plugin/aarch64/jit_emitter.hpp"
 #include "emitters/utils.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -27,153 +28,6 @@ using jit_generator = dnnl::impl::cpu::aarch64::jit_generator_t;
 using cpu_isa_t = dnnl::impl::cpu::aarch64::cpu_isa_t;
 
 namespace {
-template <typename TReg>
-inline void cvt_f16_to_f32(jit_generator* h, const TReg& src, const TReg& dst) {
-    h->fcvtl(dst.s4, src.h4);
-}
-
-template <typename TReg>
-inline void cvt_f32_to_i32(jit_generator* h, const TReg& src, const TReg& dst, bool is_saturated) {
-    if (is_saturated) {
-        h->frintn(dst.s, src.s);
-        h->fcvtzs(dst.s, dst.s);
-    } else {
-        h->fcvtzs(dst.s, src.s);
-    }
-}
-
-template <typename TReg>
-inline void cvt_i32_to_f32(jit_generator* h, const TReg& src, const TReg& dst) {
-    h->scvtf(dst.s, src.s);
-}
-
-template <typename TReg>
-inline void cvt_i32_to_i16(jit_generator* h, const TReg& src, const TReg& dst, bool is_saturated) {
-    if (is_saturated) {
-        h->sqxtn(dst.h4, src.s4);
-    } else {
-        h->xtn(dst.h4, src.s4);
-    }
-}
-
-template <typename TReg>
-inline void cvt_i16_to_i32(jit_generator* h, const TReg& src, const TReg& dst) {
-    h->sxtl(dst.s4, src.h4);
-}
-
-template <typename TReg>
-inline void cvt_f32_to_f16(jit_generator* h, const TReg& src, const TReg& dst) {
-    h->fcvtn(dst.h4, src.s4);
-}
-
-template <typename TReg>
-inline void cvt_byte_to_i16(jit_generator* h, const TReg& src, const TReg& dst, bool is_signed) {
-    if (is_signed) {
-        h->sxtl(dst.h8, src.b8);
-    } else {
-        h->uxtl(dst.h8, src.b8);
-    }
-}
-
-template <typename TReg>
-inline void cvt_i16_to_byte(jit_generator* h, const TReg& src, const TReg& dst, bool is_signed, bool is_saturated) {
-    if (is_saturated) {
-        if (is_signed) {
-            h->sqxtn(dst.b8, src.h8);
-        } else {
-            h->uqxtn(dst.b8, src.h8);
-        }
-    } else {
-        h->xtn(dst.b8, src.h8);
-    }
-}
-
-template <typename TReg>
-void jit_convert_process(jit_generator* h,
-                         const TReg& src,
-                         const TReg& dst,
-                         ov::element::Type input_type,
-                         ov::element::Type output_type,
-                         bool is_saturated) {
-    if (input_type == output_type || (!is_saturated && any_of(input_type, ov::element::i8, ov::element::u8) &&
-                                      any_of(output_type, ov::element::i8, ov::element::u8))) {
-        if (src.getIdx() != dst.getIdx()) {
-            h->mov(dst.b16, src.b16);
-        }
-        return;
-    }
-
-    switch (output_type) {
-    case ov::element::f32:
-        switch (input_type) {
-        case ov::element::i32:
-            cvt_i32_to_f32(h, src, dst);
-            break;
-        case ov::element::f16:
-            cvt_f16_to_f32(h, src, dst);
-            break;
-        case ov::element::i8:
-        case ov::element::u8:
-            cvt_byte_to_i16(h, src, dst, input_type.is_signed());
-            cvt_i16_to_i32(h, dst, dst);
-            cvt_i32_to_f32(h, dst, dst);
-            break;
-        default:
-            OV_CPU_JIT_EMITTER_THROW("Unsupported input type: ", input_type.get_type_name());
-        }
-        break;
-    case ov::element::i32:
-        switch (input_type) {
-        case ov::element::f32:
-            cvt_f32_to_i32(h, src, dst, is_saturated);
-            break;
-        case ov::element::f16:
-            cvt_f16_to_f32(h, src, dst);
-            cvt_f32_to_i32(h, dst, dst, is_saturated);
-            break;
-        case ov::element::i8:
-        case ov::element::u8:
-            cvt_byte_to_i16(h, src, dst, input_type.is_signed());
-            cvt_i16_to_i32(h, dst, dst);
-            break;
-        default:
-            OV_CPU_JIT_EMITTER_THROW("Unsupported input type: ", input_type.get_type_name());
-        }
-        break;
-    case ov::element::f16:
-        switch (input_type) {
-        case ov::element::f32:
-            cvt_f32_to_f16(h, src, dst);
-            break;
-        case ov::element::i32:
-            cvt_i32_to_f32(h, src, dst);
-            cvt_f32_to_f16(h, dst, dst);
-            break;
-        default:
-            OV_CPU_JIT_EMITTER_THROW("Unsupported input type: ", input_type.get_type_name());
-        }
-        break;
-    case ov::element::i8:
-    case ov::element::u8:
-        switch (input_type) {
-        case ov::element::f32:
-            cvt_f32_to_i32(h, src, dst, is_saturated);
-            cvt_i32_to_i16(h, dst, dst, is_saturated);
-            cvt_i16_to_byte(h, dst, dst, output_type.is_signed(), is_saturated);
-            break;
-        case ov::element::i32:
-            cvt_i32_to_i16(h, src, dst, is_saturated);
-            cvt_i16_to_byte(h, dst, dst, output_type.is_signed(), is_saturated);
-            break;
-        default:
-            OV_CPU_JIT_EMITTER_THROW("Unsupported input type: ", input_type.get_type_name());
-        }
-        break;
-    default:
-        OV_CPU_JIT_EMITTER_THROW("Unsupported output type: ", output_type.get_type_name());
-    }
-}
-}  // namespace
 
 // Helper function to get max_offset and alignment for different register types
 template <typename RegType>
@@ -250,6 +104,8 @@ static void store_with_offset_check(jit_generator* h, const RegType& src, const 
         }
     }
 }
+
+}  // namespace
 
 jit_load_emitter::jit_load_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
                                    dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -406,7 +262,7 @@ void jit_load_emitter::emit_isa(const std::vector<size_t>& in_idxs, const std::v
     }
 
     if (src_prc_ != dst_prc_) {
-        jit_convert_process(h, dst, dst, src_prc_, dst_prc_, mode_ == arithmetic_mode::saturation);
+        jit_conversion::emit_convert_process(h, dst, dst, src_prc_, dst_prc_, mode_ == arithmetic_mode::saturation);
     }
 }
 
@@ -560,7 +416,12 @@ void jit_store_emitter::emit_isa(const std::vector<size_t>& in_idxs, const std::
         OV_CPU_JIT_EMITTER_ASSERT(!aux_vec_idxs.empty(), "Store conversion requires an auxiliary vector register.");
         const auto src = TReg(in_idxs[0]);
         const auto converted = TReg(aux_vec_idxs[0]);
-        jit_convert_process(h, src, converted, src_prc_, dst_prc_, mode_ == arithmetic_mode::saturation);
+        jit_conversion::emit_convert_process(h,
+                                             src,
+                                             converted,
+                                             src_prc_,
+                                             dst_prc_,
+                                             mode_ == arithmetic_mode::saturation);
         data_idxs[0] = static_cast<size_t>(converted.getIdx());
     }
 
