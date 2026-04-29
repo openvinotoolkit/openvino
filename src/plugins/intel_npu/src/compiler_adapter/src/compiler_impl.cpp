@@ -98,13 +98,13 @@ ov::Tensor make_tensor_from_aligned_addr(uint8_t* allocated, size_t size) {
     ov::Allocator allocator;
     auto tensor = ov::Tensor(ov::element::u8, ov::Shape{size}, allocated);
     auto impl = ov::get_tensor_impl(std::move(tensor));
-    std::shared_ptr<void> ptr(allocated, [allocator, size](uint8_t* p) mutable {
+    std::shared_ptr<void> ptr(allocated, [allocator = std::move(allocator), size](uint8_t* p) mutable {
         if (p == nullptr) {
             OPENVINO_THROW("Pointer is nullptr in memory deallocation of make_tensor_from_aligned_addr!");
         }
         allocator.deallocate(p, size, intel_npu::utils::STANDARD_PAGE_SIZE);
     });
-    impl._so = ptr;
+    impl._so = std::move(ptr);
     return ov::make_tensor(impl);
 }
 

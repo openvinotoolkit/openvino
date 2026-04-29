@@ -34,7 +34,7 @@ struct swiglu_params : public base_params {
 };
 
 struct swiglu_fuse_params : fuse_params {
-    explicit swiglu_fuse_params(int32_t axis, size_t glu_stride, size_t gate_idx, size_t clamp_min, size_t clamp_max, float swish_beta, float up_add_val)
+    explicit swiglu_fuse_params(int32_t axis, size_t glu_stride, size_t gate_idx, float clamp_min, float clamp_max, float swish_beta, float up_add_val)
         : fuse_params(KernelType::SWIGLU),
           axis(axis),
           glu_stride(glu_stride),

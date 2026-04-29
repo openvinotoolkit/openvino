@@ -19,8 +19,8 @@ layout roi_pooling_inst::calc_output_layout(roi_pooling_node const& node, kernel
     auto desc = impl_param.typed_desc<roi_pooling>();
     layout data_layout = impl_param.get_input_layout(0);
     layout rois_layout = impl_param.get_input_layout(1);
-    int num_rois = rois_layout.batch();
-    int out_fm = desc->position_sensitive ? desc->output_dim : data_layout.feature();
+    int64_t num_rois = rois_layout.batch();
+    int64_t out_fm = desc->position_sensitive ? desc->output_dim : data_layout.feature();
 
     return layout(data_layout.data_type,
                   data_layout.format,

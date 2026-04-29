@@ -28,10 +28,6 @@ def _build_dynamic_shapes(inputs, input_specs = None):
         result back into the original structure that torch.export expects.
         
     """
-def _export_torch_model(model, inputs, input_specs = None):
-    """
-    Export a torch.nn.Module using torch.export.export with Dim.AUTO dynamic shapes.
-    """
 def extract_input_info_from_example(args, inputs):
     ...
 def extract_module_extensions(args):

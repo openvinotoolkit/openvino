@@ -10,6 +10,7 @@
 #include <common_test_utils/test_assertions.hpp>
 
 #include "common/npu_test_env_cfg.hpp"
+#include "common/zero_init_mock.hpp"
 #include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_mem.hpp"
@@ -18,7 +19,6 @@
 #include "model_serializer.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "ze_graph_ext_wrappers.hpp"
-#include "zero_init_mock.hpp"
 
 using namespace intel_npu;
 
@@ -93,7 +93,9 @@ protected:
     }
 
     void TearDown() override {
-        zeGraphExt->destroyGraph(graphDescriptor);
+        if (zeGraphExt != nullptr) {
+            zeGraphExt->destroyGraph(graphDescriptor);
+        }
         if (blob) {
             ::operator delete(blob, std::align_val_t(::utils::STANDARD_PAGE_SIZE));
         }

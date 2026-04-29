@@ -33,6 +33,7 @@ struct moe_gemm_test_params {
     int32_t scale_group_size;
     bool weight_symmetric_quant;
     bool is_pa;
+    bool is_caching_test;
 };
 
 template <typename T>
@@ -403,7 +404,7 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
         std::vector<ov::float16> zp_data_f16;
         std::vector<uint8_t> zp_data;
         std::vector<cldnn::data_types> quant_types = {data_types::i4, data_types::u4, data_types::i8, data_types::u8};
-        if (!engine.get_device_info().supports_immad || engine.get_device_info().arch != gpu_arch::xe2)
+        if (!engine.get_device_info().supports_immad)
             return;
 
         bool is_weight_compressed = std::any_of(quant_types.begin(), quant_types.end(), [=](const cldnn::data_types& t) -> bool {
@@ -413,7 +414,8 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
         auto config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         config.set_property(ov::intel_gpu::optimize_data(true));
-        network network(engine, topo, config);
+        cldnn::network::ptr network = get_network(engine, topo, config, get_test_stream_ptr(), p.is_caching_test);
+        OPENVINO_ASSERT(network != nullptr, "Failed to create network");
 
         auto get_input_data = [] (size_t M, size_t K, random_generator& rg) {
             std::vector<ov::float16> input_data(M * K);
@@ -470,11 +472,11 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
         auto input_offset_per_expert_mem = engine.allocate_memory(input_offset_per_expert_data_layout);
         set_values(input_offset_per_expert_mem, input_offset_per_expert_data);
 
-        network.set_input_data("input", input_mem);
-        network.set_input_data("experts_ids", experts_ids_mem);
-        network.set_input_data("input_offset_per_expert", input_offset_per_expert_mem);
-        network.set_input_data("input_tokens_lens", input_tokens_lens_mem);
-        auto outputs = network.execute();
+        network->set_input_data("input", input_mem);
+        network->set_input_data("experts_ids", experts_ids_mem);
+        network->set_input_data("input_offset_per_expert", input_offset_per_expert_mem);
+        network->set_input_data("input_tokens_lens", input_tokens_lens_mem);
+        auto outputs = network->execute();
         auto output = outputs.at("moe_gemm").get_memory();
         cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output, get_test_stream());
 
@@ -546,7 +548,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_moe_gemm,
                                                                                    cldnn::data_types::f16,   /*weight_dt*/
                                                                                    cldnn::data_types::f16,   /*scale_dt*/
                                                                                    -1,                       /*scale_group_size*/
-                                                                                   false                     /*weight_symmetric_quant*/
+                                                                                   false,                    /*weight_symmetric_quant*/
+                                                                                   false,                    /*is_pa*/
+                                                                                   true                      /*is_caching_test*/
                                                                                },
                                                                                // f16 / up
                                                                                moe_gemm_test_params{
@@ -562,7 +566,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_moe_gemm,
                                                                                    cldnn::data_types::f16,   /*weight_dt*/
                                                                                    cldnn::data_types::f16,   /*scale_dt*/
                                                                                    -1,                       /*scale_group_size*/
-                                                                                   false                     /*weight_symmetric_quant*/
+                                                                                   false,                    /*weight_symmetric_quant*/
+                                                                                   false,                    /*is_pa*/
+                                                                                   false                     /*is_caching_test*/
                                                                                },
                                                                                // f16 / down
                                                                                moe_gemm_test_params{
@@ -578,7 +584,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_moe_gemm,
                                                                                    cldnn::data_types::f16,   /*weight_dt*/
                                                                                    cldnn::data_types::f16,   /*scale_dt*/
                                                                                    -1,                       /*scale_group_size*/
-                                                                                   false                     /*weight_symmetric_quant*/
+                                                                                   false,                    /*weight_symmetric_quant*/
+                                                                                   false,                    /*is_pa*/
+                                                                                   true                      /*is_caching_test*/
                                                                                },
                                                                                // i4 / symmetric/ group size 32 / prefill
                                                                                moe_gemm_test_params{
@@ -595,7 +603,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_moe_gemm,
                                                                                    cldnn::data_types::f16,   /*scale_dt*/
                                                                                    32,                       /*scale_group_size*/
                                                                                    true,                     /*weight_symmetric_quant*/
-                                                                                   true,                     /*is_pa*/
+                                                                                   false,                    /*is_pa*/
+                                                                                   false,                    /*is_caching_test*/
                                                                                },
                                                                                // i4 / symmetric/ group size 32 / up
                                                                                moe_gemm_test_params{
@@ -611,7 +620,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_moe_gemm,
                                                                                    cldnn::data_types::i4,    /*weight_dt*/
                                                                                    cldnn::data_types::f16,   /*scale_dt*/
                                                                                    32,                       /*scale_group_size*/
-                                                                                   true                      /*weight_symmetric_quant*/
+                                                                                   true,                     /*weight_symmetric_quant*/
+                                                                                   false,                    /*is_pa*/
+                                                                                   true                      /*is_caching_test*/
                                                                                },
                                                                                // i4 / symmetric/ group size 32 / down
                                                                                moe_gemm_test_params{
@@ -627,7 +638,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_moe_gemm,
                                                                                    cldnn::data_types::i4,     /*weight_dt*/
                                                                                    cldnn::data_types::f16,    /*scale_dt*/
                                                                                    32,                        /*scale_group_size*/
-                                                                                   true                       /*weight_symmetric_quant*/
+                                                                                   true,                      /*weight_symmetric_quant*/
+                                                                                   false,                     /*is_pa*/
+                                                                                   false                      /*is_caching_test*/
                                                                                },
                                                                                // u4 / asymmetric/ per_token / prefill
                                                                                moe_gemm_test_params{
@@ -643,7 +656,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_moe_gemm,
                                                                                    cldnn::data_types::u4,     /*weight_dt*/
                                                                                    cldnn::data_types::f16,    /*scale_dt*/
                                                                                    2880,                      /*scale_group_size*/
-                                                                                   false                      /*weight_symmetric_quant*/
+                                                                                   false,                     /*weight_symmetric_quant*/
+                                                                                   false,                     /*is_pa*/
+                                                                                   true                       /*is_caching_test*/
                                                                                },
                                                                                // u4 / asymmetric/ group size 32 / prefill
                                                                                moe_gemm_test_params{
@@ -659,7 +674,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_moe_gemm,
                                                                                    cldnn::data_types::u4,    /*weight_dt*/
                                                                                    cldnn::data_types::f32,   /*scale_dt*/
                                                                                    32,                       /*scale_group_size*/
-                                                                                   false                     /*weight_symmetric_quant*/
+                                                                                   false,                    /*weight_symmetric_quant*/
+                                                                                   false,                    /*is_pa*/
+                                                                                   false                     /*is_caching_test*/
                                                                                },
                                                                                // u4 / asymmetric/ group size 32 / up
                                                                                moe_gemm_test_params{
@@ -675,7 +692,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_moe_gemm,
                                                                                    cldnn::data_types::u4,    /*weight_dt*/
                                                                                    cldnn::data_types::f32,   /*scale_dt*/
                                                                                    32,                       /*scale_group_size*/
-                                                                                   false                     /*weight_symmetric_quant*/
+                                                                                   false,                    /*weight_symmetric_quant*/
+                                                                                   false,                    /*is_pa*/
+                                                                                   true                      /*is_caching_test*/
                                                                                },
                                                                                // u4 / asymmetric/ group size 32 / down
                                                                                moe_gemm_test_params{
@@ -691,5 +710,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_moe_gemm,
                                                                                    cldnn::data_types::u4,    /*weight_dt*/
                                                                                    cldnn::data_types::f32,   /*scale_dt*/
                                                                                    32,                       /*scale_group_size*/
-                                                                                   false                     /*weight_symmetric_quant*/
+                                                                                   false,                    /*weight_symmetric_quant*/
+                                                                                   false,                    /*is_pa*/
+                                                                                   false                     /*is_caching_test*/
                                                                                }}));

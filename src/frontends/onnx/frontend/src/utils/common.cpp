@@ -101,12 +101,15 @@ void default_op_checks(const Node& node, size_t min_inputs_size, size_t max_inpu
                                   inputs.size());
 }
 
-bool is_input_valid(const Node& node, size_t index) {
-    const auto& inputs = node.get_ov_inputs();
+bool is_input_valid(const ov::OutputVector& inputs, size_t index) {
     if (index >= inputs.size())
         return false;
     const auto node_ptr = inputs[index].get_node_shared_ptr();
     return node_ptr != nullptr && !ov::as_type_ptr<NullNode>(node_ptr);
+}
+
+bool is_input_valid(const Node& node, size_t index) {
+    return is_input_valid(node.get_ov_inputs(), index);
 }
 
 std::shared_ptr<ov::Node> get_monotonic_range_along_node_rank(const ov::Output<ov::Node>& value,

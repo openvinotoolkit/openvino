@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <ze_api.h>  // not redundant, needed for `ze_structure_type_t` structure
+#include <level_zero/ze_api.h>  // not redundant, needed for `ze_structure_type_t` structure
 
 #include <behavior/ov_plugin/caching_tests.hpp>
 
