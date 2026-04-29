@@ -264,8 +264,7 @@ TEST(FrontEndConvertModelTest, SavedModelOobEmptyTensorNames) {
         FAIL() << "Expected exception for OOB index into empty tensor_names";
     } catch (const ov::Exception& e) {
         string msg = e.what();
-        EXPECT_TRUE(msg.find("out of range") != string::npos)
-            << "Unexpected error message: " << msg;
+        EXPECT_TRUE(msg.find("out of range") != string::npos) << "Unexpected error message: " << msg;
         EXPECT_EQ(model, nullptr);
     } catch (const std::exception& e) {
         FAIL() << "Unexpected std::exception: " << e.what();
