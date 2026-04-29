@@ -262,11 +262,9 @@ TEST_P(InferWithHostCompileTests, CompileAndImportAndInfer) {
     std::stringstream modelStream;
     OV_ASSERT_NO_THROW(compiledModel.export_model(modelStream));
 
-    ov::CompiledModel importedModel;
-    OV_ASSERT_NO_THROW(importedModel = core->import_model(modelStream, target_device));
-
     ov::InferRequest reqDynamic;
     try {
+        ov::CompiledModel importedModel = core->import_model(modelStream, target_device);
         reqDynamic = importedModel.create_infer_request();
     } catch (const ov::Exception& e) {
         if (std::string(e.what()).find("Cannot load library") == std::string::npos) {
