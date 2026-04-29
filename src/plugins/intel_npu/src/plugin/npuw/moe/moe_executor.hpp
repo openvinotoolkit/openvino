@@ -30,11 +30,11 @@ namespace npuw {
 namespace function {
 struct MoEExperts;
 struct MoEDownstream;
-}
+}  // namespace function
 namespace compiled {
 struct MoEExperts;
 struct MoEDownstream;
-}
+}  // namespace compiled
 namespace v1::subgraphs {
 class PatternRegistry;
 class ScopedPatternRegistration;
@@ -66,7 +66,7 @@ std::vector<ov::npuw::v1::subgraphs::ScopedPatternRegistration> register_pattern
     ov::npuw::v1::subgraphs::PatternRegistry& registry,
     const std::function<std::shared_ptr<ov::Model>()>& get_router_model,
     std::size_t moe_chunk_size);
-}
+}  // namespace moe
 
 // Import TensorPtr from util namespace for use in this header
 using ov::npuw::util::TensorPtr;

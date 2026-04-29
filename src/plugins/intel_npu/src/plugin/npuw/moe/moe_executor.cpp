@@ -96,10 +96,9 @@ void compile_expert_models(const CompileHooks& hooks, ov::npuw::v1::subgraphs::C
     LOG_INFO("Compiling MoE expert models...");
     LOG_BLOCK();
     for (const auto& entry : runtime_experts._models_to_compile) {
-        runtime_experts.set_compiled_model(entry.first,
-                                           compile_ctx.compile_model(entry.second,
-                                                                     "/moe_chunk_" + std::to_string(entry.first),
-                                                                     compile_ctx.devices));
+        runtime_experts.set_compiled_model(
+            entry.first,
+            compile_ctx.compile_model(entry.second, "/moe_chunk_" + std::to_string(entry.first), compile_ctx.devices));
     }
     const auto& compiled_models = runtime_experts._compiled_models;
     OPENVINO_ASSERT(!compiled_models.empty(), "Expected at least one compiled MoE expert model");
@@ -166,10 +165,10 @@ void compile_downstream(ov::npuw::v1::subgraphs::CompiledPipeline& compiled_pipe
 
     attach_runtime_behavior(compiled_pipeline, compiled_context, BehaviorRole::DOWNSTREAM, true);
     const auto previous_compile_executor = compiled_pipeline.compile_executor;
-    compiled_pipeline.compile_executor =
-        [previous_compile_executor, hooks](ov::npuw::v1::subgraphs::CompileContext& compile_ctx) {
-            compile_downstream_model(previous_compile_executor, hooks, compile_ctx);
-        };
+    compiled_pipeline.compile_executor = [previous_compile_executor,
+                                          hooks](ov::npuw::v1::subgraphs::CompileContext& compile_ctx) {
+        compile_downstream_model(previous_compile_executor, hooks, compile_ctx);
+    };
     compiled_context.erase<CompileHooks>();
 }
 
@@ -184,16 +183,17 @@ std::vector<ov::npuw::v1::subgraphs::ScopedPatternRegistration> register_pattern
 
     registrations.emplace_back(registry.on<ov::npuw::patterns::moe::GPTOSSRouter>().scoped());
 
-    registrations.emplace_back(registry.on<ov::npuw::patterns::moe::GPTOSSExpert>()
-                                   .at_partition([get_router_model, moe_chunk_size](ov::npuw::Function& function,
-                                                                                    ov::npuw::v1::subgraphs::Context& ctx) {
-                                       partition_expert(function, ctx, get_router_model, moe_chunk_size);
-                                   })
-                                   .at_compile([](ov::npuw::v1::subgraphs::CompiledPipeline& compiled_pipeline,
-                                                  ov::npuw::v1::subgraphs::Context& compiled_context) {
-                                       compile_expert(compiled_pipeline, compiled_context);
-                                   })
-                                   .scoped());
+    registrations.emplace_back(
+        registry.on<ov::npuw::patterns::moe::GPTOSSExpert>()
+            .at_partition([get_router_model, moe_chunk_size](ov::npuw::Function& function,
+                                                             ov::npuw::v1::subgraphs::Context& ctx) {
+                partition_expert(function, ctx, get_router_model, moe_chunk_size);
+            })
+            .at_compile([](ov::npuw::v1::subgraphs::CompiledPipeline& compiled_pipeline,
+                           ov::npuw::v1::subgraphs::Context& compiled_context) {
+                compile_expert(compiled_pipeline, compiled_context);
+            })
+            .scoped());
 
     ov::npuw::v1::subgraphs::PatternRegistration downstream_registration;
     downstream_registration.partition_stage = [get_router_model](ov::npuw::Function& function,

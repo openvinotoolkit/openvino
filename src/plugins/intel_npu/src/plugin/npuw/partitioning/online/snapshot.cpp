@@ -751,23 +751,23 @@ void Snapshot::earlyRegroup() {
         rewr.add_matcher<ov::npuw::patterns::moe::p>(shared_from_this(), isolate.tag); \
         handle_patterns = true;                                                        \
     }
-            HNDL(RMSNorm);
-            HNDL(RMSNorm2);
-            HNDL(RMSNorm3);
-            HNDL(RMSNorm4);
-            HNDL(DQMatMulCWu4);
-            HNDL(DQMatMulGQu4);
-            HNDL(DQMatMulCWi4);
-            HNDL(DQMatMulGQi4);
-            HNDL(DQMatMulConv);
-            HNDL(VocabMatMul);
-            HNDL(VariadicSplit);
-            HNDL_MOE(GPTOSSExpert);
-            HNDL_MOE(GPTOSSRouter);
-            HNDL_FAKE(FakeConvert);
-            HNDL_FAKE(FakeQuantize);
-            HNDL_ATTN(SDPA);
-            HNDL_ATTN(SDPADecomposed);
+                HNDL(RMSNorm);
+                HNDL(RMSNorm2);
+                HNDL(RMSNorm3);
+                HNDL(RMSNorm4);
+                HNDL(DQMatMulCWu4);
+                HNDL(DQMatMulGQu4);
+                HNDL(DQMatMulCWi4);
+                HNDL(DQMatMulGQi4);
+                HNDL(DQMatMulConv);
+                HNDL(VocabMatMul);
+                HNDL(VariadicSplit);
+                HNDL_MOE(GPTOSSExpert);
+                HNDL_MOE(GPTOSSRouter);
+                HNDL_FAKE(FakeConvert);
+                HNDL_FAKE(FakeQuantize);
+                HNDL_ATTN(SDPA);
+                HNDL_ATTN(SDPADecomposed);
 #undef HNDL_MOE
 #undef HNDL_ATTN
 #undef HNDL_FAKE

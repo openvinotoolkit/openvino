@@ -57,8 +57,9 @@ void ov::npuw::v1::subgraphs::PatternRegistry::apply(ov::npuw::Function& functio
         }
 
         auto previous_partition_stage = func_pipeline.partition_stage;
-        func_pipeline.partition_stage = [previous_partition_stage, registration](ov::npuw::Function& staged_function,
-                                                                                ov::npuw::v1::subgraphs::Context& ctx) {
+        func_pipeline.partition_stage = [previous_partition_stage, registration](
+                                            ov::npuw::Function& staged_function,
+                                            ov::npuw::v1::subgraphs::Context& ctx) {
             if (previous_partition_stage) {
                 previous_partition_stage(staged_function, ctx);
             }
@@ -109,8 +110,9 @@ void ov::npuw::v1::subgraphs::PatternRegistry::apply(ov::npuw::Subgraph& subgrap
         }
 
         auto previous_partition_stage = subgraph_pipeline.partition_stage;
-        subgraph_pipeline.partition_stage = [previous_partition_stage, registration](ov::npuw::Function& staged_function,
-                                                                                    ov::npuw::v1::subgraphs::Context& ctx) {
+        subgraph_pipeline.partition_stage = [previous_partition_stage, registration](
+                                                ov::npuw::Function& staged_function,
+                                                ov::npuw::v1::subgraphs::Context& ctx) {
             if (previous_partition_stage) {
                 previous_partition_stage(staged_function, ctx);
             }
@@ -2623,10 +2625,9 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
     if (ctx.subgraph_patterns != nullptr) {
         combined_subgraph_patterns->append_from(*ctx.subgraph_patterns);
     }
-    builtin_pattern_registrations = ov::npuw::moe::register_patterns(
-        *combined_subgraph_patterns,
-        get_router_model,
-        cfg.get<::intel_npu::NPUW_MOE_TOKEN_CHUNK_SIZE>());
+    builtin_pattern_registrations = ov::npuw::moe::register_patterns(*combined_subgraph_patterns,
+                                                                     get_router_model,
+                                                                     cfg.get<::intel_npu::NPUW_MOE_TOKEN_CHUNK_SIZE>());
     effective_ctx.subgraph_patterns = &combined_subgraph_patterns.value();
 
     // Try to load the partitioning plan...

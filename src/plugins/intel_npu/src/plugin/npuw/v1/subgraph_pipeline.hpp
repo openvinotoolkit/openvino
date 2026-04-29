@@ -23,7 +23,7 @@
 namespace ov {
 class Model;
 class ICompiledModel;
-}
+}  // namespace ov
 
 namespace ov::npuw {
 class CompiledModel;
@@ -123,7 +123,8 @@ struct CompileContext {
     const std::vector<std::string>& devices;
     std::function<ov::SoPtr<ov::ICompiledModel>(const std::shared_ptr<ov::Model>&,
                                                 const std::string&,
-                                                const std::vector<std::string>&)> compile_model;
+                                                const std::vector<std::string>&)>
+        compile_model;
 };
 
 struct FunctionPipeline {
