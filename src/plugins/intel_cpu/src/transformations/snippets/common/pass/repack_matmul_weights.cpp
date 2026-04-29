@@ -4,50 +4,53 @@
 
 #include "repack_matmul_weights.hpp"
 
-#include <cstddef>
-#include <cstdint>
-#include <functional>
-#include <memory>
-#include <numeric>
-#include <sstream>
-#include <string>
-#include <unordered_set>
-#include <utility>
-#include <vector>
-
-#include "cpu_memory.h"
-#include "cpu_types.h"
-#include "graph_context.h"
-#include "memory_desc/cpu_blocked_memory_desc.h"
-#include "openvino/cc/pass/itt.hpp"
-#include "openvino/core/except.hpp"
-#include "openvino/core/model.hpp"
-#include "openvino/core/node.hpp"
-#include "openvino/core/type.hpp"
-#include "openvino/core/type/element_type.hpp"
-#include "openvino/itt.hpp"
 #include "snippets/itt.hpp"
-#include "snippets/lowered/port_descriptor.hpp"
-#include "snippets/op/reorder.hpp"
-#include "snippets/utils/utils.hpp"
 
-#if defined(OPENVINO_ARCH_X86_64)
-#    include "common/utils.hpp"
-#    include "dnnl_extension_utils.h"
-#    include "memory_desc/cpu_memory_desc_utils.h"
-#    include "memory_desc/dnnl_memory_desc.h"
-#    include "nodes/executors/dnnl/dnnl_utils.hpp"
-#    include "transformations/snippets/x64/op/brgemm_cpu.hpp"
-#    include "transformations/snippets/x64/op/brgemm_utils.hpp"
-#elif defined(OPENVINO_ARCH_ARM64)
-#    include <algorithm>
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
 
-#    include "emitters/snippets/aarch64/kernel_executors/gemm_copy_b.hpp"
-#    include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_x16p32x1b_x16_x16_neon.h"
-#    include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_x32p16x1b_x32_x32_neon.h"
-#    include "nodes/reorder.h"
-#    include "openvino/core/parallel.hpp"
-#    include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
+#    include <cstddef>
+#    include <memory>
+#    include <numeric>
+#    include <unordered_set>
+#    include <utility>
+#    include <vector>
+
+#    include "cpu_memory.h"
+#    include "cpu_types.h"
+#    include "memory_desc/cpu_blocked_memory_desc.h"
+#    include "openvino/cc/pass/itt.hpp"
+#    include "openvino/core/except.hpp"
+#    include "openvino/core/model.hpp"
+#    include "openvino/core/node.hpp"
+#    include "openvino/core/type.hpp"
+#    include "openvino/core/type/element_type.hpp"
+#    include "openvino/itt.hpp"
+#    include "snippets/lowered/port_descriptor.hpp"
+#    include "snippets/op/reorder.hpp"
+#    include "snippets/utils/utils.hpp"
+
+#    if defined(OPENVINO_ARCH_X86_64)
+#        include "dnnl_extension_utils.h"
+#        include "memory_desc/cpu_memory_desc_utils.h"
+#        include "memory_desc/dnnl_memory_desc.h"
+#        include "nodes/executors/dnnl/dnnl_utils.hpp"
+#        include "transformations/snippets/x64/op/brgemm_cpu.hpp"
+#        include "transformations/snippets/x64/op/brgemm_utils.hpp"
+#    elif defined(OPENVINO_ARCH_ARM64)
+#        include <algorithm>
+#        include <cstdint>
+#        include <functional>
+#        include <sstream>
+#        include <string>
+
+#        include "emitters/snippets/aarch64/kernel_executors/gemm_copy_b.hpp"
+#        include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_x16p32x1b_x16_x16_neon.h"
+#        include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_x32p16x1b_x32_x32_neon.h"
+#        include "nodes/reorder.h"
+#        include "openvino/core/parallel.hpp"
+#        include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
+#    endif
+
 #endif
 
 namespace ov::intel_cpu::pass {
@@ -255,11 +258,15 @@ bool RepackMatMulWeights::run_on_model([[maybe_unused]] const std::shared_ptr<ov
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::RepackMatMulWeights")
 
 #if !defined(OPENVINO_ARCH_X86_64) && !defined(OPENVINO_ARCH_ARM64)
+    (void)m_context;
+    (void)m_input_repackers;
+    (void)m_src_mem_ptrs;
     return false;
 #else
     const auto& params = model->get_parameters();
     std::unordered_set<size_t> weights_idxs;
-    for (const auto& [i, input_repacker] : m_input_repackers) {
+    for (const auto& repacker_entry : m_input_repackers) {
+        const auto i = repacker_entry.first;
         const auto& parameter = params[i];
 
         const auto shape_infer_leaf = ov::snippets::utils::get_leaf_node_of_first_child_shape_infer_seq(parameter);
@@ -269,7 +276,6 @@ bool RepackMatMulWeights::run_on_model([[maybe_unused]] const std::shared_ptr<ov
         const auto consumer = consumers.cbegin()->get_node()->shared_from_this();
 
         const auto& orig_src_mem_ptr = m_src_mem_ptrs[i];
-        const auto source = get_weights_source(consumer, orig_src_mem_ptr);
 
 #    if defined(OPENVINO_ARCH_X86_64)
         const auto brgemm_cpu = ov::as_type_ptr<BrgemmCPU>(consumer);
@@ -280,6 +286,7 @@ bool RepackMatMulWeights::run_on_model([[maybe_unused]] const std::shared_ptr<ov
             continue;
         }
 
+        const auto source = get_weights_source(consumer, orig_src_mem_ptr);
         const auto& eng = m_context->getEngine();
         const auto src_mem_desc = get_x64_src_desc(source, brgemm_config);
         const auto dst_mem_desc = get_x64_dst_desc(src_mem_desc->getShape(), brgemm_config);
@@ -305,6 +312,7 @@ bool RepackMatMulWeights::run_on_model([[maybe_unused]] const std::shared_ptr<ov
         const auto gemm_cpu = ov::as_type_ptr<ov::intel_cpu::aarch64::GemmCPU>(consumer);
         OPENVINO_ASSERT(gemm_cpu != nullptr, "Expected one consumer - GemmCPU");
 
+        const auto source = get_weights_source(consumer, orig_src_mem_ptr);
         const auto precision = gemm_cpu->get_input_element_type(1);
         const auto planar_shape = get_src_cpu_desc(source, precision)->getShape().getStaticDims();
         const auto dst_desc = get_aarch64_dst_cpu_desc(planar_shape, precision);

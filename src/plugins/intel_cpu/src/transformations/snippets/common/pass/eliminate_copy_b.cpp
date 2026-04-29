@@ -4,32 +4,36 @@
 
 #include "eliminate_copy_b.hpp"
 
-#include <cstddef>
-#include <memory>
-#include <set>
-#include <vector>
-
-#include "openvino/cc/pass/itt.hpp"
-#include "openvino/core/except.hpp"
-#include "openvino/core/graph_util.hpp"
-#include "openvino/core/model.hpp"
-#include "openvino/core/node.hpp"
-#include "openvino/core/type.hpp"
-#include "openvino/itt.hpp"
-#include "openvino/op/parameter.hpp"
-#include "openvino/pass/pattern/matcher.hpp"
-#include "openvino/pass/pattern/op/optional.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "snippets/itt.hpp"
-#include "snippets/lowered/port_descriptor.hpp"
-#include "snippets/op/rank_normalization.hpp"
-#include "snippets/op/reorder.hpp"
-#include "snippets/utils/utils.hpp"
 
-#if defined(OPENVINO_ARCH_X86_64)
-#    include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
-#elif defined(OPENVINO_ARCH_ARM64)
-#    include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
+
+#    include <cstddef>
+#    include <memory>
+#    include <set>
+
+#    include "openvino/cc/pass/itt.hpp"
+#    include "openvino/core/except.hpp"
+#    include "openvino/core/graph_util.hpp"
+#    include "openvino/core/model.hpp"
+#    include "openvino/core/node.hpp"
+#    include "openvino/core/type.hpp"
+#    include "openvino/itt.hpp"
+#    include "openvino/op/parameter.hpp"
+#    include "openvino/pass/pattern/matcher.hpp"
+#    include "openvino/pass/pattern/op/optional.hpp"
+#    include "openvino/pass/pattern/op/wrap_type.hpp"
+#    include "snippets/lowered/port_descriptor.hpp"
+#    include "snippets/op/rank_normalization.hpp"
+#    include "snippets/op/reorder.hpp"
+#    include "snippets/utils/utils.hpp"
+
+#    if defined(OPENVINO_ARCH_X86_64)
+#        include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
+#    elif defined(OPENVINO_ARCH_ARM64)
+#        include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
+#    endif
+
 #endif
 
 namespace ov::intel_cpu {
@@ -60,7 +64,9 @@ bool pass::EliminateCopyB::run_on_model([[maybe_unused]] const std::shared_ptr<o
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::EliminateCopyB")
 
 #if !defined(OPENVINO_ARCH_X86_64) && !defined(OPENVINO_ARCH_ARM64)
-    [[maybe_unused]] auto& input_repackers = m_input_repackers;
+    (void)m_input_repackers;
+    (void)m_runtime_repacking_supported;
+    (void)m_compile_time_repacking_idxs;
     return false;
 #else
     auto m_param = ov::pass::pattern::wrap_type<ov::op::v0::Parameter>();

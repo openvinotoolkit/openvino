@@ -37,9 +37,7 @@
 #include "snippets/pass/positioned_pass.hpp"
 #include "snippets/shape_types.hpp"
 #include "transformations/cpu_opset/common/pass/convert_to_swish_cpu.hpp"
-#include "transformations/snippets/common/pass/eliminate_copy_b.hpp"
 #include "transformations/snippets/common/pass/mul_add_to_fma.hpp"
-#include "transformations/snippets/common/pass/repack_matmul_weights.hpp"
 #include "transformations/snippets/common/shape_inference.hpp"
 #include "utils/general_utils.h"
 
@@ -83,6 +81,8 @@
 #    include "snippets/lowered/pass/insert_perf_count_verbose.hpp"
 #    include "snippets/lowered/pass/mark_loops.hpp"
 #    include "snippets/pass/propagate_precision.hpp"
+#    include "transformations/snippets/common/pass/eliminate_copy_b.hpp"
+#    include "transformations/snippets/common/pass/repack_matmul_weights.hpp"
 #endif
 
 #if defined(OPENVINO_ARCH_X86_64)
