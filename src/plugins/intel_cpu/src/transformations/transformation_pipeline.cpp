@@ -960,10 +960,10 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
     });
 #endif
     auto lowPrecPass = CPU_REGISTER_PASS_COMMON(lptManager,
-                             LowPrecision,
-                             supportedPrecisions,
-                             quantizationRestrictions,
-                             LayerTransformation::Params(true, ov::element::f32, defaultPrecisions));
+                                                LowPrecision,
+                                                supportedPrecisions,
+                                                quantizationRestrictions,
+                                                LayerTransformation::Params(true, ov::element::f32, defaultPrecisions));
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     lowPrecPass->add_prerequisite<AlignUnsupportedLPConvFQPrecision>();
 #endif

@@ -23,27 +23,23 @@ ov::intel_cpu::AlignUnsupportedLPConvFQPrecision::AlignUnsupportedLPConvFQPrecis
 
     auto conv = wrap_type<ov::op::v1::Convolution>({any_input(), any_input()});
     auto add = wrap_type<ov::op::v1::Add>({conv, any_input()});
-    auto fq = wrap_type<ov::op::v0::FakeQuantize>(
-        {add, any_input(), any_input(), any_input(), any_input()});
+    auto fq = wrap_type<ov::op::v0::FakeQuantize>({add, any_input(), any_input(), any_input(), any_input()});
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto conv_node = pattern_map.at(conv).get_node_shared_ptr();
-        auto fq_node = ov::as_type_ptr<ov::op::v0::FakeQuantize>(
-            pattern_map.at(fq).get_node_shared_ptr());
+        auto fq_node = ov::as_type_ptr<ov::op::v0::FakeQuantize>(pattern_map.at(fq).get_node_shared_ptr());
         if (!fq_node) {
             return false;
         }
 
-        auto input_fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(
-            conv_node->get_input_node_shared_ptr(0));
+        auto input_fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(conv_node->get_input_node_shared_ptr(0));
         if (!input_fq) {
             return false;
         }
 
-        const auto input_data_precision =
-            low_precision::fq_decomposition::getDataPrecisionByOutputPort(input_fq);
+        const auto input_data_precision = low_precision::fq_decomposition::getDataPrecisionByOutputPort(input_fq);
         if (input_data_precision.empty()) {
             return false;
         }
@@ -58,8 +54,7 @@ ov::intel_cpu::AlignUnsupportedLPConvFQPrecision::AlignUnsupportedLPConvFQPrecis
         }
         const auto conv_precision = conv_precisions[0];
 
-        const auto fq_data_precision =
-            low_precision::fq_decomposition::getDataPrecisionByOutputPort(fq_node);
+        const auto fq_data_precision = low_precision::fq_decomposition::getDataPrecisionByOutputPort(fq_node);
         if (fq_data_precision.empty()) {
             return false;
         }
@@ -68,8 +63,7 @@ ov::intel_cpu::AlignUnsupportedLPConvFQPrecision::AlignUnsupportedLPConvFQPrecis
             return false;
         }
 
-        auto fq_attr = low_precision::getAttributeFromOutput<ov::PrecisionsAttribute>(
-            fq_node->output(0));
+        auto fq_attr = low_precision::getAttributeFromOutput<ov::PrecisionsAttribute>(fq_node->output(0));
         if (fq_attr.empty()) {
             fq_node->output(0).get_rt_info()[ov::PrecisionsAttribute::get_type_info_static()] =
                 ov::PrecisionsAttribute({conv_precision});

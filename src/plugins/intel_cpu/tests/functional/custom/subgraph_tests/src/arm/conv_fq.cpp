@@ -8,7 +8,7 @@
 #include "utils/fusing_test_utils.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
-#include "openvino/op/max_pool.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/util/common_util.hpp"
 
 using namespace CPUTestUtils;
@@ -131,24 +131,12 @@ protected:
                                                             {outputIntervals[2][0]},
                                                             {outputIntervals[3][0]});
 
-        std::shared_ptr<Node> output;
-        {
-            const ov::Strides strides = {1, 1};
-            const ov::Shape padsBegin = {0, 0};
-            const ov::Shape padsEnd = {0, 0};
-            const ov::Shape kernel = {1, 1};
-            const auto roundingType = ov::op::RoundingType::CEIL;
-            const auto padType = op::PadType::EXPLICIT;
-            output = std::make_shared<ov::op::v1::MaxPool>(fq_after,
-                                                           strides,
-                                                           padsBegin,
-                                                           padsEnd,
-                                                           kernel,
-                                                           roundingType,
-                                                           padType);
-        }
+        auto matmul_const = ov::test::utils::make_constant(ov::element::i8, {1, 1});
+        auto convert_mm = std::make_shared<op::v0::Convert>(matmul_const, inputPrecision);
+        auto multiply_mm = std::make_shared<op::v1::Multiply>(convert_mm, op::v0::Constant::create(inputPrecision, {1, 1}, {0.1}));
+        const auto matMul = std::make_shared<ov::op::v0::MatMul>(fq_after, multiply_mm, false, false);
 
-        function = create_ov_model(inputPrecision, input_params, output, "ConvFQ");
+        function = create_ov_model(inputPrecision, input_params, matMul, "ConvFQ");
     }
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
