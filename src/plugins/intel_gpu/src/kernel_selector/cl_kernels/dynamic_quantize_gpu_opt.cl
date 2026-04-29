@@ -94,7 +94,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
     }
 
 #if IS_MXFP
-    SCALE_TYPE quan_scale = (SCALE_TYPE)(exp2(floor(log2(_convert_float(OUTPUT_VAL_MAX) / _convert_float(max_value)))));
+    SCALE_TYPE quan_scale = (SCALE_TYPE)(exp2(floor(log2(_convert_float(OUTPUT_VAL_MAX) / convert_float(max_value)))));
 #else
     SCALE_TYPE quan_scale = TO_SCALE_TYPE(OUTPUT_VAL_MAX) / max_value;
     FOR_PRECOMPUTED_REDUCTION(int precomputed_reduction = 0);
@@ -361,7 +361,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
         if ((local_id * iteration + i) >= TOTAL_BLOCK_NUM)
             continue;
 
-        val[i] = TO_TYPE_N(INPUT0_TYPE, VEC_SIZE, TO_TYPE_N(SCALE_TYPE, VEC_SIZE, val[i]) * (MAKE_VECTOR_TYPE(SCALE_TYPE, VEC_SIZE))scale);
+        val[i] *= TO_INPUT0_TYPE(scale);
 #if IS_F8
         MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE) out = TO_TYPE_N_SAT(OUTPUT_TYPE, VEC_SIZE, val[i]);
         VSTORE_N(out.data, 0, (char*)(&output[offset + ((local_id * iteration + i) * block_size)]));
