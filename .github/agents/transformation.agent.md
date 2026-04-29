@@ -36,12 +36,7 @@ Write all logs, results, and patches to `agent-results/transformation/`.
 
 ### Python Package Bootstrap
 
-If any verification or test step requires Python packages (e.g. `openvino`, `optimum`, `torch`,
-`transformers`, `pytest`), install them before running the step:
-
-```bash
-pip install openvino optimum-intel torch --extra-index-url https://download.pytorch.org/whl/cpu
-```
+Follow **[`skills/python-bootstrap.md`](skills/python-bootstrap.md) — Path A** (no source build).
 
 ---
 

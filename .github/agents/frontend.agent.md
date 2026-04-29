@@ -35,12 +35,8 @@ Write all logs, results, and patches to `agent-results/frontend/`.
 
 ### Python Package Bootstrap
 
-If any verification or test step requires Python packages, install them before running the step:
-
-```bash
-pip install openvino optimum-intel torch --extra-index-url https://download.pytorch.org/whl/cpu
-pip install onnx onnxruntime
-```
+Follow **[`skills/python-bootstrap.md`](skills/python-bootstrap.md) — Path A** (no source build).
+For ONNX frontend work also install `onnx` and `onnxruntime` as noted in the skill.
 
 ---
 
