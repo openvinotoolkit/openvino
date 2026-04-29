@@ -206,6 +206,60 @@ inline std::istream& operator>>(std::istream& is, ModelSerializerVersion& modelS
 
 /**
  * @brief [Only for NPU Plugin]
+ * Controls the thread allocation strategy for inference execution.
+ * Possible values:
+ *   "ONE_THREAD_PER_INFERENCE" - one dedicated thread per infer request
+ *   "TWO_THREADS_PER_MODEL"    - two threads shared across all requests of a compiled model
+ *   "ONE_THREAD_PER_CORE"      - one thread per physical core available to the process
+ *   "TWO_THREADS_PER_CORE"     - two threads per physical core available to the process
+ */
+enum class ThreadMode {
+    ONE_THREAD_PER_INFERENCE = 0,
+    TWO_THREADS_PER_MODEL = 1,
+    ONE_THREAD_PER_CORE = 2,
+    TWO_THREADS_PER_CORE = 3,
+};
+
+inline std::ostream& operator<<(std::ostream& out, const ThreadMode& mode) {
+    switch (mode) {
+    case ThreadMode::ONE_THREAD_PER_INFERENCE: {
+        out << "ONE_THREAD_PER_INFERENCE";
+    } break;
+    case ThreadMode::TWO_THREADS_PER_MODEL: {
+        out << "TWO_THREADS_PER_MODEL";
+    } break;
+    case ThreadMode::ONE_THREAD_PER_CORE: {
+        out << "ONE_THREAD_PER_CORE";
+    } break;
+    case ThreadMode::TWO_THREADS_PER_CORE: {
+        out << "TWO_THREADS_PER_CORE";
+    } break;
+    default:
+        out << static_cast<uint32_t>(mode);
+        break;
+    }
+    return out;
+}
+
+inline std::istream& operator>>(std::istream& is, ThreadMode& mode) {
+    std::string str;
+    is >> str;
+    if (str == "ONE_THREAD_PER_INFERENCE") {
+        mode = ThreadMode::ONE_THREAD_PER_INFERENCE;
+    } else if (str == "TWO_THREADS_PER_MODEL") {
+        mode = ThreadMode::TWO_THREADS_PER_MODEL;
+    } else if (str == "ONE_THREAD_PER_CORE") {
+        mode = ThreadMode::ONE_THREAD_PER_CORE;
+    } else if (str == "TWO_THREADS_PER_CORE") {
+        mode = ThreadMode::TWO_THREADS_PER_CORE;
+    } else {
+        OPENVINO_THROW("Unsupported thread mode value: ", str);
+    }
+    return is;
+}
+
+/**
+ * @brief [Only for NPU Plugin]
  * Type: string, default is MODEL.
  * Type of profiling to execute. Can be Model (default) or INFER (based on npu timestamps)
  * @note Configuration API v 2.0
@@ -448,6 +502,13 @@ static constexpr ov::Property<bool> export_raw_blob{"NPU_EXPORT_RAW_BLOB"};
  * models from each other, which can be required for some use cases.
  */
 static constexpr ov::Property<bool> shared_common_queue{"NPU_SHARED_COMMON_QUEUE"};
+
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: ThreadMode, default is ONE_THREAD_PER_INFERENCE.
+ * This option allows to configure the threading mode for the NPU plugin.
+ */
+static constexpr ov::Property<ThreadMode> thread_mode{"NPU_THREAD_MODE"};
 
 }  // namespace intel_npu
 }  // namespace ov

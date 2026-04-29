@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <sstream>
 #include <thread>
 
 #include "intel_npu/config/config.hpp"
@@ -1578,6 +1579,41 @@ struct COMPATIBILITY_CHECK final : OptionBase<COMPATIBILITY_CHECK, ov::Compatibi
 
     static ov::PropertyMutability mutability() {
         return ov::PropertyMutability::RO;
+    }
+};
+
+struct THREAD_MODE final : OptionBase<THREAD_MODE, ov::intel_npu::ThreadMode> {
+    static std::string_view key() {
+        return ov::intel_npu::thread_mode.name();
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "ov::intel_npu::ThreadMode";
+    }
+
+    static ov::intel_npu::ThreadMode defaultValue() {
+        return ov::intel_npu::ThreadMode::ONE_THREAD_PER_INFERENCE;
+    }
+
+    static bool isPublic() {
+        return false;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+
+    static ov::intel_npu::ThreadMode parse(std::string_view val) {
+        ov::intel_npu::ThreadMode mode;
+        std::istringstream ss{std::string(val)};
+        ss >> mode;
+        return mode;
+    }
+
+    static std::string toString(const ov::intel_npu::ThreadMode& val) {
+        std::stringstream strStream;
+        strStream << val;
+        return strStream.str();
     }
 };
 

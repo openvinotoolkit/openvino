@@ -268,7 +268,7 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     REGISTER_OPTION(CACHE_ENCRYPTION_CALLBACKS);
     REGISTER_OPTION(RUNTIME_REQUIREMENTS);
     REGISTER_OPTION(COMPATIBILITY_CHECK);
-
+    REGISTER_OPTION(THREAD_MODE);
 
     if (backend) {
         // Options registered only if drivers is present and supports the corresponding extension

@@ -61,6 +61,9 @@ public:
     void release_memory() override;
 
 private:
+    void configure_stream_executors();
+    void reset_stream_executors();
+
     Logger _logger;
     const std::shared_ptr<IDevice> _device;
 
