@@ -42,15 +42,12 @@ Follow **[`skills/python-bootstrap.md`](skills/python-bootstrap.md) — Path A**
 
 ## Skills
 
+This agent follows the **[`skills/add-fusion-transformation/SKILL.md`](skills/add-fusion-transformation/SKILL.md)** workflow.
+SKILL.md lists all step files with their purpose and execution order.
+
 | Skill file | Purpose |
 |---|---|
-| `skills/add-fusion-transformation/step1-analysis.md` | Analyse the target sub-graph, identify fusion pattern, classify transformation type |
-| `skills/add-fusion-transformation/step2-implementation.md` | Write `MatcherPass` / `FunctionPass`, register in pass pipeline |
-| `skills/add-fusion-transformation/workflow.md` | End-to-end workflow: design → implement → register → test (PR #40 pattern) |
-| `.agents/skills/debug-matcher-pass/SKILL.md` | **Debug only** — diagnose why a MatcherPass is not firing: pattern not matched, callback never triggers, opset version mismatch. Load this skill when a transformation silently produces no effect. |
-
-> **Upstream skill spec:** `skills/add-fusion-transformation/SKILL.md`
-> The skill files above are the agent-executable versions of that specification.
+| `.github/agents/skills/debug-matcher-pass/SKILL.md` | **Debug only** — diagnose why a MatcherPass is not firing: pattern not matched, callback never triggers, opset version mismatch. Load this skill when a transformation silently produces no effect. |
 
 ## Code Quality
 
@@ -89,7 +86,7 @@ Verify it compiles before proceeding.
 
 ### Step 1: Analyse Target Sub-Graph
 
-Use **`skills/add-fusion-transformation/step1-analysis.md`** skill:
+Follow `skills/add-fusion-transformation/SKILL.md` → step1-analysis:
 
 1. Read the op spec to understand the target op and its graph context.
 2. Identify the **sub-graph pattern** to fuse/rewrite:
@@ -111,7 +108,7 @@ Use **`skills/add-fusion-transformation/step1-analysis.md`** skill:
 
 ### Step 2: Implement the Transformation
 
-Use **`skills/add-fusion-transformation/step2-implementation.md`** skill.
+Follow `skills/add-fusion-transformation/SKILL.md` → step2-implementation.
 
 #### File layout
 ```

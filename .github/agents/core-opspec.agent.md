@@ -39,18 +39,8 @@ Follow **[`skills/python-bootstrap.md`](skills/python-bootstrap.md) — Path A**
 
 ## Skills
 
-The agent executes a **sequential 4-step pipeline**. Each step has a dedicated
-skill file. The original monolithic skill is preserved as reference.
-
-| Step | Skill | File | Purpose |
-|------|-------|------|---------|
-| 0 *(conditional)* | Opset Init | `skills/add-core-op/step0-opset-init.md` | Create opset scaffolding — **only when target opset does not yet exist** |
-| 1 | Analysis | `skills/add-core-op/step1-analysis.md` | Identify missing op, check if decomposable, collect references |
-| 2 | Implementation | `skills/add-core-op/step2-implementation.md` | Create hpp/cpp files, class definition, registration |
-| 3 | Testing | `skills/add-core-op/step3-testing.md` | type_prop, visitors, conformance, op_reference tests |
-| 4 | Specification | `skills/add-core-op/step4-specification.md` | Write .rst spec document following OV conventions |
-
-> **Reference:** `skills/add-core-op/SKILL.md` (original monolithic skill)
+This agent follows the **[`skills/add-core-op/SKILL.md`](skills/add-core-op/SKILL.md)** workflow.
+SKILL.md lists all step files with their purpose and execution order.
 
 ## Code Quality
 

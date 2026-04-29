@@ -37,12 +37,8 @@ to succeed on the first attempt.
 
 Execute in strict order. Each skill produces files consumed by the next.
 
-| Order | Skill file | Purpose |
-|-------|-----------|---------|
-| 1 | `skills/analyze-and-convert/probe-model.md` | Gather model profile without weight download |
-| 2 | `skills/analyze-and-convert/try-conversion.md` | Run strategy matrix, capture all outputs |
-| 3 | `skills/analyze-and-convert/classify-failure.md` | Map errors to taxonomy, extract signals (skip on full success) |
-| 4 | `skills/analyze-and-convert/build-report.md` | Assemble report, post to issue, emit marker |
+This agent follows the **[`skills/analyze-and-convert/SKILL.md`](skills/analyze-and-convert/SKILL.md)** workflow.
+SKILL.md lists all step files with their purpose and execution order.
 
 ---
 

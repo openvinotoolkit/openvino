@@ -38,22 +38,10 @@ having two conflicting OpenVINO installations in the same environment.
 
 ## Skills
 
-The agent executes a **sequential multi-step pipeline** via the `intel-gpu-kernel` orchestrator skill. Each step has a dedicated skill file.
+The agent executes a **sequential multi-step pipeline** via the `intel-gpu-kernel` orchestrator skill.
 
-| Step | Skill | File | Purpose |
-|------|-------|------|---------|
-| 0 | Plan Op Implementation | `skills/add-gpu-op/step0-plan.md` | Analyze Op spec, formulate primitive/kernel/test plan (calls `parse-op-spec`) |
-| 0 (util) | Parse Op Spec | `skills/add-gpu-op/step0-parse-spec.md` | Fetch and parse Op specification into structured summary |
-| 1 | Collect HW Specs | `skills/add-gpu-op/step1-hardware-analysis.md` | Collect GPU specs via clinfo, determine architecture, SIMD size |
-| 2 | Build | `build-openvino` skill | Build OpenVINO with GPU enabled (Debug for dev, Release for profiling) |
-| 3 | File Structure | `skills/add-gpu-op/step2-file-structure.md` | Determine file locations and naming conventions for the new op |
-| 4 | Kernel Enabling | `skills/add-gpu-op/step3-kernel-development.md` | Create C++ primitives and reference OpenCL kernel |
-| 4 (util) | Write Tests | `skills/add-gpu-op/step3-write-tests.md` | Create SLT and unit test code |
-| 4 (util) | Run Tests | `skills/add-gpu-op/step3-run-tests.md` | Execute GPU tests and dump kernel sources |
-| 4 (util) | Device Timing | `skills/add-gpu-op/step3-profiling.md` | Measure kernel device time with clintercept |
-| 4.5 | oneDNN Integration | `skills/add-gpu-op/step4-onednn-integration.md` | *(Conditional)* Integrate oneDNN-backed path when op is supported |
-| 5 | Optimize | `skills/add-gpu-op/step5-optimize.md` | **(Mandatory)** Hardware-aware optimizations; produce Performance Comparison Report |
-| — | Opset Migration | `skills/add-gpu-op/opset-migration.md` | Update existing GPU op for new OpenVINO Opset version |
+This agent follows the **[`skills/add-gpu-op/SKILL.md`](skills/add-gpu-op/SKILL.md)** workflow.
+SKILL.md lists all step files with their purpose and execution order.
 
 **Orchestrator:** `skills/add-gpu-op/orchestrator.md`
 

@@ -38,15 +38,8 @@ having two conflicting OpenVINO installations in the same environment.
 
 ## Skills
 
-The agent executes a **sequential 4-step pipeline**. Each step has a dedicated
-skill file.
-
-| Step | Skill | File | Purpose |
-|------|-------|------|---------|
-| 1 | Op Analysis | `skills/add-cpu-op/step1-analysis.md` | Analyse core op spec, determine CPU implementation strategy, identify ISA targets |
-| 2 | Node Implementation | `skills/add-cpu-op/step2-implementation.md` | Create node class (header + source), register in factory, hook up shape inference |
-| 3 | ISA Optimization | `skills/add-cpu-op/step3-optimization.md` | Create JIT / oneDNN executor implementations, CpuParallel integration |
-| 4 | Testing | `skills/add-cpu-op/step4-testing.md` | Shared single-layer tests, custom CPU tests, dynamic shapes |
+This agent follows the **[`skills/add-cpu-op/SKILL.md`](skills/add-cpu-op/SKILL.md)** workflow.
+SKILL.md lists all step files with their purpose and execution order.
 
 ## Execution Model
 
