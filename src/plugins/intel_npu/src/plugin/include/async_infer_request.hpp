@@ -17,8 +17,8 @@ public:
     explicit AsyncInferRequest(const std::shared_ptr<InferRequest>& inferRequest,
                                const std::shared_ptr<ov::threading::ITaskExecutor>& requestExecutor,
                                const std::shared_ptr<ov::threading::ITaskExecutor>& callbackExecutor,
-                               const std::shared_ptr<ov::threading::ITaskExecutor>& requestExecutorForSyncRequests,
-                               std::function<void()> cleanupCallback = nullptr);
+                               const std::shared_ptr<ov::threading::ITaskExecutor>& waitSeqExecutor,
+                               std::function<void()> cleanupExecutors);
 
     AsyncInferRequest(const AsyncInferRequest&) = delete;
     AsyncInferRequest& operator=(const AsyncInferRequest&) = delete;
@@ -27,8 +27,8 @@ public:
 
 private:
     std::shared_ptr<InferRequest> _inferRequest;
-    std::shared_ptr<ov::threading::ITaskExecutor> _requestExecutorForSyncRequests;
-    std::function<void()> _cleanupCallback;
+    std::shared_ptr<ov::threading::ITaskExecutor> _waitSeqExecutor;
+    std::function<void()> _cleanupExecutors;
 };
 
 }  // namespace intel_npu

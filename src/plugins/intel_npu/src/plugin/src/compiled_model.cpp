@@ -22,22 +22,28 @@
 
 namespace {
 
+enum class ExecutorKind { CALLBACK, REQUEST };
+
+struct ExecutorCreationOptions {
+    ExecutorKind kind = ExecutorKind::REQUEST;
+    bool enableExclusiveAsyncRequests = false;
+    bool enableCpuPinning = false;
+};
+
 std::shared_ptr<ov::threading::ITaskExecutor> create_stream_executors(const std::string& executorName,
-                                                                      bool isCallbackExecutor,
-                                                                      bool enableExclusiveAsyncRequests = false,
-                                                                      bool enableCpuPinning = false) {
+                                                                      const ExecutorCreationOptions& options = {}) {
     // Callback executor always uses simple config
-    if (isCallbackExecutor) {
+    if (options.kind == ExecutorKind::CALLBACK) {
         return std::make_shared<ov::threading::CPUStreamsExecutor>(
             ov::threading::IStreamsExecutor::Config{executorName});
     }
 
     // Task executor - check for special configurations
-    if (enableExclusiveAsyncRequests) {
-        return ov::threading::executor_manager()->get_executor(executorName);
+    if (options.enableExclusiveAsyncRequests) {
+        return ov::threading::executor_manager()->get_executor("NPU Plugin Exclusive Async Requests Executor");
     }
 
-    if (enableCpuPinning) {
+    if (options.enableCpuPinning) {
         auto executor_config = ov::threading::IStreamsExecutor::Config{
             /* name = */ executorName,
             /* streams = */ 1,
@@ -63,7 +69,11 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const std::shared_ptr<IGraph>& graph,
                              const FilteredConfig& config,
                              const std::optional<int64_t>& batchSize)
-    : ICompiledModel(model, plugin, nullptr, create_stream_executors("Intel NPU plugin callback executor", true)),
+    : ICompiledModel(model,
+                     plugin,
+                     nullptr,
+                     create_stream_executors("Intel NPU plugin callback executor",
+                                             ExecutorCreationOptions{ExecutorKind::CALLBACK, false, false})),
       _logger("CompiledModel", config.get<LOG_LEVEL>()),
       _device(device),
       _graph(graph),
@@ -86,10 +96,18 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                         "all inference requests for this Compiled Model to run sequentially.");
 
         set_task_executor(create_stream_executors(
-            "Intel NPU plugin start inference executor",
-            false,
-            get_plugin()->get_property(ov::internal::exclusive_async_requests.name(), {}).as<bool>(),
-            _propertiesManager->getConfig().get<ENABLE_CPU_PINNING>()));
+            "Intel NPU plugin start inferences sequential executor",
+            ExecutorCreationOptions{
+                ExecutorKind::REQUEST,
+                get_plugin()->get_property(ov::internal::exclusive_async_requests.name(), {}).as<bool>(),
+                _propertiesManager->getConfig().get<ENABLE_CPU_PINNING>()}));
+
+        _wait_seq_executor = create_stream_executors(
+            "Intel NPU plugin wait inferences sequential executor",
+            ExecutorCreationOptions{
+                ExecutorKind::REQUEST,
+                get_plugin()->get_property(ov::internal::exclusive_async_requests.name(), {}).as<bool>(),
+                _propertiesManager->getConfig().get<ENABLE_CPU_PINNING>()});
     }
 
     OV_ITT_TASK_SKIP(COMPILED_MODEL);
@@ -98,9 +116,17 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
 CompiledModel::~CompiledModel() {
     _logger.debug("~CompiledModel()");
 
-    auto streams_executor = std::dynamic_pointer_cast<ov::threading::IStreamsExecutor>(get_task_executor());
-    if (streams_executor) {
-        streams_executor->cpu_reset();
+    if (!get_plugin()->get_property(ov::internal::exclusive_async_requests.name(), {}).as<bool>() &&
+        _propertiesManager->getConfig().get<ENABLE_CPU_PINNING>()) {
+        auto stream_executor = std::dynamic_pointer_cast<ov::threading::IStreamsExecutor>(get_task_executor());
+        if (stream_executor) {
+            stream_executor->cpu_reset();
+        }
+
+        stream_executor = std::dynamic_pointer_cast<ov::threading::IStreamsExecutor>(_wait_seq_executor);
+        if (stream_executor) {
+            stream_executor->cpu_reset();
+        }
     }
 }
 
@@ -122,23 +148,30 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
 
     const auto& syncInferRequest = _device->createInferRequest(shared_from_this(), _propertiesManager->getConfig());
 
-    const bool exclusiveAsyncRequests =
-        get_plugin()->get_property(ov::internal::exclusive_async_requests.name(), {}).as<bool>();
-    auto requestExecutor = create_stream_executors("Intel NPU plugin executor",
-                                                   false,
-                                                   exclusiveAsyncRequests,
-                                                   _propertiesManager->getConfig().get<ENABLE_CPU_PINNING>());
+    if (_propertiesManager->getConfig().get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        return std::make_shared<AsyncInferRequest>(syncInferRequest,
+                                                   get_task_executor(),
+                                                   get_callback_executor(),
+                                                   _wait_seq_executor,
+                                                   nullptr);
+    }
+
+    const auto executorCreationOptions = ExecutorCreationOptions{
+        ExecutorKind::REQUEST,
+        get_plugin()->get_property(ov::internal::exclusive_async_requests.name(), {}).as<bool>(),
+        _propertiesManager->getConfig().get<ENABLE_CPU_PINNING>()};
+    auto requestExecutor = create_stream_executors("Intel NPU plugin executor", executorCreationOptions);
 
     return std::make_shared<AsyncInferRequest>(
         syncInferRequest,
         requestExecutor,
         get_callback_executor(),
-        _propertiesManager->getConfig().get<RUN_INFERENCES_SEQUENTIALLY>() ? get_task_executor() : nullptr,
-        [requestExecutor, exclusiveAsyncRequests]() {
-            if (!exclusiveAsyncRequests) {
-                auto streams_executor = std::dynamic_pointer_cast<ov::threading::IStreamsExecutor>(requestExecutor);
-                if (streams_executor) {
-                    streams_executor->cpu_reset();
+        nullptr,
+        [requestExecutor, executorCreationOptions]() {
+            if (!executorCreationOptions.enableExclusiveAsyncRequests && executorCreationOptions.enableCpuPinning) {
+                auto stream_executor = std::dynamic_pointer_cast<ov::threading::IStreamsExecutor>(requestExecutor);
+                if (stream_executor) {
+                    stream_executor->cpu_reset();
                 }
             }
         });

@@ -8,22 +8,21 @@
 
 namespace intel_npu {
 
-AsyncInferRequest::AsyncInferRequest(
-    const std::shared_ptr<InferRequest>& inferRequest,
-    const std::shared_ptr<ov::threading::ITaskExecutor>& requestExecutor,
-    const std::shared_ptr<ov::threading::ITaskExecutor>& callbackExecutor,
-    const std::shared_ptr<ov::threading::ITaskExecutor>& requestExecutorForSyncRequests,
-    std::function<void()> cleanupCallback)
+AsyncInferRequest::AsyncInferRequest(const std::shared_ptr<InferRequest>& inferRequest,
+                                     const std::shared_ptr<ov::threading::ITaskExecutor>& requestExecutor,
+                                     const std::shared_ptr<ov::threading::ITaskExecutor>& callbackExecutor,
+                                     const std::shared_ptr<ov::threading::ITaskExecutor>& waitSeqExecutor,
+                                     std::function<void()> cleanupExecutors)
     : ov::IAsyncInferRequest(inferRequest, requestExecutor, callbackExecutor),
       _inferRequest(inferRequest),
-      _requestExecutorForSyncRequests(requestExecutorForSyncRequests),
-      _cleanupCallback(cleanupCallback) {
-    if (_requestExecutorForSyncRequests != nullptr) {
-        m_pipeline = {{_requestExecutorForSyncRequests,
+      _waitSeqExecutor(waitSeqExecutor),
+      _cleanupExecutors(cleanupExecutors) {
+    if (_waitSeqExecutor) {
+        m_pipeline = {{requestExecutor,
                        [this] {
                            _inferRequest->infer_async();
                        }},
-                      {requestExecutor, [this] {
+                      {_waitSeqExecutor, [this] {
                            _inferRequest->get_result();
                        }}};
     }
@@ -32,8 +31,8 @@ AsyncInferRequest::AsyncInferRequest(
 AsyncInferRequest::~AsyncInferRequest() {
     stop_and_wait();
 
-    if (_cleanupCallback) {
-        _cleanupCallback();
+    if (_cleanupExecutors) {
+        _cleanupExecutors();
     }
 }
 

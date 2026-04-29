@@ -69,6 +69,8 @@ private:
     std::shared_ptr<IGraph> _graph;
 
     std::optional<int64_t> _batchSize;
+
+    std::shared_ptr<ov::threading::ITaskExecutor> _wait_seq_executor = nullptr;
 };
 
 }  //  namespace intel_npu
