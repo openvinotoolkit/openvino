@@ -359,6 +359,9 @@ void Metadata<METADATA_VERSION_2_1>::read_as_text() {
         return;
     }
     const std::string& s = it->second;
+    if (s.size() < 2 || s.front() != '[' || s.back() != ']') {
+        OPENVINO_THROW("Human-readable metadata: 'ws_inits' value is not bracket-enclosed: ", s);
+    }
     std::vector<uint64_t> inits;
 
     // skip '['
@@ -525,10 +528,12 @@ void Metadata<METADATA_VERSION_2_3>::write_as_text(std::ostream& stream) {
 void Metadata<METADATA_VERSION_2_4>::write_as_text(std::ostream& stream) {
     Metadata<METADATA_VERSION_2_3>::write_as_text(stream);
 
-    const uint32_t ver = _compilerVersion.value_or(0);
-    write_text_field(stream,
-                     "compiler",
-                     std::to_string(ONEAPI_VERSION_MAJOR(ver)) + "." + std::to_string(ONEAPI_VERSION_MINOR(ver)));
+    if (_compilerVersion.has_value()) {
+        write_text_field(stream,
+                         "compiler",
+                         std::to_string(ONEAPI_VERSION_MAJOR(_compilerVersion.value())) + "." +
+                             std::to_string(ONEAPI_VERSION_MINOR(_compilerVersion.value())));
+    }
 }
 
 void Metadata<METADATA_VERSION_2_5>::write_as_text(std::ostream& stream) {
@@ -673,7 +678,7 @@ std::unique_ptr<MetadataBase> read_as_text(const ov::Tensor& tensor) {
         pos++;
     }
     if (pos >= size) {
-        OPENVINO_THROW("Invalid human-readable metadata: missing 'meta' field");
+        OPENVINO_THROW("NPU metadata compatibility string is malformed: no key=value pairs found");
     }
     // skip '='
     pos++;
