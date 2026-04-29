@@ -1,20 +1,24 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 # What: Generates 3 malicious TF SavedModel directories that trigger the OOB read in
-#       VariablesIndex::map_assignvariable() (variables_index.cpp lines 408/412 and 436/440).
+#       VariablesIndex::map_assignvariable() (variables_index.cpp).
 #       No TF runtime needed — all protobuf and SSTable structures are built by hand.
 #
 # How:  Each SavedModel has:
 #         saved_model.pb              — GraphDef with VarHandleOp, Const(tensor_names),
 #                                       RestoreV2, Identity, AssignVariableOp.
-#                                       Identity.input[0] is set to a malicious string so
-#                                       parse_node_name() extracts an OOB index.
 #         variables/variables.index   — Minimal SSTable (bundle header only, num_shards=1).
 #         variables/variables.data-*  — 64 zero bytes (needed to pass open-file checks).
 #
 #       Three variants:
-#         saved_model_oob_pos_index/  — Identity.input = "save/RestoreV2:999" (positive OOB)
-#         saved_model_oob_neg_index/  — Identity.input = "save/RestoreV2:-1"  (negative OOB)
-#         saved_model_oob_no_colon/   — Identity.input = "save/RestoreV2"     (no colon,
-#                                       triggers restore_output.size()<2 check)
+#         saved_model_oob_pos_index/    — Identity.input = "save/RestoreV2:999",
+#                                         tensor_names has 1 entry → positive OOB index
+#         saved_model_oob_neg_index/    — Identity.input = "save/RestoreV2:-1",
+#                                         tensor_names has 1 entry → negative OOB index
+#         saved_model_oob_empty_names/  — Identity.input = "save/RestoreV2:0",
+#                                         tensor_names has 0 entries → OOB via implicit-0
+#                                         path when string_val_size()==0
 #
 # Why:  SSTable builder is copied verbatim from generate_saved_model_malicious_overflow.py.
 #       Generator is run by the CMake build system.
@@ -168,16 +172,17 @@ def build_node_def(name, op, inputs=None, attrs=None):
     return msg
 
 
-def build_saved_model_pb(identity_input):
+def build_saved_model_pb(identity_input, num_string_vals=1):
     """
     Build saved_model.pb with:
       VarHandleOp("my_var")
-      Const("tensor_names")  — 1 string_val entry ("Variable")
-      RestoreV2("save/RestoreV2")  — inputs: [prefix, tensor_names, shape_and_slices]
-      Identity("save/identity")  — input[0] = identity_input  (attacker-controlled)
-      AssignVariableOp("save/Assign")  — input[0]=my_var, input[1]=save/identity
+      Const("tensor_names")  — num_string_vals string_val entries
+      RestoreV2("save/RestoreV2")
+      Identity("save/identity")  — input[0] = identity_input
+      AssignVariableOp("save/Assign")
 
-    parse_node_name(identity_input) extracts the RestoreV2 output index.
+    identity_input controls the RestoreV2 output index extracted by parse_node_name().
+    num_string_vals controls how many entries tensor_names has (0 = empty → OOB at index 0).
     """
     DT_FLOAT = 1
     DT_STRING = 7
@@ -194,32 +199,32 @@ def build_saved_model_pb(identity_input):
                "container": encode_string_field(2, ""),
                "shared_name": encode_string_field(2, "my_var")})
 
-    # Const("tensor_names") — TensorProto with exactly 1 string_val
-    # TensorProto: field 1=dtype, field 4=tensor_shape (empty dims = scalar... but
-    # for string_val we use a 1-D shape), field 8=string_val (repeated bytes)
-    tensor_shape = encode_bytes_field(2, encode_signed_varint_field(1, 1))  # dim[0].size=1
-    tensor_proto = (encode_varint_field(1, DT_STRING) +      # dtype = DT_STRING
-                    encode_bytes_field(4, tensor_shape) +     # tensor_shape
-                    encode_bytes_field(8, b"Variable"))       # string_val[0] = "Variable"
-    tensor_attr = encode_bytes_field(8, tensor_proto)         # AttrValue.tensor
-    dtype_str_attr = encode_varint_field(6, DT_STRING)        # AttrValue.type = DT_STRING
+    # Const("tensor_names") — TensorProto with num_string_vals string_val entries
+    actual_size = max(num_string_vals, 0)
+    tensor_shape = encode_bytes_field(2, encode_signed_varint_field(1, actual_size))
+    tensor_proto = encode_varint_field(1, DT_STRING) + encode_bytes_field(4, tensor_shape)
+    for _ in range(actual_size):
+        tensor_proto += encode_bytes_field(8, b"Variable")
+    tensor_attr = encode_bytes_field(8, tensor_proto)
+    dtype_str_attr = encode_varint_field(6, DT_STRING)
 
     const_node = build_node_def(
         "tensor_names", "Const",
         attrs={"value": tensor_attr, "dtype": dtype_str_attr})
 
-    # Const("shape_and_slices") — 1 string_val ""
-    empty_shape_tensor = (encode_varint_field(1, DT_STRING) +
-                          encode_bytes_field(4, tensor_shape) +
-                          encode_bytes_field(8, b""))
+    # Const("shape_and_slices")
+    shape_tensor_shape = encode_bytes_field(2, encode_signed_varint_field(1, actual_size))
+    empty_shape_tensor = encode_varint_field(1, DT_STRING) + encode_bytes_field(4, shape_tensor_shape)
+    for _ in range(actual_size):
+        empty_shape_tensor += encode_bytes_field(8, b"")
     empty_shape_attr = encode_bytes_field(8, empty_shape_tensor)
 
     shape_slices_node = build_node_def(
         "shape_and_slices", "Const",
         attrs={"value": empty_shape_attr, "dtype": dtype_str_attr})
 
-    # Const("prefix") — scalar string "checkpoint"
-    scalar_shape = encode_bytes_field(4, b"")  # empty TensorShapeProto = scalar
+    # Const("prefix")
+    scalar_shape = encode_bytes_field(4, b"")
     prefix_tensor = (encode_varint_field(1, DT_STRING) +
                      scalar_shape +
                      encode_bytes_field(8, b"checkpoint"))
@@ -229,28 +234,27 @@ def build_saved_model_pb(identity_input):
         "prefix", "Const",
         attrs={"value": prefix_attr, "dtype": dtype_str_attr})
 
-    # RestoreV2 — inputs: prefix, tensor_names, shape_and_slices
-    # output_types attr = [DT_FLOAT]
-    list_attr = encode_bytes_field(5, encode_varint_field(6, DT_FLOAT))  # AttrValue.list.type
+    # RestoreV2
+    list_attr = encode_bytes_field(5, encode_varint_field(6, DT_FLOAT))
     restorev2_node = build_node_def(
         "save/RestoreV2", "RestoreV2",
         inputs=["prefix", "tensor_names", "shape_and_slices"],
         attrs={"dtypes": list_attr})
 
-    # Identity — input[0] = identity_input (attacker-controlled, e.g. "save/RestoreV2:999")
+    # Identity
     t_attr = encode_varint_field(6, DT_FLOAT)
     identity_node = build_node_def(
         "save/identity", "Identity",
         inputs=[identity_input],
         attrs={"T": t_attr})
 
-    # AssignVariableOp — input[0]=my_var, input[1]=save/identity
+    # AssignVariableOp
     assign_node = build_node_def(
         "save/Assign", "AssignVariableOp",
         inputs=["my_var", "save/identity"],
         attrs={"dtype": dtype_attr})
 
-    # ReadVariableOp + Identity for model output (so the model has a signature)
+    # ReadVariableOp + Identity for model output
     read_node = build_node_def(
         "read_var", "ReadVariableOp",
         inputs=["my_var"],
@@ -283,10 +287,10 @@ def build_saved_model_pb(identity_input):
     return encode_signed_varint_field(1, 1) + encode_bytes_field(2, meta_graph_def)
 
 
-def write_savedmodel(output_dir, identity_input):
+def write_savedmodel(output_dir, identity_input, num_string_vals=1):
     os.makedirs(os.path.join(output_dir, "variables"), exist_ok=True)
     with open(os.path.join(output_dir, "saved_model.pb"), 'wb') as f:
-        f.write(build_saved_model_pb(identity_input))
+        f.write(build_saved_model_pb(identity_input, num_string_vals))
     with open(os.path.join(output_dir, "variables", "variables.index"), 'wb') as f:
         f.write(build_minimal_variables_index())
     with open(os.path.join(output_dir, "variables", "variables.data-00000-of-00001"), 'wb') as f:
@@ -304,13 +308,15 @@ def main():
     write_savedmodel(os.path.join(base, "saved_model_oob_pos_index"), "save/RestoreV2:999")
     print(f"Generated: {os.path.join(base, 'saved_model_oob_pos_index')}")
 
-    # Negative OOB: index -1
+    # Negative OOB: index -1 into a tensor with 1 string_val
     write_savedmodel(os.path.join(base, "saved_model_oob_neg_index"), "save/RestoreV2:-1")
     print(f"Generated: {os.path.join(base, 'saved_model_oob_neg_index')}")
 
-    # No colon: parse_node_name produces only 1 token → size<2 guard fires
-    write_savedmodel(os.path.join(base, "saved_model_oob_no_colon"), "save/RestoreV2")
-    print(f"Generated: {os.path.join(base, 'saved_model_oob_no_colon')}")
+    # Empty tensor_names: index 0 into a tensor with 0 string_val entries;
+    # exercises the upper-bound guard on the implicit-0 code path
+    write_savedmodel(os.path.join(base, "saved_model_oob_empty_names"), "save/RestoreV2:0",
+                     num_string_vals=0)
+    print(f"Generated: {os.path.join(base, 'saved_model_oob_empty_names')}")
 
 
 if __name__ == '__main__':

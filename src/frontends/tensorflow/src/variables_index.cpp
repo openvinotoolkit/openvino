@@ -405,7 +405,6 @@ void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::Grap
                     FRONT_END_THROW("Unexpected topology near AssignVariableOp");
                 }
 
-                FRONT_END_GENERAL_CHECK(restore_output.size() >= 2, "RestoreV2 input is missing output index");
                 int output_index = std::atoi(restore_output[restore_output.size() - 1].c_str());
 
                 // Expected path is: Const(tensor_names) -(0)-(1)-> RestoreV2
@@ -437,7 +436,6 @@ void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::Grap
                 // Expected path is: RestoreV2 -(output_index)-(1)-> Assign
                 PtrNode::parse_node_name(node.second->node->input(1), restore_output);
 
-                FRONT_END_GENERAL_CHECK(restore_output.size() >= 2, "RestoreV2 input is missing output index");
                 int output_index = std::atoi(restore_output[restore_output.size() - 1].c_str());
 
                 // Expected path is: Const(tensor_names) -(0)-(1)-> RestoreV2

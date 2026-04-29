@@ -254,16 +254,17 @@ TEST(FrontEndConvertModelTest, SavedModelOobNegativeIndex) {
     }
 }
 
-// Crafted SavedModel where AssignVariableOp input references "save/RestoreV2" (no colon)
-// → parse_node_name produces only 1 token → size<2 guard fires.
-TEST(FrontEndConvertModelTest, SavedModelOobMissingColon) {
+// Crafted SavedModel where AssignVariableOp input references "save/RestoreV2:0" but
+// Const(tensor_names) has zero string_val entries → upper-bound guard fires at index 0.
+// This exercises the security check on the implicit-0 code path.
+TEST(FrontEndConvertModelTest, SavedModelOobEmptyTensorNames) {
     shared_ptr<Model> model = nullptr;
     try {
-        model = convert_model("saved_model_oob_no_colon");
-        FAIL() << "Expected exception for RestoreV2 input without output index";
+        model = convert_model("saved_model_oob_empty_names");
+        FAIL() << "Expected exception for OOB index into empty tensor_names";
     } catch (const ov::Exception& e) {
         string msg = e.what();
-        EXPECT_TRUE(msg.find("out of range") != string::npos || msg.find("missing") != string::npos)
+        EXPECT_TRUE(msg.find("out of range") != string::npos)
             << "Unexpected error message: " << msg;
         EXPECT_EQ(model, nullptr);
     } catch (const std::exception& e) {
