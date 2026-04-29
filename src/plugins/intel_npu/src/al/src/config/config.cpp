@@ -245,7 +245,7 @@ void Config::parseEnvVars() {
                            envVar,
                            opt.envVar().data());
 
-                _impl[opt.key().data()] = opt.validateAndParse(envVar);
+                _impl[opt.key().data()] = opt.validateAndParseFromString(envVar);
             }
         }
     });
@@ -260,7 +260,16 @@ void Config::update(const ConfigMap& options) {
         _log.trace("Update option '%s' to value '%s'", p.first.c_str(), p.second.c_str());
 
         const auto opt = _desc->get(p.first);
-        _impl[opt.key().data()] = opt.validateAndParse(p.second);
+        _impl[opt.key().data()] = opt.validateAndParseFromString(p.second);
+    }
+}
+
+void Config::updateAny(const ov::AnyMap& options) {
+    for (const auto& p : options) {
+        _log.trace("Update option '%s' to given 'ov::Any' value", p.first.c_str());
+
+        const auto opt = _desc->get(p.first);
+        _impl[opt.key().data()] = opt.validateAndParseFromAny(p.second);
     }
 }
 
