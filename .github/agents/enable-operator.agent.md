@@ -142,22 +142,14 @@ Log all findings:
 
 Parse the `error_context` string from `agent-results/pipeline_state.json` (format: `error_class/detail`).
 
-Run inline component classification:
-```python
-# Inline component classification
-import json
-error_context = ERROR_CONTEXT if 'ERROR_CONTEXT' in dir() else ""
-classification_map = {
-    "missing_conversion_rule": "frontend",
-    "frontend_error": "frontend",
-    "ir_validation_error": "core_op",
-    "inference_runtime_error": "frontend",
-    "accuracy_regression": "transformation",
-}
-error_class = error_context.split("/")[0].strip() if error_context else "unknown"
-component = classification_map.get(error_class, "frontend")
-print(f"component={component}")
+Run the classification script (cross-platform, works on Linux/macOS/Windows):
+
 ```
+python .github/scripts/meat/classify_component.py
+```
+
+The script reads `agent-results/pipeline_state.json`, maps `error_class` to a component,
+detects co-located ops, and prints `component=<value>` to stdout.
 
 Classification map:
 | `error_class` | `component` |
@@ -362,34 +354,12 @@ It writes the result to `agent-results/enable-operator/verify_result.json`.
 
 After the skill completes, **also verify sub-agent test results**:
 
-```python
-import json, os, sys
-
-SUBAGENT_RESULTS = [
-    "agent-results/frontend/fe_result.json",
-    "agent-results/core-opspec/core_opspec_result.json",
-    "agent-results/transformation/transformation_result.json",
-    "agent-results/cpu/cpu_result.json",
-    "agent-results/gpu/gpu_result.json",
-]
-
-failures = []
-for path in SUBAGENT_RESULTS:
-    if not os.path.exists(path):
-        continue
-    d = json.load(open(path))
-    if d.get("status") == "failed":
-        failures.append(f"{path}: status=failed")
-    tr = d.get("test_results", "")
-    if tr and "FAILED" in str(tr).upper():
-        failures.append(f"{path}: test_results={tr!r}")
-
-if failures:
-    print("[OV-ORCH] [phase=e2e-gate] SUB-AGENT TEST FAILURES:")
-    for f in failures:
-        print(" ", f)
-    sys.exit(1)
 ```
+python .github/scripts/meat/check_subagent_results.py
+```
+
+The script scans all sub-agent result JSONs for `status=failed` or failing `test_results`.
+Exits with code 1 and prints details if any failure is found.
 
 **Gate outcomes:**
 
@@ -416,66 +386,30 @@ Log:
 > **Skip this phase** if the user explicitly requested no PR (e.g. "no PR", "skip PR", "no pull
 > request"). Write `ov_orchestrator.pr_url: null` to state and proceed directly to Phase 8.
 
-Collect all patch files produced by sub-agents:
+Collect all patch files and open the draft PR using the cross-platform helper scripts:
 
-```bash
-mkdir -p agent-results/enable-operator/patches/openvino
+```
+# Step 1 — gather patches from sub-agent result files
+python .github/scripts/meat/collect_patches.py
 
-for RESULT_FILE in agent-results/frontend/fe_result.json agent-results/core-opspec/core_opspec_result.json agent-results/transformation/transformation_result.json agent-results/cpu/cpu_result.json agent-results/gpu/gpu_result.json agent-results/npu/npu_result.json; do
-  [ -f "$RESULT_FILE" ] || continue
-  python3 -c "
-import json, sys, shutil, os
-data = json.load(open('$RESULT_FILE'))
-paths = data.get('patch_paths', [])
-if not paths and data.get('patch_path'): paths = [data['patch_path']]
-for p in paths:
-  if p and os.path.isfile(p):
-    shutil.copy(p, 'agent-results/enable-operator/patches/openvino/')
-  elif p:
-    print(f'[WARN] Patch not found: {p} — skipping', file=sys.stderr)
-"
-done
+# Step 2 — create branch, apply patches, push, open draft PR
+python .github/scripts/meat/create_agent_pr.py
 
-PATCH_COUNT=$(ls agent-results/enable-operator/patches/openvino/*.patch 2>/dev/null | wc -l)
-if [ "$PATCH_COUNT" -eq 0 ]; then
-  echo "[WARN] No patches collected — nothing to publish"
-else
-  cat agent-results/enable-operator/patches/openvino/*.patch > agent-results/enable-operator/patches/openvino_combined.patch
-  echo "[OV-ORCH] Combined $PATCH_COUNT patches into openvino_combined.patch"
-fi
+# Dry-run mode (no git/gh side-effects — for inspection only):
+python .github/scripts/meat/create_agent_pr.py --dry-run
 ```
 
-Create a draft PR from the current working copy:
+`collect_patches.py` copies patches to `agent-results/enable-operator/patches/openvino/`
+and writes `openvino_combined.patch`.
 
-```bash
-OP_NAMES=$(python3 -c "
-import json
-d = json.load(open('agent-results/pipeline_state.json'))
-ops = d.get('ov_orchestrator', {}).get('co_located_ops', [])
-if not ops:
-    ctx = d.get('ov_orchestrator', {}).get('error_context', 'unknown')
-    ops = [ctx.split('/')[-1]]
-print('-'.join(o.lower().replace('::', '-').replace('_', '-') for o in ops))
-")
-BRANCH="fix/add-${OP_NAMES}-op"
-
-git checkout -b "$BRANCH"
-git am agent-results/enable-operator/patches/openvino/*.patch
-git push origin "$BRANCH"
-
-OP_TITLE=$(python3 -c "
-import json
-d = json.load(open('agent-results/pipeline_state.json'))
-ops = d.get('ov_orchestrator', {}).get('co_located_ops', [])
-print(', '.join(ops) if ops else d.get('ov_orchestrator', {}).get('error_context', 'unknown'))
-")
-gh pr create \
-  --repo openvinotoolkit/openvino \
-  --head "$(gh api user -q .login):$BRANCH" \
-  --title "Add operator support: $OP_TITLE" \
-  --body-file agent-results/enable-operator/agent_report.md \
-  --draft
-```
+`create_agent_pr.py`:
+- Derives branch name and PR title from `agent-results/pipeline_state.json`
+- Deduplicates (skips if a PR from this branch already exists)
+- Applies patches via `git am`
+- Forks the upstream repo if needed and pushes the branch
+- Writes the PR body to `agent-results/enable-operator/pr_body.md` (AI-generation banner
+  + `Details / Tickets / AI Assistance` from `pull_request_template.md`)
+- Opens the draft PR via `gh pr create`
 
 Log PR URL:
 ```
@@ -549,9 +483,22 @@ When the failing op name looks like a composed/fused operation (contains words l
 1. A **fusion transformation** is more appropriate than a single new op
 2. Multiple simpler ops already exist that cover the semantics
 
-Classify error component inline (see Phase 1) and search existing transformations:
+Classify error component inline (see Phase 1) and search existing transformations.
+On Linux/macOS:
 ```bash
 grep -r "class.*Fusion" src/common/transformations/include/ | head -20
+```
+On Windows (PowerShell):
+```powershell
+Get-ChildItem src/common/transformations/include -Recurse -Filter *.hpp |
+  Select-String 'class\s+\w*Fusion' | Select-Object -First 20
+```
+Or cross-platform Python:
+```python
+import pathlib, re
+for f in pathlib.Path('src/common/transformations/include').rglob('*.hpp'):
+    for m in re.finditer(r'class\s+\w*Fusion\w*', f.read_text(errors='ignore')):
+        print(f"{f}: {m.group()}")
 ```
 
 If fusion is applicable, route to Transformation Agent first (skip Core OpSpec):
