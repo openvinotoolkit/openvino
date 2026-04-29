@@ -202,7 +202,45 @@ $env:COPILOT_GITHUB_TOKEN = 'ghp_<your-token>'
 
 ---
 
+## Using skills from VS Code Chat
+
+Individual skills are also available as **slash commands** directly in the
+VS Code Copilot Chat panel — no terminal or CLI required.
+
+Each skill maps to a `.prompt.md` file in [`.github/prompts/`](../prompts/).
+VS Code discovers these automatically and exposes them as `/skill-name`.
+
+| Command | What it does |
+|---|---|
+| `/add-core-op` | Add a new op to the OpenVINO Core opset |
+| `/add-fe-op` | Translate a framework op in a Frontend (ONNX/PyTorch/TF) |
+| `/add-fusion-transformation` | Write a `MatcherPass`/`FunctionPass` fusion pass |
+| `/add-cpu-op` | Implement a CPU plugin kernel (AVX2/AVX-512/AMX/oneDNN) |
+| `/add-gpu-op` | Implement a GPU plugin OpenCL kernel |
+| `/analyze-and-convert` | Probe a model and classify conversion failures |
+| `/conversion-issues` | Diagnose and fix conversion errors |
+| `/verify-conversion` | E2E gate — convert + run inference + sanity check |
+| `/python-bootstrap` | Set up the Python environment (release or source build) |
+| `/submit-draft-pr` | Create a draft PR with duplicate-PR guard |
+
+**How to use:**
+
+1. Open VS Code Copilot Chat (`Ctrl+Alt+I`).
+2. Switch to **Agent** mode (dropdown next to the model selector).
+3. Type `/` and select the skill from the autocomplete list.
+4. Add your context after the command, e.g.:
+
+```
+/add-fe-op  Model: Qwen/Qwen3-0.6B  Operator: aten::erfinv
+```
+
+The skill instructions are loaded automatically — the agent follows the
+step-by-step workflow defined in the corresponding skill file.
+
+---
+
 ## See also
 
 - Agent definitions: [`.github/agents/`](../agents/)
+- Skill prompts: [`.github/prompts/`](../prompts/)
 - Copilot CLI reference: https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference
