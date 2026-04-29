@@ -29,9 +29,14 @@ if(FLATBUFFERS_BUILD_FLATC)
 else()
     set(HOST_FLATC_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/install")
 
+    if(ENABLE_THREAD_SANITIZER)
+        set(flatc_extra_flags "-fno-sanitize=thread")
+    endif()
+
     ov_native_compile_external_project(
         TARGET_NAME host_flatc
         NATIVE_INSTALL_DIR "${HOST_FLATC_INSTALL_DIR}"
+        EXTRA_COMPILE_FLAGS "${flatc_extra_flags}"
         CMAKE_ARGS "-DFLATBUFFERS_BUILD_TESTS=${FLATBUFFERS_BUILD_TESTS}"
                    "-DFLATBUFFERS_BUILD_FLATLIB=OFF"
                    "-DFLATBUFFERS_BUILD_FLATC=ON"
