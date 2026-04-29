@@ -19,7 +19,7 @@ on:
       - 'releases/**'
 concurrency:
   # github.ref is not unique in post-commit
-  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-windows
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-windows-vs2026
   cancel-in-progress: true
 
 env:
