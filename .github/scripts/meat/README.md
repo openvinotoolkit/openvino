@@ -5,6 +5,20 @@ local machine using the [GitHub Copilot CLI](https://docs.github.com/en/copilot/
 
 ---
 
+> [!WARNING]
+> **Autonomous / unattended mode**
+>
+> These scripts invoke GitHub Copilot with `--no-ask-user` and `--autopilot`.
+> The agent will **read, create, and modify files** in this repository
+> **without asking for confirmation**.
+>
+> - Always run on a **clean branch** with no uncommitted work.
+> - Review `agent-results/` after the run.
+> - Apply generated patches with `git apply` and inspect them before committing.
+> - **Do NOT blindly commit agent-generated changes.**
+
+---
+
 ## Quick Start — Local
 
 ### 1. Install prerequisites

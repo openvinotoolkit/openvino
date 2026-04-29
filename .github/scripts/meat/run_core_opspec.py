@@ -38,6 +38,23 @@ import sys
 AGENT_FILE = ".github/agents/core-opspec.agent.md"
 
 
+def _warn_yolo_mode() -> None:
+    print(
+        "\n"
+        "  ╔══════════════════════════════════════════════════════════════════╗\n"
+        "  ║  WARNING: AUTONOMOUS / UNATTENDED MODE                         ║\n"
+        "  ║                                                                ║\n"
+        "  ║  This script runs GitHub Copilot with --no-ask-user and        ║\n"
+        "  ║  --autopilot.  The agent will READ, CREATE, and MODIFY files   ║\n"
+        "  ║  in this repository WITHOUT asking for confirmation.           ║\n"
+        "  ║                                                                ║\n"
+        "  ║  Review agent-results/ after the run and apply patches with   ║\n"
+        "  ║  'git apply' — do NOT blindly commit generated changes.        ║\n"
+        "  ╚══════════════════════════════════════════════════════════════════╝\n",
+        flush=True,
+    )
+
+
 def main() -> None:
     if len(sys.argv) != 2:
         print(f"Usage: {sys.argv[0]} <context-file>", file=sys.stderr)
@@ -62,6 +79,8 @@ def main() -> None:
 
     with open(context_file_path) as f:
         prompt = f.read()
+
+    _warn_yolo_mode()
 
     cmd = [
         "copilot",
