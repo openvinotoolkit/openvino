@@ -19,7 +19,7 @@ all fixes applied by the OV Orchestrator's sub-agents.
 1. Collect all branches/patches from preceding fix agents.
 2. Build OpenVINO from the combined source (or assemble wheel overrides).
 3. Run a smoke test to verify the built package works for the target model.
-4. Upload the package as an artifact.
+4. Publish single PR for all changes prepared by the OV Orchestrator pipeline, with a summary of changes and test results. Use the `submit-draft-pr` skill to create the PR.
 5. Return: package spec (branches, install instructions) to OV Orchestrator.
 
 ## Constraints
@@ -29,19 +29,7 @@ all fixes applied by the OV Orchestrator's sub-agents.
 
 ## Creating Pull Requests
 
-When your work is complete and all tests pass:
-
-1. Create a new branch with a descriptive name: `agent/<short-description>`
-2. Commit all changes with a clear, conventional commit message
-3. Push the branch to the fork
-4. Create a **Draft PR** to the upstream repository using `gh pr create`:
-   ```
-   gh pr create --draft \
-     --title "[Agent] <descriptive title>" \
-     --body "<description of changes, link to related PRs if any>" \
-     --repo <upstream-org>/<repo-name>
-   ```
-5. Add the label `agent-generated` if the label exists
-6. Output the PR URL for tracking
-
-Refer to the [submit-draft-pr](skills/submit-draft-pr.md) skill for detailed instructions.
+When your work is complete and all tests pass, follow the
+[`submit-draft-pr`](skills/submit-draft-pr.md) skill — it handles branch
+naming, existing-PR deduplication, fork creation, and `gh pr create`.
+Skip silently if `gh` is unavailable, not authenticated, or the command fails.
