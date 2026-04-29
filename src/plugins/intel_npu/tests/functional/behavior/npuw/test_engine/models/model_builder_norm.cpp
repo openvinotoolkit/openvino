@@ -42,7 +42,8 @@ ov::Output<ov::Node> RMSNorm::operator()(const ov::Output<ov::Node>& input, cons
         ov::opset11::Constant::create(precision, ov::Shape{hidden_size}, std::vector<float>(hidden_size, w_val));
     weight->set_friendly_name(name + ".weight");
 
-    auto squared = std::make_shared<ov::opset11::Multiply>(input, input);
+    auto two = ov::opset11::Constant::create(precision, ov::Shape{}, {2.0f});
+    auto squared = std::make_shared<ov::opset11::Power>(input, two);
 
     auto axes = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
 
@@ -60,6 +61,23 @@ ov::Output<ov::Node> RMSNorm::operator()(const ov::Output<ov::Node>& input, cons
     scaled->set_friendly_name(name);
 
     return scaled->output(0);
+}
+
+ov::Output<ov::Node> L2Norm::operator()(const ov::Output<ov::Node>& input, const std::string& name) const {
+    auto two = ov::opset11::Constant::create(precision, ov::Shape{}, {2.0f});
+    auto squared = std::make_shared<ov::opset11::Power>(input, two);
+
+    auto axes = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
+    auto sum = std::make_shared<ov::opset11::ReduceSum>(squared, axes, true);
+
+    auto eps_const = ov::opset11::Constant::create(precision, ov::Shape{}, {eps});
+    auto sum_eps = std::make_shared<ov::opset11::Add>(sum, eps_const);
+
+    auto norm = std::make_shared<ov::opset11::Sqrt>(sum_eps);
+
+    auto out = std::make_shared<ov::opset11::Divide>(input, norm);
+    out->set_friendly_name(name);
+    return out->output(0);
 }
 
 }  // namespace npuw

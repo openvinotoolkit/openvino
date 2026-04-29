@@ -165,6 +165,11 @@ struct LLMConfig : public BaseModelConfig {
     size_t num_experts = 0;           ///< Total experts. 0 = dense model.
     size_t num_experts_per_tok = 0;   ///< Top-K. 0 = default to 2.
     size_t moe_intermediate_size = 0; ///< Expert FFN intermediate size. 0 = use intermediate_size.
+
+    /// Hybrid scheduling. Empty predicate = pure attention. Layers where it returns true use
+    /// `linear_attn`, the rest use full SDPA. Hybrid models require use_kv_cache = true.
+    std::function<bool(size_t /*layer_idx*/)> is_linear_layer;
+    LinearAttention linear_attn;
 };
 
 struct WhisperConfig : public BaseModelConfig {

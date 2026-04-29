@@ -4,11 +4,15 @@
 
 #pragma once
 
+#include <functional>
+#include <memory>
 #include <string>
+#include <vector>
 
 #include "model_builder_types.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/util/variable.hpp"
 
 namespace ov {
 namespace test {
@@ -65,8 +69,10 @@ ov::Output<ov::Node> make_sdpa(const ov::Output<ov::Node>& q,
                                const ov::Output<ov::Node>& attention_mask = ov::Output<ov::Node>(),
                                size_t head_dim_for_scale = 0);
 
+/// `attn_dim = num_heads * head_dim`. May differ from `hidden_size` for rectangular projections.
 ov::Output<ov::Node> make_attention_output(const ov::Output<ov::Node>& sdpa_output,
                                            size_t hidden_size,
+                                           size_t attn_dim,
                                            const std::string& name,
                                            ov::element::Type precision,
                                            const WeightFn& weight_fn,
@@ -100,6 +106,94 @@ struct Attention {
                                     const std::string& prefix,
                                     size_t layer_idx = 0) const;
 };
+
+/// Fixed-size state variable (recurrent/conv states — no sequence growth, optional beam reorder).
+struct FixedStateResult {
+    std::shared_ptr<ov::op::util::Variable> variable;
+    ov::Output<ov::Node> read_value;
+};
+
+FixedStateResult make_fixed_state(const ov::Output<ov::Node>& batch_source,
+                                  const std::vector<int64_t>& state_dims,
+                                  const std::string& name,
+                                  ov::element::Type precision = ov::element::f32,
+                                  const ov::Output<ov::Node>& beam_idx = {});
+
+/// Causal depthwise convolution with sliding-window state.
+/// Input/output: [batch, seq, channels]. State: [batch, channels, kernel].
+struct CausalConvResult {
+    ov::Output<ov::Node> output;       ///< [batch, seq, channels] after SiLU
+    std::shared_ptr<ov::Node> assign;  ///< state update Assign
+};
+
+CausalConvResult make_causal_conv(const ov::Output<ov::Node>& input,
+                                  const ov::Output<ov::Node>& seq_source,
+                                  const ov::Output<ov::Node>& beam_idx,
+                                  size_t channels,
+                                  size_t kernel_size,
+                                  const std::string& state_name,
+                                  const std::string& prefix,
+                                  ov::element::Type prec);
+
+/// Recurrent SSM state via OV Loop. Body implements the GDN delta rule for FuseGDNLoop.
+struct RecurrentStateResult {
+    ov::Output<ov::Node> output;       ///< [batch, seq, num_heads, value_head_dim]
+    std::shared_ptr<ov::Node> assign;  ///< state update Assign
+};
+
+RecurrentStateResult make_recurrent_state(const ov::Output<ov::Node>& query,
+                                          const ov::Output<ov::Node>& key,
+                                          const ov::Output<ov::Node>& value,
+                                          const ov::Output<ov::Node>& gate_input,
+                                          const ov::Output<ov::Node>& beta_input,
+                                          const ov::Output<ov::Node>& seq_source,
+                                          const ov::Output<ov::Node>& beam_idx,
+                                          size_t num_heads,
+                                          size_t key_head_dim,
+                                          size_t value_head_dim,
+                                          const std::string& state_name,
+                                          const std::string& prefix,
+                                          ov::element::Type prec);
+
+/// GatedDeltaNet-style linear attention: causal conv + L2-normed Q/K + recurrent SSM + output gating.
+struct LinearAttention {
+    size_t hidden_size = 0;
+    size_t num_heads = 0;
+    size_t key_head_dim = 0;
+    size_t value_head_dim = 0;
+    size_t conv_kernel = 4;
+
+    ov::element::Type precision = ov::element::f32;
+    WeightFn weight_fn;
+    NormFn out_norm;  ///< post-flatten norm (typically RMSNorm over value_dim())
+
+    // Wired by the builder once for all layers.
+    ov::Output<ov::Node> seq_source;
+    ov::Output<ov::Node> beam_idx;
+
+    size_t key_dim() const {
+        return num_heads * key_head_dim;
+    }
+    size_t value_dim() const {
+        return num_heads * value_head_dim;
+    }
+    size_t conv_dim() const {
+        return 2 * key_dim() + value_dim();
+    }
+
+    struct Result {
+        ov::Output<ov::Node> output;
+        std::shared_ptr<ov::Node> conv_assign;
+        std::shared_ptr<ov::Node> recurrent_assign;
+    };
+
+    Result operator()(const ov::Output<ov::Node>& input,
+                      const std::string& prefix,
+                      size_t linear_layer_idx) const;
+};
+
+/// `mamba_ratio` linear-attention layers per 1 full-attention layer (0 → empty = pure attention).
+std::function<bool(size_t)> make_mamba_schedule(size_t mamba_ratio);
 
 }  // namespace npuw
 }  // namespace test
