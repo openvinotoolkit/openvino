@@ -262,8 +262,11 @@ ov::Output<ov::Node> make_sdpa(const ov::Output<ov::Node>& q,
                                const ov::Output<ov::Node>& attention_mask = ov::Output<ov::Node>(),
                                size_t head_dim_for_scale = 0);
 
+/// `attn_dim = num_heads * head_dim`.  May differ from `hidden_size` for rectangular projections
+/// (real Qwen3.5 hybrid layers, for example, project into a non-square attention space).
 ov::Output<ov::Node> make_attention_output(const ov::Output<ov::Node>& sdpa_output,
                                            size_t hidden_size,
+                                           size_t attn_dim,
                                            const std::string& name,
                                            ov::element::Type precision,
                                            const WeightFn& weight_fn,
@@ -428,6 +431,51 @@ struct BaseModelConfig {
     }
 };
 
+/// Linear-attention block (Qwen3.5 / LFM-2 / Granite-style SSM): causal depthwise conv on a
+/// fused QKV projection, L2-normed Q/K, recurrent SSM state via OV Loop, output gating.
+/// Functor — mirrors the `Attention` struct above.  All sizes use a single head count
+/// (Q/K/V heads must be equal) which is an SSM-recurrence constraint, not a free choice.
+struct LinearAttention {
+    size_t hidden_size = 0;
+    size_t num_heads = 0;
+    size_t key_head_dim = 0;
+    size_t value_head_dim = 0;
+    size_t conv_kernel = 4;
+
+    ov::element::Type precision = ov::element::f32;
+    WeightFn weight_fn;
+    NormFn out_norm;  ///< post-flatten norm (typically RMSNorm over value_dim())
+
+    /// Wired by the builder once for all layers — leave default-constructed when calling stand-alone.
+    ov::Output<ov::Node> seq_source;
+    ov::Output<ov::Node> beam_idx;
+
+    size_t key_dim() const {
+        return num_heads * key_head_dim;
+    }
+    size_t value_dim() const {
+        return num_heads * value_head_dim;
+    }
+    size_t conv_dim() const {
+        return 2 * key_dim() + value_dim();
+    }
+
+    struct Result {
+        ov::Output<ov::Node> output;
+        std::shared_ptr<ov::Node> conv_assign;
+        std::shared_ptr<ov::Node> recurrent_assign;
+    };
+
+    Result operator()(const ov::Output<ov::Node>& input,
+                      const std::string& prefix,
+                      size_t linear_layer_idx) const;
+};
+
+/// Standard hybrid pattern: `mamba_ratio` linear-attention layers per 1 full-attention layer.
+/// Example: mamba_ratio=3, 24 layers → layers 0–2 linear, 3 full, 4–6 linear, 7 full, …
+/// Returns an empty function when mamba_ratio==0 so the caller can assign unconditionally.
+std::function<bool(size_t)> make_mamba_schedule(size_t mamba_ratio);
+
 struct LLMConfig : public BaseModelConfig {
     bool use_kv_cache = true;
     bool use_inputs_embeds = false;
@@ -438,6 +486,12 @@ struct LLMConfig : public BaseModelConfig {
     size_t num_experts = 0;           ///< Total experts. 0 = dense model.
     size_t num_experts_per_tok = 0;   ///< Top-K. 0 = default to 2.
     size_t moe_intermediate_size = 0; ///< Expert FFN intermediate size. 0 = use intermediate_size.
+
+    /// Hybrid scheduling.  Empty predicate = pure attention.  When set, layers for which the
+    /// predicate returns true are built using `linear_attn`, the rest use full SDPA attention.
+    /// Hybrid models require `use_kv_cache = true` (SSM/conv states are inherently stateful).
+    std::function<bool(size_t /*layer_idx*/)> is_linear_layer;
+    LinearAttention linear_attn;
 };
 
 struct WhisperConfig : public BaseModelConfig {
@@ -463,6 +517,70 @@ struct BertConfig : public BaseModelConfig {
     size_t max_position_embeddings = 512;
     size_t type_vocab_size = 2;
 };
+
+
+
+/// Fixed-size state variable (recurrent/conv states — no sequence growth, optional beam reorder).
+struct FixedStateResult {
+    std::shared_ptr<ov::op::util::Variable> variable;
+    ov::Output<ov::Node> read_value;
+};
+
+FixedStateResult make_fixed_state(const ov::Output<ov::Node>& batch_source,
+                                  const std::vector<int64_t>& state_dims,
+                                  const std::string& name,
+                                  ov::element::Type precision = ov::element::f32,
+                                  const ov::Output<ov::Node>& beam_idx = {});
+
+/// L2 normalization on last dimension: x / sqrt(sum(x^2) + eps).
+struct L2Norm {
+    ov::element::Type precision;
+    float eps;
+
+    L2Norm(ov::element::Type prec = ov::element::f32, float e = 1e-6f) : precision(prec), eps(e) {}
+
+    ov::Output<ov::Node> operator()(const ov::Output<ov::Node>& input, const std::string& name) const;
+};
+
+/// Causal depthwise convolution with sliding-window state.
+/// Input/output: [batch, seq, channels].  State: [batch, channels, kernel].
+struct CausalConvResult {
+    ov::Output<ov::Node> output;       ///< [batch, seq, channels] after SiLU
+    std::shared_ptr<ov::Node> assign;  ///< state update Assign
+};
+
+CausalConvResult make_causal_conv(const ov::Output<ov::Node>& input,
+                                  const ov::Output<ov::Node>& seq_source,
+                                  const ov::Output<ov::Node>& beam_idx,
+                                  size_t channels,
+                                  size_t kernel_size,
+                                  const std::string& state_name,
+                                  const std::string& prefix,
+                                  ov::element::Type prec);
+
+/// GatedDeltaNet-compatible recurrent state via OV Loop op.
+/// The Loop body implements the GDN delta rule so that FuseGDNLoop can fuse it into
+/// `ov::op::internal::GatedDeltaNet` for optimised CPU/GPU execution.
+///   gate = state decay (exp applied per-timestep)
+///   beta = delta scaling
+struct RecurrentStateResult {
+    ov::Output<ov::Node> output;       ///< [batch, seq, num_heads, value_head_dim]
+    std::shared_ptr<ov::Node> assign;  ///< state update Assign
+};
+
+RecurrentStateResult make_recurrent_state(const ov::Output<ov::Node>& query,
+                                          const ov::Output<ov::Node>& key,
+                                          const ov::Output<ov::Node>& value,
+                                          const ov::Output<ov::Node>& gate_input,
+                                          const ov::Output<ov::Node>& beta_input,
+                                          const ov::Output<ov::Node>& seq_source,
+                                          const ov::Output<ov::Node>& beam_idx,
+                                          size_t num_heads,
+                                          size_t key_head_dim,
+                                          size_t value_head_dim,
+                                          const std::string& state_name,
+                                          const std::string& prefix,
+                                          ov::element::Type prec);
 
 class ModelBuilder {
 public:
@@ -501,7 +619,6 @@ public:
     std::shared_ptr<ov::Model> build_whisper_encoder(const WhisperConfig& config);
     std::shared_ptr<ov::Model> build_whisper_decoder(const WhisperConfig& config);
     std::shared_ptr<ov::Model> build_embedding_encoder(const BertConfig& config);
-
     void clear();
 
 private:

@@ -229,4 +229,16 @@ TEST_F(LLMCompiledModelGraphOptionsTest, GeneratePyramidBuildsTwoStaticGenerateV
                 ::testing::UnorderedElementsAre(ov::Shape({1, 1152}), ov::Shape({1, 2176})));
 }
 
+TEST(HybridModelBuilderTest, HybridLinearAttnModelBuilds) {
+    std::shared_ptr<ov::Model> model;
+    ASSERT_NO_THROW(model = ov::test::npuw::build_hybrid_llm_test_model());
+    ASSERT_NE(model, nullptr);
+
+    // Hybrid model must have sinks (conv + SSM + KV cache state assigns)
+    EXPECT_GT(model->get_sinks().size(), 0u);
+
+    // Validate the model is well-formed
+    EXPECT_TRUE(model->get_results().size() > 0u);
+}
+
 }  // namespace

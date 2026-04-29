@@ -66,6 +66,23 @@ inline std::shared_ptr<ov::Model> build_llm_test_model_with_kv_fake_convert(cons
     return model;
 }
 
+/// Hybrid LLM: alternating linear-attention / full-attention layers.
+/// 4 layers → layers 0,2 linear; layers 1,3 full attention.
+inline std::shared_ptr<ov::Model> build_hybrid_llm_test_model() {
+    auto cfg = make_test_model_config();
+    cfg.num_layers = 4;
+    cfg.is_linear_layer = make_mamba_schedule(1);
+    cfg.linear_attn.hidden_size = cfg.hidden_size;
+    cfg.linear_attn.num_heads = cfg.num_heads;
+    cfg.linear_attn.key_head_dim = cfg.head_dim;
+    cfg.linear_attn.value_head_dim = cfg.head_dim;
+    cfg.linear_attn.precision = cfg.precision;
+    cfg.linear_attn.weight_fn = cfg.weight;
+    cfg.linear_attn.out_norm = RMSNorm(cfg.linear_attn.value_dim(), cfg.precision);
+    ModelBuilder mb;
+    return mb.build_llm(cfg);
+}
+
 inline std::shared_ptr<ov::Model> build_whisper_decoder_test_model() {
     ModelBuilder mb;
     return mb.build_whisper_decoder(make_test_model_config<WhisperConfig>());

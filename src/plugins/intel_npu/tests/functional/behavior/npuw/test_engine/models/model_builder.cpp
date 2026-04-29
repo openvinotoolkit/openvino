@@ -5,11 +5,12 @@
 #include "model_builder.hpp"
 
 #include <algorithm>
-#include <limits>
+#include <cstdint>
 #include <unordered_map>
 
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/assign.hpp"
+#include "openvino/op/loop.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/read_value.hpp"
 #include "openvino/op/sink.hpp"
@@ -323,7 +324,9 @@ ov::Output<ov::Node> RMSNorm::operator()(const ov::Output<ov::Node>& input, cons
         ov::opset11::Constant::create(precision, ov::Shape{hidden_size}, std::vector<float>(hidden_size, w_val));
     weight->set_friendly_name(name + ".weight");
 
-    auto squared = std::make_shared<ov::opset11::Multiply>(input, input);
+    // Match torch-exported RMSNorm: Power(x, 2) → ReduceMean → Add(eps) → Sqrt → Divide → Multiply(weight).
+    auto two = ov::opset11::Constant::create(precision, ov::Shape{}, {2.0f});
+    auto squared = std::make_shared<ov::opset11::Power>(input, two);
 
     auto axes = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
 
@@ -750,6 +753,7 @@ ov::Output<ov::Node> make_sdpa(const ov::Output<ov::Node>& q,
 
 ov::Output<ov::Node> make_attention_output(const ov::Output<ov::Node>& sdpa_output,
                                            size_t hidden_size,
+                                           size_t attn_dim,
                                            const std::string& name,
                                            ov::element::Type precision,
                                            const WeightFn& weight_fn,
@@ -758,11 +762,11 @@ ov::Output<ov::Node> make_attention_output(const ov::Output<ov::Node>& sdpa_outp
 
     auto reshape_shape = ov::opset11::Constant::create(ov::element::i64,
                                                        ov::Shape{3},
-                                                       std::vector<int64_t>{0, -1, static_cast<int64_t>(hidden_size)});
+                                                       std::vector<int64_t>{0, -1, static_cast<int64_t>(attn_dim)});
     auto attn_reshaped = std::make_shared<ov::opset11::Reshape>(attn_trans, reshape_shape, true);
     attn_reshaped->set_friendly_name(name + "_reshape");
 
-    return make_linear(attn_reshaped->output(0), hidden_size, hidden_size, name, precision, weight_fn, bias_fn);
+    return make_linear(attn_reshaped->output(0), attn_dim, hidden_size, name, precision, weight_fn, bias_fn);
 }
 
 ov::Output<ov::Node> make_embedding(const ov::Output<ov::Node>& input_ids,
@@ -1067,6 +1071,12 @@ static std::string make_kv_var_id(const std::string& layer, const std::string& i
     return "past_key_values." + layer + infix + kv_type + "present." + layer + infix + kv_type;
 }
 
+/// Hybrid model state naming: cache_params.past.{type}.{N}cache_params.present.{type}.{N}
+/// Missing separator between past+present halves is intentional — matches OV's StatefulToStateless pass.
+static std::string make_cache_params_var_id(const std::string& type, const std::string& idx) {
+    return "cache_params.past." + type + "." + idx + "cache_params.present." + type + "." + idx;
+}
+
 ov::Output<ov::Node> Attention::operator()(const ov::Output<ov::Node>& q,
                                            const ov::Output<ov::Node>& k,
                                            const ov::Output<ov::Node>& v,
@@ -1111,7 +1121,13 @@ ov::Output<ov::Node> Attention::operator()(const ov::Output<ov::Node>& q,
     auto attn_output =
         make_sdpa(q_roped, k_expanded, v_expanded, prefix + attn_prefix + "attn", sdpa_mask, sdpa_scale_dim);
 
-    return make_attention_output(attn_output, hidden_size, prefix + o_proj_name, precision, weight_fn, bias_fn);
+    return make_attention_output(attn_output,
+                                 hidden_size,
+                                 num_heads * head_dim,
+                                 prefix + o_proj_name,
+                                 precision,
+                                 weight_fn,
+                                 bias_fn);
 }
 
 ov::Output<ov::Node> Attention::operator()(const ov::Output<ov::Node>& input,
@@ -1119,9 +1135,9 @@ ov::Output<ov::Node> Attention::operator()(const ov::Output<ov::Node>& input,
                                            const std::string& prefix,
                                            size_t layer_idx) const {
     auto kv_src = kv_input.get_node() ? kv_input : input;
+    size_t q_dim = num_heads * head_dim;
     size_t kv_dim = num_kv_heads * head_dim;
-    auto q =
-        make_linear(input, hidden_size, hidden_size, prefix + attn_prefix + "q_proj", precision, weight_fn, bias_fn);
+    auto q = make_linear(input, hidden_size, q_dim, prefix + attn_prefix + "q_proj", precision, weight_fn, bias_fn);
     auto k = make_linear(kv_src, hidden_size, kv_dim, prefix + attn_prefix + "k_proj", precision, weight_fn, bias_fn);
     auto v = make_linear(kv_src, hidden_size, kv_dim, prefix + attn_prefix + "v_proj", precision, weight_fn, bias_fn);
     return (*this)(q, k, v, prefix, layer_idx);
@@ -1744,6 +1760,8 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     clear();
 
     LLMConfig config = config_in;
+    OPENVINO_ASSERT(!config.is_linear_layer || config.use_kv_cache,
+                    "Hybrid models require use_kv_cache — SSM/conv states are inherently stateful");
     if (!config.norm)
         config.norm = LayerNorm(config.hidden_size, config.precision);
     if (!config.ffn) {
@@ -1817,55 +1835,88 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     attn.sdpa_mask = sdpa_mask;
     attn.shared_broadcast_shape = shared_broadcast;
 
-    if (config.use_kv_cache) {
+    // Non-hybrid: standard past_key_values naming.
+    // Hybrid: per-full-attention-layer cache_params naming (set below inside build_full_attn_layer).
+    if (config.use_kv_cache && !config.is_linear_layer) {
         attn.kv_cache_fn = [&](const ov::Output<ov::Node>& k,
                                const ov::Output<ov::Node>& v,
                                size_t layer) -> std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> {
             auto layer_str = std::to_string(layer);
-            auto k_cache = make_kv_cache_concat(k,
-                                                seq_source,
-                                                beam_idx_output,
-                                                kv_heads,
-                                                config.head_dim,
-                                                make_kv_var_id(layer_str, ".", "key"),
-                                                prec);
-            auto v_cache = make_kv_cache_concat(v,
-                                                seq_source,
-                                                beam_idx_output,
-                                                kv_heads,
-                                                config.head_dim,
-                                                make_kv_var_id(layer_str, ".", "value"),
-                                                prec);
+            auto k_cache = make_kv_cache_concat(k, seq_source, beam_idx_output,
+                                                kv_heads, config.head_dim,
+                                                make_kv_var_id(layer_str, ".", "key"), prec);
+            auto v_cache = make_kv_cache_concat(v, seq_source, beam_idx_output,
+                                                kv_heads, config.head_dim,
+                                                make_kv_var_id(layer_str, ".", "value"), prec);
             m_sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(k_cache.assign));
             m_sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(v_cache.assign));
             return {k_cache.concatenated, v_cache.concatenated};
         };
     }
 
+    // Wire LinearAttention runtime inputs once — all layers share the same graph plumbing.
+    if (config.is_linear_layer) {
+        config.linear_attn.seq_source = seq_source;
+        config.linear_attn.beam_idx = beam_idx_output;
+    }
+
+    size_t linear_layer_count = 0;
+    size_t attn_layer_count = 0;
+
+    auto build_full_attn_layer = [&](const ov::Output<ov::Node>& input,
+                                     const std::string& prefix,
+                                     size_t layer) {
+        if (config.use_kv_cache && config.is_linear_layer) {
+            auto attn_idx = attn_layer_count;
+            attn.kv_cache_fn = [&, attn_idx](const ov::Output<ov::Node>& k_proj,
+                                             const ov::Output<ov::Node>& v_proj,
+                                             size_t /*layer*/) {
+                auto idx_str = std::to_string(attn_idx);
+                auto k_cache = make_kv_cache_concat(k_proj, seq_source, beam_idx_output,
+                                                    kv_heads, config.head_dim,
+                                                    make_cache_params_var_id("key", idx_str),
+                                                    prec);
+                auto v_cache = make_kv_cache_concat(v_proj, seq_source, beam_idx_output,
+                                                    kv_heads, config.head_dim,
+                                                    make_cache_params_var_id("value", idx_str),
+                                                    prec);
+                m_sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(k_cache.assign));
+                m_sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(v_cache.assign));
+                return std::pair{k_cache.concatenated, v_cache.concatenated};
+            };
+        }
+        ++attn_layer_count;
+        auto fn = [&](const ov::Output<ov::Node>& normed, const std::string& pfx) {
+            return attn(normed, {}, pfx, layer);
+        };
+        return config.pre_norm ? make_pre_norm_layer(input, config.norm, fn, config.ffn, prefix)
+                               : make_post_norm_layer(input, config.norm, fn, config.ffn, prefix);
+    };
+
+    auto build_linear_layer = [&](const ov::Output<ov::Node>& input,
+                                  const std::string& prefix,
+                                  size_t /*layer*/) {
+        auto lin_idx = linear_layer_count++;
+        auto fn = [&, lin_idx](const ov::Output<ov::Node>& normed, const std::string& pfx) {
+            auto r = config.linear_attn(normed, pfx, lin_idx);
+            m_sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(r.conv_assign));
+            m_sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(r.recurrent_assign));
+            return r.output;
+        };
+        return config.pre_norm ? make_pre_norm_layer(input, config.norm, fn, config.ffn, prefix)
+                               : make_post_norm_layer(input, config.norm, fn, config.ffn, prefix);
+    };
+
     auto current =
         make_transformer_layers(hidden_states,
                                 config.num_layers,
                                 "model.layers.",
-                                [&](const ov::Output<ov::Node>& input, const std::string& prefix, size_t layer) {
-                                    if (config.pre_norm) {
-                                        return make_pre_norm_layer(
-                                            input,
-                                            config.norm,
-                                            [&](const ov::Output<ov::Node>& normed, const std::string& pfx) {
-                                                return attn(normed, {}, pfx, layer);
-                                            },
-                                            config.ffn,
-                                            prefix);
-                                    } else {
-                                        return make_post_norm_layer(
-                                            input,
-                                            config.norm,
-                                            [&](const ov::Output<ov::Node>& inp, const std::string& pfx) {
-                                                return attn(inp, {}, pfx, layer);
-                                            },
-                                            config.ffn,
-                                            prefix);
-                                    }
+                                [&](const ov::Output<ov::Node>& input,
+                                    const std::string& prefix,
+                                    size_t layer) {
+                                    return (config.is_linear_layer && config.is_linear_layer(layer))
+                                        ? build_linear_layer(input, prefix, layer)
+                                        : build_full_attn_layer(input, prefix, layer);
                                 });
 
     auto final_norm = config.norm(current, "model.norm");
@@ -2340,6 +2391,422 @@ std::shared_ptr<ov::Model> ModelBuilder::build_embedding_encoder(const BertConfi
                                 });
 
     return make_model(current, "last_hidden_state", "synthetic_encoder_model");
+}
+
+FixedStateResult make_fixed_state(const ov::Output<ov::Node>& batch_source,
+                                  const std::vector<int64_t>& state_dims,
+                                  const std::string& name,
+                                  ov::element::Type precision,
+                                  const ov::Output<ov::Node>& beam_idx) {
+    // Variable shape: [-1, dim1, dim2, ...]
+    std::vector<int64_t> var_shape_vec = {-1};
+    var_shape_vec.insert(var_shape_vec.end(), state_dims.begin(), state_dims.end());
+    auto var_shape = ov::PartialShape(var_shape_vec);
+    auto variable = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{var_shape, precision, name});
+
+    // Build init shape: [batch, dim1, dim2, ...]
+    auto shape_of = std::make_shared<ov::opset11::ShapeOf>(batch_source, ov::element::i64);
+    shape_of->set_friendly_name(name + "_shapeof");
+    auto zero_idx = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+    auto gather_axis = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    auto batch_dim = std::make_shared<ov::opset11::Gather>(shape_of, zero_idx, gather_axis);
+    batch_dim->set_friendly_name(name + "_batch_dim");
+
+    auto dims_const = ov::opset11::Constant::create(ov::element::i64,
+                                                     ov::Shape{state_dims.size()},
+                                                     state_dims);
+    auto init_shape = std::make_shared<ov::opset11::Concat>(
+        ov::OutputVector{batch_dim->output(0), dims_const->output(0)}, 0);
+    init_shape->set_friendly_name(name + "_init_shape");
+
+    auto zero_scalar = ov::opset11::Constant::create(precision, ov::Shape{}, {0.0f});
+    auto init_value = std::make_shared<ov::opset11::Broadcast>(zero_scalar, init_shape);
+    init_value->set_friendly_name(name + "_init");
+
+    auto read_value = std::make_shared<ov::op::v6::ReadValue>(init_value, variable);
+    read_value->set_friendly_name(name + "_read");
+
+    // Beam gather on batch axis (matches real model pattern — required for PA compatibility)
+    ov::Output<ov::Node> output = read_value->output(0);
+    if (beam_idx.get_node()) {
+        auto beam_gather = std::make_shared<ov::opset11::Gather>(
+            output, beam_idx, ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {0}));
+        beam_gather->set_friendly_name(name + "_beam_gather");
+        output = beam_gather->output(0);
+    }
+
+    return {variable, output};
+}
+
+ov::Output<ov::Node> L2Norm::operator()(const ov::Output<ov::Node>& input, const std::string& name) const {
+    // Explicit Power/Sqrt chain matching real torch-exported SSM L2 norm
+    // (Power(x,2) → ReduceSum → Add(eps) → Sqrt → Divide).  Inlining lets DCOFF/partitioning
+    // see the same op pattern they see on real exports — no NormalizeL2 wrapper.
+    auto two = ov::opset11::Constant::create(precision, ov::Shape{}, {2.0f});
+    auto squared = std::make_shared<ov::opset11::Power>(input, two);
+
+    auto axes = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
+    auto sum = std::make_shared<ov::opset11::ReduceSum>(squared, axes, true);
+
+    auto eps_const = ov::opset11::Constant::create(precision, ov::Shape{}, {eps});
+    auto sum_eps = std::make_shared<ov::opset11::Add>(sum, eps_const);
+
+    auto norm = std::make_shared<ov::opset11::Sqrt>(sum_eps);
+
+    auto out = std::make_shared<ov::opset11::Divide>(input, norm);
+    out->set_friendly_name(name);
+    return out->output(0);
+}
+
+CausalConvResult make_causal_conv(const ov::Output<ov::Node>& input,
+                                  const ov::Output<ov::Node>& seq_source,
+                                  const ov::Output<ov::Node>& beam_idx,
+                                  size_t channels,
+                                  size_t kernel_size,
+                                  const std::string& state_name,
+                                  const std::string& prefix,
+                                  ov::element::Type prec) {
+    // Transpose to channel-first: [batch, seq, C] -> [batch, C, seq]
+    auto input_t = std::make_shared<ov::opset11::Transpose>(
+        input, ov::opset11::Constant::create(ov::element::i64, ov::Shape{3}, {0, 2, 1}));
+    input_t->set_friendly_name(prefix + "transpose_in");
+
+    // Sliding-window state: [batch, channels, kernel]
+    auto state = make_fixed_state(seq_source,
+        {static_cast<int64_t>(channels), static_cast<int64_t>(kernel_size)}, state_name, prec, beam_idx);
+
+    // Concat state with new input along temporal axis
+    auto cat = std::make_shared<ov::opset11::Concat>(
+        ov::OutputVector{state.read_value, input_t->output(0)}, 2);
+    cat->set_friendly_name(prefix + "concat");
+
+    // State update: keep last kernel_size positions
+    auto new_state = std::make_shared<ov::op::v8::Slice>(cat,
+        ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {-static_cast<int64_t>(kernel_size)}),
+        ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {INT64_MAX}),
+        ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {1}),
+        ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
+    new_state->set_friendly_name(prefix + "new_state");
+    auto assign = std::make_shared<ov::op::v6::Assign>(new_state, state.variable);
+    assign->set_friendly_name(state_name + "_assign");
+
+    // Depthwise GroupConvolution: [batch, C, kernel+seq] -> [batch, C, seq+1]
+    // Quantized weights (u8 → Convert → Subtract(zero_point) → Multiply(scale)) to mirror real
+    // Qwen3.5 export.  This matches a DCOFF-recognized decompression chain — keep this pattern
+    // even if it grows the IR slightly, partitioning relies on it.
+    const ov::Shape w_shape{channels, 1, 1, kernel_size};
+    const ov::Shape zs_shape{channels, 1, 1, 1};
+    const std::string w_name = prefix + "conv_weight";
+
+    uint32_t w_state = seed_from_name(w_name);
+    std::vector<uint8_t> w_u8(channels * kernel_size);
+    for (size_t i = 0; i < w_u8.size(); ++i) {
+        w_u8[i] = static_cast<uint8_t>(128 + (xorshift32(w_state) % 32u));
+    }
+    auto w_const = ov::opset11::Constant::create(ov::element::u8, w_shape, w_u8);
+    w_const->set_friendly_name(w_name);
+    auto w_cvt = std::make_shared<ov::opset11::Convert>(w_const, prec);
+    w_cvt->set_friendly_name(w_name + "/convert");
+
+    std::vector<uint8_t> zp_u8(channels, static_cast<uint8_t>(128));
+    auto zp_const = ov::opset11::Constant::create(ov::element::u8, zs_shape, zp_u8);
+    zp_const->set_friendly_name(w_name + "/zero_point");
+    auto zp_cvt = std::make_shared<ov::opset11::Convert>(zp_const, prec);
+    zp_cvt->set_friendly_name(w_name + "/zero_point/convert");
+
+    auto w_sub = std::make_shared<ov::opset11::Subtract>(w_cvt, zp_cvt);
+    w_sub->set_friendly_name(w_name + "/subtract");
+
+    uint32_t s_state = seed_from_name(w_name + "_scale");
+    std::vector<float> sc_vals(channels);
+    for (size_t i = 0; i < channels; ++i) {
+        sc_vals[i] = 0.05f + 0.01f * static_cast<float>(xorshift32(s_state) % 1000u) / 1000.0f;
+    }
+    auto sc_const = ov::opset11::Constant::create(prec, zs_shape, sc_vals);
+    sc_const->set_friendly_name(w_name + "/scale");
+    auto weight = std::make_shared<ov::opset11::Multiply>(w_sub, sc_const);
+    weight->set_friendly_name(w_name + "/decompress");
+
+    auto conv = std::make_shared<ov::opset11::GroupConvolution>(
+        cat->output(0), weight,
+        ov::Strides{1}, ov::CoordinateDiff{0}, ov::CoordinateDiff{0}, ov::Strides{1});
+    conv->set_friendly_name(prefix + "group_conv");
+
+    // Drop first output element (valid conv artifact)
+    auto sliced = std::make_shared<ov::op::v8::Slice>(conv,
+        ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {1}),
+        ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {INT64_MAX}),
+        ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {1}),
+        ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
+    sliced->set_friendly_name(prefix + "sliced");
+
+    auto activated = std::make_shared<ov::opset11::Swish>(sliced);
+    activated->set_friendly_name(prefix + "silu");
+
+    // Transpose back to channel-last: [batch, C, seq] -> [batch, seq, C]
+    auto output = std::make_shared<ov::opset11::Transpose>(
+        activated, ov::opset11::Constant::create(ov::element::i64, ov::Shape{3}, {0, 2, 1}));
+    output->set_friendly_name(prefix + "transpose_out");
+
+    CausalConvResult result;
+    result.output = output->output(0);
+    result.assign = assign;
+    return result;
+}
+
+/// SSM recurrence Loop body implementing the GatedDeltaNet delta rule.
+/// This pattern is matched by `FuseGDNLoop` (fuse_gated_delta_net.cpp) and fused into the
+/// native `ov::op::internal::GatedDeltaNet` op for optimised CPU/GPU execution.
+///
+/// Delta rule (per timestep):
+///   gated_state = h_prev * exp(gate)[..., newaxis]
+///   delta       = v - reduce_sum(gated_state * k, axis=-2)
+///   h_new       = gated_state + k * (delta * beta)[..., newaxis]
+///   output      = reduce_sum(h_new * q, axis=-2, keep_dims=true)
+///
+/// params[0]      iter        I32 scalar (special_body_port — auto-fed by Loop)
+/// params[1]      q_t         [B,H,1,Dk]   per-timestep slice
+/// params[2]      k_t         [B,H,1,Dk]   per-timestep slice
+/// params[3]      v_t         [B,H,1,Dv]   per-timestep slice
+/// params[4]      gate_t      [B,H,1]      state decay (neg-softplus, exp applied here)
+/// params[5]      beta_t      [B,H,1]      delta scaling (sigmoid)
+/// params[6]      h_prev      [B,H,Dk,Dv]  merged back-edge
+/// params[7]      out_buf     [B,H,seq,Dv] merged back-edge (scatter accumulator)
+///
+/// results[0]     cond=true
+/// results[1]     h_new       state back-edge
+/// results[2]     out_new     accumulator back-edge
+static std::shared_ptr<ov::Model> build_ssm_loop_body(ov::element::Type prec,
+                                                       int64_t H,
+                                                       int64_t Dk,
+                                                       int64_t Dv,
+                                                       ov::ParameterVector& params,
+                                                       ov::ResultVector& results) {
+    auto P = [&](ov::element::Type t, ov::PartialShape s) {
+        return params.emplace_back(std::make_shared<ov::op::v0::Parameter>(t, s));
+    };
+    auto iter = P(ov::element::i32, ov::PartialShape{});
+    auto q    = P(prec, {-1, H, 1, Dk});
+    auto k    = P(prec, {-1, H, 1, Dk});
+    auto v    = P(prec, {-1, H, 1, Dv});
+    auto gate = P(prec, {-1, H, 1});   // state decay: exp(gate) applied to h_prev
+    auto beta = P(prec, {-1, H, 1});   // delta scaling
+    auto h    = P(prec, {-1, H, Dk, Dv});
+    auto out_buf = P(prec, {-1, H, -1, Dv});
+
+    auto axis_1d = [](int64_t val) {
+        return ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {val});
+    };
+
+    // gated_state = h_prev * exp(gate)[...,newaxis] : [B,H,Dk,Dv]
+    auto gate_exp = std::make_shared<ov::opset11::Exp>(gate);
+    auto gate_bc = std::make_shared<ov::opset11::Unsqueeze>(gate_exp, axis_1d(-1));
+    auto gated_state = std::make_shared<ov::opset11::Multiply>(h, gate_bc);
+
+    // k_sq = Squeeze(k, axis=2) : [B,H,Dk]
+    // k_u  = Unsqueeze(k_sq, -1) : [B,H,Dk,1]
+    auto k_sq = std::make_shared<ov::opset11::Squeeze>(k, axis_1d(2));
+    auto k_u = std::make_shared<ov::opset11::Unsqueeze>(k_sq, axis_1d(-1));
+
+    // projected_value = reduce_sum(gated_state * k_u, axis=-2, keep_dims=false) : [B,H,Dv]
+    auto proj_mul = std::make_shared<ov::opset11::Multiply>(gated_state, k_u);
+    auto proj_sum = std::make_shared<ov::opset11::ReduceSum>(proj_mul, axis_1d(-2), false);
+
+    // delta = squeeze(v, 2) - projected_value : [B,H,Dv]
+    auto v_sq = std::make_shared<ov::opset11::Squeeze>(v, axis_1d(2));
+    auto delta = std::make_shared<ov::opset11::Subtract>(v_sq, proj_sum);
+
+    // scaled_delta = delta * beta : [B,H,Dv]
+    auto scaled_delta = std::make_shared<ov::opset11::Multiply>(delta, beta);
+    // outer_update = k_u * Unsqueeze(scaled_delta, -2) : [B,H,Dk,Dv]
+    auto sd_u = std::make_shared<ov::opset11::Unsqueeze>(scaled_delta, axis_1d(-2));
+    auto outer_update = std::make_shared<ov::opset11::Multiply>(k_u, sd_u);
+
+    // h_new = gated_state + outer_update : [B,H,Dk,Dv]
+    auto h_new = std::make_shared<ov::opset11::Add>(gated_state, outer_update);
+
+    // output = reduce_sum(h_new * Unsqueeze(Squeeze(q,2), -1), axis=-2, keep_dims=true) : [B,H,1,Dv]
+    auto q_sq = std::make_shared<ov::opset11::Squeeze>(q, axis_1d(2));
+    auto q_u = std::make_shared<ov::opset11::Unsqueeze>(q_sq, axis_1d(-1));
+    auto out_mul = std::make_shared<ov::opset11::Multiply>(h_new, q_u);
+    auto y = std::make_shared<ov::opset11::ReduceSum>(out_mul, axis_1d(-2), true);
+
+    // Scatter y into out_buf at seq position = iter.
+    auto iter_idx = std::make_shared<ov::opset11::Unsqueeze>(iter, axis_1d(0));
+    auto scatter_axis = ov::opset11::Constant::create(ov::element::i32, ov::Shape{}, {2});
+    auto out_new = std::make_shared<ov::opset11::ScatterUpdate>(out_buf, iter_idx, y, scatter_axis);
+
+    results = {
+        std::make_shared<ov::op::v0::Result>(
+            ov::opset11::Constant::create(ov::element::boolean, ov::Shape{}, {true})),
+        std::make_shared<ov::op::v0::Result>(h_new),
+        std::make_shared<ov::op::v0::Result>(out_new),
+    };
+    return std::make_shared<ov::Model>(results, params);
+}
+
+RecurrentStateResult make_recurrent_state(const ov::Output<ov::Node>& query,
+                                          const ov::Output<ov::Node>& key,
+                                          const ov::Output<ov::Node>& value,
+                                          const ov::Output<ov::Node>& gate_input,
+                                          const ov::Output<ov::Node>& beta_input,
+                                          const ov::Output<ov::Node>& seq_source,
+                                          const ov::Output<ov::Node>& beam_idx,
+                                          size_t num_heads,
+                                          size_t key_head_dim,
+                                          size_t value_head_dim,
+                                          const std::string& state_name,
+                                          const std::string& prefix,
+                                          ov::element::Type prec) {
+    const auto H = static_cast<int64_t>(num_heads);
+    const auto Dk = static_cast<int64_t>(key_head_dim);
+    const auto Dv = static_cast<int64_t>(value_head_dim);
+
+    // SSM state: [batch, H, Dk, Dv]
+    auto state = make_fixed_state(seq_source, {H, Dk, Dv}, state_name, prec, beam_idx);
+
+    // Reshape to multihead [batch, H, seq, dim] using existing helpers
+    auto q_mh = make_attention_transpose(make_multihead_reshape(query, num_heads, key_head_dim, prefix + "q_rs"), prefix + "q_mh");
+    auto k_mh = make_attention_transpose(make_multihead_reshape(key,   num_heads, key_head_dim, prefix + "k_rs"), prefix + "k_mh");
+    auto v_mh = make_attention_transpose(make_multihead_reshape(value, num_heads, value_head_dim, prefix + "v_rs"), prefix + "v_mh");
+
+    // Transpose gate/beta: [batch, seq, H] -> [batch, H, seq]
+    auto perm021 = ov::opset11::Constant::create(ov::element::i64, ov::Shape{3}, {0, 2, 1});
+    auto gate_mh = std::make_shared<ov::opset11::Transpose>(gate_input, perm021);
+    auto beta_mh = std::make_shared<ov::opset11::Transpose>(beta_input, perm021);
+
+    // Trip count = seq_len (scalar)
+    auto seq_len = std::make_shared<ov::opset11::Gather>(
+        std::make_shared<ov::opset11::ShapeOf>(q_mh, ov::element::i64),
+        ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {2}),
+        ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {0}));
+
+    // Build Loop body and wire it
+    ov::ParameterVector bp;
+    ov::ResultVector br;
+    auto body = build_ssm_loop_body(prec, H, Dk, Dv, bp, br);
+    //  bp: [iter, q, k, v, gate, beta, h, out_buf]    br: [cond, h_new, out_new]
+
+    auto loop = std::make_shared<ov::op::v5::Loop>(seq_len,
+        ov::opset11::Constant::create(ov::element::boolean, ov::Shape{}, {true}));
+    loop->set_function(body);
+    // {body_param_for_current_iter, body_result_for_exec_cond}
+    loop->set_special_body_ports({0, 0});
+
+    // Initial output buffer = zeros([B, H, seq, Dv]) — same shape as v_mh.
+    auto v_shape = std::make_shared<ov::opset11::ShapeOf>(v_mh, ov::element::i64);
+    auto zero_scalar = ov::opset11::Constant::create(prec, ov::Shape{}, {0.0f});
+    auto out_init = std::make_shared<ov::op::v3::Broadcast>(zero_scalar, v_shape);
+    out_init->set_friendly_name(prefix + "out_init");
+
+    // bp[0] = iter (auto-fed via special_body_ports — no explicit input wiring).
+    // Slice Q/K/V/gate/beta per timestep on seq axis (2) into bp[1..5].
+    // Order matches FuseGDNLoop expectation: [trip, cond, Q, K, V, gate, beta, h, out_buf].
+    ov::OutputVector sliced_srcs = {q_mh, k_mh, v_mh, gate_mh, beta_mh};
+    for (size_t i = 0; i < sliced_srcs.size(); ++i)
+        loop->set_sliced_input(bp[i + 1], sliced_srcs[i], 0, 1, 1, -1, 2);
+
+    loop->set_merged_input(bp[6], state.read_value, br[1]);  // h back-edge
+    loop->set_merged_input(bp[7], out_init, br[2]);          // out_buf back-edge
+
+    auto output = loop->get_iter_value(br[2], -1);  // [batch, H, seq, Dv] (final fill)
+    auto final_h = loop->get_iter_value(br[1], -1);  // [batch, H, Dk, Dv]
+    loop->set_friendly_name(prefix + "loop");
+
+    auto assign = std::make_shared<ov::op::v6::Assign>(final_h, state.variable);
+    assign->set_friendly_name(state_name + "_assign");
+
+    // [batch, H, seq, Dv] -> [batch, seq, H, Dv]
+    auto out_t = make_attention_transpose(output, prefix + "output");
+
+    RecurrentStateResult result;
+    result.output = out_t;
+    result.assign = assign;
+    return result;
+}
+
+std::function<bool(size_t)> make_mamba_schedule(size_t mamba_ratio) {
+    if (mamba_ratio == 0)
+        return {};
+    return [mamba_ratio](size_t layer_idx) {
+        return (layer_idx % (mamba_ratio + 1)) < mamba_ratio;
+    };
+}
+
+LinearAttention::Result LinearAttention::operator()(const ov::Output<ov::Node>& input,
+                                                    const std::string& prefix,
+                                                    size_t linear_layer_idx) const {
+    const auto kd = key_dim();
+    const auto vd = value_dim();
+    const auto cd = conv_dim();
+    auto layer_str = std::to_string(linear_layer_idx);
+    auto ap = prefix + "linear_attn.";
+
+    // Input projections
+    auto qkv = make_linear(input, hidden_size, cd, ap + "in_proj_qkv", precision, weight_fn);
+    auto a_proj = make_linear(input, hidden_size, num_heads, ap + "in_proj_a", precision, weight_fn);
+    auto a_bias = FloatWeight{precision}(ap + "in_proj_a.bias", ov::Shape{1, 1, num_heads}, precision);
+    auto a_biased = std::make_shared<ov::opset11::Add>(a_proj, a_bias);
+    a_biased->set_friendly_name(ap + "in_proj_a_biased");
+    auto b_proj = make_linear(input, hidden_size, num_heads, ap + "in_proj_b", precision, weight_fn);
+    auto z_proj = make_linear(input, hidden_size, vd, ap + "in_proj_z", precision, weight_fn);
+
+    // Causal convolution with sliding-window state
+    auto conv = make_causal_conv(qkv, seq_source, beam_idx, cd, conv_kernel,
+                                 make_cache_params_var_id("conv", layer_str), ap + "conv.", precision);
+
+    // QKV split: [batch, seq, conv_dim] -> Q[key_dim], K[key_dim], V[value_dim]
+    auto split_lens = ov::opset11::Constant::create(ov::element::i64, ov::Shape{3},
+        std::vector<int64_t>{static_cast<int64_t>(kd),
+                             static_cast<int64_t>(kd),
+                             static_cast<int64_t>(vd)});
+    auto qkv_split = std::make_shared<ov::opset11::VariadicSplit>(
+        conv.output, ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {-1}), split_lens);
+    qkv_split->set_friendly_name(ap + "qkv_split");
+
+    // L2 normalize Q and K (FuseL2NormIntoGDN will fuse this into the GatedDeltaNet op)
+    L2Norm l2norm(precision);
+    auto q = l2norm(qkv_split->output(0), ap + "q_l2norm");
+    auto k = l2norm(qkv_split->output(1), ap + "k_l2norm");
+
+    // Gate: -SoftPlus(a) — state decay factor (Exp applied per-timestep inside the Loop body).
+    // This maps to the GatedDeltaNet "gate" input.
+    auto sp = std::make_shared<ov::opset11::SoftPlus>(a_biased);
+    sp->set_friendly_name(ap + "softplus");
+    auto gdn_gate = std::make_shared<ov::opset11::Multiply>(
+        sp, ov::opset11::Constant::create(precision, ov::Shape{}, {-1.0f}));
+    gdn_gate->set_friendly_name(ap + "gate");
+
+    // Beta: Sigmoid(b) — delta scaling factor.
+    // This maps to the GatedDeltaNet "beta" input.
+    auto gdn_beta = std::make_shared<ov::opset11::Sigmoid>(b_proj);
+    gdn_beta->set_friendly_name(ap + "beta");
+
+    // GDN-pattern recurrent state (Loop body matches FuseGDNLoop in fuse_gated_delta_net.cpp)
+    auto ssm = make_recurrent_state(q, k, qkv_split->output(2),
+                                    gdn_gate->output(0), gdn_beta->output(0),
+                                    seq_source, beam_idx,
+                                    num_heads, key_head_dim, value_head_dim,
+                                    make_cache_params_var_id("ssm", layer_str), ap + "ssm.", precision);
+
+    // Flatten heads: [batch, seq, num_heads, value_head_dim] -> [batch, seq, value_dim]
+    auto flat = std::make_shared<ov::opset11::Reshape>(ssm.output,
+        ov::opset11::Constant::create(ov::element::i64, ov::Shape{3},
+            std::vector<int64_t>{0, 0, static_cast<int64_t>(vd)}), true);
+    flat->set_friendly_name(ap + "flat");
+
+    // Output gating: Swish(z) * Norm(output)
+    auto normed = out_norm(flat->output(0), ap + "norm");
+    auto z_gate = std::make_shared<ov::opset11::Swish>(z_proj);
+    z_gate->set_friendly_name(ap + "z_gate");
+    auto out_gated = std::make_shared<ov::opset11::Multiply>(z_gate, normed);
+    out_gated->set_friendly_name(ap + "out_gated");
+
+    // Out projection
+    auto output = make_linear(out_gated->output(0), vd, hidden_size,
+                              ap + "out_proj", precision, weight_fn);
+
+    return {output, conv.assign, ssm.assign};
 }
 
 }  // namespace npuw
