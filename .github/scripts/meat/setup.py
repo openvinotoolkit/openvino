@@ -81,6 +81,14 @@ def _try_install_gh() -> bool:
     system = platform.system()
     if system == "Windows":
         if shutil.which("winget"):
+            print(
+                "\n  winget will accept the GitHub CLI package agreement and the\n"
+                "  winget source agreement on your behalf.\n"
+                "  Proceed with automatic install? [y/N] ",
+                end="", flush=True,
+            )
+            if input().strip().lower() != "y":
+                return False
             info("Attempting: winget install --id GitHub.cli --silent …")
             r = run("winget", "install", "--id", "GitHub.cli", "--silent",
                     "--accept-package-agreements", "--accept-source-agreements")
@@ -183,6 +191,14 @@ def _try_install_copilot() -> bool:
     system = platform.system()
     if system == "Windows":
         if shutil.which("winget"):
+            print(
+                "\n  winget will accept the GitHub Copilot package agreement and the\n"
+                "  winget source agreement on your behalf.\n"
+                "  Proceed with automatic install? [y/N] ",
+                end="", flush=True,
+            )
+            if input().strip().lower() != "y":
+                return False
             info("Attempting: winget install GitHub.Copilot --silent …")
             r = run("winget", "install", "GitHub.Copilot", "--silent",
                     "--accept-package-agreements", "--accept-source-agreements")
