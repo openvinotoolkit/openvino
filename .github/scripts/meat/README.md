@@ -27,10 +27,10 @@ Run from the repo root:
 
 ```bash
 # Linux — must be run as root to install system packages (gh, copilot CLI)
-sudo python .github/scripts/meat/setup.py
+sudo python .github/scripts/meat/install_copilot_env.py
 
 # macOS / Windows — no sudo needed
-python .github/scripts/meat/setup.py
+python .github/scripts/meat/install_copilot_env.py
 ```
 
 This checks and installs:
@@ -184,7 +184,7 @@ Escalation payload:
 
 The `copilot` CLI requires a GitHub account with an active Copilot subscription.
 
-`setup.py` handles login automatically. To authenticate manually:
+`install_copilot_env.py` handles login automatically. To authenticate manually:
 
 ```bash
 copilot login
