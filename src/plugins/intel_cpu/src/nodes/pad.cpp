@@ -54,6 +54,7 @@ bool Pad::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
         }
 
         if (op->get_input_element_type(0) == element::string) {
+            errorMessage = "Pad operation with string input is not supported";
             return false;
         }
 
