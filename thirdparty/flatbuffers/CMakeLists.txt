@@ -24,6 +24,14 @@ if(FLATBUFFERS_BUILD_FLATC)
         set_target_properties(flatc PROPERTIES COMPILE_OPTIONS "-Wno-shadow")
     endif()
 
+    # we dont want to build flatc with ThreadSanitizer since it causes issues during our build.
+    # this might be incorrect if flatbuffers::flatc gets used / linked in the NPU Plugin
+    # current assumption is that it is only a build tool
+    if(ENABLE_THREAD_SANITIZER AND TARGET flatc)
+        target_compile_options(flatc PRIVATE -fno-sanitize=thread)
+        target_link_options(flatc PRIVATE -fno-sanitize=thread)
+    endif()
+
     set(flatbuffers_COMPILER $<TARGET_FILE:flatc> PARENT_SCOPE)
     set(flatbuffers_DEPENDENCY flatc PARENT_SCOPE)
 else()
