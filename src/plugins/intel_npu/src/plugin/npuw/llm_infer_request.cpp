@@ -4,7 +4,6 @@
 
 #include "llm_infer_request.hpp"
 
-#include <limits>
 #include <regex>
 
 #include "infer_request_utils.hpp"
@@ -103,86 +102,6 @@ void process_longrope(const std::shared_ptr<ov::IAsyncInferRequest>& infer_req,
         auto longrope_input = infer_req->get_tensor(longrope_port_it->second);
         longrope_input->data<int64_t>()[0] = max_pos_id;
     }
-}
-
-size_t get_per_layer_per_token_bytes(const ov::SoPtr<ov::ITensor>& tensor) {
-    const auto seq_len = tensor->get_shape()[1];
-    const auto byte_size = tensor->get_byte_size();
-    OPENVINO_ASSERT(seq_len > 0u, "per_layer_inputs has zero seq_len");
-    OPENVINO_ASSERT(byte_size % seq_len == 0u,
-                    "per_layer_inputs byte size is not divisible by seq_len. byte_size=",
-                    byte_size,
-                    ", seq_len=",
-                    seq_len);
-    return byte_size / seq_len;
-}
-
-void copy_per_layer_inputs_to_right(const ov::SoPtr<ov::ITensor>& src,
-                                    const ov::SoPtr<ov::ITensor>& dst,
-                                    bool clear_dst_before_copy) {
-    if (clear_dst_before_copy) {
-        ov::npuw::util::fill_tensor_bytes(dst, 0u);
-    }
-    ov::npuw::util::copy_to_right(src, dst);
-}
-
-void copy_per_layer_inputs_chunk_to_right(const ov::SoPtr<ov::ITensor>& src,
-                                          const ov::SoPtr<ov::ITensor>& dst,
-                                          const uint32_t src_offset_tokens,
-                                          const uint32_t chunk_tokens) {
-    const auto src_seq_len = src->get_shape()[1];
-    const auto dst_seq_len = dst->get_shape()[1];
-    OPENVINO_ASSERT(chunk_tokens > 0u, "chunk_tokens must be > 0");
-    OPENVINO_ASSERT(src_offset_tokens <= src_seq_len,
-                    "src_offset_tokens exceeds source seq_len. src_offset_tokens=",
-                    src_offset_tokens,
-                    ", src_seq_len=",
-                    src_seq_len);
-    OPENVINO_ASSERT(chunk_tokens <= src_seq_len - src_offset_tokens,
-                    "chunk range exceeds source seq_len. src_offset_tokens=",
-                    src_offset_tokens,
-                    ", chunk_tokens=",
-                    chunk_tokens,
-                    ", src_seq_len=",
-                    src_seq_len);
-    OPENVINO_ASSERT(chunk_tokens <= dst_seq_len,
-                    "chunk_tokens exceeds destination seq_len. chunk_tokens=",
-                    chunk_tokens,
-                    ", dst_seq_len=",
-                    dst_seq_len);
-
-    const auto src_per_token_bytes = get_per_layer_per_token_bytes(src);
-
-    OPENVINO_ASSERT(static_cast<size_t>(chunk_tokens) <= std::numeric_limits<size_t>::max() / src_per_token_bytes,
-                    "chunk byte size overflow. chunk_tokens=",
-                    chunk_tokens,
-                    ", per_token_bytes=",
-                    src_per_token_bytes);
-    OPENVINO_ASSERT(static_cast<size_t>(src_offset_tokens) <= std::numeric_limits<size_t>::max() / src_per_token_bytes,
-                    "offset byte size overflow. src_offset_tokens=",
-                    src_offset_tokens,
-                    ", per_token_bytes=",
-                    src_per_token_bytes);
-
-    const size_t chunk_bytes = static_cast<size_t>(chunk_tokens) * src_per_token_bytes;
-    const size_t offset_bytes = static_cast<size_t>(src_offset_tokens) * src_per_token_bytes;
-    OPENVINO_ASSERT(offset_bytes + chunk_bytes <= src->get_byte_size(),
-                    "source byte range out of bounds. offset_bytes=",
-                    offset_bytes,
-                    ", chunk_bytes=",
-                    chunk_bytes,
-                    ", src_byte_size=",
-                    src->get_byte_size());
-    OPENVINO_ASSERT(chunk_bytes <= dst->get_byte_size(),
-                    "chunk byte size exceeds destination byte size. chunk_bytes=",
-                    chunk_bytes,
-                    ", dst_byte_size=",
-                    dst->get_byte_size());
-
-    ov::npuw::util::fill_tensor_bytes(dst, 0u);
-    std::copy_n(reinterpret_cast<const uint8_t*>(src->data()) + offset_bytes,
-                chunk_bytes,
-                reinterpret_cast<uint8_t*>(dst->data()) + dst->get_byte_size() - chunk_bytes);
 }
 
 }  // anonymous namespace
@@ -823,13 +742,12 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             // Dest shape:   [1, chunk_prompt_len, num_layers, proj_dim] (static)
             if (per_layer_inputs) {
                 auto it = m_prefill_in_ports.find(layer_names::per_layer_inputs);
-                if (it != m_prefill_in_ports.end()) {
-                    auto dst = m_prefill_request->get_tensor(it->second);
-                    copy_per_layer_inputs_chunk_to_right(per_layer_inputs,
-                                                         dst,
-                                                         kvcache_desc.num_stored_tokens,
-                                                         static_cast<uint32_t>(current_prompts_len));
-                }
+                OPENVINO_ASSERT(it != m_prefill_in_ports.end(), "per_layer_inputs port not found in prefill sub-model");
+                auto dst = m_prefill_request->get_tensor(it->second);
+                ov::npuw::util::copy_per_layer_inputs_chunk_to_right(per_layer_inputs,
+                                                                     dst,
+                                                                     kvcache_desc.num_stored_tokens,
+                                                                     static_cast<uint32_t>(current_prompts_len));
             }
         });
 
@@ -927,10 +845,9 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
         // Note: dst was already cleared by prepare_for_new_conversation, no need to fill 0 again.
         if (per_layer_inputs) {
             auto it = m_prefill_in_ports.find(layer_names::per_layer_inputs);
-            if (it != m_prefill_in_ports.end()) {
-                auto dst = m_prefill_request->get_tensor(it->second);
-                copy_per_layer_inputs_to_right(per_layer_inputs, dst, false);
-            }
+            OPENVINO_ASSERT(it != m_prefill_in_ports.end(), "per_layer_inputs port not found in prefill sub-model");
+            auto dst = m_prefill_request->get_tensor(it->second);
+            ov::npuw::util::copy_to_right(per_layer_inputs, dst);
         }
     });
 
@@ -1104,10 +1021,10 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         // Shape is [1, 1, num_layers, proj_dim] during generate; copy right-aligned on seq_len dim.
         if (per_layer_inputs) {
             auto it = m_kvcache_in_ports.find(layer_names::per_layer_inputs);
-            if (it != m_kvcache_in_ports.end()) {
-                auto dst = m_kvcache_request->get_tensor(it->second);
-                copy_per_layer_inputs_to_right(per_layer_inputs, dst, true);
-            }
+            OPENVINO_ASSERT(it != m_kvcache_in_ports.end(), "per_layer_inputs port not found in kvcache sub-model");
+            auto dst = m_kvcache_request->get_tensor(it->second);
+            ov::npuw::util::fill_tensor_bytes(dst, 0u);
+            ov::npuw::util::copy_to_right(per_layer_inputs, dst);
         }
     });
 
@@ -1172,11 +1089,9 @@ void ov::npuw::LLMInferRequest::infer() {
 
     // Gemma4: Extract per_layer_inputs if present
     auto per_layer_inputs = ov::npuw::util::TensorPtr();
-    for (const auto& port : inputs) {
-        if (port.get_any_name().find(layer_names::per_layer_inputs) != std::string::npos) {
-            per_layer_inputs = get_tensor(port);
-            break;
-        }
+    if (auto per_layer_port = ov::npuw::util::find_port_by_name(inputs, layer_names::per_layer_inputs);
+        per_layer_port.has_value()) {
+        per_layer_inputs = get_tensor(per_layer_port.value());
     }
 
     // NB: For VLM, the "inputs_embeds" contains float values (embeddings)
