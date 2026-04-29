@@ -104,11 +104,11 @@ void ov::util::recursive_iterate_files(const std::filesystem::path& path,
     }
 }
 
-std::filesystem::path ov::util::sanitize_path(const std::filesystem::path& dir,
+std::filesystem::path ov::util::sanitize_path(const std::filesystem::path& base,
                                               const std::filesystem::path& relative_path) {
-    const auto base = dir.empty() ? std::filesystem::current_path() : dir;
-    const auto base_canon = std::filesystem::weakly_canonical(base);
-    auto merged_canon = std::filesystem::weakly_canonical(base / relative_path);
+    const auto base_dir = base.empty() ? std::filesystem::current_path() : base;
+    const auto base_canon = std::filesystem::weakly_canonical(base_dir);
+    auto merged_canon = std::filesystem::weakly_canonical(base_dir / relative_path);
 
     if (const auto rel = merged_canon.lexically_relative(base_canon); rel.empty() || *rel.begin() == "..") {
         std::stringstream ss;
