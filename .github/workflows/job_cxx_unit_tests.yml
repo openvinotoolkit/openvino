@@ -184,21 +184,24 @@ jobs:
           ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_transformations_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-Transformations.xml
 
-      - name: GRUFusionTest stress repeat (debug)
-        # tmp debug: repeats the flaky GRUFusionTest.GRUCellPattern/7 10000 times in a single
-        # process to maximise the chance of catching the random shape-mismatch failure.
-        # OV_TMP_DEBUG is locally disabled for this step to keep the log size manageable —
-        # if a failure occurs the gtest assertion message itself prints the offending
-        # shapes, which is enough to confirm reproduction (full dumps are still captured
-        # by the regular Transformations func tests step above).
-        # always() so this runs even when the previous step fails (it does on Debian ARM
-        # due to unrelated SDPA test issues hidden by the previous ARM64 gate).
+      - name: Transformations stress shuffle (debug)
+        # tmp debug: re-runs the entire ov_transformations_tests binary multiple times
+        # with --gtest_shuffle so that each iteration uses a different test order. The
+        # flaky GRUFusionTest.GRUCellPattern/7 is reported to fail only when *other*
+        # tests have run before it (interaction with cross-test pointer/allocator
+        # state). The previous filtered 10000-iter stress could not reproduce —
+        # running the whole binary, in different orders, exercises that cross-test
+        # state directly. --gtest_also_run_disabled_tests broadens coverage in case a
+        # disabled test is part of the trigger sequence. OV_TMP_DEBUG is kept off
+        # here to keep log size manageable; the gtest assertion already prints the
+        # offending shapes on failure.
+        # always() so this runs even when the previous step fails.
         if: ${{ always() && fromJSON(inputs.affected-components).transformations.test }}
         env:
           OV_TMP_DEBUG: '0'
         run: |
           ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
-          ${{ env.INSTALL_TEST_DIR }}/ov_transformations_tests --gtest_filter='GRUFusionTest/GRUFusionTest.GRUCellPattern/7' --gtest_repeat=10000 --gtest_break_on_failure=0 --gtest_print_time=1
+          ${{ env.INSTALL_TEST_DIR }}/ov_transformations_tests --gtest_repeat=50 --gtest_shuffle --gtest_also_run_disabled_tests --gtest_break_on_failure=0 --gtest_print_time=1
 
       - name: Common test utils tests
         if: ${{ runner.os != 'macOS' }} # Ticket: 134469
