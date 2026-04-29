@@ -17,6 +17,25 @@ local machine using the [GitHub Copilot CLI](https://docs.github.com/en/copilot/
 > - Apply generated patches with `git apply` and inspect them before committing.
 > - **Do NOT blindly commit agent-generated changes.**
 
+> [!TIP]
+> **Consider running the agent inside an isolated sandbox.**
+>
+> Autopilot mode gives the agent unrestricted access to your filesystem, shell,
+> and network. Sandboxing limits the blast radius of unexpected agent behaviour
+> (runaway file writes, unintended network calls, accidental credential exposure).
+>
+> Possible options (not an exhaustive list):
+> - **Qwen Code sandbox** — browser-based isolated execution environment:
+>   https://qwenlm.github.io/qwen-code-docs/en/users/features/sandbox/
+> - **gh-aw-firewall** — GitHub CLI extension that adds a network firewall around
+>   agent workloads: https://github.com/github/gh-aw-firewall
+> - **agent-sandbox** (Kubernetes SIGs) — Kubernetes-based sandbox for running
+>   agentic workloads with resource and network policy controls:
+>   https://github.com/kubernetes-sigs/agent-sandbox
+> - **sandbox-runtime** (Anthropic experimental) — lightweight container runtime
+>   designed for LLM agent isolation:
+>   https://github.com/anthropic-experimental/sandbox-runtime
+
 ---
 
 ## Quick Start — Local
