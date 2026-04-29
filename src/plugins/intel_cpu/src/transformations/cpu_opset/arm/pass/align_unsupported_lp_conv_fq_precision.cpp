@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <memory>
+
 #include "align_unsupported_lp_conv_fq_precision.hpp"
 
 #include "low_precision/fake_quantize_decomposition.hpp"
