@@ -4,15 +4,16 @@
 
 #include "align_unsupported_lp_conv_fq_precision.hpp"
 
-#include <memory>
-
 #include "low_precision/fake_quantize_decomposition.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/precisions_attribute.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 using namespace ov::pass;

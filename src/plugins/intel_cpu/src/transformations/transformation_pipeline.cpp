@@ -964,7 +964,9 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
                              supportedPrecisions,
                              quantizationRestrictions,
                              LayerTransformation::Params(true, ov::element::f32, defaultPrecisions));
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     lowPrecPass->add_prerequisite<AlignUnsupportedLPConvFQPrecision>();
+#endif
     CPU_REGISTER_PASS_ARM(lptManager, ConvertConvolutionBias);
     CPU_REGISTER_PASS_ARM(lptManager, FallbackUnsupportedLPConvToFP16);
     CPU_SET_CALLBACK_ARM(
