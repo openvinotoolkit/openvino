@@ -104,6 +104,43 @@ void filterPropertiesByCompilerSupport(intel_npu::FilteredConfig& config,
     if (backend && backend->isCommandQueueExtSupported()) {
         config.enable(ov::intel_npu::turbo.name(), true);
     }
+
+    // COMPATIBILITY_CHECK is a RunTime option, thus enabled by default
+    // The property should be supported only if at least one of the compiler adapters support it.
+    // Plugin will prefer the validation to be performed through CID, but it will fallback
+    // to the CIP validation otherwise.
+    // TODO: no need to recheck this everytime the current compiler type changes ...
+    CompilerAdapterFactory factory;
+    auto compilerType = ov::intel_npu::CompilerType::DRIVER;
+    try {
+        auto tempCompiler = factory.getCompiler(backend, compilerType, std::string_view{});
+        // If CID is present but does not support the query, fallback to CIP
+        if (!tempCompiler->is_option_supported(ov::compatibility_check.name())) {
+            compilerType = ov::intel_npu::CompilerType::PLUGIN;
+            try{
+                tempCompiler = factory.getCompiler(backend, compilerType, std::string_view{});
+                if (!tempCompiler->is_option_supported(ov::compatibility_check.name())) {
+                    // Neither of the compilers support the option, we should disable it
+                    logger.debug("Neither CID nor CIP support the compatibility check! Disabling the property.");
+                    config.enable(ov::compatibility_check.name(), false);
+                } else {
+                    // CIP is present and supports the option, COMPATIBILITY_CHECK remains enabled
+                }
+            } catch (const std::exception&) {
+                // CIP is not present either, the property is not supported
+                logger.debug("CIP is not present! Disabling the compatibility check property.");
+                config.enable(ov::compatibility_check.name(), false);
+            }
+        } else {
+            // COMPATIBILITY_CHECK remains enabled
+        }
+    } catch (const std::exception&) {
+        // If CID is not present ( driver is not present) plugin will not be able to retrieve
+        // the device information required for the CIP check, thus the property should not be supported.
+        // No need to check the CIP support anymore in this case
+        logger.debug("Driver is not present! Disabling the compatibility check property.");
+        config.enable(ov::compatibility_check.name(), false);
+    }
 }
 
 void disableCompilerProperties(intel_npu::FilteredConfig& config, const ov::SoPtr<intel_npu::IEngineBackend>& backend) {

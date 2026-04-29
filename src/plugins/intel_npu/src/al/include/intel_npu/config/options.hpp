@@ -1605,13 +1605,15 @@ struct COMPATIBILITY_CHECK final : OptionBase<COMPATIBILITY_CHECK, bool> {
     }
 
     static OptionMode mode() {
-        // This is a read-only option, marking it as CompileTime to have the corresponding property
-        // registered only when the selected compiler (adapter) supports it.
-        return OptionMode::CompileTime;
+        return OptionMode::RunTime;
     }
 
     static bool isPublic() {
         return true;
+    }
+
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RO;
     }
 };
 
