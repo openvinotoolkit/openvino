@@ -949,7 +949,7 @@ inline SEQ_RANGE FUNC(calc_sliding_window_seq_range)(const SEQ_RANGE default_seq
 #endif
 
 #if HAS_TOKEN_TYPE_IDS
-// Cooperate search for the first zero idx in token_type_ids.
+// Cooperative wg search for the first zero idx in token_type_ids.
 #define FIND_FIRST_ZERO_IDX_WG_TEMPLATE(CLEAR_VAL, REDUCTION_OP, ADVANCE_EXPRESSION, EDGE_CASE_CHECK, INIT_IDX) \
         const int sgid = get_sub_group_id();                                                                    \
         const int sglid = get_sub_group_local_id();                                                             \
@@ -979,19 +979,17 @@ inline SEQ_RANGE FUNC(calc_sliding_window_seq_range)(const SEQ_RANGE default_seq
         return block_first_idx;
 
 
-    inline int FUNC(FindFirstTokenTypeIdsZeroIdxToTheRight_wg)(const __global int* token_type_ids, 
+    inline int FUNC(find_first_zero_to_the_right_wg)(const __global int* token_type_ids, 
                             __local int* reduction_buffer, int start_idx, int seq_len) {
         FIND_FIRST_ZERO_IDX_WG_TEMPLATE(INT_MAX, sub_group_reduce_min, +=, < seq_len, base + lid)
     }
 
-    inline int FUNC(FindFirstTokenTypeIdsZeroIdxToTheLeft_wg)(const __global int* token_type_ids, 
+    inline int FUNC(find_first_zero_to_the_left_wg)(const __global int* token_type_ids, 
                             __local int* reduction_buffer, int start_idx, int seq_len) {
         FIND_FIRST_ZERO_IDX_WG_TEMPLATE(INT_MIN, sub_group_reduce_max, -=, >= 0, base - num_of_work_items + lid)
     }
 
-    // Bidirectional attention for image token groups (e.g. Gemma3 VLM):
-    // Compute per-lane effective causal limit to extend the visible range for image tokens
-    // This is a REFERENCE implementation.
+    // Function calculates the range of bidirectional mask for this work item.
     inline SEQ_RANGE FUNC(calc_bi_dir_seq_range)(
                             const __global int* token_type_ids, 
                             __local int* reduction_buffer,
@@ -999,12 +997,13 @@ inline SEQ_RANGE FUNC(calc_sliding_window_seq_range)(const SEQ_RANGE default_seq
                             const SEQ_RANGE default_seq_range,
                             bool begin_needed) {
 
-        // For this wg, each subgroup's work item min and max will be in 
-        // in the range of:
+        // For this wg, each subgroup's work item min and max seq idx
+        // will be in the range of:
         // [default_seq_range.subgroup_max - SUBGROUP_SIZE, default_seq_range.subgroup_max]
-        // So we can safetly assume that whole wg have to check:
+        // So we can safetly assume that wg have to check:
         // 1) where ends token group starting from default_seq_range.subgroup_max
         // 2) where begins token group starting from default_seq_range.subgroup_max - SUBGROUP_SIZE
+        // becasue it will be the same for all work items.
         // Wg will simply cooperatively calculate the first idx for which the token_type_id
         // is equal to zero to the left and right from the above range.
 
@@ -1019,18 +1018,18 @@ inline SEQ_RANGE FUNC(calc_sliding_window_seq_range)(const SEQ_RANGE default_seq
 
         // block cooperative search for token group end
         if (token_type_ids[default_block_range_end - 1] == 1) {
-            found_block_range_end = FUNC_CALL(FindFirstTokenTypeIdsZeroIdxToTheRight_wg)(token_type_ids, reduction_buffer, default_block_range_end, seq_len);
+            found_block_range_end = FUNC_CALL(find_first_zero_to_the_right_wg)(token_type_ids, reduction_buffer, default_block_range_end, seq_len);
         }
 
         // block cooperative search for token group start
         if (token_type_ids[default_block_range_begin] == 1 && begin_needed) {
-            found_block_range_begin = FUNC_CALL(FindFirstTokenTypeIdsZeroIdxToTheLeft_wg)(token_type_ids, reduction_buffer, default_block_range_begin - 1, seq_len) + 1;
+            found_block_range_begin = FUNC_CALL(find_first_zero_to_the_left_wg)(token_type_ids, reduction_buffer, default_block_range_begin - 1, seq_len) + 1;
         }
 
         int token_group_end = default_seq_range.max;
         int token_group_begin = default_seq_range.max;
 
-        // Special case: image group is less that subgroup size.
+        // Special case: image group is less than subgroup size.
         if (token_type_ids[token_group_end] == 1) {
             int new_group_end = token_group_end + 1;
             while (new_group_end < default_block_range_end && token_type_ids[new_group_end] == 1) {
@@ -1168,10 +1167,10 @@ KERNEL(sdpa_opt)(
 #endif
 
 #ifdef HAS_TOKEN_TYPE_IDS
-    __local int reduce_buffer[SUBGROUP_SIZE];
     // NOTE: if allocation of reduce_buffer causes SLM spill, 
     // we can reuse any other big enough allocated buffer.
-    // Having separate buffer makes it code easier to understand.
+    // Having separate buffer makes the code easier to understand.
+    __local int reduce_buffer[SUBGROUP_SIZE];
 #if SUBGROUPS_PER_WG > SUBGROUP_SIZE
     #error "sdpa_opt.cl: Unsupported configuration with token type ids. SUBGROUPS_PER_WG must be less than or equal to SUBGROUP_SIZE."
 #endif
