@@ -92,8 +92,8 @@ public:
         auto outputs = network->execute();
 
         // input_layout no longer pre-allocates memory at network construction time
-        const uint64_t input_buf_size = sizeof(float) * batch_num * feature_num * x_size * y_size;
-        ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t)(64 - input_buf_size));
+        // so we have only 16 bytes usm_host for the input buffer, 16 bytes for "relu" output, and 16 bytes for "relu5" output.
+        ASSERT_EQ(engine->get_max_used_device_memory(), 48ull);
     }
 
     void test_basic_non_padded_relu_and_pooling_pipe(bool is_caching_test) {
@@ -126,8 +126,10 @@ public:
         auto outputs = network->execute();
 
         // input_layout no longer pre-allocates memory at network construction time,
-        const uint64_t input_buf_size = sizeof(float) * batch_num * feature_num * x_size * y_size;
-        ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t)(896 - input_buf_size));
+        // The remaining peak is 640 bytes:
+        // 256 bytes host for the input, 256 bytes device for relu output,
+        // 64 bytes device for pool1 output, and 64 bytes host for relu5 output.
+        ASSERT_EQ(engine->get_max_used_device_memory(), 640ull);
     }
 
     void test_multi_outputs_network(bool is_caching_test) {
@@ -163,8 +165,10 @@ public:
         auto outputs = network->execute();
 
         // input_layout no longer pre-allocates memory at network construction time,
-        const uint64_t input_buf_size = sizeof(float) * batch_num * feature_num * x_size * y_size;
-        ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t)(1536 - input_buf_size));
+        // The remaining peak is 1280 bytes:
+        // 256 bytes host for the input, 256 bytes host for relu4 output, 256 bytes host for relu7 output,
+        // and 256 bytes device for two outputs from the first relu on a branch
+        ASSERT_EQ(engine->get_max_used_device_memory(), 1280ull);
     }
 
     void test_oooq(bool is_caching_test) {
@@ -203,8 +207,11 @@ public:
         auto outputs = network->execute();
 
         // input_layout no longer pre-allocates memory at network construction time,
-        const uint64_t input_buf_size = sizeof(float) * batch_num * feature_num * x_size * y_size;
-        ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t)(2560 - input_buf_size));
+        // The remaining peak is 2304 bytes:
+        // 256 bytes host for the input, 768 bytes host for the final relu6 output,
+        // and 1280 bytes device for intermediates: 256 bytes each for relu1,
+        // relu2, and the lower branch feeding concat2, plus 512 bytes for concat1 / relu4.
+        ASSERT_EQ(engine->get_max_used_device_memory(), 2304ull);
     }
 
     void test_shared_mem_pool_same_topology_twice() {
@@ -388,6 +395,7 @@ public:
         auto input_1 = engine->allocate_memory(lay_batch_1);
         auto input_8 = engine->allocate_memory(lay_batch_8);
         auto weights = engine->allocate_memory({ dt, fmt, { 1, 3, 3, 2 } });
+        // so far we allocated 192+1536+72 = 1800 bytes host memory
 
         std::vector<float> dummy_input_data_1 = rg.generate_random_1d<float>(batch_1 * feature_num * inp_x_size * inp_y_size, 0, 1);
         std::vector<float> dummy_input_data_8 = rg.generate_random_1d<float>(batch_8 * feature_num * inp_x_size * inp_y_size, 0, 1);
@@ -411,10 +419,10 @@ public:
         network_first->set_input_data("input", input_8);
         auto outputs = network_first->execute();
 
-        auto dev_info = engine->get_device_info();
         // input_layout no longer pre-allocates memory at network construction time,
-        const uint64_t input_buf_size = sizeof(float) * batch_8 * feature_num * inp_x_size * inp_y_size;
-        ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t)(4744 - input_buf_size));
+        // the network will use 1152 bytes for weight reorder node, 128 bytes for conv output and 128 bytes for softmax output
+        // in total we have 1800 bytes + 128 + 1152 + 128 = 3208, with no lazy allocations for inputs we'd go up to 4744...
+        ASSERT_EQ(engine->get_max_used_device_memory(), 3208ull);
 
         topo.change_input_layout("input", input_1->get_layout());//change input layout to batch=1
 
@@ -422,7 +430,10 @@ public:
         network_second->set_input_data("input", input_1);
         auto outputs_second = network_second->execute();
 
-        ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t)(5928 - input_buf_size));
+        // now we have the previous peak + another 1152 for the second network's reoder node, plus 16 bytes for
+        // convolution output, and 16 bytes for the softmax output.
+        // so 3208 + 1152 + 16 + 16 = 4392, without lazy allocations for input we'd go into 5928 bytes...
+        ASSERT_EQ(engine->get_max_used_device_memory(), 4392ull);
     }
 
     void test_shared_dep_two_output(bool is_caching_test) {
