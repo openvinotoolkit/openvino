@@ -248,6 +248,7 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
                 { "eltwise", "Eltwise" },
                 { "fully_connected", "FullyConnected" },
                 { "gated_delta_net", "GatedDeltaNet" },
+                { "paged_causal_conv1d", "PagedCausalConv1D" },
                 { "gather", "Gather" },
                 { "gemm", "Gemm" },
                 { "gru_seq", "GRU_Seq" },
