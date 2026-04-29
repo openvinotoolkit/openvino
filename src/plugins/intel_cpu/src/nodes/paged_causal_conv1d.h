@@ -8,6 +8,7 @@
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 
+#include "cpu_memory.h"
 #include "cpu_types.h"
 #include "graph_context.h"
 #include "node.h"
@@ -23,7 +24,7 @@ public:
 
     void getSupportedDescriptors() override {}
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override {}
+    void createPrimitive() override;
     void execute(const dnnl::stream& strm) override;
     void executeDynamicImpl(const dnnl::stream& strm) override {
         execute(strm);
@@ -46,6 +47,12 @@ public:
     bool needPrepareParams() const override {
         return false;
     }
+
+private:
+    // Per-node f32 scratch buffer holding one promoted conv-state block (hidden_size * kernel_size
+    // floats). Allocated once via the plugin scratchpad in createPrimitive() so that repeated
+    // execute() calls avoid per-invocation heap allocation.
+    MemoryPtr m_tmpLocalState;
 };
 
 }  // namespace ov::intel_cpu::node

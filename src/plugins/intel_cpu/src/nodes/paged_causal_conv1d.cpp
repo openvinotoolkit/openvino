@@ -6,14 +6,15 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <type_traits>
 #include <vector>
 
+#include "cpu_memory.h"
+#include "cpu_shape.h"
 #include "graph_context.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
 #include "nodes/kernels/paged_causal_conv1d.hpp"
@@ -21,9 +22,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
-#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/core/type/float16.hpp"
 #include "openvino/op/paged_causal_conv1d.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 
@@ -54,9 +53,7 @@ void PagedCausalConv1D::initSupportedPrimitiveDescriptors() {
 
     // Natively accept f32/f16/bf16 on the float-typed ports. The kernel treats input_embeds,
     // conv_weight, conv_bias and output uniformly as DataT; we declare all of them with the
-    // same precision as input_embeds (port 0). Upstream passes (constant folding, ConvertPrecision,
-    // enforceInferencePrecision) or an inserted reorder are expected to make the incoming
-    // weight/bias edges match this declared precision by the time execute() runs.
+    // same precision as input_embeds (port 0).
     // conv_state_table (port 1) is declared independently; the kernel converts its elements
     // to/from f32 during accumulation and write-back.
     const auto data_precision = getOriginalInputPrecisionAtPort(0);
@@ -88,6 +85,22 @@ void PagedCausalConv1D::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(input_configs, output_configs, impl_desc_type::ref_any);
 }
 
+void PagedCausalConv1D::createPrimitive() {
+    // Allocate a per-worker-thread f32 scratch buffer holding one promoted conv_state block.
+    // Shape: [num_worker_threads, hidden_size * kernel_size]. Each parallel (sequence, channel-block)
+    // task picks its buffer row via parallel_get_thread_num() in the kernel.
+    // hidden_size (port 0 dim 1) and kernel_size (port 1 dim 2) are static by model convention.
+    const auto& input_embeds_dims = getInputShapeAtPort(0).getDims();
+    const auto& state_table_dims = getInputShapeAtPort(1).getDims();
+    const size_t hidden_size = input_embeds_dims[1];
+    const size_t kernel_size = state_table_dims[2];
+    const auto num_threads = static_cast<size_t>(context->getCpuParallel()->get_num_worker_threads());
+    auto mem_desc =
+        std::make_shared<CpuBlockedMemoryDesc>(ov::element::f32,
+                                               ov::intel_cpu::Shape{num_threads, hidden_size * kernel_size});
+    m_tmpLocalState = context->getScratchPad()->createScratchPadMem(mem_desc);
+}
+
 void PagedCausalConv1D::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto& input_embeds_shape = getSrcMemoryAtPort(0)->getStaticDims();
     const auto& state_table_shape = getSrcMemoryAtPort(1)->getStaticDims();
@@ -96,7 +109,6 @@ void PagedCausalConv1D::execute([[maybe_unused]] const dnnl::stream& strm) {
 
     const size_t batch_size_in_tokens = input_embeds_shape[0];
     const size_t hidden_size = input_embeds_shape[1];
-    const size_t num_blocks = state_table_shape[0];
     const size_t kernel_size = state_table_shape[2];
 
     OPENVINO_ASSERT(state_table_shape[1] == hidden_size,
@@ -122,10 +134,10 @@ void PagedCausalConv1D::execute([[maybe_unused]] const dnnl::stream& strm) {
 
     const auto data_precision = getSrcMemoryAtPort(0)->getDescPtr()->getPrecision();
     const auto state_precision = getSrcMemoryAtPort(1)->getDescPtr()->getPrecision();
-    auto* input_embeds_raw = getSrcMemoryAtPort(0)->getData();
+    const auto* input_embeds_raw = getSrcMemoryAtPort(0)->getData();
     auto* conv_state_raw = getSrcMemoryAtPort(1)->getData();
-    auto* conv_weight_raw = getSrcMemoryAtPort(2)->getData();
-    auto* conv_bias_raw = has_bias ? getSrcMemoryAtPort(3)->getData() : nullptr;
+    const auto* conv_weight_raw = getSrcMemoryAtPort(2)->getData();
+    const auto* conv_bias_raw = has_bias ? getSrcMemoryAtPort(3)->getData() : nullptr;
     const auto* subsequence_begins = getSrcDataAtPortAs<const int32_t>(4);
     const auto* block_indices = getSrcDataAtPortAs<const int32_t>(5);
     const auto* block_indices_begins = getSrcDataAtPortAs<const int32_t>(6);
@@ -139,61 +151,26 @@ void PagedCausalConv1D::execute([[maybe_unused]] const dnnl::stream& strm) {
     OPENVINO_ASSERT(subseq_shape[0] >= 1, "PagedCausalConv1D expects subsequence_begins shape[0] >= 1.");
 
     const size_t seq_count = subseq_shape[0] - 1;
-    const size_t state_stride = hidden_size * kernel_size;
-    std::vector<float> local_state(state_stride);
 
-    auto dispatch_state = [&](auto* data_tag, auto* conv_state_table) {
-        using DataT = std::remove_pointer_t<decltype(data_tag)>;
-        const auto* input_embeds = static_cast<const DataT*>(input_embeds_raw);
-        const auto* conv_weight = static_cast<const DataT*>(conv_weight_raw);
-        const auto* conv_bias = has_bias ? static_cast<const DataT*>(conv_bias_raw) : nullptr;
-        auto* output_embeds = static_cast<DataT*>(output_embeds_raw);
-        kernels::paged_causal_conv1d_optimized(input_embeds,
-                                               conv_state_table,
-                                               conv_weight,
-                                               conv_bias,
-                                               has_bias,
-                                               subsequence_begins,
-                                               block_indices,
-                                               block_indices_begins,
-                                               past_lens,
-                                               cache_interval,
-                                               output_embeds,
-                                               batch_size_in_tokens,
-                                               hidden_size,
-                                               kernel_size,
-                                               num_blocks,
-                                               seq_count,
-                                               local_state.data());
-    };
-
-    auto dispatch_data = [&](auto* data_tag) {
-        if (state_precision == ov::element::f32) {
-            dispatch_state(data_tag, static_cast<float*>(conv_state_raw));
-        } else if (state_precision == ov::element::f16) {
-            dispatch_state(data_tag, static_cast<ov::float16*>(conv_state_raw));
-        } else if (state_precision == ov::element::bf16) {
-            dispatch_state(data_tag, static_cast<ov::bfloat16*>(conv_state_raw));
-        } else {
-            OPENVINO_ASSERT(false,
-                            "PagedCausalConv1D: unsupported conv_state_table precision ",
-                            state_precision,
-                            ". Expected f32, f16, or bf16.");
-        }
-    };
-
-    if (data_precision == ov::element::f32) {
-        dispatch_data(static_cast<float*>(nullptr));
-    } else if (data_precision == ov::element::f16) {
-        dispatch_data(static_cast<ov::float16*>(nullptr));
-    } else if (data_precision == ov::element::bf16) {
-        dispatch_data(static_cast<ov::bfloat16*>(nullptr));
-    } else {
-        OPENVINO_ASSERT(false,
-                        "PagedCausalConv1D: unsupported input_embeds precision ",
-                        data_precision,
-                        ". Expected f32, f16, or bf16.");
-    }
+    ov::Extensions::Cpu::XARCH::paged_causal_conv1d_exec(input_embeds_raw,
+                                                         conv_state_raw,
+                                                         conv_weight_raw,
+                                                         conv_bias_raw,
+                                                         has_bias,
+                                                         subsequence_begins,
+                                                         block_indices,
+                                                         block_indices_begins,
+                                                         past_lens,
+                                                         cache_interval,
+                                                         output_embeds_raw,
+                                                         batch_size_in_tokens,
+                                                         hidden_size,
+                                                         kernel_size,
+                                                         seq_count,
+                                                         data_precision,
+                                                         state_precision,
+                                                         m_tmpLocalState->getDataAs<float>(),
+                                                         context->getCpuParallel());
 }
 
 }  // namespace ov::intel_cpu::node
