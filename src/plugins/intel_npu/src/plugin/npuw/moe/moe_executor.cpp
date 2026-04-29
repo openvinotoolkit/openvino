@@ -36,7 +36,7 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
             explicit MoEBehavior(const BehaviorRole role) : m_role(role) {}
 
             void prologue(ov::npuw::v1::subgraphs::InferContext& ctx) override {
-                if (ctx.subgraph_idx != ctx.real_subgraph_idx) {
+                if (ctx.opaque_prologue) {
                     OPENVINO_ASSERT(static_cast<bool>(ctx.opaque_prologue),
                                     "Expected opaque prologue callback for MoE subgraph behavior");
                     ctx.opaque_prologue();

@@ -552,14 +552,17 @@ void ov::npuw::JustInferRequest::initialize_subgraph_behaviors() {
 
 ov::npuw::v1::subgraphs::InferContext ov::npuw::JustInferRequest::make_behavior_context(std::size_t real_idx,
                                                                                         std::size_t idx) {
+    const bool is_function_call = m_npuw_model->m_compiled_submodels[idx].replaced_by.has_value();
     return ov::npuw::v1::subgraphs::InferContext{*m_npuw_model, *this, idx, real_idx, [this, real_idx, idx]() {
                                                      legacy_infer(real_idx, idx);
                                                  },
-                                                 [this, idx]() {
-                                                     OPENVINO_ASSERT(m_moe_executor != nullptr,
-                                                                     "Expected MoE executor for opaque MoE prologue");
-                                                     function_prologue(idx);
-                                                 },
+                                                 is_function_call
+                                                     ? std::function<void()>{[this, idx]() {
+                                                           OPENVINO_ASSERT(m_moe_executor != nullptr,
+                                                                           "Expected MoE executor for opaque MoE prologue");
+                                                           function_prologue(idx);
+                                                       }}
+                                                     : std::function<void()>{},
                                                  [this, real_idx, idx]() {
                                                      OPENVINO_ASSERT(m_moe_executor != nullptr,
                                                                      "Expected MoE executor for opaque MoE run");
