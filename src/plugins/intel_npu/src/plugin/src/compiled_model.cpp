@@ -98,12 +98,13 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     //   per request), downgrade to TWO_THREADS_PER_MODEL to avoid unnecessary per-request thread creation when requests
     //   run sequentially anyway.
     if (get_plugin()->get_property(ov::internal::exclusive_async_requests.name(), {}).as<bool>()) {
-        localConfig.update({{ov::internal::threads_per_stream.name(),
+
+        localConfig.update({{ov::intel_npu::thread_mode.name(),
                               THREAD_MODE::toString(ov::intel_npu::ThreadMode::ONE_THREAD_PER_CORE)}});
     }
     if (localConfig.get<RUN_INFERENCES_SEQUENTIALLY>() &&
         localConfig.get<THREAD_MODE>() == ov::intel_npu::ThreadMode::ONE_THREAD_PER_INFERENCE) {
-        localConfig.update({{ov::internal::threads_per_stream.name(),
+        localConfig.update({{ov::intel_npu::thread_mode.name(),
                               THREAD_MODE::toString(ov::intel_npu::ThreadMode::TWO_THREADS_PER_MODEL)}});
     }
 

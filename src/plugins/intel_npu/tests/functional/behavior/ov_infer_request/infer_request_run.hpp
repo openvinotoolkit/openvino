@@ -2815,6 +2815,143 @@ TEST_P(DynamicBoundsTests, ExpectErrorFromWrongTensorShape) {
                     HasSubstr("The tensor shape is not compatible with the model input/output shape"));
 }
 
+using ThreadsConfig = InferRequestRunTests;
+
+TEST_P(ThreadsConfig, RunOneThreadPerInferRequest) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    ov::CompiledModel compiled_model0, compiled_model1;
+
+    auto local_config = configuration;
+    local_config[ov::intel_npu::thread_mode.name()] = ov::intel_npu::ThreadMode::ONE_THREAD_PER_INFERENCE;
+
+    OV_ASSERT_NO_THROW(compiled_model0 = core->compile_model(ov_model, target_device, local_config));
+    OV_ASSERT_NO_THROW(compiled_model1 = core->compile_model(ov_model, target_device, local_config));
+
+    auto inference_request0 = compiled_model0.create_infer_request();
+    auto inference_request1 = compiled_model0.create_infer_request();
+    auto inference_request2 = compiled_model1.create_infer_request();
+    auto inference_request3 = compiled_model1.create_infer_request();
+
+    ASSERT_EQ(0u, ov::threading::executor_manager()->get_executors_number());
+}
+
+TEST_P(ThreadsConfig, RunTwoThreadsPerCompiledModel) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    ov::CompiledModel compiled_model0, compiled_model1;
+
+    auto local_config = configuration;
+    local_config[ov::intel_npu::thread_mode.name()] = ov::intel_npu::ThreadMode::TWO_THREADS_PER_MODEL;
+
+    OV_ASSERT_NO_THROW(compiled_model0 = core->compile_model(ov_model, target_device, local_config));
+    OV_ASSERT_NO_THROW(compiled_model1 = core->compile_model(ov_model, target_device, local_config));
+
+    auto inference_request0 = compiled_model0.create_infer_request();
+    auto inference_request1 = compiled_model0.create_infer_request();
+    auto inference_request2 = compiled_model1.create_infer_request();
+    auto inference_request3 = compiled_model1.create_infer_request();
+
+    ASSERT_EQ(0u, ov::threading::executor_manager()->get_executors_number());
+}
+
+TEST_P(ThreadsConfig, RunOneThreadPerCore) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    ov::CompiledModel compiled_model0, compiled_model1;
+
+    auto local_config = configuration;
+    local_config[ov::intel_npu::thread_mode.name()] = ov::intel_npu::ThreadMode::ONE_THREAD_PER_CORE;
+
+    OV_ASSERT_NO_THROW(compiled_model0 = core->compile_model(ov_model, target_device, local_config));
+    OV_ASSERT_NO_THROW(compiled_model1 = core->compile_model(ov_model, target_device, local_config));
+
+    auto inference_request0 = compiled_model0.create_infer_request();
+    auto inference_request1 = compiled_model0.create_infer_request();
+    auto inference_request2 = compiled_model1.create_infer_request();
+    auto inference_request3 = compiled_model1.create_infer_request();
+
+    ASSERT_EQ(1u, ov::threading::executor_manager()->get_executors_number());
+}
+
+TEST_P(ThreadsConfig, RunTwoThreadsPerCore) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    ov::CompiledModel compiled_model0, compiled_model1;
+
+    auto local_config = configuration;
+    local_config[ov::intel_npu::thread_mode.name()] = ov::intel_npu::ThreadMode::TWO_THREADS_PER_CORE;
+
+    OV_ASSERT_NO_THROW(compiled_model0 = core->compile_model(ov_model, target_device, local_config));
+    OV_ASSERT_NO_THROW(compiled_model1 = core->compile_model(ov_model, target_device, local_config));
+
+    auto inference_request0 = compiled_model0.create_infer_request();
+    auto inference_request1 = compiled_model0.create_infer_request();
+    auto inference_request2 = compiled_model1.create_infer_request();
+    auto inference_request3 = compiled_model1.create_infer_request();
+
+    ASSERT_EQ(2u, ov::threading::executor_manager()->get_executors_number());
+}
+
+TEST_P(ThreadsConfig, RunOneThreadPerCoreCheckResults) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    auto shape = Shape{1, 64, 64, 256};
+    auto shape_size = ov::shape_size(shape);
+    auto model = createModel(element::f32, shape, "N...");
+
+    ov::CompiledModel compiled_model0, compiled_model1;
+
+    auto context = core->get_default_context(target_device);
+
+    auto local_config = configuration;
+    local_config[ov::intel_npu::thread_mode.name()] = ov::intel_npu::ThreadMode::ONE_THREAD_PER_CORE;
+    local_config[ov::intel_npu::tiles.name()] = 2;
+    compiled_model0 = core->compile_model(model, target_device, local_config);
+    compiled_model1 = core->compile_model(model, target_device, local_config);
+
+    const uint32_t inferences = 32;
+    std::array<ov::InferRequest, inferences> inference_request;
+    ov::Tensor input_tensor;
+    std::array<ov::Tensor, inferences> output_tensor;
+
+    input_tensor = context.create_host_tensor(ov::element::f32, shape);
+    for (uint32_t i = 0; i < inferences; i++) {
+        inference_request[i] =
+            i % 2 == 0 ? compiled_model0.create_infer_request() : compiled_model1.create_infer_request();
+        output_tensor[i] = context.create_host_tensor(ov::element::f32, shape);
+    }
+
+    inference_request[0].set_input_tensor(input_tensor);
+    inference_request[0].set_output_tensor(output_tensor[0]);
+
+    const uint32_t runs = 10;
+    for (uint32_t z = 0; z < runs; z++) {
+        auto* input_data = reinterpret_cast<float*>(input_tensor.data());
+        for (size_t i = 0; i < shape_size; ++i) {
+            input_data[i] = static_cast<float>(z);
+        }
+
+        inference_request[0].start_async();  // Adds '1' to each element
+
+        for (uint32_t i = 1; i < inferences; i++) {
+            inference_request[i].set_input_tensor(output_tensor[i - 1]);
+            inference_request[i].set_output_tensor(output_tensor[i]);
+
+            inference_request[i].start_async();  // Adds '1' to each element
+        }
+
+        inference_request[inferences - 1].wait();
+
+        float expected_result = static_cast<float>(z) + 1.f;
+
+        for (uint32_t i = 0; i < inferences; i++) {
+            auto* output_tensor_data = reinterpret_cast<float*>(output_tensor[i].data());
+            for (size_t j = 0; j < shape_size; ++j) {
+                EXPECT_NEAR(output_tensor_data[j], expected_result, 1e-5)
+                    << "Run=" << z << "Output=" << i << " Expected=" << expected_result
+                    << ", actual=" << output_tensor_data[j] << " for index " << j;
+            }
+            expected_result++;
+        }
+    }
+}
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
