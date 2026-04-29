@@ -344,26 +344,74 @@ Log:
 [OV-ORCH] [phase=FE-final] result=success ops=<names> fe_complete=true final_pass_complete=true
 ```
 
-### Phase 6: Verify Pipeline
+### Phase 6: E2E Verification Gate
 
-After all available fixes are applied, run the
+> **This phase is a hard gate. Phase 7 (PR) must not start until all checks
+> below pass. Do not open a PR against a failing or untested pipeline.**
+
+Run the
 **[`skills/verify-conversion.md`](.github/agents/skills/verify-conversion.md)** skill.
 
-The skill auto-detects the correct conversion path (optimum-intel for HuggingFace
-models, native `ovc`/`convert_model` for local ONNX/PyTorch/TF models) and runs a
-quick inference sanity check. It writes the result to
-`agent-results/enable-operator/verify_result.json`.
+The skill:
+1. Auto-detects the correct conversion path (optimum-intel for HuggingFace models,
+   native `ovc`/`convert_model` for local ONNX/PyTorch/TF models).
+2. Runs a real end-to-end inference through the OV plugin layer.
+3. Validates output sanity (no NaN/Inf, non-empty tensors, non-blank LM output).
 
-- If `verify_passed == true` → Phase 7 (collect + publish)
-- If `verify_passed == false` and a new distinct error appears → classify and route
-  to the appropriate agent (one more iteration within this invocation)
+It writes the result to `agent-results/enable-operator/verify_result.json`.
+
+After the skill completes, **also verify sub-agent test results**:
+
+```python
+import json, os, sys
+
+SUBAGENT_RESULTS = [
+    "agent-results/frontend/fe_result.json",
+    "agent-results/core-opspec/core_opspec_result.json",
+    "agent-results/transformation/transformation_result.json",
+    "agent-results/cpu/cpu_result.json",
+    "agent-results/gpu/gpu_result.json",
+]
+
+failures = []
+for path in SUBAGENT_RESULTS:
+    if not os.path.exists(path):
+        continue
+    d = json.load(open(path))
+    if d.get("status") == "failed":
+        failures.append(f"{path}: status=failed")
+    tr = d.get("test_results", "")
+    if tr and "FAILED" in str(tr).upper():
+        failures.append(f"{path}: test_results={tr!r}")
+
+if failures:
+    print("[OV-ORCH] [phase=e2e-gate] SUB-AGENT TEST FAILURES:")
+    for f in failures:
+        print(" ", f)
+    sys.exit(1)
+```
+
+**Gate outcomes:**
+
+| Condition | Action |
+|---|---|
+| `verify_passed == true` AND no sub-agent test failures | ✅ Proceed to Phase 7 |
+| `verify_passed == false`, new distinct error | Classify and route to the appropriate agent (one more iteration within this invocation) |
+| Sub-agent test failures present | Fix the failing agent before proceeding — do **not** open a PR with known test failures |
+| `verify_passed == false`, same error as before | Escalate: report failure, do not open a PR |
 
 Log:
 ```
-[OV-ORCH] [phase=verify] Quick export check: PASSED — all OV patches applied successfully
+[OV-ORCH] [phase=e2e-gate] verify_passed=true e2e_passed=true sub_agent_tests=pass → unblocking Phase 7
 ```
 
 ### Phase 7: Collect Patches + Draft PR
+
+> **HARD STOP — mandatory pre-conditions before this phase may start:**
+> - `agent-results/enable-operator/verify_result.json` must exist with `verify_passed: true` AND `e2e_passed: true`
+> - No sub-agent result file may have `status: failed` or failing `test_results`
+>
+> If either condition is not met, do **not** open a PR. Fix the underlying issue first.
 
 > **Skip this phase** if the user explicitly requested no PR (e.g. "no PR", "skip PR", "no pull
 > request"). Write `ov_orchestrator.pr_url: null` to state and proceed directly to Phase 8.

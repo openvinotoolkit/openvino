@@ -1,14 +1,23 @@
 ---
 name: verify-conversion
-description: Quick post-fix sanity check — verify a model converts and produces output with OpenVINO. Handles HuggingFace/optimum-intel, native OV conversion (ovc/convert_model), and ONNX. Used by orchestrators after applying patches.
+description: E2E gate — verifies that applied patches produce a working, numerically sane end-to-end inference through the OpenVINO plugin. Handles HuggingFace/optimum-intel, native OV conversion (ovc/convert_model), and ONNX. Used by orchestrators as the mandatory gate before any PR is published.
 ---
 
-# Skill: Verify Conversion
+# Skill: Verify Conversion (E2E Gate)
 
-Quick sanity check to confirm that applied patches produce a working conversion.
+> **This skill is a hard gate before PR publication.**
+> A PR must **not** be opened until both steps below pass:
+> 1. The model converts without error.
+> 2. A real end-to-end inference through the OV plugin layer produces numerically
+>    sane output (no NaN/Inf, non-empty, correct shape).
+>
+> Conversion success alone is not sufficient — plugin-level issues (wrong kernel
+> output, silent data corruption, incorrect type/shape inference at runtime) are
+> only caught by an actual inference run.
+
 This is **not** a full strategy matrix run — use `try-conversion` for that.
 
-Goal: one conversion attempt, one inference pass, pass/fail result.
+Goal: one conversion, one inference run, numerical sanity check, structured result.
 
 ---
 
@@ -97,10 +106,17 @@ For non-causal models (classification, ASR, etc.), adapt the class and inputs ac
 
 ```python
 import openvino as ov
+import numpy as np
 core = ov.Core()
 model = core.read_model("path/to/model.onnx")
 compiled = core.compile_model(model, "CPU")
-print("[verify] ONNX read + compile OK")
+# Run one inference pass
+infer = compiled.create_infer_request()
+for inp in compiled.inputs:
+    shape = [d if d > 0 else 1 for d in inp.partial_shape.get_min_shape()]
+    infer.set_tensor(inp, ov.Tensor(np.zeros(shape, dtype=inp.element_type.to_dtype())))
+infer.infer()
+print("[verify] ONNX compile + inference OK")
 ```
 
 ### PyTorch model
@@ -114,8 +130,8 @@ import torch, openvino as ov
 example_input = torch.zeros(1, 3, 224, 224)   # adjust shape
 ov_model = ov.convert_model(torch_model, example_input=example_input)
 compiled = ov.Core().compile_model(ov_model, "CPU")
-result = compiled(example_input.numpy())
-print("[verify] PyTorch convert + inference OK")
+result = list(compiled({0: example_input.numpy()}).values())[0]
+print("[verify] PyTorch convert + inference OK, output shape:", result.shape)
 ```
 
 ### TF / generic via ovc
@@ -123,12 +139,56 @@ print("[verify] PyTorch convert + inference OK")
 ```bash
 ovc path/to/saved_model --output_model ov_verify_check/model.xml
 python3 -c "
-import openvino as ov
-m = ov.Core().read_model('ov_verify_check/model.xml')
-ov.Core().compile_model(m, 'CPU')
-print('[verify] ovc + compile OK')
+import openvino as ov, numpy as np
+core = ov.Core()
+m = core.read_model('ov_verify_check/model.xml')
+cmp = core.compile_model(m, 'CPU')
+infer = cmp.create_infer_request()
+for inp in cmp.inputs:
+    shape = [d if d > 0 else 1 for d in inp.partial_shape.get_min_shape()]
+    infer.set_tensor(inp, ov.Tensor(np.zeros(shape, dtype=inp.element_type.to_dtype())))
+infer.infer()
+print('[verify] ovc + compile + inference OK')
 "
 ```
+
+---
+
+## Step 3 — E2E Numerical Sanity Check
+
+After inference completes, validate output quality through the plugin layer:
+
+```python
+import numpy as np
+
+def check_output_sanity(outputs: dict, label: str) -> tuple[bool, str]:
+    """Returns (passed, reason). Checks all output tensors."""
+    for name, arr in outputs.items():
+        arr = np.asarray(arr)
+        if arr.size == 0:
+            return False, f"{label}: output '{name}' is empty (size=0)"
+        if np.isnan(arr).any():
+            return False, f"{label}: output '{name}' contains NaN"
+        if np.isinf(arr).any():
+            return False, f"{label}: output '{name}' contains Inf"
+    return True, "OK"
+
+# For HF/optimum path — check that generated tokens are non-empty
+def check_lm_output(out_ids, tokenizer, label: str) -> tuple[bool, str]:
+    if out_ids is None or out_ids.shape[-1] == 0:
+        return False, f"{label}: generated token sequence is empty"
+    decoded = tokenizer.decode(out_ids[0], skip_special_tokens=True)
+    if not decoded.strip():
+        return False, f"{label}: decoded output is blank"
+    return True, f"generated: '{decoded[:80]}'"
+```
+
+Apply the appropriate check based on conversion path:
+- **Path A (HF/optimum)**: use `check_lm_output` on the generated token ids
+- **Path B (native OV)**: use `check_output_sanity` on the infer request output tensors
+
+If the sanity check fails, set `e2e_passed = false` with the reason — do **not**
+silently swallow the failure.
 
 ---
 
@@ -139,12 +199,18 @@ Write the outcome to `agent-results/<agent>/verify_result.json`:
 ```json
 {
   "verify_passed": true,
+  "e2e_passed": true,
   "conversion_path": "optimum-cli | ovc | convert_model",
   "task": "<task or null>",
+  "e2e_detail": "<short description of what was run and what output was checked>",
   "error": null
 }
 ```
 
-On failure, set `"verify_passed": false` and populate `"error"` with the last
-traceback line. Do **not** abort the pipeline — the orchestrator decides whether
-to retry or escalate.
+`verify_passed` is `true` only when **both** conversion and E2E inference pass.
+
+On failure, set `"verify_passed": false`, `"e2e_passed": false` (if inference
+failed), and populate `"error"` with the specific failure reason.
+
+Do **not** abort the pipeline — the orchestrator decides whether to retry or
+escalate.
