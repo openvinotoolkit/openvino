@@ -16,7 +16,7 @@ public:
     ze_device(const ze_device &other) = delete;
     ze_device& operator=(const ze_device &other) = delete;
 
-    device_info& get_info() const override { return _info; }
+    const device_info& get_info() const override { return _info; }
     memory_capabilities get_mem_caps() const override { return _mem_caps; }
 
     void initialize() override;
