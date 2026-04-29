@@ -468,9 +468,9 @@ if(ENABLE_OV_TF_LITE_FRONTEND OR ENABLE_INTEL_NPU)
             # we dont want to build flatc with ThreadSanitizer since it causes issues during our build.
             # this might be incorrect if flatbuffers::flatc gets used / linked in the NPU Plugin
             # current assumption is that it is only a build tool
-            if(ENABLE_THREAD_SANITIZER)
-                target_compile_options(flatbuffers::flatc PRIVATE -fno-sanitize=thread)
-                target_link_options(flatbuffers::flatc PRIVATE -fno-sanitize=thread)
+            if(ENABLE_THREAD_SANITIZER AND TARGET flatc)
+                target_compile_options(flatc PRIVATE -fno-sanitize=thread)
+                target_link_options(flatc PRIVATE -fno-sanitize=thread)
             endif()
         endif()
     endif()
