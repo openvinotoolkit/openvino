@@ -13,7 +13,6 @@
 #include "emitters/snippets/aarch64/utils.hpp"
 #include "emitters/utils.hpp"
 #include "openvino/core/type.hpp"
-#include "snippets/emitter.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/op/reg_spill.hpp"
 
