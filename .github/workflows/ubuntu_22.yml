@@ -602,7 +602,7 @@ jobs:
       max-parallel: 2
       fail-fast: false
       matrix:
-        TEST_TYPE: ['unit']
+        TEST_TYPE: ['func']
         run_instance: [1, 2]
     with:
       device: 'igpu'
