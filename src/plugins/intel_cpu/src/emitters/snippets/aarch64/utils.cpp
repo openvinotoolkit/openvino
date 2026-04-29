@@ -10,14 +10,12 @@
 #include <cpu/aarch64/jit_generator.hpp>
 #include <cstddef>
 #include <cstdint>
-#include <set>
 #include <unordered_set>
 #include <vector>
 
 #include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "emitters/utils.hpp"
 #include "openvino/core/except.hpp"
-#include "snippets/emitter.hpp"
 #include "snippets/utils/utils.hpp"
 #include "utils/general_utils.h"
 
@@ -60,21 +58,6 @@ std::vector<Xbyak_aarch64::XReg> get_aux_gprs(const std::vector<size_t>& used_gp
 
     OPENVINO_ASSERT(aux_regs.size() == count, "Expected ", count, " auxiliary registers, but got ", aux_regs.size());
     return aux_regs;
-}
-
-Xbyak_aarch64::XReg get_aux_gpr(const std::vector<size_t>& used_gpr_idxs) {
-    return get_aux_gprs(used_gpr_idxs, 1)[0];
-}
-
-Xbyak_aarch64::XReg init_memory_access_aux_gpr(const std::vector<size_t>& used_gpr_reg_idxs,
-                                               const std::vector<size_t>& aux_gpr_idxs,
-                                               std::set<snippets::Reg>& regs_to_spill) {
-    if (!aux_gpr_idxs.empty()) {
-        return Xbyak_aarch64::XReg(static_cast<int>(aux_gpr_idxs[0]));
-    }
-    const auto aux_reg = get_aux_gpr(used_gpr_reg_idxs);
-    regs_to_spill.emplace(snippets::RegType::gpr, aux_reg.getIdx());
-    return aux_reg;
 }
 
 void push_ptr_with_runtime_offset_on_stack(dnnl::impl::cpu::aarch64::jit_generator_t* h,
