@@ -124,7 +124,7 @@ void filterPropertiesByCompilerSupport(intel_npu::FilteredConfig& config,
             try{
                 tempCompiler = factory.getCompiler(backend, compilerType, std::string_view{});
                 if (!tempCompiler->is_option_supported(ov::compatibility_check.name())) {
-                    // Neither of the compilers support the option, we should disable it
+                    // Neither of the compiler adapters support the option, it should be disabled
                     logger.debug("Neither CID nor CIP support the compatibility check! Disabling the property.");
                     config.enable(ov::compatibility_check.name(), false);
                 } else {
@@ -139,7 +139,7 @@ void filterPropertiesByCompilerSupport(intel_npu::FilteredConfig& config,
             // COMPATIBILITY_CHECK remains enabled
         }
     } catch (const std::exception&) {
-        // If CID is not present ( driver is not present) plugin will not be able to retrieve
+        // If CID is not present (driver is not present either) plugin will not be able to retrieve
         // the device information required for the CIP check, thus the property should not be supported.
         // No need to check the CIP support anymore in this case
         logger.debug("Driver is not present! Disabling the compatibility check property.");
@@ -630,9 +630,8 @@ void Properties::registerPluginProperties() {
                                  true,
                                  ov::PropertyMutability::RO,
                                  [](const Config& /* unusedConfig */) {
-                                    // TODO: log an error here as the code shouldn't have gotten here
-                                    // this property is implemented in compiled model directly
-                                    // this implementation here serves only to publish it in supported_properties
+                                    // This property is implemented in the plugin directly
+                                    // This implementation here serves only to publish it in supported_properties
                                     return false;
                                  });
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::enable_cpu_pinning, ENABLE_CPU_PINNING);
@@ -836,9 +835,8 @@ void Properties::registerCompiledModelProperties() {
                                  true,
                                  ov::PropertyMutability::RO,
                                  [](const Config& /* unusedConfig */) {
-                                    // TODO: log an error here as the code shouldn't have gotten here
-                                    // this property is implemented in compiled model directly
-                                    // this implementation here serves only to publish it in supported_properties
+                                    // This property is implemented in compiled model directly
+                                    // This implementation here serves only to publish it in supported_properties
                                     return std::string("");
                                  });
 

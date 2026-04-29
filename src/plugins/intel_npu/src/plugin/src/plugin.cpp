@@ -360,20 +360,22 @@ void Plugin::set_property(const ov::AnyMap& properties) {
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
+    // Special cases that need to be treated outside of the property manager.
+    // Checking runtime requirements requires access to plugin's metadata
     if (name == ov::compatibility_check.name()) {
         if (arguments.empty() || arguments.find(ov::runtime_requirements.name()) == arguments.end()) {
             return ov::CompatibilityCheck ::NOT_APPLICABLE;
         }
 
         // Reading the (dummy) property content to check if it is supported
+        // Expected to throw if the property is not supported
         _propertiesManager->getProperty(name);
 
         const auto& compatibilityString = arguments.at(ov::runtime_requirements.name()).as<const std::string&>();
-        std::string encodedString = compatibilityString;
-        _logger.debug("Received encoded compatibility string: %s length: %zu", compatibilityString.c_str(), compatibilityString.length());
+        _logger.debug("Received compatibility string: %s length: %zu", compatibilityString.c_str(), compatibilityString.length());
 
         const ov::Tensor viewTensor =
-            ov::Tensor(ov::element::Type_t::u8, ov::Shape{encodedString.length()}, encodedString.data());
+            ov::Tensor(ov::element::Type_t::u8, ov::Shape{compatibilityString.length()}, compatibilityString.data());
 
         std::unique_ptr<MetadataBase> metadata = nullptr;
         try {
