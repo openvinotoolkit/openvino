@@ -555,22 +555,26 @@ void jit_store_emitter::emit_isa(const std::vector<size_t>& in_idxs, const std::
     OV_CPU_JIT_EMITTER_ASSERT(store_num_ <= 4, "Unexpected number of elements to store.");
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    const auto src = TReg(in_idxs[0]);
+    auto data_idxs = in_idxs;
     if (src_prc_ != dst_prc_) {
-        jit_convert_process(h, src, src, src_prc_, dst_prc_, mode_ == arithmetic_mode::saturation);
+        OV_CPU_JIT_EMITTER_ASSERT(!aux_vec_idxs.empty(), "Store conversion requires an auxiliary vector register.");
+        const auto src = TReg(in_idxs[0]);
+        const auto converted = TReg(aux_vec_idxs[0]);
+        jit_convert_process(h, src, converted, src_prc_, dst_prc_, mode_ == arithmetic_mode::saturation);
+        data_idxs[0] = static_cast<size_t>(converted.getIdx());
     }
 
     switch (dst_prc_) {
     case ov::element::f32:
     case ov::element::i32:
-        store_qbyte<isa>(in_idxs, out_idxs);
+        store_qbyte<isa>(data_idxs, out_idxs);
         break;
     case ov::element::f16:
-        store_dbyte<isa>(in_idxs, out_idxs);
+        store_dbyte<isa>(data_idxs, out_idxs);
         break;
     case ov::element::i8:
     case ov::element::u8:
-        store_byte<isa>(in_idxs, out_idxs);
+        store_byte<isa>(data_idxs, out_idxs);
         break;
     default:
         OV_CPU_JIT_EMITTER_THROW("Unsupported precision: ", dst_prc_.get_type_name());
@@ -583,6 +587,10 @@ size_t jit_store_emitter::get_aux_gprs_count() const {
     }
 
     return 0;
+}
+
+size_t jit_store_emitter::get_aux_vecs_count() const {
+    return src_prc_ != dst_prc_ ? 1 : 0;
 }
 
 }  // namespace ov::intel_cpu::aarch64
