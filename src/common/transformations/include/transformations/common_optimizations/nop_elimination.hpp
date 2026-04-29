@@ -115,7 +115,7 @@ public:
                             |                            |
                             ▼                            ▼
                        ┌────────────┐             ┌────────────┐
-                       │StridedSlice│             │StridedSlice│
+                       │StridedSlice│             │ v8::Slice  │
                        └─────┬──────┘             └──────┬─────┘
                              |   (A)                     | (B + C)
                              ▼                           ▼
