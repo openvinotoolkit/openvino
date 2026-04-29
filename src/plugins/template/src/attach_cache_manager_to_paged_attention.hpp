@@ -26,9 +26,7 @@ public:
 
         for (const auto& node : model->get_ordered_ops()) {
             auto pa = std::dynamic_pointer_cast<ov::op::PagedAttentionExtension>(node);
-            if (!pa)
-                continue;
-            if (get_cache_manager(pa.get()))
+            if (!pa || get_cache_manager(pa.get()) == nullptr)
                 continue;
 
             if (!shared_handle) {
