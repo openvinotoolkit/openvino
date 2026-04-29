@@ -346,21 +346,17 @@ Log:
 
 ### Phase 6: Verify Pipeline
 
-After all available fixes are applied:
-1. Run quick export check (without full compilation):
-   ```python
-   import subprocess, sys
-   export_result = subprocess.run([
-       "optimum-cli", "export", "openvino",
-       "--model", MODEL_ID,
-       "--task", "text-generation-with-past",
-       "--weight-format", "fp16",
-       "ov_quick_check/"
-   ], capture_output=True, text=True, timeout=300)
-   print("PASSED" if export_result.returncode == 0 else f"FAILED: {export_result.stderr[-500:]}")
-   ```
-2. If export succeeds → Phase 7 (collect + publish)
-3. If new error appears → classify and route to appropriate agent (one more iteration within this invocation)
+After all available fixes are applied, run the
+**[`skills/verify-conversion.md`](.github/agents/skills/verify-conversion.md)** skill.
+
+The skill auto-detects the correct conversion path (optimum-intel for HuggingFace
+models, native `ovc`/`convert_model` for local ONNX/PyTorch/TF models) and runs a
+quick inference sanity check. It writes the result to
+`agent-results/enable-operator/verify_result.json`.
+
+- If `verify_passed == true` → Phase 7 (collect + publish)
+- If `verify_passed == false` and a new distinct error appears → classify and route
+  to the appropriate agent (one more iteration within this invocation)
 
 Log:
 ```
