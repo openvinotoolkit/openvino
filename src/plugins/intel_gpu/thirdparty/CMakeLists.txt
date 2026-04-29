@@ -100,7 +100,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
             # If OpenCL target exists but OpenCL_INCLUDE_DIR is not set, extract from target
             get_target_property(opencl_include_dirs OpenCL::OpenCL INTERFACE_INCLUDE_DIRECTORIES)
             if(opencl_include_dirs)
-                list(APPEND cmake_extra_args "-DOpenCL_INCLUDE_DIR=${opencl_include_dirs}")
+                list(APPEND cmake_extra_args "-DOpenCL_INCLUDE_DIRS=${opencl_include_dirs}")
             endif()
         endif()
 
