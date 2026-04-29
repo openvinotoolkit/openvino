@@ -322,7 +322,9 @@ ZeroInitStructsMock::ZeroInitStructsMock(uint32_t zeDriverNpuExtVersion,
 
     // Create context - share between the compiler and the backend
     ze_context_desc_t context_desc = {ZE_STRUCTURE_TYPE_CONTEXT_DESC, 0, 0};
-    THROW_ON_FAIL_FOR_LEVELZERO("zeContextCreate", zeContextCreate(_driver_handle, &context_desc, &_context));
+    ze_context_handle_t ctx = nullptr;
+    THROW_ON_FAIL_FOR_LEVELZERO("zeContextCreate", zeContextCreate(_driver_handle, &context_desc, &ctx));
+    _context.store(ctx);
     _log.debug("ZeroInitStructsHolder initialize complete");
 
     // Discover if standard allocation is supported
@@ -385,20 +387,36 @@ void ZeroInitStructsMock::getExtensionFunctionAddress(const std::string& name,
     }
 }
 
-ZeroInitStructsMock::~ZeroInitStructsMock() {
-    if (_context) {
-        _log.debug("ZeroInitStructsHolder - performing zeContextDestroy");
-        auto result = zeContextDestroy(_context);
-        _context = nullptr;
-        if (result != ZE_RESULT_SUCCESS) {
-            if (result == ZE_RESULT_ERROR_UNINITIALIZED) {
-                _log.warning(
-                    "zeContextDestroy failed to destroy the context; Level zero context was already destroyed");
-            } else {
-                _log.error("zeContextDestroy failed %#X", uint64_t(result));
-            }
-        }
+void ZeroInitStructsMock::destroyContextForInstance(std::shared_ptr<ZeroInitStructsMock>& instance) {
+    if (!instance) {
+        return;
     }
+
+    std::lock_guard<std::mutex> lock(instance->_mutex);
+    instance->destroyContextLocked();
+}
+
+void ZeroInitStructsMock::destroyContextLocked() {
+    if (!_context.load()) {
+        return;
+    }
+
+    _log.debug("ZeroInitStructsHolder - performing zeContextDestroy");
+    auto result = zeContextDestroy(_context.load());
+    if (result == ZE_RESULT_SUCCESS) {
+        _context.store(nullptr);
+        _log.debug("ZeroInitStructsHolder - zeContextDestroy succeeded");
+    } else if (result == ZE_RESULT_ERROR_UNINITIALIZED) {
+        _context.store(nullptr);
+        _log.warning("zeContextDestroy failed to destroy the context; Level zero context was already destroyed");
+    } else {
+        _log.error("zeContextDestroy failed %#X", uint64_t(result));
+    }
+}
+
+ZeroInitStructsMock::~ZeroInitStructsMock() {
+    std::lock_guard<std::mutex> lock(_mutex);
+    destroyContextLocked();
 }
 
 }  // namespace intel_npu

@@ -156,7 +156,8 @@ def get_pytorch_decoder(model, example_inputs, args):
             decoder = TorchFXPythonDecoder.from_model(
                 model,
                 example_inputs=inputs,
-                dynamic_shapes=dynamic_shapes)
+                dynamic_shapes=dynamic_shapes,
+                module_extensions=extract_module_extensions(args))
         else:
             decoder = TorchScriptPythonDecoder(
                 model,
