@@ -158,6 +158,8 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     auto next_dt = next.get_output_layout().data_type;
     auto use_onednn_impls = has_all_enabled_onednn_impls_optimization_attribute();
 
+    // Under dynamic shape, skip reorder fusion except for primitives whose kernels handle
+    // cross-layout inputs at runtime: convolution, and MVN (fsv16/fsv32, see rule below).
     if ((prev.is_dynamic() || next.is_dynamic()) && !next.is_type<convolution>() && !next.is_type<mvn>())
         return false;
 
