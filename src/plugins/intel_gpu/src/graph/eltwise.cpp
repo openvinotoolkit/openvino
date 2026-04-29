@@ -397,12 +397,22 @@ eltwise_inst::typed_primitive_inst(network& network, eltwise_node const& node) :
     } else if (inputs_count > 1) {
         ov::op::v1::Add op;
         op.set_autob(prim->broadcast_spec);
+        bool use_new_shape_infer = network.get_config().get_allow_new_shape_infer();
 
         auto output_shape = node.get_input_pshape(0);
         for (size_t i = 1; i < inputs_count; ++i) {
+            auto input_pshape = node.get_input_pshape(i);
+            // cldnn legacy path right-pads the shorter shape with 1s so
+            // per-channel operands (e.g. [1, C, 1, 1]) broadcast against
+            // higher-rank outputs (e.g. [1, C, D, H, W]).
+            if (!use_new_shape_infer && output_shape.size() > input_pshape.size()) {
+                input_pshape.insert(input_pshape.end(),
+                                    output_shape.size() - input_pshape.size(),
+                                    1);
+            }
             try {
                 output_shape = ov::op::eltwise_shape_infer(&op,
-                                                           std::vector<ov::PartialShape>{output_shape, node.get_input_pshape(i)})
+                                                           std::vector<ov::PartialShape>{output_shape, input_pshape})
                                    .front();
             } catch (const std::exception& ex) {
                 CLDNN_ERROR_MESSAGE(node.id(), std::string("Invalid input shapes: ") + ex.what());
