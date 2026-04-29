@@ -39,10 +39,10 @@ ScaleDownMOECompressed::ScaleDownMOECompressed(float scale_factor, ov::element::
             const std::vector<float> scale_down_value = {1.f / scale_factor};
             const auto src = moe->input(input_idx).get_source_output();
 
-            auto scale_const = std::make_shared<ov::op::v0::Constant>(src.get_element_type(),
-                                                                      ov::Shape(),
-                                                                      scale_down_value);
-            auto scale_down = std::make_shared<ov::op::v1::Multiply>(src, scale_const);
+            auto scale_const = register_new_node<ov::op::v0::Constant>(src.get_element_type(),
+                                                                       ov::Shape(),
+                                                                       scale_down_value);
+            auto scale_down = register_new_node<ov::op::v1::Multiply>(src, scale_const);
             scale_down->set_friendly_name(moe->get_friendly_name() + "_scale_down_in" +
                                           std::to_string(input_idx));
             ov::copy_runtime_info(moe, scale_down);
@@ -68,6 +68,7 @@ ScaleDownMOECompressed::ScaleDownMOECompressed(float scale_factor, ov::element::
         //   <scale_down>   -- bias_up + 2
         //   [zp_down,      -- bias_up + 3 if has_zp]
         //   <bias_down>    -- last input
+        OPENVINO_ASSERT(moe->get_input_size() == 9 || moe->get_input_size() == 11, "Unexpected input size for MOECompressed: ", moe->get_input_size());
         const size_t bias_up_idx = config.has_zp ? 6u : 5u;
         const size_t bias_down_idx = moe->get_input_size() - 1u;
 

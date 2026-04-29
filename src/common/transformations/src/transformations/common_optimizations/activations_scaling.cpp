@@ -390,6 +390,7 @@ activations_scaling::DeduplicateScalarMul::DeduplicateScalarMul() {
                 auto sibling_const = ov::as_type_ptr<v0::Constant>(
                     sibling.get_node()->input(1).get_source_output().get_node_shared_ptr());
                 float sibling_const_val = sibling_const->cast_vector<float>()[0];
+                // only bit-exact scales are supported
                 if (mul_const_val != sibling_const_val) {
                     continue;
                 }

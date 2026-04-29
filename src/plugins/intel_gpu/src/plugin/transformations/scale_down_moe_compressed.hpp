@@ -15,8 +15,8 @@ namespace ov::intel_gpu {
  * For a scale factor s, this pass:
  *   - inserts Multiply(1/s) (and Convert to scaled_prec if needed) in front of
  *     the hidden_states input (index 0) and the two bias inputs (bias_up at
- *     index 4 and bias_down at index 6 for the has_zp=false layout);
- *   - records s on the MOECompressed op via set_input_scale(s). The op builder
+ *     index 5 and bias_down at index 8 for the has_zp=false layout);
+ *   - records s on the MOECompressed op via set_scale_factor(s). The op builder
  *     propagates this to the internal SwiGLU primitive, which multiplies its
  *     inputs by s to restore the original range before clamp / swish / up_add.
  *

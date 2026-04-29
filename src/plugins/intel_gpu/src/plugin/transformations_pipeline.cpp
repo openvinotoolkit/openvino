@@ -1437,17 +1437,19 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         // Temporary solution, should set activations_scale_factor only when it's truly necessary.
         if (activations_scale_factor < 0.f) {
-            size_t num_gpt_oss_moe_ops = 0;
-            for (auto& node : func->get_ops()) {
-                if (ov::is_type<ov::intel_gpu::op::MOECompressed>(node) &&
-                    ov::as_type_ptr<const ov::intel_gpu::op::MOECompressed>(node)->get_config().expert_type ==
-                    ov::op::internal::MOE::Expert_type::GEMM2_BIAS_SWIGLU_CLAMP) {
-                    num_gpt_oss_moe_ops += 1;
+            auto is_gpt_oss_120b = [](const std::shared_ptr<ov::Model>& func) -> bool {
+                size_t num_gpt_oss_moe_ops = 0;
+                for (auto& node : func->get_ops()) {
+                    if (ov::is_type<ov::intel_gpu::op::MOECompressed>(node) &&
+                        ov::as_type_ptr<const ov::intel_gpu::op::MOECompressed>(node)->get_config().expert_type ==
+                        ov::op::internal::MOE::Expert_type::GEMM2_BIAS_SWIGLU_CLAMP) {
+                        num_gpt_oss_moe_ops += 1;
+                    }
                 }
-            }
+                return num_gpt_oss_moe_ops == 36;
+            };
 
-            // gpt-oss-120b
-            if (num_gpt_oss_moe_ops == 36)
+            if (is_gpt_oss_120b(func))
                 activations_scale_factor = 8.f;
         }
 
@@ -1490,7 +1492,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             auto lpt_pass = manager.register_pass<LowPrecision>(supportedPrecisions, perTensorQuantization, params);
             lpt_pass->add_main<ov::pass::activations_scaling::EliminateScalarMul>();
             lpt_pass->add_main<ov::pass::activations_scaling::MoveDownScalarMul>();
-            // lpt_pass->add_main<ov::pass::activations_scaling::DeduplicateScalarMul>();
 
             // Move up remained scalar-multiply layers
             manager.register_pass<ov::pass::EliminateEltwise>();
