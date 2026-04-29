@@ -38,7 +38,6 @@ This checks and installs:
 - `gh` (GitHub CLI)
 - `copilot` CLI
 - Copilot authentication (opens browser login if needed)
-- Python dependencies from `requirements.txt` (if present)
 
 ### 2. Write a context file
 

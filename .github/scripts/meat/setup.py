@@ -9,7 +9,6 @@ Checks and (where possible) performs:
   2. GitHub CLI (gh) installation
   3. copilot CLI installation
   4. copilot authentication
-  5. Python package dependencies (requirements.txt in repo root, if present)
 
 Run from the openvino repo root:
   python .github/scripts/meat/setup.py
@@ -25,7 +24,6 @@ from pathlib import Path
 from typing import Optional
 
 REPO_ROOT = Path(__file__).parent.parent.parent
-REQUIREMENTS = REPO_ROOT / "requirements.txt"
 MIN_PYTHON = (3, 10)
 
 
@@ -293,19 +291,6 @@ def check_auth() -> None:
 # ──────────────────────────────────────────────
 # Python deps
 # ──────────────────────────────────────────────
-
-def install_python_deps() -> None:
-    if not REQUIREMENTS.exists():
-        info("No requirements.txt found in repo root – skipping.")
-        return
-    info(f"Installing Python dependencies from {REQUIREMENTS.name} …")
-    result = run(sys.executable, "-m", "pip", "install", "-q", "-r", str(REQUIREMENTS))
-    if result.returncode != 0:
-        fail("pip install failed. Check the error above.")
-    ok("Python dependencies installed.")
-
-
-# ──────────────────────────────────────────────
 # Entry point
 # ──────────────────────────────────────────────
 
@@ -316,7 +301,6 @@ def main() -> None:
     check_gh()
     check_copilot()
     check_auth()
-    install_python_deps()
 
     print(
         "\n  All checks passed. You can now run agent scripts.\n"
