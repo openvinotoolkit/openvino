@@ -251,9 +251,10 @@ std::filesystem::path to_fs_path(const StringPathVariant& param) {
 
 FileHandle open_ro_file(const std::filesystem::path& path) {
 #ifdef _WIN32
+    // FILE_SHARE_DELETE allows std::filesystem::remove() to succeed while the handle is open, matching POSIX unlink()
     return ::CreateFileW(path.c_str(),
                          GENERIC_READ,
-                         FILE_SHARE_READ,
+                         FILE_SHARE_READ | FILE_SHARE_DELETE,
                          nullptr,
                          OPEN_EXISTING,
                          FILE_ATTRIBUTE_NORMAL,
@@ -262,4 +263,5 @@ FileHandle open_ro_file(const std::filesystem::path& path) {
     return ::open(path.c_str(), O_RDONLY);
 #endif
 }
+
 }  // namespace ov::test::utils

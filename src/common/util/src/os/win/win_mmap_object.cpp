@@ -1,5 +1,6 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #include <algorithm>
 #include <cstring>
@@ -230,7 +231,11 @@ public:
     }
 
     constexpr bool valid() const {
-        return m_handle != INVALID_HANDLE_VALUE;
+        return valid(m_handle);
+    }
+
+    static constexpr bool valid(HANDLE h) {
+        return h != INVALID_HANDLE_VALUE && h != nullptr;
     }
 };
 
@@ -276,18 +281,17 @@ private:
     /** @brief Try to establish the placeholder mapping.
      *  Returns true on success; caller falls back to legacy path on false.
      */
-    bool try_placeholder_setup(HANDLE file_handle, size_t aligned_offset, size_t head_pad, size_t total_va_size);
+    bool try_placeholder_setup(size_t aligned_offset, size_t head_pad, size_t total_va_size);
 
     /** bbrief Legacy single-call MapViewOfFile path (no partial-release support). */
-    void legacy_setup(HANDLE file_handle, size_t aligned_offset, size_t head_pad, size_t size);
+    void legacy_setup(size_t aligned_offset, size_t head_pad, size_t size);
 
 private:
     void* m_data = nullptr;  //!< pointer exposed to callers
     size_t m_size = 0;       //!< user-visible byte count
     uint64_t m_id = std::numeric_limits<uint64_t>::max();
 
-    HandleHolder m_handle{};    //!< file HANDLE (owned when opened by path)
-    HandleHolder m_mapping{};   //!< file-mapping HANDLE
+    HandleHolder m_handle{};   //!< section object from CreateFileMappingW (keeps file data alive)
     size_t m_aligned_offset{};  //!< gran-aligned file offset of placeholder base
     void* m_mapped_view{};      //!< non-null only in legacy path
     char* m_view_base{};        //!< base VA of the full placeholder reservation (nullptr for legacy path)
@@ -383,8 +387,7 @@ void MapHolder::set_id(HANDLE h, size_t offset, size_t size) {
     }
 }
 
-bool MapHolder::try_placeholder_setup(HANDLE file_handle,
-                                      size_t aligned_offset,
+bool MapHolder::try_placeholder_setup(size_t aligned_offset,
                                       size_t head_pad,
                                       size_t total_va_size) {
     const auto& api = PlaceholderApis::instance();
@@ -407,7 +410,7 @@ bool MapHolder::try_placeholder_setup(HANDLE file_handle,
 
     // 2. Map the entire range as ONE contiguous file view.
     //    No per-slot splitting - allows unmapping arbitrary sub-ranges later.
-    auto v = api.m_map_view_of_file3(m_mapping.get(),
+    auto v = api.m_map_view_of_file3(m_handle.get(),
                                      proc,
                                      base,
                                      static_cast<ULONG64>(aligned_offset),
@@ -432,8 +435,8 @@ bool MapHolder::try_placeholder_setup(HANDLE file_handle,
     return true;
 }
 
-void MapHolder::legacy_setup(HANDLE file_handle, size_t aligned_offset, size_t head_pad, size_t size) {
-    if (auto view = ::MapViewOfFile(m_mapping.get(),
+void MapHolder::legacy_setup(size_t aligned_offset, size_t head_pad, size_t size) {
+    if (auto view = ::MapViewOfFile(m_handle.get(),
                                     FILE_MAP_READ,
                                     static_cast<DWORD>(aligned_offset >> 32),
                                     static_cast<DWORD>(aligned_offset & 0xFFFFFFFF),
@@ -447,23 +450,35 @@ void MapHolder::legacy_setup(HANDLE file_handle, size_t aligned_offset, size_t h
 }
 
 void MapHolder::setup(HANDLE file_handle, size_t offset, size_t size) {
-    m_size = size;
+    LARGE_INTEGER file_size_li{};
+    if (!::GetFileSizeEx(file_handle, &file_size_li))
+        throw std::runtime_error{"GetFileSizeEx failed: " + std::to_string(::GetLastError())};
+    const auto file_size = static_cast<size_t>(file_size_li.QuadPart);
+
+    m_size = (size == auto_size) ? file_size - offset : size;
+    if (offset + m_size > file_size || offset + m_size < offset)
+        throw std::runtime_error{"Requested mapping range exceeds file size"};
+
     const auto gran = util::get_system_alloc_granularity();
     m_aligned_offset = (offset / gran) * gran;
     const size_t head_pad = offset - m_aligned_offset;
     const size_t total_va_size = ((head_pad + m_size + gran - 1) / gran) * gran;
 
+    set_id(file_handle, offset, size);
+
+    if (m_size == 0) {
+        return;
+    }
+
     // Create a read-only file-mapping object (no size limit needed for read).
-    m_mapping = HandleHolder{::CreateFileMappingW(file_handle, nullptr, PAGE_READONLY, 0, 0, nullptr)};
-    if (!m_mapping.valid()) {
+    m_handle = HandleHolder{::CreateFileMappingW(file_handle, nullptr, PAGE_READONLY, 0, 0, nullptr)};
+    if (!m_handle.valid()) {
         throw std::runtime_error{"CreateFileMappingW failed: " + std::to_string(::GetLastError())};
     }
 
-    set_id(file_handle, offset, size);
-
     // Prefer placeholder path for real RSS reduction; fall back to legacy.
-    if (!try_placeholder_setup(file_handle, m_aligned_offset, head_pad, total_va_size)) {
-        legacy_setup(file_handle, m_aligned_offset, head_pad, size);
+    if (!try_placeholder_setup(m_aligned_offset, head_pad, total_va_size)) {
+        legacy_setup(m_aligned_offset, head_pad, m_size);
     }
 }
 
@@ -479,33 +494,28 @@ void MapHolder::set(const std::filesystem::path& path, size_t offset, size_t siz
         throw std::runtime_error{"Cannot open file: " + path.string() + " error: " + std::to_string(::GetLastError())};
     }
 
-    m_handle = HandleHolder{fh};
-
-    // If size is auto_size (default), map the whole file from offset.
-    if (size == auto_size) {
-        LARGE_INTEGER file_size{};
-        if (!::GetFileSizeEx(fh, &file_size))
-            throw std::runtime_error{"GetFileSizeEx failed: " + std::to_string(::GetLastError())};
-        size = static_cast<size_t>(file_size.QuadPart) - offset;
-    }
-
+    HandleHolder fh_holder{fh};
     setup(fh, offset, size);
 }
 
 void MapHolder::set_from_handle(FileHandle handle, size_t offset, size_t size) {
-    if (handle == INVALID_HANDLE_VALUE || handle == nullptr)
+    if (!HandleHolder::valid(static_cast<HANDLE>(handle)))
         throw std::runtime_error{"Invalid handle provided to load_mmap_object"};
-
-    // If size is auto_size (default), map the whole file from offset.
-    if (size == auto_size) {
-        LARGE_INTEGER file_size{};
-        if (!::GetFileSizeEx(static_cast<HANDLE>(handle), &file_size))
-            throw std::runtime_error{"GetFileSizeEx failed: " + std::to_string(::GetLastError())};
-        size = static_cast<size_t>(file_size.QuadPart) - offset;
-    }
-
-    // We do NOT take ownership of the caller's handle.
-    setup(static_cast<HANDLE>(handle), offset, size);
+    // Duplicate the caller's handle so MapHolder independently owns its lifetime.
+    // The original handle remains valid for the caller to reuse.
+    HANDLE dup = INVALID_HANDLE_VALUE;
+    if (!::DuplicateHandle(::GetCurrentProcess(),
+                           static_cast<HANDLE>(handle),
+                           ::GetCurrentProcess(),
+                           &dup,
+                           0,
+                           FALSE,
+                           DUPLICATE_SAME_ACCESS))
+        throw std::runtime_error{"DuplicateHandle failed: " + std::to_string(::GetLastError())};
+    HandleHolder owned{dup};
+    setup(owned.get(), offset, size);
+    // owned goes out of scope here: file handle closed.
+    // m_handle (section object) keeps the file data accessible independently.
 }
 
 bool MapHolder::remap_placeholder(HANDLE proc, char* base, size_t size) {
@@ -513,7 +523,7 @@ bool MapHolder::remap_placeholder(HANDLE proc, char* base, size_t size) {
     const size_t va_offset = base - m_view_base;
     const ULONG64 file_off = static_cast<ULONG64>(m_aligned_offset + va_offset);
 
-    void* v = api.m_map_view_of_file3(m_mapping.get(),
+    void* v = api.m_map_view_of_file3(m_handle.get(),
                                       proc,
                                       base,
                                       file_off,
@@ -657,7 +667,7 @@ std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::filesystem::path& 
 }
 
 std::shared_ptr<ov::MappedMemory> load_mmap_object(FileHandle handle, size_t offset, size_t size) {
-    if (handle == INVALID_HANDLE_VALUE || handle == nullptr) {
+    if (!HandleHolder::valid(static_cast<HANDLE>(handle))) {
         throw std::runtime_error("Invalid handle provided to load_mmap_object");
     }
     auto holder = std::make_shared<MapHolder>();
