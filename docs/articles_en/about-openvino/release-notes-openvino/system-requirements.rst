@@ -39,6 +39,7 @@ CPU
       * CentOS 7
       * Red Hat Enterprise Linux (RHEL) 8 and 9, 64-bit
       * openSUSE Tumbleweed, 64-bit and ARM64
+      * openSUSE Leap 16.0 and above, 64-bit and ARM64
       * Ubuntu 20.04 ARM64
 
 GPU
@@ -66,6 +67,8 @@ GPU
       * Ubuntu 20.04 long-term support (LTS), 64-bit
       * CentOS 7
       * Red Hat Enterprise Linux (RHEL) 8 and 9, 64-bit
+      * openSUSE Tumbleweed, 64-bit and ARM64
+      * openSUSE Leap 16.0 and above, 64-bit and ARM64
 
    .. tab-item:: Additional considerations
 
@@ -110,6 +113,8 @@ Operating systems and developer environment
       * Ubuntu 22.04 with Linux kernel 5.15+
       * Ubuntu 20.04 with Linux kernel 5.15+
       * Red Hat Enterprise Linux 9.3-9.4 with Linux kernel 5.4
+      * openSUSE Tumbleweed, 64-bit and ARM64
+      * openSUSE Leap 16.0 and above, 64-bit and ARM64
 
       Build environment components:
 
@@ -345,7 +350,7 @@ to learn more about the release types.
          .. tab-item:: Linux
             :sync: linux
 
-            OpenVINO RPM packages are compatible with and can be run on openSUSE Tumbleweed only.
+            OpenVINO RPM packages are compatible with and can be run on openSUSE Tumbleweed, Leap 16.0 and above.
 
             Software:
 
