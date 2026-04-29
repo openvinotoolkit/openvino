@@ -18,9 +18,12 @@ class TestUnsortedSegmentMax(CommonTFLayerTest):
         inputs_data = {}
         inputs_data['data:0'] = rng.integers(-50, 50, data_shape).astype(self.data_type)
         num_ids = segment_ids_shape[0]
-        ids = list(range(self.num_segments_val))
-        ids += rng.integers(0, self.num_segments_val, num_ids - self.num_segments_val).tolist()
-        rng.shuffle(ids)
+        if num_ids >= self.num_segments_val:
+            ids = list(range(self.num_segments_val))
+            ids += rng.integers(0, self.num_segments_val, num_ids - self.num_segments_val).tolist()
+            rng.shuffle(ids)
+        else:
+            ids = rng.integers(0, self.num_segments_val, num_ids).tolist()
         inputs_data['segment_ids:0'] = np.array(ids, dtype=self.segment_ids_type)
         return inputs_data
 
