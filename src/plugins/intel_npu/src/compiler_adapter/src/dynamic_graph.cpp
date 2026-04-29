@@ -337,6 +337,15 @@ void DynamicGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>
         }
     }
 
+    // Prepare execution context for each graph arguments
+    if (params->executionContext == nullptr) {
+        if (npuVMRuntimeCreateExecutionContext(_engine, &params->executionContext) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+            OPENVINO_THROW("Failed to create a VM execution context");
+        } else {
+            _logger.debug("Execution context is created successfully.");
+        }
+    }
+
     params->pInputs = argsImpl->_inputMemRefs.data();
     params->numOfInputs = static_cast<uint32_t>(argsImpl->_inputMemRefs.size());
     params->pOutputs = argsImpl->_outputMemRefs.data();

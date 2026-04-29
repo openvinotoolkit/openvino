@@ -237,7 +237,7 @@ void MoE3GemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
     if (is_weight_quantized) {
         problem_moe.Ta = micro::Type::f16;
         problem_moe.Ta_ext = convert_type(params.get_input_layout(wei_idx).data_type);
-        problem_moe.A.setAlignment(micro::alignment_for_ld(k * problem_moe.Ta_ext));
+        problem_moe.A.setAlignment(micro::alignment_for_ld(static_cast<int>(k * problem_moe.Ta_ext)));
 
         // scale layout example: f16:bfyx:4x8x3072:nopad
         const auto& scale_layout = params.get_input_layout(scale_idx);
@@ -272,7 +272,7 @@ void MoE3GemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
     problem_moe.A.layout = micro::MatrixLayout::T;
     problem_moe.B.layout = micro::MatrixLayout::N;
     problem_moe.C.layout = micro::MatrixLayout::N;
-    problem_moe.B.setAlignment(micro::alignment_for_ld(k * problem_moe.Tb));
+    problem_moe.B.setAlignment(micro::alignment_for_ld(static_cast<int>(k * problem_moe.Tb)));
     problem_moe.C.setAlignment(static_cast<int32_t>(problem_moe.Tc.size()));
 
     /* Set up problem_moe size information */

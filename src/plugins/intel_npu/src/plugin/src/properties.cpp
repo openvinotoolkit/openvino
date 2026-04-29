@@ -628,9 +628,11 @@ void Properties::registerPluginProperties() {
         REGISTER_SIMPLE_METRIC(ov::device::pci_info, true, _metrics->GetPciInfo(get_specified_device_name(config)));
         REGISTER_SIMPLE_METRIC(ov::device::gops, true, _metrics->GetGops(get_specified_device_name(config)));
         REGISTER_SIMPLE_METRIC(ov::device::type, true, _metrics->GetDeviceType(get_specified_device_name(config)));
-        REGISTER_CUSTOM_METRIC(ov::internal::supported_properties, false, [&](const Config&) {
-            return _internalSupportedProperties;
-        });
+        REGISTER_CUSTOM_METRIC(ov::internal::supported_properties,
+                               false,
+                               [&](const Config&) -> const std::vector<ov::PropertyName>& {
+                                   return _internalSupportedProperties;
+                               });
         REGISTER_SIMPLE_METRIC(ov::internal::cache_header_alignment, false, utils::STANDARD_PAGE_SIZE);
         REGISTER_SIMPLE_METRIC(ov::intel_npu::device_alloc_mem_size,
                                true,
@@ -730,6 +732,7 @@ void Properties::registerCompiledModelProperties() {
 
     // Properties we shall only enable if they were set prior-to-compilation
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::compiler_type, COMPILER_TYPE);
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::compiler_version, COMPILER_VERSION);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::weights_path, WEIGHTS_PATH);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::cache_dir, CACHE_DIR);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::enable_profiling, PERF_COUNT);
@@ -865,7 +868,7 @@ ov::Any Properties::getProperty(const std::string& name) {
                 registerProperties();
                 _compilerConfigsFilteredByCompiler = true;
                 _currentlyUsedCompiler = compilerType;
-                _currentlyUsedPlatform = compilationPlatform;
+                _currentlyUsedPlatform = std::move(compilationPlatform);
             }
         }
     }
@@ -934,7 +937,7 @@ void Properties::setProperty(const ov::AnyMap& properties) {
                 registerProperties();
                 _compilerConfigsFilteredByCompiler = true;
                 _currentlyUsedCompiler = compilerType;
-                _currentlyUsedPlatform = compilationPlatform;
+                _currentlyUsedPlatform = std::move(compilationPlatform);
             }
         }
     }
@@ -1095,7 +1098,7 @@ FilteredConfig Properties::getConfigForSpecificCompiler(const ov::AnyMap& proper
 
     updatedConfig.update(cfgsToSet);
 
-    return updatedConfig;
+    return std::move(updatedConfig);
 }
 
 FilteredConfig Properties::getConfigWithCompilerPropertiesDisabled(const ov::AnyMap& properties) {
