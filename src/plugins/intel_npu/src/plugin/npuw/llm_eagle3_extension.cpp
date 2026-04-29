@@ -191,17 +191,17 @@ void Eagle3Extension::initialize(bool is_eagle_model,
     bool has_eagle_tree_mask_input = in_ports.find(Eagle3LayerNames::eagle_tree_mask) != in_ports.end();
     bool has_last_hidden_state_output = out_ports.find(Eagle3LayerNames::last_hidden_state) != out_ports.end();
 
-    if (has_hidden_states_input && has_eagle_tree_mask_input && has_last_hidden_state_output) {
+    if (has_hidden_states_input && has_last_hidden_state_output) {
         m_role = Eagle3ModelRole::Draft;
-        LOG_INFO("Eagle3 Draft Model detected");
-    } else if (!has_hidden_states_input && has_eagle_tree_mask_input && has_last_hidden_state_output) {
+        LOG_INFO("Eagle3 Draft Model detected" << (has_eagle_tree_mask_input ? " (topk)" : " (top1)"));
+    } else if (!has_hidden_states_input && has_last_hidden_state_output) {
         m_role = Eagle3ModelRole::Target;
-        LOG_INFO("Eagle3 Target Model detected");
+        LOG_INFO("Eagle3 Target Model detected" << (has_eagle_tree_mask_input ? " (topk)" : " (top1)"));
     } else {
         OPENVINO_THROW(
             "Eagle3 mode enabled via NPUW_EAGLE property, but model structure doesn't match Draft or Target pattern. "
-            "Draft requires: hidden_states input + eagle_tree_mask input + last_hidden_state output. "
-            "Target requires: eagle_tree_mask input + last_hidden_state output.");
+            "Draft requires: hidden_states input + last_hidden_state output. "
+            "Target requires: last_hidden_state output (no hidden_states input).");
     }
 
     // Create sampling state for external pipeline communication
@@ -210,14 +210,14 @@ void Eagle3Extension::initialize(bool is_eagle_model,
 
 void Eagle3Extension::prepare_inputs(const std::shared_ptr<ov::IAsyncInferRequest>& request,
                                      const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports) {
-    // Eagle3 models (both Draft and Target) MUST have eagle_tree_mask
+    // eagle_tree_mask is optional: present in topk pipeline, absent in top1 pipeline
     auto tree_mask_it = in_ports.find(Eagle3LayerNames::eagle_tree_mask);
-    OPENVINO_ASSERT(tree_mask_it != in_ports.end(), "Eagle3 model must have eagle_tree_mask input port");
-    OPENVINO_ASSERT(m_eagle_tree_mask, "Eagle3 model requires eagle_tree_mask tensor to be provided by user");
-
-    auto padded_tree_mask = request->get_tensor(tree_mask_it->second);
-    pad_tree_mask_input(m_eagle_tree_mask, padded_tree_mask);
-    LOG_VERB("Eagle3: Set eagle_tree_mask input tensor");
+    if (tree_mask_it != in_ports.end()) {
+        OPENVINO_ASSERT(m_eagle_tree_mask, "Eagle3 model requires eagle_tree_mask tensor to be provided by user");
+        auto padded_tree_mask = request->get_tensor(tree_mask_it->second);
+        pad_tree_mask_input(m_eagle_tree_mask, padded_tree_mask);
+        LOG_VERB("Eagle3: Set eagle_tree_mask input tensor");
+    }
 
     // Draft models MUST have hidden_states
     if (m_role == Eagle3ModelRole::Draft) {
@@ -313,14 +313,14 @@ void Eagle3Extension::prepare_inputs_for_chunk(
     const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports,
     uint32_t chunk_start_token,
     uint32_t chunk_token_count) {
-    // Eagle3 models (both Draft and Target) MUST have eagle_tree_mask
+    // eagle_tree_mask is optional: present in topk pipeline, absent in top1 pipeline
     auto tree_mask_it = in_ports.find(Eagle3LayerNames::eagle_tree_mask);
-    OPENVINO_ASSERT(tree_mask_it != in_ports.end(), "Eagle3 model must have eagle_tree_mask input port");
-    OPENVINO_ASSERT(m_eagle_tree_mask, "Eagle3 model requires eagle_tree_mask tensor to be provided by user");
-
-    auto padded_tree_mask = request->get_tensor(tree_mask_it->second);
-    pad_tree_mask_input(m_eagle_tree_mask, padded_tree_mask);
-    LOG_VERB("Eagle3 Chunk: Set eagle_tree_mask input tensor (full mask, not chunked)");
+    if (tree_mask_it != in_ports.end()) {
+        OPENVINO_ASSERT(m_eagle_tree_mask, "Eagle3 model requires eagle_tree_mask tensor to be provided by user");
+        auto padded_tree_mask = request->get_tensor(tree_mask_it->second);
+        pad_tree_mask_input(m_eagle_tree_mask, padded_tree_mask);
+        LOG_VERB("Eagle3 Chunk: Set eagle_tree_mask input tensor (full mask, not chunked)");
+    }
 
     // Draft models MUST have hidden_states for chunked prefill
     if (m_role != Eagle3ModelRole::Draft) {

@@ -88,8 +88,8 @@ ov_add_test_target(
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/decompose_gqa.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/lora_stateful_to_stateless.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/optimize_value_tensors.cpp
-            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/patch_phi3_sliding_mask.cpp
-            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/phi3_sliding_mask.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/patch_sliding_window_mask.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/sliding_window_mask.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/reshape_sliced_head_to_static.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/reshape_to_static.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/slice_out_embeds.cpp
@@ -124,5 +124,7 @@ target_sources(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/partitioning_options_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_options_smoke_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/sdpa_pattern_nodes_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npuw/subgraph_pipeline.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npuw/subgraph_behavior_infer_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipeline_passes/remove_empty_kv_inputs_test.cpp
 )
