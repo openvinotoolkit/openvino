@@ -66,13 +66,6 @@ namespace ov::pass {
 
 PagedCausalConv1DFusion::PagedCausalConv1DFusion(ov::pass::paged_attention::PaParams& pa_params,
                                                  std::unordered_set<std::string>& var_ids_to_remove) {
-    // Define parameters for the fused PagedCausalConv1D
-    pa_params.add("subsequence_begins", ov::element::i32, ov::PartialShape{-1});
-    pa_params.add("la.block_indices", ov::element::i32, ov::PartialShape{-1});
-    pa_params.add("la.block_indices_begins", ov::element::i32, ov::PartialShape{-1});
-    pa_params.add("la.past_lens", ov::element::i32, ov::PartialShape{-1});
-    pa_params.add("la.cache_interval", ov::element::i32, ov::PartialShape{-1});
-
     MATCHER_SCOPE(PagedCausalConv1DFusion);
 
     auto p_read_value = wrap_type<ov::op::util::ReadValueBase>(has_static_rank() && rank_equals(3));
@@ -101,6 +94,12 @@ PagedCausalConv1DFusion::PagedCausalConv1DFusion(ov::pass::paged_attention::PaPa
         const auto weight_node = pm.at(p_weight_input).get_node_shared_ptr();
         const auto cache_rv = ov::as_type_ptr<ov::op::util::ReadValueBase>(pm.at(p_read_value).get_node_shared_ptr());
         const auto slice_out = pm.at(p_slice_out).get_node_shared_ptr();
+
+        pa_params.add("subsequence_begins", ov::element::i32, ov::PartialShape{-1});
+        pa_params.add("la.block_indices", ov::element::i32, ov::PartialShape{-1});
+        pa_params.add("la.block_indices_begins", ov::element::i32, ov::PartialShape{-1});
+        pa_params.add("la.past_lens", ov::element::i32, ov::PartialShape{-1});
+        pa_params.add("la.cache_interval", ov::element::i32, ov::PartialShape{-1});
 
         const auto conv_state_table = pa_params.add("conv_state_table." + std::to_string(m_layer_index++),
                                                     cache_rv->get_output_element_type(0),
