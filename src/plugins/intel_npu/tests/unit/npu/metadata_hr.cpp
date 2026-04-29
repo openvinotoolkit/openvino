@@ -1,0 +1,187 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include <gtest/gtest.h>
+
+#include "common_test_utils/test_assertions.hpp"
+#include "metadata.hpp"
+#include "openvino/core/version.hpp"
+
+using namespace intel_npu;
+
+using MetadataUnitTests = ::testing::Test;
+
+namespace {
+
+ov::Tensor makeHRTensor(MetadataBase& meta) {
+    std::ostringstream stream;
+    meta.write_human_readable(stream);
+    const std::string text = stream.str();
+    auto tensor = ov::Tensor(ov::element::u8, ov::Shape{text.size()});
+    std::memcpy(tensor.data<char>(), text.data(), text.size());
+    return tensor;
+}
+
+}  // namespace
+
+using MetadataHumanReadableTests = ::testing::Test;
+
+TEST_F(MetadataHumanReadableTests, minimalMetadata) {
+    auto meta = Metadata<METADATA_VERSION_2_0>(0, CURRENT_OPENVINO_VERSION);
+    const auto tensor = makeHRTensor(meta);
+
+    std::unique_ptr<MetadataBase> storedMeta;
+    OV_ASSERT_NO_THROW(storedMeta = read_human_readable(tensor));
+
+    ASSERT_FALSE(storedMeta->get_init_sizes().has_value());
+    ASSERT_FALSE(storedMeta->get_batch_size().has_value());
+    ASSERT_FALSE(storedMeta->get_input_layouts().has_value());
+    ASSERT_FALSE(storedMeta->get_output_layouts().has_value());
+    ASSERT_FALSE(storedMeta->get_compiler_version().has_value());
+}
+
+TEST_F(MetadataHumanReadableTests, initSizes) {
+    const std::vector<uint64_t> initSizes{16, 32, 64};
+    auto meta = Metadata<METADATA_VERSION_2_1>(0, CURRENT_OPENVINO_VERSION, initSizes);
+    const auto tensor = makeHRTensor(meta);
+
+    std::unique_ptr<MetadataBase> storedMeta;
+    OV_ASSERT_NO_THROW(storedMeta = read_human_readable(tensor));
+
+    ASSERT_TRUE(storedMeta->get_init_sizes().has_value());
+    ASSERT_EQ(storedMeta->get_init_sizes()->size(), initSizes.size());
+    for (size_t i = 0; i < initSizes.size(); ++i) {
+        EXPECT_EQ(storedMeta->get_init_sizes()->at(i), initSizes.at(i));
+    }
+}
+
+TEST_F(MetadataHumanReadableTests, emptyInitSizes) {
+    auto meta = Metadata<METADATA_VERSION_2_1>(0, CURRENT_OPENVINO_VERSION, std::vector<uint64_t>{});
+    const auto tensor = makeHRTensor(meta);
+
+    std::unique_ptr<MetadataBase> storedMeta;
+    OV_ASSERT_NO_THROW(storedMeta = read_human_readable(tensor));
+
+    ASSERT_FALSE(storedMeta->get_init_sizes().has_value());
+}
+
+TEST_F(MetadataHumanReadableTests, batchSize) {
+    const int64_t batchSize = 4;
+    auto meta = Metadata<METADATA_VERSION_2_2>(0, CURRENT_OPENVINO_VERSION, std::nullopt, batchSize);
+    const auto tensor = makeHRTensor(meta);
+
+    std::unique_ptr<MetadataBase> storedMeta;
+    OV_ASSERT_NO_THROW(storedMeta = read_human_readable(tensor));
+
+    ASSERT_TRUE(storedMeta->get_batch_size().has_value());
+    EXPECT_EQ(storedMeta->get_batch_size().value(), batchSize);
+}
+
+TEST_F(MetadataHumanReadableTests, zeroBatchSize) {
+    auto meta = Metadata<METADATA_VERSION_2_2>(0, CURRENT_OPENVINO_VERSION, std::nullopt, std::nullopt);
+    const auto tensor = makeHRTensor(meta);
+
+    std::unique_ptr<MetadataBase> storedMeta;
+    OV_ASSERT_NO_THROW(storedMeta = read_human_readable(tensor));
+
+    ASSERT_FALSE(storedMeta->get_batch_size().has_value());
+}
+
+TEST_F(MetadataHumanReadableTests, noLayouts) {
+    auto meta = Metadata<METADATA_VERSION_2_3>(0, CURRENT_OPENVINO_VERSION, std::nullopt, std::nullopt, std::nullopt);
+    const auto tensor = makeHRTensor(meta);
+
+    std::unique_ptr<MetadataBase> storedMeta;
+    OV_ASSERT_NO_THROW(storedMeta = read_human_readable(tensor));
+
+    ASSERT_FALSE(storedMeta->get_input_layouts().has_value());
+    ASSERT_FALSE(storedMeta->get_output_layouts().has_value());
+}
+
+TEST_F(MetadataHumanReadableTests, compilerReqs) {
+    const std::string reqs = "platform=NPU3720;tiles=2;etc=...";
+    auto meta = Metadata<METADATA_VERSION_2_5>(0,
+                                               CURRENT_OPENVINO_VERSION,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               reqs);
+    const auto tensor = makeHRTensor(meta);
+
+    std::unique_ptr<MetadataBase> storedMeta;
+    OV_ASSERT_NO_THROW(storedMeta = read_human_readable(tensor));
+
+    ASSERT_TRUE(storedMeta->get_runtime_reqs().has_value());
+    EXPECT_EQ(storedMeta->get_runtime_reqs().value(), reqs);
+}
+
+TEST_F(MetadataHumanReadableTests, emptyCompilerReqs) {
+    auto meta = Metadata<METADATA_VERSION_2_5>(0,
+                                               CURRENT_OPENVINO_VERSION,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::string{});
+    const auto tensor = makeHRTensor(meta);
+
+    std::unique_ptr<MetadataBase> storedMeta;
+    OV_ASSERT_NO_THROW(storedMeta = read_human_readable(tensor));
+
+    ASSERT_FALSE(storedMeta->get_runtime_reqs().has_value());
+}
+
+TEST_F(MetadataHumanReadableTests, compilerVersion) {
+    const uint32_t compilerVersion = 0xCAFECAFE;
+    auto meta = Metadata<METADATA_VERSION_2_4>(0,
+                                               CURRENT_OPENVINO_VERSION,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               compilerVersion);
+    const auto tensor = makeHRTensor(meta);
+
+    std::unique_ptr<MetadataBase> storedMeta;
+    OV_ASSERT_NO_THROW(storedMeta = read_human_readable(tensor));
+
+    ASSERT_TRUE(storedMeta->get_compiler_version().has_value());
+    EXPECT_EQ(storedMeta->get_compiler_version().value(), compilerVersion);
+}
+
+TEST_F(MetadataHumanReadableTests, allFields) {
+    const std::vector<uint64_t> initSizes{10, 20, 30};
+    const int64_t batchSize = 8;
+    const uint32_t compilerVersion = 0xDEADBEEF;
+    const std::string reqs = "platform=NPU3720;tiles=2;etc=...";
+    auto meta = Metadata<CURRENT_METADATA_VERSION>(0,
+                                                   CURRENT_OPENVINO_VERSION,
+                                                   initSizes,
+                                                   batchSize,
+                                                   std::nullopt,
+                                                   std::nullopt,
+                                                   compilerVersion,
+                                                   reqs);
+    const auto tensor = makeHRTensor(meta);
+
+    std::unique_ptr<MetadataBase> storedMeta;
+    OV_ASSERT_NO_THROW(storedMeta = read_human_readable(tensor));
+
+    ASSERT_TRUE(storedMeta->get_init_sizes().has_value());
+    ASSERT_EQ(storedMeta->get_init_sizes()->size(), initSizes.size());
+    for (size_t i = 0; i < initSizes.size(); ++i) {
+        EXPECT_EQ(storedMeta->get_init_sizes()->at(i), initSizes.at(i));
+    }
+    ASSERT_TRUE(storedMeta->get_batch_size().has_value());
+    EXPECT_EQ(storedMeta->get_batch_size().value(), batchSize);
+    ASSERT_FALSE(storedMeta->get_input_layouts().has_value());
+    ASSERT_FALSE(storedMeta->get_output_layouts().has_value());
+    ASSERT_TRUE(storedMeta->get_compiler_version().has_value());
+    EXPECT_EQ(storedMeta->get_compiler_version().value(), compilerVersion);
+    ASSERT_TRUE(storedMeta->get_runtime_reqs().has_value());
+    EXPECT_EQ(storedMeta->get_runtime_reqs().value(), reqs);
+}

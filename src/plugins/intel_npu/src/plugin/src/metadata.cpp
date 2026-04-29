@@ -314,7 +314,6 @@ void Metadata<METADATA_VERSION_2_4>::read() {
     _compilerVersion = compilerVersion != 0 ? std::optional(compilerVersion) : std::nullopt;
 }
 
-// should this be implemented or not? do we want it "obfuscated" into the blob?
 void Metadata<METADATA_VERSION_2_5>::read() {
     Metadata<METADATA_VERSION_2_4>::read();
 
@@ -650,8 +649,6 @@ std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor) {
 std::unique_ptr<MetadataBase> read_human_readable(const ov::Tensor& tensor) {
     const char* data = tensor.data<const char>();
     const size_t size = tensor.get_byte_size();
-
-    std::cout << "human string: " << std::string_view(data, size) << '\n';
 
     size_t pos = 0;
     while (pos < size && data[pos] != '=') {
