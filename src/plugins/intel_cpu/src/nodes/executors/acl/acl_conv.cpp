@@ -69,13 +69,13 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
                                                arm_compute::DimensionRoundingType::FLOOR);
     dilation = arm_compute::Size2D(attrs.dilation[1] + 1, attrs.dilation[0] + 1);
 
-    if (attrs.postOps.size() == 1) {
-        if (const auto* const activation = std::any_cast<ActivationPostOp>(attrs.postOps.data())) {
+    for (const auto& postOp : attrs.postOps) {
+        if (const auto* const activation = std::any_cast<ActivationPostOp>(&postOp)) {
             activationLayerInfo = getActivationLayerInfo(convertToEltwiseAlgorithm(activation->type()),
                                                          activation->alpha(),
                                                          activation->beta(),
                                                          activation->gamma());
-        } else if (const auto* const fq = std::any_cast<FakeQuantizePostOp>(attrs.postOps.data())) {
+        } else if (const auto* const fq = std::any_cast<FakeQuantizePostOp>(&postOp)) {
             fqInputScale = fq->inputScale();
             fqInputShift = fq->inputShift();
             fqOutputScale = fq->outputScale();
@@ -112,13 +112,11 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
         } else {
             OPENVINO_THROW("ACLConvolutionExecutor: the executor supports FakeQuantize and Activation post ops only");
         }
-    } else if (attrs.postOps.size() > 1) {
-        OPENVINO_THROW("ACLConvolutionExecutor: ACL does not support more than 1 post op");
     }
 }
 
 bool ACLConvolutionExecutor::supports(const ConvConfig& config) {
-    VERIFY(config.attrs.postOps.size() <= 1U, UNSUPPORTED_BY_EXECUTOR);
+    VERIFY(config.attrs.postOps.size() <= 2U, UNSUPPORTED_BY_EXECUTOR);
 
     const auto& srcDesc = config.descs.at(ARG_SRC);
     const auto& weiDesc = config.descs.at(ARG_WEI);
@@ -128,7 +126,13 @@ bool ACLConvolutionExecutor::supports(const ConvConfig& config) {
     VERIFY(srcDesc->getShape().getRank() == 4 && weiDesc->getShape().getRank() == 4, UNSUPPORTED_BY_EXECUTOR);
     // isQuantized verifies whether src is u8/i8, weights is i8 and FQ is fused if dst is u8/i8
     // the last requirement is due to ACL int32 accumulation that needs to be requantized by non-trivial scales
-    const bool hasQuantizationPostOp = std::any_cast<FakeQuantizePostOp>(config.attrs.postOps.data()) != nullptr;
+    bool hasQuantizationPostOp = false;
+    for (const auto& postOp : config.attrs.postOps) {
+        if (std::any_cast<FakeQuantizePostOp>(&postOp) != nullptr) {
+            hasQuantizationPostOp = true;
+            break;
+        }
+    }
     const bool isQuantizedU8 = srcDesc->getPrecision() == ov::element::u8 &&
                                any_of(weiDesc->getPrecision(), ov::element::u8, ov::element::i8) &&
                                dstDesc->getPrecision() == ov::element::u8 && hasQuantizationPostOp;

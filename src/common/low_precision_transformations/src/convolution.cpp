@@ -22,6 +22,7 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/group_conv.hpp"
+#include "openvino/op/swish.hpp"
 
 namespace ov {
 namespace pass {
@@ -33,7 +34,8 @@ ConvolutionTransformation::ConvolutionTransformation(const Params& params) : Wei
         ov::pass::pattern::wrap_type<ov::opset1::Multiply>(),
         std::make_shared<pass::pattern::op::Or>(OutputVector {
             pattern::wrap_type<ov::opset1::Multiply>(),
-            pattern::wrap_type<ov::opset1::FakeQuantize>()
+            pattern::wrap_type<ov::opset1::FakeQuantize>(),
+            pattern::wrap_type<ov::op::v4::Swish>()
         })
     });
 
