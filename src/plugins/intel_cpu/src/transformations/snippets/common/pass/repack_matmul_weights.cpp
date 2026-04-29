@@ -17,7 +17,6 @@
 
 #    include "cpu_memory.h"
 #    include "cpu_types.h"
-#    include "graph_context.h"
 #    include "memory_desc/cpu_blocked_memory_desc.h"
 #    include "openvino/cc/pass/itt.hpp"
 #    include "openvino/core/except.hpp"
@@ -45,6 +44,7 @@
 #        include <string>
 
 #        include "emitters/snippets/aarch64/kernel_executors/gemm_copy_b.hpp"
+#        include "graph_context.h"
 #        include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_x16p32x1b_x16_x16_neon.h"
 #        include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_x32p16x1b_x32_x32_neon.h"
 #        include "nodes/reorder.h"
