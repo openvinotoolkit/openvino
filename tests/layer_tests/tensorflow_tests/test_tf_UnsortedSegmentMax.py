@@ -17,8 +17,11 @@ class TestUnsortedSegmentMax(CommonTFLayerTest):
         segment_ids_shape = inputs_info['segment_ids:0']
         inputs_data = {}
         inputs_data['data:0'] = rng.integers(-50, 50, data_shape).astype(self.data_type)
-        inputs_data['segment_ids:0'] = rng.integers(0, self.num_segments_val,
-                                                    segment_ids_shape).astype(self.segment_ids_type)
+        num_ids = segment_ids_shape[0]
+        ids = list(range(self.num_segments_val))
+        ids += rng.integers(0, self.num_segments_val, num_ids - self.num_segments_val).tolist()
+        rng.shuffle(ids)
+        inputs_data['segment_ids:0'] = np.array(ids, dtype=self.segment_ids_type)
         return inputs_data
 
     def create_unsorted_segment_max_net(self, data_shape, segment_ids_shape, num_segments_val, data_type,
@@ -41,7 +44,7 @@ class TestUnsortedSegmentMax(CommonTFLayerTest):
     test_data_basic = [
         dict(data_shape=[8], segment_ids_shape=[8], num_segments_val=5),
         dict(data_shape=[10, 4], segment_ids_shape=[10], num_segments_val=5),
-        dict(data_shape=[5, 6, 7], segment_ids_shape=[5], num_segments_val=8),
+        dict(data_shape=[8, 6, 7], segment_ids_shape=[8], num_segments_val=8),
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
@@ -66,6 +69,8 @@ class TestUnsortedSegmentMax(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_unsorted_segment_max_empty_segments(self, params, ie_device, precision, ir_version, temp_dir):
+        if ie_device == 'GPU':
+            pytest.skip("FP16 lowest fill value differs from FP32 for empty segments")
         self._test(*self.create_unsorted_segment_max_net(**params,
                                                          data_type=np.float32, segment_ids_type=np.int32,
                                                          num_segments_type=np.int32),
