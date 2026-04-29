@@ -39,7 +39,7 @@ using namespace ov::op;
 namespace ov {
 namespace test {
 using InputShapes = std::vector<InputShape>;
-using PagedAttnTestParams = std::tuple<ElementType, InputShapes, bool, bool, bool, int32_t, ov::AnyMap>;
+using PagedAttnTestParams = std::tuple<ElementType, InputShapes, bool, bool, bool, int32_t, ov::AnyMap, bool>;
 
 class PagedAttnTestBase : public testing::WithParamInterface<PagedAttnTestParams>,
                           virtual public ov::test::SubgraphBaseTest,
@@ -52,7 +52,8 @@ public:
                      enableXattn,
                      sinkInput,
                      slidingWindow,
-                     additional_config] = obj.param;
+                     additional_config,
+                     addSharedReader] = obj.param;
         std::ostringstream result;
         result << "IS=";
         for (const auto& shape : inputShapes) {
@@ -73,6 +74,8 @@ public:
         result << "EnableXattn=" << enableXattn << "_";
         result << "SinkInput=" << sinkInput << "_";
         result << "SlidingWindow=" << slidingWindow << "_";
+        if (addSharedReader)
+            result << "SharedKVCache=1_";
         result << "config=(";
         for (const auto& configEntry : additional_config) {
             result << configEntry.first << ", " << configEntry.second.as<std::string>() << "_";
@@ -405,7 +408,8 @@ public:
                      enableXattn,
                      sinkInput,
                      slidingWindow,
-                     additional_config] = this->GetParam();
+                     additional_config,
+                     addSharedReader] = this->GetParam();
         targetDevice = ov::test::utils::DEVICE_CPU;
         rel_threshold = 1e-2f;
         configuration[ov::hint::inference_precision.name()] = ov::element::f32;
@@ -419,10 +423,9 @@ public:
         ov::ParameterVector inputParams;
 
         this->sliding_window = slidingWindow;
-        function = get_model(inType, enableXattn, 64, 8, sinkInput, slidingWindow);
+        function = get_model(inType, enableXattn, 64, 8, sinkInput, slidingWindow, addSharedReader);
+        functionRefs = get_ref_model(inType, 64, 8, sinkInput, addSharedReader);
         targetDevice = ov::test::utils::DEVICE_CPU;
-
-        functionRefs = get_ref_model(inType, 64, 8, sinkInput);
     }
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         // Check if the reference model uses sink input by examining the number of parameters
@@ -552,12 +555,17 @@ public:
             // has a shared-cache reader PA). Values differ from writer's K/V so that
             // an incorrect write would visibly corrupt the cache.
             if (function->get_parameters().size() > 9) {
-                create_input(function->get_parameters()[9],
-                             {qkv_shape[0] * qkv_shape[1], qkv_shape[2] * qkv_shape[3]},
-                             idx + 20.0f);  // k_reader: distinct from k (idx+2)
-                create_input(function->get_parameters()[10],
-                             {qkv_shape[0] * qkv_shape[1], qkv_shape[2] * qkv_shape[3]},
-                             idx + 30.0f);  // v_reader: distinct from v (idx+3)
+                // Fill k_reader/v_reader with zeros — maximally different from the
+                // descending strided_iota data used for k/v (~13000 range).
+                // If write_kv_cache=false is broken and PA2 writes these zeros to cache,
+                // the attention output will differ drastically from the reference.
+                auto reader_shape = ov::Shape{qkv_shape[0] * qkv_shape[1], qkv_shape[2] * qkv_shape[3]};
+                for (size_t p = 9; p <= 10; p++) {
+                    auto param = function->get_parameters()[p];
+                    ov::Tensor t{param->get_element_type(), reader_shape};
+                    memset(t.data(), 0, t.get_byte_size());
+                    inputs.insert({param, t});
+                }
             }
 
             // Note: sink is a Constant in the model, not a Parameter, so no need to provide input for it
@@ -721,8 +729,8 @@ public:
 
 TEST_P(PagedAttnVSSDPATest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput, slidingWindow, additional_config] =
-        this->GetParam();
+    const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput, slidingWindow, additional_config,
+                 addSharedReader] = this->GetParam();
     const bool isSageAttn =
         intel_cpu::contains_key_value(additional_config, {ov::intel_cpu::enable_sage_attn.name(), true});
     if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
@@ -767,7 +775,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnVSSDPATest,
                                             ::testing::Values(true, false),
                                             ::testing::Values(false),
                                             ::testing::Values(0),
-                                            ::testing::ValuesIn(additional_configs)),
+                                            ::testing::ValuesIn(additional_configs),
+                                            ::testing::Values(false)),  // addSharedReader
                          PagedAttnTestBase::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnVSSDPATest_WithSlidingWindowAndSinks,
@@ -779,41 +788,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnVSSDPATest_WithSlidingWindowAndSinks,
                                             ::testing::Values(true, false),  // sinkInput
                                             ::testing::Values(0, 8),         // sliding_window = 8
                                             ::testing::Values(ov::AnyMap{
-                                                {ov::intel_cpu::enable_sage_attn.name(), false}})),
+                                                {ov::intel_cpu::enable_sage_attn.name(), false}}),
+                                            ::testing::Values(false)),  // addSharedReader
                          PagedAttnTestBase::getTestCaseName);
-}  // namespace
 
-// ---------------------------------------------------------------------------
-class PagedAttnSharedKVCacheTest : public PagedAttnVSSDPATest {
-public:
-    void SetUp() override {
-        PagedAttnTestBase::SetUp();
-        const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput, slidingWindow, additional_config] =
-            this->GetParam();
-        function = get_model(inType, enableXattn, 64, 8, sinkInput, slidingWindow, true);
-        functionRefs = get_ref_model(inType, 64, 8, sinkInput, true);
-    }
-};
-
-TEST_P(PagedAttnSharedKVCacheTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput, slidingWindow, additional_config] =
-        this->GetParam();
-    if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
-        GTEST_SKIP();
-
-    past_len_count = 0;
-    auto actualOutputs = run_test(function, extendBlockIndices, sinkInput);
-    past_len_count = 0;
-    auto expectedOutputs = run_ref_test(functionRefs, sinkInput);
-    for (size_t i = 0; i < actualOutputs.size(); i++) {
-        ov::test::utils::compare(expectedOutputs[i], actualOutputs[i], abs_threshold, rel_threshold);
-    }
-}
-
-namespace {
+// PA1(write=true) + PA2(write=false) sharing the same KV cache.
+// Verifies that PA2 reads the cache populated by PA1 and produces matching output.
 INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnSharedKVCache,
-                         PagedAttnSharedKVCacheTest,
+                         PagedAttnVSSDPATest,
                          ::testing::Combine(::testing::Values(ElementType::f32, ElementType::bf16),
                                             ::testing::ValuesIn(inputShapeAndReorders),
                                             ::testing::Values(false),   // extendBlockIndices
@@ -821,7 +803,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnSharedKVCache,
                                             ::testing::Values(false),   // sinkInput
                                             ::testing::Values(0),       // slidingWindow
                                             ::testing::Values(ov::AnyMap{
-                                                {ov::intel_cpu::enable_sage_attn.name(), false}})),
+                                                {ov::intel_cpu::enable_sage_attn.name(), false}}),
+                                            ::testing::Values(true)),   // addSharedReader
                          PagedAttnTestBase::getTestCaseName);
 }  // namespace
 
@@ -997,8 +980,15 @@ public:
 
 TEST_P(PagedAttnVSMatmulTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput, slidingWindow, additional_config] =
-        this->GetParam();
+    const auto& [inType,
+                 inputShapes,
+                 extendBlockIndices,
+                 enableXattn,
+                 sinkInput,
+                 slidingWindow,
+                 additional_config,
+                 addSharedReader] = this->GetParam();
+    ASSERT_FALSE(addSharedReader) << "PagedAttnVSMatmulTest does not support shared KV-cache (addSharedReader=true)";
     const bool isSageAttn =
         intel_cpu::contains_key_value(additional_config, {ov::intel_cpu::enable_sage_attn.name(), true});
     if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
@@ -1035,7 +1025,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnVSMatmulTest,
                                             ::testing::Values(true, false),
                                             ::testing::Values(false),  // sinkInput = false
                                             ::testing::Values(0),      // sliding_window = 0
-                                            ::testing::ValuesIn(additional_configs)),
+                                            ::testing::ValuesIn(additional_configs),
+                                            ::testing::Values(false)),  // addSharedReader
                          PagedAttnTestBase::getTestCaseName);
 }  // namespace
 
