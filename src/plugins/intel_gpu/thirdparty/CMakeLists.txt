@@ -109,8 +109,13 @@ if(ENABLE_ONEDNN_FOR_GPU)
         set(ONEDNN_GPU_DIR ${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu CACHE FILEPATH "Path to oneDNN GPU repository")
         if(GPU_RUNTIME STREQUAL "L0")
             set(ONEDNN_GPU_RT "ZE")
+            # OneDNN is using different version of L0 headers
+            # Disable LTO to avoid build issues
+            # Enable once headers are unified MFDNN-14973
+            set(ONEDNN_ENABLE_LTO OFF)
         elseif(GPU_RUNTIME STREQUAL "OCL")
             set(ONEDNN_GPU_RT "OCL")
+            set(ONEDNN_ENABLE_LTO ${ENABLE_LTO})
         endif()
 
         ExternalProject_Add(onednn_gpu_build
@@ -122,7 +127,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
             # Configure Step Options:
             CMAKE_ARGS
                 ${cmake_extra_args}
-                "-DCMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE=${ENABLE_LTO}"
+                "-DCMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE=${ONEDNN_ENABLE_LTO}"
                 "-DCMAKE_POLICY_DEFAULT_CMP0069=NEW"
                 "-DDNNL_TARGET_ARCH=${ONEDNN_TARGET_ARCH}"
                 "-DDNNL_CPU_RUNTIME=NONE"
