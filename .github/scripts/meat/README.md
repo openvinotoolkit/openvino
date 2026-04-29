@@ -73,15 +73,18 @@ python .github/scripts/meat/enable_operator.py my_op.md
 
 ```bash
 # Triage — export + classify failure
-python .github/scripts/meat/run_deployer.py my_context.md
-python .github/scripts/meat/run_analyze_and_convert.py my_context.md
+python .github/scripts/meat/run_agent.py deployer my_context.md
+python .github/scripts/meat/run_agent.py analyze-and-convert my_context.md
 
 # OpenVINO core pipeline
-python .github/scripts/meat/run_frontend.py my_context.md
-python .github/scripts/meat/run_core_opspec.py my_context.md
-python .github/scripts/meat/run_transformation.py my_context.md
-python .github/scripts/meat/run_cpu.py my_context.md
-python .github/scripts/meat/run_gpu.py my_context.md
+python .github/scripts/meat/run_agent.py frontend my_context.md
+python .github/scripts/meat/run_agent.py core-opspec my_context.md
+python .github/scripts/meat/run_agent.py transformation my_context.md
+python .github/scripts/meat/run_agent.py cpu my_context.md
+python .github/scripts/meat/run_agent.py gpu my_context.md
+
+# List all available agents
+python .github/scripts/meat/run_agent.py --list
 ```
 
 All output goes to `agent-results/<agent-name>/` in the working directory:
@@ -108,16 +111,17 @@ git apply --whitespace=fix agent-results/enable-operator/patches/openvino/*.patc
 
 ```
 enable_operator.py
+    │  (delegates to run_agent.py enable-operator)
     │
-    ├─ run_frontend.py         ← missing_conversion_rule / frontend_error
-    ├─ run_core_opspec.py      ← FE escalates (no existing OV op)
+    ├─ run_agent.py frontend         ← missing_conversion_rule / frontend_error
+    ├─ run_agent.py core-opspec      ← FE escalates (no existing OV op)
     │   └─ (parallel)
-    │       ├─ run_transformation.py
-    │       ├─ run_cpu.py
-    │       └─ run_gpu.py
+    │       ├─ run_agent.py transformation
+    │       ├─ run_agent.py cpu
+    │       └─ run_agent.py gpu
     │
-run_deployer.py                ← first-attempt export + classify
-run_analyze_and_convert.py     ← deep probe + strategy matrix + routing signals
+run_agent.py deployer              ← first-attempt export + classify
+run_agent.py analyze-and-convert   ← deep probe + strategy matrix + routing signals
 ```
 
 ---

@@ -28,71 +28,18 @@ Example context file:
     PyTorch docs: https://pytorch.org/docs/stable/generated/torch.erfinv.html
 
 See .github/scripts/meat/README.md for the full context file format.
+
+Shortcut for: run_agent.py enable-operator <context-file>
 """
 
 import os
 import subprocess
 import sys
 
-AGENT_FILE = ".github/agents/enable-operator.agent.md"
-
-
-def _warn_yolo_mode() -> None:
-    print(
-        "\n"
-        "  ╔══════════════════════════════════════════════════════════════════╗\n"
-        "  ║  WARNING: AUTONOMOUS / UNATTENDED MODE                         ║\n"
-        "  ║                                                                ║\n"
-        "  ║  This script runs GitHub Copilot with --no-ask-user and        ║\n"
-        "  ║  --autopilot.  The agent will READ, CREATE, and MODIFY files   ║\n"
-        "  ║  in this repository WITHOUT asking for confirmation.           ║\n"
-        "  ║                                                                ║\n"
-        "  ║  Review agent-results/ after the run and apply patches with   ║\n"
-        "  ║  'git apply' — do NOT blindly commit generated changes.        ║\n"
-        "  ╚══════════════════════════════════════════════════════════════════╝\n",
-        flush=True,
-    )
-
 
 def main() -> None:
-    if len(sys.argv) != 2:
-        print(f"Usage: {sys.argv[0]} <context-file>", file=sys.stderr)
-        sys.exit(1)
-
-    context_file_path = sys.argv[1]
-
-    if not os.path.isfile(context_file_path):
-        print(f"Error: context file not found: {context_file_path}", file=sys.stderr)
-        sys.exit(1)
-
-    if not os.path.isfile(AGENT_FILE):
-        print(
-            f"Error: agent file not found: {AGENT_FILE}\n"
-            "Make sure you are running from the openvino repo root.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
-    output_dir = "agent-results/enable-operator"
-    os.makedirs(output_dir, exist_ok=True)
-
-    with open(context_file_path) as f:
-        prompt = f.read()
-
-    _warn_yolo_mode()
-
-    cmd = [
-        "copilot",
-        "--agent", "enable-operator",
-        "--share", f"{output_dir}/session.md",
-        "--no-ask-user",
-        "--autopilot",
-        "--stream", "on",
-        "--log-level", "all",
-        "-p", prompt,
-    ]
-
-    sys.exit(subprocess.run(cmd, shell=(sys.platform == "win32")).returncode)
+    runner = os.path.join(os.path.dirname(os.path.abspath(__file__)), "run_agent.py")
+    sys.exit(subprocess.run([sys.executable, runner, "enable-operator"] + sys.argv[1:]).returncode)
 
 
 if __name__ == "__main__":
