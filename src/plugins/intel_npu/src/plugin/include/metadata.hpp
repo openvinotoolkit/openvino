@@ -40,18 +40,18 @@ public:
     /**
      * @brief Reads human-readable metadata from a ov::Tensor.
      */
-    void read_human_readable(const ov::Tensor& tensor);
+    void read_as_text(const ov::Tensor& tensor);
 
     virtual void read() = 0;
 
-    virtual void read_human_readable() = 0;
+    virtual void read_as_text() = 0;
 
     /**
      * @brief Writes metadata to a stream.
      */
     virtual void write(std::ostream& stream) = 0;
 
-    virtual void write_human_readable(std::ostream& stream) = 0;
+    virtual void write_as_text(std::ostream& stream) = 0;
 
     virtual uint64_t get_blob_size() const;
 
@@ -113,13 +113,13 @@ protected:
      */
     void read_data_from_source(char* destination, const size_t size);
 
-    using HRFields = std::map<std::string, std::string>;
+    using TextFields = std::map<std::string, std::string>;
 
     /**
      * @brief Parses the full human-readable tensor into a key-value map.
      * @details The format is key=value; pairs where values may contain nested []
      */
-    static HRFields parse_hr_fields(const ov::Tensor& tensor);
+    static TextFields parse_text_fields(const ov::Tensor& tensor);
 
     /**
      * @brief Adds the size of the binary object and the magic string to the end of the stream.
@@ -135,9 +135,9 @@ protected:
     Logger _logger;
 
     /**
-     * @brief Map where the compatibility string is loaded
+     * @brief Parsed key-value fields extracted from the human-readable metadata input
      */
-    HRFields _hr_fields;
+    TextFields _text_fields;
 
     Source _source;
 
@@ -242,7 +242,7 @@ public:
 
     void read() override;
 
-    void read_human_readable() override;
+    void read_as_text() override;
 
     /**
      * @attention It's a must to first write metadata version in any metadata specialization.
@@ -253,7 +253,7 @@ public:
      */
     void write(std::ostream& stream) override;
 
-    void write_human_readable(std::ostream& stream) override;
+    void write_as_text(std::ostream& stream) override;
 
     size_t get_metadata_size() const override;
 
@@ -277,7 +277,7 @@ public:
      */
     void read() override;
 
-    void read_human_readable() override;
+    void read_as_text() override;
 
     /**
      * @details The number of init schedules, along with the size of each init binary object are written in addition to
@@ -285,7 +285,7 @@ public:
      */
     void write(std::ostream& stream) override;
 
-    void write_human_readable(std::ostream& stream) override;
+    void write_as_text(std::ostream& stream) override;
 
     std::optional<std::vector<uint64_t>> get_init_sizes() const override;
 
@@ -309,11 +309,11 @@ public:
 
     void read() override;
 
-    void read_human_readable() override;
+    void read_as_text() override;
 
     void write(std::ostream& stream) override;
 
-    void write_human_readable(std::ostream& stream) override;
+    void write_as_text(std::ostream& stream) override;
 
     std::optional<int64_t> get_batch_size() const override;
 
@@ -339,11 +339,11 @@ public:
 
     void read() override;
 
-    void read_human_readable() override;
+    void read_as_text() override;
 
     void write(std::ostream& stream) override;
 
-    void write_human_readable(std::ostream& stream) override;
+    void write_as_text(std::ostream& stream) override;
 
     size_t get_metadata_size() const override;
 
@@ -372,11 +372,11 @@ public:
 
     void read() override;
 
-    void read_human_readable() override;
+    void read_as_text() override;
 
     void write(std::ostream& stream) override;
 
-    void write_human_readable(std::ostream& stream) override;
+    void write_as_text(std::ostream& stream) override;
 
     size_t get_metadata_size() const override;
 
@@ -403,11 +403,11 @@ public:
 
     void read() override;
 
-    void read_human_readable() override;
+    void read_as_text() override;
 
     void write(std::ostream& stream) override;
 
-    void write_human_readable(std::ostream& stream) override;
+    void write_as_text(std::ostream& stream) override;
 
     size_t get_metadata_size() const override;
 
@@ -444,6 +444,6 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream);
  */
 std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor);
 
-std::unique_ptr<MetadataBase> read_human_readable(const ov::Tensor& tensor);
+std::unique_ptr<MetadataBase> read_as_text(const ov::Tensor& tensor);
 
 }  // namespace intel_npu

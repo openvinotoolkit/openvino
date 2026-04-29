@@ -222,6 +222,29 @@ TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlobWithEmptyCompilerRe
     ASSERT_FALSE(storedMeta->get_runtime_reqs().has_value());
 }
 
+TEST_F(MetadataUnitTests, compilerReqsLenExceedsTensorBounds) {
+    std::stringstream stream;
+    const std::string reqs = "platform=NPU3720;tiles=2;etc=...";
+    auto meta = Metadata<METADATA_VERSION_2_5>(0,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               reqs);
+    meta.write(stream);
+    std::string blob = stream.str();
+
+    const size_t reqsLenOffset = blob.size() - MAGIC_BYTES.size() - sizeof(uint64_t) - reqs.size() - sizeof(uint64_t);
+    const uint64_t badLen = reqs.size() + 0xFF;
+    std::memcpy(&blob[reqsLenOffset], &badLen, sizeof(badLen));
+
+    auto tensor = ov::Tensor(ov::element::u8, ov::Shape{blob.size()});
+    std::memcpy(tensor.data<char>(), blob.data(), blob.size());
+    ASSERT_ANY_THROW(read_metadata_from(tensor));
+}
+
 TEST_F(MetadataUnitTests, writeAndReadInvalidMetadataVersion) {
     uint64_t blobSize = 0;
     std::stringstream stream;

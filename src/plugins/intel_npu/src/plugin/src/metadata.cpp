@@ -11,13 +11,14 @@
 #include <sstream>
 #include <string>
 
+#include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 
 namespace {
 
 template <typename T>
-void write_hr_field(std::ostream& stream, std::string_view key, const T& value) {
+void write_text_field(std::ostream& stream, std::string_view key, const T& value) {
     if (stream.tellp() != std::streampos(0)) {
         stream << ';';
     }
@@ -25,7 +26,7 @@ void write_hr_field(std::ostream& stream, std::string_view key, const T& value) 
 }
 
 template <typename Container>
-void write_hr_bracketed_list(std::ostream& stream, const Container& items) {
+void write_text_list(std::ostream& stream, const Container& items) {
     stream << '[';
     bool first = true;
     for (const auto& item : items) {
@@ -165,9 +166,9 @@ void MetadataBase::read(const ov::Tensor& tensor) {
     read();
 }
 
-void MetadataBase::read_human_readable(const ov::Tensor& tensor) {
-    _hr_fields = parse_hr_fields(tensor);
-    read_human_readable();
+void MetadataBase::read_as_text(const ov::Tensor& tensor) {
+    _text_fields = parse_text_fields(tensor);
+    read_as_text();
 }
 
 void MetadataBase::read_data_from_source(char* destination, const size_t size) {
@@ -176,6 +177,17 @@ void MetadataBase::read_data_from_source(char* destination, const size_t size) {
         stream->get().read(destination, size);
     } else if (const std::reference_wrapper<const ov::Tensor>* tensor =
                    std::get_if<std::reference_wrapper<const ov::Tensor>>(&_source)) {
+        const size_t available = tensor->get().get_byte_size();
+        const size_t remaining = (_cursorOffset <= available) ? available - _cursorOffset : 0;
+        if (size > remaining) {
+            OPENVINO_THROW("NPU metadata: attempted to read ",
+                           size,
+                           " bytes at offset ",
+                           _cursorOffset,
+                           " but only ",
+                           remaining,
+                           " bytes remain in the metadata buffer.");
+        }
         std::memcpy(destination, tensor->get().data<const char>() + _cursorOffset, size);
         _cursorOffset += size;
     } else {
@@ -183,8 +195,8 @@ void MetadataBase::read_data_from_source(char* destination, const size_t size) {
     }
 }
 
-MetadataBase::HRFields MetadataBase::parse_hr_fields(const ov::Tensor& tensor) {
-    HRFields fields;
+MetadataBase::TextFields MetadataBase::parse_text_fields(const ov::Tensor& tensor) {
+    TextFields fields;
     const char* data = tensor.data<const char>();
     const size_t total = tensor.get_byte_size();
     size_t pos = 0;
@@ -326,9 +338,9 @@ void Metadata<METADATA_VERSION_2_5>::read() {
     }
 }
 
-void Metadata<METADATA_VERSION_2_0>::read_human_readable() {
-    const auto it = _hr_fields.find("ov");
-    if (it == _hr_fields.end()) {
+void Metadata<METADATA_VERSION_2_0>::read_as_text() {
+    const auto it = _text_fields.find("ov");
+    if (it == _text_fields.end()) {
         OPENVINO_THROW("Human-readable metadata missing 'ov' field.");
     }
     const std::string& s = it->second;
@@ -339,11 +351,11 @@ void Metadata<METADATA_VERSION_2_0>::read_human_readable() {
                                  static_cast<uint16_t>(std::stoul(s.substr(dot2 + 1))));
 }
 
-void Metadata<METADATA_VERSION_2_1>::read_human_readable() {
-    Metadata<METADATA_VERSION_2_0>::read_human_readable();
+void Metadata<METADATA_VERSION_2_1>::read_as_text() {
+    Metadata<METADATA_VERSION_2_0>::read_as_text();
 
-    const auto it = _hr_fields.find("ws_inits");
-    if (it == _hr_fields.end()) {
+    const auto it = _text_fields.find("ws_inits");
+    if (it == _text_fields.end()) {
         return;
     }
     const std::string& s = it->second;
@@ -361,40 +373,43 @@ void Metadata<METADATA_VERSION_2_1>::read_human_readable() {
     _initSizes = std::move(inits);
 }
 
-void Metadata<METADATA_VERSION_2_2>::read_human_readable() {
-    Metadata<METADATA_VERSION_2_1>::read_human_readable();
+void Metadata<METADATA_VERSION_2_2>::read_as_text() {
+    Metadata<METADATA_VERSION_2_1>::read_as_text();
 
-    const auto it = _hr_fields.find("batch");
-    if (it == _hr_fields.end()) {
+    const auto it = _text_fields.find("batch");
+    if (it == _text_fields.end()) {
         return;
     }
     const int64_t batchValue = std::stoll(it->second);
     _batchSize = (batchValue != 0) ? std::optional<int64_t>(batchValue) : std::nullopt;
 }
 
-void Metadata<METADATA_VERSION_2_3>::read_human_readable() {
-    Metadata<METADATA_VERSION_2_2>::read_human_readable();
+void Metadata<METADATA_VERSION_2_3>::read_as_text() {
+    Metadata<METADATA_VERSION_2_2>::read_as_text();
 
     _inputLayouts = std::nullopt;
     _outputLayouts = std::nullopt;
 }
 
-void Metadata<METADATA_VERSION_2_4>::read_human_readable() {
-    Metadata<METADATA_VERSION_2_3>::read_human_readable();
+void Metadata<METADATA_VERSION_2_4>::read_as_text() {
+    Metadata<METADATA_VERSION_2_3>::read_as_text();
 
-    const auto it = _hr_fields.find("compiler");
-    if (it == _hr_fields.end()) {
-        OPENVINO_THROW("Human-readable metadata missing 'compiler' field");
+    const auto it = _text_fields.find("compiler");
+    if (it == _text_fields.end()) {
+        return;
     }
-    const auto compilerVersion = static_cast<uint32_t>(std::stoul(it->second));
-    _compilerVersion = (compilerVersion != 0) ? std::optional<uint32_t>(compilerVersion) : std::nullopt;
+    const std::string& s = it->second;
+    const size_t dot = s.find('.');
+    const uint16_t major = static_cast<uint16_t>(std::stoul(s.substr(0, dot))),
+                   minor = static_cast<uint16_t>(std::stoul(s.substr(dot + 1)));
+    _compilerVersion = ONEAPI_MAKE_VERSION(major, minor);
 }
 
-void Metadata<METADATA_VERSION_2_5>::read_human_readable() {
-    Metadata<METADATA_VERSION_2_4>::read_human_readable();
+void Metadata<METADATA_VERSION_2_5>::read_as_text() {
+    Metadata<METADATA_VERSION_2_4>::read_as_text();
 
-    const auto it = _hr_fields.find("compiler_reqs");
-    if (it == _hr_fields.end() || it->second.empty()) {
+    const auto it = _text_fields.find("compiler_reqs");
+    if (it == _text_fields.end() || it->second.empty()) {
         return;
     }
 
@@ -402,7 +417,7 @@ void Metadata<METADATA_VERSION_2_5>::read_human_readable() {
     if (v.size() >= 2 && v.front() == '[' && v.back() == ']') {
         _compilerReqs = v.substr(1, v.size() - 2);
     } else {
-        _compilerReqs = v;
+        OPENVINO_THROW("Human-readable metadata: 'compiler_reqs' value is not bracket-enclosed: ", v);
     }
 }
 
@@ -474,50 +489,53 @@ void Metadata<METADATA_VERSION_2_5>::write(std::ostream& stream) {
     append_blob_size_and_magic(stream);
 }
 
-void Metadata<METADATA_VERSION_2_0>::write_human_readable(std::ostream& stream) {
+void Metadata<METADATA_VERSION_2_0>::write_as_text(std::ostream& stream) {
     const uint16_t meta_major = MetadataBase::get_major(_version);
     const uint16_t meta_minor = MetadataBase::get_minor(_version);
-    write_hr_field(stream, "meta", std::to_string(meta_major) + "." + std::to_string(meta_minor));
-    write_hr_field(stream,
-                   "ov",
-                   std::to_string(OPENVINO_VERSION_MAJOR) + "." + std::to_string(OPENVINO_VERSION_MINOR) + "." +
-                       std::to_string(OPENVINO_VERSION_PATCH));
+    write_text_field(stream, "meta", std::to_string(meta_major) + "." + std::to_string(meta_minor));
+    write_text_field(stream,
+                     "ov",
+                     std::to_string(OPENVINO_VERSION_MAJOR) + "." + std::to_string(OPENVINO_VERSION_MINOR) + "." +
+                         std::to_string(OPENVINO_VERSION_PATCH));
 }
 
-void Metadata<METADATA_VERSION_2_1>::write_human_readable(std::ostream& stream) {
-    Metadata<METADATA_VERSION_2_0>::write_human_readable(stream);
+void Metadata<METADATA_VERSION_2_1>::write_as_text(std::ostream& stream) {
+    Metadata<METADATA_VERSION_2_0>::write_as_text(stream);
 
     if (_initSizes.has_value() && !_initSizes->empty()) {
         std::ostringstream oss;
-        write_hr_bracketed_list(oss, _initSizes.value());
-        write_hr_field(stream, "ws_inits", oss.str());
+        write_text_list(oss, _initSizes.value());
+        write_text_field(stream, "ws_inits", oss.str());
     }
 }
 
-void Metadata<METADATA_VERSION_2_2>::write_human_readable(std::ostream& stream) {
-    Metadata<METADATA_VERSION_2_1>::write_human_readable(stream);
+void Metadata<METADATA_VERSION_2_2>::write_as_text(std::ostream& stream) {
+    Metadata<METADATA_VERSION_2_1>::write_as_text(stream);
 
     if (_batchSize.has_value() && _batchSize.value() > 0) {
-        write_hr_field(stream, "batch", _batchSize.value());
+        write_text_field(stream, "batch", _batchSize.value());
     }
 }
 
 // omitted from compatibility string
-void Metadata<METADATA_VERSION_2_3>::write_human_readable(std::ostream& stream) {
-    Metadata<METADATA_VERSION_2_2>::write_human_readable(stream);
+void Metadata<METADATA_VERSION_2_3>::write_as_text(std::ostream& stream) {
+    Metadata<METADATA_VERSION_2_2>::write_as_text(stream);
 }
 
-void Metadata<METADATA_VERSION_2_4>::write_human_readable(std::ostream& stream) {
-    Metadata<METADATA_VERSION_2_3>::write_human_readable(stream);
+void Metadata<METADATA_VERSION_2_4>::write_as_text(std::ostream& stream) {
+    Metadata<METADATA_VERSION_2_3>::write_as_text(stream);
 
-    write_hr_field(stream, "compiler", _compilerVersion.value_or(0));
+    const uint32_t ver = _compilerVersion.value_or(0);
+    write_text_field(stream,
+                     "compiler",
+                     std::to_string(ONEAPI_VERSION_MAJOR(ver)) + "." + std::to_string(ONEAPI_VERSION_MINOR(ver)));
 }
 
-void Metadata<METADATA_VERSION_2_5>::write_human_readable(std::ostream& stream) {
-    Metadata<METADATA_VERSION_2_4>::write_human_readable(stream);
+void Metadata<METADATA_VERSION_2_5>::write_as_text(std::ostream& stream) {
+    Metadata<METADATA_VERSION_2_4>::write_as_text(stream);
 
     if (_compilerReqs.has_value() && !_compilerReqs->empty()) {
-        write_hr_field(stream, "compiler_reqs", '[' + _compilerReqs.value() + ']');
+        write_text_field(stream, "compiler_reqs", '[' + _compilerReqs.value() + ']');
     }
 }
 
@@ -646,7 +664,7 @@ std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor) {
     return storedMeta;
 }
 
-std::unique_ptr<MetadataBase> read_human_readable(const ov::Tensor& tensor) {
+std::unique_ptr<MetadataBase> read_as_text(const ov::Tensor& tensor) {
     const char* data = tensor.data<const char>();
     const size_t size = tensor.get_byte_size();
 
@@ -678,7 +696,7 @@ std::unique_ptr<MetadataBase> read_human_readable(const ov::Tensor& tensor) {
     std::unique_ptr<MetadataBase> storedMeta;
     try {
         storedMeta = create_metadata(metaVersion, 0);
-        storedMeta->read_human_readable(tensor);
+        storedMeta->read_as_text(tensor);
     } catch (const std::exception& ex) {
         OPENVINO_THROW("Can't read NPU human-readable metadata: ", ex.what());
     } catch (...) {
