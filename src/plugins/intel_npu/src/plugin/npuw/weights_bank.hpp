@@ -43,6 +43,7 @@ public:
 private:
     friend class ov::npuw::LLMCompiledModel;
     friend class ov::npuw::CompiledModel;
+    friend void ov::npuw::s11n::serialize(ov::npuw::s11n::Stream& stream, ov::npuw::weights::Bank& var);
 
     struct StoredTensor {
         LazyTensor lt;
@@ -60,12 +61,8 @@ private:
                                          const std::vector<LazyTensor>& to_process,
                                          const std::string& device);
 
-    void serialize(std::ostream& stream) const;
-    static std::shared_ptr<Bank> deserialize(std::istream& stream,
-                                             const std::shared_ptr<const ov::ICore>& core,
-                                             const std::string& name);
-    // Used during deserialization
-    void read_and_add_tensor(std::istream& stream, int64_t uid, const std::string& device);
+    void serialize(ov::npuw::s11n::Stream& stream);
+    void read_and_add_tensor(ov::npuw::s11n::Stream& stream, int64_t uid, const std::string& device);
 
     mutable std::mutex m_mutex;
     std::shared_ptr<const ov::ICore> m_core = nullptr;

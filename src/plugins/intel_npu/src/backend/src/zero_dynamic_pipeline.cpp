@@ -58,9 +58,7 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
     OPENVINO_ASSERT(dynamicGraph != nullptr, "Failed to cast graph to IDynamicGraph");
 
     if (!_sync_output_with_fences) {
-        _event_pool = std::make_shared<EventPool>(_init_structs->getDevice(),
-                                                  _init_structs->getContext(),
-                                                  _batch_size ? static_cast<uint32_t>(_batch_size) : 1);
+        _event_pool = std::make_shared<EventPool>(_init_structs, _batch_size ? static_cast<uint32_t>(_batch_size) : 1);
 
         _events.reserve(_batch_size);
         for (size_t i = 0; i < _batch_size; i++) {
