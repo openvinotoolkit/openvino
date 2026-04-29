@@ -248,11 +248,12 @@ void Config::parseEnvVars() {
                 try {
                     _impl[opt.key().data()] = opt.validateAndParseFromString(envVar);
                 } catch (const std::exception& e) {
-                    _log.error("Failed to parse environment variable '%s' with value '%s' for option '%s': %s",
-                               opt.envVar().data(),
-                               envVar,
-                               opt.key().data(),
-                               e.what());
+                    _log.warning(
+                        "Environment variable '%s' with value '%s' was ignored for option '%s' due to error:\n%s",
+                        opt.envVar().data(),
+                        envVar,
+                        opt.key().data(),
+                        e.what());
                 }
             }
         }

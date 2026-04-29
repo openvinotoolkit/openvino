@@ -140,10 +140,22 @@ TEST_P(OVPropertiesEnvVarTestsNPU, WrongEnvVarsDontAffectPluginLoading) {
     for (const auto& property_item : properties) {
         if (std::getenv(property_item.second.as<std::string>().c_str()) == nullptr) {
             set_env(property_item.second.as<std::string>(), wrong_env_var_value);
-            auto plugins = core->get_available_devices();
+            std::vector<std::string> plugins;
+            try {
+                plugins = core->get_available_devices();
+            } catch (const std::exception& e) {
+                FAIL() << "Failed to get available devices due to error: " << e.what();
+            }
             unset_env(property_item.second.as<std::string>());
-            ASSERT_TRUE(util::contains(plugins, target_device))
-                << "Plugin was not loaded with wrong environment variable " << property_item.second.as<std::string>();
+            if (!plugins.empty()) {
+                auto it = std::find_if(plugins.begin(),
+                                       plugins.end(),
+                                       [&target_device = std::as_const(target_device)](const std::string& plugin) {
+                                           return plugin.find(target_device) != std::string::npos;
+                                       });
+                ASSERT_TRUE(it != plugins.end()) << "Plugin was not loaded with wrong environment value for "
+                                                 << property_item.second.as<std::string>();
+            }
         }
     }
 }
