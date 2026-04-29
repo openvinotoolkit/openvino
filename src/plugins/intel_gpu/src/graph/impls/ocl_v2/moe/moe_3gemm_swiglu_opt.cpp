@@ -2530,10 +2530,15 @@ public:
             // same in-order OCL queue, so submission order guarantees execution order.
             // No explicit wait() is needed — the in-order queue serializes all GPU work,
             // and any subsequent primitive on the same queue will see the completed output.
-            if (use_grouped_gemm_prefill) {
+            if (use_grouped_gemm_prefill && ret_env) {
                 // ensure grouped GEMM fully completes before executing shared expert, which relies on its output being ready;
-                // also ensures all grouped GEMM events are completed before we reuse their memory buffers for the shared expert execution.
-                stream.finish();
+                // For grouped_gemm path, scatter_reduce (OCL) is preceded by multiple OCL <--> OneDNN
+                // transitions inside exec_prefill_grouped_gemm. The implicit ordering between
+                // the OCL queue and OneDNN's stream cannot be relied upon across this many
+                // back-and-forth submissions, so the shared expert's down_proj sum post-op
+                // (which reads+writes final_hidden_states) can race with scatter_reduce.
+                // Force the scatter_reduce write to be visible before submitting the shared expert.
+                ret_env->wait();
             }
             execute_shared_expert(stream.get_onednn_stream(), static_cast<int>(token_num), hidden_states_mem_ptr, final_hidden_states_mem_ptr, scratch);
         }
