@@ -48,7 +48,25 @@ fix/<model-id>-export             # optimum-intel / tokenizers
 fix/<component>-<short-desc>      # general
 ```
 
-### 3. Create branch, commit, and open draft PR
+### 3. Check for an existing PR
+
+Before creating a new PR, check whether one already exists from the same branch to avoid duplicates:
+
+```bash
+BRANCH="fix/<descriptive-name>"
+EXISTING=$(gh pr list \
+  --repo openvinotoolkit/openvino \
+  --head "$(gh api user -q .login):$BRANCH" \
+  --json url -q '.[0].url' 2>/dev/null)
+if [ -n "$EXISTING" ]; then
+  echo "[draft-pr] PR already exists: $EXISTING — skipping creation"
+  exit 0
+fi
+```
+
+If a PR exists, log the URL and stop — do **not** open a second one.
+
+### 4. Create branch, commit, and open draft PR
 
 ```bash
 cd <source_path>
@@ -66,7 +84,7 @@ gh pr create --draft \
   --body-file agent-results/<agent>/agent_report.md
 ```
 
-### 4. Log the result
+### 5. Log the result
 
 After the script runs, record the outcome in `agent-results/<agent>/session.md`:
 

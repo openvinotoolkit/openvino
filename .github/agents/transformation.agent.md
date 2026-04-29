@@ -243,25 +243,8 @@ The patch is available in `agent-results/transformation/` for the OV Orchestrato
 **`pr_mode: delegated_to_orchestrator`** (invoked by Enable Operator Agent): do **not** create a
 PR. Write patches to the result JSON only. The orchestrator creates one central draft PR in Phase 7.
 
-**Standalone invocation** (no `pr_mode` set): create a draft PR by default after completing
-implementation, unless the user explicitly said to skip it (e.g. "no PR", "skip PR"):
-
-```bash
-cd <source_path>
-BRANCH="fix/<descriptive-name>"
-git checkout -b "$BRANCH"
-git add -A
-git commit -m "<one-line description>"
-gh repo fork openvinotoolkit/openvino --clone=false 2>/dev/null || true
-git remote add fork "$(gh repo view "$(gh api user -q .login)/openvino" --json sshUrl -q .sshUrl)" 2>/dev/null || true
-git push fork "$BRANCH"
-gh pr create --draft \
-  --repo openvinotoolkit/openvino \
-  --head "$(gh api user -q .login):$BRANCH" \
-  --title "<one-line description>" \
-  --body-file agent-results/transformation/agent_report.md
-```
-
+**Standalone invocation** (no `pr_mode` set): follow the [`submit-draft-pr`](skills/submit-draft-pr.md)
+skill — it handles branch naming, existing-PR deduplication, fork creation, and `gh pr create`.
 Skip silently if `gh` is unavailable, not authenticated, or the command fails.
 
 ---
