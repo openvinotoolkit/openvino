@@ -26,21 +26,16 @@ Write all logs, results, and patches to `agent-results/frontend/`.
 
 ---
 
-## Runner Environment
+## Environment
 
-This agent runs via **GitHub Agentic Workflows** (`@copilot /agent`).
-The GHA job pre-clones the target repository on the runner before triggering this agent.
-
-| Item | Path / Notes |
+| Item | Notes |
 |---|---|
-| **OpenVINO repository** | Current working directory — the `openvinotoolkit/openvino` repository root |
-| **HEAD SHA** | Provided in the trigger prompt as `REPO_HEAD` |
-| **Skills** | `.github/agents/skills/` — relative to the OpenVINO repository root |
+| **OpenVINO repository** | Current working directory — run from the `openvinotoolkit/openvino` repository root |
+| **Skills** | `.github/agents/skills/` — relative to the repository root |
 
 ### Python Package Bootstrap
 
-The runner provides Python and `pip` but has **no pre-installed Python packages** beyond the base system.
-If any verification or test step requires Python packages, **install them yourself before running the step**:
+If any verification or test step requires Python packages, install them before running the step:
 
 ```bash
 pip install openvino optimum-intel torch --extra-index-url https://download.pytorch.org/whl/cpu

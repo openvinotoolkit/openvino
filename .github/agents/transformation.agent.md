@@ -27,42 +27,21 @@ Write all logs, results, and patches to `agent-results/transformation/`.
 
 ---
 
-## Runner Environment
+## Environment
 
-This agent runs via **GitHub Agentic Workflows** (`@copilot /agent`).
-The GHA job (`codingagent_transformation_tier2.yml`) pre-clones the target repository on the runner
-before triggering this agent.
-
-| Item | Path / Notes |
+| Item | Notes |
 |---|---|
-| **OpenVINO repository** | Current working directory — the `openvinotoolkit/openvino` repository root |
-| **HEAD SHA** | Provided in the trigger prompt as `REPO_HEAD` |
-| **Skills** | `.agents/skills/` — relative to the OpenVINO repository root |
+| **OpenVINO repository** | Current working directory — run from the `openvinotoolkit/openvino` repository root |
+| **Skills** | `.github/agents/skills/` — relative to the repository root |
 
 ### Python Package Bootstrap
 
-The runner provides Python and `pip` but has **no pre-installed Python packages** beyond the base system.
 If any verification or test step requires Python packages (e.g. `openvino`, `optimum`, `torch`,
-`transformers`, `pytest`), **install them yourself before running the step** — do not report a
-missing package as an "environment limitation" and do not skip the step:
+`transformers`, `pytest`), install them before running the step:
 
 ```bash
 pip install openvino optimum-intel torch --extra-index-url https://download.pytorch.org/whl/cpu
 ```
-
-### On-Runner Direct Patch Path (primary)
-
-Before the Copilot fallback is triggered, the GHA job attempts a direct patch application:
-
-1. Downloads the MEAT manifest (`meat-manifest-<run_id>` artifact).
-2. Probes for an existing `component=openvino, type=patch` entry produced by a previous
-   iteration of this agent.
-3. If a patch artifact is found: downloads it and applies with `git am`.
-4. Validates file structure (expects new `.hpp`/`.cpp` under `transformations/`).
-5. If clean → the job posts `fix_applied=true` and skips the Copilot invocation.
-
-This means: **on re-triggered pipeline runs where this agent already produced a patch,
-no new Copilot agent slot is consumed.**
 
 ---
 
@@ -246,7 +225,7 @@ The patch is available in `agent-results/transformation/` for the OV Orchestrato
 
 | Output field | Type | Description |
 |---|---|---|
-| `fix_applied` | `true` \| `false` | Whether a transformation fix was successfully applied (direct or via Copilot) |
+| `fix_applied` | `true` \| `false` | Whether a transformation fix was successfully applied |
 | `status` | `success` \| `failed` | Whether the transformation was implemented successfully |
 | `branch` | string | Fix branch name |
 | `patch_file` | path | Path to the `git format-patch` output |

@@ -24,23 +24,17 @@ Write all logs, results, and patches to `agent-results/core-opspec/`.
 
 ---
 
-## Runner Environment
+## Environment
 
-This agent runs via **GitHub Agentic Workflows** (`@copilot /agent`).
-The GHA job pre-clones the target repository on the runner before triggering this agent.
-
-| Item | Path / Notes |
+| Item | Notes |
 |---|---|
-| **OpenVINO repository** | Current working directory — the `openvinotoolkit/openvino` repository root |
-| **HEAD SHA** | Provided in the trigger prompt as `REPO_HEAD` |
-| **Skills** | `.agents/skills/` — relative to the OpenVINO repository root |
+| **OpenVINO repository** | Current working directory — run from the `openvinotoolkit/openvino` repository root |
+| **Skills** | `.github/agents/skills/` — relative to the repository root |
 
 ### Python Package Bootstrap
 
-The runner provides Python and `pip` but has **no pre-installed Python packages** beyond the base system.
 If any verification or test step requires Python packages (e.g. `openvino`, `optimum`, `torch`,
-`transformers`, `pytest`), **install them yourself before running the step** — do not report a
-missing package as an "environment limitation" and do not skip the step:
+`transformers`, `pytest`), install them before running the step:
 
 ```bash
 pip install openvino optimum-intel torch --extra-index-url https://download.pytorch.org/whl/cpu
@@ -176,7 +170,7 @@ is sufficient for them to begin.
 ## Source Repository
 
 - Reference code: current working directory (the OpenVINO repository root)
-- **Do NOT build OpenVINO** — compilation takes too long on GHA nodes.
+- **Do NOT build OpenVINO** — compilation takes too long on a local machine.
 - Produce `git format-patch` files; save to `agent-results/core-opspec/`.
 
 ## Key References
