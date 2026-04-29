@@ -11,13 +11,13 @@
 #include <vector>
 
 #include "openvino/core/op_extension.hpp"
-#include "openvino/util/common_util.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/visibility.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/opsets/opset.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
+#include "openvino/util/common_util.hpp"
 
 namespace ov::util {
 struct GenericLayerParams;
