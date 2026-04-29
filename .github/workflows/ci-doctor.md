@@ -14,11 +14,11 @@ on:
       link:
          description: "Link to a workflow to investigate (for manual testing across repositories)"
          required: false
-  workflow_run:
-    workflows:
-      - "Debian 10 ARM"
-    types:
-      - completed
+  # workflow_run:
+  #   workflows:
+  #     - "Debian 10 ARM"
+  #   types:
+  #     - completed
 
 rate-limit:
   max: 5 # Maximum runs per window
