@@ -48,7 +48,7 @@ Output<Node> prepare_source(const NodeContext& context,
     return src_input_dtype;
 }
 
-const v12::ScatterElementsUpdate::Reduction get_reduction_mode(const std::string& pt_reduce_mode) {
+v12::ScatterElementsUpdate::Reduction get_reduction_mode(const std::string& pt_reduce_mode) {
     static const std::unordered_map<std::string, v12::ScatterElementsUpdate::Reduction> TORCH_REDUCTION_TO_OV{
         {"add", v12::ScatterElementsUpdate::Reduction::SUM},
         {"multiply", v12::ScatterElementsUpdate::Reduction::PROD},
