@@ -28,6 +28,14 @@
 
 namespace {
 
+#ifdef _WIN32
+// On Windows use LUID (8 bytes) for Vulkan<->OpenCL device matching
+using DeviceId = std::array<unsigned char, CL_LUID_SIZE_KHR>;
+#else
+// On Linux use UUID (16 bytes) for Vulkan<->OpenCL device matching
+using DeviceId = std::array<unsigned char, CL_UUID_SIZE_KHR>;
+#endif
+
 std::string format_luid_bytes(const unsigned char* data, size_t size) {
     std::ostringstream stream;
     stream << std::hex << std::setfill('0');
@@ -37,7 +45,7 @@ std::string format_luid_bytes(const unsigned char* data, size_t size) {
     return stream.str();
 }
 
-bool get_context_device_luid(cl_context cl_ctx, std::array<unsigned char, CL_LUID_SIZE_KHR>& cl_luid) {
+bool get_context_device_luid(cl_context cl_ctx, DeviceId& cl_luid) {
     size_t devices_size = 0;
     if (clGetContextInfo(cl_ctx, CL_CONTEXT_DEVICES, 0, nullptr, &devices_size) != CL_SUCCESS ||
         devices_size < sizeof(cl_device_id)) {
@@ -50,14 +58,19 @@ bool get_context_device_luid(cl_context cl_ctx, std::array<unsigned char, CL_LUI
         return false;
     }
 
+#ifdef _WIN32
+    // On Windows: check LUID validity, then read the 8-byte LUID
     cl_bool cl_luid_valid = CL_FALSE;
     if (clGetDeviceInfo(cl_devices[0], CL_DEVICE_LUID_VALID_KHR, sizeof(cl_luid_valid), &cl_luid_valid, nullptr) !=
             CL_SUCCESS ||
         cl_luid_valid != CL_TRUE) {
         return false;
     }
-
     return clGetDeviceInfo(cl_devices[0], CL_DEVICE_LUID_KHR, cl_luid.size(), cl_luid.data(), nullptr) == CL_SUCCESS;
+#else
+    // On Linux: UUID is always present when cl_khr_device_uuid is supported; no validity flag
+    return clGetDeviceInfo(cl_devices[0], CL_DEVICE_UUID_KHR, cl_luid.size(), cl_luid.data(), nullptr) == CL_SUCCESS;
+#endif
 }
 
 bool get_context_first_device(cl_context cl_ctx, cl_device_id& cl_device) {
@@ -154,10 +167,14 @@ constexpr ExternalMemoryHandle invalid_external_memory_handle() {
     return -1;
 }
 
+// Use DMA_BUF on Linux: Intel GPU OpenCL supports cl_khr_external_memory_dma_buf
+// but not cl_khr_external_memory_opaque_fd. vkGetMemoryFdKHR (VK_KHR_external_memory_fd)
+// exports both OPAQUE_FD and DMA_BUF fds; VK_EXT_external_memory_dma_buf enables the latter.
 constexpr VkExternalMemoryHandleTypeFlagBits k_external_memory_handle_type =
-    VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
-constexpr cl_uint k_cl_external_memory_handle_type = CL_EXTERNAL_MEMORY_HANDLE_OPAQUE_FD_KHR;
+    VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
+constexpr cl_uint k_cl_external_memory_handle_type = CL_EXTERNAL_MEMORY_HANDLE_DMA_BUF_KHR;
 constexpr const char* k_vulkan_external_memory_extension = VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME;
+constexpr const char* k_vulkan_dma_buf_extension = VK_EXT_EXTERNAL_MEMORY_DMA_BUF_EXTENSION_NAME;
 constexpr const char* k_get_memory_handle_proc_name = "vkGetMemoryFdKHR";
 
 void close_external_memory_handle(ExternalMemoryHandle& handle) {
@@ -295,7 +312,7 @@ uint32_t find_memory_type(uint32_t memory_type_bits,
     return UINT32_MAX;
 }
 
-bool get_vk_device_luid(VkPhysicalDevice physical_device, std::array<unsigned char, CL_LUID_SIZE_KHR>& vk_luid) {
+bool get_vk_device_luid(VkPhysicalDevice physical_device, DeviceId& vk_luid) {
     VkPhysicalDeviceIDProperties id_properties{};
     id_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES;
 
@@ -304,15 +321,21 @@ bool get_vk_device_luid(VkPhysicalDevice physical_device, std::array<unsigned ch
     properties2.pNext = &id_properties;
 
     vkGetPhysicalDeviceProperties2(physical_device, &properties2);
-    if (id_properties.deviceLUIDValid == VK_FALSE || id_properties.deviceLUIDValid == 0) {
+
+#ifdef _WIN32
+    // On Windows: use 8-byte LUID (must be valid)
+    if (!id_properties.deviceLUIDValid) {
         return false;
     }
-
     std::memcpy(vk_luid.data(), id_properties.deviceLUID, vk_luid.size());
+#else
+    // On Linux: use 16-byte UUID
+    std::memcpy(vk_luid.data(), id_properties.deviceUUID, vk_luid.size());
+#endif
     return true;
 }
 
-VulkanTestContext create_vulkan_test_context(const std::array<unsigned char, CL_LUID_SIZE_KHR>& target_luid) {
+VulkanTestContext create_vulkan_test_context(const DeviceId& target_luid) {
     VulkanTestContext context;
 
     const char* instance_extensions[] = {VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME};
@@ -347,7 +370,7 @@ VulkanTestContext create_vulkan_test_context(const std::array<unsigned char, CL_
     }
 
     for (auto physical_device : physical_devices) {
-        std::array<unsigned char, CL_LUID_SIZE_KHR> vk_luid{};
+        DeviceId vk_luid{};
         if (!get_vk_device_luid(physical_device, vk_luid)) {
             continue;
         }
@@ -384,14 +407,18 @@ VulkanTestContext create_vulkan_test_context(const std::array<unsigned char, CL_
         queue_info.queueCount = 1;
         queue_info.pQueuePriorities = &queue_priority;
 
-        const char* device_extensions[] = {VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME, k_vulkan_external_memory_extension};
+        std::vector<const char*> device_extensions = {VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME,
+                                                       k_vulkan_external_memory_extension};
+#ifdef __linux__
+        device_extensions.push_back(k_vulkan_dma_buf_extension);
+#endif
 
         VkDeviceCreateInfo device_info{};
         device_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
         device_info.queueCreateInfoCount = 1;
         device_info.pQueueCreateInfos = &queue_info;
-        device_info.enabledExtensionCount = 2;
-        device_info.ppEnabledExtensionNames = device_extensions;
+        device_info.enabledExtensionCount = static_cast<uint32_t>(device_extensions.size());
+        device_info.ppEnabledExtensionNames = device_extensions.data();
 
         context.physical_device = physical_device;
         res = vkCreateDevice(physical_device, &device_info, nullptr, &context.device);
@@ -494,7 +521,7 @@ TEST(GpuSharedBufferRemoteTensor, smoke_VulkanRemoteInputToRemoteOutputCopyAndCo
         GTEST_SKIP() << "Device does not support required external-memory handle import type";
     }
 
-    std::array<unsigned char, CL_LUID_SIZE_KHR> cl_luid{};
+    DeviceId cl_luid{};
     if (!get_context_device_luid(cl_ctx, cl_luid)) {
         FAIL() << "Failed to get LUID for " << selected_gpu_device;
     }

@@ -58,12 +58,64 @@ endif()
 if(WIN32)
     target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_DX11)
     target_link_libraries(${TARGET_NAME} PRIVATE d3d11 d3d12 dxgi dxguid)
+endif()
 
-    find_package(Vulkan QUIET)
-    if(Vulkan_FOUND)
-        target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_VULKAN)
-        target_link_libraries(${TARGET_NAME} PRIVATE Vulkan::Vulkan)
+find_package(Vulkan QUIET)
+if(NOT Vulkan_FOUND)
+    option(OV_GPU_FUNC_TESTS_FETCH_VULKAN "Download Vulkan-Headers and Vulkan-Loader for GPU functional tests when system Vulkan is unavailable" ON)
+    set(OV_GPU_FUNC_TESTS_VULKAN_TAG "v1.4.349" CACHE STRING "Git tag used when downloading Vulkan dependencies for GPU functional tests")
+
+    if(OV_GPU_FUNC_TESTS_FETCH_VULKAN)
+        if(CMAKE_VERSION VERSION_LESS 3.22.1)
+            message(WARNING "Vulkan was not found and automatic download requires CMake >= 3.22.1. Vulkan-dependent GPU functional tests will remain unavailable.")
+        else()
+            include(FetchContent)
+
+            set(VULKAN_HEADERS_ENABLE_TESTS OFF)
+            set(VULKAN_HEADERS_ENABLE_INSTALL OFF)
+            FetchContent_Declare(
+                ov_gpu_func_tests_vulkan_headers
+                GIT_REPOSITORY https://github.com/KhronosGroup/Vulkan-Headers.git
+                GIT_TAG ${OV_GPU_FUNC_TESTS_VULKAN_TAG}
+                GIT_SHALLOW TRUE
+            )
+            FetchContent_MakeAvailable(ov_gpu_func_tests_vulkan_headers)
+
+            set(BUILD_TESTS OFF)
+            set(BUILD_WSI_XCB_SUPPORT OFF)
+            set(BUILD_WSI_XLIB_SUPPORT OFF)
+            set(BUILD_WSI_WAYLAND_SUPPORT OFF)
+            set(UPDATE_DEPS OFF)
+            FetchContent_Declare(
+                ov_gpu_func_tests_vulkan_loader
+                GIT_REPOSITORY https://github.com/KhronosGroup/Vulkan-Loader.git
+                GIT_TAG ${OV_GPU_FUNC_TESTS_VULKAN_TAG}
+                GIT_SHALLOW TRUE
+            )
+            FetchContent_MakeAvailable(ov_gpu_func_tests_vulkan_loader)
+
+            unset(BUILD_TESTS)
+            unset(BUILD_WSI_XCB_SUPPORT)
+            unset(BUILD_WSI_XLIB_SUPPORT)
+            unset(BUILD_WSI_WAYLAND_SUPPORT)
+            unset(UPDATE_DEPS)
+            unset(VULKAN_HEADERS_ENABLE_TESTS)
+            unset(VULKAN_HEADERS_ENABLE_INSTALL)
+
+            if(TARGET vulkan AND NOT TARGET Vulkan::Vulkan)
+                add_library(Vulkan::Vulkan ALIAS vulkan)
+            endif()
+
+            if(TARGET Vulkan::Vulkan)
+                set(Vulkan_FOUND ON)
+            endif()
+        endif()
     endif()
+endif()
+
+if(Vulkan_FOUND)
+    target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_VULKAN)
+    target_link_libraries(${TARGET_NAME} PRIVATE Vulkan::Vulkan)
 endif()
 
 ov_build_target_faster(${TARGET_NAME} PCH)

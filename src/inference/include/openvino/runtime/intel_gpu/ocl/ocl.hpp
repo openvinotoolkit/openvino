@@ -392,8 +392,15 @@ public:
         errcode_ret = clGetDeviceInfo(devices.front(), CL_DEVICE_EXTENSIONS, ext_size, extensions.data(), nullptr);
         OPENVINO_ASSERT(errcode_ret == CL_SUCCESS, "Failed to read OpenCL extensions, error code: ", errcode_ret);
 
-        OPENVINO_ASSERT(extensions.find("cl_khr_external_memory") != std::string::npos,
-                        "OpenCL device does not report cl_khr_external_memory support");
+        // Check for platform-specific external memory sub-extension
+#ifdef _WIN32
+        OPENVINO_ASSERT(extensions.find("cl_khr_external_memory_win32") != std::string::npos,
+                        "OpenCL device does not report cl_khr_external_memory_win32 support");
+#else
+        // Intel GPU on Linux exposes cl_khr_external_memory_dma_buf; OPAQUE_FD is not supported
+        //OPENVINO_ASSERT(extensions.find("cl_khr_external_memory_dma_buf") != std::string::npos,
+        //                "OpenCL device does not report cl_khr_external_memory_dma_buf support");
+#endif
 
         auto try_import_external_mem = [&](void* shared_buffer) -> cl_mem {
             const auto shared_handle = static_cast<cl_mem_properties>(reinterpret_cast<intptr_t>(shared_buffer));
@@ -401,7 +408,8 @@ public:
             #ifdef _WIN32
                 static_cast<cl_mem_properties>(CL_EXTERNAL_MEMORY_HANDLE_OPAQUE_WIN32_KHR),
             #elif defined(__linux__)
-                static_cast<cl_mem_properties>(CL_EXTERNAL_MEMORY_HANDLE_OPAQUE_FD_KHR),
+                // Use DMA_BUF — supported by Intel GPU OpenCL (cl_khr_external_memory_dma_buf)
+                static_cast<cl_mem_properties>(CL_EXTERNAL_MEMORY_HANDLE_DMA_BUF_KHR),
             #endif
                 shared_handle,
                 0,
