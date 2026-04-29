@@ -31,7 +31,7 @@ namespace {
 
 // Helper function to get max_offset and alignment for different register types
 template <typename RegType>
-static std::pair<int, int> get_load_store_limits() {
+std::pair<int, int> get_load_store_limits() {
     int max_offset = 4095;
     int alignment = 1;
 
@@ -57,7 +57,7 @@ static std::pair<int, int> get_load_store_limits() {
 
 // Helper function to load with large offset handling
 template <typename RegType>
-static void load_with_offset_check(jit_generator* h, const RegType& dst, const XReg& src, int offset) {
+void load_with_offset_check(jit_generator* h, const RegType& dst, const XReg& src, int offset) {
     const auto [max_offset, alignment] = get_load_store_limits<RegType>();
 
     if (offset >= 0 && offset <= max_offset && (offset % alignment) == 0) {
@@ -82,7 +82,7 @@ static void load_with_offset_check(jit_generator* h, const RegType& dst, const X
 
 // Helper function to store with large offset handling
 template <typename RegType>
-static void store_with_offset_check(jit_generator* h, const RegType& src, const XReg& dst, int offset) {
+void store_with_offset_check(jit_generator* h, const RegType& src, const XReg& dst, int offset) {
     const auto [max_offset, alignment] = get_load_store_limits<RegType>();
 
     if (offset >= 0 && offset <= max_offset && (offset % alignment) == 0) {
