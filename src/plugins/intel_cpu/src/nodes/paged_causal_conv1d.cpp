@@ -25,6 +25,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/paged_causal_conv1d.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
@@ -57,13 +58,11 @@ void PagedCausalConv1D::initSupportedPrimitiveDescriptors() {
     // conv_state_table (port 1) is declared independently; the kernel converts its elements
     // to/from f32 during accumulation and write-back.
     const auto data_precision = getOriginalInputPrecisionAtPort(0);
-    OPENVINO_ASSERT(
-        data_precision == ov::element::f32 || data_precision == ov::element::f16 || data_precision == ov::element::bf16,
-        "PagedCausalConv1D supports only f32/f16/bf16 input_embeds precision, got ",
-        data_precision);
+    OPENVINO_ASSERT(any_of(data_precision, ov::element::f32, ov::element::f16, ov::element::bf16),
+                    "PagedCausalConv1D supports only f32/f16/bf16 input_embeds precision, got ",
+                    data_precision);
     const auto state_precision = getOriginalInputPrecisionAtPort(1);
-    OPENVINO_ASSERT(state_precision == ov::element::f32 || state_precision == ov::element::f16 ||
-                        state_precision == ov::element::bf16,
+    OPENVINO_ASSERT(any_of(state_precision, ov::element::f32, ov::element::f16, ov::element::bf16),
                     "PagedCausalConv1D supports only f32/f16/bf16 conv_state_table precision, got ",
                     state_precision);
 
