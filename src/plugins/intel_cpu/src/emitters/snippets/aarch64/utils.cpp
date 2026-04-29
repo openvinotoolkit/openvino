@@ -53,9 +53,12 @@ constexpr uint32_t vec_size = 16;
     return aligned_size(static_cast<uint32_t>(std::count_if(regs.begin(), regs.end(), is_gpr) * gpr_size));
 }
 
+[[nodiscard]] uint32_t get_total_vec_shift(const std::vector<Xbyak_aarch64::Reg>& regs) {
+    return aligned_size(static_cast<uint32_t>(std::count_if(regs.begin(), regs.end(), is_vec) * vec_size));
+}
+
 [[nodiscard]] uint32_t get_total_shift(const std::vector<Xbyak_aarch64::Reg>& regs) {
-    return get_total_gpr_shift(regs) +
-           aligned_size(static_cast<uint32_t>(std::count_if(regs.begin(), regs.end(), is_vec) * vec_size));
+    return get_total_gpr_shift(regs) + get_total_vec_shift(regs);
 }
 
 [[nodiscard]] Xbyak_aarch64::XReg as_gpr(const Xbyak_aarch64::Reg& reg) {
@@ -112,28 +115,37 @@ void load_reg_group(dnnl::impl::cpu::aarch64::jit_generator_t* h,
 
 }  // namespace
 
+namespace utils {
+
+Xbyak_aarch64::Reg to_xbyak_reg(const snippets::Reg& reg) {
+    switch (reg.type) {
+    case snippets::RegType::gpr:
+        return Xbyak_aarch64::XReg(reg.idx);
+    case snippets::RegType::vec:
+        return Xbyak_aarch64::QReg(reg.idx);
+    default:
+        OV_CPU_JIT_EMITTER_THROW("Unsupported register type in Arm64 RegSpill emitter");
+    }
+    return Xbyak_aarch64::XReg(0);
+}
+
+std::vector<Xbyak_aarch64::Reg> to_xbyak_regs(const std::set<snippets::Reg>& regs) {
+    std::vector<Xbyak_aarch64::Reg> xbyak_regs;
+    xbyak_regs.reserve(regs.size());
+    std::transform(regs.begin(), regs.end(), std::back_inserter(xbyak_regs), to_xbyak_reg);
+    return xbyak_regs;
+}
+
+std::vector<Xbyak_aarch64::Reg> to_xbyak_regs(const std::vector<snippets::Reg>& regs) {
+    return to_xbyak_regs(std::set<snippets::Reg>(regs.begin(), regs.end()));
+}
+
+}  // namespace utils
+
 EmitABIRegSpills::EmitABIRegSpills(jit_generator_t* h_arg) : h(h_arg) {}
 
 EmitABIRegSpills::~EmitABIRegSpills() {
     OPENVINO_ASSERT(spill_status, "postamble or preamble is missed");
-}
-
-std::vector<Xbyak_aarch64::Reg> EmitABIRegSpills::get_regs_to_spill(const std::set<snippets::Reg>& live_regs) {
-    std::vector<Xbyak_aarch64::Reg> regs_to_spill;
-    regs_to_spill.reserve(live_regs.size());
-    for (const auto& reg : live_regs) {
-        switch (reg.type) {
-        case snippets::RegType::gpr:
-            regs_to_spill.emplace_back(Xbyak_aarch64::XReg(reg.idx));
-            break;
-        case snippets::RegType::vec:
-            regs_to_spill.emplace_back(Xbyak_aarch64::QReg(reg.idx));
-            break;
-        default:
-            OPENVINO_THROW("Unsupported register type in Arm64 RegSpill emitter");
-        }
-    }
-    return regs_to_spill;
 }
 
 void EmitABIRegSpills::store_regs_to_stack(dnnl::impl::cpu::aarch64::jit_generator_t* h,
@@ -143,6 +155,7 @@ void EmitABIRegSpills::store_regs_to_stack(dnnl::impl::cpu::aarch64::jit_generat
         h->sub(h->sp, h->sp, total_shift);
     }
 
+    // AArch64 pair store/load instructions operate on same kind registers, so GPRs and vectors use separate ranges.
     store_reg_group(h, regs_to_store, 0, is_gpr, as_gpr, gpr_size);
     store_reg_group(h,
                     regs_to_store,
@@ -158,9 +171,7 @@ void EmitABIRegSpills::load_regs_from_stack(dnnl::impl::cpu::aarch64::jit_genera
     load_reg_group(h, regs_to_load, static_cast<int32_t>(total_gpr_shift), is_vec, as_vec, vec_size);
     load_reg_group(h, regs_to_load, 0, is_gpr, as_gpr, gpr_size);
 
-    const auto total_shift =
-        total_gpr_shift +
-        aligned_size(static_cast<uint32_t>(std::count_if(regs_to_load.begin(), regs_to_load.end(), is_vec) * vec_size));
+    const auto total_shift = total_gpr_shift + get_total_vec_shift(regs_to_load);
     if (total_shift > 0) {
         h->add(h->sp, h->sp, total_shift);
     }
@@ -174,7 +185,7 @@ void EmitABIRegSpills::preamble(const std::vector<Xbyak_aarch64::Reg>& live_regs
 }
 
 void EmitABIRegSpills::preamble(const std::set<snippets::Reg>& live_regs) {
-    preamble(get_regs_to_spill(live_regs));
+    preamble(utils::to_xbyak_regs(live_regs));
 }
 
 void EmitABIRegSpills::postamble() {

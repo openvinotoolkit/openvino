@@ -4,15 +4,10 @@
 
 #include "jit_reg_spill_emitters.hpp"
 
-#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
-
-#include <algorithm>
 #include <cpu/aarch64/cpu_isa_traits.hpp>
 #include <cpu/aarch64/jit_generator.hpp>
 #include <cstddef>
-#include <iterator>
 #include <memory>
-#include <set>
 #include <vector>
 
 #include "emitters/snippets/aarch64/utils.hpp"
@@ -24,30 +19,6 @@
 
 namespace ov::intel_cpu::aarch64 {
 
-namespace {
-
-Xbyak_aarch64::Reg to_xbyak_reg(const snippets::Reg& reg) {
-    switch (reg.type) {
-    case snippets::RegType::gpr:
-        return Xbyak_aarch64::XReg(reg.idx);
-    case snippets::RegType::vec:
-        return Xbyak_aarch64::QReg(reg.idx);
-    default:
-        OV_CPU_JIT_EMITTER_THROW("Unsupported register type in Arm64 RegSpill emitter");
-    }
-    return Xbyak_aarch64::XReg(0);
-}
-
-std::vector<Xbyak_aarch64::Reg> to_xbyak_regs(const std::vector<snippets::Reg>& regs) {
-    const std::set<snippets::Reg> unique_regs(regs.begin(), regs.end());
-    std::vector<Xbyak_aarch64::Reg> xbyak_regs;
-    xbyak_regs.reserve(unique_regs.size());
-    std::transform(unique_regs.begin(), unique_regs.end(), std::back_inserter(xbyak_regs), to_xbyak_reg);
-    return xbyak_regs;
-}
-
-}  // namespace
-
 /* ================== jit_reg_spill_begin_emitters ====================== */
 
 jit_reg_spill_begin_emitter::jit_reg_spill_begin_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* h,
@@ -57,7 +28,7 @@ jit_reg_spill_begin_emitter::jit_reg_spill_begin_emitter(dnnl::impl::cpu::aarch6
     const auto& reg_spill_node = ov::as_type_ptr<snippets::op::RegSpillBegin>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(reg_spill_node, "expects RegSpillBegin expression");
     const auto& rinfo = expr->get_reg_info();
-    m_regs_to_spill = to_xbyak_regs(rinfo.second);
+    m_regs_to_spill = utils::to_xbyak_regs(rinfo.second);
     m_abi_reg_spiller = std::make_shared<EmitABIRegSpills>(h);
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
 }

@@ -40,14 +40,16 @@ public:
                                      const std::vector<Xbyak_aarch64::Reg>& regs_to_load);
 
 private:
-    static std::vector<Xbyak_aarch64::Reg> get_regs_to_spill(const std::set<snippets::Reg>& live_regs);
-
     dnnl::impl::cpu::aarch64::jit_generator_t* h = nullptr;
     std::vector<Xbyak_aarch64::Reg> m_regs_to_spill;
     bool spill_status = true;
 };
 
 namespace utils {
+
+Xbyak_aarch64::Reg to_xbyak_reg(const snippets::Reg& reg);
+std::vector<Xbyak_aarch64::Reg> to_xbyak_regs(const std::set<snippets::Reg>& regs);
+std::vector<Xbyak_aarch64::Reg> to_xbyak_regs(const std::vector<snippets::Reg>& regs);
 
 inline static std::vector<Xbyak_aarch64::XReg> transform_idxs_to_regs(const std::vector<size_t>& idxs) {
     std::vector<Xbyak_aarch64::XReg> regs;
