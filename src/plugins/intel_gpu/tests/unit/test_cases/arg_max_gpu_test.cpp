@@ -9,6 +9,7 @@
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/mutable_data.hpp>
 #include <arg_max_min_inst.h>
+#include "arg_max_min/arg_max_min_kernel_axis.h"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "test_utils.h"
 
@@ -734,6 +735,42 @@ TEST(arg_max_gpu_min_large_output_size, sort_by_indices) {
     ASSERT_EQ(outputs.begin()->first, "arg_max");
 
     // No data checking.  The test will fail to compile if kernel not switch to use global memory
+}
+
+TEST(arg_max_gpu_kernel_selector, axis_internal_buffer_sizes_match_update_path) {
+    kernel_selector::arg_max_min_params params;
+    params.inputs.push_back(kernel_selector::DataTensor({1, 1, 1, 20000},
+                                                        kernel_selector::Datatype::F32,
+                                                        kernel_selector::DataLayout::bfyx));
+    params.outputs.push_back(kernel_selector::DataTensor({1, 1, 1, 6000},
+                                                         kernel_selector::Datatype::F32,
+                                                         kernel_selector::DataLayout::bfyx));
+    params.argMaxMinAxis = kernel_selector::ArgMaxMinAxis::BATCH;
+    params.argMaxMinOut = kernel_selector::ArgMaxMinOut::MIN;
+    params.argMaxMinSortType = kernel_selector::ArgMaxMinSortType::INDEX;
+    params.topK = 6000;
+    params.outputs_num = 1;
+    params.engineInfo.maxWorkGroupSize = 256;
+    params.engineInfo.maxLocalMemSize = 64 * 1024;
+    params.engineInfo.computeUnitsCount = 128;
+    params.engineInfo.supports_non_uniform_work_group = true;
+
+    kernel_selector::ArgMaxMinKernelAxis kernel;
+    auto kernels_data = kernel.GetKernelsData(params);
+
+    ASSERT_EQ(kernels_data.size(), size_t(1));
+    auto& kd = kernels_data[0];
+    ASSERT_FALSE(kd.internalBuffers.empty());
+    ASSERT_TRUE(static_cast<bool>(kd.update_dispatch_data_func));
+
+    const auto initial_buffers = kd.internalBuffers;
+    kd.update_dispatch_data_func(params, kd);
+
+    ASSERT_EQ(initial_buffers.size(), kd.internalBuffers.size());
+    for (size_t i = 0; i < initial_buffers.size(); ++i) {
+        ASSERT_EQ(initial_buffers[i].byte_count, kd.internalBuffers[i].byte_count) << "buffer index=" << i;
+        ASSERT_EQ(initial_buffers[i].lockable, kd.internalBuffers[i].lockable) << "buffer index=" << i;
+    }
 }
 
 template <typename T>
