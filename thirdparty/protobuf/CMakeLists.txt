@@ -6,6 +6,10 @@
 # Configure Google Protobuf ...
 #------------------------------------------------------------------------------
 
+if(ENABLE_THREAD_SANITIZER AND OV_COMPILER_IS_CLANG)
+    string(REPLACE "-ltsan" "" CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
+endif()
+
 set(BUILD_SHARED_LIBS OFF)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
@@ -65,7 +69,9 @@ if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM
             VISIBILITY_INLINES_HIDDEN OFF
             INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
         if(ENABLE_THREAD_SANITIZER)
-            target_compile_options(protoc PRIVATE -fno-sanitize=thread)
+            foreach(_lib ${_protoc_libs})
+                target_compile_options(${_lib} PRIVATE -fno-sanitize=thread)
+            endforeach()
             target_link_options(protoc PRIVATE -fno-sanitize=thread)
         endif()
     endif()
