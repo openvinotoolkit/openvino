@@ -47,19 +47,19 @@ void ze_engine::create_onednn_engine(const ExecutionConfig& config) {
 }
 #endif
 
-const ze_driver_handle_t ze_engine::get_driver() const {
+ze_driver_handle_t ze_engine::get_driver() const {
     auto casted = std::dynamic_pointer_cast<ze_device>(_device);
     OPENVINO_ASSERT(casted, "[GPU] Invalid device type for ze_engine");
     return casted->get_driver();
 }
 
-const ze_context_handle_t ze_engine::get_context() const {
+ze_context_handle_t ze_engine::get_context() const {
     auto casted = std::dynamic_pointer_cast<ze_device>(_device);
     OPENVINO_ASSERT(casted, "[GPU] Invalid device type for ze_engine");
     return casted->get_context();
 }
 
-const ze_device_handle_t ze_engine::get_device() const {
+ze_device_handle_t ze_engine::get_device() const {
     auto casted = std::dynamic_pointer_cast<ze_device>(_device);
     OPENVINO_ASSERT(casted, "[GPU] Invalid device type for ze_engine");
     return casted->get_device();
