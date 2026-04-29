@@ -1577,19 +1577,36 @@ struct RUNTIME_REQUIREMENTS final : OptionBase<RUNTIME_REQUIREMENTS, std::string
     }
 };
 
-// The type of this option is bool, while the corresponding property is an enum.
-// Compiler currently reports a boolean value for the compatibility check.
-struct COMPATIBILITY_CHECK final : OptionBase<COMPATIBILITY_CHECK, bool> {
+struct COMPATIBILITY_CHECK final : OptionBase<COMPATIBILITY_CHECK, ov::CompatibilityCheck> {
     static std::string_view key() {
         return ov::compatibility_check.name();
     }
 
-    static bool defaultValue() {
-        return false;
+    static constexpr std::string_view getTypeName() {
+        return "ov::CompatibilityCheck";
+    }
+
+    static ov::CompatibilityCheck defaultValue() {
+        return ov::CompatibilityCheck::NOT_APPLICABLE;
     }
 
     static OptionMode mode() {
         return OptionMode::RunTime;
+    }
+
+    static ov::CompatibilityCheck parse(std::string_view val) {
+        std::istringstream stringStream = std::istringstream(std::string(val));
+        ov::CompatibilityCheck check_result;
+        stringStream >> check_result;
+
+        return check_result;
+    }
+
+    static std::string toString(const ov::CompatibilityCheck& val) {
+        std::ostringstream stringStream;
+        stringStream << val;
+
+        return stringStream.str();
     }
 
     static bool isPublic() {

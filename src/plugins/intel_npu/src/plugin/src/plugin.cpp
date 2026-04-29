@@ -362,7 +362,7 @@ void Plugin::set_property(const ov::AnyMap& properties) {
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
     if (name == ov::compatibility_check.name()) {
         if (arguments.empty() || arguments.find(ov::runtime_requirements.name()) == arguments.end()) {
-            return ov::BlobCompatibility::NOT_APPLICABLE;
+            return ov::CompatibilityCheck ::NOT_APPLICABLE;
         }
 
         // Reading the (dummy) property content to check if it is supported
@@ -385,7 +385,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
             // Unsupported version, could not read the metadata or an unknown error has occured. Report that the
             // requirements are not met.
             _logger.debug("Failed to read metadata from the compatibility string. The requirements are not met. %s", ex.what());
-            return ov::BlobCompatibility::UNSUPPORTED;
+            return ov::CompatibilityCheck::UNSUPPORTED;
         }
 
         OPENVINO_ASSERT(metadata);
@@ -410,9 +410,9 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
         auto result = compiler->validate_compatibility_descriptor(compilerRequirements);
         _logger.debug("Compatibility check result: %s", result ? "met" : "not met");
         if(result) {
-            return ov::BlobCompatibility::OPTIMAL;
+            return ov::CompatibilityCheck::OPTIMAL;
         } else {
-            return ov::BlobCompatibility::UNSUPPORTED;
+            return ov::CompatibilityCheck::UNSUPPORTED;
         }
     }
 

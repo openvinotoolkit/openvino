@@ -75,17 +75,17 @@ TEST_P(ClassCompatibilityStringTestSuite, CompatibilityCheckIsSupported) {
 
 TEST_P(ClassCompatibilityStringTestSuite, CompatibilityCheckInvalidArgument) {
     // Forcing CIP as the current compiler type
-    ov::BlobCompatibility result;
+    ov::CompatibilityCheck result;
     OV_ASSERT_NO_THROW(result = core.get_property(deviceName, ov::compatibility_check));
-    ASSERT_TRUE(result == ov::BlobCompatibility::NOT_APPLICABLE);
+    ASSERT_TRUE(result == ov::CompatibilityCheck::NOT_APPLICABLE);
 
     // Provide an arument without runtime_requirements
     OV_ASSERT_NO_THROW(result = core.get_property(deviceName, ov::compatibility_check, ov::log::level(ov::log::Level::ERR)));
-    ASSERT_TRUE(result == ov::BlobCompatibility::NOT_APPLICABLE);
+    ASSERT_TRUE(result == ov::CompatibilityCheck::NOT_APPLICABLE);
 
     // An incorrect runtime_requirements argument should return UNSUPPORTED
     OV_ASSERT_NO_THROW(result = core.get_property(deviceName, ov::compatibility_check, ov::runtime_requirements("invalid_string")));
-    ASSERT_TRUE(result == ov::BlobCompatibility::UNSUPPORTED);
+    ASSERT_TRUE(result == ov::CompatibilityCheck::UNSUPPORTED);
 }
 
 TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsIsSupported) {
@@ -144,9 +144,9 @@ TEST_P(ClassCompatibilityStringTestSuite, CompatibilityStringGenerateAndCheck) {
 
     std::string requirements;
     OV_ASSERT_NO_THROW(requirements = compiledModel.get_property(ov::runtime_requirements));
-    ov::BlobCompatibility result;
+    ov::CompatibilityCheck result;
     OV_ASSERT_NO_THROW(result = core.get_property(deviceName, ov::compatibility_check, ov::runtime_requirements(requirements)));
-    ASSERT_TRUE(result == ov::BlobCompatibility::OPTIMAL);
+    ASSERT_TRUE(result == ov::CompatibilityCheck::OPTIMAL);
 }
 
 }  // namespace

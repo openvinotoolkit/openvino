@@ -1443,10 +1443,10 @@ static constexpr Property<uint64_t, PropertyMutability::RW> value_cache_group_si
  * @brief Enum to describe the compatibility of a compiled model blob with the current device environment.
  * @ingroup ov_runtime_cpp_prop_api
  *
- * Returned by ov::blob_compatibility when queried with an ov::runtime_requirements tensor argument.
+ * Returned by ov::compatibility_check when queried with an ov::runtime_requirements string argument.
  */
-enum class BlobCompatibility {
-    NOT_APPLICABLE = 0,        //!< The device does not support this check, or no requirements tensor was provided.
+enum class CompatibilityCheck {
+    NOT_APPLICABLE = 0,        //!< The device does not support this check, or no requirements string was provided.
     OPTIMAL = 1,               //!< Requirements are fully met; import is expected to succeed with optimal performance.
     PREFER_RECOMPILATION = 2,  //!< Requirements are loosely compatible; import may succeed but recompilation
                                //!< is preferred for best performance.
@@ -1454,34 +1454,34 @@ enum class BlobCompatibility {
 };
 
 /** @cond INTERNAL */
-inline std::ostream& operator<<(std::ostream& os, const BlobCompatibility& compatiblity) {
-    switch (compatiblity) {
-    case BlobCompatibility::NOT_APPLICABLE:
+inline std::ostream& operator<<(std::ostream& os, const CompatibilityCheck& compatibility) {
+    switch (compatibility) {
+    case CompatibilityCheck::NOT_APPLICABLE:
         return os << "NOT_APPLICABLE";
-    case BlobCompatibility::OPTIMAL:
-        return os << "SUPPORTED";
-    case BlobCompatibility::PREFER_RECOMPILATION:
+    case CompatibilityCheck::OPTIMAL:
+        return os << "OPTIMAL";
+    case CompatibilityCheck::PREFER_RECOMPILATION:
         return os << "PREFER_RECOMPILATION";
-    case BlobCompatibility::UNSUPPORTED:
+    case CompatibilityCheck::UNSUPPORTED:
         return os << "UNSUPPORTED";
     default:
-        OPENVINO_THROW("Unsupported BlobCompatibility value");
+        OPENVINO_THROW("Unsupported CompatibilityCheck value");
     }
 }
 
-inline std::istream& operator>>(std::istream& is, BlobCompatibility& compatibility) {
+inline std::istream& operator>>(std::istream& is, CompatibilityCheck& compatibility) {
     std::string str;
     is >> str;
     if (str == "NOT_APPLICABLE") {
-        compatibility = BlobCompatibility::NOT_APPLICABLE;
-    } else if (str == "SUPPORTED") {
-        compatibility = BlobCompatibility::OPTIMAL;
+        compatibility = CompatibilityCheck::NOT_APPLICABLE;
+    } else if (str == "OPTIMAL") {
+        compatibility = CompatibilityCheck::OPTIMAL;
     } else if (str == "PREFER_RECOMPILATION") {
-        compatibility = BlobCompatibility::PREFER_RECOMPILATION;
+        compatibility = CompatibilityCheck::PREFER_RECOMPILATION;
     } else if (str == "UNSUPPORTED") {
-        compatibility = BlobCompatibility::UNSUPPORTED;
+        compatibility = CompatibilityCheck::UNSUPPORTED;
     } else {
-        OPENVINO_THROW("Unsupported BlobCompatibility value: ", str);
+        OPENVINO_THROW("Unsupported CompatibilityCheck value: ", str);
     }
     return is;
 }
@@ -1491,12 +1491,9 @@ inline std::istream& operator>>(std::istream& is, BlobCompatibility& compatibili
  * @brief Read-write property carrying plugin-specific runtime requirements of a compiled model blob.
  * @ingroup ov_runtime_cpp_prop_api
  *
- * The property value is a std::string containing data encoding the device environment requirements  at the time
+ * The property value is a std::string encoding the device environment requirements at the time
  * a model was compiled. The format and content are plugin-dependent and may encode information such as
  * plugin version, required hardware capabilities, or driver version.
- *
- * @note Current OpenVINO implementation supports single element tensors (scalar or 1-D) and of type string.
- * The string must be c-type compatible string with a null terminator.
  *
  * **Reading** — query on a compiled model to obtain requirements to persist alongside the blob:
  * @code
@@ -1506,17 +1503,16 @@ inline std::istream& operator>>(std::istream& is, BlobCompatibility& compatibili
  * @endcode
  */
 inline constexpr Property<std::string, PropertyMutability::RW> runtime_requirements{"RUNTIME_REQUIREMENTS"};
-
 /**
  * @brief Read-only property to check whether a device satisfies the runtime requirements of a compiled model blob.
  * @ingroup ov_runtime_cpp_prop_api
  *
- * Returns an ov::BlobCompatibility value describing whether the current device environment is compatible
- * with the requirements tensor passed as an argument via ov::runtime_requirements.
- * The requirements tensor is obtained from a previously compiled model via ov::CompiledModel::get_property().
+ * Returns an ov::CompatibilityCheck value describing whether the current device environment is compatible
+ * with the requirements string passed as an argument via ov::runtime_requirements.
+ * The requirements string is obtained from a previously compiled model via ov::CompiledModel::get_property().
  *
  * @note The property must be queried with an ov::runtime_requirements argument.
- * Querying without arguments returns ov::BlobCompatibility::NOT_APPLICABLE.
+ * Querying without arguments returns ov::CompatibilityCheck::NOT_APPLICABLE.
  *
  * **Check requirements before import**
  *
@@ -1524,12 +1520,12 @@ inline constexpr Property<std::string, PropertyMutability::RW> runtime_requireme
  * auto compiled_model = core.compile_model(model, "NPU");
  * auto requirements = compiled_model.get_property(ov::runtime_requirements);
  * auto compat = core.get_property("NPU", ov::compatibility_check, ov::runtime_requirements(requirements));
- * if (compat == ov::BlobCompatibility::OPTIMAL ||
- *     compat == ov::BlobCompatibility::PREFER_RECOMPILATION) {
+ * if (compat == ov::CompatibilityCheck::OPTIMAL ||
+ *     compat == ov::CompatibilityCheck::PREFER_RECOMPILATION) {
  *     auto imported = core.import_model(blob_stream, "NPU");
  * }
  * @endcode
  */
-static constexpr Property<BlobCompatibility, PropertyMutability::RO> compatibility_check{"COMPATIBILITY_CHECK"};
+static constexpr Property<CompatibilityCheck, PropertyMutability::RO> compatibility_check{"COMPATIBILITY_CHECK"};
 
 }  // namespace ov
