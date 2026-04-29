@@ -413,7 +413,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
 }
 
 void CompiledModel::export_model(std::ostream& modelStream) const {
-    ModelSerializer serializer(modelStream, m_cfg.cacheEncrypt, m_cfg.m_cache_mode == ov::CacheMode::OPTIMIZE_SIZE);
+    ModelSerializer serializer(modelStream, m_cfg.cacheEncrypt, m_cfg.m_enable_weightless);
     serializer << m_model;
 }
 
