@@ -388,7 +388,6 @@ KernelsData MVNKernel_b_fs_yx_fsv16::GetDynamicMultiStageKernelsData(const mvn_p
     if (!Validate(params))
         return {};
 
-    constexpr size_t intermediate_bytes = 4;
     const mvn_params& orgParams = static_cast<const mvn_params&>(params);
     bool has_variance = params.mvnNormalizeVariance;
     size_t multi_stage_kernels = has_variance ? 5 : 3;
