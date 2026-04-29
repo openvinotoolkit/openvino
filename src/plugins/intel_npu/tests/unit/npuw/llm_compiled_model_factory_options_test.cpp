@@ -15,6 +15,7 @@
 #include "llm_test_helpers.hpp"
 #include "whisper/prepare_whisper_model.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
+#include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
 
 namespace {
 using ov::test::npuw::CompileCall;
@@ -37,6 +38,10 @@ protected:
 
     std::shared_ptr<ov::Model> build_embedding_model() const {
         return ov::test::npuw::build_embedding_test_model();
+    }
+
+    std::shared_ptr<ov::Model> build_embedding_decoder_model() const {
+        return ov::test::npuw::build_embedding_decoder_test_model();
     }
 
     static ov::AnyMap base_props() {
@@ -324,7 +329,7 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, CommonRuntimeAndDebugOptionsForwardTo
     }
 }
 
-TEST_F(LLMCompiledModelFactoryOptionsTest, FastCompileGenerateHintKeepsUnfoldedGenerateDefaults) {
+TEST_F(LLMCompiledModelFactoryOptionsTest, FastCompileGenerateHintKeepsCurrentGenerateDefaults) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
@@ -335,7 +340,30 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, FastCompileGenerateHintKeepsUnfoldedG
     ASSERT_NE(compiled, nullptr);
     const auto& generate = require_call_containing(recorder, "_kv");
     expect_prop(generate.props, "NPUW_UNFOLD_IREQS", "YES");
+    expect_prop(generate.props, "NPUW_DQ", "YES");
     expect_missing_prop(generate.props, "NPUW_SLICE_OUT");
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, MissingNpuBackendKeepsCurrentGenerateDefaults) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    auto core = std::make_shared<testing::NiceMock<ov::MockICore>>();
+    m_plugin->set_core(core);
+    ON_CALL(*core, get_property(testing::StrEq("NPU"), testing::StrEq(ov::available_devices.name()), testing::_))
+        .WillByDefault([](const std::string&, const std::string&, const ov::AnyMap&) -> ov::Any {
+            OPENVINO_THROW("No available backend");
+        });
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_llm_model(),
+                                                     {{"NPUW_LLM_SHARED_HEAD", "NO"},
+                                                      {"NPUW_LLM_GENERATE_HINT", "FAST_COMPILE"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& generate = require_call_containing(recorder, "_kv");
+    expect_prop(generate.props, "NPUW_UNFOLD_IREQS", "YES");
+    expect_prop(generate.props, "NPUW_DQ", "YES");
 }
 
 TEST_F(LLMCompiledModelFactoryOptionsTest, BestPerfGenerateHintForcesStandaloneGeneratePartitioning) {
@@ -474,6 +502,19 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperPrefillPreparationAddsCrossAtt
     EXPECT_TRUE(has_input_name(prepared, "attention_mask"));
     EXPECT_FALSE(has_input_name(prepared, "cache_position"));
     EXPECT_TRUE(has_output_name(prepared, "present"));
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, TextEmbedOptionCompilesEmbeddingDecoderModel) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_embedding_decoder_model(),
+                                                      {{"NPUW_TEXT_EMBED", "YES"},
+                                                       {"NPUW_LLM_SHARED_HEAD", "NO"}},
+                                                      recorder));
+    ASSERT_NE(compiled, nullptr);
+    EXPECT_GE(recorder.calls().size(), 1u);
+    EXPECT_NE(recorder.find_suffix("_prefill"), nullptr);
 }
 
 }  // namespace

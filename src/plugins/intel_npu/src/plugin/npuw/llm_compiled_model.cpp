@@ -308,6 +308,24 @@ ov::AnyMap get_default_common_config(const std::optional<NPUDesc>& npudesc) {
     } else {
         config.emplace("NPUW_FUNCALL_FOR_ALL", "YES");
     }
+    auto set_max_tiles_based_on_arch = [&config, &npudesc]() {
+        if (!npudesc.has_value()) {
+            return;
+        }
+        auto arch_number = std::stoi(npudesc->arch);
+        std::stringstream config_compilation_params;
+        if (arch_number == 4000) {
+            config_compilation_params << "optimization-level=3 ";
+        }
+        if (arch_number >= 4000 && arch_number < 6000) {
+            config.emplace("NPU_TILES", npudesc->max_tiles);
+            return;
+        }
+        // hint ignored if not supported
+        config_compilation_params << "performance-hint-override=latency ";
+        config.emplace("NPU_COMPILATION_MODE_PARAMS", config_compilation_params.str());
+    };
+    set_max_tiles_based_on_arch();
     return config;
 }
 
