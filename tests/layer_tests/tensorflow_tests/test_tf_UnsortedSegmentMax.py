@@ -72,7 +72,7 @@ class TestUnsortedSegmentMax(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_unsorted_segment_max_empty_segments(self, params, ie_device, precision, ir_version, temp_dir):
-        if ie_device == 'GPU':
+        if precision == 'FP16':
             pytest.skip("FP16 lowest fill value differs from FP32 for empty segments")
         self._test(*self.create_unsorted_segment_max_net(**params,
                                                          data_type=np.float32, segment_ids_type=np.int32,
