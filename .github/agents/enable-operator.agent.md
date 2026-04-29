@@ -2,7 +2,6 @@
 name: Enable Operator Agent
 description: OpenVINO operator enablement entry point for the openvinotoolkit/openvino repository. Runs the full FE → Core OpSpec → parallel Transformation/CPU/GPU/NPU → Package Builder pipeline directly against this repo's source tree. Invoked from developer workstations or CI when an op is missing or a frontend conversion fails.
 model: claude-sonnet-4.6
-tools: ['read/readFile', 'write/editFile', 'agent', 'memory', 'terminal']
 ---
 # Enable Operator Agent
 
