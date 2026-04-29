@@ -193,13 +193,13 @@ JitConstants PagedAttentionGeneratorBase::get_jit_constants(const kernel_impl_pa
         const auto desc = params.typed_desc<paged_attention>();
         if (desc->is_key_by_channel) {
             jit.make("KV_CACHE_COMPRESSION", 2);
-            jit.make("SUB_BLOCK_SIZE", KV_SUB_BLOCK_SIZE);
         } else {
             jit.make("KV_CACHE_COMPRESSION", 1);
         }
     } else {
         jit.make("KV_CACHE_COMPRESSION", 0);
     }
+    jit.make("SUB_BLOCK_SIZE", KV_SUB_BLOCK_SIZE);
 
     return jit;
 }

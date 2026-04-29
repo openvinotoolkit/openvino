@@ -1,7 +1,7 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-// #define CMPA_DEBUG_ALL_MASKED  // Enable verbose cm_printf logging (opt-in; do not enable by default)
+
 #ifndef CM_HAS_LSC_UNTYPED_2D
 
 #if KV_CACHE_COMPRESSION
@@ -41,6 +41,7 @@ void pa_lsc_u8(
     constexpr int num_P_tiles = REG_N / REG_M;
     matrix<half, head_size/REG_K, REG_K*REG_N> rQ;
     matrix <float, head_size/REG_N*num_P_tiles, REG_M*REG_N> rO;
+    rO = 0;  // Initialize to prevent NaN from uninitialized values
     bool first_active = true;
 
     auto q_tokens_left = q_len;
@@ -282,10 +283,11 @@ void pa_lsc_u8(
             if constexpr (use_causal_mask) {
                 apply_causal_mask_with_offset(St, causal_left);
                 causal_left -= kv_step;
+            } else {
+                int kv_tokens = kv_stop - kv_pos;
+                // LSC ensures no overflow-access, but mask off k-tails attn-score is still required
+                for(int p = kv_tokens; p < kv_step; p++) St[p] = -3.4e38f;
             }
-            int kv_tokens = kv_stop - kv_pos;
-            // LSC ensures no overflow-access, but mask off k-tails attn-score is still required
-            for(int p = kv_tokens; p < kv_step; p++) St[p] = -3.4e38f;
             auto max_comp = online_softmax_update(St, cur_max, cur_sum);
 
             matrix<half, REG_N, REG_K> P;
@@ -370,6 +372,7 @@ void pa_kernel_lsc_prefetch_f16(
     constexpr int VALUE_TILE_NUM = 2;
     matrix<half, head_size/REG_K, REG_K*REG_N> rQ;
     matrix <float, head_size/REG_M, REG_M*REG_N> rO;
+    rO = 0;  // Initialize to prevent NaN from uninitialized values
     bool first_active = true;
 
 #if SPARSE_BLOCK_SIZE > 1
@@ -501,10 +504,12 @@ void pa_kernel_lsc_prefetch_f16(
         if constexpr (use_causal_mask) {
             apply_causal_mask_with_offset(St, causal_left);
             causal_left -= kv_step;
+        } else {
+            int kv_tokens = kv_stop - kv_pos;
+            // LSC ensures no overflow-access, but mask off k-tails attn-score is still required
+            for(int p = kv_tokens; p < kv_step; p++) St[p] = -3.4e38f;
         }
-        int kv_tokens = kv_stop - kv_pos;
-        // LSC ensures no overflow-access, but mask off k-tails attn-score is still required
-        for(int p = kv_tokens; p < kv_step; p++) St[p] = -3.4e38f;
+
         // show(St);
         auto max_comp = online_softmax_update(St, cur_max, cur_sum);
 
