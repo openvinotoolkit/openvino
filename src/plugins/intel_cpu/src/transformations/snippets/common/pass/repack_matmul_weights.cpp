@@ -17,6 +17,7 @@
 
 #    include "cpu_memory.h"
 #    include "cpu_types.h"
+#    include "graph_context.h"
 #    include "memory_desc/cpu_blocked_memory_desc.h"
 #    include "openvino/cc/pass/itt.hpp"
 #    include "openvino/core/except.hpp"
