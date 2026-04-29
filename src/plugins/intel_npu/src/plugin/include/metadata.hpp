@@ -71,7 +71,7 @@ public:
 
     virtual std::optional<uint32_t> get_compiler_version() const;
 
-    virtual std::optional<std::string> get_compiler_reqs() const;
+    virtual std::optional<std::string> get_runtime_reqs() const;
 
     virtual ~MetadataBase() = default;
 
@@ -117,7 +117,7 @@ protected:
 
     /**
      * @brief Parses the full human-readable tensor into a key-value map.
-     * @details The format is key=value; pairs where values may contain nested [] and {} brackets.
+     * @details The format is key=value; pairs where values may contain nested []
      */
     static HRFields parse_hr_fields(const ov::Tensor& tensor);
 
@@ -135,9 +135,7 @@ protected:
     Logger _logger;
 
     /**
-     * @brief Where the metadata is read from. The type can be a stream, an OpenVINO tensor or "uninitialized_source".
-     * @details Stored as attribute in order to avoid repeatedly passing the same arguments to some methods.
-     * "uninitialized_source" (void*) is the default type assigned upon creation.
+     * @brief Map where the compatibility string is loaded
      */
     HRFields _hr_fields;
 
@@ -413,7 +411,7 @@ public:
 
     size_t get_metadata_size() const override;
 
-    std::optional<std::string> get_compiler_reqs() const override;
+    std::optional<std::string> get_runtime_reqs() const override;
 
 private:
     std::optional<std::string> _compilerReqs;

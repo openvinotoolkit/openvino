@@ -206,9 +206,9 @@ MetadataBase::HRFields MetadataBase::parse_hr_fields(const ov::Tensor& tensor) {
         int depth = 0;
         while (pos < total && data[pos] != '\0') {
             const char c = data[pos];
-            if (c == '[' || c == '{') {
+            if (c == '[') {
                 depth++;
-            } else if (c == ']' || c == '}') {
+            } else if (c == ']') {
                 depth--;
             } else if (c == ';' && depth == 0) {
                 break;
@@ -340,7 +340,6 @@ void Metadata<METADATA_VERSION_2_0>::read_human_readable() {
                                  static_cast<uint16_t>(std::stoul(s.substr(dot2 + 1))));
 }
 
-// "[6|9|4|2]"
 void Metadata<METADATA_VERSION_2_1>::read_human_readable() {
     Metadata<METADATA_VERSION_2_0>::read_human_readable();
 
@@ -374,7 +373,6 @@ void Metadata<METADATA_VERSION_2_2>::read_human_readable() {
     _batchSize = (batchValue != 0) ? std::optional<int64_t>(batchValue) : std::nullopt;
 }
 
-// input_layouts=[[N,C,H,W],[N,C]]; output_layouts=[[N,H,W,C]];
 void Metadata<METADATA_VERSION_2_3>::read_human_readable() {
     Metadata<METADATA_VERSION_2_2>::read_human_readable();
 
@@ -414,16 +412,6 @@ void Metadata<METADATA_VERSION_2_0>::write(std::ostream& stream) {
     _ovVersion.write(stream);
 }
 
-void Metadata<METADATA_VERSION_2_0>::write_human_readable(std::ostream& stream) {
-    const uint16_t meta_major = MetadataBase::get_major(_version);
-    const uint16_t meta_minor = MetadataBase::get_minor(_version);
-    write_hr_field(stream, "meta", std::to_string(meta_major) + "." + std::to_string(meta_minor));
-    write_hr_field(stream,
-                   "ov",
-                   std::to_string(OPENVINO_VERSION_MAJOR) + "." + std::to_string(OPENVINO_VERSION_MINOR) + "." +
-                       std::to_string(OPENVINO_VERSION_PATCH));
-}
-
 void Metadata<METADATA_VERSION_2_1>::write(std::ostream& stream) {
     Metadata<METADATA_VERSION_2_0>::write(stream);
 
@@ -437,29 +425,11 @@ void Metadata<METADATA_VERSION_2_1>::write(std::ostream& stream) {
     }
 }
 
-void Metadata<METADATA_VERSION_2_1>::write_human_readable(std::ostream& stream) {
-    Metadata<METADATA_VERSION_2_0>::write_human_readable(stream);
-
-    if (_initSizes.has_value() && !_initSizes->empty()) {
-        std::ostringstream oss;
-        write_hr_bracketed_list(oss, _initSizes.value());
-        write_hr_field(stream, "ws_inits", oss.str());
-    }
-}
-
 void Metadata<METADATA_VERSION_2_2>::write(std::ostream& stream) {
     Metadata<METADATA_VERSION_2_1>::write(stream);
 
     int64_t batchValue = _batchSize.value_or(0);
     stream.write(reinterpret_cast<const char*>(&batchValue), sizeof(batchValue));
-}
-
-void Metadata<METADATA_VERSION_2_2>::write_human_readable(std::ostream& stream) {
-    Metadata<METADATA_VERSION_2_1>::write_human_readable(stream);
-
-    if (_batchSize.has_value() && _batchSize.value() > 0) {
-        write_hr_field(stream, "batch", _batchSize.value());
-    }
 }
 
 void Metadata<METADATA_VERSION_2_3>::write(std::ostream& stream) {
@@ -485,23 +455,11 @@ void Metadata<METADATA_VERSION_2_3>::write(std::ostream& stream) {
     writeLayouts(_outputLayouts);
 }
 
-// example output: input_layouts=[[N,C,H,W],[N,C]];output_layouts=[[N,H,W,C]];
-void Metadata<METADATA_VERSION_2_3>::write_human_readable(std::ostream& stream) {
-    // omitted from compat string
-    Metadata<METADATA_VERSION_2_2>::write_human_readable(stream);
-}
-
 void Metadata<METADATA_VERSION_2_4>::write(std::ostream& stream) {
     Metadata<METADATA_VERSION_2_3>::write(stream);
 
     uint32_t compilerVersion = _compilerVersion.value_or(0);
     stream.write(reinterpret_cast<const char*>(&compilerVersion), sizeof(compilerVersion));
-}
-
-void Metadata<METADATA_VERSION_2_4>::write_human_readable(std::ostream& stream) {
-    Metadata<METADATA_VERSION_2_3>::write_human_readable(stream);
-
-    write_hr_field(stream, "compiler", _compilerVersion.value_or(0));
 }
 
 void Metadata<METADATA_VERSION_2_5>::write(std::ostream& stream) {
@@ -515,6 +473,45 @@ void Metadata<METADATA_VERSION_2_5>::write(std::ostream& stream) {
     }
 
     append_blob_size_and_magic(stream);
+}
+
+void Metadata<METADATA_VERSION_2_0>::write_human_readable(std::ostream& stream) {
+    const uint16_t meta_major = MetadataBase::get_major(_version);
+    const uint16_t meta_minor = MetadataBase::get_minor(_version);
+    write_hr_field(stream, "meta", std::to_string(meta_major) + "." + std::to_string(meta_minor));
+    write_hr_field(stream,
+                   "ov",
+                   std::to_string(OPENVINO_VERSION_MAJOR) + "." + std::to_string(OPENVINO_VERSION_MINOR) + "." +
+                       std::to_string(OPENVINO_VERSION_PATCH));
+}
+
+void Metadata<METADATA_VERSION_2_1>::write_human_readable(std::ostream& stream) {
+    Metadata<METADATA_VERSION_2_0>::write_human_readable(stream);
+
+    if (_initSizes.has_value() && !_initSizes->empty()) {
+        std::ostringstream oss;
+        write_hr_bracketed_list(oss, _initSizes.value());
+        write_hr_field(stream, "ws_inits", oss.str());
+    }
+}
+
+void Metadata<METADATA_VERSION_2_2>::write_human_readable(std::ostream& stream) {
+    Metadata<METADATA_VERSION_2_1>::write_human_readable(stream);
+
+    if (_batchSize.has_value() && _batchSize.value() > 0) {
+        write_hr_field(stream, "batch", _batchSize.value());
+    }
+}
+
+// omitted from compatibility string
+void Metadata<METADATA_VERSION_2_3>::write_human_readable(std::ostream& stream) {
+    Metadata<METADATA_VERSION_2_2>::write_human_readable(stream);
+}
+
+void Metadata<METADATA_VERSION_2_4>::write_human_readable(std::ostream& stream) {
+    Metadata<METADATA_VERSION_2_3>::write_human_readable(stream);
+
+    write_hr_field(stream, "compiler", _compilerVersion.value_or(0));
 }
 
 void Metadata<METADATA_VERSION_2_5>::write_human_readable(std::ostream& stream) {
@@ -718,7 +715,7 @@ std::optional<uint32_t> MetadataBase::get_compiler_version() const {
     return std::nullopt;
 }
 
-std::optional<std::string> MetadataBase::get_compiler_reqs() const {
+std::optional<std::string> MetadataBase::get_runtime_reqs() const {
     return std::nullopt;
 }
 
@@ -742,7 +739,7 @@ std::optional<uint32_t> Metadata<METADATA_VERSION_2_4>::get_compiler_version() c
     return _compilerVersion;
 }
 
-std::optional<std::string> Metadata<METADATA_VERSION_2_5>::get_compiler_reqs() const {
+std::optional<std::string> Metadata<METADATA_VERSION_2_5>::get_runtime_reqs() const {
     return _compilerReqs;
 }
 
