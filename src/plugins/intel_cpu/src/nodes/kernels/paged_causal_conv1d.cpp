@@ -33,16 +33,16 @@ template <typename StateType>
 void maybe_flush_state(StateType* conv_state_table,
                        const float* local_state,
                        const int32_t* block_indices,
-                       int32_t blk_begin,
-                       int32_t block_span,
-                       int32_t prev_nums,
-                       int32_t seq_interval,
-                       int32_t t,
-                       int32_t seq_tokens,
-                       size_t state_stride,
-                       size_t state_off,
-                       size_t h_count,
-                       size_t kernel_size) {
+                       const int32_t blk_begin,
+                       const int32_t block_span,
+                       const int32_t prev_nums,
+                       const int32_t seq_interval,
+                       const int32_t t,
+                       const int32_t seq_tokens,
+                       const size_t state_stride,
+                       const size_t state_off,
+                       const size_t h_count,
+                       const size_t kernel_size) {
     const int32_t cached_tokens = prev_nums + (t + 1);
     const bool interval_hit = (seq_interval > 0) && ((cached_tokens % seq_interval) == 0);
     const bool is_last_token = (t == seq_tokens - 1);
@@ -70,11 +70,11 @@ void conv1d_scalar(float* local_state,
                    const DataT* token_ptr,
                    const DataT* conv_weight,
                    const DataT* conv_bias,
-                   bool has_bias,
+                   const bool has_bias,
                    DataT* out_ptr,
-                   size_t h_begin,
-                   size_t h_end,
-                   size_t kernel_size) {
+                   const size_t h_begin,
+                   const size_t h_end,
+                   const size_t kernel_size) {
     for (size_t h = h_begin; h < h_end; h++) {
         float* state_h = local_state + h * kernel_size;
         for (size_t k = 0; k + 1 < kernel_size; k++) {
@@ -96,17 +96,17 @@ void paged_causal_conv1d_ref(const DataT* input_embeds,
                              StateType* conv_state_table,
                              const DataT* conv_weight,
                              const DataT* conv_bias,
-                             bool has_bias,
+                             const bool has_bias,
                              const int32_t* subsequence_begins,
                              const int32_t* block_indices,
                              const int32_t* block_indices_begins,
                              const int32_t* past_lens,
                              const int32_t* cache_interval,
                              DataT* output_embeds,
-                             size_t batch_size_in_tokens,
-                             size_t hidden_size,
-                             size_t kernel_size,
-                             size_t seq_count,
+                             const size_t batch_size_in_tokens,
+                             const size_t hidden_size,
+                             const size_t kernel_size,
+                             const size_t seq_count,
                              float* local_state,
                              const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
     const size_t state_stride = hidden_size * kernel_size;
@@ -208,17 +208,17 @@ void paged_causal_conv1d_optimized(const DataT* input_embeds,
                                    StateType* conv_state_table,
                                    const DataT* conv_weight,
                                    const DataT* conv_bias,
-                                   bool has_bias,
+                                   const bool has_bias,
                                    const int32_t* subsequence_begins,
                                    const int32_t* block_indices,
                                    const int32_t* block_indices_begins,
                                    const int32_t* past_lens,
                                    const int32_t* cache_interval,
                                    DataT* output_embeds,
-                                   size_t batch_size_in_tokens,
-                                   size_t hidden_size,
-                                   size_t kernel_size,
-                                   size_t seq_count,
+                                   const size_t batch_size_in_tokens,
+                                   const size_t hidden_size,
+                                   const size_t kernel_size,
+                                   const size_t seq_count,
                                    float* local_state,
                                    const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
 #if !defined(HAVE_AVX2)
@@ -409,43 +409,44 @@ void paged_causal_conv1d_optimized(const DataT* input_embeds,
 #endif
 }
 
-// Inner dispatch: given a selected DataT, choose StateType at runtime.
-template <typename DataT>
-void dispatch_state(const void* input_embeds,
-                    void* conv_state_table,
-                    const void* conv_weight,
-                    const void* conv_bias,
-                    bool has_bias,
-                    const int32_t* subsequence_begins,
-                    const int32_t* block_indices,
-                    const int32_t* block_indices_begins,
-                    const int32_t* past_lens,
-                    const int32_t* cache_interval,
-                    void* output_embeds,
-                    size_t batch_size_in_tokens,
-                    size_t hidden_size,
-                    size_t kernel_size,
-                    size_t seq_count,
-                    float* local_state,
-                    ov::element::Type state_precision,
-                    const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
-    const auto* in = static_cast<const DataT*>(input_embeds);
-    const auto* w = static_cast<const DataT*>(conv_weight);
-    const auto* b = has_bias ? static_cast<const DataT*>(conv_bias) : nullptr;
-    auto* out = static_cast<DataT*>(output_embeds);
+}  // namespace
 
-    auto run = [&](auto* state_table) {
-        paged_causal_conv1d_optimized(in,
-                                      state_table,
-                                      w,
-                                      b,
+void paged_causal_conv1d_exec(const void* input_embeds,
+                              void* conv_state_table,
+                              const void* conv_weight,
+                              const void* conv_bias,
+                              const bool has_bias,
+                              const int32_t* subsequence_begins,
+                              const int32_t* block_indices,
+                              const int32_t* block_indices_begins,
+                              const int32_t* past_lens,
+                              const int32_t* cache_interval,
+                              void* output_embeds,
+                              const size_t batch_size_in_tokens,
+                              const size_t hidden_size,
+                              const size_t kernel_size,
+                              const size_t seq_count,
+                              const ov::element::Type data_precision,
+                              const ov::element::Type state_precision,
+                              float* local_state,
+                              const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
+    // Dispatch one of the 9 supported (data, state) precision combinations to the kernel.
+    // `data_tag`/`state_tag` carry the types via pointer tags; their nullptr values are never
+    // dereferenced.
+    auto run = [&](auto* data_tag, auto* state_tag) {
+        using DataT = std::remove_pointer_t<decltype(data_tag)>;
+        using StateT = std::remove_pointer_t<decltype(state_tag)>;
+        paged_causal_conv1d_optimized(static_cast<const DataT*>(input_embeds),
+                                      static_cast<StateT*>(conv_state_table),
+                                      static_cast<const DataT*>(conv_weight),
+                                      has_bias ? static_cast<const DataT*>(conv_bias) : nullptr,
                                       has_bias,
                                       subsequence_begins,
                                       block_indices,
                                       block_indices_begins,
                                       past_lens,
                                       cache_interval,
-                                      out,
+                                      static_cast<DataT*>(output_embeds),
                                       batch_size_in_tokens,
                                       hidden_size,
                                       kernel_size,
@@ -454,74 +455,35 @@ void dispatch_state(const void* input_embeds,
                                       cpu_parallel);
     };
 
-    if (state_precision == ov::element::f32) {
-        run(static_cast<float*>(conv_state_table));
-    } else if (state_precision == ov::element::f16) {
-        run(static_cast<ov::float16*>(conv_state_table));
-    } else if (state_precision == ov::element::bf16) {
-        run(static_cast<ov::bfloat16*>(conv_state_table));
+    auto* const f32_tag = static_cast<float*>(nullptr);
+    auto* const f16_tag = static_cast<ov::float16*>(nullptr);
+    auto* const bf16_tag = static_cast<ov::bfloat16*>(nullptr);
+
+    if (data_precision == ov::element::f32 && state_precision == ov::element::f32) {
+        run(f32_tag, f32_tag);
+    } else if (data_precision == ov::element::f32 && state_precision == ov::element::f16) {
+        run(f32_tag, f16_tag);
+    } else if (data_precision == ov::element::f32 && state_precision == ov::element::bf16) {
+        run(f32_tag, bf16_tag);
+    } else if (data_precision == ov::element::f16 && state_precision == ov::element::f32) {
+        run(f16_tag, f32_tag);
+    } else if (data_precision == ov::element::f16 && state_precision == ov::element::f16) {
+        run(f16_tag, f16_tag);
+    } else if (data_precision == ov::element::f16 && state_precision == ov::element::bf16) {
+        run(f16_tag, bf16_tag);
+    } else if (data_precision == ov::element::bf16 && state_precision == ov::element::f32) {
+        run(bf16_tag, f32_tag);
+    } else if (data_precision == ov::element::bf16 && state_precision == ov::element::f16) {
+        run(bf16_tag, f16_tag);
+    } else if (data_precision == ov::element::bf16 && state_precision == ov::element::bf16) {
+        run(bf16_tag, bf16_tag);
     } else {
         OPENVINO_ASSERT(false,
-                        "PagedCausalConv1D: unsupported conv_state_table precision ",
-                        state_precision,
-                        ". Expected f32, f16, or bf16.");
-    }
-}
-
-}  // namespace
-
-void paged_causal_conv1d_exec(const void* input_embeds,
-                              void* conv_state_table,
-                              const void* conv_weight,
-                              const void* conv_bias,
-                              bool has_bias,
-                              const int32_t* subsequence_begins,
-                              const int32_t* block_indices,
-                              const int32_t* block_indices_begins,
-                              const int32_t* past_lens,
-                              const int32_t* cache_interval,
-                              void* output_embeds,
-                              size_t batch_size_in_tokens,
-                              size_t hidden_size,
-                              size_t kernel_size,
-                              size_t seq_count,
-                              ov::element::Type data_precision,
-                              ov::element::Type state_precision,
-                              float* local_state,
-                              const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
-    auto dispatch = [&](auto* data_tag) {
-        using DataT = std::remove_pointer_t<decltype(data_tag)>;
-        dispatch_state<DataT>(input_embeds,
-                              conv_state_table,
-                              conv_weight,
-                              conv_bias,
-                              has_bias,
-                              subsequence_begins,
-                              block_indices,
-                              block_indices_begins,
-                              past_lens,
-                              cache_interval,
-                              output_embeds,
-                              batch_size_in_tokens,
-                              hidden_size,
-                              kernel_size,
-                              seq_count,
-                              local_state,
-                              state_precision,
-                              cpu_parallel);
-    };
-
-    if (data_precision == ov::element::f32) {
-        dispatch(static_cast<float*>(nullptr));
-    } else if (data_precision == ov::element::f16) {
-        dispatch(static_cast<ov::float16*>(nullptr));
-    } else if (data_precision == ov::element::bf16) {
-        dispatch(static_cast<ov::bfloat16*>(nullptr));
-    } else {
-        OPENVINO_ASSERT(false,
-                        "PagedCausalConv1D: unsupported input_embeds precision ",
+                        "PagedCausalConv1D: unsupported (input_embeds, conv_state_table) precision pair (",
                         data_precision,
-                        ". Expected f32, f16, or bf16.");
+                        ", ",
+                        state_precision,
+                        "). Expected each of f32/f16/bf16.");
     }
 }
 
