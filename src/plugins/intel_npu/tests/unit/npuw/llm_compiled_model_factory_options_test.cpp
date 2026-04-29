@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "llm_test_helpers.hpp"
+#include "openvino/runtime/intel_npu/properties.hpp"
 #include "whisper/prepare_whisper_model.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
@@ -21,6 +22,46 @@ namespace {
 using ov::test::npuw::CompileCall;
 using ov::test::npuw::NullPlugin;
 using ov::test::npuw::RecordingFactory;
+
+class ArchAwarePlugin final : public NullPlugin {
+public:
+    ArchAwarePlugin(std::string arch, int64_t max_tiles) : m_arch(std::move(arch)), m_max_tiles(max_tiles) {}
+
+    ov::Any get_property(const std::string& name, const ov::AnyMap&) const override {
+        if (name == ov::device::architecture.name()) {
+            return m_arch;
+        }
+        if (name == ov::intel_npu::max_tiles.name()) {
+            return m_max_tiles;
+        }
+        if (name == ov::intel_npu::compiler_version.name()) {
+            return static_cast<int64_t>(0);
+        }
+        if (name == ov::supported_properties.name()) {
+            return std::vector<ov::PropertyName>{};
+        }
+        return {};
+    }
+
+private:
+    std::string m_arch;
+    int64_t m_max_tiles;
+};
+
+std::shared_ptr<ov::MockICore> attach_mock_core_with_npu_device(const std::shared_ptr<ov::IPlugin>& plugin, 
+    std::vector<std::string> device_list = std::vector<std::string>{"0"}) {
+    auto core = std::make_shared<testing::NiceMock<ov::MockICore>>();
+    plugin->set_core(core);
+
+    ON_CALL(*core,
+            get_property(testing::StrEq("NPU"),
+                         testing::StrEq(ov::available_devices.name()),
+                         testing::An<const ov::AnyMap&>()))
+        .WillByDefault([device_list](const std::string&, const std::string&, const ov::AnyMap&) -> ov::Any {
+                return ov::Any(device_list);
+            });
+    return core;
+}
 
 class LLMCompiledModelFactoryOptionsTest : public ::testing::Test {
 protected:
@@ -78,6 +119,12 @@ protected:
         const auto it = props.find(key);
         OPENVINO_ASSERT(it != props.end(), "Missing property: ", key);
         return it->second.as<std::string>();
+    }
+
+    static int64_t prop_i64(const ov::AnyMap& props, const std::string& key) {
+        const auto it = props.find(key);
+        OPENVINO_ASSERT(it != props.end(), "Missing property: ", key);
+        return it->second.as<int64_t>();
     }
 
     static void expect_prop(const ov::AnyMap& props, const std::string& key, const std::string& expected) {
@@ -329,6 +376,94 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, CommonRuntimeAndDebugOptionsForwardTo
     }
 }
 
+TEST_F(LLMCompiledModelFactoryOptionsTest, ArchIn5000SeriesSetsNpuTilesInDefaultStageConfigs) {
+    m_plugin = std::make_shared<ArchAwarePlugin>("5010", 3);
+    const auto core = attach_mock_core_with_npu_device(m_plugin);
+
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_llm_model(), {{"NPUW_LLM_SHARED_HEAD", "YES"}}, recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& prefill = require_call(recorder, "_prefill");
+    const auto& generate = require_call_containing(recorder, "_kv");
+    const auto& head = require_call(recorder, "_lm_head");
+
+    for (const auto* call : {&prefill, &generate, &head}) {
+        EXPECT_EQ(prop_i64(call->props, "NPU_TILES"), 3);
+        expect_prop(call->props,
+                    "NPU_COMPILATION_MODE_PARAMS",
+                    "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm");
+    }
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, Arch2700SkipsNpuTilesInDefaultStageConfigs) {
+    m_plugin = std::make_shared<ArchAwarePlugin>("2700", 2);
+    const auto core = attach_mock_core_with_npu_device(m_plugin);
+
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_llm_model(), {{"NPUW_LLM_SHARED_HEAD", "YES"}}, recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& prefill = require_call(recorder, "_prefill");
+    const auto& generate = require_call_containing(recorder, "_kv");
+    const auto& head = require_call(recorder, "_lm_head");
+
+    for (const auto* call : {&prefill, &generate, &head}) {
+        expect_missing_prop(call->props, "NPU_TILES");
+        expect_prop(call->props,
+                    "NPU_COMPILATION_MODE_PARAMS",
+                    "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm");
+    }
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, Arch4000AddsOptimizationLevelAndSetsNpuTiles) {
+    m_plugin = std::make_shared<ArchAwarePlugin>("4000", 4);
+    const auto core = attach_mock_core_with_npu_device(m_plugin);
+
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_llm_model(), {{"NPUW_LLM_SHARED_HEAD", "YES"}}, recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& prefill = require_call(recorder, "_prefill");
+    const auto& generate = require_call_containing(recorder, "_kv");
+    const auto& head = require_call(recorder, "_lm_head");
+
+    for (const auto* call : {&prefill, &generate, &head}) {
+        EXPECT_EQ(prop_i64(call->props, "NPU_TILES"), 4);
+        expect_prop(call->props,
+                    "NPU_COMPILATION_MODE_PARAMS",
+                    "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm optimization-level=3");
+    }
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, ArchAtLeast6000UsesLatencyCompilationHintAndSkipsNpuTiles) {
+    m_plugin = std::make_shared<ArchAwarePlugin>("7000", 8);
+    const auto core = attach_mock_core_with_npu_device(m_plugin);
+
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_llm_model(), {{"NPUW_LLM_SHARED_HEAD", "YES"}}, recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& prefill = require_call(recorder, "_prefill");
+    const auto& generate = require_call_containing(recorder, "_kv");
+    const auto& head = require_call(recorder, "_lm_head");
+
+    for (const auto* call : {&prefill, &generate, &head}) {
+        expect_missing_prop(call->props, "NPU_TILES");
+        expect_prop(call->props,
+                    "NPU_COMPILATION_MODE_PARAMS",
+                    "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm performance-hint-override=latency");
+    }
+}
+
 TEST_F(LLMCompiledModelFactoryOptionsTest, FastCompileGenerateHintKeepsCurrentGenerateDefaults) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
@@ -347,13 +482,11 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, FastCompileGenerateHintKeepsCurrentGe
 TEST_F(LLMCompiledModelFactoryOptionsTest, MissingNpuBackendKeepsCurrentGenerateDefaults) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+    
+    m_plugin = std::make_shared<ArchAwarePlugin>("7000", 8);
+    const auto core = attach_mock_core_with_npu_device(m_plugin, {});
 
-    auto core = std::make_shared<testing::NiceMock<ov::MockICore>>();
-    m_plugin->set_core(core);
-    ON_CALL(*core, get_property(testing::StrEq("NPU"), testing::StrEq(ov::available_devices.name()), testing::_))
-        .WillByDefault([](const std::string&, const std::string&, const ov::AnyMap&) -> ov::Any {
-            OPENVINO_THROW("No available backend");
-        });
+
 
     ASSERT_NO_THROW(compiled = create_compiled_model(build_llm_model(),
                                                      {{"NPUW_LLM_SHARED_HEAD", "NO"},

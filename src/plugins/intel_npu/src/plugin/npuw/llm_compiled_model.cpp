@@ -194,14 +194,16 @@ struct NPUDesc {
 
 std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin,
                                               const ov::AnyMap& config) {
+    LOG_DEBUG("Extracting NPU descriptor from plugin properties");
     if (!plugin->get_core()) {
         return std::nullopt;
     }
+    LOG_DEBUG("P1 - got core from plugin");
     const auto all_devices = plugin->get_core()->get_property("NPU", ov::available_devices);
     if (all_devices.empty()) {
         return std::nullopt;
     }
-
+LOG_DEBUG("P2 - got available devices from core: " << all_devices.size() << " device(s) found");
     NPUDesc desc;
     desc.arch = plugin->get_property(ov::device::architecture.name(), ov::AnyMap{}).as<std::string>();
     desc.max_tiles = plugin->get_property(ov::intel_npu::max_tiles.name(), ov::AnyMap{}).as<int64_t>();
@@ -246,7 +248,11 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
         // Flash attention tile is supported starting from compiler version 7.29 on NPU5010
         desc.support_flash_attention_tile = true;
     }
-
+LOG_DEBUG("P3 - extracted NPU descriptor: arch=" << desc.arch << ", max_tiles=" << desc.max_tiles
+                                                  << ", compiler_dq=" << desc.compiler_dq
+                                                  << ", compiler_matmul_gate=" << desc.compiler_matmul_gate
+                                                  << ", compiler_ver=" << desc.compiler_ver
+                                                  << ", support_flash_attention_tile=" << desc.support_flash_attention_tile);
     return std::make_optional(std::move(desc));
 }
 
@@ -300,6 +306,7 @@ ov::AnyMap get_baseline_common_config(const std::optional<NPUDesc>& npudesc) {
 }
 
 ov::AnyMap get_default_common_config(const std::optional<NPUDesc>& npudesc) {
+    LOG_DEBUG("get_default_common_config: " << (npudesc ? npudesc->arch : "nullopt"));
     // FIXME: add `if_model_contain_slice()` condition for `SLICE_OUT` option.
     auto config = get_baseline_common_config(npudesc);
     const char* npu_l0 = std::getenv("DISABLE_OPENVINO_GENAI_NPU_L0");
@@ -313,17 +320,24 @@ ov::AnyMap get_default_common_config(const std::optional<NPUDesc>& npudesc) {
             return;
         }
         auto arch_number = std::stoi(npudesc->arch);
-        std::stringstream config_compilation_params;
-        if (arch_number == 4000) {
-            config_compilation_params << "optimization-level=3 ";
-        }
-        if (arch_number >= 4000 && arch_number < 6000) {
-            config.emplace("NPU_TILES", npudesc->max_tiles);
+        if (arch_number < 4000){
             return;
         }
-        // hint ignored if not supported
-        config_compilation_params << "performance-hint-override=latency ";
-        config.emplace("NPU_COMPILATION_MODE_PARAMS", config_compilation_params.str());
+
+        std::stringstream config_compilation_params;
+        config_compilation_params << config["NPU_COMPILATION_MODE_PARAMS"].as<std::string>();
+
+        if (arch_number == 4000) {
+            config_compilation_params << " optimization-level=3";
+        }
+
+        if (arch_number >= 4000 && arch_number < 6000) {
+            config["NPU_TILES"] = npudesc->max_tiles;
+        } else if (arch_number >= 6000) {
+            // hint ignored if not supported
+            config_compilation_params << " performance-hint-override=latency";
+        }
+        config["NPU_COMPILATION_MODE_PARAMS"] = config_compilation_params.str();
     };
     set_max_tiles_based_on_arch();
     return config;
@@ -331,9 +345,6 @@ ov::AnyMap get_default_common_config(const std::optional<NPUDesc>& npudesc) {
 
 ov::AnyMap get_default_prefill_config(const std::shared_ptr<ov::Model>& model, const std::optional<NPUDesc>& npudesc) {
     auto config = get_default_common_config(npudesc);
-    if (npudesc.has_value() && npudesc->arch == "4000" && npudesc->max_tiles != -1) {
-        config.emplace("NPU_TILES", npudesc->max_tiles);
-    }
     // Specify NPUW DQ if Compiler DQ is not enabled
     if (!npudesc.has_value() || !npudesc->compiler_dq) {
         if (is_cw_compressed(model)) {
