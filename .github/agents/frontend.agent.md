@@ -35,7 +35,7 @@ Write all logs, results, and patches to `agent-results/frontend/`.
 
 ### Python Package Bootstrap
 
-Follow **[`skills/python-bootstrap.md`](skills/python-bootstrap.md) — Path A** (no source build).
+Follow **[`skills/python-bootstrap/SKILL.md`](skills/python-bootstrap/SKILL.md) — Path A** (no source build).
 For ONNX frontend work also install `onnx` and `onnxruntime` as noted in the skill.
 
 ---

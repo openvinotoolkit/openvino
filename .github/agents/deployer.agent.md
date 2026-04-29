@@ -92,6 +92,6 @@ Record result in `agent-results/deployer/result.json`:
 ## Creating Pull Requests
 
 When your work is complete and all tests pass, follow the
-[`submit-draft-pr`](skills/submit-draft-pr.md) skill — it handles branch
+[`submit-draft-pr`](skills/submit-draft-pr/SKILL.md) skill — it handles branch
 naming, existing-PR deduplication, fork creation, and `gh pr create`.
 Skip silently if `gh` is unavailable, not authenticated, or the command fails.

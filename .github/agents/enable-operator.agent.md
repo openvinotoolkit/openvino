@@ -342,7 +342,7 @@ Log:
 > below pass. Do not open a PR against a failing or untested pipeline.**
 
 Run the
-**[`skills/verify-conversion.md`](.github/agents/skills/verify-conversion.md)** skill.
+**[`skills/verify-conversion/SKILL.md`](.github/agents/skills/verify-conversion/SKILL.md)** skill.
 
 The skill:
 1. Auto-detects the correct conversion path (optimum-intel for HuggingFace models,

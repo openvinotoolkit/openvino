@@ -36,7 +36,7 @@ Write all logs, results, and patches to `agent-results/transformation/`.
 
 ### Python Package Bootstrap
 
-Follow **[`skills/python-bootstrap.md`](skills/python-bootstrap.md) — Path A** (no source build).
+Follow **[`skills/python-bootstrap/SKILL.md`](skills/python-bootstrap/SKILL.md) — Path A** (no source build).
 
 ---
 
@@ -235,7 +235,7 @@ The patch is available in `agent-results/transformation/` for the OV Orchestrato
 **`pr_mode: delegated_to_orchestrator`** (invoked by Enable Operator Agent): do **not** create a
 PR. Write patches to the result JSON only. The orchestrator creates one central draft PR in Phase 7.
 
-**Standalone invocation** (no `pr_mode` set): follow the [`submit-draft-pr`](skills/submit-draft-pr.md)
+**Standalone invocation** (no `pr_mode` set): follow the [`submit-draft-pr`](skills/submit-draft-pr/SKILL.md)
 skill — it handles branch naming, existing-PR deduplication, fork creation, and `gh pr create`.
 Skip silently if `gh` is unavailable, not authenticated, or the command fails.
 
