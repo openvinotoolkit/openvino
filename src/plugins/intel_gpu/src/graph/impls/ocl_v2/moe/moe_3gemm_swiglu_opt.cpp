@@ -853,9 +853,6 @@ dnnl::memory convert2dnnl(const memory::ptr& ptr, const std::vector<int64_t>& di
     return ptr->get_onednn_memory(dnnl::memory::desc(dnnl::memory::dims(dim), convert_data_type(ptr->get_layout().data_type), tag), offset);
 }
 
-static bool use_micro_gemm_prefill;
-static bool use_gpu_mask_gen_prefill;
-static bool use_grouped_gemm_prefill;
 class moe_3gemm_swiglu_opt_impl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::MoE3GemmSwigluImpl)
@@ -951,6 +948,11 @@ public:
     std::shared_ptr<onednn_linear> _shared_up_proj;
     std::shared_ptr<onednn_linear> _shared_down_proj;
     std::shared_ptr<onednn_linear> _shared_gate_gate_proj;  // The scalar gate for shared expert
+
+    // Instance-specific flags (not static to avoid race conditions)
+    bool use_micro_gemm_prefill = false;
+    bool use_gpu_mask_gen_prefill = false;
+    bool use_grouped_gemm_prefill = false;
 
     moe_3gemm_swiglu_opt_impl() : PrimitiveImplOCL(moe_3gemm_swiglu_opt::get_type_info_static()) {}
     moe_3gemm_swiglu_opt_impl(const program_node& node, const RuntimeParams& params) : moe_3gemm_swiglu_opt_impl() {
@@ -2317,6 +2319,17 @@ public:
         // ----------------------------------------------------------------
         // Steps 3-5: OneDNN grouped GEMM – gate, up, SiLU, down
         // ----------------------------------------------------------------
+        // SAFETY CHECK: Verify grouped_offsets buffer exists before accessing
+        if (intermediates_memories.size() <= MOE_INTERNAL_BUFFER_GROUPED_OFFSETS) {
+            OPENVINO_THROW("[MOE_3GEMM_GROUPED_BUG] Grouped GEMM path requires buffer ",
+                           MOE_INTERNAL_BUFFER_GROUPED_OFFSETS,
+                           " (GROUPED_OFFSETS) but only ",
+                           intermediates_memories.size(),
+                           " buffers allocated. ",
+                           "This indicates a mismatch between buffer allocation and execution path. ",
+                           "use_grouped_gemm_prefill=",
+                           use_grouped_gemm_prefill);
+        }
         auto& gk = get_grouped_kernel(total_gathered_tokens, instance);
         auto row_offsets = intermediates_memories[MOE_INTERNAL_BUFFER_GROUPED_OFFSETS];
 
@@ -2517,6 +2530,16 @@ public:
             // same in-order OCL queue, so submission order guarantees execution order.
             // No explicit wait() is needed — the in-order queue serializes all GPU work,
             // and any subsequent primitive on the same queue will see the completed output.
+            if (use_grouped_gemm_prefill && ret_env) {
+                // ensure grouped GEMM fully completes before executing shared expert, which relies on its output being ready;
+                // For grouped_gemm path, scatter_reduce (OCL) is preceded by multiple OCL <--> OneDNN
+                // transitions inside exec_prefill_grouped_gemm. The implicit ordering between
+                // the OCL queue and OneDNN's stream cannot be relied upon across this many
+                // back-and-forth submissions, so the shared expert's down_proj sum post-op
+                // (which reads+writes final_hidden_states) can race with scatter_reduce.
+                // Force the scatter_reduce write to be visible before submitting the shared expert.
+                ret_env->wait();
+            }
             execute_shared_expert(stream.get_onednn_stream(), static_cast<int>(token_num), hidden_states_mem_ptr, final_hidden_states_mem_ptr, scratch);
         }
         return ret_env;

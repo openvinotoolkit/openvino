@@ -73,23 +73,25 @@ void DynamicGraphImpl::initialize(std::optional<ov::Tensor>& blob, NetworkMetada
 
     _binding._inputs.resize(metadata.inputs.size());
 
-    // dump output of _metadata
-    _logger.debug("Dump metadata info from blob");
-    _logger.debug("Metadata inputs: %d", metadata.inputs.size());
-    for (const auto& input : metadata.inputs) {
-        _logger.debug("Input compiler name: %s input node name: %s shapeFromCompiler: %s shapeFromIRModel: %s",
-                      input.nameFromCompiler.c_str(),
-                      input.nodeFriendlyName.c_str(),
-                      input.shapeFromCompiler.to_string().c_str(),
-                      input.shapeFromIRModel.has_value() ? input.shapeFromIRModel->to_string().c_str() : "N/A");
-    }
-    _logger.debug("Metadata outputs: %d", metadata.outputs.size());
-    for (const auto& output : metadata.outputs) {
-        _logger.debug("Output compiler name: %s output node name: %s shapeFromCompiler: %s shapeFromIRModel: %s",
-                      output.nameFromCompiler.c_str(),
-                      output.nodeFriendlyName.c_str(),
-                      output.shapeFromCompiler.to_string().c_str(),
-                      output.shapeFromIRModel.has_value() ? output.shapeFromIRModel->to_string().c_str() : "N/A");
+    if (_logger.level() >= ov::log::Level::DEBUG) {
+        // dump output of _metadata
+        _logger.debug("Dump metadata info from blob");
+        _logger.debug("Metadata inputs: %d", metadata.inputs.size());
+        for (const auto& input : metadata.inputs) {
+            _logger.debug("Input compiler name: %s input node name: %s shapeFromCompiler: %s shapeFromIRModel: %s",
+                          input.nameFromCompiler.c_str(),
+                          input.nodeFriendlyName.c_str(),
+                          input.shapeFromCompiler.to_string().c_str(),
+                          input.shapeFromIRModel.has_value() ? input.shapeFromIRModel->to_string().c_str() : "N/A");
+        }
+        _logger.debug("Metadata outputs: %d", metadata.outputs.size());
+        for (const auto& output : metadata.outputs) {
+            _logger.debug("Output compiler name: %s output node name: %s shapeFromCompiler: %s shapeFromIRModel: %s",
+                          output.nameFromCompiler.c_str(),
+                          output.nodeFriendlyName.c_str(),
+                          output.shapeFromCompiler.to_string().c_str(),
+                          output.shapeFromIRModel.has_value() ? output.shapeFromIRModel->to_string().c_str() : "N/A");
+        }
     }
 
     auto& inputs = _binding._inputs;
@@ -281,20 +283,16 @@ void DynamicGraphImpl::setArgumentValueWithStrides(uint32_t argi,
     if (argi < inputs.size()) {
         _logger.debug("setArgumentValueWithStrides for index %d (input %d)", argi, argi);
         inputs[argi].setArg(argv);
-
-        for (int64_t i = 0; i < inputs[argi]._dimsCount; i++) {
-            inputs[argi]._strides[i] = strides[i];
-        }
+        // The passed strides are based on element
+        inputs[argi].setStrides(strides);
     } else {
         auto& outputs = _binding._outputs;
         auto idx = argi - inputs.size();
         _logger.debug("setArgumentValueWithStrides for index %d (output %d)", argi, idx);
         if (idx < outputs.size()) {
             outputs[idx].setArg(argv);
-
-            for (int64_t i = 0; i < outputs[idx]._dimsCount; i++) {
-                outputs[idx]._strides[i] = strides[i];
-            }
+            // The passed strides are based on elemnt
+            outputs[idx].setStrides(strides);
         }
     }
 }
@@ -306,12 +304,13 @@ void DynamicGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>
                                     ze_fence_handle_t fence,
                                     ze_event_handle_t event,
                                     ze_graph_profiling_pool_handle_t profiling) {
+    _logger.debug("Start to execute graph with runtime engine");
     std::shared_ptr<DynamicGraph::GraphArgumentsImpl> argsImpl =
         args._impl ? std::static_pointer_cast<DynamicGraph::GraphArgumentsImpl>(args._impl)
                    : std::make_shared<DynamicGraph::GraphArgumentsImpl>();
 
+    bool noTensorChange = true;
     npu_vm_runtime_execute_params_t* params = &argsImpl->_executeParams;
-
     for (auto& in : args._inputs) {
         std::shared_ptr<DynamicGraph::MemRefTypeImpl> inImpl =
             std::static_pointer_cast<DynamicGraph::MemRefTypeImpl>(in._impl);
@@ -322,6 +321,8 @@ void DynamicGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>
         inImpl->UpdateMemRefHandleStatus(in);
         if (args._impl == nullptr) {
             argsImpl->_inputMemRefs.push_back(inImpl->_memRef);
+        } else if (inImpl->_ptrUpdated || inImpl->_shapeUpdated || inImpl->_strideUpdated) {
+            noTensorChange = false;
         }
     }
     for (auto& out : args._outputs) {
@@ -334,7 +335,29 @@ void DynamicGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>
         outImpl->UpdateMemRefHandleStatus(out);
         if (args._impl == nullptr) {
             argsImpl->_outputMemRefs.push_back(outImpl->_memRef);
+        } else if (outImpl->_ptrUpdated || outImpl->_shapeUpdated || outImpl->_strideUpdated) {
+            noTensorChange = false;
         }
+    }
+
+    if (args._impl == nullptr || !noTensorChange) {
+        _logger.debug("Reset command list to run with runtime");
+        // Reset commandLists since there are tensor with new shapes or it is the first execution, can not reuse command
+        // list with update
+        for (auto& cmdList : commandLists) {
+            zeCommandListReset(cmdList);
+        }
+    } else {
+        _logger.debug("Reuse command list without update since no tensor change detected");
+
+        auto result = zeCommandQueueExecuteCommandLists(commandQueue,
+                                                        static_cast<uint32_t>(commandLists.size()),
+                                                        commandLists.data(),
+                                                        fence);
+        if (result != ZE_RESULT_SUCCESS) {
+            OPENVINO_THROW("Failed to submit command lists");
+        }
+        return;
     }
 
     // Prepare execution context for each graph arguments
@@ -359,6 +382,7 @@ void DynamicGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>
     params->inferenceFence = fence;
     params->event = event;
 
+    _logger.debug("Execute graph with runtime engine");
     if (npuVMRuntimeExecute(_engine, params) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
         OPENVINO_THROW("Failed to execute VM runtime engine");
     }
@@ -428,6 +452,7 @@ DynamicGraph::DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroIni
     }
 
     _impl = std::make_unique<DynamicGraphImpl>();
+
     // TODO: metadata needs to be parsed even when CREATE_EXECUTOR is 0 or DEFER_WEIGHTS_LOAD is YES, keep here to
     // support pure compilation without vm runtime initialize VM execution engine, metadata, input&output
     // descriptors
