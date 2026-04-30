@@ -44,6 +44,12 @@ public:
 
     virtual void read() = 0;
 
+    /**
+     * @note Layouts, compiler version and encryption are intentionally omitted from the human-readable compatibility
+     * string. They are internal implementation details that don't affect cross-version compatibility and would only add
+     * noise for consumers.
+     *
+     */
     virtual void read_as_text() = 0;
 
     /**

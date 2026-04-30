@@ -419,9 +419,6 @@ void Metadata<METADATA_VERSION_2_2>::read_as_text() {
 
 void Metadata<METADATA_VERSION_2_3>::read_as_text() {
     Metadata<METADATA_VERSION_2_2>::read_as_text();
-
-    _inputLayouts = std::nullopt;
-    _outputLayouts = std::nullopt;
 }
 
 void Metadata<METADATA_VERSION_2_4>::read_as_text() {
@@ -552,20 +549,12 @@ void Metadata<METADATA_VERSION_2_2>::write_as_text(std::ostream& stream) {
     }
 }
 
-// omitted from compatibility string
 void Metadata<METADATA_VERSION_2_3>::write_as_text(std::ostream& stream) {
     Metadata<METADATA_VERSION_2_2>::write_as_text(stream);
 }
 
 void Metadata<METADATA_VERSION_2_4>::write_as_text(std::ostream& stream) {
     Metadata<METADATA_VERSION_2_3>::write_as_text(stream);
-
-    if (_compilerVersion.has_value()) {
-        write_text_field(stream,
-                         "compiler",
-                         std::to_string(ONEAPI_VERSION_MAJOR(_compilerVersion.value())) + "." +
-                             std::to_string(ONEAPI_VERSION_MINOR(_compilerVersion.value())));
-    }
 }
 
 void Metadata<METADATA_VERSION_2_5>::write_as_text(std::ostream& stream) {

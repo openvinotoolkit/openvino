@@ -101,8 +101,9 @@ TEST_F(MetadataHumanReadableTests, noLayouts) {
 
 TEST_F(MetadataHumanReadableTests, compilerReqs) {
     const std::string reqs = "platform=NPU3720;tiles=2;etc=...";
-    auto meta = Metadata<METADATA_VERSION_2_5>(0,
+    auto meta = Metadata<METADATA_VERSION_2_6>(0,
                                                CURRENT_OPENVINO_VERSION,
+                                               std::nullopt,
                                                std::nullopt,
                                                std::nullopt,
                                                std::nullopt,
@@ -118,23 +119,7 @@ TEST_F(MetadataHumanReadableTests, compilerReqs) {
     EXPECT_EQ(storedMeta->get_runtime_reqs().value(), reqs);
 }
 
-TEST_F(MetadataHumanReadableTests, emptyCompilerReqs) {
-    auto meta = Metadata<METADATA_VERSION_2_5>(0,
-                                               CURRENT_OPENVINO_VERSION,
-                                               std::nullopt,
-                                               std::nullopt,
-                                               std::nullopt,
-                                               std::nullopt,
-                                               std::nullopt,
-                                               std::string{});
-    const auto tensor = makeTextTensor(meta);
-
-    std::unique_ptr<MetadataBase> storedMeta;
-    OV_ASSERT_NO_THROW(storedMeta = read_as_text(tensor));
-
-    ASSERT_FALSE(storedMeta->get_runtime_reqs().has_value());
-}
-
+// remove compiler version from compat string
 TEST_F(MetadataHumanReadableTests, compilerVersion) {
     const uint32_t compilerVersion = 0xCAFECAFE;
     auto meta = Metadata<METADATA_VERSION_2_4>(0,
@@ -149,8 +134,7 @@ TEST_F(MetadataHumanReadableTests, compilerVersion) {
     std::unique_ptr<MetadataBase> storedMeta;
     OV_ASSERT_NO_THROW(storedMeta = read_as_text(tensor));
 
-    ASSERT_TRUE(storedMeta->get_compiler_version().has_value());
-    EXPECT_EQ(storedMeta->get_compiler_version().value(), compilerVersion);
+    ASSERT_FALSE(storedMeta->get_compiler_version().has_value());
 }
 
 TEST_F(MetadataHumanReadableTests, allFields) {
@@ -158,14 +142,15 @@ TEST_F(MetadataHumanReadableTests, allFields) {
     const int64_t batchSize = 8;
     const uint32_t compilerVersion = 0xDEADBEEF;
     const std::string reqs = "platform=NPU3720;tiles=2;etc=...";
-    auto meta = Metadata<CURRENT_METADATA_VERSION>(0,
-                                                   CURRENT_OPENVINO_VERSION,
-                                                   initSizes,
-                                                   batchSize,
-                                                   std::nullopt,
-                                                   std::nullopt,
-                                                   compilerVersion,
-                                                   reqs);
+    auto meta = Metadata<METADATA_VERSION_2_6>(0,
+                                               CURRENT_OPENVINO_VERSION,
+                                               initSizes,
+                                               batchSize,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               compilerVersion,
+                                               std::nullopt,
+                                               reqs);
     const auto tensor = makeTextTensor(meta);
 
     std::unique_ptr<MetadataBase> storedMeta;
@@ -180,8 +165,7 @@ TEST_F(MetadataHumanReadableTests, allFields) {
     EXPECT_EQ(storedMeta->get_batch_size().value(), batchSize);
     ASSERT_FALSE(storedMeta->get_input_layouts().has_value());
     ASSERT_FALSE(storedMeta->get_output_layouts().has_value());
-    ASSERT_TRUE(storedMeta->get_compiler_version().has_value());
-    EXPECT_EQ(storedMeta->get_compiler_version().value(), compilerVersion);
+    ASSERT_FALSE(storedMeta->get_compiler_version().has_value());
     ASSERT_TRUE(storedMeta->get_runtime_reqs().has_value());
     EXPECT_EQ(storedMeta->get_runtime_reqs().value(), reqs);
 }

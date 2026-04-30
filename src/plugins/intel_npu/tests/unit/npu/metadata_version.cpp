@@ -16,10 +16,11 @@ struct MetadataTest : Metadata<CURRENT_METADATA_VERSION> {
     MetadataTest(uint64_t blobSize,
                  const std::optional<OpenvinoVersion>& ovVersion,
                  const std::optional<std::vector<uint64_t>>& initSizes = std::nullopt,
-                 const std::optional<int64_t> batchSize = std::nullopt,
+                 const std::optional<int64_t>& batchSize = std::nullopt,
                  const std::optional<std::vector<ov::Layout>>& inputLayouts = std::nullopt,
                  const std::optional<std::vector<ov::Layout>>& outputLayouts = std::nullopt,
-                 const std::optional<uint32_t> compilerVersion = std::nullopt,
+                 const std::optional<uint32_t>& compilerVersion = std::nullopt,
+                 const std::optional<uint64_t>& blobSizeAfterEncryption = std::nullopt,
                  const std::optional<std::string>& compilerReqs = std::nullopt)
         : Metadata<CURRENT_METADATA_VERSION>(blobSize,
                                              ovVersion,
@@ -28,6 +29,7 @@ struct MetadataTest : Metadata<CURRENT_METADATA_VERSION> {
                                              inputLayouts,
                                              outputLayouts,
                                              compilerVersion,
+                                             blobSizeAfterEncryption,
                                              compilerReqs) {}
 
     void set_version(uint32_t newVersion) {
@@ -177,6 +179,7 @@ TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlobWithCompilerReqs) {
                              std::nullopt,
                              std::nullopt,
                              std::nullopt,
+                             std::nullopt,
                              compilerReqs);
     OV_ASSERT_NO_THROW(meta.write(stream));
 
@@ -207,6 +210,7 @@ TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlobWithEmptyCompilerRe
                              std::nullopt,
                              std::nullopt,
                              std::nullopt,
+                             std::nullopt,
                              std::string{});
     OV_ASSERT_NO_THROW(meta.write(stream));
 
@@ -225,7 +229,8 @@ TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlobWithEmptyCompilerRe
 TEST_F(MetadataUnitTests, compilerReqsLenExceedsTensorBounds) {
     std::stringstream stream;
     const std::string reqs = "platform=NPU3720;tiles=2;etc=...";
-    auto meta = Metadata<METADATA_VERSION_2_5>(0,
+    auto meta = Metadata<METADATA_VERSION_2_6>(0,
+                                               std::nullopt,
                                                std::nullopt,
                                                std::nullopt,
                                                std::nullopt,
