@@ -98,8 +98,12 @@ if(ENABLE_THREAD_SANITIZER)
         message(FATAL_ERROR "Thread sanitizer is not supported in Windows with MSVC compiler. Please, use clang-cl or mingw")
     elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
         set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize=thread")
-
         set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -fsanitize=thread")
+
+        if(BUILD_SHARED_LIBS AND OV_COMPILER_IS_CLANG)
+            set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -shared-libsan")
+            set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -shared-libsan")
+        endif()
     else()
         message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
     endif()
