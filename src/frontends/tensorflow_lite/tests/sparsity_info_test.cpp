@@ -26,11 +26,9 @@ constexpr uint8_t kDummyValues[16] = {0};
 // enable() call, leaving m_disabled = false on incomplete metadata.
 TEST(SparsityInfoTest, DefaultConstructedNotDisabledUntilEnable) {
     SparsityInfo s;
-    EXPECT_FALSE(s.is_disabled())
-        << "Default-constructed SparsityInfo must report not-disabled before enable() runs.";
+    EXPECT_FALSE(s.is_disabled()) << "Default-constructed SparsityInfo must report not-disabled before enable() runs.";
     s.enable();
-    EXPECT_TRUE(s.is_disabled())
-        << "After enable() with all fields empty, SparsityInfo must report disabled.";
+    EXPECT_TRUE(s.is_disabled()) << "After enable() with all fields empty, SparsityInfo must report disabled.";
 }
 
 TEST(SparsityInfoTest, EnableDisablesWhenShapeEmpty) {
@@ -85,16 +83,8 @@ TEST(SparsityInfoTest, EnableEnablesWhenAllFourPopulated) {
 
 TEST(SparsityInfoTest, FullCtorAlreadyEnabled) {
     SparsityInfo::SparsityDataDesc desc{};
-    SparsityInfo s({2, 2},
-                   {0, 1},
-                   {0},
-                   {0, 1},
-                   {desc, desc},
-                   ov::element::f32,
-                   kDummyValues,
-                   sizeof(kDummyValues));
-    EXPECT_FALSE(s.is_disabled())
-        << "Full ctor must call enable() and find all fields populated.";
+    SparsityInfo s({2, 2}, {0, 1}, {0}, {0, 1}, {desc, desc}, ov::element::f32, kDummyValues, sizeof(kDummyValues));
+    EXPECT_FALSE(s.is_disabled()) << "Full ctor must call enable() and find all fields populated.";
 }
 
 // The full ctor calls enable() at the end (sparsity_info.hpp:47). With an
@@ -103,7 +93,7 @@ TEST(SparsityInfoTest, FullCtorWithEmptyDimFormatDisables) {
     SparsityInfo s({2, 2},
                    {0, 1},
                    {0},
-                   {},   // dim_format empty
+                   {},  // dim_format empty
                    {},
                    ov::element::f32,
                    kDummyValues,
@@ -134,8 +124,7 @@ TEST(SparsityInfoTest, DisableSetsFlagAndEnableReevaluates) {
     EXPECT_TRUE(s.is_disabled());
 
     s.enable();
-    EXPECT_FALSE(s.is_disabled())
-        << "enable() must re-evaluate from scratch, not stay disabled.";
+    EXPECT_FALSE(s.is_disabled()) << "enable() must re-evaluate from scratch, not stay disabled.";
 }
 
 // is_copyable() is fixed to false for runtime attributes — sparsity is bound

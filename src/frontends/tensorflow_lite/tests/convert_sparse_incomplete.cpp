@@ -30,8 +30,7 @@ protected:
 };
 
 TEST_P(IncompleteSparsityLoadConvertTest, load_and_convert_succeed) {
-    auto model_filename =
-        FrontEndTestUtils::make_model_path(string(TEST_TENSORFLOW_LITE_MODELS_DIRNAME) + GetParam());
+    auto model_filename = FrontEndTestUtils::make_model_path(string(TEST_TENSORFLOW_LITE_MODELS_DIRNAME) + GetParam());
 
     InputModel::Ptr inputModel;
     OV_ASSERT_NO_THROW(inputModel = m_frontEnd->load(model_filename));
