@@ -842,7 +842,6 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
 
         // Gemma4: pass per_layer_inputs from external inputs into the prefill sub-request.
         // Shape is [1, seq_len, num_layers, proj_dim]; copy right-aligned on the seq_len dim.
-        // Note: dst was already cleared by prepare_for_new_conversation, no need to fill 0 again.
         if (per_layer_inputs) {
             auto it = m_prefill_in_ports.find(layer_names::per_layer_inputs);
             OPENVINO_ASSERT(it != m_prefill_in_ports.end(), "per_layer_inputs port not found in prefill sub-model");
@@ -1023,7 +1022,6 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
             auto it = m_kvcache_in_ports.find(layer_names::per_layer_inputs);
             OPENVINO_ASSERT(it != m_kvcache_in_ports.end(), "per_layer_inputs port not found in kvcache sub-model");
             auto dst = m_kvcache_request->get_tensor(it->second);
-            ov::npuw::util::fill_tensor_bytes(dst, 0u);
             ov::npuw::util::copy_to_right(per_layer_inputs, dst);
         }
     });
