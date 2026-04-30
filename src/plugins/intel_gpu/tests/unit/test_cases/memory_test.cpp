@@ -15,6 +15,8 @@
 #include <intel_gpu/primitives/crop.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/grid_sample.hpp>
+#include <intel_gpu/primitives/reorder.hpp>
+#include <primitive_inst.h>
 #include <fully_connected_inst.h>
 
 using namespace cldnn;
@@ -163,6 +165,15 @@ public:
         network::ptr network = get_network(*engine, topology, config, get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input", input);
         auto outputs = network->execute();
+
+        auto input_inst = network->get_primitive("input");
+        auto relu_inst  = network->get_primitive("relu");
+        auto relu2_inst = network->get_primitive("relu2");
+
+        // Both direct consumers of the lazy-allocated input must see the same external buffer.
+        ASSERT_TRUE(engine->is_the_same_buffer(*input_inst->output_memory_ptr(), *input));
+        ASSERT_TRUE(engine->is_the_same_buffer(*relu_inst->dep_memory_ptr(0),  *input));
+        ASSERT_TRUE(engine->is_the_same_buffer(*relu2_inst->dep_memory_ptr(0), *input));
 
         // input_layout no longer pre-allocates memory at network construction time,
         // The remaining peak is 1280 bytes:
@@ -430,10 +441,177 @@ public:
         network_second->set_input_data("input", input_1);
         auto outputs_second = network_second->execute();
 
-        // now we have the previous peak + another 1152 for the second network's reoder node, plus 16 bytes for
+        // now we have the previous peak + another 1152 for the second network's reorder node, plus 16 bytes for
         // convolution output, and 16 bytes for the softmax output.
         // so 3208 + 1152 + 16 + 16 = 4392, without lazy allocations for input we'd go into 5928 bytes...
         ASSERT_EQ(engine->get_max_used_device_memory(), 4392ull);
+    }
+
+    void test_rebind_external_memory_multiple_times(bool is_caching_test) {
+        auto engine = create_test_engine();
+        layout input_lay{data_types::f32, format::bfyx, {1, 1, 2, 4}};
+        auto input_first = engine->allocate_memory(input_lay);
+        auto input_second = engine->allocate_memory(input_lay);
+
+        const std::vector<float> first_values = {-1.0f, 2.0f, -3.0f, 4.0f, -5.0f, 6.0f, -7.0f, 8.0f};
+        const std::vector<float> second_values = {10.0f, -20.0f, 30.0f, -40.0f, 50.0f, -60.0f, 70.0f, -80.0f};
+        set_values(input_first, first_values);
+        set_values(input_second, second_values);
+
+        topology topology;
+        topology.add(input_layout("input", input_lay));
+        topology.add(activation("relu", input_info("input"), activation_func::relu));
+
+        ExecutionConfig config = get_test_default_config(*engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+
+        network::ptr network = get_network(*engine, topology, config, get_test_stream_ptr(), is_caching_test);
+
+        auto input_inst = network->get_primitive("input");
+        auto relu_inst = network->get_primitive("relu");
+
+        // Lazy input allocation means input_layout should stay unmaterialized until set_input_data().
+        ASSERT_EQ(input_inst->output_memory_ptr(), nullptr);
+
+        network->set_input_data("input", input_first);
+        auto outputs_first = network->execute();
+
+        // After the first bind, both input_layout and the downstream consumer must point to the
+        // external memory object passed through set_input_data().
+        ASSERT_TRUE(engine->is_the_same_buffer(*input_inst->output_memory_ptr(), *input_first));
+        ASSERT_TRUE(engine->is_the_same_buffer(*relu_inst->dep_memory_ptr(0), *input_first));
+
+        auto first_bound_input_ptr = relu_inst->dep_memory_ptr(0)->buffer_ptr();
+        {
+            cldnn::mem_lock<float> first_output_ptr(outputs_first.at("relu").get_memory(), get_test_stream());
+            ASSERT_EQ(first_output_ptr[0], 0.0f);
+            ASSERT_EQ(first_output_ptr[1], 2.0f);
+            ASSERT_EQ(first_output_ptr[2], 0.0f);
+            ASSERT_EQ(first_output_ptr[3], 4.0f);
+            ASSERT_EQ(first_output_ptr[4], 0.0f);
+            ASSERT_EQ(first_output_ptr[5], 6.0f);
+            ASSERT_EQ(first_output_ptr[6], 0.0f);
+            ASSERT_EQ(first_output_ptr[7], 8.0f);
+        }
+
+        network->set_input_data("input", input_second);
+        auto outputs_second = network->execute();
+
+        // Rebinding must refresh the consumer dependency as well, not only input_layout itself.
+        ASSERT_TRUE(engine->is_the_same_buffer(*input_inst->output_memory_ptr(), *input_second));
+        ASSERT_TRUE(engine->is_the_same_buffer(*relu_inst->dep_memory_ptr(0), *input_second));
+
+        auto second_bound_input_ptr = relu_inst->dep_memory_ptr(0)->buffer_ptr();
+        // The consumer should no longer reference the buffer from the first inference.
+        ASSERT_NE(first_bound_input_ptr, second_bound_input_ptr);
+
+        cldnn::mem_lock<float> second_output_ptr(outputs_second.at("relu").get_memory(), get_test_stream());
+        ASSERT_EQ(second_output_ptr[0], 10.0f);
+        ASSERT_EQ(second_output_ptr[1], 0.0f);
+        ASSERT_EQ(second_output_ptr[2], 30.0f);
+        ASSERT_EQ(second_output_ptr[3], 0.0f);
+        ASSERT_EQ(second_output_ptr[4], 50.0f);
+        ASSERT_EQ(second_output_ptr[5], 0.0f);
+        ASSERT_EQ(second_output_ptr[6], 70.0f);
+        ASSERT_EQ(second_output_ptr[7], 0.0f);
+    }
+
+    void test_aliasing_through_chain_of_optimized_ops(bool is_caching_test) {
+        auto engine = create_test_engine();
+        layout input_lay{ov::PartialShape{5, 6, 1, 1}, data_types::f32, format::bfyx};
+        auto input = engine->allocate_memory(input_lay);
+
+        set_values(input, { 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 
+                            0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 
+                            0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 
+                            0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 
+                            0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f });
+
+        topology topology;
+        topology.add(input_layout("input", input_lay));
+        topology.add(crop("crop1", {input_info("input")}, tensor(5, 5, 1, 1), {tensor(0, 0, 0, 0)}));
+        topology.add(crop("crop2", {input_info("crop1")}, tensor(5, 4, 1, 1), {tensor(0, 0, 0, 0)}));
+        topology.add(reorder("reorder_out", input_info("crop2"), layout{ov::PartialShape{5, 4, 1, 1}, data_types::f32, format::bfyx}));
+
+        ExecutionConfig config = get_test_default_config(*engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+
+        network::ptr network = get_network(*engine, topology, config, get_test_stream_ptr(), is_caching_test);
+
+        auto input_inst = network->get_primitive("input");
+        auto crop1_inst = network->get_primitive("crop1");
+        auto crop2_inst = network->get_primitive("crop2");
+        auto reorder_inst = network->get_primitive("reorder_out");
+
+        ASSERT_EQ(input_inst->output_memory_ptr(), nullptr);
+
+        network->set_input_data("input", input);
+        auto outputs = network->execute();
+
+        ASSERT_TRUE(crop1_inst->can_be_optimized());
+        ASSERT_TRUE(crop2_inst->can_be_optimized());
+
+        // The optimized crop chain should stay backed by the original external input buffer.
+        ASSERT_TRUE(engine->is_the_same_buffer(*input_inst->output_memory_ptr(), *input));
+        ASSERT_TRUE(engine->is_the_same_buffer(*network->get_output_memory("crop1"), *input));
+        ASSERT_TRUE(engine->is_the_same_buffer(*network->get_output_memory("crop2"), *input));
+
+        // The final consumer must receive the aliased view from the last optimized op in the chain.
+        ASSERT_TRUE(engine->is_the_same_buffer(*reorder_inst->dep_memory_ptr(0), *network->get_output_memory("crop2")));
+
+        cldnn::mem_lock<float> output_ptr(outputs.at("reorder_out").get_memory(), get_test_stream());
+        const std::vector<float> expected = { 0.0f, 1.0f, 2.0f, 3.0f, 
+                                              0.0f, 1.0f, 2.0f, 3.0f, 
+                                              0.0f, 1.0f, 2.0f, 3.0f, 
+                                              0.0f, 1.0f, 2.0f, 3.0f, 
+                                              0.0f, 1.0f, 2.0f, 3.0f };
+        for (size_t i = 0; i < expected.size(); ++i) {
+            ASSERT_EQ(output_ptr[i], expected[i]);
+        }
+    }
+
+    void test_feed_previous_output_into_next_inference_input(bool is_caching_test) {
+        auto engine = create_test_engine();
+        layout input_lay{data_types::f32, format::bfyx, {1, 1, 2, 4}};
+        auto input = engine->allocate_memory(input_lay);
+        set_values(input, {1.0f, 2.0f, 3.0f, 4.0f, -1.0f, -2.0f, -3.0f, -4.0f});
+
+        topology topology;
+        topology.add(input_layout("input", input_lay));
+        topology.add(activation("shift", input_info("input"), activation_func::linear, {1.0f, 1.0f}));
+
+        ExecutionConfig config = get_test_default_config(*engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+
+        network::ptr network = get_network(*engine, topology, config, get_test_stream_ptr(), is_caching_test);
+
+        auto input_inst = network->get_primitive("input");
+        auto shift_inst = network->get_primitive("shift");
+
+        network->set_input_data("input", input);
+        auto outputs_first = network->execute();
+        auto first_output_mem = outputs_first.at("shift").get_memory();
+
+        {
+            cldnn::mem_lock<float> first_output_ptr(first_output_mem, get_test_stream());
+            const std::vector<float> expected_first = {2.0f, 3.0f, 4.0f, 5.0f, 0.0f, -1.0f, -2.0f, -3.0f};
+            for (size_t i = 0; i < expected_first.size(); ++i) {
+                ASSERT_EQ(first_output_ptr[i], expected_first[i]);
+            }
+        } // release the mem_lock...
+
+        // Feeding the previous output back as the next input is a valid zero-copy workflow.
+        network->set_input_data("input", first_output_mem);
+        ASSERT_TRUE(engine->is_the_same_buffer(*input_inst->output_memory_ptr(), *first_output_mem));
+        ASSERT_TRUE(engine->is_the_same_buffer(*shift_inst->dep_memory_ptr(0), *first_output_mem));
+
+        auto outputs_second = network->execute();
+        cldnn::mem_lock<float> second_output_ptr(outputs_second.at("shift").get_memory(), get_test_stream());
+        const std::vector<float> expected_second = {3.0f, 4.0f, 5.0f, 6.0f, 1.0f, 0.0f, -1.0f, -2.0f};
+        // The second inference must apply the transform again, not reuse stale bindings.
+        for (size_t i = 0; i < expected_second.size(); ++i) {
+            ASSERT_EQ(second_output_ptr[i], expected_second[i]);
+        }
     }
 
     void test_shared_dep_two_output(bool is_caching_test) {
@@ -745,6 +923,18 @@ TEST_F(memory_pool, shared_mem_pool_diff_batches) {
     this->test_shared_mem_pool_diff_batches(false);
 }
 
+TEST_F(memory_pool, rebind_external_memory_multiple_times) {
+    this->test_rebind_external_memory_multiple_times(false);
+}
+
+TEST_F(memory_pool, aliasing_through_chain_of_optimized_ops) {
+    this->test_aliasing_through_chain_of_optimized_ops(false);
+}
+
+TEST_F(memory_pool, feed_previous_output_into_next_inference_input) {
+    this->test_feed_previous_output_into_next_inference_input(false);
+}
+
 TEST_F(memory_pool, shared_dep_two_output) {
     this->test_shared_dep_two_output(false);
 }
@@ -790,6 +980,18 @@ TEST_F(memory_pool, oooq_cached) {
 
 TEST_F(memory_pool, shared_mem_pool_diff_batches_cached) {
     this->test_shared_mem_pool_diff_batches(true);
+}
+
+TEST_F(memory_pool, rebind_external_memory_multiple_times_cached) {
+    this->test_rebind_external_memory_multiple_times(true);
+}
+
+TEST_F(memory_pool, aliasing_through_chain_of_optimized_ops_cached) {
+    this->test_aliasing_through_chain_of_optimized_ops(true);
+}
+
+TEST_F(memory_pool, feed_previous_output_into_next_inference_input_cached) {
+    this->test_feed_previous_output_into_next_inference_input(true);
 }
 
 TEST_F(memory_pool, shared_dep_two_output_cached) {
