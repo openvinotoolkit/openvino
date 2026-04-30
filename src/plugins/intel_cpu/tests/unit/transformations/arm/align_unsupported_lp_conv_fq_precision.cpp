@@ -24,12 +24,6 @@ using namespace ov::intel_cpu;
 
 namespace {
 
-struct ConvFQModel {
-    std::shared_ptr<ov::Model> model;
-    std::shared_ptr<ov::op::v1::Convolution> conv;
-    std::shared_ptr<ov::op::v0::FakeQuantize> output_fq;
-};
-
 // Create FQ with ranges that naturally resolve to the desired precision:
 // u8: output range [0, 255] → unsigned
 // i8: output range [-128, 127] → signed
@@ -50,8 +44,9 @@ std::shared_ptr<ov::op::v0::FakeQuantize> create_fq_with_natural_precision(
     return fq;
 }
 
-ConvFQModel create_model(ov::element::Type conv_input_precision,
-                         ov::element::Type output_fq_natural_precision) {
+std::shared_ptr<ov::Model> create_model(ov::element::Type conv_input_precision,
+                                        ov::element::Type output_fq_natural_precision,
+                                        const std::vector<ov::element::Type>& output_fq_precisions_attr) {
     auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 16, 16});
 
     const std::vector<ov::element::Type> default_precisions = {ov::element::u8, ov::element::i8};
@@ -70,73 +65,39 @@ ConvFQModel create_model(ov::element::Type conv_input_precision,
     auto bias = ov::op::v0::Constant::create(ov::element::f32, {1, 16, 1, 1}, {1.5f});
     auto add = std::make_shared<ov::op::v1::Add>(conv, bias);
 
-    auto output_fq = create_fq_with_natural_precision(add, output_fq_natural_precision, default_precisions);
+    auto output_fq = create_fq_with_natural_precision(add, output_fq_natural_precision, output_fq_precisions_attr);
 
-    auto model = std::make_shared<ov::Model>(ov::OutputVector{output_fq}, ov::ParameterVector{input});
-    return {model, conv, output_fq};
-}
-
-ov::element::Type get_conv_input_precision(const std::shared_ptr<ov::op::v1::Convolution>& conv) {
-    auto& rt = conv->input(0).get_rt_info();
-    auto it = rt.find(ov::PrecisionsAttribute::get_type_info_static());
-    if (it == rt.end()) {
-        return ov::element::dynamic;
-    }
-    const auto& precisions = it->second.as<ov::PrecisionsAttribute>().value();
-    if (precisions.empty()) {
-        return ov::element::dynamic;
-    }
-    return precisions[0];
+    return std::make_shared<ov::Model>(ov::OutputVector{output_fq}, ov::ParameterVector{input});
 }
 
 }  // namespace
 
-using ov::pass::low_precision::fq_decomposition::getDataPrecisionByOutputPort;
-
 // Conv input u8, output FQ naturally i8 → output FQ should be forced to {u8}
-TEST(AlignUnsupportedLPConvFQPrecision, U8ActivationI8Output_Applied) {
-    auto [model, conv, output_fq] = create_model(ov::element::u8, ov::element::i8);
-
-    ov::pass::Manager manager;
+TEST_F(TransformationTestsF, ConvAndFQ_U8ActivationI8Output_Applied) {
+    const std::vector<ov::element::Type> default_precisions = {ov::element::u8, ov::element::i8};
+    model = create_model(ov::element::u8, ov::element::i8, default_precisions);
     manager.register_pass<AlignUnsupportedLPConvFQPrecision>();
-    manager.run_passes(model);
-
-    EXPECT_EQ(get_conv_input_precision(conv), ov::element::u8);
-    EXPECT_EQ(getDataPrecisionByOutputPort(output_fq).precision, ov::element::u8);
+    model_ref = create_model(ov::element::u8, ov::element::i8, {ov::element::u8});
 }
 
 // Conv input i8, output FQ naturally u8 → output FQ should be forced to {i8}
-TEST(AlignUnsupportedLPConvFQPrecision, I8ActivationU8Output_Applied) {
-    auto [model, conv, output_fq] = create_model(ov::element::i8, ov::element::u8);
-
-    ov::pass::Manager manager;
+TEST_F(TransformationTestsF, ConvAndFQ_I8ActivationU8Output_Applied) {
+    const std::vector<ov::element::Type> default_precisions = {ov::element::u8, ov::element::i8};
+    model = create_model(ov::element::i8, ov::element::u8, default_precisions);
     manager.register_pass<AlignUnsupportedLPConvFQPrecision>();
-    manager.run_passes(model);
-
-    EXPECT_EQ(get_conv_input_precision(conv), ov::element::i8);
-    EXPECT_EQ(getDataPrecisionByOutputPort(output_fq).precision, ov::element::i8);
+    model_ref = create_model(ov::element::i8, ov::element::u8, {ov::element::i8});
 }
 
 // Both u8 → output FQ not changed by the pass
-TEST(AlignUnsupportedLPConvFQPrecision, BothU8_NotApplied) {
-    auto [model, conv, output_fq] = create_model(ov::element::u8, ov::element::u8);
-
-    ov::pass::Manager manager;
+TEST_F(TransformationTestsF, ConvAndFQ_BothU8_NotApplied) {
+    const std::vector<ov::element::Type> default_precisions = {ov::element::u8, ov::element::i8};
+    model = create_model(ov::element::u8, ov::element::u8, default_precisions);
     manager.register_pass<AlignUnsupportedLPConvFQPrecision>();
-    manager.run_passes(model);
-
-    EXPECT_EQ(get_conv_input_precision(conv), ov::element::u8);
-    EXPECT_EQ(getDataPrecisionByOutputPort(output_fq).precision, ov::element::u8);
 }
 
 // Both i8 → output FQ not changed by the pass
-TEST(AlignUnsupportedLPConvFQPrecision, BothI8_NotApplied) {
-    auto [model, conv, output_fq] = create_model(ov::element::i8, ov::element::i8);
-
-    ov::pass::Manager manager;
+TEST_F(TransformationTestsF, ConvAndFQ_BothI8_NotApplied) {
+    const std::vector<ov::element::Type> default_precisions = {ov::element::u8, ov::element::i8};
+    model = create_model(ov::element::i8, ov::element::i8, default_precisions);
     manager.register_pass<AlignUnsupportedLPConvFQPrecision>();
-    manager.run_passes(model);
-
-    EXPECT_EQ(get_conv_input_precision(conv), ov::element::i8);
-    EXPECT_EQ(getDataPrecisionByOutputPort(output_fq).precision, ov::element::i8);
 }

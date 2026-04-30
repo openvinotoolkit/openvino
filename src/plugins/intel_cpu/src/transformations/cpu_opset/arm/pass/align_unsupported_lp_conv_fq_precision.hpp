@@ -27,7 +27,7 @@
  * Before:
  *
  *               +-----+------+
- *               | Convolution |  (input precision = u8)
+ *               | Convolution |  (precisions attribute = u8)
  *               +-----+------+
  *                     |
  *               +-----v------+
@@ -36,13 +36,13 @@
  *                     |
  *     +---------------------------------+
  *     |         FakeQuantize            |
- *     | PrecisionsAttribute = { i8 }   |  <-- mismatch with conv input
+ *     | PrecisionsAttribute = { u8, i8 }|  <-- mismatch with conv input
  *     +---------------------------------+
  *
  * After:
  *
  *               +-----+------+
- *               | Convolution |  (input precision = u8)
+ *               | Convolution |  (precisions attribute = u8)
  *               +-----+------+
  *                     |
  *               +-----v------+
@@ -51,7 +51,7 @@
  *                     |
  *     +---------------------------------+
  *     |         FakeQuantize            |
- *     | PrecisionsAttribute = { u8 }   |  <-- aligned to conv input
+ *     | PrecisionsAttribute = { u8 }    |  <-- aligned to conv input
  *     +---------------------------------+
  */
 

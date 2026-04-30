@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <memory>
-
 #include "align_unsupported_lp_conv_fq_precision.hpp"
+
+#include <memory>
 
 #include "low_precision/fake_quantize_decomposition.hpp"
 #include "low_precision/network_helper.hpp"
@@ -66,12 +66,8 @@ ov::intel_cpu::AlignUnsupportedLPConvFQPrecision::AlignUnsupportedLPConvFQPrecis
         }
 
         auto fq_attr = low_precision::getAttributeFromOutput<ov::PrecisionsAttribute>(fq_node->output(0));
-        if (fq_attr.empty()) {
-            fq_node->output(0).get_rt_info()[ov::PrecisionsAttribute::get_type_info_static()] =
-                ov::PrecisionsAttribute({conv_precision});
-        } else {
-            fq_attr.as<ov::PrecisionsAttribute>().value() = {conv_precision};
-        }
+        OPENVINO_ASSERT(!fq_attr.empty(), "FQ attributes should not be empty");
+        fq_attr.as<ov::PrecisionsAttribute>().value() = {conv_precision};
 
         return true;
     };
