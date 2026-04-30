@@ -275,3 +275,111 @@ class TestPooling(PytorchLayerTest):
         self.input_tensor = self.random.randn(*input_shape)
         self._test(*self.create_model("max_pool3d_with_indices", **params, ceil_mode=ceil_mode, dilation=dilation),
                    ie_device, precision, ir_version, dynamic_shapes=is_dynamic_shapes)
+
+
+class TestFractionalMaxPooling(PytorchLayerTest):
+    def _prepare_input(self):
+        return (self.input_tensor,)
+
+    def create_model(self, op_type, kernel_size, output_size):
+        class aten_fractional_max_pool2d(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.kernel_size = kernel_size
+                self.output_size = output_size
+
+            def forward(self, x):
+                return torch.nn.functional.fractional_max_pool2d(
+                    x, self.kernel_size, self.output_size
+                )
+
+        class aten_fractional_max_pool2d_indices(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.kernel_size = kernel_size
+                self.output_size = output_size
+
+            def forward(self, x):
+                return torch.nn.functional.fractional_max_pool2d(
+                    x, self.kernel_size, self.output_size, return_indices=True
+                )
+
+        class aten_fractional_max_pool3d(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.kernel_size = kernel_size
+                self.output_size = output_size
+
+            def forward(self, x):
+                return torch.nn.functional.fractional_max_pool3d(
+                    x, self.kernel_size, self.output_size
+                )
+
+        class aten_fractional_max_pool3d_indices(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.kernel_size = kernel_size
+                self.output_size = output_size
+
+            def forward(self, x):
+                return torch.nn.functional.fractional_max_pool3d(
+                    x, self.kernel_size, self.output_size, return_indices=True
+                )
+
+        ops = {
+            "fractional_max_pool2d": aten_fractional_max_pool2d,
+            "fractional_max_pool2d_with_indices": aten_fractional_max_pool2d_indices,
+            "fractional_max_pool3d": aten_fractional_max_pool3d,
+            "fractional_max_pool3d_with_indices": aten_fractional_max_pool3d_indices,
+        }
+
+        aten_pooling = ops[op_type]
+        return aten_pooling(), f"aten::{op_type}"
+
+    @pytest.mark.parametrize("input_shape", [[1, 3, 16, 16], [3, 16, 16]])
+    @pytest.mark.parametrize("kernel_size", [[2, 2], [3, 3]])
+    @pytest.mark.parametrize("output_size", [[4, 4], [8, 8]])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
+    def test_fractional_max_pool2d(self, input_shape, kernel_size, output_size, ie_device, precision, ir_version):
+        self.input_tensor = self.random.randn(*input_shape).astype(np.float32)
+        self._test(*self.create_model("fractional_max_pool2d", kernel_size, output_size),
+                   ie_device, precision, ir_version, trace_model=True)
+
+    @pytest.mark.parametrize("input_shape", [[1, 3, 16, 16], [3, 16, 16]])
+    @pytest.mark.parametrize("kernel_size", [[2, 2], [3, 3]])
+    @pytest.mark.parametrize("output_size", [[4, 4], [8, 8]])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
+    def test_fractional_max_pool2d_indices(self, input_shape, kernel_size, output_size, ie_device, precision, ir_version):
+        self.input_tensor = self.random.randn(*input_shape).astype(np.float32)
+        self._test(*self.create_model("fractional_max_pool2d_with_indices", kernel_size, output_size),
+                   ie_device, precision, ir_version, trace_model=True)
+
+    @pytest.mark.parametrize("input_shape", [[1, 3, 16, 16, 16], [3, 16, 16, 16]])
+    @pytest.mark.parametrize("kernel_size", [[2, 2, 2], [3, 3, 3]])
+    @pytest.mark.parametrize("output_size", [[4, 4, 4], [8, 8, 8]])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
+    def test_fractional_max_pool3d(self, input_shape, kernel_size, output_size, ie_device, precision, ir_version):
+        self.input_tensor = self.random.randn(*input_shape).astype(np.float32)
+        self._test(*self.create_model("fractional_max_pool3d", kernel_size, output_size),
+                   ie_device, precision, ir_version, trace_model=True)
+
+    @pytest.mark.parametrize("input_shape", [[1, 3, 16, 16, 16], [3, 16, 16, 16]])
+    @pytest.mark.parametrize("kernel_size", [[2, 2, 2], [3, 3, 3]])
+    @pytest.mark.parametrize("output_size", [[4, 4, 4], [8, 8, 8]])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
+    def test_fractional_max_pool3d_indices(self, input_shape, kernel_size, output_size, ie_device, precision, ir_version):
+        self.input_tensor = self.random.randn(*input_shape).astype(np.float32)
+        self._test(*self.create_model("fractional_max_pool3d_with_indices", kernel_size, output_size),
+                   ie_device, precision, ir_version, trace_model=True)
