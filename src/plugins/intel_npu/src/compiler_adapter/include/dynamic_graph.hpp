@@ -198,6 +198,8 @@ public:
 
     std::optional<std::string_view> get_compatibility_descriptor() const override;
 
+    bool supports_sequential_inference() const override;
+
 private:
     void initialize_impl(const FilteredConfig& config) override;
 

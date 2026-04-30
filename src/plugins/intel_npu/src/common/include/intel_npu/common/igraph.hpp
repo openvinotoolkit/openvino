@@ -77,6 +77,8 @@ public:
 
     virtual std::optional<std::string_view> get_compatibility_descriptor() const;
 
+    virtual bool supports_sequential_inference() const = 0;
+
 protected:
     virtual void initialize_impl(const FilteredConfig& config);
 

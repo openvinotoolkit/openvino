@@ -91,21 +91,48 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     OV_ITT_TASK_CHAIN(COMPILED_MODEL, itt::domains::NPUPlugin, "CompiledModel::CompiledModel", "initialize_properties");
     _propertiesManager = std::make_unique<Properties>(PropertiesType::COMPILED_MODEL, localConfig);
 
-    // Override thread mode based on plugin-level scheduling constraints:
-    // - If exclusive async requests are enabled switch to ONE_THREAD_PER_CORE to ensure shared-resource safety across
-    //   serialized async requests.
-    // - If sequential inference is enforced alongside ONE_THREAD_PER_INFERENCE (which would spawn a dedicated thread
-    //   per request), downgrade to TWO_THREADS_PER_MODEL to avoid unnecessary per-request thread creation when requests
-    //   run sequentially anyway.
-    if (get_plugin()->get_property(ov::internal::exclusive_async_requests.name(), {}).as<bool>()) {
-
-        localConfig.update({{ov::intel_npu::thread_mode.name(),
-                              THREAD_MODE::toString(ov::intel_npu::ThreadMode::ONE_THREAD_PER_CORE)}});
+    // Override scheduling-related settings based on plugin-level constraints:
+    // - If exclusive async requests are enabled, enforce a shared executor mode compatible with the current command
+    //   queue sharing capabilities.
+    // - If sequential inference is enabled, enforce a shared executor mode instead of per-request threads to avoid
+    //   unnecessary thread creation while requests are serialized anyway.
+    if (localConfig.get<EXCLUSIVE_ASYNC_REQUESTS>()) {
+        if (localConfig.get<SHARED_COMMON_QUEUE>() && _graph->supports_sequential_inference()) {
+            _logger.info("Enforcing %s=%s because %s is enabled with shared common queue support.",
+                         ov::intel_npu::thread_mode.name(),
+                         THREAD_MODE::toString(ov::intel_npu::ThreadMode::TWO_THREADS_PER_CORE).c_str(),
+                         ov::internal::exclusive_async_requests.name());
+            localConfig.update({{ov::intel_npu::thread_mode.name(),
+                                  THREAD_MODE::toString(ov::intel_npu::ThreadMode::TWO_THREADS_PER_CORE)}});
+        } else {
+            _logger.info("Enforcing %s=%s and %s=%s because %s is enabled without shared common queue support.",
+                         ov::intel_npu::thread_mode.name(),
+                         THREAD_MODE::toString(ov::intel_npu::ThreadMode::ONE_THREAD_PER_CORE).c_str(),
+                         ov::intel_npu::run_inferences_sequentially.name(),
+                         RUN_INFERENCES_SEQUENTIALLY::toString(false).c_str(),
+                         ov::internal::exclusive_async_requests.name());
+            localConfig.update({{ov::intel_npu::thread_mode.name(),
+                                  THREAD_MODE::toString(ov::intel_npu::ThreadMode::ONE_THREAD_PER_CORE)}});
+            localConfig.update(
+                {{ov::intel_npu::run_inferences_sequentially.name(), RUN_INFERENCES_SEQUENTIALLY::toString(false)}});
+        }
     }
-    if (localConfig.get<RUN_INFERENCES_SEQUENTIALLY>() &&
-        localConfig.get<THREAD_MODE>() == ov::intel_npu::ThreadMode::ONE_THREAD_PER_INFERENCE) {
-        localConfig.update({{ov::intel_npu::thread_mode.name(),
-                              THREAD_MODE::toString(ov::intel_npu::ThreadMode::TWO_THREADS_PER_MODEL)}});
+    if (localConfig.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        if (localConfig.get<THREAD_MODE>() == ov::intel_npu::ThreadMode::ONE_THREAD_PER_INFERENCE) {
+            _logger.info("Enforcing %s=%s because %s is enabled.",
+                         ov::intel_npu::thread_mode.name(),
+                         THREAD_MODE::toString(ov::intel_npu::ThreadMode::TWO_THREADS_PER_MODEL).c_str(),
+                         ov::intel_npu::run_inferences_sequentially.name());
+            localConfig.update({{ov::intel_npu::thread_mode.name(),
+                                  THREAD_MODE::toString(ov::intel_npu::ThreadMode::TWO_THREADS_PER_MODEL)}});
+        } else if (localConfig.get<THREAD_MODE>() == ov::intel_npu::ThreadMode::ONE_THREAD_PER_CORE) {
+            _logger.info("Enforcing %s=%s because %s is enabled.",
+                         ov::intel_npu::thread_mode.name(),
+                         THREAD_MODE::toString(ov::intel_npu::ThreadMode::TWO_THREADS_PER_CORE).c_str(),
+                         ov::intel_npu::run_inferences_sequentially.name());
+            localConfig.update({{ov::intel_npu::thread_mode.name(),
+                                  THREAD_MODE::toString(ov::intel_npu::ThreadMode::TWO_THREADS_PER_CORE)}});
+        }
     }
 
     OV_ITT_TASK_CHAIN(COMPILED_MODEL, itt::domains::NPUPlugin, "CompiledModel::CompiledModel", "initialize_properties");

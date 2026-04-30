@@ -66,6 +66,8 @@ public:
 
     ~Graph() override;
 
+    bool supports_sequential_inference() const override;
+
 protected:
     void initialize_impl(const FilteredConfig& config) override;
 

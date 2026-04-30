@@ -779,6 +779,7 @@ void Properties::registerCompiledModelProperties() {
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::enable_weightless, ENABLE_WEIGHTLESS);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::separate_weights_version, SEPARATE_WEIGHTS_VERSION);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::enable_strides_for, ENABLE_STRIDES_FOR);
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::internal::exclusive_async_requests, EXCLUSIVE_ASYNC_REQUESTS);
 
     TRY_REGISTER_VARPUB_PROPERTY(ov::intel_npu::batch_mode, BATCH_MODE, false);
     TRY_REGISTER_VARPUB_PROPERTY(ov::intel_npu::shared_common_queue, SHARED_COMMON_QUEUE, false);

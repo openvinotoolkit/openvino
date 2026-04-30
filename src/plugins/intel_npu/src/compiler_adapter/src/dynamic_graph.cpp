@@ -579,6 +579,14 @@ ze_graph_handle_t DynamicGraph::get_handle() const {
     return nullptr;
 }
 
+bool DynamicGraph::supports_sequential_inference() const {
+    if (_zeroInitStruct == nullptr) {
+        return false;
+    }
+
+    return _zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1);
+}
+
 void DynamicGraph::initialize_impl(const FilteredConfig& config) {
     _logger.debug("Graph initialize start");
 
@@ -603,8 +611,8 @@ void DynamicGraph::initialize_impl(const FilteredConfig& config) {
         _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_TURBO in command queue options");
         commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
     }
-    if (config.has<RUN_INFERENCES_SEQUENTIALLY>() && config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
-        OPENVINO_ASSERT(_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1),
+    if (config.get<RUN_INFERENCES_SEQUENTIALLY>() || config.get<EXCLUSIVE_ASYNC_REQUESTS>()) {
+        OPENVINO_ASSERT(supports_sequential_inference(),
                         "Running inferences sequentially is not supported by the current driver");
         _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC in command queue options");
         commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
@@ -616,7 +624,7 @@ void DynamicGraph::initialize_impl(const FilteredConfig& config) {
             zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
             config.has<WORKLOAD_TYPE>() ? zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>()) : std::nullopt,
             commandQueueOptions,
-            this,
+            supports_sequential_inference() && config.get<EXCLUSIVE_ASYNC_REQUESTS>() ? nullptr : this,
             config.get<SHARED_COMMON_QUEUE>()};
     }
 

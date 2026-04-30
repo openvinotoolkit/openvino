@@ -922,4 +922,15 @@ Example:
         </filters>
     </skip_config>
 
+    <skip_config>
+        <message>For PV driver streamExecutorNumber is different</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+            <driver_version>1688</driver_version>
+        </enable_rules>
+        <filters>
+            <filter>.*InferRequestPropertiesTest.canSetExclusiveAsyncRequests.*</filter>
+        </filters>
+    </skip_config>
+
 </skip_configs>
