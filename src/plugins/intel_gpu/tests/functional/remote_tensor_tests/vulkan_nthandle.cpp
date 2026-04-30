@@ -14,8 +14,11 @@
 #ifdef _WIN32
 #    define VK_USE_PLATFORM_WIN32_KHR
 #include <windows.h>
+#include <psapi.h>
 #elif defined(__linux__)
 #    include <unistd.h>
+#    include <cstdio>
+#    include <fstream>
 #endif
 #include <vulkan/vulkan.h>
 
@@ -112,6 +115,103 @@ bool supports_external_import_handle_type(cl_device_id cl_device, cl_uint handle
     }
 
     return std::find(import_types.begin(), import_types.end(), handle_type) != import_types.end();
+}
+
+struct ProcessRamInfo {
+    double working_set_mb = 0.0;
+    double private_mb = 0.0;
+    bool valid = false;
+};
+
+struct GpuMemoryInfo {
+    double used_mb = 0.0;
+    double budget_mb = 0.0;
+    bool valid = false;
+};
+
+ProcessRamInfo query_process_memory() {
+    ProcessRamInfo info;
+#ifdef _WIN32
+    PROCESS_MEMORY_COUNTERS_EX counters{};
+    counters.cb = sizeof(counters);
+    if (GetProcessMemoryInfo(GetCurrentProcess(),
+                             reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&counters),
+                             sizeof(counters))) {
+        info.working_set_mb = static_cast<double>(counters.WorkingSetSize) / (1024.0 * 1024.0);
+        info.private_mb = static_cast<double>(counters.PrivateUsage) / (1024.0 * 1024.0);
+        info.valid = true;
+    }
+#elif defined(__linux__)
+    std::ifstream status_file("/proc/self/status");
+    std::string line;
+    while (std::getline(status_file, line)) {
+        double kb = 0.0;
+        if (line.rfind("VmRSS:", 0) == 0 && std::sscanf(line.c_str(), "VmRSS: %lf", &kb) == 1) {
+            info.working_set_mb = kb / 1024.0;
+            info.valid = true;
+        } else if (line.rfind("VmSize:", 0) == 0 && std::sscanf(line.c_str(), "VmSize: %lf", &kb) == 1) {
+            info.private_mb = kb / 1024.0;
+        }
+    }
+#endif
+    return info;
+}
+
+double bytes_to_mb(uint64_t bytes) {
+    return static_cast<double>(bytes) / (1024.0 * 1024.0);
+}
+
+bool has_device_extension(VkPhysicalDevice physical_device, const char* extension_name) {
+    uint32_t extension_count = 0;
+    if (vkEnumerateDeviceExtensionProperties(physical_device, nullptr, &extension_count, nullptr) != VK_SUCCESS) {
+        return false;
+    }
+
+    std::vector<VkExtensionProperties> available_extensions(extension_count);
+    if (vkEnumerateDeviceExtensionProperties(physical_device,
+                                             nullptr,
+                                             &extension_count,
+                                             available_extensions.data()) != VK_SUCCESS) {
+        return false;
+    }
+
+    return std::any_of(available_extensions.begin(),
+                       available_extensions.end(),
+                       [extension_name](const VkExtensionProperties& extension) {
+                           return std::strcmp(extension.extensionName, extension_name) == 0;
+                       });
+}
+
+GpuMemoryInfo query_vulkan_gpu_memory(VkPhysicalDevice physical_device) {
+    GpuMemoryInfo info;
+#ifdef VK_EXT_memory_budget
+    if (!has_device_extension(physical_device, VK_EXT_MEMORY_BUDGET_EXTENSION_NAME)) {
+        return info;
+    }
+
+    VkPhysicalDeviceMemoryBudgetPropertiesEXT budget_properties{};
+    budget_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_BUDGET_PROPERTIES_EXT;
+
+    VkPhysicalDeviceMemoryProperties2 memory_properties{};
+    memory_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PROPERTIES_2;
+    memory_properties.pNext = &budget_properties;
+    vkGetPhysicalDeviceMemoryProperties2(physical_device, &memory_properties);
+
+    uint64_t used_bytes = 0;
+    uint64_t budget_bytes = 0;
+    for (uint32_t i = 0; i < memory_properties.memoryProperties.memoryHeapCount; ++i) {
+        const VkMemoryHeap& heap = memory_properties.memoryProperties.memoryHeaps[i];
+        if ((heap.flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) != 0) {
+            used_bytes += budget_properties.heapUsage[i];
+            budget_bytes += budget_properties.heapBudget[i];
+        }
+    }
+
+    info.used_mb = bytes_to_mb(used_bytes);
+    info.budget_mb = bytes_to_mb(budget_bytes);
+    info.valid = budget_bytes > 0;
+#endif
+    return info;
 }
 
 std::shared_ptr<ov::Model> make_copy_model(const ov::Shape& shape) {
@@ -412,6 +512,11 @@ VulkanTestContext create_vulkan_test_context(const DeviceId& target_luid) {
 #ifdef __linux__
         device_extensions.push_back(k_vulkan_dma_buf_extension);
 #endif
+    #ifdef VK_EXT_memory_budget
+        if (has_device_extension(physical_device, VK_EXT_MEMORY_BUDGET_EXTENSION_NAME)) {
+            device_extensions.push_back(VK_EXT_MEMORY_BUDGET_EXTENSION_NAME);
+        }
+    #endif
 
         VkDeviceCreateInfo device_info{};
         device_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -499,7 +604,7 @@ VulkanSharedBuffer create_vulkan_shared_buffer(VulkanTestContext& context, size_
 
 TEST(GpuSharedBufferRemoteTensor, smoke_VulkanRemoteInputToRemoteOutputCopyAndCompare) {
     ov::Core core;
-    const ov::Shape shape{16};
+    const ov::Shape shape{16'000'000};
     const size_t element_count = ov::shape_size(shape);
     const size_t byte_size = element_count * sizeof(float);
 
@@ -543,6 +648,24 @@ TEST(GpuSharedBufferRemoteTensor, smoke_VulkanRemoteInputToRemoteOutputCopyAndCo
 
     ov::RemoteTensor remote_input_tensor;
     ov::RemoteTensor remote_output_tensor;
+
+    const auto mem_before = query_process_memory();
+    if (mem_before.valid) {
+        std::cout << "[INFO] Process RAM before remote tensor creation: working_set="
+                  << mem_before.working_set_mb << " MB, private="
+                  << mem_before.private_mb << " MB\n";
+    } else {
+        std::cout << "[INFO] Failed to query process memory before remote tensor creation\n";
+    }
+
+    const auto gpu_mem_before = query_vulkan_gpu_memory(vk_ctx.physical_device);
+    if (gpu_mem_before.valid) {
+        std::cout << "[INFO] GPU memory before remote tensor creation: used="
+                  << gpu_mem_before.used_mb << " MB, budget=" << gpu_mem_before.budget_mb << " MB\n";
+    } else {
+        std::cout << "[INFO] Failed to query GPU memory before remote tensor creation\n";
+    }
+
     try {
         remote_input_tensor = ov_ctx.create_tensor(ov::element::f32,
                                                    shape,
@@ -555,6 +678,26 @@ TEST(GpuSharedBufferRemoteTensor, smoke_VulkanRemoteInputToRemoteOutputCopyAndCo
     } catch (const ov::Exception& ex) {
         std::cout << "[INFO] Vulkan NT handle import not supported on this device: " << ex.what() << "\n";
         GTEST_SKIP() << "Vulkan NT handle import not supported on this configuration";
+    }
+
+    const auto mem_after = query_process_memory();
+    if (mem_after.valid) {
+        std::cout << "[INFO] Process RAM after remote tensor creation: working_set="
+                  << mem_after.working_set_mb << " MB, private="
+                  << mem_after.private_mb << " MB, delta_working_set="
+                  << (mem_after.working_set_mb - mem_before.working_set_mb) << " MB, delta_private="
+                  << (mem_after.private_mb - mem_before.private_mb) << " MB\n";
+    } else {
+        std::cout << "[INFO] Failed to query process memory after remote tensor creation\n";
+    }
+
+    const auto gpu_mem_after = query_vulkan_gpu_memory(vk_ctx.physical_device);
+    if (gpu_mem_after.valid) {
+        std::cout << "[INFO] GPU memory after remote tensor creation: used="
+                  << gpu_mem_after.used_mb << " MB, budget=" << gpu_mem_after.budget_mb
+                  << " MB, delta_used=" << (gpu_mem_after.used_mb - gpu_mem_before.used_mb) << " MB\n";
+    } else {
+        std::cout << "[INFO] Failed to query GPU memory after remote tensor creation\n";
     }
 
     std::vector<float> input_init(element_count, 2.0f);

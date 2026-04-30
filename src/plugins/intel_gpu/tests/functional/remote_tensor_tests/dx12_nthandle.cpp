@@ -20,6 +20,7 @@
 #include <d3d12.h>
 #include <dxgi1_4.h>
 #include <dxgidebug.h>
+#include <psapi.h>
 #ifdef NOMINMAX_DEFINED_SHARED_BUF_TEST
 #undef NOMINMAX
 #undef NOMINMAX_DEFINED_SHARED_BUF_TEST
@@ -43,6 +44,16 @@ std::string format_luid_bytes(const unsigned char* data, size_t size) {
         stream << std::setw(2) << static_cast<unsigned int>(data[index]);
     }
     return stream.str();
+}
+
+double bytes_to_mb(SIZE_T bytes) {
+    return static_cast<double>(bytes) / (1024.0 * 1024.0);
+}
+
+bool query_process_memory(PROCESS_MEMORY_COUNTERS_EX& counters) {
+    memset(&counters, 0, sizeof(counters));
+    counters.cb = sizeof(counters);
+    return GetProcessMemoryInfo(GetCurrentProcess(), reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&counters), sizeof(counters)) == TRUE;
 }
 
 bool get_context_device_luid(cl_context cl_ctx, std::array<unsigned char, CL_LUID_SIZE_KHR>& cl_luid) {
@@ -247,7 +258,7 @@ Dx12SharedBuffer create_dx12_shared_buffer(ID3D12Device* device,
 
 TEST(GpuSharedBufferRemoteTensor, smoke_Dx12RemoteInputToRemoteOutputCopyAndCompare) {
     ov::Core core;
-    const ov::Shape shape{16};
+    const ov::Shape shape{16'000'000};
     const size_t element_count = ov::shape_size(shape);
     const size_t byte_size = element_count * sizeof(float);
 
@@ -357,6 +368,16 @@ TEST(GpuSharedBufferRemoteTensor, smoke_Dx12RemoteInputToRemoteOutputCopyAndComp
 
     ov::RemoteTensor remote_input_tensor;
     ov::RemoteTensor remote_output_tensor;
+
+    PROCESS_MEMORY_COUNTERS_EX mem_before{};
+    if (query_process_memory(mem_before)) {
+        std::cout << "[INFO] Process RAM before remote tensor creation: working_set="
+                  << bytes_to_mb(mem_before.WorkingSetSize) << " MB, private="
+                  << bytes_to_mb(mem_before.PrivateUsage) << " MB\n";
+    } else {
+        std::cout << "[INFO] Failed to query process memory before remote tensor creation\n";
+    }
+
     try {
         remote_input_tensor = ov_ctx.create_tensor(ov::element::f32, shape,
                                                    dx_input_shared.shared_handle,
@@ -367,6 +388,18 @@ TEST(GpuSharedBufferRemoteTensor, smoke_Dx12RemoteInputToRemoteOutputCopyAndComp
     } catch (const ov::Exception& ex) {
         std::cout << "[INFO] NT handle import not supported on this device: " << ex.what() << "\n";
         return;
+    }
+
+    PROCESS_MEMORY_COUNTERS_EX mem_after{};
+    if (query_process_memory(mem_after)) {
+        const auto ws_delta_mb = bytes_to_mb(mem_after.WorkingSetSize) - bytes_to_mb(mem_before.WorkingSetSize);
+        const auto private_delta_mb = bytes_to_mb(mem_after.PrivateUsage) - bytes_to_mb(mem_before.PrivateUsage);
+        std::cout << "[INFO] Process RAM after remote tensor creation: working_set="
+                  << bytes_to_mb(mem_after.WorkingSetSize) << " MB, private="
+                  << bytes_to_mb(mem_after.PrivateUsage) << " MB, delta_working_set="
+                  << ws_delta_mb << " MB, delta_private=" << private_delta_mb << " MB\n";
+    } else {
+        std::cout << "[INFO] Failed to query process memory after remote tensor creation\n";
     }
 
     auto model = make_copy_model(shape);

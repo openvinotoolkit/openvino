@@ -21,6 +21,7 @@
 #include <d3d11.h>
 #include <d3d11_1.h>
 #include <dxgi1_2.h>
+#include <psapi.h>
 #ifdef NOMINMAX_DEFINED_SHARED_BUF_TEST
 #undef NOMINMAX
 #undef NOMINMAX_DEFINED_SHARED_BUF_TEST
@@ -36,6 +37,26 @@
 namespace {
 
 constexpr size_t kDx11SharedBufferAlignment = 16;
+
+struct ProcessRamInfo {
+    double working_set_mb = 0.0;
+    double private_mb = 0.0;
+    bool valid = false;
+};
+
+ProcessRamInfo query_process_memory() {
+    ProcessRamInfo info;
+    PROCESS_MEMORY_COUNTERS_EX counters{};
+    counters.cb = sizeof(counters);
+    if (GetProcessMemoryInfo(GetCurrentProcess(),
+                             reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&counters),
+                             sizeof(counters))) {
+        info.working_set_mb = static_cast<double>(counters.WorkingSetSize) / (1024.0 * 1024.0);
+        info.private_mb = static_cast<double>(counters.PrivateUsage) / (1024.0 * 1024.0);
+        info.valid = true;
+    }
+    return info;
+}
 
 size_t align_to(size_t size, size_t alignment) {
     return (size % alignment == 0) ? size : size - (size % alignment) + alignment;
@@ -197,7 +218,7 @@ CComPtr<ID3D11Buffer> open_dx11_shared_buffer(ID3D11Device* device, HANDLE share
 
 TEST(GpuSharedBufferRemoteTensor, smoke_Dx11RemoteInputToRemoteOutputCopyAndCompare) {
     ov::Core core;
-    const ov::Shape shape{16};
+    const ov::Shape shape{16'000'000};
     const size_t element_count = ov::shape_size(shape);
     const size_t byte_size = element_count * sizeof(float);
 
@@ -256,6 +277,15 @@ TEST(GpuSharedBufferRemoteTensor, smoke_Dx11RemoteInputToRemoteOutputCopyAndComp
 
     auto d3d_ctx = ov::intel_gpu::ocl::D3DContext(core, dx11.device);
 
+    const auto mem_before = query_process_memory();
+    if (mem_before.valid) {
+        std::cout << "[INFO] Process RAM before remote tensor creation: working_set="
+                  << mem_before.working_set_mb << " MB, private="
+                  << mem_before.private_mb << " MB\n";
+    } else {
+        std::cout << "[INFO] Failed to query process memory before remote tensor creation\n";
+    }
+
     auto remote_input_tensor = d3d_ctx.create_tensor(ov::element::f32,
                                                      shape,
                                                      dx_input_shared.shared_handle,
@@ -264,6 +294,17 @@ TEST(GpuSharedBufferRemoteTensor, smoke_Dx11RemoteInputToRemoteOutputCopyAndComp
                                                       shape,
                                                       dx_output_shared.shared_handle,
                                                       ov::intel_gpu::MemType::SHARED_BUF);
+
+    const auto mem_after = query_process_memory();
+    if (mem_after.valid) {
+        std::cout << "[INFO] Process RAM after remote tensor creation: working_set="
+                  << mem_after.working_set_mb << " MB, private="
+                  << mem_after.private_mb << " MB, delta_working_set="
+                  << (mem_after.working_set_mb - mem_before.working_set_mb) << " MB, delta_private="
+                  << (mem_after.private_mb - mem_before.private_mb) << " MB\n";
+    } else {
+        std::cout << "[INFO] Failed to query process memory after remote tensor creation\n";
+    }
 
     auto model = make_copy_model(shape);
     auto compiled = core.compile_model(model, d3d_ctx);
