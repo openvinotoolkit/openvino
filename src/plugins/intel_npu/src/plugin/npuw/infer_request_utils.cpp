@@ -273,7 +273,6 @@ void ov::npuw::util::copy_per_layer_inputs_chunk_to_right(const ov::SoPtr<ov::IT
     const size_t chunk_bytes = static_cast<size_t>(chunk_tokens) * src_per_token_bytes;
     const size_t offset_bytes = static_cast<size_t>(src_offset_tokens) * src_per_token_bytes;
 
-    ov::npuw::util::fill_tensor_bytes(dst, 0u);
     std::copy_n(reinterpret_cast<const uint8_t*>(src->data()) + offset_bytes,
                 chunk_bytes,
                 reinterpret_cast<uint8_t*>(dst->data()) + dst->get_byte_size() - chunk_bytes);
