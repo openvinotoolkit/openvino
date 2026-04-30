@@ -133,6 +133,10 @@ CM_INLINE void process_quantization_per_channel(const half* in,
                                                 uint pitch,
                                                 uint dequant_size,
                                                 uint cur_sub_block_size) {
+    // NOTE: CM compiler has matrix size limit < 8192 bytes.
+    // With HEAD_SIZE=128 and SUB_BLOCK_SIZE=32: matrix size = 32*128*2 = 8192 bytes (hits limit).
+    // OpenVINO uses SUB_BLOCK_SIZE=16 which avoids this issue (16*128*2 = 4096 bytes).
+    // If testing with larger SUB_BLOCK_SIZE values, keep HEAD_SIZE < 128 or SUB_BLOCK_SIZE <= 16.
     matrix<half, SUB_BLOCK_SIZE, HEAD_SIZE> in_data;
     #pragma unroll
     for (int i = 0; i < cur_sub_block_size; i++) {
@@ -176,12 +180,12 @@ CM_INLINE void process_quantization_per_channel(const half* in,
     vector<float, HEAD_SIZE> adjust_val = cm_max<float>(min_range, 1.0f);
     qrange.merge(qrange + adjust_val, qrange <= min_range);
 
-#if XE_ARCH == 1
-    vector<float, HEAD_SIZE> scale_vals = 255.0f / qrange;
-#else
+#ifdef CM_HAS_IEEE_DIV_SQRT
     // scale_vals needs fp32 precision to perform cm_div_ieee (supported by Xe2+) to avoid accuracy loss caused
     // by reciprocal approximation division ('/') instruction
     vector<float, HEAD_SIZE> scale_vals = cm_div_ieee(255.0f, qrange);
+#else
+    vector<float, HEAD_SIZE> scale_vals = 255.0f / qrange;
 #endif
     scale_vals.merge(1.0f, mask);
     vector<half, HEAD_SIZE> zp_vals = cm_mul<half>((0.0f - min_vals), scale_vals);
@@ -207,10 +211,10 @@ CM_INLINE void process_quantization_per_channel(const half* in,
         store_kvcache<uchar, HEAD_SIZE>(reinterpret_cast<svmptr_t>(out + data_offset + i * HEAD_SIZE), 0, data_u8);
     }
 
-#if XE_ARCH == 1
-    vector<half, HEAD_SIZE> scale_out = 1.0f / scale_vals;
-#else
+#ifdef CM_HAS_IEEE_DIV_SQRT
     vector<half, HEAD_SIZE> scale_out = cm_div_ieee(1.0f, scale_vals);
+#else
+    vector<half, HEAD_SIZE> scale_out = 1.0f / scale_vals;
 #endif
     vector<half, HEAD_SIZE> zp_out = zp_vals;
     uint zp_offset = scale_offset + BLOCK_SIZE / SUB_BLOCK_SIZE * HEAD_SIZE * sizeof(half);

@@ -526,6 +526,18 @@ void GraphIteratorProto::initialize(const std::filesystem::path& path) {
         throw;
     }
 }
+
+void GraphIteratorProto::initialize(std::shared_ptr<ModelProto> model) {
+    m_model = std::move(model);
+    if (m_model && m_model->has_graph()) {
+        fixup_legacy_nodes(*m_model);
+        topological_sort_graph(m_model->mutable_graph());
+        m_graph = &m_model->graph();
+    } else {
+        m_graph = nullptr;
+    }
+}
+
 std::shared_ptr<DecoderProtoTensor> GraphIteratorProto::get_tensor(const std::string& name,
                                                                    GraphIteratorProto** owner) {
     if (m_tensors.count(name) == 0) {
