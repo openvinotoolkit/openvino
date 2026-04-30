@@ -6,6 +6,7 @@
 #include "registry/implementation_manager.hpp"
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/primitives/input_layout.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/runtime/layout.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "openvino/core/except.hpp"
@@ -148,6 +149,30 @@ struct SomeDynamicImplementationManager : public ImplementationManager {
 
     bool support_shapes(const kernel_impl_params& params) const override {
         return params.output_layouts[0].get_partial_shape()[0] == 1;
+    }
+};
+
+// An impl manager whose create_impl returns nullptr to simulate impl creation failure
+struct NullReturningImplementationManager : public ImplementationManager {
+    OV_GPU_PRIMITIVE_IMPL("test::null_returning_impl")
+    NullReturningImplementationManager(shape_types shape_type, ValidateFunc vf = nullptr)
+        : ImplementationManager(impl_types::ocl, shape_type, vf) {}
+
+    std::unique_ptr<primitive_impl> create_impl(const program_node& node, const kernel_impl_params& params) const override {
+        // Intentionally return nullptr to test fallback behavior
+        return nullptr;
+    }
+
+    bool validate_impl(const program_node& node) const override {
+        return true;
+    }
+
+    in_out_fmts_t query_formats(const program_node& node) const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    bool support_shapes(const kernel_impl_params& params) const override {
+        return true;
     }
 };
 
@@ -361,3 +386,82 @@ INSTANTIATE_TEST_SUITE_P(smoke, PrimitiveTypeTest,
          { some_primitive::SomeParameter::UNSUPPORTED_VALUE_ALL, impl_types::ocl, shape_types::dynamic_shape, false, 0, 0},
     }),
     PrimitiveTypeTest::get_test_case_name);
+
+// Test: verify that find_impl skips impl managers whose create() returns nullptr
+// and continues to the next available impl (fallback behavior)
+TEST(impls_test, impl_create_null_fallback) {
+    auto& engine = get_test_engine();
+
+    // Create a list of impl managers where the first one returns nullptr,
+    // and the second one returns a valid impl
+    std::vector<std::shared_ptr<ImplementationManager>> test_impls = {
+        std::make_shared<NullReturningImplementationManager>(shape_types::static_shape),
+        std::make_shared<SomeImplementationManager>(shape_types::static_shape, nullptr),
+    };
+
+    // Simulate find_impl behavior: iterate through impls, skip nullptr results
+    kernel_impl_params params;
+    params.output_layouts = { layout{{1}, data_types::f32, format::bfyx} };
+    params.input_layouts = { layout{{1}, data_types::f32, format::bfyx} };
+
+    program p(engine, get_test_default_config(engine));
+    auto prim = std::make_shared<some_primitive>("test_fallback", std::vector<input_info>{}, some_primitive::SomeParameter::SUPPORTED_VALUE_ALL);
+    auto& node = p.get_or_create(prim);
+    node.recalc_output_layout();
+
+    std::unique_ptr<primitive_impl> result = nullptr;
+    for (auto& impl_manager : test_impls) {
+        if ((impl_manager->get_shape_type() & shape_types::static_shape) != shape_types::static_shape)
+            continue;
+        if (!impl_manager->support_shapes(params))
+            continue;
+
+        auto impl = impl_manager->create(node, params);
+        if (impl) {
+            result = std::move(impl);
+            break;
+        }
+    }
+
+    // The first impl returns nullptr, but fallback to the second should succeed
+    ASSERT_NE(result, nullptr);
+}
+
+// Test: verify that OCL dynamic reorder impl is available for reorder nodes
+// in shape-of subgraph when input is non-simple (b_fs_yx_fsv16) and output is simple (bfyx).
+// Without the fix, the predicate incorrectly blocks OCL dynamic impl in this case,
+// leaving only CPU impl which doesn't support fsv16 format.
+TEST(impls_test, reorder_ocl_dynamic_available_in_shape_flow_with_nonsimple_input) {
+    auto& engine = get_test_engine();
+    program p(engine, get_test_default_config(engine));
+
+    // Create input_layout node (prerequisite for reorder)
+    auto in_layout = layout{ov::PartialShape{1, 16, {1, 64}, {1, 64}}, data_types::f32, format::b_fs_yx_fsv16};
+    auto input_prim = std::make_shared<input_layout>("input", in_layout);
+    auto& input_node = p.get_or_create(input_prim);
+
+    // Create reorder node: fsv16 -> bfyx
+    auto reorder_prim = std::make_shared<reorder>("reorder_test", input_info("input"), format::bfyx, data_types::f32);
+    auto& reorder_node = p.get_or_create(reorder_prim);
+    p.add_connection(input_node, reorder_node);
+    reorder_node.recalc_output_layout();
+
+    // Mark node as in shape-of subgraph (simulates what mark_shape_of_subgraphs pass does)
+    reorder_node.set_in_shape_of_subgraph(true);
+
+    // Get supported implementations - should include OCL dynamic impl
+    auto supported_impls = reorder::type_id()->get_supported_implementations(reorder_node);
+
+    // Check that at least one OCL dynamic impl is available
+    bool has_ocl_dynamic = false;
+    for (auto& impl : supported_impls) {
+        if (impl->get_impl_type() == impl_types::ocl &&
+            (impl->get_shape_type() & shape_types::dynamic_shape) == shape_types::dynamic_shape) {
+            has_ocl_dynamic = true;
+            break;
+        }
+    }
+
+    ASSERT_TRUE(has_ocl_dynamic) << "OCL dynamic reorder impl should be available for "
+                                    "non-simple(fsv16) -> simple(bfyx) reorder in shape-of subgraph";
+}

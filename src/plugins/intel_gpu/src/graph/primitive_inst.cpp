@@ -3095,7 +3095,9 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
             if (!impl_manager->support_shapes(params))
                 continue;
 
-            return impl_manager->create(*node, params);
+            auto impl = impl_manager->create(*node, params);
+            if (impl)
+                return impl;
         }
 
         return nullptr;
@@ -3145,11 +3147,12 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
 
             std::unique_ptr<primitive_impl> impl = find_impl(&inst.get_node(), updated_params, shape_types::static_shape);
 
-            if (impl->get_kernels_source().size() > 0) {
+            if (impl && impl->get_kernels_source().size() > 0) {
                 auto kernels = _program.get_kernels_cache().compile(updated_params, impl->get_kernels_source());
                 impl->set_kernels(kernels);
             }
-            cache.add(updated_params, std::move(impl));
+            if (impl)
+                cache.add(updated_params, std::move(impl));
         });
     }
 
@@ -3181,7 +3184,17 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
 
     // 6. Finally, if no impl found so far, we just enforce static impl compilation
     auto static_impl = find_impl(node, updated_params, shape_types::static_shape);
-    OPENVINO_ASSERT(static_impl != nullptr, "No static impl " + node->id());
+    if (!static_impl) {
+        std::string available_impls_info = "available_impls: " + std::to_string(m_available_impls.size()) + " [";
+        for (auto& m : m_available_impls) {
+            available_impls_info += " {type=" + std::to_string(static_cast<int>(m->get_impl_type())) +
+                                   ", shape=" + std::to_string(static_cast<int>(m->get_shape_type())) + "}";
+        }
+        available_impls_info += " ]";
+        OPENVINO_ASSERT(false, "No static impl " + node->id() + ". " + available_impls_info +
+                        ". Input: " + updated_params.input_layouts[0].to_short_string() +
+                        ". Output: " + updated_params.output_layouts[0].to_short_string());
+    }
     static_impl->set_node_params(*node);
     if (!inst.can_be_optimized()) {
         auto& kernels_cache = prog.get_kernels_cache();
