@@ -119,7 +119,7 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config,
             key_cache->validate_and_infer_types();
             value_cache->validate_and_infer_types();
         }
-        
+
         if (const auto paged_conv = ov::as_type_ptr<ov::op::internal::PagedCausalConv1D>(root)) {
             auto conv_state_table = ov::as_type_ptr<v0::Parameter>(paged_conv->get_input_node_shared_ptr(1));
             if (!conv_state_table) {
