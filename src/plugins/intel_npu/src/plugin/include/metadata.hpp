@@ -18,7 +18,6 @@
 #include "openvino/runtime/tensor.hpp"
 
 namespace intel_npu {
-
 class MetadataBase {
 public:
     MetadataBase(uint32_t version, uint64_t blobDataSize);
@@ -45,9 +44,10 @@ public:
     virtual void read() = 0;
 
     /**
-     * @note Layouts, compiler version and encryption are intentionally omitted from the human-readable compatibility
+     * @note Layouts and encryption are intentionally omitted from the human-readable compatibility
      * string. They are internal implementation details that don't affect cross-version compatibility and would only add
      * noise for consumers.
+     * Compiler version is already contained within the compiler requirements field.
      *
      */
     virtual void read_as_text() = 0;
@@ -77,7 +77,7 @@ public:
 
     virtual std::optional<uint32_t> get_compiler_version() const;
 
-    virtual bool is_encrypted_blob() const;
+    virtual std::optional<bool> is_encrypted_blob() const;
 
     virtual std::optional<std::string> get_runtime_reqs() const;
 
@@ -421,10 +421,10 @@ public:
 
     size_t get_metadata_size() const override;
 
-    bool is_encrypted_blob() const override;
+    std::optional<bool> is_encrypted_blob() const override;
 
 private:
-    bool _isEncryptedBlob;
+    std::optional<bool> _isEncryptedBlob;
 };
 
 /**

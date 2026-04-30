@@ -5,14 +5,11 @@
 #include "metadata.hpp"
 
 #include <cstring>
-#include <iterator>
 #include <map>
 #include <optional>
 #include <sstream>
 #include <string>
 
-#include "intel_npu/config/config.hpp"
-#include "intel_npu/utils/utils.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 
 namespace {
@@ -504,7 +501,7 @@ void Metadata<METADATA_VERSION_2_4>::write(std::ostream& stream) {
 void Metadata<METADATA_VERSION_2_5>::write(std::ostream& stream) {
     Metadata<METADATA_VERSION_2_4>::write(stream);
 
-    const uint8_t isEncryptedBlob = _isEncryptedBlob;
+    const uint8_t isEncryptedBlob = _isEncryptedBlob.value_or(false);
     stream.write(reinterpret_cast<const char*>(&isEncryptedBlob), sizeof(isEncryptedBlob));
 }
 
@@ -762,8 +759,8 @@ std::optional<uint32_t> MetadataBase::get_compiler_version() const {
     return std::nullopt;
 }
 
-bool MetadataBase::is_encrypted_blob() const {
-    return false;
+std::optional<bool> MetadataBase::is_encrypted_blob() const {
+    return std::nullopt;
 }
 
 std::optional<std::string> MetadataBase::get_runtime_reqs() const {
@@ -790,7 +787,7 @@ std::optional<uint32_t> Metadata<METADATA_VERSION_2_4>::get_compiler_version() c
     return _compilerVersion;
 }
 
-bool Metadata<METADATA_VERSION_2_5>::is_encrypted_blob() const {
+std::optional<bool> Metadata<METADATA_VERSION_2_5>::is_encrypted_blob() const {
     return _isEncryptedBlob;
 }
 

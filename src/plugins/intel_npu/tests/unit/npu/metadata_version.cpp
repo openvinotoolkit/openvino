@@ -6,7 +6,6 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "metadata.hpp"
-#include "openvino/core/version.hpp"
 
 using namespace intel_npu;
 

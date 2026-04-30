@@ -6,7 +6,6 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "metadata.hpp"
-#include "openvino/core/version.hpp"
 
 using namespace intel_npu;
 
@@ -51,7 +50,7 @@ TEST_F(MetadataHumanReadableTests, initSizes) {
 
     ASSERT_TRUE(storedMeta->get_init_sizes().has_value());
     ASSERT_EQ(storedMeta->get_init_sizes()->size(), initSizes.size());
-    for (size_t i = 0; i < initSizes.size(); ++i) {
+    for (size_t i = 0; i < initSizes.size(); i++) {
         EXPECT_EQ(storedMeta->get_init_sizes()->at(i), initSizes.at(i));
     }
 }
@@ -158,7 +157,7 @@ TEST_F(MetadataHumanReadableTests, allFields) {
 
     ASSERT_TRUE(storedMeta->get_init_sizes().has_value());
     ASSERT_EQ(storedMeta->get_init_sizes()->size(), initSizes.size());
-    for (size_t i = 0; i < initSizes.size(); ++i) {
+    for (size_t i = 0; i < initSizes.size(); i++) {
         EXPECT_EQ(storedMeta->get_init_sizes()->at(i), initSizes.at(i));
     }
     ASSERT_TRUE(storedMeta->get_batch_size().has_value());
