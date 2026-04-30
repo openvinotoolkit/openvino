@@ -291,11 +291,12 @@ private:
     size_t m_size = 0;       //!< user-visible byte count
     uint64_t m_id = std::numeric_limits<uint64_t>::max();
 
-    HandleHolder m_handle{};   //!< section object from CreateFileMappingW (keeps file data alive)
-    size_t m_aligned_offset{};  //!< gran-aligned file offset of placeholder base
-    void* m_mapped_view{};      //!< non-null only in legacy path
-    char* m_view_base{};        //!< base VA of the full placeholder reservation (nullptr for legacy path)
-    size_t m_total_va_size{};   //!< total VA reservation size in bytes
+    HandleHolder m_handle{};       //!< section object from CreateFileMappingW
+    HandleHolder m_file_handle{};  //!< file HANDLE kept open to block DeleteFile (set-by-path only)
+    size_t m_aligned_offset{};     //!< gran-aligned file offset of placeholder base
+    void* m_mapped_view{};         //!< non-null only in legacy path
+    char* m_view_base{};           //!< base VA of the full placeholder reservation (nullptr for legacy path)
+    size_t m_total_va_size{};      //!< total VA reservation size in bytes
 
     /**
      * @brief Guards all Unmap/VirtualAlloc2 calls in hint_release and try_remap_slot.
@@ -387,9 +388,7 @@ void MapHolder::set_id(HANDLE h, size_t offset, size_t size) {
     }
 }
 
-bool MapHolder::try_placeholder_setup(size_t aligned_offset,
-                                      size_t head_pad,
-                                      size_t total_va_size) {
+bool MapHolder::try_placeholder_setup(size_t aligned_offset, size_t head_pad, size_t total_va_size) {
     const auto& api = PlaceholderApis::instance();
     if (!api.m_available) {
         return false;
@@ -496,6 +495,9 @@ void MapHolder::set(const std::filesystem::path& path, size_t offset, size_t siz
 
     HandleHolder fh_holder{fh};
     setup(fh, offset, size);
+    // Keep the file handle alive to block DeleteFile while this MapHolder exists.
+    // The file was opened with FILE_SHARE_READ only, so DeleteFileW will fail with ERROR_SHARING_VIOLATION.
+    m_file_handle = std::move(fh_holder);
 }
 
 void MapHolder::set_from_handle(FileHandle handle, size_t offset, size_t size) {
