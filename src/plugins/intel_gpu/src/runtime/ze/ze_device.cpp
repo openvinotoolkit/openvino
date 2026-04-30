@@ -198,7 +198,7 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
 
     if (mem_properties != device_memory_properties.end()) {
         info.max_global_mem_size = mem_properties->totalSize;
-        info.device_memory_ordinal = std::distance(device_memory_properties.begin(), mem_properties);
+        info.device_memory_ordinal = static_cast<uint32_t>(std::distance(device_memory_properties.begin(), mem_properties));
     } else {
         info.max_global_mem_size = 0;
         info.device_memory_ordinal = 0;
@@ -249,7 +249,7 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
 
     info.kernel_timestamp_valid_bits  = device_properties.kernelTimestampValidBits;
     info.timer_resolution  = device_properties.timerResolution;
-    info.compute_queue_group_ordinal = std::distance(queue_properties.begin(), compute_queue_props);
+    info.compute_queue_group_ordinal = static_cast<uint32_t>(std::distance(queue_properties.begin(), compute_queue_props));
 
     static_assert(ZE_MAX_DEVICE_UUID_SIZE == ov::device::UUID::MAX_UUID_SIZE, "");
     static_assert(ZE_MAX_DEVICE_LUID_SIZE_EXT == ov::device::LUID::MAX_LUID_SIZE, "");
