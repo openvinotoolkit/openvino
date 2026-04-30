@@ -52,10 +52,6 @@ std::filesystem::path ov::util::path_join(std::initializer_list<std::filesystem:
     return ::path_join<>(std::move(paths));
 }
 
-std::wstring ov::util::path_join_w(std::initializer_list<std::wstring>&& paths) {
-    return ::path_join<>(std::move(paths)).wstring();
-}
-
 namespace {
 void process_dir_entry(const std::filesystem::directory_entry& dir_entry,
                        const std::function<void(const std::filesystem::path& file)>& func) {
