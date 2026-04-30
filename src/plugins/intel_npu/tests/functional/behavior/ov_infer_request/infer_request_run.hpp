@@ -3023,6 +3023,76 @@ TEST_P(ThreadsConfig, SetExclusiveAsyncRequestsCheckResults) {
     }
 }
 
+TEST_P(ThreadsConfig, SetExclusiveAsyncRequestsCheckResultsThroughput) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    ov::threading::executor_manager()->clear();
+    auto shape = Shape{1, 2, 64, 64};
+    auto shape_size = ov::shape_size(shape);
+    auto model = createModel(element::f32, shape, "N...");
+
+    ov::CompiledModel compiled_model0, compiled_model1;
+
+    auto context = core->get_default_context(target_device);
+
+    configuration[ov::internal::exclusive_async_requests.name()] = true;
+    configuration[ov::hint::performance_mode.name()] = ov::hint::PerformanceMode::THROUGHPUT;
+    compiled_model0 = core->compile_model(model, target_device, configuration);
+    compiled_model1 = core->compile_model(model, target_device, configuration);
+
+    const uint32_t inferences = 32;
+    std::array<ov::InferRequest, inferences> inference_request;
+    ov::Tensor input_tensor;
+    std::array<ov::Tensor, inferences> output_tensor;
+
+    input_tensor = context.create_host_tensor(ov::element::f32, shape);
+    for (uint32_t i = 0; i < inferences; i++) {
+        inference_request[i] =
+            i % 2 == 0 ? compiled_model0.create_infer_request() : compiled_model1.create_infer_request();
+        output_tensor[i] = context.create_host_tensor(ov::element::f32, shape);
+    }
+
+    inference_request[0].set_input_tensor(input_tensor);
+    inference_request[0].set_output_tensor(output_tensor[0]);
+
+    const uint32_t runs = 10;
+    for (uint32_t z = 0; z < runs; z++) {
+        auto* input_data = reinterpret_cast<float*>(input_tensor.data());
+        for (size_t i = 0; i < shape_size; ++i) {
+            input_data[i] = static_cast<float>(z);
+        }
+
+        inference_request[0].start_async();  // Adds '1' to each element
+
+        for (uint32_t i = 1; i < inferences; i++) {
+            inference_request[i].set_input_tensor(output_tensor[i - 1]);
+            inference_request[i].set_output_tensor(output_tensor[i]);
+
+            inference_request[i].start_async();  // Adds '1' to each element
+        }
+
+        inference_request[inferences - 1].wait();
+
+        float expected_result = static_cast<float>(z) + 1.f;
+
+        for (uint32_t i = 0; i < inferences; i++) {
+            auto* output_tensor_data = reinterpret_cast<float*>(output_tensor[i].data());
+            for (size_t j = 0; j < shape_size; ++j) {
+                ASSERT_NEAR(output_tensor_data[j], expected_result, 1e-5)
+                    << "Run=" << z << "Output=" << i << " Expected=" << expected_result
+                    << ", actual=" << output_tensor_data[j] << " for index " << j;
+            }
+            expected_result++;
+        }
+    }
+
+    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> initStructs = ::intel_npu::ZeroInitStructsHolder::getInstance();
+    if (initStructs->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1)) {
+        ASSERT_EQ(2u, ov::threading::executor_manager()->get_executors_number());
+    } else {
+        ASSERT_EQ(1u, ov::threading::executor_manager()->get_executors_number());
+    }
+}
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov

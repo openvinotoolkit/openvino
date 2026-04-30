@@ -191,8 +191,10 @@ static constexpr ov::Property<bool> defer_weights_load{"NPU_DEFER_WEIGHTS_LOAD"}
 /**
  * @brief [Only for NPU Plugin]
  * Type: boolean, default is false.
- * This option allows running inferences in async mode sequentially in the order in which they are started to optimize
- * host scheduling.
+ * This option allows running asynchronous inferences of a compiled model sequentially, in the order they are started,
+ * to optimize host scheduling.
+ * Limitation: All tensors used by these inferences must be allocated in the same Level Zero context as the compiled
+ * model.
  * @ingroup ov_runtime_npu_prop_cpp_api
  */
 static constexpr ov::Property<bool> run_inferences_sequentially{"NPU_RUN_INFERENCES_SEQUENTIALLY"};

@@ -923,13 +923,15 @@ Example:
     </skip_config>
 
     <skip_config>
-        <message>For PV driver streamExecutorNumber is different</message>
+        <message>For PV driver streamExecutorNumber is different and NPU_TILES is not supported</message>
         <enable_rules>
             <backend>LEVEL0</backend>
             <driver_version>1688</driver_version>
         </enable_rules>
         <filters>
             <filter>.*InferRequestPropertiesTest.canSetExclusiveAsyncRequests.*</filter>
+            <filter>.*ThreadsConfig.SetExclusiveAsyncRequestsCheckResults.*</filter>
+            <filter>.*ThreadsConfig.RunOneThreadPerCoreCheckResults.*</filter>
         </filters>
     </skip_config>
 

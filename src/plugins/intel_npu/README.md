@@ -207,7 +207,6 @@ The following properties are supported (may differ based on current system confi
 | `ov::device::uuid`/</br> | RO | Returns the Universal Unique ID of the NPU device. | `N/A`| `N/A` |
 | `ov::device::architecture`/</br>`DEVICE_ARCHITECTURE` | RO | Returns the platform information. | `N/A`| `N/A` |
 | `ov::device::full_name`/</br>`FULL_DEVICE_NAME` | RO | Returns the full name of the NPU device. | `N/A`| `N/A` |
-| `ov::internal::exclusive_async_requests`/</br>`EXCLUSIVE_ASYNC_REQUESTS` | RW | Allows to use exclusive task executor for asynchronous infer requests. | `YES`/ `NO`| `NO` |
 | `ov::device::type`/</br>`DEVICE_TYPE` | RO | Returns the type of device, discrete or integrated. | `DISCRETE` /</br>`INTEGRATED` | `N/A` |
 | `ov::device::gops`/</br>`DEVICE_GOPS` | RO | Returns the Giga OPS per second count (GFLOPS or GIOPS) for a set of precisions supported by specified device. | `N/A`| `N/A` |
 | `ov::device::pci_info`/</br>`DEVICE_PCI_INFO` | RO | Returns the PCI bus information of device. See PCIInfo struct definition for details | `N/A`| `N/A` |
@@ -226,7 +225,7 @@ The following properties are supported (may differ based on current system confi
 | `ov::intel_npu::max_tiles`/</br>`NPU_MAX_TILES` | RO | Maximum number of tiles supported by the device we compile for. It will be populated by driver, if present. | `[1-6] depends on npu platform` | `[-1]` |
 | `ov::intel_npu::bypass_umd_caching`/</br>`NPU_BYPASS_UMD_CACHING` | RW | Bypass the caching of compiled models in UMD. | `YES`/ `NO`| `NO` |
 | `ov::intel_npu::defer_weights_load`/</br>`NPU_DEFER_WEIGHTS_LOAD` | RW | Delay loading the weights until inference is created. | `YES`/ `NO`| `NO` |
-| `ov::intel_npu::run_inferences_sequentially`/</br>`NPU_RUN_INFERENCES_SEQUENTIALLY` | RW | Run inferences in async mode sequentially in the order in which they are started to optimize host scheduling. | `YES`/ `NO`| `NO` |
+| `ov::intel_npu::run_inferences_sequentially`/</br>`NPU_RUN_INFERENCES_SEQUENTIALLY` | RW | This option allows running asynchronous inferences of a compiled model sequentially, in the order they are started, to optimize host scheduling. Limitation: All tensors used by these inferences must be allocated in the same Level Zero context as the compiled model. | `YES`/ `NO`| `NO` |
 | `ov::intel_npu::disable_idle_memory_prunning`/</br>`NPU_DISABLE_IDLE_MEMORY_PRUNING` | RW | Enable/Disable pruning of memory during idle time. | `YES` / `NO` | `NO` |
 | `ov::intel_npu::enable_strides_for`/</br>`NPU_ENABLE_STRIDES_FOR` | RW | List of input/output tensor names that should support custom strides. | Tensor names, e.g., `"input,output"` | `N/A` |
 <br>
