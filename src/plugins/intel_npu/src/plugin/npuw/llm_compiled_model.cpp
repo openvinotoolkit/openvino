@@ -194,16 +194,13 @@ struct NPUDesc {
 
 std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin,
                                               const ov::AnyMap& config) {
-    LOG_DEBUG("Extracting NPU descriptor from plugin properties");
     if (!plugin->get_core()) {
         return std::nullopt;
     }
-    LOG_DEBUG("P1 - got core from plugin");
     const auto all_devices = plugin->get_core()->get_property("NPU", ov::available_devices);
     if (all_devices.empty()) {
         return std::nullopt;
     }
-LOG_DEBUG("P2 - got available devices from core: " << all_devices.size() << " device(s) found");
     NPUDesc desc;
     desc.arch = plugin->get_property(ov::device::architecture.name(), ov::AnyMap{}).as<std::string>();
     desc.max_tiles = plugin->get_property(ov::intel_npu::max_tiles.name(), ov::AnyMap{}).as<int64_t>();
@@ -248,11 +245,7 @@ LOG_DEBUG("P2 - got available devices from core: " << all_devices.size() << " de
         // Flash attention tile is supported starting from compiler version 7.29 on NPU5010
         desc.support_flash_attention_tile = true;
     }
-LOG_DEBUG("P3 - extracted NPU descriptor: arch=" << desc.arch << ", max_tiles=" << desc.max_tiles
-                                                  << ", compiler_dq=" << desc.compiler_dq
-                                                  << ", compiler_matmul_gate=" << desc.compiler_matmul_gate
-                                                  << ", compiler_ver=" << desc.compiler_ver
-                                                  << ", support_flash_attention_tile=" << desc.support_flash_attention_tile);
+
     return std::make_optional(std::move(desc));
 }
 
