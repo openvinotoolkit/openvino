@@ -133,6 +133,7 @@ public:
         virtual void setArgumentValueWithStrides(uint32_t argi,
                                                  const void* argv,
                                                  const std::vector<size_t>& strides) = 0;
+        virtual void setOptimizedDynamicStridesMode(bool enabled) = 0;
         virtual uint64_t getNumSubgraphs() = 0;
         virtual void getBinding(GraphArguments& binding) = 0;
         virtual void executeGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
