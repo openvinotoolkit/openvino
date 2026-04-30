@@ -54,10 +54,8 @@ void process_cache_batch_quantized(PlainTensor& cache,
 
     auto process_head = [&](size_t h) {
         if (by_channel) {
-            thread_local std::vector<float> local_block_buf;
-            thread_local std::vector<float> local_row_buf;
-            local_block_buf.resize(ctx.block_size * ctx.hidden);
-            local_row_buf.resize(ctx.hidden);
+            std::vector<float> local_block_buf(ctx.block_size * ctx.hidden);
+            std::vector<float> local_row_buf(ctx.hidden);
 
             auto* src_base = reinterpret_cast<uint8_t*>(cache.ptr_v(ctx.src_block, h, 0, 0));
             auto* dst_base = reinterpret_cast<uint8_t*>(cache.ptr_v(ctx.dst_block, h, 0, 0));

@@ -414,8 +414,8 @@ struct ScoreAggregationInfo {
     int32_t kv_len_aligned;         // tmp buffer length for current block
 };
 struct QueryToQueryBiasInfo {
-    size_t qq_begin_offset = 0;
-    size_t spec_num = 0;
+    size_t qq_begin_offset = 0;  // offset into flattened qq_bias matrix
+    size_t spec_num = 0;         // number of draft tokens (matrix side length)
 };
 template <typename DATA_TYPE, ov::element::Type_t KEY_PREC, ov::element::Type_t VALUE_PREC>
 struct MHAHelper {
@@ -471,7 +471,6 @@ struct MHAHelper {
     std::vector<int32_t> _image_group_end;  // for image token i, the exclusive end of its group
 
     // Speculative tree mask (qq_bias)
-    bool _has_qq_bias = false;
     PlainTensor _qq_bias;
     std::vector<QueryToQueryBiasInfo> _qq_bias_infos;  // Precomputed info for each sequence
 
@@ -520,14 +519,12 @@ struct MHAHelper {
     }
 
     void clear_qq_bias() {
-        _has_qq_bias = false;
         _qq_bias = PlainTensor();
         _qq_bias_infos.clear();
     }
 
     // Initialize and precompute query-to-query bias info for all sequences
     void init_query_to_query_mask(const PlainTensor& qq_bias, const PlainTensor& qq_bias_begins) {
-        _has_qq_bias = true;
         _qq_bias = qq_bias;
 
         // Precompute QueryToQueryBiasInfo for each sequence
@@ -561,7 +558,7 @@ struct MHAHelper {
                                   size_t query_spec_idx,
                                   size_t key_idx,
                                   size_t past_len) const {
-        if (!_has_qq_bias || key_idx < past_len || cache == nullptr || cache->spec_num == 0) {
+        if (!_qq_bias || key_idx < past_len || cache == nullptr || cache->spec_num == 0) {
             return false;
         }
 
@@ -922,7 +919,7 @@ struct MHAHelper {
                 // apply attention mask & sofmax
                 auto ncausal = get_ncausal(q_token_start + m, cur_kv_len - q_cnt + (m - q_start) + 1, cur_kv_len);
                 auto* score = _weight.ptr<float>(ithr, h - hq_beg, m - q_start);
-                if (_has_qq_bias) {
+                if (query_to_query_info_ptr != nullptr) {
                     for (size_t key_idx = past_len; key_idx < cur_kv_len; key_idx++) {
                         if (query_to_query_is_masked(query_to_query_info_ptr, m, key_idx, past_len)) {
                             score[key_idx] = -FLT_MAX;
@@ -1143,7 +1140,7 @@ struct MHAHelper {
                 auto score = _weight.ptr<float>(ithr, h - hq_beg, m - q_start);
 
                 // Apply qq_bias mask
-                if (_has_qq_bias) {
+                if (query_to_query_info_ptr != nullptr) {
                     for (size_t key_idx = past_len; key_idx < cur_kv_len; key_idx++) {
                         if (query_to_query_is_masked(query_to_query_info_ptr, m, key_idx, past_len)) {
                             score[key_idx] = -FLT_MAX;
@@ -1872,7 +1869,7 @@ struct MHA {
                 sub_query = sub_query.permute({1, 0, 2});
 
                 QueryToQueryBiasInfo* query_to_query_info_ptr = nullptr;
-                if (_helper._has_qq_bias && static_cast<size_t>(batch_in_seq) < _helper._qq_bias_infos.size()) {
+                if (_helper._qq_bias && static_cast<size_t>(batch_in_seq) < _helper._qq_bias_infos.size()) {
                     query_to_query_info_ptr = &_helper._qq_bias_infos[batch_in_seq];
                 }
 #    if defined(OPENVINO_ARCH_ARM64)

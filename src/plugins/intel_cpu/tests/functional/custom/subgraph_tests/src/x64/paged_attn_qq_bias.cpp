@@ -484,7 +484,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnQQBias,
                          ::testing::Combine(::testing::Values(ElementType::f32, ElementType::f16),
                                             ::testing::Values(4, 8),  // past_len
                                             ::testing::Values(4),     // num_draft tokens
-                                            ::testing::Values(64),    // head_size
+                                            ::testing::Values(64, 72),  // head_size
                                             ::testing::ValuesIn(qq_bias_patterns)),
                          PagedAttnQQBiasTest::getTestCaseName);
 
