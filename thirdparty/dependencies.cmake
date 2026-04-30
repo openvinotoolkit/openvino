@@ -472,6 +472,8 @@ if(ENABLE_OV_TF_LITE_FRONTEND OR ENABLE_INTEL_NPU)
         if(ENABLE_THREAD_SANITIZER AND TARGET flatc)
             target_compile_options(flatc PRIVATE -fno-sanitize=thread)
             target_link_options(flatc PRIVATE -fno-sanitize=thread)
+            string(REPLACE "-shared-libsan" "" _flatc_exe_flags "${CMAKE_EXE_LINKER_FLAGS}")
+            set_target_properties(flatc PROPERTIES LINK_FLAGS "${_flatc_exe_flags}")
         endif()
     endif()
 
