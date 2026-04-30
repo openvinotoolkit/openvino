@@ -192,7 +192,7 @@ std::tuple<std::shared_ptr<ov::Model>, bool> handlePluginBatching(
     auto originalModel = std::const_pointer_cast<ov::Model>(model);
     // Keep the original model for all no-op/early-return paths.
     // A mutable clone is created only when plugin batching is actually about to be applied.
-    auto reshapedModel = originalModel;
+    auto reshapedModel = std::move(originalModel);
     auto successfullyDebatched = false;
 
     auto batchModeIsAvailable = localConfig.isAvailable(ov::intel_npu::batch_mode.name());
