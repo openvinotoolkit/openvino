@@ -4,6 +4,9 @@
 
 #include "common_test_utils/postgres_helpers.hpp"
 
+#include <algorithm>
+#include <cctype>
+
 namespace ov {
 namespace test {
 namespace utils {
