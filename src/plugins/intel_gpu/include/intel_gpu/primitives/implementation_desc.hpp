@@ -4,8 +4,10 @@
 
 #pragma once
 
+#include <istream>
 #include <map>
 #include <ostream>
+#include <sstream>
 
 #include "openvino/core/except.hpp"
 #include "intel_gpu/primitives/primitive.hpp"
@@ -45,6 +47,7 @@ inline std::ostream& operator<<(std::ostream& out, const impl_types& impl_type) 
         case impl_types::ocl: out << "ocl"; break;
         case impl_types::onednn: out << "onednn"; break;
         case impl_types::cm: out << "cm"; break;
+        case impl_types::sycl: out << "sycl"; break;
         case impl_types::any: out << "any"; break;
         default: out << "unknown"; break;
     }
@@ -65,6 +68,8 @@ inline std::istream& operator>>(std::istream& is, impl_types& impl_type) {
         impl_type = impl_types::onednn;
     } else if (str == "cm") {
         impl_type = impl_types::cm;
+    } else if (str == "sycl") {
+        impl_type = impl_types::sycl;
     } else if (str == "any") {
         impl_type = impl_types::any;
     } else {
