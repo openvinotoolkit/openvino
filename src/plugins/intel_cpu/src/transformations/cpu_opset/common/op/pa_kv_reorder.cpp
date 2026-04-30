@@ -48,11 +48,17 @@ void PaKVReorder::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this,
                           is_supported_cache_type(key_type),
                           "PaKVReorder supports only f32, bf16, f16, u8, and u4 KV cache precisions. ",
-                          "int8 key_cache is not supported.");
+                          "Received key_cache element type: ",
+                          key_type,
+                          ".",
+                          key_type == ov::element::i8 ? " int8 key_cache is not supported." : "");
     NODE_VALIDATION_CHECK(this,
                           is_supported_cache_type(value_type),
                           "PaKVReorder supports only f32, bf16, f16, u8, and u4 KV cache precisions. ",
-                          "int8 value_cache is not supported.");
+                          "Received value_cache element type: ",
+                          value_type,
+                          ".",
+                          value_type == ov::element::i8 ? " int8 value_cache is not supported." : "");
 
     // Output is a dummy u8 tensor with shape [1] (placeholder for in-place operation)
     set_output_type(0, ov::element::u8, ov::PartialShape{1});
