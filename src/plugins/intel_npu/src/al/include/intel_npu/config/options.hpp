@@ -863,6 +863,28 @@ struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, ov::intel_npu::CompilerTy
     }
 };
 
+struct COMPILER_VERSION final : OptionBase<COMPILER_VERSION, uint32_t> {
+    static std::string_view key() {
+        return ov::intel_npu::compiler_version.name();
+    }
+
+    static uint32_t defaultValue() {
+        return 0;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+
+    static bool isPublic() {
+        return true;
+    }
+
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RO;
+    }
+};
+
 struct COMPILATION_MODE final : OptionBase<COMPILATION_MODE, std::string> {
     static std::string_view key() {
         return ov::intel_npu::compilation_mode.name();
@@ -1075,7 +1097,7 @@ struct MAX_TILES final : OptionBase<MAX_TILES, int64_t> {
     }
 
     static ov::PropertyMutability mutability() {
-        return ov::PropertyMutability::RW;
+        return ov::PropertyMutability::RO;
     }
 };
 
@@ -1371,20 +1393,6 @@ struct ENABLE_WEIGHTLESS final : OptionBase<ENABLE_WEIGHTLESS, bool> {
     }
 };
 
-struct WEIGHTLESS_BLOB final : OptionBase<WEIGHTLESS_BLOB, bool> {
-    static std::string_view key() {
-        return ov::intel_npu::weightless_blob.name();
-    }
-
-    static bool defaultValue() {
-        return false;
-    }
-
-    static OptionMode mode() {
-        return OptionMode::CompileTime;
-    }
-};
-
 struct SEPARATE_WEIGHTS_VERSION final : OptionBase<SEPARATE_WEIGHTS_VERSION, ov::intel_npu::WSVersion> {
     static std::string_view key() {
         return ov::intel_npu::separate_weights_version.name();
@@ -1514,6 +1522,50 @@ struct DISABLE_IDLE_MEMORY_PRUNING final : OptionBase<DISABLE_IDLE_MEMORY_PRUNIN
 
     static bool isPublic() {
         return true;
+    }
+};
+
+struct SHARED_COMMON_QUEUE final : OptionBase<SHARED_COMMON_QUEUE, bool> {
+    static std::string_view key() {
+        return ov::intel_npu::shared_common_queue.name();
+    }
+
+    static bool defaultValue() {
+        return true;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+};
+
+struct CACHE_ENCRYPTION_CALLBACKS final : OptionBase<CACHE_ENCRYPTION_CALLBACKS, ov::EncryptionCallbacks> {
+    static std::string_view key() {
+        return ov::cache_encryption_callbacks.name();
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "ov::EncryptionCallbacks";
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+
+    static bool isPublic() {
+        return true;
+    }
+
+    static std::string toString(const ov::EncryptionCallbacks&) {
+        OPENVINO_THROW("Option ", ov::cache_encryption_callbacks.name(), " cannot be converted to string");
+    }
+
+    static ov::EncryptionCallbacks parse(std::string_view) {
+        OPENVINO_THROW("Option ", ov::cache_encryption_callbacks.name(), " cannot be parsed from string");
+    }
+
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::WO;
     }
 };
 

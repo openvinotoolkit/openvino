@@ -340,16 +340,6 @@ static constexpr ov::Property<WSVersion> separate_weights_version{"NPU_SEPARATE_
 
 /**
  * @brief [Only for NPU Plugin]
- * Type: bool. Default is "false".
- *
- * This option enables/disables the "weights separation" feature. If enabled, the result of compilation will be a binary
- * object stripped of a significant amount of weights. Before running the model, these weights need to be provided by
- * external means.
- */
-static constexpr ov::Property<bool> weightless_blob{"NPU_WEIGHTLESS_BLOB"};
-
-/**
- * @brief [Only for NPU Plugin]
  * Type: enum. Default is "AUTO".
  *
  * This config option concerns the algorithm used for serializing the "ov::Model" at compilation time in order to be
@@ -449,6 +439,15 @@ static constexpr ov::Property<bool> import_raw_blob{"NPU_IMPORT_RAW_BLOB"};
  * This option allows to skip writing plugin metadata to compiled model when exporting it
  */
 static constexpr ov::Property<bool> export_raw_blob{"NPU_EXPORT_RAW_BLOB"};
+
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: boolean, default is true.
+ * This option allows to enable/disable the usage of a shared common queue for all compiled models. If set to false,
+ * each compiled model will have its own common queue. This option is added for enabling the isolation of compiled
+ * models from each other, which can be required for some use cases.
+ */
+static constexpr ov::Property<bool> shared_common_queue{"NPU_SHARED_COMMON_QUEUE"};
 
 }  // namespace intel_npu
 }  // namespace ov

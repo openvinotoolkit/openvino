@@ -31,21 +31,6 @@ namespace ov::Extensions::Cpu::XARCH {
 
 using namespace ov;
 
-#if defined(HAVE_AVX2)
-
-#    define prefetch_bytes(bytes, sel, advance, src) \
-        {                                            \
-            auto* p = reinterpret_cast<char*>(src);  \
-            for (size_t i = 0; i < bytes; i += 64)   \
-                _mm_prefetch(p + i + advance, sel);  \
-        }
-
-#else
-
-#    define prefetch_bytes(bytes, sel, advance, src)
-
-#endif
-
 template <typename TA, typename TB>
 static void cvt_copy(TA* dst, TB* src, size_t n) {
     size_t i = 0;
@@ -1606,6 +1591,7 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                       bool quant_key_by_channel,
                       const ov::intel_cpu::PlainTensor& sink_input,
                       const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
+#if !defined(OPENVINO_ARCH_ARM64)
     if (query.get_precision() == ov::element::bf16) {
         if (present_key.get_precision() == ov::element::u8) {
             mha_single_token_kernel<ov::bfloat16, uint8_t, float>(query,
@@ -1650,7 +1636,9 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                                        sink_input,
                                                                        cpu_parallel);
         }
-    } else if (query.get_precision() == ov::element::f16) {
+    } else
+#endif
+        if (query.get_precision() == ov::element::f16) {
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
         if (present_key.get_precision() == ov::element::f16) {
             mha_single_token_kernel<ov::float16, ov::float16, ov::float16>(query,

@@ -16,7 +16,7 @@ namespace {
     std::once_flag counter_based_ev_init_flag;
     decltype(zexCounterBasedEventCreate2) *func_zexCounterBasedEventCreate2 = nullptr;
     void find_function_address(ze_driver_handle_t driver) {
-        OV_ZE_EXPECT(zeDriverGetExtensionFunctionAddress(driver,
+        OV_ZE_EXPECT(ze::zeDriverGetExtensionFunctionAddress(driver,
                                                 "zexCounterBasedEventCreate2",
                                                 reinterpret_cast<void **>(&func_zexCounterBasedEventCreate2)));
     }

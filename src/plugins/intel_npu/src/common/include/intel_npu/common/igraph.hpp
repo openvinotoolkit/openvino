@@ -4,12 +4,13 @@
 
 #pragma once
 
+#include <atomic>
 #include <memory>
 #include <mutex>
 #include <vector>
 
 #include "intel_npu/common/filtered_config.hpp"
-#include "intel_npu/network_metadata.hpp"
+#include "intel_npu/common/network_metadata.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/profiling_info.hpp"
@@ -38,7 +39,7 @@ public:
                                                  const void* data,
                                                  const std::vector<size_t>& strides) const;
 
-    virtual void initialize(const FilteredConfig& config);
+    void initialize(const FilteredConfig& config);
 
     virtual ~IGraph() = default;
 
@@ -47,16 +48,16 @@ public:
 
     virtual void update_network_name(std::string_view name);
 
-    virtual const std::shared_ptr<CommandQueue>& get_command_queue() const;
-
-    virtual void set_workload_type(const ov::WorkloadType workloadType) const;
+    virtual CommandQueueDesc get_command_queue_desc() const;
+    virtual void set_workload_type(const ov::WorkloadType workloadType);
+    virtual void set_model_priority(const ov::hint::Priority modelPriority);
 
     std::mutex& get_mutex() {
-        return _mutex;
+        return _initialize_mutex;
     }
 
-    bool init_completed() {
-        return _init_completed;
+    bool init_completed() const {
+        return _init_completed.load(std::memory_order_acquire);
     }
 
     virtual void set_last_submitted_event(const std::shared_ptr<Event>& event, size_t indexOfCommandList);
@@ -70,13 +71,17 @@ public:
     virtual void set_last_submitted_id(uint32_t id_index);
     virtual uint32_t get_last_submitted_id() const;
 
+    virtual void evict_memory();
+
     virtual std::optional<bool> is_profiling_blob() const = 0;
 
 protected:
-    // Used to protect zero pipeline creation in the graph. The pipeline should be created only once per graph when the
-    // first inference starts running
-    std::mutex _mutex;
-    bool _init_completed = false;
+    virtual void initialize_impl(const FilteredConfig& config);
+
+    // Used to protect graph initialization (including zero pipeline creation) in the graph. Initialization should
+    // happen only once per graph, typically when the graph is first used (e.g. when the first inference starts)
+    std::mutex _initialize_mutex;
+    std::atomic<bool> _init_completed{false};
 };
 
 }  // namespace intel_npu

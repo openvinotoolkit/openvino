@@ -108,22 +108,22 @@ void AsyncInferQueue::set_custom_callbacks(const Napi::CallbackInfo& info) {
         for (size_t handle = 0; handle < m_requests.size(); handle++) {
             m_requests[handle].set_callback([this, handle](std::exception_ptr exception_ptr) {
                 try {
-                    if (exception_ptr) {
-                        std::rethrow_exception(exception_ptr);
-                    }
-                    auto ov_callback = [this, handle](Napi::Env env, Napi::Function user_callback) {
+                    auto ov_callback = [this, handle, exception_ptr](Napi::Env env, Napi::Function user_callback) {
                         Napi::Object js_ir = InferRequestWrap::wrap(env, m_requests[handle]);
                         const auto promise = m_user_ids[handle].second;
                         try {
+                            if (exception_ptr) {
+                                std::rethrow_exception(exception_ptr);
+                            }
                             auto user_data =
                                 m_user_ids[handle].first.Value().ToString().Utf8Value() == UNDEFINED_USER_DATA
                                     ? env.Undefined()
                                     : m_user_ids[handle].first.Value();
-                            user_callback.Call({env.Null(), js_ir, user_data});  // CVS-170804
+                            user_callback.Call({env.Null(), js_ir, user_data});
                             promise.Resolve(user_data);
                             // returns before the promise's .then() is completed
-                        } catch (Napi::Error& e) {
-                            promise.Reject(Napi::Error::New(env, e.Message()).Value());
+                        } catch (const std::exception& e) {
+                            promise.Reject(Napi::Error::New(env, e.what()).Value());
                         }
                         // Start async inference on the next request or add idle handle to queue
                         if (std::lock_guard<std::mutex> lock(m_mutex); m_awaiting_requests.size() > 0) {
@@ -151,21 +151,27 @@ void AsyncInferQueue::start_async_impl(const size_t handle,
                                        Napi::Object infer_data,
                                        Napi::Object user_data,
                                        Napi::Promise::Deferred deferred) {
-    m_user_inputs[handle] = Napi::Persistent(infer_data);  // keep reference to inputs so they are not garbage collected
-    m_user_ids[handle] = std::make_pair(Napi::Persistent(user_data), deferred);
+    try {
+        m_user_inputs[handle] =
+            Napi::Persistent(infer_data);  // keep reference to inputs so they are not garbage collected
+        m_user_ids[handle] = std::make_pair(Napi::Persistent(user_data), deferred);
 
-    // CVS-166764
-    const auto& keys = infer_data.GetPropertyNames();
-    for (uint32_t i = 0; i < keys.Length(); ++i) {
-        auto input_name = static_cast<Napi::Value>(keys[i]).ToString().Utf8Value();
-        auto value = infer_data.Get(input_name);
-        auto tensor = value_to_tensor(value, m_requests[handle], input_name);
+        // CVS-166764
+        const auto& keys = infer_data.GetPropertyNames();
+        for (uint32_t i = 0; i < keys.Length(); ++i) {
+            auto input_name = static_cast<Napi::Value>(keys[i]).ToString().Utf8Value();
+            auto value = infer_data.Get(input_name);
+            auto tensor = value_to_tensor(value, m_requests[handle], input_name);
 
-        m_requests[handle].set_tensor(input_name, tensor);
+            m_requests[handle].set_tensor(input_name, tensor);
+        }
+
+        OPENVINO_ASSERT(m_tsfn != nullptr,
+                        "Callback has to be set before starting inference. Use 'setCallback' method.");
+        m_requests[handle].start_async();  // returns immediately, main event loop is free
+    } catch (const std::exception& e) {
+        deferred.Reject(Napi::Error::New(infer_data.Env(), e.what()).Value());
     }
-
-    OPENVINO_ASSERT(m_tsfn != nullptr, "Callback has to be set before starting inference. Use 'setCallback' method.");
-    m_requests[handle].start_async();  // returns immediately, main event loop is free
 }
 
 Napi::Value AsyncInferQueue::start_async(const Napi::CallbackInfo& info) {

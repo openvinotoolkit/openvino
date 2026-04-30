@@ -52,6 +52,11 @@ bool Transpose::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, 
             errorMessage = "Constant expected as the second input for static shapes.";
             return false;
         }
+
+        if (op->get_input_element_type(INPUT_DATA_IDX) == ov::element::string) {
+            errorMessage = "String element type is not supported.";
+            return false;
+        }
     } catch (...) {
         return false;
     }

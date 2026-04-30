@@ -4,10 +4,12 @@
 
 #include "async_infer_request.hpp"
 
+#include "intel_npu/common/npu.hpp"
+
 namespace intel_npu {
 
 // clang-format off
-AsyncInferRequest::AsyncInferRequest(const std::shared_ptr<SyncInferRequest>& syncInferRequest,
+AsyncInferRequest::AsyncInferRequest(const std::shared_ptr<InferRequest>& syncInferRequest,
                                      const std::shared_ptr<ov::threading::ITaskExecutor>& requestExecutor,
                                      const std::shared_ptr<ov::threading::ITaskExecutor>& getResultExecutor,
                                      const std::shared_ptr<ov::threading::ITaskExecutor>& callbackExecutor)

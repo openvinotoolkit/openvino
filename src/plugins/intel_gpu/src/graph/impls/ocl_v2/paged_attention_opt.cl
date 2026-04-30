@@ -73,6 +73,10 @@ KERNEL(pa_sdpa_opt)(
 #if HAS_SINK_INPUT
     const __global SINK_DATA_T* sink_ptr,
 #endif
+#if HAS_QQ_BIAS
+    const __global QQ_BIAS_DATA_T* qq_bias,
+    const __global QQ_BIAS_BEGINS_DATA_T* qq_bias_begins,
+#endif
     __global OUTPUT_TYPE* output,
 #if PAGED_ATTENTION_SCORES_OUTPUT
     __global SOFTMAX_ACCUMULATOR_TYPE* softmax_results,
@@ -149,6 +153,12 @@ KERNEL(pa_sdpa_opt)(
     const int subsequence_begin = subsequence_begins[subsequence_idx];
     const int subsequence_end = subsequence_begins[subsequence_idx + 1];
     const uint seq_len = past_lens[subsequence_idx] + 1 + (seq_idx - subsequence_begin);
+    const uint past_len = past_lens[subsequence_idx];
+    #if HAS_QQ_BIAS
+        const uint qq_bias_num = qq_bias_begins[subsequence_idx + 1] - qq_bias_begins[subsequence_idx];
+        const uint qq_bias_spec_num = (uint)native_sqrt((float)qq_bias_num);
+        const uint cumulated_qq_bias_num = qq_bias_begins[subsequence_idx];
+    #endif
 #else
     const uint subsequence_idx = seq_idx;
     const uint seq_len = past_lens[seq_idx] + 1;
@@ -406,6 +416,20 @@ KERNEL(pa_sdpa_opt)(
 #endif
                 qk_acc = SOFTMAX_ACCUMULATOR_VAL_MIN;
 
+#if HAS_QQ_BIAS && MULTI_TOKENS_PROCESSING
+            // token_idx < seq_len, speculative tree mask
+            if (qq_bias_num > 0 && token_idx >= past_len && token_idx < seq_len) {
+                const uint spec_offset = token_idx - past_len;
+                if (spec_offset < qq_bias_spec_num) {
+                    const uint qq_bias_base = cumulated_qq_bias_num + (seq_idx - subsequence_begin) * qq_bias_spec_num;
+                    const uint qq_bias_offset = qq_bias_base + spec_offset;
+                    if (qq_bias[qq_bias_offset] == 0) {
+                        qk_acc = SOFTMAX_ACCUMULATOR_VAL_MIN;
+                    }
+                }
+            }
+#endif
+
             qk_max = SOFTMAX_ACCUMULATOR_MAX_FUNC(qk_max, TO_SOFTMAX_ACCUMULATOR_VEC_TYPE(qk_acc));
 
             unroll_for (uint q_idx = 0; q_idx < QUERIES_PER_WI; q_idx++) {
@@ -437,9 +461,18 @@ KERNEL(pa_sdpa_opt)(
         // Final max value after reduction across of all SG and WI
         unroll_for (uint q_idx = 0; q_idx < QUERIES_PER_WI; q_idx++) {
             #ifdef HAS_SINK_INPUT
-            const uint head_idx = get_global_id(1);
             const SOFTMAX_ACCUMULATOR_TYPE qk_max_tmp = sub_group_reduce_max(GET_VECTOR_ELEMENT(qk_max, q_idx));
-            GET_VECTOR_ELEMENT(qk_max, q_idx) = qk_max_tmp > sink_ptr[head_idx] ? qk_max_tmp : sink_ptr[head_idx];
+            // Include sink in softmax only for partition 0, because each partition independently
+            // computes its own local softmax (max + exp_sum). The finalization kernel later merges
+            // all partitions by rescaling each partition's exp_sum with exp(local_max - global_max).
+            // If sink were included in every partition, the finalization would count the sink
+            // contribution P times (once per partition) instead of once.
+            if (partition_idx == 0) {
+                const uint head_idx = get_global_id(1);
+                GET_VECTOR_ELEMENT(qk_max, q_idx) = qk_max_tmp > sink_ptr[head_idx] ? qk_max_tmp : sink_ptr[head_idx];
+            } else {
+                GET_VECTOR_ELEMENT(qk_max, q_idx) = qk_max_tmp;
+            }
             #else
             GET_VECTOR_ELEMENT(qk_max, q_idx) = sub_group_reduce_max(GET_VECTOR_ELEMENT(qk_max, q_idx));
             #endif
@@ -490,8 +523,10 @@ KERNEL(pa_sdpa_opt)(
         unroll_for (uint q_idx = 0; q_idx < QUERIES_PER_WI; q_idx++) {
             GET_VECTOR_ELEMENT(exp_sum, q_idx) = sub_group_reduce_add(GET_VECTOR_ELEMENT(exp_sum, q_idx));
             #ifdef HAS_SINK_INPUT
-            const uint head_idx = get_global_id(1);
-            GET_VECTOR_ELEMENT(exp_sum, q_idx) += (native_exp(TO_SOFTMAX_ACCUMULATOR_TYPE(sink_ptr[head_idx] - GET_VECTOR_ELEMENT(qk_max, q_idx))));
+            if (partition_idx == 0) {
+                const uint head_idx = get_global_id(1);
+                GET_VECTOR_ELEMENT(exp_sum, q_idx) += (native_exp(TO_SOFTMAX_ACCUMULATOR_TYPE(sink_ptr[head_idx]) - GET_VECTOR_ELEMENT(qk_max, q_idx)));
+            }
             #endif
         }
 

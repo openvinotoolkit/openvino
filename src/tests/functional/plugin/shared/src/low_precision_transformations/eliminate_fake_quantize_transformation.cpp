@@ -61,8 +61,9 @@ TEST_P(EliminateFakeQuantizeTransformation, CompareWithRefImpl) {
         const auto& nameIt = it.second.find("originalLayersNames");
         const auto& fused_name = nameIt->second.as<std::string>();
 
-        const auto names = ov::util::split(fused_name, ',', true);
-        for (const auto& name : names) {
+        const auto names = ov::util::split(fused_name, ",");
+        for (const auto& not_trimmed_name : names) {
+            const auto name = std::string(ov::util::trim(not_trimmed_name));
             ASSERT_TRUE(absent.find(name) == absent.end());
             exist.erase(name);
         }
