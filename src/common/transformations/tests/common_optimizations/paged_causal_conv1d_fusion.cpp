@@ -307,14 +307,14 @@ std::shared_ptr<ov::Model> build_fused_reference_model_with_optional_bias(const 
     }
 
     auto paged_conv = std::make_shared<ov::op::internal::PagedCausalConv1D>(input_embeds_reshaped,
-                                                                              conv_state_table,
-                                                                              weight_reshaped,
-                                                                              bias,
-                                                                              subsequence_begins,
-                                                                              block_indices,
-                                                                              block_indices_begins,
-                                                                              past_lens,
-                                                                              cache_interval);
+                                                                            conv_state_table,
+                                                                            weight_reshaped,
+                                                                            bias,
+                                                                            subsequence_begins,
+                                                                            block_indices,
+                                                                            block_indices_begins,
+                                                                            past_lens,
+                                                                            cache_interval);
     auto unsqueeze_axis = v0::Constant::create(element::i64, Shape{1}, {2});
     auto unsqueeze = std::make_shared<v0::Unsqueeze>(paged_conv, unsqueeze_axis);
     auto swish = std::make_shared<v4::Swish>(unsqueeze);

@@ -141,9 +141,8 @@ PagedCausalConv1DFusion::PagedCausalConv1DFusion(ov::pass::paged_attention::PaPa
         const auto weight_reshaped = std::make_shared<v1::Reshape>(weight_node, pa_weight_shape, false);
 
         const auto& elem_type = input_embeds_node->get_output_element_type(0);
-        const auto bias_node = pm.count(p_add_bias)
-                                   ? pm.at(p_bias_const).get_node_shared_ptr()
-                                   : v0::Constant::create(elem_type, ov::Shape{1}, {0.0f});
+        const auto bias_node = pm.count(p_add_bias) ? pm.at(p_bias_const).get_node_shared_ptr()
+                                                    : v0::Constant::create(elem_type, ov::Shape{1}, {0.0f});
 
         const auto paged_conv =
             std::make_shared<ov::op::internal::PagedCausalConv1D>(input_embeds_node,
