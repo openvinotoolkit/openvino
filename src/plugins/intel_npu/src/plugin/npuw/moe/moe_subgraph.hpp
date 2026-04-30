@@ -10,6 +10,8 @@
 #include <memory>
 #include <vector>
 
+#include "../v1/subgraph_pipeline.hpp"
+
 namespace ov {
 class Model;
 namespace npuw {
@@ -25,12 +27,6 @@ namespace s11n {
 class Stream;
 struct SubmodelDeserializeCtx;
 }  // namespace s11n
-namespace v1::subgraphs {
-class Context;
-struct CompiledPipeline;
-class PatternRegistry;
-class ScopedPatternRegistration;
-}  // namespace v1::subgraphs
 namespace moe {
 
 enum class BehaviorRole {

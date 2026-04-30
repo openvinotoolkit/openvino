@@ -2741,6 +2741,9 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                             return nullptr;
                         }});
                     function._pipeline.partition_stage(function, function._pipeline.context);
+                    // The callback captures partitioning state by reference, so keep it scoped to this
+                    // immediate partition-stage invocation and remove it before the context outlives us.
+                    function._pipeline.context.erase<ov::npuw::v1::subgraphs::PartitioningCallbacks>();
                 }
             }
         } else if (cfg.get<::intel_npu::NPUW_CWAI>()) {
