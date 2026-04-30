@@ -85,7 +85,8 @@ namespace ov {
     symbol_statement(zeKernelSetArgumentValue)                \
     symbol_statement(zeCommandListCreateImmediate)            \
     symbol_statement(zeKernelSetGroupSize)                    \
-    symbol_statement(zeCommandListAppendLaunchKernel)
+    symbol_statement(zeCommandListAppendLaunchKernel)         \
+    symbol_statement(zeDeviceGetStatus)
 
 /**
  * @def weak_symbols_list

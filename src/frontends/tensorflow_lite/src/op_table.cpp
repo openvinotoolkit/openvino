@@ -58,7 +58,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         // CONCAT_EMBEDDINGS
         {"CONCATENATION", DEQUANTIZE_INPUTS(concatenation)},
         {"CONV_2D", DEQUANTIZE_INPUTS(conv2d)},
-        // CONV_3D
+        {"CONV_3D", DEQUANTIZE_INPUTS(conv3d)},
         // CONV_3D_TRANSPOSE
         {"COS", translate_unary<opset10::Cos>},
         {"CUMSUM", translate_cumsum_op},
@@ -141,7 +141,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         {"REDUCE_MIN", translate_reduce_op<opset10::ReduceMin>},
         {"REDUCE_PROD", translate_reduce_op<opset10::ReduceProd>},
         {"RELU", translate_unary<opset10::Relu>},
-        // RELU_0_TO_1
+        {"RELU_0_TO_1", DEQUANTIZE_INPUTS(translate_relu_0_to_1_op)},
         // RELU_N1_TO_1
         {"RELU6", DEQUANTIZE_INPUTS(translate_relu_6_op)},
         {"RESHAPE", DEQUANTIZE_INPUTS(reshape)},

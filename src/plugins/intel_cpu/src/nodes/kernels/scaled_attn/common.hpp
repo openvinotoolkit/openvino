@@ -19,6 +19,17 @@
 #    include <immintrin.h>
 #endif
 
+#if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
+#    define prefetch_bytes(bytes, sel, advance, src)        \
+        {                                                   \
+            auto* _pf = reinterpret_cast<const char*>(src); \
+            for (size_t _i = 0; _i < (bytes); _i += 64)     \
+                _mm_prefetch(_pf + _i + (advance), sel);    \
+        }
+#else
+#    define prefetch_bytes(bytes, sel, advance, src)
+#endif
+
 #if defined(OPENVINO_ARCH_ARM64)
 #    if defined(HAVE_SVE)
 #        include "arm_sve.h"

@@ -12,16 +12,22 @@
 #include <string>
 #include <sstream>
 #include <iomanip>
+#include <exception>
 
-// Expect success of level zero command, throw runtime error otherwise
-#define OV_ZE_EXPECT(f) \
-    do { \
-        ze_result_t res_ = (f); \
-        if (res_ != ZE_RESULT_SUCCESS) { \
-            std::stringstream s; \
-            s << std::hex << res_; \
-            throw std::runtime_error(#f " command failed with code " + s.str()); \
-        } \
+// Expect success of level zero command, throw runtime error otherwise.
+// if already handling an exception (stack unwinding), logging a warning instead to avoid termination.
+#define OV_ZE_EXPECT(f)                                                         \
+    do {                                                                        \
+        ze_result_t res_ = (f);                                                 \
+        if (res_ != ZE_RESULT_SUCCESS) {                                        \
+            std::stringstream s;                                                \
+            s << std::hex << res_;                                              \
+            if (std::uncaught_exceptions() > 0) {                               \
+                GPU_DEBUG_INFO << ("[GPU] " #f " command failed with code " + s.str() + " (during stack unwinding)"); \
+            } else {                                                            \
+                OPENVINO_THROW(#f " command failed with code " + s.str());      \
+            }                                                                   \
+        }                                                                       \
     } while (false)
 
 // Prints warning if level zero command does not return success result

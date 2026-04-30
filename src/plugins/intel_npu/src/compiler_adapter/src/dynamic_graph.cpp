@@ -337,6 +337,15 @@ void DynamicGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>
         }
     }
 
+    // Prepare execution context for each graph arguments
+    if (params->executionContext == nullptr) {
+        if (npuVMRuntimeCreateExecutionContext(_engine, &params->executionContext) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+            OPENVINO_THROW("Failed to create a VM execution context");
+        } else {
+            _logger.debug("Execution context is created successfully.");
+        }
+    }
+
     params->pInputs = argsImpl->_inputMemRefs.data();
     params->numOfInputs = static_cast<uint32_t>(argsImpl->_inputMemRefs.size());
     params->pOutputs = argsImpl->_outputMemRefs.data();
@@ -464,9 +473,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> DynamicGraph::export_b
             result = ((result << 7) + result) + static_cast<uint32_t>(*it);
         }
 
-        std::stringstream str;
-        str << "Blob size: " << blobSize << ", hash: " << std::hex << result;
-        _logger.info(str.str().c_str());
+        _logger.info("Blob size: %zu, hash: %x", blobSize, result);
     }
 
     size_t size = utils::align_size_to_standard_page_size(blobSize);
@@ -477,7 +484,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> DynamicGraph::export_b
             _logger.error("Write padding to stream failed. Blob is broken!");
             return std::make_pair(0, std::nullopt);
         }
-        _logger.info("Blob size with padding: %ld", size);
+        _logger.info("Blob size with padding: %zu", size);
     }
     _logger.info("Write blob to stream successfully.");
     return std::make_pair(size, std::nullopt);

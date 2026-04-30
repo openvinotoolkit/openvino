@@ -31,21 +31,6 @@ namespace ov::Extensions::Cpu::XARCH {
 
 using namespace ov;
 
-#if defined(HAVE_AVX2)
-
-#    define prefetch_bytes(bytes, sel, advance, src) \
-        {                                            \
-            auto* p = reinterpret_cast<char*>(src);  \
-            for (size_t i = 0; i < bytes; i += 64)   \
-                _mm_prefetch(p + i + advance, sel);  \
-        }
-
-#else
-
-#    define prefetch_bytes(bytes, sel, advance, src)
-
-#endif
-
 template <typename TA, typename TB>
 static void cvt_copy(TA* dst, TB* src, size_t n) {
     size_t i = 0;
