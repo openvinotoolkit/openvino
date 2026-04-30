@@ -737,23 +737,24 @@ TEST(arg_max_gpu_min_large_output_size, sort_by_indices) {
     // No data checking.  The test will fail to compile if kernel not switch to use global memory
 }
 
-TEST(arg_max_gpu_kernel_selector, axis_internal_buffer_sizes_match_update_path) {
+TEST(arg_max_gpu_topk_axis, large_output_size_internal_buffer_sizes_match_update_path) {
     kernel_selector::arg_max_min_params params;
-    params.inputs.push_back(kernel_selector::DataTensor({1, 1, 1, 20000},
-                                                        kernel_selector::Datatype::F32,
-                                                        kernel_selector::DataLayout::bfyx));
-    params.outputs.push_back(kernel_selector::DataTensor({1, 1, 1, 6000},
-                                                         kernel_selector::Datatype::F32,
-                                                         kernel_selector::DataLayout::bfyx));
+    params.inputs[0] = kernel_selector::DataTensor(std::vector<size_t>{20000, 1, 1, 1},
+                                                   kernel_selector::Datatype::F32,
+                                                   kernel_selector::DataLayout::yxfb);
+    params.outputs[0] = kernel_selector::DataTensor(std::vector<size_t>{6000, 1, 1, 1},
+                                                    kernel_selector::Datatype::F32,
+                                                    kernel_selector::DataLayout::yxfb);
     params.argMaxMinAxis = kernel_selector::ArgMaxMinAxis::BATCH;
-    params.argMaxMinOut = kernel_selector::ArgMaxMinOut::MIN;
+    params.argMaxMinOut = kernel_selector::ArgMaxMinOut::MAX;
     params.argMaxMinSortType = kernel_selector::ArgMaxMinSortType::INDEX;
     params.topK = 6000;
     params.outputs_num = 1;
+    // Selector-level tests construct EngineInfo manually. We only need a non-zero
+    // maxWorkGroupSize so GetOptimalLocalWorkGroupSizes() can derive valid LWS;
+    // 256 is the smallest stable bucket in the selector heuristics and avoids
+    // baking in 512/1024-specific behavior that is irrelevant to this test.
     params.engineInfo.maxWorkGroupSize = 256;
-    params.engineInfo.maxLocalMemSize = 64 * 1024;
-    params.engineInfo.computeUnitsCount = 128;
-    params.engineInfo.supports_non_uniform_work_group = true;
 
     kernel_selector::ArgMaxMinKernelAxis kernel;
     auto kernels_data = kernel.GetKernelsData(params);
