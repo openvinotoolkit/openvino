@@ -12,6 +12,7 @@
 #include "llm_infer_base_request.hpp"
 #include "llm_lora_states.hpp"
 #include "llm_prefix_caching.hpp"
+#include "llm_stored_tokens_state.hpp"
 #include "openvino/core/descriptor/output.hpp"
 #include "perf.hpp"
 
@@ -26,7 +27,6 @@ public:
 
     ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
-    void reset_state() override;
 
 protected:
     virtual void prepare_for_new_conversation();
@@ -122,6 +122,9 @@ protected:
 
     // Support Eagle3 speculative decoding
     Eagle3Extension m_eagle3_ext;
+
+    // Support reset of stored tokens to 0 from external pipeline
+    ov::SoPtr<ov::npuw::StoredTokensState> m_stored_tokens_state;
 
     // Support LoRA
     std::vector<ov::SoPtr<ov::IVariableState>> m_variableStates;

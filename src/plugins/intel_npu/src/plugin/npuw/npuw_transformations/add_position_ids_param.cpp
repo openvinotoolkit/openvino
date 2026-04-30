@@ -30,10 +30,10 @@ void set_node_name(std::shared_ptr<ov::Node> node, const std::string& name) {
 }
 
 // TODO: Consolidate with similar pattern in prepare_embedding_model.cpp
-class PositionIdsMatcher : public ov::pass::MultiMatcher {
+class HardcodedPositionIdsMatcher : public ov::pass::MultiMatcher {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("ov::npuw::PositionIdsMatcher");
-    explicit PositionIdsMatcher(ov::ParameterVector& new_params) {
+    OPENVINO_MATCHER_PASS_RTTI("ov::npuw::HardcodedPositionIdsMatcher");
+    explicit HardcodedPositionIdsMatcher(ov::ParameterVector& new_params) {
         auto range = opp::wrap_type<ov::op::v4::Range>();
         auto unsqueeze_axes = opp::wrap_type<ov::op::v0::Constant>();
         auto unsqueeze = opp::wrap_type<ov::op::v0::Unsqueeze>({range, unsqueeze_axes});
@@ -110,7 +110,7 @@ bool ov::npuw::AddPositionIdsParam::run_on_model(const std::shared_ptr<ov::Model
     ov::ParameterVector new_parameters;
     ov::pass::Manager manager("add-position-ids-param");
     manager.set_per_pass_validation(false);
-    manager.register_pass<PositionIdsMatcher>(new_parameters);
+    manager.register_pass<HardcodedPositionIdsMatcher>(new_parameters);
     manager.run_passes(model);
 
     model->add_parameters(new_parameters);

@@ -114,7 +114,7 @@ std::shared_ptr<ov::Model> cvt_kvcache_to_low_precision(const std::shared_ptr<ov
     return new_model;
 }
 
-std::shared_ptr<ov::Model> cvt_lincache_to_low_precision(const std::shared_ptr<ov::Model>& model,
+std::shared_ptr<ov::Model> cvt_lincache_to_precision(const std::shared_ptr<ov::Model>& model,
                                                          const ov::element::Type lptype) {
     ov::preprocess::PrePostProcessor ppp(model);
 
@@ -195,7 +195,7 @@ bool ConvertKVCacheToPrecision::run_on_model(const std::shared_ptr<ov::Model>& m
 ConvertLinCacheToPrecision::ConvertLinCacheToPrecision(const ov::element::Type lptype) : m_lp_type(lptype) {}
 
 bool ConvertLinCacheToPrecision::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    auto ppp_result = cvt_lincache_to_low_precision(model, m_lp_type);
+    auto ppp_result = cvt_lincache_to_precision(model, m_lp_type);
     // PrePostProcessor currently always modifies the model in-place and returns the same model pointer, but let's
     // be defensive here and check it just in case
     OPENVINO_ASSERT(ppp_result == model,

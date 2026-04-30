@@ -165,6 +165,7 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     }
 
     init_pre_alloc_device();
+    m_stored_tokens_state = std::make_shared<ov::npuw::StoredTokensState>();
     init_lora_states();
 
     m_eagle3_ext.initialize(m_npuw_llm_compiled_model->m_is_eagle, m_prefill_in_ports, m_prefill_out_ports);
@@ -523,7 +524,8 @@ void ov::npuw::LLMInferRequest::prepare_for_new_conversation(int64_t prompt_leng
         uu::fill_tensor_bytes(m_prefill_request->get_tensor(prefill_past_port), 0u);
     }
 
-    m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens = 0u;
+    OPENVINO_ASSERT(m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens == 0u,
+                    "Num stored tokens should be reset to 0 for new conversation before this function call.");
 
     // Select the appropriate generate inference request variant based on prompt length
     // The function internally calculates expected total tokens (prompt + min_response_len)
@@ -1176,6 +1178,20 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
 }
 
 void ov::npuw::LLMInferRequest::infer() {
+    // Sync num_stored_tokens before infer with external updates
+    auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
+    auto externally_set_num_stored_tokens = m_stored_tokens_state->get_num_stored_tokens();
+    if (externally_set_num_stored_tokens > kvcache_desc.total_size) {
+        OPENVINO_THROW("Number of updated stored tokens in KV-Cache is greater than total KV-Cache size.");
+    }
+    if (externally_set_num_stored_tokens < 0) {
+        OPENVINO_THROW("Number of updated stored tokens is negative!");
+    }
+    if (externally_set_num_stored_tokens == 0) {
+        m_first_run = true;
+    }
+    kvcache_desc.num_stored_tokens = static_cast<uint32_t>(externally_set_num_stored_tokens);
+
     const auto& inputs = get_inputs();
 
     auto input_ids = get_tensor(ov::npuw::util::find_port_by_name(inputs, m_input_ids_name).value());
@@ -1186,7 +1202,6 @@ void ov::npuw::LLMInferRequest::infer() {
     if (position_ids_opt.has_value()) {
         position_ids = get_tensor(position_ids_opt.value());
     } else {
-        auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
         // FIXME: ov::SoPtr<ov::ITensor>?
         position_ids = ov::make_tensor(input_ids->get_element_type(),
                                        ov::Shape{input_ids->get_shape()[0], input_ids->get_shape()[1]});
@@ -1265,6 +1280,8 @@ void ov::npuw::LLMInferRequest::infer() {
         }
         infer_generate(input_ids, attention_mask, position_ids, token_type_ids, per_layer_inputs);
     }
+    // Sync num_stored_tokens after infer with internal updates
+    m_stored_tokens_state->set_num_stored_tokens(kvcache_desc.num_stored_tokens);
 }
 
 ov::SoPtr<ov::ITensor> ov::npuw::LLMInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
@@ -1293,6 +1310,10 @@ ov::SoPtr<ov::ITensor> ov::npuw::LLMInferRequest::get_tensor(const ov::Output<co
 std::vector<ov::SoPtr<ov::IVariableState>> ov::npuw::LLMInferRequest::query_state() const {
     auto states = m_variableStates;
 
+    if (m_stored_tokens_state) {
+        states.push_back(m_stored_tokens_state);
+    }
+
     // Add Eagle3 sampling state if available
     auto eagle3_state = m_eagle3_ext.get_sampling_state();
     if (eagle3_state) {
@@ -1300,10 +1321,4 @@ std::vector<ov::SoPtr<ov::IVariableState>> ov::npuw::LLMInferRequest::query_stat
     }
 
     return states;
-}
-
-void ov::npuw::LLMInferRequest::reset_state() {
-    auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
-    kvcache_desc.num_stored_tokens = 0;
-    m_first_run = true;
 }
