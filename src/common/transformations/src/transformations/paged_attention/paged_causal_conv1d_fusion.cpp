@@ -15,6 +15,7 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/assign.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -48,11 +49,6 @@ namespace v8 = ov::op::v8;
 
 namespace {
 
-std::shared_ptr<ov::Node> make_zero_bias(const ov::element::Type& type, const size_t channels) {
-    std::vector<float> values(channels, 0.0f);
-    return v0::Constant::create(type, ov::Shape{channels}, values);
-}
-
 ov::PartialShape make_conv_state_table_shape(const ov::PartialShape& past_state_shape) {
     if (past_state_shape.rank().is_static() && past_state_shape.rank().get_length() == 3) {
         return ov::PartialShape{ov::Dimension::dynamic(), past_state_shape[1], past_state_shape[2]};
@@ -79,7 +75,10 @@ PagedCausalConv1DFusion::PagedCausalConv1DFusion(ov::pass::paged_attention::PaPa
     auto p_weight_input = any_input(has_static_shape() && rank_equals(4));
     auto p_group_conv = wrap_type<v1::GroupConvolution>({p_state_concat, p_weight_input});
 
-    auto p_slice_out = wrap_type<v8::Slice>({p_group_conv, any_input(), any_input(), any_input(), any_input()});
+    auto p_bias_const = wrap_type<v0::Constant>(has_static_shape());
+    auto p_add_bias = ov::pass::pattern::optional<v1::Add>({p_group_conv, p_bias_const});
+
+    auto p_slice_out = wrap_type<v8::Slice>({p_add_bias, any_input(), any_input(), any_input(), any_input()});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS, &pa_params, &var_ids_to_remove](
                                              ov::pass::pattern::Matcher& m) {
@@ -141,7 +140,10 @@ PagedCausalConv1DFusion::PagedCausalConv1DFusion(ov::pass::paged_attention::PaPa
                                                                                static_cast<int64_t>(kernel_size)});
         const auto weight_reshaped = std::make_shared<v1::Reshape>(weight_node, pa_weight_shape, false);
 
-        const auto bias_node = make_zero_bias(input_embeds_node->get_output_element_type(0), hidden_size);
+        const auto& elem_type = input_embeds_node->get_output_element_type(0);
+        const auto bias_node = pm.count(p_add_bias)
+                                   ? pm.at(p_bias_const).get_node_shared_ptr()
+                                   : v0::Constant::create(elem_type, ov::Shape{1}, {0.0f});
 
         const auto paged_conv =
             std::make_shared<ov::op::internal::PagedCausalConv1D>(input_embeds_node,
