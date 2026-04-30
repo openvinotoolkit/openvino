@@ -12,6 +12,8 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/paged_attention.hpp"
+#include "openvino/op/paged_causal_conv1d.hpp"
+#include "openvino/op/paged_gated_delta_net.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/log.hpp"
 #include "transformations/utils/utils.hpp"
@@ -116,6 +118,38 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config,
 
             key_cache->validate_and_infer_types();
             value_cache->validate_and_infer_types();
+        }
+        
+        if (const auto paged_conv = ov::as_type_ptr<ov::op::internal::PagedCausalConv1D>(root)) {
+            auto conv_state_table = ov::as_type_ptr<v0::Parameter>(paged_conv->get_input_node_shared_ptr(1));
+            if (!conv_state_table) {
+                return false;
+            }
+
+            auto conv_cache_precision = m_config.inferencePrecision;
+            if (m_update_precision_func) {
+                m_update_precision_func(conv_cache_precision);
+            }
+
+            conv_state_table->set_element_type(conv_cache_precision);
+            conv_state_table->validate_and_infer_types();
+            return true;
+        }
+
+        if (const auto paged_gdn = ov::as_type_ptr<ov::op::internal::PagedGatedDeltaNet>(root)) {
+            auto gated_delta_state_table = ov::as_type_ptr<v0::Parameter>(paged_gdn->get_input_node_shared_ptr(3));
+            if (!gated_delta_state_table) {
+                return false;
+            }
+
+            auto gated_delta_cache_precision = m_config.inferencePrecision;
+            if (m_update_precision_func) {
+                m_update_precision_func(gated_delta_cache_precision);
+            }
+
+            gated_delta_state_table->set_element_type(gated_delta_cache_precision);
+            gated_delta_state_table->validate_and_infer_types();
+            return true;
         }
 
         return status;
