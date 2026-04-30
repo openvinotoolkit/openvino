@@ -623,12 +623,10 @@ TEST(StateConcatSDPAExtra, ShapeOfOnConcatKRerouteSucceeds) {
 // Positive test modelled after Gemma3n's shared-KV topology: one ReadValue
 // fans out to two Gathers, each feeding its own Concat → multi-query
 // broadcast (Unsqueeze/Broadcast/Reshape) → SDPA. Both SDPAs share the same
-// K-Variable and V-Variable ReadValue. Under the data-path backward BFS in
-// compute_shared_kv_sdpas, both SDPAs' K-input walks converge on the shared
-// ReadValue (through their respective Gathers), so both SDPAs are marked
-// shared and the fusion must be refused for both — otherwise
-// ScaledDotProductAttentionWithKVCache would crash at runtime with "null
-// input states".
+// K-Variable and V-Variable through a single ReadValue node. The shared-KV
+// detection sees the same variable_id from both branches and refuses fusion
+// for both SDPAs — otherwise ScaledDotProductAttentionWithKVCache would
+// crash at runtime with "null input states".
 static std::shared_ptr<ov::Model>
 makeGemma3nLikeSharedKVModel(const ov::PartialShape& inputShape) {
     auto q1 = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
@@ -678,9 +676,9 @@ makeGemma3nLikeSharedKVModel(const ov::PartialShape& inputShape) {
                                    "Gemma3nLikeSharedKV");
 }
 
-TEST(StateConcatSDPAExtra, Gemma3nLikeSharedKVDetectedByBackwardBFS) {
+TEST(StateConcatSDPAExtra, Gemma3nLikeSharedKVRefusesFusion) {
 #if defined(OPENVINO_ARCH_X86_64) && (defined(__ANDROID__) || defined(ANDROID))
-    GTEST_SKIP() << "Skipping Gemma3nLikeSharedKVDetectedByBackwardBFS on Android X64";
+    GTEST_SKIP() << "Skipping Gemma3nLikeSharedKVRefusesFusion on Android X64";
 #endif
     auto inputShape = ov::PartialShape{-1, 8, -1, 64};
     auto model = makeGemma3nLikeSharedKVModel(inputShape);
@@ -700,8 +698,100 @@ TEST(StateConcatSDPAExtra, Gemma3nLikeSharedKVDetectedByBackwardBFS) {
         }
     }
     EXPECT_EQ(plain_sdpa, 2u)
-        << "Both SDPAs share the same ReadValue (K and V) via backward data-path reachability — "
+        << "Both SDPAs share the same ReadValue (K and V) — "
            "fusion must be refused for both.";
     EXPECT_EQ(fused_sdpa, 0u) << "No SDPA may fuse when the KV-cache is shared.";
+}
+
+// Two distinct v6::ReadValue nodes that reference the SAME Variable (one per
+// branch), each feeding its own Gather → Concat → SDPA. The two SDPAs are
+// reachable from two different ReadValue *nodes*, but the cache memory they
+// read is the same Variable slot — i.e., they share the KV-cache. Under any
+// detection that keys on the ReadValue node pointer, no sharing is found and
+// both SDPAs would (incorrectly) fuse. Under detection keyed on the Variable
+// identifier (variable_id + "/k" | "/v"), the same Variable is observed twice
+// and both SDPAs are correctly marked as shared.
+static std::shared_ptr<ov::Model>
+makeSharedVariableTwoReadValuesModel(const ov::PartialShape& inputShape) {
+    auto q1 = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
+    auto k1 = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
+    auto v1 = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
+    auto q2 = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
+    auto k2 = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
+    auto v2 = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
+    auto init_k1 = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
+    auto init_v1 = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
+    auto init_k2 = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
+    auto init_v2 = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
+    auto beam_idx = std::make_shared<ov::op::v0::Parameter>(element::i32, ov::PartialShape{-1});
+
+    // ONE Variable per K and V — but TWO ReadValue/Assign pairs each.
+    auto var_k = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{inputShape, element::f32, "shared_var_k"});
+    auto var_v = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{inputShape, element::f32, "shared_var_v"});
+
+    auto rv_k1 = std::make_shared<ov::op::v6::ReadValue>(init_k1, var_k);
+    auto rv_v1 = std::make_shared<ov::op::v6::ReadValue>(init_v1, var_v);
+    auto rv_k2 = std::make_shared<ov::op::v6::ReadValue>(init_k2, var_k);
+    auto rv_v2 = std::make_shared<ov::op::v6::ReadValue>(init_v2, var_v);
+
+    auto build_branch = [&](const std::shared_ptr<ov::op::v0::Parameter>& q,
+                            const std::shared_ptr<ov::op::v0::Parameter>& k_cur,
+                            const std::shared_ptr<ov::op::v0::Parameter>& v_cur,
+                            const std::shared_ptr<ov::op::v6::ReadValue>& rv_k,
+                            const std::shared_ptr<ov::op::v6::ReadValue>& rv_v) {
+        auto g_k = std::make_shared<ov::op::v8::Gather>(rv_k, beam_idx,
+                                                        op::v0::Constant::create(element::i32, {1}, {0}));
+        auto g_v = std::make_shared<ov::op::v8::Gather>(rv_v, beam_idx,
+                                                        op::v0::Constant::create(element::i32, {1}, {0}));
+        auto c_k = std::make_shared<ov::op::v0::Concat>(OutputVector{g_k, k_cur}, 2);
+        auto c_v = std::make_shared<ov::op::v0::Concat>(OutputVector{g_v, v_cur}, 2);
+        auto sdp = std::make_shared<ov::opset13::ScaledDotProductAttention>(q, c_k, c_v, false);
+        auto assign_k = std::make_shared<op::v6::Assign>(c_k, rv_k->get_variable());
+        auto assign_v = std::make_shared<op::v6::Assign>(c_v, rv_v->get_variable());
+        return std::tuple<std::shared_ptr<ov::Node>,
+                          std::shared_ptr<op::v6::Assign>,
+                          std::shared_ptr<op::v6::Assign>>{sdp, assign_k, assign_v};
+    };
+
+    auto [sdpa1, assign_k1, assign_v1] = build_branch(q1, k1, v1, rv_k1, rv_v1);
+    auto [sdpa2, assign_k2, assign_v2] = build_branch(q2, k2, v2, rv_k2, rv_v2);
+
+    ResultVector results{std::make_shared<ov::op::v0::Result>(sdpa1),
+                         std::make_shared<ov::op::v0::Result>(sdpa2)};
+    SinkVector sinks{assign_k1, assign_v1, assign_k2, assign_v2};
+    return std::make_shared<Model>(
+        results, sinks,
+        ParameterVector{q1, k1, v1, q2, k2, v2, init_k1, init_v1, init_k2, init_v2, beam_idx},
+        "SharedVariableTwoReadValues");
+}
+
+TEST(StateConcatSDPAExtra, SharedVariableTwoReadValuesRefusesFusion) {
+#if defined(OPENVINO_ARCH_X86_64) && (defined(__ANDROID__) || defined(ANDROID))
+    GTEST_SKIP() << "Skipping SharedVariableTwoReadValuesRefusesFusion on Android X64";
+#endif
+    auto inputShape = ov::PartialShape{-1, 8, -1, 64};
+    auto model = makeSharedVariableTwoReadValuesModel(inputShape);
+
+    ov::pass::Manager manager;
+    manager.register_pass<StatefulSDPAFusion>();
+    manager.run_passes(model);
+
+    size_t plain_sdpa = 0;
+    size_t fused_sdpa = 0;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(op)) {
+            ++plain_sdpa;
+        }
+        if (ov::is_type<ov::intel_cpu::ScaledDotProductAttentionWithKVCache>(op)) {
+            ++fused_sdpa;
+        }
+    }
+    EXPECT_EQ(plain_sdpa, 2u)
+        << "Both SDPAs reference the same Variable through distinct ReadValue nodes — "
+           "the KV-cache slot is shared and fusion must be refused for both.";
+    EXPECT_EQ(fused_sdpa, 0u)
+        << "No SDPA may fuse when two ReadValues alias the same Variable.";
 }
 

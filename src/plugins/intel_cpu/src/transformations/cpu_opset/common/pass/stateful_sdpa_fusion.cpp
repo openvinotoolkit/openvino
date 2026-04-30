@@ -60,16 +60,47 @@ namespace ov::intel_cpu {
 namespace {
 
 using SharedSdpaSet = std::unordered_set<const ov::Node*>;
+using KvVarOwnerMap = std::unordered_map<std::string, const ov::Node*>;
+
+// Layout deliberately mirrors StateManagementPattern::find_or_create_kv_param
+// in the SDPAToPagedAttention path: same map shape (variable_id + "/k" | "/v"
+// keys), same suffix scheme. Once ScaledDotProductAttentionWithKVCache learns
+// a reader-only binding mode (analogous to PagedAttentionExtension's
+// write_kv_cache=false flag), this helper can flip from "refuse fusion for
+// every shared SDPA" to "fuse the owner with write, fuse the readers without
+// write" by changing only the matcher callback's response — the discovery
+// logic stays the same.
+//
+// Returns true if (variable_id, suffix) was already registered for another
+// SDPA (=> this SDPA is a non-owner reader); false on the first occurrence
+// (=> this SDPA is the tentative owner). On "true", BOTH the current SDPA
+// and the previously-registered owner are inserted into 'shared': the owner
+// only retroactively becomes "shared" when a second reader appears.
+bool find_or_mark_kv_owner(const std::string& variable_id,
+                           const char* suffix,
+                           const ov::Node* sdpa,
+                           KvVarOwnerMap& owners,
+                           SharedSdpaSet& shared) {
+    const auto key = variable_id + suffix;
+    auto it = owners.find(key);
+    if (it != owners.end()) {
+        shared.insert(it->second);
+        shared.insert(sdpa);
+        return true;
+    }
+    owners.emplace(key, sdpa);
+    return false;
+}
 
 // Build the set of v13::SDPA nodes whose KV-cache is shared with another SDPA
 // in the same model.
 //
 // For each v13::ScaledDotProductAttention we walk backward from its K-input
 // (port 1) and V-input (port 2) along data (floating-point) edges only,
-// halting at the boundary ops below. ReadValue nodes encountered on the way
-// are recorded as "source" RVs for that SDPA. After all SDPAs are visited we
-// invert the mapping: if any RV is the source for ≥ 2 SDPAs, every SDPA
-// reading that RV (transitively, via the data path captured here) is shared.
+// halting at the boundary ops below. Every ReadValue reached is bucketed by
+// (variable_id + "/k" | "/v"); whenever a key is observed for the second
+// time, both the current SDPA and the previously-recorded owner are flagged
+// as shared.
 //
 // Halt boundaries (do not recurse through their inputs):
 //   - ReadValue: target — record as source and stop.
@@ -82,11 +113,18 @@ using SharedSdpaSet = std::unordered_set<const ov::Node*>;
 // Edge filter: only floating-point input ports are followed. i32 / i64
 // shape / indices / axes / order edges (and the int8 weight Convert chain)
 // are skipped, which structurally excludes the ShapeOf-rooted positional-ID
-// / RoPE fanout that caused CVS-185220 with the original forward BFS.
+// / RoPE fanout that caused the StatefulSDPAFusion regression with the
+// original forward BFS.
+//
+// Keying on variable_id rather than on the ReadValue pointer is what catches
+// the corner case in which two distinct ReadValue nodes alias the same
+// Variable: their cache memory is the same slot, so any fusion must treat
+// them as shared even though their node pointers differ.
 SharedSdpaSet compute_shared_kv_sdpas(const std::shared_ptr<const ov::Model>& model) {
-    std::unordered_map<const ov::op::v6::ReadValue*, std::unordered_set<const ov::Node*>> rv_to_sdpas;
+    KvVarOwnerMap owners;
+    SharedSdpaSet shared;
 
-    auto walk_backward = [&](const ov::Node* sdpa, size_t input_idx) {
+    auto walk_and_register = [&](const ov::Node* sdpa, size_t input_idx, const char* suffix) {
         if (input_idx >= sdpa->get_input_size()) {
             return;
         }
@@ -99,7 +137,7 @@ SharedSdpaSet compute_shared_kv_sdpas(const std::shared_ptr<const ov::Model>& mo
             const auto* n = queue.front();
             queue.pop_front();
             if (const auto* rv = ov::as_type<const ov::op::v6::ReadValue>(n)) {
-                rv_to_sdpas[rv].insert(sdpa);
+                find_or_mark_kv_owner(rv->get_variable_id(), suffix, sdpa, owners, shared);
                 continue;
             }
             if (ov::is_type_any_of<ov::op::v0::MatMul,
@@ -120,19 +158,16 @@ SharedSdpaSet compute_shared_kv_sdpas(const std::shared_ptr<const ov::Model>& mo
         }
     };
 
-    for (const auto& op : model->get_ops()) {
+    // Topological order so the "owner" recorded for each variable_id is the
+    // topologically-earliest SDPA that reaches it — this is the SDPA that a
+    // future reader-only fusion mode would keep as the writer.
+    for (const auto& op : model->get_ordered_ops()) {
         if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(op)) {
-            walk_backward(op.get(), 1);  // K
-            walk_backward(op.get(), 2);  // V
+            walk_and_register(op.get(), 1, "/k");
+            walk_and_register(op.get(), 2, "/v");
         }
     }
 
-    SharedSdpaSet shared;
-    for (const auto& [rv, sdpas] : rv_to_sdpas) {
-        if (sdpas.size() > 1) {
-            shared.insert(sdpas.begin(), sdpas.end());
-        }
-    }
     return shared;
 }
 
