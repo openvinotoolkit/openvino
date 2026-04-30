@@ -75,7 +75,14 @@ memory::ptr ze_engine::allocate_memory(const layout& layout, allocation_type typ
     check_allocatable(layout, type);
 
     try {
-        memory::ptr res = std::make_shared<ze::gpu_usm>(this, layout, type);
+        memory::ptr res;
+        if (layout.format.is_image_2d()) {
+            res = std::make_shared<ze::gpu_image2d>(this, layout);
+        } else if (memory_capabilities::is_usm_type(type)){
+            res = std::make_shared<ze::gpu_usm>(this, layout, type);
+        } else {
+            OPENVINO_THROW("[GPU] Unsupported allocation type: ", type);
+        }
 
         if (reset || res->is_memory_reset_needed(layout)) {
             auto ev = res->fill(get_service_stream());
@@ -96,15 +103,24 @@ memory::ptr ze_engine::reinterpret_buffer(const memory& memory, const layout& ne
                     "[GPU] trying to reinterpret between image and non-image layouts. Current: ",
                     memory.get_layout().format.to_string(), " Target: ", new_layout.format.to_string());
 
+    bool from_memory_pool = memory.from_memory_pool;
+    memory::ptr reinterpret_memory = nullptr;
     if (memory_capabilities::is_usm_type(memory.get_allocation_type())) {
-            return std::make_shared<ze::gpu_usm>(this,
+        reinterpret_memory = std::make_shared<ze::gpu_usm>(this,
                                      new_layout,
                                      reinterpret_cast<const ze::gpu_usm&>(memory).get_buffer(),
                                      memory.get_allocation_type(),
                                      memory.get_mem_tracker());
+    } else if (new_layout.format.is_image_2d()) {
+        reinterpret_memory = std::make_shared<ze::gpu_image2d>(this,
+                                     new_layout,
+                                     reinterpret_cast<const ze::gpu_image2d&>(memory).get_handle(),
+                                     memory.get_mem_tracker());
+    } else {
+        OPENVINO_THROW("[GPU] Unexpected memory type for reinterpret_buffer");
     }
-
-    OPENVINO_THROW("[GPU] Trying to reinterpret non usm buffer");
+    reinterpret_memory->from_memory_pool = from_memory_pool;
+    return reinterpret_memory;
 }
 
 memory::ptr ze_engine::reinterpret_handle(const layout& new_layout, shared_mem_params params) {
@@ -117,6 +133,9 @@ memory::ptr ze_engine::reinterpret_handle(const layout& new_layout, shared_mem_p
                             "[GPU] shared USM buffer has smaller size (", actual_mem_size,
                             ") than specified layout (", requested_mem_size, ")");
         return std::make_shared<ze::gpu_usm>(this, new_layout, usm_buffer, nullptr);
+    } else if (params.mem_type == shared_mem_type::shared_mem_image) {
+        auto image = reinterpret_cast<ze_image_handle_t>(params.mem);
+        return std::make_shared<ze::gpu_image2d>(this, new_layout, image, nullptr);
     } else {
         OPENVINO_THROW("[GPU] Unsupported shared memory type: ", params.mem_type);
     }

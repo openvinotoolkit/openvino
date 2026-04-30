@@ -86,6 +86,11 @@ namespace ov {
     symbol_statement(zeCommandListCreateImmediate)            \
     symbol_statement(zeKernelSetGroupSize)                    \
     symbol_statement(zeCommandListAppendLaunchKernel)         \
+    symbol_statement(zeImageCreate)                           \
+    symbol_statement(zeImageDestroy)                          \
+    symbol_statement(zeCommandListAppendImageCopy)            \
+    symbol_statement(zeCommandListAppendImageCopyFromMemory)  \
+    symbol_statement(zeCommandListAppendImageCopyToMemory)    \
     symbol_statement(zeDeviceGetStatus)
 
 /**
