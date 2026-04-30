@@ -55,3 +55,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_OVClassQueryModelTest,
                          ::testing::Values(ov::test::utils::DEVICE_TEMPLATE));
 
 }  // namespace
+
+namespace ov::test::behavior {
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassCompileModelWithCondidateDeviceListContainedMetaPluginTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassSeveralDevicesTestCompileModel);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassSeveralDevicesTestQueryModel);
+}  // namespace ov::test::behavior

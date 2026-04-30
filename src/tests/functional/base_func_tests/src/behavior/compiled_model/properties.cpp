@@ -532,6 +532,15 @@ TEST_P(OVClassCompiledModelGetConfigTest, CanCompileModelWithCustomLocale) {
     setlocale(LC_ALL, prev.c_str());
 }
 
+// Shared library definitions - not every plugin instantiates all of them.
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassCompiledModelGetPropertyTest_DEVICE_PRIORITY);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassCompiledModelGetPropertyTest_MODEL_PRIORITY);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassCompiledModelSetCorrectConfigTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassCompileModelWithCorrectPropertiesTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVCompileModelGetExecutionDeviceTests);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVCompiledModelPropertiesDefaultSupportedTests);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassCompiledModelEmptyPropertiesTests);
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov

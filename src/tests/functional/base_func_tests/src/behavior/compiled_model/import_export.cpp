@@ -785,6 +785,10 @@ TEST_P(OVExecGraphSerializationTest, ExecutionGraph) {
     ASSERT_TRUE(status) << message;
 }
 
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassCompiledModelImportExportTestP);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVCompiledModelGraphUniqueNodeNamesTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVExecGraphSerializationTest);
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
