@@ -23,6 +23,7 @@
 #include "pyramid_attention.hpp"
 #include "serialization.hpp"
 #include "spatial.hpp"
+#include "v1/subgraph_pipeline.hpp"
 #include "weights_bank.hpp"
 
 namespace intel_npu {
@@ -85,6 +86,10 @@ public:
                   const ov::AnyMap& properties);
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
+                  const ov::AnyMap& properties,
+                  const ov::npuw::v1::subgraphs::PatternRegistry* subgraph_patterns);
+    CompiledModel(const std::shared_ptr<ov::Model>& model,
+                  const std::shared_ptr<const ov::IPlugin>& plugin,
                   const bool serialized);
 
     void export_model(std::ostream& model) const override;
@@ -124,14 +129,9 @@ private:
     friend class LLMInferRequest;
     friend class moe::MoEExecutor;
 
-    bool compile_for_success(std::size_t id);
-    bool compile_for_device(std::size_t id, const std::string& device_to_try);
+    bool compile_for_success(std::size_t id, const std::vector<std::string>& devices);
     ov::SoPtr<ov::ICompiledModel> compile_submodel(const std::shared_ptr<ov::Model>& submodel,
                                                    const std::string& device);
-    void compile_main_model(std::size_t id, const std::string& device);
-    void compile_moe_models(std::size_t id, const std::string& device);
-    void compile_pyramid_attention_models(std::size_t id, const std::string& device);
-    void compile_host_flash_attention_model(std::size_t id, const std::string& device);
 
     void dump_on_fail(std::size_t id, const std::string& device_to_stry, const char* extra);
     std::string format_subgraph_name(std::size_t id, const std::string& funcall) const;
@@ -151,7 +151,7 @@ private:
     void remove_long_output_names(const std::shared_ptr<ov::Model>& model);
     void fill_empty_tensor_names(const std::shared_ptr<ov::Model>& model);
 
-    std::shared_ptr<const ::intel_npu::Plugin> get_npuw_plugin() const;
+    std::shared_ptr<const ov::IPlugin> get_npuw_plugin() const;
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
 
     // API for easily create and manage NPUW infer-requests (promoted to ICompiledModel_v0)
@@ -217,7 +217,6 @@ private:
     void init_profiling();
 
     struct CompiledModelDesc {
-        DevList::const_iterator device_it;
         std::set<std::string> devices_to_avoid;
         std::shared_ptr<ov::Model> model;
         ov::SoPtr<ov::ICompiledModel> compiled_model;
@@ -232,6 +231,7 @@ private:
         std::optional<ov::npuw::compiled::HostFlashAttention> host_flash_attention;
         std::optional<ov::npuw::compiled::MoEExperts> moe_experts;
         std::optional<ov::npuw::compiled::MoEDownstream> moe_experts_downstream;
+        ov::npuw::v1::subgraphs::CompiledPipeline pipeline;
 
         // Infer requests for pyramid attention models (if pyramid_attention is present)
         std::vector<ov::SoPtr<ov::IAsyncInferRequest>> pyramid_infer_requests;
@@ -285,17 +285,12 @@ private:
 
         bool forced_to_fcall = false;
 
-        // FIXME: Take it out of structure
-        ov::SoPtr<ov::ICompiledModel> ref_compiled_model;
-        bool switched_to_ref = false;
-
         // Metrics
         execution_stats stat;
 
-        void serialize(std::ostream& stream, const ov::npuw::s11n::WeightsContext& ctx) const;
-        void deserialize(std::istream& stream,
-                         const ov::npuw::s11n::WeightsContext& ctx,
-                         const ov::npuw::s11n::SubmodelDeserializeCtx& submodel_ctx);
+        void serialize(ov::npuw::s11n::Stream& stream,
+                       const ov::npuw::s11n::WeightsContext& ctx,
+                       const ov::npuw::s11n::SubmodelDeserializeCtx* submodel_ctx = nullptr);
     };
     std::vector<CompiledModelDesc> m_compiled_submodels;
 

@@ -7,7 +7,6 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
-#include <string>
 #include <variant>
 #include <vector>
 
@@ -50,14 +49,18 @@ public:
      */
     virtual std::optional<std::vector<uint64_t>> get_init_sizes() const;
 
-    virtual std::optional<std::vector<ov::Layout>> get_input_layouts() const;
-
-    virtual std::optional<std::vector<ov::Layout>> get_output_layouts() const;
-
     /**
      * @returns Batch size. Populated in case of plugin batching.
      */
     virtual std::optional<int64_t> get_batch_size() const;
+
+    virtual std::optional<std::vector<ov::Layout>> get_input_layouts() const;
+
+    virtual std::optional<std::vector<ov::Layout>> get_output_layouts() const;
+
+    virtual std::optional<uint32_t> get_compiler_version() const;
+
+    virtual bool is_encrypted_blob() const;
 
     virtual ~MetadataBase() = default;
 
@@ -106,7 +109,7 @@ protected:
      * @note This operation was detached from "write" since "write" writes at the beginning of the stream, while this
      * method writes at the end. This change allows better extension of class hierarchy.
      */
-    void append_padding_blob_size_and_magic(std::ostream& stream);
+    void append_blob_size_and_magic(std::ostream& stream);
 
     uint32_t _version;
     uint64_t _blobDataSize;
@@ -137,11 +140,13 @@ constexpr uint32_t METADATA_VERSION_2_0{MetadataBase::make_version(2, 0)};
 constexpr uint32_t METADATA_VERSION_2_1{MetadataBase::make_version(2, 1)};
 constexpr uint32_t METADATA_VERSION_2_2{MetadataBase::make_version(2, 2)};
 constexpr uint32_t METADATA_VERSION_2_3{MetadataBase::make_version(2, 3)};
+constexpr uint32_t METADATA_VERSION_2_4{MetadataBase::make_version(2, 4)};
+constexpr uint32_t METADATA_VERSION_2_5{MetadataBase::make_version(2, 5)};
 
 /**
  * @brief Current metadata version.
  */
-constexpr uint32_t CURRENT_METADATA_VERSION{METADATA_VERSION_2_3};
+constexpr uint32_t CURRENT_METADATA_VERSION{METADATA_VERSION_2_5};
 
 constexpr uint16_t CURRENT_METADATA_MAJOR_VERSION{MetadataBase::get_major(CURRENT_METADATA_VERSION)};
 constexpr uint16_t CURRENT_METADATA_MINOR_VERSION{MetadataBase::get_minor(CURRENT_METADATA_VERSION)};
@@ -272,8 +277,8 @@ class Metadata<METADATA_VERSION_2_2> : public Metadata<METADATA_VERSION_2_1> {
 public:
     Metadata(uint64_t blobSize,
              std::optional<OpenvinoVersion> ovVersion = std::nullopt,
-             const std::optional<std::vector<uint64_t>> initSizes = std::nullopt,
-             const std::optional<int64_t> batchSize = std::nullopt);
+             const std::optional<std::vector<uint64_t>>& initSizes = std::nullopt,
+             const std::optional<int64_t>& batchSize = std::nullopt);
 
     void read() override;
 
@@ -297,7 +302,7 @@ public:
     Metadata(uint64_t blobSize,
              const std::optional<OpenvinoVersion>& ovVersion = std::nullopt,
              const std::optional<std::vector<uint64_t>>& initSizes = std::nullopt,
-             const std::optional<int64_t> batchSize = std::nullopt,
+             const std::optional<int64_t>& batchSize = std::nullopt,
              const std::optional<std::vector<ov::Layout>>& inputLayouts = std::nullopt,
              const std::optional<std::vector<ov::Layout>>& outputLayouts = std::nullopt);
 
@@ -314,6 +319,60 @@ public:
 private:
     std::optional<std::vector<ov::Layout>> _inputLayouts;
     std::optional<std::vector<ov::Layout>> _outputLayouts;
+};
+
+/**
+ * @brief Stores the compiler version.
+ */
+template <>
+class Metadata<METADATA_VERSION_2_4> : public Metadata<METADATA_VERSION_2_3> {
+public:
+    Metadata(uint64_t blobSize,
+             const std::optional<OpenvinoVersion>& ovVersion = std::nullopt,
+             const std::optional<std::vector<uint64_t>>& initSizes = std::nullopt,
+             const std::optional<int64_t>& batchSize = std::nullopt,
+             const std::optional<std::vector<ov::Layout>>& inputLayouts = std::nullopt,
+             const std::optional<std::vector<ov::Layout>>& outputLayouts = std::nullopt,
+             const std::optional<uint32_t>& compilerVersion = std::nullopt);
+
+    void read() override;
+
+    void write(std::ostream& stream) override;
+
+    size_t get_metadata_size() const override;
+
+    std::optional<uint32_t> get_compiler_version() const override;
+
+private:
+    std::optional<uint32_t> _compilerVersion;
+};
+
+/**
+ * @brief Checks whether raw blob is encrypted or not.
+ * @details Ignores unencrypted main blob size and stores the size after encryption instead if it is not nullopt.
+ */
+template <>
+class Metadata<METADATA_VERSION_2_5> : public Metadata<METADATA_VERSION_2_4> {
+public:
+    Metadata(uint64_t blobSize,
+             const std::optional<OpenvinoVersion>& ovVersion = std::nullopt,
+             const std::optional<std::vector<uint64_t>>& initSizes = std::nullopt,
+             const std::optional<int64_t>& batchSize = std::nullopt,
+             const std::optional<std::vector<ov::Layout>>& inputLayouts = std::nullopt,
+             const std::optional<std::vector<ov::Layout>>& outputLayouts = std::nullopt,
+             const std::optional<uint32_t>& compilerVersion = std::nullopt,
+             const std::optional<uint64_t>& blobSizeAfterEncryption = std::nullopt);
+
+    void read() override;
+
+    void write(std::ostream& stream) override;
+
+    size_t get_metadata_size() const override;
+
+    bool is_encrypted_blob() const override;
+
+private:
+    bool _isEncryptedBlob;
 };
 
 /**

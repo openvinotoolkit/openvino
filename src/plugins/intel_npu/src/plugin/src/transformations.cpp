@@ -248,7 +248,7 @@ std::tuple<std::shared_ptr<ov::Model>, bool> handlePluginBatching(
         }
     } catch (const std::exception& ex) {
         // If plugin-side transformation failed, keep the original model and drop the clone
-        reshapedModel = originalModel;
+        reshapedModel = std::move(originalModel);
         if (batchMode == ov::intel_npu::BatchMode::AUTO) {
             logger.info("Couldn't validate and reshape the model. Batching will be handled by compiler. Error: %s",
                         ex.what());
@@ -259,7 +259,7 @@ std::tuple<std::shared_ptr<ov::Model>, bool> handlePluginBatching(
                 updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
             }
         } else {
-            OPENVINO_THROW("Couldn't validate and reshape the model for PLUGIN batch mode. Error: %s", ex.what());
+            OPENVINO_THROW("Couldn't validate and reshape the model for PLUGIN batch mode. Error: ", ex.what());
         }
     }
 
