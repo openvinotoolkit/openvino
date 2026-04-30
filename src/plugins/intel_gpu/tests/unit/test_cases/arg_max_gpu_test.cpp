@@ -774,6 +774,44 @@ TEST(arg_max_gpu_topk_axis, large_output_size_internal_buffer_sizes_match_update
     }
 }
 
+TEST(arg_max_gpu_topk_axis, zero_sort_size_internal_buffers_are_clamped) {
+    kernel_selector::arg_max_min_params init_params;
+    init_params.inputs[0] = kernel_selector::DataTensor(std::vector<size_t>{20000, 1, 1, 1},
+                                                        kernel_selector::Datatype::F32,
+                                                        kernel_selector::DataLayout::yxfb);
+    init_params.outputs[0] = kernel_selector::DataTensor(std::vector<size_t>{6000, 1, 1, 1},
+                                                         kernel_selector::Datatype::F32,
+                                                         kernel_selector::DataLayout::yxfb);
+    init_params.argMaxMinAxis = kernel_selector::ArgMaxMinAxis::BATCH;
+    init_params.argMaxMinOut = kernel_selector::ArgMaxMinOut::MAX;
+    init_params.argMaxMinSortType = kernel_selector::ArgMaxMinSortType::INDEX;
+    init_params.topK = 6000;
+    init_params.outputs_num = 1;
+    init_params.engineInfo.maxWorkGroupSize = 256;
+
+    kernel_selector::arg_max_min_params zero_params = init_params;
+    zero_params.inputs[0] = kernel_selector::DataTensor(std::vector<size_t>{0, 1, 1, 1},
+                                                        kernel_selector::Datatype::F32,
+                                                        kernel_selector::DataLayout::yxfb);
+    zero_params.outputs[0] = kernel_selector::DataTensor(std::vector<size_t>{0, 1, 1, 1},
+                                                         kernel_selector::Datatype::F32,
+                                                         kernel_selector::DataLayout::yxfb);
+
+    kernel_selector::ArgMaxMinKernelAxis kernel;
+    auto kernels_data = kernel.GetKernelsData(init_params);
+
+    ASSERT_EQ(kernels_data.size(), size_t(1));
+    auto& kd = kernels_data[0];
+    ASSERT_TRUE(static_cast<bool>(kd.update_dispatch_data_func));
+
+    kd.update_dispatch_data_func(zero_params, kd);
+
+    ASSERT_EQ(kd.internalBuffers.size(), size_t(3));
+    for (size_t i = 0; i < kd.internalBuffers.size(); ++i) {
+        ASSERT_EQ(kd.internalBuffers[i].byte_count, size_t(0)) << "buffer index=" << i;
+    }
+}
+
 template <typename T>
 void test_top_k_layer_tests_sort_probabilities_by_indices(bool is_caching_test) {
     static const int32_t x_size = 10, y_size = 1, feature_num = 1, batch_num = 1;

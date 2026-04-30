@@ -121,9 +121,15 @@ std::vector<InternalBuffer> get_internal_buffer_sizes(const arg_max_min_params& 
     const size_t sort_size = getSortSize(params);
     const size_t ops_size = getOperationNumber(params);
     const size_t group_size = params.topK >= 8 ? params.topK : 8;
-    const size_t group_num = ((sort_size - 1) / group_size) + 1;
 
     std::vector<InternalBuffer> buffer_sizes;
+    if (sort_size == 0 || ops_size == 0) {
+        buffer_sizes.resize(3);
+        return buffer_sizes;
+    }
+
+    const size_t group_num = (sort_size + group_size - 1) / group_size;
+
     if (params.topK == 1) {
         buffer_sizes.push_back(iav_type_size * sort_size * 2);
     } else {
