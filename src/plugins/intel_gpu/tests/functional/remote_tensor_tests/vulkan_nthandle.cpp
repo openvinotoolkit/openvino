@@ -669,11 +669,11 @@ TEST(GpuSharedBufferRemoteTensor, smoke_VulkanRemoteInputToRemoteOutputCopyAndCo
     try {
         remote_input_tensor = ov_ctx.create_tensor(ov::element::f32,
                                                    shape,
-                                                   reinterpret_cast<void*>(static_cast<intptr_t>(vk_input_shared.shared_handle)),
+                                                   reinterpret_cast<void*>(vk_input_shared.shared_handle),
                                                    ov::intel_gpu::MemType::SHARED_BUF);
         remote_output_tensor = ov_ctx.create_tensor(ov::element::f32,
                                                     shape,
-                                                    reinterpret_cast<void*>(static_cast<intptr_t>(vk_output_shared.shared_handle)),
+                                                    reinterpret_cast<void*>(vk_output_shared.shared_handle),
                                                     ov::intel_gpu::MemType::SHARED_BUF);
     } catch (const ov::Exception& ex) {
         std::cout << "[INFO] Vulkan NT handle import not supported on this device: " << ex.what() << "\n";

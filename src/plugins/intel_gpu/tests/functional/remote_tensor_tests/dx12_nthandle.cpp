@@ -56,6 +56,23 @@ bool query_process_memory(PROCESS_MEMORY_COUNTERS_EX& counters) {
     return GetProcessMemoryInfo(GetCurrentProcess(), reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&counters), sizeof(counters)) == TRUE;
 }
 
+void print_gpu_memory_info(IDXGIAdapter1* adapter, const std::string& label) {
+    IDXGIAdapter3* raw_adapter3 = nullptr;
+    if (FAILED(adapter->QueryInterface(IID_PPV_ARGS(&raw_adapter3))) || !raw_adapter3) {
+        std::cout << "[INFO] " << label << ": Failed to QI IDXGIAdapter3 for GPU memory query\n";
+        return;
+    }
+    CComPtr<IDXGIAdapter3> adapter3(raw_adapter3);
+    DXGI_QUERY_VIDEO_MEMORY_INFO local_info{}, non_local_info{};
+    adapter3->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &local_info);
+    adapter3->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL, &non_local_info);
+    std::cout << "[INFO] GPU memory " << label
+              << ": local_used=" << bytes_to_mb(local_info.CurrentUsage) << " MB"
+              << ", local_budget=" << bytes_to_mb(local_info.Budget) << " MB"
+              << ", non_local_used=" << bytes_to_mb(non_local_info.CurrentUsage) << " MB"
+              << ", non_local_budget=" << bytes_to_mb(non_local_info.Budget) << " MB\n";
+}
+
 bool get_context_device_luid(cl_context cl_ctx, std::array<unsigned char, CL_LUID_SIZE_KHR>& cl_luid) {
     size_t devices_size = 0;
     if (clGetContextInfo(cl_ctx, CL_CONTEXT_DEVICES, 0, nullptr, &devices_size) != CL_SUCCESS ||
@@ -369,6 +386,8 @@ TEST(GpuSharedBufferRemoteTensor, smoke_Dx12RemoteInputToRemoteOutputCopyAndComp
     ov::RemoteTensor remote_input_tensor;
     ov::RemoteTensor remote_output_tensor;
 
+    print_gpu_memory_info(dx12.adapter, "before remote tensor creation");
+
     PROCESS_MEMORY_COUNTERS_EX mem_before{};
     if (query_process_memory(mem_before)) {
         std::cout << "[INFO] Process RAM before remote tensor creation: working_set="
@@ -401,6 +420,7 @@ TEST(GpuSharedBufferRemoteTensor, smoke_Dx12RemoteInputToRemoteOutputCopyAndComp
     } else {
         std::cout << "[INFO] Failed to query process memory after remote tensor creation\n";
     }
+    print_gpu_memory_info(dx12.adapter, "after remote tensor creation");
 
     auto model = make_copy_model(shape);
     auto compiled = core.compile_model(model, ov_ctx);

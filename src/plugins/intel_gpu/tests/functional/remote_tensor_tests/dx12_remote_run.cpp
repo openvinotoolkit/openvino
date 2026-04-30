@@ -22,13 +22,66 @@
 #ifdef _WIN32
 
 #    include <d3d12.h>
+#    include <dxgi1_4.h>
+#    include <psapi.h>
 #    include <wrl.h>
+#    include <iomanip>
+#    include <iostream>
+#    include <sstream>
 
 using CompilationParams = std::tuple<std::string,  // Device name
                                      ov::AnyMap    // Config
                                      >;
 
 namespace {
+
+double bytes_to_mb(SIZE_T bytes) {
+    return static_cast<double>(bytes) / (1024.0 * 1024.0);
+}
+
+void print_ram_info(const std::string& label) {
+    PROCESS_MEMORY_COUNTERS_EX counters{};
+    counters.cb = sizeof(counters);
+    if (GetProcessMemoryInfo(GetCurrentProcess(),
+                             reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&counters),
+                             sizeof(counters))) {
+        std::cout << "[INFO] RAM " << label
+                  << ": working_set=" << bytes_to_mb(counters.WorkingSetSize) << " MB"
+                  << ", private=" << bytes_to_mb(counters.PrivateUsage) << " MB\n";
+    } else {
+        std::cout << "[INFO] RAM " << label << ": query failed\n";
+    }
+}
+
+void print_gpu_memory_info(const std::string& label) {
+    Microsoft::WRL::ComPtr<IDXGIFactory4> factory;
+    if (FAILED(CreateDXGIFactory1(IID_PPV_ARGS(factory.ReleaseAndGetAddressOf())))) {
+        std::cout << "[INFO] GPU memory " << label << ": CreateDXGIFactory1 failed\n";
+        return;
+    }
+    UINT idx = 0;
+    Microsoft::WRL::ComPtr<IDXGIAdapter1> adapter;
+    while (factory->EnumAdapters1(idx++, adapter.ReleaseAndGetAddressOf()) != DXGI_ERROR_NOT_FOUND) {
+        DXGI_ADAPTER_DESC1 desc{};
+        adapter->GetDesc1(&desc);
+        if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
+            continue;
+        Microsoft::WRL::ComPtr<IDXGIAdapter3> adapter3;
+        if (FAILED(adapter.As(&adapter3)))
+            continue;
+        DXGI_QUERY_VIDEO_MEMORY_INFO local_info{}, non_local_info{};
+        adapter3->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &local_info);
+        adapter3->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL, &non_local_info);
+        std::wstring wname(desc.Description);
+        std::string name(wname.begin(), wname.end());
+        std::cout << "[INFO] GPU memory " << label << " [" << name << "]:"
+                  << " local_used=" << bytes_to_mb(local_info.CurrentUsage) << " MB"
+                  << ", local_budget=" << bytes_to_mb(local_info.Budget) << " MB"
+                  << ", non_local_used=" << bytes_to_mb(non_local_info.CurrentUsage) << " MB"
+                  << ", non_local_budget=" << bytes_to_mb(non_local_info.Budget) << " MB\n";
+        break;
+    }
+}
 
 std::shared_ptr<ov::Model> make_model() {
     std::vector<size_t> inputShape = {1, 2, 32, 32};
@@ -225,7 +278,11 @@ TEST_P(DX12RemoteRunTests, CheckRemoteTensorSharedBuf) {
 
     createHeap(byte_size);
 
+    print_ram_info("before create_tensor");
+    print_gpu_memory_info("before create_tensor");
     auto remote_tensor = context.create_tensor(ov::element::f32, tensor.get_shape(), shared_mem, ov::intel_gpu::MemType::SHARED_BUF);
+    print_ram_info("after create_tensor");
+    print_gpu_memory_info("after create_tensor");
 
     ov::Tensor check_remote_tensor;
     ASSERT_NO_THROW(check_remote_tensor = remote_tensor);
@@ -251,8 +308,11 @@ TEST_P(DX12RemoteRunTests, CheckRemoteTensorSharedBuChangingTensors) {
 
     createHeap(byte_size);
 
-    
+    print_ram_info("before create_tensor");
+    print_gpu_memory_info("before create_tensor");
     auto remote_tensor = context.create_tensor(ov::element::f32, tensor.get_shape(), shared_mem, ov::intel_gpu::MemType::SHARED_BUF);
+    print_ram_info("after create_tensor");
+    print_gpu_memory_info("after create_tensor");
     ov::Tensor check_remote_tensor;
     ASSERT_NO_THROW(check_remote_tensor = remote_tensor);
     ASSERT_THROW(check_remote_tensor.data(), ov::Exception);
@@ -312,7 +372,11 @@ TEST_P(DX12RemoteRunTests, CheckOutputDataFromMultipleRuns) {
     float* output_data_one = new float[output_byte_size / sizeof(float)];
     ov::Tensor output_data_tensor_one{ov::element::f32, output_tensor.get_shape(), output_data_one};
 
+    print_ram_info("before create_tensor");
+    print_gpu_memory_info("before create_tensor");
     auto remote_tensor = context.create_tensor(ov::element::f32, shape, shared_mem, ov::intel_gpu::MemType::SHARED_BUF);
+    print_ram_info("after create_tensor");
+    print_gpu_memory_info("after create_tensor");
     OV_ASSERT_NO_THROW(inference_request.set_input_tensor(remote_tensor));
     OV_ASSERT_NO_THROW(inference_request.set_output_tensor(output_data_tensor_one));
     OV_ASSERT_NO_THROW(inference_request.infer());
