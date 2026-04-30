@@ -441,7 +441,8 @@ TEST_F(ConvertPagedAttnInputsStateTableTest, ConvertPagedCausalConv1DInputsPreci
         ov::disable_keep_const_precision(node);
     }
 
-    ov::pass::ConvertPagedAttnInputs::KVCacheConfig cacheConfig = {.inferencePrecision = ov::element::f16};
+    ov::pass::ConvertPagedAttnInputs::KVCacheConfig cacheConfig;
+    cacheConfig.inferencePrecision = ov::element::f16;
 
     ov::pass::Manager local_manager;
 
@@ -508,7 +509,8 @@ TEST_F(ConvertPagedAttnInputsStateTableTest, ConvertPagedGatedDeltaNetPrecision)
         ov::disable_keep_const_precision(node);
     }
 
-    ov::pass::ConvertPagedAttnInputs::KVCacheConfig cacheConfig = {.inferencePrecision = ov::element::f16};
+    ov::pass::ConvertPagedAttnInputs::KVCacheConfig cacheConfig;
+    cacheConfig.inferencePrecision = ov::element::f16;
 
     ov::pass::Manager local_manager;
 
