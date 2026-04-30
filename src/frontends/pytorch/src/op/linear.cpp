@@ -259,7 +259,8 @@ Output<Node> rearrange_constant_nncf(const Output<Node>& c,
                                   "NNCF unpacking would overflow destination values buffer.");
 
     int16_t zero_point = 0;
-    if (sym) {
+    // for 3 bit symmetric quantization we set zero point to 4 (midpoint of u4 range) to allow using the same dequantization subgraph as for asymmetric quantization.
+    if (sym && dst_bits != 3) {
         // For signed quantization we need to convert zero point to signed representation as well.
         zero_point = static_cast<int16_t>(1 << (dst_bits - 1));
     }
@@ -277,6 +278,12 @@ Output<Node> rearrange_constant_nncf(const Output<Node>& c,
         }
     }
 
+    // TODO debug
+    std::cout << "Rearranging constant with initial shape " << initial_shape << " to new shape " << new_shape
+              << " with group size " << group_size << " and sym " << sym << " zero point " << zero_point << std::endl;
+    std::cout << "Min max values: " << *std::min_element(values.begin(), values.end()) << ", "
+              << *std::max_element(values.begin(), values.end()) << std::endl;
+    std::cout << "Bits: " << src_bits << " to " << dst_bits << std::endl;
     auto new_qweight = std::make_shared<v0::Constant>(element_type, new_shape, values);
     new_qweight->set_friendly_name(constant->get_friendly_name());
     return new_qweight;
@@ -469,7 +476,7 @@ OutputVector translate_linear_nncf(const NodeContext& context) {
     FRONT_END_OP_CONVERSION_CHECK(bits == 8 || bits == 4 || bits == 3 || bits == 2,
                                   "Only {8, 4, 3, 2} bit NNCF is supported.");
     if (sym) {
-        FRONT_END_OP_CONVERSION_CHECK(bits == 4 || bits == 8, "Only 4 bit or 8 bit NNCF is supported for symmetric quantization.");
+        FRONT_END_OP_CONVERSION_CHECK(bits == 3 || bits == 4 || bits == 8, "Only 3, 4  or 8 bit NNCF is supported for symmetric quantization.");
     }
 
     auto new_qweight = rearrange_constant_nncf(qweight, static_cast<uint32_t>(group_size),
@@ -484,14 +491,22 @@ OutputVector translate_linear_nncf(const NodeContext& context) {
         v0::Constant::create(element::i32, {2}, std::vector<int32_t>{static_cast<int32_t>(qweight.get_shape()[0]), -1});
 
     Output<Node> weight;
-    if (sym) {
+    // we don not have i3 type, so for 3 bit symmetric compression we represent weights as u3 minus zero point, which is 4 (midpoint of u4 range).
+    // This allows us to use the same dequantization subgraph as for asymmetric quantization, just with zero point = 4.
+    if (sym && bits  != 3) {
         weight = low_precision_subgraph_sym(context, x, new_qweight, new_scales, out_shape);
     } else {
-        auto new_qzeros = rearrange_constant_nncf(qzeros, 1, static_cast<uint32_t>(bits), static_cast<uint32_t>(8), false);
+        Output<Node> new_qzeros;
+        if (sym && bits == 3) {
+            // For 3-bit symmetric quantization we set zero point to 4 (midpoint of u4 range) to allow using the same dequantization subgraph as for asymmetric quantization.
+            new_qzeros = context.mark_node(std::make_shared<v0::Constant>(element::u3, Shape{}, std::vector<uint8_t>{4}));
+        } else {
+            new_qzeros = rearrange_constant_nncf(qzeros, 1, static_cast<uint32_t>(bits), static_cast<uint32_t>(8), false);
+        }
         weight = low_precision_subgraph(context, x, new_qweight, new_qzeros, new_scales, out_shape);
     }
 
-    auto matmul = context.mark_node(std::make_shared<v0::MatMul>(x, weight, false, false));
+    auto matmul = context.mark_node(std::make_shared<v0::MatMul>(x, weight, false, true));
     if (!context.input_is_none(7)) {
         auto bias = context.get_input(7);
 
