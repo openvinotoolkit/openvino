@@ -5,6 +5,7 @@
 #include "property.hpp"
 
 #include <openvino/runtime/intel_npu/properties.hpp>
+#include <openvino/util/codec_xor.hpp>
 #include <vector>
 
 #include "common/npu_test_env_cfg.hpp"
@@ -18,6 +19,10 @@ std::vector<std::pair<std::string, ov::Any>> exe_network_supported_properties = 
     {ov::hint::enable_cpu_pinning.name(), ov::Any(true)},
     {ov::hint::performance_mode.name(), ov::Any(ov::hint::PerformanceMode::THROUGHPUT)},
     {ov::optimal_number_of_infer_requests.name(), ov::Any(2)},
+};
+
+std::vector<std::pair<std::string, ov::Any>> exe_network_public_mutable_properties = {
+    {ov::cache_encryption_callbacks.name(), ov::Any(ov::EncryptionCallbacks{ov::util::codec_xor, ov::util::codec_xor})},
 };
 
 std::vector<std::pair<std::string, ov::Any>> exe_network_immutable_properties = {
@@ -127,6 +132,12 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn({std::make_pair<std::string, ov::Any>("THISCONFIGKEYNOTEXIST",
                                                                                  ov::Any("THISCONFIGVALUENOTEXIST"))})),
     ClassPluginPropertiesTestSuite4NPU::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_ClassExecutableNetworkSetPropertiesTestNPU,
+                         ClassPluginPropertiesTestSuite5NPU,
+                         ::testing::Combine(::testing::Values(ov::test::utils::getDeviceName()),
+                                            ::testing::ValuesIn(exe_network_public_mutable_properties)),
+                         ClassPluginPropertiesTestSuite5NPU::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_ClassExecutableNetworkInvalidDeviceIDTestNPU,
                          ClassExecutableNetworkInvalidDeviceIDTestSuite,
