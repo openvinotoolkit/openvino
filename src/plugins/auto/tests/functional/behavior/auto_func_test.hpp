@@ -22,13 +22,13 @@ namespace tests {
     do {                                                                            \
         try {                                                                       \
             { code; }                                                               \
-            FAIL() << "no exception occured" << std::endl;                          \
+            FAIL() << "no exception occurred" << std::endl;                         \
         } catch (const expected_exception& e) {                                     \
             EXPECT_THAT(e.what(), testing::HasSubstr(expected_message));            \
         } catch (const std::exception& e) {                                         \
-            FAIL() << "an unexpected exception occured: " << e.what() << std::endl; \
+            FAIL() << "an unexpected exception occurred: " << e.what() << std::endl;\
         } catch (...) {                                                             \
-            FAIL() << "an unknown exception occured" << std::endl;                  \
+            FAIL() << "an unknown exception occurred" << std::endl;                 \
         }                                                                           \
     } while (0);
 
