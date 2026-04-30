@@ -52,7 +52,6 @@
 [submodule "thirdparty/onednn_gpu"]
 	path = src/plugins/intel_gpu/thirdparty/onednn_gpu
     url = https://github.com/intel-innersource/libraries.performance.math.onednn.git
-    branch = prv-gpu
 [submodule "thirdparty/json/nlohmann_json"]
 	path = thirdparty/json/nlohmann_json
 	url = https://github.com/nlohmann/json.git

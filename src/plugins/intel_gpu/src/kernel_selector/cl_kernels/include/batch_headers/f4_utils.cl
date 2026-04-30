@@ -159,19 +159,19 @@ float __attribute__((overloadable)) _convert_float(fp4e2m1_t1 val) {
     return (float)_convert_half(val);
 }
 float2 __attribute__((overloadable)) _convert_float2(fp4e2m1_t2 val) {
-    return _convert_float2(_convert_half2(val));
+    return convert_float2(_convert_half2(val));
 }
 float3 __attribute__((overloadable)) _convert_float3(fp4e2m1_t3 val) {
-    return _convert_float3(_convert_half3(val));
+    return convert_float3(_convert_half3(val));
 }
 float4 __attribute__((overloadable)) _convert_float4(fp4e2m1_t4 val) {
-    return _convert_float4(_convert_half4(val));
+    return convert_float4(_convert_half4(val));
 }
 float8 __attribute__((overloadable)) _convert_float8(fp4e2m1_t8 val) {
-    return _convert_float8(_convert_half8(val));
+    return convert_float8(_convert_half8(val));
 }
 float16 __attribute__((overloadable)) _convert_float16(fp4e2m1_t16 val) {
-    return _convert_float16(_convert_half16(val));
+    return convert_float16(_convert_half16(val));
 }
 
 
