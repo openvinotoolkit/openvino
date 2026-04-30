@@ -151,6 +151,7 @@ REGISTER_IMPLS(lstm_seq);
 REGISTER_IMPLS(gru_seq);
 REGISTER_IMPLS(non_max_suppression);
 REGISTER_IMPLS(paged_attention);
+REGISTER_IMPLS(paged_gated_delta_net);
 REGISTER_IMPLS(pa_kv_reorder);
 REGISTER_IMPLS(paged_causal_conv1d);
 REGISTER_IMPLS(pooling);
