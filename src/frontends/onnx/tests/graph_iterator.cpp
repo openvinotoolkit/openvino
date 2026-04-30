@@ -508,3 +508,83 @@ TEST(FrontEndGraphIteratorTest, override_all_outputs_empty_throws) {
 
     EXPECT_THROW(input_model->override_all_outputs({}), ov::frontend::GeneralFailure);
 }
+
+//
+//   graph {
+//     node { input: "inputA" input: "shape" output: "expandOutput_0" op_type: "Expand" }
+//     initializer { dims: 0  data_type: INT64  name: "shape" }   // no data
+//     input  { name: "inputA"        type { tensor_type { elem_type: FLOAT shape {} } } }
+//     output { name: "expandOutput_0" type { tensor_type { elem_type: FLOAT shape {} } } }
+//   }
+TEST(FrontEndGraphIteratorTest, loads_programmatic_empty_shape_initializer_graph) {
+    auto model_proto = std::make_shared<ModelProto>();
+    model_proto->set_ir_version(13);
+    model_proto->set_producer_name("OpenVINO ONNX Frontend");
+
+    auto* opset = model_proto->add_opset_import();
+    opset->set_version(25);
+
+    auto* graph = model_proto->mutable_graph();
+    graph->set_name("");
+
+    // Expand node: Expand("inputA", "shape") -> "expandOutput_0"
+    auto* node = graph->add_node();
+    node->set_name("_0");
+    node->set_op_type("Expand");
+    node->add_input("inputA");
+    node->add_input("shape");
+    node->add_output("expandOutput_0");
+
+    // Initializer: "shape" — 1-D INT64 tensor with 0 elements and NO data payload.
+    // When decoded: m_data=nullptr, m_data_location=nullptr, partial_shape={0}.
+    // This triggers the `else if (get_partial_shape() == PartialShape{0})` branch in
+    // translate_session.cpp (line 87), creating an empty Constant rather than reading data.
+    auto* init = graph->add_initializer();
+    init->set_name("shape");
+    init->set_data_type(7);  // INT64
+    init->add_dims(0);       // shape [0]: 1-D tensor with zero elements
+
+    // Input: "inputA" — float32 scalar (empty shape)
+    auto* input = graph->add_input();
+    input->set_name("inputA");
+    auto* input_type = input->mutable_type()->mutable_tensor_type();
+    input_type->set_elem_type(1);  // FLOAT
+    input_type->mutable_shape();   // empty shape → scalar
+
+    // Output: "expandOutput_0" — float32 scalar (empty shape)
+    auto* output = graph->add_output();
+    output->set_name("expandOutput_0");
+    auto* output_type = output->mutable_type()->mutable_tensor_type();
+    output_type->set_elem_type(1);  // FLOAT
+    output_type->mutable_shape();   // empty shape → scalar
+
+    auto iter = std::make_shared<ov::frontend::onnx::GraphIteratorProto>(
+        ov::frontend::onnx::GraphIteratorProtoMemoryManagementMode::External_Stream);
+    iter->initialize(model_proto);
+    iter->reset();
+
+    auto graph_iter = std::dynamic_pointer_cast<ov::frontend::onnx::GraphIterator>(iter);
+    auto frontend = ov::frontend::FrontEndManager().load_by_framework("onnx");
+    ASSERT_NE(frontend, nullptr);
+    ASSERT_TRUE(frontend->supported(graph_iter));
+
+    auto input_model = frontend->load(graph_iter);
+    ASSERT_NE(input_model, nullptr);
+
+    std::shared_ptr<ov::Model> model;
+    ASSERT_NO_THROW(model = frontend->convert(input_model));
+    ASSERT_NE(model, nullptr);
+
+    ASSERT_EQ(iter->get_mmap_cache(), nullptr);
+    ASSERT_NE(iter->get_stream_cache(), nullptr);
+    ASSERT_EQ(iter->get_stream_cache()->size(), 0);  // no external files opened
+    ASSERT_EQ(model->get_ordered_ops().size(), 4);   // Parameter, Constant(shape), Expand, Result
+    for (const auto& op : model->get_ordered_ops()) {
+        if (ov::is_type<ov::op::v0::Constant>(op)) {
+            auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(op);
+            EXPECT_EQ(const_node->get_element_type(), ov::element::i64);
+            EXPECT_EQ(const_node->get_shape(), ov::Shape{1});
+            EXPECT_EQ(const_node->get_vector<int64_t>(), std::vector<int64_t>{1});
+        }
+    }
+}

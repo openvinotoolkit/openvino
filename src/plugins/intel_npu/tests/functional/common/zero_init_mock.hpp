@@ -19,7 +19,7 @@ namespace intel_npu {
 
 namespace test_constants {
 inline constexpr uint32_t TARGET_ZE_DRIVER_NPU_EXT_VERSION = ZE_DRIVER_NPU_EXT_VERSION_1_0;
-inline constexpr uint32_t TARGET_ZE_GRAPH_NPU_EXT_VERSION = ZE_GRAPH_EXT_VERSION_1_16;
+inline constexpr uint32_t TARGET_ZE_GRAPH_NPU_EXT_VERSION = ZE_GRAPH_EXT_VERSION_1_17;
 inline constexpr uint32_t TARGET_ZE_COMMAND_QUEUE_NPU_EXT_VERSION = ZE_COMMAND_QUEUE_NPU_EXT_VERSION_1_1;
 inline constexpr uint32_t TARGET_ZE_PROFILING_NPU_EXT_VERSION = ZE_PROFILING_DATA_EXT_VERSION_1_0;
 inline constexpr uint32_t TARGET_ZE_CONTEXT_NPU_EXT_VERSION = ZE_CONTEXT_NPU_EXT_VERSION_1_0;
@@ -45,15 +45,18 @@ public:
         return _zero_mem_pool;
     }
 
+    static void destroyContextForInstance(std::shared_ptr<ZeroInitStructsMock>& instance);
+
 private:
     void initNpuDriver();
     void getExtensionFunctionAddress(const std::string& name, const uint32_t version, void** function_address);
+    void destroyContextLocked();
 
     std::shared_ptr<intel_npu::ZeroApi> _zero_api;
 
     Logger _log;
 
-    ze_context_handle_t _context = nullptr;
+    std::atomic<ze_context_handle_t> _context{nullptr};
     ze_driver_handle_t _driver_handle = nullptr;
     ze_device_handle_t _device_handle = nullptr;
 
