@@ -14,6 +14,7 @@
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "logging.hpp"
+#include "moe/moe_subgraph.hpp"
 #include "openvino/core/parallel.hpp"
 #include "util.hpp"
 
@@ -326,7 +327,7 @@ void ov::npuw::IBaseInferRequest::unpack_closure(std::size_t idx, RqPtr request)
 
     // Skip MoE expert submodels - MoE experts require special unpacking logic according to the
     // expert selection, which is handled later in the inference flow.
-    if (func_desc.moe_experts.has_value()) {
+    if (ov::npuw::moe::has_compiled_experts(func_desc.pipeline)) {
         return;
     }
 
@@ -417,7 +418,7 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
 
     const auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
 
-    if (proto_comp_model_desc.moe_experts.has_value()) {
+    if (ov::npuw::moe::has_compiled_experts(proto_comp_model_desc.pipeline)) {
         // Expert submodel does not have global parameters to bind
         return;
     }

@@ -117,6 +117,10 @@ struct Registration {
 
 struct CompiledPipeline;
 struct InferContext;
+struct PartitioningCallbacks {
+    std::function<std::shared_ptr<ov::Model>(const std::string&)> find_tagged_model;
+};
+
 struct CompileContext {
     std::shared_ptr<ov::Model>& model;
     ov::SoPtr<ov::ICompiledModel>& compiled_model;
@@ -152,6 +156,7 @@ struct RuntimeBehaviorSpec {
     Registration registration;
     Context context;
     RuntimeBehaviorFactory factory;
+    bool handles_function_prologue = false;
 };
 
 struct CompiledPipeline {

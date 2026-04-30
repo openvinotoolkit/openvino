@@ -14,6 +14,7 @@
 #include "../util.hpp"  // For TensorPtr
 #include "moe_config.hpp"
 #include "moe_resources.hpp"
+#include "moe_subgraph.hpp"
 #include "moe_types.hpp"  // For MoEIO
 #include "openvino/runtime/so_ptr.hpp"
 
@@ -27,45 +28,8 @@ class CompiledModel;
 
 namespace ov {
 namespace npuw {
-namespace function {
-struct MoEExperts;
-struct MoEDownstream;
-}  // namespace function
-namespace compiled {
-struct MoEExperts;
-struct MoEDownstream;
-}  // namespace compiled
-namespace v1::subgraphs {
-class PatternRegistry;
-class ScopedPatternRegistration;
-struct FunctionPipeline;
-}  // namespace v1::subgraphs
-
-// Forward declare CompiledModelDesc to avoid circular dependency
-// Will be included in implementation file
 namespace moe {
 class MoEExecutor;
-enum class BehaviorRole {
-    EXPERTS,
-    DOWNSTREAM,
-};
-
-struct CompileHooks {
-    std::function<void(std::shared_ptr<ov::Model>)> set_model;
-    std::function<void(const ov::npuw::function::MoEExperts&)> set_moe_experts;
-    std::function<ov::npuw::compiled::MoEExperts&()> get_moe_experts;
-    std::function<void(const ov::npuw::function::MoEDownstream&)> set_moe_downstream;
-    std::function<ov::npuw::compiled::MoEDownstream&()> get_moe_downstream;
-};
-
-struct BindingPolicy {
-    bool handles_function_prologue = false;
-};
-
-std::vector<ov::npuw::v1::subgraphs::ScopedPatternRegistration> register_patterns(
-    ov::npuw::v1::subgraphs::PatternRegistry& registry,
-    const std::function<std::shared_ptr<ov::Model>()>& get_router_model,
-    std::size_t moe_chunk_size);
 }  // namespace moe
 
 // Import TensorPtr from util namespace for use in this header

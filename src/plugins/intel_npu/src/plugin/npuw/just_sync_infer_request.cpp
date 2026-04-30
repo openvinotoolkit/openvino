@@ -14,6 +14,7 @@
 #include "host_flash_attention.hpp"
 #include "infer_request_utils.hpp"  // to utilize copy_tensor_by_dim
 #include "logging.hpp"
+#include "moe/moe_subgraph.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
@@ -342,7 +343,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
             }  // if(hfa)
 
             // Initialize the MoE IO placeholders, if required
-            if (proto_comp_model_desc.moe_experts) {
+            if (ov::npuw::moe::has_compiled_experts(proto_comp_model_desc.pipeline)) {
                 // Sanity check: ensure only one MoE function type exists
                 if (has_moe && moe_real_idx != real_idx) {
                     OPENVINO_THROW("Only single MoE type is permitted for model");
@@ -526,19 +527,17 @@ void ov::npuw::JustInferRequest::initialize_subgraph_behaviors() {
         if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
             continue;
         }
-        const auto behavior_idx = comp_model_desc.replaced_by.value_or(idx);
-        const auto& behavior_desc = m_npuw_model->m_compiled_submodels[behavior_idx];
-        if (!behavior_desc.pipeline.runtime_behavior.has_value()) {
+        const auto* spec = get_runtime_behavior_spec(idx);
+        if (spec == nullptr) {
             continue;
         }
-        const auto& spec = behavior_desc.pipeline.runtime_behavior.value();
-        if (spec.factory) {
-            m_subgraph_behaviors[idx] = spec.factory(spec.context);
+        if (spec->factory) {
+            m_subgraph_behaviors[idx] = spec->factory(spec->context);
         }
         if (m_subgraph_behaviors[idx]) {
             continue;
         }
-        const auto* post_legacy_hook = spec.context.get_if<ov::npuw::v1::subgraphs::PostLegacyHook>();
+        const auto* post_legacy_hook = spec->context.get_if<ov::npuw::v1::subgraphs::PostLegacyHook>();
         if (!post_legacy_hook) {
             continue;
         }
@@ -572,6 +571,20 @@ ov::npuw::v1::subgraphs::InferContext ov::npuw::JustInferRequest::make_behavior_
         }};
 }
 
+const ov::npuw::v1::subgraphs::RuntimeBehaviorSpec* ov::npuw::JustInferRequest::get_runtime_behavior_spec(
+    std::size_t idx) const {
+    if (idx >= m_npuw_model->m_compiled_submodels.size()) {
+        return nullptr;
+    }
+    const auto& desc = m_npuw_model->m_compiled_submodels[idx];
+    const auto behavior_idx = desc.replaced_by.value_or(idx);
+    const auto& behavior_desc = m_npuw_model->m_compiled_submodels[behavior_idx];
+    if (!behavior_desc.pipeline.runtime_behavior.has_value()) {
+        return nullptr;
+    }
+    return &behavior_desc.pipeline.runtime_behavior.value();
+}
+
 ov::npuw::v1::subgraphs::ISubgraphBehavior* ov::npuw::JustInferRequest::get_subgraph_behavior(std::size_t idx) const {
     if (idx >= m_subgraph_behaviors.size()) {
         return nullptr;
@@ -580,17 +593,8 @@ ov::npuw::v1::subgraphs::ISubgraphBehavior* ov::npuw::JustInferRequest::get_subg
 }
 
 bool ov::npuw::JustInferRequest::behavior_handles_function_prologue(std::size_t idx) const {
-    if (idx >= m_npuw_model->m_compiled_submodels.size()) {
-        return false;
-    }
-    const auto& desc = m_npuw_model->m_compiled_submodels[idx];
-    const auto behavior_idx = desc.replaced_by.value_or(idx);
-    const auto& behavior_desc = m_npuw_model->m_compiled_submodels[behavior_idx];
-    if (!behavior_desc.pipeline.runtime_behavior.has_value()) {
-        return false;
-    }
-    const auto* policy = behavior_desc.pipeline.runtime_behavior->context.get_if<ov::npuw::moe::BindingPolicy>();
-    return policy != nullptr && policy->handles_function_prologue;
+    const auto* spec = get_runtime_behavior_spec(idx);
+    return spec != nullptr && spec->handles_function_prologue;
 }
 
 void ov::npuw::JustInferRequest::set_tensor(const ov::Output<const ov::Node>& port,
@@ -810,7 +814,7 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
     const bool is_dynamic = func_desc.attention.has_value();
     const bool is_pyramid = func_desc.pyramid_attention.has_value();
     const bool is_hfa = func_desc.host_flash_attention.has_value();
-    const bool is_moe = func_desc.moe_experts.has_value() || func_desc.moe_experts_downstream.has_value();
+    const bool is_moe = ov::npuw::moe::has_compiled_state(func_desc.pipeline);
 
     // Generalized: check if input is neither param nor mask
     auto is_non_param_mask = [](const auto& info, std::size_t in_idx) {
@@ -913,7 +917,7 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
         LOG_DEBUG("Binding result[" << i << "]...");
         auto& oport = func_desc.compiled_model->outputs()[i];
         auto o_tensor = m_funcall_result.at({idx, i});
-        if (func_desc.moe_experts) {
+        if (ov::npuw::moe::has_compiled_experts(func_desc.pipeline)) {
             // MoE case - delegate to executor for output binding
             m_moe_executor->function_prologue_moe_output(idx, i, o_tensor);
         } else if (is_hfa) {
@@ -1118,7 +1122,7 @@ void ov::npuw::JustInferRequest::initialize_moe_executor() {
         auto& real_desc = m_npuw_model->m_compiled_submodels[real_idx];
 
         // Check if the real function body has MoE experts
-        if (real_desc.moe_experts.has_value()) {
+        if (ov::npuw::moe::has_compiled_experts(real_desc.pipeline)) {
             m_moe_executor->prepare(i, real_idx, m_num_submodels, pool_size);
         }
     }
@@ -1369,7 +1373,8 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx) {
 void ov::npuw::JustInferRequest::unsafe_during(std::size_t real_idx, std::size_t idx, const std::function<void()>& f) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
 
-    if (!comp_model_desc.spatial && !comp_model_desc.host_flash_attention.has_value() && !comp_model_desc.moe_experts) {
+    if (!comp_model_desc.spatial && !comp_model_desc.host_flash_attention.has_value() &&
+        !ov::npuw::moe::has_compiled_experts(comp_model_desc.pipeline)) {
         // Normal: trigger request asynchronously, run `f` in this context
         // FIXME: dynamic could hit here too, but it has special logic
         // around execution which makes it harder to run than a plain start_async()

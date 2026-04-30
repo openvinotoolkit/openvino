@@ -123,6 +123,7 @@ protected:
     void run_hfa_tiled_inference(std::size_t real_idx, std::size_t idx);
     void legacy_infer(std::size_t real_idx, std::size_t idx);
     ov::npuw::v1::subgraphs::InferContext make_behavior_context(std::size_t real_idx, std::size_t idx);
+    const ov::npuw::v1::subgraphs::RuntimeBehaviorSpec* get_runtime_behavior_spec(std::size_t idx) const;
     ov::npuw::v1::subgraphs::ISubgraphBehavior* get_subgraph_behavior(std::size_t idx) const;
     bool behavior_handles_function_prologue(std::size_t idx) const;
 

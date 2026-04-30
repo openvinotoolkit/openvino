@@ -7,7 +7,6 @@
 #include <memory>
 
 #include "../logging.hpp"
-#include "../moe/moe_executor.hpp"
 #include "../util.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "online/compiler.hpp"
@@ -2605,30 +2604,6 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
     ov::npuw::Ensemble ens;
     ov::npuw::Partitioning P;
     ov::npuw::PartitioningContext effective_ctx = ctx;
-    std::optional<ov::npuw::v1::subgraphs::PatternRegistry> combined_subgraph_patterns;
-    std::vector<ov::npuw::v1::subgraphs::ScopedPatternRegistration> builtin_pattern_registrations;
-
-    auto get_router_model = [&P, &effective_ctx]() -> std::shared_ptr<ov::Model> {
-        if (effective_ctx.router_model != nullptr) {
-            return effective_ctx.router_model;
-        }
-        for (const auto& [name, func] : P.functions) {
-            if (func.gettag() == ov::npuw::patterns::moe::ROUTER_TAG) {
-                effective_ctx.router_model = func._model;
-                break;
-            }
-        }
-        return effective_ctx.router_model;
-    };
-
-    combined_subgraph_patterns.emplace();
-    if (ctx.subgraph_patterns != nullptr) {
-        combined_subgraph_patterns->append_from(*ctx.subgraph_patterns);
-    }
-    builtin_pattern_registrations = ov::npuw::moe::register_patterns(*combined_subgraph_patterns,
-                                                                     get_router_model,
-                                                                     cfg.get<::intel_npu::NPUW_MOE_TOKEN_CHUNK_SIZE>());
-    effective_ctx.subgraph_patterns = &combined_subgraph_patterns.value();
 
     // Try to load the partitioning plan...
     // Ensure all nodes in the model have unique friendly names before online partitioning.
@@ -2744,13 +2719,27 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
             }
 
             // Pass 2: run deferred partition-stage transformations after all functions are registered.
-            // This keeps pattern-driven partition hooks generic while still allowing cross-function
-            // dependencies like MoE expert/downstream transforms to resolve the router function.
+            // Partitioning stays generic here: it only exposes shared lookup helpers through the
+            // pipeline context and then runs the registered callbacks.
             for (auto&& func_group : all_functions) {
                 LOG_INFO("FOLD Pass 2: Partition-stage pipeline for " << func_group << "...");
                 LOG_BLOCK();
                 auto& function = P.functions.at(func_group);
                 if (function._pipeline.partition_stage) {
+                    function._pipeline.context.put<ov::npuw::v1::subgraphs::PartitioningCallbacks>(
+                        {[&P, &part_ctx = effective_ctx](const std::string& tag) -> std::shared_ptr<ov::Model> {
+                            auto cached = part_ctx.tagged_models.find(tag);
+                            if (cached != part_ctx.tagged_models.end()) {
+                                return cached->second;
+                            }
+                            for (const auto& [name, candidate] : P.functions) {
+                                if (candidate.gettag() == tag) {
+                                    part_ctx.tagged_models.emplace(tag, candidate._model);
+                                    return candidate._model;
+                                }
+                            }
+                            return nullptr;
+                        }});
                     function._pipeline.partition_stage(function, function._pipeline.context);
                 }
             }

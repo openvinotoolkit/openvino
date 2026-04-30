@@ -107,7 +107,7 @@ TEST(SubgraphPipelineBehaviorTest, MoERegistrationBuildsDeferredPartitionPipelin
 
     ov::npuw::v1::subgraphs::PatternRegistry registry;
     auto registrations =
-        ov::npuw::moe::register_patterns(registry, []() -> std::shared_ptr<ov::Model> { return {}; }, 0u);
+        ov::npuw::moe::register_patterns(registry, 0u);
     registry.apply(function);
 
     ASSERT_TRUE(static_cast<bool>(function._pipeline.partition_stage));
