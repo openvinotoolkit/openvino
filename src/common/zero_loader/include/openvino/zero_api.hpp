@@ -90,7 +90,8 @@ namespace ov {
     symbol_statement(zeImageDestroy)                          \
     symbol_statement(zeCommandListAppendImageCopy)            \
     symbol_statement(zeCommandListAppendImageCopyFromMemory)  \
-    symbol_statement(zeCommandListAppendImageCopyToMemory)
+    symbol_statement(zeCommandListAppendImageCopyToMemory)    \
+    symbol_statement(zeDeviceGetStatus)
 
 /**
  * @def weak_symbols_list

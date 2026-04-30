@@ -20,7 +20,7 @@ constexpr uint32_t WIN_DRIVER_NO_MCL_SUPPORT = 2688;
 #endif
 
 constexpr uint32_t TARGET_ZE_DRIVER_NPU_EXT_VERSION = ZE_DRIVER_NPU_EXT_VERSION_1_0;
-constexpr uint32_t TARGET_ZE_GRAPH_NPU_EXT_VERSION = ZE_GRAPH_EXT_VERSION_1_16;
+constexpr uint32_t TARGET_ZE_GRAPH_NPU_EXT_VERSION = ZE_GRAPH_EXT_VERSION_1_17;
 constexpr uint32_t TARGET_ZE_COMMAND_QUEUE_NPU_EXT_VERSION = ZE_COMMAND_QUEUE_NPU_EXT_VERSION_1_1;
 constexpr uint32_t TARGET_ZE_PROFILING_NPU_EXT_VERSION = ZE_PROFILING_DATA_EXT_VERSION_1_0;
 constexpr uint32_t TARGET_ZE_CONTEXT_NPU_EXT_VERSION = ZE_CONTEXT_NPU_EXT_VERSION_1_0;
@@ -369,7 +369,9 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
 
     // Create context - share between the compiler and the backend
     ze_context_desc_t context_desc = {ZE_STRUCTURE_TYPE_CONTEXT_DESC, 0, 0};
-    THROW_ON_FAIL_FOR_LEVELZERO("zeContextCreate", zeContextCreate(_driver_handle, &context_desc, &_context));
+    ze_context_handle_t ctx = nullptr;
+    THROW_ON_FAIL_FOR_LEVELZERO("zeContextCreate", zeContextCreate(_driver_handle, &context_desc, &ctx));
+    _context.store(ctx);
     _log.debug("ZeroInitStructsHolder initialize complete");
 
     // Discover if standard allocation is supported
@@ -418,11 +420,32 @@ const std::shared_ptr<ZeroInitStructsHolder> ZeroInitStructsHolder::getInstance(
 
     std::lock_guard<std::mutex> lock(mutex);
     auto instance = weak_instance.lock();
+
+    if (instance) {
+        // Check if device is still valid
+        auto res = zeDeviceGetStatus(instance->getDevice());
+        if (res == ZE_RESULT_ERROR_DEVICE_LOST) {
+            destroyContextForInstance(instance);
+            weak_instance.reset();
+            instance.reset();
+        }
+    }
+
     if (!instance) {
         instance = std::make_shared<ZeroInitStructsHolder>();
         weak_instance = instance;
     }
+
     return instance;
+}
+
+void ZeroInitStructsHolder::destroyContextForInstance(std::shared_ptr<ZeroInitStructsHolder>& instance) {
+    if (!instance) {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(instance->_mutex);
+    instance->destroyContextLocked();
 }
 
 ze_device_graph_properties_t ZeroInitStructsHolder::getCompilerProperties() {
@@ -439,8 +462,9 @@ void ZeroInitStructsHolder::initCompilerPropertiesLocked() {
     // Keep optional disengaged unless driver query succeeds.
     ze_device_graph_properties_t compiler_properties = {};
     compiler_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_GRAPH_PROPERTIES;
-    auto result = _graph_dditable_ext_decorator->pfnDeviceGetGraphProperties(_device_handle, &compiler_properties);
-    THROW_ON_FAIL_FOR_LEVELZERO("pfnDeviceGetGraphProperties", result);
+    THROW_ON_FAIL_FOR_LEVELZERO(
+        "pfnDeviceGetGraphProperties",
+        _graph_dditable_ext_decorator->pfnDeviceGetGraphProperties(_device_handle, &compiler_properties));
 
     _compiler_properties = compiler_properties;
 }
@@ -475,7 +499,9 @@ void ZeroInitStructsHolder::setContextProperties() {
     ze_context_properties_npu_ext_t context_properties_npu_ext = {ZE_STRUCTURE_TYPE_CONTEXT_PROPERTIES_NPU_EXT,
                                                                   nullptr,
                                                                   _context_options};
-    _context_npu_dditable_ext_decorator->pfnSetProperties(_context, &context_properties_npu_ext);
+    THROW_ON_FAIL_FOR_LEVELZERO(
+        "pfnSetProperties",
+        _context_npu_dditable_ext_decorator->pfnSetProperties(_context.load(), &context_properties_npu_ext));
 }
 
 void ZeroInitStructsHolder::clearContextOptions(const uint32_t options) {
@@ -490,20 +516,27 @@ void ZeroInitStructsHolder::setContextOptions(const uint32_t options) {
     setContextProperties();
 }
 
-ZeroInitStructsHolder::~ZeroInitStructsHolder() {
-    if (_context) {
-        _log.debug("ZeroInitStructsHolder - performing zeContextDestroy");
-        auto result = zeContextDestroy(_context);
-        _context = nullptr;
-        if (result != ZE_RESULT_SUCCESS) {
-            if (result == ZE_RESULT_ERROR_UNINITIALIZED) {
-                _log.warning(
-                    "zeContextDestroy failed to destroy the context; Level zero context was already destroyed");
-            } else {
-                _log.error("zeContextDestroy failed %#X", uint64_t(result));
-            }
-        }
+void ZeroInitStructsHolder::destroyContextLocked() {
+    if (!_context.load()) {
+        return;
     }
+
+    _log.debug("ZeroInitStructsHolder - performing zeContextDestroy");
+    auto result = zeContextDestroy(_context.load());
+    if (result == ZE_RESULT_SUCCESS) {
+        _context.store(nullptr);
+        _log.debug("ZeroInitStructsHolder - zeContextDestroy succeeded");
+    } else if (result == ZE_RESULT_ERROR_UNINITIALIZED) {
+        _context.store(nullptr);
+        _log.warning("zeContextDestroy failed to destroy the context; Level zero context was already destroyed");
+    } else {
+        _log.error("zeContextDestroy failed %#X", uint64_t(result));
+    }
+}
+
+ZeroInitStructsHolder::~ZeroInitStructsHolder() {
+    std::lock_guard<std::mutex> lock(_mutex);
+    destroyContextLocked();
 }
 
 }  // namespace intel_npu
