@@ -106,8 +106,8 @@ Metadata<METADATA_VERSION_2_1>::Metadata(uint64_t blobSize,
 
 Metadata<METADATA_VERSION_2_2>::Metadata(uint64_t blobSize,
                                          std::optional<OpenvinoVersion> ovVersion,
-                                         const std::optional<std::vector<uint64_t>> initSizes,
-                                         const std::optional<int64_t> batchSize)
+                                         const std::optional<std::vector<uint64_t>>& initSizes,
+                                         const std::optional<int64_t>& batchSize)
     : Metadata<METADATA_VERSION_2_1>{blobSize, ovVersion, initSizes},
       _batchSize{batchSize} {
     _version = METADATA_VERSION_2_2;
@@ -116,7 +116,7 @@ Metadata<METADATA_VERSION_2_2>::Metadata(uint64_t blobSize,
 Metadata<METADATA_VERSION_2_3>::Metadata(uint64_t blobSize,
                                          const std::optional<OpenvinoVersion>& ovVersion,
                                          const std::optional<std::vector<uint64_t>>& initSizes,
-                                         const std::optional<int64_t> batchSize,
+                                         const std::optional<int64_t>& batchSize,
                                          const std::optional<std::vector<ov::Layout>>& inputLayouts,
                                          const std::optional<std::vector<ov::Layout>>& outputLayouts)
     : Metadata<METADATA_VERSION_2_2>{blobSize, ovVersion, initSizes, batchSize},
@@ -128,10 +128,10 @@ Metadata<METADATA_VERSION_2_3>::Metadata(uint64_t blobSize,
 Metadata<METADATA_VERSION_2_4>::Metadata(uint64_t blobSize,
                                          const std::optional<OpenvinoVersion>& ovVersion,
                                          const std::optional<std::vector<uint64_t>>& initSizes,
-                                         const std::optional<int64_t> batchSize,
+                                         const std::optional<int64_t>& batchSize,
                                          const std::optional<std::vector<ov::Layout>>& inputLayouts,
                                          const std::optional<std::vector<ov::Layout>>& outputLayouts,
-                                         const std::optional<uint32_t> compilerVersion)
+                                         const std::optional<uint32_t>& compilerVersion)
     : Metadata<METADATA_VERSION_2_3>{blobSize, ovVersion, initSizes, batchSize, inputLayouts, outputLayouts},
       _compilerVersion{compilerVersion} {
     _version = METADATA_VERSION_2_4;
@@ -140,20 +140,41 @@ Metadata<METADATA_VERSION_2_4>::Metadata(uint64_t blobSize,
 Metadata<METADATA_VERSION_2_5>::Metadata(uint64_t blobSize,
                                          const std::optional<OpenvinoVersion>& ovVersion,
                                          const std::optional<std::vector<uint64_t>>& initSizes,
-                                         const std::optional<int64_t> batchSize,
+                                         const std::optional<int64_t>& batchSize,
                                          const std::optional<std::vector<ov::Layout>>& inputLayouts,
                                          const std::optional<std::vector<ov::Layout>>& outputLayouts,
-                                         const std::optional<uint32_t> compilerVersion,
-                                         const std::optional<std::string>& compilerReqs)
-    : Metadata<METADATA_VERSION_2_4>{blobSize,
+                                         const std::optional<uint32_t>& compilerVersion,
+                                         const std::optional<uint64_t>& blobSizeAfterEncryption)
+    : Metadata<METADATA_VERSION_2_4>{blobSizeAfterEncryption.has_value() ? blobSizeAfterEncryption.value() : blobSize,
                                      ovVersion,
                                      initSizes,
                                      batchSize,
                                      inputLayouts,
                                      outputLayouts,
                                      compilerVersion},
-      _compilerReqs{compilerReqs} {
+      _isEncryptedBlob{blobSizeAfterEncryption.has_value()} {
     _version = METADATA_VERSION_2_5;
+}
+
+Metadata<METADATA_VERSION_2_6>::Metadata(uint64_t blobSize,
+                                         const std::optional<OpenvinoVersion>& ovVersion,
+                                         const std::optional<std::vector<uint64_t>>& initSizes,
+                                         const std::optional<int64_t> batchSize,
+                                         const std::optional<std::vector<ov::Layout>>& inputLayouts,
+                                         const std::optional<std::vector<ov::Layout>>& outputLayouts,
+                                         const std::optional<uint32_t> compilerVersion,
+                                         const std::optional<uint64_t>& blobSizeAfterEncryption,
+                                         const std::optional<std::string>& compilerReqs)
+    : Metadata<METADATA_VERSION_2_5>{blobSize,
+                                     ovVersion,
+                                     initSizes,
+                                     batchSize,
+                                     inputLayouts,
+                                     outputLayouts,
+                                     compilerVersion,
+                                     blobSizeAfterEncryption},
+      _compilerReqs{compilerReqs} {
+    _version = METADATA_VERSION_2_6;
 }
 
 void MetadataBase::read(std::istream& tensor) {
@@ -329,6 +350,15 @@ void Metadata<METADATA_VERSION_2_4>::read() {
 void Metadata<METADATA_VERSION_2_5>::read() {
     Metadata<METADATA_VERSION_2_4>::read();
 
+    uint8_t isEncryptedBlob;
+    read_data_from_source(reinterpret_cast<char*>(&isEncryptedBlob), sizeof(isEncryptedBlob));
+
+    _isEncryptedBlob = isEncryptedBlob;
+}
+
+void Metadata<METADATA_VERSION_2_6>::read() {
+    Metadata<METADATA_VERSION_2_5>::read();
+
     uint64_t reqs_len;
     read_data_from_source(reinterpret_cast<char*>(&reqs_len), sizeof(reqs_len));
     if (reqs_len > 0) {
@@ -396,20 +426,15 @@ void Metadata<METADATA_VERSION_2_3>::read_as_text() {
 
 void Metadata<METADATA_VERSION_2_4>::read_as_text() {
     Metadata<METADATA_VERSION_2_3>::read_as_text();
-
-    const auto it = _text_fields.find("compiler");
-    if (it == _text_fields.end()) {
-        return;
-    }
-    const std::string& s = it->second;
-    const size_t dot = s.find('.');
-    const uint16_t major = static_cast<uint16_t>(std::stoul(s.substr(0, dot))),
-                   minor = static_cast<uint16_t>(std::stoul(s.substr(dot + 1)));
-    _compilerVersion = ONEAPI_MAKE_VERSION(major, minor);
+    _compilerVersion = std::nullopt;
 }
 
 void Metadata<METADATA_VERSION_2_5>::read_as_text() {
     Metadata<METADATA_VERSION_2_4>::read_as_text();
+}
+
+void Metadata<METADATA_VERSION_2_6>::read_as_text() {
+    Metadata<METADATA_VERSION_2_5>::read_as_text();
 
     const auto it = _text_fields.find("compiler_reqs");
     if (it == _text_fields.end() || it->second.empty()) {
@@ -482,6 +507,13 @@ void Metadata<METADATA_VERSION_2_4>::write(std::ostream& stream) {
 void Metadata<METADATA_VERSION_2_5>::write(std::ostream& stream) {
     Metadata<METADATA_VERSION_2_4>::write(stream);
 
+    const uint8_t isEncryptedBlob = _isEncryptedBlob;
+    stream.write(reinterpret_cast<const char*>(&isEncryptedBlob), sizeof(isEncryptedBlob));
+}
+
+void Metadata<METADATA_VERSION_2_6>::write(std::ostream& stream) {
+    Metadata<METADATA_VERSION_2_5>::write(stream);
+
     const std::string& reqs = _compilerReqs.value_or("");
     const uint64_t reqs_len = reqs.size();
     stream.write(reinterpret_cast<const char*>(&reqs_len), sizeof(reqs_len));
@@ -538,6 +570,10 @@ void Metadata<METADATA_VERSION_2_4>::write_as_text(std::ostream& stream) {
 
 void Metadata<METADATA_VERSION_2_5>::write_as_text(std::ostream& stream) {
     Metadata<METADATA_VERSION_2_4>::write_as_text(stream);
+}
+
+void Metadata<METADATA_VERSION_2_6>::write_as_text(std::ostream& stream) {
+    Metadata<METADATA_VERSION_2_5>::write_as_text(stream);
 
     if (_compilerReqs.has_value() && !_compilerReqs->empty()) {
         write_text_field(stream, "compiler_reqs", '[' + _compilerReqs.value() + ']');
@@ -570,6 +606,8 @@ std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSiz
         return std::make_unique<Metadata<METADATA_VERSION_2_4>>(blobSize);
     case METADATA_VERSION_2_5:
         return std::make_unique<Metadata<METADATA_VERSION_2_5>>(blobSize);
+    case METADATA_VERSION_2_6:
+        return std::make_unique<Metadata<METADATA_VERSION_2_6>>(blobSize);
     default:
         return nullptr;
     }
@@ -735,6 +773,10 @@ std::optional<uint32_t> MetadataBase::get_compiler_version() const {
     return std::nullopt;
 }
 
+bool MetadataBase::is_encrypted_blob() const {
+    return false;
+}
+
 std::optional<std::string> MetadataBase::get_runtime_reqs() const {
     return std::nullopt;
 }
@@ -759,7 +801,11 @@ std::optional<uint32_t> Metadata<METADATA_VERSION_2_4>::get_compiler_version() c
     return _compilerVersion;
 }
 
-std::optional<std::string> Metadata<METADATA_VERSION_2_5>::get_runtime_reqs() const {
+bool Metadata<METADATA_VERSION_2_5>::is_encrypted_blob() const {
+    return _isEncryptedBlob;
+}
+
+std::optional<std::string> Metadata<METADATA_VERSION_2_6>::get_runtime_reqs() const {
     return _compilerReqs;
 }
 
@@ -808,8 +854,16 @@ size_t Metadata<METADATA_VERSION_2_4>::get_metadata_size() const {
 }
 
 size_t Metadata<METADATA_VERSION_2_5>::get_metadata_size() const {
+    size_t metadataSize = Metadata<METADATA_VERSION_2_4>::get_metadata_size() +
+                          sizeof(uint8_t);  // intermediate uint8_t will be used to write bool due to possible platform
+                                            // different sizes of bool
+
+    return metadataSize;
+}
+
+size_t Metadata<METADATA_VERSION_2_6>::get_metadata_size() const {
     const size_t reqs_size = _compilerReqs.has_value() ? _compilerReqs->size() : 0;
-    return Metadata<METADATA_VERSION_2_4>::get_metadata_size() + sizeof(uint64_t) + reqs_size;
+    return Metadata<METADATA_VERSION_2_5>::get_metadata_size() + sizeof(uint64_t) + reqs_size;
 }
 
 }  // namespace intel_npu
