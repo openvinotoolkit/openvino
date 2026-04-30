@@ -121,6 +121,16 @@ struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
     size_t N;
     size_t K;
     size_t xattn_block_size;
+    // multi-subseq xattn fields
+    size_t xattn_num_subseqs = 1;
+    size_t xattn_total_wg_count = 0;
+    size_t xattn_max_q_block_pad = 0;
+    size_t xattn_max_merged_q_blocks = 0;
+    size_t xattn_cumul_kq_max_bytes = 0;
+    size_t xattn_cumul_exp_sum_bytes = 0;
+    size_t xattn_cumul_mask_elems = 0;
+    size_t xattn_cumul_mask_wg_elems = 0;
+    size_t xattn_meta_num_int32s = 0;
 };
 
 enum PagedAttentionInternBuffIdx {
@@ -135,8 +145,9 @@ enum PagedAttentionInternBuffIdx {
     XATTN_GEMMQK_EXPSUMS = 5,    // 5: kq_exp_partial_sum
     XATTN_BLOCKMASK = 6,         // 6: sparse_block_mask
     XATTN_BLOCKMASK_MERGED = 7,  // 7: sparse_block_mask_wg
+    XATTN_SUBSEQ_META = 8,      // 8: per-subsequence metadata (16 int32 each)
 #if FIND_DEBUG_ACC
-    XATTN_FIND_DEBUG_ACC = 8,  // 8: kq_sum for debug purpose only
+    XATTN_FIND_DEBUG_ACC = 9,  // 9: kq_sum for debug purpose only
 #endif
 };
 

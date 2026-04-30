@@ -5,6 +5,7 @@
 namespace KERNEL_NAME {
 
 #include "cm_attention_common.hpp"
+#include "xattn_subseq_meta.hpp"
 #ifdef CM_HAS_LSC_UNTYPED_2D
 #include "cm_pa_xe2.hpp"
 #else
@@ -45,8 +46,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 #if SPARSE_BLOCK_SIZE > 1
     , bool* sparse_block_mask [[type("svmptr_t")]],
     bool* sparse_block_mask_wg [[type("svmptr_t")]],
-    int num_q_blocks,
-    int num_k_blocks
+    int32_t* xattn_subseq_meta [[type("svmptr_t")]]
 #endif
     ) {
     constexpr int is_causal = CMFLA_IS_CAUSAL;
@@ -177,12 +177,25 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 
 #if SPARSE_BLOCK_SIZE > 1
     bool *block_mask_base, *wg_block_mask_base;
-    //# sparse_block_mask [num_heads, num_q_blocks, num_k_blocks]
-    //# sparse_block_mask_wg [num_heads, wg_count_along_query, num_k_blocks]
-    auto q_start_block = q_start_sg/ SPARSE_BLOCK_SIZE;
-    block_mask_base = sparse_block_mask + (h * num_q_blocks + q_start_block) * num_k_blocks;
-    wg_block_mask_base = sparse_block_mask_wg + (h * cm_group_count(2) + wg_id) * num_k_blocks;
- #endif
+    {
+        int meta_base_pa = subsequence_id * XATTN_META_STRIDE;
+        int mask_offset = xattn_subseq_meta[meta_base_pa + XATTN_META_BUF_OFF_MASK];
+        int mask_wg_offset = xattn_subseq_meta[meta_base_pa + XATTN_META_BUF_OFF_MASK_WG];
+        int subseq_num_q_blocks = xattn_subseq_meta[meta_base_pa + XATTN_META_Q_BLOCK_PAD];
+        int subseq_num_k_blocks = xattn_subseq_meta[meta_base_pa + XATTN_META_K_BLOCK_PAD];
+        if (subseq_num_q_blocks > 0 && subseq_num_k_blocks > 0) {
+            auto q_start_block = q_start_local / SPARSE_BLOCK_SIZE;
+            block_mask_base = sparse_block_mask + mask_offset + (h * subseq_num_q_blocks + q_start_block) * subseq_num_k_blocks;
+            int blocks_per_wg = wg_seq_len / SPARSE_BLOCK_SIZE;
+            int subseq_merged_q_blocks = (subseq_num_q_blocks + blocks_per_wg - 1) / blocks_per_wg;
+            int local_wg_idx = (block_start_pos - subseq_q_begin) / wg_seq_len;
+            wg_block_mask_base = sparse_block_mask_wg + mask_wg_offset + (h * subseq_merged_q_blocks + local_wg_idx) * subseq_num_k_blocks;
+        } else {
+            block_mask_base = 0;
+            wg_block_mask_base = 0;
+        }
+    }
+#endif
 
 #if KV_CACHE_COMPRESSION
 #if KV_CACHE_COMPRESSION == 1

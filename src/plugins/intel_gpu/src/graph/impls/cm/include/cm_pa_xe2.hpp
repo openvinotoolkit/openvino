@@ -139,6 +139,7 @@ void pa_lsc_u8(
         if constexpr (sb_shift < 0) {
             return false;
         } else {
+            if (!base) return false;
             return !base[(uint)kv_pos >> sb_shift];
         }
     };
@@ -367,6 +368,7 @@ void pa_lsc_u8(
         if constexpr (sb_shift < 0) {
             return false;
         } else {
+            if (!base) return false;
             return !base[(uint)kv_pos >> sb_shift];
         }
     };
@@ -626,6 +628,7 @@ void pa_kernel_lsc_prefetch_f16(
         if constexpr (sb_shift < 0) {
             return false;
         } else {
+            if (!base) return false;
             return !base[(uint)kv_pos >> sb_shift];
         }
     };

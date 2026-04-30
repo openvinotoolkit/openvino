@@ -106,6 +106,7 @@ void pa_lsc_u8(
 
     auto skip_by = [&](const bool* base, int kv_pos) -> bool {
         if (sb_shift < 0) return false;
+        if (!base) return false;
         return !base[(uint)kv_pos >> sb_shift];
     };
 
@@ -379,6 +380,7 @@ void pa_kernel_lsc_prefetch_f16(
     const int sb_shift = (SPARSE_BLOCK_SIZE == 128) ? 7 : (SPARSE_BLOCK_SIZE == 256) ? 8 : -1;
     auto skip_by = [&](const bool* base, int kv_pos) -> bool {
         if (sb_shift < 0) return false;
+        if (!base) return false;
         return !base[(uint)kv_pos >> sb_shift];
     };
 

@@ -201,7 +201,7 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
         SurfaceIndex query [[type("buffer_t")]],
         #endif
         svmptr_t block_indices ATTR,
-        svmptr_t block_indices_begins ATTR,
+        int block_index_begin,
         svmptr_t kq_max_wg ATTR,
         #ifdef CM_HAS_LSC_UNTYPED_2D
         svmptr_t kq_exp_partial_sum ATTR,
@@ -307,8 +307,6 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
         return;
     }
 #endif
-    // assume block index coming from 0 in block_indices_begins
-    int block_index_begin = ((int*)block_indices_begins)[0];
     int* block_indices_p = (int*)block_indices + block_index_begin;
     int b_adjacent_between_head = query_stride / STRIDE;   // HEAD_SIZE * HQ  +  HEAD_SIZE * HQ (padding 0)
     // M[0:16*2]xK[0:16]

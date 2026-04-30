@@ -351,9 +351,7 @@ Arguments PagedAttentionGeneratorMultiToken::get_arguments_desc(const kernel_imp
     if (_xattn_block_size > 1 && desc->has_xattention) {
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK});         // sparse_block_mask
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK_MERGED});  // sparse_block_mask_wg
-
-        args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // q_block_pad
-        args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // k_block_pad
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_SUBSEQ_META});       // xattn_subseq_meta
     }
     return args;
 }
@@ -415,17 +413,9 @@ DispatchDataFunc PagedAttentionGeneratorMultiToken::get_dispatch_data_func() con
                       << ", wg_seq_len: " << wg_seq_len << ", wg_count: " << wg_count << ", gws: [" << wgs.global[0] << ", " << wgs.global[1] << ", "
                       << wgs.global[2] << "]" << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]" << std::endl;
         }
-        auto num_scalers = xattn_block_size > 1 && desc->has_xattention ? 3 : 1;
-        scalars.resize(num_scalers);
+        scalars.resize(1);
         scalars[0].t = ScalarDescriptor::Types::INT32;
         scalars[0].v.s32 = static_cast<int32_t>(q_len);
-        if (num_scalers > 1) {
-            scalars[1].t = ScalarDescriptor::Types::INT32;
-            scalars[1].v.s32 = static_cast<int32_t>(rtp->q_block_pad);
-
-            scalars[2].t = ScalarDescriptor::Types::INT32;
-            scalars[2].v.s32 = static_cast<int32_t>(rtp->k_block_pad);
-        }
     }};
 }
 
@@ -653,20 +643,16 @@ Arguments XAttentionEstimateGEMMQK::get_arguments_desc(const kernel_impl_params&
     args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::KEY_CACHE});             // keys cache
     args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QUERY});                 // queries
     args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES});         // block indices
-    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES_BEGINS});  // block indices begins
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_SUBSEQ_META});  // metadata
 
     // outputs
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_GEMMQK_MAX});      // kq_max_wg
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_GEMMQK_EXPSUMS});  // kq_exp_partial_sum
 
     // scalar
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // M
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // N
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // K
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 3});  // query_pitch
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 4});  // slice_no
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 5});  // slice
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 6});  // q_start_strided
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // K
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // query_pitch
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // num_subseqs
 
     return args;
 }
@@ -678,8 +664,6 @@ DispatchDataFunc XAttentionEstimateGEMMQK::get_dispatch_data_func() const {
         auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
         const auto desc = params.typed_desc<paged_attention>();
 
-        const auto M = rtp->M;
-        const auto N = rtp->N;
         const auto K = rtp->K;
 
         auto get_simple_pitch = [](const layout& layout) {
@@ -695,32 +679,21 @@ DispatchDataFunc XAttentionEstimateGEMMQK::get_dispatch_data_func() const {
         };
         auto querry_layout = params.input_layouts[PagedAttentionInputIdx::QUERY];
         const size_t query_pitch = get_simple_pitch(querry_layout) * STRIDE;
-        const size_t slice_no = 0, slice = 0;
 
-        //# loop order walks HQ first and the step is WALK_HQ, 1 means not walk HQ, 2 means walks 2 heads first. Valid value: 1, 2, 4...
         const size_t WALK_HQ = desc->heads_num != desc->kv_heads_num ? 2 : 1;
 
         auto& wgs = kd.params.workGroups;
-        OPENVINO_ASSERT(rtp->block_wg_m != 0, "Invalid block_wg_m in runtime params");
-        wgs.global = {rtp->N_kq_groups * (rtp->q_stride_pad / rtp->block_wg_m) * SG_N * WALK_HQ, SG_M, desc->heads_num / WALK_HQ};
+        wgs.global = {rtp->xattn_total_wg_count * SG_N * WALK_HQ, SG_M, desc->heads_num / WALK_HQ};
         wgs.local = {SG_N, SG_M, 1};
 
-        const size_t q_start_strided = N - M;
-        OPENVINO_ASSERT(N >= M, "length of key cache must be greater or equal than query");
-
         auto& scalars = kd.params.scalars;
-        std::vector<size_t> scaler_value = {M, N, K, query_pitch, slice_no, slice, q_start_strided};
-        scalars.resize(scaler_value.size());
-
-        for (size_t i = 0; i < scaler_value.size(); ++i) {
-            if (i == 4 || i == 5) {
-                scalars[i].t = ScalarDescriptor::Types::INT32;
-                scalars[i].v.s32 = static_cast<int32_t>(scaler_value[i]);
-            } else {
-                scalars[i].t = ScalarDescriptor::Types::UINT32;
-                scalars[i].v.u32 = static_cast<uint32_t>(scaler_value[i]);
-            }
-        }
+        scalars.resize(3);
+        scalars[0].t = ScalarDescriptor::Types::UINT32;
+        scalars[0].v.u32 = static_cast<uint32_t>(K);
+        scalars[1].t = ScalarDescriptor::Types::UINT32;
+        scalars[1].v.u32 = static_cast<uint32_t>(query_pitch);
+        scalars[2].t = ScalarDescriptor::Types::INT32;
+        scalars[2].v.s32 = static_cast<int32_t>(rtp->xattn_num_subseqs);
     }};
 }
 
@@ -749,14 +722,11 @@ Arguments XAttentionEstimateFindBlock::get_arguments_desc(const kernel_impl_para
     // outputs
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK});  // sparse_block_mask
 
+    // metadata
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_SUBSEQ_META});  // metadata
+
     // scalar
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // q_len
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // q_stride
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // q_stride_pad
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 3});  // q_block_pad
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 4});  // k_block_pad
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 5});  // causal_start_index
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 6});  // thresh
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // thresh
 
 #if FIND_DEBUG_ACC
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_FIND_DEBUG_ACC});  // kq_sum for debug purpose only
@@ -775,29 +745,15 @@ DispatchDataFunc XAttentionEstimateFindBlock::get_dispatch_data_func() const {
         auto& wgs = kd.params.workGroups;
 
         const size_t heads_num = desc->heads_num;
-
-        auto out_shape = params.output_layouts[0].get_shape();
-        const size_t q_len = out_shape[0];
-
-        const size_t sum_per_n_token_in_block = static_cast<size_t>(rtp->xattn_block_size / STRIDE);
-        const size_t q_block = static_cast<size_t>(ceil_div(rtp->M, sum_per_n_token_in_block));
-        const size_t k_block = static_cast<size_t>(ceil_div(rtp->N, sum_per_n_token_in_block));
-
         const float xattn_thresh = get_xattn_thresh(params);
 
-        wgs.global = {rtp->q_block_pad, heads_num, 1};
+        wgs.global = {rtp->xattn_max_q_block_pad, heads_num, rtp->xattn_num_subseqs};
         wgs.local = {1, 1, 1};
 
         auto& scalars = kd.params.scalars;
-        std::vector<size_t> scaler_value = {q_len, rtp->M, rtp->q_stride_pad, rtp->q_block_pad, rtp->k_block_pad, k_block - q_block};
-        scalars.resize(scaler_value.size() + 1);
-
-        for (size_t i = 0; i < scaler_value.size(); ++i) {
-            scalars[i].t = ScalarDescriptor::Types::UINT32;
-            scalars[i].v.u32 = static_cast<uint32_t>(scaler_value[i]);
-        }
-        scalars[scaler_value.size()].t = ScalarDescriptor::Types::FLOAT32;  // the last is for thresh with f32 dtype
-        scalars[scaler_value.size()].v.f32 = static_cast<float>(xattn_thresh);
+        scalars.resize(1);
+        scalars[0].t = ScalarDescriptor::Types::FLOAT32;
+        scalars[0].v.f32 = static_cast<float>(xattn_thresh);
     }};
 }
 
@@ -821,10 +777,8 @@ Arguments XAttentionEstimatePostProc::get_arguments_desc(const kernel_impl_param
     // outputs
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK_MERGED});  // sparse_block_mask_wg
 
-    // scalar
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // q_stride_pad
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // q_block_pad
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // k_block_pad
+    // metadata
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_SUBSEQ_META});  // metadata
 
     return args;
 }
@@ -838,17 +792,11 @@ DispatchDataFunc XAttentionEstimatePostProc::get_dispatch_data_func() const {
 
         auto& wgs = kd.params.workGroups;
 
-        wgs.global = {rtp->q_block_pad_merged, desc->heads_num, 1};
+        wgs.global = {rtp->xattn_max_merged_q_blocks, desc->heads_num, rtp->xattn_num_subseqs};
         wgs.local = {1, 1, 1};
 
         auto& scalars = kd.params.scalars;
-        std::vector<size_t> scaler_value = {rtp->q_stride_pad, rtp->q_block_pad, rtp->k_block_pad};
-        scalars.resize(scaler_value.size());
-
-        for (size_t i = 0; i < scaler_value.size(); ++i) {
-            scalars[i].t = ScalarDescriptor::Types::UINT32;
-            scalars[i].v.u32 = static_cast<uint32_t>(scaler_value[i]);
-        }
+        scalars.clear();
     }};
 }
 

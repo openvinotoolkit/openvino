@@ -140,45 +140,133 @@ public:
         }
     }
 
-    void update_xattn_rt_params(const kernel_impl_params& params) {
-        const auto desc = params.typed_desc<paged_attention>();
+    std::vector<int32_t> read_block_indices_begins(const primitive_inst& instance) {
+        auto bi_begins_mem = instance.input_memory_ptr(PagedAttentionInputIdx::BLOCK_INDICES_BEGINS);
+        mem_lock<int32_t, mem_lock_type::read> lock(bi_begins_mem, instance.get_network().get_stream());
+        return std::vector<int32_t>(lock.begin(), lock.end());
+    }
 
-        // XAttention estimate is following afer kvcache_update.
-        auto out_shape = params.output_layouts[0].get_shape();
+    void update_xattn_rt_params(const primitive_inst& instance) {
+        const auto& params = *instance.get_impl_params();
+        const auto desc = params.typed_desc<paged_attention>();
+        auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
+
         const size_t block_size = get_xattn_block_size(params);
         const uint32_t block_wg_n = XAttentionEstimateGeneratorBase::get_block_wg_n(params);
         const uint32_t block_wg_m = XAttentionEstimateGeneratorBase::get_block_wg_m(params);
-        const size_t kv_len = get_max_context_len(params);
-        const size_t q_len = out_shape[0];
-        const size_t N = kv_len / STRIDE;
-        const size_t N_kq_groups = ceil_div(N, block_wg_n);
-
-        const auto q_block_pad = ceil_div(q_len, block_size);
-        const auto sum_per_token_in_block = block_size / STRIDE;
-        const auto k_block_in_group = block_wg_n / sum_per_token_in_block;
-        const auto k_block_pad = k_block_in_group * N_kq_groups;
-
-        auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
-        rt_params->block_wg_m = block_wg_m;
-        rt_params->q_block_pad = q_block_pad;
-        rt_params->k_block_pad = k_block_pad;
-
-        const size_t merged_q_num = PagedAttentionGeneratorMultiToken::get_wg_seq_len(params) / block_size;
-        rt_params->q_block_pad_merged = ceil_div(q_block_pad, merged_q_num);
-
         const size_t head_size = desc->k_head_size;
+        const size_t heads_num = desc->heads_num;
+        const size_t K = STRIDE * head_size;
+        const size_t merged_q_num = PagedAttentionGeneratorMultiToken::get_wg_seq_len(params) / block_size;
+        const size_t sum_per_token_in_block = block_size / STRIDE;
+        const size_t k_block_in_group = block_wg_n / sum_per_token_in_block;
+        const size_t sizeof_softmax = sizeof(float);
 
-        const auto M = q_len / STRIDE;  //# will slient drop the tails which is less than `stride`
-        const auto K = STRIDE * head_size;
+        const auto subsequence_begins = read_subsequence_begins(params);
+        const auto past_lens = read_past_lens(params);
+        const auto block_indices_begins = read_block_indices_begins(instance);
 
-        const size_t q_stride_pad = round_up_to(M, block_wg_m);
+        const bool use_split_mixed = rt_params->stage == PagedAttentionStage::MIXED &&
+                                     rt_params->mixed_route_mode == MixedRouteMode::SPLIT;
 
-        rt_params->N_kq_groups = N_kq_groups;
-        rt_params->M = M;
-        rt_params->N = N;
+        size_t total_wg_count = 0;
+        size_t max_q_block_pad = 0;
+        size_t max_merged_q_blocks = 0;
+        size_t cumul_kq_max_bytes = 0;
+        size_t cumul_exp_sum_bytes = 0;
+        size_t cumul_mask_elems = 0;
+        size_t cumul_mask_wg_elems = 0;
+        size_t num_xattn_subseqs = 0;
+
+        m_xattn_meta.clear();
+
+        for (size_t i = 0; i + 1 < subsequence_begins.size(); ++i) {
+            const auto q_len = static_cast<size_t>(std::max<int32_t>(subsequence_begins[i + 1] - subsequence_begins[i], 0));
+            if (q_len == 0) continue;
+
+            if (use_split_mixed) {
+                const auto past_len = static_cast<size_t>(std::max<int32_t>(past_lens[i], 0));
+                const bool decode_subseq = (q_len == 1) && (past_len > 0);
+                if (decode_subseq) continue;
+            }
+
+            const auto past_len_s = static_cast<size_t>(std::max<int32_t>(past_lens[i], 0));
+            const size_t kv_len = past_len_s + q_len;
+            const size_t subseq_q_begin = static_cast<size_t>(subsequence_begins[i]);
+            const int32_t bi_begin = (i < block_indices_begins.size()) ? block_indices_begins[i] : 0;
+
+            const size_t M_s = q_len / STRIDE;
+            const size_t N_s = kv_len / STRIDE;
+            const size_t q_stride_pad_s = round_up_to(M_s, block_wg_m);
+            const size_t N_kq_groups_s = ceil_div(N_s, block_wg_n);
+            const size_t q_block_pad_s = ceil_div(q_len, block_size);
+            const size_t k_block_pad_s = k_block_in_group * N_kq_groups_s;
+            const size_t merged_q_blocks_s = ceil_div(q_block_pad_s, merged_q_num);
+            const size_t k_block_s = ceil_div(kv_len, block_size);
+            const size_t q_block_s = ceil_div(q_len, block_size);
+            const size_t causal_start_s = k_block_s - q_block_s;
+            const size_t q_start_strided_s = (kv_len - q_len) / STRIDE;
+            const size_t wg_count_s = N_kq_groups_s * (q_stride_pad_s / block_wg_m);
+
+            m_xattn_meta.push_back(static_cast<int32_t>(subseq_q_begin));
+            m_xattn_meta.push_back(static_cast<int32_t>(q_len));
+            m_xattn_meta.push_back(static_cast<int32_t>(M_s));
+            m_xattn_meta.push_back(static_cast<int32_t>(N_s));
+            m_xattn_meta.push_back(static_cast<int32_t>(q_stride_pad_s));
+            m_xattn_meta.push_back(static_cast<int32_t>(N_kq_groups_s));
+            m_xattn_meta.push_back(static_cast<int32_t>(q_block_pad_s));
+            m_xattn_meta.push_back(static_cast<int32_t>(k_block_pad_s));
+            m_xattn_meta.push_back(static_cast<int32_t>(causal_start_s));
+            m_xattn_meta.push_back(static_cast<int32_t>(q_start_strided_s));
+            m_xattn_meta.push_back(static_cast<int32_t>(cumul_kq_max_bytes));
+            m_xattn_meta.push_back(static_cast<int32_t>(cumul_exp_sum_bytes));
+            m_xattn_meta.push_back(static_cast<int32_t>(cumul_mask_elems));
+            m_xattn_meta.push_back(static_cast<int32_t>(cumul_mask_wg_elems));
+            m_xattn_meta.push_back(bi_begin);
+            m_xattn_meta.push_back(static_cast<int32_t>(total_wg_count));
+
+            cumul_kq_max_bytes += N_kq_groups_s * q_stride_pad_s * sizeof_softmax * heads_num;
+            cumul_exp_sum_bytes += q_stride_pad_s * k_block_pad_s * sizeof_softmax * heads_num;
+            cumul_mask_elems += q_block_pad_s * k_block_pad_s * heads_num;
+            cumul_mask_wg_elems += merged_q_blocks_s * k_block_pad_s * heads_num;
+            total_wg_count += wg_count_s;
+
+            max_q_block_pad = std::max(max_q_block_pad, q_block_pad_s);
+            max_merged_q_blocks = std::max(max_merged_q_blocks, merged_q_blocks_s);
+            num_xattn_subseqs++;
+        }
+
+        rt_params->block_wg_m = block_wg_m;
         rt_params->K = K;
-        rt_params->q_stride_pad = q_stride_pad;
         rt_params->xattn_block_size = block_size;
+        rt_params->xattn_num_subseqs = num_xattn_subseqs;
+        rt_params->xattn_total_wg_count = total_wg_count;
+        rt_params->xattn_max_q_block_pad = max_q_block_pad;
+        rt_params->xattn_max_merged_q_blocks = max_merged_q_blocks;
+        rt_params->xattn_cumul_kq_max_bytes = cumul_kq_max_bytes;
+        rt_params->xattn_cumul_exp_sum_bytes = cumul_exp_sum_bytes;
+        rt_params->xattn_cumul_mask_elems = cumul_mask_elems;
+        rt_params->xattn_cumul_mask_wg_elems = cumul_mask_wg_elems;
+        rt_params->xattn_meta_num_int32s = m_xattn_meta.size();
+
+        // Keep single-subseq compat fields (used by pa_multi_token in Phase 4 later)
+        if (num_xattn_subseqs == 1) {
+            rt_params->q_block_pad = ceil_div(static_cast<size_t>(m_xattn_meta[6]), static_cast<size_t>(1));
+            rt_params->k_block_pad = static_cast<size_t>(m_xattn_meta[7]);
+            rt_params->q_stride_pad = static_cast<size_t>(m_xattn_meta[4]);
+            rt_params->q_block_pad_merged = max_merged_q_blocks;
+            rt_params->N_kq_groups = static_cast<size_t>(m_xattn_meta[5]);
+            rt_params->M = static_cast<size_t>(m_xattn_meta[2]);
+            rt_params->N = static_cast<size_t>(m_xattn_meta[3]);
+        } else {
+            rt_params->q_block_pad = max_q_block_pad;
+            rt_params->k_block_pad = 0;
+            rt_params->q_stride_pad = 0;
+            rt_params->q_block_pad_merged = max_merged_q_blocks;
+            rt_params->N_kq_groups = 0;
+            rt_params->M = 0;
+            rt_params->N = 0;
+        }
     }
 
     void update_rt_params(const primitive_inst& instance) override {
@@ -244,9 +332,9 @@ public:
                 validate_xattn_inputs(params, rt_params->batch_size_in_sequences);
             }
 
-            if (desc->has_xattention && rt_params->batch_size_in_sequences == 1) {
+            if (desc->has_xattention) {
                 rt_params->enable_xattn_estimation = true;
-                update_xattn_rt_params(params);
+                update_xattn_rt_params(instance);
             } else {
                 rt_params->xattn_block_size = 1;  // disable xattn for pa
             }
@@ -433,6 +521,24 @@ public:
         rt_params->single_token_selected_count = selected_count;
     }
 
+    void prepare_xattn_metadata(primitive_inst& instance) {
+        auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
+        OPENVINO_ASSERT(rt_params != nullptr);
+        if (!rt_params->enable_xattn_estimation || m_xattn_meta.empty()) return;
+
+        auto& stream = instance.get_network().get_stream();
+        auto meta_mem = instance.get_intermediates_memories()[PagedAttentionInternBuffIdx::XATTN_SUBSEQ_META];
+        const auto alloc_type = meta_mem->get_allocation_type();
+        const bool use_copy_from = alloc_type == cldnn::allocation_type::usm_device;
+
+        if (!use_copy_from) {
+            mem_lock<int32_t, mem_lock_type::write> meta_lock(meta_mem, stream);
+            std::copy(m_xattn_meta.begin(), m_xattn_meta.end(), meta_lock.begin());
+        } else {
+            meta_mem->copy_from(stream, m_xattn_meta.data(), 0, 0, m_xattn_meta.size() * sizeof(int32_t), true);
+        }
+    }
+
     // update impl_parameter and rt_parameter
     void update(primitive_inst& inst, const kernel_impl_params& impl_params) override {
         PrimitiveImplCM::update(inst, impl_params);
@@ -523,6 +629,7 @@ public:
                 Stage::Ptr& xattn_post_proc = use_256 ? xattn_estimate_post_proc_256 : xattn_estimate_post_proc;
                 Stage::Ptr& pa_multi_token = use_256 ? pa_multi_token_256 : pa_multi_token_128;
 
+                prepare_xattn_metadata(instance);
                 res_event = {execute_stage(res_event, instance, xattn_gemmqk)};
                 XATTN_DUMP(instance, PagedAttentionInternBuffIdx::XATTN_GEMMQK_MAX);  // 2: kq_max_wg
                 XATTN_DUMP(instance,
@@ -530,7 +637,7 @@ public:
                 res_event = {execute_stage(res_event, instance, xattn_find_block)};
                 XATTN_DUMP(instance, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK);  // 4: sparse_block_mask
 #if FIND_DEBUG_ACC
-                XATTN_DUMP(instance, PagedAttentionInternBuffIdx::XATTN_FIND_DEBUG_ACC);  // 6: kq_sum for debug purpose only
+                XATTN_DUMP(instance, PagedAttentionInternBuffIdx::XATTN_FIND_DEBUG_ACC);
 #endif
                 res_event = {execute_stage(res_event, instance, xattn_post_proc)};
                 res_event = {execute_stage(res_event, instance, pa_multi_token)};
@@ -639,30 +746,35 @@ public:
             internal_buffers.emplace_back(std::max<int64_t>(2, static_cast<int64_t>(rt_params->multi_token_wg_count * 2)), ov::element::i32, lockable_mapping);  // 2: multi-token mapping
             internal_buffers.emplace_back(std::max<int64_t>(1, static_cast<int64_t>(rt_params->batch_size_in_sequences)), ov::element::i32, lockable_mapping);  // 3: selected ids / placeholder
 
-            // internal buffer for XAttention
+            // internal buffer for XAttention (cumulative sizes across all subsequences)
             if (rt_params->enable_xattn_estimation) {
-                auto count_kq_max_wg = static_cast<int64_t>(desc->heads_num * rt_params->N_kq_groups * rt_params->q_stride_pad);
-                internal_buffers.emplace_back(count_kq_max_wg, ov::element::f32);  // 4: kq_max_wg
+                auto count_kq_max_wg = static_cast<int64_t>(rt_params->xattn_cumul_kq_max_bytes / sizeof(float));
+                internal_buffers.emplace_back(std::max<int64_t>(1, count_kq_max_wg), ov::element::f32);  // 4: kq_max_wg
 
-                auto count_kq_exp_partial_sum = static_cast<int64_t>(desc->heads_num * rt_params->q_stride_pad * rt_params->k_block_pad);
-                internal_buffers.emplace_back(count_kq_exp_partial_sum, ov::element::f32);  // 5: kq_exp_partial_sum
+                auto count_kq_exp_partial_sum = static_cast<int64_t>(rt_params->xattn_cumul_exp_sum_bytes / sizeof(float));
+                internal_buffers.emplace_back(std::max<int64_t>(1, count_kq_exp_partial_sum), ov::element::f32);  // 5: kq_exp_partial_sum
 
-                auto count_elements_mask = static_cast<int64_t>(desc->heads_num * rt_params->q_block_pad * rt_params->k_block_pad);
-                internal_buffers.emplace_back(count_elements_mask, ov::element::boolean);  // 6: sparse_block_mask
+                auto count_elements_mask = static_cast<int64_t>(rt_params->xattn_cumul_mask_elems);
+                internal_buffers.emplace_back(std::max<int64_t>(1, count_elements_mask), ov::element::boolean);  // 6: sparse_block_mask
 
-                auto count_elements_mask_merged = static_cast<int64_t>(desc->heads_num * rt_params->q_block_pad_merged * rt_params->k_block_pad);
-                internal_buffers.emplace_back(count_elements_mask_merged, ov::element::boolean);  // 7: sparse_block_mask_wg
+                auto count_elements_mask_merged = static_cast<int64_t>(rt_params->xattn_cumul_mask_wg_elems);
+                internal_buffers.emplace_back(std::max<int64_t>(1, count_elements_mask_merged), ov::element::boolean);  // 7: sparse_block_mask_wg
+
+                auto count_meta_int32s = static_cast<int64_t>(rt_params->xattn_meta_num_int32s);
+                internal_buffers.emplace_back(std::max<int64_t>(16, count_meta_int32s), ov::element::i32);  // 8: xattn_subseq_meta
 
 #if FIND_DEBUG_ACC
                 const size_t sum_per_n_token_in_block = static_cast<size_t>(rt_params->xattn_block_size / STRIDE);
                 size_t q_block_input = rt_params->q_stride_pad / sum_per_n_token_in_block;
                 auto count_elements_kq_sum = static_cast<int64_t>(desc->heads_num * q_block_input * rt_params->k_block_pad);
-                internal_buffers.emplace_back(count_elements_kq_sum, ov::element::f16);  // 8: kq_sum
+                internal_buffers.emplace_back(std::max<int64_t>(1, count_elements_kq_sum), ov::element::f16);  // 9: kq_sum
 #endif
 
                 GPU_DEBUG_TRACE_DETAIL << "  internal buffer sizes: count_kq_max_wg=" << count_kq_max_wg * 4
-                                       << "  count_kq_exp_partial_sum=" << count_kq_exp_partial_sum * 4 << "  count_elements_mask=" << count_elements_mask * 1
-                                       << "  count_elements_mask_merged=" << count_elements_mask_merged * 1 << std::endl;
+                                       << "  count_kq_exp_partial_sum=" << count_kq_exp_partial_sum * 4
+                                       << "  count_elements_mask=" << count_elements_mask
+                                       << "  count_elements_mask_merged=" << count_elements_mask_merged
+                                       << "  count_meta_int32s=" << count_meta_int32s << std::endl;
             }
         }
 
@@ -674,6 +786,8 @@ public:
     }
 
 private:
+    std::vector<int32_t> m_xattn_meta;
+
     void validate_xattn_inputs(const kernel_impl_params& params, size_t batch_size) {
         const auto& input_mem = params.memory_deps;
 
