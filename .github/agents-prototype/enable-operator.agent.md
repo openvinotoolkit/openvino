@@ -24,17 +24,17 @@ via `agent-results/pipeline_state.json` to re-check those paths when OV work con
 
 ## Sub-Agents (callable)
 
-When calling sub-agents, use paths relative to `.github/agents/`:
+When calling sub-agents, use paths relative to `.github/agents-prototype/`:
 
 | Priority | Agent | Agent file | Purpose |
 |----------|-------|-----------|---------|
-| 1 | **Frontend Agent** | `.github/agents/frontend.agent.md` | Frontend conversion: framework op → OV graph nodes |
-| 2 | **Core OpSpec** | `.github/agents/core-opspec.agent.md` | New core op spec + implementation (on FE escalation) |
-| 3 (parallel) | **Transformation** | `.github/agents/transformation.agent.md` | Graph fusion transformation — starts from Core op spec |
-| 3 (parallel) | **CPU** | `.github/agents/cpu.agent.md` | CPU plugin kernel — starts from Core op spec |
-| 3 (parallel) | **GPU** | `.github/agents/gpu.agent.md` | GPU plugin kernel — starts from Core op spec |
-| 3 (parallel) | **NPU** | `.github/agents/npu.agent.md` | NPU plugin stub — runs in parallel; currently non-functional |
-| 4 | **Package Builder** | `.github/agents/package-builder.agent.md` | Assemble fixed OV package |
+| 1 | **Frontend Agent** | `.github/agents-prototype/frontend.agent.md` | Frontend conversion: framework op → OV graph nodes |
+| 2 | **Core OpSpec** | `.github/agents-prototype/core-opspec.agent.md` | New core op spec + implementation (on FE escalation) |
+| 3 (parallel) | **Transformation** | `.github/agents-prototype/transformation.agent.md` | Graph fusion transformation — starts from Core op spec |
+| 3 (parallel) | **CPU** | `.github/agents-prototype/cpu.agent.md` | CPU plugin kernel — starts from Core op spec |
+| 3 (parallel) | **GPU** | `.github/agents-prototype/gpu.agent.md` | GPU plugin kernel — starts from Core op spec |
+| 3 (parallel) | **NPU** | `.github/agents-prototype/npu.agent.md` | NPU plugin stub — runs in parallel; currently non-functional |
+| 4 | **Package Builder** | `.github/agents-prototype/package-builder.agent.md` | Assemble fixed OV package |
 
 > **NPU note:** Invoked for structural completeness but currently non-functional. Always treat
 > NPU result as non-blocking regardless of status.
@@ -66,8 +66,8 @@ When a sub-agent reports failure or unexpected behaviour, load the relevant skil
 
 | Symptom | Skill | Path |
 |---------|-------|------|
-| MatcherPass not firing, pattern not matched, callback never triggers | `debug-matcher-pass` | `.github/agents/skills/debug-matcher-pass/SKILL.md` |
-| CPU/GPU crash, wrong accuracy, performance regression, IR serialisation issue | `debug` | `.github/agents/skills/debug/SKILL.md` |
+| MatcherPass not firing, pattern not matched, callback never triggers | `debug-matcher-pass` | `.github/agents-prototype/skills/debug-matcher-pass/SKILL.md` |
+| CPU/GPU crash, wrong accuracy, performance regression, IR serialisation issue | `debug` | `.github/agents-prototype/skills/debug/SKILL.md` |
 
 Load the relevant skill and include its diagnosis steps in the sub-agent's retry prompt.
 
@@ -342,7 +342,7 @@ Log:
 > below pass. Do not open a PR against a failing or untested pipeline.**
 
 Run the
-**[`skills/verify-conversion/SKILL.md`](.github/agents/skills/verify-conversion/SKILL.md)** skill.
+**[`skills/verify-conversion/SKILL.md`](.github/agents-prototype/skills/verify-conversion/SKILL.md)** skill.
 
 The skill:
 1. Auto-detects the correct conversion path (optimum-intel for HuggingFace models,

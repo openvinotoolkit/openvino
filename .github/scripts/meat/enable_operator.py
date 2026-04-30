@@ -5,7 +5,7 @@
 """Entry point for operator-level enablement (OpenVINO core pipeline).
 
 Passes the context file to the `enable-operator` agent defined in
-`.github/agents/enable-operator.agent.md`, which drives the full
+`.github/agents-prototype/enable-operator.agent.md`, which drives the full
 FE → Core OpSpec → Transformation/CPU/GPU/NPU → Package Builder pipeline.
 
 Usage:

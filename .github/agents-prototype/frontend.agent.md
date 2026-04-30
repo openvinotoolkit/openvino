@@ -31,7 +31,7 @@ Write all logs, results, and patches to `agent-results/frontend/`.
 | Item | Notes |
 |---|---|
 | **OpenVINO repository** | Current working directory — run from the `openvinotoolkit/openvino` repository root |
-| **Skills** | `.github/agents/skills/` — relative to the repository root |
+| **Skills** | `.github/agents-prototype/skills/` — relative to the repository root |
 
 ### Python Package Bootstrap
 
@@ -59,12 +59,12 @@ Read only the skill file relevant to the current framework and task:
 
 | Task | Framework | Skill file |
 |---|---|---|
-| Implement a new op translator | PyTorch | `.github/agents/skills/add-fe-op/pytorch.md` |
-| Implement a new op translator | ONNX | `.github/agents/skills/add-fe-op/onnx.md` |
-| Implement a new op translator | TF / other | `.github/agents/skills/add-fe-op/SKILL.md` |
-| Investigate conversion failure | PyTorch | `.github/agents/skills/conversion-issues/pytorch.md` |
-| Investigate conversion failure | ONNX | `.github/agents/skills/conversion-issues/onnx.md` |
-| Investigate (generic / dispatch) | Any | `.github/agents/skills/conversion-issues/SKILL.md` |
+| Implement a new op translator | PyTorch | `.github/agents-prototype/skills/add-fe-op/pytorch.md` |
+| Implement a new op translator | ONNX | `.github/agents-prototype/skills/add-fe-op/onnx.md` |
+| Implement a new op translator | TF / other | `.github/agents-prototype/skills/add-fe-op/SKILL.md` |
+| Investigate conversion failure | PyTorch | `.github/agents-prototype/skills/conversion-issues/pytorch.md` |
+| Investigate conversion failure | ONNX | `.github/agents-prototype/skills/conversion-issues/onnx.md` |
+| Investigate (generic / dispatch) | Any | `.github/agents-prototype/skills/conversion-issues/SKILL.md` |
 
 ---
 

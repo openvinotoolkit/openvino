@@ -14,8 +14,8 @@ You have reference skill files with detailed workflows. **Do NOT read all skill 
 
 | Skill file | When to read |
 |---|---|
-| `.github/agents/skills/conversion-issues/pytorch.md` | Conversion failures, existing op bugs, accuracy issues, shape/type mismatches, normalize-step failures, tracing mode issues |
-| `.github/agents/skills/add-fe-op/pytorch.md` | Implementing a new op translator (`"No translator found for"`, `PtFrameworkNode` remains after conversion) |
+| `.github/agents-prototype/skills/conversion-issues/pytorch.md` | Conversion failures, existing op bugs, accuracy issues, shape/type mismatches, normalize-step failures, tracing mode issues |
+| `.github/agents-prototype/skills/add-fe-op/pytorch.md` | Implementing a new op translator (`"No translator found for"`, `PtFrameworkNode` remains after conversion) |
 
 ## Workflow
 

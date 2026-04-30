@@ -167,4 +167,4 @@ Use this branch when you are updating an existing GPU operation for a newer Open
 # References
 
 - Skills directory: `skills/add-gpu-op/`
-- Repository guidelines: `.github/agents/gpu.agent.md`
+- Repository guidelines: `.github/agents-prototype/gpu.agent.md`

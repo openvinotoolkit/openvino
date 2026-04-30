@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 #!/usr/bin/env python3
-"""Run any OpenVINO coding agent from .github/agents/.
+"""Run any OpenVINO coding agent from .github/agents-prototype/.
 
 Usage:
     python .github/scripts/meat/run_agent.py <agent-name> <context-file>
@@ -66,7 +66,7 @@ def main() -> None:
 
     agent_name = sys.argv[1]
     context_file_path = sys.argv[2]
-    agent_file = f".github/agents/{agent_name}.agent.md"
+    agent_file = f".github/agents-prototype/{agent_name}.agent.md"
 
     if not os.path.isfile(context_file_path):
         print(f"Error: context file not found: {context_file_path}", file=sys.stderr)

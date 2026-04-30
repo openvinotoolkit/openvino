@@ -26,7 +26,7 @@ Write all logs, results, and patches to `agent-results/gpu/`.
 | Item | Notes |
 |---|---|
 | **OpenVINO repository** | Current working directory — run from the `openvinotoolkit/openvino` repository root |
-| **Skills** | `.github/agents/skills/` — relative to the repository root |
+| **Skills** | `.github/agents-prototype/skills/` — relative to the repository root |
 
 ### Python Package Bootstrap
 

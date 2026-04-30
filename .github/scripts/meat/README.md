@@ -1,6 +1,6 @@
 # Agent scripts — local runner
 
-Scripts for running the OpenVINO coding agents from `.github/agents/` on your
+Scripts for running the OpenVINO coding agents from `.github/agents-prototype/` on your
 local machine using the [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started).
 
 ---
@@ -25,15 +25,18 @@ local machine using the [GitHub Copilot CLI](https://docs.github.com/en/copilot/
 > (runaway file writes, unintended network calls, accidental credential exposure).
 >
 > Possible options (not an exhaustive list):
-> - **Qwen Code sandbox** — browser-based isolated execution environment:
+> - **Qwen Code sandbox** — sandboxing feature of the Qwen Code CLI that restricts
+>   filesystem and network access during agent runs (macOS Seatbelt or Docker/Podman):
 >   https://qwenlm.github.io/qwen-code-docs/en/users/features/sandbox/
-> - **gh-aw-firewall** — GitHub CLI extension that adds a network firewall around
->   agent workloads: https://github.com/github/gh-aw-firewall
-> - **agent-sandbox** (Kubernetes SIGs) — Kubernetes-based sandbox for running
->   agentic workloads with resource and network policy controls:
+> - **gh-aw-firewall** — network firewall for agentic workflows that restricts
+>   outbound HTTP/HTTPS to an allowlist of domains via a Squid proxy inside Docker:
+>   https://github.com/github/gh-aw-firewall
+> - **agent-sandbox** (Kubernetes SIGs) — Kubernetes CRD and controller for managing
+>   isolated, stateful singleton workloads, ideal for AI agent runtimes:
 >   https://github.com/kubernetes-sigs/agent-sandbox
-> - **sandbox-runtime** (Anthropic experimental) — lightweight container runtime
->   designed for LLM agent isolation:
+> - **sandbox-runtime** (Anthropic) — lightweight OS-level sandboxing tool (no
+>   container required) that enforces filesystem and network restrictions using native
+>   OS primitives (macOS Seatbelt / Linux bubblewrap):
 >   https://github.com/anthropic-experimental/sandbox-runtime
 
 ---
@@ -260,6 +263,6 @@ step-by-step workflow defined in the corresponding skill file.
 
 ## See also
 
-- Agent definitions: [`.github/agents/`](../agents/)
+- Agent definitions: [`.github/agents-prototype/`](../agents-prototype/)
 - Skill prompts: [`.github/prompts/`](../prompts/)
 - Copilot CLI reference: https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference

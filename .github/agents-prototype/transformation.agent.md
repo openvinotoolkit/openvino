@@ -32,7 +32,7 @@ Write all logs, results, and patches to `agent-results/transformation/`.
 | Item | Notes |
 |---|---|
 | **OpenVINO repository** | Current working directory — run from the `openvinotoolkit/openvino` repository root |
-| **Skills** | `.github/agents/skills/` — relative to the repository root |
+| **Skills** | `.github/agents-prototype/skills/` — relative to the repository root |
 
 ### Python Package Bootstrap
 
@@ -47,7 +47,7 @@ SKILL.md lists all step files with their purpose and execution order.
 
 | Skill file | Purpose |
 |---|---|
-| `.github/agents/skills/debug-matcher-pass/SKILL.md` | **Debug only** — diagnose why a MatcherPass is not firing: pattern not matched, callback never triggers, opset version mismatch. Load this skill when a transformation silently produces no effect. |
+| `.github/agents-prototype/skills/debug-matcher-pass/SKILL.md` | **Debug only** — diagnose why a MatcherPass is not firing: pattern not matched, callback never triggers, opset version mismatch. Load this skill when a transformation silently produces no effect. |
 
 ## Code Quality
 

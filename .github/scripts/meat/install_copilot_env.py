@@ -11,7 +11,7 @@ Checks and (where possible) performs:
   4. copilot authentication
 
 Run from the openvino repo root:
-  python .github/scripts/meat/setup.py
+  python .github/scripts/meat/install_copilot_env.py
 """
 
 import json
