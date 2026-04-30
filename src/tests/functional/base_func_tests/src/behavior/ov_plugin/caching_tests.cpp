@@ -1000,6 +1000,9 @@ TEST_P(CompileModelWithCacheEncryptionTest, CanImportModelWithoutException) {
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CompiledKernelsCacheTest);
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CompileModelCacheRuntimePropertiesTestBase);
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CompileModelLoadFromFileTestBase);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CompileModelLoadFromCacheTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CompileModelLoadFromMemoryTestBase);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CompileModelWithCacheEncryptionTest);
 } // namespace behavior
 } // namespace test
 } // namespace ov
