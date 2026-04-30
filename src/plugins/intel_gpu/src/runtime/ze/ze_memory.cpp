@@ -539,6 +539,7 @@ event::ptr gpu_image2d::fill(stream& stream, unsigned char pattern, const std::v
         blocking = true;
         GPU_DEBUG_TRACE << "[GPU] Forcing blocking fill for ze::gpu_image2d" << std::endl;
     }
+    OPENVINO_ASSERT(blocking, "[GPU] ze::gpu_image2d only supports blocking fill");
     if (blocking) {
         result_event->wait();
     }
