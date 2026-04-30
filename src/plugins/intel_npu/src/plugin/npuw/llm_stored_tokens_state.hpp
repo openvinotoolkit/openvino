@@ -15,28 +15,28 @@ namespace npuw {
 // Allows external pipelines to call reset on that state where needed.
 class StoredTokensState : public ov::IVariableState {
 public:
+    friend class ov::npuw::LLMInferRequest;
     StoredTokensState() : ov::IVariableState("npuw_stored_tokens_state") {
         auto tensor = ov::Tensor(ov::element::i64, ov::Shape{1});
         m_state = ov::get_tensor_impl(tensor);
         reset();
     }
 
+    void reset() override {
+        m_state->data<int64_t>()[0] = 0;
+    }
+
+    void set_state(const ov::SoPtr<ov::ITensor>&) override {
+        OPENVINO_ASSERT("StoredTokensState::set_state() should not be called!");
+    }
+
+private:
     int64_t get_num_stored_tokens() const {
         return m_state->data<int64_t>()[0];
     }
 
     void set_num_stored_tokens(int64_t num_tokens) {
         m_state->data<int64_t>()[0] = num_tokens;
-    }
-
-    void reset() override {
-        m_state->data<int64_t>()[0] = 0;
-    }
-
-    void set_state(const ov::SoPtr<ov::ITensor>& state) override {
-        OPENVINO_ASSERT(state->get_element_type() == ov::element::i64, "StoredTokensState expects int64 tensor");
-        OPENVINO_ASSERT(state->get_size() == 1, "StoredTokensState tensor must have exactly 1 element");
-        m_state->data<int64_t>()[0] = state->data<int64_t>()[0];
     }
 };
 

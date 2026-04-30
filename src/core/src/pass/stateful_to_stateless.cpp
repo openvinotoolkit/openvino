@@ -72,9 +72,8 @@ struct Variable {
                     return prefix + "." + idx + "." + type;
                 } else if (type == "conv" || type == "ssm") {
                     return original_prefix + "." + past_or_present + "." + type + "." + idx;
-                } else {
-                    OPENVINO_ASSERT("Incorrect type of state: ", type);
                 }
+                OPENVINO_ASSERT("Incorrect type of state: ", type);
             };
 
             input_name = create_name(past_type, past_idx, prefix, "past");
