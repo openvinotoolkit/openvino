@@ -7,17 +7,22 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <deque>
 #include <limits>
 #include <map>
 #include <memory>
 #include <string>
 #include <tuple>
+#include <unordered_set>
 #include <vector>
 #include <type_traits>
 
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
+#include "intel_gpu/op/indirect_sdpa.hpp"
+#include "intel_gpu/op/sdpa.hpp"
+#include "intel_gpu/op/read_value.hpp"
 #include "low_precision/add.hpp"
 #include "low_precision/concat.hpp"
 #include "low_precision/convolution.hpp"
@@ -64,6 +69,7 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/read_value_base.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/opsets/opset10_decl.hpp"
@@ -310,6 +316,49 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
         }
     }
     return are_converts_from_decompression(consumers);
+}
+
+bool has_shared_kv_cache_vars(const std::shared_ptr<ov::Model>& model) {
+    for (const auto& op : model->get_ops()) {
+        if (!std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(op) &&
+            !ov::as_type_ptr<ov::intel_gpu::op::ReadValue>(op))
+            continue;
+
+        size_t sdpa_count = 0;
+        std::deque<ov::Node*> queue;
+        std::unordered_set<ov::Node*> visited;
+        for (const auto& target : op->output(0).get_target_inputs()) {
+            auto* consumer = target.get_node();
+            if (visited.insert(consumer).second) {
+                queue.push_back(consumer);
+            }
+        }
+        while (!queue.empty()) {
+            auto* n = queue.front();
+            queue.pop_front();
+            if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(n) ||
+                ov::is_type<ov::intel_gpu::op::IndirectSDPA>(n) ||
+                ov::is_type<ov::intel_gpu::op::SDPA>(n)) {
+                sdpa_count++;
+                continue;
+            }
+            for (size_t o = 0; o < n->get_output_size(); ++o) {
+                if (!n->get_output_element_type(o).is_real()) {
+                    continue;
+                }
+                for (const auto& target : n->output(o).get_target_inputs()) {
+                    auto* consumer = target.get_node();
+                    if (visited.insert(consumer).second) {
+                        queue.push_back(consumer);
+                    }
+                }
+            }
+        }
+        if (sdpa_count > 1) {
+            return true;
+        }
+    }
+    return false;
 }
 }  // namespace
 
@@ -1486,9 +1535,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::GLUFusion>();
         manager.register_pass<ov::intel_gpu::IndirectKVCache>();
 
+        if (!has_shared_kv_cache_vars(func)) {
+            auto kv_cache_compression_dt = config.get_kv_cache_precision();
+            manager.register_pass<ov::intel_gpu::KVCacheCompression>(kv_cache_compression_dt, device_info.supports_immad);
+        }
 
-        auto kv_cache_compression_dt = config.get_kv_cache_precision();
-        manager.register_pass<ov::intel_gpu::KVCacheCompression>(kv_cache_compression_dt, device_info.supports_immad);
         manager.register_pass<ov::intel_gpu::ConvertConvolutionToInternal>();
 
         // This pass should be done after asymmetric quantization matching as it can move zp subtraction upper in the graph
