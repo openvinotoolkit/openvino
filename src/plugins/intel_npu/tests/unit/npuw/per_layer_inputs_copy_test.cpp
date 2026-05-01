@@ -59,26 +59,26 @@ TEST(PerLayerInputsCopyTest, ChunkAtOffsetZeroCopiesToRight) {
 }
 
 // Test 2: copy a middle chunk (offset=2, chunk=2) from a src with 6 tokens.
-// dst has 4 token slots; chunk fills the right 2 slots, left 2 slots are zeroed.
-TEST(PerLayerInputsCopyTest, ChunkAtOffsetCopiesRightAlignedWithLeadingZeros) {
+// dst has 4 token slots; chunk fills the right 2 slots, left 2 slots are left unchanged.
+TEST(PerLayerInputsCopyTest, ChunkAtOffsetCopiesRightAlignedLeavesLeadingBytesUnchanged) {
     // src: [1, 6, 2, 2], values 0..23
     auto src = make_per_layer_tensor(6, 2, 2, 0.f);
-    // dst: [1, 4, 2, 2]
+    // dst: [1, 4, 2, 2], sequential values starting from 99 (99, 100, 101, ...)
     auto dst = make_per_layer_tensor(4, 2, 2, 99.f);
 
     ASSERT_NO_THROW(ov::npuw::util::copy_per_layer_inputs_chunk_to_right(src, dst, /*offset=*/2, /*chunk=*/2));
 
     // src tokens at offset 2,3 -> src flat indices [8..15]
     const auto result = to_vec(dst);
-    // Right-aligned: dst tokens 0,1 are zero; dst tokens 2,3 hold src[2],src[3]
-    std::vector<float> expected = {0.f,
-                                   0.f,
-                                   0.f,
-                                   0.f,  // zeroed (token 0)
-                                   0.f,
-                                   0.f,
-                                   0.f,
-                                   0.f,  // zeroed (token 1)
+    // Right-aligned: dst tokens 0,1 are unchanged (sequential from start_val=99); dst tokens 2,3 hold src[2],src[3]
+    std::vector<float> expected = {99.f,
+                                   100.f,
+                                   101.f,
+                                   102.f,  // unchanged (token 0)
+                                   103.f,
+                                   104.f,
+                                   105.f,
+                                   106.f,  // unchanged (token 1)
                                    8.f,
                                    9.f,
                                    10.f,
@@ -142,26 +142,24 @@ TEST(PerLayerInputsCopyTest, PerTokenByteMismatchThrows) {
 
 // --- copy_to_right for per_layer_inputs (inlined path tests) --------------------
 
-// Test 9: copy_to_right copies src into the right end of a larger dst.
-TEST(PerLayerInputsCopyTest, CopyToRightPadsLeadingBytesToZero) {
+// Test 9: copy_to_right writes src into the right end of dst; leading bytes are left unchanged.
+TEST(PerLayerInputsCopyTest, CopyToRightLeavesLeadingBytesUnchanged) {
     // src: [1, 2, 2, 2], values 0..7
     auto src = make_per_layer_tensor(2, 2, 2, 0.f);
-    // dst: [1, 4, 2, 2], initially filled with 99
+    // dst: [1, 4, 2, 2], sequential values starting from 99 (99, 100, 101, ...)
     auto dst = make_per_layer_tensor(4, 2, 2, 99.f);
 
-    // Zero-fill then copy to right (simulate generate path with clear=true)
-    ov::npuw::util::fill_tensor_bytes(dst, 0u);
     ASSERT_NO_THROW(ov::npuw::util::copy_to_right(src, dst));
 
     const auto result = to_vec(dst);
-    std::vector<float> expected = {0.f,
-                                   0.f,
-                                   0.f,
-                                   0.f,  // zeroed (token 0)
-                                   0.f,
-                                   0.f,
-                                   0.f,
-                                   0.f,  // zeroed (token 1)
+    std::vector<float> expected = {99.f,
+                                   100.f,
+                                   101.f,
+                                   102.f,  // unchanged (token 0)
+                                   103.f,
+                                   104.f,
+                                   105.f,
+                                   106.f,  // unchanged (token 1)
                                    0.f,
                                    1.f,
                                    2.f,

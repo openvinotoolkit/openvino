@@ -741,9 +741,7 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             // Source shape: [1, input_prompt_len, num_layers, proj_dim]
             // Dest shape:   [1, chunk_prompt_len, num_layers, proj_dim] (static)
             if (per_layer_inputs) {
-                auto it = m_prefill_in_ports.find(layer_names::per_layer_inputs);
-                OPENVINO_ASSERT(it != m_prefill_in_ports.end(), "per_layer_inputs port not found in prefill sub-model");
-                auto dst = m_prefill_request->get_tensor(it->second);
+                auto dst = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::per_layer_inputs));
                 ov::npuw::util::copy_per_layer_inputs_chunk_to_right(per_layer_inputs,
                                                                      dst,
                                                                      kvcache_desc.num_stored_tokens,
@@ -843,9 +841,7 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
         // Gemma4: pass per_layer_inputs from external inputs into the prefill sub-request.
         // Shape is [1, seq_len, num_layers, proj_dim]; copy right-aligned on the seq_len dim.
         if (per_layer_inputs) {
-            auto it = m_prefill_in_ports.find(layer_names::per_layer_inputs);
-            OPENVINO_ASSERT(it != m_prefill_in_ports.end(), "per_layer_inputs port not found in prefill sub-model");
-            auto dst = m_prefill_request->get_tensor(it->second);
+            auto dst = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::per_layer_inputs));
             ov::npuw::util::copy_to_right(per_layer_inputs, dst);
         }
     });
@@ -1019,9 +1015,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         // Gemma4: pass per_layer_inputs from external inputs into the generate sub-request.
         // Shape is [1, 1, num_layers, proj_dim] during generate; copy right-aligned on seq_len dim.
         if (per_layer_inputs) {
-            auto it = m_kvcache_in_ports.find(layer_names::per_layer_inputs);
-            OPENVINO_ASSERT(it != m_kvcache_in_ports.end(), "per_layer_inputs port not found in kvcache sub-model");
-            auto dst = m_kvcache_request->get_tensor(it->second);
+            auto dst = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::per_layer_inputs));
             ov::npuw::util::copy_to_right(per_layer_inputs, dst);
         }
     });

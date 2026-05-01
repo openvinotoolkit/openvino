@@ -44,7 +44,7 @@ std::optional<ov::Output<const ov::Node>> find_port_by_names(const std::vector<o
 void pad_position_ids(const ov::SoPtr<ov::ITensor>& padded_position_ids, const ov::SoPtr<ov::ITensor>& position_ids);
 
 // Copy chunk_tokens from src starting at src_offset_tokens into dst, right-aligned on seq_len dim.
-// dst is zero-filled before the copy.
+// Leading bytes in dst are left unchanged.
 void copy_per_layer_inputs_chunk_to_right(const ov::SoPtr<ov::ITensor>& src,
                                           const ov::SoPtr<ov::ITensor>& dst,
                                           uint32_t src_offset_tokens,

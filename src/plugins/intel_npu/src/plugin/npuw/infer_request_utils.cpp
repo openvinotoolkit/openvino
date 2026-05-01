@@ -216,8 +216,8 @@ void ov::npuw::util::copy_per_layer_inputs_chunk_to_right(const ov::SoPtr<ov::IT
                                                           const ov::SoPtr<ov::ITensor>& dst,
                                                           uint32_t src_offset_tokens,
                                                           uint32_t chunk_tokens) {
-    const auto src_seq_len = src->get_shape()[1];
-    const auto dst_seq_len = dst->get_shape()[1];
+    const auto src_seq_len = src->get_shape().at(1);
+    const auto dst_seq_len = dst->get_shape().at(1);
     OPENVINO_ASSERT(chunk_tokens > 0u, "chunk_tokens must be > 0");
     OPENVINO_ASSERT(src_offset_tokens <= src_seq_len,
                     "src_offset_tokens exceeds source seq_len. src_offset_tokens=",
