@@ -529,6 +529,7 @@ TEST_P(OVInferRequestCheckTensorPrecision, getOutputsFromSplitFunctionWithSevera
 }
 
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVInferRequestIOTensorSetPrecisionTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVInferRequestIOTensorTest);
 
 }  // namespace behavior
 }  // namespace test
