@@ -43,9 +43,7 @@ void atan2(const T* y,
            const Shape& y_shape,
            const Shape& x_shape,
            const op::AutoBroadcastSpec& broadcast_spec) {
-    autobroadcast_binop(y, x, out, y_shape, x_shape, broadcast_spec, [](const T y_val, const T x_val) {
-        return func::atan2(y_val, x_val);
-    });
+    autobroadcast_binop(y, x, out, y_shape, x_shape, broadcast_spec, &func::atan2<T>);
 }
 
 }  // namespace reference
