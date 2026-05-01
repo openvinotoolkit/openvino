@@ -22,15 +22,30 @@ namespace {
 
 constexpr const char* kCandidateProperty = "TEST_CANDIDATE_NAME";
 
+std::shared_ptr<ov::Model> make_test_model(const std::vector<std::string>& input_names,
+                                           const std::vector<std::string>& output_names) {
+    OPENVINO_ASSERT(input_names.size() == output_names.size(),
+                    "Failsafe test model requires matching input and output counts");
+
+    ov::ParameterVector inputs;
+    ov::ResultVector outputs;
+    for (std::size_t idx = 0; idx < input_names.size(); ++idx) {
+        auto input = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{1});
+        input->set_friendly_name(input_names[idx]);
+        auto zero = ov::opset10::Constant::create(ov::element::f32, ov::Shape{1}, {0.f});
+        auto add = std::make_shared<ov::opset10::Add>(input, zero);
+        add->set_friendly_name(output_names[idx] + "_add");
+        auto result = std::make_shared<ov::opset10::Result>(add);
+        result->set_friendly_name(output_names[idx]);
+        inputs.push_back(input);
+        outputs.push_back(result);
+    }
+
+    return std::make_shared<ov::Model>(outputs, inputs, "FailsafeTestModel");
+}
+
 std::shared_ptr<ov::Model> make_test_model() {
-    auto input = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{1});
-    input->set_friendly_name("input");
-    auto zero = ov::opset10::Constant::create(ov::element::f32, ov::Shape{1}, {0.f});
-    auto add = std::make_shared<ov::opset10::Add>(input, zero);
-    add->set_friendly_name("output_add");
-    auto result = std::make_shared<ov::opset10::Result>(add);
-    result->set_friendly_name("output");
-    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input}, "FailsafeTestModel");
+    return make_test_model({"input"}, {"output"});
 }
 
 class NullPlugin final : public ov::IPlugin {
@@ -81,8 +96,8 @@ struct CandidateState {
     int create_request_failures = 0;
     int infer_failures = 0;
     float output_bias = 0.f;
-    float last_input_value = 0.f;
-    float last_output_value = 0.f;
+    std::vector<float> last_input_values;
+    std::vector<float> last_output_values;
     std::vector<const void*> bound_input_ptrs;
 };
 
@@ -104,8 +119,9 @@ public:
     }
 
 private:
-    static bool is_input_port(const ov::Output<const ov::Node>& port) {
-        return port.get_node() != nullptr && port.get_node()->get_friendly_name() == "input";
+    bool is_input_port(const ov::Output<const ov::Node>& port) const {
+        auto found = ov::ISyncInferRequest::find_port(port);
+        return found.found() && !found.is_output();
     }
 
     std::shared_ptr<CandidateState> m_state;
@@ -181,13 +197,22 @@ void TestInferRequest::infer() {
         OPENVINO_THROW("infer failed for ", m_state->name);
     }
 
-    const auto& input_port = get_compiled_model()->inputs().front();
-    const auto& output_port = get_compiled_model()->outputs().front();
-    const auto& input = ov::ISyncInferRequest::get_tensor(input_port);
-    const auto& output = ov::ISyncInferRequest::get_tensor(output_port);
-    m_state->last_input_value = input->data<const float>()[0];
-    m_state->last_output_value = m_state->last_input_value + m_state->output_bias;
-    output->data<float>()[0] = m_state->last_output_value;
+    const auto& inputs = get_compiled_model()->inputs();
+    const auto& outputs = get_compiled_model()->outputs();
+    OPENVINO_ASSERT(inputs.size() == outputs.size(), "Test infer request expects matching input and output counts");
+    OPENVINO_ASSERT(!inputs.empty(), "Test infer request expects at least one input");
+
+    m_state->last_input_values.clear();
+    m_state->last_output_values.clear();
+    for (std::size_t idx = 0; idx < inputs.size(); ++idx) {
+        const auto& input = ov::ISyncInferRequest::get_tensor(inputs[idx]);
+        const auto& output = ov::ISyncInferRequest::get_tensor(outputs[idx]);
+        const auto input_value = input->data<const float>()[0];
+        const auto output_value = input_value + m_state->output_bias + static_cast<float>(idx);
+        m_state->last_input_values.push_back(input_value);
+        m_state->last_output_values.push_back(output_value);
+        output->data<float>()[0] = output_value;
+    }
 }
 
 ov::SoPtr<ov::ITensor> TestInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
@@ -289,8 +314,10 @@ TEST(FailsafeCompiledModelTest, InferenceFailureFallsBackAndRebindsTensors) {
     EXPECT_EQ(compiled->active_device_name(), "CPU");
     EXPECT_EQ(first->bound_input_ptrs, (std::vector<const void*>{input->data()}));
     EXPECT_EQ(second->bound_input_ptrs, (std::vector<const void*>{input->data()}));
-    EXPECT_FLOAT_EQ(second->last_input_value, 3.f);
-    EXPECT_FLOAT_EQ(second->last_output_value, 23.f);
+    ASSERT_EQ(second->last_input_values.size(), 1u);
+    ASSERT_EQ(second->last_output_values.size(), 1u);
+    EXPECT_FLOAT_EQ(second->last_input_values.front(), 3.f);
+    EXPECT_FLOAT_EQ(second->last_output_values.front(), 23.f);
     EXPECT_FLOAT_EQ(request->get_tensor(model->outputs().front())->data<const float>()[0], 23.f);
     EXPECT_EQ(events,
               (std::vector<std::string>{"compile:NPU",
@@ -335,6 +362,55 @@ TEST(FailsafeCompiledModelTest, UserProvidedOutputBufferReceivesFailoverResult) 
                                         "infer:CPU"}));
 }
 
+TEST(FailsafeCompiledModelTest, ImportedInnerModelPortsAreRemappedByIndex) {
+    auto model = make_test_model({"wrapper_tokens", "wrapper_style"}, {"wrapper_audio", "wrapper_duration"});
+    auto imported_model = make_test_model({"cached_tokens", "cached_style"}, {"cached_audio", "cached_duration"});
+    auto plugin = std::make_shared<NullPlugin>();
+    std::vector<std::string> events;
+    constexpr float npu_output_bias = 10.f;
+    constexpr float cpu_output_bias = 20.f;
+    auto npu = std::make_shared<CandidateState>(CandidateState{"NPU", &events, 0, 0, npu_output_bias});
+    auto cpu = std::make_shared<CandidateState>(CandidateState{"CPU", &events, 0, 0, cpu_output_bias});
+
+    auto so = ov::npuw::failsafe::CompiledModel::create(
+        model, plugin, {"NPU", "CPU"},
+        make_factory(imported_model, plugin, {{"NPU", npu}, {"CPU", cpu}}));
+    auto compiled = std::dynamic_pointer_cast<ov::npuw::failsafe::CompiledModel>(so._ptr);
+
+    ASSERT_NE(compiled, nullptr);
+    auto request = compiled->create_sync_infer_request();
+
+    auto first_input = ov::get_tensor_impl(ov::Tensor(ov::element::f32, ov::Shape{1}));
+    auto second_input = ov::get_tensor_impl(ov::Tensor(ov::element::f32, ov::Shape{1}));
+    auto second_output = ov::get_tensor_impl(ov::Tensor(ov::element::f32, ov::Shape{1}));
+    constexpr float first_input_value = 3.f;
+    constexpr float second_input_value = 7.f;
+    constexpr float initial_output_value = -1.f;
+    first_input->data<float>()[0] = first_input_value;
+    second_input->data<float>()[0] = second_input_value;
+    second_output->data<float>()[0] = initial_output_value;
+
+    constexpr std::size_t first_port_index = 0u;
+    constexpr std::size_t second_port_index = 1u;
+    ASSERT_NO_THROW(request->set_tensor(model->inputs()[first_port_index], first_input));
+    ASSERT_NO_THROW(request->set_tensor(model->inputs()[second_port_index], second_input));
+    ASSERT_NO_THROW(request->set_tensor(model->outputs()[second_port_index], second_output));
+
+    ASSERT_NO_THROW(request->infer());
+    ASSERT_EQ(npu->bound_input_ptrs, (std::vector<const void*>{first_input->data(), second_input->data()}));
+    ASSERT_EQ(npu->last_input_values.size(), 2u);
+    ASSERT_EQ(npu->last_output_values.size(), 2u);
+    EXPECT_FLOAT_EQ(npu->last_input_values[first_port_index], first_input_value);
+    EXPECT_FLOAT_EQ(npu->last_input_values[second_port_index], second_input_value);
+
+    const float first_expected_output = first_input_value + npu_output_bias + static_cast<float>(first_port_index);
+    const float second_expected_output = second_input_value + npu_output_bias + static_cast<float>(second_port_index);
+    EXPECT_FLOAT_EQ(request->get_tensor(model->outputs()[first_port_index])->data<const float>()[0], first_expected_output);
+    EXPECT_EQ(request->get_tensor(model->outputs()[second_port_index])._ptr, second_output._ptr);
+    EXPECT_FLOAT_EQ(second_output->data<const float>()[0], second_expected_output);
+    EXPECT_EQ(events, (std::vector<std::string>{"compile:NPU", "create-request:NPU", "infer:NPU"}));
+}
+
 TEST(FailsafeCompiledModelTest, ChainedInferenceSurvivesUpstreamAndDownstreamFailover) {
     auto model = make_test_model();
     auto plugin = std::make_shared<NullPlugin>();
@@ -369,8 +445,10 @@ TEST(FailsafeCompiledModelTest, ChainedInferenceSurvivesUpstreamAndDownstreamFai
 
     ASSERT_NO_THROW(first_request->infer());
     EXPECT_EQ(first_compiled->active_device_name(), "CPU");
-    EXPECT_FLOAT_EQ(first_cpu->last_input_value, 3.f);
-    EXPECT_FLOAT_EQ(first_cpu->last_output_value, 23.f);
+    ASSERT_EQ(first_cpu->last_input_values.size(), 1u);
+    ASSERT_EQ(first_cpu->last_output_values.size(), 1u);
+    EXPECT_FLOAT_EQ(first_cpu->last_input_values.front(), 3.f);
+    EXPECT_FLOAT_EQ(first_cpu->last_output_values.front(), 23.f);
     EXPECT_EQ(first_request->get_tensor(model->outputs().front())._ptr, chained_tensor._ptr);
     EXPECT_FLOAT_EQ(chained_tensor->data<const float>()[0], 23.f);
 
@@ -378,8 +456,10 @@ TEST(FailsafeCompiledModelTest, ChainedInferenceSurvivesUpstreamAndDownstreamFai
     EXPECT_EQ(second_compiled->active_device_name(), "CPU");
     EXPECT_EQ(second_npu->bound_input_ptrs, (std::vector<const void*>{chained_tensor->data()}));
     EXPECT_EQ(second_cpu->bound_input_ptrs, (std::vector<const void*>{chained_tensor->data()}));
-    EXPECT_FLOAT_EQ(second_cpu->last_input_value, 23.f);
-    EXPECT_FLOAT_EQ(second_cpu->last_output_value, 25.f);
+    ASSERT_EQ(second_cpu->last_input_values.size(), 1u);
+    ASSERT_EQ(second_cpu->last_output_values.size(), 1u);
+    EXPECT_FLOAT_EQ(second_cpu->last_input_values.front(), 23.f);
+    EXPECT_FLOAT_EQ(second_cpu->last_output_values.front(), 25.f);
     EXPECT_FLOAT_EQ(second_request->get_tensor(model->outputs().front())->data<const float>()[0], 25.f);
 }
 
