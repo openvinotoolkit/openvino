@@ -107,7 +107,7 @@ if(ENABLE_THREAD_SANITIZER)
             execute_process(COMMAND ${CMAKE_CXX_COMPILER} --print-file-name libclang_rt.tsan-x86_64.so
                 OUTPUT_VARIABLE OV_LIBTSAN_FILEPATH OUTPUT_STRIP_TRAILING_WHITESPACE)
             get_filename_component(LIBTSAN_DIRNAME ${OV_LIBTSAN_FILEPATH} PATH)
-            set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS},-rpath=${LIBTSAN_DIRNAME}")
+            set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -Wl,-rpath=${LIBTSAN_DIRNAME}")
         endif()
     else()
         message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
