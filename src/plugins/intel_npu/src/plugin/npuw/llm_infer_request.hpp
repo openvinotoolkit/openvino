@@ -46,22 +46,30 @@ protected:
 
     void infer_chunked_prefill(ov::SoPtr<ov::ITensor> input_ids,
                                ov::SoPtr<ov::ITensor> attention_mask,
-                               ov::SoPtr<ov::ITensor> position_ids);
+                               ov::SoPtr<ov::ITensor> position_ids,
+                               ov::SoPtr<ov::ITensor> visual_pos_masks,
+                               ov::SoPtr<ov::ITensor> deepstack_visual_embeds);
 
     void infer_whole_prefill(ov::SoPtr<ov::ITensor> input_ids,
                              ov::SoPtr<ov::ITensor> attention_mask,
                              ov::SoPtr<ov::ITensor> position_ids,
-                             ov::SoPtr<ov::ITensor> input_token_ids);
+                             ov::SoPtr<ov::ITensor> input_token_ids,
+                             ov::SoPtr<ov::ITensor> visual_pos_masks,
+                             ov::SoPtr<ov::ITensor> deepstack_visual_embeds);
 
     void infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
                        ov::SoPtr<ov::ITensor> attention_mask,
                        ov::SoPtr<ov::ITensor> position_ids,
-                       ov::SoPtr<ov::ITensor> input_token_ids);
+                       ov::SoPtr<ov::ITensor> input_token_ids,
+                       ov::SoPtr<ov::ITensor> visual_pos_masks,
+                       ov::SoPtr<ov::ITensor> deepstack_visual_embeds);
 
     void infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                         ov::SoPtr<ov::ITensor> attention_mask,
                         ov::SoPtr<ov::ITensor> position_ids,
-                        ov::SoPtr<ov::ITensor> input_token_ids);
+                        ov::SoPtr<ov::ITensor> input_token_ids,
+                        ov::SoPtr<ov::ITensor> visual_pos_masks,
+                        ov::SoPtr<ov::ITensor> deepstack_visual_embeds);
 
     // Multiple generate inference request variants, each with a different KV cache size
     std::vector<std::shared_ptr<ov::IAsyncInferRequest>> m_generate_requests;
@@ -106,6 +114,10 @@ protected:
     int64_t m_first_position_id = 0;
 
     uint64_t m_tokens_in_present_chunk = 0;
+
+    // Cache converted visual_pos_masks (NonZero-style indices) prepared during prefill.
+    // Reused during generate to preserve visual conditioning across decoding steps.
+    std::vector<int64_t> m_visual_pos_masks_nonzero_cache;
 
     // Support Eagle3 speculative decoding
     Eagle3Extension m_eagle3_ext;
