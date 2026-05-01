@@ -1393,20 +1393,6 @@ struct ENABLE_WEIGHTLESS final : OptionBase<ENABLE_WEIGHTLESS, bool> {
     }
 };
 
-struct WEIGHTLESS_BLOB final : OptionBase<WEIGHTLESS_BLOB, bool> {
-    static std::string_view key() {
-        return ov::intel_npu::weightless_blob.name();
-    }
-
-    static bool defaultValue() {
-        return false;
-    }
-
-    static OptionMode mode() {
-        return OptionMode::CompileTime;
-    }
-};
-
 struct SEPARATE_WEIGHTS_VERSION final : OptionBase<SEPARATE_WEIGHTS_VERSION, ov::intel_npu::WSVersion> {
     static std::string_view key() {
         return ov::intel_npu::separate_weights_version.name();
@@ -1550,6 +1536,36 @@ struct SHARED_COMMON_QUEUE final : OptionBase<SHARED_COMMON_QUEUE, bool> {
 
     static OptionMode mode() {
         return OptionMode::RunTime;
+    }
+};
+
+struct CACHE_ENCRYPTION_CALLBACKS final : OptionBase<CACHE_ENCRYPTION_CALLBACKS, ov::EncryptionCallbacks> {
+    static std::string_view key() {
+        return ov::cache_encryption_callbacks.name();
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "ov::EncryptionCallbacks";
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+
+    static bool isPublic() {
+        return true;
+    }
+
+    static std::string toString(const ov::EncryptionCallbacks&) {
+        OPENVINO_THROW("Option ", ov::cache_encryption_callbacks.name(), " cannot be converted to string");
+    }
+
+    static ov::EncryptionCallbacks parse(std::string_view) {
+        OPENVINO_THROW("Option ", ov::cache_encryption_callbacks.name(), " cannot be parsed from string");
+    }
+
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::WO;
     }
 };
 
