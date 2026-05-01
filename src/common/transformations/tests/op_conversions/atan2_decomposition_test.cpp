@@ -15,8 +15,7 @@
 #include "openvino/op/select.hpp"
 #include "openvino/pass/manager.hpp"
 
-using namespace ov;
-using namespace testing;
+namespace ov::test {
 
 namespace {
 
@@ -63,3 +62,5 @@ TEST(Atan2DecompositionTest, BF16) {
 TEST(Atan2DecompositionTest, F64) {
     run_atan2_decomposition_test(element::f64, Shape{2, 3, 4}, Shape{2, 3, 4});
 }
+
+}  // namespace ov::test

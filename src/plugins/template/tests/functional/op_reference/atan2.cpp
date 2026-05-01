@@ -44,7 +44,7 @@ struct Atan2Params {
 class ReferenceAtan2LayerTest : public testing::TestWithParam<Atan2Params>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params.yShape, params.xShape, params.inType);
         inputData = {params.yData, params.xData};
         refOutData = {params.refData};
