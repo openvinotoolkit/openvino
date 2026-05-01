@@ -9,8 +9,7 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 
-using namespace ov;
-using namespace testing;
+namespace ov::test {
 
 // ---- shape inference ----
 
@@ -82,6 +81,8 @@ TEST(type_prop, atan2_integer_input_throws) {
     auto x = std::make_shared<op::v0::Parameter>(element::i32, Shape{2, 2});
 
     OV_EXPECT_THROW(std::ignore = std::make_shared<op::v17::Atan2>(y, x),
-                    ov::NodeValidationFailure,
-                    HasSubstr("Atan2 inputs must be floating-point type"));
+                    NodeValidationFailure,
+                    testing::HasSubstr("Atan2 inputs must be floating-point type"));
 }
+
+}  // namespace ov::test

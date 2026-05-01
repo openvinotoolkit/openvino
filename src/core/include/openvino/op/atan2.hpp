@@ -6,9 +6,7 @@
 
 #include "openvino/op/util/binary_elementwise_arithmetic.hpp"
 
-namespace ov {
-namespace op {
-namespace v17 {
+namespace ov::op::v17 {
 /// \brief Elementwise four-quadrant arctangent operation.
 ///
 /// Computes atan2(y, x) element-wise: the angle (in radians) between the
@@ -38,6 +36,4 @@ public:
     bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
 };
-}  // namespace v17
-}  // namespace op
-}  // namespace ov
+}  // namespace ov::op::v17
