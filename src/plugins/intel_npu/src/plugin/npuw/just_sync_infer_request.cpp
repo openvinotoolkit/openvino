@@ -466,24 +466,6 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         LOG_VERB("Done");
     }
 
-    // Handle dynamic submission
-    if (has_dynamic) {
-        if (!m_npuw_model->m_cfg.get<::intel_npu::NPUW_ATTN_DYN>()) {
-            // Even if the attention is detected and ready to go dynamic,
-            // force it on the full range
-            LOG_WARN("Dynamic capability is enabled, but won't be used due to user preference");
-            m_attention_selector.reset(new runtime::attention::All());
-        } else {
-            const auto& dyn = m_npuw_model->m_compiled_submodels.at(dynamic_sub_idx).attention.value();
-            m_attention_selector = runtime::attention::PositionIDs::find(dyn, *this);
-            if (!m_attention_selector) {
-                LOG_WARN("Dynamic capability is enabled, but no run-time features were found.");
-                m_attention_selector.reset(new runtime::attention::All());
-            }
-        }
-        LOG_VERB("Done");
-    }
-
     // Handle pyramid attention
     if (has_pyramid) {
         const auto& pyramid_dyn = m_npuw_model->m_compiled_submodels.at(pyramid_sub_idx).pyramid_attention.value();
@@ -510,6 +492,22 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
             // HFA requires PositionIDs selector - cannot fallback to 'All' like Dynamic/Pyramid
             // because HFA uses tile-based execution without a full-range infer request
             OPENVINO_THROW("HFA dynamic capability is enabled, but no run-time features were found.");
+        }
+        LOG_VERB("Done");
+    }
+
+    // Initialize the dynamic-attention selector eagerly so bind_attention_inputs() can use
+    // it from the pipelining (PREP-NEXT) path before DynAttnBehavior::prologue runs.
+    if (has_dynamic) {
+        const auto& dynamic = m_npuw_model->m_compiled_submodels.at(dynamic_sub_idx).attention.value();
+        if (!m_npuw_model->m_cfg.get<::intel_npu::NPUW_ATTN_DYN>()) {
+            m_attention_selector = std::make_shared<runtime::attention::All>();
+        } else {
+            m_attention_selector = runtime::attention::PositionIDs::find(dynamic, *this);
+            if (!m_attention_selector) {
+                LOG_WARN("Dynamic capability is enabled, but no run-time features were found.");
+                m_attention_selector = std::make_shared<runtime::attention::All>();
+            }
         }
         LOG_VERB("Done");
     }
@@ -561,7 +559,6 @@ ov::npuw::v1::subgraphs::InferContext ov::npuw::JustInferRequest::make_behavior_
             legacy_infer(real_idx, idx);
         },
         is_function_call ? std::function<void()>{[this, idx]() {
-            OPENVINO_ASSERT(m_moe_executor != nullptr, "Expected MoE executor for opaque MoE prologue");
             function_prologue(idx);
         }}
                          : std::function<void()>{},

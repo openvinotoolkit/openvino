@@ -12,6 +12,7 @@
 #include "intel_npu/npu_private_properties.hpp"
 #include "just_sync_infer_request.hpp"
 #include "logging.hpp"
+#include "attn/attn_subgraph.hpp"
 #include "moe/moe_subgraph.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -299,6 +300,13 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     builtin_pattern_registrations =
         ov::npuw::moe::register_patterns(*combined_subgraph_patterns,
                                          m_cfg.get<::intel_npu::NPUW_MOE_TOKEN_CHUNK_SIZE>());
+
+    {
+        auto attn_registrations = ov::npuw::attn::register_patterns(*combined_subgraph_patterns);
+        for (auto& r : attn_registrations) {
+            builtin_pattern_registrations.push_back(std::move(r));
+        }
+    }
 
     ov::npuw::PartitioningContext ctx;
     // Identify based on compiler version, user config and pattern
