@@ -186,7 +186,7 @@ jobs:
           --parallel $(($(nproc) - 1)) \
           --config ${{ env.CMAKE_BUILD_TYPE }} \
           --target openvino_intel_cpu_plugin \
-          -- --quiet -k 0
+          -- -k 0
 
       - name: Show sccache stats
         run: ${SCCACHE_PATH} --show-stats
