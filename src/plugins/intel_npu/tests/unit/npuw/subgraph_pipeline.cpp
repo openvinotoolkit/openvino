@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "attn/attn_subgraph.hpp"
 #include "moe/moe_executor.hpp"
 #include "partitioning/partitioning.hpp"
 #include "partitioning/patterns/moe.hpp"
@@ -118,4 +119,53 @@ TEST(SubgraphPipelineBehaviorTest, MoERegistrationBuildsDeferredPartitionPipelin
                         function._pipeline.registration.patterns.end(),
                         ov::npuw::patterns::moe::GPTOSSExpert::pattern_name()),
               function._pipeline.registration.patterns.end());
+}
+
+// Verify that attn::register_patterns() chains partition_stage and compile_stage on any
+// Function whose isolation tag matches SDPA::isolation_tag() ("attn").
+TEST(SubgraphPipelineBehaviorTest, AttnRegistrationSetsPartitionAndCompileStagesForAttnTaggedFunction) {
+    ov::npuw::Function function;
+    function.settag(ov::npuw::patterns::attn::SDPA::isolation_tag());
+
+    ov::npuw::v1::subgraphs::PatternRegistry registry;
+    auto registrations = ov::npuw::attn::register_patterns(registry);
+    registry.apply(function);
+
+    ASSERT_TRUE(static_cast<bool>(function._pipeline.partition_stage));
+    ASSERT_TRUE(static_cast<bool>(function._pipeline.compile_stage));
+    // The registration must carry the SDPA pattern name so the compile loop can identify it.
+    EXPECT_NE(std::find(function._pipeline.registration.patterns.begin(),
+                        function._pipeline.registration.patterns.end(),
+                        ov::npuw::patterns::attn::SDPA::isolation_tag()),
+              function._pipeline.registration.patterns.end());
+}
+
+// Verify that the compile_stage does NOT attach a runtime behavior when the partition_stage
+// was never given a compiled::Attention context entry — i.e. when f._attention is not set
+// (NPUW_ATTN=STATIC, or the model has no dynamic dims in the attention function).
+TEST(SubgraphPipelineBehaviorTest, AttnCompileStageSkipsRuntimeBehaviorWhenAttentionNotDynamic) {
+    ov::npuw::Function function;
+    function.settag(ov::npuw::patterns::attn::SDPA::isolation_tag());
+
+    ov::npuw::v1::subgraphs::PatternRegistry registry;
+    auto registrations = ov::npuw::attn::register_patterns(registry);
+    registry.apply(function);
+
+    ASSERT_TRUE(static_cast<bool>(function._pipeline.partition_stage));
+    ASSERT_TRUE(static_cast<bool>(function._pipeline.compile_stage));
+
+    // Run partition_stage WITHOUT setting f._attention — simulates NPUW_ATTN=STATIC or a
+    // model where function::Attention::from() found no dynamic dims.
+    function._pipeline.partition_stage(function, function._pipeline.context);
+    EXPECT_FALSE(function._pipeline.context.contains<ov::npuw::compiled::Attention>())
+        << "partition_stage must not put compiled::Attention in context when f._attention is unset";
+
+    // Run compile_stage: with no compiled::Attention in context, no runtime behavior should appear.
+    ov::npuw::v1::subgraphs::CompiledPipeline compiled;
+    compiled.registration = function._pipeline.registration;
+    compiled.context      = function._pipeline.context;
+    function._pipeline.compile_stage(compiled, compiled.context);
+
+    EXPECT_FALSE(compiled.runtime_behavior.has_value())
+        << "compile_stage must not attach DynAttnBehavior when compiled::Attention is absent";
 }
