@@ -63,22 +63,19 @@ std::vector<ov::npuw::v1::subgraphs::ScopedPatternRegistration> register_pattern
     // stashes the compile-time descriptor in the pipeline context for later stages.
     ov::npuw::v1::subgraphs::PatternRegistration attn_behavior;
     attn_behavior.tag = ov::npuw::patterns::attn::SDPA::isolation_tag();
-    attn_behavior.partition_stage =
-        [](ov::npuw::Function& f, ov::npuw::v1::subgraphs::Context& ctx) {
-            if (!f._attention.has_value()) {
-                return;
-            }
-            ctx.put<ov::npuw::compiled::Attention>(
-                ov::npuw::compiled::Attention(f._attention.value(), f._model));
-        };
-    attn_behavior.compile_stage =
-        [](ov::npuw::v1::subgraphs::CompiledPipeline& compiled_pipeline,
-           ov::npuw::v1::subgraphs::Context& compiled_context) {
-            if (!compiled_context.contains<ov::npuw::compiled::Attention>()) {
-                return;
-            }
-            attach_runtime_behavior(compiled_pipeline, compiled_context);
-        };
+    attn_behavior.partition_stage = [](ov::npuw::Function& f, ov::npuw::v1::subgraphs::Context& ctx) {
+        if (!f._attention.has_value()) {
+            return;
+        }
+        ctx.put<ov::npuw::compiled::Attention>(ov::npuw::compiled::Attention(f._attention.value(), f._model));
+    };
+    attn_behavior.compile_stage = [](ov::npuw::v1::subgraphs::CompiledPipeline& compiled_pipeline,
+                                     ov::npuw::v1::subgraphs::Context& compiled_context) {
+        if (!compiled_context.contains<ov::npuw::compiled::Attention>()) {
+            return;
+        }
+        attach_runtime_behavior(compiled_pipeline, compiled_context);
+    };
     registrations.emplace_back(registry.add(std::move(attn_behavior)));
 
     return registrations;

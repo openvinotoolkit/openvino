@@ -9,10 +9,10 @@
 #include <string>
 
 #include "accuracy/comparator.hpp"
+#include "attn/attn_subgraph.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "just_sync_infer_request.hpp"
 #include "logging.hpp"
-#include "attn/attn_subgraph.hpp"
 #include "moe/moe_subgraph.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/op/util/op_types.hpp"
