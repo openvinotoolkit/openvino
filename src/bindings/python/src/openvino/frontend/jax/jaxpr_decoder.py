@@ -83,7 +83,7 @@ class JaxprPythonDecoder(Decoder):
                     self.params.update(converted)
 
         
-        self.m_decoders =weakref.WeakSet()
+        self.m_decoders = weakref.WeakSet()
 
     def inputs(self) -> list[int]:
         if isinstance(self.jaxpr, jex.core.JaxprEqn):
