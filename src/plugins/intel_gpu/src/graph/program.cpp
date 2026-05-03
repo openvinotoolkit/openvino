@@ -793,9 +793,9 @@ const std::vector<primitive_id>& program::get_allocating_order(bool forced_updat
                         return po.get_processing_number(lhs.get()) < po.get_processing_number(rhs.get());
                     }
 
-                    if (rhs_layout.is_dynamic())
+                    if (rhs_layout.is_dynamic() && !lhs_layout.is_dynamic())
                         return true;
-                    if (lhs_layout.is_dynamic())
+                    if (lhs_layout.is_dynamic() && !rhs_layout.is_dynamic())
                         return false;
 
                     if (lhs_layout.bytes_count() == rhs_layout.bytes_count()) {

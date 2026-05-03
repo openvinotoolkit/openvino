@@ -8,6 +8,7 @@
 #include "../logging.hpp"
 #include "../util.hpp"
 #include "openvino/core/partial_shape.hpp"
+#include "openvino/op/add.hpp"
 
 namespace {
 
@@ -61,6 +62,47 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             new_shape = ov::PartialShape({input.get_partial_shape()[0], lora_rank});
         } else if (ov::npuw::util::matchLoRAMatMulBString(input_name)) {
             new_shape = ov::PartialShape({input.get_partial_shape()[0], lora_rank});
+        } else if (input_name.find("per_layer_inputs") != std::string::npos) {
+            // NB: Gemma4 per-layer embedding feature.
+            // Shape is [batch, seq_len, num_layers, projection_dim].
+            // seq_len (dim 1) should match input_size (tokens being processed),
+            // while num_layers (dim 2) and projection_dim (dim 3) are model constants.
+            // These may be dynamic in the parameter's partial_shape itself, so fall back to
+            // reading them from the sibling input of the Add node that consumes this parameter
+            // (the other branch always carries a fully static shape, e.g. f32[1,S,42,256]).
+            const auto& partial_shape = input.get_partial_shape();
+            NPUW_ASSERT(partial_shape.size() == 4u);
+            ov::Dimension num_layers = partial_shape[2];
+            ov::Dimension proj_dim = partial_shape[3];
+            if (!num_layers.is_static() || !proj_dim.is_static()) {
+                for (const auto& target : input.get_target_inputs()) {
+                    const auto* node = target.get_node();
+                    if (!ov::is_type<ov::op::v1::Add>(node)) {
+                        continue;
+                    }
+                    for (size_t i = 0; i < node->get_input_size(); ++i) {
+                        if (i == target.get_index()) {
+                            continue;
+                        }
+                        const auto sibling_shape = node->input(i).get_partial_shape();
+                        if (sibling_shape.size() != 4u) {
+                            continue;
+                        }
+                        if (!num_layers.is_static() && sibling_shape[2].is_static()) {
+                            num_layers = sibling_shape[2];
+                        }
+                        if (!proj_dim.is_static() && sibling_shape[3].is_static()) {
+                            proj_dim = sibling_shape[3];
+                        }
+                    }
+                    if (num_layers.is_static() && proj_dim.is_static()) {
+                        break;
+                    }
+                }
+            }
+            NPUW_ASSERT(num_layers.is_static());  // num_layers must be resolved
+            NPUW_ASSERT(proj_dim.is_static());    // projection_dim must be resolved
+            new_shape = ov::PartialShape({1, input_size, num_layers, proj_dim});
         } else {
             const auto& partial_shape = input.get_partial_shape();
             new_shape = partial_shape;

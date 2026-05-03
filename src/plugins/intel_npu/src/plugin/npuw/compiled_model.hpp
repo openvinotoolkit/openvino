@@ -71,6 +71,10 @@ public:
 // Forward declarations
 class InferRequest;
 
+namespace v1::subgraphs {
+class Context;
+}
+
 namespace moe {
 class MoEExecutor;
 }
@@ -229,8 +233,6 @@ private:
         std::optional<ov::npuw::compiled::Attention> attention;
         std::optional<ov::npuw::compiled::PyramidAttention> pyramid_attention;
         std::optional<ov::npuw::compiled::HostFlashAttention> host_flash_attention;
-        std::optional<ov::npuw::compiled::MoEExperts> moe_experts;
-        std::optional<ov::npuw::compiled::MoEDownstream> moe_experts_downstream;
         ov::npuw::v1::subgraphs::CompiledPipeline pipeline;
 
         // Infer requests for pyramid attention models (if pyramid_attention is present)
@@ -255,7 +257,7 @@ private:
         // pipelining is enabled)
         std::vector<ov::SoPtr<ov::IAsyncInferRequest>> hfa_pipeline_requests;
 
-        // Infer requests for MoE expert models with different chunk sizes (if moe_experts is present)
+        // Infer requests for MoE expert models with different chunk sizes (if MoE expert state is present)
         // Map: chunk_size -> infer_request
         std::map<size_t, ov::SoPtr<ov::IAsyncInferRequest>> moe_infer_requests;
 
