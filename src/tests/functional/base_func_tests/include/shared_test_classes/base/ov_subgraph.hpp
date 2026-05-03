@@ -8,8 +8,11 @@
 #include "common_test_utils/ov_plugin_cache.hpp"
 #include "functional_test_utils/summary/op_summary.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
 #include "transformations/convert_precision.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+
+#include <unordered_set>
 
 namespace ov {
 namespace test {
@@ -126,6 +129,52 @@ inline std::vector<InputShape> static_shapes_to_test_representation(const std::v
         result.push_back({{}, {staticShape}});
     }
     return result;
+}
+
+inline void CheckNumberOfNodesWithTypes(std::shared_ptr<const ov::Model> function,
+                                        const std::unordered_set<std::string>& nodeTypes,
+                                        size_t expectedCount) {
+    ASSERT_NE(nullptr, function);
+    size_t actualNodeCount = 0;
+    for (const auto& node : function->get_ops()) {
+        const auto& rtInfo = node->get_rt_info();
+        auto getExecValue = [&rtInfo](const std::string& paramName) -> std::string {
+            auto it = rtInfo.find(paramName);
+            OPENVINO_ASSERT(rtInfo.end() != it);
+            return it->second.as<std::string>();
+        };
+
+        if (nodeTypes.count(getExecValue(ov::exec_model_info::LAYER_TYPE))) {
+            actualNodeCount++;
+        }
+    }
+
+    std::string nodeTypesStr;
+    for (const auto& t : nodeTypes) {
+        nodeTypesStr += t + ",";
+    }
+    ASSERT_EQ(expectedCount, actualNodeCount)
+        << "Unexpected count of the node types '{" << nodeTypesStr << "}'";
+}
+
+inline void CheckNumberOfNodesWithTypes(const ov::CompiledModel& compiledModel,
+                                        const std::unordered_set<std::string>& nodeTypes,
+                                        size_t expectedCount) {
+    if (!compiledModel)
+        return;
+    CheckNumberOfNodesWithTypes(compiledModel.get_runtime_model(), nodeTypes, expectedCount);
+}
+
+inline void CheckNumberOfNodesWithType(const ov::CompiledModel& compiledModel,
+                                       const std::string& nodeType,
+                                       size_t expectedCount) {
+    CheckNumberOfNodesWithTypes(compiledModel, {nodeType}, expectedCount);
+}
+
+inline void CheckNumberOfNodesWithType(std::shared_ptr<const ov::Model> function,
+                                       const std::string& nodeType,
+                                       size_t expectedCount) {
+    CheckNumberOfNodesWithTypes(function, {nodeType}, expectedCount);
 }
 
 class SubgraphBaseStaticTest : public ov::test::SubgraphBaseTest {

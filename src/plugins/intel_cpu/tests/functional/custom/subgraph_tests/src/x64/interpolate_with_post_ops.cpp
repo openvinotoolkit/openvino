@@ -98,9 +98,9 @@ protected:
 TEST_P(InterpolateWithPostOps, CheckInterpolateWithPostOps) {
     run();
     if (NCHWAsNHWC_NoFuse) {
-        CPUTestUtils::CheckNumberOfNodesWithTypes(compiledModel, {"Subgraph", "Eltwise"}, 1);
+        CheckNumberOfNodesWithTypes(compiledModel, {"Subgraph", "Eltwise"}, 1);
     } else {
-        CPUTestUtils::CheckNumberOfNodesWithTypes(compiledModel, {"Subgraph", "Eltwise"}, 0);
+        CheckNumberOfNodesWithTypes(compiledModel, {"Subgraph", "Eltwise"}, 0);
     }
 }
 
