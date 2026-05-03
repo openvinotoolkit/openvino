@@ -140,6 +140,21 @@ class Partitioner:
         self.capture_gptq_patterns(graph_module)
         self.capture_nncf_patterns(graph_module)
 
+        # Rewrite vLLM's auto_functionalized_v2(unified_attention_with_output,
+        # ...) calls into torch.ops.openvino.paged_attention so OV can keep
+        # attention inside its partitions and translate it to
+        # PagedAttentionExtension. No-op on non-vLLM graphs.
+        if _os.environ.get("OV_VLLM_PA", "1") != "0":
+            try:
+                from openvino.frontend.pytorch.torchdynamo.vllm_paged_attention import (
+                    rewrite_unified_attention_to_paged_attention,
+                )
+                n_rewrites = rewrite_unified_attention_to_paged_attention(graph_module)
+                if n_rewrites and _os.environ.get("OV_DUMP_UNSUPPORTED"):
+                    print(f"[OV_VLLM_PA_REWRITES] {n_rewrites}", flush=True)
+            except Exception as _e:
+                logger.debug(f"vLLM paged_attention rewrite skipped: {_e}")
+
         if _os.environ.get("OV_DUMP_UNSUPPORTED"):
             unsupp = {}
             for n in graph_module.graph.nodes:

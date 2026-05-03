@@ -343,6 +343,7 @@ OP_CONVERTER(translate_repeat_fx);
 OP_CONVERTER(translate_rsub_fx);
 OP_CONVERTER(translate_scalar_tensor_fx);
 OP_CONVERTER(translate_scaled_dot_product_attention_fx);
+OP_CONVERTER(translate_openvino_paged_attention);
 OP_CONVERTER(translate_search_sorted);
 OP_CONVERTER(translate_select_scatter_fx);
 OP_CONVERTER(translate_slice_fx);
@@ -861,6 +862,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten._safe_softmax.default", op::translate_softmax_fx},
         {"aten._scaled_dot_product_flash_attention.default", op::translate_scaled_dot_product_attention_fx},
         {"aten._scaled_dot_product_flash_attention_for_cpu.default", op::translate_scaled_dot_product_attention_fx},
+        {"openvino.paged_attention.default", op::translate_openvino_paged_attention},
         {"aten._softmax.default", op::translate_softmax_fx},
         {"aten._to_copy.default", op::translate_to_fx},
         {"aten._unsafe_view.default", op::translate_reshape},

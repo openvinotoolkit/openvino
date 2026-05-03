@@ -112,6 +112,33 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
 
         om = fe.convert(im)
 
+        # Register any dangling Parameters created by the paged_attention
+        # translator. These carry side-channel inputs (KV cache / block tables
+        # / past_lens / etc.) that will be bound at infer time from vLLM's
+        # ForwardContext. The translator tags them with friendly-name prefix
+        # "__pa__". Without this registration the Model fails validation with
+        # "unregistered_parameters" errors.
+        try:
+            _existing_ids = {id(p) for p in om.get_parameters()}
+            _to_add = []
+            for _node in om.get_ordered_ops():
+                if _node.get_type_name() != "Parameter":
+                    continue
+                if id(_node) in _existing_ids:
+                    continue
+                _fn = _node.get_friendly_name()
+                if _fn.startswith("__pa__"):
+                    _to_add.append(_node)
+            import os as _os_pa
+            if _os_pa.environ.get("OV_DBG_PA_PARAMS"):
+                print(f"[PA_PARAMS] model has {len(om.get_parameters())} existing params, adding {len(_to_add)} PA params", flush=True)
+                for _p in _to_add[:5]:
+                    print(f"  PA param: {_p.get_friendly_name()}", flush=True)
+            if _to_add:
+                om.add_parameters(_to_add)
+        except Exception as _ee:
+            logger.debug(f"PA parameter registration skipped: {_ee}")
+
         # Some FX graphs (notably vLLM's symint-heavy ones) emit Unsqueeze
         # wrappers that leave rank-mismatched Concat inputs for list-construct
         # nodes. Strip redundant Unsqueezes whose inner input is already rank>=1

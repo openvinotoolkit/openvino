@@ -284,6 +284,15 @@ class OperatorSupport(OpSupport):
             "torch.ops.quantized_decomposed.dequantize_per_tensor.default": None,
             "torch.ops.quantized_decomposed.dequantize_per_channel.default": None,
         }
+        # vLLM paged attention support is opt-in until the execute-time binding
+        # of side-channel inputs (KV cache, block tables, past_lens, etc.) is
+        # complete. Without binding the CPU plugin compiles the PA op with
+        # unset side-channel Parameters, which typically triggers a SIGFPE
+        # during warmup. Enable with OV_VLLM_PA_TRANSLATE=1 once binding is
+        # plumbed through execute.py.
+        import os as _os_pa_sup
+        if _os_pa_sup.environ.get("OV_VLLM_PA_TRANSLATE") == "1":
+            support_dict["torch.ops.openvino.paged_attention.default"] = None
 
         self.enabled_op_names = []
 

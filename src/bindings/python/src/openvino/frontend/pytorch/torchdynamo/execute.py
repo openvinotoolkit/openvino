@@ -113,6 +113,137 @@ def execute(
 import numpy as np
 
 
+_PA_FIELDS = (
+    "key_cache", "value_cache", "past_lens", "subsequence_begins",
+    "block_indices", "block_indices_begins", "max_context_len",
+)
+
+
+def _bind_paged_attention_side_channel(compiled):
+    """For every compiled-model input named "__pa__<layer>__<field>", look up
+    the tensor from vllm.forward_context.get_forward_context() and return a
+    mapping {name: numpy_array}.
+
+    Relies on vLLM CPU attention metadata layout (CPUAttentionMetadata).
+    """
+    try:
+        from vllm.forward_context import get_forward_context
+    except Exception:
+        return {}
+
+    try:
+        ctx = get_forward_context()
+    except AssertionError:
+        # No ForwardContext set (e.g. during CPU warmup paths); fall back to
+        # empty tensors so PA at least doesn't segfault.
+        ctx = None
+
+    result = {}
+    # Group the PA inputs by layer_name first
+    layer_to_fields = {}  # layer_name -> {field: Input}
+    for inp in compiled.inputs:
+        for nm in inp.get_names():
+            if not nm.startswith("__pa__"):
+                continue
+            # "__pa__<layer>__<field>"
+            rest = nm[len("__pa__"):]
+            # field is one of _PA_FIELDS; find which one matches the tail
+            for field in _PA_FIELDS:
+                suffix = "__" + field
+                if rest.endswith(suffix):
+                    layer_name = rest[: -len(suffix)]
+                    layer_to_fields.setdefault(layer_name, {})[field] = nm
+                    break
+            break
+
+    for layer_name, fields in layer_to_fields.items():
+        attn_meta = None
+        kv_cache = None
+        if ctx is not None:
+            try:
+                am_map = ctx.attn_metadata
+                if isinstance(am_map, dict):
+                    attn_meta = am_map.get(layer_name)
+                # kv cache: vLLM stores it in static_forward_context
+                nc_layers = ctx.no_compile_layers
+                layer_obj = nc_layers.get(layer_name) if isinstance(nc_layers, dict) else None
+                if layer_obj is not None and hasattr(layer_obj, "kv_cache"):
+                    kv_cache = layer_obj.kv_cache
+                    # kv_cache may be list indexed by virtual_engine
+                    if isinstance(kv_cache, list):
+                        kv_cache = kv_cache[ctx.virtual_engine]
+            except Exception:
+                pass
+
+        # Prepare numpy arrays for each field
+        def _nz(dtype, shape=(1,)):
+            return np.zeros(shape, dtype=dtype)
+
+        key_cache_np = value_cache_np = None
+        if kv_cache is not None:
+            try:
+                # CPU layout: [2, num_blocks, num_kv_heads, block_size, head_size]
+                kc, vc = kv_cache.unbind(0)
+                key_cache_np = kc.contiguous().numpy()
+                value_cache_np = vc.contiguous().numpy()
+            except Exception:
+                pass
+        if key_cache_np is None:
+            key_cache_np = _nz(np.float32, (1, 1, 1, 1))
+            value_cache_np = _nz(np.float32, (1, 1, 1, 1))
+
+        past_lens_np = _nz(np.int32)
+        subseq_begins_np = _nz(np.int32, (2,))
+        block_indices_np = _nz(np.int32)
+        block_indices_begins_np = _nz(np.int32, (2,))
+        max_ctx_len_np = np.array(0, dtype=np.int32)
+
+        if attn_meta is not None:
+            try:
+                # CPUAttentionMetadata fields:
+                #   seq_lens, query_start_loc, block_table, slot_mapping, ...
+                seq_lens = getattr(attn_meta, "seq_lens", None)
+                qsl = getattr(attn_meta, "query_start_loc", None)
+                block_table = getattr(attn_meta, "block_table", None)
+                if seq_lens is not None and qsl is not None:
+                    # past_lens = seq_lens - (query_start_loc[1:] - query_start_loc[:-1])
+                    q_lens = qsl[1:] - qsl[:-1]
+                    pl = (seq_lens - q_lens).to(torch.int32).contiguous()
+                    past_lens_np = pl.numpy()
+                    subseq_begins_np = qsl.to(torch.int32).contiguous().numpy()
+                    max_ctx_len_np = np.array(int(seq_lens.max().item()), dtype=np.int32)
+                if block_table is not None:
+                    bt = block_table.to(torch.int32).contiguous()
+                    # Flatten per-row into a single block_indices vector
+                    # plus block_indices_begins giving row starts
+                    rows = bt.shape[0] if bt.ndim > 0 else 1
+                    flat = bt.flatten().numpy()
+                    row_len = bt.shape[1] if bt.ndim > 1 else 1
+                    begins = np.arange(rows + 1, dtype=np.int32) * row_len
+                    block_indices_np = flat
+                    block_indices_begins_np = begins
+            except Exception:
+                pass
+
+        for field, name in fields.items():
+            if field == "key_cache":
+                result[name] = key_cache_np
+            elif field == "value_cache":
+                result[name] = value_cache_np
+            elif field == "past_lens":
+                result[name] = past_lens_np
+            elif field == "subsequence_begins":
+                result[name] = subseq_begins_np
+            elif field == "block_indices":
+                result[name] = block_indices_np
+            elif field == "block_indices_begins":
+                result[name] = block_indices_begins_np
+            elif field == "max_context_len":
+                result[name] = max_ctx_len_np
+
+    return result
+
+
 def execute_cached(compiled_model, *args):
     ov_inputs = [a.detach().cpu().numpy() for a in args]
     ov_inputs.reverse()
@@ -182,7 +313,34 @@ def openvino_execute(
         # numpy view shares memory with torch tensor for CPU dense tensors
         ov_inputs.append(t.numpy())
 
-    res = req.infer(ov_inputs, share_inputs=True, share_outputs=False)
+    # Bind vLLM PagedAttention side-channel Parameters (KV cache / block
+    # tables / past_lens / ...) that the paged_attention C++ translator added
+    # as extra Parameters with names like "__pa__<layer_name>__<field>".
+    # The tensors come from vllm.forward_context.get_forward_context().
+    _pa_inputs_by_pos = {}
+    if any(inp.get_names() and any(n.startswith("__pa__") for n in inp.get_names())
+           for inp in compiled.inputs):
+        _pa_inputs_by_pos = _bind_paged_attention_side_channel(compiled)
+
+    if _pa_inputs_by_pos:
+        # Use dict form so we can set by Input object
+        _call_kwargs = {}
+        _tensor_pos = 0
+        for i, inp in enumerate(compiled.inputs):
+            _names = inp.get_names()
+            pa_tensor = None
+            for n in _names:
+                if n.startswith("__pa__") and n in _pa_inputs_by_pos:
+                    pa_tensor = _pa_inputs_by_pos[n]
+                    break
+            if pa_tensor is not None:
+                _call_kwargs[inp] = pa_tensor
+            else:
+                _call_kwargs[inp] = ov_inputs[_tensor_pos]
+                _tensor_pos += 1
+        res = req.infer(_call_kwargs, share_inputs=True, share_outputs=False)
+    else:
+        res = req.infer(ov_inputs, share_inputs=True, share_outputs=False)
 
     results1 = [torch.from_numpy(res[out]) for out in compiled.outputs]
     if len(results1) == 1:
@@ -214,6 +372,9 @@ class OpenVINOGraphModule(torch.nn.Module):
             )
             logger.debug("OpenVINO graph execution successful")
         except Exception as e:
+            import os as _os
+            if _os.environ.get("OV_TRACE_FALLBACK"):
+                print(f"[OV_FALLBACK partition={self.partition_id}] {type(e).__name__}: {str(e)[:800]}", flush=True)
             logger.debug(
                 f"OpenVINO execution failed with {e}. Falling back to native PyTorch execution."
             )
