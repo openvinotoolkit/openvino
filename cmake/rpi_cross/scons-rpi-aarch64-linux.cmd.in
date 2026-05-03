@@ -1,0 +1,3 @@
+@echo off
+"@OV_RPI_REAL_SCONS_NATIVE@" --site-dir="@OV_RPI_SCONS_SITE_DIR_NATIVE@" %*
+exit /b %ERRORLEVEL%

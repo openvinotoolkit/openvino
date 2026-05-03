@@ -1,0 +1,3 @@
+@echo off
+powershell -NoProfile -ExecutionPolicy Bypass -File "@OV_RPI_AR_WRAPPER_PS1_NATIVE@" -RealTool "@OV_RPI_WRAPPER_REAL_TOOL_NATIVE@" %*
+exit /b %ERRORLEVEL%
