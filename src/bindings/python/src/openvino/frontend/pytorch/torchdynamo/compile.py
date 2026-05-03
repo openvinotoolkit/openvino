@@ -112,6 +112,46 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
 
         om = fe.convert(im)
 
+        # Some FX graphs (notably vLLM's symint-heavy ones) emit Unsqueeze
+        # wrappers that leave rank-mismatched Concat inputs for list-construct
+        # nodes. Strip redundant Unsqueezes whose inner input is already rank>=1
+        # so that validate_nodes_and_infer_types() succeeds.
+        def _rank_ge_1(_val):
+            _n = _val.get_node()
+            _ps = _val.get_partial_shape()
+            if _ps.rank.is_static and _ps.rank.get_length() >= 1:
+                return True
+            if _n.get_type_name() == "Constant":
+                return len(_n.get_output_shape(0)) >= 1
+            return False
+
+        try:
+            for _ in range(64):
+                try:
+                    om.validate_nodes_and_infer_types()
+                    break
+                except Exception:
+                    pass
+                _made_change = False
+                for _node in list(om.get_ordered_ops()):
+                    if _node.get_type_name() != "Concat":
+                        continue
+                    if _node.get_input_size() < 2:
+                        continue
+                    for _i in range(_node.get_input_size()):
+                        _src = _node.input_value(_i)
+                        _src_node = _src.get_node()
+                        if _src_node.get_type_name() != "Unsqueeze":
+                            continue
+                        _inner = _src_node.input_value(0)
+                        if _rank_ge_1(_inner):
+                            _node.input(_i).replace_source_output(_inner)
+                            _made_change = True
+                if not _made_change:
+                    break
+        except Exception as _ee:
+            logger.debug(f"concat-rank normalization skipped: {_ee}")
+
         if file_name is not None:
             serialize(om, file_name + ".xml", file_name + ".bin")
 
@@ -126,13 +166,33 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
         torch.bool: Type.boolean
     }
 
+    # Symint FX inputs are Python ints that torch.compile has already
+    # specialized for this trace. Bake them as Constants so OV's shape
+    # inference propagates concrete bounds through Broadcast/Reshape rather
+    # than using the unset Parameter upper-bound of 0 (which collapses sizes
+    # like [arg99_1, 2048] to [0, 2048] at runtime).
+    from openvino import opset1 as _opset1
+    import numpy as _np_compile
+    _params_to_remove = []
     for idx, input_data in enumerate(args):
         if isinstance(input_data, int):
-            om.inputs[idx].get_node().set_element_type(dtype_mapping[torch.int64])
-            om.inputs[idx].get_node().set_partial_shape(PartialShape(list(torch.Size([1]))))
-        else:
-            om.inputs[idx].get_node().set_element_type(dtype_mapping[input_data.dtype])
-            om.inputs[idx].get_node().set_partial_shape(PartialShape(list(decoder.input_shapes[idx])))
+            _param_node = om.inputs[idx].get_node()
+            _const = _opset1.constant(_np_compile.array([int(input_data)], dtype=_np_compile.int64))
+            for _consumer in list(_param_node.output(0).get_target_inputs()):
+                _consumer.replace_source_output(_const.output(0))
+            _params_to_remove.append(_param_node)
+    for _p in _params_to_remove:
+        om.remove_parameter(_p)
+
+    _tensor_idx = 0
+    for idx, input_data in enumerate(args):
+        if isinstance(input_data, int):
+            continue  # Already baked as Constant above
+        # Use the concrete runtime tensor shape so OV can propagate exact
+        # shape bounds through the graph.
+        om.inputs[_tensor_idx].get_node().set_element_type(dtype_mapping[input_data.dtype])
+        om.inputs[_tensor_idx].get_node().set_partial_shape(PartialShape(list(input_data.size())))
+        _tensor_idx += 1
 
     om.validate_nodes_and_infer_types()
 

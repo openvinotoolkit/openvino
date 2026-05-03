@@ -279,12 +279,26 @@ SequenceConcatReplacer::SequenceConcatReplacer() {
                 return false;
             const auto norm_axis = normalize_axis(data.front(), axis, new_axis);
             ov::OutputVector inputs;
+            // Pre-flatten every element to rank 1 so that Concat inputs agree
+            // on rank even when the source FX list mixed scalars / rank-1 /
+            // higher-rank tensors (observed on vLLM FX graphs).
+            auto neg_one = v0::Constant::create(ov::element::i32, ov::Shape{1}, {-1});
+            ov::OutputVector flat;
+            flat.reserve(data.size());
+            for (const auto& d : data) {
+                ov::Output<ov::Node> item = d;
+                const auto& ps = item.get_partial_shape();
+                if (!(ps.rank().is_static() && ps.rank().get_length() == 1)) {
+                    item = std::make_shared<v1::Reshape>(item, neg_one, false);
+                }
+                flat.push_back(item);
+            }
             if (new_axis) {
                 auto axis_const = v0::Constant::create(ov::element::i64, ov::Shape{}, {norm_axis});
-                for (const auto& d : data)
+                for (const auto& d : flat)
                     inputs.push_back(std::make_shared<v0::Unsqueeze>(d, axis_const));
             } else {
-                inputs = data;
+                inputs = flat;
             }
 
             auto concat = std::make_shared<v0::Concat>(inputs, norm_axis);

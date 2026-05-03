@@ -42,6 +42,51 @@ compiled_cache = {}
 req_cache = {}
 max_openvino_partitions = 0
 partitioned_modules = {}
+# Cache keyed by structural hash of submodule FX graph + input dtype/rank.
+# This lets us reuse a compiled OV model across dynamo retraces where the
+# graph is structurally identical (typical during decode loops).
+structural_cache = {}
+
+
+def _structural_key(gm, args):
+    """Structural hash of the FX graph that's stable across re-traces.
+
+    Uses normalized node ops + consumer chain instead of gm.code (which has
+    arbitrary name suffixes like 'arg99_1' vs 'arg132_1' that differ across
+    traces despite identical structure).
+    """
+    try:
+        parts = []
+        # Assign index-based ids to placeholders so arg99_1/arg132_1 don't
+        # produce different hashes for structurally identical graphs.
+        node_id = {}
+        ph_i = 0
+        for n in gm.graph.nodes:
+            if n.op == "placeholder":
+                node_id[n] = f"ph{ph_i}"
+                ph_i += 1
+                parts.append(f"placeholder")
+                continue
+            # node target (stable)
+            t = str(n.target) if hasattr(n, 'target') else str(n.op)
+            # input edge descriptor: refer by node_id if known, else by op
+            arg_descs = []
+            for a in n.args:
+                arg_descs.append(node_id.get(a, type(a).__name__))
+            parts.append(f"{n.op}:{t}({','.join(arg_descs)})")
+            node_id[n] = f"n{len(node_id)}"
+    except Exception:
+        parts = [str(id(gm))]
+    sig = ["|".join(parts)]
+    for a in args:
+        if isinstance(a, torch.Tensor):
+            sig.append(f"T{a.dtype}:{tuple(a.size())}")
+        elif isinstance(a, int):
+            sig.append(f"I:{a}")
+        else:
+            sig.append(f"S{type(a).__name__}")
+    import hashlib
+    return hashlib.sha256("|".join(sig).encode()).hexdigest()
 
 
 def execute(
@@ -100,21 +145,44 @@ def openvino_execute(
         if not fully_supported:
             model_hash_str = model_hash_str + "_p" + str(partition_id)
 
-    if use_cache and (partition_id in compiled_cache):
-        compiled = compiled_cache[partition_id]
-        req = req_cache[partition_id]
+    # Include input shape in the cache key: OV bakes concrete shapes into the
+    # compiled model, so reusing a compiled partition with different input
+    # shapes yields zero-sized outputs (observed on vLLM decode where each
+    # step has a different seq-length).
+    shape_key = tuple(
+        tuple(a.size()) if isinstance(a, torch.Tensor) else (type(a).__name__, a)
+        for a in args
+    )
+    cache_key = (partition_id, shape_key)
+
+    if use_cache and (cache_key in compiled_cache):
+        compiled = compiled_cache[cache_key]
+        req = req_cache[cache_key]
     else:
-        compiled = openvino_compile(gm, *args, model_hash_str=model_hash_str, options=options)
-        compiled_cache[partition_id] = compiled
-        req = compiled.create_infer_request()
-        req_cache[partition_id] = req
+        struct_key = _structural_key(gm, args)
+        if use_cache and struct_key in structural_cache:
+            compiled, req = structural_cache[struct_key]
+        else:
+            compiled = openvino_compile(gm, *args, model_hash_str=model_hash_str, options=options)
+            req = compiled.create_infer_request()
+            structural_cache[struct_key] = (compiled, req)
+        compiled_cache[cache_key] = compiled
+        req_cache[cache_key] = req
 
     flat_args, _ = tree_flatten(args)
     ov_inputs = []
     for arg in flat_args:
-        ov_inputs.append((arg if isinstance(arg, int) else arg.detach().cpu().numpy()))
+        if isinstance(arg, int):
+            # Int args are baked into the compiled OV model as Constants
+            # (see compile.py). Don't pass them at infer time.
+            continue
+        t = arg.detach()
+        if not t.is_contiguous():
+            t = t.contiguous()
+        # numpy view shares memory with torch tensor for CPU dense tensors
+        ov_inputs.append(t.numpy())
 
-    res = req.infer(ov_inputs, share_inputs=True, share_outputs=True)
+    res = req.infer(ov_inputs, share_inputs=True, share_outputs=False)
 
     results1 = [torch.from_numpy(res[out]) for out in compiled.outputs]
     if len(results1) == 1:
@@ -190,14 +258,16 @@ def openvino_execute_partitioned(gm: GraphModule, *args, executor_parameters=Non
     if (not _get_aot_autograd(options)):
         for idx, input_data in enumerate(args):
             if isinstance(input_data, torch.Tensor):
+                # Shape-agnostic: key only on dtype/rank so dynamic OV model is reused
+                # across varying seq-lengths during decode instead of recompiling.
                 signature = (
                     signature
                     + "_"
                     + str(idx)
                     + ":"
                     + str(input_data.type())[6:]
-                    + ":"
-                    + str(input_data.size())[11:-1].replace(" ", "")
+                    + ":rank"
+                    + str(input_data.dim())
                 )
             else:
                 signature = (
@@ -206,9 +276,6 @@ def openvino_execute_partitioned(gm: GraphModule, *args, executor_parameters=Non
                     + str(idx)
                     + ":"
                     + type(input_data).__name__
-                    + ":val("
-                    + str(input_data)
-                    + ")"
                 )
 
     if signature not in partitioned_modules:

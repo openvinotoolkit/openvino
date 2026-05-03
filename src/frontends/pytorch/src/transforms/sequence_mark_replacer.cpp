@@ -44,21 +44,13 @@ SequenceMarkReplacer::SequenceMarkReplacer() {
         OutputVector inputs_to_concat;
 
         for (const auto& input : inputs) {
-            const auto& input_rank = input.get_partial_shape().rank();
-
-            if (input_rank.is_static() && input_rank.get_length() > 1) {
-                // Elements with rank > 1 cannot be concatenated into 1D
-                add_exception_to_fw_node(seq_mark_node, "unsupported SequenceMark: all inputs must be 0D or 1D.");
-                return false;
-            }
-
-            // Reshape all elements to 1D for consistent concatenation
+            // Flatten to 1D for consistent concatenation on axis 0.
+            // Reshape(-1) handles scalars, 1D, and higher-rank tensors uniformly.
+            // Don't call get_constant_from_source: it uses parameter upper
+            // bounds, which default to 0 for unconstrained symint Parameter
+            // inputs, and would turn [arg99_1, 2048] into [0, 2048].
             const auto reshape = rg.make<v1::Reshape>(input, neg_1, false);
-            if (const auto list_const = ov::util::get_constant_from_source(reshape)) {
-                inputs_to_concat.push_back(list_const);
-            } else {
-                inputs_to_concat.push_back(reshape);
-            }
+            inputs_to_concat.push_back(reshape);
         }
 
         const auto concat = rg.make<v0::Concat>(inputs_to_concat, 0);
