@@ -225,7 +225,7 @@ ${OV_RPI_TOOLCHAIN_PREFIX:-aarch64-linux-gnu}-readelf -h \
 On a Windows host, use the Arm GNU Toolchain `readelf.exe`:
 
 ```powershell
-& C:\Tools\bin\aarch64-none-linux-gnu-readelf.exe -h `
+& "$env:OV_RPI_TOOLCHAIN_ROOT\bin\aarch64-none-linux-gnu-readelf.exe" -h `
     .\bin\aarch64\Release\benchmark_app
 ```
 
