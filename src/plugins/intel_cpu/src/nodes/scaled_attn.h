@@ -13,7 +13,7 @@
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "graph_context.h"
-#include "kernels/scaled_attn/codecs/cache_codec.hpp"
+#include "kernels/scaled_attn/mha_kv_cache_codec.hpp"
 #include "memory_state.h"
 #include "node.h"
 #include "onednn/iml_type_mapper.h"
@@ -65,14 +65,20 @@ public:
         }
         return real_order;
     }
-    struct SDPAQuantParam {
-        ov::element::Type precision = ov::element::dynamic;
-        size_t groupSize = 0;
-        bool isByChannel = false;
-    };
-    ov::element::Type getKVCachePrecision();
-    const SDPAQuantParam& getKeyQuantParam();
-    const SDPAQuantParam& getValueQuantParam();
+    // Backing storage precision per side. TBQ side is always u8 (packed bytes);
+    // scalar side follows hint (u8/u4) or runtime precision.
+    ov::element::Type getKeyCachePrecision();
+    ov::element::Type getValueCachePrecision();
+    // Legacy: returns key-side precision. Kept for graph_dumper serialization.
+    ov::element::Type getKVCachePrecision() {
+        return getKeyCachePrecision();
+    }
+    const ov::Extensions::Cpu::CacheSpec& getKeySpec() const {
+        return m_key_spec;
+    }
+    const ov::Extensions::Cpu::CacheSpec& getValueSpec() const {
+        return m_value_spec;
+    }
 
 private:
     void gatherConcatPastkv(const MemoryPtr& mem_cur_k, const MemoryPtr& mem_cur_v, const MemoryPtr& mem_beam_idx);
@@ -95,8 +101,12 @@ private:
                              MemoryPtr beam_input,
                              const PlainTensor& k_scale_zp,
                              const PlainTensor& v_scale_zp,
-                             ov::Extensions::Cpu::CacheCodec k_codec,
-                             ov::Extensions::Cpu::CacheCodec v_codec) = 0;
+                             const ov::Extensions::Cpu::CacheSpec& k_spec,
+                             const ov::Extensions::Cpu::CacheSpec& v_spec,
+                             float* per_thread_head_scratch,
+                             size_t per_thread_head_stride,
+                             const PlainTensor& k_quant_meta_data,
+                             const PlainTensor& v_quant_meta_data) = 0;
         [[nodiscard]] virtual impl_desc_type implType() const = 0;
         virtual ~Executor() = default;
     };
@@ -113,10 +123,12 @@ private:
     // (0, 1, 2, 3) for BHLS
     // (2, 0, 1, 3) for LBHS
     std::vector<size_t> m_kvstate_layout = {2, 0, 1, 3};
-    SDPAQuantParam m_key_quant_param;
-    SDPAQuantParam m_value_quant_param;
-    ov::Extensions::Cpu::CacheCodec m_k_codec{};
-    ov::Extensions::Cpu::CacheCodec m_v_codec{};
+    ov::Extensions::Cpu::CacheSpec m_key_spec;
+    ov::Extensions::Cpu::CacheSpec m_value_spec;
+    MemoryPtr m_per_thread_head_scratch;
+    // Per-token TBQ norm. Populated only when a side has alg=TURBO; empty otherwise.
+    PlainTensor m_k_quant_meta_data;
+    PlainTensor m_v_quant_meta_data;
 };
 
 }  // namespace ov::intel_cpu::node

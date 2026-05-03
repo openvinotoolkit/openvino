@@ -23,6 +23,7 @@
 #include "edge.h"
 #include "graph.h"
 #include "graph_context.h"
+#include "kernels/scaled_attn/mha_kv_cache_codec.hpp"
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_state.h"
@@ -1082,13 +1083,14 @@ MemStatePtr MemoryInputSDPA::makeState() const {
     auto node = m_sdpaNode.lock();
     // retrieve the internal precision and axis order from the SDPA node
     CPU_NODE_ASSERT(node, "SDPA node is not available");
-    auto kv_precision = node->getKVCachePrecision();
-    ScaledDotProductAttention::SDPAQuantParam quant_param;
+    const auto& edges_to_past_key_pre = node->getParentEdgeAt(node->getParentEdges().size() - 2);
+    const auto& past_key_pre = std::dynamic_pointer_cast<node::MemoryInputBase>(edges_to_past_key_pre->getParent());
+    OPENVINO_ASSERT(past_key_pre);
+    const bool is_key = past_key_pre->getId() == state_name;
+    auto kv_precision = is_key ? node->getKeyCachePrecision() : node->getValueCachePrecision();
+    ov::Extensions::Cpu::CacheSpec quant_param;
     if (kv_precision == ov::element::u8 || kv_precision == ov::element::u4) {
-        const auto& edges_to_past_key = node->getParentEdgeAt(node->getParentEdges().size() - 2);
-        const auto& past_key = std::dynamic_pointer_cast<node::MemoryInputBase>(edges_to_past_key->getParent());
-        OPENVINO_ASSERT(past_key);
-        quant_param = past_key->getId() == state_name ? node->getKeyQuantParam() : node->getValueQuantParam();
+        quant_param = is_key ? node->getKeySpec() : node->getValueSpec();
     }
 
     VectorDims order = {2, 0, 1, 3};
@@ -1096,13 +1098,28 @@ MemStatePtr MemoryInputSDPA::makeState() const {
         order = node->getKVCacheOrder();
     }
 
-    auto internal_desc = ArbitraryOrderDescCreator(order).createSharedDesc(kv_precision, outputShapes.at(0));
+    // For TurboQuant codecs, internal cache hidden dim is packed byte size per head record,
+    // not the original head_dim. Model-space output still uses head_dim.
+    auto internal_shape = outputShapes.at(0);
+    const auto& qp = is_key ? node->getKeySpec() : node->getValueSpec();
+    if (qp.alg == ov::internal::CacheQuantAlgorithm::TURBO) {
+        auto min_dims = internal_shape.getMinDims();
+        auto max_dims = internal_shape.getMaxDims();
+        const auto head_dim = static_cast<int>(max_dims.back());
+        const auto packed =
+            ov::Extensions::Cpu::XARCH::turboq_head_bytes(head_dim, static_cast<int>(qp.precision.bitwidth()));
+        min_dims.back() = packed;
+        max_dims.back() = packed;
+        internal_shape = Shape(min_dims, max_dims);
+    }
+
+    auto internal_desc = ArbitraryOrderDescCreator(order).createSharedDesc(kv_precision, internal_shape);
 
     return std::make_shared<VariableStateKVcache>(state_name,
                                                   original_desc,
                                                   internal_desc,
-                                                  quant_param.isByChannel,
-                                                  quant_param.groupSize);
+                                                  quant_param.by_channel,
+                                                  quant_param.group_size);
 }
 
 void MemoryInputSDPA::runStatic(dnnl::stream strm) {
@@ -1111,9 +1128,17 @@ void MemoryInputSDPA::runStatic(dnnl::stream strm) {
 
 void MemoryInputSDPA::runDynamic([[maybe_unused]] dnnl::stream strm) {
     auto currentState = getAssignedState();
+    auto sdpaState = std::dynamic_pointer_cast<VariableStateKVcache>(currentState);
+    // For TBQ, internal cache has packed hidden dim but downstream shape inference
+    // expects the original model head_dim. Report model-space dims here; the SDPA executor
+    // reads the packed cache directly via m_k_state->internal_state_mem(), bypassing this output.
+    const auto& base_shape = getBaseMemDescAtOutputPort(0)->getShape();
+    const bool is_tbq =
+        sdpaState && sdpaState->internal_desc()->getShape().getDims().back() != base_shape.getDims().back();
+
     if (currentState->is_reset_state()) {
         if (getParentEdges().empty()) {
-            auto newShape = MemoryDescUtils::makeDummyShape(getBaseMemDescAtOutputPort(0)->getShape(), 0);
+            auto newShape = MemoryDescUtils::makeDummyShape(base_shape, 0);
             redefineOutputMemory({newShape.getStaticDims()});
         } else {
             auto inpMem = getSrcMemoryAtPort(0);
@@ -1127,7 +1152,13 @@ void MemoryInputSDPA::runDynamic([[maybe_unused]] dnnl::stream strm) {
                         " is empty, node name: ",
                         getName());
 
-        redefineOutputMemory({stateMem->getStaticDims()});
+        if (is_tbq) {
+            auto dims = stateMem->getStaticDims();
+            dims.back() = base_shape.getDims().back();
+            redefineOutputMemory({dims});
+        } else {
+            redefineOutputMemory({stateMem->getStaticDims()});
+        }
     }
 }
 
