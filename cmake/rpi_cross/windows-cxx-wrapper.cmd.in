@@ -1,4 +1,7 @@
 @echo off
+REM Copyright (C) 2018-2026 Intel Corporation
+REM SPDX-License-Identifier: Apache-2.0
+
 setlocal EnableDelayedExpansion
 set "_ov_has_E=0"
 set "_ov_has_dM=0"
