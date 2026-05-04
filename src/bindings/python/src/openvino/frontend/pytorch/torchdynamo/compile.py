@@ -229,6 +229,12 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
         if not _is_cache_dir_in_config(options):
             config["CACHE_DIR"] = cache_root
 
+    # Match genai's CPU precision: force bf16 compute for matmuls (genai runtime
+    # has 227 bf16 nodes; ours had 0). CPU plugin upcasts fp16/f32 to bf16 on
+    # Icelake's AVX-512 VNNI, giving ~2x matmul throughput vs f32.
+    if device == "CPU" and "INFERENCE_PRECISION_HINT" not in config:
+        config["INFERENCE_PRECISION_HINT"] = "bf16"
+
     compiled = core.compile_model(om, device, config)
     logger.debug(f"OpenVINO graph compile successful on device {device}")
 
