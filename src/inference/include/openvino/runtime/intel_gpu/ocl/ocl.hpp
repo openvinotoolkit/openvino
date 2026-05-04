@@ -338,11 +338,12 @@ public:
     }
 
     /**
-     * @brief This function is used to obtain remote tensor object from user-supplied shared OpenCL buffer handle.
+     * @brief This function is used to obtain a remote tensor object from a user-supplied external memory handle
      *        The API mirrors the NPU pointer-based create_tensor form.
      * @param type Tensor element type
      * @param shape Tensor shape
-     * @param shared_buffer A shared OpenCL buffer handle passed as void*
+     * @param shared_buffer External memory handle from another API (DX12 shared NT handle on Windows,
+     *                     DMA-BUF fd on Linux), passed as void*
      * @param memory_type Memory type to use (default: SHARED_BUF)
      * @return A remote tensor instance
      */
@@ -426,16 +427,11 @@ public:
             return tensor;
         }
 
-        OPENVINO_ASSERT(
-            false,
-            "Failed to import external memory handle via clCreateFromExternalMemoryBufferINTEL, error code: ",
-            errcode_ret);
+        OPENVINO_THROW("Failed to import external memory handle via clCreateFromExternalMemoryBufferINTEL, error code: ", errcode_ret);
 
 #    endif
 
-        OPENVINO_ASSERT(
-            false,
-            "External memory import requires OpenCL 1.2+ headers and clCreateFromExternalMemoryBufferINTEL support");
+        OPENVINO_THROW("External memory import requires OpenCL 1.2+ headers and clCreateFromExternalMemoryBufferINTEL support");
         return {};
     }
 
