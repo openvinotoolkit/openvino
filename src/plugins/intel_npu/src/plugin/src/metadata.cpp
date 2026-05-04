@@ -683,10 +683,6 @@ std::optional<bool> MetadataBase::is_encrypted_blob() const {
     return std::nullopt;
 }
 
-std::optional<std::string> MetadataBase::get_runtime_reqs() const {
-    return std::nullopt;
-}
-
 std::optional<std::vector<uint64_t>> Metadata<METADATA_VERSION_2_1>::get_init_sizes() const {
     return _initSizes;
 }

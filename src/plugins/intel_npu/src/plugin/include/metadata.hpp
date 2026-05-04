@@ -79,8 +79,6 @@ public:
 
     virtual std::optional<bool> is_encrypted_blob() const;
 
-    virtual std::optional<std::string> get_runtime_reqs() const;
-
     virtual ~MetadataBase() = default;
 
     static std::streampos getFileSize(std::istream& stream);
