@@ -37,8 +37,6 @@ struct MetadataTest : Metadata<CURRENT_METADATA_VERSION> {
 
 struct MetadataVersionTestFixture : Metadata<CURRENT_METADATA_VERSION>, ::testing::TestWithParam<uint32_t> {
 public:
-    std::stringstream blob;
-
     void set_version(uint32_t newVersion) {
         _version = newVersion;
     }
@@ -56,6 +54,8 @@ public:
                << "_minorVersion=" << MetadataBase::get_minor(info.param);
         return result.str();
     }
+
+    std::stringstream blob;
 };
 
 struct MetadataTextTest : Metadata<CURRENT_METADATA_VERSION>, ::testing::TestWithParam<std::tuple<std::string, bool>> {

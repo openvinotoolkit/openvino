@@ -173,7 +173,7 @@ TEST_F(MetadataHumanReadableTests, allFields) {
     ASSERT_TRUE(storedMeta->get_runtime_reqs().has_value());
     EXPECT_EQ(storedMeta->get_runtime_reqs().value(), reqs);
 }
-// test also negative number
+
 TEST_P(MetadataTextTest, Format) {
     std::unique_ptr<MetadataBase> meta;
     if (isValid) {

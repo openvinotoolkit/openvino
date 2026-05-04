@@ -36,7 +36,6 @@ const std::vector<MetadataTextTest::ParamType> inputs = {
     {make_key_value_field(MetadataTextKeys::META, "2.0") + ";" +
          make_key_value_field(MetadataTextKeys::OV, "2026.1.0") + ";future_field=some_value",
      true},
-    // invalid cases
     {"", false},
     {make_key_value_field(MetadataTextKeys::OV, "2026.1.0"), false},
     // metadata version malformed
