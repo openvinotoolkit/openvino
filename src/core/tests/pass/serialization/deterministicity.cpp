@@ -149,8 +149,8 @@ TEST_F(SerializationDeterministicityTest, ModelWithConstants) {
 }
 
 TEST_F(SerializationDeterministicityTest, ModelWithVariable) {
-    const auto model = ov::test::utils::getModelFromTestModelZoo(
-        ov::util::path_join({SERIALIZED_ZOO, "ir", "dynamic_variable.xml"}));
+    const auto model =
+        ov::test::utils::getModelFromTestModelZoo(ov::util::path_join({SERIALIZED_ZOO, "ir", "dynamic_variable.xml"}));
 
     auto expected = ov::test::readModel(model, "");
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(expected);
