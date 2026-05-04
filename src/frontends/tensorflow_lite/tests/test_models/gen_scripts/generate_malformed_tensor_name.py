@@ -164,7 +164,7 @@ def build_tflite_with_unnamed_tensor(unnamed_tensor_indices=()):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print(f"Usage: {sys.argv[0]} <output_directory>")
+        print(f"Usage: {sys.argv[0]} <output_directory>", file=sys.stderr)
         sys.exit(1)
 
     path_to_model_dir = os.path.join(sys.argv[1], "malformed_tensor_name")

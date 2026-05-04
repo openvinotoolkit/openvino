@@ -17,11 +17,15 @@ namespace frontend {
 namespace tensorflow_lite {
 
 namespace {
-std::string safe_tensor_name(const tflite::Tensor* tensor) {
+void validate_tensor_name(const tflite::Tensor* tensor) {
     FRONT_END_GENERAL_CHECK(tensor != nullptr, "TensorFlow Lite Frontend: tensor pointer is null.");
     FRONT_END_GENERAL_CHECK(tensor->name() != nullptr,
                             "TensorFlow Lite Frontend: tensor has no 'name' field "
                             "(malformed flatbuffer: optional 'name' string is absent).");
+}
+
+std::string safe_tensor_name(const tflite::Tensor* tensor) {
+    validate_tensor_name(tensor);
     return tensor->name()->str();
 }
 
