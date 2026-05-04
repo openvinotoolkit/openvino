@@ -4,6 +4,7 @@
 
 #include "metadata.hpp"
 
+#include <algorithm>
 #include <cstring>
 #include <map>
 #include <optional>
@@ -366,7 +367,7 @@ void Metadata<METADATA_VERSION_2_6>::read() {
 }
 
 void Metadata<METADATA_VERSION_2_0>::read_as_text() {
-    const auto it = _text_fields.find("ov");
+    const auto it = _text_fields.find(MetadataTextKeys::OV);
     if (it == _text_fields.end()) {
         OPENVINO_THROW("Human-readable metadata missing 'ov' field.");
     }
@@ -381,7 +382,7 @@ void Metadata<METADATA_VERSION_2_0>::read_as_text() {
 void Metadata<METADATA_VERSION_2_1>::read_as_text() {
     Metadata<METADATA_VERSION_2_0>::read_as_text();
 
-    const auto it = _text_fields.find("ws_inits");
+    const auto it = _text_fields.find(MetadataTextKeys::WS_INITS);
     if (it == _text_fields.end()) {
         return;
     }
@@ -406,7 +407,7 @@ void Metadata<METADATA_VERSION_2_1>::read_as_text() {
 void Metadata<METADATA_VERSION_2_2>::read_as_text() {
     Metadata<METADATA_VERSION_2_1>::read_as_text();
 
-    const auto it = _text_fields.find("batch");
+    const auto it = _text_fields.find(MetadataTextKeys::BATCH);
     if (it == _text_fields.end()) {
         return;
     }
@@ -430,7 +431,7 @@ void Metadata<METADATA_VERSION_2_5>::read_as_text() {
 void Metadata<METADATA_VERSION_2_6>::read_as_text() {
     Metadata<METADATA_VERSION_2_5>::read_as_text();
 
-    const auto it = _text_fields.find("compiler_reqs");
+    const auto it = _text_fields.find(MetadataTextKeys::COMPILER_REQS);
     if (it == _text_fields.end() || it->second.empty()) {
         return;
     }
@@ -521,9 +522,9 @@ void Metadata<METADATA_VERSION_2_6>::write(std::ostream& stream) {
 void Metadata<METADATA_VERSION_2_0>::write_as_text(std::ostream& stream) {
     const uint16_t meta_major = MetadataBase::get_major(_version);
     const uint16_t meta_minor = MetadataBase::get_minor(_version);
-    write_text_field(stream, "meta", std::to_string(meta_major) + "." + std::to_string(meta_minor));
+    write_text_field(stream, MetadataTextKeys::META, std::to_string(meta_major) + "." + std::to_string(meta_minor));
     write_text_field(stream,
-                     "ov",
+                     MetadataTextKeys::OV,
                      std::to_string(OPENVINO_VERSION_MAJOR) + "." + std::to_string(OPENVINO_VERSION_MINOR) + "." +
                          std::to_string(OPENVINO_VERSION_PATCH));
 }
@@ -534,7 +535,7 @@ void Metadata<METADATA_VERSION_2_1>::write_as_text(std::ostream& stream) {
     if (_initSizes.has_value() && !_initSizes->empty()) {
         std::ostringstream oss;
         write_text_list(oss, _initSizes.value());
-        write_text_field(stream, "ws_inits", oss.str());
+        write_text_field(stream, MetadataTextKeys::WS_INITS, oss.str());
     }
 }
 
@@ -542,7 +543,7 @@ void Metadata<METADATA_VERSION_2_2>::write_as_text(std::ostream& stream) {
     Metadata<METADATA_VERSION_2_1>::write_as_text(stream);
 
     if (_batchSize.has_value() && _batchSize.value() > 0) {
-        write_text_field(stream, "batch", _batchSize.value());
+        write_text_field(stream, MetadataTextKeys::BATCH, _batchSize.value());
     }
 }
 
@@ -562,7 +563,7 @@ void Metadata<METADATA_VERSION_2_6>::write_as_text(std::ostream& stream) {
     Metadata<METADATA_VERSION_2_5>::write_as_text(stream);
 
     if (_compilerReqs.has_value() && !_compilerReqs->empty()) {
-        write_text_field(stream, "compiler_reqs", '[' + _compilerReqs.value() + ']');
+        write_text_field(stream, MetadataTextKeys::COMPILER_REQS, '[' + _compilerReqs.value() + ']');
     }
 }
 
@@ -694,25 +695,14 @@ std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor) {
 }
 
 std::unique_ptr<MetadataBase> read_as_text(const ov::Tensor& tensor) {
-    const char* data = tensor.data<const char>();
-    const size_t size = tensor.get_byte_size();
+    const MetadataBase::TextFields fields = MetadataBase::parse_text_fields(tensor);
 
-    size_t pos = 0;
-    while (pos < size && data[pos] != '=') {
-        pos++;
+    const auto it = fields.find(MetadataTextKeys::META);
+    if (it == fields.end()) {
+        OPENVINO_THROW("NPU compatibility string is malformed: missing metadata version");
     }
-    if (pos >= size) {
-        OPENVINO_THROW("NPU metadata compatibility string is malformed: no key=value pairs found");
-    }
-    // skip '='
-    pos++;
 
-    size_t versionEnd = pos;
-    while (versionEnd < size && data[versionEnd] != ';') {
-        versionEnd++;
-    }
-    const std::string versionStr(data + pos, versionEnd - pos);
-
+    const std::string& versionStr = it->second;
     const size_t dot = versionStr.find('.');
     if (dot == std::string::npos) {
         OPENVINO_THROW("Invalid human-readable metadata: malformed version field");

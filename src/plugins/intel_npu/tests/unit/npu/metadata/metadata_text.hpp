@@ -2,10 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
 #include <gtest/gtest.h>
+
+#include <cstring>
+#include <sstream>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "metadata.hpp"
+#include "metadata_wrappers.hpp"
 
 using namespace intel_npu;
 
@@ -118,7 +124,6 @@ TEST_F(MetadataHumanReadableTests, compilerReqs) {
     EXPECT_EQ(storedMeta->get_runtime_reqs().value(), reqs);
 }
 
-// remove compiler version from compat string
 TEST_F(MetadataHumanReadableTests, compilerVersion) {
     const uint32_t compilerVersion = 0xCAFECAFE;
     auto meta = Metadata<METADATA_VERSION_2_4>(0,
@@ -167,4 +172,13 @@ TEST_F(MetadataHumanReadableTests, allFields) {
     ASSERT_FALSE(storedMeta->get_compiler_version().has_value());
     ASSERT_TRUE(storedMeta->get_runtime_reqs().has_value());
     EXPECT_EQ(storedMeta->get_runtime_reqs().value(), reqs);
+}
+// test also negative number
+TEST_P(MetadataTextTest, Format) {
+    std::unique_ptr<MetadataBase> meta;
+    if (isValid) {
+        OV_ASSERT_NO_THROW(meta = ::read_as_text(compatibilityString));
+    } else {
+        ASSERT_ANY_THROW(meta = ::read_as_text(compatibilityString));
+    }
 }

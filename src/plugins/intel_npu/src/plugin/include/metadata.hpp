@@ -115,19 +115,19 @@ public:
         return static_cast<uint16_t>(version);
     }
 
-protected:
-    /**
-     * @brief Reads data from the source containing the metadata. The implementation depends on the type of source.
-     */
-    void read_data_from_source(char* destination, const size_t size);
-
-    using TextFields = std::map<std::string, std::string>;
+    using TextFields = std::map<std::string, std::string, std::less<>>;
 
     /**
      * @brief Parses the full human-readable tensor into a key-value map.
      * @details The format is key=value; pairs where values may contain nested []
      */
     static TextFields parse_text_fields(const ov::Tensor& tensor);
+
+protected:
+    /**
+     * @brief Reads data from the source containing the metadata. The implementation depends on the type of source.
+     */
+    void read_data_from_source(char* destination, const size_t size);
 
     /**
      * @brief Adds the size of the binary object and the magic string to the end of the stream.
@@ -159,6 +159,17 @@ protected:
  * @brief Magic bytes used for identifying NPU blobs.
  */
 constexpr std::string_view MAGIC_BYTES = "OVNPU";
+
+/**
+ * @brief Keys used in the metadata text format.
+ */
+namespace MetadataTextKeys {
+constexpr std::string_view META = "meta";
+constexpr std::string_view OV = "ov";
+constexpr std::string_view WS_INITS = "ws_inits";
+constexpr std::string_view BATCH = "batch";
+constexpr std::string_view COMPILER_REQS = "compiler_reqs";
+}  // namespace MetadataTextKeys
 
 /**
  * @brief List of supported version formats.
