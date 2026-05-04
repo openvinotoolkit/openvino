@@ -180,12 +180,24 @@ def _bind_paged_attention_side_channel(compiled):
             return np.zeros(shape, dtype=dtype)
 
         key_cache_np = value_cache_np = None
+        key_cache_ovt = value_cache_ovt = None
         if kv_cache is not None:
             try:
                 # CPU layout: [2, num_blocks, num_kv_heads, block_size, head_size]
+                # unbind(0) returns contiguous views sharing memory with kv_cache,
+                # so .numpy() is zero-copy.
                 kc, vc = kv_cache.unbind(0)
                 key_cache_np = kc.contiguous().numpy()
                 value_cache_np = vc.contiguous().numpy()
+                # Wrap in ov.Tensor with shared_memory=True so PA writes land in
+                # the torch tensor backing vLLM's KV cache instead of an internal
+                # OV copy.
+                import openvino as _ov
+                key_cache_ovt = _ov.Tensor(key_cache_np, shared_memory=True)
+                value_cache_ovt = _ov.Tensor(value_cache_np, shared_memory=True)
+                # Pin the numpy + torch storage so GC can't reclaim while infer runs
+                result.setdefault("__keepalive__", []).extend(
+                    [kc, vc, kv_cache, key_cache_np, value_cache_np, key_cache_ovt, value_cache_ovt])
             except Exception:
                 pass
         if key_cache_np is None:
@@ -212,24 +224,39 @@ def _bind_paged_attention_side_channel(compiled):
                     past_lens_np = pl.numpy()
                     subseq_begins_np = qsl.to(torch.int32).contiguous().numpy()
                     max_ctx_len_np = np.array(int(seq_lens.max().item()), dtype=np.int32)
-                if block_table is not None:
+                if block_table is not None and seq_lens is not None:
                     bt = block_table.to(torch.int32).contiguous()
-                    # Flatten per-row into a single block_indices vector
-                    # plus block_indices_begins giving row starts
+                    # OV PA expects CSR: block_indices is a flat list of only the
+                    # *actually used* block IDs per sequence, with
+                    # block_indices_begins giving start offsets.
+                    # vLLM's block_table is [B, max_blocks_per_req] with padding;
+                    # we must trim each row to ceil(seq_len_i / block_size).
+                    # vLLM CPU kv_cache is rank-5 [2, N, H, block_size, S]; block_size is dim 3.
+                    block_size = int(kv_cache.shape[3]) if kv_cache is not None and kv_cache.ndim >= 5 else 16
+                    blocks_per_seq = ((seq_lens + block_size - 1) // block_size).to(torch.int32)
                     rows = bt.shape[0] if bt.ndim > 0 else 1
-                    flat = bt.flatten().numpy()
-                    row_len = bt.shape[1] if bt.ndim > 1 else 1
-                    begins = np.arange(rows + 1, dtype=np.int32) * row_len
-                    block_indices_np = flat
-                    block_indices_begins_np = begins
+                    parts = []
+                    for i in range(rows):
+                        n = int(blocks_per_seq[i].item())
+                        if n > 0:
+                            parts.append(bt[i, :n])
+                    if parts:
+                        block_indices_np = torch.cat(parts).contiguous().numpy()
+                    else:
+                        block_indices_np = np.zeros((0,), dtype=np.int32)
+                    begins = torch.cat([
+                        torch.zeros(1, dtype=torch.int32),
+                        blocks_per_seq.cumsum(0).to(torch.int32),
+                    ])
+                    block_indices_begins_np = begins.contiguous().numpy()
             except Exception:
                 pass
 
         for field, name in fields.items():
             if field == "key_cache":
-                result[name] = key_cache_np
+                result[name] = key_cache_ovt if key_cache_ovt is not None else key_cache_np
             elif field == "value_cache":
-                result[name] = value_cache_np
+                result[name] = value_cache_ovt if value_cache_ovt is not None else value_cache_np
             elif field == "past_lens":
                 result[name] = past_lens_np
             elif field == "subsequence_begins":
