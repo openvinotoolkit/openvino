@@ -44,9 +44,7 @@ namespace v8 = ov::op::v8;
 
 // Logical K from a weight shape: rank-3 [E, ofm, K] or rank-4 [E, ofm, G, GS].
 static size_t weight_logical_K(const ov::Shape& shape) {
-    OPENVINO_ASSERT(shape.size() == 3 || shape.size() == 4,
-                    "MOE weight must be rank 3 or 4, got rank ",
-                    shape.size());
+    OPENVINO_ASSERT(shape.size() == 3 || shape.size() == 4, "MOE weight must be rank 3 or 4, got rank ", shape.size());
     return shape.size() == 4 ? shape[2] * shape[3] : shape[2];
 }
 
@@ -265,8 +263,10 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(bool ha
         {multiply2_m, down_w_m, topk_indices_m, down_bias_m, down_scale_m, down_zp_m});
     auto bgm_down_m = bgm_down_4_m | bgm_down_6_m;
 
-    // gpt-oss keeps an unfolded no-op Reshape between Transpose and Unsqueeze.
-    auto routing_transpose_m = pattern::wrap_type<v1::Transpose>({pattern::any_input(), pattern::any_input()});
+    // No-op Reshape between Transpose and Unsqueeze remains in the graph because
+    // CommonOptimizations run after MoE passes in the GPU pipeline; match it as optional here.
+    auto routing_transpose_order_m = pattern::wrap_type<v0::Constant>(pattern::value_matches("1, 0"));
+    auto routing_transpose_m = pattern::wrap_type<v1::Transpose>({pattern::any_input(), routing_transpose_order_m});
     auto routing_reshape_m = pattern::optional<v1::Reshape>({routing_transpose_m, pattern::any_input()});
     auto routing_unsqueeze_m = pattern::wrap_type<v0::Unsqueeze>({routing_reshape_m, pattern::any_input()});
 
@@ -286,12 +286,8 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(bool ha
         auto hidden_states = experts_reshape_node->input_value(0);
 
         // Bypass the [1,0] Transpose: moe_scatter_reduction expects tokens-major routing.
+        // Order is enforced by the pattern (value_matches("1, 0")).
         auto routing_transpose_node = pm.at(routing_transpose_m).get_node_shared_ptr();
-        auto transpose_order =
-            ov::as_type_ptr<v0::Constant>(routing_transpose_node->input_value(1).get_node_shared_ptr());
-        if (!transpose_order || transpose_order->cast_vector<int64_t>() != std::vector<int64_t>{1, 0}) {
-            return false;
-        }
         ov::Output<ov::Node> routing = routing_transpose_node->input_value(0);
         auto topk_indices = pm.at(topk_indices_m);
         auto gate_up_w = pm.at(gate_up_w_m);

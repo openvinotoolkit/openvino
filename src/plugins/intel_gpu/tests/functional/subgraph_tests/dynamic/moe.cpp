@@ -4,7 +4,6 @@
 
 #include "common_test_utils/node_builders/moe_builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
@@ -76,6 +75,11 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
+        // MoE fusion (and the GatherMatmul-based fallback) is gated on supports_immad.
+        const auto caps = core->get_property(targetDevice, ov::device::capabilities);
+        if (std::find(caps.begin(), caps.end(), ov::intel_gpu::capability::HW_MATMUL) == caps.end()) {
+            GTEST_SKIP() << "MoE pipeline requires a systolic GPU (HW_MATMUL capability)";
+        }
         inType = outType = inference_precision = ov::element::f16;
         // Cascaded matmul+clamp+swish chains exceed default per-op f16 epsilon.
         abs_threshold = 1.0;
@@ -83,9 +87,9 @@ protected:
 
         const auto& [moe_params, pattern_type, routing_type, wp, dp, sp, dm, ds, rd, gs, gi] = GetParam();
 
-        // 2-GEMM builder only supports softmax routing.
+        // INSTANTIATE blocks below never produce GEMM2 + non-softmax; fail loudly if that ever changes.
         if (pattern_type == MoePatternType::GEMM2 && routing_type != MoERoutingType::SOFTMAX) {
-            GTEST_SKIP() << "2-GEMM pattern only supports softmax routing";
+            FAIL() << "2-GEMM pattern with non-softmax routing must not be instantiated";
         }
         init_input_shapes({moe_params.data_shape});
         const ov::test::MoePatternParams shape_params{moe_params.data_shape.first, moe_params.topk, moe_params.number_of_experts, moe_params.intermediate_size};
@@ -117,20 +121,6 @@ protected:
         }
     }
 
-    void assert_runtime_model_has_op(const std::string& expected_layer_type) {
-        auto runtime_model = compiledModel.get_runtime_model();
-        ASSERT_TRUE(runtime_model != nullptr) << "Runtime model should not be null";
-        bool found = false;
-        for (const auto& op : runtime_model->get_ordered_ops()) {
-            auto layer_type = op->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>();
-            if (layer_type == expected_layer_type) {
-                found = true;
-                break;
-            }
-        }
-        ASSERT_TRUE(found) << expected_layer_type << " op is not found in runtime model";
-    }
-
     void generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) override {
         inputs.clear();
         const auto& params = function->get_parameters();
@@ -146,13 +136,11 @@ protected:
 
     void validate() override {
         ov::test::SubgraphBaseTest::validate();
-        // MoE fusion is gated on supports_immad.
-        const auto caps = core->get_property(targetDevice, ov::device::capabilities);
-        if (std::find(caps.begin(), caps.end(), ov::intel_gpu::capability::HW_MATMUL) == caps.end()) {
-            return;
-        }
         const auto pattern_type = std::get<1>(GetParam());
-        assert_runtime_model_has_op(pattern_type == MoePatternType::GEMM3 ? "moe_3gemm_fused_compressed" : "moe_gemm");
+        // GEMM3 → single fused moe_3gemm_fused_compressed; GEMM2 → gate_up + down = 2 moe_gemm ops.
+        ov::test::CheckNumberOfNodesWithType(compiledModel,
+                                             pattern_type == MoePatternType::GEMM3 ? "moe_3gemm_fused_compressed" : "moe_gemm",
+                                             pattern_type == MoePatternType::GEMM3 ? 1 : 2);
     }
 };
 
@@ -252,7 +240,9 @@ protected:
 
     void validate() override {
         ov::test::SubgraphBaseTest::validate();
-        assert_runtime_model_has_op("gather_matmul");
+        const auto pattern_type = std::get<1>(GetParam());
+        // GEMM3: gate, up, down → 3 GatherMatmul ops; GEMM2: fused gate_up + down → 2.
+        ov::test::CheckNumberOfNodesWithType(compiledModel, "gather_matmul", pattern_type == MoePatternType::GEMM3 ? 3 : 2);
     }
 };
 

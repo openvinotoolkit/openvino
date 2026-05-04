@@ -26,11 +26,12 @@ void MOECompressed::validate_and_infer_types() {
         if (scale_idx >= get_input_size())
             return;
         const auto& s = get_input_partial_shape(scale_idx);
-        if (s.rank().is_dynamic() || s.size() < 3 || s[2].is_dynamic())
-            return;
+        OPENVINO_ASSERT(s.is_static() && s.size() >= 3,
+                        "MOECompressed ",
+                        name,
+                        " scale shape must be static rank>=3, got ",
+                        s);
         const auto num_groups = static_cast<size_t>(s[2].get_length());
-        if (num_groups == 0)
-            return;
         OPENVINO_ASSERT(K % num_groups == 0,
                         "MOECompressed ",
                         name,
@@ -85,17 +86,15 @@ void MOECompressed::validate_and_infer_types() {
         if (weight_idx >= get_input_size())
             return;
         const auto& s = get_input_partial_shape(weight_idx);
-        if (s.rank().is_dynamic() || s.size() < 3)
-            return;
-        // weight is rank-3 [E, ofm, K] or rank-4 [E, ofm, K_groups, group_size].
-        size_t actual_K = 0;
-        if (s.size() == 3 && s[2].is_static()) {
-            actual_K = static_cast<size_t>(s[2].get_length());
-        } else if (s.size() == 4 && s[2].is_static() && s[3].is_static()) {
-            actual_K = static_cast<size_t>(s[2].get_length()) * static_cast<size_t>(s[3].get_length());
-        } else {
-            return;
-        }
+        OPENVINO_ASSERT(
+            s.is_static() && (s.size() == 3 || s.size() == 4),
+            "MOECompressed ",
+            name,
+            " weight shape must be static rank-3 [E, ofm, K] or rank-4 [E, ofm, K_groups, group_size], got ",
+            s);
+        const size_t actual_K = (s.size() == 4)
+                                    ? static_cast<size_t>(s[2].get_length()) * static_cast<size_t>(s[3].get_length())
+                                    : static_cast<size_t>(s[2].get_length());
         OPENVINO_ASSERT(actual_K == expected_K,
                         "MOECompressed ",
                         name,
@@ -107,7 +106,7 @@ void MOECompressed::validate_and_infer_types() {
                         s,
                         ") but config-derived K=",
                         expected_K);
-        if (s[0].is_static() && m_config.num_expert > 0) {
+        if (m_config.num_expert > 0) {
             OPENVINO_ASSERT(static_cast<size_t>(s[0].get_length()) == m_config.num_expert,
                             "MOECompressed ",
                             name,
