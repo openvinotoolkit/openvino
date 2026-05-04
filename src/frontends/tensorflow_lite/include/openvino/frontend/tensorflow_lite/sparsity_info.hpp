@@ -106,8 +106,11 @@ public:
         m_disabled = true;
     }
     void enable() {
-        // block_map is optional (empty for standard CSR tensors); densify() does not use it
-        m_disabled = (m_shape.size() == 0 || m_traversal_order.size() == 0 || m_dim_format.size() == 0);
+        // block_map is required only for block-sparse layouts (traversal_order longer than shape rank);
+        // for standard CSR (traversal_order length == rank) it may legitimately be empty. See schema.fbs:187-211.
+        const bool is_block_sparse = m_traversal_order.size() > m_shape.size();
+        m_disabled = (m_shape.size() == 0 || m_traversal_order.size() == 0 || m_dim_format.size() == 0 ||
+                      (is_block_sparse && m_block_map.size() == 0));
     }
     // Unpack sparse tensor and returns dense data
     void* dense_data() {

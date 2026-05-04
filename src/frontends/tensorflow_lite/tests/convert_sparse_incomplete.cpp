@@ -13,12 +13,15 @@ using namespace ov::frontend;
 
 // End-to-end regression coverage for the get_sparsity() fix in
 // src/frontends/tensorflow_lite/src/utils.cpp. Each test model carries a
-// non-null SparsityParameters whose required sub-fields are deliberately
-// incomplete (missing or empty traversal_order / block_map / dim_metadata).
-// With the fix the SparsityInfo::enable() call inside get_sparsity()
-// recognizes the metadata as non-sparse and the constant tensor falls back
-// to its raw buffer, so both load() and convert() must succeed. Without the
-// fix dense_data() throws inside TensorLitePlace's ctor and convert() fails.
+// non-null SparsityParameters whose sub-fields are either deliberately
+// incomplete (missing/empty traversal_order, dim_metadata, dim_format, or
+// fully empty SparsityParameters) or that exercise the valid standard-CSR
+// corner case where block_map is absent. With the fix, the
+// SparsityInfo::enable() call inside get_sparsity() either recognizes the
+// metadata as non-sparse (raw buffer used) or treats it as a valid CSR
+// sparse tensor (densified into the dense buffer); either way both load()
+// and convert() must succeed. Without the fix dense_data() throws inside
+// TensorLitePlace's ctor and convert() fails.
 class IncompleteSparsityLoadConvertTest : public ::testing::TestWithParam<std::string> {
 protected:
     void SetUp() override {
@@ -54,8 +57,8 @@ INSTANTIATE_TEST_SUITE_P(SparseIncomplete,
                              "sparse_incomplete/empty_dim_metadata.tflite",
                              // traversal_order omitted; block_map and dim_metadata present.
                              "sparse_incomplete/missing_traversal_order.tflite",
-                             // block_map absent (valid for standard CSR tensors); verifies
-                             // densification succeeds without block_map.
+                             // block_map absent on a standard-CSR layout (traversal_order
+                             // length == rank); tensor stays enabled and densify() runs.
                              "sparse_incomplete/missing_block_map.tflite",
                              // SparsityParameters table referenced but all three fields omitted.
                              "sparse_incomplete/empty_sparsity.tflite",

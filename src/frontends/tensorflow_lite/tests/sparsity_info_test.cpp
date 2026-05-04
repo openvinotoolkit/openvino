@@ -20,15 +20,14 @@ constexpr uint8_t kDummyValues[16] = {0};
 
 }  // namespace
 
-// Default ctor leaves m_disabled = false. enable() is what re-evaluates the
-// flag based on whether all four required fields are populated. This is the
-// exact bug behind the regression: get_sparsity() used to skip the explicit
-// enable() call, leaving m_disabled = false on incomplete metadata.
-TEST(SparsityInfoTest, DefaultConstructedNotDisabledUntilEnable) {
+// enable() must disable a SparsityInfo whose required fields are all empty.
+// The end-to-end coverage that get_sparsity() actually invokes enable() is in
+// convert_sparse_incomplete.cpp; this test pins down the enable() semantics
+// in isolation.
+TEST(SparsityInfoTest, EnableOnEmptyObjectDisables) {
     SparsityInfo s;
-    EXPECT_FALSE(s.is_disabled()) << "Default-constructed SparsityInfo must report not-disabled before enable() runs.";
     s.enable();
-    EXPECT_TRUE(s.is_disabled()) << "After enable() with all fields empty, SparsityInfo must report disabled.";
+    EXPECT_TRUE(s.is_disabled()) << "enable() with all required fields empty must disable.";
 }
 
 TEST(SparsityInfoTest, EnableDisablesWhenShapeEmpty) {
@@ -58,6 +57,19 @@ TEST(SparsityInfoTest, EnableDoesNotDisableWhenBlockMapEmpty) {
     // block_map is intentionally absent — valid for standard CSR tensors
     s.enable();
     EXPECT_FALSE(s.is_disabled());
+}
+
+// Block-sparse layouts (traversal_order longer than shape rank) require
+// block_map. With block_map missing the metadata is malformed and enable()
+// must disable the tensor so densify() is never called on it.
+TEST(SparsityInfoTest, EnableDisablesWhenBlockSparseMissingBlockMap) {
+    SparsityInfo s;
+    s.set_shape({2, 2});                  // rank = 2
+    s.set_traversal_order({0, 1, 2, 3});  // length = 4 → block-sparse with k=2
+    s.set_dim_format({0, 1, 1, 1});
+    // block_map intentionally absent — invalid for block-sparse
+    s.enable();
+    EXPECT_TRUE(s.is_disabled());
 }
 
 // HandsLandmarkFull-style: tf_sparsity is non-null but dim_metadata is empty,

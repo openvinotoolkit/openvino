@@ -3,13 +3,20 @@
 
 # WHAT:
 #   Generates a family of small .tflite test models in which a constant
-#   tensor carries a non-null SparsityParameters table whose sub-fields are
-#   incomplete (any combination of traversal_order / block_map / dim_metadata
-#   missing or empty). Once the OpenVINO TFLite frontend's get_sparsity()
-#   factory invokes SparsityInfo::enable(), every such tensor must be
-#   recognized as "not really sparse" and fall back to the raw constant
-#   buffer; the model must therefore both load() and convert() without
-#   throwing.
+#   tensor carries a non-null SparsityParameters table with sub-fields that
+#   are either incomplete (missing/empty traversal_order, dim_metadata,
+#   dim_format, or fully empty SparsityParameters) or that exercise the
+#   "valid standard CSR" corner case where block_map is absent. The unifying
+#   contract: every model produced here must both load() and convert()
+#   without throwing once the OpenVINO TFLite frontend's get_sparsity()
+#   factory invokes SparsityInfo::enable(). Two outcomes are expected:
+#     - Incomplete metadata (missing/empty traversal_order, dim_metadata,
+#       dim_format, or all-empty SparsityParameters) → tensor is recognized
+#       as "not really sparse" and falls back to the raw constant buffer.
+#     - Missing block_map on a non-block-sparse layout (traversal_order
+#       length == tensor rank) → tensor is treated as a valid standard CSR
+#       sparse tensor and is densified normally. block_map is required only
+#       for block-sparse layouts (schema.fbs:187-211).
 #
 # HOW:
 #   Uses the official Python `flatbuffers.Builder` (already a transitive
@@ -33,9 +40,11 @@
 #   factory, an incomplete SparsityParameters keeps m_disabled = false,
 #   TensorLitePlace::ctor calls dense_data() -> densify() and the convert
 #   step throws "Sparse dimension isn't found for sparse tensor". With the
-#   fix, every model produced here loads + converts cleanly. Real-world
-#   reproducer hand_landmark_full.tflite is 5.3 MB and cannot be committed,
-#   so the synthetic flatbuffers below stand in for it.
+#   fix, every model produced here loads + converts cleanly — either by
+#   falling back to the raw buffer (incomplete-metadata cases) or by
+#   densifying a valid standard CSR tensor (missing-block_map case).
+#   Real-world reproducer hand_landmark_full.tflite is 5.3 MB and cannot be
+#   committed, so the synthetic flatbuffers below stand in for it.
 #
 # Models produced (in subdirectory sparse_incomplete/):
 #   1. missing_dim_metadata.tflite           - traversal_order + block_map set; dim_metadata field omitted (HandsLandmarkFull shape)
