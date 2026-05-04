@@ -4,14 +4,14 @@
 
 # This script resolves the prebuilt NPU Plugin Compiler dependency by downloading and extracting the appropriate
 # archive based on the current platform. The expected location of the archive and naming convention is as follows:
-#     vcl version: 8.1.0
+#     vcl version: 7.7.0
 #     release: releases/unified/2026/20
 #     storage location: https://storage.openvinotoolkit.org/dependencies/thirdparty
 #     WINDOWS: 
-#         windows2022: npu_compiler_vcl_windows_2022-8_1_0-727e603.zip
+#         windows2022: npu_compiler_vcl_windows_2022-7_7_0-2996129.zip
 #     LINUX:
-#         ubuntu22.04: npu_compiler_vcl_ubuntu_22_04-8_1_0-727e603.tar.gz
-#         ubuntu24.04: npu_compiler_vcl_ubuntu_24_04-8_1_0-727e603.tar.gz
+#         ubuntu22.04: npu_compiler_vcl_ubuntu_22_04-7_7_0-2996129.tar.gz
+#         ubuntu24.04: npu_compiler_vcl_ubuntu_24_04-7_7_0-2996129.tar.gz
 #
 # This script replicates cmake/dependencies.cmake common OV dependency resolution logic including:
 #     THIRDPARTY_SERVER_PATH environment variable or cmake options support that allows
