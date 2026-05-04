@@ -273,6 +273,25 @@ TEST(FrontEndConvertModelTest, SavedModelOobEmptyTensorNames) {
     }
 }
 
+// Crafted TF1-style SavedModel where Assign.input(1) = "save/RestoreV2:999" but
+// Const(tensor_names) has only 1 string_val entry → exercises the Assign code path
+// in map_assignvariable() (distinct from the AssignVariableOp path in other OOB tests).
+TEST(FrontEndConvertModelTest, SavedModelOobAssignPath) {
+    shared_ptr<Model> model = nullptr;
+    try {
+        model = convert_model("saved_model_oob_assign_path");
+        FAIL() << "Expected exception for OOB RestoreV2 output index in Assign path";
+    } catch (const ov::Exception& e) {
+        string msg = e.what();
+        EXPECT_TRUE(msg.find("out of range") != string::npos) << "Unexpected error message: " << msg;
+        EXPECT_EQ(model, nullptr);
+    } catch (const std::exception& e) {
+        FAIL() << "Unexpected std::exception: " << e.what();
+    } catch (...) {
+        FAIL() << "Unexpected non-std exception";
+    }
+}
+
 // Same test with mmap disabled to verify the stream code path is also protected
 TEST(FrontEndConvertModelTest, SavedModelMaliciousOverflowOffsetNoMmap) {
     shared_ptr<Model> model = nullptr;

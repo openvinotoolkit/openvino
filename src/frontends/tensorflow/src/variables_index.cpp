@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cerrno>
+#include <climits>
 #include <stdlib.h>
 
 #include <fstream>
@@ -405,7 +407,14 @@ void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::Grap
                     FRONT_END_THROW("Unexpected topology near AssignVariableOp");
                 }
 
-                int output_index = std::atoi(restore_output[restore_output.size() - 1].c_str());
+                const auto& index_str_av = restore_output[restore_output.size() - 1];
+                char* end_av = nullptr;
+                errno = 0;
+                const long parsed_av = std::strtol(index_str_av.c_str(), &end_av, 10);
+                const int output_index =
+                    (end_av == index_str_av.c_str() || errno == ERANGE || parsed_av > INT_MAX || parsed_av < INT_MIN)
+                        ? 0
+                        : static_cast<int>(parsed_av);
 
                 // Expected path is: Const(tensor_names) -(0)-(1)-> RestoreV2
                 const auto& tensor = restorev2_nodes[0]->inputs[1]->node->attr().at("value").tensor();
@@ -436,7 +445,14 @@ void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::Grap
                 // Expected path is: RestoreV2 -(output_index)-(1)-> Assign
                 PtrNode::parse_node_name(node.second->node->input(1), restore_output);
 
-                int output_index = std::atoi(restore_output[restore_output.size() - 1].c_str());
+                const auto& index_str_a = restore_output[restore_output.size() - 1];
+                char* end_a = nullptr;
+                errno = 0;
+                const long parsed_a = std::strtol(index_str_a.c_str(), &end_a, 10);
+                const int output_index =
+                    (end_a == index_str_a.c_str() || errno == ERANGE || parsed_a > INT_MAX || parsed_a < INT_MIN)
+                        ? 0
+                        : static_cast<int>(parsed_a);
 
                 // Expected path is: Const(tensor_names) -(0)-(1)-> RestoreV2
                 const auto& tensor = restorev2_nodes[0]->inputs[1]->node->attr().at("value").tensor();
