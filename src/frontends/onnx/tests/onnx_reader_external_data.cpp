@@ -18,6 +18,7 @@
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/frontend/manager.hpp"
 #include "openvino/op/constant.hpp"
+#include "utils/tensor_external_data.hpp"
 
 using namespace std;
 using namespace ov;
@@ -253,10 +254,7 @@ TEST_P(OnnxFeMmapFixture, onnx_external_invalid_up_dir_path) {
         core.read_model(path);
         FAIL() << "Incorrect path to external data not detected";
     } catch (const Exception& ex) {
-        EXPECT_PRED_FORMAT2(testing::IsSubstring,
-                            string("tensor.data, offset: 4096, "
-                                   "data_length: 16)"),
-                            ex.what());
+        EXPECT_PRED_FORMAT2(testing::IsSubstring, string("which is outside the base directory"), ex.what());
     } catch (...) {
         FAIL() << "Importing onnx model failed for unexpected reason";
     }
