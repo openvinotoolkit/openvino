@@ -225,7 +225,8 @@ INSTANTIATE_TEST_SUITE_P(smoke,
 
 namespace {
 // Build a sigmoid+bias routing subgraph with an extra Multiply(routed_scaling_factor) inserted
-// between Divide(eps-normalized) and Slice — mirroring trinity-mini afmoe lowering.
+// between Divide(eps-normalized) and Transpose — mirroring the optional<Multiply> location in
+// the matcher (the trinity-mini afmoe `routed_scaling_factor` post-norm scaling).
 // Returns {unsqueeze_moe, topk_idx, scale_const}.
 std::tuple<ov::Output<ov::Node>, ov::Output<ov::Node>, std::shared_ptr<ov::op::v0::Constant>>
 build_sigmoid_bias_routing_subgraph_with_scale(const ov::Output<ov::Node>& routing_logits,
@@ -239,21 +240,14 @@ build_sigmoid_bias_routing_subgraph_with_scale(const ov::Output<ov::Node>& routi
     auto bias = v0::Constant::create(data_precision, ov::Shape{1, number_of_experts}, {0.1f});
     auto sig_add = std::make_shared<v1::Add>(sigmoid, bias);
 
-    auto router_topk =
-        std::make_shared<v11::TopK>(sig_add,
-                                    v0::Constant::create(ov::element::i64, ov::Shape{}, {static_cast<int64_t>(topk)}),
-                                    -1,
-                                    v11::TopK::Mode::MAX,
-                                    v11::TopK::SortType::SORT_VALUES,
-                                    ov::element::i64);
+    auto k = v0::Constant::create(ov::element::i64, ov::Shape{}, {static_cast<int64_t>(topk)});
+    auto router_topk = std::make_shared<v11::TopK>(sig_add, k, -1,
+        v11::TopK::Mode::MAX, v11::TopK::SortType::SORT_VALUES, ov::element::i64);
     auto convert_topk = std::make_shared<v0::Convert>(router_topk->output(1), ov::element::i32);
-    auto topk_idx = ov::Output<ov::Node>{convert_topk};
 
     auto gather_el = std::make_shared<v6::GatherElements>(sigmoid, convert_topk, 1);
-    auto reduce =
-        std::make_shared<v1::ReduceSum>(gather_el,
-                                        v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1}),
-                                        true);
+    auto reduce_axis = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+    auto reduce = std::make_shared<v1::ReduceSum>(gather_el, reduce_axis, true);
     auto eps = v0::Constant::create(data_precision, ov::Shape{1, 1}, {1e-6f});
     auto add_eps = std::make_shared<v1::Add>(reduce, eps);
     auto norm = std::make_shared<v1::Divide>(gather_el, add_eps);
@@ -263,43 +257,11 @@ build_sigmoid_bias_routing_subgraph_with_scale(const ov::Output<ov::Node>& routi
     auto scale_const = v0::Constant::create(data_precision, ov::Shape{1, 1}, {scale_value});
     auto norm_scaled = std::make_shared<v1::Multiply>(norm, scale_const);
 
-    auto sl_stop = std::make_shared<v3::ShapeOf>(convert_topk, ov::element::i32);
-    auto slice = std::make_shared<v8::Slice>(
-        norm_scaled,
-        v0::Constant::create(ov::element::i32, ov::Shape{2}, std::vector<int32_t>{0, 0}),
-        sl_stop,
-        v0::Constant::create(ov::element::i32, ov::Shape{2}, std::vector<int32_t>{1, 1}),
-        v0::Constant::create(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{0, 1}));
-
-    auto shapeof = std::make_shared<v3::ShapeOf>(convert_topk, ov::element::i64);
-    auto gather = std::make_shared<v8::Gather>(shapeof,
-                                               v0::Constant::create(ov::element::i64, ov::Shape{}, {0}),
-                                               v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
-    auto unsq_seq =
-        std::make_shared<v0::Unsqueeze>(gather,
-                                        v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0}));
-    auto ne_scalar = v0::Constant::create(ov::element::i64, ov::Shape{}, {static_cast<int64_t>(number_of_experts)});
-    auto unsq_ne =
-        std::make_shared<v0::Unsqueeze>(ne_scalar,
-                                        v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0}));
-    auto bcast_shape = std::make_shared<v0::Concat>(ov::OutputVector{unsq_seq, unsq_ne}, 0);
-    auto zero = v0::Constant::create(data_precision, ov::Shape{1}, {0});
-    auto bcast = std::make_shared<v3::Broadcast>(zero, bcast_shape);
-    auto scatter = std::make_shared<v12::ScatterElementsUpdate>(
-        bcast,
-        topk_idx,
-        slice,
-        v0::Constant::create(ov::element::i64, ov::Shape{}, std::vector<int64_t>{1}));
-    auto transp = std::make_shared<v1::Transpose>(
-        scatter,
-        v0::Constant::create(ov::element::i32, ov::Shape{2}, std::vector<int32_t>{1, 0}));
-    auto one = v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1});
-    auto reshape_shape = std::make_shared<v0::Concat>(ov::OutputVector{unsq_ne, one, unsq_seq}, 0);
-    auto reshape = std::make_shared<v1::Reshape>(transp, reshape_shape, false);
-    auto unsqueeze_moe = ov::Output<ov::Node>{
-        std::make_shared<v0::Unsqueeze>(reshape,
-                                        v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{3}))};
-    return {unsqueeze_moe, topk_idx, scale_const};
+    auto transpose_order = v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 0});
+    auto transpose = std::make_shared<v1::Transpose>(norm_scaled, transpose_order);
+    auto unsqueeze_const = v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
+    auto unsqueeze_moe = ov::Output<ov::Node>{std::make_shared<v0::Unsqueeze>(transpose, unsqueeze_const)};
+    return {unsqueeze_moe, ov::Output<ov::Node>{convert_topk}, scale_const};
 }
 }  // namespace
 
@@ -317,23 +279,25 @@ TEST_F(TransformationTestsF, FuseMOE3GemmCompressed_SigmoidBias_RoutedScalingFac
             build_sigmoid_bias_routing_subgraph_with_scale(routing_weights, element::f16, 128, 8, scale_value);
 
         auto wei_gate = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {1});
-        auto scale_gate = op::v0::Constant::create(element::f16, Shape{128, 16, 768}, {0.01f});
-        auto zp_gate = op::v0::Constant::create(element::u4, Shape{128, 16, 768}, {0});
+        auto scale_gate = op::v0::Constant::create(element::f16, Shape{128, 768, 16}, {0.01f});
+        auto zp_gate = op::v0::Constant::create(element::u4, Shape{128, 768, 16}, {0});
         auto wei_up = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {1});
-        auto scale_up = op::v0::Constant::create(element::f16, Shape{128, 16, 768}, {0.01f});
-        auto zp_up = op::v0::Constant::create(element::u4, Shape{128, 16, 768, 16}, {0});
+        auto scale_up = op::v0::Constant::create(element::f16, Shape{128, 768, 16}, {0.01f});
+        auto zp_up = op::v0::Constant::create(element::u4, Shape{128, 768, 16}, {0});
         auto wei_down = op::v0::Constant::create(element::u4, Shape{128, 2048, 6, 128}, {1});
-        auto scale_down = op::v0::Constant::create(element::f16, Shape{128, 6, 2048}, {0.01f});
-        auto zp_down = op::v0::Constant::create(element::u4, Shape{128, 6, 2048}, {0});
+        auto scale_down = op::v0::Constant::create(element::f16, Shape{128, 2048, 6}, {0.01f});
+        auto zp_down = op::v0::Constant::create(element::u4, Shape{128, 2048, 6}, {0});
 
-        ov::intel_gpu::op::MOECompressed::Config config;
+        ov::op::internal::MOECompressed::Config config;
+        config.expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
+        config.has_zp = true;
         config.hidden_size = 2048;
         config.inter_size = 768;
         config.num_expert = 128;
         config.group_size = 128;
         config.top_k = 8;
         config.out_type = ov::element::f16;
-        auto moe_compressed = std::make_shared<ov::intel_gpu::op::MOECompressed>(
+        auto moe_compressed = std::make_shared<ov::op::internal::MOECompressed>(
             ov::OutputVector{hidden_states, unsqueeze_moe, topk_indices,
                 wei_gate, scale_gate, zp_gate, wei_up, scale_up, zp_up, wei_down, scale_down, zp_down}, config);
         model = std::make_shared<ov::Model>(moe_compressed, ov::ParameterVector{hidden_states});
@@ -345,23 +309,25 @@ TEST_F(TransformationTestsF, FuseMOE3GemmCompressed_SigmoidBias_RoutedScalingFac
         auto routing_weights = std::make_shared<ov::op::v0::MatMul>(hidden_states, routers);
 
         auto wei_gate = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {1});
-        auto scale_gate = op::v0::Constant::create(element::f16, Shape{128, 16, 768}, {0.01f});
-        auto zp_gate = op::v0::Constant::create(element::u4, Shape{128, 16, 768}, {0});
+        auto scale_gate = op::v0::Constant::create(element::f16, Shape{128, 768, 16}, {0.01f});
+        auto zp_gate = op::v0::Constant::create(element::u4, Shape{128, 768, 16}, {0});
         auto wei_up = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {1});
-        auto scale_up = op::v0::Constant::create(element::f16, Shape{128, 16, 768}, {0.01f});
-        auto zp_up = op::v0::Constant::create(element::u4, Shape{128, 16, 768, 16}, {0});
+        auto scale_up = op::v0::Constant::create(element::f16, Shape{128, 768, 16}, {0.01f});
+        auto zp_up = op::v0::Constant::create(element::u4, Shape{128, 768, 16}, {0});
         auto wei_down = op::v0::Constant::create(element::u4, Shape{128, 2048, 6, 128}, {1});
-        auto scale_down = op::v0::Constant::create(element::f16, Shape{128, 6, 2048}, {0.01f});
-        auto zp_down = op::v0::Constant::create(element::u4, Shape{128, 6, 2048}, {0});
+        auto scale_down = op::v0::Constant::create(element::f16, Shape{128, 2048, 6}, {0.01f});
+        auto zp_down = op::v0::Constant::create(element::u4, Shape{128, 2048, 6}, {0});
 
-        ov::intel_gpu::op::MOECompressed::Config config;
+        ov::op::internal::MOECompressed::Config config;
+        config.expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
+        config.has_zp = true;
         config.hidden_size = 2048;
         config.inter_size = 768;
         config.num_expert = 128;
         config.group_size = 128;
         config.top_k = 8;
         config.out_type = ov::element::f16;
-        config.routing_type = ov::intel_gpu::op::MOECompressed::RoutingType::SIGMOID_BIAS;
+        config.routing_type = ov::op::internal::MOECompressed::RoutingType::SIGMOID_BIAS;
 
         auto routing_bias = op::v0::Constant::create(element::f16, Shape{1, 128}, {0.1f});
         auto routing_eps = op::v0::Constant::create(element::f16, Shape{1, 1}, {1e-6f});

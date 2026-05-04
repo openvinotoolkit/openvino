@@ -564,7 +564,11 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
                           : ref.run_reference_softmax(hidden_states, routing_weights, w0_data, w1_data, w2_data);
     // SigmoidBias routing performs all routing math (sigmoid, bias, normalization) in f16 on the kernel side,
     // while the reference uses f32, leading to slightly larger numerical divergence than Softmax.
-    const float base_tolerance = routing_type == cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS ? 0.2f : 0.1f;
+    // Sub-128 weight quantization group sizes also accumulate more drift (more group transitions per K).
+    float base_tolerance = routing_type == cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS ? 0.2f : 0.1f;
+    if (config.group_size < 128) {
+        base_tolerance *= 3.0f;
+    }
     const float tolerance = base_tolerance * (config.hidden_size / 128);
     for (size_t i = 0; i < ref_output.size(); ++i) {
         ASSERT_NEAR(static_cast<float>(output_ptr[i]), static_cast<float>(ref_output[i]), tolerance);
@@ -582,7 +586,14 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                                               Moe3GemmTestParams{1, true, 256, 512, 4, 2, 256},
                                                               Moe3GemmTestParams{1, false, 256, 512, 4, 2, 256},
                                                               Moe3GemmTestParams{1, true, 512, 512, 4, 2, 512},
-                                                              Moe3GemmTestParams{1, false, 512, 512, 4, 2, 512})));
+                                                              Moe3GemmTestParams{1, false, 512, 512, 4, 2, 512},
+                                                              // Sub-128 weight quantization group size
+                                                              // (e.g. trinity-mini afmoe uses group_size=64).
+                                                              Moe3GemmTestParams{1, true, 128, 256, 4, 2, 64},
+                                                              Moe3GemmTestParams{16, true, 128, 256, 4, 2, 64},
+                                                              Moe3GemmTestParams{1, false, 128, 256, 4, 2, 64},
+                                                              Moe3GemmTestParams{1, true, 256, 512, 4, 2, 64},
+                                                              Moe3GemmTestParams{1, false, 256, 512, 4, 2, 64})));
 
 class moe_3gemm_compressed_gpu_u4 : public ::testing::TestWithParam<cldnn::MOE3GemmFusedCompressed::RoutingType> {};
 
@@ -847,7 +858,11 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                            Moe3GemmTestParams{1, true, 256, 512, 4, 2, 256},
                                            Moe3GemmTestParams{1, false, 256, 512, 4, 2, 256},
                                            Moe3GemmTestParams{1, true, 512, 512, 4, 2, 512},
-                                           Moe3GemmTestParams{1, false, 512, 512, 4, 2, 512}));
+                                           Moe3GemmTestParams{1, false, 512, 512, 4, 2, 512},
+                                           // Sub-128 group_size (trinity-mini afmoe shape).
+                                           Moe3GemmTestParams{1, true, 128, 256, 4, 2, 64},
+                                           Moe3GemmTestParams{1, false, 128, 256, 4, 2, 64},
+                                           Moe3GemmTestParams{1, true, 256, 512, 4, 2, 64}));
 
 TEST_P(moe_3gemm_compressed_gpu_u4, moe_accuracy_test_u4) {
     auto routing_type = GetParam();
@@ -1172,7 +1187,10 @@ TEST_P(moe_3gemm_compressed_gpu_symmetric_random, moe_accuracy_test_symmetric) {
                           ? ref.run_reference_sigmoid(hidden_states, routing_weights, routing_bias_data, routing_eps_val, w0_data, w1_data, w2_data)
                           : ref.run_reference_softmax(hidden_states, routing_weights, w0_data, w1_data, w2_data);
 
-    const float base_tolerance = routing_type == cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS ? 0.2f : 0.1f;
+    float base_tolerance = routing_type == cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS ? 0.2f : 0.1f;
+    if (config.group_size < 128) {
+        base_tolerance *= 3.0f;
+    }
     const float tolerance = base_tolerance * (config.hidden_size / 128);
     for (size_t i = 0; i < ref_output.size(); ++i) {
         ASSERT_NEAR(static_cast<float>(output_ptr[i]), static_cast<float>(ref_output[i]), tolerance);
@@ -1190,7 +1208,10 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                                               Moe3GemmTestParams{1, true, 256, 512, 4, 2, 256, true},
                                                               Moe3GemmTestParams{1, false, 256, 512, 4, 2, 256, true},
                                                               Moe3GemmTestParams{1, true, 512, 512, 4, 2, 512, true},
-                                                              Moe3GemmTestParams{1, false, 512, 512, 4, 2, 512, true})));
+                                                              Moe3GemmTestParams{1, false, 512, 512, 4, 2, 512, true},
+                                                              // Sub-128 group_size for symmetric quantization.
+                                                              Moe3GemmTestParams{1, true, 128, 256, 4, 2, 64, true},
+                                                              Moe3GemmTestParams{1, false, 128, 256, 4, 2, 64, true})));
 
 // Symmetric quantization test with shared expert
 class moe_3gemm_compressed_gpu_shared_symmetric_random : public ::testing::TestWithParam<Moe3GemmTestParams> {};
@@ -1423,4 +1444,8 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                            Moe3GemmTestParams{1, true, 256, 512, 4, 2, 256, true},
                                            Moe3GemmTestParams{1, false, 256, 512, 4, 2, 256, true},
                                            Moe3GemmTestParams{1, true, 512, 512, 4, 2, 512, true},
-                                           Moe3GemmTestParams{1, false, 512, 512, 4, 2, 512, true}));
+                                           Moe3GemmTestParams{1, false, 512, 512, 4, 2, 512, true},
+                                           // Sub-128 group_size for symmetric shared expert.
+                                           Moe3GemmTestParams{1, true, 128, 256, 4, 2, 64, true},
+                                           Moe3GemmTestParams{1, false, 128, 256, 4, 2, 64, true},
+                                           Moe3GemmTestParams{1, true, 256, 512, 4, 2, 64, true}));
