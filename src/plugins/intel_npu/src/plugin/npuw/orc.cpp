@@ -125,25 +125,23 @@ ov::npuw::orc::Section read_section(ov::npuw::orc::Stream& stream) {
 
 }  // namespace
 
-ov::npuw::orc::Stream::Stream(std::istream* input,
-                              std::ostream* output,
-                              const std::byte* memory,
-                              const std::size_t size)
-    : m_input(input),
-      m_output(output),
-      m_memory(memory),
-      m_memory_size(size) {}
-
 ov::npuw::orc::Stream ov::npuw::orc::Stream::reader(std::istream& stream) {
-    return Stream(&stream, nullptr, nullptr, 0u);
+    Stream s;
+    s.m_input = &stream;
+    return s;
 }
 
 ov::npuw::orc::Stream ov::npuw::orc::Stream::memory_reader(const void* data, const std::size_t size) {
-    return Stream(nullptr, nullptr, reinterpret_cast<const std::byte*>(data), size);
+    Stream s;
+    s.m_memory = reinterpret_cast<const std::byte*>(data);
+    s.m_memory_size = size;
+    return s;
 }
 
 ov::npuw::orc::Stream ov::npuw::orc::Stream::writer(std::ostream& stream) {
-    return Stream(nullptr, &stream, nullptr, 0u);
+    Stream s;
+    s.m_output = &stream;
+    return s;
 }
 
 bool ov::npuw::orc::Stream::input() const {
@@ -213,14 +211,10 @@ ov::npuw::orc::Section ov::npuw::orc::Section::raw(const TypeId type,
                                                    const Version version,
                                                    std::vector<std::byte> payload,
                                                    const SectionFlags flags) {
-    if (has_flag(flags, SectionFlag::CONTAINER)) {
-        OPENVINO_THROW("ORC raw sections cannot be created with the CONTAINER flag");
-    }
-
     Section section;
     section.type = type;
     section.version = version;
-    section.flags = flags;
+    section.flags = flags | SectionFlag::LEAF;
     section.payload = std::move(payload);
     return section;
 }
@@ -232,7 +226,7 @@ ov::npuw::orc::Section ov::npuw::orc::Section::container(const TypeId type,
     Section section;
     section.type = type;
     section.version = version;
-    section.flags = flags | SectionFlag::CONTAINER;
+    section.flags = flags;  // LEAF not set — this is a structural container section
     section.children = std::move(children);
     return section;
 }
@@ -313,4 +307,16 @@ const ov::npuw::orc::Section& ov::npuw::orc::Schema::require_child(const Section
         OPENVINO_THROW("Required ORC child section type ID ", type, " is missing");
     }
     return *child;
+}
+
+bool ov::npuw::orc::is_orc(std::istream& stream) {
+    const auto saved = stream.tellg();
+
+    std::array<std::uint8_t, 8> magic{};
+    stream.read(reinterpret_cast<char*>(magic.data()), magic.size());
+    const bool ok = stream.good() && magic == ORC_FILE_MAGIC;
+
+    stream.clear();
+    stream.seekg(saved);
+    return ok;
 }

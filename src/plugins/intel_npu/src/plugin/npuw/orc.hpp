@@ -33,7 +33,7 @@ using SectionFlags = std::uint32_t;
 
 enum class SectionFlag : SectionFlags {
     OPTIONAL = 1u << 0,
-    CONTAINER = 1u << 1,
+    LEAF = 1u << 1,  // payload contains raw bytes only, no child sections
 };
 
 constexpr SectionFlags operator|(SectionFlag lhs, SectionFlag rhs) {
@@ -48,6 +48,19 @@ constexpr bool has_flag(SectionFlags flags, SectionFlag flag) {
     return (flags & static_cast<SectionFlags>(flag)) != 0u;
 }
 
+class Stream;
+
+namespace detail {
+
+template <typename T, typename = void>
+struct has_member_serialize : std::false_type {};
+
+template <typename T>
+struct has_member_serialize<T, std::void_t<decltype(std::declval<T&>().serialize(std::declval<Stream&>()))>>
+    : std::true_type {};
+
+}  // namespace detail
+
 class Stream {
 public:
     static Stream reader(std::istream& stream);
@@ -59,17 +72,24 @@ public:
     bool memory() const;
     std::size_t remaining() const;
 
+    // Dispatches to value.serialize(*this) when the type provides a member serialize,
+    // otherwise falls back to the free-function serialize(stream, value) found via ADL.
     template <typename T>
     Stream& operator&(T&& value) {
         using plain_type = std::remove_const_t<std::remove_reference_t<T>>;
-        serialize(*this, const_cast<plain_type&>(value));
+        auto& v = const_cast<plain_type&>(value);
+        if constexpr (detail::has_member_serialize<plain_type>::value) {
+            v.serialize(*this);
+        } else {
+            serialize(*this, v);
+        }
         return *this;
     }
 
     void bytes(void* data, std::size_t size);
 
 private:
-    Stream(std::istream* input, std::ostream* output, const std::byte* memory, std::size_t size);
+    Stream() = default;
 
     std::istream* m_input = nullptr;
     std::ostream* m_output = nullptr;
@@ -152,7 +172,7 @@ std::vector<std::byte> encode(const T& value) {
     std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
     auto stream = Stream::writer(buffer);
     auto& mutable_value = const_cast<std::remove_const_t<T>&>(value);
-    serialize(stream, mutable_value);
+    stream & mutable_value;
 
     const auto raw = buffer.str();
     std::vector<std::byte> out(raw.size());
@@ -166,7 +186,7 @@ template <typename T>
 T decode(const std::vector<std::byte>& bytes) {
     auto stream = Stream::memory_reader(bytes.data(), bytes.size());
     T out{};
-    serialize(stream, out);
+    stream & out;
     if (stream.remaining() != 0u) {
         OPENVINO_THROW("ORC payload has trailing bytes");
     }
@@ -191,8 +211,12 @@ struct Section {
         return has_flag(flags, SectionFlag::OPTIONAL);
     }
 
+    bool is_leaf() const {
+        return has_flag(flags, SectionFlag::LEAF);
+    }
+
     bool is_container() const {
-        return has_flag(flags, SectionFlag::CONTAINER);
+        return !is_leaf();
     }
 
     static Section raw(TypeId type, Version version, std::vector<std::byte> payload, SectionFlags flags = 0u);
@@ -206,6 +230,10 @@ Section make_payload_section(TypeId type, Version version, const T& value, Secti
 
 void write_file(std::ostream& stream, const Section& root);
 Section read_file(std::istream& stream);
+
+// Peeks at the stream to check whether it contains an ORC blob.
+// Does not consume any bytes — the stream position is restored on return.
+bool is_orc(std::istream& stream);
 
 class Schema {
 public:

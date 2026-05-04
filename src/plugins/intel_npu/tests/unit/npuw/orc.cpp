@@ -35,39 +35,41 @@ struct MetaV1 {
 
     std::uint32_t subgraph_count = 0u;
     std::vector<std::string> devices;
+
+    void serialize(Stream& stream) {
+        stream & subgraph_count & devices;
+    }
 };
 
-void serialize(Stream& stream, MetaV1& value) {
-    stream & value.subgraph_count & value.devices;
-}
-
 struct MetaV2 : MetaV1 {
-    static constexpr Version kVersion = 2u;
     using Prev = MetaV1;
+    static constexpr Version kVersion = 1u + Prev::kVersion;
 
     bool weightless = false;
 
     MetaV2() = default;
     explicit MetaV2(MetaV1 prev) : MetaV1(std::move(prev)) {}
+
+    void serialize(Stream& stream) {
+        Prev::serialize(stream);
+        stream & weightless;
+    }
 };
 
-void serialize(Stream& stream, MetaV2& value) {
-    stream & static_cast<MetaV1&>(value) & value.weightless;
-}
-
 struct MetaV3 : MetaV2 {
-    static constexpr Version kVersion = 3u;
     using Prev = MetaV2;
+    static constexpr Version kVersion = 1u + Prev::kVersion;
 
     std::string layout;
 
     MetaV3() = default;
     explicit MetaV3(MetaV2 prev) : MetaV2(std::move(prev)) {}
-};
 
-void serialize(Stream& stream, MetaV3& value) {
-    stream & static_cast<MetaV2&>(value) & value.layout;
-}
+    void serialize(Stream& stream) {
+        Prev::serialize(stream);
+        stream & layout;
+    }
+};
 
 void expect_blob_summary(const BlobSummary& expected, const BlobSummary& actual) {
     EXPECT_EQ(expected.subgraph_count, actual.subgraph_count);
@@ -120,6 +122,23 @@ TEST(OrcTest, RejectsTruncatedFile) {
 
     std::stringstream truncated(bytes, std::ios::in | std::ios::out | std::ios::binary);
     EXPECT_THROW(read_file(truncated), ov::Exception);
+}
+
+TEST(OrcTest, IsOrcReturnsTrueForValidBlob) {
+    const auto root = Section::container(TYPE_NCMD, 1u, {make_payload_section(TYPE_META, 1u, BlobSummary{1u, {"NPU"}})});
+
+    std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
+    write_file(buffer, root);
+
+    // is_orc must succeed and leave the stream at its original position
+    EXPECT_TRUE(is_orc(buffer));
+    // read_file must still work after the probe
+    EXPECT_NO_THROW(read_file(buffer));
+}
+
+TEST(OrcTest, IsOrcReturnsFalseForGarbage) {
+    std::stringstream buffer("not an orc blob", std::ios::in | std::ios::out | std::ios::binary);
+    EXPECT_FALSE(is_orc(buffer));
 }
 
 TEST(OrcTest, SchemaSkipsUnknownOptionalChildren) {
