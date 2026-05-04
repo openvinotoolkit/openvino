@@ -9,17 +9,12 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 
-const std::vector<ov::AnyMap> configs = {{{"NPU_COMPILER_TYPE", "PLUGIN"},
-                                          {"NPU_PLATFORM", "NPU4000"},
-                                          {"NPU_COMPILATION_MODE", "HostCompile"},
-                                          {"NPU_CREATE_EXECUTOR", "0"}},
-                                         {{"NPU_COMPILER_TYPE", "PLUGIN"},
-                                          {"NPU_PLATFORM", "NPU5010"},
-                                          {"NPU_COMPILATION_MODE", "HostCompile"},
-                                          {"NPU_CREATE_EXECUTOR", "0"}}};
+const std::vector<std::string> devices = {"NPU.4000", "NPU.5010"};
+
+const std::vector<ov::AnyMap> configs = {
+    {{"NPU_COMPILER_TYPE", "PLUGIN"}, {"NPU_COMPILATION_MODE", "HostCompile"}, {"NPU_CREATE_EXECUTOR", "0"}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          InferWithHostCompileTests,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(configs)),
+                         ::testing::Combine(::testing::ValuesIn(devices), ::testing::ValuesIn(configs)),
                          ov::test::utils::appendPlatformTypeTestName<InferWithHostCompileTests>);

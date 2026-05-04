@@ -18,6 +18,12 @@
 
 #include "openvino/core/except.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/runtime/so_ptr.hpp"
+
+namespace ov {
+class Model;
+class ICompiledModel;
+}  // namespace ov
 
 namespace ov::npuw {
 class CompiledModel;
@@ -49,6 +55,11 @@ public:
     template <typename T>
     bool contains() const {
         return m_entries.find(std::type_index(typeid(T))) != m_entries.end();
+    }
+
+    template <typename T>
+    void erase() {
+        m_entries.erase(std::type_index(typeid(T)));
     }
 
     template <typename T>
@@ -106,10 +117,24 @@ struct Registration {
 
 struct CompiledPipeline;
 struct InferContext;
+struct PartitioningCallbacks {
+    std::function<std::shared_ptr<ov::Model>(const std::string&)> find_tagged_model;
+};
+
+struct CompileContext {
+    std::shared_ptr<ov::Model>& model;
+    ov::SoPtr<ov::ICompiledModel>& compiled_model;
+    const std::vector<std::string>& devices;
+    std::function<ov::SoPtr<ov::ICompiledModel>(const std::shared_ptr<ov::Model>&,
+                                                const std::string&,
+                                                const std::vector<std::string>&)>
+        compile_model;
+};
 
 struct FunctionPipeline {
     Registration registration;
     Context context;
+    std::function<void(ov::npuw::Function&, Context&)> partition_stage;
     std::function<void(CompiledPipeline&, Context&)> compile_stage;
 };
 
@@ -125,16 +150,19 @@ public:
 };
 
 using RuntimeBehaviorFactory = std::function<ISubgraphBehavior::Ptr(const Context&)>;
+using CompileExecutor = std::function<void(CompileContext&)>;
 
 struct RuntimeBehaviorSpec {
     Registration registration;
     Context context;
     RuntimeBehaviorFactory factory;
+    bool handles_function_prologue = false;
 };
 
 struct CompiledPipeline {
     Registration registration;
     Context context;
+    CompileExecutor compile_executor;
     std::optional<RuntimeBehaviorSpec> runtime_behavior;
     bool is_function_call = false;
     std::optional<std::size_t> function_body_subgraph_idx;
@@ -146,6 +174,8 @@ struct InferContext {
     std::size_t subgraph_idx = 0u;
     std::size_t real_subgraph_idx = 0u;
     std::function<void()> legacy_infer;
+    std::function<void()> opaque_prologue;
+    std::function<void()> opaque_run;
 };
 
 using PostLegacyHook = std::function<void(InferContext&)>;
@@ -303,6 +333,7 @@ public:
 
     void apply(ov::npuw::Function& function) const;
     void apply(ov::npuw::Subgraph& subgraph) const;
+    void append_from(const PatternRegistry& other);
 
 private:
     std::vector<PatternRegistration> m_registrations;

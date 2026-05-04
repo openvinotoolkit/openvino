@@ -65,12 +65,9 @@ bool getParameters(const pugi::xml_node& node, const std::string& name, std::vec
 
 template <class T>
 T stringToType(const std::string& valStr) {
-    T ret{0};
-    std::istringstream ss(valStr);
-    if (!ss.eof()) {
-        ss >> ret;
-    }
-    return ret;
+    auto result = ov::util::view_to_number<T>(ov::util::trim(valStr));
+    OPENVINO_ASSERT(result.has_value(), "Cannot parse '", valStr, "' to number");
+    return *result;
 }
 
 bool get_partial_shape_from_attribute(const pugi::xml_node& node, const std::string& name, PartialShape& value) {

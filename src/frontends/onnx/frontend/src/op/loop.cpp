@@ -295,6 +295,18 @@ ov::OutputVector loop(const ov::frontend::onnx::Node& node) {
     }
     body_outputs = std::move(filtered_body_outputs);
 
+    // The InputModel for subgraphs may register parent-scope constants that are
+    // also outputs of the parent graph as additional body outputs (initializer
+    // declared as a body graph output without being consumed by any node).
+    // The Loop body must have exactly 1 (termination cond) + node.get_outputs_size()
+    // outputs, so trim trailing pass-through Constants that are not real loop
+    // outputs.
+    const size_t expected_body_outputs = 1 + node.get_outputs_size();
+    while (body_outputs.size() > expected_body_outputs &&
+           ov::is_type<v0::Constant>(body_outputs.back().get_node_shared_ptr())) {
+        body_outputs.pop_back();
+    }
+
     CHECK_VALID_NODE(node,
                      canonical_inputs.size() >= control_inputs_count &&
                          canonical_inputs.size() - control_inputs_count == loop_carried_dependencies.size(),
