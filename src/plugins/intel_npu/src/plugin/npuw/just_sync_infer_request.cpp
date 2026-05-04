@@ -602,9 +602,12 @@ bool ov::npuw::JustInferRequest::behavior_bind_dynamic_input(std::size_t real_id
     NPUW_ASSERT(func_desc.attention.has_value());
 
     const auto& dynamic = func_desc.attention.value();
-    const bool is_non_param_mask = std::none_of(dynamic.params.begin(), dynamic.params.end(), [&](auto&& param) {
-        return param.idx == input_idx;
-    }) && input_idx != dynamic.mask_idx;
+    const bool is_non_param_mask = std::none_of(dynamic.params.begin(),
+                                                dynamic.params.end(),
+                                                [&](auto&& param) {
+                                                    return param.idx == input_idx;
+                                                }) &&
+                                   input_idx != dynamic.mask_idx;
 
     const auto& iport = func_desc.compiled_model->inputs()[input_idx];
     if (is_non_param_mask) {
@@ -625,9 +628,12 @@ bool ov::npuw::JustInferRequest::behavior_bind_pyramid_input(std::size_t real_id
 
     const auto pyramid_id = m_pyramid_selector->pyramid_id();
     const auto& info = func_desc.pyramid_attention.value()._attention_infos[pyramid_id];
-    const bool is_non_param_mask = std::none_of(info.params.begin(), info.params.end(), [&](auto&& param) {
-        return param.idx == input_idx;
-    }) && input_idx != info.mask_idx;
+    const bool is_non_param_mask = std::none_of(info.params.begin(),
+                                                info.params.end(),
+                                                [&](auto&& param) {
+                                                    return param.idx == input_idx;
+                                                }) &&
+                                   input_idx != info.mask_idx;
 
     const auto& iport = func_desc.compiled_model->inputs()[input_idx];
     if (is_non_param_mask) {

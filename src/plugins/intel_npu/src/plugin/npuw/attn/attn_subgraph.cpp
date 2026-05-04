@@ -40,9 +40,15 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                 auto& request = get_request(ctx);
                 switch (m_kind) {
                 case BehaviorKind::Dynamic:
-                    return request.behavior_bind_dynamic_input(ctx.real_subgraph_idx, ctx.subgraph_idx, input_idx, tensor);
+                    return request.behavior_bind_dynamic_input(ctx.real_subgraph_idx,
+                                                               ctx.subgraph_idx,
+                                                               input_idx,
+                                                               tensor);
                 case BehaviorKind::Pyramid:
-                    return request.behavior_bind_pyramid_input(ctx.real_subgraph_idx, ctx.subgraph_idx, input_idx, tensor);
+                    return request.behavior_bind_pyramid_input(ctx.real_subgraph_idx,
+                                                               ctx.subgraph_idx,
+                                                               input_idx,
+                                                               tensor);
                 case BehaviorKind::HFA:
                     return request.behavior_bind_hfa_input(ctx.subgraph_idx, input_idx, tensor);
                 }

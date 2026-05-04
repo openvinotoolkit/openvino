@@ -144,7 +144,6 @@ public:
     void behavior_run_hfa(std::size_t real_idx, std::size_t idx);
 
 protected:
-
     // HFA helper functions
     static void hfa_extract_and_copy_tile(const ov::SoPtr<ov::ITensor>& source_tensor,
                                           const ov::SoPtr<ov::ITensor>& dest_tensor,
