@@ -85,8 +85,6 @@ public:
 
     static std::streampos getFileSize(std::istream& stream);
 
-    virtual size_t get_metadata_size() const = 0;
-
     /**
      * @brief Returns a uint32_t value which represents two uint16_t values concatenated.
      * @details Convention for bumping the metadata version:
@@ -275,8 +273,6 @@ public:
 
     void write_as_text(std::ostream& stream) override;
 
-    size_t get_metadata_size() const override;
-
 protected:
     OpenvinoVersion _ovVersion;
 };
@@ -309,8 +305,6 @@ public:
 
     std::optional<std::vector<uint64_t>> get_init_sizes() const override;
 
-    size_t get_metadata_size() const override;
-
 private:
     std::optional<std::vector<uint64_t>> _initSizes;
     uint64_t _numberOfInits = 0;
@@ -337,8 +331,6 @@ public:
 
     std::optional<int64_t> get_batch_size() const override;
 
-    size_t get_metadata_size() const override;
-
 private:
     std::optional<int64_t> _batchSize;
 };
@@ -364,8 +356,6 @@ public:
     void write(std::ostream& stream) override;
 
     void write_as_text(std::ostream& stream) override;
-
-    size_t get_metadata_size() const override;
 
     std::optional<std::vector<ov::Layout>> get_input_layouts() const override;
 
@@ -398,8 +388,6 @@ public:
 
     void write_as_text(std::ostream& stream) override;
 
-    size_t get_metadata_size() const override;
-
     std::optional<uint32_t> get_compiler_version() const override;
 
 private:
@@ -430,8 +418,6 @@ public:
 
     void write_as_text(std::ostream& stream) override;
 
-    size_t get_metadata_size() const override;
-
     std::optional<bool> is_encrypted_blob() const override;
 
 private:
@@ -461,8 +447,6 @@ public:
     void write(std::ostream& stream) override;
 
     void write_as_text(std::ostream& stream) override;
-
-    size_t get_metadata_size() const override;
 
     std::optional<std::string> get_runtime_reqs() const override;
 

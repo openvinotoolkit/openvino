@@ -19,7 +19,7 @@ using MetadataUnitTests = ::testing::Test;
 
 namespace {
 
-ov::Tensor makeTextTensor(MetadataBase& meta) {
+ov::Tensor make_text_tensor(MetadataBase& meta) {
     std::ostringstream stream;
     meta.write_as_text(stream);
     const std::string text = stream.str();
@@ -34,7 +34,7 @@ using MetadataHumanReadableTests = ::testing::Test;
 
 TEST_F(MetadataHumanReadableTests, minimalMetadata) {
     auto meta = Metadata<METADATA_VERSION_2_0>(0, CURRENT_OPENVINO_VERSION);
-    const auto tensor = makeTextTensor(meta);
+    const auto tensor = make_text_tensor(meta);
 
     std::unique_ptr<MetadataBase> storedMeta;
     OV_ASSERT_NO_THROW(storedMeta = read_as_text(tensor));
@@ -49,7 +49,7 @@ TEST_F(MetadataHumanReadableTests, minimalMetadata) {
 TEST_F(MetadataHumanReadableTests, initSizes) {
     const std::vector<uint64_t> initSizes{16, 32, 64};
     auto meta = Metadata<METADATA_VERSION_2_1>(0, CURRENT_OPENVINO_VERSION, initSizes);
-    const auto tensor = makeTextTensor(meta);
+    const auto tensor = make_text_tensor(meta);
 
     std::unique_ptr<MetadataBase> storedMeta;
     OV_ASSERT_NO_THROW(storedMeta = read_as_text(tensor));
@@ -63,7 +63,7 @@ TEST_F(MetadataHumanReadableTests, initSizes) {
 
 TEST_F(MetadataHumanReadableTests, emptyInitSizes) {
     auto meta = Metadata<METADATA_VERSION_2_1>(0, CURRENT_OPENVINO_VERSION, std::vector<uint64_t>{});
-    const auto tensor = makeTextTensor(meta);
+    const auto tensor = make_text_tensor(meta);
 
     std::unique_ptr<MetadataBase> storedMeta;
     OV_ASSERT_NO_THROW(storedMeta = read_as_text(tensor));
@@ -74,7 +74,7 @@ TEST_F(MetadataHumanReadableTests, emptyInitSizes) {
 TEST_F(MetadataHumanReadableTests, batchSize) {
     const int64_t batchSize = 4;
     auto meta = Metadata<METADATA_VERSION_2_2>(0, CURRENT_OPENVINO_VERSION, std::nullopt, batchSize);
-    const auto tensor = makeTextTensor(meta);
+    const auto tensor = make_text_tensor(meta);
 
     std::unique_ptr<MetadataBase> storedMeta;
     OV_ASSERT_NO_THROW(storedMeta = read_as_text(tensor));
@@ -85,7 +85,7 @@ TEST_F(MetadataHumanReadableTests, batchSize) {
 
 TEST_F(MetadataHumanReadableTests, zeroBatchSize) {
     auto meta = Metadata<METADATA_VERSION_2_2>(0, CURRENT_OPENVINO_VERSION, std::nullopt, std::nullopt);
-    const auto tensor = makeTextTensor(meta);
+    const auto tensor = make_text_tensor(meta);
 
     std::unique_ptr<MetadataBase> storedMeta;
     OV_ASSERT_NO_THROW(storedMeta = read_as_text(tensor));
@@ -95,7 +95,7 @@ TEST_F(MetadataHumanReadableTests, zeroBatchSize) {
 
 TEST_F(MetadataHumanReadableTests, noLayouts) {
     auto meta = Metadata<METADATA_VERSION_2_3>(0, CURRENT_OPENVINO_VERSION, std::nullopt, std::nullopt, std::nullopt);
-    const auto tensor = makeTextTensor(meta);
+    const auto tensor = make_text_tensor(meta);
 
     std::unique_ptr<MetadataBase> storedMeta;
     OV_ASSERT_NO_THROW(storedMeta = read_as_text(tensor));
@@ -115,7 +115,7 @@ TEST_F(MetadataHumanReadableTests, compilerReqs) {
                                                std::nullopt,
                                                std::nullopt,
                                                reqs);
-    const auto tensor = makeTextTensor(meta);
+    const auto tensor = make_text_tensor(meta);
 
     std::unique_ptr<MetadataBase> storedMeta;
     OV_ASSERT_NO_THROW(storedMeta = read_as_text(tensor));
@@ -133,7 +133,7 @@ TEST_F(MetadataHumanReadableTests, compilerVersion) {
                                                std::nullopt,
                                                std::nullopt,
                                                compilerVersion);
-    const auto tensor = makeTextTensor(meta);
+    const auto tensor = make_text_tensor(meta);
 
     std::unique_ptr<MetadataBase> storedMeta;
     OV_ASSERT_NO_THROW(storedMeta = read_as_text(tensor));
@@ -155,7 +155,7 @@ TEST_F(MetadataHumanReadableTests, allFields) {
                                                compilerVersion,
                                                std::nullopt,
                                                reqs);
-    const auto tensor = makeTextTensor(meta);
+    const auto tensor = make_text_tensor(meta);
 
     std::unique_ptr<MetadataBase> storedMeta;
     OV_ASSERT_NO_THROW(storedMeta = read_as_text(tensor));
