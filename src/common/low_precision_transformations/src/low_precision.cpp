@@ -222,8 +222,7 @@ bool MarkupOptimizations::run_on_model(const std::shared_ptr<ov::Model>& m) {
     for (const auto& tr : additionalMarkupPasses) {
         custom->add_matcher(tr);
     }
-
-    markup.register_pass<low_precision::FilterPrecisionAttribute>();
+    ADD_MATCHER(custom, low_precision::FilterPrecisionAttribute)
 
     markup.run_passes(m);
     return false;
