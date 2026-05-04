@@ -64,7 +64,8 @@ ov::intel_cpu::FallbackUnsupportedLPConvToFP16::FallbackUnsupportedLPConvToFP16(
             return false;
         }
 
-        const auto subtract = subtract_out ? ov::as_type_ptr<ov::op::v1::Subtract>(subtract_out->get_node_shared_ptr()) : nullptr;
+        const auto subtract =
+            subtract_out ? ov::as_type_ptr<ov::op::v1::Subtract>(subtract_out->get_node_shared_ptr()) : nullptr;
         const auto conv = ov::as_type_ptr<ov::op::v1::Convolution>(conv_out->get_node_shared_ptr());
         const auto mul = ov::as_type_ptr<ov::op::v1::Multiply>(mul_out->get_node_shared_ptr());
         const auto add = ov::as_type_ptr<ov::op::v1::Add>(add_out->get_node_shared_ptr());
