@@ -46,6 +46,10 @@ partitioned_modules = {}
 # This lets us reuse a compiled OV model across dynamo retraces where the
 # graph is structurally identical (typical during decode loops).
 structural_cache = {}
+# Per-layer KV-cache ov.Tensor wrappers. The underlying torch tensors live for
+# the whole generate call, so we wrap them once and reuse. Keyed by (layer_name,
+# id(kv_cache_tensor)) so it invalidates if vLLM rebuilds the KV allocator.
+_pa_kv_ovt_cache = {}
 
 
 def _structural_key(gm, args):
@@ -184,18 +188,25 @@ def _bind_paged_attention_side_channel(compiled):
         if kv_cache is not None:
             try:
                 # CPU layout: [2, num_blocks, num_kv_heads, block_size, head_size]
-                # unbind(0) returns contiguous views sharing memory with kv_cache,
-                # so .numpy() is zero-copy.
-                kc, vc = kv_cache.unbind(0)
-                key_cache_np = kc.contiguous().numpy()
-                value_cache_np = vc.contiguous().numpy()
-                # Wrap in ov.Tensor with shared_memory=True so PA writes land in
-                # the torch tensor backing vLLM's KV cache instead of an internal
-                # OV copy.
-                import openvino as _ov
-                key_cache_ovt = _ov.Tensor(key_cache_np, shared_memory=True)
-                value_cache_ovt = _ov.Tensor(value_cache_np, shared_memory=True)
-                # Pin the numpy + torch storage so GC can't reclaim while infer runs
+                # Cache the ov.Tensor wrappers per layer; kv_cache storage is
+                # stable for the whole generate, so we only wrap once.
+                cache_key = (layer_name, id(kv_cache))
+                cached = _pa_kv_ovt_cache.get(cache_key)
+                if cached is not None:
+                    key_cache_ovt, value_cache_ovt, kc, vc, key_cache_np, value_cache_np = cached
+                else:
+                    # unbind(0) returns contiguous views sharing memory with
+                    # kv_cache, so .numpy() is zero-copy.
+                    kc, vc = kv_cache.unbind(0)
+                    key_cache_np = kc.contiguous().numpy()
+                    value_cache_np = vc.contiguous().numpy()
+                    # shared_memory=True so PA writes land in vLLM's KV tensor.
+                    import openvino as _ov
+                    key_cache_ovt = _ov.Tensor(key_cache_np, shared_memory=True)
+                    value_cache_ovt = _ov.Tensor(value_cache_np, shared_memory=True)
+                    _pa_kv_ovt_cache[cache_key] = (
+                        key_cache_ovt, value_cache_ovt, kc, vc, key_cache_np, value_cache_np)
+                # Pin on this call's keepalive too so infer holds valid refs.
                 result.setdefault("__keepalive__", []).extend(
                     [kc, vc, kv_cache, key_cache_np, value_cache_np, key_cache_ovt, value_cache_ovt])
             except Exception:
@@ -479,3 +490,4 @@ def clear_caches():
 
     compiled_cache.clear()
     partitioned_modules.clear()
+    _pa_kv_ovt_cache.clear()
