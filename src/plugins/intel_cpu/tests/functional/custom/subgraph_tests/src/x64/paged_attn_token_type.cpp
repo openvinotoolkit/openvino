@@ -270,18 +270,10 @@ TEST_P(PagedAttnTokenTypeTest, AllTextIsCausal) {
 
     // First prefix_len positions of the full run should match the prefix run exactly
     size_t hidden_dim = head_num * head_size;
-    auto* full_data = result_full.output.data<float>();
-    auto* prefix_data = result_prefix.output.data<float>();
-
-    for (size_t pos = 0; pos < prefix_len; pos++) {
-        for (size_t d = 0; d < hidden_dim; d++) {
-            float diff = std::abs(full_data[pos * hidden_dim + d] - prefix_data[pos * hidden_dim + d]);
-            EXPECT_LT(diff, 1e-5f)
-                << "Causal masking violated: position " << pos << " dim " << d
-                << " differs between seq_len=" << full_len << " and seq_len=" << prefix_len
-                << ", diff=" << diff;
-        }
-    }
+    ov::Tensor full_prefix_view(result_full.output.get_element_type(),
+                                ov::Shape{prefix_len, hidden_dim},
+                                result_full.output.data<float>());
+    ov::test::utils::compare(full_prefix_view, result_prefix.output, 1e-5);
 }
 
 
@@ -345,21 +337,20 @@ TEST_P(PagedAttnTokenTypeTest, TextTokensUnaffected) {
 
     // Text tokens BEFORE the first image group should have identical output
     size_t hidden_dim = head_num * head_size;
-    auto* bidir_data = result_bidir.output.data<float>();
-    auto* causal_data = result_causal.output.data<float>();
 
     size_t first_image_pos = seq_len;
     for (size_t i = 0; i < seq_len; i++) {
         if (pattern.types[i] == 1) { first_image_pos = i; break; }
     }
 
-    for (size_t pos = 0; pos < first_image_pos; pos++) {
-        for (size_t d = 0; d < hidden_dim; d++) {
-            float diff = std::abs(bidir_data[pos * hidden_dim + d] - causal_data[pos * hidden_dim + d]);
-            EXPECT_LT(diff, 1e-5f)
-                << "Text token at position " << pos << " dim " << d
-                << " should be unaffected by token_type_ids, but diff=" << diff;
-        }
+    if (first_image_pos > 0) {
+        ov::Tensor bidir_text(result_bidir.output.get_element_type(),
+                              ov::Shape{first_image_pos, hidden_dim},
+                              result_bidir.output.data<float>());
+        ov::Tensor causal_text(result_causal.output.get_element_type(),
+                               ov::Shape{first_image_pos, hidden_dim},
+                               result_causal.output.data<float>());
+        ov::test::utils::compare(causal_text, bidir_text, 1e-5);
     }
 }
 
@@ -394,12 +385,16 @@ TEST_P(PagedAttnTokenTypeTest, PostImageTextIsCausal) {
     // Text tokens after the last image group should match causal baseline
     for (size_t pos = last_image_pos + 1; pos < seq_len; pos++) {
         ASSERT_EQ(pattern.types[pos], 0) << "Expected text token at position " << pos;
-        for (size_t d = 0; d < hidden_dim; d++) {
-            float diff = std::abs(bidir_data[pos * hidden_dim + d] - causal_data[pos * hidden_dim + d]);
-            EXPECT_LT(diff, 1e-5f)
-                << "Post-image text token at position " << pos << " dim " << d
-                << " should match causal baseline, but diff=" << diff;
-        }
+    }
+    if (last_image_pos + 1 < seq_len) {
+        size_t post_len = seq_len - last_image_pos - 1;
+        ov::Tensor bidir_post(result_bidir.output.get_element_type(),
+                              ov::Shape{post_len, hidden_dim},
+                              bidir_data + (last_image_pos + 1) * hidden_dim);
+        ov::Tensor causal_post(result_causal.output.get_element_type(),
+                               ov::Shape{post_len, hidden_dim},
+                               causal_data + (last_image_pos + 1) * hidden_dim);
+        ov::test::utils::compare(causal_post, bidir_post, 1e-5);
     }
 }
 
