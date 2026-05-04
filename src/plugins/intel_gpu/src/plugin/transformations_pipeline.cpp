@@ -319,7 +319,26 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
 }
 
 bool has_shared_kv_cache_vars(const std::shared_ptr<ov::Model>& model) {
-    for (const auto& op : model->get_ops()) {
+    auto is_sdpa = [](const ov::Node* op) {
+        return ov::is_type<ov::op::v13::ScaledDotProductAttention>(op) ||
+               ov::is_type<ov::intel_gpu::op::SDPA>(op) ||
+               ov::is_type<ov::intel_gpu::op::IndirectSDPA>(op);
+    };
+
+    const auto& ops = model->get_ops();
+    bool has_sdpa = false;
+    for (const auto& op : ops) {
+        if (is_sdpa(op.get())) {
+            has_sdpa = true;
+            break;
+        }
+    }
+
+    if (!has_sdpa) {
+        return false;
+    }
+
+    for (const auto& op : ops) {
         if (!std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(op) &&
             !ov::as_type_ptr<ov::intel_gpu::op::ReadValue>(op))
             continue;
@@ -336,9 +355,7 @@ bool has_shared_kv_cache_vars(const std::shared_ptr<ov::Model>& model) {
         while (!queue.empty()) {
             auto* n = queue.front();
             queue.pop_front();
-            if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(n) ||
-                ov::is_type<ov::intel_gpu::op::IndirectSDPA>(n) ||
-                ov::is_type<ov::intel_gpu::op::SDPA>(n)) {
+            if (is_sdpa(n)) {
                 sdpa_count++;
                 continue;
             }
@@ -1551,7 +1568,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::BroadcastAndPadZeroPointBuffers>(zp_pad_size, device_info.supports_immad);
 
         manager.register_pass<ov::pass::TransposeToReshape>(); // Should be after all transformations that can produce transposes
-        
+
         manager.register_pass<ov::intel_gpu::OptimizeSubsequentReshapes>();
 
         manager.register_pass<ov::intel_gpu::SinkReshape>();
