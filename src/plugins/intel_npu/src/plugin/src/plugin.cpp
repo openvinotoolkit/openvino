@@ -17,7 +17,6 @@
 #include "intel_npu/common/parser_factory.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/config/options.hpp"
-#include "intel_npu/utils/compatibility_string.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "metrics.hpp"
 #include "npuw/compiled_model.hpp"
@@ -396,9 +395,8 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
         OPENVINO_ASSERT(metadata);
 
         const size_t compilerStringSize = metadata->get_blob_size();
-        // Discard everything else but the compiler section
-        decodedString = decodedString.substr(0, compilerStringSize);
-        _logger.debug("Decoded compiler compatibility string: %s length: %zu", decodedString.c_str(), decodedString.length());
+        auto compilerRequirements = metadata->get_compiler_reqs().value_or("");
+        _logger.debug("Retrieved runtime requirements: %s length: %zu", compilerRequirements.c_str(), compilerRequirements.length());
 
         // Implement only the fallback path for now through the PLUGIN compiler type
         std::unique_ptr<ICompilerAdapter> compiler = nullptr;
@@ -412,8 +410,8 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
         }
         OPENVINO_ASSERT(compiler != nullptr);
 
-        // Compiler can validate only if the decoded string describes a blob compatible with the current platform
-        auto result = compiler->validate_compatibility_descriptor(decodedString);
+        // Compiler can validate only if the string describes a blob compatible with the current platform
+        auto result = compiler->validate_compatibility_descriptor(compilerRequirements);
         _logger.debug("Compatibility check result: %s", result ? "met" : "not met");
         if(result) {
             return ov::BlobCompatibility::OPTIMAL;

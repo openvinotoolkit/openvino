@@ -10,7 +10,6 @@
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
-#include "plugin_compiler_adapter.hpp"
 
 namespace {
 

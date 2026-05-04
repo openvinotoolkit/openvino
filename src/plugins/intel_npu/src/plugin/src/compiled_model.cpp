@@ -13,7 +13,6 @@
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
-#include "intel_npu/utils/compatibility_string.hpp"
 #include "metadata.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -251,7 +250,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
                                            std::nullopt,
                                            compilerDescriptor)
             .write_human_readable(requirementsString);
-        _logger.debug("Encoded compatibility string: %s length: %zu", requirementsString.str().c_str(), requirementsString.str().length());
+        _logger.debug("Compatibility string: %s length: %zu", requirementsString.str().c_str(), requirementsString.str().length());
 
         return requirementsString.str();
     }
