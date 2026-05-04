@@ -51,7 +51,7 @@
 #define BLOCK_WRITEN_RAW(type_size, vector_size, addr_space, ptr, offset, val, src_type)                        \
     BLOCK_WRITEN_FUNC(type_size, vector_size)(                                                                  \
         (addr_space BLOCK_WRITE_TYPE(type_size)*)(ptr) + (offset),                                              \
-        AS_TYPE(MAKE_VECTOR_TYPE(BLOCK_WRITE_TYPE(type_size), vector_size), val))
+        AS_TYPE_EXT(MAKE_VECTOR_TYPE(BLOCK_WRITE_TYPE(type_size), vector_size), val, src_type))
 
 #define BLOCK_WRITEN(type, vector_size, ptr, offset, val)                                                       \
     BLOCK_WRITEN_RAW(TYPE_SIZE(type), vector_size, __global, ptr, offset, val, type)
