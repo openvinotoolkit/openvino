@@ -482,6 +482,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         if (device_info.supports_immad) {
             manager.register_pass<ov::pass::ConvertTiledMoeBlockToGatherMatmuls>();
 
+            // f32 listed because this pass runs before ConvertPrecision (line ~588);
+            // f32 activations are lowered to f16 before reaching the f16-only DPAS kernels.
             manager.register_pass<ov::pass::ConvertGatherMatmulToGatherMatmulCompressed>(
                 std::vector<ov::element::Type>{ov::element::f32, ov::element::f16},
                 std::vector<ov::element::Type>{ov::element::u4, ov::element::i4,

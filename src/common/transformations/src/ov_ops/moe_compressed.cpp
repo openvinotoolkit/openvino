@@ -21,7 +21,7 @@ void MOECompressed::validate_and_infer_types() {
 
     set_output_type(0, output_type, get_input_partial_shape(0));
 
-    // gate/up may legally differ from down's group size; just check shape sanity.
+    // Config carries a single group_size; gate/up/down must share it.
     auto check_scale = [&](size_t scale_idx, size_t K, const char* name) {
         if (scale_idx >= get_input_size())
             return;
@@ -38,6 +38,29 @@ void MOECompressed::validate_and_infer_types() {
                         K,
                         " not divisible by scale num_groups=",
                         num_groups);
+        const size_t expected_group_size = K / num_groups;
+        if (m_config.group_size != std::numeric_limits<size_t>::max()) {
+            OPENVINO_ASSERT(expected_group_size == m_config.group_size,
+                            "MOECompressed ",
+                            name,
+                            " scale shape implies group_size=",
+                            expected_group_size,
+                            " but config.group_size=",
+                            m_config.group_size,
+                            " (K=",
+                            K,
+                            ", scale_shape=",
+                            s,
+                            ", num_groups=",
+                            num_groups,
+                            ")");
+        } else {
+            OPENVINO_ASSERT(num_groups == 1,
+                            "MOECompressed config.group_size==SIZE_MAX (per-channel) but ",
+                            name,
+                            " scale has num_groups=",
+                            num_groups);
+        }
     };
     auto check_zp = [&](size_t zp_idx, const char* name) {
         if (zp_idx >= get_input_size())

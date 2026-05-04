@@ -42,6 +42,14 @@ namespace v1 = ov::op::v1;
 namespace v4 = ov::op::v4;
 namespace v8 = ov::op::v8;
 
+// Logical K from a weight shape: rank-3 [E, ofm, K] or rank-4 [E, ofm, G, GS].
+static size_t weight_logical_K(const ov::Shape& shape) {
+    OPENVINO_ASSERT(shape.size() == 3 || shape.size() == 4,
+                    "MOE weight must be rank 3 or 4, got rank ",
+                    shape.size());
+    return shape.size() == 4 ? shape[2] * shape[3] : shape[2];
+}
+
 Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool has_batch_dim) {
     MATCHER_SCOPE(Convert3GatherMatmulMoeBlockToMoeOp);
 
@@ -154,15 +162,14 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool ha
             auto wei_partial_shape = gate_w.get_partial_shape();
             OPENVINO_ASSERT(wei_partial_shape.is_static(), "MOE weight shape should be static.");
             auto weight_shape = wei_partial_shape.to_shape();
-            bool group_compressed = (weight_shape.size() == 4);
 
             auto topk_shape = topk_indices.get_partial_shape();
             OPENVINO_ASSERT(topk_shape[1].is_static(), "K dimension in moe topk input should be static.");
 
-            // Derive group_size from down-scale: gate may have 1 group when hidden_size != inter_size.
-            const auto gate_K = group_compressed ? weight_shape[2] * weight_shape[3] : weight_shape[2];
-            auto down_scale_shape = pm.at(down_scale_m).get_partial_shape().to_shape();
-            const auto down_K = pm.at(down_w_m).get_partial_shape().to_shape().back();
+            // group_size derived from down-scale; weight_logical_K handles rank-3/4.
+            const auto gate_K = weight_logical_K(weight_shape);
+            const auto down_K = weight_logical_K(pm.at(down_w_m).get_partial_shape().to_shape());
+            const auto down_scale_shape = pm.at(down_scale_m).get_partial_shape().to_shape();
             const size_t down_num_groups = (down_scale_shape.size() >= 3) ? down_scale_shape[2] : 1;
             const size_t group_size =
                 (down_num_groups <= 1) ? std::numeric_limits<size_t>::max() : (down_K / down_num_groups);
@@ -365,18 +372,16 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(bool ha
             // Populate compressed config from weight shapes
             auto weight_shape = gate_up_w.get_shape();
             auto scale_shape = pm.at(gate_up_scale_m).get_shape();
-            bool group_compressed = (weight_shape.size() == 4);
-            size_t hidden = group_compressed ? weight_shape[2] * weight_shape[3] : weight_shape[2];
+            const size_t hidden = weight_logical_K(weight_shape);
 
             auto topk_indices_shape = topk_indices.get_partial_shape();
             auto topk_rank = topk_indices_shape.rank().get_length();
             OPENVINO_ASSERT(topk_indices_shape[topk_rank - 1].is_static(),
                             "K dimension in moe topk_indices input should be static.");
 
-            // Derive group_size from down's scale shape rather than gate_up's weight rank
-            // (see GEMM3 branch above for the rationale).
-            auto down_scale_shape = pm.at(down_scale_m).get_partial_shape().to_shape();
-            const auto down_K = pm.at(down_w_m).get_partial_shape().to_shape().back();
+            // group_size derived from down-scale; weight_logical_K handles rank-3/4.
+            const auto down_K = weight_logical_K(pm.at(down_w_m).get_partial_shape().to_shape());
+            const auto down_scale_shape = pm.at(down_scale_m).get_partial_shape().to_shape();
             const size_t down_num_groups = (down_scale_shape.size() >= 3) ? down_scale_shape[2] : 1;
             const size_t group_size =
                 (down_num_groups <= 1) ? std::numeric_limits<size_t>::max() : (down_K / down_num_groups);
