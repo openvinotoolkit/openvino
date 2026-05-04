@@ -319,7 +319,7 @@ ov::AnyMap get_default_common_config(const std::optional<NPUDesc>& npudesc) {
             return;
         }
         auto arch_number = std::stoi(npudesc->arch);
-        if (arch_number < 4000){
+        if (arch_number < 4000) {
             return;
         }
 
