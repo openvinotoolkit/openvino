@@ -361,7 +361,7 @@ public:
         }
 
         // External-memory import relies on Intel external-memory extension API.
-#    if defined(CL_VERSION_3_0)
+#if defined(CL_VERSION_3_0)
         cl_int errcode_ret = CL_SUCCESS;
         const auto cl_ctx =
             static_cast<cl_context>(get_params().at(ov::intel_gpu::ocl_context.name()).as<gpu_handle_param>());
@@ -398,12 +398,12 @@ public:
         auto try_import_external_mem = [&](void* shared_buffer) -> cl_mem {
             const auto shared_handle = static_cast<cl_mem_properties>(reinterpret_cast<intptr_t>(shared_buffer));
             cl_mem_properties ext_mem_props[] = {
-            #ifdef _WIN32
+#    ifdef _WIN32
                 static_cast<cl_mem_properties>(CL_EXTERNAL_MEMORY_HANDLE_OPAQUE_WIN32_KHR),
-            #elif defined(__linux__)
+#    elif defined(__linux__)
                 // Use DMA_BUF — supported by Intel GPU OpenCL (cl_khr_external_memory_dma_buf)
                 static_cast<cl_mem_properties>(CL_EXTERNAL_MEMORY_HANDLE_DMA_BUF_KHR),
-            #endif
+#    endif
                 shared_handle,
                 0,
             };
@@ -427,9 +427,11 @@ public:
             return tensor;
         }
 
-        OPENVINO_THROW("Failed to import external memory handle via clCreateFromExternalMemoryBufferINTEL, error code: ", errcode_ret);
+        OPENVINO_THROW(
+            "Failed to import external memory handle via clCreateFromExternalMemoryBufferINTEL, error code: ",
+            errcode_ret);
 
-#    endif
+#endif
 
         OPENVINO_THROW("External memory import requires OpenCL 1.2+ headers");
         return {};
