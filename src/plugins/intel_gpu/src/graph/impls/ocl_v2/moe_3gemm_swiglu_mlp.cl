@@ -5,8 +5,31 @@
 
 #define unroll_for __attribute__((opencl_unroll_hint)) for
 
-// Fake group size for compatibility and computation performance balance
-#define FAKE_GROUP_SIZE 128
+// Fake group size for compatibility and computation performance balance.
+// Each gk-iteration of the inner GEMV loop processes FAKE_GROUP_SIZE K-elements
+// using a single (scale, zp) entry, so FAKE_GROUP_SIZE must divide both
+// GATE_UP_GROUP_SIZE and DOWN_GROUP_SIZE. The traditional value is 128 which
+// matches the sub_group_block_read tile widths below; for models whose weight
+// quantization uses a smaller group (e.g. 64) we shrink FAKE_GROUP_SIZE so the
+// per-iteration accumulation stays within one quant group.
+#if defined(GATE_UP_GROUP_SIZE) && defined(DOWN_GROUP_SIZE)
+#    if GATE_UP_GROUP_SIZE < DOWN_GROUP_SIZE
+#        define MOE_MIN_GROUP_SIZE GATE_UP_GROUP_SIZE
+#    else
+#        define MOE_MIN_GROUP_SIZE DOWN_GROUP_SIZE
+#    endif
+#    if MOE_MIN_GROUP_SIZE < 128
+#        define FAKE_GROUP_SIZE MOE_MIN_GROUP_SIZE
+#    else
+#        define FAKE_GROUP_SIZE 128
+#    endif
+#else
+#    define FAKE_GROUP_SIZE 128
+#endif
+
+// Number of K-elements each work-item handles per gk-iteration via the
+// intel_sub_group_block_read tile. Drives the inner-loop variant selection.
+#define ELEMS_PER_LANE (FAKE_GROUP_SIZE / SUBGROUP_SIZE)
 
 // HAS_ZP: 1 = asymmetric quantization (subtract zero point), 0 = symmetric (no zero point)
 #if HAS_ZP
@@ -64,7 +87,7 @@ inline void gate_up_gemv_n2x_u4(const __global uchar* weight,
             half z_hf1 = convert_half(z >> 4);
 #endif
 
-#    if SUBGROUP_SIZE == 32
+#    if ELEMS_PER_LANE == 4
             half2 sum0;
             half2 sum1;
             half4 a = as_half4(intel_sub_group_block_read_us4((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
@@ -171,7 +194,7 @@ inline void gate_up_gemv_n2x_u8(const __global uchar* weight,
             half z1 = convert_half(Z[zp_offset + 1]);
 #endif
 
-#    if SUBGROUP_SIZE == 32
+#    if ELEMS_PER_LANE == 4
             float2 sum0;
             float2 sum1;
             half4 a = as_half4(intel_sub_group_block_read_us4((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
@@ -257,7 +280,7 @@ inline void gate_up_gemv_n2x_f16(const __global half* weight, __global half* y, 
         float sum_all0 = 0;
         float sum_all1 = 0;
         unroll_for(int gk = 0; gk < K / FAKE_GROUP_SIZE; gk++) {
-#    if SUBGROUP_SIZE == 32
+#    if ELEMS_PER_LANE == 4
             half2 sum0;
             half2 sum1;
             half4 a = as_half4(intel_sub_group_block_read_us4((const __global ushort*)x2 + gk * FAKE_GROUP_SIZE));
@@ -554,7 +577,7 @@ inline void down_gemv_n2x_u4(const __global uchar* weight,
             half z_hf1 = convert_half(z >> 4);
 #endif
 
-#    if SUBGROUP_SIZE == 32
+#    if ELEMS_PER_LANE == 4
             half2 sum0;
             half2 sum1;
             half4 a = as_half4(intel_sub_group_block_read_us4((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
@@ -655,7 +678,7 @@ inline void down_gemv_n2x_u8(const __global uchar* weight,
             half z1 = convert_half(Z[zp_offset + 1]);
 #endif
 
-#    if SUBGROUP_SIZE == 32
+#    if ELEMS_PER_LANE == 4
             float2 sum0;
             float2 sum1;
             half4 a = as_half4(intel_sub_group_block_read_us4((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
@@ -736,7 +759,7 @@ inline void down_gemv_n2x_f16(const __global half* weight, __global MOE_DTYPE* r
         float sum_all1 = 0;
         unroll_for(int gk = 0; gk < K / FAKE_GROUP_SIZE; gk++) {
 
-#    if SUBGROUP_SIZE == 32
+#    if ELEMS_PER_LANE == 4
             half2 sum0;
             half2 sum1;
             half4 a = as_half4(intel_sub_group_block_read_us4((const __global ushort*)x2 + gk * FAKE_GROUP_SIZE));
