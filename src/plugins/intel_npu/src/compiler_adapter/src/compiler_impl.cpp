@@ -309,10 +309,8 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
                                      buildFlags.c_str(),
                                      buildFlags.size()};
 
-    if (usedVersion.Major >= 7 && usedVersion.Minor >= 6) {
-        // support the lastest vcl api
-        // For VCL 7.7 and later, we can use vclAllocatedExecutableCreate3
-        _logger.debug("Using vclAllocatedExecutableCreate3 for 7.6 <= VCL");
+    if (usedVersion.Major >= 7 && usedVersion.Minor >= 7) {
+        // Support only the lastest VCL api
         vcl_allocator_2 allocator;
         uint8_t* blob = nullptr;
         size_t blobSize = 0;
@@ -337,6 +335,7 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
         OPENVINO_ASSERT(blobSize != 0 && blob != nullptr,
                         "Failed to create VCL executable, the blob size is zero or the blob is null");
 
+        // Retrieve the real allocated size for the blob from the allocator
         std::optional<size_t> alignedBlobSize;
         for (auto [buffer, size] : allocator.m_info) {
             if (buffer == blob) {
@@ -367,7 +366,7 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
         return std::make_pair<ov::Tensor, std::optional<std::string>>(std::move(alignedBlob),
                                                                       std::move(compatibilityString));
     } else {
-        OPENVINO_THROW("Not supported VCL version: %d.%d, please use VCL 6.1 or later",
+        OPENVINO_THROW("Not supported VCL version: %d.%d, please use VCL 7.7 or later",
                        _vclVersion.major,
                        _vclVersion.minor);
     }
@@ -621,6 +620,8 @@ bool VCLCompilerImpl::validate_compatibility_descriptor(const std::string& compa
     const char* optname_ch = ov::compatibility_check.name();
     const char* optvalue_ch = compatibilityDescriptor.c_str();
 
+    // Create a temporary compiler instance for the query to pass the correct device description.
+    // The private compiler instance used by this class was created with default device description.
     vcl_log_handle_t logHandle = nullptr;
     vcl_compiler_handle_t compilerHandle = nullptr;
     try {

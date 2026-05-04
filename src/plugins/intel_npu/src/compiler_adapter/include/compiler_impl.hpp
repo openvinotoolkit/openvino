@@ -29,7 +29,8 @@ public:
      * @param model a shared pointer to the OpenVINO model to be compiled
      * @param config a reference to NPUConfig containing plugin config options
      *        including config options related to compilation
-     * @return an ov::Tensor object containing the blob of the compiled model
+     * @return a pair containing an ov::Tensor object with the compiled model (blob) and an optional
+     *         string with runtime requirements for the blob
      */
     std::pair<ov::Tensor, std::optional<std::string>> compile(const std::shared_ptr<const ov::Model>& model,
                                                               const FilteredConfig& config) const;
@@ -89,7 +90,14 @@ public:
 
     std::shared_ptr<void> getLinkedLibrary() const;
 
-    bool validate_compatibility_descriptor(const std::string& compatibilityDescriptor, vcl_device_desc_t* in_device_desc = nullptr) const;
+    /**
+     * @brief Validates the compatibility descriptor against the current device information.
+     * This function is used as a fallback check when the driver on the system does not support the required API
+     * @param compatibilityDescriptor The compatibility descriptor (string) to be validated
+     * @param in_device_desc Pointer to a device descriptor containing the device ID, number of tiles and stepping information
+     * @return false if the platform does not meet the requirements specified in the compatibility descriptor, true if the platform is compatible
+     */
+    bool validate_compatibility_descriptor(const std::string& compatibilityDescriptor, vcl_device_desc_t* in_device_desc) const;
 
 private:
     /**

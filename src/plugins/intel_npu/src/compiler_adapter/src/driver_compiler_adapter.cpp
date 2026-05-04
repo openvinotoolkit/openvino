@@ -301,7 +301,7 @@ bool DriverCompilerAdapter::is_option_supported(std::string optName, std::option
         // Compatibility string generation is not yet supported through the L0 API
         return false;
     }
-    // COMPATIBILITY_CHECK must signal if compiler adapter supports validateCompatibilityDescriptor
+    // COMPATIBILITY_CHECK must signal if compiler adapter (and the level zero API in this case) supports validateCompatibilityDescriptor
     if(optName == COMPATIBILITY_CHECK::key()) {
         if(optValue.has_value())
             OPENVINO_THROW("Compatibility string should be verified with validate_compatibility_descriptor()");
