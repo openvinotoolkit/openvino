@@ -149,11 +149,37 @@ OutputVector translate_openvino_paged_attention(const NodeContext& context) {
         }
     }
 
+    // Flatten q/k/v to rank-2. Prefer a static Reshape([-1, H*D]) when the
+    // trailing dims are known: that's a single Reshape op vs the dynamic
+    // path's ShapeOf+Gather+Concat+Reshape chain (4 ops × 3 tensors × 16
+    // layers = 192 extra ops of pure shape plumbing).
     auto force_rank2 = [&](Output<Node>& t) {
         const auto& ps = t.get_partial_shape();
-        if (ps.rank().is_static() && ps.rank().get_length() == 2) {
+        const auto r = ps.rank();
+        if (r.is_static() && r.get_length() == 2) {
             return;
         }
+        // Try static path: all dims after the leading num_tokens dim are
+        // known, so target shape is [-1, product(rest)].
+        if (r.is_static()) {
+            bool trailing_static = true;
+            int64_t trailing = 1;
+            for (int i = 1; i < r.get_length(); ++i) {
+                if (ps[i].is_static()) {
+                    trailing *= ps[i].get_length();
+                } else {
+                    trailing_static = false;
+                    break;
+                }
+            }
+            if (trailing_static) {
+                auto target = v0::Constant::create(element::i64, Shape{2},
+                                                   std::vector<int64_t>{-1, trailing});
+                t = std::make_shared<v1::Reshape>(t, target, false);
+                return;
+            }
+        }
+        // Fallback: build [-1, *] at runtime via ShapeOf + trailing-dims.
         auto shp = std::make_shared<v3::ShapeOf>(t, element::i64);
         auto zero_i = v0::Constant::create(element::i64, Shape{1}, {0});
         auto axis0 = v0::Constant::create(element::i64, Shape{}, {0});
