@@ -213,7 +213,12 @@ bool ParallelReadStreamBuf::prefetch(std::streamsize size) {
     // Drop any pre-existing prefetch window; we fill a fresh one below.
     invalidate_prefetch();
 
-    m_prefetch_buf = std::make_unique<char_type[]>(to_load);
+    // Reuse an existing allocation when possible to avoid repeated malloc/free
+    // across consecutive prefetch() calls in the same stream lifetime.
+    if (!m_prefetch_buf || m_prefetch_capacity < to_load) {
+        m_prefetch_buf = std::make_unique<char_type[]>(to_load);
+        m_prefetch_capacity = to_load;
+    }
     const size_t abs_begin_sz = static_cast<size_t>(abs_begin);
 
     // Use the same parallel_read path as the normal large-read code so that
@@ -221,7 +226,6 @@ bool ParallelReadStreamBuf::prefetch(std::streamsize size) {
     const bool ok = (to_load >= m_threshold) ? parallel_read(m_prefetch_buf.get(), to_load, abs_begin_sz)
                                              : single_read(m_prefetch_buf.get(), to_load, abs_begin_sz);
     if (!ok) {
-        m_prefetch_buf.reset();
         return false;
     }
 
@@ -252,7 +256,6 @@ bool ParallelReadStreamBuf::serve_from_prefetch(char* dst, size_t size, std::str
 }
 
 void ParallelReadStreamBuf::invalidate_prefetch() {
-    m_prefetch_buf.reset();
     m_prefetch_begin = 0;
     m_prefetch_size = 0;
 }
