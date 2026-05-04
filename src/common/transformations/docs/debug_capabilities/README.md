@@ -5,7 +5,7 @@ They can be activated at runtime and are useful for analyzing transformation beh
 
 * [Matcher logging](matcher_logging.md)
   When to use: a MatcherPass transformation is not firing or matching unexpectedly — logs the pattern matching process to show why matches succeed or fail.
-  Requires: `-DENABLE_OPENVINO_DEBUG=ON`
+  Requires: `-DENABLE_DEBUG_CAPS=ON`
   Example: `OV_MATCHER_LOGGING=true OV_MATCHERS_TO_LOG=EliminateSplitConcat ./your_program`
 
 * [Transformation profiling](transformation_profiling.md)
