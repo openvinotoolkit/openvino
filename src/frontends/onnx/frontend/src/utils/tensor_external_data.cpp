@@ -8,6 +8,7 @@
 #include <sstream>
 
 #include "exceptions.hpp"
+#include "openvino/runtime/lazy_buffer.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/log.hpp"
 
@@ -83,19 +84,23 @@ Buffer<ov::AlignedBuffer> TensorExternalData::load_external_data(const std::file
     }
 
     uint64_t read_data_length = m_data_length > 0 ? m_data_length : static_cast<uint64_t>(file_size) - m_offset;
+    const auto get_now_buffer = [&]() {
+        // default value of m_offset is 0
+        external_data_stream.seekg(m_offset, std::ios::beg);
 
-    // default value of m_offset is 0
-    external_data_stream.seekg(m_offset, std::ios::beg);
+        auto read_data = std::make_shared<ov::AlignedBuffer>(read_data_length);
+        external_data_stream.read(read_data->get_ptr<char>(), read_data_length);
+        external_data_stream.close();
+        return std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(read_data->get_ptr<char>(),
+                                                                                      read_data->size(),
+                                                                                      read_data);
+    };
+    const auto get_lazy_buffer = [&]() {
+        const auto lazy = std::make_shared<LazyBuffer>(full_path, m_offset, read_data_length);
+        return std::make_shared<SharedBuffer<std::shared_ptr<AlignedBuffer>>>(nullptr, read_data_length, lazy);
+    };
 
-    auto read_data = std::make_shared<ov::AlignedBuffer>(read_data_length);
-    external_data_stream.read(read_data->get_ptr<char>(), read_data_length);
-    external_data_stream.close();
-
-    auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(read_data->get_ptr<char>(),
-                                                                                         read_data->size(),
-                                                                                         read_data);
-
-    return buffer;
+    return /* read_data_length >= 4096 ? get_lazy_buffer() : */ get_lazy_buffer();
 }
 
 Buffer<ov::AlignedBuffer> TensorExternalData::load_external_mem_data() const {
