@@ -219,11 +219,17 @@ MetadataBase::TextFields MetadataBase::parse_text_fields(const ov::Tensor& tenso
             if (c == '[') {
                 depth++;
             } else if (c == ']') {
+                if (depth == 0) {
+                    OPENVINO_THROW("NPU metadata: unmatched ']' while parsing text fields");
+                }
                 depth--;
             } else if (c == ';' && depth == 0) {
                 break;
             }
             pos++;
+        }
+        if (depth != 0) {
+            OPENVINO_THROW("NPU metadata: unclosed '[' in text field value");
         }
         std::string value(data + valueStart, pos - valueStart);
         if (pos < total && data[pos] == ';') {
@@ -340,7 +346,15 @@ void Metadata<METADATA_VERSION_2_0>::read_as_text() {
     }
     const std::string& s = it->second;
     const size_t dot1 = s.find('.');
+    if (dot1 == std::string::npos) {
+        OPENVINO_THROW("Human-readable metadata: '" + std::string(MetadataTextKeys::OV) +
+                       "' is not in MAJOR.MINOR.PATCH format: " + s);
+    }
     const size_t dot2 = s.find('.', dot1 + 1);
+    if (dot2 == std::string::npos || dot2 == dot1 + 1 || dot2 + 1 >= s.size()) {
+        OPENVINO_THROW("Human-readable metadata: '" + std::string(MetadataTextKeys::OV) +
+                       "' is not in MAJOR.MINOR.PATCH format: " + s);
+    }
     _ovVersion = OpenvinoVersion(static_cast<uint16_t>(std::stoul(s.substr(0, dot1))),
                                  static_cast<uint16_t>(std::stoul(s.substr(dot1 + 1, dot2 - dot1 - 1))),
                                  static_cast<uint16_t>(std::stoul(s.substr(dot2 + 1))));
@@ -355,7 +369,8 @@ void Metadata<METADATA_VERSION_2_1>::read_as_text() {
     }
     const std::string& s = it->second;
     if (s.size() < 2 || s.front() != '[' || s.back() != ']') {
-        OPENVINO_THROW("Human-readable metadata: '" + std::string(MetadataTextKeys::WS_INITS) + "' value is not bracket-enclosed: " + s);
+        OPENVINO_THROW("Human-readable metadata: '" + std::string(MetadataTextKeys::WS_INITS) +
+                       "' value is not bracket-enclosed: " + s);
     }
     std::vector<uint64_t> inits;
 

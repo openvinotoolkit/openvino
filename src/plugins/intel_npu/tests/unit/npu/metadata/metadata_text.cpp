@@ -51,6 +51,20 @@ const std::vector<MetadataTextTest::ParamType> inputs = {
          make_key_value_field(MetadataTextKeys::OV, "2026.1.0") + ";" +
          make_key_value_field(MetadataTextKeys::WS_INITS, "16|32|64"),
      false},
+    // unmatched closing bracket in value
+    {make_key_value_field(MetadataTextKeys::META, "2.0") + ";" +
+         make_key_value_field(MetadataTextKeys::OV, "2026.1.0") + ";bad=]value",
+     false},
+    // unclosed opening bracket in value
+    {make_key_value_field(MetadataTextKeys::META, "2.0") + ";" +
+         make_key_value_field(MetadataTextKeys::OV, "2026.1.0") + ";bad=[value",
+     false},
+    // ov field missing second dot (only one dot)
+    {make_key_value_field(MetadataTextKeys::META, "2.0") + ";" + make_key_value_field(MetadataTextKeys::OV, "2026.1"),
+     false},
+    // ov field has no dots at all
+    {make_key_value_field(MetadataTextKeys::META, "2.0") + ";" + make_key_value_field(MetadataTextKeys::OV, "20261"),
+     false},
     {make_key_value_field(MetadataTextKeys::META, "2.6") + ";;" +
          make_key_value_field(MetadataTextKeys::OV, "2026.1.0") + ";",
      false},
