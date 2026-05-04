@@ -242,20 +242,20 @@ void ov::npuw::orc::write_file(std::ostream& stream, const Section& root) {
 }
 
 ov::npuw::orc::Section ov::npuw::orc::read_file(std::istream& stream) {
+    const auto header = is_orc(stream);
+    if (!header) {
+        OPENVINO_THROW("Not an ORC file (invalid magic)");
+    }
+    if (header->version != ORC_FILE_VERSION) {
+        OPENVINO_THROW("Unsupported ORC file version ", header->version);
+    }
+
+    // is_orc() restores the stream position; skip past the file header before reading sections.
+    constexpr auto skip =
+        static_cast<std::streamoff>(ORC_FILE_MAGIC.size() + sizeof(ORC_FILE_VERSION));
+    stream.seekg(skip, std::ios::cur);
+
     auto reader = Stream::reader(stream);
-
-    std::array<std::uint8_t, 8> magic{};
-    reader & magic;
-    if (magic != ORC_FILE_MAGIC) {
-        OPENVINO_THROW("Invalid ORC file magic");
-    }
-
-    std::uint32_t version = 0u;
-    reader & version;
-    if (version != ORC_FILE_VERSION) {
-        OPENVINO_THROW("Unsupported ORC file version ", version);
-    }
-
     return read_section(reader);
 }
 
@@ -309,14 +309,27 @@ const ov::npuw::orc::Section& ov::npuw::orc::Schema::require_child(const Section
     return *child;
 }
 
-bool ov::npuw::orc::is_orc(std::istream& stream) {
+std::optional<ov::npuw::orc::OrcHeader> ov::npuw::orc::is_orc(std::istream& stream) {
     const auto saved = stream.tellg();
+    const auto restore = [&] {
+        stream.clear();
+        stream.seekg(saved);
+    };
 
     std::array<std::uint8_t, 8> magic{};
     stream.read(reinterpret_cast<char*>(magic.data()), magic.size());
-    const bool ok = stream.good() && magic == ORC_FILE_MAGIC;
+    if (!stream.good() || magic != ORC_FILE_MAGIC) {
+        restore();
+        return std::nullopt;
+    }
 
-    stream.clear();
-    stream.seekg(saved);
-    return ok;
+    std::uint32_t version = 0u;
+    stream.read(reinterpret_cast<char*>(&version), sizeof(version));
+    if (!stream.good()) {
+        restore();
+        return std::nullopt;
+    }
+
+    restore();
+    return OrcHeader{version};
 }

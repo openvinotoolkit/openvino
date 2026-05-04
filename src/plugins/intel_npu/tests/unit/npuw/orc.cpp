@@ -42,13 +42,9 @@ struct MetaV1 {
 };
 
 struct MetaV2 : MetaV1 {
-    using Prev = MetaV1;
-    static constexpr Version kVersion = 1u + Prev::kVersion;
+    ORC_DECLARE_VERSION(MetaV2, MetaV1)
 
     bool weightless = false;
-
-    MetaV2() = default;
-    explicit MetaV2(MetaV1 prev) : MetaV1(std::move(prev)) {}
 
     void serialize(Stream& stream) {
         Prev::serialize(stream);
@@ -57,13 +53,9 @@ struct MetaV2 : MetaV1 {
 };
 
 struct MetaV3 : MetaV2 {
-    using Prev = MetaV2;
-    static constexpr Version kVersion = 1u + Prev::kVersion;
+    ORC_DECLARE_VERSION(MetaV3, MetaV2)
 
     std::string layout;
-
-    MetaV3() = default;
-    explicit MetaV3(MetaV2 prev) : MetaV2(std::move(prev)) {}
 
     void serialize(Stream& stream) {
         Prev::serialize(stream);
@@ -130,15 +122,17 @@ TEST(OrcTest, IsOrcReturnsTrueForValidBlob) {
     std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
     write_file(buffer, root);
 
-    // is_orc must succeed and leave the stream at its original position
-    EXPECT_TRUE(is_orc(buffer));
+    // is_orc must return a header and leave the stream at its original position
+    const auto header = is_orc(buffer);
+    ASSERT_TRUE(header.has_value());
+    EXPECT_EQ(header->version, 1u);
     // read_file must still work after the probe
     EXPECT_NO_THROW(read_file(buffer));
 }
 
 TEST(OrcTest, IsOrcReturnsFalseForGarbage) {
     std::stringstream buffer("not an orc blob", std::ios::in | std::ios::out | std::ios::binary);
-    EXPECT_FALSE(is_orc(buffer));
+    EXPECT_FALSE(is_orc(buffer).has_value());
 }
 
 TEST(OrcTest, SchemaSkipsUnknownOptionalChildren) {

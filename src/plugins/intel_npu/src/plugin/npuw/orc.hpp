@@ -228,12 +228,18 @@ Section make_payload_section(TypeId type, Version version, const T& value, Secti
     return Section::raw(type, version, encode(value), flags);
 }
 
+// File-level metadata returned by is_orc().
+struct OrcHeader {
+    std::uint32_t version = 0u;
+};
+
 void write_file(std::ostream& stream, const Section& root);
 Section read_file(std::istream& stream);
 
 // Peeks at the stream to check whether it contains an ORC blob.
+// Returns the file header on success, nullopt if the magic does not match.
 // Does not consume any bytes — the stream position is restored on return.
-bool is_orc(std::istream& stream);
+std::optional<OrcHeader> is_orc(std::istream& stream);
 
 class Schema {
 public:
@@ -341,3 +347,18 @@ Target load_versioned_payload(const Section& section) {
 }  // namespace orc
 }  // namespace npuw
 }  // namespace ov
+
+// Injects the standard versioning boilerplate into a frozen versioned type.
+// PrevType must already define kVersion; ThisType must be the enclosing struct name.
+//
+// Example:
+//   struct MyTypeV2 : MyTypeV1 {
+//       ORC_DECLARE_VERSION(MyTypeV2, MyTypeV1)
+//       int new_field = 0;
+//       void serialize(Stream& stream) { Prev::serialize(stream); stream & new_field; }
+//   };
+#define ORC_DECLARE_VERSION(ThisType, PrevType)                                          \
+    using Prev = PrevType;                                                               \
+    static constexpr ::ov::npuw::orc::Version kVersion = 1u + Prev::kVersion;           \
+    ThisType() = default;                                                                \
+    explicit ThisType(PrevType _prev_init) : PrevType(std::move(_prev_init)) {}
