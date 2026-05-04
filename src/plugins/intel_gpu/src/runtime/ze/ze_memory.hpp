@@ -177,7 +177,7 @@ struct gpu_image2d : public lockable_gpu_mem, public memory {
     void unlock(const stream& stream) override;
     event::ptr fill(stream& stream, unsigned char pattern, const std::vector<event::ptr>& dep_events = {}, bool blocking = true) override;
     shared_mem_params get_internal_params() const override;
-    const ze_image_handle_t get_handle() const {
+    ze_image_handle_t get_handle() const {
         OPENVINO_ASSERT(0 == _lock_count, "[GPU] Cannot get image handle when memory is locked");
         return _image->get_handle();
     }
