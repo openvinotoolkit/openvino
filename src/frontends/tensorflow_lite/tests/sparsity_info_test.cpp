@@ -50,13 +50,14 @@ TEST(SparsityInfoTest, EnableDisablesWhenTraversalOrderEmpty) {
     EXPECT_TRUE(s.is_disabled());
 }
 
-TEST(SparsityInfoTest, EnableDisablesWhenBlockMapEmpty) {
+TEST(SparsityInfoTest, EnableDoesNotDisableWhenBlockMapEmpty) {
     SparsityInfo s;
     s.set_shape({2, 2});
     s.set_traversal_order({0, 1});
     s.set_dim_format({0, 1});
+    // block_map is intentionally absent — valid for standard CSR tensors
     s.enable();
-    EXPECT_TRUE(s.is_disabled());
+    EXPECT_FALSE(s.is_disabled());
 }
 
 // HandsLandmarkFull-style: tf_sparsity is non-null but dim_metadata is empty,

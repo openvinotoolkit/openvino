@@ -164,7 +164,7 @@ def _build_sparsity_params(b, *, include_traversal_order, include_block_map,
     if dim_metadata_mode == "full":
         # Build segments / indices Int32Vector tables BEFORE starting any
         # other table (FlatBuffers nesting rule).
-        segments_table_off = _build_int32_vector_table(b, [0, 0])
+        segments_table_off = _build_int32_vector_table(b, [0, 0, 0])
         indices_table_off = _build_int32_vector_table(b, [])
 
         dim0_off = _build_dim_metadata_dense(b, 2)

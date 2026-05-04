@@ -54,7 +54,8 @@ INSTANTIATE_TEST_SUITE_P(SparseIncomplete,
                              "sparse_incomplete/empty_dim_metadata.tflite",
                              // traversal_order omitted; block_map and dim_metadata present.
                              "sparse_incomplete/missing_traversal_order.tflite",
-                             // block_map omitted; traversal_order and dim_metadata present.
+                             // block_map absent (valid for standard CSR tensors); verifies
+                             // densification succeeds without block_map.
                              "sparse_incomplete/missing_block_map.tflite",
                              // SparsityParameters table referenced but all three fields omitted.
                              "sparse_incomplete/empty_sparsity.tflite",
