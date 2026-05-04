@@ -93,10 +93,10 @@ private:
     size_t m_threshold = default_parallel_io_threshold;
     std::unique_ptr<char_type[]> m_underflow_buf;  ///< lazily allocated buffer for underflow()
 
-    std::unique_ptr<char_type[]> m_prefetch_buf;   ///< host-side prefetch buffer; null when capacity is zero
-    std::streamoff m_prefetch_begin = 0;           ///< absolute file offset of m_prefetch_buf[0]
-    size_t m_prefetch_size = 0;                    ///< valid bytes in m_prefetch_buf (0 = window invalid)
-    size_t m_prefetch_capacity = 0;                ///< allocated capacity of m_prefetch_buf in bytes
+    std::unique_ptr<char_type[]> m_prefetch_buf;  ///< host-side prefetch buffer; null when capacity is zero
+    std::streamoff m_prefetch_begin = 0;          ///< absolute file offset of m_prefetch_buf[0]
+    size_t m_prefetch_size = 0;                   ///< valid bytes in m_prefetch_buf (0 = window invalid)
+    size_t m_prefetch_capacity = 0;               ///< allocated capacity of m_prefetch_buf in bytes
 
     bool serve_from_prefetch(char* dst, size_t size, std::streamoff abs_offset);
     void invalidate_prefetch();
