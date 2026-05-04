@@ -336,7 +336,7 @@ void Metadata<METADATA_VERSION_2_5>::read() {
 void Metadata<METADATA_VERSION_2_0>::read_as_text() {
     const auto it = _text_fields.find(MetadataTextKeys::OV);
     if (it == _text_fields.end()) {
-        OPENVINO_THROW("Human-readable metadata missing 'ov' field.");
+        OPENVINO_THROW("Human-readable metadata missing '" + std::string(MetadataTextKeys::OV) + "' field.");
     }
     const std::string& s = it->second;
     const size_t dot1 = s.find('.');
@@ -355,7 +355,7 @@ void Metadata<METADATA_VERSION_2_1>::read_as_text() {
     }
     const std::string& s = it->second;
     if (s.size() < 2 || s.front() != '[' || s.back() != ']') {
-        OPENVINO_THROW("Human-readable metadata: 'ws_inits' value is not bracket-enclosed: ", s);
+        OPENVINO_THROW("Human-readable metadata: '" + std::string(MetadataTextKeys::WS_INITS) + "' value is not bracket-enclosed: " + s);
     }
     std::vector<uint64_t> inits;
 
