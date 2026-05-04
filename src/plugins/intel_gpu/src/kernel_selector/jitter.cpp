@@ -1395,19 +1395,32 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
             const std::string w = "(-log((" + cf("1.0f") + " - " + x + ") * (" + cf("1.0f") + " + " + x + ")))";
             const std::string s_lo = "(" + w + " - " + cf("2.5f") + ")";
             const std::string s_hi = "(sqrt(" + w + ") - " + cf("3.0f") + ")";
-            const std::string p_lo = horner(s_lo, {"2.81022636e-08f", "3.43273939e-07f", "-3.5233877e-06f",
-                                                   "-4.39150654e-06f", "0.00021858087f", "-0.00125372503f",
-                                                   "-0.00417768164f", "0.246640727f", "1.50140941f"});
-            const std::string p_hi = horner(s_hi, {"-0.000200214257f", "0.000100950558f", "0.00134934322f",
-                                                   "-0.00367342844f", "0.00573950773f", "-0.0076224613f",
-                                                   "-0.00943887047f", "1.00167406f", "2.83297682f"});
+            const std::string p_lo = horner(s_lo,
+                                            {"2.81022636e-08f",
+                                             "3.43273939e-07f",
+                                             "-3.5233877e-06f",
+                                             "-4.39150654e-06f",
+                                             "0.00021858087f",
+                                             "-0.00125372503f",
+                                             "-0.00417768164f",
+                                             "0.246640727f",
+                                             "1.50140941f"});
+            const std::string p_hi = horner(s_hi,
+                                            {"-0.000200214257f",
+                                             "0.000100950558f",
+                                             "0.00134934322f",
+                                             "-0.00367342844f",
+                                             "0.00573950773f",
+                                             "-0.0076224613f",
+                                             "-0.00943887047f",
+                                             "1.00167406f",
+                                             "2.83297682f"});
             const std::string p = "(((" + w + " < " + cf("5.0f") + ") ? " + p_lo + " : " + p_hi + "))";
             const std::string poly = "(" + x + " * " + p + ")";
             // x = 0     -> poly yields 0 naturally.
             // |x| > 1   -> log of a negative produces NaN, propagated by poly.
             // x = +/-1  -> log(0) blows up the polynomial; force +/-inf via x * INFINITY.
-            const std::string body = "((fabs(" + x + ") == " + cf("1.0f") + ") ? (" + x + " * " + elem_inf +
-                                     ") : " + poly + ")";
+            const std::string body = "((fabs(" + x + ") == " + cf("1.0f") + ") ? (" + x + " * " + elem_inf + ") : " + poly + ")";
             jitConstants.AddConstant(MakeJitConstant(macro_def, body));
             break;
         }
