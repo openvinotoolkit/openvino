@@ -164,14 +164,8 @@ TEST(SparsityInfoTest, EnableEnabledOnBlockSparseLayout) {
 TEST(SparsityInfoTest, FullCtorAlreadyEnabled) {
     SparsityInfo::SparsityDataDesc dense_desc{};
     SparsityInfo::SparsityDataDesc sparse_desc{0, kSegmentsSentinel, 0, kIndicesSentinel};
-    SparsityInfo s({2, 2},
-                   {0, 1},
-                   {},
-                   {0, 1},
-                   {dense_desc, sparse_desc},
-                   ov::element::f32,
-                   kDummyValues,
-                   sizeof(kDummyValues));
+    SparsityInfo
+        s({2, 2}, {0, 1}, {}, {0, 1}, {dense_desc, sparse_desc}, ov::element::f32, kDummyValues, sizeof(kDummyValues));
     EXPECT_FALSE(s.is_disabled()) << "Full ctor must call enable() and find all fields populated.";
 }
 

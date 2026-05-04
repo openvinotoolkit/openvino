@@ -91,8 +91,7 @@ INSTANTIATE_TEST_SUITE_P(SparseIncomplete,
 static std::string s_manifest = "";
 
 OPENVINO_TEST(IncompleteSparsityDensify, missing_block_map_runs_densify) {
-    auto model = ov::frontend::tensorflow_lite::tests::convert_model(
-        "sparse_incomplete/missing_block_map.tflite");
+    auto model = ov::frontend::tensorflow_lite::tests::convert_model("sparse_incomplete/missing_block_map.tflite");
 
     auto test_case = ov::test::TestCase(model, ov::test::utils::DEVICE_CPU);
     test_case.add_input<float>(Shape{2, 2}, {10, 20, 30, 40});
