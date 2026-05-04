@@ -91,6 +91,7 @@
 #include "plugin/transformations/increase_position_ids_precision.hpp"
 #include "plugin/transformations/indirect_kv_cache.hpp"
 #include "plugin/transformations/keep_moe_3gemm_const_precision.hpp"
+#include "plugin/transformations/keep_xattention_threshold_precision.hpp"
 #include "plugin/transformations/kv_cache_compression.hpp"
 #include "plugin/transformations/kv_cache_fusion.hpp"
 #include "plugin/transformations/lora_horizontal_fusion.hpp"
@@ -127,6 +128,7 @@
 #include "transformations/common_optimizations/sdpa_scale_fusion.hpp"
 #include "transformations/common_optimizations/shared_ops_optimization.hpp"
 #include "transformations/common_optimizations/softmax_fusion.hpp"
+#include "transformations/common_optimizations/transpose_to_reshape.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp"
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
@@ -590,6 +592,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::KeepDequantizationPrecision>(
             ov::element::TypeVector{ov::element::i32, ov::element::u32, ov::element::u16}, add_precision_sensitive_convert);
+        // Keep xattention threshold in fp32 to avoid boundary issues caused by fp16 quantization.
+        manager.register_pass<ov::intel_gpu::KeepXAttentionThresholdPrecision>();
 
         manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
                                                           empty_fuse_map,
@@ -1495,6 +1499,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         const size_t zp_pad_size = device_info.supports_immad ? 16 : 32;
         manager.register_pass<ov::intel_gpu::BroadcastAndPadZeroPointBuffers>(zp_pad_size, device_info.supports_immad);
 
+        manager.register_pass<ov::pass::TransposeToReshape>(); // Should be after all transformations that can produce transposes
+        
         manager.register_pass<ov::intel_gpu::OptimizeSubsequentReshapes>();
 
         manager.register_pass<ov::intel_gpu::SinkReshape>();

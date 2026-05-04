@@ -84,13 +84,26 @@ float get_xattn_thresh(const kernel_impl_params& params, const size_t seq_idx) {
         OPENVINO_THROW("XAttention threshold input is required at index ", static_cast<size_t>(PagedAttentionInputIdx::XATTENTION_THRESHOLD));
     }
 
-    mem_lock<float16, mem_lock_type::read> lock(it->second, *params.strm);  // converted
-    if (seq_idx >= lock.size()) {
-        OPENVINO_THROW("XAttention threshold input index out of range: seq_idx=", seq_idx, ", input_size=", lock.size());
+    const auto threshold_mem = it->second;
+    const auto dt = threshold_mem->get_layout().data_type;
+
+    if (dt == data_types::f16) {
+        mem_lock<float16, mem_lock_type::read> lock(threshold_mem, *params.strm);
+        if (seq_idx >= lock.size()) {
+            OPENVINO_THROW("XAttention threshold input index out of range: seq_idx=", seq_idx, ", input_size=", lock.size());
+        }
+        return static_cast<float>(lock[seq_idx]);
     }
 
-    const auto thresh = static_cast<float>(lock[seq_idx]);
-    return thresh;
+    if (dt == data_types::f32) {
+        mem_lock<float, mem_lock_type::read> lock(threshold_mem, *params.strm);
+        if (seq_idx >= lock.size()) {
+            OPENVINO_THROW("XAttention threshold input index out of range: seq_idx=", seq_idx, ", input_size=", lock.size());
+        }
+        return lock[seq_idx];
+    }
+
+    OPENVINO_THROW("Unsupported xattention_threshold data type");
 }
 
 // Bypass xattn stages in the following conditions -
@@ -154,13 +167,13 @@ JitConstants PagedAttentionGeneratorBase::get_jit_constants(const kernel_impl_pa
         const auto desc = params.typed_desc<paged_attention>();
         if (desc->is_key_by_channel) {
             jit.make("KV_CACHE_COMPRESSION", 2);
-            jit.make("SUB_BLOCK_SIZE", KV_SUB_BLOCK_SIZE);
         } else {
             jit.make("KV_CACHE_COMPRESSION", 1);
         }
     } else {
         jit.make("KV_CACHE_COMPRESSION", 0);
     }
+    jit.make("SUB_BLOCK_SIZE", KV_SUB_BLOCK_SIZE);
 
     return jit;
 }
@@ -583,13 +596,17 @@ JitConstants XAttentionEstimateGeneratorBase::get_jit_constants(const kernel_imp
     jit.make("IS_CAUSAL", 1);
     if (get_kv_compressed(params)) {
         if (desc->is_key_by_channel) {
-            jit.make("HEAD_SIZE_KEY", desc->k_head_size + desc->k_head_size / 4);
+            jit.make("KV_CACHE_COMPRESSION", 2);
+            jit.make("HEAD_SIZE_KEY", desc->k_head_size + 4 * desc->k_head_size / KV_SUB_BLOCK_SIZE);
         } else {
+            jit.make("KV_CACHE_COMPRESSION", 1);
             jit.make("HEAD_SIZE_KEY", desc->k_head_size + 2 * 2);
         }
     } else {
+        jit.make("KV_CACHE_COMPRESSION", 0);
         jit.make("HEAD_SIZE_KEY", desc->k_head_size);
     }
+    jit.make("SUB_BLOCK_SIZE", KV_SUB_BLOCK_SIZE);
     jit.make("SOFTMAX_TYPE", "float");
 
     return jit;

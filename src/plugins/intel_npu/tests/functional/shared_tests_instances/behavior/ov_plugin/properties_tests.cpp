@@ -5,6 +5,7 @@
 #include "behavior/ov_plugin/properties_tests.hpp"
 
 #include <array>
+#include <openvino/util/codec_xor.hpp>
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
@@ -26,14 +27,30 @@ constexpr std::vector<T> operator+(const std::vector<T>& vector1, const std::vec
 
 ov::log::Level getTestsLogLevelFromEnvironmentOr(ov::log::Level instead) {
     if (auto var = std::getenv("OV_NPU_LOG_LEVEL")) {
-        std::istringstream stringStream = std::istringstream(var);
-        ov::log::Level level;
+        try {
+            std::istringstream stringStream = std::istringstream(var);
+            ov::log::Level level;
 
-        stringStream >> level;
+            stringStream >> level;
 
-        return level;
+            return level;
+        } catch (...) {
+            // ignore parsing errors and return default log level
+        }
     }
     return instead;
+}
+
+const std::vector<std::string> anyMapVecToStringVec(const std::vector<ov::AnyMap>& anyMaps) {
+    std::vector<std::string> result;
+    for (const auto& anyMap : anyMaps) {
+        for (const auto& keyValue : anyMap) {
+            if (std::find(result.begin(), result.end(), keyValue.first) == result.end()) {
+                result.push_back(keyValue.first);
+            }
+        }
+    }
+    return result;
 }
 
 const std::vector<ov::AnyMap> compat_CorrectPluginMutableProperties = {
@@ -46,6 +63,7 @@ const std::vector<ov::AnyMap> compat_CorrectPluginMutableProperties = {
     {{ov::log::level.name(), ov::log::Level::ERR}},
     {{ov::device::id.name(), removeDeviceNameOnlyID(ov::test::utils::getTestsPlatformFromEnvironmentOr("3720"))}},
     {{ov::enable_profiling.name(), true}},
+    {{ov::cache_encryption_callbacks.name(), ov::EncryptionCallbacks{ov::util::codec_xor, ov::util::codec_xor}}},
 };
 
 const std::vector<ov::AnyMap> CorrectPluginMutableProperties = {
@@ -198,7 +216,8 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_BehaviorTests_OVCheckSetSupportedRWMetricsPropsTests,
     OVCheckSetSupportedRWMetricsPropsTests,
     ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                       ::testing::ValuesIn(getRWMandatoryPropertiesValues(compat_CorrectPluginMutableProperties))),
+                       ::testing::ValuesIn(OVCheckSetSupportedRWMetricsPropsTests::getRWMandatoryPropertiesValues(
+                           anyMapVecToStringVec(compat_CorrectPluginMutableProperties)))),
     (ov::test::utils::appendPlatformTypeTestName<OVCheckSetSupportedRWMetricsPropsTests>));
 
 INSTANTIATE_TEST_SUITE_P(

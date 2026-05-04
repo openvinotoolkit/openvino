@@ -691,11 +691,11 @@ void primitive_inst::realloc_intermediates() {
             // we'll need additional handle for that purpose like need_reset_output_memory
             const bool need_reset = false;
             if (i < _intermediates_memory.size()) {
-                _intermediates_memory[i] = allocate_internal_buffer(buffer_descs[i].m_layout, i, need_reset, need_lockable);
+                _intermediates_memory[i] = allocate_internal_buffer(buffer_descs[i].m_layout, i, need_reset, need_lockable, buffer_descs[i].m_shareable);
                 _max_intermediates_memory_sizes[i] = _intermediates_memory[i]->size();
             } else {
                 // i-th layout has not been allocated yet
-                _intermediates_memory.push_back(allocate_internal_buffer(buffer_descs[i].m_layout, i, need_reset, need_lockable));
+                _intermediates_memory.push_back(allocate_internal_buffer(buffer_descs[i].m_layout, i, need_reset, need_lockable, buffer_descs[i].m_shareable));
                 _max_intermediates_memory_sizes.push_back(_intermediates_memory[i]->size());
             }
             GPU_DEBUG_CODE(memalloc_info +=
@@ -2356,7 +2356,6 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
     , _fused_mem_offset((_fused_mem_count > 0 && node.get_first_fused_dep_idx() > 0) ? static_cast<uint64_t>(node.get_first_fused_dep_idx()) : 0)
     , _can_be_optimized(node.can_be_optimized())
     , _can_share_buffer(node.can_share_buffer())
-    , _can_share_internal_buffer(node.can_share_internal_buffer())
     , _is_constant(node.is_constant())
     , _needs_completion_event(is_any_user_cpu(node.get_users()) || node.is_output()) {
     // When dynamic shape node has huge upper boundary which causes bigger mem size than system max allocable mem size, do not allocate in build time.
@@ -2428,7 +2427,7 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
     OPENVINO_ASSERT(_max_output_layout_count.size() == get_node().get_output_layouts().size());
 }
 
-memory::ptr primitive_inst::allocate_internal_buffer(const layout& layout, size_t idx, bool reset, bool lockable) {
+memory::ptr primitive_inst::allocate_internal_buffer(const layout& layout, size_t idx, bool reset, bool lockable, bool shareable) {
     if (_impl == nullptr || _outputs.empty() || _outputs[0] == nullptr)
         return nullptr;
 
@@ -2492,7 +2491,7 @@ memory::ptr primitive_inst::allocate_internal_buffer(const layout& layout, size_
                              *_node,
                              layout,
                              alloc_type,
-                             can_share_internal_buffer(),
+                             shareable,
                              _runtime_memory_dependencies,
                              reset,
                              _intermediates_memory.size() > idx ? _intermediates_memory[idx].get() : nullptr);
@@ -2513,7 +2512,7 @@ void primitive_inst::allocate_internal_buffers(bool reset) {
     for (size_t i = 0; i < buffer_descs.size(); ++i) {
         if (buffer_descs[i].m_layout.get_linear_size() == 0)
             continue;
-        intermediates_memory.push_back(allocate_internal_buffer(buffer_descs[i].m_layout, i, reset));
+        intermediates_memory.push_back(allocate_internal_buffer(buffer_descs[i].m_layout, i, reset, buffer_descs[i].m_lockable, buffer_descs[i].m_shareable));
         _max_intermediates_memory_sizes.push_back(intermediates_memory[i]->size());
     }
     _intermediates_memory = intermediates_memory;

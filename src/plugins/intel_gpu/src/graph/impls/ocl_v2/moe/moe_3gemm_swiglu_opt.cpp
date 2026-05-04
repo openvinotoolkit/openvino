@@ -13,7 +13,6 @@
 #    include <algorithm>
 #    include <initializer_list>
 #    include <oneapi/dnnl/dnnl.hpp>
-#    include <oneapi/dnnl/dnnl_ocl.hpp>
 #    include <sstream>
 #    include <string_view>
 #    include <tuple>
@@ -854,9 +853,6 @@ dnnl::memory convert2dnnl(const memory::ptr& ptr, const std::vector<int64_t>& di
     return ptr->get_onednn_memory(dnnl::memory::desc(dnnl::memory::dims(dim), convert_data_type(ptr->get_layout().data_type), tag), offset);
 }
 
-static bool use_micro_gemm_prefill;
-static bool use_gpu_mask_gen_prefill;
-static bool use_grouped_gemm_prefill;
 class moe_3gemm_swiglu_opt_impl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::MoE3GemmSwigluImpl)
@@ -952,6 +948,11 @@ public:
     std::shared_ptr<onednn_linear> _shared_up_proj;
     std::shared_ptr<onednn_linear> _shared_down_proj;
     std::shared_ptr<onednn_linear> _shared_gate_gate_proj;  // The scalar gate for shared expert
+
+    // Instance-specific flags (not static to avoid race conditions)
+    bool use_micro_gemm_prefill = false;
+    bool use_gpu_mask_gen_prefill = false;
+    bool use_grouped_gemm_prefill = false;
 
     moe_3gemm_swiglu_opt_impl() : PrimitiveImplOCL(moe_3gemm_swiglu_opt::get_type_info_static()) {}
     moe_3gemm_swiglu_opt_impl(const program_node& node, const RuntimeParams& params) : moe_3gemm_swiglu_opt_impl() {
@@ -2214,8 +2215,6 @@ public:
         auto cur_moe = instance.get_typed_desc<moe_3gemm_fused_compressed>();
         const auto& config = cur_moe->_config;
         auto& dnn_stream = stream.get_onednn_stream();
-        auto& engine = instance.get_network().get_engine();
-        auto& onednn_engine = engine.get_onednn_engine();
 
         auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES));
         auto token_num = get_seq_len(hidden_states_layout);
@@ -2320,8 +2319,19 @@ public:
         // ----------------------------------------------------------------
         // Steps 3-5: OneDNN grouped GEMM – gate, up, SiLU, down
         // ----------------------------------------------------------------
+        // SAFETY CHECK: Verify grouped_offsets buffer exists before accessing
+        if (intermediates_memories.size() <= MOE_INTERNAL_BUFFER_GROUPED_OFFSETS) {
+            OPENVINO_THROW("[MOE_3GEMM_GROUPED_BUG] Grouped GEMM path requires buffer ",
+                           MOE_INTERNAL_BUFFER_GROUPED_OFFSETS,
+                           " (GROUPED_OFFSETS) but only ",
+                           intermediates_memories.size(),
+                           " buffers allocated. ",
+                           "This indicates a mismatch between buffer allocation and execution path. ",
+                           "use_grouped_gemm_prefill=",
+                           use_grouped_gemm_prefill);
+        }
         auto& gk = get_grouped_kernel(total_gathered_tokens, instance);
-        auto* offsets_ptr = intermediates_memories[MOE_INTERNAL_BUFFER_GROUPED_OFFSETS]->buffer_ptr();
+        auto row_offsets = intermediates_memories[MOE_INTERNAL_BUFFER_GROUPED_OFFSETS];
 
         // Runtime dispatch hint: actual max tokens assigned to any single expert.
         // Passed as DNNL_ARG_HINT_MAX_GROUP_SIZE to each grouped matmul execute(),
@@ -2330,26 +2340,12 @@ public:
         auto hint_md = dnnl::memory::desc::host_scalar(dnnl::memory::data_type::s32);
         dnnl::memory hint_mem(hint_md, static_cast<int32_t>(max_tokens_per_expert));
 
-        // Helper: wrap a flat USM buffer as an OneDNN grouped memory (data + expert row-offsets)
-        auto make_grouped_mem = [&](const dnnl::memory::desc& md, void* buf_ptr) {
-            return dnnl::ocl_interop::make_memory(md,
-                                                  onednn_engine,
-                                                  dnnl::ocl_interop::memory_kind::usm,
-                                                  {reinterpret_cast<uint8_t*>(buf_ptr), reinterpret_cast<uint8_t*>(offsets_ptr)});
-        };
-
         // gate GEMM: [total, hidden] * W_gate[E,hidden,inter] -> [total, inter]
         {
-            auto src_mem = make_grouped_mem(gk.gate_pd.src_desc(), scratch.x->buffer_ptr());
-            auto dst_mem = make_grouped_mem(gk.gate_pd.dst_desc(), scratch.gate->buffer_ptr());
-            auto w_mem = dnnl::ocl_interop::make_memory(gk.gate_pd.weights_desc(),
-                                                        onednn_engine,
-                                                        dnnl::ocl_interop::memory_kind::usm,
-                                                        scratch.moe_fusion_wei_addr.weight[0]->buffer_ptr());
-            auto scale_mem = dnnl::ocl_interop::make_memory(gk.gate_scale_md,
-                                                            onednn_engine,
-                                                            dnnl::ocl_interop::memory_kind::usm,
-                                                            scratch.moe_fusion_wei_addr.scale[0]->buffer_ptr());
+            auto src_mem = scratch.x->get_onednn_grouped_memory(gk.gate_pd.src_desc(), *row_offsets);
+            auto dst_mem = scratch.gate->get_onednn_grouped_memory(gk.gate_pd.dst_desc(), *row_offsets);
+            auto w_mem = scratch.moe_fusion_wei_addr.weight[0]->get_onednn_memory(gk.gate_pd.weights_desc());
+            auto scale_mem = scratch.moe_fusion_wei_addr.scale[0]->get_onednn_memory(gk.gate_scale_md);
 
             std::unordered_map<int, dnnl::memory> args{{DNNL_ARG_SRC, src_mem},
                                                        {DNNL_ARG_WEIGHTS, w_mem},
@@ -2357,27 +2353,17 @@ public:
                                                        {DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem},
                                                        {DNNL_ARG_HINT_MAX_GROUP_SIZE, hint_mem}};
             if (gk.has_zp) {
-                args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS,
-                             dnnl::ocl_interop::make_memory(gk.gate_zp_md,
-                                                            onednn_engine,
-                                                            dnnl::ocl_interop::memory_kind::usm,
-                                                            scratch.moe_fusion_wei_addr.zp[0]->buffer_ptr())});
+                args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, scratch.moe_fusion_wei_addr.zp[0]->get_onednn_memory(gk.gate_zp_md)});
             }
             gk.gate_prim.execute(dnn_stream, args);
         }
 
         // up GEMM: [total, hidden] * W_up[E,hidden,inter] -> [total, inter]
         {
-            auto src_mem = make_grouped_mem(gk.up_pd.src_desc(), scratch.x->buffer_ptr());
-            auto dst_mem = make_grouped_mem(gk.up_pd.dst_desc(), scratch.up->buffer_ptr());
-            auto w_mem = dnnl::ocl_interop::make_memory(gk.up_pd.weights_desc(),
-                                                        onednn_engine,
-                                                        dnnl::ocl_interop::memory_kind::usm,
-                                                        scratch.moe_fusion_wei_addr.weight[1]->buffer_ptr());
-            auto scale_mem = dnnl::ocl_interop::make_memory(gk.up_scale_md,
-                                                            onednn_engine,
-                                                            dnnl::ocl_interop::memory_kind::usm,
-                                                            scratch.moe_fusion_wei_addr.scale[1]->buffer_ptr());
+            auto src_mem = scratch.x->get_onednn_grouped_memory(gk.up_pd.src_desc(), *row_offsets);
+            auto dst_mem = scratch.up->get_onednn_grouped_memory(gk.up_pd.dst_desc(), *row_offsets);
+            auto w_mem = scratch.moe_fusion_wei_addr.weight[1]->get_onednn_memory(gk.up_pd.weights_desc());
+            auto scale_mem = scratch.moe_fusion_wei_addr.scale[1]->get_onednn_memory(gk.up_scale_md);
 
             std::unordered_map<int, dnnl::memory> args{{DNNL_ARG_SRC, src_mem},
                                                        {DNNL_ARG_WEIGHTS, w_mem},
@@ -2385,11 +2371,7 @@ public:
                                                        {DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem},
                                                        {DNNL_ARG_HINT_MAX_GROUP_SIZE, hint_mem}};
             if (gk.has_zp) {
-                args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS,
-                             dnnl::ocl_interop::make_memory(gk.up_zp_md,
-                                                            onednn_engine,
-                                                            dnnl::ocl_interop::memory_kind::usm,
-                                                            scratch.moe_fusion_wei_addr.zp[1]->buffer_ptr())});
+                args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, scratch.moe_fusion_wei_addr.zp[1]->get_onednn_memory(gk.up_zp_md)});
             }
             gk.up_prim.execute(dnn_stream, args);
         }
@@ -2411,16 +2393,10 @@ public:
 
         // down GEMM: [total, inter] * W_down[E,inter,hidden] -> [total, hidden]
         {
-            auto src_mem = make_grouped_mem(gk.down_pd.src_desc(), scratch.gate->buffer_ptr());
-            auto dst_mem = make_grouped_mem(gk.down_pd.dst_desc(), scratch.y->buffer_ptr());
-            auto w_mem = dnnl::ocl_interop::make_memory(gk.down_pd.weights_desc(),
-                                                        onednn_engine,
-                                                        dnnl::ocl_interop::memory_kind::usm,
-                                                        scratch.moe_fusion_wei_addr.weight[2]->buffer_ptr());
-            auto scale_mem = dnnl::ocl_interop::make_memory(gk.down_scale_md,
-                                                            onednn_engine,
-                                                            dnnl::ocl_interop::memory_kind::usm,
-                                                            scratch.moe_fusion_wei_addr.scale[2]->buffer_ptr());
+            auto src_mem = scratch.gate->get_onednn_grouped_memory(gk.down_pd.src_desc(), *row_offsets);
+            auto dst_mem = scratch.y->get_onednn_grouped_memory(gk.down_pd.dst_desc(), *row_offsets);
+            auto w_mem = scratch.moe_fusion_wei_addr.weight[2]->get_onednn_memory(gk.down_pd.weights_desc());
+            auto scale_mem = scratch.moe_fusion_wei_addr.scale[2]->get_onednn_memory(gk.down_scale_md);
 
             std::unordered_map<int, dnnl::memory> args{{DNNL_ARG_SRC, src_mem},
                                                        {DNNL_ARG_WEIGHTS, w_mem},
@@ -2428,11 +2404,7 @@ public:
                                                        {DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem},
                                                        {DNNL_ARG_HINT_MAX_GROUP_SIZE, hint_mem}};
             if (gk.has_zp) {
-                args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS,
-                             dnnl::ocl_interop::make_memory(gk.down_zp_md,
-                                                            onednn_engine,
-                                                            dnnl::ocl_interop::memory_kind::usm,
-                                                            scratch.moe_fusion_wei_addr.zp[2]->buffer_ptr())});
+                args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, scratch.moe_fusion_wei_addr.zp[2]->get_onednn_memory(gk.down_zp_md)});
             }
             gk.down_prim.execute(dnn_stream, args);
         }
@@ -2558,6 +2530,16 @@ public:
             // same in-order OCL queue, so submission order guarantees execution order.
             // No explicit wait() is needed — the in-order queue serializes all GPU work,
             // and any subsequent primitive on the same queue will see the completed output.
+            if (use_grouped_gemm_prefill && ret_env) {
+                // ensure grouped GEMM fully completes before executing shared expert, which relies on its output being ready;
+                // For grouped_gemm path, scatter_reduce (OCL) is preceded by multiple OCL <--> OneDNN
+                // transitions inside exec_prefill_grouped_gemm. The implicit ordering between
+                // the OCL queue and OneDNN's stream cannot be relied upon across this many
+                // back-and-forth submissions, so the shared expert's down_proj sum post-op
+                // (which reads+writes final_hidden_states) can race with scatter_reduce.
+                // Force the scatter_reduce write to be visible before submitting the shared expert.
+                ret_env->wait();
+            }
             execute_shared_expert(stream.get_onednn_stream(), static_cast<int>(token_num), hidden_states_mem_ptr, final_hidden_states_mem_ptr, scratch);
         }
         return ret_env;
