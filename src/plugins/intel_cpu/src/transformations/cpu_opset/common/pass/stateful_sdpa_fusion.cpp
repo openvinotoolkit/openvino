@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <deque>
 #include <memory>
+#include <string>
 #include <tuple>
 #include <unordered_map>
 #include <unordered_set>
