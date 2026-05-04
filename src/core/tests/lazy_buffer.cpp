@@ -48,7 +48,7 @@ public:
 TEST_F(LazyBufferTest, incorrect_file) {
     OV_EXPECT_THROW(std::ignore = std::make_unique<LazyBuffer>(std::filesystem::path{"no_file"}, 1, 2),
                     AssertFailure,
-                    ::testing::HasSubstr("File does not exist"));
+                    ::testing::HasSubstr("If file exists"));
 
     write_test_data(4);
 
@@ -56,7 +56,7 @@ TEST_F(LazyBufferTest, incorrect_file) {
     for (const auto& [offset, size] : test_params) {
         OV_EXPECT_THROW(std::ignore = std::make_unique<LazyBuffer>(m_file_path, offset, size),
                         AssertFailure,
-                        ::testing::HasSubstr("File size is smaller than the requested view"));
+                        ::testing::HasSubstr("size is smaller than requested range"));
     }
 }
 
@@ -65,8 +65,9 @@ TEST_F(LazyBufferTest, read_file) {
     const auto test_params = std::vector<std::tuple<size_t, size_t, size_t>>{{0, 10, 64},
                                                                              {5, 20, 64},
                                                                              {50, 100, 64},
-                                                                             {0, m_test_data.size(), 64},
-                                                                             {14, 15, 29}};
+                                                                             {0, m_test_data.size(), 4096},
+                                                                             {14, 15, 29},
+                                                                             {128, 256, 1001}};
     for (const auto& [offset, size, alignment] : test_params) {
         std::unique_ptr<AlignedBuffer> buffer = std::make_unique<LazyBuffer>(m_file_path, offset, size, alignment);
         char* data_ptr = nullptr;
@@ -105,7 +106,7 @@ TEST_F(LazyBufferTest, load_on_first_get_ptr) {
     EXPECT_TRUE(std::equal(second_ptr, second_ptr + size, first_rewrite.begin()));
 }
 
-TEST_F(LazyBufferTest, unload_and_reload) {
+TEST_F(LazyBufferTest, evict_and_reload) {
     write_test_data(128);
 
     constexpr size_t offset = 31;
@@ -113,7 +114,7 @@ TEST_F(LazyBufferTest, unload_and_reload) {
     const std::vector<char> first_rewrite{'L', 'A', 'Z', 'Y', ' ', 'D', 'A', 'T', 'A'};
     const std::vector<char> second_rewrite{'O', 'V', 'E', 'R', 'W', 'R', 'I', 'T', 'E'};
 
-    const auto buffer = std::make_unique<LazyBuffer>(m_file_path, offset, size);
+    const auto buffer = std::make_unique<LazyBuffer>(m_file_path, offset, size, 277);
 
     overwrite_test_data(offset, first_rewrite);
     char* first_ptr = nullptr;
@@ -121,18 +122,18 @@ TEST_F(LazyBufferTest, unload_and_reload) {
     ASSERT_NE(first_ptr, nullptr);
     ASSERT_TRUE(std::equal(first_ptr, first_ptr + size, first_rewrite.begin()));
 
-    // After unload(), get_ptr() should load the same file content again
-    buffer->unload();
+    // After evict(), get_ptr() should load the same file content again
+    buffer->evict();
     ASSERT_NO_THROW((first_ptr = buffer->get_ptr<char>()));
     ASSERT_NE(first_ptr, nullptr);
     ASSERT_TRUE(std::equal(first_ptr, first_ptr + size, first_rewrite.begin()));
 
-    // After unload(), get_ptr() should load the file content again and reflect the second overwrite.
-    buffer->unload();
+    // After evict(), get_ptr() should load the file content again and reflect the second overwrite.
+    buffer->evict();
     overwrite_test_data(offset, second_rewrite);
     char* second_ptr = nullptr;
     ASSERT_NO_THROW((second_ptr = buffer->get_ptr<char>()));
-    ASSERT_NE(second_ptr, nullptr);
+    ASSERT_EQ(second_ptr, first_ptr);
     EXPECT_TRUE(std::equal(second_ptr, second_ptr + size, second_rewrite.begin()));
 }
 }  // namespace ov::test

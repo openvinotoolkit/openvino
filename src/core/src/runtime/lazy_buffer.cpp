@@ -4,6 +4,13 @@
 
 #include "openvino/runtime/lazy_buffer.hpp"
 
+#ifdef _WIN32
+#    include <windows.h>
+#else
+#    include <sys/mman.h>
+#    include <unistd.h>
+#endif
+
 #include <fstream>
 
 #include "openvino/core/except.hpp"
@@ -15,45 +22,67 @@ LazyBuffer::LazyBuffer(std::filesystem::path file_path, size_t offset, size_t by
     : AlignedBuffer(),
       m_file_path{std::move(file_path)},
       m_offset{offset},
-      m_alignment{alignment},
-      m_lazy_buffer{} {
-    OPENVINO_ASSERT(util::file_exists(m_file_path), "File does not exist: ", m_file_path.string());
+      m_alignment{alignment} {
+    m_byte_size = byte_size;
     const auto file_size = util::file_size(m_file_path);
-    OPENVINO_ASSERT(file_size >= 0 && static_cast<size_t>(file_size) >= m_offset + byte_size,
-                    "File size is smaller than the requested view (file size: ",
+    OPENVINO_ASSERT(file_size >= 0 && static_cast<size_t>(file_size) >= m_offset + m_byte_size,
+                    "If file exists it's size is smaller than requested range (file size: ",
                     file_size,
                     ", requested offset: ",
                     m_offset,
                     ", requested byte size: ",
-                    byte_size,
+                    m_byte_size,
                     ").");
-    m_byte_size = byte_size;
+
+    m_reserved_size = m_byte_size + m_alignment - 1;
+    OPENVINO_ASSERT(m_reserved_size >= m_byte_size,
+                    "Integer overflow occurred while calculating reserved size for LazyBuffer (requested byte size: ",
+                    m_byte_size,
+                    ", alignment: ",
+                    m_alignment,
+                    ").");
+    m_reserved_buffer = mmap(nullptr, m_reserved_size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    OPENVINO_ASSERT(m_reserved_buffer != MAP_FAILED, "mmap failed, err: ", std::strerror(errno));
+
+    m_aligned_buffer = static_cast<char*>(m_reserved_buffer) +
+                       util::align_padding_size(m_alignment, reinterpret_cast<size_t>(m_reserved_buffer));
 }
 
-void LazyBuffer::load() const {
-    if (m_lazy_buffer.empty() && m_byte_size > 0) {
-        const size_t aligned_size = ((m_byte_size + m_alignment - 1) / m_alignment) * m_alignment;
-        m_lazy_buffer.resize(aligned_size);
-
-        const auto allocated_buffer = m_lazy_buffer.data();
-        m_aligned_buffer =
-            allocated_buffer + util::align_padding_size(m_alignment, reinterpret_cast<size_t>(allocated_buffer));
-
-        try {
-            std::ifstream file(m_file_path, std::ios::binary);
-            OPENVINO_ASSERT(file, "Failed to open file: ", m_file_path.string());
-            file.seekg(m_offset).read(m_aligned_buffer, m_byte_size);
-            OPENVINO_ASSERT(file, "Failed to read data from file: ", m_file_path.string());
-        } catch (...) {
-            m_aligned_buffer = {};
-            m_lazy_buffer.clear();
-            throw;
-        }
+LazyBuffer::~LazyBuffer() {
+    if (m_reserved_buffer) {
+        munmap(m_reserved_buffer, m_reserved_size);
     }
 }
 
-void LazyBuffer::unload() {
-    m_aligned_buffer = {};
-    m_lazy_buffer.clear();
+void LazyBuffer::load() const {
+    if (!m_loaded && m_byte_size > 0) {
+#ifdef _WIN32
+        void* result = VirtualAlloc(static_cast<char*>(base_addr), to_commit, MEM_COMMIT, PAGE_READWRITE);
+        if (!result)
+            throw std::runtime_error("VirtualAlloc commit failed");
+#else
+        if (mprotect(m_reserved_buffer, m_reserved_size, PROT_READ | PROT_WRITE) == -1) {
+            OPENVINO_THROW("mprotect failed, err: ", std::strerror(errno));
+        }
+#endif
+
+        try {
+            std::ifstream file(m_file_path, std::ios::binary);
+            OPENVINO_ASSERT(file, "Failed to open file: ", m_file_path);
+            file.seekg(m_offset).read(m_aligned_buffer, m_byte_size);
+            OPENVINO_ASSERT(file, "Failed to read data from file: ", m_file_path);
+        } catch (...) {
+            std::ignore = mprotect(m_reserved_buffer, m_reserved_size, PROT_NONE);
+            throw;
+        }
+        m_loaded = true;
+    }
+}
+
+void LazyBuffer::evict() {
+    if (m_loaded) {
+        m_loaded = false;
+        mprotect(m_reserved_buffer, m_reserved_size, PROT_NONE);
+    }
 }
 }  // namespace ov

@@ -9,6 +9,9 @@
 #include "openvino/runtime/aligned_buffer.hpp"
 
 namespace ov {
+
+constexpr size_t s_lazy_laoding_default_threshold = 0x100000;  // 1MB
+
 /** \brief LazyBuffer is lazy loaded AlignedBuffer which provides a view on a file w/o memory mapping. */
 class OPENVINO_API LazyBuffer : public AlignedBuffer {
 public:
@@ -25,9 +28,16 @@ public:
     LazyBuffer(std::filesystem::path file_path,
                size_t offset,
                size_t byte_size,
-               size_t alignment = AlignedBuffer::s_default_alignment);
+               size_t alignment = s_default_alignment);
 
-    ~LazyBuffer() override = default;
+    ~LazyBuffer() override;
+
+    /**
+     * \brief Gets aligned pointer to reserved buffer without loading data into it.
+     */
+    void* get_reserved_ptr() const noexcept {
+        return m_aligned_buffer;
+    }
 
     /**
      * \brief Loads the file content if it is not loaded yet. The content is loaded at aligned addresses,
@@ -37,14 +47,19 @@ public:
     void load() const override;
 
     /**
-     * \brief Unloads the buffer from memory. After this call, next get_ptr() will load the file content again.
+     * \brief Evicts the buffer from memory. After this call, next get_ptr() will load the file content again.
      */
-    void unload();
+    void evict();
 
 private:
-    std::filesystem::path m_file_path;
-    const size_t m_offset;
-    const size_t m_alignment;
-    mutable std::vector<char> m_lazy_buffer;
+    const std::filesystem::path m_file_path;
+    const size_t m_offset{0};
+    const size_t m_alignment{s_default_alignment};
+    size_t m_reserved_size{0};
+    void* m_reserved_buffer{nullptr};
+    mutable bool m_loaded{false};
+
+    // mutex??
+    // descriptor ??
 };
 }  // namespace ov

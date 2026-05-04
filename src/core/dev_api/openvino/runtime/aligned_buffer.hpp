@@ -77,10 +77,13 @@ public:
 
 protected:
     char* m_allocated_buffer;
-    mutable char* m_aligned_buffer;
-    mutable size_t m_byte_size;
+    char* m_aligned_buffer;
+    size_t m_byte_size;
 
     virtual void load() const {}
+    static inline void invoke_load(const AlignedBuffer& buffer) {
+        buffer.load();
+    }
 };
 
 template <>

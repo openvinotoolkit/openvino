@@ -7,7 +7,6 @@
 #include <type_traits>
 
 #include "openvino/runtime/aligned_buffer.hpp"
-#include "openvino/runtime/lazy_buffer.hpp"
 #include "openvino/util/mmap_object.hpp"
 
 namespace ov {
@@ -17,13 +16,6 @@ create_base_descriptor(size_t id, size_t offset, const std::shared_ptr<ov::Align
 namespace detail {
 OPENVINO_API std::shared_ptr<IBufferDescriptor> create_mmap_descriptor(const std::shared_ptr<ov::MappedMemory>& mmap);
 }  // namespace detail
-
-template <typename U>
-struct is_aligned_buffer_ptr : std::false_type {};
-template <typename U>
-struct is_aligned_buffer_ptr<std::shared_ptr<U>> : std::is_base_of<ov::AlignedBuffer, U> {};
-template <typename U>
-static constexpr bool is_aligned_buffer_ptr_v = is_aligned_buffer_ptr<U>::value;
 
 template <typename T>
 class SharedBufferBase : public ov::AlignedBuffer {
@@ -68,15 +60,6 @@ protected:
         m_byte_size = size;
     }
 
-    void load() const override {
-        if constexpr (is_aligned_buffer_ptr_v<T>) {
-            if (_shared_object) {
-                m_aligned_buffer = _shared_object->template get_ptr<char>();
-                m_byte_size = _shared_object->size();
-            }
-        }
-    }
-
     size_t get_offset() const {
         if (m_source_buffer) {
             return reinterpret_cast<uintptr_t>(m_aligned_buffer) -
@@ -96,6 +79,13 @@ protected:
 
 template <typename T>
 class SharedBuffer : public SharedBufferBase<T> {
+    template <typename U>
+    struct is_aligned_buffer_ptr : std::false_type {};
+    template <typename U>
+    struct is_aligned_buffer_ptr<std::shared_ptr<U>> : std::is_base_of<ov::AlignedBuffer, U> {};
+    template <typename U>
+    static constexpr bool is_aligned_buffer_ptr_v = is_aligned_buffer_ptr<U>::value;
+
 public:
     SharedBuffer(char* data, size_t size, const T& shared_object, const std::shared_ptr<IBufferDescriptor>& descriptor)
         : SharedBufferBase<T>(data, size, shared_object, descriptor) {}
@@ -115,6 +105,15 @@ public:
     template <typename U = T, std::enable_if_t<std::is_same_v<U, std::shared_ptr<ov::MappedMemory>>, int> = 0>
     SharedBuffer(char* data, size_t size, const T& shared_object)
         : SharedBufferBase<T>(data, size, shared_object, detail::create_mmap_descriptor(shared_object)) {}
+
+protected:
+    void load() const override {
+        if constexpr (is_aligned_buffer_ptr_v<T>) {
+            if (this->_shared_object) {
+                AlignedBuffer::invoke_load(*this->_shared_object);
+            }
+        }
+    }
 };
 
 /// \brief SharedStreamBuffer class to store pointer to pre-allocated buffer and provide streambuf interface.
