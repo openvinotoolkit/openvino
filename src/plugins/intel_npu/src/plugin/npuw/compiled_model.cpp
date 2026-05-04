@@ -847,6 +847,16 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
         }
     }
 
+    if (stream.input()) {
+        if (attention.has_value()) {
+            ov::npuw::attn::attach_runtime_behavior(pipeline, pipeline.context, ov::npuw::attn::BehaviorKind::Dynamic);
+        } else if (pyramid_attention.has_value()) {
+            ov::npuw::attn::attach_runtime_behavior(pipeline, pipeline.context, ov::npuw::attn::BehaviorKind::Pyramid);
+        } else if (host_flash_attention.has_value()) {
+            ov::npuw::attn::attach_runtime_behavior(pipeline, pipeline.context, ov::npuw::attn::BehaviorKind::HFA);
+        }
+    }
+
     auto& closure_desc = closure.get();
 
     stream & closure_desc.is_remote & closure_desc.closure_uid;

@@ -129,7 +129,7 @@ void expect_host_flash_attention_equal(const ov::npuw::compiled::HostFlashAttent
 }
 
 void expect_moe_experts_equal(const ov::npuw::compiled::MoEExperts& expected,
-                              const ov::npuw::compiled::MoEExperts& actual) {
+                               const ov::npuw::compiled::MoEExperts& actual) {
     EXPECT_EQ(expected.num_experts, actual.num_experts);
     EXPECT_EQ(expected.expert_hidden_dim, actual.expert_hidden_dim);
     EXPECT_EQ(expected.num_active_experts, actual.num_active_experts);

@@ -12,8 +12,14 @@ namespace ov {
 namespace npuw {
 namespace attn {
 
+enum class BehaviorKind { Dynamic, Pyramid, HFA };
+
 std::vector<ov::npuw::v1::subgraphs::ScopedPatternRegistration> register_patterns(
     ov::npuw::v1::subgraphs::PatternRegistry& registry);
+
+void attach_runtime_behavior(ov::npuw::v1::subgraphs::CompiledPipeline& compiled_pipeline,
+                             ov::npuw::v1::subgraphs::Context& compiled_context,
+                             BehaviorKind kind);
 
 }  // namespace attn
 }  // namespace npuw

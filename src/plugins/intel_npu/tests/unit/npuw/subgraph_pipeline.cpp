@@ -169,3 +169,43 @@ TEST(SubgraphPipelineBehaviorTest, AttnCompileStageSkipsRuntimeBehaviorWhenAtten
     EXPECT_FALSE(compiled.runtime_behavior.has_value())
         << "compile_stage must not attach DynAttnBehavior when compiled::Attention is absent";
 }
+
+TEST(SubgraphPipelineBehaviorTest, AttnCompileStageAttachesPyramidBehaviorWhenHintIsPresent) {
+    ov::npuw::Function function;
+    function.settag(ov::npuw::patterns::attn::SDPA::isolation_tag());
+
+    ov::npuw::v1::subgraphs::PatternRegistry registry;
+    auto registrations = ov::npuw::attn::register_patterns(registry);
+    registry.apply(function);
+
+    function._pipeline.context.put<ov::npuw::attn::BehaviorKind>(ov::npuw::attn::BehaviorKind::Pyramid);
+
+    ov::npuw::v1::subgraphs::CompiledPipeline compiled;
+    compiled.registration = function._pipeline.registration;
+    compiled.context = function._pipeline.context;
+    function._pipeline.compile_stage(compiled, compiled.context);
+
+    ASSERT_TRUE(compiled.runtime_behavior.has_value());
+    auto behavior = compiled.runtime_behavior->factory(compiled.runtime_behavior->context);
+    EXPECT_NE(behavior, nullptr);
+}
+
+TEST(SubgraphPipelineBehaviorTest, AttnCompileStageAttachesHFABehaviorWhenHintIsPresent) {
+    ov::npuw::Function function;
+    function.settag(ov::npuw::patterns::attn::SDPA::isolation_tag());
+
+    ov::npuw::v1::subgraphs::PatternRegistry registry;
+    auto registrations = ov::npuw::attn::register_patterns(registry);
+    registry.apply(function);
+
+    function._pipeline.context.put<ov::npuw::attn::BehaviorKind>(ov::npuw::attn::BehaviorKind::HFA);
+
+    ov::npuw::v1::subgraphs::CompiledPipeline compiled;
+    compiled.registration = function._pipeline.registration;
+    compiled.context = function._pipeline.context;
+    function._pipeline.compile_stage(compiled, compiled.context);
+
+    ASSERT_TRUE(compiled.runtime_behavior.has_value());
+    auto behavior = compiled.runtime_behavior->factory(compiled.runtime_behavior->context);
+    EXPECT_NE(behavior, nullptr);
+}
