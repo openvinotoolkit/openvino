@@ -1569,4 +1569,40 @@ struct CACHE_ENCRYPTION_CALLBACKS final : OptionBase<CACHE_ENCRYPTION_CALLBACKS,
     }
 };
 
+struct RUNTIME_REQUIREMENTS final : OptionBase<RUNTIME_REQUIREMENTS, std::string> {
+    static std::string_view key() {
+        return ov::runtime_requirements.name();
+    }
+
+    static bool defaultValue() {
+        return "";
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+
+    static bool isPublic() {
+        return true;
+    }
+};
+
+struct RUNTIME_REQUIREMENTS_MET final : OptionBase<RUNTIME_REQUIREMENTS_MET, bool> {
+    static std::string_view key() {
+        return ov::runtime_requirements_met.name();
+    }
+
+    static bool defaultValue() {
+        return false;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+
+    static bool isPublic() {
+        return true;
+    }
+};
+
 }  // namespace intel_npu
