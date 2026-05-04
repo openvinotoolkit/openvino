@@ -104,7 +104,7 @@ void serialize(Stream& stream, std::vector<T>& value) {
                 bool element = value[idx];
                 stream & element;
             } else {
-                stream & value[idx];
+                stream& value[idx];
             }
         }
         return;
