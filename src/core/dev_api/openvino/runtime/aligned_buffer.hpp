@@ -49,6 +49,9 @@ public:
     const void* get_ptr() const {
         return m_aligned_buffer;
     }
+    const bool has_external_buffer() const {
+        return m_allocated_buffer == nullptr;
+    }
     template <typename T>
     T* get_ptr() {
         return reinterpret_cast<T*>(m_aligned_buffer);

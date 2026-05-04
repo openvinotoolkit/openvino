@@ -30,7 +30,9 @@ class Model;
 class CompiledModel;
 class ICompiledModel;
 
-std::shared_ptr<Model> clone_ov_model(const Model& func, std::unordered_map<Node*, std::shared_ptr<Node>>& node_map);
+std::shared_ptr<Model> clone_ov_model(const Model& func,
+                                      std::unordered_map<Node*, std::shared_ptr<Node>>& node_map,
+                                      bool copy_external_constants = false);
 
 namespace frontend {
 class FrontEnd;
@@ -47,7 +49,8 @@ class OPENVINO_API Model : public std::enable_shared_from_this<Model> {
     friend class ov::CompiledModel;
     friend class ov::ICompiledModel;
     friend std::shared_ptr<Model> clone_ov_model(const Model& func,
-                                                 std::unordered_map<Node*, std::shared_ptr<Node>>& node_map);
+                                                 std::unordered_map<Node*, std::shared_ptr<Node>>& node_map,
+                                                 bool copy_external_constants);
     std::shared_ptr<void> m_shared_object;  // plugin shared object handle.
 
 public:
@@ -107,7 +110,7 @@ public:
     std::shared_ptr<ov::Node> get_output_op(size_t i) const;
 
     /// \brief Clones the original model
-    std::shared_ptr<ov::Model> clone() const;
+    std::shared_ptr<ov::Model> clone(bool copy_external_constants = false) const;
 
     /// Model outputs
     std::vector<ov::Output<ov::Node>> outputs();
