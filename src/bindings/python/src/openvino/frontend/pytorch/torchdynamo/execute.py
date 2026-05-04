@@ -160,22 +160,35 @@ def _bind_paged_attention_side_channel(compiled):
                     break
             break
 
+    # If a "shared" PA key exists (from get_or_make_shared_pa_param), we treat
+    # any real layer's attn_metadata as representative since per-seq metadata
+    # is identical across layers.
+    _first_real_layer = next(
+        (ln for ln in layer_to_fields if ln != "shared"), None)
+
     for layer_name, fields in layer_to_fields.items():
         attn_meta = None
         kv_cache = None
+        # For the shared Parameter group, fall back to any real layer's
+        # attn_metadata (per-seq fields are identical across layers).
+        meta_layer_name = _first_real_layer if layer_name == "shared" else layer_name
         if ctx is not None:
             try:
                 am_map = ctx.attn_metadata
-                if isinstance(am_map, dict):
-                    attn_meta = am_map.get(layer_name)
-                # kv cache: vLLM stores it in static_forward_context
-                nc_layers = ctx.no_compile_layers
-                layer_obj = nc_layers.get(layer_name) if isinstance(nc_layers, dict) else None
-                if layer_obj is not None and hasattr(layer_obj, "kv_cache"):
-                    kv_cache = layer_obj.kv_cache
-                    # kv_cache may be list indexed by virtual_engine
-                    if isinstance(kv_cache, list):
-                        kv_cache = kv_cache[ctx.virtual_engine]
+                if isinstance(am_map, dict) and meta_layer_name is not None:
+                    attn_meta = am_map.get(meta_layer_name)
+                # kv cache: vLLM stores it in static_forward_context (per layer).
+                # For the shared group, KV isn't relevant — leave as None so it
+                # falls through to dummy tensors (unused, layer-specific KV is
+                # still bound by the per-layer key_cache/value_cache entries).
+                if layer_name != "shared":
+                    nc_layers = ctx.no_compile_layers
+                    layer_obj = nc_layers.get(layer_name) if isinstance(nc_layers, dict) else None
+                    if layer_obj is not None and hasattr(layer_obj, "kv_cache"):
+                        kv_cache = layer_obj.kv_cache
+                        # kv_cache may be list indexed by virtual_engine
+                        if isinstance(kv_cache, list):
+                            kv_cache = kv_cache[ctx.virtual_engine]
             except Exception:
                 pass
 

@@ -4,9 +4,14 @@
 
 #pragma once
 
+#include <map>
+#include <memory>
+#include <string>
+
 #include "input_model.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/op/parameter.hpp"
 
 namespace ov {
 namespace frontend {
@@ -52,6 +57,11 @@ public:
     std::map<size_t, std::tuple<size_t, std::shared_ptr<TorchDecoder>, Output<Node>>> m_may_be_alias;
 
     OutputVector convert_node(const NodeContext& context);
+
+    // Shared PagedAttention side-channel Parameters. Keyed by tag
+    // ("__pa__shared__<field>"); populated lazily by the paged_attention
+    // translator so all PA ops in the model reuse the same Parameter set.
+    std::map<std::string, std::shared_ptr<ov::op::v0::Parameter>> m_shared_pa_params;
 
 private:
     const frontend::InputModel::Ptr m_input_model;

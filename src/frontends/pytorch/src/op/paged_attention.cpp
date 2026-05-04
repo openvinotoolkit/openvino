@@ -19,6 +19,7 @@
 
 #include "openvino/op/paged_attention.hpp"
 
+#include <cmath>
 #include <cstdlib>
 #include <iostream>
 
@@ -29,6 +30,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "translate_session.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -49,6 +51,28 @@ std::shared_ptr<v0::Parameter> make_tagged_parameter(const NodeContext& context,
     param->output(0).set_names({tag});
     // Register so the final Model::check_all_parameters_registered passes.
     context.add_external_parameter(param);
+    return param;
+}
+
+// Get-or-create a shared PA side-channel Parameter, scoped to the current
+// TranslateSession so all PA layers reuse the same Parameter for per-sequence
+// metadata (past_lens, subsequence_begins, etc.) rather than each emitting its
+// own copy.
+std::shared_ptr<v0::Parameter> get_or_make_shared_pa_param(const NodeContext& context,
+                                                           const std::string& tag,
+                                                           const element::Type& et,
+                                                           const PartialShape& ps) {
+    auto* session = context.get_session();
+    if (session) {
+        auto it = session->m_shared_pa_params.find(tag);
+        if (it != session->m_shared_pa_params.end()) {
+            return it->second;
+        }
+    }
+    auto param = make_tagged_parameter(context, tag, et, ps);
+    if (session) {
+        session->m_shared_pa_params[tag] = param;
+    }
     return param;
 }
 
@@ -104,6 +128,22 @@ OutputVector translate_openvino_paged_attention(const NodeContext& context) {
     // Flatten q/k/v to 2D [N, H*D] by collapsing all trailing dims. The
     // leading dim (num_tokens) is kept dynamic; we build target shape [N, -1]
     // at runtime via ShapeOf + Gather(0) + Concat([dim0, -1]).
+    // Extract head_dim from q's pre-flattening shape for dynamic scale.
+    // q arrives as rank-3 [num_tokens, num_heads, head_dim]; head_dim is last dim.
+    // If q is already rank-2, we can't recover head_dim here and fall back to 0.125.
+    Output<Node> scale_from_q;
+    {
+        const auto& q_ps = query.get_partial_shape();
+        if (q_ps.rank().is_static() && q_ps.rank().get_length() >= 3 &&
+            q_ps[q_ps.rank().get_length() - 1].is_static()) {
+            double head_dim = static_cast<double>(q_ps[q_ps.rank().get_length() - 1].get_length());
+            double scale_val = 1.0 / std::sqrt(head_dim);
+            auto scale_et_tmp = query.get_element_type();
+            if (scale_et_tmp == element::dynamic) scale_et_tmp = element::f32;
+            scale_from_q = v0::Constant::create(scale_et_tmp, Shape{}, {static_cast<float>(scale_val)});
+        }
+    }
+
     auto force_rank2 = [&](Output<Node>& t) {
         const auto& ps = t.get_partial_shape();
         if (ps.rank().is_static() && ps.rank().get_length() == 2) {
@@ -125,22 +165,30 @@ OutputVector translate_openvino_paged_attention(const NodeContext& context) {
     // Shapes/types here mirror PagedAttentionExtension::validate_and_infer_types().
     // key_cache/value_cache must have rank 2-5 per PA validator. vLLM CPU uses
     // [num_blocks, num_kv_heads, block_size, head_size] (rank 4).
+    // KV caches are per-layer (different storage per attention layer).
     auto key_cache = make_tagged_parameter(context, prefix + "key_cache", query.get_element_type(),
                                            PartialShape{-1, -1, -1, -1});
     auto value_cache = make_tagged_parameter(context, prefix + "value_cache", query.get_element_type(),
                                              PartialShape{-1, -1, -1, -1});
-    auto past_lens = make_tagged_parameter(context, prefix + "past_lens", element::i32, PartialShape{-1});
-    auto subsequence_begins = make_tagged_parameter(context, prefix + "subsequence_begins", element::i32, PartialShape{-1});
-    auto block_indices = make_tagged_parameter(context, prefix + "block_indices", element::i32, PartialShape{-1});
-    auto block_indices_begins = make_tagged_parameter(context, prefix + "block_indices_begins", element::i32, PartialShape{-1});
-    auto max_context_len = make_tagged_parameter(context, prefix + "max_context_len", element::i32, PartialShape{});
+    // Per-sequence metadata is identical across layers, so share a single
+    // Parameter set across all PA ops in the model. Tagged "__pa__shared__*"
+    // so the execute-time binding can recognize and populate them once.
+    const std::string sprefix = "__pa__shared__";
+    auto past_lens = get_or_make_shared_pa_param(context, sprefix + "past_lens", element::i32, PartialShape{-1});
+    auto subsequence_begins = get_or_make_shared_pa_param(context, sprefix + "subsequence_begins", element::i32, PartialShape{-1});
+    auto block_indices = get_or_make_shared_pa_param(context, sprefix + "block_indices", element::i32, PartialShape{-1});
+    auto block_indices_begins = get_or_make_shared_pa_param(context, sprefix + "block_indices_begins", element::i32, PartialShape{-1});
+    auto max_context_len = get_or_make_shared_pa_param(context, sprefix + "max_context_len", element::i32, PartialShape{});
 
     // Default scalar/empty constants for unused PA inputs.
     // Element type of scale follows q; for fp32 graphs this is f32.
     auto scale_et = query.get_element_type();
     if (scale_et == element::dynamic) scale_et = element::f32;
-    // scale is attention 1/sqrt(head_dim); 1/8 = 0.125 for head_dim=64
-    auto scale = v0::Constant::create(scale_et, Shape{}, {0.125f});
+    // scale is attention 1/sqrt(head_dim); extracted from q's pre-flatten shape
+    // above. Falls back to 0.125 (head_dim=64) if q's rank/last-dim was dynamic.
+    Output<Node> scale = scale_from_q.get_node_shared_ptr()
+        ? scale_from_q
+        : v0::Constant::create(scale_et, Shape{}, {0.125f});
 
     auto sliding_window = v0::Constant::create(element::i32, Shape{}, {0});
     auto alibi_slopes = v0::Constant::create(scale_et, Shape{0}, std::vector<float>{});
