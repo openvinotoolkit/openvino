@@ -344,7 +344,7 @@ public:
      * @param shape Tensor shape
      * @param shared_buffer External memory handle from another API (DX12 shared NT handle on Windows,
      *                     DMA-BUF fd on Linux), passed as void*
-     * @param memory_type Memory type to use (default: SHARED_BUF)
+     * @param memory_type Memory type to use
      * @return A remote tensor instance
      */
     ClBufferTensor create_tensor(const element::Type type,
@@ -361,7 +361,7 @@ public:
         }
 
         // External-memory import relies on Intel external-memory extension API.
-#    if defined(CL_VERSION_1_2)
+#    if defined(CL_VERSION_3_0)
         cl_int errcode_ret = CL_SUCCESS;
         const auto cl_ctx =
             static_cast<cl_context>(get_params().at(ov::intel_gpu::ocl_context.name()).as<gpu_handle_param>());
@@ -431,7 +431,7 @@ public:
 
 #    endif
 
-        OPENVINO_THROW("External memory import requires OpenCL 1.2+ headers and clCreateFromExternalMemoryBufferINTEL support");
+        OPENVINO_THROW("External memory import requires OpenCL 1.2+ headers");
         return {};
     }
 
