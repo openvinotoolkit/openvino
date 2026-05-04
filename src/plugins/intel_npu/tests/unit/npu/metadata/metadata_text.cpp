@@ -25,10 +25,6 @@ const std::vector<MetadataTextTest::ParamType> inputs = {
          make_key_value_field(MetadataTextKeys::OV, "2026.1.0") + ";" +
          make_key_value_field(MetadataTextKeys::BATCH, "4"),
      true},
-    {make_key_value_field(MetadataTextKeys::META, "2.6") + ";" +
-         make_key_value_field(MetadataTextKeys::OV, "2026.1.0") + ";" +
-         make_key_value_field(MetadataTextKeys::COMPILER_REQS, "[platform=NPU3720;tiles=2]"),
-     true},
     // order independent: metadata version field is not first
     {make_key_value_field(MetadataTextKeys::OV, "2026.1.0") + ";" + make_key_value_field(MetadataTextKeys::META, "2.0"),
      true},
@@ -54,11 +50,6 @@ const std::vector<MetadataTextTest::ParamType> inputs = {
     {make_key_value_field(MetadataTextKeys::META, "2.1") + ";" +
          make_key_value_field(MetadataTextKeys::OV, "2026.1.0") + ";" +
          make_key_value_field(MetadataTextKeys::WS_INITS, "16|32|64"),
-     false},
-    // compiler_reqs value is not bracket-enclosed
-    {make_key_value_field(MetadataTextKeys::META, "2.6") + ";" +
-         make_key_value_field(MetadataTextKeys::OV, "2026.1.0") + ";" +
-         make_key_value_field(MetadataTextKeys::COMPILER_REQS, "platform=NPU3720"),
      false},
     {make_key_value_field(MetadataTextKeys::META, "2.6") + ";;" +
          make_key_value_field(MetadataTextKeys::OV, "2026.1.0") + ";",
