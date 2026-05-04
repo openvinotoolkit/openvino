@@ -17,6 +17,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather_elements.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -73,7 +74,10 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
     });
     auto sig_add_eps = wrap_type<ov::op::v1::Add>({sig_reduce, sig_eps_value}, consumers_count(1));
     auto sig_norm = wrap_type<ov::op::v1::Divide>({sig_gather_el, sig_add_eps}, consumers_count(1));
-    auto sig_slice = optional<ov::op::v8::Slice>({sig_norm, ANY, ANY, ANY, ANY});
+    // Some models (e.g. trinity-mini afmoe) apply an additional `routed_scaling_factor`
+    // multiplication on the normalized routing weights before the final Slice.
+    auto sig_norm_scaled = optional<ov::op::v1::Multiply>({sig_norm, ANY}, consumers_count(1));
+    auto sig_slice = optional<ov::op::v8::Slice>({sig_norm_scaled, ANY, ANY, ANY, ANY});
     auto sig_transpose = wrap_type<ov::op::v1::Transpose>({sig_slice, ANY}, consumers_count(1));
     auto sig_unsqueeze = wrap_type<ov::op::v0::Unsqueeze>({sig_transpose, ANY}, consumers_count(1));
 
@@ -197,6 +201,36 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
             auto hidden_state_shape = std::make_shared<ov::op::v3::ShapeOf>(pattern_map.at(hidden_state_m));
             moe_router_fused = std::make_shared<ov::op::v1::Reshape>(moe_router_fused, hidden_state_shape, false);
             ov::copy_runtime_info(moe_compressed, {hidden_state_shape, moe_router_fused});
+        }
+
+        // If the routing branch contained an additional `routed_scaling_factor` Multiply
+        // (e.g. trinity-mini afmoe), it was consumed by the pattern but is NOT applied
+        // inside the fused op. Re-apply it on the output: since the routing weights
+        // are used as Σ w·y_e, scaling each w by `s` is equivalent to scaling the final
+        // sum by `s` (Σ (w·s)·y_e = s · Σ w·y_e). Insert a post-multiplication so the
+        // kernel does not need to know about this scale.
+        if (pattern_map.count(sig_norm_scaled)) {
+            auto scaled_node = pattern_map.at(sig_norm_scaled).get_node_shared_ptr();
+            // Multiply has two inputs; the one that's not `sig_norm` is the scale.
+            ov::Output<ov::Node> scale;
+            auto sig_norm_out = pattern_map.at(sig_norm);
+            for (size_t i = 0; i < scaled_node->get_input_size(); ++i) {
+                if (scaled_node->input_value(i) != sig_norm_out) {
+                    scale = scaled_node->input_value(i);
+                    break;
+                }
+            }
+            if (scale.get_node_shared_ptr()) {
+                // Match the dtype of the fused-op output (typically f16) to avoid
+                // an element-type mismatch in Multiply.
+                if (scale.get_element_type() != moe_router_fused->get_output_element_type(0)) {
+                    scale = std::make_shared<ov::op::v0::Convert>(scale, moe_router_fused->get_output_element_type(0));
+                    ov::copy_runtime_info(moe_compressed, scale.get_node_shared_ptr());
+                }
+                auto post_mul = std::make_shared<ov::op::v1::Multiply>(moe_router_fused, scale);
+                ov::copy_runtime_info(moe_compressed, post_mul);
+                moe_router_fused = post_mul;
+            }
         }
 
         moe_router_fused->set_friendly_name(moe_compressed->get_friendly_name());
