@@ -163,8 +163,10 @@ Expand-Archive -Path $NinjaZip -DestinationPath "$env:OV_RPI_TOOLS\ninja" -Force
 Install Python and SCons:
 
 ```powershell
-winget install --id Python.Python.3.12 -e
-py -3.12 -m pip install --user scons
+$PythonVersion = "3.12"
+winget install --id "Python.Python.$PythonVersion" -e
+py "-$PythonVersion" -m pip install --user scons
+$PythonScripts = py "-$PythonVersion" -c "import site; print(site.getuserbase() + r'\Scripts')"
 ```
 
 Download and unpack the Arm GNU Toolchain for Windows targeting AArch64 GNU/Linux:
@@ -183,7 +185,7 @@ Configure and build with the Windows-hosted Raspberry Pi ARM64 Linux toolchain:
 
 ```powershell
 $env:OV_RPI_REPO = (Get-Location).Path
-$env:Path = "$env:OV_RPI_TOOLCHAIN_ROOT\bin;$env:OV_RPI_TOOLS\ninja;$env:OV_RPI_TOOLS\cmake\bin;$env:APPDATA\Python\Python312\Scripts;$env:Path"
+$env:Path = "$env:OV_RPI_TOOLCHAIN_ROOT\bin;$env:OV_RPI_TOOLS\ninja;$env:OV_RPI_TOOLS\cmake\bin;$PythonScripts;$env:Path"
 $env:OV_RPI_SYSROOT = "$env:OV_RPI_TOOLCHAIN_ROOT\aarch64-none-linux-gnu\libc"
 $env:OV_RPI_TOOLCHAIN_PREFIX = "aarch64-none-linux-gnu"
 
