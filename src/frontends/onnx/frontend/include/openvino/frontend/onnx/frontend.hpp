@@ -9,6 +9,7 @@
 #include "openvino/frontend/extension/holder.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/frontend.hpp"
+#include "openvino/frontend/onnx/graph_iterator.hpp"
 #include "openvino/frontend/onnx/visibility.hpp"
 
 namespace ov {
@@ -26,6 +27,15 @@ public:
     bool supported_impl(const std::vector<ov::Any>& variants) const override;
     void add_extension(const std::shared_ptr<ov::Extension>& extension) override;
     void normalize(const std::shared_ptr<ov::Model>& model) const override;
+
+    /// \brief Single-call conversion that fuses load() and convert() for GraphIterator-backed
+    /// inputs. Skips the intermediate ov::AnyVector round-trip and lets the frontend reuse one
+    /// unify::InputModel instance directly. Intended for integrations (e.g. ORT EP) that already
+    /// hold an in-memory graph and want to avoid the cost of building a ModelProto or the
+    /// overhead of the separate load + convert API pair.
+    std::shared_ptr<ov::Model> convert_from_iterator(const GraphIterator::Ptr& graph_iterator,
+                                                     bool enable_mmap = false,
+                                                     bool reuse_const_data = true) const;
 
 protected:
     ov::frontend::InputModel::Ptr load_impl(const std::vector<ov::Any>& params) const override;
@@ -46,6 +56,17 @@ protected:
     ExtensionHolder m_extensions;
     std::once_flag has_legacy_extension;
 };
+
+/// \brief Fused single-call conversion for GraphIterator-backed inputs. Constructs an
+/// ONNX FrontEnd inside the onnx frontend DLL and invokes its convert_from_iterator
+/// directly, bypassing both the FrontEndManager wrapper layer (which would hide the
+/// concrete onnx FrontEnd behind a generic wrapper) and the need for cross-DLL
+/// dynamic_pointer_cast. Intended for integrations (e.g. ORT EP) that already hold an
+/// in-memory graph and want to skip the ov::AnyVector round-trip and I/O re-sort.
+ONNX_FRONTEND_API std::shared_ptr<ov::Model> convert_from_iterator(
+    const GraphIterator::Ptr& graph_iterator,
+    bool enable_mmap = false,
+    bool reuse_const_data = true);
 
 }  // namespace onnx
 }  // namespace frontend

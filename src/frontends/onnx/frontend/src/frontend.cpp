@@ -500,6 +500,46 @@ std::shared_ptr<ov::Model> FrontEnd::decode_unify(const InputModel::Ptr& model) 
     return ov_model;
 }
 
+std::shared_ptr<ov::Model> FrontEnd::convert_from_iterator(const GraphIterator::Ptr& graph_iterator,
+                                                           bool enable_mmap,
+                                                           bool reuse_const_data) const {
+    FRONT_END_GENERAL_CHECK(graph_iterator != nullptr,
+                            "convert_from_iterator: graph_iterator must be non-null");
+
+    // Build a single unify::InputModel directly via the FusedIteratorTag ctor — no ov::AnyVector
+    // packing, no supported_impl dispatch, no re-resolve of the GraphIterator variant. The tag
+    // ctor also marks the InputModel so load_model skips its defensive input/output re-sort
+    // (the legacy load() + convert() path still runs the sort unchanged).
+    auto input_model = std::make_shared<unify::InputModel>(unify::InputModel::FusedIteratorTag{},
+                                                           graph_iterator,
+                                                           enable_mmap,
+                                                           m_extensions.telemetry,
+                                                           reuse_const_data);
+
+    // If transformation extensions are attached, fall back to the standard decode+transform+convert
+    // flow — correctness-first; the perf-critical delegate path registers no such extensions.
+    if (!m_transformation_extensions.empty()) {
+        auto decoded_model = decode_unify(input_model);
+
+        ov::pass::Manager manager("Frontend:ONNX:convert_from_iterator");
+        for (const auto& transformation : m_transformation_extensions) {
+            transformation->register_pass(manager);
+        }
+        manager.run_passes(decoded_model);
+        convert(decoded_model);
+        return decoded_model;
+    }
+
+    std::shared_ptr<ov::Model> ov_model;
+    translate_graph(input_model, false, false, ov_model);
+    normalize(ov_model);
+
+    const auto unconverted_report = ov::frontend::collect_unconverted_ops(ov_model, make_onnx_extractor());
+    ov::frontend::check_unconverted_ops(unconverted_report, m_extensions.telemetry, "onnx", "[ONNX Frontend] ");
+
+    return ov_model;
+}
+
 void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     if (auto telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
         m_extensions.telemetry = telemetry;
@@ -520,3 +560,20 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
         }
     }
 }
+
+namespace ov {
+namespace frontend {
+namespace onnx {
+
+std::shared_ptr<ov::Model> convert_from_iterator(const GraphIterator::Ptr& graph_iterator,
+                                                 bool enable_mmap,
+                                                 bool reuse_const_data) {
+    FRONT_END_GENERAL_CHECK(graph_iterator != nullptr,
+                            "convert_from_iterator: graph_iterator must be non-null");
+    auto onnx_fe = std::make_shared<FrontEnd>();
+    return onnx_fe->convert_from_iterator(graph_iterator, enable_mmap, reuse_const_data);
+}
+
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
