@@ -21,15 +21,20 @@
 
 #include <cmath>
 #include <cstdlib>
+#include <functional>
 #include <iostream>
+#include <limits>
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/subtract.hpp"
 #include "translate_session.hpp"
 #include "utils.hpp"
 
@@ -173,12 +178,52 @@ OutputVector translate_openvino_paged_attention(const NodeContext& context) {
     // Per-sequence metadata is identical across layers, so share a single
     // Parameter set across all PA ops in the model. Tagged "__pa__shared__*"
     // so the execute-time binding can recognize and populate them once.
+    //
+    // past_lens, subsequence_begins, and max_context_len are *derived* from
+    // seq_lens + query_start_loc (vLLM's native attn_metadata format) via
+    // graph ops, so Python binding only has to populate the two source
+    // Parameters. block_indices / block_indices_begins still computed in
+    // Python (CSR trim is awkward in graph ops with dynamic rows).
     const std::string sprefix = "__pa__shared__";
-    auto past_lens = get_or_make_shared_pa_param(context, sprefix + "past_lens", element::i32, PartialShape{-1});
-    auto subsequence_begins = get_or_make_shared_pa_param(context, sprefix + "subsequence_begins", element::i32, PartialShape{-1});
+    auto seq_lens = get_or_make_shared_pa_param(context, sprefix + "seq_lens", element::i32, PartialShape{-1});
+    auto query_start_loc = get_or_make_shared_pa_param(context, sprefix + "query_start_loc", element::i32, PartialShape{-1});
     auto block_indices = get_or_make_shared_pa_param(context, sprefix + "block_indices", element::i32, PartialShape{-1});
     auto block_indices_begins = get_or_make_shared_pa_param(context, sprefix + "block_indices_begins", element::i32, PartialShape{-1});
-    auto max_context_len = get_or_make_shared_pa_param(context, sprefix + "max_context_len", element::i32, PartialShape{});
+
+    auto* session = context.get_session();
+    auto derive_or_cache = [&](const std::string& key,
+                               std::function<Output<Node>()> mk) -> Output<Node> {
+        if (session) {
+            auto it = session->m_shared_pa_outputs.find(key);
+            if (it != session->m_shared_pa_outputs.end()) return it->second;
+        }
+        auto out = mk();
+        if (session) session->m_shared_pa_outputs[key] = out;
+        return out;
+    };
+
+    // past_lens = seq_lens - (qsl[1:] - qsl[:-1])
+    Output<Node> past_lens = derive_or_cache("past_lens", [&]() -> Output<Node> {
+        auto one = v0::Constant::create(element::i32, Shape{1}, {1});
+        auto zero = v0::Constant::create(element::i32, Shape{1}, {0});
+        auto neg_one = v0::Constant::create(element::i32, Shape{1}, {-1});
+        auto big = v0::Constant::create(element::i32, Shape{1}, {std::numeric_limits<int32_t>::max()});
+        auto axis0 = v0::Constant::create(element::i32, Shape{1}, {0});
+        auto qsl_tail = std::make_shared<v8::Slice>(query_start_loc, one, big, one, axis0);
+        auto qsl_head = std::make_shared<v8::Slice>(query_start_loc, zero, neg_one, one, axis0);
+        auto q_lens = std::make_shared<v1::Subtract>(qsl_tail, qsl_head);
+        return std::make_shared<v1::Subtract>(seq_lens, q_lens);
+    });
+
+    // subsequence_begins = query_start_loc (same semantics).
+    Output<Node> subsequence_begins = query_start_loc;
+
+    // max_context_len = ReduceMax(seq_lens) along axis 0, kept scalar.
+    Output<Node> max_context_len = derive_or_cache("max_context_len", [&]() -> Output<Node> {
+        auto axis0 = v0::Constant::create(element::i32, Shape{1}, {0});
+        // keep_dims=false -> scalar output, which matches PA's expected shape.
+        return std::make_shared<v1::ReduceMax>(seq_lens, axis0, false);
+    });
 
     // Default scalar/empty constants for unused PA inputs.
     // Element type of scale follows q; for fp32 graphs this is f32.

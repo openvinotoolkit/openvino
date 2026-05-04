@@ -120,6 +120,10 @@ import numpy as np
 _PA_FIELDS = (
     "key_cache", "value_cache", "past_lens", "subsequence_begins",
     "block_indices", "block_indices_begins", "max_context_len",
+    # Raw vLLM-format inputs: past_lens/subsequence_begins/max_context_len
+    # are now *derived* from these in-graph via SDPAToPagedAttention-style
+    # ops, so the translator emits these Parameters instead.
+    "seq_lens", "query_start_loc",
 )
 
 
@@ -233,6 +237,8 @@ def _bind_paged_attention_side_channel(compiled):
         block_indices_np = _nz(np.int32)
         block_indices_begins_np = _nz(np.int32, (2,))
         max_ctx_len_np = np.array(0, dtype=np.int32)
+        seq_lens_np = _nz(np.int32)
+        qsl_np = _nz(np.int32, (2,))
 
         if attn_meta is not None:
             try:
@@ -242,7 +248,11 @@ def _bind_paged_attention_side_channel(compiled):
                 qsl = getattr(attn_meta, "query_start_loc", None)
                 block_table = getattr(attn_meta, "block_table", None)
                 if seq_lens is not None and qsl is not None:
-                    # past_lens = seq_lens - (query_start_loc[1:] - query_start_loc[:-1])
+                    seq_lens_np = seq_lens.to(torch.int32).contiguous().numpy()
+                    qsl_np = qsl.to(torch.int32).contiguous().numpy()
+                    # Kept for backwards-compat if old model still exposes the
+                    # derived Parameters; the new graph-derived path uses
+                    # seq_lens_np + qsl_np directly.
                     q_lens = qsl[1:] - qsl[:-1]
                     pl = (seq_lens - q_lens).to(torch.int32).contiguous()
                     past_lens_np = pl.numpy()
@@ -291,6 +301,10 @@ def _bind_paged_attention_side_channel(compiled):
                 result[name] = block_indices_begins_np
             elif field == "max_context_len":
                 result[name] = max_ctx_len_np
+            elif field == "seq_lens":
+                result[name] = seq_lens_np
+            elif field == "query_start_loc":
+                result[name] = qsl_np
 
     return result
 
@@ -373,6 +387,10 @@ def openvino_execute(
            for inp in compiled.inputs):
         _pa_inputs_by_pos = _bind_paged_attention_side_channel(compiled)
 
+    import os as _os_ot, time as _t_ot
+    _pr_ot = _os_ot.environ.get("OV_STEP_PROFILE")
+    if _pr_ot: _t_a = _t_ot.perf_counter()
+
     if _pa_inputs_by_pos:
         # Use dict form so we can set by Input object
         _call_kwargs = {}
@@ -389,7 +407,12 @@ def openvino_execute(
             else:
                 _call_kwargs[inp] = ov_inputs[_tensor_pos]
                 _tensor_pos += 1
+        if _pr_ot: _t_b = _t_ot.perf_counter()
         res = req.infer(_call_kwargs, share_inputs=True, share_outputs=False)
+        if _pr_ot:
+            _t_c = _t_ot.perf_counter()
+            with open("/tmp/ov_infer_prof.log", "a") as _fp_ot:
+                _fp_ot.write(f"dict_build={1000*(_t_b-_t_a):.2f}ms infer={1000*(_t_c-_t_b):.2f}ms\n")
     else:
         res = req.infer(ov_inputs, share_inputs=True, share_outputs=False)
 
