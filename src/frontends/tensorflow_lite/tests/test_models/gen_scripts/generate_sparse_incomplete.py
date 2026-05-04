@@ -43,6 +43,15 @@
 #   fix, every model produced here loads + converts cleanly — either by
 #   falling back to the raw buffer (incomplete-metadata cases) or by
 #   densifying a valid standard CSR tensor (missing-block_map case).
+#
+#   The missing_block_map model deliberately uses segments=[0, 0, 0] and
+#   indices=[] so that densify() produces an all-zero (2, 2) constant.
+#   Its raw FLOAT32 buffer is [1, 2, 3, 4]. The two outcomes are therefore
+#   observable on the converted model: ADD(input, const) == input proves
+#   densify() ran (asserted by IncompleteSparsityDensify in
+#   convert_sparse_incomplete.cpp), and a future regression that disabled
+#   this tensor would visibly produce input + [1, 2, 3, 4] instead.
+#
 #   Real-world reproducer hand_landmark_full.tflite is 5.3 MB and cannot be
 #   committed, so the synthetic flatbuffers below stand in for it.
 #

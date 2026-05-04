@@ -17,6 +17,18 @@ using ov::frontend::tensorflow_lite::SparsityInfo;
 namespace {
 
 constexpr uint8_t kDummyValues[16] = {0};
+constexpr uint8_t kSegmentsSentinel[1] = {0};
+constexpr uint8_t kIndicesSentinel[1] = {0};
+
+// Standard-CSR data_desc for a (DENSE, SPARSE_CSR) dim_format. The DENSE
+// entry's segments/indices are unused (densify() never indexes them); the
+// SPARSE_CSR entry must carry non-null payloads for enable() to admit it.
+inline std::vector<SparsityInfo::SparsityDataDesc> make_dense_then_sparse_data_desc() {
+    return {
+        SparsityInfo::SparsityDataDesc{0, nullptr, 0, nullptr},
+        SparsityInfo::SparsityDataDesc{0, kSegmentsSentinel, 0, kIndicesSentinel},
+    };
+}
 
 }  // namespace
 
@@ -54,6 +66,7 @@ TEST(SparsityInfoTest, EnableDoesNotDisableWhenBlockMapEmpty) {
     s.set_shape({2, 2});
     s.set_traversal_order({0, 1});
     s.set_dim_format({0, 1});
+    s.set_data_desc(make_dense_then_sparse_data_desc());
     // block_map is intentionally absent — valid for standard CSR tensors
     s.enable();
     EXPECT_FALSE(s.is_disabled());
@@ -72,40 +85,102 @@ TEST(SparsityInfoTest, EnableDisablesWhenBlockSparseMissingBlockMap) {
     EXPECT_TRUE(s.is_disabled());
 }
 
+// traversal_order shorter than the tensor rank — densify() would later loop
+// `for (dim = 0; dim < m_shape.size(); ++dim) m_dim_format[dim]` and read
+// past the end of m_dim_format on untrusted model input. enable() must
+// catch this size mismatch up front.
+TEST(SparsityInfoTest, EnableDisablesWhenTraversalOrderShorterThanRank) {
+    SparsityInfo s;
+    s.set_shape({2, 2});
+    s.set_traversal_order({0});  // length 1 < rank 2
+    s.set_dim_format({0});
+    s.set_data_desc({SparsityInfo::SparsityDataDesc{0, nullptr, 0, nullptr}});
+    s.enable();
+    EXPECT_TRUE(s.is_disabled());
+}
+
+// dim_format must carry exactly one DimensionMetadata entry per
+// traversal-order position. A length mismatch is malformed; enable() must
+// disable so the dispatch in densify() never indexes m_dim_format past its
+// real end.
+TEST(SparsityInfoTest, EnableDisablesWhenDimFormatLengthMismatchesTraversal) {
+    SparsityInfo s;
+    s.set_shape({2, 2});
+    s.set_traversal_order({0, 1});
+    s.set_dim_format({0});  // length 1 != traversal_order length 2
+    s.set_data_desc({SparsityInfo::SparsityDataDesc{0, nullptr, 0, nullptr}});
+    s.enable();
+    EXPECT_TRUE(s.is_disabled());
+}
+
+// A SPARSE_CSR DimensionMetadata with absent array_segments or array_indices
+// is recorded as a null pointer in m_data_desc. densify()'s dispatcher casts
+// those pointers to flatbuffers vector types and calls ->values() without a
+// null check, which would dereference null. enable() must disable the
+// tensor in that case so the raw-buffer fallback runs instead.
+TEST(SparsityInfoTest, EnableDisablesWhenSparseCsrDimMissesSegments) {
+    SparsityInfo s;
+    s.set_shape({2, 2});
+    s.set_traversal_order({0, 1});
+    s.set_dim_format({0, 1});  // dim 1 is SPARSE_CSR
+    s.set_data_desc({
+        SparsityInfo::SparsityDataDesc{0, nullptr, 0, nullptr},
+        SparsityInfo::SparsityDataDesc{0, nullptr, 0, kIndicesSentinel},  // segments absent
+    });
+    s.enable();
+    EXPECT_TRUE(s.is_disabled());
+}
+
 // HandsLandmarkFull-style: tf_sparsity is non-null but dim_metadata is empty,
 // so dim_format ends up empty in get_sparsity().
 TEST(SparsityInfoTest, EnableDisablesWhenDimFormatEmpty) {
     SparsityInfo s;
     s.set_shape({2, 2});
     s.set_traversal_order({0, 1});
-    s.set_block_map({0});
+    // block_map left empty (consistent with non-block-sparse layout)
     // dim_format intentionally left empty
     s.enable();
     EXPECT_TRUE(s.is_disabled());
 }
 
-TEST(SparsityInfoTest, EnableEnablesWhenAllFourPopulated) {
+// Block-sparse positive: traversal_order length = rank + #block dims,
+// block_map lists the block dims, dim_format and data_desc match.
+TEST(SparsityInfoTest, EnableEnabledOnBlockSparseLayout) {
     SparsityInfo s;
-    s.set_shape({2, 2});
-    s.set_traversal_order({0, 1});
-    s.set_block_map({0});
-    s.set_dim_format({0, 1});
+    s.set_shape({2, 2});                  // rank = 2
+    s.set_traversal_order({0, 1, 2, 3});  // rank + 2 block dims
+    s.set_block_map({0, 1});              // 2 block dims appended after rank
+    s.set_dim_format({0, 0, 1, 1});
+    s.set_data_desc({
+        SparsityInfo::SparsityDataDesc{0, nullptr, 0, nullptr},
+        SparsityInfo::SparsityDataDesc{0, nullptr, 0, nullptr},
+        SparsityInfo::SparsityDataDesc{0, kSegmentsSentinel, 0, kIndicesSentinel},
+        SparsityInfo::SparsityDataDesc{0, kSegmentsSentinel, 0, kIndicesSentinel},
+    });
     s.enable();
     EXPECT_FALSE(s.is_disabled());
 }
 
 TEST(SparsityInfoTest, FullCtorAlreadyEnabled) {
-    SparsityInfo::SparsityDataDesc desc{};
-    SparsityInfo s({2, 2}, {0, 1}, {0}, {0, 1}, {desc, desc}, ov::element::f32, kDummyValues, sizeof(kDummyValues));
+    SparsityInfo::SparsityDataDesc dense_desc{};
+    SparsityInfo::SparsityDataDesc sparse_desc{0, kSegmentsSentinel, 0, kIndicesSentinel};
+    SparsityInfo s({2, 2},
+                   {0, 1},
+                   {},
+                   {0, 1},
+                   {dense_desc, sparse_desc},
+                   ov::element::f32,
+                   kDummyValues,
+                   sizeof(kDummyValues));
     EXPECT_FALSE(s.is_disabled()) << "Full ctor must call enable() and find all fields populated.";
 }
 
-// The full ctor calls enable() at the end (sparsity_info.hpp:47). With an
+// The full ctor calls enable() at the end (sparsity_info.hpp). With an
 // empty dim_format the result must be disabled.
 TEST(SparsityInfoTest, FullCtorWithEmptyDimFormatDisables) {
     SparsityInfo s({2, 2},
                    {0, 1},
-                   {0},
+                   {},  // block_map empty (non-block-sparse)
                    {},  // dim_format empty
                    {},
                    ov::element::f32,
@@ -130,8 +205,8 @@ TEST(SparsityInfoTest, DisableSetsFlagAndEnableReevaluates) {
     SparsityInfo s;
     s.set_shape({2, 2});
     s.set_traversal_order({0, 1});
-    s.set_block_map({0});
     s.set_dim_format({0, 1});
+    s.set_data_desc(make_dense_then_sparse_data_desc());
 
     s.disable();
     EXPECT_TRUE(s.is_disabled());
