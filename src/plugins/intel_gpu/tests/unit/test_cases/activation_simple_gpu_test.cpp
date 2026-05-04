@@ -318,6 +318,92 @@ TEST(activation_f32_fw_gpu, erf_basic_yxfb) {
     }
 }
 
+namespace {
+// Mike Giles, "Approximating the erfinv function", GPU Computing Gems Jade Edition, 2011.
+// Same approximation that the GPU OpenCL kernel uses, so values must match to fp tolerance.
+inline float ref_erfinv(float x) {
+    if (x == 0.0f) return 0.0f;
+    if (x == 1.0f) return std::numeric_limits<float>::infinity();
+    if (x == -1.0f) return -std::numeric_limits<float>::infinity();
+    if (std::fabs(x) > 1.0f) return std::numeric_limits<float>::quiet_NaN();
+    float w = -std::log((1.0f - x) * (1.0f + x));
+    float r;
+    if (w < 5.0f) {
+        float s = w - 2.5f;
+        r = 2.81022636e-08f;
+        r = 3.43273939e-07f + r * s;
+        r = -3.5233877e-06f + r * s;
+        r = -4.39150654e-06f + r * s;
+        r = 0.00021858087f + r * s;
+        r = -0.00125372503f + r * s;
+        r = -0.00417768164f + r * s;
+        r = 0.246640727f + r * s;
+        r = 1.50140941f + r * s;
+    } else {
+        float s = std::sqrt(w) - 3.0f;
+        r = -0.000200214257f;
+        r = 0.000100950558f + r * s;
+        r = 0.00134934322f + r * s;
+        r = -0.00367342844f + r * s;
+        r = 0.00573950773f + r * s;
+        r = -0.0076224613f + r * s;
+        r = -0.00943887047f + r * s;
+        r = 1.00167406f + r * s;
+        r = 2.83297682f + r * s;
+    }
+    return x * r;
+}
+}  // namespace
+
+TEST(activation_f32_fw_gpu, erfinv_basic_bfyx) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 4, 4}});
+    set_values(input, {
+        0.0f,  0.1f, -0.1f, 0.5f,
+       -0.5f,  0.9f, -0.9f, 0.99f,
+       -0.99f, 0.25f, -0.25f, 0.75f,
+       -0.75f, 0.42f, -0.42f, 0.0f,
+    });
+
+    topology topology(input_layout("input", input->get_layout()),
+                      activation("erfinv", input_info("input"), activation_func::erfinv));
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+
+    auto output_memory = outputs.at("erfinv").get_memory();
+    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float> input_ptr(input, get_test_stream());
+
+    for (size_t i = 0; i < output_ptr.size(); ++i) {
+        ASSERT_NEAR(ref_erfinv(input_ptr[i]), output_ptr[i], 1e-5f)
+            << "Mismatch at index " << i << " for input " << input_ptr[i];
+    }
+}
+
+TEST(activation_f32_fw_gpu, erfinv_special_values) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 4}});
+    set_values(input, {0.0f, 1.0f, -1.0f, 1.5f});
+
+    topology topology(input_layout("input", input->get_layout()),
+                      activation("erfinv", input_info("input"), activation_func::erfinv));
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    auto output_memory = outputs.at("erfinv").get_memory();
+    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+
+    ASSERT_FLOAT_EQ(0.0f, output_ptr[0]);
+    ASSERT_TRUE(std::isinf(output_ptr[1]) && output_ptr[1] > 0.0f);
+    ASSERT_TRUE(std::isinf(output_ptr[2]) && output_ptr[2] < 0.0f);
+    ASSERT_TRUE(std::isnan(output_ptr[3]));
+}
+
 TEST(activation_f32_fw_gpu, hard_sigmoid_basic_yxfb) {
     //  Input:
     //  1 0 -3  4  5

@@ -1368,6 +1368,41 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
         case ActivationFunction::ROUND_HALF_AWAY_FROM_ZERO:
             jitConstants.AddConstant(MakeJitConstant(macro_def, "(round(input))"));
             break;
+        case ActivationFunction::ERFINV: {
+            // Inverse error function (erfinv) approximation by Mike Giles, 2011.
+            // Reference: src/core/reference/include/openvino/reference/erfinv.hpp
+            // Computed in fp32 for numerical accuracy regardless of input dtype.
+            const auto horner = [](const std::string& s, std::initializer_list<const char*> coefs) {
+                auto it = coefs.begin();
+                std::string r{*it++};
+                for (; it != coefs.end(); ++it) {
+                    r = "(" + r + " * " + s + " + " + *it + ")";
+                }
+                return r;
+            };
+            const std::string xf = "((float)(input))";
+            const std::string w = "(-log((1.0f - " + xf + ") * (1.0f + " + xf + ")))";
+            const std::string s_lo = "(" + w + " - 2.5f)";
+            const std::string s_hi = "(sqrt(" + w + ") - 3.0f)";
+            const std::string p_lo = horner(s_lo, {
+                "2.81022636e-08f", "3.43273939e-07f", "-3.5233877e-06f",
+                "-4.39150654e-06f", "0.00021858087f", "-0.00125372503f",
+                "-0.00417768164f", "0.246640727f", "1.50140941f"});
+            const std::string p_hi = horner(s_hi, {
+                "-0.000200214257f", "0.000100950558f", "0.00134934322f",
+                "-0.00367342844f", "0.00573950773f", "-0.0076224613f",
+                "-0.00943887047f", "1.00167406f", "2.83297682f"});
+            const std::string p = "((" + w + " < 5.0f) ? " + p_lo + " : " + p_hi + ")";
+            // Special values: erfinv(0)=0, erfinv(+1)=+inf, erfinv(-1)=-inf, |x|>1 -> NaN.
+            const std::string body =
+                "((" + xf + " == 0.0f) ? 0.0f : "
+                "((fabs(" + xf + ") > 1.0f) ? (float)NAN : "
+                "((" + xf + " == 1.0f) ? (float)INFINITY : "
+                "((" + xf + " == -1.0f) ? -(float)INFINITY : "
+                "(" + xf + " * " + p + ")))))";
+            jitConstants.AddConstant(MakeJitConstant(macro_def, body));
+            break;
+        }
         case ActivationFunction::NONE:
         default:
             jitConstants.AddConstant(MakeJitConstant(macro_def, "input"));
