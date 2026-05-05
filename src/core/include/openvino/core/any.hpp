@@ -239,10 +239,11 @@ struct Read<
                 is >> c;
                 std::getline(is, key, separator);
                 is >> std::ws;
-                OPENVINO_ASSERT(is.get() == ':', "Parsing error: Separator (:) needed after key name. format: {" 
-                                    + std::string(1, separator) + "key" + std::string(1, separator) + ":value}");
+                OPENVINO_ASSERT(is.get() == ':', 
+                                "Parsing error: Separator (:) needed after key name. format: {" +
+                                std::string(1, separator) + "key" + std::string(1, separator) + ":value}");
             } else {
-                std::getline(is, key ,':');
+                std::getline(is, key, ':');
             }
             size_t enclosed_container_level = 0;
 
