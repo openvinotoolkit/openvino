@@ -38,9 +38,7 @@ std::uint64_t checked_add(const std::uint64_t lhs, const std::uint64_t rhs) {
 
 constexpr std::uint64_t header_size() {
     // Section header layout: type_id (u16) + version (u16) + flags (u32) + payload_size (u64)
-    return sizeof(ov::npuw::orc::TypeId) +
-           sizeof(ov::npuw::orc::Version) +
-           sizeof(ov::npuw::orc::SectionFlags) +
+    return sizeof(ov::npuw::orc::TypeId) + sizeof(ov::npuw::orc::Version) + sizeof(ov::npuw::orc::SectionFlags) +
            sizeof(std::uint64_t);
 }
 
@@ -257,8 +255,8 @@ ov::npuw::orc::Section ov::npuw::orc::read_file(std::istream& stream) {
     }
 
     // is_orc() restores the stream position; skip past the file header before reading sections.
-    constexpr auto skip = static_cast<std::streamoff>(
-        ORC_FILE_MAGIC.size() + sizeof(ORC_FILE_VERSION) + sizeof(SchemaUUID));
+    constexpr auto skip =
+        static_cast<std::streamoff>(ORC_FILE_MAGIC.size() + sizeof(ORC_FILE_VERSION) + sizeof(SchemaUUID));
     stream.seekg(skip, std::ios::cur);
 
     auto reader = Stream::reader(stream);

@@ -360,8 +360,8 @@ Target load_versioned_payload(const Section& section) {
 //       int new_field = 0;
 //       void serialize(Stream& stream) { Prev::serialize(stream); stream & new_field; }
 //   };
-#define ORC_DECLARE_VERSION(ThisType, PrevType)                                          \
-    using Prev = PrevType;                                                               \
-    static constexpr ::ov::npuw::orc::Version kVersion = 1u + Prev::kVersion;           \
-    ThisType() = default;                                                                \
+#define ORC_DECLARE_VERSION(ThisType, PrevType)                               \
+    using Prev = PrevType;                                                    \
+    static constexpr ::ov::npuw::orc::Version kVersion = 1u + Prev::kVersion; \
+    ThisType() = default;                                                     \
     explicit ThisType(PrevType _prev_init) : PrevType(std::move(_prev_init)) {}
