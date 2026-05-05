@@ -347,9 +347,7 @@ Constant::Constant(const element::Type& type, const Shape& shape, const void* da
                                                                     ov::util::get_memory_size(type, shape_size(shape)),
                                                                     so)) {}
 
-Constant::~Constant() {
-    ov::wsh::Extension::hint_evict(*this);
-}
+Constant::~Constant() = default;
 
 struct ValueToString : ov::element::NotSupported<std::string> {
     using ov::element::NotSupported<std::string>::visit;
