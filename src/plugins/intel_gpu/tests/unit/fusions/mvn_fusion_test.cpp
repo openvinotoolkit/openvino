@@ -298,5 +298,91 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, mvn_eltwise_f16, ::testing::ValuesIn(std::
     mvn_test_params{ CASE_MVN_I8_6, 2, 2, 3 },
     mvn_test_params{ CASE_MVN_I8_8, 3, 3, 3 },
     mvn_test_params{ CASE_MVN_U8_2, 2, 2, 3 },
-    mvn_test_params{ CASE_MVN_F16_1, 2, 2, 3},
+    mvn_test_params{ CASE_MVN_F16_1, 2, 2, 3 },
+}));
+
+// AdaLayerNorm decomposes in OpenVINO IR to MVN followed by eltwise_prod(scale) and eltwise_sum(shift).
+// Existing tests cover a single eltwise post-op on MVN or eltwise followed by quantize.
+// These tests cover the chained scale and shift pattern without quantize.
+class mvn_scale_shift : public MVNFusingTest {};
+TEST_P(mvn_scale_shift, basic) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        mvn("mvn", input_info("input"), p.normalize_variance, 1e-10f, false, p.reduction_axes),
+        data("scale_data", get_mem(get_per_channel_layout(p))),
+        eltwise("scale", { input_info("mvn"), input_info("scale_data") }, eltwise_mode::prod, p.default_type),
+        data("shift_data", get_mem(get_per_channel_layout(p))),
+        eltwise("shift", { input_info("scale"), input_info("shift_data") }, eltwise_mode::sum, p.default_type),
+        reorder("reorder_bfyx", input_info("shift"), format::bfyx, data_types::f32)
+    );
+
+    tolerance = (p.input_type == data_types::f32) ? 1e-5f : 0.1f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, mvn_scale_shift, ::testing::ValuesIn(std::vector<mvn_test_params>{
+    mvn_test_params{ CASE_MVN_F32_1, 2, 2, 4 },
+    mvn_test_params{ CASE_MVN_F32_2, 2, 2, 4 },
+    mvn_test_params{ CASE_MVN_3D_F32_1, 2, 2, 4 },
+    mvn_test_params{ CASE_MVN_3D_F32_2, 2, 2, 4 },
+    mvn_test_params{ CASE_MVN_F16_1, 2, 2, 4 },
+    mvn_test_params{ CASE_MVN_F16_2, 2, 2, 4 },
+    mvn_test_params{ CASE_MVN_3D_F16_1, 2, 2, 4 },
+    mvn_test_params{ CASE_MVN_3D_F16_2, 2, 2, 4 },
+}));
+
+// Same pattern as mvn_scale_shift but scale and shift are runtime inputs, not constants.
+// This matches the actual AdaLayerNorm conditioning path where scale and shift are
+// produced by a linear layer on the timestep embedding rather than stored as weights.
+class MVNDynamicAffineTest : public MVNFusingTest {
+public:
+    void execute(mvn_test_params& p) {
+        if (engine.get_device_info().supports_immad)
+            p.expected_fused_primitives = p.expected_fused_primitives_onednn;
+
+        auto input_prim = get_mem(get_input_layout(p));
+        auto scale_prim = get_mem(get_per_channel_layout(p));
+        auto shift_prim = get_mem(get_per_channel_layout(p));
+
+        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+        network network_fused(this->engine, this->topology_fused, cfg_fused);
+
+        network_fused.set_input_data("input", input_prim);
+        network_fused.set_input_data("scale_data", scale_prim);
+        network_fused.set_input_data("shift_data", shift_prim);
+        network_not_fused.set_input_data("input", input_prim);
+        network_not_fused.set_input_data("scale_data", scale_prim);
+        network_not_fused.set_input_data("shift_data", shift_prim);
+
+        compare(network_not_fused, network_fused, p);
+    }
+};
+
+class mvn_dynamic_affine : public MVNDynamicAffineTest {};
+TEST_P(mvn_dynamic_affine, basic) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        input_layout("scale_data", get_per_channel_layout(p)),
+        input_layout("shift_data", get_per_channel_layout(p)),
+        mvn("mvn", input_info("input"), p.normalize_variance, 1e-10f, false, p.reduction_axes),
+        eltwise("scale", { input_info("mvn"), input_info("scale_data") }, eltwise_mode::prod, p.default_type),
+        eltwise("shift", { input_info("scale"), input_info("shift_data") }, eltwise_mode::sum, p.default_type),
+        reorder("reorder_bfyx", input_info("shift"), format::bfyx, data_types::f32)
+    );
+
+    tolerance = (p.input_type == data_types::f32) ? 1e-5f : 0.1f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, mvn_dynamic_affine, ::testing::ValuesIn(std::vector<mvn_test_params>{
+    mvn_test_params{ CASE_MVN_F32_1, 2, 2, 4 },
+    mvn_test_params{ CASE_MVN_F32_2, 2, 2, 4 },
+    mvn_test_params{ CASE_MVN_3D_F32_1, 2, 2, 4 },
+    mvn_test_params{ CASE_MVN_3D_F32_2, 2, 2, 4 },
+    mvn_test_params{ CASE_MVN_F16_1, 2, 2, 4 },
+    mvn_test_params{ CASE_MVN_F16_2, 2, 2, 4 },
+    mvn_test_params{ CASE_MVN_3D_F16_1, 2, 2, 4 },
+    mvn_test_params{ CASE_MVN_3D_F16_2, 2, 2, 4 },
 }));
