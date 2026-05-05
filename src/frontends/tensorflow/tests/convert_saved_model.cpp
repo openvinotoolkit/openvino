@@ -312,6 +312,27 @@ TEST(FrontEndConvertModelTest, SavedModelOobRestoreV2WrongInputAtPort1) {
     }
 }
 
+// Crafted SavedModel where RestoreV2.input(1) is a control dep (`^bogus`) and
+// `bogus` is a Const with non-empty `string_val`.  parse_node_name strips the
+// `^`, and associate_node has already linked `bogus` into rv2_node->inputs, so
+// a buggy implementation that pulls the candidate from node->input(1) without
+// checking for the `^` prefix would silently bind the variable to bogus's
+// first string_val.  The fix iterates node->input() and skips control inputs,
+// finds only one data input ('prefix'), and throws.
+TEST(FrontEndConvertModelTest, SavedModelOobRestoreV2ControlDepAtPort1) {
+    try {
+        convert_model("saved_model_oob_control_dep_at_port1");
+        FAIL() << "Expected exception when RestoreV2.input(1) is a control dep";
+    } catch (const ov::Exception& e) {
+        EXPECT_TRUE(string(e.what()).find("missing tensor_names input") != string::npos)
+            << "Unexpected error message: " << e.what();
+    } catch (const std::exception& e) {
+        FAIL() << "Unexpected std::exception: " << e.what();
+    } catch (...) {
+        FAIL() << "Unexpected non-std exception";
+    }
+}
+
 // Same test with mmap disabled to verify the stream code path is also protected
 TEST(FrontEndConvertModelTest, SavedModelMaliciousOverflowOffsetNoMmap) {
     shared_ptr<Model> model = nullptr;

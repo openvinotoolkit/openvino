@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# What: Generates 6 malicious TF SavedModel directories that trigger security guards in
+# What: Generates 7 malicious TF SavedModel directories that trigger security guards in
 #       VariablesIndex::map_assignvariable() (variables_index.cpp).
 #       No TF runtime needed — all protobuf and SSTable structures are built by hand.
 #
@@ -10,7 +10,7 @@
 #         variables/variables.index   — Minimal SSTable (bundle header only, num_shards=1).
 #         variables/variables.data-*  — 64 zero bytes (needed to pass open-file checks).
 #
-#       Six variants:
+#       Seven variants:
 #         saved_model_oob_pos_index/              — TF2 (AssignVariableOp path):
 #                                                   Identity.input = "save/RestoreV2:999",
 #                                                   tensor_names has 1 entry → positive OOB index
@@ -33,6 +33,12 @@
 #                                                   no such node exists; shape_and_slices is a
 #                                                   Const present in the dict and would shift to
 #                                                   inputs[1] in a buggy implementation
+#         saved_model_oob_control_dep_at_port1/   — TF2 (AssignVariableOp path):
+#                                                   RestoreV2.input(1) is a control dep (^bogus),
+#                                                   bogus is a Const with non-empty string_val
+#                                                   already in the node dict; data-port scan must
+#                                                   skip control inputs and refuse the silent
+#                                                   variable mis-binding
 #
 # Why:  SSTable builder is copied verbatim from generate_saved_model_malicious_overflow.py.
 #       Generator is run by the CMake build system.
@@ -614,6 +620,116 @@ def write_savedmodel_wrong_input_at_port1(output_dir):
         f.write(b'\x00' * 64)
 
 
+def build_saved_model_pb_control_dep_at_port1():
+    """
+    Build saved_model.pb where RestoreV2 is declared with inputs
+    ["prefix", "^bogus"]: only one data input plus a control dependency on
+    'bogus'.  'bogus' is a Const with a non-empty string_val and is declared
+    before RestoreV2 so associate_node() links it into rv2_node->inputs.
+
+    A buggy implementation that resolves tensor_names through node->input(1)
+    blindly would parse the control-dep token (parse_node_name strips '^'),
+    find 'bogus' among the linked inputs, observe it is a Const with 'value',
+    and silently bind the variable to bogus's first string_val — a security
+    regression (silent variable mis-mapping).  The correct implementation
+    iterates node->input() and skips control inputs (those starting with '^'),
+    finds only one data input ('prefix'), and throws "missing tensor_names
+    input".
+    """
+    DT_FLOAT = 1
+    DT_STRING = 7
+
+    dtype_attr = encode_varint_field(6, DT_FLOAT)
+    dim2 = encode_signed_varint_field(1, 2)
+    shape_proto = encode_bytes_field(2, dim2) + encode_bytes_field(2, dim2)
+    shape_attr = encode_bytes_field(7, shape_proto)
+
+    varhandle_node = build_node_def(
+        "my_var", "VarHandleOp",
+        attrs={"dtype": dtype_attr, "shape": shape_attr,
+               "container": encode_string_field(2, ""),
+               "shared_name": encode_string_field(2, "my_var")})
+
+    dtype_str_attr = encode_varint_field(6, DT_STRING)
+    scalar_shape = encode_bytes_field(4, b"")
+    prefix_tensor = (encode_varint_field(1, DT_STRING) +
+                     scalar_shape +
+                     encode_bytes_field(8, b"checkpoint"))
+    prefix_attr = encode_bytes_field(8, prefix_tensor)
+    prefix_node = build_node_def(
+        "prefix", "Const",
+        attrs={"value": prefix_attr, "dtype": dtype_str_attr})
+
+    # 'bogus' is a Const with a non-empty string_val; it would satisfy every
+    # current guard (Const + 'value' attr + idx 0 in range) if a buggy
+    # implementation accepted it as tensor_names.
+    bogus_tensor_shape = encode_bytes_field(2, encode_signed_varint_field(1, 1))
+    bogus_tensor = (encode_varint_field(1, DT_STRING) +
+                    encode_bytes_field(4, bogus_tensor_shape) +
+                    encode_bytes_field(8, b"fake_var"))
+    bogus_attr = encode_bytes_field(8, bogus_tensor)
+    bogus_node = build_node_def(
+        "bogus", "Const",
+        attrs={"value": bogus_attr, "dtype": dtype_str_attr})
+
+    list_attr = encode_bytes_field(5, encode_varint_field(6, DT_FLOAT))
+    restorev2_node = build_node_def(
+        "save/RestoreV2", "RestoreV2",
+        inputs=["prefix", "^bogus"],
+        attrs={"dtypes": list_attr})
+
+    t_attr = encode_varint_field(6, DT_FLOAT)
+    identity_node = build_node_def(
+        "save/identity", "Identity",
+        inputs=["save/RestoreV2:0"],
+        attrs={"T": t_attr})
+    assign_node = build_node_def(
+        "save/Assign", "AssignVariableOp",
+        inputs=["my_var", "save/identity"],
+        attrs={"dtype": dtype_attr})
+    read_node = build_node_def(
+        "read_var", "ReadVariableOp",
+        inputs=["my_var"],
+        attrs={"dtype": dtype_attr})
+    output_identity = build_node_def(
+        "Identity", "Identity",
+        inputs=["read_var"],
+        attrs={"T": t_attr})
+
+    # 'prefix' and 'bogus' declared BEFORE RestoreV2 so associate_node() links
+    # them into rv2_node->inputs (associate_node strips '^' before lookup, so
+    # the control dep is reachable via rv2_node->inputs in a buggy lookup).
+    graph_def = (encode_bytes_field(1, varhandle_node) +
+                 encode_bytes_field(1, prefix_node) +
+                 encode_bytes_field(1, bogus_node) +
+                 encode_bytes_field(1, restorev2_node) +
+                 encode_bytes_field(1, identity_node) +
+                 encode_bytes_field(1, assign_node) +
+                 encode_bytes_field(1, read_node) +
+                 encode_bytes_field(1, output_identity))
+
+    meta_info_def = encode_string_field(1, "serve")
+    tensor_info = encode_string_field(1, "Identity:0") + encode_varint_field(2, DT_FLOAT)
+    sig_output_entry = encode_string_field(1, "output_0") + encode_bytes_field(2, tensor_info)
+    signature_def = encode_bytes_field(2, sig_output_entry)
+    sig_map_entry = encode_string_field(1, "serving_default") + encode_bytes_field(2, signature_def)
+    meta_graph_def = (encode_bytes_field(1, meta_info_def) +
+                      encode_bytes_field(2, graph_def) +
+                      encode_bytes_field(5, sig_map_entry))
+
+    return encode_signed_varint_field(1, 1) + encode_bytes_field(2, meta_graph_def)
+
+
+def write_savedmodel_control_dep_at_port1(output_dir):
+    os.makedirs(os.path.join(output_dir, "variables"), exist_ok=True)
+    with open(os.path.join(output_dir, "saved_model.pb"), 'wb') as f:
+        f.write(build_saved_model_pb_control_dep_at_port1())
+    with open(os.path.join(output_dir, "variables", "variables.index"), 'wb') as f:
+        f.write(build_minimal_variables_index())
+    with open(os.path.join(output_dir, "variables", "variables.data-00000-of-00001"), 'wb') as f:
+        f.write(b'\x00' * 64)
+
+
 def main():
     if len(sys.argv) < 2:
         print(f"Usage: {sys.argv[0]} <output_dir>")
@@ -652,6 +768,14 @@ def main():
     write_savedmodel_wrong_input_at_port1(
         os.path.join(base, "saved_model_oob_wrong_input_at_port1"))
     print(f"Generated: {os.path.join(base, 'saved_model_oob_wrong_input_at_port1')}")
+
+    # RestoreV2 declared with inputs ["prefix", "^bogus"]: control dep at
+    # node->input(1).  A buggy implementation would parse the control token,
+    # match 'bogus' (a Const with non-empty string_val) and silently bind the
+    # variable to the wrong name.  Data-port iteration must skip control deps.
+    write_savedmodel_control_dep_at_port1(
+        os.path.join(base, "saved_model_oob_control_dep_at_port1"))
+    print(f"Generated: {os.path.join(base, 'saved_model_oob_control_dep_at_port1')}")
 
 
 if __name__ == '__main__':

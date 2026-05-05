@@ -380,9 +380,25 @@ void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::Grap
     }
 
     const auto get_variable_name = [](const PtrNode::SharedPtrNode& rv2_node, int idx) -> const std::string& {
-        FRONT_END_GENERAL_CHECK(rv2_node->node->input_size() > 1, "RestoreV2 node is missing tensor_names input");
+        // Pick tensor_names by data-port semantics: RestoreV2 data inputs are
+        // prefix(0), tensor_names(1), shape_and_slices(2). TF GraphDef stores
+        // control inputs in the same input list, prefixed with '^'; skip them
+        // so a crafted node like ["prefix", "^bogus"] cannot have its control
+        // dep silently treated as tensor_names.
+        std::string tn_input_name;
+        int data_idx = 0;
+        for (const auto& in : rv2_node->node->input()) {
+            if (!in.empty() && in[0] == '^') {
+                continue;
+            }
+            if (data_idx++ == 1) {
+                tn_input_name = in;
+                break;
+            }
+        }
+        FRONT_END_GENERAL_CHECK(!tn_input_name.empty(), "RestoreV2 node is missing tensor_names input");
         std::vector<std::string> parsed;
-        PtrNode::parse_node_name(rv2_node->node->input(1), parsed);
+        PtrNode::parse_node_name(tn_input_name, parsed);
         // Match by local node name on the rv2_node's already-linked inputs. Pointer-based:
         // works in both top-level and StatefulPartitionedCall scopes (the global node dictionary
         // uses prefixed keys for SPC-flattened nodes, but each PtrNode's NodeDef carries its
