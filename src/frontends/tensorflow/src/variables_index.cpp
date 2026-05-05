@@ -379,15 +379,26 @@ void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::Grap
         }
     }
 
-    const auto get_variable_name = [&nodes](const PtrNode::SharedPtrNode& rv2_node, int idx) -> const std::string& {
+    const auto get_variable_name = [](const PtrNode::SharedPtrNode& rv2_node, int idx) -> const std::string& {
         FRONT_END_GENERAL_CHECK(rv2_node->node->input_size() > 1, "RestoreV2 node is missing tensor_names input");
         std::vector<std::string> parsed;
         PtrNode::parse_node_name(rv2_node->node->input(1), parsed);
-        const auto it = nodes.find(parsed[0]);
-        FRONT_END_GENERAL_CHECK(it != nodes.end(),
-                                "RestoreV2 tensor_names input not found in node dictionary: ",
+        // Match by local node name on the rv2_node's already-linked inputs. Pointer-based:
+        // works in both top-level and StatefulPartitionedCall scopes (the global node dictionary
+        // uses prefixed keys for SPC-flattened nodes, but each PtrNode's NodeDef carries its
+        // local name in both cases). Also catches the case where associate_node compacted the
+        // inputs vector and inputs[1] silently refers to a non-tensor_names Const.
+        PtrNode::SharedPtrNode tn_ptr = nullptr;
+        for (const auto& input : rv2_node->inputs) {
+            if (input->node->name() == parsed[0]) {
+                tn_ptr = input;
+                break;
+            }
+        }
+        FRONT_END_GENERAL_CHECK(tn_ptr != nullptr,
+                                "RestoreV2 tensor_names input not found among RestoreV2 inputs: ",
                                 parsed[0]);
-        const auto* tn_node = it->second->node;
+        const auto* tn_node = tn_ptr->node;
         FRONT_END_GENERAL_CHECK(tn_node->op() == "Const" && tn_node->attr().count("value") > 0,
                                 "RestoreV2 tensor_names input is not a Const with 'value' attribute");
         const auto& tensor = tn_node->attr().at("value").tensor();

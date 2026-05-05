@@ -296,14 +296,14 @@ TEST(FrontEndConvertModelTest, SavedModelOobRestoreV2ShortInputs) {
 // node exists in the GraphDef.  shape_and_slices is a Const that occupies the
 // inputs[1] slot in the compacted PtrNode::inputs vector — a buggy
 // implementation that resolves tensor_names via inputs[1] would silently use
-// shape_and_slices.  Resolving by name through the nodes dictionary makes the
-// missing input explicit.
+// shape_and_slices.  Resolving by matching node->name() across rv2_node->inputs
+// makes the missing input explicit.
 TEST(FrontEndConvertModelTest, SavedModelOobRestoreV2WrongInputAtPort1) {
     try {
         convert_model("saved_model_oob_wrong_input_at_port1");
         FAIL() << "Expected exception when RestoreV2 tensor_names input node is absent";
     } catch (const ov::Exception& e) {
-        EXPECT_TRUE(string(e.what()).find("not found in node dictionary") != string::npos)
+        EXPECT_TRUE(string(e.what()).find("not found among RestoreV2 inputs") != string::npos)
             << "Unexpected error message: " << e.what();
     } catch (const std::exception& e) {
         FAIL() << "Unexpected std::exception: " << e.what();
