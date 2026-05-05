@@ -8,6 +8,7 @@
 #include "node/include/node_wrap.hpp"
 #include "node/include/tensor.hpp"
 #include "node/include/type_validation.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 
 const std::vector<std::string>& get_supported_types() {
     static const std::vector<std::string> supported_element_types =
@@ -369,17 +370,22 @@ ov::Tensor cast_to_tensor(const Napi::CallbackInfo& info, int index) {
 ov::Tensor cast_to_tensor(const Napi::TypedArray& typed_array,
                           const ov::Shape& shape,
                           const ov::element::Type_t& type) {
-    /* The difference between TypedArray::ArrayBuffer::Data() and e.g. Float32Array::Data() is byteOffset
-    because the TypedArray may have a non-zero `ByteOffset()` into the `ArrayBuffer`. */
-    if (typed_array.ByteOffset() != 0) {
-        OPENVINO_THROW("TypedArray.byteOffset has to be equal to zero.");
-    }
-    auto array_buffer = typed_array.ArrayBuffer();
-    auto tensor = ov::Tensor(type, shape, array_buffer.Data());
-    if (tensor.get_byte_size() != array_buffer.ByteLength()) {
-        OPENVINO_THROW("Memory allocated using shape and element::type mismatch passed data's size");
-    }
-    return tensor;
+    OPENVINO_ASSERT(typed_array.ByteOffset() == 0,
+                    "TypedArray.byteOffset must be zero for zero-copy tensor construction.");
+    // Zero-copy: wrap TypedArray's buffer. The Napi::Reference ref is stored in
+    // SoPtr::_so and travels with every C++ copy of the tensor via ov::make_tensor,
+    // keeping the JS ArrayBuffer alive until the last copy is destroyed.
+    auto tensor = ov::Tensor(type, shape, typed_array.ArrayBuffer().Data());
+    OPENVINO_ASSERT(tensor.get_byte_size() == typed_array.ArrayBuffer().ByteLength(),
+                    "Memory allocated using shape and element::type mismatch TypedArray byte length.");
+    auto ref = std::shared_ptr<void>(
+        new Napi::Reference<Napi::TypedArray>(Napi::Persistent(typed_array)),
+        [](void* p) {
+        delete static_cast<Napi::Reference<Napi::TypedArray>*>(p);
+    });
+    auto impl = ov::get_tensor_impl(tensor);
+    impl._so = std::move(ref);
+    return ov::make_tensor(impl);
 }
 
 void fill_tensor_from_strings(ov::Tensor& tensor, const Napi::Array& arr) {
