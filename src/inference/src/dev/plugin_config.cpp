@@ -185,7 +185,6 @@ ov::AnyMap PluginConfig::read_config_file(const std::filesystem::path& filename,
         for (auto option = item_value.cbegin(), item_value_end = item_value.cend(); option != item_value_end;
              ++option) {
             config[option.key()] = option.value().get<std::string>();
-            std::cout << "Option: " << option.key() << " value: " << option.value().get<std::string>() << std::endl;
         }
     }
 
