@@ -74,7 +74,7 @@ void prepare_primitive_fusing_through::run(program& p) {
     while (node_itr != p.get_processing_order().end()) {
         auto node = (*node_itr++);
         cldnn::program_node* input_node;
-        bool per_tensor_values;
+        bool per_tensor_values = false;
 
         if (node->is_output() || node->is_constant())
             continue;
@@ -93,9 +93,6 @@ void prepare_primitive_fusing_through::run(program& p) {
                                      quantize_node.get_per_tensor_output_scale() &&
                                      (quantize_node.get_per_tensor_output_shift() || !quantize_node.get_need_post_shift()) &&
                                      quantize_node.get_per_tensor_output_range();
-
-            /*if (!per_tensor_values)
-                continue;*/
 
             if (!per_tensor_values) {
                 // Shape compatibility with the target node is verified later
