@@ -583,8 +583,9 @@ TEST_F(PagedCausalConv1DFusionTest, FusesWithExplicitBiasConstant) {
 }
 
 // Verifies that when GroupConvolution has no Add(bias) before Slice,
-// the fusion still fires and uses a scalar zero constant as the bias.
-TEST_F(PagedCausalConv1DFusionTest, FusesNoBiasUsesScalarZeroConstant) {
+// the fusion still fires and passes an empty bias Constant (shape {0}),
+// which represents "no bias" for PagedCausalConv1D.
+TEST_F(PagedCausalConv1DFusionTest, FusesNoBiasUsesEmptyBiasConstant) {
     disable_rt_info_check();
     model = build_model(true);
     run_paged_causal_conv1d_fusion(model);
