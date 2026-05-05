@@ -4,10 +4,10 @@
 
 #define IS_F8 (F8E5M2_INPUT || F8E4M3_INPUT || F8E8M0_INPUT || F8E5M2_OUTPUT || F8E4M3_OUTPUT || F8E8M0_OUTPUT)
 
-//#if IS_F8
-//#include "include/batch_headers/common.cl"
-//#include "include/batch_headers/f8_utils.cl"
-//#endif
+#if IS_F8
+#include "include/batch_headers/common.cl"
+#include "include/batch_headers/f8_utils.cl"
+#endif
 
 #include "include/reshape_dims.cl"
 #include "include/fetch_utils.cl"
