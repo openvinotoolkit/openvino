@@ -63,7 +63,7 @@ jobs:
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
-          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,.github/workflows/ci-doctor.lock.yml'
 
       - name: Show affected components
         run: |
@@ -606,10 +606,10 @@ jobs:
     with:
       device: 'igpu'
       test_type: ${{ matrix.TEST_TYPE }}
-      runner: "[ 'self-hosted', 'igpu' ]"
+      runner: "[ 'self-hosted', 'igpu', 'Linux' ]"
       runner-group: 'Intel-GPU'
       image: ubuntu:22.04
-      options: "--group-add 44 --group-add 993 --device /dev/dri/card1:/dev/dri/card1 --device /dev/dri/renderD128:/dev/dri/renderD128"
+      options: "--group-add 44 --group-add 993 --device /dev/dri/renderD128:/dev/dri/renderD128"
     if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
 
   dGPU:
