@@ -247,15 +247,13 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
                                            std::nullopt/*_graph->get_init_sizes()*/,
                                            _batchSize,
                                            std::nullopt,
-                                           std::nullopt)
-            .write(requirementsString);
+                                           std::nullopt,
+                                           std::nullopt,
+                                           compilerDescriptor)
+            .write_human_readable(requirementsString);
+        _logger.debug("Encoded compatibility string: %s length: %zu", requirementsString.str().c_str(), requirementsString.str().length());
 
-        const std::string encodedString = encode_compatibility_string(requirementsString.str());
-        _logger.debug("Encoded compatibility string: %s length: %zu", encodedString.c_str(), encodedString.length());
-
-        ov::Tensor requirements(ov::element::string, {});
-        *requirements.data<std::string>() = encodedString;
-        return requirements;
+        return requirementsString.str();
     }
 
     // default behaviour

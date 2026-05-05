@@ -373,17 +373,9 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
         // Reading the (dummy) property content to check if it is supported
         _propertiesManager->getProperty(name);
 
-        const auto& encodedTensor = arguments.at(ov::runtime_requirements.name()).as<const ov::Tensor&>();
-        std::string encodedString;
-        if (encodedTensor.get_element_type() == ov::element::string) {
-            OPENVINO_ASSERT(encodedTensor.get_size() == 1,
-                            "Expected a string tensor in ov::runtime_requirements");
-            encodedString = encodedTensor.data<const std::string>()[0];
-        } else {
-            OPENVINO_THROW("Unsupported ov::runtime_requirements tensor element type");
-        }
-        _logger.debug("Received encoded compatibility string: %s length: %zu", encodedString.c_str(), encodedString.length());
-        std::string decodedString = decode_compatibility_string(encodedString);
+        const auto& compatibilityString = arguments.at(ov::runtime_requirements.name()).as<const std::string&>();
+        std::string encodedString = compatibilityString;
+        _logger.debug("Received encoded compatibility string: %s length: %zu", compatibilityString.c_str(), compatibilityString.length());
 
         const ov::Tensor viewTensor =
             ov::Tensor(ov::element::Type_t::u8, ov::Shape{decodedString.length()}, decodedString.data());
