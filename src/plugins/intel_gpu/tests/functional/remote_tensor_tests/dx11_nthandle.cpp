@@ -22,11 +22,11 @@
 #include <d3d11_1.h>
 #include <dxgi1_2.h>
 #include <dxgi1_4.h>
-#include <psapi.h>
 #ifdef NOMINMAX_DEFINED_SHARED_BUF_TEST
 #undef NOMINMAX
 #undef NOMINMAX_DEFINED_SHARED_BUF_TEST
 #endif
+#include "memory_usage_helpers.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_gpu/ocl/dx.hpp"
 #include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
@@ -37,27 +37,11 @@
 
 namespace {
 
+using ov_test_memory::ProcessRamInfo;
+using ov_test_memory::query_process_memory;
+using ov_test_memory::print_gpu_memory_info;
+
 constexpr size_t kDx11SharedBufferAlignment = 16;
-
-struct ProcessRamInfo {
-    double working_set_mb = 0.0;
-    double private_mb = 0.0;
-    bool valid = false;
-};
-
-ProcessRamInfo query_process_memory() {
-    ProcessRamInfo info;
-    PROCESS_MEMORY_COUNTERS_EX counters{};
-    counters.cb = sizeof(counters);
-    if (GetProcessMemoryInfo(GetCurrentProcess(),
-                             reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&counters),
-                             sizeof(counters))) {
-        info.working_set_mb = static_cast<double>(counters.WorkingSetSize) / (1024.0 * 1024.0);
-        info.private_mb = static_cast<double>(counters.PrivateUsage) / (1024.0 * 1024.0);
-        info.valid = true;
-    }
-    return info;
-}
 
 size_t align_to(size_t size, size_t alignment) {
     return (size % alignment == 0) ? size : size - (size % alignment) + alignment;
@@ -70,38 +54,6 @@ std::string format_luid_bytes(const unsigned char* data, size_t size) {
         stream << std::setw(2) << static_cast<unsigned int>(data[index]);
     }
     return stream.str();
-}
-
-void print_gpu_memory_info(const std::string& label) {
-    IDXGIFactory4* raw_factory = nullptr;
-    if (FAILED(CreateDXGIFactory1(IID_PPV_ARGS(&raw_factory))) || !raw_factory) {
-        std::cout << "[INFO] GPU memory " << label << ": CreateDXGIFactory1 failed\n";
-        return;
-    }
-    CComPtr<IDXGIFactory4> factory(raw_factory);
-    UINT idx = 0;
-    IDXGIAdapter1* raw_adapter = nullptr;
-    while (factory->EnumAdapters1(idx++, &raw_adapter) != DXGI_ERROR_NOT_FOUND) {
-        CComPtr<IDXGIAdapter1> adapter(raw_adapter);
-        DXGI_ADAPTER_DESC1 desc{};
-        adapter->GetDesc1(&desc);
-        if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
-            continue;
-        IDXGIAdapter3* raw_adapter3 = nullptr;
-        if (FAILED(adapter->QueryInterface(IID_PPV_ARGS(&raw_adapter3))) || !raw_adapter3)
-            continue;
-        CComPtr<IDXGIAdapter3> adapter3(raw_adapter3);
-        DXGI_QUERY_VIDEO_MEMORY_INFO local_info{}, non_local_info{};
-        adapter3->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &local_info);
-        adapter3->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL, &non_local_info);
-        const double mb = 1024.0 * 1024.0;
-        std::cout << "[INFO] GPU memory " << label
-                  << ": local_used=" << local_info.CurrentUsage / mb << " MB"
-                  << ", local_budget=" << local_info.Budget / mb << " MB"
-                  << ", non_local_used=" << non_local_info.CurrentUsage / mb << " MB"
-                  << ", non_local_budget=" << non_local_info.Budget / mb << " MB\n";
-        break;
-    }
 }
 
 bool get_context_device_luid(cl_context cl_ctx, std::array<unsigned char, CL_LUID_SIZE_KHR>& cl_luid) {

@@ -28,6 +28,7 @@
 
 
 
+#include "memory_usage_helpers.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
 #include "openvino/op/add.hpp"
@@ -37,6 +38,10 @@
 
 namespace {
 
+using ov_test_memory::bytes_to_mb;
+using ov_test_memory::query_process_memory;
+using ov_test_memory::print_gpu_memory_info;
+
 std::string format_luid_bytes(const unsigned char* data, size_t size) {
     std::ostringstream stream;
     stream << std::hex << std::setfill('0');
@@ -44,33 +49,6 @@ std::string format_luid_bytes(const unsigned char* data, size_t size) {
         stream << std::setw(2) << static_cast<unsigned int>(data[index]);
     }
     return stream.str();
-}
-
-double bytes_to_mb(SIZE_T bytes) {
-    return static_cast<double>(bytes) / (1024.0 * 1024.0);
-}
-
-bool query_process_memory(PROCESS_MEMORY_COUNTERS_EX& counters) {
-    memset(&counters, 0, sizeof(counters));
-    counters.cb = sizeof(counters);
-    return GetProcessMemoryInfo(GetCurrentProcess(), reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&counters), sizeof(counters)) == TRUE;
-}
-
-void print_gpu_memory_info(IDXGIAdapter1* adapter, const std::string& label) {
-    IDXGIAdapter3* raw_adapter3 = nullptr;
-    if (FAILED(adapter->QueryInterface(IID_PPV_ARGS(&raw_adapter3))) || !raw_adapter3) {
-        std::cout << "[INFO] " << label << ": Failed to QI IDXGIAdapter3 for GPU memory query\n";
-        return;
-    }
-    CComPtr<IDXGIAdapter3> adapter3(raw_adapter3);
-    DXGI_QUERY_VIDEO_MEMORY_INFO local_info{}, non_local_info{};
-    adapter3->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &local_info);
-    adapter3->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL, &non_local_info);
-    std::cout << "[INFO] GPU memory " << label
-              << ": local_used=" << bytes_to_mb(local_info.CurrentUsage) << " MB"
-              << ", local_budget=" << bytes_to_mb(local_info.Budget) << " MB"
-              << ", non_local_used=" << bytes_to_mb(non_local_info.CurrentUsage) << " MB"
-              << ", non_local_budget=" << bytes_to_mb(non_local_info.Budget) << " MB\n";
 }
 
 bool get_context_device_luid(cl_context cl_ctx, std::array<unsigned char, CL_LUID_SIZE_KHR>& cl_luid) {

@@ -14,14 +14,12 @@
 #ifdef _WIN32
 #    define VK_USE_PLATFORM_WIN32_KHR
 #include <windows.h>
-#include <psapi.h>
 #elif defined(__linux__)
 #    include <unistd.h>
-#    include <cstdio>
-#    include <fstream>
 #endif
 #include <vulkan/vulkan.h>
 
+#include "memory_usage_helpers.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
 #include "openvino/op/add.hpp"
@@ -117,49 +115,11 @@ bool supports_external_import_handle_type(cl_device_id cl_device, cl_uint handle
     return std::find(import_types.begin(), import_types.end(), handle_type) != import_types.end();
 }
 
-struct ProcessRamInfo {
-    double working_set_mb = 0.0;
-    double private_mb = 0.0;
-    bool valid = false;
-};
-
-struct GpuMemoryInfo {
-    double used_mb = 0.0;
-    double budget_mb = 0.0;
-    bool valid = false;
-};
-
-ProcessRamInfo query_process_memory() {
-    ProcessRamInfo info;
-#ifdef _WIN32
-    PROCESS_MEMORY_COUNTERS_EX counters{};
-    counters.cb = sizeof(counters);
-    if (GetProcessMemoryInfo(GetCurrentProcess(),
-                             reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&counters),
-                             sizeof(counters))) {
-        info.working_set_mb = static_cast<double>(counters.WorkingSetSize) / (1024.0 * 1024.0);
-        info.private_mb = static_cast<double>(counters.PrivateUsage) / (1024.0 * 1024.0);
-        info.valid = true;
-    }
-#elif defined(__linux__)
-    std::ifstream status_file("/proc/self/status");
-    std::string line;
-    while (std::getline(status_file, line)) {
-        double kb = 0.0;
-        if (line.rfind("VmRSS:", 0) == 0 && std::sscanf(line.c_str(), "VmRSS: %lf", &kb) == 1) {
-            info.working_set_mb = kb / 1024.0;
-            info.valid = true;
-        } else if (line.rfind("VmSize:", 0) == 0 && std::sscanf(line.c_str(), "VmSize: %lf", &kb) == 1) {
-            info.private_mb = kb / 1024.0;
-        }
-    }
-#endif
-    return info;
-}
-
-double bytes_to_mb(uint64_t bytes) {
-    return static_cast<double>(bytes) / (1024.0 * 1024.0);
-}
+using ov_test_memory::ProcessRamInfo;
+using ov_test_memory::GpuMemoryInfo;
+using ov_test_memory::query_process_memory;
+using ov_test_memory::query_vulkan_gpu_memory;
+using ov_test_memory::bytes_to_mb;
 
 bool has_device_extension(VkPhysicalDevice physical_device, const char* extension_name) {
     uint32_t extension_count = 0;
@@ -180,38 +140,6 @@ bool has_device_extension(VkPhysicalDevice physical_device, const char* extensio
                        [extension_name](const VkExtensionProperties& extension) {
                            return std::strcmp(extension.extensionName, extension_name) == 0;
                        });
-}
-
-GpuMemoryInfo query_vulkan_gpu_memory(VkPhysicalDevice physical_device) {
-    GpuMemoryInfo info;
-#ifdef VK_EXT_memory_budget
-    if (!has_device_extension(physical_device, VK_EXT_MEMORY_BUDGET_EXTENSION_NAME)) {
-        return info;
-    }
-
-    VkPhysicalDeviceMemoryBudgetPropertiesEXT budget_properties{};
-    budget_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_BUDGET_PROPERTIES_EXT;
-
-    VkPhysicalDeviceMemoryProperties2 memory_properties{};
-    memory_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PROPERTIES_2;
-    memory_properties.pNext = &budget_properties;
-    vkGetPhysicalDeviceMemoryProperties2(physical_device, &memory_properties);
-
-    uint64_t used_bytes = 0;
-    uint64_t budget_bytes = 0;
-    for (uint32_t i = 0; i < memory_properties.memoryProperties.memoryHeapCount; ++i) {
-        const VkMemoryHeap& heap = memory_properties.memoryProperties.memoryHeaps[i];
-        if ((heap.flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) != 0) {
-            used_bytes += budget_properties.heapUsage[i];
-            budget_bytes += budget_properties.heapBudget[i];
-        }
-    }
-
-    info.used_mb = bytes_to_mb(used_bytes);
-    info.budget_mb = bytes_to_mb(budget_bytes);
-    info.valid = budget_bytes > 0;
-#endif
-    return info;
 }
 
 std::shared_ptr<ov::Model> make_copy_model(const ov::Shape& shape) {

@@ -10,11 +10,8 @@
  */
 #pragma once
 
-#include <cstdint>
-#include <iostream>
 #include <memory>
 #include <string>
-#include <vector>
 
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_gpu/ocl/ocl_wrapper.hpp"
