@@ -103,15 +103,15 @@ static constexpr Property<gpu_handle_param> va_device{"VA_DEVICE"};
  * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
 enum class SharedMemType {
-    OCL_BUFFER = 0,         //!< Shared OpenCL buffer blob
-    OCL_IMAGE2D = 1,        //!< Shared OpenCL 2D image blob
-    USM_USER_BUFFER = 2,    //!< Shared USM pointer allocated by user
-    USM_HOST_BUFFER = 3,    //!< Shared USM pointer type with host allocation type allocated by plugin
-    USM_DEVICE_BUFFER = 4,         //!< Shared USM pointer type with device allocation type allocated by plugin
-    VA_SURFACE = 5,                //!< Shared video decoder surface or D3D 2D texture blob
-    DX_BUFFER = 6,                 //!< Shared D3D buffer blob
-    OCL_BUFFER_FROM_HANDLE = 7,    //!< OS-level external memory handle (e.g. DX12 NT handle on Windows,
-                                   //!< DMA-BUF fd on Linux) imported by the plugin into a cl_mem
+    OCL_BUFFER = 0,              //!< Shared OpenCL buffer blob
+    OCL_IMAGE2D = 1,             //!< Shared OpenCL 2D image blob
+    USM_USER_BUFFER = 2,         //!< Shared USM pointer allocated by user
+    USM_HOST_BUFFER = 3,         //!< Shared USM pointer type with host allocation type allocated by plugin
+    USM_DEVICE_BUFFER = 4,       //!< Shared USM pointer type with device allocation type allocated by plugin
+    VA_SURFACE = 5,              //!< Shared video decoder surface or D3D 2D texture blob
+    DX_BUFFER = 6,               //!< Shared D3D buffer blob
+    OCL_BUFFER_FROM_HANDLE = 7,  //!< OS-level external memory handle (e.g. DX12 NT handle on Windows,
+                                 //!< DMA-BUF fd on Linux) imported by the plugin into a cl_mem
 };
 
 /**

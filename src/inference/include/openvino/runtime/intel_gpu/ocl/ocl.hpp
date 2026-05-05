@@ -16,7 +16,6 @@
 #include <string>
 #include <vector>
 
-
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_gpu/ocl/ocl_wrapper.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
