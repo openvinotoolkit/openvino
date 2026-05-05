@@ -56,21 +56,6 @@ using namespace ov::intel_cpu;
 // currently depends on brgemm which only support x64 or ARM SVE
 #if defined(OPENVINO_ARCH_X86_64) || (defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE))
 
-#    if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
-
-#        define prefetch_bytes(bytes, sel, advance, src) \
-            {                                            \
-                auto* p = reinterpret_cast<char*>(src);  \
-                for (size_t i = 0; i < bytes; i += 64)   \
-                    _mm_prefetch(p + i + advance, sel);  \
-            }
-
-#    else
-
-#        define prefetch_bytes(bytes, sel, advance, src)
-
-#    endif
-
 // dequant f16/u8 to float
 template <typename T,
           ov::element::Type_t SRC_PREC,

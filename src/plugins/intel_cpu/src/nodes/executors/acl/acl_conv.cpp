@@ -50,7 +50,7 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
     Shape srcShape = srcMemPtr->getShape();
     Shape dstShape = dstMemPtr->getShape();
 
-    const auto with_groups = static_cast<const int>(weiShape.getRank() == srcShape.getRank() + 1);
+    const auto with_groups = static_cast<int>(weiShape.getRank() == srcShape.getRank() + 1);
     const int kh = weiShape.getDims()[with_groups + srcShape.getRank() - 2];
     const int kw = weiShape.getDims()[with_groups + srcShape.getRank() - 1];
     const int oc = dstShape.getDims()[1];
