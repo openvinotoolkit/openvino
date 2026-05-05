@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "v1/subgraph_pipeline.hpp"
+
 #include <gtest/gtest.h>
 
 #include <string>
@@ -11,7 +13,6 @@
 #include "partitioning/partitioning.hpp"
 #include "partitioning/patterns/moe.hpp"
 #include "partitioning/patterns/sdpa.hpp"
-#include "v1/subgraph_pipeline.hpp"
 
 namespace {
 
@@ -74,17 +75,17 @@ TEST(SubgraphPipelineBehaviorTest, RealPatternRegistrationBuildsRuntimeBehaviorF
     subgraph.settag(ov::npuw::patterns::attn::SDPA::isolation_tag());
     ov::npuw::v1::subgraphs::PatternRegistry registry;
 
-    auto scoped_registration = registry.on<ov::npuw::patterns::attn::SDPA>()
-                                   .at_compile([](ov::npuw::v1::subgraphs::CompiledPipeline&,
-                                                  ov::npuw::v1::subgraphs::Context& ctx) {
-                                       ctx.put<std::string>("marker");
-                                   })
-                                   .at_runtime([](const ov::npuw::v1::subgraphs::Context& ctx)
-                                                   -> ov::npuw::v1::subgraphs::ISubgraphBehavior::Ptr {
-                                       EXPECT_EQ(ctx.get<std::string>(), "marker");
-                                       return ov::npuw::v1::subgraphs::make_direct_behavior();
-                                   })
-                                   .scoped();
+    auto scoped_registration =
+        registry.on<ov::npuw::patterns::attn::SDPA>()
+            .at_compile([](ov::npuw::v1::subgraphs::CompiledPipeline&, ov::npuw::v1::subgraphs::Context& ctx) {
+                ctx.put<std::string>("marker");
+            })
+            .at_runtime(
+                [](const ov::npuw::v1::subgraphs::Context& ctx) -> ov::npuw::v1::subgraphs::ISubgraphBehavior::Ptr {
+                    EXPECT_EQ(ctx.get<std::string>(), "marker");
+                    return ov::npuw::v1::subgraphs::make_direct_behavior();
+                })
+            .scoped();
 
     registry.apply(subgraph);
 
@@ -96,8 +97,7 @@ TEST(SubgraphPipelineBehaviorTest, RealPatternRegistrationBuildsRuntimeBehaviorF
 
     ASSERT_TRUE(compiled_pipeline.runtime_behavior.has_value());
     EXPECT_EQ(compiled_pipeline.registration.name, ov::npuw::patterns::attn::SDPA::pattern_name());
-    EXPECT_EQ(compiled_pipeline.runtime_behavior->registration.name,
-              ov::npuw::patterns::attn::SDPA::pattern_name());
+    EXPECT_EQ(compiled_pipeline.runtime_behavior->registration.name, ov::npuw::patterns::attn::SDPA::pattern_name());
     auto behavior = compiled_pipeline.runtime_behavior->factory(compiled_pipeline.runtime_behavior->context);
     EXPECT_NE(behavior, nullptr);
 }
@@ -107,8 +107,7 @@ TEST(SubgraphPipelineBehaviorTest, MoERegistrationBuildsDeferredPartitionPipelin
     function.settag(ov::npuw::patterns::moe::GPTOSSExpert::isolation_tag());
 
     ov::npuw::v1::subgraphs::PatternRegistry registry;
-    auto registrations =
-        ov::npuw::moe::register_patterns(registry, 0u);
+    auto registrations = ov::npuw::moe::register_patterns(registry, 0u);
     registry.apply(function);
 
     ASSERT_TRUE(static_cast<bool>(function._pipeline.partition_stage));
@@ -163,7 +162,7 @@ TEST(SubgraphPipelineBehaviorTest, AttnCompileStageSkipsRuntimeBehaviorWhenAtten
     // Run compile_stage: with no compiled::Attention in context, no runtime behavior should appear.
     ov::npuw::v1::subgraphs::CompiledPipeline compiled;
     compiled.registration = function._pipeline.registration;
-    compiled.context      = function._pipeline.context;
+    compiled.context = function._pipeline.context;
     function._pipeline.compile_stage(compiled, compiled.context);
 
     EXPECT_FALSE(compiled.runtime_behavior.has_value())

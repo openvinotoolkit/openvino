@@ -19,6 +19,7 @@
 #include "just_sync_infer_request.hpp"
 #include "llm_test_helpers.hpp"
 #include "model_builder.hpp"
+#include "partitioning/patterns/sdpa.hpp"
 #include "unfold_sync_infer_request.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/openvino.hpp"
@@ -126,14 +127,20 @@ std::size_t count_runtime_behaviors(const std::shared_ptr<ov::npuw::CompiledMode
                          });
 }
 
-// Count subgraphs where DynAttnBehavior was attached: identified by handles_function_prologue=true,
-// which attn_subgraph.cpp's attach_runtime_behavior() sets on the RuntimeBehaviorSpec.
+// Count subgraphs where the attention runtime behavior was attached.  The test keys off the
+// behavior's registered attn identity rather than only handles_function_prologue, since that
+// callback flag is not unique to attention behaviors.
 std::size_t count_dyn_attn_behaviors(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model) {
     return std::count_if(compiled_model->m_compiled_submodels.begin(),
                          compiled_model->m_compiled_submodels.end(),
                          [](const auto& desc) {
-                             return desc.pipeline.runtime_behavior.has_value() &&
-                                    desc.pipeline.runtime_behavior->handles_function_prologue;
+                             if (!desc.pipeline.runtime_behavior.has_value()) {
+                                 return false;
+                             }
+                             const auto& spec = *desc.pipeline.runtime_behavior;
+                             return spec.handles_function_prologue &&
+                                    spec.registration.group == ov::npuw::patterns::attn::SDPA::group_name() &&
+                                    spec.registration.name == ov::npuw::patterns::attn::SDPA::pattern_name();
                          });
 }
 
@@ -461,8 +468,8 @@ TEST_F(SubgraphBehaviorInferTest, RuntimeBehaviorForcesJustInferRequestWhenUnfol
 // These tests verify two properties:
 //
 //  1. When NPUW_ATTN=DYNAMIC + NPUW_ONLINE_ISOLATE=ATTN are set and the model has SDPA nodes
-//     with dynamic KV-cache dimensions, DynAttnBehavior IS attached to the attention subgraphs
-//     (runtime_behavior.handles_function_prologue == true).
+//     with dynamic KV-cache dimensions, the attn runtime behavior IS attached to the attention
+//     subgraphs.
 //
 //  2. When either condition is absent (STATIC mode or no isolation), NO DynAttnBehavior is
 //     attached.  This proves the gate is working correctly.
