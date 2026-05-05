@@ -16,7 +16,7 @@ using namespace cldnn;
 
 void compile_graph::run(program& p) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "pass::CompileGraph");
-    const auto forcing_map = p.get_config().get_force_implementations();
+    const auto& forcing_map = p.get_config().get_force_implementations();
 
     for (auto& node : p.get_processing_order()) {
         node->set_unique_id();
