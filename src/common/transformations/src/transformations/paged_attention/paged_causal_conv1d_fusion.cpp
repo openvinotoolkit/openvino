@@ -75,8 +75,8 @@ PagedCausalConv1DFusion::PagedCausalConv1DFusion(ov::pass::paged_attention::PaPa
     auto p_weight_input = any_input(has_static_shape() && rank_equals(4));
     auto p_group_conv = wrap_type<v1::GroupConvolution>({p_state_concat, p_weight_input});
 
-    auto p_bias_const = wrap_type<v0::Constant>(has_static_shape());
-    auto p_add_bias = ov::pass::pattern::optional<v1::Add>({p_group_conv, p_bias_const});
+    auto p_bias_input = any_input(has_static_shape());
+    auto p_add_bias = ov::pass::pattern::optional<v1::Add>({p_group_conv, p_bias_input});
 
     auto p_slice_out = wrap_type<v8::Slice>({p_add_bias, any_input(), any_input(), any_input(), any_input()});
 
@@ -141,8 +141,20 @@ PagedCausalConv1DFusion::PagedCausalConv1DFusion(ov::pass::paged_attention::PaPa
         const auto weight_reshaped = std::make_shared<v1::Reshape>(weight_node, pa_weight_shape, false);
 
         const auto& elem_type = input_embeds_node->get_output_element_type(0);
-        const auto bias_node = pm.count(p_add_bias) ? pm.at(p_bias_const).get_node_shared_ptr()
-                                                    : v0::Constant::create(elem_type, ov::Shape{1}, {0.0f});
+        std::shared_ptr<ov::Node> bias_node;
+        if (pm.count(p_add_bias)) {
+            const auto bias_input = pm.at(p_bias_input).get_node_shared_ptr();
+            const auto& bias_shape = bias_input->get_output_partial_shape(0);
+            if (bias_shape.rank().is_static() && bias_shape.rank().get_length() == 1) {
+                bias_node = bias_input;
+            } else {
+                const auto bias_shape_node =
+                    v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
+                bias_node = std::make_shared<v1::Reshape>(bias_input, bias_shape_node, false);
+            }
+        } else {
+            bias_node = v0::Constant::create(elem_type, ov::Shape{0}, std::vector<float>{});
+        }
 
         const auto paged_conv =
             std::make_shared<ov::op::internal::PagedCausalConv1D>(input_embeds_node,
