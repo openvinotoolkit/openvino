@@ -4,7 +4,7 @@ GPU plugin in [OpenVINO toolkit](https://github.com/openvinotoolkit/openvino) su
 
 ## Key Contacts
 
-For assistance regarding GPU, contact a member of [openvino-ie-gpu-maintainers](https://github.com/orgs/openvinotoolkit/teams/openvino-ie-gpu-maintainers) group.
+For assistance regarding GPU, contact a member of openvino-ie-gpu-maintainers group.
 
 ## Components
 
@@ -52,6 +52,10 @@ This contents explain the internal implementation of dynamic shape support in th
 * Performance analysis and debugging features (TBD)
 * Model caching for dynamic shape (TBD)
 -->
+
+## Additional Documentation
+* [How to build with DPC++ support](./docs/gpu_plugin_with_sycl.md)
+* [GPU plugin Level Zero support](./docs/gpu_plugin_with_level_zero.md)
 
 ## Troubleshooting / Debugging
 * [Debug utils](./docs/gpu_debug_utils.md)

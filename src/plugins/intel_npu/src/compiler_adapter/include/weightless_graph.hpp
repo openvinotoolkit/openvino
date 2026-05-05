@@ -39,10 +39,11 @@ public:
     std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
 
     /**
-     * @brief The same operations performed within "Graph::initialize", but for all handles. In addition to this, the
-     * init schedules are run and the result of this is set as inputs to the main compiled model.
+     * @brief Implementation hook for "IGraph::initialize" that initializes all underlying graph handles.
+     * In addition to this, the init schedules are run and the result of this is set as inputs to the main
+     * compiled model.
      */
-    void initialize(const FilteredConfig& config) override;
+    void initialize_impl(const FilteredConfig& config) override;
 
     // TODO: public for multi-threaded execution
     struct InputData {
@@ -110,7 +111,6 @@ private:
     std::vector<std::unique_ptr<CommandList>> _initsCommandLists;
     std::vector<std::unique_ptr<Fence>> _initsFences;
     std::shared_ptr<CommandQueue> _initsCommandQueue;
-    uint32_t _initsCommandQueueGroupOrdinal = 0;
 
     /**
      * @brief Tensors holding the L0 buffers corresponding to the inputs of the main schedule.

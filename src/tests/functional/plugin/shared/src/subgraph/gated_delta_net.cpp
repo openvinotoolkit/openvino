@@ -44,8 +44,8 @@ std::shared_ptr<ov::Model> GatedDeltaNet::buildLoopedGDN(int32_t batch,
                                                          int32_t qk_head_num,
                                                          int32_t v_head_num,
                                                          int32_t qk_head_size,
-                                                         int32_t v_head_size) {
-    constexpr auto dtype = ov::element::f32;
+                                                         int32_t v_head_size,
+                                                         ov::element::Type dtype) {
     const ov::PartialShape qk_shape{batch, seq_len, qk_head_num, qk_head_size};
     const ov::PartialShape v_tensor_shape{batch, seq_len, v_head_num, v_head_size};
     const ov::PartialShape gv_shape{batch, seq_len, qk_head_num};
@@ -239,14 +239,16 @@ void GatedDeltaNet::generate_inputs(const std::vector<ov::Shape>& targetInputSta
                                                         shape,
                                                         ov::test::utils::InputGenerateData(0.0, 1, 1000, 1));
         } else {
-            inputs[param] = ov::test::utils::create_and_fill_tensor(param->get_element_type(), shape);
+            inputs[param] =
+                ov::test::utils::create_and_fill_tensor(param->get_element_type(),
+                                                        shape,
+                                                        ov::test::utils::InputGenerateData(0.0, 1, 1000, 1));
         }
     }
 }
 
 void GatedDeltaNet::compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) {
     ASSERT_EQ(expected.size(), actual.size());
-    abs_threshold = 1e-6f;
     ov::test::utils::compare(expected[0], actual[0], abs_threshold, rel_threshold);
     ov::test::utils::compare(expected[1], actual[1], abs_threshold, rel_threshold);
 }
@@ -257,6 +259,12 @@ void GatedDeltaNet::SetUp() {
     targetDevice = device;
     inType = prec;
     configuration[ov::hint::inference_precision.name()] = prec;
+
+    abs_threshold = 0.0015f;
+
+    if (prec == ov::element::f32) {
+        abs_threshold = 1e-6f;
+    }
 
     const ov::Shape q_shape{static_cast<size_t>(batch),
                             static_cast<size_t>(seq_len),
@@ -274,7 +282,7 @@ void GatedDeltaNet::SetUp() {
 
     init_input_shapes(static_shapes_to_test_representation({q_shape, q_shape, v_shape, h_shape, g_shape, g_shape}));
 
-    function = buildLoopedGDN(-1, -1, qk_head_num, v_head_num, qk_head_size, v_head_size);
+    function = buildLoopedGDN(-1, -1, qk_head_num, v_head_num, qk_head_size, v_head_size, prec);
 }
 
 }  // namespace test

@@ -5,6 +5,7 @@
 #include "op_table.hpp"
 
 #include "common_translators.hpp"
+#include "openvino/op/erfinv.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "utils.hpp"
 #include "utils_quantize.hpp"
@@ -235,6 +236,7 @@ OP_CONVERTER(translate_rms_norm);
 OP_CONVERTER(translate_rnn);
 OP_CONVERTER(translate_roi_align);
 OP_CONVERTER(translate_roll);
+OP_CONVERTER(translate_rot90);
 OP_CONVERTER(translate_round);
 OP_CONVERTER(translate_rsqrt);
 OP_CONVERTER(translate_rsub);
@@ -368,6 +370,7 @@ OP_CONVERTER(translate_embedding_ext);
 OP_CONVERTER(translate_linear_awq);
 OP_CONVERTER(translate_linear_bitnet);
 OP_CONVERTER(translate_linear_ext);
+OP_CONVERTER(translate_linear_gptq);
 }  // namespace op
 
 // Supported ops for TorchScript
@@ -510,6 +513,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::equal", op::translate_1to1_match_2_inputs_align_types<opset10::Equal>},
         {"aten::erf", op::translate_erf},
         {"aten::erfc", op::translate_erfc},
+        {"aten::erfinv",
+         op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<ov::op::v17::ErfInv>, 1>},
         {"aten::exp", op::optional_out<op::translate_exp, 1>},
         {"aten::exp_", op::inplace_op<op::translate_exp>},
         {"aten::expand", op::translate_expand},
@@ -703,6 +708,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::rnn_relu", op::translate_rnn},
         {"aten::rnn_tanh", op::translate_rnn},
         {"aten::roll", op::translate_roll},
+        {"aten::rot90", op::translate_rot90},
         {"aten::round", op::translate_round},
         {"aten::rsqrt", op::optional_out<op::translate_rsqrt, 1>},
         {"aten::rsqrt_", op::inplace_op<op::translate_rsqrt>},
@@ -786,6 +792,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::zeros_like", op::translate_zeros_like},
         {"ov_ext::awq_gemm", op::translate_linear_awq},
         {"ov_ext::bit_linear", op::translate_linear_bitnet},
+        {"ov_ext::gptq_gemm", op::translate_linear_gptq},
         {"ov_ext::bmm", op::translate_bmm_ext},
         {"ov_ext::embedding", op::translate_embedding_ext},
         {"ov_ext::conv1d", op::translate_conv1d_ext},
@@ -936,6 +943,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.eq.Tensor", op::translate_1to1_match_2_inputs_align_types<opset10::Equal>},
         {"aten.erf.default", op::translate_erf},
         {"aten.erfc.default", op::translate_erfc},
+        {"aten.erfinv.default", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<ov::op::v17::ErfInv>},
         {"aten.exp.default", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Exp>},
         {"aten.expm1.default", op::translate_expm1},
         {"aten.expand.default", op::translate_expand},
@@ -1068,6 +1076,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.rms_norm.default", op::translate_rms_norm},
         {"aten.roll.default", op::translate_roll},
         {"aten.rad2deg.default", op::translate_rad2deg},
+        {"aten.rot90.default", op::translate_rot90},
         {"aten.round.default", op::translate_round},
         {"aten.round.out", op::translate_round},
         {"aten.rsqrt.default", op::translate_rsqrt},
@@ -1158,6 +1167,10 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"quantized_decomposed.dequantize_per_channel.default", op::skip_node},
         {"inlined.constant.default", op::translate_constant},    // this is a custom ov type
         {"inlined.list.default", op::translate_list_construct},  // this is a custom list type
+        // OpenVINO extension ops registered via torch.library for torch.export
+        {"ov_ext.awq_gemm.default", op::translate_linear_awq},
+        {"ov_ext.bit_linear.default", op::translate_linear_bitnet},
+        {"ov_ext.gptq_gemm.default", op::translate_linear_gptq},
         // Higher-order operations from torch.export (torch.cond, torch.while_loop, etc.)
         {"cond", op::translate_cond_fx},
         {"while_loop", op::translate_while_loop_fx},

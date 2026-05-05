@@ -215,7 +215,9 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
                 continue;
             }
             auto kvcache_in_tensor = largest_kvcache_req->get_tensor(variant_in_ports.at(input_name));
-            ov::npuw::util::fill_tensor<ov::float16>(kvcache_in_tensor, 0);
+            // NB: Use fill_tensor_bytes to zero-fill regardless of element type.
+            // fill_tensor<ov::float16> would fail with a type mismatch error for i8 kv-cache
+            ov::npuw::util::fill_tensor_bytes(kvcache_in_tensor, 0u);
         }
     }
 
@@ -475,6 +477,12 @@ void ov::npuw::LLMInferRequest::prepare_for_new_conversation(int64_t prompt_leng
     uu::fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask)), 0);
     uu::fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids)), 0);
 
+    // Gemma4: Clear per_layer_inputs if present
+    if (auto per_layer_port = m_prefill_in_ports.find(layer_names::per_layer_inputs);
+        per_layer_port != m_prefill_in_ports.end()) {
+        uu::fill_tensor_bytes(m_prefill_request->get_tensor(per_layer_port->second), 0u);
+    }
+
     // Clear all past_key_values tensors - use cached ports for efficiency
     for (const auto& port : m_prefill_past_kv_ports) {
         uu::fill_tensor_bytes(m_prefill_request->get_tensor(port), 0u);
@@ -594,8 +602,8 @@ void ov::npuw::LLMInferRequest::trim_kvcache_for_speculative_decoding(ov::SoPtr<
     auto position_id = position_ids->data<int64_t>()[0];
     auto dirty_num = kvcache_desc.num_stored_tokens - static_cast<uint32_t>(position_id);
     if (dirty_num > 0) {
-        LOG_DEBUG("Trim kv cache from " << kvcache_desc.num_stored_tokens << " length"
-                                        << " to " << position_id << " length");
+        LOG_DEBUG("Trim kv cache from " << kvcache_desc.num_stored_tokens << " length" << " to " << position_id
+                                        << " length");
     }
     kvcache_desc.num_stored_tokens -= dirty_num;
 }
@@ -614,13 +622,17 @@ void ov::npuw::LLMInferRequest::clear_chunk_prefill_kv_cache() {
 
         auto chunk_prefill_kvcache_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(input_name));
 
-        ov::npuw::util::fill_tensor<ov::float16>(chunk_prefill_kvcache_in_tensor, 0);
+        // NB: Use fill_tensor_bytes to zero-fill regardless of element type.
+        // After KV cache compression, past KV inputs may be i8 precision, and
+        // fill_tensor<ov::float16> would fail with a type mismatch error.
+        ov::npuw::util::fill_tensor_bytes(chunk_prefill_kvcache_in_tensor, 0u);
     }
 }
 
 void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> input_ids,
                                                       ov::SoPtr<ov::ITensor> attention_mask,
-                                                      ov::SoPtr<ov::ITensor> position_ids) {
+                                                      ov::SoPtr<ov::ITensor> position_ids,
+                                                      ov::SoPtr<ov::ITensor> per_layer_inputs) {
     LOG_DEBUG("Calling chunked inference for prefill model.");
     LOG_BLOCK();
 
@@ -724,6 +736,17 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             // Update history size for dynamic context:
             // dynamic attention selector needs history size to determin the past KV shape and attention mask shape
             m_prefill_base_request->update_history_size(kvcache_desc.num_stored_tokens);
+
+            // Gemma4: copy the current chunk of per_layer_inputs right-aligned on seq_len dim.
+            // Source shape: [1, input_prompt_len, num_layers, proj_dim]
+            // Dest shape:   [1, chunk_prompt_len, num_layers, proj_dim] (static)
+            if (per_layer_inputs) {
+                auto dst = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::per_layer_inputs));
+                ov::npuw::util::copy_per_layer_inputs_chunk_to_right(per_layer_inputs,
+                                                                     dst,
+                                                                     kvcache_desc.num_stored_tokens,
+                                                                     static_cast<uint32_t>(current_prompts_len));
+            }
         });
 
         m_llm_profile["1/prefill:3b.infer"].record([&]() {
@@ -781,7 +804,8 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
 void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input_ids,
                                                     ov::SoPtr<ov::ITensor> attention_mask,
                                                     ov::SoPtr<ov::ITensor> position_ids,
-                                                    ov::SoPtr<ov::ITensor> token_type_ids) {
+                                                    ov::SoPtr<ov::ITensor> token_type_ids,
+                                                    ov::SoPtr<ov::ITensor> per_layer_inputs) {
     LOG_DEBUG("Calling inference for prefill model in a single launch.");
     LOG_BLOCK();
 
@@ -813,6 +837,13 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
         if (m_eagle3_ext.is_eagle3_model()) {
             m_eagle3_ext.prepare_inputs(m_prefill_request, m_prefill_in_ports);
         }
+
+        // Gemma4: pass per_layer_inputs from external inputs into the prefill sub-request.
+        // Shape is [1, seq_len, num_layers, proj_dim]; copy right-aligned on the seq_len dim.
+        if (per_layer_inputs) {
+            auto dst = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::per_layer_inputs));
+            ov::npuw::util::copy_to_right(per_layer_inputs, dst);
+        }
     });
 
     m_llm_profile["1/prefill:3b.infer"].record([&]() {
@@ -828,7 +859,8 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
 void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
                                               ov::SoPtr<ov::ITensor> attention_mask,
                                               ov::SoPtr<ov::ITensor> position_ids,
-                                              ov::SoPtr<ov::ITensor> token_type_ids) {
+                                              ov::SoPtr<ov::ITensor> token_type_ids,
+                                              ov::SoPtr<ov::ITensor> per_layer_inputs) {
     LOG_DEBUG("Calling inference for prefill model...");
     LOG_BLOCK();
 
@@ -857,9 +889,9 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
             OPENVINO_ASSERT(!token_type_ids,
                             "Chunking is not implemented for Gemma model family yet. "
                             "Please set NPUW_LLM_PREFILL_HINT to 'STATIC'");
-            infer_chunked_prefill(input_ids, attention_mask, position_ids);
+            infer_chunked_prefill(input_ids, attention_mask, position_ids, per_layer_inputs);
         } else {
-            infer_whole_prefill(input_ids, attention_mask, position_ids, token_type_ids);
+            infer_whole_prefill(input_ids, attention_mask, position_ids, token_type_ids, per_layer_inputs);
         }
     });
 
@@ -887,7 +919,8 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
 void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                                                ov::SoPtr<ov::ITensor> attention_mask,
                                                ov::SoPtr<ov::ITensor> position_ids,
-                                               ov::SoPtr<ov::ITensor> token_type_ids) {
+                                               ov::SoPtr<ov::ITensor> token_type_ids,
+                                               ov::SoPtr<ov::ITensor> per_layer_inputs) {
     LOG_DEBUG("Calling inference for generate model...");
     LOG_BLOCK();
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
@@ -900,6 +933,16 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
 
     // Note: m_kvcache_request, m_kvcache_in_ports, and m_kvcache_out_ports are selected in
     // prepare_for_new_conversation()
+
+    // Eagle3: Check for sampling result from external pipeline via VariableState
+    if (m_eagle3_ext.is_eagle3_model() && m_generate_initialized) {
+        m_eagle3_ext.process_sampling_result_from_state(m_kvcache_request,
+                                                        m_kvcache_in_ports,
+                                                        kvcache_desc.num_stored_tokens,
+                                                        kvcache_desc.v_tensors_transposed_gen,
+                                                        kvcache_desc.dim);
+    }
+
     m_llm_profile["N/generate:1.prepare"].record([&]() {
         if (!m_generate_initialized) {
             LOG_DEBUG("Copy kv-cache from prefill to generate model.");
@@ -968,6 +1011,13 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         if (m_eagle3_ext.is_eagle3_model()) {
             m_eagle3_ext.prepare_inputs(m_kvcache_request, m_kvcache_in_ports);
         }
+
+        // Gemma4: pass per_layer_inputs from external inputs into the generate sub-request.
+        // Shape is [1, 1, num_layers, proj_dim] during generate; copy right-aligned on seq_len dim.
+        if (per_layer_inputs) {
+            auto dst = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::per_layer_inputs));
+            ov::npuw::util::copy_to_right(per_layer_inputs, dst);
+        }
     });
 
     m_llm_profile["N/generate:2.infer"].record([&]() {
@@ -1029,14 +1079,23 @@ void ov::npuw::LLMInferRequest::infer() {
         token_type_ids = get_tensor(type_ids_port.value());
     }
 
+    // Gemma4: Extract per_layer_inputs if present
+    auto per_layer_inputs = ov::npuw::util::TensorPtr();
+    if (auto per_layer_port = ov::npuw::util::find_port_by_name(inputs, layer_names::per_layer_inputs);
+        per_layer_port.has_value()) {
+        per_layer_inputs = get_tensor(per_layer_port.value());
+    }
+
     // NB: For VLM, the "inputs_embeds" contains float values (embeddings)
     OPENVINO_ASSERT(ov::element::f32 == input_ids->get_element_type() ||
                     ov::element::i64 == input_ids->get_element_type());
     OPENVINO_ASSERT(ov::element::i64 == attention_mask->get_element_type());
     OPENVINO_ASSERT(ov::element::i64 == position_ids->get_element_type());
 
-    // Eagle3: Accept and validate hidden state inputs
-    m_eagle3_ext.store_hidden_state_inputs(*this, inputs);
+    // Eagle3: Store Eagle3 specific inputs with pre-validation
+    if (m_eagle3_ext.is_eagle3_model()) {
+        m_eagle3_ext.store_user_inputs(*this, inputs);
+    }
 
     if (m_first_run) {
         // Most of the models have position_ids->data<int64_t>()[0] == 0 for the first infer
@@ -1072,7 +1131,7 @@ void ov::npuw::LLMInferRequest::infer() {
     //    both main and draft models for most of LLMs.
     if (input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM] > 1 &&
         position_ids->data<int64_t>()[0] == m_first_position_id) {
-        infer_prefill(input_ids, attention_mask, position_ids, token_type_ids);
+        infer_prefill(input_ids, attention_mask, position_ids, token_type_ids, per_layer_inputs);
     } else {
         // FIXME: Need to make the solution smarter.
         // Qwen2.5VL uses 3D position_ids but current `trim_kvcache_for_speculative_decoding`
@@ -1081,7 +1140,7 @@ void ov::npuw::LLMInferRequest::infer() {
         if (position_ids->get_shape().size() < 3) {
             trim_kvcache_for_speculative_decoding(position_ids);
         }
-        infer_generate(input_ids, attention_mask, position_ids, token_type_ids);
+        infer_generate(input_ids, attention_mask, position_ids, token_type_ids, per_layer_inputs);
     }
 }
 
@@ -1109,5 +1168,13 @@ ov::SoPtr<ov::ITensor> ov::npuw::LLMInferRequest::get_tensor(const ov::Output<co
 }
 
 std::vector<ov::SoPtr<ov::IVariableState>> ov::npuw::LLMInferRequest::query_state() const {
-    return m_variableStates;
+    auto states = m_variableStates;
+
+    // Add Eagle3 sampling state if available
+    auto eagle3_state = m_eagle3_ext.get_sampling_state();
+    if (eagle3_state) {
+        states.push_back(eagle3_state);
+    }
+
+    return states;
 }

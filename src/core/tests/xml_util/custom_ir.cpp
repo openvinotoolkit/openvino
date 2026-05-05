@@ -423,4 +423,24 @@ TEST_F(CustomIRTest, modified_serialization_deserialization) {
     const auto& [is_valid, error_msg] = model_comparator().compare(ov_model, drv_model);
     EXPECT_TRUE(is_valid) << error_msg;
 }
+
+TEST(StrToContainer, FloatVectorWithInfAndNan) {
+    {
+        std::vector<float> result;
+        ov::util::str_to_container("1.5,inf,-inf,nan,3.0", result);
+        ASSERT_EQ(result.size(), 5);
+        EXPECT_FLOAT_EQ(result[0], 1.5f);
+        EXPECT_TRUE(std::isinf(result[1]) && result[1] > 0);
+        EXPECT_TRUE(std::isinf(result[2]) && result[2] < 0);
+        EXPECT_TRUE(std::isnan(result[3]));
+        EXPECT_FLOAT_EQ(result[4], 3.0f);
+    }
+    {
+        std::vector<double> result;
+        ov::util::str_to_container("-inf,inf", result);
+        ASSERT_EQ(result.size(), 2);
+        EXPECT_TRUE(std::isinf(result[0]) && result[0] < 0);
+        EXPECT_TRUE(std::isinf(result[1]) && result[1] > 0);
+    }
+}
 }  // namespace ov::test

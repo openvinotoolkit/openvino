@@ -691,11 +691,11 @@ void primitive_inst::realloc_intermediates() {
             // we'll need additional handle for that purpose like need_reset_output_memory
             const bool need_reset = false;
             if (i < _intermediates_memory.size()) {
-                _intermediates_memory[i] = allocate_internal_buffer(buffer_descs[i].m_layout, i, need_reset, need_lockable);
+                _intermediates_memory[i] = allocate_internal_buffer(buffer_descs[i].m_layout, i, need_reset, need_lockable, buffer_descs[i].m_shareable);
                 _max_intermediates_memory_sizes[i] = _intermediates_memory[i]->size();
             } else {
                 // i-th layout has not been allocated yet
-                _intermediates_memory.push_back(allocate_internal_buffer(buffer_descs[i].m_layout, i, need_reset, need_lockable));
+                _intermediates_memory.push_back(allocate_internal_buffer(buffer_descs[i].m_layout, i, need_reset, need_lockable, buffer_descs[i].m_shareable));
                 _max_intermediates_memory_sizes.push_back(_intermediates_memory[i]->size());
             }
             GPU_DEBUG_CODE(memalloc_info +=
@@ -750,6 +750,39 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     // input_layout node is supposed to always use external memory in dynamic case
     if (get_node().is_type<input_layout>())
         return;
+
+    // Forward probe: walk through single-user optimized chains to find an output
+    // node with an external output memory block (ext_block).  If found, use the
+    // ext_block memory directly so this node's kernel writes into it, achieving
+    // zero-copy.  This handles arbitrary-depth chains like:
+    //   ComputeNode -> Reshape(opt) -> Reorder(opt) -> Result(opt, ext_block)
+    {
+        auto* cursor = this;
+        while (cursor->get_user_insts().size() == 1 && cursor->get_user_insts().front()->can_be_optimized()) {
+            auto* next = cursor->get_user_insts().front();
+            if (next->is_output()) {
+                auto* ext_block = get_network().get_output_memory_block(next->id());
+                if (ext_block) {
+                    ext_block->resize(actual_layouts[0]);
+                    _outputs[0] = ext_block->memory();
+                    _max_output_layout_count[0] = _outputs[0]->get_mem_tracker()->size()
+                                                  / cldnn::data_type_traits::size_of(actual_layouts[0].data_type);
+                    GPU_DEBUG_TRACE_DETAIL << id() << ": use ext output memory block via forward probe -> "
+                                           << next->id() << " - "
+                                           << actual_layouts[0].get_linear_size() << "/" << _max_output_layout_count[0]
+                                           << std::endl;
+                    GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("ext_output_block_via_forward_probe");
+                    return;
+                }
+                break;  // output node without ext_block — stop probing
+            }
+            // Stop at runtime-skippable nodes: their can_be_optimized() is
+            // tentative and may flip to false once their prepare_primitive runs.
+            if (next->get_node().is_runtime_skippable())
+                break;
+            cursor = next;
+        }
+    }
 
     auto& sp = *get_network().get_shape_predictor();
     std::vector<size_t> dt_sizes_in_B;
@@ -1044,8 +1077,8 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
         if (get_node().is_type<kv_cache>() && i != 1) {
             const auto& desc = get_node().as<kv_cache>().get_primitive();
             const auto shape_rank = updated_layouts[i].get_shape().size();
-            const auto seq_axis = i == 0 ? kv_cache_inst::get_sequence_axis(desc->concat_axis, shape_rank)
-                                         : kv_cache_inst::get_scale_zp_sequence_axis();
+            const int32_t seq_axis = static_cast<int32_t>(i == 0 ? kv_cache_inst::get_sequence_axis(desc->concat_axis, shape_rank)
+                                         : kv_cache_inst::get_scale_zp_sequence_axis());
 
             prealloc_info = sp.predict_preallocation_shape(id(), updated_layouts[i], false, i, tmp_prealloc_count, seq_axis);
         } else {
@@ -1056,6 +1089,24 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
         }
         if (updated_params.output_layouts[i].get_linear_size() < updated_layouts[i].get_linear_size()) {
             updated_params.output_layouts[i] = updated_layouts[i];
+        }
+
+        // Check for external output memory block (zero-copy dynamic output path).
+        // When registered by the infer request, the block owns USM host memory that the
+        // GPU kernel writes into directly, avoiding an extra GPU->Host copy after execution.
+        if (is_output()) {
+            auto* ext_block = get_network().get_output_memory_block(id());
+            if (ext_block) {
+                ext_block->resize(updated_params.output_layouts[i]);
+                _outputs[i] = get_network().get_engine().reinterpret_buffer(*ext_block->memory(), actual_layouts[i]);
+                _max_output_layout_count[i] = ext_block->memory()->get_mem_tracker()->size()
+                                              / cldnn::data_type_traits::size_of(actual_layouts[i].data_type);
+                GPU_DEBUG_TRACE_DETAIL << id() << ": ext output memory block for output[" << i << "] - "
+                                       << actual_layouts[i].get_linear_size() << "/" << _max_output_layout_count[i]
+                                       << std::endl;
+                GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("ext_output_block");
+                continue;
+            }
         }
 
         if (can_reuse_buffer) {
@@ -1281,10 +1332,10 @@ void primitive_inst::fill_shape_info_data(const layout& runtime_layout, const la
         if (dynamic_pad[j] == 1) {
             GPU_DEBUG_TRACE_DETAIL << " shape_info[" << offset << "] = " << lower_pads[j]
                                    << "(pad_before for " << j << "-th dim)" << std::endl;
-            shape_info_ptr[offset++] = lower_pads[j];  // pad_before
+            shape_info_ptr[offset++] = static_cast<int32_t>(lower_pads[j]);  // pad_before
             GPU_DEBUG_TRACE_DETAIL << " shape_info[" << offset << "] = " << upper_pads[j]
                                    << "(pad_after for " << j << "-th dim)" << std::endl;
-            shape_info_ptr[offset++] = upper_pads[j];  // pad_after
+            shape_info_ptr[offset++] = static_cast<int32_t>(upper_pads[j]);  // pad_after
         }
     }
 }
@@ -2099,6 +2150,13 @@ void primitive_inst::prepare_primitive() {
     _update_shape_done_by_other = false; // reset
     OPENVINO_ASSERT(_impl != nullptr, "[GPU] Implementation is nullptr for ", primitive_id,  " primitive");
 
+    // Re-acquire output memory when _outputs[0] was cleared by
+    // invalidate_ext_block_compute_nodes (double-buffer flip).
+    if (is_dynamic() && !has_inner_networks() && !_outputs.empty() && !_outputs[0]) {
+        realloc_if_needed(prev_execution_skipped);
+        set_flag(ExecutionFlags::MEMORY_CHANGED);
+    }
+
     std::function<bool(const cldnn::primitive_inst*)> has_dynamic_dependencies_insts =
         [&has_dynamic_dependencies_insts](const cldnn::primitive_inst* prim_inst) {
         for (auto& dep : prim_inst->_deps) {
@@ -2298,7 +2356,6 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
     , _fused_mem_offset((_fused_mem_count > 0 && node.get_first_fused_dep_idx() > 0) ? static_cast<uint64_t>(node.get_first_fused_dep_idx()) : 0)
     , _can_be_optimized(node.can_be_optimized())
     , _can_share_buffer(node.can_share_buffer())
-    , _can_share_internal_buffer(node.can_share_internal_buffer())
     , _is_constant(node.is_constant())
     , _needs_completion_event(is_any_user_cpu(node.get_users()) || node.is_output()) {
     // When dynamic shape node has huge upper boundary which causes bigger mem size than system max allocable mem size, do not allocate in build time.
@@ -2370,7 +2427,7 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
     OPENVINO_ASSERT(_max_output_layout_count.size() == get_node().get_output_layouts().size());
 }
 
-memory::ptr primitive_inst::allocate_internal_buffer(const layout& layout, size_t idx, bool reset, bool lockable) {
+memory::ptr primitive_inst::allocate_internal_buffer(const layout& layout, size_t idx, bool reset, bool lockable, bool shareable) {
     if (_impl == nullptr || _outputs.empty() || _outputs[0] == nullptr)
         return nullptr;
 
@@ -2434,7 +2491,7 @@ memory::ptr primitive_inst::allocate_internal_buffer(const layout& layout, size_
                              *_node,
                              layout,
                              alloc_type,
-                             can_share_internal_buffer(),
+                             shareable,
                              _runtime_memory_dependencies,
                              reset,
                              _intermediates_memory.size() > idx ? _intermediates_memory[idx].get() : nullptr);
@@ -2455,7 +2512,7 @@ void primitive_inst::allocate_internal_buffers(bool reset) {
     for (size_t i = 0; i < buffer_descs.size(); ++i) {
         if (buffer_descs[i].m_layout.get_linear_size() == 0)
             continue;
-        intermediates_memory.push_back(allocate_internal_buffer(buffer_descs[i].m_layout, i, reset));
+        intermediates_memory.push_back(allocate_internal_buffer(buffer_descs[i].m_layout, i, reset, buffer_descs[i].m_lockable, buffer_descs[i].m_shareable));
         _max_intermediates_memory_sizes.push_back(intermediates_memory[i]->size());
     }
     _intermediates_memory = intermediates_memory;

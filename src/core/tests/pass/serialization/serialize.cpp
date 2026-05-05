@@ -13,6 +13,7 @@
 #include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/version.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/core.hpp"
@@ -617,6 +618,33 @@ TEST_F(MetaDataSerialize, set_complex_meta_information) {
         check_meta_info(s_model);
         check_rt_info(s_model);
     }
+}
+
+TEST_F(MetaDataSerialize, save_model_updates_runtime_version) {
+    auto model = ov::test::readModel(ir_with_meta);
+
+    std::string runtime_version;
+    ASSERT_NO_THROW(runtime_version = model->get_rt_info<std::string>("Runtime_version"));
+    ASSERT_EQ(runtime_version, "TestVersion");
+
+    ov::save_model(model, m_out_xml_path, false);
+
+    auto s_model = ov::test::readModel(m_out_xml_path, m_out_bin_path);
+
+    const auto& [exp_version, version_key] = ov::get_openvino_version();
+    ASSERT_TRUE(s_model->has_rt_info(version_key));
+    ASSERT_TRUE(s_model->has_rt_info(std::string{version_key}));
+
+    std::string ov_version;
+    ASSERT_NO_THROW(ov_version = s_model->get_rt_info<std::string>(version_key));
+    EXPECT_EQ(ov_version, exp_version);
+
+    ASSERT_NO_THROW(runtime_version = s_model->get_rt_info<std::string>("Runtime_version"));
+    ASSERT_EQ(runtime_version, "TestVersion");
+
+    std::string mo_version;
+    ASSERT_NO_THROW(mo_version = s_model->get_rt_info<std::string>("MO_version"));
+    EXPECT_EQ(mo_version, "TestVersion");
 }
 
 // After deprecating undefined type, test whether the serialization of replacing undefined type with dynamic type is

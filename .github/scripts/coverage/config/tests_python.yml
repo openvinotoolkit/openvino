@@ -1,0 +1,151 @@
+schema_version: 1
+suite: python
+tests:
+  - name: pyopenvino
+    kind: pytest
+    profiles: [cpu, gpu]
+    target: "${TESTS_DIR}/pyopenvino"
+    env:
+      cpu: "TEST_DEVICE=CPU"
+      gpu: "TEST_DEVICE=GPU"
+    args:
+      cpu: "-sv -k 'not gpu and not cuda and not npu_'"
+      gpu: "-sv -k 'not cuda and not npu_'"
+
+  - name: onnx_python
+    kind: pytest
+    profiles: [cpu, gpu]
+    target: "${TESTS_DIR}/onnx"
+    env:
+      cpu: "TEST_DEVICE=CPU"
+      gpu: "TEST_DEVICE=GPU"
+    args:
+      cpu: "-sv --backend=CPU -k 'not gpu and not cuda and not npu_ and not zoo' --ignore=${TESTS_DIR}/onnx/test_python/test_zoo_models.py --ignore=${TESTS_DIR}/onnx/tests/tests_python/test_zoo_models.py"
+      gpu: "-sv --backend=GPU -k 'not cuda and not npu_ and not zoo' --ignore=${TESTS_DIR}/onnx/test_python/test_zoo_models.py --ignore=${TESTS_DIR}/onnx/tests/tests_python/test_zoo_models.py"
+
+  - name: onnx_python_legacy_iterator
+    kind: pytest
+    profiles: [cpu, gpu]
+    target: "${TESTS_DIR}/onnx"
+    env:
+      cpu: "TEST_DEVICE=CPU ONNX_ITERATOR=0"
+      gpu: "TEST_DEVICE=GPU ONNX_ITERATOR=0"
+    args:
+      cpu: "-sv --backend=CPU -k 'not gpu and not cuda and not npu_ and not zoo' --ignore=${TESTS_DIR}/onnx/test_python/test_zoo_models.py --ignore=${TESTS_DIR}/onnx/tests/tests_python/test_zoo_models.py"
+      gpu: "-sv --backend=GPU -k 'not cuda and not npu_ and not zoo' --ignore=${TESTS_DIR}/onnx/test_python/test_zoo_models.py --ignore=${TESTS_DIR}/onnx/tests/tests_python/test_zoo_models.py"
+
+  - name: ovc_unit
+    kind: pytest
+    profiles: [cpu]
+    target: "${TESTS_DIR}/ovc/unit_tests"
+    args: "-sv -k 'not gpu and not cuda and not npu_'"
+
+  - name: py_frontend
+    kind: pytest
+    profiles: [cpu]
+    target: "${TESTS_DIR}/layer_tests/py_frontend_tests"
+    args: "-sv -k 'not gpu and not cuda and not npu_'"
+
+  - name: tensorflow_lite_layers
+    kind: pytest
+    profiles: [cpu, gpu]
+    target: "${TESTS_DIR}/layer_tests/tensorflow_lite_tests"
+    env:
+      cpu: "TEST_DEVICE=CPU TEST_PRECISION=FP16"
+      gpu: "TEST_DEVICE=GPU TEST_PRECISION=FP16"
+    args:
+      cpu: "-sv -k 'not gpu and not cuda and not npu_'"
+      gpu: "-sv -k 'not cuda and not npu_'"
+
+  - name: tensorflow_layers
+    kind: pytest
+    profiles: [cpu, gpu]
+    target: "${TESTS_DIR}/layer_tests/tensorflow_tests"
+    env:
+      cpu: "TEST_DEVICE=CPU TEST_PRECISION=FP16"
+      gpu: "TEST_DEVICE=GPU TEST_PRECISION=FP16"
+    args:
+      cpu: "-sv -m precommit -k 'not gpu and not cuda and not npu_'"
+      gpu: "-sv -m precommit -k 'not cuda and not npu_'"
+
+  - name: tensorflow2_keras_layers
+    kind: pytest
+    profiles: [cpu, gpu]
+    target: "${TESTS_DIR}/layer_tests/tensorflow2_keras_tests"
+    env:
+      cpu: "TEST_DEVICE=CPU TEST_PRECISION="
+      gpu: "TEST_DEVICE=GPU TEST_PRECISION=FP16"
+    args:
+      cpu: "-sv -m precommit -k 'not gpu and not cuda and not npu_'"
+      gpu: "-sv -m precommit -k 'not cuda and not npu_'"
+
+  - name: onnx_layers
+    kind: pytest
+    profiles: [cpu, gpu]
+    target: "${TESTS_DIR}/layer_tests/onnx_tests"
+    env:
+      cpu: "TEST_DEVICE=CPU TEST_PRECISION=FP16"
+      gpu: "TEST_DEVICE=GPU TEST_PRECISION=FP16"
+    args:
+      cpu: "-sv -k 'not gpu and not cuda and not npu_'"
+      gpu: "-sv -k 'not cuda and not npu_'"
+
+  - name: pytorch_layers
+    kind: pytest
+    profiles: [cpu, gpu]
+    target: "${TESTS_DIR}/layer_tests/pytorch_tests"
+    env:
+      cpu: "TEST_DEVICE=CPU TEST_PRECISION=FP32"
+      gpu: "TEST_DEVICE=GPU TEST_PRECISION=FP32"
+    args:
+      cpu: "-sv -m precommit -k 'not gpu and not cuda and not npu_'"
+      gpu: "-sv -m precommit -k 'not cuda and not npu_'"
+
+  - name: pytorch_layers_export
+    kind: pytest
+    profiles: [cpu, gpu]
+    target: "${TESTS_DIR}/layer_tests/pytorch_tests"
+    env:
+      cpu: "TEST_DEVICE=CPU TEST_PRECISION=FP32 PYTORCH_TRACING_MODE=EXPORT"
+      gpu: "TEST_DEVICE=GPU TEST_PRECISION=FP32 PYTORCH_TRACING_MODE=EXPORT"
+    args:
+      cpu: "-sv -m precommit_torch_export -k 'not gpu and not cuda and not npu_'"
+      gpu: "-sv -m precommit_torch_export -k 'not cuda and not npu_'"
+
+  - name: pytorch_layers_fx_backend
+    kind: pytest
+    profiles: [cpu, gpu]
+    target: "${TESTS_DIR}/layer_tests/pytorch_tests"
+    env:
+      cpu: "TEST_DEVICE=CPU TEST_PRECISION=FP32 PYTORCH_TRACING_MODE=TORCHFX"
+      gpu: "TEST_DEVICE=GPU TEST_PRECISION=FP32 PYTORCH_TRACING_MODE=TORCHFX"
+    args:
+      cpu: "-sv -m precommit_fx_backend -k 'not gpu and not cuda and not npu_'"
+      gpu: "-sv -m precommit_fx_backend -k 'not cuda and not npu_'"
+
+  - name: jax_layers_precommit
+    kind: pytest
+    profiles: [cpu, gpu]
+    target: "${TESTS_DIR}/layer_tests/jax_tests"
+    env:
+      cpu: "TEST_DEVICE=CPU TEST_PRECISION=FP16 JAX_TRACE_MODE=JAXPR"
+      gpu: "TEST_DEVICE=GPU TEST_PRECISION=FP16 JAX_TRACE_MODE=JAXPR"
+    args:
+      cpu: "-sv -m precommit_jax_fe -k 'not gpu and not cuda and not npu_'"
+      gpu: "-sv -m precommit_jax_fe -k 'not cuda and not npu_'"
+
+  - name: ovc_python_api
+    kind: pytest
+    profiles: [cpu, gpu]
+    target: "${WORKSPACE_LAYER_TESTS_DIR}/ovc_python_api_tests"
+    env:
+      cpu: "TEST_DEVICE=CPU TEST_PRECISION=FP16"
+      gpu: "TEST_DEVICE=GPU TEST_PRECISION=FP16"
+    args:
+      cpu: "-sv -k 'not gpu and not cuda and not npu_'"
+      gpu: "-sv -k 'not cuda and not npu_'"
+
+  - name: docs_python_snippets
+    kind: command
+    profiles: [cpu]
+    command: "PYTHONPATH=docs/articles_en/assets:${PYTHONPATH} python3 -m coverage run -a docs/articles_en/assets/snippets/main.py"

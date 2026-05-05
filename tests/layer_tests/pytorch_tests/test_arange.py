@@ -196,16 +196,13 @@ class TestArange(PytorchLayerTest):
 
 class TestArangeLegacy(PytorchLayerTest):
     def _prepare_input(self, end, start=None, step=None, dtype="int64", ref_dtype=None):
-        import numpy as np
-        if start is None and step is None:
-            return (np.array(end).astype(dtype),) if not ref_dtype else (np.array(end).astype(dtype), np.zeros(1).astype(ref_dtype))
-        if step is None:
-            return (np.array(start).astype(dtype), np.array(end).astype(dtype)) if not ref_dtype else (np.array(start).astype(dtype), np.array(end).astype(dtype), np.zeros(1).astype(ref_dtype))
-        return (np.array(start).astype(dtype), np.array(end).astype(dtype), np.array(step).astype(dtype)) if not ref_dtype else (np.array(start).astype(dtype), np.array(end).astype(dtype), np.array(step).astype(dtype), np.zeros(1).astype(ref_dtype))
+        scalars = [x for x in [start, end, step] if x is not None]
+        inputs = tuple(np.array(v).astype(dtype) for v in scalars)
+        if ref_dtype:
+            inputs += (np.zeros(1).astype(ref_dtype),)
+        return inputs
 
     def create_model(self, dtype=None, num_inputs=1, use_out=False, ref_dtype=False):
-        import torch
-
         dtype_map = {
             "float32": torch.float32,
             "float64": torch.float64,
@@ -245,7 +242,7 @@ class TestArangeLegacy(PytorchLayerTest):
                 self.dtype = dtype
 
             def forward(self, x):
-                return torch.arange(x, out=torch.zeros(1, dtype=self.dtype))
+                return torch.arange(x, out=torch.zeros(int(x), dtype=self.dtype))
 
         class aten_arange_start_end_out(torch.nn.Module):
             def __init__(self, out) -> None:
