@@ -5,7 +5,6 @@
 #include <cerrno>
 #include <climits>
 #include <cstdlib>
-
 #include <fstream>
 #include <string>
 
@@ -420,9 +419,9 @@ void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::Grap
                 FRONT_END_GENERAL_CHECK(restorev2_nodes[0]->inputs.size() > 1,
                                         "RestoreV2 node is missing tensor_names input");
                 const auto& tensor_names_node = restorev2_nodes[0]->inputs[1]->node;
-                FRONT_END_GENERAL_CHECK(tensor_names_node->op() == "Const" &&
-                                            tensor_names_node->attr().count("value") > 0,
-                                        "RestoreV2 tensor_names input is not a Const with 'value' attribute");
+                FRONT_END_GENERAL_CHECK(
+                    tensor_names_node->op() == "Const" && tensor_names_node->attr().count("value") > 0,
+                    "RestoreV2 tensor_names input is not a Const with 'value' attribute");
                 const auto& tensor = tensor_names_node->attr().at("value").tensor();
                 FRONT_END_GENERAL_CHECK(output_index >= 0 && output_index < tensor.string_val_size(),
                                         "RestoreV2 output index out of range: ",
@@ -464,9 +463,9 @@ void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::Grap
                 FRONT_END_GENERAL_CHECK(restorev2_nodes[0]->inputs.size() > 1,
                                         "RestoreV2 node is missing tensor_names input");
                 const auto& tensor_names_node = restorev2_nodes[0]->inputs[1]->node;
-                FRONT_END_GENERAL_CHECK(tensor_names_node->op() == "Const" &&
-                                            tensor_names_node->attr().count("value") > 0,
-                                        "RestoreV2 tensor_names input is not a Const with 'value' attribute");
+                FRONT_END_GENERAL_CHECK(
+                    tensor_names_node->op() == "Const" && tensor_names_node->attr().count("value") > 0,
+                    "RestoreV2 tensor_names input is not a Const with 'value' attribute");
                 const auto& tensor = tensor_names_node->attr().at("value").tensor();
                 FRONT_END_GENERAL_CHECK(output_index >= 0 && output_index < tensor.string_val_size(),
                                         "RestoreV2 output index out of range: ",
