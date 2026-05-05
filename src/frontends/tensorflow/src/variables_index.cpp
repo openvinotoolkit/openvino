@@ -387,8 +387,20 @@ void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::Grap
         const auto& tensor = tn_node->attr().at("value").tensor();
         FRONT_END_GENERAL_CHECK(idx >= 0 && idx < tensor.string_val_size(),
                                 "RestoreV2 output index out of range: ",
-                                idx);
+                                idx,
+                                " (size=",
+                                tensor.string_val_size(),
+                                ")");
         return tensor.string_val(idx);
+    };
+
+    const auto parse_output_index = [](const std::string& token) -> int {
+        char* end = nullptr;
+        errno = 0;
+        const long v = std::strtol(token.c_str(), &end, 10);
+        return (end == token.c_str() || *end != '\0' || errno == ERANGE || v > INT_MAX || v < INT_MIN)
+                   ? 0
+                   : static_cast<int>(v);
     };
 
     for (const auto& node : nodes) {
@@ -418,14 +430,7 @@ void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::Grap
                     FRONT_END_THROW("Unexpected topology near AssignVariableOp");
                 }
 
-                const auto& index_str_av = restore_output[restore_output.size() - 1];
-                char* end_av = nullptr;
-                errno = 0;
-                const long parsed_av = std::strtol(index_str_av.c_str(), &end_av, 10);
-                const int output_index = (end_av == index_str_av.c_str() || *end_av != '\0' || errno == ERANGE ||
-                                          parsed_av > INT_MAX || parsed_av < INT_MIN)
-                                             ? 0
-                                             : static_cast<int>(parsed_av);
+                const int output_index = parse_output_index(restore_output[restore_output.size() - 1]);
 
                 // Expected path is: Const(tensor_names) -(0)-(1)-> RestoreV2
                 variables_map[varhandle_nodes[0]->node->name()] = get_variable_name(restorev2_nodes[0], output_index);
@@ -450,14 +455,7 @@ void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::Grap
                 // Expected path is: RestoreV2 -(output_index)-(1)-> Assign
                 PtrNode::parse_node_name(node.second->node->input(1), restore_output);
 
-                const auto& index_str_a = restore_output[restore_output.size() - 1];
-                char* end_a = nullptr;
-                errno = 0;
-                const long parsed_a = std::strtol(index_str_a.c_str(), &end_a, 10);
-                const int output_index = (end_a == index_str_a.c_str() || *end_a != '\0' || errno == ERANGE ||
-                                          parsed_a > INT_MAX || parsed_a < INT_MIN)
-                                             ? 0
-                                             : static_cast<int>(parsed_a);
+                const int output_index = parse_output_index(restore_output[restore_output.size() - 1]);
 
                 // Expected path is: Const(tensor_names) -(0)-(1)-> RestoreV2
                 variables_map[variablev2_nodes[0]->node->name()] = get_variable_name(restorev2_nodes[0], output_index);

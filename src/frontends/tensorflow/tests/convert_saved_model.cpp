@@ -220,15 +220,12 @@ TEST(FrontEndConvertModelTest, SavedModelMaliciousOverflowOffset) {
 // Crafted SavedModel where AssignVariableOp input references "save/RestoreV2:999"
 // but the Const(tensor_names) has only 1 string_val entry → OOB positive index.
 TEST(FrontEndConvertModelTest, SavedModelOobPositiveIndex) {
-    shared_ptr<Model> model = nullptr;
     try {
-        model = convert_model("saved_model_oob_pos_index");
+        convert_model("saved_model_oob_pos_index");
         FAIL() << "Expected exception for OOB positive RestoreV2 output index";
     } catch (const ov::Exception& e) {
-        string msg = e.what();
-        EXPECT_TRUE(msg.find("out of range") != string::npos || msg.find("missing") != string::npos)
-            << "Unexpected error message: " << msg;
-        EXPECT_EQ(model, nullptr);
+        EXPECT_TRUE(string(e.what()).find("out of range") != string::npos)
+            << "Unexpected error message: " << e.what();
     } catch (const std::exception& e) {
         FAIL() << "Unexpected std::exception: " << e.what();
     } catch (...) {
@@ -238,15 +235,12 @@ TEST(FrontEndConvertModelTest, SavedModelOobPositiveIndex) {
 
 // Crafted SavedModel where AssignVariableOp input references "save/RestoreV2:-1" → negative OOB.
 TEST(FrontEndConvertModelTest, SavedModelOobNegativeIndex) {
-    shared_ptr<Model> model = nullptr;
     try {
-        model = convert_model("saved_model_oob_neg_index");
+        convert_model("saved_model_oob_neg_index");
         FAIL() << "Expected exception for negative RestoreV2 output index";
     } catch (const ov::Exception& e) {
-        string msg = e.what();
-        EXPECT_TRUE(msg.find("out of range") != string::npos || msg.find("missing") != string::npos)
-            << "Unexpected error message: " << msg;
-        EXPECT_EQ(model, nullptr);
+        EXPECT_TRUE(string(e.what()).find("out of range") != string::npos)
+            << "Unexpected error message: " << e.what();
     } catch (const std::exception& e) {
         FAIL() << "Unexpected std::exception: " << e.what();
     } catch (...) {
@@ -258,14 +252,12 @@ TEST(FrontEndConvertModelTest, SavedModelOobNegativeIndex) {
 // Const(tensor_names) has zero string_val entries → upper-bound guard fires at index 0.
 // This exercises the security check on the implicit-0 code path.
 TEST(FrontEndConvertModelTest, SavedModelOobEmptyTensorNames) {
-    shared_ptr<Model> model = nullptr;
     try {
-        model = convert_model("saved_model_oob_empty_names");
+        convert_model("saved_model_oob_empty_names");
         FAIL() << "Expected exception for OOB index into empty tensor_names";
     } catch (const ov::Exception& e) {
-        string msg = e.what();
-        EXPECT_TRUE(msg.find("out of range") != string::npos) << "Unexpected error message: " << msg;
-        EXPECT_EQ(model, nullptr);
+        EXPECT_TRUE(string(e.what()).find("out of range") != string::npos)
+            << "Unexpected error message: " << e.what();
     } catch (const std::exception& e) {
         FAIL() << "Unexpected std::exception: " << e.what();
     } catch (...) {
@@ -277,14 +269,12 @@ TEST(FrontEndConvertModelTest, SavedModelOobEmptyTensorNames) {
 // Const(tensor_names) has only 1 string_val entry → exercises the Assign code path
 // in map_assignvariable() (distinct from the AssignVariableOp path in other OOB tests).
 TEST(FrontEndConvertModelTest, SavedModelOobAssignPath) {
-    shared_ptr<Model> model = nullptr;
     try {
-        model = convert_model("saved_model_oob_assign_path");
+        convert_model("saved_model_oob_assign_path");
         FAIL() << "Expected exception for OOB RestoreV2 output index in Assign path";
     } catch (const ov::Exception& e) {
-        string msg = e.what();
-        EXPECT_TRUE(msg.find("out of range") != string::npos) << "Unexpected error message: " << msg;
-        EXPECT_EQ(model, nullptr);
+        EXPECT_TRUE(string(e.what()).find("out of range") != string::npos)
+            << "Unexpected error message: " << e.what();
     } catch (const std::exception& e) {
         FAIL() << "Unexpected std::exception: " << e.what();
     } catch (...) {
@@ -293,16 +283,12 @@ TEST(FrontEndConvertModelTest, SavedModelOobAssignPath) {
 }
 
 TEST(FrontEndConvertModelTest, SavedModelOobRestoreV2ShortInputs) {
-    shared_ptr<Model> model = nullptr;
     try {
-        model = convert_model("saved_model_oob_restorev2_short_inputs");
+        convert_model("saved_model_oob_restorev2_short_inputs");
         FAIL() << "Expected exception when RestoreV2 tensor_names input is missing";
     } catch (const ov::Exception& e) {
-        string msg = e.what();
-        EXPECT_TRUE(msg.find("missing") != string::npos || msg.find("Const") != string::npos ||
-                    msg.find("attribute") != string::npos)
-            << "Unexpected error message: " << msg;
-        EXPECT_EQ(model, nullptr);
+        EXPECT_TRUE(string(e.what()).find("missing tensor_names input") != string::npos)
+            << "Unexpected error message: " << e.what();
     } catch (const std::exception& e) {
         FAIL() << "Unexpected std::exception: " << e.what();
     } catch (...) {
