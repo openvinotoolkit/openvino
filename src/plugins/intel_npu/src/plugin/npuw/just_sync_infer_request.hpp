@@ -111,6 +111,11 @@ protected:
     void bind_global_parameters(std::size_t idx);
     void bind_global_results(std::size_t idx);
     using IBaseInferRequest::bind_global_results;
+    bool bind_behavior_input(std::size_t idx,
+                             std::size_t real_idx,
+                             std::size_t input_idx,
+                             const ov::SoPtr<ov::ITensor>& tensor,
+                             RqPtr request) override;
 
     void function_prologue(std::size_t idx);
     void function_prologue_attn(std::size_t real_idx, std::size_t idx);
@@ -194,6 +199,17 @@ protected:
     // Cached check if we do FOLDing and need to update closures in the repeating blocks
     bool m_closure_update_required = false;
 
+    struct BehaviorIO {
+        std::vector<ov::SoPtr<ov::ITensor>> inputs;
+        std::vector<ov::SoPtr<ov::ITensor>> outputs;
+    };
+    std::vector<BehaviorIO> m_attention_io;
+    std::vector<BehaviorIO> m_hfa_io;
+
+    runtime::attention::Selector::Ptr m_attention_selector;
+    runtime::pyramid_attention::Selector::Ptr m_pyramid_selector;
+    runtime::host_flash_attention::Selector::Ptr m_hfa_selector;
+
     // Cached attention mask for SDPA operations to avoid recomputing
     ov::SoPtr<ov::ITensor> m_cached_attention_mask;
 
@@ -214,6 +230,7 @@ protected:
     // Foundation for the upcoming behavior-driven execution pipeline.
     // These slots are populated now but legacy execution still owns the scheduling.
     std::vector<ov::npuw::v1::subgraphs::ISubgraphBehavior::Ptr> m_subgraph_behaviors;
+    std::vector<ov::npuw::v1::subgraphs::Context> m_subgraph_runtime_states;
 };
 
 }  // namespace npuw

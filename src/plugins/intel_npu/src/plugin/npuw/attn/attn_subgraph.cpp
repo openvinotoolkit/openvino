@@ -4,11 +4,16 @@
 
 #include "attn_subgraph.hpp"
 
+#include <sstream>
+
 #include "../attention.hpp"
+#include "../host_flash_attention.hpp"
 #include "../just_sync_infer_request.hpp"
 #include "../logging.hpp"
 #include "../partitioning/partitioning.hpp"
 #include "../partitioning/patterns/sdpa.hpp"
+#include "../pyramid_attention.hpp"
+#include "../serialization.hpp"
 
 namespace ov {
 namespace npuw {
@@ -26,6 +31,18 @@ BehaviorKind get_behavior_kind(const ov::npuw::v1::subgraphs::Context& ctx) {
         return *kind;
     }
     OPENVINO_THROW("Attention behavior context is missing BehaviorKind");
+}
+
+template <typename T>
+T* get_compiled_state(ov::npuw::v1::subgraphs::Context& context) {
+    auto* state = context.get_if<std::shared_ptr<T>>();
+    return state == nullptr ? nullptr : state->get();
+}
+
+template <typename T>
+const T* get_compiled_state(const ov::npuw::v1::subgraphs::Context& context) {
+    auto* state = context.get_if<std::shared_ptr<T>>();
+    return state == nullptr ? nullptr : state->get();
 }
 
 ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
@@ -107,6 +124,143 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
 
 }  // namespace
 
+void put_compiled_dynamic(v1::subgraphs::Context& context, CompiledDynamicState state) {
+    context.put<CompiledDynamicState>(std::move(state));
+}
+
+void put_compiled_pyramid(v1::subgraphs::Context& context, CompiledPyramidState state) {
+    context.put<CompiledPyramidState>(std::move(state));
+}
+
+void put_compiled_hfa(v1::subgraphs::Context& context, CompiledHFAState state) {
+    context.put<CompiledHFAState>(std::move(state));
+}
+
+ov::npuw::compiled::Attention* get_compiled_dynamic(v1::subgraphs::Context& context) {
+    return get_compiled_state<ov::npuw::compiled::Attention>(context);
+}
+
+const ov::npuw::compiled::Attention* get_compiled_dynamic(const v1::subgraphs::Context& context) {
+    return get_compiled_state<ov::npuw::compiled::Attention>(context);
+}
+
+ov::npuw::compiled::PyramidAttention* get_compiled_pyramid(v1::subgraphs::Context& context) {
+    return get_compiled_state<ov::npuw::compiled::PyramidAttention>(context);
+}
+
+const ov::npuw::compiled::PyramidAttention* get_compiled_pyramid(const v1::subgraphs::Context& context) {
+    return get_compiled_state<ov::npuw::compiled::PyramidAttention>(context);
+}
+
+ov::npuw::compiled::HostFlashAttention* get_compiled_hfa(v1::subgraphs::Context& context) {
+    return get_compiled_state<ov::npuw::compiled::HostFlashAttention>(context);
+}
+
+const ov::npuw::compiled::HostFlashAttention* get_compiled_hfa(const v1::subgraphs::Context& context) {
+    return get_compiled_state<ov::npuw::compiled::HostFlashAttention>(context);
+}
+
+bool has_compiled_state(const v1::subgraphs::CompiledPipeline& pipeline) {
+    return get_compiled_dynamic(pipeline.context) != nullptr || get_compiled_pyramid(pipeline.context) != nullptr ||
+           get_compiled_hfa(pipeline.context) != nullptr;
+}
+
+void serialize_compiled_state(v1::subgraphs::Context& context,
+                              ov::npuw::s11n::Stream& stream,
+                              const ov::npuw::s11n::SubmodelDeserializeCtx* submodel_ctx) {
+    std::optional<ov::npuw::compiled::Attention> dynamic;
+    if (const auto* state = get_compiled_dynamic(context)) {
+        dynamic = *state;
+    }
+    stream & dynamic;
+    if (stream.input() && dynamic.has_value()) {
+        put_compiled_dynamic(context, std::make_shared<ov::npuw::compiled::Attention>(dynamic.value()));
+    }
+
+    std::optional<ov::npuw::compiled::PyramidAttention> pyramid;
+    if (const auto* state = get_compiled_pyramid(context)) {
+        pyramid = *state;
+    }
+    stream & pyramid;
+    if (stream.input() && pyramid.has_value()) {
+        put_compiled_pyramid(context, std::make_shared<ov::npuw::compiled::PyramidAttention>(pyramid.value()));
+    }
+
+    auto* mutable_pyramid = get_compiled_pyramid(context);
+    if (mutable_pyramid != nullptr) {
+        size_t num_models = 0;
+        if (stream.output()) {
+            num_models = mutable_pyramid->_compiled_models.size();
+        }
+        stream & num_models;
+
+        if (stream.output()) {
+            for (size_t i = 0; i < num_models - 1; ++i) {
+                std::stringstream ss;
+                mutable_pyramid->_compiled_models[i]->export_model(ss);
+                std::string model_str = ss.str();
+                stream & model_str;
+            }
+        } else if (num_models > 0) {
+            mutable_pyramid->_compiled_models.resize(num_models);
+            NPUW_ASSERT(submodel_ctx != nullptr);
+            for (size_t i = 0; i < num_models - 1; ++i) {
+                std::string model_str;
+                stream & model_str;
+                std::stringstream ss(model_str);
+                mutable_pyramid->_compiled_models[i] =
+                    submodel_ctx->plugin->get_core()->import_model(ss,
+                                                                   submodel_ctx->device,
+                                                                   submodel_ctx->import_config);
+            }
+            if (submodel_ctx->compiled_model) {
+                mutable_pyramid->_compiled_models[num_models - 1] = submodel_ctx->compiled_model;
+                LOG_DEBUG("Reused compiled_model for the last pyramid attention model");
+            }
+        }
+    }
+
+    std::optional<ov::npuw::compiled::HostFlashAttention> hfa;
+    if (const auto* state = get_compiled_hfa(context)) {
+        hfa = *state;
+    }
+    stream & hfa;
+    if (stream.input() && hfa.has_value()) {
+        put_compiled_hfa(context, std::make_shared<ov::npuw::compiled::HostFlashAttention>(hfa.value()));
+    }
+
+    auto* mutable_hfa = get_compiled_hfa(context);
+    if (mutable_hfa != nullptr) {
+        bool has_compiled_model = false;
+        if (stream.output()) {
+            has_compiled_model = mutable_hfa->_compiled_tile_model != nullptr;
+        }
+        stream & has_compiled_model;
+        if (has_compiled_model) {
+            if (stream.output()) {
+                std::stringstream ss;
+                mutable_hfa->_compiled_tile_model->export_model(ss);
+                std::string model_str = ss.str();
+                stream & model_str;
+            } else {
+                NPUW_ASSERT(submodel_ctx != nullptr);
+                std::string model_str;
+                stream & model_str;
+                std::stringstream ss(model_str);
+                mutable_hfa->_compiled_tile_model = submodel_ctx->plugin->get_core()->import_model(ss,
+                                                                                                    submodel_ctx->device,
+                                                                                                    submodel_ctx->import_config);
+                LOG_DEBUG("Imported compiled tile model for host flash attention");
+            }
+        }
+        if (stream.input()) {
+            NPUW_ASSERT(submodel_ctx != nullptr);
+            mutable_hfa->_compiled_final_tile_model = submodel_ctx->compiled_model;
+            LOG_DEBUG("Set compiled final tile model reference for host flash attention");
+        }
+    }
+}
+
 void attach_runtime_behavior(ov::npuw::v1::subgraphs::CompiledPipeline& compiled_pipeline,
                              ov::npuw::v1::subgraphs::Context& compiled_context,
                              BehaviorKind kind) {
@@ -139,15 +293,21 @@ std::vector<ov::npuw::v1::subgraphs::ScopedPatternRegistration> register_pattern
     attn_behavior.tag = ov::npuw::patterns::attn::SDPA::isolation_tag();
     attn_behavior.partition_stage = [](ov::npuw::Function& f, ov::npuw::v1::subgraphs::Context& ctx) {
         if (f._attention.has_value()) {
-            ctx.put<ov::npuw::compiled::Attention>(ov::npuw::compiled::Attention(f._attention.value(), f._model));
+            put_compiled_dynamic(ctx,
+                                 std::make_shared<ov::npuw::compiled::Attention>(f._attention.value(), f._model));
             ctx.put<BehaviorKind>(BehaviorKind::Dynamic);
             return;
         }
         if (f._pyramid_attention.has_value()) {
+            put_compiled_pyramid(ctx,
+                                 std::make_shared<ov::npuw::compiled::PyramidAttention>(f._pyramid_attention.value()));
             ctx.put<BehaviorKind>(BehaviorKind::Pyramid);
             return;
         }
         if (f._host_flash_attention.has_value()) {
+            put_compiled_hfa(
+                ctx,
+                std::make_shared<ov::npuw::compiled::HostFlashAttention>(f._host_flash_attention.value()));
             ctx.put<BehaviorKind>(BehaviorKind::HFA);
         }
     };

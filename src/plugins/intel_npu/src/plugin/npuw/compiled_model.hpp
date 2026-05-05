@@ -116,6 +116,8 @@ public:
         std::shared_ptr<IBaseInferRequest> internal_request) const override;
     std::string submodel_device(std::size_t idx) const override;
     std::size_t num_submodels() const override;
+    bool attention_dynamic_enabled() const;
+    bool attention_no_copy() const;
     std::shared_ptr<weights::Bank> get_weights_bank() const override;
     void set_weights_bank(std::shared_ptr<weights::Bank> bank) override;
     void finalize_weights_bank() override;
@@ -230,9 +232,6 @@ private:
         Subgraph::Gather host_gather;
         Subgraph::QuantUnpackGather quant_unpack_gather;
         std::optional<ov::npuw::compiled::Spatial> spatial;
-        std::optional<ov::npuw::compiled::Attention> attention;
-        std::optional<ov::npuw::compiled::PyramidAttention> pyramid_attention;
-        std::optional<ov::npuw::compiled::HostFlashAttention> host_flash_attention;
         ov::npuw::v1::subgraphs::CompiledPipeline pipeline;
 
         // Infer requests for pyramid attention models (if pyramid_attention is present)
