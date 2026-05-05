@@ -264,6 +264,10 @@ struct Read<
             map.emplace(from_string<K>(key), from_string<T>(value));
         }
 
+        for (const auto& [key, value] : map) {
+            std::cout << "name: " << key << " value: " << value << '\n';
+        }
+
         OPENVINO_ASSERT(c == '}', "Failed to parse std::map<K, T>. Ending symbols is not '}', it's ", c);
     }
 };
