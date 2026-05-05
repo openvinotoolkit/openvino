@@ -380,8 +380,7 @@ void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::Grap
     }
 
     const auto get_variable_name = [&nodes](const PtrNode::SharedPtrNode& rv2_node, int idx) -> const std::string& {
-        FRONT_END_GENERAL_CHECK(rv2_node->node->input_size() > 1,
-                                "RestoreV2 node is missing tensor_names input");
+        FRONT_END_GENERAL_CHECK(rv2_node->node->input_size() > 1, "RestoreV2 node is missing tensor_names input");
         std::vector<std::string> parsed;
         PtrNode::parse_node_name(rv2_node->node->input(1), parsed);
         const auto it = nodes.find(parsed[0]);
