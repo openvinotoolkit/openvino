@@ -134,7 +134,7 @@ jobs:
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_BUILD_TYPE: 'Release'
-      CMAKE_GENERATOR: 'Ninja Multi-Config'
+      CMAKE_GENERATOR: 'Unix Makefiles'
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
       CMAKE_C_COMPILER_LAUNCHER: sccache
       CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
@@ -174,6 +174,7 @@ jobs:
             -DENABLE_PYTHON=OFF \
             -DENABLE_TESTS=OFF \
             -DENABLE_NCC_STYLE=OFF \
+            -DCMAKE_RULE_MESSAGES=ON \
             -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
@@ -187,7 +188,7 @@ jobs:
           --parallel $(($(nproc) - 1)) \
           --config ${{ env.CMAKE_BUILD_TYPE }} \
           --target openvino_intel_cpu_plugin \
-          -- -k 0
+          -- -k
 
       - name: Show sccache stats
         run: ${SCCACHE_PATH} --show-stats
@@ -249,7 +250,8 @@ jobs:
             -DENABLE_PYTHON=OFF \
             -DENABLE_TESTS=OFF \
             -DENABLE_NCC_STYLE=OFF \
-            -DCMAKE_RULE_MESSAGES=OFF \
+            -DCMAKE_RULE_MESSAGES=ON \
+            -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
             -S ${OPENVINO_REPO} \
