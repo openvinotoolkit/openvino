@@ -575,7 +575,9 @@ TEST_F(PagedCausalConv1DFusionTest, FusesWhenWeightsComeFromConvertPath) {
 // Verifies that when GroupConvolution is followed by Add(bias_const) before Slice,
 // the fusion fires and the explicit bias constant is passed to PagedCausalConv1D.
 TEST_F(PagedCausalConv1DFusionTest, FusesWithExplicitBiasConstant) {
-    disable_rt_info_check();
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+
     model = build_model_with_add_bias();
     run_paged_causal_conv1d_fusion(model);
 
@@ -586,7 +588,9 @@ TEST_F(PagedCausalConv1DFusionTest, FusesWithExplicitBiasConstant) {
 // the fusion still fires and passes an empty bias Constant (shape {0}),
 // which represents "no bias" for PagedCausalConv1D.
 TEST_F(PagedCausalConv1DFusionTest, FusesNoBiasUsesEmptyBiasConstant) {
-    disable_rt_info_check();
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+
     model = build_model(true);
     run_paged_causal_conv1d_fusion(model);
 
