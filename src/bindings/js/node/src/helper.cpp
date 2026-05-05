@@ -378,13 +378,11 @@ ov::Tensor cast_to_tensor(const Napi::TypedArray& typed_array,
     auto tensor = ov::Tensor(type, shape, typed_array.ArrayBuffer().Data());
     OPENVINO_ASSERT(tensor.get_byte_size() == typed_array.ArrayBuffer().ByteLength(),
                     "Memory allocated using shape and element::type mismatch TypedArray byte length.");
-    auto ref = std::shared_ptr<void>(
-        new Napi::Reference<Napi::TypedArray>(Napi::Persistent(typed_array)),
-        [](void* p) {
+    auto impl = ov::get_tensor_impl(tensor);
+    auto ref = new Napi::Reference<Napi::TypedArray>(Napi::Persistent(typed_array));
+    impl._so = std::shared_ptr<void>(ref, [](void* p) {
         delete static_cast<Napi::Reference<Napi::TypedArray>*>(p);
     });
-    auto impl = ov::get_tensor_impl(tensor);
-    impl._so = std::move(ref);
     return ov::make_tensor(impl);
 }
 
