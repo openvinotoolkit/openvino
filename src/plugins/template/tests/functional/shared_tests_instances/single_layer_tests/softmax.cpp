@@ -150,10 +150,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_SoftMax5D_dynamic,
 
 // TEST_P(SoftMaxLayerTest, ...) is defined in the shared header but the template
 // plugin only instantiates SoftMax8LayerTest.
-namespace ov {
-namespace test {
-namespace subgraph {
+namespace ov::test::subgraph {
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(SoftMaxLayerTest);
-}  // namespace subgraph
-}  // namespace test
-}  // namespace ov
+}  // namespace ov::test::subgraph
