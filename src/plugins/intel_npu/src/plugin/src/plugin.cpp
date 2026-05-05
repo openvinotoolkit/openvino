@@ -5,6 +5,7 @@
 #include "plugin.hpp"
 
 #include <fstream>
+#include <numeric>
 
 #include "compiled_model.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
@@ -17,7 +18,6 @@
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
-#include "intel_npu/utils/zero/zero_init.hpp"
 #include "metrics.hpp"
 #include "npuw/compiled_model.hpp"
 #include "npuw/llm_compiled_model.hpp"
@@ -230,6 +230,7 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     REGISTER_OPTION(TILES);
     REGISTER_OPTION(COMPILATION_MODE);
     REGISTER_OPTION(COMPILER_TYPE);
+    REGISTER_OPTION(COMPILER_VERSION);
     REGISTER_OPTION(PLATFORM);
     REGISTER_OPTION(CREATE_EXECUTOR);
     REGISTER_OPTION(DYNAMIC_SHAPE_TO_STATIC);
@@ -244,22 +245,23 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     REGISTER_OPTION(QDQ_OPTIMIZATION);
     REGISTER_OPTION(QDQ_OPTIMIZATION_AGGRESSIVE);
     REGISTER_OPTION(STEPPING);
-    REGISTER_OPTION(MAX_TILES);
     REGISTER_OPTION(DISABLE_VERSION_CHECK);
     REGISTER_OPTION(EXPORT_RAW_BLOB);
     REGISTER_OPTION(IMPORT_RAW_BLOB);
     REGISTER_OPTION(BATCH_COMPILER_MODE_SETTINGS);
     REGISTER_OPTION(TURBO);
     REGISTER_OPTION(ENABLE_WEIGHTLESS);
-    // WEIGHTLESS_BLOB can be removed once
-    // NPU Compilers support ENABLE_WEIGHTLESS
-    REGISTER_OPTION(WEIGHTLESS_BLOB);
     REGISTER_OPTION(SEPARATE_WEIGHTS_VERSION);
     REGISTER_OPTION(WS_COMPILE_CALL_NUMBER);
     REGISTER_OPTION(MODEL_SERIALIZER_VERSION);
     REGISTER_OPTION(ENABLE_STRIDES_FOR);
+    REGISTER_OPTION(SHARED_COMMON_QUEUE);
+    REGISTER_OPTION(CACHE_ENCRYPTION_CALLBACKS);
 
     if (backend) {
+        // Options registered only if drivers is present and supports the corresponding extension
+        REGISTER_OPTION(MAX_TILES);
+
         if (backend->isCommandQueueExtSupported()) {
             REGISTER_OPTION(WORKLOAD_TYPE);
         }
@@ -273,73 +275,10 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
 
     // NPUW properties are requested by OV Core during caching and have no effect on the NPU plugin. But we still need
     // to enable those for OV Core to query. Note: do this last to not filter them out. register npuw caching properties
-    REGISTER_OPTION(NPU_USE_NPUW);
-    REGISTER_OPTION(NPUW_DEVICES);
-    REGISTER_OPTION(NPUW_SUBMODEL_DEVICE);
-    REGISTER_OPTION(NPUW_WEIGHTS_BANK);
-    REGISTER_OPTION(NPUW_WEIGHTS_BANK_ALLOC);
-    REGISTER_OPTION(NPUW_ONLINE_PIPELINE);
-    REGISTER_OPTION(NPUW_ONLINE_AVOID);
-    REGISTER_OPTION(NPUW_ONLINE_ISOLATE);
-    REGISTER_OPTION(NPUW_ONLINE_NO_FOLD);
-    REGISTER_OPTION(NPUW_ONLINE_MIN_SIZE);
-    REGISTER_OPTION(NPUW_ONLINE_KEEP_BLOCKS);
-    REGISTER_OPTION(NPUW_ONLINE_KEEP_BLOCK_SIZE);
-    REGISTER_OPTION(NPUW_ATTN);
-    REGISTER_OPTION(NPUW_ATTN_HFA_FUSED);
-    REGISTER_OPTION(NPUW_FOLD);
-    REGISTER_OPTION(NPUW_CWAI);
-    REGISTER_OPTION(NPUW_DQ);
-    REGISTER_OPTION(NPUW_DQ_FULL);
-    REGISTER_OPTION(NPUW_PMM);
-    REGISTER_OPTION(NPUW_MM_GATED);
-    REGISTER_OPTION(NPUW_SLICE_OUT);
-    REGISTER_OPTION(NPUW_SPATIAL);
-    REGISTER_OPTION(NPUW_SPATIAL_NWAY);
-    REGISTER_OPTION(NPUW_SPATIAL_DYN);
-    REGISTER_OPTION(NPUW_F16IC);
-    REGISTER_OPTION(NPUW_HOST_GATHER);
-    REGISTER_OPTION(NPUW_DCOFF_TYPE);
-    REGISTER_OPTION(NPUW_DCOFF_SCALE);
-    REGISTER_OPTION(NPUW_FUNCALL_FOR_ALL);
-    REGISTER_OPTION(NPUW_FUNCALL_ASYNC);
-    REGISTER_OPTION(NPUW_UNFOLD_IREQS);
-    REGISTER_OPTION(NPUW_FALLBACK_EXEC);
-    REGISTER_OPTION(NPUW_LLM);
-    REGISTER_OPTION(NPUW_LLM_BATCH_DIM);
-    REGISTER_OPTION(NPUW_LLM_SEQ_LEN_DIM);
-    REGISTER_OPTION(NPUW_LLM_MAX_PROMPT_LEN);
-    REGISTER_OPTION(NPUW_LLM_MAX_GENERATION_TOKEN_LEN);
-    REGISTER_OPTION(NPUW_LLM_MIN_RESPONSE_LEN);
-    REGISTER_OPTION(NPUW_LLM_OPTIMIZE_V_TENSORS);
-    REGISTER_OPTION(NPUW_LLM_OPTIMIZE_FP8);
-    REGISTER_OPTION(NPUW_LLM_CACHE_ROPE);
-    REGISTER_OPTION(NPUW_LLM_PREFILL_MOE_HINT);
-    REGISTER_OPTION(NPUW_LLM_GENERATE_MOE_HINT);
-    REGISTER_OPTION(NPUW_LLM_GENERATE_PYRAMID);
-    REGISTER_OPTION(NPUW_LLM_PREFILL_CHUNK_SIZE);
-    REGISTER_OPTION(NPUW_LLM_SHARED_HEAD);
-    REGISTER_OPTION(NPUW_LLM_MAX_LORA_RANK);
-    REGISTER_OPTION(NPUW_LLM_ENABLE_PREFIX_CACHING);
-    REGISTER_OPTION(NPUW_LLM_PREFIX_CACHING_BLOCK_SIZE);
-    REGISTER_OPTION(NPUW_LLM_PREFIX_CACHING_MAX_NUM_BLOCKS);
-    REGISTER_OPTION(NPUW_WHISPER);
-    REGISTER_OPTION(NPUW_WHISPER_EOS_TOKEN);
-    REGISTER_OPTION(NPUW_EAGLE);
-    REGISTER_OPTION(NPUW_TEXT_EMBED);
-    REGISTER_OPTION(NPUW_LLM_PREFILL_HINT);
-    REGISTER_OPTION(NPUW_LLM_PREFILL_CONFIG);
-    REGISTER_OPTION(NPUW_LLM_ADDITIONAL_PREFILL_CONFIG);
-    REGISTER_OPTION(NPUW_LLM_PREFILL_ATTENTION_HINT);
-    REGISTER_OPTION(NPUW_LLM_GENERATE_HINT);
-    REGISTER_OPTION(NPUW_LLM_GENERATE_CONFIG);
-    REGISTER_OPTION(NPUW_LLM_ADDITIONAL_GENERATE_CONFIG);
-    REGISTER_OPTION(NPUW_LLM_GENERATE_ATTENTION_HINT);
-    REGISTER_OPTION(NPUW_LLM_SHARED_LM_HEAD_CONFIG);
-    REGISTER_OPTION(NPUW_LLM_ADDITIONAL_SHARED_LM_HEAD_CONFIG);
-    REGISTER_OPTION(NPUW_KOKORO);
-    REGISTER_OPTION(NPUW_KOKORO_BLOCK_SIZE);
-    REGISTER_OPTION(NPUW_KOKORO_OVERLAP_SIZE);
+    for_each_exposed_npuw_option([&](auto tag) {
+        using Opt = typename decltype(tag)::type;
+        REGISTER_OPTION(Opt);
+    });
 
     config.enableRuntimeOptions();
 
@@ -480,8 +419,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
 
-    // ov::hint::model has no corresponding "Config" implementation thus we need to remove it from the
-    // list of properties
+    // ov::hint::model has no corresponding "Config" implementation thus we need to
+    // remove it from the list of properties
     if (exclude_model_ptr_from_map(localProperties)) {
         _logger.warning("Model received in config will be ignored as it was already provided by parameter.");
     }
@@ -503,7 +442,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // available devices (if any)
     const auto compilationPlatform =
         utils::getCompilationPlatform(_propertiesManager->determinePlatform(localProperties),
-                                      device == nullptr ? deviceId : device->getName(),
+                                      device == nullptr ? std::move(deviceId) : device->getName(),
                                       _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
     CompilerAdapterFactory factory;
@@ -516,6 +455,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
     FilteredConfig localConfig = _propertiesManager->getConfigForSpecificCompiler(localProperties, compiler.get());
+    localConfig.update({{ov::intel_npu::compiler_version.name(), std::to_string(compiler->get_version())}});
 
     auto updateBatchMode = [&](ov::intel_npu::BatchMode mode) {
         std::stringstream strStream;
@@ -570,7 +510,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
 
     // Update stepping w/ information from driver, unless provided by user or we are off-device
-    // Ignore, if compilation was requested for platform, different from current
+    // Ignore if compilation was requested for a platform that is different from the current one
     if (!localConfig.has<STEPPING>() && device != nullptr && device->getName() == compilationPlatform) {
         try {
             localConfig.update({{ov::intel_npu::stepping.name(), std::to_string(device->getSubDevId())}});
@@ -580,37 +520,38 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
     // Update max_tiles w/ information from driver, unless provided by user or we are off-device
-    // Ignore, if compilation was requested for platform, different from current
+    // Ignore if compilation was requested for a platform that is different from the current one
     if (!localConfig.has<MAX_TILES>() && device != nullptr && device->getName() == compilationPlatform) {
         try {
             localConfig.update({{ov::intel_npu::max_tiles.name(), std::to_string(device->getMaxNumSlices())}});
         } catch (...) {
-            _logger.warning("Max tiles information not implemented by selected backend. Skipping. Please provide "
-                            "NPU_MAX_TILES if required.");
+            _logger.warning("Max tiles information not implemented by selected backend. Default value will be used.");
         }
     }
 
     OV_ITT_TASK_NEXT(PLUGIN_COMPILE_MODEL, "compile");
 
-    if (localConfig.isAvailable(ov::intel_npu::weightless_blob.name()) && !localConfig.get<CACHE_DIR>().empty()) {
+    if (localConfig.isAvailable(ov::enable_weightless.name()) && !localConfig.get<CACHE_DIR>().empty()) {
         // If OV caching is enabled, then weights separation is performed only if the user opted for optimizing the
         // size of the binary object
         const bool cacheModeOptimizeSize = (localConfig.get<CACHE_MODE>() == ov::CacheMode::OPTIMIZE_SIZE);
-        if (localConfig.get<WEIGHTLESS_BLOB>() && !cacheModeOptimizeSize) {
-            _logger.warning("The cache mode was not set to \"optimize size\" but the \"WEIGHTLESS_BLOB\" configuration "
-                            "option was set to true. Weights separation WILL NOT be performed in this case.");
-        } else if (!localConfig.get<WEIGHTLESS_BLOB>() && cacheModeOptimizeSize) {
-            _logger.warning("The cache mode was set to \"optimize size\" but the \"WEIGHTLESS_BLOB\" configuration "
-                            "option was set to false. Weights separation WILL be performed in this case.");
+        if (localConfig.get<ENABLE_WEIGHTLESS>() && !cacheModeOptimizeSize) {
+            _logger.warning(
+                "The cache mode was not set to \"optimize size\" but the \"ENABLE_WEIGHTLESS\" configuration option "
+                "was set to true. Weights separation WILL NOT be performed in this case.");
+        } else if (!localConfig.get<ENABLE_WEIGHTLESS>() && cacheModeOptimizeSize) {
+            _logger.warning(
+                "The cache mode was set to \"optimize size\" but the \"ENABLE_WEIGHTLESS\" configuration option "
+                "was set to false. Weights separation WILL be performed in this case.");
         }
 
-        localConfig.update({{ov::intel_npu::weightless_blob.name(), cacheModeOptimizeSize ? "YES" : "NO"}});
+        localConfig.update({{ov::enable_weightless.name(), cacheModeOptimizeSize ? "YES" : "NO"}});
     }
 
     std::shared_ptr<intel_npu::IGraph> graph;
 
     auto compileWithConfig = [&](auto&& modelToCompile, const auto& config) {
-        if (!localConfig.get<WEIGHTLESS_BLOB>() && !localConfig.get<ENABLE_WEIGHTLESS>()) {
+        if (!localConfig.get<ENABLE_WEIGHTLESS>()) {
             return compiler->compile(modelToCompile, config);
         } else {
             check_weightless_cache_attribute_occurrence(model);
@@ -622,19 +563,33 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         _logger.debug("performing compile");
 
         // Determine which model to use
-        auto modelToCompile = successfullyDebatched ? batchedModel : model->clone();
+        auto modelToCompile = successfullyDebatched ? std::move(batchedModel) : model->clone();
 
-        if (successfullyDebatched && localConfig.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::LATENCY) {
-            _logger.info("Override performance mode to THROUGHPUT for compilation");
+        const bool performanceHintSetByUser = localConfig.has(ov::hint::performance_mode.name());
+        const bool shouldForceThroughput = successfullyDebatched && !performanceHintSetByUser;
+        const bool shouldWarnAboutLatency = successfullyDebatched && performanceHintSetByUser &&
+                                            localConfig.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::LATENCY;
+
+        if (shouldWarnAboutLatency) {
+            _logger.warning("PERFORMANCE_HINT is explicitly set to LATENCY mode, but batch dimension (N) is "
+                            "detected in the model. The NPU Plugin will reshape the model to batch size 1 and "
+                            "process each batch slice separately.");
+            _logger.warning("For optimal performance with batched models, THROUGHPUT mode is highly recommended, "
+                            "as LATENCY mode prevents parallel batch processing.");
+            _logger.warning("If batch detection appears incorrect, verify that the input and output layouts are "
+                            "configured properly.");
+        }
+
+        if (shouldForceThroughput) {
+            _logger.info("Setting performance mode to THROUGHPUT for batched model compilation.");
 
             auto modifiedConfig = localConfig;  // Copy only when needed
             std::stringstream strStream;
             strStream << ov::hint::PerformanceMode::THROUGHPUT;
             modifiedConfig.update({{ov::hint::performance_mode.name(), strStream.str()}});
-
             graph = compileWithConfig(std::move(modelToCompile), modifiedConfig);
         } else {
-            graph = compileWithConfig(std::move(modelToCompile), localConfig);  // No copy
+            graph = compileWithConfig(std::move(modelToCompile), localConfig);
         }
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
@@ -650,6 +605,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             // Initial batch setup for static cases
             graph->set_batch_size(batch.value());
         }
+    }
+
+    if (localConfig.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
+        !localConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt) {
+        _logger.warning("Encryption callbacks were provided for compiled model creation, but the encrypt "
+                        "callback is null. Proceeding with unencrypted compilation; encrypted blob export "
+                        "will be disabled.");
     }
 
     std::shared_ptr<ov::ICompiledModel> compiledModel;
@@ -730,6 +692,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         } else {
             _logger.info("Blob compatibility check skipped.");
         }
+        OPENVINO_ASSERT(blobSize > 0, "Parsed blob size is empty from the given stream!");
 
         ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
         ov::Tensor tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
@@ -794,6 +757,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
         } else {
             _logger.info("Blob compatibility check skipped.");
         }
+        OPENVINO_ASSERT(blobSize > 0, "Parsed blob size is empty from the given buffer!");
         const ov::Tensor roiTensor(compiledBlob,
                                    ov::Coordinate{0},
                                    ov::Coordinate{blobSize});  // ROI tensor to skip NPU plugin metadata
@@ -834,7 +798,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 
     const auto compilationPlatform =
         utils::getCompilationPlatform(_propertiesManager->determinePlatform(localProperties),
-                                      device == nullptr ? deviceId : device->getName(),
+                                      device == nullptr ? std::move(deviceId) : device->getName(),
                                       _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
     CompilerAdapterFactory factory;
@@ -865,8 +829,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
 
     auto localProperties = properties;
 
-    // ov::hint::model has no corresponding "Config" implementation thus we need to remove it from the
-    // list of properties
+    // ov::hint::model has no corresponding "Config" implementation thus we need to
+    // remove it from the list of properties
     auto originalModel = exclude_model_ptr_from_map(localProperties);
 
     std::shared_ptr<IDevice> device =
@@ -885,22 +849,67 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
             "The usage of a compiled model can lead to undefined behavior. Please use OpenVINO IR instead!");
     }
 
-    uint64_t mainSize = tensorBig.get_byte_size();
+    const bool isNotNullDecryption = localConfig.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
+                                     localConfig.get<CACHE_ENCRYPTION_CALLBACKS>().decrypt != nullptr;
+    if (!metadata && isNotNullDecryption) {
+        _logger.warning(
+            "Received decryption callback, but metadata parsing is skipped and cannot determine if blob was "
+            "encrypted or not.");
+    }
+
+    ov::Tensor tensor = tensorBig;
+    if (isNotNullDecryption && (metadata == nullptr || (metadata != nullptr && metadata->is_encrypted_blob()))) {
+        {
+            std::string decryptedBlobStr;
+            {
+                std::string encryptedBlobStr(tensor.data<const char>(), tensor.get_byte_size());  // +1x blob size
+                decryptedBlobStr =
+                    localConfig.get<CACHE_ENCRYPTION_CALLBACKS>().decrypt(encryptedBlobStr);  // +2x blob size
+            }  // -1x blob size when deallocating temporary encrypted blob string
+            ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
+            size_t alignedSize = utils::align_size_to_standard_page_size(decryptedBlobStr.size());
+            size_t paddingSize = alignedSize - decryptedBlobStr.size();
+            tensor = ov::Tensor(ov::element::u8, ov::Shape{alignedSize},
+                                customAllocator);  // +1x blob size
+            std::memcpy(tensor.data<char>(), decryptedBlobStr.c_str(), decryptedBlobStr.size());
+            if (paddingSize > 0) {
+                // If user altered in some way initial blob during encryption, check if its size is still paged aligned
+                _logger.warning("Decrypted blob size was not page aligned, additional %zu bytes padding will be added",
+                                paddingSize);
+                std::memset(tensor.data<char>() + decryptedBlobStr.size(), 0, paddingSize);
+            }
+        }  // -1x blob size when deallocating decrypted blob string
+    }
+
+    uint64_t mainSize = tensor.get_byte_size();
     std::optional<std::vector<uint64_t>> initSizes;
     std::optional<int64_t> batchSize = std::nullopt;
 
     if (metadata) {
+        if (metadata->is_encrypted_blob() && !isNotNullDecryption) {
+            OPENVINO_THROW("Blob is encrypted, but no decryption callback was provided!");
+        }
+
         size_t accumulator = 0;
         initSizes = metadata->get_init_sizes();
         mainSize = initSizes.has_value()
                        ? metadata->get_blob_size() - std::accumulate(initSizes->begin(), initSizes->end(), accumulator)
                        : metadata->get_blob_size();
         batchSize = metadata->get_batch_size();
+
+        std::optional<uint32_t> compilerVersion = metadata->get_compiler_version();
+        if (compilerVersion.has_value()) {
+            localConfig.update({{ov::intel_npu::compiler_version.name(), std::to_string(compilerVersion.value())}});
+            _logger.debug("Imported model was compiled with compiler version: %u.%u",
+                          ONEAPI_VERSION_MAJOR(compilerVersion.value()),
+                          ONEAPI_VERSION_MINOR(compilerVersion.value()));
+        }
     } else {
-        _logger.info("Blob compatibility check skipped.");
+        _logger.warning(
+            "Metadata parsing is skipped, if this is a weightless blob, init schedules cannot be parsed from it!");
     }
 
-    const ov::Tensor tensorMain(tensorBig,
+    const ov::Tensor tensorMain(tensor,
                                 ov::Coordinate{0},
                                 ov::Coordinate{mainSize});  // ROI tensor to skip NPU plugin metadata
 
@@ -911,7 +920,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
         // Read the init compiled models as well
         size_t cursorPosition = mainSize;
         for (uint64_t initSize : initSizes.value()) {
-            const ov::Tensor tensorInit(tensorBig,
+            const ov::Tensor tensorInit(tensor,
                                         ov::Coordinate{cursorPosition},
                                         ov::Coordinate{cursorPosition + initSize});
             tensorsInits.push_back(tensorInit);

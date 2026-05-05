@@ -37,7 +37,7 @@ static const std::map<std::string, std::string>& dim_aliases() {
     return DIM_ALIASES;
 }
 
-static std::string to_internal_name(const std::string& dim_name) {
+static std::string to_internal_name(std::string_view dim_name) {
     auto name = ov::util::to_upper(dim_name);
     auto it = dim_aliases().find(name);
     if (it != dim_aliases().end()) {
@@ -46,17 +46,21 @@ static std::string to_internal_name(const std::string& dim_name) {
     return name;
 }
 
-static void validate_name(const std::string& dim_name) {
+static void validate_name(std::string_view dim_name) {
     OPENVINO_ASSERT(!dim_name.empty(), "Layout dimension name can't be empty");
     bool has_alphanumeric = false;
     for (const auto& c : dim_name) {
         bool is_alnum = std::isalnum(c);
         has_alphanumeric |= is_alnum;
         OPENVINO_ASSERT(is_alnum || c == '_',
-                        "Layout name is invalid (" + dim_name + "). Only english letters, digits and _ is allowed");
+                        "Layout name is invalid (",
+                        dim_name,
+                        "). Only english letters, digits and _ is allowed");
     }
     OPENVINO_ASSERT(has_alphanumeric,
-                    "Layout name is invalid (" + dim_name + "). Name shall have alphanumeric characters");
+                    "Layout name is invalid (",
+                    dim_name,
+                    "). Name shall have alphanumeric characters");
 }
 
 Layout::Layout() : m_dynamic(true), m_left_size(0), m_right_size(0) {}
@@ -81,11 +85,11 @@ Layout::Layout(const std::string& layout_str) {
         m_dynamic = false;
         return;
     }
-    auto is_advanced_syntax = [](const std::string& layout) {
+    auto is_advanced_syntax = [](const auto& layout) {
         return layout.length() >= 2 && layout.front() == '[' && layout.back() == ']';
     };
 
-    auto assign_name = [&](const std::string& name, int64_t index) {
+    auto assign_name = [&](std::string_view name, int64_t index) {
         auto dim_name = to_internal_name(name);
         validate_name(name);
         OPENVINO_ASSERT(m_names.count(dim_name) == 0,
@@ -101,18 +105,18 @@ Layout::Layout(const std::string& layout_str) {
             std::istringstream ss(sub_name);
             std::string name;
             while (std::getline(ss, name, ',')) {
-                name = ov::util::trim(name);
-                if (name != "?") {
-                    assign_name(name, index);
+                auto trim_name = ov::util::trim(name);
+                if (trim_name != "?") {
+                    assign_name(trim_name, index);
                 }
-                index++;
+                ++index;
             }
             return index;
         };
         layout = layout.substr(1, layout.length() - 2);  // remove []
         auto ellipsis = layout.find(ELLIPSIS);
         if (ellipsis == std::string::npos) {
-            auto last_index = parse_commas(layout);
+            auto last_index = parse_commas(static_cast<std::string>(layout));
             m_dynamic = false;
             m_left_size = last_index;
         } else {
@@ -121,16 +125,18 @@ Layout::Layout(const std::string& layout_str) {
             auto left_layout = ov::util::trim(layout.substr(0, ellipsis));
             if (!left_layout.empty()) {
                 OPENVINO_ASSERT(left_layout.at(left_layout.length() - 1) == ',',
-                                "Layout: Invalid left side (" + layout + ")");
+                                "Layout: Invalid left side (",
+                                layout,
+                                ")");
                 left_layout = left_layout.substr(0, left_layout.length() - 1);
-                left_index = parse_commas(left_layout);
+                left_index = parse_commas(static_cast<std::string>(left_layout));
             }
             auto right_layout = ov::util::trim(layout.substr(ellipsis + ELLIPSIS_LEN));
             if (!right_layout.empty()) {
-                OPENVINO_ASSERT(right_layout.at(0) == ',', "Layout: Invalid right side (" + layout + ")");
+                OPENVINO_ASSERT(right_layout.at(0) == ',', "Layout: Invalid right side (", layout, ")");
                 right_layout = right_layout.substr(1, right_layout.length() - 1);
                 right_index = std::count(right_layout.begin(), right_layout.end(), ',') + 1;
-                parse_commas(right_layout, -right_index);
+                parse_commas(static_cast<std::string>(right_layout), -right_index);
             }
             m_dynamic = true;
             m_left_size = left_index;

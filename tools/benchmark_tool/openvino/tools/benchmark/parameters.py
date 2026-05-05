@@ -25,6 +25,12 @@ def check_positive(value):
         raise argparse.ArgumentTypeError(f"{value} is an invalid positive int value")
     return ivalue
 
+def check_nonneg(value):
+    ivalue = int(value)
+    if ivalue < 0:
+        raise argparse.ArgumentTypeError(f"{value} is an invalid non-negative int value")
+    return ivalue
+
 class print_help(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         parser.print_help()
@@ -69,9 +75,11 @@ def parse_args():
                             '\'latency\': device performance mode will be set to LATENCY. \n'
                             '\'none\': no device performance mode will be set. \n'
                             'Using explicit \'nstreams\' or other device-specific options, please set hint to \'none\'')
-    args.add_argument('-niter', '--number_iterations', type=check_positive, required=False, default=None,
+    args.add_argument('-niter', '--number_iterations', type=check_nonneg, required=False, default=None,
                       help='Optional. Number of iterations. '
-                           'If not specified, the number of iterations is calculated depending on a device.')
+                           'If not specified, the number of iterations is calculated depending on a device. '
+                           'Set -niter 0 to compile the model and exit without running inference '
+                           '(useful for models with dynamic shapes that would otherwise require -shape, -data_shape, or -i).')
     args.add_argument('-max_irate', '--maximum_inference_rate', type=float, required=False, default=0,
                       help='Optional. Maximum inference rate by frame per second. '
                            'If not specified, default value is 0, the inference will run at maximium rate depending on a device capabilities. '

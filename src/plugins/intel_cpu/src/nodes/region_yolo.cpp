@@ -417,7 +417,7 @@ inline void RegionYolo::calculate_logistic(size_t start_index, int count, uint8_
                 bf16_dst_data[i + start_index] = logistic_scalar(bf16_dst_data[i + start_index]);
             }
         } else {
-            CPU_NODE_ASSERT("Unsupported precision configuration outPrc=", output_prec.get_type_name());
+            CPU_NODE_THROW("Unsupported precision configuration outPrc=", output_prec.get_type_name());
         }
     }
 }

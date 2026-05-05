@@ -56,7 +56,8 @@ MockCompiledModelBase::MockCompiledModelBase(
     : ov::ICompiledModel(model, plugin),
       m_infer_reqs_to_expectations_ptr(infer_reqs_to_expectations_ptr),
       m_model(model),
-      m_config(config) {}
+      m_config(config),
+      m_execution_device(plugin ? plugin->get_device_name() : std::string{}) {}
 
 void MockCompiledModelBase::create_implementation() {
     ON_CALL(*this, inputs()).WillByDefault(testing::ReturnRefOfCopy(m_model->inputs()));
@@ -87,6 +88,8 @@ void MockCompiledModelBase::create_implementation() {
                                                                 : ov::streams::Num(1);
         } else if (name == ov::enable_profiling) {
             return this->m_config.count(ov::enable_profiling.name()) ? m_config.at(ov::enable_profiling.name()) : false;
+        } else if (name == ov::execution_devices) {
+            return std::vector<std::string>{m_execution_device};
         } else {
             OPENVINO_THROW("get property: " + name);
         }

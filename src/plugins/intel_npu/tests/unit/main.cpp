@@ -10,7 +10,6 @@
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
-#include "ze_api.h"
 #ifdef WIN32
 #    include <process.h>
 #endif
@@ -27,19 +26,12 @@ int main(int argc, char** argv, char** envp) {
     // register crashHandler for SIGSEGV signal
     signal(SIGSEGV, sigsegv_handler);
 
-    std::shared_ptr<void> lib;
+    std::shared_ptr<intel_npu::ZeroApi> zeroApi;
     try {
-        using zelSetDriverTeardownF = ze_result_t (*)();
-        zelSetDriverTeardownF zelSetDriverTeardown = nullptr;
-
-        auto libpath = ov::util::make_plugin_library_name({}, "ze_loader");
-#if !defined(_WIN32) && !defined(ANDROID)
-        libpath += LIB_ZE_LOADER_SUFFIX;
-#endif
-        lib = ov::util::load_shared_object(libpath);
-        zelSetDriverTeardown =
-            reinterpret_cast<zelSetDriverTeardownF>(ov::util::get_symbol(lib, "zelSetDriverTeardown"));
-        zelSetDriverTeardown();
+        zeroApi = intel_npu::ZeroApi::get_instance();
+        if (zeroApi) {
+            zeroApi->zelSetDriverTeardown();
+        }
     } catch (...) {
         // ze_loader not present on the system, probably it is not an NPU host
     }

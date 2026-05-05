@@ -34,7 +34,7 @@ std::string OVClassCompiledModelPropertiesTests::getTestCaseName(testing::TestPa
     std::ostringstream result;
     result << "targetDevice=" << targetDevice << "_";
     if (!properties.empty()) {
-        result << "properties=" << util::join(util::split(util::to_string(properties), ' '), "_");
+        result << "properties=" << util::join(util::split(util::to_string(properties), " "), "_");
     }
     return result.str();
 }
@@ -62,7 +62,7 @@ std::string OVCompileModelGetExecutionDeviceTests::getTestCaseName(testing::Test
     std::ostringstream result;
     result << "device_name=" << target_device << "_";
     if (!compileModelProperties.empty()) {
-        result << "_compileModelProp=" << util::join(util::split(util::to_string(compileModelProperties), ' '), "_");
+        result << "_compileModelProp=" << util::join(util::split(util::to_string(compileModelProperties), " "), "_");
     }
     result << "_expectedDevice=" << userConfig.second;
     return result.str();
@@ -79,7 +79,7 @@ void OVCompileModelGetExecutionDeviceTests::SetUp() {
 }
 
 TEST_P(OVClassCompiledModelPropertiesTests, CanUseCache) {
-    std::string cache_dir = "./test_cache";
+    std::string cache_dir = "./test_cache_" + ov::test::utils::generateTestFilePrefix();
     core->set_property(ov::cache_dir(cache_dir));
     OV_ASSERT_NO_THROW(core->compile_model(model, target_device, properties));
     OV_ASSERT_NO_THROW(core->compile_model(model, target_device, properties));
@@ -488,7 +488,7 @@ TEST_P(OVClassCompiledModelGetPropertyTest_EXEC_DEVICES, CanGetExecutionDeviceIn
 TEST_P(OVCompileModelGetExecutionDeviceTests, CanGetExecutionDeviceInfo) {
     ov::CompiledModel exeNetWork;
     auto deviceList = core->get_available_devices();
-    std::vector<std::string> expected_devices = util::split(expectedDeviceName, ',');
+    const auto  expected_devices = util::split(expectedDeviceName);
     std::vector<std::string> updatedExpectDevices;
     updatedExpectDevices.assign(expected_devices.begin(), expected_devices.end());
     for (auto& iter : compileModelProperties) {

@@ -127,6 +127,7 @@ protected:
                 tmp_events = {ev};
             }
             all_events.push_back(ev);
+            kernel_dump_info.add_entry_point(_kernels[idx_final]->get_id());
         }
 
         return stream.aggregate_events(all_events, all_events.size() > 1);
@@ -154,6 +155,8 @@ protected:
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, gemm_inst& instance) override {
+        kernel_dump_info.clear_entries();
+
         if (instance.get_input_layout(0).count() == 0 ||
             instance.get_input_layout(1).count() == 0) {
             stream& stream = instance.get_network().get_stream();
@@ -161,10 +164,19 @@ protected:
             return instance.output_memory_ptr()->fill(stream, {}, false);
         }
 
-        if (need_indirect_load(instance))
+        if (need_indirect_load(instance)) {
+            for (auto& kernel : _kernels_data[default_gemm].kernels) {
+                kernel.skip_execution = true;
+            }
             return execute_stage(events, instance, indirect_gemm);
-        else
+        } else {
+            if (_kernels_data.size() == 2) {
+                for (auto& kernel : _kernels_data[indirect_gemm].kernels) {
+                    kernel.skip_execution = true;
+                }
+            }
             return execute_stage(events, instance, default_gemm);
+        }
     }
 
 public:

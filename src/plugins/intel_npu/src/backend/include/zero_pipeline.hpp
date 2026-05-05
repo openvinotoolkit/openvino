@@ -11,46 +11,41 @@
 
 namespace intel_npu {
 
-struct Pipeline {
+class IPipeline {
 public:
-    Pipeline(const Config& config,
-             const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-             const std::shared_ptr<IGraph>& graph,
-             const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,
-             const std::vector<std::shared_ptr<ZeroTensor>>& output_tensors,
-             size_t batch_size = 1);
+    IPipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+              const std::shared_ptr<IGraph>& graph,
+              size_t batch_size,
+              const Config& config,
+              const char* logName);
 
-    Pipeline(const Config& config,
-             const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-             const std::shared_ptr<IGraph>& graph,
-             const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,
-             const std::vector<std::shared_ptr<ZeroTensor>>& output_tensors,
-             const char* logName,
-             size_t batch_size = 1);
+    IPipeline(const IPipeline&) = delete;
+    IPipeline& operator=(const IPipeline&) = delete;
+    IPipeline(IPipeline&&) = delete;
+    IPipeline& operator=(IPipeline&&) = delete;
 
-    Pipeline(const Pipeline&) = delete;
-    Pipeline& operator=(const Pipeline&) = delete;
-    virtual ~Pipeline() = default;
-
-    virtual void push();
-    virtual void pull();
-    virtual void reset() const;
+    virtual void push() = 0;
+    virtual void pull() = 0;
+    virtual void reset() const = 0;
 
     virtual void update_graph_arguments(uint32_t index,
                                         const std::shared_ptr<ZeroTensor>& tensor,
-                                        [[maybe_unused]] std::shared_ptr<ov::ITensor> userTensor = nullptr);
+                                        const std::shared_ptr<ov::ITensor>& userTensor = nullptr) = 0;
     virtual void update_graph_arguments(uint32_t index,
                                         const std::shared_ptr<ZeroTensor>& tensor,
                                         size_t batch_index,
-                                        [[maybe_unused]] std::shared_ptr<ov::ITensor> userTensor = nullptr);
+                                        const std::shared_ptr<ov::ITensor>& userTensor = nullptr) = 0;
 
-    virtual std::vector<ov::ProfilingInfo> get_profiling_info() const;
+    std::vector<ov::ProfilingInfo> get_profiling_info() const;
+
+    virtual ~IPipeline() = default;
 
 protected:
+    void enable_profiling();
+
     std::shared_ptr<ZeroInitStructsHolder> _init_structs;
     std::shared_ptr<IGraph> _graph;
     const Config _config;
-    const uint32_t _id;
 
     std::unique_ptr<zeroProfiling::ProfilingQuery> _profiling_query;
     std::shared_ptr<zeroProfiling::NpuInferProfiling> _npu_profiling;
@@ -63,19 +58,47 @@ protected:
      * If batching is handled on compiler's side then a single command list shall be used, we don't do any
      * specific operation inside the plugin in this case.
      */
-    size_t _number_of_command_lists;
+    size_t _batch_size;
 
-    std::shared_ptr<CommandQueue> _command_queue;
-    std::vector<std::unique_ptr<CommandList>> _command_lists;
+    std::shared_ptr<CommandQueue> _command_queue = nullptr;
     std::vector<std::unique_ptr<Fence>> _fences;
     std::shared_ptr<EventPool> _event_pool;
     std::vector<std::shared_ptr<Event>> _events;
     bool _sync_output_with_fences = true;
     uint32_t _extension_version;
+    bool _run_inferences_sequentially = false;
+    const uint32_t _pipeline_unique_id_per_graph;
+
     Logger _logger;
+};
+
+class Pipeline final : public IPipeline {
+public:
+    Pipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+             const std::shared_ptr<IGraph>& graph,
+             const Config& config,
+             const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,
+             const std::vector<std::shared_ptr<ZeroTensor>>& output_tensors,
+             size_t batch_size = 1);
+
+    Pipeline(const Pipeline&) = delete;
+    Pipeline& operator=(const Pipeline&) = delete;
+    ~Pipeline() override = default;
+
+    void push() override;
+    void pull() override;
+    void reset() const override;
+
+    void update_graph_arguments(uint32_t index,
+                                const std::shared_ptr<ZeroTensor>& tensor,
+                                const std::shared_ptr<ov::ITensor>& userTensor = nullptr) override;
+    void update_graph_arguments(uint32_t index,
+                                const std::shared_ptr<ZeroTensor>& tensor,
+                                size_t batch_index,
+                                const std::shared_ptr<ov::ITensor>& userTensor = nullptr) override;
 
 private:
-    void enable_profiling();
+    std::vector<std::unique_ptr<CommandList>> _command_lists;
 };
 
 }  // namespace intel_npu

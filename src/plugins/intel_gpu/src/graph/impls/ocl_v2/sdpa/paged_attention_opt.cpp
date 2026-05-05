@@ -17,7 +17,6 @@
 #include "../primitive_ocl_base.hpp"
 #include "common_tools.h"
 #include "common_utils/jitter.hpp"
-#include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
 #include "kv_cache_inst.h"
 #include "openvino/core/partial_shape.hpp"
@@ -135,14 +134,14 @@ static int64_t get_aligned_seq_len(const kernel_impl_params& impl_param, const P
         const auto subsequence_begins_mem = input_mem.at(PagedAttentionInputIdx::SUBSEQUENCE_BEGINS);
         mem_lock<int32_t, mem_lock_type::read> subsequence_begins_mem_lock(subsequence_begins_mem, *impl_param.strm);
 
-        auto aligned_seq_len = 0;
+        int64_t aligned_seq_len = 0;
         if (stage == PagedAttentionStage::MIXED) {
             const auto past_lens_mem = input_mem.at(PagedAttentionInputIdx::PAST_LENS);
             mem_lock<int32_t, mem_lock_type::read> past_lens_mem_lock(past_lens_mem, *impl_param.strm);
 
             for (size_t i = 0; i < subsequence_begins_mem_lock.size() - 1; i++) {
                 auto past_len = past_lens_mem_lock[i];
-                auto seq_length = subsequence_begins_mem_lock[i + 1] - subsequence_begins_mem_lock[i];
+                int64_t seq_length = subsequence_begins_mem_lock[i + 1] - subsequence_begins_mem_lock[i];
 
                 // Since in MIXED execution mode the present KV-cache can be appended to the past KV-cache at any offset inside block,
                 // to ensure proper alignment and update_kv_cache kernel scheduling, we need to account for the number of unaligned tokens
@@ -577,6 +576,7 @@ public:
 
         const auto desc = params.typed_desc<paged_attention>();
         const auto has_alibi = params.get_input_layout(PagedAttentionInputIdx::ALIBI).count() > 0;
+        const auto has_qq_bias = desc->has_qq_bias;
         const auto has_scale_input = !desc->scale_val.has_value();
 
         const auto& in_offsets_map = params.in_port_to_shape_info_offset;
@@ -595,11 +595,18 @@ public:
         }
         if (has_scale_input) {
             const size_t tensor_id = PagedAttentionInputIdx::SCALE;
-            jit.add(make_layout_jit_constants("INPUT" + to_code_string(6), params.input_layouts[tensor_id], in_offsets_map.at(tensor_id)));
+            jit.add(make_layout_jit_constants("INPUT" + to_code_string(7), params.input_layouts[tensor_id], in_offsets_map.at(tensor_id)));
         }
         if (has_alibi) {
             const size_t tensor_id = PagedAttentionInputIdx::ALIBI;
-            jit.add(make_layout_jit_constants("INPUT" + to_code_string(7), params.input_layouts[tensor_id], in_offsets_map.at(tensor_id)));
+            jit.add(make_layout_jit_constants("INPUT" + to_code_string(8), params.input_layouts[tensor_id], in_offsets_map.at(tensor_id)));
+        }
+        if (has_qq_bias) {
+            jit.make("HAS_QQ_BIAS", 1);
+            const auto& qq_layout = params.input_layouts[PagedAttentionInputIdx::QQ_BIAS];
+            jit.make("QQ_BIAS_DATA_T", to_ocl_type(qq_layout.data_type));
+            const auto& qq_begins_layout = params.input_layouts[PagedAttentionInputIdx::QQ_BIAS_BEGINS];
+            jit.make("QQ_BIAS_BEGINS_DATA_T", to_ocl_type(qq_begins_layout.data_type));
         }
         jit.add(make_layout_jit_constants("OUTPUT", params.output_layouts[0], out_offsets_map.at(0)));
 
@@ -611,6 +618,7 @@ public:
 
         const auto desc = params.typed_desc<paged_attention>();
         const auto has_alibi = params.get_input_layout(PagedAttentionInputIdx::ALIBI).count() > 0;
+        const auto has_qq_bias = desc->has_qq_bias;
         const auto has_scale_input = !desc->scale_val.has_value();
         const auto has_scores_output = desc->has_scores_output();
 
@@ -638,6 +646,10 @@ public:
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SINKS});  // sink
         }
 
+        if (has_qq_bias) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS});         // qq_bias
+            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS_BEGINS});  // qq_bias_begins
+        }
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
         add_intermediate_inputs(args, has_scores_output, true, desc->has_score_aggregation);
         return args;
@@ -649,7 +661,6 @@ public:
             auto& wgs = kd.params.workGroups;
             const auto desc = params.typed_desc<paged_attention>();
             auto* rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
-
             const size_t total_tokens = params.input_layouts[0].get_partial_shape()[0].get_length();
             const size_t heads_num = desc->heads_num;
             const size_t head_size = desc->v_head_size;
@@ -1145,6 +1156,10 @@ public:
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::ALIBI});  // alibi
         }
 
+        if (desc->has_token_type_ids) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::TOKEN_TYPE_IDS});  // token_type_ids
+        }
+
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
@@ -1213,6 +1228,10 @@ public:
         // jit.make("TARGET_SEQ_LEN", target_seq_len);
         jit.make("IS_KV_COMPRESSED", 0);
 
+        if (desc->has_token_type_ids) {
+            jit.make("HAS_TOKEN_TYPE_IDS", 1);
+        }
+
         return jit;
     }
 
@@ -1256,7 +1275,6 @@ public:
 #ifdef ENABLE_ONEDNN_FOR_GPU
     Stage::Ptr pa_sdpa_micro = make_stage<SDPAMicroGenerator>(true);
     Stage::Ptr pa_sdpa_micro_mixed = make_stage<SDPAMicroGenerator>(false);
-    Stage::Ptr pa_sdpa_micro_gqa_single_token = make_stage<SDPAMicroGenerator>(false, true);
 #endif
 
     PagedAttentionOptImpl() : SDPAImplBase(PagedAttentionOpt::get_type_info_static()) {}
@@ -1271,7 +1289,6 @@ public:
         if (use_micro_sdpa) {
             add_stage(pa_sdpa_micro, params);
             add_stage(pa_sdpa_micro_mixed, params);
-            add_stage(pa_sdpa_micro_gqa_single_token, params);
         }
 #endif
 
@@ -1297,6 +1314,14 @@ public:
     }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
+    bool valid_micro_stage(const PagedAttentionStage& stage) const {
+        if (stage == PagedAttentionStage::PREFILL)
+            return pa_sdpa_micro->kd.micro_kernels.size() > 0;
+        else if (stage == PagedAttentionStage::MIXED)
+            return pa_sdpa_micro_mixed->kd.micro_kernels.size() > 0;
+        return false;
+    }
+
     bool supports_micro_sdpa(const kernel_impl_params& params) const {
         auto& engine = params.get_program().get_engine();
 
@@ -1409,7 +1434,7 @@ public:
         }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        rt_params->use_micro_sdpa = supports_micro_sdpa(params);
+        rt_params->use_micro_sdpa = supports_micro_sdpa(params) && valid_micro_stage(rt_params->stage) && desc->has_token_type_ids == false;
 #else
         rt_params->use_micro_sdpa = false;
 #endif
@@ -1417,16 +1442,9 @@ public:
         rt_params->query_block_size = get_query_block_size(rt_params->stage, rt_params->use_micro_sdpa);
 
         if (rt_params->stage == PagedAttentionStage::GENERATE) {
-            if (data_type_traits::is_i4_u4(params.get_program().get_config().get_kv_cache_precision())) {
+            rt_params->use_micro_sdpa = false;
+            if (desc->has_sink_input) {
                 rt_params->use_gqa_kernel = false;
-                rt_params->use_micro_sdpa = false;
-                return;
-            }
-
-            if (rt_params->use_micro_sdpa) {
-                size_t kv_group_size = desc->heads_num / desc->kv_heads_num;
-                rt_params->use_gqa_kernel = (kv_group_size == 8 && desc->k_head_size == 64);
-                rt_params->use_micro_sdpa = rt_params->use_gqa_kernel;
             } else {
                 rt_params->use_gqa_kernel = can_use_gqa_kernel(params, PagedAttentionStage::GENERATE, rt_params->max_context_len);
             }
@@ -1450,6 +1468,7 @@ public:
         const bool has_adaptive_rkv = desc->has_adaptive_rkv;
 
         update_stages_flags(instance);
+        kernel_dump_info.clear_entries();
         auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
         assert(rt_params != nullptr);
         prepare_internal_buffers(static_cast<paged_attention_inst&>(instance), rt_params->stage, rt_params->use_micro_sdpa, rt_params->query_block_size);
@@ -1478,8 +1497,6 @@ public:
 #ifdef ENABLE_ONEDNN_FOR_GPU
                 if (multi_tokens_mode && rt_params->use_micro_sdpa)
                     res_event = {execute_stage(res_event, instance, pa_sdpa_micro_mixed)};
-                else if (!multi_tokens_mode && rt_params->use_micro_sdpa && rt_params->use_gqa_kernel)
-                    res_event = {execute_stage(res_event, instance, pa_sdpa_micro_gqa_single_token)};
                 else
 #endif
                     res_event = {execute_stage(res_event, instance, multi_tokens_mode ? pa_multi_token : pa_single_token)};
@@ -1591,7 +1608,7 @@ public:
         }
         bool can_use_micro_sdpa = false;
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        can_use_micro_sdpa = has_stage(pa_sdpa_micro);
+        can_use_micro_sdpa = has_stage(pa_sdpa_micro) && valid_micro_stage(stage);
         if (stage == PagedAttentionStage::GENERATE && (rt_params == nullptr || (rt_params != nullptr && rt_params->use_gqa_kernel == false)))
             can_use_micro_sdpa = false;
 
@@ -1610,9 +1627,10 @@ public:
         const auto indexes_buf_size = static_cast<int64_t>(ceil_div(target_seq_len, target_seq_len_block_size)) * element_size;
 
         const bool lockable = true;
-        internal_buffers.emplace_back(indexes_buf_size, indexes_dt, lockable);  // 0
-        internal_buffers.emplace_back(indexes_buf_size, indexes_dt, lockable);  // 1
-        internal_buffers.emplace_back(indexes_buf_size, indexes_dt, lockable);  // 2
+        const bool not_shareable = false;
+        internal_buffers.emplace_back(indexes_buf_size, indexes_dt, lockable, not_shareable);  // 0
+        internal_buffers.emplace_back(indexes_buf_size, indexes_dt, lockable, not_shareable);  // 1
+        internal_buffers.emplace_back(indexes_buf_size, indexes_dt, lockable, not_shareable);  // 2
 
         const auto& input = params.input_layouts[0];
         const int64_t total_tokens = input.get_partial_shape()[0].get_length();
@@ -1652,11 +1670,11 @@ public:
             // Softmax intermediate output
             internal_buffers.emplace_back(softmax_buf_elements_count, indexes_dt);  // 3
             // Precalculated accumulated sequence length offsets for each subsequence
-            internal_buffers.emplace_back(subsequences_number * element_size, indexes_dt, lockable);  // 4
+            internal_buffers.emplace_back(subsequences_number * element_size, indexes_dt, lockable, not_shareable);  // 4
 
             if (desc->has_score_aggregation) {
                 // Cumulative window size sum buffer
-                internal_buffers.emplace_back((subsequences_number + 1) * element_size, indexes_dt, lockable);  // 5
+                internal_buffers.emplace_back((subsequences_number + 1) * element_size, indexes_dt, lockable, not_shareable);  // 5
             }
 
             if (stage == PagedAttentionStage::PREFILL) {
@@ -1678,7 +1696,7 @@ public:
 
         const auto multi_tokens_mode = stage == PagedAttentionStage::MIXED;
         if (multi_tokens_mode && !can_use_micro_sdpa) {
-            internal_buffers.emplace_back(total_tokens, softmax_accumulator_type, lockable);  // 9
+            internal_buffers.emplace_back(total_tokens, softmax_accumulator_type, lockable, not_shareable);  // 9
         }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -1686,7 +1704,7 @@ public:
             const auto wg_tile_q = 8;  // This is set as the minimum size of query block for sharing between sdpa_micro_prefill and mixed.
             const auto target_seq_len = std::max(paged_attention_aligned_seq_len, static_cast<int64_t>(1));
             const auto indexes_buf_size = ceil_div(target_seq_len, wg_tile_q) * 2;
-            internal_buffers.emplace_back(indexes_buf_size * 4, indexes_dt, lockable);
+            internal_buffers.emplace_back(indexes_buf_size * 4, indexes_dt, lockable, not_shareable);
         }
 #endif
 

@@ -14,19 +14,19 @@ using namespace ze;
 
 void ze_event::reset() {
     event::reset();
-    OV_ZE_EXPECT(zeEventHostReset(m_event));
+    OV_ZE_EXPECT(ze::zeEventHostReset(m_event));
 }
 
 void ze_event::wait_impl() {
-    OV_ZE_EXPECT(zeEventHostSynchronize(m_event, endless_wait));
+    OV_ZE_EXPECT(ze::zeEventHostSynchronize(m_event, endless_wait));
 }
 
 void ze_event::set_impl() {
-    OV_ZE_EXPECT(zeEventHostSignal(m_event));
+    OV_ZE_EXPECT(ze::zeEventHostSignal(m_event));
 }
 
 bool ze_event::is_set_impl() {
-    auto ret = zeEventQueryStatus(m_event);
+    auto ret = ze::zeEventQueryStatus(m_event);
     switch (ret) {
     case ZE_RESULT_SUCCESS:
         return true;
@@ -45,7 +45,7 @@ std::optional<ze_kernel_timestamp_result_t> ze_event::query_timestamp() {
         return std::nullopt;
     }
     ze_kernel_timestamp_result_t timestamp{};
-    OV_ZE_EXPECT(zeEventQueryKernelTimestamp(m_event, &timestamp));
+    OV_ZE_EXPECT(ze::zeEventQueryKernelTimestamp(m_event, &timestamp));
     return timestamp;
 }
 
@@ -73,5 +73,5 @@ bool ze_event::get_profiling_info_impl(std::list<instrumentation::profiling_inte
 }
 
 ze_event::~ze_event() {
-    OV_ZE_WARN(zeEventDestroy(m_event));
+    OV_ZE_WARN(ze::zeEventDestroy(m_event));
 }

@@ -15,6 +15,7 @@
 #include <cctype>
 #include <iomanip>
 #include <istream>
+#include <limits>
 #include <map>
 #include <string>
 #include <unordered_map>
@@ -138,19 +139,45 @@ class Property : public util::BaseProperty<T, mutability_> {
         }
 
         template <typename U,
-                  typename std::enable_if<!std::is_same<typename std::decay<U>::type, std::string>::value &&
+                  typename std::enable_if<!std::is_same<std::decay_t<U>, std::string>::value &&
                                               std::is_convertible<V, std::string>::value,
                                           bool>::type = true>
         explicit operator U() {
+            using UType = std::decay_t<U>;
+            if constexpr (std::is_integral_v<UType> && std::is_unsigned_v<UType>) {
+                const std::string str_value = value;
+                // Find first non-whitespace character
+                const auto pos = str_value.find_first_not_of(" \t\n\r");
+                if (pos != std::string::npos && str_value[pos] == '-') {
+                    OPENVINO_THROW("Cannot assign negative value ", str_value, " to unsigned property");
+                }
+            }
             return Any{value}.as<U>();
         }
 
         template <typename U,
-                  typename std::enable_if<!std::is_same<typename std::decay<U>::type, std::string>::value &&
+                  typename std::enable_if<!std::is_same<std::decay_t<U>, std::string>::value &&
                                               !std::is_convertible<V, std::string>::value,
                                           bool>::type = true>
         explicit operator U() {
-            return value;
+            using UType = std::decay_t<U>;
+            using VType = std::decay_t<V>;
+
+            if constexpr (std::is_integral_v<UType> && std::is_unsigned_v<UType> && !std::is_same_v<UType, bool> &&
+                          std::is_integral_v<VType> && std::is_signed_v<VType>) {
+                if (value < 0) {
+                    OPENVINO_THROW("Cannot assign negative value ", value, " to unsigned property");
+                }
+                if constexpr (sizeof(VType) > sizeof(UType)) {
+                    if (value > static_cast<VType>((std::numeric_limits<UType>::max)())) {
+                        OPENVINO_THROW("Value ", value, " exceeds maximum for target unsigned type");
+                    }
+                }
+
+                return static_cast<U>(static_cast<std::make_unsigned_t<VType>>(value));
+            } else {
+                return static_cast<U>(value);
+            }
         }
 
         V&& value;
@@ -1411,4 +1438,99 @@ static constexpr Property<uint64_t, PropertyMutability::RW> key_cache_group_size
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<uint64_t, PropertyMutability::RW> value_cache_group_size{"VALUE_CACHE_GROUP_SIZE"};
+
+/**
+ * @brief Enum to describe the compatibility of a compiled model blob with the current device environment.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * Returned by ov::compatibility_check when queried with an ov::runtime_requirements string argument.
+ */
+enum class CompatibilityCheck {
+    NOT_APPLICABLE = 0,        //!< The device does not support this check, or no requirements string was provided.
+    OPTIMAL = 1,               //!< Requirements are fully met; import is expected to succeed with optimal performance.
+    PREFER_RECOMPILATION = 2,  //!< Requirements are loosely compatible; import may succeed but recompilation
+                               //!< is preferred for best performance.
+    UNSUPPORTED = 3,           //!< Requirements are not met; import will fail.
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const CompatibilityCheck& compatibility) {
+    switch (compatibility) {
+    case CompatibilityCheck::NOT_APPLICABLE:
+        return os << "NOT_APPLICABLE";
+    case CompatibilityCheck::OPTIMAL:
+        return os << "OPTIMAL";
+    case CompatibilityCheck::PREFER_RECOMPILATION:
+        return os << "PREFER_RECOMPILATION";
+    case CompatibilityCheck::UNSUPPORTED:
+        return os << "UNSUPPORTED";
+    default:
+        OPENVINO_THROW("Unsupported CompatibilityCheck value");
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, CompatibilityCheck& compatibility) {
+    std::string str;
+    is >> str;
+    if (str == "NOT_APPLICABLE") {
+        compatibility = CompatibilityCheck::NOT_APPLICABLE;
+    } else if (str == "OPTIMAL") {
+        compatibility = CompatibilityCheck::OPTIMAL;
+    } else if (str == "PREFER_RECOMPILATION") {
+        compatibility = CompatibilityCheck::PREFER_RECOMPILATION;
+    } else if (str == "UNSUPPORTED") {
+        compatibility = CompatibilityCheck::UNSUPPORTED;
+    } else {
+        OPENVINO_THROW("Unsupported CompatibilityCheck value: ", str);
+    }
+    return is;
+}
+/** @endcond */
+
+/**
+ * @brief Read-only property carrying plugin-specific runtime requirements of a compiled model blob.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * The property value is a std::string encoding the device environment requirements at the time
+ * a model was compiled. The format and content are plugin-dependent and may encode information such as
+ * plugin version, required hardware capabilities, or driver version.
+ *
+ * **Reading** — query on a compiled model to obtain requirements to persist alongside the blob:
+ * @code
+ * ov::Core core;
+ * auto compiled_model = core.compile_model(model, "NPU");
+ * std::string requirements = compiled_model.get_property(ov::runtime_requirements);
+ * @endcode
+ *
+ * **Passing as a hint** — use the property name to construct a hint pair when querying ov::compatibility_check:
+ * @code
+ * auto compat = core.get_property("NPU", ov::compatibility_check, {{ov::runtime_requirements.name(), requirements}});
+ * @endcode
+ */
+inline constexpr Property<std::string, PropertyMutability::RO> runtime_requirements{"RUNTIME_REQUIREMENTS"};
+
+/**
+ * @brief Read-only property to check whether a device satisfies the runtime requirements of a compiled model blob.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * Returns an ov::CompatibilityCheck value describing whether the current device environment is compatible
+ * with the requirements string passed as an argument via ov::runtime_requirements.
+ * The requirements string is obtained from a previously compiled model via ov::CompiledModel::get_property().
+ *
+ * @note The property must be queried with an ov::runtime_requirements argument.
+ * Querying without arguments returns ov::CompatibilityCheck::NOT_APPLICABLE.
+ *
+ * **Check requirements before import**
+ *
+ * @code
+ * auto compiled_model = core.compile_model(model, "NPU");
+ * auto requirements = compiled_model.get_property(ov::runtime_requirements);
+ * auto compat = core.get_property("NPU", ov::compatibility_check, {{ov::runtime_requirements.name(), requirements}});
+ * if (compat == ov::CompatibilityCheck::OPTIMAL ||
+ *     compat == ov::CompatibilityCheck::PREFER_RECOMPILATION) {
+ *     auto imported = core.import_model(blob_stream, "NPU");
+ * }
+ * @endcode
+ */
+static constexpr Property<CompatibilityCheck, PropertyMutability::RO> compatibility_check{"COMPATIBILITY_CHECK"};
 }  // namespace ov

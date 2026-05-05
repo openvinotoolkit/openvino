@@ -24,6 +24,7 @@
 #include "snippets/op/memory_access.hpp"
 #include "snippets/op/store.hpp"
 #include "snippets/utils/utils.hpp"
+#include "utils.hpp"
 #include "utils/general_utils.h"
 #include "xbyak_riscv/xbyak_riscv.hpp"
 #include "xbyak_riscv/xbyak_riscv_csr.hpp"
@@ -274,16 +275,17 @@ void jit_load_broadcast_emitter::emit_isa(const std::vector<size_t>& in, const s
     auto src_gpr = Xbyak_riscv::Reg(in[0]);
     auto dst_vreg = Xbyak_riscv::VReg(out[0]);
 
-    // Set vector configuration for appropriate element size
+    auto sew = Xbyak_riscv::SEW::e32;
     if (byte_size == 4) {
-        h->vsetivli(Xbyak_riscv::zero, 4, Xbyak_riscv::SEW::e32, Xbyak_riscv::LMUL::m1);
+        sew = Xbyak_riscv::SEW::e32;
     } else if (byte_size == 2) {
-        h->vsetivli(Xbyak_riscv::zero, 4, Xbyak_riscv::SEW::e16, Xbyak_riscv::LMUL::m1);
+        sew = Xbyak_riscv::SEW::e16;
     } else if (byte_size == 1) {
-        h->vsetivli(Xbyak_riscv::zero, 4, Xbyak_riscv::SEW::e8, Xbyak_riscv::LMUL::m1);
+        sew = Xbyak_riscv::SEW::e8;
     } else {
         OV_CPU_JIT_EMITTER_THROW("Unsupported byte size: ", byte_size);
     }
+    set_vector_length(h, ov::intel_cpu::riscv64::utils::get_snippet_lanes(), sew, aux_gpr_idxs);
 
     // Load scalar from memory and broadcast to vector register
     // First load the scalar value into a temporary GPR
