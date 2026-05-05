@@ -107,9 +107,11 @@ enum class SharedMemType {
     OCL_IMAGE2D = 1,        //!< Shared OpenCL 2D image blob
     USM_USER_BUFFER = 2,    //!< Shared USM pointer allocated by user
     USM_HOST_BUFFER = 3,    //!< Shared USM pointer type with host allocation type allocated by plugin
-    USM_DEVICE_BUFFER = 4,  //!< Shared USM pointer type with device allocation type allocated by plugin
-    VA_SURFACE = 5,         //!< Shared video decoder surface or D3D 2D texture blob
-    DX_BUFFER = 6           //!< Shared D3D buffer blob
+    USM_DEVICE_BUFFER = 4,         //!< Shared USM pointer type with device allocation type allocated by plugin
+    VA_SURFACE = 5,                //!< Shared video decoder surface or D3D 2D texture blob
+    DX_BUFFER = 6,                 //!< Shared D3D buffer blob
+    OCL_BUFFER_FROM_HANDLE = 7,    //!< OS-level external memory handle (e.g. DX12 NT handle on Windows,
+                                   //!< DMA-BUF fd on Linux) imported by the plugin into a cl_mem
 };
 
 /**
@@ -138,6 +140,8 @@ inline std::ostream& operator<<(std::ostream& os, const SharedMemType& share_mem
         return os << "VA_SURFACE";
     case SharedMemType::DX_BUFFER:
         return os << "DX_BUFFER";
+    case SharedMemType::OCL_BUFFER_FROM_HANDLE:
+        return os << "OCL_BUFFER_FROM_HANDLE";
     default:
         OPENVINO_THROW("Unsupported memory type");
     }
@@ -160,6 +164,8 @@ inline std::istream& operator>>(std::istream& is, SharedMemType& share_mem_type)
         share_mem_type = SharedMemType::VA_SURFACE;
     } else if (str == "DX_BUFFER") {
         share_mem_type = SharedMemType::DX_BUFFER;
+    } else if (str == "OCL_BUFFER_FROM_HANDLE") {
+        share_mem_type = SharedMemType::OCL_BUFFER_FROM_HANDLE;
     } else {
         OPENVINO_THROW("Unsupported memory type: ", str);
     }
