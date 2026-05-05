@@ -13,7 +13,7 @@
 namespace {
 
 constexpr std::array<std::uint8_t, 8> ORC_FILE_MAGIC = {'N', 'P', 'U', 'W', 'O', 'R', 'C', '\0'};
-constexpr std::uint32_t ORC_FILE_VERSION = 1u;
+constexpr std::uint16_t ORC_FILE_VERSION = 1u;
 
 std::streamsize checked_stream_size(const std::size_t size) {
     if (size > static_cast<std::size_t>(std::numeric_limits<std::streamsize>::max())) {
@@ -37,7 +37,11 @@ std::uint64_t checked_add(const std::uint64_t lhs, const std::uint64_t rhs) {
 }
 
 constexpr std::uint64_t header_size() {
-    return sizeof(std::uint32_t) * 3u + sizeof(std::uint64_t);
+    // Section header layout: type_id (u16) + version (u16) + flags (u32) + payload_size (u64)
+    return sizeof(ov::npuw::orc::TypeId) +
+           sizeof(ov::npuw::orc::Version) +
+           sizeof(ov::npuw::orc::SectionFlags) +
+           sizeof(std::uint64_t);
 }
 
 void validate_section_shape(const ov::npuw::orc::Section& section) {
@@ -231,13 +235,15 @@ ov::npuw::orc::Section ov::npuw::orc::Section::container(const TypeId type,
     return section;
 }
 
-void ov::npuw::orc::write_file(std::ostream& stream, const Section& root) {
+void ov::npuw::orc::write_file(std::ostream& stream, const Section& root, const SchemaUUID& uuid) {
     auto writer = Stream::writer(stream);
 
     auto magic = ORC_FILE_MAGIC;
     writer & magic;
     auto version = ORC_FILE_VERSION;
     writer & version;
+    auto uuid_copy = uuid;
+    writer & uuid_copy;
     write_section(writer, root);
 }
 
@@ -251,8 +257,8 @@ ov::npuw::orc::Section ov::npuw::orc::read_file(std::istream& stream) {
     }
 
     // is_orc() restores the stream position; skip past the file header before reading sections.
-    constexpr auto skip =
-        static_cast<std::streamoff>(ORC_FILE_MAGIC.size() + sizeof(ORC_FILE_VERSION));
+    constexpr auto skip = static_cast<std::streamoff>(
+        ORC_FILE_MAGIC.size() + sizeof(ORC_FILE_VERSION) + sizeof(SchemaUUID));
     stream.seekg(skip, std::ios::cur);
 
     auto reader = Stream::reader(stream);
@@ -323,13 +329,20 @@ std::optional<ov::npuw::orc::OrcHeader> ov::npuw::orc::is_orc(std::istream& stre
         return std::nullopt;
     }
 
-    std::uint32_t version = 0u;
+    std::uint16_t version = 0u;
     stream.read(reinterpret_cast<char*>(&version), sizeof(version));
     if (!stream.good()) {
         restore();
         return std::nullopt;
     }
 
+    SchemaUUID uuid{};
+    stream.read(reinterpret_cast<char*>(uuid.data()), uuid.size());
+    if (!stream.good()) {
+        restore();
+        return std::nullopt;
+    }
+
     restore();
-    return OrcHeader{version};
+    return OrcHeader{version, uuid};
 }

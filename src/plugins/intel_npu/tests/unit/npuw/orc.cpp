@@ -14,12 +14,18 @@ namespace {
 
 using namespace ov::npuw::orc;
 
-constexpr TypeId TYPE_NCMD = 0x4E434D44u;
-constexpr TypeId TYPE_META = 0x4D455441u;
-constexpr TypeId TYPE_PART = 0x50415254u;
-constexpr TypeId TYPE_WGHT = 0x57474854u;
-constexpr TypeId TYPE_TEST = 0x54455354u;
-constexpr TypeId TYPE_UNKNOWN = 0x55554E4Bu;
+// Small sequential TypeIds that fit in u16.
+constexpr TypeId TYPE_NCMD    = 0x0001u;
+constexpr TypeId TYPE_META    = 0x0002u;
+constexpr TypeId TYPE_PART    = 0x0003u;
+constexpr TypeId TYPE_WGHT    = 0x0004u;
+constexpr TypeId TYPE_TEST    = 0x0005u;
+constexpr TypeId TYPE_UNKNOWN = 0xFFFFu;
+
+const SchemaUUID TEST_UUID = {
+    0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF,
+    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10
+};
 
 struct BlobSummary {
     std::uint32_t subgraph_count = 0u;
@@ -84,7 +90,7 @@ TEST(OrcTest, FileRoundTripsNestedSections) {
                                           make_payload_section(TYPE_WGHT, 1u, wght)});
 
     std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
-    write_file(buffer, root);
+    write_file(buffer, root, TEST_UUID);
 
     const auto decoded = read_file(buffer);
     ASSERT_TRUE(decoded.is_container());
@@ -106,7 +112,7 @@ TEST(OrcTest, RejectsTruncatedFile) {
     const auto root = Section::container(TYPE_NCMD, 1u, {make_payload_section(TYPE_META, 1u, BlobSummary{3u, {"NPU"}})});
 
     std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
-    write_file(buffer, root);
+    write_file(buffer, root, TEST_UUID);
 
     auto bytes = buffer.str();
     ASSERT_FALSE(bytes.empty());
@@ -120,12 +126,13 @@ TEST(OrcTest, IsOrcReturnsTrueForValidBlob) {
     const auto root = Section::container(TYPE_NCMD, 1u, {make_payload_section(TYPE_META, 1u, BlobSummary{1u, {"NPU"}})});
 
     std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
-    write_file(buffer, root);
+    write_file(buffer, root, TEST_UUID);
 
     // is_orc must return a header and leave the stream at its original position
     const auto header = is_orc(buffer);
     ASSERT_TRUE(header.has_value());
     EXPECT_EQ(header->version, 1u);
+    EXPECT_EQ(header->schema_uuid, TEST_UUID);
     // read_file must still work after the probe
     EXPECT_NO_THROW(read_file(buffer));
 }

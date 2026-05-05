@@ -27,9 +27,10 @@ namespace ov {
 namespace npuw {
 namespace orc {
 
-using TypeId = std::uint32_t;
-using Version = std::uint32_t;
+using TypeId = std::uint16_t;
+using Version = std::uint16_t;
 using SectionFlags = std::uint32_t;
+using SchemaUUID = std::array<std::uint8_t, 16>;
 
 enum class SectionFlag : SectionFlags {
     OPTIONAL = 1u << 0,
@@ -230,14 +231,16 @@ Section make_payload_section(TypeId type, Version version, const T& value, Secti
 
 // File-level metadata returned by is_orc().
 struct OrcHeader {
-    std::uint32_t version = 0u;
+    std::uint16_t version = 0u;
+    SchemaUUID schema_uuid{};
 };
 
-void write_file(std::ostream& stream, const Section& root);
+void write_file(std::ostream& stream, const Section& root, const SchemaUUID& uuid);
 Section read_file(std::istream& stream);
 
 // Peeks at the stream to check whether it contains an ORC blob.
-// Returns the file header on success, nullopt if the magic does not match.
+// Returns the file header (format_version + schema_uuid) on success,
+// nullopt if the magic does not match.
 // Does not consume any bytes — the stream position is restored on return.
 std::optional<OrcHeader> is_orc(std::istream& stream);
 
