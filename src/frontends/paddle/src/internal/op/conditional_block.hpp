@@ -34,7 +34,7 @@ public:
     /// \return A vector containing the values for each input except "cond".
     const OutputVector get_inputs_from_parent() const;
 
-    const int32_t get_subblock_index() const {
+    int32_t get_subblock_index() const {
         return m_sub_block_index;
     }
 

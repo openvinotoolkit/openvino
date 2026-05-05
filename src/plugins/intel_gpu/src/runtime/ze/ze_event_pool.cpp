@@ -18,11 +18,11 @@ ze_event_pool::ze_event_pool(const ze_engine& engine, uint32_t capacity, ze_even
         capacity
     };
     auto device = engine.get_device();
-    OV_ZE_EXPECT(zeEventPoolCreate(engine.get_context(), &event_pool_desc, 1, &device, &m_handle));
+    OV_ZE_EXPECT(ze::zeEventPoolCreate(engine.get_context(), &event_pool_desc, 1, &device, &m_handle));
 }
 
 ze_event_pool::~ze_event_pool() {
-    OV_ZE_WARN(zeEventPoolDestroy(m_handle));
+    OV_ZE_WARN(ze::zeEventPoolDestroy(m_handle));
 }
 }  // namespace ze
 }  // namespace cldnn

@@ -206,6 +206,11 @@ public:
 
     bool is_dynamic() const;
 
+    /**
+     * @brief Updates m_is_dynamic flag by checking parameter/result shapes and loop work amounts.
+     */
+    void update_dynamic_state();
+
     void enumerate_expressions() const;
 
     void sort_results();

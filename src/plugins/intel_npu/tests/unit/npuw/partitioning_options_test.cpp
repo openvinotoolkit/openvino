@@ -23,7 +23,7 @@
 #include "pyramid_attention.hpp"
 
 using ov::test::npuw::ModelBuilder;
-using ov::test::npuw::ModelConfig;
+using ov::test::npuw::LLMConfig;
 
 namespace {
 
@@ -68,7 +68,7 @@ std::shared_ptr<ov::Model> build_unary_chain_model() {
 }
 
 std::shared_ptr<ov::Model> build_static_llm_model(const int64_t query_len, const int64_t past_len) {
-    ModelConfig config;
+    LLMConfig config;
     config.num_layers = 4;
     config.hidden_size = 64;
     config.num_heads = 4;
@@ -77,7 +77,7 @@ std::shared_ptr<ov::Model> build_static_llm_model(const int64_t query_len, const
     config.vocab_size = 256;
 
     ModelBuilder mb;
-    auto model = mb.build_model(config);
+    auto model = mb.build_llm(config);
 
     ov::pass::StatefulToStateless().run_on_model(model);
     model = model->clone();

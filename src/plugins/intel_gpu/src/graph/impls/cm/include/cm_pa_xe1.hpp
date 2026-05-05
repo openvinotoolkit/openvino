@@ -4,7 +4,7 @@
 
 #ifndef CM_HAS_LSC_UNTYPED_2D
 
-#if CMPA_KVCACHE_U8
+#if KV_CACHE_COMPRESSION
 template<bool use_causal_mask, int num_heads, int num_kv_heads, int head_size, int is_q_fused = 0>
 void pa_lsc_u8(
     uint slm_K,
@@ -41,12 +41,17 @@ void pa_lsc_u8(
     constexpr int num_P_tiles = REG_N / REG_M;
     matrix<half, head_size/REG_K, REG_K*REG_N> rQ;
     matrix <float, head_size/REG_N*num_P_tiles, REG_M*REG_N> rO;
+    rO = 0;  // Initialize to prevent NaN from uninitialized values
     bool first_active = true;
 
     auto q_tokens_left = q_len;
     static_assert(q_step == REG_N);
     static_assert(kv_step == REG_K);
     static_assert(head_size % REG_N == 0, "head_size must be divisible by REG_N");
+#if KV_CACHE_COMPRESSION == 2
+    static_assert(SUB_BLOCK_SIZE % 16 == 0, "SUB_BLOCK_SIZE must be divisible by 16");
+    static_assert(CMPA_BLOCK_SZ % SUB_BLOCK_SIZE == 0, "CMPA_BLOCK_SZ must be divisible by SUB_BLOCK_SIZE");
+#endif
 
     if (q_tokens_left < 0) q_tokens_left = 0;
     if (q_tokens_left > q_step) q_tokens_left = q_step;
@@ -84,7 +89,12 @@ void pa_lsc_u8(
             rQ[ri].format<half>()  = cm_mul<half>(rQ[ri].format<half>(), (half)scale_factor);
         }
     }
-    constexpr int quan_blk_stride = CMFLA_NUM_KV_HEADS * (CMFLA_HEAD_SIZE+4) * CMPA_BLOCK_SZ * sizeof(uint8_t);
+#if KV_CACHE_COMPRESSION == 1
+    constexpr int k_quan_blk_stride = CMFLA_NUM_KV_HEADS * (CMFLA_HEAD_SIZE + 4) * CMPA_BLOCK_SZ * sizeof(uint8_t);
+#else
+    constexpr int k_quan_blk_stride = CMFLA_NUM_KV_HEADS * CMFLA_HEAD_SIZE * (CMPA_BLOCK_SZ + CMPA_BLOCK_SZ / SUB_BLOCK_SIZE * 4) * sizeof(uint8_t);
+#endif
+    constexpr int v_quan_blk_stride = CMFLA_NUM_KV_HEADS * (CMFLA_HEAD_SIZE + 4) * CMPA_BLOCK_SZ * sizeof(uint8_t);
     int causal_left = q_start + past_lens;
 
     constexpr uint slm_buff_size = kv_step * head_size * sizeof(half);
@@ -112,8 +122,24 @@ void pa_lsc_u8(
             }
 #endif
             auto cur_block_id = block_indices[kv_pos / CMPA_BLOCK_SZ];
-            uint32_t dscale_offset = cur_block_id*quan_blk_stride + \
-                        CMPA_BLOCK_SZ * head_size * sizeof(uint8_t) + kv_pos%CMPA_BLOCK_SZ*sizeof(half);
+#if KV_CACHE_COMPRESSION == 1
+            uint32_t k_dscale_offset =
+                cur_block_id * k_quan_blk_stride +
+                CMPA_BLOCK_SZ * head_size * sizeof(uint8_t) +
+                kv_pos % CMPA_BLOCK_SZ * sizeof(half);
+            uint32_t k_zp_offset = k_dscale_offset + CMPA_BLOCK_SZ * sizeof(half);
+#else
+            uint32_t k_dscale_offset =
+                cur_block_id * k_quan_blk_stride +
+                CMPA_BLOCK_SZ * head_size * sizeof(uint8_t) +
+                (kv_pos % CMPA_BLOCK_SZ) / SUB_BLOCK_SIZE * head_size * sizeof(half);
+            uint32_t k_zp_offset = k_dscale_offset + CMPA_BLOCK_SZ / SUB_BLOCK_SIZE * head_size * sizeof(half);
+#endif
+            uint32_t v_dscale_offset =
+                cur_block_id * v_quan_blk_stride +
+                CMPA_BLOCK_SZ * head_size * sizeof(uint8_t) +
+                kv_pos % CMPA_BLOCK_SZ * sizeof(half);
+            uint32_t v_zp_offset = v_dscale_offset + CMPA_BLOCK_SZ * sizeof(half);
 
             uint slm_offset = (slm_buff_id_write & 3) * slm_buff_size;
             vector<half, kv_step> dscale;
@@ -122,13 +148,19 @@ void pa_lsc_u8(
 
             slm_buff_id_write ++;
             if (wg_local_id < local_size/2) {
-                cm_svm_block_read(reinterpret_cast<svmptr_t>( k_cache_base + dscale_offset), dscale);
-                cm_svm_block_read(reinterpret_cast<svmptr_t>( k_cache_base + dscale_offset + CMPA_BLOCK_SZ*sizeof(half)), zp);
+#if KV_CACHE_COMPRESSION == 1
+                cm_svm_block_read(reinterpret_cast<svmptr_t>(k_cache_base + k_dscale_offset), dscale);
+                cm_svm_block_read(reinterpret_cast<svmptr_t>(k_cache_base + k_zp_offset), zp);
+#endif
 
                 matrix<half, kv_step, REG_K> kmat;
                 auto quanKmat = kmat.format<half, 2, kv_step * REG_K/2>()[1].format<uint8_t, kv_step, REG_K>();
                 for(int k = REG_K*wg_local_id; k < head_size; k += REG_K*(local_size/2)) {
-                    auto k_base = reinterpret_cast<svmptr_t>((int8_t*)k_cache_base + cur_block_id * quan_blk_stride + (kv_pos % CMPA_BLOCK_SZ) * kv_pitch + k);
+                    auto k_base = reinterpret_cast<svmptr_t>((int8_t*)k_cache_base + cur_block_id * k_quan_blk_stride + (kv_pos % CMPA_BLOCK_SZ) * kv_pitch + k);
+#if KV_CACHE_COMPRESSION == 2
+                    cm_svm_block_read(reinterpret_cast<svmptr_t>(k_cache_base + k_dscale_offset + k * sizeof(half)), dscale);
+                    cm_svm_block_read(reinterpret_cast<svmptr_t>(k_cache_base + k_zp_offset + k * sizeof(half)), zp);
+#endif
                     #pragma unroll
                     for(int r = 0; r < kv_step; r++) {
                         cm_svm_block_read(k_base + r * kv_pitch, quanKmat.row(r));
@@ -143,8 +175,13 @@ void pa_lsc_u8(
                     */
                     #pragma unroll
                     for(int r = 0; r < kv_step; r++)  {
-                        kmat[r] =  quanKmat[r]-zp[r];
+#if KV_CACHE_COMPRESSION == 1
+                        kmat[r] = quanKmat[r] - zp[r];
                         kmat[r] = cm_mul<half>(kmat[r], dscale[r]);
+#else
+                        kmat[r] = quanKmat[r] - zp;
+                        kmat[r] = cm_mul<half>(kmat[r], dscale);
+#endif
                     }
                     //clear unused data to 0.
                     for(int r = kv_step-1; r >= kv_left; r--)
@@ -155,8 +192,8 @@ void pa_lsc_u8(
                 // dscale/zp are half[kv_step] => 32 bytes each when kv_step=16
                 constexpr int half16_bytes = 16 * sizeof(half); // 32
                 constexpr int u32_per_half16 = half16_bytes / sizeof(uint); // 8
-                uint ds_off = v_cache_stateful_offset_bytes + dscale_offset;
-                uint zp_off = v_cache_stateful_offset_bytes + dscale_offset + CMPA_BLOCK_SZ*sizeof(half);
+                uint ds_off = v_cache_stateful_offset_bytes + v_dscale_offset;
+                uint zp_off = v_cache_stateful_offset_bytes + v_zp_offset;
                 auto ds_u32 = cm_load<uint, u32_per_half16>(v_cache_stateful, ds_off);
                 auto zp_u32 = cm_load<uint, u32_per_half16>(v_cache_stateful, zp_off);
                 dscale.format<uint>() = ds_u32;
@@ -172,7 +209,7 @@ void pa_lsc_u8(
                     #pragma unroll
                     for (int r = 0; r < REG_K; r++) {
                         uint elem_off_bytes =
-                            cur_block_id * quan_blk_stride +
+                            cur_block_id * v_quan_blk_stride +
                             (kv_pos % CMPA_BLOCK_SZ) * kv_pitch +
                             r * kv_pitch +
                             k;
@@ -357,6 +394,7 @@ void pa_kernel_lsc_prefetch_f16(
     constexpr int VALUE_TILE_NUM = 2;
     matrix<half, head_size/REG_K, REG_K*REG_N> rQ;
     matrix <float, head_size/REG_M, REG_M*REG_N> rO;
+    rO = 0;  // Initialize to prevent NaN from uninitialized values
     bool first_active = true;
 
 #if SPARSE_BLOCK_SIZE > 1

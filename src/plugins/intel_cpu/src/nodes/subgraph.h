@@ -28,6 +28,8 @@
 
 #if defined(OPENVINO_ARCH_ARM64)
 #    include "cpu/aarch64/cpu_isa_traits.hpp"
+#elif defined(OPENVINO_ARCH_RISCV64)
+#    include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
 #else
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #endif
@@ -64,6 +66,7 @@ private:
     void initAttributes();
     void initStartOffsets();
     void initPluginBlockedShapes() const;
+    void updateIsDynamic();
     void optimizeIR();
 
     snippets::op::Subgraph::BlockedShapeVector getSnippetsBlockedShapes() const;
@@ -71,6 +74,7 @@ private:
 
     static uint64_t getBodyHash(const std::shared_ptr<snippets::op::Subgraph>& snippet);
     uint32_t getBroadcastingMask(const std::vector<VectorDims>& input_shapes);
+    void initConstantRepackedMask();
 #if defined(OPENVINO_ARCH_X86_64)
     uint32_t getConstantRepackedMask() const;
 #endif
@@ -85,6 +89,8 @@ private:
     // Holds ISA version used is codeGeneration target
 #if defined(OPENVINO_ARCH_ARM64)
 #    define _ov_dnnl_cpu_isa dnnl::impl::cpu::aarch64::cpu_isa_t
+#elif defined(OPENVINO_ARCH_RISCV64)
+#    define _ov_dnnl_cpu_isa ov::intel_cpu::riscv64::cpu_isa_t
 #else
 #    define _ov_dnnl_cpu_isa dnnl::impl::cpu::x64::cpu_isa_t
 #endif
@@ -110,6 +116,10 @@ private:
     std::set<size_t> external_ptrs_idces;
 
     bool is_dynamic = false;
+    // Bitmask of inputs pre-packed at compile time (constant weights via RepackMatMulWeights).
+    // Cached once in initConstantRepackedMask() right after optimizeIR(), because
+    // BrgemmExternalRepackingAdjuster erases already-repacked entries from input_repackers at runtime.
+    uint32_t m_constant_repacked_mask = 0;
     // Input shapes that are used in PrepareParams and ShapeInfer to avoid frequent memory allocation
     mutable std::vector<VectorDims> in_shapes;
 

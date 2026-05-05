@@ -307,3 +307,25 @@ INSTANTIATE_TEST_SUITE_P(
             ov::op::v15::EmbeddingBagOffsets::Reduction::MEAN,
             std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape(), std::vector<int32_t>{-1}))),
     ReferenceEmbeddingBagOffsetsLayerTest::getTestCaseName);
+
+class ReferenceEmbeddingBagOffsetsLayerNegativeTest : public ReferenceEmbeddingBagOffsetsLayerTest {};
+
+TEST_P(ReferenceEmbeddingBagOffsetsLayerNegativeTest, InvalidEmbeddingBagOffsetsThrows) {
+    EXPECT_THROW(Exec(), ov::Exception);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_EmbeddingBagOffsets_Negative,
+    ReferenceEmbeddingBagOffsetsLayerNegativeTest,
+    ::testing::Values(EmbeddingBagOffsetsParams(
+        ov::Shape{5, 2},
+        ov::element::f32,
+        std::vector<float>{-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7},
+        ov::Shape{},  // Dummy output shape
+        ov::element::f32,
+        std::vector<float>(),  // Dummy output data
+        std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape({4}), std::vector<int32_t>{0, 2, 3, 4}),
+        // non-monotonic offsets: offsets[2] = 2 < offsets[1] = 3 violates monotonic property
+        std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape({3}), std::vector<int32_t>{0, 3, 2}),
+        ov::op::v15::EmbeddingBagOffsets::Reduction::SUM)),
+    ReferenceEmbeddingBagOffsetsLayerTest::getTestCaseName);

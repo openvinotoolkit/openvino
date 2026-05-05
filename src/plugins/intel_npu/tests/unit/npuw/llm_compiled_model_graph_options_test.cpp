@@ -47,6 +47,12 @@ protected:
         return std::make_unique<ov::npuw::LLMCompiledModel>(build_model(), m_plugin, props, recorder.make_factory());
     }
 
+    static const CompileCall& require_call_containing(const RecordingFactory& recorder, std::string_view fragment) {
+        const auto* call = recorder.find_contains(fragment);
+        OPENVINO_ASSERT(call != nullptr, "Missing compile call containing: ", std::string(fragment));
+        return *call;
+    }
+
     template <class Port>
     static bool port_has_name(const Port& port, std::string_view needle) {
         const auto& names = port.get_names();
@@ -141,14 +147,13 @@ TEST_F(LLMCompiledModelGraphOptionsTest, PromptResponseAndGenerationLengthsDrive
     ASSERT_NE(compiled, nullptr);
 
     const auto* prefill = recorder.find_suffix("_prefill");
-    const auto* generate = recorder.find_suffix("_kv192");
+    const auto& generate = require_call_containing(recorder, "_kv");
     ASSERT_NE(prefill, nullptr);
-    ASSERT_NE(generate, nullptr);
 
     const auto prefill_ids = find_input(prefill->model, "input_ids");
     const auto prefill_mask = find_input(prefill->model, "attention_mask");
-    const auto generate_ids = find_input(generate->model, "input_ids");
-    const auto generate_mask = find_input(generate->model, "attention_mask");
+    const auto generate_ids = find_input(generate.model, "input_ids");
+    const auto generate_mask = find_input(generate.model, "attention_mask");
     ASSERT_TRUE(prefill_ids.has_value());
     ASSERT_TRUE(prefill_mask.has_value());
     ASSERT_TRUE(generate_ids.has_value());
@@ -199,7 +204,7 @@ TEST_F(LLMCompiledModelGraphOptionsTest, StaticPrefillRemovesPastKvInputsAndKeep
     EXPECT_EQ(ids->get_shape(), (ov::Shape{1, 128}));
 }
 
-TEST_F(LLMCompiledModelGraphOptionsTest, GeneratePyramidCreatesIntermediateKvVariants) {
+TEST_F(LLMCompiledModelGraphOptionsTest, GeneratePyramidBuildsTwoStaticGenerateVariants) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
@@ -210,14 +215,18 @@ TEST_F(LLMCompiledModelGraphOptionsTest, GeneratePyramidCreatesIntermediateKvVar
                                                      recorder));
     ASSERT_NE(compiled, nullptr);
 
-    std::vector<std::string> kv_names;
+    std::vector<ov::Shape> generate_attention_mask_shapes;
     for (const auto& call : recorder.calls()) {
         if (call.friendly_name.find("_kv") != std::string::npos) {
-            kv_names.push_back(call.friendly_name);
+            const auto mask = find_input(call.model, "attention_mask");
+            ASSERT_TRUE(mask.has_value());
+            ASSERT_TRUE(mask->get_partial_shape().is_static());
+            generate_attention_mask_shapes.push_back(mask->get_shape());
         }
     }
-    EXPECT_THAT(kv_names, ::testing::UnorderedElementsAre(::testing::EndsWith("_kv1152"),
-                                                          ::testing::EndsWith("_kv2176")));
+    EXPECT_EQ(generate_attention_mask_shapes.size(), 2u);
+    EXPECT_THAT(generate_attention_mask_shapes,
+                ::testing::UnorderedElementsAre(ov::Shape({1, 1152}), ov::Shape({1, 2176})));
 }
 
 }  // namespace

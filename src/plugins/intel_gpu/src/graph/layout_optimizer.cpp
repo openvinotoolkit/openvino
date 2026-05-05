@@ -22,6 +22,7 @@
 
 #include "gated_mlp_inst.h"
 #include "gemm_inst.h"
+#include "moe_gemm_inst.h"
 #include "deconvolution_inst.h"
 #include "fully_connected_inst.h"
 #include "gru_seq_inst.h"
@@ -174,8 +175,16 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         }
     }
 
-    // Ref kernels are the main for depth_to_space and region_yolo and strided_slice. It can do anything.
-    if (next.is_type<depth_to_space>() || next.is_type<region_yolo>() ||
+    // depth_to_space is rank-preserving by op semantics.
+    // Allow fusing only when the reorder does not change input rank for depth_to_space.
+    if (next.is_type<depth_to_space>()) {
+        const auto prev_rank = prev.get_output_layout().get_rank();
+        const auto next_input_rank = next.get_input_layout(0).get_rank();
+        return prev_rank == next_input_rank;
+    }
+
+    // Ref kernels are the main for region_yolo and strided_slice. It can do anything.
+    if (next.is_type<region_yolo>() ||
         (next.is_type<strided_slice>() && next.get_preferred_impl_type() != cldnn::impl_types::cpu))
         return true;
 
@@ -400,8 +409,16 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
         is_dynamic = true;
     }
 
-    // Ref kernels are the main for depth_to_space, region_yolo and detection_output. It can do anything. Should not see next.
-    if (prev.is_type<depth_to_space>() || prev.is_type<region_yolo>()
+    // depth_to_space is rank-preserving by op semantics.
+    // Allow fusing only when the reorder does not change output rank.
+    if (prev.is_type<depth_to_space>()) {
+        const auto prev_rank = prev.get_output_layout().get_rank();
+        const auto reordered_rank = node.get_output_layout().get_rank();
+        return prev_rank == reordered_rank;
+    }
+
+    // Ref kernels are the main for region_yolo and detection_output. It can do anything. Should not see next.
+    if (prev.is_type<region_yolo>()
         || (prev.is_type<detection_output>() && prev.get_preferred_impl_type() != cldnn::impl_types::cpu))
         return true;
 
@@ -527,8 +544,8 @@ layout_optimizer::layout_optimizer(bool output_size_handling_enabled)
 }
 
 bool layout_optimizer::is_depthwise(const convolution_node& node) const {
-        const int32_t output_channels = node.get_output_layout(0).feature();
-        const int32_t input_channels = node.get_input_layout(0).feature();
+        const auto output_channels = node.get_output_layout(0).feature();
+        const auto input_channels = node.get_input_layout(0).feature();
 
         return node.get_groups() == static_cast<uint32_t>(input_channels) && input_channels == output_channels;
 }
@@ -639,8 +656,8 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(const layout& input_layout,
     int32_t required_feature_num = weak_restrictions ? feature_block_size / 2 : feature_block_size;
     bool correct_in_feature = (input_layout.feature() >= required_feature_num &&
                                   output_layout.feature() >= required_feature_num);
-    int32_t in_features_per_group = input_layout.feature() / conv->groups;
-    int32_t out_features_per_group = output_layout.feature() / conv->groups;
+    auto in_features_per_group = input_layout.feature() / conv->groups;
+    auto out_features_per_group = output_layout.feature() / conv->groups;
     if (!correct_in_feature && input_layout.feature() <= 4 && out_features_per_group >= feature_block_size)
         correct_in_feature = true;
     bool depthwise = conv->groups == static_cast<uint32_t>(input_layout.feature());  // depthwise conv
@@ -1551,6 +1568,7 @@ void layout_optimizer::add_all_onednn_impls_optimization_attribute() {
     enable_onednn_for<pooling>();
     enable_onednn_for<reduce>();
     enable_onednn_for<reorder>();
+    enable_onednn_for<moe_gemm>();
 }
 
 bool layout_optimizer::has_all_enabled_onednn_impls_optimization_attribute() {

@@ -8,6 +8,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "openvino/core/node.hpp"
 #include "openvino/core/rtti.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
@@ -20,9 +21,8 @@ namespace ov::snippets::lowered::pass {
 class SetDynamicWAToOuterMostLoop;
 /**
  * @class MHAParallelWAOptimizer
- * @brief Optimizes the dynamic MHA execution increasing parallel work amount dy dividing Brgemm's "M" dimension to
- * "parallel_m" and "kernel_m". Uses heuristics from snippets::pass::SplitDimensionM for dimension splitting. The
- * optimizer performs the following steps:
+ * @brief Optimizes the MHA execution increasing parallel work amount by dividing Brgemm's "M" dimension to
+ * "parallel_m" and "kernel_m". The optimizer performs the following steps:
  * - Identifies applicable Brgemm operations within the LinearIR.
  * - Finds parameters whose shapes and layouts need to be adjusted after the split.
  * - Determines loops that should be adjusted.
@@ -40,7 +40,49 @@ public:
         return !m_loops_to_split.empty();
     }
 
+    /**
+     * @brief Tries to split M dimension in "shape" in accordance to optimal parallel work amount
+     * @param shape Original shape
+     * @param optimal_parallelism_work_amount Optimal work amount
+     * @param batch_m_dim reference on batch's part of the split M
+     * @param new_m_dim reference on new M dim after the split
+     * @return true if split was successfull, otherwise false
+     */
+    static bool split(const ov::Shape& shape,
+                      size_t optimal_parallelism_work_amount,
+                      size_t& batch_m_dim,
+                      size_t& new_m_dim);
+
+    /**
+     * @brief Returns true if the parallel work amount can be increased by splitting the M dimension
+     * @param node MatMul node to check (must be static)
+     * @param concurrency Target parallelism work amount
+     * @return true if M dimension can be split to improve parallelism, otherwise false
+     */
+    static bool can_be_optimized(const std::shared_ptr<const ov::Node>& node, size_t concurrency);
+
 private:
+    /**
+     * @brief Contains splitM approaches allowing to get the batch ideally divisible by
+     * optimal_parallelism_work_amount
+     */
+    static std::pair<size_t, size_t> split_ideally(size_t batch_dim,
+                                                   size_t m_dim,
+                                                   size_t optimal_parallelism_work_amount);
+    /**
+     * @brief Splits m_dim to minimize kernel_m in order to reduce waiting time for idle threads at the last
+     * parallel loop iteration.
+     */
+    static std::pair<size_t, size_t> split_minimize_kernel_wa(size_t batch_dim,
+                                                              size_t m_dim,
+                                                              size_t optimal_parallelism_work_amount);
+    /**
+     * @brief Splits m_dim to get the batch in (optimal_parallelism_work_amount, 2 *
+     * optimal_parallelism_work_amount) interval
+     */
+    static std::pair<size_t, size_t> split_fallback_increase_parallel_wa(size_t batch_dim,
+                                                                         size_t m_dim,
+                                                                         size_t optimal_parallelism_work_amount);
     static std::unordered_set<lowered::ExpressionPtr> find_applicable_brgemms(const lowered::LinearIRCPtr& linear_ir,
                                                                               bool check_dynamic_wa = true);
 
@@ -58,6 +100,7 @@ private:
     size_t m_concurrency = 0;
 
     static const size_t m_dim_M_idx;
+    static const size_t m_min_kernel_m;
 };
 
 }  // namespace ov::snippets::lowered::pass

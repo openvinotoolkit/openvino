@@ -58,7 +58,6 @@
 #    include "executors/aarch64/subgraph.hpp"
 #    include "snippets/lowered/pass/init_loops.hpp"
 #    include "snippets/lowered/pass/insert_buffers.hpp"
-#    include "snippets/lowered/pass/insert_reg_spills.hpp"
 #    include "transformations/snippets/aarch64/pass/brgemm_to_gemm_cpu.hpp"
 #    include "transformations/snippets/aarch64/pass/lowered/adjust_gemm_copy_b_loop_ports.hpp"
 #    include "transformations/snippets/aarch64/pass/lowered/gemm_cpu_blocking.hpp"
@@ -68,6 +67,7 @@
 
 #    include "emitters/snippets/riscv64/cpu_generator.hpp"
 #    include "executors/riscv64/subgraph.hpp"
+#    include "openvino/core/except.hpp"
 #else
 #    include "emitters/snippets/cpu_runtime_configurator.hpp"
 #    include "snippets/lowered/pass/insert_perf_count_verbose.hpp"
@@ -155,7 +155,7 @@ struct SubgraphKey {
 struct SubgraphCodeGeneratorKey {
     SubgraphCodeGeneratorKey(std::shared_ptr<SubgraphAttrs> attrs_,
                              uint32_t broadcasting_mask_,
-                             uint32_t constant_repacked_mask_ = 0)
+                             uint32_t constant_repacked_mask_)
         : attrs(std::move(attrs_)),
           broadcasting_mask(broadcasting_mask_),
           constant_repacked_mask(constant_repacked_mask_) {}
@@ -218,7 +218,9 @@ static _ov_dnnl_cpu_isa getHostIsa() {
 #elif defined(OPENVINO_ARCH_ARM64)
     return dnnl::impl::cpu::aarch64::asimd;
 #elif defined(OPENVINO_ARCH_RISCV64)
-    return static_cast<_ov_dnnl_cpu_isa>(ov::intel_cpu::riscv64::gv);
+    OPENVINO_ASSERT(ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv),
+                    "RISC-V Subgraph code generation requires vector ISA support");
+    return ov::intel_cpu::riscv64::gv;
 #else
     OPENVINO_THROW("Subgraphs code-generator is not supported on this platform");
 #endif
@@ -319,7 +321,7 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
             }
             if (lt == Blocked && shape.getRank() != 1 &&
                 (shape.getMinDims()[1] != Shape::UNDEFINED_DIM && shape.getMinDims()[1] > 1)) {
-#if defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
                 size_t blockSize = 16;
 #else
                 size_t blockSize = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? 16 : 8;
@@ -393,6 +395,10 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
         if (dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::asimd)) {
             impl_type = impl_desc_type::jit_asimd;
         }
+#elif defined(OPENVINO_ARCH_RISCV64)
+        if (ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv)) {
+            impl_type = impl_desc_type::jit_gv;
+        }
 #else
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
             impl_type = impl_desc_type::jit_avx512;
@@ -440,6 +446,10 @@ void Subgraph::createPrimitive() {
         initPluginBlockedShapes();
         initAttributes();
         optimizeIR();
+        // Note: some control flow optimizations may introduce dynamism to the Subgraph,
+        // so `is_dynamic` state has to be updated.
+        updateIsDynamic();
+        initConstantRepackedMask();
         // Init starts offsets should be after `prepareWeights`
         initStartOffsets();
     }
@@ -525,6 +535,22 @@ void Subgraph::initPluginBlockedShapes() const {
     for (size_t i = 0; i < srcMemPtrs.size(); i++) {
         in_shapes[i] = srcMemPtrs[i]->getDescWithType<BlockedMemoryDesc>()->getBlockDims();
     }
+}
+
+void Subgraph::updateIsDynamic() {
+    is_dynamic = is_dynamic || subgraph_attrs->snippet->is_dynamic();
+}
+
+void Subgraph::initConstantRepackedMask() {
+#if defined(OPENVINO_ARCH_X86_64)
+    // Compute the mask while input_repackers is fully populated after data-flow passes.
+    // This value must be stable across repeated prepareParams() calls: BrgemmExternalRepackingAdjuster
+    // erases already-repacked entries from input_repackers at runtime, so a later call to
+    // getConstantRepackedMask() would incorrectly return 0 instead of the compile-time mask.
+    m_constant_repacked_mask = getConstantRepackedMask();
+#else
+    m_constant_repacked_mask = 0;
+#endif
 }
 
 Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
@@ -804,10 +830,6 @@ void Subgraph::optimizeIR() {
 
     const auto control_flow_config = std::make_shared<ov::snippets::lowered::pass::PassConfig>();
     const auto control_flow_passes = getControlFlowPasses();
-#if defined(OPENVINO_ARCH_ARM64)
-    // enable it after emitters for RegSpillBegin and RegSpillEnd are implemented on ARM in CVS-162498
-    control_flow_config->disable<ov::snippets::lowered::pass::InsertRegSpills>();
-#endif
 
 #ifdef SNIPPETS_LIBXSMM_TPP
     // Note: temporary disabled. Re-enable after ticket 132833 is resolved
@@ -845,7 +867,7 @@ void Subgraph::prepareParams() {
             //    configuration
             // 3. Create SubgraphDynamicSpecializedExecutor
             const auto code_gen_result = cache->getOrCreate(
-                SubgraphCodeGeneratorKey(subgraph_attrs, getBroadcastingMask(in_shapes)),
+                SubgraphCodeGeneratorKey(subgraph_attrs, getBroadcastingMask(in_shapes), key.constant_repacked_mask),
                 [this](const SubgraphCodeGeneratorKey& key) -> std::shared_ptr<SubgraphCodeGenerator> {
                     return std::make_shared<SubgraphCodeGenerator>(key.attrs,
                                                                    std::make_shared<CPURuntimeConfig>(),
@@ -890,16 +912,10 @@ void Subgraph::prepareParams() {
                                                         cache);
     };
 
-    // In the static case, io_data_offsets are baked into the JIT kernel, so two nodes with identical
+    // io_data_offsets may be baked into the JIT kernel, so two nodes with identical
     // body structure and input shapes but different weight packing states produce different kernels
-    // and must be cached separately. In the dynamic case, offsets are recomputed at runtime, so the
-    // packing state has no effect on the generated code
-#    if defined(OPENVINO_ARCH_X86_64)
-    const auto constant_repacked_mask = is_dynamic ? 0U : getConstantRepackedMask();
-#    else
-    constexpr uint32_t constant_repacked_mask = 0;
-#    endif
-    const auto result = cache->getOrCreate(SubgraphKey(subgraph_attrs, in_shapes, constant_repacked_mask), builder);
+    // and must be cached separately.
+    const auto result = cache->getOrCreate(SubgraphKey(subgraph_attrs, in_shapes, m_constant_repacked_mask), builder);
     execPtr = result.first;
 #endif
     CPU_NODE_ASSERT(execPtr, "Executor is not created for node ", getName(), ".");

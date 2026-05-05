@@ -38,7 +38,7 @@ bool PrintModelStatistics::run_on_model(const std::shared_ptr<ov::Model>& m) {
     size_t total = collect_stats(m, ops_stat);
 
     std::stringstream ss;
-    ss << "Operations statistics:\n";
+    ss << "Operations statistics for model with friendly_name: " << m->get_friendly_name() << " with name: " << m->get_name() << "\n";
     for (auto& kv : ops_stat) {
         ss << "\t" << kv.first.version_id << "::" << kv.first.name << " " << kv.second << std::endl;
     }
