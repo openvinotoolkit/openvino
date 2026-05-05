@@ -16,6 +16,8 @@ using namespace cldnn;
 
 void compile_graph::run(program& p) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "pass::CompileGraph");
+    const auto forcing_map = p.get_config().get_force_implementations();
+
     for (auto& node : p.get_processing_order()) {
         node->set_unique_id();
         if (!node->is_type<data>()) {
@@ -34,10 +36,11 @@ void compile_graph::run(program& p) {
         bool can_select_impl = !node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty());
 
         if (can_select_impl) {
-            tasks.emplace_back([node, &exception] {
+            tasks.emplace_back([node, &forcing_map, &exception] {
                 try {
                     const auto& params = node->get_kernel_impl_params();
                     auto shape_type = ImplementationManager::get_shape_type(*params);
+                    const bool has_forced_impl = forcing_map.find(node->id()) != forcing_map.end();
                     auto selected_impl_manager = node->type()->choose_impl(*node, shape_type);
                     std::string fail_reason;
                     try {
@@ -57,6 +60,18 @@ void compile_graph::run(program& p) {
                                     "\noriginal_type: ",
                                     node->get_primitive()->origin_op_type_name,
                                     " ", fail_reason);
+
+                    OPENVINO_ASSERT(!has_forced_impl || node->selected_impl != nullptr,
+                                    "[GPU] force_implementations requested for primitive but no implementation was selected"
+                                    "\nname: ",
+                                    node->id(),
+                                    "\nforced impl_type: ",
+                                    forcing_map.at(node->id()).impl_type,
+                                    "\nforced kernel_name: ",
+                                    forcing_map.at(node->id()).kernel_name,
+                                    "\nforced output_format: ",
+                                    forcing_map.at(node->id()).output_format,
+                                    "\n", fail_reason);
                 } catch (std::exception&) {
                     exception = std::current_exception();
                 }
