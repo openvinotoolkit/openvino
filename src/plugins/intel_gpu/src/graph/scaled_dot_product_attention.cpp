@@ -35,13 +35,15 @@ layout scaled_dot_product_attention_inst::calc_output_layout(scaled_dot_product_
     };
 
     auto input0_layout = impl_param.get_input_layout(0);
+    auto input2_layout = impl_param.get_input_layout(2);
+
     auto default_out_dt = data_type_traits::is_floating_point(input0_layout.data_type) ? input0_layout.data_type : data_types::f32;
     auto output_type = desc->output_data_types[0].value_or(default_out_dt);
     auto output_format = input0_layout.format;
-    auto q_shape = transpose_shape(impl_param.get_input_layout(0).get_partial_shape(),
+    auto q_shape = transpose_shape(input0_layout.get_partial_shape(),
                                 desc->input_q_transpose_order);
     auto output_shape = q_shape;
-    auto v_shape = transpose_shape(impl_param.get_input_layout(2).get_partial_shape(),
+    auto v_shape = transpose_shape(input2_layout.get_partial_shape(),
                                 desc->input_v_transpose_order);
     output_shape[output_shape.size() - 1] = v_shape[v_shape.size() - 1];
 
