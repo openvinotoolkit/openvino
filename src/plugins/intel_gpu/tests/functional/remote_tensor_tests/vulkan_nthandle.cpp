@@ -19,7 +19,6 @@
 #endif
 #include <vulkan/vulkan.h>
 
-#include "memory_usage_helpers.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
 #include "openvino/op/add.hpp"
@@ -114,12 +113,6 @@ bool supports_external_import_handle_type(cl_device_id cl_device, cl_uint handle
 
     return std::find(import_types.begin(), import_types.end(), handle_type) != import_types.end();
 }
-
-using ov_test_memory::ProcessRamInfo;
-using ov_test_memory::GpuMemoryInfo;
-using ov_test_memory::query_process_memory;
-using ov_test_memory::query_vulkan_gpu_memory;
-using ov_test_memory::bytes_to_mb;
 
 bool has_device_extension(VkPhysicalDevice physical_device, const char* extension_name) {
     uint32_t extension_count = 0;
@@ -577,23 +570,6 @@ TEST(GpuSharedBufferRemoteTensor, smoke_VulkanRemoteInputToRemoteOutputCopyAndCo
     ov::RemoteTensor remote_input_tensor;
     ov::RemoteTensor remote_output_tensor;
 
-    const auto mem_before = query_process_memory();
-    if (mem_before.valid) {
-        std::cout << "[INFO] Process RAM before remote tensor creation: working_set="
-                  << mem_before.working_set_mb << " MB, private="
-                  << mem_before.private_mb << " MB\n";
-    } else {
-        std::cout << "[INFO] Failed to query process memory before remote tensor creation\n";
-    }
-
-    const auto gpu_mem_before = query_vulkan_gpu_memory(vk_ctx.physical_device);
-    if (gpu_mem_before.valid) {
-        std::cout << "[INFO] GPU memory before remote tensor creation: used="
-                  << gpu_mem_before.used_mb << " MB, budget=" << gpu_mem_before.budget_mb << " MB\n";
-    } else {
-        std::cout << "[INFO] Failed to query GPU memory before remote tensor creation\n";
-    }
-
     try {
         remote_input_tensor = ov_ctx.create_tensor(ov::element::f32,
                                                    shape,
@@ -606,26 +582,6 @@ TEST(GpuSharedBufferRemoteTensor, smoke_VulkanRemoteInputToRemoteOutputCopyAndCo
     } catch (const ov::Exception& ex) {
         std::cout << "[INFO] Vulkan NT handle import not supported on this device: " << ex.what() << "\n";
         GTEST_SKIP() << "Vulkan NT handle import not supported on this configuration";
-    }
-
-    const auto mem_after = query_process_memory();
-    if (mem_after.valid) {
-        std::cout << "[INFO] Process RAM after remote tensor creation: working_set="
-                  << mem_after.working_set_mb << " MB, private="
-                  << mem_after.private_mb << " MB, delta_working_set="
-                  << (mem_after.working_set_mb - mem_before.working_set_mb) << " MB, delta_private="
-                  << (mem_after.private_mb - mem_before.private_mb) << " MB\n";
-    } else {
-        std::cout << "[INFO] Failed to query process memory after remote tensor creation\n";
-    }
-
-    const auto gpu_mem_after = query_vulkan_gpu_memory(vk_ctx.physical_device);
-    if (gpu_mem_after.valid) {
-        std::cout << "[INFO] GPU memory after remote tensor creation: used="
-                  << gpu_mem_after.used_mb << " MB, budget=" << gpu_mem_after.budget_mb
-                  << " MB, delta_used=" << (gpu_mem_after.used_mb - gpu_mem_before.used_mb) << " MB\n";
-    } else {
-        std::cout << "[INFO] Failed to query GPU memory after remote tensor creation\n";
     }
 
     std::vector<float> input_init(element_count, 2.0f);
