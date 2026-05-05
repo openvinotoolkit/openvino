@@ -104,12 +104,20 @@ void ov::util::recursive_iterate_files(const std::filesystem::path& path,
     }
 }
 
-std::string ov::util::sanitize_path(const std::string& path) {
-    const auto colon_pos = path.find(':');
-    const auto sanitized_path = path.substr(colon_pos == std::string::npos ? 0 : colon_pos + 1);
-    const std::string to_erase = "/.\\";
-    const auto start = sanitized_path.find_first_not_of(to_erase);
-    return (start == std::string::npos) ? "" : sanitized_path.substr(start);
+std::filesystem::path ov::util::sanitize_path(const std::filesystem::path& base,
+                                              const std::filesystem::path& relative_path) {
+    const auto base_dir = base.empty() ? std::filesystem::current_path() : base;
+    const auto base_canon = std::filesystem::weakly_canonical(base_dir);
+    auto merged_canon = std::filesystem::weakly_canonical(base_dir / relative_path);
+
+    if (const auto rel = merged_canon.lexically_relative(base_canon); rel.empty() || *rel.begin() == "..") {
+        std::stringstream ss;
+        ss << "Path '" << path_to_string(relative_path) << "' resolves to '" << path_to_string(merged_canon)
+           << "' which is outside the base directory '" << path_to_string(base_canon) << "'";
+        throw std::runtime_error(ss.str());
+    }
+
+    return ov::util::get_absolute_file_path(merged_canon);
 }
 
 std::filesystem::path ov::util::get_absolute_file_path(const std::filesystem::path& path) {
