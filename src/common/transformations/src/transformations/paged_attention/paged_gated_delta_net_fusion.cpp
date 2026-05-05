@@ -108,7 +108,7 @@ PagedGatedDeltaNetFusion::PagedGatedDeltaNetFusion(ov::pass::paged_attention::Pa
         const auto& state_out = pm.at(read_value);
 
         const auto state_table_param = pa_params.add(make_gated_delta_state_table_name(m_layer_index++),
-                                                     state_out.get_element_type(),
+                                                     ov::element::dynamic,
                                                      make_gated_delta_state_table_shape(state_out.get_partial_shape()));
         enable_keep_const_precision(state_table_param);
 
