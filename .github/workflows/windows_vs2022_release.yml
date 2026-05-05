@@ -281,7 +281,7 @@ jobs:
       INSTALL_DIR: "${{ github.workspace }}\\install"
       INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
       INSTALL_WHEELS_DIR: "${{ github.workspace }}\\install\\wheels"
-      LAYER_TESTS_INSTALL_DIR: "${{ github.workspace }}\\install\tests\\layer_tests"
+      LAYER_TESTS_INSTALL_DIR: "${{ github.workspace }}\\install\\tests\\layer_tests"
       PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
 
     steps:
@@ -429,10 +429,11 @@ jobs:
     runs-on: aks-win-8-cores-16gb-test
     env:
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
-      INSTALL_DIR: "${{ github.workspace }}\\install"
-      INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests테스트"
-      INSTALL_WHEELS_DIR: "${{ github.workspace }}\\install\\wheels"
+      INSTALL_DIR: "${{ github.workspace }}\\install테스트"
+      INSTALL_TEST_DIR: "${{ github.workspace }}\\install테스트\\tests"
+      INSTALL_WHEELS_DIR: "${{ github.workspace }}\\install테스트\\wheels"
       PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
+      PYTHONUTF8: "1"
     steps:
       - name: Download OpenVINO artifacts (tarballs)
         uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
@@ -478,10 +479,7 @@ jobs:
           free-threaded-python: ${{ contains(matrix.python-version, 't') }}
 
       - name: Install Python API tests dependencies
-        run: |
-          chcp 65001
-          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/bindings/python/requirements_test.txt
-
+        run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/bindings/python/requirements_test.txt
       - name: Python API Tests
         shell: cmd
         run: |
