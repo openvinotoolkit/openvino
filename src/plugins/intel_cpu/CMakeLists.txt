@@ -319,6 +319,13 @@ cross_compiled_file(${TARGET_NAME}
         NAME        paged_attn_quantkv attn_quant_u8 attn_dequant_u8 attn_quant_by_token attn_quant_by_channel attn_quant_by_channel_u8 attn_dequant_by_channel_u8
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
+cross_compiled_file(${TARGET_NAME}
+        ARCH AVX512F AVX2 ANY
+                    src/nodes/kernels/scaled_attn/mha_kv_cache_codec.cpp
+        API         src/nodes/kernels/scaled_attn/mha_kv_cache_codec.hpp
+        NAME        mha_kv_cache
+        NAMESPACE   ov::Extensions::Cpu::XARCH
+)
 
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F ANY
@@ -332,7 +339,15 @@ cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 ANY
                     src/nodes/kernels/linear_attn/recurrent_linear_attn.cpp
         API         src/nodes/kernels/linear_attn/recurrent_linear_attn.hpp
-        NAME        recurrent_linear_attn
+        NAME        recurrent_linear_attn recurrent_linear_attn_paged
+        NAMESPACE   ov::Extensions::Cpu::XARCH
+)
+
+cross_compiled_file(${TARGET_NAME}
+        ARCH AVX512F AVX2 ANY
+                    src/nodes/kernels/paged_causal_conv1d.cpp
+        API         src/nodes/kernels/paged_causal_conv1d.hpp
+        NAME        paged_causal_conv1d_exec
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 

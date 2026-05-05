@@ -15,28 +15,60 @@ void IDynamicGraph::MemRefType::setArg(const void* arg) {
 
 void IDynamicGraph::MemRefType::setSize(const ov::Shape& shape) {
     // Note: check difference between shape from compiler and shape from IR.
-    _sizes.resize(shape.size());
-    _strides.resize(shape.size());
-    _dimsCount = static_cast<uint32_t>(shape.size());
-    for (size_t i = 0; i < shape.size(); ++i) {
-        _sizes[i] = shape[i];
-        _strides[i] = 0;  // Strides are not set yet, will be updated
+    if (_dimsCount == 0) {
+        _dimsCount = static_cast<uint32_t>(shape.size());
+        _sizes.resize(shape.size());
+        _strides.resize(shape.size());
+    } else if (_dimsCount != static_cast<int64_t>(shape.size())) {
+        OPENVINO_THROW("Dimension count mismatch. Current dimension count: ",
+                       _dimsCount,
+                       ", new dimension count: ",
+                       shape.size());
+    }
+
+    for (int64_t i = 0; i < _dimsCount; ++i) {
+        _sizes[i] = static_cast<int64_t>(shape[i]);
+    }
+}
+
+void IDynamicGraph::MemRefType::setStrides(const ov::Strides& strides, int32_t elementSize) {
+    if (_dimsCount == 0) {
+        OPENVINO_THROW("Dimension count is zero, shall call setSize before setStrides");
+    } else if (_dimsCount != static_cast<int64_t>(strides.size())) {
+        OPENVINO_THROW("Dimension count mismatch. Current dimension count: ",
+                       _dimsCount,
+                       ", new dimension count: ",
+                       strides.size());
+    }
+
+    for (int64_t i = 0; i < _dimsCount; ++i) {
+        _strides[i] = static_cast<int64_t>(strides[i] / elementSize);
     }
 }
 
 void IDynamicGraph::MemRefType::set(const void* arg, int64_t offset, std::shared_ptr<ov::ITensor> tensor) {
     _basePtr = _data = arg;
     _offset = offset;
+    if (_dimsCount == 0) {
+        _dimsCount = static_cast<uint32_t>(tensor->get_shape().size());
+        _sizes.resize(_dimsCount);
+        _strides.resize(_dimsCount);
+    } else if (_dimsCount != static_cast<int64_t>(tensor->get_shape().size())) {
+        OPENVINO_THROW("Dimension count mismatch. Current dimension count: ",
+                       _dimsCount,
+                       ", new dimension count: ",
+                       tensor->get_shape().size());
+    }
+
     auto& shape = tensor->get_shape();
-    for (size_t j = 0; j < shape.size(); j++) {
-        _sizes[j] = shape[j];
+    for (int64_t j = 0; j < _dimsCount; j++) {
+        _sizes[j] = static_cast<int64_t>(shape[j]);
     }
     auto& strides = tensor->get_strides();
     size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
-    for (size_t j = 0; j < strides.size(); j++) {
-        _strides[j] = strides[j] / elementSize;
+    for (int64_t j = 0; j < _dimsCount; j++) {
+        _strides[j] = static_cast<int64_t>(strides[j] / elementSize);
     }
-    _dimsCount = shape.size();
 }
 
 void IDynamicGraph::MemRefType::updateStride() {
@@ -75,6 +107,7 @@ std::ostream& operator<<(std::ostream& os, const IDynamicGraph::MemRefType& memR
         os << stride << " ";
     }
     os << "]";
+
     return os;
 }
 
