@@ -5,9 +5,9 @@
 #pragma once
 
 #include "ze_base_event_factory.hpp"
-#include "ze_event_pool.hpp"
+#include "ze_holder.hpp"
 
-#include "mutex"
+#include <mutex>
 
 namespace cldnn {
 namespace ze {
@@ -19,7 +19,7 @@ public:
     event::ptr create_event(uint64_t queue_stamp) override;
 protected:
     std::mutex _mutex;
-    std::shared_ptr<ze_event_pool> m_current_pool;
+    ze_holder<ze_resource_type::event_pool> m_current_pool;
     const uint32_t m_capacity;
     uint32_t m_num_used;
 };
