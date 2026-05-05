@@ -12,16 +12,14 @@ endif()
 
 function(ov_model_convert SRC DST OUT)
     set(onnx_gen_script ${OpenVINO_SOURCE_DIR}/src/frontends/onnx/tests/onnx_prototxt_converter.py)
-    set(onnx_proto_dir ${OpenVINO_SOURCE_DIR}/thirdparty/onnx/onnx/onnx)
-    set(onnx_proto_schema onnx-ml.proto)
 
     file(GLOB_RECURSE xml_models RELATIVE "${SRC}" "${SRC}/*.xml")
     file(GLOB_RECURSE bin_models RELATIVE "${SRC}" "${SRC}/*.bin")
     file(GLOB_RECURSE onnx_models RELATIVE "${SRC}" "${SRC}/*.onnx")
     file(GLOB_RECURSE data_models RELATIVE "${SRC}" "${SRC}/*.data")
-    file(GLOB_RECURSE prototxt_models RELATIVE "${SRC}" "${SRC}/*.prototxt")
 
     if(onnx_FOUND)
+        file(GLOB_RECURSE prototxt_models RELATIVE "${SRC}" "${SRC}/*.prototxt")
         find_host_package(Python3 REQUIRED COMPONENTS Interpreter)
     endif()
 
@@ -32,15 +30,10 @@ function(ov_model_convert SRC DST OUT)
         set(model_source_dir "${SRC}/${rel_dir}")
 
         if(ext STREQUAL ".prototxt")
-            if(onnx_FOUND)
-                # convert model
-                set(rel_out_name "${name_we}.onnx")
-                if(rel_dir)
-                    set(rel_out_name "${rel_dir}/${rel_out_name}")
-                endif()
-            else()
-                # fallback: keep .prototxt filename but convert text proto into binary ModelProto via protoc
-                set(rel_out_name "${in_file}")
+            # convert model (only reached when onnx_FOUND, due to glob guard above)
+            set(rel_out_name "${name_we}.onnx")
+            if(rel_dir)
+                set(rel_out_name "${rel_dir}/${rel_out_name}")
             endif()
         else()
             # copy as is
@@ -49,7 +42,7 @@ function(ov_model_convert SRC DST OUT)
 
         set(full_out_name "${DST}/${rel_out_name}")
 
-        if(ext STREQUAL ".prototxt" AND onnx_FOUND)
+        if(ext STREQUAL ".prototxt")
             # convert .prototxt models to .onnx binary
             add_custom_command(OUTPUT ${full_out_name}
                 COMMAND ${CMAKE_COMMAND} -E make_directory
@@ -59,19 +52,6 @@ function(ov_model_convert SRC DST OUT)
                 DEPENDS ${onnx_gen_script} "${SRC}/${in_file}"
                 COMMENT "Generate ${rel_out_name}"
                 JOB_POOL four_jobs
-                WORKING_DIRECTORY "${model_source_dir}")
-        elseif(ext STREQUAL ".prototxt")
-            find_program(protoc_cmd NAMES protoc REQUIRED)
-
-            add_custom_command(OUTPUT ${full_out_name}
-                COMMAND ${CMAKE_COMMAND} -E make_directory
-                    "${DST}/${rel_dir}"
-                COMMAND /bin/sh -c
-                    "${protoc_cmd} --proto_path='${onnx_proto_dir}' --encode=onnx.ModelProto ${onnx_proto_schema} < '${SRC}/${in_file}' > '${full_out_name}'"
-                DEPENDS "${SRC}/${in_file}" "${onnx_proto_dir}/${onnx_proto_schema}"
-                COMMENT "Generate ${rel_out_name} (protoc fallback)"
-                JOB_POOL four_jobs
-                VERBATIM
                 WORKING_DIRECTORY "${model_source_dir}")
         else()
             add_custom_command(OUTPUT ${full_out_name}
