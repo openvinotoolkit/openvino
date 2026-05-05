@@ -18,7 +18,8 @@ ze_event_pool::ze_event_pool(const ze_engine& engine, uint32_t capacity, ze_even
         capacity
     };
     auto device = engine.get_device();
-    OV_ZE_EXPECT(ze::zeEventPoolCreate(engine.get_context(), &event_pool_desc, 1, &device, &m_handle));
+    auto ctx_holder = engine.get_context_holder();
+    OV_ZE_EXPECT(ze::zeEventPoolCreate(ctx_holder.get_handle(), &event_pool_desc, 1, &device, &m_handle));
 }
 
 ze_event_pool::~ze_event_pool() {

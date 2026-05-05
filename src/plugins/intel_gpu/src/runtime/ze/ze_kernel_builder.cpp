@@ -80,7 +80,8 @@ std::shared_ptr<ze_module_holder> ze_kernel_builder::build_module_l0(const void 
     }
     ze_module_handle_t module_handle;
     ze_module_build_log_handle_t log_handle;
-    ze_result_t build_result = ze::zeModuleCreate(m_device.get_context(), m_device.get_device(), &module_desc, &module_handle, &log_handle);
+    auto ctx_holder = m_device.get_context_holder();
+    ze_result_t build_result = ze::zeModuleCreate(ctx_holder.get_handle(), m_device.get_device(), &module_desc, &module_handle, &log_handle);
     if (build_result != ZE_RESULT_SUCCESS) {
         size_t log_size = 0;
         OV_ZE_EXPECT(ze::zeModuleBuildLogGetString(log_handle, &log_size, nullptr));

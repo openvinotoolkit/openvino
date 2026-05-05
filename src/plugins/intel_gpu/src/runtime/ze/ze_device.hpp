@@ -6,6 +6,7 @@
 
 #include "intel_gpu/runtime/device.hpp"
 #include "ze_common.hpp"
+#include "ze_holder.hpp"
 
 namespace cldnn {
 namespace ze {
@@ -24,18 +25,19 @@ public:
 
     ze_driver_handle_t get_driver() const { return _driver; }
     ze_device_handle_t get_device() const { return _device; }
-    ze_context_handle_t get_context() const { return _context; }
+    ze_holder<ze_resource_type::context> get_context_holder() const {
+        return _context;
+    }
 
     bool is_same(const device::ptr other) override;
     void set_mem_caps(const memory_capabilities& memory_capabilities) override;
 
-    ~ze_device();
+    ~ze_device() = default;
 
 private:
     ze_driver_handle_t _driver = nullptr;
     ze_device_handle_t _device = nullptr;
-    ze_context_handle_t _context = nullptr;
-    bool _is_initialized = false;
+    ze_holder<ze_resource_type::context> _context;
 
     device_info _info;
     memory_capabilities _mem_caps;

@@ -220,7 +220,7 @@ ze_stream::ze_stream(const ze_engine &engine, const ExecutionConfig& config)
         command_queue_desc.pNext = &cp_offload_desc;
     }
 
-    OV_ZE_EXPECT(ze::zeCommandListCreateImmediate(_engine.get_context(), _engine.get_device(), &command_queue_desc, &m_command_list));
+    OV_ZE_EXPECT(ze::zeCommandListCreateImmediate(_engine.get_context_holder().get_handle(), _engine.get_device(), &command_queue_desc, &m_command_list));
     bool use_counter_based_events = m_queue_type == QueueTypes::in_order && info.supports_counter_based_events;
     m_user_ev_factory = std::make_shared<ze_event_factory>(engine, config.get_enable_profiling());
     if (use_counter_based_events) {
@@ -408,8 +408,8 @@ void ze_stream::sync_events(std::vector<event::ptr> const& deps, bool is_output)
     }
 }
 
-ze_context_handle_t ze_stream::get_context() const {
-    return _engine.get_context();
+ze_holder<ze_resource_type::context> ze_stream::get_context_holder() const {
+    return _engine.get_context_holder();
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU

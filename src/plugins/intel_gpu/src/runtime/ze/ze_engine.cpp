@@ -41,8 +41,7 @@ void ze_engine::create_onednn_engine(const ExecutionConfig& config) {
     const std::lock_guard<std::mutex> lock(onednn_mutex);
     OPENVINO_ASSERT(_device->get_info().vendor_id == INTEL_VENDOR_ID, "[GPU] OneDNN engine can be used for Intel GPUs only");
     if (!_onednn_engine) {
-        auto casted = std::dynamic_pointer_cast<ze_device>(_device);
-        _onednn_engine = std::make_shared<dnnl::engine>(dnnl::ze_interop::make_engine(casted->get_driver(), casted->get_device(), casted->get_context()));
+        _onednn_engine = std::make_shared<dnnl::engine>(dnnl::ze_interop::make_engine(get_driver(), get_device(), get_context_holder().get_handle()));
     }
 }
 #endif
@@ -53,10 +52,10 @@ ze_driver_handle_t ze_engine::get_driver() const {
     return casted->get_driver();
 }
 
-ze_context_handle_t ze_engine::get_context() const {
+ze_holder<ze_resource_type::context> ze_engine::get_context_holder() const {
     auto casted = std::dynamic_pointer_cast<ze_device>(_device);
     OPENVINO_ASSERT(casted, "[GPU] Invalid device type for ze_engine");
-    return casted->get_context();
+    return casted->get_context_holder();
 }
 
 ze_device_handle_t ze_engine::get_device() const {
@@ -125,9 +124,11 @@ memory::ptr ze_engine::reinterpret_buffer(const memory& memory, const layout& ne
 
 memory::ptr ze_engine::reinterpret_handle(const layout& new_layout, shared_mem_params params) {
     if (params.mem_type == shared_mem_type::shared_mem_usm) {
-        ze::UsmMemory usm_buffer(get_context(), get_device(), params.mem);
+        auto ctx_holder = get_context_holder();
+        auto ctx = ctx_holder.get_handle();
+        ze::UsmMemory usm_buffer(ctx, get_device(), params.mem);
         size_t actual_mem_size = 0;
-        OV_ZE_EXPECT(ze::zeMemGetAddressRange(get_context(), params.mem, nullptr, &actual_mem_size));
+        OV_ZE_EXPECT(ze::zeMemGetAddressRange(ctx, params.mem, nullptr, &actual_mem_size));
         auto requested_mem_size = new_layout.bytes_count();
         OPENVINO_ASSERT(actual_mem_size >= requested_mem_size,
                             "[GPU] shared USM buffer has smaller size (", actual_mem_size,
@@ -149,7 +150,9 @@ memory_ptr ze_engine::create_subbuffer(const memory& memory, const layout& new_l
     OPENVINO_ASSERT(memory_capabilities::is_usm_type(memory.get_allocation_type()), "[GPU] Trying to create subbuffer for non usm memory");
     auto& new_buf = reinterpret_cast<const ze::gpu_usm&>(memory);
     auto ptr = new_buf.get_buffer().get();
-    auto sub_buffer = ze::UsmMemory(get_context(), get_device(), ptr, byte_offset);
+    auto ctx_holder = get_context_holder();
+    auto ctx = ctx_holder.get_handle();
+    auto sub_buffer = ze::UsmMemory(ctx, get_device(), ptr, byte_offset);
     return std::make_shared<ze::gpu_usm>(this,
                              new_layout,
                              sub_buffer,
@@ -175,8 +178,7 @@ std::shared_ptr<kernel_builder> ze_engine::create_kernel_builder() const {
 }
 
 void* ze_engine::get_user_context() const {
-    auto& casted = downcast<ze_device>(*_device);
-    return static_cast<void*>(casted.get_context());
+    return static_cast<void*>(get_context_holder().get_handle());
 }
 
 stream::ptr ze_engine::create_stream(const ExecutionConfig& config) const {

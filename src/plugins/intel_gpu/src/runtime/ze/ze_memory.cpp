@@ -104,7 +104,7 @@ std::pair<std::size_t, std::size_t> get_width_height(const layout& layout) {
 allocation_type gpu_usm::detect_allocation_type(const ze_engine* engine, const void* mem_ptr) {
     ze_memory_allocation_properties_t props{ZE_STRUCTURE_TYPE_MEMORY_ALLOCATION_PROPERTIES};
     ze_device_handle_t device = nullptr;
-    OV_ZE_EXPECT(ze::zeMemGetAllocProperties(engine->get_context(), mem_ptr, &props, &device));
+    OV_ZE_EXPECT(ze::zeMemGetAllocProperties(engine->get_context_holder().get_handle(), mem_ptr, &props, &device));
 
     switch (props.type) {
         case ZE_MEMORY_TYPE_DEVICE: return allocation_type::usm_device;
@@ -128,21 +128,21 @@ gpu_usm::gpu_usm(ze_engine* engine, const layout& new_layout, const ze::UsmMemor
     : lockable_gpu_mem()
     , memory(engine, new_layout, type, mem_tracker)
     , _buffer(buffer)
-    , _host_buffer(engine->get_context(), engine->get_device()) {
+    , _host_buffer(engine->get_context_holder().get_handle(), engine->get_device()) {
 }
 
 gpu_usm::gpu_usm(ze_engine* engine, const layout& new_layout, const ze::UsmMemory& buffer, std::shared_ptr<MemoryTracker> mem_tracker)
     : lockable_gpu_mem()
     , memory(engine, new_layout, detect_allocation_type(engine, buffer), mem_tracker)
     , _buffer(buffer)
-    , _host_buffer(engine->get_context(), engine->get_device()) {
+    , _host_buffer(engine->get_context_holder().get_handle(), engine->get_device()) {
 }
 
 gpu_usm::gpu_usm(ze_engine* engine, const layout& layout, allocation_type type)
     : lockable_gpu_mem()
     , memory(engine, layout, type, nullptr)
-    , _buffer(engine->get_context(), engine->get_device())
-    , _host_buffer(engine->get_context(), engine->get_device()) {
+    , _buffer(engine->get_context_holder().get_handle(), engine->get_device())
+    , _host_buffer(engine->get_context_holder().get_handle(), engine->get_device()) {
     auto actual_bytes_count = _bytes_count;
     if (actual_bytes_count == 0)
         actual_bytes_count = 1;
@@ -331,7 +331,7 @@ shared_mem_params gpu_usm::get_internal_params() const {
     auto casted = downcast<ze_engine>(_engine);
     return {
         shared_mem_type::shared_mem_usm,  // shared_mem_type
-        static_cast<shared_handle>(casted->get_context()),  // context handle
+        static_cast<shared_handle>(casted->get_context_holder().get_handle()),  // context handle
         static_cast<shared_handle>(casted->get_device()),  // user_device handle
         static_cast<shared_handle>(_buffer.get()),  // mem handle
 #ifdef _WIN32
@@ -346,7 +346,7 @@ shared_mem_params gpu_usm::get_internal_params() const {
 gpu_image2d::gpu_image2d(ze_engine* engine, const layout& layout)
     : lockable_gpu_mem()
     , memory(engine, layout, allocation_type::ze_image, nullptr)
-    , _host_buffer(engine->get_context(), engine->get_device())
+    , _host_buffer(engine->get_context_holder().get_handle(), engine->get_device())
     , _width(0)
     , _height(0) {
     ze_image_desc_t image_desc = {};
@@ -435,7 +435,7 @@ gpu_image2d::gpu_image2d(ze_engine* engine, const layout& layout)
     image_desc.arraylevels = 1;
     image_desc.miplevels = 0;
     ze_image_handle_t image_handle;
-    OV_ZE_EXPECT(ze::zeImageCreate(engine->get_context(), engine->get_device(), &image_desc, &image_handle));
+    OV_ZE_EXPECT(ze::zeImageCreate(engine->get_context_holder().get_handle(), engine->get_device(), &image_desc, &image_handle));
     _image = std::make_shared<image_holder>(image_handle, false);
     size_t elem_size = get_element_size(image_desc.format.layout);
     _bytes_count = elem_size * _width * _height;
@@ -446,7 +446,7 @@ gpu_image2d::gpu_image2d(ze_engine* engine, const layout& new_layout, ze_image_h
     : lockable_gpu_mem()
     , memory(engine, new_layout, allocation_type::ze_image, mem_tracker)
     , _image(std::make_shared<image_holder>(image, true))
-    , _host_buffer(engine->get_context(), engine->get_device()) {
+    , _host_buffer(engine->get_context_holder().get_handle(), engine->get_device()) {
     // No way to get width and height from Level Zero so we have to assume layout is correct
     std::tie(_width, _height) = get_width_height(new_layout);
 }
@@ -514,7 +514,7 @@ event::ptr gpu_image2d::fill(stream& stream, unsigned char pattern, const std::v
     ze_dep_events.push_back(ev_fill_handle);
     // Level Zero does not have API to fill image directly
     // Workaround is to fill usm buffer and then copy it to image
-    auto context = zero_stream.get_engine().get_context();
+    auto context = zero_stream.get_engine().get_context_holder().get_handle();
     auto device = zero_stream.get_engine().get_device();
     ze::UsmMemory fill_buffer(context, device);
     fill_buffer.allocateDevice(_bytes_count, zero_stream.get_engine().get_device_info().device_memory_ordinal);
@@ -549,7 +549,7 @@ event::ptr gpu_image2d::fill(stream& stream, unsigned char pattern, const std::v
 
 shared_mem_params gpu_image2d::get_internal_params() const {
     auto zero_engine = downcast<const ze_engine>(_engine);
-    return {shared_mem_type::shared_mem_image, static_cast<shared_handle>(zero_engine->get_context()), nullptr,
+    return {shared_mem_type::shared_mem_image, static_cast<shared_handle>(zero_engine->get_context_holder().get_handle()), nullptr,
             static_cast<shared_handle>(_image->get_handle()),
 #ifdef _WIN32
         nullptr,

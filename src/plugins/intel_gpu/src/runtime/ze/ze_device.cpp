@@ -340,43 +340,36 @@ ze_device::ze_device(ze_driver_handle_t driver, ze_device_handle_t device, bool 
 , _device(device)
 , _info(init_device_info(driver, device))
 , _mem_caps(init_memory_caps(device, _info)) {
+    OPENVINO_ASSERT(_driver != nullptr, "[GPU] Expected non-null driver handle when creating ze_device");
+    OPENVINO_ASSERT(_device != nullptr, "[GPU] Expected non-null device handle when creating ze_device");
     if (initialize) {
         this->initialize();
     }
 }
 
 void ze_device::initialize() {
-    if (_is_initialized)
+    if (is_initialized())
         return;
 
     ze_context_desc_t context_desc = { ZE_STRUCTURE_TYPE_CONTEXT_DESC, nullptr, 0 };
-    OV_ZE_EXPECT(ze::zeContextCreate(_driver, &context_desc, &_context));
-    _is_initialized = true;
+    ze_context_handle_t ctx = nullptr;
+    OV_ZE_EXPECT(ze::zeContextCreate(_driver, &context_desc, &ctx));
+    _context = ze_holder<ze_resource_type::context>::make(ctx);
 }
 
 bool ze_device::is_initialized() const {
-    return _is_initialized;
+    return _context.is_empty() == false;
 }
 
 bool ze_device::is_same(const device::ptr other) {
     auto casted = downcast<ze_device>(other.get());
     if (!casted)
         return false;
-
-    if (is_initialized() && casted->is_initialized()) {
-        // Do not compare contexts as one driver can have many different contexts
-        return _device == casted->get_device() && _driver == casted->get_driver();
-    }
-    return _info.is_same_device(casted->_info);
+    return _device == casted->get_device() && _driver == casted->get_driver();
 }
 
 void ze_device::set_mem_caps(const memory_capabilities& memory_capabilities) {
     _mem_caps = memory_capabilities;
-}
-
-ze_device::~ze_device() {
-    if (_is_initialized)
-        OV_ZE_WARN(ze::zeContextDestroy(_context));
 }
 
 }  // namespace ze

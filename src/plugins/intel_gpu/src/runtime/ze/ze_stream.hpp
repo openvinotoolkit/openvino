@@ -7,6 +7,7 @@
 #include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/stream.hpp"
 #include "ze_common.hpp"
+#include "ze_holder.hpp"
 #include "ze_engine.hpp"
 #include "ze_event.hpp"
 #include "ze_base_event_factory.hpp"
@@ -51,7 +52,7 @@ public:
     event::ptr create_user_event(bool set) override;
     event::ptr create_base_event() override;
     std::unique_ptr<surfaces_lock> create_surfaces_lock(const std::vector<memory::ptr> &mem) const override;
-    ze_context_handle_t get_context() const;
+    ze_holder<ze_resource_type::context> get_context_holder() const;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     dnnl::stream& get_onednn_stream() override;
