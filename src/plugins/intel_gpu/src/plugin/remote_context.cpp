@@ -203,10 +203,7 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
         } else if (ov::intel_gpu::SharedMemType::OCL_BUFFER_FROM_HANDLE == mem_type) {
             auto shared_handle = extract_object(params, ov::intel_gpu::mem_handle);
 
-            size_t byte_size = type.size();
-            for (const auto& dim : shape) {
-                byte_size *= dim;
-            }
+            size_t byte_size = shape_size(shape) * type.size();
 
             auto cl_ctx = static_cast<cl_context>(m_engine->get_user_context());
             cl_mem imported = import_external_buffer(cl_ctx, byte_size, shared_handle);
@@ -214,7 +211,6 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
             // engine.share_buffer() retains the cl_mem via cl::Buffer(handle, /*retain=*/true);
             // release our local reference so refcount ends up at 1 owned by the wrapper.
             auto tensor = reuse_memory(type, shape, imported, TensorType::BT_BUF_SHARED);
-            clReleaseMemObject(imported);
             return { tensor, nullptr };
         } else {
             TensorType tensor_type;
