@@ -379,6 +379,20 @@ void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::Grap
         }
     }
 
+    const auto get_variable_name = [](const PtrNode::SharedPtrNode& rv2_node,
+                                       int idx) -> const std::string& {
+        FRONT_END_GENERAL_CHECK(rv2_node->inputs.size() > 1,
+                                "RestoreV2 node is missing tensor_names input");
+        const auto* tn_node = rv2_node->inputs[1]->node;
+        FRONT_END_GENERAL_CHECK(tn_node->op() == "Const" && tn_node->attr().count("value") > 0,
+                                "RestoreV2 tensor_names input is not a Const with 'value' attribute");
+        const auto& tensor = tn_node->attr().at("value").tensor();
+        FRONT_END_GENERAL_CHECK(idx >= 0 && idx < tensor.string_val_size(),
+                                "RestoreV2 output index out of range: ",
+                                idx);
+        return tensor.string_val(idx);
+    };
+
     for (const auto& node : nodes) {
         if (node.second->op() == "AssignVariableOp") {
             // TODO: assets reading
@@ -411,24 +425,14 @@ void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::Grap
                 errno = 0;
                 const long parsed_av = std::strtol(index_str_av.c_str(), &end_av, 10);
                 const int output_index =
-                    (end_av == index_str_av.c_str() || errno == ERANGE || parsed_av > INT_MAX || parsed_av < INT_MIN)
+                    (end_av == index_str_av.c_str() || *end_av != '\0' || errno == ERANGE ||
+                     parsed_av > INT_MAX || parsed_av < INT_MIN)
                         ? 0
                         : static_cast<int>(parsed_av);
 
                 // Expected path is: Const(tensor_names) -(0)-(1)-> RestoreV2
-                FRONT_END_GENERAL_CHECK(restorev2_nodes[0]->inputs.size() > 1,
-                                        "RestoreV2 node is missing tensor_names input");
-                const auto& tensor_names_node = restorev2_nodes[0]->inputs[1]->node;
-                FRONT_END_GENERAL_CHECK(
-                    tensor_names_node->op() == "Const" && tensor_names_node->attr().count("value") > 0,
-                    "RestoreV2 tensor_names input is not a Const with 'value' attribute");
-                const auto& tensor = tensor_names_node->attr().at("value").tensor();
-                FRONT_END_GENERAL_CHECK(output_index >= 0 && output_index < tensor.string_val_size(),
-                                        "RestoreV2 output index out of range: ",
-                                        output_index);
-                const auto& variable_name = tensor.string_val(output_index);
-
-                variables_map[varhandle_nodes[0]->node->name()] = variable_name;
+                variables_map[varhandle_nodes[0]->node->name()] =
+                    get_variable_name(restorev2_nodes[0], output_index);
             }
         } else if (node.second->op() == "Assign") {
             std::vector<PtrNode::SharedPtrNode> restorev2_nodes;
@@ -455,24 +459,14 @@ void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::Grap
                 errno = 0;
                 const long parsed_a = std::strtol(index_str_a.c_str(), &end_a, 10);
                 const int output_index =
-                    (end_a == index_str_a.c_str() || errno == ERANGE || parsed_a > INT_MAX || parsed_a < INT_MIN)
+                    (end_a == index_str_a.c_str() || *end_a != '\0' || errno == ERANGE ||
+                     parsed_a > INT_MAX || parsed_a < INT_MIN)
                         ? 0
                         : static_cast<int>(parsed_a);
 
                 // Expected path is: Const(tensor_names) -(0)-(1)-> RestoreV2
-                FRONT_END_GENERAL_CHECK(restorev2_nodes[0]->inputs.size() > 1,
-                                        "RestoreV2 node is missing tensor_names input");
-                const auto& tensor_names_node = restorev2_nodes[0]->inputs[1]->node;
-                FRONT_END_GENERAL_CHECK(
-                    tensor_names_node->op() == "Const" && tensor_names_node->attr().count("value") > 0,
-                    "RestoreV2 tensor_names input is not a Const with 'value' attribute");
-                const auto& tensor = tensor_names_node->attr().at("value").tensor();
-                FRONT_END_GENERAL_CHECK(output_index >= 0 && output_index < tensor.string_val_size(),
-                                        "RestoreV2 output index out of range: ",
-                                        output_index);
-                const auto& variable_name = tensor.string_val(output_index);
-
-                variables_map[variablev2_nodes[0]->node->name()] = variable_name;
+                variables_map[variablev2_nodes[0]->node->name()] =
+                    get_variable_name(restorev2_nodes[0], output_index);
             }
         } else if (node.second->op() == "LookupTableImportV2") {
             std::vector<PtrNode::SharedPtrNode> hash_tablev2_nodes;
