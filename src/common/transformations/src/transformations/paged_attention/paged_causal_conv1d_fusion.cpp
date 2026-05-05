@@ -102,7 +102,7 @@ PagedCausalConv1DFusion::PagedCausalConv1DFusion(ov::pass::paged_attention::PaPa
         pa_params.add("la.cache_interval", ov::element::i32, ov::PartialShape{-1});
 
         const auto conv_state_table = pa_params.add("conv_state_table." + std::to_string(m_layer_index++),
-                                                    cache_rv->get_output_element_type(0),
+                                                    ov::element::dynamic,
                                                     make_conv_state_table_shape(cache_rv->get_output_partial_shape(0)));
 
         enable_keep_const_precision(conv_state_table);
