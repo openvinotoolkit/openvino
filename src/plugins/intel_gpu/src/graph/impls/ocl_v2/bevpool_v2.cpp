@@ -202,13 +202,11 @@ public:
         return PrimitiveImplOCL::execute(deps, instance);
     }
 
-    std::vector<size_t> get_stages_execution_order(const cldnn::primitive_inst& instance) const override {
-        auto params = instance.get_impl_params();
-
-        if (support_opt_kernel<8>(*params))
+    std::vector<size_t> get_stages_execution_order(const cldnn::kernel_impl_params& impl_params) const override {
+        if (support_opt_kernel<8>(impl_params))
             return {KernelsTypes::OPT8};
 
-        if (support_opt_kernel<4>(*params))
+        if (support_opt_kernel<4>(impl_params))
             return {KernelsTypes::OPT4};
 
         return {KernelsTypes::REF};
