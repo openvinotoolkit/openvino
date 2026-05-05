@@ -379,9 +379,16 @@ void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::Grap
         }
     }
 
-    const auto get_variable_name = [](const PtrNode::SharedPtrNode& rv2_node, int idx) -> const std::string& {
-        FRONT_END_GENERAL_CHECK(rv2_node->inputs.size() > 1, "RestoreV2 node is missing tensor_names input");
-        const auto* tn_node = rv2_node->inputs[1]->node;
+    const auto get_variable_name = [&nodes](const PtrNode::SharedPtrNode& rv2_node, int idx) -> const std::string& {
+        FRONT_END_GENERAL_CHECK(rv2_node->node->input_size() > 1,
+                                "RestoreV2 node is missing tensor_names input");
+        std::vector<std::string> parsed;
+        PtrNode::parse_node_name(rv2_node->node->input(1), parsed);
+        const auto it = nodes.find(parsed[0]);
+        FRONT_END_GENERAL_CHECK(it != nodes.end(),
+                                "RestoreV2 tensor_names input not found in node dictionary: ",
+                                parsed[0]);
+        const auto* tn_node = it->second->node;
         FRONT_END_GENERAL_CHECK(tn_node->op() == "Const" && tn_node->attr().count("value") > 0,
                                 "RestoreV2 tensor_names input is not a Const with 'value' attribute");
         const auto& tensor = tn_node->attr().at("value").tensor();
