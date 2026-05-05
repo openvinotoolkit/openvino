@@ -5,6 +5,7 @@
 #pragma once
 
 #include "ze_base_event.hpp"
+#include "ze_holder.hpp"
 
 namespace cldnn {
 namespace ze {
@@ -18,18 +19,13 @@ namespace ze {
 struct ze_counter_based_event : public ze_base_event {
 public:
     // Take ownership of counter based event handle
-    ze_counter_based_event(uint64_t queue_stamp, const ze_base_event_factory& factory, ze_event_handle_t ev)
+    ze_counter_based_event(uint64_t queue_stamp, const ze_base_event_factory& factory, ze_holder<ze_resource_type::counter_based_event> ev)
     : ze_base_event(queue_stamp)
     , m_factory(factory)
     , m_event(ev) {
-        // Ensure event handle is not null
-        if (ev == nullptr) {
-            OPENVINO_THROW("[GPU] Trying to create event with null handle");
-        }
+        OPENVINO_ASSERT(!m_event.is_empty(), "[GPU] Attempt to create counter based event with empty holder");
     }
-    ze_counter_based_event(const ze_counter_based_event&) = delete;
-    ze_counter_based_event& operator=(const ze_counter_based_event&) = delete;
-    ~ze_counter_based_event();
+
     void wait_impl() override;
     void set_impl() override;
     bool is_set_impl() override;
@@ -39,7 +35,7 @@ public:
 
 protected:
     const ze_base_event_factory& m_factory;
-    ze_event_handle_t m_event;
+    ze_holder<ze_resource_type::counter_based_event> m_event;
 };
 
 }  // namespace ze
