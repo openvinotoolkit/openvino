@@ -335,7 +335,7 @@ bool DriverCompilerAdapter::isCompilerOptionSupported(const FilteredConfig& conf
 }
 
 bool DriverCompilerAdapter::validate_compatibility_descriptor(const std::string& compatibilityDescriptor) const {
-    OPENVINO_THROW("NOT_IMPLEMENTED: Compatibility descriptor validation is not yet supported through the L0 API");
+    OPENVINO_THROW_NOT_IMPLEMENTED("Compatibility descriptor validation is not yet supported through the L0 API");
 
     return false;
 }

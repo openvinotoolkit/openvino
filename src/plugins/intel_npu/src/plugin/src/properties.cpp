@@ -1281,6 +1281,7 @@ bool Properties::disable_compatibility_check_if_needed()
                     return true; // config was updated
                 } else {
                     // CIP is present and supports the option, COMPATIBILITY_CHECK remains enabled
+                    _compilerForCompatibilityCheck = ov::intel_npu::CompilerType::PLUGIN;
                 }
             } catch (const std::exception&) {
                 // CIP is not present either, the property is not supported
@@ -1290,6 +1291,7 @@ bool Properties::disable_compatibility_check_if_needed()
             }
         } else {
             // COMPATIBILITY_CHECK remains enabled
+            _compilerForCompatibilityCheck = ov::intel_npu::CompilerType::DRIVER;
         }
     } catch (const std::exception&) {
         // If CID is not present (driver is not present either) plugin will not be able to retrieve
@@ -1302,5 +1304,13 @@ bool Properties::disable_compatibility_check_if_needed()
 
     return false; // config was not updated
 }
+
+ov::intel_npu::CompilerType Properties::determineCompilerTypeForCompatibilityCheck() const {
+    // The compiler type used for compatibility check is determined based on the support of the option in the compiler adapters.
+    // If the option is supported in CID, it will be preferred for compatibility check, otherwise CIP will be used if it supports the option.
+
+    return _compilerForCompatibilityCheck;
+}
+
 
 }  // namespace intel_npu

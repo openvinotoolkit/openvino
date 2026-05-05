@@ -363,63 +363,69 @@ void Plugin::set_property(const ov::AnyMap& properties) {
     _propertiesManager->setProperty(properties);
 }
 
-ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
-    // Special cases that need to be treated outside of the property manager.
-    // Checking runtime requirements requires access to plugin's metadata
-    if (name == ov::compatibility_check.name()) {
-        if (arguments.empty() || arguments.find(ov::runtime_requirements.name()) == arguments.end()) {
-            return ov::CompatibilityCheck ::NOT_APPLICABLE;
-        }
 
-        // Reading the (dummy) property content to check if it is supported
-        // Expected to throw if the property is not supported
-        _propertiesManager->getProperty(name);
+ov::CompatibilityCheck Plugin::validate_compatibility_descriptor(ov::intel_npu::CompilerType compilerType, const ov::AnyMap& arguments) const {
+    if (arguments.empty() || arguments.find(ov::runtime_requirements.name()) == arguments.end()) {
+        return ov::CompatibilityCheck::NOT_APPLICABLE;
+    }
 
-        const auto& compatibilityString = arguments.at(ov::runtime_requirements.name()).as<const std::string&>();
-        _logger.debug("Received compatibility string: %s length: %zu", compatibilityString.c_str(), compatibilityString.length());
+    const auto& runtimeRequirements = arguments.at(ov::runtime_requirements.name()).as<const std::string&>();
+    _logger.debug("Received runtime_requirements: %s length: %zu", runtimeRequirements.c_str(), runtimeRequirements.length());
 
-        const ov::Tensor viewTensor =
-            ov::Tensor(ov::element::Type_t::u8, ov::Shape{compatibilityString.length()}, compatibilityString.data());
+    const ov::Tensor reqTensor =
+        ov::Tensor(ov::element::Type_t::u8, ov::Shape{runtimeRequirements.length()}, runtimeRequirements.data());
 
-        std::unique_ptr<MetadataBase> metadata = nullptr;
-        try {
-            // The plugin cares only about the string size and the metadata version check for now. Additional checks
-            // based
-            // on other metadata fields can be done following this line.
-            metadata = read_metadata_from(viewTensor);
-        } catch (const std::exception& ex) {
-            // Unsupported version, could not read the metadata or an unknown error has occured. Report that the
-            // requirements are not met.
-            _logger.debug("Failed to read metadata from the compatibility string. The requirements are not met. %s", ex.what());
-            return ov::CompatibilityCheck::UNSUPPORTED;
-        }
+    // NPU Plugin's runtime requirements are captured in its metadata.
+    // For now plugin's requirements are met if metadata can be retrieved from the tensor
+    std::unique_ptr<MetadataBase> metadata = nullptr;
+    try {
+        // The plugin cares only about the string size and the metadata version check for now. Additional checks based
+        // on other metadata fields can be done following this line.
+        metadata = read_as_text(reqTensor);
+    } catch (const std::exception& ex) {
+        // Unsupported version, could not read the metadata or an unknown error has occured. Report that the
+        // requirements are not met.
+        _logger.debug("Failed to read metadata from the runtime requirements. The requirements are not met. %s", ex.what());
+        return ov::CompatibilityCheck::UNSUPPORTED;
+    }
 
-        OPENVINO_ASSERT(metadata);
+    auto deviceRuntimeRequirements = metadata->get_runtime_reqs().value_or("");
+    _logger.debug("Retrieved device runtime requirements: %s length: %zu", deviceRuntimeRequirements.c_str(), deviceRuntimeRequirements.length());
 
-        const size_t compilerStringSize = metadata->get_blob_size();
-        auto compilerRequirements = metadata->get_compiler_reqs().value_or("");
-        _logger.debug("Retrieved runtime requirements: %s length: %zu", compilerRequirements.c_str(), compilerRequirements.length());
-
-        // Implement only the fallback path for now through the PLUGIN compiler type
-        std::unique_ptr<ICompilerAdapter> compiler = nullptr;
-        CompilerAdapterFactory factory;
-        try {
-            // TODO consider using backend directly
-            auto compilerType = ov::intel_npu::CompilerType::PLUGIN;
-            compiler = factory.getCompiler(_backend, compilerType, std::string_view{});
-        } catch (const std::exception&) {
-            _logger.error("Failed to create compiler for compatibility check. The requirements are not met.");
-        }
-        OPENVINO_ASSERT(compiler != nullptr);
+    // Implement only the fallback path for now through the PLUGIN compiler type
+    std::unique_ptr<ICompilerAdapter> compiler = nullptr;
+    CompilerAdapterFactory factory;
+    try {
+        compiler = factory.getCompiler(_backend, compilerType, std::string_view{});
 
         // Compiler can validate only if the string describes a blob compatible with the current platform
-        auto result = compiler->validate_compatibility_descriptor(compilerRequirements);
+        auto result = compiler->validate_compatibility_descriptor(deviceRuntimeRequirements);
         _logger.debug("Compatibility check result: %s", result ? "met" : "not met");
         if(result) {
             return ov::CompatibilityCheck::OPTIMAL;
         } else {
             return ov::CompatibilityCheck::UNSUPPORTED;
         }
+    } catch (const std::exception&) {
+        _logger.error("Failed to create the recommended compiler type for the compatibility check {}. The requirements are not met.", compilerType);
+        return ov::CompatibilityCheck::NOT_APPLICABLE;
+    }
+}
+
+ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
+    // Special cases that need to be treated outside of the property manager.
+    // Checking runtime requirements requires access to plugin's metadata
+    if (name == ov::compatibility_check.name()) {
+        // Reading the (dummy) property content to check if it is supported
+        // Expected to throw if the property is not supported
+        _propertiesManager->getProperty(name);
+
+        // The property was enabled based on the support of the compatibility check in the compiler adapters
+        // Use the compiler type determined for compatibility check to validate the requirements and return the result
+        auto compilerType = _propertiesManager->determineCompilerTypeForCompatibilityCheck();
+
+        // Validates both local (plugin's) requirements and device requirements
+        return validate_compatibility_descriptor(compilerType, arguments);
     }
 
     if (!arguments.empty()) {

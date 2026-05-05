@@ -73,6 +73,7 @@ public:
     std::string determinePlatform(const ov::AnyMap& properties) const;
     std::string determineDeviceId(const ov::AnyMap& properties) const;
     ov::intel_npu::CompilerType determineCompilerType(const ov::AnyMap& properties) const;
+    ov::intel_npu::CompilerType determineCompilerTypeForCompatibilityCheck() const;
 
 private:
     struct CopyState {
@@ -99,6 +100,7 @@ private:
     Logger _logger;
 
     ov::intel_npu::CompilerType _currentlyUsedCompiler = ov::intel_npu::CompilerType::PREFER_PLUGIN;
+    ov::intel_npu::CompilerType _compilerForCompatibilityCheck = ov::intel_npu::CompilerType::DRIVER;
     std::string _currentlyUsedPlatform;
 
     // Boolean to check whether properties were filtered with compiler supported properties
