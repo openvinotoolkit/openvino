@@ -307,10 +307,9 @@ bool PluginCompilerAdapter::validate_compatibility_descriptor(const std::string&
                                           static_cast<uint16_t>(device_properties.subdeviceId),
                                           device_properties.numSlices};
 
-            _logger.info(
-                "Validating compatibility logic using deviceID: 0x%X, maxTiles: %u",
-                vcl_desc.deviceID,
-                vcl_desc.tileCount);
+            _logger.info("Validating compatibility logic using deviceID: 0x%X, maxTiles: %u",
+                         vcl_desc.deviceID,
+                         vcl_desc.tileCount);
 
             return _compiler->validate_compatibility_descriptor(compatibilityDescriptor, &vcl_desc);
         }

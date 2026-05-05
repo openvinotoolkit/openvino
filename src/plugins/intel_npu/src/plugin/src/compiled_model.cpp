@@ -40,7 +40,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     // Support for specific properties might depend on the characteristics of the compiled model.
     // Adjust lower level config availability to influence the supported properties list if needed
     FilteredConfig localConfig = config;
-    if(!_graph->get_compatibility_descriptor().has_value()) {
+    if (!_graph->get_compatibility_descriptor().has_value()) {
         localConfig.enable(ov::runtime_requirements.name(), false);
     }
 
@@ -236,21 +236,25 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         std::string compilerDescriptor = compatibilityDescriptorOpt.value();
 
         std::ostringstream requirementsString;
-        requirementsString.write(reinterpret_cast<const char*>(compilerDescriptor.data()),
-                                 static_cast<std::streamsize>(compilerDescriptor.size()));
-        _logger.debug("Compatibility string from compiler %s length: %zu", requirementsString.str().c_str(), compilerDescriptor.size());
+        _logger.debug("Compatibility string from compiler %s length: %zu",
+                      compilerDescriptor.c_str(),
+                      compilerDescriptor.size());
 
         // The layouts are not useful compatibility information
-        Metadata<CURRENT_METADATA_VERSION>(compilerDescriptor.size(),
-                                           CURRENT_OPENVINO_VERSION,
-                                           std::nullopt/*_graph->get_init_sizes()*/,
-                                           _batchSize,
-                                           std::nullopt,
-                                           std::nullopt,
-                                           std::nullopt,
-                                           compilerDescriptor)
-            .write_human_readable(requirementsString);
-        _logger.debug("Compatibility string: %s length: %zu", requirementsString.str().c_str(), requirementsString.str().length());
+        Metadata<CURRENT_METADATA_VERSION>(
+            0,  // no real blob
+            CURRENT_OPENVINO_VERSION,
+            std::nullopt,  // weightless blobs are not supported
+            _batchSize,
+            std::nullopt,  // input_layouts are not relevant for the compatibility check
+            std::nullopt,  // output_layouts are not relevant for the compatibility check
+            std::nullopt,  // skip compiler version as well since it is already included in runtime requirements string
+            std::nullopt,  // skip encrypted blob size since it is not relevant for the compatibility check
+            compilerDescriptor)
+            .write_as_text(requirementsString);
+        _logger.debug("Compatibility string: %s length: %zu",
+                      requirementsString.str().c_str(),
+                      requirementsString.str().length());
 
         return requirementsString.str();
     }

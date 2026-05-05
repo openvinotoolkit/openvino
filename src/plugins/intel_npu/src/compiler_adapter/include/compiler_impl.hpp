@@ -94,10 +94,13 @@ public:
      * @brief Validates the compatibility descriptor against the current device information.
      * This function is used as a fallback check when the driver on the system does not support the required API
      * @param compatibilityDescriptor The compatibility descriptor (string) to be validated
-     * @param in_device_desc Pointer to a device descriptor containing the device ID, number of tiles and stepping information
-     * @return false if the platform does not meet the requirements specified in the compatibility descriptor, true if the platform is compatible
+     * @param in_device_desc Pointer to a device descriptor containing the device ID, number of
+     * tiles and stepping information
+     * @return false if the platform does not meet the requirements specified in the compatibility descriptor,
+     * true if the platform is compatible
      */
-    bool validate_compatibility_descriptor(const std::string& compatibilityDescriptor, vcl_device_desc_t* in_device_desc) const;
+    bool validate_compatibility_descriptor(const std::string& compatibilityDescriptor,
+                                           vcl_device_desc_t* in_device_desc) const;
 
 private:
     /**

@@ -587,13 +587,14 @@ void Properties::registerPluginProperties() {
         }
         return false;
     }());
-    TRY_REGISTER_CUSTOM_PROPERTY(ov::compatibility_check, COMPATIBILITY_CHECK,
+    TRY_REGISTER_CUSTOM_PROPERTY(ov::compatibility_check,
+                                 COMPATIBILITY_CHECK,
                                  true,
                                  ov::PropertyMutability::RO,
                                  [](const Config& /* unusedConfig */) {
-                                    // This property is implemented in the plugin directly
-                                    // This implementation here serves only to publish it in supported_properties
-                                    return false;
+                                     // This property is implemented in the plugin directly
+                                     // This implementation here serves only to publish it in supported_properties
+                                     return false;
                                  });
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::enable_cpu_pinning, ENABLE_CPU_PINNING);
 
@@ -810,9 +811,9 @@ void Properties::registerCompiledModelProperties() {
                                  true,
                                  ov::PropertyMutability::RO,
                                  [](const Config& /* unusedConfig */) {
-                                    // This property is implemented in compiled model directly
-                                    // This implementation here serves only to publish it in supported_properties
-                                    return std::string("");
+                                     // This property is implemented in compiled model directly
+                                     // This implementation here serves only to publish it in supported_properties
+                                     return std::string("");
                                  });
 
     FORCE_REGISTER_CUSTOM_PROPERTY(
@@ -915,8 +916,7 @@ ov::Any Properties::getProperty(const std::string& name) {
             }
         }
 
-        if(needToResetProperties) {
-            std::cout << "Reset properties" << std::endl;
+        if (needToResetProperties) {
             // reset properties for the new options
             registerProperties();
         }
@@ -1043,7 +1043,7 @@ bool Properties::isPropertySupported(const std::string& name) {
             return false;
         }
 
-        if(name == ov::compatibility_check.name()) {
+        if (name == ov::compatibility_check.name()) {
             bool disabled = disable_compatibility_check_if_needed();
             if (disabled) {
                 registerProperties();
@@ -1249,8 +1249,7 @@ std::string Properties::determineDeviceId(const ov::AnyMap& properties) const {
     return _config.get<DEVICE_ID>();
 }
 
-bool Properties::disable_compatibility_check_if_needed()
-{
+bool Properties::disable_compatibility_check_if_needed() {
     // COMPATIBILITY_CHECK is a RunTime option, thus enabled by default
     // The property should be supported only if at least one of the compiler adapters support it.
     // No need to check again if it was enabled already
@@ -1272,13 +1271,13 @@ bool Properties::disable_compatibility_check_if_needed()
         // If CID is present but does not support the query, fallback to CIP
         if (!tempCompiler->is_option_supported(ov::compatibility_check.name())) {
             compilerType = ov::intel_npu::CompilerType::PLUGIN;
-            try{
+            try {
                 tempCompiler = factory.getCompiler(_backend, compilerType, std::string_view{});
                 if (!tempCompiler->is_option_supported(ov::compatibility_check.name())) {
                     // Neither of the compiler adapters support the option, it should be disabled
                     _logger.debug("Neither CID nor CIP support the compatibility check! Disabling the property.");
                     _config.enable(ov::compatibility_check.name(), false);
-                    return true; // config was updated
+                    return true;  // config was updated
                 } else {
                     // CIP is present and supports the option, COMPATIBILITY_CHECK remains enabled
                     _compilerForCompatibilityCheck = ov::intel_npu::CompilerType::PLUGIN;
@@ -1287,7 +1286,7 @@ bool Properties::disable_compatibility_check_if_needed()
                 // CIP is not present either, the property is not supported
                 _logger.debug("CIP is not present! Disabling the compatibility check property.");
                 _config.enable(ov::compatibility_check.name(), false);
-                return true; // config was updated
+                return true;  // config was updated
             }
         } else {
             // COMPATIBILITY_CHECK remains enabled
@@ -1299,18 +1298,19 @@ bool Properties::disable_compatibility_check_if_needed()
         // No need to check the CIP support anymore in this case
         _logger.debug("Driver is not present! Disabling the compatibility check property.");
         _config.enable(ov::compatibility_check.name(), false);
-        return true; // config was updated
+        return true;  // config was updated
     }
 
-    return false; // config was not updated
+    return false;  // config was not updated
 }
 
 ov::intel_npu::CompilerType Properties::determineCompilerTypeForCompatibilityCheck() const {
-    // The compiler type used for compatibility check is determined based on the support of the option in the compiler adapters.
-    // If the option is supported in CID, it will be preferred for compatibility check, otherwise CIP will be used if it supports the option.
+    // The compiler type used for compatibility check is determined based on the support of
+    // the COMPATIBILITY_CHECK option in the compiler adapters. If the option is supported
+    // in CID, it will be preferred for compatibility check, otherwise CIP will be used
+    // if it supports the option.
 
     return _compilerForCompatibilityCheck;
 }
-
 
 }  // namespace intel_npu

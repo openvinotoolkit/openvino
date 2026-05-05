@@ -292,18 +292,21 @@ std::optional<std::vector<std::string>> DriverCompilerAdapter::get_supported_opt
 
 bool DriverCompilerAdapter::is_option_supported(std::string optName, std::optional<std::string> optValue) const {
     // This is a special case, as RUNTIME_REQUIREMENTS is a read-only compiler property
-    // used to retrieve a compatibility string through a dedicated VCL compiler method, and not a regular settable option.
-    // Therefore, we cannot rely on the compiler's usual option support checking method
-    if(optName == RUNTIME_REQUIREMENTS::key()) {
-        if(optValue.has_value())
-            OPENVINO_THROW("The option '", RUNTIME_REQUIREMENTS::key(), "' is a read-only property and does not accept any value.");
+    // used to retrieve a compatibility string through a dedicated VCL compiler method, and not a regular settable
+    // option. Therefore, we cannot rely on the compiler's usual option support checking method
+    if (optName == RUNTIME_REQUIREMENTS::key()) {
+        if (optValue.has_value())
+            OPENVINO_THROW("The option '",
+                           RUNTIME_REQUIREMENTS::key(),
+                           "' is a read-only property and does not accept any value.");
 
         // Compatibility string generation is not yet supported through the L0 API
         return false;
     }
-    // COMPATIBILITY_CHECK must signal if compiler adapter (and the level zero API in this case) supports validateCompatibilityDescriptor
-    if(optName == COMPATIBILITY_CHECK::key()) {
-        if(optValue.has_value())
+    // COMPATIBILITY_CHECK must signal if compiler adapter (and the level zero API in this case) supports
+    // the validateCompatibilityDescriptor method
+    if (optName == COMPATIBILITY_CHECK::key()) {
+        if (optValue.has_value())
             OPENVINO_THROW("Compatibility string should be verified with validate_compatibility_descriptor()");
 
         // Compatibility string validation is not yet supported through the L0 API
