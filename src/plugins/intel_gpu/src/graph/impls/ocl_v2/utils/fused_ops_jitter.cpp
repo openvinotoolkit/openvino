@@ -1018,60 +1018,46 @@ JitConstants make_activation_jit_constants(const std::string& suffix,
         jit.add(make_jit_constant(macro_def, round(input)));
         break;
     case activation_func::erfinv: {
-        // Inverse error function (erfinv) approximation by Mike Giles, 2011.
-        // Reference: src/core/reference/include/openvino/reference/erfinv.hpp
-        // Uses ternary `?:` (matching other activations such as `sign`, `gelu_tanh`)
-        // since OpenCL `select` has no half/half/int overload and scalar half
-        // comparisons yield int.
-        const std::string ts = (out_dt == ov::element::f32) ? "f" : "h";
-        const std::string elem_inf = (out_dt == ov::element::f32) ? "INFINITY" : "((half)INFINITY)";
-        auto cf = [&](const char* lit) {
-            std::string s(lit);
-            if (!s.empty() && s.back() == 'f') {
-                s.pop_back();
-            }
-            return s + ts;
-        };
-        auto horner = [&](const std::string& s, std::initializer_list<const char*> coefs) {
-            auto it = coefs.begin();
-            std::string r = cf(*it++);
-            for (; it != coefs.end(); ++it) {
-                r = "(" + r + " * " + s + " + " + cf(*it) + ")";
-            }
-            return r;
-        };
-        const std::string x = "(" + input.str() + ")";
-        const std::string w = "(-log((" + cf("1.0f") + " - " + x + ") * (" + cf("1.0f") + " + " + x + ")))";
-        const std::string s_lo = "(" + w + " - " + cf("2.5f") + ")";
-        const std::string s_hi = "(sqrt(" + w + ") - " + cf("3.0f") + ")";
-        const std::string p_lo = horner(s_lo,
-                                        {"2.81022636e-08f",
-                                         "3.43273939e-07f",
-                                         "-3.5233877e-06f",
-                                         "-4.39150654e-06f",
-                                         "0.00021858087f",
-                                         "-0.00125372503f",
-                                         "-0.00417768164f",
-                                         "0.246640727f",
-                                         "1.50140941f"});
-        const std::string p_hi = horner(s_hi,
-                                        {"-0.000200214257f",
-                                         "0.000100950558f",
-                                         "0.00134934322f",
-                                         "-0.00367342844f",
-                                         "0.00573950773f",
-                                         "-0.0076224613f",
-                                         "-0.00943887047f",
-                                         "1.00167406f",
-                                         "2.83297682f"});
-        const std::string p = "(((" + w + " < " + cf("5.0f") + ") ? " + p_lo + " : " + p_hi + "))";
-        const std::string poly = "(" + x + " * " + p + ")";
-        // x = 0     -> poly yields 0 naturally.
-        // |x| > 1   -> log of a negative produces NaN, propagated by poly.
-        // x = +/-1  -> log(0) blows up the polynomial; force +/-inf via x * INFINITY.
-        const std::string body = "((fabs(" + x + ") == " + cf("1.0f") + ") ? (" + x + " * " + elem_inf + ") : " + poly + ")";
-        jit.add(make_jit_constant(macro_def, JitTerm{body}));
-        break;
+      // NOTE: exactly the same implementation can be found
+      // in jitter.cpp - ideally both should be defined
+      // in common place, but that would require deeper refactoring
+      // (e.g. class JitTerm is also defined in multiple places and
+      // it is a different implementation in different jitters)
+      // which is out of scope for the current change....
+      const bool is_f32 = (out_dt == ov::element::f32);
+      const JitTerm elem_inf{is_f32 ? "INFINITY" : "((half)INFINITY)"};
+      auto cf = [&](const char* lit) { return concat(lit, type_suffix); };
+      auto horner = [&](const JitTerm& s,
+                        std::initializer_list<JitTerm> coefs) {
+        auto it = coefs.begin();
+        JitTerm r = *it++;
+        for (; it != coefs.end(); ++it) {
+          r = r * s + *it;
+        }
+        return r;
+      };
+      const JitTerm& x = input;
+      const JitTerm w = neg(log((cf("1.0") - x) * (cf("1.0") + x)));
+      const JitTerm s_lo = w - cf("2.5");
+      const JitTerm s_hi = sqrt(w) - cf("3.0");
+      const JitTerm p_lo = horner(
+          s_lo,
+          {cf("2.81022636e-08"), cf("3.43273939e-07"), cf("-3.5233877e-06"),
+           cf("-4.39150654e-06"), cf("0.00021858087"), cf("-0.00125372503"),
+           cf("-0.00417768164"), cf("0.246640727"), cf("1.50140941")});
+      const JitTerm p_hi = horner(
+          s_hi,
+          {cf("-0.000200214257"), cf("0.000100950558"), cf("0.00134934322"),
+           cf("-0.00367342844"), cf("0.00573950773"), cf("-0.0076224613"),
+           cf("-0.00943887047"), cf("1.00167406"), cf("2.83297682")});
+      const JitTerm poly = x * ternary(w.lt(cf("5.0")), p_lo, p_hi);
+      // x = 0     -> poly yields 0 naturally.
+      // |x| > 1   -> log of a negative produces NaN, propagated by poly.
+      // x = +/-1  -> log(0) blows up the polynomial; force +/-inf via x *
+      // INFINITY.
+      jit.add(make_jit_constant(
+          macro_def, ternary(fabs(x).eq(cf("1.0")), x * elem_inf, poly)));
+      break;
     }
     case activation_func::none:
     default:
