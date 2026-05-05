@@ -234,7 +234,15 @@ struct Read<
 
         while (c != '}') {
             std::string key, value;
-            std::getline(is, key, ':');
+            if (is.peek() == '\'' or is.peek() == '"') {    // enabling keys with ":" sign
+                char separator = is.peek();
+                is >> c;
+                std::getline(is, key, separator);
+                OPENVINO_ASSERT(is.get() == ':', "Parsing error: Separator (:) needed after key name. format: {" 
+                                    + std::string(1, separator) + "key" + std::string(1, separator) + ":value}");
+            } else {
+                std::getline(is, key ,':');
+            }
             size_t enclosed_container_level = 0;
 
             while (is.good()) {
