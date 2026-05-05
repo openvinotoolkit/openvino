@@ -28,17 +28,11 @@
 #    include <iostream>
 #    include <sstream>
 
-#    include "memory_usage_helpers.hpp"
-
 using CompilationParams = std::tuple<std::string,  // Device name
                                      ov::AnyMap    // Config
                                      >;
 
 namespace {
-
-using ov_test_memory::bytes_to_mb;
-using ov_test_memory::print_ram_info;
-using ov_test_memory::print_gpu_memory_info;
 
 std::shared_ptr<ov::Model> make_model() {
     std::vector<size_t> inputShape = {1, 2, 32, 32};
@@ -235,11 +229,7 @@ TEST_P(DX12RemoteRunTests, CheckRemoteTensorSharedBuf) {
 
     createHeap(byte_size);
 
-    print_ram_info("before create_tensor");
-    print_gpu_memory_info("before create_tensor");
     auto remote_tensor = context.create_tensor(ov::element::f32, tensor.get_shape(), shared_mem, ov::intel_gpu::MemType::SHARED_BUF);
-    print_ram_info("after create_tensor");
-    print_gpu_memory_info("after create_tensor");
 
     ov::Tensor check_remote_tensor;
     ASSERT_NO_THROW(check_remote_tensor = remote_tensor);
@@ -265,11 +255,7 @@ TEST_P(DX12RemoteRunTests, CheckRemoteTensorSharedBuChangingTensors) {
 
     createHeap(byte_size);
 
-    print_ram_info("before create_tensor");
-    print_gpu_memory_info("before create_tensor");
     auto remote_tensor = context.create_tensor(ov::element::f32, tensor.get_shape(), shared_mem, ov::intel_gpu::MemType::SHARED_BUF);
-    print_ram_info("after create_tensor");
-    print_gpu_memory_info("after create_tensor");
     ov::Tensor check_remote_tensor;
     ASSERT_NO_THROW(check_remote_tensor = remote_tensor);
     ASSERT_THROW(check_remote_tensor.data(), ov::Exception);
@@ -329,11 +315,7 @@ TEST_P(DX12RemoteRunTests, CheckOutputDataFromMultipleRuns) {
     float* output_data_one = new float[output_byte_size / sizeof(float)];
     ov::Tensor output_data_tensor_one{ov::element::f32, output_tensor.get_shape(), output_data_one};
 
-    print_ram_info("before create_tensor");
-    print_gpu_memory_info("before create_tensor");
     auto remote_tensor = context.create_tensor(ov::element::f32, shape, shared_mem, ov::intel_gpu::MemType::SHARED_BUF);
-    print_ram_info("after create_tensor");
-    print_gpu_memory_info("after create_tensor");
     OV_ASSERT_NO_THROW(inference_request.set_input_tensor(remote_tensor));
     OV_ASSERT_NO_THROW(inference_request.set_output_tensor(output_data_tensor_one));
     OV_ASSERT_NO_THROW(inference_request.infer());

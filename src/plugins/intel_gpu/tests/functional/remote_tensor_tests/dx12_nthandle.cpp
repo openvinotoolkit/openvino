@@ -20,7 +20,6 @@
 #include <d3d12.h>
 #include <dxgi1_4.h>
 #include <dxgidebug.h>
-#include <psapi.h>
 #ifdef NOMINMAX_DEFINED_SHARED_BUF_TEST
 #undef NOMINMAX
 #undef NOMINMAX_DEFINED_SHARED_BUF_TEST
@@ -28,7 +27,6 @@
 
 
 
-#include "memory_usage_helpers.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
 #include "openvino/op/add.hpp"
@@ -37,10 +35,6 @@
 #include "openvino/op/result.hpp"
 
 namespace {
-
-using ov_test_memory::bytes_to_mb;
-using ov_test_memory::query_process_memory;
-using ov_test_memory::print_gpu_memory_info;
 
 std::string format_luid_bytes(const unsigned char* data, size_t size) {
     std::ostringstream stream;
@@ -364,17 +358,6 @@ TEST(GpuSharedBufferRemoteTensor, smoke_Dx12RemoteInputToRemoteOutputCopyAndComp
     ov::RemoteTensor remote_input_tensor;
     ov::RemoteTensor remote_output_tensor;
 
-    print_gpu_memory_info(dx12.adapter, "before remote tensor creation");
-
-    PROCESS_MEMORY_COUNTERS_EX mem_before{};
-    if (query_process_memory(mem_before)) {
-        std::cout << "[INFO] Process RAM before remote tensor creation: working_set="
-                  << bytes_to_mb(mem_before.WorkingSetSize) << " MB, private="
-                  << bytes_to_mb(mem_before.PrivateUsage) << " MB\n";
-    } else {
-        std::cout << "[INFO] Failed to query process memory before remote tensor creation\n";
-    }
-
     try {
         remote_input_tensor = ov_ctx.create_tensor(ov::element::f32, shape,
                                                    dx_input_shared.shared_handle,
@@ -386,19 +369,6 @@ TEST(GpuSharedBufferRemoteTensor, smoke_Dx12RemoteInputToRemoteOutputCopyAndComp
         std::cout << "[INFO] NT handle import not supported on this device: " << ex.what() << "\n";
         return;
     }
-
-    PROCESS_MEMORY_COUNTERS_EX mem_after{};
-    if (query_process_memory(mem_after)) {
-        const auto ws_delta_mb = bytes_to_mb(mem_after.WorkingSetSize) - bytes_to_mb(mem_before.WorkingSetSize);
-        const auto private_delta_mb = bytes_to_mb(mem_after.PrivateUsage) - bytes_to_mb(mem_before.PrivateUsage);
-        std::cout << "[INFO] Process RAM after remote tensor creation: working_set="
-                  << bytes_to_mb(mem_after.WorkingSetSize) << " MB, private="
-                  << bytes_to_mb(mem_after.PrivateUsage) << " MB, delta_working_set="
-                  << ws_delta_mb << " MB, delta_private=" << private_delta_mb << " MB\n";
-    } else {
-        std::cout << "[INFO] Failed to query process memory after remote tensor creation\n";
-    }
-    print_gpu_memory_info(dx12.adapter, "after remote tensor creation");
 
     auto model = make_copy_model(shape);
     auto compiled = core.compile_model(model, ov_ctx);

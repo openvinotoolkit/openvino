@@ -26,7 +26,6 @@
 #undef NOMINMAX
 #undef NOMINMAX_DEFINED_SHARED_BUF_TEST
 #endif
-#include "memory_usage_helpers.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_gpu/ocl/dx.hpp"
 #include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
@@ -36,10 +35,6 @@
 #include "openvino/op/result.hpp"
 
 namespace {
-
-using ov_test_memory::ProcessRamInfo;
-using ov_test_memory::query_process_memory;
-using ov_test_memory::print_gpu_memory_info;
 
 constexpr size_t kDx11SharedBufferAlignment = 16;
 
@@ -262,16 +257,6 @@ TEST(GpuSharedBufferRemoteTensor, smoke_Dx11RemoteInputToRemoteOutputCopyAndComp
 
     auto d3d_ctx = ov::intel_gpu::ocl::D3DContext(core, dx11.device);
 
-    const auto mem_before = query_process_memory();
-    if (mem_before.valid) {
-        std::cout << "[INFO] Process RAM before remote tensor creation: working_set="
-                  << mem_before.working_set_mb << " MB, private="
-                  << mem_before.private_mb << " MB\n";
-    } else {
-        std::cout << "[INFO] Failed to query process memory before remote tensor creation\n";
-    }
-    print_gpu_memory_info("before remote tensor creation");
-
     auto remote_input_tensor = d3d_ctx.create_tensor(ov::element::f32,
                                                      shape,
                                                      dx_input_shared.shared_handle,
@@ -280,18 +265,6 @@ TEST(GpuSharedBufferRemoteTensor, smoke_Dx11RemoteInputToRemoteOutputCopyAndComp
                                                       shape,
                                                       dx_output_shared.shared_handle,
                                                       ov::intel_gpu::MemType::SHARED_BUF);
-
-    print_gpu_memory_info("after remote tensor creation");
-    const auto mem_after = query_process_memory();
-    if (mem_after.valid) {
-        std::cout << "[INFO] Process RAM after remote tensor creation: working_set="
-                  << mem_after.working_set_mb << " MB, private="
-                  << mem_after.private_mb << " MB, delta_working_set="
-                  << (mem_after.working_set_mb - mem_before.working_set_mb) << " MB, delta_private="
-                  << (mem_after.private_mb - mem_before.private_mb) << " MB\n";
-    } else {
-        std::cout << "[INFO] Failed to query process memory after remote tensor creation\n";
-    }
 
     auto model = make_copy_model(shape);
     auto compiled = core.compile_model(model, d3d_ctx);
