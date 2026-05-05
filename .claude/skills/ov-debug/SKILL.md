@@ -1,5 +1,5 @@
 ---
-name: debug
+name: ov-debug
 description: Troubleshooting all sorts of failures, crashes, exceptions and errors using debug capabilities. Analyze accuracy, performance, model compilation, or memory issues. Dump tensors and intermediate blobs. Serialize and visualize IRs, execution graphs. Enable verbose, logging. Profile execution. Compare layer outputs. Inspect, trace or dump transformations. Identify executed operations, nodes, primitives, kernels.
 ---
 
