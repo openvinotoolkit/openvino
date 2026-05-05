@@ -280,13 +280,6 @@ std::optional<std::vector<std::string>> PluginCompilerAdapter::get_supported_opt
 }
 
 bool PluginCompilerAdapter::is_option_supported(std::string optname, std::optional<std::string> optValue) const {
-    if(optname == RUNTIME_REQUIREMENTS::key()) {
-        // This is a special case, as RUNTIME_REQUIREMENTS is a read-only compiler property
-        // used to retrieve a compatibility string through a dedicated VCL compiler method, and not a regular settable option.
-        // Therefore, we cannot rely on the compiler's usual option support checking method
-        return true;
-    }
-
     const bool hasValue = optValue.has_value();
     const std::string value = hasValue ? optValue.value() : "";
     if (_compiler->is_option_supported(optname, std::move(optValue))) {

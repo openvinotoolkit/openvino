@@ -618,7 +618,7 @@ bool VCLCompilerImpl::validate_compatibility_descriptor(const std::string& compa
     compilerDesc.version = _vclVersion;
     compilerDesc.debugLevel = static_cast<__vcl_log_level_t>(static_cast<int>(Logger::global().level()) + 1);
 
-    const char* optname_ch = ov::runtime_requirements_met.name();
+    const char* optname_ch = ov::compatibility_check.name();
     const char* optvalue_ch = compatibilityDescriptor.c_str();
 
     vcl_log_handle_t logHandle = nullptr;
