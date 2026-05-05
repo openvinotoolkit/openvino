@@ -235,7 +235,7 @@ public:
     using parent_holder_t = ze_holder<parent_resource>;
     using handle_t = typename ze_resource_info<resource_type>::handle_t;
 
-    static ze_holder<resource_type> make(parent_holder_t parent, handle_t handle, bool take_ownership = true) {
+    static ze_holder<resource_type> make(const parent_holder_t &parent, handle_t handle, bool take_ownership = true) {
         std::shared_ptr<ze_resource<resource_type>> resource;
         if constexpr (resource_type == ze_resource_type::usm_memory) {
             // USM memory requires context (parent) for destruction, so we need to pass it to the resource
@@ -263,10 +263,6 @@ public:
 
     std::shared_ptr<ze_resource<resource_type>> get_resource() const {
         return _holder;
-    }
-
-    std::shared_ptr<ze_resource<parent_resource>> get_parent() const {
-        return _parent;
     }
 
     bool is_empty() const {
