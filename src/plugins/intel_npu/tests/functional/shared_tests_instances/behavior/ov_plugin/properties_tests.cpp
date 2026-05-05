@@ -27,12 +27,16 @@ constexpr std::vector<T> operator+(const std::vector<T>& vector1, const std::vec
 
 ov::log::Level getTestsLogLevelFromEnvironmentOr(ov::log::Level instead) {
     if (auto var = std::getenv("OV_NPU_LOG_LEVEL")) {
-        std::istringstream stringStream = std::istringstream(var);
-        ov::log::Level level;
+        try {
+            std::istringstream stringStream = std::istringstream(var);
+            ov::log::Level level;
 
-        stringStream >> level;
+            stringStream >> level;
 
-        return level;
+            return level;
+        } catch (...) {
+            // ignore parsing errors and return default log level
+        }
     }
     return instead;
 }

@@ -6,7 +6,9 @@
 
 #include <string>
 
+#include "moe/moe_executor.hpp"
 #include "partitioning/partitioning.hpp"
+#include "partitioning/patterns/moe.hpp"
 #include "partitioning/patterns/sdpa.hpp"
 #include "v1/subgraph_pipeline.hpp"
 
@@ -97,4 +99,23 @@ TEST(SubgraphPipelineBehaviorTest, RealPatternRegistrationBuildsRuntimeBehaviorF
               ov::npuw::patterns::attn::SDPA::pattern_name());
     auto behavior = compiled_pipeline.runtime_behavior->factory(compiled_pipeline.runtime_behavior->context);
     EXPECT_NE(behavior, nullptr);
+}
+
+TEST(SubgraphPipelineBehaviorTest, MoERegistrationBuildsDeferredPartitionPipelineForExpertFunction) {
+    ov::npuw::Function function;
+    function.settag(ov::npuw::patterns::moe::GPTOSSExpert::isolation_tag());
+
+    ov::npuw::v1::subgraphs::PatternRegistry registry;
+    auto registrations =
+        ov::npuw::moe::register_patterns(registry, 0u);
+    registry.apply(function);
+
+    ASSERT_TRUE(static_cast<bool>(function._pipeline.partition_stage));
+    ASSERT_TRUE(static_cast<bool>(function._pipeline.compile_stage));
+    EXPECT_EQ(function._pipeline.registration.group, ov::npuw::patterns::moe::GPTOSSExpert::group_name());
+    EXPECT_EQ(function._pipeline.registration.name, ov::npuw::patterns::moe::GPTOSSExpert::pattern_name());
+    EXPECT_NE(std::find(function._pipeline.registration.patterns.begin(),
+                        function._pipeline.registration.patterns.end(),
+                        ov::npuw::patterns::moe::GPTOSSExpert::pattern_name()),
+              function._pipeline.registration.patterns.end());
 }
