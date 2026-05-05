@@ -292,6 +292,24 @@ TEST(FrontEndConvertModelTest, SavedModelOobAssignPath) {
     }
 }
 
+TEST(FrontEndConvertModelTest, SavedModelOobRestoreV2ShortInputs) {
+    shared_ptr<Model> model = nullptr;
+    try {
+        model = convert_model("saved_model_oob_restorev2_short_inputs");
+        FAIL() << "Expected exception when RestoreV2 tensor_names input is missing";
+    } catch (const ov::Exception& e) {
+        string msg = e.what();
+        EXPECT_TRUE(msg.find("missing") != string::npos || msg.find("Const") != string::npos ||
+                    msg.find("attribute") != string::npos)
+            << "Unexpected error message: " << msg;
+        EXPECT_EQ(model, nullptr);
+    } catch (const std::exception& e) {
+        FAIL() << "Unexpected std::exception: " << e.what();
+    } catch (...) {
+        FAIL() << "Unexpected non-std exception";
+    }
+}
+
 // Same test with mmap disabled to verify the stream code path is also protected
 TEST(FrontEndConvertModelTest, SavedModelMaliciousOverflowOffsetNoMmap) {
     shared_ptr<Model> model = nullptr;

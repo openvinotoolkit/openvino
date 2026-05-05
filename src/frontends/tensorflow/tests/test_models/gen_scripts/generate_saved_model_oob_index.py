@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# What: Generates 4 malicious TF SavedModel directories that trigger the OOB read in
+# What: Generates 5 malicious TF SavedModel directories that trigger security guards in
 #       VariablesIndex::map_assignvariable() (variables_index.cpp).
 #       No TF runtime needed — all protobuf and SSTable structures are built by hand.
 #
@@ -10,20 +10,24 @@
 #         variables/variables.index   — Minimal SSTable (bundle header only, num_shards=1).
 #         variables/variables.data-*  — 64 zero bytes (needed to pass open-file checks).
 #
-#       Four variants:
-#         saved_model_oob_pos_index/    — TF2 (AssignVariableOp path):
-#                                         Identity.input = "save/RestoreV2:999",
-#                                         tensor_names has 1 entry → positive OOB index
-#         saved_model_oob_neg_index/    — TF2 (AssignVariableOp path):
-#                                         Identity.input = "save/RestoreV2:-1",
-#                                         tensor_names has 1 entry → negative OOB index
-#         saved_model_oob_empty_names/  — TF2 (AssignVariableOp path):
-#                                         Identity.input = "save/RestoreV2:0",
-#                                         tensor_names has 0 entries → OOB via implicit-0
-#                                         path when string_val_size()==0
-#         saved_model_oob_assign_path/  — TF1 (Assign path):
-#                                         Assign.input(1) = "save/RestoreV2:999",
-#                                         tensor_names has 1 entry → positive OOB index
+#       Five variants:
+#         saved_model_oob_pos_index/              — TF2 (AssignVariableOp path):
+#                                                   Identity.input = "save/RestoreV2:999",
+#                                                   tensor_names has 1 entry → positive OOB index
+#         saved_model_oob_neg_index/              — TF2 (AssignVariableOp path):
+#                                                   Identity.input = "save/RestoreV2:-1",
+#                                                   tensor_names has 1 entry → negative OOB index
+#         saved_model_oob_empty_names/            — TF2 (AssignVariableOp path):
+#                                                   Identity.input = "save/RestoreV2:0",
+#                                                   tensor_names has 0 entries → OOB via implicit-0
+#                                                   path when string_val_size()==0
+#         saved_model_oob_assign_path/            — TF1 (Assign path):
+#                                                   Assign.input(1) = "save/RestoreV2:999",
+#                                                   tensor_names has 1 entry → positive OOB index
+#         saved_model_oob_restorev2_short_inputs/ — TF2 (AssignVariableOp path):
+#                                                   tensor_names Const declared after RestoreV2
+#                                                   in GraphDef → associate_node skips it →
+#                                                   restorev2->inputs.size()==1 → inputs guard
 #
 # Why:  SSTable builder is copied verbatim from generate_saved_model_malicious_overflow.py.
 #       Generator is run by the CMake build system.
@@ -413,6 +417,113 @@ def write_savedmodel_tf1_assign(output_dir, index_str, num_string_vals=1):
         f.write(b'\x00' * 64)
 
 
+def build_saved_model_pb_restorev2_short_inputs():
+    """
+    Build saved_model.pb where tensor_names and shape_and_slices Const nodes appear
+    AFTER RestoreV2 in the GraphDef node list.  associate_node() only links inputs
+    that are already in the node dictionary, so RestoreV2->inputs will have only
+    'prefix' (inputs.size()==1), triggering the new inputs.size() > 1 guard.
+    """
+    DT_FLOAT = 1
+    DT_STRING = 7
+
+    dtype_attr = encode_varint_field(6, DT_FLOAT)
+    dim2 = encode_signed_varint_field(1, 2)
+    shape_proto = encode_bytes_field(2, dim2) + encode_bytes_field(2, dim2)
+    shape_attr = encode_bytes_field(7, shape_proto)
+
+    varhandle_node = build_node_def(
+        "my_var", "VarHandleOp",
+        attrs={"dtype": dtype_attr, "shape": shape_attr,
+               "container": encode_string_field(2, ""),
+               "shared_name": encode_string_field(2, "my_var")})
+
+    # prefix first (will be in dict before RestoreV2)
+    scalar_shape = encode_bytes_field(4, b"")
+    prefix_tensor = (encode_varint_field(1, DT_STRING) +
+                     scalar_shape +
+                     encode_bytes_field(8, b"checkpoint"))
+    dtype_str_attr = encode_varint_field(6, DT_STRING)
+    prefix_attr = encode_bytes_field(8, prefix_tensor)
+    prefix_node = build_node_def(
+        "prefix", "Const",
+        attrs={"value": prefix_attr, "dtype": dtype_str_attr})
+
+    # RestoreV2 declared before tensor_names / shape_and_slices
+    list_attr = encode_bytes_field(5, encode_varint_field(6, DT_FLOAT))
+    restorev2_node = build_node_def(
+        "save/RestoreV2", "RestoreV2",
+        inputs=["prefix", "tensor_names", "shape_and_slices"],
+        attrs={"dtypes": list_attr})
+
+    # tensor_names and shape_and_slices declared AFTER RestoreV2 — will not be linked
+    tensor_shape = encode_bytes_field(2, encode_signed_varint_field(1, 1))
+    tensor_proto = encode_varint_field(1, DT_STRING) + encode_bytes_field(4, tensor_shape)
+    tensor_proto += encode_bytes_field(8, b"Variable")
+    tensor_attr = encode_bytes_field(8, tensor_proto)
+    const_node = build_node_def(
+        "tensor_names", "Const",
+        attrs={"value": tensor_attr, "dtype": dtype_str_attr})
+
+    shape_tensor_shape = encode_bytes_field(2, encode_signed_varint_field(1, 1))
+    empty_shape_tensor = encode_varint_field(1, DT_STRING) + encode_bytes_field(4, shape_tensor_shape)
+    empty_shape_tensor += encode_bytes_field(8, b"")
+    empty_shape_attr = encode_bytes_field(8, empty_shape_tensor)
+    shape_slices_node = build_node_def(
+        "shape_and_slices", "Const",
+        attrs={"value": empty_shape_attr, "dtype": dtype_str_attr})
+
+    t_attr = encode_varint_field(6, DT_FLOAT)
+    identity_node = build_node_def(
+        "save/identity", "Identity",
+        inputs=["save/RestoreV2:0"],
+        attrs={"T": t_attr})
+    assign_node = build_node_def(
+        "save/Assign", "AssignVariableOp",
+        inputs=["my_var", "save/identity"],
+        attrs={"dtype": dtype_attr})
+    read_node = build_node_def(
+        "read_var", "ReadVariableOp",
+        inputs=["my_var"],
+        attrs={"dtype": dtype_attr})
+    output_identity = build_node_def(
+        "Identity", "Identity",
+        inputs=["read_var"],
+        attrs={"T": t_attr})
+
+    # Intentional ordering: RestoreV2 before its Const inputs
+    graph_def = (encode_bytes_field(1, varhandle_node) +
+                 encode_bytes_field(1, prefix_node) +
+                 encode_bytes_field(1, restorev2_node) +
+                 encode_bytes_field(1, const_node) +
+                 encode_bytes_field(1, shape_slices_node) +
+                 encode_bytes_field(1, identity_node) +
+                 encode_bytes_field(1, assign_node) +
+                 encode_bytes_field(1, read_node) +
+                 encode_bytes_field(1, output_identity))
+
+    meta_info_def = encode_string_field(1, "serve")
+    tensor_info = encode_string_field(1, "Identity:0") + encode_varint_field(2, DT_FLOAT)
+    sig_output_entry = encode_string_field(1, "output_0") + encode_bytes_field(2, tensor_info)
+    signature_def = encode_bytes_field(2, sig_output_entry)
+    sig_map_entry = encode_string_field(1, "serving_default") + encode_bytes_field(2, signature_def)
+    meta_graph_def = (encode_bytes_field(1, meta_info_def) +
+                      encode_bytes_field(2, graph_def) +
+                      encode_bytes_field(5, sig_map_entry))
+
+    return encode_signed_varint_field(1, 1) + encode_bytes_field(2, meta_graph_def)
+
+
+def write_savedmodel_restorev2_short_inputs(output_dir):
+    os.makedirs(os.path.join(output_dir, "variables"), exist_ok=True)
+    with open(os.path.join(output_dir, "saved_model.pb"), 'wb') as f:
+        f.write(build_saved_model_pb_restorev2_short_inputs())
+    with open(os.path.join(output_dir, "variables", "variables.index"), 'wb') as f:
+        f.write(build_minimal_variables_index())
+    with open(os.path.join(output_dir, "variables", "variables.data-00000-of-00001"), 'wb') as f:
+        f.write(b'\x00' * 64)
+
+
 def main():
     if len(sys.argv) < 2:
         print(f"Usage: {sys.argv[0]} <output_dir>")
@@ -438,6 +549,12 @@ def main():
     write_savedmodel_tf1_assign(os.path.join(base, "saved_model_oob_assign_path"),
                                 "save/RestoreV2:999")
     print(f"Generated: {os.path.join(base, 'saved_model_oob_assign_path')}")
+
+    # RestoreV2 with missing tensor_names input: tensor_names declared after RestoreV2 in
+    # GraphDef so associate_node leaves restorev2->inputs.size()==1 (only prefix linked)
+    write_savedmodel_restorev2_short_inputs(
+        os.path.join(base, "saved_model_oob_restorev2_short_inputs"))
+    print(f"Generated: {os.path.join(base, 'saved_model_oob_restorev2_short_inputs')}")
 
 
 if __name__ == '__main__':
