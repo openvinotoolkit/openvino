@@ -84,7 +84,7 @@ TEST_P(ClassCompatibilityStringTestSuite, CompatibilityCheckInvalidArgument) {
     ASSERT_TRUE(result == ov::CompatibilityCheck::NOT_APPLICABLE);
 
     // An incorrect runtime_requirements argument should return UNSUPPORTED
-    OV_ASSERT_NO_THROW(result = core.get_property(deviceName, ov::compatibility_check, ov::runtime_requirements("invalid_string")));
+    OV_ASSERT_NO_THROW(result = core.get_property(deviceName, ov::compatibility_check, std::make_pair(ov::runtime_requirements.name(), "invalid_string")));
     ASSERT_TRUE(result == ov::CompatibilityCheck::UNSUPPORTED);
 }
 
@@ -145,7 +145,7 @@ TEST_P(ClassCompatibilityStringTestSuite, CompatibilityStringGenerateAndCheck) {
     std::string requirements;
     OV_ASSERT_NO_THROW(requirements = compiledModel.get_property(ov::runtime_requirements));
     ov::CompatibilityCheck result;
-    OV_ASSERT_NO_THROW(result = core.get_property(deviceName, ov::compatibility_check, ov::runtime_requirements(requirements)));
+    OV_ASSERT_NO_THROW(result = core.get_property(deviceName, ov::compatibility_check, std::make_pair(ov::runtime_requirements.name(), requirements)));
     ASSERT_TRUE(result == ov::CompatibilityCheck::OPTIMAL);
 }
 
