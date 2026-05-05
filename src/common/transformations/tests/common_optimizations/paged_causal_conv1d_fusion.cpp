@@ -301,7 +301,7 @@ std::shared_ptr<ov::Model> build_fused_reference_model(const bool use_explicit_b
     cache_interval->set_friendly_name("la.cache_interval");
     cache_interval->get_output_tensor(0).set_names({"la.cache_interval"});
 
-    auto conv_state_table = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, 3, 4});
+    auto conv_state_table = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{-1, 3, 4});
     conv_state_table->set_friendly_name("conv_state_table.0");
     conv_state_table->get_output_tensor(0).set_names({"conv_state_table.0"});
 

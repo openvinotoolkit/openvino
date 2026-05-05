@@ -145,9 +145,20 @@ PagedCausalConv1DFusion::PagedCausalConv1DFusion(ov::pass::paged_attention::PaPa
         if (pm.count(p_add_bias)) {
             const auto bias_input = pm.at(p_bias_input).get_node_shared_ptr();
             const auto& bias_shape = bias_input->get_output_partial_shape(0);
-            if (bias_shape.rank().is_static() && bias_shape.rank().get_length() == 1) {
+            if (bias_shape.rank().is_static() && bias_shape.rank().get_length() == 1 &&
+                bias_shape[0].compatible(hidden_size)) {
                 bias_node = bias_input;
             } else {
+                if (bias_shape.is_static()) {
+                    // Validate that the total element count matches hidden_size
+                    size_t num_elements = 1;
+                    for (size_t i = 0; i < static_cast<size_t>(bias_shape.rank().get_length()); ++i) {
+                        num_elements *= bias_shape[i].get_length();
+                    }
+                    if (num_elements != hidden_size) {
+                        return false;
+                    }
+                }
                 const auto bias_shape_node =
                     v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
                 bias_node = std::make_shared<v1::Reshape>(bias_input, bias_shape_node, false);
