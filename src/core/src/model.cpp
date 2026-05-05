@@ -945,9 +945,20 @@ ov::Output<ov::Node> ov::Model::add_output(const ov::Output<ov::Node>& port) {
     return result->output(0);
 }
 
-std::shared_ptr<ov::Model> ov::Model::clone(bool copy_external_constants) const {
+std::shared_ptr<ov::Model> ov::Model::clone() const {
     std::unordered_map<ov::Node*, std::shared_ptr<ov::Node>> node_map;
-    return ov::clone_ov_model(*this, node_map, copy_external_constants);
+    return ov::clone_ov_model(*this, node_map);
+}
+
+void ov::Model::copy_external_constants() {
+    auto& nodes = get_ordered_ops();
+
+    for (const auto& node : nodes) {
+        if (ov::op::util::is_constant(node)) {
+            auto& const_node = ov::as_type_ptr<ov::op::v0::Constant>(node);
+            const_node->copy_external_data();
+        }
+    }
 }
 
 bool ov::Model::has_rt_info(const std::vector<std::string>& args) const {

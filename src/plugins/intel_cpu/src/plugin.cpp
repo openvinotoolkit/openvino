@@ -355,9 +355,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
 
     const auto& config = orig_config;
-    const std::shared_ptr<ov::Model> cloned_model = model->clone(true);
+    const std::shared_ptr<ov::Model> cloned_model = model->clone();
     Config::ModelType modelType = getModelType(model);
     DEBUG_LOG(PrintableModel(*cloned_model, "org_"));
+
+    //Constant nodes may have non owning buffers. Allocate buffer and copy them so taht those are owned by teh compiled model.
+    cloned_model->copy_external_constants();
 
     // update the props after the perf mode translated to configs
     // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?

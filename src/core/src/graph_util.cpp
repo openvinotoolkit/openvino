@@ -29,8 +29,7 @@
 namespace {
 
 void clone_ov_nodes(const std::vector<std::shared_ptr<ov::Node>>& nodes,
-                    std::unordered_map<ov::Node*, std::shared_ptr<ov::Node>>& node_map,
-                    bool copy_external_constants = false) {
+                    std::unordered_map<ov::Node*, std::shared_ptr<ov::Node>>& node_map) {
     // for each node in topological order
     for (const auto& node : nodes) {
         if (!node_map.count(node.get())) {
@@ -59,11 +58,6 @@ void clone_ov_nodes(const std::vector<std::shared_ptr<ov::Node>>& nodes,
 
             for (const auto& input : node->inputs()) {
                 cloned_node->input(input.get_index()).get_rt_info() = input.get_rt_info();
-            }
-
-            if (copy_external_constants && ov::op::util::is_constant(cloned_node)) {
-                auto& const_node = ov::as_type_ptr<ov::op::v0::Constant>(cloned_node);
-                const_node->copy_external_data();
             }
 
             node_map[node.get()] = std::move(cloned_node);
@@ -204,11 +198,9 @@ void replace_nodes(const std::shared_ptr<Model>& f,
     }
 }
 
-std::shared_ptr<Model> clone_ov_model(const Model& func,
-                                      std::unordered_map<Node*, std::shared_ptr<Node>>& node_map,
-                                      bool copy_external_constants) {
+std::shared_ptr<Model> clone_ov_model(const Model& func, std::unordered_map<Node*, std::shared_ptr<Node>>& node_map) {
     // clone model operations
-    clone_ov_nodes(func.get_ordered_ops(), node_map, copy_external_constants);
+    clone_ov_nodes(func.get_ordered_ops(), node_map);
 
     // clone variables
     auto variables = func.get_variables();
