@@ -153,9 +153,9 @@ public:
         }
 
         if (m_size > 0) {
-            const auto& [address, length, gap] = util::make_mmap_region(offset, m_size);
+            const auto& [aligned_offset, length, gap] = util::make_mmap_region(offset, m_size);
             m_mapped_view_size = length;
-            m_mapped_view = mmap(nullptr, length, PROT_READ, MAP_SHARED, fd, address);
+            m_mapped_view = mmap(nullptr, length, PROT_READ, MAP_SHARED, fd, aligned_offset);
             if (m_mapped_view == MAP_FAILED) {
                 throw std::runtime_error("Can not create file mapping for " + std::to_string(fd) +
                                          ", err=" + std::strerror(errno));
