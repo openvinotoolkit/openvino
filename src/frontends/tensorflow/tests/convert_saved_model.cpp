@@ -224,8 +224,7 @@ TEST(FrontEndConvertModelTest, SavedModelOobPositiveIndex) {
         convert_model("saved_model_oob_pos_index");
         FAIL() << "Expected exception for OOB positive RestoreV2 output index";
     } catch (const ov::Exception& e) {
-        EXPECT_TRUE(string(e.what()).find("out of range") != string::npos)
-            << "Unexpected error message: " << e.what();
+        EXPECT_TRUE(string(e.what()).find("out of range") != string::npos) << "Unexpected error message: " << e.what();
     } catch (const std::exception& e) {
         FAIL() << "Unexpected std::exception: " << e.what();
     } catch (...) {
@@ -239,8 +238,7 @@ TEST(FrontEndConvertModelTest, SavedModelOobNegativeIndex) {
         convert_model("saved_model_oob_neg_index");
         FAIL() << "Expected exception for negative RestoreV2 output index";
     } catch (const ov::Exception& e) {
-        EXPECT_TRUE(string(e.what()).find("out of range") != string::npos)
-            << "Unexpected error message: " << e.what();
+        EXPECT_TRUE(string(e.what()).find("out of range") != string::npos) << "Unexpected error message: " << e.what();
     } catch (const std::exception& e) {
         FAIL() << "Unexpected std::exception: " << e.what();
     } catch (...) {
@@ -256,8 +254,7 @@ TEST(FrontEndConvertModelTest, SavedModelOobEmptyTensorNames) {
         convert_model("saved_model_oob_empty_names");
         FAIL() << "Expected exception for OOB index into empty tensor_names";
     } catch (const ov::Exception& e) {
-        EXPECT_TRUE(string(e.what()).find("out of range") != string::npos)
-            << "Unexpected error message: " << e.what();
+        EXPECT_TRUE(string(e.what()).find("out of range") != string::npos) << "Unexpected error message: " << e.what();
     } catch (const std::exception& e) {
         FAIL() << "Unexpected std::exception: " << e.what();
     } catch (...) {
@@ -273,8 +270,7 @@ TEST(FrontEndConvertModelTest, SavedModelOobAssignPath) {
         convert_model("saved_model_oob_assign_path");
         FAIL() << "Expected exception for OOB RestoreV2 output index in Assign path";
     } catch (const ov::Exception& e) {
-        EXPECT_TRUE(string(e.what()).find("out of range") != string::npos)
-            << "Unexpected error message: " << e.what();
+        EXPECT_TRUE(string(e.what()).find("out of range") != string::npos) << "Unexpected error message: " << e.what();
     } catch (const std::exception& e) {
         FAIL() << "Unexpected std::exception: " << e.what();
     } catch (...) {
