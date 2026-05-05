@@ -19,8 +19,8 @@
 #include "snippets/op/convert_truncation.hpp"
 #include "snippets/op/load.hpp"
 #include "snippets/op/store.hpp"
-#include "transformations/snippets/x64/op/load_convert.hpp"
-#include "transformations/snippets/x64/op/store_convert.hpp"
+#include "transformations/snippets/common/op/load_convert.hpp"
+#include "transformations/snippets/common/op/store_convert.hpp"
 #include "utils/general_utils.h"
 
 bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_load_convert(
