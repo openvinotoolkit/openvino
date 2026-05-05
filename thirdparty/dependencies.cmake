@@ -389,8 +389,6 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
     else()
         add_subdirectory(thirdparty/protobuf EXCLUDE_FROM_ALL)
         # protobuf fails to build with -fsanitize=thread by clang
-        message("Test if OV_COMPILER_IS_CLANG is set to true before tsan filter")
-        message(OV_COMPILER_IS_CLANG)
         if(ENABLE_THREAD_SANITIZER AND OV_COMPILER_IS_CLANG)
             foreach(proto_target protoc libprotobuf libprotobuf-lite)
                 if(TARGET ${proto_target})
@@ -466,9 +464,7 @@ if(ENABLE_OV_TF_LITE_FRONTEND OR ENABLE_INTEL_NPU)
                 add_executable(flatc ALIAS flatbuffers::flatc)
             endif()
         endif()
-        # we dont want to build flatc with ThreadSanitizer since it causes issues during our build.
-        # this might be incorrect if flatbuffers::flatc gets used / linked in the NPU Plugin
-        # current assumption is that it is only a build tool
+        # disable TSan for flatc binary, only used as a build time tool, not in runtime.
         if(ENABLE_THREAD_SANITIZER AND TARGET flatc)
             target_compile_options(flatc PRIVATE -fno-sanitize=thread)
             target_link_options(flatc PRIVATE -fno-sanitize=thread)
