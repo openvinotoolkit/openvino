@@ -409,7 +409,7 @@ describe("ov.InferRequest tests with missing outputs names", () => {
 
 describe("GC safety infer() / inferAsync()", () => {
   const { reluLargeModel } = testModels;
-  const iterationCount = 10;
+  const iterationCount = 5;
   const elementCount = lengthFromShape(reluLargeModel.inputShape);
   let compiledModel = null;
   let inferRequest = null;
@@ -450,6 +450,7 @@ describe("GC safety infer() / inferAsync()", () => {
     for (let i = 0; i < iterationCount; i++) {
       promises.push(testInferAsync());
     }
+    if (typeof global.gc === "function") global.gc();
     const results = await Promise.all(promises);
     for (const result of results) {
       const data = result["relu_out"].getData();

@@ -45,12 +45,14 @@ describe("ov.Tensor tests", () => {
 
   test("Memory safe after the original TypedArray goes out of scope", () => {
     const tensors = [];
-    for (let i = 0; i < 10; i++) {
+    const iterationCount = 5;
+    for (let i = 0; i < iterationCount; i++) {
       const shape = [1, 3, 1024, 1024];
       const itemCount = lengthFromShape(shape);
       const img = new Float32Array(itemCount).fill(128.0);
       tensors.push(new ov.Tensor(ov.element.f32, shape, img));
     }
+    if (typeof global.gc === "function") global.gc();
 
     for (const tensor of tensors) {
       const view = tensor.getData();

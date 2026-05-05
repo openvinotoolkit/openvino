@@ -376,7 +376,7 @@ ov::Tensor cast_to_tensor(const Napi::TypedArray& typed_array,
     // SoPtr::_so and travels with every C++ copy of the tensor via ov::make_tensor,
     // keeping the JS ArrayBuffer alive until the last copy is destroyed.
     auto tensor = ov::Tensor(type, shape, typed_array.ArrayBuffer().Data());
-    OPENVINO_ASSERT(tensor.get_byte_size() == typed_array.ArrayBuffer().ByteLength(),
+    OPENVINO_ASSERT(tensor.get_byte_size() == typed_array.ByteLength(),
                     "Memory allocated using shape and element::type mismatch TypedArray byte length.");
     auto impl = ov::get_tensor_impl(tensor);
     auto ref = new Napi::Reference<Napi::TypedArray>(Napi::Persistent(typed_array));
