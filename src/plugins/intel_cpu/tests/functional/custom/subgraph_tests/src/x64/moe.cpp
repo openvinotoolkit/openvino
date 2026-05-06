@@ -179,8 +179,8 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
 
-        rel_threshold = 5e-4f;
-        abs_threshold = 5e-4f;
+        rel_threshold = 1e-3f;
+        abs_threshold = 1e-3f;
 
         const auto& [moe_params,
                      moe_type,

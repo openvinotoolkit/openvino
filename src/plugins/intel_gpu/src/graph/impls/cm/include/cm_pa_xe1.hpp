@@ -41,6 +41,7 @@ void pa_lsc_u8(
     constexpr int num_P_tiles = REG_N / REG_M;
     matrix<half, head_size/REG_K, REG_K*REG_N> rQ;
     matrix <float, head_size/REG_N*num_P_tiles, REG_M*REG_N> rO;
+    rO = 0;  // Initialize to prevent NaN from uninitialized values
     bool first_active = true;
 
     auto q_tokens_left = q_len;
@@ -393,6 +394,7 @@ void pa_kernel_lsc_prefetch_f16(
     constexpr int VALUE_TILE_NUM = 2;
     matrix<half, head_size/REG_K, REG_K*REG_N> rQ;
     matrix <float, head_size/REG_M, REG_M*REG_N> rO;
+    rO = 0;  // Initialize to prevent NaN from uninitialized values
     bool first_active = true;
 
 #if SPARSE_BLOCK_SIZE > 1

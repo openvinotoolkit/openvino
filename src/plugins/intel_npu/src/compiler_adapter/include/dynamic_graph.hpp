@@ -10,8 +10,8 @@
 
 #include "intel_npu/common/idynamic_graph.hpp"
 #include "intel_npu/common/network_metadata.hpp"
+#include "intel_npu/utils/vm/npu_vm_runtime_api.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
-#include "npu_vm_runtime_api.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace intel_npu {
@@ -19,6 +19,9 @@ class DynamicGraph final : public IDynamicGraph {
 public:
     struct MemRefTypeImpl {
         npu_vm_runtime_mem_ref_handle_t _memRef;
+        bool _ptrUpdated = false;
+        bool _shapeUpdated = false;
+        bool _strideUpdated = false;
 
         MemRefTypeImpl() : _memRef(nullptr) {}
 
@@ -30,6 +33,36 @@ public:
             // Update current MemRef handle to use latest metadata
             if (_memRef == nullptr) {
                 createMemRef(memref._dimsCount);
+            } else {
+                // Create a temporary MemRefType based on current handle and compare, use arg to create right size
+                MemRefType tempMemRef(memref._basePtr,
+                                      memref._data,
+                                      memref._offset,
+                                      memref._sizes,
+                                      memref._strides,
+                                      memref._dimsCount);
+                alignWithHandle(tempMemRef);
+                // Check ptr
+                if (memref._basePtr != tempMemRef._basePtr || memref._data != tempMemRef._data ||
+                    memref._offset != tempMemRef._offset) {
+                    _ptrUpdated = true;
+                } else {
+                    _ptrUpdated = false;
+                }
+
+                // Check shape
+                if (memref._sizes != tempMemRef._sizes) {
+                    _shapeUpdated = true;
+                } else {
+                    _shapeUpdated = false;
+                }
+
+                // Check strides
+                if (memref._strides != tempMemRef._strides) {
+                    _strideUpdated = true;
+                } else {
+                    _strideUpdated = false;
+                }
             }
             auto result = npuVMRuntimeSetMemRef(_memRef,
                                                 memref._basePtr,
@@ -77,10 +110,17 @@ public:
         }
     };
 
-    struct GraphArgumentsImpl : public GraphArguments {
+    struct GraphArgumentsImpl {
         std::vector<npu_vm_runtime_mem_ref_handle_t> _inputMemRefs;
         std::vector<npu_vm_runtime_mem_ref_handle_t> _outputMemRefs;
         npu_vm_runtime_execute_params_t _executeParams = {};
+
+        ~GraphArgumentsImpl() {
+            if (_executeParams.executionContext != nullptr) {
+                npuVMRuntimeDestroyExecutionContext(_executeParams.executionContext);
+                _executeParams.executionContext = nullptr;
+            }
+        }
     };
 
     class Impl {
