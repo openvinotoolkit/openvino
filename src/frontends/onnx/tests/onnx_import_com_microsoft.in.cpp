@@ -1566,6 +1566,47 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_dynamic_quantize_matmul_null_b
     test_case.run_with_tolerance_as_fp(0.0055f);
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_dynamic_quantize_lstm) {
+    const auto model = convert_model("com.microsoft/dynamic_quantize_lstm.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<float> input_X{0.25f, -0.5f, 1.0f, 1.5f, 0.75f, -1.25f};
+    const std::vector<int8_t> input_W{12, -7, 5, 9, -11, 3, 4, -6, 8, 13, -9, 2, 7, -5, 10, 1, -4, 6, 14, -8, 12,
+                                      -10, 11, -3};
+    const std::vector<int8_t> input_R{5, -3, 4, 7, -6, 2, 1, -4, 9, 8, -5, 3, 6, -7, 10, -2};
+    const std::vector<float> input_B{0.1f,  -0.2f,  0.05f, 0.3f,  -0.4f, 0.2f,  0.15f, -0.25f,
+                                     -0.05f, 0.12f, -0.18f, 0.22f, -0.08f, 0.09f, -0.11f, 0.07f};
+    const std::vector<int32_t> input_sequence_lens{2};
+    const std::vector<float> input_initial_h{0.2f, -0.1f};
+    const std::vector<float> input_initial_c{0.05f, 0.15f};
+    const std::vector<float> input_W_scale{0.05f};
+    const std::vector<int8_t> input_W_zero_point{1};
+    const std::vector<float> input_R_scale{0.04f};
+    const std::vector<int8_t> input_R_zero_point{-2};
+
+    const std::vector<float> expected_Y{0.11440717f, -0.06565752f, -0.00265372f, -0.20275351f};
+    const std::vector<float> expected_Y_h{-0.00265372f, -0.20275351f};
+    const std::vector<float> expected_Y_c{-0.00976340f, -0.24270093f};
+
+    test_case.add_input<float>(Shape{2, 1, 3}, input_X);
+    test_case.add_input<int8_t>(Shape{1, 3, 8}, input_W);
+    test_case.add_input<int8_t>(Shape{1, 2, 8}, input_R);
+    test_case.add_input<float>(Shape{1, 16}, input_B);
+    test_case.add_input<int32_t>(Shape{1}, input_sequence_lens);
+    test_case.add_input<float>(Shape{1, 1, 2}, input_initial_h);
+    test_case.add_input<float>(Shape{1, 1, 2}, input_initial_c);
+    test_case.add_input<float>(Shape{1}, input_W_scale);
+    test_case.add_input<int8_t>(Shape{1}, input_W_zero_point);
+    test_case.add_input<float>(Shape{1}, input_R_scale);
+    test_case.add_input<int8_t>(Shape{1}, input_R_zero_point);
+
+    test_case.add_expected_output<float>(Shape{2, 1, 1, 2}, expected_Y);
+    test_case.add_expected_output<float>(Shape{1, 1, 2}, expected_Y_h);
+    test_case.add_expected_output<float>(Shape{1, 1, 2}, expected_Y_c);
+
+    test_case.run_with_tolerance_as_fp(1e-6f);
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_skip_simplified_layer_normalization) {
     const auto model = convert_model("com.microsoft/skip_simplified_layer_normalization.onnx");
     auto test_case = ov::test::TestCase(model, s_device);
