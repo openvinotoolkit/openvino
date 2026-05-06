@@ -234,7 +234,8 @@ struct Read<
 
         while (c != '}') {
             std::string key, value;
-            if (is.peek() == '\'' || is.peek() == '"') {    // enabling keys with ":" sign
+            if (is.peek() == '\'' || is.peek() == '"') {
+                // enabling keys with ":" sign
                 char separator = is.peek();
                 is >> c;
                 std::getline(is, key, separator);
