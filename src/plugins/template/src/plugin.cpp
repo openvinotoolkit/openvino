@@ -353,7 +353,8 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
                                                     ov::device::capabilities,
                                                     ov::device::type,
                                                     ov::range_for_async_infer_requests,
-                                                    ov::execution_devices};
+                                                    ov::execution_devices,
+                                                    ov::compatibility_check};
         return ro_properties;
     };
     const auto& default_rw_properties = []() {
@@ -416,6 +417,20 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
         return decltype(ov::execution_devices)::value_type{get_device_name()};
     } else if (ov::range_for_async_infer_requests == name) {
         return decltype(ov::range_for_async_infer_requests)::value_type{1, 1, 1};
+    } else if (ov::compatibility_check == name) {
+        if (auto it = arguments.find(ov::runtime_requirements.name()); it != arguments.end()) {
+            const auto& requirements = it->second.as<std::string>();
+            if (!requirements.empty()) {
+                if (const auto pos = requirements.find(get_runtime_requirements()); pos == 0) {
+                    return ov::CompatibilityCheck::OPTIMAL;
+                } else if (pos != std::string::npos) {
+                    return ov::CompatibilityCheck::PREFER_RECOMPILATION;
+                } else {
+                    return ov::CompatibilityCheck::UNSUPPORTED;
+                }
+            }
+        }
+        return ov::CompatibilityCheck::NOT_APPLICABLE;
     } else {
         return m_cfg.Get(name);
     }
@@ -426,3 +441,9 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
 static const ov::Version version = {CI_BUILD_NUMBER, "openvino_template_plugin"};
 OV_DEFINE_PLUGIN_CREATE_FUNCTION(ov::template_plugin::Plugin, version)
 // ! [plugin:create_plugin_engine]
+
+// ! [plugin:get_runtime_requirements]
+std::string_view ov::template_plugin::Plugin::get_runtime_requirements() const {
+    return "TEMPLATE_PLUGIN_CAPABILITIES_v1";
+}
+// ! [plugin:get_runtime_requirements]

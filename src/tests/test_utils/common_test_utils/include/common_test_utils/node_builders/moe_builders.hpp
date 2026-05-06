@@ -45,6 +45,7 @@ std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> build_sigmoid_bias_routing
     size_t number_of_experts,
     size_t topk);
 
+// gate_idx: 0 = gate (swish) at even positions (real gpt-oss), 1 = at odd positions.
 std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(
     const MoePatternParams& moe_params,
     const ov::element::Type data_precision,
@@ -55,7 +56,8 @@ std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(
     const std::optional<ov::test::utils::DecompressionType> decompression_multiply_type = std::nullopt,
     const std::optional<ov::test::utils::DecompressionType> decompression_subtract_type = std::nullopt,
     const std::optional<bool> reshape_on_decompression = std::nullopt,
-    const std::optional<int> decompression_group_size = std::nullopt);
+    const std::optional<int> decompression_group_size = std::nullopt,
+    size_t gate_idx = 0);
 
 std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
     const MoePatternParams& moe_params,

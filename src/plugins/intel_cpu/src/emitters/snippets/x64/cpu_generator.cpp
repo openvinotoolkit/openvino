@@ -104,11 +104,11 @@
 #include "snippets/target_machine.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
+#include "transformations/snippets/common/op/load_convert.hpp"
+#include "transformations/snippets/common/op/store_convert.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
-#include "transformations/snippets/x64/op/load_convert.hpp"
 #include "transformations/snippets/x64/op/perf_count_rdtsc.hpp"
-#include "transformations/snippets/x64/op/store_convert.hpp"
 #include "utils/general_utils.h"
 
 #ifdef SNIPPETS_DEBUG_CAPS
