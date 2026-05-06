@@ -163,6 +163,9 @@ protected:
             ov::test::CheckNumberOfNodesWithType(compiledModel,
                                                  pattern_type == MoePatternType::GEMM3 ? "moe_3gemm_fused_compressed" : "moe_gemm",
                                                  pattern_type == MoePatternType::GEMM3 ? 1 : 2);
+            if (pattern_type == MoePatternType::GEMM3) {
+                ov::test::CheckNumberOfNodesWithType(compiledModel, "moe_router_fused", 1);
+            }
         }
     }
 
@@ -221,7 +224,7 @@ const std::vector<MoeTestShapeParams> moe_params_smoke = {
     },
 };
 
-// Compressed weights — full GatherMatmul → MOECompressed → FuseMOE3GemmCompressed pipeline.
+// Compressed weights — full GatherMatmul → MOECompressed → FuseMoERouter pipeline.
 const std::vector<ov::element::Type> weights_precisions = {
     ov::element::u8,
     ov::element::u4,

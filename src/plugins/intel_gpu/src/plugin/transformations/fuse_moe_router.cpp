@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "fuse_moe_3gemm_compressed.hpp"
+#include "fuse_moe_router.hpp"
 
 #include <memory>
 
-#include "intel_gpu/op/moe_3gemm_fused_compressed.hpp"
+#include "intel_gpu/op/moe_router_fused.hpp"
+#include "ov_ops/moe_compressed.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/rt_info.hpp"
@@ -21,7 +22,6 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
-#include "openvino/op/shape_of.hpp"
 #include "openvino/op/sigmoid.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/softmax.hpp"
@@ -35,10 +35,9 @@
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/pp.hpp"
-#include "ov_ops/moe_compressed.hpp"
 
 namespace ov::intel_gpu {
-FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
+FuseMoERouter::FuseMoERouter() {
     using namespace ov::pass::pattern;
     using namespace ov::pass;
 #define ANY any_input()
@@ -160,56 +159,38 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
         }
 
         auto config = moe_compressed->get_config();
-        bool has_shared_expert = pattern_map.count(shared_gate_wei_m) > 0;
-        if (!has_shared_expert) {
-            config.num_shared_expert = 0;
-        }
-        auto hs_reshaped = pattern_map.count(hidden_state_reshape) ? pattern_map.at(hidden_state_reshape) : pattern_map.at(hidden_state_m);
-        OutputVector args{
-            hs_reshaped,
-            pattern_map.at(routing_matmul),
-            pattern_map.at(gate_wei_m),
-            pattern_map.at(gate_scale_m),
-            pattern_map.at(gate_zp_m),
-            pattern_map.at(up_wei_m),
-            pattern_map.at(up_scale_m),
-            pattern_map.at(up_zp_m),
-            pattern_map.at(down_wei_m),
-            pattern_map.at(down_scale_m),
-            pattern_map.at(down_zp_m),
-        };
+
+        // Create MoERouterFused op for routing (softmax/sigmoid + topk + normalize)
+        ov::intel_gpu::op::MoERouterFused::Config router_config;
+        router_config.num_expert = config.num_expert;
+        router_config.top_k = config.top_k;
+
+        OutputVector router_args{pattern_map.at(routing_matmul)};
         if (pattern_map.count(sig_routing_bias)) {
-            args.push_back(pattern_map.at(sig_routing_bias));
-            args.push_back(pattern_map.at(sig_eps_value));
-            config.routing_type = ov::op::internal::MOECompressed::RoutingType::SIGMOID_BIAS;
-        } else if (has_shared_expert) {
-            // SOFTMAX + shared expert: insert dummy placeholders at indices 11-12
-            // so that shared expert inputs always start at index 13.
-            auto dummy_bias = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {0.0f});
-            auto dummy_eps = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {0.0f});
-            args.push_back(dummy_bias);
-            args.push_back(dummy_eps);
-        }
-        if (has_shared_expert) {
-            args.push_back(pattern_map.at(shared_gate_wei_m));
-            args.push_back(pattern_map.at(shared_gate_scale_m));
-            args.push_back(pattern_map.at(shared_gate_zp_m));
-            args.push_back(pattern_map.at(shared_up_wei_m));
-            args.push_back(pattern_map.at(shared_up_scale_m));
-            args.push_back(pattern_map.at(shared_up_zp_m));
-            args.push_back(pattern_map.at(shared_down_wei_m));
-            args.push_back(pattern_map.at(shared_down_scale_m));
-            args.push_back(pattern_map.at(shared_down_zp_m));
-            args.push_back(pattern_map.at(shared_gate_gate_wei_m));
+            router_args.push_back(pattern_map.at(sig_routing_bias));
+            router_args.push_back(pattern_map.at(sig_eps_value));
+            router_config.routing_type = ov::intel_gpu::op::MoERouterFused::RoutingType::SIGMOID_BIAS;
         }
 
-        // WA: per_expert_scale[N] scale on routing subgraph is folded into w2_scale[N,...]
+        auto router_node = std::make_shared<ov::intel_gpu::op::MoERouterFused>(router_args, router_config);
+        ov::copy_runtime_info(moe_compressed, router_node);
+
+        // Replace routing inputs of MOECompressed with MoERouterFused outputs
+        // Input 1: routing_weights (topk_weights)
+        // Input 2: topk_indices
+        moe_compressed->input(1).replace_source_output(router_node->output(0));
+        moe_compressed->input(2).replace_source_output(router_node->output(1));
+
+        // WA (master PR #35744 gemma4): per_expert_scale[N] on routing subgraph is folded
+        // into w2_scale[N,...] of MOECompressed (input 9). Original pattern Multiply is
+        // consumed by MoERouterFused matching but the scale needs to materialize somewhere.
         if (pattern_map.count(sm_per_expert_scale_const)) {
             const auto per_expert_const = ov::as_type_ptr<ov::op::v0::Constant>(
                 pattern_map.at(sm_per_expert_scale_const).get_node_shared_ptr());
-            const auto w2_scale_const = ov::as_type_ptr<ov::op::v0::Constant>(args[9].get_node_shared_ptr());
+            const auto w2_scale_const = ov::as_type_ptr<ov::op::v0::Constant>(
+                moe_compressed->input_value(9).get_node_shared_ptr());
             OPENVINO_ASSERT(per_expert_const && w2_scale_const,
-                "FuseMOE3GemmCompressed: per_expert_scale and w2_scale must be Constant nodes");
+                "FuseMoERouter: per_expert_scale and w2_scale must be Constant nodes");
             const size_t ndim = w2_scale_const->get_shape().size();
             std::vector<int64_t> axes(ndim - 1);
             for (size_t i = 0; i < ndim - 1; ++i)
@@ -223,48 +204,35 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
             auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(per_expert_for_mul, axes_const);
             auto scaled_w2 = std::make_shared<ov::op::v1::Multiply>(w2_scale_const, unsqueeze);
             auto folded = ov::util::get_constant_from_source(scaled_w2->output(0));
-            ov::copy_runtime_info(args[9].get_node_shared_ptr(), folded);
-            OPENVINO_ASSERT(folded, "FuseMOE3GemmCompressed: failed to constant-fold per-expert scale into w2_scale");
-            args[9] = folded;
+            OPENVINO_ASSERT(folded, "FuseMoERouter: failed to constant-fold per-expert scale into w2_scale");
+            ov::copy_runtime_info(w2_scale_const, folded);
+            moe_compressed->input(9).replace_source_output(folded);
         }
 
-        std::shared_ptr<ov::Node> moe_router_fused = std::make_shared<ov::intel_gpu::op::MOE3GemmFusedCompressed>(args, config);
-        ov::copy_runtime_info(moe_compressed, moe_router_fused);
-
-        // If MOECompressed's first input was the original (un-reshaped) hidden state
-        // but the fused op works on the flattened 2D input, reshape the output back.
-        if (moe_compressed->input_value(0) != hs_reshaped) {
-            auto hidden_state_shape = std::make_shared<ov::op::v3::ShapeOf>(pattern_map.at(hidden_state_m));
-            moe_router_fused = std::make_shared<ov::op::v1::Reshape>(moe_router_fused, hidden_state_shape, false);
-            ov::copy_runtime_info(moe_compressed, {hidden_state_shape, moe_router_fused});
-        }
-
-        // If the routing branch contained an additional `routed_scaling_factor` Multiply
-        // (e.g. trinity-mini afmoe), it was consumed by the pattern but is NOT applied
-        // inside the fused op. Re-apply it on the output: since the routing weights
-        // are used as Σ w·y_e, scaling each w by `s` is equivalent to scaling the final
-        // sum by `s` (Σ (w·s)·y_e = s · Σ w·y_e). Insert a post-multiplication so the
-        // kernel does not need to know about this scale.
+        // Master PR #35684 (trinity-mini afmoe): an additional `routed_scaling_factor`
+        // Multiply on normalized routing weights. The Multiply is consumed by the matcher
+        // but is NOT applied inside MoERouterFused. Re-apply it as a post-Multiply on
+        // MOECompressed output: since routing weights enter as Σ w·y_e, scaling each w by `s`
+        // is equivalent to scaling the final sum by `s` (Σ (w·s)·y_e = s · Σ w·y_e).
         if (pattern_map.count(sig_norm_scaled)) {
             auto scale = pattern_map.at(sig_norm_scale);
-            // Match the dtype of the fused-op output (typically f16) to avoid
-            // an element-type mismatch in Multiply.
-            if (scale.get_element_type() != moe_router_fused->get_output_element_type(0)) {
-                scale = std::make_shared<ov::op::v0::Convert>(scale, moe_router_fused->get_output_element_type(0));
+            if (scale.get_element_type() != moe_compressed->get_output_element_type(0)) {
+                scale = std::make_shared<ov::op::v0::Convert>(scale, moe_compressed->get_output_element_type(0));
                 ov::copy_runtime_info(moe_compressed, scale.get_node_shared_ptr());
             }
-            auto post_mul = std::make_shared<ov::op::v1::Multiply>(moe_router_fused, scale);
+            auto post_mul = std::make_shared<ov::op::v1::Multiply>(moe_compressed->output(0), scale);
             ov::copy_runtime_info(moe_compressed, post_mul);
-            moe_router_fused = post_mul;
+            for (auto& target : moe_compressed->output(0).get_target_inputs()) {
+                if (target.get_node() != post_mul.get()) {
+                    target.replace_source_output(post_mul);
+                }
+            }
         }
-
-        moe_router_fused->set_friendly_name(moe_compressed->get_friendly_name());
-        ov::replace_node(moe_compressed, moe_router_fused);
 
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(moe_compressed_m, "FuseMOE3GemmCompressed");
+    auto m = std::make_shared<Matcher>(moe_compressed_m, "FuseMoERouter");
     this->register_matcher(m, callback);
 }
 

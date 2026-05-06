@@ -35,7 +35,6 @@ public:
         bool has_batch_dim = false;
         bool has_zp = false;
         ov::element::Type out_type = ov::element::dynamic;
-        RoutingType routing_type = RoutingType::SOFTMAX;
         std::optional<float> scale_factor;
     };
 

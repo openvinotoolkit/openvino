@@ -75,61 +75,9 @@ inline dnnl::algorithm moe_activation_to_dnnl_algo(ov::op::internal::MOE::Activa
     }
 }
 
-class MoE3GemmSwigluSoftMaxTopK : public KernelGenerator {
-public:
-    MoE3GemmSwigluSoftMaxTopK() : KernelGenerator("moe_3gemm_swiglu_fuse", "softmax_topk") {}
-
-protected:
-    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
-        auto jit = KernelGenerator::get_jit_constants(params);
-        auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
-        jit.make("SOFTMAX_TOPK_ENABLE", 1);
-        jit.make("TOP_K", desc->_config.top_k);
-        jit.make("VALUE_NUM", desc->_config.num_expert);
-        jit.make("SHARED_EXPERT_ENABLE", desc->_config.num_shared_expert > 0 ? 1 : 0);
-        jit.make("MOE_DTYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
-        jit.make("MOE_DTYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
-        return jit;
-    }
-
-    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
-        Arguments args;
-
-        return args;
-    }
-
-    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {}};
-    }
-};
-
-class MoE3GemmSwigluSigmoidBiasTopK : public KernelGenerator {
-public:
-    MoE3GemmSwigluSigmoidBiasTopK() : KernelGenerator("moe_3gemm_swiglu_fuse", "sigmoid_bias_topk") {}
-
-protected:
-    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
-        auto jit = KernelGenerator::get_jit_constants(params);
-        auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
-        jit.make("SIGMOID_BIAS_TOPK_ENABLE", 1);
-        jit.make("TOP_K", desc->_config.top_k);
-        jit.make("VALUE_NUM", desc->_config.num_expert);
-        jit.make("SHARED_EXPERT_ENABLE", desc->_config.num_shared_expert > 0 ? 1 : 0);
-        jit.make("MOE_DTYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
-        jit.make("MOE_DTYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
-        return jit;
-    }
-
-    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
-        Arguments args;
-
-        return args;
-    }
-
-    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {}};
-    }
-};
+// Routing kernels (softmax_topk / sigmoid_bias_topk) have been extracted to the
+// standalone MoERouterFused primitive (see moe_router_fused_opt.cpp). Top-k weights
+// and indices are now fed into this primitive via inputs TOPK_WEIGHTS / TOPK_INDICES.
 
 class MoE3GemmSwigluGather : public KernelGenerator {
 public:
@@ -599,8 +547,7 @@ dnnl::memory convert2dnnl(const memory::ptr& ptr, const std::vector<int64_t>& di
 class moe_3gemm_swiglu_opt_impl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::MoE3GemmSwigluImpl)
-    Stage::Ptr softmax_topk = make_stage<MoE3GemmSwigluSoftMaxTopK>();
-    Stage::Ptr sigmoid_bias_topk = make_stage<MoE3GemmSwigluSigmoidBiasTopK>();
+    // softmax_topk / sigmoid_bias_topk stages removed: routing is now performed by MoERouterFused.
     Stage::Ptr gather = make_stage<MoE3GemmSwigluGather>();
     Stage::Ptr scatter = make_stage<MoE3GemmSwigluScatter>();
     Stage::Ptr mlp_gate_up = make_stage<MoE3GemmSwigluMLPGateUp>();
@@ -766,15 +713,9 @@ public:
             GPU_DEBUG_TRACE_DETAIL << "MOE_BATCHED_GEMV_THRESHOLD = " << batched_gemv_threshold << std::endl;
         }
 
+        // Routing is now handled externally by MoERouterFused; this primitive consumes
+        // pre-computed topk weights/indices via inputs TOPK_WEIGHTS / TOPK_INDICES.
         // Don't change the order of stages
-        auto routing_type = node.as<moe_3gemm_fused_compressed>().get_primitive()->_config.routing_type;
-        if (routing_type == ov::op::internal::MOECompressed::RoutingType::SOFTMAX) {
-            add_stage(softmax_topk, params);
-        } else if (routing_type == ov::op::internal::MOECompressed::RoutingType::SIGMOID_BIAS) {
-            add_stage(sigmoid_bias_topk, params);
-        } else {
-            OPENVINO_THROW("Unsupported routing type for moe_3gemm_swiglu_opt_impl: ", static_cast<int>(routing_type));
-        }
         add_stage(gather, params);
         add_stage(scatter, params);
         add_stage(mlp_gate_up, params);
@@ -1076,59 +1017,55 @@ public:
         bool has_shared_expert = params.input_layouts.size() > static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT);
 
         std::vector<BufferDescriptor> internal_buffers;
-        // softmax+topk
-        layout layout_topk_id(ov::Shape{token_num, max_topk}, data_types::u32, cldnn::format::bfyx);
-        layout layout_topk_weights(ov::Shape{token_num, max_topk + (has_shared_expert ? 1 : 0)}, data_type, cldnn::format::bfyx);
-        internal_buffers.emplace_back(layout_topk_id, true);       // 0: topk_id
-        internal_buffers.emplace_back(layout_topk_weights, true);  // 1: topk_weights
+        // topk_id / topk_weights are no longer internal buffers; they come from inputs (provided by MoERouterFused).
 
         // To support micro_gemm, prefill need to allocate max_topk * token_num for input data of micro_gemm
         auto max_batch = has_shared_expert ? (max_topk + 1) * token_num : max_topk * token_num;
         layout layout_gateup_out(ov::Shape{max_batch, static_cast<size_t>(config.inter_size)}, data_type, cldnn::format::bfyx);
         layout layout_down_out(ov::Shape{max_batch, static_cast<size_t>(config.hidden_size)}, data_type, cldnn::format::bfyx);
-        internal_buffers.emplace_back(layout_gateup_out, false);  // 2: up output (GPU-only)
-        internal_buffers.emplace_back(layout_down_out, false);    // 3: down output (GPU-only)
+        internal_buffers.emplace_back(layout_gateup_out, false);  // 0: up output (GPU-only)
+        internal_buffers.emplace_back(layout_down_out, false);    // 1: down output (GPU-only)
         // onednn: scratch.x, scratch.routing_weights = gather(x, ...)
         //         scratch.up = up(scratch.x)
         //         scratch.gate = gate(scratch.x) * scratch.up
         //         scratch.y = down(scratch.gate) * routing_weights
-        internal_buffers.emplace_back(layout_down_out, false);  // 4: up/gate input, scratch.x has same layout with down output (GPU-only)
+        internal_buffers.emplace_back(layout_down_out, false);  // 2: up/gate input, scratch.x has same layout with down output (GPU-only)
         layout routing_layout(ov::Shape{max_batch}, data_type, cldnn::format::bfyx);
-        internal_buffers.emplace_back(routing_layout, true);      // 5: routing_weights
-        internal_buffers.emplace_back(layout_gateup_out, false);  // 6: gate output, scratch.gate has same layout with up (GPU-only)
+        internal_buffers.emplace_back(routing_layout, true);      // 3: routing_weights
+        internal_buffers.emplace_back(layout_gateup_out, false);  // 4: gate output, scratch.gate has same layout with up (GPU-only)
 
         // expert masks for gpu
         layout index_layout(ov::Shape{expert_num, token_num}, ov::element::i32, cldnn::format::bfyx);
-        internal_buffers.emplace_back(index_layout, true);  // 7: expert_mask_batch
-        internal_buffers.emplace_back(index_layout, true);  // 8: expert_mask_topk
+        internal_buffers.emplace_back(index_layout, true);  // 5: expert_mask_batch
+        internal_buffers.emplace_back(index_layout, true);  // 6: expert_mask_topk
 
         GPU_DEBUG_TRACE_DETAIL << "[DEBUG] get_internal_buffer_descs(): use_micro_gemm_prefill=" << use_micro_gemm_prefill
                                << ", use_grouped_gemm_prefill=" << use_grouped_gemm_prefill << std::endl;
         // for micro_gemm
         if (use_micro_gemm_prefill && token_num > 1) {
             layout layout_micro_gemm(ov::Shape{expert_num, token_num}, ov::element::i32, cldnn::format::bfyx);
-            internal_buffers.emplace_back(layout_micro_gemm, true);  // 9: experts_ids for each activated expert
-            internal_buffers.emplace_back(layout_micro_gemm, true);  // 10: token start offset idx (input gather tokens) for each activated expert
-            internal_buffers.emplace_back(layout_micro_gemm, true);  // 11: token len (input gather tokens) for each activated expert
+            internal_buffers.emplace_back(layout_micro_gemm, true);  // 7: experts_ids for each activated expert
+            internal_buffers.emplace_back(layout_micro_gemm, true);  // 8: token start offset idx (input gather tokens) for each activated expert
+            internal_buffers.emplace_back(layout_micro_gemm, true);  // 9: token len (input gather tokens) for each activated expert
             layout layout_token_idx(ov::Shape{token_num * max_topk}, ov::element::i32, cldnn::format::bfyx);
-            internal_buffers.emplace_back(layout_token_idx, true);  // 12: token idx per expert
+            internal_buffers.emplace_back(layout_token_idx, true);  // 10: token idx per expert
             layout layout_actual_used_expert_num(ov::Shape{1}, ov::element::i32, cldnn::format::bfyx);
-            internal_buffers.emplace_back(layout_actual_used_expert_num, false);  // 13: actual_used_expert_num
+            internal_buffers.emplace_back(layout_actual_used_expert_num, false);  // 11: actual_used_expert_num
         }
-        // for grouped_gemm: shared metadata buffers (9-13) + int64_t expert-row-offsets (14)
+        // for grouped_gemm: shared metadata buffers (7-11) + int32_t expert-row-offsets (12)
         if (use_grouped_gemm_prefill && token_num > 1) {
             layout layout_meta(ov::Shape{expert_num, token_num}, ov::element::i32, cldnn::format::bfyx);
-            internal_buffers.emplace_back(layout_meta, true);  // 9: activated expert ids
-            internal_buffers.emplace_back(layout_meta, true);  // 10: token start offset per activated expert
-            internal_buffers.emplace_back(layout_meta, true);  // 11: token len per activated expert
+            internal_buffers.emplace_back(layout_meta, true);  // 7: activated expert ids
+            internal_buffers.emplace_back(layout_meta, true);  // 8: token start offset per activated expert
+            internal_buffers.emplace_back(layout_meta, true);  // 9: token len per activated expert
             layout layout_token_idx(ov::Shape{token_num * max_topk}, ov::element::i32, cldnn::format::bfyx);
-            internal_buffers.emplace_back(layout_token_idx, true);  // 12: flat token idx per expert (for gather)
+            internal_buffers.emplace_back(layout_token_idx, true);  // 10: flat token idx per expert (for gather)
             layout layout_actual_used_expert_num(ov::Shape{1}, ov::element::i32, cldnn::format::bfyx);
-            internal_buffers.emplace_back(layout_actual_used_expert_num, false);  // 13: actual_used_expert_num
+            internal_buffers.emplace_back(layout_actual_used_expert_num, false);  // 11: actual_used_expert_num
             // int32_t end-offsets per expert for OneDNN grouped memory descriptor
             // offsets[e] = sum(n_0..n_e), the exclusive end index of expert e in the flat buffer
             layout layout_grouped_offsets(ov::Shape{expert_num}, ov::element::i32, cldnn::format::bfyx);
-            internal_buffers.emplace_back(layout_grouped_offsets, true);  // 14: grouped end-offsets
+            internal_buffers.emplace_back(layout_grouped_offsets, true);  // 12: grouped end-offsets
         }
         return internal_buffers;
     }
@@ -1136,8 +1073,9 @@ public:
     void prepare_internal_buffers(typed_primitive_inst<moe_3gemm_fused_compressed>& instance, scratch_buffers& scratch, size_t token_num) {
         const auto& intermediates_memories = instance.get_intermediates_memories();
         auto& engine = instance.get_network().get_engine();
-        scratch.topk_id = intermediates_memories[MOE_INTERNAL_BUFFER_TOPK_IDX];
-        scratch.topk_weights = intermediates_memories[MOE_INTERNAL_BUFFER_TOPK_WEIGHTS];
+        // topk_id / topk_weights are read from inputs (computed by MoERouterFused).
+        scratch.topk_weights = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::TOPK_WEIGHTS));
+        scratch.topk_id = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::TOPK_INDICES));
         scratch.up = intermediates_memories[MOE_INTERNAL_BUFFER_UP_OUTPUT];
         scratch.y = intermediates_memories[MOE_INTERNAL_BUFFER_DOWN_OUTPUT];
         if (token_num > 1) {
@@ -1210,7 +1148,7 @@ public:
         }
     }
 
-    void get_expert_mask_from_gpu(const MOE3GemmFusedCompressed::Config& config, memory::ptr mem, stream& stream, expert_mask_cpu& expert_mask) {
+    void get_expert_mask_from_gpu(const MOECompressed::Config& config, memory::ptr mem, stream& stream, expert_mask_cpu& expert_mask) {
         // shape: [token_num, topk]
         auto layout = mem->get_layout();
         const auto& shape = layout.get_shape();
@@ -2299,37 +2237,13 @@ public:
         prepare_internal_buffers(instance, scratch, token_num);
         kernel_dump_info.clear_entries();
 
-        // routing: softmax+topk or sigmoid+bias+topk
-        auto lws_size = config.num_expert;
-        cldnn::event::ptr topk_event;
-        if (config.routing_type == ov::op::internal::MOECompressed::RoutingType::SOFTMAX) {
-            topk_event = execute_stage(events,
-                                       instance,
-                                       *softmax_topk,
-                                       {instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_WEIGHTS))},
-                                       {scratch.topk_id, scratch.topk_weights},
-                                       {token_num, lws_size},
-                                       {1, lws_size},
-                                       instance.needs_completion_event());
-        } else if (config.routing_type == ov::op::internal::MOECompressed::RoutingType::SIGMOID_BIAS) {
-            topk_event = execute_stage(events,
-                                       instance,
-                                       *sigmoid_bias_topk,
-                                       {instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_WEIGHTS)),
-                                        instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_BIAS)),
-                                        instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_EPS))},
-                                       {scratch.topk_id, scratch.topk_weights},
-                                       {token_num, lws_size},
-                                       {1, lws_size},
-                                       instance.needs_completion_event());
-        } else {
-            OPENVINO_THROW("Unsupported routing type ", static_cast<int>(config.routing_type));
-        }
+        // Routing is computed by the standalone MoERouterFused primitive; topk_weights / topk_indices
+        // arrive as inputs (already wired into scratch in prepare_internal_buffers).
 
         // Batched GEMV: for small token counts (including single token, MTP/speculative decoding),
         // use optimized GEMV kernels with batch dimension. Avoids gather/scatter overhead.
         if (token_num <= batched_gemv_threshold) {
-            return exec_batched_gemv({topk_event}, instance, scratch, token_num);
+            return exec_batched_gemv(events, instance, scratch, token_num);
         }
 
         auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
@@ -2343,8 +2257,12 @@ public:
         // always use CPU mask gen and therefore always need topk to be ready first.
         const bool use_gpu_mask_gen = use_micro_gemm_prefill && use_gpu_mask_gen_prefill;
         if (!use_gpu_mask_gen) {
-            // Wait for topk is ready
-            topk_event->wait();
+            // Wait for input events (topk produced upstream by MoERouterFused)
+            for (auto& ev : events) {
+                if (ev) {
+                    ev->wait();
+                }
+            }
         }
 
         GPU_DEBUG_TRACE_DETAIL << "\nMoE3GemmFusedCompressed exec(): token_num=" << token_num << ", max_topk=" << static_cast<int>(config.top_k)
@@ -2352,11 +2270,11 @@ public:
                                << std::endl;
         update_rt_params(instance);
         if (use_micro_gemm_prefill) {
-            ret_env = exec_prefill_micro_gemm({topk_event}, instance, scratch, use_gpu_mask_gen);
+            ret_env = exec_prefill_micro_gemm(events, instance, scratch, use_gpu_mask_gen);
         } else if (use_grouped_gemm_prefill) {
-            ret_env = exec_prefill_grouped_gemm({topk_event}, stream, instance, scratch);
+            ret_env = exec_prefill_grouped_gemm(events, stream, instance, scratch);
         } else {
-            ret_env = exec_prefill_onednn({topk_event}, stream, instance, scratch);
+            ret_env = exec_prefill_onednn(events, stream, instance, scratch);
         }
 
         if (_has_shared_expert) {
