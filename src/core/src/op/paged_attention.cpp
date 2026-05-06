@@ -71,7 +71,9 @@ std::vector<ov::element::Type> get_real_types() {
 namespace ov {
 namespace op {
 
-PagedAttentionExtension::PagedAttentionExtension(const ov::OutputVector& args) : ov::op::Op(args) {
+PagedAttentionExtension::PagedAttentionExtension(const ov::OutputVector& args, bool write_kv_cache)
+    : ov::op::Op(args),
+      m_write_kv_cache(write_kv_cache) {
     constructor_validate_and_infer_types();
 }
 
@@ -157,7 +159,12 @@ void PagedAttentionExtension::validate_and_infer_types() {
 }
 
 std::shared_ptr<ov::Node> PagedAttentionExtension::clone_with_new_inputs(const ov::OutputVector& new_args) const {
-    return std::make_shared<PagedAttentionExtension>(new_args);
+    return std::make_shared<PagedAttentionExtension>(new_args, m_write_kv_cache);
+}
+
+bool PagedAttentionExtension::visit_attributes(ov::AttributeVisitor& visitor) {
+    visitor.on_attribute("write_kv_cache", m_write_kv_cache);
+    return true;
 }
 
 void PagedAttentionExtension::set_out_type(int index, const ov::element::Type& output_type) {

@@ -112,6 +112,9 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     }
 
     std::unordered_set<std::string> var_ids_to_remove;
+    // Maps ReadValue variable_id + suffix ("/k", "/v") to the KV-cache Parameter of the owning layer.
+    // Used to detect shared KV-cache layers (multiple SDPAs referencing the same ReadValue).
+    StateManagementPattern::KvCacheParamMap seen_kv_var_ids;
 
     std::shared_ptr<v0::Parameter> position_ids = m_params.get("position_ids");
     if (!position_ids) {
@@ -146,7 +149,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     manager.register_pass<ov::pass::GatedDeltaNetFusion>();  // This pass is required to ensure that all GatedDeltaNet
                                                              // nodes are in the expected form before running
                                                              // PagedGatedDeltaNetFusion.
-    manager.register_pass<StateManagementPattern>(m_params, m_results, m_options, var_ids_to_remove);
+    manager.register_pass<StateManagementPattern>(m_params, m_results, m_options, seen_kv_var_ids);
     manager.register_pass<PagedCausalConv1DFusion>(m_params, var_ids_to_remove);
     manager.register_pass<PagedGatedDeltaNetFusion>(m_params, var_ids_to_remove);
     manager.register_pass<PrevSequenceLengthPattern>(processed_input_ids, max_context_len, position_ids);
@@ -167,7 +170,9 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
         for (auto& sink : sinks) {
             if (auto assign = ov::as_type_ptr<ov::op::util::AssignBase>(sink)) {
-                if (var_ids_to_remove.count(assign->get_variable_id())) {
+                const auto& var_id = assign->get_variable_id();
+                if (var_ids_to_remove.count(var_id) || seen_kv_var_ids.count(var_id + "/k") ||
+                    seen_kv_var_ids.count(var_id + "/v")) {
                     model->remove_sink(sink);
                 }
             }
