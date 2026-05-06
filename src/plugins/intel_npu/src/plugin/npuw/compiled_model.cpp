@@ -982,7 +982,7 @@ void ov::npuw::CompiledModel::export_model(std::ostream& raw_stream) const {
         auto bank_name = m_weights_bank->get_name();
         stream & bank_name;
         if (!is_weightless) {
-            stream & *m_weights_bank;
+            stream&* m_weights_bank;
         }
         return;
     }
@@ -1005,7 +1005,7 @@ void ov::npuw::CompiledModel::export_model(std::ostream& raw_stream) const {
     auto bank_name = m_weights_bank->get_name();
     stream & bank_name;
     if (!is_weightless) {
-        stream & *m_weights_bank;
+        stream&* m_weights_bank;
     }
 }
 
@@ -1073,7 +1073,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::import_model(
             compiled->finalize_weights_bank();
         } else {
             compiled->m_weights_bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
-            stream & *compiled->m_weights_bank;
+            stream& * compiled->m_weights_bank;
             compiled->reconstruct_closure();
         }
     };

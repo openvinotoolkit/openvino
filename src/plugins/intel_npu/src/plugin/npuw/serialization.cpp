@@ -277,8 +277,8 @@ void ov::npuw::orc::serialize(Stream& stream, ov::AnyMap& var) {
 // Weightless
 // FIXME: all serialization needs a good rewriting
 void ov::npuw::orc::serialize_weightless(Stream& stream,
-                                          std::vector<ov::Tensor>& var,
-                                          const ov::npuw::s11n::WeightsContext& ctx) {
+                                         std::vector<ov::Tensor>& var,
+                                         const ov::npuw::s11n::WeightsContext& ctx) {
     if (stream.output()) {
         auto size = var.size();
         serialize(stream, size);

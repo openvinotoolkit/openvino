@@ -444,19 +444,29 @@ Target load_versioned_payload_chain_impl(const Section& section) {
 
 }  // namespace detail (reopened)
 
-// Single-arg form: version list is derived automatically from Target::Prev chain.
-// Target must define:
-//   using Prev = <most-recent frozen snapshot type>;  (updated each time a new version ships)
-//   static constexpr Version kVersion = Prev::kVersion;
+// Single-arg form: version list is derived automatically from the Target's Prev chain.
+//
+// For V1+ types, Target must define:
+//   using Prev = <most-recent frozen snapshot>;   // updated when a new version ships
+//   static constexpr Version kVersion = ...;      // via ORC_DECLARE_VERSION
+// The chain is walked at compile time: Target::Prev → Prev::Prev → … → V0.
 // Call site stays permanently neutral: load_versioned_payload<MyType>(section).
+//
+// For V0 types (no Prev, kVersion=0): decodes directly — no chain needed.
 template <typename Target>
 Target load_versioned_payload(const Section& section) {
-    static_assert(has_prev<Target>::value,
-                  "Single-arg load_versioned_payload requires Target to define 'using Prev = ...'");
+    static_assert(detail::has_version<Target>::value, "Target must define kVersion");
     if (section.is_container()) {
         OPENVINO_THROW("Cannot decode a container section as a raw ORC payload");
     }
-    return detail::load_versioned_payload_chain_impl<Target, typename Target::Prev>(section);
+    if constexpr (has_prev<Target>::value) {
+        return detail::load_versioned_payload_chain_impl<Target, typename Target::Prev>(section);
+    } else {
+        if (section.version != Target::kVersion) {
+            OPENVINO_THROW("Unsupported ORC section version ", section.version, " for type ID ", section.type);
+        }
+        return decode<Target>(section.payload);
+    }
 }
 
 }  // namespace orc
