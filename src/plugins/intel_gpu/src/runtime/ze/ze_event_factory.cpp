@@ -33,7 +33,7 @@ event::ptr ze_event_factory::create_event(uint64_t queue_stamp) {
         auto ctx_holder = m_engine.get_context_holder();
         ze_event_pool_handle_t event_pool;
         OV_ZE_EXPECT(ze::zeEventPoolCreate(ctx_holder.get_handle(), &event_pool_desc, 1, &device, &event_pool));
-        m_current_pool = ze_holder<ze_resource_type::event_pool>::make(ctx_holder, event_pool);
+        m_current_pool = ze_holder<ze_resource_type::event_pool>(event_pool, ctx_holder);
     }
 
     ze_event_handle_t event;
@@ -45,7 +45,7 @@ event::ptr ze_event_factory::create_event(uint64_t queue_stamp) {
         0
     };
     OV_ZE_EXPECT(ze::zeEventCreate(m_current_pool.get_handle(), &event_desc, &event));
-    auto event_holder = ze_holder<ze_resource_type::event>::make(m_current_pool, event);
+    auto event_holder = ze_holder<ze_resource_type::event>(event, m_current_pool);
 
     return std::make_shared<ze_event>(queue_stamp, *this, event, m_current_pool);
 }

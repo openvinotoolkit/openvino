@@ -5,6 +5,8 @@
 #include "ze_common.hpp"
 
 #include <cstdint>
+#include <variant>
+#include <memory>
 
 namespace cldnn {
 namespace ze {
@@ -223,19 +225,22 @@ private:
     const bool _is_owner;
 };
 
-struct ze_holder_base {
-    virtual ~ze_holder_base() = default;
-};
-
 template <ze_resource_type _resource_type>
-struct ze_holder : public ze_holder_base {
+struct ze_holder {
 public:
     static constexpr ze_resource_type resource_type = _resource_type;
     static constexpr ze_resource_type parent_resource = ze_resource_info<resource_type>::parent_resource;
     using parent_holder_t = ze_holder<parent_resource>;
     using handle_t = typename ze_resource_info<resource_type>::handle_t;
 
-    static ze_holder<resource_type> make(const parent_holder_t &parent, handle_t handle, bool take_ownership = true) {
+    ze_holder() = default;
+    ze_holder(const ze_holder &) = default;
+    ze_holder(ze_holder&&) = default;
+    ze_holder& operator=(const ze_holder&) = default;
+    ze_holder& operator=(ze_holder&&) = default;
+    explicit ze_holder(handle_t handle, parent_holder_t parent, bool take_ownership = true) {
+        OPENVINO_ASSERT(!parent.is_empty(), "[GPU] Parent holder can not be empty when creating holder");
+        // No need to check handle as resource ctor will throw for nullptr
         std::shared_ptr<ze_resource<resource_type>> resource;
         if constexpr (resource_type == ze_resource_type::usm_memory) {
             // USM memory requires context (parent) for destruction, so we need to pass it to the resource
@@ -243,14 +248,8 @@ public:
         } else {
             resource = std::make_shared<ze_resource<resource_type>>(handle, take_ownership);
         }
-        return ze_holder<resource_type>{std::move(resource), parent.get_resource()};
-    }
-    ze_holder() = default;
-    ze_holder(std::shared_ptr<ze_resource<resource_type>> holder, std::shared_ptr<ze_resource<parent_resource>> parent)
-        : _holder(std::move(holder)), _parent(std::move(parent)) {
-        if (_holder != nullptr) {
-            OPENVINO_ASSERT(_parent != nullptr, "[GPU] Parent resource can not be null when holder is not empty");
-        }
+        _holder = std::move(resource);
+        _parent = std::move(parent);
     }
     ~ze_holder() {
         drop();
@@ -261,8 +260,8 @@ public:
         return _holder->get_handle();
     }
 
-    std::shared_ptr<ze_resource<resource_type>> get_resource() const {
-        return _holder;
+    parent_holder_t get_parent() const {
+        return _parent;
     }
 
     bool is_empty() const {
@@ -272,26 +271,26 @@ public:
     void drop() {
         // Release holder before parent to ensure correct destruction order
         _holder.reset();
-        _parent.reset();
+        _parent.drop();
     }
 private:
     std::shared_ptr<ze_resource<resource_type>> _holder;
-    std::shared_ptr<ze_resource<parent_resource>> _parent;
+    parent_holder_t _parent;
 };
 
 template <>
-struct ze_holder<ze_resource_type::context> : public ze_holder_base {
+struct ze_holder<ze_resource_type::context> {
 public:
     static constexpr ze_resource_type resource_type = ze_resource_type::context;
     using handle_t = typename ze_resource_info<resource_type>::handle_t;
 
-    static ze_holder<resource_type> make(handle_t handle, bool take_ownership = true) {
-        auto resource = std::make_shared<ze_resource<resource_type>>(handle, take_ownership);
-        return ze_holder<resource_type>{resource};
-    }
     ze_holder() = default;
-    ze_holder(std::shared_ptr<ze_resource<resource_type>> holder)
-        : _holder(std::move(holder)) {}
+    ze_holder(const ze_holder &) = default;
+    ze_holder(ze_holder&&) = default;
+    ze_holder& operator=(const ze_holder&) = default;
+    ze_holder& operator=(ze_holder&&) = default;
+    explicit ze_holder(handle_t handle, bool take_ownership = true)
+        : _holder(std::make_shared<ze_resource<resource_type>>(handle, take_ownership)) {}
     ~ze_holder() {
         drop();
     }
@@ -299,10 +298,6 @@ public:
     handle_t get_handle() const {
         OPENVINO_ASSERT(_holder != nullptr, "[GPU] Attempt to get handle from an empty holder");
         return _holder->get_handle();
-    }
-
-    std::shared_ptr<ze_resource<resource_type>> get_resource() const {
-        return _holder;
     }
 
     bool is_empty() const {
@@ -315,6 +310,21 @@ public:
 private:
     std::shared_ptr<ze_resource<resource_type>> _holder;
 };
+
+using ze_holder_variant = std::variant<
+    std::monostate,
+    ze_holder<ze_resource_type::context>,
+    ze_holder<ze_resource_type::command_queue>,
+    ze_holder<ze_resource_type::command_list>,
+    ze_holder<ze_resource_type::module>,
+    ze_holder<ze_resource_type::kernel>,
+    ze_holder<ze_resource_type::event_pool>,
+    ze_holder<ze_resource_type::event>,
+    ze_holder<ze_resource_type::counter_based_event>,
+    ze_holder<ze_resource_type::image>,
+    ze_holder<ze_resource_type::fence>,
+    ze_holder<ze_resource_type::module_build_log>,
+    ze_holder<ze_resource_type::usm_memory>>;
 
 }  // namespace ze
 }  // namespace cldnn

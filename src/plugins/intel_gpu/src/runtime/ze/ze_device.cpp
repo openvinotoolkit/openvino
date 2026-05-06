@@ -354,7 +354,7 @@ void ze_device::initialize() {
     ze_context_desc_t context_desc = { ZE_STRUCTURE_TYPE_CONTEXT_DESC, nullptr, 0 };
     ze_context_handle_t ctx = nullptr;
     OV_ZE_EXPECT(ze::zeContextCreate(_driver, &context_desc, &ctx));
-    _context = ze_holder<ze_resource_type::context>::make(ctx);
+    _context = ze_holder<ze_resource_type::context>(ctx);
 }
 
 bool ze_device::is_initialized() const {

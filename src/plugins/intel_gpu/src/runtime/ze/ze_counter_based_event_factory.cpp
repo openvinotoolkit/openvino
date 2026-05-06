@@ -38,7 +38,7 @@ event::ptr ze_counter_based_event_factory::create_event(uint64_t queue_stamp) {
     }
     auto ctx_holder = m_engine.get_context_holder();
     OV_ZE_EXPECT(func_zexCounterBasedEventCreate2(ctx_holder.get_handle(), m_engine.get_device(), &desc, &event));
-    auto ev_holder = ze_holder<ze_resource_type::counter_based_event>::make(ctx_holder, event);
+    auto ev_holder = ze_holder<ze_resource_type::counter_based_event>(event, ctx_holder);
     auto cb_event = std::make_shared<ze_counter_based_event>(queue_stamp, *this, ev_holder);
     return cb_event;
 }
