@@ -61,7 +61,7 @@ endif()
 
 find_package(Vulkan QUIET)
 if(NOT Vulkan_FOUND)
-    set(OV_GPU_FUNC_TESTS_VULKAN_TAG "v1.4.341" CACHE STRING "Git tag used when downloading Vulkan dependencies for GPU functional tests" FORCE)
+    set(OV_GPU_FUNC_TESTS_VULKAN_TAG "v1.4.304" CACHE STRING "Git tag used when downloading Vulkan dependencies for GPU functional tests" FORCE)
     if(CMAKE_VERSION VERSION_LESS 3.14.0)
         message(WARNING "Vulkan was not found and automatic download requires CMake >= 3.14.0.")
     else()
