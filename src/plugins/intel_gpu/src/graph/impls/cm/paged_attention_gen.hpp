@@ -99,7 +99,6 @@ enum class PagedAttentionStage : uint8_t { GENERATE = 0, PREFILL = 1, MIXED = 2,
 enum class MixedRouteMode : uint8_t { MULTI = 0, SPLIT = 1 };
 struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
     PagedAttentionStage stage;
-    MixedRouteMode mixed_route_mode = MixedRouteMode::MULTI;
     size_t max_context_len;
     size_t batch_size_in_sequences;
     // below are rt params for decoding

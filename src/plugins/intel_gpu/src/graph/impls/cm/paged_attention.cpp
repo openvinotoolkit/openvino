@@ -97,6 +97,7 @@ public:
     }
     explicit PagedAttentionCmImpl(const kernel_impl_params& params) : PagedAttentionCmImpl() {
         const auto desc = params.typed_desc<paged_attention>();
+        m_mixed_route_mode = get_mixed_route_mode_from_config(params);
 
         GPU_DEBUG_TRACE_DETAIL << "ov::intel_gpu::cm::PagedAttentionCmImpl::PagedAttentionCmImpl()" << std::endl;
         add_stage(kv_cache_update, params);
@@ -148,7 +149,7 @@ public:
         const auto block_indices_begins = read_block_indices_begins(instance);
 
         const bool use_split_mixed = rt_params->stage == PagedAttentionStage::MIXED &&
-                                     rt_params->mixed_route_mode == MixedRouteMode::SPLIT;
+                                     m_mixed_route_mode == MixedRouteMode::SPLIT;
 
         size_t total_wg_count = 0;
         size_t max_q_block_pad = 0;
@@ -266,7 +267,6 @@ public:
         rt_params->enable_xattn_estimation = false;
 
         rt_params->stage = get_paged_attention_stage(params);
-        rt_params->mixed_route_mode = get_mixed_route_mode_from_config(params);
         const auto max_context_len = get_max_context_len(params);
         rt_params->max_context_len = max_context_len;
         GPU_DEBUG_TRACE_DETAIL << "update_rt_params for stage: " << static_cast<size_t>(rt_params->stage) << "  max_context_len: " << rt_params->max_context_len
@@ -283,7 +283,7 @@ public:
             const auto past_lens = read_past_lens(params);
             const auto wg_seq_len = PagedAttentionGeneratorMultiToken::get_wg_seq_len(params);
             const bool use_split_mixed = rt_params->stage == PagedAttentionStage::MIXED &&
-                                         rt_params->mixed_route_mode == MixedRouteMode::SPLIT;
+                                         m_mixed_route_mode == MixedRouteMode::SPLIT;
             for (size_t subsequence_id = 0; subsequence_id + 1 < subsequence_begins.size(); ++subsequence_id) {
                 const auto q_len = static_cast<size_t>(std::max<int32_t>(subsequence_begins[subsequence_id + 1] - subsequence_begins[subsequence_id], 0));
                 if (q_len == 0) {
@@ -338,7 +338,7 @@ public:
         auto& stream = instance.get_network().get_stream();
 
         const bool use_split_mixed = rt_params->stage == PagedAttentionStage::MIXED &&
-                                     rt_params->mixed_route_mode == MixedRouteMode::SPLIT;
+                                     m_mixed_route_mode == MixedRouteMode::SPLIT;
 
         const auto subsequence_begins = read_subsequence_begins(params);
         std::vector<int32_t> past_lens;
@@ -440,7 +440,7 @@ public:
         size_t selected_count = 0;
 
         const bool use_split_mixed = rt_params->stage == PagedAttentionStage::MIXED &&
-                                     rt_params->mixed_route_mode == MixedRouteMode::SPLIT;
+                                     m_mixed_route_mode == MixedRouteMode::SPLIT;
         if (force_lockable) {
             OPENVINO_ASSERT(alloc_type != cldnn::allocation_type::usm_device,
                             "prepare_single_token_selected_ids requires lockable memory when OV_GPU_CM_PA_FORCE_LOCKABLE_MAPPING is enabled");
@@ -572,7 +572,7 @@ public:
         if (rt_params->stage == PagedAttentionStage::PREFILL) {
             execute_multi_token_path();
         } else if (rt_params->stage == PagedAttentionStage::MIXED) {
-            if (rt_params->mixed_route_mode == MixedRouteMode::SPLIT) {
+            if (m_mixed_route_mode == MixedRouteMode::SPLIT) {
                 prepare_single_token_selected_ids(instance);
                 if (rt_params->single_token_selected_count > 0) {
                     res_event = {execute_stage(res_event, instance, pa_single_token)};
@@ -631,7 +631,7 @@ public:
             int64_t decode_tmp_out_elements_count = 16;
             int64_t decode_buf_elements_count = 16;
             const bool needs_single_token_buffers = stage == PagedAttentionStage::MIXED &&
-                                                    rt_params->mixed_route_mode == MixedRouteMode::SPLIT &&
+                                                    m_mixed_route_mode == MixedRouteMode::SPLIT &&
                                                     rt_params->single_token_selected_count > 0;
             if (needs_single_token_buffers) {
                 OPENVINO_ASSERT(rt_params->num_of_partitions != 0);
@@ -685,6 +685,7 @@ public:
 
 private:
     std::vector<int32_t> m_xattn_meta;
+    MixedRouteMode m_mixed_route_mode = MixedRouteMode::MULTI;
 
     void validate_xattn_inputs(const kernel_impl_params& params, size_t batch_size) {
         const auto& input_mem = params.memory_deps;
