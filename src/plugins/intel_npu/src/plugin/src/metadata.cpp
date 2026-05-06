@@ -342,20 +342,7 @@ void Metadata<METADATA_VERSION_2_2>::read_as_text() {
         return;
     }
     const int64_t batchValue = std::stoll(it->second);
-    _batchSize = (batchValue != 0) ? std::optional<int64_t>(batchValue) : std::nullopt;
-}
-
-void Metadata<METADATA_VERSION_2_3>::read_as_text() {
-    Metadata<METADATA_VERSION_2_2>::read_as_text();
-}
-
-void Metadata<METADATA_VERSION_2_4>::read_as_text() {
-    Metadata<METADATA_VERSION_2_3>::read_as_text();
-    _compilerVersion = std::nullopt;
-}
-
-void Metadata<METADATA_VERSION_2_5>::read_as_text() {
-    Metadata<METADATA_VERSION_2_4>::read_as_text();
+    _batchSize = batchValue != 0 ? std::optional<int64_t>(batchValue) : std::nullopt;
 }
 
 void Metadata<METADATA_VERSION_2_0>::write(std::ostream& stream) {
@@ -443,21 +430,9 @@ void Metadata<METADATA_VERSION_2_1>::write_as_text(std::ostream& stream) {
 void Metadata<METADATA_VERSION_2_2>::write_as_text(std::ostream& stream) {
     Metadata<METADATA_VERSION_2_1>::write_as_text(stream);
 
-    if (_batchSize.has_value() && _batchSize.value() > 0) {
+    if (_batchSize.has_value() && _batchSize.value() != 0) {
         write_text_field(stream, MetadataTextKeys::BATCH, _batchSize.value());
     }
-}
-
-void Metadata<METADATA_VERSION_2_3>::write_as_text(std::ostream& stream) {
-    Metadata<METADATA_VERSION_2_2>::write_as_text(stream);
-}
-
-void Metadata<METADATA_VERSION_2_4>::write_as_text(std::ostream& stream) {
-    Metadata<METADATA_VERSION_2_3>::write_as_text(stream);
-}
-
-void Metadata<METADATA_VERSION_2_5>::write_as_text(std::ostream& stream) {
-    Metadata<METADATA_VERSION_2_4>::write_as_text(stream);
 }
 
 std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSize) {

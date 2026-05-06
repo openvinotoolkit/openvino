@@ -115,7 +115,8 @@ public:
 
 protected:
     /**
-     * @brief Reads data from the source containing the metadata. The implementation depends on the type of source.
+     * @brief Reads data from the source containing the binary metadata. The implementation depends on the type of
+     * source.
      */
     void read_data_from_source(char* destination, const size_t size);
 
@@ -137,6 +138,11 @@ protected:
      */
     std::map<std::string, std::string, std::less<>> _textAttrs;
 
+    /**
+     * @brief Where the metadata is read from. The type can be a stream, an OpenVINO tensor or "uninitialized_source".
+     * @details Stored as attribute in order to avoid repeatedly passing the same arguments to some methods.
+     * "uninitialized_source" (void*) is the default type assigned upon creation.
+     */
     Source _source;
 
     /**
@@ -351,11 +357,7 @@ public:
 
     void read() override;
 
-    void read_as_text() override;
-
     void write(std::ostream& stream) override;
-
-    void write_as_text(std::ostream& stream) override;
 
     std::optional<std::vector<ov::Layout>> get_input_layouts() const override;
 
@@ -382,11 +384,7 @@ public:
 
     void read() override;
 
-    void read_as_text() override;
-
     void write(std::ostream& stream) override;
-
-    void write_as_text(std::ostream& stream) override;
 
     std::optional<uint32_t> get_compiler_version() const override;
 
@@ -412,11 +410,7 @@ public:
 
     void read() override;
 
-    void read_as_text() override;
-
     void write(std::ostream& stream) override;
-
-    void write_as_text(std::ostream& stream) override;
 
     std::optional<bool> is_encrypted_blob() const override;
 

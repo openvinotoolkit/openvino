@@ -26,6 +26,10 @@ const std::vector<MetadataTextTest::ParamType> inputs = {
          make_key_value_field(MetadataTextKeys::BATCH, "4") + ";" +
          make_key_value_field(MetadataTextKeys::WS_INITS, "1"),
      true},
+    {make_key_value_field(MetadataTextKeys::META, "2.2") + ";" +
+         make_key_value_field(MetadataTextKeys::OV, "2026.1.0") + ";" +
+         make_key_value_field(MetadataTextKeys::BATCH, "-1"),
+     false},
     // order independent: metadata version field is not first
     {make_key_value_field(MetadataTextKeys::OV, "2026.1.0") + ";" + make_key_value_field(MetadataTextKeys::META, "2.0"),
      true},
