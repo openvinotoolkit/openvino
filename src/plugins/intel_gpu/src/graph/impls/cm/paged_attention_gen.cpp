@@ -24,12 +24,6 @@ using namespace cldnn;
 namespace {
 constexpr size_t reduce_split_step = 16;
 constexpr size_t KV_SUB_BLOCK_SIZE = 16;
-
-size_t get_batch_size_in_sequences(const RuntimeParams& params) {
-    const auto past_lens_shape = params.input_layouts[PagedAttentionInputIdx::PAST_LENS].get_shape();
-    OPENVINO_ASSERT(!past_lens_shape.empty(), "PAST_LENS layout must have at least 1 dimension");
-    return past_lens_shape[0];
-}
 }  // namespace
 
 #define DEBUG_ENABLED 0
@@ -64,18 +58,6 @@ inline bool get_kv_compressed(const RuntimeParams& params) {
     }
 }
 
-inline size_t get_kv_update_wg_size(const RuntimeParams& params) {
-    const auto desc = params.typed_desc<paged_attention>();
-    if (get_kv_compressed(params) && desc->is_key_by_channel) {
-        const size_t block_size = desc->has_xattention ? PA_KV_CACHE_BLOCK_SIZE_XATTN
-                                                       : PA_KV_CACHE_BLOCK_SIZE_LEGACY;
-        OPENVINO_ASSERT(block_size % KV_SUB_BLOCK_SIZE == 0,
-                        "block_size (", block_size, ") must be divisible by KV_SUB_BLOCK_SIZE (", KV_SUB_BLOCK_SIZE, ")");
-        return block_size / KV_SUB_BLOCK_SIZE;
-    }
-    return WG_SIZE;
-}
-
 // max_context_len = max(past_lens + prompt_lens)
 size_t get_max_context_len(const kernel_impl_params& params) {
     const auto& input_mem = params.memory_deps;
@@ -85,12 +67,10 @@ size_t get_max_context_len(const kernel_impl_params& params) {
     return paged_attention_max_len;
 }
 
-size_t get_past_len(const kernel_impl_params& params, const size_t seq_idx) {
-    const auto& input_mem = params.memory_deps;
-    const auto past_len = input_mem.at(PagedAttentionInputIdx::PAST_LENS);
-    mem_lock<int32_t, mem_lock_type::read> past_len_mem_lock(past_len, *params.strm);
-    const auto paged_attention_past_len = past_len_mem_lock[seq_idx];
-    return paged_attention_past_len;
+size_t get_batch_size_in_sequences(const std::vector<layout>& input_layouts) {
+    const auto past_lens_shape = input_layouts[PagedAttentionInputIdx::PAST_LENS].get_shape();
+    OPENVINO_ASSERT(!past_lens_shape.empty(), "PAST_LENS layout must have at least 1 dimension");
+    return past_lens_shape[0];
 }
 
 // TODO: change xattn_thresh from scaler to memory... once we remove the converter node
@@ -234,6 +214,18 @@ JitConstants PagedAttentionGeneratorKVCacheUpdate::get_jit_constants(const kerne
     return jit;
 }
 
+size_t PagedAttentionGeneratorKVCacheUpdate::get_kv_update_wg_size(const RuntimeParams& params) {
+    const auto desc = params.typed_desc<paged_attention>();
+    if (get_kv_compressed(params) && desc->is_key_by_channel) {
+        const size_t block_size = desc->has_xattention ? PA_KV_CACHE_BLOCK_SIZE_XATTN
+                                                       : PA_KV_CACHE_BLOCK_SIZE_LEGACY;
+        OPENVINO_ASSERT(block_size % KV_SUB_BLOCK_SIZE == 0,
+                        "block_size (", block_size, ") must be divisible by KV_SUB_BLOCK_SIZE (", KV_SUB_BLOCK_SIZE, ")");
+        return block_size / KV_SUB_BLOCK_SIZE;
+    }
+    return WG_SIZE;
+}
+
 Arguments PagedAttentionGeneratorKVCacheUpdate::get_arguments_desc(const kernel_impl_params& params) const {
     Arguments args;
     args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::KEY});                   // queries
@@ -262,7 +254,7 @@ DispatchDataFunc PagedAttentionGeneratorKVCacheUpdate::get_dispatch_data_func() 
 
         const size_t kv_len = get_input_kv_len(params);
         const size_t kv_heads_num = desc->kv_heads_num;
-        const size_t kv_wg_size = get_kv_update_wg_size(params);
+        const size_t kv_wg_size = PagedAttentionGeneratorKVCacheUpdate::get_kv_update_wg_size(params);
         size_t kv_items;
         if (get_kv_compressed(params) && desc->is_key_by_channel) {
             const auto past_lens_mem = params.memory_deps.at(PagedAttentionInputIdx::PAST_LENS);
@@ -270,7 +262,7 @@ DispatchDataFunc PagedAttentionGeneratorKVCacheUpdate::get_dispatch_data_func() 
             const auto subseq_begins_mem = params.memory_deps.at(PagedAttentionInputIdx::SUBSEQUENCE_BEGINS);
             mem_lock<int32_t, mem_lock_type::read> subseq_begins_lock(subseq_begins_mem, *params.strm);
 
-            const size_t batch_size = get_batch_size_in_sequences(params);
+            const size_t batch_size = get_batch_size_in_sequences(params.input_layouts);
             size_t total_sub_blocks = 0;
             for (size_t i = 0; i < batch_size; ++i) {
                 const size_t past_tail = static_cast<size_t>(past_lens_lock[i]) % KV_SUB_BLOCK_SIZE;
@@ -327,7 +319,7 @@ DispatchDataFunc PagedAttentionGeneratorKVCacheUpdate::get_dispatch_data_func() 
                       << ", " << wgs.global[1] << ", " << wgs.global[2] << "]" << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2]
                       << "]" << std::endl;
         }
-        size_t batch_size_in_sequences = get_batch_size_in_sequences(params);
+        size_t batch_size_in_sequences = get_batch_size_in_sequences(params.input_layouts);
         std::vector<size_t> scaler_value = {key_pitch, key_offset, value_pitch, value_offset, batch_size_in_sequences};
         scalars.resize(scaler_value.size());
 
@@ -508,10 +500,9 @@ DispatchDataFunc PagedAttentionGeneratorSingleToken::get_dispatch_data_func() co
         if (DEBUG_ENABLED) {  // Debug
             size_t kv_len = get_kv_len(params, PagedAttentionStage::GENERATE);
             size_t max_context_len = get_max_context_len(params);
-            size_t past_len = get_past_len(params, 0);
             std::cout << "PagedAttentionGeneratorSingleToken::get_dispatch_data_func: " << "batch: " << batch << ", heads_num: " << heads_num
                       << ", partition_num: " << partition_num << ", kv_len: " << kv_len << ", max_context_len = " << max_context_len
-                      << ", past_len = " << past_len << ", gws: [" << wgs.global[0] << ", " << wgs.global[1] << ", " << wgs.global[2] << "]" << ", lws: ["
+                      << ", gws: [" << wgs.global[0] << ", " << wgs.global[1] << ", " << wgs.global[2] << "]" << ", lws: ["
                       << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]" << std::endl;
         }
         for (size_t i = 0; i < scaler_value.size(); ++i) {

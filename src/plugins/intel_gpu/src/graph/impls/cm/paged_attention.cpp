@@ -66,15 +66,8 @@ MixedRouteMode get_mixed_route_mode_from_env() {
     return MixedRouteMode::MULTI;
 }
 
-size_t get_batch_size_in_sequences(const kernel_impl_params& params) {
-    const auto& memory_deps = params.memory_deps;
-    const auto past_lens_mem = memory_deps.at(PagedAttentionInputIdx::PAST_LENS);
-    mem_lock<int32_t, mem_lock_type::read> lock(past_lens_mem, *params.strm);
-    return lock.size();
-}
-
 bool has_multiple_subsequences(const kernel_impl_params& params) {
-    return get_batch_size_in_sequences(params) > 1;
+    return get_batch_size_in_sequences(params.input_layouts) > 1;
 }
 
 bool is_cm_pa_exec_probe_enabled() {
@@ -279,7 +272,7 @@ public:
         OPENVINO_ASSERT(!params.is_dynamic());
         auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
         const auto& desc = params.typed_desc<paged_attention>();
-        rt_params->batch_size_in_sequences = get_batch_size_in_sequences(params);
+        rt_params->batch_size_in_sequences = get_batch_size_in_sequences(params.input_layouts);
         rt_params->single_token_selected_count = 0;
         rt_params->multi_token_wg_count = 0;
         rt_params->enable_xattn_estimation = false;

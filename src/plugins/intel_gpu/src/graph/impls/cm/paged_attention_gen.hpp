@@ -154,10 +154,9 @@ enum PagedAttentionInternBuffIdx {
 //-----------------------------------------------------------------------------------------------------------------
 // Helpers of XAttention
 //-----------------------------------------------------------------------------------------------------------------
-int64_t get_aligned_seq_len(const kernel_impl_params& impl_param, const PagedAttentionStage& stage, int64_t target_seq_len_block_size);
 PagedAttentionStage get_paged_attention_stage(const kernel_impl_params& impl_param);
 size_t get_max_context_len(const kernel_impl_params& params);
-size_t get_past_len(const kernel_impl_params& params, const size_t seq_idx);
+size_t get_batch_size_in_sequences(const std::vector<layout>& input_layouts);
 
 float get_xattn_thresh(const kernel_impl_params& impl_param, const size_t seq_idx = 0);
 bool bypass_xattn(const kernel_impl_params& impl_param);
@@ -177,6 +176,9 @@ public:
     [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
+
+private:
+    static size_t get_kv_update_wg_size(const RuntimeParams& params);
 };
 
 class PagedAttentionGeneratorMultiToken : public PagedAttentionGeneratorBase {
