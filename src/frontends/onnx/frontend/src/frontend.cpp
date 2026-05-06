@@ -274,6 +274,39 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.run_passes(model);
 }
 
+ov::frontend::AdditionalErrorCallback make_onnx_tokenizer_callback() {
+    return [](const std::set<std::string>& unsupported_ops) -> std::string {
+        std::stringstream additional_info;
+        additional_info << "To facilitate the conversion of unsupported operations, refer to Frontend Extension "
+                           "documentation: "
+                           "https://docs.openvino.ai/latest/openvino_docs_Extensibility_UG_Frontend_Extensions.html \n";
+
+        // Check for tokenizer operations
+        const auto& all_tokenizer_ops = ov::frontend::onnx::get_supported_ops_via_tokenizers();
+        std::string unsupported_ops_from_tokenizers;
+        size_t tokenizer_counter = 0;
+        for (const auto& unsupported_operation : unsupported_ops) {
+            if (std::find(all_tokenizer_ops.begin(), all_tokenizer_ops.end(), unsupported_operation) !=
+                all_tokenizer_ops.end()) {
+                if (tokenizer_counter > 0) {
+                    unsupported_ops_from_tokenizers += ", ";
+                }
+                unsupported_ops_from_tokenizers += unsupported_operation;
+                ++tokenizer_counter;
+            }
+        }
+
+        if (!unsupported_ops_from_tokenizers.empty()) {
+            additional_info << "\nEncountered unconverted operation(s) for which openvino-tokenizers package "
+                               "provides conversion extension(s): "
+                            << unsupported_ops_from_tokenizers
+                            << ". Install OpenVINO Tokenizers, refer to the documentation: "
+                               "https://docs.openvino.ai/2026/openvino-workflow-generative/ov-tokenizers.html \n";
+        }
+        return additional_info.str();
+    };
+}
+
 std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& input_model) const {
     auto unify_model = std::dynamic_pointer_cast<unify::InputModel>(input_model);
     if (unify_model != nullptr) {
@@ -300,7 +333,12 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& input_model)
     normalize(converted_model);
 
     const auto report = ov::frontend::collect_unconverted_ops(converted_model, make_onnx_extractor());
-    ov::frontend::check_unconverted_ops(report, m_extensions.telemetry, "onnx", "[ONNX Frontend] ");
+    ov::frontend::check_unconverted_ops(report,
+                                        m_extensions.telemetry,
+                                        "onnx",
+                                        "[ONNX Frontend] ",
+                                        "",
+                                        make_onnx_tokenizer_callback());
 
     return converted_model;
 }

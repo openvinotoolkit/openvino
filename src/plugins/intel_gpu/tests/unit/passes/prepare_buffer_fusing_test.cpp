@@ -2095,3 +2095,45 @@ TEST(prepare_buffer_fusing, in_place_crop_self_multiply_spatial_split) {
         }
     }
 }
+
+// A base-mode reshape that drops the cropped (size-1) last axis must not be marked
+// runtime-padding-propagatable; otherwise sibling crop outputs alias the same buffer.
+TEST(prepare_buffer_fusing, in_place_crop_dynamic_last_axis_split_to_collapsing_reshape) {
+    auto& engine = get_test_engine();
+
+    auto in_layout = layout{ ov::PartialShape{-1, -1, 4}, data_types::f32, format::bfyx };
+    auto axis_mem = engine.allocate_memory({ {}, data_types::i64, format::bfyx });
+    auto splits_length_mem = engine.allocate_memory({ {4}, data_types::i64, format::bfyx });
+
+    const int64_t axis = 2;
+    set_values<int64_t>(axis_mem, { axis });
+    set_values<int64_t>(splits_length_mem, { 1, 1, 1, 1 });
+
+    auto op_mode = cldnn::crop_ngraph_op_mode::variadic_split;
+    topology topology(
+        input_layout("input", in_layout),
+        data("axis", axis_mem),
+        data("splits_length", splits_length_mem),
+        crop("crop0", { input_info("input"), input_info("axis"), input_info("splits_length") },
+             cldnn::tensor(1), cldnn::tensor(0), op_mode, 0, axis),
+        crop("crop1", { input_info("input"), input_info("axis"), input_info("splits_length") },
+             cldnn::tensor(1), cldnn::tensor(0), op_mode, 1, axis),
+        // Drops the cropped axis: [-1,-1,1] -> [-1,-1]  => must be rejected.
+        reshape("rs0_collapse", input_info("crop0"), false, std::vector<int64_t>{-1, 3},
+                ov::PartialShape{-1, -1}, cldnn::reshape::reshape_mode::base),
+        // Preserves the cropped axis: [-1,-1,1] -> [-1,-1,1]  => still allowed.
+        reshape("rs1_keep", input_info("crop1"), true, std::vector<int64_t>{-1, -1, 1},
+                ov::PartialShape{-1, -1, 1}, cldnn::reshape::reshape_mode::base),
+        reorder("out0", input_info("rs0_collapse"), format::bfyx, data_types::f32),
+        reorder("out1", input_info("rs1_keep"), format::bfyx, data_types::f32)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
+    ASSERT_NE(prog, nullptr);
+
+    ASSERT_FALSE(prog->get_node("rs0_collapse").as<reshape>().is_runtime_propagatable_padding());
+    ASSERT_TRUE(prog->get_node("rs1_keep").as<reshape>().is_runtime_propagatable_padding());
+}
