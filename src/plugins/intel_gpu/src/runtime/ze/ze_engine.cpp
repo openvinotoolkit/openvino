@@ -13,8 +13,6 @@
 #include "ze_stream.hpp"
 #include "ze_device.hpp"
 #include "ze_kernel.hpp"
-#include "ze_module_holder.hpp"
-#include "ze_kernel_holder.hpp"
 #include <exception>
 #include <vector>
 #include <memory>

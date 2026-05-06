@@ -44,7 +44,8 @@ bool ze_kernel_builder::check_l0_build_support() const {
         return cache.at(dev_handle);
     }
     try {
-        build_module_l0(src, src_bytes, KernelFormat::SOURCE, "");
+        std::vector<kernel::ptr> tmp_out;
+        build_l0(src, src_bytes, KernelFormat::SOURCE, "", tmp_out);
         cache[dev_handle] = true;
     } catch (std::exception&) {
         GPU_DEBUG_INFO << "[GPU] Device(" << dev_handle << ") does not support kernel compilation from source through L0" << std::endl;
@@ -53,7 +54,7 @@ bool ze_kernel_builder::check_l0_build_support() const {
     return cache.at(dev_handle);
 }
 
-std::shared_ptr<ze_module_holder> ze_kernel_builder::build_module_l0(const void *src, size_t src_bytes, KernelFormat src_format, const std::string &options) const {
+void ze_kernel_builder::build_l0(const void *src, size_t src_bytes, KernelFormat src_format, const std::string &options, std::vector<kernel::ptr> &out) const {
     ze_module_desc_t module_desc = {
             ZE_STRUCTURE_TYPE_MODULE_DESC,
             nullptr,
@@ -93,21 +94,22 @@ std::shared_ptr<ze_module_holder> ze_kernel_builder::build_module_l0(const void 
         GPU_DEBUG_INFO << "-------- End of Kernel build error" << std::endl;
         OPENVINO_THROW("[GPU] Failed to build module");
     }
-    return std::make_shared<ze_module_holder>(module_handle, log_handle);
+    ze_holder<ze_resource_type::module> module_holder(module_handle, ctx_holder);
+    ze_holder<ze_resource_type::module_build_log> build_log_holder(log_handle, module_holder);
+    ze_kernel::create_kernels_from_module(module_holder, build_log_holder, out);
 }
 
-std::shared_ptr<ze_module_holder> ze_kernel_builder::build_module_ocl(const void *src, size_t src_bytes, KernelFormat src_format, const std::string &options) const {
+void ze_kernel_builder::build_ocl(const void *src, size_t src_bytes, KernelFormat src_format, const std::string &options, std::vector<kernel::ptr> &out) const {
     OPENVINO_ASSERT(src_format == KernelFormat::SOURCE, "[GPU] L0 kernel builder should only fallback to OCL when building kernels from source");
     OPENVINO_ASSERT(m_ocl_builder != nullptr, "[GPU] L0 kernel builder expected initialized OCL builder");
     std::vector<kernel::ptr> tmp;
     m_ocl_builder->build_kernels(src, src_bytes, src_format, options, tmp);
     OPENVINO_ASSERT(tmp.size() > 0, "[GPU] L0 kernel builder expected non-empty module");
     auto binary = tmp[0]->get_binary();
-    return build_module_l0(binary.data(), binary.size(), KernelFormat::NATIVE_BIN, options);
+    build_l0(binary.data(), binary.size(), KernelFormat::NATIVE_BIN, options, out);
 }
 
 void ze_kernel_builder::build_kernels(const void *src, size_t src_bytes, KernelFormat src_format, const std::string &options, std::vector<kernel::ptr> &out) const {
-    std::shared_ptr<ze_module_holder> module_holder;
     if (src_format == KernelFormat::SOURCE && !check_l0_build_support()) {
         {
             std::lock_guard lock(this->m_mutex);
@@ -116,9 +118,8 @@ void ze_kernel_builder::build_kernels(const void *src, size_t src_bytes, KernelF
                 init_ocl_builder();
             }
         }
-        module_holder = build_module_ocl(src, src_bytes, src_format, options);
+        build_ocl(src, src_bytes, src_format, options, out);
     } else {
-        module_holder = build_module_l0(src, src_bytes, src_format, options);
+        build_l0(src, src_bytes, src_format, options, out);
     }
-    ze_kernel::create_kernels_from_module(module_holder, out);
 }
