@@ -153,7 +153,7 @@ struct ze_resource_info<ze_resource_type::fence> {
 template <>
 struct ze_resource_info<ze_resource_type::module_build_log> {
     static constexpr ze_resource_type resource = ze_resource_type::module_build_log;
-    static constexpr ze_resource_type parent_resource = ze_resource_type::module;
+    static constexpr ze_resource_type parent_resource = ze_resource_type::context;
     using handle_t = ze_module_build_log_handle_t;
     struct deleter_t {
         void operator()(handle_t handle) const {

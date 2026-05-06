@@ -83,19 +83,18 @@ void ze_kernel_builder::build_l0(const void *src, size_t src_bytes, KernelFormat
     ze_module_build_log_handle_t log_handle;
     auto ctx_holder = m_device.get_context_holder();
     ze_result_t build_result = ze::zeModuleCreate(ctx_holder.get_handle(), m_device.get_device(), &module_desc, &module_handle, &log_handle);
+    ze_holder<ze_resource_type::module_build_log> build_log_holder(log_handle, ctx_holder);
     if (build_result != ZE_RESULT_SUCCESS) {
         size_t log_size = 0;
         OV_ZE_EXPECT(ze::zeModuleBuildLogGetString(log_handle, &log_size, nullptr));
         std::string log(log_size, ' ');
         OV_ZE_EXPECT(ze::zeModuleBuildLogGetString(log_handle, &log_size, log.data()));
-        OV_ZE_EXPECT(ze::zeModuleBuildLogDestroy(log_handle));
         GPU_DEBUG_INFO << "-------- Kernel build error" << std::endl;
         GPU_DEBUG_INFO << log << std::endl;
         GPU_DEBUG_INFO << "-------- End of Kernel build error" << std::endl;
         OPENVINO_THROW("[GPU] Failed to build module");
     }
     ze_holder<ze_resource_type::module> module_holder(module_handle, ctx_holder);
-    ze_holder<ze_resource_type::module_build_log> build_log_holder(log_handle, module_holder);
     ze_kernel::create_kernels_from_module(module_holder, build_log_holder, out);
 }
 
