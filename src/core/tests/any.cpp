@@ -801,8 +801,8 @@ TEST_F(AnyTests, AnyAsOtherTypeIsIncosisoinet) {
     EXPECT_EQ(a_str, "30");
 }
 
-// Tests below validate only the parser used for OV_GPU_FORCE_IMPLEMENTATIONS attribute parsing, but do not 
-// validate the option. The provided primitive names, implementation types, layouts, and kernel names are 
+// Tests below validate only the parser used for OV_GPU_FORCE_IMPLEMENTATIONS attribute parsing, but do not
+// validate the option. The provided primitive names, implementation types, layouts, and kernel names are
 // treated as parser input only and may not correspond to real or available runtime values.
 
 using MapStrStr = std::map<std::string, std::string>;
