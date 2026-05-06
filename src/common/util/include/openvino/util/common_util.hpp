@@ -347,6 +347,13 @@ std::optional<T> view_to_number(std::string_view sv) noexcept {
         const auto result = std::from_chars(sv.data(), sv.data() + sv.size(), value);
         return result.ec == std::errc() ? std::make_optional(value) : std::nullopt;
     } else {
+        if (sv == "inf") {
+            return std::numeric_limits<T>::infinity();
+        } else if (sv == "-inf") {
+            return -std::numeric_limits<T>::infinity();
+        } else if (sv == "nan") {
+            return std::numeric_limits<T>::quiet_NaN();
+        }
         StringViewStreamBuf buf{sv};
         std::istream stream{&buf};
         stream.imbue(std::locale::classic());

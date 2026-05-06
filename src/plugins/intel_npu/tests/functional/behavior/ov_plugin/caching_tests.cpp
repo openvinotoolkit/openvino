@@ -12,7 +12,11 @@ using namespace ov::test::behavior;
 
 namespace {
 
-std::vector<ov::AnyMap> config = {{}};
+std::vector<ov::AnyMap> config = {
+    {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
+     ov::cache_encryption_callbacks(ov::EncryptionCallbacks{ov::util::codec_xor, ov::util::codec_xor})},
+    {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN),
+     ov::cache_encryption_callbacks(ov::EncryptionCallbacks{ov::util::codec_xor, ov::util::codec_xor})}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVCompileModelLoadFromFileTestBaseNPU,

@@ -723,52 +723,58 @@ void Snapshot::earlyRegroup() {
             break;
         }
         case PatternType::PATTERN: {
+            bool pattern_handled = false;
             if (m_ctx.subgraph_patterns != nullptr) {
-                handle_patterns =
-                    m_ctx.subgraph_patterns->register_matcher(rewr, shared_from_this(), isolate.pattern, isolate.tag) ||
-                    handle_patterns;
+                pattern_handled =
+                    m_ctx.subgraph_patterns->register_matcher(rewr, shared_from_this(), isolate.pattern, isolate.tag);
+                handle_patterns = pattern_handled || handle_patterns;
             }
+            if (!pattern_handled) {
+                // Keep the legacy built-in matcher list as a fallback so existing ISOLATE pattern names
+                // continue to work unchanged when they are not handled by the injected pattern registry.
 #define HNDL(p)                                                                            \
     if (isolate.pattern == #p) {                                                           \
         rewr.add_matcher<ov::npuw::patterns::compute::p>(shared_from_this(), isolate.tag); \
-        handle_patterns = true;                                                            \
+        pattern_handled = true;                                                            \
     }
 #define HNDL_FAKE(p)                                                                            \
     if (isolate.pattern == #p) {                                                                \
         rewr_fake.add_matcher<ov::npuw::patterns::compute::p>(shared_from_this(), isolate.tag); \
-        handle_patterns = true;                                                                 \
+        pattern_handled = true;                                                                 \
     }
 #define HNDL_ATTN(p)                                                                    \
     if (isolate.pattern == #p) {                                                        \
         rewr.add_matcher<ov::npuw::patterns::attn::p>(shared_from_this(), isolate.tag); \
-        handle_patterns = true;                                                         \
+        pattern_handled = true;                                                         \
     }
 #define HNDL_MOE(p)                                                                    \
     if (isolate.pattern == #p) {                                                       \
         rewr.add_matcher<ov::npuw::patterns::moe::p>(shared_from_this(), isolate.tag); \
-        handle_patterns = true;                                                        \
+        pattern_handled = true;                                                        \
     }
-            HNDL(RMSNorm);
-            HNDL(RMSNorm2);
-            HNDL(RMSNorm3);
-            HNDL(RMSNorm4);
-            HNDL(DQMatMulCWu4);
-            HNDL(DQMatMulGQu4);
-            HNDL(DQMatMulCWi4);
-            HNDL(DQMatMulGQi4);
-            HNDL(DQMatMulConv);
-            HNDL(VocabMatMul);
-            HNDL(VariadicSplit);
-            HNDL_MOE(GPTOSSExpert);
-            HNDL_MOE(GPTOSSRouter);
-            HNDL_FAKE(FakeConvert);
-            HNDL_FAKE(FakeQuantize);
-            HNDL_ATTN(SDPA);
-            HNDL_ATTN(SDPADecomposed);
+                HNDL(RMSNorm);
+                HNDL(RMSNorm2);
+                HNDL(RMSNorm3);
+                HNDL(RMSNorm4);
+                HNDL(DQMatMulCWu4);
+                HNDL(DQMatMulGQu4);
+                HNDL(DQMatMulCWi4);
+                HNDL(DQMatMulGQi4);
+                HNDL(DQMatMulConv);
+                HNDL(VocabMatMul);
+                HNDL(VariadicSplit);
+                HNDL_MOE(GPTOSSExpert);
+                HNDL_MOE(GPTOSSRouter);
+                HNDL_FAKE(FakeConvert);
+                HNDL_FAKE(FakeQuantize);
+                HNDL_ATTN(SDPA);
+                HNDL_ATTN(SDPADecomposed);
 #undef HNDL_MOE
 #undef HNDL_ATTN
 #undef HNDL_FAKE
 #undef HNDL
+                handle_patterns = pattern_handled || handle_patterns;
+            }
         }
         }
     }

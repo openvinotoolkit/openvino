@@ -446,13 +446,6 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
         return mem;
     };
 
-    auto create_zp_tensor = [&](const std::vector<uint8_t>& values, int64_t b, int64_t f, int64_t y, int64_t x) {
-        auto dt = config.is_u4 ? data_types::u4 : data_types::u8;
-        auto mem = engine.allocate_memory({dt, format::bfyx, {b, f, y, x}});
-        set_values(mem, values);
-        get_test_stream().finish();
-        return mem;
-    };
 
     auto create_f16_tensor = [&](const std::vector<ov::float16>& values, int64_t b, int64_t f, int64_t y, int64_t x) {
         auto mem = engine.allocate_memory({data_types::f16, format::bfyx, {b, f, y, x}});
@@ -477,17 +470,36 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
     size_t group_num = config.hidden_size / config.group_size;
     size_t group_num2 = config.inter_size / config.group_size;
 
+    // Logical [E, ofm, G]; physical [E, G, ofm] via byfx for G>1, plain bfyx for per-channel.
+    auto make_scale = [&](const std::vector<ov::float16>& v, int64_t E, int64_t ofm, int64_t G) {
+        auto fmt = G > 1 ? format::byfx : format::bfyx;
+        auto shape = G > 1 ? ov::PartialShape{E, ofm, G, 1} : ov::PartialShape{E, ofm, 1};
+        auto mem = engine.allocate_memory(layout{shape, data_types::f16, fmt});
+        set_values(mem, v);
+        get_test_stream().finish();
+        return mem;
+    };
+    auto make_zp = [&](const std::vector<uint8_t>& v, int64_t E, int64_t ofm, int64_t G) {
+        auto dt = config.is_u4 ? data_types::u4 : data_types::u8;
+        auto fmt = G > 1 ? format::byfx : format::bfyx;
+        auto shape = G > 1 ? ov::PartialShape{E, ofm, G, 1} : ov::PartialShape{E, ofm, 1};
+        auto mem = engine.allocate_memory(layout{shape, dt, fmt});
+        set_values(mem, v);
+        get_test_stream().finish();
+        return mem;
+    };
+
     auto w0_weight_mem = create_weight_tensor(w0_q_packed, config.num_experts, config.inter_size, config.group_size, group_num);
-    auto w0_scale_mem = create_f16_tensor(w0_scale, config.num_experts, group_num, 1, config.inter_size);
-    auto w0_zp_mem = create_zp_tensor(w0_zp_packed, config.num_experts, group_num, 1, config.inter_size);
+    auto w0_scale_mem = make_scale(w0_scale, config.num_experts, config.inter_size, group_num);
+    auto w0_zp_mem = make_zp(w0_zp_packed, config.num_experts, config.inter_size, group_num);
 
     auto w1_weight_mem = create_weight_tensor(w1_q_packed, config.num_experts, config.inter_size, config.group_size, group_num);
-    auto w1_scale_mem = create_f16_tensor(w1_scale, config.num_experts, group_num, 1, config.inter_size);
-    auto w1_zp_mem = create_zp_tensor(w1_zp_packed, config.num_experts, group_num, 1, config.inter_size);
+    auto w1_scale_mem = make_scale(w1_scale, config.num_experts, config.inter_size, group_num);
+    auto w1_zp_mem = make_zp(w1_zp_packed, config.num_experts, config.inter_size, group_num);
 
     auto w2_weight_mem = create_weight_tensor(w2_q_packed, config.num_experts, config.hidden_size, config.group_size, group_num2);
-    auto w2_scale_mem = create_f16_tensor(w2_scale, config.num_experts, group_num2, 1, config.hidden_size);
-    auto w2_zp_mem = create_zp_tensor(w2_zp_packed, config.num_experts, group_num2, 1, config.hidden_size);
+    auto w2_scale_mem = make_scale(w2_scale, config.num_experts, config.hidden_size, group_num2);
+    auto w2_zp_mem = make_zp(w2_zp_packed, config.num_experts, config.hidden_size, group_num2);
 
     // Build topology
     topology topology;
@@ -655,13 +667,6 @@ TEST_P(moe_3gemm_compressed_gpu_shared_random, moe_accuracy_test_shared_expert_r
         return mem;
     };
 
-    auto create_zp_tensor = [&](const std::vector<uint8_t>& values, int64_t b, int64_t f, int64_t y, int64_t x) {
-        auto dt = config.is_u4 ? data_types::u4 : data_types::u8;
-        auto mem = engine.allocate_memory({dt, format::bfyx, {b, f, y, x}});
-        set_values(mem, values);
-        get_test_stream().finish();
-        return mem;
-    };
 
     auto create_f16_tensor = [&](const std::vector<ov::float16>& values, int64_t b, int64_t f, int64_t y, int64_t x) {
         auto mem = engine.allocate_memory({data_types::f16, format::bfyx, {b, f, y, x}});
@@ -689,32 +694,49 @@ TEST_P(moe_3gemm_compressed_gpu_shared_random, moe_accuracy_test_shared_expert_r
     size_t group_num2 = config.inter_size / config.group_size;
 
     // Expert Weights
+    // Logical [E, ofm, G]; physical [E, G, ofm] via byfx for G>1, plain bfyx for per-channel.
+    auto make_scale = [&](const std::vector<ov::float16>& v, int64_t E, int64_t ofm, int64_t G) {
+        auto fmt = G > 1 ? format::byfx : format::bfyx;
+        auto shape = G > 1 ? ov::PartialShape{E, ofm, G, 1} : ov::PartialShape{E, ofm, 1};
+        auto mem = engine.allocate_memory(layout{shape, data_types::f16, fmt});
+        set_values(mem, v);
+        get_test_stream().finish();
+        return mem;
+    };
+    auto make_zp = [&](const std::vector<uint8_t>& v, int64_t E, int64_t ofm, int64_t G) {
+        auto dt = config.is_u4 ? data_types::u4 : data_types::u8;
+        auto fmt = G > 1 ? format::byfx : format::bfyx;
+        auto shape = G > 1 ? ov::PartialShape{E, ofm, G, 1} : ov::PartialShape{E, ofm, 1};
+        auto mem = engine.allocate_memory(layout{shape, dt, fmt});
+        set_values(mem, v);
+        get_test_stream().finish();
+        return mem;
+    };
+
     auto w0_weight_mem = create_weight_tensor(w0_q_packed, config.num_experts, config.inter_size, config.group_size, group_num);
-    auto w0_scale_mem = create_f16_tensor(w0_scale, config.num_experts, group_num, 1, config.inter_size);
-    auto w0_zp_mem = create_zp_tensor(w0_zp_packed, config.num_experts, group_num, 1, config.inter_size);
+    auto w0_scale_mem = make_scale(w0_scale, config.num_experts, config.inter_size, group_num);
+    auto w0_zp_mem = make_zp(w0_zp_packed, config.num_experts, config.inter_size, group_num);
 
     auto w1_weight_mem = create_weight_tensor(w1_q_packed, config.num_experts, config.inter_size, config.group_size, group_num);
-    auto w1_scale_mem = create_f16_tensor(w1_scale, config.num_experts, group_num, 1, config.inter_size);
-    auto w1_zp_mem = create_zp_tensor(w1_zp_packed, config.num_experts, group_num, 1, config.inter_size);
+    auto w1_scale_mem = make_scale(w1_scale, config.num_experts, config.inter_size, group_num);
+    auto w1_zp_mem = make_zp(w1_zp_packed, config.num_experts, config.inter_size, group_num);
 
     auto w2_weight_mem = create_weight_tensor(w2_q_packed, config.num_experts, config.hidden_size, config.group_size, group_num2);
-    auto w2_scale_mem = create_f16_tensor(w2_scale, config.num_experts, group_num2, 1, config.hidden_size);
-    auto w2_zp_mem = create_zp_tensor(w2_zp_packed, config.num_experts, group_num2, 1, config.hidden_size);
+    auto w2_scale_mem = make_scale(w2_scale, config.num_experts, config.hidden_size, group_num2);
+    auto w2_zp_mem = make_zp(w2_zp_packed, config.num_experts, config.hidden_size, group_num2);
 
     // Shared Expert Weights (num_experts = 1)
-    // create_weight_tensor(values, b, f, y, x) -> b=1, f=inter_size, y=group_size, x=group_num
     auto s_gate_weight_mem = create_weight_tensor(s_gate_q_packed, 1, config.inter_size, config.group_size, group_num);
-    auto s_gate_scale_mem = create_f16_tensor(s_gate_scale, 1, group_num, 1, config.inter_size);
-    auto s_gate_zp_mem = create_zp_tensor(s_gate_zp_packed, 1, group_num, 1, config.inter_size);
+    auto s_gate_scale_mem = make_scale(s_gate_scale, 1, config.inter_size, group_num);
+    auto s_gate_zp_mem = make_zp(s_gate_zp_packed, 1, config.inter_size, group_num);
 
     auto s_up_weight_mem = create_weight_tensor(s_up_q_packed, 1, config.inter_size, config.group_size, group_num);
-    auto s_up_scale_mem = create_f16_tensor(s_up_scale, 1, group_num, 1, config.inter_size);
-    auto s_up_zp_mem = create_zp_tensor(s_up_zp_packed, 1, group_num, 1, config.inter_size);
+    auto s_up_scale_mem = make_scale(s_up_scale, 1, config.inter_size, group_num);
+    auto s_up_zp_mem = make_zp(s_up_zp_packed, 1, config.inter_size, group_num);
 
-    // down: b=1, f=hidden_size, y=group_num2, x=group_size
     auto s_down_weight_mem = create_weight_tensor(s_down_q_packed, 1, config.hidden_size, config.group_size, group_num2);
-    auto s_down_scale_mem = create_f16_tensor(s_down_scale, 1, group_num2, 1, config.hidden_size);
-    auto s_down_zp_mem = create_zp_tensor(s_down_zp_packed, 1, group_num2, 1, config.hidden_size);
+    auto s_down_scale_mem = make_scale(s_down_scale, 1, config.hidden_size, group_num2);
+    auto s_down_zp_mem = make_zp(s_down_zp_packed, 1, config.hidden_size, group_num2);
 
     auto s_gate_scalar_mem = create_scalar_gate_tensor(s_gate_scalar_data);
 
@@ -1035,11 +1057,21 @@ TEST_P(moe_3gemm_compressed_gpu_symmetric_random, moe_accuracy_test_symmetric) {
         return mem;
     };
 
-    auto create_zp_tensor = [&](int64_t b, int64_t f, int64_t y, int64_t x) {
-        auto mem = engine.allocate_memory({zp_dt, format::bfyx, {b, f, y, x}});
-        // Zero-fill (symmetric has no ZP)
+    // Symmetric: ZP zero-filled. Layout matches make_scale.
+    auto create_zero_zp = [&](int64_t E, int64_t ofm, int64_t G) {
+        auto fmt = G > 1 ? format::byfx : format::bfyx;
+        auto shape = G > 1 ? ov::PartialShape{E, ofm, G, 1} : ov::PartialShape{E, ofm, 1};
+        auto mem = engine.allocate_memory(layout{shape, zp_dt, fmt});
         auto lock = cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::write>(mem, get_test_stream());
         std::memset(lock.data(), 0, lock.size());
+        get_test_stream().finish();
+        return mem;
+    };
+    auto make_scale_sym = [&](const std::vector<ov::float16>& v, int64_t E, int64_t ofm, int64_t G) {
+        auto fmt = G > 1 ? format::byfx : format::bfyx;
+        auto shape = G > 1 ? ov::PartialShape{E, ofm, G, 1} : ov::PartialShape{E, ofm, 1};
+        auto mem = engine.allocate_memory(layout{shape, data_types::f16, fmt});
+        set_values(mem, v);
         get_test_stream().finish();
         return mem;
     };
@@ -1068,16 +1100,16 @@ TEST_P(moe_3gemm_compressed_gpu_symmetric_random, moe_accuracy_test_symmetric) {
     size_t group_num2 = config.inter_size / config.group_size;
 
     auto w0_weight_mem = create_weight_tensor(w0_q_packed, config.num_experts, config.inter_size, config.group_size, group_num);
-    auto w0_scale_mem = create_f16_tensor(w0_scale, config.num_experts, group_num, 1, config.inter_size);
-    auto w0_zp_mem = create_zp_tensor(config.num_experts, group_num, 1, config.inter_size);
+    auto w0_scale_mem = make_scale_sym(w0_scale, config.num_experts, config.inter_size, group_num);
+    auto w0_zp_mem = create_zero_zp(config.num_experts, config.inter_size, group_num);
 
     auto w1_weight_mem = create_weight_tensor(w1_q_packed, config.num_experts, config.inter_size, config.group_size, group_num);
-    auto w1_scale_mem = create_f16_tensor(w1_scale, config.num_experts, group_num, 1, config.inter_size);
-    auto w1_zp_mem = create_zp_tensor(config.num_experts, group_num, 1, config.inter_size);
+    auto w1_scale_mem = make_scale_sym(w1_scale, config.num_experts, config.inter_size, group_num);
+    auto w1_zp_mem = create_zero_zp(config.num_experts, config.inter_size, group_num);
 
     auto w2_weight_mem = create_weight_tensor(w2_q_packed, config.num_experts, config.hidden_size, config.group_size, group_num2);
-    auto w2_scale_mem = create_f16_tensor(w2_scale, config.num_experts, group_num2, 1, config.hidden_size);
-    auto w2_zp_mem = create_zp_tensor(config.num_experts, group_num2, 1, config.hidden_size);
+    auto w2_scale_mem = make_scale_sym(w2_scale, config.num_experts, config.hidden_size, group_num2);
+    auto w2_zp_mem = create_zero_zp(config.num_experts, config.hidden_size, group_num2);
 
     // Build topology
     topology topology;
@@ -1237,10 +1269,20 @@ TEST_P(moe_3gemm_compressed_gpu_shared_symmetric_random, moe_accuracy_test_share
         return mem;
     };
 
-    auto create_zp_tensor = [&](int64_t b, int64_t f, int64_t y, int64_t x) {
-        auto mem = engine.allocate_memory({zp_dt, format::bfyx, {b, f, y, x}});
+    auto create_zero_zp = [&](int64_t E, int64_t ofm, int64_t G) {
+        auto fmt = G > 1 ? format::byfx : format::bfyx;
+        auto shape = G > 1 ? ov::PartialShape{E, ofm, G, 1} : ov::PartialShape{E, ofm, 1};
+        auto mem = engine.allocate_memory(layout{shape, zp_dt, fmt});
         auto lock = cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::write>(mem, get_test_stream());
         std::memset(lock.data(), 0, lock.size());
+        get_test_stream().finish();
+        return mem;
+    };
+    auto make_scale_sym = [&](const std::vector<ov::float16>& v, int64_t E, int64_t ofm, int64_t G) {
+        auto fmt = G > 1 ? format::byfx : format::bfyx;
+        auto shape = G > 1 ? ov::PartialShape{E, ofm, G, 1} : ov::PartialShape{E, ofm, 1};
+        auto mem = engine.allocate_memory(layout{shape, data_types::f16, fmt});
+        set_values(mem, v);
         get_test_stream().finish();
         return mem;
     };
@@ -1270,29 +1312,29 @@ TEST_P(moe_3gemm_compressed_gpu_shared_symmetric_random, moe_accuracy_test_share
 
     // Expert Weights
     auto w0_weight_mem = create_weight_tensor(w0_q_packed, config.num_experts, config.inter_size, config.group_size, group_num);
-    auto w0_scale_mem = create_f16_tensor(w0_scale, config.num_experts, group_num, 1, config.inter_size);
-    auto w0_zp_mem = create_zp_tensor(config.num_experts, group_num, 1, config.inter_size);
+    auto w0_scale_mem = make_scale_sym(w0_scale, config.num_experts, config.inter_size, group_num);
+    auto w0_zp_mem = create_zero_zp(config.num_experts, config.inter_size, group_num);
 
     auto w1_weight_mem = create_weight_tensor(w1_q_packed, config.num_experts, config.inter_size, config.group_size, group_num);
-    auto w1_scale_mem = create_f16_tensor(w1_scale, config.num_experts, group_num, 1, config.inter_size);
-    auto w1_zp_mem = create_zp_tensor(config.num_experts, group_num, 1, config.inter_size);
+    auto w1_scale_mem = make_scale_sym(w1_scale, config.num_experts, config.inter_size, group_num);
+    auto w1_zp_mem = create_zero_zp(config.num_experts, config.inter_size, group_num);
 
     auto w2_weight_mem = create_weight_tensor(w2_q_packed, config.num_experts, config.hidden_size, config.group_size, group_num2);
-    auto w2_scale_mem = create_f16_tensor(w2_scale, config.num_experts, group_num2, 1, config.hidden_size);
-    auto w2_zp_mem = create_zp_tensor(config.num_experts, group_num2, 1, config.hidden_size);
+    auto w2_scale_mem = make_scale_sym(w2_scale, config.num_experts, config.hidden_size, group_num2);
+    auto w2_zp_mem = create_zero_zp(config.num_experts, config.hidden_size, group_num2);
 
     // Shared Expert Weights
     auto s_gate_weight_mem = create_weight_tensor(s_gate_q_packed, 1, config.inter_size, config.group_size, group_num);
-    auto s_gate_scale_mem = create_f16_tensor(s_gate_scale, 1, group_num, 1, config.inter_size);
-    auto s_gate_zp_mem = create_zp_tensor(1, group_num, 1, config.inter_size);
+    auto s_gate_scale_mem = make_scale_sym(s_gate_scale, 1, config.inter_size, group_num);
+    auto s_gate_zp_mem = create_zero_zp(1, config.inter_size, group_num);
 
     auto s_up_weight_mem = create_weight_tensor(s_up_q_packed, 1, config.inter_size, config.group_size, group_num);
-    auto s_up_scale_mem = create_f16_tensor(s_up_scale, 1, group_num, 1, config.inter_size);
-    auto s_up_zp_mem = create_zp_tensor(1, group_num, 1, config.inter_size);
+    auto s_up_scale_mem = make_scale_sym(s_up_scale, 1, config.inter_size, group_num);
+    auto s_up_zp_mem = create_zero_zp(1, config.inter_size, group_num);
 
     auto s_down_weight_mem = create_weight_tensor(s_down_q_packed, 1, config.hidden_size, config.group_size, group_num2);
-    auto s_down_scale_mem = create_f16_tensor(s_down_scale, 1, group_num2, 1, config.hidden_size);
-    auto s_down_zp_mem = create_zp_tensor(1, group_num2, 1, config.hidden_size);
+    auto s_down_scale_mem = make_scale_sym(s_down_scale, 1, config.hidden_size, group_num2);
+    auto s_down_zp_mem = create_zero_zp(1, config.hidden_size, group_num2);
 
     auto s_gate_scalar_mem = create_scalar_gate_tensor(s_gate_scalar_data);
 
