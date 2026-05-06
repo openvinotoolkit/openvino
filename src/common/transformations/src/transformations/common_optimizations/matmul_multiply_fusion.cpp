@@ -31,6 +31,15 @@ static std::shared_ptr<Node> fuse_const_to_weights(const std::shared_ptr<Node>& 
     const auto& weights_shape = weights.get_partial_shape();
     int64_t weights_rank = static_cast<int64_t>(weights_shape.rank().get_length());
 
+    // Don't fuse amplifying scalar into non-constant weights in f16/bf16 to avoid potential overflow.
+    if (weights.get_element_type().is_real() && weights.get_element_type().size() <= 2 &&
+        !ov::is_type<v0::Constant>(weights.get_node()) && shape_size(const_shape) == 1) {
+        auto values = mul_const->cast_vector<float>();
+        if (!values.empty() && std::abs(values[0]) > 1.0) {
+            return nullptr;
+        }
+    }
+
     // Fuse if const is a scalar
     if (ov::is_scalar(const_shape)) {
         return std::make_shared<v1::Multiply>(weights, mul_const);
