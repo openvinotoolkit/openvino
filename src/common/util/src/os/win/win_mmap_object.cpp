@@ -383,8 +383,9 @@ void MapHolder::set_id(HANDLE h, size_t offset, size_t size) {
         std::memcpy(&fid_r, reinterpret_cast<const char*>(&info.FileId) + sizeof(fid_l), sizeof(fid_r));
         m_id = util::u64_hash_combine(offset, {size, info.VolumeSerialNumber, fid_l, fid_r});
     } else {
-        throw std::runtime_error{"Cannot obtain file id info for handle " +
-                                 std::to_string(reinterpret_cast<uint64_t>(h))};
+        // fallback to hashing the handle value if FileIdInfo is unavailable
+        // e.g network filesystems or older Windows versions
+        m_id = util::u64_hash_combine(offset, {size, std::hash<HANDLE>{}(h)});
     }
 }
 
