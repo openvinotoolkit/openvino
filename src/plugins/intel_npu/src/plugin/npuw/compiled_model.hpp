@@ -234,28 +234,6 @@ private:
         std::optional<ov::npuw::compiled::Spatial> spatial;
         ov::npuw::v1::subgraphs::CompiledPipeline pipeline;
 
-        // Infer requests for pyramid attention models (if pyramid_attention is present)
-        std::vector<ov::SoPtr<ov::IAsyncInferRequest>> pyramid_infer_requests;
-
-        // Pipeline infer requests for pyramid attention models (if pyramid_attention is present and pipelining is
-        // enabled)
-        std::vector<ov::SoPtr<ov::IAsyncInferRequest>> pyramid_pipeline_requests;
-
-        // HFA tile model indices for infer request vectors
-        enum HFATileIdx : size_t {
-            REGULAR_TILE = 0,  // Regular tile model (intermediate tiles)
-            FINAL_TILE = 1,    // Final tile model (last tile with division and transpose)
-            COUNT = 2          // Total number of HFA tile models
-        };
-
-        // Infer requests for host flash attention tile models (if host_flash_attention is present)
-        // [REGULAR_TILE]: regular tile model, [FINAL_TILE]: final tile model
-        std::vector<ov::SoPtr<ov::IAsyncInferRequest>> hfa_infer_requests;
-
-        // Pipeline infer requests for host flash attention tile models (if host_flash_attention is present and
-        // pipelining is enabled)
-        std::vector<ov::SoPtr<ov::IAsyncInferRequest>> hfa_pipeline_requests;
-
         // Infer requests for MoE expert models with different chunk sizes (if MoE expert state is present)
         // Map: chunk_size -> infer_request
         std::map<size_t, ov::SoPtr<ov::IAsyncInferRequest>> moe_infer_requests;

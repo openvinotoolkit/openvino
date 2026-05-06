@@ -144,6 +144,7 @@ class ISubgraphBehavior {
 public:
     using Ptr = std::unique_ptr<ISubgraphBehavior>;
 
+    virtual void prepare(InferContext&) {}
     virtual bool bind_function_input(InferContext&, std::size_t, const ov::SoPtr<ov::ITensor>&) {
         return false;
     }
