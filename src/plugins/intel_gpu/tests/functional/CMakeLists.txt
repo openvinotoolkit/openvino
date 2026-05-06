@@ -132,8 +132,16 @@ if(NOT Vulkan_FOUND)
         unset(VULKAN_HEADERS_ENABLE_TESTS)
         unset(VULKAN_HEADERS_ENABLE_INSTALL)
 
-        if(TARGET vulkan AND NOT TARGET Vulkan::Vulkan)
-            add_library(Vulkan::Vulkan ALIAS vulkan)
+        if(TARGET vulkan)
+            # Vulkan-Loader's vulkan-1.def hard-codes /OUT:vulkan-1.dll, but CMake
+            # appends CMAKE_DEBUG_POSTFIX (e.g. 'd') in Debug, producing vulkan-1d.dll.
+            # The mismatch raises LNK4070, which becomes a hard error under /WX.
+            if(MSVC)
+                target_link_options(vulkan PRIVATE /IGNORE:4070)
+            endif()
+            if(NOT TARGET Vulkan::Vulkan)
+                add_library(Vulkan::Vulkan ALIAS vulkan)
+            endif()
         endif()
 
         if(TARGET Vulkan::Vulkan)
