@@ -9,37 +9,15 @@
 
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "sdpa_utils.hpp"
 #include "util.hpp"
 
 namespace ov {
 namespace npuw {
 namespace function {
-
-// Helper function to find mask parameter by traversing from Add node
-std::shared_ptr<ov::op::v0::Parameter> find_mask_parameter(const std::shared_ptr<ov::Node>& add_node) {
-    if (!add_node || add_node->get_input_size() < 2) {
-        return nullptr;
-    }
-
-    // Traverse the Add node's mask input (input 1) upwards to find the proper Parameter
-    // Only unary ops are allowed along the way
-    auto mask_in_node = add_node->input(1).get_source_output().get_node_shared_ptr();
-    while (mask_in_node && !ov::op::util::is_parameter(mask_in_node)) {
-        if (mask_in_node->inputs().size() != 1) {
-            LOG_WARN("Non-unary or disconnected op on the way from Add to input mask");
-            return nullptr;
-        }
-        mask_in_node = mask_in_node->inputs()[0].get_source_output().get_node_shared_ptr();
-    }
-
-    if (mask_in_node && ov::op::util::is_parameter(mask_in_node)) {
-        return std::static_pointer_cast<ov::op::v0::Parameter>(mask_in_node);
-    }
-
-    return nullptr;
-}
 
 // Helper function to create Attention instance from a model
 std::optional<ov::npuw::function::Attention> create_attention_from_model(
@@ -47,7 +25,7 @@ std::optional<ov::npuw::function::Attention> create_attention_from_model(
     const std::map<std::string, size_t>& past_key_sequence_dims,
     const std::map<std::string, size_t>& past_value_sequence_dims) {
     // Find SDPA pattern nodes in the model
-    auto pattern_nodes = ov::npuw::util::find_sdpa_pattern_nodes(model);
+    auto pattern_nodes = find_sdpa_pattern_nodes(model);
     if (!pattern_nodes.is_valid()) {
         LOG_WARN("Could not find SDPA pattern in model");
         return std::nullopt;
@@ -69,12 +47,12 @@ std::optional<ov::npuw::function::Attention> create_attention_from_model(
     const auto& params = model->get_parameters();
     for (const auto& param : params) {
         const std::string param_name = param->get_friendly_name();
-        if (ov::npuw::util::isPastKeyValuesKey(param_name)) {
+        if (ov::npuw::util::isPastKeyValuesKeyContiguous(param_name).has_value()) {
             auto dim_iter = past_key_sequence_dims.find(param_name);
             if (dim_iter != past_key_sequence_dims.end()) {
                 attention._inputs.push_back(ov::npuw::function::Attention::Param{param, dim_iter->second});
             }
-        } else if (ov::npuw::util::isPastKeyValuesValue(param_name)) {
+        } else if (ov::npuw::util::isPastKeyValuesValueContiguous(param_name).has_value()) {
             auto dim_iter = past_value_sequence_dims.find(param_name);
             if (dim_iter != past_value_sequence_dims.end()) {
                 attention._inputs.push_back(ov::npuw::function::Attention::Param{param, dim_iter->second});
@@ -85,6 +63,27 @@ std::optional<ov::npuw::function::Attention> create_attention_from_model(
     return attention;
 }
 
+// Collect past KV block parameter indices from a Concat node in Concat input order.
+// All inputs except the last (present_key/value) are past block params.
+// SplitKVCacheIntoBlocks may insert a Convert between each block Parameter and the Concat.
+static void collect_concat_block_indices(const std::shared_ptr<ov::Model>& model,
+                                         const std::shared_ptr<ov::Node>& concat_node,
+                                         std::vector<size_t>& out) {
+    if (!concat_node) {
+        return;
+    }
+    const size_t n = concat_node->get_input_size();
+    for (size_t i = 0; i + 1 < n; ++i) {
+        auto node = concat_node->get_input_node_shared_ptr(i);
+        if (auto cvt = std::dynamic_pointer_cast<ov::op::v0::Convert>(node)) {
+            node = cvt->input_value(0).get_node_shared_ptr();
+        }
+        if (auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(node)) {
+            out.push_back(model->get_parameter_index(param));
+        }
+    }
+}
+
 // Helper function to process a single pyramid model (clone, reshape, patch, optimize)
 std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov::Model>& original_model,
                                                         size_t model_idx,
@@ -93,7 +92,8 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
                                                         size_t full_past_kv_length,
                                                         size_t full_context_length,
                                                         const std::map<std::string, size_t>& past_key_sequence_dims,
-                                                        const std::map<std::string, size_t>& past_value_sequence_dims) {
+                                                        const std::map<std::string, size_t>& past_value_sequence_dims,
+                                                        bool is_block_split) {
     // Clone the original model for modification
     auto cloned_model = original_model->clone();
 
@@ -119,6 +119,165 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
     LOG_DEBUG("Model " << model_idx << ":");
     LOG_DEBUG("  Context length: " << current_context_length);
     LOG_DEBUG("  Past length: " << current_past_length);
+
+    // -------------------------------------------------------------------------
+    // Block-split KV cache path (is_block_split == true)
+    //
+    // The model has already been through SplitKVCacheIntoBlocks. The KV Concat
+    // now has the form:
+    //   Concat([past_key_block_0, ..., past_key_block_{N-2}, present_key])
+    // For pyramid model[idx] we only need `idx` past blocks, so we replace the
+    // Concat with a smaller one and remove the surplus block Parameters.
+    //   model[0]  -> Concat([present_key])           (0 past blocks)
+    //   model[1]  -> Concat([block_0, present_key])  (1 past block)
+    //   model[idx]-> Concat([block_0..block_{idx-1}, present_key])
+    // -------------------------------------------------------------------------
+    if (is_block_split) {
+        const size_t num_blocks_needed = model_idx;  // model[idx] needs exactly idx past blocks
+
+        // Lambda: shrink one Concat (key or value) to keep only num_blocks_needed past inputs.
+        // Returns false on error.
+        auto shrink_concat_inputs = [&](const std::shared_ptr<ov::Node>& concat_node) -> bool {
+            auto concat = std::dynamic_pointer_cast<ov::op::v0::Concat>(concat_node);
+            if (!concat) {
+                LOG_WARN("  Block shrink: expected a Concat node, got something else");
+                return false;
+            }
+
+            const size_t total_inputs = concat->get_input_size();
+            // The last input is always present_key/value (SplitKVCacheIntoBlocks convention).
+            const size_t num_global_past_blocks = total_inputs - 1u;
+
+            if (num_blocks_needed > num_global_past_blocks) {
+                LOG_WARN("  Block shrink: model[" << model_idx << "] needs " << num_blocks_needed
+                                                  << " blocks but global model only has " << num_global_past_blocks);
+                return false;
+            }
+
+            ov::OutputVector new_inputs;
+            new_inputs.reserve(num_blocks_needed + 1u);
+            std::vector<std::shared_ptr<ov::op::v0::Parameter>> params_to_remove;
+
+            for (size_t i = 0; i < num_global_past_blocks; ++i) {
+                auto src_output = concat->input_value(i);
+                auto src_node = src_output.get_node_shared_ptr();
+
+                // SplitKVCacheIntoBlocks may insert a Convert node between the block
+                // Parameter and the Concat; unwrap it to reach the Parameter.
+                std::shared_ptr<ov::op::v0::Parameter> block_param;
+                if (auto cvt = std::dynamic_pointer_cast<ov::op::v0::Convert>(src_node)) {
+                    block_param =
+                        std::dynamic_pointer_cast<ov::op::v0::Parameter>(cvt->input_value(0).get_node_shared_ptr());
+                } else {
+                    block_param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(src_node);
+                }
+
+                if (i < num_blocks_needed) {
+                    new_inputs.push_back(src_output);  // keep
+                } else {
+                    if (block_param) {
+                        params_to_remove.push_back(block_param);
+                        LOG_DEBUG("  Dropping block param: " << block_param->get_friendly_name());
+                    }
+                }
+            }
+            // Always keep the present_key/value (last input).
+            new_inputs.push_back(concat->input_value(total_inputs - 1u));
+
+            auto new_concat = std::make_shared<ov::op::v0::Concat>(new_inputs, concat->get_axis());
+            new_concat->set_friendly_name(concat->get_friendly_name());
+            concat->output(0).replace(new_concat->output(0));
+
+            for (const auto& param : params_to_remove) {
+                cloned_model->remove_parameter(param);
+            }
+
+            LOG_DEBUG("  Concat shrunken: " << total_inputs << " inputs -> " << new_inputs.size() << " inputs");
+            return true;
+        };
+
+        // Find SDPA pattern in the cloned model.
+        auto cloned_pattern = find_sdpa_pattern_nodes(cloned_model);
+        if (!cloned_pattern.is_valid()) {
+            LOG_WARN("Could not find SDPA pattern in block-mode cloned model (model_idx=" << model_idx << ")");
+            return std::nullopt;
+        }
+
+        // Capture value Concat axis before shrinking — needed for patch_reshape_constants below.
+        int64_t value_concat_axis = 0;
+        if (auto vc = std::dynamic_pointer_cast<ov::op::v0::Concat>(cloned_pattern.past_value_concat_node)) {
+            const auto& out_shape = vc->get_output_partial_shape(0);
+            value_concat_axis = ov::util::try_normalize_axis(vc->get_axis(), out_shape.rank(), *vc);
+        }
+
+        if (!shrink_concat_inputs(cloned_pattern.past_key_concat_node) ||
+            !shrink_concat_inputs(cloned_pattern.past_value_concat_node)) {
+            LOG_WARN("Failed to shrink Concat nodes for block-mode pyramid model[" << model_idx << "]");
+            return std::nullopt;
+        }
+
+        LOG_DEBUG("  Concat nodes shrunk successfully for model[" << model_idx << "]");
+
+        // Apply the same pre-reshape patching + reshape sequence as the non-block path:
+        //   1. patch_broadcast_constants — fix Broadcast shape constants referencing full_context_length
+        //   2. patch_reshape_constants  — set seq dim to -1 in value-path Reshape shape constant
+        //                                 (pattern: value_Concat → Reshape → MatMul2 ← Softmax)
+        //   3. reshape(new_shapes)      — apply mask shape update and propagate all shapes
+        //   4. validate_nodes_and_infer_types
+        ov::npuw::function::patch_broadcast_constants(cloned_model, full_context_length);
+        // The map key is unused by patch_reshape_constants; only the dim-index value matters.
+        ov::npuw::function::patch_reshape_constants(cloned_model, {{"", static_cast<size_t>(value_concat_axis)}});
+
+        // Directly set partial shape on the Parameter node — bypasses reshape() name/pointer
+        // lookup entirely. reshape(Output<Node>) can silently miss, reshape(string) uses
+        // tensor names (not friendly names), so set_partial_shape() is the safest path.
+        auto mask_param = find_mask_parameter(cloned_pattern.add_node);
+        if (mask_param) {
+            ov::PartialShape new_mask_shape = mask_param->get_partial_shape();
+            if (new_mask_shape.rank().is_static() && new_mask_shape.rank().get_length() > 0) {
+                new_mask_shape[new_mask_shape.rank().get_length() - 1] = current_context_length;
+                mask_param->set_partial_shape(new_mask_shape);
+                LOG_INFO("  Set mask '" << mask_param->get_friendly_name() << "' partial shape -> " << new_mask_shape);
+            }
+        } else {
+            LOG_WARN("  No mask parameter found in block-mode cloned model (model_idx=" << model_idx << ")");
+        }
+
+        cloned_model->validate_nodes_and_infer_types();
+
+        // Build a minimal Attention descriptor for block mode.
+        // Cannot use create_attention_from_model() because is_valid() requires past_key_param_nodes
+        // to be non-empty — model[0] has 0 past block params after shrinking, so it always fails.
+        // Call find_sdpa_pattern_nodes() unconditionally and extract mask + block params directly.
+        ov::npuw::function::Attention block_attention;
+        {
+            auto post_pattern = find_sdpa_pattern_nodes(cloned_model);
+            auto mask_p = (post_pattern.add_node ? find_mask_parameter(post_pattern.add_node)
+                                                 : find_mask_parameter(cloned_pattern.add_node));
+            if (!mask_p) {
+                LOG_WARN("Could not find mask parameter for block-mode pyramid model[" << model_idx << "]");
+                return std::nullopt;
+            }
+            block_attention._mask = mask_p;
+            block_attention._mask_shape = mask_p->get_shape();
+
+            // Collect past key/value block parameter indices from the (shrunk) Concat inputs.
+            collect_concat_block_indices(cloned_model,
+                                         post_pattern.past_key_concat_node,
+                                         block_attention.past_key_block_variant_param_indices);
+            collect_concat_block_indices(cloned_model,
+                                         post_pattern.past_value_concat_node,
+                                         block_attention.past_value_block_variant_param_indices);
+        }
+
+        LOG_INFO("Block-mode pyramid model[" << model_idx << "] ready: " << num_blocks_needed
+                                             << " past block(s), context=" << current_context_length);
+
+        return PyramidModelResult{cloned_model, std::move(block_attention)};
+    }
+    // -------------------------------------------------------------------------
+    // End block-split path
+    // -------------------------------------------------------------------------
 
     // Create initial Attention instance to get mask parameter for reshaping
     auto initial_attention =
@@ -148,7 +307,7 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
                 new_shapes[param->output(0)] = new_shape;
                 LOG_DEBUG("  Mask param '" << param_name << "' shape: " << original_shape << " -> " << new_shape);
             }
-        } else if (ov::npuw::util::isPastKeyValuesKey(param_name)) {
+        } else if (ov::npuw::util::isPastKeyValuesKeyContiguous(param_name).has_value()) {
             // Handle past key parameters
             // Use pre-analyzed sequence dimension information
             auto dim_iter = past_key_sequence_dims.find(param_name);
@@ -163,7 +322,7 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
                 LOG_WARN("No pre-analyzed sequence dimension for past key param: " << param_name);
                 return std::nullopt;
             }
-        } else if (ov::npuw::util::isPastKeyValuesValue(param_name)) {
+        } else if (ov::npuw::util::isPastKeyValuesValueContiguous(param_name).has_value()) {
             // Handle past value parameters
             // Use pre-analyzed sequence dimension information
             auto dim_iter = past_value_sequence_dims.find(param_name);
@@ -218,7 +377,7 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
 // Helper function to validate model and extract necessary information for pyramid attention
 std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(const std::shared_ptr<ov::Model>& model) {
     // Find SDPA pattern nodes using the extracted function
-    auto pattern_nodes = ov::npuw::util::find_sdpa_pattern_nodes(model);
+    auto pattern_nodes = find_sdpa_pattern_nodes(model);
     if (!pattern_nodes.is_valid()) {
         LOG_WARN("Could not find valid SDPA pattern in model");
         return std::nullopt;
@@ -229,7 +388,6 @@ std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(cons
     // Extract query_length and full_context_length from Softmax output shape
     auto softmax_output_shape = pattern_nodes.softmax_node->get_output_shape(0);
     size_t query_length = 0;
-    size_t past_kv_length = 0;
     size_t full_context_length = 0;
 
     if (softmax_output_shape.size() >= 2) {
@@ -251,8 +409,34 @@ std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(cons
         return std::nullopt;
     }
 
+    // Detect block-split KV cache layout.
+    // After SplitKVCacheIntoBlocks the single past_key param becomes N block params named
+    // "{original_name}_block_{i}". We detect this by either count > 1 or the name suffix.
+    const bool is_block_split =
+        !pattern_nodes.past_key_param_nodes.empty() &&
+        (pattern_nodes.past_key_param_nodes.size() > 1 ||
+         !ov::npuw::util::isPastKeyValuesKeyContiguous(pattern_nodes.past_key_param_nodes[0]->get_friendly_name())
+              .has_value());
+
+    if (is_block_split) {
+        LOG_INFO("Detected block-split KV cache (" << pattern_nodes.past_key_param_nodes.size()
+                                                   << " past key block(s)): using Concat-shrink path");
+        // Compute full-model block param indices from the **Concat input order** (block_0, block_1, ..., present).
+        // This is the same order used by process_pyramid_model / collect_concat_block_indices, so
+        // global and variant indices are always aligned for bind_block_ports.
+        // Do NOT use past_key_param_nodes order (model parameter list) — it may differ.
+        std::vector<size_t> full_key_indices, full_val_indices;
+        collect_concat_block_indices(model, pattern_nodes.past_key_concat_node, full_key_indices);
+        collect_concat_block_indices(model, pattern_nodes.past_value_concat_node, full_val_indices);
+        return PyramidValidationResult::make_block(query_length,
+                                                   full_context_length,
+                                                   std::move(full_key_indices),
+                                                   std::move(full_val_indices));
+    }
+
     // Pre-analyze original model to find sequence dimensions for past key/value parameters
     // This avoids repeated analysis in each cloned model
+    size_t past_kv_length = 0;
     std::map<std::string, size_t> past_key_sequence_dims;
     std::map<std::string, size_t> past_value_sequence_dims;
 
@@ -277,8 +461,8 @@ std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(cons
         const auto& original_params = model->get_parameters();
         for (const auto& param : original_params) {
             const std::string param_name = param->get_friendly_name();
-            bool is_target_param = is_key ? ov::npuw::util::isPastKeyValuesKey(param_name).has_value()
-                                          : ov::npuw::util::isPastKeyValuesValue(param_name).has_value();
+            bool is_target_param = is_key ? ov::npuw::util::isPastKeyValuesKeyContiguous(param_name).has_value()
+                                          : ov::npuw::util::isPastKeyValuesValueContiguous(param_name).has_value();
 
             if (is_target_param) {
                 sequence_dims[param_name] = concat_axis;
@@ -308,11 +492,11 @@ std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(cons
         return std::nullopt;
     }
 
-    return PyramidValidationResult{query_length,
-                                   past_kv_length,
-                                   full_context_length,
-                                   past_key_sequence_dims,
-                                   past_value_sequence_dims};
+    return PyramidValidationResult::make_contiguous(query_length,
+                                                    full_context_length,
+                                                    past_kv_length,
+                                                    past_key_sequence_dims,
+                                                    past_value_sequence_dims);
 }
 
 std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov::Model>& model) {
@@ -327,6 +511,7 @@ std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov:
     size_t full_context_length = validation_result->full_context_length;
     const auto& past_key_sequence_dims = validation_result->past_key_sequence_dims;
     const auto& past_value_sequence_dims = validation_result->past_value_sequence_dims;
+    const bool is_block_split = validation_result->is_block_split;
 
     std::vector<std::shared_ptr<ov::Model>> pyramid_models;
 
@@ -356,6 +541,16 @@ std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov:
                 return std::nullopt;
             }
 
+            // In block mode the last model IS the full/original model (N blocks).
+            // Propagate the full-model block indices into this variant's attention so
+            // compiled::PyramidAttentionInfo can copy them without re-scanning the graph.
+            if (is_block_split) {
+                last_attention->past_key_block_variant_param_indices =
+                    validation_result->past_key_block_global_param_indices;
+                last_attention->past_value_block_variant_param_indices =
+                    validation_result->past_value_block_global_param_indices;
+            }
+
             pyramid_attentions.push_back(std::move(*last_attention));
             LOG_INFO("Successfully setup attention for original model[" << model_idx << "]");
         } else {
@@ -367,7 +562,8 @@ std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov:
                                                 full_past_kv_length,
                                                 full_context_length,
                                                 past_key_sequence_dims,
-                                                past_value_sequence_dims);
+                                                past_value_sequence_dims,
+                                                is_block_split);
             if (!result) {
                 return std::nullopt;
             }
@@ -385,6 +581,9 @@ std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov:
     pyramid_attention._full_context_length = full_context_length;
     pyramid_attention._models = pyramid_models;
     pyramid_attention._attentions = pyramid_attentions;
+    // Block indices are empty in contiguous mode; assigned unconditionally for simplicity.
+    pyramid_attention.past_key_block_global_param_indices = validation_result->past_key_block_global_param_indices;
+    pyramid_attention.past_value_block_global_param_indices = validation_result->past_value_block_global_param_indices;
 
     LOG_INFO("Returning pyramid attention with " << pyramid_models.size() << " models");
     LOG_INFO("  Query length: " << pyramid_attention._query_length);
@@ -397,7 +596,9 @@ std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov:
 
 namespace compiled {
 
-// Constructor implementation - extracts metadata and stores models for compilation
+// Constructor implementation - extracts metadata and stores models for compilation.
+// KV block parameter indices are read from function::Attention::past_key/value_block_variant_param_indices,
+// which were populated in process_pyramid_model (block path) from the Concat inputs.
 PyramidAttention::PyramidAttention(const function::PyramidAttention& func_pyramid)
     : query_size(func_pyramid._query_length),
       full_context_size(func_pyramid._full_context_length),
@@ -428,14 +629,27 @@ PyramidAttention::PyramidAttention(const function::PyramidAttention& func_pyrami
         attention_info.query_size = func_attn.query_len();
         attention_info.context_length = func_attn.context_len();
 
+        // Block parameter indices are pre-computed by process_pyramid_model / from().
+        // Simple copy; no model->get_parameter_index() needed for blocks.
+        attention_info.past_key_block_variant_param_indices = func_attn.past_key_block_variant_param_indices;
+        attention_info.past_value_block_variant_param_indices = func_attn.past_value_block_variant_param_indices;
+
         _attention_infos.push_back(std::move(attention_info));
         _context_lengths.push_back(_attention_infos.back().context_length);
     }
 
-    LOG_INFO("compiled::PyramidAttention metadata extracted, models stored for compilation");
+    // Full-model block indices are pre-computed in function::PyramidAttention::from().
+    // Simple copy; no further graph traversal needed.
+    past_key_block_global_param_indices = func_pyramid.past_key_block_global_param_indices;
+    past_value_block_global_param_indices = func_pyramid.past_value_block_global_param_indices;
+
+    LOG_INFO("compiled::PyramidAttention metadata extracted, "
+             << past_key_block_global_param_indices.size() << " K blocks / "
+             << past_value_block_global_param_indices.size() << " V blocks in full model");
 }
 
-// Set compiled models after parallel compilation and clear temporary storage
+// Set compiled models after parallel compilation and clear temporary storage.
+// Block indices are already populated in the constructor from the graph.
 void PyramidAttention::set_compiled_models(std::vector<ov::SoPtr<ov::ICompiledModel>>&& compiled_models) {
     NPUW_ASSERT(compiled_models.size() == _attention_infos.size() && "Compiled models count must match metadata count");
     _compiled_models = std::move(compiled_models);
@@ -444,7 +658,7 @@ void PyramidAttention::set_compiled_models(std::vector<ov::SoPtr<ov::ICompiledMo
     _models_to_compile.clear();
     _models_to_compile.shrink_to_fit();
 
-    LOG_INFO("compiled::PyramidAttention compiled models set successfully (" << _compiled_models.size() << " models)");
+    LOG_INFO("compiled::PyramidAttention compiled models set (" << _compiled_models.size() << " models)");
 }
 
 }  // namespace compiled
