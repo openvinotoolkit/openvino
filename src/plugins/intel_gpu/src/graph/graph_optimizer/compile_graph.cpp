@@ -61,7 +61,8 @@ void compile_graph::run(program& p) {
                                     node->get_primitive()->origin_op_type_name,
                                     " ", fail_reason);
 
-                    OPENVINO_ASSERT(!has_forced_impl || node->selected_impl != nullptr,
+                    OPENVINO_ASSERT(!has_forced_impl || node->selected_impl != nullptr || 
+                                        shape_type == shape_types::dynamic_shape,
                                     "[GPU] force_implementations requested for primitive but no implementation was selected"
                                     "\nname: ",
                                     node->id(),
