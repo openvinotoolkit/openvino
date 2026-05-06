@@ -360,7 +360,7 @@ void Gather::detach() {
 // Stable, permanently assigned op-type IDs.
 // Once assigned, IDs are NEVER changed and NEVER reused, even if an op is retired.
 // Retired IDs must be kept as comments to prevent accidental recycling.
-enum class TransformType : std::uint32_t {
+enum class TransformType : std::uint16_t {
     CONST   = 1,
     CONCAT  = 2,
     UNPACK  = 3,
@@ -504,8 +504,8 @@ void Gather::serialize(ov::npuw::s11n::Stream& stream) {
 void LazyTensorImpl::serialize(ov::npuw::s11n::Stream& stream) {
     stream & m_hash;
 
-    std::uint32_t op_type = 0u;
-    std::uint32_t op_version = 0u;
+    std::uint16_t op_type = 0u;
+    std::uint16_t op_version = 0u;
 
     if (stream.output()) {
         std::visit(
