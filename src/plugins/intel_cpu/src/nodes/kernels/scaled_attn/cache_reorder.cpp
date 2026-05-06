@@ -23,6 +23,47 @@ using ov::intel_cpu::PlainTensor;
 
 namespace {
 
+void validate_begin_offsets(const int32_t* begins_ptr,
+                            size_t begins_count,
+                            size_t upper_bound,
+                            const char* tensor_name) {
+    for (size_t i = 0; i < begins_count; i++) {
+        const int32_t begin = begins_ptr[i];
+        OPENVINO_ASSERT(begin >= 0,
+                        tensor_name,
+                        " contains a negative offset at index ",
+                        i,
+                        ": ",
+                        begin,
+                        ".");
+        OPENVINO_ASSERT(static_cast<size_t>(begin) <= upper_bound,
+                        tensor_name,
+                        " offset at index ",
+                        i,
+                        " is out of range: ",
+                        begin,
+                        " > ",
+                        upper_bound,
+                        ".");
+        if (i + 1 == begins_count) {
+            continue;
+        }
+
+        const int32_t next_begin = begins_ptr[i + 1];
+        OPENVINO_ASSERT(next_begin >= begin,
+                        tensor_name,
+                        " must be monotonic, but offsets at indices ",
+                        i,
+                        " and ",
+                        i + 1,
+                        " are ",
+                        begin,
+                        " and ",
+                        next_begin,
+                        ".");
+    }
+}
+
 /**
  * @brief Batch reorder context for collecting operations with same block pair
  */
@@ -235,6 +276,22 @@ void reorder_kv_cache(PlainTensor& key_cache,
     const auto* block_idx_begins_ptr = block_indices_begins.ptr<int32_t>();
     const auto* update_ptr = block_update_indices.ptr<int32_t>();
     const auto* update_begins_ptr = block_update_indices_begins.ptr<int32_t>();
+
+    OPENVINO_ASSERT(block_indices_begins.size(0) == block_update_indices_begins.size(0),
+                    "block_indices_begins and block_update_indices_begins must have the same length, but got ",
+                    block_indices_begins.size(0),
+                    " and ",
+                    block_update_indices_begins.size(0),
+                    ".");
+    OPENVINO_ASSERT(block_update_indices.size(0) % 2 == 0,
+                    "block_update_indices must contain src/dst pairs, but got ",
+                    block_update_indices.size(0),
+                    " elements.");
+    validate_begin_offsets(block_idx_begins_ptr, block_indices_begins.size(0), block_indices.size(0), "block_indices_begins");
+    validate_begin_offsets(update_begins_ptr,
+                           block_update_indices_begins.size(0),
+                           block_update_indices.size(0) / 2,
+                           "block_update_indices_begins");
 
     const auto key_prec = key_cache.get_precision();
     const auto value_prec = value_cache.get_precision();

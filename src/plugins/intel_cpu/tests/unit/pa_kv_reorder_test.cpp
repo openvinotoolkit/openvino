@@ -580,3 +580,93 @@ TEST(PaKVReorderKernelTest, Int8CacheIsRejected) {
                                   cpu_parallel),
                  ov::Exception);
 }
+
+TEST(PaKVReorderKernelTest, InvalidBlockUpdateBeginsAreRejected) {
+    constexpr size_t num_blocks = 1;
+    constexpr size_t num_heads = 1;
+    constexpr size_t block_size = 4;
+    constexpr size_t head_size = 8;
+
+    std::vector<float> key_data(num_blocks * num_heads * block_size * head_size, 1.f);
+    std::vector<float> value_data(num_blocks * num_heads * block_size * head_size, 2.f);
+
+    PlainTensor key_cache;
+    key_cache.resize<float>({num_blocks, num_heads, block_size, head_size}, key_data.data());
+
+    PlainTensor value_cache;
+    value_cache.resize<float>({num_blocks, num_heads, block_size, head_size}, value_data.data());
+
+    std::vector<int32_t> block_indices_data = {0};
+    std::vector<int32_t> block_indices_begins_data = {0, 1};
+    std::vector<int32_t> block_update_indices_data = {0, 1};
+    std::vector<int32_t> block_update_indices_begins_data = {1, 0};
+
+    PlainTensor block_indices;
+    block_indices.resize<int32_t>({1}, block_indices_data.data());
+
+    PlainTensor block_indices_begins;
+    block_indices_begins.resize<int32_t>({2}, block_indices_begins_data.data());
+
+    PlainTensor block_update_indices;
+    block_update_indices.resize<int32_t>({2}, block_update_indices_data.data());
+
+    PlainTensor block_update_indices_begins;
+    block_update_indices_begins.resize<int32_t>({2}, block_update_indices_begins_data.data());
+
+    auto cpu_parallel = std::make_shared<CpuParallel>(ov::intel_cpu::TbbPartitioner::STATIC);
+    EXPECT_THROW(reorder_kv_cache(key_cache,
+                                  value_cache,
+                                  block_indices,
+                                  block_indices_begins,
+                                  block_update_indices,
+                                  block_update_indices_begins,
+                                  false,
+                                  false,
+                                  cpu_parallel),
+                 ov::Exception);
+}
+
+TEST(PaKVReorderKernelTest, InvalidBlockIndicesBeginsAreRejected) {
+    constexpr size_t num_blocks = 1;
+    constexpr size_t num_heads = 1;
+    constexpr size_t block_size = 4;
+    constexpr size_t head_size = 8;
+
+    std::vector<float> key_data(num_blocks * num_heads * block_size * head_size, 1.f);
+    std::vector<float> value_data(num_blocks * num_heads * block_size * head_size, 2.f);
+
+    PlainTensor key_cache;
+    key_cache.resize<float>({num_blocks, num_heads, block_size, head_size}, key_data.data());
+
+    PlainTensor value_cache;
+    value_cache.resize<float>({num_blocks, num_heads, block_size, head_size}, value_data.data());
+
+    std::vector<int32_t> block_indices_data = {0};
+    std::vector<int32_t> block_indices_begins_data = {0, 2};
+    std::vector<int32_t> block_update_indices_data = {0, 1};
+    std::vector<int32_t> block_update_indices_begins_data = {0, 1};
+
+    PlainTensor block_indices;
+    block_indices.resize<int32_t>({1}, block_indices_data.data());
+
+    PlainTensor block_indices_begins;
+    block_indices_begins.resize<int32_t>({2}, block_indices_begins_data.data());
+
+    PlainTensor block_update_indices;
+    block_update_indices.resize<int32_t>({2}, block_update_indices_data.data());
+
+    PlainTensor block_update_indices_begins;
+    block_update_indices_begins.resize<int32_t>({2}, block_update_indices_begins_data.data());
+
+    auto cpu_parallel = std::make_shared<CpuParallel>(ov::intel_cpu::TbbPartitioner::STATIC);
+    EXPECT_THROW(reorder_kv_cache(key_cache,
+                                  value_cache,
+                                  block_indices,
+                                  block_indices_begins,
+                                  block_update_indices,
+                                  block_update_indices_begins,
+                                  false,
+                                  false,
+                                  cpu_parallel),
+                 ov::Exception);
+}
