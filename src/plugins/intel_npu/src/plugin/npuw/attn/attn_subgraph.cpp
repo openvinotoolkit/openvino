@@ -448,7 +448,6 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
             bool bind_function_input(ov::npuw::v1::subgraphs::InferContext& ctx,
                                      std::size_t input_idx,
                                      const ov::SoPtr<ov::ITensor>& tensor) override {
-                auto& request = get_request(ctx);
                 auto& state = get_runtime_state(ctx);
                 const auto& compiled_model = get_compiled_submodel(ctx, ctx.real_subgraph_idx);
                 const auto& pipeline = get_subgraph_pipeline(ctx, ctx.real_subgraph_idx);
@@ -511,21 +510,10 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
             bool bind_function_output(ov::npuw::v1::subgraphs::InferContext& ctx,
                                       std::size_t output_idx,
                                       const ov::SoPtr<ov::ITensor>& tensor) override {
-                if (m_kind != BehaviorKind::HFA) {
-                    return false;
-                }
-                const auto& pipeline = get_subgraph_pipeline(ctx, ctx.real_subgraph_idx);
-                const auto* hfa = ov::npuw::attn::get_compiled_hfa(pipeline.context);
-                if (hfa == nullptr) {
-                    return false;
-                }
-                auto& state = get_runtime_state(ctx);
-                auto& io = get_behavior_io(state,
-                                           ctx.subgraph_idx,
-                                           get_param_base(ctx, ctx.real_subgraph_idx),
-                                           hfa->_compiled_final_tile_model->outputs().size());
-                io.outputs.at(output_idx) = tensor;
-                return true;
+                (void)ctx;
+                (void)output_idx;
+                (void)tensor;
+                return false;
             }
 
             void prologue(ov::npuw::v1::subgraphs::InferContext& ctx) override {
@@ -689,7 +677,6 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                         "HFA total KV length must be multiple of tile size for now");
 
                         const auto& hfa_inputs = io.inputs;
-                        const auto& hfa_outputs = io.outputs;
                         const auto& sdpa_info = hfa_desc->_sdpa_attention_info;
                         const auto& sdpa_in = sdpa_info._sdpa_indices;
 
@@ -699,10 +686,10 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         auto present_key_tensor = hfa_inputs.at(sdpa_in.present_key);
                         auto attention_mask_tensor = hfa_inputs.at(sdpa_in.attention_mask);
                         auto present_value_tensor = hfa_inputs.at(sdpa_in.present_value);
-                        auto attention_output_tensor = hfa_outputs.at(0);
-
                         auto& regular_tile_request = state.hfa_requests.infer_requests[HFARequestSet::REGULAR_TILE];
                         auto& final_tile_request = state.hfa_requests.infer_requests[HFARequestSet::FINAL_TILE];
+                        auto attention_output_tensor =
+                            final_tile_request->get_tensor(hfa_desc->_compiled_final_tile_model->outputs()[0]);
                         const auto& tile_in = sdpa_info._tile_input_indices;
                         const auto& tile_out = sdpa_info._tile_output_indices;
 
