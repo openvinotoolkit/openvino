@@ -47,5 +47,5 @@ event::ptr ze_event_factory::create_event(uint64_t queue_stamp) {
     OV_ZE_EXPECT(ze::zeEventCreate(m_current_pool.get_handle(), &event_desc, &event));
     auto event_holder = ze_holder<ze_resource_type::event>(event, m_current_pool);
 
-    return std::make_shared<ze_event>(queue_stamp, *this, event, m_current_pool);
+    return std::make_shared<ze_event>(queue_stamp, *this, event_holder);
 }
