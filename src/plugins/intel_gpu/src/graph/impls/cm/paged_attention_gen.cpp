@@ -5,7 +5,6 @@
 #include "paged_attention_gen.hpp"
 
 #include <array>
-#include <cstdlib>
 #include <cstdint>
 #include <memory>
 #include <utility>
@@ -25,21 +24,6 @@ using namespace cldnn;
 namespace {
 constexpr size_t reduce_split_step = 16;
 constexpr size_t KV_SUB_BLOCK_SIZE = 16;
-
-size_t get_kv_update_wg_size() {
-    constexpr size_t default_wg_size = WG_SIZE;
-    const char* env = std::getenv("OV_GPU_CM_KV_UPDATE_WG_SIZE");
-    if (env == nullptr || env[0] == '\0') {
-        return default_wg_size;
-    }
-
-    const long parsed = std::strtol(env, nullptr, 10);
-    OPENVINO_ASSERT(parsed == 8 || parsed == 16 || parsed == 32,
-                    "Unsupported OV_GPU_CM_KV_UPDATE_WG_SIZE value: ",
-                    parsed,
-                    ". Supported values: 8, 16, 32.");
-    return static_cast<size_t>(parsed);
-}
 
 size_t get_batch_size_in_sequences(const RuntimeParams& params) {
     const auto past_lens_shape = params.input_layouts[PagedAttentionInputIdx::PAST_LENS].get_shape();
@@ -78,6 +62,18 @@ inline bool get_kv_compressed(const RuntimeParams& params) {
     } else {
         return false;
     }
+}
+
+inline size_t get_kv_update_wg_size(const RuntimeParams& params) {
+    const auto desc = params.typed_desc<paged_attention>();
+    if (get_kv_compressed(params) && desc->is_key_by_channel) {
+        const size_t block_size = desc->has_xattention ? PA_KV_CACHE_BLOCK_SIZE_XATTN
+                                                       : PA_KV_CACHE_BLOCK_SIZE_LEGACY;
+        OPENVINO_ASSERT(block_size % KV_SUB_BLOCK_SIZE == 0,
+                        "block_size (", block_size, ") must be divisible by KV_SUB_BLOCK_SIZE (", KV_SUB_BLOCK_SIZE, ")");
+        return block_size / KV_SUB_BLOCK_SIZE;
+    }
+    return WG_SIZE;
 }
 
 // max_context_len = max(past_lens + prompt_lens)
@@ -266,10 +262,24 @@ DispatchDataFunc PagedAttentionGeneratorKVCacheUpdate::get_dispatch_data_func() 
 
         const size_t kv_len = get_input_kv_len(params);
         const size_t kv_heads_num = desc->kv_heads_num;
-        const size_t kv_wg_size = get_kv_update_wg_size();
-        size_t kv_items = kv_len;
+        const size_t kv_wg_size = get_kv_update_wg_size(params);
+        size_t kv_items;
         if (get_kv_compressed(params) && desc->is_key_by_channel) {
-            kv_items = ceil_div(kv_len, KV_SUB_BLOCK_SIZE);
+            const auto past_lens_mem = params.memory_deps.at(PagedAttentionInputIdx::PAST_LENS);
+            mem_lock<int32_t, mem_lock_type::read> past_lens_lock(past_lens_mem, *params.strm);
+            const auto subseq_begins_mem = params.memory_deps.at(PagedAttentionInputIdx::SUBSEQUENCE_BEGINS);
+            mem_lock<int32_t, mem_lock_type::read> subseq_begins_lock(subseq_begins_mem, *params.strm);
+
+            const size_t batch_size = get_batch_size_in_sequences(params);
+            size_t total_sub_blocks = 0;
+            for (size_t i = 0; i < batch_size; ++i) {
+                const size_t past_tail = static_cast<size_t>(past_lens_lock[i]) % KV_SUB_BLOCK_SIZE;
+                const size_t cur_tokens = static_cast<size_t>(subseq_begins_lock[i + 1] - subseq_begins_lock[i]);
+                total_sub_blocks += ceil_div(past_tail + cur_tokens, KV_SUB_BLOCK_SIZE);
+            }
+            kv_items = total_sub_blocks;
+        } else {
+            kv_items = kv_len;
         }
         const size_t wg_count = ceil_div(kv_items, kv_wg_size);
 
