@@ -324,26 +324,6 @@ Constant::Constant(const Constant& other)
     constructor_validate_and_infer_types();
 }
 
-void Constant::copy_external_data() {
-
-    if (m_data && m_data->has_external_buffer()) {
-        const auto byte_size = ov::util::get_memory_size_safe(m_element_type, m_shape);
-        const auto src_data_ptr = m_data->get_ptr();
-        const auto num_elements = shape_size(m_shape);
-
-        m_data.reset();
-        allocate_buffer(false);
-
-        if (m_element_type == ov::element::string) {
-            const auto src_strings = static_cast<const std::string*>(src_data_ptr);
-            const auto dst_strings = static_cast<std::string*>(get_data_ptr_nc());
-            std::uninitialized_copy_n(src_strings, num_elements, dst_strings);
-        } else {
-            std::memcpy(get_data_ptr_nc(), src_data_ptr, ov::util::get_memory_size(m_element_type, num_elements));
-        }
-    }
-}
-
 Constant::Constant(const Constant& other, const Shape& new_shape)
     : m_element_type{other.m_element_type},
       m_shape{new_shape},
@@ -644,6 +624,10 @@ bool Constant::evaluate_upper(TensorVector& outputs) const {
 
 bool Constant::can_constant_fold(const OutputVector& input_values) const {
     return false;
+}
+
+bool Constant::has_external_buffer() const {
+    return m_data && m_data->has_external_buffer();
 }
 
 const Tensor Constant::get_tensor_view() const {

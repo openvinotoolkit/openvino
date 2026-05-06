@@ -109,9 +109,6 @@ public:
     /// \brief Clones the original model
     std::shared_ptr<ov::Model> clone() const;
 
-    /// Allocates buffer and copies data for constant nodes in which the buffer is externally owned.
-    void copy_external_constants();
-
     /// Model outputs
     std::vector<ov::Output<ov::Node>> outputs();
     ov::Output<ov::Node> output();

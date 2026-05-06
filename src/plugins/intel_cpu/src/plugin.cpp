@@ -359,8 +359,18 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     Config::ModelType modelType = getModelType(model);
     DEBUG_LOG(PrintableModel(*cloned_model, "org_"));
 
-    //Constant nodes may have non owning buffers. Allocate buffer and copy them so taht those are owned by teh compiled model.
-    cloned_model->copy_external_constants();
+    // Constant nodes may have non owning buffers. Allocate buffers and copy data so that the buffers are owned by
+    // cloned_model.
+    for (auto& node : cloned_model->get_ordered_ops()) {
+        const auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(node);
+
+        if (nullptr != const_node && const_node->has_external_buffer()) {
+            auto cloned_node = std::make_shared<ov::op::v0::Constant>(const_node->get_element_type(),
+                                                                      const_node->get_shape(),
+                                                                      const_node->get_data_ptr());
+            cloned_model->replace_node(node, cloned_node);
+        }
+    }
 
     // update the props after the perf mode translated to configs
     // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?

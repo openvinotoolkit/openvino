@@ -49,7 +49,7 @@ public:
     const void* get_ptr() const {
         return m_aligned_buffer;
     }
-    const bool has_external_buffer() const {
+    bool has_external_buffer() const {
         return m_allocated_buffer == nullptr;
     }
     template <typename T>
