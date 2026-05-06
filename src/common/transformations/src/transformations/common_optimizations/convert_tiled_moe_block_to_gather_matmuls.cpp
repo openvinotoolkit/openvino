@@ -20,7 +20,6 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/slice.hpp"
-#include "openvino/op/gelu.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/op/tile.hpp"
 #include "openvino/op/transpose.hpp"
