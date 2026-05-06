@@ -169,7 +169,9 @@ struct NullReturningImplementationManager : public ImplementationManager {
     }
 
     in_out_fmts_t query_formats(const program_node& node) const override {
-        OPENVINO_NOT_IMPLEMENTED;
+        // Return empty formats as this impl is never used in production path
+        // Any future code that calls query_formats will get a valid empty response
+        return {{}, {}};
     }
 
     bool support_shapes(const kernel_impl_params& params) const override {
