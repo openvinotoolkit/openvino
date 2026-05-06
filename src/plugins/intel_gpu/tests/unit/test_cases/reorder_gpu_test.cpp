@@ -1762,12 +1762,16 @@ TEST(reorder_gpu_f32, dynamic_fsv16_to_bfyx_executes_without_error) {
     auto& engine = get_test_engine();
 
     ov::Shape in_shape{ 1, 16, 4, 4 };
+    size_t element_count = 1;
+    for (const auto dim : in_shape)
+        element_count *= dim;
+
     // Dynamic input in b_fs_yx_fsv16 format
     layout in_layout{ov::PartialShape::dynamic(in_shape.size()), data_types::f32, format::b_fs_yx_fsv16};
 
     // Prepare properly formatted fsv16 memory via helper network
     auto input_bfyx = engine.allocate_memory({ov::PartialShape(in_shape), data_types::f32, format::bfyx});
-    std::vector<float> input_data(256);
+    std::vector<float> input_data(element_count);
     std::iota(input_data.begin(), input_data.end(), 1.f);
     set_values(input_bfyx, input_data);
 

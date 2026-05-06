@@ -30,6 +30,7 @@ struct some_primitive : public primitive_base<some_primitive> {
         SUPPORTED_VALUE_ONEDNN_1,
         SUPPORTED_VALUE_ONEDNN_2,
         SUPPORTED_VALUE_OCL_STATIC,
+        SUPPORTED_VALUE_OCL_DYNAMIC_NULL_FALLBACK,
         SUPPORTED_VALUE_OCL_DYNAMIC_1,
         SUPPORTED_VALUE_OCL_DYNAMIC,
         UNSUPPORTED_VALUE_ALL
@@ -119,7 +120,7 @@ struct SomeImplementationManager : public ImplementationManager {
     }
 
     in_out_fmts_t query_formats(const program_node& node) const override {
-        OPENVINO_NOT_IMPLEMENTED;
+        return {{format::bfyx}, {format::bfyx}};
     }
 
     bool support_shapes(const kernel_impl_params& params) const override {
@@ -205,7 +206,8 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<some_
         OV_GPU_GET_INSTANCE_OCL(some_primitive, shape_types::static_shape,
             [](const program_node& node) {
                 auto p = node.as<some_primitive>().get_primitive()->param;
-                if (!one_of(p, { some_primitive::SomeParameter::SUPPORTED_VALUE_ALL, some_primitive::SomeParameter::SUPPORTED_VALUE_OCL_STATIC }))
+                if (!one_of(p, { some_primitive::SomeParameter::SUPPORTED_VALUE_ALL,
+                                 some_primitive::SomeParameter::SUPPORTED_VALUE_OCL_STATIC }))
                     return false;
                 return true;
         })
@@ -216,11 +218,18 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<some_
                     return true;
                 return false;
         })
+        OV_GPU_CREATE_INSTANCE_OCL(NullReturningImplementationManager, shape_types::dynamic_shape,
+            [](const program_node& node) {
+                auto p = node.as<some_primitive>().get_primitive()->param;
+                return p == some_primitive::SomeParameter::SUPPORTED_VALUE_OCL_DYNAMIC_NULL_FALLBACK;
+        })
         OV_GPU_CREATE_INSTANCE_OCL(SomeDynamicImplementationManager, shape_types::dynamic_shape)
         OV_GPU_GET_INSTANCE_OCL(some_primitive, shape_types::dynamic_shape,
             [](const program_node& node) {
                 auto p = node.as<some_primitive>().get_primitive()->param;
-                if (!one_of(p, { some_primitive::SomeParameter::SUPPORTED_VALUE_ALL, some_primitive::SomeParameter::SUPPORTED_VALUE_OCL_DYNAMIC }))
+                if (!one_of(p, { some_primitive::SomeParameter::SUPPORTED_VALUE_ALL,
+                                 some_primitive::SomeParameter::SUPPORTED_VALUE_OCL_DYNAMIC,
+                                 some_primitive::SomeParameter::SUPPORTED_VALUE_OCL_DYNAMIC_NULL_FALLBACK }))
                     return false;
                 return true;
         })
@@ -235,7 +244,7 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<some_
 
 TEST(impls_test, has_2_not_null_impls) {
     auto list = some_primitive::type_id()->get_all_implementations();
-    ASSERT_EQ(list.size(), 5);
+    ASSERT_EQ(list.size(), 6);
     for (size_t i = 0; i < list.size(); i++) {
         ASSERT_NE(list[i], nullptr) << " i = " << i;
     }
@@ -245,19 +254,21 @@ TEST(impls_test, has_2_not_null_impls) {
     ASSERT_EQ(list[2]->get_impl_type(), impl_types::onednn);
     ASSERT_EQ(list[3]->get_impl_type(), impl_types::ocl);
     ASSERT_EQ(list[4]->get_impl_type(), impl_types::ocl);
+    ASSERT_EQ(list[5]->get_impl_type(), impl_types::ocl);
 
     ASSERT_EQ(list[0]->get_shape_type(), shape_types::static_shape);
     ASSERT_EQ(list[1]->get_shape_type(), shape_types::static_shape);
     ASSERT_EQ(list[2]->get_shape_type(), shape_types::static_shape);
     ASSERT_EQ(list[3]->get_shape_type(), shape_types::dynamic_shape);
     ASSERT_EQ(list[4]->get_shape_type(), shape_types::dynamic_shape);
+    ASSERT_EQ(list[5]->get_shape_type(), shape_types::dynamic_shape);
 }
 
 TEST(impls_test, same_result_on_each_call) {
     auto list_1 = some_primitive::type_id()->get_all_implementations();
     auto list_2 = some_primitive::type_id()->get_all_implementations();
-    ASSERT_EQ(list_1.size(), 5);
-    ASSERT_EQ(list_2.size(), 5);
+    ASSERT_EQ(list_1.size(), 6);
+    ASSERT_EQ(list_2.size(), 6);
     for (size_t i = 0; i < list_1.size(); i++) {
         ASSERT_EQ(list_1[i], list_2[i]) << " i = " << i;
     }
@@ -377,6 +388,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, PrimitiveTypeTest,
      std::vector<PrimitiveTypeTestParams>{
          { some_primitive::SomeParameter::SUPPORTED_VALUE_ALL, impl_types::ocl, shape_types::static_shape, true, 3, 1},
          { some_primitive::SomeParameter::SUPPORTED_VALUE_OCL_STATIC, impl_types::ocl, shape_types::static_shape, true, 1, 1},
+         { some_primitive::SomeParameter::SUPPORTED_VALUE_OCL_DYNAMIC_NULL_FALLBACK, impl_types::ocl, shape_types::dynamic_shape, true, 2, 1},
          { some_primitive::SomeParameter::SUPPORTED_VALUE_OCL_DYNAMIC, impl_types::ocl, shape_types::static_shape, false, 1, 1},
          { some_primitive::SomeParameter::SUPPORTED_VALUE_ONEDNN_1, impl_types::ocl, shape_types::static_shape, false, 1, 1},
          { some_primitive::SomeParameter::SUPPORTED_VALUE_ONEDNN_1, impl_types::onednn, shape_types::static_shape, true, 1, 1},
@@ -392,39 +404,23 @@ INSTANTIATE_TEST_SUITE_P(smoke, PrimitiveTypeTest,
 TEST(impls_test, impl_create_null_fallback) {
     auto& engine = get_test_engine();
 
-    // Create a list of impl managers where the first one returns nullptr,
-    // and the second one returns a valid impl
-    std::vector<std::shared_ptr<ImplementationManager>> test_impls = {
-        std::make_shared<NullReturningImplementationManager>(shape_types::static_shape),
-        std::make_shared<SomeImplementationManager>(shape_types::static_shape, nullptr),
-    };
+    topology topology;
+    topology.add(input_layout("input", layout{{-1}, data_types::f32, format::bfyx}));
+    topology.add(some_primitive("test_fallback",
+                                std::vector<input_info>{input_info{"input"}},
+                                some_primitive::SomeParameter::SUPPORTED_VALUE_OCL_DYNAMIC_NULL_FALLBACK));
 
-    // Simulate find_impl behavior: iterate through impls, skip nullptr results
-    kernel_impl_params params;
-    params.output_layouts = { layout{{1}, data_types::f32, format::bfyx} };
-    params.input_layouts = { layout{{1}, data_types::f32, format::bfyx} };
+    network net(engine, topology, get_test_default_config(engine));
+    auto input_mem = engine.allocate_memory(layout{{2}, data_types::f32, format::bfyx});
+    net.set_input_data("input", input_mem);
+    ASSERT_NO_THROW(net.execute());
 
-    program p(engine, get_test_default_config(engine));
-    auto prim = std::make_shared<some_primitive>("test_fallback", std::vector<input_info>{}, some_primitive::SomeParameter::SUPPORTED_VALUE_ALL);
-    auto& node = p.get_or_create(prim);
-    node.recalc_output_layout();
+    auto inst = net.get_primitive("test_fallback");
 
-    std::unique_ptr<primitive_impl> result = nullptr;
-    for (auto& impl_manager : test_impls) {
-        if ((impl_manager->get_shape_type() & shape_types::static_shape) != shape_types::static_shape)
-            continue;
-        if (!impl_manager->support_shapes(params))
-            continue;
-
-        auto impl = impl_manager->create(node, params);
-        if (impl) {
-            result = std::move(impl);
-            break;
-        }
-    }
-
-    // The first impl returns nullptr, but fallback to the second should succeed
-    ASSERT_NE(result, nullptr);
+    ASSERT_NE(inst, nullptr);
+    ASSERT_NE(inst->get_impl(), nullptr);
+    ASSERT_NE(inst->get_impl()->m_manager, nullptr);
+    ASSERT_EQ(inst->get_impl()->m_manager->get_type_info(), ImplementationManagerLegacy<some_primitive>::get_type_info_static());
 }
 
 // Test: verify that OCL dynamic reorder impl is available for reorder nodes

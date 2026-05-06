@@ -3185,15 +3185,31 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
     // 6. Finally, if no impl found so far, we just enforce static impl compilation
     auto static_impl = find_impl(node, updated_params, shape_types::static_shape);
     if (!static_impl) {
+        auto stringify_layouts = [](const std::vector<layout>& layouts) {
+            if (layouts.empty())
+                return std::string("<none>");
+
+            std::string result;
+            for (size_t i = 0; i < layouts.size(); ++i) {
+                if (i > 0)
+                    result += ", ";
+                result += layouts[i].to_short_string();
+            }
+            return result;
+        };
+
         std::string available_impls_info = "available_impls: " + std::to_string(m_available_impls.size()) + " [";
-        for (auto& m : m_available_impls) {
+        for (size_t i = 0; i < m_available_impls.size(); ++i) {
+            auto& m = m_available_impls[i];
+            if (i > 0)
+                available_impls_info += ",";
             available_impls_info += " {type=" + std::to_string(static_cast<int>(m->get_impl_type())) +
                                    ", shape=" + std::to_string(static_cast<int>(m->get_shape_type())) + "}";
         }
         available_impls_info += " ]";
         OPENVINO_ASSERT(false, "No static impl " + node->id() + ". " + available_impls_info +
-                        ". Input: " + updated_params.input_layouts[0].to_short_string() +
-                        ". Output: " + updated_params.output_layouts[0].to_short_string());
+                        ". Input: " + stringify_layouts(updated_params.input_layouts) +
+                        ". Output: " + stringify_layouts(updated_params.output_layouts));
     }
     static_impl->set_node_params(*node);
     if (!inst.can_be_optimized()) {
