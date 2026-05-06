@@ -182,10 +182,8 @@ public:
             // those are reader-only SDPAs sharing the cache, and
             // ScaledDotProductAttentionWithKVCache currently only supports a
             // single owner-writer per K / V state.
-            if (processed_k_variable_ids.find(past_k_node->get_variable_id()) !=
-                    processed_k_variable_ids.end() ||
-                processed_v_variable_ids.find(past_v_node->get_variable_id()) !=
-                    processed_v_variable_ids.end()) {
+            if (processed_k_variable_ids.find(past_k_node->get_variable_id()) != processed_k_variable_ids.end() ||
+                processed_v_variable_ids.find(past_v_node->get_variable_id()) != processed_v_variable_ids.end()) {
                 return false;
             }
             if (!check_valid_children_type(past_k_node) || !check_valid_children_type(past_v_node)) {
