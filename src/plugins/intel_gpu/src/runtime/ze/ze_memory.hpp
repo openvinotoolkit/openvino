@@ -5,6 +5,7 @@
 #pragma once
 
 #include "ze_common.hpp"
+#include "ze_holder.hpp"
 #include "ze_engine.hpp"
 #include "ze_base_event.hpp"
 #include "intel_gpu/runtime/memory.hpp"
@@ -25,47 +26,28 @@ struct lockable_gpu_mem {
     void* _mapped_ptr;
 };
 
-class UsmHolder {
-public:
-    UsmHolder(ze_context_handle_t context, void* ptr, bool shared_memory = false) : _context(context), _ptr(ptr), _shared_memory(shared_memory) {
-        if (ptr == nullptr)
-            OPENVINO_THROW("[GPU] Can not create UsmHolder with nullptr");
-    }
-    UsmHolder(const UsmHolder&) = delete;
-    UsmHolder& operator=(const UsmHolder&) = delete;
-
-    void* ptr() { return _ptr; }
-
-    ~UsmHolder() {
-        if (!_shared_memory) {
-            OV_ZE_WARN(ze::zeMemFree(_context, _ptr));
-        }
-    }
-private:
-    ze_context_handle_t _context;
-    void* _ptr;
-    bool _shared_memory = false;
-};
-
 class UsmMemory {
 public:
-    explicit UsmMemory(ze_context_handle_t context, ze_device_handle_t device)
-        : _context(context)
+    explicit UsmMemory(ze_holder<ze_resource_type::context> context, ze_device_handle_t device)
+        : _context_holder(std::move(context))
         , _device(device) {}
 
-    UsmMemory(ze_context_handle_t context, ze_device_handle_t device, void* usm_ptr, size_t offset = 0)
-        : _context(context)
-        , _device(device)
-        , _usm_pointer(std::make_shared<UsmHolder>(_context, reinterpret_cast<uint8_t*>(usm_ptr) + offset, true)) {}
+    UsmMemory(ze_holder<ze_resource_type::context> context, ze_device_handle_t device, void* usm_ptr, size_t offset = 0)
+        : _context_holder(std::move(context))
+        , _device(device) {
+            bool take_ownership = false;
+            _usm_holder =
+                ze_holder<ze_resource_type::usm_memory>(reinterpret_cast<uint8_t*>(usm_ptr) + offset, _context_holder, take_ownership);
+        }
 
     void* get() const {
         if (is_empty()) {
             return nullptr;
         }
-        return _usm_pointer->ptr();
+        return _usm_holder.get_handle();
     }
 
-    bool is_empty() const { return _usm_pointer.get() == nullptr; }
+    bool is_empty() const { return _usm_holder.is_empty(); }
 
     void allocateHost(size_t size) {
         ze_host_mem_alloc_desc_t host_desc = {};
@@ -73,9 +55,9 @@ public:
         host_desc.flags = 0;
         host_desc.pNext = nullptr;
 
-        void* memory = nullptr;
-        OV_ZE_EXPECT(ze::zeMemAllocHost(_context, &host_desc, size, 0, &memory));
-        _usm_pointer = std::make_shared<UsmHolder>(_context, memory);
+        void* ptr = nullptr;
+        OV_ZE_EXPECT(ze::zeMemAllocHost(_context_holder.get_handle(), &host_desc, size, 0, &ptr));
+        _usm_holder = ze_holder<ze_resource_type::usm_memory>(ptr, _context_holder);
     }
 
     void allocateShared(size_t size, uint32_t ordinal) {
@@ -90,9 +72,9 @@ public:
         host_desc.flags = 0;
         host_desc.pNext = nullptr;
 
-        void* memory = nullptr;
-        OV_ZE_EXPECT(ze::zeMemAllocShared(_context, &device_desc, &host_desc, size, 0, _device, &memory));
-        _usm_pointer = std::make_shared<UsmHolder>(_context, memory);
+        void* ptr = nullptr;
+        OV_ZE_EXPECT(ze::zeMemAllocShared(_context_holder.get_handle(), &device_desc, &host_desc, size, 0, _device, &ptr));
+        _usm_holder = ze_holder<ze_resource_type::usm_memory>(ptr, _context_holder);
     }
 
     void allocateDevice(size_t size, uint32_t ordinal) {
@@ -102,21 +84,21 @@ public:
         device_desc.ordinal = ordinal;
         device_desc.pNext = nullptr;
 
-        void* memory = nullptr;
-        OV_ZE_EXPECT(ze::zeMemAllocDevice(_context, &device_desc, size, 0, _device, &memory));
-        _usm_pointer = std::make_shared<UsmHolder>(_context, memory);
+        void* ptr = nullptr;
+        OV_ZE_EXPECT(ze::zeMemAllocDevice(_context_holder.get_handle(), &device_desc, size, 0, _device, &ptr));
+        _usm_holder = ze_holder<ze_resource_type::usm_memory>(ptr, _context_holder);
     }
 
     void freeMem() {
-        _usm_pointer.reset();
+        _usm_holder.drop();
     }
 
     virtual ~UsmMemory() = default;
 
 protected:
-    ze_context_handle_t _context;
+    ze_holder<ze_resource_type::context> _context_holder;
+    ze_holder<ze_resource_type::usm_memory> _usm_holder;
     ze_device_handle_t _device;
-    std::shared_ptr<UsmHolder> _usm_pointer = nullptr;
 };
 
 struct gpu_usm : public lockable_gpu_mem, public memory {

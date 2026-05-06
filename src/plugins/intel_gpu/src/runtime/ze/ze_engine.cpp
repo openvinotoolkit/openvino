@@ -123,10 +123,9 @@ memory::ptr ze_engine::reinterpret_buffer(const memory& memory, const layout& ne
 memory::ptr ze_engine::reinterpret_handle(const layout& new_layout, shared_mem_params params) {
     if (params.mem_type == shared_mem_type::shared_mem_usm) {
         auto ctx_holder = get_context_holder();
-        auto ctx = ctx_holder.get_handle();
-        ze::UsmMemory usm_buffer(ctx, get_device(), params.mem);
+        ze::UsmMemory usm_buffer(ctx_holder, get_device(), params.mem);
         size_t actual_mem_size = 0;
-        OV_ZE_EXPECT(ze::zeMemGetAddressRange(ctx, params.mem, nullptr, &actual_mem_size));
+        OV_ZE_EXPECT(ze::zeMemGetAddressRange(ctx_holder.get_handle(), params.mem, nullptr, &actual_mem_size));
         auto requested_mem_size = new_layout.bytes_count();
         OPENVINO_ASSERT(actual_mem_size >= requested_mem_size,
                             "[GPU] shared USM buffer has smaller size (", actual_mem_size,
@@ -149,8 +148,7 @@ memory_ptr ze_engine::create_subbuffer(const memory& memory, const layout& new_l
     auto& new_buf = reinterpret_cast<const ze::gpu_usm&>(memory);
     auto ptr = new_buf.get_buffer().get();
     auto ctx_holder = get_context_holder();
-    auto ctx = ctx_holder.get_handle();
-    auto sub_buffer = ze::UsmMemory(ctx, get_device(), ptr, byte_offset);
+    auto sub_buffer = ze::UsmMemory(ctx_holder, get_device(), ptr, byte_offset);
     return std::make_shared<ze::gpu_usm>(this,
                              new_layout,
                              sub_buffer,
