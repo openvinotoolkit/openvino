@@ -367,7 +367,10 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
         return std::make_pair<ov::Tensor, std::optional<std::string>>(std::move(alignedBlob),
                                                                       std::move(compatibilityString));
     } else {
-        OPENVINO_THROW("Unsupported VCL version: ", _vclVersion.major, ".", _vclVersion.minor,
+        OPENVINO_THROW("Unsupported VCL version: ",
+                       _vclVersion.major,
+                       ".",
+                       _vclVersion.minor,
                        ", please use VCL 7.7 or later");
     }
 }

@@ -147,11 +147,13 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsIsNotSupportedForWS
     ASSERT_TRUE(it == properties.cend());
 }
 
-TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsNotSupportedExportImport) {
+TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsExportImport) {
     // Forcing CIP as the current compiler type
     auto model = ov::test::utils::make_conv_pool_relu();
     ov::CompiledModel compiledModel;
     OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, deviceName, ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)));
+    std::string reference_requirements;
+    OV_ASSERT_NO_THROW(reference_requirements = compiledModel.get_property(ov::runtime_requirements));
 
     std::stringstream compiled_blob;
     OV_ASSERT_NO_THROW(compiledModel.export_model(compiled_blob));
@@ -163,8 +165,13 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsNotSupportedExportI
     // Test that RUNTIME_REQUIREMENTS is NOT supported for an imported model
     OV_ASSERT_NO_THROW(properties = compiledModel.get_property(ov::supported_properties));
     auto it = find(properties.cbegin(), properties.cend(), ov::runtime_requirements);
-    ASSERT_TRUE(it == properties.cend());
-    OV_EXPECT_THROW(auto requirements = compiledModel.get_property(ov::runtime_requirements), ov::Exception, testing::HasSubstr("Unsupported configuration key: RUNTIME_REQUIREMENTS"));
+    ASSERT_TRUE(it != properties.cend());
+    std::string imported_requirements;
+    OV_ASSERT_NO_THROW(imported_requirements = compiledModel.get_property(ov::runtime_requirements));
+
+    // The equality must be guaranteed for a given openvino version
+    // If the blob was exported with a different OV version, requirements might differ
+    ASSERT_EQ(reference_requirements, imported_requirements);
 }
 
 TEST_P(ClassCompatibilityStringTestSuite, CompatibilityStringGenerateAndCheck) {

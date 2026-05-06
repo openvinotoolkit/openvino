@@ -407,7 +407,8 @@ ov::CompatibilityCheck Plugin::validate_compatibility_descriptor(ov::intel_npu::
             return ov::CompatibilityCheck::UNSUPPORTED;
         }
     } catch (const std::exception&) {
-        _logger.error("Failed to create the recommended compiler type for the compatibility check {}. The requirements are not met.", compilerType);
+        _logger.error("Failed to create the recommended compiler type for the compatibility check %d. The requirements are not met.",
+                      static_cast<int>(compilerType));
         return ov::CompatibilityCheck::NOT_APPLICABLE;
     }
 }
@@ -1046,7 +1047,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     auto graph = parser->parse(tensorMain,
                                localConfig,
                                initBlobs,
-                               weightsSeparationEnabled ? std::make_optional(std::move(originalModel)) : std::nullopt);
+                               weightsSeparationEnabled ? std::make_optional(std::move(originalModel)) : std::nullopt,
+                               metadata ? metadata->get_runtime_reqs() : std::nullopt);
 
     graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
     const std::shared_ptr<ov::Model> modelDummy =

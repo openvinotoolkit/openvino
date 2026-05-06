@@ -40,13 +40,8 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     // Support for specific properties might depend on the characteristics of the compiled model.
     // Adjust lower level config availability to influence the supported properties list if needed
     FilteredConfig localConfig = config;
-    try{
-        if (!_graph->get_compatibility_descriptor().has_value()) {
-            _logger.debug("Graph's compatibility descriptor has no value. Disabling RUNTIME_REQUIREMENTS property.");
-            localConfig.enable(ov::runtime_requirements.name(), false);
-        }
-    } catch (const std::exception& e) {
-        _logger.debug("Failed to get compatibility descriptor: %s. Disabling RUNTIME_REQUIREMENTS property.", e.what());
+    if (!_graph->get_compatibility_descriptor().has_value()) {
+        _logger.debug("Graph's compatibility descriptor has no value. Disabling RUNTIME_REQUIREMENTS property.");
         localConfig.enable(ov::runtime_requirements.name(), false);
     }
 
@@ -154,7 +149,8 @@ void CompiledModel::export_model(std::ostream& stream) const {
                                            inputLayouts,
                                            outputLayouts,
                                            compilerVersion,
-                                           blobSizeAfterEncryption)
+                                           blobSizeAfterEncryption,
+                                           _graph->get_compatibility_descriptor())
             .write(stream);
     }
 }
@@ -233,20 +229,11 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         // Reading the (dummy) property content to check if it is supported
         _propertiesManager->getProperty(name);
 
-        OPENVINO_ASSERT(_graph != nullptr, "Missing graph");
-        // The weights-separation case is not supported for now
-        // OPENVINO_ASSERT(_graph->get_init_sizes().empty());
-
-        auto compatibilityDescriptorOpt = _graph->get_compatibility_descriptor();
-        OPENVINO_ASSERT(compatibilityDescriptorOpt.has_value());
-        std::string compilerDescriptor = compatibilityDescriptorOpt.value();
+        _logger.debug("Runtime requirements from the graph %s length: %zu",
+                      _graph->get_compatibility_descriptor().value().c_str(),
+                      _graph->get_compatibility_descriptor().value().size());
 
         std::ostringstream requirementsString;
-        _logger.debug("Compatibility string from compiler %s length: %zu",
-                      compilerDescriptor.c_str(),
-                      compilerDescriptor.size());
-
-        // The layouts are not useful compatibility information
         Metadata<CURRENT_METADATA_VERSION>(
             0,  // no real blob
             CURRENT_OPENVINO_VERSION,
@@ -256,9 +243,9 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             std::nullopt,  // output_layouts are not relevant for the compatibility check
             std::nullopt,  // skip compiler version as well since it is already included in runtime requirements string
             std::nullopt,  // skip encrypted blob size since it is not relevant for the compatibility check
-            compilerDescriptor)
+            _graph->get_compatibility_descriptor())
             .write_as_text(requirementsString);
-        _logger.debug("Compatibility string: %s length: %zu",
+        _logger.debug("Runtime requirements string: %s length: %zu",
                       requirementsString.str().c_str(),
                       requirementsString.str().length());
 
