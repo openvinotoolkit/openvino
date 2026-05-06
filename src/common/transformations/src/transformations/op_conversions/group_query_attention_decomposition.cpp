@@ -17,10 +17,6 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
-#include "openvino/op/less.hpp"
-#include "openvino/op/logical_and.hpp"
-#include "openvino/op/maximum.hpp"
-#include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
@@ -131,7 +127,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     const auto is_static_input = K.get_partial_shape().is_static() && past_key.get_partial_shape().is_static();
 
     if (is_static_input) {
-        // static design is for NPU plugin
+        // static design is for NPU plugin (valid KV left align)
         // inputs are:
         //   1. past_key/past_value: [1, num_heads, max_seq_len, head_size], data is in the front along axis 2, [P0, P1,
         //   ..., Pn, 0, 0, ...]
@@ -140,52 +136,14 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         // Output present_key/present_value has the same shape with past_key/past_value, but with data in order [P0, P1,
         // ..., Pn, C0, C1, ..., Ck, 0, 0, ...]
         //
-        // two method to handle it:
-        //   1. Use ScatterUpdate to scatter insert Current into Past, but failed due to NPU device hang.
-        //   2. Use present = select(mask, current, past), in which current will expand to max_seq_len.
-#if 0
-        // Method 1: ScatterUpdate
-        // Insert current K/V at the correct position [past_seqlen, past_seqlen+curr_seqlen).
+        // Use ScatterUpdate to scatter insert Current into Past
+        // Insert current K/V at the correct position [past_seqlen, past_seqlen+curr_seqlen].
         std::shared_ptr<ov::Node> scatter_idx =
             register_new_node<v4::Range>(zero_without_shape, curr_seqlen_scalar, one_without_shape, ov::element::i64);
         scatter_idx = register_new_node<v1::Add>(scatter_idx, past_seqlen);
         const auto scatter_axis = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
         K = register_new_node<v3::ScatterUpdate>(past_key, scatter_idx, K, scatter_axis);
         V = register_new_node<v3::ScatterUpdate>(past_value, scatter_idx, V, scatter_axis);
-#else
-        // Method 2: Select with mask
-        const auto max_seq_len = static_cast<int64_t>(past_key.get_partial_shape()[2].get_length());
-        const auto current_kv_len = static_cast<int64_t>(K.get_partial_shape()[2].get_length());
-        const auto max_seq_const =
-            register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {max_seq_len}));
-        const auto pos_range =
-            register_new_node<v4::Range>(zero_without_shape, max_seq_const, one_without_shape, ov::element::i64);
-
-        // Compute gather indices: [0, 0 ..., 0] + [0, 1, 2, ..., current_kv_len-1] + [current_kv_len-1, ...]
-        std::shared_ptr<ov::Node> gtr_idx = register_new_node<v1::Subtract>(pos_range, past_seqlen);
-        auto clamp_lo = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
-        auto clamp_hi = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {current_kv_len - 1}));
-        gtr_idx = register_new_node<v1::Maximum>(gtr_idx, clamp_lo);
-        gtr_idx = register_new_node<v1::Minimum>(gtr_idx, clamp_hi);
-
-        // Gather current KV and expanded to max_seq_len
-        // same shape with past_key/past_value: [1, num_heads, max_seq_len, head_size]
-        auto gather_axis = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
-        auto expanded_K = register_new_node<v8::Gather>(K, gtr_idx, gather_axis);
-        auto expanded_V = register_new_node<v8::Gather>(V, gtr_idx, gather_axis);
-
-        // Build mask: true where past_seqlen <= pos < seqlens_1d
-        auto ge_past = register_new_node<v1::GreaterEqual>(pos_range, past_seqlen);
-        auto lt_total = register_new_node<v1::Less>(pos_range, seqlens_1d);
-        auto mask_1d = register_new_node<v1::LogicalAnd>(ge_past, lt_total);
-        auto mask_shape = register_new_node(
-            v0::Constant::create(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{1, 1, max_seq_len, 1}));
-        auto mask = register_new_node<v1::Reshape>(mask_1d, mask_shape, false);
-
-        // Merge current KV with past KV, get present KV
-        K = register_new_node<v1::Select>(mask, expanded_K, past_key);
-        V = register_new_node<v1::Select>(mask, expanded_V, past_value);
-#endif
     } else {
         auto construct_kv_cache = [&](const ov::Output<ov::Node>& past, const ov::Output<ov::Node>& current) {
             return register_new_node<v0::Concat>(ov::OutputVector{past, current}, 2);
