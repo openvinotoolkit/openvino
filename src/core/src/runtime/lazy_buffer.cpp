@@ -41,25 +41,32 @@ LazyBuffer::LazyBuffer(std::filesystem::path file_path, size_t offset, size_t by
                     ", alignment: ",
                     m_alignment,
                     ").");
+#ifdef _WIN32
+#else
     m_reserved_buffer = mmap(nullptr, m_reserved_size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     OPENVINO_ASSERT(m_reserved_buffer != MAP_FAILED, "mmap failed, err: ", std::strerror(errno));
 
     m_aligned_buffer = static_cast<char*>(m_reserved_buffer) +
                        util::align_padding_size(m_alignment, reinterpret_cast<size_t>(m_reserved_buffer));
+#endif
 }
 
 LazyBuffer::~LazyBuffer() {
+#ifdef _WIN32
+#else
     if (m_reserved_buffer) {
         munmap(m_reserved_buffer, m_reserved_size);
     }
+#endif
 }
 
 void LazyBuffer::load() const {
     if (!m_loaded && m_byte_size > 0) {
 #ifdef _WIN32
-        void* result = VirtualAlloc(static_cast<char*>(base_addr), to_commit, MEM_COMMIT, PAGE_READWRITE);
-        if (!result)
-            throw std::runtime_error("VirtualAlloc commit failed");
+        // void* result = VirtualAlloc(static_cast<char*>(base_addr), to_commit, MEM_COMMIT, PAGE_READWRITE);
+        // if (!result)
+        //     throw std::runtime_error("VirtualAlloc commit failed");
+        return;
 #else
         if (mprotect(m_reserved_buffer, m_reserved_size, PROT_READ | PROT_WRITE) == -1) {
             OPENVINO_THROW("mprotect failed, err: ", std::strerror(errno));
@@ -72,7 +79,10 @@ void LazyBuffer::load() const {
             file.seekg(m_offset).read(m_aligned_buffer, m_byte_size);
             OPENVINO_ASSERT(file, "Failed to read data from file: ", m_file_path);
         } catch (...) {
+#ifdef _WIN32
+#else
             std::ignore = mprotect(m_reserved_buffer, m_reserved_size, PROT_NONE);
+#endif
             throw;
         }
         m_loaded = true;
@@ -80,9 +90,12 @@ void LazyBuffer::load() const {
 }
 
 void LazyBuffer::evict() {
+#ifdef _WIN32
+#else
     if (m_loaded) {
         m_loaded = false;
         mprotect(m_reserved_buffer, m_reserved_size, PROT_NONE);
     }
+#endif
 }
 }  // namespace ov
