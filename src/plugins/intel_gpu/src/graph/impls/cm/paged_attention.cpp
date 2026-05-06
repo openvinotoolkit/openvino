@@ -49,15 +49,15 @@ std::vector<int32_t> read_past_lens(const kernel_impl_params& params) {
     return std::vector<int32_t>(lock.begin(), lock.end());
 }
 
-MixedRouteMode get_mixed_route_mode_from_env() {
-    const char* env = std::getenv("OV_GPU_CM_MIXED_ROUTE_MODE");
-    if (!env) {
-        return MixedRouteMode::MULTI;
-    }
-
-    std::string mode(env);
+MixedRouteMode get_mixed_route_mode_from_config(const kernel_impl_params& params) {
+#ifdef ENABLE_DEBUG_CAPS
+    std::string mode = params.get_program().get_config().get_cm_mixed_route_mode();
+#else
+    (void)params;
+    std::string mode = "multi";
+#endif
     std::transform(mode.begin(), mode.end(), mode.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-    if (mode == "split" || mode == "route_split") {
+    if (mode == "split") {
         return MixedRouteMode::SPLIT;
     }
 
@@ -266,7 +266,7 @@ public:
         rt_params->enable_xattn_estimation = false;
 
         rt_params->stage = get_paged_attention_stage(params);
-        rt_params->mixed_route_mode = get_mixed_route_mode_from_env();
+        rt_params->mixed_route_mode = get_mixed_route_mode_from_config(params);
         const auto max_context_len = get_max_context_len(params);
         rt_params->max_context_len = max_context_len;
         GPU_DEBUG_TRACE_DETAIL << "update_rt_params for stage: " << static_cast<size_t>(rt_params->stage) << "  max_context_len: " << rt_params->max_context_len
