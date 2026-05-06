@@ -2627,31 +2627,6 @@ TEST_P(paged_attention_test, basic) {
 class xattention_test : public PagedAttentionTest<paged_attention_test_params> {};
 TEST_P(xattention_test, basic) {
     auto p = GetParam();
-    if (p.subsequences.size() > 1)
-        GTEST_SKIP() << "Multi-sequence test cases are not supported yet for xattention!";
-
-    if (!check_cm_available())
-        GTEST_SKIP() << "CM JIT support is required for XAttention tests, and the device must be Xe1 or later";
-
-    // Skip basic/33 and basic/34 on Xe1 due to block selection discrepancy under investigation
-    // Ticket: CVS-185865
-    // See XATTENTION_STATUS.md for details
-    auto& engine = get_test_engine();
-    if (engine.get_device_info().arch < gpu_arch::xe2) {
-        // Check if this is basic/33 or basic/34 (1024 or 2048 tokens with threshold=0.9)
-        if (p.has_xattention &&
-            p.xattention_threshold.has_value() &&
-            !p.xattention_threshold->empty() &&
-            p.xattention_threshold.value()[0] == 0.9f &&
-            p.subsequences.size() == 1 &&
-            p.subsequences[0].past_len == 0 &&
-            (p.subsequences[0].num_tokens == 1024 || p.subsequences[0].num_tokens == 2048)) {
-            GTEST_SKIP() << "CVS-185865: Skipping xattention test on Xe1 with "
-                         << p.subsequences[0].num_tokens
-                         << " tokens - block selection discrepancy under investigation";
-        }
-    }
-
     if (!check_cm_available())
         GTEST_SKIP() << "CM JIT support is required for XAttention tests, and the device must be Xe1 or later";
 
@@ -2680,12 +2655,6 @@ TEST_P(xattention_test, basic) {
 class xattention_invalid_test : public PagedAttentionTest<paged_attention_test_params> {};
 TEST_P(xattention_invalid_test, throws_on_invalid_xattention_inputs) {
     auto p = GetParam();
-    if (p.subsequences.size() > 1)
-        GTEST_SKIP() << "Multi-sequence test cases are not supported yet for xattention!";
-
-    if (!check_cm_available())
-        GTEST_SKIP() << "CM JIT support is required for XAttention tests, and the device must be Xe1 or later";
-
     if (!check_cm_available())
         GTEST_SKIP() << "CM JIT support is required for XAttention tests, and the device must be Xe1 or later";
 
