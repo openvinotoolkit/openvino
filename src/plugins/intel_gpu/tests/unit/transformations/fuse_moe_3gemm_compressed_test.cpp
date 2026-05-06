@@ -138,11 +138,14 @@ TEST_P(FuseMOE3GemmCompressedTest, CompareFunctions) {
         auto routing_weights = std::make_shared<ov::op::v0::MatMul>(hidden_states_reshape, routers);
 
         // Build post-GatherMatmul routing (no ScatterElementsUpdate)
+        std::optional<float> scale_opt;
+        if (with_routed_scale) {
+            scale_opt = routed_scale_value;
+        }
         auto [unsqueeze_moe, topk_indices] =
             routing_type == MoERoutingType::SOFTMAX
                 ? build_softmax_routing_for_fuse_test(routing_weights, 8)
-                : build_sigmoid_routing_for_fuse_test(routing_weights, element::f16, 128, 8,
-                                                      with_routed_scale ? std::optional<float>(routed_scale_value) : std::nullopt);
+                : build_sigmoid_routing_for_fuse_test(routing_weights, element::f16, 128, 8, scale_opt);
 
         // weight
         auto wei_gate = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {1});
