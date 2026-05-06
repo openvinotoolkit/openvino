@@ -17,6 +17,7 @@
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/opsets/opset.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
+#include "openvino/util/common_util.hpp"
 
 namespace ov::util {
 struct GenericLayerParams;
@@ -28,9 +29,15 @@ void str_to_container(const std::string& value, T& res) {
     while (getline(ss, field, ',')) {
         if (field.empty())
             OPENVINO_THROW("Cannot get vector of parameters! \"", value, "\" is incorrect");
-        std::stringstream fs(field);
         typename T::value_type val;
-        fs >> val;
+        if constexpr (std::is_arithmetic_v<typename T::value_type>) {
+            auto parsed = ov::util::view_to_number<typename T::value_type>(ov::util::trim(field));
+            OPENVINO_ASSERT(parsed.has_value(), "Cannot parse '", field, "' in \"", value, "\"");
+            val = *parsed;
+        } else {
+            std::stringstream fs(field);
+            fs >> val;
+        }
         res.insert(res.end(), val);
     }
 }
