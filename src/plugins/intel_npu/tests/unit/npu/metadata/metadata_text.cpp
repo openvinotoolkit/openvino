@@ -15,11 +15,7 @@ const std::vector<MetadataTextTest::ParamType> inputs = {
      true},
     {make_key_value_field(MetadataTextKeys::META, "2.1") + ";" +
          make_key_value_field(MetadataTextKeys::OV, "2026.1.0") + ";" +
-         make_key_value_field(MetadataTextKeys::WS_INITS, "[128]"),
-     true},
-    {make_key_value_field(MetadataTextKeys::META, "2.1") + ";" +
-         make_key_value_field(MetadataTextKeys::OV, "2026.1.0") + ";" +
-         make_key_value_field(MetadataTextKeys::WS_INITS, "[16|32|64]"),
+         make_key_value_field(MetadataTextKeys::WS_INITS, "TRUE"),
      true},
     {make_key_value_field(MetadataTextKeys::META, "2.2") + ";" +
          make_key_value_field(MetadataTextKeys::OV, "2026.1.0") + ";" +
@@ -28,10 +24,13 @@ const std::vector<MetadataTextTest::ParamType> inputs = {
     // order independent: metadata version field is not first
     {make_key_value_field(MetadataTextKeys::OV, "2026.1.0") + ";" + make_key_value_field(MetadataTextKeys::META, "2.0"),
      true},
-    // unknown fields are ignored
+    // optional (unknown) fields are ignored
     {make_key_value_field(MetadataTextKeys::META, "2.0") + ";" +
-         make_key_value_field(MetadataTextKeys::OV, "2026.1.0") + ";future_field=some_value",
+         make_key_value_field(MetadataTextKeys::OV, "2026.1.0") + ";{future_field=FUTURE_VAL}",
      true},
+    {make_key_value_field(MetadataTextKeys::META, "2.0") + ";" +
+         make_key_value_field(MetadataTextKeys::OV, "2026.1.0") + ";future_field=FUTURE_VAL",
+     false},
     {"", false},
     {make_key_value_field(MetadataTextKeys::OV, "2026.1.0"), false},
     // metadata version malformed
@@ -46,18 +45,18 @@ const std::vector<MetadataTextTest::ParamType> inputs = {
          make_key_value_field(MetadataTextKeys::OV, "2026.1.0"),
      false},
     {make_key_value_field(MetadataTextKeys::META, "2.0"), false},
-    // list missing brackets
+    // WS should not be serialized if set to false
     {make_key_value_field(MetadataTextKeys::META, "2.1") + ";" +
          make_key_value_field(MetadataTextKeys::OV, "2026.1.0") + ";" +
-         make_key_value_field(MetadataTextKeys::WS_INITS, "16|32|64"),
+         make_key_value_field(MetadataTextKeys::WS_INITS, "FALSE"),
      false},
     // unmatched closing bracket in value
     {make_key_value_field(MetadataTextKeys::META, "2.0") + ";" +
-         make_key_value_field(MetadataTextKeys::OV, "2026.1.0") + ";bad=]value",
+         make_key_value_field(MetadataTextKeys::OV, "2026.1.0") + ";bad=]VALUE",
      false},
     // unclosed opening bracket in value
     {make_key_value_field(MetadataTextKeys::META, "2.0") + ";" +
-         make_key_value_field(MetadataTextKeys::OV, "2026.1.0") + ";bad=[value",
+         make_key_value_field(MetadataTextKeys::OV, "2026.1.0") + ";bad=[VALUE",
      false},
     {make_key_value_field(MetadataTextKeys::META, "2.0") + ";" + make_key_value_field(MetadataTextKeys::OV, "2026.1"),
      false},
@@ -66,7 +65,7 @@ const std::vector<MetadataTextTest::ParamType> inputs = {
     {make_key_value_field(MetadataTextKeys::META, "2.6") + ";;" +
          make_key_value_field(MetadataTextKeys::OV, "2026.1.0") + ";",
      false},
-    {"key=value;key=;", false},
+    {"key=VALUE;key=VALUE2", false},
     {"notavalidformat", false},
 };
 

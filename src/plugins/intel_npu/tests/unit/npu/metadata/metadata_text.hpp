@@ -55,10 +55,6 @@ TEST_F(MetadataHumanReadableTests, initSizes) {
     OV_ASSERT_NO_THROW(storedMeta = read_as_text(tensor));
 
     ASSERT_TRUE(storedMeta->get_init_sizes().has_value());
-    ASSERT_EQ(storedMeta->get_init_sizes()->size(), initSizes.size());
-    for (size_t i = 0; i < initSizes.size(); i++) {
-        EXPECT_EQ(storedMeta->get_init_sizes()->at(i), initSizes.at(i));
-    }
 }
 
 TEST_F(MetadataHumanReadableTests, emptyInitSizes) {

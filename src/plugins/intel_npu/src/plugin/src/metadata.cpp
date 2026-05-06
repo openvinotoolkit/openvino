@@ -4,13 +4,11 @@
 
 #include "metadata.hpp"
 
-#include <algorithm>
 #include <cstring>
-#include <map>
 #include <optional>
-#include <sstream>
 #include <string>
 
+#include "intel_npu/compat_string_parser.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 
 namespace {
@@ -21,20 +19,6 @@ void write_text_field(std::ostream& stream, std::string_view key, const T& value
         stream << ';';
     }
     stream << key << '=' << value;
-}
-
-template <typename Container>
-void write_text_list(std::ostream& stream, const Container& items) {
-    stream << '[';
-    bool first = true;
-    for (const auto& item : items) {
-        if (!first) {
-            stream << '|';
-        }
-        stream << item;
-        first = false;
-    }
-    stream << ']';
 }
 
 }  // namespace
@@ -165,7 +149,8 @@ void MetadataBase::read(const ov::Tensor& tensor) {
 }
 
 void MetadataBase::read_as_text(const ov::Tensor& tensor) {
-    _text_fields = parse_text_fields(tensor);
+    const std::string_view input(tensor.data<const char>(), tensor.get_byte_size());
+    _parser.parse(input, metadataTextAttributes);
     read_as_text();
 }
 
@@ -191,53 +176,6 @@ void MetadataBase::read_data_from_source(char* destination, const size_t size) {
     } else {
         OPENVINO_THROW("No blob has been provided to NPU plugin's metadata reader.");
     }
-}
-
-MetadataBase::TextFields MetadataBase::parse_text_fields(const ov::Tensor& tensor) {
-    TextFields fields;
-    const char* data = tensor.data<const char>();
-    const size_t total = tensor.get_byte_size();
-    size_t pos = 0;
-
-    while (pos < total && data[pos] != '\0') {
-        const size_t keyStart = pos;
-        while (pos < total && data[pos] != '=' && data[pos] != '\0') {
-            pos++;
-        }
-        if (pos >= total || data[pos] != '=') {
-            break;
-        }
-
-        std::string key(data + keyStart, pos - keyStart);
-        // consume '='
-        pos++;
-
-        const size_t valueStart = pos;
-        int depth = 0;
-        while (pos < total && data[pos] != '\0') {
-            const char c = data[pos];
-            if (c == '[') {
-                depth++;
-            } else if (c == ']') {
-                if (depth == 0) {
-                    OPENVINO_THROW("NPU metadata: unmatched ']' while parsing text fields");
-                }
-                depth--;
-            } else if (c == ';' && depth == 0) {
-                break;
-            }
-            pos++;
-        }
-        if (depth != 0) {
-            OPENVINO_THROW("NPU metadata: unclosed '[' in text field value");
-        }
-        std::string value(data + valueStart, pos - valueStart);
-        if (pos < total && data[pos] == ';') {
-            pos++;
-        }
-        fields.emplace(std::move(key), std::move(value));
-    }
-    return fields;
 }
 
 void MetadataBase::append_blob_size_and_magic(std::ostream& stream) {
@@ -340,8 +278,9 @@ void Metadata<METADATA_VERSION_2_5>::read() {
 }
 
 void Metadata<METADATA_VERSION_2_0>::read_as_text() {
-    const auto it = _text_fields.find(MetadataTextKeys::OV);
-    if (it == _text_fields.end()) {
+    const auto& attrs = _parser.getAttributes();
+    const auto it = attrs.find(MetadataTextKeys::OV);
+    if (it == attrs.end()) {
         OPENVINO_THROW("Human-readable metadata missing '" + std::string(MetadataTextKeys::OV) + "' field.");
     }
     const std::string& s = it->second;
@@ -363,34 +302,24 @@ void Metadata<METADATA_VERSION_2_0>::read_as_text() {
 void Metadata<METADATA_VERSION_2_1>::read_as_text() {
     Metadata<METADATA_VERSION_2_0>::read_as_text();
 
-    const auto it = _text_fields.find(MetadataTextKeys::WS_INITS);
-    if (it == _text_fields.end()) {
+    const auto& attrs = _parser.getAttributes();
+    const auto it = attrs.find(MetadataTextKeys::WS_INITS);
+    if (it == attrs.end()) {
         return;
     }
-    const std::string& s = it->second;
-    if (s.size() < 2 || s.front() != '[' || s.back() != ']') {
+    if (it->second != "TRUE") {
         OPENVINO_THROW("Human-readable metadata: '" + std::string(MetadataTextKeys::WS_INITS) +
-                       "' value is not bracket-enclosed: " + s);
+                       "' must be 'TRUE' when present; got: " + it->second);
     }
-    std::vector<uint64_t> inits;
-
-    // skip '['
-    size_t pos = 1;
-    while (pos < s.size() && s[pos] != ']') {
-        const size_t pipe = s.find('|', pos);
-        const size_t bracket = s.find(']', pos);
-        const size_t end = std::min(pipe, bracket);
-        inits.push_back(std::stoull(s.substr(pos, end - pos)));
-        pos = s[end] == '|' ? end + 1 : end;
-    }
-    _initSizes = std::move(inits);
+    _initSizes = std::vector<uint64_t>{};
 }
 
 void Metadata<METADATA_VERSION_2_2>::read_as_text() {
     Metadata<METADATA_VERSION_2_1>::read_as_text();
 
-    const auto it = _text_fields.find(MetadataTextKeys::BATCH);
-    if (it == _text_fields.end()) {
+    const auto& attrs = _parser.getAttributes();
+    const auto it = attrs.find(MetadataTextKeys::BATCH);
+    if (it == attrs.end()) {
         return;
     }
     const int64_t batchValue = std::stoll(it->second);
@@ -488,9 +417,7 @@ void Metadata<METADATA_VERSION_2_1>::write_as_text(std::ostream& stream) {
     Metadata<METADATA_VERSION_2_0>::write_as_text(stream);
 
     if (_initSizes.has_value() && !_initSizes->empty()) {
-        std::ostringstream oss;
-        write_text_list(oss, _initSizes.value());
-        write_text_field(stream, MetadataTextKeys::WS_INITS, oss.str());
+        write_text_field(stream, MetadataTextKeys::WS_INITS, "TRUE");
     }
 }
 
@@ -640,10 +567,17 @@ std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor) {
 }
 
 std::unique_ptr<MetadataBase> read_as_text(const ov::Tensor& tensor) {
-    const MetadataBase::TextFields fields = MetadataBase::parse_text_fields(tensor);
+    const std::string_view input(tensor.data<const char>(), tensor.get_byte_size());
+    compat::Parser parser;
+    try {
+        parser.parse(input, metadataTextAttributes);
+    } catch (const std::exception& ex) {
+        OPENVINO_THROW("NPU compatibility string is malformed: ", ex.what());
+    }
 
-    const auto it = fields.find(MetadataTextKeys::META);
-    if (it == fields.end()) {
+    const auto& attrs = parser.getAttributes();
+    const auto it = attrs.find(MetadataTextKeys::META);
+    if (it == attrs.end()) {
         OPENVINO_THROW("NPU compatibility string is malformed: missing metadata version");
     }
 

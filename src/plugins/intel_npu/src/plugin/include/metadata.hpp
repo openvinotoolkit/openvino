@@ -5,13 +5,12 @@
 #pragma once
 
 #include <cstdint>
-#include <map>
 #include <memory>
 #include <optional>
-#include <string>
 #include <variant>
 #include <vector>
 
+#include "intel_npu/compat_string_parser.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/core/layout.hpp"
 #include "openvino/core/version.hpp"
@@ -111,14 +110,6 @@ public:
         return static_cast<uint16_t>(version);
     }
 
-    using TextFields = std::map<std::string, std::string, std::less<>>;
-
-    /**
-     * @brief Parses the full human-readable tensor into a key-value map.
-     * @details The format is key=value; pairs where values may contain nested []
-     */
-    static TextFields parse_text_fields(const ov::Tensor& tensor);
-
 protected:
     /**
      * @brief Reads data from the source containing the metadata. The implementation depends on the type of source.
@@ -139,9 +130,9 @@ protected:
     Logger _logger;
 
     /**
-     * @brief Parsed key-value fields extracted from the human-readable metadata input
+     * @brief Parser for the human-readable metadata.
      */
-    TextFields _text_fields;
+    compat::Parser _parser;
 
     Source _source;
 
@@ -165,6 +156,14 @@ constexpr std::string_view OV = "ov";
 constexpr std::string_view WS_INITS = "ws_inits";
 constexpr std::string_view BATCH = "batch";
 }  // namespace MetadataTextKeys
+
+/**
+ * @brief List of known attributes in the human-readable metadata format.
+ */
+constexpr std::array metadataTextAttributes = {MetadataTextKeys::META,
+                                               MetadataTextKeys::OV,
+                                               MetadataTextKeys::WS_INITS,
+                                               MetadataTextKeys::BATCH};
 
 /**
  * @brief List of supported version formats.
@@ -275,6 +274,8 @@ protected:
 
 /**
  * @brief The version that adds support for init schedules (weights separation).
+ *
+ * @note The text format defines WS enablement as a boolean flag; actual sizes are not preserved
  */
 template <>
 class Metadata<METADATA_VERSION_2_1> : public Metadata<METADATA_VERSION_2_0> {
