@@ -833,8 +833,7 @@ TEST_F(AnyTests, ParseForceImplementationsMapMultipleEntries) {
 }
 
 TEST_F(AnyTests, ParseForceImplementationsMapWithLongNodeIds) {
-    const std::string force_impl_string = 
-        "{\"layer:name\":ocl::any}";
+    const std::string force_impl_string = "{\"layer:name\":ocl::any}";
     ov::Any any(force_impl_string);
 
     ov::AnyMap map;
