@@ -10,6 +10,7 @@
 #include <optional>
 #include <vector>
 
+#include "attn/attn_subgraph.hpp"
 #include "base_sync_infer_request.hpp"
 #include "host_flash_attention.hpp"
 #include "moe/moe_executor.hpp"
@@ -127,6 +128,22 @@ protected:
     ov::npuw::v1::subgraphs::ISubgraphBehavior* get_subgraph_behavior(std::size_t idx) const;
     bool behavior_handles_function_prologue(std::size_t idx) const;
 
+public:
+    bool behavior_bind_dynamic_input(std::size_t real_idx,
+                                     std::size_t idx,
+                                     std::size_t input_idx,
+                                     const ov::SoPtr<ov::ITensor>& tensor);
+    bool behavior_bind_pyramid_input(std::size_t real_idx,
+                                     std::size_t idx,
+                                     std::size_t input_idx,
+                                     const ov::SoPtr<ov::ITensor>& tensor);
+    bool behavior_bind_hfa_input(std::size_t idx, std::size_t input_idx, const ov::SoPtr<ov::ITensor>& tensor);
+    bool behavior_bind_hfa_output(std::size_t idx, std::size_t output_idx, const ov::SoPtr<ov::ITensor>& tensor);
+    void behavior_prologue_dynamic(std::size_t real_idx, std::size_t idx);
+    void behavior_prologue_pyramid(std::size_t real_idx, std::size_t idx);
+    void behavior_run_hfa(std::size_t real_idx, std::size_t idx);
+
+protected:
     // HFA helper functions
     static void hfa_extract_and_copy_tile(const ov::SoPtr<ov::ITensor>& source_tensor,
                                           const ov::SoPtr<ov::ITensor>& dest_tensor,
