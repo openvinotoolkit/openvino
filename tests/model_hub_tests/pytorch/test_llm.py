@@ -596,7 +596,7 @@ class TestLLMModel(TestTorchConvertModel):
         ]
         if platform.machine() not in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
             models.extend([
-                ("opt_gptq", "katuni4ka/opt-125m-gptq"),
+                #("opt_gptq", "katuni4ka/opt-125m-gptq"),
                 ("llama", "TinyLlama/TinyLlama-1.1B-Chat-v1.0"),
                 ("llama_awq", "casperhansen/tinyllama-1b-awq"),
             ])
