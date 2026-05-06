@@ -100,7 +100,17 @@ if(NOT Vulkan_FOUND)
         # which conflicts with OpenVINO's -Werror=missing-declarations.
         # Temporarily suppress this warning during FetchContent.
         set(_ov_vk_saved_c_flags "${CMAKE_C_FLAGS}")
-        string(APPEND CMAKE_C_FLAGS " -Wno-missing-declarations -Wno-undef")
+        if(CMAKE_C_COMPILER_ID STREQUAL "GNU"
+           OR CMAKE_C_COMPILER_ID STREQUAL "Clang"
+           OR CMAKE_C_COMPILER_ID STREQUAL "AppleClang"
+           OR CMAKE_C_COMPILER_ID STREQUAL "IntelLLVM")
+            string(APPEND CMAKE_C_FLAGS " -Wno-missing-declarations -Wno-undef")
+        elseif(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
+            # MSVC has no direct equivalent of -Wno-missing-declarations.
+            # Lower warning level and silence #if-undef-identifier (C4668)
+            # so the fetched Vulkan-Loader/cJSON sources do not break a /WX build.
+            string(APPEND CMAKE_C_FLAGS " /W0 /wd4668")
+        endif()
         
         FetchContent_Declare(
             ov_vk_loader
