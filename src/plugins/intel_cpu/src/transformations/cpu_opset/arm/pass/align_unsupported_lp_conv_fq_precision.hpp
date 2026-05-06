@@ -34,7 +34,7 @@
  *     +---------------------------------+
  *     |         FakeQuantize            |
  *     | PrecisionsAttribute = { u8, i8 }|  <-- potential mismatch with conv input,
- *     +---------------------------------+      since i8 may be chosen 
+ *     +---------------------------------+      since i8 may be chosen
  *
  * After:
  *
