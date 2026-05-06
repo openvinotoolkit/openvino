@@ -61,68 +61,73 @@ endif()
 
 find_package(Vulkan QUIET)
 if(NOT Vulkan_FOUND)
-    option(OV_GPU_FUNC_TESTS_FETCH_VULKAN "Download Vulkan-Headers and Vulkan-Loader for GPU functional tests when system Vulkan is unavailable" ON)
-    if(OV_GPU_FUNC_TESTS_FETCH_VULKAN)
-        set(OV_GPU_FUNC_TESTS_VULKAN_TAG "v1.4.350" CACHE STRING "Git tag used when downloading Vulkan dependencies for GPU functional tests" FORCE)
-        if(CMAKE_VERSION VERSION_LESS 3.22.1)
-            message(WARNING "Vulkan was not found and automatic download requires CMake >= 3.22.1. Vulkan-dependent GPU functional tests will remain unavailable.")
-        else()
-            include(FetchContent)
+    set(OV_GPU_FUNC_TESTS_VULKAN_TAG "v1.4.341" CACHE STRING "Git tag used when downloading Vulkan dependencies for GPU functional tests" FORCE)
+    if(CMAKE_VERSION VERSION_LESS 3.22.1)
+        message(WARNING "Vulkan was not found and automatic download requires CMake >= 3.22.1. Vulkan-dependent GPU functional tests will remain unavailable.")
+    else()
+        include(FetchContent)
 
-            # Use a short base directory and short content names to avoid hitting the
-            # Windows MAX_PATH (260 chars) limit. FetchContent embeds the content name
-            # multiple times into nested subbuild paths, so long names like
-            # "ov_gpu_func_tests_vulkan_headers" easily overflow MAX_PATH on CI.
-            set(_ov_vk_base_dir "${CMAKE_BINARY_DIR}/_vk")
+        # Use a short base directory and short content names to avoid hitting the
+        # Windows MAX_PATH (260 chars) limit. FetchContent embeds the content name
+        # multiple times into nested subbuild paths, so long names like
+        # "ov_gpu_func_tests_vulkan_headers" easily overflow MAX_PATH on CI.
+        set(_ov_vk_base_dir "${CMAKE_BINARY_DIR}/_vk")
 
-            set(VULKAN_HEADERS_ENABLE_TESTS OFF)
-            set(VULKAN_HEADERS_ENABLE_INSTALL OFF)
-            FetchContent_Declare(
-                ov_vk_headers
-                GIT_REPOSITORY https://github.com/KhronosGroup/Vulkan-Headers.git
-                GIT_TAG ${OV_GPU_FUNC_TESTS_VULKAN_TAG}
-                GIT_SHALLOW TRUE
-                SOURCE_DIR   "${_ov_vk_base_dir}/headers-src"
-                BINARY_DIR   "${_ov_vk_base_dir}/headers-bld"
-                SUBBUILD_DIR "${_ov_vk_base_dir}/headers-sub"
-            )
-            FetchContent_MakeAvailable(ov_vk_headers)
-            string(REGEX REPLACE "^v" "" VulkanHeaders_VERSION "${OV_GPU_FUNC_TESTS_VULKAN_TAG}")
-            if(NOT VulkanHeaders_VERSION MATCHES "^[0-9]+(\\.[0-9]+)*$")
-                set(VulkanHeaders_VERSION "0.0.0")
-            endif()
+        set(VULKAN_HEADERS_ENABLE_TESTS OFF)
+        set(VULKAN_HEADERS_ENABLE_INSTALL OFF)
+        FetchContent_Declare(
+            ov_vk_headers
+            GIT_REPOSITORY https://github.com/KhronosGroup/Vulkan-Headers.git
+            GIT_TAG ${OV_GPU_FUNC_TESTS_VULKAN_TAG}
+            GIT_SHALLOW TRUE
+            SOURCE_DIR   "${_ov_vk_base_dir}/headers-src"
+            BINARY_DIR   "${_ov_vk_base_dir}/headers-bld"
+            SUBBUILD_DIR "${_ov_vk_base_dir}/headers-sub"
+        )
+        FetchContent_MakeAvailable(ov_vk_headers)
+        string(REGEX REPLACE "^v" "" VulkanHeaders_VERSION "${OV_GPU_FUNC_TESTS_VULKAN_TAG}")
+        if(NOT VulkanHeaders_VERSION MATCHES "^[0-9]+(\\.[0-9]+)*$")
+            set(VulkanHeaders_VERSION "0.0.0")
+        endif()
 
-            set(BUILD_TESTS OFF)
-            set(BUILD_WSI_XCB_SUPPORT OFF)
-            set(BUILD_WSI_XLIB_SUPPORT OFF)
-            set(BUILD_WSI_WAYLAND_SUPPORT OFF)
-            set(UPDATE_DEPS OFF)
-            FetchContent_Declare(
-                ov_vk_loader
-                GIT_REPOSITORY https://github.com/KhronosGroup/Vulkan-Loader.git
-                GIT_TAG ${OV_GPU_FUNC_TESTS_VULKAN_TAG}
-                GIT_SHALLOW TRUE
-                SOURCE_DIR   "${_ov_vk_base_dir}/loader-src"
-                BINARY_DIR   "${_ov_vk_base_dir}/loader-bld"
-                SUBBUILD_DIR "${_ov_vk_base_dir}/loader-sub"
-            )
-            FetchContent_MakeAvailable(ov_vk_loader)
+        set(BUILD_TESTS OFF)
+        set(BUILD_WSI_XCB_SUPPORT OFF)
+        set(BUILD_WSI_XLIB_SUPPORT OFF)
+        set(BUILD_WSI_WAYLAND_SUPPORT OFF)
+        set(UPDATE_DEPS OFF)
+        
+        # Vulkan-Loader's cJSON and asm_offset lack forward declarations,
+        # which conflicts with OpenVINO's -Werror=missing-declarations.
+        # Temporarily suppress this warning during FetchContent.
+        set(_ov_vk_saved_c_flags "${CMAKE_C_FLAGS}")
+        string(APPEND CMAKE_C_FLAGS " -Wno-missing-declarations -Wno-undef")
+        
+        FetchContent_Declare(
+            ov_vk_loader
+            GIT_REPOSITORY https://github.com/KhronosGroup/Vulkan-Loader.git
+            GIT_TAG ${OV_GPU_FUNC_TESTS_VULKAN_TAG}
+            GIT_SHALLOW TRUE
+            SOURCE_DIR   "${_ov_vk_base_dir}/loader-src"
+            BINARY_DIR   "${_ov_vk_base_dir}/loader-bld"
+            SUBBUILD_DIR "${_ov_vk_base_dir}/loader-sub"
+        )
+        FetchContent_MakeAvailable(ov_vk_loader)
+        set(CMAKE_C_FLAGS "${_ov_vk_saved_c_flags}")
 
-            unset(BUILD_TESTS)
-            unset(BUILD_WSI_XCB_SUPPORT)
-            unset(BUILD_WSI_XLIB_SUPPORT)
-            unset(BUILD_WSI_WAYLAND_SUPPORT)
-            unset(UPDATE_DEPS)
-            unset(VULKAN_HEADERS_ENABLE_TESTS)
-            unset(VULKAN_HEADERS_ENABLE_INSTALL)
+        unset(BUILD_TESTS)
+        unset(BUILD_WSI_XCB_SUPPORT)
+        unset(BUILD_WSI_XLIB_SUPPORT)
+        unset(BUILD_WSI_WAYLAND_SUPPORT)
+        unset(UPDATE_DEPS)
+        unset(VULKAN_HEADERS_ENABLE_TESTS)
+        unset(VULKAN_HEADERS_ENABLE_INSTALL)
 
-            if(TARGET vulkan AND NOT TARGET Vulkan::Vulkan)
-                add_library(Vulkan::Vulkan ALIAS vulkan)
-            endif()
+        if(TARGET vulkan AND NOT TARGET Vulkan::Vulkan)
+            add_library(Vulkan::Vulkan ALIAS vulkan)
+        endif()
 
-            if(TARGET Vulkan::Vulkan)
-                set(Vulkan_FOUND ON)
-            endif()
+        if(TARGET Vulkan::Vulkan)
+            set(Vulkan_FOUND ON)
         endif()
     endif()
 endif()
@@ -130,6 +135,9 @@ endif()
 if(Vulkan_FOUND)
     target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_VULKAN)
     target_link_libraries(${TARGET_NAME} PRIVATE Vulkan::Vulkan)
+    if(TARGET Vulkan::Headers)
+        target_link_libraries(${TARGET_NAME} PRIVATE Vulkan::Headers)
+    endif()
 endif()
 
 ov_build_target_faster(${TARGET_NAME} PCH)
