@@ -48,7 +48,7 @@ jobs:
       ONNX_RUNTIME_UTILS: ${{ github.workspace }}/src/frontends/onnx/tests/ci_utils/onnxruntime
       # To switch to the primary HF token, change the filename from `token-secondary` to `token-primary`:
       #   HF_TOKEN_PATH: /home/runner/secrets/huggingface/token-primary
-      HF_TOKEN_PATH: /home/runner/secrets/huggingface/token-secondary
+      # HF_TOKEN_PATH: /home/runner/secrets/huggingface/token-secondary
 
     steps:
       - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
