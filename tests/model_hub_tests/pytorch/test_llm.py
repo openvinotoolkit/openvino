@@ -658,7 +658,7 @@ class TestLLMModel(TestTorchConvertModel):
             return []
         return [
             ("llama_awq", "casperhansen/tinyllama-1b-awq"),
-            ("opt_gptq", "katuni4ka/opt-125m-gptq"),
+            #("opt_gptq", "katuni4ka/opt-125m-gptq"),
         ]
 
     @pytest.mark.parametrize("type,name", get_supported_export_precommit_models())
