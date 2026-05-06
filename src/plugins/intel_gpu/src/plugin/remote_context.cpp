@@ -59,6 +59,9 @@ cl_mem import_external_buffer(cl_context cl_ctx, size_t byte_size, void* shared_
     OPENVINO_THROW("[GPU] External memory import is not supported on this platform");
 #endif
 
+#ifndef CL_VERSION_3_0
+    OPENVINO_THROW("[GPU] External memory import is not supported on this platform");
+#else
     cl_mem_properties props[] = {
         static_cast<cl_mem_properties>(handle_type_token),
         static_cast<cl_mem_properties>(reinterpret_cast<intptr_t>(shared_handle)),
@@ -71,6 +74,7 @@ cl_mem import_external_buffer(cl_context cl_ctx, size_t byte_size, void* shared_
                     "[GPU] Failed to import external memory handle via clCreateBufferWithProperties, error: ",
                     errcode);
     return imported;
+#endif
 }
 
 }  // namespace
