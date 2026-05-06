@@ -739,35 +739,29 @@ def main():
 
     # Positive OOB: index 999 into a tensor with 1 string_val
     write_savedmodel(os.path.join(base, "saved_model_oob_pos_index"), "save/RestoreV2:999")
-    print(f"Generated: {os.path.join(base, 'saved_model_oob_pos_index')}")
 
     # Negative OOB: index -1 into a tensor with 1 string_val
     write_savedmodel(os.path.join(base, "saved_model_oob_neg_index"), "save/RestoreV2:-1")
-    print(f"Generated: {os.path.join(base, 'saved_model_oob_neg_index')}")
 
     # Empty tensor_names: index 0 into a tensor with 0 string_val entries;
     # exercises the upper-bound guard on the implicit-0 code path
     write_savedmodel(os.path.join(base, "saved_model_oob_empty_names"), "save/RestoreV2:0",
                      num_string_vals=0)
-    print(f"Generated: {os.path.join(base, 'saved_model_oob_empty_names')}")
 
     # TF1-style Assign path: OOB positive index in the Assign branch of map_assignvariable()
     write_savedmodel_tf1_assign(os.path.join(base, "saved_model_oob_assign_path"),
                                 "save/RestoreV2:999")
-    print(f"Generated: {os.path.join(base, 'saved_model_oob_assign_path')}")
 
     # RestoreV2 declared with only 1 input ('prefix') in the GraphDef itself —
     # node->input_size()==1, exercises the "missing tensor_names input" guard.
     write_savedmodel_restorev2_short_inputs(
         os.path.join(base, "saved_model_oob_restorev2_short_inputs"))
-    print(f"Generated: {os.path.join(base, 'saved_model_oob_restorev2_short_inputs')}")
 
     # RestoreV2 references tensor_names by name at port 1 but no node named
     # tensor_names exists; shape_and_slices is present and would shift into
     # the compacted inputs[1] slot in a buggy implementation.
     write_savedmodel_wrong_input_at_port1(
         os.path.join(base, "saved_model_oob_wrong_input_at_port1"))
-    print(f"Generated: {os.path.join(base, 'saved_model_oob_wrong_input_at_port1')}")
 
     # RestoreV2 declared with inputs ["prefix", "^bogus"]: control dep at
     # node->input(1).  A buggy implementation would parse the control token,
@@ -775,7 +769,6 @@ def main():
     # variable to the wrong name.  Data-port iteration must skip control deps.
     write_savedmodel_control_dep_at_port1(
         os.path.join(base, "saved_model_oob_control_dep_at_port1"))
-    print(f"Generated: {os.path.join(base, 'saved_model_oob_control_dep_at_port1')}")
 
 
 if __name__ == '__main__':
