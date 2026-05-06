@@ -803,7 +803,7 @@ TEST_F(AnyTests, AnyAsOtherTypeIsIncosisoinet) {
 
 using MapStrStr = std::map<std::string, std::string>;
 
-TEST_F(AnyTests, ParseForceImplementationsMapSimple) {
+TEST_F(AnyTests, ParseForceImplementationsMap_Simple) {
     const std::string force_impl_string = "{conv1:ocl:kernelname:any}";
     ov::Any any(force_impl_string);
 
@@ -815,7 +815,7 @@ TEST_F(AnyTests, ParseForceImplementationsMapSimple) {
     ASSERT_EQ(map["conv1"], "ocl:kernelname:any");
 }
 
-TEST_F(AnyTests, ParseForceImplementationsMapMultipleEntries) {
+TEST_F(AnyTests, ParseForceImplementationsMap_MultipleEntries) {
     const std::string force_impl_string = "{conv1:ocl::any,conv2:sycl:convolution_gpu_ref:bfyx,pool1:ocl::any}";
     ov::Any any(force_impl_string);
 
@@ -833,7 +833,7 @@ TEST_F(AnyTests, ParseForceImplementationsMapMultipleEntries) {
     ASSERT_EQ(map["pool1"], "ocl::any");
 }
 
-TEST_F(AnyTests, ParseForceImplementationsMapWithLongNodeIds) {
+TEST_F(AnyTests, ParseForceImplementationsMap_SemicolonsInName) {
     const std::string force_impl_string = "{\"layer:name\":ocl::any}";
     ov::Any any(force_impl_string);
 
