@@ -8,39 +8,43 @@
 
 #include "openvino/core/model.hpp"
 #include "openvino/op/paged_attention.hpp"
-#include "openvino/pass/pass.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/reference/utils/paged_cache_manager_helper.hpp"
 
 namespace ov {
 namespace pass {
 
-class AttachCacheManagerToPagedAttention : public ov::pass::ModelPass {
+class AttachCacheManagerToPagedAttention : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MODEL_PASS_RTTI("AttachCacheManagerToPagedAttention");
-    bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
+    OPENVINO_MATCHER_PASS_RTTI("AttachCacheManagerToPagedAttention");
+    AttachCacheManagerToPagedAttention() {
         using namespace ov::reference::paged_attention_cache;
 
-        CacheManagerHandle shared_handle;
-        ov::element::Type cache_dtype;
-        bool changed = false;
+        auto pa_pattern = pattern::wrap_type<ov::op::PagedAttentionExtension>();
 
-        for (const auto& node : model->get_ordered_ops()) {
-            auto pa = std::dynamic_pointer_cast<ov::op::PagedAttentionExtension>(node);
-            if (!pa || get_cache_manager(pa.get()) == nullptr)
-                continue;
+        auto shared_handle = std::make_shared<CacheManagerHandle>();
+        auto shared_dtype = std::make_shared<ov::element::Type>();
 
-            if (!shared_handle) {
-                cache_dtype = pa->get_input_element_type(0);
-                shared_handle = make_cache_handle(cache_dtype);
+        ov::matcher_pass_callback callback = [shared_handle, shared_dtype](pattern::Matcher& m) -> bool {
+            auto pa = std::dynamic_pointer_cast<ov::op::PagedAttentionExtension>(m.get_match_root());
+            if (!pa || get_cache_manager(pa.get()) != nullptr)
+                return false;
+
+            if (!*shared_handle) {
+                *shared_dtype = pa->get_input_element_type(0);
+                *shared_handle = make_cache_handle(*shared_dtype);
             }
 
-            OPENVINO_ASSERT(pa->get_input_element_type(0) == cache_dtype,
+            OPENVINO_ASSERT(pa->get_input_element_type(0) == *shared_dtype,
                             "AttachCacheManagerToPagedAttention: incompatible cache data types");
 
-            set_cache_manager(pa.get(), shared_handle);
-            changed = true;
-        }
-        return changed;
+            set_cache_manager(pa.get(), *shared_handle);
+            return true;
+        };
+
+        auto m = std::make_shared<pattern::Matcher>(pa_pattern, "AttachCacheManagerToPagedAttention");
+        register_matcher(m, callback);
     }
 };
 
