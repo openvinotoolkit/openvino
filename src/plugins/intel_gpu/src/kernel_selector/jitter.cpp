@@ -369,7 +369,7 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
             _tensor.GetLayout() == DataLayout::bfzyx || _tensor.GetLayout() == DataLayout::bfwzyx ||
             _tensor.GetLayout() == DataLayout::bfuwzyx || _tensor.GetLayout() == DataLayout::bfvuwzyx ||
             _tensor.GetLayout() == DataLayout::b_fs_yx_fsv16 || _tensor.GetLayout() == DataLayout::b_fs_yx_fsv32 ||
-            _tensor.GetLayout() == DataLayout::b_fs_zyx_fsv16) {
+            _tensor.GetLayout() == DataLayout::b_fs_zyx_fsv16 || _tensor.GetLayout() == DataLayout::b_fs_zyx_fsv32) {
             definitions.push_back({_name + "_X_PITCH", "1"});
             definitions.push_back({_name + "_Y_PITCH", dims_padded.x()});
             definitions.push_back({_name + "_Z_PITCH", toVectorMulString({dims_padded.x(), dims_padded.y()})});

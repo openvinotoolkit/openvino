@@ -1794,7 +1794,7 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
 
     // Shared GQA broadcast shape (embedding models only)
     ov::Output<ov::Node> shared_broadcast;
-    if (!config.use_kv_cache && !config.lm_head_weight) {
+    if ((!config.use_kv_cache && !config.lm_head_weight) || config.force_gqa_broadcast) {
         shared_broadcast = make_shared_gqa_broadcast(attention_mask->output(0),
                                                      config.get_kv_heads(),
                                                      config.num_heads,
