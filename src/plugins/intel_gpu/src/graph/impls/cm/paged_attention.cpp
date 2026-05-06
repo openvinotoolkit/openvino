@@ -7,8 +7,6 @@
 #include <array>
 #include <cctype>
 #include <cstdint>
-#include <chrono>
-#include <cstdio>
 #include <vector>
 #include <memory>
 #include <algorithm>
@@ -68,16 +66,6 @@ MixedRouteMode get_mixed_route_mode_from_env() {
 
 bool has_multiple_subsequences(const kernel_impl_params& params) {
     return get_batch_size_in_sequences(params.input_layouts) > 1;
-}
-
-bool is_cm_pa_exec_probe_enabled() {
-    const char* env = std::getenv("OV_GPU_CM_PA_EXEC_PROBE");
-    return env != nullptr && env[0] != '\0' && env[0] != '0';
-}
-
-bool is_cm_pa_kv_detail_probe_enabled() {
-    const char* env = std::getenv("OV_GPU_CM_PA_EXEC_PROBE_KV_DETAIL");
-    return env != nullptr && env[0] != '\0' && env[0] != '0';
 }
 
 bool is_cm_pa_force_lockable_mapping_enabled() {
@@ -502,15 +490,6 @@ public:
             }
         }
 
-        if (is_cm_pa_exec_probe_enabled()) {
-            std::fprintf(stderr,
-                         "[CM_PA_PREP_PROBE] fn=prepare_single_token_selected_ids force_lockable=%d alloc_type=%d size=%zu method=%s\n",
-                         force_lockable ? 1 : 0,
-                         static_cast<int>(alloc_type),
-                         selected_count,
-                         use_copy_from ? "copy_from" : "mem_lock_write");
-        }
-
         rt_params->single_token_selected_count = selected_count;
     }
 
@@ -541,68 +520,21 @@ public:
     event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
         const auto& params = *instance.get_impl_params();
         const auto desc = params.typed_desc<paged_attention>();
-        using probe_clock = std::chrono::steady_clock;
 
         update_stages_flags(instance);
         auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
         OPENVINO_ASSERT(rt_params != nullptr);
-        const bool probe_enabled = is_cm_pa_exec_probe_enabled();
-        const bool kv_detail_probe_enabled = probe_enabled && is_cm_pa_kv_detail_probe_enabled();
-        const auto execute_begin = probe_clock::now();
-        double kv_cache_update_ms = 0.0;
-        double kv_execute_stage_call_ms = 0.0;
-        double kv_event_wait_ms = 0.0;
-        double kv_event_submission_ms = 0.0;
-        double kv_event_starting_ms = 0.0;
-        double kv_event_executing_ms = 0.0;
-        double kv_event_profile_total_ms = 0.0;
-        double prepare_multi_mapping_ms = 0.0;
-        double prepare_single_ids_ms = 0.0;
 
         GPU_DEBUG_TRACE_DETAIL << "ov::intel_gpu::cm::PagedAttentionCmImpl::execute():  stage = " << static_cast<int>(rt_params->stage) << std::endl;
         std::vector<event::ptr> res_event = events;
-        const auto kv_begin = probe_clock::now();
         res_event = {execute_stage(res_event, instance, kv_cache_update)};
-        if (probe_enabled) {
-            kv_execute_stage_call_ms = std::chrono::duration<double, std::milli>(probe_clock::now() - kv_begin).count();
-            kv_cache_update_ms = kv_execute_stage_call_ms;
-        }
-
-        if (kv_detail_probe_enabled && !res_event.empty() && res_event[0] != nullptr) {
-            const auto kv_wait_begin = probe_clock::now();
-            res_event[0]->wait();
-            kv_event_wait_ms = std::chrono::duration<double, std::milli>(probe_clock::now() - kv_wait_begin).count();
-
-            const auto profiling_info = res_event[0]->get_profiling_info();
-            for (const auto& interval : profiling_info) {
-                const double ms = std::chrono::duration<double, std::milli>(interval.value->value()).count();
-                switch (interval.stage) {
-                    case cldnn::instrumentation::profiling_stage::submission:
-                        kv_event_submission_ms = ms;
-                        break;
-                    case cldnn::instrumentation::profiling_stage::starting:
-                        kv_event_starting_ms = ms;
-                        break;
-                    case cldnn::instrumentation::profiling_stage::executing:
-                        kv_event_executing_ms = ms;
-                        break;
-                    default:
-                        break;
-                }
-            }
-            kv_event_profile_total_ms = kv_event_submission_ms + kv_event_starting_ms + kv_event_executing_ms;
-        }
 
         const auto execute_multi_token_path = [&]() {
             if (rt_params->multi_token_wg_count == 0) {
                 return;
             }
 
-            const auto prep_multi_begin = probe_clock::now();
             prepare_multi_token_mapping(instance);
-            if (probe_enabled) {
-                prepare_multi_mapping_ms += std::chrono::duration<double, std::milli>(probe_clock::now() - prep_multi_begin).count();
-            }
             const bool xattn_enabled = desc->has_xattention && rt_params->enable_xattn_estimation;
             const bool is_xattn_bypassed = xattn_enabled ? bypass_xattn(params) : true;
             if (is_xattn_bypassed || !xattn_enabled) {
@@ -641,11 +573,7 @@ public:
             execute_multi_token_path();
         } else if (rt_params->stage == PagedAttentionStage::MIXED) {
             if (rt_params->mixed_route_mode == MixedRouteMode::SPLIT) {
-                const auto prep_single_begin = probe_clock::now();
                 prepare_single_token_selected_ids(instance);
-                if (probe_enabled) {
-                    prepare_single_ids_ms += std::chrono::duration<double, std::milli>(probe_clock::now() - prep_single_begin).count();
-                }
                 if (rt_params->single_token_selected_count > 0) {
                     res_event = {execute_stage(res_event, instance, pa_single_token)};
                     res_event = {execute_stage(res_event, instance, pa_single_token_finalization)};
@@ -655,32 +583,9 @@ public:
                 execute_multi_token_path();
             }
         } else {
-            const auto prep_single_begin = probe_clock::now();
             prepare_single_token_selected_ids(instance);
-            if (probe_enabled) {
-                prepare_single_ids_ms += std::chrono::duration<double, std::milli>(probe_clock::now() - prep_single_begin).count();
-            }
             res_event = {execute_stage(res_event, instance, pa_single_token)};
             res_event = {execute_stage(res_event, instance, pa_single_token_finalization)};
-        }
-
-        if (probe_enabled) {
-            const double execute_total_ms = std::chrono::duration<double, std::milli>(probe_clock::now() - execute_begin).count();
-            std::fprintf(stderr,
-                         "[CM_PA_EXEC_PROBE] stage=%d total_ms=%.6f kv_cache_update_ms=%.6f kv_execute_stage_call_ms=%.6f kv_event_wait_ms=%.6f kv_event_submission_ms=%.6f kv_event_starting_ms=%.6f kv_event_executing_ms=%.6f kv_event_profile_total_ms=%.6f prepare_multi_mapping_ms=%.6f prepare_single_ids_ms=%.6f multi_token_wg_count=%zu single_token_selected_count=%zu\n",
-                         static_cast<int>(rt_params->stage),
-                         execute_total_ms,
-                         kv_cache_update_ms,
-                         kv_execute_stage_call_ms,
-                         kv_event_wait_ms,
-                         kv_event_submission_ms,
-                         kv_event_starting_ms,
-                         kv_event_executing_ms,
-                         kv_event_profile_total_ms,
-                         prepare_multi_mapping_ms,
-                         prepare_single_ids_ms,
-                         rt_params->multi_token_wg_count,
-                         rt_params->single_token_selected_count);
         }
 
         return res_event[0];
