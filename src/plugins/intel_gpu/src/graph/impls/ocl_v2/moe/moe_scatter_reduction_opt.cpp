@@ -41,7 +41,9 @@ protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
         auto in_l = params.input_layouts[0];
-        auto hidden_size = extract_channel(ChannelName::Y, in_l);
+        // Hidden = last dim regardless of rank (validate_impl gates last-dim staticness).
+        const auto& in_pshape = in_l.get_partial_shape();
+        auto hidden_size = in_pshape[in_pshape.size() - 1].get_length();
         auto [local_threads_count, batches_per_thread] = calc_thread_count(const_cast<RuntimeParams&>(params), MoeScatterReductionOpt::block_size, hidden_size);
 
         const auto& desc = params.typed_desc<moe_scatter_reduction>();

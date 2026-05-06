@@ -31,11 +31,12 @@ struct MoeScatterReductionOpt : public MoeScatterReductionBase {
         const auto& out_layout = node.get_output_layout(0);
         const auto& input_pshapes = in0_layout.get_partial_shape();
 
-        if (input_pshapes.rank().get_length() != 3 || input_pshapes[2].is_dynamic()) {
+        // MoE primitives operate on rank-2 [N*K, hidden]; hidden must be static.
+        if (input_pshapes.rank().get_length() != 2 || input_pshapes[1].is_dynamic()) {
             return false;
         }
 
-        if (input_pshapes[2].get_length() % block_size != 0) {
+        if (input_pshapes[1].get_length() % block_size != 0) {
             return false;
         }
         if (!one_of(in0_layout.format, supported_fmts) || !one_of(out_layout.format, supported_fmts)) {

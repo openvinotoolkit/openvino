@@ -21,22 +21,19 @@ template<typename ShapeType>
 std::vector<layout> moe_scatter_reduction_inst::calc_output_layouts(moe_scatter_reduction_node const& /*node*/, const kernel_impl_params& impl_param) {
     const auto& desc = impl_param.typed_desc<moe_scatter_reduction>();
     const auto num_active_experts_per_token = desc->num_active_experts_per_token;
+    const auto& in_layout = impl_param.input_layouts[0];
+    const auto& input_shape = in_layout.get<ShapeType>();
+    OPENVINO_ASSERT(input_shape.size() == 2,
+                    impl_param.desc->id, " expects rank-2 [N*K, hidden] input, got rank ", input_shape.size());
+    OPENVINO_ASSERT(input_shape[1].is_static(),
+                    impl_param.desc->id, " hidden size dimension must be static");
 
-    const auto& input_shape = impl_param.input_layouts[0].get<ShapeType>();
-    const auto& hidden_size = input_shape[input_shape.size() - 1];
-    OPENVINO_ASSERT(hidden_size.is_static(), impl_param.desc->id, " hidden size dimension (shape[1]) must be static");
-    if (impl_param.input_layouts[0].is_dynamic())
-        return {layout{ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension(hidden_size)},
-                impl_param.input_layouts[0].data_type, impl_param.input_layouts[0].format}};
-    if (desc->has_batch_dim) {
-        const auto num_tokens = impl_param.input_layouts[0].get_shape()[1] / num_active_experts_per_token;
-        const auto& out_shape = ov::PartialShape{1, ov::Dimension(num_tokens), ov::Dimension(hidden_size)};
-        return {layout{out_shape, impl_param.input_layouts[0].data_type, impl_param.input_layouts[0].format}};
-    } else {
-        const auto num_tokens = impl_param.input_layouts[0].get_shape()[0] / num_active_experts_per_token;
-        const auto& out_shape = ov::PartialShape{ov::Dimension(num_tokens), 1, ov::Dimension(hidden_size)};
-        return {layout{out_shape, impl_param.input_layouts[0].data_type, impl_param.input_layouts[0].format}};
+    // [N*K, H] -> [N, H] (inverse of moe_gather).
+    auto out_shape = input_shape;
+    if (input_shape[0].is_static()) {
+        out_shape[0] = ov::Dimension(input_shape[0].get_length() / num_active_experts_per_token);
     }
+    return {layout{out_shape, in_layout.data_type, in_layout.format}};
 }
 
 template std::vector<layout> moe_scatter_reduction_inst::calc_output_layouts<ov::PartialShape>(moe_scatter_reduction_node const& node,

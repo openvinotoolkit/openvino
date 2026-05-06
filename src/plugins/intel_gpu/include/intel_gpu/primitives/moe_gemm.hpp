@@ -42,18 +42,15 @@ struct moe_gemm : public primitive_base<moe_gemm> {
              const std::vector<input_info>& inputs,
              const ov::op::internal::MOECompressed::Config& moe_config)
           : primitive_base(id, inputs),
-            num_experts_per_token(static_cast<int32_t>(moe_config.top_k)),
-            has_batch_dim(moe_config.has_batch_dim) {}
+            num_experts_per_token(static_cast<int32_t>(moe_config.top_k)) {}
 
     bool has_bias = false;
     int32_t num_experts_per_token = 0;
-    bool has_batch_dim = true;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, has_bias);
         seed = hash_combine(seed, num_experts_per_token);
-        seed = hash_combine(seed, has_batch_dim);
         return seed;
     }
 
@@ -62,22 +59,19 @@ struct moe_gemm : public primitive_base<moe_gemm> {
             return false;
         auto rhs_casted = downcast<const moe_gemm>(rhs);
         return has_bias == rhs_casted.has_bias &&
-               num_experts_per_token == rhs_casted.num_experts_per_token &&
-               has_batch_dim == rhs_casted.has_batch_dim;
+               num_experts_per_token == rhs_casted.num_experts_per_token;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<moe_gemm>::save(ob);
         ob << has_bias;
         ob << num_experts_per_token;
-        ob << has_batch_dim;
     }
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<moe_gemm>::load(ib);
         ib >> has_bias;
         ib >> num_experts_per_token;
-        ib >> has_batch_dim;
     }
 };
 }

@@ -39,7 +39,6 @@ void test_moe_gather(bool is_caching_test, int k) {
     moe_config.top_k = 2;
     moe_config.hidden_size = k;
     moe_config.num_expert = num_total_experts;
-    moe_config.has_batch_dim = false;
 
     auto input_activation_shape = ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension(hidden_size)};
     auto input_activation_layout = layout{input_activation_shape, data_types::f16, format::bfyx};

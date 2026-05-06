@@ -64,7 +64,6 @@ enum class MOE3GemmInputIndex : uint8_t {
 
 struct moe_3gemm_config {
     int32_t weight_group_size = -1;
-    bool has_batch_dim = false;  // 0 - pa, 1 - non-pa
 };
 
 struct MoE3GemmRuntimeParams : public MoEGemmRuntimeParams {};

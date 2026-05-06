@@ -28,9 +28,6 @@ public:
         // numeric_limits<size_t>::max() means per_channel compression (single group).
         // other non-zero value means group compression with this given group_size.
         size_t group_size = 0;
-        // In CB, intermediate shapes are expanded to {SeqLen, 1, HiddenSize}
-        // In Non-CB, intermediate shapes are expanded to {Batch, SeqLen, HiddenSize}
-        bool has_batch_dim = false;
         bool has_zp = false;
         ov::element::Type out_type = ov::element::dynamic;
         RoutingType routing_type = RoutingType::SOFTMAX;

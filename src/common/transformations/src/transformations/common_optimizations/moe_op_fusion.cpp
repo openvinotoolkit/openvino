@@ -48,7 +48,7 @@ static size_t weight_logical_K(const ov::Shape& shape) {
     return shape.size() == 4 ? shape[2] * shape[3] : shape[2];
 }
 
-Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool has_batch_dim) {
+Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
     MATCHER_SCOPE(Convert3GatherMatmulMoeBlockToMoeOp);
 
     auto experts_reshape_m = pattern::any_input();
@@ -92,9 +92,9 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool ha
     auto routing_unsqueeze_m = pattern::wrap_type<v0::Unsqueeze>({routing_transpose_m, pattern::any_input()});
 
     auto final_mul_m = pattern::wrap_type<v1::Multiply>({bgm_down_m, routing_unsqueeze_m}, pattern::consumers_count(1));
+    // Root at ReduceSum: any trailing Reshape is model-specific (not part of the MoE block) and
+    // continues to operate on the MoE op's 2D output unchanged.
     auto reduce_sum_m = pattern::wrap_type<v1::ReduceSum>({final_mul_m, pattern::any_input()}, {{"keep_dims", false}});
-    auto end_reshape_shape_m = pattern::any_input();
-    auto end_reshape_m = pattern::wrap_type<v1::Reshape>({reduce_sum_m, end_reshape_shape_m});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pm = m.get_pattern_value_map();
@@ -103,8 +103,9 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool ha
             return false;
         }
 
-        auto experts_reshape_node = pm.at(experts_reshape_m).get_node_shared_ptr();
-        auto hidden_states = experts_reshape_node->input_value(0);
+        // Use the flattened 2D output (experts_reshape) so MOECompressed has 2D input(0),
+        // matching the natural 2D output of the matched ReduceSum.
+        auto hidden_states = pm.at(experts_reshape_m);
 
         auto routing = pm.at(routing_unsqueeze_m).get_node_shared_ptr();
         auto topk_indices = pm.at(topk_indices_m);
@@ -182,7 +183,6 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool ha
                 0,  // num_shared_expert
                 static_cast<size_t>(topk_shape[1].get_length()),
                 group_size,
-                has_batch_dim,
                 has_zp,
                 ov::element::f16,
             };
@@ -215,11 +215,11 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool ha
         return true;
     };
 
-    auto matcher = std::make_shared<pattern::Matcher>(end_reshape_m, matcher_name);
+    auto matcher = std::make_shared<pattern::Matcher>(reduce_sum_m, matcher_name);
     this->register_matcher(matcher, callback);
 }
 
-Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(bool has_batch_dim) {
+Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp() {
     MATCHER_SCOPE(Convert2GatherMatmulMoeBlockToMoeOp);
 
     auto experts_reshape_m = pattern::any_input();
@@ -271,9 +271,9 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(bool ha
     auto routing_unsqueeze_m = pattern::wrap_type<v0::Unsqueeze>({routing_reshape_m, pattern::any_input()});
 
     auto final_mul_m = pattern::wrap_type<v1::Multiply>({bgm_down_m, routing_unsqueeze_m});
+    // Root at ReduceSum: any trailing Reshape is model-specific (not part of the MoE block) and
+    // continues to operate on the MoE op's 2D output unchanged.
     auto reduce_sum_m = pattern::wrap_type<v1::ReduceSum>({final_mul_m, pattern::any_input()}, {{"keep_dims", false}});
-    auto end_reshape_shape_m = pattern::any_input();
-    auto end_reshape_m = pattern::wrap_type<v1::Reshape>({reduce_sum_m, end_reshape_shape_m});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pm = m.get_pattern_value_map();
@@ -282,8 +282,9 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(bool ha
             return false;
         }
 
-        auto experts_reshape_node = pm.at(experts_reshape_m).get_node_shared_ptr();
-        auto hidden_states = experts_reshape_node->input_value(0);
+        // Use the flattened 2D output (experts_reshape) so MOECompressed has 2D input(0),
+        // matching the natural 2D output of the matched ReduceSum.
+        auto hidden_states = pm.at(experts_reshape_m);
 
         // Bypass the [1,0] Transpose: moe_scatter_reduction expects tokens-major routing.
         // Order is enforced by the pattern (value_matches("1, 0")).
@@ -390,7 +391,6 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(bool ha
                 0,  // num_shared_expert
                 static_cast<size_t>(topk_indices_shape[topk_rank - 1].get_length()),
                 group_size,
-                has_batch_dim,
                 has_zp,
                 ov::element::dynamic,
             };
@@ -416,7 +416,7 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(bool ha
         return true;
     };
 
-    auto matcher = std::make_shared<pattern::Matcher>(end_reshape_m, matcher_name);
+    auto matcher = std::make_shared<pattern::Matcher>(reduce_sum_m, matcher_name);
     this->register_matcher(matcher, callback);
 }
 

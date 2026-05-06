@@ -19,40 +19,24 @@ layout moe_gemm_inst::calc_output_layout(moe_gemm_node const& node, kernel_impl_
 template<typename ShapeType>
 std::vector<layout> moe_gemm_inst::calc_output_layouts(moe_gemm_node const& /*node*/, const kernel_impl_params& impl_param) {
     const auto& desc = impl_param.typed_desc<moe_gemm>();
-    size_t num_experts_per_token = desc->num_experts_per_token;
-    auto input_layout = impl_param.get_input_layout(0);
-    size_t input_rank = input_layout.get_partial_shape().size();
-    if (input_rank != 3)
-        OPENVINO_THROW("moe_gemm's input rank should be 3");
-    auto experts_layout = impl_param.get_input_layout(1);
-    auto out_n_dim = input_rank - 1;
-    auto output_shape = input_layout.get_partial_shape();
-    for (auto& o : output_shape) {
-        o = ov::Dimension::dynamic();
-    }
-    size_t n = experts_layout.get_shape()[1];
-    output_shape[out_n_dim] = ov::Dimension(n);
+    const size_t num_experts_per_token = desc->num_experts_per_token;
+    const auto input_layout = impl_param.get_input_layout(0);
+    const auto input_shape = input_layout.get_partial_shape();
+    OPENVINO_ASSERT(input_shape.size() == 2,
+                    "moe_gemm expects rank-2 [N_tokens, K_in] input, got rank ", input_shape.size());
 
-    if (!input_layout.is_dynamic()) {
-        size_t seq_len_dim = (desc->has_batch_dim) ? 1 : 0;
-        auto m = input_layout.get_shape()[seq_len_dim];
-        if (m == 1) {
-            // first gemm (up/gate) in the generate phase
-            if (!desc->has_batch_dim) {
-                output_shape = ov::PartialShape{ov::Dimension(num_experts_per_token), ov::Dimension(1), ov::Dimension(n)};
-            } else {
-                output_shape = ov::PartialShape{ov::Dimension(1), ov::Dimension(num_experts_per_token), ov::Dimension(n)};
-            }
-        } else {
-            if (!desc->has_batch_dim) {
-                output_shape = ov::PartialShape{ov::Dimension(m), ov::Dimension(1), ov::Dimension(n)};
-            } else {
-                output_shape = ov::PartialShape{ov::Dimension(1), ov::Dimension(m), ov::Dimension(n)};
-            }
-        }
+    const auto experts_layout = impl_param.get_input_layout(1);
+    const size_t n = experts_layout.get_shape()[1];
+
+    // [N, K_in] -> [N, n_out]. Generate-phase: m==1 input expands tokens by K.
+    auto output_shape = input_shape;
+    output_shape[1] = ov::Dimension(n);
+
+    if (!input_layout.is_dynamic() && input_shape[0].get_length() == 1) {
+        output_shape[0] = ov::Dimension(num_experts_per_token);
     }
-    auto output_layout = layout{output_shape, input_layout.data_type, input_layout.format};
-    return {output_layout};
+
+    return {layout{output_shape, input_layout.data_type, input_layout.format}};
 }
 
 template std::vector<layout> moe_gemm_inst::calc_output_layouts<ov::PartialShape>(moe_gemm_node const& node, const kernel_impl_params& impl_param);

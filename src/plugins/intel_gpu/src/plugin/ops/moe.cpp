@@ -190,9 +190,12 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         p.add_primitive(*op, moe_gemm_up);
 
         // GPT-OSS swiglu: stride-2 interleave (gate=swish, up=clamp+add).
+        // Axis = last dim (= rank-1): hidden axis of moe_gemm_up's output, regardless of rank.
+        const auto swiglu_axis = static_cast<int64_t>(
+            op->get_input_partial_shape(0).rank().get_length() - 1);
         auto moe_swiglu_prim = cldnn::swiglu(moe_swiglu_name,
                                              input_info(moe_gemm_up_name),
-                                             2,  // axis
+                                             swiglu_axis,
                                              2,  // glu_stride
                                              ov::op::internal::GLU::GluType::Swish,
                                              config.gate_idx,

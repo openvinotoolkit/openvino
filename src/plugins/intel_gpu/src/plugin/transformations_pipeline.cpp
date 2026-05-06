@@ -534,16 +534,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             std::vector<ov::element::Type>{ ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4 },
             !device_info.supports_immad);
 
-        const bool is_pa = [&func]() {
-            for (const auto& op : func->get_ops()) {
-                if (ov::is_type<ov::op::PagedAttentionExtension>(op)) {
-                    return true;
-                }
-            }
-
-            return false;
-        }();
-
         const bool disable_moe_opt = GPU_DEBUG_VALUE_OR(config.get_disable_moe_opt(), false);
 
         // MOE: TiledMoeBlock -> GatherMatmuls(compressed) -> MoeOp(compressed) -> MoeOpWithRouting(compressed).
@@ -559,9 +549,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                                ov::element::i8, ov::element::u8});
 
             if (!disable_moe_opt) {
-                // PA models flatten batch into seq.
-                const bool has_batch_dim = !is_pa;
-                manager.register_pass<ov::pass::MoeOpFusion>(has_batch_dim);
+                manager.register_pass<ov::pass::MoeOpFusion>();
                 manager.register_pass<ov::intel_gpu::FuseMOESharedExpert>();
                 manager.register_pass<ov::intel_gpu::FuseMOE3GemmCompressed>();
             }
