@@ -14,6 +14,7 @@ namespace npuw {
 
 class LLMInferRequest;
 class WhisperInferRequest;
+class BlockKVCacheExtension;
 struct PrefixCacheRestorationContext;
 class LLMCompiledModel : public ov::npuw::ICompiledModel {
     using GetPropertiesMap =
@@ -75,6 +76,7 @@ private:
     friend class LLMInferRequest;
     friend class WhisperInferRequest;
     friend class EmbeddingInferRequest;
+    friend class BlockKVCacheExtension;
 
     std::shared_ptr<ov::ISyncInferRequest> create_llm_infer_request();
     std::shared_ptr<ov::ISyncInferRequest> create_whisper_infer_request();
