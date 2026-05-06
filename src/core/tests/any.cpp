@@ -801,10 +801,16 @@ TEST_F(AnyTests, AnyAsOtherTypeIsIncosisoinet) {
     EXPECT_EQ(a_str, "30");
 }
 
+/*
+Tests below validate only the parser used for OV_GPU_FORCE_IMPLEMENTATIONS attribute parsing, but do not 
+validate the option. The provided primitive names, implementation types, layouts, and kernel names are 
+treated as parser input only and may not correspond to real or available runtime values.
+*/
+
 using MapStrStr = std::map<std::string, std::string>;
 
 TEST_F(AnyTests, ParseForceImplementationsMap_Simple) {
-    const std::string force_impl_string = "{conv1:ocl:kernelname:any}";
+    const std::string force_impl_string = "{conv1:impl:kernelname:any}";
     ov::Any any(force_impl_string);
 
     MapStrStr map;
@@ -812,11 +818,11 @@ TEST_F(AnyTests, ParseForceImplementationsMap_Simple) {
     ASSERT_EQ(map.size(), 1);
 
     ASSERT_NE(map.find("conv1"), map.end());
-    ASSERT_EQ(map["conv1"], "ocl:kernelname:any");
+    ASSERT_EQ(map["conv1"], "impl:kernelname:any");
 }
 
 TEST_F(AnyTests, ParseForceImplementationsMap_MultipleEntries) {
-    const std::string force_impl_string = "{conv1:ocl::any,conv2:sycl:convolution_gpu_ref:bfyx,pool1:ocl::any}";
+    const std::string force_impl_string = "{conv1:impl1::any,conv2:impl2:kernel:any,pool1:impl3::layout}";
     ov::Any any(force_impl_string);
 
     MapStrStr map;
@@ -824,17 +830,17 @@ TEST_F(AnyTests, ParseForceImplementationsMap_MultipleEntries) {
     ASSERT_EQ(map.size(), 3);
 
     ASSERT_NE(map.find("conv1"), map.end());
-    ASSERT_EQ(map["conv1"], "ocl::any");
+    ASSERT_EQ(map["conv1"], "impl1::any");
 
     ASSERT_NE(map.find("conv2"), map.end());
-    ASSERT_EQ(map["conv2"], "sycl:convolution_gpu_ref:bfyx");
+    ASSERT_EQ(map["conv2"], "impl2:kernel:any");
 
     ASSERT_NE(map.find("pool1"), map.end());
-    ASSERT_EQ(map["pool1"], "ocl::any");
+    ASSERT_EQ(map["pool1"], "impl3::layout");
 }
 
 TEST_F(AnyTests, ParseForceImplementationsMap_SemicolonsInName) {
-    const std::string force_impl_string = "{\"layer:name\":ocl::any}";
+    const std::string force_impl_string = "{\"layer:name\":impl::any}";
     ov::Any any(force_impl_string);
 
     MapStrStr map;
@@ -842,7 +848,7 @@ TEST_F(AnyTests, ParseForceImplementationsMap_SemicolonsInName) {
     ASSERT_EQ(map.size(), 1);
 
     ASSERT_NE(map.find("layer:name"), map.end());
-    ASSERT_EQ(map["layer:name"], "ocl::any");
+    ASSERT_EQ(map["layer:name"], "impl::any");
 }
 
 }  // namespace test
