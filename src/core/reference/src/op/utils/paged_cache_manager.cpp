@@ -195,9 +195,8 @@ std::int32_t PagedCacheManager::steal_block_fifo(OperatorState& st, std::size_t 
 }
 
 std::int32_t PagedCacheManager::steal_block_by_score(OperatorState& st, std::size_t requester_seq) {
-    // Pick the sequence whose front block has the lowest accumulated attention score
-    // We only evict front blocks so that the deque-index-to-token-position mapping stays valid
-    // Falls back to FIFO if no scores have been recorded yet
+    // Evict the front block with the lowest attention score.
+    // Falls back to FIFO if no scores have been recorded yet.
     std::size_t best_seq = std::numeric_limits<std::size_t>::max();
     float best_score = std::numeric_limits<float>::max();
     bool found_any = false;
@@ -234,13 +233,9 @@ std::int32_t PagedCacheManager::steal_block_by_score(OperatorState& st, std::siz
 }
 
 std::int32_t PagedCacheManager::steal_block_by_diversity(OperatorState& st, std::size_t requester_seq) {
-    // Full Adaptive R-KV eviction:
-    // 1. Identify the "retained set" of blocks per sequence via attention-mass gating.
-    // 2. For each non-retained front block, compute diversity as mean over columns
-    //    corresponding to retained blocks' tokens only.
-    // 3. Evict the non-retained front block with the lowest filtered diversity.
-    //
-    // Falls back to score eviction if no diversity data was fed
+    // Adaptive R-KV eviction: use attention-mass gating + diversity scores
+    // to pick the least important non-retained front block.
+    // Falls back to score eviction if no diversity data was fed.
 
     struct Candidate {
         std::size_t seq;
@@ -259,8 +254,7 @@ std::int32_t PagedCacheManager::steal_block_by_diversity(OperatorState& st, std:
             continue;
         }
 
-        // Step 1: Attention-mass gating within this sequence's eviction zone.
-        // Determine which blocks in the eviction zone are in the "retained set"
+        // Attention-mass gating: find which blocks are "retained" (score >= p of total)
         const std::size_t n_blks = seq.diversity_n_blocks;
         const std::size_t evict_sz = seq.diversity_evict_size;
         const std::size_t start_blk = seq.diversity_start_block;
@@ -297,12 +291,7 @@ std::int32_t PagedCacheManager::steal_block_by_diversity(OperatorState& st, std:
             cumsum += sb.first;
         }
 
-        // The front block of the deque corresponds to zone index (0 - start_blk) if start_blk==0,
-        // or may be outside the eviction zone entirely.
-        // Find which zone index the deque front block maps to:
-        // deque index 0 -> zone index = 0 - start_blk (only valid if start_blk == 0)
-        // If the front block is in the start area (before the eviction zone), it is
-        // not in the retained set and is eligible for eviction
+        // Check if front block is retained (skip if so)
         bool front_is_retained = false;
         if (start_blk == 0 && n_blks > 0) {
             front_is_retained = retained[0];
@@ -313,10 +302,7 @@ std::int32_t PagedCacheManager::steal_block_by_diversity(OperatorState& st, std:
             continue;
         }
 
-        // Step 2: Compute filtered diversity for the front block.
-        // diversity_matrix row 0 corresponds to the first eviction zone block.
-        // If start_blk > 0, the front block of the deque is actually in the "start area"
-        // and has no diversity row - use 0 diversity (always evictable)
+        // Compute filtered diversity for the front block (mean over retained columns)
         float div_score = 0.f;
         if (start_blk == 0 && n_blks > 0) {
             // Front block is zone block 0; its row is diversity_matrix[0, :].
@@ -500,9 +486,7 @@ void PagedCacheManager::begin_step(std::uintptr_t node_key, const std::int32_t* 
 
         seq.logical_length = new_len;
 
-        // If past_lens exceeds what the current retained blocks can represent,
-        // do nothing here: the caller will append new tokens and ensure_token will allocate as needed
-        // Also, if the sequence had previously been trimmed, keep trim_front
+        // If past_lens exceeds retained blocks, the caller will append and ensure_token will allocate
         if (seq.trim_front > seq.logical_length) {
             seq.trim_front = std::max<std::int32_t>(0, seq.logical_length - (std::int32_t)(st.block_size));
             seq.trim_front = (seq.trim_front / (std::int32_t)st.block_size) * (std::int32_t)st.block_size;
@@ -622,8 +606,8 @@ void PagedCacheManager::update_attention_scores(std::uintptr_t node_key,
         return;
     }
 
-    // scores layout: flat concatenation of [past_lens[s] + new_len_s] per sequence
-    // we accumulate per-block scores by summing the per-token values
+    // scores layout: flat [past_lens[0]+new_0, past_lens[1]+new_1, ...]
+    // accumulate per-token scores into per-block sums
     std::size_t offset = 0;
     for (std::size_t s = 0; s < seq_count; ++s) {
         auto& seq = st.sequences[s];

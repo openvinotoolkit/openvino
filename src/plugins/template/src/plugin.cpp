@@ -19,7 +19,6 @@
 #include "remote_context.hpp"
 #include "template/properties.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
-#include "transformations/paged_attention/convert_pagedattn_inputs.hpp"
 #include "transformations/control_flow/unroll_if.hpp"
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
@@ -27,6 +26,7 @@
 #include "transformations/op_conversions/convert_maxpool_downgrade.hpp"
 #include "transformations/op_conversions/convert_reduce_to_pooling.hpp"
 #include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
+#include "transformations/paged_attention/convert_pagedattn_inputs.hpp"
 
 namespace {
 static constexpr const char* wait_executor_name = "TemplateWaitExecutor";
@@ -158,8 +158,7 @@ void transform_model(const std::shared_ptr<ov::Model>& model) {
     // Disabled SDPA transformation, since there is ref SDPA op.
     pass_config->disable<ov::pass::ScaledDotProductAttentionDecomposition>();
 
-    // Attach the cache manager to every PagedAttention node so the plugin can
-    // allocate and manage the KV cache blocks at inference time.
+    // Attach cache manager to PA nodes for KV cache block management
     passManager.register_pass<ov::pass::AttachCacheManagerToPagedAttention>();
 
     // After `run_passes`, we have the transformed function, where operations match device operations,

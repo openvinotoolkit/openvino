@@ -58,9 +58,8 @@ inline float read_at_as_f32(const void* base, const ov::element::Type& et, std::
     OPENVINO_THROW("PagedAttention reference: unsupported array type: ", et);
 }
 
-/// Softmax with optional attention-sink support
-/// When sink_val is not nullptr, the sink acts as a virtual extra attention score:
-/// it participates in the max and exp-sum but produces no output weight
+/// Softmax with optional attention-sink support.
+/// When sink_val != nullptr it participates in max/exp-sum but produces no output weight.
 inline void softmax_inplace(std::vector<float>& scores, const float* sink_val = nullptr) {
     if (scores.empty()) {
         return;
@@ -143,18 +142,12 @@ inline std::vector<std::size_t> parse_subsequence_ranges(const int32_t* subseq_b
 
 }  // namespace detail
 
-// Reference implementation of ov::op::PagedAttentionExtension
-// Supports: GQA, ALiBi, RoPE re-rotation (split-half / LLaMA-style), attention sinks,
-//           xattention sparse prefill, and adaptive RKV diversity scoring
+// Reference implementation of ov::op::PagedAttentionExtension.
+// Supports GQA, ALiBi, RoPE re-rotation, attention sinks,
+// xattention sparse prefill, and adaptive RKV diversity scoring.
 //
-//
-// pool_kernel argument (default 7, from ReasoningTokenEviction pptx):
-// is a window size for per-head max-pool applied to per-token attention scores before aggregating into block scores
-// It is currently missing from the operator's inputs, but based on the presentation it should be present
-//
-// In the book 'Clean Code by Robert C. Martin there is a small guideline
-// which says that a function should not have more than 3 inputs unless necessary
-// Safe to say, enjoy!
+// pool_kernel (default 7): max-pool window for per-head score aggregation.
+// Not yet an operator input but should be eventually.
 template <typename T>
 void paged_attention(std::uintptr_t node_key,
                      ov::reference::paged_attention_cache::PagedCacheManager* cache_manager,
@@ -210,17 +203,14 @@ void paged_attention(std::uintptr_t node_key,
     OPENVINO_ASSERT(query != nullptr && key != nullptr && value != nullptr, "PagedAttention reference: null Q/K/V");
     OPENVINO_ASSERT(out != nullptr, "PagedAttention reference: output is null");
 
-    // These inputs tell CPU/GPU kernels where the physical memory blocks for adaptive RKV are
-    // The reference doesn't use them - it reads key data directly from the cache manager
+    // Not used by the reference -- it reads key data directly from the cache manager
     (void)adaptive_rkv_diversity_block_set_indices;
     (void)adaptive_rkv_diversity_block_set_indices_begins;
 
-    // Sinks: each head has a scalar value treated as a virtual extra token in the softmax
-    // (it shifts the max/denominator but does not contribute to the weighted output)
+    // Sinks: per-head virtual token in the softmax (shifts max/denominator, no output weight)
     const bool has_sinks = (sinks != nullptr);
 
-    // Xattention: dynamic sparse prefill via strided Q*K dot products, grouped into blocks,
-    // with low-importance blocks masked out
+    // Xattention: sparse prefill via strided Q*K products with block-level masking
     const bool has_xattn = (xattention_threshold != nullptr);
 
     OPENVINO_ASSERT(query_shape.size() == 2 && key_shape.size() == 2 && value_shape.size() == 2,
@@ -294,8 +284,7 @@ void paged_attention(std::uintptr_t node_key,
 
     // out_scores: concatenation of [past_len + new_len] for each sequence
     std::vector<float> scores_acc;
-    // Per-head score buffer for max-pool + head-average (used for internal eviction scoring)
-    // Layout: [q_heads][total_score_len], row-major
+    // Per-head score buffer for max-pool + head-average (eviction scoring)
     std::vector<float> scores_per_head;
     std::size_t total_score_len = 0;
     const bool need_scores = (out_scores != nullptr);
@@ -315,10 +304,8 @@ void paged_attention(std::uintptr_t node_key,
     std::vector<float> out_head;
     std::vector<float> key_buf;  // re-used for rotary re-rotation
 
-    // Sink: read the per-head scalar values from the [1,H,1,1] input.
-    // Per the spec, H is the number of **query** heads (not KV heads), so in
-    // GQA configurations (q_heads > kv_heads) all q_heads elements are read.
-    // The caller is responsible for passing a buffer of at least q_heads elements.
+    // Read per-head sink values from [1,H,1,1].
+    // H is the number of query heads (not KV heads), so this is safe in GQA.
     std::vector<float> sink_vals;
     if (has_sinks) {
         sink_vals.resize(q_heads, 0.f);
@@ -327,12 +314,11 @@ void paged_attention(std::uintptr_t node_key,
         }
     }
 
-    // Xattention: build block-level sparse mask per head
-    // xattn_mask[h][q_block][k_block] = true means "keep this block pair"
-    // Only activated for multi-token (prefill), single sequence
+    // Xattention sparse mask per head: xattn_mask[h][q_blk][k_blk]
+    // Only active for multi-token prefill with a single sequence.
     const int32_t xattn_block_sz = (xattention_block_size != nullptr) ? xattention_block_size[0] : 0;
     const int32_t xattn_stride = (xattention_stride != nullptr) ? xattention_stride[0] : 0;
-    // xattn_mask: [q_heads][num_q_blocks][num_k_blocks]
+    // xattn_mask layout: [q_heads][num_q_blocks][num_k_blocks]
     std::vector<std::vector<std::vector<bool>>> xattn_mask;
 
     // Prefix offsets for out_scores concatenation
@@ -357,16 +343,13 @@ void paged_attention(std::uintptr_t node_key,
         OPENVINO_ASSERT(past >= 0, "PagedAttention reference: negative past_lens");
         const std::size_t new_len = t_end - t_begin;
 
-        // Per-sequence score aggregation window: shape [] broadcasts to all sequences; shape [B_seq]
-        // selects per-sequence value.  Negative -> unbounded (all tokens), 0 -> disabled.
+        // Score aggregation window: [] broadcasts to all sequences, [B_seq] is per-sequence.
+        // Negative = unbounded, 0 = disabled.
         const std::size_t saw_idx =
             (score_aggregation_window_count > 1) ? std::min(s, score_aggregation_window_count - 1) : 0;
         const int32_t score_window_i = score_aggregation_window ? score_aggregation_window[saw_idx] : 0;
 
-        // Build xattention sparse mask for this sequence (prefill only)
-        // xattn_mask[h][q_blk][k_blk] = true => keep; false => skip
-        // Only activate when: xattn enabled, multi-token (new_len > 1), single sequence
-        // When past > 0, the mask covers new tokens only, cached tokens are always attended to
+        // Build xattention sparse mask (prefill only, new_len > 1, single sequence)
         const bool do_xattn = has_xattn && new_len > 1 && seq_count == 1 && xattn_block_sz > 0 && xattn_stride > 0;
         xattn_mask.clear();
         if (do_xattn) {
@@ -387,8 +370,7 @@ void paged_attention(std::uintptr_t node_key,
             for (std::size_t h = 0; h < q_heads; ++h) {
                 const std::size_t kvh = h / group;
 
-                // Compute strided attention matrix [q_strided * k_strided]
-                // For each stride offset, average the Q·K scores
+                // Strided attention matrix [q_strided x k_strided]
                 std::vector<float> attn_strided(q_strided * k_strided, 0.f);
 
                 for (int32_t off = 0; off < xattn_stride; ++off) {
@@ -498,21 +480,11 @@ void paged_attention(std::uintptr_t node_key,
                         });
                     }
 
-                    // Cumulative sum selection.
-                    // cumsum tracks total score of all positions decided BEFORE
-                    // the current one (positions 0..i-1).  For each position i:
-                    //   - First column (i==0): always kept.
-                    //   - Diagonal (i==1, qb>=1): always kept; cumsum initialised
-                    //     to the first column score.
-                    //   - Otherwise: kept if cumsum < required (top-p style),
-                    //     then cumsum is incremented with vals[i-1].first.
-                    // After the cumulative-sum decision, a causal gate rejects
-                    // any block k > q-block (future blocks).  Rejected blocks
-                    // do NOT feed back into cumsum for subsequent iterations:
-                    // the update `cumsum += vals[i-1].first` always adds the
-                    // previous *entry* regardless of whether it was kept or not,
-                    // which is correct because the cumsum represents the total
-                    // attention score of entries seen so far in sorted order.
+                    // Cumulative-sum block selection (top-p style).
+                    // Block 0 and diagonal are always kept.
+                    // cumsum tracks the prefix sum of entries in sorted order;
+                    // the causal gate (vals[i].second > qb) rejects future blocks
+                    // without affecting cumsum.
                     float cumsum = 0.f;
                     for (std::size_t i = 0; i < vals.size(); ++i) {
                         bool keep = false;
@@ -567,10 +539,8 @@ void paged_attention(std::uintptr_t node_key,
                 continue;
             }
 
-            // For out_scores aggregation, decide whether to include this query.
-            // score_window_i == 0 -> disabled: no accumulation, output 1 stays zero.
-            // score_window_i  > 0 -> only the last score_window_i tokens contribute.
-            // score_window_i  < 0 -> all tokens contribute (unbounded window)
+            // Score window semantics:
+            // 0 = disabled, >0 = last N tokens, <0 = all tokens
             const bool include_in_scores =
                 (scores_acc.empty() || score_window_i == 0)
                     ? false
@@ -606,8 +576,7 @@ void paged_attention(std::uintptr_t node_key,
                         continue;
                     }
 
-                    // Re-apply RoPE to pre-existing cached positions only; new tokens are
-                    // written with unrotated keys, consistent with the CPU kernel
+                    // RoPE re-rotation for cached positions only; new tokens are unrotated
                     float dot = 0.f;
                     const auto it = rotated_map.find(addr.block);
                     if (has_trig && rotation_deltas != nullptr && it != rotated_map.end() && kpos < past) {
@@ -653,8 +622,7 @@ void paged_attention(std::uintptr_t node_key,
                     logits[t] = l;
                 }
 
-                // Apply xattention sparse mask: set skipped block pairs to -inf
-                // Mask covers new-to-new attention only; kpos < past means a cached key, always included
+                // Apply xattention sparse mask (new-to-new only; cached keys always included)
                 if (do_xattn && h < xattn_mask.size()) {
                     for (std::size_t t = 0; t < ctx_len; ++t) {
                         const std::int32_t kpos = start + static_cast<std::int32_t>(t);
@@ -717,9 +685,8 @@ void paged_attention(std::uintptr_t node_key,
         }
     }
 
-    // Feed accumulated scores back into the cache manager so that score-based
-    // eviction can use them on the next allocation that runs out of free blocks.
-    // Apply per-head max-pool + head-average for more accurate importance estimation
+    // Feed scores back into the cache manager for eviction.
+    // Apply per-head max-pool + head-average for better importance estimation.
     if (!scores_acc.empty()) {
         if (pool_kernel > 1 && total_score_len > 0) {
             // Per-sequence, per-head max-pool then average across heads
@@ -761,11 +728,7 @@ void paged_attention(std::uintptr_t node_key,
         }
     }
 
-    // Adaptive RKV diversity computation
-    // After all attention is done, compute per-block diversity scores for the
-    // eviction zone of each sequence using AdaptiveRKVDiversityCalculator
-    // The diversity output is a flat buffer: for each sequence, the calculator
-    // returns [eviction_size / block_size, eviction_size] and we flatten it
+    // Adaptive RKV diversity: compute per-block diversity scores for eviction zones
     const bool has_adaptive_rkv = (adaptive_rkv_evictable_sizes != nullptr);
     if (has_adaptive_rkv && out_diversity_scores != nullptr) {
         const std::size_t cache_block_size = cache_manager->block_size(node_key);
@@ -816,9 +779,7 @@ void paged_attention(std::uintptr_t node_key,
                 }
             }
 
-            // Feed the raw 2D diversity matrix into the cache manager so that
-            // ADAPTIVE_RKV eviction can apply attention-mass gating + filtered
-            // column mean at eviction time
+            // Feed diversity matrix into cache manager for eviction decisions
             const std::size_t n_evict_blocks = diversity.size();
             std::vector<float> flat_div(n_evict_blocks * evict_size, 0.f);
             for (std::size_t b = 0; b < n_evict_blocks; ++b) {

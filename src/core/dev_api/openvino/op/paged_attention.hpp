@@ -12,20 +12,18 @@ namespace op {
 // This is an experimental operation that is implemented in the plugins.
 // Do not use in user applications, backward compatibility is not guaranteed in future releases.
 
-/// \brief PagedAttentionExtension operation implements paged attention for memory-efficient sequence processing
+/// \brief Paged attention op for memory-efficient sequence processing.
 ///
 /// \ingroup ov_ops_cpp_api
-///
-/// This operation computes attention using a paged memory model, allowing efficient handling of long sequences
 class OPENVINO_API PagedAttentionExtension : public ov::op::Op {
 public:
     OPENVINO_OP("PagedAttentionExtension");
 
     PagedAttentionExtension() = default;
 
-    /// \brief Constructs a PagedAttentionExtension operation
+    /// \brief Constructs a PagedAttentionExtension.
     ///
-    /// \param args Input arguments vector containing:
+    /// \param args 25 inputs (see spec for layout):
     ///   (B_token = total tokens in the call, B_seq = number of sequences,
     ///    H = query heads, Hk = key/value heads, S = head size)
     ///

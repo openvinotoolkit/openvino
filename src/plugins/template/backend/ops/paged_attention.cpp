@@ -16,10 +16,9 @@
 
 namespace {
 
-// Resize output tensors calling shape_infer() with a runtime tensor accessor.
-// Unlike most ops, PA keeps some inputs dynamic even after
-// validate_nodes_and_infer_types(), so we build input_shapes from the actual
-// runtime tensors rather than from the node's (possibly dynamic) input shapes
+// Resize outputs using shape_infer with runtime tensors.
+// PA keeps some inputs dynamic after validate_and_infer_types,
+// so we use actual tensor shapes here.
 void resize_pa_outputs(const ov::op::PagedAttentionExtension* op,
                        ov::TensorVector& outputs,
                        const ov::TensorVector& inputs) {
@@ -34,8 +33,7 @@ void resize_pa_outputs(const ov::op::PagedAttentionExtension* op,
         if (out_shapes[i].is_static()) {
             outputs[i].set_shape(out_shapes[i].to_shape());
         } else {
-            // Diversity output (output 2) may stay dynamic when evictable_sizes
-            // is absent or empty - default to shape {0}
+            // Diversity output may stay dynamic -- default to {0}
             outputs[i].set_shape(ov::Shape{0});
         }
     }
@@ -54,12 +52,8 @@ bool evaluate(const ov::op::PagedAttentionExtension* pa_op,
 
     resize_pa_outputs(pa_op, outputs, inputs);
 
-    // The nullptr conversion below maps "present but empty" -> nullptr
-    // This is a marker for the inputs that are considered 'optional' in the
-    // original operator indended use, but because we cannot have actual optional positional
-    // inputs in the op, they have to be passed as empty tensors instead
-    //
-    // If in the future we add more positional inputs, this should help cover that
+    // Map "present but empty" inputs to nullptr. These are logically optional
+    // but must be passed as empty tensors since PA has no optional positional inputs.
     const void* alibi_ptr = inputs[11].get_size() > 0 ? inputs[11].data() : nullptr;
     const auto alibi_et = alibi_ptr ? inputs[11].get_element_type() : ov::element::dynamic;
     const void* trig_lut_ptr = inputs[16].get_size() > 0 ? inputs[16].data() : nullptr;

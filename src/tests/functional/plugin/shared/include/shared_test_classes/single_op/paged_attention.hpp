@@ -105,8 +105,7 @@ protected:
         auto block_indices = make_param({ov::Dimension::dynamic()}, ov::element::i32, "block_indices");
         auto block_indices_begins = make_param({ov::Dimension::dynamic()}, ov::element::i32, "block_indices_begins");
 
-        // Use typed empty vectors for zero-element constants to avoid
-        // ambiguity with Constant::create overload resolution
+        // Use typed empty vectors to avoid Constant::create overload ambiguity
         const float scale_value = 1.0f / std::sqrt(static_cast<float>(head_size));
         auto scale = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{}, std::vector<float>{scale_value});
         auto sliding_windows = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int32_t>{sliding_window});
@@ -167,8 +166,7 @@ protected:
         auto xattention_block_size = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int32_t>{64});
         auto xattention_stride     = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int32_t>{8});
 
-        // Sink input: [1, H, 1, 1] when enabled, empty [0] when disabled
-        // Matching the pattern used by the CPU-specific test
+        // Sink input: [1, H, 1, 1] when enabled, empty when disabled
         std::shared_ptr<ov::op::v0::Constant> sinks;
         if (use_sink_input) {
             // Use per-head sink values comparable in magnitude to attention logits
@@ -234,16 +232,15 @@ protected:
 
         auto pa = std::make_shared<ov::op::PagedAttentionExtension>(pa_inputs);
 
-        // Provide head metadata required by ConvertPagedAttnInputs transformation
-        // These keys are the canonical ones read by the transformation callback
+        // Head metadata for ConvertPagedAttnInputs transformation
         auto& rt = pa->get_rt_info();
         rt["num_k_heads"] = static_cast<size_t>(head_num);
         rt["k_head_size"] = static_cast<size_t>(head_size);
         rt["num_v_heads"] = static_cast<size_t>(head_num);
         rt["v_head_size"] = static_cast<size_t>(head_size);
 
-        // Output 2 (diversity scores) is added only when adaptive RKV is active, because
-        // the CPU does not compute it and the buffer contents are unspecified on that path.
+        // Only wire output 2 (diversity) when adaptive RKV is active,
+        // since CPU does not compute it.
         ov::OutputVector model_outputs = {pa->output(0), pa->output(1)};
         if (adaptive_rkv_eviction_size > 0) {
             model_outputs.push_back(pa->output(2));

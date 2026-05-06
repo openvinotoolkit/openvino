@@ -62,9 +62,9 @@ const std::vector<ov::AnyMap> additional_configs_ref = {{
 
 #ifdef OPENVINO_ARCH_X86_64
 
-// Basic verification tests - first 11 inputs
+// Basic verification tests
 
-// 0) The default test (same as in the CPU plugin)
+// 0) Default test
 INSTANTIATE_TEST_SUITE_P(smoke_PagedAttentionLayerTest,
                          PagedAttentionLayerTest,
                          ::testing::Combine(::testing::Values(ElementType::f32),
@@ -164,15 +164,12 @@ INSTANTIATE_TEST_SUITE_P(adv3StepAlibi_PagedAttentionLayerTest,
                                             ::testing::ValuesIn(additional_configs_ref)),
                          PagedAttentionLayerTest::getTestCaseName);
 
-// NOTE: We skip testing max_context_len clipping (input 12) because the CPU and TEMPLATE
-// handle it differently.  During multi-token prefill (when a batch of tokens is processed
-// at once, e.g. the initial prompt pass), the CPU kernel ignores max_context_len, but the
-// TEMPLATE reference always applies it.  Any test with active clipping would always
-// produce different results between the two, so there is no stable ground truth to compare
+// NOTE: max_context_len clipping is not tested because CPU ignores it during
+// prefill while TEMPLATE always applies it, so there is no stable ground truth.
 
 // Feature tests - sinks, rotation, xattention
 
-// 7) Tiny + attention sinks: per-head logit added as a virtual token in the softmax denominator
+// 7) Tiny + attention sinks
 INSTANTIATE_TEST_SUITE_P(advSinks_PagedAttentionLayerTest,
                          PagedAttentionLayerTest,
                          ::testing::Combine(::testing::Values(ElementType::f32),
@@ -200,7 +197,7 @@ INSTANTIATE_TEST_SUITE_P(advSinksAlibi_PagedAttentionLayerTest,
                                             ::testing::ValuesIn(additional_configs_ref)),
                          PagedAttentionLayerTest::getTestCaseName);
 
-// 9) Rotation: 2-step (prefill+decode) with RoPE re-rotation enabled on block 0
+// 9) Rotation: RoPE re-rotation on block 0
 const std::vector<ov::AnyMap> additional_configs_rotation = {{
     {ov::intel_cpu::enable_sage_attn.name(), false},
     {ov::hint::kv_cache_precision.name(), ov::element::f32},
@@ -224,8 +221,7 @@ INSTANTIATE_TEST_SUITE_P(advRotation_PagedAttentionLayerTest,
                                             ::testing::ValuesIn(additional_configs_rotation)),
                          PagedAttentionLayerTest::getTestCaseName);
 
-// 10) Xattention smoke: with tiny shapes (L=3, xattn_block_size=64) the mask is trivially
-//     1x1 [[true]], so no blocks are masked - validates the code path runs without error
+// 10) Xattention smoke: trivial 1x1 mask, validates the code path runs
 INSTANTIATE_TEST_SUITE_P(advXattn_PagedAttentionLayerTest,
                          PagedAttentionLayerTest,
                          ::testing::Combine(::testing::Values(ElementType::f32),
@@ -239,11 +235,9 @@ INSTANTIATE_TEST_SUITE_P(advXattn_PagedAttentionLayerTest,
                                             ::testing::ValuesIn(additional_configs_ref)),
                          PagedAttentionLayerTest::getTestCaseName);
 
-// Adaptive RKV diversity test
-// (Adaptive RKV diversity output is not compared, compile/memory corrupt verification only)
+// Adaptive RKV diversity (output not compared, just compile/crash verification)
 
-// Shapes for adaptive RKV: L=64 with block_size=32 (forced by CPU plugin's ConvertPagedAttnInputs)
-// and eviction_size=32 so the eviction zone spans exactly one block
+// L=64, block_size=32, eviction_size=32 (one eviction block)
 const std::vector<InputShapes> input_shapes_arkv = {
 {
     {{-1, 1, 2, 4}, {{64, 1, 2, 4}, {1, 1, 2, 4}}},
@@ -260,8 +254,7 @@ const std::vector<ov::AnyMap> additional_configs_arkv = {{
     {"test_adaptive_rkv_eviction_size", 32},
 }};
 
-// 11) Adaptive RKV diversity: verifies diversity scoring in the reference
-//     Output 0 (attention) is unaffected by adaptive RKV and must match CPU
+// 11) Adaptive RKV diversity: output 0 must still match CPU
 INSTANTIATE_TEST_SUITE_P(advAdaptiveRKV_PagedAttentionLayerTest,
                          PagedAttentionLayerTest,
                          ::testing::Combine(::testing::Values(ElementType::f32),

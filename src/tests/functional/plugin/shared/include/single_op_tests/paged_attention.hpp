@@ -15,8 +15,7 @@ TEST_P(PagedAttentionLayerTest, Inference) {
     const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput, slidingWindow, useAlibi, maxContextLen, additional_config] = GetParam();
     (void)inputShapes; (void)enableXattn; (void)sinkInput; (void)slidingWindow; (void)useAlibi; (void)maxContextLen;
 
-    // Single ov::Core from the test framework (avoids re-registration errors
-    // for other people who might want to launch it with TEMPLATE REGISTRRATION ON)
+    // Use a single ov::Core to avoid re-registration errors
     auto& core_ref = *core;
 
     // Read per-instantiation comparison thresholds (default: 1e-3 abs, 1e-2 rel)
@@ -29,10 +28,8 @@ TEST_P(PagedAttentionLayerTest, Inference) {
         if (it != additional_config.end()) test_rel_threshold = it->second.as<float>();
     }
 
-    // CPU config: strip test-only keys that the CPU plugin doesn't understand
-    // Important, add the inference precision to ensure the CPU doesn't quantize the key/vaue cache to u8
-    // as this opeartion is not present in the reference. The results should be almost identical for quantized
-    // version anyways, but this way we avoid any discrepancies due to quantization and focus on verifying the core logic of PA and cache management
+    // Strip test-only keys from CPU config and force f32 inference precision
+    // to avoid KV cache quantization differences with the reference.
     ov::AnyMap cpu_cfg = additional_config;
     cpu_cfg.erase("test_use_rotation");
     cpu_cfg.erase("test_block_size");
@@ -44,7 +41,7 @@ TEST_P(PagedAttentionLayerTest, Inference) {
     // TEMPLATE config
     ov::AnyMap tmpl_cfg;
     tmpl_cfg[ov::hint::inference_precision.name()] = ov::element::f32;
-    // Run CPU with fresh caches (do NOT reuse key_cache_init_ directly, the plugin mutates it).
+    // Run CPU with fresh cache copies (the plugin mutates them in-place)
     ov::Tensor key_cache_cpu(key_cache_init_.get_element_type(), key_cache_init_.get_shape());
     ov::Tensor value_cache_cpu(value_cache_init_.get_element_type(), value_cache_init_.get_shape());
     key_cache_init_.copy_to(key_cache_cpu);
@@ -81,11 +78,7 @@ TEST_P(PagedAttentionLayerTest, Inference) {
             if (ct.get_size() == 0 || tt.get_size() == 0) {
                 continue;
             }
-            // Output 0 (attention): match between CPU and TEMPLATE
-            // Output 1 (score aggregation): match between CPU and TEMPLATE
-            // Output 2 (diversity scores): CPU does NOT compute this output; the buffer
-            //   contents are unspecified after execution.  Only the reference (TEMPLATE)
-            //   fills it via AdaptiveRKVDiversityCalculator.  Skip comparison entirely
+            // Output 2 (diversity): only computed by TEMPLATE, skip comparison
             if (oi > 1) {
                 continue;
             }
@@ -94,8 +87,7 @@ TEST_P(PagedAttentionLayerTest, Inference) {
     }
 }
 
-// Verify that score_aggregation_window = 0 produces an all-zero output 1 on both CPU and TEMPLATE.
-// This tests that both implementations agree on the "disabled" interpretation of value 0.
+// Verify that score_aggregation_window=0 produces all-zero output 1.
 TEST_P(PagedAttentionLayerTest, ScoreWindowZeroZerosOutput1) {
     const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput, slidingWindow, useAlibi, maxContextLen, additional_config] = GetParam();
     (void)inputShapes; (void)enableXattn; (void)sinkInput; (void)slidingWindow; (void)useAlibi; (void)maxContextLen;

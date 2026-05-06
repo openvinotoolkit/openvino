@@ -1,8 +1,7 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-// Template-plugin-specific pass: attaches a shared PagedCacheManager
-// handle to every PagedAttentionExtension node in the model via rt_info.
+// Attaches a shared PagedCacheManager to every PA node via rt_info.
 
 #pragma once
 

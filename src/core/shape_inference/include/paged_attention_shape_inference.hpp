@@ -17,7 +17,8 @@ std::vector<TRShape> shape_infer(const PagedAttentionExtension* op,
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 28, "Expected 28 inputs but got ", input_shapes.size());
     auto output_shapes = std::vector<TRShape>(3);
 
-    // Output[0] feature dim is `num_heads * v_head_size`
+    // Output[0] feature dim is num_heads * v_head_size.
+    // Derived as Q*V/K which cancels the shared Hkv*Dk.
     auto out_ps = input_shapes[0];
     const auto& key_ps = input_shapes[1];
     const auto& value_ps = input_shapes[2];
@@ -28,9 +29,6 @@ std::vector<TRShape> shape_infer(const PagedAttentionExtension* op,
     if (out_ps.rank().is_static() && out_ps.rank().get_length() >= 2 && out_ps[1].is_static()) {
         if (key_ps.rank().is_static() && key_ps.rank().get_length() >= 2 && key_ps[1].is_static() &&
             value_ps.rank().is_static() && value_ps.rank().get_length() >= 2 && value_ps[1].is_static()) {
-            // We need num_heads * v_head_size for the output but don't have it directly.
-            // Q has Hq*Dk features, K has Hkv*Dk, V has Hkv*Dv, so Q*V/K cancels
-            // the shared Hkv*Dk and gives Hq*Dv, which is exactly what the output needs
             const auto q = out_ps[1].get_length();
             const auto k = key_ps[1].get_length();
             const auto v = value_ps[1].get_length();
@@ -70,10 +68,9 @@ std::vector<TRShape> shape_infer(const PagedAttentionExtension* op,
         scores_ps.push_back(Dimension::dynamic());
     }
 
+    // Output[2]: flat 1D diversity scores.
+    // Size = sum(evictable_sizes[s]^2 / block_size); dynamic if unknown.
     auto& diversity_ps = output_shapes[2];
-    // Output[2] is a flat 1D buffer of diversity scores.
-    // Exact size = sum_s( evictable_sizes[s]^2 / block_size ) where block_size = key_cache dim 2.
-    // If either is unknown we fall back to dynamic
     auto width_dim = Dimension::dynamic();
 
     const auto& key_cache_ps = input_shapes[3];  // [num_blocks, Hkv, block_size, S]

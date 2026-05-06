@@ -12,9 +12,8 @@
 
 namespace {
 
-// Validates input rank and type for a node input.
-// We consider that dynamic rank/type are always valid case.
-// Empty {} means any rank/type
+// Validates input rank and type. Dynamic rank/type always passes.
+// Empty {} means any rank/type.
 inline void input_check(const ov::Node* node,
                         size_t idx,
                         const std::string_view input_name,
@@ -116,9 +115,7 @@ void PagedAttentionExtension::validate_and_infer_types() {
 
     const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
     const auto output_shapes = shape_infer(this, input_shapes);
-    // Honour m_output_type overrides (e.g. the CPU plugin pins output 1 to f32
-    // for f16 inference via set_out_type). Fall back to the query element type
-    // only when no override has been set (m_output_type is element::dynamic)
+    // Use m_output_type overrides when set, otherwise fall back to query type
     for (int i = 0; i < 3; ++i) {
         const auto et = m_output_type[i].is_dynamic() ? get_input_element_type(0) : m_output_type[i];
         set_output_type(i, et, output_shapes[i]);

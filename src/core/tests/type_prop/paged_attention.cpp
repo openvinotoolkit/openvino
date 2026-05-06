@@ -25,8 +25,8 @@ namespace {
 ov::OutputVector make_valid_pa_args(const element::Type& t = element::f32) {
     using ov::op::v0::Parameter;
 
-    // rotation_trig_lut and xattention_threshold only accept f16/f32 per the spec.
-    // For bf16 tests, pin these two inputs to f32 instead.
+    // rotation_trig_lut and xattention_threshold only accept f16/f32.
+    // Pin to f32 for bf16 tests.
     const auto trig_t = (t == element::bf16) ? element::f32 : t;
 
     auto query = std::make_shared<Parameter>(t, PartialShape{3, 4});

@@ -22,13 +22,11 @@ namespace ov {
 namespace reference {
 namespace paged_attention_cache {
 
-// Eviction strategy to use when the block pool is full
-// Currently the model has no parameter to select this at compile time,
-// so the default is SCORE and the cache size limit is 64 MB
+// Eviction strategy when the block pool is full
 enum class EvictionPolicy {
-    FIFO,         // evict the oldest block of the longest sequence (original behavior)
-    SCORE,        // evict the block with the lowest accumulated attention score
-    ADAPTIVE_RKV  // evict the block with the lowest key-vector diversity score
+    FIFO,         // evict oldest block of the longest sequence
+    SCORE,        // evict block with lowest attention score
+    ADAPTIVE_RKV  // evict block with lowest key-diversity score
 };
 
 // CacheManager used by the reference implementation of PagedAttentionExtension
@@ -39,13 +37,8 @@ public:
         std::int32_t offset = 0;
     };
 
-    // The model does not yet expose all necessary parameters to select the eviction policy,
-    // the cache byte limit, and the attention mass threshold, so we default to SCORE with a
-    // 64 MB cap and attention_mass_p=0.9 (keep blocks covering 90% of attention mass).
-    //
-    // attention_mass_p is an eviction policy parameter (ReasoningTokenEviction pptx).
-    // Similarly to pool_kernel, it is not currently available in the operator nor the model,
-    // but here it is present for the full support of the adaptive RKV algorithm
+    // Defaults: SCORE eviction, 64 MB cap, attention_mass_p=0.9.
+    // These params are not yet exposed through the model/operator.
     explicit PagedCacheManager(ov::element::Type elem_type,
                                EvictionPolicy policy = EvictionPolicy::SCORE,
                                std::size_t max_cache_bytes = 64UL * 1024UL * 1024UL,
@@ -53,7 +46,7 @@ public:
     PagedCacheManager(const PagedCacheManager&) = delete;
     PagedCacheManager& operator=(const PagedCacheManager&) = delete;
 
-    // Register (or find) an operator state for a PagedAttentionExtension node
+    // Register or find operator state for a PA node
     bool ensure_operator(std::uintptr_t node_key,
                          const void* key_cache_init,
                          const void* value_cache_init,
@@ -66,23 +59,16 @@ public:
                          const std::int32_t* past_lens_init,
                          std::size_t past_lens_count);
 
-    // Update per-sequence logical lengths at the beginning of a step
-    //
-    // The reference implementation assumes that tokens are appended and that past_lens represents the current
-    // logical length of each sequence before appending the new tokens from this call
+    // Update per-sequence lengths at the start of a step.
+    // past_lens holds the logical length of each sequence before appending new tokens.
     void begin_step(std::uintptr_t node_key, const std::int32_t* past_lens, std::size_t seq_count);
 
-    // Ensure storage for a token position within a sequence
-    //
-    // token_pos is the logical token index within the sequence timeline (0...logical_length - 1)
-    // This function allocates (or reuses) blocks as needed
+    // Ensure storage for a token position within a sequence.
+    // Allocates or reuses blocks as needed.
     TokenAddress ensure_token(std::uintptr_t node_key, std::size_t seq_idx, std::int32_t token_pos);
 
-    // Resolve an existing token address
-    // That means the token is within the retained window and has allocated storage.  The caller can then access the
-    // token's KV cache
-    //
-    // Returns false if the token is out of the retained window (trimmed) or beyond logical length
+    // Resolve an existing token address.
+    // Returns false if the token was trimmed or is beyond the logical length.
     bool resolve_token(std::uintptr_t node_key,
                        std::size_t seq_idx,
                        std::int32_t token_pos,
@@ -125,18 +111,16 @@ public:
         return m_attention_mass_p;
     }
 
-    // Feed accumulated attention scores from the PA kernel back into the manager
-    // so that SCORE eviction can pick the lowest-score block
-    // scores is a flat buffer [total_tokens] matching out_scores layout
+    // Feed attention scores back so SCORE eviction can pick the lowest-score block.
+    // scores is a flat [total_tokens] buffer matching out_scores layout.
     void update_attention_scores(std::uintptr_t node_key,
                                  const float* scores,
                                  std::size_t scores_len,
                                  const std::int32_t* past_lens,
                                  std::size_t seq_count);
 
-    // Feed the raw 2D diversity matrix from the adaptive RKV calculator
-    // so that ADAPTIVE_RKV eviction can apply attention-mass gating + filtered column mean.
-    // diversity_matrix is row-major [num_blocks_in_zone, eviction_size]
+    // Feed the 2D diversity matrix so ADAPTIVE_RKV eviction can use it.
+    // diversity_matrix is row-major [num_blocks_in_zone, eviction_size].
     void update_diversity_scores(std::uintptr_t node_key,
                                  std::size_t seq_idx,
                                  const float* diversity_matrix,
@@ -150,13 +134,10 @@ private:
         std::int32_t trim_front = 0;      // number of tokens trimmed from front (multiple of block_size)
         std::deque<std::int32_t> blocks;  // physical block IDs for [trim_front, trim_front + blocks*block_size)
 
-        // per-block accumulated attention scores, same order as blocks deque
-        // used by SCORE eviction to find the least important block
+        // per-block attention scores (same order as blocks deque)
         std::deque<float> block_scores;
 
-        // Raw 2D diversity matrix [n_diversity_blocks, diversity_evict_size], row-major.
-        // Stored as a flat vector, refreshed every step by update_diversity_scores.
-        // At eviction time the manager applies attention-mass gating + filtered column mean.
+        // Raw diversity matrix [n_blocks, evict_size], refreshed each step.
         std::vector<float> diversity_matrix;
         std::size_t diversity_n_blocks = 0;
         std::size_t diversity_evict_size = 0;
@@ -277,7 +258,7 @@ void PagedCacheManager::write_token_kv(std::uintptr_t node_key,
         OPENVINO_THROW("PagedCacheManager::write_token_kv: failed to allocate block");
     }
 
-    // Copy per-kv-head vectors into the block storage.
+    // Copy per-head key/value vectors into block storage.
     for (std::size_t kvh = 0; kvh < st.num_kv_heads; ++kvh) {
         T* kdst = key_block_base<T>(st, addr.block, kvh) + static_cast<std::size_t>(addr.offset) * st.key_head_size;
         const T* ksrc = key_row + kvh * st.key_head_size;

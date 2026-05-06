@@ -1192,13 +1192,11 @@ TEST(PagedCacheManagerTest, AdaptiveRKVDiversityClearedAfterEviction) {
     EXPECT_TRUE(mgr->resolve_token(NODE, 1, 5, addr));
 }
 
-// Tests of the upcoming adaptive RKV cache eviction
-// The tests below verify the full potential of the algorithm bychecking the behavior
-// of the not-ye-available inputs 'attention_mass_p' and 'pool_kernel'
+// Adaptive RKV cache eviction tests.
+// Verify attention_mass_p and pool_kernel behavior.
 
-// attention_mass_p controls the fraction of total attention mass that the retained
-// set must cover.  A higher p includes more blocks in the retained set (harder to
-// evict), while a lower p restricts the retained set to fewer top-scoring blocks
+// attention_mass_p controls what fraction of total attention mass
+// the retained set must cover.  Higher p = more blocks retained.
 //
 // Setup: 4 blocks, block_size=2.
 //   Seq 0 per-block scores: block0=1.0, block1=9.0  (total 10)
@@ -1314,7 +1312,7 @@ TEST(PagedCacheManagerTest, AttentionMassPChangesRetentionThreshold) {
 //     seq0 pooled = [0.1, 10, 10, 10]  ->  block0 sum = 10.1, block1 sum = 20
 //     seq1 pooled = [2, 2, 2, 2]       ->  block0 sum = 4, block1 sum = 4
 //   requester=seq0, penalty on seq0.  seq1 front (4) < seq0 front (10.1+1e12)
-//   -> seq1 front still evicted (same outcome — penalty dominates).
+//   -> seq1 front still evicted (same outcome - penalty dominates).
 //
 // Therefore: to observe a flip, the requesting sequence must NOT be the one
 // with the spike.  Let seq 1 request, spike in seq 0.
