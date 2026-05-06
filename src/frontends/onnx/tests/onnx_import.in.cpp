@@ -1106,6 +1106,49 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_log_sum_exp_18) {
     test_case.run_with_tolerance_as_fp();
 }
 
+// Regression test for issue #35648: ReduceLogSumExp must not overflow on large
+// fp32 inputs. exp(100) is far above the fp32 range, so the naive
+// log(sum(exp(x))) decomposition produces inf. The numerically stable form
+// max(x) + log(sum(exp(x - max(x)))) yields the correct finite result.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_log_sum_exp_no_overflow) {
+    auto model = convert_model("reduce_log_sum_exp.onnx");
+
+    // input data shape (1, 1, 4, 4), all entries = 100.0 -> exp(100) overflows fp32
+    Inputs inputs{ov::test::NDArray<float, 4>({{{{100.0f, 100.0f, 100.0f, 100.0f},
+                                                 {100.0f, 100.0f, 100.0f, 100.0f},
+                                                 {100.0f, 100.0f, 100.0f, 100.0f},
+                                                 {100.0f, 100.0f, 100.0f, 100.0f}}}})
+                      .get_vector()};
+
+    // expected: 100 + log(16) ~ 102.77258872
+    auto expected_output = ov::test::NDArray<float, 4>({{{{102.77258872f}}}}).get_vector();
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run_with_tolerance_as_fp();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_log_sum_exp_18_no_overflow) {
+    auto model = convert_model("reduce_log_sum_exp_18.onnx");
+
+    // input data shape (1, 1, 4, 4), all entries = 100.0
+    Inputs inputs{ov::test::NDArray<float, 4>({{{{100.0f, 100.0f, 100.0f, 100.0f},
+                                                 {100.0f, 100.0f, 100.0f, 100.0f},
+                                                 {100.0f, 100.0f, 100.0f, 100.0f},
+                                                 {100.0f, 100.0f, 100.0f, 100.0f}}}})
+                      .get_vector()};
+
+    // reducing axis 2 (size 4): expected per element = 100 + log(4) ~ 101.38629436
+    auto expected_output =
+        ov::test::NDArray<float, 1>({101.38629436f, 101.38629436f, 101.38629436f, 101.38629436f}).get_vector();
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run_with_tolerance_as_fp();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_l1) {
     auto model = convert_model("reduce_l1.onnx");
 
