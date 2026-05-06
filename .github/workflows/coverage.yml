@@ -185,27 +185,35 @@ jobs:
           self-hosted-runner: 'true'
 
       - name: Install coverage Python dependencies
-        run: python3 -m pip install -r .github/scripts/coverage/requirements-ci.txt
+        uses: ./.github/actions/coverage_toolkit
+        with:
+          command: install-requirements
 
       - name: Run CPU C++ coverage tests
-        run: python3 .github/scripts/coverage/coverage.py step run-cpp-tests
+        uses: ./.github/actions/coverage_toolkit
+        with:
+          command: run-suite
+          suite: cpp
+          profile: cpu
+          lane: cpu
 
       - name: Generate CPU native C/C++ coverage report
-        run: python3 .github/scripts/coverage/coverage.py step collect-cpp-coverage
+        uses: ./.github/actions/coverage_toolkit
+        with:
+          command: collect-native
+          profile: cpu
 
       - name: Collect C++ CPU results
         id: cpu_artifact
         if: ${{ always() }}
-        run: |
-          dir="${RUNNER_TEMP}/coverage-cpp-cpu"
-          python3 .github/scripts/coverage/ci_reports.py collect-suite-results \
-            --workspace "${{ env.OV_WORKSPACE }}" \
-            --suite cpp \
-            --profile cpu \
-            --lane cpu \
-            --artifact-name coverage-cpp-cpu \
-            --artifact-dir "${dir}"
-          echo "dir=${dir}" >> "$GITHUB_OUTPUT"
+        uses: ./.github/actions/coverage_toolkit
+        with:
+          command: collect-results
+          suite: cpp
+          profile: cpu
+          lane: cpu
+          artifact-name: coverage-cpp-cpu
+          artifact-dir: ${{ runner.temp }}/coverage-cpp-cpu
 
       - name: Upload C++ CPU artifact
         if: ${{ always() }}
@@ -349,24 +357,32 @@ jobs:
           fi
 
       - name: Run ${{ matrix.gpu.name }} ${{ matrix.lane.name }} C++ coverage tests
-        run: python3 .github/scripts/coverage/coverage.py step run-cpp-tests
+        uses: ./.github/actions/coverage_toolkit
+        with:
+          command: run-suite
+          suite: cpp
+          profile: gpu
+          lane: ${{ matrix.gpu.id }}-${{ matrix.lane.id }}
+          test-names: ${{ matrix.lane.test_names }}
 
       - name: Generate ${{ matrix.gpu.name }} ${{ matrix.lane.name }} native C/C++ coverage report
-        run: python3 .github/scripts/coverage/coverage.py step collect-cpp-coverage
+        uses: ./.github/actions/coverage_toolkit
+        with:
+          command: collect-native
+          profile: gpu
 
       - name: Collect C++ ${{ matrix.gpu.name }} ${{ matrix.lane.name }} results
         id: lane_artifact
         if: ${{ always() }}
-        run: |
-          dir="${RUNNER_TEMP}/coverage-cpp-${{ matrix.gpu.id }}-${{ matrix.lane.id }}"
-          python3 .github/scripts/coverage/ci_reports.py collect-suite-results \
-            --workspace "${{ env.OV_WORKSPACE }}" \
-            --suite cpp \
-            --profile gpu \
-            --lane "${{ matrix.gpu.id }}-${{ matrix.lane.id }}" \
-            --artifact-name "coverage-cpp-${{ matrix.gpu.id }}-${{ matrix.lane.id }}" \
-            --artifact-dir "${dir}"
-          echo "dir=${dir}" >> "$GITHUB_OUTPUT"
+        uses: ./.github/actions/coverage_toolkit
+        with:
+          command: collect-results
+          suite: cpp
+          profile: gpu
+          lane: ${{ matrix.gpu.id }}-${{ matrix.lane.id }}
+          test-names: ${{ matrix.lane.test_names }}
+          artifact-name: coverage-cpp-${{ matrix.gpu.id }}-${{ matrix.lane.id }}
+          artifact-dir: ${{ runner.temp }}/coverage-cpp-${{ matrix.gpu.id }}-${{ matrix.lane.id }}
 
       - name: Upload C++ ${{ matrix.gpu.name }} ${{ matrix.lane.name }} artifact
         if: ${{ always() }}
@@ -463,7 +479,9 @@ jobs:
           self-hosted-runner: 'true'
 
       - name: Install coverage Python dependencies
-        run: python3 -m pip install -r .github/scripts/coverage/requirements-ci.txt
+        uses: ./.github/actions/coverage_toolkit
+        with:
+          command: install-requirements
 
       - name: Install OpenVINO Python wheels
         uses: ./.github/actions/install_ov_wheels
@@ -482,24 +500,30 @@ jobs:
           python3 -m pip install -r "${INSTALL_DIR}/tests/requirements_tensorflow"
 
       - name: Run CPU Python coverage tests
-        run: python3 .github/scripts/coverage/coverage.py step run-python-tests
+        uses: ./.github/actions/coverage_toolkit
+        with:
+          command: run-suite
+          suite: python
+          profile: cpu
+          lane: cpu
 
       - name: Generate CPU native C/C++ coverage report
-        run: python3 .github/scripts/coverage/coverage.py step collect-cpp-coverage
+        uses: ./.github/actions/coverage_toolkit
+        with:
+          command: collect-native
+          profile: cpu
 
       - name: Collect Python CPU results
         id: cpu_artifact
         if: ${{ always() }}
-        run: |
-          dir="${RUNNER_TEMP}/coverage-python-cpu"
-          python3 .github/scripts/coverage/ci_reports.py collect-suite-results \
-            --workspace "${{ env.OV_WORKSPACE }}" \
-            --suite python \
-            --profile cpu \
-            --lane cpu \
-            --artifact-name coverage-python-cpu \
-            --artifact-dir "${dir}"
-          echo "dir=${dir}" >> "$GITHUB_OUTPUT"
+        uses: ./.github/actions/coverage_toolkit
+        with:
+          command: collect-results
+          suite: python
+          profile: cpu
+          lane: cpu
+          artifact-name: coverage-python-cpu
+          artifact-dir: ${{ runner.temp }}/coverage-python-cpu
 
       - name: Upload Python CPU artifact
         if: ${{ always() }}
@@ -648,7 +672,9 @@ jobs:
           self-hosted-runner: 'true'
 
       - name: Install coverage Python dependencies
-        run: python3 -m pip install -r .github/scripts/coverage/requirements-ci.txt
+        uses: ./.github/actions/coverage_toolkit
+        with:
+          command: install-requirements
 
       - name: Install OpenVINO Python wheels
         uses: ./.github/actions/install_ov_wheels
@@ -667,24 +693,30 @@ jobs:
           python3 -m pip install -r "${INSTALL_DIR}/tests/requirements_tensorflow"
 
       - name: Run ${{ matrix.gpu.name }} Python coverage tests
-        run: python3 .github/scripts/coverage/coverage.py step run-python-tests
+        uses: ./.github/actions/coverage_toolkit
+        with:
+          command: run-suite
+          suite: python
+          profile: gpu
+          lane: ${{ matrix.gpu.id }}
 
       - name: Generate ${{ matrix.gpu.name }} native C/C++ coverage report
-        run: python3 .github/scripts/coverage/coverage.py step collect-cpp-coverage
+        uses: ./.github/actions/coverage_toolkit
+        with:
+          command: collect-native
+          profile: gpu
 
       - name: Collect Python ${{ matrix.gpu.name }} results
         id: gpu_artifact
         if: ${{ always() }}
-        run: |
-          dir="${RUNNER_TEMP}/coverage-python-${{ matrix.gpu.id }}"
-          python3 .github/scripts/coverage/ci_reports.py collect-suite-results \
-            --workspace "${{ env.OV_WORKSPACE }}" \
-            --suite python \
-            --profile gpu \
-            --lane "${{ matrix.gpu.id }}" \
-            --artifact-name "coverage-python-${{ matrix.gpu.id }}" \
-            --artifact-dir "${dir}"
-          echo "dir=${dir}" >> "$GITHUB_OUTPUT"
+        uses: ./.github/actions/coverage_toolkit
+        with:
+          command: collect-results
+          suite: python
+          profile: gpu
+          lane: ${{ matrix.gpu.id }}
+          artifact-name: coverage-python-${{ matrix.gpu.id }}
+          artifact-dir: ${{ runner.temp }}/coverage-python-${{ matrix.gpu.id }}
 
       - name: Upload Python ${{ matrix.gpu.name }} artifact
         if: ${{ always() }}
@@ -780,7 +812,9 @@ jobs:
           self-hosted-runner: 'true'
 
       - name: Install coverage Python dependencies
-        run: python3 -m pip install -r .github/scripts/coverage/requirements-ci.txt
+        uses: ./.github/actions/coverage_toolkit
+        with:
+          command: install-requirements
 
       - name: Restore coverage notes
         run: |
@@ -801,24 +835,31 @@ jobs:
         run: Xvfb "$DISPLAY" &
 
       - name: Run CPU JS coverage tests
-        run: python3 .github/scripts/coverage/coverage.py step run-js-tests
+        uses: ./.github/actions/coverage_toolkit
+        with:
+          command: run-suite
+          suite: js
+          profile: cpu
+          lane: cpu
+          js-dir: ${{ env.OPENVINO_JS_DIR }}
 
       - name: Generate CPU native C/C++ coverage report
-        run: python3 .github/scripts/coverage/coverage.py step collect-cpp-coverage
+        uses: ./.github/actions/coverage_toolkit
+        with:
+          command: collect-native
+          profile: cpu
 
       - name: Collect JS CPU results
         id: cpu_artifact
         if: ${{ always() }}
-        run: |
-          dir="${RUNNER_TEMP}/coverage-js-cpu"
-          python3 .github/scripts/coverage/ci_reports.py collect-suite-results \
-            --workspace "${{ env.OV_WORKSPACE }}" \
-            --suite js \
-            --profile cpu \
-            --lane cpu \
-            --artifact-name coverage-js-cpu \
-            --artifact-dir "${dir}"
-          echo "dir=${dir}" >> "$GITHUB_OUTPUT"
+        uses: ./.github/actions/coverage_toolkit
+        with:
+          command: collect-results
+          suite: js
+          profile: cpu
+          lane: cpu
+          artifact-name: coverage-js-cpu
+          artifact-dir: ${{ runner.temp }}/coverage-js-cpu
 
       - name: Upload JS CPU artifact
         if: ${{ always() }}
@@ -896,19 +937,18 @@ jobs:
 
       - name: Generate final summary
         if: ${{ always() }}
-        run: |
-          python3 .github/scripts/coverage/ci_reports.py render-summary \
-            --workspace "${{ github.workspace }}" \
-            --summary-file "${GITHUB_STEP_SUMMARY}" \
-            --selection "${{ steps.lanes.outputs.selected_lanes }}" \
-            --selected-lanes "${{ steps.lanes.outputs.selected_lanes }}"
+        uses: ./.github/actions/coverage_toolkit
+        with:
+          command: render-summary
+          selection: ${{ steps.lanes.outputs.selected_lanes }}
+          selected-lanes: ${{ steps.lanes.outputs.selected_lanes }}
 
       - name: Merge duration reports
         if: ${{ always() }}
-        run: |
-          python3 .github/scripts/coverage/ci_reports.py merge-durations \
-            --workspace "${{ github.workspace }}" \
-            --output "${{ github.workspace }}/coverage-test-durations-all.csv"
+        uses: ./.github/actions/coverage_toolkit
+        with:
+          command: merge-durations
+          duration-output: ${{ github.workspace }}/coverage-test-durations-all.csv
 
       - name: Upload merged duration artifact
         if: ${{ always() }}
@@ -924,10 +964,9 @@ jobs:
       - name: Resolve Codecov upload files
         id: coverage_files
         if: ${{ always() }}
-        run: |
-          python3 .github/scripts/coverage/ci_reports.py resolve-uploads \
-            --workspace "${{ github.workspace }}" \
-            --output-file "${GITHUB_OUTPUT}"
+        uses: ./.github/actions/coverage_toolkit
+        with:
+          command: resolve-uploads
 
   CoverageCodecovUploads:
     name: Coverage Codecov Upload (${{ matrix.upload.name }})
@@ -1008,10 +1047,9 @@ jobs:
       - name: Resolve Codecov upload file
         id: coverage_files
         if: ${{ needs.CoverageSummary.outputs[matrix.upload.output_key] != '' }}
-        run: |
-          python3 .github/scripts/coverage/ci_reports.py resolve-uploads \
-            --workspace "${{ github.workspace }}" \
-            --output-file "${GITHUB_OUTPUT}"
+        uses: ./.github/actions/coverage_toolkit
+        with:
+          command: resolve-uploads
 
       - name: Upload Codecov (${{ matrix.upload.name }})
         if: ${{ steps.coverage_files.outputs[matrix.upload.output_key] != '' }}

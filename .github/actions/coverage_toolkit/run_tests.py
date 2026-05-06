@@ -11,21 +11,37 @@ import shlex
 import shutil
 import subprocess
 import time
-import xml.etree.ElementTree as ET
+
+try:
+    import defusedxml.ElementTree as ET
+except ModuleNotFoundError:
+    import xml.etree.ElementTree as ET
 
 from coverage_workflow import (
     CoverageContext,
     CppTestCase,
     LOGGER,
     env_from_assignments,
+    get_config_dir,
     load_cpp_tests,
     load_js_tests,
     load_python_tests,
+    resolve_workspace_path,
     run_cmd,
 )
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-CONFIG_DIR = SCRIPT_DIR / "config"
+DEFAULT_PYTHON_COVERAGE_OMIT = (
+    "*/tests/*",
+    "*/thirdparty/*",
+    "*/docs/*",
+    "*/samples/*",
+    "*/tools/*",
+    "*/src/bindings/js/node/tests/*",
+    "*/src/bindings/python/tests/*",
+    "*.pb.cc",
+    "*.pb.h",
+)
 
 
 @dataclass(frozen=True)
@@ -299,6 +315,8 @@ def _pycov_config(
     repo_source_dir: Path,
     workspace: Path,
     installed_dirs: tuple[Path, ...] = (),
+    path_alias: str = "openvino",
+    omit_patterns: tuple[str, ...] = DEFAULT_PYTHON_COVERAGE_OMIT,
 ) -> str:
     """Build the coverage.py config used by pytest-cov and coverage CLI."""
     branch_line = "branch = True\n" if branch_coverage else ""
@@ -316,22 +334,15 @@ def _pycov_config(
         if value not in path_entries:
             path_entries.append(value)
     path_entries_text = "\n    ".join(path_entries)
+    omit_entries_text = "\n    ".join(omit_patterns)
     return f"""[run]
 source =
     {source_value}
 {branch_line}omit =
-    */tests/*
-    */thirdparty/*
-    */docs/*
-    */samples/*
-    */tools/*
-    */src/bindings/js/node/tests/*
-    */src/bindings/python/tests/*
-    *.pb.cc
-    *.pb.h
+    {omit_entries_text}
 
 [paths]
-openvino =
+{path_alias} =
     {path_entries_text}
 """
 
@@ -429,7 +440,44 @@ def _run_logged_command(
     return completed.returncode
 
 
-def _normalize_python_xml_filename(raw_path: str, *, repo_source_dir: Path, installed_dirs: tuple[Path, ...]) -> str:
+def _env_text(name: str, default: str) -> str:
+    """Read a stripped environment value with a default."""
+    raw = os.environ.get(name, "").strip()
+    return raw or default
+
+
+def _env_path(name: str, default: Path, *, workspace: Path) -> Path:
+    """Read an absolute or workspace-relative path from the environment."""
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return default
+    return resolve_workspace_path(raw, workspace=workspace)
+
+
+def _env_path_list(name: str, *, workspace: Path) -> list[Path]:
+    """Read a path list from the environment, accepting pathsep and newlines."""
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return []
+    normalized = raw.replace("\n", os.pathsep)
+    return [resolve_workspace_path(item, workspace=workspace) for item in normalized.split(os.pathsep) if item.strip()]
+
+
+def _env_patterns(name: str, default: tuple[str, ...]) -> tuple[str, ...]:
+    """Read newline-separated coverage patterns from the environment."""
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return default
+    return tuple(line.strip() for line in raw.splitlines() if line.strip())
+
+
+def _normalize_python_xml_filename(
+    raw_path: str,
+    *,
+    repo_source_dir: Path,
+    installed_dirs: tuple[Path, ...],
+    path_alias: str,
+) -> str:
     """Map coverage.py XML filenames back to repo-relative Python source paths."""
     raw = raw_path.strip()
     if not raw:
@@ -438,8 +486,9 @@ def _normalize_python_xml_filename(raw_path: str, *, repo_source_dir: Path, inst
     path = Path(raw)
     if not path.is_absolute():
         stripped = raw.removeprefix("./")
-        if stripped.startswith("openvino/"):
-            stripped = stripped[len("openvino/") :]
+        alias_prefix = f"{path_alias}/"
+        if stripped.startswith(alias_prefix):
+            stripped = stripped[len(alias_prefix) :]
         return Path(stripped).as_posix()
 
     try:
@@ -459,12 +508,12 @@ def _normalize_python_xml_filename(raw_path: str, *, repo_source_dir: Path, inst
             continue
         idx = parts.index(marker)
         tail = parts[idx + 1 :]
-        if tail and tail[0] == "openvino":
+        if tail and tail[0] == path_alias:
             return Path(*tail[1:]).as_posix()
 
-    if "openvino" in parts:
-        openvino_indexes = [idx for idx, part in enumerate(parts) if part == "openvino"]
-        for idx in reversed(openvino_indexes):
+    if path_alias in parts:
+        alias_indexes = [idx for idx, part in enumerate(parts) if part == path_alias]
+        for idx in reversed(alias_indexes):
             tail = parts[idx + 1 :]
             if tail:
                 return Path(*tail).as_posix()
@@ -472,7 +521,14 @@ def _normalize_python_xml_filename(raw_path: str, *, repo_source_dir: Path, inst
     return raw
 
 
-def _rewrite_python_coverage_xml(*, xml_path: Path, workspace: Path, repo_source_dir: Path, installed_dirs: tuple[Path, ...]) -> None:
+def _rewrite_python_coverage_xml(
+    *,
+    xml_path: Path,
+    workspace: Path,
+    repo_source_dir: Path,
+    installed_dirs: tuple[Path, ...],
+    path_alias: str,
+) -> None:
     """Rewrite Python XML coverage paths to the repo source layout expected by Codecov."""
     if not xml_path.is_file():
         return
@@ -496,6 +552,7 @@ def _rewrite_python_coverage_xml(*, xml_path: Path, workspace: Path, repo_source
             filename,
             repo_source_dir=repo_source_dir,
             installed_dirs=installed_dirs,
+            path_alias=path_alias,
         )
 
     tree.write(xml_path, encoding="utf-8", xml_declaration=True)
@@ -535,7 +592,7 @@ def _run_cpp_test(
     if not os.access(exe, os.X_OK):
         return _TestRunResult(test.name, "skipped", f"{test.name} (binary not executable: {test.binary})")
 
-    env = env_from_assignments(test.extra_env)
+    env = env_from_assignments(_expand(test.extra_env))
     existing_ld = env.get("LD_LIBRARY_PATH", "")
     if runtime_ld_library_path:
         env["LD_LIBRARY_PATH"] = f"{runtime_ld_library_path}:{existing_ld}" if existing_ld else runtime_ld_library_path
@@ -630,7 +687,7 @@ def _copy_js_lcov(*, source: Path, target: Path, workspace: Path, branch_coverag
 
 def run_cpp(ctx: CoverageContext) -> None:
     """Execute configured C++ tests and record execution statistics."""
-    config = CONFIG_DIR / "tests_cpp.yml"
+    config = get_config_dir() / "tests_cpp.yml"
     selected_names = _selected_test_names(CPP_SUITE.selection_env)
     tests = _filter_selected_tests(load_cpp_tests(config, ctx.test_profile), selected_names, suite_label=CPP_SUITE.label)
 
@@ -665,7 +722,7 @@ def run_cpp(ctx: CoverageContext) -> None:
 
 def run_python(ctx: CoverageContext) -> None:
     """Execute configured Python tests and export coverage results."""
-    config = CONFIG_DIR / "tests_python.yml"
+    config = get_config_dir() / "tests_python.yml"
     selected_names = _selected_test_names(PYTHON_SUITE.selection_env)
     tests = _filter_selected_tests(load_python_tests(config, ctx.test_profile), selected_names, suite_label=PYTHON_SUITE.label)
 
@@ -680,26 +737,37 @@ def run_python(ctx: CoverageContext) -> None:
         )
         return
 
-    tests_dir = ctx.paths.install_pkg_dir / "tests"
-    py_source_root = ctx.workspace / "src" / "bindings" / "python" / "src"
-    py_source_dir = py_source_root / "openvino"
-    layer_tests = ctx.workspace / "tests" / "layer_tests"
+    python_package = _env_text("COVERAGE_PYTHON_PACKAGE", "openvino")
+    installed_package = _env_text("COVERAGE_PYTHON_INSTALLED_PACKAGE", python_package)
+    path_alias = _env_text("COVERAGE_PYTHON_PATH_ALIAS", python_package)
+    tests_dir = _env_path("COVERAGE_PYTHON_TESTS_DIR", ctx.paths.install_pkg_dir / "tests", workspace=ctx.workspace)
+    py_source_dir = _env_path(
+        "COVERAGE_PYTHON_SOURCE_DIR",
+        ctx.workspace / "src" / "bindings" / "python" / "src" / path_alias,
+        workspace=ctx.workspace,
+    )
+    layer_tests = _env_path("COVERAGE_PYTHON_LAYER_TESTS_DIR", ctx.workspace / "tests" / "layer_tests", workspace=ctx.workspace)
     py_cov_config = ctx.workspace / ".python_coverage_ci.rc"
     python_coverage_debug_dir = ctx.workspace / ".tmp" / "python-coverage"
 
     pip_install_path = os.environ.get("PIP_INSTALL_PATH", "").strip()
-    installed_openvino_dir = _detect_installed_python_package_dir("openvino")
-    if installed_openvino_dir is None and pip_install_path:
-        fallback_dir = Path(pip_install_path) / "openvino"
+    installed_python_package_dir = _detect_installed_python_package_dir(installed_package)
+    if installed_python_package_dir is None and pip_install_path:
+        fallback_dir = Path(pip_install_path) / installed_package
         if fallback_dir.is_dir():
-            installed_openvino_dir = fallback_dir
+            installed_python_package_dir = fallback_dir
 
-    py_cov_source_dir = installed_openvino_dir if installed_openvino_dir is not None else py_source_dir
+    py_cov_source_dir = installed_python_package_dir if installed_python_package_dir is not None else py_source_dir
     py_cov_source = str(py_cov_source_dir)
-    wheel_lib_dir = Path(pip_install_path) / "openvino" / "libs" if pip_install_path else None
+    wheel_lib_dir = (
+        _env_path("COVERAGE_PYTHON_WHEEL_LIB_DIR", Path(pip_install_path) / "openvino" / "libs", workspace=ctx.workspace)
+        if pip_install_path
+        else None
+    )
     runtime_extra_paths = [tests_dir]
     if wheel_lib_dir is not None:
         runtime_extra_paths.append(wheel_lib_dir)
+    runtime_extra_paths.extend(_env_path_list("COVERAGE_PYTHON_RUNTIME_EXTRA_PATHS", workspace=ctx.workspace))
 
     os.environ["LD_LIBRARY_PATH"] = (
         f"{_runtime_ld_library_path(ctx, extra_paths=tuple(runtime_extra_paths))}:{os.environ.get('LD_LIBRARY_PATH', '')}"
@@ -713,7 +781,9 @@ def run_python(ctx: CoverageContext) -> None:
     os.environ["PYTHONSAFEPATH"] = "1"
     os.environ["TESTS_DIR"] = str(tests_dir)
     os.environ["WORKSPACE_LAYER_TESTS_DIR"] = str(layer_tests)
+    os.environ["PY_COV_SOURCE"] = py_cov_source
     os.environ["PY_COV_CONFIG"] = str(py_cov_config)
+    os.environ["PYTEST_COVERAGE_ARGS"] = f"--cov={shlex.quote(py_cov_source)} --cov-config={shlex.quote(str(py_cov_config))} --cov-append"
 
     py_cov_config.write_text(
         _pycov_config(
@@ -721,7 +791,9 @@ def run_python(ctx: CoverageContext) -> None:
             runtime_source_dir=py_cov_source_dir,
             repo_source_dir=py_source_dir,
             workspace=ctx.workspace,
-            installed_dirs=tuple(path for path in (installed_openvino_dir,) if path is not None),
+            installed_dirs=tuple(path for path in (installed_python_package_dir,) if path is not None),
+            path_alias=path_alias,
+            omit_patterns=_env_patterns("COVERAGE_PYTHON_OMIT", DEFAULT_PYTHON_COVERAGE_OMIT),
         ),
         encoding="utf-8",
     )
@@ -789,12 +861,13 @@ def run_python(ctx: CoverageContext) -> None:
             f"see {xml_log} and {debug_log}"
         )
 
-    installed_dirs = tuple(path for path in (installed_openvino_dir,) if path is not None)
+    installed_dirs = tuple(path for path in (installed_python_package_dir,) if path is not None)
     _rewrite_python_coverage_xml(
         xml_path=xml_path,
         workspace=ctx.workspace,
         repo_source_dir=py_source_dir,
         installed_dirs=installed_dirs,
+        path_alias=path_alias,
     )
 
     _finalize_suite(
@@ -811,7 +884,7 @@ def run_js(ctx: CoverageContext) -> None:
     if shutil.which("node") is None or shutil.which("npm") is None:
         raise RuntimeError("Node.js/npm are not available in the coverage runtime environment.")
 
-    config = CONFIG_DIR / "tests_js.yml"
+    config = get_config_dir() / "tests_js.yml"
     selected_names = _selected_test_names(JS_SUITE.selection_env)
     tests = _filter_selected_tests(load_js_tests(config, ctx.test_profile), selected_names, suite_label=JS_SUITE.label)
 

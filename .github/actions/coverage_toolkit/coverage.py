@@ -18,6 +18,7 @@ from typing import Any
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 CONFIG_DIR = SCRIPT_DIR / "config"
+CONFIG_DIR_ENV = "COVERAGE_CONFIG_DIR"
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 # Stable import alias used by step modules.
@@ -42,6 +43,31 @@ def _build_logger() -> logging.Logger:
 
 
 LOGGER = _build_logger()
+
+
+def resolve_workspace_path(value: str | Path, *, workspace: Path | None = None) -> Path:
+    """Resolve an absolute or workspace-relative path from an environment/config value."""
+    raw = os.path.expandvars(str(value)).strip()
+    path = Path(raw).expanduser()
+    if path.is_absolute():
+        return path.resolve()
+
+    base = workspace
+    if base is None:
+        base = Path(os.environ.get("OV_WORKSPACE") or os.environ.get("GITHUB_WORKSPACE") or Path.cwd())
+    return (base / path).resolve()
+
+
+def get_config_dir() -> Path:
+    """Return the active coverage test config directory."""
+    raw = os.environ.get(CONFIG_DIR_ENV, "").strip()
+    if raw:
+        return resolve_workspace_path(raw)
+    workspace = Path(os.environ.get("OV_WORKSPACE") or os.environ.get("GITHUB_WORKSPACE") or Path.cwd()).resolve()
+    repo_config_dir = workspace / ".github" / "coverage"
+    if repo_config_dir.is_dir():
+        return repo_config_dir
+    return CONFIG_DIR
 
 
 @dataclass(frozen=True)
@@ -471,6 +497,11 @@ def _apply_common_env(args: argparse.Namespace) -> None:
     if build_type:
         os.environ["CMAKE_BUILD_TYPE"] = build_type
 
+    config_dir = getattr(args, "config_dir", None)
+    if config_dir:
+        os.environ[CONFIG_DIR_ENV] = str(resolve_workspace_path(config_dir))
+
+
 def _load_context(args: argparse.Namespace) -> CoverageContext:
     """Create a coverage context for the current command."""
     _apply_common_env(args)
@@ -507,7 +538,7 @@ def _command_step(args: argparse.Namespace) -> int:
 def _command_list_tests(args: argparse.Namespace) -> int:
     """Print resolved tests for a suite/profile pair."""
     _apply_common_env(args)
-    config_dir = CONFIG_DIR
+    config_dir = get_config_dir()
 
     if args.suite == "cpp":
         tests = load_cpp_tests(config_dir / "tests_cpp.yml", args.profile)
@@ -560,7 +591,7 @@ def _command_list_tests(args: argparse.Namespace) -> int:
 def _command_validate_config(args: argparse.Namespace) -> int:
     """Validate the coverage YAML configuration files."""
     _apply_common_env(args)
-    issues = validate_configs(CONFIG_DIR)
+    issues = validate_configs(get_config_dir())
 
     if issues:
         for issue in issues:
@@ -577,6 +608,7 @@ def _add_common_options(parser: argparse.ArgumentParser, *, include_profile: boo
         parser.add_argument("--profile", choices=sorted(SUPPORTED_PROFILES), default=os.environ.get("TEST_PROFILE", "cpu"))
     parser.add_argument("--workspace", default=os.environ.get("OV_WORKSPACE") or os.environ.get("GITHUB_WORKSPACE"))
     parser.add_argument("--build-type", default=os.environ.get("CMAKE_BUILD_TYPE", "Release"))
+    parser.add_argument("--config-dir", default=os.environ.get(CONFIG_DIR_ENV))
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -593,10 +625,12 @@ def build_parser() -> argparse.ArgumentParser:
     list_parser.add_argument("--suite", required=True, choices=["cpp", "python", "js"])
     list_parser.add_argument("--profile", choices=sorted(SUPPORTED_PROFILES), default=os.environ.get("TEST_PROFILE", "cpu"))
     list_parser.add_argument("--workspace", default=os.environ.get("OV_WORKSPACE") or os.environ.get("GITHUB_WORKSPACE"))
+    list_parser.add_argument("--config-dir", default=os.environ.get(CONFIG_DIR_ENV))
     list_parser.set_defaults(func=_command_list_tests)
 
     validate_parser = subparsers.add_parser("validate-config", help="Validate YAML coverage test configs")
     validate_parser.add_argument("--workspace", default=os.environ.get("OV_WORKSPACE") or os.environ.get("GITHUB_WORKSPACE"))
+    validate_parser.add_argument("--config-dir", default=os.environ.get(CONFIG_DIR_ENV))
     validate_parser.set_defaults(func=_command_validate_config)
 
     return parser
