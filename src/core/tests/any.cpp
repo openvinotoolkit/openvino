@@ -802,7 +802,6 @@ TEST_F(AnyTests, AnyAsOtherTypeIsIncosisoinet) {
 }
 
 TEST_F(AnyTests, ParseForceImplementationsMapSimple) {
-    // Test parsing simple force_implementations map with single entry
     const std::string force_impl_string = "{conv1:ocl:kernelname:any}";
     ov::Any any(force_impl_string);
 
@@ -816,7 +815,6 @@ TEST_F(AnyTests, ParseForceImplementationsMapSimple) {
 }
 
 TEST_F(AnyTests, ParseForceImplementationsMapMultipleEntries) {
-    // Test parsing force_implementations map with multiple entries
     const std::string force_impl_string = "{conv1:ocl::any,conv2:sycl:convolution_gpu_ref:bfyx,pool1:ocl::any}";
     ov::Any any(force_impl_string);
 
@@ -824,21 +822,17 @@ TEST_F(AnyTests, ParseForceImplementationsMapMultipleEntries) {
     OV_ASSERT_NO_THROW(map = any.as<ov::AnyMap>());
     ASSERT_EQ(map.size(), 3);
 
-    // Check conv1
     ASSERT_NE(map.find("conv1"), map.end());
     ASSERT_EQ(map["conv1"].as<std::string>(), "ocl::any");
 
-    // Check conv2
     ASSERT_NE(map.find("conv2"), map.end());
     ASSERT_EQ(map["conv2"].as<std::string>(), "sycl:convolution_gpu_ref:bfyx");
 
-    // Check pool1
     ASSERT_NE(map.find("pool1"), map.end());
     ASSERT_EQ(map["pool1"].as<std::string>(), "ocl::any");
 }
 
 TEST_F(AnyTests, ParseForceImplementationsMapWithLongNodeIds) {
-    // Test parsing force_implementations with long node IDs (from exec_graph.xml format)
     const std::string force_impl_string = 
         "{\"layer:name\":ocl::any}";
     ov::Any any(force_impl_string);
