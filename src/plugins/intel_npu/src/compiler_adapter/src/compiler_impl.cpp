@@ -360,6 +360,8 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
             compatibilityString =
                 std::string(reinterpret_cast<char*>(compatibilityStringBuffer), compatibilityStringSize);
             _logger.debug("Compatibility string from VCL: %s", compatibilityString->c_str());
+
+            allocator.deallocate(&allocator, compatibilityStringBuffer);
         }
 
         return std::make_pair<ov::Tensor, std::optional<std::string>>(std::move(alignedBlob),
