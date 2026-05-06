@@ -801,6 +801,7 @@ def test_op_extension_via_frontend_extension_map_attributes():
 
 def get_builtin_extensions_path():
     ci_tests_path = Path(__file__).resolve().parents[3]
+    print(ci_tests_path)
     for lib_path in chain(
         ci_tests_path.glob("*.dll"), ci_tests_path.glob("*.so")
     ):
