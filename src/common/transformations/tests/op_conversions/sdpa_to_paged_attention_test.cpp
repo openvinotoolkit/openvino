@@ -3581,7 +3581,8 @@ TEST_F(SDPAToPATest, SDPAToPA_LFM2) {
         auto MatMul11 = makeOP<v0::MatMul>({Convert21, Convert22}, {{"transpose_a", false}, {"transpose_b", false}});
         auto Transpose10 = makeOP<v1::Transpose>({MatMul11, {0, 2, 1}});
         auto Concat8 = makeOP<v0::Concat>({Transpose10, Transpose10}, {{"axis", -1}});
-        auto Cos0 = makeOP<v0::Cos>({Concat8});
+        auto Transpose11_rope = makeOP<v1::Transpose>({Concat8, {1, 0, 2}});
+        auto Cos0 = makeOP<v0::Cos>({Transpose11_rope});
         auto Unsqueeze7 = makeOP<v0::Unsqueeze>({Cos0, 1});
         auto Multiply20 = makeOP<v1::Multiply>({Transpose9, Unsqueeze7}, {{"auto_broadcast", "numpy"}});
         auto Slice4 = makeOP<v8::Slice>({Transpose9, {2}, {LLONG_MAX}, {1}, {3}});
@@ -3589,7 +3590,7 @@ TEST_F(SDPAToPATest, SDPAToPA_LFM2) {
         auto Multiply21 = makeOP<v1::Multiply>({Slice4, Convert23}, {{"auto_broadcast", "numpy"}});
         auto Slice5 = makeOP<v8::Slice>({Transpose9, {0}, {2}, {1}, {3}});
         auto Concat9 = makeOP<v0::Concat>({Multiply21, Slice5}, {{"axis", -1}});
-        auto Sin0 = makeOP<v0::Sin>({Concat8});
+        auto Sin0 = makeOP<v0::Sin>({Transpose11_rope});
         auto Unsqueeze8 = makeOP<v0::Unsqueeze>({Sin0, 1});
         auto Multiply22 = makeOP<v1::Multiply>({Concat9, Unsqueeze8}, {{"auto_broadcast", "numpy"}});
         auto Add18 = makeOP<v1::Add>({Multiply20, Multiply22}, {{"auto_broadcast", "numpy"}});
@@ -4392,7 +4393,8 @@ TEST_F(SDPAToPATest, SDPAToPA_LFM2) {
         auto MatMul11 = makeOP<v0::MatMul>({Convert23, Convert24}, {{"transpose_a", false}, {"transpose_b", false}});
         auto Transpose10 = makeOP<v1::Transpose>({MatMul11, {0, 2, 1}});
         auto Concat7 = makeOP<v0::Concat>({Transpose10, Transpose10}, {{"axis", -1}});
-        auto Cos0 = makeOP<v0::Cos>({Concat7});
+        auto Transpose10_rope = makeOP<v1::Transpose>({Concat7, {1, 0, 2}});
+        auto Cos0 = makeOP<v0::Cos>({Transpose10_rope});
         auto Unsqueeze8 = makeOP<v0::Unsqueeze>({Cos0, 1});
         auto Multiply20 = makeOP<v1::Multiply>({Transpose9, Unsqueeze8}, {{"auto_broadcast", "numpy"}});
         auto Slice4 = makeOP<v8::Slice>({Transpose9, {2}, {LLONG_MAX}, {1}, {3}});
@@ -4400,7 +4402,7 @@ TEST_F(SDPAToPATest, SDPAToPA_LFM2) {
         auto Multiply21 = makeOP<v1::Multiply>({Slice4, Convert25}, {{"auto_broadcast", "numpy"}});
         auto Slice5 = makeOP<v8::Slice>({Transpose9, {0}, {2}, {1}, {3}});
         auto Concat8 = makeOP<v0::Concat>({Multiply21, Slice5}, {{"axis", -1}});
-        auto Sin0 = makeOP<v0::Sin>({Concat7});
+        auto Sin0 = makeOP<v0::Sin>({Transpose10_rope});
         auto Unsqueeze9 = makeOP<v0::Unsqueeze>({Sin0, 1});
         auto Multiply22 = makeOP<v1::Multiply>({Concat8, Unsqueeze9}, {{"auto_broadcast", "numpy"}});
         auto Add18 = makeOP<v1::Add>({Multiply20, Multiply22}, {{"auto_broadcast", "numpy"}});

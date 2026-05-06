@@ -82,7 +82,7 @@ class SensitiveKeysStrippingFilter(logging.Filter):
         return cls.instance
 
     @classmethod
-    def build_sensitive_values_regexp(cls) -> re:
+    def build_sensitive_values_regexp(cls) -> re.Pattern:
         return re.compile(
             "|".join([r"{value}".format(value=var)
                       for var in cls.sensitive_pairs.values()]))

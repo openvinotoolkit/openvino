@@ -32,7 +32,7 @@ OutputVector make_random_normal(pass::NodeRegistry& registry,
     // uint32 zero value).
     // Float -0 value will be interpreted as a valid uint32 value.
     const void* seed_ptr = &seed;  // To prevent strict-aliasing error
-    const uint64_t op_seed = static_cast<const uint64_t>(*static_cast<const uint32_t*>(seed_ptr));
+    const uint64_t op_seed = static_cast<uint64_t>(*static_cast<const uint32_t*>(seed_ptr));
 
     // We need to use two op_seeds to make sure we get different results for two RandomUniform series
     // But we also have to keep original logic and pass "0" (auto-generated seed) to RandomUniform
