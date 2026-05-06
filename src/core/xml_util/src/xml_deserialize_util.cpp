@@ -31,12 +31,33 @@
 
 namespace ov::util {
 
+BufferWeightsProvider::BufferWeightsProvider(std::shared_ptr<ov::AlignedBuffer> weights)
+    : m_weights(std::move(weights)) {}
+
+std::shared_ptr<ov::AlignedBuffer> BufferWeightsProvider::load_region(size_t offset, size_t size) const {
+    OPENVINO_ASSERT(m_weights != nullptr, "Empty weights data in bin file or bin file cannot be found!");
+    OPENVINO_ASSERT(offset <= m_weights->size() && size <= m_weights->size() - offset,
+                    "Incorrect weights in bin file!");
+
+    auto* data = m_weights->get_ptr<char>() + offset;
+    return std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(data, size, m_weights);
+}
+
+size_t BufferWeightsProvider::size() const {
+    return m_weights ? m_weights->size() : 0;
+}
+
 FileWeightsProvider::FileWeightsProvider(std::filesystem::path weights_path) : m_weights_path(std::move(weights_path)) {
     m_weights_size = static_cast<size_t>(std::filesystem::file_size(m_weights_path));
 }
 
 std::shared_ptr<ov::AlignedBuffer> FileWeightsProvider::load_region(size_t offset, size_t size) const {
     OPENVINO_ASSERT(offset <= m_weights_size && size <= m_weights_size - offset, "Incorrect weights in bin file!");
+
+    const FileWeightsProvider::WeightsRegionKey key{offset, size};
+    if (const auto found = m_loaded_weights_regions.find(key); found != m_loaded_weights_regions.end()) {
+        return found->second;
+    }
 
     std::ifstream weights_stream(m_weights_path, std::ios::binary);
     OPENVINO_ASSERT(weights_stream.is_open(), "Weights file ", m_weights_path, " cannot be opened!");
@@ -53,6 +74,8 @@ std::shared_ptr<ov::AlignedBuffer> FileWeightsProvider::load_region(size_t offse
                     m_weights_path,
                     " at offset ",
                     offset);
+
+    m_loaded_weights_regions.emplace(key, buffer);
 
     return buffer;
 }
@@ -449,14 +472,12 @@ private:
 };
 
 XmlDeserializer::XmlDeserializer(const pugi::xml_node& node,
-                                 const std::shared_ptr<ov::AlignedBuffer>& weights,
+                                 std::shared_ptr<WeightsProvider> weights_provider,
                                  const std::unordered_map<std::string, ov::OpSet>& opsets,
                                  const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
                                  std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>>& variables,
-                                 size_t version,
-                                 std::shared_ptr<WeightsProvider> weights_provider)
+                                 size_t version)
     : m_node(node),
-      m_weights(weights),
       m_weights_provider(std::move(weights_provider)),
       m_opsets(opsets),
       m_extensions(extensions),
@@ -464,21 +485,11 @@ XmlDeserializer::XmlDeserializer(const pugi::xml_node& node,
       m_version(version) {}
 
 std::shared_ptr<ov::AlignedBuffer> XmlDeserializer::load_weights_region(size_t offset, size_t size) const {
-    if (m_weights) {
-        OPENVINO_ASSERT(offset <= m_weights->size() && size <= m_weights->size() - offset,
-                        "Incorrect weights in bin file!");
-        auto* data = m_weights->get_ptr<char>() + offset;
-        return std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(data, size, m_weights);
-    }
-
     OPENVINO_ASSERT(m_weights_provider, "Empty weights data in bin file or bin file cannot be found!");
     return m_weights_provider->load_region(offset, size);
 }
 
 size_t XmlDeserializer::get_available_weights_size() const {
-    if (m_weights) {
-        return m_weights->size();
-    }
     if (m_weights_provider) {
         return m_weights_provider->size();
     }
@@ -932,9 +943,9 @@ void XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<std:
         if (body_node.empty()) {
             OPENVINO_THROW("TensorIterator has no body.");
         }
-        model = parse_function(m_node.child(name.c_str()), m_weights);
+        model = parse_function(m_node.child(name.c_str()));
     } else if (!name.compare("net")) {
-        model = parse_function(m_node, m_weights);
+        model = parse_function(m_node);
     } else {
         OPENVINO_THROW("Error: not recognized adapter name: ", name, ".");
     }
@@ -983,8 +994,7 @@ void XmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_p
     }
 }
 
-std::shared_ptr<ov::Model> XmlDeserializer::parse_function(const pugi::xml_node& root,
-                                                           const std::shared_ptr<ov::AlignedBuffer>& weights) {
+std::shared_ptr<ov::Model> XmlDeserializer::parse_function(const pugi::xml_node& root) {
     // OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::V10Reader_RT, "V10Parser", "Parse");
 
     struct FunctionNodes {
@@ -1090,7 +1100,7 @@ std::shared_ptr<ov::Model> XmlDeserializer::parse_function(const pugi::xml_node&
             inputs[realInputPortId] = input_node->output(p_output.get_real_output_port_id(e.fromPortId));
         }
 
-        auto node = create_node(inputs, p.xml, weights, p.params);
+        auto node = create_node(inputs, p.xml, p.params);
         id_to_node[layer_id] = node;
 
         if (const auto& parameter_node = ov::as_type_ptr<ov::op::v0::Parameter>(node)) {
@@ -1278,7 +1288,6 @@ static const std::string& translate_type_name(const std::string& name) {
 
 std::shared_ptr<ov::Node> XmlDeserializer::create_node(const std::vector<ov::Output<ov::Node>>& inputs,
                                                        const pugi::xml_node& node,
-                                                       const std::shared_ptr<ov::AlignedBuffer>& weights,
                                                        const GenericLayerParams& params) {
     // Check that inputs are correctly defined
     for (size_t i = 0; i < inputs.size(); i++) {
@@ -1299,7 +1308,7 @@ std::shared_ptr<ov::Node> XmlDeserializer::create_node(const std::vector<ov::Out
     const auto extensionIt = m_extensions.find(type);
 
     if (extensionIt != m_extensions.end()) {
-        auto visitor = make_visitor(node, weights, m_opsets, m_extensions, m_variables, m_version);
+        auto visitor = make_visitor(node, m_opsets, m_extensions, m_variables, m_version);
         ovNode = (*extensionIt->second).create(inputs, *visitor).at(0).get_node_shared_ptr();
     }
 
@@ -1350,7 +1359,7 @@ std::shared_ptr<ov::Node> XmlDeserializer::create_node(const std::vector<ov::Out
             constant->alloc_buffer_on_visit_attributes(false);
         }
         ovNode->set_arguments(inputs);
-        auto visitor = make_visitor(node, weights, m_opsets, m_extensions, m_variables, m_version);
+        auto visitor = make_visitor(node, m_opsets, m_extensions, m_variables, m_version);
         if (ovNode->visit_attributes(*visitor)) {
             ovNode->constructor_validate_and_infer_types();
         }
@@ -1362,7 +1371,7 @@ std::shared_ptr<ov::Node> XmlDeserializer::create_node(const std::vector<ov::Out
         ovNode = std::make_shared<ov::op::util::FrameworkNode>(inputs);
         // XmlDeserializer visitor(node, weights, m_opsets, m_extensions, m_variables, m_version);
         // ovNode->visit_attributes(visitor);
-        auto visitor = make_visitor(node, weights, m_opsets, m_extensions, m_variables, m_version);
+        auto visitor = make_visitor(node, m_opsets, m_extensions, m_variables, m_version);
         ovNode->visit_attributes(*visitor);
 
         size_t index{0};

@@ -48,6 +48,17 @@ public:
     virtual size_t size() const = 0;
 };
 
+class BufferWeightsProvider : public WeightsProvider {
+public:
+    explicit BufferWeightsProvider(std::shared_ptr<ov::AlignedBuffer> weights);
+
+    std::shared_ptr<ov::AlignedBuffer> load_region(size_t offset, size_t size) const override;
+    size_t size() const override;
+
+private:
+    std::shared_ptr<ov::AlignedBuffer> m_weights;
+};
+
 class FileWeightsProvider : public WeightsProvider {
 public:
     explicit FileWeightsProvider(std::filesystem::path weights_path);
@@ -56,19 +67,21 @@ public:
     size_t size() const override;
 
 private:
+    using WeightsRegionKey = std::pair<size_t, size_t>;
+
     std::filesystem::path m_weights_path;
     size_t m_weights_size = 0;
+    mutable std::map<WeightsRegionKey, std::shared_ptr<ov::AlignedBuffer>> m_loaded_weights_regions;
 };
 
 class XmlDeserializer : public ov::AttributeVisitor {
 public:
     explicit XmlDeserializer(const pugi::xml_node& node,
-                             const std::shared_ptr<ov::AlignedBuffer>& weights,
+                             std::shared_ptr<WeightsProvider> weights_provider,
                              const std::unordered_map<std::string, ov::OpSet>& opsets,
                              const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
                              std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>>& variables,
-                             size_t version,
-                             std::shared_ptr<WeightsProvider> weights_provider = nullptr);
+                             size_t version);
 
     void on_adapter(const std::string& name, ov::ValueAccessor<std::string>& value) override;
 
@@ -93,9 +106,6 @@ protected:
     virtual void set_constant_num_buffer(ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>& adapter);
 
     const pugi::xml_node& get_node() const;
-    const std::shared_ptr<ov::AlignedBuffer>& get_weights() const {
-        return m_weights;
-    }
     const std::shared_ptr<WeightsProvider>& get_weights_provider() const {
         return m_weights_provider;
     }
@@ -125,10 +135,8 @@ private:
 
     /// \brief Traverses xml node representation in order to create ov function for it.
     /// \param node xml node representation
-    /// \param weights weights attached to current node
     /// \return shared pointer to function representing input node
-    std::shared_ptr<ov::Model> parse_function(const pugi::xml_node& root,
-                                              const std::shared_ptr<ov::AlignedBuffer>& weights);
+    std::shared_ptr<ov::Model> parse_function(const pugi::xml_node& root);
     /// \brief Traverses xml node representation in order to get the purpose attribute of
     /// inputs/outputs in the body of Loop op. \param node xml node representation \return struct
     /// with value of purpuse attribute
@@ -138,7 +146,6 @@ private:
 
     std::shared_ptr<ov::Node> create_node(const ov::OutputVector& inputs,
                                           const pugi::xml_node& node,
-                                          const std::shared_ptr<ov::AlignedBuffer>& weights,
                                           const GenericLayerParams& params);
 
     void read_meta_data(const std::shared_ptr<ov::Model>& model, const pugi::xml_node& meta_section);
@@ -149,18 +156,11 @@ private:
 
     virtual std::unique_ptr<XmlDeserializer> make_visitor(
         const pugi::xml_node& node,
-        const std::shared_ptr<ov::AlignedBuffer>& weights,
         const std::unordered_map<std::string, ov::OpSet>& opsets,
         const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
         std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>>& variables,
         size_t version) const {
-        return std::make_unique<XmlDeserializer>(node,
-                                                 weights,
-                                                 opsets,
-                                                 extensions,
-                                                 variables,
-                                                 version,
-                                                 get_weights_provider());
+        return std::make_unique<XmlDeserializer>(node, get_weights_provider(), opsets, extensions, variables, version);
     }
 
     std::shared_ptr<ov::AlignedBuffer> load_weights_region(size_t offset, size_t size) const;
@@ -168,7 +168,6 @@ private:
 
     // -- DATA --
     const pugi::xml_node m_node;
-    const std::shared_ptr<ov::AlignedBuffer>& m_weights;
     const std::shared_ptr<WeightsProvider> m_weights_provider;
     const std::unordered_map<std::string, ov::OpSet>& m_opsets;
     const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& m_extensions;
@@ -179,7 +178,6 @@ private:
     /// it will be used during Inputs/Outputs Description creation in SubGraph processing
     ///
     IoMap io_map;
-
     int64_t m_version;
 };
 

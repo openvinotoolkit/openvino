@@ -28,6 +28,14 @@ namespace frontend {
 namespace ir {
 namespace {
 
+std::shared_ptr<ov::util::WeightsProvider> make_buffer_weights_provider(
+    const std::shared_ptr<ov::AlignedBuffer>& weights) {
+    if (!weights) {
+        return nullptr;
+    }
+    return std::make_shared<ov::util::BufferWeightsProvider>(weights);
+}
+
 size_t get_ir_version(const pugi::xml_document& doc) {
     pugi::xml_node root = doc.document_element();
     std::string root_name = root.name();
@@ -167,7 +175,6 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     std::ifstream local_model_stream;
     std::istream* provided_model_stream = nullptr;
     std::shared_ptr<ov::AlignedBuffer> model_buf;  //
-    std::shared_ptr<ov::AlignedBuffer> weights;    //
     std::shared_ptr<ov::util::WeightsProvider> weights_provider;
 
     auto create_extensions_map = [&]() -> std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> {
@@ -182,24 +189,21 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     auto create_input_model = [&](std::filesystem::path weights_path) -> std::shared_ptr<InputModel> {
         if (provided_model_stream) {
             return std::make_shared<InputModel>(*provided_model_stream,
-                                                weights,
+                                                weights_provider,
                                                 create_extensions_map(),
-                                                std::move(weights_path),
-                                                weights_provider);
+                                                std::move(weights_path));
         } else if (local_model_stream.is_open()) {
             auto input_model = std::make_shared<InputModel>(local_model_stream,
-                                                            weights,
+                                                            weights_provider,
                                                             create_extensions_map(),
-                                                            std::move(weights_path),
-                                                            weights_provider);
+                                                            std::move(weights_path));
             local_model_stream.close();
             return input_model;
         } else if (model_buf) {
             return std::make_shared<InputModel>(model_buf,
-                                                weights,
+                                                weights_provider,
                                                 create_extensions_map(),
-                                                std::move(weights_path),
-                                                weights_provider);
+                                                std::move(weights_path));
         }
         return nullptr;
     };
@@ -221,7 +225,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     // Check weights and extensions
     for (size_t variant_id = 1; variant_id < variants.size(); ++variant_id) {
         if (const auto& variant = variants.at(variant_id); variant.is<std::shared_ptr<ov::AlignedBuffer>>()) {
-            weights = variant.as<std::shared_ptr<ov::AlignedBuffer>>();
+            weights_provider = make_buffer_weights_provider(variant.as<std::shared_ptr<ov::AlignedBuffer>>());
         } else if (auto path = get_path_from_any(variant)) {
             weights_path = std::move(*path);
         }
@@ -237,16 +241,17 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     }
 
     if (!weights_path.empty()) {
-        const auto separate_const_weights_loading = use_separate_const_weights_loading() && !weights;
+        const auto separate_const_weights_loading = use_separate_const_weights_loading() && !weights_provider;
         if (separate_const_weights_loading) {
             weights_provider = std::make_shared<ov::util::FileWeightsProvider>(weights_path);
         } else {
             const auto enable_mmap = variants.back().is<bool>() ? variants.back().as<bool>() : false;
             if (enable_mmap) {
                 auto mapped_memory = ov::load_mmap_object(weights_path);
-                weights = std::make_shared<ov::SharedBuffer<std::shared_ptr<MappedMemory>>>(mapped_memory->data(),
-                                                                                            mapped_memory->size(),
-                                                                                            mapped_memory);
+                auto weights = std::make_shared<ov::SharedBuffer<std::shared_ptr<MappedMemory>>>(mapped_memory->data(),
+                                                                                                 mapped_memory->size(),
+                                                                                                 mapped_memory);
+                weights_provider = make_buffer_weights_provider(weights);
             } else if (std::ifstream bin_stream(weights_path, std::ios::binary); bin_stream.is_open()) {
                 bin_stream.seekg(0, std::ios::end);
                 size_t file_size = bin_stream.tellg();
@@ -255,7 +260,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
                 auto aligned_weights_buffer = std::make_shared<ov::AlignedBuffer>(file_size);
                 bin_stream.read(aligned_weights_buffer->get_ptr<char>(), aligned_weights_buffer->size());
 
-                weights = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
+                auto weights = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
                     aligned_weights_buffer->get_ptr<char>(),
                     aligned_weights_buffer->size(),
                     aligned_weights_buffer,
@@ -263,6 +268,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
                         std::hash<std::decay_t<decltype(weights_path.native())>>{}(weights_path.native()),
                         0,
                         aligned_weights_buffer));
+                weights_provider = make_buffer_weights_provider(weights);
 
             } else {
                 OPENVINO_THROW("Weights file ", weights_path, " cannot be opened!");

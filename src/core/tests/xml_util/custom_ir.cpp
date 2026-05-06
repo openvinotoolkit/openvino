@@ -257,7 +257,13 @@ public:
                              const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
                              std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>>& variables,
                              size_t version)
-        : ov::util::XmlDeserializer(node, origin_weights, opsets, extensions, variables, version),
+        : ov::util::XmlDeserializer(
+              node,
+              origin_weights ? std::make_shared<ov::util::BufferWeightsProvider>(origin_weights) : nullptr,
+              opsets,
+              extensions,
+              variables,
+              version),
           m_origin_weights{origin_weights},
           m_weights_map{std::ref(weights_map)} {}
 
@@ -349,13 +355,12 @@ protected:
 private:
     std::unique_ptr<ov::util::XmlDeserializer> make_visitor(
         const pugi::xml_node& node,
-        const std::shared_ptr<ov::AlignedBuffer>& origin_weights,
         const std::unordered_map<std::string, ov::OpSet>& opsets,
         const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
         std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>>& variables,
         size_t version) const override {
         return std::make_unique<XmlDeserializer>(node,
-                                                 origin_weights,
+                                                 m_origin_weights,
                                                  m_weights_map,
                                                  opsets,
                                                  extensions,
