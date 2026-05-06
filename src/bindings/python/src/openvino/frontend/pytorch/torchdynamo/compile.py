@@ -179,6 +179,89 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
         except Exception as _ee:
             logger.debug(f"concat-rank normalization skipped: {_ee}")
 
+        # Rewrite MatMul(X, Transpose(Const_fp16)) to the oneDNN-BRGEMM-friendly
+        # form: MatMul(X, Convert(Const_fp16 -> f32)) with transpose_b=true.
+        # Without this, CPU plugin falls back to gemm_mlas_f32 (6x slower than
+        # brgemm_avx512_f32) for fp16-activation FCs. OV GenAI's IR has exactly
+        # this pattern; we emulate it.
+        if os.environ.get("OV_FC_DECOMPRESS", "1") == "1":
+            try:
+                from openvino import opset1 as _o1
+                import numpy as _np
+                _rewritten = 0
+                for _mm in list(om.get_ordered_ops()):
+                    if _mm.get_type_name() != "MatMul":
+                        continue
+                    try:
+                        _tb = _mm.get_transpose_b()
+                        _ta = _mm.get_transpose_a()
+                    except Exception:
+                        continue
+                    if _tb:
+                        continue  # already transpose_b=true
+                    _src = _mm.input_value(1).get_node()
+                    _const = None
+                    _new_tb = False
+                    if _src.get_type_name() == "Transpose":
+                        _inner = _src.input_value(0).get_node()
+                        if _inner.get_type_name() == "Constant":
+                            _perm_node = _src.input_value(1).get_node()
+                            if _perm_node.get_type_name() == "Constant":
+                                _perm = list(_perm_node.get_data().flatten())
+                                if _perm == [1, 0]:
+                                    _const = _inner
+                                    _new_tb = True
+                    elif _src.get_type_name() == "Constant":
+                        _const = _src
+                    if _const is None:
+                        continue
+                    if _const.get_element_type() != Type.f16:
+                        continue
+                    # Keep weight as FP16 Const (GenAI uses BF16 but BF16
+                    # Convert+mark-as-decompression works for FP16 too on this
+                    # plugin path — useWeightsDecompressionImpl accepts
+                    # inputType=f32, weightsType in {f16, bf16} for LLM models).
+                    _new_const = _const
+                    _conv_w = _o1.convert(_new_const.output(0), "f32")
+                    # Mark Convert as decompression so CPU plugin's
+                    # ConvertMatMulToFC pass accepts this pattern and routes
+                    # to brgemm_avx512_f32 (fast) instead of gemm_mlas_f32.
+                    try:
+                        # RTMap is keyed by DiscreteTypeInfo::operator std::string()
+                        # which is "<name>_<version_id>". For Decompression this is
+                        # "decompression_0" — matching the key is_decompression()
+                        # uses internally.
+                        _conv_w.get_rt_info()["decompression_0"] = True
+                    except Exception:
+                        pass
+                    _mm.input(1).replace_source_output(_conv_w.output(0))
+                    # Upcast activation to f32 just for this FC; cast the
+                    # output back to fp16 so downstream ops still see fp16.
+                    _act_src = _mm.input_value(0)
+                    if _act_src.get_element_type() == Type.f16:
+                        _conv_a = _o1.convert(_act_src, "f32")
+                        _mm.input(0).replace_source_output(_conv_a.output(0))
+                        # Now MatMul output is f32; insert Convert back to f16
+                        # for all downstream consumers.
+                        _out = _mm.output(0)
+                        _consumers = list(_out.get_target_inputs())
+                        _down = _o1.convert(_out, "f16")
+                        for _cin in _consumers:
+                            _cin.replace_source_output(_down.output(0))
+                    try:
+                        _mm.set_transpose_b(_new_tb if _new_tb else _mm.get_transpose_b())
+                    except Exception:
+                        pass
+                    _rewritten += 1
+                if os.environ.get("OV_DBG_FC"):
+                    print(f"[FC_DECOMPRESS] rewrote {_rewritten} MatMuls", flush=True)
+                om.validate_nodes_and_infer_types()
+            except Exception as _ee:
+                if os.environ.get("OV_DBG_FC"):
+                    import traceback as _tb
+                    print(f"[FC_DECOMPRESS] error: {_ee}", flush=True)
+                    _tb.print_exc()
+
         if file_name is not None:
             serialize(om, file_name + ".xml", file_name + ".bin")
 
@@ -196,8 +279,7 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
     # Symint FX inputs are Python ints that torch.compile has already
     # specialized for this trace. Bake them as Constants so OV's shape
     # inference propagates concrete bounds through Broadcast/Reshape rather
-    # than using the unset Parameter upper-bound of 0 (which collapses sizes
-    # like [arg99_1, 2048] to [0, 2048] at runtime).
+    # than using the unset Parameter upper-bound of 0.
     from openvino import opset1 as _opset1
     import numpy as _np_compile
     _params_to_remove = []
@@ -229,13 +311,48 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
         if not _is_cache_dir_in_config(options):
             config["CACHE_DIR"] = cache_root
 
-    # Match genai's CPU precision: force bf16 compute for matmuls (genai runtime
-    # has 227 bf16 nodes; ours had 0). CPU plugin upcasts fp16/f32 to bf16 on
-    # Icelake's AVX-512 VNNI, giving ~2x matmul throughput vs f32.
-    if device == "CPU" and "INFERENCE_PRECISION_HINT" not in config:
-        config["INFERENCE_PRECISION_HINT"] = "bf16"
+    # KV cache at f32 (verified-correct for PA). Hardware has no bf16 support,
+    # so matmuls run f32 by default — use DYNAMIC_QUANTIZATION_GROUP_SIZE=32
+    # to quantize FC activations to int8 on the fly (vnni int8 GEMM is much
+    # faster than f32 GEMM). Matches OV GenAI's CPU speedup mechanism.
+    if device == "CPU" and "KV_CACHE_PRECISION" not in config:
+        config["KV_CACHE_PRECISION"] = os.environ.get("OV_KV_CACHE_PRECISION", "f32")
+    if device == "CPU" and "DYNAMIC_QUANTIZATION_GROUP_SIZE" not in config:
+        config["DYNAMIC_QUANTIZATION_GROUP_SIZE"] = int(
+            os.environ.get("DYNAMIC_QUANTIZATION_GROUP_SIZE", "32"))
+    # Let plugin pick oneDNN fp16 GEMM for FCs (model weights arrive as fp16
+    # from vLLM). PA op is fenced with Convert(f32) in the translator, so it
+    # stays f32 regardless of this hint. Overridable via env.
+    _inf_hint = os.environ.get("OV_INFERENCE_PRECISION_HINT", "f16")
+    if device == "CPU" and "INFERENCE_PRECISION_HINT" not in config and _inf_hint:
+        config["INFERENCE_PRECISION_HINT"] = _inf_hint
+
+    if os.environ.get("OV_PERF_COUNT"):
+        config["PERF_COUNT"] = "YES"
+
+    # Dump pre-plugin IR for RoPE pattern analysis
+    _dump_dir = os.environ.get("OV_DUMP_PRE_PLUGIN_IR")
+    if _dump_dir:
+        os.makedirs(_dump_dir, exist_ok=True)
+        import hashlib as _hl
+        _tag = _hl.sha256(str([list(i.get_partial_shape()) for i in om.inputs]).encode()).hexdigest()[:12]
+        _path = os.path.join(_dump_dir, f"pre_plugin_{_tag}")
+        if not os.path.isfile(_path + ".xml"):
+            serialize(om, _path + ".xml", _path + ".bin")
+            print(f"[OV_DUMP] Dumped pre-plugin IR to {_path}.xml", flush=True)
 
     compiled = core.compile_model(om, device, config)
     logger.debug(f"OpenVINO graph compile successful on device {device}")
+
+    _post_dir = os.environ.get("OV_DUMP_POST_PLUGIN_IR")
+    if _post_dir:
+        os.makedirs(_post_dir, exist_ok=True)
+        import hashlib as _hl2
+        _tag2 = _hl2.sha256(str([list(i.get_partial_shape()) for i in om.inputs]).encode()).hexdigest()[:12]
+        _path2 = os.path.join(_post_dir, f"post_plugin_{_tag2}")
+        if not os.path.isfile(_path2 + ".xml"):
+            rm_dump = compiled.get_runtime_model()
+            serialize(rm_dump, _path2 + ".xml", _path2 + ".bin")
+            print(f"[OV_DUMP] Dumped post-plugin runtime IR to {_path2}.xml", flush=True)
 
     return compiled
