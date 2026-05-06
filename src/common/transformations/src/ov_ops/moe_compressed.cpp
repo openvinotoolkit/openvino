@@ -165,6 +165,7 @@ bool MOECompressed::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("has_zp", m_config.has_zp);
     visitor.on_attribute("out_type", m_config.out_type);
     visitor.on_attribute("routing_type", m_config.routing_type);
+    visitor.on_attribute("scale_factor", m_config.scale_factor);
     return true;
 }
 

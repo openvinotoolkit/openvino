@@ -34,6 +34,7 @@ public:
         bool has_zp = false;
         ov::element::Type out_type = ov::element::dynamic;
         RoutingType routing_type = RoutingType::SOFTMAX;
+        float scale_factor = -1.0f; // -1.0f means scaling is disabled.
     };
 
     /// \brief Constructs a MOECompressed operation with config only
@@ -70,6 +71,12 @@ public:
 
     const Config& get_config() const {
         return m_config;
+    }
+    void set_scale_factor(float scale_factor) {
+        m_config.scale_factor = scale_factor;
+    }
+    float get_scale_factor() const {
+        return m_config.scale_factor;
     }
 
     bool visit_attributes(AttributeVisitor& visitor) override;

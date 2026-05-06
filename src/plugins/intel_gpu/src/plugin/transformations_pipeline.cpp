@@ -16,7 +16,6 @@
 #include <vector>
 #include <type_traits>
 
-#include "intel_gpu/op/moe_compressed.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
@@ -104,7 +103,6 @@
 #include "plugin/transformations/optimize_subsequent_reshapes.hpp"
 #include "plugin/transformations/pa_kv_reorder_fusion.hpp"
 #include "plugin/transformations/print_model_statistics.hpp"
-#include "plugin/transformations/scale_down_moe_compressed.hpp"
 #include "plugin/transformations/sink_reshape.hpp"
 #include "plugin/transformations/transpose_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
@@ -1440,8 +1438,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             auto is_gpt_oss_120b = [](const std::shared_ptr<ov::Model>& func) -> bool {
                 size_t num_gpt_oss_moe_ops = 0;
                 for (auto& node : func->get_ops()) {
-                    if (ov::is_type<ov::intel_gpu::op::MOECompressed>(node) &&
-                        ov::as_type_ptr<const ov::intel_gpu::op::MOECompressed>(node)->get_config().expert_type ==
+                    if (ov::is_type<ov::op::internal::MOECompressed>(node) &&
+                        ov::as_type_ptr<const ov::op::internal::MOECompressed>(node)->get_config().expert_type ==
                         ov::op::internal::MOE::Expert_type::GEMM2_BIAS_SWIGLU_CLAMP) {
                         num_gpt_oss_moe_ops += 1;
                     }
@@ -1479,7 +1477,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 });
 
             manager.register_pass<ov::pass::activations_scaling::ScaleDownSingleLayer>(activations_scale_factor, infer_precision);
-            manager.register_pass<ov::intel_gpu::ScaleDownMOECompressed>(activations_scale_factor, infer_precision);
             manager.register_pass<ov::pass::SharedOpOptimization>();
 
             pass_config->set_callback<ov::pass::activations_scaling::ScaleDownSingleLayer>(

@@ -28,6 +28,7 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "ov_ops/moe_compressed.hpp"
 #include "ov_ops/rms.hpp"
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
 #include "transformations/utils/utils.hpp"
@@ -60,28 +61,30 @@ activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float scale_fact
     auto weights_m = pattern::any_input();
     auto convolution_m = pattern::wrap_type<v1::Convolution>({activation_m, weights_m});
     auto matmul_m = pattern::wrap_type<v0::MatMul>({activation_m, weights_m});
-    auto scaled_op_m = std::make_shared<pattern::op::Or>(OutputVector{convolution_m, matmul_m});
+    auto moe_m = ov::pass::pattern::wrap_type<ov::op::internal::MOECompressed>();
+    auto scaled_op_m = std::make_shared<pattern::op::Or>(OutputVector{convolution_m, matmul_m, moe_m});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
-        OPENVINO_ASSERT(pattern_map.count(convolution_m) || pattern_map.count(matmul_m),
-                        "Not found any Convolution or MatMul layer");
+        OPENVINO_ASSERT(pattern_map.count(convolution_m) || pattern_map.count(matmul_m) || pattern_map.count(moe_m),
+                        "Not found any Convolution, MatMul or MOECompressed layer");
 
-        auto insert_scale_down_layer = [&scale_factor, &scaled_prec](std::shared_ptr<ov::Node>& node,
+        auto insert_scale_down_layer = [&](std::shared_ptr<ov::Node>& node,
                                                                      const size_t input_idx) {
             const std::vector<float> scale_down_value = {1.f / scale_factor};
+            const auto src = node->input(input_idx).get_source_output();
 
-            auto scale_down_layer =
-                std::make_shared<v1::Multiply>(node->input(input_idx).get_source_output(),
-                                               std::make_shared<v0::Constant>(node->input(input_idx).get_element_type(),
-                                                                              ov::Shape(),
-                                                                              scale_down_value));
-            scale_down_layer->set_friendly_name(node->get_friendly_name() + "_scale_down");
+            auto scale_const = register_new_node<ov::op::v0::Constant>(src.get_element_type(),
+                                                                       ov::Shape(),
+                                                                       scale_down_value);
+            auto scale_down_layer = register_new_node<v1::Multiply>(src, scale_const);
+            scale_down_layer->set_friendly_name(node->get_friendly_name() + "_scale_down_in" +
+                                                std::to_string(input_idx));
             ov::copy_runtime_info(node, scale_down_layer);
 
             if (scale_down_layer->output(0).get_element_type() != scaled_prec) {
-                auto convert_prec = std::make_shared<v0::Convert>(scale_down_layer->output(0), scaled_prec);
+                auto convert_prec = register_new_node<v0::Convert>(scale_down_layer->output(0), scaled_prec);
                 node->input(input_idx).replace_source_output(convert_prec->output(0));
             } else {
                 node->input(input_idx).replace_source_output(scale_down_layer->output(0));
@@ -96,6 +99,20 @@ activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float scale_fact
 
         if (pattern_map.count(matmul_m))
             scaled_op = pattern_map.at(matmul_m).get_node_shared_ptr();
+
+        std::shared_ptr<ov::op::internal::MOECompressed> moe = nullptr;
+
+        if (pattern_map.count(moe_m)) {
+            scaled_op = pattern_map.at(moe_m).get_node_shared_ptr();
+            moe = ov::as_type_ptr<ov::op::internal::MOECompressed>(scaled_op);
+            if (!moe)
+                return false;
+
+            if (moe->get_config().expert_type != ov::op::internal::MOE::Expert_type::GEMM2_BIAS_SWIGLU_CLAMP)
+                return false;
+
+            OPENVINO_ASSERT(moe->get_input_size() == 9 || moe->get_input_size() == 11, "Unexpected input size for MOECompressed: ", moe->get_input_size());
+        }
 
         if (transformation_callback(scaled_op))
             return false;
@@ -127,7 +144,7 @@ activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float scale_fact
         // So, we need to scale_down the bias layer too.
         bool has_bias = false;
         size_t bias_index = 1;
-        {
+        if (!moe) {
             if (scaled_op->get_output_target_inputs(0).size() == 1 && ov::is_type<v1::Add>(child_node)) {
                 bias_index = (child_node->get_input_node_shared_ptr(0) == scaled_op) ? 1 : 0;
                 const auto& bias_pshape = child_node->get_input_partial_shape(bias_index);
@@ -154,6 +171,14 @@ activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float scale_fact
                 output_of_scaled_op = add;
             }
         } else {
+            if (moe) {
+                const size_t bias_up_idx = moe->get_config().has_zp ? 6u : 5u;
+                const size_t bias_down_idx = moe->get_input_size() - 1u;
+                insert_scale_down_layer(scaled_op, bias_up_idx);
+                insert_scale_down_layer(scaled_op, bias_down_idx);
+                moe->set_scale_factor(scale_factor);
+            }
+
             target_inputs = output_of_scaled_op->get_output_target_inputs(0);
             if (output_of_scaled_op->output(0).get_element_type() != output_prec) {
                 output_of_scaled_op = std::make_shared<v0::Convert>(output_of_scaled_op->output(0), output_prec);
