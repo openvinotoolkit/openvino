@@ -483,28 +483,26 @@ void ov::npuw::JustInferRequest::initialize_subgraph_behaviors() {
 }
 
 ov::npuw::v1::subgraphs::InferContext ov::npuw::JustInferRequest::make_behavior_context(std::size_t real_idx,
-                                                                                         std::size_t idx) {
+                                                                                        std::size_t idx) {
     const bool is_function_call = m_npuw_model->m_compiled_submodels[idx].replaced_by.has_value();
-    return ov::npuw::v1::subgraphs::InferContext{*m_npuw_model,
-                                                  *this,
-                                                  idx,
-                                                  real_idx,
-                                                  m_subrequests[real_idx],
-                                                  real_idx < m_subgraph_runtime_states.size()
-                                                      ? &m_subgraph_runtime_states[real_idx]
-                                                      : nullptr,
-                                                  [this, real_idx, idx]() {
-                                                      legacy_infer(real_idx, idx);
-                                                  },
-                                                 is_function_call ? std::function<void()>{[this, idx]() {
-                                                     function_prologue(idx);
-                                                 }}
-                                                                  : std::function<void()>{},
-                                                  [this, real_idx, idx]() {
-                                                      OPENVINO_ASSERT(m_moe_executor != nullptr,
-                                                                      "Expected MoE executor for opaque MoE run");
-                                                      m_moe_executor->run(real_idx, idx);
-                                                  }};
+    return ov::npuw::v1::subgraphs::InferContext{
+        *m_npuw_model,
+        *this,
+        idx,
+        real_idx,
+        m_subrequests[real_idx],
+        real_idx < m_subgraph_runtime_states.size() ? &m_subgraph_runtime_states[real_idx] : nullptr,
+        [this, real_idx, idx]() {
+            legacy_infer(real_idx, idx);
+        },
+        is_function_call ? std::function<void()>{[this, idx]() {
+            function_prologue(idx);
+        }}
+                         : std::function<void()>{},
+        [this, real_idx, idx]() {
+            OPENVINO_ASSERT(m_moe_executor != nullptr, "Expected MoE executor for opaque MoE run");
+            m_moe_executor->run(real_idx, idx);
+        }};
 }
 
 bool ov::npuw::JustInferRequest::bind_behavior_input(std::size_t idx,
@@ -516,17 +514,16 @@ bool ov::npuw::JustInferRequest::bind_behavior_input(std::size_t idx,
     if (behavior == nullptr) {
         return false;
     }
-    auto ctx = ov::npuw::v1::subgraphs::InferContext{*m_npuw_model,
-                                                      *this,
-                                                      idx,
-                                                      real_idx,
-                                                      std::move(request),
-                                                      real_idx < m_subgraph_runtime_states.size()
-                                                          ? &m_subgraph_runtime_states[real_idx]
-                                                          : nullptr,
-                                                      {},
-                                                      {},
-                                                      {}};
+    auto ctx = ov::npuw::v1::subgraphs::InferContext{
+        *m_npuw_model,
+        *this,
+        idx,
+        real_idx,
+        std::move(request),
+        real_idx < m_subgraph_runtime_states.size() ? &m_subgraph_runtime_states[real_idx] : nullptr,
+        {},
+        {},
+        {}};
     return behavior->bind_function_input(ctx, input_idx, tensor);
 }
 

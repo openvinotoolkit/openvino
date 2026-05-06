@@ -109,7 +109,10 @@ RuntimeState& get_runtime_state(ov::npuw::v1::subgraphs::InferContext& ctx) {
     return *state;
 }
 
-BehaviorIO& get_behavior_io(RuntimeState& state, std::size_t subgraph_idx, std::size_t num_inputs, std::size_t num_outputs) {
+BehaviorIO& get_behavior_io(RuntimeState& state,
+                            std::size_t subgraph_idx,
+                            std::size_t num_inputs,
+                            std::size_t num_outputs) {
     auto& io = state.call_io[subgraph_idx];
     if (io.inputs.size() != num_inputs) {
         io.inputs.resize(num_inputs);
@@ -275,7 +278,8 @@ void ensure_hfa_requests(ov::npuw::v1::subgraphs::InferContext& ctx, RuntimeStat
     state.hfa_requests.infer_requests[HFARequestSet::REGULAR_TILE] = hfa->_compiled_tile_model->create_infer_request();
     state.hfa_requests.infer_requests[HFARequestSet::FINAL_TILE] = state.base_request;
     if (is_piped) {
-        state.hfa_requests.pipeline_requests[HFARequestSet::REGULAR_TILE] = hfa->_compiled_tile_model->create_infer_request();
+        state.hfa_requests.pipeline_requests[HFARequestSet::REGULAR_TILE] =
+            hfa->_compiled_tile_model->create_infer_request();
         state.hfa_requests.pipeline_requests[HFARequestSet::FINAL_TILE] = state.base_pipeline_request;
     }
 
@@ -305,12 +309,12 @@ void ensure_hfa_requests(ov::npuw::v1::subgraphs::InferContext& ctx, RuntimeStat
         });
 
     const auto& tile_in = hfa->_sdpa_attention_info._tile_input_indices;
-    auto state_acc =
-        state.hfa_requests.infer_requests[HFARequestSet::REGULAR_TILE]->get_tensor(hfa->_compiled_tile_model->inputs()[tile_in.acc]);
-    auto state_max =
-        state.hfa_requests.infer_requests[HFARequestSet::REGULAR_TILE]->get_tensor(hfa->_compiled_tile_model->inputs()[tile_in.max]);
-    auto state_sum =
-        state.hfa_requests.infer_requests[HFARequestSet::REGULAR_TILE]->get_tensor(hfa->_compiled_tile_model->inputs()[tile_in.d]);
+    auto state_acc = state.hfa_requests.infer_requests[HFARequestSet::REGULAR_TILE]->get_tensor(
+        hfa->_compiled_tile_model->inputs()[tile_in.acc]);
+    auto state_max = state.hfa_requests.infer_requests[HFARequestSet::REGULAR_TILE]->get_tensor(
+        hfa->_compiled_tile_model->inputs()[tile_in.max]);
+    auto state_sum = state.hfa_requests.infer_requests[HFARequestSet::REGULAR_TILE]->get_tensor(
+        hfa->_compiled_tile_model->inputs()[tile_in.d]);
 
     runtime::host_flash_attention::HFARuntimeContext::initialize_state_tensors(state_acc, state_max, state_sum);
     runtime::host_flash_attention::HFARuntimeContext::StateBuffers initial_buffers{state_acc, state_max, state_sum};
@@ -384,7 +388,10 @@ void extract_and_copy_tile(const ov::SoPtr<ov::ITensor>& source_tensor,
 
     LOG_WARN("Performing type conversion for " << tensor_name << " tile: " << source_type << " -> " << dest_type);
     auto intermediate_tensor = ov::Tensor(source_type, source_view->get_shape());
-    ov::npuw::util::copy_tensor_by_dim(source_view, ov::get_tensor_impl(intermediate_tensor), sequence_dim, sequence_dim);
+    ov::npuw::util::copy_tensor_by_dim(source_view,
+                                       ov::get_tensor_impl(intermediate_tensor),
+                                       sequence_dim,
+                                       sequence_dim);
 
     const size_t total_elements = intermediate_tensor.get_size();
     if (dest_type == ov::element::f32 && source_type == ov::element::f16) {
@@ -440,7 +447,7 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
 
             bool bind_function_input(ov::npuw::v1::subgraphs::InferContext& ctx,
                                      std::size_t input_idx,
-                                      const ov::SoPtr<ov::ITensor>& tensor) override {
+                                     const ov::SoPtr<ov::ITensor>& tensor) override {
                 auto& request = get_request(ctx);
                 auto& state = get_runtime_state(ctx);
                 const auto& compiled_model = get_compiled_submodel(ctx, ctx.real_subgraph_idx);
@@ -448,12 +455,14 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                 switch (m_kind) {
                 case BehaviorKind::Dynamic:
                     if (const auto* dynamic = ov::npuw::attn::get_compiled_dynamic(pipeline.context)) {
-                        auto& io = get_behavior_io(state, ctx.subgraph_idx, get_param_base(ctx, ctx.real_subgraph_idx), 0u);
-                        const bool is_non_param_mask =
-                            std::none_of(dynamic->params.begin(), dynamic->params.end(), [&](auto&& param) {
-                                return param.idx == input_idx;
-                            }) &&
-                            input_idx != dynamic->mask_idx;
+                        auto& io =
+                            get_behavior_io(state, ctx.subgraph_idx, get_param_base(ctx, ctx.real_subgraph_idx), 0u);
+                        const bool is_non_param_mask = std::none_of(dynamic->params.begin(),
+                                                                    dynamic->params.end(),
+                                                                    [&](auto&& param) {
+                                                                        return param.idx == input_idx;
+                                                                    }) &&
+                                                       input_idx != dynamic->mask_idx;
                         const auto& iport = compiled_model->inputs()[input_idx];
                         if (is_non_param_mask) {
                             ctx.target_request->set_tensor(iport, tensor);
@@ -465,15 +474,17 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                     return false;
                 case BehaviorKind::Pyramid:
                     if (const auto* pyramid = ov::npuw::attn::get_compiled_pyramid(pipeline.context)) {
-                        auto& io = get_behavior_io(state, ctx.subgraph_idx, get_param_base(ctx, ctx.real_subgraph_idx), 0u);
+                        auto& io =
+                            get_behavior_io(state, ctx.subgraph_idx, get_param_base(ctx, ctx.real_subgraph_idx), 0u);
                         ensure_pyramid_selector(ctx, state);
                         const auto pyramid_id = state.pyramid_selector->pyramid_id();
                         const auto& info = pyramid->_attention_infos[pyramid_id];
-                        const bool is_non_param_mask =
-                            std::none_of(info.params.begin(), info.params.end(), [&](auto&& param) {
-                                return param.idx == input_idx;
-                            }) &&
-                            input_idx != info.mask_idx;
+                        const bool is_non_param_mask = std::none_of(info.params.begin(),
+                                                                    info.params.end(),
+                                                                    [&](auto&& param) {
+                                                                        return param.idx == input_idx;
+                                                                    }) &&
+                                                       input_idx != info.mask_idx;
                         const auto& iport = compiled_model->inputs()[input_idx];
                         if (is_non_param_mask) {
                             ctx.target_request->set_tensor(iport, tensor);
@@ -552,7 +563,10 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
 
                         using namespace ov::npuw::runtime;
                         if (this_case == attention::Selector::Case::GENERATE) {
-                            set_or_copy(ov::npuw::util::view(ov::get_tensor_impl(dynamic->attend_all), ATTN_KV_DIM, 0, past_len + 1));
+                            set_or_copy(ov::npuw::util::view(ov::get_tensor_impl(dynamic->attend_all),
+                                                             ATTN_KV_DIM,
+                                                             0,
+                                                             past_len + 1));
                             return;
                         }
                         if (this_case == attention::Selector::Case::PREFILL) {
@@ -570,11 +584,11 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
 
                             const auto& present_dst_view =
                                 ov::npuw::util::view(dst, ATTN_KV_DIM, past_len, present_len);
-                            const auto& present_src_view = ov::npuw::util::view(
-                                graph_mask,
-                                ATTN_KV_DIM,
-                                full_mask_shape[ATTN_KV_DIM] - present_len,
-                                present_len);
+                            const auto& present_src_view =
+                                ov::npuw::util::view(graph_mask,
+                                                     ATTN_KV_DIM,
+                                                     full_mask_shape[ATTN_KV_DIM] - present_len,
+                                                     present_len);
                             present_src_view->copy_to(present_dst_view._ptr);
 
                             if (past_len > 0) {
@@ -597,7 +611,9 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         const auto present_len = dynamic.query_size;
                         const auto& dst = ctx.target_request->get_tensor(mask_iport);
 
-                        auto copy_mask_segment = [&](std::size_t dst_offset, std::size_t src_offset, std::size_t length) {
+                        auto copy_mask_segment = [&](std::size_t dst_offset,
+                                                     std::size_t src_offset,
+                                                     std::size_t length) {
                             if (length == 0) {
                                 return;
                             }
@@ -628,7 +644,9 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                             }
 
                             const std::size_t dst_present_offset = dst_shape[ATTN_KV_DIM] - present_len;
-                            copy_mask_segment(dst_present_offset, full_mask_shape[ATTN_KV_DIM] - present_len, present_len);
+                            copy_mask_segment(dst_present_offset,
+                                              full_mask_shape[ATTN_KV_DIM] - present_len,
+                                              present_len);
                             copy_mask_segment(0, 0, dst_present_offset);
                             state.cached_attention_mask = dst;
                             return;
@@ -658,11 +676,10 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                     if (const auto* hfa_desc = ov::npuw::attn::get_compiled_hfa(
                             get_subgraph_pipeline(ctx, ctx.real_subgraph_idx).context)) {
                         auto& state = get_runtime_state(ctx);
-                        auto& io =
-                            get_behavior_io(state,
-                                            ctx.subgraph_idx,
-                                            get_param_base(ctx, ctx.real_subgraph_idx),
-                                            hfa_desc->_compiled_final_tile_model->outputs().size());
+                        auto& io = get_behavior_io(state,
+                                                   ctx.subgraph_idx,
+                                                   get_param_base(ctx, ctx.real_subgraph_idx),
+                                                   hfa_desc->_compiled_final_tile_model->outputs().size());
 
                         OPENVINO_ASSERT(hfa_desc->is_valid(), "HFA configuration must be valid");
                         const int64_t tile_size = hfa_desc->_tile_size;
@@ -695,28 +712,42 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                             state_acc = current_buffer.acc;
                             state_max = current_buffer.max;
                             state_sum = current_buffer.sum;
-                            regular_tile_request->set_tensor(hfa_desc->_compiled_tile_model->inputs()[tile_in.acc], state_acc);
-                            regular_tile_request->set_tensor(hfa_desc->_compiled_tile_model->inputs()[tile_in.max], state_max);
-                            regular_tile_request->set_tensor(hfa_desc->_compiled_tile_model->inputs()[tile_in.d], state_sum);
+                            regular_tile_request->set_tensor(hfa_desc->_compiled_tile_model->inputs()[tile_in.acc],
+                                                             state_acc);
+                            regular_tile_request->set_tensor(hfa_desc->_compiled_tile_model->inputs()[tile_in.max],
+                                                             state_max);
+                            regular_tile_request->set_tensor(hfa_desc->_compiled_tile_model->inputs()[tile_in.d],
+                                                             state_sum);
                         } else {
-                            state_acc = regular_tile_request->get_tensor(hfa_desc->_compiled_tile_model->inputs()[tile_in.acc]);
-                            state_max = regular_tile_request->get_tensor(hfa_desc->_compiled_tile_model->inputs()[tile_in.max]);
-                            state_sum = regular_tile_request->get_tensor(hfa_desc->_compiled_tile_model->inputs()[tile_in.d]);
-                            runtime::host_flash_attention::HFARuntimeContext::initialize_state_tensors(
-                                state_acc,
-                                state_max,
-                                state_sum);
+                            state_acc =
+                                regular_tile_request->get_tensor(hfa_desc->_compiled_tile_model->inputs()[tile_in.acc]);
+                            state_max =
+                                regular_tile_request->get_tensor(hfa_desc->_compiled_tile_model->inputs()[tile_in.max]);
+                            state_sum =
+                                regular_tile_request->get_tensor(hfa_desc->_compiled_tile_model->inputs()[tile_in.d]);
+                            runtime::host_flash_attention::HFARuntimeContext::initialize_state_tensors(state_acc,
+                                                                                                       state_max,
+                                                                                                       state_sum);
                         }
 
-                        regular_tile_request->set_tensor(hfa_desc->_compiled_tile_model->inputs()[tile_in.q], query_tensor);
-                        final_tile_request->set_tensor(hfa_desc->_compiled_final_tile_model->inputs()[tile_in.q], query_tensor);
-                        regular_tile_request->set_tensor(hfa_desc->_compiled_tile_model->outputs()[tile_out.acc], state_acc);
-                        regular_tile_request->set_tensor(hfa_desc->_compiled_tile_model->outputs()[tile_out.max], state_max);
-                        regular_tile_request->set_tensor(hfa_desc->_compiled_tile_model->outputs()[tile_out.d], state_sum);
-                        final_tile_request->set_tensor(hfa_desc->_compiled_final_tile_model->inputs()[tile_in.acc], state_acc);
-                        final_tile_request->set_tensor(hfa_desc->_compiled_final_tile_model->inputs()[tile_in.max], state_max);
-                        final_tile_request->set_tensor(hfa_desc->_compiled_final_tile_model->inputs()[tile_in.d], state_sum);
-                        final_tile_request->set_tensor(hfa_desc->_compiled_final_tile_model->outputs()[0], attention_output_tensor);
+                        regular_tile_request->set_tensor(hfa_desc->_compiled_tile_model->inputs()[tile_in.q],
+                                                         query_tensor);
+                        final_tile_request->set_tensor(hfa_desc->_compiled_final_tile_model->inputs()[tile_in.q],
+                                                       query_tensor);
+                        regular_tile_request->set_tensor(hfa_desc->_compiled_tile_model->outputs()[tile_out.acc],
+                                                         state_acc);
+                        regular_tile_request->set_tensor(hfa_desc->_compiled_tile_model->outputs()[tile_out.max],
+                                                         state_max);
+                        regular_tile_request->set_tensor(hfa_desc->_compiled_tile_model->outputs()[tile_out.d],
+                                                         state_sum);
+                        final_tile_request->set_tensor(hfa_desc->_compiled_final_tile_model->inputs()[tile_in.acc],
+                                                       state_acc);
+                        final_tile_request->set_tensor(hfa_desc->_compiled_final_tile_model->inputs()[tile_in.max],
+                                                       state_max);
+                        final_tile_request->set_tensor(hfa_desc->_compiled_final_tile_model->inputs()[tile_in.d],
+                                                       state_sum);
+                        final_tile_request->set_tensor(hfa_desc->_compiled_final_tile_model->outputs()[0],
+                                                       attention_output_tensor);
 
                         const uint32_t K_SEQ_DIM = static_cast<uint32_t>(sdpa_info._k_seq_dim);
                         const uint32_t V_SEQ_DIM = static_cast<uint32_t>(sdpa_info._v_seq_dim);
@@ -735,7 +766,11 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                             auto v_tile_buffer = request->get_tensor(model->inputs()[tile_in.v]);
                             auto mask_tile_buffer = request->get_tensor(model->inputs()[tile_in.mask]);
 
-                            if (can_reuse_tensor_zero_copy(k_source, k_tile_buffer, K_SEQ_DIM, kv_offset, tile_length)) {
+                            if (can_reuse_tensor_zero_copy(k_source,
+                                                           k_tile_buffer,
+                                                           K_SEQ_DIM,
+                                                           kv_offset,
+                                                           tile_length)) {
                                 request->set_tensor(model->inputs()[tile_in.k], k_source);
                             } else if (hfa_desc->_can_use_tensor_view) {
                                 request->set_tensor(model->inputs()[tile_in.k],
@@ -744,7 +779,11 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                 extract_and_copy_tile(k_source, k_tile_buffer, K_SEQ_DIM, kv_offset, tile_length, "K");
                             }
 
-                            if (can_reuse_tensor_zero_copy(v_source, v_tile_buffer, V_SEQ_DIM, kv_offset, tile_length)) {
+                            if (can_reuse_tensor_zero_copy(v_source,
+                                                           v_tile_buffer,
+                                                           V_SEQ_DIM,
+                                                           kv_offset,
+                                                           tile_length)) {
                                 request->set_tensor(model->inputs()[tile_in.v], v_source);
                             } else if (hfa_desc->_can_use_tensor_view) {
                                 request->set_tensor(model->inputs()[tile_in.v],
@@ -754,44 +793,42 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                             }
 
                             if (attention_mask_tensor) {
-                                if (can_reuse_tensor_zero_copy(
-                                        attention_mask_tensor,
-                                        mask_tile_buffer,
-                                        MASK_KV_SEQ_DIM,
-                                        mask_offset,
-                                        tile_length)) {
+                                if (can_reuse_tensor_zero_copy(attention_mask_tensor,
+                                                               mask_tile_buffer,
+                                                               MASK_KV_SEQ_DIM,
+                                                               mask_offset,
+                                                               tile_length)) {
                                     request->set_tensor(model->inputs()[tile_in.mask], attention_mask_tensor);
                                 } else if (state.hfa_runtime_ctx.has_value()) {
                                     auto cached_tile =
-                                        state.hfa_runtime_ctx->find_cached_mask_tile(attention_mask_tensor, mask_offset, tile_length);
+                                        state.hfa_runtime_ctx->find_cached_mask_tile(attention_mask_tensor,
+                                                                                     mask_offset,
+                                                                                     tile_length);
                                     if (cached_tile) {
                                         request->set_tensor(model->inputs()[tile_in.mask], cached_tile);
                                     } else {
                                         ov::SoPtr<ov::ITensor> cached_mask_tile =
                                             state.hfa_runtime_ctx->get_mask_tile_buffer(next_available_mask_buffer_idx);
-                                        extract_and_copy_tile(
-                                            attention_mask_tensor,
-                                            cached_mask_tile,
-                                            MASK_KV_SEQ_DIM,
-                                            mask_offset,
-                                            tile_length,
-                                            "Mask");
-                                        state.hfa_runtime_ctx->cache_mask_tile(
-                                            attention_mask_tensor,
-                                            mask_offset,
-                                            tile_length,
-                                            cached_mask_tile);
+                                        extract_and_copy_tile(attention_mask_tensor,
+                                                              cached_mask_tile,
+                                                              MASK_KV_SEQ_DIM,
+                                                              mask_offset,
+                                                              tile_length,
+                                                              "Mask");
+                                        state.hfa_runtime_ctx->cache_mask_tile(attention_mask_tensor,
+                                                                               mask_offset,
+                                                                               tile_length,
+                                                                               cached_mask_tile);
                                         request->set_tensor(model->inputs()[tile_in.mask], cached_mask_tile);
                                         next_available_mask_buffer_idx++;
                                     }
                                 } else {
-                                    extract_and_copy_tile(
-                                        attention_mask_tensor,
-                                        mask_tile_buffer,
-                                        MASK_KV_SEQ_DIM,
-                                        mask_offset,
-                                        tile_length,
-                                        "Mask");
+                                    extract_and_copy_tile(attention_mask_tensor,
+                                                          mask_tile_buffer,
+                                                          MASK_KV_SEQ_DIM,
+                                                          mask_offset,
+                                                          tile_length,
+                                                          "Mask");
                                 }
                             }
 
@@ -982,9 +1019,10 @@ void serialize_compiled_state(v1::subgraphs::Context& context,
                 std::string model_str;
                 stream & model_str;
                 std::stringstream ss(model_str);
-                mutable_hfa->_compiled_tile_model = submodel_ctx->plugin->get_core()->import_model(ss,
-                                                                                                    submodel_ctx->device,
-                                                                                                    submodel_ctx->import_config);
+                mutable_hfa->_compiled_tile_model =
+                    submodel_ctx->plugin->get_core()->import_model(ss,
+                                                                   submodel_ctx->device,
+                                                                   submodel_ctx->import_config);
                 LOG_DEBUG("Imported compiled tile model for host flash attention");
             }
         }
@@ -1028,8 +1066,7 @@ std::vector<ov::npuw::v1::subgraphs::ScopedPatternRegistration> register_pattern
     attn_behavior.tag = ov::npuw::patterns::attn::SDPA::isolation_tag();
     attn_behavior.partition_stage = [](ov::npuw::Function& f, ov::npuw::v1::subgraphs::Context& ctx) {
         if (f._attention.has_value()) {
-            put_compiled_dynamic(ctx,
-                                 std::make_shared<ov::npuw::compiled::Attention>(f._attention.value(), f._model));
+            put_compiled_dynamic(ctx, std::make_shared<ov::npuw::compiled::Attention>(f._attention.value(), f._model));
             ctx.put<BehaviorKind>(BehaviorKind::Dynamic);
             return;
         }
@@ -1040,9 +1077,8 @@ std::vector<ov::npuw::v1::subgraphs::ScopedPatternRegistration> register_pattern
             return;
         }
         if (f._host_flash_attention.has_value()) {
-            put_compiled_hfa(
-                ctx,
-                std::make_shared<ov::npuw::compiled::HostFlashAttention>(f._host_flash_attention.value()));
+            put_compiled_hfa(ctx,
+                             std::make_shared<ov::npuw::compiled::HostFlashAttention>(f._host_flash_attention.value()));
             ctx.put<BehaviorKind>(BehaviorKind::HFA);
         }
     };
