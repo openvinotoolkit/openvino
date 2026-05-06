@@ -274,6 +274,14 @@ jobs:
           path: ${{ env.BUILD_DIR }}/openvino_node_npm_package.tar.gz
           if-no-files-found: 'error'
 
+      - name: Upload compile_commands
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        if: always()
+        with:
+          name: compile_commands_manylinux_2_28
+          path: ${{ env.BUILD_DIR }}/compile_commands.json
+          if-no-files-found: 'ignore'
+
       - name: Store artifacts to a shared drive
         id: store_artifacts
         if: ${{ github.event_name != 'merge_group' }}

@@ -239,6 +239,7 @@ jobs:
             -DTHREADING=TBB \
             -DTBB_DIR=${{ env.TBB_CMAKE_DIR }} \
             -DENABLE_FASTER_BUILD=ON \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
             -DOPENVINO_EXTRA_MODULES=${{ env.OPENVINO_GENAI_REPO }} \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
@@ -268,6 +269,14 @@ jobs:
         with:
           name: build_logs_${{ matrix.arch }}
           path: ${{ env.SCCACHE_ERROR_LOG }}
+          if-no-files-found: 'ignore'
+
+      - name: Upload compile_commands
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        if: always()
+        with:
+          name: compile_commands_android_${{ matrix.arch }}
+          path: ${{ env.BUILD_DIR }}/compile_commands.json
           if-no-files-found: 'ignore'
 
       - name: Prepare build and test artifacts (split)

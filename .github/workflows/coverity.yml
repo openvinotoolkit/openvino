@@ -216,3 +216,11 @@ jobs:
           name: coverity_archive
           path: ${{ env.BUILD_DIR }}/openvino.tgz
           if-no-files-found: 'error'
+
+      - name: Upload compile_commands
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        if: always()
+        with:
+          name: compile_commands_coverity
+          path: ${{ env.BUILD_DIR }}/compile_commands.json
+          if-no-files-found: 'ignore'

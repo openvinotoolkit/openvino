@@ -249,6 +249,14 @@ jobs:
       - name: Clean ccache
         run: ccache --cleanup
 
+      - name: Upload compile_commands
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        if: always()
+        with:
+          name: compile_commands_linux_riscv_conan
+          path: ${{ env.OPENVINO_BUILD_DIR }}/compile_commands.json
+          if-no-files-found: 'ignore'
+
   Overall_Status:
     name: ci/gha_overall_status_linux_riscv_conan
     needs: [Smart_CI, Build]
