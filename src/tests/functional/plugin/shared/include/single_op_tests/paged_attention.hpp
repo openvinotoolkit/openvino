@@ -19,6 +19,16 @@ TEST_P(PagedAttentionLayerTest, Inference) {
     // for other people who might want to launch it with TEMPLATE REGISTRRATION ON)
     auto& core_ref = *core;
 
+    // Read per-instantiation comparison thresholds (default: 1e-3 abs, 1e-2 rel)
+    float test_abs_threshold = 1e-3f;
+    float test_rel_threshold = 1e-2f;
+    {
+        auto it = additional_config.find("test_abs_threshold");
+        if (it != additional_config.end()) test_abs_threshold = it->second.as<float>();
+        it = additional_config.find("test_rel_threshold");
+        if (it != additional_config.end()) test_rel_threshold = it->second.as<float>();
+    }
+
     // CPU config: strip test-only keys that the CPU plugin doesn't understand
     // Important, add the inference precision to ensure the CPU doesn't quantize the key/vaue cache to u8
     // as this opeartion is not present in the reference. The results should be almost identical for quantized
@@ -27,6 +37,8 @@ TEST_P(PagedAttentionLayerTest, Inference) {
     cpu_cfg.erase("test_use_rotation");
     cpu_cfg.erase("test_block_size");
     cpu_cfg.erase("test_adaptive_rkv_eviction_size");
+    cpu_cfg.erase("test_abs_threshold");
+    cpu_cfg.erase("test_rel_threshold");
     cpu_cfg[ov::hint::inference_precision.name()] = ov::element::f32;
 
     // TEMPLATE config
@@ -77,7 +89,7 @@ TEST_P(PagedAttentionLayerTest, Inference) {
             if (oi > 1) {
                 continue;
             }
-            ov::test::utils::compare(tt, ct, /*abs*/1e-3f, /*rel*/1e-2f);
+            ov::test::utils::compare(tt, ct, test_abs_threshold, test_rel_threshold);
         }
     }
 }
