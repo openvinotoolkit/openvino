@@ -357,7 +357,17 @@ void Gather::detach() {
 
 }  // namespace op
 
-enum class TransformType : int { CONST = 0, CONCAT, UNPACK, PERMUTE, CONVERT, GATHER };
+// Stable, permanently assigned op-type IDs.
+// Once assigned, IDs are NEVER changed and NEVER reused, even if an op is retired.
+// Retired IDs must be kept as comments to prevent accidental recycling.
+enum class TransformType : std::uint32_t {
+    CONST   = 1,
+    CONCAT  = 2,
+    UNPACK  = 3,
+    PERMUTE = 4,
+    CONVERT = 5,
+    GATHER  = 6,
+};
 
 struct LazyTensorImpl {
     LazyTensorImpl() = default;
@@ -494,46 +504,55 @@ void Gather::serialize(ov::npuw::s11n::Stream& stream) {
 void LazyTensorImpl::serialize(ov::npuw::s11n::Stream& stream) {
     stream & m_hash;
 
-    int op_type = 0;
+    std::uint32_t op_type = 0u;
+    std::uint32_t op_version = 0u;
+
     if (stream.output()) {
         std::visit(
             [&](auto& op) {
-                op_type = static_cast<int>(get_transform_type(op));
-                stream & op_type;
+                op_type = static_cast<std::uint32_t>(get_transform_type(op));
+                op_version = op.kVersion;
+                stream & op_type & op_version;
                 op.serialize(stream);
             },
             m_transform);
         return;
     }
 
-    stream & op_type;
-    switch (TransformType(op_type)) {
+    stream & op_type & op_version;
+    switch (static_cast<TransformType>(op_type)) {
     case TransformType::CONCAT:
+        NPUW_ASSERT(op_version == op::Concat::kVersion && "Unsupported Concat version");
         m_transform.emplace<op::Concat>();
         std::get<op::Concat>(m_transform).serialize(stream);
         break;
     case TransformType::CONST:
+        NPUW_ASSERT(op_version == op::Const::kVersion && "Unsupported Const version");
         m_transform.emplace<op::Const>();
         std::get<op::Const>(m_transform).serialize(stream);
         break;
     case TransformType::CONVERT:
+        NPUW_ASSERT(op_version == op::Convert::kVersion && "Unsupported Convert version");
         m_transform.emplace<op::Convert>();
         std::get<op::Convert>(m_transform).serialize(stream);
         break;
     case TransformType::PERMUTE:
+        NPUW_ASSERT(op_version == op::Permute::kVersion && "Unsupported Permute version");
         m_transform.emplace<op::Permute>();
         std::get<op::Permute>(m_transform).serialize(stream);
         break;
     case TransformType::UNPACK:
+        NPUW_ASSERT(op_version == op::Unpack::kVersion && "Unsupported Unpack version");
         m_transform.emplace<op::Unpack>();
         std::get<op::Unpack>(m_transform).serialize(stream);
         break;
     case TransformType::GATHER:
+        NPUW_ASSERT(op_version == op::Gather::kVersion && "Unsupported Gather version");
         m_transform.emplace<op::Gather>();
         std::get<op::Gather>(m_transform).serialize(stream);
         break;
     default:
-        NPUW_ASSERT(false && "Unsupported type");
+        OPENVINO_THROW("ORC LazyTensor: unknown op_type ", op_type, " — please upgrade NPUW");
         break;
     }
 }

@@ -87,6 +87,8 @@ class Const {
     friend struct ov::npuw::weights::LazyTensorImpl;
 
 public:
+    static constexpr std::uint32_t kVersion = 1u;
+
     Const() = default;
 
     explicit Const(const std::shared_ptr<ov::op::v0::Constant>& n);
@@ -119,6 +121,8 @@ class Concat {
     friend struct ov::npuw::weights::LazyTensorImpl;
 
 public:
+    static constexpr std::uint32_t kVersion = 1u;
+
     Concat() = default;
     Concat(const std::vector<LazyTensor>& _tensors, std::size_t _axis) : tensors(_tensors), axis(_axis) {}
 
@@ -139,6 +143,8 @@ class Unpack {
     friend struct ov::npuw::weights::LazyTensorImpl;
 
 public:
+    static constexpr std::uint32_t kVersion = 1u;
+
     Unpack() = default;
     Unpack(const LazyTensor& _w, const LazyTensor& _z, const LazyTensor& _s, ov::element::Type _type, ov::Shape _shape)
         : w(_w),
@@ -165,6 +171,8 @@ class Permute {
     friend struct ov::npuw::weights::LazyTensorImpl;
 
 public:
+    static constexpr std::uint32_t kVersion = 1u;
+
     Permute() = default;
     Permute(const LazyTensor& _tensor, const std::vector<std::size_t>& _axes) : tensor(_tensor), axes(_axes) {}
 
@@ -185,6 +193,8 @@ class Convert {
     friend struct ov::npuw::weights::LazyTensorImpl;
 
 public:
+    static constexpr std::uint32_t kVersion = 1u;
+
     Convert() = default;
     Convert(const LazyTensor& _tensor, ov::element::Type _type) : tensor(_tensor), type(_type) {}
 
@@ -205,6 +215,8 @@ class Gather {
     friend struct ov::npuw::weights::LazyTensorImpl;
 
 public:
+    static constexpr std::uint32_t kVersion = 1u;
+
     Gather() = default;
     Gather(const LazyTensor& _w, const ov::Tensor& _t, const ov::element::Type& _dst_type, const ov::Shape& _dst_shape)
         : w(_w),
