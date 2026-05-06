@@ -77,8 +77,8 @@ public:
     operator bool() const;
 
 private:
-    friend void ov::npuw::s11n::serialize(ov::npuw::s11n::Stream& stream, LazyTensor& var);
-    void serialize(ov::npuw::s11n::Stream& stream);
+    friend void ov::npuw::orc::serialize(ov::npuw::orc::Stream& stream, LazyTensor& var);
+    void serialize(ov::npuw::orc::Stream& stream);
     std::shared_ptr<LazyTensorImpl> m_impl = nullptr;
 };
 
@@ -98,9 +98,9 @@ public:
     LazyTensor::Meta eval_meta() const;
     void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
     void detach();
+    void serialize(ov::npuw::orc::Stream& stream);
 
 private:
-    void serialize(ov::npuw::s11n::Stream& stream);
     std::shared_ptr<ov::op::v0::Constant> m_node = nullptr;
     ov::element::Type m_cached_type;
     ov::Shape m_cached_shape;
@@ -132,9 +132,9 @@ public:
     LazyTensor::Meta eval_meta() const;
     void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
     void detach();
+    void serialize(ov::npuw::orc::Stream& stream);
 
 private:
-    void serialize(ov::npuw::s11n::Stream& stream);
     std::vector<LazyTensor> tensors;
     std::size_t axis = 0;
 };
@@ -159,9 +159,9 @@ public:
     LazyTensor::Meta eval_meta() const;
     void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
     void detach();
+    void serialize(ov::npuw::orc::Stream& stream);
 
 private:
-    void serialize(ov::npuw::s11n::Stream& stream);
     LazyTensor w, z, s;
     ov::element::Type type;
     ov::Shape shape;
@@ -182,9 +182,9 @@ public:
     LazyTensor::Meta eval_meta() const;
     void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
     void detach();
+    void serialize(ov::npuw::orc::Stream& stream);
 
 private:
-    void serialize(ov::npuw::s11n::Stream& stream);
     LazyTensor tensor;
     std::vector<std::size_t> axes;
 };
@@ -204,9 +204,9 @@ public:
     LazyTensor::Meta eval_meta() const;
     void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
     void detach();
+    void serialize(ov::npuw::orc::Stream& stream);
 
 private:
-    void serialize(ov::npuw::s11n::Stream& stream);
     LazyTensor tensor;
     ov::element::Type type;
 };
@@ -230,9 +230,9 @@ public:
     LazyTensor::Meta eval_meta() const;
     void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
     void detach();
+    void serialize(ov::npuw::orc::Stream& stream);
 
 private:
-    void serialize(ov::npuw::s11n::Stream& stream);
     LazyTensor w;
     ov::Tensor t;
     ov::element::Type dst_type;

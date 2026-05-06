@@ -71,64 +71,39 @@ ov::npuw::s11n::BF16Cache ov::npuw::s11n::get_bf16_consts(const std::shared_ptr<
     return bf16_cache;
 }
 
-void ov::npuw::s11n::serialize(Stream& stream, std::streampos& var) {
+void ov::npuw::orc::serialize(Stream& stream, std::streampos& var) {
     stream.bytes(&var, sizeof var);
 }
 
-void ov::npuw::s11n::serialize(Stream& stream, std::string& var) {
-    if (stream.output()) {
-        auto var_size = var.size();
-        stream.bytes(&var_size, sizeof var_size);
-        if (!var.empty()) {
-            stream.bytes(var.data(), checked_stream_size(var.size()));
-        }
-    } else {
-        std::size_t var_size = 0;
-        stream.bytes(&var_size, sizeof var_size);
-        var.resize(var_size);
-        if (var_size != 0) {
-            stream.bytes(var.data(), checked_stream_size(var_size));
-        }
-    }
-}
-
-void ov::npuw::s11n::serialize(Stream& stream, bool& var) {
-    stream.bytes(&var, sizeof var);
-}
-
-void ov::npuw::s11n::serialize(Stream& stream, float& var) {
-    stream.bytes(&var, sizeof var);
-}
-
-void ov::npuw::s11n::serialize(Stream& stream, ov::npuw::compiled::Spatial& var) {
+void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::Spatial& var) {
     stream & var.params & var.range & var.nway & var.out_dim & var.nway_iters & var.tail_size;
 }
 
-void ov::npuw::s11n::serialize(Stream& stream, ov::npuw::compiled::Spatial::Param& var) {
+void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::Spatial::Param& var) {
     stream & var.idx & var.dim;
 }
 
-void ov::npuw::s11n::serialize(Stream& stream, ov::npuw::compiled::Attention& var) {
+void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::Attention& var) {
     stream & var.query_size & var.context_size & var.params & var.mask_idx & var.attend_all;
 }
 
-void ov::npuw::s11n::serialize(Stream& stream, ov::npuw::compiled::Attention::Param& var) {
+void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::Attention::Param& var) {
     stream & var.idx & var.dim;
 }
 
-void ov::npuw::s11n::serialize(Stream& stream, ov::npuw::compiled::PyramidAttention& var) {
+void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttention& var) {
     stream & var.query_size & var.full_context_size & var._context_lengths & var._attention_infos;
 }
 
-void ov::npuw::s11n::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionInfo& var) {
+void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionInfo& var) {
     stream & var.params & var.mask_idx & var.query_size & var.context_length;
 }
 
-void ov::npuw::s11n::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionInfo::Param& var) {
+void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionInfo::Param& var) {
     stream & var.idx & var.dim;
 }
 
-void ov::npuw::s11n::serialize(Stream& stream, ov::npuw::compiled::HostFlashAttention& var) {
+void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::HostFlashAttention& var) {
     auto& info = var._sdpa_attention_info;
     stream & info._query_size & info._context_size & info._k_seq_dim & info._v_seq_dim & info._sdpa_indices.query &
         info._sdpa_indices.past_key & info._sdpa_indices.past_value & info._sdpa_indices.present_key &
@@ -139,20 +114,20 @@ void ov::npuw::s11n::serialize(Stream& stream, ov::npuw::compiled::HostFlashAtte
         var._can_use_tensor_view;
 }
 
-void ov::npuw::s11n::serialize(Stream& stream, ov::npuw::compiled::MoEExperts& var) {
+void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::MoEExperts& var) {
     stream & var.num_experts & var.expert_hidden_dim & var.num_active_experts & var.input_token_count &
         var._router_scores_idx & var._expert_input_param_idx & var._param_mapping;
 }
 
-void ov::npuw::s11n::serialize(Stream& stream, ov::npuw::compiled::MoEDownstream& var) {
+void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::MoEDownstream& var) {
     stream & var.total_experts_num & var.active_experts_num & var.expert_output_param_idx;
 }
 
-void ov::npuw::s11n::serialize(Stream& stream, ov::Tensor& var) {
+void ov::npuw::orc::serialize(Stream& stream, ov::Tensor& var) {
     transfer_tensor(stream, var);
 }
 
-void ov::npuw::s11n::serialize(Stream& stream, ::intel_npu::Config& var) {
+void ov::npuw::orc::serialize(Stream& stream, ::intel_npu::Config& var) {
     std::string str;
     if (stream.output()) {
         str = var.toString();
@@ -163,7 +138,7 @@ void ov::npuw::s11n::serialize(Stream& stream, ::intel_npu::Config& var) {
     }
 }
 
-void ov::npuw::s11n::serialize(Stream& stream, ov::Output<const ov::Node>& var) {
+void ov::npuw::orc::serialize(Stream& stream, ov::Output<const ov::Node>& var) {
     if (stream.output()) {
         auto elem_type = var.get_element_type().to_string();
         auto shape = var.get_partial_shape().to_string();
@@ -174,7 +149,7 @@ void ov::npuw::s11n::serialize(Stream& stream, ov::Output<const ov::Node>& var) 
     }
 }
 
-void ov::npuw::s11n::transfer_tensor(Stream& stream, ov::Tensor& var, const TensorAllocator& allocator) {
+void ov::npuw::orc::transfer_tensor(Stream& stream, ov::Tensor& var, const s11n::TensorAllocator& allocator) {
     if (stream.output()) {
         bool is_initialized = static_cast<bool>(var);
         stream & is_initialized;
@@ -227,7 +202,7 @@ void ov::npuw::s11n::transfer_tensor(Stream& stream, ov::Tensor& var, const Tens
     stream.bytes(var.data(), byte_size);
 }
 
-void ov::npuw::s11n::serialize(Stream& stream, std::shared_ptr<ov::op::v0::Parameter>& var) {
+void ov::npuw::orc::serialize(Stream& stream, std::shared_ptr<ov::op::v0::Parameter>& var) {
     if (stream.input()) {
         std::string elem_type_str;
         std::string part_shape_str;
@@ -243,7 +218,7 @@ void ov::npuw::s11n::serialize(Stream& stream, std::shared_ptr<ov::op::v0::Param
     }
 }
 
-void ov::npuw::s11n::serialize(Stream& stream, std::shared_ptr<ov::Node>& var) {
+void ov::npuw::orc::serialize(Stream& stream, std::shared_ptr<ov::Node>& var) {
     if (stream.input()) {
         std::string elem_type_str;
         std::string part_shape_str;
@@ -265,7 +240,7 @@ void ov::npuw::s11n::serialize(Stream& stream, std::shared_ptr<ov::Node>& var) {
     }
 }
 
-void ov::npuw::s11n::serialize(Stream& stream, ov::Any& var) {
+void ov::npuw::orc::serialize(Stream& stream, ov::Any& var) {
     std::string str;
     if (stream.output()) {
         str = ov::npuw::s11n::anyToString(var);
@@ -276,19 +251,19 @@ void ov::npuw::s11n::serialize(Stream& stream, ov::Any& var) {
     }
 }
 
-void ov::npuw::s11n::serialize(Stream& stream, ov::CacheMode& var) {
+void ov::npuw::orc::serialize(Stream& stream, ov::CacheMode& var) {
     stream.bytes(&var, sizeof var);
 }
 
-void ov::npuw::s11n::serialize(Stream& stream, ov::element::Type& var) {
+void ov::npuw::orc::serialize(Stream& stream, ov::element::Type& var) {
     stream.bytes(&var, sizeof var);
 }
 
-void ov::npuw::s11n::serialize(Stream& stream, ov::hint::PerformanceMode& var) {
+void ov::npuw::orc::serialize(Stream& stream, ov::hint::PerformanceMode& var) {
     stream.bytes(&var, sizeof var);
 }
 
-void ov::npuw::s11n::serialize(Stream& stream, ov::AnyMap& var) {
+void ov::npuw::orc::serialize(Stream& stream, ov::AnyMap& var) {
     std::string str;
     if (stream.output()) {
         str = ov::npuw::s11n::anyMapToString(var);
@@ -301,7 +276,7 @@ void ov::npuw::s11n::serialize(Stream& stream, ov::AnyMap& var) {
 
 // Weightless
 // FIXME: all serialization needs a good rewriting
-void ov::npuw::s11n::serialize_weightless(Stream& stream,
+void ov::npuw::orc::serialize_weightless(Stream& stream,
                                           std::vector<ov::Tensor>& var,
                                           const ov::npuw::s11n::WeightsContext& ctx) {
     if (stream.output()) {

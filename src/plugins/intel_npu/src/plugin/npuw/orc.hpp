@@ -11,13 +11,16 @@
 #include <cstring>
 #include <functional>
 #include <iosfwd>
+#include <ios>
 #include <limits>
+#include <map>
 #include <optional>
 #include <sstream>
 #include <string>
 #include <type_traits>
 #include <typeindex>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -168,6 +171,72 @@ void serialize(Stream& stream, std::optional<T>& value) {
     value = std::move(unpacked);
 }
 
+template <typename K, typename V>
+void serialize(Stream& stream, std::map<K, V>& value) {
+    if (stream.output()) {
+        auto size = value.size();
+        stream & size;
+        for (auto& el : value) {
+            auto pair = el;
+            stream & pair;
+        }
+        return;
+    }
+
+    value.clear();
+    std::size_t size = 0u;
+    stream & size;
+    for (std::size_t idx = 0u; idx < size; ++idx) {
+        std::pair<K, V> elem{};
+        stream & elem;
+        value[elem.first] = std::move(elem.second);
+    }
+}
+
+template <typename T>
+void serialize(Stream& stream, std::unordered_set<T>& value) {
+    if (stream.output()) {
+        auto size = value.size();
+        stream & size;
+        for (const auto& el : value) {
+            auto copy = el;
+            stream & copy;
+        }
+        return;
+    }
+
+    value.clear();
+    std::size_t size = 0u;
+    stream & size;
+    for (std::size_t idx = 0u; idx < size; ++idx) {
+        T elem{};
+        stream & elem;
+        value.insert(std::move(elem));
+    }
+}
+
+template <typename T, typename H>
+void serialize(Stream& stream, std::unordered_set<T, H>& value) {
+    if (stream.output()) {
+        auto size = value.size();
+        stream & size;
+        for (const auto& el : value) {
+            auto copy = el;
+            stream & copy;
+        }
+        return;
+    }
+
+    value.clear();
+    std::size_t size = 0u;
+    stream & size;
+    for (std::size_t idx = 0u; idx < size; ++idx) {
+        T elem{};
+        stream & elem;
+        value.insert(std::move(elem));
+    }
+}
+
 template <typename T>
 std::vector<std::byte> encode(const T& value) {
     std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
@@ -228,6 +297,11 @@ template <typename T>
 Section make_payload_section(TypeId type, Version version, const T& value, SectionFlags flags = 0u) {
     return Section::raw(type, version, encode(value), flags);
 }
+
+// Serialize an ORC section (header + body) inline into a stream.
+// On output: writes the section wire format.
+// On input: reads and reconstructs a Section.
+void serialize(Stream& stream, Section& section);
 
 // File-level metadata returned by is_orc().
 struct OrcHeader {

@@ -133,6 +133,14 @@ ov::npuw::orc::Stream ov::npuw::orc::Stream::reader(std::istream& stream) {
     return s;
 }
 
+void ov::npuw::orc::serialize(Stream& stream, Section& section) {
+    if (stream.output()) {
+        write_section(stream, section);
+    } else {
+        section = read_section(stream);
+    }
+}
+
 ov::npuw::orc::Stream ov::npuw::orc::Stream::memory_reader(const void* data, const std::size_t size) {
     Stream s;
     s.m_memory = reinterpret_cast<const std::byte*>(data);
