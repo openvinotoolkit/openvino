@@ -9,6 +9,7 @@
 #include <string>
 
 #include "accuracy/comparator.hpp"
+#include "attn/attn_subgraph.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "just_sync_infer_request.hpp"
 #include "logging.hpp"
@@ -299,6 +300,13 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     builtin_pattern_registrations =
         ov::npuw::moe::register_patterns(*combined_subgraph_patterns,
                                          m_cfg.get<::intel_npu::NPUW_MOE_TOKEN_CHUNK_SIZE>());
+
+    {
+        auto attn_registrations = ov::npuw::attn::register_patterns(*combined_subgraph_patterns);
+        for (auto& r : attn_registrations) {
+            builtin_pattern_registrations.push_back(std::move(r));
+        }
+    }
 
     ov::npuw::PartitioningContext ctx;
     // Identify based on compiler version, user config and pattern
@@ -836,6 +844,16 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
             NPUW_ASSERT(submodel_ctx != nullptr);
             host_flash_attention->_compiled_final_tile_model = submodel_ctx->compiled_model;
             LOG_DEBUG("Set compiled final tile model reference for host flash attention");
+        }
+    }
+
+    if (stream.input()) {
+        if (attention.has_value()) {
+            ov::npuw::attn::attach_runtime_behavior(pipeline, pipeline.context, ov::npuw::attn::BehaviorKind::Dynamic);
+        } else if (pyramid_attention.has_value()) {
+            ov::npuw::attn::attach_runtime_behavior(pipeline, pipeline.context, ov::npuw::attn::BehaviorKind::Pyramid);
+        } else if (host_flash_attention.has_value()) {
+            ov::npuw::attn::attach_runtime_behavior(pipeline, pipeline.context, ov::npuw::attn::BehaviorKind::HFA);
         }
     }
 

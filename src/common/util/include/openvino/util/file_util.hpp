@@ -176,7 +176,6 @@ inline bool file_exists(const Path& path) noexcept {
 std::filesystem::path get_directory(const std::filesystem::path& path);
 
 std::filesystem::path path_join(std::initializer_list<std::filesystem::path>&& paths);
-std::wstring path_join_w(std::initializer_list<std::wstring>&& paths);
 
 /**
  * @brief Iterates over files in given directory and applies provided function to each file found.
