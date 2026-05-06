@@ -317,6 +317,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |com.microsoft           |Unique                                                  |                        |1                               |                                |
 |com.microsoft           |WhisperBeamSearch                                       |                        |1                               |                                |
 |com.microsoft           |WordConvEmbedding                                       |                        |1                               |                                |
+|org.openvinotoolkit     |BevPoolV2                                               |1                       |1                               |                                |
 |org.openvinotoolkit     |DeformableConv2D                                        |1                       |1                               |                                |
 |org.openvinotoolkit     |DetectionOutput                                         |1                       |1                               |                                |
 |org.openvinotoolkit     |ExperimentalDetectronDetectionOutput                    |1                       |1                               |                                |
