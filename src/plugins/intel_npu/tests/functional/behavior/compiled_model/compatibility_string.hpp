@@ -13,7 +13,9 @@
 #include "behavior/compiled_model/properties.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
+
 
 using namespace ov::test::behavior;
 
@@ -114,6 +116,35 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsIsSupported) {
     }
     OV_EXPECT_THROW(auto requirements = compiledModel.get_property(ov::runtime_requirements), ov::Exception, testing::HasSubstr("Unsupported configuration key: RUNTIME_REQUIREMENTS"));
 
+}
+
+TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsIsNotSupportedForWS) {
+    // Preparing the model for the test
+    std::stringstream model_xml, model_bin;
+    {
+        // Serialize generated model into stringstream to later populate `WeightlessCacheAttribute` runtime information
+        // of constant nodes
+        auto model = ov::test::utils::make_conv_pool_relu();
+        ov::pass::Serialize serializer(model_xml, model_bin);
+        serializer.run_on_model(model);
+    }
+    auto model_bin_str = model_bin.str();
+    ov::Tensor model_weights(ov::element::u8, ov::Shape{model_bin_str.size()});
+    std::memcpy(model_weights.data<char>(), model_bin_str.data(), model_bin_str.size());
+    auto model = core.read_model(model_xml.str(), model_weights);
+
+    ov::CompiledModel compiledModel;
+    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, deviceName, {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN),
+                                                          ov::enable_weightless(true) }));
+
+    std::vector<ov::PropertyName> properties;
+    // Test that RUNTIME_REQUIREMENTS is not supported for a weightless model
+    OV_EXPECT_THROW(auto requirements = compiledModel.get_property(ov::runtime_requirements), ov::Exception, testing::HasSubstr("Unsupported configuration key: RUNTIME_REQUIREMENTS"));
+
+    // Test that RUNTIME_REQUIREMENTS is not in the list of supported properties either
+    OV_ASSERT_NO_THROW(properties = compiledModel.get_property(ov::supported_properties));
+    auto it = find(properties.cbegin(), properties.cend(), ov::runtime_requirements);
+    ASSERT_TRUE(it == properties.cend());
 }
 
 TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsNotSupportedExportImport) {
