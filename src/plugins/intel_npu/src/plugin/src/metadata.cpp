@@ -4,6 +4,8 @@
 
 #include "metadata.hpp"
 
+#include <algorithm>
+#include <cctype>
 #include <cstring>
 #include <optional>
 #include <string>
@@ -19,6 +21,25 @@ void write_text_field(std::ostream& stream, std::string_view key, const T& value
         stream << ';';
     }
     stream << key << '=' << value;
+}
+
+std::pair<uint16_t, uint16_t> parse_meta_text_version(std::string_view s) {
+    const auto hasOnlyDigits = [](std::string_view sv) {
+        return !sv.empty() && std::all_of(sv.begin(), sv.end(), [](unsigned char c) {
+            return std::isdigit(c);
+        });
+    };
+
+    const size_t dot = s.find('.');
+    const bool singleDot = (dot != std::string_view::npos) && (s.find('.', dot + 1) == std::string_view::npos);
+    if (!singleDot || !hasOnlyDigits(s.substr(0, dot)) || !hasOnlyDigits(s.substr(dot + 1))) {
+        OPENVINO_THROW("Invalid human-readable metadata: metadata version must be in MAJOR.MINOR format, got: '",
+                       s,
+                       "'");
+    }
+
+    return {static_cast<uint16_t>(std::stoul(std::string(s.substr(0, dot)))),
+            static_cast<uint16_t>(std::stoul(std::string(s.substr(dot + 1))))};
 }
 
 }  // namespace
@@ -148,9 +169,10 @@ void MetadataBase::read(const ov::Tensor& tensor) {
     read();
 }
 
-void MetadataBase::read_as_text(const ov::Tensor& tensor) {
-    const std::string_view input(tensor.data<const char>(), tensor.get_byte_size());
-    _parser.parse(input, metadataTextAttributes);
+void MetadataBase::read_as_text(std::string_view input) {
+    compat::Parser parser;
+    parser.parse(input, metadataTextAttributes);
+    _textAttrs = parser.getAttributes();
     read_as_text();
 }
 
@@ -278,7 +300,7 @@ void Metadata<METADATA_VERSION_2_5>::read() {
 }
 
 void Metadata<METADATA_VERSION_2_0>::read_as_text() {
-    const auto& attrs = _parser.getAttributes();
+    const auto& attrs = _textAttrs;
     const auto it = attrs.find(MetadataTextKeys::OV);
     if (it == attrs.end()) {
         OPENVINO_THROW("Human-readable metadata missing '" + std::string(MetadataTextKeys::OV) + "' field.");
@@ -302,14 +324,14 @@ void Metadata<METADATA_VERSION_2_0>::read_as_text() {
 void Metadata<METADATA_VERSION_2_1>::read_as_text() {
     Metadata<METADATA_VERSION_2_0>::read_as_text();
 
-    const auto& attrs = _parser.getAttributes();
+    const auto& attrs = _textAttrs;
     const auto it = attrs.find(MetadataTextKeys::WS_INITS);
     if (it == attrs.end()) {
         return;
     }
-    if (it->second != "TRUE") {
+    if (it->second != "1") {
         OPENVINO_THROW("Human-readable metadata: '" + std::string(MetadataTextKeys::WS_INITS) +
-                       "' must be 'TRUE' when present; got: " + it->second);
+                       "' must be '1' when present; got: " + it->second);
     }
     _initSizes = std::vector<uint64_t>{};
 }
@@ -317,7 +339,7 @@ void Metadata<METADATA_VERSION_2_1>::read_as_text() {
 void Metadata<METADATA_VERSION_2_2>::read_as_text() {
     Metadata<METADATA_VERSION_2_1>::read_as_text();
 
-    const auto& attrs = _parser.getAttributes();
+    const auto& attrs = _textAttrs;
     const auto it = attrs.find(MetadataTextKeys::BATCH);
     if (it == attrs.end()) {
         return;
@@ -417,7 +439,7 @@ void Metadata<METADATA_VERSION_2_1>::write_as_text(std::ostream& stream) {
     Metadata<METADATA_VERSION_2_0>::write_as_text(stream);
 
     if (_initSizes.has_value() && !_initSizes->empty()) {
-        write_text_field(stream, MetadataTextKeys::WS_INITS, "TRUE");
+        write_text_field(stream, MetadataTextKeys::WS_INITS, "1");
     }
 }
 
@@ -566,35 +588,23 @@ std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor) {
     return storedMeta;
 }
 
-std::unique_ptr<MetadataBase> read_as_text(const ov::Tensor& tensor) {
-    const std::string_view input(tensor.data<const char>(), tensor.get_byte_size());
+std::unique_ptr<MetadataBase> read_as_text(std::string_view input) {
     compat::Parser parser;
+    std::string versionStr;
     try {
         parser.parse(input, metadataTextAttributes);
+        versionStr = parser.getAttribute(std::string(MetadataTextKeys::META));
     } catch (const std::exception& ex) {
         OPENVINO_THROW("NPU compatibility string is malformed: ", ex.what());
     }
 
-    const auto& attrs = parser.getAttributes();
-    const auto it = attrs.find(MetadataTextKeys::META);
-    if (it == attrs.end()) {
-        OPENVINO_THROW("NPU compatibility string is malformed: missing metadata version");
-    }
-
-    const std::string& versionStr = it->second;
-    const size_t dot = versionStr.find('.');
-    if (dot == std::string::npos) {
-        OPENVINO_THROW("Invalid human-readable metadata: malformed version field");
-    }
-
-    const uint16_t major = static_cast<uint16_t>(std::stoul(versionStr.substr(0, dot)));
-    const uint16_t minor = static_cast<uint16_t>(std::stoul(versionStr.substr(dot + 1)));
+    const auto [major, minor] = parse_meta_text_version(versionStr);
     const uint32_t metaVersion = MetadataBase::make_version(major, minor);
 
     std::unique_ptr<MetadataBase> storedMeta;
     try {
         storedMeta = create_metadata(metaVersion, 0);
-        storedMeta->read_as_text(tensor);
+        storedMeta->read_as_text(input);
     } catch (const std::exception& ex) {
         OPENVINO_THROW("Can't read NPU human-readable metadata: ", ex.what());
     } catch (...) {

@@ -15,11 +15,16 @@ const std::vector<MetadataTextTest::ParamType> inputs = {
      true},
     {make_key_value_field(MetadataTextKeys::META, "2.1") + ";" +
          make_key_value_field(MetadataTextKeys::OV, "2026.1.0") + ";" +
-         make_key_value_field(MetadataTextKeys::WS_INITS, "TRUE"),
+         make_key_value_field(MetadataTextKeys::WS_INITS, "1"),
      true},
     {make_key_value_field(MetadataTextKeys::META, "2.2") + ";" +
          make_key_value_field(MetadataTextKeys::OV, "2026.1.0") + ";" +
          make_key_value_field(MetadataTextKeys::BATCH, "4"),
+     true},
+    {make_key_value_field(MetadataTextKeys::META, "2.2") + ";" +
+         make_key_value_field(MetadataTextKeys::OV, "2026.1.0") + ";" +
+         make_key_value_field(MetadataTextKeys::BATCH, "4") + ";" +
+         make_key_value_field(MetadataTextKeys::WS_INITS, "1"),
      true},
     // order independent: metadata version field is not first
     {make_key_value_field(MetadataTextKeys::OV, "2026.1.0") + ";" + make_key_value_field(MetadataTextKeys::META, "2.0"),
@@ -36,6 +41,15 @@ const std::vector<MetadataTextTest::ParamType> inputs = {
     // metadata version malformed
     {make_key_value_field(MetadataTextKeys::META, "20") + ";" + make_key_value_field(MetadataTextKeys::OV, "2026.1.0"),
      false},
+    {make_key_value_field(MetadataTextKeys::META, "2X.0") + ";" +
+         make_key_value_field(MetadataTextKeys::OV, "2026.1.0"),
+     false},
+    {make_key_value_field(MetadataTextKeys::META, "2.0X") + ";" +
+         make_key_value_field(MetadataTextKeys::OV, "2026.1.0"),
+     false},
+    {make_key_value_field(MetadataTextKeys::META, "2.0.1") + ";" +
+         make_key_value_field(MetadataTextKeys::OV, "2026.1.0"),
+     false},
     // unsupported metadata major version
     {make_key_value_field(MetadataTextKeys::META, std::to_string(CURRENT_METADATA_MAJOR_VERSION + 1) + ".0") + ";" +
          make_key_value_field(MetadataTextKeys::OV, "2026.1.0"),
@@ -45,10 +59,9 @@ const std::vector<MetadataTextTest::ParamType> inputs = {
          make_key_value_field(MetadataTextKeys::OV, "2026.1.0"),
      false},
     {make_key_value_field(MetadataTextKeys::META, "2.0"), false},
-    // WS should not be serialized if set to false
     {make_key_value_field(MetadataTextKeys::META, "2.1") + ";" +
          make_key_value_field(MetadataTextKeys::OV, "2026.1.0") + ";" +
-         make_key_value_field(MetadataTextKeys::WS_INITS, "FALSE"),
+         make_key_value_field(MetadataTextKeys::WS_INITS, "0"),
      false},
     // unmatched closing bracket in value
     {make_key_value_field(MetadataTextKeys::META, "2.0") + ";" +

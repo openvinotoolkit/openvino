@@ -4,13 +4,16 @@
 
 #pragma once
 
+#include <array>
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <optional>
+#include <string>
+#include <string_view>
 #include <variant>
 #include <vector>
 
-#include "intel_npu/compat_string_parser.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/core/layout.hpp"
 #include "openvino/core/version.hpp"
@@ -38,7 +41,7 @@ public:
     /**
      * @brief Reads human-readable metadata from a ov::Tensor.
      */
-    void read_as_text(const ov::Tensor& tensor);
+    void read_as_text(std::string_view input);
 
     virtual void read() = 0;
 
@@ -130,9 +133,9 @@ protected:
     Logger _logger;
 
     /**
-     * @brief Parser for the human-readable metadata.
+     * @brief Parsed key-value attributes from the human-readable metadata string.
      */
-    compat::Parser _parser;
+    std::map<std::string, std::string, std::less<>> _textAttrs;
 
     Source _source;
 
@@ -448,6 +451,6 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream);
  */
 std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor);
 
-std::unique_ptr<MetadataBase> read_as_text(const ov::Tensor& tensor);
+std::unique_ptr<MetadataBase> read_as_text(std::string_view input);
 
 }  // namespace intel_npu

@@ -62,10 +62,7 @@ public:
 
     void SetUp() override {
         isValid = std::get<1>(GetParam());
-
-        const std::string& str = std::get<0>(GetParam());
-        compatibilityString = ov::Tensor(ov::element::u8, ov::Shape{str.size()});
-        std::memcpy(compatibilityString.data<char>(), str.data(), str.size());
+        compatibilityString = std::get<0>(GetParam());
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<MetadataTextTest::ParamType>& info) {
@@ -73,6 +70,6 @@ public:
                "\"_isValid=" + (std::get<1>(info.param) ? "true" : "false");
     }
 
-    ov::Tensor compatibilityString;
+    std::string compatibilityString;
     bool isValid;
 };

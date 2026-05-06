@@ -226,8 +226,8 @@ inline void Parser::expect(char c) {
 }
 
 inline void Parser::reset(std::string_view input, CaptureMode mode) {
-    _current = std::begin(input);
-    _end = std::end(input);
+    _current = input.begin();
+    _end = input.end();
     _optional = 0;
     _nesting = 0;
     _captureMode = mode;
