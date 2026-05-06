@@ -353,22 +353,20 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
         ov::Tensor alignedBlob = make_tensor_from_aligned_addr(blob, *alignedBlobSize);
         std::optional<std::string> compatibilityString;
 
-        if (!storeWeightlessCacheAttributeFlag) {
-            // Non-weights separation call. The compatibility string is expected
-            OPENVINO_ASSERT(compatibilityStringBuffer != nullptr && compatibilityStringSize != 0,
-                            "Failed to create VCL executable, the compatibility descriptor size is zero or the "
-                            "compatibility descriptor is null");
+        // Populate compatibility string only when VCL provides a buffer.
+        if (compatibilityStringBuffer != nullptr) {
+            OPENVINO_ASSERT(compatibilityStringSize != 0,
+                            "Failed to create VCL executable, the compatibility descriptor size is zero");
             compatibilityString =
                 std::string(reinterpret_cast<char*>(compatibilityStringBuffer), compatibilityStringSize);
+            _logger.debug("Compatibility string from VCL: %s", compatibilityString->c_str());
         }
 
-        _logger.debug("compile end, blob size:%zu", *alignedBlobSize);
         return std::make_pair<ov::Tensor, std::optional<std::string>>(std::move(alignedBlob),
                                                                       std::move(compatibilityString));
     } else {
-        OPENVINO_THROW("Not supported VCL version: %d.%d, please use VCL 7.7 or later",
-                       _vclVersion.major,
-                       _vclVersion.minor);
+        OPENVINO_THROW("Unsupported VCL version: ", _vclVersion.major, ".", _vclVersion.minor,
+                       ", please use VCL 7.7 or later");
     }
 }
 
@@ -615,7 +613,7 @@ bool VCLCompilerImpl::validate_compatibility_descriptor(const std::string& compa
                                                         vcl_device_desc_t* in_device_desc) const {
     vcl_compiler_desc_t compilerDesc;
     compilerDesc.version = _vclVersion;
-    compilerDesc.debugLevel = static_cast<__vcl_log_level_t>(static_cast<int>(Logger::global().level()) + 1);
+    compilerDesc.debugLevel = static_cast<vcl_log_level_t>(static_cast<int>(Logger::global().level()) + 1);
 
     const char* optname_ch = ov::compatibility_check.name();
     const char* optvalue_ch = compatibilityDescriptor.c_str();

@@ -79,7 +79,7 @@ TEST_P(ClassCompatibilityStringTestSuite, CompatibilityCheckInvalidArgument) {
     OV_ASSERT_NO_THROW(result = core.get_property(deviceName, ov::compatibility_check));
     ASSERT_TRUE(result == ov::CompatibilityCheck::NOT_APPLICABLE);
 
-    // Provide an arument without runtime_requirements
+    // Provide an argument without runtime_requirements
     OV_ASSERT_NO_THROW(result = core.get_property(deviceName, ov::compatibility_check, ov::log::level(ov::log::Level::ERR)));
     ASSERT_TRUE(result == ov::CompatibilityCheck::NOT_APPLICABLE);
 

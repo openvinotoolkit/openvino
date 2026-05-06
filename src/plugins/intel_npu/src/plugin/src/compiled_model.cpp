@@ -40,7 +40,13 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     // Support for specific properties might depend on the characteristics of the compiled model.
     // Adjust lower level config availability to influence the supported properties list if needed
     FilteredConfig localConfig = config;
-    if (!_graph->get_compatibility_descriptor().has_value()) {
+    try{
+        if (!_graph->get_compatibility_descriptor().has_value()) {
+            _logger.debug("Graph's compatibility descriptor has no value. Disabling RUNTIME_REQUIREMENTS property.");
+            localConfig.enable(ov::runtime_requirements.name(), false);
+        }
+    } catch (const std::exception& e) {
+        _logger.debug("Failed to get compatibility descriptor: %s. Disabling RUNTIME_REQUIREMENTS property.", e.what());
         localConfig.enable(ov::runtime_requirements.name(), false);
     }
 
