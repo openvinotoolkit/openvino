@@ -23,23 +23,33 @@ void write_text_field(std::ostream& stream, std::string_view key, const T& value
     stream << key << '=' << value;
 }
 
-std::pair<uint16_t, uint16_t> parse_meta_text_version(std::string_view s) {
+std::vector<uint16_t> parse_version(std::string_view sv) {
     const auto hasOnlyDigits = [](std::string_view sv) {
         return !sv.empty() && std::all_of(sv.begin(), sv.end(), [](unsigned char c) {
             return std::isdigit(c);
         });
     };
 
-    const size_t dot = s.find('.');
-    const bool singleDot = (dot != std::string_view::npos) && (s.find('.', dot + 1) == std::string_view::npos);
-    if (!singleDot || !hasOnlyDigits(s.substr(0, dot)) || !hasOnlyDigits(s.substr(dot + 1))) {
-        OPENVINO_THROW("Invalid human-readable metadata: metadata version must be in MAJOR.MINOR format, got: '",
-                       s,
-                       "'");
+    std::vector<uint16_t> parts;
+    std::string_view remaining = sv;
+    while (true) {
+        const size_t dot = remaining.find('.');
+        const std::string_view part = remaining.substr(0, dot);
+        if (!hasOnlyDigits(part)) {
+            OPENVINO_THROW("Invalid version '",
+                           sv,
+                           "': version must meet the format MAJOR.MINOR.PATCH with numeric components");
+        }
+        parts.push_back(static_cast<uint16_t>(std::stoul(std::string(part))));
+        if (dot == std::string_view::npos) {
+            break;
+        }
+        remaining = remaining.substr(dot + 1);
+        if (remaining.empty()) {
+            OPENVINO_THROW("Invalid version '", sv, "': trailing dot");
+        }
     }
-
-    return {static_cast<uint16_t>(std::stoul(std::string(s.substr(0, dot)))),
-            static_cast<uint16_t>(std::stoul(std::string(s.substr(dot + 1))))};
+    return parts;
 }
 
 }  // namespace
@@ -169,10 +179,8 @@ void MetadataBase::read(const ov::Tensor& tensor) {
     read();
 }
 
-void MetadataBase::read_as_text(std::string_view input) {
-    compat::Parser parser;
-    parser.parse(input, metadataTextAttributes);
-    _textAttrs = parser.getAttributes();
+void MetadataBase::read_as_text(std::map<std::string, std::string, std::less<>> attrs) {
+    _textAttrs = std::move(attrs);
     read_as_text();
 }
 
@@ -300,33 +308,23 @@ void Metadata<METADATA_VERSION_2_5>::read() {
 }
 
 void Metadata<METADATA_VERSION_2_0>::read_as_text() {
-    const auto& attrs = _textAttrs;
-    const auto it = attrs.find(MetadataTextKeys::OV);
-    if (it == attrs.end()) {
+    const auto it = _textAttrs.find(MetadataTextKeys::OV);
+    if (it == _textAttrs.end()) {
         OPENVINO_THROW("Human-readable metadata missing '" + std::string(MetadataTextKeys::OV) + "' field.");
     }
-    const std::string& s = it->second;
-    const size_t dot1 = s.find('.');
-    if (dot1 == std::string::npos) {
+    const auto ovParts = parse_version(it->second);
+    if (ovParts.size() != 3) {
         OPENVINO_THROW("Human-readable metadata: '" + std::string(MetadataTextKeys::OV) +
-                       "' is not in MAJOR.MINOR.PATCH format: " + s);
+                       "' is not in MAJOR.MINOR.PATCH format: " + it->second);
     }
-    const size_t dot2 = s.find('.', dot1 + 1);
-    if (dot2 == std::string::npos || dot2 == dot1 + 1 || dot2 + 1 >= s.size()) {
-        OPENVINO_THROW("Human-readable metadata: '" + std::string(MetadataTextKeys::OV) +
-                       "' is not in MAJOR.MINOR.PATCH format: " + s);
-    }
-    _ovVersion = OpenvinoVersion(static_cast<uint16_t>(std::stoul(s.substr(0, dot1))),
-                                 static_cast<uint16_t>(std::stoul(s.substr(dot1 + 1, dot2 - dot1 - 1))),
-                                 static_cast<uint16_t>(std::stoul(s.substr(dot2 + 1))));
+    _ovVersion = OpenvinoVersion(ovParts[0], ovParts[1], ovParts[2]);
 }
 
 void Metadata<METADATA_VERSION_2_1>::read_as_text() {
     Metadata<METADATA_VERSION_2_0>::read_as_text();
 
-    const auto& attrs = _textAttrs;
-    const auto it = attrs.find(MetadataTextKeys::WS_INITS);
-    if (it == attrs.end()) {
+    const auto it = _textAttrs.find(MetadataTextKeys::WS_INITS);
+    if (it == _textAttrs.end()) {
         return;
     }
     if (it->second != "1") {
@@ -339,9 +337,8 @@ void Metadata<METADATA_VERSION_2_1>::read_as_text() {
 void Metadata<METADATA_VERSION_2_2>::read_as_text() {
     Metadata<METADATA_VERSION_2_1>::read_as_text();
 
-    const auto& attrs = _textAttrs;
-    const auto it = attrs.find(MetadataTextKeys::BATCH);
-    if (it == attrs.end()) {
+    const auto it = _textAttrs.find(MetadataTextKeys::BATCH);
+    if (it == _textAttrs.end()) {
         return;
     }
     const int64_t batchValue = std::stoll(it->second);
@@ -589,22 +586,26 @@ std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor) {
 }
 
 std::unique_ptr<MetadataBase> read_as_text(std::string_view input) {
-    compat::Parser parser;
     std::string versionStr;
+    compat::Parser::attr_map_type attrs;
     try {
-        parser.parse(input, metadataTextAttributes);
+        compat::Parser parser(input, metadataTextAttributes);
         versionStr = parser.getAttribute(std::string(MetadataTextKeys::META));
+        attrs = parser.getAttributes();
     } catch (const std::exception& ex) {
         OPENVINO_THROW("NPU compatibility string is malformed: ", ex.what());
     }
 
-    const auto [major, minor] = parse_meta_text_version(versionStr);
-    const uint32_t metaVersion = MetadataBase::make_version(major, minor);
+    const auto metaParts = parse_version(versionStr);
+    if (metaParts.size() != 2) {
+        OPENVINO_THROW("NPU compatibility string is malformed: 'meta' must be in MAJOR.MINOR format: ", versionStr);
+    }
+    const uint32_t metaVersion = MetadataBase::make_version(metaParts[0], metaParts[1]);
 
     std::unique_ptr<MetadataBase> storedMeta;
     try {
         storedMeta = create_metadata(metaVersion, 0);
-        storedMeta->read_as_text(input);
+        storedMeta->read_as_text(std::move(attrs));
     } catch (const std::exception& ex) {
         OPENVINO_THROW("Can't read NPU human-readable metadata: ", ex.what());
     } catch (...) {

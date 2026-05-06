@@ -39,9 +39,9 @@ public:
     void read(const ov::Tensor& tensor);
 
     /**
-     * @brief Reads human-readable metadata from a ov::Tensor.
+     * @brief Populates this object from a pre-parsed human-readable metadata attribute map.
      */
-    void read_as_text(std::string_view input);
+    void read_as_text(std::map<std::string, std::string, std::less<>> attrs);
 
     virtual void read() = 0;
 

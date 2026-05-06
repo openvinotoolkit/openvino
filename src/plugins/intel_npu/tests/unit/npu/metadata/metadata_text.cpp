@@ -75,6 +75,10 @@ const std::vector<MetadataTextTest::ParamType> inputs = {
      false},
     {make_key_value_field(MetadataTextKeys::META, "2.0") + ";" + make_key_value_field(MetadataTextKeys::OV, "20261"),
      false},
+    // too many ov version components
+    {make_key_value_field(MetadataTextKeys::META, "2.0") + ";" +
+         make_key_value_field(MetadataTextKeys::OV, "2026.1.0.0"),
+     false},
     {make_key_value_field(MetadataTextKeys::META, "2.6") + ";;" +
          make_key_value_field(MetadataTextKeys::OV, "2026.1.0") + ";",
      false},
