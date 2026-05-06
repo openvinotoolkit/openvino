@@ -525,10 +525,7 @@ AccuracyMetrics evaluate_split_roundtrip_on_device(const std::shared_ptr<Model>&
         const bool has_live_npu = std::find(available_devices.begin(), available_devices.end(), "NPU") !=
                                   available_devices.end();
 
-        const char* platform_env = std::getenv("OV_DQ_TEST_NPU_PLATFORM");
-        if (platform_env == nullptr || std::string(platform_env).empty()) {
-            platform_env = std::getenv("IE_NPU_TESTS_PLATFORM");
-        }
+        const char* platform_env = std::getenv("IE_NPU_TESTS_PLATFORM");
         if (platform_env != nullptr && !std::string(platform_env).empty()) {
             device_config[ov::intel_npu::platform.name()] = std::string(platform_env);
             device_config["NPU_CREATE_EXECUTOR"] = int64_t{0};
@@ -709,7 +706,6 @@ TEST_P(DynamicQuantizeAccuracyTest, DeviceRoundtripAccuracy) {
     std::string device = get_test_device();
     const bool enable_skipped_error_case =
         (p.decompose_version == 2 || p.decompose_version == 3) &&
-        p.dist_kind == DistributionKind::GenGaussian &&
         p.shape == Shape({1, 8, 1024, 128});
 
     if (device.empty() && enable_skipped_error_case) {
