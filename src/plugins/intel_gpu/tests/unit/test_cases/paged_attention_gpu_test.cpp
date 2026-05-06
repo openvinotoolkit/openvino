@@ -1849,6 +1849,9 @@ public:
     tests::random_generator rg;
     cldnn::engine& engine = get_test_engine();
     float tolerance = 2e-3;
+    memory::ptr last_key_cache_mem = nullptr;
+    std::vector<int> last_block_indices;
+    std::vector<int> last_block_indices_begins;
 
     void SetUp() override {
         rg.set_seed(GET_SUITE_NAME);
@@ -2198,6 +2201,10 @@ public:
         network->set_input_data("token_type_ids", token_type_ids_mem);
         network->set_input_data("qq_bias", qq_bias);
         network->set_input_data("qq_bias_begins", qq_bias_begins);
+
+        last_key_cache_mem = key_cache_mem;
+        last_block_indices = pam.block_indices;
+        last_block_indices_begins = pam.block_indices_begins;
 
         auto outputs = network->execute();
 
@@ -2650,6 +2657,66 @@ TEST_P(xattention_test, basic) {
     }
 
     execute(p, p.run_reference);
+
+    // Verify KV cache bytes were written for newly-inserted tokens
+    if (last_key_cache_mem != nullptr) {
+        constexpr int kv_sub_block_size = 16;
+        const bool is_by_channel = p.kv_cache_compression &&
+                                   p.key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL;
+        const bool is_by_token = p.kv_cache_compression &&
+                                 p.key_cache_quant_mode == ov::internal::CacheQuantMode::BY_TOKEN;
+
+        // CM cache layout: [num_blocks, num_kv_heads, adjusted_block_size, adjusted_head_size]
+        // Within each (block, head) region, data tokens are packed at stride HEAD_SIZE (not adjusted).
+        // Scale/ZP are appended after all data bytes.
+        //   FP16:       adjusted_block_size=block_size,          adjusted_head_size=head_size,   elem=2B
+        //   BY_TOKEN:   adjusted_block_size=block_size,          adjusted_head_size=head_size+4, elem=1B
+        //   BY_CHANNEL: adjusted_block_size=block_size+(bs/16)*4, adjusted_head_size=head_size,  elem=1B
+        const int adj_head_size = is_by_token ? (p.k_head_size + 4) : p.k_head_size;
+        const int adj_block_size = is_by_channel ? (p.block_size + (p.block_size / kv_sub_block_size) * 4) : p.block_size;
+        const int elem_size = p.kv_cache_compression ? 1 : 2;
+        // Stride between (block, head) regions
+        const size_t head_region_bytes = static_cast<size_t>(adj_block_size) * adj_head_size * elem_size;
+        const size_t block_stride_bytes = static_cast<size_t>(p.num_kv_heads) * head_region_bytes;
+        // Token data stride within a region (always head_size, not adjusted)
+        const int token_data_stride = p.k_head_size * elem_size;
+
+        mem_lock<int8_t, mem_lock_type::read> cache_lock(last_key_cache_mem, get_test_stream());
+        int missing_count = 0;
+        int total_tokens = 0;
+
+        for (int i = 0; i < static_cast<int>(p.subsequences.size()); i++) {
+            const int past_len = p.subsequences[i].past_len;
+            const int num_tokens = p.subsequences[i].num_tokens;
+            for (int t = 0; t < num_tokens; t++) {
+                total_tokens++;
+                const int absolute_pos = past_len + t;
+                const int block_idx = absolute_pos / p.block_size;
+                const int token_in_block = absolute_pos % p.block_size;
+                const int physical_block = last_block_indices[last_block_indices_begins[i] + block_idx];
+                const size_t block_base = static_cast<size_t>(physical_block) * block_stride_bytes;
+                // Head 0, data region: tokens packed at stride head_size
+                const size_t data_offset = block_base + static_cast<size_t>(token_in_block) * token_data_stride;
+
+                // Input keys are random non-zero; all-zero means KV update kernel missed this token
+                bool all_zero = true;
+                for (int b = 0; b < token_data_stride; b++) {
+                    if (cache_lock[data_offset + b] != 0) {
+                        all_zero = false;
+                        break;
+                    }
+                }
+                if (all_zero) {
+                    missing_count++;
+                    std::cout << "KV cache update MISSING: seq=" << i
+                              << " token=" << t << " (absolute_pos=" << absolute_pos << ")"
+                              << " at byte_offset=" << data_offset << std::endl;
+                }
+            }
+        }
+        EXPECT_EQ(missing_count, 0) << missing_count << " out of " << total_tokens
+                                    << " tokens were not written to key cache by KV update kernel";
+    }
 }
 
 class xattention_invalid_test : public PagedAttentionTest<paged_attention_test_params> {};
@@ -3064,9 +3131,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_cm_xattention, xattention_test, ::testing::Values
     paged_attention_test_params{ {{10, 0}, {30, 0}}, 4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f, 0.9f}, std::vector<int>{128, 128} }, // multi-subsequence generate [basic/102]
 
     // multi-seq generate
-    paged_attention_test_params{ {{1, 34}, {1, 515}}, 4, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f, 0.9f, 0.9f}, std::vector<int>{128, 128, 128} }, // multi-subsequence mixed [basic/103]
-    paged_attention_test_params{ {{1, 34}, {1, 515}}, 4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f, 0.9f, 0.9f}, std::vector<int>{128, 128, 128} }, // multi-subsequence mixed [basic/104]
-    paged_attention_test_params{ {{1, 34}, {1, 515}}, 4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f, 0.9f, 0.9f}, std::vector<int>{128, 128, 128} }, // multi-subsequence mixed [basic/105]
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 4, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f, 0.9f}, std::vector<int>{128, 128} }, // multi-subsequence mixed [basic/103]
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f, 0.9f}, std::vector<int>{128, 128} }, // multi-subsequence mixed [basic/104]
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f, 0.9f}, std::vector<int>{128, 128} }, // multi-subsequence mixed [basic/105]
 
     // multi-seq mixed
     paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 4, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f, 0.9f, 0.9f}, std::vector<int>{128, 128, 128} }, // multi-subsequence mixed [basic/106]
@@ -3076,6 +3143,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_cm_xattention, xattention_test, ::testing::Values
     paged_attention_test_params{ {{1, 1024 + 34}, {25, 0}, {10, 34}}, 4, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f, 0.9f, 0.9f}, std::vector<int>{128, 128, 128} }, // multi-subsequence mixed [basic/109]
     paged_attention_test_params{ {{1, 1024 + 34}, {25, 0}, {10, 34}}, 4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f, 0.9f, 0.9f}, std::vector<int>{128, 128, 128} }, // multi-subsequence mixed [basic/110]
     paged_attention_test_params{ {{1, 1024 + 34}, {25, 0}, {10, 34}}, 4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f, 0.9f, 0.9f}, std::vector<int>{128, 128, 128} }, // multi-subsequence mixed [basic/111]
+
+    // Option B: maximally-divergent past_tail to expose by-channel dispatch under-count (basic/112)
+    // past_len=3 => past_tail=3%16=3; cur_tokens 5,7,9 => sub-blocks ceil((3+5)/16)=1, ceil((3+7)/16)=1, ceil((3+9)/16)=1 = 3 sub-blocks
+    // Simple ceil_div(total_tokens=21, 16) would give 2, under-dispatching by 1 sub-block
+    paged_attention_test_params{ {{5, 3}, {7, 3}, {9, 3}}, 4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f, 0.9f, 0.9f}, std::vector<int>{128, 128, 128} }, // multi-subsequence by-channel divergent [basic/112]
 }));
 
 INSTANTIATE_TEST_SUITE_P(smoke_cm_xattention_block_size, xattention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
