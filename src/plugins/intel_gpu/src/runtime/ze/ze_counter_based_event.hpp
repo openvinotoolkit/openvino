@@ -18,7 +18,6 @@ namespace ze {
 // Can only be used with in-order command lists.
 struct ze_counter_based_event : public ze_base_event {
 public:
-    // Take ownership of counter based event handle
     ze_counter_based_event(uint64_t queue_stamp, const ze_base_event_factory& factory, ze_holder<ze_resource_type::counter_based_event> ev)
     : ze_base_event(queue_stamp)
     , m_factory(factory)

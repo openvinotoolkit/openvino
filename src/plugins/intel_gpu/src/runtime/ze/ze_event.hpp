@@ -13,15 +13,12 @@ namespace ze {
 // L0 event. Can be either in signaled state or not signaled state.
 struct ze_event : public ze_base_event {
 public:
-    // Take ownership of event handle
     ze_event(uint64_t queue_stamp, const ze_base_event_factory& factory, ze_holder<ze_resource_type::event> ev)
         : ze_base_event(queue_stamp)
         , m_factory(factory)
         , m_event(ev) {
             OPENVINO_ASSERT(!m_event.is_empty(), "[GPU] Attempt to create event with empty holder");
         }
-    ze_event(const ze_event &) = delete;
-    ze_event& operator=(const ze_event &) = delete;
     void reset() override;
 
     std::optional<ze_kernel_timestamp_result_t> query_timestamp() override;
