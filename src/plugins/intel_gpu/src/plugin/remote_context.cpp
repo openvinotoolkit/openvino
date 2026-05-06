@@ -50,7 +50,9 @@ cl_mem import_external_buffer(cl_context cl_ctx, size_t byte_size, void* shared_
     OPENVINO_ASSERT(extensions.find("cl_khr_external_memory") != std::string::npos,
                     "[GPU] Selected OpenCL device does not advertise cl_khr_external_memory; "
                     "external memory import is not supported");
-
+#ifndef CL_VERSION_3_0
+    OPENVINO_THROW("[GPU] External memory import is not supported on this platform");
+#else
 #ifdef _WIN32
     constexpr auto handle_type_token = CL_EXTERNAL_MEMORY_HANDLE_OPAQUE_WIN32_KHR;
 #elif defined(__linux__)
@@ -59,9 +61,6 @@ cl_mem import_external_buffer(cl_context cl_ctx, size_t byte_size, void* shared_
     OPENVINO_THROW("[GPU] External memory import is not supported on this platform");
 #endif
 
-#ifndef CL_VERSION_3_0
-    OPENVINO_THROW("[GPU] External memory import is not supported on this platform");
-#else
     cl_mem_properties props[] = {
         static_cast<cl_mem_properties>(handle_type_token),
         static_cast<cl_mem_properties>(reinterpret_cast<intptr_t>(shared_handle)),
