@@ -95,9 +95,12 @@ std::wstring getOpenvinoLibDirectoryW() {
 }  // namespace
 
 std::string getOpenvinoLibDirectory() {
+    std::cout << "getOPenvinoLibDIrectory: ";
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+    std::cout << ov::util::wstring_to_string(getOpenvinoLibDirectoryW()) << std::endl;
     return ov::util::wstring_to_string(getOpenvinoLibDirectoryW());
 #else
+    std::cout << getOpenvinoLibDirectoryA() << std::endl;
     return getOpenvinoLibDirectoryA();
 #endif
 }

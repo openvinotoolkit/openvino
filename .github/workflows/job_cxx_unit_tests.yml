@@ -52,10 +52,10 @@ jobs:
         shell: ${{ contains(inputs.runner, 'win') && 'pwsh' || 'bash' }}
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
-      INSTALL_DIR: ${{ github.workspace }}/install
-      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      INSTALL_DIR: ${{ github.workspace }}/install테스트
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install테스트/tests
       SOURCE_COMMAND: ${{ contains(inputs.runner, 'linux') && 'source' || '.' }}
-      SETUPVARS: ${{ github.workspace }}/install/${{ contains(inputs.runner, 'win') && 'setupvars.ps1' || 'setupvars.sh' }}
+      SETUPVARS: ${{ github.workspace }}/install테스트/${{ contains(inputs.runner, 'win') && 'setupvars.ps1' || 'setupvars.sh' }}
     steps:
       - name: Download OpenVINO artifacts (package)
         uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
@@ -97,11 +97,20 @@ jobs:
           ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVCoreUT.xml
 
+      - name: OpenVINO Inference Functional Tests (Windows)
+        if: ${{ fromJSON(inputs.affected-components).inference.test && inputs.os != 'debian_10' && runner.os == 'Windows' }} # Ticket: 153151
+        shell: pwsh
+        run: |
+          [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+          chcp 65001 | Out-Null
+          ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
+          ${{ env.INSTALL_TEST_DIR }}/ov_inference_functional_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-InferenceFunc.xml 2>&1 | Tee-Object -FilePath ${{ env.INSTALL_TEST_DIR }}/InferenceFunc-stdout.log
+
       - name: OpenVINO Inference Functional Tests
-        if: ${{ fromJSON(inputs.affected-components).inference.test && inputs.os != 'debian_10' }} # Ticket: 153151
+        if: ${{ fromJSON(inputs.affected-components).inference.test && inputs.os != 'debian_10' && runner.os != 'Windows' }} # Ticket: 153151
         run: |
           ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
-          ${{ env.INSTALL_TEST_DIR }}/ov_inference_functional_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-InferenceFunc.xml
+          ${{ env.INSTALL_TEST_DIR }}/ov_inference_functional_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-InferenceFunc.xml 2>&1 | tee ${{ env.INSTALL_TEST_DIR }}/InferenceFunc-stdout.log
 
       - name: OpenVINO Inference Unit Tests
         if: fromJSON(inputs.affected-components).inference.test
@@ -288,5 +297,7 @@ jobs:
         if: ${{ !cancelled() }}
         with:
           name: test-results-cpp
-          path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+            ${{ env.INSTALL_TEST_DIR }}/*.log
           if-no-files-found: 'warn'

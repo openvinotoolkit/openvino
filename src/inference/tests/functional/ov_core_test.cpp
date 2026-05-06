@@ -107,7 +107,7 @@ TEST_P(CoreBaseTestP, registerPlugins) {
     std::string mock_plugin_name{"TEST_DEVICE"};
     const auto xml_file_path = ov::test::utils::to_fs_path(ov::test::utils::getOpenvinoLibDirectory()) /
                                ov::test::utils::to_fs_path(GetParam());
-
+    std::cout<<"registerPlugins path: " << xml_file_path << std::endl;
     create_plugin_xml(xml_file_path, mock_plugin_name);
     EXPECT_NO_THROW(core.register_plugins(xml_file_path));
     auto versions = core.get_versions(mock_plugin_name);
