@@ -87,10 +87,22 @@ class Const {
     friend struct ov::npuw::weights::LazyTensorImpl;
 
 public:
-    static constexpr std::uint16_t kVersion = 1u;
+    // Frozen V0 snapshot — never modified once shipped.
+    // Contains only the wire-format fields (not runtime-only state).
+    struct V0 {
+        static constexpr std::uint16_t kVersion = 0u;
+        ov::element::Type m_cached_type;
+        ov::Shape m_cached_shape;
+        std::size_t m_offset = 0;
+        std::size_t m_byte_size = 0;
+        ov::Tensor m_read_from_bin;
+        void serialize(ov::npuw::orc::Stream& stream);
+    };
+    using Prev = V0;
+    static constexpr std::uint16_t kVersion = V0::kVersion;
 
     Const() = default;
-
+    explicit Const(V0 v);
     explicit Const(const std::shared_ptr<ov::op::v0::Constant>& n);
     std::size_t hash() const;
     bool operator==(const Const& other) const;
@@ -121,9 +133,17 @@ class Concat {
     friend struct ov::npuw::weights::LazyTensorImpl;
 
 public:
-    static constexpr std::uint16_t kVersion = 1u;
+    struct V0 {
+        static constexpr std::uint16_t kVersion = 0u;
+        std::size_t axis = 0;
+        std::vector<LazyTensor> tensors;
+        void serialize(ov::npuw::orc::Stream& stream);
+    };
+    using Prev = V0;
+    static constexpr std::uint16_t kVersion = V0::kVersion;
 
     Concat() = default;
+    explicit Concat(V0 v);
     Concat(const std::vector<LazyTensor>& _tensors, std::size_t _axis) : tensors(_tensors), axis(_axis) {}
 
     std::size_t hash() const;
@@ -143,9 +163,18 @@ class Unpack {
     friend struct ov::npuw::weights::LazyTensorImpl;
 
 public:
-    static constexpr std::uint16_t kVersion = 1u;
+    struct V0 {
+        static constexpr std::uint16_t kVersion = 0u;
+        LazyTensor w, z, s;
+        ov::element::Type type;
+        ov::Shape shape;
+        void serialize(ov::npuw::orc::Stream& stream);
+    };
+    using Prev = V0;
+    static constexpr std::uint16_t kVersion = V0::kVersion;
 
     Unpack() = default;
+    explicit Unpack(V0 v);
     Unpack(const LazyTensor& _w, const LazyTensor& _z, const LazyTensor& _s, ov::element::Type _type, ov::Shape _shape)
         : w(_w),
           z(_z),
@@ -171,9 +200,17 @@ class Permute {
     friend struct ov::npuw::weights::LazyTensorImpl;
 
 public:
-    static constexpr std::uint16_t kVersion = 1u;
+    struct V0 {
+        static constexpr std::uint16_t kVersion = 0u;
+        LazyTensor tensor;
+        std::vector<std::size_t> axes;
+        void serialize(ov::npuw::orc::Stream& stream);
+    };
+    using Prev = V0;
+    static constexpr std::uint16_t kVersion = V0::kVersion;
 
     Permute() = default;
+    explicit Permute(V0 v);
     Permute(const LazyTensor& _tensor, const std::vector<std::size_t>& _axes) : tensor(_tensor), axes(_axes) {}
 
     std::size_t hash() const;
@@ -193,9 +230,17 @@ class Convert {
     friend struct ov::npuw::weights::LazyTensorImpl;
 
 public:
-    static constexpr std::uint16_t kVersion = 1u;
+    struct V0 {
+        static constexpr std::uint16_t kVersion = 0u;
+        LazyTensor tensor;
+        ov::element::Type type;
+        void serialize(ov::npuw::orc::Stream& stream);
+    };
+    using Prev = V0;
+    static constexpr std::uint16_t kVersion = V0::kVersion;
 
     Convert() = default;
+    explicit Convert(V0 v);
     Convert(const LazyTensor& _tensor, ov::element::Type _type) : tensor(_tensor), type(_type) {}
 
     std::size_t hash() const;
@@ -215,9 +260,19 @@ class Gather {
     friend struct ov::npuw::weights::LazyTensorImpl;
 
 public:
-    static constexpr std::uint16_t kVersion = 1u;
+    struct V0 {
+        static constexpr std::uint16_t kVersion = 0u;
+        LazyTensor w;
+        ov::Tensor t;
+        ov::element::Type dst_type;
+        ov::Shape dst_shape;
+        void serialize(ov::npuw::orc::Stream& stream);
+    };
+    using Prev = V0;
+    static constexpr std::uint16_t kVersion = V0::kVersion;
 
     Gather() = default;
+    explicit Gather(V0 v);
     Gather(const LazyTensor& _w, const ov::Tensor& _t, const ov::element::Type& _dst_type, const ov::Shape& _dst_shape)
         : w(_w),
           t(_t),

@@ -10,8 +10,8 @@
 #include <cstdint>
 #include <cstring>
 #include <functional>
-#include <iosfwd>
 #include <ios>
+#include <iosfwd>
 #include <limits>
 #include <map>
 #include <optional>
@@ -412,13 +412,51 @@ Target load_versioned_payload_impl(const Section& section) {
 
 }  // namespace detail
 
-template <typename Target, typename... Versions>
+// Multi-arg form: explicit version list — use as an escape hatch when the
+// Prev chain is insufficient (e.g., legacy types without a frozen V0 struct,
+// or migration logic too complex to express as typed constructors).
+// Requires at least one version type (First) so this overload is unambiguous
+// with the single-arg form when Target is the only template argument.
+template <typename Target, typename First, typename... Rest>
 Target load_versioned_payload(const Section& section) {
-    static_assert(sizeof...(Versions) != 0u, "At least one versioned payload type must be provided");
     if (section.is_container()) {
         OPENVINO_THROW("Cannot decode a container section as a raw ORC payload");
     }
-    return detail::load_versioned_payload_impl<Target, Versions...>(section);
+    return detail::load_versioned_payload_impl<Target, First, Rest...>(section);
+}
+
+namespace detail {
+
+// Walk the Prev chain of Current (oldest → newest) to find a matching version,
+// then migrate up to Target via migrate_chain.  Requires Target to define Prev
+// pointing at its immediately preceding frozen type.
+template <typename Target, typename Current>
+Target load_versioned_payload_chain_impl(const Section& section) {
+    static_assert(has_version<Current>::value, "All versioned ORC types must define kVersion");
+    if (section.version == Current::kVersion) {
+        return migrate_chain<Target>(decode<Current>(section.payload));
+    }
+    if constexpr (has_prev<Current>::value) {
+        return load_versioned_payload_chain_impl<Target, typename Current::Prev>(section);
+    }
+    OPENVINO_THROW("Unsupported ORC section version ", section.version, " for type ID ", section.type);
+}
+
+}  // namespace detail (reopened)
+
+// Single-arg form: version list is derived automatically from Target::Prev chain.
+// Target must define:
+//   using Prev = <most-recent frozen snapshot type>;  (updated each time a new version ships)
+//   static constexpr Version kVersion = Prev::kVersion;
+// Call site stays permanently neutral: load_versioned_payload<MyType>(section).
+template <typename Target>
+Target load_versioned_payload(const Section& section) {
+    static_assert(has_prev<Target>::value,
+                  "Single-arg load_versioned_payload requires Target to define 'using Prev = ...'");
+    if (section.is_container()) {
+        OPENVINO_THROW("Cannot decode a container section as a raw ORC payload");
+    }
+    return detail::load_versioned_payload_chain_impl<Target, typename Target::Prev>(section);
 }
 
 }  // namespace orc
@@ -427,12 +465,19 @@ Target load_versioned_payload(const Section& section) {
 
 // Injects the standard versioning boilerplate into a frozen versioned type.
 // PrevType must already define kVersion; ThisType must be the enclosing struct name.
+// The base (V0) type defines kVersion = 0 manually — ORC_DECLARE_VERSION is only
+// used for V1 and later.
 //
 // Example:
-//   struct MyTypeV2 : MyTypeV1 {
-//       ORC_DECLARE_VERSION(MyTypeV2, MyTypeV1)
-//       int new_field = 0;
-//       void serialize(Stream& stream) { Prev::serialize(stream); stream & new_field; }
+//   struct V0 {
+//       static constexpr Version kVersion = 0;
+//       int x = 0;
+//       void serialize(Stream& stream) { stream & x; }
+//   };
+//   struct V1 : V0 {
+//       ORC_DECLARE_VERSION(V1, V0)   // kVersion = 1
+//       int y = 0;
+//       void serialize(Stream& stream) { Prev::serialize(stream); stream & y; }
 //   };
 #define ORC_DECLARE_VERSION(ThisType, PrevType)                               \
     using Prev = PrevType;                                                    \

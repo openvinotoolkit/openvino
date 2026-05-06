@@ -4,8 +4,6 @@
 
 #include "lazy_tensor.hpp"
 
-#include "orc.hpp"
-
 #include <tuple>
 #include <type_traits>
 #include <variant>
@@ -18,6 +16,7 @@
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
+#include "orc.hpp"
 #include "util.hpp"
 
 using ov::npuw::weights::LazyTensor;
@@ -363,12 +362,12 @@ void Gather::detach() {
 // Once assigned, IDs are NEVER changed and NEVER reused, even if an op is retired.
 // Retired IDs must be kept as comments to prevent accidental recycling.
 enum class TransformType : std::uint16_t {
-    CONST   = 1,
-    CONCAT  = 2,
-    UNPACK  = 3,
+    CONST = 1,
+    CONCAT = 2,
+    UNPACK = 3,
     PERMUTE = 4,
     CONVERT = 5,
-    GATHER  = 6,
+    GATHER = 6,
 };
 
 struct LazyTensorImpl {
@@ -437,6 +436,77 @@ namespace ov {
 namespace npuw {
 namespace weights {
 namespace op {
+
+// ---- V0 frozen snapshot serializers ----------------------------------------
+
+void Const::V0::serialize(ov::npuw::orc::Stream& stream) {
+    std::string type_str;
+    if (stream.output()) type_str = m_cached_type.to_string();
+    stream & type_str & m_cached_shape & m_offset & m_byte_size;
+    if (stream.input()) m_cached_type = ov::element::Type(type_str);
+    bool has_weight = static_cast<bool>(m_read_from_bin);
+    stream & has_weight;
+    if (has_weight) stream & m_read_from_bin;
+}
+
+void Concat::V0::serialize(ov::npuw::orc::Stream& stream) {
+    stream & axis & tensors;
+}
+
+void Unpack::V0::serialize(ov::npuw::orc::Stream& stream) {
+    std::string type_str;
+    if (stream.output()) type_str = type.to_string();
+    stream & type_str & shape & w & z & s;
+    if (stream.input()) type = ov::element::Type(type_str);
+}
+
+void Permute::V0::serialize(ov::npuw::orc::Stream& stream) {
+    stream & axes & tensor;
+}
+
+void Convert::V0::serialize(ov::npuw::orc::Stream& stream) {
+    std::string type_str;
+    if (stream.output()) type_str = type.to_string();
+    stream & type_str & tensor;
+    if (stream.input()) type = ov::element::Type(type_str);
+}
+
+void Gather::V0::serialize(ov::npuw::orc::Stream& stream) {
+    std::string type_str;
+    if (stream.output()) type_str = dst_type.to_string();
+    stream & type_str & dst_shape & w & t;
+    if (stream.input()) dst_type = ov::element::Type(type_str);
+}
+
+// ---- V0-arg constructors (migrate V0 → current) ----------------------------
+
+Const::Const(V0 v)
+    : m_cached_type(v.m_cached_type),
+      m_cached_shape(std::move(v.m_cached_shape)),
+      m_offset(v.m_offset),
+      m_byte_size(v.m_byte_size),
+      m_read_from_bin(std::move(v.m_read_from_bin)) {}
+
+Concat::Concat(V0 v) : axis(v.axis), tensors(std::move(v.tensors)) {}
+
+Unpack::Unpack(V0 v)
+    : w(std::move(v.w)),
+      z(std::move(v.z)),
+      s(std::move(v.s)),
+      type(v.type),
+      shape(std::move(v.shape)) {}
+
+Permute::Permute(V0 v) : tensor(std::move(v.tensor)), axes(std::move(v.axes)) {}
+
+Convert::Convert(V0 v) : tensor(std::move(v.tensor)), type(v.type) {}
+
+Gather::Gather(V0 v)
+    : w(std::move(v.w)),
+      t(std::move(v.t)),
+      dst_type(v.dst_type),
+      dst_shape(std::move(v.dst_shape)) {}
+
+// ---- Current-version serializers (write path) ----------------------------------------
 
 void Const::serialize(ov::npuw::orc::Stream& stream) {
     std::string type_str;
@@ -521,28 +591,22 @@ void LazyTensorImpl::serialize(ov::npuw::orc::Stream& stream) {
     ov::npuw::orc::serialize(stream, section);
     switch (static_cast<TransformType>(section.type)) {
     case TransformType::CONCAT:
-        m_transform.emplace<op::Concat>(
-            ov::npuw::orc::load_versioned_payload<op::Concat, op::Concat>(section));
+        m_transform.emplace<op::Concat>(ov::npuw::orc::load_versioned_payload<op::Concat>(section));
         break;
     case TransformType::CONST:
-        m_transform.emplace<op::Const>(
-            ov::npuw::orc::load_versioned_payload<op::Const, op::Const>(section));
+        m_transform.emplace<op::Const>(ov::npuw::orc::load_versioned_payload<op::Const>(section));
         break;
     case TransformType::CONVERT:
-        m_transform.emplace<op::Convert>(
-            ov::npuw::orc::load_versioned_payload<op::Convert, op::Convert>(section));
+        m_transform.emplace<op::Convert>(ov::npuw::orc::load_versioned_payload<op::Convert>(section));
         break;
     case TransformType::PERMUTE:
-        m_transform.emplace<op::Permute>(
-            ov::npuw::orc::load_versioned_payload<op::Permute, op::Permute>(section));
+        m_transform.emplace<op::Permute>(ov::npuw::orc::load_versioned_payload<op::Permute>(section));
         break;
     case TransformType::UNPACK:
-        m_transform.emplace<op::Unpack>(
-            ov::npuw::orc::load_versioned_payload<op::Unpack, op::Unpack>(section));
+        m_transform.emplace<op::Unpack>(ov::npuw::orc::load_versioned_payload<op::Unpack>(section));
         break;
     case TransformType::GATHER:
-        m_transform.emplace<op::Gather>(
-            ov::npuw::orc::load_versioned_payload<op::Gather, op::Gather>(section));
+        m_transform.emplace<op::Gather>(ov::npuw::orc::load_versioned_payload<op::Gather>(section));
         break;
     default:
         OPENVINO_THROW("ORC LazyTensor: unknown op_type ", section.type, " — please upgrade NPUW");
