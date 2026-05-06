@@ -15,7 +15,41 @@
 #include "snippets/emitter.hpp"
 #include "snippets/lowered/expression_port.hpp"
 
-namespace ov::intel_cpu::aarch64::utils {
+namespace ov::intel_cpu::aarch64 {
+
+class EmitABIRegSpills {
+public:
+    explicit EmitABIRegSpills(dnnl::impl::cpu::aarch64::jit_generator_t* h_arg);
+    ~EmitABIRegSpills();
+
+    [[nodiscard]] size_t get_num_spilled_regs() const {
+        return m_regs_to_spill.size();
+    }
+
+    [[nodiscard]] const std::vector<Xbyak_aarch64::Reg>& get_spilled_regs() const {
+        return m_regs_to_spill;
+    }
+
+    void preamble(const std::vector<Xbyak_aarch64::Reg>& live_regs);
+    void preamble(const std::set<snippets::Reg>& live_regs);
+    void postamble();
+
+    static void store_regs_to_stack(dnnl::impl::cpu::aarch64::jit_generator_t* h,
+                                    const std::vector<Xbyak_aarch64::Reg>& regs_to_store);
+    static void load_regs_from_stack(dnnl::impl::cpu::aarch64::jit_generator_t* h,
+                                     const std::vector<Xbyak_aarch64::Reg>& regs_to_load);
+
+private:
+    dnnl::impl::cpu::aarch64::jit_generator_t* h = nullptr;
+    std::vector<Xbyak_aarch64::Reg> m_regs_to_spill;
+    bool spill_status = true;
+};
+
+namespace utils {
+
+Xbyak_aarch64::Reg to_xbyak_reg(const snippets::Reg& reg);
+std::vector<Xbyak_aarch64::Reg> to_xbyak_regs(const std::set<snippets::Reg>& regs);
+std::vector<Xbyak_aarch64::Reg> to_xbyak_regs(const std::vector<snippets::Reg>& regs);
 
 inline static std::vector<Xbyak_aarch64::XReg> transform_idxs_to_regs(const std::vector<size_t>& idxs) {
     std::vector<Xbyak_aarch64::XReg> regs;
@@ -119,4 +153,5 @@ void push_ptrs_with_offsets_to_stack(dnnl::impl::cpu::aarch64::jit_generator_t* 
                                      const std::vector<Xbyak_aarch64::XReg>& aux_regs,
                                      const std::vector<int32_t>& stack_offsets);
 
-}  // namespace ov::intel_cpu::aarch64::utils
+}  // namespace utils
+}  // namespace ov::intel_cpu::aarch64

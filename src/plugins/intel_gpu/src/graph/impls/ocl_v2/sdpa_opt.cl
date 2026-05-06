@@ -501,7 +501,7 @@ KERNEL(sdpa_opt)(
             if (sgid == 0) {
                 for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
                     SOFTMAX_ACCUMULATOR_TYPE wg_max = SOFTMAX_ACCUMULATOR_VAL_MIN;
-                    
+
                     // Parallel reduction: each lane processes SUBGROUPS_PER_WG/SUBGROUP_SIZE elements
                     const uint num_sg_per_lane = CEIL_DIV(SUBGROUPS_PER_WG, SUBGROUP_SIZE);
                     for (uint i = 0; i < num_sg_per_lane; i++) {
@@ -510,10 +510,10 @@ KERNEL(sdpa_opt)(
                             wg_max = SOFTMAX_ACCUMULATOR_MAX_FUNC(wg_max, qk_max_vals[seq_idx * SUBGROUPS_PER_WG + sg_idx]);
                         }
                     }
-                    
+
                     // Horizontal reduction across subgroup lanes
                     wg_max = sub_group_reduce_max(wg_max);
-                    
+
                     if (sglid == 0) {
                         qk_max_vals[seq_idx * SUBGROUPS_PER_WG] = wg_max;
                     }
@@ -573,7 +573,7 @@ KERNEL(sdpa_opt)(
             if (sgid == 0) {
                 for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
                     SOFTMAX_ACCUMULATOR_TYPE wg_sum = SOFTMAX_ACCUMULATOR_VAL_ZERO;
-                    
+
                     // Parallel reduction: each lane processes SUBGROUPS_PER_WG/SUBGROUP_SIZE elements
                     const uint num_sg_per_lane = CEIL_DIV(SUBGROUPS_PER_WG, SUBGROUP_SIZE);
                     for (uint i = 0; i < num_sg_per_lane; i++) {
@@ -582,10 +582,10 @@ KERNEL(sdpa_opt)(
                             wg_sum += qk_sum_vals[seq_idx * SUBGROUPS_PER_WG + sg_idx];
                         }
                     }
-                    
+
                     // Horizontal reduction across subgroup lanes
                     wg_sum = sub_group_reduce_add(wg_sum);
-                    
+
                     if (sglid == 0) {
                         qk_sum_vals[seq_idx * SUBGROUPS_PER_WG] = wg_sum;
                     }
@@ -953,8 +953,8 @@ inline SEQ_RANGE FUNC(calc_sliding_window_seq_range)(const SEQ_RANGE default_seq
     // Compute per-lane effective causal limit to extend the visible range for image tokens
     // This is a REFERENCE implementation.
     inline SEQ_RANGE FUNC(calc_bi_dir_seq_range)(
-                            const __global int* token_type_ids, 
-                            const int seq_len, 
+                            const __global int* token_type_ids,
+                            const int seq_len,
                             const SEQ_RANGE default_seq_range) {
         int token_group_end = default_seq_range.max;
         int token_group_begin = default_seq_range.max;
@@ -1095,14 +1095,14 @@ KERNEL(sdpa_opt)(
 #if IS_CAUSAL
     const SEQ_RANGE default_this_work_item_seq_range = {0, target_seq_idx + sglid, target_seq_idx + seq_idx_end};
     SEQ_RANGE this_work_item_seq_range_temp = default_this_work_item_seq_range;
-    
+
     #if IS_PAGED_ATTENTION
         #if HAS_TOKEN_TYPE_IDS
-            const SEQ_RANGE bi_dir_range = FUNC_CALL(calc_bi_dir_seq_range)(token_type_ids, 
-                                                                            SOURCE_SEQ_LEN, 
+            const SEQ_RANGE bi_dir_range = FUNC_CALL(calc_bi_dir_seq_range)(token_type_ids,
+                                                                            SOURCE_SEQ_LEN,
                                                                             default_this_work_item_seq_range);
             this_work_item_seq_range_temp = bi_dir_range;
-        #endif //< HAS_TOKEN_TYPE_IDS   
+        #endif //< HAS_TOKEN_TYPE_IDS
 
         #if SLIDING_WINDOW_SIZE != 0
             const SEQ_RANGE sliding_window_range = FUNC_CALL(calc_sliding_window_seq_range)(default_this_work_item_seq_range);
@@ -1499,7 +1499,7 @@ KERNEL(sdpa_opt)(
 #if IS_CAUSAL
                     // causal mask: valid only if m >= n
                     const int curr_seq_idx = seq_len + i;
-                    if ((curr_seq_idx <= this_work_item_seq_range.max) 
+                    if ((curr_seq_idx <= this_work_item_seq_range.max)
                         && (curr_seq_idx >= this_work_item_seq_range.min)) {
 #endif  // IS_CAUSAL
 
@@ -1657,7 +1657,7 @@ KERNEL(sdpa_opt)(
 
             SOFTMAX_ACCUMULATOR_TYPE exp_sum_new = SOFTMAX_ACCUMULATOR_VAL_ZERO;
 
-            for (int i = 0; i < TARGET_SEQ_LEN_BLOCK_SIZE; i++) {    
+            for (int i = 0; i < TARGET_SEQ_LEN_BLOCK_SIZE; i++) {
 #if IS_CAUSAL
                 const int curr_seq_idx = seq_len + i;
                 if ((curr_seq_idx <= this_work_item_seq_range.max)
@@ -2219,7 +2219,7 @@ KERNEL(sdpa_opt_finalization_stage)(
                                          target_seq_idx * (num_of_partitions);
     __global SOFTMAX_ACCUMULATOR_TYPE* cur_exp_sums = exp_sums + offset;
     __global SOFTMAX_ACCUMULATOR_TYPE* cur_max_logits = max_logits + offset;
-    __local SOFTMAX_ACCUMULATOR_TYPE tmp_slm[SUBGROUP_SIZE];
+    __local SOFTMAX_ACCUMULATOR_TYPE tmp_slm[SUBGROUPS_PER_WG];
     __local SOFTMAX_ACCUMULATOR_TYPE max_logits_u_exp_sum[MAX_PARTITIONS_NUM];
 
     SOFTMAX_ACCUMULATOR_TYPE local_max_logit = SOFTMAX_ACCUMULATOR_VAL_MIN;
@@ -2234,8 +2234,15 @@ KERNEL(sdpa_opt_finalization_stage)(
     }
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    if (sglid < V_HEAD_SIZE / SUBGROUP_SIZE) {
-        local_max_logit = tmp_slm[sglid];
+    {
+        SOFTMAX_ACCUMULATOR_TYPE folded_max = SOFTMAX_ACCUMULATOR_VAL_MIN;
+        unroll_for (uint i = 0; i < CEIL_DIV(SUBGROUPS_PER_WG, SUBGROUP_SIZE); i++) {
+            const uint sg_idx = sglid + i * SUBGROUP_SIZE;
+            if (sg_idx < SUBGROUPS_PER_WG) {
+                folded_max = SOFTMAX_ACCUMULATOR_MAX_FUNC(folded_max, tmp_slm[sg_idx]);
+            }
+        }
+        local_max_logit = folded_max;
     }
     SOFTMAX_ACCUMULATOR_TYPE global_max = sub_group_reduce_max(local_max_logit);
 
@@ -2251,9 +2258,15 @@ KERNEL(sdpa_opt_finalization_stage)(
         tmp_slm[sgid] = local_exp_sum;
     }
     barrier(CLK_LOCAL_MEM_FENCE);
-    local_exp_sum = 0;
-    if (sglid < V_HEAD_SIZE / SUBGROUP_SIZE) {
-        local_exp_sum = tmp_slm[sglid];
+    {
+        SOFTMAX_ACCUMULATOR_TYPE folded_sum = SOFTMAX_ACCUMULATOR_VAL_ZERO;
+        unroll_for (uint i = 0; i < CEIL_DIV(SUBGROUPS_PER_WG, SUBGROUP_SIZE); i++) {
+            const uint sg_idx = sglid + i * SUBGROUP_SIZE;
+            if (sg_idx < SUBGROUPS_PER_WG) {
+                folded_sum += tmp_slm[sg_idx];
+            }
+        }
+        local_exp_sum = folded_sum;
     }
 
     SOFTMAX_ACCUMULATOR_TYPE global_exp_sum = sub_group_reduce_add(local_exp_sum);
