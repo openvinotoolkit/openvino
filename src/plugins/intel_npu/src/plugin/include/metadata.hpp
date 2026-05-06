@@ -163,10 +163,10 @@ constexpr std::string_view BATCH = "batch";
 /**
  * @brief List of known attributes in the human-readable metadata format.
  */
-constexpr std::array metadataTextAttributes = {MetadataTextKeys::META,
-                                               MetadataTextKeys::OV,
-                                               MetadataTextKeys::WS_INITS,
-                                               MetadataTextKeys::BATCH};
+inline constexpr std::array metadataTextAttributes = {MetadataTextKeys::META,
+                                                      MetadataTextKeys::OV,
+                                                      MetadataTextKeys::WS_INITS,
+                                                      MetadataTextKeys::BATCH};
 
 /**
  * @brief List of supported version formats.
