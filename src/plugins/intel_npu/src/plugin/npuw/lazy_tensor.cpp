@@ -437,7 +437,6 @@ namespace npuw {
 namespace weights {
 namespace op {
 
-
 void Const::serialize(ov::npuw::orc::Stream& stream) {
     std::string type_str;
     if (stream.output()) {

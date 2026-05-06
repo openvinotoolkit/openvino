@@ -442,7 +442,7 @@ Target load_versioned_payload_chain_impl(const Section& section) {
     OPENVINO_THROW("Unsupported ORC section version ", section.version, " for type ID ", section.type);
 }
 
-}  // namespace detail (reopened)
+}  // namespace detail
 
 // Single-arg form: version list is derived automatically from the Target's Prev chain.
 //
