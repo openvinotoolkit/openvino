@@ -19,6 +19,7 @@
 
 #include "openvino/op/paged_attention.hpp"
 
+#include <atomic>
 #include <cmath>
 #include <cstdlib>
 #include <functional>
@@ -28,6 +29,7 @@
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reduce_max.hpp"
@@ -143,8 +145,10 @@ OutputVector translate_openvino_paged_attention(const NodeContext& context) {
             q_ps[q_ps.rank().get_length() - 1].is_static()) {
             double head_dim = static_cast<double>(q_ps[q_ps.rank().get_length() - 1].get_length());
             double scale_val = 1.0 / std::sqrt(head_dim);
+            // scale must be f16 or f32 per PA validator; bf16 rejected
             auto scale_et_tmp = query.get_element_type();
-            if (scale_et_tmp == element::dynamic) scale_et_tmp = element::f32;
+            if (scale_et_tmp == element::dynamic || scale_et_tmp == element::bf16)
+                scale_et_tmp = element::f32;
             scale_from_q = v0::Constant::create(scale_et_tmp, Shape{}, {static_cast<float>(scale_val)});
         }
     }
@@ -192,14 +196,39 @@ OutputVector translate_openvino_paged_attention(const NodeContext& context) {
     force_rank2(key);
     force_rank2(value);
 
+    // Convert q/k/v to the PA target dtype (env-selectable; default f32).
+    auto original_q_et = query.get_element_type();
+    // Q/K/V compute dtype (selectable). KV cache dtype is controlled by the
+    // plugin's KV_CACHE_PRECISION config; we emit a Parameter with dynamic
+    // element type and let the plugin override. This matches how OV GenAI
+    // works: runtime_options.kv_cache_precision drives cache quant.
+    element::Type pa_dtype = element::f32;
+    if (const char* e = std::getenv("OV_PA_DTYPE")) {
+        std::string s = e;
+        if (s == "f16") pa_dtype = element::f16;
+        else if (s == "bf16") pa_dtype = element::bf16;
+        else if (s == "f32") pa_dtype = element::f32;
+    }
+    auto to_pa_dtype = [&](Output<Node>& t) {
+        if (t.get_element_type() != pa_dtype) {
+            t = std::make_shared<ov::op::v0::Convert>(t, pa_dtype);
+        }
+    };
+    to_pa_dtype(query);
+    to_pa_dtype(key);
+    to_pa_dtype(value);
+
     // Side-channel Parameters bound at infer time from ForwardContext.
     // Shapes/types here mirror PagedAttentionExtension::validate_and_infer_types().
     // key_cache/value_cache must have rank 2-5 per PA validator. vLLM CPU uses
     // [num_blocks, num_kv_heads, block_size, head_size] (rank 4).
     // KV caches are per-layer (different storage per attention layer).
-    auto key_cache = make_tagged_parameter(context, prefix + "key_cache", query.get_element_type(),
+    // KV cache Parameter dtype: use pa_dtype as placeholder. Plugin's
+    // KV_CACHE_PRECISION config overrides at compile time (matches genai).
+    auto kv_et = pa_dtype;
+    auto key_cache = make_tagged_parameter(context, prefix + "key_cache", kv_et,
                                            PartialShape{-1, -1, -1, -1});
-    auto value_cache = make_tagged_parameter(context, prefix + "value_cache", query.get_element_type(),
+    auto value_cache = make_tagged_parameter(context, prefix + "value_cache", kv_et,
                                              PartialShape{-1, -1, -1, -1});
     // Per-sequence metadata is identical across layers, so share a single
     // Parameter set across all PA ops in the model. Tagged "__pa__shared__*"
@@ -252,9 +281,10 @@ OutputVector translate_openvino_paged_attention(const NodeContext& context) {
     });
 
     // Default scalar/empty constants for unused PA inputs.
-    // Element type of scale follows q; for fp32 graphs this is f32.
-    auto scale_et = query.get_element_type();
-    if (scale_et == element::dynamic) scale_et = element::f32;
+    // Element type for real-valued PA inputs. PA validator only accepts
+    // f16/f32 for rotation_trig_lut/xattention_threshold; bf16 is rejected.
+    // Use f32 for all these LUTs regardless of PA compute dtype.
+    auto scale_et = (pa_dtype == element::bf16) ? element::f32 : pa_dtype;
     // scale is attention 1/sqrt(head_dim); extracted from q's pre-flatten shape
     // above. Falls back to 0.125 (head_dim=64) if q's rank/last-dim was dynamic.
     Output<Node> scale = scale_from_q.get_node_shared_ptr()
@@ -316,8 +346,13 @@ OutputVector translate_openvino_paged_attention(const NodeContext& context) {
                   << ", output ps=" << pa->output(0).get_partial_shape() << std::endl;
     }
     // PagedAttentionExtension has multiple outputs; the FX op returns just the
-    // attention output (output 0).
-    return {pa->output(0)};
+    // attention output (output 0). Convert back to query's original dtype
+    // (typically f16) so downstream MatMul weight dtypes match.
+    Output<Node> pa_out = pa->output(0);
+    if (original_q_et != element::f32 && !original_q_et.is_dynamic()) {
+        pa_out = std::make_shared<ov::op::v0::Convert>(pa_out, original_q_et);
+    }
+    return {pa_out};
 }
 
 }  // namespace op
