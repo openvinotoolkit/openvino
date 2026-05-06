@@ -36,7 +36,7 @@ public:
     [[nodiscard]] const std::vector<impl_desc_type>& getDefaultImplPriority() override;
 
     [[nodiscard]] int getFusingAxis() const override {
-        return getOutputShapeAtPort(0).getRank() - 1;
+        return static_cast<int>(getOutputShapeAtPort(0).getRank()) - 1;
     }
 
     void createPrimitive() override;

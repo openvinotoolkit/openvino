@@ -261,9 +261,10 @@ void Broadcast::plainExecute([[maybe_unused]] const dnnl::stream& strm) {
         size_t end = 0LU;
         VectorDims counters(dataDstRank, 0);
         splitter(workAmountDst, nthr, ithr, start, end);
-        for (int j = dataDstRank - 1, i = start; j >= 0; j--) {
-            counters[j] = i % dstDims[j];
-            i /= dstDims[j];
+        for (size_t remaining = dataDstRank, idx = start; remaining > 0; --remaining) {
+            size_t j = remaining - 1;
+            counters[j] = idx % dstDims[j];
+            idx /= dstDims[j];
         }
         for (size_t iwork = start * dataSize; iwork < end * dataSize; iwork += dataSize) {
             for (i = 0LU, srcIdx = 0LU; i < dataDstRank; ++i) {
@@ -272,7 +273,8 @@ void Broadcast::plainExecute([[maybe_unused]] const dnnl::stream& strm) {
 
             cpu_memcpy(&dstData[iwork], &srcData[srcIdx * dataSize], dataSize);
 
-            for (int j = dataDstRank - 1; j >= 0; j--) {
+            for (size_t remaining = dataDstRank; remaining > 0; --remaining) {
+                const size_t j = remaining - 1;
                 counters[j] = (counters[j] + 1) % dstDims[j];
                 if (counters[j] != 0) {
                     break;

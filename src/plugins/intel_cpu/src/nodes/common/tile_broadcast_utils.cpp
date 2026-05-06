@@ -33,7 +33,8 @@ namespace ov::intel_cpu {
 VectorDims TileBroadcastCommon::calculateDenseStrides(const VectorDims& dims) {
     VectorDims strides(dims.size(), 1);
 
-    for (int i = strides.size() - 2; i >= 0; i--) {
+    for (size_t remaining = strides.size(); remaining > 1; --remaining) {
+        const size_t i = remaining - 2;
         strides[i] = strides[i + 1] * dims[i + 1];
     }
 
@@ -316,7 +317,7 @@ void TileBroadcastCommon::optimizedExecute(const MemoryPtr& srcMemory,
                 optimizedParams.dims[2],
                 optimizedParams.dims[3],
                 optimizedParams.dims[4],
-                [&](int i0, int i1, int i2, int i3, int i4) {
+                [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
                     const auto* srcData2 =
                         srcData + (i0 * optimizedParams.srcStrides[0] + i1 * optimizedParams.srcStrides[1] +
                                    i2 * optimizedParams.srcStrides[2] + i3 * optimizedParams.srcStrides[3] +
@@ -339,7 +340,7 @@ void TileBroadcastCommon::optimizedExecute(const MemoryPtr& srcMemory,
             optimizedParams.dims[2],
             optimizedParams.dims[3],
             optimizedParams.dims[4],
-            [&](int i0, int i1, int i2, int i3, int i4) {
+            [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
                 const auto* srcData2 =
                     srcData + (i0 * optimizedParams.srcStrides[0] + i1 * optimizedParams.srcStrides[1] +
                                i2 * optimizedParams.srcStrides[2] + i3 * optimizedParams.srcStrides[3] +

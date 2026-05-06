@@ -416,10 +416,19 @@ template <typename TI, typename TO>
 void jit_convert(const TI* arg, TO* out, size_t count) {
     using jit_impl = jit_convert_array<TI, TO>;
     static auto converter = jit_impl::get();
+    constexpr bool is_fp8 = std::is_same_v<TI, ov::float8_e4m3> || std::is_same_v<TO, ov::float8_e4m3> ||
+                            std::is_same_v<TI, ov::float8_e5m2> || std::is_same_v<TO, ov::float8_e5m2>;
+    constexpr size_t vlen = is_fp8 ? 16 : 8;
 
     if (converter) {
-        typename jit_impl::args_t args = {arg, out, count};
-        converter(&args);
+        const size_t vectorized_count = count / vlen * vlen;
+        if (vectorized_count > 0) {
+            typename jit_impl::args_t args = {arg, out, vectorized_count};
+            converter(&args);
+        }
+        for (size_t i = vectorized_count; i < count; ++i) {
+            out[i] = static_cast<TO>(arg[i]);
+        }
     } else {
         for (size_t i = 0; i < count; ++i) {
             out[i] = static_cast<TO>(arg[i]);
@@ -561,6 +570,16 @@ struct ConvertContext {
 template <typename T>
 struct ConvertPrecision;
 
+#ifdef _MSC_VER
+#    pragma warning(push)
+#    pragma warning(disable : 4244)
+#elif defined(__GNUC__)
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wconversion"
+#elif defined(__clang__)
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wconversion"
+#endif
 template <typename src_t, typename dst_t>
 struct ConvertPrecision<std::tuple<src_t, dst_t>> {
     template <typename Ctx>
@@ -596,7 +615,13 @@ struct ConvertPrecision<std::tuple<src_t, dst_t>> {
         ctx.converted = true;
     }
 };
-
+#ifdef _MSC_VER
+#    pragma warning(pop)
+#elif defined(__GNUC__)
+#    pragma GCC diagnostic pop
+#elif defined(__clang__)
+#    pragma clang diagnostic pop
+#endif
 template <>
 struct ConvertPrecision<std::tuple<float, ov::intel_cpu::bfloat16_t>> {
     template <typename Ctx>
@@ -878,7 +903,8 @@ struct ConvertFromBinPrecision<std::tuple<src_t, dst_t>> {
         LoopPolicy::run(nBytes, [&](size_t byteIndex) {
             auto currentBitNum = std::min(nBits, ctx.size - byteIndex * nBits);
             for (size_t bitIndex = 0; bitIndex < currentBitNum; ++bitIndex) {
-                dst[byteIndex * nBits + bitIndex] = static_cast<dst_t>((src[byteIndex] & (1 << bitIndex)) >> bitIndex);
+                const auto bit = static_cast<uint8_t>((src[byteIndex] >> bitIndex) & 0x1U);
+                dst[byteIndex * nBits + bitIndex] = static_cast<dst_t>(bit);
             }
         });
         ctx.converted = true;

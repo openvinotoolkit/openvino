@@ -49,8 +49,8 @@ private:
         float padValue = 0.F;
         VectorIdxs padsBegin;
         VectorIdxs padsEnd;
-        int beginPadIdx = 0;
-        int endPadIdx = 0;
+        int32_t beginPadIdx = 0;
+        int32_t endPadIdx = 0;
         ov::element::Type prc;
         bool constPadValue = false;
         std::shared_ptr<CpuParallel> cpuParallel;
