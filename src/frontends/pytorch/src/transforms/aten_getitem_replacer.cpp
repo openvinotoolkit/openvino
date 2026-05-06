@@ -175,7 +175,8 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
                     return false;
                 }
                 auto idx_val = idx[0];
-                auto num_inputs = static_cast<int64_t>(seq_mark->get_input_size());
+                auto inputs = seq_mark->get_sequence();
+                auto num_inputs = static_cast<int64_t>(inputs.size());
                 if (idx_val < -num_inputs || idx_val >= num_inputs) {
                     add_exception_to_fw_node(getitem,
                                              "aten::__getitem__: index " + std::to_string(idx[0]) +
@@ -186,7 +187,7 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
                 if (idx_val < 0) {
                     idx_val += num_inputs;
                 }
-                getitem->output(0).replace(seq_mark->input_value(idx_val));
+                getitem->output(0).replace(inputs[idx_val]);
             } else {
                 auto input_concat = concat_list_construct(seq_mark);
                 auto zero = v0::Constant::create(element::i32, Shape{}, {0});
