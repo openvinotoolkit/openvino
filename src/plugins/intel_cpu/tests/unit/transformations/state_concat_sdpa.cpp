@@ -640,14 +640,14 @@ TEST_F(TransformationTestsF, StateConcatSDPAShapeOfOnConcatKRerouteSucceeds) {
 // Test modelled after Gemma3n's shared-KV topology: one ReadValue fans out
 // to two Gathers, each feeding its own Concat → SDPA. Both SDPAs share the
 // same K-Variable and V-Variable through a single ReadValue node. The
-// past_k / past_v consumer-count guard at matcher entry observes more than
-// one non-ShapeOf consumer of the shared ReadValue and refuses fusion for
-// both branches. Fusing the writer alone is unsafe because the reader's
-// Gather child stays attached to the MemoryInput at graph-optimizer time,
-// MatchSdpaKvCache then refuses to promote the MemoryInput, and the fused
-// kernel crashes with "null input states" at execute time.
+// shared-KV detection observes the same variable_id from both matches and
+// keeps the topologically-first SDPA (the cache writer feeding the Assign)
+// fused, while leaving the second SDPA (the reader) as a plain
+// v13::ScaledDotProductAttention. ScaledDotProductAttentionWithKVCache only
+// supports a single owner-writer per K / V state, so the reader must NOT
+// fuse — otherwise the runtime crashes with "null input states".
 static std::shared_ptr<ov::Model>
-makeGemma3nLikeSharedKVModel(const ov::PartialShape& inputShape) {
+makeGemma3nLikeSharedKVModel(const ov::PartialShape& inputShape, bool isRef = false) {
     auto q1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputShape);
     auto k1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputShape);
     auto v1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputShape);
@@ -665,14 +665,29 @@ makeGemma3nLikeSharedKVModel(const ov::PartialShape& inputShape) {
     auto past_k = std::make_shared<ov::op::v6::ReadValue>(init_k, var_k);
     auto past_v = std::make_shared<ov::op::v6::ReadValue>(init_v, var_v);
 
-    auto branch1 = make_plain_kv_branch(q1, k1, v1, beam_idx, past_k, past_v);
-    auto branch2 = make_plain_kv_branch(q2, k2, v2, beam_idx, past_k, past_v);
-    // One Assign pair writes back to the shared Variables (from branch 1).
-    auto assign_k = std::make_shared<ov::op::v6::Assign>(branch1.concat_k, var_k);
-    auto assign_v = std::make_shared<ov::op::v6::Assign>(branch1.concat_v, var_v);
+    ov::Output<ov::Node> sdp1_out, sdp2_out;
+    std::shared_ptr<ov::op::v6::Assign> assign_k, assign_v;
+    if (isRef) {
+        // Branch 1 = writer → fused. Its K / V outputs feed the shared Assigns.
+        auto fused = make_fused_kv_branch(q1, k1, v1, beam_idx, past_k, past_v);
+        sdp1_out = fused->output(0);
+        assign_k = std::make_shared<ov::op::v6::Assign>(fused->output(1), var_k);
+        assign_v = std::make_shared<ov::op::v6::Assign>(fused->output(2), var_v);
+        // Branch 2 = reader → must NOT fuse.
+        auto reader = make_plain_kv_branch(q2, k2, v2, beam_idx, past_k, past_v);
+        sdp2_out = reader.sdpa->output(0);
+    } else {
+        auto branch1 = make_plain_kv_branch(q1, k1, v1, beam_idx, past_k, past_v);
+        auto branch2 = make_plain_kv_branch(q2, k2, v2, beam_idx, past_k, past_v);
+        sdp1_out = branch1.sdpa->output(0);
+        sdp2_out = branch2.sdpa->output(0);
+        // One Assign pair writes back to the shared Variables (from branch 1).
+        assign_k = std::make_shared<ov::op::v6::Assign>(branch1.concat_k, var_k);
+        assign_v = std::make_shared<ov::op::v6::Assign>(branch1.concat_v, var_v);
+    }
 
-    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(branch1.sdpa),
-                             std::make_shared<ov::op::v0::Result>(branch2.sdpa)};
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(sdp1_out),
+                             std::make_shared<ov::op::v0::Result>(sdp2_out)};
     ov::SinkVector sinks{assign_k, assign_v};
     return std::make_shared<ov::Model>(results,
                                        sinks,
@@ -680,15 +695,14 @@ makeGemma3nLikeSharedKVModel(const ov::PartialShape& inputShape) {
                                        "Gemma3nLikeSharedKV");
 }
 
-TEST_F(TransformationTestsF, StateConcatSDPAGemma3nLikeSharedKVRefusesFusion) {
+TEST_F(TransformationTestsF, StateConcatSDPAGemma3nLikeSharedKV) {
 #if defined(OPENVINO_ARCH_X86_64) && (defined(__ANDROID__) || defined(ANDROID))
     test_skipped = true;
-    GTEST_SKIP() << "Skipping Gemma3nLikeSharedKVRefusesFusion on Android X64";
+    GTEST_SKIP() << "Skipping Gemma3nLikeSharedKV on Android X64";
 #endif
-    // Both branches must remain unfused: leaving model_ref unset lets the
-    // fixture compare the transformed model against a clone of the input.
     auto inputShape = ov::PartialShape{-1, 8, -1, 64};
     model = makeGemma3nLikeSharedKVModel(inputShape);
+    model_ref = makeGemma3nLikeSharedKVModel(inputShape, /*isRef=*/true);
     manager.register_pass<StatefulSDPAFusion>();
 }
 

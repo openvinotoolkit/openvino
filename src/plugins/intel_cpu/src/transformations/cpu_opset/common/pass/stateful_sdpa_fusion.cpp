@@ -189,29 +189,6 @@ public:
             if (!check_valid_children_type(past_k_node) || !check_valid_children_type(past_v_node)) {
                 return false;
             }
-            // Defense-in-depth against the writer-fused-reader-plain topology
-            // (one ReadValue with multiple non-ShapeOf consumers, only one of
-            // them feeding an Assign). If the writer fuses, the reader's
-            // Gather / Convert child stays attached to the MemoryInput;
-            // GraphOptimizer::MatchSdpaKvCache only promotes a MemoryInput
-            // whose children are in {SDPA, ShapeOf}, so without this guard
-            // the unpromoted MemoryInput leaves the fused node's K / V state
-            // unbound and the kernel then crashes with "null input states"
-            // at execute time. The orthogonal "two ReadValues aliasing one
-            // Variable" corner case is covered separately by
-            // processed_*_variable_ids.
-            auto count_data_consumers = [](const std::shared_ptr<ov::Node>& rv) {
-                size_t count = 0;
-                for (const auto& target : rv->get_output_target_inputs(0)) {
-                    if (!ov::is_type_any_of<ov::op::v0::ShapeOf, ov::op::v3::ShapeOf>(target.get_node())) {
-                        ++count;
-                    }
-                }
-                return count;
-            };
-            if (count_data_consumers(past_k_node) > 1 || count_data_consumers(past_v_node) > 1) {
-                return false;
-            }
             for (auto&& item : {concat_k_node, concat_v_node}) {
                 auto&& children = item->get_output_target_inputs(0);
                 switch (children.size()) {
