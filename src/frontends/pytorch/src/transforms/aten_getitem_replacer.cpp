@@ -78,14 +78,32 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
                 auto axis_const = ov::util::get_constant_from_source(axis);
                 auto split_size_const = ov::util::get_constant_from_source(split_size);
                 if (getitem_idx_const && axis_const && split_size_const && input_pshape.rank().is_static()) {
-                    auto axis_val = axis_const->cast_vector<int64_t>()[0];
+                    auto axis_const_1d = axis_const->cast_vector<int64_t>();
+                    if (axis_const_1d.size() != 1) {
+                        add_exception_to_fw_node(getitem, "aten::__getitem__ axis is not scalar.");
+                        return false;
+                    }
+                    auto axis_val = axis_const_1d[0];
                     auto input_rank = static_cast<int64_t>(input_pshape.rank().get_length());
+                    if (input_rank < 0) {  // NOTE: Very unlikely, but staying on the safe side
+                        add_exception_to_fw_node(getitem, "aten::__getitem__ input_rank overflow.");
+                        return false;
+                    }
                     if (axis_val < 0)
                         axis_val += input_rank;
                     if (axis_val >= 0 && axis_val < input_rank && input_pshape[axis_val].is_static()) {
                         auto dim_size = input_pshape[axis_val].get_length();
-                        auto ss = split_size_const->cast_vector<int64_t>()[0];
-                        auto num_splits = (dim_size + ss - 1) / ss;
+                        auto split_size_const_1d = split_size_const->cast_vector<int64_t>();
+                        if (split_size_const_1d.size() != 1) {
+                            add_exception_to_fw_node(getitem, "aten::__getitem__ split_size is not scalar.");
+                            return false;
+                        }
+                        auto split_size = split_size_const_1d[0];
+                        if (split_size <= 0) {
+                            add_exception_to_fw_node(getitem, "aten::__getitem__ split_size must be positive.");
+                            return false;
+                        }
+                        auto num_splits = (dim_size + split_size - 1) / split_size;
                         auto idx_val = getitem_idx_const->cast_vector<int64_t>()[0];
                         if (idx_val < -num_splits || idx_val >= num_splits) {
                             add_exception_to_fw_node(getitem,
