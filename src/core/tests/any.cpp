@@ -801,47 +801,48 @@ TEST_F(AnyTests, AnyAsOtherTypeIsIncosisoinet) {
     EXPECT_EQ(a_str, "30");
 }
 
+using MapStrStr = std::map<std::string, std::string>;
+
 TEST_F(AnyTests, ParseForceImplementationsMapSimple) {
     const std::string force_impl_string = "{conv1:ocl:kernelname:any}";
     ov::Any any(force_impl_string);
 
-    ov::AnyMap map;
-    OV_ASSERT_NO_THROW(map = any.as<ov::AnyMap>());
+    MapStrStr map;
+    OV_ASSERT_NO_THROW(map = any.as<MapStrStr>());
     ASSERT_EQ(map.size(), 1);
 
     ASSERT_NE(map.find("conv1"), map.end());
-    ASSERT_TRUE(map["conv1"].is<std::string>());
-    ASSERT_EQ(map["conv1"].as<std::string>(), "ocl:kernelname:any");
+    ASSERT_EQ(map["conv1"], "ocl:kernelname:any");
 }
 
 TEST_F(AnyTests, ParseForceImplementationsMapMultipleEntries) {
     const std::string force_impl_string = "{conv1:ocl::any,conv2:sycl:convolution_gpu_ref:bfyx,pool1:ocl::any}";
     ov::Any any(force_impl_string);
 
-    ov::AnyMap map;
-    OV_ASSERT_NO_THROW(map = any.as<ov::AnyMap>());
+    MapStrStr map;
+    OV_ASSERT_NO_THROW(map = any.as<MapStrStr>());
     ASSERT_EQ(map.size(), 3);
 
     ASSERT_NE(map.find("conv1"), map.end());
-    ASSERT_EQ(map["conv1"].as<std::string>(), "ocl::any");
+    ASSERT_EQ(map["conv1"], "ocl::any");
 
     ASSERT_NE(map.find("conv2"), map.end());
-    ASSERT_EQ(map["conv2"].as<std::string>(), "sycl:convolution_gpu_ref:bfyx");
+    ASSERT_EQ(map["conv2"], "sycl:convolution_gpu_ref:bfyx");
 
     ASSERT_NE(map.find("pool1"), map.end());
-    ASSERT_EQ(map["pool1"].as<std::string>(), "ocl::any");
+    ASSERT_EQ(map["pool1"], "ocl::any");
 }
 
 TEST_F(AnyTests, ParseForceImplementationsMapWithLongNodeIds) {
     const std::string force_impl_string = "{\"layer:name\":ocl::any}";
     ov::Any any(force_impl_string);
 
-    ov::AnyMap map;
-    OV_ASSERT_NO_THROW(map = any.as<ov::AnyMap>());
+    MapStrStr map;
+    OV_ASSERT_NO_THROW(map = any.as<MapStrStr>());
     ASSERT_EQ(map.size(), 1);
 
     ASSERT_NE(map.find("layer:name"), map.end());
-    ASSERT_EQ(map["layer:name"].as<std::string>(), "ocl::any");
+    ASSERT_EQ(map["layer:name"], "ocl::any");
 }
 
 }  // namespace test
