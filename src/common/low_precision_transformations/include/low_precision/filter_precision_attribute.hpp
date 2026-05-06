@@ -4,7 +4,9 @@
 
 #pragma once
 
+#include "low_precision/layer_transformation.hpp"
 #include "low_precision/lpt_visibility.hpp"
+#include "openvino/op/fake_quantize.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 
 namespace ov {
@@ -16,16 +18,19 @@ namespace low_precision {
  * @brief FilterPrecisionAttribute resolves multi-precision PrecisionsAttribute
  * on FakeQuantize outputs to a single precision based on the FQ's output ranges.
  *
- * After MarkupOptimizations propagates PrecisionsAttribute (e.g., {u8, i8}) across
- * the graph, this pass visits each FakeQuantize and narrows the attribute to a single
- * precision determined by the FQ's output_low/output_high values (signed vs unsigned).
- * This ensures that downstream consumers (e.g., Convolution) see a resolved single
- * precision in the shared attribute before FakeQuantizeDecomposition runs.
+ * After MarkupOptimizations propagates a set of possible PrecisionsAttribute values
+ * (e.g. {u8, i8}), this pass visits each FakeQuantize and selects the most suitable
+ * precision from the existing set, based on the FQ’s output_low / output_high ranges
+ * (signed vs. unsigned).
+ * The selection prefers representations that avoid unnecessary zero-points, resulting
+ * in a single, resolved precision for downstream consumers.
  */
 class LP_TRANSFORMATIONS_API FilterPrecisionAttribute : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("low_precision::FilterPrecisionAttribute");
     FilterPrecisionAttribute();
+
+    static DataPrecision getDataPrecisionByOutputPort(std::shared_ptr<ov::op::v0::FakeQuantize> layer);
 };
 
 }  // namespace low_precision

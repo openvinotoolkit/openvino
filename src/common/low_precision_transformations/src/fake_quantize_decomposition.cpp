@@ -192,88 +192,6 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(
 }
 
 } // namespace
-
-// get precision details, depends on:
-// 1. FakeQuantize operation parameters (QuantizationDetails::getDetails & LayerTransformation::getPrecisionDetails)
-// 2. Precisions on port
-DataPrecision getDataPrecisionByOutputPort(std::shared_ptr<opset1::FakeQuantize> layer) {
-    const size_t levels = layer->get_levels();
-    const std::vector<float> outputLowValues = ov::as_type_ptr<opset1::Constant>(layer->get_input_node_shared_ptr(3))->cast_vector<float>();
-    const std::vector<float> outputHighValues = ov::as_type_ptr<opset1::Constant>(layer->get_input_node_shared_ptr(4))->cast_vector<float>();
-
-    auto precisionsAttribute = getAttributeFromOutput<PrecisionsAttribute>(layer->output(0));
-    if (precisionsAttribute.empty()) {
-        // TODO: explore this case in more details:
-        // 1. we should not be here
-        assert(true);
-
-        // 2. not possible to get optimal precision by decomposed FakeQuantize
-        LayerTransformation::PrecisionDetails precisionDetailsAtOutputIntervals = LayerTransformation::getPrecisionDetails(
-            levels,
-            outputLowValues,
-            outputHighValues);
-
-        return DataPrecision(
-            precisionDetailsAtOutputIntervals.precision,
-            DataPrecision::getMinValue(precisionDetailsAtOutputIntervals.precision, levels),
-            DataPrecision::getMaxValue(precisionDetailsAtOutputIntervals.precision, levels),
-            precisionDetailsAtOutputIntervals.hasZeroPoint);
-    }
-
-    const auto& precisions = precisionsAttribute.as<PrecisionsAttribute>().value();
-    std::vector<element::Type> precisionsForLevels{};
-    switch (levels) {
-        case low_precision::levels::int16:
-        case low_precision::levels::int16_narrow_range:
-            precisionsForLevels = {element::u16, element::i16};
-            break;
-        case low_precision::levels::int32:
-        case low_precision::levels::int32_narrow_range:
-            precisionsForLevels = {element::u32, element::i32};
-            break;
-        default:
-            precisionsForLevels = {element::u8, element::i8};
-    }
-    const auto resultPrecisions = NetworkHelper::precisionIntersection(precisions, precisionsForLevels);
-    if (resultPrecisions.empty()) {
-        return DataPrecision();
-    }
-
-    ov::element::Type precision;
-    bool hasZeroPoint;
-    if (resultPrecisions.size() > 1ul) {
-        LayerTransformation::PrecisionDetails precisionDetailsAtOutputIntervals = LayerTransformation::getPrecisionDetails(
-            levels,
-            outputLowValues,
-            outputHighValues);
-        const auto foundIt = std::find(resultPrecisions.begin(), resultPrecisions.end(), precisionDetailsAtOutputIntervals.precision);
-
-        if (foundIt == resultPrecisions.end()) {
-            precision = *resultPrecisions.begin();
-            hasZeroPoint = true;
-        } else {
-            precision = precisionDetailsAtOutputIntervals.precision;
-            hasZeroPoint = precisionDetailsAtOutputIntervals.hasZeroPoint;
-        }
-
-        // update shared attribute to affect all operations in subgraph
-        precisionsAttribute.as<PrecisionsAttribute>().value() = { precision };
-    } else {
-        // use only available precision
-        precision = *resultPrecisions.begin();
-        LayerTransformation::PrecisionDetails precisionDetailsAtOutputIntervals = LayerTransformation::getPrecisionDetails(
-            levels,
-            outputLowValues,
-            outputHighValues);
-        hasZeroPoint = precisionDetailsAtOutputIntervals.precision != precision;
-    }
-
-    return DataPrecision(
-        precision,
-        DataPrecision::getMinValue(precision, levels),
-        DataPrecision::getMaxValue(precision, levels),
-        hasZeroPoint);
-}
 } // namespace fq_decomposition
 
 bool FakeQuantizeDecompositionTransformation::transform(ov::pass::pattern::Matcher& m) {
@@ -326,10 +244,26 @@ bool FakeQuantizeDecompositionTransformation::transform(ov::pass::pattern::Match
         return rewritten;
     }
 
-    // check if level is supported in plugin
-    DataPrecision dataPrecision = fq_decomposition::getDataPrecisionByOutputPort(layer);
-    if (dataPrecision.empty()) {
-        return rewritten;
+    DataPrecision dataPrecision;
+    {
+        auto attr = getAttributeFromOutput<PrecisionsAttribute>(layer->output(0));
+        if (attr.empty()) {
+            return rewritten;
+        }
+        const auto& precisions = attr.as<PrecisionsAttribute>().value();
+        if (precisions.empty()) {
+            return rewritten;
+        }
+
+        const auto precision = precisions[0];
+        const size_t levels = layer->get_levels();
+
+        std::vector<float> outputLowValues, outputHighValues;
+        if (!fq_decomposition::getOutputRanges(layer, outputLowValues, outputHighValues)) {
+            return rewritten;
+        }
+
+        dataPrecision = fq_decomposition::makeDataPrecision(precision, levels, outputLowValues, outputHighValues);
     }
 
     PrecisionsAttribute precisionsAttribute(defaultPrecisions);
@@ -404,11 +338,7 @@ bool FakeQuantizeDecompositionTransformation::transform(ov::pass::pattern::Match
                 precision = *intervalsAlignment.as<IntervalsAlignmentAttribute>().value().preferablePrecisions.begin();
             }
 
-            dataPrecision = DataPrecision(
-                precision,
-                DataPrecision::getMinValue(precision, levels),
-                DataPrecision::getMaxValue(precision, levels),
-                LayerTransformation::getPrecisionDetails(levels, outputLowValues, outputHighValues).precision != precision);
+            dataPrecision = fq_decomposition::makeDataPrecision(precision, levels, outputLowValues, outputHighValues);
         }
     }
 

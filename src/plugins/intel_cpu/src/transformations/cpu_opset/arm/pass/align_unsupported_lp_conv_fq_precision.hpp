@@ -15,12 +15,9 @@
  *
  *     ARM ACL int8 convolution requires the same quantized element type (u8 or i8)
  *     for both the activation input and the post-convolution FakeQuantize output.
- *     When PrecisionsAttribute on the output FakeQuantize differs from the
- *     Convolution's input precision, FallbackUnsupportedLPConvToFP16 detects the
- *     mismatch and falls back to fp16, losing the int8 performance benefit.
  *
- *     This pass runs as an LPT prerequisite (after MarkupOptimizations) to force
- *     the output FakeQuantize PrecisionsAttribute to the Convolution's input type,
+ *     This pass runs as part of LPT MarkupOptimizations to force the output FakeQuantize
+ *     PrecisionsAttribute to the Convolution's input type (if possible),
  *     enabling FakeQuantizeDecomposition to produce matching quantization types
  *     that ACL can fuse into the convolution.
  *
@@ -36,8 +33,8 @@
  *                     |
  *     +---------------------------------+
  *     |         FakeQuantize            |
- *     | PrecisionsAttribute = { u8, i8 }|  <-- mismatch with conv input
- *     +---------------------------------+
+ *     | PrecisionsAttribute = { u8, i8 }|  <-- potential mismatch with conv input,
+ *     +---------------------------------+      since i8 may be chosen 
  *
  * After:
  *

@@ -47,7 +47,7 @@ public:
         const std::vector<PrecisionsRestriction>& precisionRestrictions,
         const std::vector<QuantizationGranularityRestriction>& quantizationRestrictions,
         const AttributeParameters& params,
-        const std::vector<std::shared_ptr<ov::pass::MatcherPass>>& additionalMarkupPasses = {});
+        const std::vector<std::shared_ptr<ov::pass::MatcherPass>>& additionalMarkupPasses);
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 private:
     const std::vector<PrecisionsRestriction> precisionRestrictions;

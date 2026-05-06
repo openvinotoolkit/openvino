@@ -55,7 +55,6 @@ ov::intel_cpu::FallbackUnsupportedLPConvToFP16::FallbackUnsupportedLPConvToFP16(
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        const auto subtract_out = conv_mul_add_fq->get_anchor("subtract", pattern_map);
         const auto conv_out = conv_mul_add_fq->get_anchor("convolution", pattern_map);
         const auto mul_out = conv_mul_add_fq->get_anchor("multiply", pattern_map);
         const auto add_out = conv_mul_add_fq->get_anchor("add", pattern_map);
@@ -64,8 +63,6 @@ ov::intel_cpu::FallbackUnsupportedLPConvToFP16::FallbackUnsupportedLPConvToFP16(
             return false;
         }
 
-        const auto subtract =
-            subtract_out ? ov::as_type_ptr<ov::op::v1::Subtract>(subtract_out->get_node_shared_ptr()) : nullptr;
         const auto conv = ov::as_type_ptr<ov::op::v1::Convolution>(conv_out->get_node_shared_ptr());
         const auto mul = ov::as_type_ptr<ov::op::v1::Multiply>(mul_out->get_node_shared_ptr());
         const auto add = ov::as_type_ptr<ov::op::v1::Add>(add_out->get_node_shared_ptr());
@@ -74,9 +71,10 @@ ov::intel_cpu::FallbackUnsupportedLPConvToFP16::FallbackUnsupportedLPConvToFP16(
             return false;
         }
 
-        // if there is a Subtract (zero-point), always apply fallback —
+        // If there's a Subtract (zero-point dequantization), always apply fallback —
         // int8 ACL convolution executor does not support zero-point yet
-        if (!subtract && fake_quantize->get_output_element_type(0) == conv->get_input_element_type(0)) {
+        const bool has_subtract = ov::is_type<ov::op::v1::Subtract>(conv->get_input_node_ptr(0));
+        if (!has_subtract && fake_quantize->get_output_element_type(0) == conv->get_input_element_type(0)) {
             return false;
         }
 

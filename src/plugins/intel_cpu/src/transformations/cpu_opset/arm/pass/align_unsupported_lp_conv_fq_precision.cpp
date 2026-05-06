@@ -4,9 +4,10 @@
 
 #include "align_unsupported_lp_conv_fq_precision.hpp"
 
+#include <algorithm>
 #include <memory>
 
-#include "low_precision/fake_quantize_decomposition.hpp"
+#include "low_precision/filter_precision_attribute.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/precisions_attribute.hpp"
 #include "openvino/core/except.hpp"
@@ -42,12 +43,24 @@ ov::intel_cpu::AlignUnsupportedLPConvFQPrecision::AlignUnsupportedLPConvFQPrecis
             return false;
         }
         const auto& conv_precisions = conv_attr.as<ov::PrecisionsAttribute>().value();
-        if (conv_precisions.empty() || conv_precisions.size() != 1) {
+        if (conv_precisions.empty()) {
             return false;
         }
+        OPENVINO_ASSERT(conv_precisions.size() == 1, "Convolution input precision should be single");
         const auto conv_precision = conv_precisions[0];
 
-        const auto fq_data_precision = low_precision::fq_decomposition::getDataPrecisionByOutputPort(fq_node);
+        auto fq_attr = low_precision::getAttributeFromOutput<ov::PrecisionsAttribute>(fq_node->output(0));
+        if (fq_attr.empty()) {
+            return false;
+        }
+
+        const auto& fq_precisions = fq_attr.as<ov::PrecisionsAttribute>().value();
+        if (std::find(fq_precisions.begin(), fq_precisions.end(), conv_precision) == fq_precisions.end()) {
+            return false;
+        }
+
+        const auto fq_data_precision =
+            ov::pass::low_precision::FilterPrecisionAttribute::getDataPrecisionByOutputPort(fq_node);
         if (fq_data_precision.empty()) {
             return false;
         }
@@ -56,8 +69,6 @@ ov::intel_cpu::AlignUnsupportedLPConvFQPrecision::AlignUnsupportedLPConvFQPrecis
             return false;
         }
 
-        auto fq_attr = low_precision::getAttributeFromOutput<ov::PrecisionsAttribute>(fq_node->output(0));
-        OPENVINO_ASSERT(!fq_attr.empty(), "FQ attributes should not be empty");
         fq_attr.as<ov::PrecisionsAttribute>().value() = {conv_precision};
 
         return true;

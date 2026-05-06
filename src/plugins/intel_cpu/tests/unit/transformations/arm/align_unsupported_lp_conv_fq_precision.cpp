@@ -48,9 +48,7 @@ std::shared_ptr<ov::Model> create_model(ov::element::Type conv_input_precision,
                                         ov::element::Type output_fq_natural_precision,
                                         const std::vector<ov::element::Type>& output_fq_precisions_attr) {
     auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 16, 16});
-
-    const std::vector<ov::element::Type> default_precisions = {ov::element::u8, ov::element::i8};
-    auto input_fq = create_fq_with_natural_precision(input, conv_input_precision, default_precisions);
+    auto input_fq = create_fq_with_natural_precision(input, conv_input_precision, {conv_input_precision});
 
     auto weights = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{16, 3, 3, 3}, {1});
     ov::Strides strides(2, 1);
@@ -99,5 +97,12 @@ TEST_F(TransformationTestsF, ConvAndFQ_BothU8_NotApplied) {
 TEST_F(TransformationTestsF, ConvAndFQ_BothI8_NotApplied) {
     const std::vector<ov::element::Type> default_precisions = {ov::element::u8, ov::element::i8};
     model = create_model(ov::element::i8, ov::element::i8, default_precisions);
+    manager.register_pass<AlignUnsupportedLPConvFQPrecision>();
+}
+
+// Conv input u8, output FQ has only i16 precision → conv_precision not in FQ set → not applied
+TEST_F(TransformationTestsF, ConvAndFQ_PrecisionNotInFQSet_NotApplied) {
+    const std::vector<ov::element::Type> fq_precisions = {ov::element::i16};
+    model = create_model(ov::element::u8, ov::element::i8, fq_precisions);
     manager.register_pass<AlignUnsupportedLPConvFQPrecision>();
 }
