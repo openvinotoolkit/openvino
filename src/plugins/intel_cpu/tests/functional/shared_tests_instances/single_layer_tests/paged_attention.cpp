@@ -268,5 +268,57 @@ INSTANTIATE_TEST_SUITE_P(advAdaptiveRKV_PagedAttentionLayerTest,
                                             ::testing::ValuesIn(additional_configs_arkv)),
                          PagedAttentionLayerTest::getTestCaseName);
 
+// f16/bf16 precision tests
+
+const std::vector<ov::AnyMap> additional_configs_f16 = {{
+    {ov::intel_cpu::enable_sage_attn.name(), false},
+    {ov::hint::kv_cache_precision.name(), ov::element::f16},
+    {ov::key_cache_precision.name(), ov::element::f16},
+    {ov::value_cache_precision.name(), ov::element::f16},
+    {ov::key_cache_group_size.name(), 0},
+    {ov::value_cache_group_size.name(), 0},
+    {"test_abs_threshold", 0.05f},
+    {"test_rel_threshold", 0.1f},
+}};
+
+const std::vector<ov::AnyMap> additional_configs_bf16 = {{
+    {ov::intel_cpu::enable_sage_attn.name(), false},
+    {ov::hint::kv_cache_precision.name(), ov::element::bf16},
+    {ov::key_cache_precision.name(), ov::element::bf16},
+    {ov::value_cache_precision.name(), ov::element::bf16},
+    {ov::key_cache_group_size.name(), 0},
+    {ov::value_cache_group_size.name(), 0},
+    {"test_abs_threshold", 0.05f},
+    {"test_rel_threshold", 0.1f},
+}};
+
+// 12) f16: basic tiny test
+INSTANTIATE_TEST_SUITE_P(f16_PagedAttentionLayerTest,
+                         PagedAttentionLayerTest,
+                         ::testing::Combine(::testing::Values(ElementType::f16),
+                                            ::testing::ValuesIn(input_shapes_tiny),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(0),
+                                            ::testing::Values(false),
+                                            ::testing::Values(1024),
+                                            ::testing::ValuesIn(additional_configs_f16)),
+                         PagedAttentionLayerTest::getTestCaseName);
+
+// 13) bf16: basic tiny test
+INSTANTIATE_TEST_SUITE_P(bf16_PagedAttentionLayerTest,
+                         PagedAttentionLayerTest,
+                         ::testing::Combine(::testing::Values(ElementType::bf16),
+                                            ::testing::ValuesIn(input_shapes_tiny),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(0),
+                                            ::testing::Values(false),
+                                            ::testing::Values(1024),
+                                            ::testing::ValuesIn(additional_configs_bf16)),
+                         PagedAttentionLayerTest::getTestCaseName);
+
 #endif  // OPENVINO_ARCH_X86_64
 }  // namespace

@@ -643,6 +643,11 @@ void paged_attention(std::uintptr_t node_key,
                 const float* sink_ptr = has_sinks ? &sink_vals[h] : nullptr;
                 detail::softmax_inplace(logits, sink_ptr);
 
+                // Truncate weights to T precision (matches CPU which stores softmax output in compute type)
+                for (auto& w : logits) {
+                    w = static_cast<float>(static_cast<T>(w));
+                }
+
                 for (std::size_t t = 0; t < ctx_len; ++t) {
                     const std::int32_t kpos = start + static_cast<std::int32_t>(t);
                     ov::reference::paged_attention_cache::PagedCacheManager::TokenAddress addr;

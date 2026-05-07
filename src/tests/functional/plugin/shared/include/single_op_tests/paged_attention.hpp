@@ -7,6 +7,7 @@
 #include "shared_test_classes/single_op/paged_attention.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/runtime/system_conf.hpp"
 
 namespace ov {
 namespace test {
@@ -14,6 +15,13 @@ namespace test {
 TEST_P(PagedAttentionLayerTest, Inference) {
     const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput, slidingWindow, useAlibi, maxContextLen, additional_config] = GetParam();
     (void)inputShapes; (void)enableXattn; (void)sinkInput; (void)slidingWindow; (void)useAlibi; (void)maxContextLen;
+
+#ifdef OPENVINO_ARCH_X86_64
+    if (inType == ov::element::f16 && !ov::with_cpu_x86_avx512_core_fp16())
+        GTEST_SKIP() << "f16 PA requires AVX512-FP16 hardware";
+    if (inType == ov::element::bf16 && !ov::with_cpu_x86_bfloat16())
+        GTEST_SKIP() << "bf16 PA requires BF16 hardware";
+#endif
 
     // Use a single ov::Core to avoid re-registration errors
     auto& core_ref = *core;
@@ -91,6 +99,13 @@ TEST_P(PagedAttentionLayerTest, Inference) {
 TEST_P(PagedAttentionLayerTest, ScoreWindowZeroZerosOutput1) {
     const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput, slidingWindow, useAlibi, maxContextLen, additional_config] = GetParam();
     (void)inputShapes; (void)enableXattn; (void)sinkInput; (void)slidingWindow; (void)useAlibi; (void)maxContextLen;
+
+#ifdef OPENVINO_ARCH_X86_64
+    if (inType == ov::element::f16 && !ov::with_cpu_x86_avx512_core_fp16())
+        GTEST_SKIP() << "f16 PA requires AVX512-FP16 hardware";
+    if (inType == ov::element::bf16 && !ov::with_cpu_x86_bfloat16())
+        GTEST_SKIP() << "bf16 PA requires BF16 hardware";
+#endif
 
     int64_t cfg_block_size = 32;
     {
