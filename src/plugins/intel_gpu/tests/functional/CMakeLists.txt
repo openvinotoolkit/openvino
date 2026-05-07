@@ -90,11 +90,11 @@ if(NOT Vulkan_FOUND)
             set(VulkanHeaders_VERSION "0.0.0")
         endif()
 
-        set(BUILD_TESTS OFF)
-        set(BUILD_WSI_XCB_SUPPORT OFF)
-        set(BUILD_WSI_XLIB_SUPPORT OFF)
-        set(BUILD_WSI_WAYLAND_SUPPORT OFF)
-        set(UPDATE_DEPS OFF)
+        set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
+        set(BUILD_WSI_XCB_SUPPORT OFF CACHE BOOL "" FORCE)
+        set(BUILD_WSI_XLIB_SUPPORT OFF CACHE BOOL "" FORCE)
+        set(BUILD_WSI_WAYLAND_SUPPORT OFF CACHE BOOL "" FORCE)
+        set(UPDATE_DEPS OFF CACHE BOOL "" FORCE)
         
         # Vulkan-Loader's cJSON and asm_offset lack forward declarations,
         # which conflicts with OpenVINO's -Werror=missing-declarations.
@@ -124,13 +124,13 @@ if(NOT Vulkan_FOUND)
         FetchContent_MakeAvailable(ov_vk_loader)
         set(CMAKE_C_FLAGS "${_ov_vk_saved_c_flags}")
 
-        unset(BUILD_TESTS)
-        unset(BUILD_WSI_XCB_SUPPORT)
-        unset(BUILD_WSI_XLIB_SUPPORT)
-        unset(BUILD_WSI_WAYLAND_SUPPORT)
-        unset(UPDATE_DEPS)
-        unset(VULKAN_HEADERS_ENABLE_TESTS)
-        unset(VULKAN_HEADERS_ENABLE_INSTALL)
+        unset(BUILD_TESTS CACHE)
+        unset(BUILD_WSI_XCB_SUPPORT CACHE)
+        unset(BUILD_WSI_XLIB_SUPPORT CACHE)
+        unset(BUILD_WSI_WAYLAND_SUPPORT CACHE)
+        unset(UPDATE_DEPS CACHE)
+        unset(VULKAN_HEADERS_ENABLE_TESTS CACHE)
+        unset(VULKAN_HEADERS_ENABLE_INSTALL CACHE)
 
         if(TARGET vulkan)
             # Vulkan-Loader's vulkan-1.def hard-codes /OUT:vulkan-1.dll, but CMake
