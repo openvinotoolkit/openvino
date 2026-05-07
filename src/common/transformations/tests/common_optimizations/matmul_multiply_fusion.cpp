@@ -119,7 +119,7 @@ TEST_F(TransformationTestsF, MatMulMultiplyFusionBlockedForFP16DynamicWeightsAmp
     auto data = std::make_shared<opset8::Parameter>(element::f16, Shape{2, 3});
     auto weights = std::make_shared<opset8::Parameter>(element::f16, Shape{2, 3});
     auto matmul = std::make_shared<opset8::MatMul>(data, weights, true, false);
-    auto mul_const = opset8::Constant::create(element::f16, Shape{1, 1, 1}, {2});
+    auto mul_const = opset8::Constant::create(element::f16, Shape{1, 1}, {2});
     auto mul = std::make_shared<opset8::Multiply>(matmul, mul_const);
     model = std::make_shared<Model>(OutputVector{mul}, ParameterVector{data, weights});
 
