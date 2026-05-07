@@ -508,7 +508,40 @@ struct MHAHelper {
         _qq_bias_infos.clear();
     }
 
-    // Initialize and precompute query-to-query bias info for all sequences
+    // Initialize per-sequence metadata for speculative query-to-query masks.
+    //
+    // qq_bias stores one flattened square mask per scheduled sequence, concatenated back-to-back.
+    // qq_bias_begins is the prefix-sum array that selects the slice for each sequence:
+    //   seq i -> qq_bias[qq_bias_begins[i] : qq_bias_begins[i + 1])
+    //
+    // Each non-empty slice must contain spec_num * spec_num elements, where spec_num is the number of
+    // speculative tokens for that sequence. A value of 1 means "keep this speculative query->key edge",
+    // and 0 means "mask it out". Empty slices are allowed and mean that the sequence has no speculative
+    // query-to-query mask for this step.
+    //
+    // Example with three scheduled sequences:
+    //   qq_bias_begins = [0, 4, 4, 13]
+    //   seq0 -> qq_bias[0:4]   -> 2 x 2 mask for 2 speculative tokens
+    //   seq1 -> qq_bias[4:4]   -> empty, so no extra query-to-query masking
+    //   seq2 -> qq_bias[4:13]  -> 3 x 3 mask for 3 speculative tokens
+    //
+    // If seq2 has:
+    //   qq_bias[4:13] = [
+    //       1, 1, 0,
+    //       1, 1, 1,
+    //       1, 0, 1
+    //   ]
+    // then for seq2:
+    //   - query_spec_idx = 0 and key_idx = past_len + 2 reads qq_bias[4 + 0 * 3 + 2] = 0, so that
+    //     speculative query cannot attend to the 3rd speculative key.
+    //   - query_spec_idx = 2 and key_idx = past_len + 1 reads qq_bias[4 + 2 * 3 + 1] = 0, so that
+    //     speculative query cannot attend to the 2nd speculative key.
+    //
+    // init_query_to_query_mask() only validates the per-sequence ranges and caches:
+    //   - qq_begin_offset: the starting offset in the flattened qq_bias tensor
+    //   - spec_num:        the square side length used later by query_to_query_is_masked()
+    // During attention, only key_idx >= past_len participates in this lookup; prompt/past KV tokens are
+    // unaffected by qq_bias.
     void init_query_to_query_mask(const PlainTensor& qq_bias, const PlainTensor& qq_bias_begins) {
         _qq_bias = qq_bias;
 
