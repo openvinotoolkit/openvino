@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <sstream>
+
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/implementation_desc.hpp"
 #include "intel_gpu/runtime/stream.hpp"
@@ -3189,25 +3191,26 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
             if (layouts.empty())
                 return std::string("<none>");
 
-            std::string result;
-            for (size_t i = 0; i < layouts.size(); ++i) {
-                if (i > 0)
-                    result += ", ";
-                result += layouts[i].to_short_string();
+            std::ostringstream oss;
+            oss << layouts[0].to_short_string();
+            for (size_t i = 1; i < layouts.size(); ++i) {
+                oss << ", " << layouts[i].to_short_string();
             }
-            return result;
+            return oss.str();
         };
 
-        std::string available_impls_info = "available_impls: " + std::to_string(m_available_impls.size()) + " [";
+        std::ostringstream available_impls_oss;
+        available_impls_oss << "available_impls: " << m_available_impls.size() << " [";
         for (size_t i = 0; i < m_available_impls.size(); ++i) {
-            auto& m = m_available_impls[i];
             if (i > 0)
-                available_impls_info += ",";
-            available_impls_info += " {type=" + std::to_string(static_cast<int>(m->get_impl_type())) +
-                                   ", shape=" + std::to_string(static_cast<int>(m->get_shape_type())) + "}";
+                available_impls_oss << ",";
+            const auto& m = m_available_impls[i];
+            available_impls_oss << " {type=" << static_cast<int>(m->get_impl_type())
+                                << ", shape=" << static_cast<int>(m->get_shape_type()) << "}";
         }
-        available_impls_info += " ]";
-        OPENVINO_ASSERT(false, "No static impl " + node->id() + ". " + available_impls_info +
+        available_impls_oss << " ]";
+
+        OPENVINO_ASSERT(false, "No static impl " + node->id() + ". " + available_impls_oss.str() +
                         ". Input: " + stringify_layouts(updated_params.input_layouts) +
                         ". Output: " + stringify_layouts(updated_params.output_layouts));
     }
