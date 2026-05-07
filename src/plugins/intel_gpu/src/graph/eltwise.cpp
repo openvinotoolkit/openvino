@@ -395,34 +395,49 @@ eltwise_inst::typed_primitive_inst(network& network, eltwise_node const& node) :
                                       "");
         }
     } else {
-        bool use_new_shape_infer = network.get_config().get_allow_new_shape_infer();
-        auto input0_pshape = node.get_input_pshape(0);
+        if (prim->broadcast_spec == ov::op::AutoBroadcastType::NUMPY && inputs_count >= 2) {
+            std::vector<ov::PartialShape> input_shapes;
+            for (size_t i = 0; i < inputs_count; ++i) {
+                input_shapes.push_back(node.get_input_pshape(i));
+            }
 
-        for (size_t i = 1; i < inputs_count; ++i) {
-            auto input_pshape = node.get_input_pshape(i);
+            ov::op::v1::Add op;
+            op.set_autob(ov::op::AutoBroadcastType::NUMPY);
+            try {
+                ov::op::eltwise_shape_infer(&op, input_shapes);
+            } catch (const std::exception&) {
+                CLDNN_ERROR_MESSAGE(node.id(), "Invalid input shapes");
+            }
+        } else {
+            bool use_new_shape_infer = network.get_config().get_allow_new_shape_infer();
+            auto input0_pshape = node.get_input_pshape(0);
 
-            if (input0_pshape.size() > input_pshape.size()) {
-                if (use_new_shape_infer) {
-                    input_pshape.insert(input_pshape.begin(), input0_pshape.size() - input_pshape.size(), 1);
-                } else {
-                    input_pshape.insert(input_pshape.end(), input0_pshape.size() - input_pshape.size(), 1);
+            for (size_t i = 1; i < inputs_count; ++i) {
+                auto input_pshape = node.get_input_pshape(i);
+
+                if (input0_pshape.size() > input_pshape.size()) {
+                    if (use_new_shape_infer) {
+                        input_pshape.insert(input_pshape.begin(), input0_pshape.size() - input_pshape.size(), 1);
+                    } else {
+                        input_pshape.insert(input_pshape.end(), input0_pshape.size() - input_pshape.size(), 1);
+                    }
                 }
-            }
 
-            auto base_pshape = input0_pshape;
-            if (prim->broadcast_spec == ov::op::AutoBroadcastType::NUMPY &&
-                base_pshape.size() < input_pshape.size()) {
-                base_pshape.insert(base_pshape.begin(), input_pshape.size() - base_pshape.size(), 1);
-            }
+                auto base_pshape = input0_pshape;
+                if (prim->broadcast_spec == ov::op::AutoBroadcastType::NUMPY &&
+                    base_pshape.size() < input_pshape.size()) {
+                    base_pshape.insert(base_pshape.begin(), input_pshape.size() - base_pshape.size(), 1);
+                }
 
-            for (size_t d = 0; d < base_pshape.size(); ++d) {
-                bool sizes_equal = base_pshape[d] == input_pshape[d];
-                bool broadcast =
-                    (base_pshape[d] == 1 || input_pshape[d] == 1) && (base_pshape[d] != 1 || input_pshape[d] != 1);
-                CLDNN_ERROR_BOOL(node.id(),
-                                 "Sizes equal or broadcast is possible",
-                                 !(sizes_equal || broadcast),
-                                 "Invalid input shapes");
+                for (size_t d = 0; d < base_pshape.size(); ++d) {
+                    bool sizes_equal = base_pshape[d] == input_pshape[d];
+                    bool broadcast =
+                        (base_pshape[d] == 1 || input_pshape[d] == 1) && (base_pshape[d] != 1 || input_pshape[d] != 1);
+                    CLDNN_ERROR_BOOL(node.id(),
+                                     "Sizes equal or broadcast is possible",
+                                     !(sizes_equal || broadcast),
+                                     "Invalid input shapes");
+                }
             }
         }
     }
