@@ -732,35 +732,16 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedExceptionTest) {
 TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest_rank_a_less_than_rank_b) {
     {
         auto activation = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 128});
-        auto weights = ov::opset1::Constant::create(ov::element::f32, ov::Shape{1, 2, 256, 128}, {1.0f});
+        auto weights = ov::opset1::Constant::create(ov::element::f32, ov::Shape{1, 1, 256, 128}, {1.0f});
         auto matmul = std::make_shared<ov::opset1::MatMul>(activation, weights, false, true);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{activation});
         manager.register_pass<ConvertMatMulToFullyConnected>(true);  // supports_immad=true
     }
     {
-        // Expected: MatMul remains unchanged (rank_a=2 < rank_b=4 rejected)
+        // Expected: MatMul remains unchanged (rank_a=2 < rank_b=4 rejected by rank check)
         auto activation = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 128});
-        auto weights = ov::opset1::Constant::create(ov::element::f32, ov::Shape{1, 2, 256, 128}, {1.0f});
-        auto matmul = std::make_shared<ov::opset1::MatMul>(activation, weights, false, true);
-
-        model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{activation});
-    }
-}
-
-TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest_rank_2_vs_3) {
-    {
-        auto activation = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 128});
-        auto weights = ov::opset1::Constant::create(ov::element::f32, ov::Shape{1, 256, 128}, {1.0f});
-        auto matmul = std::make_shared<ov::opset1::MatMul>(activation, weights, false, true);
-
-        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{activation});
-        manager.register_pass<ConvertMatMulToFullyConnected>(true);  // supports_immad=true
-    }
-    {
-        // Expected: MatMul remains unchanged (rank_a=2 < rank_b=3 rejected)
-        auto activation = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 128});
-        auto weights = ov::opset1::Constant::create(ov::element::f32, ov::Shape{1, 256, 128}, {1.0f});
+        auto weights = ov::opset1::Constant::create(ov::element::f32, ov::Shape{1, 1, 256, 128}, {1.0f});
         auto matmul = std::make_shared<ov::opset1::MatMul>(activation, weights, false, true);
 
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{activation});

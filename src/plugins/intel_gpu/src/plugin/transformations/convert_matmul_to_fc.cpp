@@ -89,12 +89,10 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
         auto rank_a = shape_a.rank().get_length();
         auto rank_b = shape_b.rank().get_length();
 
-        // Reject conversion when rank_a < rank_b on immad-capable devices.
-        // oneDNN FullyConnected expects input rank >= weights rank for proper primitive descriptor creation.
         // When rank_a < rank_b (e.g., activation[1,4096] x weights[1,3,4096,1]),
-        // the oneDNN FC implementation cannot properly handle the rank mismatch, leading to issues in oneDNN primitive creation.
+        // FC implementation cannot properly handle the rank mismatch.
         // Fallback to MatMul/GEMM is more appropriate for such cases.
-        if (supports_immad && rank_a < rank_b) {
+        if (rank_a < rank_b) {
             return false;
         }
 
