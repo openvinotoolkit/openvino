@@ -165,8 +165,8 @@ std::shared_ptr<ov::ICompiledModel> import_model_npuw(std::istream& stream,
             // Properties are required for ov::weights_path
             return ov::npuw::LLMCompiledModel::import_model(stream, pluginSO, properties);
         } else if (compiled_model_indicator == NPUW_COMPILED_MODEL_INDICATOR) {
-            // Properties are required for ov::weights_path
-            return ov::npuw::CompiledModel::import_model(stream, pluginSO, properties);
+            OPENVINO_THROW("Legacy flat NPUW CompiledModel blobs are no longer supported. Re-export the model with the "
+                           "current ORC serializer.");
         } else {
             OPENVINO_THROW("Couldn't deserialize NPUW blob - fatal error!");
         }
