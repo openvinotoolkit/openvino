@@ -29,6 +29,7 @@ public:
         Expert_type expert_type{Expert_type::GEMM2_BIAS_SWIGLU_CLAMP};
         float expert_alpha{0.0f};  // Expert attribute for clamp bounds
         float expert_beta{1.0f};   // Expert attribute for swish beta
+        size_t gate_idx{0};        // gate (swish) lane in interleaved gate/up; GEMM2 only
     };
 
     /// \brief Constructs a MOE operation with config only

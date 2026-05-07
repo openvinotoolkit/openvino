@@ -2,15 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "v1/subgraph_pipeline.hpp"
+
 #include <gtest/gtest.h>
 
 #include <string>
 
+#include "attn/attn_subgraph.hpp"
 #include "moe/moe_executor.hpp"
 #include "partitioning/partitioning.hpp"
 #include "partitioning/patterns/moe.hpp"
 #include "partitioning/patterns/sdpa.hpp"
-#include "v1/subgraph_pipeline.hpp"
 
 namespace {
 
@@ -73,17 +75,17 @@ TEST(SubgraphPipelineBehaviorTest, RealPatternRegistrationBuildsRuntimeBehaviorF
     subgraph.settag(ov::npuw::patterns::attn::SDPA::isolation_tag());
     ov::npuw::v1::subgraphs::PatternRegistry registry;
 
-    auto scoped_registration = registry.on<ov::npuw::patterns::attn::SDPA>()
-                                   .at_compile([](ov::npuw::v1::subgraphs::CompiledPipeline&,
-                                                  ov::npuw::v1::subgraphs::Context& ctx) {
-                                       ctx.put<std::string>("marker");
-                                   })
-                                   .at_runtime([](const ov::npuw::v1::subgraphs::Context& ctx)
-                                                   -> ov::npuw::v1::subgraphs::ISubgraphBehavior::Ptr {
-                                       EXPECT_EQ(ctx.get<std::string>(), "marker");
-                                       return ov::npuw::v1::subgraphs::make_direct_behavior();
-                                   })
-                                   .scoped();
+    auto scoped_registration =
+        registry.on<ov::npuw::patterns::attn::SDPA>()
+            .at_compile([](ov::npuw::v1::subgraphs::CompiledPipeline&, ov::npuw::v1::subgraphs::Context& ctx) {
+                ctx.put<std::string>("marker");
+            })
+            .at_runtime(
+                [](const ov::npuw::v1::subgraphs::Context& ctx) -> ov::npuw::v1::subgraphs::ISubgraphBehavior::Ptr {
+                    EXPECT_EQ(ctx.get<std::string>(), "marker");
+                    return ov::npuw::v1::subgraphs::make_direct_behavior();
+                })
+            .scoped();
 
     registry.apply(subgraph);
 
@@ -95,8 +97,7 @@ TEST(SubgraphPipelineBehaviorTest, RealPatternRegistrationBuildsRuntimeBehaviorF
 
     ASSERT_TRUE(compiled_pipeline.runtime_behavior.has_value());
     EXPECT_EQ(compiled_pipeline.registration.name, ov::npuw::patterns::attn::SDPA::pattern_name());
-    EXPECT_EQ(compiled_pipeline.runtime_behavior->registration.name,
-              ov::npuw::patterns::attn::SDPA::pattern_name());
+    EXPECT_EQ(compiled_pipeline.runtime_behavior->registration.name, ov::npuw::patterns::attn::SDPA::pattern_name());
     auto behavior = compiled_pipeline.runtime_behavior->factory(compiled_pipeline.runtime_behavior->context);
     EXPECT_NE(behavior, nullptr);
 }
@@ -106,8 +107,7 @@ TEST(SubgraphPipelineBehaviorTest, MoERegistrationBuildsDeferredPartitionPipelin
     function.settag(ov::npuw::patterns::moe::GPTOSSExpert::isolation_tag());
 
     ov::npuw::v1::subgraphs::PatternRegistry registry;
-    auto registrations =
-        ov::npuw::moe::register_patterns(registry, 0u);
+    auto registrations = ov::npuw::moe::register_patterns(registry, 0u);
     registry.apply(function);
 
     ASSERT_TRUE(static_cast<bool>(function._pipeline.partition_stage));
@@ -118,4 +118,93 @@ TEST(SubgraphPipelineBehaviorTest, MoERegistrationBuildsDeferredPartitionPipelin
                         function._pipeline.registration.patterns.end(),
                         ov::npuw::patterns::moe::GPTOSSExpert::pattern_name()),
               function._pipeline.registration.patterns.end());
+}
+
+// Verify that attn::register_patterns() chains partition_stage and compile_stage on any
+// Function whose isolation tag matches SDPA::isolation_tag() ("attn").
+TEST(SubgraphPipelineBehaviorTest, AttnRegistrationSetsPartitionAndCompileStagesForAttnTaggedFunction) {
+    ov::npuw::Function function;
+    function.settag(ov::npuw::patterns::attn::SDPA::isolation_tag());
+
+    ov::npuw::v1::subgraphs::PatternRegistry registry;
+    auto registrations = ov::npuw::attn::register_patterns(registry);
+    registry.apply(function);
+
+    ASSERT_TRUE(static_cast<bool>(function._pipeline.partition_stage));
+    ASSERT_TRUE(static_cast<bool>(function._pipeline.compile_stage));
+    // The registration must carry the SDPA pattern name so the compile loop can identify it.
+    EXPECT_NE(std::find(function._pipeline.registration.patterns.begin(),
+                        function._pipeline.registration.patterns.end(),
+                        ov::npuw::patterns::attn::SDPA::isolation_tag()),
+              function._pipeline.registration.patterns.end());
+}
+
+// Verify that the compile_stage does NOT attach a runtime behavior when the partition_stage
+// was never given a compiled::Attention context entry — i.e. when f._attention is not set
+// (NPUW_ATTN=STATIC, or the model has no dynamic dims in the attention function).
+TEST(SubgraphPipelineBehaviorTest, AttnCompileStageSkipsRuntimeBehaviorWhenAttentionNotDynamic) {
+    ov::npuw::Function function;
+    function.settag(ov::npuw::patterns::attn::SDPA::isolation_tag());
+
+    ov::npuw::v1::subgraphs::PatternRegistry registry;
+    auto registrations = ov::npuw::attn::register_patterns(registry);
+    registry.apply(function);
+
+    ASSERT_TRUE(static_cast<bool>(function._pipeline.partition_stage));
+    ASSERT_TRUE(static_cast<bool>(function._pipeline.compile_stage));
+
+    // Run partition_stage WITHOUT setting f._attention — simulates NPUW_ATTN=STATIC or a
+    // model where function::Attention::from() found no dynamic dims.
+    function._pipeline.partition_stage(function, function._pipeline.context);
+    EXPECT_FALSE(function._pipeline.context.contains<ov::npuw::compiled::Attention>())
+        << "partition_stage must not put compiled::Attention in context when f._attention is unset";
+
+    // Run compile_stage: with no compiled::Attention in context, no runtime behavior should appear.
+    ov::npuw::v1::subgraphs::CompiledPipeline compiled;
+    compiled.registration = function._pipeline.registration;
+    compiled.context = function._pipeline.context;
+    function._pipeline.compile_stage(compiled, compiled.context);
+
+    EXPECT_FALSE(compiled.runtime_behavior.has_value())
+        << "compile_stage must not attach DynAttnBehavior when compiled::Attention is absent";
+}
+
+TEST(SubgraphPipelineBehaviorTest, AttnCompileStageAttachesPyramidBehaviorWhenHintIsPresent) {
+    ov::npuw::Function function;
+    function.settag(ov::npuw::patterns::attn::SDPA::isolation_tag());
+
+    ov::npuw::v1::subgraphs::PatternRegistry registry;
+    auto registrations = ov::npuw::attn::register_patterns(registry);
+    registry.apply(function);
+
+    function._pipeline.context.put<ov::npuw::attn::BehaviorKind>(ov::npuw::attn::BehaviorKind::Pyramid);
+
+    ov::npuw::v1::subgraphs::CompiledPipeline compiled;
+    compiled.registration = function._pipeline.registration;
+    compiled.context = function._pipeline.context;
+    function._pipeline.compile_stage(compiled, compiled.context);
+
+    ASSERT_TRUE(compiled.runtime_behavior.has_value());
+    auto behavior = compiled.runtime_behavior->factory(compiled.runtime_behavior->context);
+    EXPECT_NE(behavior, nullptr);
+}
+
+TEST(SubgraphPipelineBehaviorTest, AttnCompileStageAttachesHFABehaviorWhenHintIsPresent) {
+    ov::npuw::Function function;
+    function.settag(ov::npuw::patterns::attn::SDPA::isolation_tag());
+
+    ov::npuw::v1::subgraphs::PatternRegistry registry;
+    auto registrations = ov::npuw::attn::register_patterns(registry);
+    registry.apply(function);
+
+    function._pipeline.context.put<ov::npuw::attn::BehaviorKind>(ov::npuw::attn::BehaviorKind::HFA);
+
+    ov::npuw::v1::subgraphs::CompiledPipeline compiled;
+    compiled.registration = function._pipeline.registration;
+    compiled.context = function._pipeline.context;
+    function._pipeline.compile_stage(compiled, compiled.context);
+
+    ASSERT_TRUE(compiled.runtime_behavior.has_value());
+    auto behavior = compiled.runtime_behavior->factory(compiled.runtime_behavior->context);
+    EXPECT_NE(behavior, nullptr);
 }
