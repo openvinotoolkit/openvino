@@ -400,13 +400,14 @@ ov::CompatibilityCheck Plugin::validate_compatibility_descriptor(ov::intel_npu::
         // Compiler can validate only if the string describes a blob compatible with the current platform
         auto result = compiler->validate_compatibility_descriptor(compatibilityDescriptor);
         _logger.debug("Compatibility check result: %s", result ? "met" : "not met");
-        if(result) {
+        if (result) {
             return ov::CompatibilityCheck::OPTIMAL;
         } else {
             return ov::CompatibilityCheck::UNSUPPORTED;
         }
     } catch (const std::exception&) {
-        _logger.error("Failed to create the recommended compiler type for the compatibility check {}. The requirements are not met.", compilerType);
+        _logger.error("Failed to create the recommended compiler type for the compatibility check %d. The requirements are not met.",
+                      static_cast<int>(compilerType));
         return ov::CompatibilityCheck::NOT_APPLICABLE;
     }
 }

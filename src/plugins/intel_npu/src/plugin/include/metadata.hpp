@@ -437,7 +437,7 @@ public:
              const std::optional<std::vector<ov::Layout>>& outputLayouts = std::nullopt,
              const std::optional<uint32_t> compilerVersion = std::nullopt,
              const std::optional<uint64_t>& blobSizeAfterEncryption = std::nullopt,
-             const std::optional<std::string>& compatiibilityDescriptor = std::nullopt);
+             const std::optional<std::string>& compatibilityDescriptor = std::nullopt);
 
     void read() override;
 

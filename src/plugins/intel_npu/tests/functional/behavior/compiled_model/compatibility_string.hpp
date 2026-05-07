@@ -162,7 +162,7 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsExportImport) {
     OV_ASSERT_NO_THROW(compiledModel = core.import_model(compiled_blob, deviceName));
 
     std::vector<ov::PropertyName> properties;
-    // Test that RUNTIME_REQUIREMENTS is NOT supported for an imported model
+    // Test that RUNTIME_REQUIREMENTS is supported for an imported model as well
     OV_ASSERT_NO_THROW(properties = compiledModel.get_property(ov::supported_properties));
     auto it = find(properties.cbegin(), properties.cend(), ov::runtime_requirements);
     ASSERT_TRUE(it != properties.cend());

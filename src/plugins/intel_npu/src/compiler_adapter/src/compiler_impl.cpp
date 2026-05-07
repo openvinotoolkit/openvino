@@ -208,10 +208,6 @@ VCLCompilerImpl::VCLCompilerImpl() : _logHandle(nullptr), _logger("VCLCompilerIm
     // info will be processed in compile phase if passed by user.
     _logger.info("Device description is not provided, using default values");
     uint32_t defaultTileCount = std::numeric_limits<uint32_t>::max();
-    if (_vclVersion.major == 7 && _vclVersion.minor < 6) {
-        // For vcl <= 7.5, need to use smaller value to pass check
-        defaultTileCount = std::numeric_limits<uint16_t>::max();
-    }
     vcl_device_desc_t device_desc = {sizeof(vcl_device_desc_t),
                                      0x00,
                                      std::numeric_limits<uint16_t>::max(),

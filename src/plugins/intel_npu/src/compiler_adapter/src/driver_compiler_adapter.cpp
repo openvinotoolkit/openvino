@@ -291,19 +291,20 @@ std::optional<std::vector<std::string>> DriverCompilerAdapter::get_supported_opt
 }
 
 bool DriverCompilerAdapter::is_option_supported(std::string optName, std::optional<std::string> optValue) const {
-    // This is a special case, as RUNTIME_REQUIREMENTS is a read-only compiler property
-    // used to retrieve a compatibility string through a dedicated VCL compiler method, and not a regular settable
-    // option. Therefore, we cannot rely on the compiler's usual option support checking method
+    // This is a special case, as RUNTIME_REQUIREMENTS is a read-only runtime property
+    // used to signal that compiler can provide a compatibility string through a dedicated
+    // VCL compiler method. It is not a regular settable option.
+    // Therefore, we cannot rely on the compiler's usual option support checking method alone.
     if (optName == RUNTIME_REQUIREMENTS::key()) {
         if (optValue.has_value())
             OPENVINO_THROW("The option '",
                            RUNTIME_REQUIREMENTS::key(),
                            "' is a read-only property and does not accept any value.");
 
-        // Compatibility string generation is not yet supported through the L0 API
+        // Compatibility string generation is not yet supported through the L0 API, even if compiler supports it
         return false;
     }
-    // COMPATIBILITY_CHECK must signal if compiler adapter (and the level zero API in this case) supports
+    // The COMPATIBILITY_CHECK option is used to signal if compiler adapter  supports
     // the validateCompatibilityDescriptor method
     if (optName == COMPATIBILITY_CHECK::key()) {
         if (optValue.has_value())
