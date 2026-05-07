@@ -5,6 +5,7 @@
 #pragma once
 
 #include "openvino/pass/graph_rewrite.hpp"
+#include "ov_ops/moe_compressed.hpp"
 
 namespace ov::intel_gpu {
 

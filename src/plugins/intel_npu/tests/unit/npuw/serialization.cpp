@@ -17,8 +17,8 @@
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "lazy_tensor.hpp"
-#include "moe_transformations/moe_transformation.hpp"
 #include "model_builder.hpp"
+#include "moe_transformations/moe_transformation.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
@@ -60,15 +60,16 @@ ov::npuw::s11n::WeightsContext::ConstsCache make_consts_cache(
     const std::vector<std::shared_ptr<ov::op::v0::Constant>>& constants) {
     ov::npuw::s11n::WeightsContext::ConstsCache cache;
     for (const auto& constant : constants) {
-        const auto attr =
-            constant->get_rt_info().at(ov::WeightlessCacheAttribute::get_type_info_static())
-                .as<ov::WeightlessCacheAttribute>();
+        const auto attr = constant->get_rt_info()
+                              .at(ov::WeightlessCacheAttribute::get_type_info_static())
+                              .as<ov::WeightlessCacheAttribute>();
         cache[{attr.bin_offset, constant->get_byte_size()}] = constant;
     }
     return cache;
 }
 
-void expect_attention_equal(const ov::npuw::compiled::Attention& expected, const ov::npuw::compiled::Attention& actual) {
+void expect_attention_equal(const ov::npuw::compiled::Attention& expected,
+                            const ov::npuw::compiled::Attention& actual) {
     EXPECT_EQ(expected.query_size, actual.query_size);
     EXPECT_EQ(expected.context_size, actual.context_size);
     EXPECT_EQ(expected.params.size(), actual.params.size());
@@ -674,12 +675,10 @@ TEST(SerializationTest, OVTypes_Tensor_allocator) {
     bool allocator_called = false;
     ov::Tensor res;
     auto input_stream = Stream::reader(ss);
-    transfer_tensor(input_stream,
-                    res,
-                    [&](const ov::element::Type& type, const ov::Shape& shape) {
-                        allocator_called = true;
-                        return ov::Tensor(type, shape);
-                    });
+    transfer_tensor(input_stream, res, [&](const ov::element::Type& type, const ov::Shape& shape) {
+        allocator_called = true;
+        return ov::Tensor(type, shape);
+    });
 
     EXPECT_TRUE(allocator_called);
     expect_tensors_equal(var, res);
@@ -780,8 +779,7 @@ TEST(SerializationTest, OVTypes_ParameterPointer_throws_on_write) {
 TEST(SerializationTest, OVTypes_NodePointer_throws_on_write) {
     using namespace ov::npuw::s11n;
 
-    std::shared_ptr<ov::Node> node =
-        std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
+    std::shared_ptr<ov::Node> node = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     std::stringstream ss;
 
     EXPECT_THROW(write(ss, node), ov::Exception);
@@ -824,7 +822,8 @@ TEST(SerializationTest, OVTypes_LazyTensor_const_roundtrip) {
 TEST(SerializationTest, OVTypes_LazyTensor_const_with_embedded_weight_roundtrip) {
     using namespace ov::npuw::s11n;
 
-    auto constant = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{2}, std::vector<float>{1.0f, 2.0f});
+    auto constant =
+        std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{2}, std::vector<float>{1.0f, 2.0f});
     ov::npuw::weights::LazyTensor var(constant);
     ov::npuw::weights::LazyTensor res;
 
@@ -842,11 +841,12 @@ TEST(SerializationTest, OVTypes_LazyTensor_concat_permute_convert_roundtrip) {
     using namespace ov::npuw::s11n;
 
     auto first = make_weightless_constant<float>(ov::element::f32, ov::Shape{1, 2}, {1.0f, 2.0f}, 0);
-    auto second = make_weightless_constant<float>(ov::element::f32, ov::Shape{1, 2}, {3.0f, 4.0f}, first->get_byte_size());
-    ov::npuw::weights::LazyTensor concat(std::vector<ov::npuw::weights::LazyTensor>{
-                                             ov::npuw::weights::LazyTensor(first),
-                                             ov::npuw::weights::LazyTensor(second)},
-                                         0);
+    auto second =
+        make_weightless_constant<float>(ov::element::f32, ov::Shape{1, 2}, {3.0f, 4.0f}, first->get_byte_size());
+    ov::npuw::weights::LazyTensor concat(
+        std::vector<ov::npuw::weights::LazyTensor>{ov::npuw::weights::LazyTensor(first),
+                                                   ov::npuw::weights::LazyTensor(second)},
+        0);
     auto var = concat.permute({1, 0}).convert(ov::element::f16);
     ov::npuw::weights::LazyTensor res;
 
@@ -865,7 +865,10 @@ TEST(SerializationTest, OVTypes_LazyTensor_unpack_roundtrip) {
     using namespace ov::npuw::s11n;
 
     auto w = make_weightless_constant<uint8_t>(ov::element::u8, ov::Shape{8}, {1, 2, 3, 4, 5, 6, 7, 8}, 0);
-    auto s = make_weightless_constant<ov::float16>(ov::element::f16, ov::Shape{8}, {1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f}, w->get_byte_size());
+    auto s = make_weightless_constant<ov::float16>(ov::element::f16,
+                                                   ov::Shape{8},
+                                                   {1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f},
+                                                   w->get_byte_size());
     ov::npuw::weights::LazyTensor var(ov::npuw::weights::LazyTensor(w),
                                       ov::npuw::weights::LazyTensor(),
                                       ov::npuw::weights::LazyTensor(s),
@@ -886,8 +889,9 @@ TEST(SerializationTest, OVTypes_LazyTensor_unpack_roundtrip) {
 TEST(SerializationTest, OVTypes_LazyTensor_gather_roundtrip) {
     using namespace ov::npuw::s11n;
 
-    auto w = make_weightless_constant<uint8_t>(ov::element::u8, ov::Shape{16}, {0, 1, 2, 3, 4, 5, 6, 7,
-                                                                                8, 9, 10, 11, 12, 13, 14, 15},
+    auto w = make_weightless_constant<uint8_t>(ov::element::u8,
+                                               ov::Shape{16},
+                                               {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
                                                0);
     std::vector<uint8_t> indices{0, 1, 2, 3};
     ov::Tensor lut(ov::element::f8e4m3, ov::Shape{4}, indices.data());
