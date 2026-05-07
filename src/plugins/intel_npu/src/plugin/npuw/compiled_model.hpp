@@ -86,7 +86,7 @@ class CompiledModel : public ov::npuw::ICompiledModel_v0 {
 
 public:
     static constexpr ov::npuw::orc::TypeId kOrcType = 0x4E43u;
-    static constexpr ov::npuw::orc::Version kOrcVersion = 0u;
+    static constexpr ov::npuw::orc::Version kOrcVersion = 1u;
 
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,

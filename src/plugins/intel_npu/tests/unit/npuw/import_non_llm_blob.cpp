@@ -12,6 +12,7 @@
 #include "model_builder.hpp"
 #include "orc.hpp"
 #include "openvino/openvino.hpp"
+#include "openvino/util/codec_xor.hpp"
 #include "serialization.hpp"
 
 using ov::test::npuw::ModelBuilder;
@@ -25,6 +26,10 @@ public:
     }
 
 protected:
+    static ov::EncryptionCallbacks xor_callbacks() {
+        return {ov::util::codec_xor, ov::util::codec_xor};
+    }
+
     static ov::Tensor make_input_tensor(const ov::Output<const ov::Node>& input) {
         ov::Tensor tensor(input.get_element_type(), input.get_shape());
 
@@ -108,6 +113,51 @@ TEST_P(ImportNonLLMBlobTestNPUW, CacheModeOptimizeSpeed) {
     });
 }
 
+TEST_P(ImportNonLLMBlobTestNPUW, CacheModeOptimizeSpeedEncrypted) {
+    ov::AnyMap wai_props = GetParam();
+    m_props.insert(wai_props.begin(), wai_props.end());
+    m_props["CACHE_MODE"] = "OPTIMIZE_SPEED";
+    m_props[ov::cache_encryption_callbacks.name()] = xor_callbacks();
+
+    auto compiled = m_core.compile_model(m_ov_model, "NPU", m_props);
+    auto compiled_outputs = infer_outputs(compiled);
+
+    std::stringstream blob;
+    compiled.export_model(blob);
+    EXPECT_TRUE(ov::npuw::orc::is_orc(blob).has_value());
+
+    EXPECT_NO_THROW({
+        auto imported = m_core.import_model(blob, "NPU", m_props);
+        auto imported_outputs = infer_outputs(imported);
+        expect_outputs_equal(compiled_outputs, imported_outputs);
+    });
+}
+
+TEST_P(ImportNonLLMBlobTestNPUW, CacheModeOptimizeSpeedEncryptedRequiresDecryptCallback) {
+    ov::AnyMap wai_props = GetParam();
+    m_props.insert(wai_props.begin(), wai_props.end());
+    m_props["CACHE_MODE"] = "OPTIMIZE_SPEED";
+    m_props[ov::cache_encryption_callbacks.name()] = ov::EncryptionCallbacks{ov::util::codec_xor, nullptr};
+
+    auto compiled = m_core.compile_model(m_ov_model, "NPU", m_props);
+
+    std::stringstream blob;
+    compiled.export_model(blob);
+    EXPECT_TRUE(ov::npuw::orc::is_orc(blob).has_value());
+
+    auto import_props = m_props;
+    import_props.erase(ov::cache_encryption_callbacks.name());
+    try {
+        auto imported = m_core.import_model(blob, "NPU", import_props);
+        (void)imported;
+        FAIL() << "Expected encrypted ORC import to require a decrypt callback";
+    } catch (const ov::Exception& ex) {
+        EXPECT_NE(std::string(ex.what()).find("Blob is encrypted, but no decryption callback was provided"),
+                  std::string::npos)
+            << ex.what();
+    }
+}
+
 TEST_P(ImportNonLLMBlobTestNPUW, CacheModeOptimizeSpeedEnsureCompatibility) {
     ov::AnyMap wai_props = GetParam();
     m_props.insert(wai_props.begin(), wai_props.end());
@@ -137,6 +187,36 @@ TEST_P(ImportNonLLMBlobTestNPUW, CacheModeOptimizeSizeWithModelPtr) {
         auto imported = m_core.import_model(blob, "NPU", import_props);
         auto imported_outputs = infer_outputs(imported);
         expect_outputs_equal(compiled_outputs, imported_outputs);
+    });
+}
+
+TEST_P(ImportNonLLMBlobTestNPUW, CacheModeOptimizeSizeWithModelPtrEncryptedDifferentDecryptSize) {
+    ov::AnyMap wai_props = GetParam();
+    m_props.insert(wai_props.begin(), wai_props.end());
+    m_props["CACHE_MODE"] = "OPTIMIZE_SIZE";
+    m_props[ov::cache_encryption_callbacks.name()] = ov::EncryptionCallbacks{
+        [](const std::string& unencrypted_blob) {
+            std::string copy_blob = unencrypted_blob;
+            copy_blob += "<encrypt-tail>";
+            return ov::util::codec_xor(copy_blob);
+        },
+        [](const std::string& encrypted_blob) {
+            std::string decrypted_blob = ov::util::codec_xor(encrypted_blob);
+            decrypted_blob += "<decrypt-tail>";
+            return decrypted_blob;
+        }};
+
+    auto compiled = m_core.compile_model(m_ov_model, "NPU", m_props);
+
+    std::stringstream blob;
+    compiled.export_model(blob);
+    EXPECT_TRUE(ov::npuw::orc::is_orc(blob).has_value());
+
+    auto import_props = m_props;
+    import_props[ov::hint::model.name()] = std::static_pointer_cast<const ov::Model>(m_ov_model);
+    EXPECT_NO_THROW({
+        auto imported = m_core.import_model(blob, "NPU", import_props);
+        (void)imported;
     });
 }
 
