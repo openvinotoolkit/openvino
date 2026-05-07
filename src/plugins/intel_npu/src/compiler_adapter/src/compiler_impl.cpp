@@ -309,7 +309,7 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
                                      buildFlags.c_str(),
                                      buildFlags.size()};
 
-    if (usedVersion.Major >= 7 && usedVersion.Minor >= 7) {
+    if (usedVersion.Major > 7 || (usedVersion.Major == 7 && usedVersion.Minor >= 7)) {
         // Support only the lastest VCL api
         vcl_allocator_2 allocator;
         uint8_t* blob = nullptr;
@@ -336,7 +336,7 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
                         "Failed to create VCL executable, the blob size is zero or the blob is null");
 
         // Retrieve the real allocated size for the blob from the allocator
-        std::optional<size_t> alignedBlobSize;
+        size_t alignedBlobSize;
         for (auto [buffer, size] : allocator.m_info) {
             if (buffer == blob) {
                 alignedBlobSize = size;
@@ -344,13 +344,11 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
             }
         }
 
-        OPENVINO_ASSERT(alignedBlobSize.has_value());
-
         // The allocated size from VCL will be equal or smaller than the allocated size in allocator
         _logger.debug("Blob size from VCL: %zu ptr %p", blobSize, static_cast<void*>(blob));
-        _logger.debug("Allocated vector size: %zu ptr: %p", *alignedBlobSize, static_cast<void*>(blob));
+        _logger.debug("Allocated vector size: %zu ptr: %p", alignedBlobSize, static_cast<void*>(blob));
 
-        ov::Tensor alignedBlob = make_tensor_from_aligned_addr(blob, *alignedBlobSize);
+        ov::Tensor alignedBlob = make_tensor_from_aligned_addr(blob, alignedBlobSize);
         std::optional<std::string> compatibilityString;
 
         // Populate compatibility string only when VCL provides a buffer.
@@ -620,9 +618,6 @@ bool VCLCompilerImpl::validate_compatibility_descriptor(const std::string& compa
     compilerDesc.version = _vclVersion;
     compilerDesc.debugLevel = static_cast<vcl_log_level_t>(static_cast<int>(Logger::global().level()) + 1);
 
-    const char* optname_ch = ov::compatibility_check.name();
-    const char* optvalue_ch = compatibilityDescriptor.c_str();
-
     // Create a temporary compiler instance for the query to pass the correct device description.
     // The private compiler instance used by this class was created with default device description.
     vcl_log_handle_t logHandle = nullptr;
@@ -632,6 +627,8 @@ bool VCLCompilerImpl::validate_compatibility_descriptor(const std::string& compa
                               vclCompilerCreate(&compilerDesc, in_device_desc, &compilerHandle, &logHandle),
                               nullptr);
 
+        const char* optname_ch = ov::compatibility_check.name();
+        const char* optvalue_ch = compatibilityDescriptor.c_str();
         _logger.debug("is_option_supported start for option: %s, value: %s", optname_ch, optvalue_ch);
         THROW_ON_FAIL_FOR_VCL("vclGetCompilerIsOptionSupported",
                               vclGetCompilerIsOptionSupported(compilerHandle, optname_ch, optvalue_ch),
