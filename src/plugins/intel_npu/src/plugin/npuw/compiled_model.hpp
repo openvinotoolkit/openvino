@@ -85,6 +85,9 @@ class CompiledModel : public ov::npuw::ICompiledModel_v0 {
         std::map<std::string, std::tuple<ov::PropertyMutability, std::function<ov::Any(const ::intel_npu::Config&)>>>;
 
 public:
+    static constexpr ov::npuw::orc::TypeId kOrcType = 0x4E43u;
+    static constexpr ov::npuw::orc::Version kOrcVersion = 0u;
+
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const ov::AnyMap& properties);
@@ -228,6 +231,9 @@ private:
     void init_profiling();
 
     struct CompiledModelDesc {
+        static constexpr ov::npuw::orc::TypeId kOrcType = 0x5344u;
+        static constexpr ov::npuw::orc::Version kOrcVersion = 0u;
+
         std::set<std::string> devices_to_avoid;
         std::shared_ptr<ov::Model> model;
         ov::SoPtr<ov::ICompiledModel> compiled_model;

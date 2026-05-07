@@ -74,6 +74,15 @@ void expect_blob_summary(const BlobSummary& expected, const BlobSummary& actual)
     EXPECT_EQ(expected.devices, actual.devices);
 }
 
+struct CounterMeta {
+    static constexpr Version kVersion = 0u;
+    std::uint32_t value = 0u;
+
+    void serialize(Stream& stream) {
+        stream & value;
+    }
+};
+
 }  // namespace
 
 TEST(OrcTest, FileRoundTripsNestedSections) {
@@ -120,6 +129,40 @@ TEST(OrcTest, RejectsTruncatedFile) {
 
     std::stringstream truncated(bytes, std::ios::in | std::ios::out | std::ios::binary);
     EXPECT_THROW(read_file(truncated), ov::Exception);
+}
+
+TEST(OrcTest, ScopedSectionsRoundTripMetadataBeforeChildren) {
+    std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
+    write_file_header(buffer, TEST_UUID);
+    with_section(buffer, TYPE_NCMD, CounterMeta::kVersion, 0u, [&] {
+        auto root_stream = Stream::writer(buffer);
+        CounterMeta root_meta{2u};
+        root_stream & root_meta;
+
+        with_section(buffer, TYPE_TEST, CounterMeta::kVersion, 0u, [&] {
+            auto child_stream = Stream::writer(buffer);
+            CounterMeta child_meta{7u};
+            child_stream & child_meta;
+        });
+    });
+
+    EXPECT_EQ(read_file_header(buffer).schema_uuid, TEST_UUID);
+
+    ScopedReadSection root(buffer);
+    EXPECT_EQ(root.header().type, TYPE_NCMD);
+    auto root_stream = Stream::reader(buffer);
+    CounterMeta root_meta;
+    root_stream & root_meta;
+    EXPECT_EQ(root_meta.value, 2u);
+
+    ScopedReadSection child(buffer);
+    EXPECT_EQ(child.header().type, TYPE_TEST);
+    auto child_stream = Stream::reader(buffer);
+    CounterMeta child_meta;
+    child_stream & child_meta;
+    EXPECT_EQ(child_meta.value, 7u);
+    child.expect_end();
+    root.expect_end();
 }
 
 TEST(OrcTest, IsOrcReturnsTrueForValidBlob) {

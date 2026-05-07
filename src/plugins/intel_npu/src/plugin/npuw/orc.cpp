@@ -15,6 +15,22 @@ namespace {
 constexpr std::array<std::uint8_t, 8> ORC_FILE_MAGIC = {'N', 'P', 'U', 'W', 'O', 'R', 'C', '\0'};
 constexpr std::uint16_t ORC_FILE_VERSION = 1u;
 
+std::streampos checked_tellp(std::ostream& stream, const char* context) {
+    const auto pos = stream.tellp();
+    if (pos == std::streampos(-1)) {
+        OPENVINO_THROW("ORC export requires a seekable output stream for ", context);
+    }
+    return pos;
+}
+
+std::streampos checked_tellg(std::istream& stream, const char* context) {
+    const auto pos = stream.tellg();
+    if (pos == std::streampos(-1)) {
+        OPENVINO_THROW("ORC import requires a seekable input stream for ", context);
+    }
+    return pos;
+}
+
 std::streamsize checked_stream_size(const std::size_t size) {
     if (size > static_cast<std::size_t>(std::numeric_limits<std::streamsize>::max())) {
         OPENVINO_THROW("ORC size exceeds std::streamsize range");
@@ -139,6 +155,10 @@ void ov::npuw::orc::serialize(Stream& stream, Section& section) {
     } else {
         section = read_section(stream);
     }
+}
+
+void ov::npuw::orc::serialize(Stream& stream, SectionHeader& header) {
+    stream & header.type & header.version & header.flags & header.size;
 }
 
 ov::npuw::orc::Stream ov::npuw::orc::Stream::memory_reader(const void* data, const std::size_t size) {
@@ -280,6 +300,106 @@ ov::npuw::orc::Section ov::npuw::orc::read_file(std::istream& stream) {
     read_file_header(stream);
     auto reader = Stream::reader(stream);
     return read_section(reader);
+}
+
+std::streamsize ov::npuw::orc::checked_stream_size(const std::size_t size) {
+    return ::checked_stream_size(size);
+}
+
+std::size_t ov::npuw::orc::checked_size(const std::uint64_t size) {
+    return ::checked_size(size);
+}
+
+std::streamoff ov::npuw::orc::checked_streamoff(const std::uint64_t size) {
+    if (size > static_cast<std::uint64_t>(std::numeric_limits<std::streamoff>::max())) {
+        OPENVINO_THROW("ORC section size exceeds std::streamoff range");
+    }
+    return static_cast<std::streamoff>(size);
+}
+
+ov::npuw::orc::ScopedWriteSection::ScopedWriteSection(std::ostream& stream,
+                                                      const TypeId type,
+                                                      const Version version,
+                                                      const SectionFlags flags)
+    : m_stream(stream) {
+    SectionHeader header;
+    header.type = type;
+    header.version = version;
+    header.flags = flags;
+    header.size = 0u;
+
+    auto writer = Stream::writer(stream);
+    writer & header.type & header.version & header.flags;
+    m_size_pos = checked_tellp(stream, "section size patching");
+    writer & header.size;
+    m_body_pos = checked_tellp(stream, "section body tracking");
+}
+
+void ov::npuw::orc::ScopedWriteSection::close() {
+    if (m_closed) {
+        return;
+    }
+
+    const auto end_pos = checked_tellp(m_stream, "section size patching");
+    const auto body_size = end_pos - m_body_pos;
+    if (body_size < 0) {
+        OPENVINO_THROW("ORC section body size underflow");
+    }
+
+    const auto restore_pos = end_pos;
+    m_stream.seekp(m_size_pos);
+    if (!m_stream.good()) {
+        OPENVINO_THROW("Failed to seek to ORC section size field");
+    }
+
+    auto writer = Stream::writer(m_stream);
+    auto size = static_cast<std::uint64_t>(body_size);
+    writer & size;
+    m_stream.seekp(restore_pos);
+    if (!m_stream.good()) {
+        OPENVINO_THROW("Failed to restore ORC output position after patching section size");
+    }
+    m_closed = true;
+}
+
+ov::npuw::orc::ScopedReadSection::ScopedReadSection(std::istream& stream)
+    : m_stream(stream) {
+    auto reader = Stream::reader(stream);
+    reader & m_header;
+    m_end = checked_tellg(stream, "section bounds") + checked_streamoff(m_header.size);
+}
+
+const ov::npuw::orc::SectionHeader& ov::npuw::orc::ScopedReadSection::header() const {
+    return m_header;
+}
+
+bool ov::npuw::orc::ScopedReadSection::done() const {
+    return checked_tellg(m_stream, "section iteration") >= m_end;
+}
+
+std::size_t ov::npuw::orc::ScopedReadSection::remaining() const {
+    const auto pos = checked_tellg(m_stream, "section remaining");
+    if (pos > m_end) {
+        OPENVINO_THROW("ORC stream advanced past the end of the current section");
+    }
+    return checked_size(static_cast<std::uint64_t>(m_end - pos));
+}
+
+void ov::npuw::orc::ScopedReadSection::expect_end() const {
+    if (!done() || checked_tellg(m_stream, "section completion") != m_end) {
+        OPENVINO_THROW("Malformed ORC section contents");
+    }
+}
+
+std::string ov::npuw::orc::ScopedReadSection::read_remaining_blob() {
+    std::string blob(remaining(), '\0');
+    if (!blob.empty()) {
+        m_stream.read(blob.data(), checked_stream_size(blob.size()));
+        if (!m_stream.good()) {
+            OPENVINO_THROW("Unexpected end of ORC input stream");
+        }
+    }
+    return blob;
 }
 
 bool ov::npuw::orc::Schema::knows(const TypeId type) const {

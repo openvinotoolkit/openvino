@@ -10,6 +10,7 @@
 #include <unordered_map>
 
 #include "lazy_tensor.hpp"
+#include "orc.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/iremote_context.hpp"
@@ -25,6 +26,9 @@ namespace weights {
 
 class Bank {
 public:
+    static constexpr ov::npuw::orc::TypeId kOrcType = 0x5747u;
+    static constexpr ov::npuw::orc::Version kOrcVersion = 0u;
+
     Bank(const std::shared_ptr<const ov::ICore>& core, const std::string& alloc_device, const std::string& bank_name);
 
     // Register LazyTensor in a bank if it's not there. Returns LazyTensor's unique id

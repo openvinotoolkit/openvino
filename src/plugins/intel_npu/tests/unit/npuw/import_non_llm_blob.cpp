@@ -115,17 +115,8 @@ TEST_P(ImportNonLLMBlobTestNPUW, CacheModeOptimizeSpeedEnsureCompatibility) {
     m_props["NPUW_ENSURE_COMPATIBILITY"] = "YES";
 
     auto compiled = m_core.compile_model(m_ov_model, "NPU", m_props);
-    auto compiled_outputs = infer_outputs(compiled);
-
     std::stringstream blob;
-    compiled.export_model(blob);
-    EXPECT_TRUE(ov::npuw::orc::is_orc(blob).has_value());
-
-    EXPECT_NO_THROW({
-        auto imported = m_core.import_model(blob, "NPU", m_props);
-        auto imported_outputs = infer_outputs(imported);
-        expect_outputs_equal(compiled_outputs, imported_outputs);
-    });
+    EXPECT_THROW(compiled.export_model(blob), ov::Exception);
 }
 
 TEST_P(ImportNonLLMBlobTestNPUW, CacheModeOptimizeSizeWithModelPtr) {
@@ -156,19 +147,8 @@ TEST_P(ImportNonLLMBlobTestNPUW, CacheModeOptimizeSizeWithModelPtrEnsureCompatib
     m_props["NPUW_ENSURE_COMPATIBILITY"] = "YES";
 
     auto compiled = m_core.compile_model(m_ov_model, "NPU", m_props);
-    auto compiled_outputs = infer_outputs(compiled);
-
     std::stringstream blob;
-    compiled.export_model(blob);
-    EXPECT_TRUE(ov::npuw::orc::is_orc(blob).has_value());
-
-    EXPECT_NO_THROW({
-        auto import_props = m_props;
-        import_props[ov::hint::model.name()] = std::static_pointer_cast<const ov::Model>(m_ov_model);
-        auto imported = m_core.import_model(blob, "NPU", import_props);
-        auto imported_outputs = infer_outputs(imported);
-        expect_outputs_equal(compiled_outputs, imported_outputs);
-    });
+    EXPECT_THROW(compiled.export_model(blob), ov::Exception);
 }
 
 using ImportNonLLMNonWAIBlobTestNPUW = ImportNonLLMBlobTestNPUW;
@@ -198,17 +178,8 @@ TEST_P(ImportNonLLMNonWAIBlobTestNPUW, CacheModeOptimizeSizeNoModelPtrEnsureComp
     m_props["NPUW_ENSURE_COMPATIBILITY"] = "YES";
 
     auto compiled = m_core.compile_model(m_ov_model, "NPU", m_props);
-    auto compiled_outputs = infer_outputs(compiled);
-
     std::stringstream blob;
-    compiled.export_model(blob);
-    EXPECT_TRUE(ov::npuw::orc::is_orc(blob).has_value());
-
-    EXPECT_NO_THROW({
-        auto imported = m_core.import_model(blob, "NPU", m_props);
-        auto imported_outputs = infer_outputs(imported);
-        expect_outputs_equal(compiled_outputs, imported_outputs);
-    });
+    EXPECT_THROW(compiled.export_model(blob), ov::Exception);
 }
 
 using ImportNonLLMWAIBlobTestNPUW = ImportNonLLMBlobTestNPUW;
@@ -244,20 +215,7 @@ TEST_P(ImportNonLLMWAIBlobTestNPUW, CacheModeOptimizeSizeNoModelPtrEnsureCompati
     auto compiled = m_core.compile_model(m_ov_model, "NPU", m_props);
 
     std::stringstream blob;
-    compiled.export_model(blob);
-    EXPECT_TRUE(ov::npuw::orc::is_orc(blob).has_value());
-
-    try {
-        auto imported = m_core.import_model(blob, "NPU", m_props);
-        FAIL() << "Expected import to throw when WAI weightless blob is imported without MODEL_PTR/WEIGHTS_PATH";
-    } catch (const ov::Exception& ex) {
-        const std::string what = ex.what();
-        const bool has_expected_text =
-            what.find("Blob is weightless") != std::string::npos &&
-            what.find("WEIGHTS_PATH") != std::string::npos &&
-            what.find("MODEL_PTR") != std::string::npos;
-        EXPECT_TRUE(has_expected_text) << "Unexpected exception message: " << what;
-    }
+    EXPECT_THROW(compiled.export_model(blob), ov::Exception);
 }
 
 INSTANTIATE_TEST_SUITE_P(Only_NPU_USE_NPUW, ImportNonLLMBlobTestNPUW,

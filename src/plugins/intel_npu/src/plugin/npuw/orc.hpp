@@ -270,6 +270,8 @@ struct SectionHeader {
     std::uint64_t size = 0u;
 };
 
+void serialize(Stream& stream, SectionHeader& header);
+
 struct Section {
     TypeId type = 0u;
     Version version = 0u;
@@ -313,6 +315,48 @@ void write_file_header(std::ostream& stream, const SchemaUUID& uuid);
 OrcHeader read_file_header(std::istream& stream);
 void write_file(std::ostream& stream, const Section& root, const SchemaUUID& uuid);
 Section read_file(std::istream& stream);
+
+std::streamsize checked_stream_size(std::size_t size);
+std::size_t checked_size(std::uint64_t size);
+std::streamoff checked_streamoff(std::uint64_t size);
+
+class ScopedWriteSection {
+public:
+    ScopedWriteSection(std::ostream& stream, TypeId type, Version version, SectionFlags flags = 0u);
+    ScopedWriteSection(const ScopedWriteSection&) = delete;
+    ScopedWriteSection& operator=(const ScopedWriteSection&) = delete;
+
+    void close();
+
+private:
+    std::ostream& m_stream;
+    std::streampos m_size_pos{};
+    std::streampos m_body_pos{};
+    bool m_closed = false;
+};
+
+template <typename Writer>
+void with_section(std::ostream& stream, TypeId type, Version version, SectionFlags flags, Writer&& writer) {
+    ScopedWriteSection section(stream, type, version, flags);
+    writer();
+    section.close();
+}
+
+class ScopedReadSection {
+public:
+    explicit ScopedReadSection(std::istream& stream);
+
+    const SectionHeader& header() const;
+    bool done() const;
+    std::size_t remaining() const;
+    void expect_end() const;
+    std::string read_remaining_blob();
+
+private:
+    std::istream& m_stream;
+    SectionHeader m_header{};
+    std::streampos m_end{};
+};
 
 // Peeks at the stream to check whether it contains an ORC blob.
 // Returns the file header (format_version + schema_uuid) on success,
