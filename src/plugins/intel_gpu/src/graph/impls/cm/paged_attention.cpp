@@ -623,8 +623,8 @@ public:
 
             internal_buffers.emplace_back(tmp_out_elements_count, ov::element::f32);  // 0: intermediate partition output
             internal_buffers.emplace_back(buf_elements_count, ov::element::f32);      // 1: softmax exp_sums
-            internal_buffers.emplace_back(2, ov::element::i32, lockable_mapping);                 // 2: unused multi-token mapping placeholder
-            internal_buffers.emplace_back(total_tokens, ov::element::i32, lockable_mapping);      // 3: selected sequence ids
+            internal_buffers.emplace_back(2, ov::element::i32, lockable_mapping, false);                 // 2: unused multi-token mapping placeholder (not shareable)
+            internal_buffers.emplace_back(total_tokens, ov::element::i32, lockable_mapping, false);      // 3: selected sequence ids (CPU write, GPU read, not shareable)
 
             GPU_DEBUG_TRACE_DETAIL << "  internal buffer sizes: tmp_out=" << tmp_out_elements_count * 4 << "  exp_sums=" << buf_elements_count * 4 << std::endl;
         } else {
@@ -641,8 +641,8 @@ public:
 
             internal_buffers.emplace_back(decode_tmp_out_elements_count, ov::element::f32);  // 0: intermediate partition output
             internal_buffers.emplace_back(decode_buf_elements_count, ov::element::f32);       // 1: softmax exp_sums
-            internal_buffers.emplace_back(std::max<int64_t>(2, static_cast<int64_t>(rt_params->multi_token_wg_count * 2)), ov::element::i32, lockable_mapping);  // 2: multi-token mapping
-            internal_buffers.emplace_back(std::max<int64_t>(1, static_cast<int64_t>(rt_params->batch_size_in_sequences)), ov::element::i32, lockable_mapping);  // 3: selected ids / placeholder
+            internal_buffers.emplace_back(std::max<int64_t>(2, static_cast<int64_t>(rt_params->multi_token_wg_count * 2)), ov::element::i32, lockable_mapping, false);  // 2: multi-token mapping (CPU write, GPU read, not shareable)
+            internal_buffers.emplace_back(std::max<int64_t>(1, static_cast<int64_t>(rt_params->batch_size_in_sequences)), ov::element::i32, lockable_mapping, false);  // 3: selected ids / placeholder (CPU write, GPU read, not shareable)
 
             // internal buffer for XAttention (cumulative sizes across all subsequences)
             if (rt_params->enable_xattn_estimation) {
