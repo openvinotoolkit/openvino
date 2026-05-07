@@ -56,9 +56,9 @@ KERNEL(second_token_a)(OPTIONAL_SHAPE_INFO_ARG
 
         for (int kk = 0; kk < klen_sg; kk += SUBGROUP_SIZE) {
 #if ACCUMULATOR_TYPE_SIZE == 4
-            uint input = intel_sub_group_block_read((const __local uint*)(A_ptr + kk));
+            uint input = ((const __local uint*)(A_ptr + kk))[get_sub_group_local_id()];
 #else
-            ushort input = intel_sub_group_block_read_us((const __local ushort*)(A_ptr + kk));
+            ushort input = ((const __local ushort*)(A_ptr + kk))[get_sub_group_local_id()];
 #endif
             __attribute__((opencl_unroll_hint))
             for (int j = 0; j < SUBGROUP_SIZE; j++) {
@@ -88,18 +88,18 @@ KERNEL(second_token_a)(OPTIONAL_SHAPE_INFO_ARG
         __attribute__((opencl_unroll_hint))
         for (int i = 0; i < GEMMA_SGK; i++) {
 #if ACCUMULATOR_TYPE_SIZE == 4
-            sum += AS_ACCUMULATOR_TYPE(intel_sub_group_block_read((const __local uint*)(fma_buff + i * MAX_LORA_RANK + n_idx)));
+            sum += AS_ACCUMULATOR_TYPE(((const __local uint*)(fma_buff + i * MAX_LORA_RANK + n_idx))[get_sub_group_local_id()]);
 #else
-            sum += AS_ACCUMULATOR_TYPE(intel_sub_group_block_read_us((const __local ushort*)(fma_buff + i * MAX_LORA_RANK + n_idx)));
+            sum += AS_ACCUMULATOR_TYPE(((const __local ushort*)(fma_buff + i * MAX_LORA_RANK + n_idx))[get_sub_group_local_id()]);
 #endif
         }
     } else {
         // Can't unroll, tail handling.
         for (int i = 0; i < sgK; i++) {
 #if ACCUMULATOR_TYPE_SIZE == 4
-            sum += AS_ACCUMULATOR_TYPE(intel_sub_group_block_read((const __local uint*)(fma_buff + i * MAX_LORA_RANK + n_idx)));
+            sum += AS_ACCUMULATOR_TYPE(((const __local uint*)(fma_buff + i * MAX_LORA_RANK + n_idx))[get_sub_group_local_id()]);
 #else
-            sum += AS_ACCUMULATOR_TYPE(intel_sub_group_block_read_us((const __local ushort*)(fma_buff + i * MAX_LORA_RANK + n_idx)));
+            sum += AS_ACCUMULATOR_TYPE(((const __local ushort*)(fma_buff + i * MAX_LORA_RANK + n_idx))[get_sub_group_local_id()]);
 #endif
         }
     }
@@ -163,10 +163,10 @@ KERNEL(second_token_b)(OPTIONAL_SHAPE_INFO_ARG
     for (int kk = 0; kk < LORA_RANK; kk += SUBGROUP_SIZE) {
 #if ACCUMULATOR_TYPE_SIZE == 4
         ACCUMULATOR_TYPE scale = AS_ACCUMULATOR_TYPE(intel_sub_group_block_read((const __global uint*)(state_alpha + kk)));
-        ACCUMULATOR_TYPE input = AS_ACCUMULATOR_TYPE(intel_sub_group_block_read((const __local uint*)(reduce + kk)));
+        ACCUMULATOR_TYPE input = AS_ACCUMULATOR_TYPE(((const __local uint*)(reduce + kk))[get_sub_group_local_id()]);
 #else
         ACCUMULATOR_TYPE scale = AS_ACCUMULATOR_TYPE(intel_sub_group_block_read_us((const __global ushort*)(state_alpha + kk)));
-        ACCUMULATOR_TYPE input = AS_ACCUMULATOR_TYPE(intel_sub_group_block_read_us((const __local ushort*)(reduce + kk)));
+        ACCUMULATOR_TYPE input = AS_ACCUMULATOR_TYPE(((const __local ushort*)(reduce + kk))[get_sub_group_local_id()]);
 #endif
         input *= scale;
 
