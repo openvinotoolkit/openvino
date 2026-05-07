@@ -84,7 +84,6 @@ jobs:
 
       - name: Setup Variables
         run: |
-          echo "PIP_INSTALL_COMMAND=python3 -m pip install" >> "$GITHUB_ENV" # Linux and MacOS only, and just for debug purposes, will be reverted, see PR #34185
           echo "HF_TOKEN_PATH=${{ runner.os == 'Linux' && env.HF_TOKEN_PATH_LIN || env.HF_TOKEN_PATH_WIN }}" >> "$GITHUB_ENV"
 
       - name: Install OpenVINO dependencies (mac)
