@@ -27,6 +27,7 @@ public:
     memory_ptr allocate_memory(const layout& layout, allocation_type type, bool reset = true) override;
     memory_ptr reinterpret_handle(const layout& new_layout, shared_mem_params params) override;
     memory_ptr create_subbuffer(const memory& memory, const layout& new_layout, size_t offset) override;
+    memory_ptr pin_mmapped_host_buffer(const void* mmapped_address, size_t data_size, allocation_type _allocation_type, const layout output_layout) override;
     memory_ptr reinterpret_buffer(const memory& memory, const layout& new_layout) override;
     bool is_the_same_buffer(const memory& mem1, const memory& mem2) override;
 

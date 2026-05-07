@@ -1945,7 +1945,7 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
     }
 
     ob << allocating_order.size();
-    for (auto const& node_id : allocating_order) {
+    for (const auto& node_id : allocating_order) {
         ob << node_id;
     }
 
@@ -1954,6 +1954,13 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
         ob << state_initializer.first;
         ob << state_initializer.second;
     }
+
+    /* const uint16_t page_alignment = 4096;
+    size_t pad_dim = (ob.get_current_offset() % page_alignment == 0) ? 0 : page_alignment - (ob.get_current_offset() % page_alignment);
+    if (pad_dim > 0) {
+        std::vector<uint8_t> pad(pad_dim, 0);
+        ob << make_data(pad.data(), pad_dim);
+    }*/
 }
 
 void program::load(cldnn::BinaryInputBuffer& ib,
@@ -1975,6 +1982,18 @@ void program::load(cldnn::BinaryInputBuffer& ib,
         } else {
             OPENVINO_THROW("Weights path or model is required for cache mode OPTIMIZE_SIZE");
         }
+    }
+
+    const bool can_use_mmap_zero_copy = ib.has_tensor_base_ptr() && _engine.get_device_info().arch >= gpu_arch::xe2 &&
+                                        _engine.get_device_info().dev_type == device_type::integrated_gpu && !_config.get_enable_weightless();
+    memory_ptr model_tensor_base_ptr = nullptr;
+    if (can_use_mmap_zero_copy) {
+        size_t stream_size = ib.get_stream_size();
+        const tensor::value_type stream_tensor_size = static_cast<tensor::value_type>(stream_size);
+        model_tensor_base_ptr = ib.get_engine().pin_mmapped_host_buffer(ib.get_tensor_base_ptr(),
+                                                                        stream_size,
+                                                                        allocation_type::usm_host,
+                                                                        layout({{stream_tensor_size, 1, 1, 1}, data_types::u8, format::bfyx}));
     }
 
     size_t num_nodes;
@@ -2004,11 +2023,10 @@ void program::load(cldnn::BinaryInputBuffer& ib,
         std::shared_ptr<cldnn::primitive> prim;
         ib >> prim;
         if (auto data_prim = dynamic_cast<cldnn::data*>(prim.get())) {
-            data_prim->load_weights(ib, weights_memory);
+            data_prim->load_weights(ib, weights_memory, model_tensor_base_ptr);
         }
         get_or_create(prim);
     }
-
     size_t num_output_sharing_mutable_datas;
     ib >> num_output_sharing_mutable_datas;
     for (size_t i = 0; i < num_output_sharing_mutable_datas; ++i) {

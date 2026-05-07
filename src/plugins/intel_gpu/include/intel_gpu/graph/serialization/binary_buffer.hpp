@@ -35,6 +35,14 @@ public:
     void* getKernelImplParams() const { return _impl_params; }
     void set_stream(void* strm) { _strm = strm; }
     void* get_stream() const { return _strm; }
+    size_t get_current_offset() const {
+        std::streampos current_pos = stream.tellp();
+        if (current_pos == std::streampos(-1)) {
+            throw std::runtime_error("Failed to get stream position");
+        }
+        std::streamoff offset = static_cast<std::streamoff>(current_pos);
+        return static_cast<size_t>(offset);
+    }
 
 private:
     std::ostream& stream;
@@ -45,7 +53,15 @@ private:
 class BinaryInputBuffer : public InputBuffer<BinaryInputBuffer> {
 public:
     BinaryInputBuffer(std::istream& stream, engine& engine)
-    : InputBuffer<BinaryInputBuffer>(this, engine), _stream(stream), _impl_params(nullptr) {}
+        : InputBuffer<BinaryInputBuffer>(this, engine),
+          _stream(stream),
+          _impl_params(nullptr),
+          _tensor_base_ptr(nullptr) {}
+    BinaryInputBuffer(std::istream& stream, engine& engine, const size_t* _tensor_bp)
+        : InputBuffer<BinaryInputBuffer>(this, engine),
+          _stream(stream),
+          _impl_params(nullptr),
+          _tensor_base_ptr(_tensor_bp) {}
 
     virtual ~BinaryInputBuffer() = default;
 
@@ -62,6 +78,53 @@ public:
     std::streambuf* get_streambuf() const {
         return _stream.rdbuf();
     }
+    bool has_tensor_base_ptr() const {
+        return _tensor_base_ptr != nullptr;
+    }
+
+    const size_t* get_tensor_base_ptr() const {
+        if (!_tensor_base_ptr) {
+            throw std::runtime_error("Direct access not available - no tensor base pointer");
+        }
+        return _tensor_base_ptr;
+    }
+
+    size_t get_stream_size() const {
+        std::streampos current_pos = _stream.tellg();
+        if (current_pos == std::streampos(-1)) {
+            throw std::runtime_error("Failed to get stream position");
+        }
+        _stream.seekg(0, std::ios::end);
+        std::streampos end_pos = _stream.tellg();
+        _stream.seekg(0, std::ios::beg);
+        std::streampos start_pos = _stream.tellg();
+        _stream.seekg(current_pos);
+        return static_cast<size_t>(end_pos) - static_cast<size_t>(start_pos);
+    }
+
+    size_t get_current_offset() const {
+        std::streampos current_pos = _stream.tellg();
+        if (current_pos == std::streampos(-1)) {
+            throw std::runtime_error("Failed to get stream position");
+        }
+        std::streamoff offset = static_cast<std::streamoff>(current_pos);
+        return static_cast<size_t>(offset);
+    }
+
+    size_t get_current_ptr() {
+        // Get current stream position
+        return _stream.tellg();
+    }
+    
+    void seek_current_ptr(std::streamsize size) {
+        // Get current stream position
+        std::streampos current_pos = _stream.tellg();
+        if (current_pos == std::streampos(-1)) {
+            throw std::runtime_error("Failed to get stream position");
+        }
+        // Advance stream position
+        _stream.seekg(current_pos + static_cast<std::streampos>(size));
+    }
 
     void setKernelImplParams(void* impl_params) { _impl_params = impl_params; }
     void* getKernelImplParams() const { return _impl_params; }
@@ -69,6 +132,7 @@ public:
 private:
     std::istream& _stream;
     void* _impl_params;
+    const size_t* _tensor_base_ptr;
 };
 
 class EncryptedBinaryOutputBuffer : public BinaryOutputBuffer {
@@ -100,9 +164,7 @@ private:
 
 class EncryptedBinaryInputBuffer : public BinaryInputBuffer {
 public:
-    EncryptedBinaryInputBuffer(std::istream& stream,
-                               engine& engine,
-                               std::function<std::string(const std::string&)> decrypt)
+    EncryptedBinaryInputBuffer(std::istream& stream, engine& engine, std::function<std::string(const std::string&)> decrypt)
         : BinaryInputBuffer(stream, engine),
           decrypt(decrypt) {
         OPENVINO_ASSERT(decrypt);
@@ -113,19 +175,15 @@ public:
         // Not reading directly to plaintext_stream because decrypt(plaintext_stream.str()) would create an additional
         // copy.
         std::string str(bytes, 0);
-        BinaryInputBuffer::read(
-            make_data(const_cast<void*>(reinterpret_cast<const void*>(str.c_str())), str.size()).data,
-            str.size());
+        BinaryInputBuffer::read(make_data(const_cast<void*>(reinterpret_cast<const void*>(str.c_str())), str.size()).data, str.size());
         plaintext_stream.str(decrypt(str));
     }
 
     ~EncryptedBinaryInputBuffer() override = default;
 
     void read(void* const data, std::streamsize size) override {
-        auto const read_size = plaintext_stream.rdbuf()->sgetn(reinterpret_cast<char*>(data), size);
-        OPENVINO_ASSERT(
-            read_size == size,
-            "[GPU] Failed to read " + std::to_string(size) + " bytes from stream! Read " + std::to_string(read_size));
+        const auto read_size = plaintext_stream.rdbuf()->sgetn(reinterpret_cast<char*>(data), size);
+        OPENVINO_ASSERT(read_size == size, "[GPU] Failed to read " + std::to_string(size) + " bytes from stream! Read " + std::to_string(read_size));
     }
 
 private:
