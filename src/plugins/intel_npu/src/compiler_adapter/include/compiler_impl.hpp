@@ -7,8 +7,8 @@
 #include <memory>
 #include <optional>
 
-#include "compiler.h"
 #include "intel_npu/common/filtered_config.hpp"
+#include "intel_npu/utils/vcl/vcl_api.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/runtime/common.hpp"

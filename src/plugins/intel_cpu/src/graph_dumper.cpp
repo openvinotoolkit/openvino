@@ -19,6 +19,7 @@
 #include <oneapi/dnnl/dnnl.hpp>
 #include <sstream>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -34,15 +35,18 @@
 #include "openvino/op/result.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "openvino/pass/visualize_tree.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/util/common_util.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 #include "utils/platform.h"
 
 namespace ov::intel_cpu {
 
 void serializeToCout(const Graph& graph);
 void serializeToXML(const Graph& graph, const std::filesystem::path& path);
+void serializeToDot(const Graph& graph, const std::filesystem::path& path);
 
 namespace {
 
@@ -228,6 +232,10 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph& graph) {
 
 #ifdef CPU_DEBUG_CAPS
 void serialize(const Graph& graph) {
+    if (!graph.getGraphContext()) {
+        return;
+    }
+
     const std::string& pathStr = graph.getConfig().debugCaps.execGraphPath;
 
     if (pathStr.empty()) {
@@ -236,14 +244,49 @@ void serialize(const Graph& graph) {
 
     if (pathStr == "cout") {
         serializeToCout(graph);
-    } else if (std::filesystem::path p{pathStr}; p.extension() == ".xml") {
-        static int g_idx = 0;
-        const auto xmlPath =
-            p.parent_path() / (p.stem().string() + "_" + std::to_string(g_idx++) + p.extension().string());
-        serializeToXML(graph, xmlPath);
-    } else {
-        OPENVINO_THROW("Unknown serialize format. Should be either 'cout' or '*.xml'. Got ", pathStr);
+        return;
     }
+
+    std::filesystem::path p{pathStr};
+    const auto ext = p.extension();
+
+    if (none_of(ext, ".xml", ".dot")) {
+        OPENVINO_THROW("Unknown serialize format. Should be either 'cout', '*.xml' or '*.dot'. Got ", pathStr);
+    }
+
+    // Exec graph serialization happens twice per graph instance:
+    //   1. At compile time (Graph::Activate): the graph structure is written with
+    //      "not_executed" perf counters. This ensures a file is always present even
+    //      if a crash occurs during inference.
+    //   2. At destruction (Graph::~Graph): the same file is overwritten with real
+    //      perf counters collected during inference.
+    //
+    // All streams of the same model share a single file. A monotonically increasing
+    // index is assigned once per unique model name so that the order of compilation
+    // is visible in the filename and multiple models don't overwrite each other.
+    // Example with OV_CPU_EXEC_GRAPH_PATH=exec.xml:
+    //   modelA (any stream) -> exec_0_A.xml
+    //   modelB (any stream) -> exec_1_B.xml
+    static std::unordered_map<std::string, size_t> numPerModel;
+    const auto idx = numPerModel.emplace(graph.GetName(), numPerModel.size()).first->second;
+    const auto fileName = p.stem().string() + "_" + std::to_string(idx) + "_" + graph.GetName() + ext.string();
+    const auto filePath = p.parent_path() / fileName;
+
+    if (ext == ".xml") {
+        serializeToXML(graph, filePath);
+    } else {
+        serializeToDot(graph, filePath);
+    }
+}
+
+void serializeToDot(const Graph& graph, const std::filesystem::path& path) {
+    if (path.empty()) {
+        return;
+    }
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::VisualizeTree>(path.string(), nullptr, true);
+    manager.run_passes(graph.dump());
 }
 
 void serializeToXML(const Graph& graph, const std::filesystem::path& path) {

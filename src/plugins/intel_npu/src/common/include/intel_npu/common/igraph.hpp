@@ -50,6 +50,7 @@ public:
 
     virtual CommandQueueDesc get_command_queue_desc() const;
     virtual void set_workload_type(const ov::WorkloadType workloadType);
+    virtual void set_model_priority(const ov::hint::Priority modelPriority);
 
     std::mutex& get_mutex() {
         return _initialize_mutex;
@@ -69,6 +70,8 @@ public:
     virtual uint32_t get_unique_id();
     virtual void set_last_submitted_id(uint32_t id_index);
     virtual uint32_t get_last_submitted_id() const;
+
+    virtual void evict_memory();
 
     virtual std::optional<bool> is_profiling_blob() const = 0;
 

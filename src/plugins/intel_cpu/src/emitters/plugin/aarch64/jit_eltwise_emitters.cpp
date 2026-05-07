@@ -3177,6 +3177,258 @@ std::set<std::vector<element::Type>> jit_soft_sign_emitter::get_supported_precis
     return {{element::f32}};
 }
 
+/// ERFINV ///
+jit_erfinv_emitter::jit_erfinv_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
+                                       dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                       ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {
+    prepare_table();
+}
+
+jit_erfinv_emitter::jit_erfinv_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
+                                       dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                       [[maybe_unused]] const std::shared_ptr<ov::Node>& node)
+    : jit_emitter(host, host_isa, ov::element::f32) {
+    prepare_table();
+}
+
+size_t jit_erfinv_emitter::get_inputs_count() const {
+    return 1;
+}
+
+size_t jit_erfinv_emitter::get_aux_vecs_count() const {
+    return 6;
+}
+
+size_t jit_erfinv_emitter::get_aux_gprs_count() const {
+    return 1;
+}
+
+std::set<std::vector<element::Type>> jit_erfinv_emitter::get_supported_precisions(
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32}};
+}
+
+void jit_erfinv_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                   const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
+        emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OPENVINO_THROW("Can't create jit eltwise kernel for erfinv");
+    }
+}
+
+template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
+void jit_erfinv_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                  const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
+    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
+    const TReg vmm_src(in_vec_idxs[0]);
+    const TReg vmm_dst(out_vec_idxs[0]);
+    // Register assignments:
+    //  aux0 = saved x (live until final multiply)
+    //  aux1 = v bits (copy for exponent extraction) → e+1 int/float → log(v) → w
+    //  aux2 = v bits (for mantissa extraction) → h_log → r1 → r2
+    //  aux3 = log/branch1 poly accumulator → poly1
+    //  aux4 = coeff temp / branch2 acc → poly2
+    //  aux5 = branch2 running result temp
+    const TReg aux0(aux_vec_idxs[0]);
+    const TReg aux1(aux_vec_idxs[1]);
+    const TReg aux2(aux_vec_idxs[2]);
+    const TReg aux3(aux_vec_idxs[3]);
+    const TReg aux4(aux_vec_idxs[4]);
+    const TReg aux5(aux_vec_idxs[5]);
+
+    // Save x for final sign-carry multiply
+    h->mov(aux0.b16, vmm_src.b16);
+
+    // v = 1 - x²: compute in aux2 (bit pattern preserved for mantissa extraction)
+    h->fmul(aux2.s, vmm_src.s, vmm_src.s);  // x²
+    h->fneg(aux2.s, aux2.s);                // -x²
+    h->ld1r(aux4.s, table_val2("one"));
+    h->fadd(aux2.s, aux2.s, aux4.s);  // v = 1 - x²
+
+    // Copy v to aux1 for exponent extraction (aux2 keeps v bits for mantissa)
+    h->mov(aux1.b16, aux2.b16);
+
+    // Extract integer biased exponent k = v_bits >> 23, convert to float, subtract 126.0f
+    h->ushr(aux1.s, aux1.s, 23);  // k (int32)
+    h->scvtf(aux1.s, aux1.s);     // k as float
+    h->ld1r(aux4.s, table_val2("float126"));
+    h->fsub(aux1.s, aux1.s, aux4.s);  // (e+1) as float
+
+    // Extract mantissa from aux2 (v bits) and compute h = f/2 - 1
+    h->ld1r(aux4.s, table_val2("mantissa_mask"));
+    h->and_(aux2.b16, aux2.b16, aux4.b16);  // mantissa bits
+    h->ld1r(aux4.s, table_val2("one"));
+    h->orr(aux2.b16, aux2.b16, aux4.b16);  // f = 1.mantissa ∈ [1, 2)
+    h->ld1r(aux4.s, table_val2("half"));
+    h->fmul(aux2.s, aux2.s, aux4.s);  // f/2 ∈ [0.5, 1)
+    h->ld1r(aux4.s, table_val2("one"));
+    h->fsub(aux2.s, aux2.s, aux4.s);  // h = f/2 - 1 ∈ [-0.5, 0)
+
+    // Log polynomial Horner: log(1+h) = h*(1+h*(p0+h*(p1+...h*p6)))
+    // Pattern: init aux3 with highest coeff, then for each lower coeff:
+    //          load coeff into aux4, fmla(aux4, aux3, h) = aux4 += aux3*h, mov aux3=aux4
+    h->ld1r(aux3.s, table_val2("log_pol6"));
+    h->ld1r(aux4.s, table_val2("log_pol5"));
+    h->fmla(aux4.s, aux3.s, aux2.s);  // aux4 = p5 + p6*h
+    h->mov(aux3.b16, aux4.b16);
+    h->ld1r(aux4.s, table_val2("log_pol4"));
+    h->fmla(aux4.s, aux3.s, aux2.s);
+    h->mov(aux3.b16, aux4.b16);
+    h->ld1r(aux4.s, table_val2("log_pol3"));
+    h->fmla(aux4.s, aux3.s, aux2.s);
+    h->mov(aux3.b16, aux4.b16);
+    h->ld1r(aux4.s, table_val2("log_pol2"));
+    h->fmla(aux4.s, aux3.s, aux2.s);
+    h->mov(aux3.b16, aux4.b16);
+    h->ld1r(aux4.s, table_val2("log_pol1"));
+    h->fmla(aux4.s, aux3.s, aux2.s);
+    h->mov(aux3.b16, aux4.b16);
+    h->ld1r(aux4.s, table_val2("log_pol0"));
+    h->fmla(aux4.s, aux3.s, aux2.s);
+    h->mov(aux3.b16, aux4.b16);
+    h->ld1r(aux4.s, table_val2("one"));  // constant 1.0 factor
+    h->fmla(aux4.s, aux3.s, aux2.s);
+    h->mov(aux3.b16, aux4.b16);
+    h->fmul(aux3.s, aux2.s, aux3.s);  // log(1+h) = h * poly; aux2 freed
+
+    // Combine: log(v) = (e+1)*ln2 + log(y); then w = -log(v)
+    h->ld1r(aux4.s, table_val2("ln2"));
+    h->fmla(aux3.s, aux1.s, aux4.s);  // aux3 += (e+1)*ln2 = log(v); aux4 freed
+    h->fneg(aux1.s, aux3.s);          // aux1 = w = -log(v); aux3 freed
+
+    // Branch 1: poly1 = Giles poly(r1), r1 = w - 2.5
+    h->ld1r(aux4.s, table_val2("two_point_five"));
+    h->fsub(aux2.s, aux1.s, aux4.s);  // r2 = w - 2.5 in aux2
+    h->ld1r(aux3.s, table_val2("e1_c8"));
+    h->ld1r(aux4.s, table_val2("e1_c7"));
+    h->fmla(aux4.s, aux3.s, aux2.s);
+    h->mov(aux3.b16, aux4.b16);
+    h->ld1r(aux4.s, table_val2("e1_c6"));
+    h->fmla(aux4.s, aux3.s, aux2.s);
+    h->mov(aux3.b16, aux4.b16);
+    h->ld1r(aux4.s, table_val2("e1_c5"));
+    h->fmla(aux4.s, aux3.s, aux2.s);
+    h->mov(aux3.b16, aux4.b16);
+    h->ld1r(aux4.s, table_val2("e1_c4"));
+    h->fmla(aux4.s, aux3.s, aux2.s);
+    h->mov(aux3.b16, aux4.b16);
+    h->ld1r(aux4.s, table_val2("e1_c3"));
+    h->fmla(aux4.s, aux3.s, aux2.s);
+    h->mov(aux3.b16, aux4.b16);
+    h->ld1r(aux4.s, table_val2("e1_c2"));
+    h->fmla(aux4.s, aux3.s, aux2.s);
+    h->mov(aux3.b16, aux4.b16);
+    h->ld1r(aux4.s, table_val2("e1_c1"));
+    h->fmla(aux4.s, aux3.s, aux2.s);
+    h->mov(aux3.b16, aux4.b16);
+    h->ld1r(aux4.s, table_val2("e1_c0"));
+    h->fmla(aux4.s, aux3.s, aux2.s);
+    h->mov(aux3.b16, aux4.b16);  // aux3 = poly1; aux2(r1) freed
+
+    // Branch 2: poly2 = Giles poly(r2), r2 = sqrt(w) - 3.0
+    h->fsqrt(aux2.s, aux1.s);  // sqrt(w)
+    h->ld1r(aux4.s, table_val2("three"));
+    h->fsub(aux2.s, aux2.s, aux4.s);  // r2 = sqrt(w) - 3.0
+    h->ld1r(aux4.s, table_val2("e2_c8"));
+    h->ld1r(aux5.s, table_val2("e2_c7"));
+    h->fmla(aux5.s, aux4.s, aux2.s);
+    h->mov(aux4.b16, aux5.b16);
+    h->ld1r(aux5.s, table_val2("e2_c6"));
+    h->fmla(aux5.s, aux4.s, aux2.s);
+    h->mov(aux4.b16, aux5.b16);
+    h->ld1r(aux5.s, table_val2("e2_c5"));
+    h->fmla(aux5.s, aux4.s, aux2.s);
+    h->mov(aux4.b16, aux5.b16);
+    h->ld1r(aux5.s, table_val2("e2_c4"));
+    h->fmla(aux5.s, aux4.s, aux2.s);
+    h->mov(aux4.b16, aux5.b16);
+    h->ld1r(aux5.s, table_val2("e2_c3"));
+    h->fmla(aux5.s, aux4.s, aux2.s);
+    h->mov(aux4.b16, aux5.b16);
+    h->ld1r(aux5.s, table_val2("e2_c2"));
+    h->fmla(aux5.s, aux4.s, aux2.s);
+    h->mov(aux4.b16, aux5.b16);
+    h->ld1r(aux5.s, table_val2("e2_c1"));
+    h->fmla(aux5.s, aux4.s, aux2.s);
+    h->mov(aux4.b16, aux5.b16);
+    h->ld1r(aux5.s, table_val2("e2_c0"));
+    h->fmla(aux5.s, aux4.s, aux2.s);
+    h->mov(aux4.b16, aux5.b16);  // aux4 = poly2; aux2(r2), aux5 freed
+
+    // Blend: select poly1 (aux3) where w<5, poly2 (aux4) otherwise; mask in aux2
+    h->ld1r(aux2.s, table_val2("five"));
+    h->fcmgt(aux2.s, aux2.s, aux1.s);      // aux2 = (5.0 > w) = (w < 5.0)
+    h->bsl(aux2.b16, aux3.b16, aux4.b16);  // aux2 = mask ? poly1 : poly2
+    h->fmul(vmm_dst.s, aux2.s, aux0.s);    // dst = blend * x
+
+    // Special-case handling: |x| >= 1 → ±inf; |x| > 1 → NaN
+    // Reuse aux1..aux5 (all free); aux0 holds saved x.
+    // abs_x = |x|
+    h->ld1r(aux3.s, table_val2("abs_mask"));
+    h->and_(aux1.b16, aux0.b16, aux3.b16);  // aux1 = abs_x
+
+    // inf_signed = copysign(+inf, x) = (x & sign_mask) | pos_inf
+    h->ld1r(aux3.s, table_val2("sign_mask"));
+    h->and_(aux2.b16, aux0.b16, aux3.b16);  // sign bit
+    h->ld1r(aux3.s, table_val2("pos_inf"));
+    h->orr(aux2.b16, aux2.b16, aux3.b16);  // aux2 = ±inf
+
+    // ge1_mask = (abs_x >= 1.0): fcmge sets all-1s where abs_x >= 1
+    h->ld1r(aux3.s, table_val2("one"));
+    h->fcmge(aux4.s, aux1.s, aux3.s);         // aux4 = (abs_x >= 1.0) mask
+    h->bsl(aux4.b16, aux2.b16, vmm_dst.b16);  // aux4 = (ge1) ? ±inf : dst
+    h->mov(vmm_dst.b16, aux4.b16);
+
+    // gt1_mask = (abs_x > 1.0): fcmgt
+    h->fcmgt(aux4.s, aux1.s, aux3.s);  // aux4 = (abs_x > 1.0) mask
+    h->ld1r(aux3.s, table_val2("qnan"));
+    h->bsl(aux4.b16, aux3.b16, vmm_dst.b16);  // aux4 = (gt1) ? NaN : dst
+    h->mov(vmm_dst.b16, aux4.b16);
+}
+
+void jit_erfinv_emitter::register_table_entries() {
+    push_arg_entry_of("one", 0x3f800000, true);
+    push_arg_entry_of("half", 0x3f000000, true);
+    push_arg_entry_of("sign_mask", 0x80000000, true);
+    push_arg_entry_of("abs_mask", 0x7fffffff, true);
+    push_arg_entry_of("pos_inf", 0x7f800000, true);
+    push_arg_entry_of("qnan", 0x7fc00000, true);
+    push_arg_entry_of("mantissa_mask", 0x007fffff, true);
+    push_arg_entry_of("float126", 0x42fc0000, true);  // 126.0f
+    push_arg_entry_of("ln2", 0x3f317218, true);
+    push_arg_entry_of("two_point_five", 0x40200000, true);
+    push_arg_entry_of("three", 0x40400000, true);
+    push_arg_entry_of("five", 0x40a00000, true);
+    push_arg_entry_of("log_pol0", 0xbf000000, true);
+    push_arg_entry_of("log_pol1", 0x3eaaaa9f, true);
+    push_arg_entry_of("log_pol2", 0xbe800000, true);
+    push_arg_entry_of("log_pol3", 0x3e4ccccd, true);
+    push_arg_entry_of("log_pol4", 0xbe2aaac1, true);
+    push_arg_entry_of("log_pol5", 0x3e12491b, true);
+    push_arg_entry_of("log_pol6", 0xbe000000, true);
+    push_arg_entry_of("e1_c8", 0x32f16588, true);
+    push_arg_entry_of("e1_c7", 0x34b84b36, true);
+    push_arg_entry_of("e1_c6", 0xb66c7357, true);
+    push_arg_entry_of("e1_c5", 0xb6935ac1, true);
+    push_arg_entry_of("e1_c4", 0x396532db, true);
+    push_arg_entry_of("e1_c3", 0xbaa45408, true);
+    push_arg_entry_of("e1_c2", 0xbb88e4ef, true);
+    push_arg_entry_of("e1_c1", 0x3e7c8f63, true);
+    push_arg_entry_of("e1_c0", 0x3fc02e2f, true);
+    push_arg_entry_of("e2_c8", 0xb951f09b, true);
+    push_arg_entry_of("e2_c7", 0x38d3b56b, true);
+    push_arg_entry_of("e2_c6", 0x3ab0dc72, true);
+    push_arg_entry_of("e2_c5", 0xbb70bde7, true);
+    push_arg_entry_of("e2_c4", 0x3bbc127b, true);
+    push_arg_entry_of("e2_c3", 0xbbf9c5d7, true);
+    push_arg_entry_of("e2_c2", 0xbc1aa57e, true);
+    push_arg_entry_of("e2_c1", 0x3f8036db, true);
+    push_arg_entry_of("e2_c0", 0x40354f7e, true);
+}
+
 /// SQUARE_ROOT ///
 jit_sqrt_emitter::jit_sqrt_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
                                    dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,

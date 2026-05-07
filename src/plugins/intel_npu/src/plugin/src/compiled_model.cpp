@@ -4,6 +4,7 @@
 
 #include "compiled_model.hpp"
 
+#include <cinttypes>
 #include <fstream>
 #include <string_view>
 
@@ -11,6 +12,7 @@
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/options.hpp"
+#include "intel_npu/utils/utils.hpp"
 #include "metadata.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -82,7 +84,37 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
 
-    auto [blobSizesBeforeVersioning, initBlobSizes] = _graph->export_blob(stream);
+    uint64_t blobSizesBeforeVersioning;
+    std::optional<uint64_t> blobSizeAfterEncryption = std::nullopt;
+    std::optional<std::vector<uint64_t>> initBlobSizes;
+
+    if (_propertiesManager->getConfig().has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
+        _propertiesManager->getConfig().get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr) {
+        std::string encryptedBlobStr;
+        {
+            std::string tmpBlobStr;
+            {
+                std::stringstream tmpStringStream;
+                std::tie(blobSizesBeforeVersioning, initBlobSizes) =
+                    _graph->export_blob(tmpStringStream);  // +1x blob size
+                tmpBlobStr = tmpStringStream.str();        // +2x blob size
+            }  // -1x blob size when deallocating temporary stringstream
+            encryptedBlobStr =
+                _propertiesManager->getConfig().get<CACHE_ENCRYPTION_CALLBACKS>().encrypt(tmpBlobStr);  // +2x blob size
+            blobSizeAfterEncryption = encryptedBlobStr.size();
+            if (blobSizeAfterEncryption.value() % utils::STANDARD_PAGE_SIZE != 0) {
+                _logger.warning("Encrypted blob size %" PRIu64
+                                " is not page aligned, memory optimization when reading this blob "
+                                "won't be applied",
+                                blobSizeAfterEncryption.value());
+            }
+        }  // -1x blob size when deallocating temporary blob string
+        stream.write(encryptedBlobStr.c_str(), encryptedBlobStr.size());
+    }  // -1x blob size when deallocating encrypted blob string
+    else {
+        //  Write blob directly to user's output stream
+        std::tie(blobSizesBeforeVersioning, initBlobSizes) = _graph->export_blob(stream);
+    }
 
     if (!_propertiesManager->getConfig().get<EXPORT_RAW_BLOB>()) {
         std::optional<std::vector<ov::Layout>> inputLayouts = std::vector<ov::Layout>();
@@ -97,12 +129,19 @@ void CompiledModel::export_model(std::ostream& stream) const {
                 std::dynamic_pointer_cast<const ov::op::v0::Result>(nodeOutput.get_node_shared_ptr())->get_layout());
         }
 
+        std::optional<uint32_t> compilerVersion = std::nullopt;
+        if (_propertiesManager->getConfig().has(ov::intel_npu::compiler_version.name())) {
+            compilerVersion = _propertiesManager->getConfig().get<COMPILER_VERSION>();
+        }
+
         Metadata<CURRENT_METADATA_VERSION>(blobSizesBeforeVersioning,
                                            CURRENT_OPENVINO_VERSION,
-                                           std::move(initBlobSizes),
+                                           initBlobSizes,
                                            _batchSize,
-                                           std::move(inputLayouts),
-                                           std::move(outputLayouts))
+                                           inputLayouts,
+                                           outputLayouts,
+                                           compilerVersion,
+                                           blobSizeAfterEncryption)
             .write(stream);
     }
 }
@@ -163,6 +202,13 @@ void CompiledModel::set_property(const ov::AnyMap& properties) {
             _graph->set_workload_type(workloadType);
         }
     }
+
+    if (properties.count(std::string(MODEL_PRIORITY::key())) != 0) {
+        if (_graph != nullptr) {
+            const auto modelPriority = properties.at(ov::hint::model_priority.name()).as<ov::hint::Priority>();
+            _graph->set_model_priority(modelPriority);
+        }
+    }
 }
 
 ov::Any CompiledModel::get_property(const std::string& name) const {
@@ -182,6 +228,12 @@ const std::shared_ptr<IGraph>& CompiledModel::get_graph() const {
 
 const FilteredConfig& CompiledModel::get_config() const {
     return _propertiesManager->getConfig();
+}
+
+void CompiledModel::release_memory() {
+    if (_graph != nullptr) {
+        _graph->evict_memory();
+    }
 }
 
 void CompiledModel::configure_stream_executors() {

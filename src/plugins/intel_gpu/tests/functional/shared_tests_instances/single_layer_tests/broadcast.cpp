@@ -6,6 +6,11 @@
 
 #include "single_op_tests/broadcast.hpp"
 #include "common_test_utils/test_constants.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/runtime/core.hpp"
 
 namespace {
 using ov::test::BroadcastLayerTest;
@@ -252,5 +257,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_TestExplicitBroadcast3D,
                                            ::testing::ValuesIn(inputPrecisions),
                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         BroadcastLayerTest::getTestCaseName);
+
 // END EXPLICIT MODE ///////////////////////////////////
+
+TEST(smoke_BroadcastExplicit6DReorderedAxes, CompileModel) {
+    const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::Shape{2, 4, 6, 7});
+    const auto target_shape = ov::op::v0::Constant::create(ov::element::i64, {6}, {2, 3, 4, 5, 6, 7});
+    const auto axes_mapping = ov::op::v0::Constant::create(ov::element::i64, {4}, {0, 2, 4, 5});
+    const auto broadcast = std::make_shared<ov::op::v3::Broadcast>(input, target_shape, axes_mapping, ov::op::BroadcastType::EXPLICIT);
+    const auto result = std::make_shared<ov::op::v0::Result>(broadcast);
+    const auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
+
+    ov::Core core;
+    OV_ASSERT_NO_THROW(core.compile_model(model, ov::test::utils::DEVICE_GPU));
+}
 }  // namespace

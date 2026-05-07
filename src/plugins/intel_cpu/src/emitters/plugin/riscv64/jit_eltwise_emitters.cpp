@@ -1442,6 +1442,236 @@ void jit_softsign_emitter::register_table_entries() {
     push_arg_entry_of("one", CONST_1_F);
 }
 
+/// ErfInv ///
+jit_erfinv_emitter::jit_erfinv_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                                       ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                       ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {
+    prepare_table();
+}
+
+jit_erfinv_emitter::jit_erfinv_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                                       ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                       [[maybe_unused]] const std::shared_ptr<ov::Node>& node,
+                                       ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {
+    prepare_table();
+}
+
+size_t jit_erfinv_emitter::get_inputs_num() const {
+    return 1;
+}
+
+size_t jit_erfinv_emitter::aux_vecs_count() const {
+    return 6;
+}
+
+size_t jit_erfinv_emitter::aux_gprs_count() const {
+    // 1 GPR for integer vector ops (vsub_vx, vand_vx, vor_vx) + 1 for p_table
+    return 2;
+}
+
+size_t jit_erfinv_emitter::aux_fp_gprs_count() const {
+    return 1;
+}
+
+std::set<std::vector<element::Type>> jit_erfinv_emitter::get_supported_precisions(
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32}};
+}
+
+void jit_erfinv_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                   const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
+        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel for erfinv");
+    }
+}
+
+template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+void jit_erfinv_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                  const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
+
+    auto src = VReg(in_vec_idxs[0]);
+    auto dst = VReg(out_vec_idxs[0]);
+    // Register assignments:
+    //  aux0 = saved x
+    //  aux1 = v bits → exponent int → e+1 float → log(v) → w
+    //  aux2 = v bits (for mantissa) → h_log → r1 → r2
+    //  aux3 = log/branch1 poly acc → poly1
+    //  aux4 = branch2 poly acc → poly2
+    //  aux5 = coeff broadcast temp (for Horner coefficient loading)
+    //  gpr  = integer GPR for vsub_vx, vand_vx, vor_vx, li
+    //  fp0  = float scalar for vfrsub_vf, vfadd_vf, vfsub_vf, vfmacc_vf
+    auto aux0 = VReg(aux_vec_idxs[0]);
+    auto aux1 = VReg(aux_vec_idxs[1]);
+    auto aux2 = VReg(aux_vec_idxs[2]);
+    auto aux3 = VReg(aux_vec_idxs[3]);
+    auto aux4 = VReg(aux_vec_idxs[4]);
+    auto aux5 = VReg(aux_vec_idxs[5]);
+    auto gpr = Reg(aux_gpr_idxs[0]);
+    auto fp0 = FReg(aux_fp_gpr_idxs[0]);
+
+    // Save x
+    h->vmv_v_v(aux0, src);
+
+    // v = 1 - x²
+    h->vfmul_vv(aux1, src, src);  // aux1 = x²
+    load_table_val("one", fp0);
+    h->vfrsub_vf(aux1, aux1, fp0);  // aux1 = 1.0 - x² = v
+    // Copy v to aux2 for mantissa extraction (keep v in aux1 for exponent extraction)
+    h->vmv_v_v(aux2, aux1);
+
+    // Extract biased exponent k = v_bits >> 23 (integer)
+    h->vsrl_vi(aux1, aux1, 23);  // k (int32) in aux1
+    // Subtract 126: k - 126 = e+1
+    h->li(gpr, 126);
+    h->vsub_vx(aux1, aux1, gpr);  // e+1 (int32)
+    h->vfcvt_f_x_v(aux1, aux1);   // (e+1) as float
+
+    // Extract mantissa from aux2 (v bits) and compute h = f/2 - 1
+    h->li(gpr, 0x007fffff);
+    h->vand_vx(aux2, aux2, gpr);  // mantissa bits
+    h->li(gpr, 0x3f800000);
+    h->vor_vx(aux2, aux2, gpr);  // f = 1.mantissa ∈ [1, 2)
+    load_table_val("half", fp0);
+    h->vfmul_vf(aux2, aux2, fp0);  // f/2 ∈ [0.5, 1)
+    load_table_val("one", fp0);
+    h->vfsub_vf(aux2, aux2, fp0);  // h = f/2 - 1 ∈ [-0.5, 0)
+
+    // Log polynomial Horner: log(1+h) using vfmadd_vv(acc, h, coeff)
+    // vfmadd_vv(vd, vs1, vs2): vd = vs1 * vd + vs2 → acc = h * acc + coeff ✓
+    load_table_val("log_pol6", aux3, gpr);
+    load_table_val("log_pol5", aux5, gpr);
+    h->vfmadd_vv(aux3, aux2, aux5);  // aux3 = h * p6 + p5
+    load_table_val("log_pol4", aux5, gpr);
+    h->vfmadd_vv(aux3, aux2, aux5);
+    load_table_val("log_pol3", aux5, gpr);
+    h->vfmadd_vv(aux3, aux2, aux5);
+    load_table_val("log_pol2", aux5, gpr);
+    h->vfmadd_vv(aux3, aux2, aux5);
+    load_table_val("log_pol1", aux5, gpr);
+    h->vfmadd_vv(aux3, aux2, aux5);
+    load_table_val("log_pol0", aux5, gpr);
+    h->vfmadd_vv(aux3, aux2, aux5);
+    load_table_val("one", aux5, gpr);
+    h->vfmadd_vv(aux3, aux2, aux5);  // include constant 1.0 factor
+    h->vfmul_vv(aux3, aux2, aux3);   // log(1+h) = h * poly; aux2(h) freed
+
+    // Combine: log(v) = (e+1)*ln2 + log(y)
+    load_table_val("ln2", fp0);
+    h->vfmacc_vf(aux3, fp0, aux1);  // aux3 += ln2 * (e+1) = log(v)
+    h->vfneg_v(aux1, aux3);         // aux1 = w = -log(v); aux3 freed
+
+    // Branch 1: poly1 = Giles poly(r1 = w - 2.5)
+    load_table_val("two_point_five", fp0);
+    h->vfsub_vf(aux2, aux1, fp0);  // r1 = w - 2.5
+    load_table_val("e1_c8", aux3, gpr);
+    load_table_val("e1_c7", aux5, gpr);
+    h->vfmadd_vv(aux3, aux2, aux5);
+    load_table_val("e1_c6", aux5, gpr);
+    h->vfmadd_vv(aux3, aux2, aux5);
+    load_table_val("e1_c5", aux5, gpr);
+    h->vfmadd_vv(aux3, aux2, aux5);
+    load_table_val("e1_c4", aux5, gpr);
+    h->vfmadd_vv(aux3, aux2, aux5);
+    load_table_val("e1_c3", aux5, gpr);
+    h->vfmadd_vv(aux3, aux2, aux5);
+    load_table_val("e1_c2", aux5, gpr);
+    h->vfmadd_vv(aux3, aux2, aux5);
+    load_table_val("e1_c1", aux5, gpr);
+    h->vfmadd_vv(aux3, aux2, aux5);
+    load_table_val("e1_c0", aux5, gpr);
+    h->vfmadd_vv(aux3, aux2, aux5);  // aux3 = poly1; aux2(r1) freed
+
+    // Branch 2: poly2 = Giles poly(r2 = sqrt(w) - 3.0)
+    h->vfsqrt_v(aux2, aux1);  // sqrt(w)
+    load_table_val("three", fp0);
+    h->vfsub_vf(aux2, aux2, fp0);  // r2 = sqrt(w) - 3.0
+    load_table_val("e2_c8", aux4, gpr);
+    load_table_val("e2_c7", aux5, gpr);
+    h->vfmadd_vv(aux4, aux2, aux5);
+    load_table_val("e2_c6", aux5, gpr);
+    h->vfmadd_vv(aux4, aux2, aux5);
+    load_table_val("e2_c5", aux5, gpr);
+    h->vfmadd_vv(aux4, aux2, aux5);
+    load_table_val("e2_c4", aux5, gpr);
+    h->vfmadd_vv(aux4, aux2, aux5);
+    load_table_val("e2_c3", aux5, gpr);
+    h->vfmadd_vv(aux4, aux2, aux5);
+    load_table_val("e2_c2", aux5, gpr);
+    h->vfmadd_vv(aux4, aux2, aux5);
+    load_table_val("e2_c1", aux5, gpr);
+    h->vfmadd_vv(aux4, aux2, aux5);
+    load_table_val("e2_c0", aux5, gpr);
+    h->vfmadd_vv(aux4, aux2, aux5);  // aux4 = poly2; aux2(r2), aux5 freed
+
+    // Blend: select poly1 (aux3) where w<5, poly2 (aux4) otherwise; multiply by x
+    load_table_val("five", fp0);
+    h->vmflt_vf(mask_vreg(), aux1, fp0);  // mask = (w < 5.0)
+    h->vmerge_vvm(dst, aux4, aux3);       // dst = mask ? poly1 : poly2
+    h->vfmul_vv(dst, dst, aux0);          // dst *= saved_x
+
+    // Special-case handling: |x| >= 1 → ±inf; |x| > 1 → NaN
+    // Reuse aux1..aux5 (all free); aux0 holds saved x; gpr and fp0 available.
+    // abs_x = |x| = x & 0x7fffffff
+    h->li(gpr, 0x7fffffff);
+    h->vand_vx(aux1, aux0, gpr);  // aux1 = abs_x
+
+    // inf_signed = copysign(+inf, x) = (x & sign_mask) | 0x7f800000
+    h->li(gpr, static_cast<int32_t>(0x80000000));
+    h->vand_vx(aux2, aux0, gpr);  // sign bit
+    h->li(gpr, 0x7f800000);
+    h->vor_vx(aux2, aux2, gpr);  // aux2 = ±inf
+
+    // ge1_mask: (abs_x >= 1.0) → vmfge_vf
+    load_table_val("one", fp0);
+    h->vmfge_vf(mask_vreg(), aux1, fp0);  // mask = (abs_x >= 1.0)
+    h->vmerge_vvm(dst, dst, aux2);        // dst[ge1] = ±inf
+
+    // gt1_mask: (abs_x > 1.0) → vmfgt_vf
+    h->vmfgt_vf(mask_vreg(), aux1, fp0);  // mask = (abs_x > 1.0)
+    load_table_val("qnan", aux3, gpr);
+    h->vmerge_vvm(dst, dst, aux3);  // dst[gt1] = NaN
+}
+
+void jit_erfinv_emitter::register_table_entries() {
+    push_arg_entry_of("one", CONST_1_F);
+    push_arg_entry_of("half", 0x3f000000);
+    push_arg_entry_of("qnan", 0x7fc00000);
+    push_arg_entry_of("ln2", 0x3f317218);
+    push_arg_entry_of("two_point_five", 0x40200000);
+    push_arg_entry_of("three", 0x40400000);
+    push_arg_entry_of("five", 0x40a00000);
+    push_arg_entry_of("log_pol0", 0xbf000000);
+    push_arg_entry_of("log_pol1", 0x3eaaaa9f);
+    push_arg_entry_of("log_pol2", 0xbe800000);
+    push_arg_entry_of("log_pol3", 0x3e4ccccd);
+    push_arg_entry_of("log_pol4", 0xbe2aaac1);
+    push_arg_entry_of("log_pol5", 0x3e12491b);
+    push_arg_entry_of("log_pol6", 0xbe000000);
+    push_arg_entry_of("e1_c8", 0x32f16588);
+    push_arg_entry_of("e1_c7", 0x34b84b36);
+    push_arg_entry_of("e1_c6", 0xb66c7357);
+    push_arg_entry_of("e1_c5", 0xb6935ac1);
+    push_arg_entry_of("e1_c4", 0x396532db);
+    push_arg_entry_of("e1_c3", 0xbaa45408);
+    push_arg_entry_of("e1_c2", 0xbb88e4ef);
+    push_arg_entry_of("e1_c1", 0x3e7c8f63);
+    push_arg_entry_of("e1_c0", 0x3fc02e2f);
+    push_arg_entry_of("e2_c8", 0xb951f09b);
+    push_arg_entry_of("e2_c7", 0x38d3b56b);
+    push_arg_entry_of("e2_c6", 0x3ab0dc72);
+    push_arg_entry_of("e2_c5", 0xbb70bde7);
+    push_arg_entry_of("e2_c4", 0x3bbc127b);
+    push_arg_entry_of("e2_c3", 0xbbf9c5d7);
+    push_arg_entry_of("e2_c2", 0xbc1aa57e);
+    push_arg_entry_of("e2_c1", 0x3f8036db);
+    push_arg_entry_of("e2_c0", 0x40354f7e);
+}
+
 ///  Greater ///
 jit_greater_emitter::jit_greater_emitter(jit_generator_t* host, cpu_isa_t host_isa, const element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {

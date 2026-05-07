@@ -18,6 +18,15 @@
 
 namespace ov::intel_cpu::riscv64::utils {
 
+inline size_t get_snippet_lanes() {
+    const auto vlen_bytes = Xbyak_riscv::CPU::getInstance().getVlen() / 8;
+    OPENVINO_ASSERT(vlen_bytes % sizeof(float) == 0,
+                    "Unexpected RVV VLEN in bytes: ",
+                    vlen_bytes,
+                    ". Snippets expect an integer number of f32 lanes.");
+    return vlen_bytes / sizeof(float);
+}
+
 inline static std::vector<Xbyak_riscv::Reg> transform_idxs_to_regs(const std::vector<size_t>& idxs) {
     std::vector<Xbyak_riscv::Reg> regs;
     regs.reserve(idxs.size());

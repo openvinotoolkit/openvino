@@ -206,7 +206,9 @@ void VariablesIndex::read_checkpointable_object_graph() {
     }
 }
 
-bool VariablesIndex::read_variables(std::ifstream& vi_stream, const std::string& path, const bool is_saved_model) {
+bool VariablesIndex::read_variables(std::ifstream& vi_stream,
+                                    const std::filesystem::path& path,
+                                    const bool is_saved_model) {
     m_variables_index.clear();
     read_variables_index(vi_stream, m_variables_index);
     read_bundle_header();
@@ -216,9 +218,11 @@ bool VariablesIndex::read_variables(std::ifstream& vi_stream, const std::string&
         std::snprintf(suffix.data(), suffix.size(), "data-%05d-of-%05d", shard, m_total_shards);
         std::filesystem::path fullPath;
         if (is_saved_model) {
-            fullPath = ov::util::path_join({path, "variables", std::string("variables.") + suffix.data()});
+            fullPath = path / "variables" / (std::string("variables.") + suffix.data());
         } else {
-            fullPath = ov::util::make_path(path + "." + suffix.data());
+            fullPath = path;
+            fullPath += ".";
+            fullPath += suffix.data();
         }
         if (m_mmap_enabled) {
             m_data_files[shard].mmap = load_mmap_object(fullPath);
@@ -233,36 +237,6 @@ bool VariablesIndex::read_variables(std::ifstream& vi_stream, const std::string&
     read_checkpointable_object_graph();
     return true;
 }
-
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-bool VariablesIndex::read_variables(std::ifstream& vi_stream, const std::wstring& path, const bool is_saved_model) {
-    m_variables_index.clear();
-    read_variables_index(vi_stream, m_variables_index);
-    read_bundle_header();
-
-    std::vector<wchar_t> suffix(20);
-    for (int32_t shard = 0; shard < m_total_shards; ++shard) {
-        swprintf_s(suffix.data(), suffix.size(), L"data-%05d-of-%05d", shard, m_total_shards);
-        std::filesystem::path fullPath;
-        if (is_saved_model) {
-            fullPath = ov::util::path_join_w({path, L"variables", std::wstring(L"variables.") + suffix.data()});
-        } else {
-            fullPath = path + L"." + suffix.data();
-        }
-        if (m_mmap_enabled) {
-            m_data_files[shard].mmap = load_mmap_object(fullPath);
-            FRONT_END_GENERAL_CHECK(m_data_files[shard].mmap->data(), "Variable index data cannot be mapped");
-        } else {
-            m_data_files[shard].stream =
-                std::shared_ptr<std::ifstream>(new std::ifstream(fullPath, std::ifstream::in | std::ifstream::binary));
-            FRONT_END_GENERAL_CHECK(m_data_files[shard].stream->is_open(), "Variable index data file does not exist");
-        }
-    }
-
-    read_checkpointable_object_graph();
-    return true;
-}
-#endif
 
 struct PtrNode {
     using SharedPtrNode = std::shared_ptr<PtrNode>;

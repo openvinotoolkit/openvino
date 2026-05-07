@@ -11,6 +11,7 @@
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 
 namespace intel_npu {
@@ -62,14 +63,23 @@ void Graph::set_workload_type(const ov::WorkloadType workloadType) {
 
     std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
     auto zeWorkloadType = zeroUtils::toZeQueueWorkloadType(workloadType);
-    if (_commandQueueDesc.workload == zeWorkloadType) {
+    if (_commandQueueDesc.workload() == zeWorkloadType) {
         return;
     }
-    _commandQueueDesc.workload = zeWorkloadType;
+    _commandQueueDesc.set_workload(zeWorkloadType);
+}
 
-    const ZeroCmdQueueKey key{_zeroInitStruct->getContext(), _zeroInitStruct->getDevice(), _commandQueueDesc};
-    const auto queueKeyHash = ZeroCmdQueueKeyHash{}(key);
-    _commandQueueDesc.key = static_cast<uint64_t>(queueKeyHash);
+void Graph::set_model_priority(const ov::hint::Priority modelPriority) {
+    if (_zeroInitStruct == nullptr) {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
+    auto zeModelPriority = zeroUtils::toZeQueuePriority(modelPriority);
+    if (_commandQueueDesc.priority() == zeModelPriority) {
+        return;
+    }
+    _commandQueueDesc.set_priority(zeModelPriority);
 }
 
 ze_graph_handle_t Graph::get_handle() const {
@@ -109,10 +119,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std
         for (const uint8_t* it = blobPtr; it != blobPtr + blobSize; ++it) {
             result = ((result << 7) + result) + static_cast<uint32_t>(*it);
         }
-
-        std::stringstream str;
-        str << "Blob size: " << blobSize << ", hash: " << std::hex << result;
-        _logger.info(str.str().c_str());
+        _logger.info("Blob size: %zu, hash: %x", blobSize, result);
     }
 
     size_t size = utils::align_size_to_standard_page_size(blobSize);
@@ -125,7 +132,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std
             return std::make_pair(0, std::nullopt);
         }
 
-        _logger.info("Blob size with padding: %ld", size);
+        _logger.info("Blob size with padding: %zu", size);
     }
 
     _logger.info("Write blob to stream successfully.");
@@ -186,10 +193,6 @@ void Graph::initialize_impl(const FilteredConfig& config) {
             this,
             config.get<SHARED_COMMON_QUEUE>(),
         };
-
-        const ZeroCmdQueueKey key{_zeroInitStruct->getContext(), _zeroInitStruct->getDevice(), _commandQueueDesc};
-        const auto queueKeyHash = ZeroCmdQueueKeyHash{}(key);
-        _commandQueueDesc.key = static_cast<uint64_t>(queueKeyHash);
     }
 
     _zeGraphExt->initializeGraph(_graphDesc);
@@ -331,6 +334,12 @@ std::optional<size_t> Graph::determine_batch_size() {
 
 const std::optional<std::size_t> Graph::get_batch_size() const {
     return _batchSize;
+}
+
+void Graph::evict_memory() {
+    if (_zeGraphExt != nullptr) {
+        _zeGraphExt->evict_memory(_graphDesc);
+    }
 }
 
 Graph::~Graph() {

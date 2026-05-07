@@ -29,17 +29,9 @@ bool GraphIteratorMeta::is_valid_signature(const ::tensorflow::SignatureDef& sig
     return true;
 }
 
-template <>
-std::basic_string<char> get_variables_index_name<char>(const std::string name) {
-    return name + ".index";
+std::filesystem::path get_variables_index_name(const std::filesystem::path& name) {
+    return std::filesystem::path(name) += ".index";
 }
-
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-template <>
-std::basic_string<wchar_t> get_variables_index_name<wchar_t>(const std::wstring name) {
-    return name + L".index";
-}
-#endif
 
 }  // namespace tensorflow
 }  // namespace frontend
