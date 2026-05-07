@@ -104,3 +104,4 @@ OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dynamic_quantization_single, -1, "Apply dy
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, network_marker, false, "Insert named OpenCL marker kernels at network execution start/finish for CLIntercept tracing")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, list_layers, false, "Print layers list")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, print_input_data_shapes, false, "print input data shapes")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, auto_enable_kv_cache_4bit, true, "Auto-detect 4-bit weights and enable u4 KV-cache compression for PA models")

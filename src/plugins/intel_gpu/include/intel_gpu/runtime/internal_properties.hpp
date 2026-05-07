@@ -187,6 +187,7 @@ static constexpr Property<bool, ov::PropertyMutability::RW> network_marker{"GPU_
 static constexpr Property<bool, ov::PropertyMutability::RW> list_layers{"GPU_LIST_LAYERS"};
 static constexpr Property<bool, ov::PropertyMutability::RW> print_input_data_shapes{"GPU_PRINT_INPUT_DATA_SHAPES"};
 static constexpr Property<std::string, ov::PropertyMutability::RW> pa_mixed_route_mode{"GPU_PA_MIXED_ROUTE_MODE"};
+static constexpr Property<bool, ov::PropertyMutability::RW> auto_enable_kv_cache_4bit{"GPU_AUTO_ENABLE_KV_CACHE_4BIT"};
 }  // namespace ov::intel_gpu
 
 namespace cldnn {
