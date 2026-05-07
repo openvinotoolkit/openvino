@@ -168,10 +168,8 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         // currently only supports a single owner-writer per K / V state.
         // Sets are keyed by Variable id (not by ReadValue node pointer) so the corner case of
         // two distinct v6::ReadValue nodes aliasing the same Variable is still detected as shared.
-        if (m_processed_k_variable_ids.find(past_k_node->get_variable_id()) !=
-                m_processed_k_variable_ids.end() ||
-            m_processed_v_variable_ids.find(past_v_node->get_variable_id()) !=
-                m_processed_v_variable_ids.end()) {
+        if (m_processed_k_variable_ids.find(past_k_node->get_variable_id()) != m_processed_k_variable_ids.end() ||
+            m_processed_v_variable_ids.find(past_v_node->get_variable_id()) != m_processed_v_variable_ids.end()) {
             return false;
         }
         if (!check_valid_children_type(past_k_node) || !check_valid_children_type(past_v_node)) {
