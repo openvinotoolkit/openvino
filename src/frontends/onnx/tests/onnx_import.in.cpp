@@ -7436,6 +7436,42 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_split_to_sequence_explicit_split_1d) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_sequence_insert_chain_static_position) {
+    const auto model = convert_model("sequence_insert_chain_static_position.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    test_case.add_input<float>(Shape{4}, {1., 2., 3., 4.});
+    test_case.add_input<float>(Shape{4}, {5., 6., 7., 8.});
+    test_case.add_input<float>(Shape{4}, {9., 10., 11., 12.});
+    test_case.add_expected_output<float>(Shape{4}, {5., 6., 7., 8.});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_sequence_insert_chain_dynamic_negative_position) {
+    const auto model = convert_model("sequence_insert_chain_dynamic_position.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    test_case.add_input<float>(Shape{4}, {1., 2., 3., 4.});
+    test_case.add_input<float>(Shape{4}, {5., 6., 7., 8.});
+    test_case.add_input<float>(Shape{4}, {9., 10., 11., 12.});
+    test_case.add_input<int64_t>(Shape{}, {-1});
+    test_case.add_expected_output<float>(Shape{4}, {9., 10., 11., 12.});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_split_to_sequence_dynamic_input_shape) {
+    const auto model = convert_model("sequence_at_dynamic_input_position_input.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    test_case.add_input<float>(Shape{3, 2}, {1., 2., 3., 4., 5., 6.});
+    test_case.add_input<int64_t>(Shape{}, {1});
+    test_case.add_expected_output<float>(Shape{2}, {3., 4.});
+
+    test_case.run();
+}
+
 /// @brief Testing ONNX BitShift with an Y output of uint32 type
 /// The input model was taken from a bug report, where parsing the type of the Y input
 /// failed.

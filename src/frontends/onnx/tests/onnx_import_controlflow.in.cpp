@@ -891,6 +891,17 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_loop_sequence_concat_no_new_axis) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_loop_sequence_at_outer_scope_split_to_sequence) {
+    const auto model = convert_model("controlflow/loop_sequence_at_outer_scope_split_to_sequence.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int64_t>({3});
+    test_case.add_input<bool>({true});
+    test_case.add_input<float>(Shape{3, 2}, {1.f, 2.f, 3.f, 4.f, 5.f, 6.f});
+    test_case.add_expected_output<float>(Shape{3, 2}, {1.f, 2.f, 3.f, 4.f, 5.f, 6.f});
+    test_case.run();
+}
+
 /// @brief Test SequenceConstruct -> ConcatFromSequence pattern
 /// SequenceConstruct creates a sequence from input tensors, ConcatFromSequence concatenates them
 OPENVINO_TEST(${BACKEND_NAME}, onnx_sequence_construct_concat) {
