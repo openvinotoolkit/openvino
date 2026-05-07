@@ -39,7 +39,7 @@ protected:
 
     const std::filesystem::path vt_svg_file_path =
         ov::util::make_path(utils::getExecutableDirectory()) / (utils::generateTestFilePrefix() + "_tree.svg");
-    const std::filesystem::path dot_file_path = vt_svg_file_path.concat(".dot");
+    const std::filesystem::path dot_file_path = std::filesystem::path(vt_svg_file_path).concat(".dot");
 };
 
 TEST_F(VisualizeTreeTest, model_has_constant_with_inf) {
