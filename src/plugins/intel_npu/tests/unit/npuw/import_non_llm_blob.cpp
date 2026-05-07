@@ -99,6 +99,7 @@ TEST_P(ImportNonLLMBlobTestNPUW, CacheModeOptimizeSpeed) {
 
     std::stringstream blob;
     compiled.export_model(blob);
+    EXPECT_TRUE(ov::npuw::orc::is_orc(blob).has_value());
 
     EXPECT_NO_THROW({
         auto imported = m_core.import_model(blob, "NPU", m_props);
@@ -137,6 +138,7 @@ TEST_P(ImportNonLLMBlobTestNPUW, CacheModeOptimizeSizeWithModelPtr) {
 
     std::stringstream blob;
     compiled.export_model(blob);
+    EXPECT_TRUE(ov::npuw::orc::is_orc(blob).has_value());
 
     EXPECT_NO_THROW({
         auto import_props = m_props;
@@ -180,6 +182,7 @@ TEST_P(ImportNonLLMNonWAIBlobTestNPUW, CacheModeOptimizeSizeNoModelPtr) {
 
     std::stringstream blob;
     compiled.export_model(blob);
+    EXPECT_TRUE(ov::npuw::orc::is_orc(blob).has_value());
 
     EXPECT_NO_THROW({
         auto imported = m_core.import_model(blob, "NPU", m_props);
@@ -218,6 +221,7 @@ TEST_P(ImportNonLLMWAIBlobTestNPUW, CacheModeOptimizeSizeNoModelPtr) {
 
     std::stringstream blob;
     compiled.export_model(blob);
+    EXPECT_TRUE(ov::npuw::orc::is_orc(blob).has_value());
     try {
         auto imported = m_core.import_model(blob, "NPU", m_props);
         FAIL() << "Expected import to throw when WAI weightless blob is imported without MODEL_PTR/WEIGHTS_PATH";

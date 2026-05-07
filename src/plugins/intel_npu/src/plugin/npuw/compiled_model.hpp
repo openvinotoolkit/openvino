@@ -148,10 +148,10 @@ private:
                                                       const std::shared_ptr<const ov::IPlugin>& plugin,
                                                       const ov::AnyMap& properties,
                                                       const ov::npuw::s11n::CompiledContext& ctx);
-    static std::shared_ptr<CompiledModel> deserialize_phase0_orc(std::istream& stream,
-                                                                 const std::shared_ptr<const ov::IPlugin>& plugin,
-                                                                 const ov::AnyMap& properties);
-    void serialize_phase0_orc(std::ostream& stream) const;
+    static std::shared_ptr<CompiledModel> deserialize_orc(std::istream& stream,
+                                                          const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                          const ov::AnyMap& properties);
+    void serialize_orc(std::ostream& stream) const;
     void ensure_phase0_compatibility() const;
 
     // This is used for removing too long output tensor names to fix some compilation issues

@@ -46,21 +46,15 @@
 namespace {
 constexpr ov::npuw::orc::TypeId NPUW_ORC_TYPE_COMPILED_MODEL = 0x4E43u;
 constexpr ov::npuw::orc::TypeId NPUW_ORC_TYPE_META = 0x4D45u;
-constexpr ov::npuw::orc::TypeId NPUW_ORC_TYPE_PART = 0x5041u;
-constexpr ov::npuw::orc::TypeId NPUW_ORC_TYPE_SUBGRAPH = 0x5347u;
-constexpr ov::npuw::orc::TypeId NPUW_ORC_TYPE_SUBGRAPH_META = 0x534Du;
-constexpr ov::npuw::orc::TypeId NPUW_ORC_TYPE_SUBGRAPH_DESC = 0x5344u;
+constexpr ov::npuw::orc::TypeId NPUW_ORC_TYPE_MODEL_STATE = 0x4D53u;
 constexpr ov::npuw::orc::TypeId NPUW_ORC_TYPE_WEIGHTS = 0x5747u;
 
 constexpr ov::npuw::orc::Version NPUW_ORC_COMPILED_MODEL_VERSION = 0u;
 constexpr ov::npuw::orc::Version NPUW_ORC_META_VERSION = 0u;
-constexpr ov::npuw::orc::Version NPUW_ORC_PART_VERSION = 0u;
-constexpr ov::npuw::orc::Version NPUW_ORC_SUBGRAPH_VERSION = 0u;
-constexpr ov::npuw::orc::Version NPUW_ORC_SUBGRAPH_META_VERSION = 0u;
-constexpr ov::npuw::orc::Version NPUW_ORC_SUBGRAPH_DESC_VERSION = 0u;
+constexpr ov::npuw::orc::Version NPUW_ORC_MODEL_STATE_VERSION = 0u;
 constexpr ov::npuw::orc::Version NPUW_ORC_WEIGHTS_VERSION = 0u;
 
-const ov::npuw::orc::SchemaUUID NPUW_ORC_SCHEMA_UUID =
+const ov::npuw::orc::SchemaUUID NPUW_ORC_PARTITIONED_SCHEMA_UUID =
     {0x4E, 0x50, 0x55, 0x57, 0x43, 0x4D, 0x4F, 0x44, 0x50, 0x48, 0x41, 0x53, 0x45, 0x30, 0x30, 0x31};
 
 std::string canonical_device_name(const std::string& device_name) {
@@ -157,6 +151,17 @@ void decode_orc_payload(const ov::npuw::orc::Section& section, const ov::npuw::o
     if (stream.remaining() != 0u) {
         OPENVINO_THROW("Unexpected trailing bytes in ORC section type ID ", section.type);
     }
+}
+
+const ov::npuw::orc::Section& require_orc_child(const ov::npuw::orc::Section& container,
+                                                const ov::npuw::orc::TypeId type) {
+    const auto it = std::find_if(container.children.begin(), container.children.end(), [type](const auto& child) {
+        return child.type == type;
+    });
+    if (it == container.children.end()) {
+        OPENVINO_THROW("Missing required ORC child section type ID ", type);
+    }
+    return *it;
 }
 
 std::set<std::string> device_list_to_set(const std::string& device_list) {
@@ -996,77 +1001,7 @@ ov::npuw::CompiledModel::~CompiledModel() {
 }
 
 void ov::npuw::CompiledModel::export_model(std::ostream& raw_stream) const {
-    if (m_cfg.get<::intel_npu::NPUW_ENSURE_COMPATIBILITY>()) {
-        serialize_phase0_orc(raw_stream);
-        return;
-    }
-
-    using namespace ov::npuw::s11n;
-
-    // Identify encryption flow
-    bool encryption_required = false;
-    EncryptionCallbacks enc_callbacks;
-    if (auto it = m_non_npuw_props.find(ov::cache_encryption_callbacks.name());
-        it != m_non_npuw_props.end() && it->second.as<EncryptionCallbacks>().encrypt) {
-        LOG_INFO("Encryption will be done via the function provided.");
-        encryption_required = true;
-        enc_callbacks.encrypt = it->second.as<EncryptionCallbacks>().encrypt;
-    }
-
-    // Identify either full flow or weightless
-    bool is_weightless = should_use_weightless_flow(m_non_npuw_props, m_cfg, m_const_to_offset);
-    if (!is_weightless) {
-        LOG_INFO("Serialization will be done via flow with weights.");
-    }
-
-    // Write header regardless of encryption requirement - to identify NPUW serializated blobs
-    // Serialize magic number first
-    write(raw_stream, NPUW_SERIALIZATION_INDICATOR);
-    // Serilize CompiledModel identifier
-    write(raw_stream, NPUW_COMPILED_MODEL_INDICATOR);
-    // Serialize general meta info
-    write(raw_stream, OPENVINO_VERSION_MAJOR);
-    write(raw_stream, OPENVINO_VERSION_MINOR);
-    write(raw_stream, OPENVINO_VERSION_PATCH);
-    write(raw_stream, std::string(NPUW_SERIALIZATION_VERSION));
-    // Serialize encrypted flag
-    write(raw_stream, encryption_required);
-    // Write flow identifier
-    write(raw_stream, is_weightless);
-
-    if (!encryption_required) {
-        CompiledContext ctx(false, nullptr, nullptr, m_bf16_consts);
-        serialize(raw_stream, ctx);
-
-        auto stream = Stream::writer(raw_stream);
-        auto bank_name = m_weights_bank->get_name();
-        stream & bank_name;
-        if (!is_weightless) {
-            stream&* m_weights_bank;
-        }
-        return;
-    }
-
-    // In case of weightless flow the whole blob will be encrypted on NPUW side.
-    std::stringstream non_encrypted_stream;
-    if (is_weightless) {
-        non_encrypted_stream.copyfmt(raw_stream);
-        CompiledContext ctx(false, nullptr, nullptr, m_bf16_consts);
-        serialize(non_encrypted_stream, ctx);
-        std::string encrypted = enc_callbacks.encrypt(non_encrypted_stream.str());
-        write(raw_stream, encrypted);
-    } else {
-        // In case of blob with weights only encrypt XML part of the model
-        CompiledContext ctx(true, enc_callbacks.encrypt, nullptr, m_bf16_consts);
-        serialize(raw_stream, ctx);
-    }
-
-    auto stream = Stream::writer(raw_stream);
-    auto bank_name = m_weights_bank->get_name();
-    stream & bank_name;
-    if (!is_weightless) {
-        stream&* m_weights_bank;
-    }
+    serialize_orc(raw_stream);
 }
 
 std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::import_model(
@@ -1074,7 +1009,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::import_model(
     const std::shared_ptr<const ov::IPlugin>& plugin,
     const ov::AnyMap& properties) {
     if (ov::npuw::orc::is_orc(stream).has_value()) {
-        return deserialize_phase0_orc(stream, plugin, properties);
+        return deserialize_orc(stream, plugin, properties);
     }
 
     LOG_INFO("Deserializing CompiledModel...");
@@ -1219,142 +1154,46 @@ void ov::npuw::CompiledModel::ensure_phase0_compatibility() const {
     }
 }
 
-void ov::npuw::CompiledModel::serialize_phase0_orc(std::ostream& stream) const {
+void ov::npuw::CompiledModel::serialize_orc(std::ostream& stream) const {
     using namespace ov::npuw;
+    using namespace ov::npuw::s11n;
 
+    bool encryption_required = false;
+    EncryptionCallbacks enc_callbacks;
     if (auto it = m_non_npuw_props.find(ov::cache_encryption_callbacks.name());
         it != m_non_npuw_props.end() && it->second.as<EncryptionCallbacks>().encrypt) {
-        OPENVINO_THROW("NPUW_ENSURE_COMPATIBILITY does not support encrypted blobs yet");
+        LOG_INFO("Encryption will be done via the function provided.");
+        encryption_required = true;
+        enc_callbacks.encrypt = it->second.as<EncryptionCallbacks>().encrypt;
     }
 
-    ensure_phase0_compatibility();
+    if (m_cfg.get<::intel_npu::NPUW_ENSURE_COMPATIBILITY>()) {
+        if (encryption_required) {
+            OPENVINO_THROW("NPUW_ENSURE_COMPATIBILITY does not support encrypted blobs yet");
+        }
+        ensure_phase0_compatibility();
+    }
 
     const bool is_weightless = should_use_weightless_flow(m_non_npuw_props, m_cfg, m_const_to_offset);
-    s11n::WeightsContext weights_ctx(is_weightless, m_const_to_offset);
-
-    auto write_non_npuw_props = [](ov::npuw::orc::Stream& payload, const ov::AnyMap& props) {
-        std::size_t count = 0;
-        for (const auto& entry : props) {
-            if (entry.first == ov::cache_encryption_callbacks.name()) {
-                continue;
-            }
-            ++count;
-        }
-        payload & count;
-        for (const auto& entry : props) {
-            if (entry.first == ov::cache_encryption_callbacks.name()) {
-                continue;
-            }
-            payload& const_cast<std::string&>(entry.first);
-            auto value = entry.second;
-            payload & value;
-        }
-    };
-
-    std::vector<ov::npuw::orc::Section> part_children;
-    part_children.reserve(m_compiled_submodels.size());
-    for (std::size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
-        auto& subm = const_cast<CompiledModelDesc&>(m_compiled_submodels[idx]);
-        const auto real_idx = subm.replaced_by.value_or(idx);
-        auto device_index = real_idx == idx ? find_device_index(m_dev_list, submodel_device(real_idx)) : 0u;
-
-        const auto subgraph_meta = ov::npuw::orc::Section::raw(
-            NPUW_ORC_TYPE_SUBGRAPH_META,
-            NPUW_ORC_SUBGRAPH_META_VERSION,
-            encode_orc_payload([&](ov::npuw::orc::Stream& payload) {
-                payload & device_index;
-                bool has_compiled_model = subm.compiled_model != nullptr;
-                payload & has_compiled_model;
-                if (has_compiled_model) {
-                    std::stringstream exported(std::ios::in | std::ios::out | std::ios::binary);
-                    subm.compiled_model->export_model(exported);
-                    auto exported_model = exported.str();
-                    payload & exported_model;
-                }
-            }));
-
-        const auto subgraph_desc = ov::npuw::orc::Section::raw(
-            NPUW_ORC_TYPE_SUBGRAPH_DESC,
-            NPUW_ORC_SUBGRAPH_DESC_VERSION,
-            encode_orc_payload([&](ov::npuw::orc::Stream& payload) {
-                payload & subm.replaced_by & subm.param_base & subm.forced_to_fcall & subm.host_gather.dst_idx &
-                    subm.host_gather.src_idx & subm.host_gather.idx_idx & subm.quant_unpack_gather.dst_idx &
-                    subm.quant_unpack_gather.src_w_idx & subm.quant_unpack_gather.src_z_idx &
-                    subm.quant_unpack_gather.src_s_idx & subm.quant_unpack_gather.idx_idx;
-
-                auto& closure_desc = subm.closure.get();
-                payload & closure_desc.is_remote & closure_desc.closure_uid;
-
-                if (weights_ctx.is_weightless) {
-                    ov::npuw::orc::serialize_weightless(payload, subm.scales, weights_ctx);
-                    ov::npuw::orc::serialize_weightless(payload, subm.zerops, weights_ctx);
-
-                    std::size_t closure_size = closure_desc.closure.size();
-                    payload & closure_size;
-                    std::vector<ov::Tensor> cpu_closures;
-                    std::vector<std::size_t> cpu_closure_ids;
-                    std::vector<ov::npuw::weights::LazyTensor> non_cpu_tensors;
-                    std::vector<std::size_t> non_cpu_tensors_ids;
-                    for (std::size_t cidx = 0; cidx < closure_desc.closure.size(); ++cidx) {
-                        if (closure_desc.closure_uid[cidx] == -1) {
-                            cpu_closure_ids.push_back(cidx);
-                            cpu_closures.push_back(closure_desc.closure[cidx]);
-                        } else {
-                            non_cpu_tensors_ids.push_back(cidx);
-                            non_cpu_tensors.push_back(subm.lazy_closure[cidx]);
-                        }
-                    }
-                    payload & cpu_closure_ids;
-                    ov::npuw::orc::serialize_weightless(payload, cpu_closures, weights_ctx);
-                    payload & non_cpu_tensors_ids & non_cpu_tensors;
-                } else {
-                    payload & subm.scales & subm.zerops;
-
-                    std::size_t closure_size = closure_desc.closure.size();
-                    payload & closure_size;
-                    std::vector<std::size_t> cpu_closure_ids;
-                    std::vector<ov::Tensor> cpu_closures;
-                    for (std::size_t cidx = 0; cidx < closure_desc.closure.size(); ++cidx) {
-                        if (closure_desc.closure_uid[cidx] == -1) {
-                            cpu_closure_ids.push_back(cidx);
-                            cpu_closures.push_back(closure_desc.closure[cidx]);
-                        }
-                    }
-                    payload & cpu_closure_ids;
-                    for (auto& tensor : cpu_closures) {
-                        payload & tensor;
-                    }
-                }
-            }));
-
-        part_children.push_back(ov::npuw::orc::Section::container(NPUW_ORC_TYPE_SUBGRAPH,
-                                                                  NPUW_ORC_SUBGRAPH_VERSION,
-                                                                  {subgraph_meta, subgraph_desc}));
+    if (!is_weightless) {
+        LOG_INFO("Serialization will be done via flow with weights.");
     }
+
+    std::stringstream state_stream(std::ios::in | std::ios::out | std::ios::binary);
+    serialize(state_stream, CompiledContext(encryption_required, enc_callbacks.encrypt, nullptr, m_bf16_consts));
 
     const auto meta = ov::npuw::orc::Section::raw(NPUW_ORC_TYPE_META,
                                                   NPUW_ORC_META_VERSION,
                                                   encode_orc_payload([&](ov::npuw::orc::Stream& payload) {
-                                                      payload & m_name;
-
-                                                      auto model_inputs = inputs();
-                                                      auto model_outputs = outputs();
-                                                      payload & model_inputs & model_outputs;
-
-                                                      payload & m_inputs_to_submodels_inputs &
-                                                          m_outputs_to_submodels_outputs & m_param_subscribers &
-                                                          m_submodels_input_to_prev_output;
-
-                                                      payload & m_dev_list;
-                                                      payload & m_cfg;
-                                                      write_non_npuw_props(payload, m_non_npuw_props);
-                                                      auto weightless_flag = is_weightless;
-                                                      payload & weightless_flag;
-                                                      payload & m_bf16_consts;
+                                                      payload & OPENVINO_VERSION_MAJOR & OPENVINO_VERSION_MINOR &
+                                                          OPENVINO_VERSION_PATCH;
+                                                      auto s11n_version = std::string(NPUW_SERIALIZATION_VERSION);
+                                                      payload & s11n_version & encryption_required & is_weightless;
                                                   }));
 
-    const auto part =
-        ov::npuw::orc::Section::container(NPUW_ORC_TYPE_PART, NPUW_ORC_PART_VERSION, std::move(part_children));
+    const auto model_state = ov::npuw::orc::Section::raw(NPUW_ORC_TYPE_MODEL_STATE,
+                                                         NPUW_ORC_MODEL_STATE_VERSION,
+                                                         to_bytes(state_stream.str()));
 
     const auto weights =
         ov::npuw::orc::Section::raw(NPUW_ORC_TYPE_WEIGHTS,
@@ -1369,16 +1208,14 @@ void ov::npuw::CompiledModel::serialize_phase0_orc(std::ostream& stream) const {
 
     const auto root = ov::npuw::orc::Section::container(NPUW_ORC_TYPE_COMPILED_MODEL,
                                                         NPUW_ORC_COMPILED_MODEL_VERSION,
-                                                        {meta, part, weights});
-    ov::npuw::orc::write_file(stream, root, NPUW_ORC_SCHEMA_UUID);
+                                                        {meta, model_state, weights});
+    ov::npuw::orc::write_file(stream, root, NPUW_ORC_PARTITIONED_SCHEMA_UUID);
 }
 
-std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_phase0_orc(
+std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_orc(
     std::istream& stream,
     const std::shared_ptr<const ov::IPlugin>& plugin,
     const ov::AnyMap& properties) {
-    using namespace ov::npuw;
-
     const auto root = ov::npuw::orc::read_file(stream);
     if (root.type != NPUW_ORC_TYPE_COMPILED_MODEL) {
         OPENVINO_THROW("Unsupported ORC NPUW root type ID ", root.type);
@@ -1387,210 +1224,61 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_ph
         OPENVINO_THROW("Unsupported ORC NPUW root version ", root.version);
     }
 
-    auto require_child = [&](const ov::npuw::orc::TypeId type) -> const ov::npuw::orc::Section& {
-        const auto it =
-            std::find_if(root.children.begin(), root.children.end(), [type](const ov::npuw::orc::Section& child) {
-                return child.type == type;
-            });
-        if (it == root.children.end()) {
-            OPENVINO_THROW("Missing required ORC child section type ID ", type);
-        }
-        return *it;
-    };
+    const auto& meta_section = require_orc_child(root, NPUW_ORC_TYPE_META);
+    const auto& model_state_section = require_orc_child(root, NPUW_ORC_TYPE_MODEL_STATE);
+    const auto& weights_section = require_orc_child(root, NPUW_ORC_TYPE_WEIGHTS);
 
-    const auto& meta_section = require_child(NPUW_ORC_TYPE_META);
-    const auto& part_section = require_child(NPUW_ORC_TYPE_PART);
-    const auto& weights_section = require_child(NPUW_ORC_TYPE_WEIGHTS);
+    using namespace ov::npuw::s11n;
 
-    std::shared_ptr<ov::npuw::CompiledModel> compiled;
+    int vmajor = 0;
+    int vminor = 0;
+    int vpatch = 0;
+    bool encrypted = false;
     bool is_weightless = false;
-
     decode_orc_payload(meta_section, NPUW_ORC_META_VERSION, [&](ov::npuw::orc::Stream& payload) {
-        std::string model_name;
-        ov::ParameterVector parameters;
-        ov::NodeVector results;
-
-        payload & model_name;
-        payload & parameters & results;
-
-        auto ov_model = std::make_shared<ov::Model>(ov::as_output_vector(results), parameters, model_name);
-        compiled = std::make_shared<ov::npuw::CompiledModel>(ov_model, plugin, true);
-
-        payload & compiled->m_inputs_to_submodels_inputs & compiled->m_outputs_to_submodels_outputs &
-            compiled->m_param_subscribers & compiled->m_submodels_input_to_prev_output;
-        payload & compiled->m_dev_list;
-        payload & compiled->m_cfg;
-        compiled->m_cfg.parseEnvVars();
-
-        std::size_t props_size = 0;
-        payload & props_size;
-        for (std::size_t i = 0; i < props_size; ++i) {
-            std::string key;
-            ov::Any value;
-            payload & key & value;
-            compiled->m_non_npuw_props[key] = std::move(value);
+        std::string s11n_version;
+        payload & vmajor & vminor & vpatch & s11n_version & encrypted & is_weightless;
+        if (vmajor != OPENVINO_VERSION_MAJOR || vminor != OPENVINO_VERSION_MINOR || vpatch != OPENVINO_VERSION_PATCH ||
+            s11n_version != std::string(NPUW_SERIALIZATION_VERSION)) {
+            OPENVINO_THROW("This blobs was serialized with different OV version!",
+                           "\nSerialized by OV ",
+                           vmajor,
+                           '.',
+                           vminor,
+                           '.',
+                           vpatch,
+                           "\nCurrent OV version ",
+                           OPENVINO_VERSION_MAJOR,
+                           '.',
+                           OPENVINO_VERSION_MINOR,
+                           '.',
+                           OPENVINO_VERSION_PATCH,
+                           "\nNPUW serialized by version ",
+                           s11n_version,
+                           "\nNPUW current serialization version ",
+                           NPUW_SERIALIZATION_VERSION);
         }
-
-        payload & is_weightless;
-        payload & compiled->m_bf16_consts;
-        compiled->m_name = std::move(model_name);
-        compiled->implement_properties();
     });
 
-    std::string weights_path;
-    std::shared_ptr<ov::Model> model_ptr;
-    s11n::WeightsContext::ConstsCache consts_cache;
-    ov::FileHandleProvider handle_provider = nullptr;
-    if (is_weightless) {
-        if (const auto handle_it = properties.find(ov::intel_npu::npuw::weights_handle_provider.name());
-            handle_it != properties.end()) {
-            if (handle_it->second.is<ov::FileHandleProvider>()) {
-                handle_provider = handle_it->second.as<ov::FileHandleProvider>();
-            }
-        } else if (properties.find(ov::weights_path.name()) != properties.end()) {
-            weights_path = properties.at(ov::weights_path.name()).as<std::string>();
-            NPUW_ASSERT(!weights_path.empty() &&
-                        "Empty weights_path. Please provide WEIGHTS_PATH or MODEL_PTR in the configuration.");
-        } else if (properties.find(ov::hint::model.name()) != properties.end()) {
-            model_ptr = std::const_pointer_cast<ov::Model>(
-                            properties.at(ov::hint::model.name()).as<std::shared_ptr<const ov::Model>>())
-                            ->clone();
-            NPUW_ASSERT(
-                model_ptr &&
-                "Empty model passed in MODEL_PTR. Please provide WEIGHTS_PATH or MODEL_PTR in the configuration.");
-            pre_load_transform(model_ptr, {});
-            for (const auto& node : model_ptr->get_ordered_ops()) {
-                if (ov::op::util::is_constant(node)) {
-                    const auto& c = std::static_pointer_cast<ov::op::v0::Constant>(node);
-                    auto rt_info = c->get_rt_info();
-                    auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
-                    if (weightless_cache_attr == rt_info.end()) {
-                        continue;
-                    }
-                    std::size_t offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
-                    std::size_t size = c->get_byte_size();
-                    consts_cache[{offset, size}] = node;
-                }
-            }
-        } else {
-            NPUW_ASSERT(false && "Blob is weightless but no WEIGHTS_PATH nor MODEL_PTR property is provided!");
-        }
+    EncryptionCallbacks enc_callbacks;
+    if (encrypted) {
+        NPUW_ASSERT(properties.count(ov::cache_encryption_callbacks.name()) &&
+                    properties.at(ov::cache_encryption_callbacks.name()).as<EncryptionCallbacks>().decrypt &&
+                    "Model is encrypted but no decrypt function was provided!");
+        enc_callbacks.decrypt = properties.at(ov::cache_encryption_callbacks.name()).as<EncryptionCallbacks>().decrypt;
     }
 
-    ov::npuw::s11n::WeightsPtr weights = nullptr;
-    if (is_weightless) {
-        std::shared_ptr<ov::MappedMemory> mapped_memory;
-        if (handle_provider) {
-            ov::FileHandle handle = handle_provider();
-            mapped_memory = ov::load_mmap_object(handle);
-        } else if (!weights_path.empty()) {
-            mapped_memory = ov::load_mmap_object(ov::util::make_path(weights_path));
-        }
-        if (mapped_memory) {
-            weights =
-                std::make_shared<ov::npuw::s11n::Weights>(mapped_memory->data(), mapped_memory->size(), mapped_memory);
-        }
+    if (model_state_section.is_container() || model_state_section.version != NPUW_ORC_MODEL_STATE_VERSION) {
+        OPENVINO_THROW("Unsupported ORC model-state section");
     }
-    compiled->m_import_weights_ctx =
-        s11n::WeightsContext(weights, weights_path, consts_cache, compiled->m_bf16_consts, handle_provider);
 
-    if (part_section.version != NPUW_ORC_PART_VERSION || !part_section.is_container()) {
-        OPENVINO_THROW("Unsupported ORC partition section");
-    }
-    compiled->m_compiled_submodels.resize(part_section.children.size());
-    for (std::size_t idx = 0; idx < part_section.children.size(); ++idx) {
-        const auto& subgraph_section = part_section.children[idx];
-        if (!subgraph_section.is_container() || subgraph_section.type != NPUW_ORC_TYPE_SUBGRAPH ||
-            subgraph_section.version != NPUW_ORC_SUBGRAPH_VERSION) {
-            OPENVINO_THROW("Unsupported ORC subgraph section");
-        }
-
-        auto find_sub_child = [&](const ov::npuw::orc::TypeId type) -> const ov::npuw::orc::Section& {
-            const auto it = std::find_if(subgraph_section.children.begin(),
-                                         subgraph_section.children.end(),
-                                         [type](const ov::npuw::orc::Section& child) {
-                                             return child.type == type;
-                                         });
-            if (it == subgraph_section.children.end()) {
-                OPENVINO_THROW("Missing required ORC subgraph child section type ID ", type);
-            }
-            return *it;
-        };
-
-        const auto& subgraph_meta = find_sub_child(NPUW_ORC_TYPE_SUBGRAPH_META);
-        const auto& subgraph_desc = find_sub_child(NPUW_ORC_TYPE_SUBGRAPH_DESC);
-
-        std::size_t device_idx = 0;
-        bool has_compiled_model = false;
-        std::string exported_model;
-        decode_orc_payload(subgraph_meta, NPUW_ORC_SUBGRAPH_META_VERSION, [&](ov::npuw::orc::Stream& payload) {
-            payload & device_idx & has_compiled_model;
-            if (has_compiled_model) {
-                payload & exported_model;
-            }
-        });
-
-        ov::AnyMap import_config;
-        const auto& device = compiled->m_dev_list[device_idx];
-        if (ov::npuw::util::starts_with(device, "NPU") && compiled->m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>()) {
-            import_config["NPU_RUN_INFERENCES_SEQUENTIALLY"] = "YES";
-        }
-        if (has_compiled_model) {
-            std::stringstream buffer(exported_model, std::ios::in | std::ios::out | std::ios::binary);
-            compiled->m_compiled_submodels[idx].compiled_model =
-                plugin->get_core()->import_model(buffer, device, import_config);
-        }
-
-        decode_orc_payload(subgraph_desc, NPUW_ORC_SUBGRAPH_DESC_VERSION, [&](ov::npuw::orc::Stream& payload) {
-            auto& desc = compiled->m_compiled_submodels[idx];
-            payload & desc.replaced_by & desc.param_base & desc.forced_to_fcall & desc.host_gather.dst_idx &
-                desc.host_gather.src_idx & desc.host_gather.idx_idx & desc.quant_unpack_gather.dst_idx &
-                desc.quant_unpack_gather.src_w_idx & desc.quant_unpack_gather.src_z_idx &
-                desc.quant_unpack_gather.src_s_idx & desc.quant_unpack_gather.idx_idx;
-
-            auto& closure_desc = desc.closure.get();
-            payload & closure_desc.is_remote & closure_desc.closure_uid;
-
-            if (compiled->m_import_weights_ctx.is_weightless) {
-                ov::npuw::orc::serialize_weightless(payload, desc.scales, compiled->m_import_weights_ctx);
-                ov::npuw::orc::serialize_weightless(payload, desc.zerops, compiled->m_import_weights_ctx);
-
-                std::size_t closure_size = 0;
-                payload & closure_size;
-                closure_desc.closure.resize(closure_size);
-                desc.lazy_closure.resize(closure_size);
-
-                std::vector<std::size_t> cpu_closure_ids;
-                std::vector<ov::Tensor> cpu_closures;
-                std::vector<std::size_t> non_cpu_tensors_ids;
-                std::vector<ov::npuw::weights::LazyTensor> non_cpu_tensors;
-                payload & cpu_closure_ids;
-                ov::npuw::orc::serialize_weightless(payload, cpu_closures, compiled->m_import_weights_ctx);
-                for (std::size_t i = 0; i < cpu_closure_ids.size(); ++i) {
-                    closure_desc.closure[cpu_closure_ids[i]] = std::move(cpu_closures[i]);
-                }
-                payload & non_cpu_tensors_ids & non_cpu_tensors;
-                for (std::size_t i = 0; i < non_cpu_tensors_ids.size(); ++i) {
-                    desc.lazy_closure[non_cpu_tensors_ids[i]] = std::move(non_cpu_tensors[i]);
-                }
-                for (std::size_t cidx = 0; cidx < closure_desc.closure.size(); ++cidx) {
-                    if (closure_desc.closure_uid[cidx] != -1 && desc.lazy_closure[cidx]) {
-                        desc.lazy_closure[cidx].read_weight(compiled->m_import_weights_ctx);
-                    }
-                }
-            } else {
-                payload & desc.scales & desc.zerops;
-                std::size_t closure_size = 0;
-                payload & closure_size;
-                closure_desc.closure.resize(closure_size);
-                std::vector<std::size_t> cpu_closure_ids;
-                payload & cpu_closure_ids;
-                for (const auto cidx : cpu_closure_ids) {
-                    payload & closure_desc.closure[cidx];
-                }
-            }
-        });
-    }
+    std::stringstream model_stream(from_bytes(model_state_section.payload),
+                                   std::ios::in | std::ios::out | std::ios::binary);
+    auto compiled = ov::npuw::CompiledModel::deserialize(model_stream,
+                                                         plugin,
+                                                         properties,
+                                                         CompiledContext(encrypted, nullptr, enc_callbacks.decrypt));
+    NPUW_ASSERT(compiled && "Couldn't import NPUW compiled model!");
 
     decode_orc_payload(weights_section, NPUW_ORC_WEIGHTS_VERSION, [&](ov::npuw::orc::Stream& payload) {
         std::string bank_name;
