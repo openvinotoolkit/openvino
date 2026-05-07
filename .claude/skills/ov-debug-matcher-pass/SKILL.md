@@ -39,20 +39,20 @@ Ask the user only if the transformation name or run command is missing. The buil
 
 ## Step 1: Verify Debug Build
 
-The matcher logging macros are compiled in only when `ENABLE_OPENVINO_DEBUG=ON`. Check whether the current build already has it:
+The matcher logging macros are compiled in only when `ENABLE_DEBUG_CAPS=ON`. Check whether the current build already has it:
 
 ```bash
-grep -i "ENABLE_OPENVINO_DEBUG" build/*/CMakeCache.txt
+grep -i "ENABLE_DEBUG_CAPS" build/*/CMakeCache.txt
 ```
 
 If the flag is absent or set to `OFF`, reconfigure CMake using the existing build directory and build type from Step 0:
 
 ```bash
-cmake -B <build_dir> -DENABLE_OPENVINO_DEBUG=ON
+cmake -B <build_dir> -DENABLE_DEBUG_CAPS=ON
 cmake --build <build_dir> --parallel
 ```
 
-> **Note:** Logging also works in `Release` builds as long as `ENABLE_OPENVINO_DEBUG=ON` is set at configure time.
+> **Note:** Logging also works in `Release` builds as long as `ENABLE_DEBUG_CAPS=ON` is set at configure time.
 
 ---
 
@@ -173,7 +173,7 @@ Work inward through the nested blocks to find the deepest `}` labeled with a fai
 
 If the log file is empty or contains no matcher output even though the flag is set:
 
-- Confirm `ENABLE_OPENVINO_DEBUG=ON` in `CMakeCache.txt` for the binary you are actually running (not a different build directory).
+- Confirm `ENABLE_DEBUG_CAPS=ON` in `CMakeCache.txt` for the binary you are actually running (not a different build directory).
 - Confirm the env var is exported in the same shell context as the run command: `export OV_MATCHER_LOGGING=true` or prefix it inline.
 - If calling through Python or a launcher script, the env var must survive into the child process — use `os.environ` or prefix the full command.
 - Verify you are running the freshly rebuilt binary, not a cached one from a different `bin/` location.
