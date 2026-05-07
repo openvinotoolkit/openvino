@@ -84,6 +84,15 @@ public:
     bool unpack_required(size_t idx, size_t cidx) override;
     bool needs_copy_closure(size_t idx, size_t cidx) override;
     std::string subgraph_device(size_t idx) override;
+    void set_active_subrequest(size_t idx, ov::SoPtr<ov::IAsyncInferRequest> request);
+    ov::SoPtr<ov::IAsyncInferRequest> get_pipeline_subrequest(size_t idx) const;
+    void set_pipeline_subrequest(size_t idx, ov::SoPtr<ov::IAsyncInferRequest> request);
+    bool is_subrequest_pipelined(size_t idx) const;
+    std::size_t history_size() const;
+    bool subgraph_needs_copy(std::size_t idx) const;
+    const ov::SoPtr<ov::ICompiledModel>& compiled_submodel(size_t idx) const;
+    const ov::npuw::v1::subgraphs::CompiledPipeline& subgraph_pipeline(size_t idx) const;
+    std::size_t subgraph_param_base(size_t idx) const;
 
 protected:
     ////////////////////////////////////
@@ -111,61 +120,28 @@ protected:
     void bind_global_parameters(std::size_t idx);
     void bind_global_results(std::size_t idx);
     using IBaseInferRequest::bind_global_results;
+    bool bind_behavior_input(std::size_t idx,
+                             std::size_t real_idx,
+                             std::size_t input_idx,
+                             const ov::SoPtr<ov::ITensor>& tensor,
+                             RqPtr request) override;
 
     void function_prologue(std::size_t idx);
-    void function_prologue_attn(std::size_t real_idx, std::size_t idx);
-    void function_prologue_pyramid_attn(std::size_t real_idx, std::size_t idx);
 
     void unsafe_during(std::size_t real_idx, std::size_t idx, const std::function<void()>& f);
     void unsafe_infer(std::size_t real_idx, std::size_t idx);
     void unsafe_infer_spatial(std::size_t real_idx, std::size_t idx);
     void unsafe_run_this_prep_next(std::size_t idx, bool& next_prepared_p);
 
-    void run_hfa_tiled_inference(std::size_t real_idx, std::size_t idx);
     void legacy_infer(std::size_t real_idx, std::size_t idx);
     ov::npuw::v1::subgraphs::InferContext make_behavior_context(std::size_t real_idx, std::size_t idx);
     const ov::npuw::v1::subgraphs::RuntimeBehaviorSpec* get_runtime_behavior_spec(std::size_t idx) const;
     ov::npuw::v1::subgraphs::ISubgraphBehavior* get_subgraph_behavior(std::size_t idx) const;
     bool behavior_handles_function_prologue(std::size_t idx) const;
 
-public:
-    bool behavior_bind_dynamic_input(std::size_t real_idx,
-                                     std::size_t idx,
-                                     std::size_t input_idx,
-                                     const ov::SoPtr<ov::ITensor>& tensor);
-    bool behavior_bind_pyramid_input(std::size_t real_idx,
-                                     std::size_t idx,
-                                     std::size_t input_idx,
-                                     const ov::SoPtr<ov::ITensor>& tensor);
-    bool behavior_bind_hfa_input(std::size_t idx, std::size_t input_idx, const ov::SoPtr<ov::ITensor>& tensor);
-    bool behavior_bind_hfa_output(std::size_t idx, std::size_t output_idx, const ov::SoPtr<ov::ITensor>& tensor);
-    void behavior_prologue_dynamic(std::size_t real_idx, std::size_t idx);
-    void behavior_prologue_pyramid(std::size_t real_idx, std::size_t idx);
-    void behavior_run_hfa(std::size_t real_idx, std::size_t idx);
-
 protected:
-    // HFA helper functions
-    static void hfa_extract_and_copy_tile(const ov::SoPtr<ov::ITensor>& source_tensor,
-                                          const ov::SoPtr<ov::ITensor>& dest_tensor,
-                                          uint32_t sequence_dim,
-                                          int64_t sequence_offset,
-                                          int64_t sequence_length,
-                                          const std::string& tensor_name);
-
-    static bool hfa_can_reuse_tensor_zero_copy(const ov::SoPtr<ov::ITensor>& source_tensor,
-                                               const ov::SoPtr<ov::ITensor>& dest_tensor,
-                                               uint32_t sequence_dim,
-                                               int64_t sequence_offset,
-                                               int64_t tile_length);
-
     void connect_subrequests();
     void initialize_subgraph_behaviors();
-
-    // Helper function to setup pyramid attention infer requests
-    void setup_pyramid_infer_requests(std::size_t real_idx, bool is_piped);
-
-    // Helper function to setup host flash attention tile infer requests
-    void setup_hfa_infer_requests(std::size_t real_idx, bool is_piped, bool enable_hfa_optimizations = true);
 
     // Helper function to initialize/reinitialize MoE executor
     void initialize_moe_executor();
@@ -194,26 +170,11 @@ protected:
     // Cached check if we do FOLDing and need to update closures in the repeating blocks
     bool m_closure_update_required = false;
 
-    // Cached attention mask for SDPA operations to avoid recomputing
-    ov::SoPtr<ov::ITensor> m_cached_attention_mask;
-
-    // HFA runtime context (holds cached masks, pre-allocated buffers, and state buffers)
-    std::optional<runtime::host_flash_attention::HFARuntimeContext> m_hfa_runtime_ctx;
-
     // MoE executor (encapsulates MoE inference logic and profiling)
     std::unique_ptr<ov::npuw::moe::MoEExecutor> m_moe_executor;
 
-    // Anchor tensors that keep pyramid shared buffers alive.
-    // The pyramid infer requests share memory via raw pointers wrapped in ov::Tensor.
-    // Without these anchors the original tensor SoPtr can drop to zero when
-    // bind_pyramid_attention_inputs calls set_tensor on m_subrequests for the last chunk,
-    // freeing the buffer while pyramid requests still hold raw pointers into it.
-    // Each entry is {real_idx, tensor} so recreate can selectively remove by submodel.
-    std::vector<std::pair<std::size_t, ov::SoPtr<ov::ITensor>>> m_pyramid_anchor_tensors;
-
-    // Foundation for the upcoming behavior-driven execution pipeline.
-    // These slots are populated now but legacy execution still owns the scheduling.
     std::vector<ov::npuw::v1::subgraphs::ISubgraphBehavior::Ptr> m_subgraph_behaviors;
+    std::vector<ov::npuw::v1::subgraphs::Context> m_subgraph_runtime_states;
 };
 
 }  // namespace npuw
