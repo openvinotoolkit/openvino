@@ -305,6 +305,35 @@ void dispatch_and_process_cache(ov::element::Type_t prec,
 //
 // Note that a sequence may have many blocks but no updates, or only a few
 // updates; the number of update pairs is independent from the number of blocks.
+//
+// Cache payload handling for each update pair:
+//   * Non-quantized cache (f32/bf16/f16): copy the token payload bytes directly.
+//   * Quantized cache with by_channel == false (per-token / per-group params):
+//       each token row already carries its own scale/zp groups, so reorder copies
+//       the full token record as-is. No explicit dequant/requant is needed because
+//       the quant params move together with the token payload.
+//     Example: if one token row stores
+//       [scale0, zp0, q(group0), scale1, zp1, q(group1)],
+//     then seq2's 0 -> 1 update copies that whole row from (300, 0) to (300, 1).
+//   * Quantized cache with by_channel == true:
+//       each physical block stores shared per-channel scales/zps at the front of
+//       the block, and all token payloads inside that block are encoded with those
+//       shared params.
+//       - same physical block: raw quantized token bytes can be copied directly,
+//         because src and dst use the same scales/zps.
+//       - different physical blocks: raw byte copy is incorrect because src_block
+//         and dst_block may have different scales/zps. The implementation
+//         dequantizes the destination block into a float buffer using dst_block's
+//         params, dequantizes each moved source token using src_block's params,
+//         overwrites the destination float row, then requantizes the destination
+//         block back with dst_block's params.
+//     Example with seq0 above:
+//       - 0 -> 3 stays inside physical block 100, so the quantized token bytes
+//         move directly from (100, 0) to (100, 3).
+//       - 7 -> 8 crosses from (101, 3) to (102, 0), so token 7 is first
+//         dequantized with block 101's scales/zps, written into dst token 0 of a
+//         float buffer initialized from block 102, and then block 102 is
+//         requantized with block 102's own scales/zps.
 void reorder_kv_cache(PlainTensor& key_cache,
                       PlainTensor& value_cache,
                       const PlainTensor& block_indices,
