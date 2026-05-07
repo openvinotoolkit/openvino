@@ -828,8 +828,6 @@ void Properties::registerCompiledModelProperties() {
                                      return std::string("");
                                  });
 
-
-
     // 2. Metrics (static device and enviroment properties)
     // ========
     // REGISTER_SIMPLE_METRIC format: (property, public true/false, return value)

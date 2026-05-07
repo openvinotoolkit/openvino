@@ -323,15 +323,20 @@ the compiler falls back to a fixed lookup table embedded in the library to deter
 Enables blob encryption and decryption using user-provided callbacks. This is a write-only property that accepts a struct with encryption and decryption callback functions.
 Can be used for both model caching and user requested export or import of compiled models (blobs) scenarios.
 
+.. note::
+
+   If user compiles a model using ``Compiler-In-Driver``, currently there is no secure compilation available in driver until ``32.0.100.4724`` (inclusively) and a warning
+   describing this potential security flaw will be issued if encryption callbacks were set.
+
 Usage example:
 
 .. note::
 
-   Will set OV provided codec_xor encryption and decryption at plugin level, every compiled model created will inherit these callbacks if not changed explicitly.
+   Will set OV provided ``codec_xor`` utility encryption and decryption at plugin level, every compiled model created will inherit these callbacks if not changed explicitly.
 
 .. code-block::
 
-   core.set_property("NPU", ov::cache_encryption_callbacks(ov::EncryptionCallbacks(ov::codec_xor, ov::codec_xor)));
+   core.set_property("NPU", ov::cache_encryption_callbacks(ov::EncryptionCallbacks(ov::util::codec_xor, ov::util::codec_xor)));
 
    core.compile_model(ov_model, "NPU").export_model(encrypted_blob_stream);
 
@@ -339,11 +344,11 @@ Usage example:
 
 .. note::
 
-   Also force decryption function by import_model property
+   Also force decryption function by providing it as a property to ``import_model`` API
 
 .. code-block::
 
-   core.import_model(encrypted_blob_stream, "NPU", {ov::cache_encryption_callbacks(ov::EncryptionCallbacks{nullptr, ov::codec_xor})});
+   core.import_model(encrypted_blob_stream, "NPU", {ov::cache_encryption_callbacks(ov::EncryptionCallbacks{nullptr, ov::util::codec_xor})});
 
 .. note::
     
