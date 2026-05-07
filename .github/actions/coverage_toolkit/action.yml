@@ -132,6 +132,9 @@ outputs:
   artifact-name:
     description: Artifact name produced by collect-results.
     value: ${{ steps.coverage.outputs.artifact-name }}
+  upload-files-json:
+    description: JSON object mapping Codecov upload keys to resolved file paths.
+    value: ${{ steps.coverage.outputs['upload-files-json'] }}
 
 runs:
   using: composite

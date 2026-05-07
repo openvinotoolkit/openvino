@@ -452,11 +452,14 @@ def _find_upload_files(*, workspace: Path, artifact_name: str, filename: str) ->
 
 def resolve_uploads(*, workspace: Path, output_file: Path) -> None:
     output_lines = []
+    upload_files = {}
     for output_name, (artifact_name, filename) in _load_upload_defs().items():
         paths = _find_upload_files(workspace=workspace, artifact_name=artifact_name, filename=filename)
         output_value = ",".join(str(path) for path in paths)
+        upload_files[output_name] = output_value
         output_lines.append(f"{output_name}={output_value}")
         print(f"{output_name}: {output_value or '<missing>'}")
+    output_lines.append(f"upload-files-json={json.dumps(upload_files, sort_keys=True)}")
 
     with output_file.open("a", encoding="utf-8") as handle:
         handle.write("\n".join(output_lines) + "\n")
