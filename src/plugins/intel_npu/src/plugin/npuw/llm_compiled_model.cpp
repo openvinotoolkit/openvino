@@ -305,7 +305,6 @@ ov::AnyMap get_baseline_common_config(const std::optional<NPUDesc>& npudesc) {
 }
 
 ov::AnyMap get_default_common_config(const std::optional<NPUDesc>& npudesc) {
-    LOG_DEBUG("get_default_common_config: " << (npudesc ? npudesc->arch : "nullopt"));
     // FIXME: add `if_model_contain_slice()` condition for `SLICE_OUT` option.
     auto config = get_baseline_common_config(npudesc);
     const char* npu_l0 = std::getenv("DISABLE_OPENVINO_GENAI_NPU_L0");
@@ -318,24 +317,34 @@ ov::AnyMap get_default_common_config(const std::optional<NPUDesc>& npudesc) {
         if (!npudesc.has_value()) {
             return;
         }
-        auto arch_number = std::stoi(npudesc->arch);
-        if (arch_number < 4000) {
-            return;
+        LOG_DEBUG("NPU architecture detected: " << npudesc->arch << ", max tiles: " << npudesc->max_tiles
+                                     << ", compiler DQ support: " << (npudesc->compiler_dq ? "YES" : "NO"));
+    
+        // Platform parameter has a higher priority than deviceID
+        std::string npu_platform;
+        if (npudesc->arch != ov::intel_npu::Platform::AUTO_DETECT) {
+            npu_platform = ov::intel_npu::Platform::standardize(npudesc->arch);
+        } else {
+            npu_platform = npudesc->arch;
         }
-
+        
         std::stringstream config_compilation_params;
         config_compilation_params << config["NPU_COMPILATION_MODE_PARAMS"].as<std::string>();
 
-        if (arch_number == 4000) {
+        if (npu_platform == ov::intel_npu::Platform::NPU3720) {
+            // Keep baseline settings.
+        } else if (npu_platform == ov::intel_npu::Platform::NPU4000) {
             config_compilation_params << " optimization-level=3";
+            config["NPU_TILES"] = npudesc->max_tiles;
+        } else if (npu_platform == ov::intel_npu::Platform::NPU5010 ||
+                   npu_platform == ov::intel_npu::Platform::NPU5020) {
+            config["NPU_TILES"] = npudesc->max_tiles;
+        } else if (npu_platform == ov::intel_npu::Platform::AUTO_DETECT) {
+            config_compilation_params << " performance-hint-override=latency";
+        } else {
+            LOG_WARN("Unknown NPU platform: " << npu_platform << ". Default config will be used.");
         }
 
-        if (arch_number >= 4000 && arch_number < 6000) {
-            config["NPU_TILES"] = npudesc->max_tiles;
-        } else if (arch_number >= 6000) {
-            // hint ignored if not supported
-            config_compilation_params << " performance-hint-override=latency";
-        }
         config["NPU_COMPILATION_MODE_PARAMS"] = config_compilation_params.str();
     };
     set_max_tiles_based_on_arch();

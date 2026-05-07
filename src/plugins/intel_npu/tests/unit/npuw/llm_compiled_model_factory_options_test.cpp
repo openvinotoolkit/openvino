@@ -423,6 +423,28 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, Arch2700SkipsNpuTilesInDefaultStageCo
                     "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm");
     }
 }
+// avtual config for one of platform with embargo details.
+TEST_F(LLMCompiledModelFactoryOptionsTest, ArchAutoDetectSkipsNpuTilesInDefaultStageConfigs) {
+    m_plugin = std::make_shared<ArchAwarePlugin>("AUTO_DETECT", 4);
+    const auto core = attach_mock_core_with_npu_device(m_plugin);
+
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_llm_model(), {{"NPUW_LLM_SHARED_HEAD", "YES"}}, recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& prefill = require_call(recorder, "_prefill");
+    const auto& generate = require_call_containing(recorder, "_kv");
+    const auto& head = require_call(recorder, "_lm_head");
+
+    for (const auto* call : {&prefill, &generate, &head}) {
+        expect_missing_prop(call->props, "NPU_TILES");
+        expect_prop(call->props,
+                    "NPU_COMPILATION_MODE_PARAMS",
+                    "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm performance-hint-override=latency");
+    }
+}
 
 TEST_F(LLMCompiledModelFactoryOptionsTest, Arch4000AddsOptimizationLevelAndSetsNpuTiles) {
     m_plugin = std::make_shared<ArchAwarePlugin>("4000", 4);
