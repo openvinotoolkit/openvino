@@ -61,7 +61,7 @@ endif()
 
 find_package(Vulkan QUIET)
 if(NOT Vulkan_FOUND)
-    set(OV_GPU_FUNC_TESTS_VULKAN_TAG "v1.4.304" CACHE STRING "Git tag used when downloading Vulkan dependencies for GPU functional tests" FORCE)
+    set(OV_GPU_FUNC_TESTS_VULKAN_TAG "v1.3.242" CACHE STRING "Git tag used when downloading Vulkan dependencies for GPU functional tests" FORCE)
     if(CMAKE_VERSION VERSION_LESS 3.14.0)
         message(WARNING "Vulkan was not found and automatic download requires CMake >= 3.14.0.")
     else()
@@ -158,6 +158,12 @@ if(Vulkan_FOUND)
     endif()
 else()
     message(FATAL_ERROR "Vulkan not found")
+endif()
+
+# Keep build-tree binaries relocatable so mounted paths (e.g. /ov in containers)
+# still resolve local dependencies (libvulkan.so.1 etc.) from the executable directory.
+if(UNIX AND NOT APPLE)
+    set_property(TARGET ${TARGET_NAME} APPEND PROPERTY BUILD_RPATH "$ORIGIN")
 endif()
 
 ov_build_target_faster(${TARGET_NAME} PCH)
