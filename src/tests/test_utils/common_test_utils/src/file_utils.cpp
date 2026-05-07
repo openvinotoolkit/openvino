@@ -143,9 +143,12 @@ std::wstring getExecutableDirectoryW() {
 #endif
 
 std::string getExecutableDirectory() {
+    std::cout << "getExecutableDirectory: ";
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+    std::cout << "getExecutableDirectoryW: " << ov::util::wstring_to_string(getExecutableDirectoryW()) << std::endl;
     return ov::util::wstring_to_string(getExecutableDirectoryW());
 #else
+    std::cout << "getExecutableDirectoryA: " << getExecutableDirectoryA() << std::endl;
     return getExecutableDirectoryA();
 #endif
 }
