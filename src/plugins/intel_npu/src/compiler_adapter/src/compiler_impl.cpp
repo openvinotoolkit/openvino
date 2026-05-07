@@ -336,7 +336,7 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
                         "Failed to create VCL executable, the blob size is zero or the blob is null");
 
         // Retrieve the real allocated size for the blob from the allocator
-        size_t alignedBlobSize;
+        size_t alignedBlobSize = 0;
         for (auto [buffer, size] : allocator.m_info) {
             if (buffer == blob) {
                 alignedBlobSize = size;

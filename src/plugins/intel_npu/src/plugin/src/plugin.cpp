@@ -372,16 +372,13 @@ ov::CompatibilityCheck Plugin::validate_compatibility_descriptor(ov::intel_npu::
     const auto& runtimeRequirements = arguments.at(ov::runtime_requirements.name()).as<const std::string&>();
     _logger.debug("Received runtime_requirements: %s length: %zu", runtimeRequirements.c_str(), runtimeRequirements.length());
 
-    const ov::Tensor reqTensor =
-        ov::Tensor(ov::element::Type_t::u8, ov::Shape{runtimeRequirements.length()}, runtimeRequirements.data());
-
     // NPU Plugin's runtime requirements are captured in its metadata.
     // For now plugin's requirements are met if metadata can be retrieved from the tensor
     std::unique_ptr<MetadataBase> metadata = nullptr;
     try {
         // The plugin cares only about the string size and the metadata version check for now. Additional checks based
         // on other metadata fields can be done following this line.
-        metadata = read_as_text(reqTensor);
+        metadata = read_as_text(runtimeRequirements);
     } catch (const std::exception& ex) {
         // Unsupported version, could not read the metadata or an unknown error has occured. Report that the
         // requirements are not met.
@@ -407,8 +404,7 @@ ov::CompatibilityCheck Plugin::validate_compatibility_descriptor(ov::intel_npu::
             return ov::CompatibilityCheck::UNSUPPORTED;
         }
     } catch (const std::exception&) {
-        _logger.error("Failed to create the recommended compiler type for the compatibility check %d. The requirements are not met.",
-                      static_cast<int>(compilerType));
+        _logger.error("Failed to create the recommended compiler type for the compatibility check {}. The requirements are not met.", compilerType);
         return ov::CompatibilityCheck::NOT_APPLICABLE;
     }
 }
@@ -1047,8 +1043,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     auto graph = parser->parse(tensorMain,
                                localConfig,
                                initBlobs,
-                               weightsSeparationEnabled ? std::make_optional(std::move(originalModel)) : std::nullopt,
-                               metadata ? metadata->get_runtime_reqs() : std::nullopt);
+                               weightsSeparationEnabled ? std::make_optional(std::move(originalModel)) : std::nullopt);
 
     graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
     const std::shared_ptr<ov::Model> modelDummy =
