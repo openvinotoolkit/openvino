@@ -86,7 +86,7 @@ class CompiledModel : public ov::npuw::ICompiledModel_v0 {
 
 public:
     static constexpr ov::npuw::orc::TypeId kOrcType = 0x4E43u;
-    static constexpr ov::npuw::orc::Version kOrcVersion = 1u;
+    static constexpr ov::npuw::orc::Version kOrcVersion = 0u;
 
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -157,15 +157,15 @@ private:
                                                           const std::shared_ptr<const ov::IPlugin>& plugin,
                                                           const ov::AnyMap& properties);
     void serialize_orc(std::ostream& stream) const;
-    static std::shared_ptr<CompiledModel> deserialize_orc(
+    static std::shared_ptr<CompiledModel> deserialize_orc_container(
         std::istream& stream,
         const std::shared_ptr<const ov::IPlugin>& plugin,
         const ov::AnyMap& properties,
         bool require_weights_bank,
         const std::function<std::string(const std::string&)>& decrypt);
-    void serialize_orc(std::ostream& stream,
-                       bool include_weights_bank,
-                       const std::function<std::string(const std::string&)>& encrypt) const;
+    void serialize_orc_container(std::ostream& stream,
+                                 bool include_weights_bank,
+                                 const std::function<std::string(const std::string&)>& encrypt) const;
     void ensure_phase0_compatibility() const;
 
     // This is used for removing too long output tensor names to fix some compilation issues

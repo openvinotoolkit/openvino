@@ -38,6 +38,7 @@ using SchemaUUID = std::array<std::uint8_t, 16>;
 enum class SectionFlag : SectionFlags {
     OPTIONAL = 1u << 0,
     LEAF = 1u << 1,  // payload contains raw bytes only, no child sections
+    ENCRYPTED = 1u << 2,
 };
 
 constexpr SectionFlags operator|(SectionFlag lhs, SectionFlag rhs) {
