@@ -269,6 +269,10 @@ def _bind_paged_attention_side_channel(compiled):
                     # OV CPU PA writes back to this buffer via shared_memory.
                     import openvino as _ov
                     _kv_shape = tuple(kc.shape)
+                    import os as _os_kv
+                    if _os_kv.environ.get("OV_DBG_KV_SHAPE"):
+                        print(f"[KV_SHAPE] layer={layer_name} meta={meta_layer_name} "
+                              f"kv_cache.shape={tuple(kv_cache.shape)} kc.shape={_kv_shape}", flush=True)
                     # Find the actual Parameter in compiled.inputs for this layer's
                     # key_cache and use its dtype (plugin may override via KV_CACHE_PRECISION).
                     _param_dt = None
@@ -294,16 +298,48 @@ def _bind_paged_attention_side_channel(compiled):
             except Exception:
                 pass
         if key_cache_np is None:
-            # Fallback dummy — match compiled Parameter dtype exactly.
+            # Fallback dummy — match compiled Parameter dtype exactly, and
+            # provide Hk (num_kv_heads), block_size, and head_size that match
+            # what the PA op will see at real runtime. Otherwise the plugin's
+            # PA executor caches Hk=1, S=1 from the dummy shape and then
+            # asserts against the real k shape. Derive from the vLLM layer
+            # metadata if available.
             import openvino as _ov_fb
+            import os as _os_fb
             _fb_dt_ov = _ov_fb.Type.f32
+            _fb_Hk, _fb_block, _fb_S = 1, 1, 1
+            try:
+                _nc_layers = ctx.no_compile_layers if ctx is not None else None
+                _layer_obj = _nc_layers.get(meta_layer_name) if isinstance(_nc_layers, dict) else None
+                if _layer_obj is None and isinstance(_nc_layers, dict) and _nc_layers:
+                    # During warm-up we haven't resolved meta_layer_name yet;
+                    # any real attention layer has the same num_kv_heads/head_size.
+                    for _k, _v in _nc_layers.items():
+                        if hasattr(_v, "num_kv_heads"):
+                            _layer_obj = _v
+                            break
+                if _layer_obj is not None:
+                    _fb_Hk = int(getattr(_layer_obj, "num_kv_heads", 1)) or 1
+                    _fb_S = int(getattr(_layer_obj, "head_size", 1)) or 1
+                _fb_block = int(_os_fb.environ.get("OV_PA_BLOCK_SIZE", "16"))
+                # Explicit env override wins over introspection.
+                if _os_fb.environ.get("OV_PA_NUM_KV_HEADS"):
+                    _fb_Hk = int(_os_fb.environ["OV_PA_NUM_KV_HEADS"])
+                if _os_fb.environ.get("OV_PA_HEAD_SIZE"):
+                    _fb_S = int(_os_fb.environ["OV_PA_HEAD_SIZE"])
+            except Exception:
+                pass
             _target_fb = f"__pa__{layer_name}__key_cache"
             for _pi in compiled.inputs:
                 if _target_fb in _pi.get_names():
                     _fb_dt_ov = _pi.get_element_type()
                     break
-            key_cache_ovt = _ov_fb.Tensor(_fb_dt_ov, (1, 1, 1, 1))
-            value_cache_ovt = _ov_fb.Tensor(_fb_dt_ov, (1, 1, 1, 1))
+            _fb_shape = (1, _fb_Hk, _fb_block, _fb_S)
+            if _os_fb.environ.get("OV_DBG_KV_SHAPE"):
+                print(f"[KV_SHAPE] FALLBACK layer={layer_name} meta={meta_layer_name} "
+                      f"shape={_fb_shape} dt={_fb_dt_ov}", flush=True)
+            key_cache_ovt = _ov_fb.Tensor(_fb_dt_ov, _fb_shape)
+            value_cache_ovt = _ov_fb.Tensor(_fb_dt_ov, _fb_shape)
             key_cache_np = key_cache_ovt.data if _fb_dt_ov != _ov_fb.Type.bf16 else None
             value_cache_np = value_cache_ovt.data if _fb_dt_ov != _ov_fb.Type.bf16 else None
 
