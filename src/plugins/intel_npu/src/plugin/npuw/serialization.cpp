@@ -203,40 +203,46 @@ void ov::npuw::orc::transfer_tensor(Stream& stream, ov::Tensor& var, const s11n:
 }
 
 void ov::npuw::orc::serialize(Stream& stream, std::shared_ptr<ov::op::v0::Parameter>& var) {
-    if (stream.input()) {
-        std::string elem_type_str;
-        std::string part_shape_str;
-        std::unordered_set<std::string> names;
+    if (stream.output()) {
+        auto elem_type_str = var->get_element_type().to_string();
+        auto part_shape_str = var->get_partial_shape().to_string();
+        auto names = var->output(0).get_names();
         stream & elem_type_str & part_shape_str & names;
-        var = std::make_shared<op::v0::Parameter>(ov::element::Type(elem_type_str), ov::PartialShape(part_shape_str));
-        if (!names.empty()) {
-            var->set_friendly_name(*names.begin());
-        }
-        var->output(0).get_tensor().set_names(names);
-    } else {
-        OPENVINO_THROW("Parameter pointer is read-only in NPUW serialization");
+        return;
     }
+
+    std::string elem_type_str;
+    std::string part_shape_str;
+    std::unordered_set<std::string> names;
+    stream & elem_type_str & part_shape_str & names;
+    var = std::make_shared<op::v0::Parameter>(ov::element::Type(elem_type_str), ov::PartialShape(part_shape_str));
+    if (!names.empty()) {
+        var->set_friendly_name(*names.begin());
+    }
+    var->output(0).get_tensor().set_names(names);
 }
 
 void ov::npuw::orc::serialize(Stream& stream, std::shared_ptr<ov::Node>& var) {
-    if (stream.input()) {
-        std::string elem_type_str;
-        std::string part_shape_str;
-        std::unordered_set<std::string> names;
+    if (stream.output()) {
+        auto elem_type_str = var->get_output_element_type(0).to_string();
+        auto part_shape_str = var->get_output_partial_shape(0).to_string();
+        auto names = var->output(0).get_names();
         stream & elem_type_str & part_shape_str & names;
-        std::shared_ptr<ov::Node> res =
-            std::make_shared<ov::op::v0::Constant>(ov::element::Type(elem_type_str), std::vector<size_t>{1});
-        const std::shared_ptr<ov::descriptor::Tensor>& tensor_dummy =
-            std::make_shared<ov::descriptor::Tensor>(ov::element::Type(elem_type_str),
-                                                     ov::PartialShape(part_shape_str),
-                                                     names);
-        var = std::make_shared<ov::op::v0::Result>(res);
-        var->output(0).set_tensor_ptr(tensor_dummy);
-        if (!names.empty()) {
-            var->set_friendly_name(*names.begin());
-        }
-    } else {
-        OPENVINO_THROW("Node pointer is read-only in NPUW serialization");
+        return;
+    }
+
+    std::string elem_type_str;
+    std::string part_shape_str;
+    std::unordered_set<std::string> names;
+    stream & elem_type_str & part_shape_str & names;
+    std::shared_ptr<ov::Node> res =
+        std::make_shared<ov::op::v0::Constant>(ov::element::Type(elem_type_str), std::vector<size_t>{1});
+    const std::shared_ptr<ov::descriptor::Tensor>& tensor_dummy =
+        std::make_shared<ov::descriptor::Tensor>(ov::element::Type(elem_type_str), ov::PartialShape(part_shape_str), names);
+    var = std::make_shared<ov::op::v0::Result>(res);
+    var->output(0).set_tensor_ptr(tensor_dummy);
+    if (!names.empty()) {
+        var->set_friendly_name(*names.begin());
     }
 }
 

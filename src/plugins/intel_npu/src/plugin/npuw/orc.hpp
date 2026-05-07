@@ -309,6 +309,8 @@ struct OrcHeader {
     SchemaUUID schema_uuid{};
 };
 
+void write_file_header(std::ostream& stream, const SchemaUUID& uuid);
+OrcHeader read_file_header(std::istream& stream);
 void write_file(std::ostream& stream, const Section& root, const SchemaUUID& uuid);
 Section read_file(std::istream& stream);
 

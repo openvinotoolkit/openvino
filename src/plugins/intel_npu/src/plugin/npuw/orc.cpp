@@ -241,7 +241,7 @@ ov::npuw::orc::Section ov::npuw::orc::Section::container(const TypeId type,
     return section;
 }
 
-void ov::npuw::orc::write_file(std::ostream& stream, const Section& root, const SchemaUUID& uuid) {
+void ov::npuw::orc::write_file_header(std::ostream& stream, const SchemaUUID& uuid) {
     auto writer = Stream::writer(stream);
 
     auto magic = ORC_FILE_MAGIC;
@@ -250,10 +250,9 @@ void ov::npuw::orc::write_file(std::ostream& stream, const Section& root, const 
     writer & version;
     auto uuid_copy = uuid;
     writer & uuid_copy;
-    write_section(writer, root);
 }
 
-ov::npuw::orc::Section ov::npuw::orc::read_file(std::istream& stream) {
+ov::npuw::orc::OrcHeader ov::npuw::orc::read_file_header(std::istream& stream) {
     const auto header = is_orc(stream);
     if (!header) {
         OPENVINO_THROW("Not an ORC file (invalid magic)");
@@ -262,11 +261,23 @@ ov::npuw::orc::Section ov::npuw::orc::read_file(std::istream& stream) {
         OPENVINO_THROW("Unsupported ORC file version ", header->version);
     }
 
-    // is_orc() restores the stream position; skip past the file header before reading sections.
     constexpr auto skip =
         static_cast<std::streamoff>(ORC_FILE_MAGIC.size() + sizeof(ORC_FILE_VERSION) + sizeof(SchemaUUID));
     stream.seekg(skip, std::ios::cur);
+    if (!stream.good()) {
+        OPENVINO_THROW("Failed to seek past ORC file header");
+    }
+    return *header;
+}
 
+void ov::npuw::orc::write_file(std::ostream& stream, const Section& root, const SchemaUUID& uuid) {
+    write_file_header(stream, uuid);
+    auto writer = Stream::writer(stream);
+    write_section(writer, root);
+}
+
+ov::npuw::orc::Section ov::npuw::orc::read_file(std::istream& stream) {
+    read_file_header(stream);
     auto reader = Stream::reader(stream);
     return read_section(reader);
 }
