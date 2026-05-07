@@ -6,25 +6,11 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "metadata.hpp"
-#include "openvino/core/version.hpp"
+#include "metadata_wrappers.hpp"
 
 using namespace intel_npu;
 
 using MetadataUnitTests = ::testing::Test;
-
-struct MetadataTest : Metadata<CURRENT_METADATA_VERSION> {
-    MetadataTest(uint64_t blobSize,
-                 const std::optional<OpenvinoVersion>& ovVersion,
-                 const std::optional<std::vector<uint64_t>>& initSizes = std::nullopt,
-                 const std::optional<int64_t> batchSize = std::nullopt,
-                 const std::optional<std::vector<ov::Layout>>& inputLayouts = std::nullopt,
-                 const std::optional<std::vector<ov::Layout>>& outputLayouts = std::nullopt)
-        : Metadata<CURRENT_METADATA_VERSION>(blobSize, ovVersion, initSizes, batchSize, inputLayouts, outputLayouts) {}
-
-    void set_version(uint32_t newVersion) {
-        _version = newVersion;
-    }
-};
 
 TEST_F(MetadataUnitTests, readUnversionedBlob) {
     std::stringstream blob("this_is an_unversioned bl0b");
@@ -190,32 +176,6 @@ TEST_F(MetadataUnitTests, writeAndReadMetadataWithNewerMinorVersion) {
     auto tensor = ov::Tensor(ov::element::u8, ov::Shape{streamSize});
     stream.read(tensor.data<char>(), tensor.get_byte_size());
     ASSERT_ANY_THROW(storedMeta = read_metadata_from(tensor));
-}
-
-struct MetadataVersionTestFixture : Metadata<CURRENT_METADATA_VERSION>, ::testing::TestWithParam<uint32_t> {
-public:
-    std::stringstream blob;
-
-    void set_version(uint32_t newVersion) {
-        _version = newVersion;
-    }
-
-    MetadataVersionTestFixture() : Metadata<CURRENT_METADATA_VERSION>(0, std::nullopt) {}
-
-    MetadataVersionTestFixture(uint64_t blobSize, std::optional<OpenvinoVersion> ovVersion)
-        : Metadata<CURRENT_METADATA_VERSION>(blobSize, ovVersion) {}
-
-    void TestBody() override {}
-
-    static std::string getTestCaseName(const testing::TestParamInfo<MetadataVersionTestFixture::ParamType>& info);
-};
-
-std::string MetadataVersionTestFixture::getTestCaseName(
-    const testing::TestParamInfo<MetadataVersionTestFixture::ParamType>& info) {
-    std::ostringstream result;
-    result << "major version=" << MetadataBase::get_major(info.param)
-           << ", minor version=" << MetadataBase::get_minor(info.param);
-    return result.str();
 }
 
 TEST_P(MetadataVersionTestFixture, writeAndReadInvalidMetadataVersion) {
