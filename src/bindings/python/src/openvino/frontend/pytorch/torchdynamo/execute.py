@@ -52,6 +52,27 @@ structural_cache = {}
 _pa_kv_ovt_cache = {}
 
 
+# Small helpers for the zero placeholders we return when vLLM has no attn_meta
+# yet (e.g. warm-up dummy_run). These are pre-built at import time so we don't
+# allocate on every decode step in the happy path.
+def _zeros_1_i32():
+    return np.zeros(1, dtype=np.int32)
+def _zeros_2_i32():
+    return np.zeros(2, dtype=np.int32)
+def _zero_scalar_i32():
+    return np.array(0, dtype=np.int32)
+
+# Per-compiled-model layout cache for PA side-channel binding. Maps
+# id(compiled) -> {
+#   "layers":       list of (layer_name, meta_layer_name, {field: parameter_name}),
+#   "first_real":   placeholder->real layer_name for "shared" fallback,
+#   "real_names":   vLLM real layer name list used for placeholder->real mapping,
+# }
+# Built lazily on first bind and reused thereafter. Kills the regex + iterate
+# over compiled.inputs cost on every decode step.
+_pa_layout_cache = {}
+
+
 def _pa_auto_detect_kv_geom(ctx, meta_layer_name):
     """Return (num_kv_heads, head_size) for the model.
 
@@ -186,29 +207,30 @@ def _bind_paged_attention_side_channel(compiled):
         ctx = None
 
     result = {}
-    # Group the PA inputs by layer_name first
-    layer_to_fields = {}  # layer_name -> {field: Input}
-    for inp in compiled.inputs:
-        for nm in inp.get_names():
-            if not nm.startswith("__pa__"):
-                continue
-            # "__pa__<layer>__<field>" or "__pa__<layer>__<field>_<N>" where
-            # <N> is a numeric disambiguator added for multi-layer models.
-            rest = nm[len("__pa__"):]
-            # Strip any trailing "_<digits>" from rest so the suffix check
-            # matches field names. But retain layer index by mapping each
-            # unique numeric suffix to its own logical layer.
-            import re as _re_pa
-            _suffix_match = _re_pa.search(r"_(\d+)$", rest)
-            rest_stripped = rest[:_suffix_match.start()] if _suffix_match else rest
-            layer_suffix = _suffix_match.group(0) if _suffix_match else ""
-            for field in _PA_FIELDS:
-                suffix = "__" + field
-                if rest_stripped.endswith(suffix):
-                    layer_name = rest_stripped[: -len(suffix)] + layer_suffix
-                    layer_to_fields.setdefault(layer_name, {})[field] = nm
-                    break
-            break
+    # Group the PA inputs by layer_name — cache across calls on compiled id.
+    _layout = _pa_layout_cache.get(id(compiled))
+    if _layout is None:
+        layer_to_fields = {}
+        import re as _re_pa
+        _suffix_re = _re_pa.compile(r"_(\d+)$")
+        for inp in compiled.inputs:
+            for nm in inp.get_names():
+                if not nm.startswith("__pa__"):
+                    continue
+                rest = nm[len("__pa__"):]
+                _sm = _suffix_re.search(rest)
+                rest_stripped = rest[:_sm.start()] if _sm else rest
+                layer_suffix = _sm.group(0) if _sm else ""
+                for field in _PA_FIELDS:
+                    suffix = "__" + field
+                    if rest_stripped.endswith(suffix):
+                        layer_name = rest_stripped[: -len(suffix)] + layer_suffix
+                        layer_to_fields.setdefault(layer_name, {})[field] = nm
+                        break
+                break
+        _layout = {"layer_to_fields": layer_to_fields}
+        _pa_layout_cache[id(compiled)] = _layout
+    layer_to_fields = _layout["layer_to_fields"]
 
     # If a "shared" PA key exists (from get_or_make_shared_pa_param), we treat
     # any real layer's attn_metadata as representative since per-seq metadata
@@ -242,6 +264,19 @@ def _bind_paged_attention_side_channel(compiled):
         idx = idx % len(_real_layer_names)
         return _real_layer_names[idx]
 
+    # Per-seq metadata (seq_lens, qsl, block_indices, etc.) is identical across
+    # all layers in a single forward pass. Compute it once from any real
+    # layer's attn_meta, then reuse for every layer's field binding.
+    _shared_meta = {
+        "past_lens_np": _zeros_1_i32(),
+        "subseq_begins_np": _zeros_2_i32(),
+        "block_indices_np": _zeros_1_i32(),
+        "block_indices_begins_np": _zeros_2_i32(),
+        "max_ctx_len_np": _zero_scalar_i32(),
+        "seq_lens_np": _zeros_1_i32(),
+        "qsl_np": _zeros_2_i32(),
+    }
+    _shared_built = False
     for layer_name, fields in layer_to_fields.items():
         attn_meta = None
         kv_cache = None
@@ -332,8 +367,8 @@ def _bind_paged_attention_side_channel(compiled):
                     value_cache_np.fill(0)
                     _pa_kv_ovt_cache[cache_key] = (
                         key_cache_ovt, value_cache_ovt, kc, vc, key_cache_np, value_cache_np)
-                result.setdefault("__keepalive__", []).extend(
-                    [kc, vc, kv_cache, key_cache_np, value_cache_np, key_cache_ovt, value_cache_ovt])
+                # KV buffers are kept alive in _pa_kv_ovt_cache; no need to
+                # stash an extra list in the result dict.
             except Exception:
                 pass
         if key_cache_np is None:
@@ -367,76 +402,44 @@ def _bind_paged_attention_side_channel(compiled):
             key_cache_np = key_cache_ovt.data if _fb_dt_ov != _ov_fb.Type.bf16 else None
             value_cache_np = value_cache_ovt.data if _fb_dt_ov != _ov_fb.Type.bf16 else None
 
-        past_lens_np = _nz(np.int32)
-        subseq_begins_np = _nz(np.int32, (2,))
-        block_indices_np = _nz(np.int32)
-        block_indices_begins_np = _nz(np.int32, (2,))
-        max_ctx_len_np = np.array(0, dtype=np.int32)
-        seq_lens_np = _nz(np.int32)
-        qsl_np = _nz(np.int32, (2,))
-
-        if attn_meta is not None:
+        # Per-seq metadata: build once per forward pass from the first
+        # layer that has real attn_meta; all other layers reuse it.
+        if not _shared_built and attn_meta is not None:
             try:
-                # CPUAttentionMetadata fields:
-                #   seq_lens, query_start_loc, block_table, slot_mapping, ...
                 seq_lens = getattr(attn_meta, "seq_lens", None)
                 qsl = getattr(attn_meta, "query_start_loc", None)
                 block_table = getattr(attn_meta, "block_table", None)
-                slot_mapping = getattr(attn_meta, "slot_mapping", None)
-                import os as _osm
-                if _osm.environ.get("OV_DBG_META") and layer_name.endswith("_1"):
-                    with open("/tmp/ov_meta.log", "a") as _fm:
-                        _fm.write(f"layer={meta_layer_name}\n")
-                        _fm.write(f"  seq_lens={seq_lens.tolist() if seq_lens is not None else None}\n")
-                        _fm.write(f"  qsl={qsl.tolist() if qsl is not None else None}\n")
-                        _fm.write(f"  slot_mapping={slot_mapping.tolist()[:20] if slot_mapping is not None else None}\n")
-                        _fm.write(f"  block_table shape={tuple(block_table.shape) if block_table is not None else None}\n")
-                        if block_table is not None:
-                            _fm.write(f"  block_table[:3] rows={block_table[:3].tolist() if block_table.ndim>1 else block_table[:10].tolist()}\n")
                 if seq_lens is not None and qsl is not None:
-                    seq_lens_np = seq_lens.to(torch.int32).contiguous().numpy()
-                    qsl_np = qsl.to(torch.int32).contiguous().numpy()
-                    # Kept for backwards-compat if old model still exposes the
-                    # derived Parameters; the new graph-derived path uses
-                    # seq_lens_np + qsl_np directly.
+                    _shared_meta["seq_lens_np"] = seq_lens.to(torch.int32).contiguous().numpy()
+                    _shared_meta["qsl_np"] = qsl.to(torch.int32).contiguous().numpy()
                     q_lens = qsl[1:] - qsl[:-1]
-                    pl = (seq_lens - q_lens).to(torch.int32).contiguous()
-                    past_lens_np = pl.numpy()
-                    subseq_begins_np = qsl.to(torch.int32).contiguous().numpy()
-                    max_ctx_len_np = np.array(int(seq_lens.max().item()), dtype=np.int32)
+                    _shared_meta["past_lens_np"] = (seq_lens - q_lens).to(torch.int32).contiguous().numpy()
+                    _shared_meta["subseq_begins_np"] = _shared_meta["qsl_np"]
+                    _shared_meta["max_ctx_len_np"] = np.array(int(seq_lens.max().item()), dtype=np.int32)
                 if block_table is not None and seq_lens is not None:
                     bt = block_table.to(torch.int32).contiguous()
-                    # OV PA expects CSR: block_indices is a flat list of only the
-                    # *actually used* block IDs per sequence, with
-                    # block_indices_begins giving start offsets.
-                    # vLLM's block_table is [B, max_blocks_per_req] with padding;
-                    # we must trim each row to ceil(seq_len_i / block_size).
-                    # vLLM CPU kv_cache is rank-5 [2, N, H, block_size, S]; block_size is dim 3.
                     block_size = int(kv_cache.shape[3]) if kv_cache is not None and kv_cache.ndim >= 5 else 16
-                    import os as _osb
-                    if _osb.environ.get("OV_DBG_PA"):
-                        with open("/tmp/ov_path.log","a") as _f:
-                            _f.write(f"block_size={block_size} kv_cache.shape={tuple(kv_cache.shape) if kv_cache is not None else None} seq_lens={seq_lens.tolist()}\n")
                     blocks_per_seq = ((seq_lens + block_size - 1) // block_size).to(torch.int32)
                     rows = bt.shape[0] if bt.ndim > 0 else 1
-                    parts = []
-                    for i in range(rows):
-                        n = int(blocks_per_seq[i].item())
-                        if n > 0:
-                            parts.append(bt[i, :n])
-                    if parts:
-                        block_indices_np = torch.cat(parts).contiguous().numpy()
+                    # CSR trim: take bt[i, :blocks_per_seq[i]] for each i.
+                    # Fastest vectorized form using numpy (bt is small).
+                    bps_np = blocks_per_seq.numpy()
+                    bt_np = bt.numpy()
+                    if rows > 0 and bps_np.sum() > 0:
+                        # Build a flat index mask without a Python loop.
+                        max_blocks = bt_np.shape[1] if bt_np.ndim > 1 else bt_np.shape[0]
+                        col_idx = np.arange(max_blocks, dtype=np.int32)
+                        # mask[i, j] = 1 if j < bps_np[i]
+                        mask = col_idx[None, :] < bps_np[:, None]  # [rows, max_blocks]
+                        flat_bt = bt_np.reshape(rows, -1) if bt_np.ndim > 1 else bt_np[None, :]
+                        _shared_meta["block_indices_np"] = flat_bt[mask].astype(np.int32, copy=False)
                     else:
-                        block_indices_np = np.zeros((0,), dtype=np.int32)
-                    begins = torch.cat([
-                        torch.zeros(1, dtype=torch.int32),
-                        blocks_per_seq.cumsum(0).to(torch.int32),
-                    ])
-                    block_indices_begins_np = begins.contiguous().numpy()
-                    import os as _osb2
-                    if _osb2.environ.get("OV_DBG_PA"):
-                        with open("/tmp/ov_path.log","a") as _f:
-                            _f.write(f"  block_indices_np={block_indices_np.tolist()[:10]} begins={block_indices_begins_np.tolist()[:10]} past_lens={past_lens_np.tolist()[:5]} seq_lens_np={seq_lens_np.tolist()[:5]} qsl_np={qsl_np.tolist()[:5]}\n")
+                        _shared_meta["block_indices_np"] = np.zeros((0,), dtype=np.int32)
+                    begins = np.empty(rows + 1, dtype=np.int32)
+                    begins[0] = 0
+                    np.cumsum(bps_np, out=begins[1:])
+                    _shared_meta["block_indices_begins_np"] = begins
+                _shared_built = True
             except Exception:
                 pass
 
@@ -446,33 +449,32 @@ def _bind_paged_attention_side_channel(compiled):
                 _kcshape = None if key_cache_np is None else key_cache_np.shape
                 _kcmean = None if key_cache_np is None else float(np.abs(key_cache_np).mean())
                 _fc.write(f"layer={layer_name} meta={meta_layer_name} kc_mean={_kcmean} kc_shape={_kcshape} kv_cache_found={kv_cache is not None} real_names={len(_real_layer_names)}\n")
+        _sm = _shared_meta
         for field, name in fields.items():
             if field == "key_cache":
-                # Pass ov.Tensor with shared_memory to enable in-place writes.
                 result[name] = key_cache_ovt if key_cache_ovt is not None else key_cache_np
             elif field == "value_cache":
                 result[name] = value_cache_ovt if value_cache_ovt is not None else value_cache_np
             elif field == "past_lens":
-                result[name] = past_lens_np
+                result[name] = _sm["past_lens_np"]
             elif field == "subsequence_begins":
-                result[name] = subseq_begins_np
+                result[name] = _sm["subseq_begins_np"]
             elif field == "block_indices":
-                result[name] = block_indices_np
+                result[name] = _sm["block_indices_np"]
             elif field == "block_indices_begins":
-                result[name] = block_indices_begins_np
+                result[name] = _sm["block_indices_begins_np"]
             elif field == "max_context_len":
-                result[name] = max_ctx_len_np
+                result[name] = _sm["max_ctx_len_np"]
             elif field == "seq_lens":
-                result[name] = seq_lens_np
+                result[name] = _sm["seq_lens_np"]
             elif field == "query_start_loc":
-                result[name] = qsl_np
+                result[name] = _sm["qsl_np"]
 
     return result
 
 
 def execute_cached(compiled_model, *args):
     import os as _os_ec
-    with open("/tmp/ov_path.log", "a") as _f: _f.write("execute_cached called\n")
     ov_inputs = [a.detach().cpu().numpy() for a in args]
     ov_inputs.reverse()
     if _os_ec.environ.get("OV_PERF_COUNT"):
@@ -500,7 +502,6 @@ def openvino_execute(
     partition_id: int = 0,
     options=None,
 ):
-    with open("/tmp/ov_path.log", "a") as _f: _f.write("openvino_execute entry\n")
 
     executor_parameters = executor_parameters or DEFAULT_OPENVINO_PYTHON_CONFIG
 
@@ -565,27 +566,17 @@ def openvino_execute(
     # tables / past_lens / ...) that the paged_attention C++ translator added
     # as extra Parameters with names like "__pa__<layer_name>__<field>".
     # The tensors come from vllm.forward_context.get_forward_context().
+    import os as _os_ot, time as _t_ot
+    _pr_ot = _os_ot.environ.get("OV_STEP_PROFILE")
+    if _pr_ot: _t_bind_s = _t_ot.perf_counter()
     _pa_inputs_by_pos = {}
     if any(inp.get_names() and any(n.startswith("__pa__") for n in inp.get_names())
            for inp in compiled.inputs):
         _pa_inputs_by_pos = _bind_paged_attention_side_channel(compiled)
-
-    import os as _os_ot, time as _t_ot
-    _pr_ot = _os_ot.environ.get("OV_STEP_PROFILE")
     if _pr_ot: _t_a = _t_ot.perf_counter()
 
     if _pa_inputs_by_pos:
         import os as _osd2
-        # Always log layer order and input precisions at first run
-        with open("/tmp/ov_path.log", "a") as _f:
-            _order_known = [n for n in _pa_inputs_by_pos.keys() if "key_cache" in n][:3]
-            _f.write(f"PA bind: pa_layer_order={_order_known}\n")
-            # Dump a sample KV cache input precision
-            for _inp in compiled.inputs:
-                _nms = list(_inp.get_names())
-                if any(n.startswith("__pa__") and "key_cache" in n for n in _nms):
-                    _f.write(f"  KV Param prec={_inp.get_element_type()} names={_nms}\n")
-                    break
         if _osd2.environ.get("OV_DBG_PA"):
             with open("/tmp/ov_path.log", "a") as _f:
                 _f.write(f"PA bind: compiled.inputs={len(compiled.inputs)} ov_inputs={len(ov_inputs)} pa_by_pos={len(_pa_inputs_by_pos)} flat_args={len(flat_args)}\n")
@@ -626,13 +617,13 @@ def openvino_execute(
         _ti_s = _t_ot.perf_counter()
         res = req.infer(_call_kwargs, share_inputs=True, share_outputs=False)
         _ti_e = _t_ot.perf_counter()
-        if _os_ot.environ.get("OV_TIME", "1") == "1":
+        if _os_ot.environ.get("OV_TIME"):
             with open("/tmp/ov_timing.log", "a") as _fti:
                 _fti.write(f"INFER: {1000*(_ti_e-_ti_s):.1f}ms\n")
         if _pr_ot:
             _t_c = _t_ot.perf_counter()
             with open("/tmp/ov_infer_prof.log", "a") as _fp_ot:
-                _fp_ot.write(f"dict_build={1000*(_t_b-_t_a):.2f}ms infer={1000*(_t_c-_ti_s):.2f}ms\n")
+                _fp_ot.write(f"bind={1000*(_t_a-_t_bind_s):.2f}ms dict_build={1000*(_t_b-_t_a):.2f}ms infer={1000*(_t_c-_ti_s):.2f}ms\n")
     else:
         _ti2_s = _t_ot.perf_counter()
         res = req.infer(ov_inputs, share_inputs=True, share_outputs=False)
