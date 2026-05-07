@@ -218,7 +218,7 @@ jobs:
             -DTHREADING=OMP \
             -DCMAKE_CXX_FLAGS="-Wno-deprecated-declarations" \
             -DCMAKE_C_FLAGS="-Wno-deprecated-declarations" \
-            -DCMAKE_VERBOSE_MAKEFILE=ON \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
             -DCMAKE_TOOLCHAIN_FILE=${OPENVINO_BUILD_DIR}/dependencies/conan_toolchain.cmake \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
@@ -230,13 +230,13 @@ jobs:
           source ${OPENVINO_BUILD_DIR}/dependencies/deactivate_conanbuild.sh
 
       - name: Cmake - Build
-        run: cmake --build ${OPENVINO_BUILD_DIR} --parallel $(nproc)
+        run: cmake --build ${OPENVINO_BUILD_DIR} --parallel $(nproc) -- --quiet
 
       - name: Show ccache stats
         run: ccache --show-stats
 
       - name: Cmake - Install
-        run: cmake --build ${OPENVINO_BUILD_DIR} --parallel $(nproc) --target install
+        run: cmake --build ${OPENVINO_BUILD_DIR} --parallel $(nproc) --target install -- --quiet
 
       - name: Build OpenVINO C++ samples
         run: |
@@ -248,6 +248,14 @@ jobs:
 
       - name: Clean ccache
         run: ccache --cleanup
+
+      - name: Upload compile_commands
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        if: always()
+        with:
+          name: compile_commands_linux_riscv_conan
+          path: ${{ env.OPENVINO_BUILD_DIR }}/compile_commands.json
+          if-no-files-found: 'ignore'
 
   Overall_Status:
     name: ci/gha_overall_status_linux_riscv_conan
