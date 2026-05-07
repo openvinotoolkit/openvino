@@ -28,6 +28,9 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "selective_build.h"
+#ifdef CPU_DEBUG_CAPS
+#    include "emitters/plugin/aarch64/debug_capabilities.hpp"
+#endif
 
 namespace ov::intel_cpu {
 namespace aarch64 {
@@ -251,7 +254,19 @@ void jit_uni_eltwise_generic<isa>::generate() {
                 }
             }
 
+#ifdef CPU_DEBUG_CAPS
+            for (size_t i = 0; i < jep.inputs_number; i++) {
+                if (jep.src_size[i] != 1) {
+                    ov::intel_cpu::aarch64::RegPrinter::print<float>(*this, get_vmm_reg(i), "src_vmm");
+                }
+            }
+#endif
+
             compute_eltwise_op();
+
+#ifdef CPU_DEBUG_CAPS
+            ov::intel_cpu::aarch64::RegPrinter::print<float>(*this, vmm_dst, "vmm_dst");
+#endif
 
             apply_post_ops();
 
@@ -265,6 +280,9 @@ void jit_uni_eltwise_generic<isa>::generate() {
 
             add(reg_dst, reg_dst, jep.dst_prc.size() * loop_step);
             sub(reg_work_amount, reg_work_amount, loop_step);
+#ifdef CPU_DEBUG_CAPS
+            ov::intel_cpu::aarch64::RegPrinter::print<int>(*this, reg_work_amount, "reg_work_amount");
+#endif
             if (jep_.oc_size > 1) {
                 add(reg_oc_off, reg_oc_off, loop_step * sizeof(float));
             }
