@@ -1133,13 +1133,19 @@ public:
             auto& dnnl_weights = _dnnl_weights[j];
             dnnl_weights.resize(3);
             dnnl_weights[0].ic = _hidden_size;
-            dnnl_weights[0].ic_group_size = ic_group_size_from_scale(_hidden_size, moe_fusion_wei_addr.scale[0]);
+            dnnl_weights[0].ic_group_size = moe_fusion_wei_addr.scale[0]
+                ? ic_group_size_from_scale(_hidden_size, moe_fusion_wei_addr.scale[0])
+                : _gate_up_group_size;
             dnnl_weights[0].oc = _intermediate_size;
             dnnl_weights[1].ic = _hidden_size;
-            dnnl_weights[1].ic_group_size = ic_group_size_from_scale(_hidden_size, moe_fusion_wei_addr.scale[1]);
+            dnnl_weights[1].ic_group_size = moe_fusion_wei_addr.scale[1]
+                ? ic_group_size_from_scale(_hidden_size, moe_fusion_wei_addr.scale[1])
+                : _gate_up_group_size;
             dnnl_weights[1].oc = _intermediate_size;
             dnnl_weights[2].ic = _intermediate_size;
-            dnnl_weights[2].ic_group_size = ic_group_size_from_scale(_intermediate_size, moe_fusion_wei_addr.scale[2]);
+            dnnl_weights[2].ic_group_size = moe_fusion_wei_addr.scale[2]
+                ? ic_group_size_from_scale(_intermediate_size, moe_fusion_wei_addr.scale[2])
+                : _down_group_size;
             dnnl_weights[2].oc = _hidden_size;
             if (!_lru_expert_num) {
                 for (int i = 0; i < 3; i++) {
@@ -2365,21 +2371,18 @@ public:
                               convert2dnnl(scratch.x, {static_cast<int64_t>(n_token), dnnl_weights[1].ic}, dnnl::memory::format_tag::ab),
                               convert2dnnl(scratch.up, {static_cast<int64_t>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab),
                               dnnl::memory());
-
             // gate
             kernel.gate.forward(dnn_stream,
                                 n_token,
                                 convert2dnnl(scratch.x, {static_cast<int64_t>(n_token), dnnl_weights[0].ic}, dnnl::memory::format_tag::ab),
                                 convert2dnnl(scratch.gate, {static_cast<int64_t>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab),
                                 convert2dnnl(scratch.up, {static_cast<int64_t>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab));
-
             // down
             kernel.down.forward(dnn_stream,
                                 n_token,
                                 convert2dnnl(scratch.gate, {static_cast<int64_t>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab),
                                 convert2dnnl(scratch.y, {static_cast<int64_t>(n_token), _hidden_size}, dnnl::memory::format_tag::ab),
                                 convert2dnnl(scratch.routing_weights, {static_cast<int64_t>(routing_weights_size)}, dnnl::memory::format_tag::a));
-
             // index_add
             result_event = execute_stage({result_event},
                                          instance,
