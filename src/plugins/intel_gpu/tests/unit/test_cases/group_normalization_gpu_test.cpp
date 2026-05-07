@@ -17,6 +17,8 @@
 #include "openvino/reference/group_normalization.hpp"
 #include "intel_gpu/runtime/compilation_context.hpp"
 
+#include <algorithm>
+
 
 using namespace cldnn;
 using namespace ::tests;
@@ -510,6 +512,11 @@ TEST(group_normalization, basic_b_fs_yx_fsv16_fused_eltwise_sum) {
     network.set_input_data("bias", bias_mem);
 
     auto outputs = network.execute();
+
+    // Verify eltwise_sum was fused into group_norm (not executed as separate primitive)
+    auto executed_primitives = network.get_executed_primitives();
+    ASSERT_TRUE(executed_primitives.count("eltwise_sum") == 0);
+
     auto output = outputs.at("output").get_memory();
     cldnn::mem_lock<ov::float16, mem_lock_type::read> output_mem_lock(output, get_test_stream());
 
@@ -532,7 +539,7 @@ TEST(group_normalization, basic_b_fs_yx_fsv16_fused_eltwise_sum) {
 TEST(group_normalization, basic_b_fs_yx_fsv16_fused_eltwise_sum_relu) {
     auto& engine = get_test_engine();
 
-    const ov::Shape input_shape = {1, 32, 33, 17};  // Non-power-of-2 spatial dims to test leftovers path
+    const ov::Shape input_shape = {1, 32, 33, 17};  // Non-power-of-2 spatial dims to stress y/x derivation and CHUNK_SIZE tail handling
     const ov::Shape param_shape = {32, 1, 1, 1};
     auto in_layout = layout{input_shape, data_types::f16, format::bfyx};
     auto eltwise_layout = layout{input_shape, data_types::f16, format::bfyx};
@@ -592,6 +599,12 @@ TEST(group_normalization, basic_b_fs_yx_fsv16_fused_eltwise_sum_relu) {
     network.set_input_data("bias", bias_mem);
 
     auto outputs = network.execute();
+
+    // Verify eltwise_sum and relu were fused into group_norm (not executed as separate primitives)
+    auto executed_primitives = network.get_executed_primitives();
+    ASSERT_TRUE(executed_primitives.count("eltwise_sum") == 0);
+    ASSERT_TRUE(executed_primitives.count("relu") == 0);
+
     auto output = outputs.at("output").get_memory();
     cldnn::mem_lock<ov::float16, mem_lock_type::read> output_mem_lock(output, get_test_stream());
 
