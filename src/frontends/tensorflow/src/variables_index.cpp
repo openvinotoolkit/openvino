@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cerrno>
-#include <climits>
-#include <cstdlib>
 #include <fstream>
 #include <string>
 
@@ -15,6 +12,7 @@
 #include "openvino/util/mmap_object.hpp"
 #include "ov_tensorflow/tensor_bundle.pb.h"
 #include "ov_tensorflow/trackable_object_graph.pb.h"
+#include "parse_output_index.hpp"
 #include "tf_utils.hpp"
 
 #ifdef ENABLE_SNAPPY_COMPRESSION
@@ -379,26 +377,22 @@ void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::Grap
         }
     }
 
+    // RestoreV2 data inputs (per the TF Op definition): prefix(0), tensor_names(1),
+    // shape_and_slices(2). Control inputs ('^'-prefixed) live in the same input list
+    // and are filtered out by the data-port check below.
+    constexpr int tensor_names_index = 1;
+
     const auto get_variable_name = [](const PtrNode::SharedPtrNode& rv2_node, int idx) -> const std::string& {
-        // Pick tensor_names by data-port semantics: RestoreV2 data inputs are
-        // prefix(0), tensor_names(1), shape_and_slices(2). TF GraphDef stores
-        // control inputs in the same input list, prefixed with '^'; skip them
-        // so a crafted node like ["prefix", "^bogus"] cannot have its control
-        // dep silently treated as tensor_names.
-        std::string tn_input_name;
-        int data_idx = 0;
-        for (const auto& in : rv2_node->node->input()) {
-            if (!in.empty() && in[0] == '^') {
-                continue;
-            }
-            if (data_idx++ == 1) {
-                tn_input_name = in;
-                break;
+        std::string tensor_name;
+        if (rv2_node->node->input().size() > tensor_names_index) {
+            const std::string& in = rv2_node->node->input(tensor_names_index);
+            if (!in.empty() && in[0] != '^') {
+                tensor_name = in;
             }
         }
-        FRONT_END_GENERAL_CHECK(!tn_input_name.empty(), "RestoreV2 node is missing tensor_names input");
+        FRONT_END_GENERAL_CHECK(!tensor_name.empty(), "RestoreV2 node is missing tensor_names input");
         std::vector<std::string> parsed;
-        PtrNode::parse_node_name(tn_input_name, parsed);
+        PtrNode::parse_node_name(tensor_name, parsed);
         // Match by local node name on the rv2_node's already-linked inputs. Pointer-based:
         // works in both top-level and StatefulPartitionedCall scopes (the global node dictionary
         // uses prefixed keys for SPC-flattened nodes, but each PtrNode's NodeDef carries its
@@ -415,9 +409,10 @@ void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::Grap
                                 "RestoreV2 tensor_names input not found among RestoreV2 inputs: ",
                                 parsed[0]);
         const auto* tn_node = tn_ptr->node;
-        FRONT_END_GENERAL_CHECK(tn_node->op() == "Const" && tn_node->attr().count("value") > 0,
+        const auto value_attr_it = tn_node->attr().find("value");
+        FRONT_END_GENERAL_CHECK(tn_node->op() == "Const" && value_attr_it != tn_node->attr().end(),
                                 "RestoreV2 tensor_names input is not a Const with 'value' attribute");
-        const auto& tensor = tn_node->attr().at("value").tensor();
+        const auto& tensor = value_attr_it->second.tensor();
         FRONT_END_GENERAL_CHECK(idx >= 0 && idx < tensor.string_val_size(),
                                 "RestoreV2 output index out of range: ",
                                 idx,
@@ -427,13 +422,20 @@ void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::Grap
         return tensor.string_val(idx);
     };
 
-    const auto parse_output_index = [](const std::string& token) -> int {
-        char* end = nullptr;
-        errno = 0;
-        const long v = std::strtol(token.c_str(), &end, 10);
-        return (end == token.c_str() || *end != '\0' || errno == ERANGE || v > INT_MAX || v < INT_MIN)
-                   ? 0
-                   : static_cast<int>(v);
+    // Parse the integer suffix of a "RestoreV2:N" reference. The colon-less form
+    // (size < 2) implicitly refers to output 0 — preserved here as an explicit
+    // call-site default. Anything past the colon must be a strictly valid in-range
+    // integer; non-numeric, trailing garbage and overflow all throw via
+    // FRONT_END_GENERAL_CHECK below.
+    const auto resolve_output_index = [](const std::vector<std::string>& restore_output) -> int {
+        if (restore_output.size() < 2) {
+            return 0;
+        }
+        const auto parsed = parse_output_index(restore_output.back());
+        FRONT_END_GENERAL_CHECK(parsed.has_value(),
+                                "RestoreV2 output index is not a valid integer: ",
+                                restore_output.back());
+        return *parsed;
     };
 
     for (const auto& node : nodes) {
@@ -463,7 +465,7 @@ void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::Grap
                     FRONT_END_THROW("Unexpected topology near AssignVariableOp");
                 }
 
-                const int output_index = parse_output_index(restore_output[restore_output.size() - 1]);
+                const int output_index = resolve_output_index(restore_output);
 
                 // Expected path is: Const(tensor_names) -(0)-(1)-> RestoreV2
                 variables_map[varhandle_nodes[0]->node->name()] = get_variable_name(restorev2_nodes[0], output_index);
@@ -488,7 +490,7 @@ void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::Grap
                 // Expected path is: RestoreV2 -(output_index)-(1)-> Assign
                 PtrNode::parse_node_name(node.second->node->input(1), restore_output);
 
-                const int output_index = parse_output_index(restore_output[restore_output.size() - 1]);
+                const int output_index = resolve_output_index(restore_output);
 
                 // Expected path is: Const(tensor_names) -(0)-(1)-> RestoreV2
                 variables_map[variablev2_nodes[0]->node->name()] = get_variable_name(restorev2_nodes[0], output_index);
