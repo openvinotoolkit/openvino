@@ -145,6 +145,7 @@
 #include "transformations/cpu_opset/common/pass/insert_convert_after_extension.hpp"
 #include "transformations/cpu_opset/common/pass/ngram_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/permute_slice_n_interpolation.hpp"
+#include "transformations/cpu_opset/common/pass/simplify_select_broadcast.hpp"
 #include "transformations/cpu_opset/common/pass/stateful_sdpa_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/swap_convert_transpose.hpp"
 #include "transformations/cpu_opset/convert_to_cpu_specific_opset.hpp"
@@ -646,6 +647,11 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertNMS4ToNMS9);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertNMS5ToNMS9);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::TransposeMatMul);
+    // Simplify Select(cond, on_true, Broadcast(scalar_const, shape)) to
+    // Select(cond, on_true, scalar_const) to avoid shape-inference failures in hybrid
+    // SSM+attention architectures (e.g. qwen3_5_text) where the Broadcast shape is
+    // derived from the SSM output and may be incompatible with the attention KV length.
+    CPU_REGISTER_PASS_COMMON(manager, ov::intel_cpu::pass::SimplifySelectBroadcast);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConstantFolding);
     CPU_REGISTER_PASS_ARM64(manager, ov::pass::HardSigmoidDecomposition);
 
