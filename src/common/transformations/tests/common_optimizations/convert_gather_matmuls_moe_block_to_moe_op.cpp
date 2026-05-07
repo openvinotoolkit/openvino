@@ -558,12 +558,8 @@ inline std::shared_ptr<ov::Model> build_2gemm_bgm_to_moe_reference_model() {
     auto topk_indices = router_topk->output(1);
     auto chosen_experts = router_topk->output(0);
 
-    // Compact routing (becomes MOE input 1)
-    auto router_transpose = std::make_shared<op::v1::Transpose>(
-        chosen_experts,
-        op::v0::Constant::create(element::i64, Shape{2}, std::vector<int64_t>{1, 0}));
-    auto router_unsqueeze =
-        std::make_shared<op::v0::Unsqueeze>(router_transpose, op::v0::Constant::create(element::i32, Shape{}, {-1}));
+    // Convert2GatherMatmulMoeBlockToMoeOp bypasses Transpose+Unsqueeze (tokens-major).
+    auto routing = chosen_experts;
 
     // Weights
     auto gate_up_w = op::v0::Constant::create(element::f32,
@@ -575,7 +571,7 @@ inline std::shared_ptr<ov::Model> build_2gemm_bgm_to_moe_reference_model() {
         op::v0::Constant::create(element::f32, Shape{number_of_experts, hidden_size, intermediate_size}, {1.0f});
     auto down_bias = op::v0::Constant::create(element::f32, Shape{number_of_experts, 1, hidden_size}, {1.0f});
 
-    ov::OutputVector moe_inputs = {input, router_unsqueeze, topk_indices, gate_up_w, gate_up_bias, down_w, down_bias};
+    ov::OutputVector moe_inputs = {input, routing, topk_indices, gate_up_w, gate_up_bias, down_w, down_bias};
 
     ov::op::internal::MOE::Config config;
     config.expert_type = ov::op::internal::MOE::Expert_type::GEMM2_BIAS_SWIGLU_CLAMP;

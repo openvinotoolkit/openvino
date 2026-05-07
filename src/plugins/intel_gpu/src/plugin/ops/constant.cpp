@@ -286,14 +286,11 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
         } else if (is_convert_matmul_pattern(outOp, user_index)) {
             const size_t const_static_max_dims = 4;
             // MatMul constant reshape WA (legacy shape infer path):
-            // - Only reshape when constant is consumed as activation(0) or weight(1)
-            //   to mirror gemm_inst::update_input_shape 1D asymmetry.
-            // - Bias (index 2) is intentionally left untouched; other users rely on
-            //   getConstTensor() default mapping.
-            // 1D cases:
-            //   index 0 (activation): [d] -> [1,1,1,d]
-            //   index 1 (weight):     [d] -> [1,1,d,1]
-            // Rank <4 non-1D: right-align into 4D: e.g. [M,K] -> [1,1,M,K], [B,M,K]->[1,B,M,K]
+            // Only reshape 1D and 2D constants to fix getConstTensor batch/feature
+            // mis-mapping. For rank >= 3, getConstTensor already produces layouts
+            // compatible with gemm_inst::transform_input_layouts (trailing 1s align
+            // with weight_rank extraction). Reshaping rank >= 3 would prepend 1s,
+            // breaking the first-N-dims extraction in transform_input_layouts.
             if (constDims.size() == 1) {
                 ov::Shape reshaped_const_dims(const_static_max_dims, 1);
                 const size_t const_idx = (user_index == 0)?
@@ -301,7 +298,7 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
                     : (const_static_max_dims - 2);
                 reshaped_const_dims[const_idx] = constDims[0];
                 constDims = std::move(reshaped_const_dims);
-            } else if (constDims.size() < const_static_max_dims) {
+            } else if (constDims.size() == 2) {
                 ov::Shape reshaped_const_dims(const_static_max_dims, 1);
                 const auto offset = const_static_max_dims - constDims.size();
                 for (size_t i = 0; i < constDims.size(); ++i) {
