@@ -684,15 +684,21 @@ void DnnlPostOpsComposer::appendClip(const std::vector<float>& low, const std::v
     }
 }
 
-void DnnlPostOpsComposer::appendDepthwiseConvolution(int inH,
-                                                     int inW,
-                                                     int kerH,
-                                                     int kerW,
-                                                     int strH,
-                                                     int strW,
+void DnnlPostOpsComposer::appendDepthwiseConvolution(size_t inH,
+                                                     size_t inW,
+                                                     size_t kerH,
+                                                     size_t kerW,
+                                                     size_t strH,
+                                                     size_t strW,
                                                      dnnl::memory::data_type inDataType) {
     DEBUG_LOG("Append DW convolution");
-    ops.append_dw_conv(inH, inW, kerH, kerW, strH, strW, dnnl::memory::convert_to_c(inDataType));
+    ops.append_dw_conv(static_cast<int32_t>(inH),
+                       static_cast<int32_t>(inW),
+                       static_cast<int32_t>(kerH),
+                       static_cast<int32_t>(kerW),
+                       static_cast<int32_t>(strH),
+                       static_cast<int32_t>(strW),
+                       dnnl::memory::convert_to_c(inDataType));
 }
 
 void DnnlPostOpsComposer::appendZeroPoints(const MemoryArgs& memory) {
@@ -1138,12 +1144,12 @@ DnnlPrimitiveAttrs DnnlPostOpsComposer::compose() {
         }
 
         if (const auto* const conv = std::any_cast<DepthwiseConvolutionPostOp>(&postOp)) {
-            appendDepthwiseConvolution(static_cast<int>(conv->ih()),
-                                       static_cast<int>(conv->iw()),
-                                       static_cast<int>(conv->kernel()[1]),
-                                       static_cast<int>(conv->kernel()[0]),
-                                       static_cast<int>(conv->strides()[1]),
-                                       static_cast<int>(conv->strides()[0]),
+            appendDepthwiseConvolution(conv->ih(),
+                                       conv->iw(),
+                                       conv->kernel()[1],
+                                       conv->kernel()[0],
+                                       conv->strides()[1],
+                                       conv->strides()[0],
                                        dnnl::memory::data_type::f32);
             continue;
         }

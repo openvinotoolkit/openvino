@@ -318,16 +318,16 @@ const std::map<const ov::DiscreteTypeInfo, Eltwise::Initializer>& Eltwise::getIn
         {ov::op::v0::Clamp::get_type_info_static(),
          [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
              auto clampOp = getNgraphOpAs<ov::op::v0::Clamp>(op);
-             auto alpha_ = clampOp->get_min();
-             auto beta_ = clampOp->get_max();
+             auto alpha_ = static_cast<float>(clampOp->get_min());
+             auto beta_ = static_cast<float>(clampOp->get_max());
              if (clampOp->get_input_element_type(0).is_integral_number()) {
                  // according to spec, when Clamp has integer element type, min and max must be converted to
                  // integer
                  alpha_ = std::ceil(alpha_);
                  beta_ = std::floor(beta_);
              }
-             node.m_attrs.data.alpha = static_cast<float>(alpha_);
-             node.m_attrs.data.beta = static_cast<float>(beta_);
+             node.m_attrs.data.alpha = alpha_;
+             node.m_attrs.data.beta = beta_;
              node.algorithm = Algorithm::EltwiseClamp;
              node.m_attrs.data.onednnAlgorithm = dnnl::algorithm::eltwise_clip;
          }},

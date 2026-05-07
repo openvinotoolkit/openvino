@@ -17,7 +17,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ov_add_compiler_flags(/wd4334)
     # oneDNN arm64: unary minus operator applied to unsigned type, result still unsigned
     ov_add_compiler_flags(/wd4146)
-elseif(OV_COMPILER_IS_INTEL_LLVM AND WIN32)
+elseif (OV_COMPILER_IS_INTEL_LLVM AND WIN32)
     ov_add_compiler_flags("/Wno-microsoft-include")
 endif()
 if(NOT BUILD_SHARED_LIBS)
@@ -229,43 +229,6 @@ ov_add_plugin(NAME ${TARGET_NAME}
               ADD_CLANG_FORMAT
               ADD_CLANG_TIDY)
 
-# Suppress warnings for specific src subdirectories only (not root-level src files)
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    # Define subdirectories where warnings should be suppressed
-    set(SUPPRESS_WARNING_SUBDIRS
-        cache
-        emitters
-        memory_desc
-        mlas
-        nodes
-        onednn
-        shape_inference
-        transformations
-        utils)
-
-    # Collect files from these subdirectories
-    set(FILES_TO_SUPPRESS_WARNINGS)
-    foreach(subdir ${SUPPRESS_WARNING_SUBDIRS})
-        file(GLOB_RECURSE subdir_files
-            "${CMAKE_CURRENT_SOURCE_DIR}/src/${subdir}/*.cpp"
-            "${CMAKE_CURRENT_SOURCE_DIR}/src/${subdir}/*.hpp"
-            "${CMAKE_CURRENT_SOURCE_DIR}/src/${subdir}/*.h")
-        list(APPEND FILES_TO_SUPPRESS_WARNINGS ${subdir_files})
-    endforeach()
-
-    # Apply warning suppressions to these files
-    if(FILES_TO_SUPPRESS_WARNINGS)
-        set_source_files_properties(${FILES_TO_SUPPRESS_WARNINGS} PROPERTIES
-            COMPILE_FLAGS "/wd4018 /wd4267 /wd4244 /wd4334 /wd4146 /wd5002")
-    endif()
-endif()
-
-# Suppress warnings from thirdparty headers in version target
-# (flags are exported from thirdparty/CMakeLists.txt)
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND OV_CPU_THIRDPARTY_MSVC_SUPPRESS_FLAGS)
-    target_compile_options(${TARGET_NAME}_version PRIVATE ${OV_CPU_THIRDPARTY_MSVC_SUPPRESS_FLAGS})
-endif()
-
 # give a different file name depending on target platform architecture
 if(ARM OR AARCH64)
     set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME "openvino_arm_cpu_plugin")
@@ -427,18 +390,6 @@ if(BUILD_SHARED_LIBS)
     ov_link_system_libraries(${TARGET_NAME}_obj PUBLIC ${CPU_OBJ_LINK_SYSTEM})
 
     ov_add_version_defines(src/plugin.cpp ${TARGET_NAME}_obj)
-
-    # Suppress warnings for specific src subdirectories in object library too
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND FILES_TO_SUPPRESS_WARNINGS)
-        set_source_files_properties(${FILES_TO_SUPPRESS_WARNINGS} TARGET_DIRECTORY ${TARGET_NAME}_obj
-            PROPERTIES COMPILE_FLAGS "/wd4018 /wd4267 /wd4244 /wd4334 /wd4146 /wd5002")
-    endif()
-
-    # Suppress warnings from thirdparty headers in version targets
-    # (flags are exported from thirdparty/CMakeLists.txt)
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND OV_CPU_THIRDPARTY_MSVC_SUPPRESS_FLAGS)
-        target_compile_options(${TARGET_NAME}_obj_version PRIVATE ${OV_CPU_THIRDPARTY_MSVC_SUPPRESS_FLAGS})
-    endif()
 
     target_include_directories(${TARGET_NAME}_obj
         PRIVATE

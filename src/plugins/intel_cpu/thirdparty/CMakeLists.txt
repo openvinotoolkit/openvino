@@ -6,16 +6,17 @@ project(intel_cpu_thirdparty)
 
 # Suppress warnings from thirdparty code only (not from intel_cpu/src)
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    # C4018 signed/unsigned mismatch
+    # C4849 OpenMP 'reduction' clause ignored in 'simd' directive
+    ov_add_compiler_flags(/wd4849)
+    # C4661 no suitable definition provided for explicit template instantiation request
+    ov_add_compiler_flags(/wd4661)
+    # Re-apply warning suppressions inside ov_add_onednn() function scope
+    # (needed because function() creates new variable scope in CMake)
     ov_add_compiler_flags(/wd4018)
-    # C4267, 4244 conversion from 'XXX' to 'YYY', possible loss of data
     ov_add_compiler_flags(/wd4267)
     ov_add_compiler_flags(/wd4244)
-    # C4334 '<<': result of 32-bit shift implicitly converted to 64 bits
     ov_add_compiler_flags(/wd4334)
-    # C4146 unary minus operator applied to unsigned type, result still unsigned
     ov_add_compiler_flags(/wd4146)
-    # C5002 Omp simd loop not vectorized - informational messages
     ov_add_compiler_flags(/wd5002)
 elseif(OV_COMPILER_IS_INTEL_LLVM AND WIN32)
     ov_add_compiler_flags("/Wno-microsoft-include")
@@ -139,19 +140,6 @@ function(ov_add_onednn)
             ov_add_compiler_flags(-Wno-deprecated-this-capture)
             ov_add_compiler_flags(-Wno-deprecated-enum-enum-conversion)
         endif()
-    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        # C4849 OpenMP 'reduction' clause ignored in 'simd' directive
-        ov_add_compiler_flags(/wd4849)
-        # C4661 no suitable definition provided for explicit template instantiation request
-        ov_add_compiler_flags(/wd4661)
-        # Re-apply warning suppressions inside ov_add_onednn() function scope
-        # (needed because function() creates new variable scope in CMake)
-        ov_add_compiler_flags(/wd4018)
-        ov_add_compiler_flags(/wd4267)
-        ov_add_compiler_flags(/wd4244)
-        ov_add_compiler_flags(/wd4334)
-        ov_add_compiler_flags(/wd4146)
-        ov_add_compiler_flags(/wd5002)
     endif()
 
     if(SUGGEST_OVERRIDE_SUPPORTED)
@@ -219,8 +207,3 @@ if(RISCV64)
 endif()
 
 ov_add_onednn()
-
-# Export thirdparty warning suppression flags to parent scope for version targets
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    set(OV_CPU_THIRDPARTY_MSVC_SUPPRESS_FLAGS "/wd4018;/wd4267;/wd4244;/wd4334" PARENT_SCOPE)
-endif()

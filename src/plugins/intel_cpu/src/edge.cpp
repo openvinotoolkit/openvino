@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <new>
@@ -111,10 +112,10 @@ void Edge::collectConsumers(std::vector<NodePtr>& result) const {
         // collect consumers in case of an upstream in-place memory reference
         if (auto* peerChildSPD = childNode->getSelectedPrimitiveDescriptor()) {
             auto&& conf = peerChildSPD->getConfig();
-            for (size_t i = 0; i < conf.outConfs.size(); i++) {
+            for (int32_t i = 0; i < static_cast<int32_t>(conf.outConfs.size()); i++) {
                 const auto peerOutInPlacePort = conf.outConfs[i].inPlace();
                 if (peerOutInPlacePort == this->getOutputNum()) {
-                    for (auto&& childEdge : childNode->getChildEdgesAtPort(static_cast<int>(i))) {
+                    for (auto&& childEdge : childNode->getChildEdgesAtPort(i)) {
                         childEdge->collectConsumers(result);
                     }
                 }
@@ -614,7 +615,7 @@ NodePtr Edge::modifiedInPlace() const {
     // check backward dependency
     if (auto* childSPD = childNode->getSelectedPrimitiveDescriptor()) {
         const auto& outConfs = childSPD->getConfig().outConfs;
-        for (size_t i = 0; i < outConfs.size(); ++i) {
+        for (int32_t i = 0; i < static_cast<int32_t>(outConfs.size()); ++i) {
             const auto& conf = outConfs[i];
             if (childPort < 0 || conf.inPlace() != childPort ||
                 Type::MemoryInput == childNode->getType()) {  // exception type, it doesn't modify memory
@@ -624,7 +625,7 @@ NodePtr Edge::modifiedInPlace() const {
                 // Node can modify the memory
                 return childNode;
             }
-            for (auto&& edge : childNode->getChildEdgesAtPort(static_cast<int>(i))) {
+            for (auto&& edge : childNode->getChildEdgesAtPort(i)) {
                 // continue searching
                 if (auto result = edge->modifiedInPlace()) {
                     return result;

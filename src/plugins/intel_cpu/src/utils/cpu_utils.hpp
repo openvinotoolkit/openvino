@@ -161,12 +161,12 @@ inline ov::element::Type normalizeToSupportedPrecision(ov::element::Type precisi
  * alignment for targetSize
  * @return aligned buffer
  */
-inline std::vector<float> makeAlignedBuffer(size_t targetSize, const std::vector<float>& buffer, int align = -1) {
+inline std::vector<float> makeAlignedBuffer(size_t targetSize, const std::vector<float>& buffer, size_t align = 0) {
     OPENVINO_ASSERT(!buffer.empty(), "Can't align buffer, because buffer is empty");
 
     auto alignedBuffer = buffer;
-    if (align == -1) {
-        align = static_cast<int>(targetSize);
+    if (align == 0) {
+        align = targetSize;
     }
     const size_t bufferSizeAligned = rnd_up(targetSize, align);
 
