@@ -29,13 +29,7 @@ void validate_begin_offsets(const int32_t* begins_ptr,
                             const char* tensor_name) {
     for (size_t i = 0; i < begins_count; i++) {
         const int32_t begin = begins_ptr[i];
-        OPENVINO_ASSERT(begin >= 0,
-                        tensor_name,
-                        " contains a negative offset at index ",
-                        i,
-                        ": ",
-                        begin,
-                        ".");
+        OPENVINO_ASSERT(begin >= 0, tensor_name, " contains a negative offset at index ", i, ": ", begin, ".");
         OPENVINO_ASSERT(static_cast<size_t>(begin) <= upper_bound,
                         tensor_name,
                         " offset at index ",
@@ -371,7 +365,10 @@ void reorder_kv_cache(PlainTensor& key_cache,
                     "block_update_indices must contain src/dst pairs, but got ",
                     block_update_indices.size(0),
                     " elements.");
-    validate_begin_offsets(block_idx_begins_ptr, block_indices_begins.size(0), block_indices.size(0), "block_indices_begins");
+    validate_begin_offsets(block_idx_begins_ptr,
+                           block_indices_begins.size(0),
+                           block_indices.size(0),
+                           "block_indices_begins");
     validate_begin_offsets(update_begins_ptr,
                            block_update_indices_begins.size(0),
                            block_update_indices.size(0) / 2,
