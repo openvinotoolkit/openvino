@@ -81,7 +81,7 @@ public:
 
     virtual std::optional<bool> is_encrypted_blob() const;
 
-    virtual std::optional<std::string> get_runtime_reqs() const;
+    virtual std::optional<std::string> get_compatibility_descriptor() const;
 
     virtual ~MetadataBase() = default;
 
@@ -166,7 +166,7 @@ constexpr std::string_view META = "meta";
 constexpr std::string_view OV = "ov";
 constexpr std::string_view WS_INITS = "ws_inits";
 constexpr std::string_view BATCH = "batch";
-constexpr std::string_view COMPILER_REQS = "compiler_reqs";
+constexpr std::string_view COMPAT_DESC = "desc";
 }  // namespace MetadataTextKeys
 
 /**
@@ -176,7 +176,7 @@ inline constexpr std::array metadataTextAttributes = {MetadataTextKeys::META,
                                                       MetadataTextKeys::OV,
                                                       MetadataTextKeys::WS_INITS,
                                                       MetadataTextKeys::BATCH,
-                                                      MetadataTextKeys::COMPILER_REQS};
+                                                      MetadataTextKeys::COMPAT_DESC};
 
 /**
  * @brief List of supported version formats.
@@ -437,7 +437,7 @@ public:
              const std::optional<std::vector<ov::Layout>>& outputLayouts = std::nullopt,
              const std::optional<uint32_t> compilerVersion = std::nullopt,
              const std::optional<uint64_t>& blobSizeAfterEncryption = std::nullopt,
-             const std::optional<std::string>& compilerReqs = std::nullopt);
+             const std::optional<std::string>& compatiibilityDescriptor = std::nullopt);
 
     void read() override;
 
@@ -447,10 +447,10 @@ public:
 
     void write_as_text(std::ostream& stream) override;
 
-    std::optional<std::string> get_runtime_reqs() const override;
+    std::optional<std::string> get_compatibility_descriptor() const override;
 
 private:
-    std::optional<std::string> _compilerReqs;
+    std::optional<std::string> _compatibilityDescriptor;
 };
 
 /**

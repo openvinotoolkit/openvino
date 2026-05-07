@@ -65,8 +65,6 @@ std::shared_ptr<IGraph> Parser::parse(const ov::Tensor& mainBlob,
     const bool blobIsPersistent = config.has<COMPILED_BLOB>()       ? true
                                   : config.has<LOADED_FROM_CACHE>() ? config.get<LOADED_FROM_CACHE>()
                                                                     : false;
-    // Compatibility descriptor cannot be retrieved neither from the tensor nor from the
-    // level zero API for a precompiled model. Passing nullopt to the graph constructor.
     if (!initBlobs.has_value()) {
         return std::make_shared<Graph>(_zeGraphExt,
                                        _zeroInitStruct,

@@ -386,8 +386,10 @@ ov::CompatibilityCheck Plugin::validate_compatibility_descriptor(ov::intel_npu::
         return ov::CompatibilityCheck::UNSUPPORTED;
     }
 
-    auto deviceRuntimeRequirements = metadata->get_runtime_reqs().value_or("");
-    _logger.debug("Retrieved device runtime requirements: %s length: %zu", deviceRuntimeRequirements.c_str(), deviceRuntimeRequirements.length());
+    auto compatibilityDescriptor = metadata->get_compatibility_descriptor().value_or("");
+    _logger.debug("Retrieved compatibility descriptor from metadata: %s length: %zu",
+                  compatibilityDescriptor.c_str(),
+                  compatibilityDescriptor.length());
 
     // Implement only the fallback path for now through the PLUGIN compiler type
     std::unique_ptr<ICompilerAdapter> compiler = nullptr;
@@ -396,7 +398,7 @@ ov::CompatibilityCheck Plugin::validate_compatibility_descriptor(ov::intel_npu::
         compiler = factory.getCompiler(_backend, compilerType, std::string_view{});
 
         // Compiler can validate only if the string describes a blob compatible with the current platform
-        auto result = compiler->validate_compatibility_descriptor(deviceRuntimeRequirements);
+        auto result = compiler->validate_compatibility_descriptor(compatibilityDescriptor);
         _logger.debug("Compatibility check result: %s", result ? "met" : "not met");
         if(result) {
             return ov::CompatibilityCheck::OPTIMAL;
@@ -1043,7 +1045,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     auto graph = parser->parse(tensorMain,
                                localConfig,
                                initBlobs,
-                               weightsSeparationEnabled ? std::make_optional(std::move(originalModel)) : std::nullopt);
+                               weightsSeparationEnabled ? std::make_optional(std::move(originalModel)) : std::nullopt,
+                               metadata ? metadata->get_compatibility_descriptor() : std::nullopt);
 
     graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
     const std::shared_ptr<ov::Model> modelDummy =

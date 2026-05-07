@@ -177,7 +177,7 @@ Metadata<METADATA_VERSION_2_6>::Metadata(uint64_t blobSize,
                                          const std::optional<std::vector<ov::Layout>>& outputLayouts,
                                          const std::optional<uint32_t> compilerVersion,
                                          const std::optional<uint64_t>& blobSizeAfterEncryption,
-                                         const std::optional<std::string>& compilerReqs)
+                                         const std::optional<std::string>& compatibilityDescriptor)
     : Metadata<METADATA_VERSION_2_5>{blobSize,
                                      ovVersion,
                                      initSizes,
@@ -186,7 +186,7 @@ Metadata<METADATA_VERSION_2_6>::Metadata(uint64_t blobSize,
                                      outputLayouts,
                                      compilerVersion,
                                      blobSizeAfterEncryption},
-      _compilerReqs{compilerReqs} {
+      _compatibilityDescriptor{compatibilityDescriptor} {
     _version = METADATA_VERSION_2_6;
 }
 
@@ -336,7 +336,7 @@ void Metadata<METADATA_VERSION_2_6>::read() {
     if (reqs_len > 0) {
         std::string reqs(reqs_len, '\0');
         read_data_from_source(reqs.data(), reqs_len);
-        _compilerReqs = std::move(reqs);
+        _compatibilityDescriptor = std::move(reqs);
     }
 }
 
@@ -381,16 +381,16 @@ void Metadata<METADATA_VERSION_2_2>::read_as_text() {
 void Metadata<METADATA_VERSION_2_6>::read_as_text() {
     Metadata<METADATA_VERSION_2_5>::read_as_text();
 
-    const auto it = _textAttrs.find(MetadataTextKeys::COMPILER_REQS);
+    const auto it = _textAttrs.find(MetadataTextKeys::COMPAT_DESC);
     if (it == _textAttrs.end() || it->second.empty()) {
         return;
     }
 
     const std::string& v = it->second;
     if (v.size() >= 2 && v.front() == '[' && v.back() == ']') {
-        _compilerReqs = v.substr(1, v.size() - 2);
+        _compatibilityDescriptor = v.substr(1, v.size() - 2);
     } else {
-        OPENVINO_THROW("Human-readable metadata: 'compiler_reqs' value is not bracket-enclosed: ", v);
+        OPENVINO_THROW("Human-readable metadata: 'desc' value is not bracket-enclosed: ", v);
     }
 }
 
@@ -459,11 +459,11 @@ void Metadata<METADATA_VERSION_2_5>::write(std::ostream& stream) {
 void Metadata<METADATA_VERSION_2_6>::write(std::ostream& stream) {
     Metadata<METADATA_VERSION_2_5>::write(stream);
 
-    const std::string& reqs = _compilerReqs.value_or("");
-    const uint64_t reqs_len = reqs.size();
-    stream.write(reinterpret_cast<const char*>(&reqs_len), sizeof(reqs_len));
-    if (reqs_len > 0) {
-        stream.write(reqs.data(), static_cast<std::streamsize>(reqs_len));
+    const std::string& compatDesc = _compatibilityDescriptor.value_or("");
+    const uint64_t compatDesc_len = compatDesc.size();
+    stream.write(reinterpret_cast<const char*>(&compatDesc_len), sizeof(compatDesc_len));
+    if (compatDesc_len > 0) {
+        stream.write(compatDesc.data(), static_cast<std::streamsize>(compatDesc_len));
     }
 
     append_blob_size_and_magic(stream);
@@ -498,12 +498,12 @@ void Metadata<METADATA_VERSION_2_2>::write_as_text(std::ostream& stream) {
 void Metadata<METADATA_VERSION_2_6>::write_as_text(std::ostream& stream) {
     Metadata<METADATA_VERSION_2_5>::write_as_text(stream);
 
-    if (_compilerReqs.has_value() && !_compilerReqs->empty()) {
-        std::string reqs = _compilerReqs.value();
-        if (!reqs.empty() && reqs.back() == '\0') {
-            reqs.pop_back();
+    if (_compatibilityDescriptor.has_value() && !_compatibilityDescriptor->empty()) {
+        std::string desc = _compatibilityDescriptor.value();
+        if (!desc.empty() && desc.back() == '\0') {
+            desc.pop_back();
         }
-        write_text_field(stream, MetadataTextKeys::COMPILER_REQS, '[' + reqs + ']');
+        write_text_field(stream, MetadataTextKeys::COMPAT_DESC, '[' + desc + ']');
     }
 }
 
@@ -692,7 +692,7 @@ std::optional<bool> MetadataBase::is_encrypted_blob() const {
     return std::nullopt;
 }
 
-std::optional<std::string> MetadataBase::get_runtime_reqs() const {
+std::optional<std::string> MetadataBase::get_compatibility_descriptor() const {
     return std::nullopt;
 }
 
@@ -720,8 +720,8 @@ std::optional<bool> Metadata<METADATA_VERSION_2_5>::is_encrypted_blob() const {
     return _isEncryptedBlob;
 }
 
-std::optional<std::string> Metadata<METADATA_VERSION_2_6>::get_runtime_reqs() const {
-    return _compilerReqs;
+std::optional<std::string> Metadata<METADATA_VERSION_2_6>::get_compatibility_descriptor() const {
+    return _compatibilityDescriptor;
 }
 
 }  // namespace intel_npu

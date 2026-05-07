@@ -96,8 +96,8 @@ TEST_F(MetadataHumanReadableTests, noLayouts) {
     ASSERT_FALSE(storedMeta->get_output_layouts().has_value());
 }
 
-TEST_F(MetadataHumanReadableTests, compilerReqs) {
-    const std::string reqs = "platform=NPU3720;tiles=2;something=ELSE";
+TEST_F(MetadataHumanReadableTests, compatibilityDescriptor) {
+    const std::string compatDesc = "platform=NPU3720;tiles=2;something=ELSE";
     auto meta = Metadata<METADATA_VERSION_2_6>(0,
                                                CURRENT_OPENVINO_VERSION,
                                                std::nullopt,
@@ -106,14 +106,14 @@ TEST_F(MetadataHumanReadableTests, compilerReqs) {
                                                std::nullopt,
                                                std::nullopt,
                                                std::nullopt,
-                                               reqs);
+                                               compatDesc);
     const auto text = make_text_string(meta);
 
     std::unique_ptr<MetadataBase> storedMeta;
     OV_ASSERT_NO_THROW(storedMeta = read_as_text(text));
 
-    ASSERT_TRUE(storedMeta->get_runtime_reqs().has_value());
-    EXPECT_EQ(storedMeta->get_runtime_reqs().value(), reqs);
+    ASSERT_TRUE(storedMeta->get_compatibility_descriptor().has_value());
+    EXPECT_EQ(storedMeta->get_compatibility_descriptor().value(), compatDesc);
 }
 
 TEST_F(MetadataHumanReadableTests, compilerVersion) {
@@ -137,7 +137,7 @@ TEST_F(MetadataHumanReadableTests, allTextFields) {
     const std::vector<uint64_t> initSizes{10, 20, 30};
     const int64_t batchSize = 8;
     const uint32_t compilerVersion = 0xDEADBEEF;
-    const std::string reqs = "platform=NPU3720;tiles=2;something=ELSE";
+    const std::string compatDesc = "platform=NPU3720;tiles=2;something=ELSE";
     auto meta = Metadata<METADATA_VERSION_2_6>(0,
                                                CURRENT_OPENVINO_VERSION,
                                                initSizes,
@@ -146,7 +146,7 @@ TEST_F(MetadataHumanReadableTests, allTextFields) {
                                                std::nullopt,
                                                compilerVersion,
                                                std::nullopt,
-                                               reqs);
+                                               compatDesc);
     const auto text = make_text_string(meta);
 
     std::unique_ptr<MetadataBase> storedMeta;
@@ -158,8 +158,8 @@ TEST_F(MetadataHumanReadableTests, allTextFields) {
     ASSERT_FALSE(storedMeta->get_input_layouts().has_value());
     ASSERT_FALSE(storedMeta->get_output_layouts().has_value());
     ASSERT_FALSE(storedMeta->get_compiler_version().has_value());
-    ASSERT_TRUE(storedMeta->get_runtime_reqs().has_value());
-    EXPECT_EQ(storedMeta->get_runtime_reqs().value(), reqs);
+    ASSERT_TRUE(storedMeta->get_compatibility_descriptor().has_value());
+    EXPECT_EQ(storedMeta->get_compatibility_descriptor().value(), compatDesc);
 }
 
 TEST_P(MetadataTextTest, Format) {
