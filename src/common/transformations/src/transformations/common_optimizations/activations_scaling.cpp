@@ -131,7 +131,7 @@ activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float scale_fact
 
         // adding a scale_down layer before the target node
         insert_scale_down_layer(scaled_op, 0);
-        if (scaled_op->input(1).get_element_type() != scaled_prec) {
+        if (!moe && scaled_op->input(1).get_element_type() != scaled_prec) {
             auto convert_prec1 = std::make_shared<v0::Convert>(scaled_op->input(1).get_source_output(), scaled_prec);
             scaled_op->input(1).replace_source_output(convert_prec1->output(0));
         }
