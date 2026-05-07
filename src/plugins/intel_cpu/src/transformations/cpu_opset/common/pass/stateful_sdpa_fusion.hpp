@@ -19,11 +19,8 @@ public:
     StatefulSDPAFusion();
 
 private:
-    // Variable ids of past_k / past_v ReadValues whose SDPA has already been
-    // fused. Subsequent matches referencing the same Variable are reader-only
-    // SDPAs sharing the cache and must be skipped — the fused
-    // ScaledDotProductAttentionWithKVCache kernel only supports a single
-    // owner-writer per K / V state.
+    // Variable ids of past_k / past_v whose SDPA has already been fused; later matches on the
+    // same Variable are reader-only SDPAs and must be skipped.
     std::unordered_set<std::string> m_processed_k_variable_ids;
     std::unordered_set<std::string> m_processed_v_variable_ids;
 };

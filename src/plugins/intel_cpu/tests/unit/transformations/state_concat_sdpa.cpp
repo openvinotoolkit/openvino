@@ -444,20 +444,10 @@ TEST_F(TransformationTestsF, StateConcatSDPAMixedSharedAndExclusive) {
     manager.register_pass<SDPASubgraphFusion>();
 }
 
-// Two SDPAs with independent KV-cache Variables, plus a ShapeOf-rooted subgraph
-// hanging off layer-0's Gather output that fans out into both SDPAs'
-// attention-mask input. Mirrors the fan-out pattern observed in Qwen3-0.6B etc.,
-// where ShapeOf of layer 0's cache-after-beam-gather feeds the global
-// positional-ID / RoPE / attention-mask chain shared by every decoder layer.
-// Expectation: SDPASubgraphFusion (= SimplifyGatherShapeOf + StatefulSDPAFusion)
-// MUST fuse both SDPAs — the shape/metadata branch rooted at ShapeOf does not
-// imply a shared KV-cache. The Concat-children check inside the matcher is
-// satisfied because SimplifyGatherShapeOf rewrites ShapeOf(Gather(...)) so
-// that the Gather's output has only one consumer (the Concat).
-//
-// Counts plain vs fused SDPAs explicitly: SDPASubgraphFusion includes
-// SimplifyGatherShapeOf, which mutates the ShapeOf subgraph in ways that
-// would make a precise model_ref fragile to maintain.
+// Layer-0's Gather output feeds a ShapeOf chain shared with both SDPAs' attention-mask input
+// (Qwen3-style RoPE fanout). Both SDPAs must still fuse — shape metadata is not shared cache.
+// SDPA counts checked manually: SimplifyGatherShapeOf inside SDPASubgraphFusion mutates the
+// ShapeOf chain in ways that make a precise post-pass model_ref fragile.
 static std::shared_ptr<ov::Model>
 makeNonSharedKVWithSharedShapeOfRopeModel(const ov::PartialShape& inputShape) {
     auto make_param = [&](ov::element::Type t, const ov::PartialShape& s) {
@@ -570,17 +560,8 @@ TEST(StateConcatSDPAExtra, NonSharedKVWithSharedShapeOfRope) {
     EXPECT_EQ(fused_sdpa, 2u) << "Both SDPAs must be fused into ScaledDotProductAttentionWithKVCache.";
 }
 
-// Single (RV, SDPA) pair where the K-Concat has a ShapeOf consumer that
-// reads Concat_K's shape into a standalone output (separate from the SDPA's
-// own inputs). Mirrors Gemma3n layer 0's topology: ShapeOf(Concat_K) seeds
-// the global positional-ID / attention-mask chain shared across *other*
-// layers — not this SDPA's own mask. Fusion must apply, and the ShapeOf
-// consumer must be re-routed off the dead Concat so that the ReadValue's
-// MemoryInput post-fusion only has {fused SDPA, ShapeOf} children. Without
-// the re-route the ShapeOf keeps Concat_K (and therefore Gather, and
-// therefore a Gather child on the MemoryInput) alive — MatchSdpaKvCache
-// would reject and the fused kernel would crash with "null input states"
-// at execute time.
+// One (RV, SDPA) pair with a ShapeOf reading Concat_K (Gemma3n layer-0 topology).
+// Fusion must apply and the post-fusion reroute must leave ShapeOf reading from the fused K output.
 static std::shared_ptr<ov::Model>
 makeSingleSDPAWithShapeOfOnConcatKModel(const ov::PartialShape& inputShape, bool isRef = false) {
     auto q = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputShape);
@@ -637,15 +618,8 @@ TEST_F(TransformationTestsF, StateConcatSDPAShapeOfOnConcatKRerouteSucceeds) {
     manager.register_pass<StatefulSDPAFusion>();
 }
 
-// Test modelled after Gemma3n's shared-KV topology: one ReadValue fans out
-// to two Gathers, each feeding its own Concat → SDPA. Both SDPAs share the
-// same K-Variable and V-Variable through a single ReadValue node. The
-// shared-KV detection observes the same variable_id from both matches and
-// keeps the topologically-first SDPA (the cache writer feeding the Assign)
-// fused, while leaving the second SDPA (the reader) as a plain
-// v13::ScaledDotProductAttention. ScaledDotProductAttentionWithKVCache only
-// supports a single owner-writer per K / V state, so the reader must NOT
-// fuse — otherwise the runtime crashes with "null input states".
+// Gemma3n shared-KV topology: one ReadValue fans out to two SDPAs.
+// Writer (topologically first) fuses; reader stays plain.
 static std::shared_ptr<ov::Model>
 makeGemma3nLikeSharedKVModel(const ov::PartialShape& inputShape, bool isRef = false) {
     auto q1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputShape);
@@ -706,20 +680,9 @@ TEST_F(TransformationTestsF, StateConcatSDPAGemma3nLikeSharedKV) {
     manager.register_pass<StatefulSDPAFusion>();
 }
 
-// Two distinct v6::ReadValue nodes that reference the SAME Variable (one per
-// branch), each feeding its own Gather → Concat → SDPA → Assign. The two
-// SDPAs are reachable from two different ReadValue *nodes*, but the cache
-// memory they read is the same Variable slot — i.e., they share the
-// KV-cache. Under detection keyed on the ReadValue node pointer, no sharing
-// is found and both SDPAs would (incorrectly) fuse. Under detection keyed on
-// the Variable identifier, the same Variable is observed twice — the
-// topologically-first (writer) SDPA fuses and the second (reader) is left
-// as a plain v13::ScaledDotProductAttention.
-//
-// Counted manually: TransformationTestsF cannot pair the four Assign sinks
-// here unambiguously because they share only two variable_ids
-// ("shared_var_k", "shared_var_v"), making the variable-id-based sink
-// matching in graph_comparator ambiguous.
+// Two ReadValue nodes aliasing one Variable: writer fuses, reader stays plain.
+// SDPA counts checked manually — graph_comparator pairs sinks by variable_id only, and 4 Assigns
+// sharing 2 variable_ids cannot be paired unambiguously.
 static std::shared_ptr<ov::Model>
 makeSharedVariableTwoReadValuesModel(const ov::PartialShape& inputShape) {
     auto q1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputShape);

@@ -33,11 +33,13 @@
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
 #include "transformations/common_optimizations/simplify_shape_of_sub_graph.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "transformations/defs.hpp"
@@ -114,7 +116,7 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
 
     auto sdp = sdp0 | sdp1 | sdp2 | sdp3 | sdp_trans0 | sdp_trans1 | sdp_trans2 | sdp_trans3;
 
-    ov::matcher_pass_callback callback = [=, this](Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
 
@@ -160,14 +162,6 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         const auto sdp_node = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(root);
         const auto past_k_node = ov::as_type_ptr<ov::op::v6::ReadValue>(pattern_map.at(past_k).get_node_shared_ptr());
         const auto past_v_node = ov::as_type_ptr<ov::op::v6::ReadValue>(pattern_map.at(past_v).get_node_shared_ptr());
-        // KV-cache sharing detection. GraphRewrite traverses ops in topological order, so the
-        // SDPA that owns the K / V cache write path (the one feeding the matching Assign) is
-        // matched first. Record its past_k / past_v Variable id below on a successful fusion,
-        // and refuse fusion here for any subsequent SDPA that reads the same Variable —
-        // those are reader-only SDPAs sharing the cache, and ScaledDotProductAttentionWithKVCache
-        // currently only supports a single owner-writer per K / V state.
-        // Sets are keyed by Variable id (not by ReadValue node pointer) so the corner case of
-        // two distinct v6::ReadValue nodes aliasing the same Variable is still detected as shared.
         if (m_processed_k_variable_ids.find(past_k_node->get_variable_id()) != m_processed_k_variable_ids.end() ||
             m_processed_v_variable_ids.find(past_v_node->get_variable_id()) != m_processed_v_variable_ids.end()) {
             return false;
@@ -302,22 +296,14 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
             assign_v_node->set_arguments({new_node->output(2)});
         }
 
-        // Re-route any ShapeOf consumer of the (now-obsolete) K / V Concat to the fused node's
-        // new K / V output. The Concat has the same post-cache tensor shape as the fused output,
-        // so this rewrite is semantically a no-op. Without it, the ShapeOf keeps the old
-        // Concat -> Gather chain reachable via the global positional-ID / attention-mask
-        // computation in models that take this case-3 path (Gemma3n layer 0), which leaves the
-        // old Gather as a child of the ReadValue's MemoryInput; MatchSdpaKvCache rejects
-        // non-{SDPA, ShapeOf} children and the fused kernel then crashes with "null input states"
-        // at execute time. In the Mixtral multi-query-broadcast case the ShapeOf's consumers are
-        // themselves absorbed by the matcher pattern, so after this re-route the entire
-        // multi-query chain is dead and gets collapsed by subsequent dead-code elimination.
+        // Without this reroute the dead Concat keeps the old Gather alive as a MemoryInput child;
+        // MatchSdpaKvCache rejects non-{SDPA, ShapeOf} children and the fused kernel asserts on null states.
         auto reroute_shape_of_consumers = [](const std::shared_ptr<Node>& concat_node,
                                              const ov::Output<ov::Node>& replacement) {
             std::vector<ov::Input<Node>> shape_of_inputs;
             for (const auto& target : concat_node->get_output_target_inputs(0)) {
                 auto* child = target.get_node();
-                if (ov::is_type_any_of<ov::op::v0::ShapeOf, ov::op::v3::ShapeOf>(child)) {
+                if (ov::is_type<ov::op::util::ShapeOfBase>(child)) {
                     shape_of_inputs.push_back(target);
                 }
             }
@@ -335,8 +321,6 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         past_k_node->get_rt_info()["DisableInitSubgraphFusing"] = true;
         past_v_node->get_rt_info()["DisableInitSubgraphFusing"] = true;
 
-        // Mark the K / V Variable ids as owned by the SDPA we just fused — any later match
-        // referencing the same Variable is a reader of the shared cache and must be skipped.
         m_processed_k_variable_ids.insert(past_k_node->get_variable_id());
         m_processed_v_variable_ids.insert(past_v_node->get_variable_id());
         return true;
