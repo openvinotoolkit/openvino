@@ -185,7 +185,6 @@ static constexpr Property<bool, ov::PropertyMutability::RW> allow_bypass_xattn{"
 static constexpr Property<bool, ov::PropertyMutability::RW> network_marker{"GPU_NETWORK_MARKER"};
 static constexpr Property<bool, ov::PropertyMutability::RW> list_layers{"GPU_LIST_LAYERS"};
 static constexpr Property<bool, ov::PropertyMutability::RW> print_input_data_shapes{"GPU_PRINT_INPUT_DATA_SHAPES"};
-static constexpr Property<bool, ov::PropertyMutability::RW> auto_enable_kv_cache_4bit{"GPU_AUTO_ENABLE_KV_CACHE_4BIT"};
 }  // namespace ov::intel_gpu
 
 namespace cldnn {

@@ -240,14 +240,7 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
         }
     };
 
-    // Note: debug options (env vars) are not yet applied at this stage
-    // So we read the env var directly here for early model-inspection logic.
     bool auto_enable_4bit_kv = false;
-#ifdef ENABLE_DEBUG_CAPS
-    if (auto env = std::getenv("OV_GPU_AUTO_ENABLE_KV_CACHE_4BIT"))
-        auto_enable_4bit_kv = std::string(env) == "1";
-#endif
-
     // Trace MatMul weight input through the decompression subgraph
     // (Convert→Subtract→Multiply→Reshape→Convert→Constant) to check for 4-bit weights.
     auto has_4bit_matmul_weights = [](const std::shared_ptr<Node>& op) -> bool {
