@@ -161,7 +161,6 @@ JitConstants PagedAttentionGeneratorBase::get_jit_constants(const kernel_impl_pa
     auto split_size = get_kv_split_size(xe_arch);
     jit.make("KV_STEP", split_size.first);
 
-    jit.make("WG_SIZE", WG_SIZE);
     jit.make("CAUSAL_MASK", 1);
 
     // 0: no compression, 1: per-token compression for both key and value, 2: per-channel compression for key and per-token compression for value
@@ -215,6 +214,7 @@ JitConstants PagedAttentionGeneratorKVCacheUpdate::get_jit_constants(const kerne
 }
 
 size_t PagedAttentionGeneratorKVCacheUpdate::get_kv_update_wg_size(const RuntimeParams& params) {
+    constexpr size_t default_wg_size = 16;
     const auto desc = params.typed_desc<paged_attention>();
     if (get_kv_compressed(params) && desc->is_key_by_channel) {
         const size_t block_size = desc->has_xattention ? PA_KV_CACHE_BLOCK_SIZE_XATTN
@@ -223,7 +223,8 @@ size_t PagedAttentionGeneratorKVCacheUpdate::get_kv_update_wg_size(const Runtime
                         "block_size (", block_size, ") must be divisible by KV_SUB_BLOCK_SIZE (", KV_SUB_BLOCK_SIZE, ")");
         return block_size / KV_SUB_BLOCK_SIZE;
     }
-    return WG_SIZE;
+
+    return default_wg_size;
 }
 
 Arguments PagedAttentionGeneratorKVCacheUpdate::get_arguments_desc(const kernel_impl_params& params) const {
@@ -389,7 +390,8 @@ JitConstants PagedAttentionGeneratorMultiToken::get_jit_constants(const kernel_i
 
 DispatchDataFunc PagedAttentionGeneratorMultiToken::get_dispatch_data_func() const {
     const size_t xattn_block_size = _xattn_block_size;
-    return DispatchDataFunc{[xattn_block_size](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+    constexpr size_t wg_size = PagedAttentionGeneratorMultiToken::_wg_size;
+    return DispatchDataFunc{[xattn_block_size, wg_size](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
         auto& wgs = kd.params.workGroups;
         auto& scalars = kd.params.scalars;
         auto desc = params.typed_desc<paged_attention>();
@@ -406,8 +408,8 @@ DispatchDataFunc PagedAttentionGeneratorMultiToken::get_dispatch_data_func() con
         const size_t wg_count = rtp->multi_token_wg_count;
         OPENVINO_ASSERT(wg_count > 0, "Invalid multi_token_wg_count in runtime params");
 
-        wgs.global = {batch, heads_num, wg_count * WG_SIZE};
-        wgs.local = {1, 1, WG_SIZE};
+        wgs.global = {batch, heads_num, wg_count * wg_size};
+        wgs.local = {1, 1, wg_size};
 
         if (DEBUG_ENABLED) {  // Debug
             std::cout << "PagedAttentionGeneratorMultiToken::get_dispatch_data_func: \n"

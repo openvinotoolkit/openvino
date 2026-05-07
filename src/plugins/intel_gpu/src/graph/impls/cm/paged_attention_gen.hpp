@@ -92,7 +92,6 @@ inline std::string get_pa_build_options() {
 
 constexpr uint32_t SG_M = 4;
 constexpr uint32_t SG_N = 8;
-constexpr size_t WG_SIZE = 16;
 constexpr int STRIDE = 16;
 
 enum class PagedAttentionStage : uint8_t { GENERATE = 0, PREFILL = 1, MIXED = 2, UNKNOWN = 3 };
@@ -182,6 +181,8 @@ private:
 
 class PagedAttentionGeneratorMultiToken : public PagedAttentionGeneratorBase {
 public:
+    static constexpr size_t _wg_size = 16;
+
     explicit PagedAttentionGeneratorMultiToken(size_t xattn_block_size = 1)
         : PagedAttentionGeneratorBase("pa_multi_token", "_cm_bs" + std::to_string(xattn_block_size)),
           _xattn_block_size(xattn_block_size) {}
@@ -196,7 +197,7 @@ public:
     }
 
     static size_t get_wg_seq_len(const kernel_impl_params& params) {
-        return WG_SIZE * get_q_step(params);
+        return _wg_size * get_q_step(params);
     }
 
     [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
