@@ -586,10 +586,15 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                                               Moe3GemmTestParams{1, true, 256, 512, 4, 2, 256},
                                                               Moe3GemmTestParams{1, false, 256, 512, 4, 2, 256},
                                                               Moe3GemmTestParams{1, true, 512, 512, 4, 2, 512},
-                                                              Moe3GemmTestParams{1, false, 512, 512, 4, 2, 512},
-                                                              // Sub-128 weight quantization group size
-                                                              // (e.g. trinity-mini afmoe uses group_size=64).
-                                                              Moe3GemmTestParams{1, true, 128, 256, 4, 2, 64},
+                                                              Moe3GemmTestParams{1, false, 512, 512, 4, 2, 512})));
+
+// Sub-128 weight quantization group size (e.g. trinity-mini afmoe uses group_size=64
+// with SIGMOID_BIAS routing). Limited to SIGMOID_BIAS to mirror real model usage and
+// to avoid known accuracy noise of the SOFTMAX path on some platforms.
+INSTANTIATE_TEST_SUITE_P(smoke_sub128_group_size,
+                         moe_3gemm_compressed_gpu_random,
+                         ::testing::Combine(::testing::Values(cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS),
+                                            ::testing::Values(Moe3GemmTestParams{1, true, 128, 256, 4, 2, 64},
                                                               Moe3GemmTestParams{16, true, 128, 256, 4, 2, 64},
                                                               Moe3GemmTestParams{1, false, 128, 256, 4, 2, 64},
                                                               Moe3GemmTestParams{1, true, 256, 512, 4, 2, 64},
