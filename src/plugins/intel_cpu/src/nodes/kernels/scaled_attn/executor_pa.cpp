@@ -2257,6 +2257,10 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                        const PlainTensor& block_indices_begins) {
         auto B_token = k.size(0);
         _slot_mapping.resize<int32_t>({B_token});
+        // Initialize to -1 (skip marker) so any tokens not assigned a slot in
+        // the loop below (e.g. dummy warm-up with q_len=0) do not trigger
+        // out-of-bounds writes in paged_attn_memcpy.
+        std::memset(_slot_mapping.ptr<int32_t>(), 0xFF, B_token * sizeof(int32_t));
         size_t idx = 0;
         for (size_t i = 0; i < past_lens.size(0); i++) {
             auto q_len = subsequence_begins.ptr<int32_t>()[i + 1] - subsequence_begins.ptr<int32_t>()[i];

@@ -254,7 +254,11 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
                     # dtype so downstream ops keep their precision.
                     _act_src = _mm.input_value(0)
                     _act_et = _act_src.get_element_type()
-                    if _act_et != Type.f32:
+                    # Only rewrite when the activation has a concrete float
+                    # dtype != f32. Dynamic/unknown or f32 paths don't need
+                    # the Convert pair (would produce dynamic-typed Converts
+                    # that the CPU plugin can't materialize).
+                    if _act_et in (Type.f16, Type.bf16):
                         _conv_a = _o1.convert(_act_src, "f32")
                         _mm.input(0).replace_source_output(_conv_a.output(0))
                         _out = _mm.output(0)
