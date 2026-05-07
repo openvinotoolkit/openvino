@@ -55,6 +55,7 @@
 #include <sys/stat.h>
 #include <chrono>
 #include <thread>
+#include <filesystem>
 #endif
 
 namespace cldnn {
@@ -139,8 +140,80 @@ void dump_perf_data_raw(std::string dump_path, bool per_iter_mode, const std::li
     }
 }
 
+// Dumps a per-primitive averaged execution time CSV with the same schema as
+// benchmark_app --report_type average_counters and the CPU plugin's
+// OV_CPU_AVERAGE_COUNTERS feature, so that aggregate-average-counters.py and
+// other tooling can be reused across plugins.
+void dump_average_counters(std::string dump_path,
+                           uint32_t net_id,
+                           const std::list<std::shared_ptr<primitive_inst>>& exec_order) {
+    if (dump_path.empty())
+        return;
+
+    std::filesystem::path file_name{dump_path};
+    file_name += "_" + std::to_string(net_id) + ".csv";
+    std::ofstream file(file_name);
+    if (!file.is_open())
+        return;
+
+    const std::string header = "layerName;execStatus;layerType;execType;realTime (ms);cpuTime (ms);";
+    file << header << "\n";
+
+    auto to_ms = [](uint64_t value_us) {
+        return static_cast<double>(std::chrono::microseconds(value_us).count()) / 1000.0;
+    };
+
+    uint64_t total_us = 0;
+
+    for (const auto& inst : exec_order) {
+        if (inst->is_constant())
+            continue;
+
+        // Aggregate inference-stage entries only, mirroring the CPU plugin which
+        // reports just the executed-kernel time. Other GPU pipeline stages
+        // (shape_inference, set_arguments, memory_allocation, ...) are host-side
+        // overhead that has no CPU-plugin counterpart.
+        const auto& perf_data = inst->get_profiling_data();
+        const auto& perf_info = inst->get_profiling_info();
+        uint64_t prim_total_us = 0;
+        size_t prim_total_iters = 0;
+        std::string impl_name;
+        size_t max_iters_for_impl = 0;
+        for (const auto& kv : perf_data) {
+            const auto& key = perf_info.at(kv.first);
+            if (key.stage != instrumentation::pipeline_stage::inference)
+                continue;
+            const auto cur_time = static_cast<uint64_t>(std::get<0>(kv.second));
+            const auto cur_iters = std::get<1>(kv.second);
+            prim_total_us += cur_time;
+            prim_total_iters += cur_iters;
+            // For dynamic shapes a primitive may have multiple inference entries
+            // (one per shape). Pick the impl_name that ran the most iterations
+            // as the representative execType.
+            if (cur_iters > max_iters_for_impl) {
+                max_iters_for_impl = cur_iters;
+                impl_name = key.impl_name;
+            }
+        }
+
+        const uint64_t avg_us = prim_total_iters > 0 ? prim_total_us / prim_total_iters : 0;
+        const std::string status = avg_us > 0 ? "EXECUTED" : "NOT_RUN";
+        const auto cpu_time = to_ms(avg_us);
+        const auto real_time = cpu_time;
+
+        file << inst->id() << ";" << status << ";" << inst->desc()->type_string() << ";"
+             << impl_name << ";" << real_time << ";" << cpu_time << ";" << "\n";
+
+        total_us += avg_us;
+    }
+
+    const auto total_ms = to_ms(total_us);
+    file << "Total;;;;" << total_ms << ";" << total_ms << ";\n";
+}
+
 #else
 void dump_perf_data_raw(std::string, bool per_iter_mode, const std::list<std::shared_ptr<primitive_inst>>&) {}
+void dump_average_counters(std::string, uint32_t, const std::list<std::shared_ptr<primitive_inst>>&) {}
 #endif
 }  // namespace
 
@@ -213,6 +286,10 @@ network::~network() {
 
     GPU_DEBUG_IF(!dump_path.empty()) {
         dump_perf_data_raw(dump_path + "/perf_raw" + std::to_string(net_id) + ".csv", false, _exec_order);
+    }
+    std::string avg_counters_path = GPU_DEBUG_VALUE_OR(get_config().get_average_counters(), "");
+    GPU_DEBUG_IF(!avg_counters_path.empty()) {
+        dump_average_counters(avg_counters_path, net_id, _exec_order);
     }
 }
 
