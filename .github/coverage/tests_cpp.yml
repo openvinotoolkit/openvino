@@ -1,5 +1,20 @@
 schema_version: 1
 suite: cpp
+reporting:
+  label: C++
+  artifact_group: cpp
+  artifact_name_template: coverage-{suite}-{lane}
+  selection_env: CXX_TEST_NAMES
+  stats_file: cpp-coverage-stats.env
+  duration_file: cpp-test-durations.csv
+  coverage_file: coverage.info
+  debug_dirs:
+    - src: .tmp/cpp-coverage-parts
+      dest: native-cpp-debug
+  uploads:
+    - name_template: C++ runtime, C++ suite, {lane}
+      file: coverage.info
+      flag_template: cpp-runtime-cpp-{lane}
 tests:
   - name: ov_api_conformance_tests
     binary: ov_api_conformance_tests

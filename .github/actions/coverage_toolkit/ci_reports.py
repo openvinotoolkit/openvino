@@ -5,96 +5,54 @@ from __future__ import annotations
 
 import argparse
 import csv
+from fnmatch import fnmatchcase
 import json
 import os
 from pathlib import Path
 import shutil
 import sys
+from typing import Any
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from coverage import get_config_dir, load_cpp_tests, load_js_tests, load_python_tests, resolve_workspace_path
+from coverage import get_config_dir, resolve_workspace_path
 
 
 METADATA_FILE = "coverage-artifact-metadata.json"
-
-
-UPLOAD_DEFS = {
-    "cpp_cpu": ("coverage-cpp-cpu", "coverage.info"),
-    "cpp_igpu_unit": ("coverage-cpp-igpu-unit", "coverage.info"),
-    "cpp_igpu_func": ("coverage-cpp-igpu-func", "coverage.info"),
-    "cpp_dgpu_unit": ("coverage-cpp-dgpu-unit", "coverage.info"),
-    "cpp_dgpu_func": ("coverage-cpp-dgpu-func", "coverage.info"),
-    "python_cpu_xml": ("coverage-python-cpu", "python-coverage.xml"),
-    "python_cpu_info": ("coverage-python-cpu", "coverage.info"),
-    "python_igpu_xml": ("coverage-python-igpu", "python-coverage.xml"),
-    "python_igpu_info": ("coverage-python-igpu", "coverage.info"),
-    "python_dgpu_xml": ("coverage-python-dgpu", "python-coverage.xml"),
-    "python_dgpu_info": ("coverage-python-dgpu", "coverage.info"),
-    "js_cpu_lcov": ("coverage-js-cpu", "js-lcov.info"),
-    "js_cpu_info": ("coverage-js-cpu", "coverage.info"),
-}
-
-
-FLAG_PATTERNS = {
-    "cpp": ["cpp-runtime-cpp-{lane}"],
-    "python": ["python-api-frontend-layer-ovc-{lane}", "cpp-runtime-python-{lane}"],
-    "js": ["nodejs-bindings-unit-e2e-{lane}", "cpp-runtime-js-{lane}"],
-}
-
-
-SUITE_DEFS = {
+REQUIRED_REPORTING_FIELDS = (
+    "label",
+    "stats_file",
+    "duration_file",
+    "coverage_file",
+)
+DEFAULT_COUNTER_KEYS = {
     "cpp": {
-        "label": "C++",
-        "artifacts_dir": "cpp",
-        "stats_file": "cpp-coverage-stats.env",
-        "duration_file": "cpp-test-durations.csv",
-        "coverage_file": "coverage.info",
-        "total_key": "CXX_TESTS_TOTAL",
-        "executed_key": "CXX_TESTS_EXECUTED",
-        "passed_key": "CXX_TESTS_PASSED",
-        "failed_key": "CXX_TESTS_FAILED",
-        "skipped_key": "CXX_TESTS_SKIPPED",
-        "not_run_key": "CXX_TESTS_NOT_RUN",
+        "total": "CXX_TESTS_TOTAL",
+        "executed": "CXX_TESTS_EXECUTED",
+        "passed": "CXX_TESTS_PASSED",
+        "failed": "CXX_TESTS_FAILED",
+        "skipped": "CXX_TESTS_SKIPPED",
+        "not_run": "CXX_TESTS_NOT_RUN",
     },
     "python": {
-        "label": "Python",
-        "artifacts_dir": "python",
-        "stats_file": "python-coverage-stats.env",
-        "duration_file": "python-test-durations.csv",
-        "coverage_file": "python-coverage.xml",
-        "extra_files": ["coverage.info"],
-        "total_key": "PY_TESTS_TOTAL",
-        "executed_key": None,
-        "passed_key": "PY_TESTS_PASSED",
-        "failed_key": "PY_TESTS_FAILED",
-        "skipped_key": "PY_TESTS_SKIPPED",
-        "not_run_key": "PY_TESTS_NOT_RUN",
+        "total": "PY_TESTS_TOTAL",
+        "executed": None,
+        "passed": "PY_TESTS_PASSED",
+        "failed": "PY_TESTS_FAILED",
+        "skipped": "PY_TESTS_SKIPPED",
+        "not_run": "PY_TESTS_NOT_RUN",
     },
     "js": {
-        "label": "JS",
-        "artifacts_dir": "js",
-        "stats_file": "js-coverage-stats.env",
-        "duration_file": "js-test-durations.csv",
-        "coverage_file": "js-lcov.info",
-        "extra_files": ["coverage.info"],
-        "total_key": "JS_TESTS_TOTAL",
-        "executed_key": None,
-        "passed_key": "JS_TESTS_PASSED",
-        "failed_key": "JS_TESTS_FAILED",
-        "skipped_key": "JS_TESTS_SKIPPED",
-        "not_run_key": "JS_TESTS_NOT_RUN",
+        "total": "JS_TESTS_TOTAL",
+        "executed": None,
+        "passed": "JS_TESTS_PASSED",
+        "failed": "JS_TESTS_FAILED",
+        "skipped": "JS_TESTS_SKIPPED",
+        "not_run": "JS_TESTS_NOT_RUN",
     },
-}
-
-
-SELECTION_ENV_BY_SUITE = {
-    "cpp": "CXX_TEST_NAMES",
-    "python": "PY_TEST_NAMES",
-    "js": "JS_TEST_NAMES",
 }
 
 
@@ -103,67 +61,115 @@ def _apply_common_env(args: argparse.Namespace) -> None:
     if config_dir:
         os.environ["COVERAGE_CONFIG_DIR"] = str(resolve_workspace_path(config_dir, workspace=args.workspace.resolve()))
 
-    upload_defs_json = getattr(args, "upload_defs_json", None)
-    if upload_defs_json:
-        os.environ["COVERAGE_UPLOAD_DEFS_JSON"] = upload_defs_json
 
-    flag_patterns_json = getattr(args, "flag_patterns_json", None)
-    if flag_patterns_json:
-        os.environ["COVERAGE_FLAG_PATTERNS_JSON"] = flag_patterns_json
-
-
-def _load_upload_defs() -> dict[str, tuple[str, str]]:
-    raw = os.environ.get("COVERAGE_UPLOAD_DEFS_JSON", "").strip()
-    if not raw:
-        return UPLOAD_DEFS
-
+def _load_yaml(path: Path) -> dict[str, Any]:
     try:
-        loaded = json.loads(raw)
-    except json.JSONDecodeError as exc:
-        raise ValueError("COVERAGE_UPLOAD_DEFS_JSON must be valid JSON") from exc
+        import yaml  # type: ignore[import-not-found]
+    except ModuleNotFoundError as exc:
+        raise RuntimeError("PyYAML is required to read coverage reporting configs") from exc
 
-    if not isinstance(loaded, dict):
-        raise ValueError("COVERAGE_UPLOAD_DEFS_JSON must be a JSON object")
-
-    upload_defs: dict[str, tuple[str, str]] = {}
-    for output_name, value in loaded.items():
-        if isinstance(value, dict):
-            artifact = str(value.get("artifact", "")).strip()
-            filename = str(value.get("file", "")).strip()
-        elif isinstance(value, (list, tuple)) and len(value) >= 2:
-            artifact = str(value[0]).strip()
-            filename = str(value[1]).strip()
-        else:
-            raise ValueError(f"Invalid upload definition for {output_name!r}")
-        if not artifact or not filename:
-            raise ValueError(f"Upload definition for {output_name!r} requires artifact and file")
-        upload_defs[str(output_name)] = (artifact, filename)
-
-    return upload_defs
+    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    if not isinstance(data, dict):
+        raise ValueError(f"Invalid YAML root in {path}")
+    return data
 
 
-def _load_flag_patterns() -> dict[str, list[str]]:
-    raw = os.environ.get("COVERAGE_FLAG_PATTERNS_JSON", "").strip()
-    if not raw:
-        return FLAG_PATTERNS
+def _as_list(value: Any, *, field_name: str, suite: str) -> list[Any]:
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        raise ValueError(f"Suite {suite!r} reporting field {field_name!r} must be a list")
+    return value
 
-    try:
-        loaded = json.loads(raw)
-    except json.JSONDecodeError as exc:
-        raise ValueError("COVERAGE_FLAG_PATTERNS_JSON must be valid JSON") from exc
 
-    if not isinstance(loaded, dict):
-        raise ValueError("COVERAGE_FLAG_PATTERNS_JSON must be a JSON object")
+def _normalize_debug_dirs(value: Any, *, suite: str) -> list[dict[str, str]]:
+    debug_dirs: list[dict[str, str]] = []
+    for item in _as_list(value, field_name="debug_dirs", suite=suite):
+        if not isinstance(item, dict):
+            raise ValueError(f"Suite {suite!r} has an invalid debug_dirs entry")
+        src = str(item.get("src", "")).strip()
+        dest = str(item.get("dest", "")).strip()
+        if not src or not dest:
+            raise ValueError(f"Suite {suite!r} debug_dirs entries require src and dest")
+        debug_dirs.append({"src": src, "dest": dest})
+    return debug_dirs
 
-    patterns: dict[str, list[str]] = {}
-    for suite, value in loaded.items():
-        if isinstance(value, str):
-            patterns[str(suite)] = [value]
-        elif isinstance(value, list):
-            patterns[str(suite)] = [str(item) for item in value]
-        else:
-            raise ValueError(f"Invalid flag pattern definition for {suite!r}")
-    return patterns
+
+def _normalize_uploads(value: Any, *, suite: str) -> list[dict[str, Any]]:
+    uploads: list[dict[str, Any]] = []
+    for item in _as_list(value, field_name="uploads", suite=suite):
+        if not isinstance(item, dict):
+            raise ValueError(f"Suite {suite!r} has an invalid uploads entry")
+        upload = dict(item)
+        if not str(upload.get("file", "")).strip():
+            raise ValueError(f"Suite {suite!r} uploads entries require file")
+        if not str(upload.get("flag", upload.get("flag_template", ""))).strip():
+            raise ValueError(f"Suite {suite!r} uploads entries require flag or flag_template")
+        uploads.append(upload)
+    return uploads
+
+
+def _normalize_suite_def(suite: str, reporting: dict[str, Any], *, config_file: Path | None = None) -> dict[str, Any]:
+    missing = [field for field in REQUIRED_REPORTING_FIELDS if not str(reporting.get(field, "")).strip()]
+    if missing:
+        raise ValueError(f"Suite {suite!r} reporting is missing required field(s): {', '.join(missing)}")
+
+    counter_keys = DEFAULT_COUNTER_KEYS.get(suite)
+    if counter_keys is None:
+        raise ValueError(f"Suite {suite!r} does not have default reporting counter keys")
+
+    suite_def: dict[str, Any] = {
+        "suite": suite,
+        "label": str(reporting["label"]).strip(),
+        "artifact_group": str(reporting.get("artifact_group", reporting.get("artifacts_dir", suite))).strip() or suite,
+        "artifact_name_template": str(reporting.get("artifact_name_template", "coverage-{suite}-{lane}")).strip()
+        or "coverage-{suite}-{lane}",
+        "stats_file": str(reporting["stats_file"]).strip(),
+        "duration_file": str(reporting["duration_file"]).strip(),
+        "coverage_file": str(reporting["coverage_file"]).strip(),
+        "selection_env": str(reporting.get("selection_env", "")).strip(),
+        "extra_files": [str(item) for item in _as_list(reporting.get("extra_files"), field_name="extra_files", suite=suite)],
+        "debug_dirs": _normalize_debug_dirs(reporting.get("debug_dirs"), suite=suite),
+        "uploads": _normalize_uploads(reporting.get("uploads"), suite=suite),
+        "total_key": str(counter_keys["total"]),
+        "executed_key": str(counter_keys["executed"]) if counter_keys["executed"] else None,
+        "passed_key": str(counter_keys["passed"]),
+        "failed_key": str(counter_keys["failed"]),
+        "skipped_key": str(counter_keys["skipped"]),
+        "not_run_key": str(counter_keys["not_run"]),
+    }
+
+    tests_file = str(reporting.get("tests_file", "")).strip()
+    if tests_file:
+        suite_def["tests_file"] = tests_file
+    elif config_file is not None:
+        suite_def["tests_file"] = str(config_file)
+    return suite_def
+
+
+def _load_suite_defs() -> dict[str, dict[str, Any]]:
+    suite_defs: dict[str, dict[str, Any]] = {}
+    config_dir = get_config_dir()
+    for path in sorted(config_dir.glob("tests_*.yml")):
+        data = _load_yaml(path)
+        suite = str(data.get("suite", "")).strip()
+        if not suite:
+            raise ValueError(f"Coverage config {path} is missing suite")
+        reporting = data.get("reporting")
+        if not isinstance(reporting, dict):
+            raise ValueError(f"Coverage config {path} is missing reporting section")
+        suite_defs[suite] = _normalize_suite_def(suite, reporting, config_file=path)
+    if not suite_defs:
+        raise ValueError(f"No coverage reporting suite definitions were found in {config_dir}")
+    return suite_defs
+
+
+def _get_suite_def(suite: str) -> dict[str, Any]:
+    suite_defs = _load_suite_defs()
+    if suite not in suite_defs:
+        available = ", ".join(sorted(suite_defs))
+        raise ValueError(f"Suite {suite!r} is not defined in coverage reporting configs. Available suites: {available}")
+    return suite_defs[suite]
 
 
 def _read_json_file(path: Path) -> dict[str, object]:
@@ -193,19 +199,50 @@ def _to_int(values: dict[str, str], key: str | None) -> int:
         return 0
 
 
-def _load_test_names(*, workspace: Path, suite: str, profile: str) -> list[str]:
-    config_dir = get_config_dir()
-    if suite == "cpp":
-        return [test.name for test in load_cpp_tests(config_dir / "tests_cpp.yml", profile)]
-    if suite == "python":
-        return [test.name for test in load_python_tests(config_dir / "tests_python.yml", profile)]
-    if suite == "js":
-        return [test.name for test in load_js_tests(config_dir / "tests_js.yml", profile)]
-    raise ValueError(f"Unsupported suite: {suite}")
+def _load_tests_file_names(path: Path, profile: str) -> list[str]:
+    if not path.is_file():
+        raise FileNotFoundError(f"Suite tests file does not exist: {path}")
+
+    try:
+        import yaml  # type: ignore[import-not-found]
+    except ModuleNotFoundError as exc:
+        raise RuntimeError("PyYAML is required to read suite tests files") from exc
+
+    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    tests = data.get("tests", [])
+    if not isinstance(tests, list):
+        raise ValueError(f"Suite tests file {path} must contain a 'tests' list")
+
+    names: list[str] = []
+    for item in tests:
+        if not isinstance(item, dict):
+            continue
+        profiles = item.get("profiles", [])
+        if profiles and profile not in {str(profile_item) for profile_item in profiles}:
+            continue
+        name = str(item.get("name", "")).strip()
+        if name:
+            names.append(name)
+    return names
 
 
-def _selected_test_names(suite: str) -> list[str]:
-    raw_value = os.environ.get(SELECTION_ENV_BY_SUITE[suite], "").strip()
+def _load_test_names(*, workspace: Path, suite_def: dict[str, Any], profile: str) -> list[str]:
+    test_names = suite_def.get("test_names")
+    if isinstance(test_names, list):
+        return [str(name).strip() for name in test_names if str(name).strip()]
+
+    tests_file = str(suite_def.get("tests_file", "")).strip()
+    if tests_file:
+        return _load_tests_file_names(resolve_workspace_path(tests_file, workspace=workspace), profile)
+
+    return []
+
+
+def _selected_test_names(*, suite_def: dict[str, Any], test_names: str) -> list[str]:
+    raw_value = test_names.strip()
+    if not raw_value:
+        selection_env = str(suite_def.get("selection_env", "")).strip()
+        raw_value = os.environ.get(selection_env, "").strip() if selection_env else ""
     if not raw_value:
         return []
     return [name.strip() for name in raw_value.split(",") if name.strip()]
@@ -217,20 +254,36 @@ def collect_suite_results(
     suite: str,
     profile: str,
     lane: str,
+    test_names: str,
     artifact_name: str,
-    artifact_dir: Path,
-) -> None:
-    suite_def = SUITE_DEFS[suite]
+    artifact_dir: Path | None,
+    outputs_file: Path | None,
+) -> tuple[str, Path]:
+    suite_def = _get_suite_def(suite)
+    lane = lane or profile
+    artifact_name = artifact_name or _format_template(
+        str(suite_def["artifact_name_template"]),
+        _template_context(suite_def=suite_def, profile=profile, lane=lane),
+    )
+    if artifact_dir is None:
+        runner_temp = os.environ.get("RUNNER_TEMP", "").strip()
+        artifact_dir = Path(runner_temp or workspace) / artifact_name
     artifact_dir.mkdir(parents=True, exist_ok=True)
 
-    tests = _load_test_names(workspace=workspace, suite=suite, profile=profile)
-    selected_tests = _selected_test_names(suite)
+    tests = _load_test_names(workspace=workspace, suite_def=suite_def, profile=profile)
+    selected_tests = _selected_test_names(suite_def=suite_def, test_names=test_names)
     if selected_tests:
         selected_set = set(selected_tests)
         tests = [test for test in tests if test in selected_set]
     total = len(tests)
 
-    metadata = {"suite": suite, "lane": lane, "artifact_name": artifact_name}
+    metadata = {
+        "suite": suite,
+        "profile": profile,
+        "lane": lane,
+        "artifact_name": artifact_name,
+        "artifact_group": suite_def["artifact_group"],
+    }
     (artifact_dir / METADATA_FILE).write_text(json.dumps(metadata, separators=(",", ":")) + "\n", encoding="utf-8")
 
     duration_path = artifact_dir / str(suite_def["duration_file"])
@@ -264,22 +317,25 @@ def collect_suite_results(
         if source.is_file():
             shutil.copy2(source, artifact_dir / filename)
 
-    debug_dir = workspace / ".tmp" / "cpp-coverage-parts"
-    if debug_dir.is_dir():
-        destination = artifact_dir / "native-cpp-debug"
-        shutil.rmtree(destination, ignore_errors=True)
-        shutil.copytree(debug_dir, destination)
+    for debug_dir in suite_def.get("debug_dirs", []):
+        source = resolve_workspace_path(str(debug_dir["src"]), workspace=workspace)
+        if source.is_dir():
+            destination = artifact_dir / str(debug_dir["dest"])
+            shutil.rmtree(destination, ignore_errors=True)
+            shutil.copytree(source, destination)
 
-    python_debug_dir = workspace / ".tmp" / "python-coverage"
-    if suite == "python" and python_debug_dir.is_dir():
-        destination = artifact_dir / "python-coverage-debug"
-        shutil.rmtree(destination, ignore_errors=True)
-        shutil.copytree(python_debug_dir, destination)
+    if outputs_file is not None:
+        with outputs_file.open("a", encoding="utf-8") as handle:
+            handle.write(f"dir={artifact_dir}\n")
+            handle.write(f"artifact-dir={artifact_dir}\n")
+            handle.write(f"artifact-name={artifact_name}\n")
+
+    return artifact_name, artifact_dir
 
 
 def _collect_artifacts(*, workspace: Path, suite_key: str) -> list[dict[str, object]]:
-    suite_def = SUITE_DEFS[suite_key]
-    root = workspace / "artifacts" / suite_def["artifacts_dir"]
+    suite_def = _get_suite_def(suite_key)
+    root = workspace / "artifacts" / str(suite_def["artifact_group"])
     if not root.exists():
         return []
 
@@ -292,24 +348,78 @@ def _collect_artifacts(*, workspace: Path, suite_key: str) -> list[dict[str, obj
             {
                 "artifact_dir": metadata_path.parent,
                 "artifact_name": str(metadata.get("artifact_name", metadata_path.parent.name)).strip(),
+                "artifact_group": str(metadata.get("artifact_group", suite_def["artifact_group"])).strip(),
                 "lane": str(metadata.get("lane", "")).strip() or "-",
+                "profile": str(metadata.get("profile", "")).strip(),
+                "suite": suite_key,
             }
         )
     return artifacts
 
 
-def _flag_patterns(suite: str, lane: str) -> str:
-    patterns = _load_flag_patterns().get(suite)
-    if patterns is None:
-        raise ValueError(f"Unsupported suite: {suite}")
-    return ", ".join(f"`{pattern.format(lane=lane)}`" for pattern in patterns)
+def _template_context(
+    *,
+    suite_def: dict[str, Any],
+    profile: str = "",
+    lane: str = "",
+    artifact_name: str = "",
+    extra: dict[str, Any] | None = None,
+) -> dict[str, str]:
+    context = {
+        "suite": str(suite_def["suite"]),
+        "label": str(suite_def["label"]),
+        "artifact_group": str(suite_def["artifact_group"]),
+        "profile": profile,
+        "lane": lane,
+        "artifact_name": artifact_name,
+    }
+    if extra:
+        context.update({str(key): str(value) for key, value in extra.items()})
+    return context
+
+
+def _artifact_context(suite_def: dict[str, Any], artifact: dict[str, object]) -> dict[str, str]:
+    return _template_context(
+        suite_def=suite_def,
+        profile=str(artifact.get("profile", "")),
+        lane=str(artifact.get("lane", "")),
+        artifact_name=str(artifact.get("artifact_name", "")),
+    )
+
+
+def _format_template(template: str, context: dict[str, str]) -> str:
+    try:
+        return template.format(**context)
+    except KeyError as exc:
+        available = ", ".join(sorted(context))
+        raise ValueError(f"Unknown template variable {exc!s}; available variables: {available}") from exc
+
+
+def _format_upload_value(upload: dict[str, Any], *, field: str, template_field: str, context: dict[str, str], default: str = "") -> str:
+    template = str(upload.get(template_field, upload.get(field, default))).strip()
+    return _format_template(template, context) if template else ""
+
+
+def _artifact_upload_flags(suite_def: dict[str, Any], artifact: dict[str, object]) -> str:
+    flags: list[str] = []
+    artifact_name = str(artifact.get("artifact_name", ""))
+    context = _artifact_context(suite_def, artifact)
+    for upload in suite_def.get("uploads", []):
+        pattern = str(upload.get("artifact_pattern", "")).strip()
+        if pattern and not _artifact_name_matches(artifact_name, _format_template(pattern, context)):
+            continue
+        flag = _format_upload_value(upload, field="flag", template_field="flag_template", context=context)
+        if flag and flag not in flags:
+            flags.append(flag)
+    return ", ".join(f"`{flag}`" for flag in flags) if flags else "-"
 
 
 def render_summary(*, workspace: Path, summary_file: Path, selection: str, selected_lanes: str) -> None:
     rows: list[dict[str, object]] = []
     overall = {"total": 0, "executed": 0, "passed": 0, "failed": 0, "skipped": 0, "not_run": 0}
+    suite_defs = _load_suite_defs()
 
-    for suite_key, suite_def in SUITE_DEFS.items():
+    for suite_key, suite_def in suite_defs.items():
         for artifact in _collect_artifacts(workspace=workspace, suite_key=suite_key):
             artifact_dir = Path(artifact["artifact_dir"])
             lane = str(artifact["lane"])
@@ -334,7 +444,7 @@ def render_summary(*, workspace: Path, summary_file: Path, selection: str, selec
                     "skipped": skipped,
                     "not_run": not_run,
                     "report_size": report_size,
-                    "flags": _flag_patterns(suite_key, lane),
+                    "flags": _artifact_upload_flags(suite_def, artifact),
                 }
             )
             overall["total"] += total
@@ -385,7 +495,8 @@ def render_summary(*, workspace: Path, summary_file: Path, selection: str, selec
 
 def merge_durations(*, workspace: Path, output: Path) -> None:
     rows: list[dict[str, str]] = []
-    for suite_key, suite_def in SUITE_DEFS.items():
+    suite_defs = _load_suite_defs()
+    for suite_key, suite_def in suite_defs.items():
         for artifact in _collect_artifacts(workspace=workspace, suite_key=suite_key):
             artifact_dir = Path(artifact["artifact_dir"])
             report = artifact_dir / str(suite_def["duration_file"])
@@ -421,45 +532,137 @@ def merge_durations(*, workspace: Path, output: Path) -> None:
 
 
 def _artifact_name_matches(artifact_name: str, pattern: str) -> bool:
-    if pattern.endswith("*"):
-        return artifact_name.startswith(pattern[:-1])
-    return artifact_name == pattern
+    return fnmatchcase(artifact_name, pattern)
 
 
-def _find_upload_files(*, workspace: Path, artifact_name: str, filename: str) -> list[Path]:
-    root = workspace / "artifacts"
-    if not root.exists():
-        return []
+def _workspace_relative(path: Path, workspace: Path) -> str:
+    try:
+        return path.resolve().relative_to(workspace.resolve()).as_posix()
+    except ValueError:
+        return path.resolve().as_posix()
 
-    paths: list[Path] = []
-    for metadata_path in sorted(root.rglob(METADATA_FILE)):
-        metadata = _read_json_file(metadata_path)
-        if not _artifact_name_matches(str(metadata.get("artifact_name", "")).strip(), artifact_name):
+
+def _upload_key(upload: dict[str, Any], context: dict[str, str], *, file_name: str) -> str:
+    context = {**context, "file": file_name}
+    raw_key = _format_upload_value(
+        upload,
+        field="key",
+        template_field="key_template",
+        context=context,
+        default="{suite}_{lane}_{file}",
+    )
+    return "".join(character if character.isalnum() else "_" for character in raw_key).strip("_")
+
+
+def _upload_entry(
+    *,
+    suite_def: dict[str, Any],
+    upload: dict[str, Any],
+    artifacts: list[dict[str, object]],
+    workspace: Path,
+    context: dict[str, str],
+    artifact_pattern: str,
+) -> dict[str, Any] | None:
+    file_name = _format_upload_value(upload, field="file", template_field="file_template", context=context)
+    if not file_name:
+        raise ValueError(f"Upload entry for suite {suite_def['suite']!r} resolved to an empty file name")
+
+    files: list[str] = []
+    artifact_names: list[str] = []
+    for artifact in artifacts:
+        artifact_name = str(artifact["artifact_name"])
+        if not _artifact_name_matches(artifact_name, artifact_pattern):
             continue
-        candidate = metadata_path.parent / filename
+        candidate = Path(artifact["artifact_dir"]) / file_name
         if candidate.is_file():
-            paths.append(candidate.resolve())
+            files.append(_workspace_relative(candidate, workspace))
+            artifact_names.append(artifact_name)
 
-    for candidate in sorted(root.rglob(filename)):
-        if not candidate.is_file() or candidate.resolve() in paths:
+    if not files:
+        return None
+
+    flag = _format_upload_value(upload, field="flag", template_field="flag_template", context=context)
+    name = _format_upload_value(
+        upload,
+        field="name",
+        template_field="name_template",
+        context=context,
+        default="{label}, {lane}",
+    )
+
+    return {
+        "key": _upload_key(upload, context, file_name=file_name),
+        "name": name,
+        "suite": suite_def["suite"],
+        "artifact_group": suite_def["artifact_group"],
+        "artifact_pattern": artifact_pattern,
+        "artifact_names": artifact_names,
+        "file": file_name,
+        "files": files,
+        "files_csv": ",".join(files),
+        "flag": flag,
+    }
+
+
+def _build_upload_matrix(*, workspace: Path) -> list[dict[str, Any]]:
+    matrix: list[dict[str, Any]] = []
+    suite_defs = _load_suite_defs()
+    for suite_key, suite_def in suite_defs.items():
+        artifacts = _collect_artifacts(workspace=workspace, suite_key=suite_key)
+        if not artifacts:
             continue
-        candidate_parts = [str(part) for part in candidate.parts]
-        if any(_artifact_name_matches(part, artifact_name) for part in candidate_parts):
-            paths.append(candidate.resolve())
 
-    return paths
+        for upload in suite_def.get("uploads", []):
+            artifact_pattern_template = str(upload.get("artifact_pattern", "")).strip()
+            if artifact_pattern_template:
+                context = _template_context(
+                    suite_def=suite_def,
+                    profile=str(upload.get("profile", "")),
+                    lane=str(upload.get("lane", "")),
+                    artifact_name=str(upload.get("artifact_name", "")),
+                    extra={key: value for key, value in upload.items() if isinstance(value, (str, int, float))},
+                )
+                artifact_pattern = _format_template(artifact_pattern_template, context)
+                entry = _upload_entry(
+                    suite_def=suite_def,
+                    upload=upload,
+                    artifacts=artifacts,
+                    workspace=workspace,
+                    context=context,
+                    artifact_pattern=artifact_pattern,
+                )
+                if entry:
+                    matrix.append(entry)
+                continue
+
+            for artifact in artifacts:
+                context = _artifact_context(suite_def, artifact)
+                artifact_pattern = str(artifact["artifact_name"])
+                entry = _upload_entry(
+                    suite_def=suite_def,
+                    upload=upload,
+                    artifacts=[artifact],
+                    workspace=workspace,
+                    context=context,
+                    artifact_pattern=artifact_pattern,
+                )
+                if entry:
+                    matrix.append(entry)
+    return matrix
 
 
 def resolve_uploads(*, workspace: Path, output_file: Path) -> None:
-    output_lines = []
-    upload_files = {}
-    for output_name, (artifact_name, filename) in _load_upload_defs().items():
-        paths = _find_upload_files(workspace=workspace, artifact_name=artifact_name, filename=filename)
-        output_value = ",".join(str(path) for path in paths)
-        upload_files[output_name] = output_value
-        output_lines.append(f"{output_name}={output_value}")
-        print(f"{output_name}: {output_value or '<missing>'}")
-    output_lines.append(f"upload-files-json={json.dumps(upload_files, sort_keys=True)}")
+    upload_matrix = _build_upload_matrix(workspace=workspace)
+    upload_files = {str(entry["key"]): ",".join(entry["files"]) for entry in upload_matrix}
+    output_lines = [
+        f"upload-files-json={json.dumps(upload_files, sort_keys=True)}",
+        f"upload-matrix-json={json.dumps(upload_matrix, sort_keys=True)}",
+    ]
+
+    for entry in upload_matrix:
+        print(f"{entry['name']}: {','.join(entry['files'])}")
+    if not upload_matrix:
+        print("No Codecov upload files were resolved")
 
     with output_file.open("a", encoding="utf-8") as handle:
         handle.write("\n".join(output_lines) + "\n")
@@ -470,8 +673,6 @@ def _parse_args() -> argparse.Namespace:
     subparsers = parser.add_subparsers(dest="command", required=True)
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--config-dir", default=os.environ.get("COVERAGE_CONFIG_DIR"))
-    common.add_argument("--upload-defs-json", default=os.environ.get("COVERAGE_UPLOAD_DEFS_JSON"))
-    common.add_argument("--flag-patterns-json", default=os.environ.get("COVERAGE_FLAG_PATTERNS_JSON"))
 
     collect = subparsers.add_parser(
         "collect-suite-results",
@@ -479,11 +680,13 @@ def _parse_args() -> argparse.Namespace:
         help="Prepare one suite artifact with fallback files and real outputs",
     )
     collect.add_argument("--workspace", type=Path, required=True)
-    collect.add_argument("--suite", choices=sorted(SUITE_DEFS), required=True)
+    collect.add_argument("--suite", required=True)
     collect.add_argument("--profile", required=True)
     collect.add_argument("--lane", required=True)
-    collect.add_argument("--artifact-name", required=True)
-    collect.add_argument("--artifact-dir", type=Path, required=True)
+    collect.add_argument("--test-names", default="")
+    collect.add_argument("--artifact-name", default="")
+    collect.add_argument("--artifact-dir", type=Path)
+    collect.add_argument("--outputs-file", type=Path)
 
     render = subparsers.add_parser(
         "render-summary",
@@ -523,8 +726,10 @@ def main() -> int:
             suite=args.suite,
             profile=args.profile,
             lane=args.lane,
+            test_names=args.test_names,
             artifact_name=args.artifact_name,
-            artifact_dir=args.artifact_dir.resolve(),
+            artifact_dir=args.artifact_dir.resolve() if args.artifact_dir else None,
+            outputs_file=args.outputs_file.resolve() if args.outputs_file else None,
         )
         return 0
     if args.command == "render-summary":

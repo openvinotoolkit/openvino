@@ -440,6 +440,26 @@ def validate_configs(config_dir: Path) -> list[ConfigValidationIssue]:
     }
 
     for suite, path in suites.items():
+        data = _load_yaml(path)
+        reporting = data.get("reporting")
+        if not isinstance(reporting, dict):
+            issues.append(ConfigValidationIssue(suite, "<reporting>", "missing 'reporting' section"))
+        else:
+            for field in ("label", "stats_file", "duration_file", "coverage_file"):
+                if not _as_text(reporting.get(field, "")).strip():
+                    issues.append(ConfigValidationIssue(suite, "<reporting>", f"missing '{field}'"))
+            uploads = reporting.get("uploads")
+            if not isinstance(uploads, list) or not uploads:
+                issues.append(ConfigValidationIssue(suite, "<reporting>", "'uploads' must be a non-empty list"))
+            else:
+                for idx, upload in enumerate(uploads):
+                    if not isinstance(upload, dict):
+                        issues.append(ConfigValidationIssue(suite, f"<upload:{idx}>", "upload entry must be a mapping"))
+                        continue
+                    if not _as_text(upload.get("file", "")).strip():
+                        issues.append(ConfigValidationIssue(suite, f"<upload:{idx}>", "missing 'file'"))
+                    if not _as_text(upload.get("flag", upload.get("flag_template", ""))).strip():
+                        issues.append(ConfigValidationIssue(suite, f"<upload:{idx}>", "missing 'flag' or 'flag_template'"))
         tests = _load_tests(path, suite)
         for idx, test in enumerate(tests):
             name = _as_text(test.get("name", f"<index:{idx}>"))

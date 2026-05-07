@@ -14,7 +14,7 @@ inputs:
     required: false
     default: ''
   suite:
-    description: 'Coverage suite for suite-specific commands: cpp, python, or js.'
+    description: 'Coverage suite. run-suite supports cpp, python, and js; reporting commands accept any suite defined in .github/coverage.'
     required: false
     default: ''
   profile:
@@ -30,11 +30,11 @@ inputs:
     required: false
     default: ''
   artifact-name:
-    description: Coverage artifact name for collect-results.
+    description: Coverage artifact name for collect-results. Defaults to the suite reporting artifact_name_template.
     required: false
     default: ''
   artifact-dir:
-    description: Directory where collect-results writes the artifact payload.
+    description: Directory where collect-results writes the artifact payload. Defaults to RUNNER_TEMP/artifact-name.
     required: false
     default: ''
   extra-cpp-coverage-dirs:
@@ -113,28 +113,22 @@ inputs:
     description: Workspace-relative or absolute C++ test model path used for __MODEL_PATH__ replacement.
     required: false
     default: ''
-  upload-defs-json:
-    description: JSON object overriding Codecov output keys, artifact patterns, and filenames.
-    required: false
-    default: ''
-  flag-patterns-json:
-    description: JSON object overriding summary Codecov flag patterns per suite.
-    required: false
-    default: ''
-
 outputs:
   dir:
     description: Artifact directory produced by collect-results.
     value: ${{ steps.coverage.outputs.dir }}
   artifact-dir:
     description: Artifact directory produced by collect-results.
-    value: ${{ steps.coverage.outputs.artifact-dir }}
+    value: ${{ steps.coverage.outputs['artifact-dir'] }}
   artifact-name:
     description: Artifact name produced by collect-results.
-    value: ${{ steps.coverage.outputs.artifact-name }}
+    value: ${{ steps.coverage.outputs['artifact-name'] }}
   upload-files-json:
     description: JSON object mapping Codecov upload keys to resolved file paths.
     value: ${{ steps.coverage.outputs['upload-files-json'] }}
+  upload-matrix-json:
+    description: JSON array used as the dynamic Codecov upload matrix.
+    value: ${{ steps.coverage.outputs['upload-matrix-json'] }}
 
 runs:
   using: composite
@@ -172,8 +166,6 @@ runs:
         INPUT_PYTHON_WHEEL_LIB_DIR: ${{ inputs.python-wheel-lib-dir }}
         INPUT_JS_DIR: ${{ inputs.js-dir }}
         INPUT_MODEL_PATH: ${{ inputs.model-path }}
-        INPUT_UPLOAD_DEFS_JSON: ${{ inputs.upload-defs-json }}
-        INPUT_FLAG_PATTERNS_JSON: ${{ inputs.flag-patterns-json }}
       run: |
         set -euo pipefail
 
@@ -229,13 +221,6 @@ runs:
         if [[ -n "${INPUT_MODEL_PATH}" ]]; then
           export MODEL_PATH="${INPUT_MODEL_PATH}"
         fi
-        if [[ -n "${INPUT_UPLOAD_DEFS_JSON}" ]]; then
-          export COVERAGE_UPLOAD_DEFS_JSON="${INPUT_UPLOAD_DEFS_JSON}"
-        fi
-        if [[ -n "${INPUT_FLAG_PATTERNS_JSON}" ]]; then
-          export COVERAGE_FLAG_PATTERNS_JSON="${INPUT_FLAG_PATTERNS_JSON}"
-        fi
-
         coverage_common=(--workspace "${workspace}" --profile "${profile}")
         if [[ -n "${INPUT_CONFIG_DIR}" ]]; then
           coverage_common+=(--config-dir "${INPUT_CONFIG_DIR}")
@@ -248,13 +233,8 @@ runs:
         if [[ -n "${INPUT_CONFIG_DIR}" ]]; then
           reports_common+=(--config-dir "${INPUT_CONFIG_DIR}")
         fi
-        if [[ -n "${INPUT_UPLOAD_DEFS_JSON}" ]]; then
-          reports_common+=(--upload-defs-json "${INPUT_UPLOAD_DEFS_JSON}")
-        fi
-        if [[ -n "${INPUT_FLAG_PATTERNS_JSON}" ]]; then
-          reports_common+=(--flag-patterns-json "${INPUT_FLAG_PATTERNS_JSON}")
-        fi
-
+        selection_env=""
+        run_step=""
         case "${INPUT_SUITE}" in
           cpp)
             selection_env="CXX_TEST_NAMES"
@@ -269,12 +249,12 @@ runs:
             run_step="run-js-tests"
             ;;
           "")
-            selection_env=""
-            run_step=""
             ;;
           *)
-            echo "Unsupported coverage suite: ${INPUT_SUITE}" >&2
-            exit 1
+            if [[ "${INPUT_COMMAND}" == "run-suite" ]]; then
+              echo "Unsupported coverage suite for run-suite: ${INPUT_SUITE}" >&2
+              exit 1
+            fi
             ;;
         esac
 
@@ -309,24 +289,27 @@ runs:
             python3 "${coverage_py}" step "${coverage_common[@]}" collect-cpp-coverage
             ;;
           collect-results)
-            if [[ -z "${INPUT_SUITE}" || -z "${INPUT_ARTIFACT_NAME}" ]]; then
-              echo "collect-results requires suite and artifact-name" >&2
+            if [[ -z "${INPUT_SUITE}" ]]; then
+              echo "collect-results requires suite" >&2
               exit 1
             fi
             lane="${INPUT_LANE:-${profile}}"
-            artifact_dir="${INPUT_ARTIFACT_DIR:-${RUNNER_TEMP}/${INPUT_ARTIFACT_NAME}}"
+            collect_args=(
+              --workspace "${workspace}"
+              --suite "${INPUT_SUITE}"
+              --profile "${profile}"
+              --lane "${lane}"
+              --test-names "${INPUT_TEST_NAMES}"
+              --outputs-file "${GITHUB_OUTPUT}"
+            )
+            if [[ -n "${INPUT_ARTIFACT_NAME}" ]]; then
+              collect_args+=(--artifact-name "${INPUT_ARTIFACT_NAME}")
+            fi
+            if [[ -n "${INPUT_ARTIFACT_DIR}" ]]; then
+              collect_args+=(--artifact-dir "${INPUT_ARTIFACT_DIR}")
+            fi
             python3 "${reports_py}" collect-suite-results "${reports_common[@]}" \
-              --workspace "${workspace}" \
-              --suite "${INPUT_SUITE}" \
-              --profile "${profile}" \
-              --lane "${lane}" \
-              --artifact-name "${INPUT_ARTIFACT_NAME}" \
-              --artifact-dir "${artifact_dir}"
-            {
-              echo "dir=${artifact_dir}"
-              echo "artifact-dir=${artifact_dir}"
-              echo "artifact-name=${INPUT_ARTIFACT_NAME}"
-            } >> "${GITHUB_OUTPUT}"
+              "${collect_args[@]}"
             ;;
           render-summary)
             summary_file="${INPUT_SUMMARY_FILE:-${GITHUB_STEP_SUMMARY:-}}"
