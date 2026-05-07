@@ -150,6 +150,18 @@ if(NOT Vulkan_FOUND)
     endif()
 endif()
 
+message(STATUS "[ov_gpu_func_tests] Vulkan_FOUND=${Vulkan_FOUND}")
+if(TARGET Vulkan::Vulkan)
+    get_target_property(_ov_vk_implib Vulkan::Vulkan IMPORTED_IMPLIB)
+    get_target_property(_ov_vk_location Vulkan::Vulkan IMPORTED_LOCATION)
+    get_target_property(_ov_vk_location_rel Vulkan::Vulkan IMPORTED_LOCATION_RELEASE)
+    get_target_property(_ov_vk_location_dbg Vulkan::Vulkan IMPORTED_LOCATION_DEBUG)
+    message(STATUS "[ov_gpu_func_tests] Vulkan::Vulkan IMPORTED_IMPLIB=${_ov_vk_implib}")
+    message(STATUS "[ov_gpu_func_tests] Vulkan::Vulkan IMPORTED_LOCATION=${_ov_vk_location}")
+    message(STATUS "[ov_gpu_func_tests] Vulkan::Vulkan IMPORTED_LOCATION_RELEASE=${_ov_vk_location_rel}")
+    message(STATUS "[ov_gpu_func_tests] Vulkan::Vulkan IMPORTED_LOCATION_DEBUG=${_ov_vk_location_dbg}")
+endif()
+
 if(Vulkan_FOUND)
     target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_VULKAN)
     target_link_libraries(${TARGET_NAME} PRIVATE Vulkan::Vulkan)
@@ -159,5 +171,14 @@ if(Vulkan_FOUND)
 else()
     message(FATAL_ERROR "Vulkan not found")
 endif()
+
+add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E echo "[ov_gpu_func_tests] ===== ELF dynamic deps dump ====="
+    COMMAND ${CMAKE_COMMAND} -E env LC_ALL=C sh -c "readelf -d '$<TARGET_FILE:${TARGET_NAME}>' | egrep 'RPATH|RUNPATH|NEEDED' || true"
+    COMMAND ${CMAKE_COMMAND} -E echo "[ov_gpu_func_tests] ===== Vulkan loader presence ====="
+    COMMAND ${CMAKE_COMMAND} -E env LC_ALL=C sh -c "ldconfig -p | grep 'libvulkan.so.1' || true"
+    COMMAND ${CMAKE_COMMAND} -E echo "[ov_gpu_func_tests] ===== ldd dump ====="
+    COMMAND ${CMAKE_COMMAND} -E env LC_ALL=C sh -c "ldd '$<TARGET_FILE:${TARGET_NAME}>' || true"
+    VERBATIM)
 
 ov_build_target_faster(${TARGET_NAME} PCH)
