@@ -250,6 +250,61 @@ void dispatch_and_process_cache(ov::element::Type_t prec,
 
 }  // namespace
 
+// Reorders KV cache tokens within each sequence after logical token positions change.
+//
+// Layout:
+//   * block_indices stores the physical KV-cache block ids for all sequences.
+//   * block_indices_begins is a prefix-sum array over block_indices, so
+//     block_indices[block_indices_begins[seq] : block_indices_begins[seq + 1]]
+//     is the block list for one sequence.
+//   * block_update_indices stores flattened (src_logical_token, dst_logical_token)
+//     pairs for all sequences.
+//   * block_update_indices_begins is a prefix-sum array over update pairs, so
+//     block_update_indices[2 * begin : 2 * end] is the update list for one
+//     sequence, where begin = block_update_indices_begins[seq] and
+//     end = block_update_indices_begins[seq + 1].
+//
+// For logical token t in sequence seq:
+//   seq_block_base = block_indices_begins[seq]
+//   block_local = t / block_size
+//   token_in_block = t % block_size
+//   physical_block = block_indices[seq_block_base + block_local]
+// So the physical KV-cache location is (physical_block, token_in_block).
+//
+// Multi-sequence example with block_size = 4:
+//   block_indices = [100, 101, 102,   200, 201,   300]
+//   block_indices_begins = [0, 3, 5, 6]
+//     seq0 uses blocks [100, 101, 102]
+//     seq1 uses blocks [200, 201]
+//     seq2 uses blocks [300]
+//
+//   block_update_indices = [0, 3,  7, 8,   0, 1]
+//   block_update_indices_begins = [0, 2, 2, 3]
+//     seq0 updates logical tokens (0 -> 3) and (7 -> 8)
+//     seq1 has no updates because begin == end == 2
+//     seq2 updates logical token (0 -> 1)
+//
+//   Physical index calculation:
+//     seq0, 0 -> 3:
+//       0: block_local = 0 / 4 = 0, token_in_block = 0 % 4 = 0,
+//          physical_block = block_indices[0 + 0] = 100  => (100, 0)
+//       3: block_local = 3 / 4 = 0, token_in_block = 3 % 4 = 3,
+//          physical_block = block_indices[0 + 0] = 100  => (100, 3)
+//
+//     seq0, 7 -> 8:
+//       7: block_local = 7 / 4 = 1, token_in_block = 7 % 4 = 3,
+//          physical_block = block_indices[0 + 1] = 101  => (101, 3)
+//       8: block_local = 8 / 4 = 2, token_in_block = 8 % 4 = 0,
+//          physical_block = block_indices[0 + 2] = 102  => (102, 0)
+//
+//     seq2, 0 -> 1:
+//       0: block_local = 0 / 4 = 0, token_in_block = 0 % 4 = 0,
+//          physical_block = block_indices[5 + 0] = 300  => (300, 0)
+//       1: block_local = 1 / 4 = 0, token_in_block = 1 % 4 = 1,
+//          physical_block = block_indices[5 + 0] = 300  => (300, 1)
+//
+// Note that a sequence may have many blocks but no updates, or only a few
+// updates; the number of update pairs is independent from the number of blocks.
 void reorder_kv_cache(PlainTensor& key_cache,
                       PlainTensor& value_cache,
                       const PlainTensor& block_indices,
