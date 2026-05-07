@@ -10,6 +10,7 @@
 #include <vector>
 #include <memory>
 #include <algorithm>
+#include <numeric>
 #include <utility>
 
 #include "common_utils/jitter.hpp"
@@ -66,11 +67,6 @@ MixedRouteMode get_mixed_route_mode_from_config(const kernel_impl_params& params
 
 bool has_multiple_subsequences(const kernel_impl_params& params) {
     return get_batch_size_in_sequences(params.input_layouts) > 1;
-}
-
-bool is_cm_pa_force_lockable_mapping_enabled() {
-    const char* env = std::getenv("OV_GPU_CM_PA_FORCE_LOCKABLE_MAPPING");
-    return env != nullptr && env[0] != '\0' && env[0] != '0';
 }
 
 }  // namespace
@@ -337,158 +333,139 @@ public:
         }
         auto& stream = instance.get_network().get_stream();
 
-        const bool use_split_mixed = rt_params->stage == PagedAttentionStage::MIXED &&
-                                     m_mixed_route_mode == MixedRouteMode::SPLIT;
-
         const auto subsequence_begins = read_subsequence_begins(params);
-        std::vector<int32_t> past_lens;
-        if (use_split_mixed) {
-            past_lens = read_past_lens(params);
-        }
 
         const auto wg_seq_len = static_cast<int32_t>(PagedAttentionGeneratorMultiToken::get_wg_seq_len(params));
         auto mapping_mem = instance.get_intermediates_memories()[PagedAttentionInternBuffIdx::MULTI_TOKEN_WG_MAPPING];
-        const bool force_lockable = is_cm_pa_force_lockable_mapping_enabled();
-        const auto alloc_type = mapping_mem->get_allocation_type();
-        const bool use_copy_from = !force_lockable && alloc_type == cldnn::allocation_type::usm_device;
+        mem_lock<int32_t, mem_lock_type::write> mapping_lock(mapping_mem, stream);
+        const size_t expected_mapping_size = rt_params->multi_token_wg_count * 2;
+        OPENVINO_ASSERT(mapping_mem->count() >= expected_mapping_size,
+                "Insufficient multi-token mapping buffer size: expected at least ",
+                expected_mapping_size,
+                ", got ",
+                mapping_mem->count());
+        size_t mapping_idx = 0;
 
-        if (force_lockable) {
-            OPENVINO_ASSERT(alloc_type != cldnn::allocation_type::usm_device,
-                            "prepare_multi_token_mapping requires lockable memory when OV_GPU_CM_PA_FORCE_LOCKABLE_MAPPING is enabled");
-            mem_lock<int32_t, mem_lock_type::write> mapping_lock(mapping_mem, stream);
-            size_t mapping_idx = 0;
-            for (size_t subsequence_id = 0; subsequence_id + 1 < subsequence_begins.size(); ++subsequence_id) {
-                const int32_t q_begin = subsequence_begins[subsequence_id];
-                const int32_t q_end = subsequence_begins[subsequence_id + 1];
+        for (size_t subsequence_id = 0; subsequence_id + 1 < subsequence_begins.size(); ++subsequence_id) {
+            const int32_t q_begin = subsequence_begins[subsequence_id];
+            const int32_t q_end = subsequence_begins[subsequence_id + 1];
 
-                if (q_end <= q_begin) {
-                    continue;
-                }
-
-                if (use_split_mixed) {
-                    const int32_t q_len = q_end - q_begin;
-                    const int32_t past_len = std::max<int32_t>(past_lens[subsequence_id], 0);
-                    const bool decode_subsequence = (q_len == 1) && (past_len > 0);
-                    if (decode_subsequence) {
-                        continue;
-                    }
-                }
-
-                for (int32_t block_start = q_begin; block_start < q_end; block_start += wg_seq_len) {
-                    mapping_lock[mapping_idx++] = block_start;
-                    mapping_lock[mapping_idx++] = static_cast<int32_t>(subsequence_id);
-                }
+            if (q_end <= q_begin) {
+                continue;
             }
 
-            OPENVINO_ASSERT(mapping_idx == rt_params->multi_token_wg_count * 2,
-                            "Unexpected multi-token mapping size: expected ",
-                            rt_params->multi_token_wg_count * 2,
-                            ", got ",
-                            mapping_idx);
-        } else {
-            std::vector<int32_t> mapping(rt_params->multi_token_wg_count * 2, 0);
-            size_t mapping_idx = 0;
-
-            for (size_t subsequence_id = 0; subsequence_id + 1 < subsequence_begins.size(); ++subsequence_id) {
-                const int32_t q_begin = subsequence_begins[subsequence_id];
-                const int32_t q_end = subsequence_begins[subsequence_id + 1];
-
-                if (q_end <= q_begin) {
-                    continue;
-                }
-
-                if (use_split_mixed) {
-                    const int32_t q_len = q_end - q_begin;
-                    const int32_t past_len = std::max<int32_t>(past_lens[subsequence_id], 0);
-                    const bool decode_subsequence = (q_len == 1) && (past_len > 0);
-                    if (decode_subsequence) {
-                        continue;
-                    }
-                }
-
-                for (int32_t block_start = q_begin; block_start < q_end; block_start += wg_seq_len) {
-                    mapping[mapping_idx++] = block_start;
-                    mapping[mapping_idx++] = static_cast<int32_t>(subsequence_id);
-                }
-            }
-
-            OPENVINO_ASSERT(mapping_idx == rt_params->multi_token_wg_count * 2,
-                            "Unexpected multi-token mapping size: expected ",
-                            rt_params->multi_token_wg_count * 2,
-                            ", got ",
-                            mapping_idx);
-
-            if (!use_copy_from) {
-                mem_lock<int32_t, mem_lock_type::write> mapping_lock(mapping_mem, stream);
-                std::copy(mapping.begin(), mapping.end(), mapping_lock.begin());
-            } else {
-                mapping_mem->copy_from(stream, mapping.data(), 0, 0, mapping.size() * sizeof(int32_t), true);
+            for (int32_t block_start = q_begin; block_start < q_end; block_start += wg_seq_len) {
+                OPENVINO_ASSERT(mapping_idx + 1 < expected_mapping_size,
+                                "Multi-token mapping write out of bounds: idx=",
+                                mapping_idx,
+                                ", expected_size=",
+                                expected_mapping_size);
+                mapping_lock[mapping_idx++] = block_start;
+                mapping_lock[mapping_idx++] = static_cast<int32_t>(subsequence_id);
             }
         }
+
+        OPENVINO_ASSERT(mapping_idx == expected_mapping_size,
+                        "Unexpected multi-token mapping size: expected ",
+                        expected_mapping_size,
+                        ", got ",
+                        mapping_idx);
     }
 
     void prepare_single_token_selected_ids(primitive_inst& instance) {
-        const auto& params = *instance.get_impl_params();
         auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
         OPENVINO_ASSERT(rt_params != nullptr);
+        OPENVINO_ASSERT(rt_params->stage == PagedAttentionStage::GENERATE,
+                        "prepare_single_token_selected_ids is expected only for generate/decode stage");
         auto& stream = instance.get_network().get_stream();
 
         auto selected_ids_mem = instance.get_intermediates_memories()[PagedAttentionInternBuffIdx::SINGLE_TOKEN_SELECTED_SEQ_IDS];
-        const bool force_lockable = is_cm_pa_force_lockable_mapping_enabled();
-        const auto alloc_type = selected_ids_mem->get_allocation_type();
-        const bool use_copy_from = !force_lockable && alloc_type == cldnn::allocation_type::usm_device;
+
+        mem_lock<int32_t, mem_lock_type::write> selected_ids_lock(selected_ids_mem, stream);
+        const size_t selected_capacity = selected_ids_mem->count();
+        OPENVINO_ASSERT(selected_capacity >= rt_params->batch_size_in_sequences,
+                        "Insufficient single-token selected ids buffer size: expected at least ",
+                        rt_params->batch_size_in_sequences,
+                        ", got ",
+                        selected_capacity);
+        std::iota(selected_ids_lock.begin(),
+                  selected_ids_lock.begin() + static_cast<std::ptrdiff_t>(rt_params->batch_size_in_sequences),
+                  0);
+
+        rt_params->single_token_selected_count = rt_params->batch_size_in_sequences;
+    }
+
+    void prepare_split_mixed_selected_ids_and_mapping(primitive_inst& instance) {
+        const auto& params = *instance.get_impl_params();
+        auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
+        OPENVINO_ASSERT(rt_params != nullptr);
+        OPENVINO_ASSERT(rt_params->stage == PagedAttentionStage::MIXED && m_mixed_route_mode == MixedRouteMode::SPLIT,
+                        "prepare_split_mixed_selected_ids_and_mapping must be used only in split mixed mode");
+
+        auto& stream = instance.get_network().get_stream();
+
+        const auto subsequence_begins = read_subsequence_begins(params);
+        const auto past_lens = read_past_lens(params);
+
+        auto selected_ids_mem = instance.get_intermediates_memories()[PagedAttentionInternBuffIdx::SINGLE_TOKEN_SELECTED_SEQ_IDS];
+        auto mapping_mem = instance.get_intermediates_memories()[PagedAttentionInternBuffIdx::MULTI_TOKEN_WG_MAPPING];
+        mem_lock<int32_t, mem_lock_type::write> selected_ids_lock(selected_ids_mem, stream);
+        mem_lock<int32_t, mem_lock_type::write> mapping_lock(mapping_mem, stream);
+
+        const size_t selected_capacity = selected_ids_mem->count();
+        const size_t expected_mapping_size = rt_params->multi_token_wg_count * 2;
+        OPENVINO_ASSERT(mapping_mem->count() >= expected_mapping_size,
+                        "Insufficient multi-token mapping buffer size: expected at least ",
+                        expected_mapping_size,
+                        ", got ",
+                        mapping_mem->count());
+
+        const int32_t wg_seq_len = static_cast<int32_t>(PagedAttentionGeneratorMultiToken::get_wg_seq_len(params));
         size_t selected_count = 0;
+        size_t mapping_idx = 0;
 
-        const bool use_split_mixed = rt_params->stage == PagedAttentionStage::MIXED &&
-                                     m_mixed_route_mode == MixedRouteMode::SPLIT;
-        if (force_lockable) {
-            OPENVINO_ASSERT(alloc_type != cldnn::allocation_type::usm_device,
-                            "prepare_single_token_selected_ids requires lockable memory when OV_GPU_CM_PA_FORCE_LOCKABLE_MAPPING is enabled");
-            mem_lock<int32_t, mem_lock_type::write> selected_ids_lock(selected_ids_mem, stream);
-
-            if (use_split_mixed) {
-                const auto subsequence_begins = read_subsequence_begins(params);
-                const auto past_lens = read_past_lens(params);
-                for (size_t sequence_id = 0; sequence_id + 1 < subsequence_begins.size(); ++sequence_id) {
-                    const int32_t q_len = subsequence_begins[sequence_id + 1] - subsequence_begins[sequence_id];
-                    const int32_t past_len = std::max<int32_t>(past_lens[sequence_id], 0);
-                    if (q_len == 1 && past_len > 0) {
-                        selected_ids_lock[selected_count++] = static_cast<int32_t>(sequence_id);
-                    }
-                }
-            } else {
-                for (size_t sequence_id = 0; sequence_id < rt_params->batch_size_in_sequences; ++sequence_id) {
-                    selected_ids_lock[selected_count++] = static_cast<int32_t>(sequence_id);
-                }
+        for (size_t sequence_id = 0; sequence_id + 1 < subsequence_begins.size(); ++sequence_id) {
+            const int32_t q_begin = subsequence_begins[sequence_id];
+            const int32_t q_end = subsequence_begins[sequence_id + 1];
+            if (q_end <= q_begin) {
+                continue;
             }
 
-        } else {
-            std::vector<int32_t> selected_ids(rt_params->batch_size_in_sequences, 0);
-            if (use_split_mixed) {
-                const auto subsequence_begins = read_subsequence_begins(params);
-                const auto past_lens = read_past_lens(params);
-                for (size_t sequence_id = 0; sequence_id + 1 < subsequence_begins.size(); ++sequence_id) {
-                    const int32_t q_len = subsequence_begins[sequence_id + 1] - subsequence_begins[sequence_id];
-                    const int32_t past_len = std::max<int32_t>(past_lens[sequence_id], 0);
-                    if (q_len == 1 && past_len > 0) {
-                        selected_ids[selected_count++] = static_cast<int32_t>(sequence_id);
-                    }
-                }
-            } else {
-                for (size_t sequence_id = 0; sequence_id < rt_params->batch_size_in_sequences; ++sequence_id) {
-                    selected_ids[selected_count++] = static_cast<int32_t>(sequence_id);
-                }
+            const int32_t q_len = q_end - q_begin;
+            const int32_t past_len = std::max<int32_t>(past_lens[sequence_id], 0);
+            const bool decode_subsequence = (q_len == 1) && (past_len > 0);
+
+            if (decode_subsequence) {
+                OPENVINO_ASSERT(selected_count < selected_capacity,
+                                "Single-token selected ids write out of bounds: idx=",
+                                selected_count,
+                                ", capacity=",
+                                selected_capacity);
+                selected_ids_lock[selected_count++] = static_cast<int32_t>(sequence_id);
+                continue;
             }
 
-            if (selected_count > 0) {
-                if (!use_copy_from) {
-                    mem_lock<int32_t, mem_lock_type::write> selected_ids_lock(selected_ids_mem, stream);
-                    std::copy(selected_ids.begin(), selected_ids.begin() + selected_count, selected_ids_lock.begin());
-                } else {
-                    selected_ids_mem->copy_from(stream, selected_ids.data(), 0, 0, selected_count * sizeof(int32_t), true);
-                }
+            for (int32_t block_start = q_begin; block_start < q_end; block_start += wg_seq_len) {
+                OPENVINO_ASSERT(mapping_idx + 1 < expected_mapping_size,
+                                "Multi-token mapping write out of bounds: idx=",
+                                mapping_idx,
+                                ", expected_size=",
+                                expected_mapping_size);
+                mapping_lock[mapping_idx++] = block_start;
+                mapping_lock[mapping_idx++] = static_cast<int32_t>(sequence_id);
             }
         }
+
+        OPENVINO_ASSERT(selected_count == rt_params->single_token_selected_count,
+                        "Unexpected selected ids count in split mixed mode: expected ",
+                        rt_params->single_token_selected_count,
+                        ", got ",
+                        selected_count);
+        OPENVINO_ASSERT(mapping_idx == expected_mapping_size,
+                        "Unexpected multi-token mapping size: expected ",
+                        expected_mapping_size,
+                        ", got ",
+                        mapping_idx);
 
         rt_params->single_token_selected_count = selected_count;
     }
@@ -500,15 +477,13 @@ public:
 
         auto& stream = instance.get_network().get_stream();
         auto meta_mem = instance.get_intermediates_memories()[PagedAttentionInternBuffIdx::XATTN_SUBSEQ_META];
-        const auto alloc_type = meta_mem->get_allocation_type();
-        const bool use_copy_from = alloc_type == cldnn::allocation_type::usm_device;
-
-        if (!use_copy_from) {
-            mem_lock<int32_t, mem_lock_type::write> meta_lock(meta_mem, stream);
-            std::copy(m_xattn_meta.begin(), m_xattn_meta.end(), meta_lock.begin());
-        } else {
-            meta_mem->copy_from(stream, m_xattn_meta.data(), 0, 0, m_xattn_meta.size() * sizeof(int32_t), true);
-        }
+        OPENVINO_ASSERT(meta_mem->count() >= m_xattn_meta.size(),
+                        "Insufficient xattn metadata buffer size: expected at least ",
+                        m_xattn_meta.size(),
+                        ", got ",
+                        meta_mem->count());
+        mem_lock<int32_t, mem_lock_type::write> meta_lock(meta_mem, stream);
+        std::copy_n(m_xattn_meta.begin(), m_xattn_meta.size(), meta_lock.begin());
     }
 
     // update impl_parameter and rt_parameter
@@ -534,10 +509,9 @@ public:
                 return;
             }
 
-            prepare_multi_token_mapping(instance);
             const bool xattn_enabled = desc->has_xattention && rt_params->enable_xattn_estimation;
-            const bool is_xattn_bypassed = xattn_enabled ? bypass_xattn(params) : true;
-            if (is_xattn_bypassed || !xattn_enabled) {
+            const bool xattn_disabled = !xattn_enabled || bypass_xattn(params);
+            if (xattn_disabled) {
                 GPU_DEBUG_TRACE_DETAIL << "Execute multi-token stage w/o XAttention estimation stages." << std::endl;
 
                 res_event = {execute_stage(res_event, instance, *pa_multi_token_1)};
@@ -570,16 +544,18 @@ public:
         };
 
         if (rt_params->stage == PagedAttentionStage::PREFILL) {
+            prepare_multi_token_mapping(instance);
             execute_multi_token_path();
         } else if (rt_params->stage == PagedAttentionStage::MIXED) {
             if (m_mixed_route_mode == MixedRouteMode::SPLIT) {
-                prepare_single_token_selected_ids(instance);
+                prepare_split_mixed_selected_ids_and_mapping(instance);
                 if (rt_params->single_token_selected_count > 0) {
                     res_event = {execute_stage(res_event, instance, pa_single_token)};
                     res_event = {execute_stage(res_event, instance, pa_single_token_finalization)};
                 }
                 execute_multi_token_path();
             } else {
+                prepare_multi_token_mapping(instance);
                 execute_multi_token_path();
             }
         } else {
@@ -603,7 +579,6 @@ public:
 
     [[nodiscard]] std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& params) const override {
         std::vector<BufferDescriptor> internal_buffers;
-        const bool lockable_mapping = is_cm_pa_force_lockable_mapping_enabled();
 
         const auto desc = params.typed_desc<paged_attention>();
         auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
@@ -623,8 +598,8 @@ public:
 
             internal_buffers.emplace_back(tmp_out_elements_count, ov::element::f32);  // 0: intermediate partition output
             internal_buffers.emplace_back(buf_elements_count, ov::element::f32);      // 1: softmax exp_sums
-            internal_buffers.emplace_back(2, ov::element::i32, lockable_mapping, false);                 // 2: unused multi-token mapping placeholder (not shareable)
-            internal_buffers.emplace_back(total_tokens, ov::element::i32, lockable_mapping, false);      // 3: selected sequence ids (CPU write, GPU read, not shareable)
+            internal_buffers.emplace_back(2, ov::element::i32, true, false);                  // 2: unused multi-token mapping placeholder (lockable, not shareable)
+            internal_buffers.emplace_back(total_tokens, ov::element::i32, true, false);       // 3: selected sequence ids (lockable for mem_lock<write>, not shareable)
 
             GPU_DEBUG_TRACE_DETAIL << "  internal buffer sizes: tmp_out=" << tmp_out_elements_count * 4 << "  exp_sums=" << buf_elements_count * 4 << std::endl;
         } else {
@@ -641,8 +616,8 @@ public:
 
             internal_buffers.emplace_back(decode_tmp_out_elements_count, ov::element::f32);  // 0: intermediate partition output
             internal_buffers.emplace_back(decode_buf_elements_count, ov::element::f32);       // 1: softmax exp_sums
-            internal_buffers.emplace_back(std::max<int64_t>(2, static_cast<int64_t>(rt_params->multi_token_wg_count * 2)), ov::element::i32, lockable_mapping, false);  // 2: multi-token mapping (CPU write, GPU read, not shareable)
-            internal_buffers.emplace_back(std::max<int64_t>(1, static_cast<int64_t>(rt_params->batch_size_in_sequences)), ov::element::i32, lockable_mapping, false);  // 3: selected ids / placeholder (CPU write, GPU read, not shareable)
+            internal_buffers.emplace_back(std::max<int64_t>(2, static_cast<int64_t>(rt_params->multi_token_wg_count * 2)), ov::element::i32, true, false);  // 2: multi-token mapping (lockable for mem_lock<write>, not shareable)
+            internal_buffers.emplace_back(std::max<int64_t>(1, static_cast<int64_t>(rt_params->batch_size_in_sequences)), ov::element::i32, true, false);  // 3: selected ids (lockable for mem_lock<write>, not shareable)
 
             // internal buffer for XAttention (cumulative sizes across all subsequences)
             if (rt_params->enable_xattn_estimation) {
@@ -659,7 +634,7 @@ public:
                 internal_buffers.emplace_back(std::max<int64_t>(1, count_elements_mask_merged), ov::element::boolean);  // 7: sparse_block_mask_wg
 
                 auto count_meta_int32s = static_cast<int64_t>(rt_params->xattn_meta_num_int32s);
-                internal_buffers.emplace_back(std::max<int64_t>(16, count_meta_int32s), ov::element::i32);  // 8: xattn_subseq_meta
+                internal_buffers.emplace_back(std::max<int64_t>(16, count_meta_int32s), ov::element::i32, true, false);  // 8: xattn_subseq_meta (lockable for mem_lock<write>, not shareable)
 
 #if FIND_DEBUG_ACC
                 const size_t sum_per_n_token_in_block = static_cast<size_t>(rt_params->xattn_block_size / STRIDE);
