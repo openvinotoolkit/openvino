@@ -211,7 +211,9 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
         }
 
         // Allow using onednn for models with LSTMSequence op as it's much more performant than existing ocl impl
-        if (ov::is_type<ov::op::v5::LSTMSequence>(op) || ov::is_type<ov::op::v5::GRUSequence>(op)) {
+        // Onednn only support on Gen12 (XeLP) and later architectures
+        if ((ov::is_type<ov::op::v5::LSTMSequence>(op) || ov::is_type<ov::op::v5::GRUSequence>(op)) &&
+            info.arch >= gpu_arch::xe_lp) {
             m_use_onednn = true;
         }
 
