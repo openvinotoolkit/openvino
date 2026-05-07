@@ -29,7 +29,7 @@
 #include "openvino/op/util/binary_elementwise_bitwise.hpp"
 
 #include "intel_gpu/op/moe_3gemm_fused_compressed.hpp"
-#include "intel_gpu/op/moe_compressed.hpp"
+#include "ov_ops/moe_compressed.hpp"
 
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"

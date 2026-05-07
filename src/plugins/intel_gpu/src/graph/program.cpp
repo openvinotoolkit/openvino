@@ -10,8 +10,6 @@
 #include "openvino/core/type.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
-#include "openvino/util/weights_path.hpp"
-#include "openvino/util/env_util.hpp"
 #include "openvino/util/file_util.hpp"
 
 #include "intel_gpu/runtime/memory.hpp"
