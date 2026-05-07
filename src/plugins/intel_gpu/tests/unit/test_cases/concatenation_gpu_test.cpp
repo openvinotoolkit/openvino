@@ -1593,6 +1593,7 @@ INSTANTIATE_TEST_SUITE_P(export_import,
 TEST_P(concat_implicit_gpu_4d_i8, input_order_opt_b_fs_yx_fsv32) {
     ASSERT_NO_FATAL_FAILURE(test());
 }
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(concat_implicit_gpu_4d_i8);
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 TEST(concat_gpu_onednn, basic_input_types) {
