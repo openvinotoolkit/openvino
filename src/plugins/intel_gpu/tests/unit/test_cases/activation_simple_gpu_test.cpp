@@ -17,6 +17,7 @@
 
 #include <cmath>
 #include <algorithm>
+#include <limits>
 
 using namespace cldnn;
 using namespace ::tests;
