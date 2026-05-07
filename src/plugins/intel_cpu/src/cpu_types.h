@@ -140,7 +140,8 @@ enum class Type : uint8_t {
     LoRA,
     GatherMatmul,
     GatedDeltaNet,
-    PagedGatedDeltaNet
+    PagedGatedDeltaNet,
+    PagedCausalConv1D
 };
 
 enum class Algorithm : uint8_t {
