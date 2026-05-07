@@ -258,7 +258,7 @@ public:
                 const size_t sum_per_n_token_in_block = static_cast<size_t>(rt_params->xattn_block_size / STRIDE);
                 size_t q_block_input = rt_params->q_stride_pad / sum_per_n_token_in_block;
                 auto count_elements_kq_sum = static_cast<int64_t>(desc->heads_num * q_block_input * rt_params->k_block_pad);
-                internal_buffers.emplace_back(count_elements_kq_sum, ov::element::f16);  // 6: kq_sum
+                internal_buffers.emplace_back(count_elements_kq_sum, ov::element::f32);  // 6: kq_sum
 #endif
 
                 GPU_DEBUG_TRACE_DETAIL << "  internal buffer sizes: count_kq_max_wg=" << count_kq_max_wg * 4

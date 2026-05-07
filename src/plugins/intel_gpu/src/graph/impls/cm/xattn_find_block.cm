@@ -52,7 +52,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     kq_max_wg += (b * HQ + hq) * (k_block_pad / TOKEN_SHARE_MAX) * q_stride_pad * (uint)sizeof(SOFTMAX_TYPE);
     kq_exp_partial_sum += (b * HQ + hq) * q_stride_pad * k_block_pad * (uint)sizeof(SOFTMAX_TYPE);
 #if DEBUG_ACC == 1
-    kq_sum += (b * HQ + hq) * (q_stride_pad / TOKEN_IN_BLOCK) * k_block_pad * (uint)sizeof(half);
+    kq_sum += (b * HQ + hq) * (q_stride_pad / TOKEN_IN_BLOCK) * k_block_pad * (uint)sizeof(SOFTMAX_TYPE);
 #endif
     block_mask += (b * HQ + hq) * q_block_pad * k_block_pad;
 
