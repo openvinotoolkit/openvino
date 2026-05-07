@@ -46,8 +46,6 @@
 
 ov::ICore::~ICore() = default;
 
-constexpr std::size_t STANDARD_PAGE_SIZE = 4096;
-
 namespace {
 
 #ifdef PROXY_PLUGIN_ENABLED
@@ -1537,9 +1535,6 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(ov::Plugin& 
             // write compiled blob
             cache_content.m_cache_manager->write_cache_entry(cache_content.m_blob_id, [&](std::ostream& stream) {
                 uint32_t header_size_alignment = {};
-                if (plugin.get_name().find("GPU") == 0) {
-                    header_size_alignment = STANDARD_PAGE_SIZE;
-                }
                 if (device_supports_internal_property(plugin, ov::internal::cache_header_alignment.name())) {
                     header_size_alignment =
                         plugin.get_property(ov::internal::cache_header_alignment.name(), {}).as<uint32_t>();
