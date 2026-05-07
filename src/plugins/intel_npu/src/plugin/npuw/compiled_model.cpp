@@ -9,9 +9,11 @@
 #include <string>
 
 #include "accuracy/comparator.hpp"
+#include "attn/attn_subgraph.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "just_sync_infer_request.hpp"
 #include "logging.hpp"
+#include "moe/moe_subgraph.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
@@ -116,6 +118,7 @@ std::set<std::string> device_list_to_set(const std::string& device_list) {
 
 namespace ov {
 namespace npuw {
+
 namespace {
 ov::npuw::DeviceProperties get_properties_per_device(const std::shared_ptr<const ov::IPlugin>& plugin,
                                                      const std::string& device_priorities,
@@ -288,10 +291,27 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     // Store original constants' offset for serialization purposes
     store_const_offsets(model);
 
+    std::optional<ov::npuw::v1::subgraphs::PatternRegistry> combined_subgraph_patterns;
+    std::vector<ov::npuw::v1::subgraphs::ScopedPatternRegistration> builtin_pattern_registrations;
+    combined_subgraph_patterns.emplace();
+    if (subgraph_patterns != nullptr) {
+        combined_subgraph_patterns->append_from(*subgraph_patterns);
+    }
+    builtin_pattern_registrations =
+        ov::npuw::moe::register_patterns(*combined_subgraph_patterns,
+                                         m_cfg.get<::intel_npu::NPUW_MOE_TOKEN_CHUNK_SIZE>());
+
+    {
+        auto attn_registrations = ov::npuw::attn::register_patterns(*combined_subgraph_patterns);
+        for (auto& r : attn_registrations) {
+            builtin_pattern_registrations.push_back(std::move(r));
+        }
+    }
+
     ov::npuw::PartitioningContext ctx;
     // Identify based on compiler version, user config and pattern
     ctx.use_host_gather_quant = should_use_quantized_host_gather(model, npuw_props);
-    ctx.subgraph_patterns = subgraph_patterns;
+    ctx.subgraph_patterns = &combined_subgraph_patterns.value();
 
     ov::npuw::Partitioning partitioning;
     m_profile["partitioning"].record([&]() {
@@ -450,45 +470,6 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                     m_compiled_submodels[id].spatial =
                         compiled::Spatial(fcn_template._spatial.value(), fcn_template._model);
                 }
-                // Does the same for dynamic. FIXME: This selection should be hidden here
-                // in the object semantics
-                if (fcn_template._attention) {
-                    m_compiled_submodels[id].attention =
-                        compiled::Attention(fcn_template._attention.value(), fcn_template._model);
-                }
-
-                if (fcn_template._pyramid_attention) {
-                    LOG_INFO("Creating compiled::PyramidAttention for Subgraph[" << id << "] (function "
-                                                                                 << subgraph._funcall << ")");
-                    m_compiled_submodels[id].pyramid_attention =
-                        compiled::PyramidAttention(fcn_template._pyramid_attention.value());
-                }
-
-                if (fcn_template._host_flash_attention) {
-                    LOG_INFO("Creating compiled::HostFlashAttention for Subgraph[" << id << "] (function "
-                                                                                   << subgraph._funcall << ")");
-                    m_compiled_submodels[id].host_flash_attention =
-                        compiled::HostFlashAttention(fcn_template._host_flash_attention.value());
-                }
-
-                if (fcn_template._moe_experts) {
-                    m_compiled_submodels[id].moe_experts = compiled::MoEExperts(fcn_template._moe_experts.value());
-
-                    // Point model to first chunk size model (actual compilation handled by compile_for_success)
-                    const auto& models_to_compile = m_compiled_submodels[id].moe_experts.value()._models_to_compile;
-                    NPUW_ASSERT(!models_to_compile.empty() && "Fatal: MoEExperts has no models to compile!");
-                    m_compiled_submodels[id].model = models_to_compile.begin()->second;
-                }
-
-                if (fcn_template._moe_experts_downstream) {
-                    m_compiled_submodels[id].moe_experts_downstream =
-                        compiled::MoEDownstream(fcn_template._moe_experts_downstream.value());
-
-                    // Set the model to compile from MoEDownstream
-                    m_compiled_submodels[id].model =
-                        m_compiled_submodels[id].moe_experts_downstream.value()._model_to_compile;
-                }
-
                 LOG_INFO("Subgraph[" << id << "] is a function body for " << subgraph._funcall);
             } else {
                 // ...and refer to it in other calls
@@ -541,15 +522,17 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             };
 
             // Fix tensor names for MoE expert models
-            if (const auto& moe_experts = m_compiled_submodels[real_id].moe_experts) {
-                for (const auto& [chunk_size, model] : moe_experts.value()._models_to_compile) {
+            if (const auto* moe_experts =
+                    ov::npuw::moe::get_compiled_experts(m_compiled_submodels[real_id].pipeline.context)) {
+                for (const auto& [chunk_size, model] : moe_experts->_models_to_compile) {
                     fix_tensor_names(model);
                 }
             }
 
             // Fix tensor names for pyramid attention models
-            if (const auto& pyramid_attn = m_compiled_submodels[real_id].pyramid_attention) {
-                for (const auto& model : pyramid_attn.value()._models_to_compile) {
+            if (const auto* pyramid_attn =
+                    ov::npuw::attn::get_compiled_pyramid(m_compiled_submodels[real_id].pipeline.context)) {
+                for (const auto& model : pyramid_attn->_models_to_compile) {
                     fix_tensor_names(model);
                 }
             }
@@ -774,140 +757,18 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
 
     stream & replaced_by & param_base & forced_to_fcall & host_gather.dst_idx & host_gather.src_idx &
         host_gather.idx_idx & quant_unpack_gather.dst_idx & quant_unpack_gather.src_w_idx &
-        quant_unpack_gather.src_z_idx & quant_unpack_gather.src_s_idx & quant_unpack_gather.idx_idx & spatial &
-        attention & pyramid_attention;
+        quant_unpack_gather.src_z_idx & quant_unpack_gather.src_s_idx & quant_unpack_gather.idx_idx & spatial;
 
-    if (pyramid_attention.has_value()) {
-        size_t num_models = 0;
-        if (stream.output()) {
-            num_models = pyramid_attention.value()._compiled_models.size();
-        }
-        stream & num_models;
+    ov::npuw::moe::serialize_compiled_state(pipeline.context, stream, submodel_ctx);
+    ov::npuw::attn::serialize_compiled_state(pipeline.context, stream, submodel_ctx);
 
-        if (stream.output()) {
-            for (size_t i = 0; i < num_models - 1; ++i) {
-                std::stringstream ss;
-                pyramid_attention.value()._compiled_models[i]->export_model(ss);
-                std::string model_str = ss.str();
-                stream & model_str;
-            }
-        } else if (num_models > 0) {
-            pyramid_attention.value()._compiled_models.resize(num_models);
-            NPUW_ASSERT(submodel_ctx != nullptr);
-            for (size_t i = 0; i < num_models - 1; ++i) {
-                std::string model_str;
-                stream & model_str;
-                std::stringstream ss(model_str);
-                pyramid_attention->_compiled_models[i] =
-                    submodel_ctx->plugin->get_core()->import_model(ss,
-                                                                   submodel_ctx->device,
-                                                                   submodel_ctx->import_config);
-            }
-            if (submodel_ctx->compiled_model) {
-                pyramid_attention->_compiled_models[num_models - 1] = submodel_ctx->compiled_model;
-                LOG_DEBUG("Reused compiled_model for the last pyramid attention model");
-            }
-        }
-    }
-
-    stream & moe_experts;
-    if (moe_experts.has_value()) {
-        size_t num_compiled_models = 0;
-        if (stream.output()) {
-            num_compiled_models = moe_experts.value()._compiled_models.size();
-        }
-        stream & num_compiled_models;
-
-        if (stream.output()) {
-            for (const auto& [chunk_size, compiled_model] : moe_experts.value()._compiled_models) {
-                stream & chunk_size;
-                bool has_model = compiled_model != nullptr;
-                stream & has_model;
-                if (has_model) {
-                    std::stringstream ss;
-                    compiled_model->export_model(ss);
-                    std::string model_str = ss.str();
-                    stream & model_str;
-                }
-            }
-        } else {
-            NPUW_ASSERT(submodel_ctx != nullptr);
-            for (size_t i = 0; i < num_compiled_models; ++i) {
-                size_t chunk_size = 0;
-                stream & chunk_size;
-                bool has_model = false;
-                stream & has_model;
-                if (has_model) {
-                    std::string model_str;
-                    stream & model_str;
-                    std::stringstream ss(model_str);
-                    moe_experts->_compiled_models[chunk_size] =
-                        submodel_ctx->plugin->get_core()->import_model(ss,
-                                                                       submodel_ctx->device,
-                                                                       submodel_ctx->import_config);
-                    LOG_DEBUG("Imported MoE compiled model for chunk_size=" << chunk_size);
-                }
-            }
-            LOG_DEBUG("Deserialized " << moe_experts->_compiled_models.size() << " MoE expert models");
-        }
-    }
-
-    stream & moe_experts_downstream;
-    if (moe_experts_downstream.has_value()) {
-        bool has_model = false;
-        if (stream.output()) {
-            has_model = moe_experts_downstream.value()._compiled_model != nullptr;
-        }
-        stream & has_model;
-        if (has_model) {
-            if (stream.output()) {
-                std::stringstream ss;
-                moe_experts_downstream.value()._compiled_model->export_model(ss);
-                std::string model_str = ss.str();
-                stream & model_str;
-            } else {
-                NPUW_ASSERT(submodel_ctx != nullptr);
-                std::string model_str;
-                stream & model_str;
-                std::stringstream ss(model_str);
-                moe_experts_downstream->_compiled_model =
-                    submodel_ctx->plugin->get_core()->import_model(ss,
-                                                                   submodel_ctx->device,
-                                                                   submodel_ctx->import_config);
-                LOG_DEBUG("Imported MoE downstream compiled model");
-            }
-        }
-    }
-
-    stream & host_flash_attention;
-    if (host_flash_attention.has_value()) {
-        bool has_compiled_model = false;
-        if (stream.output()) {
-            has_compiled_model = host_flash_attention.value()._compiled_tile_model != nullptr;
-        }
-        stream & has_compiled_model;
-        if (has_compiled_model) {
-            if (stream.output()) {
-                std::stringstream ss;
-                host_flash_attention.value()._compiled_tile_model->export_model(ss);
-                std::string model_str = ss.str();
-                stream & model_str;
-            } else {
-                NPUW_ASSERT(submodel_ctx != nullptr);
-                std::string model_str;
-                stream & model_str;
-                std::stringstream ss(model_str);
-                host_flash_attention->_compiled_tile_model =
-                    submodel_ctx->plugin->get_core()->import_model(ss,
-                                                                   submodel_ctx->device,
-                                                                   submodel_ctx->import_config);
-                LOG_DEBUG("Imported compiled tile model for host flash attention");
-            }
-        }
-        if (stream.input()) {
-            NPUW_ASSERT(submodel_ctx != nullptr);
-            host_flash_attention->_compiled_final_tile_model = submodel_ctx->compiled_model;
-            LOG_DEBUG("Set compiled final tile model reference for host flash attention");
+    if (stream.input()) {
+        if (ov::npuw::attn::get_compiled_dynamic(pipeline.context) != nullptr) {
+            ov::npuw::attn::attach_runtime_behavior(pipeline, pipeline.context, ov::npuw::attn::BehaviorKind::Dynamic);
+        } else if (ov::npuw::attn::get_compiled_pyramid(pipeline.context) != nullptr) {
+            ov::npuw::attn::attach_runtime_behavior(pipeline, pipeline.context, ov::npuw::attn::BehaviorKind::Pyramid);
+        } else if (ov::npuw::attn::get_compiled_hfa(pipeline.context) != nullptr) {
+            ov::npuw::attn::attach_runtime_behavior(pipeline, pipeline.context, ov::npuw::attn::BehaviorKind::HFA);
         }
     }
 
@@ -1489,6 +1350,14 @@ std::size_t ov::npuw::CompiledModel::num_submodels() const {
     return m_compiled_submodels.size();
 }
 
+bool ov::npuw::CompiledModel::attention_dynamic_enabled() const {
+    return m_cfg.get<::intel_npu::NPUW_ATTN_DYN>();
+}
+
+bool ov::npuw::CompiledModel::attention_no_copy() const {
+    return m_cfg.get<::intel_npu::NPUW_ATTN_NO_COPY>();
+}
+
 std::shared_ptr<ov::npuw::weights::Bank> ov::npuw::CompiledModel::get_weights_bank() const {
     return m_weights_bank;
 }
@@ -1745,7 +1614,7 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
                 dump_on_fail(id, device, "Avoided due to workaround");
                 continue;
             }
-            if (desc.attention.has_value()) {
+            if (ov::npuw::attn::get_compiled_dynamic(desc.pipeline.context) != nullptr) {
                 bool has_dynamic = false;
                 for (const auto& input : desc.model->inputs()) {
                     if (input.get_partial_shape().is_dynamic()) {
@@ -1834,42 +1703,18 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
         return main_cm;
     };
 
-    if (auto& moe_experts_opt = desc.moe_experts; moe_experts_opt.has_value()) {
-        LOG_INFO("Compiling MoE expert models for Subgraph[" << id << "]...");
-        LOG_BLOCK();
-
-        auto& moe_experts = moe_experts_opt.value();
-        LOG_INFO("Total MoE models to compile: " << moe_experts._models_to_compile.size());
-
-        for (const auto& entry : moe_experts._models_to_compile) {
-            LOG_INFO("Compiling MoE expert model for chunk_size=" << entry.first);
-            moe_experts.set_compiled_model(
-                entry.first,
-                make_wrapped(entry.second, "/moe_chunk_" + std::to_string(entry.first), devices));
-            LOG_INFO("Successfully compiled MoE expert model for chunk_size=" << entry.first);
-        }
-
-        const auto& compiled_models = moe_experts._compiled_models;
-        OPENVINO_ASSERT(!compiled_models.empty(), "Expected at least one compiled MoE expert model");
-        desc.compiled_model = compiled_models.begin()->second;
-        LOG_INFO("MoE expert compilation complete for Subgraph[" << id << "]");
+    if (desc.pipeline.compile_executor) {
+        ov::npuw::v1::subgraphs::CompileContext compile_context{desc.model, desc.compiled_model, devices, make_wrapped};
+        desc.pipeline.compile_executor(compile_context);
     } else {
         desc.compiled_model = make_wrapped(desc.model, "", main_candidates);
     }
 
-    if (auto& moe_downstream_opt = desc.moe_experts_downstream; moe_downstream_opt.has_value()) {
-        LOG_INFO("Wrapping compiled model into MoE downstream for Subgraph[" << id << "]...");
-        OPENVINO_ASSERT(desc.compiled_model, "Expected compiled model before wrapping MoE downstream");
-        moe_downstream_opt->set_compiled_model(std::move(desc.compiled_model));
-        desc.compiled_model = moe_downstream_opt->_compiled_model;
-    }
-
-    if (desc.pyramid_attention.has_value()) {
+    if (auto* pyramid_attn = ov::npuw::attn::get_compiled_pyramid(desc.pipeline.context)) {
         LOG_INFO("Compiling pyramid attention submodels for Subgraph[" << id << "]...");
         LOG_BLOCK();
 
-        auto& pyramid_attn = desc.pyramid_attention.value();
-        const auto& pyramid_attn_models = pyramid_attn._models_to_compile;
+        const auto& pyramid_attn_models = pyramid_attn->_models_to_compile;
         const size_t total_models = pyramid_attn_models.size();
         const size_t models_to_compile = total_models > 0 ? total_models - 1 : 0;
 
@@ -1894,16 +1739,15 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
             compiled_models[total_models - 1] = desc.compiled_model;
         }
 
-        pyramid_attn.set_compiled_models(std::move(compiled_models));
+        pyramid_attn->set_compiled_models(std::move(compiled_models));
         LOG_INFO("Pyramid attention compilation complete for Subgraph[" << id << "]");
     }
 
-    if (desc.host_flash_attention.has_value()) {
+    if (auto* hfa = ov::npuw::attn::get_compiled_hfa(desc.pipeline.context)) {
         LOG_INFO("Compiling host flash attention tile models for Subgraph[" << id << "]...");
         LOG_BLOCK();
 
-        auto& hfa = desc.host_flash_attention.value();
-        if (!hfa._tile_model_to_compile) {
+        if (!hfa->_tile_model_to_compile) {
             LOG_WARN("Host flash attention tile model is null, skipping compilation");
         } else {
             for (const auto& device : devices) {
@@ -1921,15 +1765,15 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
                     continue;
                 }
 
-                hfa._can_use_tensor_view = true;
+                hfa->_can_use_tensor_view = true;
                 auto strided_inputs_name = std::string(hfa_tile_input_id_to_string(HFATileInputId::K_TILE)) + "," +
                                            std::string(hfa_tile_input_id_to_string(HFATileInputId::V_TILE));
                 m_meta_devices[device][ov::intel_npu::enable_strides_for.name()] = strided_inputs_name;
                 LOG_INFO("Enabled using tensor view for device: " << device << " for inputs: " << strided_inputs_name);
             }
 
-            hfa.set_compiled_tile_model(make_wrapped(hfa._tile_model_to_compile, "/hfa_tile", devices));
-            hfa.set_compiled_final_tile_model(desc.compiled_model);
+            hfa->set_compiled_tile_model(make_wrapped(hfa->_tile_model_to_compile, "/hfa_tile", devices));
+            hfa->set_compiled_final_tile_model(desc.compiled_model);
             LOG_INFO("Host flash attention compilation complete for Subgraph[" << id << "]");
         }
     }
@@ -2006,9 +1850,9 @@ void ov::npuw::CompiledModel::dump_subgraph_model(std::size_t id,
     const std::string dump_dir = m_cfg.get<::intel_npu::NPUW_DUMP_SUBS_DIR>();
 
     // Dump MoE expert models if present
-    if (m_compiled_submodels[id].moe_experts) {
+    if (const auto* moe_experts = ov::npuw::moe::get_compiled_experts(m_compiled_submodels[id].pipeline.context)) {
         LOG_INFO("NOTE: Subgraph[" << id << "] has MoE experts mechanism.");
-        const auto& moe_models = m_compiled_submodels[id].moe_experts.value()._models_to_compile;
+        const auto& moe_models = moe_experts->_models_to_compile;
 
         if (moe_models.empty()) {
             LOG_WARN("MoE experts models are empty (already compiled and cleared)");
@@ -2039,9 +1883,9 @@ void ov::npuw::CompiledModel::dump_subgraph_model(std::size_t id,
     LOG_INFO("Wrote " << model_dump_path);
 
     // Dump pyramid attention models if present
-    if (m_compiled_submodels[id].pyramid_attention) {
+    if (const auto* pyramid_attn = ov::npuw::attn::get_compiled_pyramid(m_compiled_submodels[id].pipeline.context)) {
         LOG_INFO("NOTE: Subgraph[" << id << "] has a pyramid attention mechanism.");
-        const auto& pyramid_attention_models = m_compiled_submodels[id].pyramid_attention.value()._models_to_compile;
+        const auto& pyramid_attention_models = pyramid_attn->_models_to_compile;
         for (std::size_t idx = 0; idx < pyramid_attention_models.size(); ++idx) {
             std::string pyramid_attention_model_name = format_subgraph_name(id, funcall) + "_pyramid_" +
                                                        ov::npuw::util::fmt(idx, pyramid_attention_models.size()) +
@@ -2054,16 +1898,15 @@ void ov::npuw::CompiledModel::dump_subgraph_model(std::size_t id,
     }
 
     // Dump host flash attention models if present
-    if (m_compiled_submodels[id].host_flash_attention) {
+    if (const auto* hfa = ov::npuw::attn::get_compiled_hfa(m_compiled_submodels[id].pipeline.context)) {
         LOG_INFO("NOTE: Subgraph[" << id << "] has a host flash attention mechanism.");
-        const auto& hfa_tile_model = m_compiled_submodels[id].host_flash_attention.value()._tile_model_to_compile;
+        const auto& hfa_tile_model = hfa->_tile_model_to_compile;
         std::string hfa_tile_model_name = format_subgraph_name(id, funcall) + "_hfa_tile.xml";
         std::string hfa_tile_model_dump_path = ov::util::path_join({dump_dir, hfa_tile_model_name}).string();
         ov::save_model(hfa_tile_model, hfa_tile_model_dump_path);
         LOG_INFO("Wrote " << hfa_tile_model_dump_path);
 
-        const auto& hfa_final_tile_model =
-            m_compiled_submodels[id].host_flash_attention.value()._final_tile_model_to_compile;
+        const auto& hfa_final_tile_model = hfa->_final_tile_model_to_compile;
         std::string hfa_final_tile_model_name = format_subgraph_name(id, funcall) + "_hfa_final_tile.xml";
         std::string hfa_final_tile_model_dump_path =
             ov::util::path_join({dump_dir, hfa_final_tile_model_name}).string();
@@ -2099,8 +1942,9 @@ void ov::npuw::CompiledModel::dump_subgraph_composition(const std::vector<ov::np
         std::string base_name = format_subgraph_name(real_id, funcall);
         subgraph_info.emplace_back(base_name, count);
 
-        if (m_compiled_submodels[real_id].moe_experts) {
-            const auto& moe_models = m_compiled_submodels[real_id].moe_experts.value()._models_to_compile;
+        if (const auto* moe_experts =
+                ov::npuw::moe::get_compiled_experts(m_compiled_submodels[real_id].pipeline.context)) {
+            const auto& moe_models = moe_experts->_models_to_compile;
             if (!moe_models.empty()) {
                 for (const auto& [chunk_size, model] : moe_models) {
                     moe_subgraphs.push_back(base_name + "_moe_chunk_" + std::to_string(chunk_size) + ".xml");
@@ -2111,14 +1955,15 @@ void ov::npuw::CompiledModel::dump_subgraph_composition(const std::vector<ov::np
         } else {
             base_subgraphs.push_back(base_name + ".xml");
 
-            if (m_compiled_submodels[real_id].pyramid_attention) {
-                const auto& pyramid_models = m_compiled_submodels[real_id].pyramid_attention.value()._models_to_compile;
+            if (const auto* pyramid_attn =
+                    ov::npuw::attn::get_compiled_pyramid(m_compiled_submodels[real_id].pipeline.context)) {
+                const auto& pyramid_models = pyramid_attn->_models_to_compile;
                 for (std::size_t idx = 0; idx < pyramid_models.size(); ++idx) {
                     attn_subgraphs.push_back(base_name + "_pyramid_" + ov::npuw::util::fmt(idx, pyramid_models.size()) +
                                              ".xml");
                 }
             }
-            if (m_compiled_submodels[real_id].host_flash_attention) {
+            if (ov::npuw::attn::get_compiled_hfa(m_compiled_submodels[real_id].pipeline.context) != nullptr) {
                 attn_subgraphs.push_back(base_name + "_hfa_tile.xml");
                 attn_subgraphs.push_back(base_name + "_hfa_final_tile.xml");
             }
