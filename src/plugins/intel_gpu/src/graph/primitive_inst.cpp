@@ -2287,7 +2287,8 @@ void primitive_inst::execute() {
 
     set_out_event(_impl->execute(_impl_params->dep_events, *this));
 
-    GPU_DEBUG_IF(!get_config().get_dump_profiling_data_path().empty()) {
+    GPU_DEBUG_IF(!get_config().get_dump_profiling_data_path().empty() ||
+                 !get_config().get_average_counters().empty()) {
         auto ev = _impl_params->out_event;
         get_network().get_stream().wait_for_events({ev});
 
@@ -2623,7 +2624,8 @@ void primitive_inst::update_weights() {
             reorder_impl->set_arguments(*reorder_inst, args);
             add_dep_event(reorder_impl->execute({}, *reorder_inst));
 
-            GPU_DEBUG_IF(!get_config().get_dump_profiling_data_path().empty()) {
+            GPU_DEBUG_IF(!get_config().get_dump_profiling_data_path().empty() ||
+                         !get_config().get_average_counters().empty()) {
                 stream.wait_for_events(_impl_params->dep_events);
             }
 

@@ -862,7 +862,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     }
 
     ov::Tensor tensor = tensorBig;
-    if (isNotNullDecryption && (metadata == nullptr || (metadata != nullptr && metadata->is_encrypted_blob()))) {
+    if (isNotNullDecryption &&
+        (metadata == nullptr || (metadata != nullptr && metadata->is_encrypted_blob().value_or(false)))) {
         {
             std::string decryptedBlobStr;
             {
@@ -890,7 +891,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     std::optional<int64_t> batchSize = std::nullopt;
 
     if (metadata) {
-        if (metadata->is_encrypted_blob() && !isNotNullDecryption) {
+        if (metadata->is_encrypted_blob().value_or(false) && !isNotNullDecryption) {
             OPENVINO_THROW("Blob is encrypted, but no decryption callback was provided!");
         }
 

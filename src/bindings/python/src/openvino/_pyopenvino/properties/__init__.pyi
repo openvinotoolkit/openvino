@@ -13,7 +13,7 @@ import typing
 """
 openvino.properties submodule
 """
-__all__: list[str] = ['CacheMode', 'WorkloadType', 'auto_batch_timeout', 'available_devices', 'cache_dir', 'cache_encryption_callbacks', 'cache_mode', 'compilation_num_threads', 'device', 'enable_mmap', 'enable_profiling', 'enable_weightless', 'execution_devices', 'force_tbb_terminate', 'hint', 'inference_num_threads', 'intel_auto', 'intel_cpu', 'intel_gpu', 'intel_npu', 'key_cache_group_size', 'key_cache_precision', 'loaded_from_cache', 'log', 'max_batch_size', 'model_name', 'num_streams', 'optimal_batch_size', 'optimal_number_of_infer_requests', 'range_for_async_infer_requests', 'range_for_streams', 'streams', 'supported_properties', 'value_cache_group_size', 'value_cache_precision', 'weights_path', 'workload_type']
+__all__: list[str] = ['CacheMode', 'CompatibilityCheck', 'WorkloadType', 'auto_batch_timeout', 'available_devices', 'cache_dir', 'cache_encryption_callbacks', 'cache_mode', 'compatibility_check', 'compilation_num_threads', 'device', 'enable_mmap', 'enable_profiling', 'enable_weightless', 'execution_devices', 'force_tbb_terminate', 'hint', 'inference_num_threads', 'intel_auto', 'intel_cpu', 'intel_gpu', 'intel_npu', 'key_cache_group_size', 'key_cache_precision', 'loaded_from_cache', 'log', 'max_batch_size', 'model_name', 'num_streams', 'optimal_batch_size', 'optimal_number_of_infer_requests', 'range_for_async_infer_requests', 'range_for_streams', 'runtime_requirements', 'streams', 'supported_properties', 'value_cache_group_size', 'value_cache_precision', 'weights_path', 'workload_type']
 class CacheMode:
     """
     Members:
@@ -25,6 +25,57 @@ class CacheMode:
     OPTIMIZE_SIZE: typing.ClassVar[CacheMode]  # value = <CacheMode.OPTIMIZE_SIZE: 0>
     OPTIMIZE_SPEED: typing.ClassVar[CacheMode]  # value = <CacheMode.OPTIMIZE_SPEED: 1>
     __members__: typing.ClassVar[dict[str, CacheMode]]  # value = {'OPTIMIZE_SIZE': <CacheMode.OPTIMIZE_SIZE: 0>, 'OPTIMIZE_SPEED': <CacheMode.OPTIMIZE_SPEED: 1>}
+    def __eq__(self, other: typing.Any) -> bool:
+        ...
+    def __ge__(self, other: typing.Any) -> bool:
+        ...
+    def __getstate__(self) -> int:
+        ...
+    def __gt__(self, other: typing.Any) -> bool:
+        ...
+    def __hash__(self) -> int:
+        ...
+    def __index__(self) -> int:
+        ...
+    def __init__(self, value: typing.SupportsInt | typing.SupportsIndex) -> None:
+        ...
+    def __int__(self) -> int:
+        ...
+    def __le__(self, other: typing.Any) -> bool:
+        ...
+    def __lt__(self, other: typing.Any) -> bool:
+        ...
+    def __ne__(self, other: typing.Any) -> bool:
+        ...
+    def __repr__(self) -> str:
+        ...
+    def __setstate__(self, state: typing.SupportsInt | typing.SupportsIndex) -> None:
+        ...
+    def __str__(self) -> str:
+        ...
+    @property
+    def name(self) -> str:
+        ...
+    @property
+    def value(self) -> int:
+        ...
+class CompatibilityCheck:
+    """
+    Members:
+    
+      NOT_APPLICABLE
+    
+      OPTIMAL
+    
+      PREFER_RECOMPILATION
+    
+      UNSUPPORTED
+    """
+    NOT_APPLICABLE: typing.ClassVar[CompatibilityCheck]  # value = <CompatibilityCheck.NOT_APPLICABLE: 0>
+    OPTIMAL: typing.ClassVar[CompatibilityCheck]  # value = <CompatibilityCheck.OPTIMAL: 1>
+    PREFER_RECOMPILATION: typing.ClassVar[CompatibilityCheck]  # value = <CompatibilityCheck.PREFER_RECOMPILATION: 2>
+    UNSUPPORTED: typing.ClassVar[CompatibilityCheck]  # value = <CompatibilityCheck.UNSUPPORTED: 3>
+    __members__: typing.ClassVar[dict[str, CompatibilityCheck]]  # value = {'NOT_APPLICABLE': <CompatibilityCheck.NOT_APPLICABLE: 0>, 'OPTIMAL': <CompatibilityCheck.OPTIMAL: 1>, 'PREFER_RECOMPILATION': <CompatibilityCheck.PREFER_RECOMPILATION: 2>, 'UNSUPPORTED': <CompatibilityCheck.UNSUPPORTED: 3>}
     def __eq__(self, other: typing.Any) -> bool:
         ...
     def __ge__(self, other: typing.Any) -> bool:
@@ -126,6 +177,8 @@ def cache_mode() -> str:
 @typing.overload
 def cache_mode(arg0: CacheMode) -> tuple[str, openvino._pyopenvino.OVAny]:
     ...
+def compatibility_check() -> str:
+    ...
 @typing.overload
 def compilation_num_threads() -> str:
     ...
@@ -195,6 +248,8 @@ def optimal_number_of_infer_requests() -> str:
 def range_for_async_infer_requests() -> str:
     ...
 def range_for_streams() -> str:
+    ...
+def runtime_requirements() -> str:
     ...
 def supported_properties() -> str:
     ...
