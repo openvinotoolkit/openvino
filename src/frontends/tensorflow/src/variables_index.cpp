@@ -23,6 +23,13 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 
+namespace {
+// RestoreV2 data inputs (per the TF Op definition): prefix(0), tensor_names(1),
+// shape_and_slices(2). Control inputs ('^'-prefixed) live in the same input list
+// and are filtered out by the data-port check below.
+constexpr int tensor_names_index = 1;
+}  // namespace
+
 void VariablesIndex::read_variables_index_block(std::ifstream& fs,
                                                 const VIBlock& index,
                                                 std::vector<char>& data,
@@ -377,12 +384,7 @@ void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::Grap
         }
     }
 
-    // RestoreV2 data inputs (per the TF Op definition): prefix(0), tensor_names(1),
-    // shape_and_slices(2). Control inputs ('^'-prefixed) live in the same input list
-    // and are filtered out by the data-port check below.
-    constexpr int tensor_names_index = 1;
-
-    const auto get_variable_name = [](const PtrNode::SharedPtrNode& rv2_node, int idx) -> const std::string& {
+    const auto get_variable_name = [](const PtrNode::SharedPtrNode& rv2_node, int idx) -> std::string {
         std::string tensor_name;
         if (rv2_node->node->input().size() > tensor_names_index) {
             const std::string& in = rv2_node->node->input(tensor_names_index);
