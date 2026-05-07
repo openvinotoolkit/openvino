@@ -61,7 +61,7 @@ endif()
 
 find_package(Vulkan QUIET)
 if(NOT Vulkan_FOUND)
-    set(OV_GPU_FUNC_TESTS_VULKAN_TAG "v1.3.242" CACHE STRING "Git tag used when downloading Vulkan dependencies for GPU functional tests" FORCE)
+    set(OV_GPU_FUNC_TESTS_VULKAN_TAG "v1.3.230" CACHE STRING "Git tag used when downloading Vulkan dependencies for GPU functional tests" FORCE)
     if(CMAKE_VERSION VERSION_LESS 3.14.0)
         message(WARNING "Vulkan was not found and automatic download requires CMake >= 3.14.0.")
     else()
@@ -146,6 +146,35 @@ if(NOT Vulkan_FOUND)
 
         if(TARGET Vulkan::Vulkan)
             set(Vulkan_FOUND ON)
+        endif()
+    endif()
+    if(UNIX AND NOT APPLE)
+        # Install Vulkan loader next to other bundled 3rdparty runtimes so
+        # setupvars can expose it for install-tree test execution.
+        get_target_property(_ov_vk_imported Vulkan::Vulkan IMPORTED)
+        if(_ov_vk_imported)
+            get_target_property(_ov_vk_lib_location Vulkan::Vulkan IMPORTED_LOCATION)
+            if(NOT _ov_vk_lib_location)
+                get_target_property(_ov_vk_lib_location Vulkan::Vulkan IMPORTED_LOCATION_RELEASE)
+            endif()
+            if(NOT _ov_vk_lib_location)
+                get_target_property(_ov_vk_lib_location Vulkan::Vulkan IMPORTED_LOCATION_RELWITHDEBINFO)
+            endif()
+            if(NOT _ov_vk_lib_location)
+                get_target_property(_ov_vk_lib_location Vulkan::Vulkan IMPORTED_LOCATION_DEBUG)
+            endif()
+
+            if(_ov_vk_lib_location)
+                install(FILES "${_ov_vk_lib_location}"
+                        DESTINATION runtime/3rdparty/vulkan/lib
+                        COMPONENT tests
+                        EXCLUDE_FROM_ALL)
+            endif()
+        else()
+            install(FILES "$<TARGET_FILE:Vulkan::Vulkan>"
+                    DESTINATION runtime/3rdparty/vulkan/lib
+                    COMPONENT tests
+                    EXCLUDE_FROM_ALL)
         endif()
     endif()
 endif()

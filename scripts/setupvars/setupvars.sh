@@ -80,6 +80,16 @@ if [ -e "$INSTALLDIR/runtime" ]; then
         fi
     fi
 
+    if [ -d "$INSTALLDIR/runtime/3rdparty/vulkan/lib" ]; then
+        vk_lib_path=$INSTALLDIR/runtime/3rdparty/vulkan/lib
+        if /bin/ls "$vk_lib_path"/libvulkan.so* >/dev/null 2>&1; then
+            export LD_LIBRARY_PATH=$vk_lib_path:${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH}
+        else
+            echo "[setupvars.sh] WARNING: Directory with Vulkan loader libraries is not detected. Please, add Vulkan loader libraries to LD_LIBRARY_PATH manually"
+        fi
+        unset vk_lib_path
+    fi
+
     unset system_type
 fi
 
