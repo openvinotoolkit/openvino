@@ -118,19 +118,19 @@ jobs:
           source ${INSTALL_DIR}/setupvars.sh
           skip_tests=$(tr -s '\n ' ':' < ${ONNX_RUNTIME_UTILS}/skip_tests)
 
-          ./onnxruntime_test_all --gtest_filter=-$skip_tests
+          ./onnxruntime_test_all --gtest_brief=1 --gtest_filter=-$skip_tests --gtest_output=xml:${{ github.workspace }}/test_results/TEST-onnxruntime_test_all.xml
         working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
 
       - name: Run onnxruntime_shared_lib_test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          ./onnxruntime_shared_lib_test --gtest_filter=-CApiTest.test_custom_op_openvino_wrapper_library
+          ./onnxruntime_shared_lib_test --gtest_brief=1 --gtest_filter=-CApiTest.test_custom_op_openvino_wrapper_library --gtest_output=xml:${{ github.workspace }}/test_results/TEST-onnxruntime_shared_lib_test.xml
         working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
 
       - name: Run onnxruntime_global_thread_pools_test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          ./onnxruntime_global_thread_pools_test
+          ./onnxruntime_global_thread_pools_test --gtest_brief=1 --gtest_output=xml:${{ github.workspace }}/test_results/TEST-onnxruntime_global_thread_pools_test.xml
         working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
 
       - name: Run pytorch-converted tests
@@ -144,3 +144,11 @@ jobs:
           source ${INSTALL_DIR}/setupvars.sh
           ./onnx_test_runner "${ONNX_RUNTIME_REPO}/cmake/external/onnx/onnx/backend/test/data/pytorch-operator"
         working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        if: ${{ !cancelled() }}
+        with:
+          name: test-results-onnx-runtime
+          path: ${{ github.workspace }}/test_results/TEST*.xml
+          if-no-files-found: 'warn'

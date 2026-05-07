@@ -306,14 +306,14 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* \
+          ${INSTALL_TEST_DIR}/ov_core_unit_tests --gtest_print_time=1 --gtest_brief=1 --gtest_filter=-*IE_GPU* \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVCoreUT.xml
 
       - name: OpenVINO Inference Functional Tests
         if: ${{ !cancelled() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/ov_inference_functional_tests --gtest_print_time=1 \
+          ${INSTALL_TEST_DIR}/ov_inference_functional_tests --gtest_print_time=1 --gtest_brief=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-InferenceFunc.xml
 
       # gtest_filter Ticket: 176780
@@ -321,7 +321,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/ov_inference_unit_tests --gtest_print_time=1 \
+          ${INSTALL_TEST_DIR}/ov_inference_unit_tests --gtest_print_time=1 --gtest_brief=1 \
                 ${{ matrix.SANITIZER != '' && '--gtest_filter=-PaddleFuzzyOpTest/FrontEndFuzzyOpTest.testOpFuzzy/paddle_greater_equal_big_int64_greater_equal_big_int64_pdmodel' || '' }} \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-InferenceUnit.xml
 
@@ -329,21 +329,21 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/ov_lp_transformations_tests --gtest_print_time=1 \
+          ${INSTALL_TEST_DIR}/ov_lp_transformations_tests --gtest_print_time=1 --gtest_brief=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-LpTransformations.xml
 
       - name: OpenVINO Conditional compilation tests
         if: ${{ !cancelled() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/ov_conditional_compilation_tests --gtest_print_time=1 \
+          ${INSTALL_TEST_DIR}/ov_conditional_compilation_tests --gtest_print_time=1 --gtest_brief=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ConditionalCompilation.xml
 
       - name: IR frontend tests
         if: ${{ !cancelled() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/ov_ir_frontend_tests --gtest_print_time=1 \
+          ${INSTALL_TEST_DIR}/ov_ir_frontend_tests --gtest_print_time=1 --gtest_brief=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-IRFrontend.xml
 
       # gtest_filter Ticket: 176780
@@ -351,7 +351,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/ov_paddle_tests --gtest_print_time=1 \
+          ${INSTALL_TEST_DIR}/ov_paddle_tests --gtest_print_time=1 --gtest_brief=1 \
                 ${{ matrix.SANITIZER != '' && '--gtest_filter=-PaddleFuzzyOpTest/FrontEndFuzzyOpTest.testOpFuzzy/paddle_greater_equal_big_int64_greater_equal_big_int64_pdmodel' || '' }} \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-PaddleTests.xml
 
@@ -359,7 +359,7 @@ jobs:
         if: ${{ !cancelled() && matrix.SANITIZER != 'Thread' }} # Ticket: 155291
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/ov_onnx_frontend_tests --gtest_print_time=1 \
+          ${INSTALL_TEST_DIR}/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_brief=1 \
                 --gtest_filter=-*IE_GPU* \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ONNXFrontend.xml
 
@@ -367,7 +367,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/ov_tensorflow_common_tests --gtest_print_time=1 \
+          ${INSTALL_TEST_DIR}/ov_tensorflow_common_tests --gtest_print_time=1 --gtest_brief=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TensorFlowCommonFrontend.xml
 
       - name: TensorFlow frontend tests
@@ -375,14 +375,14 @@ jobs:
         run: |
           source ${INSTALL_DIR}/setupvars.sh
 
-          ${INSTALL_TEST_DIR}/ov_tensorflow_frontend_tests --gtest_print_time=1 \
+          ${INSTALL_TEST_DIR}/ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_brief=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TensorFlowFrontend.xml
 
       - name: TensorFlow Lite frontend tests
         if: ${{ 'false' }} # Ticket: 134416
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/ov_tensorflow_lite_frontend_tests --gtest_print_time=1 \
+          ${INSTALL_TEST_DIR}/ov_tensorflow_lite_frontend_tests --gtest_print_time=1 --gtest_brief=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TensorFlowLiteFrontend.xml
 
       # gtest_filter Ticket: 176780
@@ -391,7 +391,7 @@ jobs:
         run: |
           source ${INSTALL_DIR}/setupvars.sh
 
-          ${INSTALL_TEST_DIR}/ov_transformations_tests --gtest_print_time=1 \
+          ${INSTALL_TEST_DIR}/ov_transformations_tests --gtest_print_time=1 --gtest_brief=1 \
                 ${{ matrix.SANITIZER == 'Thread' && '--gtest_filter=-TransformationTestsF.TSGeneralTestBinaryGeneral:TransformationTestsF.TSGeneralTestConcatGeneral:PaddleFuzzyOpTest/FrontEndFuzzyOpTest.testOpFuzzy/paddle_greater_equal_big_int64_greater_equal_big_int64_pdmodel' || '' }} \
                 ${{ matrix.SANITIZER != '' && matrix.SANITIZER != 'Thread' && '--gtest_filter=-PaddleFuzzyOpTest/FrontEndFuzzyOpTest.testOpFuzzy/paddle_greater_equal_big_int64_greater_equal_big_int64_pdmodel' || '' }} \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-Transformations.xml
@@ -400,56 +400,56 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/ov_util_tests --gtest_print_time=1 \
+          ${INSTALL_TEST_DIR}/ov_util_tests --gtest_print_time=1 --gtest_brief=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CommonUtilTests.xml
 
       - name: Snippets func tests
         if: ${{ !cancelled() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/ov_snippets_func_tests --gtest_print_time=1 \
+          ${INSTALL_TEST_DIR}/ov_snippets_func_tests --gtest_print_time=1 --gtest_brief=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-SnippetsFuncTests.xml
 
       - name: CPU plugin unit tests
         if: ${{ !cancelled() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/ov_cpu_unit_tests --gtest_print_time=1 \
+          ${INSTALL_TEST_DIR}/ov_cpu_unit_tests --gtest_print_time=1 --gtest_brief=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CPUUnitTests.xml
 
       - name: ov_subgraphs_dumper_tests tests
         if: ${{ !cancelled() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/ov_subgraphs_dumper_tests --gtest_print_time=1 \
+          ${INSTALL_TEST_DIR}/ov_subgraphs_dumper_tests --gtest_print_time=1 --gtest_brief=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_subgraphs_dumper_tests.xml
 
       - name: Template OpImpl tests
         if: ${{ !cancelled() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/ov_op_conformance_tests --gtest_print_time=1 --device=TEMPLATE --gtest_filter=*OpImpl*\
+          ${INSTALL_TEST_DIR}/ov_op_conformance_tests --gtest_print_time=1 --gtest_brief=1 --device=TEMPLATE --gtest_filter=*OpImpl*\
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OpImplTests.xml
 
       - name: AUTO unit tests
         if: ${{ !cancelled() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/ov_auto_unit_tests --gtest_print_time=1 \
+          ${INSTALL_TEST_DIR}/ov_auto_unit_tests --gtest_print_time=1 --gtest_brief=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_auto_unit_tests.xml
 
       - name: AUTO func Tests
         if: ${{ 'false' }} # Issue 155210
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
-          ${{ env.INSTALL_TEST_DIR }}/ov_auto_func_tests --gtest_print_time=1 \
+          ${{ env.INSTALL_TEST_DIR }}/ov_auto_func_tests --gtest_print_time=1 --gtest_brief=1 \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_func_tests.xml
 
       - name: Template plugin func tests
         if: ${{ !cancelled() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/ov_template_func_tests --gtest_print_time=1 \
+          ${INSTALL_TEST_DIR}/ov_template_func_tests --gtest_print_time=1 --gtest_brief=1 \
                 --gtest_filter=*smoke* \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TemplateFuncTests.xml
 
@@ -457,38 +457,38 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/ov_capi_test --gtest_print_time=1 \
+          ${INSTALL_TEST_DIR}/ov_capi_test --gtest_print_time=1 --gtest_brief=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OpenVINOCAPITests.xml
 
       - name: AutoBatch unit tests
         if: ${{ !cancelled() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/ov_auto_batch_unit_tests --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_auto_batch_unit_tests.xml
+          ${INSTALL_TEST_DIR}/ov_auto_batch_unit_tests --gtest_brief=1 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_auto_batch_unit_tests.xml
 
       - name: AutoBatch func tests
         if: ${{ !cancelled() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/ov_auto_batch_func_tests --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_auto_batch_func_tests.xml --gtest_filter="*smoke*"
+          ${INSTALL_TEST_DIR}/ov_auto_batch_func_tests --gtest_brief=1 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_auto_batch_func_tests.xml --gtest_filter="*smoke*"
 
       - name: Proxy Plugin func tests
         if: ${{ !cancelled() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/ov_proxy_plugin_tests --gtest_print_time=1 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVProxyTests.xml
+          ${INSTALL_TEST_DIR}/ov_proxy_plugin_tests --gtest_print_time=1 --gtest_brief=1 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVProxyTests.xml
 
       - name: Hetero unit tests
         if: ${{ !cancelled() }}
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
-          ${{ env.INSTALL_TEST_DIR }}/ov_hetero_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVHeteroUnitTests.xml
+          ${{ env.INSTALL_TEST_DIR }}/ov_hetero_unit_tests --gtest_print_time=1 --gtest_brief=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVHeteroUnitTests.xml
 
       - name: Hetero func tests
         if: ${{ 'false' }} # Ticket: 134425
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVHeteroFuncTests.xml --gtest_filter="*smoke*" --gtest_filter=-"nightly*"
+          ${INSTALL_TEST_DIR}/ov_hetero_func_tests --gtest_print_time=1 --gtest_brief=1 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVHeteroFuncTests.xml --gtest_filter="*smoke*" --gtest_filter=-"nightly*"
 
       - name: Upload Test Results
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
@@ -579,7 +579,7 @@ jobs:
           GTEST_SHARD_INDEX: ${{ matrix.SHARD }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/ov_cpu_func_tests --gtest_print_time=1 \
+          ${INSTALL_TEST_DIR}/ov_cpu_func_tests --gtest_print_time=1 --gtest_brief=1 \
                 --gtest_filter=${{ env.GTEST_FILTER }} \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CPUFuncTests-${{ matrix.SHARD }}.xml
 

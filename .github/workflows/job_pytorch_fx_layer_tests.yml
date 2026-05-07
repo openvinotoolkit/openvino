@@ -113,7 +113,7 @@ jobs:
       - name: PyTorch torch.compile TORCHFX Layer Tests
         if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.os != 'macOS' && runner.arch != 'ARM64' && runner.os != 'Windows' }} # Ticket: 126287
         run: |
-          python3 -m pytest ${{ env.INSTALL_TEST_DIR }}/layer_tests/pytorch_tests -m precommit_fx_backend -v --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-pytorch_compile.xml
+          python3 -m pytest ${{ env.INSTALL_TEST_DIR }}/layer_tests/pytorch_tests -m precommit_fx_backend -q -ra --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-pytorch_compile.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP32

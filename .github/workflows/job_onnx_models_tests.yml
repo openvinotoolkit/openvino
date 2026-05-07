@@ -117,11 +117,11 @@ jobs:
 
       - name: Collect ONNX Models tests
         run: |
-          python3 -m pytest --backend="CPU" --model_zoo_dir="${MODELS_SHARE_PATH}" ${INSTALL_TEST_DIR}/onnx/tests/tests_python/test_zoo_models.py -v -n 1 -k 'not _cuda' --model_zoo_xfail --collect-only
+          python3 -m pytest --backend="CPU" --model_zoo_dir="${MODELS_SHARE_PATH}" ${INSTALL_TEST_DIR}/onnx/tests/tests_python/test_zoo_models.py -q -ra -n 1 -k 'not _cuda' --model_zoo_xfail --collect-only
 
       - name: ONNX Models Tests
         run: |
-          python3 -m pytest --backend="CPU" --model_zoo_dir="${MODELS_SHARE_PATH}" ${INSTALL_TEST_DIR}/onnx/tests/tests_python/test_zoo_models.py -v -n auto --forked -k 'not _cuda' --model_zoo_xfail
+          python3 -m pytest --backend="CPU" --model_zoo_dir="${MODELS_SHARE_PATH}" ${INSTALL_TEST_DIR}/onnx/tests/tests_python/test_zoo_models.py -q -ra -n auto --forked -k 'not _cuda' --model_zoo_xfail
 
       - name: Upload logs from pytest
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0

@@ -286,9 +286,18 @@ jobs:
           "${RISCV_TOOLCHAIN_ROOT}"/bin/qemu-riscv64 \
             -cpu rv64,x-v=true,vlen=256 \
             "${INSTALL_TEST_DIR}"/ov_cpu_func_tests \
-            --gtest_print_time=1 \
-            --gtest_filter="${GTEST_FILTER}"
+            --gtest_print_time=1 --gtest_brief=1 \
+            --gtest_filter="${GTEST_FILTER}" \
+            --gtest_output=xml:"${INSTALL_TEST_DIR}"/TEST-CPUFuncTests.xml
         timeout-minutes: ${{ (inputs.testFilterType == 'CONCISE' || (!inputs.testFilterType && github.event_name != 'schedule')) && 25 || 125 }}
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        if: ${{ !cancelled() }}
+        with:
+          name: test-results-cpu-func-riscv
+          path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+          if-no-files-found: 'warn'
 
   Overall_Status:
     name: ci/gha_overall_status_linux_riscv
