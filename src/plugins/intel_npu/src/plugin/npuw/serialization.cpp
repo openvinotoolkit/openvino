@@ -238,7 +238,9 @@ void ov::npuw::orc::serialize(Stream& stream, std::shared_ptr<ov::Node>& var) {
     std::shared_ptr<ov::Node> res =
         std::make_shared<ov::op::v0::Constant>(ov::element::Type(elem_type_str), std::vector<size_t>{1});
     const std::shared_ptr<ov::descriptor::Tensor>& tensor_dummy =
-        std::make_shared<ov::descriptor::Tensor>(ov::element::Type(elem_type_str), ov::PartialShape(part_shape_str), names);
+        std::make_shared<ov::descriptor::Tensor>(ov::element::Type(elem_type_str),
+                                                 ov::PartialShape(part_shape_str),
+                                                 names);
     var = std::make_shared<ov::op::v0::Result>(res);
     var->output(0).set_tensor_ptr(tensor_dummy);
     if (!names.empty()) {

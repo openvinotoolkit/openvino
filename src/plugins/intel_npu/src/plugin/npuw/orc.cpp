@@ -362,8 +362,7 @@ void ov::npuw::orc::ScopedWriteSection::close() {
     m_closed = true;
 }
 
-ov::npuw::orc::ScopedReadSection::ScopedReadSection(std::istream& stream)
-    : m_stream(stream) {
+ov::npuw::orc::ScopedReadSection::ScopedReadSection(std::istream& stream) : m_stream(stream) {
     auto reader = Stream::reader(stream);
     reader & m_header;
     m_end = checked_tellg(stream, "section bounds") + checked_streamoff(m_header.size);

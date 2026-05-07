@@ -10,12 +10,12 @@
 #include <unordered_map>
 
 #include "lazy_tensor.hpp"
-#include "orc.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "orc.hpp"
 
 namespace ov {
 namespace npuw {
