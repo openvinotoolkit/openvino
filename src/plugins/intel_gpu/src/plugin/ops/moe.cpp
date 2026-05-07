@@ -27,6 +27,7 @@
 #include "intel_gpu/primitives/moe_mask_gen.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/core/weight_sharing_util.hpp"
 
 namespace ov {
 namespace op {
@@ -115,6 +116,12 @@ static void CreateMOE3GemmFusedCompressedOp(ProgramBuilder& p, const std::shared
 
         if (attr_it != rt_info.end()) {
             return attr_it->second.as<ov::WeightlessCacheAttribute>().bin_offset;
+        }
+
+        // Try buffer descriptor offset (works when constant data is mmap'd from bin file).
+        auto source_buf = ov::weight_sharing::Extension::get_constant_source_buffer(*const_op);
+        if (source_buf) {
+            return ov::weight_sharing::Extension::get_constant_id(*const_op);
         }
 
         load_const_offsets_from_xml();
