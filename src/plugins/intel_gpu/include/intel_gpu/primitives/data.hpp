@@ -387,11 +387,21 @@ struct data : public primitive_base<data> {
         bool do_weightless_caching = cache_info->save(ob, data_size);
         if (!do_weightless_caching) {
             if (is_alloc_host_accessible(_allocation_type)) {
-                const uint16_t sub_buffer_offset = 128;
-                size_t pad_dim = (ob.get_current_offset() % sub_buffer_offset == 0) ? 0 : sub_buffer_offset - (ob.get_current_offset() % sub_buffer_offset);
-                if (pad_dim > 0) {
-                    std::vector<uint8_t> pad(pad_dim, 0);
-                    ob << make_data(pad.data(), pad_dim);
+                if (!ob.is_encrypted()) {
+                    std::cout << "SAVE" << ob.get_current_offset();
+                    const uint16_t sub_buffer_offset = 128;
+                    size_t pad_dim = (ob.get_current_offset() % sub_buffer_offset == 0) ? 0 : sub_buffer_offset - (ob.get_current_offset() % sub_buffer_offset);
+                    for (int i = 0; i < pad_dim; i++) {
+                        uint8_t pad_byte = 0;
+                        ob << make_data(&pad_byte, sizeof(uint8_t));
+                    }
+                    /*if (pad_dim > 0) {
+                        std::vector<uint8_t> pad;
+                        pad.resize(pad_dim);
+                        stream* strm = reinterpret_cast<stream*>(ob.get_stream());
+                        mem->copy_to(*strm, pad.data());
+                        ob << make_data(pad.data(), pad_dim);
+                    }*/
                 }
                 ob << make_data(mem->buffer_ptr(), data_size);
             } else {
@@ -432,15 +442,26 @@ struct data : public primitive_base<data> {
 
         if (!is_weightless_caching) {
             if (is_alloc_host_accessible(_allocation_type)) {
-                const uint16_t sub_buffer_offset = 128;
-                size_t pad_dim = (ib.get_current_offset() % sub_buffer_offset == 0) ? 0 : sub_buffer_offset - (ib.get_current_offset() % sub_buffer_offset);
-                if (pad_dim > 0) {
-                    std::vector<uint8_t> pad(pad_dim, 0);
-                    ib >> make_data(pad.data(), pad_dim);
+                if (!ib.is_encrypted()) {
+                    const uint16_t sub_buffer_offset = 128;
+                    size_t pad_dim = (ib.get_current_offset() % sub_buffer_offset == 0) ? 0 : sub_buffer_offset - (ib.get_current_offset() % sub_buffer_offset);
+                    std::cout << "LOAD" << ib.get_current_offset();
+                    for (size_t i = 0; i < pad_dim; i++) {
+                        uint8_t pad_byte = 0;
+                        ib >> make_data(&pad_byte, sizeof(uint8_t));
+                    }
+                    /*if (pad_dim > 0) {
+                        std::vector<uint8_t> pad(pad_dim);
+                        ib >> make_data(pad.data(), pad_dim);
+                        auto& eng = ib.get_engine();
+                        auto& strm = eng.get_service_stream();
+                        mem->copy_from(strm, pad.data());
+                    }*/
                 }
                 if (enable_zero_copy_mode) {
-                    mem = ib.get_engine().create_subbuffer(*model_tensor_base, output_layout, ib.get_current_ptr());      
+                    mem = ib.get_engine().create_subbuffer(*model_tensor_base, output_layout, ib.get_current_offset());      
                     ib.seek_current_ptr(data_size);
+                    //ib >> make_data(std::move(mem->buffer_ptr()), data_size);
                 } else {
                     ib >> make_data(std::move(mem->buffer_ptr()), data_size);
                 }

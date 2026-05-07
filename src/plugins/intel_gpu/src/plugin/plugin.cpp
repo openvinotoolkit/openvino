@@ -678,6 +678,8 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
         info.device = device_info.pci_info.pci_device;
         info.function = device_info.pci_info.pci_function;
         return decltype(ov::device::pci_info)::value_type {info};
+    } else if (name == ov::internal::cache_header_alignment) {
+        return decltype(ov::internal::cache_header_alignment)::value_type{4096};
     } else {
         OPENVINO_THROW("Unsupported metric key ", name);
     }
