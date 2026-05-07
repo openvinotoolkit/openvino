@@ -38,6 +38,16 @@ ov::pass::SoftmaxDecomposition::SoftmaxDecomposition() {
             return false;
         }
 
+        // Handle scalar (rank-0) input: softmax of a single value is always 1.
+        const auto& input_pshape = m_softmax->get_input_partial_shape(0);
+        if (input_pshape.rank().is_static() && input_pshape.rank().get_length() == 0) {
+            auto one_const = v0::Constant::create(m_softmax->get_output_element_type(0), ov::Shape{}, {1});
+            one_const->set_friendly_name(m_softmax->get_friendly_name());
+            ov::copy_runtime_info(m_softmax, one_const);
+            ov::replace_node(m_softmax, one_const);
+            return true;
+        }
+
         if (auto m_softmax_v1 = ov::as_type_ptr<v1::Softmax>(m_softmax)) {
             input = m_softmax_v1->input_value(0);
             softmax_axis = static_cast<int64_t>(m_softmax_v1->get_axis());

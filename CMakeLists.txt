@@ -38,7 +38,7 @@ set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 
 project(OpenVINO
         DESCRIPTION "OpenVINO toolkit"
-        HOMEPAGE_URL "https://docs.openvino.ai/2025/index.html"
+        HOMEPAGE_URL "https://docs.openvino.ai/2026/index.html"
         LANGUAGES C CXX)
 
 find_package(OpenVINODeveloperScripts REQUIRED

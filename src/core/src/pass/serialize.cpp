@@ -31,21 +31,26 @@
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
 namespace {
-const std::filesystem::path valid_xml_path(const std::filesystem::path& path) {
+void validate_xml_path(const std::filesystem::path& path) {
     OPENVINO_ASSERT(path.extension() == ".xml",
-                    "Path for xml file doesn't contains file name with 'xml' extension: \"",
-                    path,
-                    "\"");
-    return path;
+                    "Path for xml file doesn't contains file name with 'xml' extension: ",
+                    path);
 }
 
-std::filesystem::path provide_bin_path(const std::filesystem::path& xml_path, const std::filesystem::path& bin_path) {
-    if (bin_path.empty()) {
-        auto path = xml_path;
-        path.replace_extension(".bin");
-        return path;
-    } else {
-        return bin_path;
+std::filesystem::path provide_bin_path(const std::filesystem::path& xml_path) {
+    auto bin_path = xml_path;
+    bin_path.replace_extension(".bin");
+    return bin_path;
+}
+
+void convert_py_rt_info(ov::Model& model) {
+    // TODO xxx-105807: if rt_info is set in python api as a string ['precise_0'] = '',
+    //  we need to convert value to a class in order to have rt_info in the IR. The code below will convert
+    // ['precise_0'] = '' into => rt_info['precise_0'] = DisableFP16Compression{}
+    for (auto& node : model.get_ops()) {
+        if (fp16_compression_is_disabled(node)) {
+            disable_fp16_compression(node);
+        }
     }
 }
 
@@ -92,32 +97,39 @@ void serialize_func(std::ostream& xml_file,
     ov::util::ConstantWriter constant_write_handler(bin_file);
     serialize_func(xml_file, bin_file, std::move(model), ver, deterministic, constant_write_handler);
 }
+
+void handle_file_serialize_error(const std::filesystem::path& xml_path,
+                                 const std::filesystem::path& bin_path,
+                                 std::ofstream& xml,
+                                 std::ofstream& bin) {
+    xml.close();
+    bin.close();
+    std::ignore = std::filesystem::remove(xml_path);
+    std::ignore = std::filesystem::remove(bin_path);
+}
 }  // namespace
 
 namespace ov {
 bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_FUNCTION_SCOPE(Serialize);
+    OPENVINO_ASSERT(model, "ov::Model not provided");
 
     model->validate_nodes_and_infer_types();
+    convert_py_rt_info(*model);
 
-    // TODO xxx-105807: if rt_info is set in python api as a string ['precise_0'] = '',
-    //  we need to convert value to a class in order to have rt_info in the IR. The code below will convert
-    // ['precise_0'] = '' into => rt_info['precise_0'] = DisableFP16Compression{}
-    for (auto& node : model->get_ops())
-        if (fp16_compression_is_disabled(node))
-            disable_fp16_compression(node);
-
-    if (m_xmlFile && m_binFile) {
-        serialize_func(*m_xmlFile, *m_binFile, model, m_version);
+    if (m_xml_file && m_bin_file) {
+        serialize_func(*m_xml_file, *m_bin_file, model, m_version);
     } else {
-        ov::util::create_directory_recursive(m_xmlPath.parent_path());
+        ov::util::create_directory_recursive(m_xml_path.parent_path());
 
-        std::ofstream bin_file(m_binPath, std::ios::binary);
-        OPENVINO_ASSERT(bin_file, "Can't open bin file: \"", m_binPath, "\"");
+        std::ofstream bin_file(m_bin_path, std::ios::binary);
+        OPENVINO_ASSERT(bin_file, "Can't open bin file: ", m_bin_path);
+        bin_file.exceptions(std::ofstream::failbit | std::ofstream::badbit);
 
         // create xml file
-        std::ofstream xml_file(m_xmlPath);
-        OPENVINO_ASSERT(xml_file, "Can't open xml file: \"", m_xmlPath, "\"");
+        std::ofstream xml_file(m_xml_path);
+        OPENVINO_ASSERT(xml_file, "Can't open xml file: ", m_xml_path);
+        xml_file.exceptions(std::ofstream::failbit | std::ofstream::badbit);
 
         try {
             serialize_func(xml_file, bin_file, model, m_version);
@@ -125,10 +137,10 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
             // optimization decision was made to create .bin file upfront and
             // write to it directly instead of buffering its content in memory,
             // hence we need to delete it here in case of failure
-            xml_file.close();
-            bin_file.close();
-            std::ignore = std::filesystem::remove(m_xmlPath);
-            std::ignore = std::filesystem::remove(m_binPath);
+            handle_file_serialize_error(m_xml_path, m_bin_path, xml_file, bin_file);
+            throw;
+        } catch (const std::ios_base::failure&) {
+            handle_file_serialize_error(m_xml_path, m_bin_path, xml_file, bin_file);
             throw;
         }
     }
@@ -137,19 +149,23 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
     return false;
 }
 
-pass::Serialize::Serialize(std::ostream& xmlFile, std::ostream& binFile, pass::Serialize::Version version)
-    : m_xmlFile{&xmlFile},
-      m_binFile{&binFile},
-      m_xmlPath{},
-      m_binPath{},
+pass::Serialize::Serialize(std::ostream& xml_file, std::ostream& bin_file, pass::Serialize::Version version)
+    : m_xml_file{&xml_file},
+      m_bin_file{&bin_file},
+      m_xml_path{},
+      m_bin_path{},
       m_version{version} {}
 
-pass::Serialize::Serialize(const std::filesystem::path& xmlPath, const std::filesystem::path& binPath, Version version)
-    : m_xmlFile{nullptr},
-      m_binFile{nullptr},
-      m_xmlPath{valid_xml_path(xmlPath)},
-      m_binPath{provide_bin_path(xmlPath, binPath)},
-      m_version{version} {}
+pass::Serialize::Serialize(const std::filesystem::path& xml_path,
+                           const std::filesystem::path& bin_path,
+                           Version version)
+    : m_xml_file{nullptr},
+      m_bin_file{nullptr},
+      m_xml_path{xml_path},
+      m_bin_path{bin_path.empty() ? provide_bin_path(xml_path) : bin_path},
+      m_version{version} {
+    validate_xml_path(m_xml_path);
+}
 
 pass::StreamSerialize::StreamSerialize(std::ostream& stream,
                                        const std::function<void(std::ostream&)>& custom_data_serializer,

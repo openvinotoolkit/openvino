@@ -17,7 +17,7 @@ Easy Integration
 |     With the OpenVINO GenAI, you can run generative models with just a few lines of code.
       Check out the GenAI guide for instructions on how to do it.
 
-| `Python / C++ / C / NodeJS APIs <https://docs.openvino.ai/2025/api/api_reference.html>`__
+| `Python / C++ / C / NodeJS APIs <https://docs.openvino.ai/2026/api/api_reference.html>`__
 |     OpenVINO offers the C++ API as a complete set of available methods. For less resource-critical
       solutions, the Python API provides almost full coverage, while C and NodeJS ones are limited
       to the methods most basic for their typical environments. The NodeJS API, is still in its

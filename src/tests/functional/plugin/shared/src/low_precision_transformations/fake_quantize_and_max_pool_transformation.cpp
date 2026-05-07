@@ -7,6 +7,7 @@
 #include <memory>
 #include <tuple>
 #include <vector>
+#include <sstream>
 #include <string>
 
 #include "transformations/init_node_info.hpp"
@@ -17,7 +18,9 @@ namespace LayerTestsDefinitions {
 
 std::string FakeQuantizeAndMaxPoolTransformation::getTestCaseName(const testing::TestParamInfo<FakeQuantizeAndMaxPoolTransformationParams>& obj) {
     auto [precision, inputShapes, device, fakeQuantize] = obj.param;
-    return get_test_case_name_by_params(precision, inputShapes, device);
+    std::ostringstream result;
+    result << get_test_case_name_by_params(precision, inputShapes, device) << "_" << fakeQuantize;
+    return result.str();
 }
 
 void FakeQuantizeAndMaxPoolTransformation::SetUp() {

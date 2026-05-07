@@ -8,6 +8,7 @@
 
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/util/common_util.hpp"
 
 namespace ov {
 template <class TContainer, class TAxes>

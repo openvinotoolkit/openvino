@@ -71,6 +71,7 @@ class TestIndexFill(PytorchLayerTest):
     )
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_index_fill_single_index(self, ie_device, precision, ir_version, input_data):
         self.input_tensor = self.random.randn(*input_data["input_shape"])
         values = torch.tensor(np.float32(input_data["input_value"]))

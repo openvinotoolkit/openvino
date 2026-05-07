@@ -22,6 +22,8 @@ TensorMetaInfo extract_tensor_meta_info(const TensorInfo& tensor_info) {
     const auto tensor = tensor_info.tensor;
     const uint8_t* tensor_data =
         (tensor_info.buffer && tensor_info.buffer->data() ? tensor_info.buffer->data()->data() : nullptr);
+    const size_t tensor_data_size =
+        (tensor_info.buffer && tensor_info.buffer->data() ? tensor_info.buffer->data()->size() : 0);
 
     tensor_meta_info.m_partial_shape =
         ov::frontend::tensorflow_lite::get_ov_shape(tensor->shape(), tensor->shape_signature());
@@ -30,8 +32,10 @@ TensorMetaInfo extract_tensor_meta_info(const TensorInfo& tensor_info) {
     tensor_meta_info.m_sparsity_info = ov::frontend::tensorflow_lite::get_sparsity(tensor->shape(),
                                                                                    tensor->sparsity(),
                                                                                    tensor_meta_info.m_element_type,
-                                                                                   tensor_data);
+                                                                                   tensor_data,
+                                                                                   tensor_data_size);
     tensor_meta_info.m_tensor_data = tensor_data;
+    tensor_meta_info.m_tensor_data_size = tensor_data_size;
     tensor_meta_info.m_tensor_name = tensor->name()->str();
 
     return tensor_meta_info;
@@ -114,6 +118,8 @@ std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> DecoderFlatBuffe
     std::vector<std::string> names = {tensor->name()->str()};
     const uint8_t* tensor_data =
         (tensor_info.buffer && tensor_info.buffer->data() ? tensor_info.buffer->data()->data() : nullptr);
+    const size_t tensor_data_size =
+        (tensor_info.buffer && tensor_info.buffer->data() ? tensor_info.buffer->data()->size() : 0);
 
     return std::make_shared<ov::frontend::tensorflow_lite::TensorLitePlace>(
         model,
@@ -124,8 +130,10 @@ std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> DecoderFlatBuffe
         ov::frontend::tensorflow_lite::get_sparsity(tensor->shape(),
                                                     tensor->sparsity(),
                                                     ov::frontend::tensorflow_lite::get_ov_type(tensor->type()),
-                                                    tensor_data),
-        tensor_data);
+                                                    tensor_data,
+                                                    tensor_data_size),
+        tensor_data,
+        tensor_data_size);
 }
 
 ov::Any get_value_as_ov_any(const flexbuffers::Reference& value) {
@@ -262,6 +270,24 @@ ov::Any DecoderFlatBuffer::get_attribute(const std::string& name) const {
         return "NHWC";
     } else if (name == "activation" && m_type == "CONV_2D") {
         return EnumNameActivationFunctionType(this->get_attribute(&tflite::Conv2DOptions::fused_activation_function));
+    } else if (name == "strides" && m_type == "CONV_3D") {
+        return std::vector<int64_t>{1,
+                                    this->get_attribute(&tflite::Conv3DOptions::stride_d),
+                                    this->get_attribute(&tflite::Conv3DOptions::stride_h),
+                                    this->get_attribute(&tflite::Conv3DOptions::stride_w),
+                                    1};
+    } else if (name == "padding" && m_type == "CONV_3D") {
+        return std::string(EnumNamePadding(this->get_attribute(&tflite::Conv3DOptions::padding)));
+    } else if (name == "dilations" && m_type == "CONV_3D") {
+        return std::vector<int64_t>{1,
+                                    this->get_attribute(&tflite::Conv3DOptions::dilation_d_factor),
+                                    this->get_attribute(&tflite::Conv3DOptions::dilation_h_factor),
+                                    this->get_attribute(&tflite::Conv3DOptions::dilation_w_factor),
+                                    1};
+    } else if (name == "data_format" && m_type == "CONV_3D") {
+        return "NDHWC";
+    } else if (name == "activation" && m_type == "CONV_3D") {
+        return EnumNameActivationFunctionType(this->get_attribute(&tflite::Conv3DOptions::fused_activation_function));
     } else if (name == "strides" && m_type == "DEPTHWISE_CONV_2D") {
         return std::vector<int64_t>{1,
                                     this->get_attribute(&tflite::DepthwiseConv2DOptions::stride_h),

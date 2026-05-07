@@ -274,15 +274,27 @@ class PytorchLayerTest:
         retries = 0
         max_retries = 3
         last_e = None
+        first_e = None
         while retries < max_retries:
             try:
                 return self._test_impl(model, kind, ie_device, precision, ir_version, infer_timeout, dynamic_shapes, **kwargs)
             except RuntimeError as e:
                 # This is a potentially sporadic issue
+                if first_e is None:
+                    first_e = e
                 print(f"An error occurred: {e}. Retrying...")
                 last_e = e
                 retries += 1
+                if "Can't redefine method: forward" in str(e) and first_e is not None:
+                    raise RuntimeError(
+                        "Retrying hit TorchScript method redefinition and can mask the original failure. "
+                        f"First error: {first_e}\nLast error: {e}"
+                    ) from first_e
         else:
+            if first_e is not None and last_e is not None:
+                raise RuntimeError(
+                    f"Max retries reached. Function execution failed. First error: {first_e}\nLast error: {last_e}"
+                ) from first_e
             raise RuntimeError("Max retries reached. Function execution failed.") from last_e
 
 

@@ -8,6 +8,28 @@
 // Fake group size for compatibility and computation performance balance
 #define FAKE_GROUP_SIZE 128
 
+// HAS_ZP: 1 = asymmetric quantization (subtract zero point), 0 = symmetric (no zero point)
+#if HAS_ZP
+#    define ZP_ADJUST_2(sum0, sum1, xg_sum_gk, z0, z1) ((sum0) - (xg_sum_gk) * (z0)), ((sum1) - (xg_sum_gk) * (z1))
+#    define ZP_ADJUST_4(sum0123, xg_sum_gk, z) ((sum0123) - (xg_sum_gk) * (z))
+#else
+#    define ZP_ADJUST_2(sum0, sum1, xg_sum_gk, z0, z1) (sum0), (sum1)
+#    define ZP_ADJUST_4(sum0123, xg_sum_gk, z) (sum0123)
+#endif
+
+// WEIGHT_IS_SIGNED: sign extension helpers for i4/i8 weights
+#if WEIGHT_IS_SIGNED
+// 4-bit sign extension: [0,15] -> [-8,7]. If bit3 is set, OR with 0xF0 to sign-extend to char.
+#    define DEQUANT_4BIT_LO(v) convert_half((char)(((v) & 0x08) ? ((v) | 0xF0) : ((v) & 0x0F)))
+#    define DEQUANT_4BIT_HI(v) convert_half((char)((((v) >> 4) & 0x08) ? (((v) >> 4) | 0xF0) : (((v) >> 4) & 0x0F)))
+// 8-bit sign extension: reinterpret uchar as signed char
+#    define DEQUANT_8BIT(v)    convert_half(as_char(v))
+#else
+#    define DEQUANT_4BIT_LO(v) convert_half((v) & 0x0F)
+#    define DEQUANT_4BIT_HI(v) convert_half((v) >> 4)
+#    define DEQUANT_8BIT(v)    convert_half(v)
+#endif
+
 #if GATE_UP_ENABLE
 inline void gate_up_gemv_n2x_u4(const __global uchar* weight,
                                 __global half* scales,
@@ -28,15 +50,19 @@ inline void gate_up_gemv_n2x_u4(const __global uchar* weight,
         float sum_all0 = 0;
         float sum_all1 = 0;
         __global half* S = scales + n;
+#if HAS_ZP
         __global uchar* Z = zps + n / 2;
+#endif
         unroll_for(int gk = 0; gk < K / FAKE_GROUP_SIZE; gk++) {
-            int scale_offset = gk * (FAKE_GROUP_SIZE / GATE_UP_GROUP_SIZE) * N;
-            int zp_offset = gk * (FAKE_GROUP_SIZE / GATE_UP_GROUP_SIZE) * N / 2;
+            int scale_offset = (gk * FAKE_GROUP_SIZE / GATE_UP_GROUP_SIZE) * N;
             half s0 = S[scale_offset];
             half s1 = S[scale_offset + 1];
+#if HAS_ZP
+            int zp_offset = (gk * FAKE_GROUP_SIZE / GATE_UP_GROUP_SIZE) * N / 2;
             uchar z = Z[zp_offset];
             half z_hf0 = convert_half(z & 0xf);
             half z_hf1 = convert_half(z >> 4);
+#endif
 
 #    if SUBGROUP_SIZE == 32
             half2 sum0;
@@ -45,18 +71,23 @@ inline void gate_up_gemv_n2x_u4(const __global uchar* weight,
             uchar2 b = intel_sub_group_block_read_uc2((const __global uchar*)B + gk * FAKE_GROUP_SIZE / 2);
             uchar2 b2 = intel_sub_group_block_read_uc2((const __global uchar*)(B + (K / 2) + gk * FAKE_GROUP_SIZE / 2));
 
-            sum0.s0 = fma(a.s0, (convert_half(b.s0 & 0x0F)), 0);
-            sum0.s1 = fma(a.s1, (convert_half(b.s1 & 0x0F)), 0);
-            sum0.s0 = fma(a.s2, (convert_half(b.s0 >> 4)), sum0.s0);
-            sum0.s1 = fma(a.s3, (convert_half(b.s1 >> 4)), sum0.s1);
+            sum0.s0 = fma(a.s0, (DEQUANT_4BIT_LO(b.s0)), 0);
+            sum0.s1 = fma(a.s1, (DEQUANT_4BIT_LO(b.s1)), 0);
+            sum0.s0 = fma(a.s2, (DEQUANT_4BIT_HI(b.s0)), sum0.s0);
+            sum0.s1 = fma(a.s3, (DEQUANT_4BIT_HI(b.s1)), sum0.s1);
 
-            sum1.s0 = fma(a.s0, (convert_half(b2.s0 & 0x0F)), 0);
-            sum1.s1 = fma(a.s1, (convert_half(b2.s1 & 0x0F)), 0);
-            sum1.s0 = fma(a.s2, (convert_half(b2.s0 >> 4)), sum1.s0);
-            sum1.s1 = fma(a.s3, (convert_half(b2.s1 >> 4)), sum1.s1);
+            sum1.s0 = fma(a.s0, (DEQUANT_4BIT_LO(b2.s0)), 0);
+            sum1.s1 = fma(a.s1, (DEQUANT_4BIT_LO(b2.s1)), 0);
+            sum1.s0 = fma(a.s2, (DEQUANT_4BIT_HI(b2.s0)), sum1.s0);
+            sum1.s1 = fma(a.s3, (DEQUANT_4BIT_HI(b2.s1)), sum1.s1);
 
+#if HAS_ZP
             sum_all0 += (sum0[0] + sum0[1] - xg_sum[gk] * z_hf0) * s0;
             sum_all1 += (sum1[0] + sum1[1] - xg_sum[gk] * z_hf1) * s1;
+#else
+            sum_all0 += (sum0[0] + sum0[1]) * s0;
+            sum_all1 += (sum1[0] + sum1[1]) * s1;
+#endif
 #    else
             half4 sum0;
             half4 sum1;
@@ -64,28 +95,33 @@ inline void gate_up_gemv_n2x_u4(const __global uchar* weight,
             uchar4 b = intel_sub_group_block_read_uc4((const __global uchar*)B + gk * FAKE_GROUP_SIZE / 2);
             uchar4 b2 = intel_sub_group_block_read_uc4((const __global uchar*)(B + (K / 2) + gk * FAKE_GROUP_SIZE / 2));
 
-            sum0.s0 = fma(a.s0, (convert_half(b.s0 & 0x0F)), 0);
-            sum0.s1 = fma(a.s1, (convert_half(b.s1 & 0x0F)), 0);
-            sum0.s2 = fma(a.s2, (convert_half(b.s2 & 0x0F)), 0);
-            sum0.s3 = fma(a.s3, (convert_half(b.s3 & 0x0F)), 0);
+            sum0.s0 = fma(a.s0, (DEQUANT_4BIT_LO(b.s0)), 0);
+            sum0.s1 = fma(a.s1, (DEQUANT_4BIT_LO(b.s1)), 0);
+            sum0.s2 = fma(a.s2, (DEQUANT_4BIT_LO(b.s2)), 0);
+            sum0.s3 = fma(a.s3, (DEQUANT_4BIT_LO(b.s3)), 0);
 
-            sum0.s0 = fma(a.s4, (convert_half(b.s0 >> 4)), sum0.s0);
-            sum0.s1 = fma(a.s5, (convert_half(b.s1 >> 4)), sum0.s1);
-            sum0.s2 = fma(a.s6, (convert_half(b.s2 >> 4)), sum0.s2);
-            sum0.s3 = fma(a.s7, (convert_half(b.s3 >> 4)), sum0.s3);
+            sum0.s0 = fma(a.s4, (DEQUANT_4BIT_HI(b.s0)), sum0.s0);
+            sum0.s1 = fma(a.s5, (DEQUANT_4BIT_HI(b.s1)), sum0.s1);
+            sum0.s2 = fma(a.s6, (DEQUANT_4BIT_HI(b.s2)), sum0.s2);
+            sum0.s3 = fma(a.s7, (DEQUANT_4BIT_HI(b.s3)), sum0.s3);
 
-            sum1.s0 = fma(a.s0, (convert_half(b2.s0 & 0x0F)), 0);
-            sum1.s1 = fma(a.s1, (convert_half(b2.s1 & 0x0F)), 0);
-            sum1.s2 = fma(a.s2, (convert_half(b2.s2 & 0x0F)), 0);
-            sum1.s3 = fma(a.s3, (convert_half(b2.s3 & 0x0F)), 0);
+            sum1.s0 = fma(a.s0, (DEQUANT_4BIT_LO(b2.s0)), 0);
+            sum1.s1 = fma(a.s1, (DEQUANT_4BIT_LO(b2.s1)), 0);
+            sum1.s2 = fma(a.s2, (DEQUANT_4BIT_LO(b2.s2)), 0);
+            sum1.s3 = fma(a.s3, (DEQUANT_4BIT_LO(b2.s3)), 0);
 
-            sum1.s0 = fma(a.s4, (convert_half(b2.s0 >> 4)), sum1.s0);
-            sum1.s1 = fma(a.s5, (convert_half(b2.s1 >> 4)), sum1.s1);
-            sum1.s2 = fma(a.s6, (convert_half(b2.s2 >> 4)), sum1.s2);
-            sum1.s3 = fma(a.s7, (convert_half(b2.s3 >> 4)), sum1.s3);
+            sum1.s0 = fma(a.s4, (DEQUANT_4BIT_HI(b2.s0)), sum1.s0);
+            sum1.s1 = fma(a.s5, (DEQUANT_4BIT_HI(b2.s1)), sum1.s1);
+            sum1.s2 = fma(a.s6, (DEQUANT_4BIT_HI(b2.s2)), sum1.s2);
+            sum1.s3 = fma(a.s7, (DEQUANT_4BIT_HI(b2.s3)), sum1.s3);
 
+#if HAS_ZP
             sum_all0 += (sum0[0] + sum0[1] + sum0[2] + sum0[3] - xg_sum[gk] * z_hf0) * s0;
             sum_all1 += (sum1[0] + sum1[1] + sum1[2] + sum1[3] - xg_sum[gk] * z_hf1) * s1;
+#else
+            sum_all0 += (sum0[0] + sum0[1] + sum0[2] + sum0[3]) * s0;
+            sum_all1 += (sum1[0] + sum1[1] + sum1[2] + sum1[3]) * s1;
+#endif
 #    endif
         }
 
@@ -122,14 +158,18 @@ inline void gate_up_gemv_n2x_u8(const __global uchar* weight,
         float sum_all0 = 0;
         float sum_all1 = 0;
         __global half* S = scales + n;
+#if HAS_ZP
         __global uchar* Z = zps + n;
+#endif
         unroll_for(int gk = 0; gk < K / FAKE_GROUP_SIZE; gk++) {
-            int scale_offset = gk * (FAKE_GROUP_SIZE / GATE_UP_GROUP_SIZE) * N;
-            int zp_offset = gk * (FAKE_GROUP_SIZE / GATE_UP_GROUP_SIZE) * N;
+            int scale_offset = (gk * FAKE_GROUP_SIZE / GATE_UP_GROUP_SIZE) * N;
             half s0 = S[scale_offset];
             half s1 = S[scale_offset + 1];
+#if HAS_ZP
+            int zp_offset = (gk * FAKE_GROUP_SIZE / GATE_UP_GROUP_SIZE) * N;
             half z0 = convert_half(Z[zp_offset]);
             half z1 = convert_half(Z[zp_offset + 1]);
+#endif
 
 #    if SUBGROUP_SIZE == 32
             float2 sum0;
@@ -138,18 +178,23 @@ inline void gate_up_gemv_n2x_u8(const __global uchar* weight,
             uchar4 b = intel_sub_group_block_read_uc4((const __global uchar*)B + gk * FAKE_GROUP_SIZE);
             uchar4 b2 = intel_sub_group_block_read_uc4((const __global uchar*)(B + K + gk * FAKE_GROUP_SIZE));
 
-            sum0.s0 = fma((float)a.s0, (float)(convert_half(b.s0)), 0.0f);
-            sum0.s1 = fma((float)a.s1, (float)(convert_half(b.s1)), 0.0f);
-            sum0.s0 = fma((float)a.s2, (float)(convert_half(b.s2)), sum0.s0);
-            sum0.s1 = fma((float)a.s3, (float)(convert_half(b.s3)), sum0.s1);
+            sum0.s0 = fma((float)a.s0, (float)(DEQUANT_8BIT(b.s0)), 0.0f);
+            sum0.s1 = fma((float)a.s1, (float)(DEQUANT_8BIT(b.s1)), 0.0f);
+            sum0.s0 = fma((float)a.s2, (float)(DEQUANT_8BIT(b.s2)), sum0.s0);
+            sum0.s1 = fma((float)a.s3, (float)(DEQUANT_8BIT(b.s3)), sum0.s1);
 
-            sum1.s0 = fma((float)a.s0, (float)(convert_half(b2.s0)), 0.0f);
-            sum1.s1 = fma((float)a.s1, (float)(convert_half(b2.s1)), 0.0f);
-            sum1.s0 = fma((float)a.s2, (float)(convert_half(b2.s2)), sum1.s0);
-            sum1.s1 = fma((float)a.s3, (float)(convert_half(b2.s3)), sum1.s1);
+            sum1.s0 = fma((float)a.s0, (float)(DEQUANT_8BIT(b2.s0)), 0.0f);
+            sum1.s1 = fma((float)a.s1, (float)(DEQUANT_8BIT(b2.s1)), 0.0f);
+            sum1.s0 = fma((float)a.s2, (float)(DEQUANT_8BIT(b2.s2)), sum1.s0);
+            sum1.s1 = fma((float)a.s3, (float)(DEQUANT_8BIT(b2.s3)), sum1.s1);
 
+#if HAS_ZP
             sum_all0 += (sum0[0] + sum0[1] - xg_sum[gk] * z0) * s0;
             sum_all1 += (sum1[0] + sum1[1] - xg_sum[gk] * z1) * s1;
+#else
+            sum_all0 += (sum0[0] + sum0[1]) * s0;
+            sum_all1 += (sum1[0] + sum1[1]) * s1;
+#endif
 #    else
             float4 sum0;
             float4 sum1;
@@ -157,28 +202,33 @@ inline void gate_up_gemv_n2x_u8(const __global uchar* weight,
             uchar8 b = intel_sub_group_block_read_uc8((const __global uchar*)B + gk * FAKE_GROUP_SIZE);
             uchar8 b2 = intel_sub_group_block_read_uc8((const __global uchar*)(B + K + gk * FAKE_GROUP_SIZE));
 
-            sum0.s0 = fma((float)a.s0, (float)(convert_half(b.s0)), 0.0f);
-            sum0.s1 = fma((float)a.s1, (float)(convert_half(b.s1)), 0.0f);
-            sum0.s2 = fma((float)a.s2, (float)(convert_half(b.s2)), 0.0f);
-            sum0.s3 = fma((float)a.s3, (float)(convert_half(b.s3)), 0.0f);
+            sum0.s0 = fma((float)a.s0, (float)(DEQUANT_8BIT(b.s0)), 0.0f);
+            sum0.s1 = fma((float)a.s1, (float)(DEQUANT_8BIT(b.s1)), 0.0f);
+            sum0.s2 = fma((float)a.s2, (float)(DEQUANT_8BIT(b.s2)), 0.0f);
+            sum0.s3 = fma((float)a.s3, (float)(DEQUANT_8BIT(b.s3)), 0.0f);
 
-            sum0.s0 = fma((float)a.s4, (float)(convert_half(b.s4)), sum0.s0);
-            sum0.s1 = fma((float)a.s5, (float)(convert_half(b.s5)), sum0.s1);
-            sum0.s2 = fma((float)a.s6, (float)(convert_half(b.s6)), sum0.s2);
-            sum0.s3 = fma((float)a.s7, (float)(convert_half(b.s7)), sum0.s3);
+            sum0.s0 = fma((float)a.s4, (float)(DEQUANT_8BIT(b.s4)), sum0.s0);
+            sum0.s1 = fma((float)a.s5, (float)(DEQUANT_8BIT(b.s5)), sum0.s1);
+            sum0.s2 = fma((float)a.s6, (float)(DEQUANT_8BIT(b.s6)), sum0.s2);
+            sum0.s3 = fma((float)a.s7, (float)(DEQUANT_8BIT(b.s7)), sum0.s3);
 
-            sum1.s0 = fma((float)a.s0, (float)(convert_half(b2.s0)), 0.0f);
-            sum1.s1 = fma((float)a.s1, (float)(convert_half(b2.s1)), 0.0f);
-            sum1.s2 = fma((float)a.s2, (float)(convert_half(b2.s2)), 0.0f);
-            sum1.s3 = fma((float)a.s3, (float)(convert_half(b2.s3)), 0.0f);
+            sum1.s0 = fma((float)a.s0, (float)(DEQUANT_8BIT(b2.s0)), 0.0f);
+            sum1.s1 = fma((float)a.s1, (float)(DEQUANT_8BIT(b2.s1)), 0.0f);
+            sum1.s2 = fma((float)a.s2, (float)(DEQUANT_8BIT(b2.s2)), 0.0f);
+            sum1.s3 = fma((float)a.s3, (float)(DEQUANT_8BIT(b2.s3)), 0.0f);
 
-            sum1.s0 = fma((float)a.s4, (float)(convert_half(b2.s4)), sum1.s0);
-            sum1.s1 = fma((float)a.s5, (float)(convert_half(b2.s5)), sum1.s1);
-            sum1.s2 = fma((float)a.s6, (float)(convert_half(b2.s6)), sum1.s2);
-            sum1.s3 = fma((float)a.s7, (float)(convert_half(b2.s7)), sum1.s3);
+            sum1.s0 = fma((float)a.s4, (float)(DEQUANT_8BIT(b2.s4)), sum1.s0);
+            sum1.s1 = fma((float)a.s5, (float)(DEQUANT_8BIT(b2.s5)), sum1.s1);
+            sum1.s2 = fma((float)a.s6, (float)(DEQUANT_8BIT(b2.s6)), sum1.s2);
+            sum1.s3 = fma((float)a.s7, (float)(DEQUANT_8BIT(b2.s7)), sum1.s3);
 
+#if HAS_ZP
             sum_all0 += (sum0[0] + sum0[1] + sum0[2] + sum0[3] - xg_sum[gk] * z0) * s0;
             sum_all1 += (sum1[0] + sum1[1] + sum1[2] + sum1[3] - xg_sum[gk] * z1) * s1;
+#else
+            sum_all0 += (sum0[0] + sum0[1] + sum0[2] + sum0[3]) * s0;
+            sum_all1 += (sum1[0] + sum1[1] + sum1[2] + sum1[3]) * s1;
+#endif
 #    endif
         }
 
@@ -231,7 +281,7 @@ inline void gate_up_gemv_n2x_f16(const __global half* weight, __global half* y, 
             half4 sum1;
             half8 a = as_half8(intel_sub_group_block_read_us8((const __global ushort*)x2 + gk * FAKE_GROUP_SIZE));
             half8 b = as_half8(intel_sub_group_block_read_us8((const __global ushort*)B + gk * FAKE_GROUP_SIZE));
-            half8 b2= as_half8(intel_sub_group_block_read_us8((const __global ushort*)(B + K + gk * FAKE_GROUP_SIZE)));
+            half8 b2 = as_half8(intel_sub_group_block_read_us8((const __global ushort*)(B + K + gk * FAKE_GROUP_SIZE)));
 
             sum0.s0 = fma(a.s0, b.s0, 0);
             sum0.s1 = fma(a.s1, b.s1, 0);
@@ -253,7 +303,7 @@ inline void gate_up_gemv_n2x_f16(const __global half* weight, __global half* y, 
             sum1.s2 = fma(a.s6, b2.s6, sum1.s2);
             sum1.s3 = fma(a.s7, b2.s7, sum1.s3);
 
-            sum_all0 += sum0[0] + sum0[1] + sum0[2] + sum0[3] ;
+            sum_all0 += sum0[0] + sum0[1] + sum0[2] + sum0[3];
             sum_all1 += sum1[0] + sum1[1] + sum1[2] + sum1[3];
 #    endif
         }
@@ -272,18 +322,36 @@ inline void gate_up_gemv_n2x_f16(const __global half* weight, __global half* y, 
     }
 }
 
-__attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(const __global int* expert_list,
-                                                                              const __global MOE_WEI_DT* gate_weight_addr,
-                                                                              const __global MOE_SCALE_DT* gate_scale_addr,
-                                                                              const __global MOE_ZP_DT* gate_zp_addr,
-                                                                              const __global MOE_WEI_DT* up_weight_addr,
-                                                                              const __global MOE_SCALE_DT* up_scale_addr,
-                                                                              const __global MOE_ZP_DT* up_zp_addr,
-                                                                              __global MOE_DTYPE* x,    // [1, HIDDEN_SIZE]
-                                                                              __global MOE_DTYPE* y) {  // [MAX_TOPK, INTERMEDIATE_SIZE]
+__attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(
+    const __global int* expert_list,
+    const __global MOE_WEI_DT* gate_weight_addr,
+    const __global MOE_SCALE_DT* gate_scale_addr,
+    const __global MOE_ZP_DT* gate_zp_addr,
+    const __global MOE_WEI_DT* up_weight_addr,
+    const __global MOE_SCALE_DT* up_scale_addr,
+    const __global MOE_ZP_DT* up_zp_addr,
+#    if SHARED_EXPERT_ENABLE
+    const __global MOE_WEI_DT* shared_gate_weight,
+    const __global MOE_SCALE_DT* shared_gate_scale,
+    const __global MOE_ZP_DT* shared_gate_zp,
+    const __global MOE_WEI_DT* shared_up_weight,
+    const __global MOE_SCALE_DT* shared_up_scale,
+    const __global MOE_ZP_DT* shared_up_zp,
+    const __global half* shared_gate_gate_weight,  // [HIDDEN_SIZE] (assuming no scale/zp for now, or pre-dequantized)
+    __global MOE_DTYPE* routing_weights,           // Input routing weights, will append shared gate result at end
+#    endif
+    __global MOE_DTYPE* x,    // [1, HIDDEN_SIZE]
+    __global MOE_DTYPE* y) {  // [MAX_TOPK (+1 if shared), INTERMEDIATE_SIZE]
     // global: [expert, SUBGROUP_SIZE, N//N_BLOCK],[1, SUBGROUP_SIZE, SUBGROUP_NUM]
     int expert_no = get_global_id(0);
     y += expert_no * INTERMEDIATE_SIZE;
+
+    // Check if we are processing the Shared Expert
+#    if SHARED_EXPERT_ENABLE
+    bool is_shared = (expert_no == MAX_TOPK);  // Assuming global size was increased by 1
+#    else
+    bool is_shared = false;
+#    endif
 
 #    if WEIGHT_COMPRESSEION_DT == 0
     const int expert_wei_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / 2;
@@ -296,26 +364,56 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(co
 #    endif
 
     int expert_id = expert_list[expert_no];
-
     // gate, [HIDDEN_SIZE, INTERMEDIATE_SIZE]
-    __global MOE_WEI_DT* gate_weight = (__global MOE_WEI_DT*)(gate_weight_addr + expert_id * expert_wei_size);
-    __global MOE_SCALE_DT* gate_scale = (__global MOE_SCALE_DT*)(gate_scale_addr + expert_id * expert_scale_size);
-    __global MOE_ZP_DT* gate_zp = (__global MOE_ZP_DT*)(gate_zp_addr + expert_id * expert_zp_size);
-
+    __global MOE_WEI_DT* gate_weight;
+    __global MOE_SCALE_DT* gate_scale;
+    __global MOE_ZP_DT* gate_zp;
     // up, [HIDDEN_SIZE, INTERMEDIATE_SIZE]
-    __global MOE_WEI_DT* up_weight = (__global MOE_WEI_DT*)(up_weight_addr + expert_id * expert_wei_size);
-    __global MOE_SCALE_DT* up_scale = (__global MOE_SCALE_DT*)(up_scale_addr + expert_id * expert_scale_size);
-    __global MOE_ZP_DT* up_zp = (__global MOE_ZP_DT*)(up_zp_addr + expert_id * expert_zp_size);
+    __global MOE_WEI_DT* up_weight;
+    __global MOE_SCALE_DT* up_scale;
+    __global MOE_ZP_DT* up_zp;
+
+    if (!is_shared) {
+        expert_id = expert_list[expert_no];
+        // gate, [HIDDEN_SIZE, INTERMEDIATE_SIZE]
+        gate_weight = (__global MOE_WEI_DT*)(gate_weight_addr + expert_id * expert_wei_size);
+        gate_scale = (__global MOE_SCALE_DT*)(gate_scale_addr + expert_id * expert_scale_size);
+        gate_zp = (__global MOE_ZP_DT*)(gate_zp_addr + expert_id * expert_zp_size);
+
+        // up, [HIDDEN_SIZE, INTERMEDIATE_SIZE]
+        up_weight = (__global MOE_WEI_DT*)(up_weight_addr + expert_id * expert_wei_size);
+        up_scale = (__global MOE_SCALE_DT*)(up_scale_addr + expert_id * expert_scale_size);
+        up_zp = (__global MOE_ZP_DT*)(up_zp_addr + expert_id * expert_zp_size);
+    }
+#    if SHARED_EXPERT_ENABLE
+    else {
+        // Use shared expert pointers directly
+        // [HIDDEN_SIZE, SHARED_INTERMEDIATE_SIZE] - assume layout/size match sparse experts for now
+        gate_weight = (__global MOE_WEI_DT*)shared_gate_weight;
+        gate_scale = (__global MOE_SCALE_DT*)shared_gate_scale;
+        gate_zp = (__global MOE_ZP_DT*)shared_gate_zp;
+        up_weight = (__global MOE_WEI_DT*)shared_up_weight;
+        up_scale = (__global MOE_SCALE_DT*)shared_up_scale;
+        up_zp = (__global MOE_ZP_DT*)shared_up_zp;
+    }
+#    endif
 
 #    if GATE_UP_GROUP_SIZE % FAKE_GROUP_SIZE != 0
     if (get_sub_group_id() == 0 && get_sub_group_local_id() == 0) {
-        printf("GATE_UP_GROUP_SIZE(%d) must be divisible by FAKE_GROUP_SIZE(%d)", GATE_UP_GROUP_SIZE, FAKE_GROUP_SIZE);
+        printf("GATE_UP_GROUP_SIZE(%d) must be a multiple of FAKE_GROUP_SIZE(%d)", GATE_UP_GROUP_SIZE, FAKE_GROUP_SIZE);
     }
     return;
 #    endif
 
     __local half x2[HIDDEN_SIZE];
+#if HAS_ZP
     __local float xg_sum[HIDDEN_SIZE / FAKE_GROUP_SIZE];
+#else
+    __local float xg_sum[1];  // unused placeholder for function signature
+#endif
+#    if SHARED_EXPERT_ENABLE
+    __local float shared_gate_partial[SUBGROUP_NUM];  // one slot per subgroup for scalar gate reduction
+#    endif
 
 #    if WEIGHT_COMPRESSEION_DT == 0
     //# interleaving x into x2
@@ -325,19 +423,24 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(co
     half* px = x + id_sg * FAKE_GROUP_SIZE;
     half* px2 = x2 + id_sg * FAKE_GROUP_SIZE;
     unroll_for(int i = id_sg; i < HIDDEN_SIZE / FAKE_GROUP_SIZE; i += num_sg, px += num_sg * FAKE_GROUP_SIZE, px2 += num_sg * FAKE_GROUP_SIZE) {
-        //# quantization group
+#if HAS_ZP
         float x_group_sum = 0;
+#endif
         unroll_for(int j = id_local; j < FAKE_GROUP_SIZE / 2; j += SUBGROUP_SIZE) {
             half even = px[2 * j + 0];
             half odd = px[2 * j + 1];
             px2[j] = even;
             px2[j + FAKE_GROUP_SIZE / 2] = odd;
+#if HAS_ZP
             x_group_sum += even + odd;
+#endif
         }
+#if HAS_ZP
         x_group_sum = sub_group_reduce_add(x_group_sum);
         if (id_local == 0) {
             xg_sum[i] = x_group_sum / SUBGROUP_SIZE;
         }
+#endif
     }
 #    else
     //# load x into slm
@@ -347,21 +450,62 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(co
     half* px = x + id_sg * FAKE_GROUP_SIZE;
     half* px2 = x2 + id_sg * FAKE_GROUP_SIZE;
     unroll_for(int i = id_sg; i < HIDDEN_SIZE / FAKE_GROUP_SIZE; i += num_sg, px += num_sg * FAKE_GROUP_SIZE, px2 += num_sg * FAKE_GROUP_SIZE) {
-        //# quantization group
+#if HAS_ZP
         float x_group_sum = 0;
+#endif
         unroll_for(int j = id_local; j < FAKE_GROUP_SIZE; j += SUBGROUP_SIZE) {
             half value = px[j];
             px2[j] = value;
+#if HAS_ZP
             x_group_sum += value;
+#endif
         }
+#if HAS_ZP
         x_group_sum = sub_group_reduce_add(x_group_sum);
         if (id_local == 0) {
             xg_sum[i] = x_group_sum / SUBGROUP_SIZE;
         }
+#endif
     }
 #    endif
 
     barrier(CLK_LOCAL_MEM_FENCE);
+
+#    if SHARED_EXPERT_ENABLE
+    // Compute scalar gate for shared expert using all threads in the workgroup.
+    // Only the N-block-0 workgroup writes routing_weights[MAX_TOPK]; other N-block workgroups
+    // skip this entirely to avoid redundant work and races.
+    if (is_shared && get_group_id(2) == 0) {
+        // Step 1: every thread accumulates a partial dot product over its slice of HIDDEN_SIZE.
+        // With num_sg subgroups * SUBGROUP_SIZE threads, each thread handles ~14 elements
+        // (HIDDEN_SIZE=3584 / 256 threads) instead of one thread doing all 3584.
+        float gate_val = 0.0f;
+        int thread_id = id_sg * SUBGROUP_SIZE + id_local;
+        int total_threads = num_sg * SUBGROUP_SIZE;
+        for (int i = thread_id; i < HIDDEN_SIZE; i += total_threads) {
+            gate_val += (float)x[i] * (float)shared_gate_gate_weight[i];
+        }
+
+        // Step 2: intra-subgroup reduction.
+        gate_val = sub_group_reduce_add(gate_val);
+
+        // Step 3: store per-subgroup partial to SLM.
+        if (id_local == 0) {
+            shared_gate_partial[id_sg] = gate_val;
+        }
+        barrier(CLK_LOCAL_MEM_FENCE);
+
+        // Step 4: subgroup 0 does final cross-subgroup reduction and writes sigmoid result.
+        if (id_sg == 0) {
+            float final_val = (id_local < num_sg) ? shared_gate_partial[id_local] : 0.0f;
+            final_val = sub_group_reduce_add(final_val);
+            if (id_local == 0) {
+                routing_weights[MAX_TOPK] = (MOE_DTYPE)(1.0f / (1.0f + exp(-final_val)));
+            }
+        }
+    }
+    // routing_weights[MAX_TOPK] is consumed by the next kernel (mlp_down) — no barrier needed here.
+#    endif
 
 #    if WEIGHT_COMPRESSEION_DT == 0
     gate_up_gemv_n2x_u4(up_weight, up_scale, up_zp, y, INTERMEDIATE_SIZE, HIDDEN_SIZE, x2, xg_sum, false);
@@ -394,17 +538,21 @@ inline void down_gemv_n2x_u4(const __global uchar* weight,
     unroll_for(int n = n_start; n < n_end; n += 2) {
         const __global uchar* B = weight + n * K / 2;
         __global half* S = scales + n;
+#if HAS_ZP
         __global uchar* Z = zps + n / 2;
+#endif
         float sum_all0 = 0;
         float sum_all1 = 0;
         unroll_for(int gk = 0; gk < K / FAKE_GROUP_SIZE; gk++) {
-            int scale_offset = gk * (FAKE_GROUP_SIZE / DOWN_GROUP_SIZE) * N;
-            int zp_offset = gk * (FAKE_GROUP_SIZE / DOWN_GROUP_SIZE) * N / 2;
+            int scale_offset = (gk * FAKE_GROUP_SIZE / DOWN_GROUP_SIZE) * N;
             half s0 = S[scale_offset];
             half s1 = S[scale_offset + 1];
+#if HAS_ZP
+            int zp_offset = (gk * FAKE_GROUP_SIZE / DOWN_GROUP_SIZE) * N / 2;
             ushort z = Z[zp_offset];
             half z_hf0 = convert_half(z & 0xf);
             half z_hf1 = convert_half(z >> 4);
+#endif
 
 #    if SUBGROUP_SIZE == 32
             half2 sum0;
@@ -413,18 +561,23 @@ inline void down_gemv_n2x_u4(const __global uchar* weight,
             uchar2 b = intel_sub_group_block_read_uc2((const __global uchar*)B + gk * FAKE_GROUP_SIZE / 2);
             uchar2 b2 = intel_sub_group_block_read_uc2((const __global uchar*)(B + (K / 2) + gk * FAKE_GROUP_SIZE / 2));
 
-            sum0.s0 = fma(a.s0, (convert_half(b.s0 & 0x0F)), 0);
-            sum0.s1 = fma(a.s1, (convert_half(b.s1 & 0x0F)), 0);
-            sum0.s0 = fma(a.s2, (convert_half(b.s0 >> 4)), sum0.s0);
-            sum0.s1 = fma(a.s3, (convert_half(b.s1 >> 4)), sum0.s1);
+            sum0.s0 = fma(a.s0, (DEQUANT_4BIT_LO(b.s0)), 0);
+            sum0.s1 = fma(a.s1, (DEQUANT_4BIT_LO(b.s1)), 0);
+            sum0.s0 = fma(a.s2, (DEQUANT_4BIT_HI(b.s0)), sum0.s0);
+            sum0.s1 = fma(a.s3, (DEQUANT_4BIT_HI(b.s1)), sum0.s1);
 
-            sum1.s0 = fma(a.s0, (convert_half(b2.s0 & 0x0F)), 0);
-            sum1.s1 = fma(a.s1, (convert_half(b2.s1 & 0x0F)), 0);
-            sum1.s0 = fma(a.s2, (convert_half(b2.s0 >> 4)), sum1.s0);
-            sum1.s1 = fma(a.s3, (convert_half(b2.s1 >> 4)), sum1.s1);
+            sum1.s0 = fma(a.s0, (DEQUANT_4BIT_LO(b2.s0)), 0);
+            sum1.s1 = fma(a.s1, (DEQUANT_4BIT_LO(b2.s1)), 0);
+            sum1.s0 = fma(a.s2, (DEQUANT_4BIT_HI(b2.s0)), sum1.s0);
+            sum1.s1 = fma(a.s3, (DEQUANT_4BIT_HI(b2.s1)), sum1.s1);
 
+#if HAS_ZP
             sum_all0 += (sum0[0] + sum0[1] - xg_sum[gk] * z_hf0) * s0;
             sum_all1 += (sum1[0] + sum1[1] - xg_sum[gk] * z_hf1) * s1;
+#else
+            sum_all0 += (sum0[0] + sum0[1]) * s0;
+            sum_all1 += (sum1[0] + sum1[1]) * s1;
+#endif
 #    else
             half4 sum0;
             half4 sum1;
@@ -432,28 +585,33 @@ inline void down_gemv_n2x_u4(const __global uchar* weight,
             uchar4 b = intel_sub_group_block_read_uc4((const __global uchar*)B + gk * FAKE_GROUP_SIZE / 2);
             uchar4 b2 = intel_sub_group_block_read_uc4((const __global uchar*)(B + (K / 2) + gk * FAKE_GROUP_SIZE / 2));
 
-            sum0.s0 = fma(a.s0, (convert_half(b.s0 & 0x0F)), 0);
-            sum0.s1 = fma(a.s1, (convert_half(b.s1 & 0x0F)), 0);
-            sum0.s2 = fma(a.s2, (convert_half(b.s2 & 0x0F)), 0);
-            sum0.s3 = fma(a.s3, (convert_half(b.s3 & 0x0F)), 0);
+            sum0.s0 = fma(a.s0, (DEQUANT_4BIT_LO(b.s0)), 0);
+            sum0.s1 = fma(a.s1, (DEQUANT_4BIT_LO(b.s1)), 0);
+            sum0.s2 = fma(a.s2, (DEQUANT_4BIT_LO(b.s2)), 0);
+            sum0.s3 = fma(a.s3, (DEQUANT_4BIT_LO(b.s3)), 0);
 
-            sum0.s0 = fma(a.s4, (convert_half(b.s0 >> 4)), sum0.s0);
-            sum0.s1 = fma(a.s5, (convert_half(b.s1 >> 4)), sum0.s1);
-            sum0.s2 = fma(a.s6, (convert_half(b.s2 >> 4)), sum0.s2);
-            sum0.s3 = fma(a.s7, (convert_half(b.s3 >> 4)), sum0.s3);
+            sum0.s0 = fma(a.s4, (DEQUANT_4BIT_HI(b.s0)), sum0.s0);
+            sum0.s1 = fma(a.s5, (DEQUANT_4BIT_HI(b.s1)), sum0.s1);
+            sum0.s2 = fma(a.s6, (DEQUANT_4BIT_HI(b.s2)), sum0.s2);
+            sum0.s3 = fma(a.s7, (DEQUANT_4BIT_HI(b.s3)), sum0.s3);
 
-            sum1.s0 = fma(a.s0, (convert_half(b2.s0 & 0x0F)), 0);
-            sum1.s1 = fma(a.s1, (convert_half(b2.s1 & 0x0F)), 0);
-            sum1.s2 = fma(a.s2, (convert_half(b2.s2 & 0x0F)), 0);
-            sum1.s3 = fma(a.s3, (convert_half(b2.s3 & 0x0F)), 0);
+            sum1.s0 = fma(a.s0, (DEQUANT_4BIT_LO(b2.s0)), 0);
+            sum1.s1 = fma(a.s1, (DEQUANT_4BIT_LO(b2.s1)), 0);
+            sum1.s2 = fma(a.s2, (DEQUANT_4BIT_LO(b2.s2)), 0);
+            sum1.s3 = fma(a.s3, (DEQUANT_4BIT_LO(b2.s3)), 0);
 
-            sum1.s0 = fma(a.s4, (convert_half(b2.s0 >> 4)), sum1.s0);
-            sum1.s1 = fma(a.s5, (convert_half(b2.s1 >> 4)), sum1.s1);
-            sum1.s2 = fma(a.s6, (convert_half(b2.s2 >> 4)), sum1.s2);
-            sum1.s3 = fma(a.s7, (convert_half(b2.s3 >> 4)), sum1.s3);
+            sum1.s0 = fma(a.s4, (DEQUANT_4BIT_HI(b2.s0)), sum1.s0);
+            sum1.s1 = fma(a.s5, (DEQUANT_4BIT_HI(b2.s1)), sum1.s1);
+            sum1.s2 = fma(a.s6, (DEQUANT_4BIT_HI(b2.s2)), sum1.s2);
+            sum1.s3 = fma(a.s7, (DEQUANT_4BIT_HI(b2.s3)), sum1.s3);
 
+#if HAS_ZP
             sum_all0 += (sum0[0] + sum0[1] + sum0[2] + sum0[3] - xg_sum[gk] * z_hf0) * s0;
             sum_all1 += (sum1[0] + sum1[1] + sum1[2] + sum1[3] - xg_sum[gk] * z_hf1) * s1;
+#else
+            sum_all0 += (sum0[0] + sum0[1] + sum0[2] + sum0[3]) * s0;
+            sum_all1 += (sum1[0] + sum1[1] + sum1[2] + sum1[3]) * s1;
+#endif
 #    endif
         }
         sum_all0 = sub_group_reduce_add(sum_all0);
@@ -482,16 +640,20 @@ inline void down_gemv_n2x_u8(const __global uchar* weight,
     unroll_for(int n = n_start; n < n_end; n += 2) {
         const __global uchar* B = weight + n * K;
         __global half* S = scales + n;
+#if HAS_ZP
         __global uchar* Z = zps + n;
+#endif
         float sum_all0 = 0;
         float sum_all1 = 0;
         unroll_for(int gk = 0; gk < K / FAKE_GROUP_SIZE; gk++) {
-            int scale_offset = gk * (FAKE_GROUP_SIZE / DOWN_GROUP_SIZE) * N;
-            int zp_offset = gk * (FAKE_GROUP_SIZE / DOWN_GROUP_SIZE) * N;
+            int scale_offset = (gk * FAKE_GROUP_SIZE / DOWN_GROUP_SIZE) * N;
             half s0 = S[scale_offset];
             half s1 = S[scale_offset + 1];
+#if HAS_ZP
+            int zp_offset = (gk * FAKE_GROUP_SIZE / DOWN_GROUP_SIZE) * N;
             half z0 = convert_half(Z[zp_offset]);
             half z1 = convert_half(Z[zp_offset + 1]);
+#endif
 
 #    if SUBGROUP_SIZE == 32
             float2 sum0;
@@ -500,18 +662,23 @@ inline void down_gemv_n2x_u8(const __global uchar* weight,
             uchar4 b = intel_sub_group_block_read_uc4((const __global uchar*)B + gk * FAKE_GROUP_SIZE);
             uchar4 b2 = intel_sub_group_block_read_uc4((const __global uchar*)B + K + gk * FAKE_GROUP_SIZE);
 
-            sum0.s0 = fma((float)a.s0, (float)(convert_half(b.s0)), 0.0f);
-            sum0.s1 = fma((float)a.s1, (float)(convert_half(b.s1)), 0.0f);
-            sum0.s0 = fma((float)a.s2, (float)(convert_half(b.s2)), sum0.s0);
-            sum0.s1 = fma((float)a.s3, (float)(convert_half(b.s3)), sum0.s1);
+            sum0.s0 = fma((float)a.s0, (float)(DEQUANT_8BIT(b.s0)), 0.0f);
+            sum0.s1 = fma((float)a.s1, (float)(DEQUANT_8BIT(b.s1)), 0.0f);
+            sum0.s0 = fma((float)a.s2, (float)(DEQUANT_8BIT(b.s2)), sum0.s0);
+            sum0.s1 = fma((float)a.s3, (float)(DEQUANT_8BIT(b.s3)), sum0.s1);
 
-            sum1.s0 = fma((float)a.s0, (float)(convert_half(b2.s0)), 0.0f);
-            sum1.s1 = fma((float)a.s1, (float)(convert_half(b2.s1)), 0.0f);
-            sum1.s0 = fma((float)a.s2, (float)(convert_half(b2.s2)), sum1.s0);
-            sum1.s1 = fma((float)a.s3, (float)(convert_half(b2.s3)), sum1.s1);
+            sum1.s0 = fma((float)a.s0, (float)(DEQUANT_8BIT(b2.s0)), 0.0f);
+            sum1.s1 = fma((float)a.s1, (float)(DEQUANT_8BIT(b2.s1)), 0.0f);
+            sum1.s0 = fma((float)a.s2, (float)(DEQUANT_8BIT(b2.s2)), sum1.s0);
+            sum1.s1 = fma((float)a.s3, (float)(DEQUANT_8BIT(b2.s3)), sum1.s1);
 
+#if HAS_ZP
             sum_all0 += (sum0[0] + sum0[1] - xg_sum[gk] * z0) * s0;
             sum_all1 += (sum1[0] + sum1[1] - xg_sum[gk] * z1) * s1;
+#else
+            sum_all0 += (sum0[0] + sum0[1]) * s0;
+            sum_all1 += (sum1[0] + sum1[1]) * s1;
+#endif
 #    else
             float4 sum0;
             float4 sum1;
@@ -519,28 +686,33 @@ inline void down_gemv_n2x_u8(const __global uchar* weight,
             uchar8 b = intel_sub_group_block_read_uc8((const __global uchar*)B + gk * FAKE_GROUP_SIZE);
             uchar8 b2 = intel_sub_group_block_read_uc8((const __global uchar*)(B + K + gk * FAKE_GROUP_SIZE));
 
-            sum0.s0 = fma((float)a.s0, (float)(convert_half(b.s0)), 0.0f);
-            sum0.s1 = fma((float)a.s1, (float)(convert_half(b.s1)), 0.0f);
-            sum0.s2 = fma((float)a.s2, (float)(convert_half(b.s2)), 0.0f);
-            sum0.s3 = fma((float)a.s3, (float)(convert_half(b.s3)), 0.0f);
+            sum0.s0 = fma((float)a.s0, (float)(DEQUANT_8BIT(b.s0)), 0.0f);
+            sum0.s1 = fma((float)a.s1, (float)(DEQUANT_8BIT(b.s1)), 0.0f);
+            sum0.s2 = fma((float)a.s2, (float)(DEQUANT_8BIT(b.s2)), 0.0f);
+            sum0.s3 = fma((float)a.s3, (float)(DEQUANT_8BIT(b.s3)), 0.0f);
 
-            sum0.s0 = fma((float)a.s4, (float)(convert_half(b.s4)), sum0.s0);
-            sum0.s1 = fma((float)a.s5, (float)(convert_half(b.s5)), sum0.s1);
-            sum0.s2 = fma((float)a.s6, (float)(convert_half(b.s6)), sum0.s2);
-            sum0.s3 = fma((float)a.s7, (float)(convert_half(b.s7)), sum0.s3);
+            sum0.s0 = fma((float)a.s4, (float)(DEQUANT_8BIT(b.s4)), sum0.s0);
+            sum0.s1 = fma((float)a.s5, (float)(DEQUANT_8BIT(b.s5)), sum0.s1);
+            sum0.s2 = fma((float)a.s6, (float)(DEQUANT_8BIT(b.s6)), sum0.s2);
+            sum0.s3 = fma((float)a.s7, (float)(DEQUANT_8BIT(b.s7)), sum0.s3);
 
-            sum1.s0 = fma((float)a.s0, (float)(convert_half(b2.s0)), 0.0f);
-            sum1.s1 = fma((float)a.s1, (float)(convert_half(b2.s1)), 0.0f);
-            sum1.s2 = fma((float)a.s2, (float)(convert_half(b2.s2)), 0.0f);
-            sum1.s3 = fma((float)a.s3, (float)(convert_half(b2.s3)), 0.0f);
+            sum1.s0 = fma((float)a.s0, (float)(DEQUANT_8BIT(b2.s0)), 0.0f);
+            sum1.s1 = fma((float)a.s1, (float)(DEQUANT_8BIT(b2.s1)), 0.0f);
+            sum1.s2 = fma((float)a.s2, (float)(DEQUANT_8BIT(b2.s2)), 0.0f);
+            sum1.s3 = fma((float)a.s3, (float)(DEQUANT_8BIT(b2.s3)), 0.0f);
 
-            sum1.s0 = fma((float)a.s4, (float)(convert_half(b2.s4)), sum1.s0);
-            sum1.s1 = fma((float)a.s5, (float)(convert_half(b2.s5)), sum1.s1);
-            sum1.s2 = fma((float)a.s6, (float)(convert_half(b2.s6)), sum1.s2);
-            sum1.s3 = fma((float)a.s7, (float)(convert_half(b2.s7)), sum1.s3);
+            sum1.s0 = fma((float)a.s4, (float)(DEQUANT_8BIT(b2.s4)), sum1.s0);
+            sum1.s1 = fma((float)a.s5, (float)(DEQUANT_8BIT(b2.s5)), sum1.s1);
+            sum1.s2 = fma((float)a.s6, (float)(DEQUANT_8BIT(b2.s6)), sum1.s2);
+            sum1.s3 = fma((float)a.s7, (float)(DEQUANT_8BIT(b2.s7)), sum1.s3);
 
+#if HAS_ZP
             sum_all0 += (sum0[0] + sum0[1] + sum0[2] + sum0[3] - xg_sum[gk] * z0) * s0;
             sum_all1 += (sum1[0] + sum1[1] + sum1[2] + sum1[3] - xg_sum[gk] * z1) * s1;
+#else
+            sum_all0 += (sum0[0] + sum0[1] + sum0[2] + sum0[3]) * s0;
+            sum_all1 += (sum1[0] + sum1[1] + sum1[2] + sum1[3]) * s1;
+#endif
 #    endif
         }
         sum_all0 = sub_group_reduce_add(sum_all0);
@@ -627,6 +799,11 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_down)(const
                                                                            const __global MOE_WEI_DT* down_weight_addr,
                                                                            const __global MOE_SCALE_DT* down_scale_addr,
                                                                            const __global MOE_ZP_DT* down_zp_addr,
+#    if SHARED_EXPERT_ENABLE
+                                                                           const __global MOE_WEI_DT* shared_down_weight,
+                                                                           const __global MOE_SCALE_DT* shared_down_scale,
+                                                                           const __global MOE_ZP_DT* shared_down_zp,
+#    endif
                                                                            const __global MOE_DTYPE* x,          // [MAX_TOPK, INTERMEDIATE_SIZE]
                                                                            __global MOE_DTYPE* routing_weights,  // [MAX_TOPK]
                                                                            __global MOE_DTYPE* y) {              // [MAX_TOPK, HIDDEN_SIZE]
@@ -634,6 +811,12 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_down)(const
     int expert_no = get_global_id(0);
     x += expert_no * INTERMEDIATE_SIZE;
     y += expert_no * HIDDEN_SIZE;
+
+#    if SHARED_EXPERT_ENABLE
+    bool is_shared = (expert_no == MAX_TOPK);
+#    else
+    bool is_shared = false;
+#    endif
 
 #    if WEIGHT_COMPRESSEION_DT == 0
     const int expert_wei_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / 2;
@@ -647,15 +830,41 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_down)(const
     int expert_id = expert_list[expert_no];
 
     // down, [INTERMEDIATE_SIZE, HIDDEN_SIZE]
-    __global MOE_WEI_DT* weight = (__global MOE_WEI_DT*)(down_weight_addr + expert_id * expert_wei_size);
-    __global MOE_SCALE_DT* scales = (__global MOE_SCALE_DT*)(down_scale_addr + expert_id * expert_scale_size);
-    __global MOE_ZP_DT* zps = (__global MOE_ZP_DT*)(down_zp_addr + expert_id * expert_zp_size);
+    __global MOE_WEI_DT* weight;
+    __global MOE_SCALE_DT* scales;
+    __global MOE_ZP_DT* zps;
+
+    if (!is_shared) {
+        expert_id = expert_list[expert_no];
+        // down, [INTERMEDIATE_SIZE, HIDDEN_SIZE]
+        weight = (__global MOE_WEI_DT*)(down_weight_addr + expert_id * expert_wei_size);
+        scales = (__global MOE_SCALE_DT*)(down_scale_addr + expert_id * expert_scale_size);
+        zps = (__global MOE_ZP_DT*)(down_zp_addr + expert_id * expert_zp_size);
+    }
+#    if SHARED_EXPERT_ENABLE
+    else {
+        weight = (__global MOE_WEI_DT*)shared_down_weight;
+        scales = (__global MOE_SCALE_DT*)shared_down_scale;
+        zps = (__global MOE_ZP_DT*)shared_down_zp;
+    }
+#    endif
+
+#    if DOWN_GROUP_SIZE % FAKE_GROUP_SIZE != 0
+    if (get_sub_group_id() == 0 && get_sub_group_local_id() == 0) {
+        printf("DOWN_GROUP_SIZE(%d) must be a multiple of FAKE_GROUP_SIZE(%d)", DOWN_GROUP_SIZE, FAKE_GROUP_SIZE);
+    }
+    return;
+#    endif
 
     int N = HIDDEN_SIZE;
     int K = INTERMEDIATE_SIZE;
 
     __local half x2[INTERMEDIATE_SIZE];
+#if HAS_ZP
     __local float xg_sum[INTERMEDIATE_SIZE / FAKE_GROUP_SIZE];
+#else
+    __local float xg_sum[1];  // unused placeholder for function signature
+#endif
 
 #    if WEIGHT_COMPRESSEION_DT == 0
     //# interleaving x into x2
@@ -665,19 +874,24 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_down)(const
     half* px = x + id_sg * FAKE_GROUP_SIZE;
     half* px2 = x2 + id_sg * FAKE_GROUP_SIZE;
     unroll_for(int i = id_sg; i < INTERMEDIATE_SIZE / FAKE_GROUP_SIZE; i += num_sg, px += num_sg * FAKE_GROUP_SIZE, px2 += num_sg * FAKE_GROUP_SIZE) {
-        //# quantization group
+#if HAS_ZP
         float x_group_sum = 0;
+#endif
         unroll_for(int j = id_local; j < FAKE_GROUP_SIZE / 2; j += SUBGROUP_SIZE) {
             half even = px[2 * j + 0];
             half odd = px[2 * j + 1];
             px2[j] = even;
             px2[j + FAKE_GROUP_SIZE / 2] = odd;
+#if HAS_ZP
             x_group_sum += even + odd;
+#endif
         }
+#if HAS_ZP
         x_group_sum = sub_group_reduce_add(x_group_sum);
         if (id_local == 0) {
             xg_sum[i] = x_group_sum / SUBGROUP_SIZE;
         }
+#endif
     }
 #    else
     //# load x into slm
@@ -687,17 +901,22 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_down)(const
     half* px = x + id_sg * FAKE_GROUP_SIZE;
     half* px2 = x2 + id_sg * FAKE_GROUP_SIZE;
     unroll_for(int i = id_sg; i < INTERMEDIATE_SIZE / FAKE_GROUP_SIZE; i += num_sg, px += num_sg * FAKE_GROUP_SIZE, px2 += num_sg * FAKE_GROUP_SIZE) {
-        //# quantization group
+#if HAS_ZP
         float x_group_sum = 0;
+#endif
         unroll_for(int j = id_local; j < FAKE_GROUP_SIZE; j += SUBGROUP_SIZE) {
             half value = px[j];
             px2[j] = value;
+#if HAS_ZP
             x_group_sum += value;
+#endif
         }
+#if HAS_ZP
         x_group_sum = sub_group_reduce_add(x_group_sum);
         if (id_local == 0) {
             xg_sum[i] = x_group_sum / SUBGROUP_SIZE;
         }
+#endif
     }
 #    endif
 
@@ -716,11 +935,16 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_down)(const
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_reduce)(const __global MOE_DTYPE* x,  // [MAX_TOPK, HIDDEN_SIZE]
                                                                              __global MOE_DTYPE* y) {      // [1, HIDDEN_SIZE]
     int n = get_global_id(1);
-    half sum[MAX_TOPK] = {0};
-    __attribute__((opencl_unroll_hint(MAX_TOPK))) for (int i = 0; i < MAX_TOPK; i++) {
+#    if SHARED_EXPERT_ENABLE
+#        define REDUCE_COUNT (MAX_TOPK + 1)
+#    else
+#        define REDUCE_COUNT MAX_TOPK
+#    endif
+    half sum[REDUCE_COUNT] = {0};
+    __attribute__((opencl_unroll_hint(REDUCE_COUNT))) for (int i = 0; i < REDUCE_COUNT; i++) {
         sum[i] = as_half(intel_sub_group_block_read_us((const __global ushort*)(x + i * HIDDEN_SIZE + n)));
     }
-    for (int i = 1; i < MAX_TOPK; i++) {
+    for (int i = 1; i < REDUCE_COUNT; i++) {
         sum[0] += sum[i];
     }
     intel_sub_group_block_write_us((__global ushort*)(y + n), as_ushort(sum[0]));

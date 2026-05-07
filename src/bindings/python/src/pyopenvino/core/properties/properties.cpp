@@ -26,6 +26,12 @@ void regmodule_properties(py::module m) {
         .value("OPTIMIZE_SIZE", ov::CacheMode::OPTIMIZE_SIZE)
         .value("OPTIMIZE_SPEED", ov::CacheMode::OPTIMIZE_SPEED);
 
+    py::enum_<ov::CompatibilityCheck>(m_properties, "CompatibilityCheck", py::arithmetic())
+        .value("NOT_APPLICABLE", ov::CompatibilityCheck::NOT_APPLICABLE)
+        .value("OPTIMAL", ov::CompatibilityCheck::OPTIMAL)
+        .value("PREFER_RECOMPILATION", ov::CompatibilityCheck::PREFER_RECOMPILATION)
+        .value("UNSUPPORTED", ov::CompatibilityCheck::UNSUPPORTED);
+
     // Submodule properties - properties
     wrap_property_RW(m_properties, ov::enable_profiling, "enable_profiling");
     wrap_property_RW(m_properties, ov::cache_dir, "cache_dir");
@@ -54,6 +60,8 @@ void regmodule_properties(py::module m) {
     wrap_property_RO(m_properties, ov::range_for_async_infer_requests, "range_for_async_infer_requests");
     wrap_property_RO(m_properties, ov::execution_devices, "execution_devices");
     wrap_property_RO(m_properties, ov::loaded_from_cache, "loaded_from_cache");
+    wrap_property_RO(m_properties, ov::compatibility_check, "compatibility_check");
+    wrap_property_RO(m_properties, ov::runtime_requirements, "runtime_requirements");
 
     wrap_property_WO(m_properties, ov::cache_encryption_callbacks, "cache_encryption_callbacks");
 
@@ -341,12 +349,12 @@ void regmodule_properties(py::module m) {
     wrap_property_RO(m_intel_npu, ov::intel_npu::device_total_mem_size, "device_total_mem_size");
     wrap_property_RO(m_intel_npu, ov::intel_npu::driver_version, "driver_version");
     wrap_property_RO(m_intel_npu, ov::intel_npu::compiler_version, "compiler_version");
+    wrap_property_RO(m_intel_npu, ov::intel_npu::max_tiles, "max_tiles");
 
     wrap_property_RW(m_intel_npu, ov::intel_npu::compilation_mode_params, "compilation_mode_params");
     wrap_property_RW(m_intel_npu, ov::intel_npu::turbo, "turbo");
     wrap_property_RW(m_intel_npu, ov::intel_npu::platform, "platform");
     wrap_property_RW(m_intel_npu, ov::intel_npu::tiles, "tiles");
-    wrap_property_RW(m_intel_npu, ov::intel_npu::max_tiles, "max_tiles");
     wrap_property_RW(m_intel_npu, ov::intel_npu::bypass_umd_caching, "bypass_umd_caching");
     wrap_property_RW(m_intel_npu, ov::intel_npu::defer_weights_load, "defer_weights_load");
     wrap_property_RW(m_intel_npu, ov::intel_npu::compiler_dynamic_quantization, "compiler_dynamic_quantization");

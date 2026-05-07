@@ -60,6 +60,16 @@ on:
         description: 'Target branch for the build; taken from GitHub context by default'
         type: string
         required: false
+      use_latest_onednn:
+        description: 'Whether to use the latest OneDNN'
+        type: boolean
+        required: false
+        default: true
+      upload-coverage-notes:
+        description: 'Whether to upload gcno notes captured from the build directory'
+        type: boolean
+        required: false
+        default: false
 
 permissions: read-all
 
@@ -104,6 +114,7 @@ jobs:
       ARTIFACTS_SHARE: "/mount/build-artifacts"
       MANIFEST_PATH: '${{ github.workspace }}/openvino/manifest.yml'
       PRODUCT_TYPE: public_linux_${{ inputs.os }}_${{ inputs.arch }}_release
+      COVERAGE_NOTES_DIR: ${{ github.workspace }}/coverage_build_notes
     steps:
       - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
         shell: bash
@@ -119,7 +130,7 @@ jobs:
           GIT_TRACE: 1
           GIT_TRACE_PERFORMANCE: 1
           GIT_CURL_VERBOSE: 1
-        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           path: ${{ env.OPENVINO_REPO }}
@@ -127,7 +138,7 @@ jobs:
 
       - name: Clone OpenVINO
         if: ${{ inputs.os != 'fedora_29' }}
-        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           path: ${{ env.OPENVINO_REPO }}
@@ -135,7 +146,7 @@ jobs:
 
       # Ticket: 139627
       - name: Checkout the latest OneDNN for GPU in nightly
-        if: ${{ inputs.event-name == 'schedule' && inputs.os == 'ubuntu_22_04' }} # GPU tests are enabled only on U22
+        if: ${{ inputs.event-name == 'schedule' && inputs.os == 'ubuntu_22_04' && inputs.use_latest_onednn }} # GPU tests are enabled only on U22
         working-directory: ${{ env.OPENVINO_REPO }}/src/plugins/intel_gpu/thirdparty/onednn_gpu
         run: |
           git fetch origin
@@ -143,7 +154,7 @@ jobs:
           git rev-parse HEAD
 
       - name: Clone OpenVINO Contrib
-        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           repository: 'openvinotoolkit/openvino_contrib'
@@ -264,6 +275,16 @@ jobs:
         run: tar -cvf - * | pigz > ${BUILD_DIR}/openvino_tests.tar.gz
         working-directory: ${{ env.INSTALL_TEST_DIR }}
 
+      - name: Capture coverage notes for main build
+        if: ${{ inputs.upload-coverage-notes }}
+        run: |
+          rm -rf "${COVERAGE_NOTES_DIR}/main-build"
+          mkdir -p "${COVERAGE_NOTES_DIR}/main-build"
+          (
+            cd "${BUILD_DIR}"
+            find . -type f -name '*.gcno' -exec cp --parents {} "${COVERAGE_NOTES_DIR}/main-build/" \;
+          )
+
       - name: Build Debian packages
         if: ${{ inputs.build-debian-packages }}
         env:
@@ -318,6 +339,15 @@ jobs:
           npm pack
           tar -czvf ${BUILD_DIR}/openvino_node_npm_package.tar.gz bin openvino-node-*
         working-directory: ${{ env.OPENVINO_REPO }}/src/bindings/js/node
+
+      - name: Capture coverage notes for JS build
+        if: ${{ inputs.upload-coverage-notes && fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
+        run: |
+          mkdir -p "${COVERAGE_NOTES_DIR}/js-build"
+          (
+            cd "${BUILD_DIR}"
+            find . -type f -name '*.gcno' -exec cp --parents {} "${COVERAGE_NOTES_DIR}/js-build/" \;
+          )
 
       - name: Build RPM packages
         if: ${{ inputs.build-rpm-packages }}
@@ -404,6 +434,14 @@ jobs:
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
+          if-no-files-found: 'error'
+
+      - name: Upload coverage build notes
+        if: ${{ inputs.upload-coverage-notes }}
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: coverage_build_notes
+          path: ${{ env.COVERAGE_NOTES_DIR }}
           if-no-files-found: 'error'
 
       - name: Prepare debian packages for storage on share

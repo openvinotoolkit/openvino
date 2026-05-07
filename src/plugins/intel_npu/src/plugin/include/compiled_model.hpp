@@ -58,6 +58,8 @@ public:
 
     const FilteredConfig& get_config() const override;
 
+    void release_memory() override;
+
 private:
     void configure_stream_executors();
 
@@ -65,7 +67,7 @@ private:
     const std::shared_ptr<IDevice> _device;
     std::shared_ptr<ov::threading::ITaskExecutor> _resultExecutor;
 
-    std::unique_ptr<Properties> _properties;
+    std::unique_ptr<Properties> _propertiesManager;
 
     std::shared_ptr<IGraph> _graph;
 

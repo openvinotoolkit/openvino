@@ -9,43 +9,19 @@
 namespace ov {
 namespace test {
 namespace snippets {
-
 namespace {
 
-static ov::AnyMap enable_callback() {
-    return ov::AnyMap({ov::intel_cpu::snippets_mode(ov::intel_cpu::SnippetsMode::ENABLE)});
+static ov::AnyMap set_num_threads(size_t num_threads) {
+    return ov::AnyMap({ov::inference_num_threads(num_threads)});
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_Snippets_MHA_4D_SplitDimensionM_static,
-    MHA,
-    ::testing::Combine(::testing::ValuesIn(SNIPPETS_TESTS_STATIC_SHAPES({{1, 128, 2, 64}, {1, 128, 2, 64}, {1, 1, 1, 1}, {1, 128, 2, 64}})),
-                       ::testing::ValuesIn(precision_f32(4)),
-                       ::testing::Values(ov::element::f32),
-                       ::testing::Values(true),
-                       ::testing::Values(4),  // 4 Threads
-                       ::testing::Values(7),  // Subgraph + 4 Reshapes, Transpose1 on inputs and 1 Reshape on output
-                       ::testing::Values(2),
-                       ::testing::Values(ov::test::utils::DEVICE_CPU),
-                       ::testing::Values(enable_callback())),
-    MHA::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(
-    smoke_Snippets_MHA_3D_SplitDimensionM_static,
-    MHA,
-    ::testing::Combine(
-        ::testing::ValuesIn(SNIPPETS_TESTS_STATIC_SHAPES({{384, 2, 64}, {384, 2, 64}, {1, 384, 384}, {384, 2, 64}})),
-        ::testing::ValuesIn(precision_f32(4)),
-        ::testing::Values(ov::element::f32),
-        ::testing::Values(true),
-        ::testing::Values(4),   // 4 Threads
-        ::testing::Values(10),  // Subgraph + 4 Reshapes on inputs and 1 Reshape on output + 4 Transposes
-        ::testing::Values(1),   // MHA
-        ::testing::Values(ov::test::utils::DEVICE_CPU),
-        ::testing::Values(enable_callback())),
-    MHA::getTestCaseName);
-
-std::vector<std::vector<ov::test::InputShape>> splitm_dynamic_shapes_4d = {
+std::vector<std::vector<ov::test::InputShape>> splitm_shapes_4d = {
+    {
+        {PartialShape{}, {{1, 128, 2, 64}}},
+        {PartialShape{}, {{1, 128, 2, 64}}},
+        {PartialShape{}, {{1, 1, 1, 1}}},
+        {PartialShape{}, {{1, 128, 2, 64}}},
+    },
     {
         {PartialShape{-1, -1, -1, -1}, {{1, 128, 2, 64}, {1, 17, 2, 64}, {1, 128, 2, 64}}},
         {PartialShape{-1, -1, -1, -1}, {{1, 128, 2, 64}, {1, 17, 2, 64}, {1, 128, 2, 64}}},
@@ -75,20 +51,25 @@ std::vector<std::vector<ov::test::InputShape>> splitm_dynamic_shapes_4d = {
 static constexpr size_t expected_nodes_mha_splitm_4d_dyn = 2;
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_Snippets_MHA_4D_SplitDimensionM_dynamic,
-    MHA,
-    ::testing::Combine(::testing::ValuesIn(splitm_dynamic_shapes_4d),
+    smoke_Snippets_MHA_4D_MHAParallelWAOptimizer,
+    MHAWithThreadCount,
+    ::testing::Combine(::testing::ValuesIn(splitm_shapes_4d),
                        ::testing::ValuesIn(precision_f32(4)),
                        ::testing::Values(ov::element::f32),
                        ::testing::Values(false),
-                       ::testing::Values(4),  // 4 Threads
                        ::testing::Values(expected_nodes_mha_splitm_4d_dyn),
-                       ::testing::Values(2), // Transpose1 + MHA
+                       ::testing::Values(2),  // Transpose1 + MHA
                        ::testing::Values(ov::test::utils::DEVICE_CPU),
-                       ::testing::Values(CPUTestUtils::empty_plugin_config)),
-    MHA::getTestCaseName);
+                       ::testing::Values(set_num_threads(4))),
+    MHAWithThreadCount::getTestCaseName);
 
-std::vector<std::vector<ov::test::InputShape>> splitm_dynamic_shapes_3d = {
+std::vector<std::vector<ov::test::InputShape>> splitm_shapes_3d = {
+    {
+        {PartialShape{}, {{384, 2, 64}}},
+        {PartialShape{}, {{384, 2, 64}}},
+        {PartialShape{}, {{1, 384, 384}}},
+        {PartialShape{}, {{384, 2, 64}}},
+    },
     {
         {PartialShape{-1, -1, -1}, {{128, 2, 64}, {17, 2, 64}, {128, 2, 64}}},
         {PartialShape{-1, -1, -1}, {{128, 2, 64}, {17, 2, 64}, {128, 2, 64}}},
@@ -104,18 +85,17 @@ std::vector<std::vector<ov::test::InputShape>> splitm_dynamic_shapes_3d = {
 };
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_Snippets_MHA_3D_SplitDimensionM_dynamic,
-    MHA,
-    ::testing::Combine(::testing::ValuesIn(splitm_dynamic_shapes_3d),
+    smoke_Snippets_MHA_3D_MHAParallelWAOptimizer,
+    MHAWithThreadCount,
+    ::testing::Combine(::testing::ValuesIn(splitm_shapes_3d),
                        ::testing::ValuesIn(precision_f32(4)),
                        ::testing::Values(ov::element::f32),
                        ::testing::Values(false),
-                       ::testing::Values(4),  // 4 Threads
                        ::testing::Values(5),  // Subgraph + 4 Transpose
                        ::testing::Values(2),  // MHA + one of the transposes is executed via Subgraph (because callback is disabled)
                        ::testing::Values(ov::test::utils::DEVICE_CPU),
-                       ::testing::Values(CPUTestUtils::empty_plugin_config)),
-    MHA::getTestCaseName);
+                       ::testing::Values(set_num_threads(4))),
+    MHAWithThreadCount::getTestCaseName);
 
 }  // namespace
 }  // namespace snippets

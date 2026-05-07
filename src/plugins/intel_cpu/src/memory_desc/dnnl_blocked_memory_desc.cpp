@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <common/c_types_map.hpp>
+#include <common/memory_desc.hpp>
 #include <common/memory_desc_wrapper.hpp>
 #include <common/utils.hpp>
 #include <cstddef>
@@ -298,7 +299,7 @@ bool DnnlBlockedMemoryDesc::isCompatible(const BlockedMemoryDesc& rhs, CmpMask c
 
 bool DnnlBlockedMemoryDesc::isCompatible(const CpuBlockedMemoryDesc& rhs, CmpMask cmpMask) const {
     dnnl::impl::memory_desc_wrapper wrapped(desc.get());
-    return wrapped.extra().flags == dnnl_memory_extra_flag_none &&
+    return wrapped.extra().flags == dnnl::impl::memory_extra_flags_t::dnnl_memory_extra_flag_none &&
            BlockedMemoryDesc::isCompatibleInternal(rhs, cmpMask);
 }
 
@@ -470,11 +471,13 @@ static dnnl::memory::desc cloneDescWithNewDims(const dnnl::memory::desc& desc,
     dnnl::memory::desc clonedDesc(DnnlExtensionUtils::clone_desc(desc.get()));
 
     array_copy(clonedDesc.get()->dims, mklDims.data(), mklDims.size());
-    dnnl::memory::dims perm(convert_to_vector<dnnl::memory::dim, size_t>(order.data(), mklDims.size()));
+    std::vector<int> perm(convert_to_vector<int, size_t>(order.data(), mklDims.size()));
     auto innerBlks = clonedDesc.get_inner_blks();
     auto innerIdxs = clonedDesc.get_inner_idxs();
+    std::vector<int> innerBlksInt(innerBlks.begin(), innerBlks.end());
+    std::vector<int> innerIdxsInt(innerIdxs.begin(), innerIdxs.end());
 
-    auto retCode = dnnl::impl::fill_blocked(*clonedDesc.get(), perm, innerBlks, innerIdxs);
+    auto retCode = dnnl::impl::fill_blocked(*clonedDesc.get(), perm, innerBlksInt, innerIdxsInt);
     OPENVINO_ASSERT(retCode == dnnl::impl::status::success,
                     "Can not clone DnnlBlockedMemoryDesc with dims: ",
                     dims2str(dims));

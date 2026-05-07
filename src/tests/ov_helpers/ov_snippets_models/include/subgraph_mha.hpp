@@ -57,6 +57,76 @@ protected:
     const std::vector<ov::element::Type> precisions;
 };
 
+class MHAConstBFunction : public SnippetsFunctionBase {
+public:
+    explicit MHAConstBFunction(const std::vector<PartialShape>& inputShapes,
+                               const std::vector<ov::element::Type>& precisions,
+                               bool with_mul = true,
+                               bool with_reshape = true,
+                               bool const_b_matmul0 = false,
+                               bool const_b_matmul1 = false)
+        : SnippetsFunctionBase(inputShapes),
+          with_mul(with_mul),
+          with_reshape(with_reshape),
+          const_b_matmul0(const_b_matmul0),
+          const_b_matmul1(const_b_matmul1),
+          precisions(precisions) {
+        OPENVINO_ASSERT(input_shapes.size() == 4, "Got invalid number of input shapes");
+        OPENVINO_ASSERT(precisions.size() == 4, "Got invalid number of input precisions");
+        OPENVINO_ASSERT(!const_b_matmul0 || input_shapes[1].is_static(),
+                        "MHAConstBFunction expects static shape for MatMul0 constant B");
+        OPENVINO_ASSERT(!const_b_matmul1 || input_shapes[3].is_static(),
+                        "MHAConstBFunction expects static shape for MatMul1 constant B");
+    }
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+    std::shared_ptr<ov::Model> initReference() const override;
+    void validate_function(const std::shared_ptr<Model>& f) const override;
+
+    const bool with_mul = true;
+    const bool with_reshape = true;
+    const bool const_b_matmul0 = false;
+    const bool const_b_matmul1 = false;
+    const std::vector<ov::element::Type> precisions;
+};
+
+// Builds a model with two structurally-identical MHA branches:
+//   - Branch 1: Q1/K1/Add1 runtime parameters, V1 CONSTANT
+//     → post-softmax Subgraph has are_wei_constant=true → RepackMatMulWeights pre-packs V1
+//     → constant_repacked_mask bit is SET
+//   - Branch 2: Q2/K2/Add2 runtime parameters, V2 RUNTIME PARAMETER
+//     → post-softmax Subgraph has are_wei_constant=false → no pre-packing
+//     → constant_repacked_mask bit is CLEAR
+class MHATwoConstBFunction : public SnippetsFunctionBase {
+public:
+    explicit MHATwoConstBFunction(const std::vector<PartialShape>& inputShapes,
+                                  const std::vector<ov::element::Type>& precisions,
+                                  bool with_reshape = true)
+        : SnippetsFunctionBase(inputShapes),
+          precisions(precisions),
+          with_reshape(with_reshape) {
+        OPENVINO_ASSERT(input_shapes.size() == 7, "Got invalid number of input shapes (expected 7)");
+        OPENVINO_ASSERT(precisions.size() == 4, "Got invalid number of input precisions");
+        OPENVINO_ASSERT(input_shapes[6].is_static(),
+                        "V shape must be static (used to create V1 constant and V2 parameter)");
+    }
+
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+    // 7 runtime parameters: Q1, K1, Add1, Q2, K2, Add2, V2.
+    // V1 is embedded as a Constant (not a runtime Parameter).
+    void validate_function(const std::shared_ptr<Model>& f) const override {
+        OPENVINO_ASSERT(f != nullptr, "The test requires Model to be defined");
+        validate_params_shape({input_shapes[0], input_shapes[1], input_shapes[2],
+                               input_shapes[3], input_shapes[4], input_shapes[5],
+                               input_shapes[6]},
+                              f->get_parameters());
+    }
+
+    const std::vector<ov::element::Type> precisions;
+    const bool with_reshape = true;
+};
+
 class MHA2DFunction : public SnippetsFunctionBase {
 public:
     explicit MHA2DFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions)
@@ -72,19 +142,6 @@ protected:
     std::shared_ptr<ov::Model> initReference() const override;
 
     const std::vector<ov::element::Type> precisions;
-};
-
-class MHASplitMFunction : public MHAFunction {
-public:
-    explicit MHASplitMFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions,
-                                       const std::vector<Shape>& reshapes, bool with_mul = true)
-            : MHAFunction(inputShapes, precisions, with_mul), reshapes(reshapes) {
-        OPENVINO_ASSERT(reshapes.size() == 5, "Got invalid number of Reshape shapes");
-    }
-protected:
-    std::shared_ptr<ov::Model> initReference() const override;
-
-    std::vector<ov::Shape> reshapes;
 };
 
 /* Graph:

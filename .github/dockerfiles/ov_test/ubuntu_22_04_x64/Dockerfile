@@ -23,6 +23,8 @@ RUN apt-get update && \
         ca-certificates \
         gpg-agent \
         tzdata \
+        # coverage
+        lcov \
         # parallel gzip
         pigz \
         # Samples

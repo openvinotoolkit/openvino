@@ -11,7 +11,7 @@ the table for more information.
 * A - Intel® Core™ Ultra 9-185H (AVX2), INT8 and FP32
 * B - Intel® Xeon® 6338, (VNNI), INT8 and FP32
 * C - Intel® Xeon 6972P (VNNI, AMX), INT8, BF16, FP32
-* D - Intel® Arc-B580, INT8 and FP16
+* D - Intel® Arc-B60, INT8 and FP16
 
 
 .. list-table:: Model Accuracy for INT8
@@ -27,10 +27,10 @@ the table for more information.
    * - bert-base-cased
      - SST-2_bert_cased_padded
      - spearman@cosine
-     - 2.57%
-     - 2.65%
-     - 2.95%
-     - 2.63%
+     - 2.60%
+     - 2.70%
+     - 3.00%
+     - 2.60%
    * - Detectron-V2
      - COCO2017_detection_91cl_bkgr
      - coco_orig_precision
@@ -43,22 +43,22 @@ the table for more information.
      - accuracy @ top1
      - -0.91%
      - -0.93%
-     - -0.91%
-     - -1.03%
+     - -1.01%
+     - -1.01%
    * - resnet-50
      - ImageNet2012
      - accuracy @ top1
-     - -0.12%
-     - -0.12%
-     - -0.15%
-     - -0.15%
+     - 0.73%
+     - 0.73%
+     - 0.73%
+     - 0.73%
    * - ssd-resnet34-1200
      - COCO2017_detection_80cl_bkgr
      - map
-     - 0.00%
-     - 0.00%
-     - 0.03%
-     - 0.07%
+     - 0.02%
+     - 0.02%
+     - 0.02%
+     - 0.02%
    * - yolo_v11
      - COCO2017_detection_80cl
      - AP@0.5:0.05:0.95
@@ -93,31 +93,31 @@ the table for more information.
    * - mobilenet-v2
      - ImageNet2012
      - accuracy @ top1
-     - 0.00%
-     - 0.00%
-     - 0.02%
-     - 0.02%
+     - -0.01%
+     - -0.01%
+     - -0.01%
+     - -0.01%
    * - resnet-50
      - ImageNet2012
      - accuracy @ top1
      - 0.00%
      - 0.00%
      - 0.00%
-     - -0.01%
+     - 0.00%
    * - ssd-resnet34-1200
      - COCO2017_detection_80cl_bkgr
      - map
      - 0.02%
      - 0.02%
      - 0.02%
-     - -0.23%
+     - 0.02%
    * - yolo_v11
      - COCO2017_detection_80cl
      - AP@0.5:0.05:0.95
-     - 0.03%
-     - -2.21%
-     - -2.21%
-     - -2.21%
+     - 0.00%
+     - -2.18%
+     - -2.18%
+     - -2.18%
 .. list-table:: Model Accuracy for AMX-FP16, AMX-INT4, Arc-FP16 and Arc-INT4 (Arc™ B-series)
    :header-rows: 1
    
@@ -132,8 +132,8 @@ the table for more information.
      - Data Default WWB
      - Similarity
      - 98.1%
-     - 94.4%
-     - 99.5%
+     - 94.1%
+     - 99.6%
      - 94.0%
    * - DeepSeek-R1-Distill-Qwen-1.5B
      - Data Default WWB
@@ -141,70 +141,84 @@ the table for more information.
      - 96.5%
      - 92.4%
      - 99.7%
-     - 92.3%
+     - 92.7%
    * - Gemma-3-4B-it
      - Data Default WWB
      - Similarity
-     - 92.0%
+     - 92.2%
      - 83.9%
      - 
-     - 84.9%
+     - 92.9%
+   * - GPT-OSS-20B
+     - Data Default WWB
+     - Similarity
+     - 94.9%
+     - 92.2%
+     - 
+     - 92.9%
    * - Llama-2-7B-chat
      - Data Default WWB
      - Similarity
      - 99.3%
-     - 93.4%
-     - 99.8%
-     - 93.4%
+     - 93.3%
+     - 99.6%
+     - 93.3%
    * - Llama-3-8B
      - Data Default WWB
      - Similarity
      - 98.8%
-     - 94.3%
-     - 99.7%
-     - 94.5%
+     - 94.7%
+     - 99.9%
+     - 94.4%
    * - Llama-3.2-3b-instruct
      - Data Default WWB
      - Similarity
-     - 97.9%
-     - 94.2%
-     - 99.7%
-     - 94.1%
+     - 98.3%
+     - 94.8%
+     - 99.9%
+     - 94.3%
+   * - MiniCPM-V-2.6
+     - Data Default WWB
+     - Similarity
+     - 90.6%
+     - 90.1%
+     - 88.1%
+     - 89.1%
    * - Phi4-mini-instruct
      - Data Default WWB
      - Similarity
-     - 89.1%
+     - 95.1%
+     - 92.5%
+     - 99.1%
      - 92.1%
-     - 99.5%
-     - 92.4%
-   * - Qwen2-VL-7B
+   * - Qwen2.5-VL-7B
      - Data Default WWB
      - Similarity
-     - 97.5%
-     - 88.1%
+     - 93.7%
+     - 90.7%
      - 99.8%
-     - 91.4%
+     - 89.9%
    * - Qwen3-8B
      - Data Default WWB
      - Similarity
-     - 97.8%
-     - 92.3%
-     - 
-     - 93.0%
+     - 97.9%
+     - 93.6%
+     - 99.8%
+     - 92.8%
    * - Flux.1-schnell
      - Data Default WWB
      - Similarity
      - 95.4%
      - 96.1%
      - 
-     - 92.1%
+     - 95.1%
    * - Stable-Diffusion-V1-5
      - Data Default WWB
      - Similarity
-     - 96.3%
-     - 93.3%
+     - 96.7%
+     - 95.5%
      - 99.5%
-     - 93.7%
+     - 92.1%
 
 Notes: For all accuracy metrics a "-", (minus sign), indicates an accuracy drop.
 The Similarity metric is the distance from "perfect" and as such always positive. 

@@ -3,7 +3,7 @@
 
 import pytest
 
-from pytorch_layer_test_class import PytorchLayerTest
+from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 
 class TestRound(PytorchLayerTest):
@@ -39,7 +39,9 @@ class TestRound(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.parametrize("out", [True, False])
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
+    @pytest.mark.parametrize("out", [skip_if_export(True), False])
     @pytest.mark.parametrize("dtype", ["float32", "float64", "int32", "int64"])
     def test_round(self, out, dtype, ie_device, precision, ir_version):
         if ie_device == "GPU" and dtype not in ["float32", "float64"]:

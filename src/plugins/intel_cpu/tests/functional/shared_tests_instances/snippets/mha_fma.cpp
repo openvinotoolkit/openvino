@@ -22,7 +22,6 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(precision_f32(3)),
         ::testing::Values(ov::element::f32),
         ::testing::ValuesIn({false}),  // Need to support True for graph builder in tests
-        ::testing::Values(MHA::default_thread_count),
         ::testing::Values(expected_nodes_mha_mul_add),
         ::testing::Values(2), // Subgraph with MHA + Subgraph with Transpose1
         ::testing::Values(ov::test::utils::DEVICE_CPU),

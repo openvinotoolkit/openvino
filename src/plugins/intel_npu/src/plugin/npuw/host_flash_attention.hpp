@@ -1,5 +1,6 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #pragma once
 
@@ -164,7 +165,8 @@ struct HostFlashAttention {
     }
 
     // Factory method
-    static std::optional<HostFlashAttention> from(const std::shared_ptr<ov::Model>& model);
+    static std::optional<HostFlashAttention> from(const std::shared_ptr<ov::Model>& model,
+                                                  bool fused_flash_attention = true);
 };
 
 }  // namespace function
@@ -232,6 +234,9 @@ struct HostFlashAttention {
 
     // Tile configuration
     int64_t _tile_size = 0;
+
+    /// Whether tensor views can be used for tile extraction (depends on compiler and driver support)
+    bool _can_use_tensor_view = false;
 
     HostFlashAttention() = default;
 

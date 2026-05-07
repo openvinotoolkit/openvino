@@ -14,7 +14,6 @@ namespace snippets {
 typedef std::tuple<std::vector<InputShape>,                       // Input shapes
                    std::vector<ov::element::Type>,                // Input Element types
                    ov::element::Type,                             // Inference precision
-                   size_t,                                        // Thread count
                    std::string,                                   // Target Device
                    ov::AnyMap,                                    // Config
                    std::pair<size_t, std::pair<size_t, size_t>>,  // {number of hidden layers, {expected number of
@@ -24,16 +23,11 @@ typedef std::tuple<std::vector<InputShape>,                       // Input shape
     MLPSeqParams;
 
 class MLPSeqBase :  virtual public SnippetsTestsCommon {
-public:
-    constexpr static size_t default_thread_count = 0;
-
 protected:
     void SetUp() override;
-    void compile_model() override;
     virtual std::shared_ptr<SnippetsFunctionBase> get_subgraph(size_t num_hidden_layers, size_t hidden_matmul_size) const = 0;
     virtual void init_params(std::vector<InputShape>& input_shapes, ov::element::Type& prc, ov::AnyMap& additional_config) = 0;
 
-    size_t m_thread_count;
     std::vector<ov::element::Type> m_input_types;
     size_t m_num_hidden_layers, m_hidden_matmul_size;
 };
