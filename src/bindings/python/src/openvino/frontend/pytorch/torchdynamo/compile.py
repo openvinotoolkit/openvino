@@ -88,17 +88,13 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
     # via sched_setaffinity, which TBB/OV sample on first parallel use →
     # INFERENCE_NUM_THREADS=1 regardless of what we request. Widen the mask
     # once, before our first Core() compile so TBB sizes its thread pool
-    # to the full available set. Default off because widening races with
-    # vLLM's dummy-run shape inference for PA; enable via env when the
-    # full warm-up path has been tested for this model.
-    if os.environ.get("OV_UNBIND_AFFINITY", "0") == "1":
+    # to the full available set. Default ON; disable via OV_UNBIND_AFFINITY=0
+    # if a caller genuinely needs the single-core affinity preserved.
+    if os.environ.get("OV_UNBIND_AFFINITY", "1") == "1":
         try:
             os.sched_setaffinity(0, set(range(os.cpu_count() or 1)))
-            if os.environ.get("OV_DBG_CONFIG"):
-                print(f"[AFFINITY] widened to {os.cpu_count()} cores", flush=True)
-        except Exception as _ea:
-            if os.environ.get("OV_DBG_CONFIG"):
-                print(f"[AFFINITY] failed: {_ea}", flush=True)
+        except Exception:
+            pass
     core = Core()
 
     device = _get_device(options)
@@ -230,14 +226,15 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
                         _const = _src
                     if _const is None:
                         continue
-                    if _const.get_element_type() != Type.f16:
+                    # Plugin's weight-decompression FC path accepts
+                    # inputType=f32 with weightsType in {f16, bf16}. For f32
+                    # weights there is no decompression to do — plugin's
+                    # regular FC path already dispatches brgemm_avx512_f32.
+                    # For other dtypes (u8, i8, int quant) plugin has its
+                    # own handling; skip.
+                    _w_et = _const.get_element_type()
+                    if _w_et not in (Type.f16, Type.bf16):
                         continue
-                    # Keep weight as FP16. With INFERENCE_PRECISION_HINT=f16,
-                    # the plugin folds/collapses alternative weight dtypes
-                    # back to fp16 regardless. BF16 hint would unlock GenAI's
-                    # brgemm_avx512_bf16-style dispatch, but our PA pipeline
-                    # rejects bf16 in several node validators so we can't
-                    # enable it globally.
                     _new_const = _const
                     _conv_w = _o1.convert(_new_const.output(0), "f32")
                     # Mark Convert as decompression so CPU plugin's
@@ -252,18 +249,17 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
                     except Exception:
                         pass
                     _mm.input(1).replace_source_output(_conv_w.output(0))
-                    # Upcast activation to f32 just for this FC; cast the
-                    # output back to fp16 so downstream ops still see fp16.
-                    # (Tried rank-3 Unsqueeze[1,N,K] to match GenAI's IR, but
-                    # CPU plugin's AlignMatMulInputRanks + ConvertMatMulToFC
-                    # normalize back to rank-2 regardless, so no-op.)
+                    # Upcast activation to f32 (decompression path requires
+                    # f32 input) and cast output back to activation's native
+                    # dtype so downstream ops keep their precision.
                     _act_src = _mm.input_value(0)
-                    if _act_src.get_element_type() == Type.f16:
+                    _act_et = _act_src.get_element_type()
+                    if _act_et != Type.f32:
                         _conv_a = _o1.convert(_act_src, "f32")
                         _mm.input(0).replace_source_output(_conv_a.output(0))
                         _out = _mm.output(0)
                         _consumers = list(_out.get_target_inputs())
-                        _down = _o1.convert(_out, "f16")
+                        _down = _o1.convert(_out, _act_et)
                         for _cin in _consumers:
                             _cin.replace_source_output(_down.output(0))
                     try:
