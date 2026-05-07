@@ -250,13 +250,13 @@ TEST_P(MoEGatherMatmulTest, Inference) {
     run();
 }
 
-// DISABLED: u8 prefill kernel missing; u4 has accuracy divergence (Δ ≈ 5–45).
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_MoEGatherMatmul,
+// u8 excluded: GatherMatmul prefill micro-kernel for u8 is not selectable yet.
+INSTANTIATE_TEST_SUITE_P(smoke_MoEGatherMatmul,
                          MoEGatherMatmulTest,
                          ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
                                             ::testing::Values(MoePatternType::GEMM3),
                                             ::testing::ValuesIn(routing_types),
-                                            ::testing::ValuesIn(weights_precisions),
+                                            ::testing::Values(ov::element::u4),
                                             ::testing::Values(ov::element::f16),  // decompression_precision
                                             ::testing::Values(ov::element::f16),  // scale_precision
                                             ::testing::Values(ov::test::utils::DecompressionType::full),
@@ -267,13 +267,12 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_MoEGatherMatmul,
                          MoEGatherMatmulTest::getTestCaseName);
 
 // 2-GEMM unfused: covers GatherMatmul OCL clamp/bias/swiglu compile path.
-// DISABLED: same u8/u4 issues as above.
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_MoE2GemmGatherMatmul,
+INSTANTIATE_TEST_SUITE_P(smoke_MoE2GemmGatherMatmul,
                          MoEGatherMatmulTest,
                          ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
                                             ::testing::Values(MoePatternType::GEMM2),
                                             ::testing::Values(MoERoutingType::SOFTMAX),
-                                            ::testing::ValuesIn(weights_precisions),
+                                            ::testing::Values(ov::element::u4),
                                             ::testing::Values(ov::element::f16),  // decompression_precision
                                             ::testing::Values(ov::element::f16),  // scale_precision
                                             ::testing::Values(ov::test::utils::DecompressionType::full),
