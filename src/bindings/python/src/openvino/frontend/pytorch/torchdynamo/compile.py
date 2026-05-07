@@ -84,6 +84,21 @@ def openvino_compile_cached_model(cached_model_path, options, *example_inputs):
 
 
 def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options=None):
+    # vLLM's init_cpu_threads_env pins the worker process to a single CPU
+    # via sched_setaffinity, which TBB/OV sample on first parallel use →
+    # INFERENCE_NUM_THREADS=1 regardless of what we request. Widen the mask
+    # once, before our first Core() compile so TBB sizes its thread pool
+    # to the full available set. Default off because widening races with
+    # vLLM's dummy-run shape inference for PA; enable via env when the
+    # full warm-up path has been tested for this model.
+    if os.environ.get("OV_UNBIND_AFFINITY", "0") == "1":
+        try:
+            os.sched_setaffinity(0, set(range(os.cpu_count() or 1)))
+            if os.environ.get("OV_DBG_CONFIG"):
+                print(f"[AFFINITY] widened to {os.cpu_count()} cores", flush=True)
+        except Exception as _ea:
+            if os.environ.get("OV_DBG_CONFIG"):
+                print(f"[AFFINITY] failed: {_ea}", flush=True)
     core = Core()
 
     device = _get_device(options)
@@ -217,10 +232,12 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
                         continue
                     if _const.get_element_type() != Type.f16:
                         continue
-                    # Keep weight as FP16 Const (GenAI uses BF16 but BF16
-                    # Convert+mark-as-decompression works for FP16 too on this
-                    # plugin path — useWeightsDecompressionImpl accepts
-                    # inputType=f32, weightsType in {f16, bf16} for LLM models).
+                    # Keep weight as FP16. With INFERENCE_PRECISION_HINT=f16,
+                    # the plugin folds/collapses alternative weight dtypes
+                    # back to fp16 regardless. BF16 hint would unlock GenAI's
+                    # brgemm_avx512_bf16-style dispatch, but our PA pipeline
+                    # rejects bf16 in several node validators so we can't
+                    # enable it globally.
                     _new_const = _const
                     _conv_w = _o1.convert(_new_const.output(0), "f32")
                     # Mark Convert as decompression so CPU plugin's
@@ -237,12 +254,13 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
                     _mm.input(1).replace_source_output(_conv_w.output(0))
                     # Upcast activation to f32 just for this FC; cast the
                     # output back to fp16 so downstream ops still see fp16.
+                    # (Tried rank-3 Unsqueeze[1,N,K] to match GenAI's IR, but
+                    # CPU plugin's AlignMatMulInputRanks + ConvertMatMulToFC
+                    # normalize back to rank-2 regardless, so no-op.)
                     _act_src = _mm.input_value(0)
                     if _act_src.get_element_type() == Type.f16:
                         _conv_a = _o1.convert(_act_src, "f32")
                         _mm.input(0).replace_source_output(_conv_a.output(0))
-                        # Now MatMul output is f32; insert Convert back to f16
-                        # for all downstream consumers.
                         _out = _mm.output(0)
                         _consumers = list(_out.get_target_inputs())
                         _down = _o1.convert(_out, "f16")
@@ -330,6 +348,10 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
     if os.environ.get("OV_PERF_COUNT"):
         config["PERF_COUNT"] = "YES"
 
+    _num_threads = os.environ.get("OV_INFERENCE_NUM_THREADS")
+    if device == "CPU" and _num_threads and "INFERENCE_NUM_THREADS" not in config:
+        config["INFERENCE_NUM_THREADS"] = int(_num_threads)
+
     # Dump pre-plugin IR for RoPE pattern analysis
     _dump_dir = os.environ.get("OV_DUMP_PRE_PLUGIN_IR")
     if _dump_dir:
@@ -341,7 +363,19 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
             serialize(om, _path + ".xml", _path + ".bin")
             print(f"[OV_DUMP] Dumped pre-plugin IR to {_path}.xml", flush=True)
 
+    if os.environ.get("OV_DBG_CONFIG"):
+        print(f"[CONFIG] {config}", flush=True)
     compiled = core.compile_model(om, device, config)
+    if os.environ.get("OV_DBG_CONFIG"):
+        try:
+            print(f"[CONFIG] actual INFERENCE_NUM_THREADS={compiled.get_property('INFERENCE_NUM_THREADS')}", flush=True)
+            print(f"[CONFIG] actual NUM_STREAMS={compiled.get_property('NUM_STREAMS')}", flush=True)
+        except Exception as _e:
+            print(f"[CONFIG] get_property failed: {_e}", flush=True)
+    # Keep the widened affinity mask — TBB threads were created during
+    # compile_model and inherit the mask at creation time. Restoring the
+    # narrow mask would not shrink the thread pool but would prevent newly
+    # spawned worker threads from running on most cores. Leave it wide.
     logger.debug(f"OpenVINO graph compile successful on device {device}")
 
     _post_dir = os.environ.get("OV_DUMP_POST_PLUGIN_IR")
