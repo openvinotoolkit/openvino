@@ -177,17 +177,15 @@ ov::npuw::s11n::WeightsContext make_import_weights_ctx(const ov::AnyMap& propert
 
 std::function<std::string(const std::string&)> get_encrypt_callback(const ov::AnyMap& properties) {
     if (auto it = properties.find(ov::cache_encryption_callbacks.name()); it != properties.end()) {
-        const auto callbacks = it->second.as<ov::EncryptionCallbacks>();
-        return callbacks.encrypt;
+        return it->second.as<ov::EncryptionCallbacks>().encrypt;
     }
-    return nullptr;
+    return {};
 }
 
 std::function<std::string(const std::string&)> get_decrypt_callback_or_throw(const ov::AnyMap& properties) {
     if (auto it = properties.find(ov::cache_encryption_callbacks.name()); it != properties.end()) {
-        const auto callbacks = it->second.as<ov::EncryptionCallbacks>();
-        if (callbacks.decrypt) {
-            return callbacks.decrypt;
+        if (const auto decrypt = it->second.as<ov::EncryptionCallbacks>().decrypt) {
+            return decrypt;
         }
     }
     OPENVINO_THROW("Blob is encrypted, but no decryption callback was provided");
@@ -842,6 +840,7 @@ bool ov::npuw::CompiledModel::should_use_quantized_host_gather(const std::shared
 
 void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Stream& stream,
                                                            const ov::npuw::s11n::WeightsContext& ctx,
+                                                           std::optional<std::size_t> orc_device_index,
                                                            const ov::npuw::s11n::SubmodelDeserializeCtx* submodel_ctx) {
     using namespace ov::npuw::s11n;
 
@@ -851,6 +850,40 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
         LOG_DEBUG("Deserializing CompiledModelDesc...");
     }
     LOG_BLOCK();
+
+    ov::SoPtr<ov::ICompiledModel> imported_compiled_model;
+    std::optional<ov::npuw::s11n::SubmodelDeserializeCtx> resolved_submodel_ctx;
+    if (orc_device_index.has_value() || (stream.input() && submodel_ctx != nullptr && submodel_ctx->device_by_index)) {
+        std::size_t device_index = orc_device_index.value_or(0u);
+        stream & device_index;
+
+        bool has_compiled_model = static_cast<bool>(compiled_model);
+        if (stream.input()) {
+            has_compiled_model = false;
+        }
+        stream & has_compiled_model;
+
+        if (stream.output()) {
+            if (has_compiled_model) {
+                std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
+                compiled_model->export_model(buffer);
+                auto model_blob = buffer.str();
+                stream & model_blob;
+            }
+        } else {
+            const auto device = submodel_ctx->device_by_index(device_index);
+            const auto import_config = submodel_ctx->import_config_for_device(device);
+            if (has_compiled_model) {
+                std::string model_blob;
+                stream & model_blob;
+                std::stringstream buffer(model_blob, std::ios::in | std::ios::out | std::ios::binary);
+                imported_compiled_model = submodel_ctx->plugin->get_core()->import_model(buffer, device, import_config);
+            }
+            compiled_model = imported_compiled_model;
+            resolved_submodel_ctx.emplace(submodel_ctx->plugin, device, compiled_model, import_config);
+            submodel_ctx = &(*resolved_submodel_ctx);
+        }
+    }
 
     stream & replaced_by & param_base & forced_to_fcall & host_gather.dst_idx & host_gather.src_idx &
         host_gather.idx_idx & quant_unpack_gather.dst_idx & quant_unpack_gather.src_w_idx &
@@ -1024,7 +1057,7 @@ void ov::npuw::CompiledModel::serialize_orc(std::ostream& stream) const {
         ensure_phase0_compatibility();
     }
 
-    const bool is_weightless = should_use_weightless_flow(m_non_npuw_props, m_cfg, m_const_to_offset);
+    bool is_weightless = should_use_weightless_flow(m_non_npuw_props, m_cfg, m_const_to_offset);
     if (!is_weightless) {
         LOG_INFO("Serialization will be done via flow with weights.");
     }
@@ -1036,40 +1069,27 @@ void ov::npuw::CompiledModel::serialize_orc(std::ostream& stream) const {
     auto write_children = [&](std::ostream& body_stream) {
         for (std::size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
             auto& subm = const_cast<CompiledModelDesc&>(m_compiled_submodels[idx]);
-            ov::npuw::orc::with_section(body_stream,
-                                        CompiledModelDesc::kOrcType,
-                                        CompiledModelDesc::kOrcVersion,
-                                        0u,
-                                        [&] {
-                                            auto desc_stream = ov::npuw::s11n::Stream::writer(body_stream);
-                                            const auto real_idx = subm.replaced_by.value_or(idx);
-                                            auto device_index =
-                                                real_idx == idx ? find_device_index(m_dev_list, submodel_device(real_idx))
-                                                                : 0u;
-                                            desc_stream & device_index;
-
-                                            bool has_compiled_model = static_cast<bool>(subm.compiled_model);
-                                            desc_stream & has_compiled_model;
-                                            if (has_compiled_model) {
-                                                std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
-                                                subm.compiled_model->export_model(buffer);
-                                                auto model_blob = buffer.str();
-                                                desc_stream & model_blob;
-                                            }
-
-                                            subm.serialize(desc_stream, weights_ctx);
-                                        });
+            const auto real_idx = subm.replaced_by.value_or(idx);
+            const auto device_index = real_idx == idx ? find_device_index(m_dev_list, submodel_device(real_idx)) : 0u;
+            ov::npuw::orc::with_section(
+                body_stream,
+                CompiledModelDesc::kOrcType,
+                CompiledModelDesc::kOrcVersion,
+                0u,
+                [&] {
+                    auto desc_stream = ov::npuw::s11n::Stream::writer(body_stream);
+                    subm.serialize(desc_stream, weights_ctx, device_index);
+                });
         }
 
-        ov::npuw::orc::with_section(
-            body_stream, weights::Bank::kOrcType, weights::Bank::kOrcVersion, 0u, [&] {
-                auto weights_stream = ov::npuw::s11n::Stream::writer(body_stream);
-                auto bank_name = m_weights_bank->get_name();
-                weights_stream & bank_name;
-                if (!is_weightless) {
-                    weights_stream& * m_weights_bank;
-                }
-            });
+        ov::npuw::orc::with_section(body_stream, weights::Bank::kOrcType, weights::Bank::kOrcVersion, 0u, [&] {
+            auto weights_stream = ov::npuw::s11n::Stream::writer(body_stream);
+            auto bank_name = m_weights_bank->get_name();
+            weights_stream & bank_name;
+            if (!is_weightless) {
+                weights_stream&* m_weights_bank;
+            }
+        });
     };
 
     ov::npuw::orc::write_file_header(stream, NPUW_ORC_PARTITIONED_SCHEMA);
@@ -1081,13 +1101,10 @@ void ov::npuw::CompiledModel::serialize_orc(std::ostream& stream) const {
         meta_stream & m_inputs_to_submodels_inputs & m_outputs_to_submodels_outputs & m_param_subscribers &
             m_submodels_input_to_prev_output;
         meta_stream & m_dev_list;
-        auto cfg_string = m_cfg.toString();
-        meta_stream & cfg_string;
+        meta_stream & const_cast<::intel_npu::Config&>(m_cfg);
         meta_stream & serializable_props;
-        auto weightless_flag = is_weightless;
-        meta_stream & weightless_flag;
-        auto bf16_consts = m_bf16_consts;
-        meta_stream & bf16_consts;
+        meta_stream & is_weightless;
+        meta_stream & const_cast<ov::npuw::s11n::BF16Cache&>(m_bf16_consts);
         bool encrypted = static_cast<bool>(encrypt);
         meta_stream & encrypted;
         if (encrypted) {
@@ -1121,41 +1138,31 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
     std::string model_name;
     ov::ParameterVector parameters;
     ov::NodeVector results;
-    std::vector<ToSubmodel> inputs_to_submodels_inputs;
-    std::vector<ToSubmodel> outputs_to_submodels_outputs;
-    std::map<std::size_t, std::vector<ToSubmodel>> param_subscribers;
-    std::map<std::pair<size_t, size_t>, std::pair<size_t, size_t>> submodels_input_to_prev_output;
-    DevList dev_list;
-    std::string cfg_string;
-    ov::AnyMap non_npuw_props;
     bool is_weightless = false;
-    ov::npuw::s11n::BF16Cache bf16_consts;
     meta_stream & model_name & parameters & results;
-    meta_stream & inputs_to_submodels_inputs & outputs_to_submodels_outputs & param_subscribers &
-        submodels_input_to_prev_output;
-    meta_stream & dev_list;
-    meta_stream & cfg_string;
-    meta_stream & non_npuw_props;
-    meta_stream & is_weightless;
-    meta_stream & bf16_consts;
 
     auto ov_model = std::make_shared<ov::Model>(ov::as_output_vector(results), parameters, model_name);
     auto compiled = std::make_shared<ov::npuw::CompiledModel>(ov_model, plugin, true);
     compiled->m_name = std::move(model_name);
-    compiled->m_inputs_to_submodels_inputs = std::move(inputs_to_submodels_inputs);
-    compiled->m_outputs_to_submodels_outputs = std::move(outputs_to_submodels_outputs);
-    compiled->m_param_subscribers = std::move(param_subscribers);
-    compiled->m_submodels_input_to_prev_output = std::move(submodels_input_to_prev_output);
-    compiled->m_dev_list = std::move(dev_list);
-    compiled->m_cfg.fromString(cfg_string);
+    meta_stream & compiled->m_inputs_to_submodels_inputs & compiled->m_outputs_to_submodels_outputs &
+        compiled->m_param_subscribers & compiled->m_submodels_input_to_prev_output;
+    meta_stream & compiled->m_dev_list;
+    meta_stream & compiled->m_cfg;
     compiled->m_cfg.parseEnvVars();
-    compiled->m_non_npuw_props = std::move(non_npuw_props);
-    compiled->m_bf16_consts = std::move(bf16_consts);
+    meta_stream & compiled->m_non_npuw_props;
+    meta_stream & is_weightless;
+    meta_stream & compiled->m_bf16_consts;
     compiled->m_import_weights_ctx = make_import_weights_ctx(properties, is_weightless, compiled->m_bf16_consts);
 
     bool encrypted = false;
-    if (root.header().version >= 1u) {
+    switch (root.header().version) {
+    case 0u:
+        break;
+    case 1u:
         meta_stream & encrypted;
+        break;
+    default:
+        OPENVINO_THROW("Unsupported ORC NPUW root version ", root.header().version);
     }
 
     bool have_weights = false;
@@ -1173,21 +1180,16 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
             compiled->m_compiled_submodels.emplace_back();
             auto& submodel = compiled->m_compiled_submodels.back();
             auto child_stream = ov::npuw::s11n::Stream::reader(child_source);
-            std::size_t device_index = 0u;
-            bool has_compiled_model = false;
-            child_stream & device_index & has_compiled_model;
-
-            const auto& device = compiled->m_dev_list.at(device_index);
-            const auto import_config = make_submodel_import_config(device, compiled->m_cfg);
-            if (has_compiled_model) {
-                std::string model_blob;
-                child_stream & model_blob;
-                std::stringstream buffer(model_blob, std::ios::in | std::ios::out | std::ios::binary);
-                submodel.compiled_model = plugin->get_core()->import_model(buffer, device, import_config);
-            }
-
-            ov::npuw::s11n::SubmodelDeserializeCtx submodel_ctx(plugin, device, submodel.compiled_model, import_config);
-            submodel.serialize(child_stream, compiled->m_import_weights_ctx, &submodel_ctx);
+            ov::npuw::s11n::SubmodelDeserializeCtx submodel_ctx(
+                plugin,
+                submodel.compiled_model,
+                [&](std::size_t device_index) {
+                    return compiled->m_dev_list.at(device_index);
+                },
+                [&](const std::string& device) {
+                    return make_submodel_import_config(device, compiled->m_cfg);
+                });
+            submodel.serialize(child_stream, compiled->m_import_weights_ctx, std::nullopt, &submodel_ctx);
             child.expect_end();
             return;
         }
@@ -1240,7 +1242,6 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
     }
 
     compiled->implement_properties();
-    compiled->report_io();
     return compiled;
 }
 
@@ -1511,7 +1512,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
                                                                 device,
                                                                 compiled->m_compiled_submodels[i].compiled_model,
                                                                 import_config);
-            compiled->m_compiled_submodels[i].serialize(stream, compiled->m_import_weights_ctx, &submodel_ctx);
+            compiled->m_compiled_submodels[i].serialize(stream, compiled->m_import_weights_ctx, std::nullopt, &submodel_ctx);
         }
 
         compiled->implement_properties();

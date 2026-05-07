@@ -180,10 +180,21 @@ struct SubmodelDeserializeCtx {
           compiled_model(_compiled_model),
           import_config(_import_config) {}
 
+    SubmodelDeserializeCtx(const std::shared_ptr<const ov::IPlugin>& _plugin,
+                           const ov::SoPtr<ov::ICompiledModel>& _compiled_model,
+                           std::function<std::string(std::size_t)> _device_by_index,
+                           std::function<std::map<std::string, Any>(const std::string&)> _import_config_for_device)
+        : plugin(_plugin),
+          compiled_model(_compiled_model),
+          device_by_index(std::move(_device_by_index)),
+          import_config_for_device(std::move(_import_config_for_device)) {}
+
     std::shared_ptr<const ov::IPlugin> plugin;
     std::string device;
     const ov::SoPtr<ov::ICompiledModel>& compiled_model;
     std::map<std::string, Any> import_config;
+    std::function<std::string(std::size_t)> device_by_index;
+    std::function<std::map<std::string, Any>(const std::string&)> import_config_for_device;
 };
 
 BF16Cache get_bf16_consts(const std::shared_ptr<ov::Model>& model);
