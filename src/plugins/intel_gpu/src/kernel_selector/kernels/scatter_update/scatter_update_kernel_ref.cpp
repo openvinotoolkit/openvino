@@ -180,43 +180,19 @@ static std::string GetSecondIterOutputIndexOrder(const scatter_update_params& pa
     return GetOrderString(output_order);
 }
 
-static std::vector<std::string> GetPlanarPitches(const Tensor::NDims& dims) {
-    const auto ndims = dims.size();
-    std::vector<std::string> pitches(ndims);
-    size_t pitch = 1;
-    for (size_t i = 0; i < ndims; ++i) {
-        pitches[i] = std::to_string(pitch);
-        pitch *= dims[i].v;
-    }
-    std::reverse(pitches.begin(), pitches.end());
-    return pitches;
-}
-
-static std::vector<std::string> GetDynamicPitches(const Tensor::NDims& dims, size_t tensor_idx) {
-    std::vector<std::string> pitches(dims.size());
-    size_t shape_info_rank = DataTensor::max_rank();
-    std::string pitch = "1";
-    for (size_t i = 0; i < pitches.size(); ++i) {
-        size_t bf_idx = dims.size() - i - 1;
-        size_t dim_offset = bf_idx > 1 ? shape_info_rank - i - 1 : bf_idx;
-
-        pitches[i] = pitch;
-        pitch += "*" + toCodeString(dims[i], tensor_idx * shape_info_rank + dim_offset);
-    }
-    std::reverse(pitches.begin(), pitches.end());
-    return pitches;
-}
-
 JitConstants ScatterUpdateKernelRef::GetJitConstants(const scatter_update_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
     size_t axis_value = GetScatterUpdateChannelIndex(params);
 
-    const auto blocked_layout = !(SimpleLayout(params.inputs[0].GetLayout()) &&
-                                  SimpleLayout(params.inputs[1].GetLayout()) &&
-                                  SimpleLayout(params.inputs[2].GetLayout()));
+    const auto input2_has_padding = params.inputs[2].has_dynamic_pad() || params.inputs[2].PitchesDifferFromLogicalDims();
 
-    if (blocked_layout) {
-        jit.AddConstant(MakeJitConstant("BLOCKED_LAYOUT", "1"));
+    // In case of padded input2 (updates), we also need non-planar indexing, because UPDATES_INDEX is calculated based on output sizes
+    const auto use_layout_aware_indexing = !(SimpleLayout(params.inputs[0].GetLayout()) &&
+                                             SimpleLayout(params.inputs[1].GetLayout()) &&
+                                             SimpleLayout(params.inputs[2].GetLayout())) || input2_has_padding;
+
+    if (use_layout_aware_indexing) {
+        jit.AddConstant(MakeJitConstant("USE_LAYOUT_AWARE_INDEXING", "1"));
     }
 
     jit.AddConstant(MakeJitConstant("UPDATES_INDEX_ORDER", GetUpdatesIndexOrder(params)));
@@ -225,54 +201,28 @@ JitConstants ScatterUpdateKernelRef::GetJitConstants(const scatter_update_params
     jit.AddConstant(MakeJitConstant("OUTPUT_INDEX_ON_AXIS", GetOutputIndexOnAxis(params, GetScatterUpdateChannelIndex(params))));
     jit.AddConstant(MakeJitConstant("AXIS_VALUE", axis_value));
 
-    const auto& input1 = params.inputs[1];
-    if (input1.is_dynamic()) {
-        const auto& input1_dims = input1.GetDims();
-        size_t input_offset = DataTensor::max_rank();
-        std::string indices_size = "(";
-
-        for (size_t i = 0; i < input1_dims.size(); ++i) {
-            size_t bf_idx = input1_dims.size() - i - 1;
-            size_t dim_offset = bf_idx > 1 ? input_offset - i - 1 : bf_idx;
-
-            indices_size += toCodeString(input1_dims[i], input_offset + dim_offset) + "*";
-        }
-        indices_size.back() = ')';
-        jit.AddConstant(MakeJitConstant("INDICES_SIZE", indices_size));
-    } else {
-        jit.AddConstant(MakeJitConstant("INDICES_SIZE", params.inputs[1].LogicalSize()));
-    }
-
-    std::vector<std::string> pitches;
     const auto& output = params.outputs[0];
-    if (output.is_dynamic()) {
-        size_t tensor_idx = params.inputs.size() + GetFusedPrimitiveInputsCount(params);
-        for (auto input : params.inputs) {
-            if (!input.is_dynamic())
-                tensor_idx--;
-        }
-        for (auto fused_op : params.fused_ops) {
-            if (!fused_op.output_tensor.is_dynamic())
-                tensor_idx--;
-        }
-        pitches = GetDynamicPitches(output.GetDims(), tensor_idx);
-    } else {
-        pitches = GetPlanarPitches(output.GetDims());
-    }
     auto default_order = GetDefaultOrder(output.GetDims().size());
 
     size_t dims = default_order.size();
-    std::string get_update_idx = "(INPUT2_OFFSET)";
+    // UPDATES_GET_INDEX just calculates planar index
+    // In case of simple planar layout, this index will be used directly, so need to add INPUT2_OFFSET
+    // In case of non-planar layout, INPUT2_GET_INDEX macro will be used, which adds the offset internally
+    std::string get_update_idx = use_layout_aware_indexing ? "0" : "(INPUT2_OFFSET)";
+    std::string get_update_idx_src = "UPDATES_GET_INDEX(";
     for (size_t i = 0; i < dims; ++i) {
-        if (i >= axis_value) {
+        if (i == dims-1) {
+            get_update_idx_src += default_order[i] + ")";
             std::string def_pitch = "UPDATES_" + GetAxisName(dims, i) + "_PITCH";
-            std::string src_pitch = "(" + pitches[i] + ")";
+            std::string src_pitch = "1";
             jit.AddConstant(MakeJitConstant(def_pitch, src_pitch));
         } else if (i == (axis_value - 1)) {
+            get_update_idx_src += default_order[i] + ", ";
             std::string def_pitch = "UPDATES_" + GetAxisName(dims, i) + "_PITCH";
-            std::string src_pitch = "(" + pitches[i + 1] + " * INDICES_SIZE)";
+            std::string src_pitch = "(UPDATES_" + GetAxisName(dims, i + 1) + "_PITCH * INDICES_SIZE)";
             jit.AddConstant(MakeJitConstant(def_pitch, src_pitch));
-        } else { // i < axis_value - 1
+        } else {
+            get_update_idx_src += default_order[i] + ", ";
             std::string def_pitch = "UPDATES_" + GetAxisName(dims, i) + "_PITCH" + "";
             std::string output_size_name;
             if (i == 0)
@@ -284,7 +234,7 @@ JitConstants ScatterUpdateKernelRef::GetJitConstants(const scatter_update_params
         }
         get_update_idx = get_update_idx + " + (" + default_order[i] + ")*(UPDATES_" + GetAxisName(dims, i) + "_PITCH)";
     }
-    jit.AddConstant(MakeJitConstant("GET_UPDATES_INDEX(idx_order)", get_update_idx));
+    jit.AddConstant(MakeJitConstant(get_update_idx_src, get_update_idx));
 
     if (!params.fused_ops.empty()) {
         FusedOpsConfiguration conf1 = { "_FIRST_KERNEL", GetDefaultOrder(output.GetDims().size()), "val", params.inputs[0].GetDType() };
