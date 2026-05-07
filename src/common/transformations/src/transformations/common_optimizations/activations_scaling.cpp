@@ -70,14 +70,12 @@ activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float scale_fact
         OPENVINO_ASSERT(pattern_map.count(convolution_m) || pattern_map.count(matmul_m) || pattern_map.count(moe_m),
                         "Not found any Convolution, MatMul or MOECompressed layer");
 
-        auto insert_scale_down_layer = [&](std::shared_ptr<ov::Node>& node,
-                                                                     const size_t input_idx) {
+        auto insert_scale_down_layer = [&](std::shared_ptr<ov::Node>& node, const size_t input_idx) {
             const std::vector<float> scale_down_value = {1.f / scale_factor};
             const auto src = node->input(input_idx).get_source_output();
 
-            auto scale_const = register_new_node<ov::op::v0::Constant>(src.get_element_type(),
-                                                                       ov::Shape(),
-                                                                       scale_down_value);
+            auto scale_const =
+                register_new_node<ov::op::v0::Constant>(src.get_element_type(), ov::Shape(), scale_down_value);
             auto scale_down_layer = register_new_node<v1::Multiply>(src, scale_const);
             scale_down_layer->set_friendly_name(node->get_friendly_name() + "_scale_down_in" +
                                                 std::to_string(input_idx));
@@ -111,7 +109,9 @@ activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float scale_fact
             if (moe->get_config().expert_type != ov::op::internal::MOE::Expert_type::GEMM2_BIAS_SWIGLU_CLAMP)
                 return false;
 
-            OPENVINO_ASSERT(moe->get_input_size() == 9 || moe->get_input_size() == 11, "Unexpected input size for MOECompressed: ", moe->get_input_size());
+            OPENVINO_ASSERT(moe->get_input_size() == 9 || moe->get_input_size() == 11,
+                            "Unexpected input size for MOECompressed: ",
+                            moe->get_input_size());
         }
 
         if (transformation_callback(scaled_op))
