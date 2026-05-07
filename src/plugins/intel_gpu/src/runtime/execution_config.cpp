@@ -316,6 +316,14 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
     // For now we apply config file only for build with debug caps, but it can be updated in the future to allow
     // reading release options for any build type
     apply_config_options(context->get_device_name(), get_debug_config());
+
+    // Auto-enable queue-level profiling when a per-primitive timing dump is requested.
+    // Without this, OCL/L0 streams are created without CL_QUEUE_PROFILING_ENABLE and
+    // event::get_profiling_info() yields no data, leaving average_counters with zero times.
+    // Mirrors CPU plugin's Config::applyDebugCapsProperties().
+    if (!get_dump_profiling_data_path().empty() || !get_average_counters().empty()) {
+        m_enable_profiling = true;
+    }
 #endif // ENABLE_DEBUG_CAPS
 }
 
