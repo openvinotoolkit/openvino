@@ -93,34 +93,38 @@ void recurrent_linear_attn(const ov::intel_cpu::PlainTensor& query,
                            const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
     size_t B = query.m_dims[0];
     size_t T = query.m_dims[1];
-    size_t H = query.m_dims[2];
+    size_t qk_heads = query.m_dims[2];
     size_t K = query.m_dims[3];
+    size_t v_heads = value.m_dims[2];
     size_t V = value.m_dims[3];
     const size_t K_HEAD_DIMS = K;
     const size_t V_HEAD_DIMS = V;
     const float q_scale = 1 / std::sqrt(static_cast<float>(K_HEAD_DIMS));
-    cpu_parallel->parallel_for3d(B, H, V, [&](size_t i_b, size_t i_h, size_t i_v) {
+    const size_t group_size = v_heads / qk_heads;
+    cpu_parallel->parallel_for3d(B, v_heads, V, [&](size_t i_b, size_t i_h, size_t i_v) {
         size_t tid = parallel_get_thread_num();
         float* init_state = temp_buffer + tid * 3 * K_HEAD_DIMS;
         float* b_k = temp_buffer + tid * 3 * K_HEAD_DIMS + K_HEAD_DIMS;
         float* b_q = temp_buffer + tid * 3 * K_HEAD_DIMS + 2 * K_HEAD_DIMS;
-        // B, T, H, K
-        float* q_ptr = query.ptr<float>(i_b, 0, i_h);
-        float* k_ptr = key.ptr<float>(i_b, 0, i_h);
+        const size_t hk = i_h / group_size;
+        // B, T, qk, K
+        float* q_ptr = query.ptr<float>(i_b, 0, hk);
+        float* k_ptr = key.ptr<float>(i_b, 0, hk);
+        // B, T, v_heads, V
         float* v_ptr = value.ptr<float>(i_b, 0, i_h);
-        // B, H, K, V
+        // B, v_heads, K, V
         for (size_t j = 0; j < K_HEAD_DIMS; j++) {
             init_state[j] = recurrent_state.at<float>({i_b, i_h, j, i_v});
         }
 
         for (size_t i = 0; i < T; i++) {
-            // gate: B, T, H
+            // gate: B, T, v_heads
             float b_g = gate.at<float>({i_b, i, i_h});
             float b_beta = beta.at<float>({i_b, i, i_h});
             b_g = exp(b_g);
             for (size_t j = 0; j < K_HEAD_DIMS; j++) {
-                b_k[j] = k_ptr[i * H * K_HEAD_DIMS + j];
-                b_q[j] = q_ptr[i * H * K_HEAD_DIMS + j];
+                b_k[j] = k_ptr[i * qk_heads * K_HEAD_DIMS + j];
+                b_q[j] = q_ptr[i * qk_heads * K_HEAD_DIMS + j];
             }
             if (use_qk_l2norm) {
                 l2norm(b_k, K_HEAD_DIMS, k_l2_norm_eps);
@@ -130,8 +134,8 @@ void recurrent_linear_attn(const ov::intel_cpu::PlainTensor& query,
             // h0 * gate
             multiply_scalar(init_state, init_state, b_g, K_HEAD_DIMS);
             float h_k = dot_product(init_state, b_k, K_HEAD_DIMS, nullptr, nullptr, nullptr, 0);
-            // B, T, H, V
-            float b_v = v_ptr[i_v + i * H * V_HEAD_DIMS];
+            // B, T, v_heads, V
+            float b_v = v_ptr[i_v + i * v_heads * V_HEAD_DIMS];
             b_v -= h_k;
             // b_v * b_k
             b_v *= b_beta;

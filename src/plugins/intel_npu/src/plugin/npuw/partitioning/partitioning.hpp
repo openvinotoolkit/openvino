@@ -6,6 +6,7 @@
 
 #include <map>
 #include <string>
+#include <unordered_map>
 #include <variant>
 #include <vector>
 
@@ -205,10 +206,7 @@ struct Partitioning {
 struct PartitioningContext {
     bool use_host_gather_quant = false;
     const ov::npuw::v1::subgraphs::PatternRegistry* subgraph_patterns = nullptr;
-
-    // Router model for MoE (shared during partitioning process)
-    // Will be populated during first pass and used in second pass
-    mutable std::shared_ptr<ov::Model> router_model;
+    mutable std::unordered_map<std::string, std::shared_ptr<ov::Model>> tagged_models;
 };
 
 Partitioning getPartitioning(const std::shared_ptr<ov::Model>& model,

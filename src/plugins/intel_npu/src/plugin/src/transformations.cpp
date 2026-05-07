@@ -189,10 +189,9 @@ std::tuple<std::shared_ptr<ov::Model>, bool> handlePluginBatching(
     const std::function<void(ov::intel_npu::BatchMode)>& updateBatchMode,
     std::optional<ov::Dimension>& originalBatch,
     Logger logger) {
-    auto originalModel = std::const_pointer_cast<ov::Model>(model);
     // Keep the original model for all no-op/early-return paths.
     // A mutable clone is created only when plugin batching is actually about to be applied.
-    auto reshapedModel = originalModel;
+    auto resultModel = std::const_pointer_cast<ov::Model>(model);
     auto successfullyDebatched = false;
 
     auto batchModeIsAvailable = localConfig.isAvailable(ov::intel_npu::batch_mode.name());
@@ -203,7 +202,7 @@ std::tuple<std::shared_ptr<ov::Model>, bool> handlePluginBatching(
             (batchMode == ov::intel_npu::BatchMode::PLUGIN || batchMode == ov::intel_npu::BatchMode::AUTO);
 
         if (!isAutoOrPluginBatch) {
-            return {reshapedModel, successfullyDebatched};
+            return {resultModel, successfullyDebatched};
         }
     } else {
         // If the compiler doesn't support BATCH_MODE, we can still try using batching
@@ -218,23 +217,23 @@ std::tuple<std::shared_ptr<ov::Model>, bool> handlePluginBatching(
                 logger.info("Batching will be handled by compiler.");
                 updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
             }
-            return {reshapedModel, successfullyDebatched};
+            return {resultModel, successfullyDebatched};
         }
 
         logger.info("Attempting to handle batching on the plugin side.");
         // Clone right before mutation to avoid extra memory usage when batching is skipped.
-        reshapedModel = model->clone();
+        resultModel = model->clone();
 
         try {
-            originalBatch = ov::get_batch(reshapedModel);
-            ov::set_batch(reshapedModel, ov::Dimension(1));
+            originalBatch = ov::get_batch(resultModel);
+            ov::set_batch(resultModel, ov::Dimension(1));
             successfullyDebatched = true;
         } catch (const std::exception& ex) {
             logger.warning("The plugin couldn't resize a batched model due to exception: %s.\n"
                            "Trying to debatch it...",
                            ex.what());
 
-            if (!deBatchModel(reshapedModel, ov::Dimension(1), originalBatch)) {
+            if (!deBatchModel(resultModel, ov::Dimension(1), originalBatch)) {
                 OPENVINO_THROW("Cannot debatch a model");
             }
             logger.info("The model has been debatched successfully");
@@ -248,7 +247,7 @@ std::tuple<std::shared_ptr<ov::Model>, bool> handlePluginBatching(
         }
     } catch (const std::exception& ex) {
         // If plugin-side transformation failed, keep the original model and drop the clone
-        reshapedModel = std::move(originalModel);
+        resultModel = std::const_pointer_cast<ov::Model>(model);
         if (batchMode == ov::intel_npu::BatchMode::AUTO) {
             logger.info("Couldn't validate and reshape the model. Batching will be handled by compiler. Error: %s",
                         ex.what());
@@ -263,7 +262,7 @@ std::tuple<std::shared_ptr<ov::Model>, bool> handlePluginBatching(
         }
     }
 
-    return {reshapedModel, successfullyDebatched};
+    return {resultModel, successfullyDebatched};
 }
 
 }  // namespace batch_helpers

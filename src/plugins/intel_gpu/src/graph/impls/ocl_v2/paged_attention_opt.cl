@@ -486,7 +486,7 @@ KERNEL(pa_sdpa_opt)(
             // TODO: const uint global_data_idx = partition_idx * SEQ_LEN_PARTITION_SIZE + local_data_idx
             const uint global_data_idx = partition_idx * SEQ_LEN_PARTITION_SIZE + qk_idx * (SUBGROUPS_PER_WG * SUBGROUP_SIZE) + sgid * SUBGROUP_SIZE + sglid;
 
-#if SEQ_LEN_PARTITION_SIZE % SUBGROUPS_PER_WG * SUBGROUP_SIZE == 0
+#if (SEQ_LEN_PARTITION_SIZE % (SUBGROUPS_PER_WG * SUBGROUP_SIZE)) == 0
             if (global_data_idx < seq_len) {
 #else
             if (global_data_idx < seq_len && local_data_idx < SEQ_LEN_PARTITION_SIZE) {
@@ -534,7 +534,7 @@ KERNEL(pa_sdpa_opt)(
             const uint local_data_idx = qk_idx * (SUBGROUPS_PER_WG * SUBGROUP_SIZE) + sgid * SUBGROUP_SIZE + sglid;
             const uint global_data_idx = partition_idx * SEQ_LEN_PARTITION_SIZE + qk_idx * (SUBGROUPS_PER_WG * SUBGROUP_SIZE) + sgid * SUBGROUP_SIZE + sglid;
 
-#if SEQ_LEN_PARTITION_SIZE % SUBGROUPS_PER_WG * SUBGROUP_SIZE == 0
+#if (SEQ_LEN_PARTITION_SIZE % (SUBGROUPS_PER_WG * SUBGROUP_SIZE)) == 0
             if (global_data_idx < seq_len) {
 #else
             if (global_data_idx < seq_len && local_data_idx < SEQ_LEN_PARTITION_SIZE) {
@@ -603,9 +603,9 @@ KERNEL(pa_sdpa_opt)(
 #if HAS_SCORE_AGGREGATION && MULTI_TOKENS_PROCESSING
                         // In case of multi tokens processing we have to fill the buffer with zeros to guarantee correct result
                         // for reduction operation
-                        softmax_results[output_offset + i] = partition_idx * SEQ_LEN_PARTITION_SIZE + i >= seq_len ? SOFTMAX_ACCUMULATOR_VAL_ZERO : slm_qk_vals[i];
+                        softmax_results[output_offset + i] = partition_idx * SEQ_LEN_PARTITION_SIZE + i >= seq_len ? SOFTMAX_ACCUMULATOR_VAL_ZERO : slm_qk_vals[q_idx * SEQ_LEN_PARTITION_SIZE + i];
 #else
-                        softmax_results[output_offset + i] = slm_qk_vals[i];
+                        softmax_results[output_offset + i] = slm_qk_vals[q_idx * SEQ_LEN_PARTITION_SIZE + i];
 #endif
                     }
                 }
