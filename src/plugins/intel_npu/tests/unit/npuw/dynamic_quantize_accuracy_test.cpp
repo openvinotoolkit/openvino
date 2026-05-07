@@ -708,10 +708,6 @@ TEST_P(DynamicQuantizeAccuracyTest, DeviceRoundtripAccuracy) {
         (p.decompose_version == 2 || p.decompose_version == 3) &&
         p.shape == Shape({1, 8, 1024, 128});
 
-    if (device.empty() && enable_skipped_error_case) {
-        device = "NPU";
-    }
-
     if (device.empty()) {
         GTEST_SKIP() << "OV_DQ_TEST_DEVICE not set -- skipping device inference test";
     }
