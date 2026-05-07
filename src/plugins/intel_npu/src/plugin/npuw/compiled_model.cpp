@@ -3,16 +3,17 @@
 //
 #include "compiled_model.hpp"
 
-#include <fstream>
-#include <iostream>
+#include <algorithm>
 #include <memory>
 #include <set>
 #include <string>
 
 #include "accuracy/comparator.hpp"
+#include "attn/attn_subgraph.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "just_sync_infer_request.hpp"
 #include "logging.hpp"
+#include "moe/moe_subgraph.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
@@ -26,6 +27,7 @@
 #include "plugin.hpp"
 #include "unfold_sync_infer_request.hpp"
 #include "util.hpp"
+#include "v1/elements/accuracy_checked.hpp"
 #include "v1/elements/failsafe.hpp"
 
 // required for get_properties_per_device()
@@ -41,6 +43,20 @@
 #include "transformations/convert_precision.hpp"
 
 namespace {
+std::string canonical_device_name(const std::string& device_name) {
+    const auto dot_pos = device_name.find('.');
+    return dot_pos == std::string::npos ? device_name : device_name.substr(0, dot_pos);
+}
+
+std::size_t find_device_index(const std::vector<std::string>& devices, const std::string& device_name) {
+    const auto canonical_name = canonical_device_name(device_name);
+    const auto it = std::find_if(devices.begin(), devices.end(), [&](const std::string& candidate) {
+        return canonical_device_name(candidate) == canonical_name;
+    });
+    NPUW_ASSERT(it != devices.end());
+    return static_cast<std::size_t>(it - devices.begin());
+}
+
 void split_properties(const ov::AnyMap& properties,
                       ov::AnyMap& npu_plugin_properties,
                       ov::AnyMap& npuw_path_properties) {
@@ -102,6 +118,7 @@ std::set<std::string> device_list_to_set(const std::string& device_list) {
 
 namespace ov {
 namespace npuw {
+
 namespace {
 ov::npuw::DeviceProperties get_properties_per_device(const std::shared_ptr<const ov::IPlugin>& plugin,
                                                      const std::string& device_priorities,
@@ -211,6 +228,12 @@ ov::npuw::ICompiledModel::ICompiledModel(const std::shared_ptr<ov::Model>& model
 ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                        const std::shared_ptr<const ov::IPlugin>& plugin,
                                        const ov::AnyMap& properties)
+    : CompiledModel(model, plugin, properties, nullptr) {}
+
+ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
+                                       const std::shared_ptr<const ov::IPlugin>& plugin,
+                                       const ov::AnyMap& properties,
+                                       const ov::npuw::v1::subgraphs::PatternRegistry* subgraph_patterns)
     : ov::npuw::ICompiledModel_v0(model, plugin),
       m_options_desc(std::make_shared<::intel_npu::OptionsDesc>()),
       m_cfg(m_options_desc),
@@ -268,9 +291,27 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     // Store original constants' offset for serialization purposes
     store_const_offsets(model);
 
+    std::optional<ov::npuw::v1::subgraphs::PatternRegistry> combined_subgraph_patterns;
+    std::vector<ov::npuw::v1::subgraphs::ScopedPatternRegistration> builtin_pattern_registrations;
+    combined_subgraph_patterns.emplace();
+    if (subgraph_patterns != nullptr) {
+        combined_subgraph_patterns->append_from(*subgraph_patterns);
+    }
+    builtin_pattern_registrations =
+        ov::npuw::moe::register_patterns(*combined_subgraph_patterns,
+                                         m_cfg.get<::intel_npu::NPUW_MOE_TOKEN_CHUNK_SIZE>());
+
+    {
+        auto attn_registrations = ov::npuw::attn::register_patterns(*combined_subgraph_patterns);
+        for (auto& r : attn_registrations) {
+            builtin_pattern_registrations.push_back(std::move(r));
+        }
+    }
+
     ov::npuw::PartitioningContext ctx;
     // Identify based on compiler version, user config and pattern
     ctx.use_host_gather_quant = should_use_quantized_host_gather(model, npuw_props);
+    ctx.subgraph_patterns = &combined_subgraph_patterns.value();
 
     ov::npuw::Partitioning partitioning;
     m_profile["partitioning"].record([&]() {
@@ -400,6 +441,12 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                                                          subgraph._sinks,
                                                                          subgraph._parameters,
                                                                          m_name + '_' + std::to_string(id));
+            m_compiled_submodels[id].pipeline.registration = subgraph._pipeline.registration;
+            m_compiled_submodels[id].pipeline.context = subgraph._pipeline.context;
+            if (subgraph._pipeline.compile_stage) {
+                subgraph._pipeline.compile_stage(m_compiled_submodels[id].pipeline,
+                                                 m_compiled_submodels[id].pipeline.context);
+            }
         } else {
             LOG_BLOCK();
             auto& fcn_template = partitioning.functions.at(subgraph._funcall);
@@ -423,45 +470,6 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                     m_compiled_submodels[id].spatial =
                         compiled::Spatial(fcn_template._spatial.value(), fcn_template._model);
                 }
-                // Does the same for dynamic. FIXME: This selection should be hidden here
-                // in the object semantics
-                if (fcn_template._attention) {
-                    m_compiled_submodels[id].attention =
-                        compiled::Attention(fcn_template._attention.value(), fcn_template._model);
-                }
-
-                if (fcn_template._pyramid_attention) {
-                    LOG_INFO("Creating compiled::PyramidAttention for Subgraph[" << id << "] (function "
-                                                                                 << subgraph._funcall << ")");
-                    m_compiled_submodels[id].pyramid_attention =
-                        compiled::PyramidAttention(fcn_template._pyramid_attention.value());
-                }
-
-                if (fcn_template._host_flash_attention) {
-                    LOG_INFO("Creating compiled::HostFlashAttention for Subgraph[" << id << "] (function "
-                                                                                   << subgraph._funcall << ")");
-                    m_compiled_submodels[id].host_flash_attention =
-                        compiled::HostFlashAttention(fcn_template._host_flash_attention.value());
-                }
-
-                if (fcn_template._moe_experts) {
-                    m_compiled_submodels[id].moe_experts = compiled::MoEExperts(fcn_template._moe_experts.value());
-
-                    // Point model to first chunk size model (actual compilation handled by compile_for_success)
-                    const auto& models_to_compile = m_compiled_submodels[id].moe_experts.value()._models_to_compile;
-                    NPUW_ASSERT(!models_to_compile.empty() && "Fatal: MoEExperts has no models to compile!");
-                    m_compiled_submodels[id].model = models_to_compile.begin()->second;
-                }
-
-                if (fcn_template._moe_experts_downstream) {
-                    m_compiled_submodels[id].moe_experts_downstream =
-                        compiled::MoEDownstream(fcn_template._moe_experts_downstream.value());
-
-                    // Set the model to compile from MoEDownstream
-                    m_compiled_submodels[id].model =
-                        m_compiled_submodels[id].moe_experts_downstream.value()._model_to_compile;
-                }
-
                 LOG_INFO("Subgraph[" << id << "] is a function body for " << subgraph._funcall);
             } else {
                 // ...and refer to it in other calls
@@ -470,6 +478,18 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             }
             auto& closure_desc = m_compiled_submodels[id].closure.get();
 
+            m_compiled_submodels[id].pipeline.registration = fcn_template._pipeline.registration;
+            m_compiled_submodels[id].pipeline.context = fcn_template._pipeline.context;
+            if (compiled_fcn_iter == compiledFunctions.end()) {
+                if (fcn_template._pipeline.compile_stage) {
+                    fcn_template._pipeline.compile_stage(m_compiled_submodels[id].pipeline,
+                                                         m_compiled_submodels[id].pipeline.context);
+                }
+            } else {
+                const auto real_id = m_compiled_submodels[id].replaced_by.value();
+                m_compiled_submodels[id].pipeline.runtime_behavior =
+                    m_compiled_submodels[real_id].pipeline.runtime_behavior;
+            }
             m_compiled_submodels[id].host_gather = subgraph._host_gather;
             m_compiled_submodels[id].quant_unpack_gather = subgraph._quant_unpack_gather;
             m_compiled_submodels[id].param_base = fcn_template._param_offset;
@@ -486,6 +506,10 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             OPENVINO_THROW("Fatal: submodel ", id, " is neither a model nor a function call!");
         }
         const std::size_t real_id = m_compiled_submodels[id].replaced_by.value_or(id);
+        auto& pipeline = m_compiled_submodels[id].pipeline;
+        pipeline.is_function_call =
+            m_compiled_submodels[id].replaced_by.has_value() && m_compiled_submodels[id].replaced_by.value() != id;
+        pipeline.function_body_subgraph_idx = m_compiled_submodels[id].replaced_by;
 
         // FIXME: a hotfix for a crash where we have too many names in submodel's output
         // Do it just once if that's a function
@@ -498,15 +522,17 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             };
 
             // Fix tensor names for MoE expert models
-            if (const auto& moe_experts = m_compiled_submodels[real_id].moe_experts) {
-                for (const auto& [chunk_size, model] : moe_experts.value()._models_to_compile) {
+            if (const auto* moe_experts =
+                    ov::npuw::moe::get_compiled_experts(m_compiled_submodels[real_id].pipeline.context)) {
+                for (const auto& [chunk_size, model] : moe_experts->_models_to_compile) {
                     fix_tensor_names(model);
                 }
             }
 
             // Fix tensor names for pyramid attention models
-            if (const auto& pyramid_attn = m_compiled_submodels[real_id].pyramid_attention) {
-                for (const auto& model : pyramid_attn.value()._models_to_compile) {
+            if (const auto* pyramid_attn =
+                    ov::npuw::attn::get_compiled_pyramid(m_compiled_submodels[real_id].pipeline.context)) {
+                for (const auto& model : pyramid_attn->_models_to_compile) {
                     fix_tensor_names(model);
                 }
             }
@@ -594,19 +620,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                            "]");
         }
 
-        if (m_acc_check) {
-            if (submodel_device(real_id) != m_ref_device) {
-                LOG_INFO("Compile Subgraph[" << real_id << "] for reference device: " << m_ref_device << ".");
-                LOG_BLOCK();
-                m_compiled_submodels.at(real_id).ref_compiled_model =
-                    compile_submodel(m_compiled_submodels.at(real_id).model, m_ref_device);
-                LOG_INFO("Done (reference)");
-            } else {
-                LOG_INFO("Skip compilation of submodel[" << real_id << "] for reference device: " << m_ref_device
-                                                         << ", as original submodel[" << real_id
-                                                         << "] has been already compiled for it.");
-            }
-        }
+        LOG_INFO("Done (Subgraph[" << id << "]).");
     };  // compile
 
     // Parallel compilation is unstable so is disabled by default.
@@ -729,311 +743,106 @@ bool ov::npuw::CompiledModel::should_use_quantized_host_gather(const std::shared
     return false;
 }
 
-void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
-                                                           const ov::npuw::s11n::WeightsContext& ctx) const {
+void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Stream& stream,
+                                                           const ov::npuw::s11n::WeightsContext& ctx,
+                                                           const ov::npuw::s11n::SubmodelDeserializeCtx* submodel_ctx) {
     using namespace ov::npuw::s11n;
 
-    LOG_DEBUG("Serializing CompiledModelDesc...");
+    if (stream.output()) {
+        LOG_DEBUG("Serializing CompiledModelDesc...");
+    } else {
+        LOG_DEBUG("Deserializing CompiledModelDesc...");
+    }
     LOG_BLOCK();
 
-    write(stream, replaced_by);
+    stream & replaced_by & param_base & forced_to_fcall & host_gather.dst_idx & host_gather.src_idx &
+        host_gather.idx_idx & quant_unpack_gather.dst_idx & quant_unpack_gather.src_w_idx &
+        quant_unpack_gather.src_z_idx & quant_unpack_gather.src_s_idx & quant_unpack_gather.idx_idx & spatial;
 
-    write(stream, param_base);
-    write(stream, forced_to_fcall);
+    ov::npuw::moe::serialize_compiled_state(pipeline.context, stream, submodel_ctx);
+    ov::npuw::attn::serialize_compiled_state(pipeline.context, stream, submodel_ctx);
 
-    write(stream, host_gather.dst_idx);
-    write(stream, host_gather.src_idx);
-    write(stream, host_gather.idx_idx);
-
-    write(stream, quant_unpack_gather.dst_idx);
-    write(stream, quant_unpack_gather.src_w_idx);
-    write(stream, quant_unpack_gather.src_z_idx);
-    write(stream, quant_unpack_gather.src_s_idx);
-    write(stream, quant_unpack_gather.idx_idx);
-
-    write(stream, spatial);
-    write(stream, attention);
-
-    // Serialize compiled submodels for pyramid attention, except the last one
-    write(stream, pyramid_attention);
-    if (pyramid_attention.has_value()) {
-        size_t num_models = pyramid_attention.value()._compiled_models.size();
-        write(stream, num_models);
-
-        for (size_t i = 0; i < num_models - 1; ++i) {
-            std::stringstream ss;
-            auto compiled_model = pyramid_attention.value()._compiled_models[i];
-            compiled_model->export_model(ss);
-            write(stream, ss.str());
-        }
-    }
-
-    // Serialize MoE experts
-    write(stream, moe_experts);
-    if (moe_experts.has_value()) {
-        const auto& moe = moe_experts.value();
-        size_t num_compiled_models = moe._compiled_models.size();
-        write(stream, num_compiled_models);
-
-        for (const auto& [chunk_size, compiled_model] : moe._compiled_models) {
-            write(stream, chunk_size);
-            if (compiled_model) {
-                write(stream, true);
-                std::stringstream ss;
-                compiled_model->export_model(ss);
-                write(stream, ss.str());
-            } else {
-                write(stream, false);
-            }
-        }
-    }
-
-    // Serialize MoE experts downstream
-    write(stream, moe_experts_downstream);
-    if (moe_experts_downstream.has_value()) {
-        const auto& moe_downstream = moe_experts_downstream.value();
-        if (moe_downstream._compiled_model) {
-            write(stream, true);
-            std::stringstream ss;
-            moe_downstream._compiled_model->export_model(ss);
-            write(stream, ss.str());
-        } else {
-            write(stream, false);
-        }
-    }
-
-    // Serialize host flash attention
-    write(stream, host_flash_attention);
-    if (host_flash_attention.has_value()) {
-        // Serialize compiled tile model
-        if (host_flash_attention.value()._compiled_tile_model) {
-            write(stream, true);
-            std::stringstream ss;
-            host_flash_attention.value()._compiled_tile_model->export_model(ss);
-            write(stream, ss.str());
-        } else {
-            write(stream, false);
+    if (stream.input()) {
+        if (ov::npuw::attn::get_compiled_dynamic(pipeline.context) != nullptr) {
+            ov::npuw::attn::attach_runtime_behavior(pipeline, pipeline.context, ov::npuw::attn::BehaviorKind::Dynamic);
+        } else if (ov::npuw::attn::get_compiled_pyramid(pipeline.context) != nullptr) {
+            ov::npuw::attn::attach_runtime_behavior(pipeline, pipeline.context, ov::npuw::attn::BehaviorKind::Pyramid);
+        } else if (ov::npuw::attn::get_compiled_hfa(pipeline.context) != nullptr) {
+            ov::npuw::attn::attach_runtime_behavior(pipeline, pipeline.context, ov::npuw::attn::BehaviorKind::HFA);
         }
     }
 
     auto& closure_desc = closure.get();
 
-    write(stream, closure_desc.is_remote);
-    write(stream, closure_desc.closure_uid);
+    stream & closure_desc.is_remote & closure_desc.closure_uid;
 
     if (ctx.is_weightless) {
-        write_weightless(stream, scales, ctx);
-        write_weightless(stream, zerops, ctx);
+        serialize_weightless(stream, scales, ctx);
+        serialize_weightless(stream, zerops, ctx);
 
-        write(stream, closure_desc.closure.size());
+        std::size_t closure_size = closure_desc.closure.size();
+        stream & closure_size;
         std::vector<ov::Tensor> cpu_closures;
         std::vector<std::size_t> cpu_closure_ids;
         std::vector<ov::npuw::weights::LazyTensor> non_cpu_tensors;
         std::vector<std::size_t> non_cpu_tensors_ids;
-        for (std::size_t cidx = 0; cidx < closure_desc.closure.size(); ++cidx) {
-            if (closure_desc.closure_uid[cidx] == -1) {  // CPU closure
-                cpu_closure_ids.push_back(cidx);
-                cpu_closures.push_back(closure_desc.closure[cidx]);
-            } else {
-                non_cpu_tensors_ids.push_back(cidx);
-                non_cpu_tensors.push_back(lazy_closure[cidx]);  // must be there
+        if (stream.output()) {
+            for (std::size_t cidx = 0; cidx < closure_desc.closure.size(); ++cidx) {
+                if (closure_desc.closure_uid[cidx] == -1) {
+                    cpu_closure_ids.push_back(cidx);
+                    cpu_closures.push_back(closure_desc.closure[cidx]);
+                } else {
+                    non_cpu_tensors_ids.push_back(cidx);
+                    non_cpu_tensors.push_back(lazy_closure[cidx]);
+                }
             }
-        }
-
-        write(stream, cpu_closure_ids);
-        write_weightless(stream, cpu_closures, ctx);
-        write(stream, non_cpu_tensors_ids);
-        write(stream, non_cpu_tensors);
-    } else {
-        write(stream, scales);
-        write(stream, zerops);
-
-        write(stream, closure_desc.closure.size());
-        std::vector<ov::Tensor> cpu_closures;
-        std::vector<std::size_t> cpu_closure_ids;
-        for (std::size_t cidx = 0; cidx < closure_desc.closure.size(); ++cidx) {
-            if (closure_desc.closure_uid[cidx] == -1) {  // CPU closure, not in the bank
-                cpu_closure_ids.push_back(cidx);
-                cpu_closures.push_back(closure_desc.closure[cidx]);
+            stream & cpu_closure_ids;
+            serialize_weightless(stream, cpu_closures, ctx);
+            stream & non_cpu_tensors_ids & non_cpu_tensors;
+        } else {
+            closure_desc.closure.resize(closure_size);
+            lazy_closure.resize(closure_size);
+            stream & cpu_closure_ids;
+            serialize_weightless(stream, cpu_closures, ctx);
+            std::size_t tidx = 0;
+            for (const auto& idx : cpu_closure_ids) {
+                closure_desc.closure[idx] = std::move(cpu_closures[tidx++]);
             }
-        }
-
-        write(stream, cpu_closure_ids);
-
-        for (const auto& tensor : cpu_closures) {
-            write(stream, tensor);
-        }
-    }
-
-    LOG_DEBUG("DONE.");
-}
-
-void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(
-    std::istream& stream,
-    const ov::npuw::s11n::WeightsContext& ctx,
-    const ov::npuw::s11n::SubmodelDeserializeCtx& submodel_ctx) {
-    using namespace ov::npuw::s11n;
-
-    LOG_DEBUG("Deserializing CompiledModelDesc...");
-    LOG_BLOCK();
-
-    read(stream, replaced_by);
-
-    read(stream, param_base);
-    read(stream, forced_to_fcall);
-
-    read(stream, host_gather.dst_idx);
-    read(stream, host_gather.src_idx);
-    read(stream, host_gather.idx_idx);
-
-    read(stream, quant_unpack_gather.dst_idx);
-    read(stream, quant_unpack_gather.src_w_idx);
-    read(stream, quant_unpack_gather.src_z_idx);
-    read(stream, quant_unpack_gather.src_s_idx);
-    read(stream, quant_unpack_gather.idx_idx);
-
-    read(stream, spatial);
-    read(stream, attention);
-
-    read(stream, pyramid_attention);
-    if (pyramid_attention.has_value()) {
-        size_t num_models = 0;
-        read(stream, num_models);
-        pyramid_attention.value()._compiled_models.resize(num_models);
-
-        if (num_models > 0) {
-            // Import all pyramid models except the last one
-            for (size_t i = 0; i < num_models - 1; ++i) {
-                std::string model_str;
-                read(stream, model_str);
-                std::stringstream ss(model_str);
-                pyramid_attention->_compiled_models[i] =
-                    submodel_ctx.plugin->get_core()->import_model(ss, submodel_ctx.device, submodel_ctx.import_config);
+            stream & non_cpu_tensors_ids & non_cpu_tensors;
+            std::size_t ltidx = 0;
+            for (const auto& idx : non_cpu_tensors_ids) {
+                lazy_closure[idx] = std::move(non_cpu_tensors[ltidx++]);
             }
-
-            // Reuse the already compiled model for the last pyramid attention model
-            if (submodel_ctx.compiled_model) {
-                pyramid_attention->_compiled_models[num_models - 1] = submodel_ctx.compiled_model;
-                LOG_DEBUG("Reused compiled_model for the last pyramid attention model");
-            }
-        }
-    }
-
-    // Deserialize MoE experts
-    read(stream, moe_experts);
-    if (moe_experts.has_value()) {
-        size_t num_compiled_models = 0;
-        read(stream, num_compiled_models);
-
-        for (size_t i = 0; i < num_compiled_models; ++i) {
-            size_t chunk_size = 0;
-            read(stream, chunk_size);
-
-            bool has_model = false;
-            read(stream, has_model);
-
-            if (has_model) {
-                std::string model_str;
-                read(stream, model_str);
-                std::stringstream ss(model_str);
-                auto compiled_model =
-                    submodel_ctx.plugin->get_core()->import_model(ss, submodel_ctx.device, submodel_ctx.import_config);
-                moe_experts->_compiled_models[chunk_size] = compiled_model;
-                LOG_DEBUG("Imported MoE compiled model for chunk_size=" << chunk_size);
-            }
-        }
-
-        LOG_DEBUG("Deserialized " << moe_experts->_compiled_models.size() << " MoE expert models");
-    }
-
-    // Deserialize MoE experts downstream
-    read(stream, moe_experts_downstream);
-    if (moe_experts_downstream.has_value()) {
-        bool has_model = false;
-        read(stream, has_model);
-
-        if (has_model) {
-            std::string model_str;
-            read(stream, model_str);
-            std::stringstream ss(model_str);
-            auto compiled_model =
-                submodel_ctx.plugin->get_core()->import_model(ss, submodel_ctx.device, submodel_ctx.import_config);
-            moe_experts_downstream->_compiled_model = compiled_model;
-            LOG_DEBUG("Imported MoE downstream compiled model");
-        }
-    }
-
-    // Deserialize host flash attention
-    read(stream, host_flash_attention);
-    if (host_flash_attention.has_value()) {
-        bool has_compiled_model = false;
-        read(stream, has_compiled_model);
-        if (has_compiled_model) {
-            std::string model_str;
-            read(stream, model_str);
-            std::stringstream ss(model_str);
-            host_flash_attention->_compiled_tile_model =
-                submodel_ctx.plugin->get_core()->import_model(ss, submodel_ctx.device, submodel_ctx.import_config);
-            LOG_DEBUG("Imported compiled tile model for host flash attention");
-        }
-
-        // Set reference to the final tile model (which is the main compiled_model for HFA)
-        host_flash_attention->_compiled_final_tile_model = submodel_ctx.compiled_model;
-        LOG_DEBUG("Set compiled final tile model reference for host flash attention");
-    }
-
-    auto& closure_desc = closure.get();
-
-    read(stream, closure_desc.is_remote);
-    read(stream, closure_desc.closure_uid);
-
-    if (ctx.weights || !ctx.consts_cache.empty()) {
-        read_weightless(stream, scales, ctx);
-        read_weightless(stream, zerops, ctx);
-
-        std::size_t closure_size = 0;
-        read(stream, closure_size);
-        closure_desc.closure.resize(closure_size);
-        lazy_closure.resize(closure_size);
-
-        std::vector<std::size_t> cpu_closure_ids;
-        read(stream, cpu_closure_ids);
-
-        std::vector<ov::Tensor> cpu_closures;
-        read_weightless(stream, cpu_closures, ctx);
-        std::size_t tidx = 0;
-        for (const auto& idx : cpu_closure_ids) {
-            closure_desc.closure[idx] = std::move(cpu_closures[tidx++]);
-        }
-
-        std::vector<std::size_t> non_cpu_tensors_ids;
-        read(stream, non_cpu_tensors_ids);
-
-        std::vector<ov::npuw::weights::LazyTensor> non_cpu_tensors;
-        read(stream, non_cpu_tensors);
-        std::size_t ltidx = 0;
-        for (const auto& idx : non_cpu_tensors_ids) {
-            lazy_closure[idx] = std::move(non_cpu_tensors[ltidx++]);
-        }
-
-        // Also read weights into LazyTensors
-        for (std::size_t cidx = 0; cidx < closure_desc.closure.size(); ++cidx) {
-            if (closure_desc.closure_uid[cidx] != -1 &&
-                lazy_closure[cidx]) {  // previously registered before serialization
-                lazy_closure[cidx].read_weight(ctx);
+            for (std::size_t cidx = 0; cidx < closure_desc.closure.size(); ++cidx) {
+                if (closure_desc.closure_uid[cidx] != -1 && lazy_closure[cidx]) {
+                    lazy_closure[cidx].read_weight(ctx);
+                }
             }
         }
     } else {
-        read(stream, scales);
-        read(stream, zerops);
+        stream & scales & zerops;
 
-        std::size_t closure_size = 0;
-        read(stream, closure_size);
+        std::size_t closure_size = closure_desc.closure.size();
+        stream & closure_size;
         std::vector<std::size_t> cpu_closure_ids;
-        read(stream, cpu_closure_ids);
-        closure_desc.closure.resize(closure_size);
-        for (const auto& cidx : cpu_closure_ids) {
-            read(stream, closure_desc.closure[cidx]);
+        if (stream.output()) {
+            std::vector<ov::Tensor> cpu_closures;
+            for (std::size_t cidx = 0; cidx < closure_desc.closure.size(); ++cidx) {
+                if (closure_desc.closure_uid[cidx] == -1) {
+                    cpu_closure_ids.push_back(cidx);
+                    cpu_closures.push_back(closure_desc.closure[cidx]);
+                }
+            }
+            stream & cpu_closure_ids;
+            for (auto& tensor : cpu_closures) {
+                stream & tensor;
+            }
+        } else {
+            stream & cpu_closure_ids;
+            closure_desc.closure.resize(closure_size);
+            for (const auto& cidx : cpu_closure_ids) {
+                stream & closure_desc.closure[cidx];
+            }
         }
     }
 
@@ -1046,7 +855,7 @@ ov::npuw::CompiledModel::~CompiledModel() {
     }
 }
 
-void ov::npuw::CompiledModel::export_model(std::ostream& stream) const {
+void ov::npuw::CompiledModel::export_model(std::ostream& raw_stream) const {
     using namespace ov::npuw::s11n;
 
     // Identify encryption flow
@@ -1067,28 +876,28 @@ void ov::npuw::CompiledModel::export_model(std::ostream& stream) const {
 
     // Write header regardless of encryption requirement - to identify NPUW serializated blobs
     // Serialize magic number first
-    write(stream, NPUW_SERIALIZATION_INDICATOR);
+    write(raw_stream, NPUW_SERIALIZATION_INDICATOR);
     // Serilize CompiledModel identifier
-    write(stream, NPUW_COMPILED_MODEL_INDICATOR);
+    write(raw_stream, NPUW_COMPILED_MODEL_INDICATOR);
     // Serialize general meta info
-    write(stream, OPENVINO_VERSION_MAJOR);
-    write(stream, OPENVINO_VERSION_MINOR);
-    write(stream, OPENVINO_VERSION_PATCH);
-    write(stream, std::string(NPUW_SERIALIZATION_VERSION));
+    write(raw_stream, OPENVINO_VERSION_MAJOR);
+    write(raw_stream, OPENVINO_VERSION_MINOR);
+    write(raw_stream, OPENVINO_VERSION_PATCH);
+    write(raw_stream, std::string(NPUW_SERIALIZATION_VERSION));
     // Serialize encrypted flag
-    write(stream, encryption_required);
+    write(raw_stream, encryption_required);
     // Write flow identifier
-    write(stream, is_weightless);
+    write(raw_stream, is_weightless);
 
     if (!encryption_required) {
         CompiledContext ctx(false, nullptr, nullptr, m_bf16_consts);
-        serialize(stream, ctx);
+        serialize(raw_stream, ctx);
 
-        write(stream, m_weights_bank->get_name());
+        auto stream = Stream::writer(raw_stream);
+        auto bank_name = m_weights_bank->get_name();
+        stream & bank_name;
         if (!is_weightless) {
-            // Serialize weights bank
-            // Note: no need to encrypt weights in full flow
-            m_weights_bank->serialize(stream);
+            ov::npuw::s11n::serialize(stream, *m_weights_bank);
         }
         return;
     }
@@ -1096,22 +905,22 @@ void ov::npuw::CompiledModel::export_model(std::ostream& stream) const {
     // In case of weightless flow the whole blob will be encrypted on NPUW side.
     std::stringstream non_encrypted_stream;
     if (is_weightless) {
-        non_encrypted_stream.copyfmt(stream);
+        non_encrypted_stream.copyfmt(raw_stream);
         CompiledContext ctx(false, nullptr, nullptr, m_bf16_consts);
         serialize(non_encrypted_stream, ctx);
         std::string encrypted = enc_callbacks.encrypt(non_encrypted_stream.str());
-        write(stream, encrypted);
+        write(raw_stream, encrypted);
     } else {
         // In case of blob with weights only encrypt XML part of the model
         CompiledContext ctx(true, enc_callbacks.encrypt, nullptr, m_bf16_consts);
-        serialize(stream, ctx);
+        serialize(raw_stream, ctx);
     }
 
-    write(stream, m_weights_bank->get_name());
+    auto stream = Stream::writer(raw_stream);
+    auto bank_name = m_weights_bank->get_name();
+    stream & bank_name;
     if (!is_weightless) {
-        // Serialize weights bank
-        // Note: no need to encrypt weights in full flow
-        m_weights_bank->serialize(stream);
+        ov::npuw::s11n::serialize(stream, *m_weights_bank);
     }
 }
 
@@ -1170,16 +979,16 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::import_model(
 
     auto read_and_finalize_bank = [&](std::istream& model_stream,
                                       const std::shared_ptr<ov::npuw::CompiledModel>& compiled) {
-        // Deserialize weights bank name
+        auto stream = Stream::reader(model_stream);
         std::string bank_name;
-        read(model_stream, bank_name);
+        stream & bank_name;
 
         if (is_weightless) {
             compiled->m_weights_bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
             compiled->finalize_weights_bank();
         } else {
-            compiled->m_weights_bank =
-                ov::npuw::weights::Bank::deserialize(model_stream, compiled->get_plugin()->get_core(), bank_name);
+            compiled->m_weights_bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
+            ov::npuw::s11n::serialize(stream, *compiled->m_weights_bank);
             compiled->reconstruct_closure();
         }
     };
@@ -1229,73 +1038,76 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream, const ov::npuw::s1
     using namespace ov::npuw::s11n;
 
     auto write_model = [&](std::ostream& model_stream) {
+        auto stream = Stream::writer(model_stream);
         // Serialize name
-        write(model_stream, m_name);
+        stream & m_name;
 
         // Serialize inputs and outputs
-        write(model_stream, inputs());
-        write(model_stream, outputs());
+        stream& inputs() & outputs();
 
         // Serialize meta
-        write(model_stream, m_inputs_to_submodels_inputs);
-        write(model_stream, m_outputs_to_submodels_outputs);
-        write(model_stream, m_param_subscribers);
-        write(model_stream, m_submodels_input_to_prev_output);
+        stream & m_inputs_to_submodels_inputs & m_outputs_to_submodels_outputs & m_param_subscribers &
+            m_submodels_input_to_prev_output;
 
         // Write device list
-        write(model_stream, m_dev_list);
+        stream & m_dev_list;
 
         // Write config
-        write(model_stream, m_cfg);
+        stream & m_cfg;
         // FIXME: utilize overload instead
-        write(model_stream, m_non_npuw_props.size());
+        auto props_size = m_non_npuw_props.size();
+        stream & props_size;
         for (const auto& p : m_non_npuw_props) {
             // Skip properties which don't need to/can't be serialized
             // FIXME: extend the logic
             if (p.first == ov::cache_encryption_callbacks.name()) {
-                write(model_stream, false);
+                bool should_write = false;
+                stream & should_write;
                 continue;
             }
-            write(model_stream, true);
-            write(model_stream, p.first);
+            bool should_write = true;
+            stream & should_write & p.first;
             write_any(model_stream, p.second);
         }
 
         // Write flow identifier
         bool is_weightless = should_use_weightless_flow(m_non_npuw_props, m_cfg, m_const_to_offset);
-        write(model_stream, is_weightless);
+        stream & is_weightless;
 
         // Write bf16 consts cache
-        write(model_stream, enc_ctx.bf16_consts);
+        stream & enc_ctx.bf16_consts;
 
         // Create weightless context
         WeightsContext ctx(is_weightless, m_const_to_offset);
 
         // Serialize compiled submodels
-        write(model_stream, m_compiled_submodels.size());
+        auto submodel_count = m_compiled_submodels.size();
+        stream & submodel_count;
         for (std::size_t i = 0; i < m_compiled_submodels.size(); ++i) {
-            auto& subm = m_compiled_submodels[i];
+            auto& subm = const_cast<CompiledModelDesc&>(m_compiled_submodels[i]);
             auto real_idx = subm.replaced_by.value_or(i);
             // Write device idx
             // FIXME: if there is no compiled submodel, device_it is not set.
             auto dev_idx = [&]() {
-                auto it = std::find(m_dev_list.begin(), m_dev_list.end(), submodel_device(real_idx));
-                NPUW_ASSERT(it != m_dev_list.end());
-                return it - m_dev_list.begin();
+                return find_device_index(m_dev_list, submodel_device(real_idx));
             };
-            write(model_stream, real_idx == i ? dev_idx() : 0);
+            auto device_index = real_idx == i ? dev_idx() : 0;
+            stream & device_index;
             // Write ICompiledModel if it's there
             if (subm.compiled_model) {
-                write(model_stream, true);
+                bool has_compiled_model = true;
+                stream & has_compiled_model;
                 // FIXME: workaround for import/export model since import model seem to reset the file pointer
                 std::stringstream ss;
                 subm.compiled_model->export_model(ss);
-                write(model_stream, ss.str());
+                auto exported_model = ss.str();
+                stream & exported_model;
             } else {
-                write(model_stream, false);
+                bool has_compiled_model = false;
+                stream & has_compiled_model;
             }
             // Write the rest of the submodel desc
-            subm.serialize(model_stream, ctx);
+            subm.serialize(stream, ctx);
         }
     };
 
@@ -1324,17 +1136,17 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
     using namespace ov::npuw::s11n;
 
     auto read_model = [&](std::istream& model_stream) {
+        auto stream = Stream::reader(model_stream);
         // Deserialize model name first
         std::string model_name;
-        read(stream, model_name);
+        stream & model_name;
 
         // Create a dummy CompiledModel with an empty ov::Model - this will skip the constructor flow
         // to continue deserialization
         ov::ParameterVector parameters;
         ov::NodeVector results;
 
-        read(stream, parameters);
-        read(stream, results);
+        stream & parameters & results;
 
         auto ov_model = std::make_shared<ov::Model>(ov::as_output_vector(results), parameters, model_name);
 
@@ -1342,42 +1154,40 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
 
         // Deserialize meta
         compiled->m_name = model_name;
-        read(stream, compiled->m_inputs_to_submodels_inputs);
-        read(stream, compiled->m_outputs_to_submodels_outputs);
-        read(stream, compiled->m_param_subscribers);
-        read(stream, compiled->m_submodels_input_to_prev_output);
+        stream & compiled->m_inputs_to_submodels_inputs & compiled->m_outputs_to_submodels_outputs &
+            compiled->m_param_subscribers & compiled->m_submodels_input_to_prev_output;
 
         // Deserialize device list
-        read(stream, compiled->m_dev_list);
+        stream & compiled->m_dev_list;
 
         // Deserialize config
-        read(stream, compiled->m_cfg);
+        stream & compiled->m_cfg;
         compiled->m_cfg.parseEnvVars();
         // FIXME: utilize overload instead
         std::size_t props_size;
-        read(stream, props_size);
+        stream & props_size;
         for (std::size_t i = 0; i < props_size; ++i) {
             bool should_read = true;
-            read(stream, should_read);
+            stream & should_read;
             // Skip properties which don't need to/can't be deserialized
             // FIXME: extend the logic
             if (!should_read) {
                 continue;
             }
             std::string key;
-            read(stream, key);
+            stream & key;
             ov::Any val;
-            read_any(stream, val);
+            read_any(model_stream, val);
             compiled->m_non_npuw_props[key] = std::move(val);
         }
         compiled->implement_properties();
 
         // Read flow identifier
         bool is_weightless = false;
-        read(stream, is_weightless);
+        stream & is_weightless;
 
         // Read bf16 consts cache
-        read(stream, compiled->m_bf16_consts);
+        stream & compiled->m_bf16_consts;
 
         // Initialize weights stream if weightless flow
         std::string weights_path;
@@ -1453,14 +1263,14 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
 
         // Deserialize compiled submodels
         std::size_t subm_size = 0;
-        read(stream, subm_size);
+        stream & subm_size;
         compiled->m_compiled_submodels.resize(subm_size);
         for (std::size_t i = 0; i < subm_size; ++i) {
             std::size_t device_idx = 0;
-            read(stream, device_idx);
+            stream & device_idx;
 
             bool has_compiled_model = false;
-            read(stream, has_compiled_model);
+            stream & has_compiled_model;
 
             // Build import config for NPU device
             ov::AnyMap import_config;
@@ -1476,7 +1286,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
                 // Import model from the plugin
                 // FIXME: workaround for import/export model since import model seems to reset the file pointer
                 std::string buf;
-                read(stream, buf);
+                stream & buf;
                 std::stringstream buffer(buf);
                 compiled->m_compiled_submodels[i].compiled_model =
                     plugin->get_core()->import_model(buffer, device, import_config);
@@ -1488,7 +1298,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
                                                                 device,
                                                                 compiled->m_compiled_submodels[i].compiled_model,
                                                                 import_config);
-            compiled->m_compiled_submodels[i].deserialize(stream, compiled->m_import_weights_ctx, submodel_ctx);
+            compiled->m_compiled_submodels[i].serialize(stream, compiled->m_import_weights_ctx, &submodel_ctx);
         }
 
         compiled->implement_properties();
@@ -1538,6 +1348,14 @@ void ov::npuw::CompiledModel::reconstruct_closure() {
 
 std::size_t ov::npuw::CompiledModel::num_submodels() const {
     return m_compiled_submodels.size();
+}
+
+bool ov::npuw::CompiledModel::attention_dynamic_enabled() const {
+    return m_cfg.get<::intel_npu::NPUW_ATTN_DYN>();
+}
+
+bool ov::npuw::CompiledModel::attention_no_copy() const {
+    return m_cfg.get<::intel_npu::NPUW_ATTN_NO_COPY>();
 }
 
 std::shared_ptr<ov::npuw::weights::Bank> ov::npuw::CompiledModel::get_weights_bank() const {
@@ -1796,7 +1614,7 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
                 dump_on_fail(id, device, "Avoided due to workaround");
                 continue;
             }
-            if (desc.attention.has_value()) {
+            if (ov::npuw::attn::get_compiled_dynamic(desc.pipeline.context) != nullptr) {
                 bool has_dynamic = false;
                 for (const auto& input : desc.model->inputs()) {
                     if (input.get_partial_shape().is_dynamic()) {
@@ -1836,51 +1654,67 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
         };
     };
 
-    auto make_wrapped = [&](const std::shared_ptr<ov::Model>& model,
-                            const std::string& profile_suffix,
-                            const std::vector<std::string>& devs) -> ov::SoPtr<ov::ICompiledModel> {
+    auto make_failsafe = [&](const std::shared_ptr<ov::Model>& model,
+                             const std::string& profile_suffix,
+                             const std::vector<std::string>& devs) -> ov::SoPtr<ov::ICompiledModel> {
+        if (!m_cfg.get<::intel_npu::NPUW_FALLBACK_EXEC>()) {
+            std::exception_ptr last_failure;
+            auto factory = make_factory(model, profile_suffix);
+            for (const auto& device : devs) {
+                try {
+                    auto compiled = factory(device);
+                    OPENVINO_ASSERT(compiled._ptr != nullptr,
+                                    "Failsafe factory returned null compiled model for device ",
+                                    device);
+                    return compiled;
+                } catch (...) {
+                    last_failure = std::current_exception();
+                }
+            }
+            if (last_failure) {
+                std::rethrow_exception(last_failure);
+            }
+            OPENVINO_THROW("No candidate devices available for compilation");
+        }
+
         return ov::npuw::failsafe::CompiledModel::create(model,
                                                          get_plugin(),
                                                          devs,
                                                          make_factory(model, profile_suffix));
     };
 
-    if (auto& moe_experts_opt = desc.moe_experts; moe_experts_opt.has_value()) {
-        LOG_INFO("Compiling MoE expert models for Subgraph[" << id << "]...");
-        LOG_BLOCK();
-
-        auto& moe_experts = moe_experts_opt.value();
-        LOG_INFO("Total MoE models to compile: " << moe_experts._models_to_compile.size());
-
-        for (const auto& entry : moe_experts._models_to_compile) {
-            LOG_INFO("Compiling MoE expert model for chunk_size=" << entry.first);
-            moe_experts.set_compiled_model(
-                entry.first,
-                make_wrapped(entry.second, "/moe_chunk_" + std::to_string(entry.first), devices));
-            LOG_INFO("Successfully compiled MoE expert model for chunk_size=" << entry.first);
+    auto make_wrapped = [&](const std::shared_ptr<ov::Model>& model,
+                            const std::string& profile_suffix,
+                            const std::vector<std::string>& devs) -> ov::SoPtr<ov::ICompiledModel> {
+        auto main_cm = make_failsafe(model, profile_suffix, devs);
+        if (m_acc_check) {
+            const auto exec_devs = main_cm->get_property(ov::execution_devices.name()).as<std::vector<std::string>>();
+            const std::string actual_device = exec_devs.empty() ? "" : exec_devs.front();
+            if (actual_device != m_ref_device) {
+                LOG_INFO("Wrapping with AccuracyChecked (main: " << actual_device << ", ref: " << m_ref_device << ").");
+                auto ref_cm = compile_submodel(model, m_ref_device);
+                return ov::npuw::accuracy_checked::CompiledModel::create(model,
+                                                                         get_plugin(),
+                                                                         std::move(main_cm),
+                                                                         std::move(ref_cm),
+                                                                         m_acc_check);
+            }
         }
+        return main_cm;
+    };
 
-        const auto& compiled_models = moe_experts._compiled_models;
-        OPENVINO_ASSERT(!compiled_models.empty(), "Expected at least one compiled MoE expert model");
-        desc.compiled_model = compiled_models.begin()->second;
-        LOG_INFO("MoE expert compilation complete for Subgraph[" << id << "]");
+    if (desc.pipeline.compile_executor) {
+        ov::npuw::v1::subgraphs::CompileContext compile_context{desc.model, desc.compiled_model, devices, make_wrapped};
+        desc.pipeline.compile_executor(compile_context);
     } else {
         desc.compiled_model = make_wrapped(desc.model, "", main_candidates);
     }
 
-    if (auto& moe_downstream_opt = desc.moe_experts_downstream; moe_downstream_opt.has_value()) {
-        LOG_INFO("Wrapping compiled model into MoE downstream for Subgraph[" << id << "]...");
-        OPENVINO_ASSERT(desc.compiled_model, "Expected compiled model before wrapping MoE downstream");
-        moe_downstream_opt->set_compiled_model(std::move(desc.compiled_model));
-        desc.compiled_model = moe_downstream_opt->_compiled_model;
-    }
-
-    if (desc.pyramid_attention.has_value()) {
+    if (auto* pyramid_attn = ov::npuw::attn::get_compiled_pyramid(desc.pipeline.context)) {
         LOG_INFO("Compiling pyramid attention submodels for Subgraph[" << id << "]...");
         LOG_BLOCK();
 
-        auto& pyramid_attn = desc.pyramid_attention.value();
-        const auto& pyramid_attn_models = pyramid_attn._models_to_compile;
+        const auto& pyramid_attn_models = pyramid_attn->_models_to_compile;
         const size_t total_models = pyramid_attn_models.size();
         const size_t models_to_compile = total_models > 0 ? total_models - 1 : 0;
 
@@ -1905,16 +1739,15 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
             compiled_models[total_models - 1] = desc.compiled_model;
         }
 
-        pyramid_attn.set_compiled_models(std::move(compiled_models));
+        pyramid_attn->set_compiled_models(std::move(compiled_models));
         LOG_INFO("Pyramid attention compilation complete for Subgraph[" << id << "]");
     }
 
-    if (desc.host_flash_attention.has_value()) {
+    if (auto* hfa = ov::npuw::attn::get_compiled_hfa(desc.pipeline.context)) {
         LOG_INFO("Compiling host flash attention tile models for Subgraph[" << id << "]...");
         LOG_BLOCK();
 
-        auto& hfa = desc.host_flash_attention.value();
-        if (!hfa._tile_model_to_compile) {
+        if (!hfa->_tile_model_to_compile) {
             LOG_WARN("Host flash attention tile model is null, skipping compilation");
         } else {
             for (const auto& device : devices) {
@@ -1932,15 +1765,15 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
                     continue;
                 }
 
-                hfa._can_use_tensor_view = true;
+                hfa->_can_use_tensor_view = true;
                 auto strided_inputs_name = std::string(hfa_tile_input_id_to_string(HFATileInputId::K_TILE)) + "," +
                                            std::string(hfa_tile_input_id_to_string(HFATileInputId::V_TILE));
                 m_meta_devices[device][ov::intel_npu::enable_strides_for.name()] = strided_inputs_name;
                 LOG_INFO("Enabled using tensor view for device: " << device << " for inputs: " << strided_inputs_name);
             }
 
-            hfa.set_compiled_tile_model(make_wrapped(hfa._tile_model_to_compile, "/hfa_tile", devices));
-            hfa.set_compiled_final_tile_model(desc.compiled_model);
+            hfa->set_compiled_tile_model(make_wrapped(hfa->_tile_model_to_compile, "/hfa_tile", devices));
+            hfa->set_compiled_final_tile_model(desc.compiled_model);
             LOG_INFO("Host flash attention compilation complete for Subgraph[" << id << "]");
         }
     }
@@ -2017,9 +1850,9 @@ void ov::npuw::CompiledModel::dump_subgraph_model(std::size_t id,
     const std::string dump_dir = m_cfg.get<::intel_npu::NPUW_DUMP_SUBS_DIR>();
 
     // Dump MoE expert models if present
-    if (m_compiled_submodels[id].moe_experts) {
+    if (const auto* moe_experts = ov::npuw::moe::get_compiled_experts(m_compiled_submodels[id].pipeline.context)) {
         LOG_INFO("NOTE: Subgraph[" << id << "] has MoE experts mechanism.");
-        const auto& moe_models = m_compiled_submodels[id].moe_experts.value()._models_to_compile;
+        const auto& moe_models = moe_experts->_models_to_compile;
 
         if (moe_models.empty()) {
             LOG_WARN("MoE experts models are empty (already compiled and cleared)");
@@ -2050,9 +1883,9 @@ void ov::npuw::CompiledModel::dump_subgraph_model(std::size_t id,
     LOG_INFO("Wrote " << model_dump_path);
 
     // Dump pyramid attention models if present
-    if (m_compiled_submodels[id].pyramid_attention) {
+    if (const auto* pyramid_attn = ov::npuw::attn::get_compiled_pyramid(m_compiled_submodels[id].pipeline.context)) {
         LOG_INFO("NOTE: Subgraph[" << id << "] has a pyramid attention mechanism.");
-        const auto& pyramid_attention_models = m_compiled_submodels[id].pyramid_attention.value()._models_to_compile;
+        const auto& pyramid_attention_models = pyramid_attn->_models_to_compile;
         for (std::size_t idx = 0; idx < pyramid_attention_models.size(); ++idx) {
             std::string pyramid_attention_model_name = format_subgraph_name(id, funcall) + "_pyramid_" +
                                                        ov::npuw::util::fmt(idx, pyramid_attention_models.size()) +
@@ -2065,16 +1898,15 @@ void ov::npuw::CompiledModel::dump_subgraph_model(std::size_t id,
     }
 
     // Dump host flash attention models if present
-    if (m_compiled_submodels[id].host_flash_attention) {
+    if (const auto* hfa = ov::npuw::attn::get_compiled_hfa(m_compiled_submodels[id].pipeline.context)) {
         LOG_INFO("NOTE: Subgraph[" << id << "] has a host flash attention mechanism.");
-        const auto& hfa_tile_model = m_compiled_submodels[id].host_flash_attention.value()._tile_model_to_compile;
+        const auto& hfa_tile_model = hfa->_tile_model_to_compile;
         std::string hfa_tile_model_name = format_subgraph_name(id, funcall) + "_hfa_tile.xml";
         std::string hfa_tile_model_dump_path = ov::util::path_join({dump_dir, hfa_tile_model_name}).string();
         ov::save_model(hfa_tile_model, hfa_tile_model_dump_path);
         LOG_INFO("Wrote " << hfa_tile_model_dump_path);
 
-        const auto& hfa_final_tile_model =
-            m_compiled_submodels[id].host_flash_attention.value()._final_tile_model_to_compile;
+        const auto& hfa_final_tile_model = hfa->_final_tile_model_to_compile;
         std::string hfa_final_tile_model_name = format_subgraph_name(id, funcall) + "_hfa_final_tile.xml";
         std::string hfa_final_tile_model_dump_path =
             ov::util::path_join({dump_dir, hfa_final_tile_model_name}).string();
@@ -2110,8 +1942,9 @@ void ov::npuw::CompiledModel::dump_subgraph_composition(const std::vector<ov::np
         std::string base_name = format_subgraph_name(real_id, funcall);
         subgraph_info.emplace_back(base_name, count);
 
-        if (m_compiled_submodels[real_id].moe_experts) {
-            const auto& moe_models = m_compiled_submodels[real_id].moe_experts.value()._models_to_compile;
+        if (const auto* moe_experts =
+                ov::npuw::moe::get_compiled_experts(m_compiled_submodels[real_id].pipeline.context)) {
+            const auto& moe_models = moe_experts->_models_to_compile;
             if (!moe_models.empty()) {
                 for (const auto& [chunk_size, model] : moe_models) {
                     moe_subgraphs.push_back(base_name + "_moe_chunk_" + std::to_string(chunk_size) + ".xml");
@@ -2122,14 +1955,15 @@ void ov::npuw::CompiledModel::dump_subgraph_composition(const std::vector<ov::np
         } else {
             base_subgraphs.push_back(base_name + ".xml");
 
-            if (m_compiled_submodels[real_id].pyramid_attention) {
-                const auto& pyramid_models = m_compiled_submodels[real_id].pyramid_attention.value()._models_to_compile;
+            if (const auto* pyramid_attn =
+                    ov::npuw::attn::get_compiled_pyramid(m_compiled_submodels[real_id].pipeline.context)) {
+                const auto& pyramid_models = pyramid_attn->_models_to_compile;
                 for (std::size_t idx = 0; idx < pyramid_models.size(); ++idx) {
                     attn_subgraphs.push_back(base_name + "_pyramid_" + ov::npuw::util::fmt(idx, pyramid_models.size()) +
                                              ".xml");
                 }
             }
-            if (m_compiled_submodels[real_id].host_flash_attention) {
+            if (ov::npuw::attn::get_compiled_hfa(m_compiled_submodels[real_id].pipeline.context) != nullptr) {
                 attn_subgraphs.push_back(base_name + "_hfa_tile.xml");
                 attn_subgraphs.push_back(base_name + "_hfa_final_tile.xml");
             }
@@ -2233,8 +2067,19 @@ std::shared_ptr<ov::npuw::IBaseInferRequest> ov::npuw::CompiledModel::create_bas
         return m_dev_list.size() == 1 || !m_cfg.get<::intel_npu::NPUW_FALLBACK_EXEC>();
     };
 
+    auto no_subgraph_behavior_concern = [&]() {
+        for (std::size_t idx = 0u; idx < m_compiled_submodels.size(); idx++) {
+            if (m_compiled_submodels[idx].pipeline.runtime_behavior.has_value()) {
+                LOG_WARN("Subgraph[" << idx << "] has a runtime behavior, unfold can't be done");
+                return false;
+            }
+        }
+        return true;
+    };
+
     std::shared_ptr<ov::npuw::IBaseInferRequest> result;
-    if (m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>() && no_spatial_unpack() && no_failsafe_concern()) {
+    if (m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>() && no_spatial_unpack() && no_failsafe_concern() &&
+        no_subgraph_behavior_concern()) {
         result = std::make_shared<ov::npuw::UnfoldInferRequest>(non_const_this_sptr);
     } else {
         result = std::make_shared<ov::npuw::JustInferRequest>(non_const_this_sptr);
@@ -2266,12 +2111,10 @@ std::shared_ptr<const ov::Model> ov::npuw::CompiledModel::get_runtime_model() co
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-std::shared_ptr<const ::intel_npu::Plugin> ov::npuw::CompiledModel::get_npuw_plugin() const {
+std::shared_ptr<const ov::IPlugin> ov::npuw::CompiledModel::get_npuw_plugin() const {
     auto plugin = get_plugin();
     OPENVINO_ASSERT(plugin);
-    auto npuw_plugin = std::dynamic_pointer_cast<const ::intel_npu::Plugin>(plugin);
-    OPENVINO_ASSERT(npuw_plugin);
-    return npuw_plugin;
+    return plugin;
 }
 
 ov::Any ov::npuw::CompiledModel::get_property(const std::string& name) const {
@@ -2293,10 +2136,6 @@ std::string ov::npuw::CompiledModel::submodel_device(const std::size_t idx) cons
 
     if (!comp_subm_desc.compiled_model) {
         return "";
-    }
-
-    if (comp_subm_desc.switched_to_ref) {
-        return m_ref_device;
     }
 
     const auto exec_devs =

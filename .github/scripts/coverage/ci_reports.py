@@ -22,6 +22,23 @@ from coverage import load_cpp_tests, load_js_tests, load_python_tests
 METADATA_FILE = "coverage-artifact-metadata.json"
 
 
+UPLOAD_DEFS = {
+    "cpp_cpu": ("coverage-cpp-cpu", "coverage.info"),
+    "cpp_igpu_unit": ("coverage-cpp-igpu-unit", "coverage.info"),
+    "cpp_igpu_func": ("coverage-cpp-igpu-func", "coverage.info"),
+    "cpp_dgpu_unit": ("coverage-cpp-dgpu-unit", "coverage.info"),
+    "cpp_dgpu_func": ("coverage-cpp-dgpu-func", "coverage.info"),
+    "python_cpu_xml": ("coverage-python-cpu", "python-coverage.xml"),
+    "python_cpu_info": ("coverage-python-cpu", "coverage.info"),
+    "python_igpu_xml": ("coverage-python-igpu", "python-coverage.xml"),
+    "python_igpu_info": ("coverage-python-igpu", "coverage.info"),
+    "python_dgpu_xml": ("coverage-python-dgpu", "python-coverage.xml"),
+    "python_dgpu_info": ("coverage-python-dgpu", "coverage.info"),
+    "js_cpu_lcov": ("coverage-js-cpu", "js-lcov.info"),
+    "js_cpu_info": ("coverage-js-cpu", "coverage.info"),
+}
+
+
 SUITE_DEFS = {
     "cpp": {
         "label": "C++",
@@ -310,6 +327,37 @@ def merge_durations(*, workspace: Path, output: Path) -> None:
     print(f"Wrote {len(rows)} duration row(s) to {output}")
 
 
+def _find_upload_file(*, workspace: Path, artifact_name: str, filename: str) -> Path | None:
+    root = workspace / "artifacts"
+    if not root.exists():
+        return None
+
+    for metadata_path in sorted(root.rglob(METADATA_FILE)):
+        metadata = _read_json_file(metadata_path)
+        if str(metadata.get("artifact_name", "")).strip() != artifact_name:
+            continue
+        candidate = metadata_path.parent / filename
+        if candidate.is_file():
+            return candidate.resolve()
+
+    for candidate in sorted(root.rglob(filename)):
+        if candidate.is_file() and artifact_name in candidate.parts:
+            return candidate.resolve()
+
+    return None
+
+
+def resolve_uploads(*, workspace: Path, output_file: Path) -> None:
+    output_lines = []
+    for output_name, (artifact_name, filename) in UPLOAD_DEFS.items():
+        path = _find_upload_file(workspace=workspace, artifact_name=artifact_name, filename=filename)
+        output_lines.append(f"{output_name}={path or ''}")
+        print(f"{output_name}: {path or '<missing>'}")
+
+    with output_file.open("a", encoding="utf-8") as handle:
+        handle.write("\n".join(output_lines) + "\n")
+
+
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Coverage CI report helpers")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -331,6 +379,10 @@ def _parse_args() -> argparse.Namespace:
     merge = subparsers.add_parser("merge-durations", help="Merge suite duration CSV files from downloaded artifacts")
     merge.add_argument("--workspace", type=Path, required=True)
     merge.add_argument("--output", type=Path, required=True)
+
+    uploads = subparsers.add_parser("resolve-uploads", help="Resolve Codecov upload files from downloaded artifacts")
+    uploads.add_argument("--workspace", type=Path, required=True)
+    uploads.add_argument("--output-file", type=Path, required=True)
 
     return parser.parse_args()
 
@@ -357,6 +409,9 @@ def main() -> int:
         return 0
     if args.command == "merge-durations":
         merge_durations(workspace=args.workspace.resolve(), output=args.output.resolve())
+        return 0
+    if args.command == "resolve-uploads":
+        resolve_uploads(workspace=args.workspace.resolve(), output_file=args.output_file.resolve())
         return 0
     raise ValueError(f"Unsupported command: {args.command}")
 

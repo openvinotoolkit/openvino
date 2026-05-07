@@ -57,13 +57,30 @@ inline std::ostream& operator<<(std::ostream& os, const MoEType& type) {
     }
 }
 
-using ConvertTiledMoeBlockToGatherMatmulsParams = std::tuple<MoEType,  // moe_type
-                                                             bool,     // use_scatter_v12
-                                                             bool,     // use_broadcast_v3
-                                                             bool,     // skip_unsqueeze
-                                                             bool,     // matmul_transpose_b
-                                                             bool,     // additional_node_consumers
-                                                             bool>;    // transformation_should_be_applied
+enum class AdditionalConsumersMode { NO, MATMULS, AFTER_MATMULS, REDUCE };
+
+inline std::ostream& operator<<(std::ostream& os, const AdditionalConsumersMode& mode) {
+    switch (mode) {
+    case AdditionalConsumersMode::NO:
+        return os << "NO";
+    case AdditionalConsumersMode::MATMULS:
+        return os << "MATMULS";
+    case AdditionalConsumersMode::AFTER_MATMULS:
+        return os << "AFTER_MATMULS";
+    case AdditionalConsumersMode::REDUCE:
+        return os << "REDUCE";
+    default:
+        OPENVINO_THROW("Unsupported AdditionalConsumersMode");
+    }
+}
+
+using ConvertTiledMoeBlockToGatherMatmulsParams = std::tuple<MoEType,                  // moe_type
+                                                             bool,                     // use_scatter_v12
+                                                             bool,                     // use_broadcast_v3
+                                                             bool,                     // skip_unsqueeze
+                                                             bool,                     // matmul_transpose_b
+                                                             AdditionalConsumersMode,  // additional_consumers_mode
+                                                             bool>;  // transformation_should_be_applied
 
 inline std::shared_ptr<ov::Node> build_matmul_weights(const ov::Shape& weights_shape,
                                                       const ov::element::Type& weights_precision,
@@ -84,7 +101,7 @@ inline std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(bool use_scatter_v12,
                                                        bool use_broadcast_v3,
                                                        bool skip_unsqueeze,
                                                        bool matmul_transpose_b,
-                                                       bool additional_node_consumers) {
+                                                       AdditionalConsumersMode additional_consumers_mode) {
     // Fixed values that don't affect pass behavior
     const auto expert_alpha = 1.625f;
     const auto expert_beta = 7.0f;
@@ -280,11 +297,13 @@ inline std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(bool use_scatter_v12,
     ov::ParameterVector params = {input};
     ov::ResultVector results = {std::make_shared<ov::op::v0::Result>(reduce_sum)};
 
-    if (additional_node_consumers) {
-        results.push_back(std::make_shared<ov::op::v0::Result>(after_tile_reshape));
-        results.push_back(std::make_shared<ov::op::v0::Result>(gate_up_add));
-        results.push_back(std::make_shared<ov::op::v0::Result>(multiply2));
-        results.push_back(std::make_shared<ov::op::v0::Result>(down_proj_add));
+    if (additional_consumers_mode == AdditionalConsumersMode::MATMULS) {
+        results.push_back(std::make_shared<ov::op::v0::Result>(gate_up_matmul));
+        results.push_back(std::make_shared<ov::op::v0::Result>(down_proj_matmul));
+    } else if (additional_consumers_mode == AdditionalConsumersMode::AFTER_MATMULS) {
+        results.push_back(std::make_shared<ov::op::v0::Result>(add1));
+    } else if (additional_consumers_mode == AdditionalConsumersMode::REDUCE) {
+        results.push_back(std::make_shared<ov::op::v0::Result>(reduce_sum));
     }
 
     return std::make_shared<ov::Model>(results, params);
@@ -442,7 +461,7 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(bool use_scatter_v12,
                                                        bool use_broadcast_v3,
                                                        bool skip_unsqueeze,
                                                        bool matmul_transpose_b,
-                                                       bool additional_node_consumers) {
+                                                       AdditionalConsumersMode additional_consumers_mode) {
     // Fixed values that don't affect pass behavior
     const ov::PartialShape input_shape = {-1, -1, 256};
     const size_t topk = 4;
@@ -614,13 +633,15 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(bool use_scatter_v12,
     ov::ParameterVector params = {input};
     ov::ResultVector results = {std::make_shared<ov::op::v0::Result>(final_reshape)};
 
-    if (additional_node_consumers) {
-        results.push_back(std::make_shared<ov::op::v0::Result>(after_tile_reshape));
+    if (additional_consumers_mode == AdditionalConsumersMode::MATMULS) {
         results.push_back(std::make_shared<ov::op::v0::Result>(gate_matmul));
-        results.push_back(std::make_shared<ov::op::v0::Result>(swish));
         results.push_back(std::make_shared<ov::op::v0::Result>(up_matmul));
-        results.push_back(std::make_shared<ov::op::v0::Result>(swiglu));
         results.push_back(std::make_shared<ov::op::v0::Result>(down_matmul));
+    } else if (additional_consumers_mode == AdditionalConsumersMode::AFTER_MATMULS) {
+        results.push_back(std::make_shared<ov::op::v0::Result>(swish));
+        results.push_back(std::make_shared<ov::op::v0::Result>(swiglu));
+    } else if (additional_consumers_mode == AdditionalConsumersMode::REDUCE) {
+        results.push_back(std::make_shared<ov::op::v0::Result>(reduce_sum));
     }
 
     return std::make_shared<ov::Model>(results, params);
@@ -756,14 +777,13 @@ public:
                      use_broadcast_v3,
                      skip_unsqueeze,
                      matmul_transpose_b,
-                     additional_node_consumers,
+                     additional_consumers_mode,
                      should_be_applied] = obj.param;
         std::ostringstream result;
         result << "MoEType_" << moe_type << "_ScatterV" << (use_scatter_v12 ? "12" : "3") << "_BroadcastV"
                << (use_broadcast_v3 ? "3" : "1") << "_SkipUnsqueeze_" << (skip_unsqueeze ? "true" : "false")
                << "_MatMulTransposeB_" << (matmul_transpose_b ? "true" : "false") << "_AdditionalConsumers_"
-               << (additional_node_consumers ? "true" : "false") << "_shouldBeApplied_"
-               << (should_be_applied ? "true" : "false");
+               << additional_consumers_mode << "_shouldBeApplied_" << (should_be_applied ? "true" : "false");
         return result.str();
     }
 
@@ -775,7 +795,7 @@ protected:
                      use_broadcast_v3,
                      skip_unsqueeze,
                      matmul_transpose_b,
-                     additional_node_consumers,
+                     additional_consumers_mode,
                      should_be_applied] = this->GetParam();
 
         switch (moe_type) {
@@ -784,14 +804,14 @@ protected:
                                          use_broadcast_v3,
                                          skip_unsqueeze,
                                          matmul_transpose_b,
-                                         additional_node_consumers);
+                                         additional_consumers_mode);
             break;
         case MoEType::MoE3GeMM:
             model = initMoE3GeMMSubgraph(use_scatter_v12,
                                          use_broadcast_v3,
                                          skip_unsqueeze,
                                          matmul_transpose_b,
-                                         additional_node_consumers);
+                                         additional_consumers_mode);
             break;
         default:
             OPENVINO_THROW("Unexpected MoEType value");
@@ -830,7 +850,7 @@ INSTANTIATE_TEST_SUITE_P(ConvertTiledMoeBlockToGatherMatmulsTest_positive_cases,
                                             ::testing::ValuesIn(broadcast_versions),
                                             ::testing::ValuesIn(skip_unsqueeze_versions),
                                             ::testing::Values(true),
-                                            ::testing::Values(false),
+                                            ::testing::Values(AdditionalConsumersMode::NO),
                                             ::testing::Values(true)),
                          ConvertTiledMoeBlockToGatherMatmulsTest::getTestCaseName);
 
@@ -841,7 +861,7 @@ INSTANTIATE_TEST_SUITE_P(ConvertTiledMoeBlockToGatherMatmulsTest_negative_cases_
                                             ::testing::ValuesIn(broadcast_versions),
                                             ::testing::ValuesIn(skip_unsqueeze_versions),
                                             ::testing::Values(false),
-                                            ::testing::Values(false),
+                                            ::testing::Values(AdditionalConsumersMode::NO),
                                             ::testing::Values(false)),
                          ConvertTiledMoeBlockToGatherMatmulsTest::getTestCaseName);
 
@@ -852,7 +872,9 @@ INSTANTIATE_TEST_SUITE_P(ConvertTiledMoeBlockToGatherMatmulsTest_negative_cases_
                                             ::testing::Values(false),
                                             ::testing::Values(false),
                                             ::testing::Values(true),
-                                            ::testing::Values(true),
+                                            ::testing::Values(AdditionalConsumersMode::MATMULS,
+                                                              AdditionalConsumersMode::AFTER_MATMULS,
+                                                              AdditionalConsumersMode::REDUCE),
                                             ::testing::Values(false)),
                          ConvertTiledMoeBlockToGatherMatmulsTest::getTestCaseName);
 }  // namespace

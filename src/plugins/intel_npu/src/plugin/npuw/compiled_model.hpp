@@ -23,6 +23,7 @@
 #include "pyramid_attention.hpp"
 #include "serialization.hpp"
 #include "spatial.hpp"
+#include "v1/subgraph_pipeline.hpp"
 #include "weights_bank.hpp"
 
 namespace intel_npu {
@@ -70,6 +71,10 @@ public:
 // Forward declarations
 class InferRequest;
 
+namespace v1::subgraphs {
+class Context;
+}
+
 namespace moe {
 class MoEExecutor;
 }
@@ -83,6 +88,10 @@ public:
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const ov::AnyMap& properties);
+    CompiledModel(const std::shared_ptr<ov::Model>& model,
+                  const std::shared_ptr<const ov::IPlugin>& plugin,
+                  const ov::AnyMap& properties,
+                  const ov::npuw::v1::subgraphs::PatternRegistry* subgraph_patterns);
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const bool serialized);
@@ -107,6 +116,8 @@ public:
         std::shared_ptr<IBaseInferRequest> internal_request) const override;
     std::string submodel_device(std::size_t idx) const override;
     std::size_t num_submodels() const override;
+    bool attention_dynamic_enabled() const;
+    bool attention_no_copy() const;
     std::shared_ptr<weights::Bank> get_weights_bank() const override;
     void set_weights_bank(std::shared_ptr<weights::Bank> bank) override;
     void finalize_weights_bank() override;
@@ -146,7 +157,7 @@ private:
     void remove_long_output_names(const std::shared_ptr<ov::Model>& model);
     void fill_empty_tensor_names(const std::shared_ptr<ov::Model>& model);
 
-    std::shared_ptr<const ::intel_npu::Plugin> get_npuw_plugin() const;
+    std::shared_ptr<const ov::IPlugin> get_npuw_plugin() const;
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
 
     // API for easily create and manage NPUW infer-requests (promoted to ICompiledModel_v0)
@@ -221,35 +232,9 @@ private:
         Subgraph::Gather host_gather;
         Subgraph::QuantUnpackGather quant_unpack_gather;
         std::optional<ov::npuw::compiled::Spatial> spatial;
-        std::optional<ov::npuw::compiled::Attention> attention;
-        std::optional<ov::npuw::compiled::PyramidAttention> pyramid_attention;
-        std::optional<ov::npuw::compiled::HostFlashAttention> host_flash_attention;
-        std::optional<ov::npuw::compiled::MoEExperts> moe_experts;
-        std::optional<ov::npuw::compiled::MoEDownstream> moe_experts_downstream;
+        ov::npuw::v1::subgraphs::CompiledPipeline pipeline;
 
-        // Infer requests for pyramid attention models (if pyramid_attention is present)
-        std::vector<ov::SoPtr<ov::IAsyncInferRequest>> pyramid_infer_requests;
-
-        // Pipeline infer requests for pyramid attention models (if pyramid_attention is present and pipelining is
-        // enabled)
-        std::vector<ov::SoPtr<ov::IAsyncInferRequest>> pyramid_pipeline_requests;
-
-        // HFA tile model indices for infer request vectors
-        enum HFATileIdx : size_t {
-            REGULAR_TILE = 0,  // Regular tile model (intermediate tiles)
-            FINAL_TILE = 1,    // Final tile model (last tile with division and transpose)
-            COUNT = 2          // Total number of HFA tile models
-        };
-
-        // Infer requests for host flash attention tile models (if host_flash_attention is present)
-        // [REGULAR_TILE]: regular tile model, [FINAL_TILE]: final tile model
-        std::vector<ov::SoPtr<ov::IAsyncInferRequest>> hfa_infer_requests;
-
-        // Pipeline infer requests for host flash attention tile models (if host_flash_attention is present and
-        // pipelining is enabled)
-        std::vector<ov::SoPtr<ov::IAsyncInferRequest>> hfa_pipeline_requests;
-
-        // Infer requests for MoE expert models with different chunk sizes (if moe_experts is present)
+        // Infer requests for MoE expert models with different chunk sizes (if MoE expert state is present)
         // Map: chunk_size -> infer_request
         std::map<size_t, ov::SoPtr<ov::IAsyncInferRequest>> moe_infer_requests;
 
@@ -279,17 +264,12 @@ private:
 
         bool forced_to_fcall = false;
 
-        // FIXME: Take it out of structure
-        ov::SoPtr<ov::ICompiledModel> ref_compiled_model;
-        bool switched_to_ref = false;
-
         // Metrics
         execution_stats stat;
 
-        void serialize(std::ostream& stream, const ov::npuw::s11n::WeightsContext& ctx) const;
-        void deserialize(std::istream& stream,
-                         const ov::npuw::s11n::WeightsContext& ctx,
-                         const ov::npuw::s11n::SubmodelDeserializeCtx& submodel_ctx);
+        void serialize(ov::npuw::s11n::Stream& stream,
+                       const ov::npuw::s11n::WeightsContext& ctx,
+                       const ov::npuw::s11n::SubmodelDeserializeCtx* submodel_ctx = nullptr);
     };
     std::vector<CompiledModelDesc> m_compiled_submodels;
 

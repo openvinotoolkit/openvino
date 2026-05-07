@@ -74,8 +74,8 @@ void sort_and_keep_n_items(std::vector<proposal_t>& proposals, size_t n) {
 
 roi_t gen_bbox(const proposal_inst::anchor& box,
                const delta_t& delta,
-               int anchor_shift_x,
-               int anchor_shift_y,
+               int64_t anchor_shift_x,
+               int64_t anchor_shift_y,
                int img_w,
                int img_h,
                float coordinates_offset,
@@ -279,25 +279,25 @@ struct proposal_impl : typed_primitive_impl<proposal> {
 
         // feat map sizes
         const auto& score_layout = cls_scores->get_layout();
-        int fm_h = score_layout.spatial(1);
-        int fm_w = score_layout.spatial(0);
+        int64_t fm_h = score_layout.spatial(1);
+        int64_t fm_w = score_layout.spatial(0);
 
-        int fm_sz = fm_w * fm_h;
+        int64_t fm_sz = fm_w * fm_h;
 
         mem_lock<dtype, mem_lock_type::read> cls_scores_ptr{cls_scores, stream};
         mem_lock<dtype, mem_lock_type::read> bbox_pred_ptr{std::move(bbox_pred), stream};
         const dtype* cls_scores_mem = cls_scores_ptr.data();
         const dtype* bbox_pred_mem = bbox_pred_ptr.data();
 
-        for (int n = 0; n < score_layout.batch(); n++) {
+        for (int64_t n = 0; n < score_layout.batch(); n++) {
             std::vector<proposal_t> sorted_proposals_confidence;
             size_t num_proposals = fm_h * fm_w * anchors_num;
             sorted_proposals_confidence.reserve(num_proposals);
-            for (int y = 0; y < fm_h; ++y) {
-                for (int x = 0; x < fm_w; ++x) {
-                    const int anchor_shift_x = (swap_xy ? y : x) * primitive->feature_stride;
-                    const int anchor_shift_y = (swap_xy ? x : y) * primitive->feature_stride;
-                    const int location_index = y * fm_w + x;
+            for (int64_t y = 0; y < fm_h; ++y) {
+                for (int64_t x = 0; x < fm_w; ++x) {
+                    const int64_t anchor_shift_x = (swap_xy ? y : x) * primitive->feature_stride;
+                    const int64_t anchor_shift_y = (swap_xy ? x : y) * primitive->feature_stride;
+                    const int64_t location_index = y * fm_w + x;
 
                     // we assume proposals are grouped by window location
                     for (unsigned int anchor_index = 0; anchor_index < anchors_num; anchor_index++) {

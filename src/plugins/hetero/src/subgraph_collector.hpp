@@ -70,7 +70,6 @@ private:
     ov::ParameterVector _intermediate_parameters;
     ov::ResultVector _intermediate_results;
     AffinitiesMap _affinities;
-    NodeMap<InputSet> _node_input_dependencies;
     InputSet _subgraph_inputs;
     SubgraphIdsMap _subgraph_ids;
     ParameterResultMap _subgraph_parameter_to_prev_result;
