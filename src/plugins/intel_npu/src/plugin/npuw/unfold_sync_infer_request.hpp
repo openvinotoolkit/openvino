@@ -25,7 +25,7 @@ public:
     void prepare_for_infer() override {}
     bool valid_subrequest(std::size_t idx) const override;
     void start_subrequest(std::size_t) override {}
-    void run_subrequest_for_success(std::size_t, bool&) override {}
+    void run_subrequest_for_success(std::size_t) override {}
     void subscribe_subrequest(std::size_t, Completed cb) override {}
     void complete_subrequest(std::size_t) override {}
     void cancel_subrequest(std::size_t) override {}

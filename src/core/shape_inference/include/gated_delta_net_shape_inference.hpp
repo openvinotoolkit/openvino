@@ -31,8 +31,8 @@ std::vector<TRShape> shape_infer(const GatedDeltaNet* op, const std::vector<T>& 
 
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
-                           q_head_num.compatible(k_head_num) && q_head_num.compatible(v_head_num),
-                           "The number of heads in query key and value should be the same, but got ",
+                           q_head_num.compatible(k_head_num),
+                           "The number of heads in query and key should be the same, but got ",
                            q_head_num,
                            " and ",
                            k_head_num);
@@ -50,8 +50,8 @@ std::vector<TRShape> shape_infer(const GatedDeltaNet* op, const std::vector<T>& 
 
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
-                           gate_head_num.compatible(beta_head_num) && gate_head_num.compatible(q_head_num),
-                           "The number of heads in gate, beta, and query should be the same, but got ",
+                           gate_head_num.compatible(beta_head_num) && gate_head_num.compatible(v_head_num),
+                           "The number of heads in gate, beta, and value should be the same, but got ",
                            gate_head_num,
                            " and ",
                            beta_head_num);
