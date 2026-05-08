@@ -117,18 +117,6 @@ public:
     explicit InputModel(const ov::frontend::onnx::GraphIterator::Ptr& graph_iterator,
                         unify::InputModel::Ptr parent_model);
 
-    // Fast-path constructor used only by FrontEnd::convert_from_iterator. Callers that reach
-    // this overload are committing to the fused single-call conversion contract: the iterator
-    // must emit inputs and outputs in model-declared order, so the defensive I/O re-sort inside
-    // load_model can be skipped. Existing load() + convert() flows never hit this ctor, so
-    // their behavior is byte-for-byte unchanged.
-    struct FusedIteratorTag {};
-    explicit InputModel(FusedIteratorTag,
-                        const ov::frontend::onnx::GraphIterator::Ptr& graph_iterator,
-                        const bool enable_mmap,
-                        const std::shared_ptr<TelemetryExtension>& telemetry,
-                        const bool reuse_const_data);
-
     /////  Searching for places  /////
     std::vector<ov::frontend::Place::Ptr> get_inputs() const override;
     std::vector<ov::frontend::Place::Ptr> get_outputs() const override;

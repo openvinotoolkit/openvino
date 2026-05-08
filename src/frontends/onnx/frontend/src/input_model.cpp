@@ -559,8 +559,7 @@ public:
                        const ov::frontend::InputModel& input_model,
                        const std::shared_ptr<TelemetryExtension>& telemetry,
                        const bool enable_mmap,
-                       const bool reuse_const_data,
-                       const bool skip_io_resort = false);
+                       const bool reuse_const_data);
 
     InputModelONNXImpl(const GraphIterator::Ptr& graph_iterator,
                        const ov::frontend::InputModel& input_model,
@@ -637,9 +636,6 @@ private:
     std::shared_ptr<TelemetryExtension> m_telemetry;
     bool m_enable_mmap;
     bool m_reuse_const_data;
-    // Set exclusively via FrontEnd::convert_from_iterator. When true, load_model skips the
-    // defensive input/output re-sort because the caller guarantees iterator emission order.
-    bool m_skip_io_resort{false};
 
     // This is used for keeping MMAP cache handles
     detail::MappedMemoryHandles m_mmap_cache;
@@ -732,42 +728,37 @@ void InputModel::InputModelONNXImpl::load_model() {
         }
     }
 
-    // Only the fused convert_from_iterator path opts out of the defensive re-sort below.
-    // All other entry points (legacy load() + convert(), decode(), etc.) keep the sort to
-    // preserve byte-identical behavior for existing iterators that may not guarantee order.
-    if (!m_skip_io_resort) {
-        auto sorting_places_by_idx = [](bool are_input_places) {
-            return [are_input_places](const ov::frontend::Place::Ptr& lhs_place,
-                                      const ov::frontend::Place::Ptr& rhs_place) {
-                auto onnx_lhs_place = std::dynamic_pointer_cast<ov::frontend::onnx::TensorONNXPlace>(lhs_place);
-                auto onnx_rhs_place = std::dynamic_pointer_cast<ov::frontend::onnx::TensorONNXPlace>(rhs_place);
-                FRONT_END_GENERAL_CHECK(onnx_lhs_place != nullptr && onnx_rhs_place != nullptr,
-                                        "ONNX Frontend works with TensorONNXPlaces only");
-                size_t rhs_idx, lhs_idx;
-                if (are_input_places) {
-                    lhs_idx = onnx_lhs_place->get_input_index();
-                    rhs_idx = onnx_rhs_place->get_input_index();
-                } else {
-                    lhs_idx = onnx_lhs_place->get_output_index();
-                    rhs_idx = onnx_rhs_place->get_output_index();
-                }
-                return lhs_idx < rhs_idx;
-            };
+    auto sorting_places_by_idx = [](bool are_input_places) {
+        return [are_input_places](const ov::frontend::Place::Ptr& lhs_place,
+                                  const ov::frontend::Place::Ptr& rhs_place) {
+            auto onnx_lhs_place = std::dynamic_pointer_cast<ov::frontend::onnx::TensorONNXPlace>(lhs_place);
+            auto onnx_rhs_place = std::dynamic_pointer_cast<ov::frontend::onnx::TensorONNXPlace>(rhs_place);
+            FRONT_END_GENERAL_CHECK(onnx_lhs_place != nullptr && onnx_rhs_place != nullptr,
+                                    "ONNX Frontend works with TensorONNXPlaces only");
+            size_t rhs_idx, lhs_idx;
+            if (are_input_places) {
+                lhs_idx = onnx_lhs_place->get_input_index();
+                rhs_idx = onnx_rhs_place->get_input_index();
+            } else {
+                lhs_idx = onnx_lhs_place->get_output_index();
+                rhs_idx = onnx_rhs_place->get_output_index();
+            }
+            return lhs_idx < rhs_idx;
         };
-        std::sort(m_inputs.begin(), m_inputs.end(), sorting_places_by_idx(true));
+    };
+    std::sort(m_inputs.begin(), m_inputs.end(), sorting_places_by_idx(true));
 
-        // Sort outputs using the separately tracked indices (handles duplicate names correctly)
-        if (!m_outputs.empty() && m_outputs.size() == output_indices.size()) {
-            std::vector<std::pair<int64_t, ov::frontend::Place::Ptr>> indexed(m_outputs.size());
-            for (size_t i = 0; i < m_outputs.size(); ++i) {
-                indexed[i] = {output_indices[i], std::move(m_outputs[i])};
-            }
-            std::stable_sort(indexed.begin(), indexed.end(), [](const auto& a, const auto& b) {
-                return a.first < b.first;
-            });
-            for (size_t i = 0; i < indexed.size(); ++i) {
-                m_outputs[i] = std::move(indexed[i].second);
-            }
+    // Sort outputs using the separately tracked indices (handles duplicate names correctly)
+    if (!m_outputs.empty() && m_outputs.size() == output_indices.size()) {
+        std::vector<std::pair<int64_t, ov::frontend::Place::Ptr>> indexed(m_outputs.size());
+        for (size_t i = 0; i < m_outputs.size(); ++i) {
+            indexed[i] = {output_indices[i], std::move(m_outputs[i])};
+        }
+        std::stable_sort(indexed.begin(), indexed.end(), [](const auto& a, const auto& b) {
+            return a.first < b.first;
+        });
+        for (size_t i = 0; i < indexed.size(); ++i) {
+            m_outputs[i] = std::move(indexed[i].second);
         }
     }
 
@@ -860,14 +851,12 @@ InputModel::InputModelONNXImpl::InputModelONNXImpl(const GraphIterator::Ptr& gra
                                                    const ov::frontend::InputModel& input_model,
                                                    const std::shared_ptr<TelemetryExtension>& telemetry,
                                                    const bool enable_mmap,
-                                                   const bool reuse_const_data,
-                                                   const bool skip_io_resort)
+                                                   const bool reuse_const_data)
     : m_graph_iterator(graph_iterator),
       m_input_model(input_model),
       m_telemetry(telemetry),
       m_enable_mmap(enable_mmap),
-      m_reuse_const_data(reuse_const_data),
-      m_skip_io_resort(skip_io_resort) {
+      m_reuse_const_data(reuse_const_data) {
     FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
     if (const auto graph_iterator = std::dynamic_pointer_cast<GraphIterator>(m_graph_iterator)) {
         m_model_dir = graph_iterator->get_model_dir();
@@ -1025,18 +1014,6 @@ InputModel::InputModel(const GraphIterator::Ptr& graph_iterator,
 InputModel::InputModel(const GraphIterator::Ptr& graph_iterator,
                        ov::frontend::onnx::unify::InputModel::Ptr parent_model)
     : _impl{std::make_shared<InputModelONNXImpl>(graph_iterator, *this, parent_model)} {}
-
-InputModel::InputModel(FusedIteratorTag,
-                       const GraphIterator::Ptr& graph_iterator,
-                       const bool enable_mmap,
-                       const std::shared_ptr<TelemetryExtension>& telemetry,
-                       const bool reuse_const_data)
-    : _impl{std::make_shared<InputModelONNXImpl>(graph_iterator,
-                                                 *this,
-                                                 telemetry,
-                                                 enable_mmap,
-                                                 reuse_const_data,
-                                                 /*skip_io_resort=*/true)} {}
 
 std::vector<std::shared_ptr<ov::frontend::onnx::OpPlace>> InputModel::get_op_places() const {
     return _impl->get_op_places();
