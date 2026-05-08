@@ -186,6 +186,21 @@ TEST(OrcTest, IsOrcReturnsFalseForGarbage) {
     EXPECT_FALSE(is_orc(buffer).has_value());
 }
 
+TEST(OrcTest, TryReadBytesAdvancesOnSuccessAndRollsBackOnFailure) {
+    std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
+    buffer.write("abcdef", 6);
+
+    std::array<char, 3> prefix{};
+    EXPECT_TRUE(try_read_bytes(buffer, prefix.data(), prefix.size()));
+    EXPECT_EQ(std::string(prefix.data(), prefix.size()), "abc");
+    EXPECT_EQ(buffer.tellg(), std::streampos{3});
+
+    std::array<char, 8> oversized{};
+    const auto pos_before_failure = buffer.tellg();
+    EXPECT_FALSE(try_read_bytes(buffer, oversized.data(), oversized.size()));
+    EXPECT_EQ(buffer.tellg(), pos_before_failure);
+}
+
 TEST(OrcTest, SchemaSkipsUnknownOptionalChildren) {
     const auto root = Section::container(TYPE_NCMD,
                                          1u,

@@ -103,6 +103,8 @@ private:
     std::size_t m_memory_offset = 0u;
 };
 
+bool try_read_bytes(std::istream& stream, void* data, std::size_t size);
+
 template <typename T, std::enable_if_t<std::is_integral<T>::value || std::is_floating_point<T>::value, bool> = true>
 void serialize(Stream& stream, T& value) {
     stream.bytes(&value, sizeof(value));

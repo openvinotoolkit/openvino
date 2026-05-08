@@ -8,7 +8,6 @@
 
 #include "npuw/test_engine/models/model_builder.hpp"
 #include "openvino/core/parallel.hpp"
-#include "openvino/pass/stateful_to_stateless.hpp"
 
 using ov::test::npuw::LLMConfig;
 using ov::test::npuw::ModelBuilder;
@@ -38,8 +37,6 @@ std::shared_ptr<ov::Model> build_dynamic_attention_llm_model() {
 
     ModelBuilder mb;
     auto model = mb.build_llm(cfg);
-    ov::pass::StatefulToStateless().run_on_model(model);
-    model = model->clone();
 
     constexpr std::size_t kSeq = 4;
     constexpr std::size_t kPast = 8;

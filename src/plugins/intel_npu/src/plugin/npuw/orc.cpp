@@ -174,6 +174,18 @@ ov::npuw::orc::Stream ov::npuw::orc::Stream::writer(std::ostream& stream) {
     return s;
 }
 
+bool ov::npuw::orc::try_read_bytes(std::istream& stream, void* data, const std::size_t size) {
+    const auto saved = stream.tellg();
+    stream.read(reinterpret_cast<char*>(data), checked_stream_size(size));
+    if (stream.good()) {
+        return true;
+    }
+
+    stream.clear();
+    stream.seekg(saved);
+    return false;
+}
+
 bool ov::npuw::orc::Stream::input() const {
     return m_input != nullptr || m_memory != nullptr;
 }
