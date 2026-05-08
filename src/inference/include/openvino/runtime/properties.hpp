@@ -1446,9 +1446,9 @@ static constexpr Property<uint64_t, PropertyMutability::RW> value_cache_group_si
  * Returned by ov::compatibility_check when queried with an ov::runtime_requirements string argument.
  */
 enum class CompatibilityCheck {
-    NOT_APPLICABLE = 0,        //!< The device does not support this check, or no requirements string was provided.
-    SUPPORTED = 1,             //!< Requirements are met; import is expected to succeed with optimal performance.
-    UNSUPPORTED = 2,           //!< Requirements are not met; import will fail.
+    NOT_APPLICABLE = 0,  //!< The device does not support this check, or no requirements string was provided.
+    SUPPORTED = 1,       //!< Requirements are met; import is expected to succeed with optimal performance.
+    UNSUPPORTED = 2,     //!< Requirements are not met; import will fail.
 };
 
 /** @cond INTERNAL */
