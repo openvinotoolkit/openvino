@@ -21,6 +21,7 @@
 #include "partitioning/partitioning.hpp"
 #include "perf.hpp"
 #include "pyramid_attention.hpp"
+#include "orc/schema_npuw.hpp"
 #include "serialization.hpp"
 #include "spatial.hpp"
 #include "v1/subgraph_pipeline.hpp"
@@ -79,18 +80,14 @@ namespace moe {
 class MoEExecutor;
 }
 
-enum class PartitionedModelOrcType : ov::npuw::orc::TypeId {
-    ROOT = 0x4E43u,
-    SUBGRAPH_DESC = 0x5344u,
-};
-
 class CompiledModel : public ov::npuw::ICompiledModel_v0 {
     using DevList = std::vector<std::string>;
     using GetPropertiesMap =
         std::map<std::string, std::tuple<ov::PropertyMutability, std::function<ov::Any(const ::intel_npu::Config&)>>>;
 
 public:
-    static constexpr ov::npuw::orc::TypeId kOrcType = static_cast<ov::npuw::orc::TypeId>(PartitionedModelOrcType::ROOT);
+    static constexpr ov::npuw::orc::TypeId kOrcType =
+        static_cast<ov::npuw::orc::TypeId>(ov::npuw::orc::schema_npuw::PartitionedModelType::ROOT);
     static constexpr ov::npuw::orc::Version kOrcVersion = 0u;
 
     CompiledModel(const std::shared_ptr<ov::Model>& model,
@@ -246,7 +243,7 @@ private:
 
     struct CompiledModelDesc {
         static constexpr ov::npuw::orc::TypeId kOrcType =
-            static_cast<ov::npuw::orc::TypeId>(PartitionedModelOrcType::SUBGRAPH_DESC);
+            static_cast<ov::npuw::orc::TypeId>(ov::npuw::orc::schema_npuw::SubgraphType::ROOT);
         static constexpr ov::npuw::orc::Version kOrcVersion = 0u;
 
         std::set<std::string> devices_to_avoid;

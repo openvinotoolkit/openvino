@@ -46,9 +46,6 @@
 #include "transformations/convert_precision.hpp"
 
 namespace {
-const ov::npuw::orc::SchemaUUID NPUW_ORC_PARTITIONED_SCHEMA =
-    {0x4E, 0x50, 0x55, 0x57, 0x43, 0x4D, 0x4F, 0x44, 0x50, 0x48, 0x41, 0x53, 0x45, 0x30, 0x30, 0x31};
-
 std::string canonical_device_name(const std::string& device_name) {
     const auto dot_pos = device_name.find('.');
     return dot_pos == std::string::npos ? device_name : device_name.substr(0, dot_pos);
@@ -1045,7 +1042,7 @@ void ov::npuw::CompiledModel::ensure_phase0_compatibility() const {
 }
 
 void ov::npuw::CompiledModel::serialize_orc(std::ostream& stream) const {
-    ov::npuw::orc::write_file_header(stream, NPUW_ORC_PARTITIONED_SCHEMA);
+    ov::npuw::orc::write_file_header(stream, ov::npuw::orc::schema_npuw::NPUW_ORC_PARTITIONED_SCHEMA);
     serialize_orc_container(stream, true, get_encrypt_callback(m_non_npuw_props));
 }
 
@@ -1127,7 +1124,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
     const std::shared_ptr<const ov::IPlugin>& plugin,
     const ov::AnyMap& properties) {
     const auto header = ov::npuw::orc::read_file_header(stream);
-    if (header.schema_uuid != NPUW_ORC_PARTITIONED_SCHEMA) {
+    if (header.schema_uuid != ov::npuw::orc::schema_npuw::NPUW_ORC_PARTITIONED_SCHEMA) {
         OPENVINO_THROW("Unsupported ORC schema for NPUW CompiledModel");
     }
     return deserialize_orc_container(stream, plugin, properties, true, {});
