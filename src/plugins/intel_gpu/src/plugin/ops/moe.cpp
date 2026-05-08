@@ -120,8 +120,16 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         //   shape [num_experts, hidden_size, group_num, 1]
         //   11: w2_zp - expert zp for final projection for compressed experts,
         //   shape [num_experts, hidden_size, group_num, 1]
-
         // Use moe_3gemm_fused_compressed to replace it.
+
+        // Reaching here means MOECompressed (GEMM3_SWIGLU) survived all transformation passes.
+        // It must be replaced by moe_3gemm_fused_compressed via FuseMOE3GemmCompressed; if the
+        // routing subgraph did not match the expected pattern, the model would otherwise fail later
+        // with the cryptic "Input ... hasn't been found in primitive_ids map" from the program builder.
+        // Surface the real cause explicitly here.
+        OPENVINO_THROW("[GPU] MOECompressed (GEMM3_SWIGLU) reached the GPU backend without being fused: "
+                       "FuseMOE3GemmCompressed transformation did not match the routing subgraph for op '",
+                       op->get_friendly_name(), "'. Please check the routing pattern.");
     } else {
         // Create GEMM2_BIAS_SWIGLU_CLAMP specific primitives
         // input0 : input {#tokens, hidden_size}

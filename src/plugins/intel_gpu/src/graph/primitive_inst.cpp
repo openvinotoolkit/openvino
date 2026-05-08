@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <sstream>
+
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/implementation_desc.hpp"
 #include "intel_gpu/runtime/stream.hpp"
@@ -3097,7 +3099,9 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
             if (!impl_manager->support_shapes(params))
                 continue;
 
-            return impl_manager->create(*node, params);
+            auto impl = impl_manager->create(*node, params);
+            if (impl)
+                return impl;
         }
 
         return nullptr;
@@ -3147,11 +3151,12 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
 
             std::unique_ptr<primitive_impl> impl = find_impl(&inst.get_node(), updated_params, shape_types::static_shape);
 
-            if (impl->get_kernels_source().size() > 0) {
+            if (impl && impl->get_kernels_source().size() > 0) {
                 auto kernels = _program.get_kernels_cache().compile(updated_params, impl->get_kernels_source());
                 impl->set_kernels(kernels);
             }
-            cache.add(updated_params, std::move(impl));
+            if (impl)
+                cache.add(updated_params, std::move(impl));
         });
     }
 
@@ -3183,7 +3188,34 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
 
     // 6. Finally, if no impl found so far, we just enforce static impl compilation
     auto static_impl = find_impl(node, updated_params, shape_types::static_shape);
-    OPENVINO_ASSERT(static_impl != nullptr, "No static impl " + node->id());
+    if (!static_impl) {
+        auto stringify_layouts = [](const std::vector<layout>& layouts) {
+            if (layouts.empty())
+                return std::string("<none>");
+
+            std::ostringstream oss;
+            oss << layouts[0].to_short_string();
+            for (size_t i = 1; i < layouts.size(); ++i) {
+                oss << ", " << layouts[i].to_short_string();
+            }
+            return oss.str();
+        };
+
+        std::ostringstream available_impls_oss;
+        available_impls_oss << "available_impls: " << m_available_impls.size() << " [";
+        for (size_t i = 0; i < m_available_impls.size(); ++i) {
+            if (i > 0)
+                available_impls_oss << ",";
+            const auto& m = m_available_impls[i];
+            available_impls_oss << " {type=" << static_cast<int>(m->get_impl_type())
+                                << ", shape=" << static_cast<int>(m->get_shape_type()) << "}";
+        }
+        available_impls_oss << " ]";
+
+        OPENVINO_ASSERT(false, "No static impl " + node->id() + ". " + available_impls_oss.str() +
+                        ". Input: " + stringify_layouts(updated_params.input_layouts) +
+                        ". Output: " + stringify_layouts(updated_params.output_layouts));
+    }
     static_impl->set_node_params(*node);
     if (!inst.can_be_optimized()) {
         auto& kernels_cache = prog.get_kernels_cache();
