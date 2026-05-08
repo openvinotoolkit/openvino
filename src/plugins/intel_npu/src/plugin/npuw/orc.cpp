@@ -13,7 +13,7 @@
 namespace {
 
 constexpr std::array<std::uint8_t, 8> ORC_FILE_MAGIC = {'N', 'P', 'U', 'W', 'O', 'R', 'C', '\0'};
-constexpr std::uint16_t ORC_FILE_VERSION = 1u;
+constexpr std::uint16_t ORC_FILE_VERSION = 0u;
 
 std::streampos checked_tellp(std::ostream& stream, const char* context) {
     const auto pos = stream.tellp();
@@ -268,7 +268,7 @@ ov::npuw::orc::Section ov::npuw::orc::Section::container(const TypeId type,
     Section section;
     section.type = type;
     section.version = version;
-    section.flags = flags;  // LEAF not set — this is a structural container section
+    section.flags = flags;  // LEAF not set; this is a structural container section
     section.children = std::move(children);
     return section;
 }

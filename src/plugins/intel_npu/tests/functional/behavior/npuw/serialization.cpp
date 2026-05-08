@@ -8,6 +8,7 @@
 
 #include "npuw/test_engine/models/model_builder.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/pass/stateful_to_stateless.hpp"
 
 using ov::test::npuw::LLMConfig;
 using ov::test::npuw::ModelBuilder;
@@ -25,57 +26,76 @@ LLMConfig make_llm_config() {
     return cfg;
 }
 
-std::shared_ptr<ov::Model> build_exportable_llm_model() {
-    ModelBuilder mb;
-    return mb.build_llm(make_llm_config());
-}
-
-std::shared_ptr<ov::Model> build_dynamic_attention_llm_model() {
+std::shared_ptr<ov::Model> build_chunked_prefill_model() {
     auto cfg = make_llm_config();
     cfg.num_kv_heads = 2;
     cfg.force_gqa_broadcast = true;
 
     ModelBuilder mb;
     auto model = mb.build_llm(cfg);
+    ov::pass::StatefulToStateless().run_on_model(model);
+    model = model->clone();
 
-    constexpr std::size_t kSeq = 4;
+    constexpr std::size_t kSeq = 8;
     constexpr std::size_t kPast = 8;
 
     std::map<std::string, ov::PartialShape> new_shapes;
     for (const auto& input : model->inputs()) {
         const auto& name = input.get_any_name();
-        const auto& pshape = input.get_partial_shape();
+        auto pshape = input.get_partial_shape();
+        const auto rank = pshape.rank();
+
         if (name.find("input_ids") != std::string::npos || name.find("token_type_ids") != std::string::npos) {
             new_shapes[name] = ov::PartialShape{1, kSeq};
+        } else if (name.find("inputs_embeds") != std::string::npos && rank.is_static() && rank.get_length() == 3) {
+            new_shapes[name] = ov::PartialShape{1, kSeq, pshape[2]};
         } else if (name.find("attention_mask") != std::string::npos) {
             new_shapes[name] = ov::PartialShape{1, kSeq + kPast};
         } else if (name.find("position_ids") != std::string::npos) {
-            new_shapes[name] = ov::PartialShape{1, kSeq};
+            new_shapes[name] =
+                rank.get_length() == 3 ? ov::PartialShape{3, 1, kSeq} : ov::PartialShape{1, kSeq};
+        } else if (name.find("beam_idx") != std::string::npos) {
+            new_shapes[name] = ov::PartialShape{1};
+        } else if (rank.is_static() && rank.get_length() > 2) {
+            pshape[0] = 1;
+            pshape[2] = kPast;
+            new_shapes[name] = pshape;
         } else {
-            auto static_shape = pshape;
-            static_shape[0] = 1;
-            static_shape[2] = kPast;
-            new_shapes[name] = static_shape;
+            new_shapes[name] = pshape;
         }
     }
+
     model->reshape(new_shapes);
     model->validate_nodes_and_infer_types();
     return model;
 }
 
-ov::AnyMap make_phase0_llm_config() {
-    return {{"NPU_USE_NPUW", "YES"},
-            {"NPUW_LLM", "YES"},
-            {"NPUW_DEVICES", "NPU"},
-            {"NPUW_WEIGHTS_BANK", "shared"},
-            {"NPUW_FUNCALL_FOR_ALL", "YES"},
-            {"NPUW_CWAI", "YES"},
-            {"NPUW_ONLINE_PIPELINE", "NONE"},
-            {"NPU_COMPILER_DYNAMIC_QUANTIZATION", "YES"},
-            {"CACHE_MODE", "OPTIMIZE_SIZE"},
-            {"NPUW_ENSURE_COMPATIBILITY", "YES"},
-            {"NPUW_LLM_MAX_PROMPT_LEN", "128"},
-            {"NPUW_LLM_MIN_RESPONSE_LEN", "64"}};
+ov::AnyMap make_phase0_decode_npu_opts() {
+    return {
+        {"NPU_USE_NPUW", "YES"},
+        {"NPUW_DEVICES", "NPU"},
+        {"NPUW_WEIGHTS_BANK", "shared"},
+        {"NPUW_FUNCALL_FOR_ALL", "YES"},
+        {"NPUW_CWAI", "YES"},
+        {"NPUW_ONLINE_PIPELINE", "NONE"},
+        {"NPU_COMPILER_DYNAMIC_QUANTIZATION", "YES"},
+    };
+}
+
+ov::AnyMap make_phase0_base_config() {
+    auto config = make_phase0_decode_npu_opts();
+    config["NPUW_ENSURE_COMPATIBILITY"] = "YES";
+    return config;
+}
+
+ov::AnyMap make_phase0_dynamic_attention_config() {
+    auto config = make_phase0_base_config();
+    config["NPUW_ONLINE_PIPELINE"] = "REP";
+    config["NPUW_ONLINE_ISOLATE"] = "ATTN";
+    config["NPUW_ONLINE_KEEP_BLOCKS"] = "2";
+    config["NPUW_ONLINE_KEEP_BLOCK_SIZE"] = "1";
+    config["NPUW_ATTN"] = "DYNAMIC";
+    return config;
 }
 
 void skip_if_no_npu(ov::Core& core) {
@@ -158,28 +178,27 @@ TEST(SerializationTestNPUW, Stress_ParallelImport) {
     }
 }
 
-TEST(SerializationTestNPUW, LLMPhase0CompatibilityExportSucceeds) {
+TEST(SerializationTestNPUW, CompiledModelPhase0CompatibilityExportSucceedsWithStaticAttention) {
     ov::Core ov_core;
     skip_if_no_npu(ov_core);
 
-    auto config = make_phase0_llm_config();
-    config["NPUW_LLM_PREFILL_ATTENTION_HINT"] = "STATIC";
-    config["NPUW_LLM_GENERATE_ATTENTION_HINT"] = "STATIC";
-
-    auto compiled = ov_core.compile_model(build_exportable_llm_model(), "NPU", config);
+    auto compiled = ov_core.compile_model(build_chunked_prefill_model(), "NPU", make_phase0_base_config());
     std::stringstream blob;
     EXPECT_NO_THROW(compiled.export_model(blob));
 }
 
-TEST(SerializationTestNPUW, LLMPhase0CompatibilityRejectsDynamicAttentionExport) {
+TEST(SerializationTestNPUW, CompiledModelPhase0CompatibilityRejectsDynamicAttentionExport) {
     ov::Core ov_core;
     skip_if_no_npu(ov_core);
 
-    auto config = make_phase0_llm_config();
-    config["NPUW_LLM_PREFILL_ATTENTION_HINT"] = "DYNAMIC";
-    config["NPUW_LLM_GENERATE_ATTENTION_HINT"] = "DYNAMIC";
-
-    auto compiled = ov_core.compile_model(build_dynamic_attention_llm_model(), "NPU", config);
+    auto compiled = ov_core.compile_model(build_chunked_prefill_model(), "NPU", make_phase0_dynamic_attention_config());
     std::stringstream blob;
-    EXPECT_THROW(compiled.export_model(blob), ov::Exception);
+
+    try {
+        compiled.export_model(blob);
+        FAIL() << "Expected phase-0 compatibility export to reject dynamic attention";
+    } catch (const ov::Exception& ex) {
+        EXPECT_NE(std::string(ex.what()).find("Attention"), std::string::npos) << ex.what();
+    }
 }
+

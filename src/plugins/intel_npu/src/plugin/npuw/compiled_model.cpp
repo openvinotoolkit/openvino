@@ -1010,7 +1010,7 @@ void ov::npuw::CompiledModel::ensure_phase0_compatibility() const {
                            name,
                            "\") has ",
                            feature,
-                           " — not yet versioned for NPUW phase 0. Recompile without NPUW_ENSURE_COMPATIBILITY or wait "
+                           " - not yet versioned for NPUW phase 0. Recompile without NPUW_ENSURE_COMPATIBILITY or wait "
                            "for a later phase.");
         };
 
