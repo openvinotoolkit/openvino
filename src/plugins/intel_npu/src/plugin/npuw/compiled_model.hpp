@@ -88,6 +88,8 @@ class CompiledModel : public ov::npuw::ICompiledModel_v0 {
 public:
     static constexpr ov::npuw::orc::TypeId kOrcType =
         static_cast<ov::npuw::orc::TypeId>(ov::npuw::orc::schema_npuw::PartitionedModel::ID);
+    // Version 0 is the frozen baseline on the wire. Any further layout changes
+    // must be introduced through a new versioned payload rather than by mutating v0.
     static constexpr ov::npuw::orc::Version kOrcVersion = 0u;
 
     CompiledModel(const std::shared_ptr<ov::Model>& model,
@@ -244,6 +246,8 @@ private:
     struct CompiledModelDesc {
         static constexpr ov::npuw::orc::TypeId kOrcType =
             static_cast<ov::npuw::orc::TypeId>(ov::npuw::orc::schema_npuw::Subgraph::ID);
+        // Version 0 is the frozen baseline on the wire. Any further layout
+        // changes must be introduced through a new versioned payload.
         static constexpr ov::npuw::orc::Version kOrcVersion = 0u;
 
         std::set<std::string> devices_to_avoid;

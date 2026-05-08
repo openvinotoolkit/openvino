@@ -83,6 +83,9 @@ private:
 };
 
 namespace op {
+// These v0 payloads are now part of the frozen on-wire baseline. Any new field
+// or semantic change must be introduced through a versioned successor payload
+// instead of changing the existing v0 layout.
 class Const {
     friend struct ov::npuw::weights::LazyTensorImpl;
 

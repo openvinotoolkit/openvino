@@ -29,6 +29,8 @@ class Bank {
 public:
     static constexpr ov::npuw::orc::TypeId kOrcType =
         static_cast<ov::npuw::orc::TypeId>(ov::npuw::orc::schema_npuw::WeightsBank::ID);
+    // Version 0 is the frozen baseline on the wire. Any further layout changes
+    // must be introduced through a new versioned payload rather than by mutating v0.
     static constexpr ov::npuw::orc::Version kOrcVersion = 0u;
 
     Bank(const std::shared_ptr<const ov::ICore>& core, const std::string& alloc_device, const std::string& bank_name);

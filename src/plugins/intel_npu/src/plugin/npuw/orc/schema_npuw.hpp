@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "orc.hpp"
+#include "../orc.hpp"
 
 namespace ov::npuw::orc::schema_npuw {
 
