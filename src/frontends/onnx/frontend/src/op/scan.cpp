@@ -6,6 +6,7 @@
 #include "core/null_node.hpp"
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/squeeze.hpp"
@@ -156,6 +157,17 @@ ov::OutputVector import_onnx_scan(const ov::frontend::onnx::Node& node,
             body_outputs.push_back(res->get_input_source_output(0));
         }
         body_inputs = body_graph->get_parameters();
+
+        // The InputModel for subgraphs may register parent-scope constants that
+        // are also declared as body graph outputs (initializer-as-output) as
+        // additional body outputs. Trim trailing pass-through Constants beyond
+        // the Scan node's declared output count so num_scan_outputs is computed
+        // correctly below.
+        const size_t expected_body_outputs = node.get_outputs_size();
+        while (body_outputs.size() > expected_body_outputs &&
+               ov::is_type<v0::Constant>(body_outputs.back().get_node_shared_ptr())) {
+            body_outputs.pop_back();
+        }
     }
 
     const int64_t num_scan_inputs_signed = node.get_attribute_value<int64_t>("num_scan_inputs");
