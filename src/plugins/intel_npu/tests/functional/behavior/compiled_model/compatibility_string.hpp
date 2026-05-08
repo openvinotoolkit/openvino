@@ -184,7 +184,7 @@ TEST_P(ClassCompatibilityStringTestSuite, CompatibilityStringGenerateAndCheck) {
     OV_ASSERT_NO_THROW(requirements = compiledModel.get_property(ov::runtime_requirements));
     ov::CompatibilityCheck result;
     OV_ASSERT_NO_THROW(result = core.get_property(deviceName, ov::compatibility_check, std::make_pair(ov::runtime_requirements.name(), requirements)));
-    ASSERT_TRUE(result == ov::CompatibilityCheck::OPTIMAL);
+    ASSERT_TRUE(result == ov::CompatibilityCheck::SUPPORTED);
 }
 
 }  // namespace

@@ -1447,10 +1447,8 @@ static constexpr Property<uint64_t, PropertyMutability::RW> value_cache_group_si
  */
 enum class CompatibilityCheck {
     NOT_APPLICABLE = 0,        //!< The device does not support this check, or no requirements string was provided.
-    OPTIMAL = 1,               //!< Requirements are fully met; import is expected to succeed with optimal performance.
-    PREFER_RECOMPILATION = 2,  //!< Requirements are loosely compatible; import may succeed but recompilation
-                               //!< is preferred for best performance.
-    UNSUPPORTED = 3,           //!< Requirements are not met; import will fail.
+    SUPPORTED = 1,             //!< Requirements are met; import is expected to succeed with optimal performance.
+    UNSUPPORTED = 2,           //!< Requirements are not met; import will fail.
 };
 
 /** @cond INTERNAL */
@@ -1458,10 +1456,8 @@ inline std::ostream& operator<<(std::ostream& os, const CompatibilityCheck& comp
     switch (compatibility) {
     case CompatibilityCheck::NOT_APPLICABLE:
         return os << "NOT_APPLICABLE";
-    case CompatibilityCheck::OPTIMAL:
-        return os << "OPTIMAL";
-    case CompatibilityCheck::PREFER_RECOMPILATION:
-        return os << "PREFER_RECOMPILATION";
+    case CompatibilityCheck::SUPPORTED:
+        return os << "SUPPORTED";
     case CompatibilityCheck::UNSUPPORTED:
         return os << "UNSUPPORTED";
     default:
@@ -1474,10 +1470,8 @@ inline std::istream& operator>>(std::istream& is, CompatibilityCheck& compatibil
     is >> str;
     if (str == "NOT_APPLICABLE") {
         compatibility = CompatibilityCheck::NOT_APPLICABLE;
-    } else if (str == "OPTIMAL") {
-        compatibility = CompatibilityCheck::OPTIMAL;
-    } else if (str == "PREFER_RECOMPILATION") {
-        compatibility = CompatibilityCheck::PREFER_RECOMPILATION;
+    } else if (str == "SUPPORTED") {
+        compatibility = CompatibilityCheck::SUPPORTED;
     } else if (str == "UNSUPPORTED") {
         compatibility = CompatibilityCheck::UNSUPPORTED;
     } else {

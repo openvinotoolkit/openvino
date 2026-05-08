@@ -402,7 +402,7 @@ ov::CompatibilityCheck Plugin::validate_compatibility_descriptor(ov::intel_npu::
         auto result = compiler->validate_compatibility_descriptor(compatibilityDescriptor);
         _logger.debug("Compatibility check result: %s", result ? "met" : "not met");
         if (result) {
-            return ov::CompatibilityCheck::OPTIMAL;
+            return ov::CompatibilityCheck::SUPPORTED;
         } else {
             return ov::CompatibilityCheck::UNSUPPORTED;
         }
