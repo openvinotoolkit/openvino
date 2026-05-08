@@ -114,6 +114,9 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3.14t get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
 
+# Install newer ninja (dnf ships older version lacking --quiet)
+RUN python3 -m pip install --no-cache-dir ninja==1.13.0
+
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
 
 # Install Node

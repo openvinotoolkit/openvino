@@ -7,8 +7,7 @@ description: Troubleshooting all sorts of failures, crashes, exceptions and erro
 
 ## Prerequisites
 Build flags that enable debug capabilities (check CMakeCache.txt in the build dir):
-- `-DENABLE_DEBUG_CAPS=ON` — CPU/GPU plugin debug env vars
-- `-DENABLE_OPENVINO_DEBUG=ON` — transformation matcher logging
+- `-DENABLE_DEBUG_CAPS=ON` — CPU/GPU plugin debug env vars, transformation matcher logging
 
 ## Components
 

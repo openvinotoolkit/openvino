@@ -470,27 +470,6 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                     m_compiled_submodels[id].spatial =
                         compiled::Spatial(fcn_template._spatial.value(), fcn_template._model);
                 }
-                // Does the same for dynamic. FIXME: This selection should be hidden here
-                // in the object semantics
-                if (fcn_template._attention) {
-                    m_compiled_submodels[id].attention =
-                        compiled::Attention(fcn_template._attention.value(), fcn_template._model);
-                }
-
-                if (fcn_template._pyramid_attention) {
-                    LOG_INFO("Creating compiled::PyramidAttention for Subgraph[" << id << "] (function "
-                                                                                 << subgraph._funcall << ")");
-                    m_compiled_submodels[id].pyramid_attention =
-                        compiled::PyramidAttention(fcn_template._pyramid_attention.value());
-                }
-
-                if (fcn_template._host_flash_attention) {
-                    LOG_INFO("Creating compiled::HostFlashAttention for Subgraph[" << id << "] (function "
-                                                                                   << subgraph._funcall << ")");
-                    m_compiled_submodels[id].host_flash_attention =
-                        compiled::HostFlashAttention(fcn_template._host_flash_attention.value());
-                }
-
                 LOG_INFO("Subgraph[" << id << "] is a function body for " << subgraph._funcall);
             } else {
                 // ...and refer to it in other calls
@@ -551,8 +530,9 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             }
 
             // Fix tensor names for pyramid attention models
-            if (const auto& pyramid_attn = m_compiled_submodels[real_id].pyramid_attention) {
-                for (const auto& model : pyramid_attn.value()._models_to_compile) {
+            if (const auto* pyramid_attn =
+                    ov::npuw::attn::get_compiled_pyramid(m_compiled_submodels[real_id].pipeline.context)) {
+                for (const auto& model : pyramid_attn->_models_to_compile) {
                     fix_tensor_names(model);
                 }
             }
@@ -777,82 +757,17 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
 
     stream & replaced_by & param_base & forced_to_fcall & host_gather.dst_idx & host_gather.src_idx &
         host_gather.idx_idx & quant_unpack_gather.dst_idx & quant_unpack_gather.src_w_idx &
-        quant_unpack_gather.src_z_idx & quant_unpack_gather.src_s_idx & quant_unpack_gather.idx_idx & spatial &
-        attention & pyramid_attention;
-
-    if (pyramid_attention.has_value()) {
-        size_t num_models = 0;
-        if (stream.output()) {
-            num_models = pyramid_attention.value()._compiled_models.size();
-        }
-        stream & num_models;
-
-        if (stream.output()) {
-            for (size_t i = 0; i < num_models - 1; ++i) {
-                std::stringstream ss;
-                pyramid_attention.value()._compiled_models[i]->export_model(ss);
-                std::string model_str = ss.str();
-                stream & model_str;
-            }
-        } else if (num_models > 0) {
-            pyramid_attention.value()._compiled_models.resize(num_models);
-            NPUW_ASSERT(submodel_ctx != nullptr);
-            for (size_t i = 0; i < num_models - 1; ++i) {
-                std::string model_str;
-                stream & model_str;
-                std::stringstream ss(model_str);
-                pyramid_attention->_compiled_models[i] =
-                    submodel_ctx->plugin->get_core()->import_model(ss,
-                                                                   submodel_ctx->device,
-                                                                   submodel_ctx->import_config);
-            }
-            if (submodel_ctx->compiled_model) {
-                pyramid_attention->_compiled_models[num_models - 1] = submodel_ctx->compiled_model;
-                LOG_DEBUG("Reused compiled_model for the last pyramid attention model");
-            }
-        }
-    }
+        quant_unpack_gather.src_z_idx & quant_unpack_gather.src_s_idx & quant_unpack_gather.idx_idx & spatial;
 
     ov::npuw::moe::serialize_compiled_state(pipeline.context, stream, submodel_ctx);
-
-    stream & host_flash_attention;
-    if (host_flash_attention.has_value()) {
-        bool has_compiled_model = false;
-        if (stream.output()) {
-            has_compiled_model = host_flash_attention.value()._compiled_tile_model != nullptr;
-        }
-        stream & has_compiled_model;
-        if (has_compiled_model) {
-            if (stream.output()) {
-                std::stringstream ss;
-                host_flash_attention.value()._compiled_tile_model->export_model(ss);
-                std::string model_str = ss.str();
-                stream & model_str;
-            } else {
-                NPUW_ASSERT(submodel_ctx != nullptr);
-                std::string model_str;
-                stream & model_str;
-                std::stringstream ss(model_str);
-                host_flash_attention->_compiled_tile_model =
-                    submodel_ctx->plugin->get_core()->import_model(ss,
-                                                                   submodel_ctx->device,
-                                                                   submodel_ctx->import_config);
-                LOG_DEBUG("Imported compiled tile model for host flash attention");
-            }
-        }
-        if (stream.input()) {
-            NPUW_ASSERT(submodel_ctx != nullptr);
-            host_flash_attention->_compiled_final_tile_model = submodel_ctx->compiled_model;
-            LOG_DEBUG("Set compiled final tile model reference for host flash attention");
-        }
-    }
+    ov::npuw::attn::serialize_compiled_state(pipeline.context, stream, submodel_ctx);
 
     if (stream.input()) {
-        if (attention.has_value()) {
+        if (ov::npuw::attn::get_compiled_dynamic(pipeline.context) != nullptr) {
             ov::npuw::attn::attach_runtime_behavior(pipeline, pipeline.context, ov::npuw::attn::BehaviorKind::Dynamic);
-        } else if (pyramid_attention.has_value()) {
+        } else if (ov::npuw::attn::get_compiled_pyramid(pipeline.context) != nullptr) {
             ov::npuw::attn::attach_runtime_behavior(pipeline, pipeline.context, ov::npuw::attn::BehaviorKind::Pyramid);
-        } else if (host_flash_attention.has_value()) {
+        } else if (ov::npuw::attn::get_compiled_hfa(pipeline.context) != nullptr) {
             ov::npuw::attn::attach_runtime_behavior(pipeline, pipeline.context, ov::npuw::attn::BehaviorKind::HFA);
         }
     }
@@ -1435,6 +1350,14 @@ std::size_t ov::npuw::CompiledModel::num_submodels() const {
     return m_compiled_submodels.size();
 }
 
+bool ov::npuw::CompiledModel::attention_dynamic_enabled() const {
+    return m_cfg.get<::intel_npu::NPUW_ATTN_DYN>();
+}
+
+bool ov::npuw::CompiledModel::attention_no_copy() const {
+    return m_cfg.get<::intel_npu::NPUW_ATTN_NO_COPY>();
+}
+
 std::shared_ptr<ov::npuw::weights::Bank> ov::npuw::CompiledModel::get_weights_bank() const {
     return m_weights_bank;
 }
@@ -1691,7 +1614,7 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
                 dump_on_fail(id, device, "Avoided due to workaround");
                 continue;
             }
-            if (desc.attention.has_value()) {
+            if (ov::npuw::attn::get_compiled_dynamic(desc.pipeline.context) != nullptr) {
                 bool has_dynamic = false;
                 for (const auto& input : desc.model->inputs()) {
                     if (input.get_partial_shape().is_dynamic()) {
@@ -1787,12 +1710,11 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
         desc.compiled_model = make_wrapped(desc.model, "", main_candidates);
     }
 
-    if (desc.pyramid_attention.has_value()) {
+    if (auto* pyramid_attn = ov::npuw::attn::get_compiled_pyramid(desc.pipeline.context)) {
         LOG_INFO("Compiling pyramid attention submodels for Subgraph[" << id << "]...");
         LOG_BLOCK();
 
-        auto& pyramid_attn = desc.pyramid_attention.value();
-        const auto& pyramid_attn_models = pyramid_attn._models_to_compile;
+        const auto& pyramid_attn_models = pyramid_attn->_models_to_compile;
         const size_t total_models = pyramid_attn_models.size();
         const size_t models_to_compile = total_models > 0 ? total_models - 1 : 0;
 
@@ -1817,16 +1739,15 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
             compiled_models[total_models - 1] = desc.compiled_model;
         }
 
-        pyramid_attn.set_compiled_models(std::move(compiled_models));
+        pyramid_attn->set_compiled_models(std::move(compiled_models));
         LOG_INFO("Pyramid attention compilation complete for Subgraph[" << id << "]");
     }
 
-    if (desc.host_flash_attention.has_value()) {
+    if (auto* hfa = ov::npuw::attn::get_compiled_hfa(desc.pipeline.context)) {
         LOG_INFO("Compiling host flash attention tile models for Subgraph[" << id << "]...");
         LOG_BLOCK();
 
-        auto& hfa = desc.host_flash_attention.value();
-        if (!hfa._tile_model_to_compile) {
+        if (!hfa->_tile_model_to_compile) {
             LOG_WARN("Host flash attention tile model is null, skipping compilation");
         } else {
             for (const auto& device : devices) {
@@ -1844,15 +1765,15 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
                     continue;
                 }
 
-                hfa._can_use_tensor_view = true;
+                hfa->_can_use_tensor_view = true;
                 auto strided_inputs_name = std::string(hfa_tile_input_id_to_string(HFATileInputId::K_TILE)) + "," +
                                            std::string(hfa_tile_input_id_to_string(HFATileInputId::V_TILE));
                 m_meta_devices[device][ov::intel_npu::enable_strides_for.name()] = strided_inputs_name;
                 LOG_INFO("Enabled using tensor view for device: " << device << " for inputs: " << strided_inputs_name);
             }
 
-            hfa.set_compiled_tile_model(make_wrapped(hfa._tile_model_to_compile, "/hfa_tile", devices));
-            hfa.set_compiled_final_tile_model(desc.compiled_model);
+            hfa->set_compiled_tile_model(make_wrapped(hfa->_tile_model_to_compile, "/hfa_tile", devices));
+            hfa->set_compiled_final_tile_model(desc.compiled_model);
             LOG_INFO("Host flash attention compilation complete for Subgraph[" << id << "]");
         }
     }
@@ -1962,9 +1883,9 @@ void ov::npuw::CompiledModel::dump_subgraph_model(std::size_t id,
     LOG_INFO("Wrote " << model_dump_path);
 
     // Dump pyramid attention models if present
-    if (m_compiled_submodels[id].pyramid_attention) {
+    if (const auto* pyramid_attn = ov::npuw::attn::get_compiled_pyramid(m_compiled_submodels[id].pipeline.context)) {
         LOG_INFO("NOTE: Subgraph[" << id << "] has a pyramid attention mechanism.");
-        const auto& pyramid_attention_models = m_compiled_submodels[id].pyramid_attention.value()._models_to_compile;
+        const auto& pyramid_attention_models = pyramid_attn->_models_to_compile;
         for (std::size_t idx = 0; idx < pyramid_attention_models.size(); ++idx) {
             std::string pyramid_attention_model_name = format_subgraph_name(id, funcall) + "_pyramid_" +
                                                        ov::npuw::util::fmt(idx, pyramid_attention_models.size()) +
@@ -1977,16 +1898,15 @@ void ov::npuw::CompiledModel::dump_subgraph_model(std::size_t id,
     }
 
     // Dump host flash attention models if present
-    if (m_compiled_submodels[id].host_flash_attention) {
+    if (const auto* hfa = ov::npuw::attn::get_compiled_hfa(m_compiled_submodels[id].pipeline.context)) {
         LOG_INFO("NOTE: Subgraph[" << id << "] has a host flash attention mechanism.");
-        const auto& hfa_tile_model = m_compiled_submodels[id].host_flash_attention.value()._tile_model_to_compile;
+        const auto& hfa_tile_model = hfa->_tile_model_to_compile;
         std::string hfa_tile_model_name = format_subgraph_name(id, funcall) + "_hfa_tile.xml";
         std::string hfa_tile_model_dump_path = ov::util::path_join({dump_dir, hfa_tile_model_name}).string();
         ov::save_model(hfa_tile_model, hfa_tile_model_dump_path);
         LOG_INFO("Wrote " << hfa_tile_model_dump_path);
 
-        const auto& hfa_final_tile_model =
-            m_compiled_submodels[id].host_flash_attention.value()._final_tile_model_to_compile;
+        const auto& hfa_final_tile_model = hfa->_final_tile_model_to_compile;
         std::string hfa_final_tile_model_name = format_subgraph_name(id, funcall) + "_hfa_final_tile.xml";
         std::string hfa_final_tile_model_dump_path =
             ov::util::path_join({dump_dir, hfa_final_tile_model_name}).string();
@@ -2035,14 +1955,15 @@ void ov::npuw::CompiledModel::dump_subgraph_composition(const std::vector<ov::np
         } else {
             base_subgraphs.push_back(base_name + ".xml");
 
-            if (m_compiled_submodels[real_id].pyramid_attention) {
-                const auto& pyramid_models = m_compiled_submodels[real_id].pyramid_attention.value()._models_to_compile;
+            if (const auto* pyramid_attn =
+                    ov::npuw::attn::get_compiled_pyramid(m_compiled_submodels[real_id].pipeline.context)) {
+                const auto& pyramid_models = pyramid_attn->_models_to_compile;
                 for (std::size_t idx = 0; idx < pyramid_models.size(); ++idx) {
                     attn_subgraphs.push_back(base_name + "_pyramid_" + ov::npuw::util::fmt(idx, pyramid_models.size()) +
                                              ".xml");
                 }
             }
-            if (m_compiled_submodels[real_id].host_flash_attention) {
+            if (ov::npuw::attn::get_compiled_hfa(m_compiled_submodels[real_id].pipeline.context) != nullptr) {
                 attn_subgraphs.push_back(base_name + "_hfa_tile.xml");
                 attn_subgraphs.push_back(base_name + "_hfa_final_tile.xml");
             }
