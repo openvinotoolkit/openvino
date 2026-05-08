@@ -60,4 +60,12 @@ AttributeAdapter<std::shared_ptr<AlignedBuffer>>::~AttributeAdapter() = default;
 std::shared_ptr<IBufferDescriptor> AlignedBuffer::get_descriptor() const {
     return nullptr;
 }
+
+void AlignedBuffer::hint_evict() noexcept {}
+
+void AlignedBuffer::hint_evict(size_t offset, size_t size) noexcept {}
+
+void AlignedBuffer::invoke_evict(AlignedBuffer& buffer, size_t offset, size_t size) noexcept {
+    buffer.hint_evict(offset, size);
+}
 }  // namespace ov
