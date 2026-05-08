@@ -13,26 +13,6 @@
 #include "plugin.hpp"
 
 namespace {
-// Remove all options "NPUW_.*"
-ov::AnyMap without_npuw_params(const ov::AnyMap& properties) {
-    ov::AnyMap result;
-    for (const auto& item : properties) {
-        if (item.first.find("NPUW") == std::string::npos) {
-            result.insert(item);
-        }
-    }
-    return result;
-}
-
-// Check properties for NPUW_DEVICES options and return true if only CPU is present
-bool is_cpu_only(const ov::AnyMap& properties) {
-    auto it = properties.find("NPUW_DEVICES");
-    if (it != properties.end()) {
-        return it->second.as<std::string>() == "CPU";
-    }
-    return false;
-}
-
 void split_kokoro_properties(const ov::AnyMap& properties,
                              ov::AnyMap& other_properties,
                              ov::AnyMap& kokoro_properties) {
