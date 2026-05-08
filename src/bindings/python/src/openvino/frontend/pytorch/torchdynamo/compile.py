@@ -312,13 +312,20 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
         om.remove_parameter(_p)
 
     _tensor_idx = 0
+    _dyn = os.environ.get("OV_DYNAMIC_SHAPES", "1") == "1"
     for idx, input_data in enumerate(args):
         if isinstance(input_data, int):
             continue  # Already baked as Constant above
-        # Use the concrete runtime tensor shape so OV can propagate exact
-        # shape bounds through the graph.
         om.inputs[_tensor_idx].get_node().set_element_type(dtype_mapping[input_data.dtype])
-        om.inputs[_tensor_idx].get_node().set_partial_shape(PartialShape(list(input_data.size())))
+        if _dyn:
+            # Dynamic shapes so the compiled OV model is reused across
+            # different batch sizes / seq lengths / past_lens rather than
+            # recompiling per shape. Disable with OV_DYNAMIC_SHAPES=0.
+            om.inputs[_tensor_idx].get_node().set_partial_shape(
+                PartialShape([-1] * input_data.ndim))
+        else:
+            om.inputs[_tensor_idx].get_node().set_partial_shape(
+                PartialShape(list(input_data.size())))
         _tensor_idx += 1
 
     om.validate_nodes_and_infer_types()
