@@ -228,11 +228,11 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     }
 
     if (!weights_path.empty()) {
-        const auto separate_const_weights_loading = !weights_provider && !weights_path.empty();
+        const auto enable_mmap = variants.back().is<bool>() ? variants.back().as<bool>() : false;
+        const auto separate_const_weights_loading = !enable_mmap && !weights_provider;
         if (separate_const_weights_loading) {
             weights_provider = std::make_shared<ov::util::FileWeightsProvider>(weights_path);
         } else {
-            const auto enable_mmap = variants.back().is<bool>() ? variants.back().as<bool>() : false;
             if (enable_mmap) {
                 auto mapped_memory = ov::load_mmap_object(weights_path);
                 auto weights = std::make_shared<ov::SharedBuffer<std::shared_ptr<MappedMemory>>>(mapped_memory->data(),
