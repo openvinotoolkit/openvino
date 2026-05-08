@@ -4,10 +4,11 @@
 
 #pragma once
 
+#include <optional>
+
 #include "openvino/op/moe.hpp"
 #include "openvino/op/op.hpp"
 #include "transformations_visibility.hpp"
-#include <optional>
 
 namespace ov::op::internal {
 
