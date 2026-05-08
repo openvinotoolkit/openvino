@@ -1530,9 +1530,9 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         config = choose_config_xehpc(static_cast<int32_t>(k_head_size), nkeys_v, thin_q, is_quantized, is_integrated, is_paged_attention, is_prefill);
         break;
     case gpu_arch::xe2:
+    case gpu_arch::xe3:
         config = choose_config_xe2(static_cast<int32_t>(k_head_size), nkeys_v, thin_q, is_quantized, is_integrated, is_paged_attention, is_prefill);
         break;
-    case gpu_arch::xe3:
     case gpu_arch::xe3p_35_10:
     case gpu_arch::xe3p_35_11:
         config = choose_config_xe3(static_cast<int32_t>(k_head_size), nkeys_v, thin_q, is_quantized, is_integrated, is_paged_attention, is_prefill);
