@@ -124,7 +124,7 @@ TEST_F(OpCacheUnitTest, update_cache_by_model) {
             ASSERT_EQ(meta.get_model_info().begin()->second.model_paths.size(), 2);
             ASSERT_EQ(*meta.get_model_info().begin()->second.model_paths.begin(), test_model_path_1);
             ASSERT_EQ(*meta.get_model_info().begin()->second.model_paths.rbegin(), test_model_path);
-            // check occurence
+            // check occurrence
             ASSERT_EQ(meta.get_model_info().begin()->second.this_op_cnt, 2);
             ASSERT_EQ(meta.get_model_info().begin()->second.total_op_cnt, 3);
             // max opset version for Convert - 1
@@ -141,7 +141,7 @@ TEST_F(OpCacheUnitTest, update_cache_by_model) {
             ASSERT_EQ(meta.get_model_info().begin()->first, test_model_name);
             ASSERT_EQ(meta.get_model_info().begin()->second.model_paths.size(), 1);
             ASSERT_EQ(*meta.get_model_info().begin()->second.model_paths.begin(), test_model_path_1);
-            // check occurence
+            // check occurrence
             ASSERT_EQ(meta.get_model_info().begin()->second.this_op_cnt, 1);
             ASSERT_EQ(meta.get_model_info().begin()->second.total_op_cnt, 2);
             // max opset version for ShapeOf - 3

@@ -53,7 +53,7 @@ jobs:
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
-          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*,.github/workflows/ci-doctor.lock.yml'
 
       - name: Get target branch
         id: set_target_branch
@@ -76,6 +76,7 @@ jobs:
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
         -DENABLE_STRICT_DEPENDENCIES=OFF
         -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON
+        -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
         -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja"
 
   CXX_Unit_Tests:

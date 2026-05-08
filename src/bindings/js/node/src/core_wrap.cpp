@@ -334,20 +334,30 @@ void ImportModelFinalizer(Napi::Env env, void* finalizeData, ImportModelContext*
     delete context;
 };
 
-void importModelThread(ImportModelContext* context, std::mutex& mutex) {
-    // Imports model without blocking the main thread.
-    {
+void import_model_thread(ImportModelContext* context, std::mutex& mutex) {
+    std::exception_ptr stored_exception;
+    try {
         const std::lock_guard<std::mutex> lock(mutex);
         context->_compiled_model = context->_core.import_model(context->_stream, context->_device, context->_config);
+    } catch (...) {
+        stored_exception = std::current_exception();
     }
 
-    // Callback to return to JS the results of core.import_model()
-    auto callback = [](Napi::Env env, Napi::Function, ImportModelContext* context) {
-        context->deferred.Resolve(cpp_to_js(env, context->_compiled_model));
+    auto callback = [stored_exception](Napi::Env env, Napi::Function, ImportModelContext* context) {
+        try {
+            if (stored_exception) {
+                std::rethrow_exception(stored_exception);
+            }
+            context->deferred.Resolve(cpp_to_js(env, context->_compiled_model));
+        } catch (const std::exception& e) {
+            context->deferred.Reject(Napi::Error::New(env, e.what()).Value());
+        }
     };
 
-    // Addon's main thread will safely invoke the JS callback function on the behalf of the additional thread.
-    context->tsfn.BlockingCall(context, callback);
+    const auto status = context->tsfn.BlockingCall(context, callback);
+    if (status != napi_ok) {
+        std::cerr << "Error: ThreadSafeFunction::BlockingCall failed in import_model_thread function\n";
+    }
     context->tsfn.Release();
 }
 
@@ -388,8 +398,7 @@ Napi::Value CoreWrap::import_model_async(const Napi::CallbackInfo& info) {
                                                                ImportModelFinalizer,
                                                                (void*)nullptr);
 
-            context_data->nativeThread = std::thread(importModelThread, context_data, std::ref(_mutex));
-            // Returns a Promise to JS. Method import_model() is performed on additional thread.
+            context_data->nativeThread = std::thread(import_model_thread, context_data, std::ref(_mutex));
             return context_data->deferred.Promise();
         } else {
             OPENVINO_THROW("'importModel'", ov::js::get_parameters_error_msg(info, allowed_signatures));
