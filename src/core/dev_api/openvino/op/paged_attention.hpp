@@ -23,7 +23,7 @@ public:
 
     /// \brief Constructs a PagedAttentionExtension.
     ///
-    /// \param args 25 inputs (see spec for layout):
+    /// \param args 28 inputs (see spec for layout):
     ///   (B_token = total tokens in the call, B_seq = number of sequences,
     ///    H = query heads, Hk = key/value heads, S = head size)
     ///
@@ -52,6 +52,9 @@ public:
     /// 22  adaptive_rkv_evictable_sizes                     [B_seq], i32              optional
     /// 23  adaptive_rkv_diversity_block_set_indices         [num_adaptive_rkv_blocks] optional
     /// 24  adaptive_rkv_diversity_block_set_indices_begins  [B_seq + 1], i32          optional
+    /// 25  token_type_ids                                   [B_token] or [B_token, 1], i32  optional
+    /// 26  qq_bias                                          [total_bias_bytes], u8    optional
+    /// 27  qq_bias_begins                                   [B_seq + 1], i32          optional
     explicit PagedAttentionExtension(const ov::OutputVector& args);
 
     void validate_and_infer_types() override;

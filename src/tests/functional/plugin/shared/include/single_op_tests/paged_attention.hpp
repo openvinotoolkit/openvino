@@ -36,8 +36,9 @@ TEST_P(PagedAttentionLayerTest, Inference) {
         if (it != additional_config.end()) test_rel_threshold = it->second.as<float>();
     }
 
-    // Strip test-only keys from CPU config and force f32 inference precision
-    // to avoid KV cache quantization differences with the reference.
+    // Strip test-only keys from CPU config.
+    // inference_precision=f32 keeps ConvertPrecision from converting f32 Constants
+    // (scale, alibi) to f16/bf16, which would corrupt PA kernel arithmetic.
     ov::AnyMap cpu_cfg = additional_config;
     cpu_cfg.erase("test_use_rotation");
     cpu_cfg.erase("test_block_size");
@@ -46,7 +47,6 @@ TEST_P(PagedAttentionLayerTest, Inference) {
     cpu_cfg.erase("test_rel_threshold");
     cpu_cfg[ov::hint::inference_precision.name()] = ov::element::f32;
 
-    // TEMPLATE config
     ov::AnyMap tmpl_cfg;
     tmpl_cfg[ov::hint::inference_precision.name()] = ov::element::f32;
     // Run CPU with fresh cache copies (the plugin mutates them in-place)
@@ -144,11 +144,13 @@ TEST_P(PagedAttentionLayerTest, ScoreWindowZeroZerosOutput1) {
     ov::AnyMap tmpl_cfg;
     tmpl_cfg[ov::hint::inference_precision.name()] = ov::element::f32;
 
-    // CPU needs cache-precision keys from additional_config; strip test-only keys
+    // Strip test-only keys; inference_precision=f32 keeps f32 Constants (scale, alibi) unconverted.
     ov::AnyMap cpu_cfg = additional_config;
     cpu_cfg.erase("test_use_rotation");
     cpu_cfg.erase("test_block_size");
     cpu_cfg.erase("test_adaptive_rkv_eviction_size");
+    cpu_cfg.erase("test_abs_threshold");
+    cpu_cfg.erase("test_rel_threshold");
     cpu_cfg[ov::hint::inference_precision.name()] = ov::element::f32;
 
     ov::Tensor kc_cpu(inType, key_cache_init_.get_shape());
@@ -171,9 +173,17 @@ TEST_P(PagedAttentionLayerTest, ScoreWindowZeroZerosOutput1) {
             ASSERT_GE(outs->size(), 2u) << "Expected at least 2 outputs at step " << step;
             const auto& scores = (*outs)[1];
             ASSERT_GT(scores.get_size(), 0u) << "score output is empty at step " << step;
-            const float* p = scores.data<float>();
+            // Read scores as f32 regardless of storage type
+            const auto et = scores.get_element_type();
             for (size_t j = 0; j < scores.get_size(); ++j) {
-                EXPECT_EQ(p[j], 0.f)
+                float v = 0.f;
+                if (et == ov::element::f32)
+                    v = static_cast<const float*>(scores.data())[j];
+                else if (et == ov::element::f16)
+                    v = static_cast<float>(static_cast<const ov::float16*>(scores.data())[j]);
+                else if (et == ov::element::bf16)
+                    v = static_cast<float>(static_cast<const ov::bfloat16*>(scores.data())[j]);
+                EXPECT_EQ(v, 0.f)
                     << "output 1 not zero at step=" << step << " index=" << j
                     << " (score_aggregation_window=0)";
             }

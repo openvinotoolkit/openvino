@@ -31,11 +31,11 @@ public:
                 return false;
 
             if (!*shared_handle) {
-                *shared_dtype = pa->get_input_element_type(0);
+                *shared_dtype = pa->get_input_element_type(3);
                 *shared_handle = make_cache_handle(*shared_dtype);
             }
 
-            OPENVINO_ASSERT(pa->get_input_element_type(0) == *shared_dtype,
+            OPENVINO_ASSERT(pa->get_input_element_type(3) == *shared_dtype,
                             "AttachCacheManagerToPagedAttention: incompatible cache data types");
 
             set_cache_manager(pa.get(), *shared_handle);

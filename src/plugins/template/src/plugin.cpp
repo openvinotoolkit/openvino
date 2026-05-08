@@ -129,12 +129,26 @@ void transform_model(const std::shared_ptr<ov::Model>& model) {
     // Perform common optimizations and device-specific transformations
     ov::pass::Manager passManager("Plugin:Template");
 
-    // Resolve dynamic element types on KV cache parameters before CommonOptimizations,
-    // otherwise ConstantFolding (inside CommonOptimizations) fails on dynamic types.
+    // Defaults are overwritten below from the actual PA node's input types (inputs 3/4 for
+    // cache, input 0 for query). f32 is only used if there is no PA node in the model.
     ov::pass::ConvertPagedAttnInputs::KVCacheConfig cacheConfig;
     cacheConfig.keyCachePrecision = ov::element::f32;
     cacheConfig.valueCachePrecision = ov::element::f32;
     cacheConfig.inferencePrecision = ov::element::f32;
+    for (const auto& op : model->get_ops()) {
+        if (auto pa = std::dynamic_pointer_cast<ov::op::PagedAttentionExtension>(op)) {
+            const auto key_et = pa->get_input_element_type(3);
+            const auto val_et = pa->get_input_element_type(4);
+            if (!key_et.is_dynamic())
+                cacheConfig.keyCachePrecision = key_et;
+            if (!val_et.is_dynamic())
+                cacheConfig.valueCachePrecision = val_et;
+            const auto qry_et = pa->get_input_element_type(0);
+            if (!qry_et.is_dynamic())
+                cacheConfig.inferencePrecision = qry_et;
+            break;
+        }
+    }
     auto noop_shape = [](const ov::element::Type&, const bool, const size_t, int64_t&, int64_t&) {};
     passManager.register_pass<ov::pass::ConvertPagedAttnInputs>(cacheConfig, noop_shape);
 

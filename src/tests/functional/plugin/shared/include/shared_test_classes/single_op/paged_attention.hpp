@@ -14,6 +14,7 @@
 #include "common_test_utils/test_enums.hpp"
 
 #include "openvino/op/paged_attention.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
 
 
 namespace ov {
@@ -96,9 +97,13 @@ protected:
         auto v = make_param({ov::Dimension::dynamic(), head_num * head_size}, data_type, "v");
 
         // Cache layout: [num_blocks, num_kv_heads, block_size, head_size]
-        // Use data_type directly so TEMPLATE can allocate real tensors without running ConvertPagedAttnInputs
+        // Use data_type directly so TEMPLATE can allocate real tensors without running ConvertPagedAttnInputs.
+        // Mark with keep_const_precision so the CPU's ConvertPrecision pass doesn't insert
+        // Convert nodes around them — the PA kernel modifies caches in-place across steps.
         auto key_cache   = make_param({ov::Dimension::dynamic(), head_num, block_size, head_size}, data_type, "key_cache.0");
         auto value_cache = make_param({ov::Dimension::dynamic(), head_num, block_size, head_size}, data_type, "value_cache.0");
+        ov::enable_keep_const_precision(key_cache);
+        ov::enable_keep_const_precision(value_cache);
 
         auto past_lens = make_param({ov::Dimension::dynamic()}, ov::element::i32, "past_lens");
         auto subseq_begins = make_param({ov::Dimension::dynamic()}, ov::element::i32, "subsequence_begins");
