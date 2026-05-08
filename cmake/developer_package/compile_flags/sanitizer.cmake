@@ -104,9 +104,8 @@ if(ENABLE_THREAD_SANITIZER)
         if(BUILD_SHARED_LIBS AND OV_COMPILER_IS_CLANG)
             set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -shared-libsan")
             set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -shared-libsan")
-            execute_process(COMMAND ${CMAKE_CXX_COMPILER} --print-file-name libclang_rt.tsan-x86_64.so
-                OUTPUT_VARIABLE OV_LIBTSAN_FILEPATH OUTPUT_STRIP_TRAILING_WHITESPACE)
-            get_filename_component(LIBTSAN_DIRNAME ${OV_LIBTSAN_FILEPATH} PATH)
+            execute_process(COMMAND ${CMAKE_CXX_COMPILER} --print-runtime-dir
+                OUTPUT_VARIABLE LIBTSAN_DIRNAME OUTPUT_STRIP_TRAILING_WHITESPACE)
             set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -Wl,-rpath=${LIBTSAN_DIRNAME}")
         endif()
     else()
