@@ -51,19 +51,6 @@ size_t get_ir_version(const pugi::xml_document& doc) {
 
 constexpr size_t HEADER_SIZE_LIM = 512lu;
 
-bool use_separate_const_weights_loading() {
-    const auto* flag = std::getenv("OV_IR_SEPARATE_CONST_WEIGHTS");
-    if (!flag) {
-        return false;
-    }
-
-    std::string value(flag);
-    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char character) {
-        return std::tolower(character);
-    });
-    return value == "1" || value == "true" || value == "yes" || value == "on";
-}
-
 /**
  * @brief Extracts IR version from model stream
  * @param model Model's stream
@@ -241,7 +228,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     }
 
     if (!weights_path.empty()) {
-        const auto separate_const_weights_loading = use_separate_const_weights_loading() && !weights_provider;
+        const auto separate_const_weights_loading = !weights_provider && !weights_path.empty();
         if (separate_const_weights_loading) {
             weights_provider = std::make_shared<ov::util::FileWeightsProvider>(weights_path);
         } else {
