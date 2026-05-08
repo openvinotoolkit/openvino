@@ -742,8 +742,8 @@ MemoryPtr split_vertical(const dnnl::engine& eng,
     // the steps need to copy.
     const auto step = mem_size / channel_size;
     // bytes of selected dim.
-    size_t strideSize = static_cast<size_t>(splited_dim_vec[0] * element_size);
-    size_t copySize = static_cast<size_t>(splited_dim_vec[w_rank] * element_size);
+    auto strideSize = static_cast<size_t>(splited_dim_vec[0] * element_size);
+    auto copySize = static_cast<size_t>(splited_dim_vec[w_rank] * element_size);
     if (any_of(prec, ov::element::u4, ov::element::i4)) {
         strideSize /= 2;
         copySize /= 2;
