@@ -54,7 +54,9 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
     auto sm_reduce = wrap_type<ov::op::v1::ReduceSum>({sm_topk->output(0), ANY}, consumers_count(1));
     auto sm_norm = wrap_type<ov::op::v1::Divide>({sm_topk->output(0), sm_reduce}, consumers_count(1));
     auto sm_convert_topk = optional<ov::op::v0::Convert>({sm_topk->output(1)});
-    auto sm_transpose = wrap_type<ov::op::v1::Transpose>({sm_norm, ANY}, consumers_count(1));
+    auto sm_shape_of = optional<ov::op::v3::ShapeOf>({sm_convert_topk}, consumers_count(1));
+    auto sm_norm_slice = optional<ov::op::v8::Slice>({sm_norm, ANY, sm_shape_of, ANY, ANY}, consumers_count(1));
+    auto sm_transpose = wrap_type<ov::op::v1::Transpose>({sm_norm_slice, ANY}, consumers_count(1));
     auto sm_unsqueeze = wrap_type<ov::op::v0::Unsqueeze>({sm_transpose, ANY}, consumers_count(1));
 
     // ── Sigmoid+bias routing branch ─────────────────────────────────────
