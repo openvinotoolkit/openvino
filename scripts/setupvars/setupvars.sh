@@ -80,14 +80,28 @@ if [ -e "$INSTALLDIR/runtime" ]; then
         fi
     fi
 
-    if [ -d "$INSTALLDIR/runtime/3rdparty/vulkan/lib" ]; then
-        vk_lib_path=$INSTALLDIR/runtime/3rdparty/vulkan/lib
-        if /bin/ls "$vk_lib_path"/libvulkan.so* >/dev/null 2>&1; then
+    if [ -d "$INSTALLDIR/lib" ]; then
+        vk_lib_path=$INSTALLDIR/lib
+        vk_has_libvulkan_so=""
+        vk_has_libvulkan_so_1=""
+
+        [ -e "$vk_lib_path/libvulkan.so" ] && vk_has_libvulkan_so="yes"
+        [ -e "$vk_lib_path/libvulkan.so.1" ] && vk_has_libvulkan_so_1="yes"
+
+        if [ -n "$vk_has_libvulkan_so" ] && [ -n "$vk_has_libvulkan_so_1" ]; then
             export LD_LIBRARY_PATH=$vk_lib_path:${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH}
         else
-            echo "[setupvars.sh] WARNING: Directory with Vulkan loader libraries is not detected. Please, add Vulkan loader libraries to LD_LIBRARY_PATH manually"
+            echo "[setupvars.sh] WARNING: Vulkan loader check failed in $vk_lib_path"
+            [ -z "$vk_has_libvulkan_so_1" ] && echo "[setupvars.sh] WARNING: Missing $vk_lib_path/libvulkan.so.1"
+            [ -z "$vk_has_libvulkan_so" ] && echo "[setupvars.sh] WARNING: Missing $vk_lib_path/libvulkan.so"
+            echo "[setupvars.sh] WARNING: Please ensure OpenVINO is built/packaged with Vulkan loader and add it to LD_LIBRARY_PATH"
         fi
+
         unset vk_lib_path
+        unset vk_has_libvulkan_so
+        unset vk_has_libvulkan_so_1
+    else
+        echo "[setupvars.sh] WARNING: Vulkan loader directory is not detected. Please, ensure OpenVINO is built/packaged with Vulkan loader and add it to LD_LIBRARY_PATH"
     fi
 
     unset system_type
