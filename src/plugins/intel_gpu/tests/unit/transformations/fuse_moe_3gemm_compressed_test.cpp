@@ -578,12 +578,7 @@ TEST_F(TransformationTestsF, FuseMOE3GemmCompressedTest1) {
     }
 }
 
-// Reproducer: Qwen3.5-35B-A3B-ov softmax routing inserts a Slice between
-// sm_norm (Divide) and sm_transpose. The current pattern's softmax branch
-// only allows Divide → Transpose, so the matcher fails at:
-//   "NODES' TYPE DIDN'T MATCH. EXPECTED: WrapType<Divide>. OBSERVED: Slice"
-// when checking ARGUMENT 0 of sm_transpose. Without a fix the transformation
-// does not fire, and MOECompressed reaches the GPU backend unfused.
+// Qwen3.5-35B-A3B pattern
 TEST_F(TransformationTestsF, FuseMOE3GemmCompressed_SoftmaxRouting_SliceAfterDivide) {
     // ── MoE shape parameters (shared between input model and reference model) ──
     constexpr size_t batch = 4;
