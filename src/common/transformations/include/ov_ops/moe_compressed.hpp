@@ -7,6 +7,7 @@
 #include "openvino/op/moe.hpp"
 #include "openvino/op/op.hpp"
 #include "transformations_visibility.hpp"
+#include <optional>
 
 namespace ov::op::internal {
 
@@ -34,7 +35,7 @@ public:
         bool has_zp = false;
         ov::element::Type out_type = ov::element::dynamic;
         RoutingType routing_type = RoutingType::SOFTMAX;
-        float scale_factor = -1.0f;  // -1.0f means scaling is disabled.
+        std::optional<float> scale_factor;
     };
 
     /// \brief Constructs a MOECompressed operation with config only
@@ -74,9 +75,6 @@ public:
     }
     void set_scale_factor(float scale_factor) {
         m_config.scale_factor = scale_factor;
-    }
-    float get_scale_factor() const {
-        return m_config.scale_factor;
     }
 
     bool visit_attributes(AttributeVisitor& visitor) override;

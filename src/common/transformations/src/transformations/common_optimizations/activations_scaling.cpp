@@ -98,20 +98,26 @@ activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float scale_fact
         if (pattern_map.count(matmul_m))
             scaled_op = pattern_map.at(matmul_m).get_node_shared_ptr();
 
-        std::shared_ptr<ov::op::internal::MOECompressed> moe = nullptr;
-
+        bool is_moe = false;
         if (pattern_map.count(moe_m)) {
             scaled_op = pattern_map.at(moe_m).get_node_shared_ptr();
-            moe = ov::as_type_ptr<ov::op::internal::MOECompressed>(scaled_op);
-            if (!moe)
+            auto moe_op = ov::as_type_ptr<ov::op::internal::MOECompressed>(scaled_op);
+            if (!moe_op)
                 return false;
 
-            if (moe->get_config().expert_type != ov::op::internal::MOE::Expert_type::GEMM2_BIAS_SWIGLU_CLAMP)
+            if (moe_op->get_config().expert_type != ov::op::internal::MOE::Expert_type::GEMM2_BIAS_SWIGLU_CLAMP)
                 return false;
 
-            OPENVINO_ASSERT(moe->get_input_size() == 9 || moe->get_input_size() == 11,
+            OPENVINO_ASSERT(moe_op->get_input_size() == 9 || moe_op->get_input_size() == 11,
                             "Unexpected input size for MOECompressed: ",
-                            moe->get_input_size());
+                            moe_op->get_input_size());
+
+            const size_t bias_up_idx = moe_op->get_config().has_zp ? 6u : 5u;
+            const size_t bias_down_idx = moe_op->get_input_size() - 1u;
+            insert_scale_down_layer(scaled_op, bias_up_idx);
+            insert_scale_down_layer(scaled_op, bias_down_idx);
+            moe_op->set_scale_factor(scale_factor);
+            is_moe = true;
         }
 
         if (transformation_callback(scaled_op))
@@ -131,7 +137,7 @@ activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float scale_fact
 
         // adding a scale_down layer before the target node
         insert_scale_down_layer(scaled_op, 0);
-        if (!moe && scaled_op->input(1).get_element_type() != scaled_prec) {
+        if (!is_moe && scaled_op->input(1).get_element_type() != scaled_prec) {
             auto convert_prec1 = std::make_shared<v0::Convert>(scaled_op->input(1).get_source_output(), scaled_prec);
             scaled_op->input(1).replace_source_output(convert_prec1->output(0));
         }
@@ -144,7 +150,7 @@ activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float scale_fact
         // So, we need to scale_down the bias layer too.
         bool has_bias = false;
         size_t bias_index = 1;
-        if (!moe) {
+        if (!is_moe) {
             if (scaled_op->get_output_target_inputs(0).size() == 1 && ov::is_type<v1::Add>(child_node)) {
                 bias_index = (child_node->get_input_node_shared_ptr(0) == scaled_op) ? 1 : 0;
                 const auto& bias_pshape = child_node->get_input_partial_shape(bias_index);
@@ -171,14 +177,6 @@ activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float scale_fact
                 output_of_scaled_op = add;
             }
         } else {
-            if (moe) {
-                const size_t bias_up_idx = moe->get_config().has_zp ? 6u : 5u;
-                const size_t bias_down_idx = moe->get_input_size() - 1u;
-                insert_scale_down_layer(scaled_op, bias_up_idx);
-                insert_scale_down_layer(scaled_op, bias_down_idx);
-                moe->set_scale_factor(scale_factor);
-            }
-
             target_inputs = output_of_scaled_op->get_output_target_inputs(0);
             if (output_of_scaled_op->output(0).get_element_type() != output_prec) {
                 output_of_scaled_op = std::make_shared<v0::Convert>(output_of_scaled_op->output(0), output_prec);

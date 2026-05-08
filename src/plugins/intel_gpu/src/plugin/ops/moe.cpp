@@ -209,7 +209,7 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
                                              config.expert_beta,    // swish beta
                                              1.0f,                  // up_add_val
                                              cldnn::tensor(),
-                                             config.scale_factor);   // activations scaling
+                                             config.scale_factor.value_or(-1.0f));   // activations scaling
         p.add_primitive(*op, moe_swiglu_prim);
         std::vector<cldnn::input_info> moe_gemm_down_inputs = {
             input_info(moe_swiglu_name),
