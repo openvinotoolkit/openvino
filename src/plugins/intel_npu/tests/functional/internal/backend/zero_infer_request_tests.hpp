@@ -6,9 +6,9 @@
 
 #include <gtest/gtest.h>
 
-#include "../compiler_adapter/zero_init_mock.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
+#include "common/zero_init_mock.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ov_plugin_cache.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
@@ -160,9 +160,7 @@ public:
         options->add<::intel_npu::MODEL_SERIALIZER_VERSION>();
         options->add<::intel_npu::ENABLE_CPU_PINNING>();
         npu_config = std::make_unique<::intel_npu::FilteredConfig>(options);
-        ::intel_npu::Config::ConfigMap configMap{
-            {::intel_npu::PLATFORM::key().data(),
-             ov::intel_npu::Platform::standardize(ov::test::utils::getTestsPlatformFromEnvironmentOr(target_device))}};
+        ::intel_npu::Config::ConfigMap configMap;
         npu_config->enable(::intel_npu::PLATFORM::key().data(), true);
         npu_config->enable(::intel_npu::MODEL_SERIALIZER_VERSION::key().data(), true);
         npu_config->enable(::intel_npu::ENABLE_CPU_PINNING::key().data(), true);
@@ -227,6 +225,8 @@ TEST_P(ZeroInferRequestTests, BooleanSetTensorSetTensorsWork) {
         npu_config->update({{::intel_npu::MODEL_SERIALIZER_VERSION::key().data(),
                              ::intel_npu::MODEL_SERIALIZER_VERSION::toString(
                                  ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY)}});
+    } else {
+        npu_config->enable(::intel_npu::MODEL_SERIALIZER_VERSION::key().data(), false);
     }
 
     // logic for batch
@@ -253,13 +253,13 @@ TEST_P(ZeroInferRequestTests, BooleanSetTensorSetTensorsWork) {
         graph->set_batch_size(batch.value());
     }
 
-    auto compiledModel =
-        std::make_shared<intel_npu::CompiledModel>(ov_model,
-                                                   std::make_shared<ov::test::utils::MockPlugin>(),
-                                                   device,
-                                                   graph,
-                                                   *npu_config,
-                                                   batch);  // MockPlugin needed only to avoid throw for nullptr
+    auto compiledModel = std::make_shared<intel_npu::CompiledModel>(
+        ov_model,
+        std::make_shared<ov::test::utils::MockPlugin>(),  // MockPlugin needed only to avoid throw for nullptr
+        device,
+        graph,
+        *npu_config,
+        batch);
     OPENVINO_ASSERT(compiledModel->inputs()[0].get_element_type() == element_type);
     OPENVINO_ASSERT(compiledModel->inputs()[1].get_element_type() == element_type);
 
