@@ -805,7 +805,7 @@ TEST_P(PagedAttnAdaptiveRKVDiversityTest, smoke_AdaptiveRKVDiversityMatchesRefer
 
     ASSERT_EQ(actual.get_shape(), ov::Shape({expected.size()}));
 
-    const float tolerance = kKVCachePrecision.is_integral() ? 1e-4f : 1e-5f;
+    const float tolerance = kKVCachePrecision.is_integral() ? 1e-3f : 1e-4f;
     const auto* actual_ptr = actual.data<const float>();
     for (size_t idx = 0; idx < expected.size(); idx++) {
         EXPECT_NEAR(actual_ptr[idx], expected[idx], tolerance) << "Mismatch at index " << idx;

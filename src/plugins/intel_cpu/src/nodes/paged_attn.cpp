@@ -336,8 +336,8 @@ void PagedAttention::execute([[maybe_unused]] const dnnl::stream& strm) {
         size_t block_size = inputs[K_CACHE_IDX]->getStaticDims()[2];
         if (quantKeybyChannel && cpuConfig.keyCachePrecision.is_integral()) {
             size_t params_count = (cpuConfig.keyCachePrecision == ov::element::i8) ? 1 : 2;
-            size_t sub_byte_mult = (cpuConfig.keyCachePrecision == ov::element::u4) ? 2 : 1;
-            size_t key_params_size = sizeof(float) * params_count * sub_byte_mult;
+            size_t key_sub_byte_mult = (cpuConfig.keyCachePrecision == ov::element::u4) ? 2 : 1;
+            size_t key_params_size = sizeof(float) * params_count * key_sub_byte_mult;
             block_size -= key_params_size;
         }
 

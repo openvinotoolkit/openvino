@@ -86,7 +86,7 @@ static inline void dequant(float* dst,
 
 template <typename TDST,
           ov::element::Type_t SRC_PREC,
-          std::enable_if_t<any_of(SRC_PREC, ov::element::u4, ov::element::u8), bool> = true>
+          std::enable_if_t<any_of(SRC_PREC, ov::element::i8, ov::element::u4, ov::element::u8), bool> = true>
 void dequant(TDST* dst,
              void* src,
              const size_t N,
@@ -95,17 +95,20 @@ void dequant(TDST* dst,
              const size_t group_size,
              const bool quant_bychannel) {
     // The layout for per token per head:
-    // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
-    // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
+    // i8: |scale(f32)|quantized feature(i8,idx_1)|...|quantized feature(i8,idx_S)|
+    // u8/u4: |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|...|quantized feature(u8,idx_S)|
     auto* s = reinterpret_cast<uint8_t*>(src);
-    const size_t params_offset = sizeof(float) * 2;
     constexpr size_t sub_byte_multiplier = get_sub_byte_multiplier(SRC_PREC);
+    constexpr size_t param_count = SRC_PREC == ov::element::i8 ? 1 : 2;
+    constexpr size_t params_offset = sizeof(float) * param_count;
     if (quant_bychannel) {
-        auto* p_scales = reinterpret_cast<float*>(s);
-        auto* p_zps = p_scales + K;
-        s = s + sizeof(float) * 2 * K;
         if constexpr (any_of(SRC_PREC, ov::element::u8, ov::element::u4)) {
+            auto* p_scales = reinterpret_cast<float*>(s);
+            auto* p_zps = p_scales + K;
+            s = s + sizeof(float) * 2 * K;
             attn_dequant_by_channel_kernel<TDST, SRC_PREC>(s, dst, N, K, K / sub_byte_multiplier, K, p_scales, p_zps);
+        } else {
+            OPENVINO_THROW("dequant: i8 doesn't support by-channel quantization.");
         }
     } else {
         for (size_t n = 0; n < N; n++) {
@@ -1939,6 +1942,10 @@ struct AttentionExecutor : public PagedAttentionExecutor {
     Xattn _xatt;
 #    endif
 
+    // Scratchpads for compute_adaptive_rkv_diversity to avoid per-call allocations.
+    std::vector<float> _arkv_evict_keys;
+    std::vector<float> _arkv_scratch;
+
     explicit AttentionExecutor(const CpuParallelPtr& cpu_parallel)
         : _helper(MHAHelper<DATA_TYPE, KEY_PREC, VALUE_PREC>(cpu_parallel)),
           _kernel(_helper),
@@ -2362,13 +2369,17 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             OPENVINO_ASSERT(token_count >= start_size + evictable_size,
                             "Adaptive RKV diversity block set is too small for requested start and eviction sizes");
 
-            // ── Phase 0: Gather only the eviction-area key tokens ─────────
+            // ── Phase 0: Load target data; Gather only the eviction-area key tokens. ─────────
             // Layout: [Hk, evictable_size, S].  Only the blocks covering the
             // eviction window [start_size, start_size + evictable_size) are
             // retrieved; start-area and trailing blocks are skipped entirely.
             const size_t start_blocks = start_size / block_size;
             const size_t evict_block_count = evictable_size / block_size;
-            std::vector<float> evict_keys(Hk * evictable_size * S);
+            const size_t evict_keys_size = Hk * evictable_size * S;
+            if (_arkv_evict_keys.size() < evict_keys_size) {
+                _arkv_evict_keys.resize(evict_keys_size);
+            }
+            auto& evict_keys = _arkv_evict_keys;
 
             parallel_for2d(Hk, evict_block_count, [&](size_t hk, size_t eb) {
                 const auto global_block_idx = start_blocks + eb;
@@ -2376,7 +2387,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                     adaptive_rkv_diversity_block_set_indices.ptr<int32_t>()[block_set_begin + global_block_idx]);
                 auto* dst = evict_keys.data() + hk * evictable_size * S + eb * block_size * S;
 
-                if constexpr (any_of(KEY_PREC, ov::element::u8, ov::element::u4)) {
+                if constexpr (any_of(KEY_PREC, ov::element::i8, ov::element::u8, ov::element::u4)) {
                     auto* src =
                         k_cache.ptr<typename ov::element_type_traits<KEY_PREC>::value_type, KEY_PREC>(block_number, hk);
                     dequant<float, KEY_PREC>(dst,
@@ -2386,27 +2397,6 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                                              block_size,
                                              _helper._params.key_group_size,
                                              _helper._params.quant_key_bychannel);
-                } else if constexpr (KEY_PREC == ov::element::i8) {
-                    auto* src = k_cache.ptr<int8_t, KEY_PREC>(block_number, hk, 0, 0);
-                    const size_t group_size = _helper._params.key_group_size;
-                    constexpr size_t param_size = sizeof(float);
-                    // row_stride: bytes per token row = num_groups * (group_data + scale_param)
-                    const size_t num_groups = (S + group_size - 1) / group_size;
-                    const size_t row_stride = num_groups * (group_size + param_size);
-                    for (size_t token_idx = 0; token_idx < block_size; token_idx++) {
-                        auto* row_src = reinterpret_cast<uint8_t*>(src) + token_idx * row_stride;
-                        size_t src_offset = 0;
-                        size_t dst_offset = token_idx * S;
-                        while (dst_offset < (token_idx + 1) * S) {
-                            auto* params = reinterpret_cast<float*>(row_src + src_offset);
-                            attn_dequant_kernel<float, KEY_PREC>(row_src + src_offset + param_size,
-                                                                 dst + dst_offset,
-                                                                 group_size,
-                                                                 params);
-                            src_offset += group_size + param_size;
-                            dst_offset += group_size;
-                        }
-                    }
                 } else {
                     auto* src = k_cache.ptr<typename ov::element_type_traits<KEY_PREC>::value_type>(block_number, hk);
                     cvt_copy(dst, src, block_size, S, S, S);
@@ -2421,98 +2411,89 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                 const size_t t = idx % evictable_size;
                 float* row = evict_keys.data() + hk_idx * evictable_size * S + t * S;
                 float sq_sum = dot_product(row, row, S, nullptr, nullptr, nullptr, 0);
-                multiply_scalar(row, row, 1.0f / std::sqrt(sq_sum + eps), S);
+                multiply_scalar(row, row, 1.0F / std::sqrt(sq_sum + eps), S);
             });
 
-            // ── Phase 2–4: Cosine similarity → mean-threshold → head-aggregate ─
-            // For each token row, compute similarities against every other eviction
-            // token, zero values below the per-row mean, then average the thresholded
-            // values across all Hk heads into `aggregated`.
-            // Thread-safety: each row of `aggregated` is owned by exactly one
-            // parallel_for slice, so no data races occur.
-            const float inv_hk = 1.0f / static_cast<float>(Hk);
+            // ── Phase 2–5 (fused): Cosine similarity → threshold → subtract into output ─
+            // For each block, iterate its block_size token rows. For each row,
+            // compute per-head cosine similarities, threshold below row mean,
+            // and immediately subtract (scaled by 1/Hk) into the output row.
+            // Parallelized over blocks so each thread owns its output row exclusively.
+            const float inv_hk = 1.0F / static_cast<float>(Hk);
             const auto nthr = static_cast<size_t>(parallel_get_max_threads());
-            std::vector<float> scratch(nthr * evictable_size);
-            std::vector<float> aggregated(evictable_size * evictable_size, 0.0f);
+            const size_t scratch_size = nthr * evictable_size;
+            if (_arkv_scratch.size() < scratch_size)
+                _arkv_scratch.resize(scratch_size);
 
-            parallel_for(evictable_size, [&](size_t row) {
-                const auto ithr = static_cast<size_t>(parallel_get_thread_num());
-                float* sim_row = scratch.data() + ithr * evictable_size;
-                float* agg_row = aggregated.data() + row * evictable_size;
-
-                for (size_t hk_idx = 0; hk_idx < Hk; hk_idx++) {
-                    const float* head_keys = evict_keys.data() + hk_idx * evictable_size * S;
-                    const float* row_key = head_keys + row * S;
-
-                    // Cosine similarities (diagonal forced to zero)
-                    for (size_t col = 0; col < evictable_size; col++) {
-                        sim_row[col] = (col == row)
-                                           ? 0.0f
-                                           : dot_product(row_key, head_keys + col * S, S, nullptr, nullptr, nullptr, 0);
-                    }
-
-                    // Threshold: keep values >= row mean, zero the rest, accumulate / Hk
-                    float mean = reduce_sum(sim_row, evictable_size) / static_cast<float>(evictable_size);
-                    size_t i = 0;
-#    if defined(HAVE_AVX512F)
-                    {
-                        auto vmean = _mm512_set1_ps(mean);
-                        auto vihk = _mm512_set1_ps(inv_hk);
-                        for (; i + vec_len_f32_avx512 <= evictable_size; i += vec_len_f32_avx512) {
-                            auto vsim = _mm512_loadu_ps(sim_row + i);
-                            auto vagg = _mm512_loadu_ps(agg_row + i);
-                            auto mask = _mm512_cmp_ps_mask(vsim, vmean, _CMP_GE_OQ);
-                            vagg = _mm512_fmadd_ps(_mm512_maskz_mov_ps(mask, vsim), vihk, vagg);
-                            _mm512_storeu_ps(agg_row + i, vagg);
-                        }
-                    }
-#    elif defined(HAVE_AVX2)
-                    {
-                        auto vmean = _mm256_set1_ps(mean);
-                        auto vihk = _mm256_set1_ps(inv_hk);
-                        auto vz = _mm256_setzero_ps();
-                        for (; i + vec_len_f32_avx2 <= evictable_size; i += vec_len_f32_avx2) {
-                            auto vsim = _mm256_loadu_ps(sim_row + i);
-                            auto vagg = _mm256_loadu_ps(agg_row + i);
-                            auto vcmp = _mm256_cmp_ps(vsim, vmean, _CMP_GE_OQ);
-                            vagg = _mm256_fmadd_ps(_mm256_blendv_ps(vz, vsim, vcmp), vihk, vagg);
-                            _mm256_storeu_ps(agg_row + i, vagg);
-                        }
-                    }
-#    elif defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE)
-                    {
-                        auto sve_len = vec_len_f32_sve();
-                        svbool_t pg = svptrue_b32();
-                        auto svmean_val = svdup_n_f32(mean);
-                        auto svihk = svdup_n_f32(inv_hk);
-                        for (; i + sve_len <= evictable_size; i += sve_len) {
-                            svfloat32_t vsim = svld1_f32(pg, sim_row + i);
-                            svfloat32_t vagg = svld1_f32(pg, agg_row + i);
-                            svbool_t ge = svcmpge_f32(pg, vsim, svmean_val);
-                            svfloat32_t vt = svsel_f32(ge, vsim, svdup_n_f32(0.0f));
-                            vagg = svmla_f32_z(pg, vagg, vt, svihk);
-                            svst1_f32(pg, agg_row + i, vagg);
-                        }
-                    }
-#    endif
-                    for (; i < evictable_size; i++) {
-                        if (sim_row[i] >= mean) {
-                            agg_row[i] += sim_row[i] * inv_hk;
-                        }
-                    }
-                }
-            });
-
-            // ── Phase 5: Block-sum rows and negate → diversity output ─────
-            // Sum each block_size consecutive rows of `aggregated` and negate
-            // to produce diversity scores: shape [evict_blocks, evictable_size].
             float* out = output_ptr + output_offset;
             parallel_for(evict_block_count, [&](size_t blk) {
+                const auto ithr = static_cast<size_t>(parallel_get_thread_num());
+                float* sim_row = _arkv_scratch.data() + ithr * evictable_size;
                 float* out_row = out + blk * evictable_size;
                 std::memset(out_row, 0, evictable_size * sizeof(float));
+
                 for (size_t t = 0; t < block_size; t++) {
-                    // sub_vec(out_row, aggregated.data() + (blk * block_size + t) * evictable_size, evictable_size);
-                    eltwise_sub_(out_row, aggregated.data() + (blk * block_size + t) * evictable_size, evictable_size);
+                    const size_t row = blk * block_size + t;
+                    for (size_t hk_idx = 0; hk_idx < Hk; hk_idx++) {
+                        const float* head_keys = evict_keys.data() + hk_idx * evictable_size * S;
+                        const float* row_key = head_keys + row * S;
+
+                        for (size_t col = 0; col < evictable_size; col++) {
+                            sim_row[col] =
+                                (col == row)
+                                    ? 0.0F
+                                    : dot_product(row_key, head_keys + col * S, S, nullptr, nullptr, nullptr, 0);
+                        }
+
+                        float mean = reduce_sum(sim_row, evictable_size) / static_cast<float>(evictable_size);
+                        size_t i = 0;
+#    if defined(HAVE_AVX512F)
+                        {
+                            auto vmean = _mm512_set1_ps(mean);
+                            auto vnihk = _mm512_set1_ps(-inv_hk);
+                            for (; i + vec_len_f32_avx512 <= evictable_size; i += vec_len_f32_avx512) {
+                                auto vsim = _mm512_loadu_ps(sim_row + i);
+                                auto vout = _mm512_loadu_ps(out_row + i);
+                                auto mask = _mm512_cmp_ps_mask(vsim, vmean, _CMP_GE_OQ);
+                                vout = _mm512_fmadd_ps(_mm512_maskz_mov_ps(mask, vsim), vnihk, vout);
+                                _mm512_storeu_ps(out_row + i, vout);
+                            }
+                        }
+#    elif defined(HAVE_AVX2)
+                        {
+                            auto vmean = _mm256_set1_ps(mean);
+                            auto vnihk = _mm256_set1_ps(-inv_hk);
+                            auto vz = _mm256_setzero_ps();
+                            for (; i + vec_len_f32_avx2 <= evictable_size; i += vec_len_f32_avx2) {
+                                auto vsim = _mm256_loadu_ps(sim_row + i);
+                                auto vout = _mm256_loadu_ps(out_row + i);
+                                auto vcmp = _mm256_cmp_ps(vsim, vmean, _CMP_GE_OQ);
+                                vout = _mm256_fmadd_ps(_mm256_blendv_ps(vz, vsim, vcmp), vnihk, vout);
+                                _mm256_storeu_ps(out_row + i, vout);
+                            }
+                        }
+#    elif defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE)
+                        {
+                            auto sve_len = vec_len_f32_sve();
+                            svbool_t pg = svptrue_b32();
+                            auto svmean_val = svdup_n_f32(mean);
+                            auto svnihk = svdup_n_f32(-inv_hk);
+                            for (; i + sve_len <= evictable_size; i += sve_len) {
+                                svfloat32_t vsim = svld1_f32(pg, sim_row + i);
+                                svfloat32_t vout = svld1_f32(pg, out_row + i);
+                                svbool_t ge = svcmpge_f32(pg, vsim, svmean_val);
+                                svfloat32_t vt = svsel_f32(ge, vsim, svdup_n_f32(0.0f));
+                                vout = svmla_f32_z(pg, vout, vt, svnihk);
+                                svst1_f32(pg, out_row + i, vout);
+                            }
+                        }
+#    endif
+                        for (; i < evictable_size; i++) {
+                            if (sim_row[i] >= mean) {
+                                out_row[i] -= sim_row[i] * inv_hk;
+                            }
+                        }
+                    }
                 }
             });
             output_offset += evict_block_count * evictable_size;
