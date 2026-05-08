@@ -195,6 +195,12 @@ struct PyramidAttention {
     std::vector<size_t> past_key_block_global_param_indices;
     std::vector<size_t> past_value_block_global_param_indices;
 
+    // Returns true when the model uses block-split KV cache (SplitKVCacheIntoBlocks was applied).
+    // False means legacy contiguous KV cache with per-pyramid-variant slice/copy.
+    bool is_block_mode() const {
+        return !past_key_block_global_param_indices.empty();
+    }
+
     // Set compiled models after parallel compilation completes.
     // Clears _models_to_compile to free memory.
     // Block indices are already populated in the constructor from the graph.
