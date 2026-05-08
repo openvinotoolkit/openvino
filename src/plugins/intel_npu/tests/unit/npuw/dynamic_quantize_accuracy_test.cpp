@@ -14,7 +14,7 @@
 //        Parameter(f16) -> Convert(f32) -> DynamicQuantize -> [q, scale, zp] Results
 //
 //   2. Dequantize model (applied when reading cached tokens for attention):
-//        Parameters(q_i8, scale_f32, zp_i8) -> dequant chain -> Result(f16)
+//        Parameters(q_storage, scale_f32, zp_storage) -> dequant chain -> Result(f16)
 //
 // Test cases:
 //   RoundtripAccuracy           - single fused roundtrip model via evaluate()
@@ -44,6 +44,7 @@
 #include <vector>
 
 #include "npuw_transformations/kv_cache_compressed.hpp"
+#include "util.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
@@ -332,7 +333,7 @@ std::shared_ptr<Model> build_quantize_model(const Shape& shape,
 
 // ============================================================================
 // Build a dequantize-only model (matches the real "read cached tokens" path):
-//   Parameters(q, scale, zp) -> (convert(q,f32) - convert(zp,f32)) * scale
+//   Parameters(q_storage, scale, zp_storage) -> (convert(q,f32) - convert(zp,f32)) * scale
 //                             -> Convert(f16) -> Result
 //
 // This mirrors create_dequant_nodes() in the production code.
@@ -340,12 +341,10 @@ std::shared_ptr<Model> build_quantize_model(const Shape& shape,
 // ============================================================================
 std::shared_ptr<Model> build_dequantize_model(const Shape& shape,
                                               const DQTestParams& p) {
-    auto config = make_dq_config(shape, p);
-    const auto storage_dt = (p.decompose_version == 3 && !p.is_symmetric && resolve_quant_dt(p) == element::i8)
-                                ? element::u8
-                                : config.quantization_dt;
+    const auto storage_types =
+        ov::npuw::util::resolve_dynamic_quant_storage_types(p.decompose_version, p.is_symmetric, resolve_quant_dt(p));
 
-    auto param_q = std::make_shared<op::v0::Parameter>(storage_dt, shape);
+    auto param_q = std::make_shared<op::v0::Parameter>(storage_types.quantized_data_type, shape);
     param_q->set_friendly_name("quantized_data");
 
     // Scale/ZP shape: same as data but with embedding dim (last) collapsed to 1
@@ -367,7 +366,7 @@ std::shared_ptr<Model> build_dequantize_model(const Shape& shape,
     if (p.is_symmetric) {
         dequant_input = q_f32;
     } else {
-        auto param_zp = std::make_shared<op::v0::Parameter>(storage_dt, scale_shape);
+        auto param_zp = std::make_shared<op::v0::Parameter>(storage_types.zero_point_type, scale_shape);
         param_zp->set_friendly_name("zero_point");
         params.push_back(param_zp);
 

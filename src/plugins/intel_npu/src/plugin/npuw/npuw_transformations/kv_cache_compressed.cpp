@@ -109,7 +109,8 @@ ov::OutputVector dynamic_quantize_linear(std::shared_ptr<ov::Node> input, size_t
 
 ov::OutputVector dynamic_quantize_linear_v3(const ov::Output<ov::Node>& input,
                                             size_t reduction_axis,
-                                            const std::string& name_prefix) {
+                                            const std::string& name_prefix,
+                                            const ov::npuw::util::DynamicQuantStorageTypes& storage_types) {
     auto make_name = [&name_prefix](const std::string& suffix) {
         return name_prefix + "/" + suffix;
     };
@@ -164,10 +165,10 @@ ov::OutputVector dynamic_quantize_linear_v3(const ov::Output<ov::Node>& input,
     auto clampOutput = std::make_shared<ov::op::v0::Clamp>(addQuant, 0.0, 255.0);
     clampOutput->set_friendly_name(make_name("Clamp_output"));
 
-    auto convertZp = std::make_shared<ov::op::v0::Convert>(clampZp, ov::element::u8);
+    auto convertZp = std::make_shared<ov::op::v0::Convert>(clampZp, storage_types.zero_point_type);
     convertZp->set_friendly_name(make_name("Convert_zp"));
 
-    auto convertOutput = std::make_shared<ov::op::v0::Convert>(clampOutput, ov::element::u8);
+    auto convertOutput = std::make_shared<ov::op::v0::Convert>(clampOutput, storage_types.quantized_data_type);
     convertOutput->set_friendly_name(make_name("Convert_output"));
 
     return {convertOutput->output(0), multiplyScale->output(0), convertZp->output(0)};
@@ -232,6 +233,9 @@ ov::npuw::DecomposeDynamicQuantize3::DecomposeDynamicQuantize3() {
             return false;
         }
 
+        const auto storage_types =
+            ov::npuw::util::resolve_dynamic_quant_storage_types(3, false, attrs.quantization_dt);
+
         LOG_DEBUG("Found DynamicQuantize : " << dq_ptr->get_friendly_name() << " decomposing");
         LOG_BLOCK();
 
@@ -243,7 +247,8 @@ ov::npuw::DecomposeDynamicQuantize3::DecomposeDynamicQuantize3() {
         auto dq_input = dq_ptr->input_value(0);
         auto has_zp = dq_ptr->outputs().size() == 3;
 
-        auto dq_results = dynamic_quantize_linear_v3(dq_input, reduction_axis, dq_ptr->get_friendly_name());
+        auto dq_results =
+            dynamic_quantize_linear_v3(dq_input, reduction_axis, dq_ptr->get_friendly_name(), storage_types);
 
         dq_ptr->output(0).replace(dq_results[0]);
         dq_ptr->output(1).replace(dq_results[1]);

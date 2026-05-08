@@ -37,6 +37,15 @@ bool starts_with(const std::string& str, const std::string& prefix);
 
 std::string fmt(std::size_t number, std::size_t total);
 
+struct DynamicQuantStorageTypes {
+    ov::element::Type quantized_data_type = ov::element::dynamic;
+    ov::element::Type zero_point_type = ov::element::dynamic;
+};
+
+DynamicQuantStorageTypes resolve_dynamic_quant_storage_types(int decompose_version,
+                                                             bool is_symmetric,
+                                                             const ov::element::Type& quant_dt);
+
 struct UnpackOptions {
     bool bUseOvParallelFor;
     size_t nPartitions;  // if 0 we use 64 elements step in parallel for, otherwise  target workload is dynamically
