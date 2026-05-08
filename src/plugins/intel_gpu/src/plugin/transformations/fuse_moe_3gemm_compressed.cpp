@@ -44,11 +44,13 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
 #define ANY any_input()
 
     auto hidden_state_m = ANY;
+    // If Reshape on routing subgraph is detected,
+    // the FusedMOE3GemmCompressed consumes it as new input instead of hidden_state_m
     auto hidden_state_reshape = optional<ov::op::v1::Reshape>({hidden_state_m, ANY});
-    auto matmul = wrap_type<ov::op::v0::MatMul>({hidden_state_reshape, ANY}, consumers_count(1));
+    auto routing_matmul = wrap_type<ov::op::v0::MatMul>({hidden_state_reshape | ANY, ANY}, consumers_count(1));
 
     // ── Softmax routing branch ──────────────────────────────────────────
-    auto sm_softmax = wrap_type<ov::op::v8::Softmax>({matmul}, consumers_count(1));
+    auto sm_softmax = wrap_type<ov::op::v8::Softmax>({routing_matmul}, consumers_count(1));
     auto sm_topk = wrap_type<ov::op::v11::TopK>({sm_softmax, ANY});
     sm_topk->set_output_size(2);
 
@@ -67,7 +69,7 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
     auto sm_unsqueeze = wrap_type<ov::op::v0::Unsqueeze>({sm_transpose, ANY}, consumers_count(1));
 
     // ── Sigmoid+bias routing branch ─────────────────────────────────────
-    auto sig_sigmoid = wrap_type<ov::op::v0::Sigmoid>({matmul});
+    auto sig_sigmoid = wrap_type<ov::op::v0::Sigmoid>({routing_matmul});
     auto sig_routing_bias = ANY;
     auto sig_add = wrap_type<ov::op::v1::Add>({sig_sigmoid, sig_routing_bias}, consumers_count(1));
     auto sig_topk = wrap_type<ov::op::v11::TopK>({sig_add, ANY});
@@ -162,11 +164,10 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
         if (!has_shared_expert) {
             config.num_shared_expert = 0;
         }
-        // When Optional<Reshape> is absent, the optional pattern is NOT in the map.
         auto hs_reshaped = pattern_map.count(hidden_state_reshape) ? pattern_map.at(hidden_state_reshape) : pattern_map.at(hidden_state_m);
         OutputVector args{
             hs_reshaped,
-            pattern_map.at(matmul),
+            pattern_map.at(routing_matmul),
             pattern_map.at(gate_wei_m),
             pattern_map.at(gate_scale_m),
             pattern_map.at(gate_zp_m),

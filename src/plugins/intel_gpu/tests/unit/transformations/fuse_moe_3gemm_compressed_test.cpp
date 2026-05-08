@@ -333,8 +333,8 @@ TEST_F(TransformationTestsF, FuseMOE3GemmCompressedTest_GeluTanhActivation) {
     }
 }
 
-// Gemma-4 style: softmax routing with a per-expert scale table (Const[N] → Gather(topk_idx) → Multiply).
-// The scale is statically folded  into w2_scale.
+// Gemma-4 style: softmax routing with a per-expert scale table (Const[N] → Gather(topk_idx) → Multiply(norm, gathered)).
+// The router MatMul uses a separately normed hidden state while MOECompressed input[0] uses the plain flatten.
 TEST_F(TransformationTestsF, FuseMOE3GemmCompressed_SoftmaxPerExpertScale) {
     constexpr int32_t batch = 4;
     constexpr int32_t sequence_length = 8;
@@ -357,9 +357,14 @@ TEST_F(TransformationTestsF, FuseMOE3GemmCompressed_SoftmaxPerExpertScale) {
     {
         auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{batch, sequence_length, hidden_size});
         auto flatten_shape = op::v0::Constant::create(element::i32, Shape{2}, {tokens, hidden_size});
+        // Expert hidden state: plain flatten, no extra norm.
         auto hidden_states_reshape = std::make_shared<ov::op::v1::Reshape>(hidden_states, flatten_shape, false);
+        // Router hidden state: separately normed.
+        auto norm_scale = op::v0::Constant::create(element::f32, Shape{1, 1, hidden_size}, {1.0f});
+        auto hidden_states_normed = std::make_shared<ov::op::v1::Multiply>(hidden_states, norm_scale);
+        auto hidden_states_normed_reshape = std::make_shared<ov::op::v1::Reshape>(hidden_states_normed, flatten_shape, false);
         auto routers = op::v0::Constant::create(element::f32, Shape{hidden_size, num_experts}, {routing_weight_init_val});
-        auto routing_weights = std::make_shared<ov::op::v0::MatMul>(hidden_states_reshape, routers);
+        auto routing_weights = std::make_shared<ov::op::v0::MatMul>(hidden_states_normed_reshape, routers);
 
         // Softmax → TopK → ReduceSum → Divide → Multiply(norm, Gather(per_expert_scale, topk_idx))
         auto softmax = std::make_shared<ov::op::v8::Softmax>(routing_weights, 1);
@@ -418,8 +423,11 @@ TEST_F(TransformationTestsF, FuseMOE3GemmCompressed_SoftmaxPerExpertScale) {
         auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{batch, sequence_length, hidden_size});
         auto flatten_shape = op::v0::Constant::create(element::i32, Shape{2}, {tokens, hidden_size});
         auto hidden_states_reshape = std::make_shared<ov::op::v1::Reshape>(hidden_states, flatten_shape, false);
+        auto norm_scale = op::v0::Constant::create(element::f32, Shape{1, 1, hidden_size}, {1.0f});
+        auto hidden_states_normed = std::make_shared<ov::op::v1::Multiply>(hidden_states, norm_scale);
+        auto hidden_states_normed_reshape = std::make_shared<ov::op::v1::Reshape>(hidden_states_normed, flatten_shape, false);
         auto routers = op::v0::Constant::create(element::f32, Shape{hidden_size, num_experts}, {routing_weight_init_val});
-        auto routing_weights = std::make_shared<ov::op::v0::MatMul>(hidden_states_reshape, routers);
+        auto routing_weights = std::make_shared<ov::op::v0::MatMul>(hidden_states_normed_reshape, routers);
 
         auto wei_gate = op::v0::Constant::create(element::u4, Shape{num_experts, inter_size, gate_up_quant_group, quant_granularity}, {1});
         auto scale_gate = op::v0::Constant::create(element::f16, Shape{num_experts, inter_size, gate_up_quant_group}, {gate_up_scale_init_val});

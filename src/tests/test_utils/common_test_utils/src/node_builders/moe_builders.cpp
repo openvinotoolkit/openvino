@@ -591,7 +591,14 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
                                                     reshape_on_decompression,
                                                     decompression_group_size);
 
-    auto router_matmul = std::make_shared<ov::op::v0::MatMul>(experts_reshape, router_weights_moe3, false, true);
+    // Gemma-4 style: the router uses a separately RMSNorm-scaled hidden state (different node
+    // from the expert path's experts_reshape).
+    ov::Output<ov::Node> router_input = experts_reshape;
+    if (use_per_expert_scale) {
+        auto router_norm_scale = ov::op::v0::Constant::create(data_precision, ov::Shape{1, hidden_size}, {1.0f});
+        router_input = std::make_shared<ov::op::v1::Multiply>(experts_reshape, router_norm_scale);
+    }
+    auto router_matmul = std::make_shared<ov::op::v0::MatMul>(router_input, router_weights_moe3, false, true);
 
     std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> routing_outputs;
     switch (routing_type) {
