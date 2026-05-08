@@ -361,7 +361,7 @@ inline void gate_up_gemv_n2x_f16(const __global half* weight, __global half* y, 
             // Each lane reads 2 fp16 elements.
             half sum0;
             half sum1;
-            half2 a = as_half2(intel_sub_group_block_read_us2((const __global ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            half2 a = as_half2(intel_sub_group_block_read_us2((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
             half2 b = as_half2(intel_sub_group_block_read_us2((const __global ushort*)B + gk * FAKE_GROUP_SIZE));
             half2 b2 = as_half2(intel_sub_group_block_read_us2((const __global ushort*)B + K + gk * FAKE_GROUP_SIZE));
 
@@ -521,7 +521,7 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(
     int num_sg = get_num_sub_groups();
     int id_local = get_sub_group_local_id();
 
-    // ─── x2 prep ────────────────────────────────────────────────────────────
+    // x2 prep
     // The activation `x` is staged into SLM `x2` in a layout the chosen GEMV expects:
     //   * u4 GEMV reads [even...even, odd...odd] interleaved per FAKE_GROUP
     //   * u8 / f16 GEMV reads contiguous values
@@ -630,7 +630,7 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(
     // routing_weights[MAX_TOPK] is consumed by the next kernel (mlp_down) — no barrier needed here.
 #    endif
 
-    // ─── GEMV dispatch ──────────────────────────────────────────────────────
+    // GEMV dispatch
     // f16 shared expert is the only case that diverges from the sparse path.
     // Every other case (compressed shared with same compression as sparse, or
     // no shared expert at all) reuses the sparse GEMV.
@@ -936,7 +936,7 @@ inline void down_gemv_n2x_f16(const __global half* weight, __global MOE_DTYPE* r
             // Each lane reads 2 fp16 elements.
             half sum0;
             half sum1;
-            half2 a = as_half2(intel_sub_group_block_read_us2((const __global ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            half2 a = as_half2(intel_sub_group_block_read_us2((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
             half2 b = as_half2(intel_sub_group_block_read_us2((const __global ushort*)B + gk * FAKE_GROUP_SIZE));
             half2 b2 = as_half2(intel_sub_group_block_read_us2((const __global ushort*)B + K + gk * FAKE_GROUP_SIZE));
 
@@ -1071,7 +1071,7 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_down)(const
     int num_sg = get_num_sub_groups();
     int id_local = get_sub_group_local_id();
 
-    // ─── x2 prep ────────────────────────────────────────────────────────────
+    // x2 prep
     // Same dispatch principle as `mlp_gate_up`: the only divergence between the
     // shared and sparse experts is when the shared expert is raw f16 (straight
     // copy, no xg_sum). All compressed shared cases reuse the sparse layout.
@@ -1137,7 +1137,7 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_down)(const
 
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    // ─── GEMV dispatch ──────────────────────────────────────────────────────
+    // GEMV dispatch
 #if SHARED_IS_F16
     if (is_shared) {
         down_gemv_n2x_f16((__global half*)weight, routing_weights, y, N, K, x2);

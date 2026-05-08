@@ -1176,7 +1176,14 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                              Moe3GemmTestParams{1,  false, 128, 256, 4, 2, 128, true},
                              Moe3GemmTestParams{16, false, 128, 256, 4, 2, 128, true},
                              Moe3GemmTestParams{1,  false, 256, 512, 4, 2, 256, true},
-                             Moe3GemmTestParams{1,  false, 512, 512, 4, 2, 512, true}));
+                             Moe3GemmTestParams{1,  false, 512, 512, 4, 2, 512, true},
+                             // Sub-128 group_size (trinity-mini afmoe shape) + shared f16.
+                             // Exercises the FAKE_GROUP_SIZE=64 / ELEMS_PER_LANE=2 f16 GEMV path
+                             // for the shared expert when sparse experts use a sub-128 group.
+                             Moe3GemmTestParams{1,  true,  128, 256, 4, 2, 64,  false},
+                             Moe3GemmTestParams{1,  false, 128, 256, 4, 2, 64,  false},
+                             Moe3GemmTestParams{1,  true,  128, 256, 4, 2, 64,  true},
+                             Moe3GemmTestParams{1,  false, 128, 256, 4, 2, 64,  true}));
 
 TEST_P(moe_3gemm_compressed_gpu_u4, moe_accuracy_test_u4) {
     auto routing_type = GetParam();
