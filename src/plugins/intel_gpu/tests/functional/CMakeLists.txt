@@ -104,12 +104,17 @@ if(NOT Vulkan_FOUND)
            OR CMAKE_C_COMPILER_ID STREQUAL "Clang"
            OR CMAKE_C_COMPILER_ID STREQUAL "AppleClang"
            OR CMAKE_C_COMPILER_ID STREQUAL "IntelLLVM")
-            string(APPEND CMAKE_C_FLAGS " -Wno-missing-declarations -Wno-undef")
+            string(APPEND CMAKE_C_FLAGS " -Wno-missing-declarations -Wno-undef -Wno-typedef-redefinition")
         elseif(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
             # MSVC has no direct equivalent of -Wno-missing-declarations.
-            # Lower warning level and silence #if-undef-identifier (C4668)
-            # so the fetched Vulkan-Loader/cJSON sources do not break a /WX build.
-            string(APPEND CMAKE_C_FLAGS " /W0 /wd4668")
+            # Lower warning level and silence specific warnings so the fetched
+            # Vulkan-Loader/cJSON sources do not break a /WX build:
+            #   C4005 - 'NOMINMAX': macro redefinition (NOMINMAX is defined
+            #           globally by the GPU plugin and again by vk_sdk_platform.h)
+            #   C4668 - '<id>' is not defined as a preprocessor macro
+            # Use specific /wdNNNN flags rather than only /W0 because Vulkan-Loader's
+            # own CMake re-adds /W4, which would otherwise override /W0 (D9025).
+            string(APPEND CMAKE_C_FLAGS " /W0 /wd4005 /wd4668")
         endif()
         
         FetchContent_Declare(
