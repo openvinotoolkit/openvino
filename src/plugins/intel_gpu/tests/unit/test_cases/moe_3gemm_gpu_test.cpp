@@ -798,7 +798,6 @@ TEST_P(moe_3gemm_compressed_gpu_shared_random, moe_accuracy_test_shared_expert_r
     moe_config.out_type = data_types::f16;
     moe_config.num_shared_expert = 1;
     moe_config.has_zp = true;
-    // has_batch_dim default is 0.
 
     // Create Primitive with extended inputs
     auto moe_prim = moe_3gemm_fused_compressed("moe_3gemm_fused_compressed",

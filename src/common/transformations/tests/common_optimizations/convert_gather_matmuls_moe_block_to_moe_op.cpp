@@ -402,13 +402,24 @@ inline std::shared_ptr<ov::Model> build_3gemm_bgm_to_moe_reference_model() {
     auto down_w =
         op::v0::Constant::create(element::f32, Shape{number_of_experts, hidden_size, intermediate_size}, {1.0f});
 
-    // MOE op with compact routing
-    ov::OutputVector moe_inputs = {input, router_unsqueeze, topk_indices, gate_w, up_w, down_w};
+    // MOE op with compact routing.
+    // hidden_states is the flattened 2D experts_reshape so MOE's natural output is 2D [tokens, hidden].
+    ov::OutputVector moe_inputs = {experts_reshape, router_unsqueeze, topk_indices, gate_w, up_w, down_w};
     ov::op::internal::MOE::Config config;
     config.expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
     auto moe = std::make_shared<ov::op::internal::MOE>(moe_inputs, config);
 
-    return std::make_shared<ov::Model>(ov::OutputVector{moe}, ov::ParameterVector{input});
+    // Trailing Reshape is part of the surrounding model, not the MoE block; it stays in the graph
+    // and reshapes MOE's 2D output back to the original 3D output shape.
+    auto end_reshape = std::make_shared<op::v1::Reshape>(
+        moe,
+        op::v0::Constant::create(
+            element::i64,
+            Shape{3},
+            std::vector<int64_t>{static_cast<int64_t>(batch), -1, static_cast<int64_t>(hidden_size)}),
+        true);
+
+    return std::make_shared<ov::Model>(ov::OutputVector{end_reshape}, ov::ParameterVector{input});
 }
 
 inline std::shared_ptr<ov::Model> build_2gemm_bgm_model() {
@@ -571,7 +582,8 @@ inline std::shared_ptr<ov::Model> build_2gemm_bgm_to_moe_reference_model() {
         op::v0::Constant::create(element::f32, Shape{number_of_experts, hidden_size, intermediate_size}, {1.0f});
     auto down_bias = op::v0::Constant::create(element::f32, Shape{number_of_experts, 1, hidden_size}, {1.0f});
 
-    ov::OutputVector moe_inputs = {input, routing, topk_indices, gate_up_w, gate_up_bias, down_w, down_bias};
+    // hidden_states is the flattened 2D experts_reshape so MOE's natural output is 2D [tokens, hidden].
+    ov::OutputVector moe_inputs = {experts_reshape, routing, topk_indices, gate_up_w, gate_up_bias, down_w, down_bias};
 
     ov::op::internal::MOE::Config config;
     config.expert_type = ov::op::internal::MOE::Expert_type::GEMM2_BIAS_SWIGLU_CLAMP;
@@ -579,7 +591,18 @@ inline std::shared_ptr<ov::Model> build_2gemm_bgm_to_moe_reference_model() {
     config.expert_beta = expert_beta;
 
     auto moe = std::make_shared<ov::op::internal::MOE>(moe_inputs, config);
-    return std::make_shared<ov::Model>(ov::OutputVector{moe}, ov::ParameterVector{input});
+
+    // Trailing Reshape is part of the surrounding model, not the MoE block; it stays in the graph
+    // and reshapes MOE's 2D output back to the original 3D output shape.
+    auto end_reshape = std::make_shared<op::v1::Reshape>(
+        moe,
+        op::v0::Constant::create(
+            element::i64,
+            Shape{3},
+            std::vector<int64_t>{static_cast<int64_t>(batch), -1, static_cast<int64_t>(hidden_size)}),
+        true);
+
+    return std::make_shared<ov::Model>(ov::OutputVector{end_reshape}, ov::ParameterVector{input});
 }
 
 // ============================================================================

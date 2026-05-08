@@ -67,7 +67,6 @@ public:
         moe_3gemm_config cfg;
         auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
         cfg.weight_group_size = static_cast<int32_t>(desc->_config.group_size);
-        cfg.has_batch_dim = desc->_config.has_batch_dim;
         return cfg;
     }
 

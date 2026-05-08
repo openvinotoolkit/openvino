@@ -12,19 +12,18 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
-#include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/op/tile.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
-#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/gather_matmul.hpp"
 
@@ -33,10 +32,8 @@ using namespace ov::pass;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
-namespace v3 = ov::op::v3;
 namespace v4 = ov::op::v4;
 namespace v8 = ov::op::v8;
-namespace v12 = ov::op::v12;
 
 // Note: intermediate nodes remain unchanged,
 // but we need to explicitly call shape inference for them to keep shapes consistency
@@ -60,9 +57,8 @@ struct MOE2GEMMPatternNodes {
     std::shared_ptr<ov::Node> gate_up_matmul, gate_up_add, gate_up_bias;
     std::shared_ptr<ov::Node> slice1, clamp, add1, slice2, minimum1, swish_beta, swish, multiply2;
     std::shared_ptr<ov::Node> down_proj_matmul, down_proj_bias, down_proj_add;
-    std::shared_ptr<ov::Node> end_reshape_target_shape, end_reshape;
-    std::shared_ptr<ov::Node> router_topk_indices, chosen_experts, scatter_elements_update;
-    std::shared_ptr<ov::Node> router_transpose, router_reshape, optional_unsqueeze;
+    std::shared_ptr<ov::Node> router_transpose, router_topk_indices, router_gather;
+    std::shared_ptr<ov::Node> chosen_experts_unsqueeze;
     std::shared_ptr<ov::Node> mul3, reduce_sum;
 };
 
@@ -96,27 +92,28 @@ MOE2GEMMPatternNodes build_2gemm_pattern() {
     // Join: Multiply_2
     p.multiply2 = pattern::wrap_type<v1::Multiply>({p.add1, p.swish}, pattern::consumers_count(1));
 
-    // Down projection
+    // Down projection -> [E, B, H_out]
     p.down_proj_matmul = pattern::wrap_type<v0::MatMul>(
         {p.multiply2, pattern::any_input()},
         pattern::consumers_count(1) && pattern::attrs_match({{"transpose_a", false}, {"transpose_b", true}}));
     p.down_proj_bias = pattern::wrap_const();
     p.down_proj_add = pattern::wrap_type<v1::Add>({p.down_proj_matmul, p.down_proj_bias}, pattern::consumers_count(1));
-    p.end_reshape_target_shape = pattern::any_input();
-    p.end_reshape =
-        pattern::wrap_type<v1::Reshape>({p.down_proj_add, p.end_reshape_target_shape}, pattern::consumers_count(1));
 
-    // Routing weights/mask
+    // Router (FuseMOEExperts emits): Transpose[1,0,2] -> Gather(axis=1, batch_dims=1, topk)
+    p.router_transpose =
+        pattern::wrap_type<v1::Transpose>({p.down_proj_add, pattern::any_input()}, pattern::consumers_count(1));
     p.router_topk_indices = pattern::any_input();
-    p.chosen_experts = pattern::any_input();
-    p.scatter_elements_update = pattern::wrap_type<v3::ScatterElementsUpdate, v12::ScatterElementsUpdate>(
-        {pattern::any_input(), p.router_topk_indices, p.chosen_experts, pattern::any_input()});
+    p.router_gather =
+        pattern::wrap_type<v8::Gather>({p.router_transpose, p.router_topk_indices, pattern::any_input()},
+                                       pattern::consumers_count(1) && pattern::attrs_match({{"batch_dims", 1}}));
 
-    p.router_transpose = pattern::wrap_type<v1::Transpose>({p.scatter_elements_update, pattern::any_input()});
-    p.router_reshape = pattern::wrap_type<v1::Reshape>({p.router_transpose, pattern::any_input()});
-    p.optional_unsqueeze = pattern::optional<v0::Unsqueeze>({p.router_reshape, pattern::any_input()});
+    // Router weights: normalized-topk tensor -> Unsqueeze(-1) -> [B, K, 1]
+    // NopElimination rewrites Unsqueeze(axis=-1) into Reshape when the output has <2 dynamic dims.
+    p.chosen_experts_unsqueeze =
+        pattern::wrap_type<v0::Unsqueeze, v1::Reshape>({pattern::any_input(), pattern::any_input()});
 
-    p.mul3 = pattern::wrap_type<v1::Multiply>({p.end_reshape, p.optional_unsqueeze}, pattern::consumers_count(1));
+    p.mul3 =
+        pattern::wrap_type<v1::Multiply>({p.router_gather, p.chosen_experts_unsqueeze}, pattern::consumers_count(1));
     p.reduce_sum = pattern::wrap_type<v1::ReduceSum>({p.mul3, pattern::any_input()},
                                                      pattern::consumers_count(1),
                                                      {{"keep_dims", false}});
@@ -128,9 +125,8 @@ struct MOE3GEMMPatternNodes {
     std::shared_ptr<ov::Node> experts_input, tile, after_tile_reshape;
     std::shared_ptr<ov::Node> gate_matmul, swish, up_matmul, swiglu;
     std::shared_ptr<ov::Node> down_matmul;
-    std::shared_ptr<ov::Node> end_reshape_target_shape, end_reshape;
-    std::shared_ptr<ov::Node> router_topk_indices, chosen_experts, scatter_elements_update;
-    std::shared_ptr<ov::Node> router_transpose, router_reshape, optional_unsqueeze;
+    std::shared_ptr<ov::Node> router_transpose, router_topk_indices, router_gather;
+    std::shared_ptr<ov::Node> chosen_experts_unsqueeze;
     std::shared_ptr<ov::Node> mul3, reduce_sum;
 };
 
@@ -153,24 +149,26 @@ MOE3GEMMPatternNodes build_3gemm_pattern() {
     // Join: Multiply (SwiGLU)
     p.swiglu = pattern::wrap_type<v1::Multiply>({p.swish, p.up_matmul}, pattern::consumers_count(1));
 
-    // Third GEMM (down_projection)
+    // Third GEMM (down_projection) -> [E, B, H_out]
     p.down_matmul = pattern::wrap_type<v0::MatMul>(
         {p.swiglu, pattern::any_input()},
         pattern::consumers_count(1) && pattern::attrs_match({{"transpose_a", false}, {"transpose_b", true}}));
-    p.end_reshape_target_shape = pattern::any_input();
-    p.end_reshape =
-        pattern::wrap_type<v1::Reshape>({p.down_matmul, p.end_reshape_target_shape}, pattern::consumers_count(1));
 
-    // Routing weights/mask
+    // Router (FuseMOEExperts emits): Transpose[1,0,2] -> Gather(axis=1, batch_dims=1, topk)
+    p.router_transpose =
+        pattern::wrap_type<v1::Transpose>({p.down_matmul, pattern::any_input()}, pattern::consumers_count(1));
     p.router_topk_indices = pattern::any_input();
-    p.chosen_experts = pattern::any_input();
-    p.scatter_elements_update = pattern::wrap_type<v3::ScatterElementsUpdate, v12::ScatterElementsUpdate>(
-        {pattern::any_input(), p.router_topk_indices, p.chosen_experts, pattern::any_input()});
-    p.router_transpose = pattern::wrap_type<v1::Transpose>({p.scatter_elements_update, pattern::any_input()});
-    p.router_reshape = pattern::wrap_type<v1::Reshape>({p.router_transpose, pattern::any_input()});
-    p.optional_unsqueeze = pattern::optional<v0::Unsqueeze>({p.router_reshape, pattern::any_input()});
+    p.router_gather =
+        pattern::wrap_type<v8::Gather>({p.router_transpose, p.router_topk_indices, pattern::any_input()},
+                                       pattern::consumers_count(1) && pattern::attrs_match({{"batch_dims", 1}}));
 
-    p.mul3 = pattern::wrap_type<v1::Multiply>({p.end_reshape, p.optional_unsqueeze}, pattern::consumers_count(1));
+    // Router weights: some normalized-topk tensor -> Unsqueeze(-1) -> [B, K, 1]
+    // NopElimination rewrites Unsqueeze(axis=-1) into Reshape when the output has <2 dynamic dims.
+    p.chosen_experts_unsqueeze =
+        pattern::wrap_type<v0::Unsqueeze, v1::Reshape>({pattern::any_input(), pattern::any_input()});
+
+    p.mul3 =
+        pattern::wrap_type<v1::Multiply>({p.router_gather, p.chosen_experts_unsqueeze}, pattern::consumers_count(1));
     p.reduce_sum = pattern::wrap_type<v1::ReduceSum>({p.mul3, pattern::any_input()},
                                                      pattern::consumers_count(1),
                                                      {{"keep_dims", false}});
@@ -221,6 +219,7 @@ ConvertTiledMoeBlockTo2GatherMatmuls::ConvertTiledMoeBlockTo2GatherMatmuls() {
         const auto down_proj_mm_node = pm.at(p.down_proj_matmul).get_node_shared_ptr();
         const auto down_proj_bias_node = pm.at(p.down_proj_bias).get_node_shared_ptr();
 
+        // GatherMatmul output: [K, B, H_out]
         const auto down_gathered_mm = std::make_shared<GatherMatmul>(pm.at(p.multiply2),
                                                                      down_proj_mm_node->input_value(1),
                                                                      active_indices,
@@ -228,50 +227,33 @@ ConvertTiledMoeBlockTo2GatherMatmuls::ConvertTiledMoeBlockTo2GatherMatmuls() {
         ov::copy_runtime_info(down_proj_mm_node, down_gathered_mm);
         down_gathered_mm->set_friendly_name(down_proj_mm_node->get_friendly_name());
 
-        const auto& chosen_experts_input = pm.at(p.chosen_experts);
-        const auto router_transpose_node = pm.at(p.router_transpose).get_node_shared_ptr();
-        const auto new_router_transpose =
-            std::make_shared<v1::Transpose>(chosen_experts_input, router_transpose_node->input_value(1));
-        ov::copy_runtime_info(router_transpose_node, new_router_transpose);
-        new_router_transpose->set_friendly_name(router_transpose_node->get_friendly_name());
+        // Build routing weights in [K, B, 1] layout expected by MoeOpFusion downstream pattern.
+        // Source tensor is the Unsqueeze output [B, K, 1]; reach into it to pull the [B, K] input,
+        // then Transpose([1,0]) and Unsqueeze(-1) -> [K, B, 1].
+        const auto chosen_experts_unsqueeze_node = pm.at(p.chosen_experts_unsqueeze).get_node_shared_ptr();
+        const auto normalized_topk = chosen_experts_unsqueeze_node->input_value(0);
 
-        const auto router_unsqueeze_const = v0::Constant::create(ov::element::i32, ov::Shape{}, {-1});
-        const auto router_unsqueeze = std::make_shared<v0::Unsqueeze>(new_router_transpose, router_unsqueeze_const);
-        ov::copy_runtime_info(router_transpose_node, {router_unsqueeze_const, router_unsqueeze});
+        const auto routing_transpose_perm = v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 0});
+        const auto router_transposed = std::make_shared<v1::Transpose>(normalized_topk, routing_transpose_perm);
+        const auto router_unsqueeze_axis = v0::Constant::create(ov::element::i32, ov::Shape{}, {-1});
+        const auto router_weights_kb1 = std::make_shared<v0::Unsqueeze>(router_transposed, router_unsqueeze_axis);
+        ov::copy_runtime_info(chosen_experts_unsqueeze_node,
+                              {routing_transpose_perm, router_transposed, router_unsqueeze_axis, router_weights_kb1});
 
+        // Multiply [K,B,H_out] * [K,B,1] -> [K,B,H_out]; ReduceSum(axis=0) -> [B,H_out].
         const auto final_mul_node = pm.at(p.mul3).get_node_shared_ptr();
         const auto new_final_mul =
-            final_mul_node->clone_with_new_inputs({down_gathered_mm->output(0), router_unsqueeze->output(0)});
+            final_mul_node->clone_with_new_inputs({down_gathered_mm->output(0), router_weights_kb1->output(0)});
         ov::copy_runtime_info(final_mul_node, new_final_mul);
         new_final_mul->set_friendly_name(final_mul_node->get_friendly_name());
 
+        const auto reduce_sum_k_axis = v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
         const auto reduce_sum_node = pm.at(p.reduce_sum).get_node_shared_ptr();
-        const auto new_reduce_sum =
-            reduce_sum_node->clone_with_new_inputs({new_final_mul->output(0), reduce_sum_node->input_value(1)});
-        ov::copy_runtime_info(reduce_sum_node, new_reduce_sum);
+        const auto new_reduce_sum = std::make_shared<v1::ReduceSum>(new_final_mul, reduce_sum_k_axis, false);
+        ov::copy_runtime_info(reduce_sum_node, {reduce_sum_k_axis, new_reduce_sum});
         new_reduce_sum->set_friendly_name(reduce_sum_node->get_friendly_name());
 
-        const auto& end_reshape_out = pm.at(p.end_reshape);
-        const auto end_reshape_rank = end_reshape_out.get_partial_shape().rank();
-        const auto& end_reshape_shape = pm.at(p.end_reshape_target_shape);
-        // n_all_experts dimension is cut off after ReduceSum
-        const auto shape_slice = std::make_shared<v8::Slice>(
-            end_reshape_shape,
-            v0::Constant::create(ov::element::i32, ov::Shape{1}, {1}),
-            v0::Constant::create(ov::element::i32, ov::Shape{1}, {end_reshape_rank.get_length()}),
-            v0::Constant::create(ov::element::i32, ov::Shape{1}, {1}),
-            v0::Constant::create(ov::element::i32, ov::Shape{1}, {0}));
-        ov::copy_runtime_info(end_reshape_out.get_node_shared_ptr(),
-                              {shape_slice,
-                               shape_slice->get_input_node_shared_ptr(1),
-                               shape_slice->get_input_node_shared_ptr(2),
-                               shape_slice->get_input_node_shared_ptr(3),
-                               shape_slice->get_input_node_shared_ptr(4)});
-
-        const auto reshape = std::make_shared<v1::Reshape>(new_reduce_sum, shape_slice, true);
-        ov::replace_output_update_name(pm.at(p.reduce_sum), reshape->output(0));
-        // To avoid friendly name duplication
-        reshape->set_friendly_name(reshape->get_friendly_name() + "_Reshape");
+        ov::replace_output_update_name(pm.at(p.reduce_sum), new_reduce_sum->output(0));
         return true;
     };
 
@@ -310,53 +292,39 @@ ConvertTiledMoeBlockTo3GatherMatmuls::ConvertTiledMoeBlockTo3GatherMatmuls() {
 
         validate_nodes(pm, {p.swish, p.swiglu});
 
+        // GatherMatmul output: [K, B, H_out]
         const auto down_gathered_mm =
             std::make_shared<GatherMatmul>(pm.at(p.swiglu), down_mm_node->input_value(1), active_indices);
         ov::copy_runtime_info(down_mm_node, down_gathered_mm);
         down_gathered_mm->set_friendly_name(down_mm_node->get_friendly_name());
 
-        const auto& chosen_experts_input = pm.at(p.chosen_experts);
-        const auto router_transpose_node = pm.at(p.router_transpose).get_node_shared_ptr();
-        const auto new_router_transpose =
-            std::make_shared<v1::Transpose>(chosen_experts_input, router_transpose_node->input_value(1));
-        ov::copy_runtime_info(router_transpose_node, new_router_transpose);
-        new_router_transpose->set_friendly_name(router_transpose_node->get_friendly_name());
+        // Build routing weights in [K, B, 1] layout expected by MoeOpFusion downstream pattern.
+        // Source tensor is the Unsqueeze output [B, K, 1]; reach into it to pull the [B, K] input,
+        // then Transpose([1,0]) and Unsqueeze(-1) → [K, B, 1].
+        const auto chosen_experts_unsqueeze_node = pm.at(p.chosen_experts_unsqueeze).get_node_shared_ptr();
+        const auto normalized_topk = chosen_experts_unsqueeze_node->input_value(0);
 
-        const auto router_unsqueeze_const = v0::Constant::create(ov::element::i32, ov::Shape{}, {-1});
-        const auto router_unsqueeze = std::make_shared<v0::Unsqueeze>(new_router_transpose, router_unsqueeze_const);
-        ov::copy_runtime_info(router_transpose_node, {router_unsqueeze_const, router_unsqueeze});
+        const auto routing_transpose_perm = v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 0});
+        const auto router_transposed = std::make_shared<v1::Transpose>(normalized_topk, routing_transpose_perm);
+        const auto router_unsqueeze_axis = v0::Constant::create(ov::element::i32, ov::Shape{}, {-1});
+        const auto router_weights_kb1 = std::make_shared<v0::Unsqueeze>(router_transposed, router_unsqueeze_axis);
+        ov::copy_runtime_info(chosen_experts_unsqueeze_node,
+                              {routing_transpose_perm, router_transposed, router_unsqueeze_axis, router_weights_kb1});
 
+        // Multiply [K,B,H_out] * [K,B,1] → [K,B,H_out]; ReduceSum(axis=0) → [B,H_out].
         const auto final_mul_node = pm.at(p.mul3).get_node_shared_ptr();
         const auto new_final_mul =
-            final_mul_node->clone_with_new_inputs({down_gathered_mm->output(0), router_unsqueeze->output(0)});
+            final_mul_node->clone_with_new_inputs({down_gathered_mm->output(0), router_weights_kb1->output(0)});
         ov::copy_runtime_info(final_mul_node, new_final_mul);
         new_final_mul->set_friendly_name(final_mul_node->get_friendly_name());
+
+        const auto reduce_sum_k_axis = v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
         const auto reduce_sum_node = pm.at(p.reduce_sum).get_node_shared_ptr();
-        const auto new_reduce_sum =
-            reduce_sum_node->clone_with_new_inputs({new_final_mul->output(0), reduce_sum_node->input_value(1)});
-        ov::copy_runtime_info(reduce_sum_node, new_reduce_sum);
+        const auto new_reduce_sum = std::make_shared<v1::ReduceSum>(new_final_mul, reduce_sum_k_axis, false);
+        ov::copy_runtime_info(reduce_sum_node, {reduce_sum_k_axis, new_reduce_sum});
         new_reduce_sum->set_friendly_name(reduce_sum_node->get_friendly_name());
 
-        const auto& end_reshape_out = pm.at(p.end_reshape);
-        const auto end_reshape_rank = end_reshape_out.get_partial_shape().rank();
-        const auto& end_reshape_shape = pm.at(p.end_reshape_target_shape);
-        // n_all_experts dimension is cut off after ReduceSum
-        const auto shape_slice = std::make_shared<v8::Slice>(
-            end_reshape_shape,
-            v0::Constant::create(ov::element::i32, ov::Shape{1}, {1}),
-            v0::Constant::create(ov::element::i32, ov::Shape{1}, {end_reshape_rank.get_length()}),
-            v0::Constant::create(ov::element::i32, ov::Shape{1}, {1}),
-            v0::Constant::create(ov::element::i32, ov::Shape{1}, {0}));
-        ov::copy_runtime_info(end_reshape_out.get_node_shared_ptr(),
-                              {shape_slice,
-                               shape_slice->get_input_node_shared_ptr(1),
-                               shape_slice->get_input_node_shared_ptr(2),
-                               shape_slice->get_input_node_shared_ptr(3),
-                               shape_slice->get_input_node_shared_ptr(4)});
-
-        const auto reshape = std::make_shared<v1::Reshape>(new_reduce_sum, shape_slice, true);
-        ov::replace_output_update_name(pm.at(p.reduce_sum), reshape->output(0));
-        reshape->set_friendly_name(new_reduce_sum->get_friendly_name() + "_Reshape");
+        ov::replace_output_update_name(pm.at(p.reduce_sum), new_reduce_sum->output(0));
         return true;
     };
 

@@ -339,7 +339,7 @@ DispatchDataFunc MoE3GemmMicroGenerator::get_dispatch_data_func() const {
         GPU_DEBUG_TRACE_DETAIL << "\t wei_idx = " << wei_idx << std::endl;
         GPU_DEBUG_TRACE_DETAIL << "\t experts_weight_layout: " << experts_weight_layout.to_short_string() << std::endl;
 
-        // has_batch_dim indicates whether the input tensor has batch dimension
+        // Total tokens = product of leading dims (kernel addresses linearly via HIDDEN_SIZE).
         size_t n = input_layout.get_shape()[0];
         switch (input_layout.get_shape().size()) {
         case 2:

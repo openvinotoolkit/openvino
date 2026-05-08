@@ -54,9 +54,9 @@ void test_moe_scatter_reduction(bool is_caching_test, size_t k) {
 
     ov::op::internal::MOECompressed::Config moe_config;
     moe_config.top_k = num_active_experts_per_token;
-    moe_config.has_batch_dim = false;
 
-    auto input_activation_shape = ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension(hidden_size)};
+    // moe_scatter_reduction now operates on rank-2 [N*K, hidden] (no has_batch_dim disambiguation).
+    auto input_activation_shape = ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension(hidden_size)};
     auto input_activation_layout = create_layout<T>(input_activation_shape);
 
     auto experts_per_token_shape = ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension(num_active_experts_per_token)};
@@ -94,7 +94,7 @@ void test_moe_scatter_reduction(bool is_caching_test, size_t k) {
                                             input_info("experts_ids"),
                                             moe_config,
                                             true));
-    auto input_data_shape = ov::PartialShape{ov::Dimension(num_tokens * num_active_experts_per_token), 1, ov::Dimension(hidden_size)};
+    auto input_data_shape = ov::PartialShape{ov::Dimension(num_tokens * num_active_experts_per_token), ov::Dimension(hidden_size)};
     auto input_data_layout = create_layout<T>(input_data_shape);
 
     std::vector<T> input_data;

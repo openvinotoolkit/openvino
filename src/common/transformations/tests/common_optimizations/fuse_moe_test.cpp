@@ -15,6 +15,7 @@
 #include "openvino/opsets/opset4.hpp"
 #include "openvino/opsets/opset6.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "transformations/common_optimizations/canonicalize_moe_router.hpp"
 #include "transformations/common_optimizations/fuse_moe_experts.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/utils/gen_pattern.hpp"
@@ -25,8 +26,7 @@ using namespace ov;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
-namespace v3 = ov::op::v3;
-namespace v12 = ov::op::v12;
+namespace v8 = ov::op::v8;
 std::shared_ptr<ov::Model> BuildMOE(int expert_num, int topk) {
     ov::element::Type inType = ov::element::f32;
     // param1: [batch*seq, 2048]
@@ -234,8 +234,6 @@ static std::shared_ptr<ov::Model> BuildFusedMOE(const int expert_num, const int 
     auto axis0_vector = makeConst(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
     auto axis1_vector = makeConst(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1});
     auto axis_minus_one_vector = makeConst(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
-    auto transpose_axes = makeConst(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{1, 0});
-    auto minus_one = makeConst(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
     auto axes0_i64 = makeConst(ov::element::i64, ov::Shape{}, std::vector<int64_t>{0});
     auto gate_weight_shape = makeOP<opset3::ShapeOf>({single_gate_weight_convert}, {{"output_type", "i64"}});
     auto gather_index_one = makeConst(ov::element::i64, ov::Shape{}, std::vector<int64_t>{1});
@@ -267,28 +265,21 @@ static std::shared_ptr<ov::Model> BuildFusedMOE(const int expert_num, const int 
     auto down_bmm = makeOP<opset1::MatMul>({swiglu_mul, fused_down_weights->output(0)},
                                            {{"transpose_a", false}, {"transpose_b", true}});
 
-    auto expert_output_shape =
-        makeOP<opset1::Concat>({num_experts_unsqueeze, batch_dim_unsqueeze, minus_one, hidden_dim_unsqueeze},
-                               {{"axis", 0}});
-    auto expert_outputs = makeOP<opset1::Reshape>({down_bmm, expert_output_shape}, {{"special_zero", false}});
+    // Router: [E,B,H_out] -Transpose-> [B,E,H_out] -Gather(axis=1, batch_dims=1, topk)-> [B,K,H_out]
+    auto eb_to_be_perm = makeConst(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{1, 0, 2});
+    auto outputs_bEH = std::make_shared<v1::Transpose>(down_bmm, eb_to_be_perm);
+    auto gather_axis = makeConst(ov::element::i64, ov::Shape{}, std::vector<int64_t>{1});
+    auto gathered_outputs =
+        std::make_shared<v8::Gather>(outputs_bEH, topk_TopK->output(1), gather_axis, /*batch_dims=*/1);
 
     auto topk_values = topk_TopK->output(0);
     auto sum_reduce = makeOP<opset1::ReduceSum>({topk_values, axis_minus_one}, {{"keep_dims", true}});
     auto normalized_topk =
         makeOP<opset1::Divide>({topk_values, sum_reduce}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
-    auto zeros_scalar = makeConst(ov::element::f32, ov::Shape{}, std::vector<float>{0.0f});
-    auto scatter_shape = std::make_shared<v0::Concat>(ov::OutputVector{batch_dim_unsqueeze, num_experts_unsqueeze}, 0);
-    auto zeros_tensor = std::make_shared<v3::Broadcast>(zeros_scalar, scatter_shape);
-    auto scatter =
-        std::make_shared<v12::ScatterElementsUpdate>(zeros_tensor, topk_TopK->output(1), normalized_topk, axis1_vector);
-    auto router_transpose = std::make_shared<v1::Transpose>(scatter, transpose_axes);
-    auto router_shape =
-        std::make_shared<v0::Concat>(ov::OutputVector{num_experts_unsqueeze, batch_dim_unsqueeze, minus_one}, 0);
-    auto router_reshape = std::make_shared<v1::Reshape>(router_transpose, router_shape, true);
-    auto routing_unsqueeze = std::make_shared<v0::Unsqueeze>(router_reshape, axis_minus_one_vector);
+    auto routing_unsqueeze = std::make_shared<v0::Unsqueeze>(normalized_topk, axis_minus_one_vector);
 
-    auto weighted_outputs = std::make_shared<v1::Multiply>(expert_outputs, routing_unsqueeze);
-    auto final_output = std::make_shared<v1::ReduceSum>(weighted_outputs, axis0_vector, false);
+    auto weighted_outputs = std::make_shared<v1::Multiply>(gathered_outputs, routing_unsqueeze);
+    auto final_output = std::make_shared<v1::ReduceSum>(weighted_outputs, axis1_vector, false);
 
     auto final_reshape = std::make_shared<v1::Reshape>(final_output, target_shape, false);
     auto final_add = std::make_shared<v1::Add>(residual_input, final_reshape);
@@ -306,6 +297,89 @@ TEST_F(TransformationTestsF, ConvertMOEToFuseMOE_FP16) {
     int topk = 8;
 
     model = BuildMOE(expert_num, topk);
-    ov::pass::FuseMOE().run_on_model(model);
+    manager.register_pass<ov::pass::FuseMOE>();
+    manager.register_pass<ov::pass::CanonicalizeMoeRouter>();
     model_ref = BuildFusedMOE(expert_num, topk);
+}
+
+namespace {
+
+// Reproduces the routing tail emitted by FuseMOEExperts and produced natively by GPT-OSS export:
+// rank-3 down output -> Reshape to [E,B,*,H], multiplied by densified routing weights from a
+// ScatterElementsUpdate over a zero tensor, then ReduceSum over the expert axis.
+std::shared_ptr<ov::Model> BuildScatterRoutingTail(int expert_num, int topk_k) {
+    constexpr int64_t hidden_size = 64;
+    auto down_out =
+        std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{expert_num, -1, hidden_size});
+    auto topk_idx = std::make_shared<ov::opset1::Parameter>(ov::element::i64, ov::PartialShape{-1, topk_k});
+    auto topk_val = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{-1, topk_k});
+
+    // Reshape rank-3 [E, T, H] -> rank-4 [E, B, -1, H]. Builder uses static shape for simplicity.
+    auto end_shape = makeConst(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{expert_num, 1, -1, hidden_size});
+    auto end_reshape = makeOP<opset1::Reshape>({down_out, end_shape}, {{"special_zero", false}});
+
+    // Densified routing: scatter normalized topk values into a zeros[T,E] grid along axis=1.
+    auto topk_idx_shape = makeOP<opset3::ShapeOf>({topk_idx}, {{"output_type", "i64"}});
+    auto t_dim_scalar = makeOP<opset8::Gather>({topk_idx_shape,
+                                                makeConst(ov::element::i64, ov::Shape{}, std::vector<int64_t>{0}),
+                                                makeConst(ov::element::i64, ov::Shape{}, std::vector<int64_t>{0})},
+                                               {{"batch_dims", 0}});
+    auto t_dim = makeOP<opset1::Unsqueeze>({t_dim_scalar, {0}});
+    auto e_dim = makeConst(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{expert_num});
+    auto zeros_shape = makeOP<opset1::Concat>({t_dim, e_dim}, {{"axis", 0}});
+    auto zero_scalar = makeConst(ov::element::f32, ov::Shape{}, std::vector<float>{0.0f});
+    auto zeros = makeOP<opset3::Broadcast>({zero_scalar, zeros_shape}, {{"mode", "numpy"}});
+
+    auto scatter_axis = makeConst(ov::element::i64, ov::Shape{}, std::vector<int64_t>{1});
+    auto scatter = makeOP<opset12::ScatterElementsUpdate>({zeros, topk_idx, topk_val, scatter_axis},
+                                                          {{"reduction", "none"}, {"use_init_val", true}});
+    auto t_perm = makeConst(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{1, 0});
+    auto t = makeOP<opset1::Transpose>({scatter, t_perm});
+    auto rshape = makeConst(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{expert_num, 1, -1});
+    auto rs = makeOP<opset1::Reshape>({t, rshape}, {{"special_zero", false}});
+    auto unsq_axis = makeConst(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
+    auto unsq = makeOP<opset1::Unsqueeze>({rs, unsq_axis});
+
+    auto mul = makeOP<opset1::Multiply>({end_reshape, unsq}, {{"auto_broadcast", "numpy"}});
+    auto reduce_axis = makeConst(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
+    auto reduce = makeOP<opset1::ReduceSum>({mul, reduce_axis}, {{"keep_dims", false}});
+
+    return std::make_shared<ov::Model>(ov::OutputVector{reduce}, ov::ParameterVector{down_out, topk_idx, topk_val});
+}
+
+// Expected canonical form: Transpose([1,0,2]) -> Gather(axis=1, batch_dims=1, topk_idx)
+// -> Multiply(Unsqueeze(topk_val, -1)) -> ReduceSum(axis=1).
+std::shared_ptr<ov::Model> BuildCanonicalRoutingTail(int expert_num, int topk_k) {
+    constexpr int64_t hidden_size = 64;
+    auto down_out =
+        std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{expert_num, -1, hidden_size});
+    auto topk_idx = std::make_shared<ov::opset1::Parameter>(ov::element::i64, ov::PartialShape{-1, topk_k});
+    auto topk_val = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{-1, topk_k});
+
+    auto perm = makeConst(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{1, 0, 2});
+    auto trans = std::make_shared<v1::Transpose>(down_out, perm);
+    auto gather_axis = makeConst(ov::element::i64, ov::Shape{}, std::vector<int64_t>{1});
+    auto gather = std::make_shared<v8::Gather>(trans, topk_idx, gather_axis, /*batch_dims=*/1);
+
+    auto unsq_axis = makeConst(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
+    auto unsq = std::make_shared<v0::Unsqueeze>(topk_val, unsq_axis);
+    auto mul = std::make_shared<v1::Multiply>(gather, unsq);
+    auto reduce_axis = makeConst(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1});
+    auto reduce = std::make_shared<v1::ReduceSum>(mul, reduce_axis, false);
+
+    return std::make_shared<ov::Model>(ov::OutputVector{reduce}, ov::ParameterVector{down_out, topk_idx, topk_val});
+}
+
+}  // namespace
+
+TEST_F(TransformationTestsF, CanonicalizeMoeRouter_RewritesScatterRoutingTail) {
+    disable_rt_info_check();
+    disable_result_friendly_names_check();
+
+    constexpr int expert_num = 4;
+    constexpr int topk_k = 2;
+
+    model = BuildScatterRoutingTail(expert_num, topk_k);
+    manager.register_pass<ov::pass::CanonicalizeMoeRouter>();
+    model_ref = BuildCanonicalRoutingTail(expert_num, topk_k);
 }

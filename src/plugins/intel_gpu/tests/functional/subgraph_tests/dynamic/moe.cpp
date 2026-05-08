@@ -152,7 +152,7 @@ const std::vector<MoERoutingType> routing_types = {MoERoutingType::SOFTMAX, MoER
 
 const std::vector<MoeTestShapeParams> moe_params_smoke = {
     {
-        // TODO: batch>1 trips a pre-existing master bug (moe_mask_gen vs moe_gather/scatter has_batch_dim mismatch → OOB).
+        // TODO: batch>1 still untested end-to-end — only batch=1 shapes here.
         {{-1, -1, 256}, {{1, 30, 256}, {1, 2, 256}, {1, 24, 256}}},  // data_shape,
                                                                      // seq_len=dynamic, hidden_size=256
         4,                                                           // topk

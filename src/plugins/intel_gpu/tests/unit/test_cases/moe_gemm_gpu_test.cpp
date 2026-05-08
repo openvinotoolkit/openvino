@@ -32,7 +32,6 @@ struct moe_gemm_test_params {
     cldnn::data_types scale_dt = cldnn::data_types::f16;
     int32_t scale_group_size;
     bool weight_symmetric_quant;
-    bool is_pa;
     bool is_caching_test;
 };
 
@@ -277,11 +276,12 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
         ov::op::internal::MOECompressed::Config moe_config;
         moe_config.top_k = p.num_experts_per_token;
         moe_config.num_expert = p.num_total_experts;
-        moe_config.has_batch_dim = !p.is_pa;
         moe_config.hidden_size = p.hidden_size;
         moe_config.inter_size = p.out_N;
         auto num_scale_groups = p.hidden_size / p.scale_group_size;
-        auto input_shape = ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension(p.hidden_size)};
+        // moe_gemm now operates on rank-2 [N_tokens, hidden]; the kernel addresses linearly so the old
+        // [1,M,H] vs [M,1,H] disambiguation (has_batch_dim) is gone.
+        auto input_shape = ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension(p.hidden_size)};
         auto input_act_layout = layout{input_shape, p.input_dt, format::bfyx};
 
         auto experts_shape = num_scale_groups > 1
@@ -433,8 +433,7 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
 
         const auto M = p.phase == PHASE::UP ? p.num_tokens : p.num_tokens * p.num_experts_per_token;
         auto input_data = get_input_data(M, p.hidden_size, rg);
-        auto input_data_shape = p.is_pa ? ov::PartialShape{ov::Dimension(M), ov::Dimension(1), ov::Dimension(p.hidden_size)}
-                                        : ov::PartialShape{ov::Dimension(1), ov::Dimension(M), ov::Dimension(p.hidden_size)};
+        auto input_data_shape = ov::PartialShape{ov::Dimension(M), ov::Dimension(p.hidden_size)};
         auto input_data_layout = layout{input_data_shape, data_types::f16, format::bfyx};
         auto input_mem = engine.allocate_memory(input_data_layout);
         set_values(input_mem, input_data);
@@ -553,7 +552,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_moe_gemm,
                                                                                    cldnn::data_types::f16,   /*scale_dt*/
                                                                                    -1,                       /*scale_group_size*/
                                                                                    false,                    /*weight_symmetric_quant*/
-                                                                                   false,                    /*is_pa*/
                                                                                    true                      /*is_caching_test*/
                                                                                },
                                                                                // f16 / up
@@ -571,7 +569,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_moe_gemm,
                                                                                    cldnn::data_types::f16,   /*scale_dt*/
                                                                                    -1,                       /*scale_group_size*/
                                                                                    false,                    /*weight_symmetric_quant*/
-                                                                                   false,                    /*is_pa*/
                                                                                    false                     /*is_caching_test*/
                                                                                },
                                                                                // f16 / down
@@ -589,7 +586,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_moe_gemm,
                                                                                    cldnn::data_types::f16,   /*scale_dt*/
                                                                                    -1,                       /*scale_group_size*/
                                                                                    false,                    /*weight_symmetric_quant*/
-                                                                                   false,                    /*is_pa*/
                                                                                    true                      /*is_caching_test*/
                                                                                },
                                                                                // i4 / symmetric/ group size 32 / prefill
@@ -607,7 +603,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_moe_gemm,
                                                                                    cldnn::data_types::f16,   /*scale_dt*/
                                                                                    32,                       /*scale_group_size*/
                                                                                    true,                     /*weight_symmetric_quant*/
-                                                                                   false,                    /*is_pa*/
                                                                                    false,                    /*is_caching_test*/
                                                                                },
                                                                                // i4 / symmetric/ group size 32 / up
@@ -625,7 +620,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_moe_gemm,
                                                                                    cldnn::data_types::f16,   /*scale_dt*/
                                                                                    32,                       /*scale_group_size*/
                                                                                    true,                     /*weight_symmetric_quant*/
-                                                                                   false,                    /*is_pa*/
                                                                                    true                      /*is_caching_test*/
                                                                                },
                                                                                // i4 / symmetric/ group size 32 / down
@@ -643,7 +637,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_moe_gemm,
                                                                                    cldnn::data_types::f16,    /*scale_dt*/
                                                                                    32,                        /*scale_group_size*/
                                                                                    true,                      /*weight_symmetric_quant*/
-                                                                                   false,                     /*is_pa*/
                                                                                    false                      /*is_caching_test*/
                                                                                },
                                                                                // u4 / asymmetric/ per_token / prefill
@@ -661,7 +654,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_moe_gemm,
                                                                                    cldnn::data_types::f16,    /*scale_dt*/
                                                                                    2880,                      /*scale_group_size*/
                                                                                    false,                     /*weight_symmetric_quant*/
-                                                                                   false,                     /*is_pa*/
                                                                                    true                       /*is_caching_test*/
                                                                                },
                                                                                // u4 / asymmetric/ group size 32 / prefill
@@ -679,7 +671,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_moe_gemm,
                                                                                    cldnn::data_types::f32,   /*scale_dt*/
                                                                                    32,                       /*scale_group_size*/
                                                                                    false,                    /*weight_symmetric_quant*/
-                                                                                   false,                    /*is_pa*/
                                                                                    false                     /*is_caching_test*/
                                                                                },
                                                                                // u4 / asymmetric/ group size 32 / up
@@ -697,7 +688,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_moe_gemm,
                                                                                    cldnn::data_types::f32,   /*scale_dt*/
                                                                                    32,                       /*scale_group_size*/
                                                                                    false,                    /*weight_symmetric_quant*/
-                                                                                   false,                    /*is_pa*/
                                                                                    true                      /*is_caching_test*/
                                                                                },
                                                                                // u4 / asymmetric/ group size 32 / down
@@ -715,6 +705,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_moe_gemm,
                                                                                    cldnn::data_types::f32,   /*scale_dt*/
                                                                                    32,                       /*scale_group_size*/
                                                                                    false,                    /*weight_symmetric_quant*/
-                                                                                   false,                    /*is_pa*/
                                                                                    false                     /*is_caching_test*/
                                                                                }}));

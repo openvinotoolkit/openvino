@@ -23,21 +23,17 @@ std::vector<layout> moe_gather_inst::calc_output_layouts(const moe_gather_node& 
     const auto num_experts_per_token = desc->num_experts_per_token;
     const auto& in_layout = impl_param.input_layouts[0];
     const auto& input_shape = in_layout.get<ShapeType>();
-    const auto& hidden_size = input_shape[input_shape.size() - 1];
-    OPENVINO_ASSERT(hidden_size.is_static(), impl_param.desc->id, " hidden size dimension (shape[1]) must be static");
+    OPENVINO_ASSERT(input_shape.size() == 2,
+                    impl_param.desc->id, " expects rank-2 [N_tokens, hidden] input, got rank ", input_shape.size());
+    OPENVINO_ASSERT(input_shape[1].is_static(),
+                    impl_param.desc->id, " hidden size dimension must be static");
 
-    if (in_layout.is_dynamic()) {
-        return {layout{ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension(hidden_size)},
-                in_layout.data_type, in_layout.format}};
+    // [N, H] -> [N*K, H].
+    auto out_shape = input_shape;
+    if (input_shape[0].is_static()) {
+        out_shape[0] = ov::Dimension(input_shape[0].get_length() * num_experts_per_token);
     }
-    const auto num_tokens = input_shape.size() == 2 ? input_shape[0] : desc->has_batch_dim ? input_shape[1] : input_shape[0];
-    if (desc->has_batch_dim) {
-        const auto& out_shape = ov::PartialShape{ov::Dimension(1), ov::Dimension(num_tokens * num_experts_per_token), ov::Dimension(hidden_size)};
-        return {layout{out_shape, in_layout.data_type, in_layout.format}};
-    } else {
-        const auto& out_shape = ov::PartialShape{ov::Dimension(num_tokens * num_experts_per_token), ov::Dimension(1), ov::Dimension(hidden_size)};
-        return {layout{out_shape, in_layout.data_type, in_layout.format}};
-    }
+    return {layout{out_shape, in_layout.data_type, in_layout.format}};
 }
 
 template std::vector<layout> moe_gather_inst::calc_output_layouts<ov::PartialShape>(moe_gather_node const& node, const kernel_impl_params& impl_param);

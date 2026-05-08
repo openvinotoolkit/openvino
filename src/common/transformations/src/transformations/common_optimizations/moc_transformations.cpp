@@ -35,6 +35,7 @@
 #include "transformations/common_optimizations/fold_subgraph_empty_inputs.hpp"
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
 #include "transformations/common_optimizations/fq_reshape_fusion.hpp"
+#include "transformations/common_optimizations/canonicalize_moe_router.hpp"
 #include "transformations/common_optimizations/fuse_moe_experts.hpp"
 #include "transformations/common_optimizations/gelu_fusion.hpp"
 #include "transformations/common_optimizations/gru_cell_fusion.hpp"
@@ -298,6 +299,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     // tests/model_hub_tests/transformation_tests/test_moe_transformation.py
     REGISTER_PASS(manager, FuseMOE)
     REGISTER_PASS(manager, VectorizedMOE2GEMMTransposeWeights)
+    REGISTER_PASS(manager, CanonicalizeMoeRouter)
     REGISTER_PASS(manager, Validate)
 
     manager.run_passes(f);

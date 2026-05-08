@@ -104,14 +104,16 @@ protected:
         get_moe_gemm_primitive_descriptor(const kernel_impl_params& impl_params,
                                           const dnnl::primitive_attr& attr = dnnl::primitive_attr()) {
         auto& engine = impl_params.prog->get_engine();
-        auto prim = impl_params.typed_desc<moe_gemm>();
         auto moe_cfg = MoEGemmImplementationManager::get_moe_cfg(impl_params);
 
         auto input_layout = impl_params.get_input_layout(moe_gemm::MoEGemmInputIdx::INPUT);
         auto weights_layout = impl_params.get_input_layout(moe_gemm::MoEGemmInputIdx::WEIGHT);
         auto output_layout = impl_params.get_output_layout();
 
-        dnnl::memory::dim total_tokens = prim->has_batch_dim ? input_layout.get_shape()[1] : input_layout.get_shape()[0];
+        const auto& in_shape = input_layout.get_shape();
+        OPENVINO_ASSERT(in_shape.size() == 2,
+                        "moe_gemm (onednn) expects rank-2 [N_tokens, K_in] input, got rank ", in_shape.size());
+        const dnnl::memory::dim total_tokens = in_shape[0];
         const auto& experts_weight_shape = weights_layout.get_shape();
         dnnl::memory::dim N = experts_weight_shape[1];
         dnnl::memory::dim K = experts_weight_shape.size() == 4 ? experts_weight_shape[2] * experts_weight_shape[3] : experts_weight_shape[2];
