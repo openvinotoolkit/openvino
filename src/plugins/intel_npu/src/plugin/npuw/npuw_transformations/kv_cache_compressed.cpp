@@ -233,8 +233,7 @@ ov::npuw::DecomposeDynamicQuantize3::DecomposeDynamicQuantize3() {
             return false;
         }
 
-        const auto storage_types =
-            ov::npuw::util::resolve_dynamic_quant_storage_types(3, false, attrs.quantization_dt);
+        const auto storage_types = ov::npuw::util::resolve_dynamic_quant_storage_types(3, false, attrs.quantization_dt);
 
         LOG_DEBUG("Found DynamicQuantize : " << dq_ptr->get_friendly_name() << " decomposing");
         LOG_BLOCK();
@@ -522,9 +521,8 @@ void ov::npuw::run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov
         std::shared_ptr<ov::Node> fp_subtracted_zp = start_node;
         if (cfg.quantization_type == KVCacheCompressionConfig::QuantizationType::Asymmetric) {
             //  Subtract zero-point - TODO: share this memory with DynamicQuantize/read/assign?
-            auto zp = create_parameter_with_name(zp_type,
-                                                 clear_embedding_index(start_node, isKey),
-                                                 make_dq_param_name("zp"));
+            auto zp =
+                create_parameter_with_name(zp_type, clear_embedding_index(start_node, isKey), make_dq_param_name("zp"));
 
             // this probably to be optimized by compiler - but for now we need it to avoid types mismatch
             auto converted_zp = std::make_shared<ov::op::v0::Convert>(zp, ov::element::f32);

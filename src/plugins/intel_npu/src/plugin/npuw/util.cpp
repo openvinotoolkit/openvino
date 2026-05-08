@@ -60,9 +60,9 @@ bool ov::npuw::util::is_set(const std::size_t sub_idx,
 }
 
 ov::npuw::util::DynamicQuantStorageTypes ov::npuw::util::resolve_dynamic_quant_storage_types(
-        int decompose_version,
-        bool is_symmetric,
-        const ov::element::Type& quant_dt) {
+    int decompose_version,
+    bool is_symmetric,
+    const ov::element::Type& quant_dt) {
     DynamicQuantStorageTypes resolved;
     resolved.quantized_data_type = quant_dt;
     resolved.zero_point_type = is_symmetric ? ov::element::dynamic : quant_dt;
@@ -841,9 +841,9 @@ void ov::npuw::util::permute_i4d(const ov::SoPtr<ov::ITensor>& src,
                         v_dst[0] * dst_s[0] + v_dst[1] * dst_s[1] + v_dst[2] * dst_s[2] + v_dst[3] * dst_s[3];
                     std::copy_n(src_p + src_o, elem_size, dst_p + dst_o);
                 }  // l
-            }  // k
-        }  // j
-    }  // i
+            }      // k
+        }          // j
+    }              // i
 }
 
 namespace {
