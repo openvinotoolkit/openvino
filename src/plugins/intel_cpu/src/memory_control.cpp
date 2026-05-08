@@ -279,7 +279,7 @@ public:
                 if (itr_upper == syncInds.end()) {
                     box.finish = -1;
                 } else {
-                    box.finish = static_cast<int32_t>(*itr_upper);
+                    box.finish = static_cast<int>(*itr_upper);
                 }
             }
         }

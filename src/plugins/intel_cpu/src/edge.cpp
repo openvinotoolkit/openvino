@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <cstdint>
 #include <functional>
 #include <memory>
 #include <new>
@@ -112,7 +111,7 @@ void Edge::collectConsumers(std::vector<NodePtr>& result) const {
         // collect consumers in case of an upstream in-place memory reference
         if (auto* peerChildSPD = childNode->getSelectedPrimitiveDescriptor()) {
             auto&& conf = peerChildSPD->getConfig();
-            for (int32_t i = 0; i < static_cast<int32_t>(conf.outConfs.size()); i++) {
+            for (int i = 0; i < static_cast<int>(conf.outConfs.size()); i++) {
                 const auto peerOutInPlacePort = conf.outConfs[i].inPlace();
                 if (peerOutInPlacePort == this->getOutputNum()) {
                     for (auto&& childEdge : childNode->getChildEdgesAtPort(i)) {
@@ -615,7 +614,7 @@ NodePtr Edge::modifiedInPlace() const {
     // check backward dependency
     if (auto* childSPD = childNode->getSelectedPrimitiveDescriptor()) {
         const auto& outConfs = childSPD->getConfig().outConfs;
-        for (int32_t i = 0; i < static_cast<int32_t>(outConfs.size()); ++i) {
+        for (int i = 0; i < static_cast<int>(outConfs.size()); ++i) {
             const auto& conf = outConfs[i];
             if (childPort < 0 || conf.inPlace() != childPort ||
                 Type::MemoryInput == childNode->getType()) {  // exception type, it doesn't modify memory

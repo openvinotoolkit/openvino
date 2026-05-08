@@ -692,12 +692,12 @@ void DnnlPostOpsComposer::appendDepthwiseConvolution(size_t inH,
                                                      size_t strW,
                                                      dnnl::memory::data_type inDataType) {
     DEBUG_LOG("Append DW convolution");
-    ops.append_dw_conv(static_cast<int32_t>(inH),
-                       static_cast<int32_t>(inW),
-                       static_cast<int32_t>(kerH),
-                       static_cast<int32_t>(kerW),
-                       static_cast<int32_t>(strH),
-                       static_cast<int32_t>(strW),
+    ops.append_dw_conv(static_cast<int>(inH),
+                       static_cast<int>(inW),
+                       static_cast<int>(kerH),
+                       static_cast<int>(kerW),
+                       static_cast<int>(strH),
+                       static_cast<int>(strW),
                        dnnl::memory::convert_to_c(inDataType));
 }
 
