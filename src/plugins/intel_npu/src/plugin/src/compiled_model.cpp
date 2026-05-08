@@ -230,7 +230,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         _propertiesManager->getProperty(name);
 
         _logger.debug("Runtime requirements from the graph %s length: %zu",
-                      _graph->get_compatibility_descriptor().value().c_str(),
+                      _graph->get_compatibility_descriptor().value(),
                       _graph->get_compatibility_descriptor().value().size());
 
         std::ostringstream requirementsString;

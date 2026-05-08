@@ -81,7 +81,7 @@ public:
 
     virtual std::optional<bool> is_encrypted_blob() const;
 
-    virtual std::optional<std::string> get_compatibility_descriptor() const;
+    virtual std::optional<std::string_view> get_compatibility_descriptor() const;
 
     virtual ~MetadataBase() = default;
 
@@ -437,7 +437,7 @@ public:
              const std::optional<std::vector<ov::Layout>>& outputLayouts = std::nullopt,
              const std::optional<uint32_t> compilerVersion = std::nullopt,
              const std::optional<uint64_t>& blobSizeAfterEncryption = std::nullopt,
-             const std::optional<std::string>& compatibilityDescriptor = std::nullopt);
+             const std::optional<std::string_view> compatibilityDescriptor = std::nullopt);
 
     void read() override;
 
@@ -447,7 +447,7 @@ public:
 
     void write_as_text(std::ostream& stream) override;
 
-    std::optional<std::string> get_compatibility_descriptor() const override;
+    std::optional<std::string_view> get_compatibility_descriptor() const override;
 
 private:
     std::optional<std::string> _compatibilityDescriptor;

@@ -386,7 +386,8 @@ ov::CompatibilityCheck Plugin::validate_compatibility_descriptor(ov::intel_npu::
         return ov::CompatibilityCheck::UNSUPPORTED;
     }
 
-    auto compatibilityDescriptor = metadata->get_compatibility_descriptor().value_or("");
+    const auto descriptorView = metadata->get_compatibility_descriptor();
+    std::string compatibilityDescriptor = descriptorView.has_value() ? std::string(descriptorView.value()) : "";
     _logger.debug("Retrieved compatibility descriptor from metadata: %s length: %zu",
                   compatibilityDescriptor.c_str(),
                   compatibilityDescriptor.length());
@@ -1043,11 +1044,20 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
 
     ParserFactory parserFactory;
     auto parser = parserFactory.getParser(_backend->getInitStructs());
+
+    // Convert descriptor to an owning string before metadata is potentially destroyed.
+    std::optional<std::string> compatibilityDescriptor = std::nullopt;
+    if (metadata) {
+        if (const auto descriptorView = metadata->get_compatibility_descriptor(); descriptorView.has_value()) {
+            compatibilityDescriptor = std::string(descriptorView.value());
+        }
+    }
+
     auto graph = parser->parse(tensorMain,
                                localConfig,
                                initBlobs,
                                weightsSeparationEnabled ? std::make_optional(std::move(originalModel)) : std::nullopt,
-                               metadata ? metadata->get_compatibility_descriptor() : std::nullopt);
+                               compatibilityDescriptor);
 
     graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
     const std::shared_ptr<ov::Model> modelDummy =

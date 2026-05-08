@@ -268,7 +268,7 @@ uint32_t Graph::get_last_submitted_id() const {
     return _lastSubmittedId;
 }
 
-std::optional<std::string> Graph::get_compatibility_descriptor() const {
+std::optional<std::string_view> Graph::get_compatibility_descriptor() const {
     return _compatibilityDescriptor;
 }
 

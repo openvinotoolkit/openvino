@@ -177,7 +177,7 @@ Metadata<METADATA_VERSION_2_6>::Metadata(uint64_t blobSize,
                                          const std::optional<std::vector<ov::Layout>>& outputLayouts,
                                          const std::optional<uint32_t> compilerVersion,
                                          const std::optional<uint64_t>& blobSizeAfterEncryption,
-                                         const std::optional<std::string>& compatibilityDescriptor)
+                                         const std::optional<std::string_view> compatibilityDescriptor)
     : Metadata<METADATA_VERSION_2_5>{blobSize,
                                      ovVersion,
                                      initSizes,
@@ -692,7 +692,7 @@ std::optional<bool> MetadataBase::is_encrypted_blob() const {
     return std::nullopt;
 }
 
-std::optional<std::string> MetadataBase::get_compatibility_descriptor() const {
+std::optional<std::string_view> MetadataBase::get_compatibility_descriptor() const {
     return std::nullopt;
 }
 
@@ -720,7 +720,7 @@ std::optional<bool> Metadata<METADATA_VERSION_2_5>::is_encrypted_blob() const {
     return _isEncryptedBlob;
 }
 
-std::optional<std::string> Metadata<METADATA_VERSION_2_6>::get_compatibility_descriptor() const {
+std::optional<std::string_view> Metadata<METADATA_VERSION_2_6>::get_compatibility_descriptor() const {
     return _compatibilityDescriptor;
 }
 
