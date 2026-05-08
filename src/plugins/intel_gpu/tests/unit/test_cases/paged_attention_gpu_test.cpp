@@ -30,7 +30,7 @@ using namespace ::tests;
 // Enable detailed xattention debugging (dumps, extra comparison info)
 // Default: OFF (0). Set to 1 for investigation.
 #ifndef XATTENTION_DEBUG_VERBOSE
-#define XATTENTION_DEBUG_VERBOSE 0
+#define XATTENTION_DEBUG_VERBOSE 1
 #endif
 
 /*
@@ -2317,6 +2317,281 @@ public:
         if (p.has_adaptive_rkv) {
             output_diversity_mem = outputs.at("output_diversity").get_memory();
         }
+
+        // Verify KV cache bytes were written for newly-inserted tokens BEFORE checking output
+        // This helps identify if errors come from KV cache update stage vs attention computation
+        // NOTE: This verification is specific to CM PA layout and should NOT run for OCL micro_sdpa
+        // because they use different layouts (key cache is [N,K,H,B] in OCL vs [N,K,B,H] in CM)
+        if (last_key_cache_mem != nullptr && p.has_xattention) {
+            // Count total tokens for single-token BY_CHANNEL skip logic
+            int total_new_tokens = 0;
+            for (const auto& s : p.subsequences)
+                total_new_tokens += s.num_tokens;
+            constexpr int kv_sub_block_size = 16;
+            const bool is_by_channel = p.kv_cache_compression &&
+                                       p.key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL;
+            const bool is_by_token = p.kv_cache_compression &&
+                                     p.key_cache_quant_mode == ov::internal::CacheQuantMode::BY_TOKEN;
+
+            // CM cache layout: [num_blocks, num_kv_heads, adjusted_block_size, adjusted_head_size]
+            // Within each (block, head) region, data tokens are packed at stride HEAD_SIZE (not adjusted).
+            // Scale/ZP are appended after all data bytes.
+            //   FP16:       adjusted_block_size=block_size,          adjusted_head_size=head_size,   elem=2B
+            //   BY_TOKEN:   adjusted_block_size=block_size,          adjusted_head_size=head_size+4, elem=1B
+            //   BY_CHANNEL: adjusted_block_size=block_size+(bs/16)*4, adjusted_head_size=head_size,  elem=1B
+            const int adj_head_size = is_by_token ? (p.k_head_size + 4) : p.k_head_size;
+            const int adj_block_size = is_by_channel ? (p.block_size + (p.block_size / kv_sub_block_size) * 4) : p.block_size;
+            const int elem_size = p.kv_cache_compression ? 1 : 2;
+            // Stride between (block, head) regions
+            const size_t head_region_bytes = static_cast<size_t>(adj_block_size) * adj_head_size * elem_size;
+            const size_t block_stride_bytes = static_cast<size_t>(p.num_kv_heads) * head_region_bytes;
+            // Token data stride within a region (always head_size, not adjusted)
+            const int token_data_stride = p.k_head_size * elem_size;
+
+            mem_lock<int8_t, mem_lock_type::read> cache_lock(last_key_cache_mem, get_test_stream());
+            int missing_count = 0;
+            int total_tokens = 0;
+            int nan_count = 0;
+            int inf_count = 0;
+            int zero_scale_count = 0;
+            int invalid_zp_count = 0;
+            std::vector<std::tuple<int, int, int, int, int>> nan_locations;  // (seq, token, absolute_pos, head, dim)
+            std::vector<std::tuple<int, int, int, int, int>> inf_locations;
+            std::vector<std::tuple<int, int, int, int, float, float>> zero_scale_locations;  // (seq, token, absolute_pos, head, scale, zp)
+            std::vector<std::tuple<int, int, int, int, float, float>> invalid_zp_locations;
+
+            for (int i = 0; i < static_cast<int>(p.subsequences.size()); i++) {
+                const int past_len = p.subsequences[i].past_len;
+                const int num_tokens = p.subsequences[i].num_tokens;
+                for (int t = 0; t < num_tokens; t++) {
+                    total_tokens++;
+                    const int absolute_pos = past_len + t;
+                    const int block_idx = absolute_pos / p.block_size;
+                    const int token_in_block = absolute_pos % p.block_size;
+                    const int physical_block = last_block_indices[last_block_indices_begins[i] + block_idx];
+                    const size_t block_base = static_cast<size_t>(physical_block) * block_stride_bytes;
+
+                    // Check all KV heads for this token
+                    for (int head = 0; head < p.num_kv_heads; head++) {
+                        const size_t head_base = block_base + static_cast<size_t>(head) * head_region_bytes;
+                        const size_t token_offset = head_base + static_cast<size_t>(token_in_block) * token_data_stride;
+
+                        // Check for all-zero data (missing token write)
+                        // Skip this check for single-token BY_CHANNEL: when a sub-block has exactly 1 sample,
+                        // per-channel quantization maps data to (data - min) where min == data, producing all-zero bytes.
+                        bool skip_zero_check = is_by_channel && (total_new_tokens <= 1);
+                        if (!skip_zero_check) {
+                            bool all_zero = true;
+                            for (int b = 0; b < token_data_stride; b++) {
+                                if (cache_lock[token_offset + b] != 0) {
+                                    all_zero = false;
+                                    break;
+                                }
+                            }
+                            if (all_zero && head == 0) {  // Only report missing once per token (head 0)
+                                missing_count++;
+                                std::cout << "KV cache update MISSING: seq=" << i
+                                          << " token=" << t << " (absolute_pos=" << absolute_pos << ")"
+                                          << " at byte_offset=" << token_offset << std::endl;
+                            }
+                        }
+
+                        // Check for NaN/INF by dequantizing and checking scale/zp
+                        if (!p.kv_cache_compression) {
+                            // FP16 cache: read as fp16 and check
+                            const ov::float16* fp16_ptr = reinterpret_cast<const ov::float16*>(&cache_lock[token_offset]);
+                            for (int dim = 0; dim < p.k_head_size; dim++) {
+                                float val = static_cast<float>(fp16_ptr[dim]);
+                                if (std::isnan(val)) {
+                                    nan_count++;
+                                    if (nan_locations.size() < 10) {
+                                        nan_locations.push_back(std::make_tuple(i, t, absolute_pos, head, dim));
+                                    }
+                                }
+                                if (std::isinf(val)) {
+                                    inf_count++;
+                                    if (inf_locations.size() < 10) {
+                                        inf_locations.push_back(std::make_tuple(i, t, absolute_pos, head, dim));
+                                    }
+                                }
+                            }
+                        } else {
+                            // Compressed cache: check scale/zp for NaN/INF
+                            // CM PA layout per (block, head) region:
+                            // BY_TOKEN:   [Data: B*H bytes][Scale: B*2 bytes][ZP: B*2 bytes]
+                            // BY_CHANNEL: [Data: B*H bytes][Scale: G*H*2 bytes][ZP: G*H*2 bytes]
+                            if (is_by_token) {
+                                // BY_TOKEN: scale/zp stored contiguously for all B tokens
+                                // Scale at: head_base + B * H + token_in_block * 2
+                                // ZP at:    head_base + B * H + B * 2 + token_in_block * 2
+                                const size_t scale_offset = head_base + static_cast<size_t>(p.block_size) * p.k_head_size
+                                                          + static_cast<size_t>(token_in_block) * 2;
+                                const size_t zp_offset = scale_offset + static_cast<size_t>(p.block_size) * 2;
+                                const ov::float16* scale_ptr = reinterpret_cast<const ov::float16*>(&cache_lock[scale_offset]);
+                                const ov::float16* zp_ptr = reinterpret_cast<const ov::float16*>(&cache_lock[zp_offset]);
+                                float scale = static_cast<float>(*scale_ptr);
+                                float zp = static_cast<float>(*zp_ptr);
+                                if (std::isnan(scale) || std::isnan(zp)) {
+                                    nan_count += (std::isnan(scale) ? 1 : 0) + (std::isnan(zp) ? 1 : 0);
+                                    if (nan_locations.size() < 10) {
+                                        nan_locations.push_back(std::make_tuple(i, t, absolute_pos, head, -1));  // -1 indicates scale/zp
+                                    }
+                                }
+                                if (std::isinf(scale) || std::isinf(zp)) {
+                                    inf_count += (std::isinf(scale) ? 1 : 0) + (std::isinf(zp) ? 1 : 0);
+                                    if (inf_locations.size() < 10) {
+                                        inf_locations.push_back(std::make_tuple(i, t, absolute_pos, head, -1));
+                                    }
+                                }
+                                // Check for zero or near-zero scale (causes division by zero in dequant)
+                                if (std::fabs(scale) < 1e-6f) {
+                                    zero_scale_count++;
+                                    if (zero_scale_locations.size() < 10) {
+                                        zero_scale_locations.push_back(std::make_tuple(i, t, absolute_pos, head, scale, zp));
+                                    }
+                                }
+                                // Check for invalid zp range (should be 0-255 after quantization)
+                                if (zp < -1.0f || zp > 256.0f) {
+                                    invalid_zp_count++;
+                                    if (invalid_zp_locations.size() < 10) {
+                                        invalid_zp_locations.push_back(std::make_tuple(i, t, absolute_pos, head, scale, zp));
+                                    }
+                                }
+                            } else if (is_by_channel) {
+                                // BY_CHANNEL: scale/zp per sub-block group, per channel
+                                // Layout: [Data: B*H][Scale: group_num*H*2][ZP: group_num*H*2]
+                                // For token t, group g = t / S
+                                // Scale at: head_base + B * H + (g * H + channel) * 2
+                                // ZP at:    head_base + B * H + group_num * H * 2 + (g * H + channel) * 2
+                                int sub_block_idx = token_in_block / kv_sub_block_size;
+                                int group_num = p.block_size / kv_sub_block_size;
+                                // Check first few channels only to avoid excessive checks
+                                for (int ch = 0; ch < std::min(p.k_head_size, 4); ch++) {
+                                    size_t scale_offset = head_base + static_cast<size_t>(p.block_size) * p.k_head_size
+                                                        + (static_cast<size_t>(sub_block_idx) * p.k_head_size + ch) * 2;
+                                    size_t zp_offset = scale_offset + static_cast<size_t>(group_num) * p.k_head_size * 2;
+                                    const ov::float16* scale_ptr = reinterpret_cast<const ov::float16*>(&cache_lock[scale_offset]);
+                                    const ov::float16* zp_ptr = reinterpret_cast<const ov::float16*>(&cache_lock[zp_offset]);
+                                    float scale = static_cast<float>(*scale_ptr);
+                                    float zp = static_cast<float>(*zp_ptr);
+                                    if (std::isnan(scale) || std::isnan(zp)) {
+                                        nan_count += (std::isnan(scale) ? 1 : 0) + (std::isnan(zp) ? 1 : 0);
+                                        if (nan_locations.size() < 10) {
+                                            nan_locations.push_back(std::make_tuple(i, t, absolute_pos, head, ch));  // ch indicates which channel
+                                        }
+                                    }
+                                    if (std::isinf(scale) || std::isinf(zp)) {
+                                        inf_count += (std::isinf(scale) ? 1 : 0) + (std::isinf(zp) ? 1 : 0);
+                                        if (inf_locations.size() < 10) {
+                                            inf_locations.push_back(std::make_tuple(i, t, absolute_pos, head, ch));
+                                        }
+                                    }
+                                    // Check for zero or near-zero scale
+                                    if (std::fabs(scale) < 1e-6f) {
+                                        zero_scale_count++;
+                                        if (zero_scale_locations.size() < 10) {
+                                            zero_scale_locations.push_back(std::make_tuple(i, t, absolute_pos, head, scale, zp));
+                                        }
+                                    }
+                                    // Check for invalid zp range
+                                    if (zp < -1.0f || zp > 256.0f) {
+                                        invalid_zp_count++;
+                                        if (invalid_zp_locations.size() < 10) {
+                                            invalid_zp_locations.push_back(std::make_tuple(i, t, absolute_pos, head, scale, zp));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            EXPECT_EQ(missing_count, 0) << missing_count << " out of " << total_tokens
+                                        << " tokens were not written to key cache by KV update kernel";
+
+#if XATTENTION_DEBUG_VERBOSE
+            // Report NaN/INF in KV cache with detailed coordinates
+            if (nan_count > 0) {
+                std::cout << "\nKV cache contains " << nan_count << " NaN values:" << std::endl;
+                for (const auto& loc : nan_locations) {
+                    auto [seq, tok, abs_pos, h, d] = loc;
+                    std::cout << "  seq=" << seq << " token=" << tok << " (absolute_pos=" << abs_pos
+                              << ") head=" << h;
+                    if (d == -1) {
+                        std::cout << " [BY_TOKEN scale/zp]";
+                    } else if (d >= 0) {
+                        std::cout << " [BY_CHANNEL scale/zp channel=" << d << "]";
+                    } else {
+                        std::cout << " [FP16 dim=" << d << "]";
+                    }
+                    std::cout << std::endl;
+                }
+                if (nan_locations.size() < static_cast<size_t>(nan_count)) {
+                    std::cout << "  ... and " << (nan_count - nan_locations.size()) << " more" << std::endl;
+                }
+            }
+            if (inf_count > 0) {
+                std::cout << "\nKV cache contains " << inf_count << " INF values:" << std::endl;
+                for (const auto& loc : inf_locations) {
+                    auto [seq, tok, abs_pos, h, d] = loc;
+                    std::cout << "  seq=" << seq << " token=" << tok << " (absolute_pos=" << abs_pos
+                              << ") head=" << h;
+                    if (d == -1) {
+                        std::cout << " [BY_TOKEN scale/zp]";
+                    } else if (d >= 0) {
+                        std::cout << " [BY_CHANNEL scale/zp channel=" << d << "]";
+                    } else {
+                        std::cout << " [FP16 dim=" << d << "]";
+                    }
+                    std::cout << std::endl;
+                }
+                if (inf_locations.size() < static_cast<size_t>(inf_count)) {
+                    std::cout << "  ... and " << (inf_count - inf_locations.size()) << " more" << std::endl;
+                }
+            }
+            if (zero_scale_count > 0) {
+                std::cout << "\nKV cache contains " << zero_scale_count << " zero/near-zero scale values:" << std::endl;
+                for (const auto& loc : zero_scale_locations) {
+                    auto [seq, tok, abs_pos, h, scale, zp] = loc;
+                    std::cout << "  seq=" << seq << " token=" << tok << " (absolute_pos=" << abs_pos
+                              << ") head=" << h << " scale=" << scale << " zp=" << zp << std::endl;
+                }
+                if (zero_scale_locations.size() < static_cast<size_t>(zero_scale_count)) {
+                    std::cout << "  ... and " << (zero_scale_count - zero_scale_locations.size()) << " more" << std::endl;
+                }
+            }
+            if (invalid_zp_count > 0) {
+                std::cout << "\nKV cache contains " << invalid_zp_count << " invalid ZP values (out of 0-255 range):" << std::endl;
+                for (const auto& loc : invalid_zp_locations) {
+                    auto [seq, tok, abs_pos, h, scale, zp] = loc;
+                    std::cout << "  seq=" << seq << " token=" << tok << " (absolute_pos=" << abs_pos
+                              << ") head=" << h << " scale=" << scale << " zp=" << zp << std::endl;
+                }
+                if (invalid_zp_locations.size() < static_cast<size_t>(invalid_zp_count)) {
+                    std::cout << "  ... and " << (invalid_zp_count - invalid_zp_locations.size()) << " more" << std::endl;
+                }
+            }
+#endif
+            EXPECT_EQ(nan_count, 0) << "KV cache contains NaN values";
+            EXPECT_EQ(inf_count, 0) << "KV cache contains INF values";
+            EXPECT_EQ(zero_scale_count, 0) << "KV cache contains zero/near-zero scale values (causes division by zero in dequant)";
+            EXPECT_EQ(invalid_zp_count, 0) << "KV cache contains invalid ZP values";
+
+#if XATTENTION_DEBUG_VERBOSE
+            // Report KV cache verification result
+            if (missing_count == 0 && nan_count == 0 && inf_count == 0 && zero_scale_count == 0 && invalid_zp_count == 0) {
+                std::cout << "\nKV cache verification PASSED: " << total_tokens << " tokens checked";
+                if (p.kv_cache_compression) {
+                    std::cout << " (compression mode: "
+                              << (is_by_token ? "BY_TOKEN" : (is_by_channel ? "BY_CHANNEL" : "UNKNOWN")) << ")";
+                } else {
+                    std::cout << " (FP16 mode)";
+                }
+                std::cout << std::endl;
+            }
+#endif
+        }
+
         auto ref_data = PagedAttentionReference(pam).get_reference(key_cache_mem);
         if (p.has_xattention) {
             compare_xattention(output_data_mem, output_scores_mem, ref_data, p.num_heads, p.k_head_size);
@@ -2377,6 +2652,14 @@ public:
             int actual_gt1_count = 0;
             int expected_gt1_count = 0;
             int error_gt1_count = 0;
+
+            // Track coordinates of abnormal values
+            std::vector<std::tuple<size_t, size_t, size_t, float>> actual_nan_coords;    // (token, head, dim, value)
+            std::vector<std::tuple<size_t, size_t, size_t, float>> expected_nan_coords;
+            std::vector<std::tuple<size_t, size_t, size_t, float>> actual_inf_coords;
+            std::vector<std::tuple<size_t, size_t, size_t, float>> expected_inf_coords;
+            std::vector<std::tuple<size_t, size_t, size_t, float>> actual_gt1_coords;
+            std::vector<std::tuple<size_t, size_t, size_t, float>> expected_gt1_coords;
 #endif
 
             // Collect error statistics
@@ -2389,13 +2672,37 @@ public:
                 avg_error += error;
                 max_error = std::max(max_error, error);
 
-                // Separate checks for actual vs expected
-                if (std::isnan(actual)) actual_nan_count++;
-                if (std::isnan(expected)) expected_nan_count++;
-                if (std::isinf(actual)) actual_inf_count++;
-                if (std::isinf(expected)) expected_inf_count++;
-                if (!std::isnan(actual) && !std::isinf(actual) && std::fabs(actual) > 1.0f) actual_gt1_count++;
-                if (!std::isnan(expected) && !std::isinf(expected) && std::fabs(expected) > 1.0f) expected_gt1_count++;
+                // Calculate coordinates: output layout is [T, Q * H]
+                size_t head_dim_flat = i % (num_heads * head_size);
+                size_t token_idx = i / (num_heads * head_size);
+                size_t head_idx = head_dim_flat / head_size;
+                size_t dim_idx = head_dim_flat % head_size;
+
+                // Separate checks for actual vs expected with coordinate tracking
+                if (std::isnan(actual)) {
+                    actual_nan_count++;
+                    actual_nan_coords.push_back(std::make_tuple(token_idx, head_idx, dim_idx, actual));
+                }
+                if (std::isnan(expected)) {
+                    expected_nan_count++;
+                    expected_nan_coords.push_back(std::make_tuple(token_idx, head_idx, dim_idx, expected));
+                }
+                if (std::isinf(actual)) {
+                    actual_inf_count++;
+                    actual_inf_coords.push_back(std::make_tuple(token_idx, head_idx, dim_idx, actual));
+                }
+                if (std::isinf(expected)) {
+                    expected_inf_count++;
+                    expected_inf_coords.push_back(std::make_tuple(token_idx, head_idx, dim_idx, expected));
+                }
+                if (!std::isnan(actual) && !std::isinf(actual) && std::fabs(actual) > 1.0f) {
+                    actual_gt1_count++;
+                    actual_gt1_coords.push_back(std::make_tuple(token_idx, head_idx, dim_idx, actual));
+                }
+                if (!std::isnan(expected) && !std::isinf(expected) && std::fabs(expected) > 1.0f) {
+                    expected_gt1_count++;
+                    expected_gt1_coords.push_back(std::make_tuple(token_idx, head_idx, dim_idx, expected));
+                }
                 if (error > 1.0f) error_gt1_count++;
 
                 if (std::isnan(actual) || std::isinf(actual) || error > 1.0f) {
@@ -2447,12 +2754,78 @@ public:
                 std::cout << "\nAbnormal Value Analysis:" << std::endl;
                 std::cout << "  Actual output (GPU):" << std::endl;
                 std::cout << "    NaN values: " << actual_nan_count << std::endl;
+                if (actual_nan_count > 0) {
+                    std::cout << "      Coordinates (token, head, dim, value):" << std::endl;
+                    size_t show_count = std::min(actual_nan_coords.size(), size_t(10));
+                    for (size_t j = 0; j < show_count; j++) {
+                        auto [t, h, d, v] = actual_nan_coords[j];
+                        std::cout << "        [" << t << ", " << h << ", " << d << "] = " << v << std::endl;
+                    }
+                    if (actual_nan_coords.size() > 10) {
+                        std::cout << "        ... and " << (actual_nan_coords.size() - 10) << " more" << std::endl;
+                    }
+                }
                 std::cout << "    INF values: " << actual_inf_count << std::endl;
+                if (actual_inf_count > 0) {
+                    std::cout << "      Coordinates (token, head, dim, value):" << std::endl;
+                    size_t show_count = std::min(actual_inf_coords.size(), size_t(10));
+                    for (size_t j = 0; j < show_count; j++) {
+                        auto [t, h, d, v] = actual_inf_coords[j];
+                        std::cout << "        [" << t << ", " << h << ", " << d << "] = " << v << std::endl;
+                    }
+                    if (actual_inf_coords.size() > 10) {
+                        std::cout << "        ... and " << (actual_inf_coords.size() - 10) << " more" << std::endl;
+                    }
+                }
                 std::cout << "    Values > 1.0: " << actual_gt1_count << std::endl;
+                if (actual_gt1_count > 0) {
+                    std::cout << "      Coordinates (token, head, dim, value):" << std::endl;
+                    size_t show_count = std::min(actual_gt1_coords.size(), size_t(10));
+                    for (size_t j = 0; j < show_count; j++) {
+                        auto [t, h, d, v] = actual_gt1_coords[j];
+                        std::cout << "        [" << t << ", " << h << ", " << d << "] = " << v << std::endl;
+                    }
+                    if (actual_gt1_coords.size() > 10) {
+                        std::cout << "        ... and " << (actual_gt1_coords.size() - 10) << " more" << std::endl;
+                    }
+                }
                 std::cout << "  Expected output (CPU reference):" << std::endl;
                 std::cout << "    NaN values: " << expected_nan_count << std::endl;
+                if (expected_nan_count > 0) {
+                    std::cout << "      Coordinates (token, head, dim, value):" << std::endl;
+                    size_t show_count = std::min(expected_nan_coords.size(), size_t(10));
+                    for (size_t j = 0; j < show_count; j++) {
+                        auto [t, h, d, v] = expected_nan_coords[j];
+                        std::cout << "        [" << t << ", " << h << ", " << d << "] = " << v << std::endl;
+                    }
+                    if (expected_nan_coords.size() > 10) {
+                        std::cout << "        ... and " << (expected_nan_coords.size() - 10) << " more" << std::endl;
+                    }
+                }
                 std::cout << "    INF values: " << expected_inf_count << std::endl;
+                if (expected_inf_count > 0) {
+                    std::cout << "      Coordinates (token, head, dim, value):" << std::endl;
+                    size_t show_count = std::min(expected_inf_coords.size(), size_t(10));
+                    for (size_t j = 0; j < show_count; j++) {
+                        auto [t, h, d, v] = expected_inf_coords[j];
+                        std::cout << "        [" << t << ", " << h << ", " << d << "] = " << v << std::endl;
+                    }
+                    if (expected_inf_coords.size() > 10) {
+                        std::cout << "        ... and " << (expected_inf_coords.size() - 10) << " more" << std::endl;
+                    }
+                }
                 std::cout << "    Values > 1.0: " << expected_gt1_count << std::endl;
+                if (expected_gt1_count > 0) {
+                    std::cout << "      Coordinates (token, head, dim, value):" << std::endl;
+                    size_t show_count = std::min(expected_gt1_coords.size(), size_t(10));
+                    for (size_t j = 0; j < show_count; j++) {
+                        auto [t, h, d, v] = expected_gt1_coords[j];
+                        std::cout << "        [" << t << ", " << h << ", " << d << "] = " << v << std::endl;
+                    }
+                    if (expected_gt1_coords.size() > 10) {
+                        std::cout << "        ... and " << (expected_gt1_coords.size() - 10) << " more" << std::endl;
+                    }
+                }
                 std::cout << "  Error magnitude:" << std::endl;
                 std::cout << "    Errors > 1.0: " << error_gt1_count << std::endl;
                 std::cout << "\nError Magnitudes:" << std::endl;
@@ -2657,71 +3030,6 @@ TEST_P(xattention_test, basic) {
     }
 
     execute(p, p.run_reference);
-
-    // Verify KV cache bytes were written for newly-inserted tokens.
-    // Skip single-token BY_CHANNEL: when a sub-block has exactly 1 sample, per-channel
-    // quantization maps data to (data - min) where min == data, producing all-zero bytes.
-    int total_new_tokens = 0;
-    for (const auto& s : p.subsequences)
-        total_new_tokens += s.num_tokens;
-    if (last_key_cache_mem != nullptr && total_new_tokens > 1) {
-        constexpr int kv_sub_block_size = 16;
-        const bool is_by_channel = p.kv_cache_compression &&
-                                   p.key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL;
-        const bool is_by_token = p.kv_cache_compression &&
-                                 p.key_cache_quant_mode == ov::internal::CacheQuantMode::BY_TOKEN;
-
-        // CM cache layout: [num_blocks, num_kv_heads, adjusted_block_size, adjusted_head_size]
-        // Within each (block, head) region, data tokens are packed at stride HEAD_SIZE (not adjusted).
-        // Scale/ZP are appended after all data bytes.
-        //   FP16:       adjusted_block_size=block_size,          adjusted_head_size=head_size,   elem=2B
-        //   BY_TOKEN:   adjusted_block_size=block_size,          adjusted_head_size=head_size+4, elem=1B
-        //   BY_CHANNEL: adjusted_block_size=block_size+(bs/16)*4, adjusted_head_size=head_size,  elem=1B
-        const int adj_head_size = is_by_token ? (p.k_head_size + 4) : p.k_head_size;
-        const int adj_block_size = is_by_channel ? (p.block_size + (p.block_size / kv_sub_block_size) * 4) : p.block_size;
-        const int elem_size = p.kv_cache_compression ? 1 : 2;
-        // Stride between (block, head) regions
-        const size_t head_region_bytes = static_cast<size_t>(adj_block_size) * adj_head_size * elem_size;
-        const size_t block_stride_bytes = static_cast<size_t>(p.num_kv_heads) * head_region_bytes;
-        // Token data stride within a region (always head_size, not adjusted)
-        const int token_data_stride = p.k_head_size * elem_size;
-
-        mem_lock<int8_t, mem_lock_type::read> cache_lock(last_key_cache_mem, get_test_stream());
-        int missing_count = 0;
-        int total_tokens = 0;
-
-        for (int i = 0; i < static_cast<int>(p.subsequences.size()); i++) {
-            const int past_len = p.subsequences[i].past_len;
-            const int num_tokens = p.subsequences[i].num_tokens;
-            for (int t = 0; t < num_tokens; t++) {
-                total_tokens++;
-                const int absolute_pos = past_len + t;
-                const int block_idx = absolute_pos / p.block_size;
-                const int token_in_block = absolute_pos % p.block_size;
-                const int physical_block = last_block_indices[last_block_indices_begins[i] + block_idx];
-                const size_t block_base = static_cast<size_t>(physical_block) * block_stride_bytes;
-                // Head 0, data region: tokens packed at stride head_size
-                const size_t data_offset = block_base + static_cast<size_t>(token_in_block) * token_data_stride;
-
-                // Input keys are random non-zero; all-zero means KV update kernel missed this token
-                bool all_zero = true;
-                for (int b = 0; b < token_data_stride; b++) {
-                    if (cache_lock[data_offset + b] != 0) {
-                        all_zero = false;
-                        break;
-                    }
-                }
-                if (all_zero) {
-                    missing_count++;
-                    std::cout << "KV cache update MISSING: seq=" << i
-                              << " token=" << t << " (absolute_pos=" << absolute_pos << ")"
-                              << " at byte_offset=" << data_offset << std::endl;
-                }
-            }
-        }
-        EXPECT_EQ(missing_count, 0) << missing_count << " out of " << total_tokens
-                                    << " tokens were not written to key cache by KV update kernel";
-    }
 }
 
 class xattention_invalid_test : public PagedAttentionTest<paged_attention_test_params> {};
