@@ -214,7 +214,13 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
             for (size_t i = 0; i < ndim - 1; ++i)
                 axes[i] = static_cast<int64_t>(i + 1);
             auto axes_const = ov::op::v0::Constant::create(ov::element::i64, {axes.size()}, axes);
-            auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(per_expert_const, axes_const);
+            ov::Output<ov::Node> per_expert_for_mul = per_expert_const;
+            if (per_expert_const->get_element_type() != w2_scale_const->get_element_type()) {
+                per_expert_for_mul = std::make_shared<ov::op::v0::Convert>(
+                    per_expert_const, w2_scale_const->get_element_type());
+                ov::copy_runtime_info(args[9].get_node_shared_ptr(), per_expert_for_mul.get_node_shared_ptr());
+            }
+            auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(per_expert_for_mul, axes_const);
             auto scaled_w2 = std::make_shared<ov::op::v1::Multiply>(w2_scale_const, unsqueeze);
             auto folded = ov::util::get_constant_from_source(scaled_w2->output(0));
             OPENVINO_ASSERT(folded, "FuseMOE3GemmCompressed: failed to constant-fold per-expert scale into w2_scale");

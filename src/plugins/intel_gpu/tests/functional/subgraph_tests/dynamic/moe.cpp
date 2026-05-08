@@ -48,12 +48,13 @@ using MoECompressedParams = std::tuple<MoeTestShapeParams,
                                        int,                                 // group_size
                                        size_t,                              // gate_idx (2-GEMM only)
                                        bool,                                // force_gather_matmul
-                                       MoEActivationType>;                  // gate activation type (GEMM3 only)
+                                       MoEActivationType,                   // gate activation type (GEMM3 only)
+                                       bool>;                               // use_per_expert_scale (GEMM3+SOFTMAX only)
 
 class MoECompressedFusionTest : public testing::WithParamInterface<MoECompressedParams>, virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MoECompressedParams>& info) {
-        const auto& [moe_params, pattern_type, routing_type, wp, dp, sp, dm, ds, rd, gs, gi, fgm, act] = info.param;
+        const auto& [moe_params, pattern_type, routing_type, wp, dp, sp, dm, ds, rd, gs, gi, fgm, act, pes] = info.param;
         std::ostringstream result;
         result << "IS=" << ov::test::utils::partialShape2str({moe_params.data_shape.first}) << "_";
         result << "TS=";
@@ -73,13 +74,14 @@ public:
         result << "GS=" << gs << "_";
         result << "GI=" << gi << "_";
         result << "FGM=" << fgm << "_";
-        result << "act=" << (act == MoEActivationType::GELU ? "GELU" : "SWISH");
+        result << "act=" << (act == MoEActivationType::GELU ? "GELU" : "SWISH") << "_";
+        result << "PES=" << pes;
         return result.str();
     }
 
 protected:
     void SetUp() override {
-        const auto& [moe_params, pattern_type, routing_type, wp, dp, sp, dm, ds, rd, gs, gi, fgm, act] = GetParam();
+        const auto& [moe_params, pattern_type, routing_type, wp, dp, sp, dm, ds, rd, gs, gi, fgm, act, pes] = GetParam();
         if (fgm) {
             set_disable_moe_opt();
         }
@@ -113,9 +115,11 @@ protected:
                                                       rd,                // reshape_on_decompression
                                                       gs,                // group_size
                                                       routing_type,
-                                                      act);  // activation_type
+                                                      act,               // activation_type
+                                                      pes);              // use_per_expert_scale
         } else {
             ASSERT_TRUE(act == MoEActivationType::SWISH) << "2-GEMM pattern only supports Swish activation";
+            ASSERT_TRUE(pes == false) << "2-GEMM pattern doesn't support per-expert scale";
             function = ov::test::initMoE2GeMMSubgraph(shape_params,
                                                       ov::element::f32,  // data_precision
                                                       wp,                // weights_precision
@@ -229,7 +233,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmCompressedFusion,
                                             ::testing::Values(128),
                                             ::testing::Values(size_t{0}),  // gate_idx unused for GEMM3
                                             ::testing::Values(false),      // force_gather_matmul
-                                            ::testing::Values(MoEActivationType::SWISH)),
+                                            ::testing::Values(MoEActivationType::SWISH),
+                                            ::testing::Values(false)),     // use_per_expert_scale
                          MoECompressedFusionTest::getTestCaseName);
 
 // GPT-OSS 2-GEMM pattern (combined gate/up MatMul + Slice/Clamp/Add/Swish).
@@ -248,7 +253,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE2GemmCompressedFusion,
                                             ::testing::Values(128),
                                             ::testing::ValuesIn(gate_idx_values),
                                             ::testing::Values(false),  // force_gather_matmul
-                                            ::testing::Values(MoEActivationType::SWISH)),
+                                            ::testing::Values(MoEActivationType::SWISH),
+                                            ::testing::Values(false)),  // use_per_expert_scale
                          MoECompressedFusionTest::getTestCaseName);
 
 // MoEGatherMatmulTest: alias for MoECompressedFusionTest with force_gather_matmul=true.
@@ -269,7 +275,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoEGatherMatmul,
                                             ::testing::Values(128),
                                             ::testing::Values(size_t{0}),  // gate_idx unused for GEMM3
                                             ::testing::Values(true),       // force_gather_matmul
-                                            ::testing::Values(MoEActivationType::SWISH)),
+                                            ::testing::Values(MoEActivationType::SWISH),
+                                            ::testing::Values(false)),     // use_per_expert_scale
                          MoEGatherMatmulTest::getTestCaseName);
 
 // 2-GEMM unfused: covers GatherMatmul OCL clamp/bias/swiglu compile path.
@@ -287,7 +294,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE2GemmGatherMatmul,
                                             ::testing::Values(128),
                                             ::testing::ValuesIn(gate_idx_values),
                                             ::testing::Values(true),  // force_gather_matmul
-                                            ::testing::Values(MoEActivationType::SWISH)),
+                                            ::testing::Values(MoEActivationType::SWISH),
+                                            ::testing::Values(false)),  // use_per_expert_scale
                          MoEGatherMatmulTest::getTestCaseName);
 
 // GEMM3 + Gelu (GeGLU): GPU fused kernel does not support gelu, so the model is executed
@@ -306,7 +314,27 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmGeluCompressed,
                                             ::testing::Values(128),
                                             ::testing::Values(size_t{0}),  // gate_idx unused for GEMM3
                                             ::testing::Values(false),      // force_gather_matmul
-                                            ::testing::Values(MoEActivationType::GELU)),
+                                            ::testing::Values(MoEActivationType::GELU),
+                                            ::testing::Values(false)),     // use_per_expert_scale
+                         MoECompressedFusionTest::getTestCaseName);
+
+// Gemma-4 style: SOFTMAX routing with a per-expert scale table (Const[N] → Gather(topk_idx) → Multiply).
+INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmPerExpertScale,
+                         MoECompressedFusionTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
+                                            ::testing::Values(MoePatternType::GEMM3),
+                                            ::testing::Values(MoERoutingType::SOFTMAX),
+                                            ::testing::Values(ov::element::u4),   // weights_precision
+                                            ::testing::Values(ov::element::f16),  // decompression_precision
+                                            ::testing::Values(ov::element::f16),  // scale_precision
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(true),   // reshape_on_decompression
+                                            ::testing::Values(128),
+                                            ::testing::Values(size_t{0}),  // gate_idx unused for GEMM3
+                                            ::testing::Values(false),      // force_gather_matmul
+                                            ::testing::Values(MoEActivationType::SWISH),
+                                            ::testing::Values(true)),      // use_per_expert_scale
                          MoECompressedFusionTest::getTestCaseName);
 
 }  // namespace

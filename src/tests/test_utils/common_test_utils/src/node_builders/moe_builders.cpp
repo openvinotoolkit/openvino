@@ -45,7 +45,10 @@ namespace ov {
 namespace test {
 
 std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>>
-build_softmax_routing_subgraph(const ov::Output<ov::Node>& routing_weights, size_t number_of_experts, size_t topk) {
+build_softmax_routing_subgraph(const ov::Output<ov::Node>& routing_weights,
+                               size_t number_of_experts,
+                               size_t topk,
+                               bool use_per_expert_scale) {
     using namespace ov::op;
 
     auto router_softmax = std::make_shared<v8::Softmax>(routing_weights, 1);
@@ -60,6 +63,16 @@ build_softmax_routing_subgraph(const ov::Output<ov::Node>& routing_weights, size
                                         true);
     auto scatter_w = ov::Output<ov::Node>{std::make_shared<v1::Divide>(router_topk->output(0), reduce_sm)};
     auto topk_idx = router_topk->output(1);
+
+    if (use_per_expert_scale) {
+        const auto elem_type = routing_weights.get_element_type();
+        auto pes_data = ov::test::utils::InputGenerateData(0.5, 1.5, 100, 42);
+        auto per_expert_scale_const =
+            ov::test::utils::make_constant(elem_type, ov::Shape{number_of_experts}, pes_data);
+        auto gather_axis = v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
+        auto gathered_scales = std::make_shared<v8::Gather>(per_expert_scale_const, topk_idx, gather_axis);
+        scatter_w = std::make_shared<v1::Multiply>(scatter_w, gathered_scales);
+    }
 
     auto shapeof = std::make_shared<v3::ShapeOf>(topk_idx);
     auto gather = std::make_shared<v8::Gather>(shapeof,
@@ -462,7 +475,8 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
     const std::optional<bool> reshape_on_decompression,
     const std::optional<int> decompression_group_size,
     MoERoutingType routing_type,
-    MoEActivationType activation_type) {
+    MoEActivationType activation_type,
+    bool use_per_expert_scale) {
     // Use parameters from shape_params - static shapes only
     const auto& input_shape = moe_params.data_shape;
     const size_t intermediate_size = moe_params.intermediate_size;
@@ -582,9 +596,10 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
     std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> routing_outputs;
     switch (routing_type) {
     case MoERoutingType::SOFTMAX:
-        routing_outputs = build_softmax_routing_subgraph(router_matmul, number_of_experts, topk);
+        routing_outputs = build_softmax_routing_subgraph(router_matmul, number_of_experts, topk, use_per_expert_scale);
         break;
     case MoERoutingType::SIGMOID_BIAS:
+        OPENVINO_ASSERT(!use_per_expert_scale, "Per-expert scale is only supported for SOFTMAX routing");
         routing_outputs = build_sigmoid_bias_routing_subgraph(router_matmul, data_precision, number_of_experts, topk);
         break;
     default:
