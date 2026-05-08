@@ -10,6 +10,7 @@
 #include <openvino/op/clamp.hpp>
 #include <openvino/op/concat.hpp>
 #include <openvino/op/constant.hpp>
+#include <openvino/op/gelu.hpp>
 #include <openvino/op/matmul.hpp>
 #include <openvino/op/minimum.hpp>
 #include <openvino/op/moe.hpp>
@@ -278,7 +279,8 @@ inline std::shared_ptr<ov::Model> build_3gemm_moe_pattern_model() {
 // Post-BGM model builders (3 BGMs + compact routing + ReduceSum + Reshape)
 // ============================================================================
 
-inline std::shared_ptr<ov::Model> build_3gemm_bgm_model() {
+inline std::shared_ptr<ov::Model> build_3gemm_bgm_model(
+    ov::op::internal::MOE::Activation_type activation_type = ov::op::internal::MOE::Activation_type::SWIGLU) {
     using namespace ov;
 
     const size_t batch = 2;
@@ -325,9 +327,14 @@ inline std::shared_ptr<ov::Model> build_3gemm_bgm_model() {
 
     // 3 BGMs
     auto bgm_gate = std::make_shared<GatherMatmul>(unsqueeze, gate_w, topk_indices);
-    auto swish = std::make_shared<op::v4::Swish>(bgm_gate);
+    std::shared_ptr<ov::Node> gate_act;
+    if (activation_type == ov::op::internal::MOE::Activation_type::GEGLU_TANH) {
+        gate_act = std::make_shared<op::v7::Gelu>(bgm_gate, ov::op::GeluApproximationMode::TANH);
+    } else {
+        gate_act = std::make_shared<op::v4::Swish>(bgm_gate);
+    }
     auto bgm_up = std::make_shared<GatherMatmul>(unsqueeze, up_w, topk_indices);
-    auto swiglu = std::make_shared<op::v1::Multiply>(swish, bgm_up);
+    auto swiglu = std::make_shared<op::v1::Multiply>(gate_act, bgm_up);
     auto bgm_down = std::make_shared<GatherMatmul>(swiglu, down_w, topk_indices);
 
     // Compact routing: chosen_experts → Transpose({1,0}) → Unsqueeze(-1)
@@ -355,7 +362,8 @@ inline std::shared_ptr<ov::Model> build_3gemm_bgm_model() {
     return std::make_shared<ov::Model>(ov::OutputVector{end_reshape}, ov::ParameterVector{input});
 }
 
-inline std::shared_ptr<ov::Model> build_3gemm_bgm_to_moe_reference_model() {
+inline std::shared_ptr<ov::Model> build_3gemm_bgm_to_moe_reference_model(
+    ov::op::internal::MOE::Activation_type activation_type = ov::op::internal::MOE::Activation_type::SWIGLU) {
     using namespace ov;
 
     const size_t batch = 2;
@@ -406,6 +414,7 @@ inline std::shared_ptr<ov::Model> build_3gemm_bgm_to_moe_reference_model() {
     ov::OutputVector moe_inputs = {input, router_unsqueeze, topk_indices, gate_w, up_w, down_w};
     ov::op::internal::MOE::Config config;
     config.expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
+    config.activation_type = activation_type;
     auto moe = std::make_shared<ov::op::internal::MOE>(moe_inputs, config);
 
     return std::make_shared<ov::Model>(ov::OutputVector{moe}, ov::ParameterVector{input});
@@ -590,6 +599,13 @@ TEST_F(TransformationTestsF, Convert3GatherMatmulMoeBlockToMoeOp_basic) {
     model = build_3gemm_bgm_model();
     manager.register_pass<ov::pass::Convert3GatherMatmulMoeBlockToMoeOp>();
     model_ref = build_3gemm_bgm_to_moe_reference_model();
+}
+
+TEST_F(TransformationTestsF, Convert3GatherMatmulMoeBlockToMoeOp_gelu_tanh) {
+    using AT = ov::op::internal::MOE::Activation_type;
+    model = build_3gemm_bgm_model(AT::GEGLU_TANH);
+    manager.register_pass<ov::pass::Convert3GatherMatmulMoeBlockToMoeOp>();
+    model_ref = build_3gemm_bgm_to_moe_reference_model(AT::GEGLU_TANH);
 }
 
 TEST_F(TransformationTestsF, Convert2GatherMatmulMoeBlockToMoeOp_basic) {

@@ -42,6 +42,7 @@ bool MOE::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("expert_alpha", m_config.expert_alpha);
     visitor.on_attribute("expert_beta", m_config.expert_beta);
     visitor.on_attribute("gate_idx", m_config.gate_idx);
+    visitor.on_attribute("activation_type", m_config.activation_type);
 
     return true;
 }
@@ -53,6 +54,10 @@ std::ostream& operator<<(std::ostream& s, const ov::op::internal::MOE::Expert_ty
     return s << as_string(type);
 }
 
+std::ostream& operator<<(std::ostream& s, const ov::op::internal::MOE::Activation_type& type) {
+    return s << as_string(type);
+}
+
 template <>
 OPENVINO_API EnumNames<ov::op::internal::MOE::Expert_type>& EnumNames<ov::op::internal::MOE::Expert_type>::get() {
     static auto enum_names = EnumNames<ov::op::internal::MOE::Expert_type>(
@@ -60,6 +65,17 @@ OPENVINO_API EnumNames<ov::op::internal::MOE::Expert_type>& EnumNames<ov::op::in
         {
             {"gemm2_bias_swiglu_clamp", ov::op::internal::MOE::Expert_type::GEMM2_BIAS_SWIGLU_CLAMP},
             {"gemm3_swiglu", ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU},
+        });
+    return enum_names;
+}
+
+template <>
+OPENVINO_API EnumNames<ov::op::internal::MOE::Activation_type>& EnumNames<ov::op::internal::MOE::Activation_type>::get() {
+    static auto enum_names = EnumNames<ov::op::internal::MOE::Activation_type>(
+        "ov::op::internal::MOE::Activation_type",
+        {
+            {"swiglu", ov::op::internal::MOE::Activation_type::SWIGLU},
+            {"geglu_tanh", ov::op::internal::MOE::Activation_type::GEGLU_TANH},
         });
     return enum_names;
 }

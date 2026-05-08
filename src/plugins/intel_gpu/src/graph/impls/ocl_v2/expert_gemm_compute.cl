@@ -159,7 +159,11 @@ inline bool expert_gemm_compute(
                         float gate = tiles[1].x[ri][rj];
                         float value = tiles[0].x[ri][rj];
 #endif
+#ifdef GATE_ACT_GELU_TANH
+                        float swish = 0.5f * gate * (1.0f + tanh(0.7978845608028654f * (gate + 0.044715f * gate * gate * gate)));
+#else
                         float swish = gate / (1.0f + native_exp(-SWISH_BETA * gate));
+#endif
                         c_tile_half.x[ri][rj] = (half)(value * swish);
                     }
                 }
@@ -212,7 +216,12 @@ inline bool expert_gemm_compute(
                         int reg_idx_i = (i0 / br) + nbr * (j / bc);
                         int reg_idx_j = (i0 % br) / sg + (j % bc) * (br / sg);
                         float val = c_tile_half.x[reg_idx_i][reg_idx_j];
-                        float res = post_val * (val / (1.0f + native_exp(-val)));
+#ifdef GATE_ACT_GELU_TANH
+                        float act = 0.5f * val * (1.0f + tanh(0.7978845608028654f * (val + 0.044715f * val * val * val)));
+#else
+                        float act = val / (1.0f + native_exp(-val));
+#endif
+                        float res = post_val * act;
                         c_tile_half.x[reg_idx_i][reg_idx_j] = res;
                     }
                 }

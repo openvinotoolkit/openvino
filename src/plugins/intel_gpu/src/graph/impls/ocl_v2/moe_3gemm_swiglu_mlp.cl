@@ -33,6 +33,13 @@
 // 4 (e.g. SG=32 + FAKE=128 or SG=16 + FAKE=64), and 8 (SG=16 + FAKE=128).
 #define ELEMS_PER_LANE (FAKE_GROUP_SIZE / SUBGROUP_SIZE)
 
+// Gate activation: SwiGLU (Swish, default) or GeGLU (Tanh-approximated Gelu when GATE_ACT_GELU_TANH is set).
+#ifdef GATE_ACT_GELU_TANH
+#    define MOE_GATE_ACT(x) (0.5f * (x) * (1.0f + tanh(0.7978845608028654f * ((x) + 0.044715f * (x) * (x) * (x)))))
+#else
+#    define MOE_GATE_ACT(x) ((x) / (1.0f + exp(-(x))))
+#endif
+
 // HAS_ZP: 1 = asymmetric quantization (subtract zero point), 0 = symmetric (no zero point)
 #if HAS_ZP
 #    define ZP_ADJUST_2(sum0, sum1, xg_sum_gk, z0, z1) ((sum0) - (xg_sum_gk) * (z0)), ((sum1) - (xg_sum_gk) * (z1))
@@ -175,8 +182,8 @@ inline void gate_up_gemv_n2x_u4(const __global uchar* weight,
         sum_all1 = sub_group_reduce_add(sum_all1);
         if (id_local == 0) {
             if (silu) {
-                y[n] *= sum_all0 / (1 + exp(-sum_all0));
-                y[n + 1] *= sum_all1 / (1 + exp(-sum_all1));
+                y[n] *= MOE_GATE_ACT(sum_all0);
+                y[n + 1] *= MOE_GATE_ACT(sum_all1);
             } else {
                 y[n] = sum_all0;
                 y[n + 1] = sum_all1;
@@ -303,8 +310,8 @@ inline void gate_up_gemv_n2x_u8(const __global uchar* weight,
         sum_all1 = sub_group_reduce_add(sum_all1);
         if (id_local == 0) {
             if (silu) {
-                y[n] *= sum_all0 / (1 + exp(-sum_all0));
-                y[n + 1] *= sum_all1 / (1 + exp(-sum_all1));
+                y[n] *= MOE_GATE_ACT(sum_all0);
+                y[n + 1] *= MOE_GATE_ACT(sum_all1);
             } else {
                 y[n] = sum_all0;
                 y[n + 1] = sum_all1;
@@ -395,8 +402,8 @@ inline void gate_up_gemv_n2x_f16(const __global half* weight, __global half* y, 
         sum_all1 = sub_group_reduce_add(sum_all1);
         if (id_local == 0) {
             if (silu) {
-                y[n] *= sum_all0 / (1 + exp(-sum_all0));
-                y[n + 1] *= sum_all1 / (1 + exp(-sum_all1));
+                y[n] *= MOE_GATE_ACT(sum_all0);
+                y[n + 1] *= MOE_GATE_ACT(sum_all1);
             } else {
                 y[n] = sum_all0;
                 y[n + 1] = sum_all1;

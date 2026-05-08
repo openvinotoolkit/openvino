@@ -519,10 +519,10 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
 
     gate_matmul->set_friendly_name("GateMatMul");
 
-    // Apply gate activation (Swish for SwiGLU, Gelu for GeGLU)
+    // Apply gate activation (Swish for SwiGLU, Tanh-approximated Gelu for GeGLU)
     std::shared_ptr<ov::Node> gate_act;
     if (activation_type == MoEActivationType::GELU) {
-        gate_act = std::make_shared<ov::op::v7::Gelu>(gate_matmul);
+        gate_act = std::make_shared<ov::op::v7::Gelu>(gate_matmul, ov::op::GeluApproximationMode::TANH);
     } else {
         gate_act = std::make_shared<ov::op::v4::Swish>(gate_matmul);
     }

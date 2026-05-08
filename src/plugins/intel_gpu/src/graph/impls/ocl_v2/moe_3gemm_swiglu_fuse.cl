@@ -229,6 +229,22 @@ KERNEL (index_add_)(const __global MOE_DTYPE* src_tok,
 
 #define SWISH_BETA 1.0f
 #define ACC_DTYPE float
+
+// Tanh-approximation Gelu: 0.5 * x * (1 + tanh(sqrt(2/pi) * (x + 0.044715 * x^3)))
+#define GELU_TANH_SQRT_2_OVER_PI 0.7978845608028654f
+#define GELU_TANH_C 0.044715f
+
+inline ACC_DTYPE moe_gate_activation(ACC_DTYPE x) {
+#if GATE_ACT_GELU_TANH
+    ACC_DTYPE x3 = x * x * x;
+    ACC_DTYPE inner = GELU_TANH_SQRT_2_OVER_PI * (x + GELU_TANH_C * x3);
+    return 0.5f * x * (1.0f + tanh(inner));
+#else
+    // Swish (SwiGLU): x * sigmoid(beta * x)
+    return x / (1.0f + native_exp(-SWISH_BETA * x));
+#endif
+}
+
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
 KERNEL(swiglu_ref) (
     const __global MOE_DTYPE* up, // [token_len * expert_topK, inter_size]
@@ -245,14 +261,14 @@ KERNEL(swiglu_ref) (
     const uint offset = token_idx * INTERMEDIA_SIZE + n_offset - sg_id;
     ACC_DTYPE up_value = as_half(intel_sub_group_block_read_us((const __global ushort *)(up + offset)));
     ACC_DTYPE gate_value = as_half(intel_sub_group_block_read_us((const __global ushort *)(gate + offset)));
-    ACC_DTYPE value = gate_value / (1.0f + native_exp(-SWISH_BETA * gate_value));
+    ACC_DTYPE value = moe_gate_activation(gate_value);
     half result = value * up_value;
     intel_sub_group_block_write_us((__global ushort *)(output + offset), as_ushort(result));
 #else
     const uint offset = token_idx * INTERMEDIA_SIZE + n_offset;
     ACC_DTYPE gate_value = gate[offset];
     ACC_DTYPE up_value = up[offset];
-    ACC_DTYPE value = gate_value / (1.0f + native_exp(-SWISH_BETA * gate_value));
+    ACC_DTYPE value = moe_gate_activation(gate_value);
     ACC_DTYPE result = value * up_value;
     output[offset] = result;
 #endif

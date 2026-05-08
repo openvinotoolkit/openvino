@@ -147,10 +147,7 @@ protected:
         ov::test::SubgraphBaseTest::validate();
         const auto pattern_type = std::get<1>(GetParam());
         const auto force_gather_matmul = std::get<11>(GetParam());
-        const auto activation_type = std::get<12>(GetParam());
-        // Gelu activation is not supported by the fused kernel -> always falls back to gather_matmul.
-        const bool use_gather_matmul = force_gather_matmul || activation_type == MoEActivationType::GELU;
-        if (use_gather_matmul) {
+        if (force_gather_matmul) {
             // GEMM3: gate, up, down → 3 GatherMatmul ops; GEMM2: fused gate_up + down → 2.
             ov::test::CheckNumberOfNodesWithType(compiledModel, "gather_matmul", pattern_type == MoePatternType::GEMM3 ? 3 : 2);
         } else {
