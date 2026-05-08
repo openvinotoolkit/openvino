@@ -333,6 +333,125 @@ TEST_F(TransformationTestsF, FuseMOE3GemmCompressedTest_GeluTanhActivation) {
     }
 }
 
+// Gemma-4 style: softmax routing with a per-expert scale table (Const[N] → Gather(topk_idx) → Multiply).
+// The scale is statically folded  into w2_scale.
+TEST_F(TransformationTestsF, FuseMOE3GemmCompressed_SoftmaxPerExpertScale) {
+    constexpr int32_t batch = 4;
+    constexpr int32_t sequence_length = 8;
+    constexpr int32_t tokens = batch * sequence_length;
+    constexpr int32_t hidden_size = 2048;
+    constexpr int32_t inter_size = 768;
+    constexpr int32_t num_experts = 128;
+    constexpr int32_t top_k = 8;
+    constexpr int32_t group_size = 128;
+    constexpr int32_t gate_up_quant_group = 16;
+    constexpr int32_t quant_granularity = 128;
+    constexpr int32_t down_quant_group = 6;
+
+    constexpr float per_expert_scale_val = 2.0f;
+    constexpr float scale_down_val = 0.25f;
+    constexpr float scale_down_folded_val = per_expert_scale_val * scale_down_val;
+    constexpr float routing_weight_init_val = 0.2f;
+    constexpr float gate_scale_init_val = 0.01f;
+    constexpr float up_scale_init_val = 0.01f;
+
+    {
+        auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{batch, sequence_length, hidden_size});
+        auto flatten_shape = op::v0::Constant::create(element::i32, Shape{2}, {tokens, hidden_size});
+        auto hidden_states_reshape = std::make_shared<ov::op::v1::Reshape>(hidden_states, flatten_shape, false);
+        auto routers = op::v0::Constant::create(element::f16, Shape{hidden_size, num_experts}, {routing_weight_init_val});
+        auto routing_weights = std::make_shared<ov::op::v0::MatMul>(hidden_states_reshape, routers);
+
+        // Softmax → TopK → ReduceSum → Divide → Multiply(norm, Gather(per_expert_scale, topk_idx))
+        auto softmax = std::make_shared<ov::op::v8::Softmax>(routing_weights, 1);
+        auto k_const = op::v0::Constant::create(element::i32, Shape{}, {top_k});
+        auto topk_node = std::make_shared<ov::op::v11::TopK>(softmax, k_const, 1, ov::op::v11::TopK::Mode::MAX, ov::op::v11::TopK::SortType::SORT_VALUES);
+        auto convert_topk = std::make_shared<ov::op::v0::Convert>(topk_node->output(1), element::i32);
+        auto reduce_axis = op::v0::Constant::create(element::i64, Shape{1}, {1});
+        auto reduce_sum = std::make_shared<ov::op::v1::ReduceSum>(topk_node->output(0), reduce_axis, true);
+        auto norm = std::make_shared<ov::op::v1::Divide>(topk_node->output(0), reduce_sum);
+        auto per_expert_scale = op::v0::Constant::create(element::f16, Shape{num_experts}, {per_expert_scale_val});
+        auto gather_axis = op::v0::Constant::create(element::i32, Shape{}, {0});
+        auto gathered = std::make_shared<ov::op::v8::Gather>(per_expert_scale, convert_topk, gather_axis, 0);
+        auto norm_scaled = std::make_shared<ov::op::v1::Multiply>(norm, gathered);
+        auto transpose_order = op::v0::Constant::create(element::i64, Shape{2}, {1, 0});
+        auto transpose = std::make_shared<ov::op::v1::Transpose>(norm_scaled, transpose_order);
+        auto unsqueeze_const = op::v0::Constant::create(element::i64, Shape{1}, {-1});
+        auto unsqueeze_moe = std::make_shared<ov::op::v0::Unsqueeze>(transpose, unsqueeze_const);
+
+        auto wei_gate = op::v0::Constant::create(element::u4, Shape{num_experts, inter_size, gate_up_quant_group, quant_granularity}, {1});
+        auto scale_gate = op::v0::Constant::create(element::f16, Shape{num_experts, inter_size, gate_up_quant_group}, {gate_scale_init_val});
+        auto zp_gate = op::v0::Constant::create(element::u4, Shape{num_experts, inter_size, gate_up_quant_group}, {0});
+        auto wei_up = op::v0::Constant::create(element::u4, Shape{num_experts, inter_size, gate_up_quant_group, quant_granularity}, {1});
+        auto scale_up = op::v0::Constant::create(element::f16, Shape{num_experts, inter_size, gate_up_quant_group}, {up_scale_init_val});
+        auto zp_up = op::v0::Constant::create(element::u4, Shape{num_experts, inter_size, gate_up_quant_group}, {0});
+        auto wei_down = op::v0::Constant::create(element::u4, Shape{num_experts, hidden_size, down_quant_group, quant_granularity}, {1});
+        auto scale_down = op::v0::Constant::create(element::f16, Shape{num_experts, hidden_size, down_quant_group}, {scale_down_val});
+        auto zp_down = op::v0::Constant::create(element::u4, Shape{num_experts, hidden_size, down_quant_group}, {0});
+
+        ov::op::internal::MOECompressed::Config config;
+        config.expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
+        config.has_zp = true;
+        config.hidden_size = hidden_size;
+        config.inter_size = inter_size;
+        config.num_expert = num_experts;
+        config.group_size = group_size;
+        config.top_k = top_k;
+        config.out_type = ov::element::f16;
+
+        auto moe_compressed = std::make_shared<ov::op::internal::MOECompressed>(ov::OutputVector{hidden_states_reshape,
+                                                                                                 unsqueeze_moe,
+                                                                                                 convert_topk,
+                                                                                                 wei_gate,
+                                                                                                 scale_gate,
+                                                                                                 zp_gate,
+                                                                                                 wei_up,
+                                                                                                 scale_up,
+                                                                                                 zp_up,
+                                                                                                 wei_down,
+                                                                                                 scale_down,
+                                                                                                 zp_down},
+                                                                                config);
+        model = std::make_shared<ov::Model>(moe_compressed, ov::ParameterVector{hidden_states});
+    }
+    manager.register_pass<FuseMOE3GemmCompressed>();
+    {
+        // Expected: per_expert_scale folded into w2_scale; no post-Multiply on output.
+        auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{batch, sequence_length, hidden_size});
+        auto flatten_shape = op::v0::Constant::create(element::i32, Shape{2}, {tokens, hidden_size});
+        auto hidden_states_reshape = std::make_shared<ov::op::v1::Reshape>(hidden_states, flatten_shape, false);
+        auto routers = op::v0::Constant::create(element::f16, Shape{hidden_size, num_experts}, {routing_weight_init_val});
+        auto routing_weights = std::make_shared<ov::op::v0::MatMul>(hidden_states_reshape, routers);
+
+        auto wei_gate = op::v0::Constant::create(element::u4, Shape{num_experts, inter_size, gate_up_quant_group, quant_granularity}, {1});
+        auto scale_gate = op::v0::Constant::create(element::f16, Shape{num_experts, inter_size, gate_up_quant_group}, {gate_scale_init_val});
+        auto zp_gate = op::v0::Constant::create(element::u4, Shape{num_experts, inter_size, gate_up_quant_group}, {0});
+        auto wei_up = op::v0::Constant::create(element::u4, Shape{num_experts, inter_size, gate_up_quant_group, quant_granularity}, {1});
+        auto scale_up = op::v0::Constant::create(element::f16, Shape{num_experts, inter_size, gate_up_quant_group}, {up_scale_init_val});
+        auto zp_up = op::v0::Constant::create(element::u4, Shape{num_experts, inter_size, gate_up_quant_group}, {0});
+        auto wei_down = op::v0::Constant::create(element::u4, Shape{num_experts, hidden_size, down_quant_group, quant_granularity}, {1});
+        // w2_scale with per_expert_scale baked in: scale_down_val * per_expert_scale_val
+        auto scale_down_folded = op::v0::Constant::create(element::f16, Shape{num_experts, hidden_size, down_quant_group}, {scale_down_folded_val});
+        auto zp_down = op::v0::Constant::create(element::u4, Shape{num_experts, hidden_size, down_quant_group}, {0});
+
+        ov::op::internal::MOECompressed::Config config;
+        config.expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
+        config.routing_type = ov::op::internal::MOECompressed::RoutingType::SOFTMAX;
+        config.has_zp = true;
+        config.hidden_size = hidden_size;
+        config.inter_size = inter_size;
+        config.num_expert = num_experts;
+        config.group_size = group_size;
+        config.top_k = top_k;
+        config.out_type = ov::element::f16;
+
+        ov::OutputVector
+            args{hidden_states_reshape, routing_weights, wei_gate, scale_gate, zp_gate, wei_up, scale_up, zp_up, wei_down, scale_down_folded, zp_down};
+        auto result = std::make_shared<ov::intel_gpu::op::MOE3GemmFusedCompressed>(args, config);
+        model_ref = std::make_shared<ov::Model>(result, ov::ParameterVector{hidden_states});
+    }
+}
+
 TEST_F(TransformationTestsF, FuseMOE3GemmSharedExpertCompressedTest) {
     // ── MoE shape parameters (shared between input model and reference model) ──
     constexpr size_t tokens = 32;
