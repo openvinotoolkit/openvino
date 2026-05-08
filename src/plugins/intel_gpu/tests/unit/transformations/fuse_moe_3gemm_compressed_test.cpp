@@ -8,15 +8,21 @@
 #include "ov_ops/moe_compressed.hpp"
 #include "intel_gpu/op/moe_3gemm_fused_compressed.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/gather_elements.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sigmoid.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/topk.hpp"
 #include "openvino/op/transpose.hpp"
@@ -33,7 +39,7 @@ namespace intel_gpu {
 
 using namespace ov::test;
 
-using FuseMOE3GemmCompressedTestParams = std::tuple<MoERoutingType, bool /* reshape_on_moe_input */>;
+using FuseMOE3GemmCompressedTestParams = std::tuple<MoERoutingType, bool /* reshape_on_moe_input */, bool /* with_routed_scale */>;
 
 class FuseMOE3GemmCompressedTest : public TransformationTestsF,
                                    public ::testing::WithParamInterface<FuseMOE3GemmCompressedTestParams> {
@@ -52,6 +58,8 @@ public:
         }
         if (std::get<1>(info.param))
             name += "_ReshapeOnMoeInput";
+        if (std::get<2>(info.param))
+            name += "_RoutedScalingFactor";
         return name;
     }
 };
@@ -75,12 +83,15 @@ build_softmax_routing_for_fuse_test(const ov::Output<ov::Node>& routing_weights,
     return {unsqueeze_moe, topk_node->output(1)};
 }
 
-// Sigmoid+bias routing: Sigmoid → Add → TopK → Convert → GatherElements → ReduceSum → Add(eps) → Divide → Transpose → Unsqueeze.
+// Sigmoid+bias routing: Sigmoid → Add → TopK → Convert → GatherElements → ReduceSum → Add(eps) → Divide
+//                       [→ Multiply(routed_scaling_factor) when scale_value is set]
+//                       → Transpose → Unsqueeze.
 static std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>>
 build_sigmoid_routing_for_fuse_test(const ov::Output<ov::Node>& routing_weights,
                                     ov::element::Type data_precision,
                                     size_t number_of_experts,
-                                    size_t topk) {
+                                    size_t topk,
+                                    std::optional<float> scale_value = std::nullopt) {
     auto sigmoid = std::make_shared<ov::op::v0::Sigmoid>(routing_weights);
     auto bias = op::v0::Constant::create(data_precision, Shape{1, number_of_experts}, {0.1f});
     auto sig_add = std::make_shared<ov::op::v1::Add>(sigmoid, bias);
@@ -95,7 +106,15 @@ build_sigmoid_routing_for_fuse_test(const ov::Output<ov::Node>& routing_weights,
     auto reduce_sum = std::make_shared<ov::op::v1::ReduceSum>(gather_el, reduce_axis, true);
     auto eps = op::v0::Constant::create(data_precision, Shape{1, 1}, {1e-6f});
     auto add_eps = std::make_shared<ov::op::v1::Add>(reduce_sum, eps);
-    auto norm = std::make_shared<ov::op::v1::Divide>(gather_el, add_eps);
+    std::shared_ptr<ov::Node> norm = std::make_shared<ov::op::v1::Divide>(gather_el, add_eps);
+
+    // Mirror trinity-mini afmoe `routed_scaling_factor`: an extra Multiply between
+    // the normalized routing weights and the final Transpose. The matcher's optional<Multiply>
+    // absorbs it; the callback re-applies it as a post-op Multiply on the fused MOE output.
+    if (scale_value.has_value()) {
+        auto scale_const = op::v0::Constant::create(data_precision, Shape{1, 1}, {*scale_value});
+        norm = std::make_shared<ov::op::v1::Multiply>(norm, scale_const);
+    }
 
     auto transpose_order = op::v0::Constant::create(element::i64, Shape{2}, {1, 0});
     auto transpose = std::make_shared<ov::op::v1::Transpose>(norm, transpose_order);
@@ -106,7 +125,10 @@ build_sigmoid_routing_for_fuse_test(const ov::Output<ov::Node>& routing_weights,
 }
 
 TEST_P(FuseMOE3GemmCompressedTest, CompareFunctions) {
-    const auto& [routing_type, reshape_on_moe_input] = GetParam();
+    const auto& [routing_type, reshape_on_moe_input, with_routed_scale] = GetParam();
+    constexpr float routed_scale_value = 2.5f;
+    // routed_scaling_factor only applies to the SIGMOID_BIAS branch.
+    ASSERT_TRUE(!with_routed_scale || routing_type == MoERoutingType::SIGMOID_BIAS);
     {
         // tokens:32, hidden_size:2048, inter_size:768, experts:128, topk:8
         auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{4, 8, 2048});
@@ -116,10 +138,14 @@ TEST_P(FuseMOE3GemmCompressedTest, CompareFunctions) {
         auto routing_weights = std::make_shared<ov::op::v0::MatMul>(hidden_states_reshape, routers);
 
         // Build post-GatherMatmul routing (no ScatterElementsUpdate)
+        std::optional<float> scale_opt;
+        if (with_routed_scale) {
+            scale_opt = routed_scale_value;
+        }
         auto [unsqueeze_moe, topk_indices] =
             routing_type == MoERoutingType::SOFTMAX
                 ? build_softmax_routing_for_fuse_test(routing_weights, 8)
-                : build_sigmoid_routing_for_fuse_test(routing_weights, element::f16, 128, 8);
+                : build_sigmoid_routing_for_fuse_test(routing_weights, element::f16, 128, 8, scale_opt);
 
         // weight
         auto wei_gate = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {1});
@@ -200,22 +226,38 @@ TEST_P(FuseMOE3GemmCompressedTest, CompareFunctions) {
         std::shared_ptr<ov::Node> result = std::make_shared<ov::intel_gpu::op::MOE3GemmFusedCompressed>(args, config);
 
         // When reshape_on_moe_input is false, MOE3GemmFusedCompressed takes reshaped input from routing subgraph,
-        // so the transformation inserts a reshape-back to restore the original shape.
+        // so the transformation inserts a reshape-back to restore the original shape. The reshape-back is
+        // emitted before the post-op Multiply in the callback, so mirror that order here.
         if (!reshape_on_moe_input) {
             auto hidden_state_shape = std::make_shared<ov::op::v3::ShapeOf>(hidden_states);
             result = std::make_shared<ov::op::v1::Reshape>(result, hidden_state_shape, false);
+        }
+
+        // The transformation re-applies the absorbed routed_scaling_factor as a post-op Multiply.
+        // Scale is already f16, so no Convert insertion is expected.
+        if (with_routed_scale) {
+            auto post_scale = op::v0::Constant::create(element::f16, Shape{1, 1}, {routed_scale_value});
+            result = std::make_shared<ov::op::v1::Multiply>(result, post_scale);
         }
 
         model_ref = std::make_shared<ov::Model>(result, ov::ParameterVector{hidden_states});
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke,
-                         FuseMOE3GemmCompressedTest,
-                         ::testing::Combine(
-                             ::testing::Values(MoERoutingType::SOFTMAX, MoERoutingType::SIGMOID_BIAS),
-                             ::testing::Values(false, true)),
-                         FuseMOE3GemmCompressedTest::get_test_case_name);
+INSTANTIATE_TEST_SUITE_P(
+    smoke,
+    FuseMOE3GemmCompressedTest,
+    ::testing::ValuesIn(std::vector<FuseMOE3GemmCompressedTestParams>{
+        // {routing_type, reshape_on_moe_input, with_routed_scale}
+        {MoERoutingType::SOFTMAX,      false, false},
+        {MoERoutingType::SOFTMAX,      true,  false},
+        {MoERoutingType::SIGMOID_BIAS, false, false},
+        {MoERoutingType::SIGMOID_BIAS, true,  false},
+        // trinity-mini afmoe: SIGMOID_BIAS + extra Multiply(routed_scaling_factor)
+        {MoERoutingType::SIGMOID_BIAS, false, true},
+        {MoERoutingType::SIGMOID_BIAS, true,  true},
+    }),
+    FuseMOE3GemmCompressedTest::get_test_case_name);
 
 TEST_F(TransformationTestsF, FuseMOE3GemmSharedExpertCompressedTest) {
     {

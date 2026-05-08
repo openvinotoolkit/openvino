@@ -1062,6 +1062,8 @@ kernel_selector::activation_function get_kernel_selector_activation_param(activa
             return kernel_selector::activation_function::ROUND_HALF_TO_EVEN;
         case cldnn::activation_func::round_half_away_from_zero:
             return kernel_selector::activation_function::ROUND_HALF_AWAY_FROM_ZERO;
+        case cldnn::activation_func::erfinv:
+            return kernel_selector::activation_function::ERFINV;
         default:
             throw std::runtime_error("Unknown activation function");
             break;

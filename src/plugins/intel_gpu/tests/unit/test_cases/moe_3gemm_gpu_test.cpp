@@ -584,6 +584,18 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                                               Moe3GemmTestParams{1, true, 512, 512, 4, 2, 512},
                                                               Moe3GemmTestParams{1, false, 512, 512, 4, 2, 512})));
 
+// Sub-128 weight quantization group size (e.g. trinity-mini afmoe uses group_size=64
+// with SIGMOID_BIAS routing). Limited to SIGMOID_BIAS to mirror real model usage and
+// to avoid known accuracy noise of the SOFTMAX path on some platforms.
+INSTANTIATE_TEST_SUITE_P(smoke_sub128_group_size,
+                         moe_3gemm_compressed_gpu_random,
+                         ::testing::Combine(::testing::Values(cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS),
+                                            ::testing::Values(Moe3GemmTestParams{1, true, 128, 256, 4, 2, 64},
+                                                              Moe3GemmTestParams{16, true, 128, 256, 4, 2, 64},
+                                                              Moe3GemmTestParams{1, false, 128, 256, 4, 2, 64},
+                                                              Moe3GemmTestParams{1, true, 256, 512, 4, 2, 64},
+                                                              Moe3GemmTestParams{1, false, 256, 512, 4, 2, 64})));
+
 class moe_3gemm_compressed_gpu_u4 : public ::testing::TestWithParam<cldnn::MOE3GemmFusedCompressed::RoutingType> {};
 
 class moe_3gemm_compressed_gpu_shared_random : public ::testing::TestWithParam<Moe3GemmTestParams> {};
@@ -847,7 +859,11 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                            Moe3GemmTestParams{1, true, 256, 512, 4, 2, 256},
                                            Moe3GemmTestParams{1, false, 256, 512, 4, 2, 256},
                                            Moe3GemmTestParams{1, true, 512, 512, 4, 2, 512},
-                                           Moe3GemmTestParams{1, false, 512, 512, 4, 2, 512}));
+                                           Moe3GemmTestParams{1, false, 512, 512, 4, 2, 512},
+                                           // Sub-128 group_size (trinity-mini afmoe shape).
+                                           Moe3GemmTestParams{1, true, 128, 256, 4, 2, 64},
+                                           Moe3GemmTestParams{1, false, 128, 256, 4, 2, 64},
+                                           Moe3GemmTestParams{1, true, 256, 512, 4, 2, 64}));
 
 // Mixed-precision shared expert: sparse experts are compressed (u4/i4/u8/i8),
 // but the shared expert keeps raw f16 weights. This exercises the
@@ -1503,7 +1519,10 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                                               Moe3GemmTestParams{1, true, 256, 512, 4, 2, 256, true},
                                                               Moe3GemmTestParams{1, false, 256, 512, 4, 2, 256, true},
                                                               Moe3GemmTestParams{1, true, 512, 512, 4, 2, 512, true},
-                                                              Moe3GemmTestParams{1, false, 512, 512, 4, 2, 512, true})));
+                                                              Moe3GemmTestParams{1, false, 512, 512, 4, 2, 512, true},
+                                                              // Sub-128 group_size for symmetric quantization.
+                                                              Moe3GemmTestParams{1, true, 128, 256, 4, 2, 64, true},
+                                                              Moe3GemmTestParams{1, false, 128, 256, 4, 2, 64, true})));
 
 // Symmetric quantization test with shared expert
 class moe_3gemm_compressed_gpu_shared_symmetric_random : public ::testing::TestWithParam<Moe3GemmTestParams> {};
@@ -1736,5 +1755,8 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                            Moe3GemmTestParams{1, true, 256, 512, 4, 2, 256, true},
                                            Moe3GemmTestParams{1, false, 256, 512, 4, 2, 256, true},
                                            Moe3GemmTestParams{1, true, 512, 512, 4, 2, 512, true},
-                                           Moe3GemmTestParams{1, false, 512, 512, 4, 2, 512, true}));
-
+                                           Moe3GemmTestParams{1, false, 512, 512, 4, 2, 512, true},
+                                           // Sub-128 group_size for symmetric shared expert.
+                                           Moe3GemmTestParams{1, true, 128, 256, 4, 2, 64, true},
+                                           Moe3GemmTestParams{1, false, 128, 256, 4, 2, 64, true},
+                                           Moe3GemmTestParams{1, true, 256, 512, 4, 2, 64, true}));
