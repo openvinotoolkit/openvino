@@ -102,16 +102,6 @@ static const std::vector<instrumentation::profiling_stage> profiling_stages {
 
 
 bool sycl_event::get_profiling_info_impl(std::list<instrumentation::profiling_interval>& info) {
-    if (duration_nsec.has_value()) {
-        auto stage = instrumentation::profiling_stage::executing;
-        auto duration = std::chrono::nanoseconds(duration_nsec.value());
-        auto period = std::make_shared<instrumentation::profiling_period_basic>(duration);
-
-        info.push_back({ stage, period });
-
-        return true;
-    }
-
     if (!is_event_profiled(_queue))
         return true;
 

@@ -24,10 +24,6 @@ public:
         , _event(ev)
         , _queue(queue) {}
 
-    sycl_event(uint64_t duration_nsec, uint64_t queue_stamp = 0)
-        : sycl_base_event(queue_stamp)
-        , duration_nsec(duration_nsec) {}
-
     ::sycl::event& get() override { return _event; }
 
 private:
@@ -44,7 +40,6 @@ private:
 protected:
     ::sycl::event _event;
     ::sycl::queue _queue;
-    std::optional<uint64_t> duration_nsec;
 };
 
 struct sycl_events : public sycl_base_event {
