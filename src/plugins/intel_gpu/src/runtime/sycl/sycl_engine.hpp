@@ -52,13 +52,6 @@ public:
 #endif
 
     static std::shared_ptr<cldnn::engine> create(const device::ptr device, runtime_types runtime_type);
-
-private:
-
-#ifdef ENABLE_ONEDNN_FOR_GPU
-    std::mutex onednn_mutex;
-    std::shared_ptr<dnnl::engine> _onednn_engine;
-#endif
 };
 
 }  // namespace sycl
