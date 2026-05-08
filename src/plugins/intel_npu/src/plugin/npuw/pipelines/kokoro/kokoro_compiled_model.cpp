@@ -78,6 +78,7 @@ ov::npuw::KokoroCompiledModel::KokoroCompiledModel(const std::shared_ptr<ov::Mod
     ov::AnyMap common_props;
 
     split_kokoro_properties(properties, common_props, npuw_kokoro_props);
+    common_props["NPUW_FALLBACK_EXEC"] = "NO";
 
     m_cfg.parseEnvVars();
     m_cfg.update(any_copy(npuw_kokoro_props));
