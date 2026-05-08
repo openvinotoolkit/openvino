@@ -275,10 +275,27 @@ private:
     mutable bool done = false;
 };
 
-std::optional<int> isPastKeyValuesKey(const std::string& str);
-std::optional<int> isPastKeyValuesValue(const std::string& str);
+// Matches only the contiguous (non-block-split) past key param. Returns the layer index if matched.
+std::optional<int> isPastKeyValuesKeyContiguous(const std::string& str);
+// Matches only the contiguous (non-block-split) past value param. Returns the layer index if matched.
+std::optional<int> isPastKeyValuesValueContiguous(const std::string& str);
+
+// Backward compatibility: Alias for isPastKeyValuesKeyContiguous
+inline std::optional<int> isPastKeyValuesKey(const std::string& str) {
+    return isPastKeyValuesKeyContiguous(str);
+}
+// Backward compatibility: Alias for isPastKeyValuesValueContiguous
+inline std::optional<int> isPastKeyValuesValue(const std::string& str) {
+    return isPastKeyValuesValueContiguous(str);
+}
+
 std::optional<int> isPresentKeyValuesKey(const std::string& str);
 std::optional<int> isPresentKeyValuesValue(const std::string& str);
+
+// Matches any past key param: contiguous (past_key_values.N.key) or block-split (key_block_M).
+bool isPastKeyParam(const std::string& str);
+// Matches any past value param: contiguous or block-split.
+bool isPastValueParam(const std::string& str);
 
 }  // namespace util
 }  // namespace npuw
