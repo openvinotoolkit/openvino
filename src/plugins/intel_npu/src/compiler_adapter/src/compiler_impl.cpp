@@ -321,6 +321,10 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
                                                     &compatibilityStringBuffer,
                                                     &compatibilityStringSize);
         if (result != VCL_RESULT_SUCCESS) {
+            // Check if allocations were performed before throwing exception
+            for (const auto& [buffer, size] : allocator.m_info) {
+                allocator.deallocate(&allocator, buffer);
+            }
             OPENVINO_THROW("Compilation failed. vclAllocatedExecutableCreate3 result: 0x",
                            std::hex,
                            uint64_t(result),
