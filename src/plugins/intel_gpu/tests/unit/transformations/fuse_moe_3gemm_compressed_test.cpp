@@ -673,11 +673,6 @@ TEST_F(TransformationTestsF, FuseMOE3GemmCompressed_SoftmaxRouting_SliceAfterDiv
     }
     manager.register_pass<FuseMOE3GemmCompressed>();
     {
-        // After the fix, FuseMOE3GemmCompressed rewrites the routing+MOECompressed cluster
-        // into a single MOE3GemmFusedCompressed taking the flattened hidden states and the
-        // routing-MatMul output (the fused op recomputes routing internally — Softmax/TopK/
-        // ReduceSum/Divide/Slice/Transpose/Unsqueeze and the original MOECompressed all become
-        // dead and are pruned).
         auto hidden_states_ref = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{batch, seq_len, hidden_size});
         auto flatten_shape_ref = op::v0::Constant::create(element::i32, Shape{2}, {static_cast<int32_t>(tokens), static_cast<int32_t>(hidden_size)});
         auto hidden_states_reshape_ref = std::make_shared<ov::op::v1::Reshape>(hidden_states_ref, flatten_shape_ref, false);
