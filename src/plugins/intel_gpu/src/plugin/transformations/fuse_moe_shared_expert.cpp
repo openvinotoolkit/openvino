@@ -108,33 +108,109 @@ FuseMOESharedExpert::FuseMOESharedExpert() {
             return false;
         }
 
-        // Append shared expert weights to existing MOE inputs.
+        auto sh_gate_w = pattern_map.at(shared_gate_weight_m);
+        auto sh_up_w   = pattern_map.at(shared_up_weight_m);
+        auto sh_down_w = pattern_map.at(shared_down_weight_m);
+
+        // any_input() may be spuriously bound on the non-gating branch — use sigmoid as ground truth.
+        const bool has_gating = pattern_map.count(shared_gate_sigmoid_m) > 0;
+        ov::Output<ov::Node> sh_gate_gate_w;
+        if (has_gating) {
+            sh_gate_gate_w = pattern_map.at(shared_gate_gate_wei_m);
+        }
+
+        auto moe_compressed = ov::as_type_ptr<ov::op::internal::MOECompressed>(moe_node);
+
+        // Detect "F16 shared expert + compressed sparse experts" (mixed-precision) topology:
+        //   * input MOE is MOECompressed (sparse experts are compressed)
+        //   * all three shared weights are direct f16/f32 Constants (no dequant chain)
+        // In this case, we normalize to the 22-input MOECompressed layout that
+        // FuseMOE3GemmCompressed expects (with dummy scale/zp constants), and update
+        // the Config to reflect the shared expert's precision.
+        auto is_uncompressed_const = [](const ov::Output<ov::Node>& v) {
+            auto c = ov::as_type_ptr<ov::op::v0::Constant>(v.get_node_shared_ptr());
+            if (!c) return false;
+            const auto& et = v.get_element_type();
+            return et == ov::element::f16 || et == ov::element::f32;
+        };
+        const bool is_mixed_precision_shared = moe_compressed &&
+                                               is_uncompressed_const(sh_gate_w) &&
+                                               is_uncompressed_const(sh_up_w) &&
+                                               is_uncompressed_const(sh_down_w);
+
         OutputVector new_inputs;
         for (size_t i = 0; i < moe->get_input_size(); ++i) {
             new_inputs.push_back(moe->input_value(i));
         }
-        new_inputs.push_back(pattern_map.at(shared_gate_weight_m));  // shared gate weight
-        new_inputs.push_back(pattern_map.at(shared_up_weight_m));    // shared up weight
-        new_inputs.push_back(pattern_map.at(shared_down_weight_m));  // shared down weight
-
-        // any_input() may be spuriously bound on the non-gating branch — use sigmoid as ground truth.
-        bool has_gating = pattern_map.count(shared_gate_sigmoid_m) > 0;
-        if (has_gating) {
-            new_inputs.push_back(pattern_map.at(shared_gate_gate_wei_m));
-        } else {
-            // No gate_gate: dummy keeps input count consistent.
-            size_t hidden_size = moe->get_output_partial_shape(0).rbegin()->get_length();
-            new_inputs.push_back(
-                ov::op::v0::Constant::create(ov::element::f16, ov::Shape{hidden_size, 1}, std::vector<float>(hidden_size, 0.0f)));
-        }
 
         std::shared_ptr<ov::Node> new_moe;
-        auto moe_compressed = ov::as_type_ptr<ov::op::internal::MOECompressed>(moe_node);
-        if (moe_compressed) {
-            new_moe = std::make_shared<ov::op::internal::MOECompressed>(new_inputs, moe_compressed->get_config());
+        if (is_mixed_precision_shared) {
+            // Build 22-input MOECompressed: 12 base + 9 shared (3 wei + 6 dummy scale/zp) + gate_gate.
+            // Dummy scale/zp are required as input placeholders so downstream patterns/plumbing
+            // see a uniform input count regardless of shared-expert quantization.
+            auto dummy_scalar = [](ov::element::Type et) {
+                return ov::op::v0::Constant::create(et, ov::Shape{1}, {0.0f});
+            };
+            const auto sh_wei_et = sh_gate_w.get_element_type();
+
+            // gate
+            new_inputs.push_back(sh_gate_w);
+            new_inputs.push_back(dummy_scalar(sh_wei_et));   // dummy scale
+            new_inputs.push_back(dummy_scalar(sh_wei_et));   // dummy zp
+            // up
+            new_inputs.push_back(sh_up_w);
+            new_inputs.push_back(dummy_scalar(sh_wei_et));
+            new_inputs.push_back(dummy_scalar(sh_wei_et));
+            // down
+            new_inputs.push_back(sh_down_w);
+            new_inputs.push_back(dummy_scalar(sh_wei_et));
+            new_inputs.push_back(dummy_scalar(sh_wei_et));
+            // gate_gate
+            if (has_gating) {
+                new_inputs.push_back(sh_gate_gate_w);
+            } else {
+                size_t hidden_size = moe->get_output_partial_shape(0).rbegin()->get_length();
+                new_inputs.push_back(ov::op::v0::Constant::create(
+                    ov::element::f16, ov::Shape{hidden_size, 1}, std::vector<float>(hidden_size, 0.0f)));
+            }
+
+            // Update the config to advertise shared expert presence and precision.
+            auto cfg = moe_compressed->get_config();
+            cfg.num_shared_expert = 1;
+            cfg.shared_weight_type = sh_wei_et;
+            cfg.shared_group_size = 0;        // raw f16/f32 — no quantization
+            cfg.shared_has_zp = false;
+            // Derive shared expert intermediate size from the gate-weight constant shape
+            // (logical layout is [hidden_size, inter_size] or [inter_size, hidden_size]).
+            const auto& sh_shape = sh_gate_w.get_partial_shape();
+            if (sh_shape.is_static() && cfg.hidden_size > 0) {
+                const size_t total = ov::shape_size(sh_shape.to_shape());
+                cfg.shared_inter_size = total / cfg.hidden_size;
+            }
+
+            new_moe = std::make_shared<ov::op::internal::MOECompressed>(new_inputs, cfg);
         } else {
-            new_moe = std::make_shared<ov::op::internal::MOE>(new_inputs, moe->get_config());
+            // Backward-compatible behavior: append only weights (and gate_gate). Used by:
+            //   * MOE (non-compressed sparse) path
+            //   * MOECompressed with compressed shared expert (dequant-chain inputs)
+            new_inputs.push_back(sh_gate_w);
+            new_inputs.push_back(sh_up_w);
+            new_inputs.push_back(sh_down_w);
+            if (has_gating) {
+                new_inputs.push_back(sh_gate_gate_w);
+            } else {
+                size_t hidden_size = moe->get_output_partial_shape(0).rbegin()->get_length();
+                new_inputs.push_back(ov::op::v0::Constant::create(
+                    ov::element::f16, ov::Shape{hidden_size, 1}, std::vector<float>(hidden_size, 0.0f)));
+            }
+
+            if (moe_compressed) {
+                new_moe = std::make_shared<ov::op::internal::MOECompressed>(new_inputs, moe_compressed->get_config());
+            } else {
+                new_moe = std::make_shared<ov::op::internal::MOE>(new_inputs, moe->get_config());
+            }
         }
+
         new_moe->set_friendly_name(root_node->get_friendly_name());
         ov::copy_runtime_info({moe_node, root_node}, new_moe);
         ov::replace_node(root_node, new_moe);

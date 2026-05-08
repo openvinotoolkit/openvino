@@ -710,6 +710,17 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
     jit.make("EXPERT_NUM", desc->_config.num_expert);
     jit.make("HIDDEN_SIZE", desc->_config.hidden_size);
     jit.make("INTERMEDIATE_SIZE", desc->_config.inter_size);
+    // Shared-expert intermediate size: defaults to sparse inter_size when not explicitly set,
+    // so existing same-precision shared expert codepaths remain unchanged.
+    {
+        size_t shared_inter = desc->_config.shared_inter_size != 0 ? desc->_config.shared_inter_size
+                                                                   : desc->_config.inter_size;
+        jit.make("SHARED_INTERMEDIATE_SIZE", shared_inter);
+        // Stride used by the decode kernel when computing y[expert_no * stride]; matches the
+        // host-side scratch allocation (`max(inter_size, shared_inter_size)`).
+        size_t max_inter = std::max(static_cast<size_t>(desc->_config.inter_size), shared_inter);
+        jit.make("MAX_INTERMEDIATE_SIZE", max_inter);
+    }
     jit.make("N_BLOCK", N_BLOCK);
     jit.make("SUBGROUP_SIZE", info.arch >= gpu_arch::xe2 ? 32 : 16);
     jit.make("SUBGROUP_NUM", SUBGROUP_NUM);
@@ -739,6 +750,35 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
         jit.make("MOE_WEI_DT", "half");
         jit.make("MOE_SCALE_DT", "half");  // not use
         jit.make("MOE_ZP_DT", "half");     // not use
+    }
+
+    // Shared expert weight precision — may differ from sparse experts (mixed precision)
+    if (desc->_config.num_shared_expert > 0) {
+        ov::element::Type shared_wt = desc->_config.shared_weight_type;
+        // If shared_weight_type is dynamic, inherit from sparse experts (backward compatible)
+        if (shared_wt == ov::element::dynamic) {
+            shared_wt = weight_dt;
+        }
+        if (shared_wt == ov::element::f16 || shared_wt == ov::element::f32) {
+            jit.make("SHARED_WEIGHT_COMPRESSEION_DT", 2);
+            jit.make("SHARED_HAS_ZP", 0);
+            jit.make("SHARED_WEIGHT_IS_SIGNED", 0);
+            // f16 GEMV uses intel_sub_group_block_read_us* on the weight rows, which require
+            // 16-byte alignment. The row stride equals HIDDEN_SIZE * sizeof(half) bytes, so
+            // HIDDEN_SIZE must be a multiple of 8 to keep all row starts aligned.
+            OPENVINO_ASSERT(desc->_config.hidden_size % 8 == 0,
+                            "[moe_3gemm_swiglu_opt] HIDDEN_SIZE must be a multiple of 8 when shared expert weights are uncompressed (got ",
+                            desc->_config.hidden_size,
+                            ")");
+        } else if (shared_wt == ov::element::u4 || shared_wt == ov::element::i4) {
+            jit.make("SHARED_WEIGHT_COMPRESSEION_DT", 0);
+            jit.make("SHARED_HAS_ZP", desc->_config.shared_has_zp ? 1 : 0);
+            jit.make("SHARED_WEIGHT_IS_SIGNED", (shared_wt == ov::element::i4) ? 1 : 0);
+        } else {
+            jit.make("SHARED_WEIGHT_COMPRESSEION_DT", 1);
+            jit.make("SHARED_HAS_ZP", desc->_config.shared_has_zp ? 1 : 0);
+            jit.make("SHARED_WEIGHT_IS_SIGNED", (shared_wt == ov::element::i8) ? 1 : 0);
+        }
     }
 }
 
@@ -1162,13 +1202,30 @@ public:
         auto eng = engine.get_onednn_engine();
         using t = onednn_matmul::type;
 
+        // Detect whether the shared expert weights are quantized. We rely on the weight's element
+        // type rather than scale/zp memory presence: when sparse experts are compressed but shared
+        // experts are raw f16/f32, FuseMOESharedExpert injects dummy scale/zp constants so the
+        // input count stays uniform — those dummies have valid (non-null) memory pointers but
+        // must not be passed to OneDNN.
+        auto is_compressed_dt = [](cldnn::data_types t) {
+            return t == cldnn::data_types::u4 || t == cldnn::data_types::i4 ||
+                   t == cldnn::data_types::u8 || t == cldnn::data_types::i8;
+        };
+        const bool gate_compressed  = is_compressed_dt(addr.shared_weight[0]->get_layout().data_type);
+        const bool up_compressed    = is_compressed_dt(addr.shared_weight[1]->get_layout().data_type);
+        const bool down_compressed  = is_compressed_dt(addr.shared_weight[2]->get_layout().data_type);
+
+        // -1 group_size means "no quantization" to onednn_linear::create.
+        int shared_gate_up_gs = (gate_compressed || up_compressed) ? _gate_up_group_size : -1;
+        int shared_down_gs    = down_compressed ? _down_group_size : -1;
+
         // 1. Up (Standard Linear)
         auto up_w_dt = convert_data_type(addr.shared_weight[1]->get_layout().data_type);
         auto up_w = convert2dnnl(addr.shared_weight[1], {_hidden_size, _shared_intermediate_size}, dnnl::memory::format_tag::ba);
-        auto up_s = addr.shared_scale[1]
+        auto up_s = (up_compressed && addr.shared_scale[1])
                         ? convert2dnnl(addr.shared_scale[1], {_hidden_size / _gate_up_group_size, _shared_intermediate_size}, dnnl::memory::format_tag::ab)
                         : dnnl::memory();
-        auto up_z = addr.shared_zp[1]
+        auto up_z = (up_compressed && addr.shared_zp[1])
                         ? convert2dnnl(addr.shared_zp[1], {_hidden_size / _gate_up_group_size, _shared_intermediate_size}, dnnl::memory::format_tag::ab)
                         : dnnl::memory();
         _shared_up_proj = std::make_shared<onednn_linear>(onednn_linear::create(eng,
@@ -1177,7 +1234,7 @@ public:
                                                                                 batch,
                                                                                 _hidden_size,
                                                                                 _shared_intermediate_size,
-                                                                                _gate_up_group_size,
+                                                                                shared_gate_up_gs,
                                                                                 t::none,
                                                                                 up_w,
                                                                                 up_s,
@@ -1186,10 +1243,10 @@ public:
         // 2. Gate (SiLU + BinMul)
         auto gate_w_dt = convert_data_type(addr.shared_weight[0]->get_layout().data_type);
         auto gate_w = convert2dnnl(addr.shared_weight[0], {_hidden_size, _shared_intermediate_size}, dnnl::memory::format_tag::ba);
-        auto gate_s = addr.shared_scale[0]
+        auto gate_s = (gate_compressed && addr.shared_scale[0])
                           ? convert2dnnl(addr.shared_scale[0], {_hidden_size / _gate_up_group_size, _shared_intermediate_size}, dnnl::memory::format_tag::ab)
                           : dnnl::memory();
-        auto gate_z = addr.shared_zp[0]
+        auto gate_z = (gate_compressed && addr.shared_zp[0])
                           ? convert2dnnl(addr.shared_zp[0], {_hidden_size / _gate_up_group_size, _shared_intermediate_size}, dnnl::memory::format_tag::ab)
                           : dnnl::memory();
         _shared_gate_proj = std::make_shared<onednn_linear>(onednn_linear::create(eng,
@@ -1198,7 +1255,7 @@ public:
                                                                                   batch,
                                                                                   _hidden_size,
                                                                                   _shared_intermediate_size,
-                                                                                  _gate_up_group_size,
+                                                                                  shared_gate_up_gs,
                                                                                   t::with_silu_bin_mul,
                                                                                   gate_w,
                                                                                   gate_s,
@@ -1223,10 +1280,10 @@ public:
         // 4. Down (BinMul + Sum)
         auto down_w_dt = convert_data_type(addr.shared_weight[2]->get_layout().data_type);
         auto down_w = convert2dnnl(addr.shared_weight[2], {_shared_intermediate_size, _hidden_size}, dnnl::memory::format_tag::ba);
-        auto down_s = addr.shared_scale[2]
+        auto down_s = (down_compressed && addr.shared_scale[2])
                           ? convert2dnnl(addr.shared_scale[2], {_shared_intermediate_size / _down_group_size, _hidden_size}, dnnl::memory::format_tag::ab)
                           : dnnl::memory();
-        auto down_z = addr.shared_zp[2]
+        auto down_z = (down_compressed && addr.shared_zp[2])
                           ? convert2dnnl(addr.shared_zp[2], {_shared_intermediate_size / _down_group_size, _hidden_size}, dnnl::memory::format_tag::ab)
                           : dnnl::memory();
         _shared_down_proj = std::make_shared<onednn_linear>(onednn_linear::create(eng,
@@ -1235,7 +1292,7 @@ public:
                                                                                   batch,
                                                                                   _shared_intermediate_size,
                                                                                   _hidden_size,
-                                                                                  _down_group_size,
+                                                                                  shared_down_gs,
                                                                                   t::with_bin_mul_sum,
                                                                                   down_w,
                                                                                   down_s,
@@ -1307,7 +1364,11 @@ public:
 
         // To support micro_gemm, prefill need to allocate max_topk * token_num for input data of micro_gemm
         auto max_batch = has_shared_expert ? (max_topk + 1) * token_num : max_topk * token_num;
-        layout layout_gateup_out(ov::Shape{max_batch, static_cast<size_t>(config.inter_size)}, data_type, cldnn::format::bfyx);
+        // gate/up scratch must accommodate the larger of sparse and shared intermediate sizes —
+        // the decode kernel computes y[expert_no * stride] for both expert kinds with a fixed stride.
+        size_t shared_inter = config.shared_inter_size != 0 ? config.shared_inter_size : static_cast<size_t>(config.inter_size);
+        size_t scratch_inter = std::max(static_cast<size_t>(config.inter_size), shared_inter);
+        layout layout_gateup_out(ov::Shape{max_batch, scratch_inter}, data_type, cldnn::format::bfyx);
         layout layout_down_out(ov::Shape{max_batch, static_cast<size_t>(config.hidden_size)}, data_type, cldnn::format::bfyx);
         internal_buffers.emplace_back(layout_gateup_out, false);  // 2: up output (GPU-only)
         internal_buffers.emplace_back(layout_down_out, false);    // 3: down output (GPU-only)
@@ -2485,7 +2546,8 @@ public:
             auto shared_expert_weight_layout = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT))->get_layout();
             auto hidden_size = static_cast<int>(cur_moe->_config.hidden_size);
             _shared_intermediate_size = static_cast<int>(shared_expert_weight_layout.count() / hidden_size);
-            OPENVINO_ASSERT(_shared_intermediate_size == _intermediate_size, "Shared expert _intermediate_size should be same with moe experts");
+            // Shared expert may have a different intermediate size from sparse experts (mixed-shape MoE).
+            // The decode kernel handles this via SHARED_INTERMEDIATE_SIZE / MAX_INTERMEDIATE_SIZE JIT consts.
         }
 
         auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES));
