@@ -8,7 +8,6 @@
 #include "openvino/core/type.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
-#include "openvino/util/weights_path.hpp"
 #include "openvino/util/file_util.hpp"
 
 #include "intel_gpu/runtime/memory.hpp"
@@ -798,9 +797,9 @@ const std::vector<primitive_id>& program::get_allocating_order(bool forced_updat
                         return po.get_processing_number(lhs.get()) < po.get_processing_number(rhs.get());
                     }
 
-                    if (rhs_layout.is_dynamic())
+                    if (rhs_layout.is_dynamic() && !lhs_layout.is_dynamic())
                         return true;
-                    if (lhs_layout.is_dynamic())
+                    if (lhs_layout.is_dynamic() && !rhs_layout.is_dynamic())
                         return false;
 
                     if (lhs_layout.bytes_count() == rhs_layout.bytes_count()) {
@@ -1979,7 +1978,6 @@ void program::load(cldnn::BinaryInputBuffer& ib,
                 weights_memory = std::make_shared<WeightsMemory>(model_ptr);
             }
         } else if (!weights_path.empty()) {
-            ov::util::validate_weights_path(weights_path);
             weights_memory = std::make_shared<WeightsMemory>(ov::load_mmap_object(ov::util::make_path(weights_path)));
         } else {
             OPENVINO_THROW("Weights path or model is required for cache mode OPTIMIZE_SIZE");

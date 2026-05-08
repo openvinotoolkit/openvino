@@ -35,7 +35,19 @@ public:
 
     /// \brief Construct a dimension from string.
     /// \param str String to parse to dimension.
+    /// \deprecated Use string view version of constructor instead. It will be removed in 2027.0 release.
+#ifdef IN_OV_COMPONENT
+    OPENVINO_DEPRECATED("This ctor is deprecated, use string_view version. Will be removed in 2027.0 release")
+#endif
     Dimension(const std::string& str);
+
+    /// \brief Construct a dimension from string view.
+    /// \param sv String view to parse to dimension.
+    /// \{
+    explicit Dimension(std::string_view sv);
+    template <class T, typename = std::enable_if_t<std::is_convertible_v<std::decay_t<T>, std::string_view>>>
+    explicit Dimension(T&& sv) : Dimension(std::string_view(sv)) {}
+    /// \}
 
     /// \brief Construct a dynamic dimension with range [0, ...]
     Dimension() = default;
