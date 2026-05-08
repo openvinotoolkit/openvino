@@ -1080,7 +1080,7 @@ void ov::npuw::CompiledModel::serialize_orc_container(
             ov::npuw::orc::with_section(body_stream,
                                         CompiledModelDesc::kOrcType,
                                         CompiledModelDesc::kOrcVersion,
-                                        0u,
+                                        static_cast<ov::npuw::orc::SectionFlags>(ov::npuw::orc::SectionFlag::LEAF),
                                         [&] {
                                             auto desc_stream = ov::npuw::s11n::Stream::writer(body_stream);
                                             subm.serialize(desc_stream, weights_ctx, device_index);
@@ -1088,18 +1088,23 @@ void ov::npuw::CompiledModel::serialize_orc_container(
         }
 
         if (include_weights_bank) {
-            ov::npuw::orc::with_section(body_stream, weights::Bank::kOrcType, weights::Bank::kOrcVersion, 0u, [&] {
-                auto weights_stream = ov::npuw::s11n::Stream::writer(body_stream);
-                auto bank_name = m_weights_bank->get_name();
-                weights_stream & bank_name;
-                if (!is_weightless) {
-                    weights_stream&* m_weights_bank;
-                }
-            });
+            ov::npuw::orc::with_section(body_stream,
+                                        weights::Bank::kOrcType,
+                                        weights::Bank::kOrcVersion,
+                                        static_cast<ov::npuw::orc::SectionFlags>(ov::npuw::orc::SectionFlag::LEAF),
+                                        [&] {
+                                            auto weights_stream = ov::npuw::s11n::Stream::writer(body_stream);
+                                            auto bank_name = m_weights_bank->get_name();
+                                            weights_stream & bank_name;
+                                            if (!is_weightless) {
+                                                weights_stream&* m_weights_bank;
+                                            }
+                                        });
         }
     };
 
-    const auto root_flags = encrypt ? static_cast<ov::npuw::orc::SectionFlags>(ov::npuw::orc::SectionFlag::ENCRYPTED) : 0u;
+    const auto root_flags =
+        encrypt ? static_cast<ov::npuw::orc::SectionFlags>(ov::npuw::orc::SectionFlag::ENCRYPTED) : 0u;
     ov::npuw::orc::with_section(stream, kOrcType, kOrcVersion, root_flags, [&] {
         auto meta_stream = ov::npuw::s11n::Stream::writer(stream);
         meta_stream & m_name;
@@ -1168,31 +1173,30 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
 
     const bool encrypted = ov::npuw::orc::has_flag(root.header().flags, ov::npuw::orc::SectionFlag::ENCRYPTED);
 
-    bool have_weights = false;
-    auto peek_child_header = [](std::istream& child_source) {
-        const auto saved = child_source.tellg();
-        auto peek_stream = ov::npuw::s11n::Stream::reader(child_source);
-        ov::npuw::orc::SectionHeader header;
-        peek_stream & header;
-        child_source.seekg(saved);
-        return header;
+    auto read_child_sections = [](std::istream& child_source, const std::function<bool()>& done) {
+        std::vector<ov::npuw::orc::Section> children;
+        auto child_reader = ov::npuw::orc::Stream::reader(child_source);
+        while (!done()) {
+            ov::npuw::orc::Section child;
+            child_reader & child;
+            children.push_back(std::move(child));
+        }
+        return children;
     };
-    auto consume_submodel = [&](std::istream& child_source) {
-        ov::npuw::orc::ScopedReadSection child(child_source);
-        if (ov::npuw::orc::has_flag(child.header().flags, ov::npuw::orc::SectionFlag::LEAF)) {
-            OPENVINO_THROW("Unexpected ORC leaf section inside NPUW container");
+
+    auto deserialize_submodel = [&](const ov::npuw::orc::Section& section) {
+        if (section.is_container()) {
+            OPENVINO_THROW("Unexpected ORC nested container for NPUW subgraph payload");
+        }
+        if (section.version != CompiledModelDesc::kOrcVersion) {
+            OPENVINO_THROW("Unsupported ORC NPUW subgraph version ", section.version);
         }
 
-        if (child.header().type != CompiledModelDesc::kOrcType) {
-            OPENVINO_THROW("Unexpected ORC child type ID ", child.header().type, " in NPUW CompiledModel container");
-        }
-        if (child.header().version != CompiledModelDesc::kOrcVersion) {
-            OPENVINO_THROW("Unsupported ORC NPUW subgraph version ", child.header().version);
-        }
-
-        compiled->m_compiled_submodels.emplace_back();
-        auto& submodel = compiled->m_compiled_submodels.back();
+        std::string payload(reinterpret_cast<const char*>(section.payload.data()), section.payload.size());
+        std::istringstream child_source(payload, std::ios::in | std::ios::binary);
         auto child_stream = ov::npuw::s11n::Stream::reader(child_source);
+
+        CompiledModelDesc submodel;
         ov::npuw::s11n::SubmodelDeserializeCtx submodel_ctx(
             plugin,
             submodel.compiled_model,
@@ -1203,35 +1207,36 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
                 return make_submodel_import_config(device, compiled->m_cfg);
             });
         submodel.serialize(child_stream, compiled->m_import_weights_ctx, std::nullopt, &submodel_ctx);
-        child.expect_end();
+        if (child_source.peek() != std::char_traits<char>::eof()) {
+            OPENVINO_THROW("Unexpected trailing bytes in ORC NPUW subgraph payload");
+        }
+        return submodel;
     };
 
-    auto consume_weights_bank = [&](std::istream& child_source) {
-        ov::npuw::orc::ScopedReadSection child(child_source);
-        if (ov::npuw::orc::has_flag(child.header().flags, ov::npuw::orc::SectionFlag::LEAF)) {
-            OPENVINO_THROW("Unexpected ORC leaf section inside NPUW container");
+    auto deserialize_weights_bank = [&](const ov::npuw::orc::Section& section) {
+        if (section.is_container()) {
+            OPENVINO_THROW("Unexpected ORC nested container for NPUW weights payload");
         }
-        if (child.header().type != weights::Bank::kOrcType) {
-            OPENVINO_THROW("Unexpected ORC child type ID ", child.header().type, " in NPUW CompiledModel container");
-        }
-        if (child.header().version != weights::Bank::kOrcVersion) {
-            OPENVINO_THROW("Unsupported ORC NPUW weights version ", child.header().version);
+        if (section.version != weights::Bank::kOrcVersion) {
+            OPENVINO_THROW("Unsupported ORC NPUW weights version ", section.version);
         }
 
+        std::string payload(reinterpret_cast<const char*>(section.payload.data()), section.payload.size());
+        std::istringstream child_source(payload, std::ios::in | std::ios::binary);
         auto child_stream = ov::npuw::s11n::Stream::reader(child_source);
         std::string bank_name;
         child_stream & bank_name;
-        compiled->m_weights_bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
-        if (is_weightless) {
-            child.expect_end();
-            compiled->finalize_weights_bank();
-        } else {
-            child_stream& * compiled->m_weights_bank;
-            child.expect_end();
-            compiled->reconstruct_closure();
+        auto bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
+        if (!is_weightless) {
+            child_stream&* bank;
         }
-        have_weights = true;
+        if (child_source.peek() != std::char_traits<char>::eof()) {
+            OPENVINO_THROW("Unexpected trailing bytes in ORC NPUW weights payload");
+        }
+        return bank;
     };
+
+    std::vector<ov::npuw::orc::Section> child_sections;
 
     if (encrypted) {
         std::string encrypted_payload;
@@ -1240,38 +1245,51 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
 
         const auto decrypt_fn = decrypt ? decrypt : get_decrypt_callback_or_throw(properties);
         std::istringstream decrypted_stream(std::move(decrypt_fn(encrypted_payload)));
-        while (decrypted_stream.peek() != std::char_traits<char>::eof() &&
-               peek_child_header(decrypted_stream).type == CompiledModelDesc::kOrcType) {
-            consume_submodel(decrypted_stream);
-        }
-        if (require_weights_bank) {
-            if (decrypted_stream.peek() == std::char_traits<char>::eof()) {
-                OPENVINO_THROW("Missing ORC weights bank container");
-            }
-            consume_weights_bank(decrypted_stream);
-            if (decrypted_stream.peek() != std::char_traits<char>::eof()) {
-                OPENVINO_THROW("Unexpected ORC child after weights bank container");
-            }
-        } else if (decrypted_stream.peek() != std::char_traits<char>::eof()) {
-            OPENVINO_THROW("Unexpected ORC child after CompiledModelDesc containers");
-        }
+        child_sections = read_child_sections(decrypted_stream, [&] {
+            return decrypted_stream.peek() == std::char_traits<char>::eof();
+        });
     } else {
-        while (!root.done() && peek_child_header(stream).type == CompiledModelDesc::kOrcType) {
-            consume_submodel(stream);
-        }
-        if (require_weights_bank) {
-            if (root.done()) {
-                OPENVINO_THROW("Missing ORC weights bank container");
-            }
-            consume_weights_bank(stream);
-        } else if (!root.done()) {
-            OPENVINO_THROW("Unexpected ORC child after CompiledModelDesc containers");
-        }
+        child_sections = read_child_sections(stream, [&] {
+            return root.done();
+        });
         root.expect_end();
     }
 
-    if (require_weights_bank && !have_weights) {
-        OPENVINO_THROW("Missing ORC weights bank container");
+    ov::npuw::orc::Section child_container = ov::npuw::orc::Section::container(0u, 0u, std::move(child_sections));
+
+    ov::npuw::orc::Schema schema;
+    schema.register_loader<CompiledModelDesc>(CompiledModelDesc::kOrcType,
+                                              ov::npuw::orc::Schema::Multiplicity::MANY,
+                                              [&](const ov::npuw::orc::Section& section, const ov::npuw::orc::Schema&) {
+                                                  return deserialize_submodel(section);
+                                              });
+    if (require_weights_bank) {
+        schema.register_loader<std::shared_ptr<ov::npuw::weights::Bank>>(
+            weights::Bank::kOrcType,
+            ov::npuw::orc::Schema::Multiplicity::REQUIRED_ONE,
+            [&](const ov::npuw::orc::Section& section, const ov::npuw::orc::Schema&) {
+                return deserialize_weights_bank(section);
+            });
+    }
+
+    for (auto& child : schema.load_children(child_container)) {
+        if (child.type == CompiledModelDesc::kOrcType) {
+            compiled->m_compiled_submodels.push_back(std::any_cast<CompiledModelDesc>(std::move(child.value)));
+            continue;
+        }
+        if (child.type == weights::Bank::kOrcType) {
+            compiled->m_weights_bank = std::any_cast<std::shared_ptr<ov::npuw::weights::Bank>>(std::move(child.value));
+            continue;
+        }
+        OPENVINO_THROW("Unexpected ORC child type ID ", child.type, " in NPUW CompiledModel schema");
+    }
+
+    if (compiled->m_weights_bank) {
+        if (is_weightless) {
+            compiled->finalize_weights_bank();
+        } else {
+            compiled->reconstruct_closure();
+        }
     }
 
     compiled->implement_properties();
@@ -1295,11 +1313,12 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
     if (enc_ctx.encrypted) {
         NPUW_ASSERT(enc_ctx.decrypt && "Decryption function isn't provided!");
     }
-    return deserialize_orc_container(stream,
-                                     plugin,
-                                     properties,
-                                     false,
-                                     enc_ctx.encrypted ? enc_ctx.decrypt : std::function<std::string(const std::string&)>{});
+    return deserialize_orc_container(
+        stream,
+        plugin,
+        properties,
+        false,
+        enc_ctx.encrypted ? enc_ctx.decrypt : std::function<std::string(const std::string&)>{});
 }
 
 void ov::npuw::CompiledModel::reconstruct_closure() {

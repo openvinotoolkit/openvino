@@ -79,13 +79,18 @@ namespace moe {
 class MoEExecutor;
 }
 
+enum class CompiledModelOrcType : ov::npuw::orc::TypeId {
+    ROOT = 0x4E43u,
+    SUBMODEL_DESC = 0x5344u,
+};
+
 class CompiledModel : public ov::npuw::ICompiledModel_v0 {
     using DevList = std::vector<std::string>;
     using GetPropertiesMap =
         std::map<std::string, std::tuple<ov::PropertyMutability, std::function<ov::Any(const ::intel_npu::Config&)>>>;
 
 public:
-    static constexpr ov::npuw::orc::TypeId kOrcType = 0x4E43u;
+    static constexpr ov::npuw::orc::TypeId kOrcType = static_cast<ov::npuw::orc::TypeId>(CompiledModelOrcType::ROOT);
     static constexpr ov::npuw::orc::Version kOrcVersion = 0u;
 
     CompiledModel(const std::shared_ptr<ov::Model>& model,
@@ -240,7 +245,8 @@ private:
     void init_profiling();
 
     struct CompiledModelDesc {
-        static constexpr ov::npuw::orc::TypeId kOrcType = 0x5344u;
+        static constexpr ov::npuw::orc::TypeId kOrcType =
+            static_cast<ov::npuw::orc::TypeId>(CompiledModelOrcType::SUBMODEL_DESC);
         static constexpr ov::npuw::orc::Version kOrcVersion = 0u;
 
         std::set<std::string> devices_to_avoid;

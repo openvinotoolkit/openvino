@@ -368,6 +368,11 @@ std::optional<OrcHeader> is_orc(std::istream& stream);
 class Schema {
 public:
     using Loader = std::function<std::any(const Section&, const Schema&)>;
+    enum class Multiplicity {
+        OPTIONAL_ONE,
+        REQUIRED_ONE,
+        MANY,
+    };
 
     struct LoadedChild {
         TypeId type = 0u;
@@ -375,13 +380,14 @@ public:
     };
 
     template <typename T, typename LoaderT>
-    void register_loader(TypeId type, LoaderT&& loader) {
+    void register_loader(TypeId type, Multiplicity multiplicity, LoaderT&& loader) {
         if (m_entries.count(type) != 0u) {
             OPENVINO_THROW("ORC schema already has a loader for type ID ", type);
         }
 
         Entry entry;
         entry.type = std::type_index(typeid(T));
+        entry.multiplicity = multiplicity;
         entry.loader = [fn = std::forward<LoaderT>(loader)](const Section& section, const Schema& schema) -> std::any {
             return std::any(fn(section, schema));
         };
@@ -408,6 +414,7 @@ public:
 private:
     struct Entry {
         std::type_index type = std::type_index(typeid(void));
+        Multiplicity multiplicity = Multiplicity::MANY;
         Loader loader;
     };
 

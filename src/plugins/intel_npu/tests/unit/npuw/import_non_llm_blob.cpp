@@ -10,9 +10,9 @@
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "model_builder.hpp"
-#include "orc.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/util/codec_xor.hpp"
+#include "orc.hpp"
 #include "serialization.hpp"
 
 using ov::test::npuw::ModelBuilder;
@@ -166,6 +166,9 @@ TEST_P(ImportNonLLMBlobTestNPUW, CacheModeOptimizeSpeedEnsureCompatibility) {
 
     auto compiled = m_core.compile_model(m_ov_model, "NPU", m_props);
     std::stringstream blob;
+    // This synthetic repeated-block model does not satisfy the phase-0 compatibility contract:
+    // even with NPU-only placement it still exercises non-versioned behavior-owned state today,
+    // so ENSURE_COMPATIBILITY is expected to reject export rather than produce a misleading blob.
     EXPECT_THROW(compiled.export_model(blob), ov::Exception);
 }
 
@@ -194,17 +197,17 @@ TEST_P(ImportNonLLMBlobTestNPUW, CacheModeOptimizeSizeWithModelPtrEncryptedDiffe
     ov::AnyMap wai_props = GetParam();
     m_props.insert(wai_props.begin(), wai_props.end());
     m_props["CACHE_MODE"] = "OPTIMIZE_SIZE";
-    m_props[ov::cache_encryption_callbacks.name()] = ov::EncryptionCallbacks{
-        [](const std::string& unencrypted_blob) {
-            std::string copy_blob = unencrypted_blob;
-            copy_blob += "<encrypt-tail>";
-            return ov::util::codec_xor(copy_blob);
-        },
-        [](const std::string& encrypted_blob) {
-            std::string decrypted_blob = ov::util::codec_xor(encrypted_blob);
-            decrypted_blob += "<decrypt-tail>";
-            return decrypted_blob;
-        }};
+    m_props[ov::cache_encryption_callbacks.name()] =
+        ov::EncryptionCallbacks{[](const std::string& unencrypted_blob) {
+                                    std::string copy_blob = unencrypted_blob;
+                                    copy_blob += "<encrypt-tail>";
+                                    return ov::util::codec_xor(copy_blob);
+                                },
+                                [](const std::string& encrypted_blob) {
+                                    std::string decrypted_blob = ov::util::codec_xor(encrypted_blob);
+                                    decrypted_blob += "<decrypt-tail>";
+                                    return decrypted_blob;
+                                }};
 
     auto compiled = m_core.compile_model(m_ov_model, "NPU", m_props);
 
@@ -278,10 +281,9 @@ TEST_P(ImportNonLLMWAIBlobTestNPUW, CacheModeOptimizeSizeNoModelPtr) {
         FAIL() << "Expected import to throw when WAI weightless blob is imported without MODEL_PTR/WEIGHTS_PATH";
     } catch (const ov::Exception& ex) {
         const std::string what = ex.what();
-        const bool has_expected_text =
-            what.find("Blob is weightless") != std::string::npos &&
-            what.find("WEIGHTS_PATH") != std::string::npos &&
-            what.find("MODEL_PTR") != std::string::npos;
+        const bool has_expected_text = what.find("Blob is weightless") != std::string::npos &&
+                                       what.find("WEIGHTS_PATH") != std::string::npos &&
+                                       what.find("MODEL_PTR") != std::string::npos;
         EXPECT_TRUE(has_expected_text) << "Unexpected exception message: " << what;
     }
 }
@@ -298,14 +300,13 @@ TEST_P(ImportNonLLMWAIBlobTestNPUW, CacheModeOptimizeSizeNoModelPtrEnsureCompati
     EXPECT_THROW(compiled.export_model(blob), ov::Exception);
 }
 
-INSTANTIATE_TEST_SUITE_P(Only_NPU_USE_NPUW, ImportNonLLMBlobTestNPUW,
-    testing::Values(ov::AnyMap{}));
-INSTANTIATE_TEST_SUITE_P(NPUW_FOLD, ImportNonLLMBlobTestNPUW,
-    testing::Values(ov::AnyMap{{"NPUW_FOLD", "YES"}}));
-INSTANTIATE_TEST_SUITE_P(NPUW_CWAI, ImportNonLLMBlobTestNPUW,
-    testing::Values(ov::AnyMap{{"NPUW_CWAI", "YES"}}));
+INSTANTIATE_TEST_SUITE_P(Only_NPU_USE_NPUW, ImportNonLLMBlobTestNPUW, testing::Values(ov::AnyMap{}));
+INSTANTIATE_TEST_SUITE_P(NPUW_FOLD, ImportNonLLMBlobTestNPUW, testing::Values(ov::AnyMap{{"NPUW_FOLD", "YES"}}));
+INSTANTIATE_TEST_SUITE_P(NPUW_CWAI, ImportNonLLMBlobTestNPUW, testing::Values(ov::AnyMap{{"NPUW_CWAI", "YES"}}));
 
-INSTANTIATE_TEST_SUITE_P(NPUW_NON_WAI, ImportNonLLMNonWAIBlobTestNPUW,
-    testing::Values(ov::AnyMap{}, ov::AnyMap{{"NPUW_FUNCALL_FOR_ALL", "YES"}}));
-INSTANTIATE_TEST_SUITE_P(NPUW_WAI, ImportNonLLMWAIBlobTestNPUW,
-    testing::Values(ov::AnyMap{{"NPUW_FOLD", "YES"}}, ov::AnyMap{{"NPUW_CWAI", "YES"}}));
+INSTANTIATE_TEST_SUITE_P(NPUW_NON_WAI,
+                         ImportNonLLMNonWAIBlobTestNPUW,
+                         testing::Values(ov::AnyMap{}, ov::AnyMap{{"NPUW_FUNCALL_FOR_ALL", "YES"}}));
+INSTANTIATE_TEST_SUITE_P(NPUW_WAI,
+                         ImportNonLLMWAIBlobTestNPUW,
+                         testing::Values(ov::AnyMap{{"NPUW_FOLD", "YES"}}, ov::AnyMap{{"NPUW_CWAI", "YES"}}));
