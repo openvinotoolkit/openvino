@@ -87,7 +87,7 @@ class CompiledModel : public ov::npuw::ICompiledModel_v0 {
 
 public:
     static constexpr ov::npuw::orc::TypeId kOrcType =
-        static_cast<ov::npuw::orc::TypeId>(ov::npuw::orc::schema_npuw::PartitionedModelType::ROOT);
+        static_cast<ov::npuw::orc::TypeId>(ov::npuw::orc::schema_npuw::PartitionedModel::ID);
     static constexpr ov::npuw::orc::Version kOrcVersion = 0u;
 
     CompiledModel(const std::shared_ptr<ov::Model>& model,
@@ -243,7 +243,7 @@ private:
 
     struct CompiledModelDesc {
         static constexpr ov::npuw::orc::TypeId kOrcType =
-            static_cast<ov::npuw::orc::TypeId>(ov::npuw::orc::schema_npuw::SubgraphType::ROOT);
+            static_cast<ov::npuw::orc::TypeId>(ov::npuw::orc::schema_npuw::Subgraph::ID);
         static constexpr ov::npuw::orc::Version kOrcVersion = 0u;
 
         std::set<std::string> devices_to_avoid;

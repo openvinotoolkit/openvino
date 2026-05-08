@@ -13,16 +13,16 @@ inline constexpr SchemaUUID NPUW_ORC_PARTITIONED_SCHEMA = {
 
 // Keep the top-level on-wire type IDs centralized so future schemas can reuse
 // the same registry without accidental collisions.
-enum class PartitionedModelType : TypeId {
-    ROOT = 100,
+enum class PartitionedModel : TypeId {
+    ID = 100,
 };
 
-enum class SubgraphType : TypeId {
-    ROOT = 101,
+enum class Subgraph : TypeId {
+    ID = 200,
 };
 
-enum class WeightsBankType : TypeId {
-    ROOT = 200,
+enum class WeightsBank : TypeId {
+    ID = 300,
 };
 
 }  // namespace ov::npuw::orc::schema_npuw
