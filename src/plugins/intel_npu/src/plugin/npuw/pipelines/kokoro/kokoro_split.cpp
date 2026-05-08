@@ -98,9 +98,8 @@ void replace_input_lengths_with_parameter(std::shared_ptr<ov::Model>& model) {
     LOG_DEBUG("replacing input_lengths (ShapeOf-derived) with Parameter input");
 
     // input_lengths shape is [1] (batch_size) with element type I64
-    auto input_lengths_param = std::make_shared<ov::op::v0::Parameter>(
-        input_lengths_node->get_output_element_type(0),
-        input_lengths_node->get_output_partial_shape(0));
+    auto input_lengths_param = std::make_shared<ov::op::v0::Parameter>(input_lengths_node->get_output_element_type(0),
+                                                                       input_lengths_node->get_output_partial_shape(0));
     input_lengths_param->set_friendly_name("input_lengths");
     input_lengths_param->output(0).get_tensor().set_names({"input_lengths"});
 
@@ -118,7 +117,7 @@ void replace_input_lengths_with_parameter(std::shared_ptr<ov::Model>& model) {
         auto source = op->input_value(3).get_node_shared_ptr();
         if (source.get() != input_lengths_param.get()) {
             LOG_DEBUG("Redirecting LSTM '" << op->get_friendly_name()
-                                          << "' sequence_lengths directly to input_lengths parameter");
+                                           << "' sequence_lengths directly to input_lengths parameter");
             op->input(3).replace_source_output(input_lengths_param->output(0));
         }
     }
