@@ -49,6 +49,11 @@ namespace ov::intel_cpu::node {
 
 struct PagedAttentionKey {
     ov::element::Type rtPrecision;
+    ov::element::Type keyCachePrecision;
+    ov::element::Type valueCachePrecision;
+    bool quantKeyByChannel;
+    bool quantValueByChannel;
+    bool isSageAttn;
 
     [[nodiscard]] size_t hash() const;
     bool operator==(const PagedAttentionKey& rhs) const;
@@ -57,14 +62,19 @@ struct PagedAttentionKey {
 size_t PagedAttentionKey::hash() const {
     size_t seed = 0;
     seed = hash_combine(seed, rtPrecision.hash());
+    seed = hash_combine(seed, keyCachePrecision.hash());
+    seed = hash_combine(seed, valueCachePrecision.hash());
+    seed = hash_combine(seed, quantKeyByChannel);
+    seed = hash_combine(seed, quantValueByChannel);
+    seed = hash_combine(seed, isSageAttn);
 
     return seed;
 }
 
 bool PagedAttentionKey::operator==(const PagedAttentionKey& rhs) const {
-    auto retVal = rtPrecision == rhs.rtPrecision;
-
-    return retVal;
+    return rtPrecision == rhs.rtPrecision && keyCachePrecision == rhs.keyCachePrecision &&
+           valueCachePrecision == rhs.valueCachePrecision && quantKeyByChannel == rhs.quantKeyByChannel &&
+           quantValueByChannel == rhs.quantValueByChannel && isSageAttn == rhs.isSageAttn;
 }
 
 PagedAttention::PagedAttention(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
@@ -246,19 +256,21 @@ bool PagedAttention::isQuantByChannel(const Config::CacheQuantMode mode,
 void PagedAttention::createPrimitive() {
     auto rtPrecision = getRuntimePrecision();
 
-    // in one model, kvCachePrecision could not be changed so no need to care whether it may be changed.
-    PagedAttentionKey key = {rtPrecision};
+    auto kCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
+    auto vCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
+    const auto& cpuConfig = context->getConfig();
+    bool quantKeybyChannel = isQuantByChannel(cpuConfig.keyCacheQuantMode, cpuConfig.keyCachePrecision, true);
+    bool quantValuebyChannel = isQuantByChannel(cpuConfig.valueCacheQuantMode, cpuConfig.valueCachePrecision, false);
+
+    PagedAttentionKey key = {rtPrecision,
+                             kCachePrecision,
+                             vCachePrecision,
+                             quantKeybyChannel,
+                             quantValuebyChannel,
+                             cpuConfig.enableSageAttn};
 
     auto builder = [&]([[maybe_unused]] const PagedAttentionKey& key) -> std::shared_ptr<PagedAttentionExecutor> {
 #if defined(OPENVINO_ARCH_X86_64) || (defined(OPENVINO_ARCH_ARM64))
-        // Since we are quantize only last dim it's safe to use the last dim of KV.
-        auto kCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
-        auto vCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
-        const auto& cpuConfig = context->getConfig();
-
-        bool quantKeybyChannel = isQuantByChannel(cpuConfig.keyCacheQuantMode, cpuConfig.keyCachePrecision, true);
-        bool quantValuebyChannel =
-            isQuantByChannel(cpuConfig.valueCacheQuantMode, cpuConfig.valueCachePrecision, false);
         PagedAttnQuantParams params{cpuConfig.keyCacheGroupSize,
                                     cpuConfig.valueCacheGroupSize,
                                     quantKeybyChannel,

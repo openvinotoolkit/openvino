@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <optional>
+
 #include "dimension_util.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "utils.hpp"
@@ -68,8 +70,8 @@ std::vector<TRShape> shape_infer(const PagedAttentionExtension* op,
         scores_ps.push_back(Dimension::dynamic());
     }
 
-    // Output[2]: flat 1D diversity scores.
-    // Size = sum(evictable_sizes[s]^2 / block_size); dynamic if unknown.
+    // Output[2]: flat 1D Adaptive-RKV diversity scores.
+    // Size = sum(evictable_sizes[s]^2 / adaptive_rkv_block_size); dynamic if unknown.
     auto& diversity_ps = output_shapes[2];
     auto width_dim = Dimension::dynamic();
 
@@ -77,10 +79,50 @@ std::vector<TRShape> shape_infer(const PagedAttentionExtension* op,
     const bool block_size_known =
         key_cache_ps.rank().is_static() && key_cache_ps.rank().get_length() >= 3 && key_cache_ps[2].is_static();
 
+    auto infer_adaptive_rkv_diversity_block_size = [&]() -> std::optional<int64_t> {
+        if (!block_size_known) {
+            return std::nullopt;
+        }
+
+        int64_t block_size = key_cache_ps[2].get_length();
+        if (!(key_cache_ps.rank().is_static() && key_cache_ps.rank().get_length() >= 4 && key_cache_ps[1].is_static() &&
+              key_cache_ps[3].is_static() && key_ps.rank().is_static() && key_ps.rank().get_length() >= 2 &&
+              key_ps[1].is_static())) {
+            return block_size;
+        }
+
+        const auto key_cache_et = op->get_input_element_type(3);
+        if (!(key_cache_et == element::i8 || key_cache_et == element::u8 || key_cache_et == element::i4 ||
+              key_cache_et == element::u4)) {
+            return block_size;
+        }
+
+        const int64_t hkv = key_cache_ps[1].get_length();
+        const int64_t key_feature_size = key_ps[1].get_length();
+        if (hkv == 0 || key_feature_size % hkv != 0) {
+            return block_size;
+        }
+
+        const int64_t head_size = key_feature_size / hkv;
+        const bool by_channel_layout = key_cache_ps[3].get_length() == head_size;
+        if (!by_channel_layout) {
+            return block_size;
+        }
+
+        const int64_t params_count = key_cache_et == element::i8 ? 1 : 2;
+        const int64_t sub_byte_multiplier = (key_cache_et == element::i4 || key_cache_et == element::u4) ? 2 : 1;
+        return block_size - static_cast<int64_t>(sizeof(float)) * params_count * sub_byte_multiplier;
+    };
+
     if (block_size_known && evictable_sizes_ps.rank().is_static() && evictable_sizes_ps.rank().get_length() == 1) {
         const auto& evictable_sizes = get_input_const_data_as<TRShape, int32_t>(op, 22, ta);
         if (evictable_sizes.has_value() && !evictable_sizes.value().empty()) {
-            const int64_t block_size = key_cache_ps[2].get_length();
+            const auto inferred_block_size = infer_adaptive_rkv_diversity_block_size();
+            if (!inferred_block_size.has_value() || inferred_block_size.value() <= 0) {
+                diversity_ps.push_back(width_dim);
+                return output_shapes;
+            }
+            const int64_t block_size = inferred_block_size.value();
             int64_t total = 0;
             for (const auto es : evictable_sizes.value()) {
                 total += static_cast<int64_t>(es) * static_cast<int64_t>(es) / block_size;
