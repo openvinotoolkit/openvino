@@ -30,6 +30,20 @@
 #    define DEQUANT_8BIT(v)    convert_half(v)
 #endif
 
+// Shared expert weight type policy (kernel-level invariant):
+//   * If sparse experts are compressed, the shared expert MUST use either the
+//     same compression as sparse OR raw f16. Other combinations are rejected
+//     by the host side.
+//   * SHARED_WEIGHT_COMPRESSEION_DT == 2 means raw f16 shared (different load
+//     path: straight copy into x2, no scale/zp/xg_sum). Any other value means
+//     shared inherits all sparse compression parameters and reuses the sparse
+//     GEMV / x2-prep path verbatim.
+#if SHARED_EXPERT_ENABLE && defined(SHARED_WEIGHT_COMPRESSEION_DT) && SHARED_WEIGHT_COMPRESSEION_DT == 2
+#    define SHARED_IS_F16 1
+#else
+#    define SHARED_IS_F16 0
+#endif
+
 #if GATE_UP_ENABLE
 inline void gate_up_gemv_n2x_u4(const __global uchar* weight,
                                 __global half* scales,
@@ -420,14 +434,23 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(
     __local float shared_gate_partial[SUBGROUP_NUM];  // one slot per subgroup for scalar gate reduction
 #    endif
 
-#    if WEIGHT_COMPRESSEION_DT == 0
     int id_sg = get_sub_group_id();
     int num_sg = get_num_sub_groups();
     int id_local = get_sub_group_local_id();
-#if SHARED_EXPERT_ENABLE && defined(SHARED_WEIGHT_COMPRESSEION_DT) && SHARED_WEIGHT_COMPRESSEION_DT != 0
+
+    // ─── x2 prep ────────────────────────────────────────────────────────────
+    // The activation `x` is staged into SLM `x2` in a layout the chosen GEMV expects:
+    //   * u4 GEMV reads [even...even, odd...odd] interleaved per FAKE_GROUP
+    //   * u8 / f16 GEMV reads contiguous values
+    // The shared expert is constrained to use either the same compression as the
+    // sparse experts or raw f16. When SHARED_IS_F16, the f16 shared path needs the
+    // straight-copy layout regardless of what the sparse experts use, so we emit a
+    // dedicated branch for it. Otherwise (shared inherits sparse compression) we
+    // fall through to the sparse x2 prep verbatim.
+#if SHARED_IS_F16
     if (is_shared) {
-        //# straight load x into x2 (f16/u8 shared expert — no interleaving needed)
-        half* px = x + id_sg * FAKE_GROUP_SIZE;
+        // f16 shared: straight copy, no xg_sum (no scale/zp).
+        half* px  = x  + id_sg * FAKE_GROUP_SIZE;
         half* px2 = x2 + id_sg * FAKE_GROUP_SIZE;
         unroll_for(int i = id_sg; i < HIDDEN_SIZE / FAKE_GROUP_SIZE; i += num_sg, px += num_sg * FAKE_GROUP_SIZE, px2 += num_sg * FAKE_GROUP_SIZE) {
             unroll_for(int j = id_local; j < FAKE_GROUP_SIZE; j += SUBGROUP_SIZE) {
@@ -437,56 +460,54 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(
     } else
 #endif
     {
-        //# interleaving x into x2
-        half* px = x + id_sg * FAKE_GROUP_SIZE;
+        // Sparse expert (and same-compression shared) x2 prep.
+#    if WEIGHT_COMPRESSEION_DT == 0
+        // u4: even/odd interleaved + (HAS_ZP) xg_sum
+        half* px  = x  + id_sg * FAKE_GROUP_SIZE;
         half* px2 = x2 + id_sg * FAKE_GROUP_SIZE;
         unroll_for(int i = id_sg; i < HIDDEN_SIZE / FAKE_GROUP_SIZE; i += num_sg, px += num_sg * FAKE_GROUP_SIZE, px2 += num_sg * FAKE_GROUP_SIZE) {
-#if HAS_ZP
+#        if HAS_ZP
             float x_group_sum = 0;
-#endif
+#        endif
             unroll_for(int j = id_local; j < FAKE_GROUP_SIZE / 2; j += SUBGROUP_SIZE) {
                 half even = px[2 * j + 0];
-                half odd = px[2 * j + 1];
+                half odd  = px[2 * j + 1];
                 px2[j] = even;
                 px2[j + FAKE_GROUP_SIZE / 2] = odd;
-#if HAS_ZP
+#        if HAS_ZP
                 x_group_sum += even + odd;
-#endif
+#        endif
             }
-#if HAS_ZP
+#        if HAS_ZP
             x_group_sum = sub_group_reduce_add(x_group_sum);
             if (id_local == 0) {
                 xg_sum[i] = x_group_sum / SUBGROUP_SIZE;
             }
-#endif
+#        endif
         }
-    }
-#    else
-    //# load x into slm
-    int id_sg = get_sub_group_id();
-    int num_sg = get_num_sub_groups();
-    int id_local = get_sub_group_local_id();
-    half* px = x + id_sg * FAKE_GROUP_SIZE;
-    half* px2 = x2 + id_sg * FAKE_GROUP_SIZE;
-    unroll_for(int i = id_sg; i < HIDDEN_SIZE / FAKE_GROUP_SIZE; i += num_sg, px += num_sg * FAKE_GROUP_SIZE, px2 += num_sg * FAKE_GROUP_SIZE) {
-#if HAS_ZP
-        float x_group_sum = 0;
-#endif
-        unroll_for(int j = id_local; j < FAKE_GROUP_SIZE; j += SUBGROUP_SIZE) {
-            half value = px[j];
-            px2[j] = value;
-#if HAS_ZP
-            x_group_sum += value;
-#endif
+#    else  // u8 / f16: straight copy
+        half* px  = x  + id_sg * FAKE_GROUP_SIZE;
+        half* px2 = x2 + id_sg * FAKE_GROUP_SIZE;
+        unroll_for(int i = id_sg; i < HIDDEN_SIZE / FAKE_GROUP_SIZE; i += num_sg, px += num_sg * FAKE_GROUP_SIZE, px2 += num_sg * FAKE_GROUP_SIZE) {
+#        if HAS_ZP
+            float x_group_sum = 0;
+#        endif
+            unroll_for(int j = id_local; j < FAKE_GROUP_SIZE; j += SUBGROUP_SIZE) {
+                half value = px[j];
+                px2[j] = value;
+#        if HAS_ZP
+                x_group_sum += value;
+#        endif
+            }
+#        if HAS_ZP
+            x_group_sum = sub_group_reduce_add(x_group_sum);
+            if (id_local == 0) {
+                xg_sum[i] = x_group_sum / SUBGROUP_SIZE;
+            }
+#        endif
         }
-#if HAS_ZP
-        x_group_sum = sub_group_reduce_add(x_group_sum);
-        if (id_local == 0) {
-            xg_sum[i] = x_group_sum / SUBGROUP_SIZE;
-        }
-#endif
-    }
 #    endif
+    }
 
     barrier(CLK_LOCAL_MEM_FENCE);
 
@@ -526,30 +547,26 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(
     // routing_weights[MAX_TOPK] is consumed by the next kernel (mlp_down) — no barrier needed here.
 #    endif
 
-#if SHARED_EXPERT_ENABLE && defined(SHARED_WEIGHT_COMPRESSEION_DT) && SHARED_WEIGHT_COMPRESSEION_DT != WEIGHT_COMPRESSEION_DT
+    // ─── GEMV dispatch ──────────────────────────────────────────────────────
+    // f16 shared expert is the only case that diverges from the sparse path.
+    // Every other case (compressed shared with same compression as sparse, or
+    // no shared expert at all) reuses the sparse GEMV.
+#if SHARED_IS_F16
     if (is_shared) {
-#    if SHARED_WEIGHT_COMPRESSEION_DT == 0
-        gate_up_gemv_n2x_u4(up_weight, up_scale, up_zp, y, expert_n, HIDDEN_SIZE, x2, xg_sum, false);
-        gate_up_gemv_n2x_u4(gate_weight, gate_scale, gate_zp, y, expert_n, HIDDEN_SIZE, x2, xg_sum, true);
-#    elif SHARED_WEIGHT_COMPRESSEION_DT == 1
-        gate_up_gemv_n2x_u8(up_weight, up_scale, up_zp, y, expert_n, HIDDEN_SIZE, x2, xg_sum, false);
-        gate_up_gemv_n2x_u8(gate_weight, gate_scale, gate_zp, y, expert_n, HIDDEN_SIZE, x2, xg_sum, true);
-#    elif SHARED_WEIGHT_COMPRESSEION_DT == 2
-        gate_up_gemv_n2x_f16((__global half*)up_weight, y, expert_n, HIDDEN_SIZE, x2, false);
+        gate_up_gemv_n2x_f16((__global half*)up_weight,   y, expert_n, HIDDEN_SIZE, x2, false);
         gate_up_gemv_n2x_f16((__global half*)gate_weight, y, expert_n, HIDDEN_SIZE, x2, true);
-#    endif
     } else
 #endif
     {
 #    if WEIGHT_COMPRESSEION_DT == 0
-    gate_up_gemv_n2x_u4(up_weight, up_scale, up_zp, y, expert_n, HIDDEN_SIZE, x2, xg_sum, false);
-    gate_up_gemv_n2x_u4(gate_weight, gate_scale, gate_zp, y, expert_n, HIDDEN_SIZE, x2, xg_sum, true);
+        gate_up_gemv_n2x_u4(up_weight,   up_scale,   up_zp,   y, expert_n, HIDDEN_SIZE, x2, xg_sum, false);
+        gate_up_gemv_n2x_u4(gate_weight, gate_scale, gate_zp, y, expert_n, HIDDEN_SIZE, x2, xg_sum, true);
 #    elif WEIGHT_COMPRESSEION_DT == 1
-    gate_up_gemv_n2x_u8(up_weight, up_scale, up_zp, y, expert_n, HIDDEN_SIZE, x2, xg_sum, false);
-    gate_up_gemv_n2x_u8(gate_weight, gate_scale, gate_zp, y, expert_n, HIDDEN_SIZE, x2, xg_sum, true);
+        gate_up_gemv_n2x_u8(up_weight,   up_scale,   up_zp,   y, expert_n, HIDDEN_SIZE, x2, xg_sum, false);
+        gate_up_gemv_n2x_u8(gate_weight, gate_scale, gate_zp, y, expert_n, HIDDEN_SIZE, x2, xg_sum, true);
 #    elif WEIGHT_COMPRESSEION_DT == 2
-    gate_up_gemv_n2x_f16((__global half*)up_weight, y, expert_n, HIDDEN_SIZE, x2, false);
-    gate_up_gemv_n2x_f16((__global half*)gate_weight, y, expert_n, HIDDEN_SIZE, x2, true);
+        gate_up_gemv_n2x_f16((__global half*)up_weight,   y, expert_n, HIDDEN_SIZE, x2, false);
+        gate_up_gemv_n2x_f16((__global half*)gate_weight, y, expert_n, HIDDEN_SIZE, x2, true);
 #    endif
     }
 }
@@ -909,14 +926,17 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_down)(const
     __local float xg_sum[1];  // unused placeholder for function signature
 #endif
 
-#    if WEIGHT_COMPRESSEION_DT == 0
     int id_sg = get_sub_group_id();
     int num_sg = get_num_sub_groups();
     int id_local = get_sub_group_local_id();
-#if SHARED_EXPERT_ENABLE && defined(SHARED_WEIGHT_COMPRESSEION_DT) && SHARED_WEIGHT_COMPRESSEION_DT != 0
+
+    // ─── x2 prep ────────────────────────────────────────────────────────────
+    // Same dispatch principle as `mlp_gate_up`: the only divergence between the
+    // shared and sparse experts is when the shared expert is raw f16 (straight
+    // copy, no xg_sum). All compressed shared cases reuse the sparse layout.
+#if SHARED_IS_F16
     if (is_shared) {
-        //# straight load x into x2 (f16/u8 shared expert — no interleaving needed)
-        half* px = x + id_sg * FAKE_GROUP_SIZE;
+        half* px  = x  + id_sg * FAKE_GROUP_SIZE;
         half* px2 = x2 + id_sg * FAKE_GROUP_SIZE;
         unroll_for(int i = id_sg; i < K / FAKE_GROUP_SIZE; i += num_sg, px += num_sg * FAKE_GROUP_SIZE, px2 += num_sg * FAKE_GROUP_SIZE) {
             unroll_for(int j = id_local; j < FAKE_GROUP_SIZE; j += SUBGROUP_SIZE) {
@@ -926,77 +946,69 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_down)(const
     } else
 #endif
     {
-        //# interleaving x into x2
-        half* px = x + id_sg * FAKE_GROUP_SIZE;
+        // Sparse expert (and same-compression shared) x2 prep.
+#    if WEIGHT_COMPRESSEION_DT == 0
+        half* px  = x  + id_sg * FAKE_GROUP_SIZE;
         half* px2 = x2 + id_sg * FAKE_GROUP_SIZE;
         unroll_for(int i = id_sg; i < K / FAKE_GROUP_SIZE; i += num_sg, px += num_sg * FAKE_GROUP_SIZE, px2 += num_sg * FAKE_GROUP_SIZE) {
-#if HAS_ZP
+#        if HAS_ZP
             float x_group_sum = 0;
-#endif
+#        endif
             unroll_for(int j = id_local; j < FAKE_GROUP_SIZE / 2; j += SUBGROUP_SIZE) {
                 half even = px[2 * j + 0];
-                half odd = px[2 * j + 1];
+                half odd  = px[2 * j + 1];
                 px2[j] = even;
                 px2[j + FAKE_GROUP_SIZE / 2] = odd;
-#if HAS_ZP
+#        if HAS_ZP
                 x_group_sum += even + odd;
-#endif
+#        endif
             }
-#if HAS_ZP
+#        if HAS_ZP
             x_group_sum = sub_group_reduce_add(x_group_sum);
             if (id_local == 0) {
                 xg_sum[i] = x_group_sum / SUBGROUP_SIZE;
             }
-#endif
+#        endif
         }
-    }
 #    else
-    //# load x into slm
-    int id_sg = get_sub_group_id();
-    int num_sg = get_num_sub_groups();
-    int id_local = get_sub_group_local_id();
-    half* px = x + id_sg * FAKE_GROUP_SIZE;
-    half* px2 = x2 + id_sg * FAKE_GROUP_SIZE;
-    unroll_for(int i = id_sg; i < K / FAKE_GROUP_SIZE; i += num_sg, px += num_sg * FAKE_GROUP_SIZE, px2 += num_sg * FAKE_GROUP_SIZE) {
-#if HAS_ZP
-        float x_group_sum = 0;
-#endif
-        unroll_for(int j = id_local; j < FAKE_GROUP_SIZE; j += SUBGROUP_SIZE) {
-            half value = px[j];
-            px2[j] = value;
-#if HAS_ZP
-            x_group_sum += value;
-#endif
+        half* px  = x  + id_sg * FAKE_GROUP_SIZE;
+        half* px2 = x2 + id_sg * FAKE_GROUP_SIZE;
+        unroll_for(int i = id_sg; i < K / FAKE_GROUP_SIZE; i += num_sg, px += num_sg * FAKE_GROUP_SIZE, px2 += num_sg * FAKE_GROUP_SIZE) {
+#        if HAS_ZP
+            float x_group_sum = 0;
+#        endif
+            unroll_for(int j = id_local; j < FAKE_GROUP_SIZE; j += SUBGROUP_SIZE) {
+                half value = px[j];
+                px2[j] = value;
+#        if HAS_ZP
+                x_group_sum += value;
+#        endif
+            }
+#        if HAS_ZP
+            x_group_sum = sub_group_reduce_add(x_group_sum);
+            if (id_local == 0) {
+                xg_sum[i] = x_group_sum / SUBGROUP_SIZE;
+            }
+#        endif
         }
-#if HAS_ZP
-        x_group_sum = sub_group_reduce_add(x_group_sum);
-        if (id_local == 0) {
-            xg_sum[i] = x_group_sum / SUBGROUP_SIZE;
-        }
-#endif
-    }
 #    endif
+    }
 
     barrier(CLK_LOCAL_MEM_FENCE);
 
-#if SHARED_EXPERT_ENABLE && defined(SHARED_WEIGHT_COMPRESSEION_DT) && SHARED_WEIGHT_COMPRESSEION_DT != WEIGHT_COMPRESSEION_DT
+    // ─── GEMV dispatch ──────────────────────────────────────────────────────
+#if SHARED_IS_F16
     if (is_shared) {
-#    if SHARED_WEIGHT_COMPRESSEION_DT == 0
-        down_gemv_n2x_u4(weight, scales, zps, routing_weights, y, N, K, x2, xg_sum);
-#    elif SHARED_WEIGHT_COMPRESSEION_DT == 1
-        down_gemv_n2x_u8(weight, scales, zps, routing_weights, y, N, K, x2, xg_sum);
-#    elif SHARED_WEIGHT_COMPRESSEION_DT == 2
         down_gemv_n2x_f16((__global half*)weight, routing_weights, y, N, K, x2);
-#    endif
     } else
 #endif
     {
 #    if WEIGHT_COMPRESSEION_DT == 0
-    down_gemv_n2x_u4(weight, scales, zps, routing_weights, y, N, K, x2, xg_sum);
+        down_gemv_n2x_u4(weight, scales, zps, routing_weights, y, N, K, x2, xg_sum);
 #    elif WEIGHT_COMPRESSEION_DT == 1
-    down_gemv_n2x_u8(weight, scales, zps, routing_weights, y, N, K, x2, xg_sum);
+        down_gemv_n2x_u8(weight, scales, zps, routing_weights, y, N, K, x2, xg_sum);
 #    elif WEIGHT_COMPRESSEION_DT == 2
-    down_gemv_n2x_f16(weight, routing_weights, y, N, K, x2);
+        down_gemv_n2x_f16(weight, routing_weights, y, N, K, x2);
 #    endif
     }
 }

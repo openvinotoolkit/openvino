@@ -752,17 +752,21 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
         jit.make("MOE_ZP_DT", "half");     // not use
     }
 
-    // Shared expert weight precision — may differ from sparse experts (mixed precision)
+    // Shared expert weight precision — only two valid configurations are supported:
+    //   1. shared inherits the sparse compression (shared_weight_type == dynamic, or
+    //      explicitly equal to the sparse `weight_dt`). All compression details
+    //      (HAS_ZP, group sizes, signedness) are reused from the sparse path.
+    //   2. shared is raw f16/f32. Then SHARED_WEIGHT_COMPRESSEION_DT == 2 selects
+    //      the f16 GEMV branch and the sparse compression macros are irrelevant for it.
+    // Mixing different compression types between sparse and shared experts is not
+    // supported.
     if (desc->_config.num_shared_expert > 0) {
         ov::element::Type shared_wt = desc->_config.shared_weight_type;
-        // If shared_weight_type is dynamic, inherit from sparse experts (backward compatible)
         if (shared_wt == ov::element::dynamic) {
             shared_wt = weight_dt;
         }
         if (shared_wt == ov::element::f16 || shared_wt == ov::element::f32) {
             jit.make("SHARED_WEIGHT_COMPRESSEION_DT", 2);
-            jit.make("SHARED_HAS_ZP", 0);
-            jit.make("SHARED_WEIGHT_IS_SIGNED", 0);
             // f16 GEMV uses intel_sub_group_block_read_us* on the weight rows, which require
             // 16-byte alignment. The row stride equals HIDDEN_SIZE * sizeof(half) bytes, so
             // HIDDEN_SIZE must be a multiple of 8 to keep all row starts aligned.
@@ -770,14 +774,15 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
                             "[moe_3gemm_swiglu_opt] HIDDEN_SIZE must be a multiple of 8 when shared expert weights are uncompressed (got ",
                             desc->_config.hidden_size,
                             ")");
-        } else if (shared_wt == ov::element::u4 || shared_wt == ov::element::i4) {
-            jit.make("SHARED_WEIGHT_COMPRESSEION_DT", 0);
-            jit.make("SHARED_HAS_ZP", desc->_config.shared_has_zp ? 1 : 0);
-            jit.make("SHARED_WEIGHT_IS_SIGNED", (shared_wt == ov::element::i4) ? 1 : 0);
         } else {
-            jit.make("SHARED_WEIGHT_COMPRESSEION_DT", 1);
-            jit.make("SHARED_HAS_ZP", desc->_config.shared_has_zp ? 1 : 0);
-            jit.make("SHARED_WEIGHT_IS_SIGNED", (shared_wt == ov::element::i8) ? 1 : 0);
+            OPENVINO_ASSERT(shared_wt == weight_dt,
+                            "[moe_3gemm_swiglu_opt] shared expert weight type (",
+                            shared_wt,
+                            ") must either be f16/f32 or match the sparse expert weight type (",
+                            weight_dt,
+                            ")");
+            // Reuse the sparse WEIGHT_COMPRESSEION_DT value (0 for u4/i4, 1 for u8/i8).
+            jit.make("SHARED_WEIGHT_COMPRESSEION_DT", (weight_dt == ov::element::u4 || weight_dt == ov::element::i4) ? 0 : 1);
         }
     }
 }
