@@ -21,17 +21,6 @@
 #include "spatial.hpp"
 #include "util.hpp"
 
-namespace {
-
-std::streamsize checked_stream_size(const std::size_t size) {
-    if (size > static_cast<std::size_t>(std::numeric_limits<std::streamsize>::max())) {
-        OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
-    }
-    return static_cast<std::streamsize>(size);
-}
-
-}  // namespace
-
 // NOTE: This construtor should only be used when exporting blobs
 ov::npuw::s11n::WeightsContext::WeightsContext(bool _is_weightless,
                                                const std::unordered_map<const void*, std::size_t>& _const_to_offset)
@@ -204,11 +193,8 @@ void ov::npuw::orc::transfer_tensor(Stream& stream, ov::Tensor& var, const s11n:
 
 void ov::npuw::orc::serialize(Stream& stream, std::shared_ptr<ov::op::v0::Parameter>& var) {
     if (stream.output()) {
-        auto elem_type_str = var->get_element_type().to_string();
-        auto part_shape_str = var->get_partial_shape().to_string();
-        auto names = var->output(0).get_names();
-        stream & elem_type_str & part_shape_str & names;
-        return;
+        OPENVINO_THROW(
+            "Serializing shared_ptr<ov::op::v0::Parameter> is not supported, serialize an output port instead");
     }
 
     std::string elem_type_str;
@@ -224,11 +210,7 @@ void ov::npuw::orc::serialize(Stream& stream, std::shared_ptr<ov::op::v0::Parame
 
 void ov::npuw::orc::serialize(Stream& stream, std::shared_ptr<ov::Node>& var) {
     if (stream.output()) {
-        auto elem_type_str = var->get_output_element_type(0).to_string();
-        auto part_shape_str = var->get_output_partial_shape(0).to_string();
-        auto names = var->output(0).get_names();
-        stream & elem_type_str & part_shape_str & names;
-        return;
+        OPENVINO_THROW("Serializing shared_ptr<ov::Node> is not supported, serialize an output port instead");
     }
 
     std::string elem_type_str;

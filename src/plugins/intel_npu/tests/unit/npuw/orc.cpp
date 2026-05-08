@@ -197,16 +197,12 @@ TEST(OrcTest, SchemaSkipsUnknownOptionalChildren) {
                                           make_payload_section(TYPE_WGHT, 1u, BlobSummary{1u, {"lazy"}})});
 
     Schema schema;
-    schema.register_loader<BlobSummary>(TYPE_META,
-                                        Schema::Multiplicity::REQUIRED_ONE,
-                                        [](const Section& section, const Schema&) {
-                                            return decode<BlobSummary>(section.payload);
-                                        });
-    schema.register_loader<BlobSummary>(TYPE_WGHT,
-                                        Schema::Multiplicity::REQUIRED_ONE,
-                                        [](const Section& section, const Schema&) {
-                                            return decode<BlobSummary>(section.payload);
-                                        });
+    schema.register_loader<BlobSummary>(TYPE_META, [](const Section& section, const Schema&) {
+        return decode<BlobSummary>(section.payload);
+    });
+    schema.register_loader<BlobSummary>(TYPE_WGHT, [](const Section& section, const Schema&) {
+        return decode<BlobSummary>(section.payload);
+    });
 
     const auto children = schema.load_children(root);
     ASSERT_EQ(children.size(), 2u);
@@ -224,30 +220,24 @@ TEST(OrcTest, SchemaRejectsUnknownRequiredChildren) {
                                           Section::raw(TYPE_UNKNOWN, 1u, std::vector<std::byte>{std::byte{0xAA}})});
 
     Schema schema;
-    schema.register_loader<BlobSummary>(TYPE_META,
-                                        Schema::Multiplicity::REQUIRED_ONE,
-                                        [](const Section& section, const Schema&) {
-                                            return decode<BlobSummary>(section.payload);
-                                        });
+    schema.register_loader<BlobSummary>(TYPE_META, [](const Section& section, const Schema&) {
+        return decode<BlobSummary>(section.payload);
+    });
 
     EXPECT_THROW(schema.load_children(root), ov::Exception);
 }
 
 TEST(OrcTest, SchemaRejectsDuplicateRegistration) {
     Schema schema;
-    schema.register_loader<BlobSummary>(TYPE_META,
-                                        Schema::Multiplicity::REQUIRED_ONE,
-                                        [](const Section& section, const Schema&) {
-                                            return decode<BlobSummary>(section.payload);
-                                        });
+    schema.register_loader<BlobSummary>(TYPE_META, [](const Section& section, const Schema&) {
+        return decode<BlobSummary>(section.payload);
+    });
 
     EXPECT_THROW(
         {
-            schema.register_loader<BlobSummary>(TYPE_META,
-                                                Schema::Multiplicity::REQUIRED_ONE,
-                                                [](const Section& section, const Schema&) {
-                                                    return decode<BlobSummary>(section.payload);
-                                                });
+            schema.register_loader<BlobSummary>(TYPE_META, [](const Section& section, const Schema&) {
+                return decode<BlobSummary>(section.payload);
+            });
         },
         ov::Exception);
 }
@@ -256,57 +246,18 @@ TEST(OrcTest, SchemaRejectsTypedMismatch) {
     const auto section = make_payload_section(TYPE_META, 1u, BlobSummary{2u, {"NPU"}});
 
     Schema schema;
-    schema.register_loader<BlobSummary>(TYPE_META,
-                                        Schema::Multiplicity::REQUIRED_ONE,
-                                        [](const Section& payload, const Schema&) {
-                                            return decode<BlobSummary>(payload.payload);
-                                        });
+    schema.register_loader<BlobSummary>(TYPE_META, [](const Section& payload, const Schema&) {
+        return decode<BlobSummary>(payload.payload);
+    });
 
     EXPECT_THROW(schema.load<std::string>(section), ov::Exception);
 }
 
-TEST(OrcTest, SchemaRejectsDuplicateSingleChildren) {
-    const auto root = Section::container(TYPE_NCMD,
-                                         1u,
-                                         {make_payload_section(TYPE_META, 1u, BlobSummary{2u, {"NPU"}}),
-                                          make_payload_section(TYPE_META, 1u, BlobSummary{3u, {"CPU"}})});
-
-    Schema schema;
-    schema.register_loader<BlobSummary>(TYPE_META,
-                                        Schema::Multiplicity::REQUIRED_ONE,
-                                        [](const Section& section, const Schema&) {
-                                            return decode<BlobSummary>(section.payload);
-                                        });
-
-    EXPECT_THROW(schema.load_children(root), ov::Exception);
-}
-
-TEST(OrcTest, SchemaRejectsMissingRequiredKnownChild) {
-    const auto root =
-        Section::container(TYPE_NCMD, 1u, {make_payload_section(TYPE_META, 1u, BlobSummary{2u, {"NPU"}})});
-
-    Schema schema;
-    schema.register_loader<BlobSummary>(TYPE_META,
-                                        Schema::Multiplicity::REQUIRED_ONE,
-                                        [](const Section& section, const Schema&) {
-                                            return decode<BlobSummary>(section.payload);
-                                        });
-    schema.register_loader<BlobSummary>(TYPE_WGHT,
-                                        Schema::Multiplicity::REQUIRED_ONE,
-                                        [](const Section& section, const Schema&) {
-                                            return decode<BlobSummary>(section.payload);
-                                        });
-
-    EXPECT_THROW(schema.load_children(root), ov::Exception);
-}
-
 TEST(OrcTest, LoadVersionedPayloadMigratesAcrossVersions) {
     Schema schema;
-    schema.register_loader<MetaV3>(TYPE_META,
-                                   Schema::Multiplicity::REQUIRED_ONE,
-                                   [](const Section& section, const Schema&) {
-                                       return load_versioned_payload<MetaV3, MetaV1, MetaV2, MetaV3>(section);
-                                   });
+    schema.register_loader<MetaV3>(TYPE_META, [](const Section& section, const Schema&) {
+        return load_versioned_payload<MetaV3, MetaV1, MetaV2, MetaV3>(section);
+    });
 
     const auto meta_v1 =
         schema.load<MetaV3>(make_payload_section(TYPE_META, MetaV1::kVersion, MetaV1{3u, {"NPU", "CPU"}}));
@@ -339,11 +290,9 @@ TEST(OrcTest, LoadVersionedPayloadMigratesAcrossVersions) {
 
 TEST(OrcTest, LoadVersionedPayloadRejectsUnsupportedVersion) {
     Schema schema;
-    schema.register_loader<MetaV3>(TYPE_META,
-                                   Schema::Multiplicity::REQUIRED_ONE,
-                                   [](const Section& section, const Schema&) {
-                                       return load_versioned_payload<MetaV3, MetaV1, MetaV2, MetaV3>(section);
-                                   });
+    schema.register_loader<MetaV3>(TYPE_META, [](const Section& section, const Schema&) {
+        return load_versioned_payload<MetaV3, MetaV1, MetaV2, MetaV3>(section);
+    });
 
     const auto unsupported = make_payload_section(TYPE_META, 99u, MetaV1{1u, {"NPU"}});
     EXPECT_THROW(schema.load<MetaV3>(unsupported), ov::Exception);

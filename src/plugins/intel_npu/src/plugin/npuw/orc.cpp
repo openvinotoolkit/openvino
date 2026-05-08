@@ -418,7 +418,6 @@ std::vector<ov::npuw::orc::Schema::LoadedChild> ov::npuw::orc::Schema::load_chil
         OPENVINO_THROW("ORC child loading requires a container section");
     }
 
-    std::unordered_map<TypeId, std::size_t> seen;
     std::vector<LoadedChild> out;
     out.reserve(container.children.size());
     for (const auto& child : container.children) {
@@ -428,19 +427,7 @@ std::vector<ov::npuw::orc::Schema::LoadedChild> ov::npuw::orc::Schema::load_chil
             }
             OPENVINO_THROW("Required ORC child section type ID ", child.type, " is not registered in the schema");
         }
-
-        const auto& entry = m_entries.at(child.type);
-        const auto count = ++seen[child.type];
-        if (entry.multiplicity != Multiplicity::MANY && count > 1u) {
-            OPENVINO_THROW("ORC child section type ID ", child.type, " violates single-entry schema multiplicity");
-        }
         out.push_back({child.type, load_any(child)});
-    }
-
-    for (const auto& [type, entry] : m_entries) {
-        if (entry.multiplicity == Multiplicity::REQUIRED_ONE && seen.count(type) == 0u) {
-            OPENVINO_THROW("Required ORC child section type ID ", type, " is missing");
-        }
     }
     return out;
 }
