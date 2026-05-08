@@ -938,6 +938,14 @@ bool ov::npuw::util::isPastValueParam(const std::string& str) {
     return std::regex_match(str, pattern);
 }
 
+bool ov::npuw::util::isRestoredPastKeyValueParam(const std::string& str) {
+    // Match badly handled KVCache states by StatefulToStateless pass for Whisper.
+    static const std::regex restored_pattern(
+        R"((input_restored\.past_key_values\.(\d+)\.decoder\.(key|value))(present\.(\d+)\.decoder\.(key|value)))");
+    ;
+    return std::regex_match(str, restored_pattern);
+}
+
 std::optional<int> ov::npuw::util::isPastKeyValuesKeyContiguous(const std::string& str) {
     // Match only the single contiguous past key param (no _block_ suffix).
     // Allows optional intermediate parts like "encoder" or "decoder" (for Whisper).
