@@ -88,14 +88,10 @@ ov::AnyMap make_phase0_base_config() {
     return config;
 }
 
-ov::AnyMap make_phase0_dynamic_attention_config() {
+ov::AnyMap make_phase0_cpu_subgraph_config() {
     auto config = make_phase0_base_config();
     config["NPUW_DEVICES"] = "NPU,CPU";
-    config["NPUW_ONLINE_PIPELINE"] = "REP";
-    config["NPUW_ONLINE_ISOLATE"] = "ATTN";
-    config["NPUW_ONLINE_KEEP_BLOCKS"] = "2";
-    config["NPUW_ONLINE_KEEP_BLOCK_SIZE"] = "1";
-    config["NPUW_ATTN"] = "DYNAMIC";
+    config["NPUW_SUBMODEL_DEVICE"] = "0:CPU";
     return config;
 }
 
@@ -188,18 +184,18 @@ TEST(SerializationTestNPUW, CompiledModelPhase0CompatibilityExportSucceedsWithSt
     EXPECT_NO_THROW(compiled.export_model(blob));
 }
 
-TEST(SerializationTestNPUW, CompiledModelPhase0CompatibilityRejectsDynamicAttentionExport) {
+TEST(SerializationTestNPUW, CompiledModelPhase0CompatibilityRejectsCpuPinnedSubgraphExport) {
     ov::Core ov_core;
     skip_if_no_npu(ov_core);
 
-    auto compiled = ov_core.compile_model(build_chunked_prefill_model(), "NPU", make_phase0_dynamic_attention_config());
+    auto compiled = ov_core.compile_model(build_chunked_prefill_model(), "NPU", make_phase0_cpu_subgraph_config());
     std::stringstream blob;
 
     try {
         compiled.export_model(blob);
-        FAIL() << "Expected phase-0 compatibility export to reject dynamic attention";
+        FAIL() << "Expected phase-0 compatibility export to reject a CPU-pinned subgraph";
     } catch (const ov::Exception& ex) {
-        EXPECT_NE(std::string(ex.what()).find("Attention"), std::string::npos) << ex.what();
+        EXPECT_NE(std::string(ex.what()).find("device \"CPU\""), std::string::npos) << ex.what();
     }
 }
 
