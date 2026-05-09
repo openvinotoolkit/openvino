@@ -51,7 +51,7 @@ void pa_lsc_u8(
     int local_size,
     int q_start,
     int kv_stop,
-    int q_len,
+    int q_tokens_in_tile,
     int kv_len,
     svmptr_t q_base [[type("svmptr_t")]],
     svmptr_t k_cache_base [[type("svmptr_t")]],
@@ -82,7 +82,7 @@ void pa_lsc_u8(
     matrix<float, head_size / REG_N * num_P_tiles, REG_M * REG_N> rO;
     bool first_active = true;
 
-    auto q_tokens_left = q_len;
+    // clamp per-tile valid query tokens to [0, q_step]
     static_assert(q_step == REG_N);
     static_assert(kv_step == REG_K);
 #if KV_CACHE_COMPRESSION == 2
@@ -90,14 +90,14 @@ void pa_lsc_u8(
     static_assert(CMPA_BLOCK_SZ % SUB_BLOCK_SIZE == 0, "CMPA_BLOCK_SZ must be divisible by SUB_BLOCK_SIZE");
 #endif
 
-    if (q_tokens_left < 0) q_tokens_left = 0;
-    if (q_tokens_left > q_step) q_tokens_left = q_step;
+    if (q_tokens_in_tile < 0) q_tokens_in_tile = 0;
+    if (q_tokens_in_tile > q_step) q_tokens_in_tile = q_step;
 
     // ---- Load Q (unchanged) ----
-    if (q_tokens_left > 0) {
+    if (q_tokens_in_tile > 0) {
         lsc::block_2d_desc<uint, 1, REG_N, REG_K / 2> b2dQ(
             reinterpret_cast<uint*>(q_base),
-            q_tokens_left - 1,
+            q_tokens_in_tile - 1,
             head_size * sizeof(half) - 1,
             q_pitch - 1,
             0, 0);
@@ -546,7 +546,9 @@ void pa_lsc_u8(
     // ============================================================
     // Store O (unchanged)
     // ============================================================
-    if (q_tokens_left == 0) return;
+    // U8 path uses workgroup-level barriers in `pa_lsc_u8`, so every lane in
+    // the workgroup must participate and cannot early exit.
+    if (q_tokens_in_tile == 0) return;
 
 #ifdef CMPA_DEBUG_ALL_MASKED
     if (first_active) {
@@ -559,7 +561,7 @@ void pa_lsc_u8(
 
     lsc::block_2d_desc<half, 1, REG_M, REG_N> b2dO(
         o_base,
-        q_tokens_left - 1,
+        q_tokens_in_tile - 1,
         head_size * sizeof(half) - 1,
         o_pitch - 1,
         0, 0);
@@ -592,7 +594,7 @@ void pa_kernel_lsc_prefetch_f16(
     int wg_local_id,
     int q_start,
     int kv_stop, //
-    int q_len, //q_step
+    int q_tokens_in_tile, // number of valid query tokens in this q_step tile
     int kv_len, //not used for now
     svmptr_t q_base [[type("svmptr_t")]],
     svmptr_t k_cache_base [[type("svmptr_t")]],
@@ -638,20 +640,21 @@ void pa_kernel_lsc_prefetch_f16(
     };
 #endif
 
-    auto q_tokens_left = q_len;
+    // clamp per-tile valid query tokens to [0, q_step]
     static_assert(q_step == REG_N);
     static_assert(kv_step == REG_K);
 
-    if (q_tokens_left < 0) q_tokens_left = 0;
-    if (q_tokens_left > q_step) q_tokens_left = q_step;
+    if (q_tokens_in_tile < 0) q_tokens_in_tile = 0;
+    if (q_tokens_in_tile > q_step) q_tokens_in_tile = q_step;
 
-    if (q_tokens_left > 0) {
-        lsc::block_2d_desc<uint, 1, REG_N, REG_K/2> b2dQ(reinterpret_cast<uint*>(q_base), q_tokens_left - 1, head_size*sizeof(half) - 1, q_pitch - 1, 0, 0);
-        #pragma unroll
-        for(int k = 0, ri = 0; k < head_size/2; k += REG_K/2, ri++) {
-            cm_load<lsc::Transpose>(rQ[ri].format<uint>(), b2dQ.set_block_x(k));
-            rQ[ri].format<half>() = cm_mul<half>(rQ[ri].format<half>(), (half)scale_factor);
-        }
+    // Fp16 path does not use workgroup-level barriers as in `pa_lsc_u8`, so lanes with zero valid query tokens can early exit.
+    if (q_tokens_in_tile == 0) return;
+
+    lsc::block_2d_desc<uint, 1, REG_N, REG_K/2> b2dQ(reinterpret_cast<uint*>(q_base), q_tokens_in_tile - 1, head_size*sizeof(half) - 1, q_pitch - 1, 0, 0);
+    #pragma unroll
+    for(int k = 0, ri = 0; k < head_size/2; k += REG_K/2, ri++) {
+        cm_load<lsc::Transpose>(rQ[ri].format<uint>(), b2dQ.set_block_x(k));
+        rQ[ri].format<half>() = cm_mul<half>(rQ[ri].format<half>(), (half)scale_factor);
     }
 
     lsc::block_2d_desc<half, 1, kv_step, REG_K> b2dK(k_cache_base, CMPA_BLOCK_SZ - 1, head_size*sizeof(half) - 1, k_pitch - 1, 0, 0);
@@ -959,8 +962,6 @@ void pa_kernel_lsc_prefetch_f16(
     }
 #endif
 
-    if (q_tokens_left == 0) return;
-
 #ifdef CMPA_DEBUG_ALL_MASKED
     if (first_active) {
         cm_printf("CMPA error: all blocks masked out, q_start=%d\n", q_start);
@@ -971,7 +972,7 @@ void pa_kernel_lsc_prefetch_f16(
     matrix<half, num_P_tiles*REG_M, REG_N> cur_O_f16;
     cur_sum = cm_inv(cur_sum);
 
-    lsc::block_2d_desc<half, 1, REG_M, REG_N> b2dO(o_base, q_tokens_left - 1, head_size*sizeof(half) - 1, o_pitch - 1, 0, 0);
+    lsc::block_2d_desc<half, 1, REG_M, REG_N> b2dO(o_base, q_tokens_in_tile - 1, head_size*sizeof(half) - 1, o_pitch - 1, 0, 0);
 
     #pragma unroll
     for(int k = 0, ri=0; k < head_size; k += REG_N, ri += num_P_tiles) {

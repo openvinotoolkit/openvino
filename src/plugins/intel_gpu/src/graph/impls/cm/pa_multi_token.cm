@@ -78,7 +78,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     auto wg_local_id = cm_local_id(2);
     int local_size = cm_local_size(2);
 
-    int q_start_sg, kv_start, kv_seq_len, q_len_sg;
+    int q_start_sg, kv_start, kv_seq_len, q_tokens_in_tile_sg;
 
     // multiple work-groups are required to split a sequence,
     // need to figure out which part of query-tokens to process
@@ -114,27 +114,27 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     int q_start_local = (block_start_pos - subseq_q_begin) + (wg_local_id * q_step);
 #if KV_CACHE_COMPRESSION
     // U8 path uses workgroup-level barriers in `pa_lsc_u8`, so every lane in
-    // the workgroup must participate. For out-of-range lanes, pass q_len_sg=0
+    // the workgroup must participate. For out-of-range lanes, pass q_tokens_in_tile_sg=0
     // so no output is written while still participating in synchronization.
     bool lane_active = (q_start_local < subseq_q_len);
     q_start_sg = subseq_q_begin + q_start_local;
-    q_len_sg = q_step;
+    q_tokens_in_tile_sg = q_step;
     if (lane_active) {
-        if (q_start_local + q_len_sg > subseq_q_len) {
-            q_len_sg = subseq_q_len - q_start_local;
+        if (q_start_local + q_tokens_in_tile_sg > subseq_q_len) {
+            q_tokens_in_tile_sg = subseq_q_len - q_start_local;
         }
     } else {
         q_start_sg = subseq_q_begin + subseq_q_len;
-        q_len_sg = 0;
+        q_tokens_in_tile_sg = 0;
     }
 #else
     if (q_start_local >= subseq_q_len) {
         return;
     }
     q_start_sg = subseq_q_begin + q_start_local;
-    q_len_sg = q_step;
-    if (q_start_local + q_len_sg > subseq_q_len) {
-        q_len_sg = subseq_q_len - q_start_local;
+    q_tokens_in_tile_sg = q_step;
+    if (q_start_local + q_tokens_in_tile_sg > subseq_q_len) {
+        q_tokens_in_tile_sg = subseq_q_len - q_start_local;
     }
 #endif
 
@@ -214,7 +214,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                             local_size,
                             q_start_local, //q_start within current subsequence,
                             kv_stop,
-                            q_len_sg, //q_step,
+                            q_tokens_in_tile_sg,
                             kv_seq_len, //kv_len,
 #ifdef CM_HAS_LSC_UNTYPED_2D
                             reinterpret_cast<svmptr_t>(query + q_offset),
@@ -245,7 +245,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                             wg_local_id,
                             q_start_local, //q_start within current subsequence,
                             kv_stop,
-                            q_len_sg, //q_step,
+                            q_tokens_in_tile_sg,
                             kv_seq_len, //kv_len,
 #ifdef CM_HAS_LSC_UNTYPED_2D
                             reinterpret_cast<svmptr_t>(query + q_offset),
