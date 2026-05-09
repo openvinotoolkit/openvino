@@ -10,6 +10,8 @@
 #include "openvino/core/memory_util.hpp"
 
 namespace ov {
+IBufferDescriptor::~IBufferDescriptor() = default;
+
 AlignedBuffer::AlignedBuffer() : m_allocated_buffer(nullptr), m_aligned_buffer(nullptr), m_byte_size(0) {}
 
 AlignedBuffer::AlignedBuffer(size_t byte_size, size_t alignment) : m_byte_size(byte_size) {
@@ -57,5 +59,13 @@ AttributeAdapter<std::shared_ptr<AlignedBuffer>>::~AttributeAdapter() = default;
 
 std::shared_ptr<IBufferDescriptor> AlignedBuffer::get_descriptor() const {
     return nullptr;
+}
+
+void AlignedBuffer::hint_evict() noexcept {}
+
+void AlignedBuffer::hint_evict(size_t offset, size_t size) noexcept {}
+
+void AlignedBuffer::invoke_evict(AlignedBuffer& buffer, size_t offset, size_t size) noexcept {
+    buffer.hint_evict(offset, size);
 }
 }  // namespace ov

@@ -7,7 +7,9 @@
 #include <gtest/gtest.h>
 
 #include <climits>
+#include <iomanip>
 #include <random>
+#include <sstream>
 
 #include "common_test_utils/float_util.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"

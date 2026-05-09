@@ -5,6 +5,7 @@
 #include "common_test_utils/test_common.hpp"
 #include "conversion_with_reference.hpp"
 #include "gtest/gtest.h"
+#include "openvino/frontend/exception.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
@@ -189,5 +190,165 @@ TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelWithNumericalNames) {
         auto result = make_shared<v0::Result>(sub);
         result->output(0).set_names({"4"});
         model_ref = make_shared<Model>(ResultVector{result}, ParameterVector{x, y, z});
+    }
+}
+
+// Test that a crafted SavedModel with integer overflow in BundleEntryProto
+// offset/size fields produces a clean exception, not a SIGSEGV.
+// The malicious variables.index has entry.offset = 0x7FFFFFFFFFFFFFF0 and entry.size = 16.
+// The sum overflows signed int64 to INT64_MIN, which would bypass the old bounds check.
+TEST(FrontEndConvertModelTest, SavedModelMaliciousOverflowOffset) {
+    shared_ptr<Model> model = nullptr;
+    // Test with mmap enabled (default) — triggers crash at variables_index.cpp CKOG path
+    try {
+        model = convert_model("saved_model_malicious_overflow");
+        FAIL() << "Loading a malicious SavedModel with overflow offset should throw an exception.";
+    } catch (const ov::Exception& error) {
+        string error_message = error.what();
+        EXPECT_TRUE(error_message.find("entry") != string::npos || error_message.find("offset") != string::npos ||
+                    error_message.find("bounds") != string::npos || error_message.find("negative") != string::npos ||
+                    error_message.find("size") != string::npos)
+            << "Unexpected error message: " << error_message;
+        EXPECT_EQ(model, nullptr);
+    } catch (const std::exception& e) {
+        FAIL() << "Unexpected exception type: " << e.what();
+    } catch (...) {
+        FAIL() << "Unexpected non-std exception thrown";
+    }
+}
+
+// Crafted SavedModel where AssignVariableOp input references "save/RestoreV2:999"
+// but the Const(tensor_names) has only 1 string_val entry → OOB positive index.
+TEST(FrontEndConvertModelTest, SavedModelOobPositiveIndex) {
+    try {
+        convert_model("saved_model_oob_pos_index");
+        FAIL() << "Expected exception for OOB positive RestoreV2 output index";
+    } catch (const ov::Exception& e) {
+        EXPECT_TRUE(string(e.what()).find("out of range") != string::npos) << "Unexpected error message: " << e.what();
+    } catch (const std::exception& e) {
+        FAIL() << "Unexpected std::exception: " << e.what();
+    } catch (...) {
+        FAIL() << "Unexpected non-std exception";
+    }
+}
+
+// Crafted SavedModel where AssignVariableOp input references "save/RestoreV2:-1" → negative OOB.
+TEST(FrontEndConvertModelTest, SavedModelOobNegativeIndex) {
+    try {
+        convert_model("saved_model_oob_neg_index");
+        FAIL() << "Expected exception for negative RestoreV2 output index";
+    } catch (const ov::Exception& e) {
+        EXPECT_TRUE(string(e.what()).find("out of range") != string::npos) << "Unexpected error message: " << e.what();
+    } catch (const std::exception& e) {
+        FAIL() << "Unexpected std::exception: " << e.what();
+    } catch (...) {
+        FAIL() << "Unexpected non-std exception";
+    }
+}
+
+// Crafted SavedModel where AssignVariableOp input references "save/RestoreV2:0" but
+// Const(tensor_names) has zero string_val entries → upper-bound guard fires at index 0.
+// This exercises the security check on the implicit-0 code path.
+TEST(FrontEndConvertModelTest, SavedModelOobEmptyTensorNames) {
+    try {
+        convert_model("saved_model_oob_empty_names");
+        FAIL() << "Expected exception for OOB index into empty tensor_names";
+    } catch (const ov::Exception& e) {
+        EXPECT_TRUE(string(e.what()).find("out of range") != string::npos) << "Unexpected error message: " << e.what();
+    } catch (const std::exception& e) {
+        FAIL() << "Unexpected std::exception: " << e.what();
+    } catch (...) {
+        FAIL() << "Unexpected non-std exception";
+    }
+}
+
+// Crafted TF1-style SavedModel where Assign.input(1) = "save/RestoreV2:999" but
+// Const(tensor_names) has only 1 string_val entry → exercises the Assign code path
+// in map_assignvariable() (distinct from the AssignVariableOp path in other OOB tests).
+TEST(FrontEndConvertModelTest, SavedModelOobAssignPath) {
+    try {
+        convert_model("saved_model_oob_assign_path");
+        FAIL() << "Expected exception for OOB RestoreV2 output index in Assign path";
+    } catch (const ov::Exception& e) {
+        EXPECT_TRUE(string(e.what()).find("out of range") != string::npos) << "Unexpected error message: " << e.what();
+    } catch (const std::exception& e) {
+        FAIL() << "Unexpected std::exception: " << e.what();
+    } catch (...) {
+        FAIL() << "Unexpected non-std exception";
+    }
+}
+
+TEST(FrontEndConvertModelTest, SavedModelOobRestoreV2ShortInputs) {
+    try {
+        convert_model("saved_model_oob_restorev2_short_inputs");
+        FAIL() << "Expected exception when RestoreV2 tensor_names input is missing";
+    } catch (const ov::Exception& e) {
+        EXPECT_TRUE(string(e.what()).find("missing tensor_names input") != string::npos)
+            << "Unexpected error message: " << e.what();
+    } catch (const std::exception& e) {
+        FAIL() << "Unexpected std::exception: " << e.what();
+    } catch (...) {
+        FAIL() << "Unexpected non-std exception";
+    }
+}
+
+// Crafted SavedModel where RestoreV2.input(1) names "tensor_names" but no such
+// node exists in the GraphDef.  shape_and_slices is a Const that occupies the
+// inputs[1] slot in the compacted PtrNode::inputs vector — a buggy
+// implementation that resolves tensor_names via inputs[1] would silently use
+// shape_and_slices.  Resolving by matching node->name() across rv2_node->inputs
+// makes the missing input explicit.
+TEST(FrontEndConvertModelTest, SavedModelOobRestoreV2WrongInputAtPort1) {
+    try {
+        convert_model("saved_model_oob_wrong_input_at_port1");
+        FAIL() << "Expected exception when RestoreV2 tensor_names input node is absent";
+    } catch (const ov::Exception& e) {
+        EXPECT_TRUE(string(e.what()).find("not found among RestoreV2 inputs") != string::npos)
+            << "Unexpected error message: " << e.what();
+    } catch (const std::exception& e) {
+        FAIL() << "Unexpected std::exception: " << e.what();
+    } catch (...) {
+        FAIL() << "Unexpected non-std exception";
+    }
+}
+
+// Crafted SavedModel where RestoreV2.input(1) is a control dep (`^bogus`) and
+// `bogus` is a Const with non-empty `string_val`.  parse_node_name strips the
+// `^`, and associate_node has already linked `bogus` into rv2_node->inputs, so
+// a buggy implementation that pulls the candidate from node->input(1) without
+// checking for the `^` prefix would silently bind the variable to bogus's
+// first string_val.  The fix iterates node->input() and skips control inputs,
+// finds only one data input ('prefix'), and throws.
+TEST(FrontEndConvertModelTest, SavedModelOobRestoreV2ControlDepAtPort1) {
+    try {
+        convert_model("saved_model_oob_control_dep_at_port1");
+        FAIL() << "Expected exception when RestoreV2.input(1) is a control dep";
+    } catch (const ov::Exception& e) {
+        EXPECT_TRUE(string(e.what()).find("missing tensor_names input") != string::npos)
+            << "Unexpected error message: " << e.what();
+    } catch (const std::exception& e) {
+        FAIL() << "Unexpected std::exception: " << e.what();
+    } catch (...) {
+        FAIL() << "Unexpected non-std exception";
+    }
+}
+
+// Same test with mmap disabled to verify the stream code path is also protected
+TEST(FrontEndConvertModelTest, SavedModelMaliciousOverflowOffsetNoMmap) {
+    shared_ptr<Model> model = nullptr;
+    try {
+        model = convert_model("saved_model_malicious_overflow", nullptr, {}, {}, {}, {}, {}, true /* disable_mmap */);
+        FAIL() << "Loading a malicious SavedModel with overflow offset should throw an exception.";
+    } catch (const ov::Exception& error) {
+        string error_message = error.what();
+        EXPECT_TRUE(error_message.find("entry") != string::npos || error_message.find("offset") != string::npos ||
+                    error_message.find("bounds") != string::npos || error_message.find("negative") != string::npos ||
+                    error_message.find("size") != string::npos)
+            << "Unexpected error message: " << error_message;
+        EXPECT_EQ(model, nullptr);
+    } catch (const std::exception& e) {
+        FAIL() << "Unexpected exception type: " << e.what();
+    } catch (...) {
+        FAIL() << "Unexpected non-std exception thrown";
     }
 }

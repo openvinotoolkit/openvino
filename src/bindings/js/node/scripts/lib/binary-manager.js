@@ -187,7 +187,7 @@ class BinaryManager {
         .pipe(gunzip())
         .pipe(
           tar
-            .extract(dest)
+            .extract(dest, { validateSymlinks: false })
             .on("finish", () => {
               resolve();
             })

@@ -27,7 +27,6 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(std::vector<element::Type>{}),
                        ::testing::Values(ov::element::f32),
                        ::testing::ValuesIn({true}),  // False is not supported for graph builder in tests
-                       ::testing::Values(MHA::default_thread_count),
                        ::testing::Values(3),  // Extracted Add + Extracted Reshape + MHA
                        ::testing::Values(2),  // Extracted Add + MHA
                        ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -44,7 +43,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHARankUpgradeToReductionReshape,
                                             ::testing::Values(std::vector<element::Type>{}),
                                             ::testing::Values(ov::element::f32),
                                             ::testing::Values(false),
-                                            ::testing::Values(MHA::default_thread_count),
                                             ::testing::Values(2),  // MHA + reshape
                                             ::testing::Values(1),  // MHA subgraph
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),

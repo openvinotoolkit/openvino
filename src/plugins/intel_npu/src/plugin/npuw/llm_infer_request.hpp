@@ -13,6 +13,7 @@
 #include "llm_lora_states.hpp"
 #include "llm_prefix_caching.hpp"
 #include "openvino/core/descriptor/output.hpp"
+#include "perf.hpp"
 
 namespace ov {
 namespace npuw {
@@ -45,22 +46,26 @@ protected:
 
     void infer_chunked_prefill(ov::SoPtr<ov::ITensor> input_ids,
                                ov::SoPtr<ov::ITensor> attention_mask,
-                               ov::SoPtr<ov::ITensor> position_ids);
+                               ov::SoPtr<ov::ITensor> position_ids,
+                               ov::SoPtr<ov::ITensor> per_layer_inputs);
 
     void infer_whole_prefill(ov::SoPtr<ov::ITensor> input_ids,
                              ov::SoPtr<ov::ITensor> attention_mask,
                              ov::SoPtr<ov::ITensor> position_ids,
-                             ov::SoPtr<ov::ITensor> input_token_ids);
+                             ov::SoPtr<ov::ITensor> token_type_ids,
+                             ov::SoPtr<ov::ITensor> per_layer_inputs);
 
     void infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
                        ov::SoPtr<ov::ITensor> attention_mask,
                        ov::SoPtr<ov::ITensor> position_ids,
-                       ov::SoPtr<ov::ITensor> input_token_ids);
+                       ov::SoPtr<ov::ITensor> token_type_ids,
+                       ov::SoPtr<ov::ITensor> per_layer_inputs);
 
     void infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                         ov::SoPtr<ov::ITensor> attention_mask,
                         ov::SoPtr<ov::ITensor> position_ids,
-                        ov::SoPtr<ov::ITensor> input_token_ids);
+                        ov::SoPtr<ov::ITensor> token_type_ids,
+                        ov::SoPtr<ov::ITensor> per_layer_inputs);
 
     // Multiple generate inference request variants, each with a different KV cache size
     std::vector<std::shared_ptr<ov::IAsyncInferRequest>> m_generate_requests;
@@ -78,21 +83,17 @@ protected:
     std::shared_ptr<ov::IAsyncInferRequest> m_lm_head_request;
     ov::SoPtr<ov::ITensor> m_logits;
 
-    std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_in_ports;
-    std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_out_ports;
+    PortsMap m_prefill_in_ports;
+    PortsMap m_prefill_out_ports;
 
     // Ports for the currently selected generate model variant (set once per conversation in
     // prepare_for_new_conversation)
-    std::unordered_map<std::string, ov::Output<const ov::Node>> m_kvcache_in_ports;
-    std::unordered_map<std::string, ov::Output<const ov::Node>> m_kvcache_out_ports;
+    PortsMap m_kvcache_in_ports;
+    PortsMap m_kvcache_out_ports;
 
     // Ports for all generate model variants - maps from request pointer to its input/output ports
-    std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>,
-                       std::unordered_map<std::string, ov::Output<const ov::Node>>>
-        m_generate_variant_in_ports;
-    std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>,
-                       std::unordered_map<std::string, ov::Output<const ov::Node>>>
-        m_generate_variant_out_ports;
+    std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>, PortsMap> m_generate_variant_in_ports;
+    std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>, PortsMap> m_generate_variant_out_ports;
 
     ov::Output<const ov::Node> m_lm_head_logits_port;
 
@@ -126,6 +127,10 @@ protected:
 
     // Support prefix caching
     std::unique_ptr<PrefixCachingHelper> m_prefix_caching_helper;
+
+    // LLM-level profiling for 1st token generation analysis
+    using MS = ov::npuw::perf::metric<ov::npuw::perf::MSec>;
+    ov::npuw::perf::Profile<MS> m_llm_profile;
 
     // Friend declarations for PrefixCachingHelper to access protected members
     friend class PrefixCachingHelper;

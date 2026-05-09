@@ -1,0 +1,8 @@
+# optimum-intel required by transformation tests (PA, StatefulToStateless, etc.)
+# Pinned to a known-working commit for compatibility.
+# optimum-intel@8ba536cd requires transformers>=4.36,<4.52
+transformers==4.51.3
+optimum==1.25.0; python_version < "3.12"
+auto-gptq==0.7.1; platform_system == "Linux" and platform_machine == "x86_64" and python_version < "3.12"
+autoawq==0.2.7; platform_system == "Linux" and platform_machine == "x86_64"
+git+https://github.com/huggingface/optimum-intel.git@8ba536cd0a2bf93e9e88408b0048a7695db5be0b; python_version < "3.12"

@@ -3,6 +3,7 @@
 //
 
 #include "include/batch_headers/common.cl"
+#include "include/batch_headers/int4_utils.cl"
 #include "include/batch_headers/sub_group_block_read.cl"
 #include "include/batch_headers/sub_group_block_write.cl"
 #include "include/batch_headers/sub_group_shuffle.cl"
@@ -12,6 +13,13 @@
 
 #if K_HEAD_SIZE > 128 || V_HEAD_SIZE > 128 || HEADS_PER_WI > 1
     #define STORE_QUERY_TO_SLM 1
+#endif
+
+// Disable outer QK loop unrolling to prevent register spill in the non-SLM path.
+// Full unroll with K_HEAD_SIZE=128, SUBGROUP_SIZE=16 produces 8 live k_vals copies
+// (16 GRF each = 128 GRF total), exceeding the hardware limit (measured SPILL=1088 bytes).
+#if !defined(STORE_QUERY_TO_SLM) && K_HEAD_SIZE >= 128
+    #define DISABLE_QK_LOOP_UNROLL
 #endif
 
 #ifdef SDPA_STAGE_0
@@ -64,6 +72,10 @@ KERNEL(pa_sdpa_opt)(
 #endif
 #if HAS_SINK_INPUT
     const __global SINK_DATA_T* sink_ptr,
+#endif
+#if HAS_QQ_BIAS
+    const __global QQ_BIAS_DATA_T* qq_bias,
+    const __global QQ_BIAS_BEGINS_DATA_T* qq_bias_begins,
 #endif
     __global OUTPUT_TYPE* output,
 #if PAGED_ATTENTION_SCORES_OUTPUT
@@ -122,6 +134,18 @@ KERNEL(pa_sdpa_opt)(
     #error "pa_sdpa_opt.cl: Unsupported scale factor"
 #endif
 
+#if IS_INT4_COMPRESSED
+    const uint phys_adjusted_k_head_size = PACKED_ADJUSTED_K_HEAD_SIZE;
+    const uint phys_adjusted_v_head_size = PACKED_ADJUSTED_V_HEAD_SIZE;
+    const uint phys_k_head_size = PACKED_K_HEAD_SIZE;
+    const uint phys_v_head_size = PACKED_V_HEAD_SIZE;
+#else
+    const uint phys_adjusted_k_head_size = ADJUSTED_K_HEAD_SIZE;
+    const uint phys_adjusted_v_head_size = ADJUSTED_V_HEAD_SIZE;
+    const uint phys_k_head_size = K_HEAD_SIZE;
+    const uint phys_v_head_size = V_HEAD_SIZE;
+#endif
+
     const uint batch_idx = seq_idx;
 
 #if MULTI_TOKENS_PROCESSING
@@ -129,6 +153,12 @@ KERNEL(pa_sdpa_opt)(
     const int subsequence_begin = subsequence_begins[subsequence_idx];
     const int subsequence_end = subsequence_begins[subsequence_idx + 1];
     const uint seq_len = past_lens[subsequence_idx] + 1 + (seq_idx - subsequence_begin);
+    const uint past_len = past_lens[subsequence_idx];
+    #if HAS_QQ_BIAS
+        const uint qq_bias_num = qq_bias_begins[subsequence_idx + 1] - qq_bias_begins[subsequence_idx];
+        const uint qq_bias_spec_num = (uint)native_sqrt((float)qq_bias_num);
+        const uint cumulated_qq_bias_num = qq_bias_begins[subsequence_idx];
+    #endif
 #else
     const uint subsequence_idx = seq_idx;
     const uint seq_len = past_lens[seq_idx] + 1;
@@ -186,6 +216,7 @@ KERNEL(pa_sdpa_opt)(
 
         barrier(CLK_LOCAL_MEM_FENCE);
 #else // !STORE_QUERY_TO_SLM
+
         INPUT0_TYPE q_val[K_HEAD_SIZE / SUBGROUP_SIZE];
         unroll_for (uint i = 0; i < K_HEAD_SIZE / SUBGROUP_SIZE; i++) {
             const uint query_idx = INPUT0_OFFSET +
@@ -220,15 +251,15 @@ KERNEL(pa_sdpa_opt)(
             #define KEY_BLOCK MAKE_VECTOR_TYPE(INPUT1_TYPE, KEY_VEC_SIZE)
 #if IS_KV_COMPRESSED
     #ifdef IS_KEY_BY_CHANNEL
-            const uint head_stride = ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
+            const uint head_stride = phys_adjusted_k_head_size * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
             const uint block_stride = KV_HEADS_NUM * head_stride;
             const uint key_block_offset = block_indice * block_stride + head_idx * head_stride;
             const uint hidden_stride = ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
     #else
-            const uint block_offset = block_indice * ADJUSTED_K_HEAD_SIZE * KV_HEADS_NUM * SUBGROUP_SIZE + head_idx * ADJUSTED_K_HEAD_SIZE * SUBGROUP_SIZE;
+            const uint block_offset = block_indice * phys_adjusted_k_head_size * KV_HEADS_NUM * SUBGROUP_SIZE + head_idx * phys_adjusted_k_head_size * SUBGROUP_SIZE;
             const uint key_block_offset = block_offset;
             const uint hidden_stride = SUBGROUP_SIZE;
-            const uint key_comp_offset = key_block_offset + K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
+            const uint key_comp_offset = key_block_offset + phys_k_head_size * PAGED_ATTENTION_BLOCK_SIZE;
             INPUT0_TYPE* key_comp_ptr = key_cache + key_comp_offset;
             INPUT0_TYPE comp_scale = key_comp_ptr[0 + sglid];
             INPUT0_TYPE comp_zp = key_comp_ptr[PAGED_ATTENTION_BLOCK_SIZE + sglid];
@@ -237,35 +268,109 @@ KERNEL(pa_sdpa_opt)(
             const uint block_offset = block_indice * ADJUSTED_K_HEAD_SIZE * KV_HEADS_NUM * SUBGROUP_SIZE + head_idx * ADJUSTED_K_HEAD_SIZE * SUBGROUP_SIZE;
 #endif
 
+            // Loop for qk_index
+#if IS_KV_COMPRESSED && IS_INT4_COMPRESSED && defined(IS_KEY_BY_CHANNEL)
+            // INT4 BY_CHANNEL: dim order {0,1,3,2}: [blocks, heads, head_size, packed_block+scales]
+            // Each column (head dim) = COMP_K_OFFSET packed bytes + 4 bytes scale/zp.
+            // Token sglid's u4 value is at packed byte sglid/2, nibble sglid%2.
+            // Lane sglid represents token sglid, reads its nibble from each column.
+            MAKE_VECTOR_TYPE(INPUT0_TYPE, KEY_VEC_SIZE) k_vals[K_HEAD_SIZE / KEY_VEC_SIZE];
+            {
+                unroll_for (uint qk_idx = 0; qk_idx < K_HEAD_SIZE / KEY_VEC_SIZE; qk_idx++) {
+                    // Pre-read scale/zp: lane sglid reads scale for head dim (qk_idx*16 + sglid)
+                    const uint comp_head_dim = qk_idx * KEY_VEC_SIZE + sglid;
+                    const uint comp_col_base = key_block_offset + comp_head_dim * hidden_stride;
+                    INPUT0_TYPE* comp_ptr = (INPUT0_TYPE*)(key_cache + comp_col_base + PACKED_K_BLOCK_SIZE);
+                    INPUT0_TYPE comp_scale = comp_ptr[0];
+                    INPUT0_TYPE comp_zp = comp_ptr[1];
+
+                    // Optimized: process 2 adjacent head dims per iteration to halve memory reads
+                    // and eliminate redundant unpack + branch operations.
+                    const uint sglid_byte_offset = sglid / U4_ELEMS_PER_BYTE;
+                    const uint is_odd_lane = sglid % U4_ELEMS_PER_BYTE;
+                    unroll_for (uint i = 0; i < KEY_VEC_SIZE; i += 2) {
+                        const uint head_dim0 = qk_idx * KEY_VEC_SIZE + i;
+                        const uint head_dim1 = head_dim0 + 1;
+
+                        const uint col_base0 = key_block_offset + head_dim0 * hidden_stride;
+                        const uint col_base1 = key_block_offset + head_dim1 * hidden_stride;
+                        char packed0 = key_cache[col_base0 + sglid_byte_offset];
+                        char packed1 = key_cache[col_base1 + sglid_byte_offset];
+                        char u4_val0 = is_odd_lane ? ((uchar)packed0 >> 4) : (packed0 & 0x0F);
+                        char u4_val1 = is_odd_lane ? ((uchar)packed1 >> 4) : (packed1 & 0x0F);
+
+                        k_vals[qk_idx][i]     = ((INPUT0_TYPE)u4_val0 - _sub_group_shuffle(comp_zp, i))     * _sub_group_shuffle(comp_scale, i);
+                        k_vals[qk_idx][i + 1] = ((INPUT0_TYPE)u4_val1 - _sub_group_shuffle(comp_zp, i + 1)) * _sub_group_shuffle(comp_scale, i + 1);
+                    }
+                }
+            }
+
+            #if STORE_QUERY_TO_SLM
+                unroll_for (uint qk_idx = 0; qk_idx < K_HEAD_SIZE / KEY_VEC_SIZE; qk_idx++) {
+                    unroll_for (uint q_idx = 0; q_idx < QUERIES_PER_WI; q_idx++) {
+                        SOFTMAX_ACCUMULATOR_TYPE q_val = slm_query[q_idx * K_HEAD_SIZE + qk_idx * KEY_VEC_SIZE + sglid];
+                        unroll_for (uint i = 0; i < KEY_VEC_SIZE; i++) {
+                            GET_VECTOR_ELEMENT(qk_acc, q_idx) = mad(sub_group_broadcast(q_val, i), TO_SOFTMAX_ACCUMULATOR_TYPE(k_vals[qk_idx][i]), GET_VECTOR_ELEMENT(qk_acc, q_idx));
+                        }
+                    }
+                }
+            #else
+                unroll_for (uint qk_idx = 0; qk_idx < K_HEAD_SIZE / KEY_VEC_SIZE; qk_idx++) {
+                    unroll_for (uint q_idx = 0; q_idx < QUERIES_PER_WI; q_idx++) {
+                        unroll_for (uint i = 0; i < KEY_VEC_SIZE; i++) {
+                            qk_acc = mad(TO_SOFTMAX_ACCUMULATOR_TYPE(sub_group_broadcast(q_val[qk_idx], i)), TO_SOFTMAX_ACCUMULATOR_TYPE(k_vals[qk_idx][i]), qk_acc);
+                        }
+                    }
+                }
+            #endif
+
+#else  // !(IS_KV_COMPRESSED && IS_INT4_COMPRESSED && defined(IS_KEY_BY_CHANNEL))
+            #define KEY_BLOCK_UNCOMPRESSED MAKE_VECTOR_TYPE(INPUT0_TYPE, KEY_VEC_SIZE)
+#ifdef DISABLE_QK_LOOP_UNROLL
+            for (uint qk_idx = 0; qk_idx < K_HEAD_SIZE / KEY_VEC_SIZE; qk_idx++) {
+#else
             unroll_for (uint qk_idx = 0; qk_idx < K_HEAD_SIZE / KEY_VEC_SIZE; qk_idx++) {
-                #define KEY_BLOCK_UNCOMPRESSED MAKE_VECTOR_TYPE(INPUT0_TYPE, KEY_VEC_SIZE)
-                #define TO_KEY_BLOCK_UNCOMPRESSED_TYPE(val) CAT(convert_, KEY_BLOCK_UNCOMPRESSED)(val)
+#endif
 
 #if IS_KV_COMPRESSED
-                 #ifdef IS_KEY_BY_CHANNEL
-                const uint key_comp_offset = key_block_offset + qk_idx * SUBGROUP_SIZE * hidden_stride + sglid * hidden_stride + PAGED_ATTENTION_BLOCK_SIZE;
-                INPUT0_TYPE* key_comp_ptr = key_cache + key_comp_offset;
-                INPUT0_TYPE comp_scale = key_comp_ptr[0];
-                INPUT0_TYPE comp_zp = key_comp_ptr[1];
-                #endif
-
+    #if IS_INT4_COMPRESSED
+                // INT4 BY_TOKEN head-major: [blocks, heads, packed_head_size * block_size, scales, zps]
+                // Each byte packs 2 adjacent head dims (lo nibble, hi nibble)
+                // Use scalar reads (not BLOCK_READN) to avoid subgroup block read issues with byte types
                 KEY_BLOCK_UNCOMPRESSED k_vals;
+                unroll_for (uint i = 0; i < KEY_VEC_SIZE / 2; i++) {
+                    uint packed_h = qk_idx * (KEY_VEC_SIZE / 2) + i;
+                    INPUT1_TYPE packed_byte = key_cache[key_block_offset + packed_h * hidden_stride + sglid];
+                    MAKE_VECTOR_TYPE(char, U4_ELEMS_PER_BYTE) buff = unpack_to_char(*(uint4x2_t *)&packed_byte);
+                    k_vals[2 * i]     = ((INPUT0_TYPE)(char)buff.s0 - comp_zp) * comp_scale;
+                    k_vals[2 * i + 1] = ((INPUT0_TYPE)(char)buff.s1 - comp_zp) * comp_scale;
+                }
+    #else
+                KEY_BLOCK_UNCOMPRESSED k_vals;
+                uint init_index = key_block_offset + 0 * hidden_stride * KEY_VEC_SIZE;
+        #ifdef IS_KEY_BY_CHANNEL
+                // Per-channel scale/zp for i8 BY_CHANNEL: each column has PAGED_ATTENTION_BLOCK_SIZE data bytes + scale(fp16) + zp(fp16)
+                const uint comp_head_dim = qk_idx * KEY_VEC_SIZE + sglid;
+                const uint comp_col_base = key_block_offset + comp_head_dim * hidden_stride;
+                INPUT0_TYPE* comp_ptr = (INPUT0_TYPE*)(key_cache + comp_col_base + PAGED_ATTENTION_BLOCK_SIZE);
+                INPUT0_TYPE comp_scale = comp_ptr[0];
+                INPUT0_TYPE comp_zp = comp_ptr[1];
+        #endif
                 unroll_for (uint i = 0; i < KEY_VEC_SIZE; i++) {
                     k_vals[i] = BLOCK_READN(INPUT1_TYPE, 1, key_cache, key_block_offset + qk_idx * hidden_stride * KEY_VEC_SIZE + i * hidden_stride);
-                 #ifdef IS_KEY_BY_CHANNEL
-                    INPUT0_TYPE key_orig = k_vals[i];
-                    k_vals[i] = (k_vals[i] - _sub_group_shuffle(comp_zp, i)) * _sub_group_shuffle(comp_scale, i);
+                #ifdef IS_KEY_BY_CHANNEL
+                    k_vals[i] = ((INPUT0_TYPE)k_vals[i] - _sub_group_shuffle(comp_zp, i)) * _sub_group_shuffle(comp_scale, i);
                 #else
-                    half key_orig = k_vals[i];
                     k_vals[i] = (k_vals[i] - comp_zp) * comp_scale;
                 #endif
                 }
-#else
+    #endif  // IS_INT4_COMPRESSED
+#else  //  !IS_KV_COMPRESSED
                 KEY_BLOCK k_vals = 0;
                 unroll_for (uint i = 0; i < KEY_VEC_SIZE; i++) {
                     k_vals[i] = BLOCK_READN(INPUT1_TYPE, 1, key_cache, block_offset + qk_idx * SUBGROUP_SIZE * KEY_VEC_SIZE + i * SUBGROUP_SIZE);
                 }
-#endif
+#endif  // !IS_KV_COMPRESSED
 
 #if XE2_QK_MULTIPLICATION
 #if STORE_QUERY_TO_SLM
@@ -286,17 +391,21 @@ KERNEL(pa_sdpa_opt)(
                 unroll_for (uint q_idx = 0; q_idx < QUERIES_PER_WI; q_idx++) {
 #if STORE_QUERY_TO_SLM
                     SOFTMAX_ACCUMULATOR_TYPE q_val = slm_query[q_idx * K_HEAD_SIZE + qk_idx * KEY_VEC_SIZE + sglid];
+#else
+                    // Cache to a scalar to avoid GRF indirect addressing when qk_idx is a runtime variable.
+                    const INPUT0_TYPE q_val_cur = q_val[qk_idx];
 #endif
                     unroll_for (uint i = 0; i < KEY_VEC_SIZE; i++) {
 #if STORE_QUERY_TO_SLM
                         GET_VECTOR_ELEMENT(qk_acc, q_idx) = mad(sub_group_broadcast(q_val, i), TO_SOFTMAX_ACCUMULATOR_TYPE(k_vals[i]), GET_VECTOR_ELEMENT(qk_acc, q_idx));
 #else
-                        qk_acc = mad(TO_SOFTMAX_ACCUMULATOR_TYPE(sub_group_broadcast(q_val[qk_idx], i)), TO_SOFTMAX_ACCUMULATOR_TYPE(k_vals[i]), qk_acc);
+                        qk_acc = mad(TO_SOFTMAX_ACCUMULATOR_TYPE(sub_group_broadcast(q_val_cur, i)), TO_SOFTMAX_ACCUMULATOR_TYPE(k_vals[i]), qk_acc);
 #endif
                     }
                 }
 #endif // XE2_QK_MULTIPLICATION
             }
+#endif  // !(IS_KV_COMPRESSED && IS_INT4_COMPRESSED)
 
             const uint token_idx = partition_idx * SEQ_LEN_PARTITION_SIZE + block_num * SUBGROUPS_PER_WG * SUBGROUP_SIZE + sgid * SUBGROUP_SIZE + sglid;
 
@@ -313,6 +422,20 @@ KERNEL(pa_sdpa_opt)(
             if (token_idx >= seq_len)
 #endif
                 qk_acc = SOFTMAX_ACCUMULATOR_VAL_MIN;
+
+#if HAS_QQ_BIAS && MULTI_TOKENS_PROCESSING
+            // token_idx < seq_len, speculative tree mask
+            if (qq_bias_num > 0 && token_idx >= past_len && token_idx < seq_len) {
+                const uint spec_offset = token_idx - past_len;
+                if (spec_offset < qq_bias_spec_num) {
+                    const uint qq_bias_base = cumulated_qq_bias_num + (seq_idx - subsequence_begin) * qq_bias_spec_num;
+                    const uint qq_bias_offset = qq_bias_base + spec_offset;
+                    if (qq_bias[qq_bias_offset] == 0) {
+                        qk_acc = SOFTMAX_ACCUMULATOR_VAL_MIN;
+                    }
+                }
+            }
+#endif
 
             qk_max = SOFTMAX_ACCUMULATOR_MAX_FUNC(qk_max, TO_SOFTMAX_ACCUMULATOR_VEC_TYPE(qk_acc));
 
@@ -345,9 +468,18 @@ KERNEL(pa_sdpa_opt)(
         // Final max value after reduction across of all SG and WI
         unroll_for (uint q_idx = 0; q_idx < QUERIES_PER_WI; q_idx++) {
             #ifdef HAS_SINK_INPUT
-            const uint head_idx = get_global_id(1);
             const SOFTMAX_ACCUMULATOR_TYPE qk_max_tmp = sub_group_reduce_max(GET_VECTOR_ELEMENT(qk_max, q_idx));
-            GET_VECTOR_ELEMENT(qk_max, q_idx) = qk_max_tmp > sink_ptr[head_idx] ? qk_max_tmp : sink_ptr[head_idx];
+            // Include sink in softmax only for partition 0, because each partition independently
+            // computes its own local softmax (max + exp_sum). The finalization kernel later merges
+            // all partitions by rescaling each partition's exp_sum with exp(local_max - global_max).
+            // If sink were included in every partition, the finalization would count the sink
+            // contribution P times (once per partition) instead of once.
+            if (partition_idx == 0) {
+                const uint head_idx = get_global_id(1);
+                GET_VECTOR_ELEMENT(qk_max, q_idx) = qk_max_tmp > sink_ptr[head_idx] ? qk_max_tmp : sink_ptr[head_idx];
+            } else {
+                GET_VECTOR_ELEMENT(qk_max, q_idx) = qk_max_tmp;
+            }
             #else
             GET_VECTOR_ELEMENT(qk_max, q_idx) = sub_group_reduce_max(GET_VECTOR_ELEMENT(qk_max, q_idx));
             #endif
@@ -361,7 +493,7 @@ KERNEL(pa_sdpa_opt)(
             // TODO: const uint global_data_idx = partition_idx * SEQ_LEN_PARTITION_SIZE + local_data_idx
             const uint global_data_idx = partition_idx * SEQ_LEN_PARTITION_SIZE + qk_idx * (SUBGROUPS_PER_WG * SUBGROUP_SIZE) + sgid * SUBGROUP_SIZE + sglid;
 
-#if SEQ_LEN_PARTITION_SIZE % SUBGROUPS_PER_WG * SUBGROUP_SIZE == 0
+#if (SEQ_LEN_PARTITION_SIZE % (SUBGROUPS_PER_WG * SUBGROUP_SIZE)) == 0
             if (global_data_idx < seq_len) {
 #else
             if (global_data_idx < seq_len && local_data_idx < SEQ_LEN_PARTITION_SIZE) {
@@ -398,8 +530,10 @@ KERNEL(pa_sdpa_opt)(
         unroll_for (uint q_idx = 0; q_idx < QUERIES_PER_WI; q_idx++) {
             GET_VECTOR_ELEMENT(exp_sum, q_idx) = sub_group_reduce_add(GET_VECTOR_ELEMENT(exp_sum, q_idx));
             #ifdef HAS_SINK_INPUT
-            const uint head_idx = get_global_id(1);
-            GET_VECTOR_ELEMENT(exp_sum, q_idx) += (native_exp(TO_SOFTMAX_ACCUMULATOR_TYPE(sink_ptr[head_idx] - GET_VECTOR_ELEMENT(qk_max, q_idx))));
+            if (partition_idx == 0) {
+                const uint head_idx = get_global_id(1);
+                GET_VECTOR_ELEMENT(exp_sum, q_idx) += (native_exp(TO_SOFTMAX_ACCUMULATOR_TYPE(sink_ptr[head_idx]) - GET_VECTOR_ELEMENT(qk_max, q_idx)));
+            }
             #endif
         }
 
@@ -407,7 +541,7 @@ KERNEL(pa_sdpa_opt)(
             const uint local_data_idx = qk_idx * (SUBGROUPS_PER_WG * SUBGROUP_SIZE) + sgid * SUBGROUP_SIZE + sglid;
             const uint global_data_idx = partition_idx * SEQ_LEN_PARTITION_SIZE + qk_idx * (SUBGROUPS_PER_WG * SUBGROUP_SIZE) + sgid * SUBGROUP_SIZE + sglid;
 
-#if SEQ_LEN_PARTITION_SIZE % SUBGROUPS_PER_WG * SUBGROUP_SIZE == 0
+#if (SEQ_LEN_PARTITION_SIZE % (SUBGROUPS_PER_WG * SUBGROUP_SIZE)) == 0
             if (global_data_idx < seq_len) {
 #else
             if (global_data_idx < seq_len && local_data_idx < SEQ_LEN_PARTITION_SIZE) {
@@ -476,9 +610,9 @@ KERNEL(pa_sdpa_opt)(
 #if HAS_SCORE_AGGREGATION && MULTI_TOKENS_PROCESSING
                         // In case of multi tokens processing we have to fill the buffer with zeros to guarantee correct result
                         // for reduction operation
-                        softmax_results[output_offset + i] = partition_idx * SEQ_LEN_PARTITION_SIZE + i >= seq_len ? SOFTMAX_ACCUMULATOR_VAL_ZERO : slm_qk_vals[i];
+                        softmax_results[output_offset + i] = partition_idx * SEQ_LEN_PARTITION_SIZE + i >= seq_len ? SOFTMAX_ACCUMULATOR_VAL_ZERO : slm_qk_vals[q_idx * SEQ_LEN_PARTITION_SIZE + i];
 #else
-                        softmax_results[output_offset + i] = slm_qk_vals[i];
+                        softmax_results[output_offset + i] = slm_qk_vals[q_idx * SEQ_LEN_PARTITION_SIZE + i];
 #endif
                     }
                 }
@@ -514,13 +648,24 @@ KERNEL(pa_sdpa_opt)(
         for (uint block_num = block_start_idx; block_num < block_end_idx; block_num++) {
             const uint head_idx = head_num_idx / KV_HEADS_GROUP_SIZE;
             const uint block_offset = block_indices[start_block_idx + block_num] * KV_HEADS_NUM * ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE + head_idx * ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
+
             const uint value_offset = block_offset + head_size_idx;
 
 #if IS_KV_COMPRESSED
-            const uint value_comp_offset = block_offset + V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
+            const uint packed_block_offset = block_indices[start_block_idx + block_num] * KV_HEADS_NUM * phys_adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE
+                                                + head_idx * phys_adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
+#if IS_INT4_COMPRESSED
+            // INT4: per-token embedded scales at end of each token's row
+            INPUT0_TYPE* my_token_comp_ptr = (INPUT0_TYPE*)(value_cache + packed_block_offset + sglid * phys_adjusted_v_head_size + phys_v_head_size);
+            INPUT0_TYPE comp_scale = my_token_comp_ptr[0];
+            INPUT0_TYPE comp_zp = my_token_comp_ptr[1];
+#else
+            const uint value_comp_offset = packed_block_offset + phys_v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
             INPUT0_TYPE* value_comp_ptr = value_cache + value_comp_offset;
             INPUT0_TYPE comp_scale = value_comp_ptr[0 + sglid];
             INPUT0_TYPE comp_zp = value_comp_ptr[PAGED_ATTENTION_BLOCK_SIZE + sglid];
+#endif
+
 #endif
 
             #define VALUE_VEC_SIZE SUBGROUP_SIZE
@@ -529,10 +674,28 @@ KERNEL(pa_sdpa_opt)(
             #define VALUE_BLOCK_UNCOMPRESSED MAKE_VECTOR_TYPE(INPUT0_TYPE, VALUE_VEC_SIZE)
             #define TO_VALUE_UNCOMPRESSED_TYPE(val) CAT(convert_, VALUE_UNCOMPRESSED)(val)
 
+
+#if IS_KV_COMPRESSED && IS_INT4_COMPRESSED
+            // INT4 adjacent packing: V layout [blocks, heads, block_size, packed_head+scales=68]
+            // packed_byte = head_size_idx/2, nibble = head_size_idx%2
+            // Token stride = phys_adjusted_v_head_size (68)
+            const uint packed_byte_idx = head_size_idx / 2;
+            const uint nibble_sel = head_size_idx & 1;
+            VALUE_BLOCK v_vals_packed;
+
+            unroll_for (uint i = 0; i < VALUE_VEC_SIZE; i++) {
+                uint token_offset = packed_block_offset + i * phys_adjusted_v_head_size + packed_byte_idx;
+                char packed_val = value_cache[token_offset];
+                MAKE_VECTOR_TYPE(char, U4_ELEMS_PER_BYTE) buff = unpack_to_char(*(uint4x2_t *)&packed_val);
+                v_vals_packed[i] = (nibble_sel == 0) ? buff.s0 : buff.s1;
+            }
+
+#else  // !(IS_KV_COMPRESSED && IS_INT4_COMPRESSED)
             VALUE_BLOCK v_vals_packed;
             unroll_for (uint i = 0; i < VALUE_VEC_SIZE; i++) {
                 v_vals_packed[i] = BLOCK_READN(INPUT2_TYPE, 1, value_cache, value_offset + i * V_HEAD_SIZE);
             }
+#endif
 
 #if IS_KV_COMPRESSED
             VALUE_BLOCK_UNCOMPRESSED value_vals;
@@ -561,7 +724,15 @@ KERNEL(pa_sdpa_opt)(
             const uint block_offset = block_indices[last_block_idx] * KV_HEADS_NUM * ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE + head_idx * ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
             const uint value_offset = block_offset + head_size_idx;
 
-#if IS_KV_COMPRESSED
+#if IS_KV_COMPRESSED && IS_INT4_COMPRESSED
+            const uint packed_block_offset = block_indices[last_block_idx] * KV_HEADS_NUM * phys_adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE
+                                                + head_idx * phys_adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
+
+            // INT4: per-token embedded scales
+            INPUT0_TYPE* my_token_comp_ptr = (INPUT0_TYPE*)(value_cache + packed_block_offset + sglid * phys_adjusted_v_head_size + phys_v_head_size);
+            INPUT0_TYPE comp_scale = my_token_comp_ptr[0];
+            INPUT0_TYPE comp_zp = my_token_comp_ptr[1];
+#elif IS_KV_COMPRESSED && !IS_INT4_COMPRESSED
             const uint value_comp_offset = block_offset + V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
             INPUT0_TYPE* value_comp_ptr = value_cache + value_comp_offset;
             INPUT0_TYPE comp_scale = value_comp_ptr[0 + sglid];
@@ -573,7 +744,20 @@ KERNEL(pa_sdpa_opt)(
                 GET_VECTOR_ELEMENT(qk_val, q_idx) = slm_qk_vals[q_idx * SEQ_LEN_PARTITION_SIZE + blocks_num_per_partition * PAGED_ATTENTION_BLOCK_SIZE + sglid];
             }
             for (uint i = 0; i < leftovers; i++) {
+#if IS_KV_COMPRESSED && IS_INT4_COMPRESSED
+                // INT4 adjacent packing: scalar read of packed byte + nibble selection
+                const uint packed_byte_idx = head_size_idx / 2;
+                const uint nibble_sel = head_size_idx & 1;
+                uint token_offset = packed_block_offset + i * phys_adjusted_v_head_size + packed_byte_idx;
+                char packed_value = value_cache[token_offset];
+                MAKE_VECTOR_TYPE(char, U4_ELEMS_PER_BYTE) buff = unpack_to_char(*(uint4x2_t *)&packed_value);
+                INPUT2_TYPE value_packed = (nibble_sel == 0) ? buff.s0 : buff.s1;
+
+#else  // !(IS_KV_COMPRESSED && IS_INT4_COMPRESSED)
                 INPUT2_TYPE value_packed = BLOCK_READN(INPUT2_TYPE, 1, value_cache, value_offset + i * V_HEAD_SIZE);
+
+#endif  // !(IS_KV_COMPRESSED && IS_INT4_COMPRESSED)
+
 #if IS_KV_COMPRESSED
                 #define VALUE_UNCOMPRESSED INPUT0_TYPE
                 #define TO_VALUE_UNCOMPRESSED_TYPE(val) CAT(convert_, VALUE_UNCOMPRESSED)(val)

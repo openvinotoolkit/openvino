@@ -3,6 +3,7 @@
 //
 
 #include "intel_gpu/plugin/variable_state.hpp"
+#include "intel_gpu/plugin/output_memory_block.hpp"
 #include "intel_gpu/primitives/read_value.hpp"
 #include "intel_gpu/primitives/lora.hpp"
 #include "intel_gpu/primitives/data.hpp"
@@ -54,6 +55,7 @@
 #include <sys/stat.h>
 #include <chrono>
 #include <thread>
+#include <filesystem>
 #endif
 
 namespace cldnn {
@@ -138,8 +140,80 @@ void dump_perf_data_raw(std::string dump_path, bool per_iter_mode, const std::li
     }
 }
 
+// Dumps a per-primitive averaged execution time CSV with the same schema as
+// benchmark_app --report_type average_counters and the CPU plugin's
+// OV_CPU_AVERAGE_COUNTERS feature, so that aggregate-average-counters.py and
+// other tooling can be reused across plugins.
+void dump_average_counters(std::string dump_path,
+                           uint32_t net_id,
+                           const std::list<std::shared_ptr<primitive_inst>>& exec_order) {
+    if (dump_path.empty())
+        return;
+
+    std::filesystem::path file_name{dump_path};
+    file_name += "_" + std::to_string(net_id) + ".csv";
+    std::ofstream file(file_name);
+    if (!file.is_open())
+        return;
+
+    const std::string header = "layerName;execStatus;layerType;execType;realTime (ms);cpuTime (ms);";
+    file << header << "\n";
+
+    auto to_ms = [](uint64_t value_us) {
+        return static_cast<double>(std::chrono::microseconds(value_us).count()) / 1000.0;
+    };
+
+    uint64_t total_us = 0;
+
+    for (const auto& inst : exec_order) {
+        if (inst->is_constant())
+            continue;
+
+        // Aggregate inference-stage entries only, mirroring the CPU plugin which
+        // reports just the executed-kernel time. Other GPU pipeline stages
+        // (shape_inference, set_arguments, memory_allocation, ...) are host-side
+        // overhead that has no CPU-plugin counterpart.
+        const auto& perf_data = inst->get_profiling_data();
+        const auto& perf_info = inst->get_profiling_info();
+        uint64_t prim_total_us = 0;
+        size_t prim_total_iters = 0;
+        std::string impl_name;
+        size_t max_iters_for_impl = 0;
+        for (const auto& kv : perf_data) {
+            const auto& key = perf_info.at(kv.first);
+            if (key.stage != instrumentation::pipeline_stage::inference)
+                continue;
+            const auto cur_time = static_cast<uint64_t>(std::get<0>(kv.second));
+            const auto cur_iters = std::get<1>(kv.second);
+            prim_total_us += cur_time;
+            prim_total_iters += cur_iters;
+            // For dynamic shapes a primitive may have multiple inference entries
+            // (one per shape). Pick the impl_name that ran the most iterations
+            // as the representative execType.
+            if (cur_iters > max_iters_for_impl) {
+                max_iters_for_impl = cur_iters;
+                impl_name = key.impl_name;
+            }
+        }
+
+        const uint64_t avg_us = prim_total_iters > 0 ? prim_total_us / prim_total_iters : 0;
+        const std::string status = avg_us > 0 ? "EXECUTED" : "NOT_RUN";
+        const auto cpu_time = to_ms(avg_us);
+        const auto real_time = cpu_time;
+
+        file << inst->id() << ";" << status << ";" << inst->desc()->type_string() << ";"
+             << impl_name << ";" << real_time << ";" << cpu_time << ";" << "\n";
+
+        total_us += avg_us;
+    }
+
+    const auto total_ms = to_ms(total_us);
+    file << "Total;;;;" << total_ms << ";" << total_ms << ";\n";
+}
+
 #else
 void dump_perf_data_raw(std::string, bool per_iter_mode, const std::list<std::shared_ptr<primitive_inst>>&) {}
+void dump_average_counters(std::string, uint32_t, const std::list<std::shared_ptr<primitive_inst>>&) {}
 #endif
 }  // namespace
 
@@ -209,8 +283,13 @@ network::~network() {
 
     _memory_pool->clear_pool_for_network(net_id);
     std::string dump_path = GPU_DEBUG_VALUE_OR(get_config().get_dump_profiling_data_path(), "");
+
     GPU_DEBUG_IF(!dump_path.empty()) {
         dump_perf_data_raw(dump_path + "/perf_raw" + std::to_string(net_id) + ".csv", false, _exec_order);
+    }
+    std::string avg_counters_path = GPU_DEBUG_VALUE_OR(get_config().get_average_counters(), "");
+    GPU_DEBUG_IF(!avg_counters_path.empty()) {
+        dump_average_counters(avg_counters_path, net_id, _exec_order);
     }
 }
 
@@ -671,6 +750,79 @@ void network::reset_output_remote_memory_ptrs() {
     }
 }
 
+void network::invalidate_output_memory_chain(const primitive_id& id) {
+    auto p_inst = find_primitive(id);
+    p_inst->clear_output_memory();
+
+    auto o_iter = _output_chains.find(id);
+    if (o_iter != _output_chains.end()) {
+        for (auto* prim : o_iter->second) {
+            if (prim != p_inst.get()) {
+                prim->clear_output_memory();
+            }
+        }
+    }
+}
+
+void network::invalidate_ext_block_compute_nodes(const primitive_id& output_id) {
+    // Walk backward from the output node through optimized single-dependency
+    // predecessors until we reach the compute node (the first non-optimized one).
+    // Clear its _outputs[0] so that prepare_primitive's null-check triggers
+    // realloc_if_needed, which will re-probe forward and pick up the new ext_block
+    // buffer after a double-buffer flip.
+    //
+    // Stop at runtime-skippable nodes: they may have had can_be_optimized flipped
+    // to false by do_runtime_skip_*() and should not participate in the ext_block chain.
+    auto cursor = find_primitive(output_id);
+    while (cursor->can_be_optimized() && !cursor->dependencies().empty()) {
+        cursor->clear_output_memory();
+        GPU_DEBUG_TRACE_DETAIL << "[double-buffer] cleared output memory on optimized node " << cursor->id() << std::endl;
+        auto dep_id = cursor->dependencies().front().first->id();
+        auto dep = find_primitive(dep_id);
+        // Stop before runtime-skippable nodes: their can_be_optimized() may
+        // have been re-evaluated at runtime — they are the compute boundary.
+        if (dep->get_node().is_runtime_skippable())
+            break;
+        cursor = dep;
+    }
+    // cursor is now the compute node — clear its output so it re-acquires from ext_block
+    if (!cursor->has_inner_networks() && !cursor->can_be_optimized()) {
+        cursor->clear_output_memory();
+        GPU_DEBUG_TRACE_DETAIL << "[double-buffer] cleared output memory on compute node " << cursor->id() << std::endl;
+    }
+}
+
+void network::register_output_memory_block(const primitive_id& id, ov::intel_gpu::OutputMemoryBlock* block) {
+    OPENVINO_ASSERT(block != nullptr, "[GPU] Use unregister path (nullptr) via clear_output_memory_blocks or erase");
+
+    auto [it, inserted] = _output_memory_blocks.emplace(id, block);
+    if (!inserted) {
+        if (it->second == block)
+            return;  // Same block already registered — nothing to do
+        it->second = block;
+    }
+}
+
+void network::unregister_output_memory_block(const primitive_id& id) {
+    auto it = _output_memory_blocks.find(id);
+    if (it != _output_memory_blocks.end()) {
+        _output_memory_blocks.erase(it);
+        invalidate_ext_block_compute_nodes(id);
+    }
+}
+
+ov::intel_gpu::OutputMemoryBlock* network::get_output_memory_block(const primitive_id& id) const {
+    auto it = _output_memory_blocks.find(id);
+    return (it != _output_memory_blocks.end()) ? it->second : nullptr;
+}
+
+void network::clear_output_memory_blocks() {
+    for (auto& [prim_id, block_ptr] : _output_memory_blocks) {
+        invalidate_ext_block_compute_nodes(prim_id);
+    }
+    _output_memory_blocks.clear();
+}
+
 void network::add_to_exec_order(const primitive_id& id) {
     auto inst = get_primitive(id);
     _exec_order.push_back(inst);
@@ -715,13 +867,13 @@ std::map<primitive_id, network_output> network::execute(const std::vector<event:
         }
     }
 
-    // We shouldn't call surfaces_lock::create() function constantly here, but due to
+    // We shouldn't call create_surfaces_lock function constantly here, but due to
     // some changes in assembler code, performance drops in case if we move it under
     // `shared_mem_found` condition (it somehow connected with get_cl_queue() - this function call
-    // makes asm faster for some reasons). So, as WA we keep this surfaces_lock::create() here
+    // makes asm faster for some reasons). So, as WA we keep this create_surfaces_lock here
     // with empty memory vector and do nothing inside this function for saving performance
     // in some cases.
-    auto surf_lock = surfaces_lock::create(get_engine().type(), in_out_mem, get_stream());
+    auto surf_lock = get_stream().create_surfaces_lock(in_out_mem);
 
     execute_impl(dependencies);
 
@@ -734,6 +886,7 @@ std::map<primitive_id, network_output> network::execute(const std::vector<event:
 
         result.emplace(id, network_output(ev, inst->output_memory_ptr(0), get_stream_ptr(), inst->get_output_layout(0)));
     }
+
     return result;
 }
 

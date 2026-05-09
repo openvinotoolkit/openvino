@@ -187,7 +187,26 @@ TEST_F(CoreBaseTest, read_model_with_std_fs_path_unicode) {
         }
     }
 }
+
+TEST_F(CoreBaseTest, read_model_with_const_wchar_path) {
+    generate_test_model_files("test-model");
+
+    ov::Core core;
+    ASSERT_FALSE(model_files_name_w.empty());
+    const auto model = core.read_model(model_files_name_w.front().c_str());
+    EXPECT_NE(model, nullptr);
+}
 #endif
+
+TEST_F(CoreBaseTest, read_model_with_const_char_path) {
+    generate_test_model_files("test-model");
+
+    ov::Core core;
+    const char* model_path = model_file_name.c_str();
+    const auto model = core.read_model(model_path);
+    EXPECT_NE(model, nullptr);
+}
+
 namespace ov::test {
 TEST_F(CoreBaseTest, read_model_with_std_fs_path) {
     generate_test_model_files("test-model");
@@ -302,5 +321,14 @@ TEST_P(UnicodePathTest, read_compile_model) {
     run_test_visitor(visitor);
     std::filesystem::remove_all(prefix_dir);
 }
+
+INSTANTIATE_TEST_SUITE_P(string_paths, UnicodePathTest, testing::Values("test_folder"));
+INSTANTIATE_TEST_SUITE_P(u16_paths, UnicodePathTest, testing::Values(u"test_folder"));
+INSTANTIATE_TEST_SUITE_P(u32_paths, UnicodePathTest, testing::Values(U"test_folder"));
+INSTANTIATE_TEST_SUITE_P(wstring_paths, UnicodePathTest, testing::Values(L"test_folder"));
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+INSTANTIATE_TEST_SUITE_P(unicode_paths, UnicodePathTest, unicode_paths);
+#endif
 
 }  // namespace ov::test

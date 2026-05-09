@@ -7,7 +7,7 @@ from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 
 class TestSum(PytorchLayerTest):
-    def _prepare_input(self, out=False, input_dtype="float32", out_dtype="float32"):
+    def _prepare_input(self, out=False, input_dtype="float32", out_dtype="float32", axes=None, keep_dims=None):
         # This test had sporadically failed by accuracy. Try to resolve that by using int numbers in input
         import numpy as np
         min_value = -10 if input_dtype not in ["uint8", "bool"] else 0
@@ -17,7 +17,18 @@ class TestSum(PytorchLayerTest):
             return (input, )
         if out_dtype is None:
             out_dtype = input_dtype if input_dtype not in ["uint8", "bool"] else "int64"
-        out = np.zeros((1, 3, 5, 5), dtype=out_dtype)
+        # compute correct output shape based on axes and keep_dims
+        input_shape = [1, 3, 5, 5]
+        ndim = len(input_shape)
+        if axes is None:
+            out_shape = ()
+        elif keep_dims:
+            axes_norm = set([axes % ndim] if isinstance(axes, int) else [a % ndim for a in axes])
+            out_shape = tuple(1 if i in axes_norm else s for i, s in enumerate(input_shape))
+        else:
+            axes_norm = set([axes % ndim] if isinstance(axes, int) else [a % ndim for a in axes])
+            out_shape = tuple(s for i, s in enumerate(input_shape) if i not in axes_norm)
+        out = np.zeros(out_shape, dtype=out_dtype)
         return input, out
 
     def create_model(self, axes, keep_dims, out, dtype, input_dtype):
@@ -99,5 +110,6 @@ class TestSum(PytorchLayerTest):
     def test_sum(self, axes, keep_dims, out, dtype, input_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(axes, keep_dims, out, dtype, input_dtype),
                    ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={"out": out, "input_dtype": input_dtype, "out_dtype": dtype}
+                   kwargs_to_prepare_input={"out": out, "input_dtype": input_dtype, "out_dtype": dtype,
+                                            "axes": axes, "keep_dims": keep_dims}
                    )

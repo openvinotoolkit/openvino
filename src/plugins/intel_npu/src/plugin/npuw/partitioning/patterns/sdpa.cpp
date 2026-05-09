@@ -24,11 +24,14 @@ namespace opp = ov::pass::pattern;
 
 SDPA::SDPA(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag) {
     auto past_k_in = opp::wrap_type<ov::op::v0::Parameter>();
-    auto past_k_cvt = opp::optional<ov::op::v0::Convert>({past_k_in->output(0)});
+    // Optional beam-search gather: Parameter → Gather(beam_idx) → ... (stateless LLM models)
+    auto past_k_gather = opp::optional<ov::op::v8::Gather>({past_k_in->output(0), opp::any_input(), opp::any_input()});
+    auto past_k_cvt = opp::optional<ov::op::v0::Convert>({past_k_gather->output(0)});
     auto past_k_cat = opp::wrap_type<ov::op::v0::Concat>({past_k_cvt, opp::any_input()});
 
     auto past_v_in = opp::wrap_type<ov::op::v0::Parameter>();
-    auto past_v_cvt = opp::optional<ov::op::v0::Convert>({past_v_in->output(0)});
+    auto past_v_gather = opp::optional<ov::op::v8::Gather>({past_v_in->output(0), opp::any_input(), opp::any_input()});
+    auto past_v_cvt = opp::optional<ov::op::v0::Convert>({past_v_gather->output(0)});
     auto past_v_cat = opp::wrap_type<ov::op::v0::Concat>({past_v_cvt, opp::any_input()});
 
     // Optional part, probably one of many. Replace by graph traversal!
@@ -51,9 +54,11 @@ SDPA::SDPA(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const st
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
         auto pattern_nodes = std::vector<std::shared_ptr<ov::Node>>{past_k_in,
+                                                                    past_k_gather,
                                                                     past_k_cvt,
                                                                     past_k_cat,
                                                                     past_v_in,
+                                                                    past_v_gather,
                                                                     past_v_cvt,
                                                                     past_v_cat,
                                                                     opt_unsq_k,
@@ -273,6 +278,26 @@ ShapeOfParameter::ShapeOfParameter() {
         return false;  // root hasn't changed (?)
     };
     register_matcher(std::make_shared<opp::Matcher>(param_shp, "ShapeOfParameter"), std::move(callback));
+}
+
+bool RegularizeSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    bool model_changed = false;
+    if (m_run_broadcast_pattern) {
+        ov::pass::GraphRewrite rewr;
+        rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast>();
+        rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast2>();
+
+        model_changed |= rewr.run_on_model(model);
+    }
+
+    // FIXME: generally all these patterns are supposed to improve the partitioning - thus
+    // the performance. However, ShapeOfParameter seems to be working fine for all known case,
+    // while AttentionBroadcast patterns might break the partitioning (related to F16IC).
+    ov::pass::GraphRewrite rewr2;
+    rewr2.add_matcher<ov::npuw::patterns::regularize::ShapeOfParameter>();
+    model_changed |= rewr2.run_on_model(model);
+
+    return model_changed;
 }
 
 }  // namespace regularize

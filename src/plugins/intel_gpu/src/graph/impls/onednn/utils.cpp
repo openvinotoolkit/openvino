@@ -5,7 +5,6 @@
 #include "utils.hpp"
 #include <oneapi/dnnl/dnnl_debug.h>
 #include <numeric>
-#include <oneapi/dnnl/dnnl_ocl.hpp>
 
 namespace cldnn {
 namespace onednn {
@@ -352,12 +351,22 @@ private:
         dnnl::memory::dims dims;
         auto fmt_tag = _target_fmt;
 
+        auto count_except = [this](size_t skip_idx) -> int64_t {
+            const auto& raw = _layout.get_tensor().raw;
+            int64_t result = 1;
+            for (size_t i = 0; i < raw.size(); ++i) {
+                if (i != skip_idx)
+                    result *= static_cast<int64_t>(raw[i]);
+            }
+            return result;
+        };
+
         if (fmt_tag == dnnl::memory::format_tag::ab && _flatten) {
             dims = flatten_tensor(_layout.get_tensor());
             dims.insert(dims.begin(), 1);
         } else if (fmt_tag == dnnl::memory::format_tag::ab) {
             dims.push_back(_layout.batch());
-            dims.push_back(_layout.get_tensor().count() / _layout.batch());
+            dims.push_back(count_except(0));
         } else if (fmt_tag == dnnl::memory::format_tag::abc) {
             dims.push_back(_layout.batch());
             dims.push_back(_layout.feature());
@@ -386,7 +395,7 @@ private:
             dims.push_back(_layout.spatial(1));
         } else if (fmt_tag == dnnl::memory::format_tag::ba) {
             dims.push_back(_layout.feature());
-            dims.push_back(_layout.get_tensor().count() / _layout.feature());
+            dims.push_back(count_except(1));
         } else if (_flatten) {
             dims = flatten_tensor(_layout.get_tensor());
         } else {
@@ -797,7 +806,8 @@ cldnn::format_traits convert_memory_desc_to_traits(const dnnl::memory::desc& des
 
     std::vector<std::pair<size_t, int>> block_sizes(inner_nblks);
     for (int i = 0; i < inner_nblks; i++) {
-        block_sizes[i] = std::make_pair(inner_idxs[i] + (is_grouped && inner_idxs[i] == 0 ? 9 : 0) + (is_grouped ? -1 : 0), inner_blks[i]);
+        const auto idx = inner_idxs[i] + (is_grouped && inner_idxs[i] == 0 ? 9 : 0) + (is_grouped ? -1 : 0);
+        block_sizes[i] = {static_cast<size_t>(idx), static_cast<int>(inner_blks[i])};
     }
 
     // all fmts has at least batch and feature dim for now
@@ -823,7 +833,7 @@ cldnn::format_traits convert_memory_desc_to_traits(const dnnl::memory::desc& des
         auto pos = outer_order.find(c);
         OPENVINO_ASSERT(pos != std::string::npos, "[GPU] Unknown coord type: ", c);
 
-        logic_block_sizes[i] = std::make_pair(order[pos], inner_blks[i]);
+        logic_block_sizes[i] = std::make_pair(order[pos], static_cast<int>(inner_blks[i]));
     }
 
     format_traits traits;
@@ -965,5 +975,17 @@ int get_prelu_mask_from_layouts(const std::function<layout()>& get_output_layout
     else
         return (1 << 1);
 }
+std::string dnnl_status_to_string(dnnl_status_t status) {
+    switch (status) {
+        case dnnl_success: return "dnnl_success";
+        case dnnl_out_of_memory: return "dnnl_out_of_memory";
+        case dnnl_invalid_arguments: return "dnnl_invalid_arguments";
+        case dnnl_unimplemented: return "dnnl_unimplemented";
+        case dnnl_runtime_error: return "dnnl_runtime_error";
+        case dnnl_not_required: return "dnnl_not_required";
+        default: return "dnnl_status_unknown";
+    }
+}
+
 }  // namespace onednn
 }  // namespace cldnn

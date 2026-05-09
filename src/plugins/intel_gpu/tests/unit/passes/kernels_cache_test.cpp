@@ -4,7 +4,6 @@
 
 #include "test_utils.h"
 
-#include "runtime/ocl/ocl_kernel.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/graph/network.hpp"
@@ -181,12 +180,7 @@ TEST(kernels_cache, reuse_kernels_property) {
         auto conv1_kern = cache.get_cached_kernel_id(conv1_kernels[idx]);
         auto conv2_kern = cache.get_cached_kernel_id(conv2_kernels[idx]);
         ASSERT_EQ(conv1_kern, conv2_kern);
-
-        auto conv1_ocl_kernel = std::dynamic_pointer_cast<ocl::ocl_kernel>(conv1_kernels[idx]);
-        auto conv2_ocl_kernel = std::dynamic_pointer_cast<ocl::ocl_kernel>(conv2_kernels[idx]);
-        if (conv1_ocl_kernel && conv2_ocl_kernel) {
-            ASSERT_EQ(conv1_ocl_kernel->get_handle().get(), conv2_ocl_kernel->get_handle().get());
-        }
+        ASSERT_TRUE(conv1_kernels[idx]->is_same(*conv2_kernels[idx].get()));
     }
 
     auto& concat1_node = prog->get_node("concat1");
@@ -200,11 +194,6 @@ TEST(kernels_cache, reuse_kernels_property) {
         auto concat1_kern = cache.get_cached_kernel_id(concat1_kernels[idx]);
         auto concat2_kern = cache.get_cached_kernel_id(concat2_kernels[idx]);
         ASSERT_EQ(concat1_kern, concat2_kern);
-
-        auto concat1_ocl_kernel = std::dynamic_pointer_cast<ocl::ocl_kernel>(concat1_kernels[idx]);
-        auto concat2_ocl_kernel = std::dynamic_pointer_cast<ocl::ocl_kernel>(concat2_kernels[idx]);
-        if (concat1_ocl_kernel && concat2_ocl_kernel) {
-            ASSERT_EQ(concat1_ocl_kernel->get_handle().get(), concat2_ocl_kernel->get_handle().get());
-        }
+        ASSERT_TRUE(concat1_kernels[idx]->is_same(*concat2_kernels[idx].get()));
     }
 }

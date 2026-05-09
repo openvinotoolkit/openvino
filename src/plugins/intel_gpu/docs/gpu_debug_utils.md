@@ -147,7 +147,7 @@ So it allows you to quickly check the execution time of some operation on the de
 
 *Intel_GPU* plugin allows you to dump some info about intermediate stages in the graph optimizer.
 
-* You can dump graphs with `OV_GPU_DUMP_GRAPHS_PATH` of debug config. For the usage of debug config, see the [link](#debug-config).
+* You can dump graphs with `OV_GPU_DUMP_GRAPHS_PATH` of debug config. For the usage of debug config, see the [link](#how-to-check-debug-config-works).
 
 
 For each stage, it dumps:
@@ -165,7 +165,7 @@ The main graph usually has `program_id = 0`. Graphs with other `program_id` valu
 
 Since *Intel_GPU* source tree contains only *templates* of the OpenCL™ kernels, it is quite important to get full kernels source code.
 
-* You can use `OV_GPU_DUMP_SOURCES_PATH` of debug config. For the usage of debug config, see [link](#debug-config).
+* You can use `OV_GPU_DUMP_SOURCES_PATH` of debug config. For the usage of debug config, see [link](#how-to-check-debug-config-works).
 
 
 When this key is enabled, the plugin dumps multiple files with the following names:
@@ -197,7 +197,7 @@ When the source is dumped, it contains a huge amount of macros(`#define`). For r
 ## Layer in/out buffer dumps
 
 In some cases, you might want to get actual values in each layer execution to compare it with some reference blob. To do that, choose the
-`OV_GPU_DUMP_TENSORS_PATH` option in debug config. For the usage of debug config, see [link](#debug-config).
+`OV_GPU_DUMP_TENSORS_PATH` option in debug config. For the usage of debug config, see [link](#how-to-check-debug-config-works.
 
 As a prerequisite, enable `ENABLE_DEBUG_CAPS` from the cmake configuration.
 

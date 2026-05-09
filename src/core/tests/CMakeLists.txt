@@ -7,8 +7,6 @@ set(TARGET_NAME ov_core_unit_tests)
 
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
 
-ov_try_use_gold_linker()
-
 add_definitions(-DSERIALIZED_ZOO=\"${TEST_MODEL_ZOO}/core/models\")
 
 # For type relaxed types
