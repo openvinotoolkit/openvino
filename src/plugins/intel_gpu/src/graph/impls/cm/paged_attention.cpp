@@ -156,7 +156,11 @@ public:
         size_t num_xattn_subseqs = 0;
 
         m_xattn_meta.clear();
+        m_xattn_find_wg_map.clear();
+        m_xattn_post_wg_map.clear();
         m_xattn_meta.reserve((subsequence_begins.size() > 0 ? (subsequence_begins.size() - 1) : 0) * 16);
+        m_xattn_find_wg_map.reserve((subsequence_begins.size() > 0 ? (subsequence_begins.size() - 1) : 0) * 2);
+        m_xattn_post_wg_map.reserve((subsequence_begins.size() > 0 ? (subsequence_begins.size() - 1) : 0) * 2);
 
         auto to_i32_checked = [](size_t value, const char* field_name) {
             OPENVINO_ASSERT(value <= static_cast<size_t>(std::numeric_limits<int32_t>::max()),
@@ -194,6 +198,7 @@ public:
             const size_t causal_start_s = k_block_s - q_block_s;
             const size_t q_start_strided_s = (kv_len - q_len) / STRIDE;
             const size_t wg_count_s = N_kq_groups_s * (q_stride_pad_s / block_wg_m);
+            const int32_t subseq_id = to_i32_checked(num_xattn_subseqs, "subseq_id");
 
             m_xattn_meta.push_back(to_i32_checked(subseq_q_begin, "subseq_q_begin"));
             m_xattn_meta.push_back(to_i32_checked(q_len, "q_len"));
@@ -212,6 +217,16 @@ public:
             m_xattn_meta.push_back(bi_begin);
             m_xattn_meta.push_back(to_i32_checked(total_wg_count, "total_wg_count"));
 
+            for (size_t m = 0; m < q_block_pad_s; ++m) {
+                m_xattn_find_wg_map.push_back(subseq_id);
+                m_xattn_find_wg_map.push_back(to_i32_checked(m, "find_q_block_idx"));
+            }
+
+            for (size_t m_merged = 0; m_merged < merged_q_blocks_s; ++m_merged) {
+                m_xattn_post_wg_map.push_back(subseq_id);
+                m_xattn_post_wg_map.push_back(to_i32_checked(m_merged, "post_merged_q_block_idx"));
+            }
+
             cumul_kq_max_bytes += N_kq_groups_s * q_stride_pad_s * sizeof_softmax * heads_num;
             cumul_exp_sum_bytes += q_stride_pad_s * k_block_pad_s * sizeof_softmax * heads_num;
             cumul_mask_elems += q_block_pad_s * k_block_pad_s * heads_num;
@@ -225,14 +240,14 @@ public:
 
         rt_params->xattn_block_size = block_size;
         rt_params->xattn_num_subseqs = num_xattn_subseqs;
-        rt_params->xattn_total_wg_count = total_wg_count;
-        rt_params->xattn_max_q_block_pad = max_q_block_pad;
-        rt_params->xattn_max_merged_q_blocks = max_merged_q_blocks;
+        rt_params->xattn_gemmqk_wg_count = total_wg_count;
         rt_params->xattn_cumul_kq_max_bytes = cumul_kq_max_bytes;
         rt_params->xattn_cumul_exp_sum_bytes = cumul_exp_sum_bytes;
         rt_params->xattn_cumul_mask_elems = cumul_mask_elems;
         rt_params->xattn_cumul_mask_wg_elems = cumul_mask_wg_elems;
         rt_params->xattn_meta_num_int32s = m_xattn_meta.size();
+        rt_params->xattn_find_wg_count = m_xattn_find_wg_map.size() / 2;
+        rt_params->xattn_post_wg_count = m_xattn_post_wg_map.size() / 2;
     }
 
     void update_rt_params(const primitive_inst& instance) override {
@@ -464,6 +479,24 @@ public:
                         meta_mem->count());
         mem_lock<int32_t, mem_lock_type::write> meta_lock(meta_mem, stream);
         std::copy_n(m_xattn_meta.begin(), m_xattn_meta.size(), meta_lock.begin());
+
+        auto find_map_mem = instance.get_intermediates_memories()[PagedAttentionInternBuffIdx::XATTN_FIND_WG_MAP];
+        OPENVINO_ASSERT(find_map_mem->count() >= m_xattn_find_wg_map.size(),
+                        "Insufficient xattn find-map buffer size: expected at least ",
+                        m_xattn_find_wg_map.size(),
+                        ", got ",
+                        find_map_mem->count());
+        mem_lock<int32_t, mem_lock_type::write> find_map_lock(find_map_mem, stream);
+        std::copy_n(m_xattn_find_wg_map.begin(), m_xattn_find_wg_map.size(), find_map_lock.begin());
+
+        auto post_map_mem = instance.get_intermediates_memories()[PagedAttentionInternBuffIdx::XATTN_POST_WG_MAP];
+        OPENVINO_ASSERT(post_map_mem->count() >= m_xattn_post_wg_map.size(),
+                        "Insufficient xattn post-map buffer size: expected at least ",
+                        m_xattn_post_wg_map.size(),
+                        ", got ",
+                        post_map_mem->count());
+        mem_lock<int32_t, mem_lock_type::write> post_map_lock(post_map_mem, stream);
+        std::copy_n(m_xattn_post_wg_map.begin(), m_xattn_post_wg_map.size(), post_map_lock.begin());
     }
 
     // update impl_parameter and rt_parameter
@@ -616,16 +649,24 @@ public:
                 auto count_meta_int32s = static_cast<int64_t>(rt_params->xattn_meta_num_int32s);
                 internal_buffers.emplace_back(std::max<int64_t>(16, count_meta_int32s), ov::element::i32, true, false);  // 8: xattn_subseq_meta (lockable for mem_lock<write>, not shareable)
 
+                auto count_find_map_int32s = static_cast<int64_t>(rt_params->xattn_find_wg_count * 2);
+                internal_buffers.emplace_back(std::max<int64_t>(2, count_find_map_int32s), ov::element::i32, true, false);  // 9: xattn_find_wg_map (lockable for mem_lock<write>, not shareable)
+
+                auto count_post_map_int32s = static_cast<int64_t>(rt_params->xattn_post_wg_count * 2);
+                internal_buffers.emplace_back(std::max<int64_t>(2, count_post_map_int32s), ov::element::i32, true, false);  // 10: xattn_post_wg_map (lockable for mem_lock<write>, not shareable)
+
 #if FIND_DEBUG_ACC
                 auto count_elements_kq_sum = static_cast<int64_t>(rt_params->xattn_cumul_mask_elems);
-                internal_buffers.emplace_back(std::max<int64_t>(1, count_elements_kq_sum), ov::element::f16);  // 9: kq_sum
+                internal_buffers.emplace_back(std::max<int64_t>(1, count_elements_kq_sum), ov::element::f16);  // 11: kq_sum
 #endif
 
                 GPU_DEBUG_TRACE_DETAIL << "  internal buffer sizes: count_kq_max_wg=" << count_kq_max_wg * 4
                                        << "  count_kq_exp_partial_sum=" << count_kq_exp_partial_sum * 4
                                        << "  count_elements_mask=" << count_elements_mask
                                        << "  count_elements_mask_merged=" << count_elements_mask_merged
-                                       << "  count_meta_int32s=" << count_meta_int32s << std::endl;
+                                       << "  count_meta_int32s=" << count_meta_int32s
+                                       << "  count_find_map_int32s=" << count_find_map_int32s
+                                       << "  count_post_map_int32s=" << count_post_map_int32s << std::endl;
             }
         }
 
@@ -638,6 +679,8 @@ public:
 
 private:
     std::vector<int32_t> m_xattn_meta;
+    std::vector<int32_t> m_xattn_find_wg_map;
+    std::vector<int32_t> m_xattn_post_wg_map;
     MixedRouteMode m_mixed_route_mode = MixedRouteMode::MULTI;
 
     void validate_xattn_inputs(const kernel_impl_params& params, size_t batch_size) {

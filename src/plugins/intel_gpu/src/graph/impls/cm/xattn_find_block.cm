@@ -28,17 +28,22 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     svmptr_t kq_exp_partial_sum ATTR,
     svmptr_t block_mask ATTR,
     svmptr_t xattn_subseq_meta ATTR,
+    svmptr_t xattn_find_wg_map ATTR,
     float thresh
 #if DEBUG_ACC == 1
     , svmptr_t kq_sum ATTR
 #endif
 ) {
-    // GWS: [max_q_block_pad, HQ, num_subseqs]
+    // GWS: [xattn_find_wg_count, HQ, 1]
     const int TOKEN_IN_BLOCK = BLOCK_SIZE / STRIDE;
     const int TOKEN_SHARE_MAX = BLOCK_SHARE_MAX / TOKEN_IN_BLOCK;
-    uint m = cm_group_id(0);
+    uint wg_flat = cm_group_id(0);
     uint hq = cm_group_id(1);
-    uint b = cm_group_id(2);
+
+    int* wg_map = (int*)xattn_find_wg_map;
+    int map_base = wg_flat * 2;
+    uint b = (uint)wg_map[map_base + 0];
+    uint m = (uint)wg_map[map_base + 1];
 
     int* meta = (int*)xattn_subseq_meta;
     int meta_base = b * XATTN_META_STRIDE;
@@ -49,8 +54,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     uint q_block_pad = (uint)meta[meta_base + XATTN_META_Q_BLOCK_PAD];
     uint k_block_pad = (uint)meta[meta_base + XATTN_META_K_BLOCK_PAD];
     uint causal_start_index = (uint)meta[meta_base + XATTN_META_CAUSAL_START];
-
-    if (m >= q_block_pad) return;
 
     uint buf_off_kq_max = (uint)meta[meta_base + XATTN_META_BUF_OFF_KQ_MAX];
     uint buf_off_exp_sum = (uint)meta[meta_base + XATTN_META_BUF_OFF_EXP_SUM];

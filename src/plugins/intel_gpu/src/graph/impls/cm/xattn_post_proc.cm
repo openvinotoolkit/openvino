@@ -53,11 +53,18 @@ CM_INLINE void post_proc_impl(svmptr_t block_mask, svmptr_t merged_block_mask, u
     }
 }
 
-extern "C" _GENX_MAIN_ void KERNEL_NAME(svmptr_t block_mask ATTR, svmptr_t merged_block_mask ATTR, svmptr_t xattn_subseq_meta ATTR) {
-    // GWS: [max(q_block_pad/MERGED_Q_NUM), HQ, num_subseqs]
-    uint b = cm_group_id(2);
+extern "C" _GENX_MAIN_ void KERNEL_NAME(svmptr_t block_mask ATTR,
+                                         svmptr_t merged_block_mask ATTR,
+                                         svmptr_t xattn_subseq_meta ATTR,
+                                         svmptr_t xattn_post_wg_map ATTR) {
+    // GWS: [xattn_post_wg_count, HQ, 1]
     uint hq = cm_group_id(1);
-    uint m_mereged = cm_group_id(0);
+    uint wg_flat = cm_group_id(0);
+
+    int* wg_map = (int*)xattn_post_wg_map;
+    int map_base = wg_flat * 2;
+    uint b = (uint)wg_map[map_base + 0];
+    uint m_mereged = (uint)wg_map[map_base + 1];
 
     int* meta = (int*)xattn_subseq_meta;
     int meta_base = b * XATTN_META_STRIDE;
@@ -69,8 +76,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(svmptr_t block_mask ATTR, svmptr_t merge
     uint buf_off_mask_wg = (uint)meta[meta_base + XATTN_META_BUF_OFF_MASK_WG];
 
     uint merged_q_blocks = (q_block_pad + MERGED_Q_NUM - 1) / MERGED_Q_NUM;
-
-    if (m_mereged >= merged_q_blocks) return;
 
     svmptr_t mask_base = block_mask + buf_off_mask + hq * q_block_pad * k_block_pad;
     mask_base += m_mereged * MERGED_Q_NUM * k_block_pad;

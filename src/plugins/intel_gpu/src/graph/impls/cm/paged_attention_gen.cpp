@@ -682,7 +682,7 @@ DispatchDataFunc XAttentionEstimateGEMMQK::get_dispatch_data_func() const {
         const size_t WALK_HQ = desc->heads_num != desc->kv_heads_num ? 2 : 1;
 
         auto& wgs = kd.params.workGroups;
-        wgs.global = {rtp->xattn_total_wg_count * SG_N * WALK_HQ, SG_M, desc->heads_num / WALK_HQ};
+        wgs.global = {rtp->xattn_gemmqk_wg_count * SG_N * WALK_HQ, SG_M, desc->heads_num / WALK_HQ};
         wgs.local = {SG_N, SG_M, 1};
 
         auto& scalars = kd.params.scalars;
@@ -721,6 +721,7 @@ Arguments XAttentionEstimateFindBlock::get_arguments_desc(const kernel_impl_para
 
     // metadata
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_SUBSEQ_META});  // metadata
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_FIND_WG_MAP});   // compact [subseq_id, q_block_idx] map
 
     // scalar
     args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // thresh
@@ -744,7 +745,7 @@ DispatchDataFunc XAttentionEstimateFindBlock::get_dispatch_data_func() const {
         const size_t heads_num = desc->heads_num;
         const float xattn_thresh = get_xattn_thresh(params);
 
-        wgs.global = {rtp->xattn_max_q_block_pad, heads_num, rtp->xattn_num_subseqs};
+        wgs.global = {rtp->xattn_find_wg_count, heads_num, 1};
         wgs.local = {1, 1, 1};
 
         auto& scalars = kd.params.scalars;
@@ -776,6 +777,7 @@ Arguments XAttentionEstimatePostProc::get_arguments_desc(const kernel_impl_param
 
     // metadata
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_SUBSEQ_META});  // metadata
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_POST_WG_MAP});   // compact [subseq_id, merged_q_block_idx] map
 
     return args;
 }
@@ -789,7 +791,7 @@ DispatchDataFunc XAttentionEstimatePostProc::get_dispatch_data_func() const {
 
         auto& wgs = kd.params.workGroups;
 
-        wgs.global = {rtp->xattn_max_merged_q_blocks, desc->heads_num, rtp->xattn_num_subseqs};
+        wgs.global = {rtp->xattn_post_wg_count, desc->heads_num, 1};
         wgs.local = {1, 1, 1};
 
         auto& scalars = kd.params.scalars;
