@@ -37,25 +37,26 @@ namespace ov::intel_gpu::cm {
 
 namespace {
 
-std::vector<int32_t> read_subsequence_begins(const kernel_impl_params& params) {
+// -----------------------------
+// Input readers
+// -----------------------------
+
+std::vector<int32_t> read_i32_input(const kernel_impl_params& params, size_t input_idx) {
     const auto& memory_deps = params.memory_deps;
-    const auto subsequence_begins_mem = memory_deps.at(PagedAttentionInputIdx::SUBSEQUENCE_BEGINS);
-    mem_lock<int32_t, mem_lock_type::read> lock(subsequence_begins_mem, *params.strm);
+    const auto mem = memory_deps.at(input_idx);
+    mem_lock<int32_t, mem_lock_type::read> lock(mem, *params.strm);
     return std::vector<int32_t>(lock.begin(), lock.end());
 }
 
-std::vector<int32_t> read_past_lens(const kernel_impl_params& params) {
-    const auto& memory_deps = params.memory_deps;
-    const auto past_lens_mem = memory_deps.at(PagedAttentionInputIdx::PAST_LENS);
-    mem_lock<int32_t, mem_lock_type::read> lock(past_lens_mem, *params.strm);
+std::vector<int32_t> read_i32_input(const primitive_inst& instance, size_t input_idx) {
+    auto mem = instance.input_memory_ptr(input_idx);
+    mem_lock<int32_t, mem_lock_type::read> lock(mem, instance.get_network().get_stream());
     return std::vector<int32_t>(lock.begin(), lock.end());
 }
 
-std::vector<int32_t> read_block_indices_begins(const primitive_inst& instance) {
-    auto bi_begins_mem = instance.input_memory_ptr(PagedAttentionInputIdx::BLOCK_INDICES_BEGINS);
-    mem_lock<int32_t, mem_lock_type::read> lock(bi_begins_mem, instance.get_network().get_stream());
-    return std::vector<int32_t>(lock.begin(), lock.end());
-}
+// -----------------------------
+// Routing/config helpers
+// -----------------------------
 
 MixedRouteMode get_mixed_route_mode_from_config(const kernel_impl_params& params) {
 #ifdef ENABLE_DEBUG_CAPS
@@ -70,10 +71,6 @@ MixedRouteMode get_mixed_route_mode_from_config(const kernel_impl_params& params
     }
 
     return MixedRouteMode::MULTI;
-}
-
-bool has_multiple_subsequences(const kernel_impl_params& params) {
-    return get_batch_size_in_sequences(params.input_layouts) > 1;
 }
 
 }  // namespace
@@ -139,9 +136,9 @@ public:
         const size_t k_block_in_group = block_wg_n / sum_per_token_in_block;
         const size_t sizeof_softmax = sizeof(float);
 
-        const auto subsequence_begins = read_subsequence_begins(params);
-        const auto past_lens = read_past_lens(params);
-        const auto block_indices_begins = read_block_indices_begins(instance);
+        const auto subsequence_begins = read_i32_input(params, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS);
+        const auto past_lens = read_i32_input(params, PagedAttentionInputIdx::PAST_LENS);
+        const auto block_indices_begins = read_i32_input(instance, PagedAttentionInputIdx::BLOCK_INDICES_BEGINS);
 
         const bool use_split_mixed = rt_params->stage == PagedAttentionStage::MIXED &&
                                      m_mixed_route_mode == MixedRouteMode::SPLIT;
@@ -278,8 +275,8 @@ public:
             rt_params->single_token_selected_count = rt_params->batch_size_in_sequences;
             GPU_DEBUG_TRACE_DETAIL << "  partition_size: " << partition_size << "  num_of_partitions: " << rt_params->num_of_partitions << std::endl;
         } else {
-            const auto subsequence_begins = read_subsequence_begins(params);
-            const auto past_lens = read_past_lens(params);
+            const auto subsequence_begins = read_i32_input(params, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS);
+            const auto past_lens = read_i32_input(params, PagedAttentionInputIdx::PAST_LENS);
             const auto wg_seq_len = PagedAttentionGeneratorMultiToken::get_wg_seq_len(params);
             const bool use_split_mixed = rt_params->stage == PagedAttentionStage::MIXED &&
                                          m_mixed_route_mode == MixedRouteMode::SPLIT;
@@ -328,7 +325,7 @@ public:
         }
         auto& stream = instance.get_network().get_stream();
 
-        const auto subsequence_begins = read_subsequence_begins(params);
+        const auto subsequence_begins = read_i32_input(params, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS);
 
         const auto wg_seq_len = static_cast<int32_t>(PagedAttentionGeneratorMultiToken::get_wg_seq_len(params));
         auto mapping_mem = instance.get_intermediates_memories()[PagedAttentionInternBuffIdx::MULTI_TOKEN_WG_MAPPING];
@@ -399,8 +396,8 @@ public:
 
         auto& stream = instance.get_network().get_stream();
 
-        const auto subsequence_begins = read_subsequence_begins(params);
-        const auto past_lens = read_past_lens(params);
+        const auto subsequence_begins = read_i32_input(params, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS);
+        const auto past_lens = read_i32_input(params, PagedAttentionInputIdx::PAST_LENS);
 
         auto selected_ids_mem = instance.get_intermediates_memories()[PagedAttentionInternBuffIdx::SINGLE_TOKEN_SELECTED_SEQ_IDS];
         auto mapping_mem = instance.get_intermediates_memories()[PagedAttentionInternBuffIdx::MULTI_TOKEN_WG_MAPPING];
@@ -587,7 +584,8 @@ public:
         // buffers reallocation even if the input shapes haven't been changed. Therefore, check the current execution
         // mode and update parameters if needed
         return stage == PagedAttentionStage::MIXED ||
-               ((stage == PagedAttentionStage::PREFILL || stage == PagedAttentionStage::UNKNOWN) && has_multiple_subsequences(impl_params));
+               ((stage == PagedAttentionStage::PREFILL || stage == PagedAttentionStage::UNKNOWN) &&
+            get_batch_size_in_sequences(impl_params.input_layouts) > 1);
     }
 
     [[nodiscard]] std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& params) const override {

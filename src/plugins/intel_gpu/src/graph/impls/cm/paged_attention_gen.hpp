@@ -129,32 +129,36 @@ struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
 };
 
 enum PagedAttentionInternBuffIdx {
-    // for decoding kernels
-    DECODE_PARTITIONOUT = 0,  // 0: intermediate partition output
-    DECODE_EXPSUMS = 1,       // 1: softmax exp_sums
-    // routing helpers
-    MULTI_TOKEN_WG_MAPPING = 2,        // 2: [block_start_pos, subsequence_id] pairs
-    SINGLE_TOKEN_SELECTED_SEQ_IDS = 3, // 3: selected sequence ids for single-token kernel
-    // for xattn kernels
-    XATTN_GEMMQK_MAX = 4,        // 4: kq_max_wg
-    XATTN_GEMMQK_EXPSUMS = 5,    // 5: kq_exp_partial_sum
-    XATTN_BLOCKMASK = 6,         // 6: sparse_block_mask
-    XATTN_BLOCKMASK_MERGED = 7,  // 7: sparse_block_mask_wg
-    XATTN_SUBSEQ_META = 8,      // 8: per-subsequence metadata (16 int32 each)
-    XATTN_FIND_WG_MAP = 9,      // 9: compact [subseq_id, q_block_idx] pairs for find_block
-    XATTN_POST_WG_MAP = 10,     // 10: compact [subseq_id, merged_q_block_idx] pairs for post_proc
+    // Decode scratch buffers used by generate path and split-mixed single-token path.
+    DECODE_PARTITIONOUT = 0,  // 0: f32 partial attention outputs before final reduction
+    DECODE_EXPSUMS = 1,       // 1: f32 softmax exp-sum accumulators for partition reduction
+
+    // Routing scratch buffers used to map subsequences onto decode/multi-token kernels.
+    MULTI_TOKEN_WG_MAPPING = 2,        // 2: i32 pairs [block_start_pos, subsequence_id]
+    SINGLE_TOKEN_SELECTED_SEQ_IDS = 3, // 3: i32 subsequence ids selected for single-token dispatch
+
+    // XAttention estimate scratch buffers for multi-token sparse-attention path.
+    XATTN_GEMMQK_MAX = 4,       // 4: f32 max logits per GEMM-QK work-group tile
+    XATTN_GEMMQK_EXPSUMS = 5,   // 5: f32 partial exp-sums produced by GEMM-QK stage
+    XATTN_BLOCKMASK = 6,        // 6: boolean sparse block mask per q-block / k-block pair
+    XATTN_BLOCKMASK_MERGED = 7, // 7: boolean sparse block mask after q-block merge in post-proc
+    XATTN_SUBSEQ_META = 8,      // 8: i32 per-subsequence metadata table (16 entries per subsequence)
+    XATTN_FIND_WG_MAP = 9,      // 9: i32 pairs [subseq_id, q_block_idx] for find-block dispatch
+    XATTN_POST_WG_MAP = 10,     // 10: i32 pairs [subseq_id, merged_q_block_idx] for post-proc dispatch
 #if FIND_DEBUG_ACC
-    XATTN_FIND_DEBUG_ACC = 11,  // 11: kq_sum for debug purpose only
+    XATTN_FIND_DEBUG_ACC = 11,  // 11: f16 debug-only KQ accumulation buffer
 #endif
 };
 
 //-----------------------------------------------------------------------------------------------------------------
 // Helpers of XAttention
 //-----------------------------------------------------------------------------------------------------------------
+// Stage/context helpers shared across CM paged-attention implementation units.
 PagedAttentionStage get_paged_attention_stage(const kernel_impl_params& impl_param);
 size_t get_max_context_len(const kernel_impl_params& params);
 size_t get_batch_size_in_sequences(const std::vector<layout>& input_layouts);
 
+// XAttention policy helpers.
 float get_xattn_thresh(const kernel_impl_params& impl_param, const size_t seq_idx = 0);
 bool bypass_xattn(const kernel_impl_params& impl_param);
 
