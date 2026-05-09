@@ -140,6 +140,91 @@ TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlobWithContentAllAttri
     }
 }
 
+TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlobWithCompatibilityDesc) {
+    uint64_t blobSize = 64;
+    const std::string compatDesc = "platform=NPU3720;tiles=2;etc=...";
+    std::stringstream stream;
+    std::vector<uint8_t> content(blobSize, 0);
+    stream.write(reinterpret_cast<const char*>(content.data()), static_cast<std::streamsize>(blobSize));
+
+    auto meta = MetadataTest(blobSize,
+                             CURRENT_OPENVINO_VERSION,
+                             std::nullopt,
+                             std::nullopt,
+                             std::nullopt,
+                             std::nullopt,
+                             std::nullopt,
+                             std::nullopt,
+                             compatDesc);
+    OV_ASSERT_NO_THROW(meta.write(stream));
+
+    std::unique_ptr<MetadataBase> storedMeta;
+    OV_ASSERT_NO_THROW(storedMeta = read_metadata_from(stream));
+    ASSERT_TRUE(storedMeta->get_blob_size() == blobSize);
+    ASSERT_TRUE(storedMeta->get_compatibility_descriptor().has_value());
+    ASSERT_EQ(storedMeta->get_compatibility_descriptor().value(), compatDesc);
+
+    stream.seekg(0, std::ios::beg);
+    size_t streamSize = MetadataBase::getFileSize(stream);
+    auto tensor = ov::Tensor(ov::element::u8, ov::Shape{streamSize});
+    stream.read(tensor.data<char>(), tensor.get_byte_size());
+    OV_ASSERT_NO_THROW(storedMeta = read_metadata_from(tensor));
+    ASSERT_TRUE(storedMeta->get_blob_size() == blobSize);
+    ASSERT_TRUE(storedMeta->get_compatibility_descriptor().has_value());
+    ASSERT_EQ(storedMeta->get_compatibility_descriptor().value(), compatDesc);
+}
+
+TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlobWithEmptyCompatibilityDescriptor) {
+    uint64_t blobSize = 0;
+    std::stringstream stream;
+
+    auto meta = MetadataTest(blobSize,
+                             CURRENT_OPENVINO_VERSION,
+                             std::nullopt,
+                             std::nullopt,
+                             std::nullopt,
+                             std::nullopt,
+                             std::nullopt,
+                             std::nullopt,
+                             std::string{});
+    OV_ASSERT_NO_THROW(meta.write(stream));
+
+    std::unique_ptr<MetadataBase> storedMeta;
+    OV_ASSERT_NO_THROW(storedMeta = read_metadata_from(stream));
+    ASSERT_FALSE(storedMeta->get_compatibility_descriptor().has_value());
+
+    stream.seekg(0, std::ios::beg);
+    size_t streamSize = MetadataBase::getFileSize(stream);
+    auto tensor = ov::Tensor(ov::element::u8, ov::Shape{streamSize});
+    stream.read(tensor.data<char>(), tensor.get_byte_size());
+    OV_ASSERT_NO_THROW(storedMeta = read_metadata_from(tensor));
+    ASSERT_FALSE(storedMeta->get_compatibility_descriptor().has_value());
+}
+
+TEST_F(MetadataUnitTests, compatibilityDescriptorLenExceedsTensorBounds) {
+    std::stringstream stream;
+    const std::string compatDesc = "platform=NPU3720;tiles=2;etc=...";
+    auto meta = Metadata<METADATA_VERSION_2_6>(0,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               compatDesc);
+    meta.write(stream);
+    std::string blob = stream.str();
+
+    const size_t compatDescLenOffset = blob.size() - MAGIC_BYTES.size() - sizeof(uint64_t) - compatDesc.size() - sizeof(uint64_t);
+    const uint64_t badLen = compatDesc.size() + 0xFF;
+    std::memcpy(&blob[compatDescLenOffset], &badLen, sizeof(badLen));
+
+    auto tensor = ov::Tensor(ov::element::u8, ov::Shape{blob.size()});
+    std::memcpy(tensor.data<char>(), blob.data(), blob.size());
+    ASSERT_ANY_THROW(read_metadata_from(tensor));
+}
+
 TEST_F(MetadataUnitTests, writeAndReadInvalidMetadataVersion) {
     uint64_t blobSize = 0;
     std::stringstream stream;

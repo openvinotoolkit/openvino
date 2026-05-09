@@ -196,6 +196,8 @@ public:
 
     std::optional<bool> is_profiling_blob() const override;
 
+    std::optional<std::string_view> get_compatibility_descriptor() const override;
+
 private:
     void initialize_impl(const FilteredConfig& config) override;
 

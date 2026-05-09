@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <optional>
+
 #include "openvino/op/moe.hpp"
 #include "openvino/op/op.hpp"
 #include "transformations_visibility.hpp"
@@ -43,6 +45,7 @@ public:
         // Shared expert intermediate size (may differ from sparse experts' inter_size).
         // 0 means "same as inter_size" (backward compatible default).
         size_t shared_inter_size = 0;
+        std::optional<float> scale_factor;
     };
 
     /// \brief Constructs a MOECompressed operation with config only
@@ -79,6 +82,9 @@ public:
 
     const Config& get_config() const {
         return m_config;
+    }
+    void set_scale_factor(float scale_factor) {
+        m_config.scale_factor = scale_factor;
     }
 
     bool visit_attributes(AttributeVisitor& visitor) override;
