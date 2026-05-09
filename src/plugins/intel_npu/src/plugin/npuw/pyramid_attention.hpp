@@ -4,10 +4,13 @@
 
 #pragma once
 
+#include <limits>
 #include <map>
 #include <memory>
 #include <optional>
 #include <string>
+#include <unordered_map>
+#include <unordered_set>
 
 #include "attention.hpp"
 #include "sdpa_utils.hpp"
@@ -162,11 +165,18 @@ struct PyramidAttentionInfo {
     std::vector<Param> params;
 
     // ── Block mode only ──────────────────────────────────────────────────────────
-    // Per-variant KV block parameter indices (block0..blockM, M <= N).
-    // Copied from function::Attention::past_key/value_block_variant_param_indices by
-    // the compiled::PyramidAttention constructor. Empty in contiguous mode.
-    std::vector<size_t> past_key_block_variant_param_indices;
-    std::vector<size_t> past_value_block_variant_param_indices;
+    // Precomputed direct lookup: global KV block param index → this variant's port index.
+    // std::numeric_limits<size_t>::max() if this variant has no port for that block
+    // (e.g. model[0] has 0 past blocks; model[i] has no port for blocks > i).
+    // Enables O(1) binding in bind_function_input; empty in contiguous mode.
+    std::unordered_map<size_t, size_t> past_key_block_port_map;
+    std::unordered_map<size_t, size_t> past_value_block_port_map;
+
+    // Precomputed set of this variant's KV block port indices.
+    // Used by ensure_pyramid_requests to identify block ports during request setup.
+    // Empty in contiguous mode.
+    std::unordered_set<size_t> past_key_block_port_set;
+    std::unordered_set<size_t> past_value_block_port_set;
 };
 
 // Compile-time pyramid attention information

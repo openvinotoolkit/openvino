@@ -629,10 +629,28 @@ PyramidAttention::PyramidAttention(const function::PyramidAttention& func_pyrami
         attention_info.query_size = func_attn.query_len();
         attention_info.context_length = func_attn.context_len();
 
-        // Block parameter indices are pre-computed by process_pyramid_model / from().
-        // Simple copy; no model->get_parameter_index() needed for blocks.
-        attention_info.past_key_block_variant_param_indices = func_attn.past_key_block_variant_param_indices;
-        attention_info.past_value_block_variant_param_indices = func_attn.past_value_block_variant_param_indices;
+        // Precompute global→variant port maps (for O(1) binding in bind_function_input) and
+        // variant port sets (for O(1) block-port detection in ensure_pyramid_requests).
+        // std::numeric_limits<size_t>::max() means this variant has no port for that block.
+        const auto& gk = func_pyramid.past_key_block_global_param_indices;
+        const auto& gv = func_pyramid.past_value_block_global_param_indices;
+        const auto& vk = func_attn.past_key_block_variant_param_indices;
+        const auto& vv = func_attn.past_value_block_variant_param_indices;
+        constexpr size_t NO_PORT = std::numeric_limits<size_t>::max();
+        for (size_t m = 0; m < gk.size(); ++m) {
+            const size_t port = (m < vk.size()) ? vk[m] : NO_PORT;
+            attention_info.past_key_block_port_map[gk[m]] = port;
+            if (port != NO_PORT) {
+                attention_info.past_key_block_port_set.insert(port);
+            }
+        }
+        for (size_t m = 0; m < gv.size(); ++m) {
+            const size_t port = (m < vv.size()) ? vv[m] : NO_PORT;
+            attention_info.past_value_block_port_map[gv[m]] = port;
+            if (port != NO_PORT) {
+                attention_info.past_value_block_port_set.insert(port);
+            }
+        }
 
         _attention_infos.push_back(std::move(attention_info));
         _context_lengths.push_back(_attention_infos.back().context_length);

@@ -5,6 +5,7 @@
 #include "attn_subgraph.hpp"
 
 #include <array>
+#include <limits>
 #include <sstream>
 #include <unordered_map>
 #include <unordered_set>
@@ -254,21 +255,15 @@ void ensure_pyramid_requests(ov::npuw::v1::subgraphs::InferContext& ctx, Runtime
             state.pyramid_requests.pipeline_requests[model_idx] = pyramid_models[model_idx]->create_infer_request();
         }
 
-        const auto& info = pyramid->_attention_infos[model_idx];
-        const auto& variant_inputs = pyramid_models[model_idx]->inputs();
-
-        const std::unordered_set<size_t> key_block_ports(info.past_key_block_variant_param_indices.begin(),
-                                                         info.past_key_block_variant_param_indices.end());
-        const std::unordered_set<size_t> val_block_ports(info.past_value_block_variant_param_indices.begin(),
-                                                         info.past_value_block_variant_param_indices.end());
-
         auto share_inputs_for_req = [&](ov::SoPtr<ov::IAsyncInferRequest>& req,
                                         ov::SoPtr<ov::IAsyncInferRequest>& main_req) {
+            const auto& info = pyramid->_attention_infos[model_idx];
+            const auto& variant_inputs = pyramid_models[model_idx]->inputs();
+            const auto& key_block_ports = info.past_key_block_port_set;
+            const auto& val_block_ports = info.past_value_block_port_set;
             ov::SoPtr<ov::ITensor> key_block0, val_block0;
-            if (block_mode && !pyramid->past_key_block_global_param_indices.empty()) {
+            if (block_mode) {
                 key_block0 = main_req->get_tensor(main_inputs[pyramid->past_key_block_global_param_indices[0]]);
-            }
-            if (block_mode && !pyramid->past_value_block_global_param_indices.empty()) {
                 val_block0 = main_req->get_tensor(main_inputs[pyramid->past_value_block_global_param_indices[0]]);
             }
 
@@ -576,30 +571,22 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                             pyramid_attention::Selector::Case::PREFILL &&
                                         "Pyramid block KV cache is only supported in PREFILL. "
                                         "For GENERATE use NPUW_LLM_GENERATE_PYRAMID=YES.");
-                            auto try_bind_block = [&](const std::vector<size_t>& global_idxs,
-                                                      const std::vector<size_t>& variant_idxs) -> bool {
-                                auto it = std::find(global_idxs.begin(), global_idxs.end(), input_idx);
-                                if (it == global_idxs.end()) {
-                                    return false;
+                            auto try_bind_block = [&](const std::unordered_map<size_t, size_t>& port_map) -> bool {
+                                auto it = port_map.find(input_idx);
+                                if (it == port_map.end()) {
+                                    return false;  // Not a block KV input.
                                 }
-                                // This input belongs to the global block KV space.
-                                // If this pyramid variant needs fewer past blocks than the full model
-                                // (e.g. model[0] needs 0 past blocks), there is no corresponding variant
-                                // port — consume the input silently without calling set_tensor.
-                                const size_t m = static_cast<size_t>(std::distance(global_idxs.begin(), it));
-                                if (m >= variant_idxs.size()) {
-                                    return true;
+                                // It is a block KV input. Check if this variant has a port for it.
+                                // std::numeric_limits<size_t>::max() means no port (e.g. model[0]).
+                                if (it->second == std::numeric_limits<size_t>::max()) {
+                                    return true;  // Consume silently — no set_tensor needed.
                                 }
-
-                                const auto& block_iport =
-                                    pyramid->_compiled_models[pyramid_id]->inputs()[variant_idxs[m]];
+                                const auto& block_iport = pyramid->_compiled_models[pyramid_id]->inputs()[it->second];
                                 ctx.target_request->set_tensor(block_iport, tensor);
                                 return true;
                             };
-                            if (try_bind_block(pyramid->past_key_block_global_param_indices,
-                                               info.past_key_block_variant_param_indices) ||
-                                try_bind_block(pyramid->past_value_block_global_param_indices,
-                                               info.past_value_block_variant_param_indices)) {
+                            if (try_bind_block(info.past_key_block_port_map) ||
+                                try_bind_block(info.past_value_block_port_map)) {
                                 return true;  // Block KV input handled.
                             }
                             // Not a block KV input: mask is deferred to prologue(), others bind directly.
