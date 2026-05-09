@@ -327,8 +327,8 @@ void pa_lsc_u8(
             int o_stride_elems = o_pitch / sizeof(half);
             half* output_ptr = (half*)o_base + p * REG_M * o_stride_elems + k;
             auto cur_O_ref = cur_O_f16.format<half, num_P_tiles, REG_M * REG_N>().row(p).format<half, REG_M, REG_N>();
-            #pragma unroll
-            for (int r = 0; r < REG_M; r++) {
+
+            for (int r = 0; r < q_len; r++) {
                 cm_svm_block_write<half, REG_N>((svmptr_t)(output_ptr + r * o_stride_elems), cur_O_ref.row(r).format<half>());
             }
         }
@@ -612,8 +612,8 @@ void pa_kernel_lsc_prefetch_f16(
             int o_stride_elems = o_pitch / sizeof(half);
             half* output_ptr = (half*)o_base + p * REG_M * o_stride_elems + k;
             auto cur_O_ref = cur_O_f16.format<half, num_P_tiles, REG_M * REG_N>().row(p).format<half, REG_M, REG_N>();
-            #pragma unroll
-            for (int r = 0; r < REG_M; r++) {
+
+            for (int r = 0; r < q_len; r++) {
                 cm_svm_block_write<half, REG_N>((svmptr_t)(output_ptr + r * o_stride_elems), cur_O_ref.row(r).format<half>());
             }
         }

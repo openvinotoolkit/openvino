@@ -400,7 +400,6 @@ DispatchDataFunc PagedAttentionGeneratorMultiToken::get_dispatch_data_func() con
         const size_t heads_num = desc->heads_num;
 
         auto out_shape = params.output_layouts[0].get_shape();
-        const size_t batch = out_shape.size() < 4 ? 1 : out_shape[0];
         const size_t q_len = out_shape[0];
 
         const size_t q_step = get_q_step(params);
@@ -408,12 +407,12 @@ DispatchDataFunc PagedAttentionGeneratorMultiToken::get_dispatch_data_func() con
         const size_t wg_count = rtp->multi_token_wg_count;
         OPENVINO_ASSERT(wg_count > 0, "Invalid multi_token_wg_count in runtime params");
 
-        wgs.global = {batch, heads_num, wg_count * wg_size};
+        wgs.global = {1, heads_num, wg_count * wg_size};
         wgs.local = {1, 1, wg_size};
 
         if (DEBUG_ENABLED) {  // Debug
             std::cout << "PagedAttentionGeneratorMultiToken::get_dispatch_data_func: \n"
-                      << "\tbatch: " << batch << ", heads_num: " << heads_num << ", q_len: " << q_len << ", q_step: " << q_step
+                      << "\theads_num: " << heads_num << ", q_len: " << q_len << ", q_step: " << q_step
                       << ", wg_seq_len: " << wg_seq_len << ", wg_count: " << wg_count << ", gws: [" << wgs.global[0] << ", " << wgs.global[1] << ", "
                       << wgs.global[2] << "]" << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]" << std::endl;
         }
