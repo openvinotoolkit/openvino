@@ -221,7 +221,6 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     if (enable_cpu_wa) {
         // Apply CPU workaround only for the largest variant since all variants share its past KV tensors
         auto& largest_kvcache_req = m_generate_requests.back();
-        const auto& kvcache_compiled = largest_kvcache_req->get_compiled_model();
         const auto& variant_in_ports = m_generate_variant_in_ports.at(largest_kvcache_req);
         for (const auto& kv_past_name : m_kvcache_past_names) {
             auto kvcache_in_tensor = largest_kvcache_req->get_tensor(variant_in_ports.at(kv_past_name));
@@ -538,7 +537,6 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
     LOG_DEBUG("Copying kv-cache from prefill to generate model.");
     LOG_BLOCK();
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
-    const auto& kvcache_compiled = m_kvcache_request->get_compiled_model();
     // FIXME: Find only matching by names outputs and copy them, having previously checked that such inputs exist
     ov::parallel_for(m_kvcache_past_names.size(), [&](size_t out_idx) {
         const auto& input_name = m_kvcache_past_names[out_idx];
@@ -638,7 +636,6 @@ void ov::npuw::LLMInferRequest::update_kvcache_for(
     bool v_transposed) {
     namespace uu = ov::npuw::util;
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
-    auto& compiled = request->get_compiled_model();
 
     for (std::size_t i = 0; i < m_kvcache_past_names.size(); ++i) {
         const auto& input_name = m_kvcache_past_names[i];
@@ -715,8 +712,6 @@ void ov::npuw::LLMInferRequest::trim_kvcache_for_speculative_decoding(ov::SoPtr<
 }
 
 void ov::npuw::LLMInferRequest::clear_chunk_prefill_kv_cache() {
-    const auto& prefill_compiled = m_prefill_request->get_compiled_model();
-
     for (const auto& input_name : m_kvcache_past_names) {
         OPENVINO_ASSERT(m_prefill_in_ports.find(input_name) != m_prefill_in_ports.end(),
                         "Incosistent input/output naming for KV cache: ",
