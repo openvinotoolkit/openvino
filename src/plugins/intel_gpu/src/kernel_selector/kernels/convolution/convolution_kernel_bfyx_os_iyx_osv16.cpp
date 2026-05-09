@@ -246,9 +246,9 @@ JitConstants ConvolutionKernel_bfyx_os_iyx_osv16::GetJitConstants(const convolut
     // unrolling (unroll_for) beyond the threshold.
     const size_t unroll_ops_threshold = 1024;
     const size_t total_unroll_ops = static_cast<size_t>(params.filterSize.x) *
-                                  static_cast<size_t>(params.filterSize.y) *
-                                  dispatchData.cldnnStyle.blockWidth *
-                                  dispatchData.cldnnStyle.blockHeight;
+                                    static_cast<size_t>(params.filterSize.y) *
+                                    dispatchData.cldnnStyle.blockWidth *
+                                    dispatchData.cldnnStyle.blockHeight;
     if (total_unroll_ops >= unroll_ops_threshold) {
         jit.AddConstant(MakeJitConstant("DISABLE_MANUAL_UNROLL", 1));
     }
