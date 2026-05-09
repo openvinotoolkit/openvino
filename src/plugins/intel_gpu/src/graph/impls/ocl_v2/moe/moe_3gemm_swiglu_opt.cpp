@@ -756,16 +756,16 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
     //   1. shared inherits the sparse compression (shared_weight_type == dynamic, or
     //      explicitly equal to the sparse `weight_dt`). All compression details
     //      (HAS_ZP, group sizes, signedness) are reused from the sparse path.
-    //   2. shared is raw f16/f32. Then SHARED_WEIGHT_COMPRESSEION_DT == 2 selects
+    //   2. shared is raw f16. Then SHARED_WEIGHT_COMPRESSEION_DT == 2 selects
     //      the f16 GEMV branch and the sparse compression macros are irrelevant for it.
-    // Mixing different compression types between sparse and shared experts is not
-    // supported.
+    //   Note: bf16 weights are converted to f16 by FuseMOESharedExpert since OpenCL
+    //   doesn't support bf16 natively, so only f16 needs to be checked here.
     if (desc->_config.num_shared_expert > 0) {
         ov::element::Type shared_wt = desc->_config.shared_weight_type;
         if (shared_wt == ov::element::dynamic) {
             shared_wt = weight_dt;
         }
-        if (shared_wt == ov::element::f16 || shared_wt == ov::element::f32) {
+        if (shared_wt == ov::element::f16) {
             jit.make("SHARED_WEIGHT_COMPRESSEION_DT", 2);
             // f16 GEMV uses intel_sub_group_block_read_us* on the weight rows, which require
             // 16-byte alignment. The row stride equals HIDDEN_SIZE * sizeof(half) bytes, so
@@ -1346,6 +1346,9 @@ public:
         cur_moe->_intermediate_size = _intermediate_size;
         cur_moe->_gate_up_group_size = _gate_up_group_size;
         cur_moe->_down_group_size = _down_group_size;
+        cur_moe->use_micro_gemm_prefill = use_micro_gemm_prefill;
+        cur_moe->use_gpu_mask_gen_prefill = use_gpu_mask_gen_prefill;
+        cur_moe->use_grouped_gemm_prefill = use_grouped_gemm_prefill;
         return cur_moe;
     }
 

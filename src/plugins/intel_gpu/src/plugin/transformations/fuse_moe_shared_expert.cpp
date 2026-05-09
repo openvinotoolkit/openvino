@@ -10,6 +10,7 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/moe.hpp"
 #include "openvino/op/multiply.hpp"
@@ -61,6 +62,11 @@ FuseMOESharedExpert::FuseMOESharedExpert() {
 
     auto moe_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{moe_base_m, moe_compressed_m});
 
+    // MoeOpFusion may insert Convert(f16→f32) between MOECompressed and Add
+    // when the MOE output type (f16) differs from hidden_states type (f32).
+    // Match this optional Convert so the pattern still fires.
+    auto moe_convert_m = optional<ov::op::v0::Convert>({moe_m});
+
     // Shared expert subgraph:
     //   shared_gate = MatMul(shared_hidden, shared_gate_weight)
     //   shared_swish = Swish(shared_gate)
@@ -93,9 +99,9 @@ FuseMOESharedExpert::FuseMOESharedExpert() {
     auto shared_expert_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{shared_down_m, shared_expert_gated_m});
     auto shared_expert_reshaped_m = optional<ov::op::v1::Reshape>({shared_expert_m, any_input()});
 
-    // Root: Add(MOE, SharedExpert) or Add(SharedExpert, MOE)
-    auto add_1 = wrap_type<ov::op::v1::Add>({moe_m, shared_expert_reshaped_m});
-    auto add_2 = wrap_type<ov::op::v1::Add>({shared_expert_reshaped_m, moe_m});
+    // Root: Add(MOE[→Convert], SharedExpert) or Add(SharedExpert, MOE[→Convert])
+    auto add_1 = wrap_type<ov::op::v1::Add>({moe_convert_m, shared_expert_reshaped_m});
+    auto add_2 = wrap_type<ov::op::v1::Add>({shared_expert_reshaped_m, moe_convert_m});
     auto root = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{add_1, add_2});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
@@ -123,15 +129,27 @@ FuseMOESharedExpert::FuseMOESharedExpert() {
 
         // Detect "F16 shared expert + compressed sparse experts" (mixed-precision) topology:
         //   * input MOE is MOECompressed (sparse experts are compressed)
-        //   * all three shared weights are direct f16/f32 Constants (no dequant chain)
+        //   * all three shared weights are uncompressed f16/bf16/f32 Constants
+        //     (possibly behind a decompression Convert, e.g. Const(bf16)→Convert(f32)→MatMul)
         // In this case, we normalize to the 22-input MOECompressed layout that
         // FuseMOE3GemmCompressed expects (with dummy scale/zp constants), and update
         // the Config to reflect the shared expert's precision.
-        auto is_uncompressed_const = [](const ov::Output<ov::Node>& v) {
-            auto c = ov::as_type_ptr<ov::op::v0::Constant>(v.get_node_shared_ptr());
+
+        // Look through an optional decompression Convert to find the source Constant.
+        auto get_source_constant = [](const ov::Output<ov::Node>& v)
+                -> std::shared_ptr<ov::op::v0::Constant> {
+            auto node = v.get_node_shared_ptr();
+            if (auto convert = ov::as_type_ptr<ov::op::v0::Convert>(node)) {
+                node = convert->input_value(0).get_node_shared_ptr();
+            }
+            return ov::as_type_ptr<ov::op::v0::Constant>(node);
+        };
+
+        auto is_uncompressed_const = [&get_source_constant](const ov::Output<ov::Node>& v) {
+            auto c = get_source_constant(v);
             if (!c) return false;
-            const auto& et = v.get_element_type();
-            return et == ov::element::f16 || et == ov::element::f32;
+            const auto& et = c->get_element_type();
+            return et == ov::element::f16 || et == ov::element::bf16 || et == ov::element::f32;
         };
         const bool is_mixed_precision_shared = moe_compressed &&
                                                is_uncompressed_const(sh_gate_w) &&
@@ -151,23 +169,43 @@ FuseMOESharedExpert::FuseMOESharedExpert() {
             auto dummy_scalar = [](ov::element::Type et) {
                 return ov::op::v0::Constant::create(et, ov::Shape{1}, {0.0f});
             };
-            const auto sh_wei_et = sh_gate_w.get_element_type();
+            // Determine the effective element type for shared weights.
+            // bf16 is not natively supported by OpenCL kernels, so map it to f16.
+            const auto sh_wei_et_raw = get_source_constant(sh_gate_w)->get_element_type();
+            const auto sh_wei_et = (sh_wei_et_raw == ov::element::bf16) ? ov::element::f16 : sh_wei_et_raw;
+
+            // When the weight is behind a decompression Convert (Const(bf16)→Convert(f32)→MatMul),
+            // strip the Convert and pass the source Constant. If the source is bf16, insert an
+            // explicit Convert(bf16→f16) because OpenCL kernels cannot consume bf16 directly.
+            auto get_weight_input = [&get_source_constant](const ov::Output<ov::Node>& v) -> ov::Output<ov::Node> {
+                if (ov::as_type_ptr<ov::op::v0::Convert>(v.get_node_shared_ptr())) {
+                    auto src = get_source_constant(v);
+                    if (src->get_element_type() == ov::element::bf16) {
+                        return std::make_shared<ov::op::v0::Convert>(src, ov::element::f16);
+                    }
+                    return src;
+                }
+                return v;
+            };
+            auto sh_gate_w_in = get_weight_input(sh_gate_w);
+            auto sh_up_w_in   = get_weight_input(sh_up_w);
+            auto sh_down_w_in = get_weight_input(sh_down_w);
 
             // gate
-            new_inputs.push_back(sh_gate_w);
+            new_inputs.push_back(sh_gate_w_in);
             new_inputs.push_back(dummy_scalar(sh_wei_et));   // dummy scale
             new_inputs.push_back(dummy_scalar(sh_wei_et));   // dummy zp
             // up
-            new_inputs.push_back(sh_up_w);
+            new_inputs.push_back(sh_up_w_in);
             new_inputs.push_back(dummy_scalar(sh_wei_et));
             new_inputs.push_back(dummy_scalar(sh_wei_et));
             // down
-            new_inputs.push_back(sh_down_w);
+            new_inputs.push_back(sh_down_w_in);
             new_inputs.push_back(dummy_scalar(sh_wei_et));
             new_inputs.push_back(dummy_scalar(sh_wei_et));
             // gate_gate
             if (has_gating) {
-                new_inputs.push_back(sh_gate_gate_w);
+                new_inputs.push_back(get_weight_input(sh_gate_gate_w));
             } else {
                 size_t hidden_size = moe->get_output_partial_shape(0).rbegin()->get_length();
                 new_inputs.push_back(ov::op::v0::Constant::create(
@@ -182,7 +220,7 @@ FuseMOESharedExpert::FuseMOESharedExpert() {
             cfg.shared_has_zp = false;
             // Derive shared expert intermediate size from the gate-weight constant shape
             // (logical layout is [hidden_size, inter_size] or [inter_size, hidden_size]).
-            const auto& sh_shape = sh_gate_w.get_partial_shape();
+            const auto& sh_shape = sh_gate_w_in.get_partial_shape();
             if (sh_shape.is_static() && cfg.hidden_size > 0) {
                 const size_t total = ov::shape_size(sh_shape.to_shape());
                 cfg.shared_inter_size = total / cfg.hidden_size;
@@ -213,7 +251,29 @@ FuseMOESharedExpert::FuseMOESharedExpert() {
 
         new_moe->set_friendly_name(root_node->get_friendly_name());
         ov::copy_runtime_info({moe_node, root_node}, new_moe);
-        ov::replace_node(root_node, new_moe);
+
+        // If MoeOpFusion inserted a Convert between MOECompressed and Add,
+        // wrap the replacement in a matching Convert to keep types consistent.
+        std::shared_ptr<ov::Node> replacement = new_moe;
+        if (pattern_map.count(moe_convert_m) > 0) {
+            if (auto cvt = ov::as_type_ptr<ov::op::v0::Convert>(
+                    pattern_map.at(moe_convert_m).get_node_shared_ptr())) {
+                replacement = std::make_shared<ov::op::v0::Convert>(new_moe, cvt->get_destination_type());
+                replacement->set_friendly_name(root_node->get_friendly_name());
+                new_moe->set_friendly_name(root_node->get_friendly_name() + "/fused_moe");
+                ov::copy_runtime_info({moe_node, cvt, root_node}, replacement);
+            }
+        }
+        ov::replace_node(root_node, replacement);
+
+        // Disconnect the old MOECompressed from its inputs so the zombie node
+        // doesn't inflate consumer counts of shared input nodes (routing, topk,
+        // etc.). FuseMOE3GemmCompressed relies on consumers_count(1) predicates
+        // on the routing subgraph, which would fail if the old node remains.
+        auto dummy = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {0.0f});
+        for (size_t i = 0; i < moe_node->get_input_size(); ++i) {
+            moe_node->input(i).replace_source_output(dummy);
+        }
 
         return true;
     };
