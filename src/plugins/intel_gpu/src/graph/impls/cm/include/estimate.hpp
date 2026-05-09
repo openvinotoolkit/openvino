@@ -208,7 +208,7 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
         #else
         SurfaceIndex kq_exp_partial_sum [[type("buffer_t")]],
         #endif
-        const uint M, const uint N, const uint K, const uint query_stride, const uint q_start_strided, const uint offset_partial_sum) {
+        const uint M, const uint N, const uint query_stride, const uint q_start_strided, const uint offset_partial_sum) {
 
     constexpr int SG_SIZE = details::get_dpas_execution_size((CmPrecisionType)9);    
     // constexpr int BLOCK_WG_K = 64;	// same in sg  // because unroll 4 times along K ??
@@ -248,6 +248,7 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
     uint id_sg_mn = id_sg_m * SG_N + id_sg_n;
 
     static_assert(BLOCK_WG_K == 32 || BLOCK_WG_K == 64, "Supported BLOCK_WG_K are 32 or 64");
+    static constexpr uint K = STRIDE * HEAD_SIZE;
     constexpr bool IS64 = (BLOCK_WG_K == 64);
     constexpr bool IS32 = (BLOCK_WG_K == 32);
     constexpr int PHASE_SIZE = IS64 ? 32 : 16;

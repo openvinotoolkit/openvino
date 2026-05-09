@@ -652,9 +652,8 @@ Arguments XAttentionEstimateGEMMQK::get_arguments_desc(const kernel_impl_params&
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_GEMMQK_EXPSUMS});  // kq_exp_partial_sum
 
     // scalar
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // K
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // query_pitch
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // num_subseqs
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // query_pitch
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // num_subseqs
 
     return args;
 }
@@ -665,8 +664,6 @@ DispatchDataFunc XAttentionEstimateGEMMQK::get_dispatch_data_func() const {
         OPENVINO_ASSERT(rt_params != nullptr);
         auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
         const auto desc = params.typed_desc<paged_attention>();
-
-        const auto K = rtp->K;
 
         auto get_simple_pitch = [](const layout& layout) {
             size_t pitch = 1;
@@ -689,13 +686,11 @@ DispatchDataFunc XAttentionEstimateGEMMQK::get_dispatch_data_func() const {
         wgs.local = {SG_N, SG_M, 1};
 
         auto& scalars = kd.params.scalars;
-        scalars.resize(3);
+        scalars.resize(2);
         scalars[0].t = ScalarDescriptor::Types::UINT32;
-        scalars[0].v.u32 = static_cast<uint32_t>(K);
-        scalars[1].t = ScalarDescriptor::Types::UINT32;
-        scalars[1].v.u32 = static_cast<uint32_t>(query_pitch);
-        scalars[2].t = ScalarDescriptor::Types::INT32;
-        scalars[2].v.s32 = static_cast<int32_t>(rtp->xattn_num_subseqs);
+        scalars[0].v.u32 = static_cast<uint32_t>(query_pitch);
+        scalars[1].t = ScalarDescriptor::Types::INT32;
+        scalars[1].v.s32 = static_cast<int32_t>(rtp->xattn_num_subseqs);
     }};
 }
 

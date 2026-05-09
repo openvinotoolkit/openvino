@@ -106,19 +106,11 @@ struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
     SingleTokenQChunking q_chunking;
     size_t single_token_selected_count = 0;
     // multi-token subsequence routing
-    size_t multi_token_wg_count;
-    bool enable_xattn_estimation;
+    size_t multi_token_wg_count = 0;
+    bool enable_xattn_estimation = false;
+
     // below are rt params for xattn
-    size_t block_wg_m;
-    size_t q_block_pad;
-    size_t k_block_pad;
-    size_t q_stride_pad;
-    size_t q_block_pad_merged;
-    size_t N_kq_groups;
-    size_t M;
-    size_t N;
-    size_t K;
-    size_t xattn_block_size;
+    size_t xattn_block_size = 1;
     // multi-subseq xattn fields
     size_t xattn_num_subseqs = 1;
     size_t xattn_total_wg_count = 0;

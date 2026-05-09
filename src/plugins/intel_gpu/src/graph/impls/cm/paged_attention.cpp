@@ -50,6 +50,12 @@ std::vector<int32_t> read_past_lens(const kernel_impl_params& params) {
     return std::vector<int32_t>(lock.begin(), lock.end());
 }
 
+std::vector<int32_t> read_block_indices_begins(const primitive_inst& instance) {
+    auto bi_begins_mem = instance.input_memory_ptr(PagedAttentionInputIdx::BLOCK_INDICES_BEGINS);
+    mem_lock<int32_t, mem_lock_type::read> lock(bi_begins_mem, instance.get_network().get_stream());
+    return std::vector<int32_t>(lock.begin(), lock.end());
+}
+
 MixedRouteMode get_mixed_route_mode_from_config(const kernel_impl_params& params) {
 #ifdef ENABLE_DEBUG_CAPS
     std::string mode = params.get_program().get_config().get_cm_mixed_route_mode();
@@ -118,12 +124,6 @@ public:
         }
     }
 
-    std::vector<int32_t> read_block_indices_begins(const primitive_inst& instance) {
-        auto bi_begins_mem = instance.input_memory_ptr(PagedAttentionInputIdx::BLOCK_INDICES_BEGINS);
-        mem_lock<int32_t, mem_lock_type::read> lock(bi_begins_mem, instance.get_network().get_stream());
-        return std::vector<int32_t>(lock.begin(), lock.end());
-    }
-
     void update_xattn_rt_params(const primitive_inst& instance) {
         const auto& params = *instance.get_impl_params();
         const auto desc = params.typed_desc<paged_attention>();
@@ -132,9 +132,7 @@ public:
         const size_t block_size = get_xattn_block_size(params);
         const uint32_t block_wg_n = XAttentionEstimateGeneratorBase::get_block_wg_n(params);
         const uint32_t block_wg_m = XAttentionEstimateGeneratorBase::get_block_wg_m(params);
-        const size_t head_size = desc->k_head_size;
         const size_t heads_num = desc->heads_num;
-        const size_t K = STRIDE * head_size;
         const size_t merged_q_num = PagedAttentionGeneratorMultiToken::get_wg_seq_len(params) / block_size;
         const size_t sum_per_token_in_block = block_size / STRIDE;
         const size_t k_block_in_group = block_wg_n / sum_per_token_in_block;
@@ -214,8 +212,6 @@ public:
             num_xattn_subseqs++;
         }
 
-        rt_params->block_wg_m = block_wg_m;
-        rt_params->K = K;
         rt_params->xattn_block_size = block_size;
         rt_params->xattn_num_subseqs = num_xattn_subseqs;
         rt_params->xattn_total_wg_count = total_wg_count;
@@ -226,25 +222,6 @@ public:
         rt_params->xattn_cumul_mask_elems = cumul_mask_elems;
         rt_params->xattn_cumul_mask_wg_elems = cumul_mask_wg_elems;
         rt_params->xattn_meta_num_int32s = m_xattn_meta.size();
-
-        // Keep single-subseq compat fields (used by pa_multi_token in Phase 4 later)
-        if (num_xattn_subseqs == 1) {
-            rt_params->q_block_pad = ceil_div(static_cast<size_t>(m_xattn_meta[6]), static_cast<size_t>(1));
-            rt_params->k_block_pad = static_cast<size_t>(m_xattn_meta[7]);
-            rt_params->q_stride_pad = static_cast<size_t>(m_xattn_meta[4]);
-            rt_params->q_block_pad_merged = max_merged_q_blocks;
-            rt_params->N_kq_groups = static_cast<size_t>(m_xattn_meta[5]);
-            rt_params->M = static_cast<size_t>(m_xattn_meta[2]);
-            rt_params->N = static_cast<size_t>(m_xattn_meta[3]);
-        } else {
-            rt_params->q_block_pad = max_q_block_pad;
-            rt_params->k_block_pad = 0;
-            rt_params->q_stride_pad = 0;
-            rt_params->q_block_pad_merged = max_merged_q_blocks;
-            rt_params->N_kq_groups = 0;
-            rt_params->M = 0;
-            rt_params->N = 0;
-        }
     }
 
     void update_rt_params(const primitive_inst& instance) override {
@@ -307,19 +284,11 @@ public:
 
             if (desc->has_xattention) {
                 validate_xattn_inputs(params, rt_params->batch_size_in_sequences);
-            }
 
-            if (desc->has_xattention) {
                 rt_params->enable_xattn_estimation = true;
                 update_xattn_rt_params(instance);
             } else {
                 rt_params->xattn_block_size = 1;  // disable xattn for pa
-            }
-
-            if (use_split_mixed) {
-                // In split route mode, mixed stage follows conservative non-xattention behavior.
-                rt_params->enable_xattn_estimation = false;
-                rt_params->xattn_block_size = 1;
             }
         }
     }

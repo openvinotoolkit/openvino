@@ -38,7 +38,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     #else
     SurfaceIndex kq_exp_partial_sum [[type("buffer_t")]],
     #endif
-    uint K, uint query_stride, int num_subseqs) {
+    uint query_stride, int num_subseqs) {
     const uint BLOCK_WG_M = BLOCK_SG_M * SG_M;
     const uint BLOCK_WG_N = BLOCK_SG_N * SG_N;
     uint hq = cm_group_id(2) * WALK_HQ;
@@ -98,7 +98,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     kq_exp_partial_sum += offset_partial_sum;
     #endif
 
-    FUNC(id_wg_m, id_wg_n, hq, slm, key_cache, query, block_indices, block_index_begin, kq_max_wg, kq_exp_partial_sum, M, N, K, query_stride, q_start_strided, offset_partial_sum);
+    FUNC(id_wg_m, id_wg_n, hq, slm, key_cache, query, block_indices, block_index_begin, kq_max_wg, kq_exp_partial_sum, M, N, query_stride, q_start_strided, offset_partial_sum);
 }
 
 }  // NAMESPACE
