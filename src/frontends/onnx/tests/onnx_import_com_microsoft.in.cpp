@@ -2874,6 +2874,86 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_1_input_1_rotary_interleaved)
     test_case.run_with_tolerance_as_fp();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_minimum_inputs_passes) {
+    const auto model = convert_model("com.microsoft/gqa_non_rotary_7_inputs.onnx");
+
+    std::vector<float> query = {
+        -1.1258f, -1.1524f, -0.2506f, -0.4339f, 0.8487f,  0.6920f,  -0.3160f, -2.1152f, 0.3223f, -1.2633f, 0.3500f,
+        0.3081f,  0.1198f,  1.2377f,  1.1168f,  -0.2473f, -1.3527f, -1.6959f, 0.5667f,  0.7935f, 0.5988f,  -1.5551f,
+        -0.3414f, 1.8530f,  0.7502f,  -0.5855f, -0.1734f, 0.1835f,  1.3894f,  1.5863f,  0.9463f, -0.8437f, 1.6459f,
+        -1.3602f, 0.3446f,  0.5199f,  -2.6133f, -1.6965f, -0.2282f, 0.2800f,  0.2469f,  0.0769f, 0.3380f,  0.4544f,
+        0.4569f,  -0.8654f, 0.7813f,  -0.9268f, -0.2188f, -2.4351f, -0.0729f, -0.0340f, 0.9625f, 0.3492f,  -0.9215f,
+        -0.0562f, -0.6227f, -0.4637f, 1.9218f,  -0.4025f, 0.1239f,  1.1648f,  0.9234f,  1.3873f,
+    };
+    std::vector<float> past_key = {};
+    std::vector<float> past_value = {};
+    std::vector<int> seqlens_k = {0};
+    std::vector<int> total_sequence_length = {1};
+
+    std::vector<float> expected_output = {-0.2188f, -2.4351f, -0.0729f, -0.034f,  0.9625f, 0.3492f, -0.9215f, -0.0562f,
+                                          -0.6227f, -0.4637f, 1.9218f,  -0.4025f, 0.1239f, 1.1648f, 0.9234f,  1.3873f,
+                                          -0.2188f, -2.4351f, -0.0729f, -0.034f,  0.9625f, 0.3492f, -0.9215f, -0.0562f,
+                                          -0.6227f, -0.4637f, 1.9218f,  -0.4025f, 0.1239f, 1.1648f, 0.9234f,  1.3873f};
+
+    std::vector<float> expected_present_key = {1.64590001f,
+                                               -1.36020004f,
+                                               0.34459999f,
+                                               0.51990002f,
+                                               -2.61330008f,
+                                               -1.69649994f,
+                                               -0.22820000f,
+                                               0.28000000f,
+                                               0.24690000f,
+                                               0.07689999f,
+                                               0.33799999f,
+                                               0.45440000f,
+                                               0.45690000f,
+                                               -0.86540001f,
+                                               0.78130000f,
+                                               -0.92680001f};
+
+    std::vector<float> expected_present_value = {-0.2188f,
+                                                 -2.4351f,
+                                                 -0.0729f,
+                                                 -0.034f,
+                                                 0.9625f,
+                                                 0.3492f,
+                                                 -0.9215f,
+                                                 -0.0562f,
+                                                 -0.6227f,
+                                                 -0.4637f,
+                                                 1.9218f,
+                                                 -0.4025f,
+                                                 0.1239f,
+                                                 1.1648f,
+                                                 0.9234f,
+                                                 1.3873f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 64}, query);
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, past_key);
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<int>(Shape{}, total_sequence_length);
+    test_case.add_expected_output<float>(Shape{1, 1, 32}, expected_output);
+    test_case.add_expected_output<float>(Shape{1, 1, 1, 16}, expected_present_key);
+    test_case.add_expected_output<float>(Shape{1, 1, 1, 16}, expected_present_value);
+    test_case.run_with_tolerance_as_fp();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_insufficient_inputs_throws) {
+    try {
+        convert_model("com.microsoft/gqa_oob.onnx");
+        FAIL() << "ONNX Importer did not detect insufficient inputs for GroupQueryAttention";
+    } catch (const ::ov::frontend::OpConversionFailure& e) {
+        EXPECT_THAT(e.what(), testing::AllOf(testing::HasSubstr("expected"), testing::HasSubstr(" 7 to 14 inputs")));
+    } catch (const std::exception& e) {
+        EXPECT_THAT(e.what(), testing::AllOf(testing::HasSubstr("expected"), testing::HasSubstr(" 7 to 14 inputs")));
+    } catch (...) {
+        FAIL() << "Unexpected exception type thrown";
+    }
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinear_reducemean_i8) {
     const auto model = convert_model("com.microsoft/qlinear_reducemean_i8.onnx");
     auto test_case = ov::test::TestCase(model, s_device);
