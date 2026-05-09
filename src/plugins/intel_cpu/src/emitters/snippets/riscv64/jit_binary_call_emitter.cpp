@@ -6,11 +6,11 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <cstdint>
 #include <set>
 #include <utility>
 #include <vector>
 
+#include "emitters/plugin/riscv64/jit_context_helpers.hpp"
 #include "emitters/plugin/riscv64/jit_emitter.hpp"
 #include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
 #include "nodes/kernels/riscv64/jit_generator.hpp"
@@ -18,21 +18,8 @@
 #include "snippets/emitter.hpp"
 #include "utils/general_utils.h"
 #include "xbyak_riscv/xbyak_riscv.hpp"
-#include "xbyak_riscv/xbyak_riscv_csr.hpp"
 
 namespace ov::intel_cpu::riscv64 {
-
-namespace {
-
-void adjust_stack(jit_generator_t* h, size_t bytes, bool allocate) {
-    while (bytes > 0) {
-        const auto chunk = static_cast<int32_t>(std::min<size_t>(bytes, 2047));
-        h->addi(Xbyak_riscv::sp, Xbyak_riscv::sp, allocate ? -chunk : chunk);
-        bytes -= chunk;
-    }
-}
-
-}  // namespace
 
 jit_binary_call_emitter::jit_binary_call_emitter(jit_generator_t* h, cpu_isa_t isa, std::set<snippets::Reg> live_regs)
     : jit_emitter(h, isa),
@@ -109,23 +96,9 @@ void jit_binary_call_emitter::binary_call_preamble() const {
 
     const auto vector_state_bytes = 2 * get_gpr_length();
     const auto vector_frame_size = rnd_up(vector_state_bytes + vec_regs.size() * get_vec_length(), sp_alignment);
-    adjust_stack(h, vector_frame_size, true);
-
-    const auto saved_vl = Xbyak_riscv::t0;
-    const auto saved_vtype = Xbyak_riscv::t1;
-    h->csrr(saved_vl, Xbyak_riscv::CSR::vl);
-    h->csrr(saved_vtype, Xbyak_riscv::CSR::vtype);
-    h->sd(saved_vl, Xbyak_riscv::sp, 0);
-    h->sd(saved_vtype, Xbyak_riscv::sp, static_cast<int32_t>(get_gpr_length()));
-
-    h->uni_li(saved_vl, get_vec_length());
-    h->vsetvli(Xbyak_riscv::zero, saved_vl, Xbyak_riscv::SEW::e8, Xbyak_riscv::LMUL::m1);
-
-    h->addi(saved_vtype, Xbyak_riscv::sp, static_cast<int32_t>(vector_state_bytes));
-    for (const auto& vec_idx : vec_regs) {
-        h->vse8_v(Xbyak_riscv::VReg(static_cast<int>(vec_idx)), saved_vtype);
-        h->add(saved_vtype, saved_vtype, saved_vl);
-    }
+    utils::sub_sp(*h, vector_frame_size);
+    utils::save_vector_state(*h, Xbyak_riscv::t0, Xbyak_riscv::t1, 0, get_gpr_length());
+    utils::save_vregs(*h, Xbyak_riscv::t0, Xbyak_riscv::t1, vector_state_bytes, vec_regs);
 }
 
 void jit_binary_call_emitter::binary_call_postamble() const {
@@ -136,21 +109,9 @@ void jit_binary_call_emitter::binary_call_postamble() const {
         const auto vector_state_bytes = 2 * get_gpr_length();
         const auto vector_frame_size = rnd_up(vector_state_bytes + vec_regs.size() * get_vec_length(), sp_alignment);
 
-        const auto saved_vl = Xbyak_riscv::t0;
-        const auto saved_vtype = Xbyak_riscv::t1;
-        h->uni_li(saved_vl, get_vec_length());
-        h->vsetvli(Xbyak_riscv::zero, saved_vl, Xbyak_riscv::SEW::e8, Xbyak_riscv::LMUL::m1);
-
-        h->addi(saved_vtype, Xbyak_riscv::sp, static_cast<int32_t>(vector_state_bytes));
-        for (const auto& vec_idx : vec_regs) {
-            h->vle8_v(Xbyak_riscv::VReg(static_cast<int>(vec_idx)), saved_vtype);
-            h->add(saved_vtype, saved_vtype, saved_vl);
-        }
-
-        h->ld(saved_vl, Xbyak_riscv::sp, 0);
-        h->ld(saved_vtype, Xbyak_riscv::sp, static_cast<int32_t>(get_gpr_length()));
-        h->vsetvl(Xbyak_riscv::zero, saved_vl, saved_vtype);
-        adjust_stack(h, vector_frame_size, false);
+        utils::restore_vregs(*h, Xbyak_riscv::t0, Xbyak_riscv::t1, vector_state_bytes, vec_regs);
+        utils::restore_vector_state(*h, Xbyak_riscv::t0, Xbyak_riscv::t1, 0, get_gpr_length());
+        utils::add_sp(*h, vector_frame_size);
     }
 
     restore_context(get_gpr_regs_to_spill(), {}, {});
