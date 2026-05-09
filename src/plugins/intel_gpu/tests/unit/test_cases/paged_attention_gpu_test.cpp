@@ -31,7 +31,7 @@ using namespace ::tests;
 // Enable detailed xattention debugging (dumps, extra comparison info)
 // Default: OFF (0). Set to 1 for investigation.
 #ifndef XATTENTION_DEBUG_VERBOSE
-#define XATTENTION_DEBUG_VERBOSE 1
+#define XATTENTION_DEBUG_VERBOSE 0
 #endif
 
 /*
@@ -1294,36 +1294,6 @@ private:
                                                      {static_cast<size_t>(num_heads), padded_q, static_cast<size_t>(k_head_size)},
                                                      key_padded.data(),
                                                      {static_cast<size_t>(num_heads), padded_k, static_cast<size_t>(k_head_size)});
-
-            // Dump reference block mask for comparison
-#if XATTENTION_DEBUG_VERBOSE
-            if (std::getenv("DUMP_XATTN_TENSORS")) {
-                std::string dump_dir = std::getenv("DUMP_XATTN_TENSORS");
-                size_t q_blocks = padded_q / block_size;
-                size_t k_blocks = padded_k / block_size;
-
-                // Create a dense block mask from retained_blocks
-                std::vector<uint8_t> ref_mask(num_heads * q_blocks * k_blocks, 0);
-                for (int h = 0; h < num_heads; ++h) {
-                    if (h < static_cast<int>(retained_blocks.size())) {
-                        for (const auto& [q_idx, k_idx] : retained_blocks[h]) {
-                            size_t idx = h * q_blocks * k_blocks + q_idx * k_blocks + k_idx;
-                            if (idx < ref_mask.size()) {
-                                ref_mask[idx] = 1;
-                            }
-                        }
-                    }
-                }
-
-                std::string mask_file = dump_dir + "/reference_block_mask.bin";
-                std::ofstream mask_out(mask_file, std::ios::binary);
-                mask_out.write(reinterpret_cast<const char*>(ref_mask.data()), ref_mask.size());
-                mask_out.close();
-                std::cout << "[dump_reference] Saved reference block mask to: " << mask_file << std::endl;
-                std::cout << "[dump_reference]   Shape: [" << num_heads << ", " << q_blocks << ", " << k_blocks << "]" << std::endl;
-                std::cout << "[dump_reference]   Total retained blocks: " << std::count(ref_mask.begin(), ref_mask.end(), 1) << std::endl;
-            }
-#endif
         }
         auto mask_mem = get_mask_mem_combined_multi_head(num_queries,
                                                          num_keys,
@@ -2213,17 +2183,6 @@ public:
             return;
         }
 
-        // Dump tensors for debugging (controlled by environment variable)
-#if XATTENTION_DEBUG_VERBOSE
-        if (std::getenv("DUMP_XATTN_TENSORS")) {
-            std::string dump_dir = std::getenv("DUMP_XATTN_TENSORS");
-            dump_test_tensors(dump_dir, query_mem, key_cache_mem, value_cache_mem,
-                            past_lens_mem, block_indices_mem, block_indices_begins_mem,
-                            scale_mem, xattention_threshold_mem, xattention_block_size_mem,
-                            outputs.at("output_data").get_memory(), p, pam);
-        }
-#endif
-
         cldnn::memory::ptr output_data_mem = nullptr;
         cldnn::memory::ptr output_scores_mem = nullptr;
         cldnn::memory::ptr output_diversity_mem = nullptr;
@@ -2282,313 +2241,27 @@ public:
             ASSERT_EQ(data_output_mem->count(), std::get<0>(ref_data).size());
             mem_lock<ov::float16, mem_lock_type::read> mem_ptr(data_output_mem, get_test_stream());
             int mismatch_count = 0;
+
 #if XATTENTION_DEBUG_VERBOSE
-            int catastrophic_count = 0;  // NaN, Inf, or error > 1.0
-            int large_error_count = 0;   // error > 0.1
-            float max_error = 0.0f;
-            float avg_error = 0.0f;
-            float avg_mismatch_error = 0.0f;
-            size_t first_mismatch_idx = 0;
-            float first_mismatch_actual = 0.0f;
-            float first_mismatch_expected = 0.0f;
-            bool found_first = false;
+            XAttentionErrorStats stats;
+            collect_xattention_error_stats(mem_ptr.data(), std::get<0>(ref_data), num_heads, head_size, tolerance, stats);
+            mismatch_count = stats.mismatch_count;
 
-            // Separate counters for different abnormal value types
-            int actual_nan_count = 0;
-            int expected_nan_count = 0;
-            int actual_inf_count = 0;
-            int expected_inf_count = 0;
-            int actual_gt1_count = 0;
-            int expected_gt1_count = 0;
-            int error_gt1_count = 0;
-
-            // Track coordinates of abnormal values
-            std::vector<std::tuple<size_t, size_t, size_t, float>> actual_nan_coords;    // (token, head, dim, value)
-            std::vector<std::tuple<size_t, size_t, size_t, float>> expected_nan_coords;
-            std::vector<std::tuple<size_t, size_t, size_t, float>> actual_inf_coords;
-            std::vector<std::tuple<size_t, size_t, size_t, float>> expected_inf_coords;
-            std::vector<std::tuple<size_t, size_t, size_t, float>> actual_gt1_coords;
-            std::vector<std::tuple<size_t, size_t, size_t, float>> expected_gt1_coords;
-#endif
-
-            // Collect error statistics
+            // Print detailed statistics on failure
+            if (mismatch_count > int(data_output_mem->count() * 0.04)) {
+                print_xattention_error_details(stats, mem_ptr.data(), std::get<0>(ref_data), num_heads, head_size, tolerance);
+            }
+#else
+            // Simple counting when verbose debug is disabled
             for (size_t i = 0; i < data_output_mem->count(); i++) {
                 float actual = static_cast<float>(mem_ptr[i]);
                 float expected = static_cast<float>(std::get<0>(ref_data)[i]);
                 float error = std::fabs(actual - expected);
-
-#if XATTENTION_DEBUG_VERBOSE
-                avg_error += error;
-                max_error = std::max(max_error, error);
-
-                // Calculate coordinates: output layout is [T, Q * H]
-                size_t head_dim_flat = i % (num_heads * head_size);
-                size_t token_idx = i / (num_heads * head_size);
-                size_t head_idx = head_dim_flat / head_size;
-                size_t dim_idx = head_dim_flat % head_size;
-
-                // Separate checks for actual vs expected with coordinate tracking
-                if (std::isnan(actual)) {
-                    actual_nan_count++;
-                    actual_nan_coords.push_back(std::make_tuple(token_idx, head_idx, dim_idx, actual));
-                }
-                if (std::isnan(expected)) {
-                    expected_nan_count++;
-                    expected_nan_coords.push_back(std::make_tuple(token_idx, head_idx, dim_idx, expected));
-                }
-                if (std::isinf(actual)) {
-                    actual_inf_count++;
-                    actual_inf_coords.push_back(std::make_tuple(token_idx, head_idx, dim_idx, actual));
-                }
-                if (std::isinf(expected)) {
-                    expected_inf_count++;
-                    expected_inf_coords.push_back(std::make_tuple(token_idx, head_idx, dim_idx, expected));
-                }
-                if (!std::isnan(actual) && !std::isinf(actual) && std::fabs(actual) > 1.0f) {
-                    actual_gt1_count++;
-                    actual_gt1_coords.push_back(std::make_tuple(token_idx, head_idx, dim_idx, actual));
-                }
-                if (!std::isnan(expected) && !std::isinf(expected) && std::fabs(expected) > 1.0f) {
-                    expected_gt1_count++;
-                    expected_gt1_coords.push_back(std::make_tuple(token_idx, head_idx, dim_idx, expected));
-                }
-                if (error > 1.0f) error_gt1_count++;
-
-                if (std::isnan(actual) || std::isinf(actual) || error > 1.0f) {
-                    catastrophic_count++;
-                }
-                if (error > 0.1f) {
-                    large_error_count++;
-                }
-#endif
-
                 if (error > tolerance) {
-#if XATTENTION_DEBUG_VERBOSE
-                    if (!found_first) {
-                        first_mismatch_idx = i;
-                        first_mismatch_actual = actual;
-                        first_mismatch_expected = expected;
-                        found_first = true;
-                    }
-                    avg_mismatch_error += error;
-#endif
                     mismatch_count++;
                 }
             }
-#if XATTENTION_DEBUG_VERBOSE
-            avg_error /= data_output_mem->count();
-            if (mismatch_count > 0) {
-                avg_mismatch_error /= mismatch_count;
-            }
 #endif
-
-            // Print detailed statistics on failure
-            if (mismatch_count > int(data_output_mem->count() * 0.04)) {
-#if XATTENTION_DEBUG_VERBOSE
-                auto& engine = get_test_engine();
-                auto arch = engine.get_device_info().arch;
-                std::string arch_name = (arch == gpu_arch::xe2) ? "Xe2" : (arch == gpu_arch::xe3) ? "Xe3" : "Xe1";
-
-                std::cout << "\n=== XAttention Data Comparison Failed ===" << std::endl;
-                std::cout << "GPU Architecture: " << arch_name << " (arch=" << static_cast<int>(arch) << ")" << std::endl;
-                std::cout << "Total elements: " << data_output_mem->count() << std::endl;
-                std::cout << "\nError Summary:" << std::endl;
-                std::cout << "  Mismatches (> tolerance): " << mismatch_count << " ("
-                          << (100.0 * mismatch_count / data_output_mem->count()) << "%)" << std::endl;
-                std::cout << "  Allowed mismatches: " << int(data_output_mem->count() * 0.04) << " (4%)" << std::endl;
-                std::cout << "  Large errors (> 0.1): " << large_error_count << " ("
-                          << (100.0 * large_error_count / data_output_mem->count()) << "%)" << std::endl;
-                std::cout << "  Catastrophic (NaN/Inf/>1.0): " << catastrophic_count << std::endl;
-
-                std::cout << "\nAbnormal Value Analysis:" << std::endl;
-                std::cout << "  Actual output (GPU):" << std::endl;
-                std::cout << "    NaN values: " << actual_nan_count << std::endl;
-                if (actual_nan_count > 0) {
-                    std::cout << "      Coordinates (token, head, dim, value):" << std::endl;
-                    size_t show_count = std::min(actual_nan_coords.size(), size_t(10));
-                    for (size_t j = 0; j < show_count; j++) {
-                        auto [t, h, d, v] = actual_nan_coords[j];
-                        std::cout << "        [" << t << ", " << h << ", " << d << "] = " << v << std::endl;
-                    }
-                    if (actual_nan_coords.size() > 10) {
-                        std::cout << "        ... and " << (actual_nan_coords.size() - 10) << " more" << std::endl;
-                    }
-                }
-                std::cout << "    INF values: " << actual_inf_count << std::endl;
-                if (actual_inf_count > 0) {
-                    std::cout << "      Coordinates (token, head, dim, value):" << std::endl;
-                    size_t show_count = std::min(actual_inf_coords.size(), size_t(10));
-                    for (size_t j = 0; j < show_count; j++) {
-                        auto [t, h, d, v] = actual_inf_coords[j];
-                        std::cout << "        [" << t << ", " << h << ", " << d << "] = " << v << std::endl;
-                    }
-                    if (actual_inf_coords.size() > 10) {
-                        std::cout << "        ... and " << (actual_inf_coords.size() - 10) << " more" << std::endl;
-                    }
-                }
-                std::cout << "    Values > 1.0: " << actual_gt1_count << std::endl;
-                if (actual_gt1_count > 0) {
-                    std::cout << "      Coordinates (token, head, dim, value):" << std::endl;
-                    size_t show_count = std::min(actual_gt1_coords.size(), size_t(10));
-                    for (size_t j = 0; j < show_count; j++) {
-                        auto [t, h, d, v] = actual_gt1_coords[j];
-                        std::cout << "        [" << t << ", " << h << ", " << d << "] = " << v << std::endl;
-                    }
-                    if (actual_gt1_coords.size() > 10) {
-                        std::cout << "        ... and " << (actual_gt1_coords.size() - 10) << " more" << std::endl;
-                    }
-                }
-                std::cout << "  Expected output (CPU reference):" << std::endl;
-                std::cout << "    NaN values: " << expected_nan_count << std::endl;
-                if (expected_nan_count > 0) {
-                    std::cout << "      Coordinates (token, head, dim, value):" << std::endl;
-                    size_t show_count = std::min(expected_nan_coords.size(), size_t(10));
-                    for (size_t j = 0; j < show_count; j++) {
-                        auto [t, h, d, v] = expected_nan_coords[j];
-                        std::cout << "        [" << t << ", " << h << ", " << d << "] = " << v << std::endl;
-                    }
-                    if (expected_nan_coords.size() > 10) {
-                        std::cout << "        ... and " << (expected_nan_coords.size() - 10) << " more" << std::endl;
-                    }
-                }
-                std::cout << "    INF values: " << expected_inf_count << std::endl;
-                if (expected_inf_count > 0) {
-                    std::cout << "      Coordinates (token, head, dim, value):" << std::endl;
-                    size_t show_count = std::min(expected_inf_coords.size(), size_t(10));
-                    for (size_t j = 0; j < show_count; j++) {
-                        auto [t, h, d, v] = expected_inf_coords[j];
-                        std::cout << "        [" << t << ", " << h << ", " << d << "] = " << v << std::endl;
-                    }
-                    if (expected_inf_coords.size() > 10) {
-                        std::cout << "        ... and " << (expected_inf_coords.size() - 10) << " more" << std::endl;
-                    }
-                }
-                std::cout << "    Values > 1.0: " << expected_gt1_count << std::endl;
-                if (expected_gt1_count > 0) {
-                    std::cout << "      Coordinates (token, head, dim, value):" << std::endl;
-                    size_t show_count = std::min(expected_gt1_coords.size(), size_t(10));
-                    for (size_t j = 0; j < show_count; j++) {
-                        auto [t, h, d, v] = expected_gt1_coords[j];
-                        std::cout << "        [" << t << ", " << h << ", " << d << "] = " << v << std::endl;
-                    }
-                    if (expected_gt1_coords.size() > 10) {
-                        std::cout << "        ... and " << (expected_gt1_coords.size() - 10) << " more" << std::endl;
-                    }
-                }
-                std::cout << "  Error magnitude:" << std::endl;
-                std::cout << "    Errors > 1.0: " << error_gt1_count << std::endl;
-                std::cout << "\nError Magnitudes:" << std::endl;
-                std::cout << "  Tolerance threshold: " << tolerance << std::endl;
-                std::cout << "  Max error: " << max_error << std::endl;
-                std::cout << "  Avg error (all): " << avg_error << std::endl;
-                std::cout << "  Avg error (mismatches only): " << avg_mismatch_error << std::endl;
-                std::cout << "First mismatch at index " << first_mismatch_idx << ":" << std::endl;
-                std::cout << "  Actual: " << first_mismatch_actual << std::endl;
-                std::cout << "  Expected: " << first_mismatch_expected << std::endl;
-                std::cout << "  Error: " << std::fabs(first_mismatch_actual - first_mismatch_expected) << std::endl;
-
-                // Sample first 10 mismatches
-                std::cout << "\nFirst 10 mismatches:" << std::endl;
-                int sample_count = 0;
-                for (size_t i = 0; i < data_output_mem->count() && sample_count < 10; i++) {
-                    float actual = static_cast<float>(mem_ptr[i]);
-                    float expected = static_cast<float>(std::get<0>(ref_data)[i]);
-                    float error = std::fabs(actual - expected);
-                    if (error > tolerance) {
-                        std::cout << "  [" << i << "] actual=" << actual
-                                  << " expected=" << expected
-                                  << " error=" << error << std::endl;
-                        sample_count++;
-                    }
-                }
-
-                // Show catastrophic error locations
-                if (catastrophic_count > 0 && catastrophic_count <= 20) {
-                    std::cout << "\nCatastrophic error locations (NaN/Inf/error>1.0):" << std::endl;
-                    // Use passed parameters for correct dimensions
-                    size_t total_tokens = data_output_mem->count() / (num_heads * head_size);
-
-                    std::cout << "  Dimensions: tokens=" << total_tokens
-                              << " heads=" << num_heads
-                              << " head_size=" << head_size
-                              << " (total=" << data_output_mem->count() << ")" << std::endl;
-
-                    for (size_t i = 0; i < data_output_mem->count(); i++) {
-                        float actual = static_cast<float>(mem_ptr[i]);
-                        float expected = static_cast<float>(std::get<0>(ref_data)[i]);
-                        float error = std::fabs(actual - expected);
-                        if (std::isnan(actual) || std::isnan(expected) || std::isinf(actual) || std::isinf(expected) || error > 1.0f) {
-                            // Memory layout: [token][head][dim] with innermost dimension first
-                            size_t elements_per_token = num_heads * head_size;
-                            size_t token = i / elements_per_token;
-                            size_t within_token = i % elements_per_token;
-                            size_t head = within_token / head_size;
-                            size_t dim = within_token % head_size;
-
-                            std::cout << "  Index[" << i << "]: token=" << token << " head=" << head << " dim=" << dim
-                                      << " | actual=" << actual << " expected=" << expected << " error=" << error;
-
-                            // Tag each type
-                            std::vector<std::string> tags;
-                            if (std::isnan(actual)) tags.push_back("ACTUAL_NaN");
-                            if (std::isnan(expected)) tags.push_back("EXPECTED_NaN");
-                            if (std::isinf(actual)) tags.push_back("ACTUAL_INF");
-                            if (std::isinf(expected)) tags.push_back("EXPECTED_INF");
-                            if (!std::isnan(actual) && !std::isinf(actual) && std::fabs(actual) > 1.0f) tags.push_back("ACTUAL_>1.0");
-                            if (!std::isnan(expected) && !std::isinf(expected) && std::fabs(expected) > 1.0f) tags.push_back("EXPECTED_>1.0");
-                            if (error > 1.0f) tags.push_back("ERROR_>1.0");
-
-                            if (!tags.empty()) {
-                                std::cout << " [";
-                                for (size_t t = 0; t < tags.size(); t++) {
-                                    if (t > 0) std::cout << ", ";
-                                    std::cout << tags[t];
-                                }
-                                std::cout << "]";
-                            }
-                            std::cout << std::endl;
-                        }
-                    }
-                }
-
-                // Check if errors are clustered or distributed
-                // Analyze error type
-                std::cout << "\nError Analysis:" << std::endl;
-                if (catastrophic_count > 0) {
-                    std::cout << "  ERROR TYPE: CATASTROPHIC - Contains NaN/Inf or very large errors" << std::endl;
-                    std::cout << "  This indicates a serious bug, not just precision issues." << std::endl;
-                } else if (large_error_count > mismatch_count * 0.5) {
-                    std::cout << "  ERROR TYPE: LARGE - Most mismatches have error > 0.1" << std::endl;
-                    std::cout << "  This suggests wrong calculations, not precision drift." << std::endl;
-                } else {
-                    std::cout << "  ERROR TYPE: PRECISION - Most errors are small" << std::endl;
-                    std::cout << "  This suggests accumulated floating-point errors." << std::endl;
-                }
-
-                // Comment on tolerance metric
-                std::cout << "\nTolerance Metric Analysis:" << std::endl;
-                std::cout << "  Using: Absolute error with threshold " << tolerance << std::endl;
-                std::cout << "  Input range: Normal(0, 0.1), typically [-0.3, 0.3]" << std::endl;
-                std::cout << "  Relative error at typical values: ~" << (tolerance / 0.1 * 100) << "%" << std::endl;
-                std::cout << "  Verdict: Tolerance is reasonable for FP16 attention calculations" << std::endl;
-
-                std::cout << "\nError distribution (by 1024-element blocks):" << std::endl;
-                size_t block_size = 1024;
-                for (size_t block = 0; block < (data_output_mem->count() + block_size - 1) / block_size && block < 10; block++) {
-                    int block_mismatches = 0;
-                    size_t start = block * block_size;
-                    size_t end = std::min(start + block_size, data_output_mem->count());
-                    for (size_t i = start; i < end; i++) {
-                        float error = std::fabs(static_cast<float>(mem_ptr[i]) - static_cast<float>(std::get<0>(ref_data)[i]));
-                        if (error > tolerance) block_mismatches++;
-                    }
-                    std::cout << "  Block " << block << " [" << start << "-" << end << "): "
-                              << block_mismatches << "/" << (end - start)
-                              << " (" << (100.0 * block_mismatches / (end - start)) << "%)" << std::endl;
-                }
-                std::cout << "========================================\n" << std::endl;
-#endif
-            }
 
             EXPECT_LE(mismatch_count, int(data_output_mem->count() * 0.04));
         }
@@ -2607,105 +2280,6 @@ public:
     }
 
 private:
-#if XATTENTION_DEBUG_VERBOSE
-    // Helper: Dump a memory buffer to numpy .npy file
-    void dump_memory_to_npy(const std::string& filepath, memory::ptr mem) {
-        if (!mem) return;
-        mem_lock<uint8_t, mem_lock_type::read> lock(mem, get_test_stream());
-
-        auto layout = mem->get_layout();
-        auto shape = layout.get_partial_shape();
-        size_t elem_size = data_type_traits::size_of(layout.data_type);
-        size_t total_size = mem->count() * elem_size;
-
-        // Determine numpy dtype string
-        std::string dtype;
-        switch (layout.data_type) {
-            case data_types::f16: dtype = "'<f2'"; break;
-            case data_types::f32: dtype = "'<f4'"; break;
-            case data_types::i32: dtype = "'<i4'"; break;
-            case data_types::i8:  dtype = "'<i1'"; break;
-            case data_types::u8:  dtype = "'<u1'"; break;
-            default: dtype = "'<f4'"; break;
-        }
-
-        // Build shape string: (d0,d1,...,dn)
-        std::string shape_str = "(";
-        for (size_t i = 0; i < shape.size(); i++) {
-            shape_str += std::to_string(shape[i].get_length());
-            if (i < shape.size() - 1) shape_str += ",";
-        }
-        if (shape.size() == 1) shape_str += ",";  // Numpy convention for 1D
-        shape_str += ")";
-
-        // Build NPY header
-        std::string header = "{'descr': " + dtype + ", 'fortran_order': False, 'shape': " + shape_str + "}";
-        while ((header.size() + 10) % 64 != 0) header += " ";
-        header += "\n";
-
-        // Write NPY file: magic + version + header_len + header + data
-        std::ofstream file(filepath, std::ios::binary);
-        file.write("\x93NUMPY", 6);
-        file.put(1); file.put(0);  // version 1.0
-        uint16_t header_len = header.size();
-        file.write((char*)&header_len, 2);
-        file.write(header.c_str(), header.size());
-        file.write((char*)lock.data(), total_size);
-
-        GPU_DEBUG_LOG << "  Dumped " << filepath << " shape=" << shape_str << " dtype=" << dtype << std::endl;
-    }
-
-    // Helper: Dump all test tensors to numpy files for debugging
-    void dump_test_tensors(const std::string& dump_dir,
-                           memory::ptr query_mem,
-                           memory::ptr key_cache_mem,
-                           memory::ptr value_cache_mem,
-                           memory::ptr past_lens_mem,
-                           memory::ptr block_indices_mem,
-                           memory::ptr block_indices_begins_mem,
-                           memory::ptr scale_mem,
-                           memory::ptr xattention_threshold_mem,
-                           memory::ptr xattention_block_size_mem,
-                           memory::ptr output_mem,
-                           const T& p,
-                           PagedAttentionManager& pam) {
-        GPU_DEBUG_LOG << "Dumping xattention tensors to: " << dump_dir << std::endl;
-
-        dump_memory_to_npy(dump_dir + "/query.npy", query_mem);
-        dump_memory_to_npy(dump_dir + "/key_cache.npy", key_cache_mem);
-        dump_memory_to_npy(dump_dir + "/value_cache.npy", value_cache_mem);
-        dump_memory_to_npy(dump_dir + "/past_lens.npy", past_lens_mem);
-        dump_memory_to_npy(dump_dir + "/block_indices.npy", block_indices_mem);
-        dump_memory_to_npy(dump_dir + "/block_indices_begins.npy", block_indices_begins_mem);
-        dump_memory_to_npy(dump_dir + "/scale.npy", scale_mem);
-        dump_memory_to_npy(dump_dir + "/xattention_threshold.npy", xattention_threshold_mem);
-        dump_memory_to_npy(dump_dir + "/xattention_block_size.npy", xattention_block_size_mem);
-        dump_memory_to_npy(dump_dir + "/output_data.npy", output_mem);
-
-        // Dump reference output
-        if (p.has_xattention) {
-            auto ref_data = PagedAttentionReference(pam).get_reference(key_cache_mem);
-            auto& ref_output = std::get<0>(ref_data);
-            std::string filepath = dump_dir + "/reference_output.npy";
-            std::string shape_str = "(" + std::to_string(ref_output.size()) + ",)";
-            std::string header = "{'descr': '<f2', 'fortran_order': False, 'shape': " + shape_str + "}";
-            while ((header.size() + 10) % 64 != 0) header += " ";
-            header += "\n";
-
-            std::ofstream file(filepath, std::ios::binary);
-            file.write("\x93NUMPY", 6);
-            file.put(1); file.put(0);
-            uint16_t header_len = header.size();
-            file.write((char*)&header_len, 2);
-            file.write(header.c_str(), header.size());
-            file.write((char*)ref_output.data(), ref_output.size() * sizeof(ov::float16));
-
-            GPU_DEBUG_LOG << "  Dumped reference_output.npy shape=" << shape_str << std::endl;
-        }
-        GPU_DEBUG_LOG << "Tensor dump complete!" << std::endl;
-    }
-#endif
-
     // Helper: Verify CM PA KV cache was correctly written (CM path only)
     void verify_cm_kv_cache_write(const T& p) {
         if (last_key_cache_mem == nullptr || !p.has_xattention) return;
@@ -2762,10 +2336,8 @@ private:
                         }
                         if (all_zero && head == 0) {
                             missing_count++;
-#if XATTENTION_DEBUG_VERBOSE
                             GPU_DEBUG_LOG << "KV cache update MISSING: seq=" << i << " token=" << t
                                           << " (absolute_pos=" << absolute_pos << ") at byte_offset=" << token_offset << std::endl;
-#endif
                         }
                     }
 
@@ -2778,13 +2350,11 @@ private:
             }
         }
 
-        EXPECT_EQ(missing_count, 0) << missing_count << " out of " << total_tokens
-                                    << " tokens were not written to key cache by KV update kernel";
-#if XATTENTION_DEBUG_VERBOSE
         report_kv_cache_issues(nan_count, inf_count, zero_scale_count, out_of_range_zp_count,
                                nan_locations, inf_locations, zero_scale_locations, out_of_range_zp_locations,
                                total_tokens, p, is_by_token, is_by_channel);
-#endif
+        EXPECT_EQ(missing_count, 0) << missing_count << " out of " << total_tokens
+                                    << " tokens were not written to key cache by KV update kernel";
         EXPECT_EQ(nan_count, 0) << "KV cache contains NaN values";
         EXPECT_EQ(inf_count, 0) << "KV cache contains INF values";
         EXPECT_EQ(zero_scale_count, 0) << "KV cache contains zero/near-zero scale values (causes division by zero in dequant)";
@@ -2888,7 +2458,6 @@ private:
         }
     }
 
-#if XATTENTION_DEBUG_VERBOSE
     // Helper: Report KV cache verification issues
     void report_kv_cache_issues(int nan_count, int inf_count, int zero_scale_count, int out_of_range_zp_count,
                                  const std::vector<std::tuple<int, int, int, int, int>>& nan_locations,
@@ -2962,7 +2531,294 @@ private:
             GPU_DEBUG_LOG << std::endl;
         }
     }
-#endif
+
+private:
+    // Helper structure to hold XAttention error statistics
+    struct XAttentionErrorStats {
+        int mismatch_count = 0;
+        int catastrophic_count = 0;  // NaN, Inf, or error > 1.0
+        int large_error_count = 0;   // error > 0.1
+        float max_error = 0.0f;
+        float avg_error = 0.0f;
+        float avg_mismatch_error = 0.0f;
+        size_t first_mismatch_idx = 0;
+        float first_mismatch_actual = 0.0f;
+        float first_mismatch_expected = 0.0f;
+        bool found_first = false;
+
+        // Separate counters for different abnormal value types
+        int actual_nan_count = 0;
+        int expected_nan_count = 0;
+        int actual_inf_count = 0;
+        int expected_inf_count = 0;
+        int actual_gt1_count = 0;
+        int expected_gt1_count = 0;
+        int error_gt1_count = 0;
+
+        // Track coordinates of abnormal values
+        std::vector<std::tuple<size_t, size_t, size_t, float>> actual_nan_coords;    // (token, head, dim, value)
+        std::vector<std::tuple<size_t, size_t, size_t, float>> expected_nan_coords;
+        std::vector<std::tuple<size_t, size_t, size_t, float>> actual_inf_coords;
+        std::vector<std::tuple<size_t, size_t, size_t, float>> expected_inf_coords;
+        std::vector<std::tuple<size_t, size_t, size_t, float>> actual_gt1_coords;
+        std::vector<std::tuple<size_t, size_t, size_t, float>> expected_gt1_coords;
+    };
+
+    // Collect XAttention error statistics by comparing GPU output with CPU reference
+    static void collect_xattention_error_stats(const ov::float16* mem_ptr,
+                                                const std::vector<ov::float16>& ref_output,
+                                                size_t num_heads,
+                                                size_t head_size,
+                                                float tolerance,
+                                                XAttentionErrorStats& stats) {
+        size_t total_elements = ref_output.size();
+        for (size_t i = 0; i < total_elements; i++) {
+            float actual = static_cast<float>(mem_ptr[i]);
+            float expected = static_cast<float>(ref_output[i]);
+            float error = std::fabs(actual - expected);
+
+            stats.avg_error += error;
+            stats.max_error = std::max(stats.max_error, error);
+
+            // Calculate coordinates: output layout is [T, Q * H]
+            size_t head_dim_flat = i % (num_heads * head_size);
+            size_t token_idx = i / (num_heads * head_size);
+            size_t head_idx = head_dim_flat / head_size;
+            size_t dim_idx = head_dim_flat % head_size;
+
+            // Separate checks for actual vs expected with coordinate tracking
+            if (std::isnan(actual)) {
+                stats.actual_nan_count++;
+                stats.actual_nan_coords.push_back(std::make_tuple(token_idx, head_idx, dim_idx, actual));
+            }
+            if (std::isnan(expected)) {
+                stats.expected_nan_count++;
+                stats.expected_nan_coords.push_back(std::make_tuple(token_idx, head_idx, dim_idx, expected));
+            }
+            if (std::isinf(actual)) {
+                stats.actual_inf_count++;
+                stats.actual_inf_coords.push_back(std::make_tuple(token_idx, head_idx, dim_idx, actual));
+            }
+            if (std::isinf(expected)) {
+                stats.expected_inf_count++;
+                stats.expected_inf_coords.push_back(std::make_tuple(token_idx, head_idx, dim_idx, expected));
+            }
+            if (!std::isnan(actual) && !std::isinf(actual) && std::fabs(actual) > 1.0f) {
+                stats.actual_gt1_count++;
+                stats.actual_gt1_coords.push_back(std::make_tuple(token_idx, head_idx, dim_idx, actual));
+            }
+            if (!std::isnan(expected) && !std::isinf(expected) && std::fabs(expected) > 1.0f) {
+                stats.expected_gt1_count++;
+                stats.expected_gt1_coords.push_back(std::make_tuple(token_idx, head_idx, dim_idx, expected));
+            }
+            if (error > 1.0f) stats.error_gt1_count++;
+
+            if (std::isnan(actual) || std::isinf(actual) || error > 1.0f) {
+                stats.catastrophic_count++;
+            }
+            if (error > 0.1f) {
+                stats.large_error_count++;
+            }
+
+            if (error > tolerance) {
+                if (!stats.found_first) {
+                    stats.first_mismatch_idx = i;
+                    stats.first_mismatch_actual = actual;
+                    stats.first_mismatch_expected = expected;
+                    stats.found_first = true;
+                }
+                stats.avg_mismatch_error += error;
+                stats.mismatch_count++;
+            }
+        }
+
+        stats.avg_error /= total_elements;
+        if (stats.mismatch_count > 0) {
+            stats.avg_mismatch_error /= stats.mismatch_count;
+        }
+    }
+
+    // Print coordinates of abnormal values (NaN/INF/large values)
+    static void print_abnormal_value_coords(const std::string& label,
+                                            const std::vector<std::tuple<size_t, size_t, size_t, float>>& coords,
+                                            int count) {
+        GPU_DEBUG_LOG << "    " << label << ": " << count << std::endl;
+        if (count > 0) {
+            GPU_DEBUG_LOG << "      Coordinates (token, head, dim, value):" << std::endl;
+            size_t show_count = std::min(coords.size(), size_t(10));
+            for (size_t j = 0; j < show_count; j++) {
+                auto [t, h, d, v] = coords[j];
+                GPU_DEBUG_LOG << "        [" << t << ", " << h << ", " << d << "] = " << v << std::endl;
+            }
+            if (coords.size() > 10) {
+                GPU_DEBUG_LOG << "        ... and " << (coords.size() - 10) << " more" << std::endl;
+            }
+        }
+    }
+
+    // Print catastrophic error locations with detailed tags
+    static void print_catastrophic_errors(const ov::float16* mem_ptr,
+                                          const std::vector<ov::float16>& ref_output,
+                                          size_t num_heads,
+                                          size_t head_size,
+                                          int catastrophic_count) {
+        if (catastrophic_count > 0 && catastrophic_count <= 20) {
+            GPU_DEBUG_LOG << "\nCatastrophic error locations (NaN/Inf/error>1.0):" << std::endl;
+            size_t total_elements = ref_output.size();
+            size_t total_tokens = total_elements / (num_heads * head_size);
+
+            GPU_DEBUG_LOG << "  Dimensions: tokens=" << total_tokens
+                      << " heads=" << num_heads
+                      << " head_size=" << head_size
+                      << " (total=" << total_elements << ")" << std::endl;
+
+            for (size_t i = 0; i < total_elements; i++) {
+                float actual = static_cast<float>(mem_ptr[i]);
+                float expected = static_cast<float>(ref_output[i]);
+                float error = std::fabs(actual - expected);
+                if (std::isnan(actual) || std::isnan(expected) || std::isinf(actual) || std::isinf(expected) || error > 1.0f) {
+                    // Memory layout: [token][head][dim] with innermost dimension first
+                    size_t elements_per_token = num_heads * head_size;
+                    size_t token = i / elements_per_token;
+                    size_t within_token = i % elements_per_token;
+                    size_t head = within_token / head_size;
+                    size_t dim = within_token % head_size;
+
+                    GPU_DEBUG_LOG << "  Index[" << i << "]: token=" << token << " head=" << head << " dim=" << dim
+                              << " | actual=" << actual << " expected=" << expected << " error=" << error;
+
+                    // Tag each type
+                    std::vector<std::string> tags;
+                    if (std::isnan(actual)) tags.push_back("ACTUAL_NaN");
+                    if (std::isnan(expected)) tags.push_back("EXPECTED_NaN");
+                    if (std::isinf(actual)) tags.push_back("ACTUAL_INF");
+                    if (std::isinf(expected)) tags.push_back("EXPECTED_INF");
+                    if (!std::isnan(actual) && !std::isinf(actual) && std::fabs(actual) > 1.0f) tags.push_back("ACTUAL_>1.0");
+                    if (!std::isnan(expected) && !std::isinf(expected) && std::fabs(expected) > 1.0f) tags.push_back("EXPECTED_>1.0");
+                    if (error > 1.0f) tags.push_back("ERROR_>1.0");
+
+                    if (!tags.empty()) {
+                        GPU_DEBUG_LOG << " [";
+                        for (size_t t = 0; t < tags.size(); t++) {
+                            if (t > 0) {
+                                GPU_DEBUG_LOG << ", ";
+                            }
+                            GPU_DEBUG_LOG << tags[t];
+                        }
+                        GPU_DEBUG_LOG << "]";
+                    }
+                    GPU_DEBUG_LOG << std::endl;
+                }
+            }
+        }
+    }
+
+    // Print error distribution by 1024-element blocks
+    static void print_error_distribution(const ov::float16* mem_ptr,
+                                         const std::vector<ov::float16>& ref_output,
+                                         float tolerance) {
+        GPU_DEBUG_LOG << "\nError distribution (by 1024-element blocks):" << std::endl;
+        size_t block_size = 1024;
+        size_t total_elements = ref_output.size();
+        for (size_t block = 0; block < (total_elements + block_size - 1) / block_size && block < 10; block++) {
+            int block_mismatches = 0;
+            size_t start = block * block_size;
+            size_t end = std::min(start + block_size, total_elements);
+            for (size_t i = start; i < end; i++) {
+                float error = std::fabs(static_cast<float>(mem_ptr[i]) - static_cast<float>(ref_output[i]));
+                if (error > tolerance) block_mismatches++;
+            }
+            GPU_DEBUG_LOG << "  Block " << block << " [" << start << "-" << end << "): "
+                      << block_mismatches << "/" << (end - start)
+                      << " (" << (100.0 * block_mismatches / (end - start)) << "%)" << std::endl;
+        }
+    }
+
+    // Print detailed XAttention error analysis
+    static void print_xattention_error_details(const XAttentionErrorStats& stats,
+                                                const ov::float16* mem_ptr,
+                                                const std::vector<ov::float16>& ref_output,
+                                                size_t num_heads,
+                                                size_t head_size,
+                                                float tolerance) {
+        auto& engine = get_test_engine();
+        auto arch = engine.get_device_info().arch;
+        std::string arch_name = (arch == gpu_arch::xe2) ? "Xe2" : (arch == gpu_arch::xe3) ? "Xe3" : "Xe1";
+        size_t total_elements = ref_output.size();
+        int allowed_mismatches = int(total_elements * 0.04);
+
+        GPU_DEBUG_LOG << "\n=== XAttention Data Comparison Failed ===" << std::endl;
+        GPU_DEBUG_LOG << "GPU Architecture: " << arch_name << " (arch=" << static_cast<int>(arch) << ")" << std::endl;
+        GPU_DEBUG_LOG << "Total elements: " << total_elements << std::endl;
+        GPU_DEBUG_LOG << "\nError Summary:" << std::endl;
+        GPU_DEBUG_LOG << "  Mismatches (> tolerance): " << stats.mismatch_count << " ("
+                      << (100.0 * stats.mismatch_count / total_elements) << "%)" << std::endl;
+        GPU_DEBUG_LOG << "  Allowed mismatches: " << allowed_mismatches << " (4%)" << std::endl;
+        GPU_DEBUG_LOG << "  Large errors (> 0.1): " << stats.large_error_count << " ("
+                      << (100.0 * stats.large_error_count / total_elements) << "%)" << std::endl;
+        GPU_DEBUG_LOG << "  Catastrophic (NaN/Inf/>1.0): " << stats.catastrophic_count << std::endl;
+
+        GPU_DEBUG_LOG << "\nAbnormal Value Analysis:" << std::endl;
+        GPU_DEBUG_LOG << "  Actual output (GPU):" << std::endl;
+        print_abnormal_value_coords("NaN values", stats.actual_nan_coords, stats.actual_nan_count);
+        print_abnormal_value_coords("INF values", stats.actual_inf_coords, stats.actual_inf_count);
+        print_abnormal_value_coords("Values > 1.0", stats.actual_gt1_coords, stats.actual_gt1_count);
+        GPU_DEBUG_LOG << "  Expected output (CPU reference):" << std::endl;
+        print_abnormal_value_coords("NaN values", stats.expected_nan_coords, stats.expected_nan_count);
+        print_abnormal_value_coords("INF values", stats.expected_inf_coords, stats.expected_inf_count);
+        print_abnormal_value_coords("Values > 1.0", stats.expected_gt1_coords, stats.expected_gt1_count);
+        GPU_DEBUG_LOG << "  Error magnitude:" << std::endl;
+        GPU_DEBUG_LOG << "    Errors > 1.0: " << stats.error_gt1_count << std::endl;
+        GPU_DEBUG_LOG << "\nError Magnitudes:" << std::endl;
+        GPU_DEBUG_LOG << "  Tolerance threshold: " << tolerance << std::endl;
+        GPU_DEBUG_LOG << "  Max error: " << stats.max_error << std::endl;
+        GPU_DEBUG_LOG << "  Avg error (all): " << stats.avg_error << std::endl;
+        GPU_DEBUG_LOG << "  Avg error (mismatches only): " << stats.avg_mismatch_error << std::endl;
+        GPU_DEBUG_LOG << "First mismatch at index " << stats.first_mismatch_idx << ":" << std::endl;
+        GPU_DEBUG_LOG << "  Actual: " << stats.first_mismatch_actual << std::endl;
+        GPU_DEBUG_LOG << "  Expected: " << stats.first_mismatch_expected << std::endl;
+        GPU_DEBUG_LOG << "  Error: " << std::fabs(stats.first_mismatch_actual - stats.first_mismatch_expected) << std::endl;
+
+        // Sample first 10 mismatches
+        GPU_DEBUG_LOG << "\nFirst 10 mismatches:" << std::endl;
+        int sample_count = 0;
+        for (size_t i = 0; i < total_elements && sample_count < 10; i++) {
+            float actual = static_cast<float>(mem_ptr[i]);
+            float expected = static_cast<float>(ref_output[i]);
+            float error = std::fabs(actual - expected);
+            if (error > tolerance) {
+                GPU_DEBUG_LOG << "  [" << i << "] actual=" << actual
+                          << " expected=" << expected
+                          << " error=" << error << std::endl;
+                sample_count++;
+            }
+        }
+
+        print_catastrophic_errors(mem_ptr, ref_output, num_heads, head_size, stats.catastrophic_count);
+
+        // Analyze error type
+        GPU_DEBUG_LOG << "\nError Analysis:" << std::endl;
+        if (stats.catastrophic_count > 0) {
+            GPU_DEBUG_LOG << "  ERROR TYPE: CATASTROPHIC - Contains NaN/Inf or very large errors" << std::endl;
+            GPU_DEBUG_LOG << "  This indicates a serious bug, not just precision issues." << std::endl;
+        } else if (stats.large_error_count > stats.mismatch_count * 0.5) {
+            GPU_DEBUG_LOG << "  ERROR TYPE: LARGE - Most mismatches have error > 0.1" << std::endl;
+            GPU_DEBUG_LOG << "  This suggests wrong calculations, not precision drift." << std::endl;
+        } else {
+            GPU_DEBUG_LOG << "  ERROR TYPE: PRECISION - Most errors are small" << std::endl;
+            GPU_DEBUG_LOG << "  This suggests accumulated floating-point errors." << std::endl;
+        }
+
+        // Comment on tolerance metric
+        GPU_DEBUG_LOG << "\nTolerance Metric Analysis:" << std::endl;
+        GPU_DEBUG_LOG << "  Using: Absolute error with threshold " << tolerance << std::endl;
+        GPU_DEBUG_LOG << "  Input range: Normal(0, 0.1), typically [-0.3, 0.3]" << std::endl;
+        GPU_DEBUG_LOG << "  Relative error at typical values: ~" << (tolerance / 0.1 * 100) << "%" << std::endl;
+        GPU_DEBUG_LOG << "  Verdict: Tolerance is reasonable for FP16 attention calculations" << std::endl;
+
+        print_error_distribution(mem_ptr, ref_output, tolerance);
+        GPU_DEBUG_LOG << "========================================\n" << std::endl;
+    }
 
 public:
     static bool check_cm_available() {
