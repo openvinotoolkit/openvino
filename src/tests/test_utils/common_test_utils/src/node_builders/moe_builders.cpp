@@ -21,6 +21,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_elements.hpp"
+#include "openvino/op/gelu.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
@@ -460,7 +461,8 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
     const std::optional<ov::test::utils::DecompressionType> decompression_subtract_type,
     const std::optional<bool> reshape_on_decompression,
     const std::optional<int> decompression_group_size,
-    MoERoutingType routing_type) {
+    MoERoutingType routing_type,
+    MoEActivationType activation_type) {
     // Use parameters from shape_params - static shapes only
     const auto& input_shape = moe_params.data_shape;
     const size_t intermediate_size = moe_params.intermediate_size;
@@ -517,8 +519,13 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
 
     gate_matmul->set_friendly_name("GateMatMul");
 
-    // Apply Swish activation directly to gate
-    auto swish = std::make_shared<ov::op::v4::Swish>(gate_matmul);
+    // Apply gate activation (Swish for SwiGLU, Gelu for GeGLU)
+    std::shared_ptr<ov::Node> gate_act;
+    if (activation_type == MoEActivationType::GELU) {
+        gate_act = std::make_shared<ov::op::v7::Gelu>(gate_matmul);
+    } else {
+        gate_act = std::make_shared<ov::op::v4::Swish>(gate_matmul);
+    }
 
     // Second GEMM (up_projection)
     auto up_weights = build_matmul_weights(ov::Shape{number_of_experts, hidden_size, intermediate_size},
@@ -537,8 +544,8 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
 
     up_matmul->set_friendly_name("UpMatMul");
 
-    // Join: Multiply (SwiGLU)
-    auto swiglu = std::make_shared<ov::op::v1::Multiply>(swish, up_matmul);
+    // Join: Multiply (SwiGLU or GeGLU)
+    auto swiglu = std::make_shared<ov::op::v1::Multiply>(gate_act, up_matmul);
 
     // Third GEMM (down_projection)
     auto down_weights_moe3 = build_matmul_weights(ov::Shape{number_of_experts, intermediate_size, hidden_size},

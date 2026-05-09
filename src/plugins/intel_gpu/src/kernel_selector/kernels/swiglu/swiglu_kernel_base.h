@@ -22,7 +22,8 @@ struct swiglu_params : public base_params {
           clamp_min(std::numeric_limits<float>::lowest()),
           clamp_max(std::numeric_limits<float>::max()),
           swish_beta(1.0f),
-          up_add_val(0.0f) {}
+          up_add_val(0.0f),
+          scale_factor(-1.0f) {}
     int32_t axis;
     int32_t glu_stride;
     ov::op::internal::GLU::GluType glu_type;
@@ -31,10 +32,12 @@ struct swiglu_params : public base_params {
     float clamp_max;
     float swish_beta;
     float up_add_val;
+    float scale_factor;
 };
 
 struct swiglu_fuse_params : fuse_params {
-    explicit swiglu_fuse_params(int32_t axis, size_t glu_stride, size_t gate_idx, float clamp_min, float clamp_max, float swish_beta, float up_add_val)
+    explicit swiglu_fuse_params(int32_t axis, size_t glu_stride, size_t gate_idx, float clamp_min, float clamp_max,
+                                float swish_beta, float up_add_val, float scale_factor = -1.0f)
         : fuse_params(KernelType::SWIGLU),
           axis(axis),
           glu_stride(glu_stride),
@@ -42,7 +45,8 @@ struct swiglu_fuse_params : fuse_params {
           clamp_min(clamp_min),
           clamp_max(clamp_max),
           swish_beta(swish_beta),
-          up_add_val(up_add_val) {}
+          up_add_val(up_add_val),
+          scale_factor(scale_factor) {}
     int32_t axis;
     size_t glu_stride;
     size_t gate_idx;
@@ -50,6 +54,7 @@ struct swiglu_fuse_params : fuse_params {
     float clamp_max;
     float swish_beta;
     float up_add_val;
+    float scale_factor;
 };
 
 class SwiGLUKernelBase : public KernelBaseOpenCL {
