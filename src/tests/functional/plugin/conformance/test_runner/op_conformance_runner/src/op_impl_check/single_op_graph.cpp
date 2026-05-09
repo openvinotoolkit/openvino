@@ -1557,6 +1557,8 @@ std::shared_ptr<ov::Model> generateUnaryEltwise(const std::shared_ptr<ov::op::Op
         eltwiseNode = std::make_shared<ov::op::v0::Elu>(param, 0.5f);
     } else if (ov::is_type<ov::op::v0::Erf>(node)) {
         eltwiseNode = std::make_shared<ov::op::v0::Erf>(param);
+    } else if (ov::is_type<ov::op::v17::ErfInv>(node)) {
+        eltwiseNode = std::make_shared<ov::op::v17::ErfInv>(param);
     } else if (ov::is_type<ov::op::v0::Exp>(node)) {
         eltwiseNode = std::make_shared<ov::op::v0::Exp>(param);
     } else if (ov::is_type<ov::op::v0::Floor>(node)) {

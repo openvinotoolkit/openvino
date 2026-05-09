@@ -4,7 +4,7 @@
 
 #include "zero_pipeline.hpp"
 
-#include <ze_api.h>
+#include <level_zero/ze_api.h>
 #include <ze_graph_ext.h>
 
 #include "intel_npu/common/itt.hpp"
@@ -152,9 +152,7 @@ Pipeline::Pipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                     "In-order execution doesn't work in case synchronization of the inferences is done using events");
 
     if (!_sync_output_with_fences || _run_inferences_sequentially) {
-        _event_pool = std::make_shared<EventPool>(_init_structs->getDevice(),
-                                                  _init_structs->getContext(),
-                                                  _batch_size ? static_cast<uint32_t>(_batch_size) : 1);
+        _event_pool = std::make_shared<EventPool>(_init_structs, _batch_size ? static_cast<uint32_t>(_batch_size) : 1);
 
         _events.reserve(_batch_size);
         for (size_t i = 0; i < _batch_size; i++) {
@@ -286,7 +284,7 @@ void Pipeline::push() {
     }
 
     const auto command_queue_desc = _graph->get_command_queue_desc();
-    const bool command_queue_version_changed = (command_queue_desc.key != _command_queue->desc().key);
+    const bool command_queue_version_changed = (command_queue_desc.key() != _command_queue->desc().key());
     if (command_queue_version_changed) {
         _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, command_queue_desc);
 

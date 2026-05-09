@@ -198,7 +198,7 @@ IncreasePositionIdsPrecisionForQwen3VL::IncreasePositionIdsPrecisionForQwen3VL()
     //   -> Sin/Cos -> Reshape(unsqueeze) -> RoPE
     //
     // The intermediate path between MatMul and Sin/Cos is too complex to pattern-match,
-    // so we match the beginning (up to MatMul) and use graph traversal to find downstream Sin/Cos.
+    // so we match the beginning (up to MatMul->Reshape/Transpose) and use graph traversal to find downstream Sin/Cos.
     // Key difference from Qwen2.5-VL: Unsqueeze is decomposed to Reshape.
     auto position_ids = any_input();
     auto convert_to_i32 = wrap_type<ov::op::v0::Convert>({position_ids});
@@ -209,6 +209,10 @@ IncreasePositionIdsPrecisionForQwen3VL::IncreasePositionIdsPrecisionForQwen3VL()
 
     auto broadcast_freq = wrap_type<ov::op::v3::Broadcast>({any_input(), any_input()});
     auto matmul = wrap_type<ov::op::v0::MatMul>({broadcast_freq, convert_to_f16});
+
+    auto reshape = wrap_type<ov::op::v1::Reshape>({matmul, any_input()});
+    auto transpose = wrap_type<ov::op::v1::Transpose>({matmul, any_input()});
+    auto reshape_or_transpose = std::make_shared<Or>(OutputVector{reshape, transpose});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -291,7 +295,7 @@ IncreasePositionIdsPrecisionForQwen3VL::IncreasePositionIdsPrecisionForQwen3VL()
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(matmul, "IncreasePositionIdsPrecisionForQwen3VL");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(reshape_or_transpose, "IncreasePositionIdsPrecisionForQwen3VL");
     this->register_matcher(m, callback);
 }
 

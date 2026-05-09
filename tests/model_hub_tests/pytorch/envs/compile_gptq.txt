@@ -1,0 +1,11 @@
+# Dependencies for test_gptq_torchfx_transformations.py
+# Requires older torch (2.3.x) — newer is not yet supported by openvino backend
+# Only GPTQ-related packages — no autoawq/triton/peft which conflict with torch 2.3.x
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.3.1
+torchvision==0.18.1
+torchaudio==2.3.1
+transformers==4.47.1
+huggingface-hub==0.25.2
+auto-gptq==0.7.1; platform_system == "Linux" and platform_machine == "x86_64" and python_version < "3.12"
+optimum==1.24.0; python_version < "3.12"

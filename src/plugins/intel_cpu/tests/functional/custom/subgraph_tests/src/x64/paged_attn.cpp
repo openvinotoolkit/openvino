@@ -28,6 +28,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/general_utils.h"
 
@@ -107,6 +108,10 @@ public:
         auto value_cache = make_param(PartialShape{ov::Dimension::dynamic(), 32, ov::Dimension::dynamic()},
                                       ov::element::dynamic,
                                       "value_cache.0");
+
+        enable_keep_const_precision(key_cache);
+        enable_keep_const_precision(value_cache);
+        
         auto past_lens = make_param(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "past_lens");
         auto subsequence_begins =
             make_param(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "subsequence_begins");
@@ -160,6 +165,9 @@ public:
         auto adaptive_rkv_diversity_block_set_indices_begins =
             std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
         auto token_type_ids = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{0}, std::vector<int32_t>{});
+
+        auto qq_bias = std::make_shared<ov::op::v0::Constant>(ov::element::u8, Shape{0}, std::vector<uint8_t>{0});
+        auto qq_bias_begins = std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
         ParameterVector params =
             {q, k, v, key_cache, value_cache, past_lens, subsequence_begins, block_indices, block_indices_begins};
         OutputVector paged_attn_inputs = {q,
@@ -187,7 +195,9 @@ public:
                                           adaptive_rkv_evictable_sizes,
                                           adaptive_rkv_diversity_block_set_indices,
                                           adaptive_rkv_diversity_block_set_indices_begins,
-                                          token_type_ids};
+                                          token_type_ids,
+                                          qq_bias,
+                                          qq_bias_begins};
 
         auto paged_attn = std::make_shared<op::PagedAttentionExtension>(paged_attn_inputs);
 

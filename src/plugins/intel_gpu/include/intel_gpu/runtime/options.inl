@@ -74,6 +74,7 @@ OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, debug_config, "", "Path to debug co
 
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_onednn_post_ops_opt, false, "Disable optimization pass for onednn post-ops")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_profiling_data_path, "", "Save csv file with per-stage and per-primitive profiling data to specified folder")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, average_counters, "", "Save csv file with per-primitive averaged execution time. Output format matches benchmark_app --report_type average_counters and OV_CPU_AVERAGE_COUNTERS")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_graphs_path, "", "Save intermediate graph representations during model compilation pipeline to specified folder")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_sources_path, "", "Save generated sources for each kernel to specified folder")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_tensors_path, "", "Save intermediate in/out tensors of each primitive to specified folder")
@@ -100,5 +101,6 @@ OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dry_run_path, "", "Enables mode which part
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, validate_output_buffer, false, "Validate output buffers of all layers which have fp16 data-type to find 'inf' and 'nan' value.")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dynamic_quantization_bisect, std::numeric_limits<int64_t>::max(), "Apply dynamic quantization only up to this count")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dynamic_quantization_single, -1, "Apply dynamic quantization only to this index")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, network_marker, false, "Insert named OpenCL marker kernels at network execution start/finish for CLIntercept tracing")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, list_layers, false, "Print layers list")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, print_input_data_shapes, false, "print input data shapes")

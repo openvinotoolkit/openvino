@@ -8,6 +8,7 @@
 #include "../logging.hpp"
 #include "../util.hpp"
 #include "openvino/core/partial_shape.hpp"
+#include "openvino/op/add.hpp"
 
 namespace {
 
@@ -16,7 +17,8 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
                        const uint32_t kvcache_size,
                        const ov::npuw::KVAxesPosition& kv_axes_position,
                        const uint32_t lora_rank,
-                       const uint32_t lhs_seq_size = 0) {
+                       const uint32_t lhs_seq_size = 0,
+                       const bool is_prefill = false) {
     std::map<std::string, ov::PartialShape> new_shapes;
     for (const auto& input : model->inputs()) {
         const auto& input_name = input.get_any_name();
@@ -32,7 +34,7 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             new_shape = ov::PartialShape({1, input_size, input.get_partial_shape()[2]});
         } else if (input_name.find("attention_mask") != std::string::npos) {
             new_shape = ov::PartialShape({1, kvcache_size});
-            if (lhs_seq_size && kvcache_size > 4)
+            if (lhs_seq_size && !is_prefill)
                 // NB: for whisper kvcache model attn mask should be size + 1
                 new_shape = ov::PartialShape({1, kvcache_size + 1});
         } else if (input_name.find("position_ids") != std::string::npos) {
@@ -51,14 +53,56 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             const auto& partial_shape = input.get_partial_shape();
             new_shape = partial_shape;
             new_shape[0] = 1;  // batch_dim
-        } else if (ov::npuw::matchEagle3HiddenStatesString(input_name)) {
-            new_shape = ov::npuw::Eagle3Extension::get_static_input(model, input, input_size);
+        } else if (ov::npuw::matchEagle3HiddenStatesString(input_name) ||
+                   ov::npuw::matchEagle3TreeMaskString(input_name)) {
+            new_shape = ov::npuw::Eagle3Extension::get_static_input(model, input, input_size, kvcache_size, is_prefill);
         } else if (ov::npuw::util::matchLoRAMatMulAString(input_name)) {
             new_shape = ov::PartialShape({lora_rank, input.get_partial_shape()[1]});
         } else if (ov::npuw::util::matchLoRAMatMulAlphaString(input_name)) {
             new_shape = ov::PartialShape({input.get_partial_shape()[0], lora_rank});
         } else if (ov::npuw::util::matchLoRAMatMulBString(input_name)) {
             new_shape = ov::PartialShape({input.get_partial_shape()[0], lora_rank});
+        } else if (input_name.find("per_layer_inputs") != std::string::npos) {
+            // NB: Gemma4 per-layer embedding feature.
+            // Shape is [batch, seq_len, num_layers, projection_dim].
+            // seq_len (dim 1) should match input_size (tokens being processed),
+            // while num_layers (dim 2) and projection_dim (dim 3) are model constants.
+            // These may be dynamic in the parameter's partial_shape itself, so fall back to
+            // reading them from the sibling input of the Add node that consumes this parameter
+            // (the other branch always carries a fully static shape, e.g. f32[1,S,42,256]).
+            const auto& partial_shape = input.get_partial_shape();
+            NPUW_ASSERT(partial_shape.size() == 4u);
+            ov::Dimension num_layers = partial_shape[2];
+            ov::Dimension proj_dim = partial_shape[3];
+            if (!num_layers.is_static() || !proj_dim.is_static()) {
+                for (const auto& target : input.get_target_inputs()) {
+                    const auto* node = target.get_node();
+                    if (!ov::is_type<ov::op::v1::Add>(node)) {
+                        continue;
+                    }
+                    for (size_t i = 0; i < node->get_input_size(); ++i) {
+                        if (i == target.get_index()) {
+                            continue;
+                        }
+                        const auto sibling_shape = node->input(i).get_partial_shape();
+                        if (sibling_shape.size() != 4u) {
+                            continue;
+                        }
+                        if (!num_layers.is_static() && sibling_shape[2].is_static()) {
+                            num_layers = sibling_shape[2];
+                        }
+                        if (!proj_dim.is_static() && sibling_shape[3].is_static()) {
+                            proj_dim = sibling_shape[3];
+                        }
+                    }
+                    if (num_layers.is_static() && proj_dim.is_static()) {
+                        break;
+                    }
+                }
+            }
+            NPUW_ASSERT(num_layers.is_static());  // num_layers must be resolved
+            NPUW_ASSERT(proj_dim.is_static());    // projection_dim must be resolved
+            new_shape = ov::PartialShape({1, input_size, num_layers, proj_dim});
         } else {
             const auto& partial_shape = input.get_partial_shape();
             new_shape = partial_shape;
@@ -84,15 +128,23 @@ ReshapeToStatic::ReshapeToStatic(const uint32_t input_size,
                                  const uint32_t kvcache_size,
                                  const KVAxesPosition& kv_axes_position,
                                  const uint32_t lora_rank,
-                                 const uint32_t lhs_seq_size)
+                                 const uint32_t lhs_seq_size,
+                                 const bool is_prefill)
     : m_input_size(input_size),
       m_kvcache_size(kvcache_size),
       m_kv_axes_position(kv_axes_position),
       m_lora_rank(lora_rank),
-      m_lhs_seq_size(lhs_seq_size) {}
+      m_lhs_seq_size(lhs_seq_size),
+      m_is_prefill(is_prefill) {}
 
 bool ReshapeToStatic::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    reshape_to_static(model, m_input_size, m_kvcache_size, m_kv_axes_position, m_lora_rank, m_lhs_seq_size);
+    reshape_to_static(model,
+                      m_input_size,
+                      m_kvcache_size,
+                      m_kv_axes_position,
+                      m_lora_rank,
+                      m_lhs_seq_size,
+                      m_is_prefill);
 
     return true;
 }

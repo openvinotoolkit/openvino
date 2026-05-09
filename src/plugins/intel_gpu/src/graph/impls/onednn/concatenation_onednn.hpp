@@ -95,6 +95,9 @@ struct ConcatenationImplementationManager : public ImplementationManager {
 
             if (!one_of(in_layout.format.value, supported_in_fmts))
                 return false;
+
+            if (node.is_dynamic() && !is_feature_aligned(in_layout))
+                return false;
         }
 
         return true;

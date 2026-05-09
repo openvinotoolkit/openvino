@@ -184,6 +184,24 @@ void paged_attn_memcpy(const ov::intel_cpu::PlainTensor& k_input,
     }
 }
 
+void attn_memcpy2d(const ov::intel_cpu::PlainTensor& src,
+                   const ov::intel_cpu::PlainTensor& dst,
+                   size_t L0,
+                   const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
+    auto L1 = src.m_dims[2];
+    auto S = src.m_dims[3];
+    cpu_parallel->parallel_for2d(src.m_dims[0], src.m_dims[1], [&](size_t b, size_t h) {
+        attn_memcpy2d_kernel(src.ptr_v(b, h),
+                             dst.ptr_v(b, h, L0),
+                             src.get_precision(),
+                             dst.get_precision(),
+                             src.stride(2),
+                             dst.stride(2),
+                             S,
+                             L1);
+    });
+}
+
 void attn_memcpy2d_kernel(void* src,
                           void* dst,
                           ov::element::Type src_type,

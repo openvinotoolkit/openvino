@@ -31,7 +31,7 @@ namespace test {
  *                              Result
  */
 std::string ConcatSDPTest::getTestCaseName(const testing::TestParamInfo<ConcatSDPTestParams>& obj) {
-    const auto& [inType, inputShapes, forceKVU8, hasShapeOf, isDiffKVHeadSize] = obj.param;
+    const auto& [inType, inputShapes, kCachePrec, vCachePrec, hasShapeOf, isDiffKVHeadSize] = obj.param;
     std::ostringstream result;
     result << "IS=";
     for (const auto& shape : inputShapes) {
@@ -48,17 +48,19 @@ std::string ConcatSDPTest::getTestCaseName(const testing::TestParamInfo<ConcatSD
         result << ")_";
     }
     result << "Prc=" << inType << "_";
-    result << "ForceKVU8=" << forceKVU8 << "_";
+    result << "Kprec=" << kCachePrec << "_";
+    result << "Vprec=" << vCachePrec << "_";
     result << "HasShapeOf=" << hasShapeOf << "_";
     result << "IsDiffKVHeadSize=" << isDiffKVHeadSize;
     return result.str();
 }
 
 void ConcatSDPTest::SetUp() {
-    const auto& [inType, inputShapes, _m_forceKVU8, _m_hasShapeOf, _m_isDiffKVHeadSize] = this->GetParam();
-    m_forceKVU8 = _m_forceKVU8;
-    m_hasShapeOf = _m_hasShapeOf;
-    m_isDiffKVHeadSize = _m_isDiffKVHeadSize;
+    const auto& [inType, inputShapes, kCachePrec, vCachePrec, hasShapeOf, isDiffKVHeadSize] = this->GetParam();
+    m_kCachePrec = kCachePrec;
+    m_vCachePrec = vCachePrec;
+    m_hasShapeOf = hasShapeOf;
+    m_isDiffKVHeadSize = isDiffKVHeadSize;
     targetDevice = ov::test::utils::DEVICE_CPU;
     rel_threshold = 1e-2f;
     if (inType == ElementType::bf16 || inType == ElementType::f16) {
@@ -66,8 +68,15 @@ void ConcatSDPTest::SetUp() {
         rel_threshold = 0.01f;
     }
 
-    if (m_forceKVU8) {
-        configuration["KV_CACHE_PRECISION"] = "u8";
+    if (m_kCachePrec != "none") {
+        configuration["KEY_CACHE_PRECISION"] = m_kCachePrec;
+    }
+    if (m_vCachePrec != "none") {
+        configuration["VALUE_CACHE_PRECISION"] = m_vCachePrec;
+    }
+    // Wider tolerance for quantized cache (u4 has only 16 levels).
+    if (m_kCachePrec == "u4" || m_vCachePrec == "u4") {
+        abs_threshold = 0.3f;
     }
     init_input_shapes(inputShapes);
     ov::ParameterVector inputParams;
@@ -223,7 +232,7 @@ std::vector<ov::Tensor> ConcatSDPTest::run_test(std::shared_ptr<ov::Model> model
 }
 TEST_P(ConcatSDPTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    const auto& [inType, inputShapes, forceKVU8, hasShapeOf, isDiffKVHeadSize] = this->GetParam();
+    const auto& [inType, inputShapes, kCachePrec, vCachePrec, hasShapeOf, isDiffKVHeadSize] = this->GetParam();
     auto actualOutputs = run_test(function);
     if (!hasShapeOf) {
         CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 1);

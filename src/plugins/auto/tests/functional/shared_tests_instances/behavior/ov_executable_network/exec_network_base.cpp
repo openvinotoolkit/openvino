@@ -5,6 +5,9 @@
 #include "behavior/compiled_model/compiled_model_base.hpp"
 
 using namespace ov::test::behavior;
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CompiledModelSetType);
+
 namespace {
 const std::vector<ov::AnyMap> multiConfigs = {{ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE)}};
 

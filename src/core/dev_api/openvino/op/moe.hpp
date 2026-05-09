@@ -29,13 +29,15 @@ public:
         Expert_type expert_type{Expert_type::GEMM2_BIAS_SWIGLU_CLAMP};
         float expert_alpha{0.0f};  // Expert attribute for clamp bounds
         float expert_beta{1.0f};   // Expert attribute for swish beta
+        size_t gate_idx{0};        // gate (swish) lane in interleaved gate/up; GEMM2 only
     };
 
     /// \brief Constructs a MOE operation with config only
     /// \param args The input tensors, in the following order:
     ///   0: hidden_states - input tensor with hidden representations
-    ///   1: routing_weights - [num_experts, ...] normalized weights for selected experts
-    ///      (input to final multiplication)
+    ///   1: routing_weights - normalized weights for selected experts.
+    ///      Legacy form: [num_experts, ...] (scattered via ScatterElementsUpdate).
+    ///      Compact form: [topk, batch*seq, 1] (post-BGM, selected experts only).
     ///   2: router_topk_output_indices - [..., topk] indices of selected top-k experts
     ///   3: w0_weight - expert weights for first projection, shape [num_experts, inter_size, hidden_size] or
     ///   [num_experts, hidden_size, 2 * inter_size] if fused

@@ -223,7 +223,7 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(fully_connected
     barrier(CLK_LOCAL_MEM_FENCE);
 
     float2 sum_value;
-    sum_value[0] = as_float(intel_sub_group_block_read((const __local uint*)all_sum_even[thr_id]));
+    sum_value[0] = as_float(((const __local uint*)all_sum_even[thr_id])[get_sub_group_local_id()]);
     sum_value[0] = sub_group_reduce_add(sum_value[0]);
     if (wi_id == 0) {
         int cur_n = n + thr_id;
@@ -367,8 +367,8 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(fully_connected
     barrier(CLK_LOCAL_MEM_FENCE);
 
     float2 sum_value;
-    sum_value[0] = as_float(intel_sub_group_block_read((const __local uint*)all_sum_even[thr_id]));
-    sum_value[1] = as_float(intel_sub_group_block_read((const __local uint*)all_sum_odd[thr_id]));
+    sum_value[0] = as_float(((const __local uint*)all_sum_even[thr_id])[get_sub_group_local_id()]);
+    sum_value[1] = as_float(((const __local uint*)all_sum_odd[thr_id])[get_sub_group_local_id()]);
     sum_value[0] = sub_group_reduce_add(sum_value[0]);
     sum_value[1] = sub_group_reduce_add(sum_value[1]);
 
@@ -563,10 +563,10 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(fully_connected
     barrier(CLK_LOCAL_MEM_FENCE);
 
     float4 sum_value;
-    sum_value[0] = as_float(intel_sub_group_block_read((const __local uint*)all_sum_0[thr_id]));
-    sum_value[1] = as_float(intel_sub_group_block_read((const __local uint*)all_sum_1[thr_id]));
-    sum_value[2] = as_float(intel_sub_group_block_read((const __local uint*)all_sum_2[thr_id]));
-    sum_value[3] = as_float(intel_sub_group_block_read((const __local uint*)all_sum_3[thr_id]));
+    sum_value[0] = as_float(((const __local uint*)all_sum_0[thr_id])[get_sub_group_local_id()]);
+    sum_value[1] = as_float(((const __local uint*)all_sum_1[thr_id])[get_sub_group_local_id()]);
+    sum_value[2] = as_float(((const __local uint*)all_sum_2[thr_id])[get_sub_group_local_id()]);
+    sum_value[3] = as_float(((const __local uint*)all_sum_3[thr_id])[get_sub_group_local_id()]);
 
     for (int i = 0; i < 4; i++) {
         sum_value[i] = sub_group_reduce_add(sum_value[i]);

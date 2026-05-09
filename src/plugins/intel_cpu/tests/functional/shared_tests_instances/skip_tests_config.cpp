@@ -132,8 +132,6 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*FakeConvertLayerTest.*dataPrecision=bf16.*)"),
             // Need to generate sequence exactly in the i64 data type. Enable in scope of i64 enabling.
             std::regex(R"(.*RandomUniformLayerTestCPU.*OutPrc=i64.*)"),
-            // Issue: 123815 (Tests are sensintive to available thread count on testing machines)
-            std::regex(R"(.*smoke_Snippets_MHA_.?D_SplitDimensionM_static.*)"),
             // Issue: 126095
             std::regex(R"(^smoke_Multinomial(?:Static|Dynamic)+(?:Log)*.*seed_g=0_seed_o=0.*device=CPU.*)"),
             // Issue: 129931
@@ -334,8 +332,6 @@ const std::vector<std::regex>& disabled_test_patterns() {
             // Issue: 168490
             std::regex(R"(.*CPU/CoreThreadingTest.smoke_QueryModel.*)"),
             std::regex(R"(.*WeightlessCacheAccuracy.*)"),
-            // Ticket: 181107
-            std::regex(R"(.*smoke_ConvAndFQ_CPU.*)"),
 #endif
 #if defined(OPENVINO_ARCH_ARM)
             // Issue: 144998
@@ -509,7 +505,6 @@ const std::vector<std::regex>& disabled_test_patterns() {
             // Tests to be enabled on ARM64
             std::regex(R"(smoke_Snippets_ConvAdd/ConvEltwise.CompareWithRefImpl.*)"),
             std::regex(R"(smoke_Snippets_GroupNormalization.*)"),
-            std::regex(R"(smoke_Snippets_PrecisionPropagation_Convertion.*)"),
 #endif
 #if !defined(OPENVINO_ARCH_ARM64) && !defined(OPENVINO_ARCH_X86_64) && !defined(OPENVINO_ARCH_RISCV64)
             // smoke_Snippets test cases are on platforms except x64, ARM64 and RISCV64
