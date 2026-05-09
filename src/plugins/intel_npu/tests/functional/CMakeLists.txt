@@ -84,6 +84,23 @@ add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
                   COMMAND ${CMAKE_COMMAND} -E copy ${BLOBS}
                   ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/intel_npu_blobs)
 
+if(ENABLE_INTEL_NPU_COMPILER AND PLUGIN_COMPILER_LIB AND PLUGIN_COMPILER_LOADER_LIB)
+    add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
+                      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                      "${PLUGIN_COMPILER_LIB}"
+                      "$<TARGET_FILE_DIR:${TARGET_NAME}>/"
+                      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                      "${PLUGIN_COMPILER_LOADER_LIB}"
+                      "$<TARGET_FILE_DIR:${TARGET_NAME}>/"
+    )
+
+    install(
+      FILES "${PLUGIN_COMPILER_LIB}" "${PLUGIN_COMPILER_LOADER_LIB}"
+      DESTINATION tests
+      COMPONENT tests
+      EXCLUDE_FROM_ALL)
+endif()
+
 install(
   TARGETS ${TARGET_NAME}
   RUNTIME DESTINATION tests
