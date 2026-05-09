@@ -32,13 +32,13 @@ namespace orc {
 
 using TypeId = std::uint16_t;
 using Version = std::uint16_t;
-using SectionFlags = std::uint32_t;
+using SectionFlags = std::uint64_t;
 using SchemaUUID = std::array<std::uint8_t, 16>;
 
 enum class SectionFlag : SectionFlags {
-    OPTIONAL = 1u << 0,
-    LEAF = 1u << 1,  // payload contains raw bytes only, no child sections
-    ENCRYPTED = 1u << 2,
+    OPTIONAL = 1ull << 0,
+    LEAF = 1ull << 1,  // payload contains raw bytes only, no child sections
+    ENCRYPTED = 1ull << 2,
 };
 
 constexpr SectionFlags operator|(SectionFlag lhs, SectionFlag rhs) {
@@ -50,7 +50,7 @@ constexpr SectionFlags operator|(SectionFlags lhs, SectionFlag rhs) {
 }
 
 constexpr bool has_flag(SectionFlags flags, SectionFlag flag) {
-    return (flags & static_cast<SectionFlags>(flag)) != 0u;
+    return (flags & static_cast<SectionFlags>(flag)) != 0ull;
 }
 
 class Stream;
@@ -201,9 +201,8 @@ void serialize(Stream& stream, std::unordered_set<T>& value) {
     if (stream.output()) {
         auto size = value.size();
         stream & size;
-        for (const auto& el : value) {
-            auto copy = el;
-            stream & copy;
+        for (auto el : value) {
+            stream & el;
         }
         return;
     }
@@ -223,9 +222,8 @@ void serialize(Stream& stream, std::unordered_set<T, H>& value) {
     if (stream.output()) {
         auto size = value.size();
         stream & size;
-        for (const auto& el : value) {
-            auto copy = el;
-            stream & copy;
+        for (auto el : value) {
+            stream & el;
         }
         return;
     }
@@ -269,7 +267,7 @@ T decode(const std::vector<std::byte>& bytes) {
 struct SectionHeader {
     TypeId type = 0u;
     Version version = 0u;
-    SectionFlags flags = 0u;
+    SectionFlags flags = 0ull;
     std::uint64_t size = 0u;
 };
 
@@ -278,7 +276,7 @@ void serialize(Stream& stream, SectionHeader& header);
 struct Section {
     TypeId type = 0u;
     Version version = 0u;
-    SectionFlags flags = 0u;
+    SectionFlags flags = 0ull;
     std::vector<std::byte> payload;
     std::vector<Section> children;
 
@@ -294,12 +292,12 @@ struct Section {
         return !is_leaf();
     }
 
-    static Section raw(TypeId type, Version version, std::vector<std::byte> payload, SectionFlags flags = 0u);
-    static Section container(TypeId type, Version version, std::vector<Section> children, SectionFlags flags = 0u);
+    static Section raw(TypeId type, Version version, std::vector<std::byte> payload, SectionFlags flags = 0ull);
+    static Section container(TypeId type, Version version, std::vector<Section> children, SectionFlags flags = 0ull);
 };
 
 template <typename T>
-Section make_payload_section(TypeId type, Version version, const T& value, SectionFlags flags = 0u) {
+Section make_payload_section(TypeId type, Version version, const T& value, SectionFlags flags = 0ull) {
     return Section::raw(type, version, encode(value), flags);
 }
 
@@ -325,7 +323,7 @@ std::streamoff checked_streamoff(std::uint64_t size);
 
 class ScopedWriteSection {
 public:
-    ScopedWriteSection(std::ostream& stream, TypeId type, Version version, SectionFlags flags = 0u);
+    ScopedWriteSection(std::ostream& stream, TypeId type, Version version, SectionFlags flags = 0ull);
     ScopedWriteSection(const ScopedWriteSection&) = delete;
     ScopedWriteSection& operator=(const ScopedWriteSection&) = delete;
 
@@ -346,7 +344,7 @@ void with_section(std::ostream& stream, TypeId type, Version version, SectionFla
 }
 
 template <typename Writer>
-void with_leaf_section(std::ostream& stream, TypeId type, Version version, Writer&& writer, SectionFlags flags = 0u) {
+void with_leaf_section(std::ostream& stream, TypeId type, Version version, Writer&& writer, SectionFlags flags = 0ull) {
     ScopedWriteSection section(stream, type, version, flags | SectionFlag::LEAF);
     writer();
     section.close();

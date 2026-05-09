@@ -115,7 +115,6 @@ ov::npuw::s11n::WeightsContext make_import_weights_ctx(const ov::AnyMap& propert
     using namespace ov::npuw::s11n;
 
     std::string weights_path;
-    std::shared_ptr<ov::Model> model_ptr;
     WeightsContext::ConstsCache consts_cache;
     ov::FileHandleProvider handle_provider = nullptr;
     if (is_weightless) {
@@ -123,15 +122,19 @@ ov::npuw::s11n::WeightsContext make_import_weights_ctx(const ov::AnyMap& propert
             handle_it != properties.end()) {
             if (handle_it->second.is<ov::FileHandleProvider>()) {
                 handle_provider = handle_it->second.as<ov::FileHandleProvider>();
+            } else {
+                LOG_WARN("WEIGHTS_HANDLE_PROVIDER property is present but is not a FileHandleProvider; falling back to "
+                         "other weightless import sources");
             }
-        } else if (properties.find(ov::weights_path.name()) != properties.end()) {
+        }
+        if (!handle_provider && properties.find(ov::weights_path.name()) != properties.end()) {
             weights_path = properties.at(ov::weights_path.name()).as<std::string>();
             NPUW_ASSERT(!weights_path.empty() &&
                         "Empty weights_path. Please provide WEIGHTS_PATH or MODEL_PTR in the configuration.");
-        } else if (properties.find(ov::hint::model.name()) != properties.end()) {
-            model_ptr = std::const_pointer_cast<ov::Model>(
-                            properties.at(ov::hint::model.name()).as<std::shared_ptr<const ov::Model>>())
-                            ->clone();
+        } else if (!handle_provider && properties.find(ov::hint::model.name()) != properties.end()) {
+            auto model_ptr = std::const_pointer_cast<ov::Model>(
+                                 properties.at(ov::hint::model.name()).as<std::shared_ptr<const ov::Model>>())
+                                 ->clone();
             NPUW_ASSERT(
                 model_ptr &&
                 "Empty model passed in MODEL_PTR. Please provide WEIGHTS_PATH or MODEL_PTR in the configuration.");
@@ -150,7 +153,7 @@ ov::npuw::s11n::WeightsContext make_import_weights_ctx(const ov::AnyMap& propert
                 std::size_t size = c->get_byte_size();
                 consts_cache[{offset, size}] = node;
             }
-        } else {
+        } else if (!handle_provider) {
             NPUW_ASSERT(false && "Blob is weightless but no WEIGHTS_PATH nor MODEL_PTR property is provided!");
         }
     }
@@ -855,9 +858,6 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
         stream & device_index;
 
         bool has_compiled_model = static_cast<bool>(compiled_model);
-        if (stream.input()) {
-            has_compiled_model = false;
-        }
         stream & has_compiled_model;
 
         if (stream.output()) {
@@ -868,6 +868,9 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
                 stream & model_blob;
             }
         } else {
+            NPUW_ASSERT(submodel_ctx != nullptr && "Submodel deserialization context must be provided for ORC import");
+            NPUW_ASSERT(submodel_ctx->device_by_index &&
+                        "Submodel deserialization context must provide device_by_index for ORC import");
             const auto device = submodel_ctx->device_by_index(device_index);
             const auto import_config = submodel_ctx->import_config_for_device(device);
             if (has_compiled_model) {
@@ -1061,9 +1064,7 @@ void ov::npuw::CompiledModel::serialize_orc_container(
     }
 
     bool is_weightless = should_use_weightless_flow(m_non_npuw_props, m_cfg, m_const_to_offset);
-    if (!is_weightless) {
-        LOG_INFO("Serialization will be done via flow with weights.");
-    }
+    LOG_INFO("Serialization will be done via " << (is_weightless ? "weightless" : "flow with weights") << ".");
 
     ov::AnyMap serializable_props = m_non_npuw_props;
     serializable_props.erase(ov::cache_encryption_callbacks.name());

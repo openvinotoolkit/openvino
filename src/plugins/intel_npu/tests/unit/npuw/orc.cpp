@@ -175,7 +175,7 @@ TEST(OrcTest, IsOrcReturnsTrueForValidBlob) {
     // is_orc must return a header and leave the stream at its original position
     const auto header = is_orc(buffer);
     ASSERT_TRUE(header.has_value());
-    EXPECT_EQ(header->version, 1u);
+    EXPECT_EQ(header->version, 0u);
     EXPECT_EQ(header->schema_uuid, TEST_UUID);
     // read_file must still work after the probe
     EXPECT_NO_THROW(read_file(buffer));

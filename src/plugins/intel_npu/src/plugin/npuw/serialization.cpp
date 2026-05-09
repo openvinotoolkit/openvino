@@ -21,13 +21,13 @@
 #include "spatial.hpp"
 #include "util.hpp"
 
-// NOTE: This construtor should only be used when exporting blobs
+// NOTE: This constructor should only be used when exporting blobs.
 ov::npuw::s11n::WeightsContext::WeightsContext(bool _is_weightless,
                                                const std::unordered_map<const void*, std::size_t>& _const_to_offset)
     : is_weightless(_is_weightless),
       const_to_offset(_const_to_offset) {}
 
-// NOTE: This construtor can and should only be used when importing blobs
+// NOTE: This constructor is used when importing blobs.
 ov::npuw::s11n::WeightsContext::WeightsContext(const ov::npuw::s11n::WeightsPtr& _weights,
                                                const std::string& _weights_path,
                                                const s11n::WeightsContext::ConstsCache& _consts_cache,

@@ -90,6 +90,7 @@ ov::AnyMap make_phase0_base_config() {
 
 ov::AnyMap make_phase0_dynamic_attention_config() {
     auto config = make_phase0_base_config();
+    config["NPUW_DEVICES"] = "NPU,CPU";
     config["NPUW_ONLINE_PIPELINE"] = "REP";
     config["NPUW_ONLINE_ISOLATE"] = "ATTN";
     config["NPUW_ONLINE_KEEP_BLOCKS"] = "2";

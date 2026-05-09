@@ -141,10 +141,11 @@ struct WeightsContext {
 
     WeightsContext() = default;
 
-    // NOTE: This construtor should only be used when exporting blobs
+    // NOTE: This constructor should only be used when exporting blobs.
     WeightsContext(bool _is_weightless, const std::unordered_map<const void*, std::size_t>& _const_to_offset);
 
-    // NOTE: This construtor can and should only be used when importing weightless blobs
+    // NOTE: This constructor is used on blob import to carry the resolved weight source
+    // (embedded weights, mmap'ed weights file, or model-backed constants cache).
     WeightsContext(const ov::npuw::s11n::WeightsPtr& _weights,
                    const std::string& _weights_path,
                    const ConstsCache& _consts_cache,
