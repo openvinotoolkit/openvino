@@ -12,6 +12,62 @@ namespace KERNEL_NAME {
 #include "cm_pa_xe1.hpp"
 #endif
 
+// ----------------------------------------------------------------------------
+// Dispatch and host-mapping summary
+//
+// 1) Workload dispatch across workgroups and threads
+//    Host launches:
+//      gws = [1, num_heads, wg_count * wg_size]
+//      lws = [1, 1, wg_size]
+//    Therefore each workgroup is identified by:
+//      - cm_group_id(1) -> attention head `h`
+//      - cm_group_id(2) -> query-block workgroup id `wg_id`
+//    and each thread/lane in that workgroup is:
+//      - cm_local_id(2) -> `wg_local_id`
+//
+//    Query processing granularity:
+//      - each lane handles up to `q_step` query tokens
+//      - each workgroup covers up to `wg_seq_len` query tokens, where:
+//          wg_seq_len = CMPA_WG_SEQ_LEN (optimized path), or
+//          wg_seq_len = local_size * q_step (dynamic path)
+//
+//    For one (subsequence, query-block-start), lane-local query start is:
+//      q_start_local = (block_start_pos - subseq_q_begin) + wg_local_id * q_step
+//
+//    Notes:
+//      - U8/compressed path requires full-workgroup participation due to
+//        workgroup barriers; out-of-range lanes use q_len_sg=0.
+//      - FP16 path returns early for out-of-range lanes.
+//
+// 2) Multi-subsequence dispatch and host-side preparation of
+//    `blocked_q_starts_and_subseq_mapping`
+//
+//    Kernel consumes packed pairs from this int32 array:
+//      [block_start_pos_0, subsequence_id_0,
+//       block_start_pos_1, subsequence_id_1,
+//       ...]
+//    with length = 2 * wg_count.
+//
+//    Each `wg_id` reads one pair:
+//      blocked_query_idx = wg_id * 2
+//      block_start_pos = mapping[blocked_query_idx]
+//      subsequence_id  = mapping[blocked_query_idx + 1]
+//
+//    Host should build pairs in execution order as:
+//      for each selected subsequence_id:
+//          subseq_q_begin = subsequence_begins[subsequence_id]
+//          subseq_q_end   = subsequence_begins[subsequence_id + 1]
+//          subseq_q_len   = subseq_q_end - subseq_q_begin
+//          subseq_wg_cnt  = ceil_div(subseq_q_len, wg_seq_len)
+//          for k in [0 .. subseq_wg_cnt):
+//              append (subseq_q_begin + k * wg_seq_len, subsequence_id)
+//
+//    This allows one kernel launch to mix multiple subsequences: each workgroup
+//    resolves its own `subsequence_id`, then fetches sequence-local metadata via
+//    `subsequence_begins`, `past_lens`, `block_indices_begins`, and
+//    `block_indices`.
+// ----------------------------------------------------------------------------
+
 extern "C" _GENX_MAIN_ void KERNEL_NAME(
     //query [q_len, num_heads, S]
 #ifdef CM_HAS_LSC_UNTYPED_2D
