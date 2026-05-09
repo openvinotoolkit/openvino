@@ -57,16 +57,15 @@ public:
     }
 };
 
+// Canonical routing form after TopkRenormalizeToSoftmaxAfterTopkFusion: MatMul -> TopK -> Softmax
 static std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> build_softmax_routing_for_fuse_test(const ov::Output<ov::Node>& routing_weights,
                                                                                                  size_t topk,
                                                                                                  bool with_convert_on_indices) {
-    auto softmax = std::make_shared<ov::op::v8::Softmax>(routing_weights, 1);
     const auto index_type = with_convert_on_indices ? ov::element::i64 : ov::element::i32;
     auto k = op::v0::Constant::create(element::i32, Shape{}, {static_cast<int32_t>(topk)});
-    auto topk_node = std::make_shared<ov::op::v11::TopK>(softmax, k, 1, ov::op::v11::TopK::Mode::MAX, ov::op::v11::TopK::SortType::SORT_VALUES, index_type);
-    auto reduce_axis = op::v0::Constant::create(element::i64, Shape{1}, {1});
-    auto reduce_sum = std::make_shared<ov::op::v1::ReduceSum>(topk_node->output(0), reduce_axis, true);
-    ov::Output<ov::Node> norm = std::make_shared<ov::op::v1::Divide>(topk_node->output(0), reduce_sum);
+    auto topk_node =
+        std::make_shared<ov::op::v11::TopK>(routing_weights, k, 1, ov::op::v11::TopK::Mode::MAX, ov::op::v11::TopK::SortType::SORT_VALUES, index_type);
+    ov::Output<ov::Node> norm = std::make_shared<ov::op::v8::Softmax>(topk_node->output(0), 1);
     ov::Output<ov::Node> indices = topk_node->output(1);
     if (with_convert_on_indices)
         indices = std::make_shared<ov::op::v0::Convert>(indices, ov::element::i32);

@@ -40,20 +40,19 @@ using namespace ov::pass;
 FuseMoESoftmaxRouter::FuseMoESoftmaxRouter() {
     auto routing_matmul = wrap_type<ov::op::v0::MatMul>();
 
-    auto softmax_m = wrap_type<ov::op::v8::Softmax>({routing_matmul}, consumers_count(1));
+    // Routing is canonicalized to TopK -> Softmax by TopkRenormalizeToSoftmaxAfterTopkFusion
     auto topk_k_m = wrap_const();
-    auto topk_m = wrap_type<ov::op::v11::TopK>({softmax_m, topk_k_m});
+    auto topk_m = wrap_type<ov::op::v11::TopK>({routing_matmul, topk_k_m});
     topk_m->set_output_size(2);
 
-    auto reduce_m = wrap_type<ov::op::v1::ReduceSum>({topk_m->output(0), any_input()}, consumers_count(1));
-    auto norm_m = wrap_type<ov::op::v1::Divide>({topk_m->output(0), reduce_m});
+    auto norm_m = wrap_type<ov::op::v1::Softmax, ov::op::v8::Softmax>({topk_m->output(0)});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         if (transformation_callback(m.get_match_root())) {
             return false;
         }
         const auto& pattern_map = m.get_pattern_value_map();
-        const auto& topk_in_shape = pattern_map.at(softmax_m).get_partial_shape();
+        const auto& topk_in_shape = pattern_map.at(routing_matmul).get_partial_shape();
         const auto& topk_out_shape = pattern_map.at(topk_m).get_partial_shape();
         for (const auto& shape : {topk_in_shape, topk_out_shape}) {
             if (shape.rank().is_dynamic() || shape.size() == 0 || shape.rbegin()->is_dynamic()) {
