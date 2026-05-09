@@ -1133,19 +1133,16 @@ public:
             auto& dnnl_weights = _dnnl_weights[j];
             dnnl_weights.resize(3);
             dnnl_weights[0].ic = _hidden_size;
-            dnnl_weights[0].ic_group_size = moe_fusion_wei_addr.scale[0]
-                ? ic_group_size_from_scale(_hidden_size, moe_fusion_wei_addr.scale[0])
-                : _gate_up_group_size;
+            dnnl_weights[0].ic_group_size =
+                moe_fusion_wei_addr.scale[0] ? ic_group_size_from_scale(_hidden_size, moe_fusion_wei_addr.scale[0]) : _gate_up_group_size;
             dnnl_weights[0].oc = _intermediate_size;
             dnnl_weights[1].ic = _hidden_size;
-            dnnl_weights[1].ic_group_size = moe_fusion_wei_addr.scale[1]
-                ? ic_group_size_from_scale(_hidden_size, moe_fusion_wei_addr.scale[1])
-                : _gate_up_group_size;
+            dnnl_weights[1].ic_group_size =
+                moe_fusion_wei_addr.scale[1] ? ic_group_size_from_scale(_hidden_size, moe_fusion_wei_addr.scale[1]) : _gate_up_group_size;
             dnnl_weights[1].oc = _intermediate_size;
             dnnl_weights[2].ic = _intermediate_size;
-            dnnl_weights[2].ic_group_size = moe_fusion_wei_addr.scale[2]
-                ? ic_group_size_from_scale(_intermediate_size, moe_fusion_wei_addr.scale[2])
-                : _down_group_size;
+            dnnl_weights[2].ic_group_size =
+                moe_fusion_wei_addr.scale[2] ? ic_group_size_from_scale(_intermediate_size, moe_fusion_wei_addr.scale[2]) : _down_group_size;
             dnnl_weights[2].oc = _hidden_size;
             if (!_lru_expert_num) {
                 for (int i = 0; i < 3; i++) {
