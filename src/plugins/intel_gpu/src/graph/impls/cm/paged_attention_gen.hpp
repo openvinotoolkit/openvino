@@ -100,16 +100,18 @@ struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
     PagedAttentionStage stage;
     size_t max_context_len;
     size_t batch_size_in_sequences;
+
     // below are rt params for decoding
     size_t num_of_partitions;
     // cached single-token Q chunking
     SingleTokenQChunking q_chunking;
     size_t single_token_selected_count = 0;
+
     // multi-token subsequence routing
     size_t multi_token_wg_count = 0;
-    bool enable_xattn_estimation = false;
 
     // below are rt params for xattn
+    bool enable_xattn_estimation = false;
     size_t xattn_block_size = 1;
     // multi-subseq xattn fields
     size_t xattn_num_subseqs = 1;

@@ -10,6 +10,7 @@
 #include <vector>
 #include <memory>
 #include <algorithm>
+#include <limits>
 #include <numeric>
 #include <utility>
 
@@ -155,6 +156,16 @@ public:
         size_t num_xattn_subseqs = 0;
 
         m_xattn_meta.clear();
+        m_xattn_meta.reserve((subsequence_begins.size() > 0 ? (subsequence_begins.size() - 1) : 0) * 16);
+
+        auto to_i32_checked = [](size_t value, const char* field_name) {
+            OPENVINO_ASSERT(value <= static_cast<size_t>(std::numeric_limits<int32_t>::max()),
+                            "XAttention metadata value is too large for int32 field ",
+                            field_name,
+                            ": ",
+                            value);
+            return static_cast<int32_t>(value);
+        };
 
         for (size_t i = 0; i + 1 < subsequence_begins.size(); ++i) {
             const auto q_len = static_cast<size_t>(std::max<int32_t>(subsequence_begins[i + 1] - subsequence_begins[i], 0));
@@ -184,22 +195,22 @@ public:
             const size_t q_start_strided_s = (kv_len - q_len) / STRIDE;
             const size_t wg_count_s = N_kq_groups_s * (q_stride_pad_s / block_wg_m);
 
-            m_xattn_meta.push_back(static_cast<int32_t>(subseq_q_begin));
-            m_xattn_meta.push_back(static_cast<int32_t>(q_len));
-            m_xattn_meta.push_back(static_cast<int32_t>(M_s));
-            m_xattn_meta.push_back(static_cast<int32_t>(N_s));
-            m_xattn_meta.push_back(static_cast<int32_t>(q_stride_pad_s));
-            m_xattn_meta.push_back(static_cast<int32_t>(N_kq_groups_s));
-            m_xattn_meta.push_back(static_cast<int32_t>(q_block_pad_s));
-            m_xattn_meta.push_back(static_cast<int32_t>(k_block_pad_s));
-            m_xattn_meta.push_back(static_cast<int32_t>(causal_start_s));
-            m_xattn_meta.push_back(static_cast<int32_t>(q_start_strided_s));
-            m_xattn_meta.push_back(static_cast<int32_t>(cumul_kq_max_bytes));
-            m_xattn_meta.push_back(static_cast<int32_t>(cumul_exp_sum_bytes));
-            m_xattn_meta.push_back(static_cast<int32_t>(cumul_mask_elems));
-            m_xattn_meta.push_back(static_cast<int32_t>(cumul_mask_wg_elems));
+            m_xattn_meta.push_back(to_i32_checked(subseq_q_begin, "subseq_q_begin"));
+            m_xattn_meta.push_back(to_i32_checked(q_len, "q_len"));
+            m_xattn_meta.push_back(to_i32_checked(M_s, "M"));
+            m_xattn_meta.push_back(to_i32_checked(N_s, "N"));
+            m_xattn_meta.push_back(to_i32_checked(q_stride_pad_s, "q_stride_pad"));
+            m_xattn_meta.push_back(to_i32_checked(N_kq_groups_s, "N_kq_groups"));
+            m_xattn_meta.push_back(to_i32_checked(q_block_pad_s, "q_block_pad"));
+            m_xattn_meta.push_back(to_i32_checked(k_block_pad_s, "k_block_pad"));
+            m_xattn_meta.push_back(to_i32_checked(causal_start_s, "causal_start"));
+            m_xattn_meta.push_back(to_i32_checked(q_start_strided_s, "q_start_strided"));
+            m_xattn_meta.push_back(to_i32_checked(cumul_kq_max_bytes, "cumul_kq_max_bytes"));
+            m_xattn_meta.push_back(to_i32_checked(cumul_exp_sum_bytes, "cumul_exp_sum_bytes"));
+            m_xattn_meta.push_back(to_i32_checked(cumul_mask_elems, "cumul_mask_elems"));
+            m_xattn_meta.push_back(to_i32_checked(cumul_mask_wg_elems, "cumul_mask_wg_elems"));
             m_xattn_meta.push_back(bi_begin);
-            m_xattn_meta.push_back(static_cast<int32_t>(total_wg_count));
+            m_xattn_meta.push_back(to_i32_checked(total_wg_count, "total_wg_count"));
 
             cumul_kq_max_bytes += N_kq_groups_s * q_stride_pad_s * sizeof_softmax * heads_num;
             cumul_exp_sum_bytes += q_stride_pad_s * k_block_pad_s * sizeof_softmax * heads_num;
@@ -606,9 +617,7 @@ public:
                 internal_buffers.emplace_back(std::max<int64_t>(16, count_meta_int32s), ov::element::i32, true, false);  // 8: xattn_subseq_meta (lockable for mem_lock<write>, not shareable)
 
 #if FIND_DEBUG_ACC
-                const size_t sum_per_n_token_in_block = static_cast<size_t>(rt_params->xattn_block_size / STRIDE);
-                size_t q_block_input = rt_params->q_stride_pad / sum_per_n_token_in_block;
-                auto count_elements_kq_sum = static_cast<int64_t>(desc->heads_num * q_block_input * rt_params->k_block_pad);
+                auto count_elements_kq_sum = static_cast<int64_t>(rt_params->xattn_cumul_mask_elems);
                 internal_buffers.emplace_back(std::max<int64_t>(1, count_elements_kq_sum), ov::element::f16);  // 9: kq_sum
 #endif
 
