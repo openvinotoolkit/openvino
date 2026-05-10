@@ -1731,17 +1731,17 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
                 !pyramid_attn->_attention_infos.empty()) {
                 const auto supported_properties =
                     get_npuw_plugin()->get_core()->get_property(device, ov::supported_properties);
-                support_strides_for =
-                    std::find(supported_properties.begin(),
-                              supported_properties.end(),
-                              ov::intel_npu::enable_strides_for.name()) != supported_properties.end();
+                support_strides_for = std::find(supported_properties.begin(),
+                                                supported_properties.end(),
+                                                ov::intel_npu::enable_strides_for.name()) != supported_properties.end();
                 if (support_strides_for) {
                     pyramid_attn->_can_use_tensor_view = true;
                     const auto& first_model = pyramid_attn_models[0];
                     const auto& first_info = pyramid_attn->_attention_infos[0];
                     npu_device_str = device;
                     const auto& strides_key = ov::intel_npu::enable_strides_for.name();
-                    saved_strides = ov::npuw::util::at::_(m_meta_devices[npu_device_str]).at_or(strides_key, std::string{});
+                    saved_strides =
+                        ov::npuw::util::at::_(m_meta_devices[npu_device_str]).at_or(strides_key, std::string{});
                     auto& strided_inputs = m_meta_devices[npu_device_str][strides_key];
                     for (const auto& param : first_info.params) {
                         if (!strided_inputs.empty()) {
@@ -1749,9 +1749,9 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
                         }
                         strided_inputs += first_model->inputs()[param.idx].get_any_name();
                     }
-                    LOG_INFO("Enabled using tensor view for device: " << device << " for pyramid inputs: "
-                                                                      << strided_inputs);
-                } // if(support_strides_for)
+                    LOG_INFO("Enabled using tensor view for device: " << device
+                                                                      << " for pyramid inputs: " << strided_inputs);
+                }  // if(support_strides_for)
             }  // if(npu)
         }  // for(devices)
 
@@ -1838,7 +1838,7 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
                 }
             }
         }
-    } //  if (hfa)
+    }  //  if (hfa)
 
     return true;
 }

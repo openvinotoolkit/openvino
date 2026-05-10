@@ -522,8 +522,7 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                             // == iport and there is no behavioural difference.
                             // get_tensor calls below intentionally keep iport: they look up by index /
                             // name without strict shape validation.
-                            const auto& pyramid_iport =
-                                pyramid->_compiled_models[pyramid_id]->inputs()[input_idx];
+                            const auto& pyramid_iport = pyramid->_compiled_models[pyramid_id]->inputs()[input_idx];
                             if (state.pyramid_selector->length() == -1) {
                                 // Fallback: dynamic range not identified — bind directly
                                 ctx.target_request->set_tensor(pyramid_iport, tensor);
@@ -532,9 +531,9 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                 const auto past_len = state.pyramid_selector->past_length();
                                 const auto this_case = state.pyramid_selector->this_case();
 
-                                // Strided I/O is available for non-last pyramid models compiled with enable_strides_for.
-                                // The last model reuses the main compiled subgraph (compiled without enable_strides_for),
-                                // so it always falls back to the copy path.
+                                // Strided I/O is available for non-last pyramid models compiled with
+                                // enable_strides_for. The last model reuses the main compiled subgraph (compiled
+                                // without enable_strides_for), so it always falls back to the copy path.
                                 const bool use_tensor_view =
                                     pyramid->_can_use_tensor_view && (pyramid_id < pyramid->num_models() - 1);
 
@@ -549,9 +548,12 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                             ctx.target_request->get_tensor(iport)->set_shape(shape);
                                         } else if (use_tensor_view) {
                                             const auto model_past_len = static_cast<int64_t>(info.context_length) -
-                                            static_cast<int64_t>(info.query_size);
-                                            LOG_DEBUG("Use tensor view: past_len=" << past_len << " model_past_len=" << model_past_len);
-                                            ctx.target_request->set_tensor(pyramid_iport, ov::npuw::util::view(tensor, param.dim, 0, model_past_len));
+                                                                        static_cast<int64_t>(info.query_size);
+                                            LOG_DEBUG("Use tensor view: past_len=" << past_len << " model_past_len="
+                                                                                   << model_past_len);
+                                            ctx.target_request->set_tensor(
+                                                pyramid_iport,
+                                                ov::npuw::util::view(tensor, param.dim, 0, model_past_len));
                                         } else {
                                             const auto& dst = ctx.target_request->get_tensor(iport);
                                             ov::npuw::util::copy_tensor_by_dim(view,
@@ -568,9 +570,12 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                         ctx.target_request->set_tensor(pyramid_iport, tensor);
                                     } else if (use_tensor_view) {
                                         const auto model_past_len = static_cast<int64_t>(info.context_length) -
-                                            static_cast<int64_t>(info.query_size);
-                                        LOG_DEBUG("Use tensor view: past_len=" << past_len << " model_past_len=" << model_past_len);
-                                        ctx.target_request->set_tensor(pyramid_iport, ov::npuw::util::view(tensor, param.dim, 0, model_past_len));
+                                                                    static_cast<int64_t>(info.query_size);
+                                        LOG_DEBUG("Use tensor view: past_len=" << past_len
+                                                                               << " model_past_len=" << model_past_len);
+                                        ctx.target_request->set_tensor(
+                                            pyramid_iport,
+                                            ov::npuw::util::view(tensor, param.dim, 0, model_past_len));
                                     } else {
                                         const auto& view = ov::npuw::util::view(tensor, param.dim, 0, past_len);
                                         const auto& dst_slice = ov::npuw::util::view(dst, param.dim, 0, past_len);
