@@ -74,7 +74,7 @@ public:
         result << "GS=" << gs << "_";
         result << "GI=" << gi << "_";
         result << "FGM=" << fgm << "_";
-        result << "act=" << (act == MoEActivationType::GELU ? "GELU" : "SWISH") << "_";
+        result << "act=" << (act == MoEActivationType::GELU ? "GELU" : act == MoEActivationType::GELU_ERF ? "GELU_ERF" : "SWISH") << "_";
         result << "PES=" << pes;
         return result.str();
     }
@@ -298,28 +298,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE2GemmGatherMatmul,
                                             ::testing::Values(false)),  // use_per_expert_scale
                          MoEGatherMatmulTest::getTestCaseName);
 
-// GEMM3 + Gelu (GeGLU): GPU fused kernel does not support gelu, so the model is executed
-// via 3 GatherMatmul ops even without force_gather_matmul.
+// Gemma-4 style: Gelu activation + SOFTMAX routing with a per-expert scale table (Const[N] → Gather(topk_idx) → Multiply).
 INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmGeluCompressed,
-                         MoECompressedFusionTest,
-                         ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
-                                            ::testing::Values(MoePatternType::GEMM3),
-                                            ::testing::ValuesIn(routing_types),
-                                            ::testing::Values(ov::element::u4),   // weights_precision
-                                            ::testing::Values(ov::element::f16),  // decompression_precision
-                                            ::testing::Values(ov::element::f16),  // scale_precision
-                                            ::testing::Values(ov::test::utils::DecompressionType::full),
-                                            ::testing::Values(ov::test::utils::DecompressionType::full),
-                                            ::testing::Values(true),  // reshape_on_decompression
-                                            ::testing::Values(128),
-                                            ::testing::Values(size_t{0}),  // gate_idx unused for GEMM3
-                                            ::testing::Values(false),      // force_gather_matmul
-                                            ::testing::Values(MoEActivationType::GELU),
-                                            ::testing::Values(false)),     // use_per_expert_scale
-                         MoECompressedFusionTest::getTestCaseName);
-
-// Gemma-4 style: SOFTMAX routing with a per-expert scale table (Const[N] → Gather(topk_idx) → Multiply).
-INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmPerExpertScale,
                          MoECompressedFusionTest,
                          ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
                                             ::testing::Values(MoePatternType::GEMM3),
@@ -329,12 +309,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmPerExpertScale,
                                             ::testing::Values(ov::element::f16),  // scale_precision
                                             ::testing::Values(ov::test::utils::DecompressionType::full),
                                             ::testing::Values(ov::test::utils::DecompressionType::full),
-                                            ::testing::Values(true),   // reshape_on_decompression
+                                            ::testing::Values(true),  // reshape_on_decompression
                                             ::testing::Values(128),
                                             ::testing::Values(size_t{0}),  // gate_idx unused for GEMM3
                                             ::testing::Values(false),      // force_gather_matmul
-                                            ::testing::Values(MoEActivationType::SWISH),
-                                            ::testing::Values(true)),      // use_per_expert_scale
+                                            ::testing::Values(MoEActivationType::GELU, MoEActivationType::GELU_ERF),
+                                            ::testing::Values(true, false)),  // use_per_expert_scale
                          MoECompressedFusionTest::getTestCaseName);
 
 }  // namespace

@@ -127,11 +127,13 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool ha
                 }
             }
         } else if (auto gelu_op = ov::as_type_ptr<v7::Gelu>(swish_node)) {
-            // Only Tanh-approximated Gelu (GeGLU) maps to the fused kernel; reject other approximations.
-            if (gelu_op->get_approximation_mode() != ov::op::GeluApproximationMode::TANH) {
+            if (gelu_op->get_approximation_mode() == ov::op::GeluApproximationMode::TANH) {
+                activation_type = ov::op::internal::MOE::Activation_type::GEGLU_TANH;
+            } else if (gelu_op->get_approximation_mode() == ov::op::GeluApproximationMode::ERF) {
+                activation_type = ov::op::internal::MOE::Activation_type::GEGLU_ERF;
+            } else {
                 return false;
             }
-            activation_type = ov::op::internal::MOE::Activation_type::GEGLU_TANH;
         } else {
             OPENVINO_THROW("Unexpected node type matched for gate activation: ", *swish_node);
         }

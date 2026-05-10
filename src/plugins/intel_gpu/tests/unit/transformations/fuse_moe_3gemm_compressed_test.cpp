@@ -39,8 +39,13 @@ namespace test {
 namespace intel_gpu {
 
 using namespace ov::test;
+using AT = ov::op::internal::MOE::Activation_type;
 
-using FuseMOE3GemmCompressedTestParams = std::tuple<MoERoutingType, bool /* reshape_on_moe_input */, bool /* with_routed_scale */>;
+using FuseMOE3GemmCompressedTestParams = std::tuple<
+    MoERoutingType,
+    bool,  // reshape_on_moe_input
+    bool,  // with_routed_scale
+    ov::op::internal::MOE::Activation_type>;
 
 class FuseMOE3GemmCompressedTest : public TransformationTestsF, public ::testing::WithParamInterface<FuseMOE3GemmCompressedTestParams> {
 public:
@@ -60,6 +65,11 @@ public:
             name += "_ReshapeOnMoeInput";
         if (std::get<2>(info.param))
             name += "_RoutedScalingFactor";
+        switch (std::get<3>(info.param)) {
+        case AT::SWIGLU:    break;
+        case AT::GEGLU_TANH: name += "_GeluTanh"; break;
+        case AT::GEGLU_ERF:  name += "_GeluErf";  break;
+        }
         return name;
     }
 };
@@ -122,7 +132,7 @@ static std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> build_sigmoid_routi
 }
 
 TEST_P(FuseMOE3GemmCompressedTest, CompareFunctions) {
-    const auto& [routing_type, reshape_on_moe_input, with_routed_scale] = GetParam();
+    const auto& [routing_type, reshape_on_moe_input, with_routed_scale, activation_type] = GetParam();
     constexpr float routed_scale_value = 2.5f;
     // routed_scaling_factor only applies to the SIGMOID_BIAS branch.
     ASSERT_TRUE(!with_routed_scale || routing_type == MoERoutingType::SIGMOID_BIAS);
@@ -169,6 +179,7 @@ TEST_P(FuseMOE3GemmCompressedTest, CompareFunctions) {
 
         ov::op::internal::MOECompressed::Config config;
         config.expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
+        config.activation_type = activation_type;
         config.has_zp = true;
         config.hidden_size = hidden_size;
         config.inter_size = inter_size;
@@ -205,6 +216,7 @@ TEST_P(FuseMOE3GemmCompressedTest, CompareFunctions) {
 
         ov::op::internal::MOECompressed::Config config;
         config.expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
+        config.activation_type = activation_type;
         config.has_zp = true;
         config.hidden_size = hidden_size;
         config.inter_size = inter_size;
@@ -253,85 +265,18 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                          FuseMOE3GemmCompressedTest,
                          ::testing::ValuesIn(std::vector<FuseMOE3GemmCompressedTestParams>{
                              // {routing_type, reshape_on_moe_input, with_routed_scale}
-                             {MoERoutingType::SOFTMAX, false, false},
-                             {MoERoutingType::SOFTMAX, true, false},
-                             {MoERoutingType::SIGMOID_BIAS, false, false},
-                             {MoERoutingType::SIGMOID_BIAS, true, false},
+                             {MoERoutingType::SOFTMAX, false, false, AT::SWIGLU},
+                             {MoERoutingType::SOFTMAX, true, false, AT::SWIGLU},
+                             {MoERoutingType::SIGMOID_BIAS, false, false, AT::SWIGLU},
+                             {MoERoutingType::SIGMOID_BIAS, true, false, AT::SWIGLU},
                              // trinity-mini afmoe: SIGMOID_BIAS + extra Multiply(routed_scaling_factor)
-                             {MoERoutingType::SIGMOID_BIAS, false, true},
-                             {MoERoutingType::SIGMOID_BIAS, true, true},
+                             {MoERoutingType::SIGMOID_BIAS, false, true, AT::SWIGLU},
+                             {MoERoutingType::SIGMOID_BIAS, true, true, AT::SWIGLU},
+                             // gemma-4-like: gelu activations with softmax routing
+                             {MoERoutingType::SOFTMAX, true, false, AT::GEGLU_TANH},
+                             {MoERoutingType::SOFTMAX, true, false, AT::GEGLU_ERF},
                          }),
                          FuseMOE3GemmCompressedTest::get_test_case_name);
-
-TEST_F(TransformationTestsF, FuseMOE3GemmCompressedTest_GeluTanhActivation) {
-    // Verifies that MOECompressed::Config::activation_type is propagated unchanged
-    // into MOE3GemmFusedCompressed when the GeGLU (Gelu+Tanh) activation is used.
-    auto build_config = []() {
-        ov::op::internal::MOECompressed::Config config;
-        config.expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
-        config.activation_type = ov::op::internal::MOE::Activation_type::GEGLU_TANH;
-        config.has_zp = true;
-        config.hidden_size = 2048;
-        config.inter_size = 768;
-        config.num_expert = 128;
-        config.group_size = 128;
-        config.top_k = 8;
-        config.out_type = ov::element::f16;
-        return config;
-    };
-    {
-        auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{4, 8, 2048});
-        auto flatten_shape = op::v0::Constant::create(element::i32, Shape{2}, {32, 2048});
-        auto hidden_states_reshape = std::make_shared<ov::op::v1::Reshape>(hidden_states, flatten_shape, false);
-        auto routers = op::v0::Constant::create(element::f16, Shape{2048, 128}, {0.2});
-        auto routing_weights = std::make_shared<ov::op::v0::MatMul>(hidden_states_reshape, routers);
-
-        auto [unsqueeze_moe, topk_indices] = build_softmax_routing_for_fuse_test(routing_weights, 8);
-
-        auto wei_gate = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {1});
-        auto scale_gate = op::v0::Constant::create(element::f16, Shape{128, 768, 16}, {0.01f});
-        auto zp_gate = op::v0::Constant::create(element::u4, Shape{128, 768, 16}, {0});
-        auto wei_up = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {1});
-        auto scale_up = op::v0::Constant::create(element::f16, Shape{128, 768, 16}, {0.01f});
-        auto zp_up = op::v0::Constant::create(element::u4, Shape{128, 768, 16}, {0});
-        auto wei_down = op::v0::Constant::create(element::u4, Shape{128, 2048, 6, 128}, {1});
-        auto scale_down = op::v0::Constant::create(element::f16, Shape{128, 2048, 6}, {0.01f});
-        auto zp_down = op::v0::Constant::create(element::u4, Shape{128, 2048, 6}, {0});
-
-        auto moe_compressed = std::make_shared<ov::op::internal::MOECompressed>(
-            ov::OutputVector{hidden_states_reshape, unsqueeze_moe, topk_indices,
-                wei_gate, scale_gate, zp_gate, wei_up, scale_up, zp_up, wei_down, scale_down, zp_down},
-            build_config());
-        model = std::make_shared<ov::Model>(moe_compressed, ov::ParameterVector{hidden_states});
-    }
-    manager.register_pass<FuseMOE3GemmCompressed>();
-    {
-        auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{4, 8, 2048});
-        auto flatten_shape = op::v0::Constant::create(element::i32, Shape{2}, {32, 2048});
-        auto hidden_states_reshape = std::make_shared<ov::op::v1::Reshape>(hidden_states, flatten_shape, false);
-        auto routers = op::v0::Constant::create(element::f16, Shape{2048, 128}, {0.2});
-        auto routing_weights = std::make_shared<ov::op::v0::MatMul>(hidden_states_reshape, routers);
-
-        auto wei_gate = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {1});
-        auto scale_gate = op::v0::Constant::create(element::f16, Shape{128, 768, 16}, {0.01f});
-        auto zp_gate = op::v0::Constant::create(element::u4, Shape{128, 768, 16}, {0});
-        auto wei_up = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {1});
-        auto scale_up = op::v0::Constant::create(element::f16, Shape{128, 768, 16}, {0.01f});
-        auto zp_up = op::v0::Constant::create(element::u4, Shape{128, 768, 16}, {0});
-        auto wei_down = op::v0::Constant::create(element::u4, Shape{128, 2048, 6, 128}, {1});
-        auto scale_down = op::v0::Constant::create(element::f16, Shape{128, 2048, 6}, {0.01f});
-        auto zp_down = op::v0::Constant::create(element::u4, Shape{128, 2048, 6}, {0});
-
-        auto config = build_config();
-        config.routing_type = ov::op::internal::MOECompressed::RoutingType::SOFTMAX;
-
-        ov::OutputVector args{hidden_states_reshape, routing_weights,
-            wei_gate, scale_gate, zp_gate, wei_up, scale_up, zp_up, wei_down, scale_down, zp_down};
-
-        auto result = std::make_shared<ov::intel_gpu::op::MOE3GemmFusedCompressed>(args, config);
-        model_ref = std::make_shared<ov::Model>(result, ov::ParameterVector{hidden_states});
-    }
-}
 
 // Gemma-4 style: softmax routing with a per-expert scale table (Const[N] → Gather(topk_idx) → Multiply(norm, gathered)).
 // The router MatMul uses a separately normed hidden state while MOECompressed input[0] uses the plain flatten.

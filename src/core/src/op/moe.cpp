@@ -77,6 +77,7 @@ EnumNames<ov::op::internal::MOE::Activation_type>::get() {
         {
             {"swiglu", ov::op::internal::MOE::Activation_type::SWIGLU},
             {"geglu_tanh", ov::op::internal::MOE::Activation_type::GEGLU_TANH},
+            {"geglu_erf", ov::op::internal::MOE::Activation_type::GEGLU_ERF},
         });
     return enum_names;
 }

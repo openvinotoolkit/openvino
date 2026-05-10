@@ -27,6 +27,7 @@ public:
     enum class Activation_type {
         SWIGLU,      // Swish gate activation (default; matches existing behavior)
         GEGLU_TANH,  // Gelu gate with Tanh approximation
+        GEGLU_ERF,   // Gelu gate with ERF (exact) activation
     };
 
     struct Config {

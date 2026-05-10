@@ -31,8 +31,9 @@ enum class MoERoutingType {
 };
 
 enum class MoEActivationType {
-    SWISH,  ///< Swish gate activation (SwiGLU)
-    GELU,   ///< Gelu gate activation (GeGLU)
+    SWISH,     ///< Swish gate activation (SwiGLU)
+    GELU,      ///< Gelu gate activation with Tanh approximation (GeGLU-Tanh)
+    GELU_ERF,  ///< Gelu gate activation with ERF (exact) formula (GeGLU-ERF)
 };
 
 /// Softmax branch:

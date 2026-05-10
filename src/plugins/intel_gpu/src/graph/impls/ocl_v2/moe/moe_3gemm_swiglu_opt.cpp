@@ -599,6 +599,8 @@ protected:
         jit.make("MOE_DTYPE", "half");
         if (desc->_config.activation_type == ov::op::internal::MOE::Activation_type::GEGLU_TANH) {
             jit.make("GATE_ACT_GELU_TANH", 1);
+        } else if (desc->_config.activation_type == ov::op::internal::MOE::Activation_type::GEGLU_ERF) {
+            jit.make("GATE_ACT_GELU_ERF", 1);
         }
         if (m_use_grouped_gemm)
             jit.make("ONEDNN_GROUPED_GEMM_USED", 1);
@@ -759,6 +761,8 @@ protected:
         jit.make("GATE_UP_ENABLE", 1);
         if (desc->_config.activation_type == ov::op::internal::MOE::Activation_type::GEGLU_TANH) {
             jit.make("GATE_ACT_GELU_TANH", 1);
+        } else if (desc->_config.activation_type == ov::op::internal::MOE::Activation_type::GEGLU_ERF) {
+            jit.make("GATE_ACT_GELU_ERF", 1);
         }
         if (!_disable_shared_experts && desc->_config.num_shared_expert > 0 &&
             params.input_layouts.size() > static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT)) {

@@ -330,6 +330,8 @@ inline std::shared_ptr<ov::Model> build_3gemm_bgm_model(
     std::shared_ptr<ov::Node> gate_act;
     if (activation_type == ov::op::internal::MOE::Activation_type::GEGLU_TANH) {
         gate_act = std::make_shared<op::v7::Gelu>(bgm_gate, ov::op::GeluApproximationMode::TANH);
+    } else if (activation_type == ov::op::internal::MOE::Activation_type::GEGLU_ERF) {
+        gate_act = std::make_shared<op::v7::Gelu>(bgm_gate, ov::op::GeluApproximationMode::ERF);
     } else {
         gate_act = std::make_shared<op::v4::Swish>(bgm_gate);
     }
@@ -606,6 +608,13 @@ TEST_F(TransformationTestsF, Convert3GatherMatmulMoeBlockToMoeOp_gelu_tanh) {
     model = build_3gemm_bgm_model(AT::GEGLU_TANH);
     manager.register_pass<ov::pass::Convert3GatherMatmulMoeBlockToMoeOp>();
     model_ref = build_3gemm_bgm_to_moe_reference_model(AT::GEGLU_TANH);
+}
+
+TEST_F(TransformationTestsF, Convert3GatherMatmulMoeBlockToMoeOp_gelu_erf) {
+    using AT = ov::op::internal::MOE::Activation_type;
+    model = build_3gemm_bgm_model(AT::GEGLU_ERF);
+    manager.register_pass<ov::pass::Convert3GatherMatmulMoeBlockToMoeOp>();
+    model_ref = build_3gemm_bgm_to_moe_reference_model(AT::GEGLU_ERF);
 }
 
 TEST_F(TransformationTestsF, Convert2GatherMatmulMoeBlockToMoeOp_basic) {

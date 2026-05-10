@@ -373,6 +373,8 @@ private:
                     constexpr float kC = 0.044715f;
                     float inner = kSqrt2OverPi * (gv + kC * gv * gv * gv);
                     activated = 0.5f * gv * (1.0f + std::tanh(inner));
+                } else if (config.activation_type == ov::op::internal::MOE::Activation_type::GEGLU_ERF) {
+                    activated = 0.5f * gv * (1.0f + std::erf(gv * 0.7071067811865475f));
                 } else {
                     activated = gv / (1.0f + std::exp(-gv));
                 }
@@ -587,11 +589,15 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
     if (config.activation_type == ov::op::internal::MOE::Activation_type::GEGLU_TANH) {
         base_tolerance *= 5.0f;
     }
+    // GeGLU-ERF: the A&S approximation introduces ~1.5e-7 max absolute error vs std::erf,
+    // amplified by f16 rounding of the gate GEMM output. A 3x multiplier is sufficient.
+    if (config.activation_type == ov::op::internal::MOE::Activation_type::GEGLU_ERF) {
+        base_tolerance *= 3.0f;
+    }
     const float tolerance = base_tolerance * (config.hidden_size / 128);
-    // For GeGLU, also allow a relative tolerance: Tanh-Gelu's cubic amplifies f16 noise per-element,
-    // so element-wise relative errors of ~15% are expected even though the kernel is functionally correct
-    // (verified by the smoke_MoE3GemmGeluCompressed E2E tests).
-    const bool use_relative = config.activation_type == ov::op::internal::MOE::Activation_type::GEGLU_TANH;
+    // For GeGLU (Tanh or ERF), also allow a relative tolerance: non-linear activations amplify f16 noise per-element.
+    const bool use_relative = (config.activation_type == ov::op::internal::MOE::Activation_type::GEGLU_TANH ||
+                                config.activation_type == ov::op::internal::MOE::Activation_type::GEGLU_ERF);
     for (size_t i = 0; i < ref_output.size(); ++i) {
         const float ref_v = static_cast<float>(ref_output[i]);
         const float effective_tol = use_relative ? std::max(tolerance, 0.5f * std::fabs(ref_v)) : tolerance;
@@ -641,6 +647,21 @@ INSTANTIATE_TEST_SUITE_P(
                                                             ov::op::internal::MOE::Activation_type::GEGLU_TANH},
                                          Moe3GemmTestParams{1, true, 256, 512, 4, 2, 256, false,
                                                             ov::op::internal::MOE::Activation_type::GEGLU_TANH})));
+
+// GeGLU-ERF: exact ERF-based Gelu gate activation.
+// Uses the A&S 7.1.26 fast-erf approximation in the kernel (same as swiglu_gpu_opt.cl).
+// Tolerance is lower than Tanh-Gelu because ERF lacks the cubic amplification of f16 noise.
+INSTANTIATE_TEST_SUITE_P(
+    smoke_gelu_erf,
+    moe_3gemm_compressed_gpu_random,
+    ::testing::Combine(::testing::Values(cldnn::MOE3GemmFusedCompressed::RoutingType::SOFTMAX,
+                                         cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS),
+                       ::testing::Values(Moe3GemmTestParams{1, true, 128, 256, 4, 2, 128, false,
+                                                            ov::op::internal::MOE::Activation_type::GEGLU_ERF},
+                                         Moe3GemmTestParams{1, false, 128, 256, 4, 2, 128, false,
+                                                            ov::op::internal::MOE::Activation_type::GEGLU_ERF},
+                                         Moe3GemmTestParams{1, true, 256, 512, 4, 2, 256, false,
+                                                            ov::op::internal::MOE::Activation_type::GEGLU_ERF})));
 
 class moe_3gemm_compressed_gpu_u4 : public ::testing::TestWithParam<cldnn::MOE3GemmFusedCompressed::RoutingType> {};
 
