@@ -66,7 +66,7 @@ std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> build_softmax_routing_subg
 
     if (use_per_expert_scale) {
         const auto elem_type = routing_weights.get_element_type();
-        auto pes_data = ov::test::utils::InputGenerateData(0.5, 1.5, 100, 42);
+        auto pes_data = ov::test::utils::InputGenerateData(0.5, 2, 100, 42);
         auto per_expert_scale_const = ov::test::utils::make_constant(elem_type, ov::Shape{number_of_experts}, pes_data);
         auto gather_axis = v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
         auto gathered_scales = std::make_shared<v8::Gather>(per_expert_scale_const, topk_idx, gather_axis);
