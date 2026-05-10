@@ -103,12 +103,6 @@ void process_longrope(const std::shared_ptr<ov::IAsyncInferRequest>& infer_req,
         longrope_input->data<int64_t>()[0] = max_pos_id;
     }
 }
-
-bool starts_with_past_lincache(const std::string& input_name) {
-    return ov::npuw::util::starts_with(input_name, LLMInferRequest::layer_names::past_lin_conv_cache) ||
-           ov::npuw::util::starts_with(input_name, LLMInferRequest::layer_names::past_lin_ssm_cache);
-}
-
 }  // anonymous namespace
 
 void ov::npuw::LLMInferRequest::init_lora_states() {
@@ -157,7 +151,7 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
                 m_kvcache_past_names.push_back(name);
                 break;
             }
-            if (starts_with_past_lincache(name)) {
+            if (ov::npuw::util::starts_with_past_lincache(name)) {
                 m_lincache_past_names.push_back(name);
                 break;
             }
@@ -304,11 +298,11 @@ void ov::npuw::LLMInferRequest::create_generate_request_variants(
         }
     }
 
-    std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> largest_past_lin_tensors;
+    std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> past_lin_tensors;
     for (const auto& input_port : largest_generate_request->get_compiled_model()->inputs()) {
         const auto& input_name = input_port.get_any_name();
-        if (starts_with_past_lincache(input_name)) {
-            largest_past_lin_tensors[input_name] = largest_generate_request->get_tensor(input_port);
+        if (ov::npuw::util::starts_with_past_lincache(input_name)) {
+            past_lin_tensors[input_name] = largest_generate_request->get_tensor(input_port);
         }
     }
 
@@ -340,10 +334,10 @@ void ov::npuw::LLMInferRequest::create_generate_request_variants(
                     } else {
                         OPENVINO_ASSERT(false, "Unexpected input name: ", input_name);
                     }
-                } else if (starts_with_past_lincache(input_name)) {
-                    if (largest_past_lin_tensors.find(input_name) != largest_past_lin_tensors.end()) {
-                        auto largest_tensor = largest_past_lin_tensors[input_name];
-                        generate_request->set_tensor(input_port, largest_tensor);
+                } else if (ov::npuw::util::starts_with_past_lincache(input_name)) {
+                    if (past_lin_tensors.find(input_name) != past_lin_tensors.end()) {
+                        auto lin_tensor = past_lin_tensors[input_name];
+                        generate_request->set_tensor(input_port, lin_tensor);
                     } else {
                         OPENVINO_ASSERT(false, "Unexpected input name: ", input_name);
                     }

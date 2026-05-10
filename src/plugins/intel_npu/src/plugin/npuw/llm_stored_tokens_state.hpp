@@ -27,7 +27,15 @@ public:
     }
 
     void set_state(const ov::SoPtr<ov::ITensor>&) override {
-        OPENVINO_ASSERT("StoredTokensState::set_state() should not be called!");
+        OPENVINO_THROW("StoredTokensState::set_state() should not be called!");
+    }
+
+    // Returns a copy of state to prevent external modfication.
+    ov::SoPtr<ov::ITensor> get_state() const override {
+        const auto* state_data = m_state->data<int64_t>();
+        auto result = ov::Tensor(ov::element::i64, ov::Shape{1});
+        result.data<int64_t>()[0] = state_data[0];
+        return ov::get_tensor_impl(result);
     }
 
 private:

@@ -192,6 +192,8 @@ bool matchLoRAMatMulAlphaString(const std::string& input);
 
 bool matchLinCacheString(const std::string& input, const std::string& past_or_present = "past");
 
+bool starts_with_past_lincache(const std::string& input_name);
+
 // Structure to hold SDPA pattern nodes
 struct SDPAPatternNodes {
     std::shared_ptr<ov::Node> matmul1_node = nullptr;

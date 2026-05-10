@@ -920,6 +920,12 @@ bool ov::npuw::util::matchLinCacheString(const std::string& input, const std::st
     return std::regex_match(input, regex_pattern);
 }
 
+bool ov::npuw::util::starts_with_past_lincache(const std::string& input_name) {
+    static constexpr const char* past_lin_conv_cache = "cache_params.past.conv";
+    static constexpr const char* past_lin_ssm_cache = "cache_params.past.ssm";
+    return ov::npuw::util::starts_with(input_name, past_lin_conv_cache) ||
+           ov::npuw::util::starts_with(input_name, past_lin_ssm_cache);
+}
 void ov::npuw::util::fill_tensor_bytes(ov::SoPtr<ov::ITensor> tensor, uint8_t fill_val) {
     auto* tensor_data = reinterpret_cast<uint8_t*>(tensor->data());
     const size_t byte_size = tensor->get_byte_size();

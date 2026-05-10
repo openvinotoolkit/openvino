@@ -64,9 +64,10 @@ public:
 
             // Note: Additional precaution for only KVCache parameters to match.
             //       As an example linear cache of GDN blocks can match pattern above too.
-            // Note 2: In Whisper model KVCache parameters names got badly handled by StatefulToStateless pass,
-            //         so their names are not standard. As rename goes after this transformation, we need to
-            //         ensure matching of these incorrect names as well to remove all empty KV inputs.
+            // Note 2: In Whisper model KVCache state names got badly handled by StatefulToStateless pass,
+            //         so their created parameters names are not standard. As Whisper rename goes after this
+            //         transformation, we need to ensure matching of these incorrect names as well
+            //         to remove all empty KV inputs.
             std::string param_name = matched_param->get_friendly_name();
             if (!ov::npuw::util::isPastKeyValuesKey(param_name) && !ov::npuw::util::isPastKeyValuesValue(param_name) &&
                 !ov::npuw::util::isRestoredPastKeyValueParam(param_name)) {

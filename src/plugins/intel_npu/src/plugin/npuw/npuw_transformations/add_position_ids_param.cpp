@@ -41,7 +41,9 @@ public:
         auto unsqueeze1_axes = opp::wrap_type<ov::op::v0::Constant>();
         auto unsqueeze1 = opp::wrap_type<ov::op::v0::Unsqueeze>({unsqueeze, unsqueeze1_axes});
 
-        auto convert = opp::optional<ov::op::v0::Convert>({unsqueeze1});
+        // FIXME: Convert probably needs to be made optional in future as in similar transformation from
+        // prepare_embedding_model.cpp
+        auto convert = opp::wrap_type<ov::op::v0::Convert>({unsqueeze1});
         auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), convert});
         auto transpose = opp::wrap_type<ov::op::v1::Transpose>({matmul, opp::any_input()});
 
