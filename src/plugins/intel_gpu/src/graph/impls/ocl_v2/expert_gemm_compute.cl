@@ -165,7 +165,7 @@ inline bool expert_gemm_compute(
                         float erf_g = 1.0f - (((((1.061405429f * t_g + (-1.453152027f)) * t_g + 1.421413741f) * t_g + (-0.284496736f)) * t_g + 0.254829592f)) * t_g * native_exp(-(z_g * z_g));
                         float swish = 0.5f * gate * (1.0f + ((gate >= 0.0f) ? erf_g : -erf_g));
 #elif defined(GATE_ACT_GELU_TANH)
-                        float swish = 0.5f * gate * (1.0f + tanh(0.7978845608028654f * (gate + 0.044715f * gate * gate * gate)));
+                        float swish = 0.5f * gate * (1.0f + (tanh(0.79788458347320556640625f * gate * (1.0f + 0.044715f * gate * gate))));
 #else
                         float swish = gate / (1.0f + native_exp(-SWISH_BETA * gate));
 #endif
@@ -227,7 +227,7 @@ inline bool expert_gemm_compute(
                         float erf_v = 1.0f - (((((1.061405429f * t_v + (-1.453152027f)) * t_v + 1.421413741f) * t_v + (-0.284496736f)) * t_v + 0.254829592f)) * t_v * native_exp(-(z_v * z_v));
                         float act = 0.5f * val * (1.0f + ((val >= 0.0f) ? erf_v : -erf_v));
 #elif defined(GATE_ACT_GELU_TANH)
-                        float act = 0.5f * val * (1.0f + tanh(0.7978845608028654f * (val + 0.044715f * val * val * val)));
+                        float act = 0.5f * val * (1.0f + (tanh(0.79788458347320556640625f * val * (1.0f + 0.044715f * val * val))));
 #else
                         float act = val / (1.0f + native_exp(-val));
 #endif

@@ -255,9 +255,7 @@ inline ACC_DTYPE moe_gate_activation(ACC_DTYPE x) {
 #if GATE_ACT_GELU_ERF
     return 0.5f * x * (1.0f + moe_fast_erf(x * 0.7071067811865475f));
 #elif GATE_ACT_GELU_TANH
-    ACC_DTYPE x3 = x * x * x;
-    ACC_DTYPE inner = GELU_TANH_SQRT_2_OVER_PI * (x + GELU_TANH_C * x3);
-    return 0.5f * x * (1.0f + tanh(inner));
+    return 0.5f * x * (1.0f + (tanh(0.79788458347320556640625f * x * (1.0f + 0.044715f * x * x))));
 #else
     // Swish (SwiGLU): x * sigmoid(beta * x)
     return x / (1.0f + native_exp(-SWISH_BETA * x));

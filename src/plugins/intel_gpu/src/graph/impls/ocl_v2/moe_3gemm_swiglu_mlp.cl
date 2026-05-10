@@ -51,7 +51,7 @@ inline float moe_mlp_fast_erf(float x) {
 }
 #    define MOE_GATE_ACT(x) (0.5f * (x) * (1.0f + moe_mlp_fast_erf((x) * 0.7071067811865475f)))
 #elif defined(GATE_ACT_GELU_TANH)
-#    define MOE_GATE_ACT(x) (0.5f * (x) * (1.0f + tanh(0.7978845608028654f * ((x) + 0.044715f * (x) * (x) * (x)))))
+#    define MOE_GATE_ACT(x) (0.5f * (x) * (1.0f + (tanh(0.79788458347320556640625f * (x) * (1.0f + 0.044715f * (x) * (x))))));
 #else
 #    define MOE_GATE_ACT(x) ((x) / (1.0f + exp(-(x))))
 #endif
