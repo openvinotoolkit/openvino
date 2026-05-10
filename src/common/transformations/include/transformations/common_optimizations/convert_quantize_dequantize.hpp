@@ -24,10 +24,11 @@ class TRANSFORMATIONS_API ConvertQuantizeDequantize;
  * @brief ConvertQuantizeDequantize transformation replaces following graph:
  * FakeQuantize->Convert->Convert->Subtract->Multiply with a single FakeQuantize.
  * Restrictions:
- * - quantized data type must be i8 or u8
- * - 'levels' attribute to FakeQuantize must be equal to 256
- * - (output_low, output_high) must be (-128, 127) or (0, 256) (depends on sign of quantized data type)
+ * - quantized data type must be i8, u8, i16, or u16
+ * - 'levels' attribute to FakeQuantize must be equal to 256 or 65536
+ * - (output_low, output_high) must match the quantized data type range
  * - 'zero_point' and 'scale' must be broadcastable to FakeQuantize's output
+ * - supports mixed precision: quantizer and dequantizer can use different floating-point types (e.g., fp32/fp16)
  */
 
 class ov::pass::ConvertQuantizeDequantize : public ov::pass::MatcherPass {
