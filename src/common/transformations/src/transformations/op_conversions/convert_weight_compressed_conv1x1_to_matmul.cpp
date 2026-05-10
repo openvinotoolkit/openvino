@@ -66,19 +66,6 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
     auto weight_input_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{weight_mult_m, weight_reshape_m});
     auto conv1x1_m = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>({a_m, weight_input_m});
 
-    // Optional bias
-    auto bias_const_m = wrap_type<ov::op::v0::Constant>(pattern::shape_matches("[1, ?, 1, 1]"));
-    auto bias_m = ov::pass::pattern::wrap_type<ov::op::v1::Add>({conv1x1_m, bias_const_m});
-    auto bias_out_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{conv1x1_m, bias_m});
-
-    auto convert_m = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({bias_out_m});
-    auto conv_out_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{bias_out_m, convert_m});
-
-    auto c_order_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto transpose_output_m = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({conv_out_m, c_order_m});
-    auto reshape_output_m = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({conv_out_m, c_order_m});
-    auto output_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{transpose_output_m, reshape_output_m});
-
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
@@ -92,17 +79,54 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
         auto weight_reshape = (pattern_map.count(weight_reshape_m) > 0)
                                   ? pattern_map.at(weight_reshape_m).get_node_shared_ptr()
                                   : nullptr;
-        auto bias_out = (pattern_map.count(bias_m) > 0) ? pattern_map.at(bias_m).get_node_shared_ptr() : nullptr;
-        auto bias_const =
-            (pattern_map.count(bias_const_m) > 0) ? pattern_map.at(bias_const_m).get_node_shared_ptr() : nullptr;
-        auto convert_out =
-            (pattern_map.count(convert_m) > 0) ? pattern_map.at(convert_m).get_node_shared_ptr() : nullptr;
-        auto out_order = (pattern_map.count(c_order_m) > 0) ? pattern_map.at(c_order_m).get_node_shared_ptr() : nullptr;
-        auto reshape_out = (pattern_map.count(reshape_output_m) > 0)
-                               ? pattern_map.at(reshape_output_m).get_node_shared_ptr()
-                               : nullptr;
         if (!conv1x1 || transformation_callback(conv1x1)) {
             return false;
+        }
+
+        // Dynamically detect optional bias, convert, and output transpose/reshape
+        // by walking consumers forward from conv1x1.
+        auto get_single_consumer = [](const std::shared_ptr<Node>& node) -> std::shared_ptr<Node> {
+            auto consumers = node->get_output_target_inputs(0);
+            return (consumers.size() == 1) ? consumers.begin()->get_node()->shared_from_this() : nullptr;
+        };
+
+        std::shared_ptr<Node> outermost = conv1x1;
+        std::shared_ptr<Node> bias_add = nullptr;
+        std::shared_ptr<ov::op::v0::Constant> bias_const = nullptr;
+        std::shared_ptr<Node> convert_out = nullptr;
+
+        // Walk through optional bias (Add with constant shaped [1, ?, 1, 1])
+        if (auto consumer = get_single_consumer(outermost)) {
+            if (ov::is_type<ov::op::v1::Add>(consumer)) {
+                for (size_t i = 0; i < consumer->get_input_size(); i++) {
+                    if (auto c = ov::as_type_ptr<ov::op::v0::Constant>(consumer->get_input_node_shared_ptr(i))) {
+                        auto s = c->get_shape();
+                        if (s.size() == 4 && s[0] == 1 && s[2] == 1 && s[3] == 1) {
+                            bias_add = consumer;
+                            bias_const = c;
+                            outermost = consumer;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        // Walk through optional Convert
+        if (auto consumer = get_single_consumer(outermost)) {
+            if (ov::is_type<ov::op::v0::Convert>(consumer)) {
+                convert_out = consumer;
+                outermost = consumer;
+            }
+        }
+        // Detect output transpose or reshape consumer
+        std::shared_ptr<ov::Node> consumer_transpose = nullptr;
+        std::shared_ptr<ov::Node> consumer_reshape = nullptr;
+        if (auto consumer = get_single_consumer(outermost)) {
+            if (ov::is_type<ov::op::v1::Transpose>(consumer)) {
+                consumer_transpose = consumer;
+            } else if (ov::is_type<ov::op::v1::Reshape>(consumer)) {
+                consumer_reshape = consumer;
+            }
         }
 
         auto weight = pattern_map.at(weights_m).get_node_shared_ptr();
@@ -253,8 +277,8 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
         auto matmul = std::make_shared<ov::op::v0::MatMul>(activation, scaled_weight, false, true);
         ov::copy_runtime_info(conv1x1, matmul);
         std::shared_ptr<Node> matmul_out;
-        if (bias_out) {
-            auto bias = ov::as_type_ptr<ov::op::v0::Constant>(bias_const);
+        if (bias_add) {
+            auto bias = bias_const;
             OPENVINO_ASSERT(bias != nullptr);
 
             ov::Shape bias_shape = bias->get_shape();
@@ -269,8 +293,8 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
             MatcherPass::register_new_node(Reshape_bias);
             Reshape_bias->set_friendly_name(bias->get_friendly_name() + "_Reshape_bias");
 
-            matmul_out = bias_out->clone_with_new_inputs({matmul, Reshape_bias});
-            ov::copy_runtime_info(bias_out, matmul_out);
+            matmul_out = bias_add->clone_with_new_inputs({matmul, Reshape_bias});
+            ov::copy_runtime_info(bias_add, matmul_out);
         } else {
             matmul_out = matmul;
         }
@@ -287,36 +311,39 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
             matmul_out = unsqueeze;
         }
 
-        if (reshape_out) {
-            if (convert_out) {
-                auto convert_final = convert_out->clone_with_new_inputs({matmul_out});
-                auto reshape_final = reshape_out->clone_with_new_inputs({convert_final, out_order});
-                reshape_final->set_friendly_name(m.get_match_root()->get_friendly_name());
-                ov::copy_runtime_info(convert_out, convert_final);
-                ov::copy_runtime_info(m.get_matched_nodes(), reshape_final);
-                ov::replace_node(m.get_match_root(), reshape_final);
-            } else {
-                auto reshape_final = reshape_out->clone_with_new_inputs({matmul_out, out_order});
-                reshape_final->set_friendly_name(m.get_match_root()->get_friendly_name());
-                ov::copy_runtime_info(m.get_matched_nodes(), reshape_final);
-                ov::replace_node(m.get_match_root(), reshape_final);
-            }
+        // Build final output, optionally wrapping in Convert
+        std::shared_ptr<Node> final_out = matmul_out;
+        if (convert_out) {
+            auto convert_final = convert_out->clone_with_new_inputs({matmul_out});
+            ov::copy_runtime_info(convert_out, convert_final);
+            final_out = convert_final;
+        }
+
+        if (consumer_transpose) {
+            // Transpose consumer found - absorb it, matmul replaces conv+transpose
+            final_out->set_friendly_name(consumer_transpose->get_friendly_name());
+            ov::copy_runtime_info(m.get_matched_nodes(), final_out);
+            ov::replace_node(consumer_transpose, final_out);
+        } else if (consumer_reshape) {
+            // Reshape consumer found - clone reshape with matmul output
+            auto reshape_order = consumer_reshape->get_input_node_shared_ptr(1);
+            auto reshape_final = consumer_reshape->clone_with_new_inputs({final_out, reshape_order});
+            reshape_final->set_friendly_name(consumer_reshape->get_friendly_name());
+            ov::copy_runtime_info(m.get_matched_nodes(), reshape_final);
+            ov::replace_node(consumer_reshape, reshape_final);
         } else {
-            if (convert_out) {
-                auto convert_final = convert_out->clone_with_new_inputs({matmul_out});
-                convert_final->set_friendly_name(m.get_match_root()->get_friendly_name());
-                ov::copy_runtime_info(m.get_matched_nodes(), convert_final);
-                ov::replace_node(m.get_match_root(), convert_final);
-            } else {
-                matmul_out->set_friendly_name(m.get_match_root()->get_friendly_name());
-                ov::copy_runtime_info(m.get_matched_nodes(), matmul_out);
-                ov::replace_node(m.get_match_root(), matmul_out);
-            }
+            // No transpose or reshape consumer - add NHWC->NCHW transpose
+            auto nhwc_to_nchw_order = std::make_shared<ov::op::v0::Constant>(
+                ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 3, 1, 2});
+            auto transpose_to_nchw = std::make_shared<ov::op::v1::Transpose>(final_out, nhwc_to_nchw_order);
+            transpose_to_nchw->set_friendly_name(outermost->get_friendly_name());
+            ov::copy_runtime_info(m.get_matched_nodes(), transpose_to_nchw);
+            ov::replace_node(outermost, transpose_to_nchw);
         }
 
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(output_m, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(conv1x1_m, matcher_name);
     this->register_matcher(m, callback);
 }
