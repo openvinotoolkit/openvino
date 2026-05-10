@@ -3520,6 +3520,13 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gather_int8_3D_axis_neg_1) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gather_oob_constant_index) {
+    EXPECT_THROW(convert_model("gather_oob_constant_index.onnx"), ov::Exception)
+        << "ONNX Gather should reject out-of-bounds constant indices at import time "
+           "instead of silently lowering to v8::Gather, which zero-fills OOB slots. "
+           "See https://github.com/openvinotoolkit/openvino/issues/35687";
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gather_float_2D_neg_indices) {
     const auto model = convert_model("gather_float_2D_axis_1.onnx");
     auto test_case = ov::test::TestCase(model, s_device);
