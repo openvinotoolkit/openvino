@@ -70,7 +70,8 @@ OPENVINO_API EnumNames<ov::op::internal::MOE::Expert_type>& EnumNames<ov::op::in
 }
 
 template <>
-OPENVINO_API EnumNames<ov::op::internal::MOE::Activation_type>& EnumNames<ov::op::internal::MOE::Activation_type>::get() {
+OPENVINO_API EnumNames<ov::op::internal::MOE::Activation_type>&
+EnumNames<ov::op::internal::MOE::Activation_type>::get() {
     static auto enum_names = EnumNames<ov::op::internal::MOE::Activation_type>(
         "ov::op::internal::MOE::Activation_type",
         {

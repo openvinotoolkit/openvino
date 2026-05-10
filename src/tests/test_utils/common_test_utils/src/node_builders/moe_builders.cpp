@@ -44,11 +44,11 @@
 namespace ov {
 namespace test {
 
-std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>>
-build_softmax_routing_subgraph(const ov::Output<ov::Node>& routing_weights,
-                               size_t number_of_experts,
-                               size_t topk,
-                               bool use_per_expert_scale) {
+std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> build_softmax_routing_subgraph(
+    const ov::Output<ov::Node>& routing_weights,
+    size_t number_of_experts,
+    size_t topk,
+    bool use_per_expert_scale) {
     using namespace ov::op;
 
     auto router_softmax = std::make_shared<v8::Softmax>(routing_weights, 1);
@@ -67,8 +67,7 @@ build_softmax_routing_subgraph(const ov::Output<ov::Node>& routing_weights,
     if (use_per_expert_scale) {
         const auto elem_type = routing_weights.get_element_type();
         auto pes_data = ov::test::utils::InputGenerateData(0.5, 1.5, 100, 42);
-        auto per_expert_scale_const =
-            ov::test::utils::make_constant(elem_type, ov::Shape{number_of_experts}, pes_data);
+        auto per_expert_scale_const = ov::test::utils::make_constant(elem_type, ov::Shape{number_of_experts}, pes_data);
         auto gather_axis = v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
         auto gathered_scales = std::make_shared<v8::Gather>(per_expert_scale_const, topk_idx, gather_axis);
         scatter_w = std::make_shared<v1::Multiply>(scatter_w, gathered_scales);

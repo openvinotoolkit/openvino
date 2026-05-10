@@ -39,11 +39,11 @@ enum class MoEActivationType {
 ///   routing_weights -> Softmax -> TopK -> ReduceSum -> Divide (norm)
 ///   [-> Multiply(norm, Gather(per_expert_scale, topk_idx))  when use_per_expert_scale=true]
 ///   -> ScatterElementsUpdate -> Transpose -> Reshape -> Unsqueeze
-std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>>
-build_softmax_routing_subgraph(const ov::Output<ov::Node>& routing_weights,
-                               size_t number_of_experts,
-                               size_t topk,
-                               bool use_per_expert_scale = false);
+std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> build_softmax_routing_subgraph(
+    const ov::Output<ov::Node>& routing_weights,
+    size_t number_of_experts,
+    size_t topk,
+    bool use_per_expert_scale = false);
 
 /// Sigmoid+bias branch:
 ///   routing_weights -> Sigmoid -> Add(bias) -> TopK -> Convert(i32)
