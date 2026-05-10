@@ -43,8 +43,9 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
     auto reshape_activations_m =
         ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({first_input_m, a_order_m},
                                                           pattern::shape_matches("[?, hidden_in, 1, 1]"));
+    auto direct_activation_m = ov::pass::pattern::any_input();
     auto a_m =
-        std::make_shared<ov::pass::pattern::op::Or>(OutputVector{transpose_activations_m, reshape_activations_m});
+        std::make_shared<ov::pass::pattern::op::Or>(OutputVector{transpose_activations_m, reshape_activations_m, direct_activation_m});
 
     auto weights_const_m = wrap_type<ov::op::v0::Constant>(pattern::shape_matches("[?, ?, 1, 1]") ||
                                                            pattern::shape_matches("[?, ?, ?, 1, 1]"));
@@ -132,7 +133,17 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
         auto weight = pattern_map.at(weights_m).get_node_shared_ptr();
         auto scale = pattern_map.at(weights_scales_m).get_node_shared_ptr();
         auto zp = (pattern_map.count(weights_zp_m) > 0) ? pattern_map.at(weights_zp_m).get_node_shared_ptr() : nullptr;
-        auto activation = pattern_map.at(first_input_m).get_node_shared_ptr();
+
+        // Determine activation source based on which pattern branch matched
+        std::shared_ptr<Node> activation;
+        bool has_input_transpose = pattern_map.count(transpose_activations_m) > 0;
+        bool has_input_reshape = pattern_map.count(reshape_activations_m) > 0;
+        if (has_input_transpose || has_input_reshape) {
+            activation = pattern_map.at(first_input_m).get_node_shared_ptr();
+        } else {
+            // Direct activation (no transpose/reshape) - use the conv's input directly
+            activation = pattern_map.at(direct_activation_m).get_node_shared_ptr();
+        }
 
         auto reshape_const_to_2d = [](std::shared_ptr<ov::Node> node) {
             auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
@@ -242,7 +253,7 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
         //    direct use it in matmul.
         // 2. reshape from [..., num_head, head_dim]
         //    can't use it directly, need reshape it to [..., hidden_in], then use in matmul.
-        if (pattern_map.count(reshape_activations_m)) {
+        if (has_input_reshape) {
             auto reshape_activations = pattern_map.at(reshape_activations_m).get_node_shared_ptr();
             auto shape_in = reshape_activations->get_input_partial_shape(0);
             auto shape_out = reshape_activations->get_output_partial_shape(0);
@@ -255,6 +266,15 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
                 ov::copy_runtime_info(reshape_activations, reshape_activations_new);
                 activation = reshape_activations_new;
             }
+        } else if (!has_input_transpose && !has_input_reshape) {
+            // No transpose or reshape on activation input - activation is in NCHW [N, C, H, W].
+            // Insert NCHW->NHWC transpose [0, 2, 3, 1] so matmul gets [..., C] as last dim.
+            auto nchw_to_nhwc_order = std::make_shared<ov::op::v0::Constant>(
+                ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 2, 3, 1});
+            auto transpose_input = std::make_shared<ov::op::v1::Transpose>(activation, nchw_to_nhwc_order);
+            transpose_input->set_friendly_name(activation->get_friendly_name() + "_nchw_to_nhwc");
+            ov::copy_runtime_info(conv1x1, transpose_input);
+            activation = transpose_input;
         }
 
         // If the activation has a static leading dimension of 1, squeeze it.
