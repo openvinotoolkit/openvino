@@ -1725,6 +1725,7 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
         // enable_strides_for), so strided I/O only applies to the explicitly compiled models.
         bool support_strides_for = false;
         std::string npu_device_str;
+        std::string saved_strides;
         for (const auto& device : devices) {
             if (ov::npuw::util::starts_with(device, "NPU") && models_to_compile > 0 &&
                 !pyramid_attn->_attention_infos.empty()) {
@@ -1738,18 +1739,18 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
                     pyramid_attn->_can_use_tensor_view = true;
                     const auto& first_model = pyramid_attn_models[0];
                     const auto& first_info = pyramid_attn->_attention_infos[0];
-                    std::string strided_inputs_name;
-                    for (const auto& param : first_info.params) {
-                        if (!strided_inputs_name.empty()) {
-                            strided_inputs_name += ",";
-                        }
-                        strided_inputs_name += first_model->inputs()[param.idx].get_any_name();
-                    }
-                    // WARNING: THIS WILL OVERRIDE THE USER-PASSED CONFIG!
                     npu_device_str = device;
-                    m_meta_devices[npu_device_str][ov::intel_npu::enable_strides_for.name()] = strided_inputs_name;
+                    const auto& strides_key = ov::intel_npu::enable_strides_for.name();
+                    saved_strides = ov::npuw::util::at::_(m_meta_devices[npu_device_str]).at_or(strides_key, std::string{});
+                    auto& strided_inputs = m_meta_devices[npu_device_str][strides_key];
+                    for (const auto& param : first_info.params) {
+                        if (!strided_inputs.empty()) {
+                            strided_inputs += ",";
+                        }
+                        strided_inputs += first_model->inputs()[param.idx].get_any_name();
+                    }
                     LOG_INFO("Enabled using tensor view for device: " << device << " for pyramid inputs: "
-                                                                      << strided_inputs_name);
+                                                                      << strided_inputs);
                 } // if(support_strides_for)
             }  // if(npu)
         }  // for(devices)
@@ -1776,9 +1777,12 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
         LOG_INFO("Pyramid attention compilation complete for Subgraph[" << id << "]");
 
         if (support_strides_for && !npu_device_str.empty()) {
-            // WARNING: Will erase the user-config too
-            // Clear enable_strides_for so it doesn't affect unrelated compilations on this device.
-            m_meta_devices[npu_device_str].erase(ov::intel_npu::enable_strides_for.name());
+            const auto& strides_key = ov::intel_npu::enable_strides_for.name();
+            if (saved_strides.empty()) {
+                m_meta_devices[npu_device_str].erase(strides_key);
+            } else {
+                m_meta_devices[npu_device_str][strides_key] = saved_strides;
+            }
         }
     }  // if (pyramid_attn)
 
@@ -1791,6 +1795,7 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
         } else {
             bool supports_strides_for = false;
             std::string npu_device_str;
+            std::string saved_strides;
             for (const auto& device : devices) {
                 if (!ov::npuw::util::starts_with(device, "NPU")) {
                     continue;
@@ -1798,7 +1803,7 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
 
                 const auto supported_properties =
                     get_npuw_plugin()->get_core()->get_property(device, ov::supported_properties);
-                const auto support_strides_for =
+                const bool support_strides_for =
                     std::find(supported_properties.begin(),
                               supported_properties.end(),
                               ov::intel_npu::enable_strides_for.name()) != supported_properties.end();
@@ -1807,12 +1812,17 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
                 }
 
                 hfa->_can_use_tensor_view = true;
-                auto strided_inputs_name = std::string(hfa_tile_input_id_to_string(HFATileInputId::K_TILE)) + "," +
-                                           std::string(hfa_tile_input_id_to_string(HFATileInputId::V_TILE));
-                // WARNING: THIS WILL OVERRIDE THE USER-PASSED CONFIG!
                 npu_device_str = device;
-                m_meta_devices[device][ov::intel_npu::enable_strides_for.name()] = strided_inputs_name;
-                LOG_INFO("Enabled using tensor view for device: " << device << " for inputs: " << strided_inputs_name);
+                const auto& strides_key = ov::intel_npu::enable_strides_for.name();
+                saved_strides = ov::npuw::util::at::_(m_meta_devices[device]).at_or(strides_key, std::string{});
+                auto& strided_inputs = m_meta_devices[device][strides_key];
+                if (!strided_inputs.empty()) {
+                    strided_inputs += ",";
+                }
+                strided_inputs += std::string(hfa_tile_input_id_to_string(HFATileInputId::K_TILE)) + "," +
+                                  std::string(hfa_tile_input_id_to_string(HFATileInputId::V_TILE));
+                supports_strides_for = true;
+                LOG_INFO("Enabled using tensor view for device: " << device << " for inputs: " << strided_inputs);
             }
 
             hfa->set_compiled_tile_model(make_wrapped(hfa->_tile_model_to_compile, "/hfa_tile", devices));
@@ -1820,9 +1830,12 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
             LOG_INFO("Host flash attention compilation complete for Subgraph[" << id << "]");
 
             if (supports_strides_for && !npu_device_str.empty()) {
-                // WARNING: Will erase the user-config too
-                // Clear enable_strides_for so it doesn't affect unrelated compilations on this device.
-                m_meta_devices[npu_device_str].erase(ov::intel_npu::enable_strides_for.name());
+                const auto& strides_key = ov::intel_npu::enable_strides_for.name();
+                if (saved_strides.empty()) {
+                    m_meta_devices[npu_device_str].erase(strides_key);
+                } else {
+                    m_meta_devices[npu_device_str][strides_key] = saved_strides;
+                }
             }
         }
     } //  if (hfa)
