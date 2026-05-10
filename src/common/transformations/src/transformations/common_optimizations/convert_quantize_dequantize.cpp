@@ -165,25 +165,33 @@ ConvertQuantizeDequantize::ConvertQuantizeDequantize(const ov::element::TypeVect
 
         // Get the element type of the FakeQuantize output bounds (typically f32)
         const auto& fq_output_type = output_low->get_element_type();
+        const auto& scale_type = scale.get_element_type();
 
+        // Perform arithmetic in FP32 to avoid overflow (e.g., 65535 overflows FP16 max ~65504),
+        // then convert the final result to the scale's precision to preserve dequantizer precision info.
         const bool has_zero_point = pattern_map.count(zero_point_pattern);
         std::shared_ptr<Node> new_out_low = output_low, new_out_high = output_high;
         if (has_zero_point) {
             auto zero_point = pattern_map.at(zero_point_pattern);
-            // Convert zero_point to match FakeQuantize constants' precision if needed
+            // Ensure zero_point is in FP32 for safe arithmetic
             if (zero_point.get_element_type() != fq_output_type) {
                 zero_point = std::make_shared<v0::Convert>(zero_point, fq_output_type);
             }
             new_out_low = std::make_shared<v1::Subtract>(new_out_low, zero_point);
             new_out_high = std::make_shared<v1::Subtract>(new_out_high, zero_point);
         }
-        // Convert scale to match FakeQuantize constants' precision if needed
-        auto scale_converted = scale;
-        if (scale.get_element_type() != fq_output_type) {
-            scale_converted = std::make_shared<v0::Convert>(scale, fq_output_type);
+        // Ensure scale is in FP32 for safe multiplication
+        auto scale_fp32 = scale;
+        if (scale_type != fq_output_type) {
+            scale_fp32 = std::make_shared<v0::Convert>(scale, fq_output_type);
         }
-        new_out_low = std::make_shared<v1::Multiply>(new_out_low, scale_converted);
-        new_out_high = std::make_shared<v1::Multiply>(new_out_high, scale_converted);
+        new_out_low = std::make_shared<v1::Multiply>(new_out_low, scale_fp32);
+        new_out_high = std::make_shared<v1::Multiply>(new_out_high, scale_fp32);
+        // Convert the result to scale's original precision to preserve dequantizer precision info
+        if (scale_type != fq_output_type) {
+            new_out_low = std::make_shared<v0::Convert>(new_out_low, scale_type);
+            new_out_high = std::make_shared<v0::Convert>(new_out_high, scale_type);
+        }
 
         // check if new_out_low/high shapes are broadcastable to FQ's input
         auto data_shape = data.get_partial_shape();
@@ -205,10 +213,23 @@ ConvertQuantizeDequantize::ConvertQuantizeDequantize(const ov::element::TypeVect
 
         auto new_fq =
             std::make_shared<v0::FakeQuantize>(data, input_low, input_high, new_out_low, new_out_high, levels);
-        new_fq->set_friendly_name(mul->get_friendly_name());
 
-        copy_runtime_info({fq, convert1.get_node_shared_ptr(), convert2.get_node_shared_ptr()}, new_fq);
-        replace_node(mul, new_fq);
+        // Preserve the output precision of the dequantizer (e.g., fp16)
+        std::shared_ptr<Node> final_output = new_fq;
+        const auto& mul_output_type = mul->get_output_element_type(0);
+        if (mul_output_type != new_fq->get_output_element_type(0)) {
+            // Convert FakeQuantize output to match the original dequantizer output type
+            auto convert_output = std::make_shared<v0::Convert>(new_fq, mul_output_type);
+            convert_output->set_friendly_name(mul->get_friendly_name());
+            copy_runtime_info({fq, convert1.get_node_shared_ptr(), convert2.get_node_shared_ptr()},
+                             {new_fq, convert_output});
+            final_output = convert_output;
+        } else {
+            new_fq->set_friendly_name(mul->get_friendly_name());
+            copy_runtime_info({fq, convert1.get_node_shared_ptr(), convert2.get_node_shared_ptr()}, new_fq);
+        }
+
+        replace_node(mul, final_output);
 
         return true;
     };
