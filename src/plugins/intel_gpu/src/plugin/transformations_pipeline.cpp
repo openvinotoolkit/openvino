@@ -557,16 +557,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 std::vector<ov::element::Type>{ov::element::f32, ov::element::f16},
                 std::vector<ov::element::Type>{ov::element::u4, ov::element::i4,
                                                ov::element::i8, ov::element::u8});
-            manager.register_pass<ov::pass::Serialize>("after_gmm_op.xml", "");
 
             if (!disable_moe_opt) {
                 // PA models flatten batch into seq.
                 const bool has_batch_dim = !is_pa;
                 manager.register_pass<ov::pass::MoeOpFusion>(has_batch_dim);
                 manager.register_pass<ov::intel_gpu::FuseMOESharedExpert>();
-                manager.register_pass<ov::pass::Serialize>("after_moe_op.xml", "");
                 manager.register_pass<ov::intel_gpu::FuseMOE3GemmCompressed>();
-                manager.register_pass<ov::pass::Serialize>("after_all.xml", "");
             }
         }
         manager.register_pass<ov::pass::GatedDeltaNetFusion>();

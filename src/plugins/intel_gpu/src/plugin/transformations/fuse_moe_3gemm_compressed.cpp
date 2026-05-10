@@ -203,7 +203,7 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
             args.push_back(pattern_map.at(shared_gate_gate_wei_m));
         }
 
-        // WA: per_expert_scale[N] scale on routing subgraph are folded into w2_scale[N,...]
+        // WA: per_expert_scale[N] scale on routing subgraph is folded into w2_scale[N,...]
         if (pattern_map.count(sm_per_expert_scale_const)) {
             const auto per_expert_const = ov::as_type_ptr<ov::op::v0::Constant>(
                 pattern_map.at(sm_per_expert_scale_const).get_node_shared_ptr());
@@ -219,11 +219,11 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
             if (per_expert_const->get_element_type() != w2_scale_const->get_element_type()) {
                 per_expert_for_mul = std::make_shared<ov::op::v0::Convert>(
                     per_expert_const, w2_scale_const->get_element_type());
-                ov::copy_runtime_info(args[9].get_node_shared_ptr(), per_expert_for_mul.get_node_shared_ptr());
             }
             auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(per_expert_for_mul, axes_const);
             auto scaled_w2 = std::make_shared<ov::op::v1::Multiply>(w2_scale_const, unsqueeze);
             auto folded = ov::util::get_constant_from_source(scaled_w2->output(0));
+            ov::copy_runtime_info(args[9].get_node_shared_ptr(), folded);
             OPENVINO_ASSERT(folded, "FuseMOE3GemmCompressed: failed to constant-fold per-expert scale into w2_scale");
             args[9] = folded;
         }

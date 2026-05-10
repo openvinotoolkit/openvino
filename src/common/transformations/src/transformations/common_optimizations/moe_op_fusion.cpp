@@ -118,15 +118,15 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool ha
         // Extract expert_beta and detect activation type from the matched gate activation node.
         float expert_beta = 1.0f;
         ov::op::internal::MOE::Activation_type activation_type = ov::op::internal::MOE::Activation_type::SWIGLU;
-        auto swish_node = pm.at(swish_m).get_node_shared_ptr();
+        auto activation_node = pm.at(swish_m).get_node_shared_ptr();
 
-        if (auto swish_op = ov::as_type_ptr<v4::Swish>(swish_node)) {
+        if (auto swish_op = ov::as_type_ptr<v4::Swish>(activation_node)) {
             if (swish_op->get_input_size() > 1) {
                 if (auto beta_const = ov::as_type_ptr<v0::Constant>(swish_op->get_input_node_shared_ptr(1))) {
                     expert_beta = beta_const->cast_vector<float>()[0];
                 }
             }
-        } else if (auto gelu_op = ov::as_type_ptr<v7::Gelu>(swish_node)) {
+        } else if (auto gelu_op = ov::as_type_ptr<v7::Gelu>(activation_node)) {
             if (gelu_op->get_approximation_mode() == ov::op::GeluApproximationMode::TANH) {
                 activation_type = ov::op::internal::MOE::Activation_type::GEGLU_TANH;
             } else if (gelu_op->get_approximation_mode() == ov::op::GeluApproximationMode::ERF) {
@@ -135,7 +135,7 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool ha
                 return false;
             }
         } else {
-            OPENVINO_THROW("Unexpected node type matched for gate activation: ", *swish_node);
+            OPENVINO_THROW("Unexpected node type matched for gate activation: ", activation_node);
         }
 
         std::shared_ptr<ov::Node> moe_node;
