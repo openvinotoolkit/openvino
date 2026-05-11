@@ -107,18 +107,7 @@ if(NOT Vulkan_FOUND AND NOT WIN32)
            OR CMAKE_C_COMPILER_ID STREQUAL "AppleClang"
            OR CMAKE_C_COMPILER_ID STREQUAL "IntelLLVM")
             string(APPEND CMAKE_C_FLAGS " -Wno-missing-declarations -Wno-undef -Wno-typedef-redefinition")
-        elseif(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
-            # MSVC has no direct equivalent of -Wno-missing-declarations.
-            # Lower warning level and silence specific warnings so the fetched
-            # Vulkan-Loader/cJSON sources do not break a /WX build:
-            #   C4005 - 'NOMINMAX': macro redefinition (NOMINMAX is defined
-            #           globally by the GPU plugin and again by vk_sdk_platform.h)
-            #   C4668 - '<id>' is not defined as a preprocessor macro
-            # Use specific /wdNNNN flags rather than only /W0 because Vulkan-Loader's
-            # own CMake re-adds /W4, which would otherwise override /W0 (D9025).
-            string(APPEND CMAKE_C_FLAGS " /W0 /wd4005 /wd4668")
         endif()
-        
         FetchContent_Declare(
             ov_vk_loader
             GIT_REPOSITORY https://github.com/KhronosGroup/Vulkan-Loader.git
@@ -140,12 +129,6 @@ if(NOT Vulkan_FOUND AND NOT WIN32)
         unset(VULKAN_HEADERS_ENABLE_INSTALL CACHE)
 
         if(TARGET vulkan)
-            # Vulkan-Loader's vulkan-1.def hard-codes /OUT:vulkan-1.dll, but CMake
-            # appends CMAKE_DEBUG_POSTFIX (e.g. 'd') in Debug, producing vulkan-1d.dll.
-            # The mismatch raises LNK4070, which becomes a hard error under /WX.
-            if(MSVC)
-                target_link_options(vulkan PRIVATE /IGNORE:4070)
-            endif()
             if(NOT TARGET Vulkan::Vulkan)
                 add_library(Vulkan::Vulkan ALIAS vulkan)
             endif()
@@ -174,14 +157,12 @@ if(NOT Vulkan_FOUND AND NOT WIN32)
             if(_ov_vk_lib_location)
                 install(FILES "${_ov_vk_lib_location}"
                         DESTINATION runtime/3rdparty/vulkan/lib
-                        COMPONENT tests
-                        EXCLUDE_FROM_ALL)
+                        COMPONENT tests)
             endif()
         else()
             install(FILES "$<TARGET_FILE:Vulkan::Vulkan>"
                     DESTINATION runtime/3rdparty/vulkan/lib
-                    COMPONENT tests
-                    EXCLUDE_FROM_ALL)
+                    COMPONENT tests)
         endif()
     endif()
 endif()

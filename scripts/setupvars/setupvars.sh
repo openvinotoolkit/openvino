@@ -80,8 +80,15 @@ if [ -e "$INSTALLDIR/runtime" ]; then
         fi
     fi
 
-    if [ -d "$INSTALLDIR/lib" ]; then
+    vk_lib_path=""
+    if [ -d "$INSTALLDIR/runtime/3rdparty/vulkan/lib" ]; then
+        vk_lib_path=$INSTALLDIR/runtime/3rdparty/vulkan/lib
+    elif [ -d "$INSTALLDIR/lib" ]; then
+        # Backward compatibility for older package layout.
         vk_lib_path=$INSTALLDIR/lib
+    fi
+
+    if [ -n "$vk_lib_path" ]; then
         vk_has_libvulkan_so=""
         vk_has_libvulkan_so_1=""
 
@@ -100,8 +107,6 @@ if [ -e "$INSTALLDIR/runtime" ]; then
         unset vk_lib_path
         unset vk_has_libvulkan_so
         unset vk_has_libvulkan_so_1
-    else
-        echo "[setupvars.sh] WARNING: Vulkan loader directory is not detected. Please, ensure OpenVINO is built/packaged with Vulkan loader and add it to LD_LIBRARY_PATH"
     fi
 
     unset system_type
