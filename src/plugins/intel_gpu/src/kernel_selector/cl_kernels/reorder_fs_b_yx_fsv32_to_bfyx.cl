@@ -23,7 +23,11 @@ KERNEL (reorder_fs_b_yx_fsv32_to_bfyx)(
 
     __attribute__((opencl_unroll_hint(X_BLOCK_SIZE)))
     for (int i = 0; i < X_BLOCK_SIZE; i++) {
-        in_data[sglid * X_BLOCK_SIZE + i] = input[in_idx + (i * FSV) + sglid];
+                const bool valid_f = f < INPUT0_FEATURE_NUM;
+                const bool valid_x = x + i < INPUT0_SIZE_X;
+                in_data[sglid * X_BLOCK_SIZE + i] = (valid_f && valid_x)
+                        ? input[in_idx + (i * FSV) + sglid]
+                        : (CALC_TYPE)0;
     }
 
     __attribute__((opencl_unroll_hint(X_BLOCK_SIZE)))
