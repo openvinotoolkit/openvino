@@ -549,7 +549,7 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, Arch4000AddsOptimizationLevelAndSetsN
     }
 }
 
-TEST_F(LLMCompiledModelFactoryOptionsTest, ArchAtLeast6000UsesLatencyCompilationHintAndSkipsNpuTiles) {
+TEST_F(LLMCompiledModelFactoryOptionsTest, ArchAtLeast6000UsesDefaultConfig) {
     m_plugin = std::make_shared<ArchAwarePlugin>("7000", 8);
     const auto core = attach_mock_core_with_npu_device(m_plugin);
 
@@ -567,7 +567,7 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, ArchAtLeast6000UsesLatencyCompilation
         expect_missing_prop(call->props, "NPU_TILES");
         expect_prop(call->props,
                     "NPU_COMPILATION_MODE_PARAMS",
-                    "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm performance-hint-override=latency");
+                    "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm");
     }
 }
 
