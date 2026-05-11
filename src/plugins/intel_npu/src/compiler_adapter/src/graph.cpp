@@ -165,6 +165,14 @@ void Graph::set_argument_value_with_strides(uint32_t id, const void* data, const
     _zeGraphExt->setGraphArgumentValueWithStrides(_graphDesc, id, data, strides);
 }
 
+bool Graph::supports_sequential_inference() const {
+    if (_zeroInitStruct == nullptr) {
+        return false;
+    }
+
+    return _zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1);
+}
+
 void Graph::initialize_impl(const FilteredConfig& config) {
     _logger.debug("Graph initialize start");
 
@@ -180,20 +188,22 @@ void Graph::initialize_impl(const FilteredConfig& config) {
             commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
         }
     }
-    if (_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1) &&
-        config.has<RUN_INFERENCES_SEQUENTIALLY>() && config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+    if (supports_sequential_inference() &&
+        (config.get<RUN_INFERENCES_SEQUENTIALLY>() || config.get<EXCLUSIVE_ASYNC_REQUESTS>())) {
         _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC in command queue options");
         commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
     }
 
     {
         std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
+        const bool sharedCommonQueue = config.get<SHARED_COMMON_QUEUE>();
         _commandQueueDesc = CommandQueueDesc{
             zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
             config.has<WORKLOAD_TYPE>() ? zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>()) : std::nullopt,
             commandQueueOptions,
-            this,
-            config.get<SHARED_COMMON_QUEUE>(),
+            supports_sequential_inference() && config.get<EXCLUSIVE_ASYNC_REQUESTS>() && sharedCommonQueue ? nullptr
+                                                                                                           : this,
+            sharedCommonQueue,
         };
     }
 
@@ -209,8 +219,7 @@ void Graph::initialize_impl(const FilteredConfig& config) {
         _batchSize = determine_batch_size();
     }
 
-    if (_zeroInitStruct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
-        config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+    if (!supports_sequential_inference() && config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
         auto numberOfCommandLists = _batchSize.has_value() ? *_batchSize : 1;
 
         _lastSubmittedEvent.resize(numberOfCommandLists);

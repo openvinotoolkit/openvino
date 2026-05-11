@@ -186,7 +186,6 @@ Example:
     <skip_config>
         <message>TensorIterator layer is not supported</message>
         <filters>
-            <filter>.*ReturnResultNotReadyFromWaitInAsyncModeForTooSmallTimeout.*</filter>
             <filter>.*OVInferRequestDynamicTests.*</filter>
             <filter>.*OVInferenceChaining.*</filter>
         </filters>
@@ -397,17 +396,6 @@ Example:
             <filter>.*IEClassGetMetricAndPrintNoThrow.*</filter>
             <filter>.*CompileModelLoadFromFileTestBase.*</filter>
             <filter>.*CorrectConfigTests.*</filter>
-        </filters>
-    </skip_config>
-
-    <!-- E#85493 -->
-    <skip_config>
-        <message>Runs only on NPU3720 with Level Zero enabled #85493</message>
-        <enable_rules>
-            <device>!3720</device>
-        </enable_rules>
-        <filters>
-            <filter>.*InferRequestRunTests.MultipleExecutorStreamsTestsSyncInfers.*</filter>
         </filters>
     </skip_config>
 
@@ -914,6 +902,18 @@ Example:
             <filter>.*OVPropertiesDefaultSupportedTests.CanSetDefaultValueBackToPlugin.*</filter>
             <filter>.*OVClassCompiledModelGetConfigTest.GetConfigNoThrow.*</filter>
             <filter>.*OVSpecificDeviceGetConfigTest.GetConfigSpecificDeviceNoThrow.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>For PV driver streamExecutorNumber is different and NPU_TILES is not supported</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+            <driver_version>1688</driver_version>
+        </enable_rules>
+        <filters>
+            <filter>.*InferRequestPropertiesTest.canSetExclusiveAsyncRequests.*</filter>
+            <filter>.*ExecutorsConfig.SetExclusiveAsyncRequestsAndTilesCheckResults.*</filter>
         </filters>
     </skip_config>
 
