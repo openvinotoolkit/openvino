@@ -534,8 +534,10 @@ void* gpu_usm::lock(const stream& stream, mem_lock_type type) {
             _copy_back_to_device = true;
         }
         // If the nested lock needs to read but the host buffer was not populated
-        // from device (initial lock was write-only), copy device data now
-        if (type != mem_lock_type::write && !_host_buffer_has_device_data) {
+        // from device (initial lock was write-only), copy device data now.
+        // Skip the copy if we already plan to write back — the host buffer may
+        // contain modifications that would be clobbered by a device→host copy.
+        if (type != mem_lock_type::write && !_host_buffer_has_device_data && !_copy_back_to_device) {
             auto& cl_stream = downcast<const ocl_stream>(stream);
             try {
                 cl_stream.get_usm_helper().enqueue_memcpy(cl_stream.get_cl_queue(), _host_buffer.get(), _buffer.get(), _bytes_count, CL_TRUE);

@@ -155,7 +155,7 @@ TEST(lru_cache, collisions) {
     program_wrapper::add_connection(prog, input2_node, shape_of2_node);
 
     auto params1 = *shape_of1_node.get_kernel_impl_params();
-    auto params2 = *shape_of1_node.get_kernel_impl_params();
+    auto params2 = *shape_of2_node.get_kernel_impl_params();
 
     auto out_layouts1 = shape_of_inst::calc_output_layouts<ov::PartialShape>(shape_of1_node, params1);
     auto out_layouts2 = shape_of_inst::calc_output_layouts<ov::PartialShape>(shape_of2_node, params2);
@@ -170,7 +170,7 @@ TEST(lru_cache, collisions) {
     auto impl2 = shape_of2_node.type()->create_impl(shape_of2_node);
 
     // Params must differ so the cache stores both despite the forced hash collision
-    ASSERT_FALSE(shape_of1_node.get_kernel_impl_params() == shape_of2_node.get_kernel_impl_params());
+    ASSERT_FALSE(*shape_of1_node.get_kernel_impl_params() == *shape_of2_node.get_kernel_impl_params());
 
     cache.add(*shape_of1_node.get_kernel_impl_params(), impl1->clone());
     cache.add(*shape_of2_node.get_kernel_impl_params(), impl2->clone());

@@ -65,11 +65,11 @@ public:
         // This test uses ov::Core to compile a model and query max_batch_size,
         // which requires the GPU plugin to be registered. The unit test binary
         // may not have the plugin discoverable — skip gracefully in that case.
+        std::vector<std::string> available_devices;
         try {
-            ie.get_available_devices();  // triggers plugin discovery
+            available_devices = ie.get_available_devices();
         } catch (...) {}
 
-        const auto available_devices = ie.get_available_devices();
         const bool has_gpu = std::any_of(available_devices.begin(), available_devices.end(), [](const std::string& device) {
             return device.rfind("GPU", 0) == 0;
         });
