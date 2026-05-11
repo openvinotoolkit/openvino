@@ -58,13 +58,8 @@ def test_properties_rw_base():
             props.CompatibilityCheck,
             (
                 (props.CompatibilityCheck.NOT_APPLICABLE, "CompatibilityCheck.NOT_APPLICABLE", 0),
-                (props.CompatibilityCheck.OPTIMAL, "CompatibilityCheck.OPTIMAL", 1),
-                (
-                    props.CompatibilityCheck.PREFER_RECOMPILATION,
-                    "CompatibilityCheck.PREFER_RECOMPILATION",
-                    2,
-                ),
-                (props.CompatibilityCheck.UNSUPPORTED, "CompatibilityCheck.UNSUPPORTED", 3),
+                (props.CompatibilityCheck.SUPPORTED, "CompatibilityCheck.SUPPORTED", 1),
+                (props.CompatibilityCheck.UNSUPPORTED, "CompatibilityCheck.UNSUPPORTED", 2),
             ),
         ),
         (
