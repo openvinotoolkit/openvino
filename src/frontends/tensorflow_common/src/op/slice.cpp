@@ -4,9 +4,12 @@
 
 #include "openvino/op/slice.hpp"
 
+#include <algorithm>
+
 #include "common_op_table.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/less.hpp"
 #include "openvino/op/select.hpp"
@@ -29,22 +32,40 @@ OutputVector translate_slice_op(const NodeContext& node) {
 
     // create axiliary constants
     auto const_one = create_same_type_const_scalar<int32_t>(start, 1);
-    auto const_zero = create_same_type_const_scalar<int32_t>(start, 0);
 
     // compute stop values in case non-negative sizes
     auto stop_pos = make_shared<v1::Add>(start, size);
 
-    // compute stop values in case negative sizes
-    // since TensorFlow supports only -1 among negative sizes
-    // assign stop values to the data shape
-    Output<Node> stop_neg = make_shared<v3::ShapeOf>(input);
-    stop_neg = make_shared<v1::ConvertLike>(stop_neg, size);
+    // When `size` is a Constant with no negative entries, the negative-size
+    // branch is dead and can be elided. Emitting `stop = start + size` directly
+    // (without the ShapeOf + ConvertLike + Less + Select cascade that handles
+    // size = -1) lets Slice's shape inference produce a static output whenever
+    // `start` is also constant — which is the common TFLite case.
+    auto size_const = ov::as_type_ptr<v0::Constant>(size.get_node_shared_ptr());
+    bool size_is_nonneg_constant = false;
+    if (size_const) {
+        const auto size_values = size_const->cast_vector<int64_t>();
+        size_is_nonneg_constant =
+            std::all_of(size_values.begin(), size_values.end(), [](int64_t v) { return v >= 0; });
+    }
 
-    // select the correct stop value based on a sign of size value
-    auto negative_sizes_mask = make_shared<v1::Less>(size, const_zero);
-    // TODO: investigate if we can simplify and replace Select with FloorMod operation
-    // like FloorMod(size, input_shape)
-    auto stop = make_shared<v1::Select>(negative_sizes_mask, stop_neg, stop_pos);
+    Output<Node> stop;
+    if (size_is_nonneg_constant) {
+        stop = stop_pos;
+    } else {
+        // compute stop values in case negative sizes
+        // since TensorFlow supports only -1 among negative sizes
+        // assign stop values to the data shape
+        auto const_zero = create_same_type_const_scalar<int32_t>(start, 0);
+        Output<Node> stop_neg = make_shared<v3::ShapeOf>(input);
+        stop_neg = make_shared<v1::ConvertLike>(stop_neg, size);
+
+        // select the correct stop value based on a sign of size value
+        auto negative_sizes_mask = make_shared<v1::Less>(size, const_zero);
+        // TODO: investigate if we can simplify and replace Select with FloorMod operation
+        // like FloorMod(size, input_shape)
+        stop = make_shared<v1::Select>(negative_sizes_mask, stop_neg, stop_pos);
+    }
 
     // broadcast step value
     auto start_shape = make_shared<v3::ShapeOf>(start);
