@@ -888,7 +888,7 @@ Example:
             <backend>LEVEL0</backend>
         </enable_rules>
         <filters>
-            <filter>.*WeightlessCacheAccuracy.*ENABLE_WEIGHTLESS.*NPU3720.*</filter>
+            <filter>.*WeightlessCacheAccuracy.*ENABLE_WEIGHTLESS.*NPU_COMPILER_TYPE.*DRIVER.*</filter>
         </filters>
     </skip_config>
 

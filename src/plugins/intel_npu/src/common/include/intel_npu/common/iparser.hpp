@@ -28,7 +28,8 @@ public:
         const ov::Tensor& mainBlob,
         const FilteredConfig& config,
         const std::optional<std::vector<ov::Tensor>>& initBlobs = std::nullopt,
-        std::optional<std::shared_ptr<const ov::Model>>&& model = std::nullopt) const = 0;
+        std::optional<std::shared_ptr<const ov::Model>>&& model = std::nullopt,
+        const std::optional<std::string>& compatibilityDescriptor = std::nullopt) const = 0;
 
     virtual ~IParser() = default;
 };
