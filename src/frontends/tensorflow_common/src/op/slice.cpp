@@ -45,8 +45,9 @@ OutputVector translate_slice_op(const NodeContext& node) {
     bool size_is_nonneg_constant = false;
     if (size_const) {
         const auto size_values = size_const->cast_vector<int64_t>();
-        size_is_nonneg_constant =
-            std::all_of(size_values.begin(), size_values.end(), [](int64_t v) { return v >= 0; });
+        size_is_nonneg_constant = std::all_of(size_values.begin(), size_values.end(), [](int64_t v) {
+            return v >= 0;
+        });
     }
 
     Output<Node> stop;
