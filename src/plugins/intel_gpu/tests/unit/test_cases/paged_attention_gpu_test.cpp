@@ -3414,7 +3414,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_qq_bias, qq_bias_test, ::testing::ValuesIn(std::v
 
 // Performance-focused tests with larger sequence lengths, single/multi-subsequences, and CM v.s. OCL/micro path (which is triggered with xattention ON/OFF).
 // These tests are not validating correctness (outputs are not checked), but are intended to be run in a performance benchmarking mode to evaluate kernel performance and behavior of the paged attention implementation.
-INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_perf_ocl, paged_attention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_paged_attention_perf_ocl, paged_attention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
     // prefill-only
     disable_reference_compare(paged_attention_test_params{ {{4096, 0}}, 32, 8, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
     disable_reference_compare(paged_attention_test_params{ {{4096, 4*1024}}, 32, 8, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
@@ -3433,7 +3433,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_perf_ocl, paged_attention_test, :
     disable_reference_compare(paged_attention_test_params{ {{1, 1*4096}, {1, 1*1024}, {4096, 1024}}, 32, 8, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
 }));
 
-INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_perf_cm, xattention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_paged_attention_perf_cm, xattention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
     // prefill-only
     disable_reference_compare(paged_attention_test_params{ {{4096, 0}}, 32, 8, 128, 128, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{256} }),
     disable_reference_compare(paged_attention_test_params{ {{4096, 4*1024}}, 32, 8, 128, 128, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{256} }),
