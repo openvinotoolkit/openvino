@@ -90,8 +90,8 @@ bool ov::intel_cpu::ReadValueWithSubgraph::visit_attributes(AttributeVisitor& vi
     m_variable->update(variable_info);
 
     visitor.on_attribute("body", m_bodies[0]);
-    visitor.on_attribute("inputs", m_input_descriptions[0]);
-    visitor.on_attribute("outputs", m_output_descriptions[0]);
+    visitor.on_attribute("input_descriptions", m_input_descriptions[0]);
+    visitor.on_attribute("output_descriptions", m_output_descriptions[0]);
     return true;
 }
 

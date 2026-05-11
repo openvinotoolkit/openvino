@@ -514,6 +514,14 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         params.combine_scales_and_zp =
             primitive->quantization_attributes.output_storage_type != ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
 
+        // 4-bit KV-cache: the dynamic quantize kernel packs two u4 values into one i8 byte,
+        // halving the physical innermost dimension (head_size).  This also forces unsigned
+        // asymmetric quantization (u4 range 0..15) regardless of the original quantization mode.
+        const auto kv_cache_dt = impl_param.get_program().get_config().get_kv_cache_precision();
+        params.is_int4_compressed = ov::element::Type(kv_cache_dt).bitwidth() == 4;
+        if (params.is_int4_compressed)
+            params.use_asymmetric_quantization = true;
+
         const auto& past_kv_cache_shape = impl_param.input_layouts[0].get_partial_shape();
         params.axis_offset = past_kv_cache_shape[primitive->concat_axis].is_static() ? past_kv_cache_shape[primitive->concat_axis].get_length() : 0;
 

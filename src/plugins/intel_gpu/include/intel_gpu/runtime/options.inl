@@ -74,6 +74,7 @@ OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, debug_config, "", "Path to debug co
 
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_onednn_post_ops_opt, false, "Disable optimization pass for onednn post-ops")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_profiling_data_path, "", "Save csv file with per-stage and per-primitive profiling data to specified folder")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, average_counters, "", "Save csv file with per-primitive averaged execution time. Output format matches benchmark_app --report_type average_counters and OV_CPU_AVERAGE_COUNTERS")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_graphs_path, "", "Save intermediate graph representations during model compilation pipeline to specified folder")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_sources_path, "", "Save generated sources for each kernel to specified folder")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_tensors_path, "", "Save intermediate in/out tensors of each primitive to specified folder")

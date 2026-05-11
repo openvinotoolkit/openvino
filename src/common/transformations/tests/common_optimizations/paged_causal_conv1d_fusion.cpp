@@ -12,6 +12,7 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -191,6 +192,151 @@ std::shared_ptr<ov::Model> build_model_with_converted_weights(bool add_present_s
 
     ParameterVector params{token, gate, past_state_param};
     return std::make_shared<ov::Model>(results, params);
+}
+
+// GroupConvolution followed by Add(bias) before Slice.
+std::shared_ptr<ov::Model> build_model_with_add_bias() {
+    const Shape input_shape{2, 3};
+    const Shape state_shape{2, 3, 4};
+
+    auto input_embeds = std::make_shared<v0::Parameter>(element::f32, input_shape);
+    auto past_state_param = std::make_shared<v0::Parameter>(element::f32, state_shape);
+    past_state_param->set_friendly_name("past_state");
+    auto read_value = std::make_shared<ov::op::v3::ReadValue>(past_state_param->output(0), "past_cache");
+    read_value->get_output_tensor(0).set_names({"cache_params.past.conv.0"});
+
+    auto part_shape = v0::Constant::create(element::i64, Shape{3}, {2, 3, 1});
+    auto part0 = std::make_shared<v1::Reshape>(input_embeds, part_shape, false);
+    auto part1 = std::make_shared<v1::Reshape>(input_embeds, part_shape, false);
+    auto part2 = std::make_shared<v1::Reshape>(input_embeds, part_shape, false);
+    auto token_concat = std::make_shared<v0::Concat>(OutputVector{part0, part1, part2}, -1);
+    auto transpose_order = v0::Constant::create(element::i64, Shape{3}, {0, 2, 1});
+    auto token_transpose = std::make_shared<v1::Transpose>(token_concat, transpose_order);
+
+    auto state_concat = std::make_shared<v0::Concat>(OutputVector{read_value, token_transpose}, -1);
+
+    auto weights = v0::Constant::create(element::f32, Shape{3, 1, 1, 4}, std::vector<float>(12, 0.25f));
+    auto group_conv = std::make_shared<v1::GroupConvolution>(state_concat,
+                                                             weights,
+                                                             Strides{1},
+                                                             CoordinateDiff{0},
+                                                             CoordinateDiff{0},
+                                                             Strides{1});
+
+    // explicit bias constant added after GroupConvolution
+    auto bias = v0::Constant::create(element::f32, Shape{3, 1}, std::vector<float>(3, 0.1f));
+    auto add_bias = std::make_shared<v1::Add>(group_conv, bias);
+
+    auto neg_one = v0::Constant::create(element::i64, Shape{1}, {-1});
+    auto one = v0::Constant::create(element::i64, Shape{1}, {1});
+    auto slice_begin = std::make_shared<v1::Multiply>(neg_one, one);
+    auto slice_end = v0::Constant::create(element::i64, Shape{1}, {std::numeric_limits<int64_t>::max()});
+    auto slice_step = v0::Constant::create(element::i64, Shape{1}, {1});
+    auto slice_axis = v0::Constant::create(element::i64, Shape{1}, {2});
+    auto slice2 = std::make_shared<v8::Slice>(add_bias, slice_begin, slice_end, slice_step, slice_axis);
+    auto swish = std::make_shared<v4::Swish>(slice2);
+
+    auto state_slice = std::make_shared<v8::Slice>(state_concat, slice_begin, slice_end, slice_step, slice_axis);
+    auto present_res = std::make_shared<v0::Result>(state_slice);
+    present_res->get_output_tensor(0).set_names({"cache_params.present.conv.0"});
+
+    ParameterVector params{input_embeds, past_state_param};
+    return std::make_shared<ov::Model>(ResultVector{std::make_shared<v0::Result>(swish), present_res}, params);
+}
+
+std::shared_ptr<ov::Model> build_fused_reference_model(const bool use_explicit_bias) {
+    const Shape input_shape{2, 3};
+    const Shape state_shape{2, 3, 4};
+
+    auto input_embeds = std::make_shared<v0::Parameter>(element::f32, input_shape);
+    auto past_state_param = std::make_shared<v0::Parameter>(element::f32, state_shape);
+    past_state_param->set_friendly_name("past_state");
+
+    auto read_value = std::make_shared<ov::op::v3::ReadValue>(past_state_param->output(0), "past_cache");
+    read_value->get_output_tensor(0).set_names({"cache_params.past.conv.0"});
+
+    auto part_shape = v0::Constant::create(element::i64, Shape{3}, {2, 3, 1});
+    auto part0 = std::make_shared<v1::Reshape>(input_embeds, part_shape, false);
+    auto part1 = std::make_shared<v1::Reshape>(input_embeds, part_shape, false);
+    auto part2 = std::make_shared<v1::Reshape>(input_embeds, part_shape, false);
+
+    auto token_concat = std::make_shared<v0::Concat>(OutputVector{part0, part1, part2}, -1);
+    auto transpose_order = v0::Constant::create(element::i64, Shape{3}, {0, 2, 1});
+    auto token_transpose = std::make_shared<v1::Transpose>(token_concat, transpose_order);
+    auto state_concat = std::make_shared<v0::Concat>(OutputVector{read_value, token_transpose}, -1);
+
+    auto input_embeds_shape = v0::Constant::create(element::i64, Shape{2}, std::vector<int64_t>{-1, 3});
+    auto input_embeds_node = std::make_shared<v1::Reshape>(token_transpose, input_embeds_shape, false);
+
+    auto weights = v0::Constant::create(element::f32, Shape{3, 1, 1, 4}, std::vector<float>(12, 0.25f));
+    auto pa_weight_shape = v0::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{3, 1, 4});
+    auto weight_reshaped = std::make_shared<v1::Reshape>(weights, pa_weight_shape, false);
+
+    std::shared_ptr<ov::Node> bias;
+    if (use_explicit_bias) {
+        auto bias_const = v0::Constant::create(element::f32, Shape{3, 1}, std::vector<float>(3, 0.1f));
+        auto bias_shape = v0::Constant::create(element::i64, Shape{1}, {-1});
+        bias = std::make_shared<v1::Reshape>(bias_const, bias_shape, false);
+    } else {
+        bias = v0::Constant::create(element::f32, Shape{0}, std::vector<float>{});
+    }
+
+    auto subsequence_begins = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    subsequence_begins->set_friendly_name("subsequence_begins");
+    subsequence_begins->get_output_tensor(0).set_names({"subsequence_begins"});
+
+    auto block_indices = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    block_indices->set_friendly_name("la.block_indices");
+    block_indices->get_output_tensor(0).set_names({"la.block_indices"});
+
+    auto block_indices_begins = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    block_indices_begins->set_friendly_name("la.block_indices_begins");
+    block_indices_begins->get_output_tensor(0).set_names({"la.block_indices_begins"});
+
+    auto past_lens = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    past_lens->set_friendly_name("la.past_lens");
+    past_lens->get_output_tensor(0).set_names({"la.past_lens"});
+
+    auto cache_interval = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    cache_interval->set_friendly_name("la.cache_interval");
+    cache_interval->get_output_tensor(0).set_names({"la.cache_interval"});
+
+    auto conv_state_table = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{-1, 3, 4});
+    conv_state_table->set_friendly_name("conv_state_table.0");
+    conv_state_table->get_output_tensor(0).set_names({"conv_state_table.0"});
+
+    auto paged_conv = std::make_shared<ov::op::internal::PagedCausalConv1D>(input_embeds_node,
+                                                                            conv_state_table,
+                                                                            weight_reshaped,
+                                                                            bias,
+                                                                            subsequence_begins,
+                                                                            block_indices,
+                                                                            block_indices_begins,
+                                                                            past_lens,
+                                                                            cache_interval);
+    auto unsqueeze_axis = v0::Constant::create(element::i64, Shape{1}, {2});
+    auto unsqueeze = std::make_shared<v0::Unsqueeze>(paged_conv, unsqueeze_axis);
+    auto swish = std::make_shared<v4::Swish>(unsqueeze);
+
+    auto neg_one = v0::Constant::create(element::i64, Shape{1}, {-1});
+    auto one = v0::Constant::create(element::i64, Shape{1}, {1});
+    auto slice_begin = std::make_shared<v1::Multiply>(neg_one, one);
+    auto slice_end = v0::Constant::create(element::i64, Shape{1}, {std::numeric_limits<int64_t>::max()});
+    auto slice_step = v0::Constant::create(element::i64, Shape{1}, {1});
+    auto slice_axis = v0::Constant::create(element::i64, Shape{1}, {2});
+    auto state_slice = std::make_shared<v8::Slice>(state_concat, slice_begin, slice_end, slice_step, slice_axis);
+    auto present_res = std::make_shared<v0::Result>(state_slice);
+    present_res->get_output_tensor(0).set_names({"cache_params.present.conv.0"});
+
+    ParameterVector params{input_embeds,
+                           past_state_param,
+                           subsequence_begins,
+                           block_indices,
+                           block_indices_begins,
+                           past_lens,
+                           cache_interval,
+                           conv_state_table};
+    return std::make_shared<ov::Model>(ResultVector{std::make_shared<v0::Result>(swish), present_res}, params);
 }
 
 std::shared_ptr<ov::Model> build_model_without_concat_lfm2_like() {
@@ -424,4 +570,29 @@ TEST_F(PagedCausalConv1DFusionTest, FusesWhenWeightsComeFromConvertPath) {
     }
     EXPECT_EQ(pcc_count, 1u) << "Expected 1 PagedCausalConv1D after fusion";
     EXPECT_EQ(group_conv_count, 0u) << "Expected 0 GroupConvolution after fusion";
+}
+
+// Verifies that when GroupConvolution is followed by Add(bias_const) before Slice,
+// the fusion fires and the explicit bias constant is passed to PagedCausalConv1D.
+TEST_F(PagedCausalConv1DFusionTest, FusesWithExplicitBiasConstant) {
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+
+    model = build_model_with_add_bias();
+    run_paged_causal_conv1d_fusion(model);
+
+    model_ref = build_fused_reference_model(true);
+}
+
+// Verifies that when GroupConvolution has no Add(bias) before Slice,
+// the fusion still fires and passes an empty bias Constant (shape {0}),
+// which represents "no bias" for PagedCausalConv1D.
+TEST_F(PagedCausalConv1DFusionTest, FusesNoBiasUsesEmptyBiasConstant) {
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+
+    model = build_model(true);
+    run_paged_causal_conv1d_fusion(model);
+
+    model_ref = build_fused_reference_model(false);
 }
