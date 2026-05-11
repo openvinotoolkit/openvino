@@ -6,11 +6,23 @@
 #include "low_precision/network_helper.hpp"
 
 #include <algorithm>
+#include <iostream>
 #include <memory>
 #include <string>
 #include <vector>
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/group_conv.hpp"
+
+namespace {
+// [SD3-DBG] helper: compact node tag (type + friendly name) for unconditional logs.
+std::string sd3_dbg_tag(const ov::Node* n) {
+    if (n == nullptr) return std::string("<null>");
+    return std::string(n->get_type_name()) + "#" + n->get_friendly_name();
+}
+std::string sd3_dbg_tag(const std::shared_ptr<const ov::Node>& n) { return sd3_dbg_tag(n.get()); }
+std::string sd3_dbg_tag(const std::shared_ptr<ov::Node>& n) { return sd3_dbg_tag(n.get()); }
+}  // namespace
+
 
 namespace ov {
 namespace pass {
@@ -29,6 +41,8 @@ std::vector<size_t> getWeightsDequantizationIdces(const std::shared_ptr<const No
     } else if (ov::is_type<ov::opset1::Multiply>(weightableLayer)) {
         return std::vector<size_t>{};
     } else {
+        std::cout << "[SD3-DBG] THROW_IE_LPT_EXCEPTION getWeightsDequantizationIdces unexpected layer="
+                  << weightableLayer->get_type_name() << "#" << weightableLayer->get_friendly_name() << std::endl;
         THROW_IE_LPT_EXCEPTION(*weightableLayer) << "getWeightsDequantizationIdces is called for unexpected layer";
     }
 }
@@ -274,6 +288,9 @@ bool WeightableLayerTransformation::canBeTransformed(const std::shared_ptr<Node>
 bool WeightableLayerTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer,
     const bool reshapeIsRequired,
     const std::vector<ov::element::Type>& defaultPrecisions) {
+    std::cout << "[SD3-DBG] isQuantizedStatic ENTER layer=" << sd3_dbg_tag(layer)
+              << " reshapeIsRequired=" << reshapeIsRequired
+              << " in_size=" << (layer ? layer->get_input_size() : 0u) << std::endl;
     FakeQuantizeDequantization dequantizationOnWeights;
     if (reshapeIsRequired) {
         const auto reshape = layer->get_input_node_shared_ptr(1);
@@ -283,27 +300,33 @@ bool WeightableLayerTransformation::isQuantizedStatic(const std::shared_ptr<cons
 
         const auto fq = ov::as_type_ptr<ov::opset1::FakeQuantize>(parent);
         if (fq != nullptr) {
+            std::cout << "[SD3-DBG] isQuantizedStatic reshape-path FQ parent=" << sd3_dbg_tag(parent) << std::endl;
             return NetworkHelper::isQuantizeSupported(fq);
         }
 
+        std::cout << "[SD3-DBG] isQuantizedStatic reshape-path getDequantization parent=" << sd3_dbg_tag(parent) << std::endl;
         dequantizationOnWeights = NetworkHelper::getDequantization(parent, defaultPrecisions, 0, true);
     } else if (ov::is_type<ov::opset1::FakeQuantize>(layer->get_input_node_shared_ptr(1))) {
         const auto fq = ov::as_type_ptr<ov::opset1::FakeQuantize>(layer->get_input_node_shared_ptr(1));
         OPENVINO_ASSERT(fq != nullptr, "FakeQuantize on weights is nullptr");
+        std::cout << "[SD3-DBG] isQuantizedStatic direct-FQ-on-weights fq=" << sd3_dbg_tag(fq) << std::endl;
         return NetworkHelper::isQuantizeSupported(fq);
     } else {
         // TODO: update NetworkHelper API later
         const std::shared_ptr<ov::Node> op = const_cast<ov::Node*>(layer.get())->shared_from_this();
+        std::cout << "[SD3-DBG] isQuantizedStatic dq-on-weights getDequantization op=" << sd3_dbg_tag(op) << " parentIndex=1" << std::endl;
         dequantizationOnWeights = NetworkHelper::getDequantization(op, defaultPrecisions, 1);
     }
 
     if (dequantizationOnWeights.empty()) {
+        std::cout << "[SD3-DBG] isQuantizedStatic EXIT=false (dq empty) layer=" << sd3_dbg_tag(layer) << std::endl;
         return false;
     }
 
     const auto dqIdces = getWeightsDequantizationIdces(layer);
     if ((dequantizationOnWeights.subtract && !checkConstShape(dqIdces, dequantizationOnWeights.subtractConstant)) ||
         (dequantizationOnWeights.multiply && !checkConstShape(dqIdces, dequantizationOnWeights.multiplyConstant))) {
+        std::cout << "[SD3-DBG] isQuantizedStatic EXIT=false (checkConstShape failed) layer=" << sd3_dbg_tag(layer) << std::endl;
         return false;
     }
 
@@ -312,31 +335,41 @@ bool WeightableLayerTransformation::isQuantizedStatic(const std::shared_ptr<cons
     if (ov::is_type<ov::opset1::Convert>(deqData)) {
         deqData = deqData->get_input_node_shared_ptr(0);
     }
+    std::cout << "[SD3-DBG] isQuantizedStatic post-dq deqData=" << sd3_dbg_tag(deqData)
+              << " has_sub=" << (dequantizationOnWeights.subtract != nullptr)
+              << " has_mul=" << (dequantizationOnWeights.multiply != nullptr) << std::endl;
     // TODO: LPT: is it possible to share with canBeTransformed?
     if (ov::is_type<ov::opset1::Constant>(deqData)) {
         const ov::element::Type weightsDataPrecision = dequantizationOnWeights.data.get_element_type();
         if (!DataPrecision::isSupported(weightsDataPrecision)) {
+            std::cout << "[SD3-DBG] isQuantizedStatic EXIT=false (unsupported weights precision="
+                      << weightsDataPrecision << ") layer=" << sd3_dbg_tag(layer) << std::endl;
             return false;
         }
 
         if ((dequantizationOnWeights.subtract != nullptr) && (dequantizationOnWeights.subtractConvert != nullptr)) {
             const auto subtractConstantType = dequantizationOnWeights.subtractConstant->output(0).get_element_type();
             if (subtractConstantType != weightsDataPrecision) {
+                std::cout << "[SD3-DBG] isQuantizedStatic EXIT=false (subConst type mismatch) layer=" << sd3_dbg_tag(layer) << std::endl;
                 return false;
             }
         }
+        std::cout << "[SD3-DBG] isQuantizedStatic EXIT=true (const path) layer=" << sd3_dbg_tag(layer) << std::endl;
         return true;
     } else if (auto fq = ov::as_type_ptr<ov::opset1::FakeQuantize>(deqData)) {
         for (size_t i = 1; i < fq->get_input_size(); ++i) {
             if (auto constant = ov::as_type_ptr<ov::opset1::Constant>(fq->get_input_node_shared_ptr(i))) {
                 if (!checkConstShape(dqIdces, constant)) {
+                    std::cout << "[SD3-DBG] isQuantizedStatic EXIT=false (fq const shape) layer=" << sd3_dbg_tag(layer) << std::endl;
                     return false;
                 }
             }
         }
+        std::cout << "[SD3-DBG] isQuantizedStatic EXIT=true (FQ path) layer=" << sd3_dbg_tag(layer) << std::endl;
         return true;
     }
 
+    std::cout << "[SD3-DBG] isQuantizedStatic EXIT=false (fallthrough) layer=" << sd3_dbg_tag(layer) << std::endl;
     return false;
 }
 

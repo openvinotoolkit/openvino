@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <iostream>
 #include <limits>
 #include <map>
 #include <memory>
@@ -1146,8 +1147,29 @@ FakeQuantizeDequantization NetworkHelper::getDequantization(const std::shared_pt
     const std::vector<ov::element::Type> defaultPrecisions,
     const size_t parentIndex,
     const bool inPlace) {
+    std::cout << "[SD3-DBG] getDequantization ENTER node="
+              << (node ? (std::string(node->get_type_name()) + "#" + node->get_friendly_name()) : std::string("<null>"))
+              << " parentIndex=" << parentIndex << " inPlace=" << inPlace << std::endl;
     auto getDataIndex = [](const std::shared_ptr<ov::Node>& node) {
+        std::cout << "[SD3-DBG] getDataIndex call node="
+                  << (node ? (std::string(node->get_type_name()) + "#" + node->get_friendly_name()) : std::string("<null>"))
+                  << " in_size=" << (node ? node->get_input_size() : 0u) << std::endl;
+        if (node && node->get_input_size() == 2) {
+            for (size_t i = 0; i < 2; ++i) {
+                const auto& in = node->input_value(i);
+                const auto src = in.get_node_shared_ptr();
+                std::cout << "[SD3-DBG]   in[" << i << "]=" << (src ? src->get_type_name() : "<null>")
+                          << " name=\"" << (src ? src->get_friendly_name() : "<null>") << "\""
+                          << " shape=" << in.get_partial_shape()
+                          << " type=" << in.get_element_type() << std::endl;
+            }
+        }
         const auto dqConstBranchIndex = getDQConstBranchIndex(node);
+        if (!dqConstBranchIndex.has_value()) {
+            std::cout << "[SD3-DBG] getDataIndex THROW: dqConstBranchIndex is nullopt for node="
+                      << (node ? (std::string(node->get_type_name()) + "#" + node->get_friendly_name()) : std::string("<null>"))
+                      << std::endl;
+        }
         OPENVINO_ASSERT(dqConstBranchIndex.has_value(), "getDataIndex cannot be determined for node: ", node);
         return dqConstBranchIndex.value() == 0ul ? 1ul : 0ul;
     };
@@ -1261,6 +1283,9 @@ FakeQuantizeDequantization NetworkHelper::getDequantizationBelow(const std::shar
 }
 
 std::optional<size_t> NetworkHelper::getDQConstBranchIndex(const std::shared_ptr<ov::Node>& eltwise) {
+    std::cout << "[SD3-DBG] getDQConstBranchIndex ENTER eltwise="
+              << (eltwise ? (std::string(eltwise->get_type_name()) + "#" + eltwise->get_friendly_name()) : std::string("<null>"))
+              << " in_size=" << (eltwise ? eltwise->get_input_size() : 0u) << std::endl;
     OPENVINO_ASSERT(eltwise != nullptr && eltwise->get_input_size() == 2,
                     "Expected binary eltwise operation, but got: ",
                     eltwise == nullptr ? "null" : std::to_string(eltwise->get_input_size()) + " inputs");
@@ -1276,11 +1301,16 @@ std::optional<size_t> NetworkHelper::getDQConstBranchIndex(const std::shared_ptr
     const auto& right_input = eltwise->input_value(1);
     const bool left_is_const = is_branch_const(left_input);
     const bool right_is_const = is_branch_const(right_input);
+    std::cout << "[SD3-DBG] getDQConstBranchIndex left=" << left_input.get_node()->get_type_name()
+              << " (const=" << left_is_const << ") right=" << right_input.get_node()->get_type_name()
+              << " (const=" << right_is_const << ")" << std::endl;
 
     if (!left_is_const && right_is_const) {
+        std::cout << "[SD3-DBG] getDQConstBranchIndex => 1 (right-const)" << std::endl;
         return 1;
     }
     if (left_is_const && !right_is_const) {
+        std::cout << "[SD3-DBG] getDQConstBranchIndex => 0 (left-const)" << std::endl;
         return 0;
     }
 
@@ -1291,8 +1321,12 @@ std::optional<size_t> NetworkHelper::getDQConstBranchIndex(const std::shared_ptr
     if (left_is_const && right_is_const) {
         const auto left_volume = ov::shape_size(left_input.get_shape());
         const auto right_volume = ov::shape_size(right_input.get_shape());
+        std::cout << "[SD3-DBG] getDQConstBranchIndex both-const left_vol=" << left_volume
+                  << " right_vol=" << right_volume
+                  << " => " << (left_volume >= right_volume ? 1 : 0) << std::endl;
         return left_volume >= right_volume ? 1 : 0;
     }
+    std::cout << "[SD3-DBG] getDQConstBranchIndex => nullopt (neither branch is const)" << std::endl;
     return std::nullopt;
 }
 

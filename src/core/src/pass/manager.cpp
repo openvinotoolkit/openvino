@@ -364,10 +364,13 @@ bool ov::pass::Manager::run_passes(const std::shared_ptr<ov::Model>& model) {
         }
 
         const auto& pass_name = pass->get_name();
+        std::cout << "[SD3-DBG] pass::Manager(" << m_name << ") BEGIN pass=" << pass_name << std::endl;
 
         profiler.start_timer(pass_name);
         bool pass_changed_model = run_pass(pass, model);
         profiler.stop_timer(pass_name, pass_changed_model);
+        std::cout << "[SD3-DBG] pass::Manager(" << m_name << ") END   pass=" << pass_name
+                  << " changed=" << pass_changed_model << std::endl;
 
         manager_changed_model = manager_changed_model || pass_changed_model;
         needs_validation = (ov::as_type_ptr<ov::pass::Validate>(pass)) ? false : needs_validation || pass_changed_model;

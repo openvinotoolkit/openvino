@@ -8,6 +8,7 @@
 #include <cctype>
 #include <cmath>
 #include <deque>
+#include <iostream>
 #include <limits>
 #include <memory>
 #include <string>
@@ -452,6 +453,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     bool unroll_loop = config.get_enable_loop_unrolling();
     const bool disable_gated_mlp_fusion = GPU_DEBUG_VALUE_OR(config.get_disable_gated_mlp_fusion(), true);
     auto is_model_quantized = ov::pass::low_precision::LowPrecision::isFunctionQuantized(func);
+    std::cout << "[SD3-DBG] TransformationsPipeline::apply model=\"" << (func ? func->get_friendly_name() : std::string("<null>"))
+              << "\" is_model_quantized=" << is_model_quantized
+              << " enable_lp_transformations=" << config.get_enable_lp_transformations()
+              << " infer_precision=" << config.get_inference_precision() << std::endl;
 
     // call conversion of float types with keep_precision_sensitive_in_fp32 = true
     auto fp_precision_supported = [&](ov::element::Type e) -> bool {
