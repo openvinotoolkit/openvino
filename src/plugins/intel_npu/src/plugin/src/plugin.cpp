@@ -21,6 +21,7 @@
 #include "metrics.hpp"
 #include "npuw/compiled_model.hpp"
 #include "npuw/llm_compiled_model.hpp"
+#include "npuw/orc/schema_npuw.hpp"
 #include "npuw/serialization.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
@@ -148,26 +149,35 @@ void check_weightless_cache_attribute_occurrence(const std::shared_ptr<const ov:
 std::shared_ptr<ov::ICompiledModel> import_model_npuw(std::istream& stream,
                                                       ov::AnyMap& properties,
                                                       std::shared_ptr<const ov::IPlugin> pluginSO) {
+    if (const auto header = ov::npuw::orc::is_orc(stream);
+        header.has_value() &&
+        header->schema_uuid == ov::npuw::orc::schema_npuw::NPUW_ORC_PARTITIONED_SCHEMA) {
+        return ov::npuw::CompiledModel::import_model(stream, pluginSO, properties);
+    }
+
     // If was exported via NPUW
     auto stream_start_pos = stream.tellg();
     ov::npuw::s11n::IndicatorType serialization_indicator;
-    ov::npuw::s11n::read(stream, serialization_indicator);
-    if (serialization_indicator == NPUW_SERIALIZATION_INDICATOR) {
+    if (ov::npuw::orc::try_read_bytes(stream, serialization_indicator.data(), serialization_indicator.size()) &&
+        serialization_indicator == NPUW_SERIALIZATION_INDICATOR) {
         ov::npuw::s11n::IndicatorType compiled_model_indicator;
-        ov::npuw::s11n::read(stream, compiled_model_indicator);
-        stream.seekg(-stream.tellg() + stream_start_pos, std::ios::cur);
+        if (ov::npuw::orc::try_read_bytes(stream, compiled_model_indicator.data(), compiled_model_indicator.size())) {
+            stream.clear();
+            stream.seekg(stream_start_pos);
 
-        if (compiled_model_indicator == NPUW_LLM_COMPILED_MODEL_INDICATOR) {
-            // Properties are required for ov::weights_path
-            return ov::npuw::LLMCompiledModel::import_model(stream, pluginSO, properties);
-        } else if (compiled_model_indicator == NPUW_COMPILED_MODEL_INDICATOR) {
-            // Properties are required for ov::weights_path
-            return ov::npuw::CompiledModel::import_model(stream, pluginSO, properties);
-        } else {
-            OPENVINO_THROW("Couldn't deserialize NPUW blob - fatal error!");
+            if (compiled_model_indicator == NPUW_LLM_COMPILED_MODEL_INDICATOR) {
+                // Properties are required for ov::weights_path
+                return ov::npuw::LLMCompiledModel::import_model(stream, pluginSO, properties);
+            } else if (compiled_model_indicator == NPUW_COMPILED_MODEL_INDICATOR) {
+                OPENVINO_THROW("Legacy flat NPUW CompiledModel blobs are no longer supported. Re-export the model with "
+                               "the current ORC serializer.");
+            } else {
+                OPENVINO_THROW("Couldn't deserialize NPUW blob - fatal error!");
+            }
         }
     }
-    stream.seekg(-stream.tellg() + stream_start_pos, std::ios::cur);
+    stream.clear();
+    stream.seekg(stream_start_pos);
 
     // Drop NPUW properties if there are any
     for (auto it = properties.begin(); it != properties.end(); ++it) {
