@@ -63,6 +63,18 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
         auto extended_input_v_transpose_order = extend_order_in_num_heads_dim(desc->input_v_transpose_order);
         k_head_size = get_head_size(k_layout, extended_input_k_transpose_order);
         v_head_size = get_head_size(v_layout, extended_input_v_transpose_order);
+
+        // 4-bit KV-cache: K/V layouts have head_size/2 due to u4→i8 packing.
+        // Override with logical head size from query (which is not packed).
+        {
+            if (desc->is_kv_compressed && SDPABase::is_int4_kv_cache(params)) {
+                auto extended_input_q_transpose_order = extend_order_in_num_heads_dim(desc->input_q_transpose_order);
+                auto q_head_size = get_head_size(params.get_input_layout(0), extended_input_q_transpose_order);
+                k_head_size = q_head_size;
+                v_head_size = q_head_size;
+            }
+        }
+
         GPU_DEBUG_TRACE_DETAIL << "k_head_size = " << k_head_size << ", v_head_size = " << v_head_size << "\n";
 
         size_t data_inputs_num = get_data_inputs_num(*desc);
@@ -188,7 +200,14 @@ DispatchDataFunc SDPAOptGeneratorSingleToken::get_dispatch_data_func() const {
             const size_t target_seq_len = get_seq_length(params.get_input_layout(0), extended_input_q_transpose_order);
             const size_t heads_num = get_num_heads(params.get_output_layout(0), extended_output_transpose_order);
             const size_t num_of_partitions = get_partitions_num(params, SDPAStage::SINGLE_TOKEN);
-            const auto head_size = get_head_size(params.get_input_layout(2), extended_input_v_transpose_order);
+            auto head_size = get_head_size(params.get_input_layout(2), extended_input_v_transpose_order);
+
+            // 4-bit KV-cache: V layout has head_size/2 due to u4→i8 packing.
+            // Use logical head size from query for work-group dispatch.
+            if (desc->is_kv_compressed && SDPABase::is_int4_kv_cache(params)) {
+                head_size = get_head_size(params.get_input_layout(0), extended_input_q_transpose_order);
+            }
+
             const size_t sg_num_scale = get_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::SINGLE_TOKEN);
             GPU_DEBUG_TRACE_DETAIL << "batch_size = " << batch_size << ", target_seq_len = " << target_seq_len << ", heads_num = " << heads_num << "\n";
             GPU_DEBUG_TRACE_DETAIL << "head_size = " << head_size << ", num_of_partitions = " << num_of_partitions << "\n";
@@ -227,7 +246,14 @@ DispatchDataFunc SDPAOptGeneratorMultiToken::get_dispatch_data_func() const {
             const size_t target_seq_len = get_seq_length(params.get_input_layout(0), extended_input_q_transpose_order);
             const size_t heads_num = get_num_heads(params.get_output_layout(0), extended_output_transpose_order);
             const size_t target_seq_len_block_size = get_target_seq_len_block_size();
-            const size_t head_size = get_head_size(params.get_input_layout(2), extended_input_v_transpose_order);
+            auto head_size = get_head_size(params.get_input_layout(2), extended_input_v_transpose_order);
+
+            // 4-bit KV-cache: V layout has head_size/2 due to u4→i8 packing.
+            // Use logical head size from query for work-group dispatch.
+            if (desc->is_kv_compressed && SDPABase::is_int4_kv_cache(params)) {
+                head_size = get_head_size(params.get_input_layout(0), extended_input_q_transpose_order);
+            }
+
             const size_t sg_num_scale = get_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::MULTI_TOKENS);
 
             GPU_DEBUG_TRACE_DETAIL << "batch_size = " << batch_size << ", target_seq_len = " << target_seq_len << ", heads_num = " << heads_num << "\n";
@@ -270,13 +296,19 @@ DispatchDataFunc SDPAOptGeneratorFinalization::get_dispatch_data_func() const {
             const size_t target_seq_len = get_seq_length(params.get_input_layout(0), extended_input_q_transpose_order);
             const size_t heads_num = get_num_heads(params.get_output_layout(0), extended_output_transpose_order);
             const size_t num_of_partitions = get_partitions_num(params, SDPAStage::FINALIZATION);
-            const size_t head_size = get_head_size(params.get_input_layout(2), extended_input_v_transpose_order);
+            auto head_size = get_head_size(params.get_input_layout(2), extended_input_v_transpose_order);
+
+            // 4-bit KV-cache: V layout has head_size/2 due to u4→i8 packing.
+            // Use logical head size from query for finalization dispatch.
+            if (desc->is_kv_compressed && SDPABase::is_int4_kv_cache(params)) {
+                head_size = get_head_size(params.get_input_layout(0), extended_input_q_transpose_order);
+            }
 
             GPU_DEBUG_TRACE_DETAIL << "batch_size = " << batch_size << ", target_seq_len = " << target_seq_len << ", heads_num = " << heads_num << "\n";
             GPU_DEBUG_TRACE_DETAIL << "head_size = " << head_size << ", num_of_partitions = " << num_of_partitions << "\n";
 
-            wgs.global = {batch_size * heads_num, target_seq_len, head_size};
-            wgs.local = {1, 1, head_size};
+            wgs.global = {batch_size * heads_num, target_seq_len, static_cast<size_t>(head_size)};
+            wgs.local = {1, 1, static_cast<size_t>(head_size)};
             num_of_partitions_scalar.v.u32 = static_cast<uint32_t>(num_of_partitions);
             scalars.push_back(num_of_partitions_scalar);
         }

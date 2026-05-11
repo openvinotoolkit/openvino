@@ -32,6 +32,7 @@ INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_DCOFF_TYPE, std::string, "", ov::intel_npu::npuw:
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_DCOFF_SCALE, bool, false, ov::intel_npu::npuw::partitioning, dcoff_with_scale, "NPUW_DCOFF_SCALE", ROOT, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_FUNCALL_FOR_ALL, bool, false, ov::intel_npu::npuw::partitioning, funcall_for_all, "NPUW_FUNCALL_FOR_ALL", ROOT, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_PARALLEL_COMPILE, bool, false, ov::intel_npu::npuw, parallel_compilation, "NPUW_PARALLEL_COMPILE", ROOT, HIDDEN, UNCACHED, ALL)
+INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_ENSURE_COMPATIBILITY, bool, false, ov::intel_npu::npuw, ensure_compatibility, "NPUW_ENSURE_COMPATIBILITY", ROOT, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_WEIGHTS_BANK, std::string, "", ov::intel_npu::npuw, weights_bank, "NPUW_WEIGHTS_BANK", ROOT, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_WEIGHTS_BANK_ALLOC, std::string, "", ov::intel_npu::npuw, weights_bank_alloc, "NPUW_WEIGHTS_BANK_ALLOC", ROOT, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_CACHE_DIR, std::string, "", ov::intel_npu::npuw, cache_dir, "NPUW_CACHE_DIR", ROOT, HIDDEN, UNCACHED, ALL)
