@@ -5,6 +5,8 @@
 #include "transformations/common_optimizations/dimension_tracking.hpp"
 
 #include <memory>
+#include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "itt.hpp"
@@ -23,6 +25,17 @@
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v3 = ov::op::v3;
+
+namespace {
+
+std::unordered_set<std::shared_ptr<ov::Symbol>> make_symbol_set(std::shared_ptr<ov::Symbol> symbol) {
+    std::unordered_set<std::shared_ptr<ov::Symbol>> symbols;
+    symbols.insert(std::move(symbol));
+    return symbols;
+}
+
+}  // namespace
+
 void ov::batch_util::mark_with_unique_dimension_symbols(const std::shared_ptr<ov::Model>& m) {
     for (auto& parameter : m->get_parameters()) {
         ov::PartialShape new_shape = ov::PartialShape::dynamic(parameter->get_partial_shape().rank());
@@ -38,13 +51,10 @@ void ov::batch_util::mark_batch(const std::shared_ptr<v0::Parameter>& parameter,
                                 const std::unordered_set<std::shared_ptr<Symbol>>& batches) {
     auto& shape = parameter->get_partial_shape();
     if (map.count(parameter)) {  // we already marked this parameter as having a batch
-        std::unordered_set<std::shared_ptr<Symbol>> intersection_in_all_three_sources_of_batch;
-        auto mapped_batches = map[parameter];
+        const auto& mapped_batches = map.at(parameter);
         for (auto& dim : shape) {
-            const auto& dim_symbol = dim.get_symbol();
-            if (batches.count(dim_symbol) && mapped_batches.count(dim_symbol)) {
-                intersection_in_all_three_sources_of_batch.insert(dim_symbol);
-            } else {
+            auto dim_symbol = dim.get_symbol();
+            if (!(batches.count(dim_symbol) && mapped_batches.count(dim_symbol))) {
                 dim.set_symbol(nullptr);
             }
         }
@@ -53,9 +63,9 @@ void ov::batch_util::mark_batch(const std::shared_ptr<v0::Parameter>& parameter,
         //     1) It is our first time marking batch for this node
         //     2) This node was marked as 'no_batch' previously. 'no_batch' has higher priority, batch won't be set
         for (auto& dim : shape) {
-            const auto& dim_symbol = dim.get_symbol();
+            auto dim_symbol = dim.get_symbol();
             if (batches.count(dim_symbol)) {  // this is one of the batches
-                map[parameter].insert(dim_symbol);
+                map[parameter].insert(std::move(dim_symbol));
             } else {
                 dim.set_symbol(nullptr);
             }
@@ -71,12 +81,12 @@ void ov::batch_util::mark_layout_independent_batch(const std::shared_ptr<v0::Par
     TensorSymbol p_symbols, r_symbols;
 
     for (const auto& dim : result->get_output_partial_shape(0))
-        if (const auto& symbol = dim.get_symbol())
+        if (auto symbol = dim.get_symbol())
             r_symbols.push_back(symbol);
     for (const auto& dim : parameter->get_partial_shape()) {
-        if (const auto& symbol = dim.get_symbol()) {
+        if (auto symbol = dim.get_symbol()) {
             if (std::find(r_symbols.begin(), r_symbols.end(), symbol) != r_symbols.end()) {
-                mark_batch(parameter, map, {symbol});
+                mark_batch(parameter, map, make_symbol_set(std::move(symbol)));
                 return;
             }
         }
@@ -123,11 +133,11 @@ P2Btype ov::batch_util::find_batch(const std::shared_ptr<ov::Model>& f) {
             if (type_input_port_batch_index.count(curr_node->get_type_info())) {
                 auto batch_placement = type_input_port_batch_index[curr_node->get_type_info()];
                 const auto& shape = curr_node->input_value(batch_placement.first).get_partial_shape();
-                const auto& batch_dim_symbol = shape[batch_placement.second].get_symbol();
+                auto batch_dim_symbol = shape[batch_placement.second].get_symbol();
                 if (batch_dim_symbol == nullptr)
                     mark_no_batch(parameter, parameter_to_batch_symbols);
                 else
-                    mark_batch(parameter, parameter_to_batch_symbols, {batch_dim_symbol});
+                    mark_batch(parameter, parameter_to_batch_symbols, make_symbol_set(std::move(batch_dim_symbol)));
                 continue;  // batch was or was not found at this point -- there is no point in searching further }
             }
             // node is not layout obvious -- checking if dims were propagated through

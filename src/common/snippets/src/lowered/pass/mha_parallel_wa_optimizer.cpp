@@ -174,7 +174,8 @@ std::unordered_set<lowered::ExpressionPtr> MHAParallelWAOptimizer::find_applicab
     auto brgemm_it = std::find_if(linear_ir->begin(), linear_ir->end(), is_brgemm);
     std::unordered_set<lowered::ExpressionPtr> brgemms;
     while (brgemm_it != linear_ir->end()) {
-        brgemms.insert(*brgemm_it);
+        auto brgemm = *brgemm_it;
+        brgemms.insert(std::move(brgemm));
         brgemm_it = std::find_if(std::next(brgemm_it), linear_ir->end(), is_brgemm);
     }
     const auto& loop_manager = linear_ir->get_loop_manager();

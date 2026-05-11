@@ -15,6 +15,7 @@
 #include <set>
 #include <string>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "openvino/core/dimension.hpp"
@@ -457,10 +458,10 @@ void visit_path(const lowered::ExpressionPtr& expr,
                 bool visit_parent_path) {
     std::deque<lowered::ExpressionPtr> exprs{expr};
 
-    auto continue_traversal = [&](const lowered::ExpressionPtr& expr) {
+    auto continue_traversal = [&](lowered::ExpressionPtr expr) {
         if (visited.count(expr) == 0) {
             exprs.push_front(expr);
-            visited.insert(expr);
+            visited.insert(std::move(expr));
         }
     };
 
@@ -471,14 +472,14 @@ void visit_path(const lowered::ExpressionPtr& expr,
 
         if (visit_parent_path) {
             for (const auto& input_connector : curr_expr->get_input_port_connectors()) {
-                const auto& parent_expr = input_connector->get_source().get_expr();
-                continue_traversal(parent_expr);
+                auto parent_expr = input_connector->get_source().get_expr();
+                continue_traversal(std::move(parent_expr));
             }
         } else {
             for (const auto& output_connector : curr_expr->get_output_port_connectors()) {
                 for (const auto& consumer : output_connector->get_consumers()) {
-                    const auto& consumer_expr = consumer.get_expr();
-                    continue_traversal(consumer_expr);
+                    auto consumer_expr = consumer.get_expr();
+                    continue_traversal(std::move(consumer_expr));
                 }
             }
         }

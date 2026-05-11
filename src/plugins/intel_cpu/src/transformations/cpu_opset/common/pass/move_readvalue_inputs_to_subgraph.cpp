@@ -9,6 +9,7 @@
 #include <functional>
 #include <memory>
 #include <unordered_set>
+#include <utility>
 
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
@@ -87,7 +88,8 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
             }
 
             if (any_child_on_output_path) {
-                visited_path_to_output.insert(node);
+                auto visited_node = node;
+                visited_path_to_output.insert(std::move(visited_node));
                 found_output = any_child_on_output_path;
             }
         };
@@ -113,11 +115,13 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
 
             if (found_output) {
                 inputs.emplace_back(node);
-                visited_path_to_output.insert(node);
+                auto visited_node = node;
+                visited_path_to_output.insert(std::move(visited_node));
                 return;
             }
 
-            visited_path_to_rv.insert(node);
+            auto visited_node = node;
+            visited_path_to_rv.insert(std::move(visited_node));
 
             // Cache to subgraph_nodes
             subgraph_nodes.emplace_back(node);
