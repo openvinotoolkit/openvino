@@ -113,6 +113,7 @@
 #include "plugin/transformations/swiglu_fusion_with_clamp.hpp"
 #include "plugin/transformations/disable_fp16_comp_sin_gen.hpp"
 #include "plugin/transformations/increase_rms_input_precision.hpp"
+#include "plugin/transformations/force_fp32_selective.hpp"
 #include "transformations/common_optimizations/activations_scaling.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
@@ -1704,5 +1705,18 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::Validate>();
         manager.run_passes(func);
     }
+#ifdef GPU_DEBUG_CONFIG
+    {
+        const auto& forced_types = config.get_force_fp32_layer_types();
+        const auto& forced_names = config.get_force_fp32_layer_names();
+
+        if (!forced_types.empty() || !forced_names.empty()) {
+            ov::pass::Manager fp32_manager;
+            fp32_manager.register_pass<ov::intel_gpu::ForceFP32Selective>(forced_types, forced_names);
+            fp32_manager.register_pass<ov::pass::Validate>();
+            fp32_manager.run_passes(func);
+        }
+    }
+#endif
 }
 }  // namespace ov::intel_gpu
