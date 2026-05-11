@@ -26,10 +26,11 @@ permissions: read-all
 env:
   PIP_CACHE_PATH_LINUX: /mount/caches/pip/linux
   PIP_CACHE_PATH_WIN: "C:\\mount\\caches\\pip\\win"
+  HF_HUB_CACHE_WIN: "C:\\mount\\caches\\huggingface"
   # To switch to the primary HF token, change the filename from `token-secondary` to `token-primary`:
-  #   HF_TOKEN_PATH_LIN: /home/runner/secrets/huggingface/token-primary
+  #   HF_TOKEN_PATH_LIN: /secrets/huggingface/token-primary
   #   HF_TOKEN_PATH_WIN: "C:\\mount\\secrets\\huggingface\\token-primary"
-  HF_TOKEN_PATH_LIN: /home/runner/secrets/huggingface/token-secondary
+  HF_TOKEN_PATH_LIN: /secrets/huggingface/token-secondary
   HF_TOKEN_PATH_WIN: "C:\\mount\\secrets\\huggingface\\token-secondary"
 
 jobs:
@@ -41,7 +42,7 @@ jobs:
       image: ${{ inputs.image }}
       volumes:
         - /mount:/mount
-        - /home/runner/secrets/huggingface:/home/runner/secrets/huggingface:ro
+        - /home/runner/secrets/:/secrets:ro
         - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
     defaults:
       run:
@@ -79,12 +80,14 @@ jobs:
       - name: Setup HuggingFace Cache Directory (Windows)
         if: runner.os == 'Windows'
         run: |
-          Add-Content -Path $env:GITHUB_ENV -Value "HF_HUB_CACHE=C:\\mount\\caches\\huggingface"
-          Add-Content -Path $env:GITHUB_ENV -Value "HUGGINGFACE_HUB_CACHE=C:\\mount\\caches\\huggingface"
+          Add-Content -Path $env:GITHUB_ENV -Value "HF_HUB_CACHE=${{ env.HF_HUB_CACHE_WIN }}"
+          Add-Content -Path $env:GITHUB_ENV -Value "HUGGINGFACE_HUB_CACHE=${{ env.HF_HUB_CACHE_WIN }}"
+          Add-Content -Path $env:GITHUB_ENV -Value "HF_TOKEN_PATH=${{ env.HF_TOKEN_PATH_WIN }}"
 
-      - name: Setup Variables
+      - name: Setup Variables (Linux, macOS)
+        if: runner.os != 'Windows'
         run: |
-          echo "HF_TOKEN_PATH=${{ runner.os == 'Linux' && env.HF_TOKEN_PATH_LIN || env.HF_TOKEN_PATH_WIN }}" >> "$GITHUB_ENV"
+          echo "HF_TOKEN_PATH=${{ env.HF_TOKEN_PATH_LIN }}" >> "$GITHUB_ENV"
 
       - name: Install OpenVINO dependencies (mac)
         if: runner.os == 'macOS'
