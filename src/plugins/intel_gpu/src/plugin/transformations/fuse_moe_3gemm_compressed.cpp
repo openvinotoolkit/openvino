@@ -114,13 +114,15 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
     auto moe_compressed_no_shared_m = wrap_type<ov::op::internal::MOECompressed>(moe_inputs);
 
     // ── Shared expert weights ───────────────────────────────────────────
-    auto shared_gate_wei_m = wrap_const();
+    // Use ANY instead of wrap_const() for shared weights because FuseMOESharedExpert
+    // may produce Convert(Const_bf16, f16) nodes for bf16 models.
+    auto shared_gate_wei_m = ANY;
     auto shared_gate_scale_m = ANY;
     auto shared_gate_zp_m = ANY;
-    auto shared_up_wei_m = wrap_const();
+    auto shared_up_wei_m = ANY;
     auto shared_up_scale_m = ANY;
     auto shared_up_zp_m = ANY;
-    auto shared_down_wei_m = wrap_const();
+    auto shared_down_wei_m = ANY;
     auto shared_down_scale_m = ANY;
     auto shared_down_zp_m = ANY;
 
@@ -191,6 +193,19 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
             args.push_back(pattern_map.at(shared_down_scale_m));
             args.push_back(pattern_map.at(shared_down_zp_m));
             args.push_back(pattern_map.at(shared_gate_gate_wei_m));
+
+            // Detect shared expert weight precision for mixed-precision support.
+            // Note: bf16 weights are already converted to f16 by FuseMOESharedExpert.
+            auto shared_gate_node = pattern_map.at(shared_gate_wei_m).get_node_shared_ptr();
+            config.shared_weight_type = shared_gate_node->get_output_element_type(0);
+            if (config.shared_weight_type == ov::element::f16) {
+                config.shared_group_size = 0;    // no quantization
+                config.shared_has_zp = false;
+            } else {
+                // Same compression as sparse experts
+                config.shared_group_size = config.group_size;
+                config.shared_has_zp = config.has_zp;
+            }
         }
 
         std::shared_ptr<ov::Node> moe_router_fused = std::make_shared<ov::intel_gpu::op::MOE3GemmFusedCompressed>(args, config);

@@ -865,6 +865,326 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                            Moe3GemmTestParams{1, false, 128, 256, 4, 2, 64},
                                            Moe3GemmTestParams{1, true, 256, 512, 4, 2, 64}));
 
+// Mixed-precision shared expert: sparse experts are compressed (u4/i4/u8/i8),
+// but the shared expert keeps raw f16 weights. This exercises the
+// SHARED_WEIGHT_COMPRESSEION_DT codepath in the OCL kernel and the workgroup-level
+// branch between the compressed sparse path and the f16 shared path.
+//
+// Parametrized by `Moe3GemmTestParams`:
+//   - is_u4=true,  is_signed=false → sparse u4 (asymmetric, has_zp=true)
+//   - is_u4=true,  is_signed=true  → sparse i4 (symmetric,  has_zp=false)
+//   - is_u4=false, is_signed=false → sparse u8 (asymmetric, has_zp=true)
+//   - is_u4=false, is_signed=true  → sparse i8 (symmetric,  has_zp=false)
+class moe_3gemm_compressed_gpu_mixed_precision_shared
+    : public ::testing::TestWithParam<Moe3GemmTestParams> {};
+
+TEST_P(moe_3gemm_compressed_gpu_mixed_precision_shared, moe_accuracy_test_mixed_precision_shared) {
+    auto param = GetParam();
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad) {
+        return;
+    }
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    Moe3GemmConfig config;
+    config.batch_size = 1;
+    config.seq_len = param.seq_len;
+    config.hidden_size = param.hidden_size;
+    config.inter_size = param.inter_size;
+    config.num_experts = param.num_experts;
+    config.top_k = param.top_k;
+    config.group_size = param.group_size;
+    config.is_u4 = param.is_u4;
+    config.is_signed = param.is_signed;
+    config.has_shared_expert = true;
+    const bool has_zp = !config.is_signed;  // asymmetric for unsigned, symmetric for signed
+
+    Moe3GemmReference ref(config, rg);
+
+    // Random data
+    auto hidden_states = rg.generate_random_1d<ov::float16>(config.batch_size * config.seq_len * config.hidden_size, -1.0f, 1.0f, 1000);
+    auto routing_weights = rg.generate_random_1d<ov::float16>(config.batch_size * config.seq_len * config.num_experts, 0.0f, 1.0f, 1000);
+
+    auto w0_data = rg.generate_random_1d<float>(config.num_experts * config.hidden_size * config.inter_size, -1.0f, 0.0f, 1000);
+    auto w1_data = rg.generate_random_1d<float>(config.num_experts * config.hidden_size * config.inter_size, -1.0f, 0.0f, 1000);
+    auto w2_data = rg.generate_random_1d<float>(config.num_experts * config.inter_size * config.hidden_size, -1.0f, 0.0f, 1000);
+
+    // Shared-expert raw float weights (no quantization).
+    // Reference layout matches the existing shared expert reference:
+    //   s_gate_data[j (hidden) * inter + i (inter)]
+    //   s_up_data  [j (hidden) * inter + i (inter)]
+    //   s_down_data[i (inter)  * hidden + j (hidden)]
+    auto s_gate_data = rg.generate_random_1d<float>(config.hidden_size * config.inter_size, -1.0f, 0.0f, 1000);
+    auto s_up_data   = rg.generate_random_1d<float>(config.hidden_size * config.inter_size, -1.0f, 0.0f, 1000);
+    auto s_down_data = rg.generate_random_1d<float>(config.inter_size * config.hidden_size, -1.0f, 0.0f, 1000);
+    auto s_gate_scalar_data = rg.generate_random_1d<float>(config.hidden_size, -1.0f, 0.0f, 1000);
+
+    for (size_t i = 0; i < config.num_experts * config.hidden_size * config.inter_size; ++i) {
+        w0_data[i] /= 7.0f;
+        w1_data[i] /= 11.0f;
+        w2_data[i] /= 7.0f;
+        if (i < config.hidden_size * config.inter_size) {
+            s_gate_data[i] /= 7.0f;
+            s_up_data[i] /= 11.0f;
+            s_down_data[i] /= 7.0f;
+        }
+    }
+
+    // Quantize sparse experts (asymmetric for u4/u8, symmetric for i4/i8).
+    std::vector<uint8_t> w0_q, w1_q, w2_q;
+    std::vector<ov::float16> w0_scale, w1_scale, w2_scale;
+    std::vector<uint8_t> w0_zp, w1_zp, w2_zp;
+    if (has_zp) {
+        std::tie(w0_q, w0_scale, w0_zp) = ref.quantize(w0_data, config.num_experts, config.hidden_size, config.inter_size, config.group_size);
+        std::tie(w1_q, w1_scale, w1_zp) = ref.quantize(w1_data, config.num_experts, config.hidden_size, config.inter_size, config.group_size);
+        std::tie(w2_q, w2_scale, w2_zp) = ref.quantize(w2_data, config.num_experts, config.inter_size, config.hidden_size, config.group_size);
+    } else {
+        std::tie(w0_q, w0_scale) = ref.quantize_symmetric(w0_data, config.num_experts, config.hidden_size, config.inter_size, config.group_size);
+        std::tie(w1_q, w1_scale) = ref.quantize_symmetric(w1_data, config.num_experts, config.hidden_size, config.inter_size, config.group_size);
+        std::tie(w2_q, w2_scale) = ref.quantize_symmetric(w2_data, config.num_experts, config.inter_size, config.hidden_size, config.group_size);
+    }
+
+    auto w0_q_packed = ref.pack(w0_q);
+    auto w1_q_packed = ref.pack(w1_q);
+    auto w2_q_packed = ref.pack(w2_q);
+    // ZP packing is only meaningful for asymmetric quantization.
+    auto w0_zp_packed = has_zp ? ref.pack(w0_zp) : std::vector<uint8_t>{};
+    auto w1_zp_packed = has_zp ? ref.pack(w1_zp) : std::vector<uint8_t>{};
+    auto w2_zp_packed = has_zp ? ref.pack(w2_zp) : std::vector<uint8_t>{};
+
+    // Build raw f16 shared-expert weights. The OCL f16 GEMV reads
+    // `B = weight + n * K` (row-major [N, K]):
+    //   gate/up: N = inter_size, K = hidden_size  →  f16[i * hidden + j] = s_*_data[j * inter + i]
+    //   down   : N = hidden_size, K = inter_size  →  f16[j * inter + i] = s_down_data[i * hidden + j]
+    auto transpose_to_f16 = [](const std::vector<float>& src, size_t src_rows, size_t src_cols) {
+        std::vector<ov::float16> dst(src_rows * src_cols);
+        for (size_t r = 0; r < src_rows; ++r) {
+            for (size_t c = 0; c < src_cols; ++c) {
+                dst[c * src_rows + r] = static_cast<ov::float16>(src[r * src_cols + c]);
+            }
+        }
+        return dst;
+    };
+    auto s_gate_f16 = transpose_to_f16(s_gate_data, config.hidden_size, config.inter_size);
+    auto s_up_f16   = transpose_to_f16(s_up_data,   config.hidden_size, config.inter_size);
+    auto s_down_f16 = transpose_to_f16(s_down_data, config.inter_size, config.hidden_size);
+
+    // Allocators
+    const auto sparse_weight_dt = config.is_signed ? (config.is_u4 ? data_types::i4 : data_types::i8)
+                                                   : (config.is_u4 ? data_types::u4 : data_types::u8);
+    const auto sparse_zp_dt     = config.is_u4 ? data_types::u4 : data_types::u8;
+    auto create_sparse_weight_tensor = [&](const std::vector<uint8_t>& values, int64_t b, int64_t f, int64_t y, int64_t x) {
+        auto mem = engine.allocate_memory({sparse_weight_dt, format::bfyx, {b, f, y, x}});
+        set_values(mem, values);
+        get_test_stream().finish();
+        return mem;
+    };
+    auto create_f16_tensor = [&](const std::vector<ov::float16>& values, int64_t b, int64_t f, int64_t y, int64_t x) {
+        auto mem = engine.allocate_memory({data_types::f16, format::bfyx, {b, f, y, x}});
+        set_values(mem, values);
+        get_test_stream().finish();
+        return mem;
+    };
+    auto create_scalar_gate_tensor = [&](const std::vector<float>& values) {
+        std::vector<ov::float16> fp16_values;
+        for (float v : values)
+            fp16_values.push_back(static_cast<ov::float16>(v));
+        auto mem = engine.allocate_memory({data_types::f16, format::bfyx, {1, 1, 1, static_cast<int64_t>(values.size())}});
+        set_values(mem, fp16_values);
+        get_test_stream().finish();
+        return mem;
+    };
+
+    auto hidden_states_mem = create_f16_tensor(hidden_states, config.batch_size, config.seq_len, config.hidden_size, 1);
+    auto routing_weights_mem = create_f16_tensor(routing_weights, config.batch_size, config.seq_len, config.num_experts, 1);
+
+    size_t group_num = config.hidden_size / config.group_size;
+    size_t group_num2 = config.inter_size / config.group_size;
+
+    // Sparse expert weights/scales/zps (same as the existing shared-expert test).
+    auto make_scale = [&](const std::vector<ov::float16>& v, int64_t E, int64_t ofm, int64_t G) {
+        auto fmt = G > 1 ? format::byfx : format::bfyx;
+        auto shape = G > 1 ? ov::PartialShape{E, ofm, G, 1} : ov::PartialShape{E, ofm, 1};
+        auto mem = engine.allocate_memory(layout{shape, data_types::f16, fmt});
+        set_values(mem, v);
+        get_test_stream().finish();
+        return mem;
+    };
+    auto make_zp = [&](const std::vector<uint8_t>& v, int64_t E, int64_t ofm, int64_t G) {
+        auto fmt = G > 1 ? format::byfx : format::bfyx;
+        auto shape = G > 1 ? ov::PartialShape{E, ofm, G, 1} : ov::PartialShape{E, ofm, 1};
+        auto mem = engine.allocate_memory(layout{shape, sparse_zp_dt, fmt});
+        // For symmetric quantization the kernel still receives a ZP tensor in the input list,
+        // but every element must be 0 (HAS_ZP=0 compiles out the use, but the buffer still
+        // needs valid memory).
+        if (has_zp) {
+            set_values(mem, v);
+        } else {
+            auto lock = cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::write>(mem, get_test_stream());
+            std::memset(lock.data(), 0, lock.size());
+        }
+        get_test_stream().finish();
+        return mem;
+    };
+
+    auto w0_weight_mem = create_sparse_weight_tensor(w0_q_packed, config.num_experts, config.inter_size, config.group_size, group_num);
+    auto w0_scale_mem = make_scale(w0_scale, config.num_experts, config.inter_size, group_num);
+    auto w0_zp_mem = make_zp(w0_zp_packed, config.num_experts, config.inter_size, group_num);
+
+    auto w1_weight_mem = create_sparse_weight_tensor(w1_q_packed, config.num_experts, config.inter_size, config.group_size, group_num);
+    auto w1_scale_mem = make_scale(w1_scale, config.num_experts, config.inter_size, group_num);
+    auto w1_zp_mem = make_zp(w1_zp_packed, config.num_experts, config.inter_size, group_num);
+
+    auto w2_weight_mem = create_sparse_weight_tensor(w2_q_packed, config.num_experts, config.hidden_size, config.group_size, group_num2);
+    auto w2_scale_mem = make_scale(w2_scale, config.num_experts, config.hidden_size, group_num2);
+    auto w2_zp_mem = make_zp(w2_zp_packed, config.num_experts, config.hidden_size, group_num2);
+
+    // Shared expert raw f16 weights.
+    auto s_gate_weight_mem = create_f16_tensor(s_gate_f16, 1, config.inter_size, config.hidden_size, 1);
+    auto s_up_weight_mem   = create_f16_tensor(s_up_f16,   1, config.inter_size, config.hidden_size, 1);
+    auto s_down_weight_mem = create_f16_tensor(s_down_f16, 1, config.hidden_size, config.inter_size, 1);
+
+    // Dummy scalar f16 scale/zp tensors — never read by the kernel for f16 shared, but
+    // required as memory placeholders matching the 22-input layout.
+    auto make_dummy_f16 = [&]() {
+        auto mem = engine.allocate_memory({data_types::f16, format::bfyx, {1, 1, 1, 1}});
+        set_values(mem, {ov::float16(0.0f)});
+        get_test_stream().finish();
+        return mem;
+    };
+    auto s_gate_scale_mem = make_dummy_f16();
+    auto s_gate_zp_mem    = make_dummy_f16();
+    auto s_up_scale_mem   = make_dummy_f16();
+    auto s_up_zp_mem      = make_dummy_f16();
+    auto s_down_scale_mem = make_dummy_f16();
+    auto s_down_zp_mem    = make_dummy_f16();
+
+    auto s_gate_scalar_mem = create_scalar_gate_tensor(s_gate_scalar_data);
+
+    topology topology;
+    topology.add(input_layout("hidden_states", hidden_states_mem->get_layout()));
+    topology.add(input_layout("routing_weights", routing_weights_mem->get_layout()));
+
+    topology.add(data("w0_weight", w0_weight_mem));
+    topology.add(data("w0_scale", w0_scale_mem));
+    topology.add(data("w0_zp", w0_zp_mem));
+    topology.add(data("w1_weight", w1_weight_mem));
+    topology.add(data("w1_scale", w1_scale_mem));
+    topology.add(data("w1_zp", w1_zp_mem));
+    topology.add(data("w2_weight", w2_weight_mem));
+    topology.add(data("w2_scale", w2_scale_mem));
+    topology.add(data("w2_zp", w2_zp_mem));
+
+    // Dummy routing_bias/eps placeholders at indices 11-12 (SOFTMAX + shared expert).
+    auto dummy_bias_mem = make_dummy_f16();
+    auto dummy_eps_mem = make_dummy_f16();
+    topology.add(data("dummy_routing_bias", dummy_bias_mem));
+    topology.add(data("dummy_routing_eps", dummy_eps_mem));
+
+    topology.add(data("s_gate_weight", s_gate_weight_mem));
+    topology.add(data("s_gate_scale", s_gate_scale_mem));
+    topology.add(data("s_gate_zp", s_gate_zp_mem));
+    topology.add(data("s_up_weight", s_up_weight_mem));
+    topology.add(data("s_up_scale", s_up_scale_mem));
+    topology.add(data("s_up_zp", s_up_zp_mem));
+    topology.add(data("s_down_weight", s_down_weight_mem));
+    topology.add(data("s_down_scale", s_down_scale_mem));
+    topology.add(data("s_down_zp", s_down_zp_mem));
+    topology.add(data("s_gate_scalar", s_gate_scalar_mem));
+
+    cldnn::MOE3GemmFusedCompressed::Config moe_config;
+    moe_config.hidden_size = config.hidden_size;
+    moe_config.inter_size = config.inter_size;
+    moe_config.num_expert = config.num_experts;
+    moe_config.top_k = config.top_k;
+    moe_config.group_size = config.group_size;
+    moe_config.out_type = data_types::f16;
+    moe_config.num_shared_expert = 1;
+    moe_config.has_zp = has_zp;
+    // Mixed-precision: shared expert uses raw f16, no quantization.
+    moe_config.shared_weight_type = ov::element::f16;
+    moe_config.shared_group_size = 0;
+    moe_config.shared_has_zp = false;
+    moe_config.shared_inter_size = config.inter_size;
+
+    auto moe_prim = moe_3gemm_fused_compressed("moe_3gemm_fused_compressed",
+                                               {input_info("hidden_states"),
+                                                input_info("routing_weights"),
+                                                input_info("w0_weight"),
+                                                input_info("w0_scale"),
+                                                input_info("w0_zp"),
+                                                input_info("w1_weight"),
+                                                input_info("w1_scale"),
+                                                input_info("w1_zp"),
+                                                input_info("w2_weight"),
+                                                input_info("w2_scale"),
+                                                input_info("w2_zp"),
+                                                input_info("dummy_routing_bias"),
+                                                input_info("dummy_routing_eps"),
+                                                input_info("s_gate_weight"),
+                                                input_info("s_gate_scale"),
+                                                input_info("s_gate_zp"),
+                                                input_info("s_up_weight"),
+                                                input_info("s_up_scale"),
+                                                input_info("s_up_zp"),
+                                                input_info("s_down_weight"),
+                                                input_info("s_down_scale"),
+                                                input_info("s_down_zp"),
+                                                input_info("s_gate_scalar")},
+                                               moe_config);
+
+    topology.add(moe_prim);
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("hidden_states", hidden_states_mem);
+    network.set_input_data("routing_weights", routing_weights_mem);
+
+    auto outputs = network.execute();
+    auto output_prim = outputs.begin()->second.get_memory();
+    get_test_stream().flush();
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
+
+    auto ref_output =
+        ref.run_reference_softmax(hidden_states, routing_weights, w0_data, w1_data, w2_data,
+                                  s_gate_data, s_up_data, s_down_data, s_gate_scalar_data);
+
+    const float tolerance = 0.5f * (config.hidden_size / 128);
+    for (size_t i = 0; i < ref_output.size(); ++i) {
+        EXPECT_NEAR(static_cast<float>(output_ptr[i]), static_cast<float>(ref_output[i]), tolerance);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         moe_3gemm_compressed_gpu_mixed_precision_shared,
+                         ::testing::Values(
+                             // sparse u4 (asymmetric) + shared f16
+                             Moe3GemmTestParams{1,  true,  128, 256, 4, 2, 128, false},
+                             Moe3GemmTestParams{16, true,  128, 256, 4, 2, 128, false},
+                             Moe3GemmTestParams{1,  true,  256, 512, 4, 2, 256, false},
+                             Moe3GemmTestParams{1,  true,  512, 512, 4, 2, 512, false},
+                             // sparse i4 (symmetric) + shared f16
+                             Moe3GemmTestParams{1,  true,  128, 256, 4, 2, 128, true},
+                             Moe3GemmTestParams{16, true,  128, 256, 4, 2, 128, true},
+                             Moe3GemmTestParams{1,  true,  256, 512, 4, 2, 256, true},
+                             Moe3GemmTestParams{1,  true,  512, 512, 4, 2, 512, true},
+                             // sparse u8 (asymmetric) + shared f16
+                             Moe3GemmTestParams{1,  false, 128, 256, 4, 2, 128, false},
+                             Moe3GemmTestParams{16, false, 128, 256, 4, 2, 128, false},
+                             Moe3GemmTestParams{1,  false, 256, 512, 4, 2, 256, false},
+                             Moe3GemmTestParams{1,  false, 512, 512, 4, 2, 512, false},
+                             // sparse i8 (symmetric) + shared f16
+                             Moe3GemmTestParams{1,  false, 128, 256, 4, 2, 128, true},
+                             Moe3GemmTestParams{16, false, 128, 256, 4, 2, 128, true},
+                             Moe3GemmTestParams{1,  false, 256, 512, 4, 2, 256, true},
+                             Moe3GemmTestParams{1,  false, 512, 512, 4, 2, 512, true},
+                             // Sub-128 group_size (trinity-mini afmoe shape) + shared f16.
+                             // Exercises the FAKE_GROUP_SIZE=64 / ELEMS_PER_LANE=2 f16 GEMV path
+                             // for the shared expert when sparse experts use a sub-128 group.
+                             Moe3GemmTestParams{1,  true,  128, 256, 4, 2, 64,  false},
+                             Moe3GemmTestParams{1,  false, 128, 256, 4, 2, 64,  false},
+                             Moe3GemmTestParams{1,  true,  128, 256, 4, 2, 64,  true},
+                             Moe3GemmTestParams{1,  false, 128, 256, 4, 2, 64,  true}));
+
 TEST_P(moe_3gemm_compressed_gpu_u4, moe_accuracy_test_u4) {
     auto routing_type = GetParam();
     auto& engine = get_test_engine();

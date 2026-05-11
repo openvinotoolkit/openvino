@@ -485,6 +485,113 @@ TEST_F(TransformationTestsF, FuseMOE3GemmSharedExpertCompressedSigmoidTest) {
     }
 }
 
+// Mixed-precision shared expert: sparse experts are u4-compressed, but the shared expert
+// uses raw f16 weights. Input MOECompressed has the 22-input layout produced by
+// FuseMOESharedExpert (real shared weights + dummy f16 scalar scale/zp constants), with
+// shared_weight_type=f16 / shared_group_size=0 / shared_has_zp=false in the Config. The
+// fusion to MOE3GemmFusedCompressed must preserve those Config fields.
+TEST_F(TransformationTestsF, FuseMOE3GemmSharedExpertMixedPrecisionTest) {
+    {
+        auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{32, 2048});
+        auto routers = op::v0::Constant::create(element::f16, Shape{2048, 128}, {0.2});
+        auto routing_weights = std::make_shared<ov::op::v0::MatMul>(hidden_states, routers);
+
+        auto [unsqueeze_moe, topk_indices] = build_softmax_routing_for_fuse_test(routing_weights, 8);
+
+        auto wei_gate = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {1});
+        auto scale_gate = op::v0::Constant::create(element::f16, Shape{128, 768, 16}, {0.01f});
+        auto zp_gate = op::v0::Constant::create(element::u4, Shape{128, 768, 16}, {0});
+        auto wei_up = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {1});
+        auto scale_up = op::v0::Constant::create(element::f16, Shape{128, 768, 16}, {0.01f});
+        auto zp_up = op::v0::Constant::create(element::u4, Shape{128, 768, 16}, {0});
+        auto wei_down = op::v0::Constant::create(element::u4, Shape{128, 2048, 6, 128}, {1});
+        auto scale_down = op::v0::Constant::create(element::f16, Shape{128, 2048, 6}, {0.01f});
+        auto zp_down = op::v0::Constant::create(element::u4, Shape{128, 2048, 6}, {0});
+
+        // Shared expert: raw f16 weights (no quantization).
+        auto sh_wei_gate = op::v0::Constant::create(element::f16, Shape{768, 2048}, {0.5f});
+        auto sh_wei_up   = op::v0::Constant::create(element::f16, Shape{768, 2048}, {0.5f});
+        auto sh_wei_down = op::v0::Constant::create(element::f16, Shape{2048, 768}, {0.5f});
+        // Dummy scalar f16 placeholders for the 6 unused scale/zp slots.
+        auto dummy = []() { return op::v0::Constant::create(element::f16, Shape{1}, {0.0f}); };
+        auto sh_gate_gate_wei = op::v0::Constant::create(element::f16, Shape{2048, 1}, {0.5f});
+
+        ov::op::internal::MOECompressed::Config config;
+        config.expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
+        config.has_zp = true;
+        config.hidden_size = 2048;
+        config.inter_size = 768;
+        config.num_expert = 128;
+        config.num_shared_expert = 1;
+        config.group_size = 128;
+        config.top_k = 8;
+        config.out_type = ov::element::f16;
+        config.shared_weight_type = ov::element::f16;
+        config.shared_group_size = 0;
+        config.shared_has_zp = false;
+        config.shared_inter_size = 768;
+        auto moe_compressed = std::make_shared<ov::op::internal::MOECompressed>(
+            ov::OutputVector{hidden_states, unsqueeze_moe, topk_indices,
+                wei_gate, scale_gate, zp_gate, wei_up, scale_up, zp_up, wei_down, scale_down, zp_down,
+                sh_wei_gate, dummy(), dummy(),
+                sh_wei_up,   dummy(), dummy(),
+                sh_wei_down, dummy(), dummy(),
+                sh_gate_gate_wei}, config);
+        model = std::make_shared<ov::Model>(moe_compressed, ov::ParameterVector{hidden_states});
+        manager.register_pass<FuseMOE3GemmCompressed>();
+    }
+    {
+        auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{32, 2048});
+        auto routers = op::v0::Constant::create(element::f16, Shape{2048, 128}, {0.2});
+        auto routing_weights = std::make_shared<ov::op::v0::MatMul>(hidden_states, routers);
+
+        auto wei_gate = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {1});
+        auto scale_gate = op::v0::Constant::create(element::f16, Shape{128, 768, 16}, {0.01f});
+        auto zp_gate = op::v0::Constant::create(element::u4, Shape{128, 768, 16}, {0});
+        auto wei_up = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {1});
+        auto scale_up = op::v0::Constant::create(element::f16, Shape{128, 768, 16}, {0.01f});
+        auto zp_up = op::v0::Constant::create(element::u4, Shape{128, 768, 16}, {0});
+        auto wei_down = op::v0::Constant::create(element::u4, Shape{128, 2048, 6, 128}, {1});
+        auto scale_down = op::v0::Constant::create(element::f16, Shape{128, 2048, 6}, {0.01f});
+        auto zp_down = op::v0::Constant::create(element::u4, Shape{128, 2048, 6}, {0});
+
+        auto sh_wei_gate = op::v0::Constant::create(element::f16, Shape{768, 2048}, {0.5f});
+        auto sh_wei_up   = op::v0::Constant::create(element::f16, Shape{768, 2048}, {0.5f});
+        auto sh_wei_down = op::v0::Constant::create(element::f16, Shape{2048, 768}, {0.5f});
+        auto dummy = []() { return op::v0::Constant::create(element::f16, Shape{1}, {0.0f}); };
+        auto sh_gate_gate_wei = op::v0::Constant::create(element::f16, Shape{2048, 1}, {0.5f});
+
+        // Dummy placeholders for SOFTMAX routing bias/eps slots (indices 11-12).
+        auto dummy_bias = op::v0::Constant::create(element::f16, Shape{1}, {0.0f});
+        auto dummy_eps = op::v0::Constant::create(element::f16, Shape{1}, {0.0f});
+
+        ov::op::internal::MOECompressed::Config config;
+        config.expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
+        config.has_zp = true;
+        config.hidden_size = 2048;
+        config.inter_size = 768;
+        config.num_expert = 128;
+        config.num_shared_expert = 1;
+        config.group_size = 128;
+        config.top_k = 8;
+        config.out_type = ov::element::f16;
+        config.shared_weight_type = ov::element::f16;
+        config.shared_group_size = 0;
+        config.shared_has_zp = false;
+        config.shared_inter_size = 768;
+        auto moe_3gemm_fused_compressed = std::make_shared<ov::intel_gpu::op::MOE3GemmFusedCompressed>(
+            ov::OutputVector{hidden_states, routing_weights,
+                wei_gate, scale_gate, zp_gate, wei_up, scale_up, zp_up, wei_down, scale_down, zp_down,
+                dummy_bias, dummy_eps,
+                sh_wei_gate, dummy(), dummy(),
+                sh_wei_up,   dummy(), dummy(),
+                sh_wei_down, dummy(), dummy(),
+                sh_gate_gate_wei}, config);
+
+        model_ref = std::make_shared<ov::Model>(moe_3gemm_fused_compressed, ov::ParameterVector{hidden_states});
+    }
+}
+
 TEST_F(TransformationTestsF, FuseMOE3GemmCompressedTest1) {
     // ── MoE shape parameters (larger experts, smaller inter_size, larger top_k) ──
     constexpr size_t batch = 4;

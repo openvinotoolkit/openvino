@@ -36,6 +36,15 @@ public:
         bool has_zp = false;
         ov::element::Type out_type = ov::element::dynamic;
         RoutingType routing_type = RoutingType::SOFTMAX;
+        // Shared expert weight precision (f16/f32 = uncompressed, u4/i4/u8/i8 = compressed).
+        // dynamic means "same as sparse experts" (backward compatible default).
+        ov::element::Type shared_weight_type = ov::element::dynamic;
+        // 0 means no quantization (raw f16/f32); otherwise group compression size.
+        size_t shared_group_size = 0;
+        bool shared_has_zp = false;
+        // Shared expert intermediate size (may differ from sparse experts' inter_size).
+        // 0 means "same as inter_size" (backward compatible default).
+        size_t shared_inter_size = 0;
         std::optional<float> scale_factor;
     };
 

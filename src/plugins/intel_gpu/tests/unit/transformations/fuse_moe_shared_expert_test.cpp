@@ -394,7 +394,7 @@ TEST_F(TransformationTestsF, FuseMOECompressedSharedExpertWithSigmoidGating) {
         manager.register_pass<FuseMOESharedExpert>();
     }
     {
-        // Expected: MOECompressed with shared expert weights absorbed
+        // Expected: 22-input MOECompressed with decomposed shared expert weight/scale/zp
         auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{32, 2048});
         auto routing_weights = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{128, 1, 32, 1});
         auto routing_idx = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{32, 8});
@@ -409,14 +409,292 @@ TEST_F(TransformationTestsF, FuseMOECompressedSharedExpertWithSigmoidGating) {
         auto scale_down = op::v0::Constant::create(element::f16, Shape{128, 2048, 6}, {0.01f});
         auto zp_down = op::v0::Constant::create(element::u4, Shape{128, 2048, 6}, {0});
 
-        auto sh_gate_decompressed = create_decompression_chain(
-            element::u4, {768, 16, 128}, {768, 16, 1}, {768, 16, 1}, {768, 2048}, 2.0f, 1.0f, 0.02f);
-        auto sh_up_decompressed = create_decompression_chain(
-            element::u4, {768, 16, 128}, {768, 16, 1}, {768, 16, 1}, {768, 2048}, 2.0f, 1.0f, 0.02f);
-        auto sh_down_decompressed = create_decompression_chain(
-            element::u4, {2048, 6, 128}, {2048, 6, 1}, {2048, 6, 1}, {2048, 768}, 2.0f, 1.0f, 0.02f);
+        // Decomposed shared expert: raw weight/scale/zp constants (extracted from dequant chain)
+        auto sh_wei_gate = op::v0::Constant::create(element::u4, {768, 16, 128}, {2.0f});
+        auto sh_scale_gate = op::v0::Constant::create(element::f16, {768, 16, 1}, {0.02f});
+        auto sh_zp_gate = op::v0::Constant::create(element::u4, {768, 16, 1}, {1.0f});
+        auto sh_wei_up = op::v0::Constant::create(element::u4, {768, 16, 128}, {2.0f});
+        auto sh_scale_up = op::v0::Constant::create(element::f16, {768, 16, 1}, {0.02f});
+        auto sh_zp_up = op::v0::Constant::create(element::u4, {768, 16, 1}, {1.0f});
+        auto sh_wei_down = op::v0::Constant::create(element::u4, {2048, 6, 128}, {2.0f});
+        auto sh_scale_down = op::v0::Constant::create(element::f16, {2048, 6, 1}, {0.02f});
+        auto sh_zp_down = op::v0::Constant::create(element::u4, {2048, 6, 1}, {1.0f});
 
         auto gate_gate_wei = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{2048, 1}, std::vector<float>(2048, 1.0f));
+
+        ov::op::internal::MOECompressed::Config config;
+        config.expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
+        config.has_zp = true;
+        config.hidden_size = 2048;
+        config.inter_size = 768;
+        config.num_expert = 128;
+        config.num_shared_expert = 1;
+        config.group_size = 128;
+        config.top_k = 8;
+        config.out_type = ov::element::f32;
+        config.shared_weight_type = ov::element::u4;
+        config.shared_group_size = 128;
+        config.shared_has_zp = true;
+        config.shared_inter_size = 768;
+        auto moe_expected = std::make_shared<ov::op::internal::MOECompressed>(
+            ov::OutputVector{hidden_states, routing_weights, routing_idx,
+                             wei_gate, scale_gate, zp_gate, wei_up, scale_up, zp_up,
+                             wei_down, scale_down, zp_down,
+                             sh_wei_gate, sh_scale_gate, sh_zp_gate,
+                             sh_wei_up, sh_scale_up, sh_zp_up,
+                             sh_wei_down, sh_scale_down, sh_zp_down,
+                             gate_gate_wei}, config);
+
+        model_ref = std::make_shared<ov::Model>(moe_expected, ov::ParameterVector{hidden_states, routing_weights, routing_idx});
+    }
+}
+
+// Mixed-precision shared expert: sparse MOE is u4-compressed, but the shared expert
+// keeps raw f16 weights (no dequant chain). Verify FuseMOESharedExpert normalizes the
+// shared expert into the 22-input MOECompressed layout (with dummy scale/zp constants)
+// expected by FuseMOE3GemmCompressed, and updates the config accordingly.
+TEST_F(TransformationTestsF, FuseMOESharedExpertF16WithCompressedSparse) {
+    disable_rt_info_check();
+    {
+        auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{32, 2048});
+        auto routing_weights = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{128, 1, 32, 1});
+        auto routing_idx = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{32, 8});
+
+        // Compressed sparse experts (MOECompressed, no decompression chains).
+        auto wei_gate = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {1});
+        auto scale_gate = op::v0::Constant::create(element::f16, Shape{128, 768, 16}, {0.01f});
+        auto zp_gate = op::v0::Constant::create(element::u4, Shape{128, 768, 16}, {0});
+        auto wei_up = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {1});
+        auto scale_up = op::v0::Constant::create(element::f16, Shape{128, 768, 16}, {0.01f});
+        auto zp_up = op::v0::Constant::create(element::u4, Shape{128, 768, 16}, {0});
+        auto wei_down = op::v0::Constant::create(element::u4, Shape{128, 2048, 6, 128}, {1});
+        auto scale_down = op::v0::Constant::create(element::f16, Shape{128, 2048, 6}, {0.01f});
+        auto zp_down = op::v0::Constant::create(element::u4, Shape{128, 2048, 6}, {0});
+
+        ov::op::internal::MOECompressed::Config config;
+        config.expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
+        config.has_zp = true;
+        config.hidden_size = 2048;
+        config.inter_size = 768;
+        config.num_expert = 128;
+        config.group_size = 128;
+        config.top_k = 8;
+        config.out_type = ov::element::f16;
+        auto moe = std::make_shared<ov::op::internal::MOECompressed>(
+            ov::OutputVector{hidden_states, routing_weights, routing_idx,
+                             wei_gate, scale_gate, zp_gate, wei_up, scale_up, zp_up,
+                             wei_down, scale_down, zp_down}, config);
+
+        // Shared expert: direct f16 Constants → raw MatMul chain (no dequant subgraph).
+        // No Convert to f32 — both hidden_states and weights stay in f16.
+        auto reshape_const_hs = op::v0::Constant::create(element::i64, Shape{2}, {32, 2048});
+        auto hidden_states_reshaped = std::make_shared<ov::op::v1::Reshape>(hidden_states, reshape_const_hs, false);
+
+        auto sh_gate_w = op::v0::Constant::create(element::f16, Shape{768, 2048}, {0.5f});
+        auto sh_up_w   = op::v0::Constant::create(element::f16, Shape{768, 2048}, {0.5f});
+        auto sh_down_w = op::v0::Constant::create(element::f16, Shape{2048, 768}, {0.5f});
+
+        auto shared_gate_m = std::make_shared<ov::op::v0::MatMul>(hidden_states_reshaped, sh_gate_w, false, true);
+        auto shared_swish_m = std::make_shared<ov::op::v4::Swish>(shared_gate_m);
+        auto shared_up_m = std::make_shared<ov::op::v0::MatMul>(hidden_states_reshaped, sh_up_w, false, true);
+        auto shared_mul_m = std::make_shared<ov::op::v1::Multiply>(shared_swish_m, shared_up_m);
+        auto shared_down_m = std::make_shared<ov::op::v0::MatMul>(shared_mul_m, sh_down_w, false, true);
+
+        // Sigmoid scalar gate (f16, [hidden, 1]).
+        auto gate_gate_wei = op::v0::Constant::create(element::f16, Shape{2048, 1}, std::vector<float>(2048, 1.0f));
+        auto gate_gate_mm = std::make_shared<ov::op::v0::MatMul>(hidden_states_reshaped, gate_gate_wei);
+        auto gate_sigmoid = std::make_shared<ov::op::v0::Sigmoid>(gate_gate_mm);
+        auto shared_gated = std::make_shared<ov::op::v1::Multiply>(gate_sigmoid, shared_down_m);
+
+        auto reshape_const_output = op::v0::Constant::create(element::i64, Shape{2}, {32, 2048});
+        auto shared_reshaped = std::make_shared<ov::op::v1::Reshape>(shared_gated, reshape_const_output, false);
+        auto add_m = std::make_shared<ov::op::v1::Add>(shared_reshaped, moe);
+
+        model = std::make_shared<ov::Model>(add_m, ov::ParameterVector{hidden_states, routing_weights, routing_idx});
+        manager.register_pass<FuseMOESharedExpert>();
+    }
+    {
+        // Expected: 22-input MOECompressed with dummy f16 scalar constants for
+        // the 6 shared scale/zp slots, and config updated for mixed-precision.
+        auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{32, 2048});
+        auto routing_weights = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{128, 1, 32, 1});
+        auto routing_idx = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{32, 8});
+
+        auto wei_gate = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {1});
+        auto scale_gate = op::v0::Constant::create(element::f16, Shape{128, 768, 16}, {0.01f});
+        auto zp_gate = op::v0::Constant::create(element::u4, Shape{128, 768, 16}, {0});
+        auto wei_up = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {1});
+        auto scale_up = op::v0::Constant::create(element::f16, Shape{128, 768, 16}, {0.01f});
+        auto zp_up = op::v0::Constant::create(element::u4, Shape{128, 768, 16}, {0});
+        auto wei_down = op::v0::Constant::create(element::u4, Shape{128, 2048, 6, 128}, {1});
+        auto scale_down = op::v0::Constant::create(element::f16, Shape{128, 2048, 6}, {0.01f});
+        auto zp_down = op::v0::Constant::create(element::u4, Shape{128, 2048, 6}, {0});
+
+        auto sh_gate_w = op::v0::Constant::create(element::f16, Shape{768, 2048}, {0.5f});
+        auto sh_up_w   = op::v0::Constant::create(element::f16, Shape{768, 2048}, {0.5f});
+        auto sh_down_w = op::v0::Constant::create(element::f16, Shape{2048, 768}, {0.5f});
+        auto gate_gate_wei = op::v0::Constant::create(element::f16, Shape{2048, 1}, std::vector<float>(2048, 1.0f));
+
+        // Dummy scalar f16 placeholders for the 6 missing scale/zp slots (matching the value
+        // injected by FuseMOESharedExpert when shared weights are uncompressed).
+        auto dummy = []() { return op::v0::Constant::create(element::f16, Shape{1}, {0.0f}); };
+
+        ov::op::internal::MOECompressed::Config config;
+        config.expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
+        config.has_zp = true;
+        config.hidden_size = 2048;
+        config.inter_size = 768;
+        config.num_expert = 128;
+        config.num_shared_expert = 1;
+        config.group_size = 128;
+        config.top_k = 8;
+        config.out_type = ov::element::f16;
+        config.shared_weight_type = ov::element::f16;
+        config.shared_group_size = 0;
+        config.shared_has_zp = false;
+        config.shared_inter_size = 768;
+
+        auto moe_expected = std::make_shared<ov::op::internal::MOECompressed>(
+            ov::OutputVector{hidden_states, routing_weights, routing_idx,
+                             wei_gate, scale_gate, zp_gate, wei_up, scale_up, zp_up,
+                             wei_down, scale_down, zp_down,
+                             sh_gate_w, dummy(), dummy(),
+                             sh_up_w,   dummy(), dummy(),
+                             sh_down_w, dummy(), dummy(),
+                             gate_gate_wei}, config);
+
+        model_ref = std::make_shared<ov::Model>(moe_expected, ov::ParameterVector{hidden_states, routing_weights, routing_idx});
+    }
+}
+
+// Mixed-precision shared expert without sigmoid gating: ensure num_shared_expert
+// is still set and a dummy gate_gate constant is appended.
+TEST_F(TransformationTestsF, FuseMOESharedExpertF16WithCompressedSparseNoGating) {
+    disable_rt_info_check();
+    {
+        auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{32, 2048});
+        auto routing_weights = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{128, 1, 32, 1});
+        auto routing_idx = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{32, 8});
+
+        auto wei_gate = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {1});
+        auto scale_gate = op::v0::Constant::create(element::f16, Shape{128, 768, 16}, {0.01f});
+        auto zp_gate = op::v0::Constant::create(element::u4, Shape{128, 768, 16}, {0});
+        auto wei_up = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {1});
+        auto scale_up = op::v0::Constant::create(element::f16, Shape{128, 768, 16}, {0.01f});
+        auto zp_up = op::v0::Constant::create(element::u4, Shape{128, 768, 16}, {0});
+        auto wei_down = op::v0::Constant::create(element::u4, Shape{128, 2048, 6, 128}, {1});
+        auto scale_down = op::v0::Constant::create(element::f16, Shape{128, 2048, 6}, {0.01f});
+        auto zp_down = op::v0::Constant::create(element::u4, Shape{128, 2048, 6}, {0});
+
+        ov::op::internal::MOECompressed::Config config;
+        config.expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
+        config.has_zp = true;
+        config.hidden_size = 2048;
+        config.inter_size = 768;
+        config.num_expert = 128;
+        config.group_size = 128;
+        config.top_k = 8;
+        config.out_type = ov::element::f16;
+        auto moe = std::make_shared<ov::op::internal::MOECompressed>(
+            ov::OutputVector{hidden_states, routing_weights, routing_idx,
+                             wei_gate, scale_gate, zp_gate, wei_up, scale_up, zp_up,
+                             wei_down, scale_down, zp_down}, config);
+
+        // No Convert to f32 — both hidden_states and weights stay in f16.
+        auto reshape_const_hs = op::v0::Constant::create(element::i64, Shape{2}, {32, 2048});
+        auto hidden_states_reshaped = std::make_shared<ov::op::v1::Reshape>(hidden_states, reshape_const_hs, false);
+
+        auto sh_gate_w = op::v0::Constant::create(element::f16, Shape{768, 2048}, {0.5f});
+        auto sh_up_w   = op::v0::Constant::create(element::f16, Shape{768, 2048}, {0.5f});
+        auto sh_down_w = op::v0::Constant::create(element::f16, Shape{2048, 768}, {0.5f});
+
+        auto shared_gate_m = std::make_shared<ov::op::v0::MatMul>(hidden_states_reshaped, sh_gate_w, false, true);
+        auto shared_swish_m = std::make_shared<ov::op::v4::Swish>(shared_gate_m);
+        auto shared_up_m = std::make_shared<ov::op::v0::MatMul>(hidden_states_reshaped, sh_up_w, false, true);
+        auto shared_mul_m = std::make_shared<ov::op::v1::Multiply>(shared_swish_m, shared_up_m);
+        auto shared_down_m = std::make_shared<ov::op::v0::MatMul>(shared_mul_m, sh_down_w, false, true);
+
+        auto reshape_const_output = op::v0::Constant::create(element::i64, Shape{2}, {32, 2048});
+        auto shared_reshaped = std::make_shared<ov::op::v1::Reshape>(shared_down_m, reshape_const_output, false);
+        auto add_m = std::make_shared<ov::op::v1::Add>(moe, shared_reshaped);
+
+        model = std::make_shared<ov::Model>(add_m, ov::ParameterVector{hidden_states, routing_weights, routing_idx});
+        manager.register_pass<FuseMOESharedExpert>();
+    }
+    {
+        auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{32, 2048});
+        auto routing_weights = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{128, 1, 32, 1});
+        auto routing_idx = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{32, 8});
+
+        auto wei_gate = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {1});
+        auto scale_gate = op::v0::Constant::create(element::f16, Shape{128, 768, 16}, {0.01f});
+        auto zp_gate = op::v0::Constant::create(element::u4, Shape{128, 768, 16}, {0});
+        auto wei_up = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {1});
+        auto scale_up = op::v0::Constant::create(element::f16, Shape{128, 768, 16}, {0.01f});
+        auto zp_up = op::v0::Constant::create(element::u4, Shape{128, 768, 16}, {0});
+        auto wei_down = op::v0::Constant::create(element::u4, Shape{128, 2048, 6, 128}, {1});
+        auto scale_down = op::v0::Constant::create(element::f16, Shape{128, 2048, 6}, {0.01f});
+        auto zp_down = op::v0::Constant::create(element::u4, Shape{128, 2048, 6}, {0});
+
+        auto sh_gate_w = op::v0::Constant::create(element::f16, Shape{768, 2048}, {0.5f});
+        auto sh_up_w   = op::v0::Constant::create(element::f16, Shape{768, 2048}, {0.5f});
+        auto sh_down_w = op::v0::Constant::create(element::f16, Shape{2048, 768}, {0.5f});
+
+        // No gating: a dummy [hidden_size, 1] f16 constant is injected as gate_gate.
+        auto dummy_gate_gate = op::v0::Constant::create(
+            element::f16, Shape{2048, 1}, std::vector<float>(2048, 0.0f));
+        auto dummy = []() { return op::v0::Constant::create(element::f16, Shape{1}, {0.0f}); };
+
+        ov::op::internal::MOECompressed::Config config;
+        config.expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
+        config.has_zp = true;
+        config.hidden_size = 2048;
+        config.inter_size = 768;
+        config.num_expert = 128;
+        config.num_shared_expert = 1;
+        config.group_size = 128;
+        config.top_k = 8;
+        config.out_type = ov::element::f16;
+        config.shared_weight_type = ov::element::f16;
+        config.shared_group_size = 0;
+        config.shared_has_zp = false;
+        config.shared_inter_size = 768;
+
+        auto moe_expected = std::make_shared<ov::op::internal::MOECompressed>(
+            ov::OutputVector{hidden_states, routing_weights, routing_idx,
+                             wei_gate, scale_gate, zp_gate, wei_up, scale_up, zp_up,
+                             wei_down, scale_down, zp_down,
+                             sh_gate_w, dummy(), dummy(),
+                             sh_up_w,   dummy(), dummy(),
+                             sh_down_w, dummy(), dummy(),
+                             dummy_gate_gate}, config);
+
+        model_ref = std::make_shared<ov::Model>(moe_expected, ov::ParameterVector{hidden_states, routing_weights, routing_idx});
+    }
+}
+
+// Mixed-precision shared expert with bf16 Constants behind decompression Converts:
+//   Const(bf16) → Convert(f32) → MatMul
+// This is the actual pattern produced by PyTorch/Optimum export for models like Qwen3.5-35B-A3B.
+// Verify that FuseMOESharedExpert looks through Convert nodes and still normalizes
+// the shared expert into the 22-input MOECompressed layout with the original bf16 Constants.
+TEST_F(TransformationTestsF, FuseMOESharedExpertBF16ConvertWithCompressedSparse) {
+    disable_rt_info_check();
+    {
+        auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{32, 2048});
+        auto routing_weights = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{128, 1, 32, 1});
+        auto routing_idx = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{32, 8});
+
+        // Compressed sparse experts (MOECompressed).
+        auto wei_gate = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {1});
+        auto scale_gate = op::v0::Constant::create(element::f16, Shape{128, 768, 16}, {0.01f});
+        auto zp_gate = op::v0::Constant::create(element::u4, Shape{128, 768, 16}, {0});
+        auto wei_up = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {1});
+        auto scale_up = op::v0::Constant::create(element::f16, Shape{128, 768, 16}, {0.01f});
+        auto zp_up = op::v0::Constant::create(element::u4, Shape{128, 768, 16}, {0});
+        auto wei_down = op::v0::Constant::create(element::u4, Shape{128, 2048, 6, 128}, {1});
+        auto scale_down = op::v0::Constant::create(element::f16, Shape{128, 2048, 6}, {0.01f});
+        auto zp_down = op::v0::Constant::create(element::u4, Shape{128, 2048, 6}, {0});
 
         ov::op::internal::MOECompressed::Config config;
         config.expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
@@ -427,11 +705,359 @@ TEST_F(TransformationTestsF, FuseMOECompressedSharedExpertWithSigmoidGating) {
         config.group_size = 128;
         config.top_k = 8;
         config.out_type = ov::element::f32;
+        auto moe = std::make_shared<ov::op::internal::MOECompressed>(
+            ov::OutputVector{hidden_states, routing_weights, routing_idx,
+                             wei_gate, scale_gate, zp_gate, wei_up, scale_up, zp_up,
+                             wei_down, scale_down, zp_down}, config);
+
+        // Shared expert: Const(bf16) → Convert(f32) → MatMul (real model pattern).
+        auto hidden_states_f32 = std::make_shared<ov::op::v0::Convert>(hidden_states, element::f32);
+        auto reshape_const_hs = op::v0::Constant::create(element::i64, Shape{2}, {32, 2048});
+        auto hidden_states_reshaped = std::make_shared<ov::op::v1::Reshape>(hidden_states_f32, reshape_const_hs, false);
+
+        auto sh_gate_w_bf16 = op::v0::Constant::create(element::bf16, Shape{768, 2048}, {0.5f});
+        auto sh_up_w_bf16   = op::v0::Constant::create(element::bf16, Shape{768, 2048}, {0.5f});
+        auto sh_down_w_bf16 = op::v0::Constant::create(element::bf16, Shape{2048, 768}, {0.5f});
+
+        auto sh_gate_w_f32 = std::make_shared<ov::op::v0::Convert>(sh_gate_w_bf16, element::f32);
+        auto sh_up_w_f32   = std::make_shared<ov::op::v0::Convert>(sh_up_w_bf16, element::f32);
+        auto sh_down_w_f32 = std::make_shared<ov::op::v0::Convert>(sh_down_w_bf16, element::f32);
+
+        auto shared_gate_m = std::make_shared<ov::op::v0::MatMul>(hidden_states_reshaped, sh_gate_w_f32, false, true);
+        auto shared_swish_m = std::make_shared<ov::op::v4::Swish>(shared_gate_m);
+        auto shared_up_m = std::make_shared<ov::op::v0::MatMul>(hidden_states_reshaped, sh_up_w_f32, false, true);
+        auto shared_mul_m = std::make_shared<ov::op::v1::Multiply>(shared_swish_m, shared_up_m);
+        auto shared_down_m = std::make_shared<ov::op::v0::MatMul>(shared_mul_m, sh_down_w_f32, false, true);
+
+        // Sigmoid scalar gate: also bf16 → Convert(f32).
+        auto gate_gate_wei_bf16 = op::v0::Constant::create(element::bf16, Shape{1, 2048}, {1.0f});
+        auto gate_gate_wei_f32 = std::make_shared<ov::op::v0::Convert>(gate_gate_wei_bf16, element::f32);
+        auto gate_gate_mm = std::make_shared<ov::op::v0::MatMul>(hidden_states_reshaped, gate_gate_wei_f32, false, true);
+        auto gate_sigmoid = std::make_shared<ov::op::v0::Sigmoid>(gate_gate_mm);
+        auto shared_gated = std::make_shared<ov::op::v1::Multiply>(gate_sigmoid, shared_down_m);
+
+        auto reshape_const_output = op::v0::Constant::create(element::i64, Shape{2}, {32, 2048});
+        auto shared_reshaped = std::make_shared<ov::op::v1::Reshape>(shared_gated, reshape_const_output, false);
+        auto add_m = std::make_shared<ov::op::v1::Add>(shared_reshaped, moe);
+
+        model = std::make_shared<ov::Model>(add_m, ov::ParameterVector{hidden_states, routing_weights, routing_idx});
+        manager.register_pass<FuseMOESharedExpert>();
+    }
+    {
+        // Expected: 22-input MOECompressed with bf16 Constants wrapped in Convert(bf16→f16)
+        // (since OpenCL kernels don't support bf16 natively), f16 dummy scale/zp constants.
+        auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{32, 2048});
+        auto routing_weights = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{128, 1, 32, 1});
+        auto routing_idx = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{32, 8});
+
+        auto wei_gate = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {1});
+        auto scale_gate = op::v0::Constant::create(element::f16, Shape{128, 768, 16}, {0.01f});
+        auto zp_gate = op::v0::Constant::create(element::u4, Shape{128, 768, 16}, {0});
+        auto wei_up = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {1});
+        auto scale_up = op::v0::Constant::create(element::f16, Shape{128, 768, 16}, {0.01f});
+        auto zp_up = op::v0::Constant::create(element::u4, Shape{128, 768, 16}, {0});
+        auto wei_down = op::v0::Constant::create(element::u4, Shape{128, 2048, 6, 128}, {1});
+        auto scale_down = op::v0::Constant::create(element::f16, Shape{128, 2048, 6}, {0.01f});
+        auto zp_down = op::v0::Constant::create(element::u4, Shape{128, 2048, 6}, {0});
+
+        // bf16 Constants wrapped in Convert(bf16→f16) — OpenCL can only consume f16.
+        auto sh_gate_w_bf16 = op::v0::Constant::create(element::bf16, Shape{768, 2048}, {0.5f});
+        auto sh_up_w_bf16   = op::v0::Constant::create(element::bf16, Shape{768, 2048}, {0.5f});
+        auto sh_down_w_bf16 = op::v0::Constant::create(element::bf16, Shape{2048, 768}, {0.5f});
+        auto gate_gate_wei_bf16 = op::v0::Constant::create(element::bf16, Shape{1, 2048}, {1.0f});
+
+        auto sh_gate_w = std::make_shared<ov::op::v0::Convert>(sh_gate_w_bf16, element::f16);
+        auto sh_up_w   = std::make_shared<ov::op::v0::Convert>(sh_up_w_bf16, element::f16);
+        auto sh_down_w = std::make_shared<ov::op::v0::Convert>(sh_down_w_bf16, element::f16);
+        auto gate_gate_wei = std::make_shared<ov::op::v0::Convert>(gate_gate_wei_bf16, element::f16);
+
+        auto dummy = []() { return op::v0::Constant::create(element::f16, Shape{1}, {0.0f}); };
+
+        ov::op::internal::MOECompressed::Config config;
+        config.expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
+        config.has_zp = true;
+        config.hidden_size = 2048;
+        config.inter_size = 768;
+        config.num_expert = 128;
+        config.num_shared_expert = 1;
+        config.group_size = 128;
+        config.top_k = 8;
+        config.out_type = ov::element::f32;
+        config.shared_weight_type = ov::element::f16;
+        config.shared_group_size = 0;
+        config.shared_has_zp = false;
+        config.shared_inter_size = 768;
+
         auto moe_expected = std::make_shared<ov::op::internal::MOECompressed>(
             ov::OutputVector{hidden_states, routing_weights, routing_idx,
                              wei_gate, scale_gate, zp_gate, wei_up, scale_up, zp_up,
                              wei_down, scale_down, zp_down,
-                             sh_gate_decompressed, sh_up_decompressed, sh_down_decompressed,
+                             sh_gate_w, dummy(), dummy(),
+                             sh_up_w,   dummy(), dummy(),
+                             sh_down_w, dummy(), dummy(),
+                             gate_gate_wei}, config);
+
+        model_ref = std::make_shared<ov::Model>(moe_expected, ov::ParameterVector{hidden_states, routing_weights, routing_idx});
+    }
+}
+
+// Real-model scenario: MoeOpFusion inserts Convert(f16→f32) between MOECompressed
+// and Add when MOECompressed.out_type=f16 but hidden_states are f32.
+// FuseMOESharedExpert must look through this Convert and preserve it after fusion.
+TEST_F(TransformationTestsF, FuseMOESharedExpertBF16WithConvertAfterMOE) {
+    disable_rt_info_check();
+    {
+        auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{32, 2048});
+        auto routing_weights = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{128, 1, 32, 1});
+        auto routing_idx = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{32, 8});
+
+        // Compressed sparse experts (MOECompressed with out_type=f16).
+        auto wei_gate = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {1});
+        auto scale_gate = op::v0::Constant::create(element::f16, Shape{128, 768, 16}, {0.01f});
+        auto zp_gate = op::v0::Constant::create(element::u4, Shape{128, 768, 16}, {0});
+        auto wei_up = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {1});
+        auto scale_up = op::v0::Constant::create(element::f16, Shape{128, 768, 16}, {0.01f});
+        auto zp_up = op::v0::Constant::create(element::u4, Shape{128, 768, 16}, {0});
+        auto wei_down = op::v0::Constant::create(element::u4, Shape{128, 2048, 6, 128}, {1});
+        auto scale_down = op::v0::Constant::create(element::f16, Shape{128, 2048, 6}, {0.01f});
+        auto zp_down = op::v0::Constant::create(element::u4, Shape{128, 2048, 6}, {0});
+
+        ov::op::internal::MOECompressed::Config config;
+        config.expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
+        config.has_zp = true;
+        config.hidden_size = 2048;
+        config.inter_size = 768;
+        config.num_expert = 128;
+        config.group_size = 128;
+        config.top_k = 8;
+        config.out_type = ov::element::f16;
+        auto moe = std::make_shared<ov::op::internal::MOECompressed>(
+            ov::OutputVector{hidden_states, routing_weights, routing_idx,
+                             wei_gate, scale_gate, zp_gate, wei_up, scale_up, zp_up,
+                             wei_down, scale_down, zp_down}, config);
+
+        // Convert(f16→f32) inserted by MoeOpFusion because out_type=f16 ≠ hidden_states=f32.
+        auto moe_converted = std::make_shared<ov::op::v0::Convert>(moe, element::f32);
+
+        // Shared expert: Const(bf16) → Convert(f32) → MatMul (real model pattern).
+        auto reshape_const_hs = op::v0::Constant::create(element::i64, Shape{2}, {32, 2048});
+        auto hidden_states_reshaped = std::make_shared<ov::op::v1::Reshape>(hidden_states, reshape_const_hs, false);
+
+        auto sh_gate_w_bf16 = op::v0::Constant::create(element::bf16, Shape{768, 2048}, {0.5f});
+        auto sh_up_w_bf16   = op::v0::Constant::create(element::bf16, Shape{768, 2048}, {0.5f});
+        auto sh_down_w_bf16 = op::v0::Constant::create(element::bf16, Shape{2048, 768}, {0.5f});
+
+        auto sh_gate_w_f32 = std::make_shared<ov::op::v0::Convert>(sh_gate_w_bf16, element::f32);
+        auto sh_up_w_f32   = std::make_shared<ov::op::v0::Convert>(sh_up_w_bf16, element::f32);
+        auto sh_down_w_f32 = std::make_shared<ov::op::v0::Convert>(sh_down_w_bf16, element::f32);
+
+        auto shared_gate_m = std::make_shared<ov::op::v0::MatMul>(hidden_states_reshaped, sh_gate_w_f32, false, true);
+        auto shared_swish_m = std::make_shared<ov::op::v4::Swish>(shared_gate_m);
+        auto shared_up_m = std::make_shared<ov::op::v0::MatMul>(hidden_states_reshaped, sh_up_w_f32, false, true);
+        auto shared_mul_m = std::make_shared<ov::op::v1::Multiply>(shared_swish_m, shared_up_m);
+        auto shared_down_m = std::make_shared<ov::op::v0::MatMul>(shared_mul_m, sh_down_w_f32, false, true);
+
+        // Sigmoid scalar gate.
+        auto gate_gate_wei_bf16 = op::v0::Constant::create(element::bf16, Shape{1, 2048}, {1.0f});
+        auto gate_gate_wei_f32 = std::make_shared<ov::op::v0::Convert>(gate_gate_wei_bf16, element::f32);
+        auto gate_gate_mm = std::make_shared<ov::op::v0::MatMul>(hidden_states_reshaped, gate_gate_wei_f32, false, true);
+        auto gate_sigmoid = std::make_shared<ov::op::v0::Sigmoid>(gate_gate_mm);
+        auto shared_gated = std::make_shared<ov::op::v1::Multiply>(gate_sigmoid, shared_down_m);
+
+        auto reshape_const_output = op::v0::Constant::create(element::i64, Shape{2}, {32, 2048});
+        auto shared_reshaped = std::make_shared<ov::op::v1::Reshape>(shared_gated, reshape_const_output, false);
+
+        // Add(shared_expert_f32, Convert(MOECompressed)_f32).
+        auto add_m = std::make_shared<ov::op::v1::Add>(shared_reshaped, moe_converted);
+
+        model = std::make_shared<ov::Model>(add_m, ov::ParameterVector{hidden_states, routing_weights, routing_idx});
+        manager.register_pass<FuseMOESharedExpert>();
+    }
+    {
+        // Expected: fused MOECompressed(f16) wrapped in Convert(f16→f32).
+        auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{32, 2048});
+        auto routing_weights = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{128, 1, 32, 1});
+        auto routing_idx = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{32, 8});
+
+        auto wei_gate = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {1});
+        auto scale_gate = op::v0::Constant::create(element::f16, Shape{128, 768, 16}, {0.01f});
+        auto zp_gate = op::v0::Constant::create(element::u4, Shape{128, 768, 16}, {0});
+        auto wei_up = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {1});
+        auto scale_up = op::v0::Constant::create(element::f16, Shape{128, 768, 16}, {0.01f});
+        auto zp_up = op::v0::Constant::create(element::u4, Shape{128, 768, 16}, {0});
+        auto wei_down = op::v0::Constant::create(element::u4, Shape{128, 2048, 6, 128}, {1});
+        auto scale_down = op::v0::Constant::create(element::f16, Shape{128, 2048, 6}, {0.01f});
+        auto zp_down = op::v0::Constant::create(element::u4, Shape{128, 2048, 6}, {0});
+
+        // bf16→f16 Convert (OpenCL can't consume bf16).
+        auto sh_gate_w_bf16 = op::v0::Constant::create(element::bf16, Shape{768, 2048}, {0.5f});
+        auto sh_up_w_bf16   = op::v0::Constant::create(element::bf16, Shape{768, 2048}, {0.5f});
+        auto sh_down_w_bf16 = op::v0::Constant::create(element::bf16, Shape{2048, 768}, {0.5f});
+        auto gate_gate_wei_bf16 = op::v0::Constant::create(element::bf16, Shape{1, 2048}, {1.0f});
+
+        auto sh_gate_w = std::make_shared<ov::op::v0::Convert>(sh_gate_w_bf16, element::f16);
+        auto sh_up_w   = std::make_shared<ov::op::v0::Convert>(sh_up_w_bf16, element::f16);
+        auto sh_down_w = std::make_shared<ov::op::v0::Convert>(sh_down_w_bf16, element::f16);
+        auto gate_gate_wei = std::make_shared<ov::op::v0::Convert>(gate_gate_wei_bf16, element::f16);
+
+        auto dummy = []() { return op::v0::Constant::create(element::f16, Shape{1}, {0.0f}); };
+
+        ov::op::internal::MOECompressed::Config config;
+        config.expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
+        config.has_zp = true;
+        config.hidden_size = 2048;
+        config.inter_size = 768;
+        config.num_expert = 128;
+        config.num_shared_expert = 1;
+        config.group_size = 128;
+        config.top_k = 8;
+        config.out_type = ov::element::f16;
+        config.shared_weight_type = ov::element::f16;
+        config.shared_group_size = 0;
+        config.shared_has_zp = false;
+        config.shared_inter_size = 768;
+
+        auto moe_expected = std::make_shared<ov::op::internal::MOECompressed>(
+            ov::OutputVector{hidden_states, routing_weights, routing_idx,
+                             wei_gate, scale_gate, zp_gate, wei_up, scale_up, zp_up,
+                             wei_down, scale_down, zp_down,
+                             sh_gate_w, dummy(), dummy(),
+                             sh_up_w,   dummy(), dummy(),
+                             sh_down_w, dummy(), dummy(),
+                             gate_gate_wei}, config);
+
+        // Convert(f16→f32) preserved after fusion.
+        auto moe_converted = std::make_shared<ov::op::v0::Convert>(moe_expected, element::f32);
+
+        model_ref = std::make_shared<ov::Model>(moe_converted, ov::ParameterVector{hidden_states, routing_weights, routing_idx});
+    }
+}
+
+// Compressed shared expert with group_size=64, symmetric quantization (i4, no zp).
+// FuseMOESharedExpert must decompose the dequant chain (Convert→Multiply→Reshape→Convert)
+// and create a 22-input MOECompressed with the raw i4 weight, f16 scale, and dummy zp.
+TEST_F(TransformationTestsF, FuseMOECompressedSharedExpertSymI4GroupSize64) {
+    disable_rt_info_check();
+    {
+        auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{32, 2048});
+        auto routing_weights = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{128, 1, 32, 1});
+        auto routing_idx = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{32, 8});
+
+        // Compressed sparse experts (MOECompressed) — sparse experts have zp (asymmetric).
+        auto wei_gate = op::v0::Constant::create(element::i4, Shape{128, 768, 32, 64}, {1});
+        auto scale_gate = op::v0::Constant::create(element::f16, Shape{128, 768, 32}, {0.01f});
+        auto zp_gate = op::v0::Constant::create(element::i4, Shape{128, 768, 32}, {0});
+        auto wei_up = op::v0::Constant::create(element::i4, Shape{128, 768, 32, 64}, {1});
+        auto scale_up = op::v0::Constant::create(element::f16, Shape{128, 768, 32}, {0.01f});
+        auto zp_up = op::v0::Constant::create(element::i4, Shape{128, 768, 32}, {0});
+        auto wei_down = op::v0::Constant::create(element::i4, Shape{128, 2048, 12, 64}, {1});
+        auto scale_down = op::v0::Constant::create(element::f16, Shape{128, 2048, 12}, {0.01f});
+        auto zp_down = op::v0::Constant::create(element::i4, Shape{128, 2048, 12}, {0});
+
+        ov::op::internal::MOECompressed::Config config;
+        config.expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
+        config.has_zp = true;
+        config.hidden_size = 2048;
+        config.inter_size = 768;
+        config.num_expert = 128;
+        config.group_size = 64;
+        config.top_k = 8;
+        config.out_type = ov::element::f16;
+        auto moe = std::make_shared<ov::op::internal::MOECompressed>(
+            ov::OutputVector{hidden_states, routing_weights, routing_idx,
+                             wei_gate, scale_gate, zp_gate, wei_up, scale_up, zp_up,
+                             wei_down, scale_down, zp_down}, config);
+
+        // Shared expert with symmetric i4 dequant chains (no Subtract), group_size=64.
+        // Chain stays f16: Const(i4)→Convert(f16)→Multiply(scale)→Reshape — no trailing Convert(f32).
+        auto reshape_const_hs = op::v0::Constant::create(element::i64, Shape{2}, {32, 2048});
+        auto hidden_states_reshaped = std::make_shared<ov::op::v1::Reshape>(hidden_states, reshape_const_hs, false);
+
+        auto make_sym_f16_chain = [](element::Type wt, Shape ws, Shape ss, Shape rs,
+                                     float wv, float sv) -> ov::Output<ov::Node> {
+            auto w  = op::v0::Constant::create(wt, ws, {wv});
+            auto wf = std::make_shared<ov::op::v0::Convert>(w, element::f16);
+            auto s  = op::v0::Constant::create(element::f16, ss, {sv});
+            auto mul = std::make_shared<ov::op::v1::Multiply>(wf, s);
+            auto rc = op::v0::Constant::create(element::i64, Shape{rs.size()}, rs);
+            return std::make_shared<ov::op::v1::Reshape>(mul, rc, false);
+        };
+        auto sh_gate_decompressed = make_sym_f16_chain(
+            element::i4, {768, 32, 64}, {768, 32, 1}, {768, 2048}, 2.0f, 0.02f);
+        auto sh_up_decompressed = make_sym_f16_chain(
+            element::i4, {768, 32, 64}, {768, 32, 1}, {768, 2048}, 2.0f, 0.02f);
+        auto sh_down_decompressed = make_sym_f16_chain(
+            element::i4, {2048, 12, 64}, {2048, 12, 1}, {2048, 768}, 2.0f, 0.02f);
+
+        auto shared_gate_m = std::make_shared<ov::op::v0::MatMul>(hidden_states_reshaped, sh_gate_decompressed, false, true);
+        auto shared_swish_m = std::make_shared<ov::op::v4::Swish>(shared_gate_m);
+        auto shared_up_m = std::make_shared<ov::op::v0::MatMul>(hidden_states_reshaped, sh_up_decompressed, false, true);
+        auto shared_mul_m = std::make_shared<ov::op::v1::Multiply>(shared_swish_m, shared_up_m);
+        auto shared_down_m = std::make_shared<ov::op::v0::MatMul>(shared_mul_m, sh_down_decompressed, false, true);
+
+        // Sigmoid gating
+        auto gate_gate_wei = op::v0::Constant::create(element::f16, Shape{2048, 1}, std::vector<float>(2048, 1.0f));
+        auto gate_gate_mm = std::make_shared<ov::op::v0::MatMul>(hidden_states_reshaped, gate_gate_wei);
+        auto gate_sigmoid = std::make_shared<ov::op::v0::Sigmoid>(gate_gate_mm);
+        auto shared_gated = std::make_shared<ov::op::v1::Multiply>(gate_sigmoid, shared_down_m);
+
+        auto reshape_const_output = op::v0::Constant::create(element::i64, Shape{2}, {32, 2048});
+        auto shared_reshaped = std::make_shared<ov::op::v1::Reshape>(shared_gated, reshape_const_output, false);
+        auto add_m = std::make_shared<ov::op::v1::Add>(shared_reshaped, moe);
+
+        model = std::make_shared<ov::Model>(add_m, ov::ParameterVector{hidden_states, routing_weights, routing_idx});
+        manager.register_pass<FuseMOESharedExpert>();
+    }
+    {
+        // Expected: 22-input MOECompressed with decomposed i4 weight, f16 scale, dummy zp
+        auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{32, 2048});
+        auto routing_weights = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{128, 1, 32, 1});
+        auto routing_idx = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{32, 8});
+
+        auto wei_gate = op::v0::Constant::create(element::i4, Shape{128, 768, 32, 64}, {1});
+        auto scale_gate = op::v0::Constant::create(element::f16, Shape{128, 768, 32}, {0.01f});
+        auto zp_gate = op::v0::Constant::create(element::i4, Shape{128, 768, 32}, {0});
+        auto wei_up = op::v0::Constant::create(element::i4, Shape{128, 768, 32, 64}, {1});
+        auto scale_up = op::v0::Constant::create(element::f16, Shape{128, 768, 32}, {0.01f});
+        auto zp_up = op::v0::Constant::create(element::i4, Shape{128, 768, 32}, {0});
+        auto wei_down = op::v0::Constant::create(element::i4, Shape{128, 2048, 12, 64}, {1});
+        auto scale_down = op::v0::Constant::create(element::f16, Shape{128, 2048, 12}, {0.01f});
+        auto zp_down = op::v0::Constant::create(element::i4, Shape{128, 2048, 12}, {0});
+
+        // Decomposed shared expert: raw i4 weight, f16 scale, dummy i4 zp (symmetric)
+        auto sh_wei_gate = op::v0::Constant::create(element::i4, {768, 32, 64}, {2.0f});
+        auto sh_scale_gate = op::v0::Constant::create(element::f16, {768, 32, 1}, {0.02f});
+        auto sh_zp_gate = op::v0::Constant::create(element::i4, {1}, {0});  // dummy
+        auto sh_wei_up = op::v0::Constant::create(element::i4, {768, 32, 64}, {2.0f});
+        auto sh_scale_up = op::v0::Constant::create(element::f16, {768, 32, 1}, {0.02f});
+        auto sh_zp_up = op::v0::Constant::create(element::i4, {1}, {0});  // dummy
+        auto sh_wei_down = op::v0::Constant::create(element::i4, {2048, 12, 64}, {2.0f});
+        auto sh_scale_down = op::v0::Constant::create(element::f16, {2048, 12, 1}, {0.02f});
+        auto sh_zp_down = op::v0::Constant::create(element::i4, {1}, {0});  // dummy
+
+        auto gate_gate_wei = op::v0::Constant::create(element::f16, Shape{2048, 1}, std::vector<float>(2048, 1.0f));
+
+        ov::op::internal::MOECompressed::Config config;
+        config.expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
+        config.has_zp = true;
+        config.hidden_size = 2048;
+        config.inter_size = 768;
+        config.num_expert = 128;
+        config.num_shared_expert = 1;
+        config.group_size = 64;
+        config.top_k = 8;
+        config.out_type = ov::element::f16;
+        config.shared_weight_type = ov::element::i4;
+        config.shared_group_size = 64;
+        config.shared_has_zp = false;
+        config.shared_inter_size = 768;
+        auto moe_expected = std::make_shared<ov::op::internal::MOECompressed>(
+            ov::OutputVector{hidden_states, routing_weights, routing_idx,
+                             wei_gate, scale_gate, zp_gate, wei_up, scale_up, zp_up,
+                             wei_down, scale_down, zp_down,
+                             sh_wei_gate, sh_scale_gate, sh_zp_gate,
+                             sh_wei_up, sh_scale_up, sh_zp_up,
+                             sh_wei_down, sh_scale_down, sh_zp_down,
                              gate_gate_wei}, config);
 
         model_ref = std::make_shared<ov::Model>(moe_expected, ov::ParameterVector{hidden_states, routing_weights, routing_idx});
