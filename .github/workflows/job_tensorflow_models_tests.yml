@@ -85,7 +85,7 @@ jobs:
           echo "HF_TOKEN_PATH=${{ runner.os == 'Linux' && env.HF_TOKEN_PATH_LIN || env.HF_TOKEN_PATH_WIN }}" >> "$GITHUB_ENV"
           echo "TFHUB_CACHE_DIR=/mount/testdata$((GITHUB_RUN_NUMBER % NUMBER_OF_REPLICAS))/tfhub_models" >> "$GITHUB_ENV"
 
-      - name: Extract OpenVINO artifacts (Linux and macOS)
+      - name: Extract OpenVINO artifacts (Linux and macOS) #
         run: pigz -dc openvino_tests.tar.gz | tar -xf - -v
         working-directory: ${{ env.INSTALL_DIR }}
 
