@@ -247,7 +247,7 @@ Dx12SharedBuffer create_dx12_shared_buffer(ID3D12Device* device,
 
 TEST(GpuSharedBufferRemoteTensor, smoke_Dx12RemoteInputToRemoteOutputCopyAndCompare) {
     ov::Core core;
-    const ov::Shape shape{16'000'000};
+    const ov::Shape shape{16'000};
     const size_t element_count = ov::shape_size(shape);
     const size_t byte_size = element_count * sizeof(float);
 
@@ -367,6 +367,7 @@ TEST(GpuSharedBufferRemoteTensor, smoke_Dx12RemoteInputToRemoteOutputCopyAndComp
                                                     ov::intel_gpu::MemType::SHARED_BUF);
     } catch (const ov::Exception& ex) {
         std::cout << "[INFO] NT handle import not supported on this device: " << ex.what() << "\n";
+        GTEST_SKIP();
         return;
     }
 

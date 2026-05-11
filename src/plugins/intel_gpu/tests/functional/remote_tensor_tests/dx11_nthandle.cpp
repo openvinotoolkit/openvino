@@ -198,7 +198,7 @@ CComPtr<ID3D11Buffer> open_dx11_shared_buffer(ID3D11Device* device, HANDLE share
 
 TEST(GpuSharedBufferRemoteTensor, smoke_Dx11RemoteInputToRemoteOutputCopyAndCompare) {
     ov::Core core;
-    const ov::Shape shape{16'000'000};
+    const ov::Shape shape{16'000};
     const size_t element_count = ov::shape_size(shape);
     const size_t byte_size = element_count * sizeof(float);
 

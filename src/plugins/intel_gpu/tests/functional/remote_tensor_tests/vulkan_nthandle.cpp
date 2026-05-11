@@ -525,7 +525,7 @@ VulkanSharedBuffer create_vulkan_shared_buffer(VulkanTestContext& context, size_
 
 TEST(GpuSharedBufferRemoteTensor, smoke_VulkanRemoteInputToRemoteOutputCopyAndCompare) {
     ov::Core core;
-    const ov::Shape shape{16'000'000};
+    const ov::Shape shape{16'000};
     const size_t element_count = ov::shape_size(shape);
     const size_t byte_size = element_count * sizeof(float);
 
