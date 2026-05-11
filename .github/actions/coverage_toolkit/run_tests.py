@@ -765,6 +765,8 @@ def run_python(ctx: CoverageContext) -> None:
         else None
     )
     runtime_extra_paths = [tests_dir]
+    if installed_python_package_dir is not None:
+        runtime_extra_paths.append(installed_python_package_dir)
     if wheel_lib_dir is not None:
         runtime_extra_paths.append(wheel_lib_dir)
     runtime_extra_paths.extend(_env_path_list("COVERAGE_PYTHON_RUNTIME_EXTRA_PATHS", workspace=ctx.workspace))
