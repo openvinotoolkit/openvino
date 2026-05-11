@@ -53,8 +53,9 @@ static size_t weight_logical_K(const ov::Shape& shape) {
 Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool has_batch_dim) {
     MATCHER_SCOPE(Convert3GatherMatmulMoeBlockToMoeOp);
 
-    auto experts_reshape_m = pattern::any_input();
-    auto unsqueeze_m = pattern::wrap_type<v0::Unsqueeze>({experts_reshape_m, pattern::any_input()});
+    auto hidden_states_m = pattern::any_input();
+    auto hidden_state_reshape = pattern::optional<v1::Reshape>({hidden_states_m, pattern::any_input()});
+    auto unsqueeze_m = pattern::wrap_type<v0::Unsqueeze>({hidden_state_reshape, pattern::any_input()});
 
     auto gate_w_m = pattern::any_input();
     auto topk_indices_m = pattern::any_input();
@@ -106,8 +107,7 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool ha
             return false;
         }
 
-        auto experts_reshape_node = pm.at(experts_reshape_m).get_node_shared_ptr();
-        auto hidden_states = experts_reshape_node->input_value(0);
+        auto hidden_states = pm.at(hidden_states_m);
 
         auto routing = pm.at(routing_unsqueeze_m).get_node_shared_ptr();
         auto topk_indices = pm.at(topk_indices_m);
@@ -239,8 +239,9 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool ha
 Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(bool has_batch_dim) {
     MATCHER_SCOPE(Convert2GatherMatmulMoeBlockToMoeOp);
 
-    auto experts_reshape_m = pattern::any_input();
-    auto unsqueeze_m = pattern::wrap_type<v0::Unsqueeze>({experts_reshape_m, pattern::any_input()});
+    auto hidden_states_m = pattern::any_input();
+    auto hidden_state_reshape = pattern::optional<v1::Reshape>({hidden_states_m, pattern::any_input()});
+    auto unsqueeze_m = pattern::wrap_type<v0::Unsqueeze>({hidden_state_reshape, pattern::any_input()});
 
     auto gate_up_w_m = pattern::any_input();
     auto topk_indices_m = pattern::any_input();
@@ -299,8 +300,7 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(bool ha
             return false;
         }
 
-        auto experts_reshape_node = pm.at(experts_reshape_m).get_node_shared_ptr();
-        auto hidden_states = experts_reshape_node->input_value(0);
+        auto hidden_states = pm.at(hidden_states_m);
 
         // Bypass the [1,0] Transpose: moe_scatter_reduction expects tokens-major routing.
         // Order is enforced by the pattern (value_matches("1, 0")).
