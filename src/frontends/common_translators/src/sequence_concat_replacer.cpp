@@ -272,29 +272,57 @@ SequenceConcatReplacer::SequenceConcatReplacer() {
         const auto new_axis = concat_fw->get_new_axis();
         const auto& seq_input = concat_fw->input_value(0);
 
-        // Case 1: SequenceMark / SequenceInsert chain (known sequence elements)
-        if (const auto seq_mark = ov::as_type_ptr<ov::frontend::SequenceMark>(seq_input.get_node_shared_ptr())) {
-            const auto& data = seq_mark->get_sequence();
-            if (data.empty())
+        // Helper: build Concat/Stack from a flat element list.
+        const auto make_concat = [&](const ov::OutputVector& elements) -> bool {
+            if (elements.empty())
                 return false;
-            const auto norm_axis = normalize_axis(data.front(), axis, new_axis);
+            const auto norm_axis = normalize_axis(elements.front(), axis, new_axis);
             ov::OutputVector inputs;
             if (new_axis) {
                 auto axis_const = v0::Constant::create(ov::element::i64, ov::Shape{}, {norm_axis});
-                for (const auto& d : data)
+                for (const auto& d : elements)
                     inputs.push_back(std::make_shared<v0::Unsqueeze>(d, axis_const));
             } else {
-                inputs = data;
+                inputs = elements;
             }
-
             auto concat = std::make_shared<v0::Concat>(inputs, norm_axis);
             concat->set_friendly_name(concat_fw->get_friendly_name());
             ov::copy_runtime_info(concat_fw, concat);
             ov::replace_node(concat_fw, concat);
             return true;
+        };
+
+        // Case 1: SequenceMark with elements known at graph-construction time.
+        // Covers SequenceConstruct and PyTorch aten::append chains
+        // (where each SequenceInsert is wrapped in a new SequenceMark).
+        if (const auto seq_mark = ov::as_type_ptr<ov::frontend::SequenceMark>(seq_input.get_node_shared_ptr())) {
+            return make_concat(seq_mark->get_sequence());
         }
 
-        // Case 2: Loop output (sequence built via iterations)
+        // Case 2: Bare SequenceInsert chain (ONNX native pattern).
+        // Pattern: SequenceEmpty → SequenceInsert(seq, t1) → SequenceInsert(seq, t2) → ConcatFromSequence
+        // The PyTorch aten::append wraps each SequenceInsert in a new SequenceMark; ONNX does not.
+        if (const auto seq_insert = ov::as_type_ptr<ov::frontend::SequenceInsert>(seq_input.get_node_shared_ptr())) {
+            ov::OutputVector elements;
+            std::shared_ptr<ov::Node> current = seq_insert;
+            while (const auto si = ov::as_type_ptr<ov::frontend::SequenceInsert>(current)) {
+                if (!is_append_only_sequence_insert(si))
+                    return false;  // positional insert — cannot flatten statically
+                elements.push_back(si->get_tensor());
+                current = si->get_input_sequence().get_node_shared_ptr();
+            }
+            // Base of the chain: SequenceMark (possibly empty, from SequenceEmpty)
+            if (const auto base = ov::as_type_ptr<ov::frontend::SequenceMark>(current)) {
+                ov::OutputVector base_elems = base->input_values();
+                base_elems.insert(base_elems.end(), elements.rbegin(), elements.rend());
+                elements = std::move(base_elems);
+            } else {
+                std::reverse(elements.begin(), elements.end());
+            }
+            return make_concat(elements);
+        }
+
+        // Case 3: Loop output (sequence built via iterations)
         return rewrite_loop_concat(concat_fw, seq_input, axis, new_axis);
     };
 

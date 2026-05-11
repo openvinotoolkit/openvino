@@ -39,7 +39,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |Col2Im                                                  |                        |18                              |                                |
 |                        |Compress                                                |9                       |11, 9                           |                                |
 |                        |Concat                                                  |1                       |13, 11, 4, 1                    |                                |
-|                        |ConcatFromSequence                                      |11                      |11                              |Supported only in certain patterns|
+|                        |ConcatFromSequence                                      |11                      |11                              |Supported for append-only chains (SequenceEmpty→SequenceInsert→...→ConcatFromSequence), SequenceConstruct, and Loop-built sequences|
 |                        |Constant                                                |13, 1                   |21, 19, 13, 12, 11, 9, 1        |                                |
 |                        |ConstantFill                                            |1                       |                                |                                |
 |                        |ConstantOfShape                                         |9                       |21, 20, 9                       |                                |
@@ -166,9 +166,9 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |Selu                                                    |1                       |22, 6, 1                        |                                |
 |                        |SequenceAt                                              |11                      |11                              |Supported only in certain patterns|
 |                        |SequenceConstruct                                       |11                      |11                              |Supported only in certain patterns|
-|                        |SequenceEmpty                                           |11                      |11                              |Supported only in certain patterns|
+|                        |SequenceEmpty                                           |11                      |11                              |Supported as the start of an append-only SequenceInsert chain ending in ConcatFromSequence|
 |                        |SequenceErase                                           |                        |11                              |                                |
-|                        |SequenceInsert                                          |11                      |11                              |Supported only in certain patterns|
+|                        |SequenceInsert                                          |11                      |11                              |Supported in append-only chains (no position or position==-1) ending in ConcatFromSequence, or inside Loop bodies|
 |                        |SequenceLength                                          |                        |11                              |                                |
 |                        |SequenceMap                                             |                        |17                              |                                |
 |                        |Shape                                                   |15, 1                   |21, 19, 15, 13, 1               |                                |

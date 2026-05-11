@@ -12,9 +12,13 @@ namespace pass {
 
 /// \brief Replaces ConcatFromSequence operations with standard OpenVINO ops.
 ///
-/// This transformation handles two patterns:
-///   1. SequenceMark -> ConcatFromSequence: Replaced with Concat (with optional Unsqueeze for new_axis mode)
-///   2. Loop(SequenceInsert) -> ConcatFromSequence: The Loop is rewritten to use ConcatOutputDescription
+/// This transformation handles three patterns:
+///   1. SequenceMark -> ConcatFromSequence: Replaced with Concat (with optional Unsqueeze for new_axis mode).
+///      Covers SequenceConstruct and PyTorch aten::append chains (each SequenceInsert wrapped in SequenceMark).
+///   2. SequenceInsert chain -> ConcatFromSequence: Flattened to Concat (ONNX native pattern).
+///      Pattern: SequenceEmpty → SequenceInsert(seq,t1) → SequenceInsert(seq,t2) → ConcatFromSequence.
+///      Only append-only chains (no-position or position==-1) are handled statically.
+///   3. Loop(SequenceInsert) -> ConcatFromSequence: The Loop is rewritten to use ConcatOutputDescription.
 ///
 /// Used by both ONNX and PyTorch frontends.
 class SequenceConcatReplacer : public ov::pass::MatcherPass {
