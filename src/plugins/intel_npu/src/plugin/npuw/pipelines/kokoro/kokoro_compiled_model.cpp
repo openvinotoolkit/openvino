@@ -13,26 +13,6 @@
 #include "plugin.hpp"
 
 namespace {
-// Remove all options "NPUW_.*"
-ov::AnyMap without_npuw_params(const ov::AnyMap& properties) {
-    ov::AnyMap result;
-    for (const auto& item : properties) {
-        if (item.first.find("NPUW") == std::string::npos) {
-            result.insert(item);
-        }
-    }
-    return result;
-}
-
-// Check properties for NPUW_DEVICES options and return true if only CPU is present
-bool is_cpu_only(const ov::AnyMap& properties) {
-    auto it = properties.find("NPUW_DEVICES");
-    if (it != properties.end()) {
-        return it->second.as<std::string>() == "CPU";
-    }
-    return false;
-}
-
 void split_kokoro_properties(const ov::AnyMap& properties,
                              ov::AnyMap& other_properties,
                              ov::AnyMap& kokoro_properties) {
@@ -78,6 +58,7 @@ ov::npuw::KokoroCompiledModel::KokoroCompiledModel(const std::shared_ptr<ov::Mod
     ov::AnyMap common_props;
 
     split_kokoro_properties(properties, common_props, npuw_kokoro_props);
+    common_props["NPUW_FALLBACK_EXEC"] = "NO";
 
     m_cfg.parseEnvVars();
     m_cfg.update(any_copy(npuw_kokoro_props));
@@ -93,23 +74,21 @@ ov::npuw::KokoroCompiledModel::KokoroCompiledModel(const std::shared_ptr<ov::Mod
     ov::npuw::kokoro::guard_angle_divide(split_result.model_b);
 
     LOG_DEBUG("Compiling kokoro model A...");
-    // Model A doesn't require decomposition, so it should be handled by CPU or NPU plugin
-    if (is_cpu_only(common_props)) {
-        auto core = plugin->get_core();
-        m_model_a_compiled = core->compile_model(split_result.model_a, "CPU", ov::AnyMap{});
-    } else {
-        // Plugin don't have to know about NPUW parameters
-        ov::AnyMap model_a_properties = without_npuw_params(common_props);
-        m_model_a_compiled = plugin->compile_model(split_result.model_a, model_a_properties);
-    }
+    // Model A (BERT + LSTMs + duration predictor) — compile through NPUW
+    // so that NPUW_CACHE_DIR caching works for both models.
+    // NONE pipeline keeps it as a single subgraph (no partitioning overhead).
+    ov::AnyMap properties_model_a = common_props;
+    properties_model_a["NPUW_ONLINE_PIPELINE"] = "NONE";
+    m_model_a_compiled = std::dynamic_pointer_cast<ov::npuw::ICompiledModel>(
+        ov::npuw::ICompiledModel::create(split_result.model_a, plugin, properties_model_a));
 
     LOG_DEBUG("Compiling kokoro model B...");
     ov::AnyMap properties_model_b = common_props;
 
     // Enforce offloading to CPU for non-accurate subgraphs
     if (!properties_model_b.count("NPUW_ONLINE_PIPELINE")) {
-        // REP mode is giving best compile time / stability results
-        properties_model_b["NPUW_ONLINE_PIPELINE"] = "REP";
+        // Long compilation time, but best performance
+        properties_model_b["NPUW_ONLINE_PIPELINE"] = "NONE";
     }
     if (!properties_model_b.count("NPUW_ONLINE_AVOID")) {
         properties_model_b["NPUW_ONLINE_AVOID"] = "P:DownsampleInterpolate/NPU,P:FloorModFP32/NPU,P:CumSumSinGen/"

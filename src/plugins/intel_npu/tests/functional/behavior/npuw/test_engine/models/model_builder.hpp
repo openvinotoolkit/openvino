@@ -433,6 +433,7 @@ struct LLMConfig : public BaseModelConfig {
     bool use_inputs_embeds = false;
     bool internal_position_ids = false;  ///< embedding model
     bool pre_norm = true;
+    bool force_gqa_broadcast = false;  ///< force 5-input SDPA (needed for SDPA isolation pattern matching)
 
     // MoE configuration (num_experts=0 means dense, no MoE)
     size_t num_experts = 0;           ///< Total experts. 0 = dense model.

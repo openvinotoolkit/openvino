@@ -103,6 +103,15 @@ std::vector<layout> kv_cache_inst::calc_output_layouts(kv_cache_node const& /*no
 
     static const std::map<size_t, size_t> ports_map = {{0, 0}, {1, 2}, {2, 3}, {3, 4}};
 
+    // For INT4 KV-cache, pack two values per byte (halve inner dim)
+    if (desc->compressed) {
+        const auto kv_cache_dt = impl_param.get_program().get_config().get_kv_cache_precision();
+        if (ov::element::Type(kv_cache_dt).bitwidth() == 4 && output_shapes[0].size() > 0) {
+            auto inner_dim_idx = output_shapes[0].size() - 1;
+            output_shapes[0][inner_dim_idx] = output_shapes[0][inner_dim_idx] / 2;
+        }
+    }
+
     std::vector<layout> out_layouts;
     for (size_t i = 0; i < desc->num_outputs; i++) {
         auto out_type = desc->output_data_types[i].value_or(impl_param.get_input_layout(ports_map.at(i)).data_type);
