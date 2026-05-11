@@ -208,6 +208,12 @@ const std::vector<MoeTestShapeParams> moe_params_smoke = {
         4,                                                           // number_of_experts
         256                                                          // intermediate_size
     },
+    {   // large hidden
+        {{-1, -1, 2048}, {{1, 4, 2048}, {1, 1, 2048}}},  // prefill + decode
+        4,                                               // topk
+        8,                                               // number_of_experts
+        512                                              // intermediate_size
+    },
 };
 
 // Compressed weights — full GatherMatmul → MOECompressed → FuseMOE3GemmCompressed pipeline.

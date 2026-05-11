@@ -596,7 +596,8 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
     // from the expert path's experts_reshape).
     ov::Output<ov::Node> router_input = experts_reshape;
     if (use_per_expert_scale) {
-        auto router_norm_scale = ov::op::v0::Constant::create(data_precision, ov::Shape{1, hidden_size}, {1.0f});
+        auto pes_data = ov::test::utils::InputGenerateData(0.5, 2, 100, 42);
+        auto router_norm_scale = ov::test::utils::make_constant(data_precision, ov::Shape{1, hidden_size}, pes_data);
         router_input = std::make_shared<ov::op::v1::Multiply>(experts_reshape, router_norm_scale);
     }
     auto router_matmul = std::make_shared<ov::op::v0::MatMul>(router_input, router_weights_moe3, false, true);
