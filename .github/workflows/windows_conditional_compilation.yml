@@ -9,6 +9,7 @@ on:
   schedule:
     # run daily at 00:00
     - cron: '0 0 * * *'
+  merge_group:
   push:
     branches:
       - master
@@ -52,7 +53,9 @@ jobs:
           skip_when_only_listed_labels_set: 'docs'
           skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*,.github/workflows/ci-doctor.lock.yml'
 
-  Build:
+  # check SELECTIVE_BUILD_STAT in CC 'COLLECT' AND 'ON' modes
+
+  Build_And_Run_Collect_Mode:
     needs: Smart_CI
     timeout-minutes: 300 # 5 hours without cache
     defaults:
@@ -112,24 +115,6 @@ jobs:
           version: ${{ env.PYTHON_VERSION }}
           should-setup-pip-paths: 'false'
           self-hosted-runner: 'false'
-
-      - name: Install python dependencies
-        run: |
-          # For running ONNX frontend unit tests
-          python3 -m pip install --force-reinstall -r ${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests/requirements.txt
-
-          # For running TensorFlow frontend unit tests
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/tensorflow/tests/requirements.txt
-
-          # For running TensorFlow Lite frontend unit tests
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/tensorflow_lite/tests/requirements.txt
-
-          # For getting rid of SSL issues during model downloading for unit tests
-          python3 -m pip install certifi
-
-          # Disabled because of CVS-95904
-          # For running Paddle frontend unit tests
-          # python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/paddle/tests/requirements.txt
 
       #
       # Build
@@ -297,10 +282,10 @@ jobs:
           path: ${{ env.BUILD_DIR }}/compile_commands.json
           if-no-files-found: 'ignore'
 
-  CC_Build:
+  Build_And_Run_On_Mode:
     name: Conditional Compilation
     timeout-minutes: 40
-    needs: [Build, Smart_CI]
+    needs: [Build_And_Run_Collect_Mode, Smart_CI]
     defaults:
       run:
         shell: pwsh
@@ -384,7 +369,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status_windows_cc
-    needs: [Smart_CI, Build, CC_Build]
+    needs: [Smart_CI, Build_And_Run_Collect_Mode, Build_And_Run_On_Mode]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
