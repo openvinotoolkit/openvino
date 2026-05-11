@@ -21,6 +21,7 @@
 #include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "emitters/utils.hpp"
 #include "openvino/core/except.hpp"
+#include "snippets/emitter.hpp"
 #include "snippets/utils/utils.hpp"
 #include "utils/general_utils.h"
 
