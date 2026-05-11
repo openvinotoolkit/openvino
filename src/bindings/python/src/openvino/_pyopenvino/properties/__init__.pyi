@@ -65,17 +65,14 @@ class CompatibilityCheck:
     
       NOT_APPLICABLE
     
-      OPTIMAL
-    
-      PREFER_RECOMPILATION
+      SUPPORTED
     
       UNSUPPORTED
     """
     NOT_APPLICABLE: typing.ClassVar[CompatibilityCheck]  # value = <CompatibilityCheck.NOT_APPLICABLE: 0>
-    OPTIMAL: typing.ClassVar[CompatibilityCheck]  # value = <CompatibilityCheck.OPTIMAL: 1>
-    PREFER_RECOMPILATION: typing.ClassVar[CompatibilityCheck]  # value = <CompatibilityCheck.PREFER_RECOMPILATION: 2>
-    UNSUPPORTED: typing.ClassVar[CompatibilityCheck]  # value = <CompatibilityCheck.UNSUPPORTED: 3>
-    __members__: typing.ClassVar[dict[str, CompatibilityCheck]]  # value = {'NOT_APPLICABLE': <CompatibilityCheck.NOT_APPLICABLE: 0>, 'OPTIMAL': <CompatibilityCheck.OPTIMAL: 1>, 'PREFER_RECOMPILATION': <CompatibilityCheck.PREFER_RECOMPILATION: 2>, 'UNSUPPORTED': <CompatibilityCheck.UNSUPPORTED: 3>}
+    SUPPORTED: typing.ClassVar[CompatibilityCheck]  # value = <CompatibilityCheck.SUPPORTED: 1>
+    UNSUPPORTED: typing.ClassVar[CompatibilityCheck]  # value = <CompatibilityCheck.UNSUPPORTED: 2>
+    __members__: typing.ClassVar[dict[str, CompatibilityCheck]]  # value = {'NOT_APPLICABLE': <CompatibilityCheck.NOT_APPLICABLE: 0>, 'SUPPORTED': <CompatibilityCheck.SUPPORTED: 1>, 'UNSUPPORTED': <CompatibilityCheck.UNSUPPORTED: 2>}
     def __eq__(self, other: typing.Any) -> bool:
         ...
     def __ge__(self, other: typing.Any) -> bool:
