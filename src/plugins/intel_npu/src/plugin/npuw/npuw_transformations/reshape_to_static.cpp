@@ -110,7 +110,7 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             new_shape = partial_shape;
             // NOTE: Batch axes of KVCache and Linear Cache have same positions, however
             //       need to track that this assumption holds in future versions.
-            auto shape_batch_dim = partial_shape[kv_axes_position.batch];
+            const auto& shape_batch_dim = partial_shape[kv_axes_position.batch];
             NPUW_ASSERT(shape_batch_dim.is_dynamic() || shape_batch_dim.get_length() <= 1);
             new_shape[kv_axes_position.batch] = 1;  // batch_dim
         } else {

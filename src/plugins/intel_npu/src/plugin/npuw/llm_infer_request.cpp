@@ -321,26 +321,24 @@ void ov::npuw::LLMInferRequest::create_generate_request_variants(
             for (const auto& input_port : generate_request->get_compiled_model()->inputs()) {
                 const auto& input_name = input_port.get_any_name();
                 if (ov::npuw::util::starts_with(input_name, layer_names::past_key_values)) {
-                    if (largest_past_kv_tensors.find(input_name) != largest_past_kv_tensors.end()) {
-                        auto largest_tensor = largest_past_kv_tensors[input_name];
-                        auto small_shape = input_port.get_shape();
+                    OPENVINO_ASSERT(largest_past_kv_tensors.find(input_name) != largest_past_kv_tensors.end(),
+                                    "Unexpected input name: ",
+                                    input_name);
+                    auto largest_tensor = largest_past_kv_tensors[input_name];
+                    auto small_shape = input_port.get_shape();
 
-                        // Wrap the largest tensor's data pointer with smaller shape
-                        auto shared_tensor = ov::SoPtr<ov::ITensor>(
-                            ov::make_tensor(input_port.get_element_type(), small_shape, largest_tensor->data()),
-                            nullptr);
+                    // Wrap the largest tensor's data pointer with smaller shape
+                    auto shared_tensor = ov::SoPtr<ov::ITensor>(
+                        ov::make_tensor(input_port.get_element_type(), small_shape, largest_tensor->data()),
+                        nullptr);
 
-                        generate_request->set_tensor(input_port, shared_tensor);
-                    } else {
-                        OPENVINO_ASSERT(false, "Unexpected input name: ", input_name);
-                    }
+                    generate_request->set_tensor(input_port, shared_tensor);
                 } else if (ov::npuw::util::starts_with_past_lincache(input_name)) {
-                    if (past_lin_tensors.find(input_name) != past_lin_tensors.end()) {
-                        auto lin_tensor = past_lin_tensors[input_name];
-                        generate_request->set_tensor(input_port, lin_tensor);
-                    } else {
-                        OPENVINO_ASSERT(false, "Unexpected input name: ", input_name);
-                    }
+                    OPENVINO_ASSERT(past_lin_tensors.find(input_name) != past_lin_tensors.end(),
+                                    "Unexpected input name: ",
+                                    input_name);
+                    auto lin_tensor = past_lin_tensors[input_name];
+                    generate_request->set_tensor(input_port, lin_tensor);
                 }
             }
         }
@@ -513,8 +511,9 @@ void ov::npuw::LLMInferRequest::prepare_for_new_conversation(int64_t prompt_leng
     }
 
     for (const auto& input_name : m_lincache_past_names) {
-        const auto& prefill_past_port = m_prefill_in_ports.at(input_name);
-        uu::fill_tensor_bytes(m_prefill_request->get_tensor(prefill_past_port), 0u);
+        if (m_prefill_in_ports.find(input_name) != m_prefill_in_ports.end()) {
+            uu::fill_tensor_bytes(m_prefill_request->get_tensor(m_prefill_in_ports.at(input_name)), 0u);
+        }
     }
 
     m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens = 0u;
@@ -1191,8 +1190,8 @@ void ov::npuw::LLMInferRequest::infer() {
         kvcache_desc.num_stored_tokens = static_cast<uint32_t>(externally_set_num_stored_tokens);
 
         // FIXME: ov::SoPtr<ov::ITensor>?
-        position_ids = ov::make_tensor(input_ids->get_element_type(),
-                                       ov::Shape{input_ids->get_shape()[0], input_ids->get_shape()[1]});
+        position_ids =
+            ov::make_tensor(ov::element::i64, ov::Shape{input_ids->get_shape()[0], input_ids->get_shape()[1]});
         std::iota(position_ids->data<int64_t>(),
                   position_ids->data<int64_t>() + position_ids->get_size(),
                   kvcache_desc.num_stored_tokens);
