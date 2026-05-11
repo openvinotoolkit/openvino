@@ -1062,8 +1062,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             std::vector<std::pair<program_node*, int32_t>> parents = node.get_dependencies();
 
-            if (prim->mode == eltwise_mode::sum &&  (parents[0].first->is_input()  && parents[1].first->is_type<fully_connected>()) ||
-                (parents[1].first->is_input() && parents[0].first->is_type<fully_connected>())) {
+            if (prim->mode == eltwise_mode::sum && node.get_users().size() > 1 &&
+                (parents[0].first->is_input()  && parents[1].first->is_type<fully_connected>()) ||
+                (parents[1].first->is_input() && parents[0].first->is_type<fully_connected>()))
+            {
                 return;
             }
             std::vector<bool> can_fuse_parents = { false, false };
