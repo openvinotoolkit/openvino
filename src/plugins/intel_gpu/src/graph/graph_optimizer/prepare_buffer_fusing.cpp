@@ -26,6 +26,7 @@
 #include "lstm_seq_inst.h"
 #include "border_inst.h"
 #include "lora_inst.h"
+#include "mvn_inst.h"
 
 #include "pass_manager.h"
 #include "program_helpers.h"
@@ -544,6 +545,13 @@ bool crop_in_place_optimization::match(const program_node& node,
             return false;
         if (user->is_type<lora>()) {
             return false;
+        }
+        // MVN canonicalizes the input shape and reads with contiguous pitches; a strided
+        // sub-view from in-place crop would be read incorrectly.
+        if (user->is_type<mvn>()) {
+            const auto& mvn_prim = user->as<mvn>().get_primitive();
+            if (mvn_prim->requires_alignment(crop_layout.get_partial_shape()))
+                return false;
         }
     }
 

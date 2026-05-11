@@ -26,7 +26,7 @@
 #include "snippets/op/memory_access.hpp"
 #include "snippets/op/store.hpp"
 #include "snippets/utils/utils.hpp"
-#include "transformations/snippets/x64/op/store_convert.hpp"
+#include "transformations/snippets/common/op/store_convert.hpp"
 
 using namespace Xbyak;
 using namespace dnnl::impl;

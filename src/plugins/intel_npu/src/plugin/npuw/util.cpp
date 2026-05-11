@@ -919,7 +919,22 @@ void ov::npuw::util::fill_tensor_bytes(ov::SoPtr<ov::ITensor> tensor, uint8_t fi
     std::memset(tensor_data, fill_val, byte_size);
 }
 
-std::optional<int> ov::npuw::util::isPastKeyValuesKey(const std::string& str) {
+bool ov::npuw::util::isPastKeyParam(const std::string& str) {
+    // Match any past key param: contiguous or block-split (e.g. key_block_3, key_block_tail).
+    static const std::regex pattern(R"(past_key_values\.\d+\.key(_block_(\d+|tail))?)");
+    return std::regex_match(str, pattern);
+}
+
+bool ov::npuw::util::isPastValueParam(const std::string& str) {
+    // Match any past value param: contiguous or block-split.
+    static const std::regex pattern(R"(past_key_values\.\d+\.value(_block_(\d+|tail))?)");
+    return std::regex_match(str, pattern);
+}
+
+std::optional<int> ov::npuw::util::isPastKeyValuesKeyContiguous(const std::string& str) {
+    // Match only the single contiguous past key param (no _block_ suffix).
+    // Allows optional intermediate parts like "encoder" or "decoder" (for Whisper).
+    // Returns the layer index if matched.
     std::regex pattern(R"(past_key_values\.(\d+)(?:\.[^.]+)*\.key)");
     std::smatch match;
     if (std::regex_match(str, match, pattern)) {
@@ -929,7 +944,10 @@ std::optional<int> ov::npuw::util::isPastKeyValuesKey(const std::string& str) {
     return std::nullopt;
 }
 
-std::optional<int> ov::npuw::util::isPastKeyValuesValue(const std::string& str) {
+std::optional<int> ov::npuw::util::isPastKeyValuesValueContiguous(const std::string& str) {
+    // Match only the single contiguous past value param (no _block_ suffix).
+    // Allows optional intermediate parts like "encoder" or "decoder" (for Whisper).
+    // Returns the layer index if matched.
     std::regex pattern(R"(past_key_values\.(\d+)(?:\.[^.]+)*\.value)");
     std::smatch match;
     if (std::regex_match(str, match, pattern)) {
