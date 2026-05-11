@@ -139,6 +139,7 @@ if(NOT Vulkan_FOUND AND NOT WIN32)
         endif()
     endif()
     if(UNIX AND NOT APPLE)
+        set(_ov_vk_install_dir runtime/3rdparty/vulkan/lib)
         # Install Vulkan loader next to other bundled 3rdparty runtimes so
         # setupvars can expose it for install-tree test execution.
         get_target_property(_ov_vk_imported Vulkan::Vulkan IMPORTED)
@@ -156,12 +157,28 @@ if(NOT Vulkan_FOUND AND NOT WIN32)
 
             if(_ov_vk_lib_location)
                 install(FILES "${_ov_vk_lib_location}"
-                        DESTINATION runtime/3rdparty/vulkan/lib
+                        DESTINATION ${_ov_vk_install_dir}
+                        COMPONENT tests)
+                install(FILES "${_ov_vk_lib_location}"
+                        DESTINATION ${_ov_vk_install_dir}
+                        RENAME libvulkan.so.1
+                        COMPONENT tests)
+                install(FILES "${_ov_vk_lib_location}"
+                        DESTINATION ${_ov_vk_install_dir}
+                        RENAME libvulkan.so
                         COMPONENT tests)
             endif()
         else()
             install(FILES "$<TARGET_FILE:Vulkan::Vulkan>"
-                    DESTINATION runtime/3rdparty/vulkan/lib
+                    DESTINATION ${_ov_vk_install_dir}
+                    COMPONENT tests)
+            install(FILES "$<TARGET_FILE:Vulkan::Vulkan>"
+                    DESTINATION ${_ov_vk_install_dir}
+                    RENAME libvulkan.so.1
+                    COMPONENT tests)
+            install(FILES "$<TARGET_FILE:Vulkan::Vulkan>"
+                    DESTINATION ${_ov_vk_install_dir}
+                    RENAME libvulkan.so
                     COMPONENT tests)
         endif()
     endif()
