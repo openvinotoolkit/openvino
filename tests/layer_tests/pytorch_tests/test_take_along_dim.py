@@ -13,10 +13,7 @@ class TestTakeAlongDim(PytorchLayerTest):
         inp = self.random.randn(m, n)
         if out:
             axis = int(max_val == n)
-            if flattenize:
-                out = np.zeros_like(np.take(inp, index))
-            else:
-                out = np.zeros_like(np.take(inp, index, axis))
+            out = np.zeros_like(index, dtype=inp.dtype)
             return (inp, index, out)
         return (inp, index)
 

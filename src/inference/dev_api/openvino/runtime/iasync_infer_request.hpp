@@ -193,6 +193,7 @@ protected:
 
     Pipeline m_pipeline;       //!< Pipeline variable that should be filled by inherited class.
     Pipeline m_sync_pipeline;  //!< Synchronous pipeline variable that should be filled by inherited class.
+    uint64_t m_infer_id;       //!< Id of inference request execution. Should be increased on each inference start.
 
 private:
     enum InferState { IDLE, BUSY, CANCELLED, STOP };

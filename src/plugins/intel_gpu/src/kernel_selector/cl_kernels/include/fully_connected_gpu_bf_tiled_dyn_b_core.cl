@@ -351,7 +351,7 @@ inline void (DYN_B_FUNC_NAME)(
 #endif
 
     // ================================================================
-    // Write results (tile variant matches actual element count — no bounds check)
+    // Write results (tile variant matches actual element count -- no bounds check)
     // ================================================================
     uint output_offset = out_f * TILE_OUT_F_PITCH + out_b * TILE_OUT_B_PITCH + OUTPUT_OFFSET;
 

@@ -40,7 +40,7 @@ void try_reselect_impl_for_node(program_node* node) {
     bool has_selected_impl = selected_impl != nullptr;
     bool need_new_impl_selection = !has_selected_impl;
 
-    if (has_selected_impl && !node->is_valid_output_layout()) {
+    if (has_selected_impl) {
         bool is_node_dynamic = node->get_output_layout(false).is_dynamic();
         bool is_impl_dynamic = selected_impl->is_dynamic();
         need_new_impl_selection = (is_node_dynamic != is_impl_dynamic);

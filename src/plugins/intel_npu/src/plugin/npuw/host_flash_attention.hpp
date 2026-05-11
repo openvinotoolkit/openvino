@@ -235,6 +235,9 @@ struct HostFlashAttention {
     // Tile configuration
     int64_t _tile_size = 0;
 
+    /// Whether tensor views can be used for tile extraction (depends on compiler and driver support)
+    bool _can_use_tensor_view = false;
+
     HostFlashAttention() = default;
 
     // Constructor that extracts metadata

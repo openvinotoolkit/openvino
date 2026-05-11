@@ -191,9 +191,6 @@ CM_INLINE void cm_store_2d(matrix_ref<uint, M, N> out, SurfaceIndex base, uint o
 #endif
 
 #if 1 || (BLOCK_SG_M == 64 && BLOCK_SG_N == 32)
-// const static int channels_reduce_32[] = { 0, 16,  8, 24,  4, 20, 12, 28,  2, 18, 10, 26,  6, 22, 14, 30,  
-// 		                                  1, 17,  9, 25,  5, 21, 13, 29,  3, 19, 11, 27,  7, 23, 15, 31};
-// src_a is query, src_b is key
 
 CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
         #ifdef CM_HAS_LSC_UNTYPED_2D
@@ -215,12 +212,14 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
 
     constexpr int SG_SIZE = details::get_dpas_execution_size((CmPrecisionType)9);    
     // constexpr int BLOCK_WG_K = 64;	// same in sg  // because unroll 4 times along K ??
+    // Only SUB_BLOCK_SIZE==STRIDE(16) supported: dec/load_scale_zp assume BLOCK_REG_K==SUB_BLOCK_SIZE.
+    static constexpr int NUM_SUB_BLOCKS = KV_BLOCK_SIZE / SUB_BLOCK_SIZE;
     constexpr int SUM_N = BLOCK_SG_N / (BLOCK_SIZE/STRIDE);
     // xehpg DPAS spec: dst: [8, 8], repeat: 1~8, depth: 8
     static constexpr int REPEAT = 8;
     static constexpr int DEPTH = 8;
     static constexpr int BLOCK_REG_M = REPEAT;      // 8
-    static constexpr int BLOCK_REG_N = SG_SIZE;     // 16 Xe1?
+    static constexpr int BLOCK_REG_N = SG_SIZE;     // 16 Xe2, 8 Xe1
     static constexpr int BLOCK_DPAS_C = BLOCK_REG_M * BLOCK_REG_N;  // src0
     static constexpr int VNNI = sizeof(half);
     static constexpr int BLOCK_REG_K = DEPTH * sizeof(int) / VNNI;   // 8*2
@@ -337,7 +336,7 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
     uint block_idx = (uint)(id_wg_n * BLOCK_WG_N + id_sg_n * BLOCK_SG_N) * STRIDE / KV_BLOCK_SIZE;
     uint max_block_idx = (uint)(N * STRIDE + KV_BLOCK_SIZE - 1) / KV_BLOCK_SIZE - 1;
     block_idx = MYMIN(block_idx, max_block_idx);
-#if USE_INT8
+#if (KV_CACHE_COMPRESSION != 0)
     uint offset = block_indices_p[block_idx] * (HK * KV_BLOCK_SIZE * HEAD_SIZE_KEY * (uint)sizeof(char));
     #ifdef CM_HAS_LSC_UNTYPED_2D
     lsc::block_2d_desc<int, 1, KEY_LINES_PER_LOAD, 8> desc_b0{ key_cache + offset, KEY_LINES_PER_LOAD - 1, (uint)(K * sizeof(char) - 1), (uint)(K * sizeof(char) - 1),
@@ -374,15 +373,24 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
     #else
     uint off_prefetch_b = hk * (KV_BLOCK_SIZE * HEAD_SIZE_KEY * (uint)sizeof(char));
     off_prefetch_b += offset;
+    #if (KV_CACHE_COMPRESSION == 2)
+    vector<uint, KEY_LINES_PER_LOAD> offsets_scale0 = (gather_offsets_b) * HEAD_SIZE * sizeof(half) + scale_offset0;
+    vector<uint, KEY_LINES_PER_LOAD> offsets_scale1 = offsets_scale0 + KEY_LINES_PER_LOAD * HEAD_SIZE * sizeof(half);
+    #else
     vector<uint, KEY_LINES_PER_LOAD> offsets_scale0 = (gather_offsets_b) * STRIDE * sizeof(half) + scale_offset0;
     vector<uint, KEY_LINES_PER_LOAD> offsets_scale1 = offsets_scale0 + KV_BLOCK_SIZE*2;
+    #endif
     #endif
 
     // N[:]xK[0:32]                                                     --> 16 * 1 regs
     matrix<int, KEY_LINES_PER_LOAD, 8> b0_up_s8, b0_down_s8, b1_up_s8, b1_down_s8; //ping pong
     matrix<half, REG_N, BLOCK_REG_B> b0;                      // after dequant
+    #if (KV_CACHE_COMPRESSION == 1)
     matrix<half, REG_N, KEY_LINES_PER_LOAD * 2> scales, zps;
     matrix<half, REG_N, KEY_LINES_PER_LOAD*STRIDE> scales_block, zps_block;
+    #else
+    matrix<half, REG_N, BLOCK_REG_B> scales_block, zps_block;
+    #endif
 #else
     uint offset = block_indices_p[block_idx] * (HK * KV_BLOCK_SIZE * HEAD_SIZE * (uint)sizeof(half));
     #ifdef CM_HAS_LSC_UNTYPED_2D
@@ -438,8 +446,9 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
     }
 
     // load b: N[0:16]xK[0:16]
-#if USE_INT8
+#if (KV_CACHE_COMPRESSION != 0)
     {
+        #if (KV_CACHE_COMPRESSION == 1)
         #ifdef CM_HAS_LSC_UNTYPED_2D
         //16 * 16 half,  1D->2D
         matrix<half, KEY_LINES_PER_LOAD, STRIDE> tmp_scale, tmp_zp;  //KV_BLOCK_SIZE/2
@@ -479,6 +488,7 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
         zps_block[1].format<half, 16, 8>().select<8, 2, 8, 1>(0) = tmp_zp.format<half, 4, 32>().select<4, 1, 16, 2>(0, 0);
         zps_block[1].format<half, 16, 8>().select<8, 2, 8, 1>(1) = tmp_zp.format<half, 4, 32>().select<4, 1, 16, 2>(0, 1);
 
+        #endif
         #endif
     }
     #ifndef CM_HAS_LSC_UNTYPED_2D
@@ -533,7 +543,8 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
         #endif
     }
 
-#if USE_INT8
+#if (KV_CACHE_COMPRESSION != 0)
+    #if (KV_CACHE_COMPRESSION == 1)
     auto dec = [&](vector<int, KEY_LINES_PER_LOAD*4> B0_i8, vector<int, KEY_LINES_PER_LOAD*4> B1_i8, matrix_ref<half, REG_N, BLOCK_REG_B> B0) {
 #pragma unroll
         for (int n = 0; n < REG_N; n++) {
@@ -553,6 +564,100 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
             }
         }
     };
+    #else
+    #ifdef CM_HAS_LSC_UNTYPED_2D
+    auto dec = [&](vector<int, KEY_LINES_PER_LOAD * 4> B0_i8, vector<int, KEY_LINES_PER_LOAD * 4> B1_i8, matrix_ref<half, REG_N, BLOCK_REG_B> B0) {
+#pragma unroll
+        for (int n = 0; n < REG_N; n++) {
+            auto b = B0[n].format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>();
+#pragma unroll
+            for (int m = 0; m < BLOCK_REG_K / 2; m++) {
+                auto b_row = b[m];
+                vector<ushort, BLOCK_REG_N> d0;
+                if (n == 0)
+                    d0 = B0_i8.format<ushort, 4, BLOCK_REG_N * 2>()[m / 2].select<BLOCK_REG_N, 2>(m % 2);
+                else
+                    d0 = B1_i8.format<ushort, 4, BLOCK_REG_N * 2>()[m / 2].select<BLOCK_REG_N, 2>(m % 2);
+                b_row.format<ushort>() = d0.format<uchar>();
+                b_row *= half{32768.0};
+                b_row *= half{512.0};
+                auto scale_mat = scales_block[n].format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>();
+                auto zp_mat = zps_block[n].format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>();
+                b_row = (b_row - zp_mat.row(m)) * scale_mat.row(m);
+            }
+        }
+    };
+
+    uint zp_offset0 = scale_offset0 + NUM_SUB_BLOCKS * HEAD_SIZE * sizeof(half);
+    uint zp_offset1 = scale_offset1 + NUM_SUB_BLOCKS * HEAD_SIZE * sizeof(half);
+    auto load_scale_zp = [&](uint channel_base) {
+        uint scale_base0 = scale_offset0 + channel_base * sizeof(half);
+        lsc::block_2d_desc<int, 1, BLOCK_REG_K, BLOCK_REG_N / 2> desc_scale{ key_cache + scale_base0,
+            BLOCK_REG_K - 1, (uint)(BLOCK_REG_N * sizeof(half) - 1), (uint)(HEAD_SIZE * sizeof(half) - 1), 0, 0 };
+        matrix<int, BLOCK_REG_K, BLOCK_REG_N / 2> tmp_scale, tmp_zp;
+
+        cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(tmp_scale.format<int>(), desc_scale);
+        scales_block[0].format<int>() = tmp_scale.format<int>();
+
+        desc_scale.set_base(key_cache + zp_offset0 + channel_base * sizeof(half));
+        cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(tmp_zp.format<int>(), desc_scale);
+        zps_block[0].format<int>() = tmp_zp.format<int>();
+
+        desc_scale.set_base(key_cache + scale_offset1 + channel_base * sizeof(half));
+        cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(tmp_scale.format<int>(), desc_scale);
+        scales_block[1].format<int>() = tmp_scale.format<int>();
+
+        desc_scale.set_base(key_cache + zp_offset1 + channel_base * sizeof(half));
+        cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(tmp_zp.format<int>(), desc_scale);
+        zps_block[1].format<int>() = tmp_zp.format<int>();
+    };
+    #else
+    auto dec = [&](vector<int, KEY_LINES_PER_LOAD * 4> B0_i8, vector<int, KEY_LINES_PER_LOAD * 4> B1_i8, matrix_ref<half, REG_N, BLOCK_REG_B> B0) {
+#pragma unroll
+        for (int n = 0; n < REG_N; n++) {
+            auto b = B0[n].format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>();
+#pragma unroll
+            for (int m = 0; m < BLOCK_REG_K / 2; m++) {
+                auto b_row = b[m];
+                vector<ushort, BLOCK_REG_N> d0;
+                if (n == 0)
+                    d0 = B0_i8.format<ushort, 4, BLOCK_REG_N * 2>()[m / 2].select<BLOCK_REG_N, 2>(m % 2);
+                else
+                    d0 = B1_i8.format<ushort, 4, BLOCK_REG_N * 2>()[m / 2].select<BLOCK_REG_N, 2>(m % 2);
+                b_row.format<ushort>() = d0.format<uchar>();
+                b_row *= half{32768.0};
+                b_row *= half{512.0};
+                auto scale_mat = scales_block[n].format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>();
+                auto zp_mat = zps_block[n].format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>();
+                b_row = (b_row - zp_mat.row(m)) * scale_mat.row(m);
+            }
+        }
+    };
+
+    uint zp_offset0 = scale_offset0 + NUM_SUB_BLOCKS * HEAD_SIZE * sizeof(half);
+    uint zp_offset1 = scale_offset1 + NUM_SUB_BLOCKS * HEAD_SIZE * sizeof(half);
+    auto load_scale_zp = [&](uint channel_base) {
+        matrix<half, KEY_LINES_PER_LOAD, BLOCK_REG_K> tmp_scale, tmp_zp;
+        uint channel_base_bytes = channel_base * (uint)sizeof(half);
+
+        vector<uint, KEY_LINES_PER_LOAD> offsets_scale0_ch = offsets_scale0 + channel_base_bytes;
+        tmp_scale.format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_scale0_ch);
+        scales_block[0].format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>() = tmp_scale.format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>();
+
+        vector<uint, KEY_LINES_PER_LOAD> offsets_zp0_ch = offsets_scale0_ch + (zp_offset0 - scale_offset0);
+        tmp_zp.format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_zp0_ch);
+        zps_block[0].format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>() = tmp_zp.format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>();
+
+        vector<uint, KEY_LINES_PER_LOAD> offsets_scale1_ch = offsets_scale1 + channel_base_bytes;
+        tmp_scale.format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_scale1_ch);
+        scales_block[1].format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>() = tmp_scale.format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>();
+
+        vector<uint, KEY_LINES_PER_LOAD> offsets_zp1_ch = offsets_scale1_ch + (zp_offset1 - scale_offset1);
+        tmp_zp.format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_zp1_ch);
+        zps_block[1].format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>() = tmp_zp.format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>();
+    };
+    #endif
+    #endif
 #endif
 
     auto dot = [&](matrix<half, REG_M, BLOCK_REG_A> A, matrix<half, REG_N, BLOCK_REG_B> B) {
@@ -567,7 +672,7 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
     };
 
     for (uint s = 0; s < STRIDE; s++) {
-#if USE_INT8
+#if (KV_CACHE_COMPRESSION == 1)
         auto tmp = scales_block[0].select<KEY_LINES_PER_LOAD, 1>(s * KEY_LINES_PER_LOAD);
         scales[0].select<KEY_LINES_PER_LOAD, 2>(0) = tmp;
         scales[0].select<KEY_LINES_PER_LOAD, 2>(1) = scales[0].select<KEY_LINES_PER_LOAD, 2>(0);
@@ -583,6 +688,7 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
 #endif
         #pragma unroll
         for (uint hs = 0; hs < HEAD_SIZE / BLOCK_WG_K; hs++) {
+            uint channel_base = hs * BLOCK_WG_K;
             if constexpr (IS64) {
                 // --------------------------------------------- unroll 0 ?      -----------------------------
                 // prefetch
@@ -620,7 +726,7 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
                 #endif
 
                 // load b: N[0:16*2]xK[16:32]
-#if USE_INT8
+#if (KV_CACHE_COMPRESSION != 0)
                 #ifdef CM_HAS_LSC_UNTYPED_2D
                 cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b1_up_s8.format<int>(), desc_b0);
                 cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b1_down_s8.format<int>(), desc_b1);
@@ -628,8 +734,15 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
                 b1_up_s8.format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_0);
                 b1_down_s8.format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_1);
                 #endif
+                #if (KV_CACHE_COMPRESSION == 1)
                 dec(b0_up_s8.format<int>().select<KEY_LINES_PER_LOAD*4, 1>(), b0_down_s8.format<int>().select<KEY_LINES_PER_LOAD*4, 1>(), b0);
                 dot(a0, b0);
+                #else
+                load_scale_zp(channel_base);
+                dec(b0_up_s8.format<int>().select<KEY_LINES_PER_LOAD * 4, 1>(), b0_down_s8.format<int>().select<KEY_LINES_PER_LOAD * 4, 1>(), b0);
+                channel_base += BLOCK_REG_K;
+                dot(a0, b0);
+                #endif
 #else
                 #ifdef CM_HAS_LSC_UNTYPED_2D
                 cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b1[0].format<int>(), desc_b0);
@@ -662,9 +775,16 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
                 cm_load_2d(a0.format<half, BLOCK_SG_M, BLOCK_REG_K>(), query, off_a, pitch_a);
                 #endif
 
-#if USE_INT8
+#if (KV_CACHE_COMPRESSION != 0)
+                #if (KV_CACHE_COMPRESSION == 1)
                 dec(b0_up_s8.format<int>().select<KEY_LINES_PER_LOAD*4, 1>(KEY_LINES_PER_LOAD*4), b0_down_s8.format<int>().select<KEY_LINES_PER_LOAD*4, 1>(KEY_LINES_PER_LOAD*4), b0);
                 dot(a0, b0);
+                #else
+                load_scale_zp(channel_base);
+                dec(b0_up_s8.format<int>().select<KEY_LINES_PER_LOAD * 4, 1>(KEY_LINES_PER_LOAD * 4), b0_down_s8.format<int>().select<KEY_LINES_PER_LOAD * 4, 1>(KEY_LINES_PER_LOAD * 4), b0);
+                dot(a0, b0);
+                channel_base += BLOCK_REG_K;
+                #endif
 #else
                 #ifdef CM_HAS_LSC_UNTYPED_2D
                 cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0[0].format<int>(), desc_b0);
@@ -709,7 +829,7 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
                 #endif
 
                 // load b: N[0:16*2]xK[32:64]
-#if USE_INT8
+#if (KV_CACHE_COMPRESSION != 0)
                 #ifdef CM_HAS_LSC_UNTYPED_2D
                 cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0_up_s8.format<int>(), desc_b0);
                 cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0_down_s8.format<int>(), desc_b1);
@@ -717,8 +837,15 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
                 b0_up_s8.format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_0);
                 b0_down_s8.format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_1);
                 #endif
+                #if (KV_CACHE_COMPRESSION == 1)
                 dec(b1_up_s8.format<int>().select<KEY_LINES_PER_LOAD*4, 1>(), b1_down_s8.format<int>().select<KEY_LINES_PER_LOAD*4, 1>(), b0);
                 dot(a0, b0);
+                #else
+                load_scale_zp(channel_base);
+                dec(b1_up_s8.format<int>().select<KEY_LINES_PER_LOAD * 4, 1>(), b1_down_s8.format<int>().select<KEY_LINES_PER_LOAD * 4, 1>(), b0);
+                dot(a0, b0);
+                channel_base += BLOCK_REG_K;
+                #endif
 #else
                 #ifdef CM_HAS_LSC_UNTYPED_2D
                 cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b1[0].format<int>(), desc_b0);
@@ -758,21 +885,28 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
                     off_a += BLOCK_REG_K * sizeof(half);
                 }
                 #endif
-#if USE_INT8
+#if (KV_CACHE_COMPRESSION != 0)
+                #if (KV_CACHE_COMPRESSION == 1)
                 dec(b1_up_s8.format<int>().select<KEY_LINES_PER_LOAD*4, 1>(KEY_LINES_PER_LOAD*4), b1_down_s8.format<int>().select<KEY_LINES_PER_LOAD*4, 1>(KEY_LINES_PER_LOAD*4), b0);
                 dot(a0, b0);
+                #else
+                load_scale_zp(channel_base);
+                dec(b1_up_s8.format<int>().select<KEY_LINES_PER_LOAD * 4, 1>(KEY_LINES_PER_LOAD * 4), b1_down_s8.format<int>().select<KEY_LINES_PER_LOAD * 4, 1>(KEY_LINES_PER_LOAD * 4), b0);
+                dot(a0, b0);
+                channel_base += BLOCK_REG_K;
+                #endif
+
 #else
                 #ifdef CM_HAS_LSC_UNTYPED_2D
                 // load b: N[0:16*2]xK[16:32]
                 cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0[0].format<int>(), desc_b0);
                 cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0[1].format<int>(), desc_b1);
-                dot(a0, b0);
                 desc_b0.set_block_x(desc_b0.get_block_x() + 8);
                 desc_b1.set_block_x(desc_b1.get_block_x() + 8);
                 #else
                 b0[0].format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_0);
                 b0[1].format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_1);
-                offsets_0 += 8 * sizeof(uint); 
+                offsets_0 += 8 * sizeof(uint);
                 offsets_1 += 8 * sizeof(uint);
                 #endif
                 dot(a0, b1);
@@ -789,12 +923,19 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
                 // load a: M[0:16*4]xK[0:16]
                 cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached, 0,  0>(a0.select<4, 1, BLOCK_REG_A, 1>(0).format<half>(), desc_a);
                 cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached, 0, 32>(a0.select<4, 1, BLOCK_REG_A, 1>(4).format<half>(), desc_a);
-#if USE_INT8
+#if (KV_CACHE_COMPRESSION != 0)
                 // load b: N[0:16*2]xK[0:32]
                 cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0_up_s8.format<int>(), desc_b0);
                 cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0_down_s8.format<int>(), desc_b1);
+                #if (KV_CACHE_COMPRESSION == 1)
                 dec(b0_up_s8.format<int>().select<64, 1>(), b0_down_s8.format<int>().select<64, 1>(), b0);
                 dot(a0, b0);
+                #else
+                load_scale_zp(channel_base);
+                    dec(b0_up_s8.format<int>().select<KEY_LINES_PER_LOAD * 4, 1>(), b0_down_s8.format<int>().select<KEY_LINES_PER_LOAD * 4, 1>(), b0);
+                dot(a0, b0);
+                channel_base += BLOCK_REG_K;
+                #endif
 #else
                 // load b: N[0:16*2]xK[0:16]
                 cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0[0].format<int>(), desc_b0);
@@ -823,9 +964,16 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
                 } else {
                     desc_a.set_block_x(desc_a.get_block_x() + 16);
                 }
-#if USE_INT8
+#if (KV_CACHE_COMPRESSION != 0)
+                #if (KV_CACHE_COMPRESSION == 1)
                 dec(b0_up_s8.format<int>().select<64, 1>(64), b0_down_s8.format<int>().select<64, 1>(64), b0);
                 dot(a0, b0);
+                #else
+                load_scale_zp(channel_base);
+                    dec(b0_up_s8.format<int>().select<KEY_LINES_PER_LOAD * 4, 1>(KEY_LINES_PER_LOAD * 4), b0_down_s8.format<int>().select<KEY_LINES_PER_LOAD * 4, 1>(KEY_LINES_PER_LOAD * 4), b0);
+                dot(a0, b0);
+                channel_base += BLOCK_REG_K;
+                #endif
 #else
                 // load b: N[0:16*2]xK[16:32]
                 cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0[0].format<int>(), desc_b0);
@@ -846,12 +994,19 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
                 // load a: M[0:16*4]xK[0:16]
                 cm_load_2d(a0.format<half, BLOCK_SG_M, BLOCK_REG_K>(), query, off_a, pitch_a);
 
-#if USE_INT8
+#if (KV_CACHE_COMPRESSION != 0)
                 // load b once: N[0:16*2]xK[0:32], then split into 2 phases
                 b0_up_s8.format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_0);
                 b0_down_s8.format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_1);
+                #if (KV_CACHE_COMPRESSION == 1)
                 dec(b0_up_s8.format<int>().select<KEY_LINES_PER_LOAD * 4, 1>(), b0_down_s8.format<int>().select<KEY_LINES_PER_LOAD * 4, 1>(), b0);
                 dot(a0, b0);
+                #else
+                load_scale_zp(channel_base);
+                    dec(b0_up_s8.format<int>().select<KEY_LINES_PER_LOAD * 4, 1>(), b0_down_s8.format<int>().select<KEY_LINES_PER_LOAD * 4, 1>(), b0);
+                dot(a0, b0);
+                channel_base += BLOCK_REG_K;
+                #endif
 #else
                 // load b: N[0:16*2]xK[0:16]
                 b0[0].format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_0);
@@ -880,9 +1035,16 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
                     off_a += PHASE_SIZE * sizeof(half);
                 }
 
-#if USE_INT8
+#if (KV_CACHE_COMPRESSION != 0)
+                #if (KV_CACHE_COMPRESSION == 1)
                 dec(b0_up_s8.format<int>().select<KEY_LINES_PER_LOAD * 4, 1>(KEY_LINES_PER_LOAD * 4), b0_down_s8.format<int>().select<KEY_LINES_PER_LOAD * 4, 1>(KEY_LINES_PER_LOAD * 4), b0);
                 dot(a0, b0);
+                #else
+                load_scale_zp(channel_base);
+                    dec(b0_up_s8.format<int>().select<KEY_LINES_PER_LOAD * 4, 1>(KEY_LINES_PER_LOAD * 4), b0_down_s8.format<int>().select<KEY_LINES_PER_LOAD * 4, 1>(KEY_LINES_PER_LOAD * 4), b0);
+                dot(a0, b0);
+                channel_base += BLOCK_REG_K;
+                #endif
 #else
                 // load b: N[0:16*2]xK[16:32]
                 b0[0].format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_0);
@@ -956,7 +1118,8 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
         }
     }
 
-        max_m.select<BLOCK_SG_M, 1>() = reduce2d<1, 0, 1>(acc_half.select<BLOCK_SG_M, 1, BLOCK_SG_N, 1>()).format<SOFTMAX_TYPE>();
+        max_m.select<BLOCK_SG_N, 1>() = reduce2d<1, 0, 1>(acc_half.select<BLOCK_SG_N, 1, BLOCK_SG_N, 1>()).format<SOFTMAX_TYPE>();
+        max_m.select<BLOCK_SG_N, 1>(BLOCK_SG_N) = reduce2d<1, 0, 1>(acc_half.select<BLOCK_SG_N, 1, BLOCK_SG_N, 1>(BLOCK_SG_N)).format<SOFTMAX_TYPE>();
 
     {
         uint slm_offset = (id_sg_n * BLOCK_WG_M + id_sg_m * BLOCK_SG_M) * (uint)sizeof(SOFTMAX_TYPE);
@@ -1020,7 +1183,8 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
         sum_t.select<32, 1, SUM_N, 1>(0).format<SOFTMAX_TYPE>() = reduce2d<SUM_N, 1, SUM_N>(acc_half.select<32, 1, BLOCK_SG_N, 1>(0)).format<SOFTMAX_TYPE>();
         sum_t.select<32, 1, SUM_N, 1>(32).format<SOFTMAX_TYPE>() = reduce2d<SUM_N, 1, SUM_N>(acc_half.select<32, 1, BLOCK_SG_N, 1>(32)).format<SOFTMAX_TYPE>();
         #else
-        sum_t.select<BLOCK_SG_M, 1, SUM_N, 1>(0).format<SOFTMAX_TYPE>() = reduce2d<SUM_N, 1, SUM_N>(acc_half.select<BLOCK_SG_M, 1, BLOCK_SG_N, 1>(0)).format<SOFTMAX_TYPE>();
+        sum_t.select<BLOCK_SG_N, 1, SUM_N, 1>(0).format<SOFTMAX_TYPE>() = reduce2d<SUM_N, 1, SUM_N>(acc_half.select<BLOCK_SG_N, 1, BLOCK_SG_N, 1>(0)).format<SOFTMAX_TYPE>();
+        sum_t.select<BLOCK_SG_N, 1, SUM_N, 1>(BLOCK_SG_N).format<SOFTMAX_TYPE>() = reduce2d<SUM_N, 1, SUM_N>(acc_half.select<BLOCK_SG_N, 1, BLOCK_SG_N, 1>(BLOCK_SG_N)).format<SOFTMAX_TYPE>();
         #endif
     }
     // store

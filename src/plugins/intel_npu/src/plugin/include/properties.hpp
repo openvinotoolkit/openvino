@@ -6,7 +6,7 @@
 
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
-#include "intel_npu/npuw_private_properties.hpp"
+#include "intel_npu/config/npuw.hpp"
 #include "metrics.hpp"
 
 namespace intel_npu {
@@ -73,6 +73,7 @@ public:
     std::string determinePlatform(const ov::AnyMap& properties) const;
     std::string determineDeviceId(const ov::AnyMap& properties) const;
     ov::intel_npu::CompilerType determineCompilerType(const ov::AnyMap& properties) const;
+    ov::intel_npu::CompilerType determineCompilerTypeForCompatibilityCheck() const;
 
 private:
     struct CopyState {
@@ -84,6 +85,7 @@ private:
         ov::intel_npu::CompilerType currentlyUsedCompiler;
         std::string currentlyUsedPlatform;
         bool compilerConfigsFilteredByCompiler;
+        bool compatibilityCheckFiltered;
         std::map<std::string, std::tuple<bool, ov::PropertyMutability, std::function<ov::Any(const Config&)>>>
             properties;
         std::vector<ov::PropertyName> supportedProperties;
@@ -98,14 +100,22 @@ private:
     Logger _logger;
 
     ov::intel_npu::CompilerType _currentlyUsedCompiler = ov::intel_npu::CompilerType::PREFER_PLUGIN;
+    ov::intel_npu::CompilerType _compilerForCompatibilityCheck = ov::intel_npu::CompilerType::DRIVER;
     std::string _currentlyUsedPlatform;
 
-    bool _compilerConfigsFilteredByCompiler =
-        false;  ///< Boolean to check whether properties was filtered with compiler supported properties
+    // Boolean to check whether properties were filtered with compiler supported properties
+    bool _compilerConfigsFilteredByCompiler = false;
+    // Boolean to signal that compatibility check was already filtered by compiler support
+    bool _compatibilityCheckFiltered = false;
 
     // properties map: {name -> [supported, mutable, eval function]}
     std::map<std::string, std::tuple<bool, ov::PropertyMutability, std::function<ov::Any(const Config&)>>> _properties;
     std::vector<ov::PropertyName> _supportedProperties;
+
+    // The compatibility_check property is supported only in case at least one of the compilers (CID or CIP) supports it
+    // To avoid loading the compiler library and check the support when the property is registered, the check can
+    // be performed at a later stage, when the property is actually queried.
+    bool disable_compatibility_check_if_needed();
 
     /**
      * @brief Checks whether a property was registered by its name
@@ -129,89 +139,37 @@ private:
     void registerPluginProperties();
     void registerCompiledModelProperties();
 
-    const std::vector<ov::PropertyName> _cachingProperties = {
-        ov::cache_mode.name(),
-        ov::enable_profiling.name(),
-        ov::device::architecture.name(),
-        ov::hint::execution_mode.name(),
-        ov::hint::inference_precision.name(),
-        ov::hint::performance_mode.name(),
-        ov::intel_npu::batch_compiler_mode_settings.name(),
-        ov::intel_npu::batch_mode.name(),
-        ov::intel_npu::compilation_mode.name(),
-        ov::intel_npu::compilation_mode_params.name(),
-        ov::intel_npu::compiler_dynamic_quantization.name(),
-        ov::intel_npu::compiler_type.name(),
-        ov::intel_npu::dma_engines.name(),
-        ov::intel_npu::driver_version.name(),
-        ov::intel_npu::dynamic_shape_to_static.name(),
-        ov::intel_npu::enable_strides_for.name(),
-        ov::intel_npu::max_tiles.name(),
-        ov::intel_npu::stepping.name(),
-        ov::intel_npu::tiles.name(),
-        ov::intel_npu::turbo.name(),
-        ov::intel_npu::qdq_optimization.name(),
-        ov::intel_npu::qdq_optimization_aggressive.name(),
-        // NPUW caching properties
-        ov::intel_npu::use_npuw.name(),
-        ov::intel_npu::npuw::devices.name(),
-        ov::intel_npu::npuw::submodel_device.name(),
-        ov::intel_npu::npuw::weights_bank.name(),
-        ov::intel_npu::npuw::weights_bank_alloc.name(),
-        ov::intel_npu::npuw::partitioning::online::pipeline.name(),
-        ov::intel_npu::npuw::partitioning::online::avoid.name(),
-        ov::intel_npu::npuw::partitioning::online::isolate.name(),
-        ov::intel_npu::npuw::partitioning::online::nofold.name(),
-        ov::intel_npu::npuw::partitioning::online::min_size.name(),
-        ov::intel_npu::npuw::partitioning::online::keep_blocks.name(),
-        ov::intel_npu::npuw::partitioning::online::keep_block_size.name(),
-        ov::intel_npu::npuw::partitioning::attn.name(),
-        ov::intel_npu::npuw::partitioning::attn_hfa_fused.name(),
-        ov::intel_npu::npuw::partitioning::fold.name(),
-        ov::intel_npu::npuw::partitioning::cwai.name(),
-        ov::intel_npu::npuw::partitioning::dyn_quant.name(),
-        ov::intel_npu::npuw::partitioning::dyn_quant_full.name(),
-        ov::intel_npu::npuw::partitioning::par_matmul_merge_dims.name(),
-        ov::intel_npu::npuw::partitioning::matmul_gate_preserve_constants.name(),
-        ov::intel_npu::npuw::partitioning::slice_out.name(),
-        ov::intel_npu::npuw::partitioning::spatial.name(),
-        ov::intel_npu::npuw::partitioning::spatial_nway.name(),
-        ov::intel_npu::npuw::partitioning::spatial_dyn.name(),
-        ov::intel_npu::npuw::partitioning::f16_interconnect.name(),
-        ov::intel_npu::npuw::partitioning::host_gather.name(),
-        ov::intel_npu::npuw::partitioning::dcoff_type.name(),
-        ov::intel_npu::npuw::partitioning::dcoff_with_scale.name(),
-        ov::intel_npu::npuw::partitioning::funcall_for_all.name(),
-        ov::intel_npu::npuw::funcall_async.name(),
-        ov::intel_npu::npuw::unfold_ireqs.name(),
-        ov::intel_npu::npuw::fallback_exec.name(),
-        ov::intel_npu::npuw::llm::enabled.name(),
-        ov::intel_npu::npuw::llm::batch_dim.name(),
-        ov::intel_npu::npuw::llm::seq_len_dim.name(),
-        ov::intel_npu::npuw::llm::max_prompt_len.name(),
-        ov::intel_npu::npuw::llm::max_generation_token_len.name(),
-        ov::intel_npu::npuw::llm::min_response_len.name(),
-        ov::intel_npu::npuw::llm::optimize_v_tensors.name(),
-        ov::intel_npu::npuw::llm::cache_rope.name(),
-        ov::intel_npu::npuw::llm::generate_pyramid.name(),
-        ov::intel_npu::npuw::llm::prefill_chunk_size.name(),
-        ov::intel_npu::npuw::llm::shared_lm_head.name(),
-        ov::intel_npu::npuw::llm::max_lora_rank.name(),
-        ov::intel_npu::npuw::llm::enable_prefix_caching.name(),
-        ov::intel_npu::npuw::llm::prefix_caching_block_size.name(),
-        ov::intel_npu::npuw::llm::prefix_caching_max_num_blocks.name(),
-        ov::intel_npu::npuw::llm::prefill_hint.name(),
-        ov::intel_npu::npuw::llm::prefill_config.name(),
-        ov::intel_npu::npuw::llm::additional_prefill_config.name(),
-        ov::intel_npu::npuw::llm::prefill_attn_hint.name(),
-        ov::intel_npu::npuw::llm::generate_hint.name(),
-        ov::intel_npu::npuw::llm::generate_config.name(),
-        ov::intel_npu::npuw::llm::additional_generate_config.name(),
-        ov::intel_npu::npuw::llm::generate_attn_hint.name(),
-        ov::intel_npu::npuw::llm::shared_lm_head_config.name(),
-        ov::intel_npu::npuw::llm::additional_shared_lm_head_config.name(),
-        ov::intel_npu::npuw::llm::optimize_fp8.name(),
-        ov::intel_npu::npuw::eagle::enabled.name()};
+    const std::vector<ov::PropertyName> _cachingProperties = [] {
+        std::vector<ov::PropertyName> properties = {
+            ov::cache_mode.name(),
+            ov::enable_profiling.name(),
+            ov::device::architecture.name(),
+            ov::hint::execution_mode.name(),
+            ov::hint::inference_precision.name(),
+            ov::hint::performance_mode.name(),
+            ov::intel_npu::batch_compiler_mode_settings.name(),
+            ov::intel_npu::batch_mode.name(),
+            ov::intel_npu::compilation_mode.name(),
+            ov::intel_npu::compilation_mode_params.name(),
+            ov::intel_npu::compiler_dynamic_quantization.name(),
+            ov::intel_npu::compiler_type.name(),
+            ov::intel_npu::dma_engines.name(),
+            ov::intel_npu::driver_version.name(),
+            ov::intel_npu::dynamic_shape_to_static.name(),
+            ov::intel_npu::enable_strides_for.name(),
+            ov::intel_npu::max_tiles.name(),
+            ov::intel_npu::stepping.name(),
+            ov::intel_npu::tiles.name(),
+            ov::intel_npu::turbo.name(),
+            ov::intel_npu::qdq_optimization.name(),
+            ov::intel_npu::qdq_optimization_aggressive.name(),
+        };
+        for_each_cached_npuw_option([&](auto tag) {
+            using Opt = typename decltype(tag)::type;
+            properties.emplace_back(std::string{Opt::key()});
+        });
+        return properties;
+    }();
 
     const std::vector<ov::PropertyName> _internalSupportedProperties = {ov::internal::caching_properties.name(),
                                                                         ov::internal::caching_with_mmap.name(),

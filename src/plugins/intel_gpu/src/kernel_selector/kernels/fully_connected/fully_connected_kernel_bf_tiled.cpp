@@ -33,7 +33,7 @@ static constexpr uint64_t dyn_b_batches_ifm_gt_ofm =
     (1ULL << 20) | (1ULL << 21) | (1ULL << 22) | (1ULL << 23) |
     (1ULL << 26) | (1ULL << 27) | (1ULL << 28) | (1ULL << 29);
 
-static inline bool is_dyn_b_batch_beneficial(size_t batch, size_t ifm, size_t ofm, bool swiglu) {
+static inline bool should_use_dyn_b_kernel(size_t batch, size_t ifm, size_t ofm, bool swiglu) {
     if (swiglu || batch < 2 || batch > 32)
         return false;
     if (std::min(ifm, ofm) < simd)
@@ -183,7 +183,7 @@ bool should_dynamic_quantize(const fully_connected_params& params) {
     auto input_f = threads.second;
 
     if ((scale_group_size % simd == 0) && (input_f % dynamic_quantization_group_size == 0) &&
-        (params.is_shape_agnostic || (params.inputs[0].Batch().v > 1 && input_b > min_slm_size)) &&
+        (params.is_shape_agnostic || input_b > min_slm_size) &&
         params.inputs[0].GetDType() == Datatype::F16 && is_weight_dyn_quantizable(params)) {
         GPU_DEBUG_TRACE_DETAIL << " Dynamic quantizing for FC : scale_group_size: " << scale_group_size
                                << ", Dyn-quan group size: " << dynamic_quantization_group_size
@@ -884,11 +884,11 @@ void FullyConnected_bf_tiled::SetDispatchDataFunc(KernelData& kd, const Dispatch
         // We can use SLM version if `output_batch + default_alignment > min_slm_size(256)`
         // because memory and batch are aligned (whether 16 or 64 elements)
         bool use_slm = (idx.slm >= 0) && (output_batch + default_alignment > min_slm_size);
-        bool use_dyn_b = !use_slm && (idx.dyn_b >= 0)
-                         && is_dyn_b_batch_beneficial(output_batch,
-                                                     prim_params.weights.IFM().v,
-                                                     prim_params.weights.OFM().v,
-                                                     is_swiglu_fused(prim_params));
+        bool use_dyn_b = !use_slm && (idx.dyn_b >= 0) && (idx.quantize < 0)
+                         && should_use_dyn_b_kernel(output_batch,
+                                                    prim_params.weights.IFM().v,
+                                                    prim_params.weights.OFM().v,
+                                                    is_swiglu_fused(prim_params));
 
         int execute = use_slm ? idx.slm : (use_dyn_b ? idx.dyn_b : idx.default_fc);
 
@@ -897,8 +897,8 @@ void FullyConnected_bf_tiled::SetDispatchDataFunc(KernelData& kd, const Dispatch
         for (int32_t i = idx.default_fc; i < total_kernels; i++)
             kd.kernels[i].skip_execution = (i != execute);
 
-        const char* mode_str = use_slm ? "SLM" : (use_dyn_b ? "DynB" : "Default");
-        GPU_DEBUG_TRACE_DETAIL << "FC bf tiled: " << mode_str << " shape-agnostic kernel version "
+        GPU_DEBUG_TRACE_DETAIL << "FC bf tiled: " << (use_slm ? "SLM" : (use_dyn_b ? "DynB" : "Default"))
+                               << " shape-agnostic kernel version "
                                << "will be used for batch size = " << output_batch << "\n";
 
         // Configure workgroups for the selected kernel

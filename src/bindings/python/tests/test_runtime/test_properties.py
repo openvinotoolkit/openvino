@@ -55,6 +55,14 @@ def test_properties_rw_base():
             ),
         ),
         (
+            props.CompatibilityCheck,
+            (
+                (props.CompatibilityCheck.NOT_APPLICABLE, "CompatibilityCheck.NOT_APPLICABLE", 0),
+                (props.CompatibilityCheck.SUPPORTED, "CompatibilityCheck.SUPPORTED", 1),
+                (props.CompatibilityCheck.UNSUPPORTED, "CompatibilityCheck.UNSUPPORTED", 2),
+            ),
+        ),
+        (
             props.WorkloadType,
             (
                 (props.WorkloadType.DEFAULT, "WorkloadType.DEFAULT", 0),
@@ -88,9 +96,7 @@ def test_properties_rw_base():
         ),
         (
             hints.ModelDistributionPolicy,
-            (
-                (hints.ModelDistributionPolicy.TENSOR_PARALLEL, "ModelDistributionPolicy.TENSOR_PARALLEL", 0),
-            ),
+            ((hints.ModelDistributionPolicy.TENSOR_PARALLEL, "ModelDistributionPolicy.TENSOR_PARALLEL", 0),),
         ),
         (
             hints.ExecutionMode,
@@ -187,6 +193,8 @@ def test_conflicting_enum(proxy_enums, expected_values):
         (props.range_for_async_infer_requests, "RANGE_FOR_ASYNC_INFER_REQUESTS"),
         (props.execution_devices, "EXECUTION_DEVICES"),
         (props.loaded_from_cache, "LOADED_FROM_CACHE"),
+        (props.runtime_requirements, "RUNTIME_REQUIREMENTS"),
+        (props.compatibility_check, "COMPATIBILITY_CHECK"),
         (device.full_name, "FULL_DEVICE_NAME"),
         (device.architecture, "DEVICE_ARCHITECTURE"),
         (device.type, "DEVICE_TYPE"),
@@ -204,6 +212,7 @@ def test_conflicting_enum(proxy_enums, expected_values):
         (intel_npu.device_total_mem_size, "NPU_DEVICE_TOTAL_MEM_SIZE"),
         (intel_npu.driver_version, "NPU_DRIVER_VERSION"),
         (intel_npu.compiler_version, "NPU_COMPILER_VERSION"),
+        (intel_npu.max_tiles, "NPU_MAX_TILES")
     ],
 )
 def test_properties_ro(ov_property_ro, expected_value):
@@ -477,11 +486,6 @@ def test_properties_ro(ov_property_ro, expected_value):
         (
             intel_npu.tiles,
             "NPU_TILES",
-            ((128, 128),),
-        ),
-        (
-            intel_npu.max_tiles,
-            "NPU_MAX_TILES",
             ((128, 128),),
         ),
         (
