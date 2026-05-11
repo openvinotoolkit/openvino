@@ -542,6 +542,79 @@ def _workspace_relative(path: Path, workspace: Path) -> str:
         return path.resolve().as_posix()
 
 
+def _parse_artifact_names(value: str) -> list[str]:
+    raw_value = value.strip()
+    if not raw_value:
+        return []
+    try:
+        parsed = json.loads(raw_value)
+    except json.JSONDecodeError:
+        parsed = None
+    if isinstance(parsed, list):
+        return [str(item).strip() for item in parsed if str(item).strip()]
+    return [item.strip() for item in raw_value.replace("\n", ",").split(",") if item.strip()]
+
+
+def _safe_relative_file(file_name: str) -> Path:
+    relative_file = Path(file_name)
+    if relative_file.is_absolute() or ".." in relative_file.parts:
+        raise ValueError(f"Upload file must be a relative path inside the artifact: {file_name}")
+    return relative_file
+
+
+def _append_unique_path(paths: list[Path], candidate: Path) -> None:
+    if candidate.is_file() and candidate not in paths:
+        paths.append(candidate)
+
+
+def resolve_upload_files(
+    *,
+    workspace: Path,
+    artifact_group: str,
+    artifact_names: str,
+    file_name: str,
+    upload_key: str,
+    output_file: Path,
+) -> None:
+    root = workspace / "artifacts" / artifact_group
+    if not root.is_dir():
+        raise FileNotFoundError(f"Coverage artifact group directory does not exist: {root}")
+
+    relative_file = _safe_relative_file(file_name)
+    files: list[Path] = []
+    parsed_artifact_names = _parse_artifact_names(artifact_names)
+
+    for artifact_name in parsed_artifact_names:
+        _append_unique_path(files, root / artifact_name / relative_file)
+
+    if not files:
+        _append_unique_path(files, root / relative_file)
+
+    if not files:
+        artifact_name_set = set(parsed_artifact_names)
+        for candidate in sorted(root.rglob(relative_file.as_posix())):
+            if not candidate.is_file():
+                continue
+            if artifact_name_set and candidate.parent.name not in artifact_name_set:
+                relative_parts = candidate.relative_to(root).parts
+                artifact_root = relative_parts[0] if len(relative_parts) > len(relative_file.parts) else ""
+                if artifact_root not in artifact_name_set:
+                    continue
+            _append_unique_path(files, candidate)
+
+    if not files:
+        expected = ", ".join(parsed_artifact_names) if parsed_artifact_names else "any downloaded artifact"
+        raise FileNotFoundError(f"Could not find {file_name!r} for {expected} under {root}")
+
+    files_csv = ",".join(_workspace_relative(path, workspace) for path in files)
+    upload_files = {upload_key: files_csv} if upload_key else {}
+
+    print(f"Resolved Codecov upload files: {files_csv}")
+    with output_file.open("a", encoding="utf-8") as handle:
+        handle.write(f"files={files_csv}\n")
+        handle.write(f"upload-files-json={json.dumps(upload_files, sort_keys=True)}\n")
+
+
 def _upload_key(upload: dict[str, Any], context: dict[str, str], *, file_name: str) -> str:
     context = {**context, "file": file_name}
     raw_key = _format_upload_value(
@@ -714,6 +787,17 @@ def _parse_args() -> argparse.Namespace:
     uploads.add_argument("--workspace", type=Path, required=True)
     uploads.add_argument("--output-file", type=Path, required=True)
 
+    upload_files = subparsers.add_parser(
+        "resolve-upload-files",
+        help="Resolve one Codecov upload row from artifacts downloaded in the current job",
+    )
+    upload_files.add_argument("--workspace", type=Path, required=True)
+    upload_files.add_argument("--artifact-group", required=True)
+    upload_files.add_argument("--artifact-names-json", default="")
+    upload_files.add_argument("--upload-key", default="")
+    upload_files.add_argument("--file", required=True)
+    upload_files.add_argument("--output-file", type=Path, required=True)
+
     return parser.parse_args()
 
 
@@ -745,6 +829,16 @@ def main() -> int:
         return 0
     if args.command == "resolve-uploads":
         resolve_uploads(workspace=args.workspace.resolve(), output_file=args.output_file.resolve())
+        return 0
+    if args.command == "resolve-upload-files":
+        resolve_upload_files(
+            workspace=args.workspace.resolve(),
+            artifact_group=args.artifact_group,
+            artifact_names=args.artifact_names_json,
+            file_name=args.file,
+            upload_key=args.upload_key,
+            output_file=args.output_file.resolve(),
+        )
         return 0
     raise ValueError(f"Unsupported command: {args.command}")
 

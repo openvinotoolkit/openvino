@@ -3,7 +3,7 @@ description: Run OpenVINO coverage toolkit script steps from reusable workflows.
 
 inputs:
   command:
-    description: One of install-requirements, validate-config, run-suite, collect-native, collect-results, render-summary, merge-durations, resolve-uploads.
+    description: One of install-requirements, validate-config, run-suite, collect-native, collect-results, render-summary, merge-durations, resolve-uploads, resolve-upload-files.
     required: true
   workspace:
     description: Repository workspace that owns the checked-out sources and coverage artifacts.
@@ -113,6 +113,22 @@ inputs:
     description: Workspace-relative or absolute C++ test model path used for __MODEL_PATH__ replacement.
     required: false
     default: ''
+  artifact-group:
+    description: Artifact group directory under workspace/artifacts for resolve-upload-files.
+    required: false
+    default: ''
+  artifact-names-json:
+    description: JSON array of artifact names for resolve-upload-files.
+    required: false
+    default: ''
+  upload-key:
+    description: Dynamic Codecov upload key for resolve-upload-files.
+    required: false
+    default: ''
+  upload-file:
+    description: Coverage file name inside each downloaded artifact for resolve-upload-files.
+    required: false
+    default: ''
 outputs:
   dir:
     description: Artifact directory produced by collect-results.
@@ -129,6 +145,9 @@ outputs:
   upload-matrix-json:
     description: JSON array used as the dynamic Codecov upload matrix.
     value: ${{ steps.coverage.outputs['upload-matrix-json'] }}
+  files:
+    description: Comma-separated coverage files resolved by resolve-upload-files.
+    value: ${{ steps.coverage.outputs.files }}
 
 runs:
   using: composite
@@ -166,6 +185,10 @@ runs:
         INPUT_PYTHON_WHEEL_LIB_DIR: ${{ inputs.python-wheel-lib-dir }}
         INPUT_JS_DIR: ${{ inputs.js-dir }}
         INPUT_MODEL_PATH: ${{ inputs.model-path }}
+        INPUT_ARTIFACT_GROUP: ${{ inputs.artifact-group }}
+        INPUT_ARTIFACT_NAMES_JSON: ${{ inputs.artifact-names-json }}
+        INPUT_UPLOAD_KEY: ${{ inputs.upload-key }}
+        INPUT_UPLOAD_FILE: ${{ inputs.upload-file }}
       run: |
         set -euo pipefail
 
@@ -339,6 +362,24 @@ runs:
             fi
             python3 "${reports_py}" resolve-uploads "${reports_common[@]}" \
               --workspace "${workspace}" \
+              --output-file "${uploads_output_file}"
+            ;;
+          resolve-upload-files)
+            uploads_output_file="${INPUT_UPLOADS_OUTPUT_FILE:-${GITHUB_OUTPUT:-}}"
+            if [[ -z "${uploads_output_file}" ]]; then
+              echo "resolve-upload-files requires uploads-output-file or GITHUB_OUTPUT" >&2
+              exit 1
+            fi
+            if [[ -z "${INPUT_ARTIFACT_GROUP}" || -z "${INPUT_UPLOAD_FILE}" ]]; then
+              echo "resolve-upload-files requires artifact-group and upload-file" >&2
+              exit 1
+            fi
+            python3 "${reports_py}" resolve-upload-files \
+              --workspace "${workspace}" \
+              --artifact-group "${INPUT_ARTIFACT_GROUP}" \
+              --artifact-names-json "${INPUT_ARTIFACT_NAMES_JSON}" \
+              --upload-key "${INPUT_UPLOAD_KEY}" \
+              --file "${INPUT_UPLOAD_FILE}" \
               --output-file "${uploads_output_file}"
             ;;
           *)

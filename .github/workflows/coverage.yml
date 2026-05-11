@@ -970,12 +970,21 @@ jobs:
           path: ${{ github.workspace }}/artifacts/${{ matrix.upload.artifact_group }}
           merge-multiple: false
 
+      - name: Resolve Codecov upload files
+        id: upload_files
+        uses: ./.github/actions/coverage_toolkit
+        with:
+          command: resolve-upload-files
+          artifact-group: ${{ matrix.upload.artifact_group }}
+          artifact-names-json: ${{ toJSON(matrix.upload.artifact_names) }}
+          upload-key: ${{ matrix.upload.key }}
+          upload-file: ${{ matrix.upload.file }}
+
       - name: Upload Codecov (${{ matrix.upload.name }})
-        if: ${{ matrix.upload.files_csv != '' }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ${{ matrix.upload.files_csv }}
+          files: ${{ steps.upload_files.outputs.files }}
           disable_search: true
           plugins: noop
           flags: ${{ matrix.upload.flag }}
