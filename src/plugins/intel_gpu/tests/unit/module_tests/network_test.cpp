@@ -252,7 +252,7 @@ TEST(network_test, scratchpad_test) {
 }
 
 // this test verifies the case where an example primitive - in this case it's slice_scatter
-// calls update_output_memory before buid_deps is called, in this case we expect
+// calls update_output_memory before build_deps is called, in this case we expect
 // that build_deps will be called from update_output_memory before accessing calling things like input_memory_ptr
 TEST(network_test, update_output_memory_calls_build_deps) {
     auto& engine = get_test_engine();

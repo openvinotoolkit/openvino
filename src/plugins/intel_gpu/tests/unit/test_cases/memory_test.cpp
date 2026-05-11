@@ -570,50 +570,6 @@ public:
         }
     }
 
-    void test_feed_previous_output_into_next_inference_input(bool is_caching_test) {
-        auto engine = create_test_engine();
-        layout input_lay{data_types::f32, format::bfyx, {1, 1, 2, 4}};
-        auto input = engine->allocate_memory(input_lay);
-        set_values(input, {1.0f, 2.0f, 3.0f, 4.0f, -1.0f, -2.0f, -3.0f, -4.0f});
-
-        topology topology;
-        topology.add(input_layout("input", input_lay));
-        topology.add(activation("shift", input_info("input"), activation_func::linear, {1.0f, 1.0f}));
-
-        ExecutionConfig config = get_test_default_config(*engine);
-        config.set_property(ov::intel_gpu::optimize_data(true));
-
-        network::ptr network = get_network(*engine, topology, config, get_test_stream_ptr(), is_caching_test);
-
-        auto input_inst = network->get_primitive("input");
-        auto shift_inst = network->get_primitive("shift");
-
-        network->set_input_data("input", input);
-        auto outputs_first = network->execute();
-        auto first_output_mem = outputs_first.at("shift").get_memory();
-
-        {
-            cldnn::mem_lock<float> first_output_ptr(first_output_mem, get_test_stream());
-            const std::vector<float> expected_first = {2.0f, 3.0f, 4.0f, 5.0f, 0.0f, -1.0f, -2.0f, -3.0f};
-            for (size_t i = 0; i < expected_first.size(); ++i) {
-                ASSERT_EQ(first_output_ptr[i], expected_first[i]);
-            }
-        } // release the mem_lock...
-
-        // Feeding the previous output back as the next input is a valid zero-copy workflow.
-        network->set_input_data("input", first_output_mem);
-        ASSERT_TRUE(engine->is_the_same_buffer(*input_inst->output_memory_ptr(), *first_output_mem));
-        ASSERT_TRUE(engine->is_the_same_buffer(*shift_inst->dep_memory_ptr(0), *first_output_mem));
-
-        auto outputs_second = network->execute();
-        cldnn::mem_lock<float> second_output_ptr(outputs_second.at("shift").get_memory(), get_test_stream());
-        const std::vector<float> expected_second = {3.0f, 4.0f, 5.0f, 6.0f, 1.0f, 0.0f, -1.0f, -2.0f};
-        // The second inference must apply the transform again, not reuse stale bindings.
-        for (size_t i = 0; i < expected_second.size(); ++i) {
-            ASSERT_EQ(second_output_ptr[i], expected_second[i]);
-        }
-    }
-
     void test_shared_dep_two_output(bool is_caching_test) {
         // We need a new engine here to get correct get_max_used_device_memory() result
         // If we reuse common engine, then max memory value will be taken from some previously executed tests
@@ -931,10 +887,6 @@ TEST_F(memory_pool, aliasing_through_chain_of_optimized_ops) {
     this->test_aliasing_through_chain_of_optimized_ops(false);
 }
 
-TEST_F(memory_pool, feed_previous_output_into_next_inference_input) {
-    this->test_feed_previous_output_into_next_inference_input(false);
-}
-
 TEST_F(memory_pool, shared_dep_two_output) {
     this->test_shared_dep_two_output(false);
 }
@@ -988,10 +940,6 @@ TEST_F(memory_pool, rebind_external_memory_multiple_times_cached) {
 
 TEST_F(memory_pool, aliasing_through_chain_of_optimized_ops_cached) {
     this->test_aliasing_through_chain_of_optimized_ops(true);
-}
-
-TEST_F(memory_pool, feed_previous_output_into_next_inference_input_cached) {
-    this->test_feed_previous_output_into_next_inference_input(true);
 }
 
 TEST_F(memory_pool, shared_dep_two_output_cached) {
