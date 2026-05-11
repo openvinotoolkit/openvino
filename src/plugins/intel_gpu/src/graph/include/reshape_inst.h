@@ -100,13 +100,20 @@ public:
         // Iteratively check the total product of all static innermost dimensions
         // until the crop dimension value matches or the first dynamic dimension is encountered
         int64_t mul = 1;
+        size_t matched_trailing_dims = 0;
         for (size_t i = output_pshape.size(); i > 1 ; i--) {
             if (output_pshape[i - 1].is_dynamic() || mul == input_last_dim_val)
                 break;
 
             mul *= output_pshape[i - 1].get_length();
+            matched_trailing_dims++;
         }
         if (input_last_dim_val != mul)
+            return false;
+        // Reject when reshape drops the cropped axis (e.g. [N,M,1] -> [N,M]): no output axis can
+        // carry the cropped axis padding, so sibling crop outputs would all point to the same
+        // base buffer region (aliased).
+        if (matched_trailing_dims == 0 && output_pshape.size() < input_pshape.size())
             return false;
 
         return true;
