@@ -519,7 +519,7 @@ void pa_kernel_lsc_prefetch_f16(
         matrix<half, REG_N, REG_K> P;
         Transpose2DMatrix(St, P);
 
-        auto P_vec = P.format<half, REG_M * REG_K>();
+        auto P_vec = P.format<half, REG_M, REG_K>();
         matrix<half, REG_K/2, REG_N*2*VALUE_TILE_NUM> Vmat;
         #pragma unroll
         for(int k = 0, ri=0; k < head_size; k += REG_N * VALUE_TILE_NUM, ri += VALUE_TILE_NUM) {
