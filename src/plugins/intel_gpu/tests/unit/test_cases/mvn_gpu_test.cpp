@@ -8,6 +8,7 @@
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/mvn.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
+#include <intel_gpu/primitives/crop.hpp>
 #include <intel_gpu/runtime/debug_configuration.hpp>
 
 #include <iostream>
@@ -1125,3 +1126,81 @@ TEST(mvn_bfyx_opt_fused_ops, basic_fused) {
 }
 
 #endif
+
+// In-place crop feeding an MVN that requires alignment must materialize a contiguous
+// buffer: MVN canonicalizes the shape and reads with contiguous pitches, so a strided
+// sub-view from in-place crop would be read incorrectly (only row 0 was correct).
+TEST(mvn_gpu_test, crop_then_mvn_last_axis_contiguous_input) {
+    auto& engine = get_test_engine();
+
+    // [3,4,5,64] -> crop -> [1,2,2,32] -> MVN(axis=-1). tensor ctor: (b, f, x, y).
+    const tensor src_size{3, 4, /*x=*/64, /*y=*/5};
+    const tensor crop_size{1, 2, /*x=*/32, /*y=*/2};
+    const tensor crop_offset{0, 0, 0, 0};
+
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, src_size});
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto input_vec = rg.generate_random_1d<float>(input->count(), -1.f, 1.f);
+    set_values(input, input_vec);
+
+    topology topo;
+    topo.add(input_layout("input", input->get_layout()));
+    topo.add(crop("crop", input_info("input"), crop_size, crop_offset));
+    topo.add(mvn("mvn", input_info("crop"), /*normalize_variance=*/true,
+                 /*epsilon=*/0.f, /*eps_inside_sqrt=*/false,
+                 /*reduction_axes=*/std::vector<int64_t>{3}));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network network(engine, topo, config);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    auto output = outputs.at("mvn").get_memory();
+
+    const int64_t B = crop_size.batch[0];
+    const int64_t F = crop_size.feature[0];
+    const int64_t Y = crop_size.spatial[1];
+    const int64_t X = crop_size.spatial[0];
+    std::vector<float> reference(B * F * Y * X);
+
+    const int64_t SF = src_size.feature[0];
+    const int64_t SY = src_size.spatial[1];
+    const int64_t SX = src_size.spatial[0];
+
+    for (int64_t b = 0; b < B; ++b) {
+        for (int64_t f = 0; f < F; ++f) {
+            for (int64_t y = 0; y < Y; ++y) {
+                float mean = 0.f;
+                for (int64_t x = 0; x < X; ++x) {
+                    int64_t src_idx = ((b * SF + f) * SY + y) * SX + x;
+                    mean += input_vec[src_idx];
+                }
+                mean /= static_cast<float>(X);
+                float var = 0.f;
+                for (int64_t x = 0; x < X; ++x) {
+                    int64_t src_idx = ((b * SF + f) * SY + y) * SX + x;
+                    float v = input_vec[src_idx] - mean;
+                    var += v * v;
+                }
+                var /= static_cast<float>(X);
+                float inv_std = 1.f / std::sqrt(var);
+                for (int64_t x = 0; x < X; ++x) {
+                    int64_t src_idx = ((b * SF + f) * SY + y) * SX + x;
+                    int64_t dst_idx = ((b * F + f) * Y + y) * X + x;
+                    reference[dst_idx] = (input_vec[src_idx] - mean) * inv_std;
+                }
+            }
+        }
+    }
+
+    cldnn::mem_lock<float, mem_lock_type::read> out_ptr(output, get_test_stream());
+    ASSERT_EQ(out_ptr.size(), reference.size());
+    const float tolerance = 1e-4f;
+    for (size_t i = 0; i < reference.size(); ++i) {
+        ASSERT_NEAR(out_ptr[i], reference[i], tolerance) << " mismatch at index " << i;
+    }
+}

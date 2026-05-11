@@ -27,6 +27,7 @@
 #include "openvino/op/floor.hpp"
 #include "openvino/op/ceiling.hpp"
 #include "openvino/op/erf.hpp"
+#include "openvino/op/erfinv.hpp"
 #include "openvino/op/hard_sigmoid.hpp"
 #include "openvino/op/log.hpp"
 #include "openvino/op/negative.hpp"
@@ -192,6 +193,8 @@ struct activation_impl : public typed_primitive_impl<activation> {
                 op = std::make_shared<ov::op::v0::Ceiling>(); break;
             case activation_func::erf:
                 op = std::make_shared<ov::op::v0::Erf>(); break;
+            case activation_func::erfinv:
+                op = std::make_shared<ov::op::v17::ErfInv>(); break;
             case activation_func::log:
                 op = std::make_shared<ov::op::v0::Log>(); break;
             case activation_func::negative:

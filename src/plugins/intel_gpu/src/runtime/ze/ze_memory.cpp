@@ -429,8 +429,8 @@ gpu_image2d::gpu_image2d(ze_engine* engine, const layout& layout)
             OPENVINO_THROW("[GPU] 2D image allocation", "unsupported image type!");
     }
     #undef THROW_UNSUPPORTED_DT
-    image_desc.width = _width;
-    image_desc.height = _height;
+    image_desc.width = static_cast<uint32_t>(_width);
+    image_desc.height = static_cast<uint32_t>(_height);
     image_desc.depth = 1;
     image_desc.arraylevels = 1;
     image_desc.miplevels = 0;
@@ -533,7 +533,7 @@ event::ptr gpu_image2d::fill(stream& stream, unsigned char pattern, const std::v
                 fill_buffer.get(),
                 nullptr,
                 ev_result_handle,
-                ze_dep_events.size(),
+                static_cast<uint32_t>(ze_dep_events.size()),
                 ze_dep_events.data()));
     if (!blocking) {
         // Need to ensure that fill is finished before returning from this function and releasing fill_buffer

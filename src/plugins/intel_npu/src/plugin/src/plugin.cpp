@@ -21,6 +21,7 @@
 #include "metrics.hpp"
 #include "npuw/compiled_model.hpp"
 #include "npuw/llm_compiled_model.hpp"
+#include "npuw/orc/schema_npuw.hpp"
 #include "npuw/serialization.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
@@ -148,26 +149,35 @@ void check_weightless_cache_attribute_occurrence(const std::shared_ptr<const ov:
 std::shared_ptr<ov::ICompiledModel> import_model_npuw(std::istream& stream,
                                                       ov::AnyMap& properties,
                                                       std::shared_ptr<const ov::IPlugin> pluginSO) {
+    if (const auto header = ov::npuw::orc::is_orc(stream);
+        header.has_value() &&
+        header->schema_uuid == ov::npuw::orc::schema_npuw::NPUW_ORC_PARTITIONED_SCHEMA) {
+        return ov::npuw::CompiledModel::import_model(stream, pluginSO, properties);
+    }
+
     // If was exported via NPUW
     auto stream_start_pos = stream.tellg();
     ov::npuw::s11n::IndicatorType serialization_indicator;
-    ov::npuw::s11n::read(stream, serialization_indicator);
-    if (serialization_indicator == NPUW_SERIALIZATION_INDICATOR) {
+    if (ov::npuw::orc::try_read_bytes(stream, serialization_indicator.data(), serialization_indicator.size()) &&
+        serialization_indicator == NPUW_SERIALIZATION_INDICATOR) {
         ov::npuw::s11n::IndicatorType compiled_model_indicator;
-        ov::npuw::s11n::read(stream, compiled_model_indicator);
-        stream.seekg(-stream.tellg() + stream_start_pos, std::ios::cur);
+        if (ov::npuw::orc::try_read_bytes(stream, compiled_model_indicator.data(), compiled_model_indicator.size())) {
+            stream.clear();
+            stream.seekg(stream_start_pos);
 
-        if (compiled_model_indicator == NPUW_LLM_COMPILED_MODEL_INDICATOR) {
-            // Properties are required for ov::weights_path
-            return ov::npuw::LLMCompiledModel::import_model(stream, pluginSO, properties);
-        } else if (compiled_model_indicator == NPUW_COMPILED_MODEL_INDICATOR) {
-            // Properties are required for ov::weights_path
-            return ov::npuw::CompiledModel::import_model(stream, pluginSO, properties);
-        } else {
-            OPENVINO_THROW("Couldn't deserialize NPUW blob - fatal error!");
+            if (compiled_model_indicator == NPUW_LLM_COMPILED_MODEL_INDICATOR) {
+                // Properties are required for ov::weights_path
+                return ov::npuw::LLMCompiledModel::import_model(stream, pluginSO, properties);
+            } else if (compiled_model_indicator == NPUW_COMPILED_MODEL_INDICATOR) {
+                OPENVINO_THROW("Legacy flat NPUW CompiledModel blobs are no longer supported. Re-export the model with "
+                               "the current ORC serializer.");
+            } else {
+                OPENVINO_THROW("Couldn't deserialize NPUW blob - fatal error!");
+            }
         }
     }
-    stream.seekg(-stream.tellg() + stream_start_pos, std::ios::cur);
+    stream.clear();
+    stream.seekg(stream_start_pos);
 
     // Drop NPUW properties if there are any
     for (auto it = properties.begin(); it != properties.end(); ++it) {
@@ -257,6 +267,9 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     REGISTER_OPTION(ENABLE_STRIDES_FOR);
     REGISTER_OPTION(SHARED_COMMON_QUEUE);
     REGISTER_OPTION(CACHE_ENCRYPTION_CALLBACKS);
+    REGISTER_OPTION(RUNTIME_REQUIREMENTS);
+    REGISTER_OPTION(COMPATIBILITY_CHECK);
+
 
     if (backend) {
         // Options registered only if drivers is present and supports the corresponding extension
@@ -360,7 +373,72 @@ void Plugin::set_property(const ov::AnyMap& properties) {
     _propertiesManager->setProperty(properties);
 }
 
+
+ov::CompatibilityCheck Plugin::validate_compatibility_descriptor(ov::intel_npu::CompilerType compilerType, const ov::AnyMap& arguments) const {
+    if (arguments.empty() || arguments.find(ov::runtime_requirements.name()) == arguments.end()) {
+        return ov::CompatibilityCheck::NOT_APPLICABLE;
+    }
+
+    const auto& runtimeRequirements = arguments.at(ov::runtime_requirements.name()).as<const std::string&>();
+    _logger.debug("Received runtime_requirements: %s length: %zu", runtimeRequirements.c_str(), runtimeRequirements.length());
+
+    // NPU Plugin's runtime requirements are captured in its metadata.
+    // For now plugin's requirements are met if metadata can be retrieved from the tensor
+    std::unique_ptr<MetadataBase> metadata = nullptr;
+    try {
+        // The plugin cares only about the string size and the metadata version check for now. Additional checks based
+        // on other metadata fields can be done following this line.
+        metadata = read_as_text(runtimeRequirements);
+    } catch (const std::exception& ex) {
+        // Unsupported version, could not read the metadata or an unknown error has occured. Report that the
+        // requirements are not met.
+        _logger.debug("Failed to read metadata from the runtime requirements. The requirements are not met. %s", ex.what());
+        return ov::CompatibilityCheck::UNSUPPORTED;
+    }
+
+    const auto descriptorView = metadata->get_compatibility_descriptor();
+    std::string compatibilityDescriptor = descriptorView.has_value() ? std::string(descriptorView.value()) : "";
+    _logger.debug("Retrieved compatibility descriptor from metadata: %s length: %zu",
+                  compatibilityDescriptor.c_str(),
+                  compatibilityDescriptor.length());
+
+    // Implement only the fallback path for now through the PLUGIN compiler type
+    std::unique_ptr<ICompilerAdapter> compiler = nullptr;
+    CompilerAdapterFactory factory;
+    try {
+        compiler = factory.getCompiler(_backend, compilerType, std::string_view{});
+
+        // Compiler can validate only if the string describes a blob compatible with the current platform
+        auto result = compiler->validate_compatibility_descriptor(compatibilityDescriptor);
+        _logger.debug("Compatibility check result: %s", result ? "met" : "not met");
+        if (result) {
+            return ov::CompatibilityCheck::SUPPORTED;
+        } else {
+            return ov::CompatibilityCheck::UNSUPPORTED;
+        }
+    } catch (const std::exception&) {
+        _logger.error("Failed to create the recommended compiler type for the compatibility check %d. The requirements are not met.",
+                      static_cast<int>(compilerType));
+        return ov::CompatibilityCheck::NOT_APPLICABLE;
+    }
+}
+
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
+    // Special cases that need to be treated outside of the property manager.
+    // Checking runtime requirements requires access to plugin's metadata
+    if (name == ov::compatibility_check.name()) {
+        // Reading the (dummy) property content to check if it is supported
+        // Expected to throw if the property is not supported
+        _propertiesManager->getProperty(name);
+
+        // The property was enabled based on the support of the compatibility check in the compiler adapters
+        // Use the compiler type determined for compatibility check to validate the requirements and return the result
+        auto compilerType = _propertiesManager->determineCompilerTypeForCompatibilityCheck();
+
+        // Validates both local (plugin's) requirements and device requirements
+        return validate_compatibility_descriptor(compilerType, arguments);
+    }
+
     if (!arguments.empty()) {
         auto npuPluginArguments = arguments;
         exclude_model_ptr_from_map(npuPluginArguments);
@@ -976,10 +1054,20 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
 
     ParserFactory parserFactory;
     auto parser = parserFactory.getParser(_backend->getInitStructs());
+
+    // Convert descriptor to an owning string before metadata is potentially destroyed.
+    std::optional<std::string> compatibilityDescriptor = std::nullopt;
+    if (metadata) {
+        if (const auto descriptorView = metadata->get_compatibility_descriptor(); descriptorView.has_value()) {
+            compatibilityDescriptor = std::string(descriptorView.value());
+        }
+    }
+
     auto graph = parser->parse(tensorMain,
                                localConfig,
                                initBlobs,
-                               weightsSeparationEnabled ? std::make_optional(std::move(originalModel)) : std::nullopt);
+                               weightsSeparationEnabled ? std::make_optional(std::move(originalModel)) : std::nullopt,
+                               compatibilityDescriptor);
 
     graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
     const std::shared_ptr<ov::Model> modelDummy =
