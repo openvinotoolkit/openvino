@@ -17,8 +17,8 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
-#include "openvino/op/variadic_split.hpp"
 #include "openvino/op/util/framework_node.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "utils/common.hpp"
 
 namespace {
@@ -230,9 +230,9 @@ ov::OutputVector split_to_sequence(const ov::frontend::onnx::Node& node) {
             // axis dimension dynamic?
             if (partial_shape.rank().is_static()) {
                 auto ax = axis_raw;
-                if (ax < 0) ax += partial_shape.rank().get_length();
-                if (ax >= 0 && ax < partial_shape.rank().get_length() &&
-                    !partial_shape[ax].is_static()) {
+                if (ax < 0)
+                    ax += partial_shape.rank().get_length();
+                if (ax >= 0 && ax < partial_shape.rank().get_length() && !partial_shape[ax].is_static()) {
                     needs_stacked = true;
                 }
             } else {
@@ -245,7 +245,8 @@ ov::OutputVector split_to_sequence(const ov::frontend::onnx::Node& node) {
             needs_stacked = true;
         } else {
             auto ax = axis_raw;
-            if (ax < 0) ax += partial_shape.rank().get_length();
+            if (ax < 0)
+                ax += partial_shape.rank().get_length();
             if (ax >= 0 && ax < partial_shape.rank().get_length() && !partial_shape[ax].is_static()) {
                 needs_stacked = true;
             }

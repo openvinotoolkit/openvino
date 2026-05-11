@@ -36,17 +36,15 @@ namespace {
 /// @param axis Axis along which elements are stacked.
 /// @return The gathered element output.
 ov::Output<ov::Node> gather_at_dynamic_position(const ov::Output<ov::Node>& stacked,
-                                                 const ov::Output<ov::Node>& position,
-                                                 std::int64_t axis) {
+                                                const ov::Output<ov::Node>& position,
+                                                std::int64_t axis) {
     namespace op = ov::op;
-    ov::Output<ov::Node> pos_i64 =
-        std::make_shared<op::v0::Convert>(position, ov::element::i64)->output(0);
+    ov::Output<ov::Node> pos_i64 = std::make_shared<op::v0::Convert>(position, ov::element::i64)->output(0);
     const auto axis_const = op::v0::Constant::create(ov::element::i64, {}, {axis});
 
     const auto& stacked_shape = stacked.get_partial_shape();
-    const bool axis_dim_static =
-        stacked_shape.rank().is_static() && axis < stacked_shape.rank().get_length() &&
-        stacked_shape[static_cast<std::ptrdiff_t>(axis)].is_static();
+    const bool axis_dim_static = stacked_shape.rank().is_static() && axis < stacked_shape.rank().get_length() &&
+                                 stacked_shape[static_cast<std::ptrdiff_t>(axis)].is_static();
 
     if (axis_dim_static) {
         // Normalise negative index at compile time if axis length is known
