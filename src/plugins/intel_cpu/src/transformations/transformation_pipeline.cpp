@@ -1417,14 +1417,19 @@ void Transformations::MainSnippets() {
         // todo: general tokenization flow is not currently supported for these operations.
         // they can be tokenized only as a part of complex patterns
         auto is_unsupported_by_common_tokenization = [](const std::shared_ptr<const ov::Node>& n) {
-            return (ov::is_type_any_of<const ov::op::v1::Softmax,
-                                       const ov::op::v8::Softmax,
-                                       const ov::op::v0::MatMul,
-                                       const ov::op::v1::Transpose,
-                                       const ov::op::v1::Broadcast,
-                                       const ov::op::v3::Broadcast,
-                                       const ov::op::v1::ReduceMax,
-                                       const ov::op::v1::ReduceSum>(n));
+#if defined(OPENVINO_ARCH_RISCV64)
+            constexpr bool is_unsupported_softmax = false;
+#else
+            const auto is_unsupported_softmax =
+                ov::is_type_any_of<const ov::op::v1::Softmax, const ov::op::v8::Softmax>(n);
+#endif
+
+            return is_unsupported_softmax || (ov::is_type_any_of<const ov::op::v0::MatMul,
+                                                                 const ov::op::v1::Transpose,
+                                                                 const ov::op::v1::Broadcast,
+                                                                 const ov::op::v3::Broadcast,
+                                                                 const ov::op::v1::ReduceMax,
+                                                                 const ov::op::v1::ReduceSum>(n));
         };
         return !is_unsupported(n) && !is_unsupported_by_common_tokenization(n);
     };
