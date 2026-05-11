@@ -20,9 +20,6 @@ on:
 permissions: read-all
 
 env:
-  # To switch to the primary HF token, change the filename from `token-secondary` to `token-primary`:
-  #   HF_TOKEN_PATH_LIN: /home/runner/secrets/huggingface/token-primary
-  #   HF_TOKEN_PATH_WIN: "C:\\mount\\secrets\\huggingface\\token-primary"
   HF_TOKEN_PATH_LIN: /home/runner/secrets/huggingface/token-secondary
   HF_TOKEN_PATH_WIN: "C:\\mount\\secrets\\huggingface\\token-secondary"
 
