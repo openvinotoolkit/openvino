@@ -475,7 +475,8 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
     const std::optional<int> decompression_group_size,
     MoERoutingType routing_type,
     MoEActivationType activation_type,
-    bool use_per_expert_scale) {
+    bool use_per_expert_scale,
+    bool use_layernorm_multiply) {
     // Use parameters from shape_params - static shapes only
     const auto& input_shape = moe_params.data_shape;
     const size_t intermediate_size = moe_params.intermediate_size;
@@ -490,6 +491,14 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
     // Create input parameter
     auto input = std::make_shared<ov::op::v0::Parameter>(data_precision, input_shape);
     ov::Output<ov::Node> input_data = input;
+
+    // Gemma4 pattern: layernorm Multiply sits between Parameter and Reshape.
+    // The fused MOE's hidden_states input must be the Multiply output, not the Parameter.
+    if (use_layernorm_multiply) {
+        auto ln_data = ov::test::utils::InputGenerateData(0.5, 2, 100, 99);
+        auto ln_scale = ov::test::utils::make_constant(data_precision, ov::Shape{1, 1, hidden_size}, ln_data);
+        input_data = std::make_shared<ov::op::v1::Multiply>(input_data, ln_scale);
+    }
 
     // Expert processing path - use -1 for dynamic reshape like in reference
     auto experts_reshape = std::make_shared<ov::op::v1::Reshape>(

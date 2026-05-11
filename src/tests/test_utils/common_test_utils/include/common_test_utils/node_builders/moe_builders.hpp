@@ -82,7 +82,8 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
     const std::optional<int> decompression_group_size = std::nullopt,
     MoERoutingType routing_type = MoERoutingType::SOFTMAX,
     MoEActivationType activation_type = MoEActivationType::SWISH,
-    bool use_per_expert_scale = false);
+    bool use_per_expert_scale = false,
+    bool use_layernorm_multiply = false);
 
 }  // namespace test
 }  // namespace ov
