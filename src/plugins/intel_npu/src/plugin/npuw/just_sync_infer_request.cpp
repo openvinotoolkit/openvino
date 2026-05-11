@@ -84,6 +84,10 @@ bool ov::npuw::JustInferRequest::subgraph_needs_copy(std::size_t idx) const {
     return needs_copy(idx);
 }
 
+bool ov::npuw::JustInferRequest::attention_no_copy() const {
+    return m_npuw_model->attention_no_copy();
+}
+
 const ov::SoPtr<ov::ICompiledModel>& ov::npuw::JustInferRequest::compiled_submodel(size_t idx) const {
     return m_npuw_model->m_compiled_submodels.at(idx).compiled_model;
 }

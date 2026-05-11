@@ -7,7 +7,6 @@
 #include <memory>
 
 #include "intel_gpu/op/moe_3gemm_fused_compressed.hpp"
-#include "ov_ops/moe_compressed.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/rt_info.hpp"
@@ -54,7 +53,8 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
     auto sm_reduce = wrap_type<ov::op::v1::ReduceSum>({sm_topk->output(0), ANY}, consumers_count(1));
     auto sm_norm = wrap_type<ov::op::v1::Divide>({sm_topk->output(0), sm_reduce}, consumers_count(1));
     auto sm_convert_topk = optional<ov::op::v0::Convert>({sm_topk->output(1)});
-    auto sm_transpose = wrap_type<ov::op::v1::Transpose>({sm_norm, ANY}, consumers_count(1));
+    auto sm_slice = optional<ov::op::v8::Slice>({sm_norm, ANY, ANY, ANY, ANY});
+    auto sm_transpose = wrap_type<ov::op::v1::Transpose>({sm_slice, ANY}, consumers_count(1));
     auto sm_unsqueeze = wrap_type<ov::op::v0::Unsqueeze>({sm_transpose, ANY}, consumers_count(1));
 
     // ── Sigmoid+bias routing branch ─────────────────────────────────────
@@ -154,9 +154,7 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
             config.num_shared_expert = 0;
         }
         // When Optional<Reshape> is absent, the optional pattern is NOT in the map.
-        auto hs_reshaped = pattern_map.count(hidden_state_reshape)
-            ? pattern_map.at(hidden_state_reshape)
-            : pattern_map.at(hidden_state_m);
+        auto hs_reshaped = pattern_map.count(hidden_state_reshape) ? pattern_map.at(hidden_state_reshape) : pattern_map.at(hidden_state_m);
         OutputVector args{
             hs_reshaped,
             pattern_map.at(matmul),
