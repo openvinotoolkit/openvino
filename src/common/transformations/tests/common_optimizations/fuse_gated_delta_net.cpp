@@ -631,6 +631,133 @@ std::shared_ptr<ov::Model> build_grouped_query_gdn_different_anchors() {
                                        ov::ParameterVector{src_q, src_k, src_v, state, gate, beta});
 }
 
+// Build a model where the shared Concat anchor is 3D, while GDN consumes a 4D tensor.
+// This forces the grouped-query fusion path to rebuild the reshape into a 4D shape.
+std::shared_ptr<ov::Model> build_grouped_query_gdn_rank3_before() {
+    auto src0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4, 8});
+    auto src1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4, 8});
+    auto state = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 8, 8});
+    auto gate = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4, 2});
+    auto beta = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4, 2});
+
+    auto src = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{src0, src1}, 2);
+
+    auto reshape_shape = ov::op::v0::Constant::create(ov::element::i64, {4}, {1, 4, 2, 8});
+    auto q = std::make_shared<ov::op::v1::Reshape>(src, reshape_shape, false);
+    auto k = std::make_shared<ov::op::v1::Reshape>(src, reshape_shape, false);
+    auto v = std::make_shared<ov::op::v1::Reshape>(src, reshape_shape, false);
+
+    auto gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(q, k, v, state, gate, beta);
+    return std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(gdn->output(0)),
+                                                        std::make_shared<ov::op::v0::Result>(gdn->output(1))},
+                                       ov::ParameterVector{src0, src1, state, gate, beta});
+}
+
+std::shared_ptr<ov::Model> build_grouped_query_gdn_rank3_after() {
+    auto src0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4, 8});
+    auto src1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4, 8});
+    auto state = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 8, 8});
+    auto gate = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4, 2});
+    auto beta = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4, 2});
+
+    auto src = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{src0, src1}, 2);
+
+    auto q_ref =
+        std::make_shared<ov::op::v1::Reshape>(src,
+                                              ov::op::v0::Constant::create(ov::element::i64, {4}, {1, 4, 2, 8}),
+                                              false);
+    auto k_ref =
+        std::make_shared<ov::op::v1::Reshape>(src,
+                                              ov::op::v0::Constant::create(ov::element::i64, {4}, {1, 4, 2, 8}),
+                                              false);
+    auto v_ref =
+        std::make_shared<ov::op::v1::Reshape>(src,
+                                              ov::op::v0::Constant::create(ov::element::i64, {4}, {1, 4, 2, 8}),
+                                              false);
+
+    auto q_ref_shape = std::make_shared<ov::op::v3::ShapeOf>(q_ref);
+    auto k_ref_shape = std::make_shared<ov::op::v3::ShapeOf>(k_ref);
+    auto v_ref_shape = std::make_shared<ov::op::v3::ShapeOf>(v_ref);
+    auto indices = ov::op::v0::Constant::create(ov::element::i64, {1}, {2});
+    auto axis = ov::op::v0::Constant::create(ov::element::i64, {}, {0});
+    auto updates = ov::op::v0::Constant::create(ov::element::i64, {1}, {2});
+    auto q_shape = std::make_shared<ov::op::v3::ScatterUpdate>(q_ref_shape, indices, updates, axis);
+    auto k_shape = std::make_shared<ov::op::v3::ScatterUpdate>(k_ref_shape, indices, updates, axis);
+    auto v_shape = std::make_shared<ov::op::v3::ScatterUpdate>(v_ref_shape, indices, updates, axis);
+
+    auto q = std::make_shared<ov::op::v1::Reshape>(src, q_shape, false);
+    auto k = std::make_shared<ov::op::v1::Reshape>(src, k_shape, false);
+    auto v = std::make_shared<ov::op::v1::Reshape>(src, v_shape, false);
+
+    auto gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(q, k, v, state, gate, beta);
+    return std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(gdn->output(0)),
+                                                        std::make_shared<ov::op::v0::Result>(gdn->output(1))},
+                                       ov::ParameterVector{src0, src1, state, gate, beta});
+}
+
+// Same reshape regression, but with batch > 1 and dynamic sequence length.
+std::shared_ptr<ov::Model> build_grouped_query_gdn_rank3_dynamic_before() {
+    auto src0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, -1, 8});
+    auto src1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, -1, 8});
+    auto state = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, 2, 8, 8});
+    auto gate = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, -1, 2});
+    auto beta = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, -1, 2});
+
+    auto src = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{src0, src1}, 2);
+
+    auto reshape_shape = ov::op::v0::Constant::create(ov::element::i64, {4}, {2, -1, 2, 8});
+    auto q = std::make_shared<ov::op::v1::Reshape>(src, reshape_shape, false);
+    auto k = std::make_shared<ov::op::v1::Reshape>(src, reshape_shape, false);
+    auto v = std::make_shared<ov::op::v1::Reshape>(src, reshape_shape, false);
+
+    auto gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(q, k, v, state, gate, beta);
+    return std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(gdn->output(0)),
+                                                        std::make_shared<ov::op::v0::Result>(gdn->output(1))},
+                                       ov::ParameterVector{src0, src1, state, gate, beta});
+}
+
+std::shared_ptr<ov::Model> build_grouped_query_gdn_rank3_dynamic_after() {
+    auto src0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, -1, 8});
+    auto src1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, -1, 8});
+    auto state = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, 2, 8, 8});
+    auto gate = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, -1, 2});
+    auto beta = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, -1, 2});
+
+    auto src = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{src0, src1}, 2);
+
+    auto q_ref =
+        std::make_shared<ov::op::v1::Reshape>(src,
+                                              ov::op::v0::Constant::create(ov::element::i64, {4}, {2, -1, 2, 8}),
+                                              false);
+    auto k_ref =
+        std::make_shared<ov::op::v1::Reshape>(src,
+                                              ov::op::v0::Constant::create(ov::element::i64, {4}, {2, -1, 2, 8}),
+                                              false);
+    auto v_ref =
+        std::make_shared<ov::op::v1::Reshape>(src,
+                                              ov::op::v0::Constant::create(ov::element::i64, {4}, {2, -1, 2, 8}),
+                                              false);
+
+    auto q_ref_shape = std::make_shared<ov::op::v3::ShapeOf>(q_ref);
+    auto k_ref_shape = std::make_shared<ov::op::v3::ShapeOf>(k_ref);
+    auto v_ref_shape = std::make_shared<ov::op::v3::ShapeOf>(v_ref);
+    auto indices = ov::op::v0::Constant::create(ov::element::i64, {1}, {2});
+    auto axis = ov::op::v0::Constant::create(ov::element::i64, {}, {0});
+    auto updates = ov::op::v0::Constant::create(ov::element::i64, {1}, {2});
+    auto q_shape = std::make_shared<ov::op::v3::ScatterUpdate>(q_ref_shape, indices, updates, axis);
+    auto k_shape = std::make_shared<ov::op::v3::ScatterUpdate>(k_ref_shape, indices, updates, axis);
+    auto v_shape = std::make_shared<ov::op::v3::ScatterUpdate>(v_ref_shape, indices, updates, axis);
+
+    auto q = std::make_shared<ov::op::v1::Reshape>(src, q_shape, false);
+    auto k = std::make_shared<ov::op::v1::Reshape>(src, k_shape, false);
+    auto v = std::make_shared<ov::op::v1::Reshape>(src, v_shape, false);
+
+    auto gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(q, k, v, state, gate, beta);
+    return std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(gdn->output(0)),
+                                                        std::make_shared<ov::op::v0::Result>(gdn->output(1))},
+                                       ov::ParameterVector{src0, src1, state, gate, beta});
+}
+
 }  // namespace
 
 // Positive: all Q/K/V share one Split anchor via a Transpose each → transformation fuses them.
@@ -649,6 +776,22 @@ TEST_F(TransformationTestsF, FuseGroupedQueryIntoGDN_DifferentAnchors_NotApplied
     model = build_grouped_query_gdn_different_anchors();
     manager.register_pass<ov::pass::FuseGroupedQueryIntoGDN>();
     model_ref = build_grouped_query_gdn_different_anchors();
+}
+
+TEST_F(TransformationTestsF, FuseGroupedQueryIntoGDN_ReshapeTo4D_Applied) {
+    disable_rt_info_check();
+    disable_result_friendly_names_check();
+    model = build_grouped_query_gdn_rank3_before();
+    manager.register_pass<ov::pass::FuseGroupedQueryIntoGDN>();
+    model_ref = build_grouped_query_gdn_rank3_after();
+}
+
+TEST_F(TransformationTestsF, FuseGroupedQueryIntoGDN_ReshapeTo4D_DynamicBatch_Applied) {
+    disable_rt_info_check();
+    disable_result_friendly_names_check();
+    model = build_grouped_query_gdn_rank3_dynamic_before();
+    manager.register_pass<ov::pass::FuseGroupedQueryIntoGDN>();
+    model_ref = build_grouped_query_gdn_rank3_dynamic_after();
 }
 
 }  // namespace ov::test

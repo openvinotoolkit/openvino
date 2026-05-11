@@ -407,56 +407,45 @@ ov::Output<ov::Node> align_to_reference_shape(const ov::Output<ov::Node>& src,
                                               ov::pass::MatcherPass* pass) {
     const auto& src_ps = src.get_partial_shape();
     const auto& ref_ps = reference.get_partial_shape();
+    // If shapes are compatible, no reshape needed.
     if (src_ps.compatible(ref_ps)) {
         return src;
     }
 
-    if (src_ps.is_static() && ref_ps.is_static()) {
-        const auto src_shape = src_ps.to_shape();
-        const auto ref_shape = ref_ps.to_shape();
-        if (ov::shape_size(src_shape) != ov::shape_size(ref_shape)) {
-            return {};
-        }
-    }
-
-    // Accumulate product of all static source dimensions: n.
-    uint64_t n = 1;
-    bool has_static_dims = false;
-    for (const auto& dim : src_ps) {
-        if (!dim.is_static()) {
-            continue;
-        }
-        has_static_dims = true;
-        n *= static_cast<uint64_t>(dim.get_length());
-    }
-
+    const auto src_rank = src_ps.rank();
     const auto ref_rank = ref_ps.rank();
-    if (has_static_dims && ref_rank.is_static() && ref_rank.get_length() >= 2) {
-        const auto head_size_idx = ref_rank.get_length() - 1;
-        const auto head_num_idx = ref_rank.get_length() - 2;
-        const auto& head_size_dim = ref_ps[head_size_idx];
 
-        if (head_size_dim.is_static()) {
-            const auto head_size = static_cast<uint64_t>(head_size_dim.get_length());
-            if (head_size == 0 || n % head_size != 0) {
-                return {};
+    // Reference is always 4D per GatedDeltaNet spec. Source can be 2D, 3D, or 4D.
+    // Calculate num_heads = src_head_dim / ref_head_dim and reshape src to 4D.
+    if (src_rank.is_static() && src_rank.get_length() >= 2 && src_rank.get_length() <= 4 && ref_rank.is_static() &&
+        ref_rank.get_length() == 4) {
+        const auto src_head_dim = src_ps[src_rank.get_length() - 1];
+        const auto ref_head_dim = ref_ps[ref_rank.get_length() - 1];
+
+        if (src_head_dim.is_static() && ref_head_dim.is_static()) {
+            const auto src_head_size = src_head_dim.get_length();
+            const auto ref_head_size = ref_head_dim.get_length();
+
+            if (ref_head_size > 0 && src_head_size % ref_head_size == 0) {
+                const int64_t num_heads = src_head_size / ref_head_size;
+
+                // Create ref_shape and update num_heads at index 2: {ref[0], ref[1], num_heads, ref[3]}.
+                auto ref_shape = std::make_shared<ov::op::v3::ShapeOf>(reference);
+                auto indices = v0::Constant::create(ov::element::i64, {1}, {2});
+                auto updates = v0::Constant::create(ov::element::i64, {1}, {num_heads});
+                auto axis = v0::Constant::create(ov::element::i64, {}, {0});
+                auto updated_shape = std::make_shared<ov::op::v3::ScatterUpdate>(ref_shape, indices, updates, axis);
+                auto reshaped = std::make_shared<v1::Reshape>(src, updated_shape, false);
+
+                pass->register_new_node(ref_shape);
+                pass->register_new_node(updated_shape);
+                pass->register_new_node(reshaped);
+                return reshaped;
             }
-
-            const auto head_num = static_cast<int64_t>(n / head_size);
-            auto ref_shape = std::make_shared<ov::op::v3::ShapeOf>(reference);
-            auto indices = v0::Constant::create(ov::element::i64, {1}, {head_num_idx});
-            auto updates = v0::Constant::create(ov::element::i64, {1}, {head_num});
-            auto axis = v0::Constant::create(ov::element::i64, {}, {0});
-            auto updated_shape = std::make_shared<ov::op::v3::ScatterUpdate>(ref_shape, indices, updates, axis);
-            auto reshaped = std::make_shared<v1::Reshape>(src, updated_shape, false);
-
-            pass->register_new_node(ref_shape);
-            pass->register_new_node(updated_shape);
-            pass->register_new_node(reshaped);
-            return reshaped;
         }
     }
 
+    // Fallback: dynamic reshape using reference shape.
     auto ref_shape = std::make_shared<ov::op::v3::ShapeOf>(reference);
     auto reshaped = std::make_shared<v1::Reshape>(src, ref_shape, false);
     pass->register_new_node(ref_shape);
