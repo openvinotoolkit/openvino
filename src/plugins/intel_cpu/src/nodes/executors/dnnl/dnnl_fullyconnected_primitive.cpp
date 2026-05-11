@@ -41,7 +41,6 @@
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
-#include "utils/precision_support.h"
 
 namespace ov::intel_cpu {
 
@@ -167,12 +166,11 @@ static bool useDynamicQuantizationImpl(size_t dqGroupSize,
         return false;
     }
 
-    // BF16 dynamic-quant path requires native BF16 HW support AND an AVX512-VNNI
-    // impl in oneDNN (only avx512_core_vnni instance is registered for bf16 src).
+    // BF16 dynamic-quant path requires native x86 BF16 HW support (AVX512_BF16) AND an
+    // AVX512-VNNI impl in oneDNN (only avx512_core_vnni instance is registered for bf16 src).
     const auto srcPrecision = srcDesc->getPrecision();
     if (srcPrecision == ov::element::bf16) {
-        if (!hasHardwareSupport(ov::element::bf16) ||
-            !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni)) {
+        if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16)) {
             return false;
         }
     } else if (srcPrecision == ov::element::f32) {
