@@ -1,5 +1,5 @@
-// copyright (c) 2023 intel corporation
-// spdx-license-identifier: apache-2.0
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
 
 #include "pass_manager.h"
