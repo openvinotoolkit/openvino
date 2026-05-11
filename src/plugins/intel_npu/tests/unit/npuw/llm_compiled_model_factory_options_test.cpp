@@ -402,6 +402,87 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, ArchIn5000SeriesSetsNpuTilesInDefault
     }
 }
 
+struct UserStageConfigParam {
+    std::string arch;
+    int64_t max_tiles;              // reported by the plugin (arch default)
+    int64_t user_tiles;             // NPU_TILES value explicitly provided by the user
+    // Note: NPU_COMPILATION_MODE_PARAMS is a space-separated token string.
+    // Supplying it here performs a *full replace* of the arch-computed value
+    // (which may include tokens like optimization-level=3 or performance-hint-override=latency).
+    // The production code emits a LOG_WARN when the user value differs from the arch-computed one
+    // so the user is informed that arch-specific tokens will be lost unless explicitly repeated.
+    // A proper additive mechanism (analogous to ++NPUW_LLM_PREFILL_CONFIG) does not yet exist
+    // for this property.
+    std::string user_compile_params;  // NPU_COMPILATION_MODE_PARAMS override; empty = not provided
+};
+
+class StageConfigUserOverrideTest : public LLMCompiledModelFactoryOptionsTest,
+                                    public ::testing::WithParamInterface<UserStageConfigParam> {};
+
+// User-provided NPU_TILES (and optionally NPU_COMPILATION_MODE_PARAMS) must take priority
+// over the arch-computed defaults from set_max_tiles_based_on_arch, regardless of the NPU platform.
+TEST_P(StageConfigUserOverrideTest, UserSettingsOverrideArchDefaults) {
+    const auto& param = GetParam();
+    m_plugin = std::make_shared<ArchAwarePlugin>(param.arch, param.max_tiles);
+    const auto core = attach_mock_core_with_npu_device(m_plugin);
+
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ov::AnyMap extra_props = {{"NPUW_LLM_SHARED_HEAD", "YES"}, {"NPU_TILES", param.user_tiles}};
+    if (!param.user_compile_params.empty()) {
+        extra_props["NPU_COMPILATION_MODE_PARAMS"] = param.user_compile_params;
+    }
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_llm_model(), extra_props, recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& prefill = require_call(recorder, "_prefill");
+    const auto& generate = require_call_containing(recorder, "_kv");
+    const auto& head = require_call(recorder, "_lm_head");
+
+    for (const auto* call : {&prefill, &generate, &head}) {
+        EXPECT_EQ(call->props.count("NPU_TILES"), 1u) << "NPU_TILES must appear exactly once in compiled stage config";
+        EXPECT_EQ(prop_i64(call->props, "NPU_TILES"), param.user_tiles);
+
+        if (!param.user_compile_params.empty()) {
+            EXPECT_EQ(call->props.count("NPU_COMPILATION_MODE_PARAMS"), 1u)
+                << "NPU_COMPILATION_MODE_PARAMS must appear exactly once in compiled stage config";
+            // Full replace: the user value entirely replaces the arch-computed string.
+            expect_prop(call->props, "NPU_COMPILATION_MODE_PARAMS", param.user_compile_params);
+        }
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    AllArchVariants,
+    StageConfigUserOverrideTest,
+    ::testing::Values(
+        // NPU 2700: arch default sets no tiles; user overrides NPU_TILES with 1 and 2
+        UserStageConfigParam{"2700", 2, 1, ""},
+        UserStageConfigParam{"2700", 2, 2, ""},
+        // NPU 4000: arch default is max_tiles=4 + optimization-level=3; user fully replaces compile params
+        UserStageConfigParam{"4000", 4, 1, ""},
+        UserStageConfigParam{"4000", 4, 2, "compute-layers-with-higher-precision=Sqrt,Power"},
+        // NPU 5010: arch default is max_tiles=3; user overrides NPU_TILES and compile params
+        UserStageConfigParam{"5010", 3, 1, ""},
+        UserStageConfigParam{"5010", 3, 2, "compute-layers-with-higher-precision=Sqrt,Power"},
+        // NPU 5020: arch default is max_tiles=3; user overrides NPU_TILES and compile params
+        UserStageConfigParam{"5020", 3, 1, ""},
+        UserStageConfigParam{"5020", 3, 2, "compute-layers-with-higher-precision=Sqrt,Power"},
+        // AUTO_DETECT: arch default appends performance-hint-override=latency; user fully replaces
+        UserStageConfigParam{"AUTO_DETECT", 4, 1, ""},
+        UserStageConfigParam{"AUTO_DETECT", 4, 2, "compute-layers-with-higher-precision=Sqrt,Power"}),
+    [](const ::testing::TestParamInfo<UserStageConfigParam>& info) {
+        std::string name = info.param.arch;
+        std::replace(name.begin(), name.end(), '_', 'x');
+        name += "_tiles" + std::to_string(info.param.user_tiles);
+        if (!info.param.user_compile_params.empty()) {
+            name += "_with_compile_params";
+        }
+        return name;
+    });
+
 TEST_F(LLMCompiledModelFactoryOptionsTest, Arch2700SkipsNpuTilesInDefaultStageConfigs) {
     m_plugin = std::make_shared<ArchAwarePlugin>("2700", 2);
     const auto core = attach_mock_core_with_npu_device(m_plugin);
