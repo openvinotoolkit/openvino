@@ -19,8 +19,8 @@ std::string sd3_dbg_tag(const ov::Node* n) {
     if (n == nullptr) return std::string("<null>");
     return std::string(n->get_type_name()) + "#" + n->get_friendly_name();
 }
-std::string sd3_dbg_tag(const std::shared_ptr<const ov::Node>& n) { return sd3_dbg_tag(n.get()); }
-std::string sd3_dbg_tag(const std::shared_ptr<ov::Node>& n) { return sd3_dbg_tag(n.get()); }
+template <typename T>
+std::string sd3_dbg_tag(const std::shared_ptr<T>& n) { return sd3_dbg_tag(n.get()); }
 }  // namespace
 
 
