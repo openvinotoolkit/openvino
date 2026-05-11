@@ -47,9 +47,12 @@ public:
     void load() const override;
 
     /**
-     * \brief Evicts the buffer from memory. After this call, next get_ptr() will load the file content again.
+     * \brief Evicts the buffer from memory. After this call, next call to get_ptr() will load the file content again.
      */
-    void evict();
+    void hint_evict() noexcept override;
+
+protected:
+    void hint_evict(size_t offset, size_t size) noexcept override;
 
 private:
     const std::filesystem::path m_file_path;

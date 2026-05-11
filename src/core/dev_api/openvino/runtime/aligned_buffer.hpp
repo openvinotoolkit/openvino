@@ -83,14 +83,12 @@ protected:
     virtual void hint_evict(size_t offset, size_t size) noexcept;
     static void invoke_evict(AlignedBuffer& buffer, size_t offset, size_t size) noexcept;
 
+    virtual void load() const;
+    static void invoke_load(const AlignedBuffer& buffer);
+
     char* m_allocated_buffer;
     char* m_aligned_buffer;
     size_t m_byte_size;
-
-    virtual void load() const {}
-    static inline void invoke_load(const AlignedBuffer& buffer) {
-        buffer.load();
-    }
 };
 
 template <>

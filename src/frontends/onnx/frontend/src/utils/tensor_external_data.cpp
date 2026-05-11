@@ -89,7 +89,7 @@ Buffer<ov::AlignedBuffer> TensorExternalData::load_external_data(const std::file
     }
 
     uint64_t read_data_length = m_data_length > 0 ? m_data_length : static_cast<uint64_t>(file_size) - m_offset;
-    [[maybe_unused]] const auto get_now_buffer = [&]() {
+    const auto get_now_buffer = [&]() {
         // default value of m_offset is 0
         external_data_stream.seekg(m_offset, std::ios::beg);
 
@@ -100,7 +100,7 @@ Buffer<ov::AlignedBuffer> TensorExternalData::load_external_data(const std::file
                                                                                       read_data->size(),
                                                                                       read_data);
     };
-    [[maybe_unused]] const auto get_lazy_buffer = [&]() {
+    const auto get_lazy_buffer = [&]() {
         const auto lazy = std::make_shared<LazyBuffer>(full_path, m_offset, read_data_length);
         return std::make_shared<SharedBuffer<std::shared_ptr<AlignedBuffer>>>(
             static_cast<char*>(lazy->get_reserved_ptr()),

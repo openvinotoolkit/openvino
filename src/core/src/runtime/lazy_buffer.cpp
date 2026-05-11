@@ -92,7 +92,7 @@ void LazyBuffer::load() const {
     }
 }
 
-void LazyBuffer::evict() {
+void LazyBuffer::hint_evict() noexcept {
 #ifdef _WIN32
 #else
     if (m_loaded) {
@@ -100,5 +100,11 @@ void LazyBuffer::evict() {
         mprotect(m_reserved_buffer, m_reserved_size, PROT_NONE);
     }
 #endif
+}
+
+void LazyBuffer::hint_evict(size_t offset, size_t size) noexcept {
+    if (offset == 0 && size >= m_byte_size) {
+        hint_evict();
+    }
 }
 }  // namespace ov

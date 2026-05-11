@@ -123,13 +123,13 @@ TEST_F(LazyBufferTest, evict_and_reload) {
     ASSERT_TRUE(std::equal(first_ptr, first_ptr + size, first_rewrite.begin()));
 
     // After evict(), get_ptr() should load the same file content again
-    buffer->evict();
+    buffer->hint_evict();
     ASSERT_NO_THROW((first_ptr = buffer->get_ptr<char>()));
     ASSERT_NE(first_ptr, nullptr);
     ASSERT_TRUE(std::equal(first_ptr, first_ptr + size, first_rewrite.begin()));
 
     // After evict(), get_ptr() should load the file content again and reflect the second overwrite.
-    buffer->evict();
+    buffer->hint_evict();
     overwrite_test_data(offset, second_rewrite);
     char* second_ptr = nullptr;
     ASSERT_NO_THROW((second_ptr = buffer->get_ptr<char>()));

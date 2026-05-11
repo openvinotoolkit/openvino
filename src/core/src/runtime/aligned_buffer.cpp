@@ -68,4 +68,10 @@ void AlignedBuffer::hint_evict(size_t offset, size_t size) noexcept {}
 void AlignedBuffer::invoke_evict(AlignedBuffer& buffer, size_t offset, size_t size) noexcept {
     buffer.hint_evict(offset, size);
 }
+
+void AlignedBuffer::load() const {}
+
+void AlignedBuffer::invoke_load(const AlignedBuffer& buffer) {
+    buffer.load();
+}
 }  // namespace ov
