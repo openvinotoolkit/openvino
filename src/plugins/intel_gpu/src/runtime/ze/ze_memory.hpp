@@ -148,6 +148,7 @@ struct gpu_usm : public lockable_gpu_mem, public memory {
 protected:
     ze::UsmMemory _buffer;
     ze::UsmMemory _host_buffer;
+    bool _needs_write_back = false;
 };
 
 struct image_holder {
