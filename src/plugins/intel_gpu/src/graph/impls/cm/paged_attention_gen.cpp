@@ -77,8 +77,7 @@ size_t get_batch_size_in_sequences(const std::vector<layout>& input_layouts) {
 // between parameter node "xattention_threshold.xxx" and paged_attention node.
 float get_xattn_thresh(const kernel_impl_params& params, const size_t seq_idx) {
     const auto desc = params.typed_desc<paged_attention>();
-    OPENVINO_ASSERT(desc->has_xattention,
-                    "XAttention threshold must be accessed only when has_xattention is true");
+    OPENVINO_ASSERT(desc->has_xattention, "XAttention threshold must be accessed only when has_xattention is true");
 
     const auto& input_mem = params.memory_deps;
     const auto it = input_mem.find(PagedAttentionInputIdx::XATTENTION_THRESHOLD);
@@ -217,10 +216,8 @@ size_t PagedAttentionGeneratorKVCacheUpdate::get_kv_update_wg_size(const Runtime
     constexpr size_t default_wg_size = 16;
     const auto desc = params.typed_desc<paged_attention>();
     if (get_kv_compressed(params) && desc->is_key_by_channel) {
-        const size_t block_size = desc->has_xattention ? PA_KV_CACHE_BLOCK_SIZE_XATTN
-                                                       : PA_KV_CACHE_BLOCK_SIZE_LEGACY;
-        OPENVINO_ASSERT(block_size % KV_SUB_BLOCK_SIZE == 0,
-                        "block_size (", block_size, ") must be divisible by KV_SUB_BLOCK_SIZE (", KV_SUB_BLOCK_SIZE, ")");
+        const size_t block_size = desc->has_xattention ? PA_KV_CACHE_BLOCK_SIZE_XATTN : PA_KV_CACHE_BLOCK_SIZE_LEGACY;
+        OPENVINO_ASSERT(block_size % KV_SUB_BLOCK_SIZE == 0, "block_size (", block_size, ") must be divisible by KV_SUB_BLOCK_SIZE (", KV_SUB_BLOCK_SIZE, ")");
         return block_size / KV_SUB_BLOCK_SIZE;
     }
 
@@ -339,13 +336,13 @@ Arguments PagedAttentionGeneratorMultiToken::get_arguments_desc(const kernel_imp
 
     Arguments args;
     // Doesn't support Query with dynamic_padding
-    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QUERY});                 // query
-    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::KEY_CACHE});             // key_cache
-    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::VALUE_CACHE});           // value_cache
-    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::PAST_LENS});             // past_lens
-    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES});         // block_indices
-    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES_BEGINS});  // block_indices_begins
-    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});    // subsequence_begins
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QUERY});                                  // query
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::KEY_CACHE});                              // key_cache
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::VALUE_CACHE});                            // value_cache
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::PAST_LENS});                              // past_lens
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES});                          // block_indices
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES_BEGINS});                   // block_indices_begins
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});                     // subsequence_begins
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::MULTI_TOKEN_WG_MAPPING});  // per-WG subsequence mapping
 
     args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
@@ -412,9 +409,9 @@ DispatchDataFunc PagedAttentionGeneratorMultiToken::get_dispatch_data_func() con
 
         if (DEBUG_ENABLED) {  // Debug
             std::cout << "PagedAttentionGeneratorMultiToken::get_dispatch_data_func: \n"
-                      << "\theads_num: " << heads_num << ", q_len: " << q_len << ", q_step: " << q_step
-                      << ", wg_seq_len: " << wg_seq_len << ", wg_count: " << wg_count << ", gws: [" << wgs.global[0] << ", " << wgs.global[1] << ", "
-                      << wgs.global[2] << "]" << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]" << std::endl;
+                      << "\theads_num: " << heads_num << ", q_len: " << q_len << ", q_step: " << q_step << ", wg_seq_len: " << wg_seq_len
+                      << ", wg_count: " << wg_count << ", gws: [" << wgs.global[0] << ", " << wgs.global[1] << ", " << wgs.global[2] << "]" << ", lws: ["
+                      << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]" << std::endl;
         }
         scalars.resize(1);
         scalars[0].t = ScalarDescriptor::Types::INT32;
@@ -456,13 +453,13 @@ Arguments PagedAttentionGeneratorSingleToken::get_arguments_desc(const kernel_im
     const auto has_scores_output = params.output_layouts.size() > 1;
     OPENVINO_ASSERT(!has_scores_output, "[GPU][CM] PagedAttentionGeneratorSingleToken with scores output is not supported yet");
 
-    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QUERY});                 // queries
-    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::KEY_CACHE});             // keys cache
-    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::VALUE_CACHE});           // values cache
-    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::PAST_LENS});             // past lens
-    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES});         // block indices
-    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES_BEGINS});  // block indices begins
-    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});    // subsequence begins
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QUERY});                                         // queries
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::KEY_CACHE});                                     // keys cache
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::VALUE_CACHE});                                   // values cache
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::PAST_LENS});                                     // past lens
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES});                                 // block indices
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES_BEGINS});                          // block indices begins
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});                            // subsequence begins
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::SINGLE_TOKEN_SELECTED_SEQ_IDS});  // selected sequence ids
 
     // outputs
@@ -502,9 +499,9 @@ DispatchDataFunc PagedAttentionGeneratorSingleToken::get_dispatch_data_func() co
             size_t kv_len = get_kv_len(params, PagedAttentionStage::GENERATE);
             size_t max_context_len = get_max_context_len(params);
             std::cout << "PagedAttentionGeneratorSingleToken::get_dispatch_data_func: " << "batch: " << batch << ", heads_num: " << heads_num
-                      << ", partition_num: " << partition_num << ", kv_len: " << kv_len << ", max_context_len = " << max_context_len
-                      << ", gws: [" << wgs.global[0] << ", " << wgs.global[1] << ", " << wgs.global[2] << "]" << ", lws: ["
-                      << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]" << std::endl;
+                      << ", partition_num: " << partition_num << ", kv_len: " << kv_len << ", max_context_len = " << max_context_len << ", gws: ["
+                      << wgs.global[0] << ", " << wgs.global[1] << ", " << wgs.global[2] << "]" << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", "
+                      << wgs.local[2] << "]" << std::endl;
         }
         for (size_t i = 0; i < scaler_value.size(); ++i) {
             scalars[i].t = ScalarDescriptor::Types::INT32;
@@ -532,10 +529,10 @@ Arguments PagedAttentionGeneratorSingleTokenFinalization::get_arguments_desc(con
     if (has_scores_output)
         OPENVINO_THROW("[GPU][CM] PagedAttentionGeneratorSingleTokenFinalization with scores output is not supported yet");
 
-    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::DECODE_PARTITIONOUT});  // partition data
-    args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});                                                          // output
-    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::DECODE_EXPSUMS});       // lse
-    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});                  // subsequence begins
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::DECODE_PARTITIONOUT});            // partition data
+    args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});                                                                    // output
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::DECODE_EXPSUMS});                 // lse
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});                            // subsequence begins
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::SINGLE_TOKEN_SELECTED_SEQ_IDS});  // selected sequence ids
 
     // scalar
@@ -642,9 +639,9 @@ JitConstants XAttentionEstimateGeneratorBase::get_jit_constants(const kernel_imp
 Arguments XAttentionEstimateGEMMQK::get_arguments_desc(const kernel_impl_params& params) const {
     Arguments args;
 
-    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::KEY_CACHE});             // keys cache
-    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QUERY});                 // queries
-    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES});         // block indices
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::KEY_CACHE});                         // keys cache
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QUERY});                             // queries
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES});                     // block indices
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_SUBSEQ_META});  // metadata
 
     // outputs
@@ -721,7 +718,7 @@ Arguments XAttentionEstimateFindBlock::get_arguments_desc(const kernel_impl_para
 
     // metadata
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_SUBSEQ_META});  // metadata
-    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_FIND_WG_MAP});   // compact [subseq_id, q_block_idx] map
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_FIND_WG_MAP});  // compact [subseq_id, q_block_idx] map
 
     // scalar
     args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // thresh
@@ -777,7 +774,8 @@ Arguments XAttentionEstimatePostProc::get_arguments_desc(const kernel_impl_param
 
     // metadata
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_SUBSEQ_META});  // metadata
-    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_POST_WG_MAP});   // compact [subseq_id, merged_q_block_idx] map
+    args.push_back(
+        {ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_POST_WG_MAP});  // compact [subseq_id, merged_q_block_idx] map
 
     return args;
 }

@@ -98,9 +98,9 @@ enum class PagedAttentionStage : uint8_t { GENERATE = 0, PREFILL = 1, MIXED = 2,
 enum class MixedRouteMode : uint8_t { MULTI = 0, SPLIT = 1 };
 struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
     // common runtime state
-    PagedAttentionStage stage;               // Current PA execution stage
-    size_t max_context_len;                  // Maximum KV context length in current batch
-    size_t batch_size_in_sequences;          // Number of subsequences in current request
+    PagedAttentionStage stage;       // Current PA execution stage
+    size_t max_context_len;          // Maximum KV context length in current batch
+    size_t batch_size_in_sequences;  // Number of subsequences in current request
 
     // single-token/decode path
     size_t num_of_partitions;                // Number of KV partitions for decode/finalization
@@ -108,24 +108,24 @@ struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
     size_t single_token_selected_count = 0;  // Number of subsequences routed to single-token kernel
 
     // multi-token dispatch size
-    size_t multi_token_wg_count = 0;         // Number of WGs required by pa_multi_token
+    size_t multi_token_wg_count = 0;  // Number of WGs required by pa_multi_token
 
     // xattention runtime state
-    bool enable_xattn_estimation = false;    // Whether xattn estimate stages are enabled
-    size_t xattn_block_size = 1;             // Selected xattn sparse block size (1/128/256)
-    size_t xattn_num_subseqs = 1;            // Number of subsequences participating in xattn path
+    bool enable_xattn_estimation = false;  // Whether xattn estimate stages are enabled
+    size_t xattn_block_size = 1;           // Selected xattn sparse block size (1/128/256)
+    size_t xattn_num_subseqs = 1;          // Number of subsequences participating in xattn path
 
     // xattention dispatch sizes
-    size_t xattn_gemmqk_wg_count = 0;        // Exact WG count for xattn_gemm_qk
-    size_t xattn_find_wg_count = 0;          // Exact WG count for xattn_find_block
-    size_t xattn_post_wg_count = 0;          // Exact WG count for xattn_post_proc
+    size_t xattn_gemmqk_wg_count = 0;  // Exact WG count for xattn_gemm_qk
+    size_t xattn_find_wg_count = 0;    // Exact WG count for xattn_find_block
+    size_t xattn_post_wg_count = 0;    // Exact WG count for xattn_post_proc
 
     // xattention internal buffer sizing
-    size_t xattn_cumul_kq_max_bytes = 0;     // Total bytes for XATTN_GEMMQK_MAX
-    size_t xattn_cumul_exp_sum_bytes = 0;    // Total bytes for XATTN_GEMMQK_EXPSUMS
-    size_t xattn_cumul_mask_elems = 0;       // Total elements for XATTN_BLOCKMASK
-    size_t xattn_cumul_mask_wg_elems = 0;    // Total elements for XATTN_BLOCKMASK_MERGED
-    size_t xattn_meta_num_int32s = 0;        // Total int32 count in XATTN_SUBSEQ_META
+    size_t xattn_cumul_kq_max_bytes = 0;   // Total bytes for XATTN_GEMMQK_MAX
+    size_t xattn_cumul_exp_sum_bytes = 0;  // Total bytes for XATTN_GEMMQK_EXPSUMS
+    size_t xattn_cumul_mask_elems = 0;     // Total elements for XATTN_BLOCKMASK
+    size_t xattn_cumul_mask_wg_elems = 0;  // Total elements for XATTN_BLOCKMASK_MERGED
+    size_t xattn_meta_num_int32s = 0;      // Total int32 count in XATTN_SUBSEQ_META
 };
 
 enum PagedAttentionInternBuffIdx {
@@ -134,17 +134,17 @@ enum PagedAttentionInternBuffIdx {
     DECODE_EXPSUMS = 1,       // 1: f32 softmax exp-sum accumulators for partition reduction
 
     // Routing scratch buffers used to map subsequences onto decode/multi-token kernels.
-    MULTI_TOKEN_WG_MAPPING = 2,        // 2: i32 pairs [block_start_pos, subsequence_id]
-    SINGLE_TOKEN_SELECTED_SEQ_IDS = 3, // 3: i32 subsequence ids selected for single-token dispatch
+    MULTI_TOKEN_WG_MAPPING = 2,         // 2: i32 pairs [block_start_pos, subsequence_id]
+    SINGLE_TOKEN_SELECTED_SEQ_IDS = 3,  // 3: i32 subsequence ids selected for single-token dispatch
 
     // XAttention estimate scratch buffers for multi-token sparse-attention path.
-    XATTN_GEMMQK_MAX = 4,       // 4: f32 max logits per GEMM-QK work-group tile
-    XATTN_GEMMQK_EXPSUMS = 5,   // 5: f32 partial exp-sums produced by GEMM-QK stage
-    XATTN_BLOCKMASK = 6,        // 6: boolean sparse block mask per q-block / k-block pair
-    XATTN_BLOCKMASK_MERGED = 7, // 7: boolean sparse block mask after q-block merge in post-proc
-    XATTN_SUBSEQ_META = 8,      // 8: i32 per-subsequence metadata table (16 entries per subsequence)
-    XATTN_FIND_WG_MAP = 9,      // 9: i32 pairs [subseq_id, q_block_idx] for find-block dispatch
-    XATTN_POST_WG_MAP = 10,     // 10: i32 pairs [subseq_id, merged_q_block_idx] for post-proc dispatch
+    XATTN_GEMMQK_MAX = 4,        // 4: f32 max logits per GEMM-QK work-group tile
+    XATTN_GEMMQK_EXPSUMS = 5,    // 5: f32 partial exp-sums produced by GEMM-QK stage
+    XATTN_BLOCKMASK = 6,         // 6: boolean sparse block mask per q-block / k-block pair
+    XATTN_BLOCKMASK_MERGED = 7,  // 7: boolean sparse block mask after q-block merge in post-proc
+    XATTN_SUBSEQ_META = 8,       // 8: i32 per-subsequence metadata table (16 entries per subsequence)
+    XATTN_FIND_WG_MAP = 9,       // 9: i32 pairs [subseq_id, q_block_idx] for find-block dispatch
+    XATTN_POST_WG_MAP = 10,      // 10: i32 pairs [subseq_id, merged_q_block_idx] for post-proc dispatch
 #if FIND_DEBUG_ACC
     XATTN_FIND_DEBUG_ACC = 11,  // 11: f16 debug-only KQ accumulation buffer
 #endif
