@@ -1741,8 +1741,8 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
                     const auto& first_info = pyramid_attn->_attention_infos[0];
                     npu_device_str = device;
                     const auto& strides_key = ov::intel_npu::enable_strides_for.name();
-                    saved_strides = ov::npuw::util::at::_(m_meta_devices[npu_device_str]).at_or(strides_key, std::string{});
-                    auto& strided_inputs = m_meta_devices[npu_device_str][strides_key];
+                    saved_strides = ov::npuw::util::at::_(m_meta_devices[npu_device_str]).at_or(strides_key, std::string{}).as<std::string>();
+                    auto& strided_inputs = m_meta_devices[npu_device_str][strides_key].as<std::string>();
                     for (const auto& param : first_info.params) {
                         if (!strided_inputs.empty()) {
                             strided_inputs += ",";
@@ -1814,8 +1814,8 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
                 hfa->_can_use_tensor_view = true;
                 npu_device_str = device;
                 const auto& strides_key = ov::intel_npu::enable_strides_for.name();
-                saved_strides = ov::npuw::util::at::_(m_meta_devices[device]).at_or(strides_key, std::string{});
-                auto& strided_inputs = m_meta_devices[device][strides_key];
+                saved_strides = ov::npuw::util::at::_(m_meta_devices[device]).at_or(strides_key, std::string{}).as<std::string>();
+                auto& strided_inputs = m_meta_devices[device][strides_key].as<std::string>();
                 if (!strided_inputs.empty()) {
                     strided_inputs += ",";
                 }
