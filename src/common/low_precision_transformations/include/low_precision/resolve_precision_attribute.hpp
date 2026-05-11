@@ -15,7 +15,7 @@ namespace low_precision {
 
 /**
  * @ingroup ov_transformation_common_api
- * @brief FilterPrecisionAttribute resolves multi-precision PrecisionsAttribute
+ * @brief ResolvePrecisionAttribute resolves multi-precision PrecisionsAttribute
  * on FakeQuantize outputs to a single precision based on the FQ's output ranges.
  *
  * After MarkupOptimizations propagates a set of possible PrecisionsAttribute values
@@ -25,12 +25,13 @@ namespace low_precision {
  * The selection prefers representations that avoid unnecessary zero-points, resulting
  * in a single, resolved precision for downstream consumers.
  */
-class LP_TRANSFORMATIONS_API FilterPrecisionAttribute : public ov::pass::MatcherPass {
+class LP_TRANSFORMATIONS_API ResolvePrecisionAttribute : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("low_precision::FilterPrecisionAttribute");
-    FilterPrecisionAttribute();
+    OPENVINO_MATCHER_PASS_RTTI("low_precision::ResolvePrecisionAttribute");
+    ResolvePrecisionAttribute();
 
-    static DataPrecision getDataPrecisionByOutputPort(std::shared_ptr<ov::op::v0::FakeQuantize> layer);
+    static void filterPrecisionsAttribute(std::shared_ptr<ov::op::v0::FakeQuantize> layer);
+    static DataPrecision getDataPrecision(std::shared_ptr<ov::op::v0::FakeQuantize> layer);
 };
 
 }  // namespace low_precision

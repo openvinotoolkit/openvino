@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <memory>
 
-#include "low_precision/filter_precision_attribute.hpp"
+#include "low_precision/resolve_precision_attribute.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/precisions_attribute.hpp"
 #include "openvino/core/except.hpp"
@@ -59,8 +59,9 @@ ov::intel_cpu::AlignUnsupportedLPConvFQPrecision::AlignUnsupportedLPConvFQPrecis
             return false;
         }
 
+        ov::pass::low_precision::ResolvePrecisionAttribute::filterPrecisionsAttribute(fq_node);
         const auto fq_data_precision =
-            ov::pass::low_precision::FilterPrecisionAttribute::getDataPrecisionByOutputPort(fq_node);
+            ov::pass::low_precision::ResolvePrecisionAttribute::getDataPrecision(fq_node);
         if (fq_data_precision.empty()) {
             return false;
         }

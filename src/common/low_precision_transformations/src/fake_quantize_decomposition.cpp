@@ -40,6 +40,32 @@ FakeQuantizeDecompositionTransformation::FakeQuantizeDecompositionTransformation
 }
 
 namespace fq_decomposition {
+
+bool getOutputRanges(const std::shared_ptr<ov::op::v0::FakeQuantize>& layer,
+                     std::vector<float>& outputLowValues,
+                     std::vector<float>& outputHighValues) {
+    auto outputLowConst = ov::as_type_ptr<ov::op::v0::Constant>(layer->get_input_node_shared_ptr(3));
+    auto outputHighConst = ov::as_type_ptr<ov::op::v0::Constant>(layer->get_input_node_shared_ptr(4));
+    if (!outputLowConst || !outputHighConst) {
+        return false;
+    }
+    outputLowValues = outputLowConst->cast_vector<float>();
+    outputHighValues = outputHighConst->cast_vector<float>();
+    return true;
+}
+
+DataPrecision makeDataPrecision(const ov::element::Type& precision,
+                                size_t levels,
+                                const std::vector<float>& outputLowValues,
+                                const std::vector<float>& outputHighValues) {
+    const bool hasZeroPoint =
+        LayerTransformation::getPrecisionDetails(levels, outputLowValues, outputHighValues).precision != precision;
+    return DataPrecision(precision,
+                         DataPrecision::getMinValue(precision, levels),
+                         DataPrecision::getMaxValue(precision, levels),
+                         hasZeroPoint);
+}
+
 namespace {
 
 // get precision details, depends on:
@@ -210,8 +236,8 @@ bool FakeQuantizeDecompositionTransformation::transform(ov::pass::pattern::Match
         return rewritten;
     }
 
-    auto attribute = getAttributeFromOutput<PrecisionsAttribute>(layer->output(0));
-    if (attribute.empty() || (attribute.as<PrecisionsAttribute>().value().empty())) {
+    const auto outputPrecisions = getOutputPrecisionAttribute(layer->output(0));
+    if (!outputPrecisions || outputPrecisions->empty()) {
         return rewritten;
     }
 
@@ -246,16 +272,12 @@ bool FakeQuantizeDecompositionTransformation::transform(ov::pass::pattern::Match
 
     DataPrecision dataPrecision;
     {
-        auto attr = getAttributeFromOutput<PrecisionsAttribute>(layer->output(0));
-        if (attr.empty()) {
-            return rewritten;
-        }
-        const auto& precisions = attr.as<PrecisionsAttribute>().value();
-        if (precisions.empty()) {
+        const auto precisions = getOutputPrecisionAttribute(layer->output(0));
+        if (!precisions || precisions->empty()) {
             return rewritten;
         }
 
-        const auto precision = precisions[0];
+        const auto precision = (*precisions)[0];
         const size_t levels = layer->get_levels();
 
         std::vector<float> outputLowValues, outputHighValues;

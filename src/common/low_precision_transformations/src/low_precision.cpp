@@ -40,7 +40,7 @@
 // prerequisite transformations
 #include "low_precision/align_quantization_intervals.hpp"
 #include "low_precision/align_quantization_parameters.hpp"
-#include "low_precision/filter_precision_attribute.hpp"
+#include "low_precision/resolve_precision_attribute.hpp"
 #include "low_precision/markup_avg_pool_precision_preserved.hpp"
 #include "low_precision/markup_bias.hpp"
 #include "low_precision/markup_can_be_quantized.hpp"
@@ -222,7 +222,7 @@ bool MarkupOptimizations::run_on_model(const std::shared_ptr<ov::Model>& m) {
     for (const auto& tr : additionalMarkupPasses) {
         custom->add_matcher(tr);
     }
-    ADD_MATCHER(custom, low_precision::FilterPrecisionAttribute)
+    ADD_MATCHER(custom, low_precision::ResolvePrecisionAttribute)
 
     markup.run_passes(m);
     return false;
