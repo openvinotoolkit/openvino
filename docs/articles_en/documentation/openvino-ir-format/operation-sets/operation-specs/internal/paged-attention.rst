@@ -301,9 +301,10 @@ storage across multiple inference calls.
        out_diversity = []
        if adaptive_rkv_evictable_sizes is not None:
            Bs = key_cache.shape[2]
+           new_lens = [subsequence_begins[s+1] - subsequence_begins[s] for s in range(B_seq)]
            for s in range(B_seq):
                evict_size  = adaptive_rkv_evictable_sizes[s]
-               total_toks  = past_lens[s] + new_len_s
+               total_toks  = past_lens[s] + new_lens[s]
                start_size  = int(adaptive_rkv_start_size)
                if total_toks < start_size + evict_size:
                    continue
@@ -477,7 +478,7 @@ are used at the time the model is built or compiled.
   input.  **Optional.**
 
 * **24**: ``adaptive_rkv_diversity_block_set_indices_begins`` - 1D tensor of type ``i32``,
-  shape ``[B_seq+1]``, or empty.  Per-sequence offsets into input 24.  **Optional.**
+  shape ``[B_seq+1]``, or empty.  Per-sequence offsets into input 23.  **Optional.**
 
 * **25**: ``token_type_ids`` - 1D tensor of type ``i32``, shape ``[T]``, or 2D shape
   ``[T, 1]`` (flattened internally to ``[T]``), or an empty tensor (``size = 0``).
