@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <numeric>
+
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_case.hpp"
@@ -69,4 +71,36 @@ OPENVINO_TEST(TensorFlowLiteTrickyModels, tflite_slice_neg_size_stays_dynamic) {
     EXPECT_TRUE(pshape.is_dynamic()) << "Slice output is statically shaped; "
                                         "expected dynamic on at least one axis. Got: "
                                      << pshape;
+}
+
+OPENVINO_TEST(TensorFlowLiteTrickyModels, tflite_slice_neg_size_matches_tf_ground_truth) {
+    // End-to-end correctness gate for the negative-size cascade. The fixture
+    // is tf.slice(x[1,128,8,256], begin=[0,0,0,0], size=[1,128,4,-1]) — the
+    // -1 on the last axis means "to end", so the expected output is
+    // x[:, :, :4, :] reshaped to (1,128,4,256).
+    auto model = convert_model("slice_neg_size.tflite");
+
+    constexpr size_t kInputSize = 1 * 128 * 8 * 256;
+    constexpr size_t kOutputSize = 1 * 128 * 4 * 256;
+    std::vector<float> input(kInputSize);
+    std::iota(input.begin(), input.end(), 0.0f);
+
+    // Expected = input[:, :, :4, :] — strip the last 4 elements of axis 2.
+    // Linear index of input[n,c,h,w] is ((n*128 + c)*8 + h)*256 + w; output
+    // takes h ∈ [0, 4), so we copy the first 4*256 floats of every (n,c)
+    // pair.
+    std::vector<float> expected(kOutputSize);
+    constexpr size_t kRowStride = 256;
+    constexpr size_t kInputPlaneStride = 8 * kRowStride;
+    constexpr size_t kOutputPlaneStride = 4 * kRowStride;
+    for (size_t plane = 0; plane < 128; ++plane) {
+        const float* src = input.data() + plane * kInputPlaneStride;
+        float* dst = expected.data() + plane * kOutputPlaneStride;
+        std::copy(src, src + kOutputPlaneStride, dst);
+    }
+
+    auto test_case = ov::test::TestCase(model, ov::test::utils::DEVICE_CPU);
+    test_case.add_input<float>(Shape{1, 128, 8, 256}, input);
+    test_case.add_expected_output<float>(Shape{1, 128, 4, 256}, expected);
+    test_case.run();
 }

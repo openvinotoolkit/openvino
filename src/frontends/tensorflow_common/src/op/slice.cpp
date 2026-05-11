@@ -60,10 +60,13 @@ OutputVector translate_slice_op(const NodeContext& node) {
         Output<Node> stop_neg = make_shared<v3::ShapeOf>(input);
         stop_neg = make_shared<v1::ConvertLike>(stop_neg, size);
 
-        // select the correct stop value based on a sign of size value
+        // select the correct stop value based on a sign of size value.
+        // FloorMod(size, input_shape) would *not* be an equivalent simplification:
+        // for size = -1 it yields input_shape - 1, off by one from the required
+        // input_shape; the smallest correct FloorMod rewrite
+        // (start + FloorMod(size, input_shape - start + 1)) needs more ops than
+        // this Select and has no bounds tracking, so it offers no benefit.
         auto negative_sizes_mask = make_shared<v1::Less>(size, const_zero);
-        // TODO: investigate if we can simplify and replace Select with FloorMod operation
-        // like FloorMod(size, input_shape)
         stop = make_shared<v1::Select>(negative_sizes_mask, stop_neg, stop_pos);
     }
 
