@@ -89,9 +89,8 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
         auto rank_a = shape_a.rank().get_length();
         auto rank_b = shape_b.rank().get_length();
 
-        // When rank_a < rank_b (e.g., activation[1,4096] x weights[1,3,4096,1]),
-        // FC implementation cannot properly handle the rank mismatch.
-        // Fallback to MatMul/GEMM is more appropriate for such cases.
+        // The fully_connected primitive does not support this situation (rank_a < rank_b).
+        // So, we need to choose GEMM instead of fully_connected.
         if (rank_a < rank_b) {
             return false;
         }
