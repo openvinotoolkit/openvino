@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#if defined(OV_GPU_WITH_OCL_RT) && (defined(_WIN32) || defined(__linux__))
+#if defined(OV_GPU_WITH_OCL_RT) && defined(__linux__)
 #include <array>
 #include <algorithm>
 #include <cstring>
@@ -11,12 +11,8 @@
 #include <sstream>
 #include <vector>
 
-#ifdef _WIN32
-#    define VK_USE_PLATFORM_WIN32_KHR
-#include <windows.h>
-#elif defined(__linux__)
-#    include <unistd.h>
-#endif
+#include <unistd.h>
+
 #include <vulkan/vulkan.h>
 
 #include "openvino/runtime/core.hpp"
@@ -28,13 +24,8 @@
 
 namespace {
 
-#ifdef _WIN32
-// On Windows use LUID (8 bytes) for Vulkan<->OpenCL device matching
-using DeviceId = std::array<unsigned char, CL_LUID_SIZE_KHR>;
-#else
 // On Linux use UUID (16 bytes) for Vulkan<->OpenCL device matching
 using DeviceId = std::array<unsigned char, CL_UUID_SIZE_KHR>;
-#endif
 
 std::string format_luid_bytes(const unsigned char* data, size_t size) {
     std::ostringstream stream;
@@ -58,19 +49,8 @@ bool get_context_device_luid(cl_context cl_ctx, DeviceId& cl_luid) {
         return false;
     }
 
-#ifdef _WIN32
-    // On Windows: check LUID validity, then read the 8-byte LUID
-    cl_bool cl_luid_valid = CL_FALSE;
-    if (clGetDeviceInfo(cl_devices[0], CL_DEVICE_LUID_VALID_KHR, sizeof(cl_luid_valid), &cl_luid_valid, nullptr) !=
-            CL_SUCCESS ||
-        cl_luid_valid != CL_TRUE) {
-        return false;
-    }
-    return clGetDeviceInfo(cl_devices[0], CL_DEVICE_LUID_KHR, cl_luid.size(), cl_luid.data(), nullptr) == CL_SUCCESS;
-#else
     // On Linux: UUID is always present when cl_khr_device_uuid is supported; no validity flag
     return clGetDeviceInfo(cl_devices[0], CL_DEVICE_UUID_KHR, cl_luid.size(), cl_luid.data(), nullptr) == CL_SUCCESS;
-#endif
 }
 
 bool get_context_first_device(cl_context cl_ctx, cl_device_id& cl_device) {
@@ -143,45 +123,6 @@ std::shared_ptr<ov::Model> make_copy_model(const ov::Shape& shape) {
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
 }
 
-#ifdef _WIN32
-using ExternalMemoryHandle = HANDLE;
-
-constexpr ExternalMemoryHandle invalid_external_memory_handle() {
-    return nullptr;
-}
-
-constexpr VkExternalMemoryHandleTypeFlagBits k_external_memory_handle_type =
-    VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
-constexpr cl_uint k_cl_external_memory_handle_type = CL_EXTERNAL_MEMORY_HANDLE_OPAQUE_WIN32_KHR;
-constexpr const char* k_vulkan_external_memory_extension = VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME;
-constexpr const char* k_get_memory_handle_proc_name = "vkGetMemoryWin32HandleKHR";
-
-void close_external_memory_handle(ExternalMemoryHandle& handle) {
-    if (handle != invalid_external_memory_handle()) {
-        CloseHandle(handle);
-        handle = invalid_external_memory_handle();
-    }
-}
-
-bool export_vulkan_memory_handle(VkDevice device, VkDeviceMemory memory, ExternalMemoryHandle& handle) {
-    auto get_memory_handle = reinterpret_cast<PFN_vkGetMemoryWin32HandleKHR>(
-        vkGetDeviceProcAddr(device, k_get_memory_handle_proc_name));
-    if (!get_memory_handle) {
-        ADD_FAILURE() << "Failed to get " << k_get_memory_handle_proc_name;
-        return false;
-    }
-
-    VkMemoryGetWin32HandleInfoKHR handle_info{};
-    handle_info.sType = VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR;
-    handle_info.memory = memory;
-    handle_info.handleType = k_external_memory_handle_type;
-
-    const VkResult res = get_memory_handle(device, &handle_info, &handle);
-    EXPECT_EQ(res, VK_SUCCESS);
-    EXPECT_NE(handle, invalid_external_memory_handle());
-    return res == VK_SUCCESS && handle != invalid_external_memory_handle();
-}
-#elif defined(__linux__)
 using ExternalMemoryHandle = int;
 
 constexpr ExternalMemoryHandle invalid_external_memory_handle() {
@@ -223,9 +164,6 @@ bool export_vulkan_memory_handle(VkDevice device, VkDeviceMemory memory, Externa
     EXPECT_NE(handle, invalid_external_memory_handle());
     return res == VK_SUCCESS && handle != invalid_external_memory_handle();
 }
-#endif
-
-
 
 struct VulkanTestContext {
     VkInstance instance = VK_NULL_HANDLE;
@@ -343,16 +281,8 @@ bool get_vk_device_luid(VkPhysicalDevice physical_device, DeviceId& vk_luid) {
 
     vkGetPhysicalDeviceProperties2(physical_device, &properties2);
 
-#ifdef _WIN32
-    // On Windows: use 8-byte LUID (must be valid)
-    if (!id_properties.deviceLUIDValid) {
-        return false;
-    }
-    std::memcpy(vk_luid.data(), id_properties.deviceLUID, vk_luid.size());
-#else
     // On Linux: use 16-byte UUID
     std::memcpy(vk_luid.data(), id_properties.deviceUUID, vk_luid.size());
-#endif
     return true;
 }
 
@@ -430,9 +360,8 @@ VulkanTestContext create_vulkan_test_context(const DeviceId& target_luid) {
 
         std::vector<const char*> device_extensions = {VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME,
                                                        k_vulkan_external_memory_extension};
-#ifdef __linux__
+
         device_extensions.push_back(k_vulkan_dma_buf_extension);
-#endif
     #ifdef VK_EXT_memory_budget
         if (has_device_extension(physical_device, VK_EXT_MEMORY_BUDGET_EXTENSION_NAME)) {
             device_extensions.push_back(VK_EXT_MEMORY_BUDGET_EXTENSION_NAME);
