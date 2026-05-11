@@ -60,7 +60,7 @@ OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, dynamic_quantization_threshold,
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, dynamic_quantization_precomputed_reduction, true, "Precompute reduction of activation for faster dynamic quantization in case of asymmetric weight")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, allow_bypass_xattn, true, "Allow bypass xattn execution if threshold >= 1.0.")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, weightless_attr, nullptr, "Used to configure ov::WeightlessCacheAttribute for constants that are not loaded from a .bin file. This typically applies to non-IR inputs (e.g., ORT)")
-
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, pa_mixed_route_mode, std::string("split"), "Mixed route mode for CM paged attention. Supported values: multi, split")
 
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, help, false, "Print help message for all config options")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, verbose, 0, "Enable logging for debugging purposes. The higher value the more verbose output. 0 - Disabled, 4 - Maximum verbosity")
@@ -103,4 +103,3 @@ OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dynamic_quantization_single, -1, "Apply dy
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, network_marker, false, "Insert named OpenCL marker kernels at network execution start/finish for CLIntercept tracing")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, list_layers, false, "Print layers list")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, print_input_data_shapes, false, "print input data shapes")
-OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, cm_mixed_route_mode, std::string("split"), "Mixed route mode for CM paged attention. Supported values: multi, split")

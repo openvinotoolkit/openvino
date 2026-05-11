@@ -59,12 +59,7 @@ std::vector<int32_t> read_i32_input(const primitive_inst& instance, size_t input
 // -----------------------------
 
 MixedRouteMode get_mixed_route_mode_from_config(const kernel_impl_params& params) {
-#ifdef ENABLE_DEBUG_CAPS
-    std::string mode = params.get_program().get_config().get_cm_mixed_route_mode();
-#else
-    (void)params;
-    std::string mode = "multi";
-#endif
+    std::string mode = params.get_program().get_config().get_pa_mixed_route_mode();
     std::transform(mode.begin(), mode.end(), mode.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     if (mode == "split") {
         return MixedRouteMode::SPLIT;
@@ -99,7 +94,8 @@ public:
         const auto desc = params.typed_desc<paged_attention>();
         m_mixed_route_mode = get_mixed_route_mode_from_config(params);
 
-        GPU_DEBUG_TRACE_DETAIL << "ov::intel_gpu::cm::PagedAttentionCmImpl::PagedAttentionCmImpl()" << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << "ov::intel_gpu::cm::PagedAttentionCmImpl::PagedAttentionCmImpl()" << " with mode: "
+                               << (m_mixed_route_mode == MixedRouteMode::SPLIT ? "split" : "multi") << std::endl;
         add_stage(kv_cache_update, params);
         add_stage(pa_single_token, params);
         add_stage(pa_single_token_finalization, params);
@@ -557,6 +553,9 @@ public:
             prepare_multi_token_mapping(instance);
             execute_multi_token_path();
         } else if (rt_params->stage == PagedAttentionStage::MIXED) {
+            GPU_DEBUG_TRACE_DETAIL << "Execute Mixed stage with mode: " << (m_mixed_route_mode == MixedRouteMode::SPLIT ? "SPLIT" : "MERGE")
+                                   << ", " << rt_params->single_token_selected_count << " single token selected and "
+                                   << rt_params->multi_token_wg_count << " workgroups for multi token." << std::endl;
             if (m_mixed_route_mode == MixedRouteMode::SPLIT) {
                 prepare_split_mixed_selected_ids_and_mapping(instance);
                 if (rt_params->single_token_selected_count > 0) {
@@ -672,14 +671,16 @@ public:
     }
 
     [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
-        return make_deep_copy<PagedAttentionCmImpl>(this);
+        auto copy = make_deep_copy<PagedAttentionCmImpl>(this);
+        copy->m_mixed_route_mode = m_mixed_route_mode;
+        return copy;
     }
 
 private:
     std::vector<int32_t> m_xattn_meta;
     std::vector<int32_t> m_xattn_find_wg_map;
     std::vector<int32_t> m_xattn_post_wg_map;
-    MixedRouteMode m_mixed_route_mode = MixedRouteMode::MULTI;
+    MixedRouteMode m_mixed_route_mode = MixedRouteMode::SPLIT;
 
     void validate_xattn_inputs(const kernel_impl_params& params, size_t batch_size) {
         const auto& input_mem = params.memory_deps;
