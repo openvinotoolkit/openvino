@@ -1235,7 +1235,7 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& raw_stream, const ov::n
     stream & bank_name;
 
     if (!is_weightless) {
-        ov::npuw::s11n::serialize(stream, *kv_bank);
+        stream&* kv_bank;
     }
 
     LOG_INFO("Done.");
@@ -1317,7 +1317,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
             }
         } else {
             auto bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
-            ov::npuw::s11n::serialize(stream, *bank);
+            stream&* bank;
 
             compiled->m_kvcache_compiled->set_weights_bank(bank);
             for (const auto& compiled_variant : compiled->m_generate_compiled_variants) {
