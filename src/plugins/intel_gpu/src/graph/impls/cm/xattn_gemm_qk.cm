@@ -56,9 +56,10 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     int subseq_id = 0;
     int* meta = (int*)xattn_subseq_meta;
     for (int s = 1; s < num_subseqs; s++) {
-        int wg_off_next = meta[s * XATTN_META_STRIDE + XATTN_META_WG_OFFSET];
-        if ((int)wg_mn_flat >= wg_off_next)
-            subseq_id = s;
+        uint wg_off_next = (uint)meta[s * XATTN_META_STRIDE + XATTN_META_WG_OFFSET];
+        if (wg_mn_flat < wg_off_next)
+            break;
+        subseq_id = s;
     }
 
     int meta_base = subseq_id * XATTN_META_STRIDE;

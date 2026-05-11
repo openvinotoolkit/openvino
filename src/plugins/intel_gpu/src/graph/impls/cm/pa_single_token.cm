@@ -158,12 +158,14 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     const uint kv_partition_num = cm_group_count(2);
     const uint kv_partition_idx = cm_group_id(2);
 
-    const uint subseq_q_begin = subsequence_begins[orig_seq_idx];
-    const uint subseq_q_end = subsequence_begins[orig_seq_idx + 1];
-    const uint subseq_q_len = subseq_q_end - subseq_q_begin;
-    if (subseq_q_len == 0) {
+    const int subseq_q_begin_i = subsequence_begins[orig_seq_idx];
+    const int subseq_q_end_i = subsequence_begins[orig_seq_idx + 1];
+    if (subseq_q_end_i <= subseq_q_begin_i) {
         return;
     }
+    const uint subseq_q_begin = (uint)subseq_q_begin_i;
+    const uint subseq_q_end = (uint)subseq_q_end_i;
+    const uint subseq_q_len = (uint)(subseq_q_end_i - subseq_q_begin_i);
 
     // Single-token path uses the latest token from each subsequence.
     const uint q_token_idx = subseq_q_end - 1;

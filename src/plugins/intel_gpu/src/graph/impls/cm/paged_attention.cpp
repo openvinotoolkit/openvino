@@ -24,6 +24,7 @@
 #include "paged_attention_inst.h"
 #include "primitive_cm_base.hpp"
 #include "primitive_inst.h"
+#include "include/xattn_subseq_meta.hpp"
 
 #define DUMP_XATTN_INTERNALS 0
 #if DUMP_XATTN_INTERNALS
@@ -152,7 +153,7 @@ public:
         m_xattn_meta.clear();
         m_xattn_find_wg_map.clear();
         m_xattn_post_wg_map.clear();
-        m_xattn_meta.reserve((subsequence_begins.size() > 0 ? (subsequence_begins.size() - 1) : 0) * 16);
+        m_xattn_meta.reserve((subsequence_begins.size() > 0 ? (subsequence_begins.size() - 1) : 0) * XATTN_META_STRIDE);
         m_xattn_find_wg_map.reserve((subsequence_begins.size() > 0 ? (subsequence_begins.size() - 1) : 0) * 2);
         m_xattn_post_wg_map.reserve((subsequence_begins.size() > 0 ? (subsequence_begins.size() - 1) : 0) * 2);
 
@@ -211,6 +212,7 @@ public:
             m_xattn_meta.push_back(to_i32_checked(cumul_mask_elems, "cumul_mask_elems"));
             m_xattn_meta.push_back(to_i32_checked(cumul_mask_wg_elems, "cumul_mask_wg_elems"));
             m_xattn_meta.push_back(bi_begin);
+            // Store global WG start offset for this subsequence (prefix sum before adding this subsequence's wg_count_s).
             m_xattn_meta.push_back(to_i32_checked(total_wg_count, "total_wg_count"));
 
             for (size_t m = 0; m < q_block_pad_s; ++m) {
@@ -227,6 +229,7 @@ public:
             cumul_exp_sum_bytes += q_stride_pad_s * k_block_pad_s * sizeof_softmax * heads_num;
             cumul_mask_elems += q_block_pad_s * k_block_pad_s * heads_num;
             cumul_mask_wg_elems += merged_q_blocks_s * k_block_pad_s * heads_num;
+            // Advance prefix sum so the next subsequence gets its own global WG start offset.
             total_wg_count += wg_count_s;
 
             max_q_block_pad = std::max(max_q_block_pad, q_block_pad_s);
