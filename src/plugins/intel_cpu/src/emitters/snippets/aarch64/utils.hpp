@@ -8,9 +8,11 @@
 #include <cstddef>
 #include <cstdint>
 #include <iterator>
+#include <set>
 #include <vector>
 
 #include "cpu/aarch64/jit_generator.hpp"
+#include "snippets/emitter.hpp"
 
 namespace ov::intel_cpu::aarch64 {
 
