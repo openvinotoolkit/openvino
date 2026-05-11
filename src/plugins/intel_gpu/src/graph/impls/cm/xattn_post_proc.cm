@@ -15,12 +15,19 @@
  *******************************************************************************/
 
 namespace KERNEL_NAME {
-#include "estimate.hpp"
 #include "xattn_subseq_meta.hpp"
 
-CM_INLINE void post_proc_impl(svmptr_t block_mask, svmptr_t merged_block_mask, uint q_stride_pad, uint q_block_pad, uint k_block_pad) {
+#ifndef ATTR
+#define ATTR [[type("svmptr_t")]]
+#endif
+
+CM_INLINE void post_proc_impl(svmptr_t block_mask,
+                              svmptr_t merged_block_mask,
+                              uint q_stride_pad,
+                              uint q_block_pad,
+                              uint k_block_pad,
+                              uint m_mereged) {
     const int TOKEN_IN_BLOCK = BLOCK_SIZE / STRIDE;
-    uint m_mereged = cm_group_id(0);
 
     int j = 0;
     {
@@ -82,7 +89,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(svmptr_t block_mask ATTR,
     svmptr_t merged_base = merged_block_mask + buf_off_mask_wg + hq * merged_q_blocks * k_block_pad;
     merged_base += m_mereged * k_block_pad;
 
-    post_proc_impl(mask_base, merged_base, q_stride_pad, q_block_pad, k_block_pad);
+    post_proc_impl(mask_base, merged_base, q_stride_pad, q_block_pad, k_block_pad, m_mereged);
 }
 
 }  // NAMESPACE
