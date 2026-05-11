@@ -273,7 +273,6 @@ AttentionBroadcast3::AttentionBroadcast3() {
     // NB: It only works in static shape graphs
     auto shape_of = opp::wrap_type<ov::op::v3::ShapeOf>({past_kv_cat});
     auto gather = opp::wrap_type<ov::op::v8::Gather>({shape_of, opp::any_input(), opp::any_input()});
-    // NB: THREE inputs is also a case (see below)
     auto concat = opp::wrap_type<ov::op::v0::Concat>({gather, opp::any_input(), opp::any_input(), opp::any_input()});
 
     // Broadcast - the consumer
@@ -298,6 +297,7 @@ AttentionBroadcast3::AttentionBroadcast3() {
             for (auto&& input : matched_gather_out.get_target_inputs()) {
                 input.replace_source_output(new_const);
             }
+            return true;  // root changed
         }
         return false;  // root hasn't changed
     };
