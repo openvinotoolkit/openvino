@@ -188,7 +188,7 @@ jobs:
           -DENABLE_PYTHON=OFF
           -DENABLE_TESTS=ON
           -DENABLE_STRICT_DEPENDENCIES=OFF
-          -DCMAKE_VERBOSE_MAKEFILE=ON
+          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
           -DENABLE_WHEEL=OFF
           -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
           -DCMAKE_TOOLCHAIN_FILE=${OPENVINO_REPO}/cmake/toolchains/riscv64.linux.toolchain.cmake
@@ -196,7 +196,7 @@ jobs:
           -B ${BUILD_DIR}
 
       - name: Cmake - Build
-        run: cmake --build ${BUILD_DIR} --parallel $(nproc)
+        run: cmake --build ${BUILD_DIR} --parallel $(nproc) -- --quiet
 
       - name: Show ccache stats and cleanup
         run: |
@@ -232,6 +232,14 @@ jobs:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
           if-no-files-found: 'error'
+
+      - name: Upload compile_commands
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        if: always()
+        with:
+          name: compile_commands_linux_riscv
+          path: ${{ env.BUILD_DIR }}/compile_commands.json
+          if-no-files-found: 'ignore'
 
   CPU_Functional_Tests:
     name: CPU functional tests

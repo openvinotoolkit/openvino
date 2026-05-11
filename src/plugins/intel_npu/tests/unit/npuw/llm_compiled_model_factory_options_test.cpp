@@ -32,6 +32,10 @@ protected:
         return ov::test::npuw::build_llm_test_model();
     }
 
+    std::shared_ptr<ov::Model> build_moe_llm_model() const {
+        return ov::test::npuw::build_moe_llm_test_model();
+    }
+
     std::shared_ptr<ov::Model> build_whisper_decoder_model() const {
         return ov::test::npuw::build_whisper_decoder_test_model();
     }
@@ -426,6 +430,31 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, HfaAttentionHintsEnableAttentionIsola
     }
 }
 
+TEST_F(LLMCompiledModelFactoryOptionsTest, MoeModelKeepsHostRoutedStageIntegration) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_moe_llm_model(),
+                                                     {{"NPUW_LLM_SHARED_HEAD", "NO"},
+                                                      {"NPUW_LLM_PREFILL_MOE_HINT", "HOST_ROUTED"},
+                                                      {"NPUW_LLM_GENERATE_MOE_HINT", "HOST_ROUTED"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& prefill = require_call(recorder, "_prefill");
+    const auto& generate = require_call_containing(recorder, "_kv");
+
+    for (const auto* call : {&prefill, &generate}) {
+        expect_prop(call->props, "NPUW_ONLINE_PIPELINE", "REP");
+        expect_prop(call->props, "NPUW_ONLINE_ISOLATE", "MOE");
+        expect_prop(call->props, "NPUW_ONLINE_KEEP_BLOCK_SIZE", "4");
+        expect_prop(call->props, "NPUW_UNFOLD_IREQS", "NO");
+    }
+
+    EXPECT_EQ(recorder.count_suffix("_prefill"), 1u);
+    EXPECT_EQ(recorder.count_contains("_kv"), 1u);
+}
+
 TEST_F(LLMCompiledModelFactoryOptionsTest, CacheRopeEnabledRoundsTripThroughCompiledModel) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
@@ -545,7 +574,8 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperPrefillPreparationAddsCrossAtt
     model = model->clone();
 
     EXPECT_TRUE(ov::npuw::util::PrepareWhisperPrefillModel(
-                    128, static_cast<uint32_t>(ov::test::npuw::WhisperConfig{}.max_source_positions))
+                    128, static_cast<uint32_t>(ov::test::npuw::WhisperConfig{}.max_source_positions),
+                    false /*decompose_sdpa*/)
                     .run_on_model(model));
     auto prepared = model;
 

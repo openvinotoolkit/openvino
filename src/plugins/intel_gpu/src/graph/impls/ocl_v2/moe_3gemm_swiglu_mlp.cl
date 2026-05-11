@@ -5,8 +5,33 @@
 
 #define unroll_for __attribute__((opencl_unroll_hint)) for
 
-// Fake group size for compatibility and computation performance balance
-#define FAKE_GROUP_SIZE 128
+// Fake group size for compatibility and computation performance balance.
+// Each gk-iteration of the inner GEMV loop processes FAKE_GROUP_SIZE K-elements
+// using a single (scale, zp) entry, so FAKE_GROUP_SIZE must divide both
+// GATE_UP_GROUP_SIZE and DOWN_GROUP_SIZE. The traditional value is 128 which
+// matches the sub_group_block_read tile widths below; for models whose weight
+// quantization uses a smaller group (e.g. 64) we shrink FAKE_GROUP_SIZE so the
+// per-iteration accumulation stays within one quant group.
+#if defined(GATE_UP_GROUP_SIZE) && defined(DOWN_GROUP_SIZE)
+#    if GATE_UP_GROUP_SIZE < DOWN_GROUP_SIZE
+#        define MOE_MIN_GROUP_SIZE GATE_UP_GROUP_SIZE
+#    else
+#        define MOE_MIN_GROUP_SIZE DOWN_GROUP_SIZE
+#    endif
+#    if MOE_MIN_GROUP_SIZE < 128
+#        define FAKE_GROUP_SIZE MOE_MIN_GROUP_SIZE
+#    else
+#        define FAKE_GROUP_SIZE 128
+#    endif
+#else
+#    define FAKE_GROUP_SIZE 128
+#endif
+
+// Number of K-elements each work-item handles per gk-iteration via the
+// intel_sub_group_block_read tile. Drives the inner-loop variant selection.
+// Supported values: 2 (FAKE_GROUP_SIZE = 1 * SUBGROUP_SIZE * 2, e.g. SG=16 + 32),
+// 4 (e.g. SG=32 + FAKE=128 or SG=16 + FAKE=64), and 8 (SG=16 + FAKE=128).
+#define ELEMS_PER_LANE (FAKE_GROUP_SIZE / SUBGROUP_SIZE)
 
 // HAS_ZP: 1 = asymmetric quantization (subtract zero point), 0 = symmetric (no zero point)
 #if HAS_ZP
@@ -64,7 +89,7 @@ inline void gate_up_gemv_n2x_u4(const __global uchar* weight,
             half z_hf1 = convert_half(z >> 4);
 #endif
 
-#    if SUBGROUP_SIZE == 32
+#    if ELEMS_PER_LANE == 4
             half2 sum0;
             half2 sum1;
             half4 a = as_half4(intel_sub_group_block_read_us4((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
@@ -87,6 +112,27 @@ inline void gate_up_gemv_n2x_u4(const __global uchar* weight,
 #else
             sum_all0 += (sum0[0] + sum0[1]) * s0;
             sum_all1 += (sum1[0] + sum1[1]) * s1;
+#endif
+#    elif ELEMS_PER_LANE == 2
+            // Each lane reads 2 K-elements (1 byte = 2 nibbles).
+            half sum0;
+            half sum1;
+            half2 a = as_half2(intel_sub_group_block_read_us2((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            uchar b = intel_sub_group_block_read_uc((const __global uchar*)B + gk * FAKE_GROUP_SIZE / 2);
+            uchar b2 = intel_sub_group_block_read_uc((const __global uchar*)(B + (K / 2) + gk * FAKE_GROUP_SIZE / 2));
+
+            sum0 = fma(a.s0, (DEQUANT_4BIT_LO(b)), (half)0);
+            sum0 = fma(a.s1, (DEQUANT_4BIT_HI(b)), sum0);
+
+            sum1 = fma(a.s0, (DEQUANT_4BIT_LO(b2)), (half)0);
+            sum1 = fma(a.s1, (DEQUANT_4BIT_HI(b2)), sum1);
+
+#if HAS_ZP
+            sum_all0 += (sum0 - xg_sum[gk] * z_hf0) * s0;
+            sum_all1 += (sum1 - xg_sum[gk] * z_hf1) * s1;
+#else
+            sum_all0 += sum0 * s0;
+            sum_all1 += sum1 * s1;
 #endif
 #    else
             half4 sum0;
@@ -171,7 +217,7 @@ inline void gate_up_gemv_n2x_u8(const __global uchar* weight,
             half z1 = convert_half(Z[zp_offset + 1]);
 #endif
 
-#    if SUBGROUP_SIZE == 32
+#    if ELEMS_PER_LANE == 4
             float2 sum0;
             float2 sum1;
             half4 a = as_half4(intel_sub_group_block_read_us4((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
@@ -194,6 +240,27 @@ inline void gate_up_gemv_n2x_u8(const __global uchar* weight,
 #else
             sum_all0 += (sum0[0] + sum0[1]) * s0;
             sum_all1 += (sum1[0] + sum1[1]) * s1;
+#endif
+#    elif ELEMS_PER_LANE == 2
+            // Each lane reads 2 K-elements (8-bit weights, 1 byte each).
+            float sum0;
+            float sum1;
+            half2 a = as_half2(intel_sub_group_block_read_us2((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            uchar2 b = intel_sub_group_block_read_uc2((const __global uchar*)B + gk * FAKE_GROUP_SIZE);
+            uchar2 b2 = intel_sub_group_block_read_uc2((const __global uchar*)(B + K + gk * FAKE_GROUP_SIZE));
+
+            sum0 = fma((float)a.s0, (float)(DEQUANT_8BIT(b.s0)), 0.0f);
+            sum0 = fma((float)a.s1, (float)(DEQUANT_8BIT(b.s1)), sum0);
+
+            sum1 = fma((float)a.s0, (float)(DEQUANT_8BIT(b2.s0)), 0.0f);
+            sum1 = fma((float)a.s1, (float)(DEQUANT_8BIT(b2.s1)), sum1);
+
+#if HAS_ZP
+            sum_all0 += (sum0 - xg_sum[gk] * z0) * s0;
+            sum_all1 += (sum1 - xg_sum[gk] * z1) * s1;
+#else
+            sum_all0 += sum0 * s0;
+            sum_all1 += sum1 * s1;
 #endif
 #    else
             float4 sum0;
@@ -257,7 +324,7 @@ inline void gate_up_gemv_n2x_f16(const __global half* weight, __global half* y, 
         float sum_all0 = 0;
         float sum_all1 = 0;
         unroll_for(int gk = 0; gk < K / FAKE_GROUP_SIZE; gk++) {
-#    if SUBGROUP_SIZE == 32
+#    if ELEMS_PER_LANE == 4
             half2 sum0;
             half2 sum1;
             half4 a = as_half4(intel_sub_group_block_read_us4((const __global ushort*)x2 + gk * FAKE_GROUP_SIZE));
@@ -276,6 +343,22 @@ inline void gate_up_gemv_n2x_f16(const __global half* weight, __global half* y, 
 
             sum_all0 += sum0[0] + sum0[1];
             sum_all1 += sum1[0] + sum1[1];
+#    elif ELEMS_PER_LANE == 2
+            // Each lane reads 2 fp16 elements.
+            half sum0;
+            half sum1;
+            half2 a = as_half2(intel_sub_group_block_read_us2((const __global ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            half2 b = as_half2(intel_sub_group_block_read_us2((const __global ushort*)B + gk * FAKE_GROUP_SIZE));
+            half2 b2 = as_half2(intel_sub_group_block_read_us2((const __global ushort*)B + K + gk * FAKE_GROUP_SIZE));
+
+            sum0 = fma(a.s0, b.s0, (half)0);
+            sum0 = fma(a.s1, b.s1, sum0);
+
+            sum1 = fma(a.s0, b2.s0, (half)0);
+            sum1 = fma(a.s1, b2.s1, sum1);
+
+            sum_all0 += sum0;
+            sum_all1 += sum1;
 #    else
             half4 sum0;
             half4 sum1;
@@ -554,7 +637,7 @@ inline void down_gemv_n2x_u4(const __global uchar* weight,
             half z_hf1 = convert_half(z >> 4);
 #endif
 
-#    if SUBGROUP_SIZE == 32
+#    if ELEMS_PER_LANE == 4
             half2 sum0;
             half2 sum1;
             half4 a = as_half4(intel_sub_group_block_read_us4((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
@@ -577,6 +660,27 @@ inline void down_gemv_n2x_u4(const __global uchar* weight,
 #else
             sum_all0 += (sum0[0] + sum0[1]) * s0;
             sum_all1 += (sum1[0] + sum1[1]) * s1;
+#endif
+#    elif ELEMS_PER_LANE == 2
+            // Each lane reads 2 K-elements (1 byte = 2 nibbles).
+            half sum0;
+            half sum1;
+            half2 a = as_half2(intel_sub_group_block_read_us2((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            uchar b = intel_sub_group_block_read_uc((const __global uchar*)B + gk * FAKE_GROUP_SIZE / 2);
+            uchar b2 = intel_sub_group_block_read_uc((const __global uchar*)(B + (K / 2) + gk * FAKE_GROUP_SIZE / 2));
+
+            sum0 = fma(a.s0, (DEQUANT_4BIT_LO(b)), (half)0);
+            sum0 = fma(a.s1, (DEQUANT_4BIT_HI(b)), sum0);
+
+            sum1 = fma(a.s0, (DEQUANT_4BIT_LO(b2)), (half)0);
+            sum1 = fma(a.s1, (DEQUANT_4BIT_HI(b2)), sum1);
+
+#if HAS_ZP
+            sum_all0 += (sum0 - xg_sum[gk] * z_hf0) * s0;
+            sum_all1 += (sum1 - xg_sum[gk] * z_hf1) * s1;
+#else
+            sum_all0 += sum0 * s0;
+            sum_all1 += sum1 * s1;
 #endif
 #    else
             half4 sum0;
@@ -655,7 +759,7 @@ inline void down_gemv_n2x_u8(const __global uchar* weight,
             half z1 = convert_half(Z[zp_offset + 1]);
 #endif
 
-#    if SUBGROUP_SIZE == 32
+#    if ELEMS_PER_LANE == 4
             float2 sum0;
             float2 sum1;
             half4 a = as_half4(intel_sub_group_block_read_us4((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
@@ -678,6 +782,27 @@ inline void down_gemv_n2x_u8(const __global uchar* weight,
 #else
             sum_all0 += (sum0[0] + sum0[1]) * s0;
             sum_all1 += (sum1[0] + sum1[1]) * s1;
+#endif
+#    elif ELEMS_PER_LANE == 2
+            // Each lane reads 2 K-elements (8-bit weights, 1 byte each).
+            float sum0;
+            float sum1;
+            half2 a = as_half2(intel_sub_group_block_read_us2((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            uchar2 b = intel_sub_group_block_read_uc2((const __global uchar*)B + gk * FAKE_GROUP_SIZE);
+            uchar2 b2 = intel_sub_group_block_read_uc2((const __global uchar*)B + K + gk * FAKE_GROUP_SIZE);
+
+            sum0 = fma((float)a.s0, (float)(DEQUANT_8BIT(b.s0)), 0.0f);
+            sum0 = fma((float)a.s1, (float)(DEQUANT_8BIT(b.s1)), sum0);
+
+            sum1 = fma((float)a.s0, (float)(DEQUANT_8BIT(b2.s0)), 0.0f);
+            sum1 = fma((float)a.s1, (float)(DEQUANT_8BIT(b2.s1)), sum1);
+
+#if HAS_ZP
+            sum_all0 += (sum0 - xg_sum[gk] * z0) * s0;
+            sum_all1 += (sum1 - xg_sum[gk] * z1) * s1;
+#else
+            sum_all0 += sum0 * s0;
+            sum_all1 += sum1 * s1;
 #endif
 #    else
             float4 sum0;
@@ -736,7 +861,7 @@ inline void down_gemv_n2x_f16(const __global half* weight, __global MOE_DTYPE* r
         float sum_all1 = 0;
         unroll_for(int gk = 0; gk < K / FAKE_GROUP_SIZE; gk++) {
 
-#    if SUBGROUP_SIZE == 32
+#    if ELEMS_PER_LANE == 4
             half2 sum0;
             half2 sum1;
             half4 a = as_half4(intel_sub_group_block_read_us4((const __global ushort*)x2 + gk * FAKE_GROUP_SIZE));
@@ -755,6 +880,22 @@ inline void down_gemv_n2x_f16(const __global half* weight, __global MOE_DTYPE* r
 
             sum_all0 += sum0[0] + sum0[1];
             sum_all1 += sum1[0] + sum1[1];
+#    elif ELEMS_PER_LANE == 2
+            // Each lane reads 2 fp16 elements.
+            half sum0;
+            half sum1;
+            half2 a = as_half2(intel_sub_group_block_read_us2((const __global ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            half2 b = as_half2(intel_sub_group_block_read_us2((const __global ushort*)B + gk * FAKE_GROUP_SIZE));
+            half2 b2 = as_half2(intel_sub_group_block_read_us2((const __global ushort*)B + K + gk * FAKE_GROUP_SIZE));
+
+            sum0 = fma(a.s0, b.s0, (half)0);
+            sum0 = fma(a.s1, b.s1, sum0);
+
+            sum1 = fma(a.s0, b2.s0, (half)0);
+            sum1 = fma(a.s1, b2.s1, sum1);
+
+            sum_all0 += sum0;
+            sum_all1 += sum1;
 #    else
             half4 sum0;
             half4 sum1;
