@@ -8,20 +8,14 @@
 #include <cstddef>
 
 #include "openvino/reference/autobroadcast_binop.hpp"
-#include "openvino/reference/utils/type_util.hpp"
 
 namespace ov {
 namespace reference {
 namespace func {
 
-template <class T, typename std::enable_if<ov::is_floating_point<T>()>::type* = nullptr>
+template <class T>
 T atan2(const T y_val, const T x_val) {
     return static_cast<T>(std::atan2(static_cast<double>(y_val), static_cast<double>(x_val)));
-}
-
-template <class T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
-T atan2(const T y_val, const T x_val) {
-    return static_cast<T>(std::round(std::atan2(static_cast<double>(y_val), static_cast<double>(x_val))));
 }
 
 }  // namespace func
