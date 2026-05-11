@@ -31,8 +31,11 @@ std::shared_ptr<ov::Node> MOE::clone_with_new_inputs(const ov::OutputVector& new
 
 void MOE::validate_and_infer_types() {
     OV_OP_SCOPE(internal_MOE_validate_and_infer_types);
+    if (m_config.expert_type == Expert_type::GEMM2_BIAS_SWIGLU_CLAMP) {
+        OPENVINO_ASSERT(m_config.activation_type == Activation_type::SWIGLU,
+                        "GEMM2_BIAS_SWIGLU_CLAMP expert type only supports SWIGLU activation");
+    }
     // TODO: Add inputs validation
-
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 

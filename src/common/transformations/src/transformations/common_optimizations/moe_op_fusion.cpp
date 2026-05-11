@@ -69,7 +69,7 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool ha
     // Or-pattern
     auto bgm_gate_m = std::make_shared<pattern::op::Or>(OutputVector{bgm_gate_4_m, bgm_gate_6_m});
 
-    // Gate activation: Swish (SwiGLU) or Gelu with TANH approximation (GeGLU).
+    // Gate activation: Swish (SwiGLU) or Gelu (GeGLU) with TANH or ERF approximation.
     auto swish_m = pattern::wrap_type<v4::Swish, v7::Gelu>({bgm_gate_m});
 
     auto up_w_m = pattern::any_input();

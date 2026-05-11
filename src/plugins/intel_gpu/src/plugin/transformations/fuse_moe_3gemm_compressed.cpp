@@ -63,7 +63,7 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
     auto sm_per_expert_gather = wrap_type<ov::op::v8::Gather>(
         {sm_per_expert_scale_const, sm_convert_topk, ANY}, consumers_count(1));
     auto sm_norm_scaled = optional<ov::op::v1::Multiply>(
-        {sm_norm, sm_per_expert_gather | ANY}, consumers_count(1));
+        {sm_norm, sm_per_expert_gather}, consumers_count(1));
     auto sm_slice = optional<ov::op::v8::Slice>({sm_norm_scaled, ANY, ANY, ANY, ANY});
     auto sm_transpose = wrap_type<ov::op::v1::Transpose>({sm_slice, ANY}, consumers_count(1));
     auto sm_unsqueeze = wrap_type<ov::op::v0::Unsqueeze>({sm_transpose, ANY}, consumers_count(1));
