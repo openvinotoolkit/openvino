@@ -13,6 +13,7 @@
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "graph_context.h"
+#include "kernels/scaled_attn/codecs/cache_codec.hpp"
 #include "memory_state.h"
 #include "node.h"
 #include "onednn/iml_type_mapper.h"
@@ -93,7 +94,9 @@ private:
                              MemoryPtr presentv_input,
                              MemoryPtr beam_input,
                              const PlainTensor& k_scale_zp,
-                             const PlainTensor& v_scale_zp) = 0;
+                             const PlainTensor& v_scale_zp,
+                             ov::Extensions::Cpu::CacheCodec k_codec,
+                             ov::Extensions::Cpu::CacheCodec v_codec) = 0;
         [[nodiscard]] virtual impl_desc_type implType() const = 0;
         virtual ~Executor() = default;
     };
@@ -112,6 +115,8 @@ private:
     std::vector<size_t> m_kvstate_layout = {2, 0, 1, 3};
     SDPAQuantParam m_key_quant_param;
     SDPAQuantParam m_value_quant_param;
+    ov::Extensions::Cpu::CacheCodec m_k_codec{};
+    ov::Extensions::Cpu::CacheCodec m_v_codec{};
 };
 
 }  // namespace ov::intel_cpu::node
