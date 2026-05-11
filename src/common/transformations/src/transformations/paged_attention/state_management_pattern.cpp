@@ -295,29 +295,33 @@ static ov::Dimension extract_num_kv_heads(const std::shared_ptr<ov::Node>& unsqu
     }
 };
 
-// Look up an existing KV-cache Parameter by variable_id + suffix, or create a new one and record it.
-// Returns true if the parameter already existed (shared layer), false if newly created (owner).
-static bool find_or_create_kv_param(const std::shared_ptr<ov::op::util::ReadValueBase>& rv,
-                                    const char* suffix,
-                                    const std::string& new_param_name,
-                                    PaParams& pa_params,
-                                    ov::pass::StateManagementPattern::KvCacheParamMap& seen_kv_var_ids,
-                                    std::shared_ptr<v0::Parameter>& param) {
-    auto key = rv->get_variable_id() + suffix;
-    auto it = seen_kv_var_ids.find(key);
-    if (it != seen_kv_var_ids.end()) {
-        param = it->second;
-        return true;
+StateManagementPattern::KvCacheParams StateManagementPattern::find_or_create_kv_params(
+    const std::shared_ptr<ov::op::util::ReadValueBase>& k_rv,
+    const std::shared_ptr<ov::op::util::ReadValueBase>& v_rv,
+    PaParams& pa_params) {
+    const auto& k_var_id = k_rv->get_variable_id();
+    const auto& v_var_id = v_rv->get_variable_id();
+    auto k_name = "key_cache." + std::to_string(m_layer_index);
+    auto v_name = "value_cache." + std::to_string(m_layer_index);
+    bool write_kv_cache = true;
+
+    if (m_read_value_to_params.count(k_var_id + "/k") && m_read_value_to_params.count(v_var_id + "/v")) {
+        k_name = m_read_value_to_params.at(k_var_id + "/k");
+        v_name = m_read_value_to_params.at(v_var_id + "/v");
+        write_kv_cache = false;
     }
-    param = pa_params.add(new_param_name, ov::element::dynamic, ov::PartialShape::dynamic(4));
-    seen_kv_var_ids.emplace(key, param);
-    return false;
+
+    auto k_param = pa_params.add(k_name, ov::element::dynamic, ov::PartialShape::dynamic(4));
+    auto v_param = pa_params.add(v_name, ov::element::dynamic, ov::PartialShape::dynamic(4));
+    m_read_value_to_params.emplace(k_var_id + "/k", k_name);
+    m_read_value_to_params.emplace(v_var_id + "/v", v_name);
+    return {k_param, v_param, write_kv_cache};
 }
 
 ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
                                                          ov::pass::paged_attention::PaResults& results,
                                                          const ov::pass::paged_attention::Options& options,
-                                                         KvCacheParamMap& seen_kv_var_ids) {
+                                                         std::unordered_set<std::string>& var_ids_to_remove) {
     MATCHER_SCOPE(StateManagementPattern);
 
     auto k_current = any_input();
@@ -428,7 +432,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
     // it has to be persistent in the callback, so shared_ptr is used
     auto has_token_type_ids = std::make_shared<bool>(false);
 
-    ov::matcher_pass_callback callback = [=, &pa_params, &results, &seen_kv_var_ids](Matcher& m) {
+    ov::matcher_pass_callback callback = [=, &pa_params, &results, &var_ids_to_remove](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& real_q = pattern_map.at(q);
 
@@ -457,53 +461,26 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
         auto num_k_heads = num_k_heads_dim.get_length();
         auto num_v_heads = num_v_heads_dim.get_length();
 
-        // Detect shared KV-cache: if this SDPA's ReadValue variable_id (with suffix) was already
-        // seen by a previous SDPA, this layer shares its KV-cache with the owner.
-        // Otherwise, create new KV-cache Parameters and record them.
-        bool write_kv_cache = true;
-        std::shared_ptr<v0::Parameter> k_parameter, v_parameter;
-        std::string layer_index_str = std::to_string(m_layer_index);
+        KvCacheParams kv_params;
 
-        // Merged KV pattern: single ReadValue for both K and V caches
         if (pattern_map.count(kv_past_var)) {
             auto rv = ov::as_type_ptr<ov::op::util::ReadValueBase>(pattern_map.at(kv_past_var).get_node_shared_ptr());
             if (!rv)
                 return false;
-            if (find_or_create_kv_param(rv,
-                                        "/k",
-                                        "key_cache." + layer_index_str,
-                                        pa_params,
-                                        seen_kv_var_ids,
-                                        k_parameter))
-                write_kv_cache = false;
-            if (find_or_create_kv_param(rv,
-                                        "/v",
-                                        "value_cache." + layer_index_str,
-                                        pa_params,
-                                        seen_kv_var_ids,
-                                        v_parameter))
-                write_kv_cache = false;
+            kv_params = find_or_create_kv_params(rv, rv, pa_params);
+            var_ids_to_remove.insert(rv->get_variable_id());
         } else {
-            // Separate K/V ReadValues
             auto k_rv = ov::as_type_ptr<ov::op::util::ReadValueBase>(pattern_map.at(k_past_var).get_node_shared_ptr());
             auto v_rv = ov::as_type_ptr<ov::op::util::ReadValueBase>(pattern_map.at(v_past_var).get_node_shared_ptr());
             if (!k_rv || !v_rv)
                 return false;
-            if (find_or_create_kv_param(k_rv,
-                                        "/k",
-                                        "key_cache." + layer_index_str,
-                                        pa_params,
-                                        seen_kv_var_ids,
-                                        k_parameter))
-                write_kv_cache = false;
-            if (find_or_create_kv_param(v_rv,
-                                        "/v",
-                                        "value_cache." + layer_index_str,
-                                        pa_params,
-                                        seen_kv_var_ids,
-                                        v_parameter))
-                write_kv_cache = false;
+            kv_params = find_or_create_kv_params(k_rv, v_rv, pa_params);
+            var_ids_to_remove.insert(k_rv->get_variable_id());
+            var_ids_to_remove.insert(v_rv->get_variable_id());
         }
+
+        auto& k_parameter = kv_params.k;
+        auto& v_parameter = kv_params.v;
 
         // Set parameters to be in the same precision as the original K/V tensors,
         // that allows to avoid unnecessary Convert operations in the graph
@@ -790,7 +767,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
         }
         OPENVINO_ASSERT(pa_arguments.size() == 28);
 
-        auto paged_attention = std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments, write_kv_cache);
+        auto paged_attention =
+            std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments, kv_params.write_kv_cache);
         paged_attention->get_rt_info()[NUM_K_HEADS] = num_k_heads;
         paged_attention->get_rt_info()[K_HEAD_SIZE] = k_head_size;
         paged_attention->get_rt_info()[NUM_V_HEADS] = num_v_heads;
