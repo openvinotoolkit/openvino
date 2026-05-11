@@ -109,8 +109,17 @@ def setup_model(model_id):
     model_path = get_model_path(model_id, "org")
     if not os.path.exists(model_path):
         logger.info(f"Saving original model: {model_path}")
-        model.save_pretrained(model_path)
-        tokenizer.save_pretrained(model_path)
+        # Write to a temporary directory first and rename atomically so an
+        # interrupted run never leaves a half-populated model_path that future
+        # runs would treat as cached (and that breaks optimum's library
+        # auto-detection).
+        tmp_model_path = model_path + ".tmp"
+        if os.path.exists(tmp_model_path):
+            shutil.rmtree(tmp_model_path, ignore_errors=True)
+        os.makedirs(tmp_model_path, exist_ok=True)
+        model.save_pretrained(tmp_model_path)
+        tokenizer.save_pretrained(tmp_model_path)
+        os.rename(tmp_model_path, model_path)
 
     # Convert tokenizer for OpenVINO
     ov_tokenizer, ov_detokenizer = convert_tokenizer(tokenizer, with_detokenizer=True)
@@ -119,7 +128,9 @@ def setup_model(model_id):
     int8_model_path = get_model_path(model_id, PREC_INT8)
     if not os.path.exists(int8_model_path):
         logger.info(f'Creating INT8 OpenVINO model: {int8_model_path}')
-        ov_model = OVModelForCausalLM.from_pretrained(model_path, load_in_8bit=True)
+        ov_model = OVModelForCausalLM.from_pretrained(
+            model_path, load_in_8bit=True, library_name="transformers"
+        )
         ov_model.save_pretrained(int8_model_path)
         tokenizer.save_pretrained(int8_model_path)
         del ov_model
@@ -132,7 +143,11 @@ def setup_model(model_id):
     if not os.path.exists(int4_model_path):
         logger.info(f'Creating INT4 OpenVINO model: {int4_model_path}')
         quantization_config = OVWeightQuantizationConfig(bits=4, ratio=0.8)
-        quantized_model = OVModelForCausalLM.from_pretrained(model_path, quantization_config=quantization_config)
+        quantized_model = OVModelForCausalLM.from_pretrained(
+            model_path,
+            quantization_config=quantization_config,
+            library_name="transformers",
+        )
         quantized_model.save_pretrained(int4_model_path)
         tokenizer.save_pretrained(int4_model_path)
         del quantized_model
