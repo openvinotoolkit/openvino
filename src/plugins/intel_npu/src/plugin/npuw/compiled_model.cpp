@@ -1740,16 +1740,17 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
                     const auto& first_info = pyramid_attn->_attention_infos[0];
                     npu_device_str = device;
                     const auto& strides_key = ov::intel_npu::enable_strides_for.name();
-
-                    saved_strides =
-                        ov::npuw::util::at::_(m_meta_devices[npu_device_str]).at_or(strides_key, std::string{}).as<std::string>();
-                    auto& strided_inputs = m_meta_devices[npu_device_str][strides_key].as<std::string>();
+                    const ov::Any existing_any =
+                        ov::npuw::util::at::_(m_meta_devices[npu_device_str]).at_or(strides_key, std::string{});
+                    saved_strides = existing_any.as<std::string>();
+                    std::string strided_inputs = saved_strides;
                     for (const auto& param : first_info.params) {
                         if (!strided_inputs.empty()) {
                             strided_inputs += ",";
                         }
                         strided_inputs += first_model->inputs()[param.idx].get_any_name();
                     }
+                    m_meta_devices[npu_device_str][strides_key] = strided_inputs;
                     LOG_INFO("Enabled using tensor view for device: " << device
                                                                       << " for pyramid inputs: " << strided_inputs);
                 }  // if(support_strides_for)
@@ -1815,13 +1816,16 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
                 hfa->_can_use_tensor_view = true;
                 npu_device_str = device;
                 const auto& strides_key = ov::intel_npu::enable_strides_for.name();
-                saved_strides = ov::npuw::util::at::_(m_meta_devices[device]).at_or(strides_key, std::string{}).as<std::string>();
-                auto& strided_inputs = m_meta_devices[device][strides_key].as<std::string>();
+                const ov::Any existing_any =
+                    ov::npuw::util::at::_(m_meta_devices[device]).at_or(strides_key, std::string{});
+                saved_strides = existing_any.as<std::string>();
+                std::string strided_inputs = saved_strides;
                 if (!strided_inputs.empty()) {
                     strided_inputs += ",";
                 }
                 strided_inputs += std::string(hfa_tile_input_id_to_string(HFATileInputId::K_TILE)) + "," +
                                   std::string(hfa_tile_input_id_to_string(HFATileInputId::V_TILE));
+                m_meta_devices[device][strides_key] = strided_inputs;
                 supports_strides_for = true;
                 LOG_INFO("Enabled using tensor view for device: " << device << " for inputs: " << strided_inputs);
             }
