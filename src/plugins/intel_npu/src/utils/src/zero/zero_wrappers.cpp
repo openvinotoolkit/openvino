@@ -43,14 +43,21 @@ bool CommandQueueDesc::operator==(const CommandQueueDesc& other) const {
     const bool use_owner_tag = owner_tag_required();
     const bool other_use_owner_tag = other.owner_tag_required();
     if (use_owner_tag || other_use_owner_tag) {
-        if (_owner_tag == nullptr || other._owner_tag == nullptr || _owner_tag != other._owner_tag) {
+        if (_owner_tag != other._owner_tag) {
             return false;
         }
     }
 
     return true;
 }
+bool CommandQueueDesc::uses_global_shared_owner() const {
+    return _shared_common_queue && (_options & ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC) != 0 && _owner_tag == nullptr;
+}
 bool CommandQueueDesc::owner_tag_required() const {
+    if (uses_global_shared_owner()) {
+        // Explicitly model the shared-global queue mode: no owner tag is required.
+        return false;
+    }
     return (_options & ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC) != 0 || !_shared_common_queue;
 }
 void CommandQueueDesc::update_key() {
@@ -66,10 +73,9 @@ void CommandQueueDesc::update_key() {
     hash = zero_hashing::hash_combine64(hash, static_cast<uint64_t>(_shared_common_queue));
 
     const bool use_owner_tag = owner_tag_required();
-    if (use_owner_tag) {
-        OPENVINO_ASSERT(_owner_tag != nullptr,
-                        "owner_tag must not be null when ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC is set or "
-                        "shared_common_queue is disabled");
+    OPENVINO_ASSERT(!use_owner_tag || _owner_tag != nullptr,
+                    "Owner tag is required for this command queue configuration");
+    if (use_owner_tag && _owner_tag != nullptr) {
         hash = zero_hashing::hash_combine64(hash, std::hash<const void*>{}(_owner_tag));
     }
 

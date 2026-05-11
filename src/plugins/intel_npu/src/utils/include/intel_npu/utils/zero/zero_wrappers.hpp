@@ -57,6 +57,7 @@ public:
     bool operator==(const CommandQueueDesc& other) const;
 
 private:
+    bool uses_global_shared_owner() const;
     bool owner_tag_required() const;
     void update_key();
 

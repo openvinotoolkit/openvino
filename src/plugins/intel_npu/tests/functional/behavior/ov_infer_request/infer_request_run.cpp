@@ -35,6 +35,12 @@ INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
                          InferRequestRunTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
+                         ExecutorsConfig,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(configsInferRequestRunTests)),
+                         InferRequestRunTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
                          BooleanPrecisionInferRequestRunTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(configsBooleanPrecisionInferRequestRunTests),
