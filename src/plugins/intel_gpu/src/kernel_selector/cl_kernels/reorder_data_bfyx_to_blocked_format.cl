@@ -51,6 +51,7 @@
                                     }
 
 KERNEL (reorder_data_bfyx_to_blocked_format)(
+    OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output
     )
