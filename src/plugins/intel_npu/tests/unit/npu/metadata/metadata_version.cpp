@@ -6,25 +6,11 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "metadata.hpp"
-#include "openvino/core/version.hpp"
+#include "metadata_wrappers.hpp"
 
 using namespace intel_npu;
 
 using MetadataUnitTests = ::testing::Test;
-
-struct MetadataTest : Metadata<CURRENT_METADATA_VERSION> {
-    MetadataTest(uint64_t blobSize,
-                 const std::optional<OpenvinoVersion>& ovVersion,
-                 const std::optional<std::vector<uint64_t>>& initSizes = std::nullopt,
-                 const std::optional<int64_t> batchSize = std::nullopt,
-                 const std::optional<std::vector<ov::Layout>>& inputLayouts = std::nullopt,
-                 const std::optional<std::vector<ov::Layout>>& outputLayouts = std::nullopt)
-        : Metadata<CURRENT_METADATA_VERSION>(blobSize, ovVersion, initSizes, batchSize, inputLayouts, outputLayouts) {}
-
-    void set_version(uint32_t newVersion) {
-        _version = newVersion;
-    }
-};
 
 TEST_F(MetadataUnitTests, readUnversionedBlob) {
     std::stringstream blob("this_is an_unversioned bl0b");
@@ -154,6 +140,91 @@ TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlobWithContentAllAttri
     }
 }
 
+TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlobWithCompatibilityDesc) {
+    uint64_t blobSize = 64;
+    const std::string compatDesc = "platform=NPU3720;tiles=2;etc=...";
+    std::stringstream stream;
+    std::vector<uint8_t> content(blobSize, 0);
+    stream.write(reinterpret_cast<const char*>(content.data()), static_cast<std::streamsize>(blobSize));
+
+    auto meta = MetadataTest(blobSize,
+                             CURRENT_OPENVINO_VERSION,
+                             std::nullopt,
+                             std::nullopt,
+                             std::nullopt,
+                             std::nullopt,
+                             std::nullopt,
+                             std::nullopt,
+                             compatDesc);
+    OV_ASSERT_NO_THROW(meta.write(stream));
+
+    std::unique_ptr<MetadataBase> storedMeta;
+    OV_ASSERT_NO_THROW(storedMeta = read_metadata_from(stream));
+    ASSERT_TRUE(storedMeta->get_blob_size() == blobSize);
+    ASSERT_TRUE(storedMeta->get_compatibility_descriptor().has_value());
+    ASSERT_EQ(storedMeta->get_compatibility_descriptor().value(), compatDesc);
+
+    stream.seekg(0, std::ios::beg);
+    size_t streamSize = MetadataBase::getFileSize(stream);
+    auto tensor = ov::Tensor(ov::element::u8, ov::Shape{streamSize});
+    stream.read(tensor.data<char>(), tensor.get_byte_size());
+    OV_ASSERT_NO_THROW(storedMeta = read_metadata_from(tensor));
+    ASSERT_TRUE(storedMeta->get_blob_size() == blobSize);
+    ASSERT_TRUE(storedMeta->get_compatibility_descriptor().has_value());
+    ASSERT_EQ(storedMeta->get_compatibility_descriptor().value(), compatDesc);
+}
+
+TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlobWithEmptyCompatibilityDescriptor) {
+    uint64_t blobSize = 0;
+    std::stringstream stream;
+
+    auto meta = MetadataTest(blobSize,
+                             CURRENT_OPENVINO_VERSION,
+                             std::nullopt,
+                             std::nullopt,
+                             std::nullopt,
+                             std::nullopt,
+                             std::nullopt,
+                             std::nullopt,
+                             std::string{});
+    OV_ASSERT_NO_THROW(meta.write(stream));
+
+    std::unique_ptr<MetadataBase> storedMeta;
+    OV_ASSERT_NO_THROW(storedMeta = read_metadata_from(stream));
+    ASSERT_FALSE(storedMeta->get_compatibility_descriptor().has_value());
+
+    stream.seekg(0, std::ios::beg);
+    size_t streamSize = MetadataBase::getFileSize(stream);
+    auto tensor = ov::Tensor(ov::element::u8, ov::Shape{streamSize});
+    stream.read(tensor.data<char>(), tensor.get_byte_size());
+    OV_ASSERT_NO_THROW(storedMeta = read_metadata_from(tensor));
+    ASSERT_FALSE(storedMeta->get_compatibility_descriptor().has_value());
+}
+
+TEST_F(MetadataUnitTests, compatibilityDescriptorLenExceedsTensorBounds) {
+    std::stringstream stream;
+    const std::string compatDesc = "platform=NPU3720;tiles=2;etc=...";
+    auto meta = Metadata<METADATA_VERSION_2_6>(0,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               compatDesc);
+    meta.write(stream);
+    std::string blob = stream.str();
+
+    const size_t compatDescLenOffset = blob.size() - MAGIC_BYTES.size() - sizeof(uint64_t) - compatDesc.size() - sizeof(uint64_t);
+    const uint64_t badLen = compatDesc.size() + 0xFF;
+    std::memcpy(&blob[compatDescLenOffset], &badLen, sizeof(badLen));
+
+    auto tensor = ov::Tensor(ov::element::u8, ov::Shape{blob.size()});
+    std::memcpy(tensor.data<char>(), blob.data(), blob.size());
+    ASSERT_ANY_THROW(read_metadata_from(tensor));
+}
+
 TEST_F(MetadataUnitTests, writeAndReadInvalidMetadataVersion) {
     uint64_t blobSize = 0;
     std::stringstream stream;
@@ -190,32 +261,6 @@ TEST_F(MetadataUnitTests, writeAndReadMetadataWithNewerMinorVersion) {
     auto tensor = ov::Tensor(ov::element::u8, ov::Shape{streamSize});
     stream.read(tensor.data<char>(), tensor.get_byte_size());
     ASSERT_ANY_THROW(storedMeta = read_metadata_from(tensor));
-}
-
-struct MetadataVersionTestFixture : Metadata<CURRENT_METADATA_VERSION>, ::testing::TestWithParam<uint32_t> {
-public:
-    std::stringstream blob;
-
-    void set_version(uint32_t newVersion) {
-        _version = newVersion;
-    }
-
-    MetadataVersionTestFixture() : Metadata<CURRENT_METADATA_VERSION>(0, std::nullopt) {}
-
-    MetadataVersionTestFixture(uint64_t blobSize, std::optional<OpenvinoVersion> ovVersion)
-        : Metadata<CURRENT_METADATA_VERSION>(blobSize, ovVersion) {}
-
-    void TestBody() override {}
-
-    static std::string getTestCaseName(const testing::TestParamInfo<MetadataVersionTestFixture::ParamType>& info);
-};
-
-std::string MetadataVersionTestFixture::getTestCaseName(
-    const testing::TestParamInfo<MetadataVersionTestFixture::ParamType>& info) {
-    std::ostringstream result;
-    result << "major version=" << MetadataBase::get_major(info.param)
-           << ", minor version=" << MetadataBase::get_minor(info.param);
-    return result.str();
 }
 
 TEST_P(MetadataVersionTestFixture, writeAndReadInvalidMetadataVersion) {

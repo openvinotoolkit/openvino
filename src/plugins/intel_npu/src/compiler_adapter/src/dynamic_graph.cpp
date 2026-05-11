@@ -754,4 +754,9 @@ std::optional<bool> DynamicGraph::is_profiling_blob() const {
     return std::nullopt;
 }
 
+std::optional<std::string_view> DynamicGraph::get_compatibility_descriptor() const {
+    _logger.warning("Compatibility descriptor is not supported for DynamicGraph");
+    return std::nullopt;
+}
+
 }  // namespace intel_npu
