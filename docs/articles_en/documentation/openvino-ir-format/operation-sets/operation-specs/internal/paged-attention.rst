@@ -579,41 +579,41 @@ and outputs that are also supported by the CPU plugin on **x86_64**.  Behaviour 
 architectures (e.g. ARM64 with SVE) has not been independently verified against the
 reference.
 
-+-------------------------------------------------------------+-----+----------+
-| Feature                                                     | CPU | Reference|
-+=============================================================+=====+==========+
-| Full causal attention, GQA, ALiBi, sliding window          | ✓   | ✓        |
-+-------------------------------------------------------------+-----+----------+
-| RoPE re-rotation (2D ``rotation_deltas``)                  | ✓   | ✓        |
-+-------------------------------------------------------------+-----+----------+
-| RoPE re-rotation (1D ``rotation_deltas`` ``[Nrot]``)       | ✗   | ✓        |
-+-------------------------------------------------------------+-----+----------+
-| Partial last-block guard during RoPE re-rotation           | ✗   | ✓        |
-+-------------------------------------------------------------+-----+----------+
-| Xattention sparse prefill (x86_64 only on CPU)             | ✓   | ✓        |
-+-------------------------------------------------------------+-----+----------+
-| Attention sinks (x86_64 only on CPU)                       | ✓   | ✓        |
-+-------------------------------------------------------------+-----+----------+
-| Score aggregation output (output 1)                        | ✓   | ✓        |
-+-------------------------------------------------------------+-----+----------+
-| Per-sequence ``score_aggregation_window`` ``[B_seq]``      | ✓   | ✓        |
-+-------------------------------------------------------------+-----+----------+
-| Negative ``score_aggregation_window`` on prefill           | ✗*  | ✓        |
-+-------------------------------------------------------------+-----+----------+
-| Diversity scores output (output 2)                         | ✗   | ✓        |
-+-------------------------------------------------------------+-----+----------+
-| ``adaptive_rkv_start_size`` protection semantics           | ✗   | ✓        |
-+-------------------------------------------------------------+-----+----------+
-| Internal KV-cache eviction (FIFO / SCORE / ADAPTIVE_RKV)   | ✗   | ✓        |
-+-------------------------------------------------------------+-----+----------+
-| Per-head max-pool score smoothing (``pool_kernel``)        | ✗   | ✓        |
-+-------------------------------------------------------------+-----+----------+
-| Attention-mass gating (``attention_mass_p``)               | ✗   | ✓        |
-+-------------------------------------------------------------+-----+----------+
-| block_size == 32 assertion (kernel layout constraint)      | ✓   | ✗        |
-+-------------------------------------------------------------+-----+----------+
-| Bidirectional image attention (``token_type_ids``)         | ✓   | ✗        |
-+-------------------------------------------------------------+-----+----------+
++-------------------------------------------------------------+-----+-----------+
+| Feature                                                     | CPU | Reference |
++=============================================================+=====+===========+
+| Full causal attention, GQA, ALiBi, sliding window           | Y   | Y         |
++-------------------------------------------------------------+-----+-----------+
+| RoPE re-rotation (2D ``rotation_deltas``)                   | Y   | Y         |
++-------------------------------------------------------------+-----+-----------+
+| RoPE re-rotation (1D ``rotation_deltas`` ``[Nrot]``)        | N   | Y         |
++-------------------------------------------------------------+-----+-----------+
+| Partial last-block guard during RoPE re-rotation            | N   | Y         |
++-------------------------------------------------------------+-----+-----------+
+| Xattention sparse prefill (x86_64 only on CPU)              | Y   | Y         |
++-------------------------------------------------------------+-----+-----------+
+| Attention sinks (x86_64 only on CPU)                        | Y   | Y         |
++-------------------------------------------------------------+-----+-----------+
+| Score aggregation output (output 1)                         | Y   | Y         |
++-------------------------------------------------------------+-----+-----------+
+| Per-sequence ``score_aggregation_window`` ``[B_seq]``       | Y   | Y         |
++-------------------------------------------------------------+-----+-----------+
+| Negative ``score_aggregation_window`` on prefill            | N*  | Y         |
++-------------------------------------------------------------+-----+-----------+
+| Diversity scores output (output 2)                          | N   | Y         |
++-------------------------------------------------------------+-----+-----------+
+| ``adaptive_rkv_start_size`` protection semantics            | N   | Y         |
++-------------------------------------------------------------+-----+-----------+
+| Internal KV-cache eviction (FIFO / SCORE / ADAPTIVE_RKV)    | N   | Y         |
++-------------------------------------------------------------+-----+-----------+
+| Per-head max-pool score smoothing (``pool_kernel``)         | N   | Y         |
++-------------------------------------------------------------+-----+-----------+
+| Attention-mass gating (``attention_mass_p``)                | N   | Y         |
++-------------------------------------------------------------+-----+-----------+
+| block_size == 32 assertion (kernel layout constraint)       | Y   | N         |
++-------------------------------------------------------------+-----+-----------+
+| Bidirectional image attention (``token_type_ids``)          | Y   | N         |
++-------------------------------------------------------------+-----+-----------+
 
 \* CPU produces zero score output for prefill steps when the window value is negative
 (see note 1 below).  Decode steps are not affected.
@@ -899,7 +899,6 @@ respectively.  ALiBi, RoPE re-rotation, xattention, sinks, and adaptive RKV evic
 are all disabled (empty inputs).  Score aggregation is enabled (``score_aggregation_window=−1``).
 
 .. code-block:: xml
-   :force:
 
    <layer id="0" name="query" type="Parameter" version="opset1">
        <data element_type="f32" shape="2,512"/>
@@ -1237,9 +1236,9 @@ these inputs are wired to constant empty tensors and zero sentinels by the
 +-----------------------------+--------------------------------------------+--------+----+-----+-----+-----+--------+
 | Model                       | HuggingFace ID                             | Layers | Hq | Hkv | S   | GQA | PA ops |
 +=============================+============================================+========+====+=====+=====+=====+========+
-| TinyLlama-1.1B-Chat-v1.0   | ``TinyLlama/TinyLlama-1.1B-Chat-v1.0``    | 22     | 32 | 4   | 64  | 8x  | 22     |
+| TinyLlama-1.1B-Chat-v1.0    | ``TinyLlama/TinyLlama-1.1B-Chat-v1.0``     | 22     | 32 | 4   | 64  | 8x  | 22     |
 +-----------------------------+--------------------------------------------+--------+----+-----+-----+-----+--------+
-| Qwen2.5-1.5B-Instruct       | ``Qwen/Qwen2.5-1.5B-Instruct``            | 28     | 12 | 2   | 128 | 6x  | 28     |
+| Qwen2.5-1.5B-Instruct       | ``Qwen/Qwen2.5-1.5B-Instruct``             | 28     | 12 | 2   | 128 | 6x  | 28     |
 +-----------------------------+--------------------------------------------+--------+----+-----+-----+-----+--------+
 | Phi-3-mini-4k-instruct      | ``microsoft/Phi-3-mini-4k-instruct``       | 32     | 32 | 32  | 96  | 1x  | 32     |
 +-----------------------------+--------------------------------------------+--------+----+-----+-----+-----+--------+
@@ -1309,8 +1308,7 @@ The input activity pattern was identical across all models:
 +----+-----------------------------------+--------+------------------------------------------+
 | 23 | ``adaptive_rkv_diversity_...``    | CONST  | Empty -- eviction disabled               |
 +----+-----------------------------------+--------+------------------------------------------+
-| 24 | ``adaptive_rkv_diversity_..._    | CONST  | Empty -- eviction disabled               |
-|    | begins``                          |        |                                          |
+| 24 | ``adaptive_rkv_diversity_...``    | CONST  | Empty -- eviction disabled               |
 +----+-----------------------------------+--------+------------------------------------------+
 
 .. rubric:: Active PA outputs per model (observed at runtime)
