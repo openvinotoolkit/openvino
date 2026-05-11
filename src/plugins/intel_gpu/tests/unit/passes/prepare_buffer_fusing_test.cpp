@@ -2202,6 +2202,12 @@ TEST(prepare_buffer_fusing, in_place_crop_dynamic_indivisible_padding_with_resha
 
     auto outputs = network.execute();
 
+    // Verify that the indivisible-padding crops were NOT optimized in-place,
+    // while the crop without reshape user remains optimized.
+    ASSERT_FALSE(network.get_primitive("crop0")->can_be_optimized());
+    ASSERT_FALSE(network.get_primitive("crop1")->can_be_optimized());
+    ASSERT_TRUE(network.get_primitive("crop2")->can_be_optimized());
+
     auto out0_mem = outputs.at("output0").get_memory();
     cldnn::mem_lock<float> out0(out0_mem, get_test_stream());
     auto out1_mem = outputs.at("output1").get_memory();
@@ -2213,8 +2219,9 @@ TEST(prepare_buffer_fusing, in_place_crop_dynamic_indivisible_padding_with_resha
     ASSERT_EQ(out1.size(), feat * crop1_last);
     ASSERT_EQ(out2.size(), feat * crop2_last);
 
-    // bfyx layout: element at [b=0, f, y, x=0] is at flat index f*total_last + y.
-    // crop output element at [b=0, f, cy, x=0] maps to input [b=0, f, cy + offset, x=0].
+    // Check the outputs as linear buffers: for each feature f, every crop contributes
+    // a contiguous slice of length crop*_last, which must match the corresponding
+    // contiguous range in the input feature slice starting at the crop offset.
     const size_t offset0 = 0, offset1 = crop0_last, offset2 = crop0_last + crop1_last;
 
     for (size_t f = 0; f < feat; f++)
