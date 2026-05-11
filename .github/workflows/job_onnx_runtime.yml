@@ -60,16 +60,9 @@ jobs:
           echo "SCCACHE_AZURE_CONNECTION_STRING=${SCCACHE_AZURE_CONNECTION_STRING}" >> $GITHUB_ENV
           echo "✓ Connection string loaded and masked"
 
-      - name: Setup Variables (Linux, macOS)
-        if: runner.os != 'Windows'
+      - name: Setup Variables
         run: |
           echo "HF_TOKEN_PATH=${{ runner.os == 'Linux' && env.HF_TOKEN_PATH_LIN || env.HF_TOKEN_PATH_WIN }}" >> "$GITHUB_ENV"
-
-      - name: Setup Variables (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          Add-Content -Path $env:GITHUB_ENV -Value "HF_TOKEN_PATH=${{ env.HF_TOKEN_PATH_WIN }}"
 
       - name: Fetch ONNX runtime version and skip tests list
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries

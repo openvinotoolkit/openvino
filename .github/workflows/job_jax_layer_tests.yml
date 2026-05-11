@@ -75,19 +75,11 @@ jobs:
           name: openvino_tests
           path: ${{ env.INSTALL_DIR }}
 
-      - name: Setup Variables (Linux, macOS)
-        if: runner.os != 'Windows'
+      - name: Setup Variables
         run: |
           echo "HF_HUB_CACHE=${{ runner.os == 'Linux' && env.HF_HUB_CACHE_LIN || env.HF_HUB_CACHE_WIN }}" >> "$GITHUB_ENV"
           echo "HUGGINGFACE_HUB_CACHE=${{ runner.os == 'Linux' && env.HF_HUB_CACHE_LIN || env.HF_HUB_CACHE_WIN }}" >> "$GITHUB_ENV"
           echo "HF_TOKEN_PATH=${{ runner.os == 'Linux' && env.HF_TOKEN_PATH_LIN || env.HF_TOKEN_PATH_WIN }}" >> "$GITHUB_ENV"
-
-      - name: Setup Variables (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          Add-Content -Path $env:GITHUB_ENV -Value "HF_HUB_CACHE=${{ env.HF_HUB_CACHE_WIN }}"
-          Add-Content -Path $env:GITHUB_ENV -Value "HUGGINGFACE_HUB_CACHE=${{ env.HF_HUB_CACHE_WIN }}"
-          Add-Content -Path $env:GITHUB_ENV -Value "HF_TOKEN_PATH=${{ env.HF_TOKEN_PATH_WIN }}"
 
       - name: Install OpenVINO dependencies (mac)
         if: runner.os == 'macOS'
