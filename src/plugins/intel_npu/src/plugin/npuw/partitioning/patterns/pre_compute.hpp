@@ -36,6 +36,8 @@ public:
     std::shared_ptr<ov::Node> matched_inv_freq_long;
     std::shared_ptr<ov::Node> matched_cond;
     std::shared_ptr<ov::Node> max_pos_id;
+    std::shared_ptr<ov::Node> matched_mltpl_const;
+    std::shared_ptr<ov::Node> matched_power_const;
 };
 
 class RopePatternLLama2 : public RopePatternDesc {
