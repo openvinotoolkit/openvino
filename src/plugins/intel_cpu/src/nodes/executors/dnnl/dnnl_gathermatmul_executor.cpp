@@ -82,9 +82,7 @@ public:
     InnerProduct& operator=(const InnerProduct&) = delete;
     InnerProduct& operator=(InnerProduct&&) = delete;
 
-    InnerProduct(const dnnl::engine& eng,
-                 const std::shared_ptr<ThreadPool>& threadPool,
-                 const InnerProductKey& key)
+    InnerProduct(const dnnl::engine& eng, const std::shared_ptr<ThreadPool>& threadPool, const InnerProductKey& key)
         : m_stream(make_stream(eng, threadPool)),
           m_has_bias(key.has_bias) {
         const auto& src_md = key.src_md;
@@ -119,18 +117,17 @@ public:
 
         dnnl::memory::desc bias_md;
         if (m_has_bias) {
-            bias_md = dnnl::memory::desc(dnnl::memory::dims({N}),
-                                         dnnl::memory::data_type::f32,
-                                         dnnl::memory::format_tag::a);
+            bias_md =
+                dnnl::memory::desc(dnnl::memory::dims({N}), dnnl::memory::data_type::f32, dnnl::memory::format_tag::a);
         }
 
         auto ip_prim_desc = dnnl::inner_product_forward::primitive_desc(eng,
-                                                                         dnnl::prop_kind::forward_inference,
-                                                                         m_input_md,
-                                                                         weights_md,
-                                                                         bias_md,
-                                                                         m_output_md,
-                                                                         m_attr);
+                                                                        dnnl::prop_kind::forward_inference,
+                                                                        m_input_md,
+                                                                        weights_md,
+                                                                        bias_md,
+                                                                        m_output_md,
+                                                                        m_attr);
 
         m_impl_type = parse_impl_name(ip_prim_desc.impl_info_str());
         m_wei_md = ip_prim_desc.weights_desc();
@@ -199,11 +196,11 @@ private:
     }
 
     static std::unordered_map<int, dnnl::memory> make_args(dnnl::memory& src,
-                                                            dnnl::memory& dst,
-                                                            dnnl::memory& weight,
-                                                            dnnl::memory& bias,
-                                                            dnnl::memory& scale,
-                                                            dnnl::memory& zp) {
+                                                           dnnl::memory& dst,
+                                                           dnnl::memory& weight,
+                                                           dnnl::memory& bias,
+                                                           dnnl::memory& scale,
+                                                           dnnl::memory& zp) {
         std::unordered_map<int, dnnl::memory> args;
         args.insert({DNNL_ARG_SRC, src});
         args.insert({DNNL_ARG_WEIGHTS, weight});
@@ -350,17 +347,17 @@ GatherMatmulDnnlExecutor::GatherMatmulDnnlExecutor([[maybe_unused]] const Gather
                                                    const MemoryArgs& memory,
                                                    const ExecutorContext::CPtr& context)
     : m_context(context) {
-#ifdef OPENVINO_ARCH_X86_64
-    using namespace dnnl::impl::cpu::x64;
+    m_withBias = !memory.at(ARG_BIAS)->getDesc().empty();
 
     const auto& weightsMemory = memory.at(ARG_WEI);
     const auto& srcMemory = memory.at(ARG_SRC);
 
     auto src_precision = srcMemory->getDesc().getPrecision();
     auto weights_precision = weightsMemory->getDesc().getPrecision();
-
-    m_bf16AmxMode = (src_precision == ov::element::bf16 && mayiuse(avx512_core_amx));
-    m_withBias = !memory.at(ARG_BIAS)->getDesc().empty();
+#ifdef OPENVINO_ARCH_X86_64
+    m_bf16AmxMode =
+        (src_precision == ov::element::bf16 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx));
+#endif
 
     const auto& weiDims = weightsMemory->getShape().getStaticDims();
     const dnnl::memory::dim N = weiDims[weiDims.size() - 2];
@@ -393,11 +390,11 @@ GatherMatmulDnnlExecutor::GatherMatmulDnnlExecutor([[maybe_unused]] const Gather
     }
 
     dnnl::memory::desc src_md({1, K},
-                               DnnlExtensionUtils::ElementTypeToDataType(src_precision),
-                               dnnl::memory::format_tag::ab);
+                              DnnlExtensionUtils::ElementTypeToDataType(src_precision),
+                              dnnl::memory::format_tag::ab);
     dnnl::memory::desc weights_md({N, K},
-                                   DnnlExtensionUtils::ElementTypeToDataType(weights_precision),
-                                   dnnl::memory::format_tag::any);
+                                  DnnlExtensionUtils::ElementTypeToDataType(weights_precision),
+                                  dnnl::memory::format_tag::any);
 
     const bool has_bias = m_withBias;
     InnerProductKey key{src_md, weights_md, scale_shape, zp_shape, has_bias};
@@ -435,13 +432,13 @@ GatherMatmulDnnlExecutor::GatherMatmulDnnlExecutor([[maybe_unused]] const Gather
     auto srcWeightsDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weightsMemory->getDescPtr());
 
     m_weightsMemory = utils::prepareWeightsMemory(srcWeightsDesc,
-                                                   targetWeightsDesc,
-                                                   weightsMemory,
-                                                   eng,
-                                                   cache,
-                                                   context->getWeightsCache(),
-                                                   context->getPrivateWeightCache(),
-                                                   threadPool);
+                                                  targetWeightsDesc,
+                                                  weightsMemory,
+                                                  eng,
+                                                  cache,
+                                                  context->getWeightsCache(),
+                                                  context->getPrivateWeightCache(),
+                                                  threadPool);
 
     if (!scale_shape.empty()) {
         auto expectedScaleMemDesc =
@@ -471,11 +468,9 @@ GatherMatmulDnnlExecutor::GatherMatmulDnnlExecutor([[maybe_unused]] const Gather
     }
 
     m_implType = m_gemvImpl->get_impl_type();
-#endif
 }
 
 bool GatherMatmulDnnlExecutor::update(const MemoryArgs& memory) {
-#ifdef OPENVINO_ARCH_X86_64
     if (!m_bf16AmxMode) {
         return true;
     }
@@ -495,16 +490,14 @@ bool GatherMatmulDnnlExecutor::update(const MemoryArgs& memory) {
 
     const size_t srcSize = rnd_up(m_tmpInputDesc->getCurrentMemSize(), 64);
     const size_t totalSize = srcSize + m_tmpOutputDesc->getCurrentMemSize();
-    auto scratchPadDesc =
-        creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::u8, Shape({totalSize}));
+    auto scratchPadDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::u8, Shape({totalSize}));
     m_tmpInpBuffer = m_context->getScratchPad()->createScratchPadMem(scratchPadDesc);
 
     OPENVINO_ASSERT(m_gemvImpl, "GEMV implementation is not created");
 
-    dnnl::memory::desc src_md({static_cast<dnnl::memory::dim>(M),
-                                static_cast<dnnl::memory::dim>(srcShape[2])},
-                               DnnlExtensionUtils::ElementTypeToDataType(srcPrc),
-                               dnnl::memory::format_tag::ab);
+    dnnl::memory::desc src_md({static_cast<dnnl::memory::dim>(M), static_cast<dnnl::memory::dim>(srcShape[2])},
+                              DnnlExtensionUtils::ElementTypeToDataType(srcPrc),
+                              dnnl::memory::format_tag::ab);
     auto weights_md = m_gemvImpl->get_weights_md();
 
     VectorDims scale_shape{};
@@ -533,7 +526,6 @@ bool GatherMatmulDnnlExecutor::update(const MemoryArgs& memory) {
     std::tie(m_gemmImpl, std::ignore) = cache->getOrCreate(key, [&eng, &threadPool](const InnerProductKey& k) {
         return std::make_shared<InnerProduct>(eng, threadPool, k);
     });
-#endif
     return true;
 }
 
@@ -565,8 +557,7 @@ void GatherMatmulDnnlExecutor::execute(const MemoryArgs& memory) {
             const auto* gather_ids = static_cast<const int32_t*>(index_offset(m));
             for (size_t i = 0; i < indices_size; i++) {
                 int32_t gather_axis_index = gather_ids[i];
-                OPENVINO_ASSERT(gather_axis_index >= 0 &&
-                                    static_cast<size_t>(gather_axis_index) < gather_axis_size,
+                OPENVINO_ASSERT(gather_axis_index >= 0 && static_cast<size_t>(gather_axis_index) < gather_axis_size,
                                 "Invalid gather_id ",
                                 gather_axis_index,
                                 " for m ",
