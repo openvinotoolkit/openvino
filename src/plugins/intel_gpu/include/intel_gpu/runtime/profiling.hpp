@@ -21,6 +21,9 @@
 
 #include <windows.h>
 #include "psapi.h"
+#include <dxgi1_4.h>
+#include <wrl/client.h>
+#pragma comment(lib, "dxgi.lib")
 #endif
 
 #include "layout.hpp"
@@ -230,8 +233,76 @@ public:
 
     void print_mem_usage_info() {
         auto mem_usage = get_elapsed_mem_usage();
-        GPU_DEBUG_LOG << "Memory usage for " << _stage_name << ": " << mem_usage.rss << " KB (current RSS: "
-                      << _after.rss << " KB; peak RSS: " << _after.peak_rss << " KB)" << std::endl;
+        std::string log_msg = "Memory usage for " + _stage_name + ": " + std::to_string(mem_usage.rss) +
+                              " KB (current RSS: " + std::to_string(_after.rss) +
+                              " KB; peak RSS: " + std::to_string(_after.peak_rss) + " KB)";
+
+        int64_t vram_local_used = get_vram_local_used_kb();
+        if (vram_local_used >= 0) {
+            log_msg += ", (local_used : " + std::to_string(vram_local_used) + " KB)";
+        }
+
+        GPU_DEBUG_LOG << log_msg << std::endl;
+    }
+
+    int64_t get_vram_local_used_kb() {
+#if defined(_WIN32)
+        using Microsoft::WRL::ComPtr;
+        static ComPtr<IDXGIFactory4> dxgi_factory;
+        static ComPtr<IDXGIAdapter3> selected_adapter;
+        static bool initialized = false;
+        static bool init_failed = false;
+
+        if (!initialized && !init_failed) {
+            // One-time initialization of DXGI
+            if (S_OK != CreateDXGIFactory2(0, IID_PPV_ARGS(&dxgi_factory))) {
+                init_failed = true;
+                return -1;
+            }
+
+            IDXGIAdapter *adapter = nullptr;
+            const uint32_t INTEL_PCI_VENDOR_ID = 0x8086;
+            bool found_intel_adapter = false;
+
+            for (UINT adapterIndex = 0; dxgi_factory->EnumAdapters(adapterIndex, &adapter) != DXGI_ERROR_NOT_FOUND; adapterIndex++) {
+                DXGI_ADAPTER_DESC desc;
+                adapter->GetDesc(&desc);
+                if (desc.VendorId == INTEL_PCI_VENDOR_ID) {
+                    if (S_OK == adapter->QueryInterface(IID_PPV_ARGS(&selected_adapter))) {
+                        found_intel_adapter = true;
+                    }
+                    adapter->Release();
+                    if (found_intel_adapter) break;
+                }
+                adapter->Release();
+            }
+
+            if (!found_intel_adapter) {
+                init_failed = true;
+                return -1;
+            }
+            initialized = true;
+        }
+
+        if (init_failed || !selected_adapter) {
+            return -1;
+        }
+
+        // Query VRAM usage across all nodes
+        int64_t total_local_used = 0;
+        const int KiB = 1024;
+
+        int nodeId = 0;
+        DXGI_QUERY_VIDEO_MEMORY_INFO info;
+        while (S_OK == selected_adapter->QueryVideoMemoryInfo(nodeId, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &info)) {
+            total_local_used += info.CurrentUsage / KiB;
+            nodeId++;
+        }
+
+        return total_local_used;
+#else
+        return -1;  // Not available on non-Windows platforms
+#endif
     }
 
 private:
