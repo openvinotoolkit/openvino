@@ -158,10 +158,10 @@ GatherMatmul::GatherMatmul(const std::shared_ptr<ov::Node>& op, const GraphConte
 
     m_isCompressed = ov::is_type<ov::op::internal::GatherMatmulCompressed>(op);
 
-    m_atoi[ARG_SRC]   = DATA;
-    m_atoi[ARG_WEI]   = WEIGHTS;
+    m_atoi[ARG_SRC] = DATA;
+    m_atoi[ARG_WEI] = WEIGHTS;
     m_atoi[ARG_SRC_1] = INDICES;
-    m_atoi[ARG_BIAS]  = BIAS;
+    m_atoi[ARG_BIAS] = BIAS;
     if (m_isCompressed) {
         m_atoi[ARG_SRC_3] = WEIGHT_SCALES;
         m_atoi[ARG_SRC_4] = WEIGHT_ZERO_POINTS;
@@ -185,14 +185,13 @@ void GatherMatmul::initSupportedPrimitiveDescriptors() {
     };
 
     MemoryDescArgs descs;
-    descs[ARG_SRC]   = makeSrcDesc(DATA);
-    descs[ARG_WEI]   = makeSrcDesc(WEIGHTS);
+    descs[ARG_SRC] = makeSrcDesc(DATA);
+    descs[ARG_WEI] = makeSrcDesc(WEIGHTS);
     descs[ARG_SRC_1] = makeSrcDesc(INDICES);
-    descs[ARG_BIAS]  = makeSrcDesc(BIAS);
-    descs[ARG_SRC_3] = m_isCompressed ? makeSrcDesc(WEIGHT_SCALES)     : MemoryDescUtils::makeEmptyDesc();
+    descs[ARG_BIAS] = makeSrcDesc(BIAS);
+    descs[ARG_SRC_3] = m_isCompressed ? makeSrcDesc(WEIGHT_SCALES) : MemoryDescUtils::makeEmptyDesc();
     descs[ARG_SRC_4] = m_isCompressed ? makeSrcDesc(WEIGHT_ZERO_POINTS) : MemoryDescUtils::makeEmptyDesc();
-    descs[ARG_DST]   =
-        creatorsMap.at(LayoutType::ncsp)->createSharedDesc(dstTypes.front(), getOutputShapeAtPort(0));
+    descs[ARG_DST] = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(dstTypes.front(), getOutputShapeAtPort(0));
 
     auto executionContext = std::make_shared<ExecutorContext>(context, getImplPriority(), privateWeightCache);
     m_factory = std::make_shared<ExecutorFactory<GatherMatmulAttrs>>(m_attrs, executionContext, descs);
