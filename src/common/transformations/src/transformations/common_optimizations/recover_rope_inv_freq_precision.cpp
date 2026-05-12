@@ -210,7 +210,8 @@ bool RecoverRoPEInvFreqPrecision::run_on_model(const std::shared_ptr<ov::Model>&
         }
 
         // Create new f32 constant with the recomputed values
-        auto new_constant = std::make_shared<ov::op::v0::Constant>(ov::element::f32, constant->get_shape(), recomputed.data());
+        auto new_constant =
+            std::make_shared<ov::op::v0::Constant>(ov::element::f32, constant->get_shape(), recomputed.data());
         new_constant->set_friendly_name(constant->get_friendly_name() + "_f32_recovered");
         ov::copy_runtime_info(constant, new_constant);
 
