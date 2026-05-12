@@ -31,8 +31,9 @@ BlobWriter::BlobWriter(const std::shared_ptr<BlobReader>& blob_reader)
     m_cre = std::dynamic_pointer_cast<CRESection>(cre_section)->get_cre();
 
     for (const auto& [section_type_id, sections] : blob_reader->m_parsed_sections) {
-        if (section_type_id != PredefinedSectionType::OFFSETS_TABLE &&
-            section_type_id != PredefinedSectionType::CRE) {
+        // The CRE & offsets table sections are added by the write() method after writing all registered sections (jic
+        // the registered sections will alter the CRE/table). Therefore, these sections should be omitted here.
+        if (section_type_id != PredefinedSectionType::OFFSETS_TABLE && section_type_id != PredefinedSectionType::CRE) {
             // Recall that each section type can have multiple instances
             for (const auto& [instance_id, section] : sections) {
                 register_section_from_blob_reader(section);

@@ -36,7 +36,7 @@ public:
     BlobWriter();
 
     /**
-     * @brief Construct a BlobWriter based on the data parse by the BlobReader.
+     * @brief Construct a BlobWriter based on the data parsed by the BlobReader.
      * @details The BlobReader handles the parsing of a compiled model. The data parsed by this object can be reused to
      * re-export the model using a BlobWriter if requested.
      *
