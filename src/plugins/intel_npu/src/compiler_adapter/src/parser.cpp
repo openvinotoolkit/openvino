@@ -26,7 +26,8 @@ Parser::Parser(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct)
 std::shared_ptr<IGraph> Parser::parse(const ov::Tensor& mainBlob,
                                       const FilteredConfig& config,
                                       const std::optional<std::vector<ov::Tensor>>& initBlobs,
-                                      std::optional<std::shared_ptr<const ov::Model>>&& model) const {
+                                      std::optional<std::shared_ptr<const ov::Model>>&& model,
+                                      const std::optional<std::string>& compatibilityDescriptor) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "Parser", "parse");
 
     // Detect blob format
@@ -72,6 +73,7 @@ std::shared_ptr<IGraph> Parser::parse(const ov::Tensor& mainBlob,
                                        std::move(mainNetworkMetadata),
                                        mainBlob,
                                        config,
+                                       compatibilityDescriptor,
                                        blobIsPersistent);
     }
 
