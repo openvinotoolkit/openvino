@@ -79,7 +79,7 @@ INSTANTIATE_TEST_SUITE_P(opset,
                                          OpsetTestParams{ov::get_opset14, 188},
                                          OpsetTestParams{ov::get_opset15, 199},
                                          OpsetTestParams{ov::get_opset16, 203},
-                                         OpsetTestParams{ov::get_opset17, 4}),
+                                         OpsetTestParams{ov::get_opset17, 5}),
                          OpsetTestNameGenerator{});
 
 class MyOpOld : public ov::op::Op {

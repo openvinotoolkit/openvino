@@ -185,6 +185,8 @@ _OPENVINO_OP_REG(SegmentMax, ov::op::v16)
 _OPENVINO_OP_REG(SparseFillEmptyRows, ov::op::v16)
 _OPENVINO_OP_REG(OneHot, ov::op::v16)
 
+_OPENVINO_OP_REG(Atan2, ov::op::v17)
+
 _OPENVINO_OP_REG(AUGRUCell, ov::op::internal)
 _OPENVINO_OP_REG(AUGRUSequence, ov::op::internal)
 _OPENVINO_OP_REG(RMS, ov::op::internal)

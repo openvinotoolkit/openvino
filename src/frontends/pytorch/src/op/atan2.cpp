@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_translators.hpp"
+#include "openvino/op/atan2.hpp"
+
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "utils.hpp"
 
@@ -14,14 +15,12 @@ namespace op {
 using namespace ov::op;
 
 OutputVector translate_atan2(const NodeContext& context) {
-    // atan2(input, other, *) → Tensor
+    // aten::atan2(Tensor self, Tensor other) → Tensor
     num_inputs_check(context, 2, 2);
     Output<Node> lhs;
     Output<Node> rhs;
-
     std::tie(lhs, rhs) = get_inputs_with_promoted_types(context, 0, 1);
-
-    return common_translators::translate_atan2_util(context, lhs, rhs);
+    return {context.mark_node(std::make_shared<v17::Atan2>(lhs, rhs))};
 }
 
 }  // namespace op
