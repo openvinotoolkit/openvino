@@ -208,7 +208,6 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
     if (all_devices.empty()) {
         return std::nullopt;
     }
-
     NPUDesc desc;
     desc.arch = plugin->get_property(ov::device::architecture.name(), ov::AnyMap{}).as<std::string>();
     desc.max_tiles = plugin->get_property(ov::intel_npu::max_tiles.name(), ov::AnyMap{}).as<int64_t>();
@@ -315,14 +314,52 @@ ov::AnyMap get_default_common_config(const std::optional<NPUDesc>& npudesc) {
     } else {
         config.emplace("NPUW_FUNCALL_FOR_ALL", "YES");
     }
+    auto set_max_tiles_based_on_arch = [&config, &npudesc]() {
+        if (!npudesc.has_value()) {
+            return;
+        }
+        LOG_DEBUG("NPU architecture detected: " << npudesc->arch << ", max tiles: " << npudesc->max_tiles
+                                                << ", compiler DQ support: " << (npudesc->compiler_dq ? "YES" : "NO"));
+
+        // Platform parameter has a higher priority than deviceID
+        std::string npu_platform;
+        if (npudesc->arch != ov::intel_npu::Platform::AUTO_DETECT) {
+            npu_platform = ov::intel_npu::Platform::standardize(npudesc->arch);
+        } else {
+            npu_platform = npudesc->arch;
+        }
+
+        bool set_npu_tiles = false;
+        std::string arch_added_compilation_param;
+        if (npu_platform == ov::intel_npu::Platform::NPU3720) {
+            // Keep baseline settings.
+        } else if (npu_platform == ov::intel_npu::Platform::NPU4000) {
+            set_npu_tiles = true;
+            arch_added_compilation_param = "optimization-level=3";
+        } else if (npu_platform == ov::intel_npu::Platform::NPU5010 ||
+                   npu_platform == ov::intel_npu::Platform::NPU5020) {
+            set_npu_tiles = true;
+        } else if (npu_platform == ov::intel_npu::Platform::AUTO_DETECT) {
+            arch_added_compilation_param = "performance-hint-override=latency";
+        } else {
+            LOG_WARN("Unknown NPU platform: " << npu_platform << ". Default config will be used.");
+        }
+
+        if (set_npu_tiles) {
+            config["NPU_TILES"] = npudesc->max_tiles;
+        }
+
+        if (!arch_added_compilation_param.empty()) {
+            config["NPU_COMPILATION_MODE_PARAMS"] =
+                config["NPU_COMPILATION_MODE_PARAMS"].as<std::string>() + " " + arch_added_compilation_param;
+        }
+    };
+    set_max_tiles_based_on_arch();
     return config;
 }
 
 ov::AnyMap get_default_prefill_config(const std::shared_ptr<ov::Model>& model, const std::optional<NPUDesc>& npudesc) {
     auto config = get_default_common_config(npudesc);
-    if (npudesc.has_value() && npudesc->arch == "4000" && npudesc->max_tiles != -1) {
-        config.emplace("NPU_TILES", npudesc->max_tiles);
-    }
     // Specify NPUW DQ if Compiler DQ is not enabled
     if (!npudesc.has_value() || !npudesc->compiler_dq) {
         if (is_cw_compressed(model)) {
@@ -945,6 +982,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     LOG_DEBUG("Converting KV-cache in prefill model to" << kv_kache_storage_type);
     ov::npuw::ConvertKVCacheToPrecision(kv_kache_storage_type).run_on_model(prefill_model);
 
+    std::optional<std::string> user_compilation_mode_params = std::nullopt;
+    if (const auto it = other_props.find("NPU_COMPILATION_MODE_PARAMS"); it != other_props.end()) {
+        user_compilation_mode_params = it->second.as<std::string>();
+    }
+
     auto prefill_config =
         prefill_config_opt.value_or(get_default_prefill_config(prefill_model, npudesc)).as<ov::AnyMap>();
 
@@ -956,6 +998,14 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto generate_config =
         generate_config_opt.value_or(get_default_generate_config(npudesc, generate_hint)).as<ov::AnyMap>();
 
+    const std::optional<std::string> default_compilation_mode_params =
+        [&prefill_config]() -> std::optional<std::string> {
+        if (const auto it = prefill_config.find("NPU_COMPILATION_MODE_PARAMS"); it != prefill_config.end()) {
+            return it->second.as<std::string>();
+        }
+        return std::nullopt;
+    }();
+
     auto prefill_config_addition_value =
         prefill_config_addition.has_value() ? prefill_config_addition.value().as<ov::AnyMap>() : ov::AnyMap{};
     auto generate_config_addition_value =
@@ -965,6 +1015,13 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     merge_config_with(generate_config, other_props);
     merge_config_with(prefill_config, prefill_config_addition_value);
     merge_config_with(generate_config, generate_config_addition_value);
+
+    if (user_compilation_mode_params.has_value() && default_compilation_mode_params.has_value() &&
+        user_compilation_mode_params.value() != default_compilation_mode_params.value()) {
+        LOG_WARN("User-provided NPU_COMPILATION_MODE_PARAMS overrides arch-aware setting \""
+                 << default_compilation_mode_params.value() << "\". User value: \""
+                 << user_compilation_mode_params.value() << "\".");
+    }
 
     // Generate a random weights bank name unique to this LLMCompiledModel object
     auto weights_bank_name = ov::npuw::util::generate_random_string();

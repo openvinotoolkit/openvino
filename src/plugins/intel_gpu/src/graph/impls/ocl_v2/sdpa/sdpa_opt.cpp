@@ -116,11 +116,11 @@ public:
 
         kernel_dump_info.clear_entries();
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
         // Check if INT4 KV cache is in use (micro kernel doesn't support INT4 for non-PA SDPA)
         const auto kv_cache_dt = new_params.get_program().get_config().get_kv_cache_precision();
         const bool is_int4_kv = ov::element::Type(kv_cache_dt).bitwidth() == 4;
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
         if (has_stage(regular_micro_multi_tokens) && is_prefill && !is_indirect && !is_int4_kv) {
             GPU_DEBUG_TRACE_DETAIL << "execute regular_micro_multi_tokens for prefill \n";
             return execute_stage(events, instance, regular_micro_multi_tokens);
