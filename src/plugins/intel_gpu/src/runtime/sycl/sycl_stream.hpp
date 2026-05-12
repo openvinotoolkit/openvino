@@ -32,7 +32,7 @@ public:
     ~sycl_stream() = default;
 
     void flush() const override;
-    void finish() override;
+    void finish() const override;
     void wait() override;
 
     void set_arguments(kernel& kernel, const kernel_arguments_desc& args_desc, const kernel_arguments_data& args) override;
@@ -62,7 +62,7 @@ private:
     void sync_events(std::vector<event::ptr> const& deps, bool is_output = false);
 
     const sycl_engine& _engine;
-    ::sycl::queue _command_queue;
+    mutable ::sycl::queue _command_queue;
     std::atomic<uint64_t> _queue_counter{0};
     std::atomic<uint64_t> _last_barrier{0};
     ::sycl::event _last_barrier_ev;

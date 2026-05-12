@@ -161,9 +161,9 @@ std::unique_ptr<surfaces_lock> sycl_stream::create_surfaces_lock(const std::vect
 void sycl_stream::flush() const {
     // nothing to do
 }
-void sycl_stream::finish() {
+void sycl_stream::finish() const {
     try {
-        get_sycl_queue().wait_and_throw();
+        _command_queue.wait_and_throw();
     } catch (::sycl::exception const& err) {
         OPENVINO_THROW(SYCL_ERR_MSG_FMT(err));
     }
