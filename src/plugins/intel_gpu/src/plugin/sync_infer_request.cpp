@@ -24,8 +24,11 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
 #include <algorithm>
+#include <exception>
+#include <iostream>
 #include <iterator>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <map>
 #include <unordered_set>
@@ -84,6 +87,48 @@ cldnn::data_types data_type_for_remote_tensor(ov::element::Type t) {
 
 namespace ov::intel_gpu {
 
+namespace {
+// [SD3-DBG] Re-arm std::set_terminate from the GPU infer() path. torch's
+// c10::TerminateHandler is installed during torch_python.dll load, which happens
+// AFTER openvino.dll's static initializer. Re-installing here ensures our
+// handler runs first and prints the actual exception text before torch's
+// nearest-symbol stack walker eats the message.
+[[noreturn]] void sd3_dbg_gpu_terminate_handler() {
+    try {
+        auto eptr = std::current_exception();
+        if (eptr) {
+            try {
+                std::rethrow_exception(eptr);
+            } catch (const std::exception& e) {
+                std::cout << "[SD3-DBG] GPU TERMINATE uncaught std::exception type=" << typeid(e).name()
+                          << " what=" << e.what() << std::endl;
+                std::cerr << "[SD3-DBG] GPU TERMINATE uncaught std::exception type=" << typeid(e).name()
+                          << " what=" << e.what() << std::endl;
+            } catch (...) {
+                std::cout << "[SD3-DBG] GPU TERMINATE uncaught non-std exception" << std::endl;
+                std::cerr << "[SD3-DBG] GPU TERMINATE uncaught non-std exception" << std::endl;
+            }
+        } else {
+            std::cout << "[SD3-DBG] GPU TERMINATE no current_exception" << std::endl;
+            std::cerr << "[SD3-DBG] GPU TERMINATE no current_exception" << std::endl;
+        }
+    } catch (...) {
+    }
+    std::cout.flush();
+    std::cerr.flush();
+    std::abort();
+}
+
+void sd3_dbg_install_terminate_handler_once() {
+    static std::once_flag once;
+    std::call_once(once, []() {
+        auto prev = std::set_terminate(&sd3_dbg_gpu_terminate_handler);
+        std::cout << "[SD3-DBG] GPU sync_infer_request: re-armed std::set_terminate (prev="
+                  << reinterpret_cast<void*>(prev) << ")" << std::endl;
+    });
+}
+}  // namespace
+
 // ----------------------------------------------------------------------------------------------- //
 // ---------------------------- OpenVINO API impl ------------------------------------------------ //
 // ----------------------------------------------------------------------------------------------- //
@@ -117,10 +162,29 @@ SyncInferRequest::~SyncInferRequest() {
 void SyncInferRequest::infer() {
     // String can be constructed once in the constructor
     OV_ITT_SCOPED_TASK_BASE(itt::domains::intel_gpu_inference,  m_itt_infer_request_str.c_str());
-    setup_stream_graph();
-    std::lock_guard<std::mutex> lk(m_graph->get_mutex());
-    enqueue();
-    wait();
+    sd3_dbg_install_terminate_handler_once();
+    std::cout << "[SD3-DBG] GPU SyncInferRequest::infer ENTER tag=" << m_itt_infer_request_str << std::endl;
+    try {
+        std::cout << "[SD3-DBG] GPU SyncInferRequest::infer >> setup_stream_graph()" << std::endl;
+        setup_stream_graph();
+        std::cout << "[SD3-DBG] GPU SyncInferRequest::infer << setup_stream_graph() OK" << std::endl;
+        std::lock_guard<std::mutex> lk(m_graph->get_mutex());
+        std::cout << "[SD3-DBG] GPU SyncInferRequest::infer >> enqueue()" << std::endl;
+        enqueue();
+        std::cout << "[SD3-DBG] GPU SyncInferRequest::infer << enqueue() OK" << std::endl;
+        std::cout << "[SD3-DBG] GPU SyncInferRequest::infer >> wait()" << std::endl;
+        wait();
+        std::cout << "[SD3-DBG] GPU SyncInferRequest::infer << wait() OK" << std::endl;
+    } catch (const std::exception& e) {
+        std::cout << "[SD3-DBG] GPU SyncInferRequest::infer EXCEPTION std::exception what=" << e.what() << std::endl;
+        std::cerr << "[SD3-DBG] GPU SyncInferRequest::infer EXCEPTION std::exception what=" << e.what() << std::endl;
+        throw;
+    } catch (...) {
+        std::cout << "[SD3-DBG] GPU SyncInferRequest::infer EXCEPTION non-std (...)" << std::endl;
+        std::cerr << "[SD3-DBG] GPU SyncInferRequest::infer EXCEPTION non-std (...)" << std::endl;
+        throw;
+    }
+    std::cout << "[SD3-DBG] GPU SyncInferRequest::infer EXIT OK tag=" << m_itt_infer_request_str << std::endl;
 }
 
 std::vector<ov::ProfilingInfo> SyncInferRequest::get_profiling_info() const {
