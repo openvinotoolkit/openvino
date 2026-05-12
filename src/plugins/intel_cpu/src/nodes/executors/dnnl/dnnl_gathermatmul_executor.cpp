@@ -548,9 +548,9 @@ void GatherMatmulDnnlExecutor::execute(const MemoryArgs& memory) {
     auto zp_offset = OffsetHelper::createOffsetHelper(m_zpMemory);
     auto index_offset = OffsetHelper::createOffsetHelper(indexMem);
 
-    if (M > 1) {
-        const size_t gather_axis_size = m_weightsMemory->getStaticDims()[0];
+    const size_t gather_axis_size = m_weightsMemory->getStaticDims()[0];
 
+    if (M > 1) {
         std::vector<std::pair<int32_t, int32_t>> gather_idx_map(gather_axis_size * M);
         std::vector<int32_t> elements_per_gather_indx(gather_axis_size, 0);
         for (size_t m = 0; m < M; m++) {
@@ -648,6 +648,11 @@ void GatherMatmulDnnlExecutor::execute(const MemoryArgs& memory) {
         auto* gather_ids = static_cast<int32_t*>(index_offset(m));
         for (size_t i = 0; i < indices_size; i++) {
             int32_t gather_axis_index = gather_ids[i];
+            OPENVINO_ASSERT(gather_axis_index >= 0 && static_cast<size_t>(gather_axis_index) < gather_axis_size,
+                            "Invalid gather_id ",
+                            gather_axis_index,
+                            " for i ",
+                            i);
             auto* src = src_offset(i, m);
             auto* dst = dst_offset(i, m);
             auto* wei = wei_offset(gather_axis_index);
