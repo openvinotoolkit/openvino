@@ -25,18 +25,8 @@ set_source_files_properties(
 
 target_sources(${TARGET_NAME}
     PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/codec_xor.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/common_util.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/env_util.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/file_path.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/file_util.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/log.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/parallel_read_streambuf.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/wstring_convert_util.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/xml_parse_utils.cpp
-    $<$<BOOL:${WIN32}>:${WIN32_SOURCES}>
-    $<$<NOT:$<BOOL:${WIN32}>>:${LIN_SOURCES}>
-    PRIVATE
+
+    # headers
     ${UTIL_INCLUDE_DIR}/openvino/pch/precomp_std.hpp
     ${UTIL_INCLUDE_DIR}/openvino/util/codec_xor.hpp
     ${UTIL_INCLUDE_DIR}/openvino/util/common_util.hpp
@@ -56,7 +46,25 @@ target_sources(${TARGET_NAME}
     ${UTIL_INCLUDE_DIR}/openvino/util/util.hpp
     ${UTIL_INCLUDE_DIR}/openvino/util/variant_visitor.hpp
     ${UTIL_INCLUDE_DIR}/openvino/util/wstring_convert_util.hpp
-    ${UTIL_INCLUDE_DIR}/openvino/util/xml_parse_utils.hpp)
+    ${UTIL_INCLUDE_DIR}/openvino/util/xml_parse_utils.hpp
+
+    # sources
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/codec_xor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/common_util.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/env_util.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/file_path.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/file_util.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/log.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/parallel_read_streambuf.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/wstring_convert_util.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/xml_parse_utils.cpp
+
+    # Windows specific sources
+    $<$<BOOL:${WIN32}>:${WIN32_SOURCES}>
+
+    # not Windows specific sources
+    $<$<NOT:$<BOOL:${WIN32}>>:${LIN_SOURCES}>
+)
 
 add_library(openvino::util ALIAS ${TARGET_NAME})
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME util)
