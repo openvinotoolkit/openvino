@@ -16,6 +16,7 @@
 
 #include "common_utils/jitter.hpp"
 #include "common_utils/kernel_generator_base.hpp"
+#include "include/xattn_subseq_meta.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
 #include "kv_cache_inst.h"
@@ -24,7 +25,6 @@
 #include "paged_attention_inst.h"
 #include "primitive_cm_base.hpp"
 #include "primitive_inst.h"
-#include "include/xattn_subseq_meta.hpp"
 
 #define DUMP_XATTN_INTERNALS 0
 #if DUMP_XATTN_INTERNALS
