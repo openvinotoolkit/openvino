@@ -454,6 +454,21 @@ void BitwiseRefExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_
             case Algorithm::EltwiseBitwiseRightShift:
                 *dst_ptr_f = src_f[0] >> src_f[1];
                 break;
+            case Algorithm::EltwiseAdd:
+                *dst_ptr_f = static_cast<T>(src_f[0] + src_f[1]);
+                break;
+            case Algorithm::EltwiseSubtract:
+                *dst_ptr_f = static_cast<T>(src_f[0] - src_f[1]);
+                break;
+            case Algorithm::EltwiseMultiply:
+                *dst_ptr_f = static_cast<T>(src_f[0] * src_f[1]);
+                break;
+            case Algorithm::EltwiseDivide:
+                *dst_ptr_f = static_cast<T>(src_f[0] / src_f[1]);
+                break;
+            case Algorithm::EltwiseNegative:
+                *dst_ptr_f = static_cast<T>(-src_f[0]);
+                break;
             default:
                 OPENVINO_THROW("Unsupported operation type for Bitwise Eltwise executor: ",
                                algToString(this->m_opData.algo));

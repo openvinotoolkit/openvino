@@ -570,6 +570,24 @@ bool isSuitableConvert(const std::shared_ptr<const Node>& node) {
 auto is_skipped_op(const std::shared_ptr<ov::Node>& op) -> bool {
     return ov::is_type_any_of<ov::op::v0::Constant, ov::op::v0::Parameter, ov::op::v0::Result>(op);
 }
+
+bool isNarrowIntArithmeticUnsafeForSnippets(const std::shared_ptr<ov::Node>& node) {
+    if (!ov::is_type_any_of<ov::op::v1::Add,
+                            ov::op::v1::Subtract,
+                            ov::op::v1::Multiply,
+                            ov::op::v1::Divide>(node)) {
+        return false;
+    }
+    auto isNarrowInt = [](const ov::element::Type& p) {
+        return any_of(p, ov::element::i8, ov::element::u8, ov::element::i16, ov::element::u16);
+    };
+    for (size_t i = 0; i < node->get_input_size(); ++i) {
+        if (isNarrowInt(node->get_input_element_type(i))) {
+            return true;
+        }
+    }
+    return isNarrowInt(node->get_output_element_type(0));
+}
 }  // namespace
 
 bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model>& m) {
@@ -577,6 +595,10 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model>& m) {
     int channelAxis = DEFAULT_AXIS;
     for (auto& node : m->get_ordered_ops()) {
         if (is_skipped_op(node)) {
+            continue;
+        }
+        if (isNarrowIntArithmeticUnsafeForSnippets(node)) {
+            SetSnippetsNodeType(node, snippets::pass::SnippetsNodeType::SkippedByPlugin);
             continue;
         }
         // We perform this check separately because we mark here only weights path

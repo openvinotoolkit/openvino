@@ -52,6 +52,16 @@ static bool isBitwiseAlgorithm(const EltwiseConfig& config) {
                   Algorithm::EltwiseBitwiseRightShift);
 }
 
+static bool isNarrowIntArithmeticAlgorithm(const EltwiseConfig& config) {
+    const auto algorithm = config.attrs.data.algo;
+    return any_of(algorithm,
+                  Algorithm::EltwiseAdd,
+                  Algorithm::EltwiseSubtract,
+                  Algorithm::EltwiseMultiply,
+                  Algorithm::EltwiseDivide,
+                  Algorithm::EltwiseNegative);
+}
+
 [[maybe_unused]] static bool isChannelFirstApplicable(const EltwiseConfig& config) {
     auto acceptableRank = [](const size_t rank) {
         return any_of(rank, 1U, 2U, 3U, 4U, 5U);
@@ -381,7 +391,9 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
                 return true;
             },
             [](const EltwiseConfig& config) -> std::optional<EltwiseConfig> {
-                const auto& typeMapping = isBitwiseAlgorithm(config) ? bitwiseReferenceTypeMapping : eltwiseReferenceTypeMapping;
+                const auto& typeMapping = (isBitwiseAlgorithm(config) || isNarrowIntArithmeticAlgorithm(config))
+                                              ? bitwiseReferenceTypeMapping
+                                              : eltwiseReferenceTypeMapping;
                 return createOptimalConfigCommon(config,
                                                  typeMapping,
                                                  LayoutConfig{LayoutType::ncsp, LayoutType::ncsp},
@@ -401,7 +413,9 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
             },
             // createOptimalConfig
             [](const EltwiseConfig& config) -> std::optional<EltwiseConfig> {
-                const auto& typeMapping = isBitwiseAlgorithm(config) ? bitwiseReferenceTypeMapping : eltwiseReferenceTypeMapping;
+                const auto& typeMapping = (isBitwiseAlgorithm(config) || isNarrowIntArithmeticAlgorithm(config))
+                                              ? bitwiseReferenceTypeMapping
+                                              : eltwiseReferenceTypeMapping;
                 return createOptimalConfigCommon(config,
                                                  typeMapping,
                                                  LayoutConfig{LayoutType::nspc, LayoutType::nspc},
