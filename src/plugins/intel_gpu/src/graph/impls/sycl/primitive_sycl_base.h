@@ -11,10 +11,9 @@
 #undef EXPAND
 #include "runtime/ocl/ocl_event.hpp"
 #include "sycl/sycl_base_event.hpp"
+#include "sycl/sycl_wrapper.hpp"
 
 #include <vector>
-
-#include "sycl/sycl.hpp"
 
 namespace cldnn {
 namespace sycl {
