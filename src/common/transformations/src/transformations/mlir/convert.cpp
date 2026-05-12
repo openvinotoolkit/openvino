@@ -10,7 +10,14 @@
 #include <openvino/op/constant.hpp>
 #include <openvino/op/divide.hpp>
 #include <openvino/op/multiply.hpp>
+#include <openvino/op/abs.hpp>
+#include <openvino/op/ceiling.hpp>
+#include <openvino/op/exp.hpp>
+#include <openvino/op/log.hpp>
+#include <openvino/op/negative.hpp>
 #include <openvino/op/relu.hpp>
+#include <openvino/op/sqrt.hpp>
+#include <openvino/op/tanh.hpp>
 #include <openvino/op/reduce_max.hpp>
 #include <openvino/op/reduce_mean.hpp>
 #include <openvino/op/reduce_min.hpp>
@@ -379,6 +386,13 @@ void injectMLIR(std::shared_ptr<ov::Model> model,
     manager.register_pass<ConcatPattern>();
     manager.register_pass<ReluPattern>();
     manager.register_pass<FloorPattern>();
+    manager.register_pass<UnaryEltwisePattern<v0::Abs, linalg::AbsOp>>();
+    manager.register_pass<UnaryEltwisePattern<v0::Ceiling, linalg::CeilOp>>();
+    manager.register_pass<UnaryEltwisePattern<v0::Exp, linalg::ExpOp>>();
+    manager.register_pass<UnaryEltwisePattern<v0::Log, linalg::LogOp>>();
+    manager.register_pass<UnaryEltwisePattern<v0::Negative, linalg::NegFOp>>();
+    manager.register_pass<UnaryEltwisePattern<v0::Sqrt, linalg::SqrtOp>>();
+    manager.register_pass<UnaryEltwisePattern<v0::Tanh, linalg::TanhOp>>();
     manager.register_pass<GatherPattern>();
     manager.register_pass<ShapeOfPattern>();
     manager.register_pass<SlicePattern>();

@@ -102,5 +102,11 @@ public:
         : BinaryEltwisePattern(std::set<element::Type>{element_type}) {}
 };
 
+template <typename OVOp, typename LinalgOp>
+class UnaryEltwisePattern : public MarkPattern {
+public:
+    UnaryEltwisePattern();
+};
+
 }  // namespace mlir
 }  // namespace ov

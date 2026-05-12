@@ -16,7 +16,14 @@
 #include <openvino/op/reduce_min.hpp>
 #include <openvino/op/reduce_prod.hpp>
 #include <openvino/op/reduce_sum.hpp>
+#include <openvino/op/abs.hpp>
+#include <openvino/op/ceiling.hpp>
+#include <openvino/op/exp.hpp>
+#include <openvino/op/log.hpp>
+#include <openvino/op/negative.hpp>
 #include <openvino/op/relu.hpp>
+#include <openvino/op/sqrt.hpp>
+#include <openvino/op/tanh.hpp>
 #include <openvino/op/subtract.hpp>
 #include <openvino/op/scaled_dot_product_attention.hpp>
 #include <openvino/op/shape_of.hpp>
@@ -27,6 +34,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "../common/converters/relu.hpp"
+#include "../common/converters/unary_eltwise.hpp"
 #include "../common/converters/concat.hpp"
 #include "../common/converters/floor.hpp"
 #include "../common/converters/gather.hpp"
@@ -128,6 +136,19 @@ template class BinaryEltwisePattern<v1::Add, linalg::AddOp>;
 template class BinaryEltwisePattern<v1::Subtract, linalg::SubOp>;
 template class BinaryEltwisePattern<v1::Multiply, linalg::MulOp>;
 template class BinaryEltwisePattern<v1::Divide, linalg::DivOp>;
+
+template <typename OVOp, typename LinalgOp>
+UnaryEltwisePattern<OVOp, LinalgOp>::UnaryEltwisePattern()
+    : MarkPattern(wrap_type<OVOp>({any_input()}), ConvertUnaryEltwise<LinalgOp>()) {}
+
+// Explicit template instantiations
+template class UnaryEltwisePattern<v0::Abs, linalg::AbsOp>;
+template class UnaryEltwisePattern<v0::Ceiling, linalg::CeilOp>;
+template class UnaryEltwisePattern<v0::Exp, linalg::ExpOp>;
+template class UnaryEltwisePattern<v0::Log, linalg::LogOp>;
+template class UnaryEltwisePattern<v0::Negative, linalg::NegFOp>;
+template class UnaryEltwisePattern<v0::Sqrt, linalg::SqrtOp>;
+template class UnaryEltwisePattern<v0::Tanh, linalg::TanhOp>;
 
 }  // namespace mlir
 }  // namespace ov
