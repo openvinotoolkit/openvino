@@ -101,8 +101,4 @@ endif()
 
 ov_build_target_faster(${TARGET_NAME} PCH)
 
-if(OV_GPU_WITH_SYCL)
-  add_sycl_to_target(TARGET ${TARGET_NAME} SOURCES)
-endif()
-
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
