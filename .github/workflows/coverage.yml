@@ -46,7 +46,7 @@ jobs:
   Docker:
     name: Coverage Docker Images
     if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-cpu-tests == 'true' || github.event.inputs.run-gpu-tests == 'true' }}
-    runs-on: aks-linux-4-cores-16gb-docker-build
+    runs-on: aks-linux-4-cores-16gb-docker-build-st
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
       volumes:
@@ -74,7 +74,7 @@ jobs:
     if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-cpu-tests == 'true' || github.event.inputs.run-gpu-tests == 'true' }}
     uses: ./.github/workflows/job_build_linux.yml
     with:
-      runner: 'aks-linux-16-cores-32gb'
+      runner: 'aks-linux-16-cores-32gb-st'
       image: ${{ fromJSON(needs.Docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
       affected-components: '{"JS_API":true}'
       event-name: ${{ github.event_name }}
@@ -110,7 +110,7 @@ jobs:
     name: Coverage C++ (CPU)
     needs: [Docker, Build]
     if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-cpu-tests == 'true' }}
-    runs-on: aks-linux-16-cores-32gb
+    runs-on: aks-linux-16-cores-32gb-st
     container:
       image: ${{ fromJSON(needs.Docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
       volumes:
@@ -383,7 +383,7 @@ jobs:
     name: Coverage Python (CPU)
     needs: [Docker, Build]
     if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-cpu-tests == 'true' }}
-    runs-on: aks-linux-16-cores-32gb
+    runs-on: aks-linux-16-cores-32gb-st
     container:
       image: ${{ fromJSON(needs.Docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
       volumes:
@@ -701,7 +701,7 @@ jobs:
     name: Coverage JS (CPU)
     needs: [Docker, Build]
     if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-cpu-tests == 'true' }}
-    runs-on: aks-linux-4-cores-16gb
+    runs-on: aks-linux-4-cores-16gb-st
     container:
       image: ${{ fromJSON(needs.Docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
       volumes:
