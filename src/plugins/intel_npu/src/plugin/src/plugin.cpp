@@ -895,9 +895,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             // Initial batch setup for static cases
             graph->set_batch_size(batch.value());
         }
-    }
 
-    if (batch.has_value()) {
         blobWriter->append_compatibility_requirement(CRE::PredefinedCapabilityToken::BATCHING);
         blobWriter->register_section(std::make_shared<BatchSizeSection>(batch.value()));
     }

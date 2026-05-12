@@ -28,7 +28,6 @@ std::shared_ptr<ISection> BatchSizeSection::read(BlobReader* blob_reader, const 
                     ". Expected: ",
                     sizeof(int64_t));
 
-    // could be there a case when we read noise and batch size is just a weird value? (negative or very high)
     int64_t batch_size;
     blob_reader->copy_data_from_source(reinterpret_cast<char*>(&batch_size), sizeof(batch_size));
 

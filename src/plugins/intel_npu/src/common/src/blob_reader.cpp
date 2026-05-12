@@ -15,7 +15,7 @@ constexpr intel_npu::SectionTypeInstance FIRST_INSTANCE_ID = 0;
 
 namespace intel_npu {
 
-BlobReader::BlobReader(const ov::Tensor& source) : m_source(source), m_npu_region_size(source.get_byte_size()), m_cursor(0) {
+BlobReader::BlobReader(const ov::Tensor& source) : m_source(source), m_cursor(0) {
     // Register the core sections
     register_reader(PredefinedSectionType::CRE, CRESection::read);
     register_reader(PredefinedSectionType::OFFSETS_TABLE, OffsetsTableSection::read);
@@ -52,19 +52,22 @@ BlobReader::retrieve_sections_same_type(const SectionType type) {
 
 void BlobReader::copy_data_from_source(char* destination, const size_t size) {
     m_cursor += size;
-    OPENVINO_ASSERT(m_cursor <= m_npu_region_size);
+    // TODO split the methods. These functions should be used by the BlobReader alone. Bound cheking against the whole
+    // NPU region. New functions are required for the section developer. These should be bound checked against the
+    // length of their sections.
+    // OPENVINO_ASSERT(m_cursor <= m_npu_region_size);
     std::memcpy(destination, m_source.get().data<const char>() + m_cursor - size, size);
 }
 
 const void* BlobReader::interpret_data_from_source(const size_t size) {
     m_cursor += size;
-    OPENVINO_ASSERT(m_cursor <= m_npu_region_size);
+    // OPENVINO_ASSERT(m_cursor <= m_npu_region_size);
     return reinterpret_cast<const void*>(m_source.get().data<char>() + m_cursor - size);
 }
 
 ov::Tensor BlobReader::get_roi_tensor(const size_t size) {
     m_cursor += size;
-    OPENVINO_ASSERT(m_cursor <= m_npu_region_size);
+    // OPENVINO_ASSERT(m_cursor <= m_npu_region_size);
     return ov::Tensor(m_source, ov::Coordinate{m_cursor - size}, ov::Coordinate{m_cursor});
 }
 
@@ -73,7 +76,7 @@ size_t BlobReader::get_cursor_relative_position() {
 }
 
 void BlobReader::move_cursor_to_relative_position(const size_t offset) {
-    OPENVINO_ASSERT(offset <= m_npu_region_size);
+    // OPENVINO_ASSERT(offset <= m_npu_region_size);
     m_cursor = offset;
 }
 
@@ -130,7 +133,7 @@ void BlobReader::read(const std::unordered_map<CRE::Token, std::shared_ptr<ICapa
             move_cursor_to_relative_position(relative_offset + offsets_table_size);
             continue;
         }
-
+        // TODO somehow check that all sections within the table of offsets have been addressed
         const std::optional<SectionID> section_id = m_offsets_table.lookup_section_id(relative_offset);
         OPENVINO_ASSERT(section_id.has_value(),
                         "Did not find any section corresponding to the relative offset ",

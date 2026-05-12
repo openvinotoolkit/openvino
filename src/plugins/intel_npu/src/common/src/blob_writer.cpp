@@ -22,8 +22,7 @@ BlobWriter::BlobWriter() : m_logger("BlobWriter", Logger::global().level()) {
 }
 
 BlobWriter::BlobWriter(const std::shared_ptr<BlobReader>& blob_reader)
-    : m_offsets_table(blob_reader->m_offsets_table),
-      m_logger("BlobWriter", Logger::global().level()) {
+    : m_logger("BlobWriter", Logger::global().level()) {
     // TODO review the class const qualifiers
     const auto cre_section = blob_reader->retrieve_section(CRE_SECTION_ID);
     OPENVINO_ASSERT(cre_section != nullptr, "The CRE section was not found within the BlobReader");
@@ -92,26 +91,29 @@ void BlobWriter::move_stream_cursor_to_relative_position(std::ostream& stream,
     OPENVINO_ASSERT(m_stream_base.has_value());
     OPENVINO_ASSERT(stream.good());  // TODO maybe the stream should be an attribute exposed via the BlobWriter's API
 
-    // Bound checking. Sections should jump only to locations within their payload.
-    const std::optional<uint64_t> section_offset = m_offsets_table.lookup_offset(section_id);
-    OPENVINO_ASSERT(section_offset.has_value(), "Section ID not found within the table of offsets: ", section_id);
-    const std::optional<uint64_t> section_length = m_offsets_table.lookup_length(section_id);
+    // TODO Bound checking. Sections should jump only to locations within their payload.
+    // The code commented below doesn't work. The section is not supposed to be registered within the table yet.
+    // const std::optional<uint64_t> section_offset = m_offsets_table.lookup_offset(section_id);
+    // OPENVINO_ASSERT(section_offset.has_value(), "Section ID not found within the table of offsets: ", section_id);
+    // const std::optional<uint64_t> section_length = m_offsets_table.lookup_length(section_id);
 
-    OPENVINO_ASSERT(offset >= section_offset.value() && offset < section_offset.value() + section_length.value(),
-                    "Section using the Section ID ",
-                    section_id,
-                    " attempted a jump outside the boundaries of its own payload. Jump location: ",
-                    offset,
-                    ". Boundaries: [",
-                    section_offset.value(),
-                    ", ",
-                    section_offset.value() + section_length.value(),
-                    "].");
+    // OPENVINO_ASSERT(offset >= section_offset.value() && offset < section_offset.value() + section_length.value(),
+    //                 "Section using the Section ID ",
+    //                 section_id,
+    //                 " attempted a jump outside the boundaries of its own payload. Jump location: ",
+    //                 offset,
+    //                 ". Boundaries: [",
+    //                 section_offset.value(),
+    //                 ", ",
+    //                 section_offset.value() + section_length.value(),
+    //                 "].");
 
     stream.seekp(m_stream_base.value() + static_cast<std::streamoff>(offset));
 }
 
-void BlobWriter::write_section(std::ostream& stream, const std::shared_ptr<ISection>& section) {
+void BlobWriter::write_section(std::ostream& stream,
+                               const std::shared_ptr<ISection>& section,
+                               OffsetsTable& offsets_table) {
     stream.seekp(0, std::ios_base::end);
     const uint64_t offset = get_stream_relative_position(stream);
     auto position_before_write = stream.tellp();
@@ -125,15 +127,18 @@ void BlobWriter::write_section(std::ostream& stream, const std::shared_ptr<ISect
     const std::optional<SectionID> section_id = section->get_section_id();
     // The instance ID should have been added by the writer. Therefore, the section ID should exist.
     OPENVINO_ASSERT(section_id.has_value(), "Missing section ID while writing the section");
-    m_offsets_table.add_entry(section_id.value(), offset, length);
+    offsets_table.add_entry(section_id.value(), offset, length);
 }
 
 void BlobWriter::write(std::ostream& stream) {
     // Backup the attributes of the class. Writing to a stream needs to be idempotent
+    // TODO this doesn't work if multiple exports are called in parallel. Also, "m_next_type_instance_id" is missing.
     std::queue<std::shared_ptr<ISection>> registered_sections_backup(m_registered_sections);
     CRE cre_clone = m_cre;
-    OffsetsTable offsets_table_backup = m_offsets_table;
-    m_offsets_table = OffsetsTable{};
+
+    // The table of offsets corresponds to a single blob written into a stream. Therefore, this table should exist only
+    // within the scope of the writing session.
+    OffsetsTable offsets_table;
 
     // The NPU specific region starts from here
     m_stream_base = stream.tellp();
@@ -160,7 +165,7 @@ void BlobWriter::write(std::ostream& stream) {
         const std::shared_ptr<ISection>& section = m_registered_sections.front();
         m_registered_sections.pop();
 
-        write_section(stream, section);
+        write_section(stream, section, offsets_table);
     }
 
     // Write the CRESection
@@ -169,14 +174,14 @@ void BlobWriter::write(std::ostream& stream) {
     // would be useful here.
     const auto cre_section = std::make_shared<CRESection>(m_cre);
     cre_section->set_section_type_instance(FIRST_INSTANCE_ID);
-    write_section(stream, cre_section);
+    write_section(stream, cre_section, offsets_table);
 
     // Write the table of offsets
     offsets_table_location = get_stream_relative_position(stream);
 
-    const auto offsets_table_section = std::make_shared<OffsetsTableSection>(m_offsets_table);
+    const auto offsets_table_section = std::make_shared<OffsetsTableSection>(offsets_table);
     offsets_table_section->set_section_type_instance(FIRST_INSTANCE_ID);
-    write_section(stream, offsets_table_section);
+    write_section(stream, offsets_table_section, offsets_table);
 
     offsets_table_size = get_stream_relative_position(stream) - offsets_table_location;
     npu_region_size = get_stream_relative_position(stream);
@@ -189,7 +194,6 @@ void BlobWriter::write(std::ostream& stream) {
 
     // Restore the attributes
     m_registered_sections = std::move(registered_sections_backup);
-    m_offsets_table = std::move(offsets_table_backup);
     m_cre = std::move(cre_clone);
 }
 

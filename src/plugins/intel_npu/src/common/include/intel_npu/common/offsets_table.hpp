@@ -29,6 +29,8 @@ public:
 
     std::optional<SectionID> lookup_section_id(const uint64_t offset) const;
 
+    bool empty() const;
+
 private:
     friend class OffsetsTableSection;
 
