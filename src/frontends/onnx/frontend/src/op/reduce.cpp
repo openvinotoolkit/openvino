@@ -10,6 +10,7 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/identity.hpp"
+#include "openvino/op/is_inf.hpp"
 #include "openvino/op/log.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/range.hpp"
@@ -20,6 +21,7 @@
 #include "openvino/op/reduce_min.hpp"
 #include "openvino/op/reduce_prod.hpp"
 #include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
@@ -172,8 +174,25 @@ std::shared_ptr<ov::Node> onnx_reduce_log_sum_exp(const ov::frontend::onnx::Node
     }
 
     const auto max_kd = std::make_shared<v1::ReduceMax>(input, reduction_axes, true);
-    const auto shifted = std::make_shared<v1::Subtract>(input, max_kd);
-    const auto exp_node = std::make_shared<v0::Exp>(shifted);
+
+    // Guard the max-shift against max_kd == -inf, which can happen when every
+    // reduced element is -inf. In that case the naive shifted = x - max_kd
+    // evaluates to (-inf) - (-inf) = NaN and poisons the whole expression. The
+    // mathematically correct answer for log(sum(exp(x))) over all -inf is -inf,
+    // so when max_kd is -inf we substitute shifted = 0 (giving exp(shifted) = 1
+    // and a finite log_node) and the final max_kd + log_node still resolves to
+    // -inf via -inf + finite. Genuine NaNs from the inputs are preserved
+    // because they would make max_kd a NaN, not -inf, and propagate normally.
+    ov::Output<ov::Node> shifted_out;
+    if (input.get_element_type().is_real()) {
+        const auto neg_inf_mask = std::make_shared<v10::IsInf>(max_kd, v10::IsInf::Attributes{true, false});
+        const auto zero = v0::Constant::create(input.get_element_type(), ov::Shape{}, {0});
+        const auto naive_shifted = std::make_shared<v1::Subtract>(input, max_kd);
+        shifted_out = std::make_shared<v1::Select>(neg_inf_mask, zero, naive_shifted);
+    } else {
+        shifted_out = std::make_shared<v1::Subtract>(input, max_kd);
+    }
+    const auto exp_node = std::make_shared<v0::Exp>(shifted_out);
     const auto sum_kd = std::make_shared<v1::ReduceSum>(exp_node, reduction_axes, true);
     const auto log_node = std::make_shared<v0::Log>(sum_kd);
     const auto out_kd = std::make_shared<v1::Add>(max_kd, log_node);

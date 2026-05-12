@@ -1120,13 +1120,31 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_log_sum_exp_no_overflow) {
                                                  {100.0f, 100.0f, 100.0f, 100.0f}}}})
                       .get_vector()};
 
-    // expected: 100 + log(16) ~ 102.77258872
-    auto expected_output = ov::test::NDArray<float, 4>({{{{102.77258872f}}}}).get_vector();
+    const float expected_value = 100.0f + std::log(16.0f);
+    auto expected_output = ov::test::NDArray<float, 4>({{{{expected_value}}}}).get_vector();
 
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run_with_tolerance_as_fp();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_log_sum_exp_all_neg_inf) {
+    auto model = convert_model("reduce_log_sum_exp.onnx");
+
+    const auto neg_inf = -std::numeric_limits<float>::infinity();
+    Inputs inputs{ov::test::NDArray<float, 4>({{{{neg_inf, neg_inf, neg_inf, neg_inf},
+                                                 {neg_inf, neg_inf, neg_inf, neg_inf},
+                                                 {neg_inf, neg_inf, neg_inf, neg_inf},
+                                                 {neg_inf, neg_inf, neg_inf, neg_inf}}}})
+                      .get_vector()};
+
+    auto expected_output = ov::test::NDArray<float, 4>({{{{neg_inf}}}}).get_vector();
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_log_sum_exp_18_no_overflow) {
@@ -1139,9 +1157,11 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_log_sum_exp_18_no_overflow) {
                                                  {100.0f, 100.0f, 100.0f, 100.0f}}}})
                       .get_vector()};
 
-    // reducing axis 2 (size 4): expected per element = 100 + log(4) ~ 101.38629436
+    // reducing axis of size 4 so expected per element = 100 + log(4), computed
+    // analytically rather than as a pre-rounded constant.
+    const float expected_value = 100.0f + std::log(4.0f);
     auto expected_output =
-        ov::test::NDArray<float, 1>({101.38629436f, 101.38629436f, 101.38629436f, 101.38629436f}).get_vector();
+        ov::test::NDArray<float, 1>({expected_value, expected_value, expected_value, expected_value}).get_vector();
 
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_multiple_inputs(inputs);
