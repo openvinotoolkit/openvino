@@ -64,6 +64,7 @@ void sycl_event::set_sycl_callback() {
             this->call_handlers();
         });
     });
+    this->_callback_set = true;
 }
 
 void sycl_event::wait_impl() {
