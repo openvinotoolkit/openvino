@@ -314,6 +314,61 @@ void SyncInferRequest::enqueue() {
     int64_t network_enqueue_time = 0;
     auto enqueue_start = std::chrono::high_resolution_clock::now();
 
+    // [SD3-DBG] Dump every input port's tensor shape and the corresponding model
+    // port partial shape on entry to enqueue(). This pins down the actual shapes
+    // a caller (e.g. GenAI) feeds in for the first inference and lets us see
+    // whether one of them is incompatible with the model's expected partial
+    // shape — which is the root cause of the
+    //   "Add_67461: Argument shapes are inconsistent"
+    // failure inside the SD3 transformer.
+    {
+        std::cout << "[SD3-DBG] GPU enqueue() ENTER tag=" << m_itt_infer_request_str
+                  << " input_ports=" << m_input_ports_map.size()
+                  << " output_ports=" << m_output_ports_map.size() << std::endl;
+        for (const auto& it : m_input_ports_map) {
+            size_t port_idx = it.first;
+            const auto& port = it.second;
+            std::string tensor_shape_str = "<missing>";
+            std::string tensor_etype_str = "<missing>";
+            std::string is_remote_str = "no";
+            std::string is_batched_str = m_batched_tensors.count(port.get_tensor_ptr()) > 0 ? "yes" : "no";
+            auto user_in_it = m_user_inputs.find(port_idx);
+            if (user_in_it != m_user_inputs.end() && user_in_it->second.ptr) {
+                const auto& t = user_in_it->second.ptr;
+                try {
+                    std::stringstream ss;
+                    ss << t->get_shape();
+                    tensor_shape_str = ss.str();
+                } catch (...) {
+                    tensor_shape_str = "<get_shape threw>";
+                }
+                tensor_etype_str = t->get_element_type().get_type_name();
+                if (std::dynamic_pointer_cast<IRemoteTensor>(t)) {
+                    is_remote_str = "yes";
+                }
+            }
+            std::stringstream port_pshape_ss;
+            port_pshape_ss << port.get_partial_shape();
+            std::string port_etype = port.get_element_type().get_type_name();
+            std::string port_name;
+            try {
+                const auto& names = port.get_names();
+                if (!names.empty()) {
+                    port_name = *names.begin();
+                }
+            } catch (...) {
+            }
+            std::cout << "[SD3-DBG] GPU enqueue() input port_idx=" << port_idx
+                      << " name=\"" << port_name << "\""
+                      << " model_pshape=" << port_pshape_ss.str()
+                      << " model_etype=" << port_etype
+                      << " tensor_shape=" << tensor_shape_str
+                      << " tensor_etype=" << tensor_etype_str
+                      << " remote=" << is_remote_str
+                      << " batched=" << is_batched_str << std::endl;
+        }
+    }
+
     // set input and output memory from request blob maps
     // into the network object primitives
     std::vector<cldnn::event::ptr> dependencies;
