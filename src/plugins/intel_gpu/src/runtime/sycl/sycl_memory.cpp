@@ -120,7 +120,14 @@ event::ptr gpu_buffer::fill(stream& stream, unsigned char pattern, const std::ve
     }
     auto& sycl_stream = downcast<sycl::sycl_stream>(stream);
     try {
-        auto ev = sycl_stream.get_sycl_queue().fill(_buffer.get_access(::sycl::write_only), static_cast<std::byte>(pattern));
+        auto sycl_dep_events = utils::get_sycl_events(dep_events);
+        auto ev = sycl_stream.get_sycl_queue().submit([&](::sycl::handler& cgh) {
+            if (!sycl_dep_events.empty()) {
+                cgh.depends_on(sycl_dep_events);
+            }
+            auto acc = _buffer.get_access<::sycl::access::mode::write>(cgh);
+            cgh.fill(acc, static_cast<std::byte>(pattern));
+        });
 
         if (blocking) {
             ev.wait_and_throw();
