@@ -18,6 +18,7 @@
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "openvino/util/mmap_object.hpp"
+#include "orc/schema_npuw.hpp"
 #include "partitioning/partitioning.hpp"
 #include "perf.hpp"
 #include "pyramid_attention.hpp"
@@ -85,6 +86,12 @@ class CompiledModel : public ov::npuw::ICompiledModel_v0 {
         std::map<std::string, std::tuple<ov::PropertyMutability, std::function<ov::Any(const ::intel_npu::Config&)>>>;
 
 public:
+    static constexpr ov::npuw::orc::TypeId kOrcType =
+        static_cast<ov::npuw::orc::TypeId>(ov::npuw::orc::schema_npuw::PartitionedModel::ID);
+    // Version 0 is the frozen baseline on the wire. Any further layout changes
+    // must be introduced through a new versioned payload rather than by mutating v0.
+    static constexpr ov::npuw::orc::Version kOrcVersion = 0u;
+
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const ov::AnyMap& properties);
@@ -150,6 +157,20 @@ private:
                                                       const std::shared_ptr<const ov::IPlugin>& plugin,
                                                       const ov::AnyMap& properties,
                                                       const ov::npuw::s11n::CompiledContext& ctx);
+    static std::shared_ptr<CompiledModel> deserialize_orc(std::istream& stream,
+                                                          const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                          const ov::AnyMap& properties);
+    void serialize_orc(std::ostream& stream) const;
+    static std::shared_ptr<CompiledModel> deserialize_orc_container(
+        std::istream& stream,
+        const std::shared_ptr<const ov::IPlugin>& plugin,
+        const ov::AnyMap& properties,
+        bool require_weights_bank,
+        const std::function<std::string(const std::string&)>& decrypt);
+    void serialize_orc_container(std::ostream& stream,
+                                 bool include_weights_bank,
+                                 const std::function<std::string(const std::string&)>& encrypt) const;
+    void ensure_phase0_compatibility() const;
 
     // This is used for removing too long output tensor names to fix some compilation issues
     // NB: These two methods has nothing to do with this particular class and should be
@@ -223,6 +244,12 @@ private:
     void init_profiling();
 
     struct CompiledModelDesc {
+        static constexpr ov::npuw::orc::TypeId kOrcType =
+            static_cast<ov::npuw::orc::TypeId>(ov::npuw::orc::schema_npuw::Subgraph::ID);
+        // Version 0 is the frozen baseline on the wire. Any further layout
+        // changes must be introduced through a new versioned payload.
+        static constexpr ov::npuw::orc::Version kOrcVersion = 0u;
+
         std::set<std::string> devices_to_avoid;
         std::shared_ptr<ov::Model> model;
         ov::SoPtr<ov::ICompiledModel> compiled_model;
@@ -269,6 +296,7 @@ private:
 
         void serialize(ov::npuw::s11n::Stream& stream,
                        const ov::npuw::s11n::WeightsContext& ctx,
+                       std::optional<std::size_t> orc_device_index = std::nullopt,
                        const ov::npuw::s11n::SubmodelDeserializeCtx* submodel_ctx = nullptr);
     };
     std::vector<CompiledModelDesc> m_compiled_submodels;

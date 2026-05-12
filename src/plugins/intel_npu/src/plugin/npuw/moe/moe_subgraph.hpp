@@ -10,6 +10,7 @@
 #include <memory>
 #include <vector>
 
+#include "../serialization.hpp"
 #include "../v1/subgraph_pipeline.hpp"
 
 namespace ov {
@@ -23,10 +24,6 @@ namespace compiled {
 struct MoEExperts;
 struct MoEDownstream;
 }  // namespace compiled
-namespace s11n {
-class Stream;
-struct SubmodelDeserializeCtx;
-}  // namespace s11n
 namespace moe {
 
 enum class BehaviorRole {
