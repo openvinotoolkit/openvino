@@ -1,16 +1,19 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
-//
 
 #pragma once
 
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <string>
+#include <unordered_map>
 
 #include "cpu_memory.h"
 #include "graph_context.h"
 #include "node.h"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/executor_factory.hpp"
+#include "nodes/executors/gathermatmul_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "openvino/core/node.hpp"
 
@@ -25,7 +28,6 @@ public:
     void createPrimitive() override;
     void execute(const dnnl::stream& strm) override;
     void executeDynamicImpl(const dnnl::stream& strm) override;
-    bool needPrepareParams() const override;
     void prepareParams() override;
 
     bool isExecutable() const override;
@@ -43,8 +45,6 @@ public:
     static ov::element::TypeVector getSupportedCompressedActivationsTypes();
 
 private:
-    enum class Algorithm : uint8_t { GatherMatmulDefault, GatherMatmulCompressed };
-
     enum InputId : uint8_t {
         DATA = 0,
         WEIGHTS,
@@ -54,24 +54,13 @@ private:
         WEIGHT_ZERO_POINTS,
     };
 
-    class onednn_matmul;
+    bool m_isCompressed = false;
 
-    using GemvImplPtr = std::shared_ptr<onednn_matmul>;
-
-    Algorithm algorithm = Algorithm::GatherMatmulDefault;
-    MemoryArgs memory;
-    GemvImplPtr gemv_impl = nullptr;
-    GemvImplPtr gemm_impl = nullptr;
-
-    MemoryPtr m_weightsMemory = nullptr;
-    MemoryPtr m_scalesMemory = nullptr;
-    MemoryPtr m_zpMemory = nullptr;
-
-    MemoryPtr m_tmpInpBuffer = nullptr;
-    MemoryDescPtr m_tmpInputDesc = nullptr;
-    MemoryDescPtr m_tmpOutputDesc = nullptr;
-
-    bool bf16_amx_mode = false;
+    GatherMatmulAttrs m_attrs;
+    ExecutorFactoryPtr<GatherMatmulAttrs> m_factory;
+    ExecutorPtr m_executor;
+    MemoryArgs m_memory;
+    std::unordered_map<int, int> m_atoi;  // executor arg-id → input port mapping
 };
 
 }  // namespace ov::intel_cpu::node

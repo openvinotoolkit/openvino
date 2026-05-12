@@ -11,6 +11,7 @@
 #include "nodes/executors/eltwise_config.hpp"
 #include "nodes/executors/executor_implementation.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
+#include "nodes/executors/gathermatmul_config.hpp"
 #include "nodes/executors/matmul_config.hpp"
 
 namespace ov::intel_cpu {
@@ -36,6 +37,10 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations();
 // Eltwise
 template <>
 const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations();
+
+// GatherMatmul
+template <>
+const std::vector<ExecutorImplementation<GatherMatmulAttrs>>& getImplementations();
 
 // MatMul
 template <>
