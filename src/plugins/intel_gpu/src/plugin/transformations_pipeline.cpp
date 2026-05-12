@@ -136,7 +136,6 @@
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
-#include "transformations/common_optimizations/recover_rope_inv_freq_precision.hpp"
 #include "transformations/common_optimizations/glu_fusion.hpp"
 #include "transformations/common_optimizations/group_normalization_fusion.hpp"
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
