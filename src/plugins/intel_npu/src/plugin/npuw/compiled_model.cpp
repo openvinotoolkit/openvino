@@ -1686,11 +1686,47 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
 
         std::vector<ov::SoPtr<ov::ICompiledModel>> compiled_models(total_models);
 
+        // Check if device supports strided I/O for non-last pyramid models.
+        // The last model reuses the already-compiled main subgraph model (compiled without
+        // enable_strides_for), so strided I/O only applies to the explicitly compiled models.
+        bool support_strides_for = false;
+        std::string npu_device_str;
+        std::string saved_strides;
+        for (const auto& device : devices) {
+            if (ov::npuw::util::starts_with(device, "NPU") && models_to_compile > 0 &&
+                !pyramid_attn->_attention_infos.empty()) {
+                const auto supported_properties =
+                    get_npuw_plugin()->get_core()->get_property(device, ov::supported_properties);
+                support_strides_for = std::find(supported_properties.begin(),
+                                                supported_properties.end(),
+                                                ov::intel_npu::enable_strides_for.name()) != supported_properties.end();
+                if (support_strides_for) {
+                    pyramid_attn->_can_use_tensor_view = true;
+                    const auto& first_model = pyramid_attn_models[0];
+                    const auto& first_info = pyramid_attn->_attention_infos[0];
+                    npu_device_str = device;
+                    const auto& strides_key = ov::intel_npu::enable_strides_for.name();
+                    const ov::Any existing_any =
+                        ov::npuw::util::at::_(m_meta_devices[npu_device_str]).at_or(strides_key, std::string{});
+                    saved_strides = existing_any.as<std::string>();
+                    std::string strided_inputs = saved_strides;
+                    for (const auto& param : first_info.params) {
+                        if (!strided_inputs.empty()) {
+                            strided_inputs += ",";
+                        }
+                        strided_inputs += first_model->inputs()[param.idx].get_any_name();
+                    }
+                    m_meta_devices[npu_device_str][strides_key] = strided_inputs;
+                    LOG_INFO("Enabled using tensor view for device: " << device
+                                                                      << " for pyramid inputs: " << strided_inputs);
+                }  // if(support_strides_for)
+            }  // if(npu)
+        }  // for(devices)
+
         auto compile_one = [&](size_t model_id) {
             compiled_models[model_id] =
                 make_wrapped(pyramid_attn_models[model_id], "/pyramid_" + std::to_string(model_id), devices);
         };
-
         const bool par_opt = m_cfg.get<::intel_npu::NPUW_PARALLEL_COMPILE>();
         if (par_opt && models_to_compile > 0) {
             ov::parallel_for(models_to_compile, compile_one);
@@ -1707,7 +1743,16 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
 
         pyramid_attn->set_compiled_models(std::move(compiled_models));
         LOG_INFO("Pyramid attention compilation complete for Subgraph[" << id << "]");
-    }
+
+        if (support_strides_for && !npu_device_str.empty()) {
+            const auto& strides_key = ov::intel_npu::enable_strides_for.name();
+            if (saved_strides.empty()) {
+                m_meta_devices[npu_device_str].erase(strides_key);
+            } else {
+                m_meta_devices[npu_device_str][strides_key] = saved_strides;
+            }
+        }
+    }  // if (pyramid_attn)
 
     if (auto* hfa = ov::npuw::attn::get_compiled_hfa(desc.pipeline.context)) {
         LOG_INFO("Compiling host flash attention tile models for Subgraph[" << id << "]...");
@@ -1716,6 +1761,9 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
         if (!hfa->_tile_model_to_compile) {
             LOG_WARN("Host flash attention tile model is null, skipping compilation");
         } else {
+            bool supports_strides_for = false;
+            std::string npu_device_str;
+            std::string saved_strides;
             for (const auto& device : devices) {
                 if (!ov::npuw::util::starts_with(device, "NPU")) {
                     continue;
@@ -1723,26 +1771,45 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
 
                 const auto supported_properties =
                     get_npuw_plugin()->get_core()->get_property(device, ov::supported_properties);
-                const auto support_strides_for =
+                const bool support_strides_for =
                     std::find(supported_properties.begin(),
                               supported_properties.end(),
                               ov::intel_npu::enable_strides_for.name()) != supported_properties.end();
                 if (!support_strides_for) {
-                    continue;
+                    break;
                 }
 
                 hfa->_can_use_tensor_view = true;
-                auto strided_inputs_name = std::string(hfa_tile_input_id_to_string(HFATileInputId::K_TILE)) + "," +
-                                           std::string(hfa_tile_input_id_to_string(HFATileInputId::V_TILE));
-                m_meta_devices[device][ov::intel_npu::enable_strides_for.name()] = strided_inputs_name;
-                LOG_INFO("Enabled using tensor view for device: " << device << " for inputs: " << strided_inputs_name);
+                npu_device_str = device;
+                const auto& strides_key = ov::intel_npu::enable_strides_for.name();
+                const ov::Any existing_any =
+                    ov::npuw::util::at::_(m_meta_devices[device]).at_or(strides_key, std::string{});
+                saved_strides = existing_any.as<std::string>();
+                std::string strided_inputs = saved_strides;
+                if (!strided_inputs.empty()) {
+                    strided_inputs += ",";
+                }
+                strided_inputs += std::string(hfa_tile_input_id_to_string(HFATileInputId::K_TILE)) + "," +
+                                  std::string(hfa_tile_input_id_to_string(HFATileInputId::V_TILE));
+                m_meta_devices[device][strides_key] = strided_inputs;
+                supports_strides_for = true;
+                LOG_INFO("Enabled using tensor view for device: " << device << " for inputs: " << strided_inputs);
             }
 
             hfa->set_compiled_tile_model(make_wrapped(hfa->_tile_model_to_compile, "/hfa_tile", devices));
             hfa->set_compiled_final_tile_model(desc.compiled_model);
             LOG_INFO("Host flash attention compilation complete for Subgraph[" << id << "]");
+
+            if (supports_strides_for && !npu_device_str.empty()) {
+                const auto& strides_key = ov::intel_npu::enable_strides_for.name();
+                if (saved_strides.empty()) {
+                    m_meta_devices[npu_device_str].erase(strides_key);
+                } else {
+                    m_meta_devices[npu_device_str][strides_key] = saved_strides;
+                }
+            }
         }
-    }
+    }  //  if (hfa)
 
     return true;
 }
