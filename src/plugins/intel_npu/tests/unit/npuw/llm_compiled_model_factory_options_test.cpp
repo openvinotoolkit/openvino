@@ -32,6 +32,10 @@ protected:
         return ov::test::npuw::build_llm_test_model();
     }
 
+    std::shared_ptr<ov::Model> build_moe_llm_model() const {
+        return ov::test::npuw::build_moe_llm_test_model();
+    }
+
     std::shared_ptr<ov::Model> build_whisper_decoder_model() const {
         return ov::test::npuw::build_whisper_decoder_test_model();
     }
@@ -190,7 +194,9 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, AttentionHintsPropagateToStageConfigs
 
     ov::AnyMap props = {{"NPUW_LLM_SHARED_HEAD", "NO"},
                         {"NPUW_LLM_PREFILL_ATTENTION_HINT", "PYRAMID"},
-                        {"NPUW_LLM_GENERATE_ATTENTION_HINT", "DYNAMIC"}};
+                        {"NPUW_LLM_GENERATE_ATTENTION_HINT", "DYNAMIC"},
+                        {"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
+                        {"NPUW_LLM_PREFILL_CHUNK_SIZE", "64"}};
 
     ASSERT_NO_THROW(compiled = create_compiled_model(build_llm_model(), props, recorder));
     ASSERT_NE(compiled, nullptr);
@@ -245,7 +251,11 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, DefaultStageConfigsCarryBaselineNpuwO
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
-    ASSERT_NO_THROW(compiled = create_compiled_model(build_llm_model(), {{"NPUW_LLM_SHARED_HEAD", "YES"}}, recorder));
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_llm_model(),
+                                                     {{"NPUW_LLM_SHARED_HEAD", "YES"},
+                                                      {"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
+                                                      {"NPUW_LLM_PREFILL_CHUNK_SIZE", "64"}},
+                                                     recorder));
     ASSERT_NE(compiled, nullptr);
 
     const auto& prefill = require_call(recorder, "_prefill");
@@ -263,9 +273,16 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, DefaultStageConfigsCarryBaselineNpuwO
 
     expect_prop(prefill.props, "NPUW_SLICE_OUT", "YES");
     expect_prop(prefill.props, "NPUW_FUNCALL_ASYNC", "YES");
+    expect_prop(prefill.props, "NPUW_ATTN", "PYRAMID");
+    expect_prop(prefill.props, "NPUW_ONLINE_PIPELINE", "REP");
+    expect_prop(prefill.props, "NPUW_ONLINE_ISOLATE", "ATTN");
+    expect_prop(prefill.props, "NPUW_ONLINE_KEEP_BLOCK_SIZE", "4");
+    expect_prop(prefill.props, "NPUW_UNFOLD_IREQS", "NO");
+    expect_missing_prop(prefill.props, "NPUW_FALLBACK_EXEC");
 
     expect_missing_prop(generate.props, "NPUW_SLICE_OUT");
     expect_prop(generate.props, "NPUW_FUNCALL_ASYNC", "YES");
+    expect_missing_prop(generate.props, "NPUW_ATTN");
 
     expect_missing_prop(head.props, "NPUW_SLICE_OUT");
     expect_missing_prop(head.props, "NPUW_FUNCALL_ASYNC");
@@ -273,6 +290,13 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, DefaultStageConfigsCarryBaselineNpuwO
 
     EXPECT_EQ(prop_string(prefill.props, "NPUW_WEIGHTS_BANK"), prop_string(generate.props, "NPUW_WEIGHTS_BANK"));
     EXPECT_EQ(prop_string(prefill.props, "NPUW_WEIGHTS_BANK"), prop_string(head.props, "NPUW_WEIGHTS_BANK"));
+}
+
+TEST(NPUWAttentionHintOptionDefaultsTest, PrefillAndGenerateAttentionHintsHaveIndependentDefaults) {
+    EXPECT_EQ(::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT::defaultValue(),
+              ::intel_npu::npuw::llm::AttentionHint::PYRAMID);
+    EXPECT_EQ(::intel_npu::NPUW_LLM_GENERATE_ATTENTION_HINT::defaultValue(),
+              ::intel_npu::npuw::llm::AttentionHint::STATIC);
 }
 
 TEST_F(LLMCompiledModelFactoryOptionsTest, CommonRuntimeAndDebugOptionsForwardToAllStages) {
@@ -392,8 +416,8 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, StaticAttentionHintsAvoidAttentionIso
     ASSERT_NE(compiled, nullptr);
     const auto& prefill = require_call(recorder, "_prefill");
     const auto& generate = require_call_containing(recorder, "_kv");
-    expect_prop(prefill.props, "NPUW_ATTN", "STATIC");
-    expect_prop(generate.props, "NPUW_ATTN", "STATIC");
+    expect_missing_prop(prefill.props, "NPUW_ATTN");
+    expect_missing_prop(generate.props, "NPUW_ATTN");
     // Static attention should leave partitioning defaults unchanged rather than forcing attention isolation.
     EXPECT_EQ(prefill.props.count("NPUW_ONLINE_PIPELINE"), 0u);
     EXPECT_EQ(generate.props.count("NPUW_ONLINE_PIPELINE"), 0u);
@@ -409,7 +433,9 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, HfaAttentionHintsEnableAttentionIsola
                                                       {"NPUW_LLM_GENERATE_ATTENTION_HINT", "HFA"},
                                                       {"NPUW_ATTN_HFA_FUSED", "YES"},
                                                       {"NPUW_ATTN_DYN", "YES"},
-                                                      {"NPUW_ATTN_NO_COPY", "YES"}},
+                                                      {"NPUW_ATTN_NO_COPY", "YES"},
+                                                      {"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
+                                                      {"NPUW_LLM_PREFILL_CHUNK_SIZE", "64"}},
                                                      recorder));
     ASSERT_NE(compiled, nullptr);
     const auto& prefill = require_call(recorder, "_prefill");
@@ -424,6 +450,31 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, HfaAttentionHintsEnableAttentionIsola
         expect_prop(call->props, "NPUW_ATTN_DYN", "YES");
         expect_prop(call->props, "NPUW_ATTN_NO_COPY", "YES");
     }
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, MoeModelKeepsHostRoutedStageIntegration) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_moe_llm_model(),
+                                                     {{"NPUW_LLM_SHARED_HEAD", "NO"},
+                                                      {"NPUW_LLM_PREFILL_MOE_HINT", "HOST_ROUTED"},
+                                                      {"NPUW_LLM_GENERATE_MOE_HINT", "HOST_ROUTED"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& prefill = require_call(recorder, "_prefill");
+    const auto& generate = require_call_containing(recorder, "_kv");
+
+    for (const auto* call : {&prefill, &generate}) {
+        expect_prop(call->props, "NPUW_ONLINE_PIPELINE", "REP");
+        expect_prop(call->props, "NPUW_ONLINE_ISOLATE", "MOE");
+        expect_prop(call->props, "NPUW_ONLINE_KEEP_BLOCK_SIZE", "4");
+        expect_prop(call->props, "NPUW_UNFOLD_IREQS", "NO");
+    }
+
+    EXPECT_EQ(recorder.count_suffix("_prefill"), 1u);
+    EXPECT_EQ(recorder.count_contains("_kv"), 1u);
 }
 
 TEST_F(LLMCompiledModelFactoryOptionsTest, CacheRopeEnabledRoundsTripThroughCompiledModel) {

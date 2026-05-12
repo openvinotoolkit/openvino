@@ -141,14 +141,14 @@ const ov::Shape inputShapes3D() {
     return ov::Shape{1, 64, 8, 16, 16};
 }
 
-const int axis() {
+int axis() {
     return 1;
 }
 
-const ov::op::PadType paddingType() {
+ov::op::PadType paddingType() {
     return ov::op::PadType::EXPLICIT;
 }
-const size_t numOutChannels() {
+size_t numOutChannels() {
     return 32;
 }
 

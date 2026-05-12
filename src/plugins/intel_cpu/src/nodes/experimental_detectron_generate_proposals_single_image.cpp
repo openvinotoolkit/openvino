@@ -444,7 +444,7 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute([[maybe_unused]]
                            img_W,
                            min_box_H,
                            min_box_W,
-                           static_cast<const float>(std::log(1000. / 16.)),
+                           static_cast<float>(std::log(1000. / 16.)),
                            1.0F,
                            cpuParallel);
             std::partial_sort(proposals_.begin(),

@@ -4,14 +4,14 @@
 
 # This script resolves the prebuilt NPU Plugin Compiler dependency by downloading and extracting the appropriate
 # archive based on the current platform. The expected location of the archive and naming convention is as follows:
-#     vcl version: 8.1.0
+#     vcl version: 7.7.0
 #     release: releases/unified/2026/20
 #     storage location: https://storage.openvinotoolkit.org/dependencies/thirdparty
 #     WINDOWS: 
-#         windows2022: npu_compiler_vcl_windows_2022-8_1_0-727e603.zip
+#         windows2022: npu_compiler_vcl_windows_2022-7_7_0-2996129.zip
 #     LINUX:
-#         ubuntu22.04: npu_compiler_vcl_ubuntu_22_04-8_1_0-727e603.tar.gz
-#         ubuntu24.04: npu_compiler_vcl_ubuntu_24_04-8_1_0-727e603.tar.gz
+#         ubuntu22.04: npu_compiler_vcl_ubuntu_22_04-7_7_0-2996129.tar.gz
+#         ubuntu24.04: npu_compiler_vcl_ubuntu_24_04-7_7_0-2996129.tar.gz
 #
 # This script replicates cmake/dependencies.cmake common OV dependency resolution logic including:
 #     THIRDPARTY_SERVER_PATH environment variable or cmake options support that allows
@@ -51,10 +51,10 @@ if(ENABLE_INTEL_NPU_COMPILER)
     set(PLUGIN_COMPILER_VERSION_MAJOR 7)
     set(PLUGIN_COMPILER_VERSION_MINOR 7)
     set(PLUGIN_COMPILER_VERSION_PATCH 0)
-    set(PLUGIN_COMPILER_COMMIT_SHA 98c0808)
-    set(PLUGIN_COMPILER_WINDOWS_2022_CHECKSUM d433c835d87ecf7bd16ae883adba788b51da4dfa025d08a49f0672c0809f3d9f)
-    set(PLUGIN_COMPILER_UBUNTU_22_04_CHECKSUM c6ecb0a212aa796e21409c9da4a33677d5bf9d6aa8ed4f67a9162317c3673c1e)
-    set(PLUGIN_COMPILER_UBUNTU_24_04_CHECKSUM 4d2ec0ab1bb34f90f132803b2b45ba8773f3c579c2e290ea259de27ed85247c3)
+    set(PLUGIN_COMPILER_COMMIT_SHA 2996129)
+    set(PLUGIN_COMPILER_WINDOWS_2022_CHECKSUM fdc0872dbb62f41c693fc381f12a381cdb8ec9451e6281a0812f2a0d3b4f1a09)
+    set(PLUGIN_COMPILER_UBUNTU_22_04_CHECKSUM 6c76685d78a60c3327382312e9956e29f1db11c117b42d35bd7d5ba5d0606fbf)
+    set(PLUGIN_COMPILER_UBUNTU_24_04_CHECKSUM 78701823cf04efc339b51134e88b60500f3740aab4898c0001cc0caaa31e0089)
 
     set(PLUGIN_COMPILER_VERSION_UNDERSCORE "${PLUGIN_COMPILER_VERSION_MAJOR}_${PLUGIN_COMPILER_VERSION_MINOR}_${PLUGIN_COMPILER_VERSION_PATCH}")
     message(STATUS "The prebuilt compiler version is ${PLUGIN_COMPILER_VERSION_MAJOR}.${PLUGIN_COMPILER_VERSION_MINOR}.${PLUGIN_COMPILER_VERSION_PATCH}.${PLUGIN_COMPILER_COMMIT_SHA}")

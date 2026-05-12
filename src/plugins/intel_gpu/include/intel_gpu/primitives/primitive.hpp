@@ -97,7 +97,7 @@ struct prim_map_storage {
         return instance;
     }
 
-    const cldnn::primitive_type_id get_type_id(const std::string& type_string) const {
+    cldnn::primitive_type_id get_type_id(const std::string& type_string) const {
         return map.at(type_string);
     }
 
