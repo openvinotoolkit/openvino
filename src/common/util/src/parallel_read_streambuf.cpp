@@ -285,9 +285,8 @@ std::streamsize ParallelReadStreamBuf::read_into(void* dst, std::streamsize size
         if (remaining > 0) {
             invalidate_prefetch();
             const size_t file_off = static_cast<size_t>(m_file_offset);
-            const bool ok = (remaining >= m_threshold)
-                                ? parallel_read(dst_bytes + from_underflow, remaining, file_off)
-                                : single_read(dst_bytes + from_underflow, remaining, file_off);
+            const bool ok = (remaining >= m_threshold) ? parallel_read(dst_bytes + from_underflow, remaining, file_off)
+                                                       : single_read(dst_bytes + from_underflow, remaining, file_off);
             if (!ok) {
                 return 0;  // cursor untouched, dst unspecified
             }
@@ -307,8 +306,7 @@ std::streamsize ParallelReadStreamBuf::read_into(void* dst, std::streamsize size
     // untouched, and the intended caller (data::load_weights) falls back to istream which rewrites dst.
     invalidate_prefetch();
     const size_t file_off = static_cast<size_t>(m_file_offset);
-    const bool ok =
-        (n >= m_threshold) ? parallel_read(dst_bytes, n, file_off) : single_read(dst_bytes, n, file_off);
+    const bool ok = (n >= m_threshold) ? parallel_read(dst_bytes, n, file_off) : single_read(dst_bytes, n, file_off);
     if (!ok) {
         return 0;
     }
