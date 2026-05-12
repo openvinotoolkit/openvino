@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
 #include <numeric>
 
 #include "common_test_utils/file_utils.hpp"
