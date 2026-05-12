@@ -87,6 +87,7 @@
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 #include "transformations/common_optimizations/mul_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
+#include "transformations/common_optimizations/recover_rope_inv_freq_precision.hpp"
 #include "transformations/common_optimizations/reshape_prelu.hpp"
 #include "transformations/common_optimizations/sdpa_fusion.hpp"
 #include "transformations/common_optimizations/shared_ops_optimization.hpp"
@@ -624,6 +625,12 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
 
     // It cannot be static data, because it may be difference for different inferencePrecision
     const auto precisions = get_convert_precisions();
+
+    // Recover precision of rotary embedding inv_freq constants that were compressed to f16
+    // during model export. This prevents large phase errors in cos/sin computation for
+    // large position_ids (e.g. VLM spatial positions). Must run before ConvertPrecision.
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::RecoverRoPEInvFreqPrecision);
+
     if (config.inferencePrecision == ov::element::f16) {
         precisions_map fp_convert_precision_map = {{ov::element::f32, ov::element::f16}};
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
