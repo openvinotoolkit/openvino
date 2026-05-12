@@ -451,9 +451,7 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
             const auto& requirements = it->second.as<std::string>();
             if (!requirements.empty()) {
                 if (const auto pos = requirements.find(get_runtime_requirements()); pos == 0) {
-                    return ov::CompatibilityCheck::OPTIMAL;
-                } else if (pos != std::string::npos) {
-                    return ov::CompatibilityCheck::PREFER_RECOMPILATION;
+                    return ov::CompatibilityCheck::SUPPORTED;
                 } else {
                     return ov::CompatibilityCheck::UNSUPPORTED;
                 }
