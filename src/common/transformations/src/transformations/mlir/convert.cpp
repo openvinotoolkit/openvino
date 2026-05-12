@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <functional>
 #include <openvino/op/add.hpp>
+#include <openvino/op/constant.hpp>
 #include <openvino/op/divide.hpp>
 #include <openvino/op/multiply.hpp>
 #include <openvino/op/relu.hpp>
@@ -145,7 +146,19 @@ mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
                                                  const ov::NodeVector& nodes,
                                                  const ov::OutputVector& outputs,
                                                  SmallVector<size_t>& keptInputIndices) {
-    auto inputTypes = tensorsToMemRefs(get_types_for_values(context, inputs));
+    // Split inputs: splat constants are inlined, runtime inputs become function args.
+    ov::OutputVector runtime_inputs;
+    SmallVector<bool> is_constant(inputs.size(), false);
+    for (size_t i = 0; i < inputs.size(); ++i) {
+        auto* c = ov::as_type<ov::op::v0::Constant>(inputs[i].get_node());
+        if (c && c->get_all_data_elements_bitwise_identical()) {
+            is_constant[i] = true;
+        } else {
+            runtime_inputs.push_back(inputs[i]);
+        }
+    }
+
+    auto inputTypes = tensorsToMemRefs(get_types_for_values(context, runtime_inputs));
     auto outputTypes = tensorsToMemRefs(get_types_for_values(context, outputs));
 
     const auto moduleLoc = createLayerLocation(context, "module", "Module");
@@ -172,29 +185,34 @@ mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
 
     GraphConverter graph_converter(context, &block_builder);
 
-    for (size_t i = 0; i < inputs.size(); ++i) {
-        auto funcInputVal = func.getArgument(i);
-        // transition from memref enclosure to tensor interior
+    for (size_t i = 0, r = 0; i < inputs.size(); ++i) {
         auto loc = createLocation(context, inputs[i].get_node_shared_ptr());
-        auto ranked = mlir::dyn_cast<mlir::MemRefType>(funcInputVal.getType());
-        auto tensorTy = mlir::RankedTensorType::get(ranked.getShape(), ranked.getElementType());
-        auto tensor = block_builder.create<bufferization::ToTensorOp>(
-            loc, tensorTy, funcInputVal, /*restrict = */ true, /*writable=*/ true);
-        graph_converter.nodeOutputMap.emplace(inputs[i], tensor);
+        if (is_constant[i]) {
+            auto* cst = ov::as_type<ov::op::v0::Constant>(inputs[i].get_node());
+            graph_converter.nodeOutputMap.emplace(inputs[i], getConstant(block_builder, cst, loc));
+        } else {
+            auto funcInputVal = func.getArgument(r++);
+            // transition from memref enclosure to tensor interior
+            auto ranked = mlir::dyn_cast<mlir::MemRefType>(funcInputVal.getType());
+            auto tensorTy = mlir::RankedTensorType::get(ranked.getShape(), ranked.getElementType());
+            auto tensor = block_builder.create<bufferization::ToTensorOp>(
+                loc, tensorTy, funcInputVal, /*restrict = */ true, /*writable=*/ true);
+            graph_converter.nodeOutputMap.emplace(inputs[i], tensor);
 
-        // FIXME: Avoid pre-population of dimension_map, take dimension values only if needed
-        auto input_shape = inputs[i].get_partial_shape();
-        auto input_rank = input_shape.rank();
-        if(input_rank.is_static()) {
-            for(size_t j = 0; j < input_rank.get_length(); ++j) {
-                auto dim = input_shape[j];
-                if(dim.is_dynamic()) {
-                    auto symbol = dim.get_symbol();
-                    assert(symbol);
-                    symbol = ov::symbol::ancestor_of(symbol);
-                    if(dim.is_dynamic() && !graph_converter.dimension_map.count(symbol)) {
-                        auto dimSize = block_builder.create<tensor::DimOp>(loc, tensor, j);
-                        graph_converter.dimension_map[symbol] = dimSize;
+            // FIXME: Avoid pre-population of dimension_map, take dimension values only if needed
+            auto input_shape = inputs[i].get_partial_shape();
+            auto input_rank = input_shape.rank();
+            if(input_rank.is_static()) {
+                for(size_t j = 0; j < input_rank.get_length(); ++j) {
+                    auto dim = input_shape[j];
+                    if(dim.is_dynamic()) {
+                        auto symbol = dim.get_symbol();
+                        assert(symbol);
+                        symbol = ov::symbol::ancestor_of(symbol);
+                        if(dim.is_dynamic() && !graph_converter.dimension_map.count(symbol)) {
+                            auto dimSize = block_builder.create<tensor::DimOp>(loc, tensor, j);
+                            graph_converter.dimension_map[symbol] = dimSize;
+                        }
                     }
                 }
             }
@@ -211,7 +229,7 @@ mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
 
     for (size_t i = 0; i < outputs.size(); ++i) {
         auto tensor = graph_converter.nodeOutputMap.at(outputs[i]);
-        auto memref = func.getArgument(i + inputs.size());
+        auto memref = func.getArgument(i + runtime_inputs.size());
         auto loc = createLocation(context, outputs[i].get_node_shared_ptr());
         // Ensure the result is stored in the provided function argument.
         // Mark as restrict to avoid temporary buffer and copy.
@@ -226,7 +244,13 @@ mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
 
     const auto retLoc = createLayerLocation(context, "output", "Output");
     block_builder.create<mlir::func::ReturnOp>(retLoc, ArrayRef(SmallVector<Value>()));
-    dropUnusedInputArgs(func, inputs.size(), keptInputIndices);
+    SmallVector<size_t> keptRuntimeIndices;
+    dropUnusedInputArgs(func, runtime_inputs.size(), keptRuntimeIndices);
+    auto runtime_to_original = llvm::map_to_vector(
+        llvm::make_filter_range(llvm::enumerate(is_constant), [](const auto& p) { return !p.value(); }),
+        [](const auto& p) { return p.index(); });
+    llvm::transform(keptRuntimeIndices, std::back_inserter(keptInputIndices),
+        [&](size_t i) { return runtime_to_original[i]; });
     return module;
 }
 
@@ -443,7 +467,7 @@ MLIRContext* get_shared_mlir_context(MlirMode mode) {
 
 void ov::pass::transformMLIR(std::shared_ptr<ov::Model> model,
                              std::shared_ptr<ov::EvaluationContext> loweringContext) {
-    if(util::getenv_bool("OV_MLIR", true)) {
+    if(is_mlir_transform_enabled()) {
         const char *default_mode =
 #ifdef TPP_MLIR
                 "TPP";

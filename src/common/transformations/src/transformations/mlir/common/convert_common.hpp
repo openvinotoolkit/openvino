@@ -13,6 +13,8 @@
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 
+#include "openvino/op/constant.hpp"
+
 #include "typedefs.hpp"
 
 
@@ -59,6 +61,24 @@ mlir::arith::ConstantOp getConstant(OpBuilder& builder,
                                     T value,
                                     std::optional<mlir::Location> loc = std::nullopt) {
     return getConstant(builder, importPrecision(builder.getContext(), precision), value, loc);
+}
+
+inline arith::ConstantOp getConstant(OpBuilder& builder,
+                                     const ov::op::v0::Constant* constant,
+                                     std::optional<Location> loc = std::nullopt) {
+    auto tensorTy = dyn_cast<RankedTensorType>(
+        importTensor(builder.getContext(), constant->get_output_partial_shape(0), constant->get_element_type()));
+    DenseElementsAttr attr;
+    if (constant->get_all_data_elements_bitwise_identical()) {
+        auto raw = llvm::ArrayRef<char>(static_cast<const char*>(constant->get_data_ptr()),
+                                        constant->get_element_type().size());
+        auto scalarAttr = DenseElementsAttr::getFromRawBuffer(tensorTy.cloneWith({}, tensorTy.getElementType()), raw);
+        attr = DenseElementsAttr::get(tensorTy, scalarAttr.getSplatValue<Attribute>());
+    } else {
+        auto raw = llvm::ArrayRef<char>(static_cast<const char*>(constant->get_data_ptr()), constant->get_byte_size());
+        attr = DenseElementsAttr::getFromRawBuffer(tensorTy, raw);
+    }
+    return arith::ConstantOp::create(builder, loc.value_or(builder.getUnknownLoc()), tensorTy, attr);
 }
 
 using BroadcastDimensions = std::tuple<SmallVector<ReassociationIndices>, SmallVector<int64_t>>;
