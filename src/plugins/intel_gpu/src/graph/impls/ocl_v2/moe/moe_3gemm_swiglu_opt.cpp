@@ -56,6 +56,18 @@ dnnl::memory::data_type convert_data_type(cldnn::data_types dt) {
     }
 }
 
+inline dnnl::algorithm moe_activation_to_dnnl_algo(ov::op::internal::MOE::Activation_type act) {
+    switch (act) {
+    case ov::op::internal::MOE::Activation_type::GEGLU_TANH:
+        return dnnl::algorithm::eltwise_gelu_tanh;
+    case ov::op::internal::MOE::Activation_type::GEGLU_ERF:
+        return dnnl::algorithm::eltwise_gelu_erf;
+    case ov::op::internal::MOE::Activation_type::SWIGLU:
+    default:
+        return dnnl::algorithm::eltwise_swish;
+    }
+}
+
 struct onednn_matmul {
     dnnl::matmul m_prim;
     dnnl::memory::desc m_wei_md;
@@ -124,10 +136,10 @@ struct onednn_matmul {
         attr.set_fpmath_mode(dnnl::fpmath_mode::f16, true);
         return *this;
     }
-    onednn_matmul& post_op_silu() {
+    onednn_matmul& post_op_gate_activation(dnnl::algorithm algo) {
         float alpha = 1.0f;
         float beta = 0.0f;
-        postops.append_eltwise(dnnl::algorithm::eltwise_swish, alpha, beta);
+        postops.append_eltwise(algo, alpha, beta);
         return *this;
     }
     onednn_matmul& post_op_bin_mul(bool per_oc = true) {
@@ -172,8 +184,8 @@ struct onednn_matmul {
         with_bin_mul,
         with_bin_mul_per_row,
         with_bin_mul_per_row_sum,
-        with_silu,
-        with_silu_bin_mul,
+        with_gate_act,
+        with_gate_act_bin_mul,
         with_sigmoid,
         with_bin_mul_sum,
     };
@@ -187,7 +199,8 @@ struct onednn_matmul {
                   int oc,
                   int ic_group_size,
                   type t,
-                  bool has_zp = true)
+                  bool has_zp = true,
+                  dnnl::algorithm activation_algo = dnnl::algorithm::eltwise_swish)
         : onednn_matmul(act_dtype, weight_dtype, batch, ic, oc, ic_group_size, has_zp) {
         if (t == type::with_bin_mul) {
             bin_post_id = 0;
@@ -212,11 +225,11 @@ struct onednn_matmul {
             post_op_bin_mul(false);
             post_op_sum();
         }
-        if (t == type::with_silu)
-            post_op_silu();
-        if (t == type::with_silu_bin_mul) {
+        if (t == type::with_gate_act)
+            post_op_gate_activation(activation_algo);
+        if (t == type::with_gate_act_bin_mul) {
             bin_post_id = 1;
-            post_op_silu();
+            post_op_gate_activation(activation_algo);
             post_op_bin_mul(true);
         }
 
@@ -304,10 +317,11 @@ struct onednn_linear {
                                 onednn_matmul::type t,
                                 dnnl::memory weight,  // external weight
                                 dnnl::memory scale,
-                                dnnl::memory zp) {
+                                dnnl::memory zp,
+                                dnnl::algorithm activation_algo = dnnl::algorithm::eltwise_swish) {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("onednn_linear::create()"));
         bool has_zp = static_cast<bool>(zp);
-        auto mm = make_cacheable<onednn_matmul>(eng, act_dtype, weight_dtype, batch, ic, oc, ic_group_size, t, has_zp);
+        auto mm = make_cacheable<onednn_matmul>(eng, act_dtype, weight_dtype, batch, ic, oc, ic_group_size, t, has_zp, activation_algo);
         onednn_linear linear;
         linear.mm = mm;
         linear.bin_post_id = mm->bin_post_id;
@@ -597,6 +611,11 @@ protected:
         jit.make("SUBGROUP_SIZE", info.arch >= gpu_arch::xe2 ? 32 : 16);
         jit.make("INTERMEDIA_SIZE", desc->_config.inter_size);
         jit.make("MOE_DTYPE", "half");
+        if (desc->_config.activation_type == ov::op::internal::MOE::Activation_type::GEGLU_TANH) {
+            jit.make("GATE_ACT_GELU_TANH", 1);
+        } else if (desc->_config.activation_type == ov::op::internal::MOE::Activation_type::GEGLU_ERF) {
+            jit.make("GATE_ACT_GELU_ERF", 1);
+        }
         if (m_use_grouped_gemm)
             jit.make("ONEDNN_GROUPED_GEMM_USED", 1);
         return jit;
@@ -754,6 +773,11 @@ protected:
         auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
         add_common_consts(params, jit);
         jit.make("GATE_UP_ENABLE", 1);
+        if (desc->_config.activation_type == ov::op::internal::MOE::Activation_type::GEGLU_TANH) {
+            jit.make("GATE_ACT_GELU_TANH", 1);
+        } else if (desc->_config.activation_type == ov::op::internal::MOE::Activation_type::GEGLU_ERF) {
+            jit.make("GATE_ACT_GELU_ERF", 1);
+        }
         if (!_disable_shared_experts && desc->_config.num_shared_expert > 0 &&
             params.input_layouts.size() > static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT)) {
             jit.make("SHARED_EXPERT_ENABLE", 1);
@@ -937,6 +961,7 @@ public:
     int _shared_intermediate_size;
     int _gate_up_group_size;
     int _down_group_size;
+    ov::op::internal::MOE::Activation_type _activation_type = ov::op::internal::MOE::Activation_type::SWIGLU;
 
     bool _has_shared_expert = false;
     // Shared expert primitives
@@ -1043,6 +1068,7 @@ public:
         _intermediate_size = static_cast<int>(cur_moe->_config.inter_size);
         _gate_up_group_size = static_cast<int>(cur_moe->_config.group_size);
         _down_group_size = static_cast<int>(cur_moe->_config.group_size);
+        _activation_type = cur_moe->_config.activation_type;
 
         if (cur_moe->_config.group_size == std::numeric_limits<size_t>::max()) {
             _gate_up_group_size = static_cast<int>(cur_moe->_config.hidden_size);
@@ -1199,10 +1225,11 @@ public:
                                                                                   _hidden_size,
                                                                                   _shared_intermediate_size,
                                                                                   _gate_up_group_size,
-                                                                                  t::with_silu_bin_mul,
+                                                                                  t::with_gate_act_bin_mul,
                                                                                   gate_w,
                                                                                   gate_s,
-                                                                                  gate_z));
+                                                                                  gate_z,
+                                                                                  moe_activation_to_dnnl_algo(_activation_type)));
 
         // 3. Scalar Gate (Sigmoid)
         // It is very small weight with shape of [Hidden, 1], and not need to keep compressed, so KeepMOE3GemmConstPrecision will not keep its precision and
@@ -1284,6 +1311,7 @@ public:
         cur_moe->_intermediate_size = _intermediate_size;
         cur_moe->_gate_up_group_size = _gate_up_group_size;
         cur_moe->_down_group_size = _down_group_size;
+        cur_moe->_activation_type = _activation_type;
         return cur_moe;
     }
 
@@ -1969,6 +1997,9 @@ public:
         auto hidden_states_layout_dt =
             convert_data_type(instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES))->get_layout().data_type);
 
+        auto cur_moe = instance.get_typed_desc<moe_3gemm_fused_compressed>();
+        const auto gate_activation_algo = moe_activation_to_dnnl_algo(cur_moe->_config.activation_type);
+
         auto& dnnl_weights = _dnnl_weights[expert_no];
         auto kernel = std::make_shared<onednn_kernel>();
 
@@ -1981,10 +2012,11 @@ public:
                                              dnnl_weights[0].ic,
                                              dnnl_weights[0].oc,
                                              dnnl_weights[0].ic_group_size,
-                                             onednn_matmul::type::with_silu_bin_mul,
+                                             onednn_matmul::type::with_gate_act_bin_mul,
                                              dnnl_weights[0].weight,
                                              dnnl_weights[0].scale,
-                                             dnnl_weights[0].zp);
+                                             dnnl_weights[0].zp,
+                                             gate_activation_algo);
 
         // up
         auto up_weight_layout_dt = convert_data_type(instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_1))->get_layout().data_type);
