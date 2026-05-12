@@ -9,6 +9,13 @@ on:
   schedule:
     # run daily at 00:00
     - cron: '0 0 * * *'
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+  merge_group:
   push:
     branches:
       - master
@@ -114,6 +121,11 @@ jobs:
           version: ${{ env.PYTHON_VERSION }}
           should-setup-pip-paths: 'false'
           self-hosted-runner: 'false'
+
+      - name: Install certifi
+        run: |
+          # For getting rid of SSL issues during model downloading for unit tests
+          python3 -m pip install certifi
 
       #
       # Build
@@ -331,6 +343,9 @@ jobs:
             -DENABLE_TESTS=OFF `
             -DBUILD_SHARED_LIBS=OFF `
             -DSELECTIVE_BUILD=ON `
+            -DENABLE_TEMPLATE=OFF `
+            -DENABLE_INTEL_GPU=OFF `
+            -DENABLE_INTEL_NPU=OFF `
             -DENABLE_OV_TF_FRONTEND=OFF `
             -DENABLE_OV_TF_LITE_FRONTEND=OFF `
             -DENABLE_OV_PADDLE_FRONTEND=OFF `
