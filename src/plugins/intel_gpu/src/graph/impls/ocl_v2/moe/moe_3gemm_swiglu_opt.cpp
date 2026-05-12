@@ -977,7 +977,6 @@ public:
     int _down_group_size;
     size_t _lru_expert_num = 0;
     std::shared_ptr<LRUCache> _lru_cache;
-    std::shared_ptr<ov::intel_gpu::ocl::CpuExpertCache> _cpu_cache;
     ov::op::internal::MOE::Activation_type _activation_type = ov::op::internal::MOE::Activation_type::SWIGLU;
 
     bool _has_shared_expert = false;
@@ -1054,24 +1053,6 @@ public:
         _lru_expert_num = params.typed_desc<moe_3gemm_fused_compressed>()->_lru_expert_num;
         if (_lru_expert_num > 0) {
             _lru_cache = std::make_shared<LRUCache>(_lru_expert_num);
-
-            // CPU L2 cache is disabled by default.
-            // Set MOE_OTD_CPU_CACHE_EXPERTS to a positive number to enable (capped at total expert count).
-            const auto& config = params.typed_desc<moe_3gemm_fused_compressed>()->_config;
-            size_t total_experts = static_cast<size_t>(config.num_expert);
-
-            size_t max_cpu_experts = 0;
-            auto cpu_cache_experts_str = std::getenv("MOE_OTD_CPU_CACHE_EXPERTS");
-            if (cpu_cache_experts_str) {
-                max_cpu_experts = std::stoul(cpu_cache_experts_str);
-                max_cpu_experts = std::min(max_cpu_experts, total_experts);
-            }
-
-            if (max_cpu_experts > 0) {
-                _cpu_cache = std::make_shared<ov::intel_gpu::ocl::CpuExpertCache>(max_cpu_experts);
-                GPU_DEBUG_TRACE_DETAIL << "[OTD] CPU cache enabled: max_experts=" << max_cpu_experts << ", total_experts=" << total_experts
-                                       << ", lru_expert_num=" << _lru_expert_num << std::endl;
-            }
         }
         if (_lru_expert_num > 0 && use_micro_gemm_prefill) {
             use_micro_gemm_prefill = false;
@@ -1368,7 +1349,6 @@ public:
         cur_moe->_down_group_size = _down_group_size;
         cur_moe->_lru_expert_num = _lru_expert_num;
         cur_moe->_lru_cache = _lru_cache;  // shared across clones within the same network
-        cur_moe->_cpu_cache = _cpu_cache;
         cur_moe->_activation_type = _activation_type;
         return cur_moe;
     }
@@ -1679,7 +1659,7 @@ public:
             uint32_t* p_expert_index = (uint32_t*)scratch._expert_index_buffer->buffer_ptr();
             for (int i = 0; i < max_topk; i++) {
                 auto expert_no = experts_list[i];
-                auto lru_expert_no = moe_otd::get_lru_expert_no(instance, static_cast<uint32_t>(expert_no), cache, _cpu_cache.get());
+                auto lru_expert_no = moe_otd::get_lru_expert_no(instance, static_cast<uint32_t>(expert_no), cache);
                 *p_expert_index++ = lru_expert_no;  // update batch_mem_ptr as re-map
             }
             batch_mem_ptr = scratch._expert_index_buffer;
@@ -1824,7 +1804,7 @@ public:
                 OPENVINO_ASSERT(expert_no < static_cast<uint32_t>(num_total_experts), "expert_no ", expert_no, " exceed max_expert_num ", num_total_experts);
                 auto it = expert_to_lru.find(expert_no);
                 if (it == expert_to_lru.end()) {
-                    auto lru_expert_no = moe_otd::get_lru_expert_no(instance, expert_no, cache, _cpu_cache.get());
+                    auto lru_expert_no = moe_otd::get_lru_expert_no(instance, expert_no, cache);
                     it = expert_to_lru.emplace(expert_no, lru_expert_no).first;
                 }
                 expert_ids[i] = it->second;
@@ -2348,7 +2328,7 @@ public:
                 dnn_stream.wait();
 
                 auto& dnnl_weights = _dnnl_weights[expert_no];
-                auto lru_expert_no = moe_otd::get_lru_expert_no(instance, static_cast<uint32_t>(expert_no), cache, _cpu_cache.get());
+                auto lru_expert_no = moe_otd::get_lru_expert_no(instance, static_cast<uint32_t>(expert_no), cache);
                 auto& params = instance._weights;
 
 #    define CONVERT_DNNL(name, i)                                                                                                                      \
