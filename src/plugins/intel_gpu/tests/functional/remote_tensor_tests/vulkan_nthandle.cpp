@@ -453,6 +453,8 @@ VulkanSharedBuffer create_vulkan_shared_buffer(VulkanTestContext& context, size_
 }
 
 TEST(GpuSharedBufferRemoteTensor, smoke_VulkanRemoteInputToRemoteOutputCopyAndCompare) {
+    std::cout << "skip because driver on ubuntu 22 too old" << std::endl;
+    GTEST_SKIP();
     ov::Core core;
     const ov::Shape shape{16'000};
     const size_t element_count = ov::shape_size(shape);
