@@ -269,15 +269,17 @@ public:
         if (-1 != reg.finish) {
             // We have to extend the lifespan of tensors that are crossing a sync point border in order to save
             // the intermediate computation results from possible loss due to the tensor resize
-            auto itr_upper = std::upper_bound(syncInds.begin(), syncInds.end(), box.finish, [](int y, int x) {
-                return y <= x;
+            OPENVINO_ASSERT(box.finish >= 0, "box.finish must be non-negative");
+            const auto finish = static_cast<size_t>(box.finish);
+            auto itr_upper = std::upper_bound(syncInds.begin(), syncInds.end(), finish, [](size_t y, size_t x) {
+                return y < x;
             });
             auto itr_lower = std::lower_bound(syncInds.begin(), syncInds.end(), box.start);
             if (itr_lower != itr_upper) {  // across sections
                 if (itr_upper == syncInds.end()) {
                     box.finish = -1;
                 } else {
-                    box.finish = *itr_upper;
+                    box.finish = static_cast<int>(*itr_upper);
                 }
             }
         }
