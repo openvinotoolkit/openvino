@@ -299,22 +299,22 @@ StateManagementPattern::KvCacheParams StateManagementPattern::find_or_create_kv_
     const std::shared_ptr<ov::op::util::ReadValueBase>& k_rv,
     const std::shared_ptr<ov::op::util::ReadValueBase>& v_rv,
     PaParams& pa_params) {
-    const auto& k_var_id = k_rv->get_variable_id();
-    const auto& v_var_id = v_rv->get_variable_id();
+    const auto& k_var_id = k_rv->get_variable_id() + "/k";
+    const auto& v_var_id = v_rv->get_variable_id() + "/v";
     auto k_name = "key_cache." + std::to_string(m_layer_index);
     auto v_name = "value_cache." + std::to_string(m_layer_index);
     bool write_kv_cache = true;
 
-    if (m_read_value_to_params.count(k_var_id + "/k") && m_read_value_to_params.count(v_var_id + "/v")) {
-        k_name = m_read_value_to_params.at(k_var_id + "/k");
-        v_name = m_read_value_to_params.at(v_var_id + "/v");
+    if (m_read_value_to_params.count(k_var_id) && m_read_value_to_params.count(v_var_id)) {
+        k_name = m_read_value_to_params.at(k_var_id);
+        v_name = m_read_value_to_params.at(v_var_id);
         write_kv_cache = false;
     }
 
     auto k_param = pa_params.add(k_name, ov::element::dynamic, ov::PartialShape::dynamic(4));
     auto v_param = pa_params.add(v_name, ov::element::dynamic, ov::PartialShape::dynamic(4));
-    m_read_value_to_params.emplace(k_var_id + "/k", k_name);
-    m_read_value_to_params.emplace(v_var_id + "/v", v_name);
+    m_read_value_to_params.emplace(k_var_id, k_name);
+    m_read_value_to_params.emplace(v_var_id, v_name);
     return {k_param, v_param, write_kv_cache};
 }
 
