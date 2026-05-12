@@ -7,9 +7,11 @@
 #include <cstddef>
 #include <exception>
 #include <functional>
+#include <iostream>
 #include <map>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
+#include <sstream>
 #include <string_view>
 #include <unordered_set>
 #include <utility>
@@ -102,50 +104,106 @@ void SyncInferRequest::update_external_tensor_ptrs() {
 
 void SyncInferRequest::infer() {
     OV_ITT_SCOPED_TASK_BASE(itt::domains::ov_cpu_inference, m_profiling_task);
-    auto graphLock = m_compiled_model.lock();
-    auto&& graph = graphLock._graph;
-    auto message = ov::threading::message_manager();
-
-    throw_if_canceled();
-    if (m_asyncRequest->m_has_sub_infers) {
-        sub_streams_infer();
-        message->server_wait();
-        return;
-    }
-
-    convert_batched_tensors();
-    if (!m_batched_tensors.empty()) {
-        // batched_tensors will be updated for each infer, external_ptr should be update together
-        update_external_tensor_ptrs();
-    }
-
-    if (graph.hasDynamicInput()) {
-        redefine_memory_for_input_nodes(graph);
-    }
-
-    change_default_ptr(graph);
-
-    throw_if_canceled();
-
-    // state -> node
-    if (!m_memory_states.empty()) {
-        graph.assignStates(m_memory_states);
-    }
-
-    push_input_data(graph);
-
-    graph.Infer(this);
-
-    throw_if_canceled();
-
-    // update output control blocks, if any, in order to refresh internal buffers
-    if (graph.IsDynamic()) {
-        for (auto&& item : m_outputControlBlocks) {
-            item.second.update();
+    // [SD3-DBG] Mirror of GPU SyncInferRequest::infer instrumentation so the
+    // CPU log can be diffed against the GPU log on the same notebook + same IR.
+    const std::string sd3_dbg_tag = "SyncInferenceCPU::infer::" + m_compiled_model.name();
+    std::cout << "[SD3-DBG] CPU SyncInferRequest::infer ENTER tag=" << sd3_dbg_tag << std::endl;
+    std::cout << "[SD3-DBG] CPU enqueue() ENTER tag=" << sd3_dbg_tag
+              << " input_ports=" << m_input_ports_map.size() << std::endl;
+    for (const auto& it : m_input_ports_map) {
+        size_t port_idx = it.first;
+        const auto& port = it.second;
+        std::string tensor_shape_str = "<missing>";
+        std::string tensor_etype_str = "<missing>";
+        try {
+            const auto& tensor = get_tensor_ptr(port);
+            if (tensor) {
+                std::stringstream ss;
+                ss << tensor->get_shape();
+                tensor_shape_str = ss.str();
+                tensor_etype_str = tensor->get_element_type().get_type_name();
+            }
+        } catch (...) {
+            tensor_shape_str = "<get_tensor threw>";
         }
+        std::stringstream port_pshape_ss;
+        port_pshape_ss << port.get_partial_shape();
+        std::string port_etype = port.get_element_type().get_type_name();
+        std::string port_name;
+        try {
+            const auto& names = port.get_names();
+            if (!names.empty()) {
+                port_name = *names.begin();
+            }
+        } catch (...) {
+        }
+        std::cout << "[SD3-DBG] CPU enqueue() input port_idx=" << port_idx
+                  << " name=\"" << port_name << "\""
+                  << " model_pshape=" << port_pshape_ss.str()
+                  << " model_etype=" << port_etype
+                  << " tensor_shape=" << tensor_shape_str
+                  << " tensor_etype=" << tensor_etype_str << std::endl;
     }
+    try {
+        auto graphLock = m_compiled_model.lock();
+        auto&& graph = graphLock._graph;
+        auto message = ov::threading::message_manager();
 
-    graph.PullOutputData(m_outputs);
+        throw_if_canceled();
+        if (m_asyncRequest->m_has_sub_infers) {
+            sub_streams_infer();
+            message->server_wait();
+            std::cout << "[SD3-DBG] CPU SyncInferRequest::infer EXIT OK (sub_infers) tag=" << sd3_dbg_tag << std::endl;
+            return;
+        }
+
+        convert_batched_tensors();
+        if (!m_batched_tensors.empty()) {
+            // batched_tensors will be updated for each infer, external_ptr should be update together
+            update_external_tensor_ptrs();
+        }
+
+        if (graph.hasDynamicInput()) {
+            std::cout << "[SD3-DBG] CPU >> redefine_memory_for_input_nodes()" << std::endl;
+            redefine_memory_for_input_nodes(graph);
+            std::cout << "[SD3-DBG] CPU << redefine_memory_for_input_nodes() OK" << std::endl;
+        }
+
+        change_default_ptr(graph);
+
+        throw_if_canceled();
+
+        // state -> node
+        if (!m_memory_states.empty()) {
+            graph.assignStates(m_memory_states);
+        }
+
+        push_input_data(graph);
+
+        std::cout << "[SD3-DBG] CPU >> graph.Infer()" << std::endl;
+        graph.Infer(this);
+        std::cout << "[SD3-DBG] CPU << graph.Infer() OK" << std::endl;
+
+        throw_if_canceled();
+
+        // update output control blocks, if any, in order to refresh internal buffers
+        if (graph.IsDynamic()) {
+            for (auto&& item : m_outputControlBlocks) {
+                item.second.update();
+            }
+        }
+
+        graph.PullOutputData(m_outputs);
+    } catch (const std::exception& e) {
+        std::cout << "[SD3-DBG] CPU SyncInferRequest::infer EXCEPTION std::exception what=" << e.what() << std::endl;
+        std::cerr << "[SD3-DBG] CPU SyncInferRequest::infer EXCEPTION std::exception what=" << e.what() << std::endl;
+        throw;
+    } catch (...) {
+        std::cout << "[SD3-DBG] CPU SyncInferRequest::infer EXCEPTION non-std (...)" << std::endl;
+        std::cerr << "[SD3-DBG] CPU SyncInferRequest::infer EXCEPTION non-std (...)" << std::endl;
+        throw;
+    }
+    std::cout << "[SD3-DBG] CPU SyncInferRequest::infer EXIT OK tag=" << sd3_dbg_tag << std::endl;
 }
 
 std::vector<ov::ProfilingInfo> SyncInferRequest::get_profiling_info() const {
