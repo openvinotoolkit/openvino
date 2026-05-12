@@ -437,10 +437,13 @@ ov::Output<ov::Node> align_to_reference_shape(const ov::Output<ov::Node>& src,
                 auto updated_shape = std::make_shared<ov::op::v3::ScatterUpdate>(ref_shape, indices, updates, axis);
                 auto reshaped = std::make_shared<v1::Reshape>(src, updated_shape, false);
 
-                pass->register_new_node(ref_shape);
-                pass->register_new_node(updated_shape);
-                pass->register_new_node(reshaped);
-                return reshaped;
+                // Verify final shapes are compatible.
+                if (reshaped->get_output_partial_shape(0).compatible(ref_ps)) {
+                    pass->register_new_node(ref_shape);
+                    pass->register_new_node(updated_shape);
+                    pass->register_new_node(reshaped);
+                    return reshaped;
+                }
             }
         }
     }
