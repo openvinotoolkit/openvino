@@ -598,15 +598,7 @@ void Properties::registerPluginProperties() {
                                  });
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::enable_cpu_pinning, ENABLE_CPU_PINNING);
 
-    FORCE_REGISTER_CUSTOM_PROPERTY(ov::hint::model,
-                                   MODEL_PTR,
-                                   true,
-                                   ov::PropertyMutability::RO,
-                                   [](const Config& /* unusedConfig */) {
-                                       return std::shared_ptr<const ov::Model>(nullptr);
-                                   });
-
-    FORCE_REGISTER_CUSTOM_PROPERTY(
+    TRY_REGISTER_CUSTOM_PROPERTY(
         ov::cache_encryption_callbacks,
         CACHE_ENCRYPTION_CALLBACKS,
         true,
@@ -615,8 +607,16 @@ void Properties::registerPluginProperties() {
             return (ov::EncryptionCallbacks{
                 nullptr,
                 nullptr});  // enclosed in parentheses due to warning C4002 treated as error: too many arguments for
-                            // function-like macro invocation 'FORCE_REGISTER_CUSTOM_PROPERTY'
+                            // function-like macro invocation 'TRY_REGISTER_CUSTOM_PROPERTY'
         });
+
+    FORCE_REGISTER_CUSTOM_PROPERTY(ov::hint::model,
+                                   MODEL_PTR,
+                                   true,
+                                   ov::PropertyMutability::RO,
+                                   [](const Config& /* unusedConfig */) {
+                                       return std::shared_ptr<const ov::Model>(nullptr);
+                                   });
 
     // NPUW properties are requested by OV Core during caching and have no effect on the NPU plugin. But we still need
     // to enable those for OV Core to query.
@@ -799,6 +799,18 @@ void Properties::registerCompiledModelProperties() {
                                      return config.get<WORKLOAD_TYPE>();
                                  });
 
+    TRY_REGISTER_CUSTOM_PROPERTY(
+        ov::cache_encryption_callbacks,
+        CACHE_ENCRYPTION_CALLBACKS,
+        true,
+        ov::PropertyMutability::WO,
+        [](const Config& /* unusedConfig */) {
+            return (ov::EncryptionCallbacks{
+                nullptr,
+                nullptr});  // enclosed in parentheses due to warning C4002 treated as error: too many arguments for
+                            // function-like macro invocation 'TRY_REGISTER_CUSTOM_PROPERTY'
+        });
+
     FORCE_REGISTER_CUSTOM_PROPERTY(ov::hint::model,
                                    MODEL_PTR,
                                    true,
@@ -815,18 +827,6 @@ void Properties::registerCompiledModelProperties() {
                                      // This implementation here serves only to publish it in supported_properties
                                      return std::string("");
                                  });
-
-    FORCE_REGISTER_CUSTOM_PROPERTY(
-        ov::cache_encryption_callbacks,
-        CACHE_ENCRYPTION_CALLBACKS,
-        true,
-        ov::PropertyMutability::WO,
-        [](const Config& /* unusedConfig */) {
-            return (ov::EncryptionCallbacks{
-                nullptr,
-                nullptr});  // enclosed in parentheses due to warning C4002 treated as error: too many arguments for
-                            // function-like macro invocation 'FORCE_REGISTER_CUSTOM_PROPERTY'
-        });
 
     // 2. Metrics (static device and enviroment properties)
     // ========
