@@ -55,7 +55,7 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
                                        const std::vector<std::string>& localSizeRules,
                                        std::vector<size_t>& gws,
                                        std::vector<size_t>& lws) {
-#define GetDim(DIM) DIM.is_dynamic() ? -1 : DIM.get_length()
+#define GetDim(DIM) static_cast<int>(DIM.is_dynamic() ? -1 : DIM.get_length())
 
         gws.clear();
         lws.clear();
@@ -63,10 +63,10 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
         int batchDim = 0, featureDim = 0, yDim = 0, xDim = 0;
         // if calcWgDimInputIdx is greater than -1, take dimension from input
         if (calcWgDimInputIdx >= 0) {
-            xDim = static_cast<int>(GetDim(inputDims[inputDims.size() - 1]));
-            yDim = dims.size() > 1 ? static_cast<int>(GetDim(inputDims[inputDims.size() - 2])) : 0;
-            featureDim = dims.size() > 2 ? static_cast<int>(GetDim(inputDims[inputDims.size() - 3])) : 0;
-            batchDim = dims.size() > 3 ? static_cast<int>(GetDim(inputDims[inputDims.size() - 4])) : 0;
+            xDim = GetDim(inputDims[inputDims.size() - 1]);
+            yDim = dims.size() > 1 ? GetDim(inputDims[inputDims.size() - 2]) : 0;
+            featureDim = dims.size() > 2 ? GetDim(inputDims[inputDims.size() - 3]) : 0;
+            batchDim = dims.size() > 3 ? GetDim(inputDims[inputDims.size() - 4]) : 0;
         } else {
             batchDim = (dims.size() > 0) ? GetDim(dims[0]) : 1;
             featureDim = (dims.size() > 1) ? GetDim(dims[1]) : 1;

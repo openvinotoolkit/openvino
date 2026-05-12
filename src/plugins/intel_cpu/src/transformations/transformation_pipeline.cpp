@@ -75,7 +75,6 @@
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/augru_cell_fusion.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
-#include "transformations/common_optimizations/convert_pagedattn_inputs.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
 #include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
@@ -142,6 +141,7 @@
 #include "transformations/op_conversions/softsign_decomposition.hpp"
 #include "transformations/op_conversions/unique_decomposition.hpp"
 #include "transformations/opset_conversions/convert_opset2_to_opset1.hpp"
+#include "transformations/paged_attention/convert_pagedattn_inputs.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
@@ -1065,8 +1065,6 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
         FuseMultiplyToFakeQuantizeTransformation);
     CPU_DISABLE_PASS_COMMON(lptManager, MultiplyToGroupConvolutionTransformation);
 
-    // ConvolutionTransformation is disabled temporary until ACL issues are fixed: #1252, #1253
-    CPU_DISABLE_PASS_ARM(lptManager, ConvolutionTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, ConvolutionBackpropDataTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, InterpolateTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, GroupConvolutionTransformation);
@@ -1492,14 +1490,19 @@ void Transformations::MainSnippets() {
         // todo: general tokenization flow is not currently supported for these operations.
         // they can be tokenized only as a part of complex patterns
         auto is_unsupported_by_common_tokenization = [](const std::shared_ptr<const ov::Node>& n) {
-            return (ov::is_type_any_of<const ov::op::v1::Softmax,
-                                       const ov::op::v8::Softmax,
-                                       const ov::op::v0::MatMul,
-                                       const ov::op::v1::Transpose,
-                                       const ov::op::v1::Broadcast,
-                                       const ov::op::v3::Broadcast,
-                                       const ov::op::v1::ReduceMax,
-                                       const ov::op::v1::ReduceSum>(n));
+#if defined(OPENVINO_ARCH_RISCV64)
+            constexpr bool is_unsupported_softmax = false;
+#else
+            const auto is_unsupported_softmax =
+                ov::is_type_any_of<const ov::op::v1::Softmax, const ov::op::v8::Softmax>(n);
+#endif
+
+            return is_unsupported_softmax || (ov::is_type_any_of<const ov::op::v0::MatMul,
+                                                                 const ov::op::v1::Transpose,
+                                                                 const ov::op::v1::Broadcast,
+                                                                 const ov::op::v3::Broadcast,
+                                                                 const ov::op::v1::ReduceMax,
+                                                                 const ov::op::v1::ReduceSum>(n));
         };
         return !is_unsupported(n) && !is_unsupported_by_common_tokenization(n);
     };
