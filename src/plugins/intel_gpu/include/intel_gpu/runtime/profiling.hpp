@@ -9,6 +9,9 @@
 #include <vector>
 #include <string>
 #include <fstream>
+#include <atomic>
+#include <cctype>
+#include <limits>
 #include "intel_gpu/runtime/execution_config.hpp"
 
 #if defined(_WIN32)
@@ -231,6 +234,22 @@ public:
         return memory_footprint{ _after.rss - _before.rss, _after.peak_rss - _before.peak_rss };
     }
 
+    static void set_active_device_id(const std::string& device_id) {
+#ifdef GPU_DEBUG_CONFIG
+        get_active_device_index() = parse_device_index(device_id);
+#else
+        (void)device_id;
+#endif
+    }
+
+        static void set_active_sub_device_idx(uint32_t sub_device_idx) {
+    #ifdef GPU_DEBUG_CONFIG
+        get_active_sub_device_index() = static_cast<int>(sub_device_idx);
+    #else
+        (void)sub_device_idx;
+    #endif
+        }
+
     void print_mem_usage_info() {
         auto mem_usage = get_elapsed_mem_usage();
         std::string log_msg = "Memory usage for " + _stage_name + ": " + std::to_string(mem_usage.rss) +
@@ -252,6 +271,18 @@ public:
         static ComPtr<IDXGIAdapter3> selected_adapter;
         static bool initialized = false;
         static bool init_failed = false;
+    #ifdef GPU_DEBUG_CONFIG
+        static int selected_device_index = -1;
+
+        const int current_device_index = get_active_device_index().load();
+        if (initialized && selected_device_index != current_device_index) {
+            selected_adapter.Reset();
+            initialized = false;
+            init_failed = false;
+        }
+    #else
+        const int current_device_index = -1;
+    #endif
 
         if (!initialized && !init_failed) {
             // One-time initialization of DXGI
@@ -263,16 +294,24 @@ public:
             IDXGIAdapter *adapter = nullptr;
             const uint32_t INTEL_PCI_VENDOR_ID = 0x8086;
             bool found_intel_adapter = false;
+            int intel_adapter_index = 0;
 
             for (UINT adapterIndex = 0; dxgi_factory->EnumAdapters(adapterIndex, &adapter) != DXGI_ERROR_NOT_FOUND; adapterIndex++) {
                 DXGI_ADAPTER_DESC desc;
                 adapter->GetDesc(&desc);
                 if (desc.VendorId == INTEL_PCI_VENDOR_ID) {
-                    if (S_OK == adapter->QueryInterface(IID_PPV_ARGS(&selected_adapter))) {
-                        found_intel_adapter = true;
+                    // Match configured device id among Intel adapters (gpu.0/gpu.1), fallback to first Intel adapter.
+                    const bool is_target_adapter = (current_device_index < 0 && intel_adapter_index == 0) ||
+                                                   (current_device_index >= 0 && intel_adapter_index == current_device_index);
+                    if (is_target_adapter) {
+                        if (S_OK == adapter->QueryInterface(IID_PPV_ARGS(&selected_adapter))) {
+                            found_intel_adapter = true;
+                        }
+                        adapter->Release();
+                        if (found_intel_adapter)
+                            break;
                     }
-                    adapter->Release();
-                    if (found_intel_adapter) break;
+                    intel_adapter_index++;
                 }
                 adapter->Release();
             }
@@ -282,15 +321,29 @@ public:
                 return -1;
             }
             initialized = true;
+#ifdef GPU_DEBUG_CONFIG
+            selected_device_index = current_device_index;
+#endif
         }
 
         if (init_failed || !selected_adapter) {
             return -1;
         }
 
-        // Query VRAM usage across all nodes
+        // Query VRAM usage for selected tile node when available, otherwise across all nodes.
         int64_t total_local_used = 0;
         const int KiB = 1024;
+
+#ifdef GPU_DEBUG_CONFIG
+        const int active_sub_device_idx = get_active_sub_device_index().load();
+        if (active_sub_device_idx >= 0) {
+            DXGI_QUERY_VIDEO_MEMORY_INFO info;
+            if (S_OK == selected_adapter->QueryVideoMemoryInfo(active_sub_device_idx, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &info)) {
+                return info.CurrentUsage / KiB;
+            }
+            return -1;
+        }
+#endif
 
         int nodeId = 0;
         DXGI_QUERY_VIDEO_MEMORY_INFO info;
@@ -306,6 +359,35 @@ public:
     }
 
 private:
+#ifdef GPU_DEBUG_CONFIG
+    static int parse_device_index(const std::string& device_id) {
+        if (device_id.empty()) {
+            return -1;
+        }
+
+        size_t start = device_id.size();
+        while (start > 0 && std::isdigit(static_cast<unsigned char>(device_id[start - 1]))) {
+            start--;
+        }
+
+        if (start == device_id.size()) {
+            return -1;
+        }
+
+        return std::stoi(device_id.substr(start));
+    }
+
+    static std::atomic<int>& get_active_device_index() {
+        static std::atomic<int> active_device_index{-1};
+        return active_device_index;
+    }
+
+    static std::atomic<int>& get_active_sub_device_index() {
+        static std::atomic<int> active_sub_device_index{-1};
+        return active_sub_device_index;
+    }
+#endif
+
     memory_footprint get_memory_footprint() {
         memory_footprint footprint;
 #if defined(_WIN32)
