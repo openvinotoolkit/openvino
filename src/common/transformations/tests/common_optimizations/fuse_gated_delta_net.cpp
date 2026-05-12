@@ -786,7 +786,7 @@ TEST_F(TransformationTestsF, FuseGroupedQueryIntoGDN_ReshapeTo4D_Applied) {
     model_ref = build_grouped_query_gdn_rank3_after();
 }
 
-TEST_F(TransformationTestsF, FuseGroupedQueryIntoGDN_ReshapeTo4D_DynamicBatch_Applied) {
+TEST_F(TransformationTestsF, FuseGroupedQueryIntoGDN_ReshapeTo4D_DynamicSeqLen_Applied) {
     disable_rt_info_check();
     disable_result_friendly_names_check();
     model = build_grouped_query_gdn_rank3_dynamic_before();
