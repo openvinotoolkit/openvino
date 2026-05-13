@@ -403,8 +403,7 @@ ov::Output<ov::Node> find_qk_anchor(const ov::Output<ov::Node>& start) {
 }
 
 ov::Output<ov::Node> align_to_reference_shape(const ov::Output<ov::Node>& src,
-                                              const ov::Output<ov::Node>& reference,
-                                              ov::pass::MatcherPass* pass) {
+                                              const ov::Output<ov::Node>& reference) {
     const auto& src_ps = src.get_partial_shape();
     const auto& ref_ps = reference.get_partial_shape();
 
@@ -486,9 +485,9 @@ ov::pass::FuseGroupedQueryIntoGDN::FuseGroupedQueryIntoGDN() {
             return false;
         }
 
-        auto q_aligned = align_to_reference_shape(q_anchor, gdn_node->input_value(0), this);
-        auto k_aligned = align_to_reference_shape(k_anchor, gdn_node->input_value(1), this);
-        auto v_aligned = align_to_reference_shape(v_anchor, gdn_node->input_value(2), this);
+        auto q_aligned = align_to_reference_shape(q_anchor, gdn_node->input_value(0));
+        auto k_aligned = align_to_reference_shape(k_anchor, gdn_node->input_value(1));
+        auto v_aligned = align_to_reference_shape(v_anchor, gdn_node->input_value(2));
 
         if (!q_aligned.get_node_shared_ptr() || !k_aligned.get_node_shared_ptr() || !v_aligned.get_node_shared_ptr()) {
             return false;
