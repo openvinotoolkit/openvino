@@ -6,6 +6,7 @@
 #include <memory>
 
 #include "common/pass/align_matmul_input_ranks.hpp"
+#include "common/pass/convert_grouped_matmul_to_gather_matmul.hpp"
 #include "common/pass/convert_matmul_to_fc.hpp"
 #include "common/pass/convert_tile_to_seq_tiles.hpp"
 #include "common/pass/convert_to_leaky_relu.hpp"
@@ -42,6 +43,10 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
 
     ov::pass::Manager manager("CPU:ConvertToCPUSpecificOpset");
     manager.set_per_pass_validation(false);
+
+    // Convert public GroupedMatMul-17 into the internal GatherMatmul
+    // Must run before the compression pass.
+    CPU_REGISTER_PASS_COMMON(manager, ConvertGroupedMatMulToGatherMatmul);
 
     // TransformMoeBlockToGatherMatmuls
     CPU_REGISTER_PASS_X64(manager, ov::pass::ConvertTiledMoeBlockToGatherMatmuls);
