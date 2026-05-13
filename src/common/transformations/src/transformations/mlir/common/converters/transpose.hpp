@@ -30,7 +30,7 @@ struct ConvertTranspose {
 
         auto const_order = dynamic_cast<ov::op::v0::Constant*>(node->get_input_node_ptr(1));
         assert(const_order && "non-const order not supported");
-        ov::Coordinate coords = const_order->get_coordinate_val();
+        auto coords = const_order->cast_vector<int64_t>();
         SmallVector<int64_t> order(coords.begin(), coords.end());
 
         auto empty = tensor::EmptyOp::create(builder, loc, out_type, dynamic_dimensions);
