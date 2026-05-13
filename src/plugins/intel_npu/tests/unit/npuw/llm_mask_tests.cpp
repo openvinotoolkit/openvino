@@ -94,7 +94,7 @@ TEST(LLMMaskTest, SlidingWindow_Alternating_Builds) {
 TEST(LLMMaskTest, SlidingWindow_Phi3Boolean_Builds) {
     auto cfg = ov::test::npuw::make_test_model_config();
     cfg.sliding_window_size = 512;
-    cfg.alternating_attention = false;
+    cfg.sliding_to_full_ratio = 0;
     cfg.sliding_mask_fn = make_sliding_window_mask_phi3;
 
     ModelBuilder mb;
@@ -115,12 +115,12 @@ TEST(LLMMaskTest, SlidingWindow_Phi3Boolean_Builds) {
     EXPECT_TRUE(found_bool_sdpa_mask);
 }
 
-// Phi-3 boolean pattern + alternating layers — even layers boolean SWA, odd float causal.
+// Phi-3 boolean pattern + 1:1 sliding/full alternation (Gemma 2) — sliding then full, repeating.
 TEST(LLMMaskTest, SlidingWindow_Phi3Boolean_Alternating_Builds) {
     auto cfg = ov::test::npuw::make_test_model_config();
     cfg.num_layers = 4;
     cfg.sliding_window_size = 512;
-    cfg.alternating_attention = true;
+    cfg.sliding_to_full_ratio = 1;
     cfg.sliding_mask_fn = make_sliding_window_mask_phi3;
 
     ModelBuilder mb;

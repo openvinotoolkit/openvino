@@ -726,12 +726,12 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     }
 
     const bool has_sliding = config.sliding_window_size > 0;
+    const bool has_full_layers = !has_sliding || config.sliding_to_full_ratio > 0;
 
     ov::Output<ov::Node> full_mask;
     ov::Output<ov::Node> sliding_mask;
 
-    // Need full causal mask unless every layer is sliding
-    if (!has_sliding || config.alternating_attention) {
+    if (has_full_layers) {
         full_mask = config.causal_mask_fn ? config.causal_mask_fn(seq_source, attention_mask->output(0), prec)
                                           : make_causal_mask(seq_source, attention_mask->output(0), prec);
     }
@@ -805,9 +805,10 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
                                 config.num_layers,
                                 "model.layers.",
                                 [&](const ov::Output<ov::Node>& input, const std::string& prefix, size_t layer) {
-                                    // Per-layer mask: alternating = even->sliding, odd->full
-                                    if (has_sliding && config.alternating_attention) {
-                                        attn.sdpa_mask = (layer % 2 == 0) ? sliding_mask : full_mask;
+                                    // Per-layer mask: N sliding layers then 1 full, repeating.
+                                    if (has_sliding && config.sliding_to_full_ratio > 0) {
+                                        const size_t cycle = config.sliding_to_full_ratio + 1;
+                                        attn.sdpa_mask = (layer % cycle == cycle - 1) ? full_mask : sliding_mask;
                                     }
                                     if (config.pre_norm) {
                                         return make_pre_norm_layer(

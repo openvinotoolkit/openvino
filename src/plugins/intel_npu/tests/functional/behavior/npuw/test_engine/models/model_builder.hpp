@@ -186,7 +186,7 @@ struct LLMConfig : public BaseModelConfig {
     size_t moe_intermediate_size = 0; ///< Expert FFN intermediate size. 0 = use intermediate_size.
 
     size_t sliding_window_size = 0;      ///< 0 = no sliding window. >0 = window size (Phi-3, Gemma 2/3)
-    bool alternating_attention = false;  ///< false = all layers same mask. true = even=sliding, odd=full (Gemma 2/3)
+    size_t sliding_to_full_ratio = 0;    ///< 0 = uniform. N = N sliding layers per 1 full (Gemma 2: 1, Gemma 3: 5)
     bool use_token_type_ids = false;     ///< Gemma 3 VLM: token_type_ids param (0=text/causal, 1=image/bidir)
     SlidingMaskFn sliding_mask_fn;       ///< Empty = default float (Gemma-4) construction.
 };
