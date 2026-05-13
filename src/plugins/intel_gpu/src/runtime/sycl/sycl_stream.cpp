@@ -74,6 +74,7 @@ QueueTypes sycl_stream::detect_queue_type(void *queue_handle) {
 }
 
 void sycl_stream::set_arguments(kernel& kernel, const kernel_arguments_desc& args_desc, const kernel_arguments_data& args) {
+    OPENVINO_THROW("[GPU] sycl_stream::set_arguments is not implemented");
 }
 
 event::ptr sycl_stream::enqueue_kernel(kernel& kernel,
@@ -81,7 +82,7 @@ event::ptr sycl_stream::enqueue_kernel(kernel& kernel,
                                       const kernel_arguments_data& args,
                                       std::vector<event::ptr> const& deps,
                                       bool is_output) {
-    return nullptr;
+    OPENVINO_THROW("[GPU] sycl_stream::enqueue_kernel is not implemented");
 }
 
 void sycl_stream::enqueue_barrier() {
