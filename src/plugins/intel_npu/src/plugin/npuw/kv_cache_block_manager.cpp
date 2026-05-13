@@ -146,6 +146,7 @@ void KVCacheBlockManager::clear_all() {
     LOG_DEBUG("KVCacheBlockManager: Clearing all blocks");
 
     for (auto& block : blocks_) {
+        block.tensor = {};  // Drop SoPtr — returns device memory to allocator
         block.num_tokens = 0;
         block.is_allocated = false;
     }

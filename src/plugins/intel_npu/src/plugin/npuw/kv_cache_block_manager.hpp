@@ -104,11 +104,13 @@ public:
     std::vector<uint32_t> get_allocated_blocks() const;
 
     /**
-     * @brief Reset all blocks to FREE state and clear token counts.
+     * @brief Reset all blocks to FREE state, clear token counts, and release
+     * all device tensor memory.
      *
-     * Note: tensor memory is retained in the pool for reuse; no device
-     * deallocation occurs. Individual block release is not supported —
-     * use this method to reset the entire pool between requests.
+     * Tensors are dropped so that device memory is returned to the allocator.
+     * Memory will be re-allocated on demand when blocks are next used.
+     * Call this between conversations to prevent a long conversation from
+     * permanently pinning peak device memory.
      */
     void clear_all();
 
