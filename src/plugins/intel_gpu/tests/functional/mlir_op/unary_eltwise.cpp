@@ -69,7 +69,7 @@ DEFINE_TEST(TanhTest)
 
 const auto test_params = ::testing::Combine(::testing::Values(ov::Shape{1, 24, 1024, 1}, ov::Shape{1, 24, 128, 1}), ::testing::Values(ov::element::f16));
 
-#define INSTANTIATE_TS(Name) INSTANTIATE_TEST_SUITE_P(smoke_UnaryElementwise##Name, Name, test_params, Name::getTestCaseName)
+#define INSTANTIATE_TS(Name) INSTANTIATE_TEST_SUITE_P(mlir_UnaryElementwise##Name, Name, test_params, Name::getTestCaseName)
 
 INSTANTIATE_TS(AbsTest);
 INSTANTIATE_TS(CeilingTest);

@@ -16,6 +16,7 @@
 #include <openvino/op/reduce_min.hpp>
 #include <openvino/op/reduce_prod.hpp>
 #include <openvino/op/reduce_sum.hpp>
+#include <openvino/op/reshape.hpp>
 #include <openvino/op/abs.hpp>
 #include <openvino/op/ceiling.hpp>
 #include <openvino/op/exp.hpp>
@@ -40,6 +41,7 @@
 #include "../common/converters/gather.hpp"
 #include "../common/converters/matmul.hpp"
 #include "../common/converters/reduce.hpp"
+#include "../common/converters/reshape.hpp"
 #include "../common/converters/sdpa.hpp"
 #include "../common/converters/shape_of.hpp"
 #include "../common/converters/slice.hpp"
@@ -88,6 +90,9 @@ template class ReducePattern<ov::op::v1::ReduceMean>;
 template class ReducePattern<ov::op::v1::ReduceMin>;
 template class ReducePattern<ov::op::v1::ReduceProd>;
 template class ReducePattern<ov::op::v1::ReduceSum>;
+
+ReshapePattern::ReshapePattern()
+    : MarkPattern(wrap_type<v1::Reshape>({any_input(), any_input()}), ConvertReshape()) {}
 
 SDPAPattern::SDPAPattern()
     : MarkPattern(wrap_type<v13::ScaledDotProductAttention>(), ConvertSDPA()) {}

@@ -91,9 +91,9 @@ const auto same_shape_params =
 const auto broadcast_params =
     ::testing::Combine(::testing::Values(ov::Shape{1, 1024, 1536}), ::testing::Values(ov::Shape{1536}), ::testing::Values(ov::element::f16));
 
-#define INSTANTIATE_TS(Name)                                                                                              \
-    INSTANTIATE_TEST_SUITE_P(smoke_BinaryElementwise##Name##_same_shape, Name, same_shape_params, Name::getTestCaseName); \
-    INSTANTIATE_TEST_SUITE_P(smoke_BinaryElementwise##Name##_broadcast, Name, broadcast_params, Name::getTestCaseName)
+#define INSTANTIATE_TS(Name)                                                                                             \
+    INSTANTIATE_TEST_SUITE_P(mlir_BinaryElementwise##Name##_same_shape, Name, same_shape_params, Name::getTestCaseName); \
+    INSTANTIATE_TEST_SUITE_P(mlir_BinaryElementwise##Name##_broadcast, Name, broadcast_params, Name::getTestCaseName)
 
 INSTANTIATE_TS(AddTest);
 INSTANTIATE_TS(SubtractTest);
@@ -162,9 +162,9 @@ const auto const_broadcast_params =
     ::testing::Combine(::testing::Values(ov::Shape{1, 1024, 1536}), ::testing::Values(ov::Shape{1536}), ::testing::Values(ov::element::f16));
 
 #undef INSTANTIATE_TS
-#define INSTANTIATE_TS(Name)                                                                                            \
-    INSTANTIATE_TEST_SUITE_P(smoke_BinaryElementwise##Name##_scalar, Name, const_scalar_params, Name::getTestCaseName); \
-    INSTANTIATE_TEST_SUITE_P(smoke_BinaryElementwise##Name##_broadcast, Name, const_broadcast_params, Name::getTestCaseName)
+#define INSTANTIATE_TS(Name)                                                                                           \
+    INSTANTIATE_TEST_SUITE_P(mlir_BinaryElementwise##Name##_scalar, Name, const_scalar_params, Name::getTestCaseName); \
+    INSTANTIATE_TEST_SUITE_P(mlir_BinaryElementwise##Name##_broadcast, Name, const_broadcast_params, Name::getTestCaseName)
 
 INSTANTIATE_TS(AddConstTest);
 INSTANTIATE_TS(SubtractConstTest);

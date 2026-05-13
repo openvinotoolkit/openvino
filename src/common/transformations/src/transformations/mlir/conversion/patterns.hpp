@@ -50,6 +50,12 @@ public:
     ReducePattern();
 };
 
+class ReshapePattern : public MarkPattern {
+public:
+    OPENVINO_RTTI("ReshapePattern", "0");
+    ReshapePattern();
+};
+
 class SDPAPattern : public MarkPattern {
 public:
     OPENVINO_RTTI("SDPAPattern", "0");
