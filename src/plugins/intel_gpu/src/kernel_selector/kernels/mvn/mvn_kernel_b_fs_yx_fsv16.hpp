@@ -9,11 +9,11 @@
 #include <vector>
 
 namespace kernel_selector {
-class MVNKernel_b_fs_yx_fsv16_imad : public MVNKernelBase {
+class MVNKernel_b_fs_yx_fsv16 : public MVNKernelBase {
 public:
     using Parent = MVNKernelBase;
-    MVNKernel_b_fs_yx_fsv16_imad() : MVNKernelBase("mvn_gpu_b_fs_yx_fsv16_imad") {}
-    virtual ~MVNKernel_b_fs_yx_fsv16_imad() {}
+    MVNKernel_b_fs_yx_fsv16() : MVNKernelBase("mvn_gpu_b_fs_yx_fsv16") {}
+    virtual ~MVNKernel_b_fs_yx_fsv16() {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
@@ -32,15 +32,18 @@ protected:
     bool Validate(const Params&) const override;
     DispatchData SetDefault(const mvn_params& params) const override;
     JitConstants GetJitConstants(const mvn_params& params, DispatchData dispatchData) const override;
+    void GetUpdateDispatchDataFunc(KernelData& kd) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return {
             FusedOpType::ACTIVATION,
             FusedOpType::QUANTIZE,
-            FusedOpType::ELTWISE
+            FusedOpType::ELTWISE,
+            FusedOpType::REORDER
         };
     }
 
     KernelsData GetMultiStageKernelsData(const mvn_params& params) const;
+    KernelsData GetDynamicMultiStageKernelsData(const mvn_params& params) const;
     MultiDispatchData SetDefaultForMulti(const mvn_params& params) const;
 
 private:

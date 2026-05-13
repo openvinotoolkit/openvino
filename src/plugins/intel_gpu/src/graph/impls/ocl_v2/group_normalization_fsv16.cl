@@ -117,6 +117,9 @@ KERNEL(group_norm_fused)(
             ACTIVATION_TYPE normalized = input_data[i] * scale_f + bias_f;
             if (f < OUTPUT_FEATURE_NUM) {
                 #if HAS_FUSED_OPS
+                    const uint fused_ops_yx = (in_data_set_idx / FSV) + (i + j * CHUNK_SIZE) * workers_per_dataset;
+                    const uint y = fused_ops_yx / OUTPUT_SIZE_X;
+                    const uint x = fused_ops_yx % OUTPUT_SIZE_X;
                     FUSED_OPS;
                     output[output_data_offset + (i  + j * CHUNK_SIZE) * workers_per_dataset * FSV] = FUSED_OPS_RESULT;
                 #else
@@ -133,6 +136,9 @@ KERNEL(group_norm_fused)(
         normalized = normalized * scale_f + bias_f;
         if (f < OUTPUT_FEATURE_NUM) {
             #if HAS_FUSED_OPS
+                const uint fused_ops_yx = items_num * workers_per_dataset + in_data_set_idx;
+                const uint y = fused_ops_yx / OUTPUT_SIZE_X;
+                const uint x = fused_ops_yx % OUTPUT_SIZE_X;
                 FUSED_OPS;
                 output[output_data_offset + items_num * workers_per_dataset * FSV + in_data_set_idx] = FUSED_OPS_RESULT;
             #else
