@@ -298,18 +298,5 @@ dnnl::memory gpu_buffer::get_onednn_memory(dnnl::memory::desc desc, int64_t offs
 }
 #endif
 
-std::vector<::sycl::buffer<std::byte, 1>> sycl_surfaces_lock::get_handles(std::vector<memory::ptr> mem) const {
-    std::vector<::sycl::buffer<std::byte, 1>> res;
-
-    // Do nothing because we don't support sycl surfaces lock
-    return res;
-}
-
-sycl_surfaces_lock::sycl_surfaces_lock(std::vector<memory::ptr> mem, const stream& stream)
-    : surfaces_lock() {
-    // , _handles(get_handles(mem))
-    // , _lock(nullptr) {
-    OPENVINO_ASSERT(mem.empty(), "[GPU] SYCL surfaces lock is not supported");
-}
 }  // namespace sycl
 }  // namespace cldnn

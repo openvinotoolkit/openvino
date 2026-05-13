@@ -155,8 +155,9 @@ event::ptr sycl_stream::create_base_event(::sycl::event& event) {
     return std::make_shared<sycl_event>(event, _command_queue, ++_queue_counter);
 }
 
-std::unique_ptr<surfaces_lock> sycl_stream::create_surfaces_lock(const std::vector<memory::ptr> &mem) const {
-    return std::unique_ptr<sycl::sycl_surfaces_lock>(new sycl::sycl_surfaces_lock(mem, *this));
+std::unique_ptr<surfaces_lock> sycl_stream::create_surfaces_lock(const std::vector<memory::ptr>&) const {
+    // SYCL runtime currently does not support surfaces lock
+    return nullptr;
 }
 
 void sycl_stream::flush() const {
