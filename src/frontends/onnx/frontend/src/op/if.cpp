@@ -8,6 +8,8 @@
 #include "core/operator_set.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/frontend/exception.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
 #include "translate_session.hpp"
 using namespace ov::op;
 
@@ -123,6 +125,31 @@ ov::OutputVector if_op(const ov::frontend::onnx::Node& node) {
 
     auto then_results = then_branch->get_results();
     auto else_results = else_branch->get_results();
+
+    // The InputModel for subgraphs may register parent-scope tensors (that are
+    // also outputs of the parent graph) as additional subgraph outputs. Trim
+    // branches to the ONNX node's declared output count, but only trim results
+    // that are parent-scope pass-throughs (Parameter → Result chains), not
+    // genuine computation outputs.
+    const size_t expected_outputs = node.get_outputs_size();
+    auto trim_parent_scope_results = [](ov::ResultVector& branch_results, size_t target) {
+        while (branch_results.size() > target) {
+            auto last = branch_results.back();
+            auto src = last->input_value(0).get_node_shared_ptr();
+            // Accept: Parameter, Constant, or single-input node wrapping Parameter/Constant
+            bool is_passthrough = ov::is_type<v0::Parameter>(src) || ov::is_type<v0::Constant>(src);
+            if (!is_passthrough && src->get_input_size() == 1 && src->get_output_size() == 1) {
+                auto inner = src->input_value(0).get_node_shared_ptr();
+                is_passthrough = ov::is_type<v0::Parameter>(inner) || ov::is_type<v0::Constant>(inner);
+            }
+            if (!is_passthrough)
+                break;
+            branch_results.pop_back();
+        }
+    };
+    trim_parent_scope_results(then_results, expected_outputs);
+    trim_parent_scope_results(else_results, expected_outputs);
+
     FRONT_END_GENERAL_CHECK(then_results.size() == else_results.size(),
                             "'then' and 'else' branches have to have the same number of outputs");
     int output_size = static_cast<int>(then_results.size());

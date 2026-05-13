@@ -31,9 +31,6 @@ struct border_impl : typed_primitive_impl_ocl<border> {
         size_t rank = impl_param.get_input_layout(0).get_rank();
         format pads_format = format::adjust_to_rank(format::bfyx, rank);
 
-        std::vector<int32_t> begin(primitive->pads_begin.begin(), primitive->pads_begin.end());
-        std::vector<int32_t> end(primitive->pads_end.begin(), primitive->pads_end.end());
-
         size_t input_offset = 1;
         if (!(primitive->non_constant_input_mask & border::PAD_NON_CONST_INPUT::BEGIN)) {
             params.begin_type = kernel_selector::base_params::ArgType::Constant;

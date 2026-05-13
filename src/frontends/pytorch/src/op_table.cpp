@@ -370,6 +370,7 @@ OP_CONVERTER(translate_embedding_ext);
 OP_CONVERTER(translate_linear_awq);
 OP_CONVERTER(translate_linear_bitnet);
 OP_CONVERTER(translate_linear_ext);
+OP_CONVERTER(translate_linear_gptq);
 }  // namespace op
 
 // Supported ops for TorchScript
@@ -791,6 +792,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::zeros_like", op::translate_zeros_like},
         {"ov_ext::awq_gemm", op::translate_linear_awq},
         {"ov_ext::bit_linear", op::translate_linear_bitnet},
+        {"ov_ext::gptq_gemm", op::translate_linear_gptq},
         {"ov_ext::bmm", op::translate_bmm_ext},
         {"ov_ext::embedding", op::translate_embedding_ext},
         {"ov_ext::conv1d", op::translate_conv1d_ext},
@@ -1165,6 +1167,10 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"quantized_decomposed.dequantize_per_channel.default", op::skip_node},
         {"inlined.constant.default", op::translate_constant},    // this is a custom ov type
         {"inlined.list.default", op::translate_list_construct},  // this is a custom list type
+        // OpenVINO extension ops registered via torch.library for torch.export
+        {"ov_ext.awq_gemm.default", op::translate_linear_awq},
+        {"ov_ext.bit_linear.default", op::translate_linear_bitnet},
+        {"ov_ext.gptq_gemm.default", op::translate_linear_gptq},
         // Higher-order operations from torch.export (torch.cond, torch.while_loop, etc.)
         {"cond", op::translate_cond_fx},
         {"while_loop", op::translate_while_loop_fx},

@@ -11,6 +11,7 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/type/element_iterator.hpp"
+#include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
@@ -283,7 +284,13 @@ bool convert_function_precision(ov::pass::PassBase& pass,
     // Register internal constants only after fixing input type that could lead to nodes
     // replacement
     register_constants(ops);
-    for (auto& node : ops) {
+    // Move each shared_ptr out of `ops` as we iterate so that an old constant
+    // is destroyed as soon as fuse_type_to_constant has rewired its consumers
+    // to the freshly allocated replacement. Without the std::move the original
+    // constants stay alive until the loop ends, doubling the peak memory of
+    // the pass on constant-heavy models.
+    for (size_t i = 0; i < ops.size(); ++i) {
+        auto node = std::move(ops[i]);
         // skip precision sensitive nodes
         if (skip_precision_sensitive && fp16_compression_is_disabled(node) && has_fp16_compression)
             continue;
@@ -323,8 +330,12 @@ bool convert_function_precision(ov::pass::PassBase& pass,
                                       is_output_precision_changed;
     }
 
+    // The constant-replacement loop above moved every shared_ptr out of `ops`,
+    // so the vector is now full of nullptrs. Always refresh it before the
+    // downstream Convert-cleanup loop, otherwise that loop would silently skip
+    // every node and miss freshly inserted Convert ops.
+    ops = f->get_ordered_ops();
     if (is_output_precision_changed) {
-        ops = f->get_ordered_ops();
         is_changed = true;
     }
 
@@ -643,11 +654,7 @@ bool fuse_type_to_parameter(const std::shared_ptr<ov::Node>& node,
             auto convert = std::make_shared<v0::Convert>(param, to);
             for (auto& input : param_consumers) {
                 const auto consumer = input.get_node();
-                if (ov::is_type<v0::Result>(consumer) || ov::is_type<v0::Convert>(consumer) ||
-                    // TODO: refactor after ngraph op defined
-                    // The fourth and fifth inputs are kvcache and should be directly connected to parameters
-                    (consumer->get_type_name() == std::string("PagedAttentionExtension") &&
-                     (input.get_index() == 3 || input.get_index() == 4))) {
+                if (ov::is_type<v0::Result>(consumer) || ov::is_type<v0::Convert>(consumer)) {
                     continue;
                 }
                 input.replace_source_output(convert);
@@ -1364,6 +1371,7 @@ bool fuse_type_to_constant(const std::shared_ptr<ov::Node>& node,
         new_const->set_friendly_name(constant->get_friendly_name());
         ov::copy_runtime_info(constant, new_const);
         ov::copy_weightless_cache_attr(constant, new_const);
+        ov::wsh::Extension::hint_evict(*constant);
         return true;
     }
     return false;

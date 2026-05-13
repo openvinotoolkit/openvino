@@ -60,7 +60,7 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(const ov::
         // It is required to check if the device is compatible with the provided platform, as the driver compiler
         // will be used.
         auto deviceName = engineBackend->getDevice()->getName();
-        if (deviceName != platform && deviceName != "AUTO_DETECT") {
+        if (!platform.empty() && deviceName != platform && deviceName != "AUTO_DETECT") {
             OPENVINO_THROW("Could not find a valid NPU device for the provided configuration.");
         }
 
