@@ -11,11 +11,7 @@ import shlex
 import shutil
 import subprocess
 import time
-
-try:
-    import defusedxml.ElementTree as ET
-except ModuleNotFoundError:
-    import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as ET
 
 from coverage_workflow import (
     CoverageContext,
