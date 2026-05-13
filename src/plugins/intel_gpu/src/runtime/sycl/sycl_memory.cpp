@@ -6,6 +6,7 @@
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/utils.hpp"
+#include "runtime_common.hpp"
 #include "sycl_memory.hpp"
 #include "sycl_engine.hpp"
 #include "sycl_stream.hpp"
@@ -159,6 +160,8 @@ event::ptr gpu_buffer::copy_from(stream& stream, const void* data_ptr, size_t sr
     if (size == 0)
         return nullptr;
 
+    check_boundaries(SIZE_MAX, src_offset, _bytes_count, dst_offset, size, "gpu_buffer::copy_from(void*)");
+
     auto& sycl_stream = downcast<sycl::sycl_stream>(stream);
     auto src_ptr = reinterpret_cast<const char*>(data_ptr) + src_offset;
 
@@ -181,6 +184,8 @@ event::ptr gpu_buffer::copy_from(stream& stream, const void* data_ptr, size_t sr
 event::ptr gpu_buffer::copy_from(stream& stream, const memory& src_mem, size_t src_offset, size_t dst_offset, size_t size, bool blocking) {
     if (size == 0)
         return nullptr;
+
+    check_boundaries(src_mem.size(), src_offset, _bytes_count, dst_offset, size, "gpu_buffer::copy_from(memory&)");
 
     switch (src_mem.get_allocation_type()) {
         case allocation_type::usm_host:
@@ -227,6 +232,8 @@ event::ptr gpu_buffer::copy_from(stream& stream, const memory& src_mem, size_t s
 event::ptr gpu_buffer::copy_to(stream& stream, void* data_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) const {
     if (size == 0)
         return nullptr;
+
+    check_boundaries(_bytes_count, src_offset, SIZE_MAX, dst_offset, size, "gpu_buffer::copy_to(void*)");
 
     auto& sycl_stream = downcast<sycl::sycl_stream>(stream);
     // const qualifier should be removed to construct ::sycl::accessor
