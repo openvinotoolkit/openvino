@@ -20,7 +20,7 @@ public:
     explicit sycl_error(::sycl::exception const& err);
 };
 
-#define SYCL_ERR_MSG_FMT(error) ("[GPU] " + std::string(error.what()) +  std::string(", OpenCL error code: ") + std::to_string(error.code().value()))
+#define SYCL_ERR_MSG_FMT(error) ("[GPU] " + std::string(error.what()) +  std::string(", SYCL error code: ") + std::to_string(error.code().value()))
 
 inline bool is_device_available(const device_info& info) {
     sycl_device_detector detector;
