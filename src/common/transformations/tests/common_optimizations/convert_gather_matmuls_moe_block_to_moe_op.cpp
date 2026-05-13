@@ -10,6 +10,7 @@
 #include <openvino/op/clamp.hpp>
 #include <openvino/op/concat.hpp>
 #include <openvino/op/constant.hpp>
+#include <openvino/op/gelu.hpp>
 #include <openvino/op/matmul.hpp>
 #include <openvino/op/minimum.hpp>
 #include <openvino/op/moe.hpp>
@@ -278,7 +279,8 @@ inline std::shared_ptr<ov::Model> build_3gemm_moe_pattern_model() {
 // Post-BGM model builders (3 BGMs + compact routing + ReduceSum + Reshape)
 // ============================================================================
 
-inline std::shared_ptr<ov::Model> build_3gemm_bgm_model() {
+inline std::shared_ptr<ov::Model> build_3gemm_bgm_model(
+    ov::op::internal::MOE::Activation_type activation_type = ov::op::internal::MOE::Activation_type::SWIGLU) {
     using namespace ov;
 
     const size_t batch = 2;
@@ -325,9 +327,16 @@ inline std::shared_ptr<ov::Model> build_3gemm_bgm_model() {
 
     // 3 BGMs
     auto bgm_gate = std::make_shared<GatherMatmul>(unsqueeze, gate_w, topk_indices);
-    auto swish = std::make_shared<op::v4::Swish>(bgm_gate);
+    std::shared_ptr<ov::Node> gate_act;
+    if (activation_type == ov::op::internal::MOE::Activation_type::GEGLU_TANH) {
+        gate_act = std::make_shared<op::v7::Gelu>(bgm_gate, ov::op::GeluApproximationMode::TANH);
+    } else if (activation_type == ov::op::internal::MOE::Activation_type::GEGLU_ERF) {
+        gate_act = std::make_shared<op::v7::Gelu>(bgm_gate, ov::op::GeluApproximationMode::ERF);
+    } else {
+        gate_act = std::make_shared<op::v4::Swish>(bgm_gate);
+    }
     auto bgm_up = std::make_shared<GatherMatmul>(unsqueeze, up_w, topk_indices);
-    auto swiglu = std::make_shared<op::v1::Multiply>(swish, bgm_up);
+    auto swiglu = std::make_shared<op::v1::Multiply>(gate_act, bgm_up);
     auto bgm_down = std::make_shared<GatherMatmul>(swiglu, down_w, topk_indices);
 
     // Compact routing: chosen_experts → Transpose({1,0}) → Unsqueeze(-1)
@@ -355,7 +364,8 @@ inline std::shared_ptr<ov::Model> build_3gemm_bgm_model() {
     return std::make_shared<ov::Model>(ov::OutputVector{end_reshape}, ov::ParameterVector{input});
 }
 
-inline std::shared_ptr<ov::Model> build_3gemm_bgm_to_moe_reference_model() {
+inline std::shared_ptr<ov::Model> build_3gemm_bgm_to_moe_reference_model(
+    ov::op::internal::MOE::Activation_type activation_type = ov::op::internal::MOE::Activation_type::SWIGLU) {
     using namespace ov;
 
     const size_t batch = 2;
@@ -406,6 +416,7 @@ inline std::shared_ptr<ov::Model> build_3gemm_bgm_to_moe_reference_model() {
     ov::OutputVector moe_inputs = {input, router_unsqueeze, topk_indices, gate_w, up_w, down_w};
     ov::op::internal::MOE::Config config;
     config.expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
+    config.activation_type = activation_type;
     auto moe = std::make_shared<ov::op::internal::MOE>(moe_inputs, config);
 
     return std::make_shared<ov::Model>(ov::OutputVector{moe}, ov::ParameterVector{input});
@@ -583,6 +594,163 @@ inline std::shared_ptr<ov::Model> build_2gemm_bgm_to_moe_reference_model() {
 }
 
 // ============================================================================
+// Post-BGM model builders (3 BGMs + compact routing) — Multiply instead of Reshape
+// before Unsqueeze (gemma4 pattern: layernorm Multiply feeds expert path directly)
+// ============================================================================
+
+inline std::shared_ptr<ov::Model> build_3gemm_bgm_model_multiply_input(
+    ov::op::internal::MOE::Activation_type activation_type = ov::op::internal::MOE::Activation_type::SWIGLU) {
+    using namespace ov;
+
+    const size_t batch = 2;
+    const Dimension in_dim = Dimension::dynamic();
+    const size_t hidden_size = 2048;
+    const size_t intermediate_size = 4096;
+    const size_t number_of_experts = 3;
+    const size_t topk = 2;
+
+    auto input = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{batch, in_dim, hidden_size});
+
+    // Simulate layernorm output: Multiply(input, scale) — no Reshape
+    auto norm_scale = op::v0::Constant::create(element::f32, Shape{1, 1, hidden_size}, {1.0f});
+    auto layernorm_mul = std::make_shared<op::v1::Multiply>(input, norm_scale);
+
+    // Reshape to [batch*seq, hidden] for router path
+    auto experts_reshape = std::make_shared<op::v1::Reshape>(
+        layernorm_mul,
+        op::v0::Constant::create(element::i64, Shape{2}, std::vector<int64_t>{-1, static_cast<int64_t>(hidden_size)}),
+        false);
+
+    // Unsqueeze feeds from Multiply (via Reshape) — but the pattern's optional<Reshape>
+    // means hidden_states_m captures the Multiply output (layernorm_mul).
+    auto unsqueeze =
+        std::make_shared<op::v0::Unsqueeze>(experts_reshape, op::v0::Constant::create(element::i32, Shape{}, {0}));
+
+    // Router subgraph
+    auto router_matmul = std::make_shared<op::v0::MatMul>(
+        experts_reshape,
+        op::v0::Constant::create(element::f32, Shape{number_of_experts, hidden_size}, {1.0f}),
+        false,
+        true);
+    auto router_topk = std::make_shared<op::v11::TopK>(router_matmul,
+                                                       op::v0::Constant::create(element::i64, Shape{}, {topk}),
+                                                       -1,
+                                                       op::v11::TopK::Mode::MAX,
+                                                       op::v11::TopK::SortType::SORT_VALUES,
+                                                       element::i64);
+    auto topk_indices = router_topk->output(1);
+    auto chosen_experts = router_topk->output(0);
+
+    // Weights
+    auto gate_w =
+        op::v0::Constant::create(element::f32, Shape{number_of_experts, intermediate_size, hidden_size}, {1.0f});
+    auto up_w =
+        op::v0::Constant::create(element::f32, Shape{number_of_experts, intermediate_size, hidden_size}, {1.0f});
+    auto down_w =
+        op::v0::Constant::create(element::f32, Shape{number_of_experts, hidden_size, intermediate_size}, {1.0f});
+
+    // 3 BGMs
+    auto bgm_gate = std::make_shared<GatherMatmul>(unsqueeze, gate_w, topk_indices);
+    std::shared_ptr<ov::Node> gate_act;
+    if (activation_type == ov::op::internal::MOE::Activation_type::GEGLU_TANH) {
+        gate_act = std::make_shared<op::v7::Gelu>(bgm_gate, ov::op::GeluApproximationMode::TANH);
+    } else if (activation_type == ov::op::internal::MOE::Activation_type::GEGLU_ERF) {
+        gate_act = std::make_shared<op::v7::Gelu>(bgm_gate, ov::op::GeluApproximationMode::ERF);
+    } else {
+        gate_act = std::make_shared<op::v4::Swish>(bgm_gate);
+    }
+    auto bgm_up = std::make_shared<GatherMatmul>(unsqueeze, up_w, topk_indices);
+    auto swiglu = std::make_shared<op::v1::Multiply>(gate_act, bgm_up);
+    auto bgm_down = std::make_shared<GatherMatmul>(swiglu, down_w, topk_indices);
+
+    // Compact routing
+    auto router_transpose = std::make_shared<op::v1::Transpose>(
+        chosen_experts,
+        op::v0::Constant::create(element::i64, Shape{2}, std::vector<int64_t>{1, 0}));
+    auto router_unsqueeze =
+        std::make_shared<op::v0::Unsqueeze>(router_transpose, op::v0::Constant::create(element::i32, Shape{}, {-1}));
+
+    // Final: Multiply → ReduceSum → Reshape
+    auto final_mul = std::make_shared<op::v1::Multiply>(bgm_down, router_unsqueeze);
+    auto reduce_sum =
+        std::make_shared<op::v1::ReduceSum>(final_mul,
+                                            op::v0::Constant::create(element::i64, Shape{1}, std::vector<int64_t>{0}),
+                                            false);
+
+    auto end_reshape = std::make_shared<op::v1::Reshape>(
+        reduce_sum,
+        op::v0::Constant::create(
+            element::i64,
+            Shape{3},
+            std::vector<int64_t>{static_cast<int64_t>(batch), -1, static_cast<int64_t>(hidden_size)}),
+        true);
+
+    return std::make_shared<ov::Model>(ov::OutputVector{end_reshape}, ov::ParameterVector{input});
+}
+
+inline std::shared_ptr<ov::Model> build_3gemm_bgm_to_moe_reference_model_multiply_input(
+    ov::op::internal::MOE::Activation_type activation_type = ov::op::internal::MOE::Activation_type::SWIGLU) {
+    using namespace ov;
+
+    const size_t batch = 2;
+    const Dimension in_dim = Dimension::dynamic();
+    const size_t hidden_size = 2048;
+    const size_t intermediate_size = 4096;
+    const size_t number_of_experts = 3;
+    const size_t topk = 2;
+
+    auto input = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{batch, in_dim, hidden_size});
+
+    // Layernorm Multiply — its OUTPUT is the correct hidden_states for the MOE op
+    auto norm_scale = op::v0::Constant::create(element::f32, Shape{1, 1, hidden_size}, {1.0f});
+    auto layernorm_mul = std::make_shared<op::v1::Multiply>(input, norm_scale);
+
+    // Router subgraph (not fused, remains in the graph)
+    auto experts_reshape = std::make_shared<op::v1::Reshape>(
+        layernorm_mul,
+        op::v0::Constant::create(element::i64, Shape{2}, std::vector<int64_t>{-1, static_cast<int64_t>(hidden_size)}),
+        false);
+
+    auto router_matmul = std::make_shared<op::v0::MatMul>(
+        experts_reshape,
+        op::v0::Constant::create(element::f32, Shape{number_of_experts, hidden_size}, {1.0f}),
+        false,
+        true);
+    auto router_topk = std::make_shared<op::v11::TopK>(router_matmul,
+                                                       op::v0::Constant::create(element::i64, Shape{}, {topk}),
+                                                       -1,
+                                                       op::v11::TopK::Mode::MAX,
+                                                       op::v11::TopK::SortType::SORT_VALUES,
+                                                       element::i64);
+    auto topk_indices = router_topk->output(1);
+    auto chosen_experts = router_topk->output(0);
+
+    // Compact routing
+    auto router_transpose = std::make_shared<op::v1::Transpose>(
+        chosen_experts,
+        op::v0::Constant::create(element::i64, Shape{2}, std::vector<int64_t>{1, 0}));
+    auto router_unsqueeze =
+        std::make_shared<op::v0::Unsqueeze>(router_transpose, op::v0::Constant::create(element::i32, Shape{}, {-1}));
+
+    // Weights
+    auto gate_w =
+        op::v0::Constant::create(element::f32, Shape{number_of_experts, intermediate_size, hidden_size}, {1.0f});
+    auto up_w =
+        op::v0::Constant::create(element::f32, Shape{number_of_experts, intermediate_size, hidden_size}, {1.0f});
+    auto down_w =
+        op::v0::Constant::create(element::f32, Shape{number_of_experts, hidden_size, intermediate_size}, {1.0f});
+
+    // MOE op — hidden_states input is the layernorm Multiply output (NOT the Parameter)
+    ov::OutputVector moe_inputs = {layernorm_mul, router_unsqueeze, topk_indices, gate_w, up_w, down_w};
+    ov::op::internal::MOE::Config config;
+    config.expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
+    config.activation_type = activation_type;
+    auto moe = std::make_shared<ov::op::internal::MOE>(moe_inputs, config);
+
+    return std::make_shared<ov::Model>(ov::OutputVector{moe}, ov::ParameterVector{input});
+}
+
+// ============================================================================
 // Tests for BGM→MOE passes (Convert3GatherMatmulMoeBlockToMoeOp, Convert2GatherMatmulMoeBlockToMoeOp)
 // ============================================================================
 
@@ -590,6 +758,33 @@ TEST_F(TransformationTestsF, Convert3GatherMatmulMoeBlockToMoeOp_basic) {
     model = build_3gemm_bgm_model();
     manager.register_pass<ov::pass::Convert3GatherMatmulMoeBlockToMoeOp>();
     model_ref = build_3gemm_bgm_to_moe_reference_model();
+}
+
+TEST_F(TransformationTestsF, Convert3GatherMatmulMoeBlockToMoeOp_gelu_tanh) {
+    using AT = ov::op::internal::MOE::Activation_type;
+    model = build_3gemm_bgm_model(AT::GEGLU_TANH);
+    manager.register_pass<ov::pass::Convert3GatherMatmulMoeBlockToMoeOp>();
+    model_ref = build_3gemm_bgm_to_moe_reference_model(AT::GEGLU_TANH);
+}
+
+TEST_F(TransformationTestsF, Convert3GatherMatmulMoeBlockToMoeOp_gelu_erf) {
+    using AT = ov::op::internal::MOE::Activation_type;
+    model = build_3gemm_bgm_model(AT::GEGLU_ERF);
+    manager.register_pass<ov::pass::Convert3GatherMatmulMoeBlockToMoeOp>();
+    model_ref = build_3gemm_bgm_to_moe_reference_model(AT::GEGLU_ERF);
+}
+
+TEST_F(TransformationTestsF, Convert3GatherMatmulMoeBlockToMoeOp_multiply_input) {
+    model = build_3gemm_bgm_model_multiply_input();
+    manager.register_pass<ov::pass::Convert3GatherMatmulMoeBlockToMoeOp>();
+    model_ref = build_3gemm_bgm_to_moe_reference_model_multiply_input();
+}
+
+TEST_F(TransformationTestsF, Convert3GatherMatmulMoeBlockToMoeOp_multiply_input_gelu_tanh) {
+    using AT = ov::op::internal::MOE::Activation_type;
+    model = build_3gemm_bgm_model_multiply_input(AT::GEGLU_TANH);
+    manager.register_pass<ov::pass::Convert3GatherMatmulMoeBlockToMoeOp>();
+    model_ref = build_3gemm_bgm_to_moe_reference_model_multiply_input(AT::GEGLU_TANH);
 }
 
 TEST_F(TransformationTestsF, Convert2GatherMatmulMoeBlockToMoeOp_basic) {
