@@ -319,7 +319,7 @@ static Dim normalizeM(Dim M) {
 
 // ---- GatherMatmulDnnlExecutor -----------------------------------------------
 
-bool GatherMatmulDnnlExecutor::supports(const GatherMatmulConfig& config) {
+bool GatherMatmulDnnlExecutor::supports([[maybe_unused]] const GatherMatmulConfig& config) {
 #ifdef OPENVINO_ARCH_X86_64
     // Allow empty (dynamic) src descriptor — actual type is resolved at createPrimitive time
     if ((config.descs.count(ARG_SRC) != 0U) && !config.descs.at(ARG_SRC)->empty()) {
@@ -478,6 +478,10 @@ bool GatherMatmulDnnlExecutor::update(const MemoryArgs& memory) {
     const auto& srcMem = memory.at(ARG_SRC);
     const auto& srcShape = srcMem->getStaticDims();
     // srcShape is [B, M, K]
+    if (Dim{1} == srcShape[1]) {
+        // If M is 1, we can skip the temporary buffer and execute GEMV in-place on the src buffer
+        return true;
+    }
     const Dim M = normalizeM(srcShape[1]);
     const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     const auto srcPrc = srcMem->getDesc().getPrecision();
