@@ -514,16 +514,14 @@ void* gpu_usm::lock(const stream& stream, mem_lock_type type) {
         if (get_allocation_type() == allocation_type::usm_device) {
             GPU_DEBUG_LOG << "Copy usm_device buffer to host buffer." << std::endl;
             _host_buffer.allocateHost(_bytes_count);
-            if (type != mem_lock_type::write) {
-                try {
-                    cl_stream.get_usm_helper().enqueue_memcpy(cl_stream.get_cl_queue(), _host_buffer.get(), _buffer.get(), _bytes_count, CL_TRUE);
-                } catch (cl::Error const& err) {
-                    OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
-                }
-                _host_buffer_has_device_data = true;
-            } else {
-                _host_buffer_has_device_data = false;
+            // Always copy device data to host buffer (treat write as read_write internally).
+            // This ensures the host buffer always has valid data, making nested locks safe.
+            try {
+                cl_stream.get_usm_helper().enqueue_memcpy(cl_stream.get_cl_queue(), _host_buffer.get(), _buffer.get(), _bytes_count, CL_TRUE);
+            } catch (cl::Error const& err) {
+                OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
             }
+            _host_buffer_has_device_data = true;
             _copy_back_to_device = (type != mem_lock_type::read);
             _mapped_ptr = _host_buffer.get();
         } else {
@@ -532,19 +530,6 @@ void* gpu_usm::lock(const stream& stream, mem_lock_type type) {
     } else if (get_allocation_type() == allocation_type::usm_device) {
         if (type != mem_lock_type::read) {
             _copy_back_to_device = true;
-        }
-        // If the nested lock needs to read but the host buffer was not populated
-        // from device (initial lock was write-only), copy device data now.
-        // Skip the copy if we already plan to write back — the host buffer may
-        // contain modifications that would be clobbered by a device→host copy.
-        if (type != mem_lock_type::write && !_host_buffer_has_device_data && !_copy_back_to_device) {
-            auto& cl_stream = downcast<const ocl_stream>(stream);
-            try {
-                cl_stream.get_usm_helper().enqueue_memcpy(cl_stream.get_cl_queue(), _host_buffer.get(), _buffer.get(), _bytes_count, CL_TRUE);
-            } catch (cl::Error const& err) {
-                OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
-            }
-            _host_buffer_has_device_data = true;
         }
     }
     _lock_count++;

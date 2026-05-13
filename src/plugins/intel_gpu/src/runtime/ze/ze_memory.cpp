@@ -172,34 +172,8 @@ void* gpu_usm::lock(const stream& stream, mem_lock_type type) {
         if (get_allocation_type() == allocation_type::usm_device) {
             GPU_DEBUG_LOG << "Copy usm_device buffer to host buffer." << std::endl;
             _host_buffer.allocateHost(_bytes_count);
-            if (type != mem_lock_type::write) {
-                OV_ZE_EXPECT(zeCommandListAppendMemoryCopy(_ze_stream.get_queue(),
-                                        _host_buffer.get(),
-                                        _buffer.get(),
-                                        _bytes_count,
-                                        nullptr,
-                                        0,
-                                        nullptr));
-                OV_ZE_EXPECT(zeCommandListHostSynchronize(_ze_stream.get_queue(), endless_wait));
-                _host_buffer_has_device_data = true;
-            } else {
-                _host_buffer_has_device_data = false;
-            }
-            _copy_back_to_device = (type != mem_lock_type::read);
-            _mapped_ptr = _host_buffer.get();
-        } else {
-            _mapped_ptr = _buffer.get();
-        }
-    } else if (get_allocation_type() == allocation_type::usm_device) {
-        if (type != mem_lock_type::read) {
-            _copy_back_to_device = true;
-        }
-        // If the nested lock needs to read but the host buffer was not populated
-        // from device (initial lock was write-only), copy device data now.
-        // Skip the copy if we already plan to write back — the host buffer may
-        // contain modifications that would be clobbered by a device→host copy.
-        if (type != mem_lock_type::write && !_host_buffer_has_device_data && !_copy_back_to_device) {
-            auto& _ze_stream = downcast<const ze_stream>(stream);
+            // Always copy device data to host buffer (treat write as read_write internally).
+            // This ensures the host buffer always has valid data, making nested locks safe.
             OV_ZE_EXPECT(zeCommandListAppendMemoryCopy(_ze_stream.get_queue(),
                                     _host_buffer.get(),
                                     _buffer.get(),
@@ -209,6 +183,14 @@ void* gpu_usm::lock(const stream& stream, mem_lock_type type) {
                                     nullptr));
             OV_ZE_EXPECT(zeCommandListHostSynchronize(_ze_stream.get_queue(), endless_wait));
             _host_buffer_has_device_data = true;
+            _copy_back_to_device = (type != mem_lock_type::read);
+            _mapped_ptr = _host_buffer.get();
+        } else {
+            _mapped_ptr = _buffer.get();
+        }
+    } else if (get_allocation_type() == allocation_type::usm_device) {
+        if (type != mem_lock_type::read) {
+            _copy_back_to_device = true;
         }
     }
     _lock_count++;
