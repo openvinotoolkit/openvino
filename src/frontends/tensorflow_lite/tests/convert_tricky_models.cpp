@@ -13,6 +13,7 @@
 #include "common_test_utils/type_prop.hpp"
 #include "conversion_extension.hpp"
 #include "gtest/gtest.h"
+#include "openvino/op/select.hpp"
 #include "openvino/op/slice.hpp"
 #include "tf_utils.hpp"
 
@@ -58,20 +59,21 @@ OPENVINO_TEST(TensorFlowLiteTrickyModels, tflite_slice_const_size_yields_static_
     EXPECT_EQ(pshape.to_shape(), (Shape{1, 128, 4, 128}));
 }
 
-OPENVINO_TEST(TensorFlowLiteTrickyModels, tflite_slice_neg_size_stays_dynamic) {
+OPENVINO_TEST(TensorFlowLiteTrickyModels, tflite_slice_neg_size_keeps_select_cascade) {
     // SLICE with `size = -1` on an axis legitimately requires the negative-
-    // size handling, which today produces a dynamic dim on that axis through
-    // the Select cascade. Guards that the translator's fast path doesn't
-    // mistakenly trigger for negative sizes.
+    // size handling. Guards that the translator's fast path does NOT trigger:
+    // the producer of Slice's `stop` input must still be a Select node (the
+    // size=-1 cascade). Value-correctness for this path is gated separately
+    // by tflite_slice_neg_size_matches_tf_ground_truth below.
     auto model = convert_model("slice_neg_size.tflite");
 
     const auto slice = find_slice(model);
     ASSERT_NE(slice, nullptr) << "Slice op not found in converted model";
 
-    const auto& pshape = slice->get_output_partial_shape(0);
-    EXPECT_TRUE(pshape.is_dynamic()) << "Slice output is statically shaped; "
-                                        "expected dynamic on at least one axis. Got: "
-                                     << pshape;
+    const auto stop_producer = slice->get_input_node_shared_ptr(2);
+    EXPECT_NE(ov::as_type_ptr<op::v1::Select>(stop_producer), nullptr)
+        << "Slice 'stop' should be produced by Select (size=-1 cascade), got "
+        << stop_producer->get_type_name();
 }
 
 OPENVINO_TEST(TensorFlowLiteTrickyModels, tflite_slice_neg_size_matches_tf_ground_truth) {

@@ -3,13 +3,13 @@
 
 # Generates two TFLite test models exercising the SLICE op:
 #   - slice_const_size.tflite : size operand is a fully non-negative Constant.
-#                                The translator must fold its negative-size
-#                                branch and emit a Slice with constant `stop`,
-#                                so the output shape is statically inferable.
+#                                The translator must skip the ShapeOf+Select
+#                                cascade emitted for size=-1, so the Slice
+#                                output shape is statically inferable.
 #   - slice_neg_size.tflite   : size operand contains -1 ("to end").
 #                                The translator must keep the ShapeOf+Select
-#                                cascade alive; the Slice output remains
-#                                dynamic on the -1 axis.
+#                                cascade alive (Slice's `stop` input is fed
+#                                by a Select node).
 
 import os
 import sys
