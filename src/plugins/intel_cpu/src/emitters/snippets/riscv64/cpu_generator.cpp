@@ -90,7 +90,7 @@
 #include "snippets/op/powerstatic.hpp"
 #include "snippets/op/rank_normalization.hpp"
 #include "snippets/op/reorder.hpp"
-#include "snippets/op/reshape.hpp"a
+#include "snippets/op/reshape.hpp"
 #include "snippets/op/result.hpp"
 #include "snippets/op/scalar.hpp"
 #include "snippets/op/store.hpp"
