@@ -6,6 +6,7 @@
 
 #include <onnx/onnx_pb.h>
 
+#include <filesystem>
 #include <memory>
 #include <string>
 #include <vector>
@@ -23,7 +24,7 @@ namespace frontend {
 namespace onnx {
 class Graph : public std::enable_shared_from_this<Graph> {
 public:
-    Graph(const std::string& model_dir,
+    Graph(const std::filesystem::path& model_dir,
           const std::shared_ptr<ModelProto>& model_proto,
           detail::MappedMemoryHandles mmap_cache,
           ov::frontend::ExtensionHolder extensions = {});
@@ -40,7 +41,7 @@ public:
     const std::string& get_name() const {
         return m_model->get_graph().name();
     }
-    const std::string& model_dir() const {
+    const std::filesystem::path& model_dir() const {
         return m_model_dir;
     }
     detail::MappedMemoryHandles get_mmap_cache() const {
@@ -67,7 +68,7 @@ public:
     }
 
 protected:
-    Graph(const std::string& model_dir,
+    Graph(const std::filesystem::path& model_dir,
           const std::shared_ptr<ModelProto>& model,
           std::unique_ptr<GraphCache>&& cache,
           detail::MappedMemoryHandles mmap_cache,
@@ -92,7 +93,7 @@ protected:
 private:
     std::vector<Node> m_nodes;
 
-    std::string m_model_dir;
+    std::filesystem::path m_model_dir;
     detail::MappedMemoryHandles m_mmap_cache;
     OperatorsBridge m_ops_bridge;
 };
