@@ -539,6 +539,12 @@ public:
 
     MOCK_METHOD(void, hint_evict_mock, (size_t offset, size_t size));
 
+    void parallel_prefault_readonly(std::size_t num_threads = 10) override {
+        parallel_prefault_readonly_mock(num_threads);
+    }
+
+    MOCK_METHOD(void, parallel_prefault_readonly_mock, (std::size_t num_threads));
+
 private:
     std::vector<char> m_data;
     uint64_t m_id;

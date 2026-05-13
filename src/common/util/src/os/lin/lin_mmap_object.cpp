@@ -12,6 +12,7 @@
 #include <cstring>
 #include <iostream>
 #include <sstream>
+#include <thread>
 #include <tuple>
 
 #include "openvino/util/common_util.hpp"
@@ -190,6 +191,43 @@ public:
                 std::ignore = madvise(reinterpret_cast<void*>(region.m_address), region.m_length, MADV_DONTNEED);
             }
         }
+    }
+
+    void parallel_prefault_readonly(std::size_t num_threads = 10) override {
+        std::cout << "Prefaulting mapped memory with " << num_threads << " threads.\n";
+        if (!m_data || m_size == 0)
+            return;
+
+        const std::size_t page = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
+        const std::size_t pages = (m_size + page - 1) / page;
+
+        if (num_threads == 0)
+            num_threads = 1;
+
+        num_threads = std::min(num_threads, pages);
+
+        std::vector<std::thread> threads;
+        // std::vector<std::uint64_t> partial(num_threads, 0);
+
+        for (std::size_t tid = 0; tid < num_threads; ++tid) {
+            threads.emplace_back([&, tid] {
+                const std::size_t begin_page = pages * tid / num_threads;
+                const std::size_t end_page = pages * (tid + 1) / num_threads;
+
+                std::uint64_t local = 0;
+
+                for (std::size_t p = begin_page; p < end_page; ++p) {
+                    const std::size_t off = p * page;
+                    if (off < m_size) {
+                        local += static_cast<unsigned char>(static_cast<char*>(m_data)[off]);
+                    }
+                }
+
+                // partial[tid] = local;
+            });
+        }
+        for (auto& t : threads)
+            t.join();
     }
 };
 

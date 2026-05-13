@@ -215,6 +215,7 @@ Tensor read_tensor_data_mmap_impl(std::shared_ptr<ov::MappedMemory> mapped_memor
                                   const ov::PartialShape& partial_shape,
                                   size_t offset_in_bytes) {
     const auto static_shape = resolve_static_shape(mapped_memory->size(), element_type, partial_shape);
+    mapped_memory->parallel_prefault_readonly();
     const auto shared_buffer =
         std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mapped_memory->data(),
                                                                               mapped_memory->size(),

@@ -45,6 +45,7 @@ public:
     virtual uint64_t get_id() const noexcept = 0;
     virtual ~MappedMemory() = default;
     virtual void hint_evict(size_t offset = 0, size_t size = auto_size) noexcept = 0;
+    virtual void parallel_prefault_readonly(std::size_t num_threads = 10) = 0;
 };
 
 /**
@@ -72,4 +73,5 @@ std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::filesystem::path& 
  * @return MappedMemory shared ptr object which keep mmaped memory and control the lifetime.
  */
 std::shared_ptr<ov::MappedMemory> load_mmap_object(FileHandle handle, size_t offset = 0, size_t size = auto_size);
+
 }  // namespace ov
