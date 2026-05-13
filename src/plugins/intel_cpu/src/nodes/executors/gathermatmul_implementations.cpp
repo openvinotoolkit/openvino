@@ -2,16 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <optional>
 #include <vector>
 
-#include "cpu/x64/cpu_isa_traits.hpp"
-#include "debug_messages.hpp"
-#include "implementation_utils.hpp"
 #include "memory_desc/cpu_memory_desc.h"
-#include "nodes/executors/dnnl/dnnl_gathermatmul_executor.hpp"
-#include "nodes/executors/executor.hpp"
-#include "nodes/executors/executor_config.hpp"
 #include "nodes/executors/executor_implementation.hpp"
 #include "nodes/executors/gathermatmul_config.hpp"
 #include "nodes/executors/implementations.hpp"
@@ -21,6 +14,16 @@
 #include "openvino/core/type/element_type.hpp"
 #include "utils/arch_macros.h"
 
+#if defined(OV_CPU_WITH_DNNL) && defined(OPENVINO_ARCH_X86_64)
+#    include <optional>
+
+#    include "cpu/x64/cpu_isa_traits.hpp"
+#    include "debug_messages.hpp"
+#    include "implementation_utils.hpp"
+#    include "nodes/executors/dnnl/dnnl_gathermatmul_executor.hpp"
+#    include "nodes/executors/executor.hpp"
+#    include "nodes/executors/executor_config.hpp"
+#endif
 namespace ov::intel_cpu {
 
 using namespace ov::element;
@@ -28,6 +31,8 @@ using namespace TypeMaskAlias;
 using namespace executor;
 
 using LayoutConfig = std::vector<LayoutType>;
+
+#if defined(OV_CPU_WITH_DNNL) && defined(OPENVINO_ARCH_X86_64)
 
 // GatherMatmul always uses plain (ncsp) layout for all four standard arguments
 static const LayoutConfig dnnlGatherMatmulLayoutConfig{LayoutType::ncsp,
@@ -68,6 +73,8 @@ static const MappingNotation gatherMatmulMappingNotation{
     {ARG_BIAS, 2},
     {ARG_DST, 3},
 };
+
+#endif
 
 // clang-format off
 template <>
