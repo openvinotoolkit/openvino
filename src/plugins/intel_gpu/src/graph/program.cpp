@@ -1925,9 +1925,11 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
             auto params = get_node_ptr(impl_id)->get_kernel_impl_params();
             ob.setKernelImplParams(params.get());
             ob << get_node_ptr(impl_id)->selected_impl;
+            std::vector<std::string> cached_kernel_ids;
             if (_kernels_cache) {
-                ob << get_node_ptr(impl_id)->get_selected_impl()->get_cached_kernel_ids(*_kernels_cache);
+                cached_kernel_ids = get_node_ptr(impl_id)->get_selected_impl()->get_cached_kernel_ids(*_kernels_cache);
             }
+            ob << cached_kernel_ids;
         }
     }
 
