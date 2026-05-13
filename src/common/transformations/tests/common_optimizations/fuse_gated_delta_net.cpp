@@ -769,7 +769,6 @@ TEST_F(TransformationTestsF, FuseGroupedQueryIntoGDN_SharedAnchor_Applied) {
 
 // Negative: Q, K, V each come from a distinct Split node → anchors mismatch → transformation skipped.
 TEST_F(TransformationTestsF, FuseGroupedQueryIntoGDN_DifferentAnchors_NotApplied) {
-    ;
     model = build_grouped_query_gdn_different_anchors();
     manager.register_pass<ov::pass::FuseGroupedQueryIntoGDN>();
     model_ref = build_grouped_query_gdn_different_anchors();
