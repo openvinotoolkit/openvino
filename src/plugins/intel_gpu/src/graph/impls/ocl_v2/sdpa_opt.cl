@@ -956,23 +956,25 @@ inline SEQ_RANGE FUNC(calc_sliding_window_seq_range)(const SEQ_RANGE default_seq
         const int lid = get_local_linear_id();                                                                  \
         const int num_of_work_items = get_num_sub_groups()*get_sub_group_size();                                \
                                                                                                                 \
-        if (sgid == 0)                                                                                          \
-            reduction_buffer[sglid] = CLEAR_VAL;                                                                \
-                                                                                                                \
         const int base = start_idx;                                                                             \
         int idx_this_thread = INIT_IDX;                                                                         \
         int block_first_idx = CLEAR_VAL;                                                                        \
         bool work_group_should_contine_loop = true;                                                             \
         while (work_group_should_contine_loop) {                                                                \
             const bool is_zero = idx_this_thread EDGE_CASE_CHECK ? token_type_ids[idx_this_thread] == 0 : true; \
-            int min_idx_this_subgroup = REDUCTION_OP(is_zero ? idx_this_thread : CLEAR_VAL);                    \
+            int min_idx_this_subgroup = sub_group_reduce_##REDUCTION_OP(is_zero ? idx_this_thread : CLEAR_VAL); \
                                                                                                                 \
             if( sglid == 0 )                                                                                    \
                 reduction_buffer[sgid] = min_idx_this_subgroup;                                                 \
                                                                                                                 \
             barrier(CLK_LOCAL_MEM_FENCE);                                                                       \
                                                                                                                 \
-            block_first_idx = REDUCTION_OP(reduction_buffer[sglid]);                                            \
+            int reduce_val = CLEAR_VAL;                                                                         \
+            for(int idx = sglid; idx < SUBGROUPS_PER_WG; idx += SUBGROUP_SIZE) {                                \
+                reduce_val = REDUCTION_OP(reduce_val, reduction_buffer[idx]);                                   \
+            }                                                                                                   \
+                                                                                                                \
+            block_first_idx = sub_group_reduce_##REDUCTION_OP(reduce_val);                                      \
             idx_this_thread ADVANCE_EXPRESSION num_of_work_items;                                               \
             work_group_should_contine_loop = (block_first_idx == CLEAR_VAL);                                    \
         }                                                                                                       \
@@ -981,12 +983,12 @@ inline SEQ_RANGE FUNC(calc_sliding_window_seq_range)(const SEQ_RANGE default_seq
 
     inline int FUNC(find_first_zero_to_the_right_wg)(const __global int* token_type_ids, 
                             __local int* reduction_buffer, int start_idx, int seq_len) {
-        FIND_FIRST_ZERO_IDX_WG_TEMPLATE(INT_MAX, sub_group_reduce_min, +=, < seq_len, base + lid)
+        FIND_FIRST_ZERO_IDX_WG_TEMPLATE(INT_MAX, min, +=, < seq_len, base + lid)
     }
 
     inline int FUNC(find_first_zero_to_the_left_wg)(const __global int* token_type_ids, 
                             __local int* reduction_buffer, int start_idx, int seq_len) {
-        FIND_FIRST_ZERO_IDX_WG_TEMPLATE(INT_MIN, sub_group_reduce_max, -=, >= 0, base - num_of_work_items + lid)
+        FIND_FIRST_ZERO_IDX_WG_TEMPLATE(INT_MIN, max, -=, >= 0, base - num_of_work_items + lid)
     }
 
     // Function calculates the range of bidirectional mask for this work item.
@@ -1170,10 +1172,8 @@ KERNEL(sdpa_opt)(
     // NOTE: if allocation of reduce_buffer causes SLM spill, 
     // we can reuse any other big enough allocated buffer.
     // Having separate buffer makes the code easier to understand.
-    __local int reduce_buffer[SUBGROUP_SIZE];
-#if SUBGROUPS_PER_WG > SUBGROUP_SIZE
-    #error "sdpa_opt.cl: Unsupported configuration with token type ids. SUBGROUPS_PER_WG must be less than or equal to SUBGROUP_SIZE."
-#endif
+    __local int reduce_buffer[SUBGROUPS_PER_WG];
+
 
 #if SUBGROUPS_PER_WG * SUBGROUP_SIZE != SEQ_LEN_PARTITION_SIZE
     #error "sdpa_opt.cl: Unsupported configuration with token type ids. SUBGROUPS_PER_WG * SUBGROUP_SIZE must be equal to SEQ_LEN_PARTITION_SIZE."
