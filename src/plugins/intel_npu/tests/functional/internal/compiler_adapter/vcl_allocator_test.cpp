@@ -8,8 +8,10 @@
 
 namespace {
 
+using ov::test::behavior::VclAllocatorFuncTests;
+
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
-                         ov::test::behavior::VclAllocatorFuncTests,
+                         VclAllocatorFuncTests,
                          ::testing::Values(ov::test::utils::DEVICE_NPU),
-                         ov::test::behavior::VclAllocatorFuncTests::getTestCaseName);
+                         VclAllocatorFuncTests::getTestCaseName);
 }  // namespace
