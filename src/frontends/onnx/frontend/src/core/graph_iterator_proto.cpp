@@ -21,8 +21,8 @@
 #include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/frontend/onnx/graph_iterator.hpp"
 #include "openvino/util/file_util.hpp"
-#include "openvino/util/wstring_convert_util.hpp"
 #include "transform.hpp"
+#include "utils/tensor_external_data.hpp"
 
 namespace {
 // THis is copied from utils/common.hpp
@@ -104,6 +104,54 @@ void fixup_legacy_nodes(::ONNX_NAMESPACE::ModelProto& model_proto) {
     }
 }
 
+/// \brief Collect all external references from a subgraph, recursing into nested subgraphs.
+/// Returns all tensor names referenced by the subgraph (directly or via nested subgraphs)
+/// that are not defined within the subgraph itself.
+void collect_subgraph_external_refs(const GraphProto& subgraph, std::unordered_set<std::string>& deps) {
+    // Build set of names defined within this subgraph
+    std::unordered_set<std::string> subgraph_defined;
+    for (const auto& input : subgraph.input()) {
+        subgraph_defined.insert(input.name());
+    }
+    for (const auto& init : subgraph.initializer()) {
+        subgraph_defined.insert(init.name());
+    }
+    for (const auto& sub_node : subgraph.node()) {
+        for (const auto& out : sub_node.output()) {
+            subgraph_defined.insert(out);
+        }
+    }
+    // Collect direct references to outer graph tensors
+    for (const auto& sub_node : subgraph.node()) {
+        for (const auto& inp : sub_node.input()) {
+            if (!inp.empty() && subgraph_defined.count(inp) == 0) {
+                deps.insert(inp);
+            }
+        }
+        // Recurse into nested subgraphs
+        for (const auto& attr : sub_node.attribute()) {
+            if (attr.has_g()) {
+                std::unordered_set<std::string> nested_deps;
+                collect_subgraph_external_refs(attr.g(), nested_deps);
+                // Nested external refs that are also external to this subgraph
+                for (const auto& dep : nested_deps) {
+                    if (subgraph_defined.count(dep) == 0) {
+                        deps.insert(dep);
+                    }
+                }
+            }
+        }
+    }
+    // Subgraph outputs may directly reference outer-scope tensors when the body
+    // has no node producing them (e.g., an If branch returning a parent value).
+    for (const auto& output : subgraph.output()) {
+        const auto& name = output.name();
+        if (!name.empty() && subgraph_defined.count(name) == 0) {
+            deps.insert(name);
+        }
+    }
+}
+
 /// \brief Collect all dependencies for a node (direct inputs + subgraph external references).
 void collect_node_dependencies(const NodeProto& node, std::unordered_set<std::string>& deps) {
     // Direct inputs
@@ -117,28 +165,7 @@ void collect_node_dependencies(const NodeProto& node, std::unordered_set<std::st
         if (!attr.has_g()) {
             continue;
         }
-        const auto& subgraph = attr.g();
-        // Build set of names defined within the subgraph
-        std::unordered_set<std::string> subgraph_defined;
-        for (const auto& input : subgraph.input()) {
-            subgraph_defined.insert(input.name());
-        }
-        for (const auto& init : subgraph.initializer()) {
-            subgraph_defined.insert(init.name());
-        }
-        for (const auto& sub_node : subgraph.node()) {
-            for (const auto& out : sub_node.output()) {
-                subgraph_defined.insert(out);
-            }
-        }
-        // Find references to outer graph tensors
-        for (const auto& sub_node : subgraph.node()) {
-            for (const auto& inp : sub_node.input()) {
-                if (!inp.empty() && subgraph_defined.count(inp) == 0) {
-                    deps.insert(inp);
-                }
-            }
-        }
+        collect_subgraph_external_refs(attr.g(), deps);
     }
 }
 
@@ -255,7 +282,7 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
     std::string m_sha1_digest{};  // for future use
     for (const auto& entry : tensor_info->external_data()) {
         if (entry.key() == "location") {
-            ext_location = ov::util::sanitize_path(entry.value());
+            ext_location = entry.value();
         } else if (entry.key() == "offset") {
             ext_data_offset = std::stoull(entry.value());
         } else if (entry.key() == "length") {
@@ -264,8 +291,15 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
             m_sha1_digest = entry.value();
         }
     }
-    const auto full_path =
-        ov::util::get_absolute_file_path(ov::util::path_join({graph_iterator->get_model_dir(), ext_location}));
+    if (ext_location == detail::ORT_MEM_ADDR) {
+        // Specific ONNX Runtime Case when it passes a model with self-managed data
+        tensor_meta_info.m_is_raw = true;
+        tensor_meta_info.m_tensor_data = reinterpret_cast<uint8_t*>(ext_data_offset);
+        tensor_meta_info.m_tensor_data_size = ext_data_length;
+        tensor_meta_info.m_external_location = std::make_shared<std::string>(ext_location);
+        return true;
+    }
+    const auto full_path = ov::util::sanitize_path(graph_iterator->get_model_dir(), ov::util::make_path(ext_location));
     const int64_t file_size = ov::util::file_size(full_path);
     if ((file_size <= 0 && ext_data_length > 0) || ext_data_length > static_cast<uint64_t>(file_size) ||
         ext_data_offset > static_cast<uint64_t>(file_size) - ext_data_length) {
@@ -279,24 +313,15 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
                                             ? static_cast<size_t>(ext_data_length)
                                             : static_cast<size_t>(file_size) - static_cast<size_t>(ext_data_offset);
     auto memory_mode = graph_iterator->get_memory_management_mode();
-    // Remove when cache map will use path instead string.
-    const auto full_path_str = ov::util::path_to_string(full_path);
-    if (ext_location == "*/_ORT_MEM_ADDR_/*") {
-        // Specific ONNX Runtime Case when it passes a model with self-managed data
-        tensor_meta_info.m_is_raw = true;
-        tensor_meta_info.m_tensor_data = reinterpret_cast<uint8_t*>(ext_data_offset);
-        tensor_meta_info.m_tensor_data_size = ext_data_length;
-        tensor_meta_info.m_external_location = std::make_shared<std::string>(ext_location);
-        return true;
-    } else if (memory_mode == External_MMAP) {
+    if (memory_mode == External_MMAP) {
         auto cache = graph_iterator->get_mmap_cache();
-        auto cached_mapped_memory = cache->find(full_path_str);
+        auto cached_mapped_memory = cache->find(full_path);
         std::shared_ptr<ov::MappedMemory> mapped_memory;
         if (cached_mapped_memory != cache->end()) {
             mapped_memory = cached_mapped_memory->second;
         } else {
             mapped_memory = ov::load_mmap_object(full_path);
-            (*cache)[full_path_str] = mapped_memory;
+            (*cache)[full_path] = mapped_memory;
         }
         tensor_meta_info.m_is_raw = true;
         tensor_meta_info.m_tensor_data =
@@ -306,7 +331,7 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
     } else if (memory_mode == External_Stream) {
         auto cache = graph_iterator->get_stream_cache();
         FRONT_END_GENERAL_CHECK(cache, "Stream cache is not initialized for external stream mode");
-        auto cached_stream = cache->find(full_path_str);
+        auto cached_stream = cache->find(full_path);
         std::shared_ptr<std::ifstream> external_data_stream;
         if (cached_stream != cache->end()) {
             external_data_stream = cached_stream->second;
@@ -316,7 +341,7 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
                                         p->close();
                                         delete p;
                                     }};
-            (*cache)[full_path_str] = external_data_stream;
+            (*cache)[full_path] = external_data_stream;
         }
 
         if (external_data_stream->fail() || !external_data_stream->good()) {
@@ -335,7 +360,7 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
                                    tensor_meta_info.m_tensor_data_size);
         return true;
     } else if (memory_mode == Internal_MMAP || memory_mode == Internal_Stream) {
-        tensor_meta_info.m_external_location = std::make_shared<std::string>(full_path_str);
+        tensor_meta_info.m_external_location = std::make_shared<std::string>(ov::util::path_to_string(full_path));
         tensor_meta_info.m_tensor_data = reinterpret_cast<uint8_t*>(ext_data_offset);
         tensor_meta_info.m_tensor_data_size = ext_data_length;
         return true;
@@ -457,10 +482,12 @@ GraphIteratorProto::GraphIteratorProto(const GraphIteratorProtoMemoryManagementM
     : m_graph(nullptr),
       m_parent(nullptr),
       m_mode(mode),
-      m_mmap_cache{mode == External_MMAP ? std::make_shared<std::map<std::string, std::shared_ptr<ov::MappedMemory>>>()
-                                         : nullptr},
-      m_stream_cache{mode == External_Stream ? std::make_shared<std::map<std::string, std::shared_ptr<std::ifstream>>>()
-                                             : nullptr},
+      m_mmap_cache{mode == External_MMAP
+                       ? std::make_shared<std::map<std::filesystem::path, std::shared_ptr<ov::MappedMemory>>>()
+                       : nullptr},
+      m_stream_cache{mode == External_Stream
+                         ? std::make_shared<std::map<std::filesystem::path, std::shared_ptr<std::ifstream>>>()
+                         : nullptr},
       m_data_holder{mode == External_Stream ? std::make_shared<std::vector<std::shared_ptr<uint8_t>>>() : nullptr} {}
 
 GraphIteratorProto::GraphIteratorProto(GraphIteratorProto* parent, const GraphProto* graph_def) {
@@ -476,10 +503,9 @@ GraphIteratorProto::GraphIteratorProto(GraphIteratorProto* parent, const GraphPr
 
 void GraphIteratorProto::initialize(const std::filesystem::path& path) {
     m_model_dir = ov::util::get_directory(path);
-    const auto path_string = ov::util::path_to_string(path);
     try {
         std::ifstream model_file(path, std::ios::binary | std::ios::in);
-        FRONT_END_GENERAL_CHECK(model_file && model_file.is_open(), "Could not open the file: \"", path_string, "\"");
+        FRONT_END_GENERAL_CHECK(model_file && model_file.is_open(), "Could not open the file: ", path);
 
         m_model = std::make_shared<ModelProto>();
         FRONT_END_GENERAL_CHECK(m_model->ParseFromIstream(&model_file), "Model can't be parsed");
@@ -501,6 +527,18 @@ void GraphIteratorProto::initialize(const std::filesystem::path& path) {
         throw;
     }
 }
+
+void GraphIteratorProto::initialize(std::shared_ptr<ModelProto> model) {
+    m_model = std::move(model);
+    if (m_model && m_model->has_graph()) {
+        fixup_legacy_nodes(*m_model);
+        topological_sort_graph(m_model->mutable_graph());
+        m_graph = &m_model->graph();
+    } else {
+        m_graph = nullptr;
+    }
+}
+
 std::shared_ptr<DecoderProtoTensor> GraphIteratorProto::get_tensor(const std::string& name,
                                                                    GraphIteratorProto** owner) {
     if (m_tensors.count(name) == 0) {
