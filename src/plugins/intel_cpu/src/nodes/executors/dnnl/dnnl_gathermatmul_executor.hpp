@@ -46,7 +46,6 @@ private:
     MemoryDescPtr m_tmpOutputDesc;
 
     bool m_bf16AmxMode = false;
-    bool m_withBias = false;
     impl_desc_type m_implType = impl_desc_type::unknown;
 };
 

@@ -49,9 +49,9 @@ namespace ov::intel_cpu {
 struct InnerProductKey {
     dnnl::memory::desc src_md;
     dnnl::memory::desc weights_md;
+    dnnl::memory::desc bias_md;
     VectorDims scale_shape;
     VectorDims zp_shape;
-    bool has_bias;
 
     [[nodiscard]] size_t hash() const {
         using namespace dnnl::impl;
@@ -60,15 +60,15 @@ struct InnerProductKey {
         size_t seed = 0;
         seed = hash_combine(seed, get_md_hash(*src_md.get()));
         seed = hash_combine(seed, get_md_hash(*weights_md.get()));
+        seed = hash_combine(seed, get_md_hash(*bias_md.get()));
         seed = get_vector_hash(seed, scale_shape);
         seed = get_vector_hash(seed, zp_shape);
-        seed = hash_combine(seed, has_bias);
         return seed;
     }
 
     bool operator==(const InnerProductKey& rhs) const {
-        return src_md == rhs.src_md && weights_md == rhs.weights_md && scale_shape == rhs.scale_shape &&
-               zp_shape == rhs.zp_shape && has_bias == rhs.has_bias;
+        return src_md == rhs.src_md && weights_md == rhs.weights_md && bias_md == rhs.bias_md &&
+               scale_shape == rhs.scale_shape && zp_shape == rhs.zp_shape;
     }
 };
 
@@ -83,8 +83,7 @@ public:
     InnerProduct& operator=(InnerProduct&&) = delete;
 
     InnerProduct(const dnnl::engine& eng, const std::shared_ptr<ThreadPool>& threadPool, const InnerProductKey& key)
-        : m_stream(make_stream(eng, threadPool)),
-          m_has_bias(key.has_bias) {
+        : m_stream(make_stream(eng, threadPool)) {
         const auto& src_md = key.src_md;
         const auto& weights_md = key.weights_md;
         auto scale_shape = key.scale_shape;
@@ -115,11 +114,7 @@ public:
         m_output_md =
             dnnl::memory::desc(dnnl::memory::dims({M, N}), src_md.get_data_type(), dnnl::memory::format_tag::ab);
 
-        dnnl::memory::desc bias_md;
-        if (m_has_bias) {
-            bias_md =
-                dnnl::memory::desc(dnnl::memory::dims({N}), dnnl::memory::data_type::f32, dnnl::memory::format_tag::a);
-        }
+        const auto& bias_md = key.bias_md;
 
         auto ip_prim_desc = dnnl::inner_product_forward::primitive_desc(eng,
                                                                         dnnl::prop_kind::forward_inference,
@@ -137,7 +132,7 @@ public:
         dnnl::memory out_memory(m_output_md, eng, DNNL_MEMORY_NONE);
         dnnl::memory wei_memory(m_wei_md, eng, DNNL_MEMORY_NONE);
         dnnl::memory bias_memory;
-        if (m_has_bias) {
+        if (!bias_md.is_zero()) {
             bias_memory = dnnl::memory(bias_md, eng, DNNL_MEMORY_NONE);
         }
         dnnl::memory scale_memory;
@@ -227,7 +222,6 @@ private:
     dnnl::primitive_attr m_attr;
     std::unordered_map<int, dnnl::memory> m_args;
     impl_desc_type m_impl_type = impl_desc_type::unknown;
-    bool m_has_bias = false;
 };
 
 // ---- OffsetHelper ------------------------------------------------------------
@@ -319,6 +313,16 @@ static Dim normalizeM(Dim M) {
 
 // ---- GatherMatmulDnnlExecutor -----------------------------------------------
 
+static dnnl::memory::desc makeBiasMd(dnnl::memory::dim N, const MemoryPtr& biasMem) {
+    if (!biasMem || biasMem->getDesc().empty()) {
+        return {};
+    }
+    const auto bias_precision = biasMem->getDesc().getPrecision();
+    return dnnl::memory::desc(dnnl::memory::dims({N}),
+                              DnnlExtensionUtils::ElementTypeToDataType(bias_precision),
+                              dnnl::memory::format_tag::a);
+}
+
 bool GatherMatmulDnnlExecutor::supports([[maybe_unused]] const GatherMatmulConfig& config) {
 #ifdef OPENVINO_ARCH_X86_64
     // Allow empty (dynamic) src descriptor — actual type is resolved at createPrimitive time
@@ -347,8 +351,6 @@ GatherMatmulDnnlExecutor::GatherMatmulDnnlExecutor([[maybe_unused]] const Gather
                                                    const MemoryArgs& memory,
                                                    const ExecutorContext::CPtr& context)
     : m_context(context) {
-    m_withBias = !memory.at(ARG_BIAS)->getDesc().empty();
-
     const auto& weightsMemory = memory.at(ARG_WEI);
     const auto& srcMemory = memory.at(ARG_SRC);
 
@@ -396,8 +398,7 @@ GatherMatmulDnnlExecutor::GatherMatmulDnnlExecutor([[maybe_unused]] const Gather
                                   DnnlExtensionUtils::ElementTypeToDataType(weights_precision),
                                   dnnl::memory::format_tag::any);
 
-    const bool has_bias = m_withBias;
-    InnerProductKey key{src_md, weights_md, scale_shape, zp_shape, has_bias};
+    InnerProductKey key{src_md, weights_md, makeBiasMd(N, memory.at(ARG_BIAS)), scale_shape, zp_shape};
 
     const auto& eng = context->getEngine();
     const auto threadPool = context->getThreadPool();
@@ -523,7 +524,11 @@ bool GatherMatmulDnnlExecutor::update(const MemoryArgs& memory) {
         }
     }
 
-    InnerProductKey key{src_md, weights_md, scale_shape, zp_shape, m_withBias};
+    InnerProductKey key{src_md,
+                        weights_md,
+                        makeBiasMd(static_cast<dnnl::memory::dim>(weights_md.get_dims()[0]), memory.at(ARG_BIAS)),
+                        scale_shape,
+                        zp_shape};
     const auto& eng = m_context->getEngine();
     const auto threadPool = m_context->getThreadPool();
     auto cache = m_context->getRuntimeCache();
