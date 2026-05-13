@@ -98,6 +98,9 @@ void* gpu_buffer::lock(const stream& stream, mem_lock_type type) {
 
 void gpu_buffer::unlock(const stream& stream) {
     std::lock_guard<std::mutex> locker(_mutex);
+    if (0 == _lock_count) {
+        OPENVINO_THROW("[GPU] Trying to unlock an already unlocked buffer");
+    }
     _lock_count--;
     if (0 == _lock_count) {
         try {
