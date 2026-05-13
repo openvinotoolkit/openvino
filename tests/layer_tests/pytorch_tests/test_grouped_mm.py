@@ -9,7 +9,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 class TestGroupedMM(PytorchLayerTest):
     """Tests torch._grouped_mm — the 3D x 3D no-`offs` (batched matmul) case."""
 
-    def _prepare_input(self, a_shape=(2, 3, 4), b_shape=(2, 4, 5)):
+    def _prepare_input(self, a_shape=(2, 3, 8), b_shape=(2, 8, 16)):
         return (
             self.random.randn(*a_shape).astype("float32"),
             self.random.randn(*b_shape).astype("float32"),
@@ -25,10 +25,10 @@ class TestGroupedMM(PytorchLayerTest):
         return aten_grouped_mm(), "aten::_grouped_mm"
 
     @pytest.mark.parametrize("kwargs_to_prepare_input", [
-        {"a_shape": (2, 3, 4), "b_shape": (2, 4, 5)},
-        {"a_shape": (4, 1, 8), "b_shape": (4, 8, 2)},
-        {"a_shape": (1, 6, 6), "b_shape": (1, 6, 6)},
-        {"a_shape": (3, 7, 5), "b_shape": (3, 5, 11)},
+        {"a_shape": (2, 3, 8), "b_shape": (2, 8, 16)},
+        {"a_shape": (4, 1, 8), "b_shape": (4, 8, 8)},
+        {"a_shape": (1, 8, 16), "b_shape": (1, 16, 8)},
+        {"a_shape": (3, 7, 16), "b_shape": (3, 16, 8)},
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
