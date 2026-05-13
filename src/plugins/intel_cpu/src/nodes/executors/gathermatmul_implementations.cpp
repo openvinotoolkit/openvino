@@ -46,18 +46,19 @@ struct Require {
 static const TypeMapping dnnlGatherMatmulTypeMapping {
     // {src, wei, bia, dst}                                      pt<src, wei, bias, dst>
     // float precision paths
-    {{_bf16, _bf16 | _f32, _any, _bf16 | _f32},                 {bypass(), bypass(), use<3>(), bypass()}},
+    {{_bf16, _bf16, _any, _bf16 | _f32},                        {bypass(), bypass(), use<3>(), bypass()}},
+    // oneDNN inner_product does not support mixed bf16/f32 or bf16/f16: align weights precision to src
+    {{_bf16, _f16 | _f32, _any, _bf16 | _f32},                 {bypass(), use<0>(), use<3>(), bypass()}},
     {{_f32,  _f32,         _any, _f32},                         {bypass(), bypass(), use<3>(), bypass()}},
     // compresses float weights which do not match input data precision
-    {{_f32, _half_float, _any, _any},                  {bypass(), bypass(), use<0>(), use<0>()}},
-    {{_bf16, _f16, _any, _any},                        {bypass(), use<0>(), use<0>(), use<0>()}},
+    {{_f32, _half_float, _any, _any},                           {bypass(), bypass(), use<0>(), use<0>()}},
     // compressed int weights with float activations
-    {{_f32,  _u8 | _i8 | _u4 | _i4, _any, _any},               {bypass(), bypass(), use<0>(), use<0>()}},
-    {{_bf16, _u8 | _i8 | _u4 | _i4, _any, _any},       {bypass(), bypass(), use<0>(), use<0>()},
+    {{_f32,  _u8 | _i8 | _u4 | _i4, _any, _any},                {bypass(), bypass(), use<0>(), use<0>()}},
+    {{_bf16, _u8 | _i8 | _u4 | _i4, _any, _any},                {bypass(), bypass(), use<0>(), use<0>()},
      Require<dnnl::impl::cpu::x64::avx512_core_bf16>()},
-    {{_bf16, _u8 | _i8 | _u4 | _i4, _any, _any},       {just<f32>(), bypass(), just<f32>(), just<f32>()}},
+    {{_bf16, _u8 | _i8 | _u4 | _i4, _any, _any},                {just<f32>(), bypass(), just<f32>(), just<f32>()}},
     // fallback
-    {{_any,  _any, _any, _any},                                  {just<f32>(), just<f32>(), just<f32>(), just<f32>()}},
+    {{_any,  _any, _any, _any},                                 {just<f32>(), just<f32>(), just<f32>(), just<f32>()}},
 };
 // clang-format on
 
