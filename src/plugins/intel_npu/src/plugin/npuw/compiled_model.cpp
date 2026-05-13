@@ -1049,10 +1049,10 @@ void ov::npuw::CompiledModel::serialize_orc(std::ostream& stream) const {
     serialize_orc_container(stream, true, get_encrypt_callback(m_non_npuw_props));
 }
 
-void ov::npuw::CompiledModel::serialize_orc_container(
-    std::ostream& stream,
-    bool include_weights_bank,
-    const std::function<std::string(const std::string&)>& encrypt) const {
+void ov::npuw::CompiledModel::serialize_orc_container(std::ostream& stream,
+                                                      bool include_weights_bank,
+                                                      const std::function<std::string(const std::string&)>& encrypt,
+                                                      const ov::npuw::s11n::BF16Cache* bf16_consts) const {
     using namespace ov::npuw;
 
     if (m_cfg.get<::intel_npu::NPUW_ENSURE_COMPATIBILITY>()) {
@@ -1065,6 +1065,11 @@ void ov::npuw::CompiledModel::serialize_orc_container(
 
     bool is_weightless = should_use_weightless_flow(m_non_npuw_props, m_cfg, m_const_to_offset);
     LOG_INFO("Serialization will be done via " << (is_weightless ? "weightless" : "flow with weights") << ".");
+    // For top-level CompiledModel export we serialize this model's own BF16 cache.
+    // For nested export (e.g. inside LLMCompiledModel) the parent may provide a
+    // cache collected before graph splitting / BF16->FP16 conversion, and that
+    // propagated view must win so weightless import can reconstruct tensors correctly.
+    const auto& bf16_cache = bf16_consts != nullptr ? *bf16_consts : m_bf16_consts;
 
     ov::AnyMap serializable_props = m_non_npuw_props;
     serializable_props.erase(ov::cache_encryption_callbacks.name());
@@ -1108,7 +1113,10 @@ void ov::npuw::CompiledModel::serialize_orc_container(
         meta_stream& const_cast<::intel_npu::Config&>(m_cfg);
         meta_stream & serializable_props;
         meta_stream & is_weightless;
-        meta_stream& const_cast<ov::npuw::s11n::BF16Cache&>(m_bf16_consts);
+        // Persist the BF16 interpretation map that weightless import later feeds
+        // into LazyTensor::read_weight() when it decides whether raw bytes should
+        // be read as FP16 directly or converted from BF16 source storage.
+        meta_stream& const_cast<ov::npuw::s11n::BF16Cache&>(bf16_cache);
         if (encrypt) {
             std::stringstream payload_stream(std::ios::in | std::ios::out | std::ios::binary);
             write_children(payload_stream);
@@ -1267,9 +1275,13 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream, const ov::npuw::s1
     if (enc_ctx.encrypted) {
         NPUW_ASSERT(enc_ctx.encrypt && "Encryption function isn't provided!");
     }
+    // Preserve the caller-provided BF16 cache for nested serialization.
+    // LLMCompiledModel relies on this to pass original-model BF16 metadata down
+    // into child CompiledModel blobs.
     serialize_orc_container(stream,
                             false,
-                            enc_ctx.encrypted ? enc_ctx.encrypt : std::function<std::string(const std::string&)>{});
+                            enc_ctx.encrypted ? enc_ctx.encrypt : std::function<std::string(const std::string&)>{},
+                            &enc_ctx.bf16_consts);
 }
 
 std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
