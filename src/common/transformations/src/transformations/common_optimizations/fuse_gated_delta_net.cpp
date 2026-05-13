@@ -407,9 +407,16 @@ ov::Output<ov::Node> align_to_reference_shape(const ov::Output<ov::Node>& src,
                                               ov::pass::MatcherPass* pass) {
     const auto& src_ps = src.get_partial_shape();
     const auto& ref_ps = reference.get_partial_shape();
-    // If shapes are compatible, no reshape needed.
-    if (src_ps.compatible(ref_ps)) {
+
+    if (src_ps == ref_ps) {
         return src;
+    }
+
+    if (src_ps.compatible(ref_ps)) {
+        auto ref_shape = std::make_shared<ov::op::v3::ShapeOf>(reference);
+        auto reshaped = std::make_shared<v1::Reshape>(src, ref_shape, false);
+        ov::copy_runtime_info(src.get_node_shared_ptr(), {ref_shape, reshaped});
+        return reshaped;
     }
 
     const auto src_rank = src_ps.rank();
@@ -435,25 +442,19 @@ ov::Output<ov::Node> align_to_reference_shape(const ov::Output<ov::Node>& src,
                 auto updates = v0::Constant::create(ov::element::i64, {1}, {num_heads});
                 auto axis = v0::Constant::create(ov::element::i64, {}, {0});
                 auto updated_shape = std::make_shared<ov::op::v3::ScatterUpdate>(ref_shape, indices, updates, axis);
-                auto reshaped = std::make_shared<v1::Reshape>(src, updated_shape, false);
 
-                // Verify final shapes are compatible.
-                if (reshaped->get_output_partial_shape(0).compatible(ref_ps)) {
-                    pass->register_new_node(ref_shape);
-                    pass->register_new_node(updated_shape);
-                    pass->register_new_node(reshaped);
-                    return reshaped;
+                auto reshaped = std::make_shared<v1::Reshape>(src, updated_shape, false);
+                if (!reshaped->get_output_partial_shape(0).compatible(ref_ps)) {
+                    return {};
                 }
+
+                ov::copy_runtime_info(src.get_node_shared_ptr(), {ref_shape, updated_shape, reshaped});
+                return reshaped;
             }
         }
     }
 
-    // Fallback: dynamic reshape using reference shape.
-    auto ref_shape = std::make_shared<ov::op::v3::ShapeOf>(reference);
-    auto reshaped = std::make_shared<v1::Reshape>(src, ref_shape, false);
-    pass->register_new_node(ref_shape);
-    pass->register_new_node(reshaped);
-    return reshaped;
+    return {};
 }
 
 }  // namespace

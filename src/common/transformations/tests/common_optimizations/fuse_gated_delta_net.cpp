@@ -762,8 +762,6 @@ std::shared_ptr<ov::Model> build_grouped_query_gdn_rank3_dynamic_after() {
 
 // Positive: all Q/K/V share one Split anchor via a Transpose each → transformation fuses them.
 TEST_F(TransformationTestsF, FuseGroupedQueryIntoGDN_SharedAnchor_Applied) {
-    disable_rt_info_check();
-    disable_result_friendly_names_check();
     model = build_grouped_query_gdn_before();
     manager.register_pass<ov::pass::FuseGroupedQueryIntoGDN>();
     model_ref = build_grouped_query_gdn_after();
@@ -771,24 +769,19 @@ TEST_F(TransformationTestsF, FuseGroupedQueryIntoGDN_SharedAnchor_Applied) {
 
 // Negative: Q, K, V each come from a distinct Split node → anchors mismatch → transformation skipped.
 TEST_F(TransformationTestsF, FuseGroupedQueryIntoGDN_DifferentAnchors_NotApplied) {
-    disable_rt_info_check();
-    disable_result_friendly_names_check();
+    ;
     model = build_grouped_query_gdn_different_anchors();
     manager.register_pass<ov::pass::FuseGroupedQueryIntoGDN>();
     model_ref = build_grouped_query_gdn_different_anchors();
 }
 
 TEST_F(TransformationTestsF, FuseGroupedQueryIntoGDN_ReshapeTo4D_Applied) {
-    disable_rt_info_check();
-    disable_result_friendly_names_check();
     model = build_grouped_query_gdn_rank3_before();
     manager.register_pass<ov::pass::FuseGroupedQueryIntoGDN>();
     model_ref = build_grouped_query_gdn_rank3_after();
 }
 
 TEST_F(TransformationTestsF, FuseGroupedQueryIntoGDN_ReshapeTo4D_DynamicSeqLen_Applied) {
-    disable_rt_info_check();
-    disable_result_friendly_names_check();
     model = build_grouped_query_gdn_rank3_dynamic_before();
     manager.register_pass<ov::pass::FuseGroupedQueryIntoGDN>();
     model_ref = build_grouped_query_gdn_rank3_dynamic_after();
