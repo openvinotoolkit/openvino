@@ -57,13 +57,18 @@ void sycl_event::set_sycl_callback() {
     if (_callback_set)
         return;
 
-    _queue.submit([this](::sycl::handler& cgh) {
-        cgh.depends_on(_event);
-        cgh.host_task([this]() {
-            this->_set = true;
-            this->call_handlers();
+    try {
+        _queue.submit([this](::sycl::handler& cgh) {
+            cgh.depends_on(_event);
+            cgh.host_task([this]() {
+                this->_set = true;
+                this->call_handlers();
+            });
         });
-    });
+    } catch (::sycl::exception const& err) {
+        OPENVINO_THROW(SYCL_ERR_MSG_FMT(err));
+    }
+
     this->_callback_set = true;
 }
 
