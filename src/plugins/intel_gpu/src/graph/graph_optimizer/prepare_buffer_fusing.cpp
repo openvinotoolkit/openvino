@@ -624,12 +624,14 @@ bool crop_in_place_optimization::optimize(crop_node& node) {
                 user_info.second = reshape_node.get_output_layout();
             }
         }
-        update_in_place_crop_padding_simple_data_format(crop_layout,
-                                                        input_layout,
-                                                        user_info,
-                                                        crop_params->input_offsets[0],
-                                                        node.get_primitive()->axis,
-                                                        false);
+        if (!update_in_place_crop_padding_simple_data_format(crop_layout,
+                                                             input_layout,
+                                                             user_info,
+                                                             crop_params->input_offsets[0],
+                                                             node.get_primitive()->axis,
+                                                             false)) {
+            return false;
+        }
         if (user_info.first) {
             node.get_users().front()->set_output_layout(user_info.second);
         }
@@ -689,7 +691,7 @@ void crop_in_place_optimization::update_in_place_crop_padding_along_feature(cons
     }
 }
 
-void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format(layout& crop_layout,
+bool crop_in_place_optimization::update_in_place_crop_padding_simple_data_format(layout& crop_layout,
                                                                                  layout& input_layout,
                                                                                  std::pair<const program_node*, layout>& user_info,
                                                                                  const tensor offsets,
@@ -740,7 +742,7 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
             reshape_dyn_pad_mask[reshape_axis] = 1;
             user_info.second.data_padding._dynamic_dims_mask = reshape_dyn_pad_mask;
         }
-        return;
+        return true;
     }
 
     const auto& crop_size = crop_layout.get_tensor();
@@ -798,6 +800,15 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
                     }
                     reshape_axis -= 1;
 
+                    // Padding values must be evenly divisible by the divider to correctly
+                    // map crop padding into reshape space. If not divisible, the in-place
+                    // optimization cannot be applied because the reshape would read data
+                    // from wrong offsets in the parent buffer.
+                    if (divider > 1 &&
+                        (lower_sizes[crop_axis] % divider != 0 || upper_sizes[crop_axis] % divider != 0)) {
+                        return false;
+                    }
+
                     reshape_lower_sizes[reshape_axis] = lower_sizes[crop_axis];
                     reshape_upper_sizes[reshape_axis] = upper_sizes[crop_axis];
                     reshape_dyn_pad_mask[reshape_axis] = 1;
@@ -837,6 +848,7 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
     } else {
         crop_layout.data_padding = padding(lower_sizes, upper_sizes);
     }
+    return true;
 }
 
 // ToDo remove friendship relation from  program_node
@@ -903,12 +915,14 @@ void prepare_buffer_fusing::run(program& p) {
                         user_info.second = reshape_node.get_output_layout();
                     }
                 }
-                crop_in_place_optimization::update_in_place_crop_padding_simple_data_format(crop_layout,
-                                                                                            pred_layout,
-                                                                                            user_info,
-                                                                                            crop_params->input_offsets[0],
-                                                                                            node.get_primitive()->axis,
-                                                                                            false);
+                if (!crop_in_place_optimization::update_in_place_crop_padding_simple_data_format(crop_layout,
+                                                                                                 pred_layout,
+                                                                                                 user_info,
+                                                                                                 crop_params->input_offsets[0],
+                                                                                                 node.get_primitive()->axis,
+                                                                                                 false)) {
+                    return;
+                }
                 if (user_info.first) {
                     node.get_users().front()->set_output_layout(user_info.second);
                 }
