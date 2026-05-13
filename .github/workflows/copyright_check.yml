@@ -24,7 +24,8 @@ jobs:
           
           # Extract changed file names from the diff
           # Lines starting with +++ indicate new/modified files (skip /dev/null for deleted files)
-          grep '^+++' pr.diff | sed 's|^+++ b/||' | grep -v '/dev/null' > changed_files.txt
+          # || true prevents grep from failing with exit code 1 when all changes are deletions
+          grep '^+++' pr.diff | sed 's|^+++ b/||' | grep -v '/dev/null' > changed_files.txt || true
 
       - name: Check copyright headers
         id: check

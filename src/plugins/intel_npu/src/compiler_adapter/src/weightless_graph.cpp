@@ -4,6 +4,7 @@
 
 #include "weightless_graph.hpp"
 
+#include <cinttypes>
 #include <condition_variable>
 #include <iterator>
 #include <mutex>
@@ -13,6 +14,7 @@
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/core/memory_util.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
@@ -52,7 +54,7 @@ std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> get_all_consta
                                 "This may indicate a bug in OV model compression.");
                 continue;
             }
-            constant = constantNode;
+            constant = std::move(constantNode);
         }
     }
 
@@ -175,8 +177,9 @@ WeightlessGraph::WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGr
             std::move(mainMetadata),
             std::move(mainBlob),
             config,
+            /* compatibilityDescriptor = */ std::nullopt,
             blobIsPersistent,
-            true),
+            /* calledFromWeightlessGraph = */ true),
       _initsGraphDesc(initGraphDesc),
       _initBlobs(std::move(initBlobs)),
       _initsMetadata(std::move(initMetadata)),
@@ -234,13 +237,11 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
 
             totalResult += result;
 
-            std::stringstream str;
             if (blobIndex == MAIN_SCHEDULE_INDEX) {
-                str << "Main blob size " << blobSize << ", hash " << std::hex << result;
+                _wgLogger.info("Main blob size: %" PRIu64 ", hash: %x", blobSize, result);
             } else {
-                str << "Init part " << blobIndex << " blob size " << blobSize << ", hash " << std::hex << result;
+                _wgLogger.info("Init part %zu blob size %" PRIu64 ", hash: %x", blobIndex, blobSize, result);
             }
-            _wgLogger.info(str.str().c_str());
         }
 
         size_t size = utils::align_size_to_standard_page_size(blobSize);
@@ -253,7 +254,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
                 return 0;
             }
 
-            _wgLogger.info("Blob size with padding: %ld", size);
+            _wgLogger.info("Blob size with padding: %zu", size);
         }
 
         return size;
@@ -276,9 +277,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
         ++blobIndex;
     }
 
-    std::stringstream str;
-    str << "Blob size: " << totalBlobSize << ", hash: " << std::hex << totalResult;
-    _wgLogger.info(str.str().c_str());
+    _wgLogger.info("Blob size: %" PRIu64 ", hash: %x", totalBlobSize, totalResult);
 
     _wgLogger.info("Write blob to stream successfully.");
     return std::make_pair(totalBlobSize, initSizes);
@@ -410,7 +409,7 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
         constants.erase(id);
     }
 
-    return {initInputsViewTensors, initInputsAllocatedTensor};
+    return {std::move(initInputsViewTensors), initInputsAllocatedTensor};
 }
 
 WeightlessGraph::OutputData WeightlessGraph::allocate_outputs(const size_t initIndex) {
@@ -440,7 +439,7 @@ WeightlessGraph::OutputData WeightlessGraph::allocate_outputs(const size_t initI
         offset += ov::util::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
     }
 
-    return {initOutputsViewTensorsVector, initOutputsAllocatedTensor, initOutputsViewTensorsMap};
+    return {std::move(initOutputsViewTensorsVector), initOutputsAllocatedTensor, std::move(initOutputsViewTensorsMap)};
 }
 
 void WeightlessGraph::run_init_single_threaded() {

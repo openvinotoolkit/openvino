@@ -47,6 +47,7 @@ EltwiseKind getEltwiseKind(const Algorithm alg) {
     case Algorithm::EltwiseNegative:
     case Algorithm::EltwiseErf:
     case Algorithm::EltwiseSoftSign:
+    case Algorithm::EltwiseErfInv:
     case Algorithm::EltwiseLog:
         return EltwiseKind::Activation;
     // ScaleShift algorithms
@@ -206,6 +207,8 @@ ActivationPostOp::Type convertToActivationPostOpt(const Algorithm alg) {
         return ActivationPostOp::Type::erf;
     case Algorithm::EltwiseSoftSign:
         return ActivationPostOp::Type::soft_sign;
+    case Algorithm::EltwiseErfInv:
+        return ActivationPostOp::Type::erfinv;
     case Algorithm::EltwiseLog:
         return ActivationPostOp::Type::log;
     default:
@@ -274,6 +277,8 @@ Algorithm convertToEltwiseAlgorithm(const ActivationPostOp::Type type) {
         return Algorithm::EltwiseErf;
     case ActivationPostOp::Type::soft_sign:
         return Algorithm::EltwiseSoftSign;
+    case ActivationPostOp::Type::erfinv:
+        return Algorithm::EltwiseErfInv;
     case ActivationPostOp::Type::log:
         return Algorithm::EltwiseLog;
     default:
@@ -405,7 +410,7 @@ PostOps getPostOps(const std::vector<NodePtr>& fused, ov::element::Type_t sumDat
 
     auto makeSumPostOp = [&](const std::shared_ptr<node::Eltwise>& eltwise) {
         OPENVINO_ASSERT(sumDataType != ov::element::dynamic, "Sum data type is not defined ", eltwise->getName());
-        return std::make_any<SumPostOp>(1.0, 0, sumDataType);
+        return std::make_any<SumPostOp>(1.0F, 0, sumDataType);
     };
 
     for (const auto& node : fused) {

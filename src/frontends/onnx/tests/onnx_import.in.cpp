@@ -1664,6 +1664,21 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_resize10_down_scales_const_nearest) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_resize10_down_scales_const_nearest_f64) {
+    const auto model = convert_model("resize10_down_scales_const_nearest_f64.onnx");
+
+    // Input data shape (1, 1, 2, 4)
+    // Input const scales values {1.0, 1.0, 0.6, 0.6}
+    // mode: nearest
+    // elem_type: 11 (double / f64)
+
+    Shape expected_output_shape{1, 1, 1, 2};
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<double>({1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0});
+    test_case.add_expected_output<double>(expected_output_shape, {1.0, 3.0});
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_resize10_up_scales_const_linear) {
     const auto model = convert_model("resize10_up_scales_const_linear.onnx");
 
@@ -3200,6 +3215,23 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_lp_norm_default_dynamic) {
         {0.18257418f, 0.36514837f, 0.5477225f, 0.73029673f, 0.37904903f, 0.45485884f, 0.5306686f,  0.60647845f,
          0.42616236f, 0.47351375f, 0.5208651f, 0.5682165f,  0.4469492f,  0.48132992f, 0.51571065f, 0.5500913f,
          0.45862272f, 0.48560053f, 0.5125783f, 0.53955615f, 0.46609157f, 0.4882864f,  0.51048124f, 0.5326761f});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_lp_norm_zero_norm) {
+    // Ref: https://onnx.ai/onnx/operators/onnx__LpNormalization.html
+    const auto model = convert_model("lp_norm_p2.onnx");
+
+    const Shape data_shape{2, 3, 4};
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(data_shape, {1.f,  2.f,  3.f,  4.f,  5.f,  6.f,  7.f,  8.f,  9.f,  10.f, 0.f, 0.f,
+                                            13.f, 14.f, 15.f, 16.f, 17.f, 18.f, 19.f, 20.f, 21.f, 22.f, 0.f, 0.f});
+    test_case.add_expected_output<float>(
+        data_shape,
+        {0.0766965f,  0.14142136f, 0.19611613f, 0.24253564f, 0.28216633f, 0.31622776f, 0.34570536f, 0.37139067f,
+         0.39391932f, 0.41380295f, 0.0f,        0.0f,        0.9970545f,  0.98994946f, 0.9805807f,  0.97014254f,
+         0.9593655f,  0.9486833f,  0.9383431f,  0.9284767f,  0.91914505f, 0.9103665f,  0.0f,        0.0f});
 
     test_case.run();
 }
@@ -5561,6 +5593,17 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_expand_failsafe_node) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_expand_scalar_failsafe_node) {
     const auto model = convert_model("expand_scalar_failsafe_node.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    const auto input_data = std::vector<float>{1.0f};
+    test_case.add_input<float>(input_data);
+    // the target shape is an empty constant so the Expand operation should not modify the input shape
+    test_case.add_expected_output<float>(input_data);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_expand_scalar_failsafe_node_ort_mem) {
+    const auto model = convert_model("expand_scalar_failsafe_node_ort_mem.onnx");
 
     auto test_case = ov::test::TestCase(model, s_device);
     const auto input_data = std::vector<float>{1.0f};

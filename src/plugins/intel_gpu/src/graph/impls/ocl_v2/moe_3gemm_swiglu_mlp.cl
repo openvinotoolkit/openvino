@@ -5,8 +5,78 @@
 
 #define unroll_for __attribute__((opencl_unroll_hint)) for
 
-// Fake group size for compatibility and computation performance balance
-#define FAKE_GROUP_SIZE 128
+// Fake group size for compatibility and computation performance balance.
+// Each gk-iteration of the inner GEMV loop processes FAKE_GROUP_SIZE K-elements
+// using a single (scale, zp) entry, so FAKE_GROUP_SIZE must divide both
+// GATE_UP_GROUP_SIZE and DOWN_GROUP_SIZE. The traditional value is 128 which
+// matches the sub_group_block_read tile widths below; for models whose weight
+// quantization uses a smaller group (e.g. 64) we shrink FAKE_GROUP_SIZE so the
+// per-iteration accumulation stays within one quant group.
+#if defined(GATE_UP_GROUP_SIZE) && defined(DOWN_GROUP_SIZE)
+#    if GATE_UP_GROUP_SIZE < DOWN_GROUP_SIZE
+#        define MOE_MIN_GROUP_SIZE GATE_UP_GROUP_SIZE
+#    else
+#        define MOE_MIN_GROUP_SIZE DOWN_GROUP_SIZE
+#    endif
+#    if MOE_MIN_GROUP_SIZE < 128
+#        define FAKE_GROUP_SIZE MOE_MIN_GROUP_SIZE
+#    else
+#        define FAKE_GROUP_SIZE 128
+#    endif
+#else
+#    define FAKE_GROUP_SIZE 128
+#endif
+
+// Number of K-elements each work-item handles per gk-iteration via the
+// intel_sub_group_block_read tile. Drives the inner-loop variant selection.
+// Supported values: 2 (FAKE_GROUP_SIZE = 1 * SUBGROUP_SIZE * 2, e.g. SG=16 + 32),
+// 4 (e.g. SG=32 + FAKE=128 or SG=16 + FAKE=64), and 8 (SG=16 + FAKE=128).
+#define ELEMS_PER_LANE (FAKE_GROUP_SIZE / SUBGROUP_SIZE)
+
+// Gate activation: SwiGLU (Swish, default), GeGLU-Tanh, or GeGLU-ERF.
+// GATE_ACT_GELU_ERF takes precedence over GATE_ACT_GELU_TANH when both are set.
+#ifdef GATE_ACT_GELU_ERF
+// ERF Gelu: 0.5 * x * (1 + erf(x / sqrt(2))); A&S 7.1.26 fast erf approximation
+inline float moe_mlp_fast_erf(float x) {
+    const float p  = 0.3275911f;
+    const float a1 = 0.254829592f;
+    const float a2 = -0.284496736f;
+    const float a3 = 1.421413741f;
+    const float a4 = -1.453152027f;
+    const float a5 = 1.061405429f;
+    float z = fabs(x);
+    float t = 1.0f / (1.0f + p * z);
+    float y = 1.0f - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * exp(-(z * z));
+    return (x >= 0.0f) ? y : -y;
+}
+#    define MOE_GATE_ACT(x) (0.5f * (x) * (1.0f + moe_mlp_fast_erf((x) * 0.7071067811865475f)))
+#elif defined(GATE_ACT_GELU_TANH)
+#    define MOE_GATE_ACT(x) (0.5f * (x) * (1.0f + (tanh(0.79788458347320556640625f * (x) * (1.0f + 0.044715f * (x) * (x))))))
+#else
+#    define MOE_GATE_ACT(x) ((x) / (1.0f + exp(-(x))))
+#endif
+
+// HAS_ZP: 1 = asymmetric quantization (subtract zero point), 0 = symmetric (no zero point)
+#if HAS_ZP
+#    define ZP_ADJUST_2(sum0, sum1, xg_sum_gk, z0, z1) ((sum0) - (xg_sum_gk) * (z0)), ((sum1) - (xg_sum_gk) * (z1))
+#    define ZP_ADJUST_4(sum0123, xg_sum_gk, z) ((sum0123) - (xg_sum_gk) * (z))
+#else
+#    define ZP_ADJUST_2(sum0, sum1, xg_sum_gk, z0, z1) (sum0), (sum1)
+#    define ZP_ADJUST_4(sum0123, xg_sum_gk, z) (sum0123)
+#endif
+
+// WEIGHT_IS_SIGNED: sign extension helpers for i4/i8 weights
+#if WEIGHT_IS_SIGNED
+// 4-bit sign extension: [0,15] -> [-8,7]. If bit3 is set, OR with 0xF0 to sign-extend to char.
+#    define DEQUANT_4BIT_LO(v) convert_half((char)(((v) & 0x08) ? ((v) | 0xF0) : ((v) & 0x0F)))
+#    define DEQUANT_4BIT_HI(v) convert_half((char)((((v) >> 4) & 0x08) ? (((v) >> 4) | 0xF0) : (((v) >> 4) & 0x0F)))
+// 8-bit sign extension: reinterpret uchar as signed char
+#    define DEQUANT_8BIT(v)    convert_half(as_char(v))
+#else
+#    define DEQUANT_4BIT_LO(v) convert_half((v) & 0x0F)
+#    define DEQUANT_4BIT_HI(v) convert_half((v) >> 4)
+#    define DEQUANT_8BIT(v)    convert_half(v)
+#endif
 
 #if GATE_UP_ENABLE
 inline void gate_up_gemv_n2x_u4(const __global uchar* weight,
@@ -28,35 +98,65 @@ inline void gate_up_gemv_n2x_u4(const __global uchar* weight,
         float sum_all0 = 0;
         float sum_all1 = 0;
         __global half* S = scales + n;
+#if HAS_ZP
         __global uchar* Z = zps + n / 2;
+#endif
         unroll_for(int gk = 0; gk < K / FAKE_GROUP_SIZE; gk++) {
-            int scale_offset = gk * (FAKE_GROUP_SIZE / GATE_UP_GROUP_SIZE) * N;
-            int zp_offset = gk * (FAKE_GROUP_SIZE / GATE_UP_GROUP_SIZE) * N / 2;
+            int scale_offset = (gk * FAKE_GROUP_SIZE / GATE_UP_GROUP_SIZE) * N;
             half s0 = S[scale_offset];
             half s1 = S[scale_offset + 1];
+#if HAS_ZP
+            int zp_offset = (gk * FAKE_GROUP_SIZE / GATE_UP_GROUP_SIZE) * N / 2;
             uchar z = Z[zp_offset];
             half z_hf0 = convert_half(z & 0xf);
             half z_hf1 = convert_half(z >> 4);
+#endif
 
-#    if SUBGROUP_SIZE == 32
+#    if ELEMS_PER_LANE == 4
             half2 sum0;
             half2 sum1;
             half4 a = as_half4(intel_sub_group_block_read_us4((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
             uchar2 b = intel_sub_group_block_read_uc2((const __global uchar*)B + gk * FAKE_GROUP_SIZE / 2);
             uchar2 b2 = intel_sub_group_block_read_uc2((const __global uchar*)(B + (K / 2) + gk * FAKE_GROUP_SIZE / 2));
 
-            sum0.s0 = fma(a.s0, (convert_half(b.s0 & 0x0F)), 0);
-            sum0.s1 = fma(a.s1, (convert_half(b.s1 & 0x0F)), 0);
-            sum0.s0 = fma(a.s2, (convert_half(b.s0 >> 4)), sum0.s0);
-            sum0.s1 = fma(a.s3, (convert_half(b.s1 >> 4)), sum0.s1);
+            sum0.s0 = fma(a.s0, (DEQUANT_4BIT_LO(b.s0)), 0);
+            sum0.s1 = fma(a.s1, (DEQUANT_4BIT_LO(b.s1)), 0);
+            sum0.s0 = fma(a.s2, (DEQUANT_4BIT_HI(b.s0)), sum0.s0);
+            sum0.s1 = fma(a.s3, (DEQUANT_4BIT_HI(b.s1)), sum0.s1);
 
-            sum1.s0 = fma(a.s0, (convert_half(b2.s0 & 0x0F)), 0);
-            sum1.s1 = fma(a.s1, (convert_half(b2.s1 & 0x0F)), 0);
-            sum1.s0 = fma(a.s2, (convert_half(b2.s0 >> 4)), sum1.s0);
-            sum1.s1 = fma(a.s3, (convert_half(b2.s1 >> 4)), sum1.s1);
+            sum1.s0 = fma(a.s0, (DEQUANT_4BIT_LO(b2.s0)), 0);
+            sum1.s1 = fma(a.s1, (DEQUANT_4BIT_LO(b2.s1)), 0);
+            sum1.s0 = fma(a.s2, (DEQUANT_4BIT_HI(b2.s0)), sum1.s0);
+            sum1.s1 = fma(a.s3, (DEQUANT_4BIT_HI(b2.s1)), sum1.s1);
 
+#if HAS_ZP
             sum_all0 += (sum0[0] + sum0[1] - xg_sum[gk] * z_hf0) * s0;
             sum_all1 += (sum1[0] + sum1[1] - xg_sum[gk] * z_hf1) * s1;
+#else
+            sum_all0 += (sum0[0] + sum0[1]) * s0;
+            sum_all1 += (sum1[0] + sum1[1]) * s1;
+#endif
+#    elif ELEMS_PER_LANE == 2
+            // Each lane reads 2 K-elements (1 byte = 2 nibbles).
+            half sum0;
+            half sum1;
+            half2 a = as_half2(intel_sub_group_block_read_us2((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            uchar b = intel_sub_group_block_read_uc((const __global uchar*)B + gk * FAKE_GROUP_SIZE / 2);
+            uchar b2 = intel_sub_group_block_read_uc((const __global uchar*)(B + (K / 2) + gk * FAKE_GROUP_SIZE / 2));
+
+            sum0 = fma(a.s0, (DEQUANT_4BIT_LO(b)), (half)0);
+            sum0 = fma(a.s1, (DEQUANT_4BIT_HI(b)), sum0);
+
+            sum1 = fma(a.s0, (DEQUANT_4BIT_LO(b2)), (half)0);
+            sum1 = fma(a.s1, (DEQUANT_4BIT_HI(b2)), sum1);
+
+#if HAS_ZP
+            sum_all0 += (sum0 - xg_sum[gk] * z_hf0) * s0;
+            sum_all1 += (sum1 - xg_sum[gk] * z_hf1) * s1;
+#else
+            sum_all0 += sum0 * s0;
+            sum_all1 += sum1 * s1;
+#endif
 #    else
             half4 sum0;
             half4 sum1;
@@ -64,28 +164,33 @@ inline void gate_up_gemv_n2x_u4(const __global uchar* weight,
             uchar4 b = intel_sub_group_block_read_uc4((const __global uchar*)B + gk * FAKE_GROUP_SIZE / 2);
             uchar4 b2 = intel_sub_group_block_read_uc4((const __global uchar*)(B + (K / 2) + gk * FAKE_GROUP_SIZE / 2));
 
-            sum0.s0 = fma(a.s0, (convert_half(b.s0 & 0x0F)), 0);
-            sum0.s1 = fma(a.s1, (convert_half(b.s1 & 0x0F)), 0);
-            sum0.s2 = fma(a.s2, (convert_half(b.s2 & 0x0F)), 0);
-            sum0.s3 = fma(a.s3, (convert_half(b.s3 & 0x0F)), 0);
+            sum0.s0 = fma(a.s0, (DEQUANT_4BIT_LO(b.s0)), 0);
+            sum0.s1 = fma(a.s1, (DEQUANT_4BIT_LO(b.s1)), 0);
+            sum0.s2 = fma(a.s2, (DEQUANT_4BIT_LO(b.s2)), 0);
+            sum0.s3 = fma(a.s3, (DEQUANT_4BIT_LO(b.s3)), 0);
 
-            sum0.s0 = fma(a.s4, (convert_half(b.s0 >> 4)), sum0.s0);
-            sum0.s1 = fma(a.s5, (convert_half(b.s1 >> 4)), sum0.s1);
-            sum0.s2 = fma(a.s6, (convert_half(b.s2 >> 4)), sum0.s2);
-            sum0.s3 = fma(a.s7, (convert_half(b.s3 >> 4)), sum0.s3);
+            sum0.s0 = fma(a.s4, (DEQUANT_4BIT_HI(b.s0)), sum0.s0);
+            sum0.s1 = fma(a.s5, (DEQUANT_4BIT_HI(b.s1)), sum0.s1);
+            sum0.s2 = fma(a.s6, (DEQUANT_4BIT_HI(b.s2)), sum0.s2);
+            sum0.s3 = fma(a.s7, (DEQUANT_4BIT_HI(b.s3)), sum0.s3);
 
-            sum1.s0 = fma(a.s0, (convert_half(b2.s0 & 0x0F)), 0);
-            sum1.s1 = fma(a.s1, (convert_half(b2.s1 & 0x0F)), 0);
-            sum1.s2 = fma(a.s2, (convert_half(b2.s2 & 0x0F)), 0);
-            sum1.s3 = fma(a.s3, (convert_half(b2.s3 & 0x0F)), 0);
+            sum1.s0 = fma(a.s0, (DEQUANT_4BIT_LO(b2.s0)), 0);
+            sum1.s1 = fma(a.s1, (DEQUANT_4BIT_LO(b2.s1)), 0);
+            sum1.s2 = fma(a.s2, (DEQUANT_4BIT_LO(b2.s2)), 0);
+            sum1.s3 = fma(a.s3, (DEQUANT_4BIT_LO(b2.s3)), 0);
 
-            sum1.s0 = fma(a.s4, (convert_half(b2.s0 >> 4)), sum1.s0);
-            sum1.s1 = fma(a.s5, (convert_half(b2.s1 >> 4)), sum1.s1);
-            sum1.s2 = fma(a.s6, (convert_half(b2.s2 >> 4)), sum1.s2);
-            sum1.s3 = fma(a.s7, (convert_half(b2.s3 >> 4)), sum1.s3);
+            sum1.s0 = fma(a.s4, (DEQUANT_4BIT_HI(b2.s0)), sum1.s0);
+            sum1.s1 = fma(a.s5, (DEQUANT_4BIT_HI(b2.s1)), sum1.s1);
+            sum1.s2 = fma(a.s6, (DEQUANT_4BIT_HI(b2.s2)), sum1.s2);
+            sum1.s3 = fma(a.s7, (DEQUANT_4BIT_HI(b2.s3)), sum1.s3);
 
+#if HAS_ZP
             sum_all0 += (sum0[0] + sum0[1] + sum0[2] + sum0[3] - xg_sum[gk] * z_hf0) * s0;
             sum_all1 += (sum1[0] + sum1[1] + sum1[2] + sum1[3] - xg_sum[gk] * z_hf1) * s1;
+#else
+            sum_all0 += (sum0[0] + sum0[1] + sum0[2] + sum0[3]) * s0;
+            sum_all1 += (sum1[0] + sum1[1] + sum1[2] + sum1[3]) * s1;
+#endif
 #    endif
         }
 
@@ -93,8 +198,8 @@ inline void gate_up_gemv_n2x_u4(const __global uchar* weight,
         sum_all1 = sub_group_reduce_add(sum_all1);
         if (id_local == 0) {
             if (silu) {
-                y[n] *= sum_all0 / (1 + exp(-sum_all0));
-                y[n + 1] *= sum_all1 / (1 + exp(-sum_all1));
+                y[n] *= MOE_GATE_ACT(sum_all0);
+                y[n + 1] *= MOE_GATE_ACT(sum_all1);
             } else {
                 y[n] = sum_all0;
                 y[n + 1] = sum_all1;
@@ -122,34 +227,64 @@ inline void gate_up_gemv_n2x_u8(const __global uchar* weight,
         float sum_all0 = 0;
         float sum_all1 = 0;
         __global half* S = scales + n;
+#if HAS_ZP
         __global uchar* Z = zps + n;
+#endif
         unroll_for(int gk = 0; gk < K / FAKE_GROUP_SIZE; gk++) {
-            int scale_offset = gk * (FAKE_GROUP_SIZE / GATE_UP_GROUP_SIZE) * N;
-            int zp_offset = gk * (FAKE_GROUP_SIZE / GATE_UP_GROUP_SIZE) * N;
+            int scale_offset = (gk * FAKE_GROUP_SIZE / GATE_UP_GROUP_SIZE) * N;
             half s0 = S[scale_offset];
             half s1 = S[scale_offset + 1];
+#if HAS_ZP
+            int zp_offset = (gk * FAKE_GROUP_SIZE / GATE_UP_GROUP_SIZE) * N;
             half z0 = convert_half(Z[zp_offset]);
             half z1 = convert_half(Z[zp_offset + 1]);
+#endif
 
-#    if SUBGROUP_SIZE == 32
+#    if ELEMS_PER_LANE == 4
             float2 sum0;
             float2 sum1;
             half4 a = as_half4(intel_sub_group_block_read_us4((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
             uchar4 b = intel_sub_group_block_read_uc4((const __global uchar*)B + gk * FAKE_GROUP_SIZE);
             uchar4 b2 = intel_sub_group_block_read_uc4((const __global uchar*)(B + K + gk * FAKE_GROUP_SIZE));
 
-            sum0.s0 = fma((float)a.s0, (float)(convert_half(b.s0)), 0.0f);
-            sum0.s1 = fma((float)a.s1, (float)(convert_half(b.s1)), 0.0f);
-            sum0.s0 = fma((float)a.s2, (float)(convert_half(b.s2)), sum0.s0);
-            sum0.s1 = fma((float)a.s3, (float)(convert_half(b.s3)), sum0.s1);
+            sum0.s0 = fma((float)a.s0, (float)(DEQUANT_8BIT(b.s0)), 0.0f);
+            sum0.s1 = fma((float)a.s1, (float)(DEQUANT_8BIT(b.s1)), 0.0f);
+            sum0.s0 = fma((float)a.s2, (float)(DEQUANT_8BIT(b.s2)), sum0.s0);
+            sum0.s1 = fma((float)a.s3, (float)(DEQUANT_8BIT(b.s3)), sum0.s1);
 
-            sum1.s0 = fma((float)a.s0, (float)(convert_half(b2.s0)), 0.0f);
-            sum1.s1 = fma((float)a.s1, (float)(convert_half(b2.s1)), 0.0f);
-            sum1.s0 = fma((float)a.s2, (float)(convert_half(b2.s2)), sum1.s0);
-            sum1.s1 = fma((float)a.s3, (float)(convert_half(b2.s3)), sum1.s1);
+            sum1.s0 = fma((float)a.s0, (float)(DEQUANT_8BIT(b2.s0)), 0.0f);
+            sum1.s1 = fma((float)a.s1, (float)(DEQUANT_8BIT(b2.s1)), 0.0f);
+            sum1.s0 = fma((float)a.s2, (float)(DEQUANT_8BIT(b2.s2)), sum1.s0);
+            sum1.s1 = fma((float)a.s3, (float)(DEQUANT_8BIT(b2.s3)), sum1.s1);
 
+#if HAS_ZP
             sum_all0 += (sum0[0] + sum0[1] - xg_sum[gk] * z0) * s0;
             sum_all1 += (sum1[0] + sum1[1] - xg_sum[gk] * z1) * s1;
+#else
+            sum_all0 += (sum0[0] + sum0[1]) * s0;
+            sum_all1 += (sum1[0] + sum1[1]) * s1;
+#endif
+#    elif ELEMS_PER_LANE == 2
+            // Each lane reads 2 K-elements (8-bit weights, 1 byte each).
+            float sum0;
+            float sum1;
+            half2 a = as_half2(intel_sub_group_block_read_us2((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            uchar2 b = intel_sub_group_block_read_uc2((const __global uchar*)B + gk * FAKE_GROUP_SIZE);
+            uchar2 b2 = intel_sub_group_block_read_uc2((const __global uchar*)(B + K + gk * FAKE_GROUP_SIZE));
+
+            sum0 = fma((float)a.s0, (float)(DEQUANT_8BIT(b.s0)), 0.0f);
+            sum0 = fma((float)a.s1, (float)(DEQUANT_8BIT(b.s1)), sum0);
+
+            sum1 = fma((float)a.s0, (float)(DEQUANT_8BIT(b2.s0)), 0.0f);
+            sum1 = fma((float)a.s1, (float)(DEQUANT_8BIT(b2.s1)), sum1);
+
+#if HAS_ZP
+            sum_all0 += (sum0 - xg_sum[gk] * z0) * s0;
+            sum_all1 += (sum1 - xg_sum[gk] * z1) * s1;
+#else
+            sum_all0 += sum0 * s0;
+            sum_all1 += sum1 * s1;
+#endif
 #    else
             float4 sum0;
             float4 sum1;
@@ -157,28 +292,33 @@ inline void gate_up_gemv_n2x_u8(const __global uchar* weight,
             uchar8 b = intel_sub_group_block_read_uc8((const __global uchar*)B + gk * FAKE_GROUP_SIZE);
             uchar8 b2 = intel_sub_group_block_read_uc8((const __global uchar*)(B + K + gk * FAKE_GROUP_SIZE));
 
-            sum0.s0 = fma((float)a.s0, (float)(convert_half(b.s0)), 0.0f);
-            sum0.s1 = fma((float)a.s1, (float)(convert_half(b.s1)), 0.0f);
-            sum0.s2 = fma((float)a.s2, (float)(convert_half(b.s2)), 0.0f);
-            sum0.s3 = fma((float)a.s3, (float)(convert_half(b.s3)), 0.0f);
+            sum0.s0 = fma((float)a.s0, (float)(DEQUANT_8BIT(b.s0)), 0.0f);
+            sum0.s1 = fma((float)a.s1, (float)(DEQUANT_8BIT(b.s1)), 0.0f);
+            sum0.s2 = fma((float)a.s2, (float)(DEQUANT_8BIT(b.s2)), 0.0f);
+            sum0.s3 = fma((float)a.s3, (float)(DEQUANT_8BIT(b.s3)), 0.0f);
 
-            sum0.s0 = fma((float)a.s4, (float)(convert_half(b.s4)), sum0.s0);
-            sum0.s1 = fma((float)a.s5, (float)(convert_half(b.s5)), sum0.s1);
-            sum0.s2 = fma((float)a.s6, (float)(convert_half(b.s6)), sum0.s2);
-            sum0.s3 = fma((float)a.s7, (float)(convert_half(b.s7)), sum0.s3);
+            sum0.s0 = fma((float)a.s4, (float)(DEQUANT_8BIT(b.s4)), sum0.s0);
+            sum0.s1 = fma((float)a.s5, (float)(DEQUANT_8BIT(b.s5)), sum0.s1);
+            sum0.s2 = fma((float)a.s6, (float)(DEQUANT_8BIT(b.s6)), sum0.s2);
+            sum0.s3 = fma((float)a.s7, (float)(DEQUANT_8BIT(b.s7)), sum0.s3);
 
-            sum1.s0 = fma((float)a.s0, (float)(convert_half(b2.s0)), 0.0f);
-            sum1.s1 = fma((float)a.s1, (float)(convert_half(b2.s1)), 0.0f);
-            sum1.s2 = fma((float)a.s2, (float)(convert_half(b2.s2)), 0.0f);
-            sum1.s3 = fma((float)a.s3, (float)(convert_half(b2.s3)), 0.0f);
+            sum1.s0 = fma((float)a.s0, (float)(DEQUANT_8BIT(b2.s0)), 0.0f);
+            sum1.s1 = fma((float)a.s1, (float)(DEQUANT_8BIT(b2.s1)), 0.0f);
+            sum1.s2 = fma((float)a.s2, (float)(DEQUANT_8BIT(b2.s2)), 0.0f);
+            sum1.s3 = fma((float)a.s3, (float)(DEQUANT_8BIT(b2.s3)), 0.0f);
 
-            sum1.s0 = fma((float)a.s4, (float)(convert_half(b2.s4)), sum1.s0);
-            sum1.s1 = fma((float)a.s5, (float)(convert_half(b2.s5)), sum1.s1);
-            sum1.s2 = fma((float)a.s6, (float)(convert_half(b2.s6)), sum1.s2);
-            sum1.s3 = fma((float)a.s7, (float)(convert_half(b2.s7)), sum1.s3);
+            sum1.s0 = fma((float)a.s4, (float)(DEQUANT_8BIT(b2.s4)), sum1.s0);
+            sum1.s1 = fma((float)a.s5, (float)(DEQUANT_8BIT(b2.s5)), sum1.s1);
+            sum1.s2 = fma((float)a.s6, (float)(DEQUANT_8BIT(b2.s6)), sum1.s2);
+            sum1.s3 = fma((float)a.s7, (float)(DEQUANT_8BIT(b2.s7)), sum1.s3);
 
+#if HAS_ZP
             sum_all0 += (sum0[0] + sum0[1] + sum0[2] + sum0[3] - xg_sum[gk] * z0) * s0;
             sum_all1 += (sum1[0] + sum1[1] + sum1[2] + sum1[3] - xg_sum[gk] * z1) * s1;
+#else
+            sum_all0 += (sum0[0] + sum0[1] + sum0[2] + sum0[3]) * s0;
+            sum_all1 += (sum1[0] + sum1[1] + sum1[2] + sum1[3]) * s1;
+#endif
 #    endif
         }
 
@@ -186,8 +326,8 @@ inline void gate_up_gemv_n2x_u8(const __global uchar* weight,
         sum_all1 = sub_group_reduce_add(sum_all1);
         if (id_local == 0) {
             if (silu) {
-                y[n] *= sum_all0 / (1 + exp(-sum_all0));
-                y[n + 1] *= sum_all1 / (1 + exp(-sum_all1));
+                y[n] *= MOE_GATE_ACT(sum_all0);
+                y[n + 1] *= MOE_GATE_ACT(sum_all1);
             } else {
                 y[n] = sum_all0;
                 y[n + 1] = sum_all1;
@@ -207,7 +347,7 @@ inline void gate_up_gemv_n2x_f16(const __global half* weight, __global half* y, 
         float sum_all0 = 0;
         float sum_all1 = 0;
         unroll_for(int gk = 0; gk < K / FAKE_GROUP_SIZE; gk++) {
-#    if SUBGROUP_SIZE == 32
+#    if ELEMS_PER_LANE == 4
             half2 sum0;
             half2 sum1;
             half4 a = as_half4(intel_sub_group_block_read_us4((const __global ushort*)x2 + gk * FAKE_GROUP_SIZE));
@@ -226,6 +366,22 @@ inline void gate_up_gemv_n2x_f16(const __global half* weight, __global half* y, 
 
             sum_all0 += sum0[0] + sum0[1];
             sum_all1 += sum1[0] + sum1[1];
+#    elif ELEMS_PER_LANE == 2
+            // Each lane reads 2 fp16 elements.
+            half sum0;
+            half sum1;
+            half2 a = as_half2(intel_sub_group_block_read_us2((const __global ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            half2 b = as_half2(intel_sub_group_block_read_us2((const __global ushort*)B + gk * FAKE_GROUP_SIZE));
+            half2 b2 = as_half2(intel_sub_group_block_read_us2((const __global ushort*)B + K + gk * FAKE_GROUP_SIZE));
+
+            sum0 = fma(a.s0, b.s0, (half)0);
+            sum0 = fma(a.s1, b.s1, sum0);
+
+            sum1 = fma(a.s0, b2.s0, (half)0);
+            sum1 = fma(a.s1, b2.s1, sum1);
+
+            sum_all0 += sum0;
+            sum_all1 += sum1;
 #    else
             half4 sum0;
             half4 sum1;
@@ -262,8 +418,8 @@ inline void gate_up_gemv_n2x_f16(const __global half* weight, __global half* y, 
         sum_all1 = sub_group_reduce_add(sum_all1);
         if (id_local == 0) {
             if (silu) {
-                y[n] *= sum_all0 / (1 + exp(-sum_all0));
-                y[n + 1] *= sum_all1 / (1 + exp(-sum_all1));
+                y[n] *= MOE_GATE_ACT(sum_all0);
+                y[n + 1] *= MOE_GATE_ACT(sum_all1);
             } else {
                 y[n] = sum_all0;
                 y[n + 1] = sum_all1;
@@ -350,13 +506,17 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(
 
 #    if GATE_UP_GROUP_SIZE % FAKE_GROUP_SIZE != 0
     if (get_sub_group_id() == 0 && get_sub_group_local_id() == 0) {
-        printf("GATE_UP_GROUP_SIZE(%d) must be divisible by FAKE_GROUP_SIZE(%d)", GATE_UP_GROUP_SIZE, FAKE_GROUP_SIZE);
+        printf("GATE_UP_GROUP_SIZE(%d) must be a multiple of FAKE_GROUP_SIZE(%d)", GATE_UP_GROUP_SIZE, FAKE_GROUP_SIZE);
     }
     return;
 #    endif
 
     __local half x2[HIDDEN_SIZE];
+#if HAS_ZP
     __local float xg_sum[HIDDEN_SIZE / FAKE_GROUP_SIZE];
+#else
+    __local float xg_sum[1];  // unused placeholder for function signature
+#endif
 #    if SHARED_EXPERT_ENABLE
     __local float shared_gate_partial[SUBGROUP_NUM];  // one slot per subgroup for scalar gate reduction
 #    endif
@@ -369,19 +529,24 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(
     half* px = x + id_sg * FAKE_GROUP_SIZE;
     half* px2 = x2 + id_sg * FAKE_GROUP_SIZE;
     unroll_for(int i = id_sg; i < HIDDEN_SIZE / FAKE_GROUP_SIZE; i += num_sg, px += num_sg * FAKE_GROUP_SIZE, px2 += num_sg * FAKE_GROUP_SIZE) {
-        //# quantization group
+#if HAS_ZP
         float x_group_sum = 0;
+#endif
         unroll_for(int j = id_local; j < FAKE_GROUP_SIZE / 2; j += SUBGROUP_SIZE) {
             half even = px[2 * j + 0];
             half odd = px[2 * j + 1];
             px2[j] = even;
             px2[j + FAKE_GROUP_SIZE / 2] = odd;
+#if HAS_ZP
             x_group_sum += even + odd;
+#endif
         }
+#if HAS_ZP
         x_group_sum = sub_group_reduce_add(x_group_sum);
         if (id_local == 0) {
             xg_sum[i] = x_group_sum / SUBGROUP_SIZE;
         }
+#endif
     }
 #    else
     //# load x into slm
@@ -391,17 +556,22 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(
     half* px = x + id_sg * FAKE_GROUP_SIZE;
     half* px2 = x2 + id_sg * FAKE_GROUP_SIZE;
     unroll_for(int i = id_sg; i < HIDDEN_SIZE / FAKE_GROUP_SIZE; i += num_sg, px += num_sg * FAKE_GROUP_SIZE, px2 += num_sg * FAKE_GROUP_SIZE) {
-        //# quantization group
+#if HAS_ZP
         float x_group_sum = 0;
+#endif
         unroll_for(int j = id_local; j < FAKE_GROUP_SIZE; j += SUBGROUP_SIZE) {
             half value = px[j];
             px2[j] = value;
+#if HAS_ZP
             x_group_sum += value;
+#endif
         }
+#if HAS_ZP
         x_group_sum = sub_group_reduce_add(x_group_sum);
         if (id_local == 0) {
             xg_sum[i] = x_group_sum / SUBGROUP_SIZE;
         }
+#endif
     }
 #    endif
 
@@ -474,37 +644,67 @@ inline void down_gemv_n2x_u4(const __global uchar* weight,
     unroll_for(int n = n_start; n < n_end; n += 2) {
         const __global uchar* B = weight + n * K / 2;
         __global half* S = scales + n;
+#if HAS_ZP
         __global uchar* Z = zps + n / 2;
+#endif
         float sum_all0 = 0;
         float sum_all1 = 0;
         unroll_for(int gk = 0; gk < K / FAKE_GROUP_SIZE; gk++) {
-            int scale_offset = gk * (FAKE_GROUP_SIZE / DOWN_GROUP_SIZE) * N;
-            int zp_offset = gk * (FAKE_GROUP_SIZE / DOWN_GROUP_SIZE) * N / 2;
+            int scale_offset = (gk * FAKE_GROUP_SIZE / DOWN_GROUP_SIZE) * N;
             half s0 = S[scale_offset];
             half s1 = S[scale_offset + 1];
+#if HAS_ZP
+            int zp_offset = (gk * FAKE_GROUP_SIZE / DOWN_GROUP_SIZE) * N / 2;
             ushort z = Z[zp_offset];
             half z_hf0 = convert_half(z & 0xf);
             half z_hf1 = convert_half(z >> 4);
+#endif
 
-#    if SUBGROUP_SIZE == 32
+#    if ELEMS_PER_LANE == 4
             half2 sum0;
             half2 sum1;
             half4 a = as_half4(intel_sub_group_block_read_us4((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
             uchar2 b = intel_sub_group_block_read_uc2((const __global uchar*)B + gk * FAKE_GROUP_SIZE / 2);
             uchar2 b2 = intel_sub_group_block_read_uc2((const __global uchar*)(B + (K / 2) + gk * FAKE_GROUP_SIZE / 2));
 
-            sum0.s0 = fma(a.s0, (convert_half(b.s0 & 0x0F)), 0);
-            sum0.s1 = fma(a.s1, (convert_half(b.s1 & 0x0F)), 0);
-            sum0.s0 = fma(a.s2, (convert_half(b.s0 >> 4)), sum0.s0);
-            sum0.s1 = fma(a.s3, (convert_half(b.s1 >> 4)), sum0.s1);
+            sum0.s0 = fma(a.s0, (DEQUANT_4BIT_LO(b.s0)), 0);
+            sum0.s1 = fma(a.s1, (DEQUANT_4BIT_LO(b.s1)), 0);
+            sum0.s0 = fma(a.s2, (DEQUANT_4BIT_HI(b.s0)), sum0.s0);
+            sum0.s1 = fma(a.s3, (DEQUANT_4BIT_HI(b.s1)), sum0.s1);
 
-            sum1.s0 = fma(a.s0, (convert_half(b2.s0 & 0x0F)), 0);
-            sum1.s1 = fma(a.s1, (convert_half(b2.s1 & 0x0F)), 0);
-            sum1.s0 = fma(a.s2, (convert_half(b2.s0 >> 4)), sum1.s0);
-            sum1.s1 = fma(a.s3, (convert_half(b2.s1 >> 4)), sum1.s1);
+            sum1.s0 = fma(a.s0, (DEQUANT_4BIT_LO(b2.s0)), 0);
+            sum1.s1 = fma(a.s1, (DEQUANT_4BIT_LO(b2.s1)), 0);
+            sum1.s0 = fma(a.s2, (DEQUANT_4BIT_HI(b2.s0)), sum1.s0);
+            sum1.s1 = fma(a.s3, (DEQUANT_4BIT_HI(b2.s1)), sum1.s1);
 
+#if HAS_ZP
             sum_all0 += (sum0[0] + sum0[1] - xg_sum[gk] * z_hf0) * s0;
             sum_all1 += (sum1[0] + sum1[1] - xg_sum[gk] * z_hf1) * s1;
+#else
+            sum_all0 += (sum0[0] + sum0[1]) * s0;
+            sum_all1 += (sum1[0] + sum1[1]) * s1;
+#endif
+#    elif ELEMS_PER_LANE == 2
+            // Each lane reads 2 K-elements (1 byte = 2 nibbles).
+            half sum0;
+            half sum1;
+            half2 a = as_half2(intel_sub_group_block_read_us2((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            uchar b = intel_sub_group_block_read_uc((const __global uchar*)B + gk * FAKE_GROUP_SIZE / 2);
+            uchar b2 = intel_sub_group_block_read_uc((const __global uchar*)(B + (K / 2) + gk * FAKE_GROUP_SIZE / 2));
+
+            sum0 = fma(a.s0, (DEQUANT_4BIT_LO(b)), (half)0);
+            sum0 = fma(a.s1, (DEQUANT_4BIT_HI(b)), sum0);
+
+            sum1 = fma(a.s0, (DEQUANT_4BIT_LO(b2)), (half)0);
+            sum1 = fma(a.s1, (DEQUANT_4BIT_HI(b2)), sum1);
+
+#if HAS_ZP
+            sum_all0 += (sum0 - xg_sum[gk] * z_hf0) * s0;
+            sum_all1 += (sum1 - xg_sum[gk] * z_hf1) * s1;
+#else
+            sum_all0 += sum0 * s0;
+            sum_all1 += sum1 * s1;
+#endif
 #    else
             half4 sum0;
             half4 sum1;
@@ -512,28 +712,33 @@ inline void down_gemv_n2x_u4(const __global uchar* weight,
             uchar4 b = intel_sub_group_block_read_uc4((const __global uchar*)B + gk * FAKE_GROUP_SIZE / 2);
             uchar4 b2 = intel_sub_group_block_read_uc4((const __global uchar*)(B + (K / 2) + gk * FAKE_GROUP_SIZE / 2));
 
-            sum0.s0 = fma(a.s0, (convert_half(b.s0 & 0x0F)), 0);
-            sum0.s1 = fma(a.s1, (convert_half(b.s1 & 0x0F)), 0);
-            sum0.s2 = fma(a.s2, (convert_half(b.s2 & 0x0F)), 0);
-            sum0.s3 = fma(a.s3, (convert_half(b.s3 & 0x0F)), 0);
+            sum0.s0 = fma(a.s0, (DEQUANT_4BIT_LO(b.s0)), 0);
+            sum0.s1 = fma(a.s1, (DEQUANT_4BIT_LO(b.s1)), 0);
+            sum0.s2 = fma(a.s2, (DEQUANT_4BIT_LO(b.s2)), 0);
+            sum0.s3 = fma(a.s3, (DEQUANT_4BIT_LO(b.s3)), 0);
 
-            sum0.s0 = fma(a.s4, (convert_half(b.s0 >> 4)), sum0.s0);
-            sum0.s1 = fma(a.s5, (convert_half(b.s1 >> 4)), sum0.s1);
-            sum0.s2 = fma(a.s6, (convert_half(b.s2 >> 4)), sum0.s2);
-            sum0.s3 = fma(a.s7, (convert_half(b.s3 >> 4)), sum0.s3);
+            sum0.s0 = fma(a.s4, (DEQUANT_4BIT_HI(b.s0)), sum0.s0);
+            sum0.s1 = fma(a.s5, (DEQUANT_4BIT_HI(b.s1)), sum0.s1);
+            sum0.s2 = fma(a.s6, (DEQUANT_4BIT_HI(b.s2)), sum0.s2);
+            sum0.s3 = fma(a.s7, (DEQUANT_4BIT_HI(b.s3)), sum0.s3);
 
-            sum1.s0 = fma(a.s0, (convert_half(b2.s0 & 0x0F)), 0);
-            sum1.s1 = fma(a.s1, (convert_half(b2.s1 & 0x0F)), 0);
-            sum1.s2 = fma(a.s2, (convert_half(b2.s2 & 0x0F)), 0);
-            sum1.s3 = fma(a.s3, (convert_half(b2.s3 & 0x0F)), 0);
+            sum1.s0 = fma(a.s0, (DEQUANT_4BIT_LO(b2.s0)), 0);
+            sum1.s1 = fma(a.s1, (DEQUANT_4BIT_LO(b2.s1)), 0);
+            sum1.s2 = fma(a.s2, (DEQUANT_4BIT_LO(b2.s2)), 0);
+            sum1.s3 = fma(a.s3, (DEQUANT_4BIT_LO(b2.s3)), 0);
 
-            sum1.s0 = fma(a.s4, (convert_half(b2.s0 >> 4)), sum1.s0);
-            sum1.s1 = fma(a.s5, (convert_half(b2.s1 >> 4)), sum1.s1);
-            sum1.s2 = fma(a.s6, (convert_half(b2.s2 >> 4)), sum1.s2);
-            sum1.s3 = fma(a.s7, (convert_half(b2.s3 >> 4)), sum1.s3);
+            sum1.s0 = fma(a.s4, (DEQUANT_4BIT_HI(b2.s0)), sum1.s0);
+            sum1.s1 = fma(a.s5, (DEQUANT_4BIT_HI(b2.s1)), sum1.s1);
+            sum1.s2 = fma(a.s6, (DEQUANT_4BIT_HI(b2.s2)), sum1.s2);
+            sum1.s3 = fma(a.s7, (DEQUANT_4BIT_HI(b2.s3)), sum1.s3);
 
+#if HAS_ZP
             sum_all0 += (sum0[0] + sum0[1] + sum0[2] + sum0[3] - xg_sum[gk] * z_hf0) * s0;
             sum_all1 += (sum1[0] + sum1[1] + sum1[2] + sum1[3] - xg_sum[gk] * z_hf1) * s1;
+#else
+            sum_all0 += (sum0[0] + sum0[1] + sum0[2] + sum0[3]) * s0;
+            sum_all1 += (sum1[0] + sum1[1] + sum1[2] + sum1[3]) * s1;
+#endif
 #    endif
         }
         sum_all0 = sub_group_reduce_add(sum_all0);
@@ -562,36 +767,66 @@ inline void down_gemv_n2x_u8(const __global uchar* weight,
     unroll_for(int n = n_start; n < n_end; n += 2) {
         const __global uchar* B = weight + n * K;
         __global half* S = scales + n;
+#if HAS_ZP
         __global uchar* Z = zps + n;
+#endif
         float sum_all0 = 0;
         float sum_all1 = 0;
         unroll_for(int gk = 0; gk < K / FAKE_GROUP_SIZE; gk++) {
-            int scale_offset = gk * (FAKE_GROUP_SIZE / DOWN_GROUP_SIZE) * N;
-            int zp_offset = gk * (FAKE_GROUP_SIZE / DOWN_GROUP_SIZE) * N;
+            int scale_offset = (gk * FAKE_GROUP_SIZE / DOWN_GROUP_SIZE) * N;
             half s0 = S[scale_offset];
             half s1 = S[scale_offset + 1];
+#if HAS_ZP
+            int zp_offset = (gk * FAKE_GROUP_SIZE / DOWN_GROUP_SIZE) * N;
             half z0 = convert_half(Z[zp_offset]);
             half z1 = convert_half(Z[zp_offset + 1]);
+#endif
 
-#    if SUBGROUP_SIZE == 32
+#    if ELEMS_PER_LANE == 4
             float2 sum0;
             float2 sum1;
             half4 a = as_half4(intel_sub_group_block_read_us4((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
             uchar4 b = intel_sub_group_block_read_uc4((const __global uchar*)B + gk * FAKE_GROUP_SIZE);
             uchar4 b2 = intel_sub_group_block_read_uc4((const __global uchar*)B + K + gk * FAKE_GROUP_SIZE);
 
-            sum0.s0 = fma((float)a.s0, (float)(convert_half(b.s0)), 0.0f);
-            sum0.s1 = fma((float)a.s1, (float)(convert_half(b.s1)), 0.0f);
-            sum0.s0 = fma((float)a.s2, (float)(convert_half(b.s2)), sum0.s0);
-            sum0.s1 = fma((float)a.s3, (float)(convert_half(b.s3)), sum0.s1);
+            sum0.s0 = fma((float)a.s0, (float)(DEQUANT_8BIT(b.s0)), 0.0f);
+            sum0.s1 = fma((float)a.s1, (float)(DEQUANT_8BIT(b.s1)), 0.0f);
+            sum0.s0 = fma((float)a.s2, (float)(DEQUANT_8BIT(b.s2)), sum0.s0);
+            sum0.s1 = fma((float)a.s3, (float)(DEQUANT_8BIT(b.s3)), sum0.s1);
 
-            sum1.s0 = fma((float)a.s0, (float)(convert_half(b2.s0)), 0.0f);
-            sum1.s1 = fma((float)a.s1, (float)(convert_half(b2.s1)), 0.0f);
-            sum1.s0 = fma((float)a.s2, (float)(convert_half(b2.s2)), sum1.s0);
-            sum1.s1 = fma((float)a.s3, (float)(convert_half(b2.s3)), sum1.s1);
+            sum1.s0 = fma((float)a.s0, (float)(DEQUANT_8BIT(b2.s0)), 0.0f);
+            sum1.s1 = fma((float)a.s1, (float)(DEQUANT_8BIT(b2.s1)), 0.0f);
+            sum1.s0 = fma((float)a.s2, (float)(DEQUANT_8BIT(b2.s2)), sum1.s0);
+            sum1.s1 = fma((float)a.s3, (float)(DEQUANT_8BIT(b2.s3)), sum1.s1);
 
+#if HAS_ZP
             sum_all0 += (sum0[0] + sum0[1] - xg_sum[gk] * z0) * s0;
             sum_all1 += (sum1[0] + sum1[1] - xg_sum[gk] * z1) * s1;
+#else
+            sum_all0 += (sum0[0] + sum0[1]) * s0;
+            sum_all1 += (sum1[0] + sum1[1]) * s1;
+#endif
+#    elif ELEMS_PER_LANE == 2
+            // Each lane reads 2 K-elements (8-bit weights, 1 byte each).
+            float sum0;
+            float sum1;
+            half2 a = as_half2(intel_sub_group_block_read_us2((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            uchar2 b = intel_sub_group_block_read_uc2((const __global uchar*)B + gk * FAKE_GROUP_SIZE);
+            uchar2 b2 = intel_sub_group_block_read_uc2((const __global uchar*)B + K + gk * FAKE_GROUP_SIZE);
+
+            sum0 = fma((float)a.s0, (float)(DEQUANT_8BIT(b.s0)), 0.0f);
+            sum0 = fma((float)a.s1, (float)(DEQUANT_8BIT(b.s1)), sum0);
+
+            sum1 = fma((float)a.s0, (float)(DEQUANT_8BIT(b2.s0)), 0.0f);
+            sum1 = fma((float)a.s1, (float)(DEQUANT_8BIT(b2.s1)), sum1);
+
+#if HAS_ZP
+            sum_all0 += (sum0 - xg_sum[gk] * z0) * s0;
+            sum_all1 += (sum1 - xg_sum[gk] * z1) * s1;
+#else
+            sum_all0 += sum0 * s0;
+            sum_all1 += sum1 * s1;
+#endif
 #    else
             float4 sum0;
             float4 sum1;
@@ -599,28 +834,33 @@ inline void down_gemv_n2x_u8(const __global uchar* weight,
             uchar8 b = intel_sub_group_block_read_uc8((const __global uchar*)B + gk * FAKE_GROUP_SIZE);
             uchar8 b2 = intel_sub_group_block_read_uc8((const __global uchar*)(B + K + gk * FAKE_GROUP_SIZE));
 
-            sum0.s0 = fma((float)a.s0, (float)(convert_half(b.s0)), 0.0f);
-            sum0.s1 = fma((float)a.s1, (float)(convert_half(b.s1)), 0.0f);
-            sum0.s2 = fma((float)a.s2, (float)(convert_half(b.s2)), 0.0f);
-            sum0.s3 = fma((float)a.s3, (float)(convert_half(b.s3)), 0.0f);
+            sum0.s0 = fma((float)a.s0, (float)(DEQUANT_8BIT(b.s0)), 0.0f);
+            sum0.s1 = fma((float)a.s1, (float)(DEQUANT_8BIT(b.s1)), 0.0f);
+            sum0.s2 = fma((float)a.s2, (float)(DEQUANT_8BIT(b.s2)), 0.0f);
+            sum0.s3 = fma((float)a.s3, (float)(DEQUANT_8BIT(b.s3)), 0.0f);
 
-            sum0.s0 = fma((float)a.s4, (float)(convert_half(b.s4)), sum0.s0);
-            sum0.s1 = fma((float)a.s5, (float)(convert_half(b.s5)), sum0.s1);
-            sum0.s2 = fma((float)a.s6, (float)(convert_half(b.s6)), sum0.s2);
-            sum0.s3 = fma((float)a.s7, (float)(convert_half(b.s7)), sum0.s3);
+            sum0.s0 = fma((float)a.s4, (float)(DEQUANT_8BIT(b.s4)), sum0.s0);
+            sum0.s1 = fma((float)a.s5, (float)(DEQUANT_8BIT(b.s5)), sum0.s1);
+            sum0.s2 = fma((float)a.s6, (float)(DEQUANT_8BIT(b.s6)), sum0.s2);
+            sum0.s3 = fma((float)a.s7, (float)(DEQUANT_8BIT(b.s7)), sum0.s3);
 
-            sum1.s0 = fma((float)a.s0, (float)(convert_half(b2.s0)), 0.0f);
-            sum1.s1 = fma((float)a.s1, (float)(convert_half(b2.s1)), 0.0f);
-            sum1.s2 = fma((float)a.s2, (float)(convert_half(b2.s2)), 0.0f);
-            sum1.s3 = fma((float)a.s3, (float)(convert_half(b2.s3)), 0.0f);
+            sum1.s0 = fma((float)a.s0, (float)(DEQUANT_8BIT(b2.s0)), 0.0f);
+            sum1.s1 = fma((float)a.s1, (float)(DEQUANT_8BIT(b2.s1)), 0.0f);
+            sum1.s2 = fma((float)a.s2, (float)(DEQUANT_8BIT(b2.s2)), 0.0f);
+            sum1.s3 = fma((float)a.s3, (float)(DEQUANT_8BIT(b2.s3)), 0.0f);
 
-            sum1.s0 = fma((float)a.s4, (float)(convert_half(b2.s4)), sum1.s0);
-            sum1.s1 = fma((float)a.s5, (float)(convert_half(b2.s5)), sum1.s1);
-            sum1.s2 = fma((float)a.s6, (float)(convert_half(b2.s6)), sum1.s2);
-            sum1.s3 = fma((float)a.s7, (float)(convert_half(b2.s7)), sum1.s3);
+            sum1.s0 = fma((float)a.s4, (float)(DEQUANT_8BIT(b2.s4)), sum1.s0);
+            sum1.s1 = fma((float)a.s5, (float)(DEQUANT_8BIT(b2.s5)), sum1.s1);
+            sum1.s2 = fma((float)a.s6, (float)(DEQUANT_8BIT(b2.s6)), sum1.s2);
+            sum1.s3 = fma((float)a.s7, (float)(DEQUANT_8BIT(b2.s7)), sum1.s3);
 
+#if HAS_ZP
             sum_all0 += (sum0[0] + sum0[1] + sum0[2] + sum0[3] - xg_sum[gk] * z0) * s0;
             sum_all1 += (sum1[0] + sum1[1] + sum1[2] + sum1[3] - xg_sum[gk] * z1) * s1;
+#else
+            sum_all0 += (sum0[0] + sum0[1] + sum0[2] + sum0[3]) * s0;
+            sum_all1 += (sum1[0] + sum1[1] + sum1[2] + sum1[3]) * s1;
+#endif
 #    endif
         }
         sum_all0 = sub_group_reduce_add(sum_all0);
@@ -644,7 +884,7 @@ inline void down_gemv_n2x_f16(const __global half* weight, __global MOE_DTYPE* r
         float sum_all1 = 0;
         unroll_for(int gk = 0; gk < K / FAKE_GROUP_SIZE; gk++) {
 
-#    if SUBGROUP_SIZE == 32
+#    if ELEMS_PER_LANE == 4
             half2 sum0;
             half2 sum1;
             half4 a = as_half4(intel_sub_group_block_read_us4((const __global ushort*)x2 + gk * FAKE_GROUP_SIZE));
@@ -663,6 +903,22 @@ inline void down_gemv_n2x_f16(const __global half* weight, __global MOE_DTYPE* r
 
             sum_all0 += sum0[0] + sum0[1];
             sum_all1 += sum1[0] + sum1[1];
+#    elif ELEMS_PER_LANE == 2
+            // Each lane reads 2 fp16 elements.
+            half sum0;
+            half sum1;
+            half2 a = as_half2(intel_sub_group_block_read_us2((const __global ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            half2 b = as_half2(intel_sub_group_block_read_us2((const __global ushort*)B + gk * FAKE_GROUP_SIZE));
+            half2 b2 = as_half2(intel_sub_group_block_read_us2((const __global ushort*)B + K + gk * FAKE_GROUP_SIZE));
+
+            sum0 = fma(a.s0, b.s0, (half)0);
+            sum0 = fma(a.s1, b.s1, sum0);
+
+            sum1 = fma(a.s0, b2.s0, (half)0);
+            sum1 = fma(a.s1, b2.s1, sum1);
+
+            sum_all0 += sum0;
+            sum_all1 += sum1;
 #    else
             half4 sum0;
             half4 sum1;
@@ -757,11 +1013,22 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_down)(const
     }
 #    endif
 
+#    if DOWN_GROUP_SIZE % FAKE_GROUP_SIZE != 0
+    if (get_sub_group_id() == 0 && get_sub_group_local_id() == 0) {
+        printf("DOWN_GROUP_SIZE(%d) must be a multiple of FAKE_GROUP_SIZE(%d)", DOWN_GROUP_SIZE, FAKE_GROUP_SIZE);
+    }
+    return;
+#    endif
+
     int N = HIDDEN_SIZE;
     int K = INTERMEDIATE_SIZE;
 
     __local half x2[INTERMEDIATE_SIZE];
+#if HAS_ZP
     __local float xg_sum[INTERMEDIATE_SIZE / FAKE_GROUP_SIZE];
+#else
+    __local float xg_sum[1];  // unused placeholder for function signature
+#endif
 
 #    if WEIGHT_COMPRESSEION_DT == 0
     //# interleaving x into x2
@@ -771,19 +1038,24 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_down)(const
     half* px = x + id_sg * FAKE_GROUP_SIZE;
     half* px2 = x2 + id_sg * FAKE_GROUP_SIZE;
     unroll_for(int i = id_sg; i < INTERMEDIATE_SIZE / FAKE_GROUP_SIZE; i += num_sg, px += num_sg * FAKE_GROUP_SIZE, px2 += num_sg * FAKE_GROUP_SIZE) {
-        //# quantization group
+#if HAS_ZP
         float x_group_sum = 0;
+#endif
         unroll_for(int j = id_local; j < FAKE_GROUP_SIZE / 2; j += SUBGROUP_SIZE) {
             half even = px[2 * j + 0];
             half odd = px[2 * j + 1];
             px2[j] = even;
             px2[j + FAKE_GROUP_SIZE / 2] = odd;
+#if HAS_ZP
             x_group_sum += even + odd;
+#endif
         }
+#if HAS_ZP
         x_group_sum = sub_group_reduce_add(x_group_sum);
         if (id_local == 0) {
             xg_sum[i] = x_group_sum / SUBGROUP_SIZE;
         }
+#endif
     }
 #    else
     //# load x into slm
@@ -793,17 +1065,22 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_down)(const
     half* px = x + id_sg * FAKE_GROUP_SIZE;
     half* px2 = x2 + id_sg * FAKE_GROUP_SIZE;
     unroll_for(int i = id_sg; i < INTERMEDIATE_SIZE / FAKE_GROUP_SIZE; i += num_sg, px += num_sg * FAKE_GROUP_SIZE, px2 += num_sg * FAKE_GROUP_SIZE) {
-        //# quantization group
+#if HAS_ZP
         float x_group_sum = 0;
+#endif
         unroll_for(int j = id_local; j < FAKE_GROUP_SIZE; j += SUBGROUP_SIZE) {
             half value = px[j];
             px2[j] = value;
+#if HAS_ZP
             x_group_sum += value;
+#endif
         }
+#if HAS_ZP
         x_group_sum = sub_group_reduce_add(x_group_sum);
         if (id_local == 0) {
             xg_sum[i] = x_group_sum / SUBGROUP_SIZE;
         }
+#endif
     }
 #    endif
 

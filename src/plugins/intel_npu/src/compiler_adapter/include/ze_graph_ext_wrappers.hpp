@@ -40,7 +40,8 @@ public:
 
     GraphDescriptor getGraphDescriptor(SerializedIR serializedIR,
                                        const std::string& buildFlags,
-                                       const bool bypassUmdCache = false) const;
+                                       const bool bypassUmdCache = false,
+                                       const bool secureCompile = false) const;
 
     GraphDescriptor getGraphDescriptor(const void* data, size_t size) const;
 
@@ -86,6 +87,8 @@ public:
     void initializeGraph(const GraphDescriptor& graphDescriptor) const;
 
     bool isBlobDataImported(const GraphDescriptor& graphDescriptor) const;
+
+    void evict_memory(const GraphDescriptor& graphDescriptor) const;
 
 private:
     void getMetadata(ze_graph_handle_t graphHandle,

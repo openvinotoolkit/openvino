@@ -61,6 +61,46 @@ ConstantWriter::FilePosition ConstantWriter::write(const char* ptr,
     return offset;
 }
 
+ConstantWriter::FilePosition ConstantWriter::write(const std::vector<std::string_view>& chunks, size_t& new_size) {
+    new_size = 0;
+    for (const auto& sv : chunks)
+        new_size += sv.size();
+
+    if (m_enable_compression) {
+        std::vector<char> tmp(new_size);
+        char* dst = tmp.data();
+        for (const auto& sv : chunks) {
+            std::memcpy(dst, sv.data(), sv.size());
+            dst += sv.size();
+        }
+
+        const HashValue hash = ov::runtime::compute_hash(tmp.data(), new_size);
+        const auto found = m_hash_to_file_positions.equal_range(hash);
+        for (auto it = found.first; it != found.second; ++it) {
+            if (memcmp(tmp.data(), it->second.second, new_size) == 0) {
+                return it->second.first;
+            }
+        }
+
+        // Cache miss: store the packed buffer so its pointer stays valid for future memcmp
+        m_packed_string_data.push_back(std::move(tmp));
+        const char* stable_ptr = m_packed_string_data.back().data();
+        const FilePosition write_pos = m_binary_output.get().tellp();
+        const FilePosition offset = write_pos - m_blob_offset;
+        m_hash_to_file_positions.insert({hash, {offset, static_cast<const void*>(stable_ptr)}});
+        m_data_hash = util::u64_hash_combine(m_data_hash, hash);
+        m_binary_output.get().write(stable_ptr, new_size);
+        return offset;
+    } else {
+        const FilePosition write_pos = m_binary_output.get().tellp();
+        const FilePosition offset = write_pos - m_blob_offset;
+        m_data_hash = util::u64_hash_combine(m_data_hash, new_size);
+        for (const auto& sv : chunks)
+            m_binary_output.get().write(sv.data(), sv.size());
+        return offset;
+    }
+}
+
 std::unique_ptr<char[]> ConstantWriter::compress_data_to_fp16(const char* ptr,
                                                               size_t size,
                                                               const element::Type& src_type,

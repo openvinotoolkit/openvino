@@ -8,7 +8,6 @@
 #include "permute_kernel_tile_8x8_4x4_fsv.h"
 #include "permute_kernel_bfzyx_to_bfyxz.h"
 #include "permute_kernel_f_y_axes.h"
-#include "permute_kernel_b_f_axes.h"
 
 namespace kernel_selector {
 
@@ -18,7 +17,6 @@ permute_kernel_selector::permute_kernel_selector() {
     Attach<PermuteKernel_tile_8x8_4x4_fsv>();
     Attach<PermuteKernel_bfzyx_to_bfyxz>();
     Attach<PermuteKernel_f_y_axes>();
-    Attach<PermuteKernel_b_f_axes>();
 }
 
 KernelsData permute_kernel_selector::GetBestKernels(const Params& params) const {
