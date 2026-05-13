@@ -25,4 +25,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                                             ::testing::ValuesIn(configs)),
                          OVCompiledModelBaseTestOptional::getTestCaseName);
 
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CompiledModelSetType);
+
 }  // namespace ov::test::behavior
