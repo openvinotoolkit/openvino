@@ -5,6 +5,7 @@
 #include <optional>
 #include <vector>
 
+#include "cpu/x64/cpu_isa_traits.hpp"
 #include "debug_messages.hpp"
 #include "implementation_utils.hpp"
 #include "memory_desc/cpu_memory_desc.h"
@@ -19,10 +20,6 @@
 #include "nodes/executors/type_mask.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/arch_macros.h"
-
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-#    include "cpu/x64/cpu_isa_traits.hpp"
-#endif
 
 namespace ov::intel_cpu {
 
