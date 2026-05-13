@@ -63,16 +63,19 @@ jobs:
     with:
       runner: 'aks-win-32-cores-64gb-build'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
-      build-type: 'Debug'
+      build-type: 'Release'
       target-branch: ${{ needs.smart_ci.outputs.target_branch }}
+      build-additional-python-wheels: true
       cmake-options: >-
-        -G 'Ninja'
-        -DENABLE_PYTHON=OFF
+        -G 'Ninja Multi-Config'
+        -DENABLE_PYTHON=ON
+        -DENABLE_WHEEL=OFF
         -DENABLE_TESTS=ON
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
         -DENABLE_STRICT_DEPENDENCIES=OFF
         -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON
-        -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja"
+        -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+        -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja_multi_config"
         -DGPU_RT_TYPE=L0
 
   Overall_Status:
