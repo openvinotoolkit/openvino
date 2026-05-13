@@ -1546,6 +1546,10 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(ov::Plugin& 
                                                  header_size_alignment);
                 compiled_model->export_model(stream);
             });
+        } catch (const std::ios_base::failure&) {
+            cache_content.m_cache_manager->remove_cache_entry(cache_content.m_blob_id);
+        } catch (const ov::Exception&) {
+            cache_content.m_cache_manager->remove_cache_entry(cache_content.m_blob_id);
         } catch (...) {
             cache_content.m_cache_manager->remove_cache_entry(cache_content.m_blob_id);
             throw;
