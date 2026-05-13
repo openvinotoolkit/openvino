@@ -13,7 +13,6 @@
 
 #include "cpu/aarch64/jit_generator.hpp"
 #include "snippets/emitter.hpp"
-#include "snippets/lowered/expression_port.hpp"
 
 namespace ov::intel_cpu::aarch64 {
 
@@ -61,30 +60,12 @@ inline static std::vector<Xbyak_aarch64::XReg> transform_idxs_to_regs(const std:
 }
 
 /**
- * @brief Find the available register from the pool excepting: abi_param1, abi_param2, SP and `used_gpr_idxs`
- * @param used_gpr_idxs current used gpr register indexes
- * @return register
- */
-Xbyak_aarch64::XReg get_aux_gpr(const std::vector<size_t>& used_gpr_idxs);
-
-/**
  * @brief Find multiple available registers from the pool excepting: abi_param1, abi_param2, SP and `used_gpr_idxs`
  * @param used_gpr_idxs current used gpr register indexes
  * @param count number of auxiliary registers needed (default: 3)
  * @return vector of registers
  */
 std::vector<Xbyak_aarch64::XReg> get_aux_gprs(const std::vector<size_t>& used_gpr_idxs, size_t count = 3);
-
-/**
- * @brief Returns an auxiliary GPR register. Returns a register from `aux_gpr_idxs`.
- * If it's empty, then choose a register that is not in `used_gpr_reg_idxs` and add it to `regs_to_spill`.
- * @param used_gpr_reg_idxs register indexes reserved to store memory pointers in this emitter
- * @param aux_gpr_idxs pool of available gp register indexes
- * @param regs_to_spill set of live registers to be spilled before ABI call
- */
-Xbyak_aarch64::XReg init_memory_access_aux_gpr(const std::vector<size_t>& used_gpr_reg_idxs,
-                                               const std::vector<size_t>& aux_gpr_idxs,
-                                               std::set<snippets::Reg>& regs_to_spill);
 
 /**
  * @brief Push data pointer on stack adding offset. The offset is taken from runtime params `abi_param1`

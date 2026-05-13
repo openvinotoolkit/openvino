@@ -33,6 +33,29 @@
 // 4 (e.g. SG=32 + FAKE=128 or SG=16 + FAKE=64), and 8 (SG=16 + FAKE=128).
 #define ELEMS_PER_LANE (FAKE_GROUP_SIZE / SUBGROUP_SIZE)
 
+// Gate activation: SwiGLU (Swish, default), GeGLU-Tanh, or GeGLU-ERF.
+// GATE_ACT_GELU_ERF takes precedence over GATE_ACT_GELU_TANH when both are set.
+#ifdef GATE_ACT_GELU_ERF
+// ERF Gelu: 0.5 * x * (1 + erf(x / sqrt(2))); A&S 7.1.26 fast erf approximation
+inline float moe_mlp_fast_erf(float x) {
+    const float p  = 0.3275911f;
+    const float a1 = 0.254829592f;
+    const float a2 = -0.284496736f;
+    const float a3 = 1.421413741f;
+    const float a4 = -1.453152027f;
+    const float a5 = 1.061405429f;
+    float z = fabs(x);
+    float t = 1.0f / (1.0f + p * z);
+    float y = 1.0f - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * exp(-(z * z));
+    return (x >= 0.0f) ? y : -y;
+}
+#    define MOE_GATE_ACT(x) (0.5f * (x) * (1.0f + moe_mlp_fast_erf((x) * 0.7071067811865475f)))
+#elif defined(GATE_ACT_GELU_TANH)
+#    define MOE_GATE_ACT(x) (0.5f * (x) * (1.0f + (tanh(0.79788458347320556640625f * (x) * (1.0f + 0.044715f * (x) * (x))))))
+#else
+#    define MOE_GATE_ACT(x) ((x) / (1.0f + exp(-(x))))
+#endif
+
 // HAS_ZP: 1 = asymmetric quantization (subtract zero point), 0 = symmetric (no zero point)
 #if HAS_ZP
 #    define ZP_ADJUST_2(sum0, sum1, xg_sum_gk, z0, z1) ((sum0) - (xg_sum_gk) * (z0)), ((sum1) - (xg_sum_gk) * (z1))
@@ -175,8 +198,8 @@ inline void gate_up_gemv_n2x_u4(const __global uchar* weight,
         sum_all1 = sub_group_reduce_add(sum_all1);
         if (id_local == 0) {
             if (silu) {
-                y[n] *= sum_all0 / (1 + exp(-sum_all0));
-                y[n + 1] *= sum_all1 / (1 + exp(-sum_all1));
+                y[n] *= MOE_GATE_ACT(sum_all0);
+                y[n + 1] *= MOE_GATE_ACT(sum_all1);
             } else {
                 y[n] = sum_all0;
                 y[n + 1] = sum_all1;
@@ -303,8 +326,8 @@ inline void gate_up_gemv_n2x_u8(const __global uchar* weight,
         sum_all1 = sub_group_reduce_add(sum_all1);
         if (id_local == 0) {
             if (silu) {
-                y[n] *= sum_all0 / (1 + exp(-sum_all0));
-                y[n + 1] *= sum_all1 / (1 + exp(-sum_all1));
+                y[n] *= MOE_GATE_ACT(sum_all0);
+                y[n + 1] *= MOE_GATE_ACT(sum_all1);
             } else {
                 y[n] = sum_all0;
                 y[n + 1] = sum_all1;
@@ -395,8 +418,8 @@ inline void gate_up_gemv_n2x_f16(const __global half* weight, __global half* y, 
         sum_all1 = sub_group_reduce_add(sum_all1);
         if (id_local == 0) {
             if (silu) {
-                y[n] *= sum_all0 / (1 + exp(-sum_all0));
-                y[n + 1] *= sum_all1 / (1 + exp(-sum_all1));
+                y[n] *= MOE_GATE_ACT(sum_all0);
+                y[n + 1] *= MOE_GATE_ACT(sum_all1);
             } else {
                 y[n] = sum_all0;
                 y[n + 1] = sum_all1;

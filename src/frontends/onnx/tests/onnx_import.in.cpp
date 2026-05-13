@@ -1664,6 +1664,21 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_resize10_down_scales_const_nearest) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_resize10_down_scales_const_nearest_f64) {
+    const auto model = convert_model("resize10_down_scales_const_nearest_f64.onnx");
+
+    // Input data shape (1, 1, 2, 4)
+    // Input const scales values {1.0, 1.0, 0.6, 0.6}
+    // mode: nearest
+    // elem_type: 11 (double / f64)
+
+    Shape expected_output_shape{1, 1, 1, 2};
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<double>({1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0});
+    test_case.add_expected_output<double>(expected_output_shape, {1.0, 3.0});
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_resize10_up_scales_const_linear) {
     const auto model = convert_model("resize10_up_scales_const_linear.onnx");
 
