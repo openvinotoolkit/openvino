@@ -94,7 +94,11 @@ if(TBB_FOUND)
         # On Windows there is no RPATH, so copy downloaded/custom TBB DLLs next to openvino.dll.
         # System TBB is already findable by the loader, so no copying is needed in that case.
         _ov_get_tbb_location(TBB::tbb _ov_tbb_dll_location)
-        cmake_path(GET _ov_tbb_dll_location PARENT_PATH _ov_tbb_dll_dir)
+        if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.20")
+            cmake_path(GET _ov_tbb_dll_location PARENT_PATH _ov_tbb_dll_dir)
+        else()
+            get_filename_component(_ov_tbb_dll_dir "${_ov_tbb_dll_location}" DIRECTORY)
+        endif()
         file(GLOB _ov_tbb_dlls "${_ov_tbb_dll_dir}/*.dll")
         if(_ov_tbb_dlls)
             add_custom_command(TARGET ${TARGET_NAME} POST_BUILD

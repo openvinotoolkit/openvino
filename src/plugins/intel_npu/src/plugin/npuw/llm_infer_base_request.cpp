@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,8 @@
 
 #include "infer_request_utils.hpp"
 
+// NOTE: This is a basic method for updating KVCache after handling its part.
+//       It is not intended to work with model supporting Linear Cache.
 void ov::npuw::LLMInferBaseRequest::update_kvcache_for(
     std::shared_ptr<ov::IAsyncInferRequest> request,
     const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports,
