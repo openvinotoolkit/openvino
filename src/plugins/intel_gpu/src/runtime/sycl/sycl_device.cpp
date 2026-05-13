@@ -190,15 +190,6 @@ device_info init_device_info(const ::sycl::device& device, const ::sycl::context
 
     info.max_work_group_size = static_cast<uint64_t>(device.get_info<::sycl::info::device::max_work_group_size>());
 
-    // For some reason nvidia runtime throws an exception (CL_INVALID_KERNEL_ARGS) for WG as follows:
-    // global: < 1 x 32 x 5184 >
-    // local: < 1 x 1 x 576 >
-    // While local  < 1 x 1 x 36 > works fine
-    // So below we limit max WG size by 64 which was selected based on few experiments.
-    if (info.vendor_id == NVIDIA_VENDOR_ID) {
-        info.max_work_group_size = 64;
-    }
-
     info.max_local_mem_size = device.get_info<::sycl::info::device::local_mem_size>();
     info.max_global_mem_size = device.get_info<::sycl::info::device::global_mem_size>();
     info.max_alloc_mem_size = device.get_info<::sycl::info::device::max_mem_alloc_size>();
