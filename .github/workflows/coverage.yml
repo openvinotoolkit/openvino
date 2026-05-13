@@ -1,6 +1,7 @@
 name: Code coverage
 run-name: ${{ github.event_name == 'schedule' && 'Code coverage - Nightly' || 'Code coverage' }}
 on:
+  pull_request:
   schedule:
     # run daily at 00:00 UTC
     - cron: '0 0 * * *'
@@ -243,7 +244,7 @@ jobs:
         gpu:
           - id: igpu
             name: iGPU
-            runs_on: '["self-hosted","igpu"]'
+            runs_on: '["self-hosted","igpu","Linux"]'
             container_options: "--group-add 44 --group-add 993 --device /dev/dri/renderD128:/dev/dri/renderD128"
           - id: dgpu
             name: dGPU Arc A770
@@ -271,6 +272,7 @@ jobs:
       BUILD_DIR: ${{ github.workspace }}/openvino/openvino_build
       BUILD_JS_DIR: ${{ github.workspace }}/openvino/openvino_build_js
       COVERAGE_WRITE_STEP_SUMMARY: 'false'
+      PYTHONDONTWRITEBYTECODE: '1'
     steps:
       - name: Prepare ${{ matrix.gpu.name }} test container
         run: |
@@ -548,7 +550,7 @@ jobs:
         gpu:
           - id: igpu
             name: iGPU
-            runs_on: '["self-hosted","igpu"]'
+            runs_on: '["self-hosted","igpu","Linux"]'
             container_options: "--group-add 44 --group-add 993 --device /dev/dri/renderD128:/dev/dri/renderD128"
           - id: dgpu
             name: dGPU Arc A770
@@ -567,6 +569,7 @@ jobs:
       BUILD_DIR: ${{ github.workspace }}/openvino/openvino_build
       BUILD_JS_DIR: ${{ github.workspace }}/openvino/openvino_build_js
       COVERAGE_WRITE_STEP_SUMMARY: 'false'
+      PYTHONDONTWRITEBYTECODE: '1'
       REQUESTS_CA_BUNDLE: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
     steps:
       - name: Prepare ${{ matrix.gpu.name }} test container
