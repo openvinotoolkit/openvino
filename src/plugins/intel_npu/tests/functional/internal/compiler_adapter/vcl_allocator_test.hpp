@@ -145,6 +145,7 @@ TEST_P(VclAllocatorFuncTests, VerifyAllocation) {
     uint64_t compatibilityReqSize = 0;
 
     auto setup = createCompilerAndDescriptor();
+    ASSERT_NE(setup.compiler, nullptr);
 
     auto result = ::intel_npu::vclAllocatedExecutableCreate3(setup.compiler,
                                                              setup.desc,
@@ -183,6 +184,7 @@ TEST_P(VclAllocatorFuncTests, VerifyDeallocation) {
     uint64_t compatibilityReqSize = 0;
 
     auto setup = createCompilerAndDescriptor();
+    ASSERT_NE(setup.compiler, nullptr);
 
     auto result = ::intel_npu::vclAllocatedExecutableCreate3(setup.compiler,
                                                              setup.desc,
@@ -216,6 +218,7 @@ TEST_P(VclAllocatorFuncTests, VerifyOwnershipTransferToTensor) {
     uint64_t compatibilityReqSize = 0;
 
     auto setup = createCompilerAndDescriptor();
+    ASSERT_NE(setup.compiler, nullptr);
 
     auto result = ::intel_npu::vclAllocatedExecutableCreate3(setup.compiler,
                                                              setup.desc,
@@ -264,6 +267,7 @@ TEST_P(VclAllocatorFuncTests, VerifyOrphanMemoryCleanupOnDestruction) {
     uint64_t compatibilityReqSize = 0;
 
     auto setup = createCompilerAndDescriptor();
+    ASSERT_NE(setup.compiler, nullptr);
 
     auto result = ::intel_npu::vclAllocatedExecutableCreate3(setup.compiler,
                                                              setup.desc,

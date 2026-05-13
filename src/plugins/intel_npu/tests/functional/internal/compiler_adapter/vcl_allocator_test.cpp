@@ -6,12 +6,10 @@
 
 #include "common/npu_test_env_cfg.hpp"
 
-using namespace ov::test::behavior;
-
 namespace {
 
-INSTANTIATE_TEST_SUITE_P(smoke_VclAllocatorTests,
-                         VclAllocatorFuncTests,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
+                         ov::test::behavior::VclAllocatorFuncTests,
                          ::testing::Values(ov::test::utils::DEVICE_NPU),
-                         VclAllocatorFuncTests::getTestCaseName);
+                         ov::test::behavior::VclAllocatorFuncTests::getTestCaseName);
 }  // namespace
