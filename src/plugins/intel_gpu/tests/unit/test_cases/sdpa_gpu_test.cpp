@@ -267,7 +267,8 @@ INSTANTIATE_TEST_SUITE_P(
         sdpa_test_params{64, 10, 77, 77, 1, true}, // two ranks mask
         sdpa_test_params{64, 10, 77, 77, 1, false}, // two ranks mask
         sdpa_test_params{64, 32, 128, 128, 2, true, 0.125f, false, 0.0f},  // scale_val only
-        sdpa_test_params{64, 32, 128, 128, 2, false, 1.0f, true, 0.5f}     // attn_mask only
+        sdpa_test_params{64, 32, 128, 128, 2, false, 1.0f, true, 0.5f},     // attn_mask only
+        sdpa_test_params{512, 8, 1, 1024, 2, true}
     ),
     sdpa_gpu_test::PrintToStringParamName
 );

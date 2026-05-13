@@ -1,0 +1,32 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+param(
+    [Parameter(Mandatory = $true)][string]$RealTool,
+    [Parameter(ValueFromRemainingArguments = $true)][string[]]$ToolArgs
+)
+
+$ErrorActionPreference = 'Stop'
+$TempFiles = @()
+
+try {
+    $ArgsOut = foreach ($Arg in $ToolArgs) {
+        if ($Arg.StartsWith('@')) {
+            $RspPath = $Arg.Substring(1)
+            $Text = [System.IO.File]::ReadAllText($RspPath)
+            $Text = $Text -replace '\\', '/'
+            $Tmp = [System.IO.Path]::GetTempFileName()
+            [System.IO.File]::WriteAllText($Tmp, $Text, [System.Text.Encoding]::ASCII)
+            $TempFiles += $Tmp
+            '@' + $Tmp
+        } else {
+            $Arg
+        }
+    }
+    & $RealTool @ArgsOut
+    exit $LASTEXITCODE
+} finally {
+    foreach ($Tmp in $TempFiles) {
+        Remove-Item -Force $Tmp -ErrorAction SilentlyContinue
+    }
+}
