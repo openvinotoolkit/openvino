@@ -52,7 +52,7 @@ static bool isBitwiseAlgorithm(const EltwiseConfig& config) {
                   Algorithm::EltwiseBitwiseRightShift);
 }
 
-static bool isNarrowIntArithmeticAlgorithm(const EltwiseConfig& config) {
+static bool isWrappingArithmeticAlgorithm(const EltwiseConfig& config) {
     const auto algorithm = config.attrs.data.algo;
     return any_of(algorithm,
                   Algorithm::EltwiseAdd,
@@ -60,6 +60,20 @@ static bool isNarrowIntArithmeticAlgorithm(const EltwiseConfig& config) {
                   Algorithm::EltwiseMultiply,
                   Algorithm::EltwiseDivide,
                   Algorithm::EltwiseNegative);
+}
+
+static bool hasNarrowIntPrecision(const EltwiseConfig& config) {
+    auto isNarrowInt = [](const ov::element::Type& prec) {
+        return any_of(prec, ov::element::i8, ov::element::u8, ov::element::i16, ov::element::u16, ov::element::i32);
+    };
+    return std::any_of(config.descs.begin(), config.descs.end(), [&](const auto& entry) {
+        const auto& [argId, desc] = entry;
+        return !desc->empty() && isNarrowInt(desc->getPrecision());
+    });
+}
+
+static bool routesViaBitwiseTypeMapping(const EltwiseConfig& config) {
+    return isBitwiseAlgorithm(config) || (isWrappingArithmeticAlgorithm(config) && hasNarrowIntPrecision(config));
 }
 
 [[maybe_unused]] static bool isChannelFirstApplicable(const EltwiseConfig& config) {
@@ -391,9 +405,8 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
                 return true;
             },
             [](const EltwiseConfig& config) -> std::optional<EltwiseConfig> {
-                const auto& typeMapping = (isBitwiseAlgorithm(config) || isNarrowIntArithmeticAlgorithm(config))
-                                              ? bitwiseReferenceTypeMapping
-                                              : eltwiseReferenceTypeMapping;
+                const auto& typeMapping = routesViaBitwiseTypeMapping(config) ? bitwiseReferenceTypeMapping
+                                                                              : eltwiseReferenceTypeMapping;
                 return createOptimalConfigCommon(config,
                                                  typeMapping,
                                                  LayoutConfig{LayoutType::ncsp, LayoutType::ncsp},
@@ -413,9 +426,8 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
             },
             // createOptimalConfig
             [](const EltwiseConfig& config) -> std::optional<EltwiseConfig> {
-                const auto& typeMapping = (isBitwiseAlgorithm(config) || isNarrowIntArithmeticAlgorithm(config))
-                                              ? bitwiseReferenceTypeMapping
-                                              : eltwiseReferenceTypeMapping;
+                const auto& typeMapping = routesViaBitwiseTypeMapping(config) ? bitwiseReferenceTypeMapping
+                                                                              : eltwiseReferenceTypeMapping;
                 return createOptimalConfigCommon(config,
                                                  typeMapping,
                                                  LayoutConfig{LayoutType::nspc, LayoutType::nspc},

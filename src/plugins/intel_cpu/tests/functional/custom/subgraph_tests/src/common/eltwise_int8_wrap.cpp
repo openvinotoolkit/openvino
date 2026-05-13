@@ -3,6 +3,7 @@
 // Regression test for issue #35798: int8 Add/Multiply on the CPU plugin must
 // wrap (two's-complement) like the OV reference, not saturate to [-128, 127].
 
+#include <algorithm>
 #include <cstdint>
 #include <vector>
 
