@@ -13,6 +13,7 @@
 #include <iterator>
 #include <mutex>
 #include <memory>
+#include <variant>
 
 namespace cldnn {
 namespace sycl {
@@ -64,7 +65,14 @@ protected:
     size_t _byte_offset;
     ::sycl::buffer<std::byte, 1> _root_buffer;
     ::sycl::buffer<std::byte, 1> _buffer;
-    std::unique_ptr<::sycl::host_accessor<std::byte, 1, ::sycl::access::mode::read_write>> _host_accessor;
+    using read_host_accessor = ::sycl::host_accessor<std::byte, 1, ::sycl::access::mode::read>;
+    using write_host_accessor = ::sycl::host_accessor<std::byte, 1, ::sycl::access::mode::write>;
+    using read_write_host_accessor = ::sycl::host_accessor<std::byte, 1, ::sycl::access::mode::read_write>;
+    using host_accessor_variant = std::variant<std::monostate,
+                                               std::unique_ptr<read_host_accessor>,
+                                               std::unique_ptr<write_host_accessor>,
+                                               std::unique_ptr<read_write_host_accessor>>;
+    host_accessor_variant _host_accessor;
 };
 
 // struct gpu_image2d : public lockable_gpu_mem, public memory {

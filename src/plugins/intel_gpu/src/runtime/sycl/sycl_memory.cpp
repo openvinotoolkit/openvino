@@ -86,9 +86,28 @@ void* gpu_buffer::lock(const stream& stream, mem_lock_type type) {
     std::lock_guard<std::mutex> locker(_mutex);
     if (0 == _lock_count) {
         try {
-            // TODO: take account of mem_lock_type
-            _host_accessor = std::make_unique<::sycl::host_accessor<std::byte, 1, ::sycl::access::mode::read_write>>(_buffer, ::sycl::read_write);
-            _mapped_ptr = _host_accessor->get_pointer();
+            switch (type) {
+                case mem_lock_type::read: {
+                    auto accessor = std::make_unique<read_host_accessor>(_buffer, ::sycl::read_only);
+                    _mapped_ptr = const_cast<void*>(static_cast<const void*>(accessor->get_pointer()));
+                    _host_accessor = std::move(accessor);
+                    break;
+                }
+                case mem_lock_type::write: {
+                    auto accessor = std::make_unique<write_host_accessor>(_buffer, ::sycl::write_only);
+                    _mapped_ptr = static_cast<void*>(accessor->get_pointer());
+                    _host_accessor = std::move(accessor);
+                    break;
+                }
+                case mem_lock_type::read_write: {
+                    auto accessor = std::make_unique<read_write_host_accessor>(_buffer, ::sycl::read_write);
+                    _mapped_ptr = static_cast<void*>(accessor->get_pointer());
+                    _host_accessor = std::move(accessor);
+                    break;
+                }
+                default:
+                    OPENVINO_THROW("[GPU] Unsupported mem_lock_type for SYCL buffer lock");
+            }
         } catch (::sycl::exception const& err) {
             OPENVINO_THROW(SYCL_ERR_MSG_FMT(err));
         }
@@ -105,7 +124,7 @@ void gpu_buffer::unlock(const stream& stream) {
     _lock_count--;
     if (0 == _lock_count) {
         try {
-            _host_accessor = nullptr;  // Release the host accessor
+            _host_accessor = std::monostate{};  // Release the host accessor
         } catch (::sycl::exception const& err) {
             OPENVINO_THROW(SYCL_ERR_MSG_FMT(err));
         }
