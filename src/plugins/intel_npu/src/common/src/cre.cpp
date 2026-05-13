@@ -67,39 +67,30 @@ bool CRE::end_condition(const std::vector<Token>::const_iterator& expression_ite
 bool CRE::evaluate(std::vector<Token>::const_iterator& expression_iterator,
                    const std::unordered_map<CRE::Token, std::shared_ptr<ICapability>>& plugin_capabilities,
                    const Delimiter end_delimiter) {
-    if (*expression_iterator == NOT) {
-        bool negate = false;
+    std::function<bool(bool, bool)> logical_function;
+    bool base, subexpression_result, negate;
+
+    // TODO comments
+    switch (*expression_iterator) {
+    case NOT:
+        negate = false;
         while (*expression_iterator == NOT) {
             negate = !negate;
             advance_iterator(expression_iterator);
             OPENVINO_ASSERT(expression_iterator != m_expression.end(), "NOT operator is missing its operand");
         }
-
-        bool operand;
-        if (*expression_iterator == OPEN) {
-            advance_iterator(expression_iterator);
-            operand = evaluate(expression_iterator, plugin_capabilities, Delimiter::PARRENTHESIS);
-            OPENVINO_ASSERT(*expression_iterator == CLOSE);
-            advance_iterator(expression_iterator);
-        } else if (*expression_iterator == CLOSE) {
-            OPENVINO_THROW_HELPER(InvalidCRE, ov::Exception::default_msg, "NOT operator is missing its operand");
-        } else if (OPERATORS.count(*expression_iterator)) {
-            operand = evaluate(expression_iterator, plugin_capabilities, end_delimiter);
-        } else {
-            operand = plugin_capabilities.count(*expression_iterator)
-                          ? plugin_capabilities.at(*expression_iterator)->check_support()
-                          : false;
-            advance_iterator(expression_iterator);
-        }
-
-        return negate ? !operand : operand;
-    }
-
-    std::function<bool(bool, bool)> logical_function;
-    bool base;
-
-    // An operator is always expected first
-    switch (*expression_iterator) {
+        subexpression_result = evaluate(expression_iterator, plugin_capabilities, end_delimiter);
+        return negate ? !subexpression_result : subexpression_result;
+    case OPEN:
+        advance_iterator(expression_iterator);
+        subexpression_result = evaluate(expression_iterator, plugin_capabilities, Delimiter::PARRENTHESIS);
+        OPENVINO_ASSERT(*expression_iterator == CLOSE);
+        advance_iterator(expression_iterator);
+        return subexpression_result;
+    case CLOSE:
+        OPENVINO_THROW_HELPER(InvalidCRE,
+                              ov::Exception::default_msg,
+                              "Found a closed parrenthesis without any matching open token");
     case AND:
         logical_function = and_function;
         base = true;
@@ -109,58 +100,36 @@ bool CRE::evaluate(std::vector<Token>::const_iterator& expression_iterator,
         base = false;
         break;
     default:
-        OPENVINO_THROW_HELPER(InvalidCRE,
-                              ov::Exception::default_msg,
-                              "Received: ",
-                              *expression_iterator,
-                              " instead of an operator");
+        // A capability token was found
+        const bool operand = plugin_capabilities.count(*expression_iterator)
+                                 ? plugin_capabilities.at(*expression_iterator)->check_support()
+                                 : false;
+        advance_iterator(expression_iterator);
+        return operand;
     }
 
     advance_iterator(expression_iterator);
 
-    // Followed by n operands, n >= 1. One operand can be defined as:
+    // Found an n-ary operator (AND or OR). This should be followed by n operands, n >= 1. One operand can be defined
+    // as:
     //   * The ID of a capability
-    //   * NOT operand (unary negation, may be chained: NOT NOT capability)
     //   * Open parrenthesis - subexpression - closed parrenthesis
     //   * Subexpression without parrenthesis (starts with an operator)
+    subexpression_result = base;
     bool no_operands = true;
     while (!end_condition(expression_iterator, end_delimiter)) {
         no_operands = false;
 
-        bool negate = false;
-        while (*expression_iterator == NOT) {
-            negate = !negate;
-            advance_iterator(expression_iterator);
-            OPENVINO_ASSERT(expression_iterator != m_expression.end(), "NOT operator is missing its operand");
-        }
-
-        bool operand;
-        if (*expression_iterator == OPEN) {
-            advance_iterator(expression_iterator);
-            operand = evaluate(expression_iterator, plugin_capabilities, Delimiter::PARRENTHESIS);
-            OPENVINO_ASSERT(*expression_iterator == CLOSE);
-            advance_iterator(expression_iterator);
-        } else if (*expression_iterator == CLOSE) {
-            OPENVINO_THROW_HELPER(InvalidCRE,
-                                  ov::Exception::default_msg,
-                                  "Found a closed parrenthesis without any matching open token");
-        } else if (OPERATORS.count(*expression_iterator)) {
-            operand = evaluate(expression_iterator, plugin_capabilities, Delimiter::NOT_CAPABILITY_ID);
-        } else {
-            operand = plugin_capabilities.count(*expression_iterator)
-                          ? plugin_capabilities.at(*expression_iterator)->check_support()
-                          : false;
-            advance_iterator(expression_iterator);
-        }
-
-        base = logical_function(base, negate ? !operand : operand);
+        subexpression_result =
+            logical_function(subexpression_result,
+                             evaluate(expression_iterator, plugin_capabilities, Delimiter::NOT_CAPABILITY_ID));
     }
 
     if (no_operands) {
         OPENVINO_THROW_HELPER(InvalidCRE, ov::Exception::default_msg, "At least one operator doesn't have any operand");
     }
 
-    return base;
+    return subexpression_result;
 }
 
 bool CRE::check_compatibility(const std::unordered_map<CRE::Token, std::shared_ptr<ICapability>>& plugin_capabilities) {
@@ -172,7 +141,9 @@ bool CRE::check_compatibility(const std::unordered_map<CRE::Token, std::shared_p
     }
 
     std::vector<Token>::const_iterator expression_iterator = m_expression.begin();
-    return evaluate(expression_iterator, plugin_capabilities, Delimiter::SIZE);
+    const bool result = evaluate(expression_iterator, plugin_capabilities, Delimiter::SIZE);
+    OPENVINO_ASSERT(expression_iterator == m_expression.end());
+    return result;
 }
 
 CRESection::CRESection(const CRE& cre) : ISection(PredefinedSectionType::CRE), m_cre(cre) {}
@@ -188,13 +159,10 @@ CRE CRESection::get_cre() const {
 
 std::shared_ptr<ISection> CRESection::read(BlobReader* blob_reader, const size_t section_length) {
     size_t number_of_tokens = section_length / sizeof(CRE::Token);
-    OPENVINO_ASSERT(number_of_tokens > 0); // is this ever false?
+    OPENVINO_ASSERT(number_of_tokens != 0);
 
     std::vector<CRE::Token> tokens(number_of_tokens);
-    blob_reader->copy_data_from_source(reinterpret_cast<char*>(tokens.data()),
-                                       number_of_tokens * sizeof(CRE::Token));
-    // We expect the expression to start with "AND". The ctor also places this token at the beginning.
-    OPENVINO_ASSERT(tokens[0] == CRE::AND);
+    blob_reader->copy_data_from_source(reinterpret_cast<char*>(tokens.data()), number_of_tokens * sizeof(CRE::Token));
 
     return std::make_shared<CRESection>(CRE(tokens));
 }
