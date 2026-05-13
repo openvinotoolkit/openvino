@@ -292,7 +292,7 @@ EltwiseOperator get_eltwise_operator(cldnn::eltwise_mode mode) {
         case cldnn::eltwise_mode::ge:
             return GeOp{};
         default:
-            return AddOp{}; // fallback to ADD
+            OPENVINO_THROW("Unsupported eltwise mode: ", static_cast<int>(mode));
     }
 }
 
