@@ -46,5 +46,6 @@ public:
     explicit BGRtoNV12(const Output<Node>& arg, bool single_plane);
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    void validate_and_infer_types() override;
 };
 }  // namespace ov::op::v17

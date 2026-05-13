@@ -5,11 +5,8 @@
 #pragma once
 
 #include "openvino/op/op.hpp"
-#include "openvino/op/util/attr_types.hpp"
 
-namespace ov {
-namespace op {
-namespace util {
+namespace ov::op::util {
 /// \brief Base class for color conversion operation from RGB/BGR to NV12 format.
 ///    Input:
 ///        - Operation expects input shape in NHWC layout.
@@ -57,8 +54,6 @@ protected:
 public:
     OPENVINO_OP("ConvertColorToRGBBase", "util");
 
-    void validate_and_infer_types() override;
-
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     bool is_single_plane() const {
@@ -71,6 +66,4 @@ protected:
     ColorConversion m_format = ColorConversion::RGB_TO_NV12;
     bool m_single_plane = true;
 };
-}  // namespace util
-}  // namespace op
-}  // namespace ov
+}  // namespace ov::op::util
