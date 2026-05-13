@@ -72,8 +72,7 @@ OPENVINO_TEST(TensorFlowLiteTrickyModels, tflite_slice_neg_size_keeps_select_cas
 
     const auto stop_producer = slice->get_input_node_shared_ptr(2);
     EXPECT_NE(ov::as_type_ptr<op::v1::Select>(stop_producer), nullptr)
-        << "Slice 'stop' should be produced by Select (size=-1 cascade), got "
-        << stop_producer->get_type_name();
+        << "Slice 'stop' should be produced by Select (size=-1 cascade), got " << stop_producer->get_type_name();
 }
 
 OPENVINO_TEST(TensorFlowLiteTrickyModels, tflite_slice_neg_size_matches_tf_ground_truth) {
