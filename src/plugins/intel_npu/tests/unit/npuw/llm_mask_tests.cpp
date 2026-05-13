@@ -85,7 +85,20 @@ TEST(LLMMaskTest, WhisperDecoder_CausalMask_Boolean_Builds) {
 }
 
 TEST(LLMMaskTest, SlidingWindow_Alternating_Builds) {
-    auto model = ov::test::npuw::build_sliding_window_test_model(512, true);
+    // ratio=1 → Gemma 2 (S, F, S, F, ...)
+    auto model = ov::test::npuw::build_sliding_window_test_model(512, 1);
+    ASSERT_NE(model, nullptr);
+}
+
+TEST(LLMMaskTest, SlidingWindow_Gemma3Ratio_Builds) {
+    // ratio=5 → Gemma 3 (S, S, S, S, S, F, ...). Needs ≥6 layers to exercise both branches.
+    auto cfg = ov::test::npuw::make_test_model_config();
+    cfg.num_layers = 12;
+    cfg.sliding_window_size = 1024;
+    cfg.sliding_to_full_ratio = 5;
+
+    ModelBuilder mb;
+    auto model = mb.build_llm(cfg);
     ASSERT_NE(model, nullptr);
 }
 
