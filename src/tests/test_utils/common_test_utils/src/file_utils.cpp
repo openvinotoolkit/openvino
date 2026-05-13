@@ -17,6 +17,7 @@
 #    include <windows.h>
 #else
 #    include <dlfcn.h>
+#    include <fcntl.h>
 #    include <limits.h>
 #    include <unistd.h>
 #endif
@@ -173,6 +174,10 @@ std::string getModelFromTestModelZoo(const std::string& relModelPath) {
     return ov::util::path_join({getExecutableDirectory(), relModelPath}).string();
 }
 
+std::string getModelFromTestModelZoo(const std::filesystem::path& relModelPath) {
+    return ov::util::path_to_string(ov::util::make_path(getExecutableDirectory()) / relModelPath);
+}
+
 std::string getRelativePath(const std::string& from, const std::string& to) {
     auto split_path = [](const std::string& path) -> std::vector<std::string> {
         std::string sep{FileTraits<char>::file_separator};
@@ -246,5 +251,19 @@ std::filesystem::path to_fs_path(const StringPathVariant& param) {
                               return std::filesystem::path(p);
                           }},
                       param);
+}
+
+FileHandle open_ro_file(const std::filesystem::path& path) {
+#ifdef _WIN32
+    return ::CreateFileW(path.c_str(),
+                         GENERIC_READ,
+                         FILE_SHARE_READ,
+                         nullptr,
+                         OPEN_EXISTING,
+                         FILE_ATTRIBUTE_NORMAL,
+                         nullptr);
+#else
+    return ::open(path.c_str(), O_RDONLY);
+#endif
 }
 }  // namespace ov::test::utils

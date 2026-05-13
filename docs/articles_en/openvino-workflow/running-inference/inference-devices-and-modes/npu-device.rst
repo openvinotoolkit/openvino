@@ -152,7 +152,6 @@ The NPU device is currently supported by AUTO inference modes
          ov::intel_npu::turbo
          ov::intel_npu::platform
          ov::intel_npu::tiles
-         ov::intel_npu::max_tiles
          ov::intel_npu::bypass_umd_caching
          ov::intel_npu::defer_weights_load
          ov::intel_npu::run_inferences_sequentially
@@ -183,7 +182,13 @@ The NPU device is currently supported by AUTO inference modes
          ov::intel_npu::device_total_mem_size
          ov::intel_npu::driver_version
          ov::intel_npu::compiler_version
+         ov::intel_npu::max_tiles
 
+   .. tab-item:: Write-only properties
+
+      .. code-block::
+
+         ov::cache_encryption_callbacks
 
 .. note::
 
@@ -270,7 +275,7 @@ or
 
 For on-device compilation, the plugin queries the driver for the available number of tiles and sets ``ov::intel_npu::max_tiles``.
 
-``ov::intel_npu::max_tiles`` is a read-write property to allow users to set it during offline compilation.
+``ov::intel_npu::max_tiles`` is a read-only property, and it will not be listed as supported in cases where no device is present.
 
 Note that ``ov::intel_npu::max_tiles`` represents the maximum number of tiles available,
 but the compiler may target a lower number of tiles depending on other properties.
@@ -312,6 +317,66 @@ The compiler type used to compile a model can be queried from the resulting ``Co
 Example: Setting ``performance-hint-override=latency`` through ``ov::intel_npu::compilation_mode_params`` instructs the compiler
 to use all available resources for the given platform. If ``ov::intel_npu::max_tiles`` is not provided,
 the compiler falls back to a fixed lookup table embedded in the library to determine available resources, which might not be representative of all SKUs.
+
+**ov::cache_encryption_callbacks**
+
+Enables blob encryption and decryption using user-provided callbacks. This is a write-only property that accepts a struct with encryption and decryption callback functions.
+Can be used for both model caching and user requested export or import of compiled models (blobs) scenarios.
+
+.. note::
+
+   If user compiles a model using ``Compiler-In-Driver``, currently there is no secure compilation available in driver until ``32.0.100.4724`` (inclusively) and a warning
+   describing this potential security flaw will be issued if encryption callbacks were set.
+
+Usage example:
+
+.. note::
+
+   Will set OV provided ``codec_xor`` utility encryption and decryption at plugin level, every compiled model created will inherit these callbacks if not changed explicitly.
+
+.. code-block::
+
+   core.set_property("NPU", ov::cache_encryption_callbacks(ov::EncryptionCallbacks(ov::util::codec_xor, ov::util::codec_xor)));
+
+   core.compile_model(ov_model, "NPU").export_model(encrypted_blob_stream);
+
+   core.import_model(encrypted_blob_stream, "NPU");
+
+.. note::
+
+   Also force decryption function by providing it as a property to ``import_model`` API
+
+.. code-block::
+
+   core.import_model(encrypted_blob_stream, "NPU", {ov::cache_encryption_callbacks(ov::EncryptionCallbacks{nullptr, ov::util::codec_xor})});
+
+.. note::
+    
+   Force other encryption and decryption callbacks for compiled model below
+
+.. code-block::
+
+   auto compile_model = core.compile_model(ov_model, "NPU", {ov::cache_encryption_callbacks(ov::EncryptionCallbacks{[](const std::string& str) {
+       auto custom_encryption = str;
+       // user encryption logic here...
+       return custom_encryption;
+   }, nullptr})});
+
+   compiled_model.export_model(custom_encrypted_blob_stream);
+
+or
+
+.. code-block::
+
+   auto compile_model = core.compile_model(ov_model, "NPU");
+
+   compiled_model.set_property(ov::cache_encryption_callbacks(ov::EncryptionCallbacks{[](const std::string& str) {
+       auto custom_encryption = str;
+       // user encryption logic here...
+       return custom_encryption;
+   }, nullptr}));
+
+   compiled_model.export_model(custom_encrypted_blob_stream);
 
 Limitations
 #############################

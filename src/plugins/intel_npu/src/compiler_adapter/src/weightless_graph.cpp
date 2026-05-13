@@ -4,6 +4,7 @@
 
 #include "weightless_graph.hpp"
 
+#include <cinttypes>
 #include <condition_variable>
 #include <iterator>
 #include <mutex>
@@ -12,6 +13,8 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/utils.hpp"
+#include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/core/memory_util.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
@@ -51,7 +54,7 @@ std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> get_all_consta
                                 "This may indicate a bug in OV model compression.");
                 continue;
             }
-            constant = constantNode;
+            constant = std::move(constantNode);
         }
     }
 
@@ -174,8 +177,9 @@ WeightlessGraph::WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGr
             std::move(mainMetadata),
             std::move(mainBlob),
             config,
+            /* compatibilityDescriptor = */ std::nullopt,
             blobIsPersistent,
-            true),
+            /* calledFromWeightlessGraph = */ true),
       _initsGraphDesc(initGraphDesc),
       _initBlobs(std::move(initBlobs)),
       _initsMetadata(std::move(initMetadata)),
@@ -233,13 +237,11 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
 
             totalResult += result;
 
-            std::stringstream str;
             if (blobIndex == MAIN_SCHEDULE_INDEX) {
-                str << "Main blob size " << blobSize << ", hash " << std::hex << result;
+                _wgLogger.info("Main blob size: %" PRIu64 ", hash: %x", blobSize, result);
             } else {
-                str << "Init part " << blobIndex << " blob size " << blobSize << ", hash " << std::hex << result;
+                _wgLogger.info("Init part %zu blob size %" PRIu64 ", hash: %x", blobIndex, blobSize, result);
             }
-            _wgLogger.info(str.str().c_str());
         }
 
         size_t size = utils::align_size_to_standard_page_size(blobSize);
@@ -252,7 +254,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
                 return 0;
             }
 
-            _wgLogger.info("Blob size with padding: %ld", size);
+            _wgLogger.info("Blob size with padding: %zu", size);
         }
 
         return size;
@@ -275,15 +277,13 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
         ++blobIndex;
     }
 
-    std::stringstream str;
-    str << "Blob size: " << totalBlobSize << ", hash: " << std::hex << totalResult;
-    _wgLogger.info(str.str().c_str());
+    _wgLogger.info("Blob size: %" PRIu64 ", hash: %x", totalBlobSize, totalResult);
 
     _wgLogger.info("Write blob to stream successfully.");
     return std::make_pair(totalBlobSize, initSizes);
 }
 
-void WeightlessGraph::initialize(const FilteredConfig& config) {
+void WeightlessGraph::initialize_impl(const FilteredConfig& config) {
     if (_zeGraphExt == nullptr || _graphDesc._handle == nullptr || _zeroInitStruct == nullptr) {
         // To ensure that does not throw an issue when subsequently calling `_zeroInitStruct->getDevice()`
         return;
@@ -313,23 +313,13 @@ void WeightlessGraph::initialize(const FilteredConfig& config) {
             commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
         }
     }
-
-    _initsCommandQueue = std::make_shared<CommandQueue>(_zeroInitStruct,
-                                                        zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
-                                                        commandQueueOptions);
-
-    if (config.has<WORKLOAD_TYPE>()) {
-        switch (config.get<WORKLOAD_TYPE>()) {
-        case ov::WorkloadType::DEFAULT:
-            _initsCommandQueue->setWorkloadType(ze_command_queue_workload_type_t::ZE_WORKLOAD_TYPE_DEFAULT);
-            break;
-        case ov::WorkloadType::EFFICIENT:
-            _initsCommandQueue->setWorkloadType(ze_command_queue_workload_type_t::ZE_WORKLOAD_TYPE_BACKGROUND);
-            break;
-        default:
-            OPENVINO_THROW("Unknown value for WorkloadType!");
-        }
-    }
+    CommandQueueDesc commandQueueDesc{
+        zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
+        config.has<WORKLOAD_TYPE>() ? zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>()) : std::nullopt,
+        commandQueueOptions,
+        this,
+        config.get<SHARED_COMMON_QUEUE>()};
+    _initsCommandQueue = ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroInitStruct, commandQueueDesc);
 
 #if USE_SINGLE_THREADED_RUN_INIT
     run_init_single_threaded();
@@ -348,7 +338,7 @@ void WeightlessGraph::initialize(const FilteredConfig& config) {
     _initsCommandQueue.reset();
 
     // The main schedule is initialized after the weights initialization ones in order to save some memory
-    Graph::initialize(config);
+    Graph::initialize_impl(config);
 
     set_weights_inputs();
 }
@@ -419,7 +409,7 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
         constants.erase(id);
     }
 
-    return {initInputsViewTensors, initInputsAllocatedTensor};
+    return {std::move(initInputsViewTensors), initInputsAllocatedTensor};
 }
 
 WeightlessGraph::OutputData WeightlessGraph::allocate_outputs(const size_t initIndex) {
@@ -449,7 +439,7 @@ WeightlessGraph::OutputData WeightlessGraph::allocate_outputs(const size_t initI
         offset += ov::util::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
     }
 
-    return {initOutputsViewTensorsVector, initOutputsAllocatedTensor, initOutputsViewTensorsMap};
+    return {std::move(initOutputsViewTensorsVector), initOutputsAllocatedTensor, std::move(initOutputsViewTensorsMap)};
 }
 
 void WeightlessGraph::run_init_single_threaded() {

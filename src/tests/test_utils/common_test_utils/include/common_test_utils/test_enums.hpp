@@ -126,6 +126,7 @@ enum ActivationTypes {
     GeluErf,
     GeluTanh,
     SoftSign,
+    ErfInv,
     IsFinite,
     IsInf,
     IsNaN,

@@ -38,13 +38,20 @@ ov::Output<ov::Node> QDQStrippingFunction::build_fq(const ov::Output<ov::Node>& 
 
 ov::Output<ov::Node> QDQStrippingFunction::build_dq(const ov::Output<ov::Node>& input,
                                                     const ov::element::Type& quantization_precision,
-                                                    const QuantizationParams& qp) {
-    auto act_zero_point = ov::op::v0::Constant::create(quantization_precision, {}, {qp.zero_point});
-    auto act_zp_convert = std::make_shared<ov::op::v0::Convert>(act_zero_point, ov::element::f32);
-    auto act_subtract = std::make_shared<ov::op::v1::Subtract>(input, act_zp_convert);
+                                                    const QuantizationParams& qp,
+                                                    bool convert_on_zero_point) {
+    std::shared_ptr<ov::Node> sub;
+    if (convert_on_zero_point) {
+        auto act_zero_point = ov::op::v0::Constant::create(quantization_precision, {}, {qp.zero_point});
+        auto act_zp_convert = std::make_shared<ov::op::v0::Convert>(act_zero_point, ov::element::f32);
+        sub = std::make_shared<ov::op::v1::Subtract>(input, act_zp_convert);
+    } else {
+        auto act_zero_point = ov::op::v0::Constant::create(ov::element::f32, {}, {qp.zero_point});
+        sub = std::make_shared<ov::op::v1::Subtract>(input, act_zero_point);
+    }
     float scale_value = (qp.i_h - qp.i_l) / (qp.o_h - qp.o_l);
     auto act_scale = ov::op::v0::Constant::create(ov::element::f32, {}, {scale_value});
-    return std::make_shared<ov::op::v1::Multiply>(act_subtract, act_scale);
+    return std::make_shared<ov::op::v1::Multiply>(sub, act_scale);
 }
 
 ov::Output<ov::Node> QDQStrippingFunction::build_weights_dq(ov::element::Type quantized_type,
@@ -120,7 +127,8 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_shared_dq_pattern(
 
     size_t seed = 1;
     auto create_qdq_branch = [&](float weight_scale_value) {
-        auto input_dequantized = build_dq(input_convert2, quantization_precision, qp_1);
+        auto input_dequantized = build_dq(input_convert2, quantization_precision, qp_1, false);
+
         ov::test::utils::InputGenerateData weights_gen_data;
         weights_gen_data.seed = seed;
         auto weight_quantized =

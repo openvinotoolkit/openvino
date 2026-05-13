@@ -4,14 +4,18 @@
 
 #include "openvino/runtime/shared_buffer.hpp"
 
+#include <gmock/gmock.h>
+
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <vector>
 
 #include "common_test_utils/common_utils.hpp"
-#include "gtest/gtest.h"
+#include "openvino/op/constant.hpp"
 #include "openvino/util/mmap_object.hpp"
 
+namespace ov::test {
 using ov::SharedStreamBuffer;
 
 TEST(shared_stream_buffer, basic_read) {
@@ -345,65 +349,6 @@ TEST_F(SharedBufferTest, aligned_buffer_interface) {
     EXPECT_EQ(aligned->get_ptr(), test_data);
 }
 
-// ==================== MappedMemory get_id Tests ====================
-
-TEST(MappedMemory, get_id_unique_per_file) {
-    // Create two temporary files
-    std::filesystem::path file1 = ov::test::utils::generateTestFilePrefix() + "_file1";
-    std::filesystem::path file2 = ov::test::utils::generateTestFilePrefix() + "_file2";
-
-    const char test_data[] = "Test data for MappedMemory";
-
-    // Write same data to both files
-    {
-        std::ofstream os1(file1, std::ios::binary);
-        os1.write(test_data, sizeof(test_data));
-
-        std::ofstream os2(file2, std::ios::binary);
-        os2.write(test_data, sizeof(test_data));
-    }
-
-    {
-        // Load both files
-        auto mapped1 = ov::load_mmap_object(file1);
-        auto mapped2 = ov::load_mmap_object(file2);
-
-        ASSERT_NE(mapped1, nullptr);
-        ASSERT_NE(mapped2, nullptr);
-
-        // IDs should be different even though content is the same (ID is hash of file path)
-        EXPECT_NE(mapped1->get_id(), mapped2->get_id());
-    }
-    // Clean up
-    std::filesystem::remove(file1);
-    std::filesystem::remove(file2);
-}
-
-TEST(MappedMemory, get_id_same_for_same_file) {
-    std::filesystem::path file_path = ov::test::utils::generateTestFilePrefix() + "_same_file";
-    const char test_data[] = "Test data for same file";
-
-    // Create file
-    {
-        std::ofstream os(file_path, std::ios::binary);
-        os.write(test_data, sizeof(test_data));
-    }
-
-    {
-        // Load the same file twice
-        auto mapped1 = ov::load_mmap_object(file_path);
-        auto mapped2 = ov::load_mmap_object(file_path);
-
-        ASSERT_NE(mapped1, nullptr);
-        ASSERT_NE(mapped2, nullptr);
-
-        // IDs should be the same for the same file path
-        EXPECT_EQ(mapped1->get_id(), mapped2->get_id());
-    }
-    // Clean up
-    std::filesystem::remove(file_path);
-}
-
 // ==================== SharedBuffer with explicit descriptor Tests ====================
 
 TEST_F(SharedBufferTest, shared_ptr_void_with_explicit_descriptor) {
@@ -573,3 +518,86 @@ TEST_F(SharedBufferTest, specialization_overload_resolution) {
         }
     }
 }
+
+class MockMappedMemory : public ov::MappedMemory {
+public:
+    explicit MockMappedMemory(size_t size) : m_data(size, '\0'), m_id(1) {}
+
+    char* data() noexcept override {
+        return m_data.data();
+    }
+    size_t size() const noexcept override {
+        return m_data.size();
+    }
+    uint64_t get_id() const noexcept override {
+        return m_id;
+    }
+
+    void hint_evict(size_t offset, size_t size) noexcept override {
+        hint_evict_mock(offset, size);
+    }
+
+    MOCK_METHOD(void, hint_evict_mock, (size_t offset, size_t size));
+
+private:
+    std::vector<char> m_data;
+    uint64_t m_id;
+};
+
+TEST_F(SharedBufferTest, mmap_shared_buffer_calls_hint_evict_with_own_region) {
+    constexpr size_t mmap_size = 1024;
+    constexpr size_t buf_offset = 128;
+    constexpr size_t buf_size = 256;
+
+    auto mock = std::make_shared<MockMappedMemory>(mmap_size);
+    auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mock->data() + buf_offset,
+                                                                                        buf_size,
+                                                                                        mock);
+
+    EXPECT_CALL(*mock, hint_evict_mock(buf_offset, buf_size)).Times(1);
+    buffer->hint_evict();
+}
+
+TEST_F(SharedBufferTest, mmap_shared_buffer_full_mapping) {
+    constexpr size_t mmap_size = 512;
+
+    auto mock = std::make_shared<MockMappedMemory>(mmap_size);
+    auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mock->data(), mmap_size, mock);
+
+    EXPECT_CALL(*mock, hint_evict_mock(0u, mmap_size)).Times(1);
+    buffer->hint_evict();
+}
+
+TEST_F(SharedBufferTest, aligned_shared_buffer_propagates_to_mmap) {
+    constexpr size_t mmap_size = 2048;
+    constexpr size_t parent_offset = 64;
+    constexpr size_t child_offset = 32;  // relative to parent data ptr
+    constexpr size_t child_size = 128;
+
+    auto mock = std::make_shared<MockMappedMemory>(mmap_size);
+
+    auto parent = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mock->data() + parent_offset,
+                                                                                        mmap_size - parent_offset,
+                                                                                        mock);
+
+    auto child = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
+        parent->get_ptr<char>() + child_offset,
+        child_size,
+        std::static_pointer_cast<ov::AlignedBuffer>(parent));
+
+    // child lives at parent_offset + child_offset inside the mmap
+    EXPECT_CALL(*mock, hint_evict_mock(parent_offset + child_offset, child_size)).Times(1);
+    child->hint_evict();
+}
+
+TEST_F(SharedBufferTest, no_call_when_mmap_object_is_null) {
+    constexpr size_t buf_size = 64;
+    std::vector<char> storage(buf_size);
+
+    auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(
+        storage.data(),
+        buf_size,
+        std::shared_ptr<ov::MappedMemory>{} /*null*/);
+    EXPECT_NO_THROW(buffer->hint_evict());
+}
+}  // namespace ov::test
