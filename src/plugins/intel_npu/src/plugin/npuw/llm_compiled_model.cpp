@@ -1257,6 +1257,9 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& raw_stream, const ov::n
 
         // Serialize CompiledModels
         // Note: no need to pass any encryption here as it's done in export_model()
+        // This cache is collected on the original LLM graph before BF16->FP16
+        // conversion and submodel splitting. Child CompiledModels must serialize
+        // this propagated view, not just their local post-transform snapshot.
         CompiledContext enc_ctx(false, nullptr, nullptr, m_bf16_consts);
 
         // Serialize all generate variants
