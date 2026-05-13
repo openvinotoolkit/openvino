@@ -936,14 +936,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             auto out_dt_is_i8_u8 = data_type_traits::is_i8_u8(out_dt);
             auto in_dt_is_i8_u8 = data_type_traits::is_i8_u8(in_dt);
 
-            bool per_tensor_values = quantize_node.get_scale_shift_opt() &&
-                                     quantize_node.get_per_tensor_input_scale() &&
-                                     quantize_node.get_per_tensor_input_shift() &&
-                                     quantize_node.get_per_tensor_input_range() &&
-                                     quantize_node.get_per_tensor_output_scale() &&
-                                     quantize_node.get_per_tensor_output_shift() &&
-                                     quantize_node.get_per_tensor_output_range();
-
             bool should_fuse = input_data.is_type<convolution>() && conv_supports_fusings(input_data.as<convolution>()) &&
                            quantize_node.get_scale_shift_opt() &&
                            ((out_dt == data_types::f32 || out_dt == data_types::f16)  ||
@@ -1008,7 +1000,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= input_data.is_type<softmax>() &&
                            input_data.as<softmax>().get_primitive()->dimension == 1 &&
-                           per_tensor_values;
+                           quantize_node.has_per_tensor_values();
 
             should_fuse |= input_data.is_type<broadcast>() && broadcast_supports_fusings(input_data.as<broadcast>());
 

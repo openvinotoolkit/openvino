@@ -111,13 +111,14 @@ TEST(prepare_primitive_fusing_through, dont_fuse_quantize_per_channel_shape_mism
     ASSERT_EQ(quant_node.get_dependency(0).id(), "reshape1");
 }
 
-// Negative test: per-channel quantize should NOT fuse when scale_shift_opt is not set
-// (i.e., prepare_quantization has not run).
-// Topology same as positive test but we skip prepare_quantization pass.
-TEST(prepare_primitive_fusing_through, dont_fuse_quantize_per_channel_without_scale_shift_opt) {
+// Negative test: per-channel quantize should NOT fuse through when shapes are dynamic.
+// Topology: Input[-1,3,1,1] -> FC[-1,3,1,1] -> Reshape[-1,3,1,1] -> Quantize(per-ch) -> Reorder
+// FC output and quantize input have the same dynamic shape,
+// but fusing is conservatively blocked since shape equality cannot be guaranteed at graph compilation time.
+TEST(prepare_primitive_fusing_through, dont_fuse_quantize_per_channel_dynamic_shapes) {
     auto& engine = get_test_engine();
-    auto in_layout = layout{ov::PartialShape{4, 3, 1, 1}, data_types::f32, format::bfyx};
-    auto weights_mem = engine.allocate_memory({ov::PartialShape{3, 3}, data_types::f32, format::bfyx});
+    auto in_layout = layout{ov::PartialShape{-1, 3, 1, 1}, data_types::f32, format::bfyx};
+    auto weights_mem = engine.allocate_memory({ov::PartialShape{1, 1}, data_types::f32, format::bfyx});
     auto in_lo_mem = engine.allocate_memory({ov::PartialShape{1, 3, 1, 1}, data_types::f32, format::bfyx});
     auto in_hi_mem = engine.allocate_memory({ov::PartialShape{1, 3, 1, 1}, data_types::f32, format::bfyx});
     auto out_lo_mem = engine.allocate_memory({ov::PartialShape{1, 3, 1, 1}, data_types::f32, format::bfyx});
@@ -132,26 +133,31 @@ TEST(prepare_primitive_fusing_through, dont_fuse_quantize_per_channel_without_sc
     topology.add(input_layout("input", in_layout));
     topology.add(data("weights", weights_mem));
     topology.add(fully_connected("fc", input_info("input"), "weights"));
-    topology.add(reshape("reshape1", input_info("fc"), tensor(1, 3, 2, 2)));
-    topology.add(reshape("reshape2", input_info("reshape1"), tensor(4, 3, 1, 1)));
+    topology.add(reshape("reshape1", input_info("fc"), true, std::vector<int64_t>{0, 0, 0, 0}, ov::PartialShape{-1, 3, 1, 1}));
     topology.add(data("in_lo", in_lo_mem));
     topology.add(data("in_hi", in_hi_mem));
     topology.add(data("out_lo", out_lo_mem));
     topology.add(data("out_hi", out_hi_mem));
-    topology.add(quantize("quantize", input_info("reshape2"),
-                          input_info("in_lo"), input_info("in_hi"),
-                          input_info("out_lo"), input_info("out_hi"), 256, data_types::u8));
+    topology.add(quantize("quantize",
+                          input_info("reshape1"),
+                          input_info("in_lo"),
+                          input_info("in_hi"),
+                          input_info("out_lo"),
+                          input_info("out_hi"),
+                          256,
+                          data_types::u8));
     topology.add(reorder("output", input_info("quantize"), format::bfyx, data_types::f32));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     auto prog = program::build_program(engine, topology, config, false, true);
 
-    // Intentionally skip prepare_quantization — scale_shift_opt remains false
+    program_wrapper::apply_opt_pass<prepare_quantization>(*prog);
     program_wrapper::apply_opt_pass<prepare_primitive_fusing_through>(*prog);
 
     ASSERT_NE(prog, nullptr);
     auto& quant_node = prog->get_node("quantize");
-    // Without scale_shift_opt, quantize should NOT have moved
-    ASSERT_EQ(quant_node.get_dependency(0).id(), "reshape2");
+    // With dynamic shapes, quantize should NOT have moved — stays after reshape
+    ASSERT_EQ(quant_node.get_dependency(0).id(), "reshape1");
 }

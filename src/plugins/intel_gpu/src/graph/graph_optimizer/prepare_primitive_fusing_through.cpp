@@ -86,15 +86,8 @@ void prepare_primitive_fusing_through::run(program& p) {
             input_node = &node->get_dependency(0);
         } else if (node->is_type<quantize>()) {
             auto& quantize_node = node->as<quantize>();
-            per_tensor_values = quantize_node.get_scale_shift_opt() &&
-                                     quantize_node.get_per_tensor_input_scale() &&
-                                     (quantize_node.get_per_tensor_input_shift() || !quantize_node.get_need_pre_shift()) &&
-                                     quantize_node.get_per_tensor_input_range() &&
-                                     quantize_node.get_per_tensor_output_scale() &&
-                                     (quantize_node.get_per_tensor_output_shift() || !quantize_node.get_need_post_shift()) &&
-                                     quantize_node.get_per_tensor_output_range();
 
-            if (!per_tensor_values) {
+            if (!quantize_node.has_per_tensor_values()) {
                 // Shape compatibility with the target node is verified later
                 // by comparing new_prev output shape with quantize input shape.
                 if (!quantize_node.get_scale_shift_opt())
@@ -142,11 +135,11 @@ void prepare_primitive_fusing_through::run(program& p) {
         // For per-channel quantize, allow only when the fused target's output shape
         // matches the quantize's current input shape. This ensures per-channel
         // parameters remain correctly broadcast-aligned at the new position.
-        if (node->is_type<quantize>() && !per_tensor_values) {
+        if (node->is_type<quantize>() && !node->as<quantize>().has_per_tensor_values()) {
             auto target_shape = new_prev->get_output_layout().get_partial_shape();
             auto current_input_shape = node->get_input_layout(0).get_partial_shape();
-            if (target_shape != current_input_shape)
-                continue;  // shapes differ: per-channel params would be misaligned
+            if ((target_shape != current_input_shape) || target_shape.is_dynamic() || current_input_shape.is_dynamic())
+                continue;
         }
 
         // Check broadcastable for fused eltwise's output
