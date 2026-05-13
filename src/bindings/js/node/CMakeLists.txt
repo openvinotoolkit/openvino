@@ -61,6 +61,7 @@ add_library(${PROJECT_NAME} SHARED
     ${CMAKE_CURRENT_SOURCE_DIR}/src/errors.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/helper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/type_validation.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/tensor_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/tensor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/infer_request.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/compiled_model.cpp

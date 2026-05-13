@@ -458,4 +458,25 @@ describe("GC safety infer() / inferAsync()", () => {
       assert.strictEqual(data[elementCount - 1], 128.0, "Last element should be 128");
     }
   });
+
+  it("Full-cycle tensor converting test", () => {
+    function fillInferRequest(inferRequest) {
+      // 1. TypedArray → TensorWrap
+      const buf = new Float32Array(elementCount).fill(128.0);
+      const tensor = new ov.Tensor(ov.element.f32, reluLargeModel.inputShape, buf);
+      // 2. TensorWrap → ov::Tensor
+      inferRequest.setInputTensor(tensor);
+    }
+
+    fillInferRequest(inferRequest);
+
+    // Intermediate execution, where GC collects buffer
+    if (typeof global.gc === "function") global.gc();
+
+    // 3. the same ov::Tensor → new TensorWrap
+    const sameTensor = inferRequest.getInputTensor();
+
+    // 4. read data from buffer, but it is not available or rewrote
+    assert.deepStrictEqual(sameTensor.getData(), new Float32Array(elementCount).fill(128.0));
+  });
 });

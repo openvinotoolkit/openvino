@@ -7,6 +7,7 @@
 #include "node/include/compiled_model.hpp"
 #include "node/include/node_wrap.hpp"
 #include "node/include/tensor.hpp"
+#include "node/include/tensor_impl.hpp"
 #include "node/include/type_validation.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 
@@ -372,15 +373,8 @@ ov::Tensor cast_to_tensor(const Napi::TypedArray& typed_array,
                           const ov::element::Type_t& type) {
     OPENVINO_ASSERT(typed_array.ByteOffset() == 0,
                     "TypedArray.byteOffset must be zero for zero-copy tensor construction.");
-    // Zero-copy: wrap TypedArray's buffer. The Napi::Reference is stored in
-    // SoPtr::_so and travels with every C++ copy of the tensor via ov::make_tensor,
-    // keeping the JS ArrayBuffer alive until the last copy is destroyed.
-    auto tensor = ov::Tensor(type, shape, typed_array.ArrayBuffer().Data());
-    OPENVINO_ASSERT(tensor.get_byte_size() == typed_array.ByteLength(),
-                    "Memory allocated using shape and element::type mismatch TypedArray byte length.");
-    auto impl = ov::get_tensor_impl(tensor);
-    impl._so = std::make_shared<Napi::Reference<Napi::TypedArray>>(Napi::Persistent(typed_array));
-    return ov::make_tensor(impl);
+    auto impl = std::make_shared<ov::js::TensorImpl>(typed_array.Env(), typed_array, type, shape);
+    return ov::make_tensor(ov::SoPtr<ov::ITensor>{impl, nullptr});
 }
 
 void fill_tensor_from_strings(ov::Tensor& tensor, const Napi::Array& arr) {
