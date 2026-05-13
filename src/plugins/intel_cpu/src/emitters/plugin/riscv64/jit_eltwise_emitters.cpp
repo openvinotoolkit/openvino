@@ -2073,8 +2073,6 @@ size_t jit_hswish_emitter::aux_fp_gprs_count() const {
 
 void jit_hswish_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
                                    const std::vector<size_t>& out_vec_idxs) const {
-        printf("=== JIT HSWISH EMITTER CALLED FOR RISC-V ===\n");  
-
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
