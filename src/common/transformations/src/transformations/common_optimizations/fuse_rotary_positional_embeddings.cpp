@@ -1148,10 +1148,10 @@ RoPEFusionGPTOSS::RoPEFusionGPTOSS() {
     auto t_sin = pattern::any_input(pattern::shape_matches("[?, 1, ?, half_ndims]"));
 
     auto vsplit_out0 = pattern::wrap_type<op::v1::VariadicSplit>(
-        {x, -1, {"half_ndims", "?"}},
+        {x, pattern::wrap_type<v0::Constant>(), {"half_ndims", "?"}},
         pattern::output_index_matches(0) && pattern::shape_matches("[?, ?, ?, half_ndims]"));
     auto vsplit_out1 = pattern::wrap_type<op::v1::VariadicSplit>(
-        {x, -1, {"half_ndims", "?"}},
+        {x, pattern::wrap_type<v0::Constant>(), {"half_ndims", "?"}},
         pattern::output_index_matches(1) && pattern::shape_matches("[?, ?, ?, half_ndims]"));
     auto first_half_mul_cos = pattern::wrap_type<v1::Multiply>({vsplit_out0, t_cos}, {{"auto_broadcast", "numpy"}});
     auto second_half_mul_sin = pattern::wrap_type<v1::Multiply>({vsplit_out1, t_sin}, {{"auto_broadcast", "numpy"}});
@@ -1162,7 +1162,7 @@ RoPEFusionGPTOSS::RoPEFusionGPTOSS() {
     auto first_half_mul_sin = pattern::wrap_type<v1::Multiply>({vsplit_out0, t_sin}, {{"auto_broadcast", "numpy"}});
     auto add_Add =
         pattern::wrap_type<v1::Add>({second_half_mul_cos, first_half_mul_sin}, {{"auto_broadcast", "numpy"}});
-    auto concat_result = pattern::wrap_type<opset1::Concat>({sub_Subtract, add_Add}, {{"axis", -1}});
+    auto concat_result = pattern::wrap_type<opset1::Concat>({sub_Subtract, add_Add});
 
     auto result = concat_result;
 
@@ -1171,6 +1171,31 @@ RoPEFusionGPTOSS::RoPEFusionGPTOSS() {
         auto root = m.get_match_root();
         const auto& x_val = pattern_map.at(x);
         const auto& v_cos = pattern_map.at(t_cos);
+
+        // Verify concat axis is the last dimension (accepts both -1 and positive equivalent)
+        auto concat_node = ov::as_type_ptr<v0::Concat>(root);
+        if (!concat_node)
+            return false;
+        auto concat_rank = concat_node->get_output_partial_shape(0).rank();
+        if (concat_rank.is_dynamic())
+            return false;
+        int64_t concat_axis = concat_node->get_axis();
+        if (concat_axis != -1 && concat_axis != concat_rank.get_length() - 1)
+            return false;
+
+        // Verify VariadicSplit axis is the last dimension (accepts both -1 and positive equivalent)
+        auto vsplit_node = pattern_map.at(vsplit_out0).get_node_shared_ptr();
+        auto axis_const = ov::as_type_ptr<v0::Constant>(vsplit_node->input_value(1).get_node_shared_ptr());
+        if (!axis_const)
+            return false;
+        auto axis_val = axis_const->cast_vector<int64_t>();
+        if (axis_val.size() != 1)
+            return false;
+        auto input_rank = x_val.get_partial_shape().rank();
+        if (input_rank.is_dynamic())
+            return false;
+        if (axis_val[0] != -1 && axis_val[0] != input_rank.get_length() - 1)
+            return false;
 
         auto symbols = m.get_symbols();
         const auto& half_ndims = symbols["half_ndims"];
