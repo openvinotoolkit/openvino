@@ -1311,6 +1311,9 @@ public:
         cur_moe->_intermediate_size = _intermediate_size;
         cur_moe->_gate_up_group_size = _gate_up_group_size;
         cur_moe->_down_group_size = _down_group_size;
+        cur_moe->use_micro_gemm_prefill = use_micro_gemm_prefill;
+        cur_moe->use_gpu_mask_gen_prefill = use_gpu_mask_gen_prefill;
+        cur_moe->use_grouped_gemm_prefill = use_grouped_gemm_prefill;
         cur_moe->_activation_type = _activation_type;
         return cur_moe;
     }
