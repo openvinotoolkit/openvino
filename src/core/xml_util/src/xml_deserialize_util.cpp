@@ -31,6 +31,26 @@
 
 namespace ov::util {
 
+namespace {
+
+class FileRegionBuffer : public ov::AlignedBuffer {
+public:
+    FileRegionBuffer(size_t size, size_t source_id, size_t offset, std::shared_ptr<ov::AlignedBuffer> source_handle)
+        : ov::AlignedBuffer(size),
+          m_source_handle(std::move(source_handle)),
+          m_descriptor(ov::create_base_descriptor(source_id, offset, m_source_handle)) {}
+
+    std::shared_ptr<ov::IBufferDescriptor> get_descriptor() const override {
+        return m_descriptor;
+    }
+
+private:
+    std::shared_ptr<ov::AlignedBuffer> m_source_handle;
+    std::shared_ptr<ov::IBufferDescriptor> m_descriptor;
+};
+
+}  // namespace
+
 BufferWeightsProvider::BufferWeightsProvider(std::shared_ptr<ov::AlignedBuffer> weights)
     : m_weights(std::move(weights)) {}
 
@@ -47,7 +67,10 @@ size_t BufferWeightsProvider::size() const {
     return m_weights ? m_weights->size() : 0;
 }
 
-FileWeightsProvider::FileWeightsProvider(std::filesystem::path weights_path) : m_weights_path(std::move(weights_path)) {
+FileWeightsProvider::FileWeightsProvider(std::filesystem::path weights_path)
+    : m_weights_path(std::move(weights_path)),
+      m_weights_source_id(std::hash<std::decay_t<decltype(m_weights_path.native())>>{}(m_weights_path.native())),
+      m_weights_source_handle(std::make_shared<ov::AlignedBuffer>()) {
     std::ifstream weights_stream(m_weights_path, std::ios::binary | std::ios::ate);
     OPENVINO_ASSERT(weights_stream.is_open(), "Weights file ", m_weights_path, " cannot be opened!");
 
@@ -68,7 +91,8 @@ std::shared_ptr<ov::AlignedBuffer> FileWeightsProvider::load_region(size_t offse
     weights_stream.seekg(static_cast<std::streamoff>(offset), std::ios::beg);
     OPENVINO_ASSERT(weights_stream.good(), "Failed to seek weights file ", m_weights_path, " to offset ", offset);
 
-    auto buffer = std::make_shared<ov::AlignedBuffer>(size);
+    auto buffer = std::make_shared<FileRegionBuffer>(size, m_weights_source_id, offset, m_weights_source_handle);
+
     weights_stream.read(buffer->get_ptr<char>(), static_cast<std::streamsize>(size));
     OPENVINO_ASSERT(static_cast<size_t>(weights_stream.gcount()) == size,
                     "Failed to read ",

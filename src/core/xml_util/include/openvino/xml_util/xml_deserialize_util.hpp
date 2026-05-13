@@ -78,6 +78,8 @@ private:
 
     std::filesystem::path m_weights_path;
     size_t m_weights_size = 0;
+    size_t m_weights_source_id = 0;
+    std::shared_ptr<ov::AlignedBuffer> m_weights_source_handle;
     mutable std::map<WeightsRegionKey, std::shared_ptr<ov::AlignedBuffer>> m_loaded_weights_regions;
 };
 
