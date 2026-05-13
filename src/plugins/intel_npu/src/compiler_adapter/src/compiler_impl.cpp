@@ -241,7 +241,8 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
                                                     &compatibilityStringSize);
         if (result != VCL_RESULT_SUCCESS) {
             // Check if allocations were performed before throwing exception
-            for (const auto& [buffer, size] : allocator->m_info) {
+            auto tracked_allocations = allocator->m_info;
+            for (const auto& [buffer, size] : tracked_allocations) {
                 allocator->deallocate(allocator.get(), buffer);
             }
             OPENVINO_THROW("Compilation failed. vclAllocatedExecutableCreate3 result: 0x",
@@ -269,6 +270,8 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
         _logger.debug("Allocated vector size: %zu ptr: %p", alignedBlobSize, static_cast<void*>(blob));
 
         ov::Tensor alignedBlob = make_tensor_from_aligned_addr(blob, alignedBlobSize, allocator);
+        allocator->m_info.erase(it);
+
         std::optional<std::string> compatibilityString;
 
         // Populate compatibility string only when VCL provides a buffer.
@@ -281,9 +284,6 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
 
             allocator->deallocate(allocator.get(), compatibilityStringBuffer);
         }
-        // Remove only the transferred blob, leaving any possible temporary allocations to be safely freed by
-        // ~vcl_allocator_3
-        allocator->m_info.erase(it);
 
         return std::make_pair<ov::Tensor, std::optional<std::string>>(std::move(alignedBlob),
                                                                       std::move(compatibilityString));

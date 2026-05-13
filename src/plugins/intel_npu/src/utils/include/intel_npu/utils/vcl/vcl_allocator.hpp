@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cstring>
 #include <memory>
 #include <utility>
@@ -29,7 +30,7 @@ struct vcl_allocator_3 : vcl_allocator2_t {
         m_info.clear();
     }
 
-    static uint8_t* allocate(vcl_allocator2_t* allocator, size_t size) {
+    static uint8_t* allocate(vcl_allocator2_t* allocator, size_t size) noexcept {
         vcl_allocator_3* vclAllocator = static_cast<vcl_allocator_3*>(allocator);
         size_t alignedSize = intel_npu::utils::align_size_to_standard_page_size(size);
 
@@ -37,24 +38,26 @@ struct vcl_allocator_3 : vcl_allocator2_t {
             vclAllocator->m_allocator.allocate(alignedSize, intel_npu::utils::STANDARD_PAGE_SIZE));
 
         if (allocatedPtr == nullptr) {
-            OPENVINO_THROW("Failed to allocate aligned memory in vcl_allocator_3");
+            return nullptr;
         }
         std::memset(allocatedPtr + size, 0, alignedSize - size);
         vclAllocator->m_info.emplace_back(std::make_pair(allocatedPtr, alignedSize));
         return allocatedPtr;
     }
 
-    static void deallocate(vcl_allocator2_t* allocator, uint8_t* ptr) {
+    static void deallocate(vcl_allocator2_t* allocator, uint8_t* ptr) noexcept {
         if (ptr == nullptr) {
-            OPENVINO_THROW("Pointer is nullptr in deallocate!");
+            return;
         }
         vcl_allocator_3* vclAllocator = static_cast<vcl_allocator_3*>(allocator);
 
-        for (auto it = vclAllocator->m_info.begin(); it != vclAllocator->m_info.end(); ++it) {
-            if (it->first == ptr) {
-                vclAllocator->m_info.erase(it);
-                break;
-            }
+        auto it = std::find_if(vclAllocator->m_info.begin(),
+                               vclAllocator->m_info.end(),
+                               [ptr](const std::pair<uint8_t*, size_t>& item) {
+                                   return item.first == ptr;
+                               });
+        if (it != vclAllocator->m_info.end()) {
+            vclAllocator->m_info.erase(it);
         }
 
         // 1 is the placeholder value, as size is not needed in deallocate
@@ -69,9 +72,9 @@ inline ov::Tensor make_tensor_from_aligned_addr(uint8_t* allocated,
                                                 std::shared_ptr<vcl_allocator_3> sourceAllocator) {
     auto tensor = ov::Tensor(ov::element::u8, ov::Shape{size}, allocated);
     auto impl = ov::get_tensor_impl(std::move(tensor));
-    std::shared_ptr<void> ptr(allocated, [sourceAllocator](uint8_t* p) {
+    std::shared_ptr<void> ptr(allocated, [sourceAllocator](uint8_t* p) noexcept {
         if (p == nullptr) {
-            OPENVINO_THROW("Pointer is nullptr in memory deallocation of make_tensor_from_aligned_addr!");
+            return;
         }
         vcl_allocator_3::deallocate(sourceAllocator.get(), p);
     });
