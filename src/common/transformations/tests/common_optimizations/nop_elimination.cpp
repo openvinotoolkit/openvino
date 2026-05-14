@@ -16,6 +16,7 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/op/identity.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
@@ -2152,4 +2153,57 @@ TEST_F(TransformationTestsF, ScatterNDUpdates15Elimination) {
         auto result = std::make_shared<op::v0::Result>(relu);
         model_ref = std::make_shared<ov::Model>(OutputVector{result}, ParameterVector{data, indices, updates});
     }
+}
+
+TEST_F(TransformationTestsF, EliminateIdentityConvert_convert_multiple_consumers_node_after) {
+    {
+        auto param = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{1, 55, 1});
+        auto convert_to_f32 = std::make_shared<op::v0::Convert>(param, element::f32);
+        auto identity = std::make_shared<op::v16::Identity>(convert_to_f32);
+        auto convert_to_f16 = std::make_shared<op::v0::Convert>(identity, element::f16);
+        auto relu = std::make_shared<op::v0::Relu>(convert_to_f16);
+
+        auto constant = op::v0::Constant::create(element::f32, Shape{1, 1, 1}, {1.0f});
+        auto concat = std::make_shared<op::v0::Concat>(OutputVector{constant, convert_to_f32}, 1);
+
+        auto result1 = std::make_shared<op::v0::Result>(relu);
+        auto result2 = std::make_shared<op::v0::Result>(concat);
+
+        model = std::make_shared<ov::Model>(OutputVector{result1, result2}, ParameterVector{param});
+    }
+    {
+        auto param = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{1, 55, 1});
+        auto convert_to_f32 = std::make_shared<op::v0::Convert>(param, element::f32);
+        auto relu = std::make_shared<op::v0::Relu>(param);
+
+        auto constant = op::v0::Constant::create(element::f32, Shape{1, 1, 1}, {1.0f});
+        auto concat = std::make_shared<op::v0::Concat>(OutputVector{constant, convert_to_f32}, 1);
+
+        auto result1 = std::make_shared<op::v0::Result>(relu);
+        auto result2 = std::make_shared<op::v0::Result>(concat);
+
+        model_ref = std::make_shared<ov::Model>(OutputVector{result1, result2}, ParameterVector{param});
+    }
+    manager.register_pass<ov::pass::EliminateIdentityConvert>();
+}
+
+// Same model as above, but without additional nodes on the Identity path. Second Convert goes to Result directly.
+// replace_output_update_name refuses to have Parameter->Result, so the graph stays unchanged.
+TEST_F(TransformationTestsF, EliminateIdentityConvert_convert_multiple_consumers_no_node_after) {
+    auto param = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{1, 55, 1});
+    auto convert_to_f32 = std::make_shared<op::v0::Convert>(param, element::f32);
+    auto identity = std::make_shared<op::v16::Identity>(convert_to_f32);
+    auto convert_to_f16 = std::make_shared<op::v0::Convert>(identity, element::f16);
+
+    auto constant = op::v0::Constant::create(element::f32, Shape{1, 1, 1}, {1.0f});
+    auto concat = std::make_shared<op::v0::Concat>(OutputVector{constant, convert_to_f32}, 1);
+
+    auto result1 = std::make_shared<op::v0::Result>(convert_to_f16);
+    auto result2 = std::make_shared<op::v0::Result>(concat);
+
+    model = std::make_shared<ov::Model>(OutputVector{result1, result2}, ParameterVector{param});
+
+    manager.register_pass<ov::pass::EliminateIdentityConvert>();
+
+    model_ref = model;
 }
