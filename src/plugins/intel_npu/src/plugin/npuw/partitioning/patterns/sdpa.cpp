@@ -115,17 +115,23 @@ SDPADecomposed::SDPADecomposed(const std::shared_ptr<ov::npuw::online::Snapshot>
     // Don't constrain the number of inputs - just match any Concat node
     auto concat1 = opp::wrap_type<ov::op::v0::Concat>();
 
-    // GQA optional nodes
-    auto unsqueeze1 = opp::optional<ov::op::v0::Unsqueeze>({concat1, opp::any_input()});
-    auto broadcast1 = opp::optional<ov::op::v3::Broadcast>({unsqueeze1, opp::any_input()});
-    auto reshape1 = opp::optional<ov::op::v1::Reshape>({broadcast1, opp::any_input()});
+    // GQA optional nodes — require single consumer so shared KV (e.g. Gemma4) does not
+    // accidentally match: if any expansion node is shared across multiple heads the
+    // predicate fails and the optional is treated as absent, causing the overall pattern
+    // to fall through rather than matching an incorrect multi-branch subgraph.
+    auto single_user = [](const ov::Output<ov::Node>& output) {
+        return output.get_target_inputs().size() == 1;
+    };
+    auto unsqueeze1 = opp::optional<ov::op::v0::Unsqueeze>({concat1, opp::any_input()}, single_user);
+    auto broadcast1 = opp::optional<ov::op::v3::Broadcast>({unsqueeze1, opp::any_input()}, single_user);
+    auto reshape1 = opp::optional<ov::op::v1::Reshape>({broadcast1, opp::any_input()}, single_user);
 
     auto concat2 = opp::wrap_type<ov::op::v0::Concat>();
 
-    // GQA optional nodes
-    auto unsqueeze2 = opp::optional<ov::op::v0::Unsqueeze>({concat2, opp::any_input()});
-    auto broadcast2 = opp::optional<ov::op::v3::Broadcast>({unsqueeze2, opp::any_input()});
-    auto reshape2 = opp::optional<ov::op::v1::Reshape>({broadcast2, opp::any_input()});
+    // GQA optional nodes — same single-consumer guard
+    auto unsqueeze2 = opp::optional<ov::op::v0::Unsqueeze>({concat2, opp::any_input()}, single_user);
+    auto broadcast2 = opp::optional<ov::op::v3::Broadcast>({unsqueeze2, opp::any_input()}, single_user);
+    auto reshape2 = opp::optional<ov::op::v1::Reshape>({broadcast2, opp::any_input()}, single_user);
 
     auto matmul1 = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), reshape1});
     auto add = opp::wrap_type<ov::op::v1::Add>({matmul1, opp::any_input()});
