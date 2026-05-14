@@ -88,6 +88,8 @@ protected:
 
         if (!ov::with_cpu_x86_avx512_core() && netPrecision == ElementType::bf16) {
             selectedType = makeSelectedTypeStr(getPrimitiveType(), ElementType::f32);
+        } else if (netPrecision == ElementType::i64) {
+            selectedType = makeSelectedTypeStr("ref_any", netPrecision);
         } else {
             selectedType = makeSelectedTypeStr(getPrimitiveType(), netPrecision);
         }
@@ -165,6 +167,12 @@ protected:
                 for (size_t i = 0; i < size; ++i) {
                     rawBlobDataPtr[i] = static_cast<int32_t>(data[i]);
                 }
+            }
+        } else if (netPrecision == ElementType::i64) {
+            auto* rawBlobDataPtr = static_cast<int64_t*>(tensor.data());
+            const std::vector<int64_t> data = {1LL << 35, 1LL << 36, 1LL << 37, 5, 7};
+            for (size_t i = 0; i < size; ++i) {
+                rawBlobDataPtr[i] = data[i % data.size()];
             }
         } else if (netPrecision == ElementType::bf16) {
             size_t O = 1, A = 1, I = 1;
@@ -333,6 +341,26 @@ INSTANTIATE_TEST_SUITE_P(smoke_TopK_int32_dynamic,
                                                                ::testing::Values(ElementType::dynamic),
                                                                ::testing::ValuesIn(inputShapesDynamic_int32)),
                                             ::testing::ValuesIn(filterCPUSpecificParams(cpuParams)),
+                                            ::testing::Values(additionalConfig[0])),
+                         TopKLayerCPUTest::getTestCaseName);
+
+std::vector<ov::test::InputShape> inputShapes_int64 = {
+    {{}, {{5}}},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_TopK_int64,
+                         TopKLayerCPUTest,
+                         ::testing::Combine(::testing::Combine(::testing::Values(3),
+                                                               ::testing::Values(0),
+                                                               ::testing::Values(SortMode::MAX),
+                                                               ::testing::Values(std::tuple<SortType, bool>{
+                                                                   SortType::SORT_VALUES,
+                                                                   false}),
+                                                               ::testing::Values(ElementType::i64),
+                                                               ::testing::Values(ElementType::dynamic),
+                                                               ::testing::Values(ElementType::dynamic),
+                                                               ::testing::ValuesIn(inputShapes_int64)),
+                                            ::testing::Values(CPUSpecificParams({}, {}, {"ref_any"}, "ref_any")),
                                             ::testing::Values(additionalConfig[0])),
                          TopKLayerCPUTest::getTestCaseName);
 
