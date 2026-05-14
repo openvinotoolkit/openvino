@@ -9,8 +9,6 @@
 
 const std::vector<CRE::Token> expression_1 = {};
 
-const std::vector<CRE::Token> expression_2 = {CRE::AND};
-
 /*
         AND
          |
@@ -354,10 +352,11 @@ const std::vector<CRE::Token> invalid_expression_7 = {CRE::NOT, CRE::NOT};
 // NOT missing operand before CLOSE
 const std::vector<CRE::Token> invalid_expression_8 = {CRE::AND, CRE::OPEN, CRE::NOT, CRE::CLOSE};
 
+// missing operand
+const std::vector<CRE::Token> invalid_expression_9 = {CRE::AND};
+
 std::vector<CREParams> valid_test_cases = {
     MAKE_PARAM(expression_1, true),
-    // shouldn't this return true?
-    MAKE_PARAM(expression_2, false),
 
     MAKE_PARAM(expression_3, true, CRE::ELF_SCHEDULE),
     MAKE_PARAM(expression_3, false),
@@ -456,10 +455,7 @@ std::vector<CREParams> valid_test_cases = {
     MAKE_PARAM(expression_21, false),
 };
 
-INSTANTIATE_TEST_SUITE_P(CRETests,
-                         ValidExpression,
-                         ::testing::ValuesIn(valid_test_cases),
-                         CREUnitTests::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(CRE, ValidExpression, ::testing::ValuesIn(valid_test_cases), CREUnitTests::getTestCaseName);
 
 std::vector<CREParams> invalid_test_cases = {
     MAKE_PARAM(invalid_expression_1, false),
@@ -470,9 +466,10 @@ std::vector<CREParams> invalid_test_cases = {
     MAKE_PARAM(invalid_expression_6, false),
     MAKE_PARAM(invalid_expression_7, false),
     MAKE_PARAM(invalid_expression_8, false),
+    MAKE_PARAM(invalid_expression_9, false),
 };
 
-INSTANTIATE_TEST_SUITE_P(CRETests,
+INSTANTIATE_TEST_SUITE_P(CRE,
                          InvalidExpression,
                          ::testing::ValuesIn(invalid_test_cases),
                          CREUnitTests::getTestCaseName);

@@ -118,6 +118,7 @@ void BlobWriter::write_section(std::ostream& stream,
     const uint64_t offset = get_stream_relative_position(stream);
     auto position_before_write = stream.tellp();
 
+    // TODO is this the right pointer type?
     section->write(stream, this);
 
     stream.seekp(0, std::ios_base::end);

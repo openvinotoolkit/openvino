@@ -20,17 +20,18 @@ class CREUnitTests : public ::testing::TestWithParam<CREParams> {
 protected:
     void SetUp() override {
         std::string name;
-        std::tie(name, expression, section_types, is_compatible) = GetParam();
+        std::vector<CRE::Token> expression;
+        std::vector<uint16_t> supported_capabilities_tokens;
+        std::tie(name, expression, supported_capabilities_tokens, is_compatible) = GetParam();
 
         cre = CRE(expression);
 
-        for (const auto& token : section_types) {
+        for (const auto& token : supported_capabilities_tokens) {
             supported_capabilities[token] = std::make_shared<StaticCapability>(token);
         }
     }
-    std::vector<CRE::Token> expression;
+
     CRE cre;
-    std::vector<uint16_t> section_types;
     std::unordered_map<CRE::Token, std::shared_ptr<ICapability>> supported_capabilities;
     bool is_compatible;
 
@@ -42,7 +43,7 @@ public:
         case CRE::ELF_SCHEDULE:
             return "ELF";
         case CRE::BATCHING:
-            return "BT";
+            return "BATCH";
         case CRE::WEIGHTS_SEPARATION:
             return "WS";
         default:
@@ -74,21 +75,19 @@ TEST_P(ValidExpression, check_compatibility) {
 using InvalidExpression = CREUnitTests;
 
 TEST_P(InvalidExpression, check_compatibility) {
-    ASSERT_ANY_THROW(cre.check_compatibility(supported_capabilities));
+    EXPECT_THROW(cre.check_compatibility(supported_capabilities), InvalidCRE);
 }
 
-using AppendSingleToken = ::testing::Test;
+using CREAppendSingleToken = ::testing::Test;
 
-TEST_F(AppendSingleToken, AppendValidTokenUpdatesExpression) {
+TEST_F(CREAppendSingleToken, AppendValidTokenUpdatesExpression) {
     CRE cre;
     cre.append_to_expression(CRE::ELF_SCHEDULE);
-    // questionable, might be implementation defined of how vector class behaves?
-    // have to do some research on this
     EXPECT_EQ(cre.get_expression_length(), 2);
     EXPECT_EQ(cre.get_expression(), (std::vector<CRE::Token>{CRE::AND, CRE::ELF_SCHEDULE}));
 }
 
-TEST_F(AppendSingleToken, AppendMultipleValidTokensAccumulates) {
+TEST_F(CREAppendSingleToken, AppendMultipleValidTokensAccumulates) {
     CRE cre;
     cre.append_to_expression(CRE::ELF_SCHEDULE);
     cre.append_to_expression(CRE::BATCHING);
@@ -98,7 +97,7 @@ TEST_F(AppendSingleToken, AppendMultipleValidTokensAccumulates) {
               (std::vector<CRE::Token>{CRE::AND, CRE::ELF_SCHEDULE, CRE::BATCHING, CRE::WEIGHTS_SEPARATION}));
 }
 
-TEST_F(AppendSingleToken, AppendReservedTokenThrows) {
+TEST_F(CREAppendSingleToken, AppendReservedTokenThrows) {
     CRE cre;
     EXPECT_ANY_THROW(cre.append_to_expression(CRE::AND));
     EXPECT_ANY_THROW(cre.append_to_expression(CRE::OR));
@@ -107,7 +106,7 @@ TEST_F(AppendSingleToken, AppendReservedTokenThrows) {
     EXPECT_ANY_THROW(cre.append_to_expression(CRE::NOT));
 }
 
-TEST_F(AppendSingleToken, BuildsEvaluatableAndExpression) {
+TEST_F(CREAppendSingleToken, BuildsEvaluableAndExpression) {
     CRE cre;
     cre.append_to_expression(CRE::ELF_SCHEDULE);
     cre.append_to_expression(CRE::BATCHING);
@@ -121,16 +120,16 @@ TEST_F(AppendSingleToken, BuildsEvaluatableAndExpression) {
     EXPECT_FALSE(cre.check_compatibility(caps));
 }
 
-using AppendToken = ::testing::Test;
+using CREAppendToken = ::testing::Test;
 
-TEST_F(AppendToken, AppendEmptyVector) {
+TEST_F(CREAppendToken, AppendEmptyVector) {
     CRE cre;
     cre.append_to_expression(std::vector<CRE::Token>{});
     EXPECT_EQ(cre.get_expression_length(), 1);
     EXPECT_EQ(cre.get_expression(), (std::vector<CRE::Token>{CRE::AND}));
 }
 
-TEST_F(AppendToken, AppendSubexpressionTokens) {
+TEST_F(CREAppendToken, AppendSubexpressionTokens) {
     CRE cre;
     cre.append_to_expression(
         std::vector<CRE::Token>{CRE::OPEN, CRE::OR, CRE::BATCHING, CRE::WEIGHTS_SEPARATION, CRE::CLOSE});
@@ -140,7 +139,7 @@ TEST_F(AppendToken, AppendSubexpressionTokens) {
         (std::vector<CRE::Token>{CRE::AND, CRE::OPEN, CRE::OR, CRE::BATCHING, CRE::WEIGHTS_SEPARATION, CRE::CLOSE}));
 }
 
-TEST_F(AppendToken, MixedAppend) {
+TEST_F(CREAppendToken, MixedAppend) {
     CRE cre;
     cre.append_to_expression(CRE::ELF_SCHEDULE);
     cre.append_to_expression(

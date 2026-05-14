@@ -43,5 +43,5 @@ TEST_F(BatchSizeSectionUnitTests, InvalidSectionLength) {
     std::vector<uint8_t> dummy(0xFFFF, 0xFF);
     ov::Tensor source(ov::element::u8, ov::Shape{dummy.size()}, const_cast<uint8_t*>(dummy.data()));
     BlobReader reader(source);
-    ASSERT_ANY_THROW(BatchSizeSection::read(&reader, sizeof(section->get_batch_size()) - 1));
+    ASSERT_ANY_THROW(BatchSizeSection::read(&reader, source.get_byte_size() - 1));
 }

@@ -11,7 +11,17 @@ namespace intel_npu {
 
 class ICapability;
 
-class InvalidCRE : public ov::Exception {};
+class InvalidCRE final : public ov::AssertFailure {
+public:
+    [[noreturn]] static void create(const char* file,
+                                    int line,
+                                    const char* check_string,
+                                    const std::string& context_info,
+                                    const std::string& explanation);
+
+protected:
+    explicit InvalidCRE(const std::string& what_arg) : ov::AssertFailure(what_arg) {}
+};
 
 class CRE final {
 public:

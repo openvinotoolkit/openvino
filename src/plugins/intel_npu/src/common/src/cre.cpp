@@ -10,6 +10,9 @@
 #include "intel_npu/common/blob_writer.hpp"
 #include "intel_npu/common/icapability.hpp"
 
+#define CRE_EVAL_ASSERT(...) \
+    OPENVINO_ASSERT_HELPER(::intel_npu::InvalidCRE, ::ov::AssertFailure::default_msg, __VA_ARGS__)
+
 namespace {
 
 const std::unordered_set<intel_npu::CRE::Token> OPERATORS{intel_npu::CRE::AND, intel_npu::CRE::OR};
@@ -25,6 +28,14 @@ inline bool or_function(bool a, bool b) {
 }  // namespace
 
 namespace intel_npu {
+
+void InvalidCRE::create(const char* file,
+                        int line,
+                        const char* check_string,
+                        const std::string& context_info,
+                        const std::string& explanation) {
+    throw InvalidCRE(make_what(file, line, check_string, context_info, explanation));
+}
 
 CRE::CRE() : m_expression({CRE::AND}) {}
 
@@ -49,7 +60,7 @@ std::vector<CRE::Token> CRE::get_expression() const {
 }
 
 void CRE::advance_iterator(std::vector<Token>::const_iterator& expression_iterator) {
-    OPENVINO_ASSERT(expression_iterator != m_expression.end());
+    CRE_EVAL_ASSERT(expression_iterator != m_expression.end());
     expression_iterator++;
 }
 
@@ -60,6 +71,7 @@ bool CRE::end_condition(const std::vector<Token>::const_iterator& expression_ite
     case Delimiter::SIZE:
         return expression_iterator == m_expression.end();
     default:
+        // Delimiter::NOT_CAPABILITY
         return RESERVED_TOKENS.count(*expression_iterator) || expression_iterator == m_expression.end();
     }
 }
@@ -70,6 +82,8 @@ bool CRE::evaluate(std::vector<Token>::const_iterator& expression_iterator,
     std::function<bool(bool, bool)> logical_function;
     bool base, subexpression_result, negate;
 
+    CRE_EVAL_ASSERT(*expression_iterator != CLOSE, "Found a closed parrenthesis without any matching open token");
+
     // TODO comments
     switch (*expression_iterator) {
     case NOT:
@@ -77,20 +91,16 @@ bool CRE::evaluate(std::vector<Token>::const_iterator& expression_iterator,
         while (*expression_iterator == NOT) {
             negate = !negate;
             advance_iterator(expression_iterator);
-            OPENVINO_ASSERT(expression_iterator != m_expression.end(), "NOT operator is missing its operand");
+            CRE_EVAL_ASSERT(expression_iterator != m_expression.end(), "NOT operator is missing its operand");
         }
         subexpression_result = evaluate(expression_iterator, plugin_capabilities, end_delimiter);
         return negate ? !subexpression_result : subexpression_result;
     case OPEN:
         advance_iterator(expression_iterator);
         subexpression_result = evaluate(expression_iterator, plugin_capabilities, Delimiter::PARRENTHESIS);
-        OPENVINO_ASSERT(*expression_iterator == CLOSE);
+        CRE_EVAL_ASSERT(*expression_iterator == CLOSE);
         advance_iterator(expression_iterator);
         return subexpression_result;
-    case CLOSE:
-        OPENVINO_THROW_HELPER(InvalidCRE,
-                              ov::Exception::default_msg,
-                              "Found a closed parrenthesis without any matching open token");
     case AND:
         logical_function = and_function;
         base = true;
@@ -125,9 +135,7 @@ bool CRE::evaluate(std::vector<Token>::const_iterator& expression_iterator,
                              evaluate(expression_iterator, plugin_capabilities, Delimiter::NOT_CAPABILITY_ID));
     }
 
-    if (no_operands) {
-        OPENVINO_THROW_HELPER(InvalidCRE, ov::Exception::default_msg, "At least one operator doesn't have any operand");
-    }
+    CRE_EVAL_ASSERT(!no_operands, "At least one operator doesn't have any operand");
 
     return subexpression_result;
 }
@@ -136,13 +144,10 @@ bool CRE::check_compatibility(const std::unordered_map<CRE::Token, std::shared_p
     if (m_expression.empty()) {
         return true;
     }
-    if (m_expression.size() == 1) {
-        return plugin_capabilities.count(m_expression.at(0));
-    }
 
     std::vector<Token>::const_iterator expression_iterator = m_expression.begin();
     const bool result = evaluate(expression_iterator, plugin_capabilities, Delimiter::SIZE);
-    OPENVINO_ASSERT(expression_iterator == m_expression.end());
+    CRE_EVAL_ASSERT(expression_iterator == m_expression.end());
     return result;
 }
 
