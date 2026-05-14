@@ -147,7 +147,7 @@ void GatherElements::directExecution() {
                     dstShift0 += strideAx1Diff_;
                 }
             }
-            const int idx = helpers::HandleNegativeIndices(indices, static_cast<int>(o), dataAxDim_);
+            const int idx = helpers::HandleNegativeIndices(indices, static_cast<int>(o), static_cast<int>(dataAxDim_));
             dstData[o] = srcData[o + dstShift0 + (idx - dstAxIdx) * strideAxDst_];
         }
     };
