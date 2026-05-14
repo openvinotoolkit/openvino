@@ -2,17 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "convert_grouped_matmul_to_gather_matmul.hpp"
+#include "transformations/op_conversions/convert_grouped_matmul_to_gather_matmul.hpp"
 
 #include <memory>
 
-#include "openvino/cc/pass/itt.hpp"
+#include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -30,7 +29,7 @@
 #include "ov_ops/gather_matmul.hpp"
 #include "transformations/utils/utils.hpp"
 
-namespace ov::intel_cpu {
+namespace ov::pass {
 
 namespace {
 
@@ -189,8 +188,8 @@ ConvertGroupedMatMulToGatherMatmul::ConvertGroupedMatMulToGatherMatmul() {
             replacement = out;
         } else {
             // Case 3 (2D x 2D weight gradient) and any unexpected shape combinations
-            // are not handled by GatherMatmul on CPU — leave the graph untouched so
-            // the default decomposition / reference path can take over.
+            // are not handled by GatherMatmul — leave the graph untouched so the
+            // default decomposition / reference path can take over.
             return false;
         }
 
@@ -204,4 +203,4 @@ ConvertGroupedMatMulToGatherMatmul::ConvertGroupedMatMulToGatherMatmul() {
     register_matcher(matcher, callback);
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace ov::pass

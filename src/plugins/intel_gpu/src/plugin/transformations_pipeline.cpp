@@ -126,6 +126,7 @@
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 #include "transformations/common_optimizations/mvn_fusion.hpp"
 #include "transformations/common_optimizations/convert_tiled_moe_block_to_gather_matmuls.hpp"
+#include "transformations/op_conversions/convert_grouped_matmul_to_gather_matmul.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/rms_fusion.hpp"
 #include "transformations/common_optimizations/sdpa_scale_fusion.hpp"
@@ -549,6 +550,14 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // MOE: TiledMoeBlock -> GatherMatmuls(compressed) -> MoeOp(compressed) -> MoeOpWithRouting(compressed).
         // Gated on supports_immad: GatherMatmul backend is systolic-only.
         if (device_info.supports_immad) {
+            // Lower public GroupedMatMul-17 (e.g. from torch._grouped_mm) into the internal
+            // GatherMatmul op consumed by the GPU `gather_matmul` primitive. Must run before
+            // ConvertGatherMatmulToGatherMatmulCompressed below.
+            manager.register_pass<ov::pass::ConvertGroupedMatMulToGatherMatmul>();
+            // Fold Transpose(B_const) → plain Constant so the GPU program builder sees
+            // the weight in bfyx format (required by gather_matmul validate_impl).
+            manager.register_pass<ov::pass::ConstantFolding>();
+
             manager.register_pass<ov::pass::ConvertTiledMoeBlockToGatherMatmuls>();
 
             // f32 listed because this pass runs before ConvertPrecision (line ~588);

@@ -5,12 +5,13 @@
 #pragma once
 
 #include "openvino/pass/matcher_pass.hpp"
+#include "transformations_visibility.hpp"
 
-namespace ov::intel_cpu {
+namespace ov::pass {
 
 /// @brief Converts the public op v17::GroupedMatMul into the internal op
-/// ov::op::internal::GatherMatmul, which is the form consumed by the
-/// `GatherMatmul` node.
+/// ov::op::internal::GatherMatmul, which is the form consumed by the CPU/GPU
+/// `GatherMatmul` nodes.
 ///
 /// Supported cases (matching the GroupedMatMul-17 spec):
 ///  * Case (3D x 3D, no offsets):
@@ -31,11 +32,15 @@ namespace ov::intel_cpu {
 ///        gm      = GatherMatmul(A', B', indices)                    // [1, T, N]
 ///        out     = Squeeze(gm, 0)                                   // [T, N]
 ///
-///  * Case (2D x 2D weight gradient): NOT supported — left untouched.
-class ConvertGroupedMatMulToGatherMatmul : public ov::pass::MatcherPass {
+///  * Case 3 (2D x 2D weight gradient): NOT supported — left untouched.
+///
+/// The pass requires the weights tensor (input B) to be a Constant (or reachable
+/// through a constant-foldable chain). Otherwise the public op is left in place
+/// so the reference GroupedMatMul::evaluate is used.
+class TRANSFORMATIONS_API ConvertGroupedMatMulToGatherMatmul : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ConvertGroupedMatMulToGatherMatmul");
     ConvertGroupedMatMulToGatherMatmul();
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace ov::pass

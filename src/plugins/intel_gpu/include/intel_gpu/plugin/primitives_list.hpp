@@ -323,4 +323,5 @@ REGISTER_FACTORY(internal, MOE3GemmFusedCompressed);
 REGISTER_FACTORY(internal, MOECompressed);
 REGISTER_FACTORY(internal, GatedDeltaNet);
 REGISTER_FACTORY(internal, PagedCausalConv1D);
+REGISTER_FACTORY(internal, GatherMatmul);
 REGISTER_FACTORY(internal, GatherMatmulCompressed);
