@@ -215,25 +215,25 @@ Previous 2026 releases
 
   * More Gen AI coverage and frameworks integrations to minimize code changes
 
-	  * New models supported on CPUs & GPUs: Qwen3 VL
-	  * New models supported on CPUs: GPT-OSS 120B
-	  * Preview: Introducing the OpenVINO backend for llama.cpp, which enables optimized inference on Intel CPUs, GPUs, and NPUs. Validated on GGUF models such as Llama-3.2-1B-Instruct-GGUF, Phi-3-mini-4k-instruct-gguf, Qwen2.5-1.5B-Instruct-GGUF, and Mistral-7B-Instruct-v0.3.
-	  * New notebook: Unified VLM chatbot with video file support and interactive model switching across Qwen3-VL, Qwen2.5-VL, and LLaVa-NeXT-Video.
+    * New models supported on CPUs & GPUs: Qwen3 VL
+    * New models supported on CPUs: GPT-OSS 120B
+    * Preview: Introducing the OpenVINO backend for llama.cpp, which enables optimized inference on Intel CPUs, GPUs, and NPUs. Validated on GGUF models such as Llama-3.2-1B-Instruct-GGUF, Phi-3-mini-4k-instruct-gguf, Qwen2.5-1.5B-Instruct-GGUF, and Mistral-7B-Instruct-v0.3.
+    * New notebook: Unified VLM chatbot with video file support and interactive model switching across Qwen3-VL, Qwen2.5-VL, and LLaVa-NeXT-Video.
 
   * Broader LLM model support and more model compression techniques
 
-	  * OpenVINO™ GenAI adds TaylorSeer Lite caching for image and video generation, accelerating diffusion-transformer inference across Flux, SD3, and LTX-Video pipelines, aligned with Hugging Face Diffusers.
-	  * LTX-Video generation on GPU achieves end-to-end acceleration through fusion of RMSNorm and RoPE operators, significantly improving video generation performance.
-	  * OpenVINO™ GenAI adds dynamic LoRA support for Qwen3-VL and VL models with LLM, allowing developers to swap adapters at runtime for efficient serving of multiple model variants in production without reloading the base model.
-	  * Preview: The release-weights API for ov::Model enables memory reclamation during model compilation on NPUs, delivering dramatically lower peak memory consumption for edge and client deployments. Users must set this property in ov::Model, and it will be applied during compilation.
+    * OpenVINO™ GenAI adds TaylorSeer Lite caching for image and video generation, accelerating diffusion-transformer inference across Flux, SD3, and LTX-Video pipelines, aligned with Hugging Face Diffusers.
+    * LTX-Video generation on GPU achieves end-to-end acceleration through fusion of RMSNorm and RoPE operators, significantly improving video generation performance.
+    * OpenVINO™ GenAI adds dynamic LoRA support for Qwen3-VL and VL models with LLM, allowing developers to swap adapters at runtime for efficient serving of multiple model variants in production without reloading the base model.
+    * Preview: The release-weights API for ov::Model enables memory reclamation during model compilation on NPUs, delivering dramatically lower peak memory consumption for edge and client deployments. Users must set this property in ov::Model, and it will be applied during compilation.
 
   * More portability and performance to run AI at the edge, in the cloud or locally
 
-	  * Introducing support for Intel® Core™ Series 3 processors (formerly codenamed Wildcat Lake) and Intel® Arc™ Pro B70 Graphics with 32GB memory for single-GPU inference on 20-30B parameter LLMs.
-	  * Prompt Lookup Decoding extended to vision-language pipelines, delivering significantly faster token generation for multimodal workloads on Intel CPUs and GPUs.
-	  * OpenVINO™ GenAI now has a smaller runtime footprint after eliminating ICU DLL dependencies from tokenization, leading to reduced memory usage, faster startup, and easier deployment.
-	  * OpenVINO GenAI introduces WhisperPipeline for Node.js via its NPM package, delivering production-ready speech recognition with word-level audio-to-text transcription.
-	  * OpenVINO™ Model Server enhances support for Qwen3-MOE and GPT-OSS-20b models, delivering improved performance, accuracy, and robust concurrent request handling with continuous batching. These pre-optimized models are available on Hugging Face for easy deployment. Additionally, the Model Server introduces image inpainting and outpainting capabilities via the /image endpoint for AI image editing.
+    * Introducing support for Intel® Core™ Series 3 processors (formerly codenamed Wildcat Lake) and Intel® Arc™ Pro B70 Graphics with 32GB memory for single-GPU inference on 20-30B parameter LLMs.
+    * Prompt Lookup Decoding extended to vision-language pipelines, delivering significantly faster token generation for multimodal workloads on Intel CPUs and GPUs.
+    * OpenVINO™ GenAI now has a smaller runtime footprint after eliminating ICU DLL dependencies from tokenization, leading to reduced memory usage, faster startup, and easier deployment.
+    * OpenVINO GenAI introduces WhisperPipeline for Node.js via its NPM package, delivering production-ready speech recognition with word-level audio-to-text transcription.
+    * OpenVINO™ Model Server enhances support for Qwen3-MOE and GPT-OSS-20b models, delivering improved performance, accuracy, and robust concurrent request handling with continuous batching. These pre-optimized models are available on Hugging Face for easy deployment. Additionally, the Model Server introduces image inpainting and outpainting capabilities via the /image endpoint for AI image editing.
 
   **OpenVINO™ Runtime**
 
@@ -241,8 +241,8 @@ Previous 2026 releases
 
   * Introduced new properties:
 
-	  * ``CACHE_PATH`` is fully compatible to ``CACHE_DIR`` but natively supports ``std::filesystem::path``.
-	  * ``CACHE_BLOB_ID`` (preview) - Allows users to specify a custom ID for the compiled model in cache. This can accelerate model import times, but users must ensure ID uniqueness to prevent collisions.
+    * ``CACHE_PATH`` is fully compatible to ``CACHE_DIR`` but natively supports ``std::filesystem::path``.
+    * ``CACHE_BLOB_ID`` (preview) - Allows users to specify a custom ID for the compiled model in cache. This can accelerate model import times, but users must ensure ID uniqueness to prevent collisions.
   * Improve error messages in ``IStreamsExecutor::Config::set_property``
   * Improve ``ov::util::ConstantWriter`` class functionality to reduce chance of introducing bug in hash calculations
   * Fix static resource cleanup by allowing custom cleanup functions to be registered for OpenVINO™ components during library unloading.
@@ -269,8 +269,8 @@ Previous 2026 releases
 
   * Batching changes in NPU plugin:
 
-	  * Eliminated the unconditional model clone in the Plugin batching path to reduce memory usage. The model is no longer cloned until after the initial Plugin batch-related checks have been performed.
-	  * Input and output layouts must be specified for Plugin batching to be applied. If layouts are not provided, the model will be compiled as-is, without any preliminary batch processing in the NPU Plugin.
+    * Eliminated the unconditional model clone in the Plugin batching path to reduce memory usage. The model is no longer cloned until after the initial Plugin batch-related checks have been performed.
+    * Input and output layouts must be specified for Plugin batching to be applied. If layouts are not provided, the model will be compiled as-is, without any preliminary batch processing in the NPU Plugin.
   * Support for IO strides has been added. During model compilation, users can specify which input/output ports should accept tensors with strides using the new property: ``ov::intel_npu::enable_strides_for``. All desired IO ports must be selected at compilation time. Support for all IO ports is not enabled by default since it can reduce model performance. This feature is supported only with the NPU driver, starting from 32.0.100.4621 (Windows driver) or 1.30 (Linux driver). NPU Plugin will report the property as supported only when dependencies are met. Applications should first check if this property is supported.
   * Fixed accuracy issues with INT8-ASYM Vocabulary on Gemma-2, also improved performance for this path.
   * Introduced Flash Attention support on for Intel® Core™ Ultra Series 3, allows faster LLM compilation for NPU with longer contexts.
@@ -285,10 +285,10 @@ Previous 2026 releases
 
   * The ``openvino-genai-node`` NPM package has been updated to include the following improvements:
 
-	  * Implemented WhisperPipeline: audio-to-text pipeline with word-level transcription, allowing users to generate precise and detailed speech recognition results.
-	  * New method getGenerationConfig is now available for LLMPipeline, VLMPipeline, and WhisperPipeline, allowing users to quickly retrieve default configuration values and streamline their setup process.
-	  * ChatHistory is now supported in VLMPipeline, enabling users to manage conversation context more effectively during generation.
-	  * Async error handling in LLMPipeline has been refactored, preserving existing behavior while improving internal error processing during asynchronous calls, resulting in a more stable and reliable user experience.
+    * Implemented WhisperPipeline: audio-to-text pipeline with word-level transcription, allowing users to generate precise and detailed speech recognition results.
+    * New method getGenerationConfig is now available for LLMPipeline, VLMPipeline, and WhisperPipeline, allowing users to quickly retrieve default configuration values and streamline their setup process.
+    * ChatHistory is now supported in VLMPipeline, enabling users to manage conversation context more effectively during generation.
+    * Async error handling in LLMPipeline has been refactored, preserving existing behavior while improving internal error processing during asynchronous calls, resulting in a more stable and reliable user experience.
 
   *PyTorch Framework Support*
 
@@ -316,12 +316,12 @@ Previous 2026 releases
   * Extended ``/image`` endpoint to support inpainting and outpainting capabilities. It is now possible to pass the input image along with a mask to edit parts of the image or to extend the input image.
   * Other improvements and fixes: 
 
-	  * Server logs now report current KV cache allocation alongside current usage metrics. With dynamic cache size (default setting), allocation automatically scales during runtime based on the request's concurrency and processed context length.
-	  * Generation request cancellation is now supported for NPU devices, where requests from disconnected clients will be cancelled.
-	  * The finish reason now returns ``tool_calls`` when the model generates a function call, in line with OpenAI API standards.
-	  * Corrected tokens usage reporting in the text generation last streaming event with NPU execution.
-	  * Added extra streaming event right after the first token is generated, in line with OpenAI API. This will correct TTFT metric benchmarking using tools relying on streaming events.
-	  * Enhanced error handling for Hugging Face Hub model pulling/downloads includes retry and resume capabilities to address network connectivity issues with large model files. Download operations can now recover from previous errors or be reported in logs when recovery is not possible.
+    * Server logs now report current KV cache allocation alongside current usage metrics. With dynamic cache size (default setting), allocation automatically scales during runtime based on the request's concurrency and processed context length.
+    * Generation request cancellation is now supported for NPU devices, where requests from disconnected clients will be cancelled.
+    * The finish reason now returns ``tool_calls`` when the model generates a function call, in line with OpenAI API standards.
+    * Corrected tokens usage reporting in the text generation last streaming event with NPU execution.
+    * Added extra streaming event right after the first token is generated, in line with OpenAI API. This will correct TTFT metric benchmarking using tools relying on streaming events.
+    * Enhanced error handling for Hugging Face Hub model pulling/downloads includes retry and resume capabilities to address network connectivity issues with large model files. Download operations can now recover from previous errors or be reported in logs when recovery is not possible.
 
 
   **Neural Network Compression Framework**
