@@ -5807,6 +5807,185 @@ TEST_F(SDPAToPATest, SDPAToPA_Gemma3_TokenTypeIds) {
     }
 }
 
+TEST(SDPAToPASharedKVCacheTest, Gemma3n_SharedKVCache_TwoLayersSameReadValue) {
+    // Replicates real Gemma 3n architecture:
+    // - inputs_embeds [?,?,2048], 2 KV heads, 8 Q heads, head_dim=256, GQA ratio=4
+    // - RMSNorm → K/V/Q projections → KV cache → GQA broadcast → SDPA
+    // - Layers 18 and 20 share the same K/V cache (same ReadValue variable_id)
+
+    const int hidden_size = 2048;
+    const int kv_heads = 2;
+    const int q_heads = 8;
+    const int head_dim = 256;
+    const int kv_proj_size = kv_heads * head_dim;  // 512
+    const int q_proj_size = q_heads * head_dim;    // 2048
+    const int gqa_ratio = q_heads / kv_heads;      // 4
+
+    // Linear projection (MatMul → Reshape → Transpose)
+    // Returns transposed output with shape [batch, heads, seq, head_dim]
+    auto make_projection = [&](std::shared_ptr<ov::Node> input, int out_size, int heads) {
+        auto weight = makeConst(element::f32, ov::Shape({(size_t)out_size, (size_t)hidden_size}), MOCK_VALUE);
+        auto matmul = makeOP<v0::MatMul>({input, weight}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto reshape = makeOP<v1::Reshape>({matmul, {0, 0, heads, head_dim}}, {{"special_zero", true}});
+        return makeOP<v1::Transpose>({reshape, {0, 2, 1, 3}});
+    };
+
+    // KV cache path (Variable → ReadValue → Gather(beam_idx) → Concat(past, cur))
+    // Returns {concat, past, assign, variable}
+    struct KVCacheResult {
+        std::shared_ptr<ov::Node> concat;
+        std::shared_ptr<ov::Node> past;
+        std::shared_ptr<v6::Assign> assign;
+    };
+    auto make_kv_cache = [&](std::shared_ptr<ov::Node> cur,
+                             const std::string& var_id,
+                             std::shared_ptr<ov::Node> batch_gather,
+                             std::shared_ptr<ov::Node> beam) -> KVCacheResult {
+        auto var = std::make_shared<ov::op::util::Variable>(
+            ov::op::util::VariableInfo{ov::PartialShape{DYN, kv_heads, DYN, head_dim}, ov::element::f32, var_id});
+        auto init_shape =
+            makeOP<v0::Concat>({batch_gather, {(int64_t)kv_heads}, {0l}, {(int64_t)head_dim}}, {{"axis", 0}});
+        auto init = makeOP<v3::Broadcast>({0.0f, init_shape}, {{"mode", "numpy"}});
+        std::shared_ptr<ov::Node> read = std::make_shared<v6::ReadValue>(init, var);
+        auto past = makeOP<v8::Gather>({read, beam, 0}, {{"batch_dims", 0}});
+        auto concat = makeOP<v0::Concat>({past, cur}, {{"axis", -2}});
+        auto assign = std::make_shared<v6::Assign>(concat, var);
+        return {concat, past, assign};
+    };
+
+    // GQA broadcast (Unsqueeze → Broadcast → Reshape to expand KV heads to Q heads)
+    auto make_gqa_broadcast = [&](std::shared_ptr<ov::Node> kv_concat, std::shared_ptr<ov::Node> bcast_shape) {
+        auto unsqueeze = makeOP<v0::Unsqueeze>({kv_concat, 2});
+        auto broadcast = makeOP<v3::Broadcast>({unsqueeze, bcast_shape}, {{"mode", "bidirectional"}});
+        return makeOP<v1::Reshape>({broadcast, {0, q_heads, -1, head_dim}}, {{"special_zero", true}});
+    };
+
+    // Stub mask subgraph: only ensures position_ids and attention_mask are connected to the graph.
+    // The transformation removes attention_mask and rewires position_ids, so it doesn't inspect mask internals.
+    auto make_attn_mask =
+        [&](std::shared_ptr<ov::Node> pos_ids, std::shared_ptr<ov::Node> attn_mask, std::shared_ptr<ov::Node> kv_past) {
+            auto shape_pos = makeOP<v3::ShapeOf>({pos_ids}, {{"output_type", "i64"}});
+            auto cur_len = makeOP<v8::Gather>({shape_pos, 1, 0}, {{"batch_dims", 0}});
+            auto cur_len_1d = makeOP<v1::Reshape>({cur_len, {1}}, {{"special_zero", false}});
+            auto cur_len_scalar = makeOP<v0::Squeeze>({cur_len_1d, 0});
+
+            auto shape_past = makeOP<v3::ShapeOf>({kv_past}, {{"output_type", "i64"}});
+            auto past_len = makeOP<v8::Gather>({shape_past, 2, 0}, {{"batch_dims", 0}});
+
+            auto total_len = makeOP<v1::Add>({cur_len_scalar, past_len}, {{"auto_broadcast", "numpy"}});
+            auto total_len_unsq = makeOP<v0::Unsqueeze>({total_len, 0});
+            auto batch_dim = makeOP<v8::Gather>({shape_pos, {0}, 0}, {{"batch_dims", 0}});
+            auto bcast_shape = makeOP<v0::Concat>({batch_dim, {1l}, cur_len_1d, total_len_unsq}, {{"axis", 0}});
+
+            auto mask_f32 = makeOP<v0::Convert>({attn_mask}, {{"destination_type", "f32"}});
+            auto mask_bcast = makeOP<v3::Broadcast>({mask_f32, bcast_shape}, {{"mode", "bidirectional"}});
+            auto past_len_1d = makeOP<v1::Reshape>({past_len, {1}}, {{"special_zero", false}});
+            auto slice_end = makeOP<v1::Add>({past_len_1d, cur_len_1d}, {{"auto_broadcast", "numpy"}});
+            return makeOP<v8::Slice>({mask_bcast, {0}, slice_end, {1}, {3}});
+        };
+
+    // RMSNorm: x / sqrt(mean(x^2) + eps) * weight
+    auto make_rms_norm = [&](std::shared_ptr<ov::Node> input, int size) {
+        auto power = makeOP<v1::Power>({input, single_val(3, 2.0f)}, {{"auto_broadcast", "numpy"}});
+        auto mean = makeOP<v1::ReduceMean>({power, {-1}}, {{"keep_dims", true}});
+        auto add_eps = makeOP<v1::Add>({mean, single_val(3, 1e-6f)}, {{"auto_broadcast", "numpy"}});
+        auto sqrt = makeOP<v0::Sqrt>({add_eps});
+        auto div = makeOP<v1::Divide>({input, sqrt}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
+        auto weight = makeConst(element::f32, ov::Shape({1, 1, (size_t)size}), MOCK_VALUE);
+        return makeOP<v1::Multiply>({div, weight}, {{"auto_broadcast", "numpy"}});
+    };
+
+    auto beam_idx = make_param(PartialShape{DYN}, element::i32, "beam_idx");
+    auto position_ids = make_param(PartialShape{DYN, DYN}, element::i64, "position_ids");
+    auto attention_mask = make_param(PartialShape{DYN, DYN}, element::i64, "attention_mask");
+    auto inputs_embeds = make_param(PartialShape{DYN, DYN, hidden_size}, element::f32, "inputs_embeds");
+    auto params = nodes_to_params({beam_idx, position_ids, attention_mask, inputs_embeds});
+
+    auto ShapeOf0 = makeOP<v3::ShapeOf>({inputs_embeds}, {{"output_type", "i64"}});
+    auto Gather0 = makeOP<v8::Gather>({ShapeOf0, {0}, 0}, {{"batch_dims", 0}});
+
+    auto ln_out = make_rms_norm(inputs_embeds, hidden_size);
+
+    // K/V projections and cache
+    auto K_cur = make_projection(ln_out, kv_proj_size, kv_heads);
+    auto V_cur = make_projection(ln_out, kv_proj_size, kv_heads);
+
+    auto [k_concat, k_past, k_assign] = make_kv_cache(K_cur, "past_key_values.18.keypresent.18.key", Gather0, beam_idx);
+    auto [v_concat, v_past, v_assign] =
+        make_kv_cache(V_cur, "past_key_values.18.valuepresent.18.value", Gather0, beam_idx);
+
+    // GQA broadcast shape (shared between K and V)
+    auto k_shape = makeOP<v3::ShapeOf>({k_concat}, {{"output_type", "i64"}});
+    auto k_gather_dims = makeOP<v8::Gather>({k_shape, {0, 1}, 0}, {{"batch_dims", 0}});
+    auto k_gather_dims2 = makeOP<v8::Gather>({k_shape, {2, 3}, 0}, {{"batch_dims", 0}});
+    auto bcast_shape_kv = makeOP<v0::Concat>({k_gather_dims, {(int64_t)gqa_ratio}, k_gather_dims2}, {{"axis", 0}});
+
+    auto K_shared = make_gqa_broadcast(k_concat, bcast_shape_kv);
+    auto V_shared = make_gqa_broadcast(v_concat, bcast_shape_kv);
+
+    auto Slice_mask = make_attn_mask(position_ids, attention_mask, k_past);
+
+    // Two SDPA layers sharing the same K/V, each with own Q projection
+    auto Q_18 = make_projection(ln_out, q_proj_size, q_heads);
+    auto sdpa_18 =
+        makeOP<v13::ScaledDotProductAttention>({Q_18, K_shared, V_shared, Slice_mask, 1.0f}, {{"causal", false}});
+
+    auto Q_20 = make_projection(ln_out, q_proj_size, q_heads);
+    auto sdpa_20 =
+        makeOP<v13::ScaledDotProductAttention>({Q_20, K_shared, V_shared, Slice_mask, 1.0f}, {{"causal", false}});
+
+    auto add_outputs = makeOP<v1::Add>({sdpa_18, sdpa_20}, {numpy_broadcast});
+    auto res = make_shared<v0::Result>(add_outputs);
+
+    auto model = std::make_shared<ov::Model>(OutputVector{res}, SinkVector{k_assign, v_assign}, params);
+
+    ov::pass::Manager pass_manager;
+    pass_manager.register_pass<ov::pass::SDPAToPagedAttention>();
+    pass_manager.run_passes(model);
+
+    std::vector<std::shared_ptr<ov::op::PagedAttentionExtension>> pa_nodes;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(op)) {
+            pa_nodes.push_back(pa);
+        }
+    }
+
+    ASSERT_EQ(pa_nodes.size(), 2u) << "Expected 2 PagedAttention nodes (owner + shared)";
+
+    // Identify owner and shared by write_kv_cache attribute
+    std::shared_ptr<ov::op::PagedAttentionExtension> owner_pa, shared_pa;
+    for (const auto& pa : pa_nodes) {
+        if (pa->get_write_kv_cache()) {
+            ASSERT_EQ(owner_pa, nullptr) << "Expected exactly one owner PA (write_kv_cache=true)";
+            owner_pa = pa;
+        } else {
+            ASSERT_EQ(shared_pa, nullptr) << "Expected exactly one shared PA (write_kv_cache=false)";
+            shared_pa = pa;
+        }
+    }
+    ASSERT_NE(owner_pa, nullptr) << "No owner PA found (write_kv_cache=true)";
+    ASSERT_NE(shared_pa, nullptr) << "No shared PA found (write_kv_cache=false)";
+
+    // Both PAs must reference the SAME key_cache and value_cache Parameters
+    auto owner_k = owner_pa->input(3).get_source_output().get_node_shared_ptr();
+    auto owner_v = owner_pa->input(4).get_source_output().get_node_shared_ptr();
+    auto shared_k = shared_pa->input(3).get_source_output().get_node_shared_ptr();
+    auto shared_v = shared_pa->input(4).get_source_output().get_node_shared_ptr();
+    EXPECT_EQ(owner_k, shared_k) << "Owner and shared PA should share the same key_cache Parameter";
+    EXPECT_EQ(owner_v, shared_v) << "Owner and shared PA should share the same value_cache Parameter";
+
+    // Only 1 unique key_cache and 1 unique value_cache Parameter should exist
+    size_t key_cache_count = 0, value_cache_count = 0;
+    for (const auto& param : model->get_parameters()) {
+        if (param->get_friendly_name().find("key_cache") != std::string::npos)
+            key_cache_count++;
+        if (param->get_friendly_name().find("value_cache") != std::string::npos)
+            value_cache_count++;
+    }
+    EXPECT_EQ(key_cache_count, 1u) << "Expected 1 key_cache parameter (shared)";
+    EXPECT_EQ(value_cache_count, 1u) << "Expected 1 value_cache parameter (shared)";
+}
+
 /*
 As there's often a need to cover specific model's architecutres in these
 tests, please, make sure you name the tests in the following manner:
