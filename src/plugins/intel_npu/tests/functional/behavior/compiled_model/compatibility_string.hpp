@@ -94,7 +94,11 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsIsSupported) {
     // Forcing CIP as the current compiler type
     auto model = ov::test::utils::make_conv_pool_relu();
     ov::CompiledModel compiledModel;
-    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, deviceName, ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)));
+    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(
+        model, deviceName,
+        {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN),
+         ov::intel_npu::platform(ov::intel_npu::Platform::standardize(
+             ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU)))}));
 
     std::vector<ov::PropertyName> properties;
     // Test that RUNTIME_REQUIREMENTS is supported for a model compiled with CIP
@@ -134,8 +138,12 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsIsNotSupportedForWS
     auto model = core.read_model(model_xml.str(), model_weights);
 
     ov::CompiledModel compiledModel;
-    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, deviceName, {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN),
-                                                          ov::enable_weightless(true) }));
+    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(
+        model, deviceName,
+        {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN),
+         ov::intel_npu::platform(ov::intel_npu::Platform::standardize(
+             ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU))),
+         ov::enable_weightless(true)}));
 
     std::vector<ov::PropertyName> properties;
     // Test that RUNTIME_REQUIREMENTS is not supported for a weightless model
@@ -151,7 +159,11 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsExportImport) {
     // Forcing CIP as the current compiler type
     auto model = ov::test::utils::make_conv_pool_relu();
     ov::CompiledModel compiledModel;
-    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, deviceName, ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)));
+    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(
+        model, deviceName,
+        {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN),
+         ov::intel_npu::platform(ov::intel_npu::Platform::standardize(
+             ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU)))}));
     std::string reference_requirements;
     OV_ASSERT_NO_THROW(reference_requirements = compiledModel.get_property(ov::runtime_requirements));
 
@@ -178,7 +190,11 @@ TEST_P(ClassCompatibilityStringTestSuite, CompatibilityStringGenerateAndCheck) {
     // Forcing CIP as the current compiler type
     auto model = ov::test::utils::make_conv_pool_relu();
     ov::CompiledModel compiledModel;
-    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, deviceName, ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)));
+    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(
+        model, deviceName,
+        {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN),
+         ov::intel_npu::platform(ov::intel_npu::Platform::standardize(
+             ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU)))}));
 
     std::string requirements;
     OV_ASSERT_NO_THROW(requirements = compiledModel.get_property(ov::runtime_requirements));
