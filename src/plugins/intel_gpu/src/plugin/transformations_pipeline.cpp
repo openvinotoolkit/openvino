@@ -1611,6 +1611,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 if (ov::intel_gpu::DynamicQuantizeFullyConnected::ShouldUseGs128(is_wei_i8u8, use_gs128_for_int8_per_token, adj_group_size)) {
                     adj_group_size = 128;
                 }
+                if (ov::intel_gpu::DynamicQuantizeFullyConnected::ShouldUseGs128ForLinearAttnOutProj(root->get_friendly_name(), adj_group_size)) {
+                    GPU_DEBUG_LOG << "Dynamic quantization: WA force group_size=128 for linear_attn.out_proj " << root->get_friendly_name() << std::endl;
+                    adj_group_size = 128;
+                }
 
                 const auto& input_shape = root->get_input_partial_shape(0);
                 const size_t input_rank = input_shape.size();
