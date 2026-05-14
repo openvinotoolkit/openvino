@@ -233,7 +233,10 @@ ov::npuw::DecomposeDynamicQuantize3::DecomposeDynamicQuantize3() {
             return false;
         }
 
-        const auto storage_types = ov::npuw::util::resolve_dynamic_quant_storage_types(3, false, attrs.quantization_dt);
+        const auto storage_types = ov::npuw::util::resolve_dynamic_quant_storage_types(
+            ov::npuw::util::DynamicQuantDecomposeMode::CompilerPatternI8,
+            false,
+            attrs.quantization_dt);
 
         LOG_DEBUG("Found DynamicQuantize : " << dq_ptr->get_friendly_name() << " decomposing");
         LOG_BLOCK();
