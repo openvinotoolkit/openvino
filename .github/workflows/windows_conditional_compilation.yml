@@ -57,9 +57,11 @@ jobs:
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
-          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*,.github/workflows/ci-doctor.lock.yml'
 
-  Build:
+  # check SELECTIVE_BUILD_STAT in CC 'COLLECT' AND 'ON' modes
+
+  Build_And_Run_Collect_Mode:
     needs: Smart_CI
     timeout-minutes: 300 # 5 hours without cache
     defaults:
@@ -120,23 +122,10 @@ jobs:
           should-setup-pip-paths: 'false'
           self-hosted-runner: 'false'
 
-      - name: Install python dependencies
+      - name: Install certifi
         run: |
-          # For running ONNX frontend unit tests
-          python3 -m pip install --force-reinstall -r ${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests/requirements.txt
-
-          # For running TensorFlow frontend unit tests
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/tensorflow/tests/requirements.txt
-
-          # For running TensorFlow Lite frontend unit tests
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/tensorflow_lite/tests/requirements.txt
-
           # For getting rid of SSL issues during model downloading for unit tests
           python3 -m pip install certifi
-
-          # Disabled because of CVS-95904
-          # For running Paddle frontend unit tests
-          # python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/paddle/tests/requirements.txt
 
       #
       # Build
@@ -167,7 +156,7 @@ jobs:
           cmake -G "${{ env.CMAKE_GENERATOR }}" `
             -DBUILD_SHARED_LIBS=OFF `
             -DCMAKE_CXX_STANDARD=20 `
-            -DENABLE_TESTS=ON `
+            -DENABLE_TESTS=OFF `
             -DENABLE_NCC_STYLE=OFF `
             -DENABLE_PROFILING_ITT=FULL `
             -DSELECTIVE_BUILD=COLLECT `
@@ -175,6 +164,7 @@ jobs:
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
             -DCMAKE_JOB_POOLS:STRING=link_jobs=20 `
             -DCMAKE_JOB_POOL_LINK:STRING=link_jobs `
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON `
             -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja_multi_config" `
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
@@ -184,8 +174,8 @@ jobs:
 
       - name: Cmake build - CC COLLECT
         run: |
-          cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} && `
-          cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib
+          cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet && `
+          cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib -- --quiet
 
       - name: Show ccache stats
         run: '& ccache --show-stats'
@@ -198,13 +188,7 @@ jobs:
       - name: Build C++ samples - OpenVINO build tree
         run: |
           cmake -G "${{ env.CMAKE_GENERATOR }}" -DOpenVINO_DIR=${{ env.BUILD_DIR }} -S ${{ env.INSTALL_DIR }}/samples/cpp -B ${{ env.BUILD_DIR }}/cpp_samples
-          cmake --build ${{ env.BUILD_DIR }}/cpp_samples --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device
-
-      - name: Ctest - OpenVINO unit tests
-        shell: cmd
-        run: |
-          set path=%path%;${{ env.OPENVINO_REPO }}\temp\Windows_AMD64\tbb\bin;${{ env.BUILD_DIR }}\bin\${{ env.CMAKE_BUILD_TYPE }}
-          ctest -C ${{ env.CMAKE_BUILD_TYPE }} --test-dir ${{ env.BUILD_DIR }} -V -L UNIT
+          cmake --build ${{ env.BUILD_DIR }}/cpp_samples --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device -- --quiet
 
       - name: Perform code tracing via ITT collector
         shell: cmd
@@ -254,19 +238,12 @@ jobs:
           }
           Compress-Archive @compress
 
-          $compress = @{
-            Path = "${{ env.OPENVINO_REPO }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_cpu_func_tests.exe", "${{ env.OPENVINO_REPO }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/openvino_template_extension.dll", "${{ env.OPENVINO_REPO }}/src/tests/test_utils/functional_test_utils/layer_tests_summary", "${{ env.INSTALL_DIR }}/runtime/3rdparty/tbb"
-            CompressionLevel = "Optimal"
-            DestinationPath = "${{ env.BUILD_DIR }}/openvino_tests.zip"
-          }
-          Compress-Archive @compress
-
       - name: Build C samples - OpenVINO install tree
         run: |
           # install PDB files to OpenVINO main installation folder to ensure that they are used instead of PDB files from build folder
           cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }} --component pdb
           # then, we need to clean build tree to remove PDB files
-          cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target clean
+          cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target clean -- /verbosity:minimal
           & ${{ env.INSTALL_DIR }}/samples/c/build_samples.ps1 -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/c_samples
         env:
           CXXFLAGS: "/Zi"
@@ -302,18 +279,18 @@ jobs:
           path: ${{ env.BUILD_DIR }}/openvino_selective_build_stat.zip
           if-no-files-found: 'error'
 
-      - name: Upload OpenVINO tests package
-        if: ${{ always() }}
+      - name: Upload compile_commands
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
         with:
-          name: openvino_tests
-          path: ${{ env.BUILD_DIR }}/openvino_tests.zip
-          if-no-files-found: 'error'
+          name: compile_commands_windows_cc_collect
+          path: ${{ env.BUILD_DIR }}/compile_commands.json
+          if-no-files-found: 'ignore'
 
-  CC_Build:
+  Build_And_Run_On_Mode:
     name: Conditional Compilation
     timeout-minutes: 40
-    needs: [Build, Smart_CI]
+    needs: [Build_And_Run_Collect_Mode, Smart_CI]
     defaults:
       run:
         shell: pwsh
@@ -360,16 +337,10 @@ jobs:
           should-setup-pip-paths: 'false'
           self-hosted-runner: 'false'
 
-      - name: Install Python's certifi for newer ca-certificates bundle for wget
-        run: |
-          python3 c:/pip_diag.py install certifi
-
-      - name: Set SSL_CERT_FILE for model downloading for unit tests
-        run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
-
       - name: CMake configure - CC ON
         run: |
           cmake `
+            -DENABLE_TESTS=OFF `
             -DBUILD_SHARED_LIBS=OFF `
             -DSELECTIVE_BUILD=ON `
             -DENABLE_TEMPLATE=OFF `
@@ -385,8 +356,10 @@ jobs:
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
 
+        # Number of threads is hardcoded due to OutOfMemory issues. Unless we switch CMake's generator to Ninja, we can't
+        # set number of jobs separately for compilation and linking. The issue most likely occurs during linking.
       - name: Cmake build - CC ON
-        run: cmake --build ${{ env.BUILD_DIR }} --parallel 12 --config ${{ env.CMAKE_BUILD_TYPE }} --target benchmark_app --verbose
+        run: cmake --build ${{ env.BUILD_DIR }} --parallel 8 --config ${{ env.CMAKE_BUILD_TYPE }} --target benchmark_app -- /verbosity:minimal
 
       - name: List bin files
         shell: cmd
@@ -398,82 +371,9 @@ jobs:
           set path=%path%;${{ env.OPENVINO_REPO }}\temp\Windows_AMD64\tbb\bin;${{ env.BUILD_DIR }}\bin\${{ env.CMAKE_BUILD_TYPE }}
           ${{ env.OPENVINO_REPO }}\bin\intel64\${{ env.CMAKE_BUILD_TYPE }}\benchmark_app.exe -niter 1 -nireq 1 -m ${{ env.MODELS_PATH }}\models\test_model\test_model_fp32.xml -d CPU
 
-  CPU_Functional_Tests:
-    name: CPU functional tests
-    needs: [Build, Smart_CI]
-    timeout-minutes: 85
-    defaults:
-      run:
-        shell: pwsh
-    runs-on: aks-win-8-cores-16gb-test
-    env:
-      OPENVINO_REPO: "${{ github.workspace }}\\openvino"
-      INSTALL_TEST_DIR: "${{ github.workspace }}\\tests_install"
-      PARALLEL_TEST_SCRIPT: "${{ github.workspace }}\\tests_install\\layer_tests_summary\\run_parallel.py"
-      PARALLEL_TEST_CACHE: "${{ github.workspace }}\\tests_install\\test_cache.lst"
-    if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
-
-    steps:
-      - name: Download OpenVINO tests package
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
-        with:
-          name: openvino_tests
-          path: ${{ env.INSTALL_TEST_DIR }}
-
-      - name: Extract OpenVINO tests package
-        run: Expand-Archive ${{ env.INSTALL_TEST_DIR }}/openvino_tests.zip -DestinationPath "${{ env.INSTALL_TEST_DIR }}"
-
-      - name: Fetch setup_python action
-        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
-        timeout-minutes: 15
-        with:
-          sparse-checkout: |
-            .github/actions/setup_python/action.yml
-          sparse-checkout-cone-mode: false
-          path: 'openvino'
-
-      - name: Setup Python ${{ env.PYTHON_VERSION }}
-        uses: ./openvino/.github/actions/setup_python
-        with:
-          version: ${{ env.PYTHON_VERSION }}
-          should-setup-pip-paths: 'false'
-          self-hosted-runner: 'false'
-
-      - name: Install python dependencies for run_parallel.py
-        run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/layer_tests_summary/requirements.txt
-
-      - name: Restore tests execution time
-        uses: actions/cache/restore@8b402f58fbc84540c8b491a91e594a4576fec3d7 # v5.0.2
-        with:
-          path: ${{ env.PARALLEL_TEST_CACHE }}
-          key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-tests-functional-cpu-stamp
-
-      - name: Intel CPU plugin func tests (parallel)
-        shell: cmd
-        run: |
-          set path=%path%;${{ env.INSTALL_TEST_DIR }}\tbb\bin;${{ env.INSTALL_TEST_DIR }}\tbb;${{ env.INSTALL_TEST_DIR }}
-          python3 ${{ env.PARALLEL_TEST_SCRIPT }} -e ${{ env.INSTALL_TEST_DIR }}\ov_cpu_func_tests.exe -w ${{ env.INSTALL_TEST_DIR }} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke*
-        timeout-minutes: 60
-
-      - name: Upload Test Results
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: ${{ !cancelled() }}
-        with:
-          name: test-results-functional-cpu
-          path: |
-            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
-            ${{ env.INSTALL_TEST_DIR }}/logs/failed/*.log
-            ${{ env.INSTALL_TEST_DIR }}/logs/crashed/*.log
-            ${{ env.INSTALL_TEST_DIR }}/logs/hanged/*.log
-            ${{ env.INSTALL_TEST_DIR }}/logs/interapted/*.log
-            ${{ env.INSTALL_TEST_DIR }}/logs/disabled_tests.log
-          if-no-files-found: 'error'
-
   Overall_Status:
     name: ci/gha_overall_status_windows_cc
-    needs: [Smart_CI, Build, CC_Build, CPU_Functional_Tests]
+    needs: [Smart_CI, Build_And_Run_Collect_Mode, Build_And_Run_On_Mode]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

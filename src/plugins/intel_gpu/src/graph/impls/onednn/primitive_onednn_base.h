@@ -69,7 +69,8 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
         _pd(),
         _prim() {
             _enable_profiling = config.get_enable_profiling();
-            GPU_DEBUG_IF(!config.get_dump_profiling_data_path().empty()) {
+            GPU_DEBUG_IF(!config.get_dump_profiling_data_path().empty() ||
+                         !config.get_average_counters().empty()) {
                 _enable_profiling = true;
             }
         }

@@ -119,11 +119,11 @@ jobs:
       - name: Build docs
         run: |
           cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_DOCS=ON -S ${OPENVINO_REPO} -B ${BUILD_DIR}
-          cmake --build ${BUILD_DIR} --target sphinx_docs
+          cmake --build ${BUILD_DIR} --target sphinx_docs -- --quiet
 
       - name: Cache documentation
         id: cache_sphinx_docs
-        uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7 # v5.0.2
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ${{ env.BUILD_DIR }}/docs/_build/.doctrees
           key: sphinx-docs-cache

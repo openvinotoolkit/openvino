@@ -311,6 +311,15 @@ class CosModel(torch.nn.Module):
         return torch.cos(x.to(torch.float32))
 
 
+class ModelWithCosModule(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.cos_module = CosModel()
+
+    def forward(self, x):
+        return self.cos_module(x)
+
+
 def test_op_extension():
     from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino.frontend.pytorch import OpExtension
@@ -469,6 +478,365 @@ def test_multiple_module_extension():
     assert converted_model
     assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
         "Parameter", "Sin", "Tan", "Add", "Result"]
+
+
+@pytest.mark.parametrize("match_key_fn", [
+    pytest.param(lambda m: type(m.cos_module), id="by_class"),
+    pytest.param(lambda m: m.cos_module, id="by_instance"),
+    pytest.param(lambda m: "cos_module", id="by_name"),
+])
+def test_module_extension_dynamo_match(match_key_fn):
+    """ModuleExtension matches by class, instance, or name with dynamo=True."""
+    from openvino.frontend.pytorch import ModuleExtension, ConversionExtension
+    from openvino import convert_model
+
+    def sin_op(context):
+        return ops.sin(context.get_input(0)).outputs()
+
+    model = ModelWithCosModule()
+    converted_model = convert_model(
+        model, example_input=[torch.randn(100)], dynamo=True,
+        extension=[
+            ModuleExtension(match_key_fn(model), "MySinOp"),
+            ConversionExtension("MySinOp", sin_op)])
+    assert converted_model
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
+        "Parameter", "Sin", "Result"]
+    assert converted_model.get_results()[0].get_output_partial_shape(0) == \
+        PartialShape([100])
+
+
+def test_module_extension_dynamo_condition():
+    """ModuleExtension condition callback controls whether extension is applied."""
+    from openvino.frontend.pytorch import ModuleExtension, ConversionExtension
+    from openvino import convert_model
+
+    def sin_op(context):
+        return ops.sin(context.get_input(0)).outputs()
+
+    me = ModuleExtension(CosModel, "MySinOp",
+                         condition=lambda m: getattr(m, "flag", False))
+
+    # condition False → extension skipped, original Cos runs
+    model = ModelWithCosModule()
+    model.cos_module.flag = False
+    converted_model = convert_model(
+        model, example_input=[torch.randn(100)], dynamo=True,
+        extension=[me, ConversionExtension("MySinOp", sin_op)])
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
+        "Parameter", "Cos", "Result"]
+    assert converted_model.get_results()[0].get_output_partial_shape(0) == \
+        PartialShape([100])
+
+    # condition True → extension applies, Sin replaces Cos
+    model = ModelWithCosModule()
+    model.cos_module.flag = True
+    converted_model = convert_model(
+        model, example_input=[torch.randn(100)], dynamo=True,
+        extension=[me, ConversionExtension("MySinOp", sin_op)])
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
+        "Parameter", "Sin", "Result"]
+    assert converted_model.get_results()[0].get_output_partial_shape(0) == \
+        PartialShape([100])
+
+
+def test_module_extension_dynamo_unpatch():
+    """Model is unpatched after conversion (no leftover attributes)."""
+    from openvino.frontend.pytorch import ModuleExtension, ConversionExtension
+    from openvino import convert_model
+
+    def sin_op(context):
+        return ops.sin(context.get_input(0)).outputs()
+
+    model = ModelWithCosModule()
+    convert_model(
+        model, example_input=[torch.randn(100)], dynamo=True,
+        extension=[
+            ModuleExtension(CosModel, "MySinOp"),
+            ConversionExtension("MySinOp", sin_op)])
+
+    for _, m in model.named_modules():
+        assert not hasattr(m, "_openvino_module_extension_patch_orig_forward")
+
+    # Verify model still produces correct output after unpatching
+    x = torch.randn(100)
+    result = model(x)
+    expected = torch.cos(x.to(torch.float32))
+    assert torch.allclose(result, expected)
+
+
+def test_module_extension_dynamo_fx_op_reuse():
+    """FX-style op name as target_op reuses built-in FX translator."""
+    from openvino.frontend.pytorch import ModuleExtension
+    from openvino import convert_model
+
+    model = ModelWithCosModule()
+    converted_model = convert_model(
+        model, example_input=[torch.randn(100)], dynamo=True,
+        extension=[ModuleExtension(CosModel, "aten.sin.default")])
+    assert converted_model
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
+        "Parameter", "Sin", "Result"]
+    assert converted_model.get_results()[0].get_output_partial_shape(0) == \
+        PartialShape([100])
+
+
+def test_module_extension_dynamo_multi_input():
+    """Multi-input module: schema generated with correct arity."""
+    from openvino.frontend.pytorch import ModuleExtension, ConversionExtension
+    from openvino import convert_model
+
+    class AddModule(torch.nn.Module):
+        def forward(self, x, y):
+            return x + y
+
+    class ModelWithAdd(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.add_mod = AddModule()
+
+        def forward(self, a, b):
+            return self.add_mod(a, b)
+
+    def mul_op(context):
+        return ops.multiply(context.get_input(0),
+                            context.get_input(1)).outputs()
+
+    model = ModelWithAdd()
+    converted_model = convert_model(
+        model, example_input=[torch.randn(100), torch.randn(100)],
+        dynamo=True,
+        extension=[
+            ModuleExtension(AddModule, "MyMulOp"),
+            ConversionExtension("MyMulOp", mul_op)])
+    assert converted_model
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
+        "Parameter", "Parameter", "Multiply", "Result"]
+    assert converted_model.get_results()[0].get_output_partial_shape(0) == \
+        PartialShape([100])
+
+
+def test_module_extension_dynamo_weight_carrying():
+    """convert() passes extra module params (weight, bias) to target_op.
+
+    The auto-registered schema must match what convert() actually calls
+    (3 args: input, weight, bias), not the forward signature (1 arg: x).
+    """
+    from openvino.frontend.pytorch import ModuleExtension, ConversionExtension
+    from openvino import convert_model
+
+    class WeightedModule(torch.nn.Module):
+        def __init__(self, out_features):
+            super().__init__()
+            self.weight = torch.nn.Parameter(torch.randn(out_features, 10))
+            self.bias = torch.nn.Parameter(torch.randn(out_features))
+
+        def forward(self, x):
+            return x @ self.weight.t() + self.bias
+
+    class ModelWithWeighted(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.linear = WeightedModule(5)
+
+        def forward(self, x):
+            return self.linear(x)
+
+    def custom_convert(module, target_op, *args, **kwargs):
+        return target_op(args[0], module.weight, module.bias)
+
+    def linear_op(context):
+        mm = ops.matmul(context.get_input(0),
+                        context.get_input(1), False, True)
+        return ops.add(mm, context.get_input(2)).outputs()
+
+    model = ModelWithWeighted()
+    ref_weight = model.linear.weight.detach().numpy().copy()
+    ref_bias = model.linear.bias.detach().numpy().copy()
+
+    converted_model = convert_model(
+        model, example_input=[torch.randn(2, 10)], dynamo=True,
+        extension=[
+            ModuleExtension(WeightedModule, "WeightedLinear",
+                            convert=custom_convert),
+            ConversionExtension("WeightedLinear", linear_op)])
+    assert converted_model
+    op_types = [n.get_type_name() for n in converted_model.get_ordered_ops()]
+    assert "MatMul" in op_types
+    assert "Add" in op_types
+    # Weight is [5, 10], input is [2, 10], MatMul(input, weight^T) → [2, 5]
+    assert converted_model.get_results()[0].get_output_partial_shape(0) == \
+        PartialShape([2, 5])
+
+    # Verify weight and bias constant values match the original parameters
+    found_weight = False
+    found_bias = False
+    for n in converted_model.get_ordered_ops():
+        if n.get_type_name() != "Constant":
+            continue
+        data = n.get_data()
+        if data.shape == ref_weight.shape and np.allclose(data, ref_weight):
+            found_weight = True
+        if data.size == ref_bias.size and np.allclose(data.flatten(), ref_bias.flatten()):
+            found_bias = True
+    assert found_weight, "Weight constant not found or values don't match"
+    assert found_bias, "Bias constant not found or values don't match"
+
+
+def test_module_extension_dynamo_scalar_args():
+    """convert() passes scalar args (int, bool) alongside tensors."""
+    from openvino.frontend.pytorch import ModuleExtension, ConversionExtension
+    from openvino import convert_model
+
+    class ScalarArgModule(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.scale = 2
+            self.negate = True
+
+        def forward(self, x):
+            return x * self.scale * (-1 if self.negate else 1)
+
+    class ModelWithScalar(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.mod = ScalarArgModule()
+
+        def forward(self, x):
+            return self.mod(x)
+
+    def scalar_convert(module, target_op, *args, **kwargs):
+        return target_op(args[0], module.scale, module.negate)
+
+    def scalar_op(context):
+        inp = context.get_input(0)
+        scale = context.get_values_from_const_input(1)
+        negate = context.get_values_from_const_input(2)
+        assert scale == 2, f"Expected scale=2, got {scale}"
+        assert negate == True, f"Expected negate=True, got {negate}"
+        # Apply: x * scale * (-1 if negate else 1)
+        scale_const = ops.constant(np.array([scale], dtype=np.float32))
+        result = ops.multiply(inp, scale_const)
+        if negate:
+            neg_one = ops.constant(np.array([-1], dtype=np.float32))
+            result = ops.multiply(result, neg_one)
+        return result.outputs()
+
+    model = ModelWithScalar()
+    converted_model = convert_model(
+        model, example_input=[torch.randn(100)], dynamo=True,
+        extension=[
+            ModuleExtension(ScalarArgModule, "ScalarOp",
+                            convert=scalar_convert),
+            ConversionExtension("ScalarOp", scalar_op)])
+    assert converted_model
+    op_types = [n.get_type_name() for n in converted_model.get_ordered_ops()]
+    assert "Multiply" in op_types, f"Expected Multiply in ops, got {op_types}"
+    assert converted_model.get_results()[0].get_output_partial_shape(0) == \
+        PartialShape([100])
+
+
+def test_module_extension_dynamo_shape_changing():
+    """Shape-changing module: input [2,10] → output [2,5].
+
+    The Meta impl must use evaluate to infer correct output shape;
+    otherwise downstream ops see the wrong shape and export fails.
+    """
+    from openvino.frontend.pytorch import ModuleExtension, ConversionExtension
+    from openvino import convert_model
+
+    class ShapeChangingModule(torch.nn.Module):
+        def __init__(self, in_features, out_features):
+            super().__init__()
+            self.weight = torch.nn.Parameter(
+                torch.randn(out_features, in_features))
+            self.out_features = out_features
+
+        def forward(self, x):
+            return x @ self.weight.t()
+
+    class ModelWithShapeChange(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.proj = ShapeChangingModule(10, 5)
+
+        def forward(self, x):
+            y = self.proj(x)
+            # Downstream op depends on correct output shape (2, 5).
+            return y + torch.ones(5)
+
+    def proj_convert(module, target_op, *args, **kwargs):
+        return target_op(args[0], module.weight)
+
+    def proj_op(context):
+        return ops.matmul(
+            context.get_input(0), context.get_input(1),
+            False, True).outputs()
+
+    model = ModelWithShapeChange()
+    converted_model = convert_model(
+        model, example_input=[torch.randn(2, 10)], dynamo=True,
+        extension=[
+            ModuleExtension(ShapeChangingModule, "ProjOp",
+                            convert=proj_convert),
+            ConversionExtension("ProjOp", proj_op)])
+    assert converted_model
+    op_types = [n.get_type_name() for n in converted_model.get_ordered_ops()]
+    assert "MatMul" in op_types
+    assert "Add" in op_types
+    # Final output shape must be [2, 5] (proj [2,10]→[2,5], then + ones(5))
+    assert converted_model.get_results()[0].get_output_partial_shape(0) == \
+        PartialShape([2, 5])
+
+
+def test_module_extension_dynamo_custom_callbacks():
+    """Custom evaluate, convert, and condition callbacks."""
+    from openvino.frontend.pytorch import ModuleExtension, ConversionExtension
+    from openvino import convert_model
+
+    # Custom convert: negate input before calling target_op.
+    def custom_convert(module, target_op, *args, **kwargs):
+        return target_op(-args[0])
+
+    def custom_evaluate(module, *args, **kwargs):
+        return torch.zeros_like(args[0])
+
+    def custom_condition(module):
+        return getattr(module, "apply_ext", False)
+
+    def sin_op(context):
+        return ops.sin(context.get_input(0)).outputs()
+
+    me = ModuleExtension(CosModel, "CustomNegOp",
+                         evaluate=custom_evaluate,
+                         convert=custom_convert,
+                         condition=custom_condition)
+    ce = ConversionExtension("CustomNegOp", sin_op)
+
+    # condition True → custom_convert negates input, then Sin
+    model = ModelWithCosModule()
+    model.cos_module.apply_ext = True
+    converted_model = convert_model(
+        model, example_input=[torch.randn(100)], dynamo=True,
+        extension=[me, ce])
+    assert converted_model
+    op_types = [n.get_type_name() for n in converted_model.get_ordered_ops()]
+    assert "Sin" in op_types
+    assert "Multiply" in op_types  # negation: x * -1
+    assert "Cos" not in op_types
+    assert converted_model.get_results()[0].get_output_partial_shape(0) == \
+        PartialShape([100])
+
+    # condition False → extension skipped, original Cos runs
+    model = ModelWithCosModule()
+    model.cos_module.apply_ext = False
+    converted_model = convert_model(
+        model, example_input=[torch.randn(100)], dynamo=True,
+        extension=[me, ce])
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
+        "Parameter", "Cos", "Result"]
+    assert converted_model.get_results()[0].get_output_partial_shape(0) == \
+        PartialShape([100])
 
 
 def verify_model(model, example_input, expected_ops):
@@ -1791,3 +2159,432 @@ class TestConvertModelDynamo:
             inp = np.random.randn(batch, 3, 32, 32).astype(np.float32)
             res = cm([inp])
             assert res[0].shape[0] == batch
+
+# ──────────────────────────────────────────────────────────────────────
+#  Tests for torch.export path with ov_ext custom ops (quantized models)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def test_ov_ext_ops_meta_dispatch():
+    """Verify quantized ov_ext ops produce correct shapes and dtypes on meta device."""
+    import openvino.frontend.pytorch.ov_custom_ops  # noqa: F401
+
+    # awq_gemm
+    r = torch.ops.ov_ext.awq_gemm(
+        torch.empty(2, 64, dtype=torch.float16, device="meta"),
+        torch.empty(64, 16, device="meta"),
+        torch.empty(2, 16, device="meta"),
+        torch.empty(2, 128, device="meta"),
+        32, 4, None)
+    assert r.shape == (2, 128) and r.dtype == torch.float16
+
+    # bit_linear
+    r = torch.ops.ov_ext.bit_linear(
+        torch.empty(2, 3, 32, dtype=torch.bfloat16, device="meta"),
+        torch.empty(64, 32, device="meta"),
+        torch.empty(64, device="meta"), None)
+    assert r.shape == (2, 3, 64) and r.dtype == torch.bfloat16
+
+    # gptq_gemm  — qweight is [in_features/8, out_features]
+    r = torch.ops.ov_ext.gptq_gemm(
+        torch.empty(2, 64, dtype=torch.float16, device="meta"),
+        torch.empty(8, 16, device="meta"),
+        torch.empty(2, 2, device="meta"),
+        torch.empty(2, 16, device="meta"),
+        32, 4, False, None)
+    assert r.shape == (2, 16) and r.dtype == torch.float16
+
+
+def test_ov_ext_awq_gemm_output_shape():
+    """ov_ext.awq_gemm produces correct output shape."""
+    import openvino.frontend.pytorch.ov_custom_ops  # noqa: F401
+    batch, in_f, w_bit, group_size = 2, 64, 4, 32
+    pack_num = 32 // w_bit
+    packed_out = 16  # out_features = packed_out * pack_num = 128
+    data = torch.randn(batch, in_f)
+    qweight = torch.randint(0, 255, (in_f, packed_out), dtype=torch.int32)
+    qzeros = torch.randint(0, 255, (in_f // group_size, packed_out), dtype=torch.int32)
+    scales = torch.randn(in_f // group_size, packed_out * pack_num)
+    result = torch.ops.ov_ext.awq_gemm(data, qweight, qzeros, scales, group_size, w_bit, None)
+    assert result.shape == (batch, packed_out * pack_num)
+
+
+def test_ov_ext_bit_linear_output_shape():
+    """ov_ext.bit_linear produces correct output shape."""
+    import openvino.frontend.pytorch.ov_custom_ops  # noqa: F401
+    out_features = 64
+    data = torch.randn(2, 3, 32)
+    weight = torch.randn(out_features, 32)
+    weight_scale = torch.randn(out_features)
+    result = torch.ops.ov_ext.bit_linear(data, weight, weight_scale, None)
+    assert result.shape == (2, 3, out_features)
+
+
+def test_ov_ext_gptq_gemm_output_shape():
+    """ov_ext.gptq_gemm produces correct output shape."""
+    import openvino.frontend.pytorch.ov_custom_ops  # noqa: F401
+    batch, in_f, w_bit, group_size = 2, 64, 4, 32
+    pack_num = 32 // w_bit
+    out_features = 64
+    data = torch.randn(batch, in_f)
+    # GPTQ packs along input dim: qweight = [in_features/pack_num, out_features]
+    qweight = torch.randint(0, 255, (in_f // pack_num, out_features), dtype=torch.int32)
+    # qzeros packs along output dim: qzeros = [n_groups, out_features/pack_num]
+    qzeros = torch.randint(0, 255, (in_f // group_size, out_features // pack_num), dtype=torch.int32)
+    scales = torch.randn(in_f // group_size, out_features)
+    # Asymmetric
+    result = torch.ops.ov_ext.gptq_gemm(data, qweight, qzeros, scales,
+                                         group_size, w_bit, False, None)
+    assert result.shape == (batch, out_features)
+    # Symmetric
+    result_sym = torch.ops.ov_ext.gptq_gemm(data, qweight, qzeros, scales,
+                                             group_size, w_bit, True, None)
+    assert result_sym.shape == (batch, out_features)
+
+
+@pytest.mark.skipif(sys.platform.lower().startswith("win"), reason="CVS-174725")
+def test_gptq_export_pipeline():
+    """Patch a GPTQ model with patch_quantized_for_export, export, convert, verify."""
+    try:
+        from auto_gptq.nn_modules.qlinear.qlinear_cuda_old import (
+            QuantLinear as GPTQQuantLinear)
+    except ImportError:
+        pytest.skip("auto_gptq not installed")
+
+    from openvino import convert_model, compile_model
+    from openvino.frontend.pytorch.quantized import (
+        patch_quantized_for_export, unpatch_quantized_for_export)
+
+    rng = torch.Generator().manual_seed(42)
+    in_features, out_features, group_size, bits = 32, 64, 32, 4
+    pack_num = 32 // bits
+
+    class FakeQuantConfig:
+        quant_method = "gptq"
+        sym = False
+
+    class FakeConfig:
+        quantization_config = FakeQuantConfig()
+
+    class GPTQModel(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.config = FakeConfig()
+            self.linear = GPTQQuantLinear(
+                bits, group_size, in_features, out_features, True)
+            # Fill with random quantized data
+            self.linear.qweight = torch.nn.Parameter(
+                torch.randint(0, 2**31, (in_features // pack_num, out_features),
+                              dtype=torch.int32, generator=rng),
+                requires_grad=False)
+            self.linear.qzeros = torch.nn.Parameter(
+                torch.randint(0, 2**31, (in_features // group_size,
+                              out_features // pack_num),
+                              dtype=torch.int32, generator=rng),
+                requires_grad=False)
+            self.linear.scales = torch.nn.Parameter(
+                torch.randn(in_features // group_size, out_features,
+                            dtype=torch.float16, generator=rng),
+                requires_grad=False)
+            self.linear.bias = torch.nn.Parameter(
+                torch.randn(out_features, dtype=torch.float16, generator=rng),
+                requires_grad=False)
+
+        def forward(self, x):
+            return self.linear(x)
+
+    model = GPTQModel()
+    x = torch.randn(1, in_features, generator=rng)
+
+    patch_quantized_for_export(model)
+    try:
+        with torch.no_grad():
+            ep = torch.export.export(model, (x,))
+        # Verify custom op in graph
+        ops = [str(n.target) for n in ep.module().graph.nodes if n.op == "call_function"]
+        assert "ov_ext.gptq_gemm.default" in ops
+
+        ov_model = convert_model(ep)
+        assert ov_model
+        cm = compile_model(ov_model, "CPU", default_cfg)
+        res = cm([x.numpy()])
+        assert res[0].shape == (1, out_features)
+    finally:
+        unpatch_quantized_for_export(model)
+
+    # Verify model was unpatched
+    for _, m in model.named_modules():
+        assert not hasattr(m, "_openvino_quantized_patch_orig_forward")
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  Tests for dynamo=True auto-patching of quantized models
+# ──────────────────────────────────────────────────────────────────────
+
+def test_dynamo_auto_patches_quantized_awq():
+    """Verify convert_model(dynamo=True) auto-patches AWQ quantized models."""
+    try:
+        from awq.modules.linear import WQLinear_GEMM
+    except ImportError:
+        pytest.skip("awq not installed")
+
+    from openvino import convert_model
+
+    class FakeQuantConfig:
+        quant_method = "awq"
+
+    class FakeConfig:
+        quantization_config = FakeQuantConfig()
+
+    # Build a model with a WQLinear_GEMM submodule
+    class FakeAWQModel(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.config = FakeConfig()
+            in_f, out_f, w_bit, group_size = 64, 128, 4, 32
+            pack_num = 32 // w_bit
+            self.linear = WQLinear_GEMM(w_bit, group_size, in_f, out_f, bias=False, dev="cpu")
+            # Provide properly shaped fake weights
+            self.linear.qweight = torch.nn.Parameter(
+                torch.randint(0, 255, (in_f, out_f // pack_num), dtype=torch.int32),
+                requires_grad=False)
+            self.linear.qzeros = torch.nn.Parameter(
+                torch.randint(0, 255, (in_f // group_size, out_f // pack_num), dtype=torch.int32),
+                requires_grad=False)
+            self.linear.scales = torch.nn.Parameter(
+                torch.randn(in_f // group_size, out_f), requires_grad=False)
+
+        def forward(self, x):
+            return self.linear(x)
+
+    model = FakeAWQModel()
+    example_input = torch.randn(2, 64)
+    ov_model = convert_model(model, example_input=[example_input], dynamo=True)
+    assert ov_model is not None
+
+    # Verify the model was unpatched (no leftover attributes)
+    for _, m in model.named_modules():
+        assert not hasattr(m, "_openvino_quantized_patch_orig_forward")
+
+    # Verify model has expected output shape
+    assert ov_model.output(0).get_partial_shape()[-1].get_length() == 128
+
+
+def test_dynamo_auto_patches_gptq_graceful_fallback():
+    """Verify convert_model(dynamo=True) handles GPTQ model with plain Linear (no QUANT_TYPE)."""
+    from openvino import convert_model
+
+    class FakeQuantConfig:
+        quant_method = "gptq"
+
+    class FakeConfig:
+        quantization_config = FakeQuantConfig()
+
+    class FakeGPTQModel(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.config = FakeConfig()
+            self.linear = torch.nn.Linear(4, 2)
+
+        def forward(self, x):
+            return self.linear(x)
+
+    model = FakeGPTQModel()
+    example_input = torch.randn(2, 4)
+    # Model uses plain Linear (no QUANT_TYPE), so GPTQ patching finds
+    # nothing to patch and the model exports as-is
+    ov_model = convert_model(model, example_input=[example_input], dynamo=True)
+    assert ov_model is not None
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  BitNet export pipeline tests
+# ──────────────────────────────────────────────────────────────────────
+
+@pytest.mark.skipif(sys.platform.lower().startswith("win"), reason="CVS-174725")
+def test_bitnet_export_pipeline():
+    """Patch a BitNet model with patch_quantized_for_export, export, convert, verify."""
+    from openvino import convert_model, compile_model
+    from openvino.frontend.pytorch.quantized import (
+        patch_quantized_for_export, unpatch_quantized_for_export)
+    from transformers.integrations.bitnet import AutoBitLinear, pack_weights
+    from transformers import PretrainedConfig, BitNetQuantConfig
+
+    rng = torch.Generator().manual_seed(42)
+    size = (32, 64)
+
+    class BitNetModel(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.config = PretrainedConfig(
+                quantization_config=BitNetQuantConfig(linear_class="autobitlinear"))
+            self.linear = AutoBitLinear(size[0], size[1], bias=True, use_rms_norm=True)
+            w = torch.randint(-1, 2, (size[1], size[0]), dtype=torch.float32, generator=rng)
+            self.linear.weight = torch.nn.Parameter(w)
+            self.linear.original_weight = pack_weights(self.linear.weight.data.clone())
+
+        def forward(self, x):
+            return self.linear(x)
+
+    model = BitNetModel()
+    x = torch.randn(1, size[0], generator=rng)
+    with torch.no_grad():
+        res_ref = model(x)
+
+    patch_quantized_for_export(model)
+    try:
+        with torch.no_grad():
+            ep = torch.export.export(model, (x,))
+        # Verify custom ops in graph
+        ops = [str(n.target) for n in ep.module().graph.nodes if n.op == "call_function"]
+        assert "ov_ext.bit_linear.default" in ops
+
+        ov_model = convert_model(ep)
+        assert ov_model
+        cm = compile_model(ov_model, "CPU", default_cfg)
+        res = cm([x.numpy()])
+        rtol, atol = 1e-4, 1e-4
+        if platform.machine() in ('arm', 'armv7l', 'aarch64', 'arm64', 'ARM64'):
+            rtol, atol = 0.5, 0.1
+        np.testing.assert_allclose(res[0], res_ref.numpy(), rtol=rtol, atol=atol)
+    finally:
+        unpatch_quantized_for_export(model)
+
+    # Verify model was unpatched
+    for _, m in model.named_modules():
+        assert not hasattr(m, "_openvino_quantized_patch_orig_forward")
+
+
+@pytest.mark.skipif(sys.platform.lower().startswith("win"), reason="CVS-174725")
+def test_dynamo_auto_patches_bitnet():
+    """Verify convert_model(dynamo=True) auto-patches BitNet quantized models."""
+    from openvino import convert_model
+    from transformers.integrations.bitnet import AutoBitLinear, pack_weights
+    from transformers import PretrainedConfig, BitNetQuantConfig
+
+    rng = torch.Generator().manual_seed(42)
+    size = (32, 64)
+
+    class BitNetModel(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.config = PretrainedConfig(
+                quantization_config=BitNetQuantConfig(linear_class="autobitlinear"))
+            self.linear = AutoBitLinear(size[0], size[1], bias=True, use_rms_norm=True)
+            w = torch.randint(-1, 2, (size[1], size[0]), dtype=torch.float32, generator=rng)
+            self.linear.weight = torch.nn.Parameter(w)
+            self.linear.original_weight = pack_weights(self.linear.weight.data.clone())
+
+        def forward(self, x):
+            return self.linear(x)
+
+    model = BitNetModel()
+    x = torch.randn(1, size[0], generator=rng)
+    ov_model = convert_model(model, example_input=[x], dynamo=True)
+    assert ov_model is not None
+
+    # Verify the model was unpatched
+    for _, m in model.named_modules():
+        assert not hasattr(m, "_openvino_quantized_patch_orig_forward")
+
+    # Verify output shape
+    assert ov_model.output(0).get_partial_shape()[-1].get_length() == size[1]
+
+
+def test_dynamo_auto_patches_gptq_converts_without_quantized_ops():
+    """Verify convert_model(dynamo=True) with GPTQ produces valid model (no quant ops)."""
+    from openvino import convert_model, compile_model
+
+    class FakeQuantConfig:
+        quant_method = "gptq"
+
+    class FakeConfig:
+        quantization_config = FakeQuantConfig()
+
+    class FakeGPTQModel(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.config = FakeConfig()
+            self.linear = torch.nn.Linear(16, 8)
+
+        def forward(self, x):
+            return self.linear(x)
+
+    model = FakeGPTQModel()
+    x = torch.randn(2, 16)
+    with torch.no_grad():
+        res_ref = model(x)
+
+    # GPTQ patching fails gracefully; model is still exported as plain linear
+    ov_model = convert_model(model, example_input=[x], dynamo=True)
+    assert ov_model is not None
+
+    # Verify the model was not patched (no leftover attributes)
+    for _, m in model.named_modules():
+        assert not hasattr(m, "_openvino_quantized_patch_orig_forward")
+
+    # Verify output is numerically correct (plain linear, no quantization)
+    cm = compile_model(ov_model, "CPU", default_cfg)
+    res = cm([x.numpy()])
+    np.testing.assert_allclose(res[0], res_ref.numpy(), atol=1e-5)
+
+
+@pytest.mark.skipif(sys.platform.lower().startswith("win"), reason="CVS-174725")
+def test_dynamo_auto_patches_gptq():
+    """Verify convert_model(dynamo=True) auto-patches GPTQ quantized models."""
+    try:
+        from auto_gptq.nn_modules.qlinear.qlinear_cuda_old import (
+            QuantLinear as GPTQQuantLinear)
+    except ImportError:
+        pytest.skip("auto_gptq not installed")
+
+    from openvino import convert_model
+
+    rng = torch.Generator().manual_seed(42)
+    in_features, out_features, group_size, bits = 32, 64, 32, 4
+    pack_num = 32 // bits
+
+    class FakeQuantConfig:
+        quant_method = "gptq"
+        sym = False
+
+    class FakeConfig:
+        quantization_config = FakeQuantConfig()
+
+    class GPTQModel(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.config = FakeConfig()
+            self.linear = GPTQQuantLinear(
+                bits, group_size, in_features, out_features, True)
+            self.linear.qweight = torch.nn.Parameter(
+                torch.randint(0, 2**31, (in_features // pack_num, out_features),
+                              dtype=torch.int32, generator=rng),
+                requires_grad=False)
+            self.linear.qzeros = torch.nn.Parameter(
+                torch.randint(0, 2**31, (in_features // group_size,
+                              out_features // pack_num),
+                              dtype=torch.int32, generator=rng),
+                requires_grad=False)
+            self.linear.scales = torch.nn.Parameter(
+                torch.randn(in_features // group_size, out_features,
+                            dtype=torch.float16, generator=rng),
+                requires_grad=False)
+            self.linear.bias = torch.nn.Parameter(
+                torch.randn(out_features, dtype=torch.float16, generator=rng),
+                requires_grad=False)
+
+        def forward(self, x):
+            return self.linear(x)
+
+    model = GPTQModel()
+    x = torch.randn(1, in_features, generator=rng)
+    ov_model = convert_model(model, example_input=[x], dynamo=True)
+    assert ov_model is not None
+
+    # Verify the model was unpatched
+    for _, m in model.named_modules():
+        assert not hasattr(m, "_openvino_quantized_patch_orig_forward")
+
+    # Verify output shape
+    assert ov_model.output(0).get_partial_shape()[-1].get_length() == out_features

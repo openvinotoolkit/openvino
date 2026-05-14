@@ -13,6 +13,9 @@
 #include "compiled_model.hpp"
 #include "llm_compiled_model.hpp"
 #include "model_builder.hpp"
+#include "openvino/op/fake_convert.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "serialization.hpp"
 #include "weights_bank.hpp"
@@ -36,6 +39,84 @@ inline std::shared_ptr<ov::Model> build_llm_test_model() {
     return mb.build_llm(make_test_model_config());
 }
 
+/// Build an LLM test model configured so that Attention::from() can unambiguously
+/// identify the past-KV dimension in the isolated attention function body.
+///
+/// The default test config has num_kv_heads == kPastKvLen == 4 which makes the
+/// KV-cache shape [1, 4, 4, 16] ambiguous — find_context_dim sees two dims equal
+/// to past_len and returns false.  By setting num_kv_heads=2 and using a past
+/// length of 8, the KV shape becomes [1, 2, 8, 16] where only dim 2 equals
+/// past_len=8, so Attention::from() succeeds and f._attention gets set.
+inline std::shared_ptr<ov::Model> build_dynamic_attention_llm_model() {
+    ov::test::npuw::LLMConfig cfg;
+    cfg.num_layers = 2;
+    cfg.hidden_size = 64;
+    cfg.num_heads = 4;
+    cfg.head_dim = 16;
+    cfg.num_kv_heads = 2;  // must differ from kPastKvLen so find_context_dim is unambiguous
+    cfg.vocab_size = 256;
+    cfg.force_gqa_broadcast = true;  // produces 5-input SDPA needed by the SDPA isolation pattern
+
+    ModelBuilder mb;
+    auto model = mb.build_llm(cfg);
+    ov::pass::StatefulToStateless().run_on_model(model);
+    model = model->clone();
+
+    constexpr std::size_t kSeq = 4;
+    constexpr std::size_t kPast = 8;  // != num_kv_heads (2), so KV shape [1,2,8,16] is unambiguous
+
+    std::map<std::string, ov::PartialShape> new_shapes;
+    for (const auto& input : model->inputs()) {
+        const auto& name = input.get_any_name();
+        const auto& pshape = input.get_partial_shape();
+        if (name.find("input_ids") != std::string::npos ||
+            name.find("token_type_ids") != std::string::npos) {
+            new_shapes[name] = ov::PartialShape{1, kSeq};
+        } else if (name.find("attention_mask") != std::string::npos) {
+            new_shapes[name] = ov::PartialShape{1, kSeq + kPast};
+        } else if (name.find("position_ids") != std::string::npos) {
+            new_shapes[name] = ov::PartialShape{1, kSeq};
+        } else {
+            // KV cache params: fix batch=1, past_len=kPast, leave head/head_dim from pshape
+            auto static_shape = pshape;
+            static_shape[0] = 1;
+            static_shape[2] = kPast;
+            new_shapes[name] = static_shape;
+        }
+    }
+    model->reshape(new_shapes);
+    model->validate_nodes_and_infer_types();
+    return model;
+}
+
+inline std::shared_ptr<ov::Model> build_llm_test_model_with_kv_fake_convert(const ov::element::Type fake_convert_type) {
+    auto model = build_llm_test_model();
+    auto scale = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1.0f});
+
+    for (const auto& op : model->get_ordered_ops()) {
+        auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(op);
+        if (!sdpa) {
+            continue;
+        }
+
+        auto inject_fake_convert = [&](size_t input_idx, const std::string& suffix) {
+            auto fake_convert_1 =
+                std::make_shared<ov::op::v13::FakeConvert>(sdpa->input_value(input_idx), scale, fake_convert_type);
+            auto fake_convert_2 =
+                std::make_shared<ov::op::v13::FakeConvert>(fake_convert_1, scale, fake_convert_type);
+            fake_convert_1->set_friendly_name(sdpa->get_friendly_name() + "/" + suffix + "_1");
+            fake_convert_2->set_friendly_name(sdpa->get_friendly_name() + "/" + suffix + "_2");
+            sdpa->input(input_idx).replace_source_output(fake_convert_2);
+        };
+
+        inject_fake_convert(1, "key_fake_convert");
+        inject_fake_convert(2, "value_fake_convert");
+    }
+
+    model->validate_nodes_and_infer_types();
+    return model;
+}
+
 inline std::shared_ptr<ov::Model> build_whisper_decoder_test_model() {
     ModelBuilder mb;
     return mb.build_whisper_decoder(make_test_model_config<WhisperConfig>());
@@ -45,6 +126,24 @@ inline std::shared_ptr<ov::Model> build_embedding_test_model() {
     ModelBuilder mb;
     return mb.build_embedding_encoder(make_test_model_config<BertConfig>());
 }
+
+inline std::shared_ptr<ov::Model> build_embedding_decoder_test_model() {
+    ModelBuilder mb;
+    auto cfg = make_test_model_config<LLMConfig>();
+    cfg.use_kv_cache = false;
+    cfg.internal_position_ids = true;
+    cfg.lm_head_weight = {};
+    return mb.build_llm(cfg);
+}
+
+inline std::shared_ptr<ov::Model> build_moe_llm_test_model() {
+    ModelBuilder mb;
+    auto cfg = make_test_model_config();
+    cfg.num_experts = 8;
+    cfg.num_experts_per_tok = 2;
+    return mb.build_llm(cfg);
+}
+
 
 class NullPlugin : public ov::IPlugin {
 public:
