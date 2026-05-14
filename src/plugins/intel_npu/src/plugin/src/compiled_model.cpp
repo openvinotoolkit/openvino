@@ -37,8 +37,16 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
       _batchSize(batchSize) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
 
+    // Support for specific properties might depend on the characteristics of the compiled model.
+    // Adjust lower level config availability to influence the supported properties list if needed
+    FilteredConfig localConfig = config;
+    if (!_graph->get_compatibility_descriptor().has_value()) {
+        _logger.debug("Graph's compatibility descriptor has no value. Disabling RUNTIME_REQUIREMENTS property.");
+        localConfig.enable(ov::runtime_requirements.name(), false);
+    }
+
     OV_ITT_TASK_CHAIN(COMPILED_MODEL, itt::domains::NPUPlugin, "CompiledModel::CompiledModel", "initialize_properties");
-    _propertiesManager = std::make_unique<Properties>(PropertiesType::COMPILED_MODEL, config);
+    _propertiesManager = std::make_unique<Properties>(PropertiesType::COMPILED_MODEL, localConfig);
 
     configure_stream_executors();
 
@@ -141,7 +149,8 @@ void CompiledModel::export_model(std::ostream& stream) const {
                                            inputLayouts,
                                            outputLayouts,
                                            compilerVersion,
-                                           blobSizeAfterEncryption)
+                                           blobSizeAfterEncryption,
+                                           _graph->get_compatibility_descriptor())
             .write(stream);
     }
 }
@@ -216,10 +225,35 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     if (name == ov::model_name.name()) {
         OPENVINO_ASSERT(_graph != nullptr, "Missing graph");
         return _graph->get_metadata().name;
-    } else {
-        // default behaviour
-        return _propertiesManager->getProperty(name);
+    } else if (name == ov::runtime_requirements.name()) {
+        // Reading the (dummy) property content to check if it is supported
+        _propertiesManager->getProperty(name);
+
+        _logger.debug("Runtime requirements from the graph %s length: %zu",
+                      _graph->get_compatibility_descriptor().value(),
+                      _graph->get_compatibility_descriptor().value().size());
+
+        std::ostringstream requirementsString;
+        Metadata<CURRENT_METADATA_VERSION>(
+            0,  // no real blob
+            CURRENT_OPENVINO_VERSION,
+            std::nullopt,  // weightless blobs are not supported
+            _batchSize,
+            std::nullopt,  // input_layouts are not relevant for the compatibility check
+            std::nullopt,  // output_layouts are not relevant for the compatibility check
+            std::nullopt,  // skip compiler version as well since it is already included in runtime requirements string
+            std::nullopt,  // skip encrypted blob size since it is not relevant for the compatibility check
+            _graph->get_compatibility_descriptor())
+            .write_as_text(requirementsString);
+        _logger.debug("Runtime requirements string: %s length: %zu",
+                      requirementsString.str().c_str(),
+                      requirementsString.str().length());
+
+        return requirementsString.str();
     }
+
+    // default behaviour
+    return _propertiesManager->getProperty(name);
 }
 
 const std::shared_ptr<IGraph>& CompiledModel::get_graph() const {

@@ -19,6 +19,7 @@
 
 #include <cmath>
 #include <limits>
+#include <numeric>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -1751,6 +1752,57 @@ TEST(reorder_gpu_f32, dynamic_bfyx_to_fsv16) {
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
     for (int i = 0; i < 16; i++) {
         ASSERT_NEAR(answers[i], output_ptr[i], 1e-2f);
+    }
+}
+
+// Test: dynamic reorder from b_fs_yx_fsv16 (non-simple) to bfyx (simple)
+// should select OCL dynamic impl even when allow_new_shape_infer is enabled
+// This verifies the fix where OCL dynamic reorder is not incorrectly blocked
+TEST(reorder_gpu_f32, dynamic_fsv16_to_bfyx_executes_without_error) {
+    auto& engine = get_test_engine();
+
+    ov::Shape in_shape{ 1, 16, 4, 4 };
+    size_t element_count = 1;
+    for (const auto dim : in_shape)
+        element_count *= dim;
+
+    // Dynamic input in b_fs_yx_fsv16 format
+    layout in_layout{ov::PartialShape::dynamic(in_shape.size()), data_types::f32, format::b_fs_yx_fsv16};
+
+    // Prepare properly formatted fsv16 memory via helper network
+    auto input_bfyx = engine.allocate_memory({ov::PartialShape(in_shape), data_types::f32, format::bfyx});
+    std::vector<float> input_data(element_count);
+    std::iota(input_data.begin(), input_data.end(), 1.f);
+    set_values(input_bfyx, input_data);
+
+    topology prep_topology(
+        input_layout("prep_in", layout{ov::PartialShape(in_shape), data_types::f32, format::bfyx}),
+        reorder("prep_out", input_info("prep_in"), format::b_fs_yx_fsv16, data_types::f32));
+    network prep_net(engine, prep_topology, get_test_default_config(engine));
+    prep_net.set_input_data("prep_in", input_bfyx);
+    auto prep_outputs = prep_net.execute();
+    auto input_fsv16 = prep_outputs.at("prep_out").get_memory();
+
+    // Main topology: dynamic fsv16 -> reorder to bfyx
+    topology topology(
+        input_layout("input", in_layout),
+        reorder("output", input_info("input"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input_fsv16);
+
+    // Must not throw
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+
+    auto output = outputs.at("output").get_memory();
+    ASSERT_EQ(output->get_layout().format, format::bfyx);
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    for (size_t i = 0; i < input_data.size(); i++) {
+        ASSERT_NEAR(input_data[i], output_ptr[i], 1e-5f);
     }
 }
 

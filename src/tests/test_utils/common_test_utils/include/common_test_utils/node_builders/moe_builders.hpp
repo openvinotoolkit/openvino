@@ -30,11 +30,21 @@ enum class MoERoutingType {
     SIGMOID_BIAS,  ///< Sigmoid -> Add(bias) -> TopK routing
 };
 
+enum class MoEActivationType {
+    SWISH,     ///< Swish gate activation (SwiGLU)
+    GELU,      ///< Gelu gate activation with Tanh approximation (GeGLU-Tanh)
+    GELU_ERF,  ///< Gelu gate activation with ERF (exact) formula (GeGLU-ERF)
+};
+
 /// Softmax branch:
 ///   routing_weights -> Softmax -> TopK -> ReduceSum -> Divide (norm)
+///   [-> Multiply(norm, Gather(per_expert_scale, topk_idx))  when use_per_expert_scale=true]
 ///   -> ScatterElementsUpdate -> Transpose -> Reshape -> Unsqueeze
-std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>>
-build_softmax_routing_subgraph(const ov::Output<ov::Node>& routing_weights, size_t number_of_experts, size_t topk);
+std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> build_softmax_routing_subgraph(
+    const ov::Output<ov::Node>& routing_weights,
+    size_t number_of_experts,
+    size_t topk,
+    bool use_per_expert_scale = false);
 
 /// Sigmoid+bias branch:
 ///   routing_weights -> Sigmoid -> Add(bias) -> TopK -> Convert(i32)
@@ -70,7 +80,10 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
     const std::optional<ov::test::utils::DecompressionType> decompression_subtract_type = std::nullopt,
     const std::optional<bool> reshape_on_decompression = std::nullopt,
     const std::optional<int> decompression_group_size = std::nullopt,
-    MoERoutingType routing_type = MoERoutingType::SOFTMAX);
+    MoERoutingType routing_type = MoERoutingType::SOFTMAX,
+    MoEActivationType activation_type = MoEActivationType::SWISH,
+    bool use_per_expert_scale = false,
+    bool use_layernorm_multiply = false);
 
 }  // namespace test
 }  // namespace ov
