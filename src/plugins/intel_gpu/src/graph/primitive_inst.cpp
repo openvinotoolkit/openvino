@@ -1951,7 +1951,11 @@ void primitive_inst::do_runtime_in_place_crop() {
                     }
                     crop_in_place_optimization::update_in_place_crop_padding_along_feature(u->get_node(), crop_layout, pred_layout, offsets, crop_axis, true);
                 } else if (crop_in_place_optimization::can_crop_be_optimized_simple_data_format(crop_layout, pred_layout)) {
-                    crop_in_place_optimization::update_in_place_crop_padding_simple_data_format(crop_layout, pred_layout, user_info, offsets, crop_axis, true);
+                    if (!crop_in_place_optimization::update_in_place_crop_padding_simple_data_format(crop_layout, pred_layout, user_info, offsets, crop_axis, true)) {
+                        u->set_can_be_optimized(false);
+                        GPU_DEBUG_TRACE_DETAIL << "[In place crop] " << u->id() << " cannot be optimized due to padding indivisibility" << std::endl;
+                        continue;
+                    }
                     if (user_info.first) {
                         auto reshape_inst = crop_users.front();
                         reshape_inst->_impl_params->output_layouts[0] = user_info.second;
@@ -2396,6 +2400,12 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
             // sum post-op can use the input buffer as the output buffer
             auto& eltw_node = node.get_dependency(reused_eltwmem_idx);
             const auto& eltw_inst = _network.get_primitive(eltw_node.id());
+            if (eltw_node.is_type<input_layout>() && !eltw_inst->outputs_allocated()) {
+                auto eltw_mem = _network.get_engine().allocate_memory(eltw_node.get_output_layout(), 
+                                                                      _network.get_engine().get_preferred_memory_allocation_type(), 
+                                                                      /*reset*/false);
+                eltw_inst->set_output_memory(eltw_mem, /*check*/false);
+            }
             auto& eltw_mem = eltw_inst->output_memory();
             auto new_mem = eltw_mem.get_engine()->reinterpret_buffer(eltw_mem, node.get_output_layout());
             _outputs.push_back(new_mem);
