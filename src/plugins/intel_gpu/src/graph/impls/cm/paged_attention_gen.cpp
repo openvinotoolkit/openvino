@@ -22,34 +22,11 @@ using namespace ov;
 using namespace ov::intel_gpu::ocl;
 using namespace cldnn;
 namespace {
-constexpr size_t WG_SIZE = 16;
 constexpr size_t reduce_split_step = 16;
+constexpr size_t KV_SUB_BLOCK_SIZE = 16;
 }  // namespace
 
 #define DEBUG_ENABLED 0
-
-// This function returns the kv_step and kv_split_len based on the architecture.
-// return {kv_step, kv_split_len}
-inline std::pair<size_t, size_t> get_kv_split_size(size_t arch) {
-    if (arch == 1) {
-        return {8, 32};  // For Xe1
-    } else if (arch == 2) {
-        return {16, 32};  // For Xe2
-    }
-    OPENVINO_ASSERT(false, "Unsupported architecture for KV split size");
-    return {0, 0};  // Fallback case, should not be reached
-}
-
-inline size_t get_q_step(size_t arch, bool is_single_token = false) {
-    if (arch == 1) {
-        return is_single_token ? 1 : 8;  // For Xe1
-    } else if (arch == 2) {
-        // For Xe2, q_step = CM_GRF_WIDTH / 32
-        return is_single_token ? 1 : 16;  // For Xe2
-    }
-    OPENVINO_ASSERT(false, "Unsupported architecture for Q step");
-    return 0;  // Fallback case, should not be reached
-}
 
 inline size_t get_kv_len(const RuntimeParams& params, const PagedAttentionStage& stage) {
     if (stage == PagedAttentionStage::PREFILL) {
@@ -81,14 +58,6 @@ inline bool get_kv_compressed(const RuntimeParams& params) {
     }
 }
 
-size_t get_partition_size(const bool has_xattention) {
-    if (!has_xattention && PA_KV_CACHE_BLOCK_SIZE < 128) {
-        return 128;
-    } else {
-        return PA_KV_CACHE_BLOCK_SIZE_XATTN;
-    }
-}
-
 // max_context_len = max(past_lens + prompt_lens)
 size_t get_max_context_len(const kernel_impl_params& params) {
     const auto& input_mem = params.memory_deps;
@@ -98,22 +67,44 @@ size_t get_max_context_len(const kernel_impl_params& params) {
     return paged_attention_max_len;
 }
 
-size_t get_past_len(const kernel_impl_params& params, const size_t seq_idx) {
-    const auto& input_mem = params.memory_deps;
-    const auto past_len = input_mem.at(PagedAttentionInputIdx::PAST_LENS);
-    mem_lock<int32_t, mem_lock_type::read> past_len_mem_lock(past_len, *params.strm);
-    const auto paged_attention_past_len = past_len_mem_lock[seq_idx];
-    return paged_attention_past_len;
+size_t get_batch_size_in_sequences(const std::vector<layout>& input_layouts) {
+    const auto past_lens_shape = input_layouts[PagedAttentionInputIdx::PAST_LENS].get_shape();
+    OPENVINO_ASSERT(!past_lens_shape.empty(), "PAST_LENS layout must have at least 1 dimension");
+    return past_lens_shape[0];
 }
 
 // TODO: change xattn_thresh from scaler to memory... once we remove the converter node
 // between parameter node "xattention_threshold.xxx" and paged_attention node.
 float get_xattn_thresh(const kernel_impl_params& params, const size_t seq_idx) {
+    const auto desc = params.typed_desc<paged_attention>();
+    OPENVINO_ASSERT(desc->has_xattention, "XAttention threshold must be accessed only when has_xattention is true");
+
     const auto& input_mem = params.memory_deps;
-    const auto threshold_mem = input_mem.at(PagedAttentionInputIdx::XATTENTION_THRESHOLD);
-    mem_lock<float16, mem_lock_type::read> lock(threshold_mem, *params.strm);  // converted
-    const auto thresh = static_cast<float>(lock[seq_idx]);
-    return thresh;
+    const auto it = input_mem.find(PagedAttentionInputIdx::XATTENTION_THRESHOLD);
+    if (it == input_mem.end() || it->second == nullptr) {
+        OPENVINO_THROW("XAttention threshold input is required at index ", static_cast<size_t>(PagedAttentionInputIdx::XATTENTION_THRESHOLD));
+    }
+
+    const auto threshold_mem = it->second;
+    const auto dt = threshold_mem->get_layout().data_type;
+
+    if (dt == data_types::f16) {
+        mem_lock<float16, mem_lock_type::read> lock(threshold_mem, *params.strm);
+        if (seq_idx >= lock.size()) {
+            OPENVINO_THROW("XAttention threshold input index out of range: seq_idx=", seq_idx, ", input_size=", lock.size());
+        }
+        return static_cast<float>(lock[seq_idx]);
+    }
+
+    if (dt == data_types::f32) {
+        mem_lock<float, mem_lock_type::read> lock(threshold_mem, *params.strm);
+        if (seq_idx >= lock.size()) {
+            OPENVINO_THROW("XAttention threshold input index out of range: seq_idx=", seq_idx, ", input_size=", lock.size());
+        }
+        return lock[seq_idx];
+    }
+
+    OPENVINO_THROW("Unsupported xattention_threshold data type");
 }
 
 // Bypass xattn stages in the following conditions -
@@ -169,8 +160,21 @@ JitConstants PagedAttentionGeneratorBase::get_jit_constants(const kernel_impl_pa
     auto split_size = get_kv_split_size(xe_arch);
     jit.make("KV_STEP", split_size.first);
 
-    jit.make("WG_SIZE", WG_SIZE);
     jit.make("CAUSAL_MASK", 1);
+
+    // 0: no compression, 1: per-token compression for both key and value, 2: per-channel compression for key and per-token compression for value
+    if (get_kv_compressed(params)) {
+        const auto desc = params.typed_desc<paged_attention>();
+        if (desc->is_key_by_channel) {
+            jit.make("KV_CACHE_COMPRESSION", 2);
+        } else {
+            jit.make("KV_CACHE_COMPRESSION", 1);
+        }
+    } else {
+        jit.make("KV_CACHE_COMPRESSION", 0);
+    }
+    jit.make("SUB_BLOCK_SIZE", KV_SUB_BLOCK_SIZE);
+
     return jit;
 }
 
@@ -185,22 +189,39 @@ JitConstants PagedAttentionGeneratorKVCacheUpdate::get_jit_constants(const kerne
     jit.make("K_HEAD_SIZE", desc->k_head_size);
     jit.make("V_HEAD_SIZE", desc->v_head_size);
     if (desc->has_xattention) {
-        jit.make("PAGED_ATTENTION_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE_XATTN);
+        jit.make("BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE_XATTN);
     } else {
-        jit.make("PAGED_ATTENTION_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE);
+        jit.make("BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE_LEGACY);
     }
 
     if (get_kv_compressed(params)) {
-        jit.make("KV_CACHE_COMPRESSION_PER_TOKEN", 1);
-        jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size + 4);
+        if (desc->is_key_by_channel) {
+            jit.make("ADJUSTED_BLOCK_SIZE",
+                     desc->has_xattention ? PA_KV_CACHE_BLOCK_SIZE_XATTN + PA_KV_CACHE_BLOCK_SIZE_XATTN / KV_SUB_BLOCK_SIZE * 4
+                                          : PA_KV_CACHE_BLOCK_SIZE_LEGACY + PA_KV_CACHE_BLOCK_SIZE_LEGACY / KV_SUB_BLOCK_SIZE * 4);
+            jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size);
+        } else {
+            jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size + 4);
+        }
         jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size + 4);
     } else {
-        jit.make("KV_CACHE_COMPRESSION_PER_TOKEN", 0);
         jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size);
         jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size);
     }
 
     return jit;
+}
+
+size_t PagedAttentionGeneratorKVCacheUpdate::get_kv_update_wg_size(const RuntimeParams& params) {
+    constexpr size_t default_wg_size = 16;
+    const auto desc = params.typed_desc<paged_attention>();
+    if (get_kv_compressed(params) && desc->is_key_by_channel) {
+        const size_t block_size = desc->has_xattention ? PA_KV_CACHE_BLOCK_SIZE_XATTN : PA_KV_CACHE_BLOCK_SIZE_LEGACY;
+        OPENVINO_ASSERT(block_size % KV_SUB_BLOCK_SIZE == 0, "block_size (", block_size, ") must be divisible by KV_SUB_BLOCK_SIZE (", KV_SUB_BLOCK_SIZE, ")");
+        return block_size / KV_SUB_BLOCK_SIZE;
+    }
+
+    return default_wg_size;
 }
 
 Arguments PagedAttentionGeneratorKVCacheUpdate::get_arguments_desc(const kernel_impl_params& params) const {
@@ -231,10 +252,29 @@ DispatchDataFunc PagedAttentionGeneratorKVCacheUpdate::get_dispatch_data_func() 
 
         const size_t kv_len = get_input_kv_len(params);
         const size_t kv_heads_num = desc->kv_heads_num;
-        const size_t wg_count = (kv_len + WG_SIZE - 1) / WG_SIZE;
+        const size_t kv_wg_size = PagedAttentionGeneratorKVCacheUpdate::get_kv_update_wg_size(params);
+        size_t kv_items;
+        if (get_kv_compressed(params) && desc->is_key_by_channel) {
+            const auto past_lens_mem = params.memory_deps.at(PagedAttentionInputIdx::PAST_LENS);
+            mem_lock<int32_t, mem_lock_type::read> past_lens_lock(past_lens_mem, *params.strm);
+            const auto subseq_begins_mem = params.memory_deps.at(PagedAttentionInputIdx::SUBSEQUENCE_BEGINS);
+            mem_lock<int32_t, mem_lock_type::read> subseq_begins_lock(subseq_begins_mem, *params.strm);
 
-        wgs.global = {1, kv_heads_num, wg_count * WG_SIZE};
-        wgs.local = {1, 1, WG_SIZE};
+            const size_t batch_size = get_batch_size_in_sequences(params.input_layouts);
+            size_t total_sub_blocks = 0;
+            for (size_t i = 0; i < batch_size; ++i) {
+                const size_t past_tail = static_cast<size_t>(past_lens_lock[i]) % KV_SUB_BLOCK_SIZE;
+                const size_t cur_tokens = static_cast<size_t>(subseq_begins_lock[i + 1] - subseq_begins_lock[i]);
+                total_sub_blocks += ceil_div(past_tail + cur_tokens, KV_SUB_BLOCK_SIZE);
+            }
+            kv_items = total_sub_blocks;
+        } else {
+            kv_items = kv_len;
+        }
+        const size_t wg_count = ceil_div(kv_items, kv_wg_size);
+
+        wgs.global = {1, kv_heads_num, wg_count * kv_wg_size};
+        wgs.local = {1, 1, kv_wg_size};
 
         auto& scalars = kd.params.scalars;
         size_t key_pitch = desc->k_head_size * kv_heads_num;
@@ -277,8 +317,7 @@ DispatchDataFunc PagedAttentionGeneratorKVCacheUpdate::get_dispatch_data_func() 
                       << ", " << wgs.global[1] << ", " << wgs.global[2] << "]" << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2]
                       << "]" << std::endl;
         }
-        // TODO: support multiple sequences
-        size_t batch_size_in_sequences = 1;
+        size_t batch_size_in_sequences = get_batch_size_in_sequences(params.input_layouts);
         std::vector<size_t> scaler_value = {key_pitch, key_offset, value_pitch, value_offset, batch_size_in_sequences};
         scalars.resize(scaler_value.size());
 
@@ -297,26 +336,22 @@ Arguments PagedAttentionGeneratorMultiToken::get_arguments_desc(const kernel_imp
 
     Arguments args;
     // Doesn't support Query with dynamic_padding
-    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QUERY});                 // query
-    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::KEY_CACHE});             // key_cache
-    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::VALUE_CACHE});           // value_cache
-    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::PAST_LENS});             // past_lens
-    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES});         // block_indices
-    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES_BEGINS});  // block_indices_begins
-    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});    // subsequence_begins
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QUERY});                                  // query
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::KEY_CACHE});                              // key_cache
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::VALUE_CACHE});                            // value_cache
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::PAST_LENS});                              // past_lens
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES});                          // block_indices
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES_BEGINS});                   // block_indices_begins
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});                     // subsequence_begins
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::MULTI_TOKEN_WG_MAPPING});  // per-WG subsequence mapping
 
     args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // q_len
 
-    if (desc->has_xattention) {
+    if (_xattn_block_size > 1 && desc->has_xattention) {
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK});         // sparse_block_mask
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK_MERGED});  // sparse_block_mask_wg
-    }
-
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // q_len
-    if (desc->has_xattention) {
-        args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // q_block_pad
-        args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // k_block_pad
-        args.push_back({ArgumentDescriptor::Types::SCALAR, 3});  // SPARSE_BLOCK_SIZE
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_SUBSEQ_META});       // xattn_subseq_meta
     }
     return args;
 }
@@ -324,74 +359,63 @@ Arguments PagedAttentionGeneratorMultiToken::get_arguments_desc(const kernel_imp
 JitConstants PagedAttentionGeneratorMultiToken::get_jit_constants(const kernel_impl_params& params) const {
     auto jit = PagedAttentionGeneratorBase::get_jit_constants(params);
     const auto desc = params.typed_desc<paged_attention>();
-    const float scale_factor = 1.0 / std::sqrt(static_cast<double>(desc->k_head_size));
-    auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
+    const float scale_factor = 1.0f / std::sqrt(static_cast<float>(desc->k_head_size));
+    OPENVINO_ASSERT(_xattn_block_size == 1 || _xattn_block_size == 128 || _xattn_block_size == 256,
+                    "Unsupported xattention block size for multi token kernel: ",
+                    _xattn_block_size);
 
     jit.make("CMFLA_NUM_HEADS", desc->heads_num);
     jit.make("CMFLA_NUM_KV_HEADS", desc->kv_heads_num);
     jit.make("CMFLA_HEAD_SIZE", desc->k_head_size);
     jit.add(make_jit_constant("CMFLA_SCALE_FACTOR", scale_factor));
     jit.make("CMFLA_IS_CAUSAL", 1);
+    if (_xattn_block_size > 1) {
+        jit.make("SPARSE_BLOCK_SIZE", _xattn_block_size);
+    } else {
+        jit.make("SPARSE_BLOCK_SIZE", 1);
+    }
+
     if (desc->has_xattention) {
         jit.make("CMPA_BLOCK_SZ", PA_KV_CACHE_BLOCK_SIZE_XATTN);
-        jit.make("IS_BLOCK_SPARSE", 1);
     } else {
-        jit.make("CMPA_BLOCK_SZ", PA_KV_CACHE_BLOCK_SIZE);
-        jit.make("IS_BLOCK_SPARSE", 0);
+        jit.make("CMPA_BLOCK_SZ", PA_KV_CACHE_BLOCK_SIZE_LEGACY);
     }
-    jit.make("Q_STEP", get_q_step(xe_arch, true));
+    jit.make("CMPA_WG_SEQ_LEN", get_wg_seq_len(params));
 
-    if (get_kv_compressed(params)) {
-        jit.make("CMPA_KVCACHE_U8", 1);
-    } else {
-        jit.make("CMPA_KVCACHE_U8", 0);
-    }
     return jit;
 }
 
 DispatchDataFunc PagedAttentionGeneratorMultiToken::get_dispatch_data_func() const {
-    return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+    const size_t xattn_block_size = _xattn_block_size;
+    constexpr size_t wg_size = PagedAttentionGeneratorMultiToken::_wg_size;
+    return DispatchDataFunc{[xattn_block_size, wg_size](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
         auto& wgs = kd.params.workGroups;
         auto& scalars = kd.params.scalars;
         auto desc = params.typed_desc<paged_attention>();
         auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
-        // OPENVINO_ASSERT(rt_params != nullptr);
+        OPENVINO_ASSERT(rt_params != nullptr);
         const size_t heads_num = desc->heads_num;
-        auto query_layout = params.input_layouts[PagedAttentionInputIdx::QUERY];
 
         auto out_shape = params.output_layouts[0].get_shape();
-        const size_t batch = out_shape.size() < 4 ? 1 : out_shape[0];
         const size_t q_len = out_shape[0];
 
-        auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
-        const size_t q_step = get_q_step(xe_arch, false);
-        const size_t wg_seq_len = WG_SIZE * q_step;
-        const size_t wg_count = align_to(q_len, wg_seq_len) / wg_seq_len;
+        const size_t q_step = get_q_step(params);
+        const size_t wg_seq_len = get_wg_seq_len(params);
+        const size_t wg_count = rtp->multi_token_wg_count;
+        OPENVINO_ASSERT(wg_count > 0, "Invalid multi_token_wg_count in runtime params");
 
-        wgs.global = {batch, heads_num, wg_count * WG_SIZE};
-        wgs.local = {1, 1, WG_SIZE};
+        wgs.global = {1, heads_num, wg_count * wg_size};
+        wgs.local = {1, 1, wg_size};
 
         if (DEBUG_ENABLED) {  // Debug
             std::cout << "PagedAttentionGeneratorMultiToken::get_dispatch_data_func: \n"
-                      << "\tbatch: " << batch << ", heads_num: " << heads_num << ", q_len: " << q_len << ", q_step: " << q_step
-                      << ", wg_seq_len: " << wg_seq_len << ", wg_count: " << wg_count << ", gws: [" << wgs.global[0] << ", " << wgs.global[1] << ", "
-                      << wgs.global[2] << "]" << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]" << std::endl;
+                      << "\theads_num: " << heads_num << ", q_len: " << q_len << ", q_step: " << q_step << ", wg_seq_len: " << wg_seq_len
+                      << ", wg_count: " << wg_count << ", gws: [" << wgs.global[0] << ", " << wgs.global[1] << ", " << wgs.global[2] << "]" << ", lws: ["
+                      << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]" << std::endl;
         }
-        auto num_scalers = desc->has_xattention ? 4 : 1;
-        scalars.resize(num_scalers);
+        scalars.resize(1);
         scalars[0].t = ScalarDescriptor::Types::INT32;
         scalars[0].v.s32 = static_cast<int32_t>(q_len);
-        if (num_scalers > 1) {
-            scalars[1].t = ScalarDescriptor::Types::INT32;
-            scalars[1].v.s32 = static_cast<int32_t>(rtp->q_block_pad);
-
-            scalars[2].t = ScalarDescriptor::Types::INT32;
-            scalars[2].v.s32 = static_cast<int32_t>(rtp->k_block_pad);
-
-            scalars[3].t = ScalarDescriptor::Types::INT32;
-            const bool validate = !bypass_xattn(params);
-            scalars[3].v.s32 = static_cast<int32_t>(validate ? rtp->xattn_block_size : 1);
-        }
     }};
 }
 
@@ -402,35 +426,22 @@ JitConstants PagedAttentionGeneratorSingleToken::get_jit_constants(const kernel_
     auto jit = PagedAttentionGeneratorBase::get_jit_constants(params);
     // jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
     auto desc = params.typed_desc<paged_attention>();
-    const float scale_factor = 1.0 / std::sqrt(static_cast<double>(desc->k_head_size));
+    const float scale_factor = 1.0f / std::sqrt(static_cast<float>(desc->k_head_size));
     const size_t kv_partition_size = get_partition_size(desc->has_xattention);
-    auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
-
     jit.make("KV_PARTITION_SIZE", kv_partition_size);
     if (desc->has_xattention) {
         jit.make("KV_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE_XATTN);
     } else {
-        jit.make("KV_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE);
+        jit.make("KV_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE_LEGACY);
     }
     jit.add(make_jit_constant("SCALE_FACTOR", scale_factor));
     jit.make("HEAD_SIZE", desc->k_head_size);
     jit.make("HEADS_NUM", desc->heads_num);
     jit.make("KV_HEADS_NUM", desc->kv_heads_num);
-    jit.make("Q_STEP", get_q_step(xe_arch, true));
 
-    constexpr int32_t MaxRepeatCount = 8;
-    int32_t q_heads_per_kv_head = static_cast<int32_t>(desc->heads_num / desc->kv_heads_num);
-    int32_t q_head_chunks_per_kv_head = ceil_div(q_heads_per_kv_head, MaxRepeatCount);
-    int32_t q_head_chunk_size = static_cast<int32_t>(desc->heads_num / (desc->kv_heads_num * q_head_chunks_per_kv_head));
-    jit.make("Q_head_chunks_per_kv_head", q_head_chunks_per_kv_head);
-    jit.make("Q_head_chunk_size", q_head_chunk_size);
-
-    if (get_kv_compressed(params)) {
-        jit.make("KV_CACHE_COMPRESSION", 1);
-        jit.make("KV_CACHE_COMPRESSION_BY_TOKEN", 1);
-    } else {
-        jit.make("KV_CACHE_COMPRESSION", 0);
-    }
+    const auto q_chunking = get_single_token_q_chunking(params, *desc, kv_partition_size);
+    jit.make("Q_head_chunks_per_kv_head", q_chunking.q_head_chunks_per_kv_head);
+    jit.make("Q_head_chunk_size", q_chunking.q_head_chunk_size);
 
     return jit;
 }
@@ -442,13 +453,14 @@ Arguments PagedAttentionGeneratorSingleToken::get_arguments_desc(const kernel_im
     const auto has_scores_output = params.output_layouts.size() > 1;
     OPENVINO_ASSERT(!has_scores_output, "[GPU][CM] PagedAttentionGeneratorSingleToken with scores output is not supported yet");
 
-    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QUERY});                 // queries
-    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::KEY_CACHE});             // keys cache
-    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::VALUE_CACHE});           // values cache
-    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::PAST_LENS});             // past lens
-    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES});         // block indices
-    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES_BEGINS});  // block indices begins
-    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});    // subsequence begins
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QUERY});                                         // queries
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::KEY_CACHE});                                     // keys cache
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::VALUE_CACHE});                                   // values cache
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::PAST_LENS});                                     // past lens
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES});                                 // block indices
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES_BEGINS});                          // block indices begins
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});                            // subsequence begins
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::SINGLE_TOKEN_SELECTED_SEQ_IDS});  // selected sequence ids
 
     // outputs
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::DECODE_PARTITIONOUT});  // partition output
@@ -456,6 +468,7 @@ Arguments PagedAttentionGeneratorSingleToken::get_arguments_desc(const kernel_im
 
     // scalar
     args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // q_len==1
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // selected_sequence_count
 
     return args;
 }
@@ -468,30 +481,27 @@ DispatchDataFunc PagedAttentionGeneratorSingleToken::get_dispatch_data_func() co
         auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
         OPENVINO_ASSERT(rt_params != nullptr);
 
-        const size_t batch = params.input_layouts[0].get_partial_shape()[0].get_length();
+        const size_t batch = rtp->single_token_selected_count;
         const size_t heads_num = desc->heads_num;
         const size_t kv_heads_num = desc->kv_heads_num;
         const size_t partition_num = rtp->num_of_partitions;
 
-        constexpr int32_t MaxRepeatCount = 8;
-        int32_t q_heads_per_kv_head = static_cast<int32_t>(heads_num / kv_heads_num);
-        int32_t q_head_chunks_per_kv_head = ceil_div(q_heads_per_kv_head, MaxRepeatCount);
-        wgs.global = {batch, kv_heads_num * q_head_chunks_per_kv_head, partition_num};
+        OPENVINO_ASSERT(rtp->q_chunking.q_head_chunks_per_kv_head > 0, "Invalid q_head_chunks_per_kv_head in runtime params");
+        wgs.global = {batch, kv_heads_num * static_cast<size_t>(rtp->q_chunking.q_head_chunks_per_kv_head), partition_num};
         wgs.local = {1, 1, 1};
 
         // generate stage: q_len=1
         auto& scalars = kd.params.scalars;
-        std::vector<size_t> scaler_value = {1};
+        std::vector<size_t> scaler_value = {1, rtp->single_token_selected_count};
         scalars.resize(scaler_value.size());
 
         if (DEBUG_ENABLED) {  // Debug
             size_t kv_len = get_kv_len(params, PagedAttentionStage::GENERATE);
             size_t max_context_len = get_max_context_len(params);
-            size_t past_len = get_past_len(params, 0);
             std::cout << "PagedAttentionGeneratorSingleToken::get_dispatch_data_func: " << "batch: " << batch << ", heads_num: " << heads_num
-                      << ", partition_num: " << partition_num << ", kv_len: " << kv_len << ", max_context_len = " << max_context_len
-                      << ", past_len = " << past_len << ", gws: [" << wgs.global[0] << ", " << wgs.global[1] << ", " << wgs.global[2] << "]" << ", lws: ["
-                      << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]" << std::endl;
+                      << ", partition_num: " << partition_num << ", kv_len: " << kv_len << ", max_context_len = " << max_context_len << ", gws: ["
+                      << wgs.global[0] << ", " << wgs.global[1] << ", " << wgs.global[2] << "]" << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", "
+                      << wgs.local[2] << "]" << std::endl;
         }
         for (size_t i = 0; i < scaler_value.size(); ++i) {
             scalars[i].t = ScalarDescriptor::Types::INT32;
@@ -519,12 +529,15 @@ Arguments PagedAttentionGeneratorSingleTokenFinalization::get_arguments_desc(con
     if (has_scores_output)
         OPENVINO_THROW("[GPU][CM] PagedAttentionGeneratorSingleTokenFinalization with scores output is not supported yet");
 
-    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::DECODE_PARTITIONOUT});  // partition data
-    args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});                                                          // output
-    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::DECODE_EXPSUMS});       // lse
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::DECODE_PARTITIONOUT});            // partition data
+    args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});                                                                    // output
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::DECODE_EXPSUMS});                 // lse
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});                            // subsequence begins
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::SINGLE_TOKEN_SELECTED_SEQ_IDS});  // selected sequence ids
 
     // scalar
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // kv_partition_num
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // selected_sequence_count
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // kv_partition_num
 
     return args;
 }
@@ -539,7 +552,7 @@ DispatchDataFunc PagedAttentionGeneratorSingleTokenFinalization::get_dispatch_da
 
         OPENVINO_ASSERT(rt_params != nullptr);
 
-        const size_t batch = params.input_layouts[0].get_partial_shape()[0].get_length();
+        const size_t batch = rtp->single_token_selected_count;
         const size_t heads_num = desc->heads_num;
         const size_t head_size = desc->k_head_size;
         wgs.global = {batch, heads_num, head_size / reduce_split_step};
@@ -547,7 +560,7 @@ DispatchDataFunc PagedAttentionGeneratorSingleTokenFinalization::get_dispatch_da
 
         auto& scalars = kd.params.scalars;
         const size_t partition_num = rtp->num_of_partitions;
-        std::vector<size_t> scaler_value = {partition_num};
+        std::vector<size_t> scaler_value = {rtp->single_token_selected_count, partition_num};
         scalars.resize(scaler_value.size());
 
         if (DEBUG_ENABLED) {  // Debug
@@ -579,8 +592,10 @@ JitConstants XAttentionEstimateGeneratorBase::get_jit_constants(const kernel_imp
     int scale_factor_i;
     std::memcpy(static_cast<void*>(&scale_factor_i), &scale_factor, sizeof(scale_factor));
 
-    const uint32_t wg_k = BLOCK_WG_M;
-    const uint32_t wg_q = BLOCK_WG_N;
+    const uint32_t block_sg_m = get_block_sg_m(params);
+    const uint32_t block_sg_n = get_block_sg_n(params);
+    const uint32_t wg_k = get_block_wg_m(params);
+    const uint32_t wg_q = get_block_wg_n(params);
     OPENVINO_ASSERT(wg_k % _xattn_block_size == 0, "wg_k should be multiple of block_size then there is no tails from block_size");
     OPENVINO_ASSERT(wg_q % _xattn_block_size == 0, "wg_q should be multiple of block_size then there is no tails from block_size");
 
@@ -590,23 +605,29 @@ JitConstants XAttentionEstimateGeneratorBase::get_jit_constants(const kernel_imp
     jit.make("HEAD_SIZE", desc->k_head_size);
     jit.make("SG_M", SG_M);
     jit.make("SG_N", SG_N);
-    jit.make("BLOCK_SG_M", BLOCK_SG_M);
-    jit.make("BLOCK_SG_N", BLOCK_SG_N);
+    jit.make("BLOCK_SG_M", block_sg_m);
+    jit.make("BLOCK_SG_N", block_sg_n);
     jit.make("BLOCK_WG_K", desc->k_head_size % 64 == 0 ? 64 : 32);  // GEMM QK kernel unrolls HEAD_SIZE with a step of BLOCK_WG_K
     jit.make("BLOCK_SIZE", _xattn_block_size);
     jit.make("KV_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE_XATTN);
     jit.add(make_jit_constant("INV_S", scale_factor_i));
-    jit.make("BLOCK_SHARE_MAX", BLOCK_WG_N);
+    jit.make("BLOCK_SHARE_MAX", wg_q);
     //# loop order walks HQ first and the step is WALK_HQ, 1 means not walk HQ, 2 means walks 2 heads first. Valid value: 1, 2, 4...
     jit.make("WALK_HQ", desc->heads_num != desc->kv_heads_num ? 2 : 1);
     jit.make("IS_CAUSAL", 1);
     if (get_kv_compressed(params)) {
-        jit.make("USE_INT8", 1);
-        jit.make("HEAD_SIZE_KEY", desc->k_head_size + 2 * 2);
+        if (desc->is_key_by_channel) {
+            jit.make("KV_CACHE_COMPRESSION", 2);
+            jit.make("HEAD_SIZE_KEY", desc->k_head_size + 4 * desc->k_head_size / KV_SUB_BLOCK_SIZE);
+        } else {
+            jit.make("KV_CACHE_COMPRESSION", 1);
+            jit.make("HEAD_SIZE_KEY", desc->k_head_size + 2 * 2);
+        }
     } else {
-        jit.make("USE_INT8", 0);
+        jit.make("KV_CACHE_COMPRESSION", 0);
         jit.make("HEAD_SIZE_KEY", desc->k_head_size);
     }
+    jit.make("SUB_BLOCK_SIZE", KV_SUB_BLOCK_SIZE);
     jit.make("SOFTMAX_TYPE", "float");
 
     return jit;
@@ -618,23 +639,18 @@ JitConstants XAttentionEstimateGeneratorBase::get_jit_constants(const kernel_imp
 Arguments XAttentionEstimateGEMMQK::get_arguments_desc(const kernel_impl_params& params) const {
     Arguments args;
 
-    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::KEY_CACHE});             // keys cache
-    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QUERY});                 // queries
-    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES});         // block indices
-    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES_BEGINS});  // block indices begins
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::KEY_CACHE});                         // keys cache
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QUERY});                             // queries
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES});                     // block indices
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_SUBSEQ_META});  // metadata
 
     // outputs
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_GEMMQK_MAX});      // kq_max_wg
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_GEMMQK_EXPSUMS});  // kq_exp_partial_sum
 
     // scalar
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // M
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // N
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // K
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 3});  // query_pitch
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 4});  // slice_no
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 5});  // slice
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 6});  // q_start_strided
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // query_pitch
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // num_subseqs
 
     return args;
 }
@@ -645,10 +661,6 @@ DispatchDataFunc XAttentionEstimateGEMMQK::get_dispatch_data_func() const {
         OPENVINO_ASSERT(rt_params != nullptr);
         auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
         const auto desc = params.typed_desc<paged_attention>();
-
-        const auto M = rtp->M;
-        const auto N = rtp->N;
-        const auto K = rtp->K;
 
         auto get_simple_pitch = [](const layout& layout) {
             size_t pitch = 1;
@@ -663,31 +675,19 @@ DispatchDataFunc XAttentionEstimateGEMMQK::get_dispatch_data_func() const {
         };
         auto querry_layout = params.input_layouts[PagedAttentionInputIdx::QUERY];
         const size_t query_pitch = get_simple_pitch(querry_layout) * STRIDE;
-        const size_t slice_no = 0, slice = 0;
 
-        //# loop order walks HQ first and the step is WALK_HQ, 1 means not walk HQ, 2 means walks 2 heads first. Valid value: 1, 2, 4...
         const size_t WALK_HQ = desc->heads_num != desc->kv_heads_num ? 2 : 1;
 
         auto& wgs = kd.params.workGroups;
-        wgs.global = {rtp->N_kq_groups * (rtp->q_stride_pad / BLOCK_WG_M) * SG_N * WALK_HQ, SG_M, desc->heads_num / WALK_HQ};
+        wgs.global = {rtp->xattn_gemmqk_wg_count * SG_N * WALK_HQ, SG_M, desc->heads_num / WALK_HQ};
         wgs.local = {SG_N, SG_M, 1};
 
-        const size_t q_start_strided = N - M;
-        OPENVINO_ASSERT(N >= M, "length of key cache must be greater or equal than query");
-
         auto& scalars = kd.params.scalars;
-        std::vector<size_t> scaler_value = {M, N, K, query_pitch, slice_no, slice, q_start_strided};
-        scalars.resize(scaler_value.size());
-
-        for (size_t i = 0; i < scaler_value.size(); ++i) {
-            if (i == 4 || i == 5) {
-                scalars[i].t = ScalarDescriptor::Types::INT32;
-                scalars[i].v.s32 = static_cast<int32_t>(scaler_value[i]);
-            } else {
-                scalars[i].t = ScalarDescriptor::Types::UINT32;
-                scalars[i].v.u32 = static_cast<uint32_t>(scaler_value[i]);
-            }
-        }
+        scalars.resize(2);
+        scalars[0].t = ScalarDescriptor::Types::UINT32;
+        scalars[0].v.u32 = static_cast<uint32_t>(query_pitch);
+        scalars[1].t = ScalarDescriptor::Types::INT32;
+        scalars[1].v.s32 = static_cast<int32_t>(rtp->xattn_num_subseqs);
     }};
 }
 
@@ -716,14 +716,12 @@ Arguments XAttentionEstimateFindBlock::get_arguments_desc(const kernel_impl_para
     // outputs
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK});  // sparse_block_mask
 
+    // metadata
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_SUBSEQ_META});  // metadata
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_FIND_WG_MAP});  // compact [subseq_id, q_block_idx] map
+
     // scalar
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // q_len
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // q_stride
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // q_stride_pad
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 3});  // q_block_pad
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 4});  // k_block_pad
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 5});  // causal_start_index
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 6});  // thresh
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // thresh
 
 #if FIND_DEBUG_ACC
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_FIND_DEBUG_ACC});  // kq_sum for debug purpose only
@@ -742,29 +740,15 @@ DispatchDataFunc XAttentionEstimateFindBlock::get_dispatch_data_func() const {
         auto& wgs = kd.params.workGroups;
 
         const size_t heads_num = desc->heads_num;
-
-        auto out_shape = params.output_layouts[0].get_shape();
-        const size_t q_len = out_shape[0];
-
-        const size_t sum_per_n_token_in_block = static_cast<size_t>(rtp->xattn_block_size / STRIDE);
-        const uint32_t q_block = ceil_div(rtp->M, sum_per_n_token_in_block);
-        const uint32_t k_block = ceil_div(rtp->N, sum_per_n_token_in_block);
-
         const float xattn_thresh = get_xattn_thresh(params);
 
-        wgs.global = {rtp->q_block_pad, heads_num, 1};
+        wgs.global = {rtp->xattn_find_wg_count, heads_num, 1};
         wgs.local = {1, 1, 1};
 
         auto& scalars = kd.params.scalars;
-        std::vector<size_t> scaler_value = {q_len, rtp->M, rtp->q_stride_pad, rtp->q_block_pad, rtp->k_block_pad, k_block - q_block};
-        scalars.resize(scaler_value.size() + 1);
-
-        for (size_t i = 0; i < scaler_value.size(); ++i) {
-            scalars[i].t = ScalarDescriptor::Types::UINT32;
-            scalars[i].v.u32 = static_cast<uint32_t>(scaler_value[i]);
-        }
-        scalars[scaler_value.size()].t = ScalarDescriptor::Types::FLOAT32;  // the last is for thresh with f32 dtype
-        scalars[scaler_value.size()].v.f32 = static_cast<float>(xattn_thresh);
+        scalars.resize(1);
+        scalars[0].t = ScalarDescriptor::Types::FLOAT32;
+        scalars[0].v.f32 = static_cast<float>(xattn_thresh);
     }};
 }
 
@@ -774,8 +758,7 @@ DispatchDataFunc XAttentionEstimateFindBlock::get_dispatch_data_func() const {
 JitConstants XAttentionEstimatePostProc::get_jit_constants(const kernel_impl_params& params) const {
     auto jit = XAttentionEstimateGeneratorBase::get_jit_constants(params);
 
-    const uint32_t MERGED_Q_NUM = static_cast<uint32_t>(PA_KV_CACHE_BLOCK_SIZE_XATTN / _xattn_block_size);
-    jit.make("MERGED_Q_NUM", MERGED_Q_NUM);
+    jit.make("MERGED_Q_NUM", PagedAttentionGeneratorMultiToken::get_wg_seq_len(params) / _xattn_block_size);
 
     return jit;
 }
@@ -789,10 +772,10 @@ Arguments XAttentionEstimatePostProc::get_arguments_desc(const kernel_impl_param
     // outputs
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK_MERGED});  // sparse_block_mask_wg
 
-    // scalar
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // q_stride_pad
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // q_block_pad
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // k_block_pad
+    // metadata
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_SUBSEQ_META});  // metadata
+    args.push_back(
+        {ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_POST_WG_MAP});  // compact [subseq_id, merged_q_block_idx] map
 
     return args;
 }
@@ -806,17 +789,11 @@ DispatchDataFunc XAttentionEstimatePostProc::get_dispatch_data_func() const {
 
         auto& wgs = kd.params.workGroups;
 
-        wgs.global = {rtp->q_block_pad_merged, desc->heads_num, 1};
+        wgs.global = {rtp->xattn_post_wg_count, desc->heads_num, 1};
         wgs.local = {1, 1, 1};
 
         auto& scalars = kd.params.scalars;
-        std::vector<size_t> scaler_value = {rtp->q_stride_pad, rtp->q_block_pad, rtp->k_block_pad};
-        scalars.resize(scaler_value.size());
-
-        for (size_t i = 0; i < scaler_value.size(); ++i) {
-            scalars[i].t = ScalarDescriptor::Types::UINT32;
-            scalars[i].v.u32 = static_cast<uint32_t>(scaler_value[i]);
-        }
+        scalars.clear();
     }};
 }
 

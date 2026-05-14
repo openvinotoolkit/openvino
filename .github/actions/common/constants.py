@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 from enum import Enum
 
 
@@ -19,7 +22,6 @@ productTypes = (
     'public_windows_vs2019_debug',
     'public_windows_vs2022_release',
     'public_windows_vs2022_debug',
-    'public_manylinux2014_x86_64_release',
     'public_manylinux_2_28_x86_64_release',
     'public_macos_x86_64_release',
     'public_macos_arm64_release',
@@ -31,7 +33,6 @@ ProductType = Enum('ProductType', {t.upper(): t for t in productTypes})
 
 platformKeys = (
     'almalinux8_x86_64',
-    'centos7_x86_64',
     'debian10_armhf',
     'rhel8_x86_64',
     'ubuntu22_arm64',
@@ -58,7 +59,6 @@ PlatformMapping = {
     PlatformKey.WINDOWS_X86_64: ProductType.PUBLIC_WINDOWS_VS2022_RELEASE,
     PlatformKey.MACOS_12_6_X86_64: ProductType.PUBLIC_MACOS_X86_64_RELEASE,
     PlatformKey.MACOS_14_7_ARM64: ProductType.PUBLIC_MACOS_ARM64_RELEASE,
-    PlatformKey.CENTOS7_X86_64: ProductType.PUBLIC_MANYLINUX2014_X86_64_RELEASE,
     PlatformKey.ALMALINUX8_X86_64: ProductType.PUBLIC_MANYLINUX_2_28_X86_64_RELEASE,
     PlatformKey.ANDROID_X64: ProductType.PUBLIC_ANDROID_X64_RELEASE,
     PlatformKey.ANDROID_ARM64: ProductType.PUBLIC_ANDROID_ARM64_RELEASE,

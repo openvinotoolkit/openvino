@@ -92,6 +92,25 @@ struct FileTraits<wchar_t> {
 #endif
     }
 };
+template <>
+struct FileTraits<char16_t> {
+    static constexpr const auto file_separator =
+#ifdef _WIN32
+        u'\\';
+#else
+        u'/';
+#endif
+};
+
+template <>
+struct FileTraits<char32_t> {
+    static constexpr const auto file_separator =
+#ifdef _WIN32
+        U'\\';
+#else
+        U'/';
+#endif
+};
 
 template <class T>
 inline std::string to_string_c_locale(T value) {
@@ -234,6 +253,7 @@ inline std::vector<std::string> splitStringByDelimiter(std::string paths, const 
 }
 
 std::string getModelFromTestModelZoo(const std::string& relModelPath);
+std::string getModelFromTestModelZoo(const std::filesystem::path& relModelPath);
 
 std::string getOpenvinoLibDirectory();
 std::string getExecutableDirectory();
@@ -329,5 +349,12 @@ private:
 using StringPathVariant = std::variant<std::string, std::u16string, std::u32string, std::wstring>;
 
 std::filesystem::path to_fs_path(const StringPathVariant& param);
+
+/**
+ * @brief Opens file in read-only mode
+ * @param path file path
+ * @return file handle
+ */
+FileHandle open_ro_file(const std::filesystem::path& path);
 
 }  // namespace ov::test::utils

@@ -1729,3 +1729,511 @@ TEST(prepare_buffer_fusing, reorder_permute_with_fused_prim) {
     ASSERT_FALSE(reorder_node.can_be_optimized());
     ASSERT_FALSE(permute_node.can_be_optimized());
 }
+
+TEST(prepare_buffer_fusing, disable_reshape_with_feature_upper_padding) {
+    auto& engine = get_test_engine();
+
+    auto in_layout = layout{ov::PartialShape{2, 24, 1, 1}, data_types::f16, format::bfyx};
+
+    topology topology;
+    topology.add(input_layout("input", in_layout));
+    topology.add(activation("act", input_info("input"), activation_func::relu));
+    topology.add(reshape("reshape", input_info("act"), false, {2, 6, 1, 4},
+                         ov::PartialShape{2, 6, 1, 4}));
+    topology.add(reorder("output", input_info("reshape"), format::bfyx, data_types::f16));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    auto prog = program::build_program(engine, topology, config, false, false);
+    ASSERT_NE(prog, nullptr);
+    ASSERT_TRUE(prog->has_node("reshape"));
+    ASSERT_TRUE(prog->has_node("act"));
+
+    auto& act_node = prog->get_node("act");
+    auto act_layout = act_node.get_output_layout();
+    padding feature_upper_padding({0, 0, 0, 0}, {0, 8, 0, 0});
+    act_layout.data_padding = feature_upper_padding;
+    act_node.set_output_layout(act_layout, false);
+
+    auto& reshape_node = prog->get_node("reshape").as<reshape>();
+
+    auto& reshape_input_layout = reshape_node.get_dependency(0).get_output_layout();
+    ASSERT_GT(reshape_input_layout.data_padding._upper_size[1], 0)
+        << "Test setup: reshape input should have feature upper padding";
+
+    bool has_outer_pad = reshape_node.has_outer_padding_offset();
+    ASSERT_FALSE(has_outer_pad)
+        << "has_outer_padding_offset() should return FALSE for inputs with feature upper padding";
+
+    program_wrapper::apply_opt_pass<prepare_buffer_fusing>(*prog);
+    ASSERT_FALSE(reshape_node.can_be_optimized())
+        << "Reshape with feature upper padding should NOT be optimized";
+}
+
+TEST(prepare_buffer_fusing, in_place_crop_dynamic_batch_axis_split_with_reshape) {
+    auto& engine = get_test_engine();
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    auto in_layout = layout{ov::PartialShape{3, -1, 2, 4}, data_types::f32, format::bfyx};
+    auto input_mem = engine.allocate_memory({{3, 2, 2, 4}, data_types::f32, format::bfyx});
+    auto axis_mem = engine.allocate_memory({{}, data_types::i64, format::bfyx});
+    auto splits_length_mem = engine.allocate_memory({{3}, data_types::i64, format::bfyx});
+
+    const int64_t axis = 0;
+    const size_t dim_f = 2, dim_y = 2, dim_x = 4;
+    const size_t slice_elems = dim_f * dim_y * dim_x;
+
+    auto input_data = rg.generate_random_1d<float>(input_mem->count(), -1.f, 1.f);
+    set_values(input_mem, input_data);
+    set_values<int64_t>(axis_mem, {axis});
+    set_values<int64_t>(splits_length_mem, {1, 1, 1});
+
+    // reshape [1, dim_f, dim_y, dim_x] → [-1, dim_y, dim_x] (base mode, absorbs static b=1)
+    const std::vector<int64_t> squeeze_pattern = {-1, static_cast<int64_t>(dim_y), static_cast<int64_t>(dim_x)};
+    const ov::PartialShape squeeze_out_shape = {-1, static_cast<int64_t>(dim_y), static_cast<int64_t>(dim_x)};
+
+    cldnn::crop_ngraph_op_mode op_mode = cldnn::crop_ngraph_op_mode::variadic_split;
+    topology topology(
+        input_layout("input", in_layout),
+        data("axis", axis_mem),
+        data("splits_length", splits_length_mem),
+        // Q branch: crop output_idx=0 → [1, dim_f, dim_y, dim_x] → reshape → [-1, dim_y, dim_x]
+        crop("crop_q", {input_info("input"), input_info("axis"), input_info("splits_length")}, cldnn::tensor(1), cldnn::tensor(0), op_mode, 0, axis),
+        reshape("reshape_q", input_info("crop_q"), false, squeeze_pattern, squeeze_out_shape, cldnn::reshape::reshape_mode::base),
+        reorder("output_q", input_info("reshape_q"), format::bfyx, data_types::f32, std::vector<float>(), reorder_mean_mode::subtract, padding(), true),
+        // K branch: crop output_idx=1
+        crop("crop_k", {input_info("input"), input_info("axis"), input_info("splits_length")}, cldnn::tensor(1), cldnn::tensor(0), op_mode, 1, axis),
+        reshape("reshape_k", input_info("crop_k"), false, squeeze_pattern, squeeze_out_shape, cldnn::reshape::reshape_mode::base),
+        reorder("output_k", input_info("reshape_k"), format::bfyx, data_types::f32, std::vector<float>(), reorder_mean_mode::subtract, padding(), true),
+        // V branch: crop output_idx=2
+        crop("crop_v", {input_info("input"), input_info("axis"), input_info("splits_length")}, cldnn::tensor(1), cldnn::tensor(0), op_mode, 2, axis),
+        reshape("reshape_v", input_info("crop_v"), false, squeeze_pattern, squeeze_out_shape, cldnn::reshape::reshape_mode::base),
+        reorder("output_v", input_info("reshape_v"), format::bfyx, data_types::f32, std::vector<float>(), reorder_mean_mode::subtract, padding(), true)
+    );
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+
+    auto outputs = network.execute();
+
+    ASSERT_TRUE(network.get_primitive("crop_q")->can_be_optimized());
+    ASSERT_TRUE(network.get_primitive("crop_k")->can_be_optimized());
+    ASSERT_TRUE(network.get_primitive("crop_v")->can_be_optimized());
+
+    auto q_mem = outputs.at("output_q").get_memory();
+    cldnn::mem_lock<float> q_out(q_mem, get_test_stream());
+    auto k_mem = outputs.at("output_k").get_memory();
+    cldnn::mem_lock<float> k_out(k_mem, get_test_stream());
+    auto v_mem = outputs.at("output_v").get_memory();
+    cldnn::mem_lock<float> v_out(v_mem, get_test_stream());
+
+    ASSERT_EQ(q_out.size(), slice_elems);
+    ASSERT_EQ(k_out.size(), slice_elems);
+    ASSERT_EQ(v_out.size(), slice_elems);
+
+    // Each in-place crop+reshape must read the correct slice without data movement
+    for (size_t i = 0; i < slice_elems; i++)
+        ASSERT_FLOAT_EQ(q_out[i], input_data[0 * slice_elems + i]) << "Q mismatch at " << i;
+    for (size_t i = 0; i < slice_elems; i++)
+        ASSERT_FLOAT_EQ(k_out[i], input_data[1 * slice_elems + i]) << "K mismatch at " << i;
+    for (size_t i = 0; i < slice_elems; i++)
+        ASSERT_FLOAT_EQ(v_out[i], input_data[2 * slice_elems + i]) << "V mismatch at " << i;
+}
+
+// RAFT-like pattern: VariadicSplit on batch axis → crop [1,C,H,W] → Reshape [1,C,H*W]
+// The reshape flattens spatial dims while keeping batch=1.  The in-place crop
+// optimisation must NOT treat this as a batch-squeeze and must produce correct data.
+TEST(prepare_buffer_fusing, in_place_crop_dynamic_batch_axis_split_with_spatial_flatten_reshape) {
+    auto& engine = get_test_engine();
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    const size_t dim_b = 2, dim_c = 4, dim_h = 3, dim_w = 5;
+    const size_t slice_elems = dim_c * dim_h * dim_w;
+
+    auto in_layout = layout{ov::PartialShape{static_cast<int64_t>(dim_b), -1, static_cast<int64_t>(dim_h), static_cast<int64_t>(dim_w)},
+                            data_types::f32, format::bfyx};
+    auto input_mem = engine.allocate_memory({{static_cast<int64_t>(dim_b), static_cast<int64_t>(dim_c),
+                                              static_cast<int64_t>(dim_h), static_cast<int64_t>(dim_w)},
+                                             data_types::f32, format::bfyx});
+    auto axis_mem = engine.allocate_memory({{}, data_types::i64, format::bfyx});
+    auto splits_length_mem = engine.allocate_memory({{2}, data_types::i64, format::bfyx});
+
+    const int64_t axis = 0;
+
+    auto input_data = rg.generate_random_1d<float>(input_mem->count(), -1.f, 1.f);
+    set_values(input_mem, input_data);
+    set_values<int64_t>(axis_mem, {axis});
+    set_values<int64_t>(splits_length_mem, {1, 1});
+
+    // reshape [1, C, H, W] → [1, C, H*W]  (spatial flatten, batch preserved)
+    const int64_t hw = static_cast<int64_t>(dim_h * dim_w);
+    const std::vector<int64_t> flatten_pattern = {1, -1, hw};
+    const ov::PartialShape flatten_out_shape = {1, -1, hw};
+
+    cldnn::crop_ngraph_op_mode op_mode = cldnn::crop_ngraph_op_mode::variadic_split;
+    topology topology(
+        input_layout("input", in_layout),
+        data("axis", axis_mem),
+        data("splits_length", splits_length_mem),
+        // Branch 0: crop → [1, C, H, W] → reshape → [1, C, H*W]
+        crop("crop_0", {input_info("input"), input_info("axis"), input_info("splits_length")}, cldnn::tensor(1), cldnn::tensor(0), op_mode, 0, axis),
+        reshape("reshape_0", input_info("crop_0"), false, flatten_pattern, flatten_out_shape, cldnn::reshape::reshape_mode::base),
+        reorder("output_0", input_info("reshape_0"), format::bfyx, data_types::f32, std::vector<float>(), reorder_mean_mode::subtract, padding(), true),
+        // Branch 1: crop → [1, C, H, W] → reshape → [1, C, H*W]
+        crop("crop_1", {input_info("input"), input_info("axis"), input_info("splits_length")}, cldnn::tensor(1), cldnn::tensor(0), op_mode, 1, axis),
+        reshape("reshape_1", input_info("crop_1"), false, flatten_pattern, flatten_out_shape, cldnn::reshape::reshape_mode::base),
+        reorder("output_1", input_info("reshape_1"), format::bfyx, data_types::f32, std::vector<float>(), reorder_mean_mode::subtract, padding(), true)
+    );
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+
+    auto outputs = network.execute();
+
+    auto out0_mem = outputs.at("output_0").get_memory();
+    cldnn::mem_lock<float> out0(out0_mem, get_test_stream());
+    auto out1_mem = outputs.at("output_1").get_memory();
+    cldnn::mem_lock<float> out1(out1_mem, get_test_stream());
+
+    ASSERT_EQ(out0.size(), slice_elems);
+    ASSERT_EQ(out1.size(), slice_elems);
+
+    // Branch 0 must read the first batch slice
+    for (size_t i = 0; i < slice_elems; i++)
+        ASSERT_FLOAT_EQ(out0[i], input_data[0 * slice_elems + i]) << "Branch 0 mismatch at " << i;
+    // Branch 1 must read the second batch slice
+    for (size_t i = 0; i < slice_elems; i++)
+        ASSERT_FLOAT_EQ(out1[i], input_data[1 * slice_elems + i]) << "Branch 1 mismatch at " << i;
+}
+
+// SwinTransformer layers.3 pattern: crop [1,1,H,W,C] → Reshape [-1,H,W,C] (base mode)
+// Runtime reshape output[0] == 1, but output_pattern[0] == -1 (batch squeeze).
+// In-place crop must still work correctly.
+TEST(prepare_buffer_fusing, in_place_crop_dynamic_batch_axis_split_with_reshape_window_count_one) {
+    auto& engine = get_test_engine();
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    // 3-way QKV split on axis 0 with f=1 (like SwinTransformer window_count=1)
+    const size_t num_heads = 3, seq_len = 4, head_dim = 2;
+    const size_t slice_elems = 1 * num_heads * seq_len * head_dim;
+
+    auto in_layout = layout{ov::PartialShape{3, -1, static_cast<int64_t>(num_heads),
+                                              static_cast<int64_t>(seq_len), static_cast<int64_t>(head_dim)},
+                            data_types::f32, format::bfzyx};
+    auto input_mem = engine.allocate_memory({{3, 1, static_cast<int64_t>(num_heads),
+                                              static_cast<int64_t>(seq_len), static_cast<int64_t>(head_dim)},
+                                             data_types::f32, format::bfzyx});
+    auto axis_mem = engine.allocate_memory({{}, data_types::i64, format::bfyx});
+    auto splits_length_mem = engine.allocate_memory({{3}, data_types::i64, format::bfyx});
+
+    const int64_t axis = 0;
+
+    auto input_data = rg.generate_random_1d<float>(input_mem->count(), -1.f, 1.f);
+    set_values(input_mem, input_data);
+    set_values<int64_t>(axis_mem, {axis});
+    set_values<int64_t>(splits_length_mem, {1, 1, 1});
+
+    // output_pattern[0] == -1: batch dim is squeezed. Runtime output[0] resolves to 1.
+    const std::vector<int64_t> squeeze_pattern = {-1, static_cast<int64_t>(num_heads),
+                                                   static_cast<int64_t>(seq_len), static_cast<int64_t>(head_dim)};
+    const ov::PartialShape squeeze_out_shape = {-1, static_cast<int64_t>(num_heads),
+                                                 static_cast<int64_t>(seq_len), static_cast<int64_t>(head_dim)};
+
+    cldnn::crop_ngraph_op_mode op_mode = cldnn::crop_ngraph_op_mode::variadic_split;
+    topology topology(
+        input_layout("input", in_layout),
+        data("axis", axis_mem),
+        data("splits_length", splits_length_mem),
+        // Q branch
+        crop("crop_q", {input_info("input"), input_info("axis"), input_info("splits_length")}, cldnn::tensor(1), cldnn::tensor(0), op_mode, 0, axis),
+        reshape("reshape_q", input_info("crop_q"), false, squeeze_pattern, squeeze_out_shape, cldnn::reshape::reshape_mode::base),
+        reorder("output_q", input_info("reshape_q"), format::bfyx, data_types::f32, std::vector<float>(), reorder_mean_mode::subtract, padding(), true),
+        // K branch
+        crop("crop_k", {input_info("input"), input_info("axis"), input_info("splits_length")}, cldnn::tensor(1), cldnn::tensor(0), op_mode, 1, axis),
+        reshape("reshape_k", input_info("crop_k"), false, squeeze_pattern, squeeze_out_shape, cldnn::reshape::reshape_mode::base),
+        reorder("output_k", input_info("reshape_k"), format::bfyx, data_types::f32, std::vector<float>(), reorder_mean_mode::subtract, padding(), true),
+        // V branch
+        crop("crop_v", {input_info("input"), input_info("axis"), input_info("splits_length")}, cldnn::tensor(1), cldnn::tensor(0), op_mode, 2, axis),
+        reshape("reshape_v", input_info("crop_v"), false, squeeze_pattern, squeeze_out_shape, cldnn::reshape::reshape_mode::base),
+        reorder("output_v", input_info("reshape_v"), format::bfyx, data_types::f32, std::vector<float>(), reorder_mean_mode::subtract, padding(), true)
+    );
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+
+    auto outputs = network.execute();
+
+    // Crops must still be in-place optimized despite runtime reshape output[0] == 1
+    ASSERT_TRUE(network.get_primitive("crop_q")->can_be_optimized());
+    ASSERT_TRUE(network.get_primitive("crop_k")->can_be_optimized());
+    ASSERT_TRUE(network.get_primitive("crop_v")->can_be_optimized());
+
+    auto q_mem = outputs.at("output_q").get_memory();
+    cldnn::mem_lock<float> q_out(q_mem, get_test_stream());
+    auto k_mem = outputs.at("output_k").get_memory();
+    cldnn::mem_lock<float> k_out(k_mem, get_test_stream());
+    auto v_mem = outputs.at("output_v").get_memory();
+    cldnn::mem_lock<float> v_out(v_mem, get_test_stream());
+
+    ASSERT_EQ(q_out.size(), slice_elems);
+    ASSERT_EQ(k_out.size(), slice_elems);
+    ASSERT_EQ(v_out.size(), slice_elems);
+
+    for (size_t i = 0; i < slice_elems; i++)
+        ASSERT_FLOAT_EQ(q_out[i], input_data[0 * slice_elems + i]) << "Q mismatch at " << i;
+    for (size_t i = 0; i < slice_elems; i++)
+        ASSERT_FLOAT_EQ(k_out[i], input_data[1 * slice_elems + i]) << "K mismatch at " << i;
+    for (size_t i = 0; i < slice_elems; i++)
+        ASSERT_FLOAT_EQ(v_out[i], input_data[2 * slice_elems + i]) << "V mismatch at " << i;
+}
+
+// Regression test for test_no_input_pad with duplicate dependencies.
+// When an in-place crop feeds both inputs of an eltwise (self-multiply),
+// test_no_input_pad must save/restore each dependency's padding only once.
+TEST(prepare_buffer_fusing, in_place_crop_self_multiply_spatial_split) {
+    auto& engine = get_test_engine();
+
+    // Small tensor to avoid blocked-format selection while keeping feature > 1.
+    // Split on axis 2 (spatial Y) into [2, 1].
+    const int64_t dim_b = 1, dim_f = 2, dim_y = 3, dim_x = 4;
+    const int64_t split0 = 2, split1 = 1;
+
+    auto in_layout = layout{ov::PartialShape{dim_b, dim_f, dim_y, dim_x},
+                            data_types::f32, format::bfyx};
+    auto input_mem = engine.allocate_memory({{dim_b, dim_f, dim_y, dim_x},
+                                             data_types::f32, format::bfyx});
+    auto axis_mem = engine.allocate_memory({{}, data_types::i64, format::bfyx});
+    auto splits_length_mem = engine.allocate_memory({{2}, data_types::i64, format::bfyx});
+
+    const int64_t axis = 2;
+    const size_t total = static_cast<size_t>(dim_b * dim_f * dim_y * dim_x);
+
+    // Deterministic input: input[i] = i + 1
+    std::vector<float> input_data(total);
+    for (size_t i = 0; i < total; i++)
+        input_data[i] = static_cast<float>(i + 1);
+    set_values(input_mem, input_data);
+    set_values<int64_t>(axis_mem, {axis});
+    set_values<int64_t>(splits_length_mem, {split0, split1});
+
+    cldnn::crop_ngraph_op_mode op_mode = cldnn::crop_ngraph_op_mode::variadic_split;
+    // Offsets must match what split.cpp computes: accumulated output shapes along split axis
+    auto offset_0 = cldnn::tensor(0);
+    auto offset_1 = cldnn::tensor(cldnn::batch(0), cldnn::feature(0), cldnn::spatial(0, split0));
+    topology topology(
+        input_layout("input", in_layout),
+        data("axis", axis_mem),
+        data("splits_length", splits_length_mem),
+        // Branch 0: crop [1,2,2,4] -> eltwise(self-multiply)
+        crop("crop_0", {input_info("input"), input_info("axis"), input_info("splits_length")},
+             cldnn::tensor(1), offset_0, op_mode, 0, axis),
+        eltwise("mul_0", {input_info("crop_0"), input_info("crop_0")}, eltwise_mode::prod),
+        reorder("output_0", input_info("mul_0"), format::bfyx, data_types::f32,
+                std::vector<float>(), reorder_mean_mode::subtract, padding(), true),
+        // Branch 1: crop [1,2,1,4] -> eltwise(self-multiply)
+        crop("crop_1", {input_info("input"), input_info("axis"), input_info("splits_length")},
+             cldnn::tensor(1), offset_1, op_mode, 1, axis),
+        eltwise("mul_1", {input_info("crop_1"), input_info("crop_1")}, eltwise_mode::prod),
+        reorder("output_1", input_info("mul_1"), format::bfyx, data_types::f32,
+                std::vector<float>(), reorder_mean_mode::subtract, padding(), true)
+    );
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+
+    auto outputs = network.execute();
+
+    ASSERT_TRUE(network.get_primitive("crop_0")->can_be_optimized());
+    ASSERT_TRUE(network.get_primitive("crop_1")->can_be_optimized());
+
+    // bfyx layout: linear index = f * (dim_y * dim_x) + y * dim_x + x (b=0)
+    // Verify branch 0: crop [1,2,2,4], y-offset = 0
+    auto out0_mem = outputs.at("output_0").get_memory();
+    cldnn::mem_lock<float> out0(out0_mem, get_test_stream());
+    ASSERT_EQ(out0.size(), static_cast<size_t>(dim_b * dim_f * split0 * dim_x));
+
+    for (int64_t f = 0; f < dim_f; f++) {
+        for (int64_t y = 0; y < split0; y++) {
+            for (int64_t x = 0; x < dim_x; x++) {
+                size_t src_idx = static_cast<size_t>(f * dim_y * dim_x + y * dim_x + x);
+                size_t dst_idx = static_cast<size_t>(f * split0 * dim_x + y * dim_x + x);
+                float expected = input_data[src_idx] * input_data[src_idx];
+                ASSERT_FLOAT_EQ(out0[dst_idx], expected)
+                    << "Branch 0 mismatch at f=" << f << " y=" << y << " x=" << x
+                    << " src_idx=" << src_idx << " dst_idx=" << dst_idx;
+            }
+        }
+    }
+
+    // Verify branch 1: crop [1,2,1,4], y-offset = split0
+    auto out1_mem = outputs.at("output_1").get_memory();
+    cldnn::mem_lock<float> out1(out1_mem, get_test_stream());
+    ASSERT_EQ(out1.size(), static_cast<size_t>(dim_b * dim_f * split1 * dim_x));
+
+    for (int64_t f = 0; f < dim_f; f++) {
+        for (int64_t y = 0; y < split1; y++) {
+            for (int64_t x = 0; x < dim_x; x++) {
+                size_t src_idx = static_cast<size_t>(f * dim_y * dim_x + (split0 + y) * dim_x + x);
+                size_t dst_idx = static_cast<size_t>(f * split1 * dim_x + y * dim_x + x);
+                float expected = input_data[src_idx] * input_data[src_idx];
+                ASSERT_FLOAT_EQ(out1[dst_idx], expected)
+                    << "Branch 1 mismatch at f=" << f << " y=" << y << " x=" << x
+                    << " src_idx=" << src_idx << " dst_idx=" << dst_idx;
+            }
+        }
+    }
+}
+
+// A base-mode reshape that drops the cropped (size-1) last axis must not be marked
+// runtime-padding-propagatable; otherwise sibling crop outputs alias the same buffer.
+TEST(prepare_buffer_fusing, in_place_crop_dynamic_last_axis_split_to_collapsing_reshape) {
+    auto& engine = get_test_engine();
+
+    auto in_layout = layout{ ov::PartialShape{-1, -1, 4}, data_types::f32, format::bfyx };
+    auto axis_mem = engine.allocate_memory({ {}, data_types::i64, format::bfyx });
+    auto splits_length_mem = engine.allocate_memory({ {4}, data_types::i64, format::bfyx });
+
+    const int64_t axis = 2;
+    set_values<int64_t>(axis_mem, { axis });
+    set_values<int64_t>(splits_length_mem, { 1, 1, 1, 1 });
+
+    auto op_mode = cldnn::crop_ngraph_op_mode::variadic_split;
+    topology topology(
+        input_layout("input", in_layout),
+        data("axis", axis_mem),
+        data("splits_length", splits_length_mem),
+        crop("crop0", { input_info("input"), input_info("axis"), input_info("splits_length") },
+             cldnn::tensor(1), cldnn::tensor(0), op_mode, 0, axis),
+        crop("crop1", { input_info("input"), input_info("axis"), input_info("splits_length") },
+             cldnn::tensor(1), cldnn::tensor(0), op_mode, 1, axis),
+        // Drops the cropped axis: [-1,-1,1] -> [-1,-1]  => must be rejected.
+        reshape("rs0_collapse", input_info("crop0"), false, std::vector<int64_t>{-1, 3},
+                ov::PartialShape{-1, -1}, cldnn::reshape::reshape_mode::base),
+        // Preserves the cropped axis: [-1,-1,1] -> [-1,-1,1]  => still allowed.
+        reshape("rs1_keep", input_info("crop1"), true, std::vector<int64_t>{-1, -1, 1},
+                ov::PartialShape{-1, -1, 1}, cldnn::reshape::reshape_mode::base),
+        reorder("out0", input_info("rs0_collapse"), format::bfyx, data_types::f32),
+        reorder("out1", input_info("rs1_keep"), format::bfyx, data_types::f32)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
+    ASSERT_NE(prog, nullptr);
+
+    ASSERT_FALSE(prog->get_node("rs0_collapse").as<reshape>().is_runtime_propagatable_padding());
+    ASSERT_TRUE(prog->get_node("rs1_keep").as<reshape>().is_runtime_propagatable_padding());
+}
+
+// Regression test: VariadicSplit along spatial axis followed by Reshape where
+// the padding from sibling crop slices is NOT evenly divisible by the reshape
+// divider. Without the fix, integer truncation in the divider path causes the
+// reshape to read from wrong offsets in the parent buffer.
+TEST(prepare_buffer_fusing, in_place_crop_dynamic_indivisible_padding_with_reshape) {
+    auto& engine = get_test_engine();
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    // 3D input [-1, 2, 13]: batch dynamic, split along axis=2 (last dim) into [8, 4, 1].
+    // Reshape splits last dim: crop0 [b,2,8] -> [b,2,4,2], crop1 [b,2,4] -> [b,2,2,2].
+    // crop0: upper_pad=13-0-8=5, divider=2, 5%2!=0 → indivisible padding bug
+    // crop1: upper_pad=13-8-4=1, divider=2, 1%2!=0 → indivisible padding bug
+    auto in_layout = layout{ov::PartialShape{-1, 2, 13}, data_types::f32, format::bfyx};
+    auto input_mem = engine.allocate_memory({{1, 2, 13}, data_types::f32, format::bfyx});
+    auto axis_mem = engine.allocate_memory({{}, data_types::i64, format::bfyx});
+    auto splits_length_mem = engine.allocate_memory({{3}, data_types::i64, format::bfyx});
+
+    const int64_t axis = 2;
+    auto input_data = rg.generate_random_1d<float>(input_mem->count(), -5.f, 5.f);
+    set_values(input_mem, input_data);
+    set_values<int64_t>(axis_mem, {axis});
+    set_values<int64_t>(splits_length_mem, {8, 4, 1});
+
+    const size_t feat = 2;
+    const size_t crop0_last = 8, crop1_last = 4, crop2_last = 1;
+    const size_t total_last = 13;
+
+    cldnn::crop_ngraph_op_mode op_mode = cldnn::crop_ngraph_op_mode::variadic_split;
+    topology topology(
+        input_layout("input", in_layout),
+        activation("act", input_info("input"), activation_func::none),
+        data("axis", axis_mem),
+        data("splits_length", splits_length_mem),
+        // crop0: [b,2,8] -> reshape [b,2,4,2]
+        crop("crop0", {input_info("act"), input_info("axis"), input_info("splits_length")},
+             cldnn::tensor(1), cldnn::tensor(0), op_mode, 0, axis),
+        reshape("reshape0", input_info("crop0"), true,
+                std::vector<int64_t>{0, 0, 4, 2}, ov::PartialShape{-1, -1, 4, 2},
+                cldnn::reshape::reshape_mode::base),
+        reorder("output0", input_info("reshape0"), format::bfyx, data_types::f32,
+                std::vector<float>(), reorder_mean_mode::subtract, padding(), true),
+        // crop1: [b,2,4] -> reshape [b,2,2,2]
+        crop("crop1", {input_info("act"), input_info("axis"), input_info("splits_length")},
+             cldnn::tensor(1), cldnn::tensor(0), op_mode, 1, axis),
+        reshape("reshape1", input_info("crop1"), true,
+                std::vector<int64_t>{0, 0, 2, 2}, ov::PartialShape{-1, -1, 2, 2},
+                cldnn::reshape::reshape_mode::base),
+        reorder("output1", input_info("reshape1"), format::bfyx, data_types::f32,
+                std::vector<float>(), reorder_mean_mode::subtract, padding(), true),
+        // crop2: [b,2,1] -> reorder only
+        crop("crop2", {input_info("act"), input_info("axis"), input_info("splits_length")},
+             cldnn::tensor(1), cldnn::tensor(0), op_mode, 2, axis),
+        reorder("output2", input_info("crop2"), format::bfyx, data_types::f32,
+                std::vector<float>(), reorder_mean_mode::subtract, padding(), true)
+    );
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+
+    auto outputs = network.execute();
+
+    // Verify that the indivisible-padding crops were NOT optimized in-place,
+    // while the crop without reshape user remains optimized.
+    ASSERT_FALSE(network.get_primitive("crop0")->can_be_optimized());
+    ASSERT_FALSE(network.get_primitive("crop1")->can_be_optimized());
+    ASSERT_TRUE(network.get_primitive("crop2")->can_be_optimized());
+
+    auto out0_mem = outputs.at("output0").get_memory();
+    cldnn::mem_lock<float> out0(out0_mem, get_test_stream());
+    auto out1_mem = outputs.at("output1").get_memory();
+    cldnn::mem_lock<float> out1(out1_mem, get_test_stream());
+    auto out2_mem = outputs.at("output2").get_memory();
+    cldnn::mem_lock<float> out2(out2_mem, get_test_stream());
+
+    ASSERT_EQ(out0.size(), feat * crop0_last);
+    ASSERT_EQ(out1.size(), feat * crop1_last);
+    ASSERT_EQ(out2.size(), feat * crop2_last);
+
+    // Check the outputs as linear buffers: for each feature f, every crop contributes
+    // a contiguous slice of length crop*_last, which must match the corresponding
+    // contiguous range in the input feature slice starting at the crop offset.
+    const size_t offset0 = 0, offset1 = crop0_last, offset2 = crop0_last + crop1_last;
+
+    for (size_t f = 0; f < feat; f++)
+        for (size_t y = 0; y < crop0_last; y++)
+            ASSERT_FLOAT_EQ(out0[f * crop0_last + y], input_data[f * total_last + offset0 + y])
+                << "output0 mismatch at f=" << f << " y=" << y;
+    for (size_t f = 0; f < feat; f++)
+        for (size_t y = 0; y < crop1_last; y++)
+            ASSERT_FLOAT_EQ(out1[f * crop1_last + y], input_data[f * total_last + offset1 + y])
+                << "output1 mismatch at f=" << f << " y=" << y;
+    for (size_t f = 0; f < feat; f++)
+        for (size_t y = 0; y < crop2_last; y++)
+            ASSERT_FLOAT_EQ(out2[f * crop2_last + y], input_data[f * total_last + offset2 + y])
+                << "output2 mismatch at f=" << f << " y=" << y;
+}

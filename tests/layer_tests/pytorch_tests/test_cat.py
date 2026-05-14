@@ -122,7 +122,7 @@ class TestCat(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.parametrize("out", [False, pytest.param(True, marks=pytest.mark.xfail(reason="out case is not supported"))])
+    @pytest.mark.parametrize("out", [False, True])
     def test_loop_append_cat(self, out, ie_device, precision, ir_version):
         model = aten_loop_append_cat() if not out else aten_loop_append_cat_out()
         self._test(model, ["aten::cat", "aten::append", "prim::ListConstruct", "prim::Loop"],

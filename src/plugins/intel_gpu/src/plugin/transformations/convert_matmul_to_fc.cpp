@@ -28,7 +28,7 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
     };
     auto weights_path = [&static_rank_gt_1](const ov::Output<ov::Node>& output) {
         const auto& pshape = output.get_partial_shape();
-        return ov::op::util::is_on_path<ov::op::v0::Constant>(output) &&
+        return ov::op::util::is_on_path<ov::op::v0::Constant, ov::op::v0::Parameter>(output) &&
                static_rank_gt_1(output) &&
                pshape.is_static();
     };
@@ -88,6 +88,12 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
 
         auto rank_a = shape_a.rank().get_length();
         auto rank_b = shape_b.rank().get_length();
+
+        // The fully_connected primitive does not support this situation (rank_a < rank_b).
+        // So, we need to choose GEMM instead of fully_connected.
+        if (rank_a < rank_b) {
+            return false;
+        }
 
         /*
          *  get_aligned_shapes function align two input shapes to have the same size and

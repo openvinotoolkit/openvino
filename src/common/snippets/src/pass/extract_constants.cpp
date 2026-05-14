@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "openvino/core/except.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/shape.hpp"
@@ -28,8 +29,10 @@ bool ov::snippets::pass::ExtractConstants::run_on_subgraph(const std::shared_ptr
             continue;
         }
 
-        const auto child = constant->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
-        if (ov::snippets::op::Subgraph::constant_input_should_be_inside_body(child)) {
+        const auto child_inputs = constant->get_output_target_inputs(0);
+        OPENVINO_ASSERT(!child_inputs.empty(), "ExtractConstants expects Constant to have at least one consumer input");
+        const auto& child_input = *child_inputs.begin();
+        if (ov::snippets::op::Subgraph::constant_input_should_be_inside_body(child_input)) {
             continue;
         }
 

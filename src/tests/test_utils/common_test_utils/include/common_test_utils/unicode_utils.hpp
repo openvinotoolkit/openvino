@@ -166,9 +166,18 @@ extern const std::vector<std::wstring> test_unicode_postfix_vector;
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 namespace ov::test {
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+inline const auto unicode_paths = testing::Values("这是_folder", L"这是_folder", u"这是_folder", U"这是_folder");
+#endif
+
 class UnicodePathTest : public testing::Test, public ::testing::WithParamInterface<utils::StringPathVariant> {
 protected:
     std::filesystem::path get_path_param() const;
-    std::filesystem::path fs_path_from_variant() const;
+    template <class TestVisitor>
+    auto run_test_visitor(TestVisitor&& func) {
+        return std::visit(func, GetParam());
+    }
 };
+
 }  // namespace ov::test

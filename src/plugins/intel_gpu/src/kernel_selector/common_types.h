@@ -66,6 +66,7 @@ enum class KernelType {
     SDPA,
     SHUFFLE_CHANNELS,
     SLICE,
+    SLICE_SCATTER,
     STRIDED_SLICE,
     REVERSE_SEQUENCE,
     QUANTIZE,
@@ -106,6 +107,7 @@ enum class KernelType {
     ROPE,
     DYNAMIC_QUANTIZE,
     SEARCH_SORTED,
+    SEGMENT_MAX,
     STFT,
     ISTFT,
     COL2IM,
@@ -195,7 +197,8 @@ enum class ActivationFunction {
     GELU,
     GELU_TANH,
     ROUND_HALF_TO_EVEN,
-    ROUND_HALF_AWAY_FROM_ZERO
+    ROUND_HALF_AWAY_FROM_ZERO,
+    ERFINV
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

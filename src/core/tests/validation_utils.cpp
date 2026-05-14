@@ -7,8 +7,10 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/erf.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
@@ -98,15 +100,28 @@ TEST(constantfold_subgraph, shapeof) {
     ASSERT_EQ(expected, actual);
 }
 
-namespace ov {
-namespace test {
+namespace ov::test {
 
-using op::v0::Concat;
-using op::v0::Constant;
-using op::v0::Parameter;
+using op::v0::Concat, op::v0::Constant, op::v0::Parameter;
+using ov::op::v1::Add, ov::op::v1::Divide, ov::op::v0::Erf;
 
-using testing::HasSubstr;
-using testing::Values;
+using testing::HasSubstr, testing::Values, testing::Pointwise, testing::FloatNear;
+
+TEST(constantfold_subgraph, fold_unsupported_precision_multiple_nodes) {
+    auto init = Constant::create(element::f16, Shape{1, 1, 1, 2}, {10.f, 20.f});
+    auto a = Constant::create(element::f16, Shape{1}, {1.5f});
+    auto div = std::make_shared<Divide>(init, a);
+    auto erf = std::make_shared<Erf>(div);
+    auto b = Constant::create(element::f16, Shape{1}, {10.f});
+    auto add = std::make_shared<Add>(erf, b);
+
+    auto folded_node = ov::util::constantfold_subgraph(add);
+    ASSERT_NE(folded_node, nullptr);
+    EXPECT_EQ(folded_node->get_element_type(), ov::element::f16);
+    const auto actual = folded_node->cast_vector<float>();
+    const std::vector<float> expected{11.f, 11.f};
+    EXPECT_THAT(actual, Pointwise(FloatNear(1e-5f), expected));
+}
 
 using NormalizeAxisTest = testing::Test;
 
@@ -235,7 +250,8 @@ INSTANTIATE_TEST_SUITE_P(negative_axis,
                          NormalizeAxisTestP,
                          Values(NormalizeAxisParam{-5, 0, Rank{5}},
                                 NormalizeAxisParam{-3, 2, Rank{5}},
-                                NormalizeAxisParam{-1, 4, Rank{5}}),
+                                NormalizeAxisParam{-1, 4, Rank{5}},
+                                NormalizeAxisParam{-1, 0, Rank{0}}),
                          testing::PrintToStringParamName());
 
 TEST_P(NormalizeAxisTestP, is_axis_valid) {
@@ -248,14 +264,17 @@ TEST_P(NormalizeAxisTestP, is_axis_valid) {
 TEST_P(NormalizeAxisTestP, is_axis_valid_scalar_rank) {
     const auto& axis = std::get<0>(GetParam());
 
-    if (axis) {
+    if (axis == 0 || axis == -1) {
+        EXPECT_TRUE(util::is_axis_valid(axis, 0));
+    } else {
         EXPECT_FALSE(util::is_axis_valid(axis, 0));
     }
 }
 
 TEST_P(NormalizeAxisTestP, validate_axis) {
-    const auto axes_node = Parameter(element::i64, PartialShape::dynamic(5));
     const auto& axis = std::get<0>(GetParam());
+    const auto& rank = std::get<2>(GetParam());
+    const auto axes_node = Parameter(element::i64, PartialShape::dynamic(rank));
 
     EXPECT_NO_THROW(util::validate_axis(axis, axes_node.get_output_partial_shape(0).rank(), axes_node));
 }
@@ -275,5 +294,4 @@ TEST_P(NormalizeAxisTestP, try_normalize_axis) {
 
     EXPECT_EQ(exp_axis, util::try_normalize_axis(axis, rank));
 }
-}  // namespace test
-}  // namespace ov
+}  // namespace ov::test

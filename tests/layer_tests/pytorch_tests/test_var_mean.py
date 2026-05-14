@@ -57,7 +57,8 @@ class TestVarMean(PytorchLayerTest):
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
     def test_op2args(self, unbiased, op_type, ie_device, precision, ir_version):
-        self._test(*self.create_model(unbiased, op_type=op_type), ie_device, precision, ir_version)
+        self._test(*self.create_model(unbiased, op_type=op_type), ie_device, precision, ir_version,
+                   trace_model=True)
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -70,4 +71,5 @@ class TestVarMean(PytorchLayerTest):
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
     def test_op(self, unbiased, dim, keepdim, op_type, ie_device, precision, ir_version):
-        self._test(*self.create_model(unbiased, dim, keepdim, two_args_case=False, op_type=op_type), ie_device, precision, ir_version)
+        self._test(*self.create_model(unbiased, dim, keepdim, two_args_case=False, op_type=op_type), ie_device, precision, ir_version,
+                   trace_model=True)

@@ -4,6 +4,8 @@
 
 #include "openvino/frontend/sequence_mark.hpp"
 
+#include "openvino/frontend/sequence_insert.hpp"
+
 namespace ov {
 namespace frontend {
 
@@ -61,7 +63,29 @@ ov::Output<ov::Node> SequenceMark::get_element(size_t index) const {
 }
 
 ov::OutputVector SequenceMark::get_sequence() const {
-    return input_values();
+    // Walk backward through SequenceInsert chain.
+    // Pattern: SM(a,b) -> SI(SM,c) -> SM -> SI(SM,d) -> SM (this)
+    // Each aten::append wraps SequenceInsert output in a new SequenceMark.
+    OutputVector appended;
+    std::shared_ptr<const ov::Node> current = shared_from_this();
+
+    while (auto mark = ov::as_type_ptr<const SequenceMark>(current)) {
+        if (mark->get_input_size() != 1)
+            break;
+        auto si = ov::as_type_ptr<const SequenceInsert>(mark->input_value(0).get_node_shared_ptr());
+        if (!si)
+            break;
+        appended.push_back(si->get_tensor());
+        current = si->get_input_sequence().get_node_shared_ptr();
+    }
+
+    // current is the base SequenceMark with direct element inputs
+    OutputVector result;
+    if (auto mark = ov::as_type_ptr<const SequenceMark>(current)) {
+        result = mark->input_values();
+    }
+    result.insert(result.end(), appended.rbegin(), appended.rend());
+    return result;
 }
 
 }  // namespace frontend

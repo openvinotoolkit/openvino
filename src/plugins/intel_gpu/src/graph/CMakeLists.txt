@@ -34,7 +34,13 @@ set(COMMON_LINK_LIBRARIES openvino::shape_inference # for tensor accessor
                           openvino::itt
                           openvino::runtime::dev
                           openvino::runtime
+                          OpenCL::OpenCL # Onednn needs OCL headers even when running L0
 )
+
+if(GPU_RT_TYPE STREQUAL "L0")
+    # Onednn needs L0 headers
+    list(APPEND COMMON_LINK_LIBRARIES openvino::zero_loader)
+endif()
 
 define_property(GLOBAL PROPERTY EXTRA_LINK_LIBRARIES_GLOBAL BRIEF_DOCS "All link libs" FULL_DOCS "Link libraries collection from all backends")
 set_property(GLOBAL PROPERTY EXTRA_LINK_LIBRARIES_GLOBAL "")
