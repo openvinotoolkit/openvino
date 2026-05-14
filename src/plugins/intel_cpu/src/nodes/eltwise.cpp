@@ -645,6 +645,11 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
 
     // Initialize attributes
     m_attrs.data.algo = getAlgorithm();
+#if defined(OPENVINO_ARCH_RISCV64)
+    if (m_attrs.data.algo == Algorithm::EltwiseSwish) {
+        m_attrs.data.onednnAlgorithm = dnnl::algorithm::undef;
+    }
+#endif
     m_attrs.postOps = getPostOps(fusedWith, ov::element::dynamic);
     m_attrs.opsList = {getType()};
 
