@@ -2528,14 +2528,27 @@ std::set<std::vector<element::Type>> jit_maximum_emitter::get_supported_precisio
 }
 /// MINIMUM ///
 jit_minimum_emitter::jit_minimum_emitter(jit_generator_t* host, cpu_isa_t host_isa, const element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc) {}
+    : jit_emitter(host, host_isa, exec_prc) {
+    prepare_table();
+}
 
 jit_minimum_emitter::jit_minimum_emitter(jit_generator_t* host,
                                          cpu_isa_t host_isa,
                                          const std::shared_ptr<ov::Node>& node)
-    : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {}
+    : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {
+    prepare_table();
+}
 
 size_t jit_minimum_emitter::get_inputs_num() const {
+    return 2;
+}
+
+size_t jit_minimum_emitter::aux_vecs_count() const {
+    return 3;
+}
+
+size_t jit_minimum_emitter::aux_gprs_count() const {
+    // One GPR is used as a table load temporary, and one is reserved by the base emitter for p_table.
     return 2;
 }
 
@@ -2556,13 +2569,28 @@ void jit_minimum_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     auto src0 = VReg(in_vec_idxs[0]);
     auto src1 = VReg(in_vec_idxs[1]);
     auto dst = VReg(out_vec_idxs[0]);
+    auto qnan = VReg(aux_vec_idxs[0]);
+    auto src0_orig = VReg(aux_vec_idxs[1]);
+    auto src1_orig = VReg(aux_vec_idxs[2]);
+    auto tmp = Reg(aux_gpr_idxs[0]);
 
+    h->vmv_v_v(src0_orig, src0);
+    h->vmv_v_v(src1_orig, src1);
+    load_table_val("qnan", qnan, tmp);
     h->vfmin_vv(dst, src0, src1);
+    h->vmfne_vv(mask_vreg(), src0_orig, src0_orig);
+    h->vmerge_vvm(dst, dst, qnan);
+    h->vmfne_vv(mask_vreg(), src1_orig, src1_orig);
+    h->vmerge_vvm(dst, dst, qnan);
 }
 
 std::set<std::vector<element::Type>> jit_minimum_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
+}
+
+void jit_minimum_emitter::register_table_entries() {
+    push_arg_entry_of("qnan", 0x7FC00000);
 }
 
 /// LOGICAL AND ///

@@ -2092,7 +2092,7 @@ void jit_minimum_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     auto src2 = TReg(in_vec_idxs[1]);
     auto dst = TReg(out_vec_idxs[0]);
 
-    h->fminnm(dst.s, src1.s, src2.s);
+    h->fmin(dst.s, src1.s, src2.s);
 }
 
 std::set<std::vector<element::Type>> jit_minimum_emitter::get_supported_precisions(
