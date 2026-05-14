@@ -68,7 +68,7 @@ inference in the existing PyTorch application to OpenVINO and how to get value f
    import requests, PIL, io, torch
 
    # Get a picture of a cat from the web:
-   img = PIL.Image.open(io.BytesIO(requests.get("https://placekitten.com/200/300").content))
+   img = PIL.Image.open(io.BytesIO(requests.get("https://placekittens.com/200/300").content))
 
    # Torchvision model and input data preparation from https://pytorch.org/vision/stable/models.html
 

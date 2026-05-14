@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <optional>
+
 #include "openvino/op/moe.hpp"
 #include "openvino/op/op.hpp"
 #include "transformations_visibility.hpp"
@@ -34,6 +36,7 @@ public:
         bool has_zp = false;
         ov::element::Type out_type = ov::element::dynamic;
         RoutingType routing_type = RoutingType::SOFTMAX;
+        std::optional<float> scale_factor;
     };
 
     /// \brief Constructs a MOECompressed operation with config only
@@ -70,6 +73,9 @@ public:
 
     const Config& get_config() const {
         return m_config;
+    }
+    void set_scale_factor(float scale_factor) {
+        m_config.scale_factor = scale_factor;
     }
 
     bool visit_attributes(AttributeVisitor& visitor) override;

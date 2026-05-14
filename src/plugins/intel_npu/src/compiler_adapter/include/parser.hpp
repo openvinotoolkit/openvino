@@ -22,7 +22,8 @@ public:
         const ov::Tensor& mainBlob,
         const FilteredConfig& config,
         const std::optional<std::vector<ov::Tensor>>& initBlobs = std::nullopt,
-        std::optional<std::shared_ptr<const ov::Model>>&& model = std::nullopt) const override;
+        std::optional<std::shared_ptr<const ov::Model>>&& model = std::nullopt,
+        const std::optional<std::string>& compatibilityDescriptor = std::nullopt) const override;
 
 private:
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
