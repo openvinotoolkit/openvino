@@ -2150,15 +2150,12 @@ size_t jit_swish_emitter::aux_fp_gprs_count() const {
 }
 void jit_swish_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
                                    const std::vector<size_t>& out_vec_idxs) const {
-    printf("=== JIT SWISH EMITTER CALLED FOR RISC-V ===\n");  
-
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
         OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
     }
 }
-
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_swish_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                   const std::vector<size_t>& out_vec_idxs) const {
@@ -2166,18 +2163,14 @@ void jit_swish_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 
     auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
-
     // берем последний вспомогательный вектор для сохранения x
     auto aux_save = VReg(aux_vec_idxs.back());
-    
     //сохраняем исходное значение x 
     h->vmv_v_v(aux_save, src); // aux_save = src
-    
     // загружаем alpha и умножаем src = alpha * x
     auto alpha_reg = FReg(aux_fp_gpr_idxs[0]);
     load_table_val("swish_alpha", alpha_reg);
     h->vfmul_vf(src, src, alpha_reg);
-
     // вызываем эмиттер sigmoid, который кладет результат в dst
     // передаем ему все вспомогательные регистры, кроме последнего 
     std::vector<size_t> sigmoid_aux_vec_idxs(
@@ -2192,7 +2185,6 @@ void jit_swish_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                 aux_fp_gpr_idxs); 
 
     h->vfmul_vv(dst, dst, aux_save); // dst = x * sigmoid(x)
-
 }
 std::set<std::vector<element::Type>> jit_swish_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
