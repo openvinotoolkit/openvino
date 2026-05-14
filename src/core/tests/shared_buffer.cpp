@@ -539,11 +539,11 @@ public:
 
     MOCK_METHOD(void, hint_evict_mock, (size_t offset, size_t size));
 
-    void parallel_prefault_readonly(std::size_t num_threads = 10) override {
-        parallel_prefault_readonly_mock(num_threads);
+    void parallel_prefault_readonly(size_t offset, size_t size) override {
+        parallel_prefault_readonly_mock(offset, size);
     }
 
-    MOCK_METHOD(void, parallel_prefault_readonly_mock, (std::size_t num_threads));
+    MOCK_METHOD(void, parallel_prefault_readonly_mock, (size_t offset, size_t size));
 
 private:
     std::vector<char> m_data;
@@ -605,5 +605,25 @@ TEST_F(SharedBufferTest, no_call_when_mmap_object_is_null) {
         buf_size,
         std::shared_ptr<ov::MappedMemory>{} /*null*/);
     EXPECT_NO_THROW(buffer->hint_evict());
+}
+
+TEST_F(SharedBufferTest, parallel_prefault_full_mapping) {
+    constexpr size_t mmap_size = 512;
+
+    auto mock = std::make_shared<MockMappedMemory>(mmap_size);
+
+    EXPECT_CALL(*mock, parallel_prefault_readonly_mock(0u, mmap_size)).Times(1);
+    mock->parallel_prefault_readonly(0, mmap_size);
+}
+
+TEST_F(SharedBufferTest, parallel_prefault_partial_region) {
+    constexpr size_t mmap_size = 1024;
+    constexpr size_t prefault_offset = 128;
+    constexpr size_t prefault_size = 256;
+
+    auto mock = std::make_shared<MockMappedMemory>(mmap_size);
+
+    EXPECT_CALL(*mock, parallel_prefault_readonly_mock(prefault_offset, prefault_size)).Times(1);
+    mock->parallel_prefault_readonly(prefault_offset, prefault_size);
 }
 }  // namespace ov::test

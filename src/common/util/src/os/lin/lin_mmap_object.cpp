@@ -9,6 +9,7 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cstring>
 #include <iostream>
 #include <sstream>
@@ -193,37 +194,46 @@ public:
         }
     }
 
-    void parallel_prefault_readonly(std::size_t num_threads = 10) override {
-        std::cout << "Prefaulting mapped memory with " << num_threads << " threads.\n";
-        if (!m_data || m_size == 0)
+    void parallel_prefault_readonly(size_t offset, size_t size) override {
+        // offset clamping, auto_size, and page alignment
+        const auto region = util::make_madvise_region(m_data, m_size, offset, size);
+
+        constexpr std::size_t prefault_threshold = 4 * 1024 * 1024;  // 4 MB
+        if (region.m_length < prefault_threshold)
             return;
 
+        posix_fadvise(m_handle.get(), static_cast<off_t>(offset), static_cast<off_t>(region.m_length), POSIX_FADV_SEQUENTIAL);
+        posix_fadvise(m_handle.get(), static_cast<off_t>(offset), static_cast<off_t>(region.m_length), POSIX_FADV_WILLNEED);
+
+        // prevents the compiler from optimizing away the memory reads?
+        std::atomic<std::uint64_t> populate_sink{0};
+
         const std::size_t page = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
-        const std::size_t pages = (m_size + page - 1) / page;
+        const std::size_t pages = (region.m_length + page - 1) / page;
 
-        if (num_threads == 0)
-            num_threads = 1;
-
-        num_threads = std::min(num_threads, pages);
+        const std::size_t hw_threads = std::thread::hardware_concurrency();
+        constexpr std::size_t min_chunk_size = 1 * 1024 * 1024;  // 1 MB per thread minimum
+        constexpr std::size_t max_prefault_threads = 10;
+        // const std::size_t max_threads_by_size = m_size / min_chunk_size;
+        const std::size_t num_threads =
+            std::min({hw_threads, pages, max_prefault_threads, std::max<std::size_t>(1, region.m_length / min_chunk_size)});
 
         std::vector<std::thread> threads;
-        // std::vector<std::uint64_t> partial(num_threads, 0);
+        char* const base = reinterpret_cast<char*>(region.m_address);
 
         for (std::size_t tid = 0; tid < num_threads; ++tid) {
             threads.emplace_back([&, tid] {
                 const std::size_t begin_page = pages * tid / num_threads;
                 const std::size_t end_page = pages * (tid + 1) / num_threads;
-
                 std::uint64_t local = 0;
 
                 for (std::size_t p = begin_page; p < end_page; ++p) {
                     const std::size_t off = p * page;
-                    if (off < m_size) {
-                        local += static_cast<unsigned char>(static_cast<char*>(m_data)[off]);
+                    if (off < region.m_length) {
+                        local += static_cast<unsigned char>(base[off]);
                     }
                 }
-
-                // partial[tid] = local;
+                populate_sink.fetch_add(local);
             });
         }
         for (auto& t : threads)

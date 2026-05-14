@@ -1319,6 +1319,70 @@ TEST_F(OVTensorTest, sourceIdMmapTensorHasNonZeroId) {
     std::filesystem::remove(tmp_path);
 }
 
+TEST(MyOVTensorTest, read_tensor_data_with_mmap_calls_prefault) {
+    // Create temporary test file
+    auto file_path = std::filesystem::temp_directory_path() / "ov_tensor_mmap_test.bin";
+    constexpr size_t num_elements = 1024;
+    {
+        std::vector<float> test_data(num_elements);
+        std::iota(test_data.begin(), test_data.end(), 1.0f);  // Fill with 1.0, 2.0, 3.0, ...
+        std::ofstream file(file_path, std::ios::binary);
+        file.write(reinterpret_cast<char*>(test_data.data()), test_data.size() * sizeof(float));
+    }
+
+    // Read tensor via mmap (should call parallel_prefault_readonly internally)
+    {
+        auto tensor = ov::read_tensor_data(file_path,
+                                           ov::element::f32,
+                                           ov::PartialShape{num_elements},
+                                           0,      // offset
+                                           true);  // mmap=true
+
+        std::cout << "data read by read_tensor_data\n";
+        auto source_id = ov::get_tensor_source_id(tensor);
+        ASSERT_TRUE(source_id.has_value());
+        EXPECT_NE(source_id.value(), 0u);
+
+        // Verify tensor properties
+        EXPECT_EQ(tensor.get_shape(), ov::Shape{num_elements});
+        EXPECT_EQ(tensor.get_element_type(), ov::element::f32);
+        EXPECT_EQ(tensor.get_byte_size(), num_elements * sizeof(float));
+
+        // // Verify data is readable (prefaulting should have loaded pages)
+        const auto* tensor_data = tensor.data<const float>();
+        EXPECT_EQ(tensor_data[0], 1.0f);
+        EXPECT_EQ(tensor_data[num_elements - 1], static_cast<float>(num_elements));
+    }
+
+    // Cleanup
+    std::filesystem::remove(file_path);
+}
+
+TEST(MyOVTensorTest, read_tensor_data_prefault_improves_memcp) {
+    auto file_path = std::filesystem::temp_directory_path() / "perf_test.bin";
+
+    constexpr size_t num_elements = 5 * 25 * 1024 * 1024;  // ~100MB floats 4B each
+    std::vector<float> test_data(num_elements);
+    std::iota(test_data.begin(), test_data.end(), 1.0f);
+    size_t sz = test_data.size() * sizeof(float);
+
+    {
+        std::ofstream file(file_path, std::ios::binary);
+        file.write(reinterpret_cast<char*>(test_data.data()), sz);
+    }
+    ov::Tensor dst = ov::Tensor(ov::element::f32, ov::Shape{num_elements});
+
+    auto start = std::chrono::high_resolution_clock::now();
+    const auto tensor = ov::read_tensor_data(file_path, ov::element::f32, ov::PartialShape{num_elements}, 0, true);
+
+    // copy whole memory
+    memcpy(dst.data(), tensor.data(), sz);
+    auto elapsed = std::chrono::high_resolution_clock::now() - start;
+    std::cout << "Time with prefaulting: " << std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count()
+              << " ms\n";
+    std::filesystem::remove(file_path);
+}
+
 TEST_F(OVTensorTest, sourceIdIfstreamTensorHasNonZeroId) {
     auto tmp_path = ov::test::utils::generateTestFilePrefix() + "_ov_source_id_ifstream_test.bin";
     {
