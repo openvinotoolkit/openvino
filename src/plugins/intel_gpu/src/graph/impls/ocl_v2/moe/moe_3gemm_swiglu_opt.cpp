@@ -974,6 +974,7 @@ public:
     bool use_micro_gemm_prefill = false;
     bool use_gpu_mask_gen_prefill = false;
     bool use_grouped_gemm_prefill = false;
+    size_t batched_gemv_threshold = 16;  // token_num <= threshold uses batched GEMV path (non-shared expert only)
 
     moe_3gemm_swiglu_opt_impl() : PrimitiveImplOCL(moe_3gemm_swiglu_opt::get_type_info_static()) {}
     moe_3gemm_swiglu_opt_impl(const program_node& node, const RuntimeParams& params) : moe_3gemm_swiglu_opt_impl() {
@@ -1032,6 +1033,12 @@ public:
         }
 
         GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): use_grouped_gemm_prefill=" << use_grouped_gemm_prefill << std::endl;
+
+        auto batched_gemv_threshold_str = std::getenv("MOE_BATCHED_GEMV_THRESHOLD");
+        if (batched_gemv_threshold_str) {
+            batched_gemv_threshold = std::stoul(batched_gemv_threshold_str);
+            GPU_DEBUG_TRACE_DETAIL << "MOE_BATCHED_GEMV_THRESHOLD = " << batched_gemv_threshold << std::endl;
+        }
 
         // Don't change the order of stages
         auto routing_type = node.as<moe_3gemm_fused_compressed>().get_primitive()->_config.routing_type;
@@ -1671,6 +1678,88 @@ public:
                                 {scratch.y},
                                 {final_hidden_states_mem_ptr},
                                 {static_cast<size_t>(1), static_cast<size_t>(_hidden_size)},
+                                {1, std::min(max_work_group_size, size_t{1024})},
+                                instance.needs_completion_event());
+        }
+        return ret;
+    }
+
+    // Batched GEMV path: handles token_num > 1 with the same optimized GEMV kernels as exec_single_token.
+    // Each workgroup processes one (token, expert) pair. Avoids gather/scatter/CPU-sync overhead of prefill paths.
+    // Only supported for non-shared-expert models (shared expert has routing_weights stride mismatch).
+    cldnn::event::ptr exec_batched_gemv(const std::vector<cldnn::event::ptr>& events,
+                                        typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
+                                        scratch_buffers& scratch,
+                                        size_t token_num) {
+        auto cur_moe = instance.get_typed_desc<moe_3gemm_fused_compressed>();
+        int max_topk = static_cast<int>(cur_moe->_config.top_k);
+
+        auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
+        auto batch_mem_ptr = scratch.topk_id;
+        auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES));
+        auto routing_mem_ptr = scratch.topk_weights;
+        _hidden_size = static_cast<int>(cur_moe->_config.hidden_size);
+        _intermediate_size = static_cast<int>(cur_moe->_config.inter_size);
+
+        const size_t subgroup_size = instance.get_impl_params()->get_device_info().arch >= gpu_arch::xe2 ? 32 : 16;
+        const size_t max_work_group_size = instance.get_impl_params()->get_device_info().max_work_group_size;
+
+        // gate
+        const auto& mlp_gate_wei_mem = scratch.moe_fusion_wei_addr.weight[0];
+        const auto& mlp_gate_scale_mem = scratch.moe_fusion_wei_addr.scale[0];
+        const auto& mlp_gate_zp_mem = scratch.moe_fusion_wei_addr.zp[0];
+
+        // up
+        const auto& mlp_up_wei_mem = scratch.moe_fusion_wei_addr.weight[1];
+        const auto& mlp_up_scale_mem = scratch.moe_fusion_wei_addr.scale[1];
+        const auto& mlp_up_zp_mem = scratch.moe_fusion_wei_addr.zp[1];
+
+        // down
+        const auto& mlp_down_wei_mem = scratch.moe_fusion_wei_addr.weight[2];
+        const auto& mlp_down_scale_mem = scratch.moe_fusion_wei_addr.scale[2];
+        const auto& mlp_down_zp_mem = scratch.moe_fusion_wei_addr.zp[2];
+        event::ptr ret;
+
+        size_t compute_experts = static_cast<size_t>(max_topk);
+        Stage* stage_gate_up = mlp_gate_up.get();
+        Stage* stage_down = mlp_down.get();
+        Stage* stage_reduce = mlp_reduce.get();
+
+        GPU_DEBUG_TRACE_DETAIL << "\nexec_batched_gemv(): token_num=" << token_num << ", max_topk=" << max_topk << std::endl;
+
+        {
+            // scratch.up = up(x) * silu(gate(x)) for all (token, expert) pairs
+            std::vector<memory::ptr> args_gate_up =
+                {batch_mem_ptr, mlp_gate_wei_mem, mlp_gate_scale_mem, mlp_gate_zp_mem, mlp_up_wei_mem, mlp_up_scale_mem, mlp_up_zp_mem};
+            args_gate_up.push_back(hidden_states_mem_ptr);
+
+            auto ret_event = execute_stage(events,
+                                           instance,
+                                           *stage_gate_up,
+                                           args_gate_up,
+                                           {scratch.up},
+                                           {token_num * compute_experts, subgroup_size, static_cast<size_t>(_intermediate_size / N_BLOCK)},
+                                           {1, subgroup_size, SUBGROUP_NUM});
+
+            // scratch.y = down(scratch.up) * routing_weight for all (token, expert) pairs
+            std::vector<memory::ptr> args_down = {batch_mem_ptr, mlp_down_wei_mem, mlp_down_scale_mem, mlp_down_zp_mem};
+            args_down.push_back(scratch.up);
+            args_down.push_back(routing_mem_ptr);
+            ret_event = execute_stage({ret_event},
+                                      instance,
+                                      *stage_down,
+                                      args_down,
+                                      {scratch.y},
+                                      {token_num * compute_experts, subgroup_size, static_cast<size_t>(_hidden_size / N_BLOCK)},
+                                      {1, subgroup_size, SUBGROUP_NUM});
+
+            // Per-token reduction: final[t] = sum(scratch.y[t * REDUCE_COUNT .. (t+1) * REDUCE_COUNT - 1])
+            ret = execute_stage({ret_event},
+                                instance,
+                                *stage_reduce,
+                                {scratch.y},
+                                {final_hidden_states_mem_ptr},
+                                {token_num, static_cast<size_t>(_hidden_size)},
                                 {1, std::min(max_work_group_size, size_t{1024})},
                                 instance.needs_completion_event());
         }
@@ -2560,6 +2649,13 @@ public:
         // and we can apply optimal kernels against memory bound to improve performance.
         if (token_num == 1) {
             return exec_single_token({topk_event}, instance, scratch);
+        }
+
+        // Batched GEMV: for small token counts (MTP/speculative decoding), use the same
+        // optimized GEMV kernels with batch dimension instead of the prefill GEMM path.
+        // Not supported with shared expert due to routing_weights stride mismatch.
+        if (token_num <= batched_gemv_threshold && !_has_shared_expert) {
+            return exec_batched_gemv({topk_event}, instance, scratch, token_num);
         }
 
         auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);

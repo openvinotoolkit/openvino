@@ -596,6 +596,24 @@ INSTANTIATE_TEST_SUITE_P(smoke_sub128_group_size,
                                                               Moe3GemmTestParams{1, true, 256, 512, 4, 2, 64},
                                                               Moe3GemmTestParams{1, false, 256, 512, 4, 2, 64})));
 
+// Batched GEMV: MTP/speculative decoding scenarios where token_num is 2-16.
+// These small batch sizes exercise the batched GEMV path (exec_batched_gemv)
+// which avoids gather/scatter/CPU-sync overhead of the prefill GEMM path.
+INSTANTIATE_TEST_SUITE_P(smoke_batched_gemv_mtp,
+                         moe_3gemm_compressed_gpu_random,
+                         ::testing::Combine(::testing::Values(cldnn::MOE3GemmFusedCompressed::RoutingType::SOFTMAX,
+                                                              cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS),
+                                            ::testing::Values(Moe3GemmTestParams{2, true, 128, 256, 4, 2, 128},
+                                                              Moe3GemmTestParams{4, true, 128, 256, 4, 2, 128},
+                                                              Moe3GemmTestParams{8, true, 128, 256, 4, 2, 128},
+                                                              Moe3GemmTestParams{2, false, 128, 256, 4, 2, 128},
+                                                              Moe3GemmTestParams{4, false, 128, 256, 4, 2, 128},
+                                                              Moe3GemmTestParams{8, false, 128, 256, 4, 2, 128},
+                                                              Moe3GemmTestParams{2, true, 256, 512, 4, 2, 256},
+                                                              Moe3GemmTestParams{4, true, 256, 512, 4, 2, 256},
+                                                              Moe3GemmTestParams{2, false, 256, 512, 4, 2, 256},
+                                                              Moe3GemmTestParams{4, false, 256, 512, 4, 2, 256})));
+
 class moe_3gemm_compressed_gpu_u4 : public ::testing::TestWithParam<cldnn::MOE3GemmFusedCompressed::RoutingType> {};
 
 class moe_3gemm_compressed_gpu_shared_random : public ::testing::TestWithParam<Moe3GemmTestParams> {};
