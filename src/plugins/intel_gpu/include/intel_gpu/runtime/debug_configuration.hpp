@@ -96,7 +96,7 @@ static constexpr const char* prefix = "GPU_Debug: ";
 #define GPU_DEBUG_LOG_RAW(min_verbose_level, min_verbose_level_log) if (0) ov::intel_gpu::get_verbose_stream()
 #endif
 
-#define GPU_DEBUG_COUT              GPU_DEBUG_LOG_RAW(ov::intel_gpu::LogLevel::DISABLED, ov::log::Level::NONE)
+#define GPU_DEBUG_COUT              GPU_DEBUG_LOG_RAW(ov::intel_gpu::LogLevel::DISABLED, ov::log::Level::NO)
 #define GPU_DEBUG_INFO              GPU_DEBUG_LOG_RAW(ov::intel_gpu::LogLevel::INFO, ov::log::Level::INFO)
 #define GPU_DEBUG_LOG               GPU_DEBUG_LOG_RAW(ov::intel_gpu::LogLevel::LOG, ov::log::Level::INFO)
 #define GPU_DEBUG_TRACE             GPU_DEBUG_LOG_RAW(ov::intel_gpu::LogLevel::TRACE, ov::log::Level::TRACE)
