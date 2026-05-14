@@ -13,12 +13,9 @@ on:
       - synchronize
       - reopened
       - ready_for_review
-    paths:
-      - '.github/workflows/dev_gpu_linux_level_zero.yml'
-      - 'src/plugins/intel_gpu/**'
 
 concurrency:
-  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-linux-gpu-l0-dev
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-linux-gpu-level-zero-dev
   cancel-in-progress: true
 
 permissions: read-all
@@ -88,7 +85,7 @@ jobs:
 
   Build:
     needs: [Docker, Smart_CI]
-    if: "!needs.smart_ci.outputs.skip_workflow"
+    if: "!needs.smart_ci.outputs.skip_workflow && fromJSON(needs.smart_ci.outputs.affected_components).GPU"
     uses: ./.github/workflows/job_build_linux.yml
     with:
       runner: 'aks-linux-16-cores-32gb'
@@ -112,3 +109,127 @@ jobs:
             -DCPACK_GENERATOR=TGZ
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
             -DGPU_RT_TYPE=L0
+
+  Arc_B50_dGPU:
+    name: Arc B50 dGPU Tests Level Zero
+    needs: [ Build, Smart_CI ]
+    if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
+    timeout-minutes: 80
+    strategy:
+      max-parallel: 2
+      fail-fast: false
+      matrix:
+        TEST_TYPE: ['unit', 'func']
+    runs-on:
+      group: 'Intel-GPU'
+      labels: [ 'self-hosted', 'dgpu', 'Arc-B50', 'Linux' ]
+    container:
+      image: ubuntu:22.04
+      volumes:
+        - /usr/local/share/ca-certificates:/usr/local/share/ca-certificates:ro
+        - ${{ github.workspace }}:${{ github.workspace }}
+      options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129"
+    defaults:
+      run:
+        shell: bash
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      GTEST_PARALLEL_SCRIPT: ${{ github.workspace }}/gtest_parallel.py
+      NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
+    steps:
+      - name: Download OpenVINO artifacts (package)
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO artifacts (tests)
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Extract OpenVINO packages
+        run: |
+            apt-get update && apt-get install -y pigz
+            pigz -dc openvino_package.tar.gz | tar -xf - -v
+            pigz -dc openvino_tests.tar.gz | tar -xf - -v
+        working-directory: ${{ env.INSTALL_DIR }}
+
+      - name: Install dependencies (Linux)
+        run: |
+          $INSTALL_DIR/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -c=gpu -y
+          apt-get update && apt-get install -y wget software-properties-common ca-certificates gpg-agent tzdata clinfo
+        env:
+          DEBIAN_FRONTEND: noninteractive
+          TZ: "Europe/London"
+
+      - name: Get gtest-parallel script
+        run: wget https://raw.githubusercontent.com/google/gtest-parallel/master/gtest_parallel.py
+
+      - name: Install compute runtime drivers
+        run: |
+          wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.15985.7/intel-igc-core_1.0.15985.7_amd64.deb
+          wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.15985.7/intel-igc-opencl_1.0.15985.7_amd64.deb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-level-zero-gpu-dbgsym_1.3.28454.6_amd64.ddeb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-level-zero-gpu_1.3.28454.6_amd64.deb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-opencl-icd-dbgsym_24.05.28454.6_amd64.ddeb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-opencl-icd_24.05.28454.6_amd64.deb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/libigdgmm12_22.3.11_amd64.deb
+          dpkg -i *.deb
+
+      - name: Install media & display runtimes
+        run: |
+          apt-get update && apt-get install -y \
+            libegl-mesa0 libegl1-mesa libegl1-mesa-dev libgbm1 libgl1-mesa-dev libgl1-mesa-dri \
+            libglapi-mesa libgles2-mesa-dev libglx-mesa0 libxatracker2 mesa-va-drivers \
+            mesa-vdpau-drivers mesa-vulkan-drivers va-driver-all
+            wget -qO - https://repositories.intel.com/gpu/intel-graphics.key |  gpg --yes --dearmor --output /usr/share/keyrings/intel-graphics.gpg
+            echo "deb [arch=amd64,i386 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu jammy unified" | tee /etc/apt/sources.list.d/intel-gpu-jammy.list
+            apt update
+            apt-get install -y libze-intel-gpu1 libze1 intel-opencl-icd libze-dev intel-ocloc intel-level-zero-gpu-raytracing
+
+      - name: Verify devices
+        run: clinfo
+
+      #
+      # Tests
+      #
+
+      - name: OpenVINO GPU ${{ matrix.TEST_TYPE }} Tests
+        id: run_tests
+        env:
+          TEST_TYPE: ${{ matrix.TEST_TYPE }}
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+
+          TEST_RESULTS_DIR="dgpu_${TEST_TYPE}_tests"
+          echo "test_results_dir=$TEST_RESULTS_DIR" >> $GITHUB_OUTPUT
+
+          rm -rf ${INSTALL_TEST_DIR}/${TEST_RESULTS_DIR} && mkdir -p ${INSTALL_TEST_DIR}/${TEST_RESULTS_DIR}
+
+          python3 ${GTEST_PARALLEL_SCRIPT} ${INSTALL_TEST_DIR}/ov_gpu_"${TEST_TYPE}"_tests --dump_json_test_results=${INSTALL_TEST_DIR}/${TEST_RESULTS_DIR}/ov_gpu_"${TEST_TYPE}"_tests.json -- --report_unique_name --gtest_filter=fully_connected
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2 We are not using newest version v6.0.0 due to very frequent issues with 'Error: Unable to make request: ECONNRESET'
+        if: always()
+        with:
+          name: test-results-${{ matrix.TEST_TYPE }}-dgpu-arc-b50
+          path: ${{ env.INSTALL_TEST_DIR }}/${{ steps.run_tests.outputs.test_results_dir }}
+          if-no-files-found: 'error'
+
+  Overall_Status:
+    name: ci/gha_overall_status_dev_gpu_linux_level_zero
+    needs: [ Smart_CI, Docker, Build, Arc_B50_dGPU ]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check status of all jobs
+        if: >-
+          ${{
+            contains(needs.*.result, 'failure') ||
+            contains(needs.*.result, 'cancelled')
+          }}
+        run: exit 1
