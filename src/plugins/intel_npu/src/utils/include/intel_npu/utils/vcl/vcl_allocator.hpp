@@ -34,15 +34,24 @@ struct vcl_allocator_3 : vcl_allocator2_t {
         vcl_allocator_3* vclAllocator = static_cast<vcl_allocator_3*>(allocator);
         size_t alignedSize = intel_npu::utils::align_size_to_standard_page_size(size);
 
-        uint8_t* allocatedPtr = static_cast<uint8_t*>(
-            vclAllocator->m_allocator.allocate(alignedSize, intel_npu::utils::STANDARD_PAGE_SIZE));
+        uint8_t* allocatedPtr = nullptr;
+        try {
+            allocatedPtr = static_cast<uint8_t*>(
+                vclAllocator->m_allocator.allocate(alignedSize, intel_npu::utils::STANDARD_PAGE_SIZE));
 
-        if (allocatedPtr == nullptr) {
+            if (allocatedPtr == nullptr) {
+                return nullptr;
+            }
+            std::memset(allocatedPtr + size, 0, alignedSize - size);
+
+            vclAllocator->m_info.emplace_back(std::make_pair(allocatedPtr, alignedSize));
+            return allocatedPtr;
+        } catch (...) {
+            if (allocatedPtr != nullptr) {
+                vclAllocator->m_allocator.deallocate(allocatedPtr, alignedSize, intel_npu::utils::STANDARD_PAGE_SIZE);
+            }
             return nullptr;
         }
-        std::memset(allocatedPtr + size, 0, alignedSize - size);
-        vclAllocator->m_info.emplace_back(std::make_pair(allocatedPtr, alignedSize));
-        return allocatedPtr;
     }
 
     static void deallocate(vcl_allocator2_t* allocator, uint8_t* ptr) noexcept {

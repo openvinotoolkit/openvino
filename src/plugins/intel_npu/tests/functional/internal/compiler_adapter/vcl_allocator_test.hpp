@@ -60,9 +60,45 @@ protected:
         vcl_log_handle_t logHandle = nullptr;
         vcl_executable_desc_t desc = {};
 
+        CompilerSetupState() = default;
+        CompilerSetupState(const CompilerSetupState&) = delete;
+        CompilerSetupState& operator=(const CompilerSetupState&) = delete;
+        CompilerSetupState(CompilerSetupState&& other) noexcept
+            : buildFlags(std::move(other.buildFlags)),
+              serializedIR(std::move(other.serializedIR)),
+              compiler(other.compiler),
+              logHandle(other.logHandle),
+              desc(other.desc) {
+            other.compiler = nullptr;
+            other.logHandle = nullptr;
+            other.desc = {};
+        }
+        CompilerSetupState& operator=(CompilerSetupState&& other) noexcept {
+            if (this != &other) {
+                release();
+                buildFlags = std::move(other.buildFlags);
+                serializedIR = std::move(other.serializedIR);
+                compiler = other.compiler;
+                logHandle = other.logHandle;
+                desc = other.desc;
+                other.compiler = nullptr;
+                other.logHandle = nullptr;
+                other.desc = {};
+            }
+            return *this;
+        }
+
         ~CompilerSetupState() {
-            if (compiler != nullptr && ::intel_npu::VCLApi::getInstance()) {
-                ::intel_npu::VCLApi::getInstance()->vclCompilerDestroy(compiler);
+            release();
+        }
+
+    private:
+        void release() {
+            if (compiler != nullptr) {
+                if (auto vclApi = ::intel_npu::VCLApi::getInstance()) {
+                    vclApi->vclCompilerDestroy(compiler);
+                }
+                compiler = nullptr;
             }
         }
     };
@@ -160,6 +196,7 @@ TEST_P(VclAllocatorFuncTests, VerifyAllocation) {
     EXPECT_NE(compatibilityReqBuffer, nullptr);
 
     // Verify it tracked exactly these two buffers
+    // 2 allocations: blob & compatibility string
     EXPECT_EQ(allocator->m_info.size(), 2);
 
     auto blobIt = std::find_if(allocator->m_info.begin(),
@@ -278,7 +315,7 @@ TEST_P(VclAllocatorFuncTests, VerifyOrphanMemoryCleanupOnDestruction) {
                                                              &compatibilityReqSize);
 
     EXPECT_EQ(result, VCL_RESULT_SUCCESS);
-    EXPECT_EQ(allocator->m_info.size(), 2);
+    EXPECT_EQ(allocator->m_info.size(), 2);  // 2 allocations: blob & compatibility string
 
     // Purpose: Simulate VCL crash or early return where the memory is temporarily tracked as an orphan leak
     // When the allocator goes out of scope and gets destroyed, it should cleanly free all tracked memory
