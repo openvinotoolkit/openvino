@@ -36,6 +36,8 @@ public:
 
 protected:
     std::string targetDevice;
+    std::shared_ptr<ov::Model> model;
+    std::shared_ptr<::intel_npu::vcl_allocator_3> allocator;
 
     void SetUp() override {
         targetDevice = GetParam();
@@ -48,9 +50,6 @@ protected:
             GTEST_SKIP() << "Couldn't load compiler library";
         }
     }
-
-    std::shared_ptr<ov::Model> model;
-    std::shared_ptr<::intel_npu::vcl_allocator_3> allocator;
 
     // Helper struct and function to reduce code duplication
     struct CompilerSetupState {
