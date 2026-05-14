@@ -211,23 +211,23 @@ Previous 2026 releases
 
 .. dropdown:: 2026.1 - 7 April 2026 
 
-	**What's New**
+  **What's New**
 
-	* More Gen AI coverage and frameworks integrations to minimize code changes
+  * More Gen AI coverage and frameworks integrations to minimize code changes
 
 	  * New models supported on CPUs & GPUs: Qwen3 VL  
 	  * New models supported on CPUs: GPT-OSS 120B  
 	  * Preview: Introducing the OpenVINO backend for llama.cpp, which enables optimized inference on Intel CPUs, GPUs, and NPUs. Validated on GGUF models such as Llama-3.2-1B-Instruct-GGUF, Phi-3-mini-4k-instruct-gguf, Qwen2.5-1.5B-Instruct-GGUF, and Mistral-7B-Instruct-v0.3.    
 	  * New notebook: Unified VLM chatbot with video file support and interactive model switching across Qwen3-VL, Qwen2.5-VL, and LLaVa-NeXT-Video. 
 
-	* Broader LLM model support and more model compression techniques
+  * Broader LLM model support and more model compression techniques
 
 	  * OpenVINO™ GenAI adds TaylorSeer Lite caching for image and video generation, accelerating diffusion-transformer inference across Flux, SD3, and LTX-Video pipelines, aligned with Hugging Face Diffusers.  
 	  * LTX-Video generation on GPU achieves end-to-end acceleration through fusion of RMSNorm and RoPE operators, significantly improving video generation performance.  
 	  * OpenVINO™ GenAI adds dynamic LoRA support for Qwen3-VL and VL models with LLM, allowing developers to swap adapters at runtime for efficient serving of multiple model variants in production without reloading the base model.  
 	  * Preview: The release-weights API for ov::Model enables memory reclamation during model compilation on NPUs, delivering dramatically lower peak memory consumption for edge and client deployments. Users must set this property in ov::Model, and it will be applied during compilation.  
 
-	* More portability and performance to run AI at the edge, in the cloud or locally
+  * More portability and performance to run AI at the edge, in the cloud or locally
 
 	  * Introducing support for Intel® Core™ Series 3 processors (formerly codenamed Wildcat Lake) and Intel® Arc™ Pro B70 Graphics with 32GB memory for single-GPU inference on 20-30B parameter LLMs  
 	  * Prompt Lookup Decoding extended to vision-language pipelines, delivering significantly faster token generation for multimodal workloads on Intel CPUs and GPUs.  
@@ -235,9 +235,9 @@ Previous 2026 releases
 	  * OpenVINO GenAI introduces WhisperPipeline for Node.js via its NPM package, delivering production-ready speech recognition with word-level audio-to-text transcription.  
 	  * OpenVINO™ Model Server enhances support for Qwen3-MOE and GPT-OSS-20b models, delivering improved performance, accuracy, and robust concurrent request handling with continuous batching. These pre-optimized models are available on Hugging Face for easy deployment. Additionally, the Model Server introduces image inpainting and outpainting capabilities via the /image endpoint for AI image editing. 
 
-	**OpenVINO™ Runtime**
+  **OpenVINO™ Runtime**
 
-	*Common*
+  *Common*
 
 	* Introduced new properties: 
 
@@ -249,7 +249,7 @@ Previous 2026 releases
 	* Fix duplicate hash generation for different ``ov::Model``, eliminating unnecessary model recompilation when OpenVINO caching is enabled. 
 	* Fix memory leaks and application crashes related to using CRT library (Windows). 
 
-	*CPU Device Plugin*
+  *CPU Device Plugin*
 	
 	* Model inference performance has been optimized on Intel® Core™ Ultra Series 3 with 2 P-cores + 4 LPE-cores.  
 	* XAttention now maintains proper accuracy when enabled, resolving previous accuracy issues. 
@@ -257,7 +257,7 @@ Previous 2026 releases
 	* Upgraded oneDNN version to v3.10. 
 	* Improve Gemma3 image comprehension by implementing a custom attention mask pattern. 
 
-	*GPU Device Plugin*
+  *GPU Device Plugin*
 	
 	* Performance has been improved for LTX-Video model. 
 	* Preview: Experimental L0 backend support for Xe2+ GPUs. Documentation is provided `here <https://github.com/openvinotoolkit/openvino/pull/34727/changes#diff-c0c2a7f47dd4d4c967eb34bf9691372c31f58f9dad77d294dd237d02aa002a1a>`__  
@@ -265,7 +265,7 @@ Previous 2026 releases
 	* XAttention (Block Sparse Attention with Antidiagonal Scoring) is now initially supported on Intel's Xe1 architecture to improve time-to-first token. (Xe2/3 is already supported). Performance has been improved for low threshold scenarios. 
 
 
-	*NPU Device Plugin*
+  *NPU Device Plugin*
 
 	* Batching changes in NPU plugin: 
 
@@ -276,12 +276,12 @@ Previous 2026 releases
 	* Introduced Flash Attention support on for Intel® Core™ Ultra Series 3, allows faster LLM compilation for NPU with longer contexts. 
 	* Improved Long RoPE support for Phi models. 
 
-	*OpenVINO Python API*
+  *OpenVINO Python API*
 
 	* Fixed ``ov::Tensor`` creation from NumPy scalar data 
 	* Added support for ``pathlib.Path`` objects in ``Core.add_extension`` and ``FrontEndManager.register_front_end`` to unify handling of file path arguments. 
 
-	*OpenVINO Node.js API*
+  *OpenVINO Node.js API*
 
 	* The ``openvino-genai-node`` NPM package has been updated to include the following improvements: 
 
@@ -290,26 +290,26 @@ Previous 2026 releases
 	  * ChatHistory is now supported in VLMPipeline, enabling users to manage conversation context more effectively during generation. 
 	  * Async error handling in LLMPipeline has been refactored, preserving existing behavior while improving internal error processing during asynchronous calls, resulting in a more stable and reliable user experience. 
 
-	*PyTorch Framework Support*
+  *PyTorch Framework Support*
 
 	* The torch.export path has been significantly improved, aligning TorchFX operation coverage with the TorchScript path. 
 	* Support for float16 and bfloat16 data types has been added for constant input value extraction. 
 
-	*ONNX Framework Support*
+  *ONNX Framework Support*
 
 	* The Attention operation (Opset 23) is now supported, including multi-head, group query, and multi-query attention modes with KV caching, causal masking, softcap, and boolean/float attention masks. This enables direct conversion of transformer-based ONNX models without manual decomposition. 
 	* Sequence data type support has been extended with SequenceConstruct, SequenceEmpty, SequenceInsert, and ConcatFromSequence operations, enabling loop-based sequence accumulation patterns commonly found in control-flow models. 
 	* Support for FP8 quantization types (f8e4m3, f8e5m2) and block-wise quantization has been added to the QuantizeLinear and DequantizeLinear operations. 
 
-	*TensorFlow Framework Support*
+  *TensorFlow Framework Support*
 
 	* An issue in NonMaxSuppressionV2 where the iou_threshold parameter was ignored has been fixed.
 
-  	*TensorFlow Lite Framework Support*
+  *TensorFlow Lite Framework Support*
 
 	* The TransposeConv operation has been fixed to correctly apply bias inputs. 
 
-	**OpenVINO™ Model Server**
+  **OpenVINO™ Model Server**
 
 	* Enhanced support for Qwen3-MOE models and GPT-OSS-20b delivers improved performance, accuracy, and robust concurrent request handling with continuous batching capabilities. These models are now available in pre-optimized OpenVINO™ format directly on the Hugging Face hub, making it very easy to deploy them. 
 	* Added support for Qwen3-VL models with function calling capabilities, enabling this vision language model in agentic scenarios.  
@@ -324,7 +324,7 @@ Previous 2026 releases
 	  * Enhanced error handling for Hugging Face Hub model pulling/downloads includes retry and resume capabilities to address network connectivity issues with large model files. Download operations can now recover from previous errors or be reported in logs when recovery is not possible. 
 
 
-	**Neural Network Compression Framework**
+  **Neural Network Compression Framework**
 
 	* Added experimental support for NVFP4 data type. 
 	* Introduced an additional RoPe ignored pattern without the transpose node to support 4-bit compression for models like Phi-3.5-MoE-instruct. 
@@ -332,12 +332,12 @@ Previous 2026 releases
 	* Upgraded PyTorch version to 2.10.0. 
 	* Upgraded ONNX version to 1.20.1 and ONNX Runtime to 1.24.3.  
 
-	**OpenVINO Tokenizers**
+  **OpenVINO Tokenizers**
 
 	* Added precomputed Unicode normalization maps to reduce first inference time and memory consumption. 
 	* Remove ICU library from dependencies, reducing binary size, build time, and complexity. 
 
-	**OpenVINO™ GenAI**
+  **OpenVINO™ GenAI**
 
 	* Extended prompt lookup decoding support to Vision-Language Models (VLMs) to improve tokens per second (TPS) performance. 
 	* New ``AggregationMode.ADAPTIVE_RKV`` eviction strategy that keeps the highest attention-mass blocks and fills remaining slots with the most semantically diverse ones. 
@@ -349,9 +349,9 @@ Previous 2026 releases
 	* TextEmbeddingPipeline now supports dynamic input shapes via the NPUW plugin, enabling NPU inference for a wider range of embedding models. 
 	* Improved pipeline loading time through asynchronous tokenizer warmup. 
 
-	**Other Changes and Known Issues**
+  **Other Changes and Known Issues**
 
-	*Jupyter Notebooks*
+  *Jupyter Notebooks*
 
   New models and use cases: 
 
@@ -362,7 +362,7 @@ Previous 2026 releases
 
   Archived Notebooks Tab: Added a dedicated "Archived" tab to the `OpenVINO Notebooks portal <https://openvinotoolkit.github.io/openvino_notebooks/>`__. Users can now easily search and browse older or deprecated notebooks, keeping the main catalog focused on the latest updates while retaining access to historical content. 
 
-	*Known Issues*
+  *Known Issues*
 
   | **Component: NPU compiler**
   | ID: 180626
