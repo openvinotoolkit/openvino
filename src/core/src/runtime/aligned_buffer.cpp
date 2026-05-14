@@ -6,48 +6,33 @@
 
 #include <algorithm>
 #include <memory>
+#include <utility>
 
-#include "openvino/core/memory_util.hpp"
+#include "openvino/util/memory.hpp"
 
 namespace ov {
 IBufferDescriptor::~IBufferDescriptor() = default;
 
-AlignedBuffer::AlignedBuffer() : m_allocated_buffer(nullptr), m_aligned_buffer(nullptr), m_byte_size(0) {}
+AlignedBuffer::AlignedBuffer() : m_aligned_buffer(nullptr), m_byte_size(0) {}
 
 AlignedBuffer::AlignedBuffer(size_t byte_size, size_t alignment) : m_byte_size(byte_size) {
     m_byte_size = std::max<size_t>(1, byte_size);
-    size_t allocation_size = m_byte_size + alignment;
-    m_allocated_buffer = new char[allocation_size];
-    m_aligned_buffer = m_allocated_buffer;
-    m_aligned_buffer += util::align_padding_size(alignment, reinterpret_cast<size_t>(m_allocated_buffer));
+    m_aligned_buffer = static_cast<char*>(util::aligned_alloc(m_byte_size, alignment));
 }
 
 AlignedBuffer::AlignedBuffer(AlignedBuffer&& other)
-    : m_allocated_buffer(other.m_allocated_buffer),
-      m_aligned_buffer(other.m_aligned_buffer),
-      m_byte_size(other.m_byte_size) {
-    other.m_allocated_buffer = nullptr;
-    other.m_aligned_buffer = nullptr;
-    other.m_byte_size = 0;
-}
+    : m_aligned_buffer(std::exchange(other.m_aligned_buffer, nullptr)),
+      m_byte_size(std::exchange(other.m_byte_size, 0)) {}
 
 AlignedBuffer::~AlignedBuffer() {
-    if (m_allocated_buffer != nullptr) {
-        delete[] m_allocated_buffer;
-    }
+    util::aligned_free(m_aligned_buffer);  // safe with nullptr
 }
 
 AlignedBuffer& AlignedBuffer::operator=(AlignedBuffer&& other) {
     if (this != &other) {
-        if (m_allocated_buffer != nullptr) {
-            delete[] m_allocated_buffer;
-        }
-        m_allocated_buffer = other.m_allocated_buffer;
-        m_aligned_buffer = other.m_aligned_buffer;
-        m_byte_size = other.m_byte_size;
-        other.m_allocated_buffer = nullptr;
-        other.m_aligned_buffer = nullptr;
-        other.m_byte_size = 0;
+        util::aligned_free(m_aligned_buffer);
+        m_aligned_buffer = std::exchange(other.m_aligned_buffer, nullptr);
+        m_byte_size = std::exchange(other.m_byte_size, 0);
     }
     return *this;
 }
