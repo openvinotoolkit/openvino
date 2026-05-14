@@ -28,6 +28,8 @@ public:
     memory_ptr reinterpret_handle(const layout& new_layout, shared_mem_params params) override;
     memory_ptr create_subbuffer(const memory& memory, const layout& new_layout, size_t offset) override;
     memory_ptr reinterpret_buffer(const memory& memory, const layout& new_layout) override;
+    shared_handle import_external_buffer(size_t byte_size, shared_handle external_handle) override;
+    void release_imported_external_buffer(shared_handle imported_handle) override;
     bool is_the_same_buffer(const memory& mem1, const memory& mem2) override;
 
     void* get_user_context() const override;

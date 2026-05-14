@@ -10,6 +10,8 @@
 #include "ocl_memory.hpp"
 #include "ocl_stream.hpp"
 #include "ocl_engine_factory.hpp"
+#include <CL/cl.h>
+#include <CL/cl_ext.h>
 #include <string>
 #include <vector>
 #include <memory>
@@ -94,6 +96,48 @@ const cl::UsmHelper& ocl_engine::get_usm_helper() const {
 allocation_type ocl_engine::detect_usm_allocation_type(const void* memory) const {
     return use_unified_shared_memory() ? ocl::gpu_usm::detect_allocation_type(this, memory)
                                        : allocation_type::unknown;
+}
+
+shared_handle ocl_engine::import_external_buffer(size_t byte_size, shared_handle external_handle) {
+    OPENVINO_ASSERT(external_handle != nullptr, "[GPU] External memory handle must not be null");
+    OPENVINO_ASSERT(extension_supported("cl_khr_external_memory"),
+                    "[GPU] Selected OpenCL device does not advertise cl_khr_external_memory; "
+                    "external memory import is not supported");
+
+#ifndef CL_VERSION_3_0
+    OPENVINO_THROW("[GPU] External memory import is not supported on this platform");
+#else
+#ifdef _WIN32
+    constexpr auto handle_type_token = CL_EXTERNAL_MEMORY_HANDLE_OPAQUE_WIN32_KHR;
+#elif defined(__linux__)
+    constexpr auto handle_type_token = CL_EXTERNAL_MEMORY_HANDLE_DMA_BUF_KHR;
+#else
+    OPENVINO_THROW("[GPU] External memory import is not supported on this platform");
+#endif
+
+    cl_mem_properties props[] = {
+        static_cast<cl_mem_properties>(handle_type_token),
+        static_cast<cl_mem_properties>(reinterpret_cast<intptr_t>(external_handle)),
+        0,
+    };
+
+    cl_int errcode = CL_SUCCESS;
+    auto cl_ctx = static_cast<cl_context>(get_user_context());
+    OPENVINO_ASSERT(cl_ctx != nullptr, "[GPU] OpenCL context is null while importing external buffer");
+
+    cl_mem imported = clCreateBufferWithProperties(cl_ctx, props, CL_MEM_READ_WRITE, byte_size, nullptr, &errcode);
+    OPENVINO_ASSERT(errcode == CL_SUCCESS && imported != nullptr,
+                    "[GPU] Failed to import external memory handle via clCreateBufferWithProperties, error: ",
+                    errcode);
+
+    return static_cast<shared_handle>(imported);
+#endif
+}
+
+void ocl_engine::release_imported_external_buffer(shared_handle imported_handle) {
+    if (imported_handle != nullptr) {
+        clReleaseMemObject(static_cast<cl_mem>(imported_handle));
+    }
 }
 
 memory::ptr ocl_engine::allocate_memory(const layout& layout, allocation_type type, bool reset) {

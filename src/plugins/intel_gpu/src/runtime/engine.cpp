@@ -157,6 +157,12 @@ memory_ptr engine::share_buffer(const layout& layout, shared_handle buf) {
     return reinterpret_handle(layout, params);
 }
 
+shared_handle engine::import_external_buffer(size_t, shared_handle) {
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
+void engine::release_imported_external_buffer(shared_handle) {}
+
 memory_ptr engine::share_usm(const layout& layout, shared_handle usm_ptr) {
     shared_mem_params params = { shared_mem_type::shared_mem_usm, nullptr, nullptr, usm_ptr,
 #ifdef _WIN32

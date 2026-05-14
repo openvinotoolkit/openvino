@@ -10,9 +10,8 @@
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/device_query.hpp"
 #include <memory>
-
-#include <CL/cl.h>
-#include <CL/cl_ext.h>
+#include <string>
+#include <vector>
 
 namespace ov::intel_gpu {
 
@@ -24,56 +23,6 @@ Type extract_object(const ov::AnyMap& params, const ov::Property<Type>& p) {
     OPENVINO_ASSERT(itrHandle != params.end(), "[GPU] No parameter ", p.name(), " found in parameters map");
     ov::Any res = itrHandle->second;
     return res.as<Type>();
-}
-
-cl_mem import_external_buffer(cl_context cl_ctx, size_t byte_size, void* shared_handle) {
-    OPENVINO_ASSERT(cl_ctx != nullptr, "[GPU] OpenCL context is null while importing external buffer");
-    OPENVINO_ASSERT(shared_handle != nullptr, "[GPU] External memory handle must not be null");
-
-    // Query a device from the context to verify required extensions are advertised.
-    size_t devices_size = 0;
-    cl_int err = clGetContextInfo(cl_ctx, CL_CONTEXT_DEVICES, 0, nullptr, &devices_size);
-    OPENVINO_ASSERT(err == CL_SUCCESS && devices_size >= sizeof(cl_device_id),
-                    "[GPU] Failed to query OpenCL context devices, error: ", err);
-    std::vector<cl_device_id> devices(devices_size / sizeof(cl_device_id));
-    err = clGetContextInfo(cl_ctx, CL_CONTEXT_DEVICES, devices_size, devices.data(), nullptr);
-    OPENVINO_ASSERT(err == CL_SUCCESS, "[GPU] Failed to read OpenCL context devices, error: ", err);
-
-    size_t ext_size = 0;
-    err = clGetDeviceInfo(devices.front(), CL_DEVICE_EXTENSIONS, 0, nullptr, &ext_size);
-    OPENVINO_ASSERT(err == CL_SUCCESS && ext_size > 0,
-                    "[GPU] Failed to query OpenCL device extensions, error: ", err);
-    std::string extensions(ext_size, '\0');
-    err = clGetDeviceInfo(devices.front(), CL_DEVICE_EXTENSIONS, ext_size, extensions.data(), nullptr);
-    OPENVINO_ASSERT(err == CL_SUCCESS, "[GPU] Failed to read OpenCL device extensions, error: ", err);
-
-    OPENVINO_ASSERT(extensions.find("cl_khr_external_memory") != std::string::npos,
-                    "[GPU] Selected OpenCL device does not advertise cl_khr_external_memory; "
-                    "external memory import is not supported");
-#ifndef CL_VERSION_3_0
-    OPENVINO_THROW("[GPU] External memory import is not supported on this platform");
-#else
-#ifdef _WIN32
-    constexpr auto handle_type_token = CL_EXTERNAL_MEMORY_HANDLE_OPAQUE_WIN32_KHR;
-#elif defined(__linux__)
-    constexpr auto handle_type_token = CL_EXTERNAL_MEMORY_HANDLE_DMA_BUF_KHR;
-#else
-    OPENVINO_THROW("[GPU] External memory import is not supported on this platform");
-#endif
-
-    cl_mem_properties props[] = {
-        static_cast<cl_mem_properties>(handle_type_token),
-        static_cast<cl_mem_properties>(reinterpret_cast<intptr_t>(shared_handle)),
-        0,
-    };
-
-    cl_int errcode = CL_SUCCESS;
-    cl_mem imported = clCreateBufferWithProperties(cl_ctx, props, CL_MEM_READ_WRITE, byte_size, nullptr, &errcode);
-    OPENVINO_ASSERT(errcode == CL_SUCCESS && imported != nullptr,
-                    "[GPU] Failed to import external memory handle via clCreateBufferWithProperties, error: ",
-                    errcode);
-    return imported;
-#endif
 }
 
 }  // namespace
@@ -208,13 +157,12 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
 
             size_t byte_size = shape_size(shape) * type.size();
 
-            auto cl_ctx = static_cast<cl_context>(m_engine->get_user_context());
-            cl_mem imported = import_external_buffer(cl_ctx, byte_size, shared_handle);
+            auto imported = m_engine->import_external_buffer(byte_size, shared_handle);
 
-            // engine.share_buffer() retains the cl_mem via cl::Buffer(handle, /*retain=*/true);
-            // release our local reference so refcount ends up at 1 owned by the wrapper.
+            // For OCL this drops temporary cl_mem ref after share_buffer() retain.
+            // For ZE this releases temporary imported USM allocation wrapper.
             auto tensor = reuse_memory(type, shape, imported, TensorType::BT_BUF_SHARED);
-            clReleaseMemObject(imported);
+            m_engine->release_imported_external_buffer(imported);
             
             return { tensor, nullptr };
         } else {
