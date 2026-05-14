@@ -11,6 +11,7 @@
 
 #include <regex>
 
+#include "intel_npu/utils/vcl/vcl_api.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 
 namespace {
@@ -535,6 +536,7 @@ void ZeroInitStructsHolder::destroyContextLocked() {
 }
 
 ZeroInitStructsHolder::~ZeroInitStructsHolder() {
+    VCLApi::destroyLibrary();
     std::lock_guard<std::mutex> lock(_mutex);
     destroyContextLocked();
 }

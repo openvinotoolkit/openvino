@@ -53,6 +53,10 @@ public:
         return lib;
     }
 
+    static void destroyLibrary() {
+        getInstance()->lib.reset();
+    }
+
 #define vcl_symbol_statement(vcl_symbol) decltype(&::vcl_symbol) vcl_symbol;
     vcl_symbols_list();
     vcl_weak_symbols_list();
