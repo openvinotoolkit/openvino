@@ -2381,7 +2381,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             }
             auto& evict_keys = _arkv_evict_keys;
 
-            parallel_for2d(Hk, evict_block_count, [&](size_t hk, size_t eb) {
+            _cpu_parallel->parallel_for2d(Hk, evict_block_count, [&](size_t hk, size_t eb) {
                 const auto global_block_idx = start_blocks + eb;
                 const auto block_number = static_cast<size_t>(
                     adaptive_rkv_diversity_block_set_indices.ptr<int32_t>()[block_set_begin + global_block_idx]);
@@ -2406,7 +2406,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             // ── Phase 1: L2-normalize each eviction token (in-place) ──────
             // After this step dot(row_i, row_j) == cosine_similarity(i, j).
             constexpr float eps = std::numeric_limits<float>::epsilon();
-            parallel_for(Hk * evictable_size, [&](size_t idx) {
+            _cpu_parallel->parallel_for(Hk * evictable_size, [&](size_t idx) {
                 const size_t hk_idx = idx / evictable_size;
                 const size_t t = idx % evictable_size;
                 float* row = evict_keys.data() + hk_idx * evictable_size * S + t * S;
@@ -2426,7 +2426,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                 _arkv_scratch.resize(scratch_size);
 
             float* out = output_ptr + output_offset;
-            parallel_for(evict_block_count, [&](size_t blk) {
+            _cpu_parallel->parallel_for(evict_block_count, [&](size_t blk) {
                 const auto ithr = static_cast<size_t>(parallel_get_thread_num());
                 float* sim_row = _arkv_scratch.data() + ithr * evictable_size;
                 float* out_row = out + blk * evictable_size;

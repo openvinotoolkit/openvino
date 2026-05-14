@@ -3,7 +3,6 @@
 //
 
 
-#include <cfloat>
 #include <numeric>
 
 #include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
@@ -210,157 +209,13 @@ public:
     }
 
     static float make_key_value(size_t token_idx, size_t dim) {
+        constexpr float kDimStride = 0.25f;
+        constexpr float kTokenBiasStride = 0.03125f;
+        constexpr float kPeriodicTokenAmplitude = 0.0625f;
         const float sign = (token_idx + dim) % 2 == 0 ? 1.0f : -1.0f;
-        return 0.25f * static_cast<float>(dim + 1) + 0.03125f * static_cast<float>(token_idx + 1) +
-               sign * 0.0625f * static_cast<float>((token_idx % 7) + 1);
-    }
-
-    // ── Scalar quantize/dequantize helpers ──────────────────────────────
-
-    static void scalar_quant_u8(const float* src, uint8_t* dst, size_t n, float& scale, float& zp) {
-        float max_val = -FLT_MAX, min_val = FLT_MAX;
-        for (size_t i = 0; i < n; i++) {
-            max_val = std::max(max_val, src[i]);
-            min_val = std::min(min_val, src[i]);
-        }
-        scale = (max_val - min_val) / 255.0f;
-        if (scale == 0.0f) scale = 0.0001f;
-        zp = -min_val / scale;
-        for (size_t i = 0; i < n; i++) {
-            dst[i] = static_cast<uint8_t>(std::round(std::max(src[i] / scale + zp, 0.0f)));
-        }
-    }
-
-    static void scalar_dequant_u8(const uint8_t* src, float* dst, size_t n, float scale, float zp) {
-        for (size_t i = 0; i < n; i++) {
-            dst[i] = (static_cast<float>(src[i]) - zp) * scale;
-        }
-    }
-
-    static void scalar_quant_u8_by_channel(const float* src, uint8_t* dst,
-                                           size_t seq_dim, size_t hidden_dims,
-                                           size_t dst_stride,
-                                           float* scale, float* zp) {
-        for (size_t j = 0; j < hidden_dims; j++) {
-            float max_val = -FLT_MAX, min_val = FLT_MAX;
-            for (size_t i = 0; i < seq_dim; i++) {
-                float v = src[i * hidden_dims + j];
-                max_val = std::max(max_val, v);
-                min_val = std::min(min_val, v);
-            }
-            scale[j] = (max_val - min_val) / 255.0f;
-            if (scale[j] == 0.0f) scale[j] = 0.0001f;
-            zp[j] = -min_val / scale[j];
-        }
-        for (size_t i = 0; i < seq_dim; i++) {
-            for (size_t j = 0; j < hidden_dims; j++) {
-                dst[i * dst_stride + j] =
-                    static_cast<uint8_t>(std::round(std::max(src[i * hidden_dims + j] / scale[j] + zp[j], 0.0f)));
-            }
-        }
-    }
-
-    static void scalar_dequant_u8_by_channel(const uint8_t* src, float* dst,
-                                             size_t seq_dim, size_t hidden_dims,
-                                             size_t src_stride,
-                                             const float* scale, const float* zp) {
-        for (size_t i = 0; i < seq_dim; i++) {
-            for (size_t j = 0; j < hidden_dims; j++) {
-                dst[i * hidden_dims + j] = (static_cast<float>(src[i * src_stride + j]) - zp[j]) * scale[j];
-            }
-        }
-    }
-
-    static void scalar_quant_i8(const float* src, int8_t* dst, size_t n, float& scale) {
-        float max_abs = 0.0f;
-        for (size_t i = 0; i < n; i++) {
-            max_abs = std::max(max_abs, std::abs(src[i]));
-        }
-        scale = max_abs / 127.0f;
-        if (scale == 0.0f) scale = 0.0001f;
-        for (size_t i = 0; i < n; i++) {
-            float tmp = std::round(src[i] / scale);
-            tmp = std::max(tmp, -128.0f);
-            tmp = std::min(tmp, 127.0f);
-            dst[i] = static_cast<int8_t>(tmp);
-        }
-    }
-
-    static void scalar_dequant_i8(const int8_t* src, float* dst, size_t n, float scale) {
-        for (size_t i = 0; i < n; i++) {
-            dst[i] = static_cast<float>(src[i]) * scale;
-        }
-    }
-
-    static uint8_t insert_u4(uint8_t dst_byte, uint8_t val, bool high_half) {
-        uint8_t shift = high_half ? 0 : 4;
-        return dst_byte | static_cast<uint8_t>(val << shift);
-    }
-
-    static uint8_t extract_u4(uint8_t byte, bool high_half) {
-        uint8_t shift = high_half ? 0 : 4;
-        return static_cast<uint8_t>((byte >> shift) & 0x0F);
-    }
-
-    static void scalar_quant_u4(const float* src, uint8_t* dst, size_t n, float& scale, float& zp) {
-        float max_val = -FLT_MAX, min_val = FLT_MAX;
-        for (size_t i = 0; i < n; i++) {
-            max_val = std::max(max_val, src[i]);
-            min_val = std::min(min_val, src[i]);
-        }
-        scale = (max_val - min_val) / 15.0f;
-        if (scale == 0.0f) scale = 0.0001f;
-        zp = -min_val / scale;
-        for (size_t i = 0; i < n; i++) {
-            uint8_t val = static_cast<uint8_t>(std::min(15.0f, std::max(0.0f, std::round(src[i] / scale + zp))));
-            uint8_t dst_val = (i % 2 == 0) ? 0 : dst[i / 2];
-            dst[i / 2] = insert_u4(dst_val, val, static_cast<bool>(i % 2));
-        }
-    }
-
-    static void scalar_dequant_u4(const uint8_t* src, float* dst, size_t n, float scale, float zp) {
-        for (size_t i = 0; i < n; i++) {
-            uint8_t val = extract_u4(src[i / 2], static_cast<bool>(i % 2));
-            dst[i] = (static_cast<float>(val) - zp) * scale;
-        }
-    }
-
-    static void scalar_quant_u4_by_channel(const float* src, uint8_t* dst,
-                                           size_t seq_dim, size_t hidden_dims,
-                                           size_t dst_stride,
-                                           float* scale, float* zp) {
-        for (size_t j = 0; j < hidden_dims; j++) {
-            float max_val = -FLT_MAX, min_val = FLT_MAX;
-            for (size_t i = 0; i < seq_dim; i++) {
-                float v = src[i * hidden_dims + j];
-                max_val = std::max(max_val, v);
-                min_val = std::min(min_val, v);
-            }
-            scale[j] = (max_val - min_val) / 15.0f;
-            if (scale[j] == 0.0f) scale[j] = 0.0001f;
-            zp[j] = -min_val / scale[j];
-        }
-        for (size_t i = 0; i < seq_dim; i++) {
-            for (size_t j = 0; j < hidden_dims; j++) {
-                uint8_t val = static_cast<uint8_t>(
-                    std::min(15.0f, std::max(0.0f, std::round(src[i * hidden_dims + j] / scale[j] + zp[j]))));
-                size_t byte_idx = i * dst_stride + j / 2;
-                uint8_t dst_val = (j % 2 == 0) ? 0 : dst[byte_idx];
-                dst[byte_idx] = insert_u4(dst_val, val, static_cast<bool>(j % 2));
-            }
-        }
-    }
-
-    static void scalar_dequant_u4_by_channel(const uint8_t* src, float* dst,
-                                             size_t seq_dim, size_t hidden_dims,
-                                             size_t src_stride,
-                                             const float* scale, const float* zp) {
-        for (size_t i = 0; i < seq_dim; i++) {
-            for (size_t j = 0; j < hidden_dims; j++) {
-                uint8_t val = extract_u4(src[i * src_stride + j / 2], static_cast<bool>(j % 2));
-                dst[i * hidden_dims + j] = (static_cast<float>(val) - zp[j]) * scale[j];
-            }
-        }
+        return kDimStride * static_cast<float>(dim + 1) +
+               kTokenBiasStride * static_cast<float>(token_idx + 1) +
+               sign * kPeriodicTokenAmplitude * static_cast<float>((token_idx % 7) + 1);
     }
 
     // ── Generate float key data: [block][head][token][dim] layout ───────

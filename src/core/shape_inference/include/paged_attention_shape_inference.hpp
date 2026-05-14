@@ -92,8 +92,8 @@ std::vector<TRShape> shape_infer(const PagedAttentionExtension* op,
         }
 
         const auto key_cache_et = op->get_input_element_type(3);
-        if (!(key_cache_et == element::i8 || key_cache_et == element::u8 || key_cache_et == element::i4 ||
-              key_cache_et == element::u4)) {
+        const std::array<element::Type, 4> supported_types{element::i8, element::u8, element::i4, element::u4};
+        if (std::find(supported_types.begin(), supported_types.end(), key_cache_et) == supported_types.end()) {
             return block_size;
         }
 
