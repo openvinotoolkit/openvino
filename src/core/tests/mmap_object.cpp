@@ -206,6 +206,8 @@ TEST_P(RangedMappingTest, compare_id) {
     EXPECT_NE(mm_1->get_id(), other_mm_1->get_id());
     EXPECT_NE(mm_2->get_id(), other_mm_2->get_id());
     EXPECT_EQ(mm_1->get_id(), mm_1_->get_id());
+
+    std::filesystem::remove(other_file_path);
 }
 
 static const auto pg_sz = []() {
