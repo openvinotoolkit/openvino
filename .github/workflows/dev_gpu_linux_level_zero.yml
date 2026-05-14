@@ -122,7 +122,7 @@ jobs:
       group: 'Intel-GPU'
       labels: [ 'self-hosted', 'dgpu', 'Arc-B50', 'Linux' ]
     container:
-      image: ubuntu:22.04
+      image: ubuntu:24.04
       volumes:
         - /usr/local/share/ca-certificates:/usr/local/share/ca-certificates:ro
         - ${{ github.workspace }}:${{ github.workspace }}
@@ -192,7 +192,7 @@ jobs:
 
           rm -rf ${INSTALL_TEST_DIR}/${TEST_RESULTS_DIR} && mkdir -p ${INSTALL_TEST_DIR}/${TEST_RESULTS_DIR}
 
-          python3 ${GTEST_PARALLEL_SCRIPT} ${INSTALL_TEST_DIR}/ov_gpu_unit_tests  --dump_json_test_results=${INSTALL_TEST_DIR}/${TEST_RESULTS_DIR}/ov_gpu_unit_tests .json -- --report_unique_name --gtest_filter=fully_connected
+          python3 ${GTEST_PARALLEL_SCRIPT} ${INSTALL_TEST_DIR}/ov_gpu_unit_tests  --dump_json_test_results=${INSTALL_TEST_DIR}/${TEST_RESULTS_DIR}/ov_gpu_unit_tests.json -- --report_unique_name --gtest_filter=fully_connected
 
       - name: Upload Test Results
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2 We are not using newest version v6.0.0 due to very frequent issues with 'Error: Unable to make request: ECONNRESET'
