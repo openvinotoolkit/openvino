@@ -46,18 +46,20 @@ struct Conv1x1ToMatmulTestParams {
 };
 
 std::shared_ptr<ov::Model> gen_model(const Conv1x1ToMatmulTestParams& p) {
-    int input_batch = p.with_batched_input ? 4 : 1;
-    auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16,
-                                                         (p.activation_op_type == "Reshape" && p.with_act_new_reshape)
-                                                             ? ov::Shape{(size_t)input_batch, 1, 2, 5}
-                                                             : ov::Shape{(size_t)input_batch, 1, 1, 10});
+    size_t input_batch = p.with_batched_input ? 4 : 1;
+    size_t input_h = (p.activation_op_type._Starts_with("Reshape") && p.with_act_new_reshape) ? 2 : 1;
+    size_t input_w = (p.activation_op_type._Starts_with("Reshape") && p.with_act_new_reshape) ? 5 : 10;
+    auto input_shape = (p.activation_op_type._Starts_with("None"))
+                           ? ov::Shape{input_batch, input_w, 1, input_h}
+                           : ov::Shape{(size_t)input_batch, 1, input_h, input_w};
+    auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, input_shape);
 
-    std::shared_ptr<ov::Node> act_node;
-    if (p.activation_op_type == "Transpose") {
+    std::shared_ptr<ov::Node> act_node = input;
+    if (p.activation_op_type._Starts_with("Transpose")) {
         auto transpose_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {0, 3, 1, 2});
         act_node = std::make_shared<ov::opset1::Transpose>(input, transpose_const);
-    } else {
-        auto reshape_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {input_batch, 10, 1, 1});
+    } else if (p.activation_op_type._Starts_with("Reshape")) {
+        auto reshape_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {(int)input_batch, 10, 1, 1});
         act_node = std::make_shared<ov::opset1::Reshape>(input, reshape_const, false);
     }
 
@@ -116,12 +118,12 @@ std::shared_ptr<ov::Model> gen_model(const Conv1x1ToMatmulTestParams& p) {
         current_node = std::make_shared<ov::op::v0::Convert>(current_node, ov::element::f32);
     }
 
-    std::shared_ptr<ov::Node> out_node;
-    if (p.activation_op_type == "Transpose") {
+    std::shared_ptr<ov::Node> out_node = current_node;
+    if (p.activation_op_type == "Transpose" || p.activation_op_type == "None_Transpose") {
         auto transpose_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 3, 1});
         out_node = std::make_shared<ov::opset1::Transpose>(current_node, transpose_const);
-    } else {
-        auto reshape_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {input_batch, 1, 1, 15});
+    } else if (p.activation_op_type == "Reshape" || p.activation_op_type == "None_Reshape") {
+        auto reshape_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {(int)input_batch, 1, 1, 15});
         out_node = std::make_shared<ov::opset1::Reshape>(current_node, reshape_const, false);
     }
 
@@ -129,11 +131,13 @@ std::shared_ptr<ov::Model> gen_model(const Conv1x1ToMatmulTestParams& p) {
 }
 
 std::shared_ptr<ov::Model> gen_model_ref(const Conv1x1ToMatmulTestParams& p) {
-    int input_batch = p.with_batched_input ? 4 : 1;
-    auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16,
-                                                         (p.activation_op_type == "Reshape" && p.with_act_new_reshape)
-                                                             ? ov::Shape{(size_t)input_batch, 1, 2, 5}
-                                                             : ov::Shape{(size_t)input_batch, 1, 1, 10});
+    size_t input_batch = p.with_batched_input ? 4 : 1;
+    size_t input_h = (p.activation_op_type._Starts_with("Reshape") && p.with_act_new_reshape) ? 2 : 1;
+    size_t input_w = (p.activation_op_type._Starts_with("Reshape") && p.with_act_new_reshape) ? 5 : 10;
+    auto input_shape = (p.activation_op_type._Starts_with("None"))
+                           ? ov::Shape{input_batch, input_w, 1, input_h}
+                           : ov::Shape{(size_t)input_batch, 1, input_h, input_w};
+    auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, input_shape);
 
     std::shared_ptr<ov::Node> weights_node;
     ov::ParameterVector params = {input};
@@ -174,12 +178,16 @@ std::shared_ptr<ov::Model> gen_model_ref(const Conv1x1ToMatmulTestParams& p) {
     }
 
     std::shared_ptr<ov::Node> act_node = input;
-    if (p.activation_op_type == "Reshape" && p.with_act_new_reshape) {
-        auto reshape_const = ov::opset1::Constant::create(ov::element::i64, ov::Shape{4}, {1, 1, input_batch, 10});
-        act_node = std::make_shared<ov::opset1::Reshape>(input, reshape_const, false);
+    if (p.activation_op_type._Starts_with("None")) {
+        auto transpose_const = ov::opset1::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 3, 1});
+        act_node = std::make_shared<ov::opset1::Transpose>(act_node, transpose_const);
     }
-    if (input_batch == 1 || (p.activation_op_type == "Reshape" && p.with_act_new_reshape)) {
-        auto squeeze_const = ov::opset1::Constant::create(ov::element::i64, ov::Shape{3}, {1, input_batch, 10});
+    if (p.activation_op_type._Starts_with("Reshape") && p.with_act_new_reshape) {
+        auto reshape_const = ov::opset1::Constant::create(ov::element::i64, ov::Shape{4}, {1, 1, (int)input_batch, 10});
+        act_node = std::make_shared<ov::opset1::Reshape>(act_node, reshape_const, false);
+    }
+    if (input_batch == 1 || (p.activation_op_type._Starts_with("Reshape") && p.with_act_new_reshape)) {
+        auto squeeze_const = ov::opset1::Constant::create(ov::element::i64, ov::Shape{3}, {1, (int)input_batch, 10});
         act_node = std::make_shared<ov::opset1::Reshape>(act_node, squeeze_const, false);
     }
     auto matmul = std::make_shared<ov::op::v0::MatMul>(act_node, mul, false, true);
@@ -189,20 +197,24 @@ std::shared_ptr<ov::Model> gen_model_ref(const Conv1x1ToMatmulTestParams& p) {
         auto bias_const = ov::opset1::Constant::create(ov::element::f16, ov::Shape{1, 1, 1, 15}, {1});
         current_node = std::make_shared<ov::opset1::Add>(current_node, bias_const);
     }
-    if (input_batch == 1 || (p.activation_op_type == "Reshape" && p.with_act_new_reshape)) {
-        auto unsqueeze_const = ov::opset1::Constant::create(ov::element::i64, ov::Shape{4}, {1, 1, input_batch, 15});
+    if (input_batch == 1 || ((p.activation_op_type._Starts_with("Reshape")) && p.with_act_new_reshape)) {
+        auto unsqueeze_const =
+            ov::opset1::Constant::create(ov::element::i64, ov::Shape{4}, {1, 1, (int)input_batch, 15});
         current_node = std::make_shared<ov::opset1::Reshape>(current_node, unsqueeze_const, false);
     }
     if (p.with_convert) {
         current_node = std::make_shared<ov::op::v0::Convert>(current_node, ov::element::f32);
     }
 
-    std::shared_ptr<ov::Node> out_node;
-    if (p.activation_op_type == "Reshape") {
-        auto reshape_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {input_batch, 1, 1, 15});
-        out_node = std::make_shared<ov::opset1::Reshape>(current_node, reshape_const, false);
-    } else {
-        out_node = current_node;
+    std::shared_ptr<ov::Node> out_node = current_node;
+    if (p.activation_op_type == "Reshape" || p.activation_op_type == "None_Reshape") {
+        auto reshape_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {(int)input_batch, 1, 1, 15});
+        out_node = std::make_shared<ov::opset1::Reshape>(out_node, reshape_const, false);
+    }
+    if (p.activation_op_type == "Transpose_None" || p.activation_op_type == "Reshape_None" ||
+        p.activation_op_type == "None") {
+        auto transpose_const = ov::opset1::Constant::create(ov::element::i64, ov::Shape{4}, {0, 3, 1, 2});
+        out_node = std::make_shared<ov::opset1::Transpose>(out_node, transpose_const);
     }
 
     return std::make_shared<ov::Model>(ov::OutputVector{out_node}, params);
@@ -272,7 +284,13 @@ INSTANTIATE_TEST_SUITE_P(TransformationTests,
                                             ::testing::Bool(),
                                             ::testing::Bool(),
                                             ::testing::Bool(),
-                                            ::testing::Values("Transpose", "Reshape")),
+                                            ::testing::Values("Transpose",
+                                                              "Reshape",
+                                                              "Transpose_None",
+                                                              "Reshape_None",
+                                                              "None_Transpose",
+                                                              "None_Reshape",
+                                                              "None")),
                          ConvertWeightCompressedConv1x1ToMatmulTest::get_test_case_name);
 
 // Checked blocked cases
