@@ -309,6 +309,11 @@ const std::vector<CRE::Token> expression_21 = {CRE::NOT,
                                                CRE::CLOSE,
                                                CRE::CLOSE};
 
+const std::vector<CRE::Token> expression_22 = {CRE::OPEN, CRE::ELF_SCHEDULE, CRE::CLOSE};
+
+const std::vector<CRE::Token> expression_23 =
+    {CRE::OPEN, CRE::OPEN, CRE::NOT, CRE::ELF_SCHEDULE, CRE::CLOSE, CRE::CLOSE};
+
 // missing operand for OR operator
 const std::vector<CRE::Token> invalid_expression_1 = {CRE::AND, CRE::ELF_SCHEDULE, CRE::OPEN, CRE::OR, CRE::CLOSE};
 
@@ -354,6 +359,15 @@ const std::vector<CRE::Token> invalid_expression_8 = {CRE::AND, CRE::OPEN, CRE::
 
 // missing operand
 const std::vector<CRE::Token> invalid_expression_9 = {CRE::AND};
+
+// too many operands
+const std::vector<CRE::Token> invalid_expression_10 = {CRE::NOT, CRE::ELF_SCHEDULE, CRE::BATCHING};
+
+// missing CLOSE
+const std::vector<CRE::Token> invalid_expression_11 = {CRE::OPEN, CRE::OPEN, CRE::NOT, CRE::ELF_SCHEDULE, CRE::CLOSE};
+
+// missing OPEN
+const std::vector<CRE::Token> invalid_expression_12 = {CRE::OPEN, CRE::NOT, CRE::ELF_SCHEDULE, CRE::CLOSE, CRE::CLOSE};
 
 std::vector<CREParams> valid_test_cases = {
     MAKE_PARAM(expression_1, true),
@@ -453,6 +467,9 @@ std::vector<CREParams> valid_test_cases = {
     MAKE_PARAM(expression_21, false, CRE::WEIGHTS_SEPARATION),
     MAKE_PARAM(expression_21, false, CRE::BATCHING),
     MAKE_PARAM(expression_21, false),
+
+    MAKE_PARAM(expression_22, true, CRE::ELF_SCHEDULE),
+    MAKE_PARAM(expression_23, false, CRE::ELF_SCHEDULE),
 };
 
 INSTANTIATE_TEST_SUITE_P(CRE, ValidExpression, ::testing::ValuesIn(valid_test_cases), CREUnitTests::getTestCaseName);
@@ -467,6 +484,9 @@ std::vector<CREParams> invalid_test_cases = {
     MAKE_PARAM(invalid_expression_7, false),
     MAKE_PARAM(invalid_expression_8, false),
     MAKE_PARAM(invalid_expression_9, false),
+    MAKE_PARAM(invalid_expression_10, false),
+    MAKE_PARAM(invalid_expression_11, false),
+    MAKE_PARAM(invalid_expression_12, false),
 };
 
 INSTANTIATE_TEST_SUITE_P(CRE,

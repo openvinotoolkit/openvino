@@ -26,14 +26,14 @@ void prepare_writer(const std::shared_ptr<BlobWriter>& blobWriter,
     }
 }
 
-// should we unit test the reader with precompiled compatibility blobs?
+// TODO should we unit test the reader with precompiled compatibility blobs?
 void reader_register_sections(const std::shared_ptr<BlobReader>& blobReader,
                               const std::vector<uint16_t> section_types,
                               std::unordered_map<CRE::Token, std::shared_ptr<ICapability>>& capabilities) {
     for (const auto& token : section_types) {
         capabilities[token] = std::make_shared<StaticCapability>(token);
     }
-    // what if we have a different reader?
+
     blobReader->register_reader(PredefinedSectionType::BATCH_SIZE, BatchSizeSection::read);
     blobReader->register_reader(PredefinedSectionType::IO_LAYOUTS, IOLayoutsSection::read);
 }
@@ -107,7 +107,7 @@ TEST_P(AllSections, WriteRead) {
 using IncompatibleCRE = WriterReaderUnitTests;
 
 TEST_P(IncompatibleCRE, ReadThrows) {
-    ASSERT_ANY_THROW(reader->read(capabilities));
+    EXPECT_THROW(reader->read(capabilities), ov::Exception);
 }
 
 using Reader = ::testing::Test;
@@ -192,8 +192,6 @@ TEST_F(WriterReaderEdgeCases, ReExportRoundTrip) {
     EXPECT_EQ(read_io->get_output_layouts(), output_layouts);
 }
 
-// the reader is unable to read the first section
-// npu_region_size from reader is not initialized?
 TEST_F(WriterReaderEdgeCases, MultipleSectionsSameType) {
     constexpr int64_t BATCH_A = 0xDEADBEEF;
     constexpr int64_t BATCH_B = 0xCAFEBABE;

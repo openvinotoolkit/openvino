@@ -100,7 +100,5 @@ private:
     std::shared_ptr<MockSection_1> section_1;
     std::vector<std::shared_ptr<ISection>> reachables;
     std::unordered_map<SectionID, std::shared_ptr<ISection>> parsed_reachables;
-    // instead would it be worth to test a custom OffsetsTable with a different Entry layout?
-    // even with flexible entry size?
     OffsetsTable embedded_table;
 };
