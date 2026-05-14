@@ -7,6 +7,29 @@
 #include "single_op_tests/convolution_backprop_data.hpp"
 #include "common_test_utils/test_constants.hpp"
 
+namespace ov {
+namespace test {
+
+class ConvolutionBackpropDataDilationTest : public ConvolutionBackpropDataLayerTest {
+protected:
+    void SetUp() override {
+        ConvolutionBackpropDataLayerTest::SetUp();
+        // FP16 deconv with dilation has inherent quantization error (~0.25 for values >128)
+        const auto& [convParams, model_type, shapes, output_shapes, dev] = this->GetParam();
+        if (model_type == ov::element::f16) {
+            abs_threshold = 0.5;
+            rel_threshold = 0.01;
+        }
+    }
+};
+
+TEST_P(ConvolutionBackpropDataDilationTest, Inference) {
+    run();
+}
+
+}  // namespace test
+}  // namespace ov
+
 namespace {
 using ov::test::ConvolutionBackpropDataLayerTest;
 using ov::test::convBackpropDataLayerTestParamsSet;
@@ -247,4 +270,35 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData1D_ExplicitPadding, Convol
                                 ::testing::ValuesIn(emptyOutputShape),
                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         ConvolutionBackpropDataLayerTest::getTestCaseName);
+
+/* ============= 2D ConvolutionBackpropData with Dilation > 1 ============= */
+const std::vector<ov::element::Type> netPrecisionsDilation = {ov::element::f32, ov::element::f16};
+
+const std::vector<std::vector<ov::Shape>> inputShapesDilation2D = {{{1, 1, 3, 3}}, {{1, 3, 10, 10}}, {{1, 16, 5, 5}}};
+const std::vector<std::vector<size_t>> kernelsDilation2D = {{2, 2}, {3, 3}};
+const std::vector<std::vector<size_t>> stridesDilation2D = {{1, 1}};
+const std::vector<std::vector<ptrdiff_t>> padBeginsDilation2D = {{0, 0}};
+const std::vector<std::vector<ptrdiff_t>> padEndsDilation2D = {{0, 0}, {1, 1}};
+const std::vector<std::vector<size_t>> dilationsDilation2D = {{2, 2}, {3, 3}};
+const std::vector<size_t> numOutChannelsDilation = {1, 5};
+
+const auto conv2DParams_Dilation_ExplicitPadding = ::testing::Combine(::testing::ValuesIn(kernelsDilation2D),
+                                                                      ::testing::ValuesIn(stridesDilation2D),
+                                                                      ::testing::ValuesIn(padBeginsDilation2D),
+                                                                      ::testing::ValuesIn(padEndsDilation2D),
+                                                                      ::testing::ValuesIn(dilationsDilation2D),
+                                                                      ::testing::ValuesIn(numOutChannelsDilation),
+                                                                      ::testing::Values(ov::op::PadType::EXPLICIT),
+                                                                      ::testing::ValuesIn(emptyOutputPadding));
+
+using ov::test::ConvolutionBackpropDataDilationTest;
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_Dilation,
+                         ConvolutionBackpropDataDilationTest,
+                         ::testing::Combine(conv2DParams_Dilation_ExplicitPadding,
+                                            ::testing::ValuesIn(netPrecisionsDilation),
+                                            ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapesDilation2D)),
+                                            ::testing::ValuesIn(emptyOutputShape),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                         ConvolutionBackpropDataLayerTest::getTestCaseName);
+
 }  // namespace

@@ -46,7 +46,8 @@ void pre_replace_deconv::run(program& p) {
             // limit optimization to stride = 1
             // iterators shouldn't be used here because of incorrect iterator functionality in mutable_array_ref<>
             bool unit_stride = all_ones(deconv_prim->stride);
-            if (unit_stride) {
+            bool unit_dilation = all_ones(deconv_prim->dilations);
+            if (unit_stride && unit_dilation) {
                 auto groups = deconv_node.get_groups();
 
                 bool perform_opt = false;

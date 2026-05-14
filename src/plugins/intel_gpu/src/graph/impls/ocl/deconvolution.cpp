@@ -38,7 +38,7 @@ public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<deconvolution>();
         const auto& stride = primitive->stride;
-        const ov::Strides dilation(impl_param.get_output_layout().get_spatial_rank(), 1);
+        const auto& dilation = primitive->dilations;
 
         const auto& pad = primitive->pad;
         const auto& groups = primitive->groups;

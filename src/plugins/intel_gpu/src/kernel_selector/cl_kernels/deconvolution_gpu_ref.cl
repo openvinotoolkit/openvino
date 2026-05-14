@@ -47,9 +47,9 @@ KERNEL(deconvolution_gpu_yxfb_ref)(
     const uint batch_offset  = b_f % INPUT0_BATCH_NUM;
 #endif
 
-    const int x = (int)out_x + PADDING_SIZE_X - (FILTER_SIZE_X - 1);
-    const int y = (int)out_y + PADDING_SIZE_Y - (FILTER_SIZE_Y - 1);
-    const int z = (int)out_z + PADDING_SIZE_Z - (FILTER_SIZE_Z - 1);
+    const int x = (int)out_x + PADDING_SIZE_X - (FILTER_SIZE_X - 1) * DILATION_SIZE_X;
+    const int y = (int)out_y + PADDING_SIZE_Y - (FILTER_SIZE_Y - 1) * DILATION_SIZE_Y;
+    const int z = (int)out_z + PADDING_SIZE_Z - (FILTER_SIZE_Z - 1) * DILATION_SIZE_Z;
 
 #if GROUPED
     const uint g = (ofm_offset / FILTER_OFM_NUM);
@@ -66,21 +66,21 @@ KERNEL(deconvolution_gpu_yxfb_ref)(
 
     for (uint k = 0; k < FILTER_SIZE_Z; k++)
     {
-        const int input_offset_z = z + k;
+        const int input_offset_z = z + k * DILATION_SIZE_Z;
         const bool zero_z = (input_offset_z >= INPUT0_SIZE_Z * STRIDE_SIZE_Z) || (input_offset_z < 0) || ((input_offset_z % STRIDE_SIZE_Z) != 0);
 
         if(!zero_z)
         {
             for (uint i = 0; i < FILTER_SIZE_Y; i++)
             {
-                const int input_offset_y = y + i;
+                const int input_offset_y = y + i * DILATION_SIZE_Y;
                 const bool zero_y = (input_offset_y >= INPUT0_SIZE_Y * STRIDE_SIZE_Y) || (input_offset_y < 0) || ((input_offset_y % STRIDE_SIZE_Y) != 0);
 
                 if(!zero_y)
                 {
                     for (uint j = 0; j < FILTER_SIZE_X; j++)
                     {
-                        const int input_offset_x = x + j;
+                        const int input_offset_x = x + j * DILATION_SIZE_X;
                         const bool zero_x = (input_offset_x >= INPUT0_SIZE_X * STRIDE_SIZE_X) || (input_offset_x < 0) || ((input_offset_x % STRIDE_SIZE_X) != 0);
 
                         if(!zero_x)
