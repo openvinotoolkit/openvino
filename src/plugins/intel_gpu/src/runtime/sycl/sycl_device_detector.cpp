@@ -20,10 +20,6 @@
 #endif
 
 namespace {
-static const char create_device_error_msg[] =
-    "[GPU] No supported SYCL devices found or unexpected error happened during devices query.\n"
-    "[GPU] Please check OpenVINO documentation for GPU drivers setup guide.\n";
-
 bool does_device_match_config(const ::sycl::device& device) {
     if (!device.is_gpu()) {
         return false;
@@ -125,7 +121,6 @@ std::vector<device::ptr> sycl_device_detector::create_device_list() const {
             continue;
         }
     }
-    OPENVINO_ASSERT(!supported_devices.empty(), create_device_error_msg);
     return supported_devices;
 }
 
