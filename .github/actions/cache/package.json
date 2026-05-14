@@ -55,7 +55,7 @@
   "dependencies": {
     "@actions/core": "^3.0.0",
     "fs": "^0.0.1-security",
-    "tar": "^7.5.13"
+    "tar": "^7.5.15"
   },
   "devDependencies": {
     "@babel/core": "^7.24.0",
