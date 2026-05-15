@@ -49,7 +49,9 @@ struct memory {
     virtual void* lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write) = 0;
     virtual void unlock(const stream& stream) = 0;
     virtual event::ptr fill(stream& stream, unsigned char pattern, const std::vector<event::ptr>& dep_events = {}, bool blocking = true) = 0;
-    virtual event::ptr fill(stream& stream, const std::vector<event::ptr>& dep_events = {}, bool blocking = true) = 0;
+    virtual event::ptr fill(stream& stream, const std::vector<event::ptr>& dep_events = {}, bool blocking = true) {
+        return fill(stream, 0, dep_events, blocking);
+    }
     // only supports gpu_usm
     virtual void* buffer_ptr() const { return nullptr; }
 

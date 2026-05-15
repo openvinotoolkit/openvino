@@ -1,0 +1,18 @@
+@echo off
+REM Copyright (C) 2018-2026 Intel Corporation
+REM SPDX-License-Identifier: Apache-2.0
+
+setlocal EnableDelayedExpansion
+set "_ov_has_E=0"
+set "_ov_has_dM=0"
+for %%A in (%*) do (
+    if "%%~A"=="-E" set "_ov_has_E=1"
+    if "%%~A"=="-dM" set "_ov_has_dM=1"
+)
+if "!_ov_has_E!:!_ov_has_dM!"=="1:1" (
+    more > nul
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "[Console]::Out.Write(\"#define __GLIBC__ @OV_RPI_WRAPPER_GLIBC_MAJOR@`n#define __GLIBC_MINOR__ @OV_RPI_WRAPPER_GLIBC_MINOR@`n#define _GLIBCXX_USE_CXX11_ABI 1`n\")"
+    exit /b 0
+)
+"@OV_RPI_WRAPPER_REAL_TOOL@" @OV_RPI_WRAPPER_FLAGS@ %*
+exit /b %ERRORLEVEL%
