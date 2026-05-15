@@ -2,8 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cstdint>
+
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/cum_sum.hpp"
 
 using namespace CPUTestUtils;
@@ -15,6 +18,20 @@ using cumSumParams = std::tuple<ov::element::Type,  // data precision
                                 std::int64_t,       // axis
                                 bool,               // exclusive
                                 bool>;              // reverse
+
+static void fillLargeInt64Values(ov::Tensor& tensor) {
+    auto* data = tensor.data<std::int64_t>();
+    static constexpr std::int64_t values[] = {
+        std::int64_t{1} << 33,
+        std::int64_t{1} << 34,
+        std::int64_t{1} << 35,
+        5,
+        7,
+    };
+    for (size_t i = 0; i < tensor.get_size(); ++i) {
+        data[i] = values[i % (sizeof(values) / sizeof(values[0]))];
+    }
+}
 
 class CumSumLayerCPUTest : public testing::WithParamInterface<cumSumParams>,
                            public SubgraphBaseTest,
@@ -55,6 +72,49 @@ protected:
         function = std::make_shared<ov::Model>(ov::OutputVector{cumSum}, params, "CumSumLayerCPUTest");
         functionRefs = function->clone();
     }
+
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        SubgraphBaseTest::generate_inputs(targetInputStaticShapes);
+
+        for (const auto& param : function->get_parameters()) {
+            if (param->get_element_type() != ov::element::i64) {
+                continue;
+            }
+
+            auto& tensor = inputs.at(param);
+            fillLargeInt64Values(tensor);
+        }
+    }
+};
+
+class CumSumExplicitConvertCPUTest : public SubgraphBaseTest, public CPUTestsBase {
+protected:
+    void SetUp() override {
+        targetDevice = ov::test::utils::DEVICE_CPU;
+        inType = ElementType::i64;
+        selectedType = makeSelectedTypeStr("ref_any", ov::element::i32);
+
+        init_input_shapes({{{-1}, {{5}}}});
+
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, inputDynamicShapes.front());
+        auto convert = std::make_shared<ov::op::v0::Convert>(param, ov::element::i32);
+        auto axisNode = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, std::vector<int64_t>{0});
+        auto cumSum = std::make_shared<ov::op::v0::CumSum>(convert, axisNode, false, false);
+
+        function = std::make_shared<ov::Model>(ov::OutputVector{cumSum},
+                                               ov::ParameterVector{param},
+                                               "CumSumExplicitConvertCPUTest");
+        functionRefs = function->clone();
+    }
+
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        SubgraphBaseTest::generate_inputs(targetInputStaticShapes);
+
+        for (const auto& param : function->get_parameters()) {
+            auto& tensor = inputs.at(param);
+            fillLargeInt64Values(tensor);
+        }
+    }
 };
 
 TEST_P(CumSumLayerCPUTest, CompareWithRefs) {
@@ -62,7 +122,13 @@ TEST_P(CumSumLayerCPUTest, CompareWithRefs) {
     CheckPluginRelatedResults(compiledModel, "CumSum");
 }
 
+TEST_F(CumSumExplicitConvertCPUTest, CompareWithRefs) {
+    run();
+    CheckPluginRelatedResults(compiledModel, "CumSum");
+}
+
 const std::vector<ov::element::Type> inputPrecision = {ov::element::i8, ov::element::bf16, ov::element::f32};
+const std::vector<ov::element::Type> int64InputPrecision = {ov::element::i64};
 
 const std::vector<int64_t> axes = {0, 1, 2, 3, 4, 5, 6};
 const std::vector<int64_t> negativeAxes = {-1, -2, -3, -4, -5, -6};
@@ -90,11 +156,19 @@ const std::vector<InputShape> inShapes = {
 
     {{{2, 5}, -1, {4, 8}, -1, -1, {3, 7}, -1}, {{2, 4, 6, 5, 4, 3, 1}, {3, 5, 6, 6, 5, 3, 1}, {5, 7, 4, 6, 3, 7, 2}}}};
 
+const std::vector<InputShape> int64InShapes = {{{-1}, {{5}}}};
+
 const auto testCasesAxis_0 = ::testing::Combine(::testing::ValuesIn(inputPrecision),
                                                 ::testing::ValuesIn(inShapes),
                                                 ::testing::Values(axes[0]),
                                                 ::testing::ValuesIn(exclusive),
                                                 ::testing::ValuesIn(reverse));
+
+const auto testCasesInt64Axis_0 = ::testing::Combine(::testing::ValuesIn(int64InputPrecision),
+                                                     ::testing::ValuesIn(int64InShapes),
+                                                     ::testing::Values(axes[0]),
+                                                     ::testing::Values(false),
+                                                     ::testing::Values(false));
 
 const auto testCasesAxis_1 =
     ::testing::Combine(::testing::ValuesIn(inputPrecision),
@@ -148,6 +222,10 @@ const auto testCasesAxis_negative =
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefsNumpy_axis_0,
                          CumSumLayerCPUTest,
                          testCasesAxis_0,
+                         CumSumLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefsNumpy_int64_axis_0,
+                         CumSumLayerCPUTest,
+                         testCasesInt64Axis_0,
                          CumSumLayerCPUTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefsNumpy_axis_1,
                          CumSumLayerCPUTest,
