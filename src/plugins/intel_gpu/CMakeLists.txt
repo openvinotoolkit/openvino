@@ -39,10 +39,30 @@ if(CMAKE_COMPILER_IS_GNUCXX)
 endif()
 
 if(OV_COMPILER_IS_CLANG)
+    include(CMakePushCheckState)
+    include(CheckCXXSourceCompiles)
+
     set(FSYCL_OPTION -fsycl)
     check_cxx_compiler_flag(${FSYCL_OPTION} HAS_FSYCL_OPTION)
-    if (HAS_FSYCL_OPTION)
+
+    if(HAS_FSYCL_OPTION)
+        set(CHECK_SYCL_HEADER_SOURCE
+        "
+            #include <sycl/sycl.hpp>
+            int main() {
+                return 0;
+            }
+        ")
+
+        cmake_push_check_state(RESET)
+        string(JOIN " " CMAKE_REQUIRED_FLAGS ${FSYCL_OPTION} ${SYCL_EXTRA_FLAGS})
+        check_cxx_source_compiles("${CHECK_SYCL_HEADER_SOURCE}" HAS_SYCL_HEADER_WITH_FSYCL)
+        cmake_pop_check_state()
+    endif()
+
+    if(HAS_FSYCL_OPTION AND HAS_SYCL_HEADER_WITH_FSYCL)
         set(OV_GPU_WITH_SYCL 1)
+
         function(add_sycl_to_target)
             set(options)
             set(one_value_args TARGET)
@@ -72,6 +92,10 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     add_compile_definitions(_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING)
     # see https://github.com/oneapi-src/oneDNN/issues/2028
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zc:__cplusplus")
+endif()
+
+if(GPU_RT_TYPE STREQUAL "SYCL" AND NOT OV_GPU_WITH_SYCL)
+    message(FATAL_ERROR "GPU_RT_TYPE is set to SYCL, but SYCL is not available for the selected compiler/environment.")
 endif()
 
 if(WIN32)
