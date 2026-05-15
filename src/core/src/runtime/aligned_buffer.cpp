@@ -69,9 +69,9 @@ void AlignedBuffer::invoke_evict(AlignedBuffer& buffer, size_t offset, size_t si
     buffer.hint_evict(offset, size);
 }
 
-void AlignedBuffer::fetch() const {}
+void AlignedBuffer::ensure_present() const {}
 
-void AlignedBuffer::invoke_fetch(const AlignedBuffer& buffer) {
-    buffer.fetch();
+void AlignedBuffer::invoke_ensure_present(const AlignedBuffer& buffer) {
+    buffer.ensure_present();
 }
 }  // namespace ov

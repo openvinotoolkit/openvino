@@ -45,25 +45,25 @@ public:
         return m_byte_size;
     }
     void* get_ptr(size_t offset) const {
-        fetch();
+        ensure_present();
         return m_aligned_buffer + offset;
     }
     void* get_ptr() {
-        fetch();
+        ensure_present();
         return m_aligned_buffer;
     }
     const void* get_ptr() const {
-        fetch();
+        ensure_present();
         return m_aligned_buffer;
     }
     template <typename T>
     T* get_ptr() {
-        fetch();
+        ensure_present();
         return reinterpret_cast<T*>(m_aligned_buffer);
     }
     template <typename T>
     const T* get_ptr() const {
-        fetch();
+        ensure_present();
         return reinterpret_cast<const T*>(m_aligned_buffer);
     }
 
@@ -79,12 +79,16 @@ public:
 
     virtual void hint_evict() noexcept;
 
+    /**
+     * \brief Ensures the buffer is available and populated with actual data.
+     */
+    virtual void ensure_present() const;
+
 protected:
     virtual void hint_evict(size_t offset, size_t size) noexcept;
     static void invoke_evict(AlignedBuffer& buffer, size_t offset, size_t size) noexcept;
 
-    virtual void fetch() const;
-    static void invoke_fetch(const AlignedBuffer& buffer);
+    static void invoke_ensure_present(const AlignedBuffer& buffer);
 
     char* m_allocated_buffer;
     char* m_aligned_buffer;

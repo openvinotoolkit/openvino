@@ -52,7 +52,7 @@ LazyBuffer::~LazyBuffer() {
     }
 }
 
-void LazyBuffer::fetch() const {
+void LazyBuffer::ensure_present() const {
     AtomicGuard lock{m_loading};
     if (!m_loaded && m_byte_size > 0) {
         if (mprotect(m_reserved_buffer, m_reserved_size, PROT_READ | PROT_WRITE) == -1) {

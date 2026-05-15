@@ -41,16 +41,17 @@ public:
     }
 
     /**
+     * \brief Evicts the buffer from memory. After this call, next call to ensure_present() will load the file content
+     * again.
+     */
+    void hint_evict() noexcept override;
+
+    /**
      * \brief Loads the file content if it is not loaded yet. The content is loaded at aligned addresses,
      * so the actual allocated memory may be larger than the requested byte size.
      * \throws AssertFailure if the file cannot be opened or read. In this case, the buffer remains unloaded.
      */
-    void fetch() const override;
-
-    /**
-     * \brief Evicts the buffer from memory. After this call, next call to get_ptr() will load the file content again.
-     */
-    void hint_evict() noexcept override;
+    void ensure_present() const override;
 
 protected:
     void hint_evict(size_t offset, size_t size) noexcept override;

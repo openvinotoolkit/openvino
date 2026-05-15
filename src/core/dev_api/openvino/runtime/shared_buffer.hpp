@@ -128,10 +128,10 @@ public:
         : SharedBuffer(data, size, shared_object, get_or_make_descriptor(shared_object)) {}
 
 protected:
-    void fetch() const override {
+    void ensure_present() const override {
         if constexpr (is_aligned_buffer_ptr_v<T>) {
             if (this->m_shared_object) {
-                AlignedBuffer::invoke_fetch(*this->m_shared_object);
+                AlignedBuffer::invoke_ensure_present(*this->m_shared_object);
             }
         }
     }
