@@ -205,6 +205,11 @@ AttentionBroadcast::AttentionBroadcast() {
     // Note: Use [=] to make sure the above objects stay alive in the callback
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
+        auto matched_gather_out = node_to_output.at(gather);
+        if (matched_gather_out.get_target_inputs().size() > 1) {
+            // This pattern is for the Gather that feeds a single Concat.
+            return false;
+        }
         auto matched_concat_out = node_to_output.at(concat);
         auto& matched_concat_tensor = matched_concat_out.get_tensor();
         if (matched_concat_tensor.has_and_set_bound()) {
@@ -256,6 +261,49 @@ AttentionBroadcast2::AttentionBroadcast2() {
     register_matcher(std::make_shared<opp::Matcher>(bcast_kv, "AttentionBroadcast2"), std::move(callback));
 }
 
+// FIXME: Same as AttentionBroadcast but Gather connects to multiple Concats
+AttentionBroadcast3::AttentionBroadcast3() {
+    // NB(dm): We've seen cases where this dynamic subgraph is placed on the K-path,
+    // but I'd expect it could be on the V-path as well - so _kv in the name
+    auto past_kv_in = opp::wrap_type<ov::op::v0::Parameter>();
+    auto past_kv_cvt = opp::optional<ov::op::v0::Convert>({past_kv_in->output(0)});
+    auto past_kv_cat = opp::wrap_type<ov::op::v0::Concat>({past_kv_cvt, opp::any_input()});
+
+    // The dynamic shape calculation to be eliminated
+    // NB: It only works in static shape graphs
+    auto shape_of = opp::wrap_type<ov::op::v3::ShapeOf>({past_kv_cat});
+    auto gather = opp::wrap_type<ov::op::v8::Gather>({shape_of, opp::any_input(), opp::any_input()});
+    auto concat = opp::wrap_type<ov::op::v0::Concat>({gather, opp::any_input(), opp::any_input(), opp::any_input()});
+
+    // Broadcast - the consumer
+    auto unsq_kv = opp::wrap_type<ov::op::v0::Unsqueeze>({past_kv_cat, opp::any_input()});
+    auto bcast_kv = opp::wrap_type<ov::op::v3::Broadcast>({unsq_kv, concat});
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+        auto matched_gather_out = node_to_output.at(gather);
+        if (matched_gather_out.get_target_inputs().size() == 1) {
+            // This pattern only for the Gather feeding multiple Concats.
+            return false;
+        }
+        auto& matched_gather_tensor = matched_gather_out.get_tensor();
+        if (matched_gather_tensor.has_and_set_bound()) {
+            // Replace the dynamic shape calculation with a static constant
+            // This is bad but it in the current realm it is what it is
+            auto new_const = std::make_shared<ov::op::v0::Constant>(matched_gather_tensor.get_upper_value());
+            new_const->set_friendly_name("NPUW/Precalculated/" +
+                                         matched_gather_out.get_node_shared_ptr()->get_friendly_name());
+            for (auto&& input : matched_gather_out.get_target_inputs()) {
+                input.replace_source_output(new_const);
+            }
+            return true;  // root changed
+        }
+        return false;  // root hasn't changed
+    };
+    register_matcher(std::make_shared<opp::Matcher>(bcast_kv, "AttentionBroadcast3"), std::move(callback));
+}
+
 ShapeOfParameter::ShapeOfParameter() {
     auto param_in = opp::wrap_type<ov::op::v0::Parameter>();
     auto param_cvt = opp::wrap_type<ov::op::v0::Convert>({param_in});
@@ -286,6 +334,7 @@ bool RegularizeSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
         ov::pass::GraphRewrite rewr;
         rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast>();
         rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast2>();
+        rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast3>();
 
         model_changed |= rewr.run_on_model(model);
     }

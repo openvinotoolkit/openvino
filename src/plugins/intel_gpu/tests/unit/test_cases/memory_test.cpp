@@ -15,6 +15,8 @@
 #include <intel_gpu/primitives/crop.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/grid_sample.hpp>
+#include <intel_gpu/primitives/reorder.hpp>
+#include <primitive_inst.h>
 #include <fully_connected_inst.h>
 
 using namespace cldnn;
@@ -91,7 +93,9 @@ public:
         network->set_input_data("input", input);
         auto outputs = network->execute();
 
-        ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t)64);
+        // input_layout no longer pre-allocates memory at network construction time
+        // so we have only 16 bytes usm_host for the input buffer, 16 bytes for "relu" output, and 16 bytes for "relu5" output.
+        ASSERT_EQ(engine->get_max_used_device_memory(), 48ull);
     }
 
     void test_basic_non_padded_relu_and_pooling_pipe(bool is_caching_test) {
@@ -123,7 +127,11 @@ public:
         network->set_input_data("input", input);
         auto outputs = network->execute();
 
-        ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t)896);
+        // input_layout no longer pre-allocates memory at network construction time,
+        // The remaining peak is 640 bytes:
+        // 256 bytes host for the input, 256 bytes device for relu output,
+        // 64 bytes device for pool1 output, and 64 bytes host for relu5 output.
+        ASSERT_EQ(engine->get_max_used_device_memory(), 640ull);
     }
 
     void test_multi_outputs_network(bool is_caching_test) {
@@ -158,7 +166,20 @@ public:
         network->set_input_data("input", input);
         auto outputs = network->execute();
 
-        ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t) 1536);
+        auto input_inst = network->get_primitive("input");
+        auto relu_inst  = network->get_primitive("relu");
+        auto relu2_inst = network->get_primitive("relu2");
+
+        // Both direct consumers of the lazy-allocated input must see the same external buffer.
+        ASSERT_TRUE(engine->is_the_same_buffer(*input_inst->output_memory_ptr(), *input));
+        ASSERT_TRUE(engine->is_the_same_buffer(*relu_inst->dep_memory_ptr(0),  *input));
+        ASSERT_TRUE(engine->is_the_same_buffer(*relu2_inst->dep_memory_ptr(0), *input));
+
+        // input_layout no longer pre-allocates memory at network construction time,
+        // The remaining peak is 1280 bytes:
+        // 256 bytes host for the input, 256 bytes host for relu4 output, 256 bytes host for relu7 output,
+        // and 256 bytes device for two outputs from the first relu on a branch
+        ASSERT_EQ(engine->get_max_used_device_memory(), 1280ull);
     }
 
     void test_oooq(bool is_caching_test) {
@@ -196,7 +217,12 @@ public:
         network->set_input_data("input", input);
         auto outputs = network->execute();
 
-        ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t) 2560);
+        // input_layout no longer pre-allocates memory at network construction time,
+        // The remaining peak is 2304 bytes:
+        // 256 bytes host for the input, 768 bytes host for the final relu6 output,
+        // and 1280 bytes device for intermediates: 256 bytes each for relu1,
+        // relu2, and the lower branch feeding concat2, plus 512 bytes for concat1 / relu4.
+        ASSERT_EQ(engine->get_max_used_device_memory(), 2304ull);
     }
 
     void test_shared_mem_pool_same_topology_twice() {
@@ -380,6 +406,7 @@ public:
         auto input_1 = engine->allocate_memory(lay_batch_1);
         auto input_8 = engine->allocate_memory(lay_batch_8);
         auto weights = engine->allocate_memory({ dt, fmt, { 1, 3, 3, 2 } });
+        // so far we allocated 192+1536+72 = 1800 bytes host memory
 
         std::vector<float> dummy_input_data_1 = rg.generate_random_1d<float>(batch_1 * feature_num * inp_x_size * inp_y_size, 0, 1);
         std::vector<float> dummy_input_data_8 = rg.generate_random_1d<float>(batch_8 * feature_num * inp_x_size * inp_y_size, 0, 1);
@@ -403,15 +430,144 @@ public:
         network_first->set_input_data("input", input_8);
         auto outputs = network_first->execute();
 
-        auto dev_info = engine->get_device_info();
-        ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t)4744);
+        // input_layout no longer pre-allocates memory at network construction time,
+        // the network will use 1152 bytes for weight reorder node, 128 bytes for conv output and 128 bytes for softmax output
+        // in total we have 1800 bytes + 128 + 1152 + 128 = 3208, with no lazy allocations for inputs we'd go up to 4744...
+        ASSERT_EQ(engine->get_max_used_device_memory(), 3208ull);
 
         topo.change_input_layout("input", input_1->get_layout());//change input layout to batch=1
 
         network::ptr network_second = get_network(*engine, topo, config, get_test_stream_ptr(), is_caching_test);
         network_second->set_input_data("input", input_1);
         auto outputs_second = network_second->execute();
-        ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t)5912);
+
+        // now we have the previous peak + another 1152 for the second network's reorder node, plus 16 bytes for
+        // convolution output, and 16 bytes for the softmax output.
+        // so 3208 + 1152 + 16 + 16 = 4392, without lazy allocations for input we'd go into 5928 bytes...
+        ASSERT_EQ(engine->get_max_used_device_memory(), 4392ull);
+    }
+
+    void test_rebind_external_memory_multiple_times(bool is_caching_test) {
+        auto engine = create_test_engine();
+        layout input_lay{data_types::f32, format::bfyx, {1, 1, 2, 4}};
+        auto input_first = engine->allocate_memory(input_lay);
+        auto input_second = engine->allocate_memory(input_lay);
+
+        const std::vector<float> first_values = {-1.0f, 2.0f, -3.0f, 4.0f, -5.0f, 6.0f, -7.0f, 8.0f};
+        const std::vector<float> second_values = {10.0f, -20.0f, 30.0f, -40.0f, 50.0f, -60.0f, 70.0f, -80.0f};
+        set_values(input_first, first_values);
+        set_values(input_second, second_values);
+
+        topology topology;
+        topology.add(input_layout("input", input_lay));
+        topology.add(activation("relu", input_info("input"), activation_func::relu));
+
+        ExecutionConfig config = get_test_default_config(*engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+
+        network::ptr network = get_network(*engine, topology, config, get_test_stream_ptr(), is_caching_test);
+
+        auto input_inst = network->get_primitive("input");
+        auto relu_inst = network->get_primitive("relu");
+
+        // Lazy input allocation means input_layout should stay unmaterialized until set_input_data().
+        ASSERT_EQ(input_inst->output_memory_ptr(), nullptr);
+
+        network->set_input_data("input", input_first);
+        auto outputs_first = network->execute();
+
+        // After the first bind, both input_layout and the downstream consumer must point to the
+        // external memory object passed through set_input_data().
+        ASSERT_TRUE(engine->is_the_same_buffer(*input_inst->output_memory_ptr(), *input_first));
+        ASSERT_TRUE(engine->is_the_same_buffer(*relu_inst->dep_memory_ptr(0), *input_first));
+
+        auto first_bound_input_ptr = relu_inst->dep_memory_ptr(0)->buffer_ptr();
+        {
+            cldnn::mem_lock<float> first_output_ptr(outputs_first.at("relu").get_memory(), get_test_stream());
+            ASSERT_EQ(first_output_ptr[0], 0.0f);
+            ASSERT_EQ(first_output_ptr[1], 2.0f);
+            ASSERT_EQ(first_output_ptr[2], 0.0f);
+            ASSERT_EQ(first_output_ptr[3], 4.0f);
+            ASSERT_EQ(first_output_ptr[4], 0.0f);
+            ASSERT_EQ(first_output_ptr[5], 6.0f);
+            ASSERT_EQ(first_output_ptr[6], 0.0f);
+            ASSERT_EQ(first_output_ptr[7], 8.0f);
+        }
+
+        network->set_input_data("input", input_second);
+        auto outputs_second = network->execute();
+
+        // Rebinding must refresh the consumer dependency as well, not only input_layout itself.
+        ASSERT_TRUE(engine->is_the_same_buffer(*input_inst->output_memory_ptr(), *input_second));
+        ASSERT_TRUE(engine->is_the_same_buffer(*relu_inst->dep_memory_ptr(0), *input_second));
+
+        auto second_bound_input_ptr = relu_inst->dep_memory_ptr(0)->buffer_ptr();
+        // The consumer should no longer reference the buffer from the first inference.
+        ASSERT_NE(first_bound_input_ptr, second_bound_input_ptr);
+
+        cldnn::mem_lock<float> second_output_ptr(outputs_second.at("relu").get_memory(), get_test_stream());
+        ASSERT_EQ(second_output_ptr[0], 10.0f);
+        ASSERT_EQ(second_output_ptr[1], 0.0f);
+        ASSERT_EQ(second_output_ptr[2], 30.0f);
+        ASSERT_EQ(second_output_ptr[3], 0.0f);
+        ASSERT_EQ(second_output_ptr[4], 50.0f);
+        ASSERT_EQ(second_output_ptr[5], 0.0f);
+        ASSERT_EQ(second_output_ptr[6], 70.0f);
+        ASSERT_EQ(second_output_ptr[7], 0.0f);
+    }
+
+    void test_aliasing_through_chain_of_optimized_ops(bool is_caching_test) {
+        auto engine = create_test_engine();
+        layout input_lay{ov::PartialShape{5, 6, 1, 1}, data_types::f32, format::bfyx};
+        auto input = engine->allocate_memory(input_lay);
+
+        set_values(input, { 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 
+                            0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 
+                            0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 
+                            0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 
+                            0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f });
+
+        topology topology;
+        topology.add(input_layout("input", input_lay));
+        topology.add(crop("crop1", {input_info("input")}, tensor(5, 5, 1, 1), {tensor(0, 0, 0, 0)}));
+        topology.add(crop("crop2", {input_info("crop1")}, tensor(5, 4, 1, 1), {tensor(0, 0, 0, 0)}));
+        topology.add(reorder("reorder_out", input_info("crop2"), layout{ov::PartialShape{5, 4, 1, 1}, data_types::f32, format::bfyx}));
+
+        ExecutionConfig config = get_test_default_config(*engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+
+        network::ptr network = get_network(*engine, topology, config, get_test_stream_ptr(), is_caching_test);
+
+        auto input_inst = network->get_primitive("input");
+        auto crop1_inst = network->get_primitive("crop1");
+        auto crop2_inst = network->get_primitive("crop2");
+        auto reorder_inst = network->get_primitive("reorder_out");
+
+        ASSERT_EQ(input_inst->output_memory_ptr(), nullptr);
+
+        network->set_input_data("input", input);
+        auto outputs = network->execute();
+
+        ASSERT_TRUE(crop1_inst->can_be_optimized());
+        ASSERT_TRUE(crop2_inst->can_be_optimized());
+
+        // The optimized crop chain should stay backed by the original external input buffer.
+        ASSERT_TRUE(engine->is_the_same_buffer(*input_inst->output_memory_ptr(), *input));
+        ASSERT_TRUE(engine->is_the_same_buffer(*network->get_output_memory("crop1"), *input));
+        ASSERT_TRUE(engine->is_the_same_buffer(*network->get_output_memory("crop2"), *input));
+
+        // The final consumer must receive the aliased view from the last optimized op in the chain.
+        ASSERT_TRUE(engine->is_the_same_buffer(*reorder_inst->dep_memory_ptr(0), *network->get_output_memory("crop2")));
+
+        cldnn::mem_lock<float> output_ptr(outputs.at("reorder_out").get_memory(), get_test_stream());
+        const std::vector<float> expected = { 0.0f, 1.0f, 2.0f, 3.0f, 
+                                              0.0f, 1.0f, 2.0f, 3.0f, 
+                                              0.0f, 1.0f, 2.0f, 3.0f, 
+                                              0.0f, 1.0f, 2.0f, 3.0f, 
+                                              0.0f, 1.0f, 2.0f, 3.0f };
+        for (size_t i = 0; i < expected.size(); ++i) {
+            ASSERT_EQ(output_ptr[i], expected[i]);
+        }
     }
 
     void test_shared_dep_two_output(bool is_caching_test) {
@@ -723,6 +879,14 @@ TEST_F(memory_pool, shared_mem_pool_diff_batches) {
     this->test_shared_mem_pool_diff_batches(false);
 }
 
+TEST_F(memory_pool, rebind_external_memory_multiple_times) {
+    this->test_rebind_external_memory_multiple_times(false);
+}
+
+TEST_F(memory_pool, aliasing_through_chain_of_optimized_ops) {
+    this->test_aliasing_through_chain_of_optimized_ops(false);
+}
+
 TEST_F(memory_pool, shared_dep_two_output) {
     this->test_shared_dep_two_output(false);
 }
@@ -768,6 +932,14 @@ TEST_F(memory_pool, oooq_cached) {
 
 TEST_F(memory_pool, shared_mem_pool_diff_batches_cached) {
     this->test_shared_mem_pool_diff_batches(true);
+}
+
+TEST_F(memory_pool, rebind_external_memory_multiple_times_cached) {
+    this->test_rebind_external_memory_multiple_times(true);
+}
+
+TEST_F(memory_pool, aliasing_through_chain_of_optimized_ops_cached) {
+    this->test_aliasing_through_chain_of_optimized_ops(true);
 }
 
 TEST_F(memory_pool, shared_dep_two_output_cached) {

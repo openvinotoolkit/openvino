@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -232,7 +232,7 @@ inline std::string to_string(const T& v) {
 // Overload << operator for vectors
 template <typename T>
 std::ostream& operator<<(std::ostream& os, const std::vector<T>& vec) {
-    os << "[" << ov::util::join(vec) << "]";
+    os << "[" << ov::util::join<std::ostream>(vec) << "]";
     return os;
 }
 
