@@ -53,7 +53,7 @@ LazyBuffer::~LazyBuffer() {
     }
 }
 
-void LazyBuffer::load() const {
+void LazyBuffer::fetch() const {
     if (!m_loaded && m_byte_size > 0) {
         if (!VirtualAlloc(static_cast<char*>(m_reserved_buffer), m_reserved_size, MEM_COMMIT, PAGE_READWRITE)) {
             OPENVINO_THROW("VirtualAlloc commit failed, err: ", GetLastError());

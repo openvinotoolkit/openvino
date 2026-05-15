@@ -44,7 +44,7 @@ public:
      * so the actual allocated memory may be larger than the requested byte size.
      * \throws AssertFailure if the file cannot be opened or read. In this case, the buffer remains unloaded.
      */
-    void load() const override;
+    void fetch() const override;
 
     /**
      * \brief Evicts the buffer from memory. After this call, next call to get_ptr() will load the file content again.

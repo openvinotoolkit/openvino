@@ -45,25 +45,25 @@ public:
         return m_byte_size;
     }
     void* get_ptr(size_t offset) const {
-        load();
+        fetch();
         return m_aligned_buffer + offset;
     }
     void* get_ptr() {
-        load();
+        fetch();
         return m_aligned_buffer;
     }
     const void* get_ptr() const {
-        load();
+        fetch();
         return m_aligned_buffer;
     }
     template <typename T>
     T* get_ptr() {
-        load();
+        fetch();
         return reinterpret_cast<T*>(m_aligned_buffer);
     }
     template <typename T>
     const T* get_ptr() const {
-        load();
+        fetch();
         return reinterpret_cast<const T*>(m_aligned_buffer);
     }
 
@@ -83,8 +83,8 @@ protected:
     virtual void hint_evict(size_t offset, size_t size) noexcept;
     static void invoke_evict(AlignedBuffer& buffer, size_t offset, size_t size) noexcept;
 
-    virtual void load() const;
-    static void invoke_load(const AlignedBuffer& buffer);
+    virtual void fetch() const;
+    static void invoke_fetch(const AlignedBuffer& buffer);
 
     char* m_allocated_buffer;
     char* m_aligned_buffer;

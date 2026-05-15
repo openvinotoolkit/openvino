@@ -51,7 +51,7 @@ LazyBuffer::~LazyBuffer() {
     }
 }
 
-void LazyBuffer::load() const {
+void LazyBuffer::fetch() const {
     if (!m_loaded && m_byte_size > 0) {
         if (mprotect(m_reserved_buffer, m_reserved_size, PROT_READ | PROT_WRITE) == -1) {
             OPENVINO_THROW("mprotect failed, err: ", std::strerror(errno));
