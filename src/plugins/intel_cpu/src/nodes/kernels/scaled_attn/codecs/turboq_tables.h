@@ -235,24 +235,36 @@ inline const float* turboq_codebook(int bits, int head_dim) {
     switch (bits) {
     case 4:
         switch (head_dim) {
-        case 128: return TURBOQ_CODEBOOK_4BIT_D128;
-        case 256: return TURBOQ_CODEBOOK_4BIT_D256;
-        case 512: return TURBOQ_CODEBOOK_4BIT_D512;
-        default:  return TURBOQ_CODEBOOK_4BIT;
+        case 128:
+            return TURBOQ_CODEBOOK_4BIT_D128;
+        case 256:
+            return TURBOQ_CODEBOOK_4BIT_D256;
+        case 512:
+            return TURBOQ_CODEBOOK_4BIT_D512;
+        default:
+            return TURBOQ_CODEBOOK_4BIT;
         }
     case 3:
         switch (head_dim) {
-        case 128: return TURBOQ_CODEBOOK_3BIT_D128;
-        case 256: return TURBOQ_CODEBOOK_3BIT_D256;
-        case 512: return TURBOQ_CODEBOOK_3BIT_D512;
-        default:  return TURBOQ_CODEBOOK_3BIT;
+        case 128:
+            return TURBOQ_CODEBOOK_3BIT_D128;
+        case 256:
+            return TURBOQ_CODEBOOK_3BIT_D256;
+        case 512:
+            return TURBOQ_CODEBOOK_3BIT_D512;
+        default:
+            return TURBOQ_CODEBOOK_3BIT;
         }
     case 2:
         switch (head_dim) {
-        case 128: return TURBOQ_CODEBOOK_2BIT_D128;
-        case 256: return TURBOQ_CODEBOOK_2BIT_D256;
-        case 512: return TURBOQ_CODEBOOK_2BIT_D512;
-        default:  return TURBOQ_CODEBOOK_2BIT;
+        case 128:
+            return TURBOQ_CODEBOOK_2BIT_D128;
+        case 256:
+            return TURBOQ_CODEBOOK_2BIT_D256;
+        case 512:
+            return TURBOQ_CODEBOOK_2BIT_D512;
+        default:
+            return TURBOQ_CODEBOOK_2BIT;
         }
     default:
         throw std::invalid_argument("turboq_codebook: bits must be 2, 3, or 4");
@@ -263,24 +275,36 @@ inline const float* turboq_boundaries(int bits, int head_dim) {
     switch (bits) {
     case 4:
         switch (head_dim) {
-        case 128: return TURBOQ_BOUNDARIES_4BIT_D128;
-        case 256: return TURBOQ_BOUNDARIES_4BIT_D256;
-        case 512: return TURBOQ_BOUNDARIES_4BIT_D512;
-        default:  return TURBOQ_BOUNDARIES_4BIT;
+        case 128:
+            return TURBOQ_BOUNDARIES_4BIT_D128;
+        case 256:
+            return TURBOQ_BOUNDARIES_4BIT_D256;
+        case 512:
+            return TURBOQ_BOUNDARIES_4BIT_D512;
+        default:
+            return TURBOQ_BOUNDARIES_4BIT;
         }
     case 3:
         switch (head_dim) {
-        case 128: return TURBOQ_BOUNDARIES_3BIT_D128;
-        case 256: return TURBOQ_BOUNDARIES_3BIT_D256;
-        case 512: return TURBOQ_BOUNDARIES_3BIT_D512;
-        default:  return TURBOQ_BOUNDARIES_3BIT;
+        case 128:
+            return TURBOQ_BOUNDARIES_3BIT_D128;
+        case 256:
+            return TURBOQ_BOUNDARIES_3BIT_D256;
+        case 512:
+            return TURBOQ_BOUNDARIES_3BIT_D512;
+        default:
+            return TURBOQ_BOUNDARIES_3BIT;
         }
     case 2:
         switch (head_dim) {
-        case 128: return TURBOQ_BOUNDARIES_2BIT_D128;
-        case 256: return TURBOQ_BOUNDARIES_2BIT_D256;
-        case 512: return TURBOQ_BOUNDARIES_2BIT_D512;
-        default:  return TURBOQ_BOUNDARIES_2BIT;
+        case 128:
+            return TURBOQ_BOUNDARIES_2BIT_D128;
+        case 256:
+            return TURBOQ_BOUNDARIES_2BIT_D256;
+        case 512:
+            return TURBOQ_BOUNDARIES_2BIT_D512;
+        default:
+            return TURBOQ_BOUNDARIES_2BIT;
         }
     default:
         throw std::invalid_argument("turboq_boundaries: bits must be 2, 3, or 4");
