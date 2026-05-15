@@ -98,16 +98,6 @@ if(NOT Vulkan_FOUND AND NOT WIN32)
         set(BUILD_WSI_WAYLAND_SUPPORT OFF CACHE BOOL "" FORCE)
         set(UPDATE_DEPS OFF CACHE BOOL "" FORCE)
         
-        # Vulkan-Loader's cJSON and asm_offset lack forward declarations,
-        # which conflicts with OpenVINO's -Werror=missing-declarations.
-        # Temporarily suppress this warning during FetchContent.
-        set(_ov_vk_saved_c_flags "${CMAKE_C_FLAGS}")
-        if(CMAKE_C_COMPILER_ID STREQUAL "GNU"
-           OR CMAKE_C_COMPILER_ID STREQUAL "Clang"
-           OR CMAKE_C_COMPILER_ID STREQUAL "AppleClang"
-           OR CMAKE_C_COMPILER_ID STREQUAL "IntelLLVM")
-            string(APPEND CMAKE_C_FLAGS " -Wno-missing-declarations -Wno-undef -Wno-typedef-redefinition")
-        endif()
         FetchContent_Declare(
             ov_vk_loader
             GIT_REPOSITORY https://github.com/KhronosGroup/Vulkan-Loader.git
@@ -118,7 +108,19 @@ if(NOT Vulkan_FOUND AND NOT WIN32)
             SUBBUILD_DIR "${_ov_vk_base_dir}/loader-sub"
         )
         FetchContent_MakeAvailable(ov_vk_loader)
-        set(CMAKE_C_FLAGS "${_ov_vk_saved_c_flags}")
+        if(TARGET vulkan)
+            if(CMAKE_C_COMPILER_ID STREQUAL "GNU"
+               OR CMAKE_C_COMPILER_ID STREQUAL "Clang"
+               OR CMAKE_C_COMPILER_ID STREQUAL "AppleClang"
+               OR CMAKE_C_COMPILER_ID STREQUAL "IntelLLVM")
+                # Vulkan-Loader's cJSON and asm_offset trigger warnings that are
+                # promoted to errors in OpenVINO builds;
+                target_compile_options(vulkan PRIVATE
+                                       -Wno-missing-declarations
+                                       -Wno-undef
+                                       -Wno-typedef-redefinition)
+            endif()
+        endif()
 
         unset(BUILD_TESTS CACHE)
         unset(BUILD_WSI_XCB_SUPPORT CACHE)

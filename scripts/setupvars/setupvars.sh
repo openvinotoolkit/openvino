@@ -96,7 +96,7 @@ if [ -e "$INSTALLDIR/runtime" ]; then
         [ -e "$vk_lib_path/libvulkan.so.1" ] && vk_has_libvulkan_so_1="yes"
 
         if [ -n "$vk_has_libvulkan_so" ] && [ -n "$vk_has_libvulkan_so_1" ]; then
-            export LD_LIBRARY_PATH=$vk_lib_path:${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH}
+            export LD_LIBRARY_PATH=$vk_lib_path${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
         else
             echo "[setupvars.sh] WARNING: Vulkan loader check failed in $vk_lib_path"
             [ -z "$vk_has_libvulkan_so_1" ] && echo "[setupvars.sh] WARNING: Missing $vk_lib_path/libvulkan.so.1"

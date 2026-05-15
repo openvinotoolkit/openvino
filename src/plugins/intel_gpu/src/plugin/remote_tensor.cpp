@@ -10,8 +10,6 @@
 #include "intel_gpu/runtime/memory_caps.hpp"
 
 #include <memory>
-#include <string>
-#include <vector>
 
 namespace ov::intel_gpu {
 

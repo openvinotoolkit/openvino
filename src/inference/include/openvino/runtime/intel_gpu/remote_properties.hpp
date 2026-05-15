@@ -120,7 +120,6 @@ enum class SharedMemType {
  */
 enum class MemType {
     SHARED_BUF = 0,  //!< Shared OpenCL buffer handle passed as void*
-    CPU_VA = 1       //!< CPU virtual address pointer passed as void* (see API-specific support and restrictions)
 };
 
 /** @cond INTERNAL */

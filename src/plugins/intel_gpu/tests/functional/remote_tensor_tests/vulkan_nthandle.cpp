@@ -27,15 +27,6 @@ namespace {
 // On Linux use UUID (16 bytes) for Vulkan<->OpenCL device matching
 using DeviceId = std::array<unsigned char, CL_UUID_SIZE_KHR>;
 
-std::string format_luid_bytes(const unsigned char* data, size_t size) {
-    std::ostringstream stream;
-    stream << std::hex << std::setfill('0');
-    for (size_t index = 0; index < size; ++index) {
-        stream << std::setw(2) << static_cast<unsigned int>(data[index]);
-    }
-    return stream.str();
-}
-
 bool get_context_device_luid(cl_context cl_ctx, DeviceId& cl_luid) {
     size_t devices_size = 0;
     if (clGetContextInfo(cl_ctx, CL_CONTEXT_DEVICES, 0, nullptr, &devices_size) != CL_SUCCESS ||
@@ -462,7 +453,6 @@ TEST(GpuSharedBufferRemoteTensor, smoke_VulkanRemoteInputToRemoteOutputCopyAndCo
 
     const std::string selected_gpu_id = "0";
     const std::string selected_gpu_device = "GPU." + selected_gpu_id;
-    std::cout << "[INFO] Selected GPU device: " << selected_gpu_device << "\n";
 
     auto candidate_ctx = core.get_default_context(selected_gpu_device).as<ov::intel_gpu::ocl::ClContext>();
     auto params = candidate_ctx.get_params();
@@ -482,9 +472,6 @@ TEST(GpuSharedBufferRemoteTensor, smoke_VulkanRemoteInputToRemoteOutputCopyAndCo
     if (!get_context_device_luid(cl_ctx, cl_luid)) {
         FAIL() << "Failed to get LUID for " << selected_gpu_device;
     }
-
-    std::cout << "[INFO] " << selected_gpu_device << " OpenCL LUID: "
-              << format_luid_bytes(cl_luid.data(), cl_luid.size()) << "\n";
 
     VulkanTestContext vk_ctx = create_vulkan_test_context(cl_luid);
     if (vk_ctx.device == VK_NULL_HANDLE) {
@@ -547,8 +534,6 @@ TEST(GpuSharedBufferRemoteTensor, smoke_VulkanRemoteInputToRemoteOutputCopyAndCo
     for (size_t i = 0; i < element_count; ++i) {
         EXPECT_FLOAT_EQ(output_values[i], 2.0f) << "Mismatch at index " << i;
     }
-
-    std::cout << "[INFO] Output values match expected input values\n";
 }
 
 }
