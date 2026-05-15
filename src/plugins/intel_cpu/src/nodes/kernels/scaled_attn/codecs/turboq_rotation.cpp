@@ -16,12 +16,11 @@ static constexpr uint64_t TURBOQ_SEED = 0x517cc1b727220a95ULL;
 static constexpr uint64_t TURBOQ_WHT_SEED = TURBOQ_SEED ^ 0xfedcba9876543210ULL;
 
 // Per-dimension sign cache. Generated on first access, stored permanently.
-static std::mutex g_cache_mutex;                              // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
-static std::map<int, std::vector<float>> g_wht_signs_cache;   // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
-
 const float* turboq_get_wht_signs(int dim) {
-    std::lock_guard<std::mutex> lock(g_cache_mutex);
-    auto [it, inserted] = g_wht_signs_cache.try_emplace(dim);
+    static std::mutex cache_mutex;
+    static std::map<int, std::vector<float>> cache;
+    std::lock_guard<std::mutex> lock(cache_mutex);
+    auto [it, inserted] = cache.try_emplace(dim);
     if (!inserted) {
         return it->second.data();
     }
