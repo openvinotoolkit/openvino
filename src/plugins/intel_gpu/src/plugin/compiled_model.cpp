@@ -6,6 +6,7 @@
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/plugin_config.hpp"
+#include "openvino/pass/serialize.hpp"
 
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/runtime/itt.hpp"
@@ -14,6 +15,11 @@
 #include "intel_gpu/plugin/async_infer_request.hpp"
 
 #include <sys/types.h>
+#include <atomic>
+#include <cstdlib>
+#include <filesystem>
+#include <iostream>
+#include <string>
 
 namespace ov::intel_gpu {
 
@@ -61,10 +67,56 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
       m_inputs(ov::ICompiledModel::inputs()),
       m_outputs(ov::ICompiledModel::outputs()),
       m_loaded_from_cache(false) {
+    // [SD3-DBG] Dump input + exec IR if OV_DUMP_EXEC_IR_PATH is set.
+    // Independent of ENABLE_DEBUG_CAPS; intended for offline triage of crashes
+    // that occur during plugin compilation (e.g. inside LPT).
+    auto sd3_dbg_dump_dir = []() -> std::string {
+        const char* p = std::getenv("OV_DUMP_EXEC_IR_PATH");
+        return p ? std::string(p) : std::string();
+    }();
+    auto sd3_dbg_sanitize = [](std::string s) {
+        for (auto& c : s) {
+            if (c == '/' || c == '\\' || c == ':' || c == ' ' || c == '\t') c = '_';
+        }
+        if (s.empty()) s = "model";
+        return s;
+    };
+    static std::atomic<int> sd3_dbg_seq{0};
+    int sd3_dbg_idx = -1;
+    std::string sd3_dbg_name;
+    if (!sd3_dbg_dump_dir.empty()) {
+        sd3_dbg_idx = sd3_dbg_seq.fetch_add(1);
+        sd3_dbg_name = sd3_dbg_sanitize(model ? model->get_friendly_name() : std::string());
+        try {
+            std::filesystem::create_directories(sd3_dbg_dump_dir);
+            const std::string xml = sd3_dbg_dump_dir + "/" +
+                                    std::to_string(sd3_dbg_idx) + "_" + sd3_dbg_name + "_input.xml";
+            ov::pass::Serialize(xml, "").run_on_model(model);
+            std::cout << "[SD3-DBG] dumped input IR: " << xml << std::endl;
+        } catch (const std::exception& e) {
+            std::cerr << "[SD3-DBG] input IR dump failed: " << e.what() << std::endl;
+        } catch (...) {
+            std::cerr << "[SD3-DBG] input IR dump failed: unknown error" << std::endl;
+        }
+    }
+
     auto graph_base = std::make_shared<Graph>(model, m_context, m_config, 0);
     for (uint16_t n = 0; n < m_config.get_num_streams(); n++) {
         auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
         m_graphs.push_back(graph);
+    }
+
+    if (!sd3_dbg_dump_dir.empty() && !m_graphs.empty() && m_graphs[0]) {
+        try {
+            const std::string xml = sd3_dbg_dump_dir + "/" +
+                                    std::to_string(sd3_dbg_idx) + "_" + sd3_dbg_name + "_exec.xml";
+            ov::pass::Serialize(xml, "").run_on_model(m_graphs[0]->get_runtime_model());
+            std::cout << "[SD3-DBG] dumped exec IR: " << xml << std::endl;
+        } catch (const std::exception& e) {
+            std::cerr << "[SD3-DBG] exec IR dump failed: " << e.what() << std::endl;
+        } catch (...) {
+            std::cerr << "[SD3-DBG] exec IR dump failed: unknown error" << std::endl;
+        }
     }
 }
 
