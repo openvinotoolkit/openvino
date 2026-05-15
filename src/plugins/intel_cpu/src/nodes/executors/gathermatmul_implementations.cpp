@@ -15,6 +15,7 @@
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "debug_messages.hpp"
 #    include "implementation_utils.hpp"
+#    include "memory_desc/cpu_memory_desc.h"
 #    include "nodes/executors/dnnl/dnnl_gathermatmul_executor.hpp"
 #    include "nodes/executors/executor.hpp"
 #    include "nodes/executors/executor_config.hpp"
