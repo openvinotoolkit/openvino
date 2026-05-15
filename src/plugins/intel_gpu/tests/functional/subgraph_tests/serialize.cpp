@@ -73,11 +73,7 @@ protected:
     std::string cacheDir;
 
     void SetUp() override {
-        std::stringstream ss;
-        ss << std::hex << std::hash<std::string>{}(std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()));
-
-        // Base (no trailing slash first)
-        cacheDir = ss.str() + GetParam();
+        cacheDir = ov::test::utils::generateTestFilePrefix() + GetParam();
 
         // Clean previous
         ov::test::utils::removeFilesWithExt(cacheDir, "blob");
