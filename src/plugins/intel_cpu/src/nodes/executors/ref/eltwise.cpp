@@ -77,6 +77,7 @@ bool EltwiseRefKey::operator==(const EltwiseRefKey& rhs) const {
 }
 
 static EltwiseExecutorPtr createRefExecutorByPrecision(const EltwiseRefKey& key) {
+    const auto isBitwiseAnd = key.eltwise_data.front().algo == Algorithm::EltwiseBitwiseAnd;
     switch (key.outPrc) {
     case ov::element::i8:
         return std::make_shared<BitwiseRefExecutor<int8_t>>(key);
@@ -88,6 +89,11 @@ static EltwiseExecutorPtr createRefExecutorByPrecision(const EltwiseRefKey& key)
         return std::make_shared<BitwiseRefExecutor<uint16_t>>(key);
     case ov::element::i32:
         return std::make_shared<BitwiseRefExecutor<int32_t>>(key);
+    case ov::element::i64:
+        if (isBitwiseAnd) {
+            return std::make_shared<BitwiseRefExecutor<int64_t>>(key);
+        }
+        return std::make_shared<EltwiseRefExecutor<int64_t>>(key);
     case ov::element::f16:
         return std::make_shared<EltwiseRefExecutor<dnnl::impl::float16_t>>(key);
     default:
@@ -465,6 +471,9 @@ void BitwiseRefExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_
 template <typename T, typename Enable>
 bool BitwiseRefExecutor<T, Enable>::isSupportedConfiguration(const EltwiseConfig& config) {
     const auto algorithm = config.attrs.data.algo;
+    if (config.descs.at(ARG_DST)->getPrecision() == ov::element::i64) {
+        return algorithm == Algorithm::EltwiseBitwiseAnd;
+    }
     return any_of(algorithm,
                   Algorithm::EltwiseBitwiseAnd,
                   Algorithm::EltwiseBitwiseNot,
@@ -482,14 +491,17 @@ template class EltwiseRefBaseExecutor<uint8_t>;
 template class EltwiseRefBaseExecutor<int16_t>;
 template class EltwiseRefBaseExecutor<uint16_t>;
 template class EltwiseRefBaseExecutor<int32_t>;
+template class EltwiseRefBaseExecutor<int64_t>;
 
 template class EltwiseRefExecutor<float>;
 template class EltwiseRefExecutor<dnnl::impl::float16_t>;
+template class EltwiseRefExecutor<int64_t>;
 
 template class BitwiseRefExecutor<int8_t>;
 template class BitwiseRefExecutor<uint8_t>;
 template class BitwiseRefExecutor<int16_t>;
 template class BitwiseRefExecutor<uint16_t>;
 template class BitwiseRefExecutor<int32_t>;
+template class BitwiseRefExecutor<int64_t>;
 
 }  // namespace ov::intel_cpu

@@ -13,6 +13,9 @@
 #include "utils/cpu_test_utils.hpp"
 #include "utils/general_utils.h"
 
+#include <array>
+#include <cstdint>
+
 #if defined(OPENVINO_ARCH_RISCV64)
 #   include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
 #endif
@@ -39,6 +42,19 @@ std::string EltwiseLayerCPUTest::getTestCaseName(const testing::TestParamInfo<El
 // which has to be in signed/unsigned int8 type range,
 // 2) start value is defined by type sign: for signed int8 it's zero to have symmetric interval.
 ov::Tensor EltwiseLayerCPUTest::generate_eltwise_input(const ov::element::Type& type, const ov::Shape& shape, const bool adopt_intervals) {
+    if (type == ov::element::i64 && eltwiseType == utils::EltwiseTypes::BITWISE_AND) {
+        ov::Tensor tensor{type, shape};
+        auto* data = tensor.data<int64_t>();
+        const std::array<int64_t, 4> values = {0x0FEDCBA987654321LL,
+                                               0x123456789ABCDEF0LL,
+                                               0x7777777777777777LL,
+                                               0x5555555555555555LL};
+        for (size_t i = 0; i < ov::shape_size(shape); ++i) {
+            data[i] = values[i % values.size()];
+        }
+        return tensor;
+    }
+
     struct gen_params {
         uint32_t range;
         int32_t start_from;
@@ -256,6 +272,10 @@ void EltwiseLayerCPUTest::SetUp() {
                     auto data_ptr = reinterpret_cast<uint32_t*>(data_tensor.data());
                     std::vector<uint32_t> data(data_ptr, data_ptr + ov::shape_size(shape));
                     secondaryInput = ov::op::v0::Constant::create(netType, shape, data);
+                } else if (netType == ElementType::i64) {
+                    auto data_ptr = reinterpret_cast<int64_t*>(data_tensor.data());
+                    std::vector<int64_t> data(data_ptr, data_ptr + ov::shape_size(shape));
+                    secondaryInput = ov::op::v0::Constant::create(netType, shape, data);
                 } else if (netType == ElementType::f16) {
                     auto data_ptr = reinterpret_cast<ov::float16*>(data_tensor.data());
                     std::vector<ov::float16> data(data_ptr, data_ptr + ov::shape_size(shape));
@@ -319,6 +339,10 @@ std::string EltwiseLayerCPUTest::getPrimitiveType(const utils::EltwiseTypes& elt
         }
     }
 #endif
+    if (element_type == ov::element::i64 && eltwise_type == utils::EltwiseTypes::BITWISE_AND) {
+        return "ref";
+    }
+
     return CPUTestsBase::getPrimitiveType();
 }
 

@@ -68,7 +68,12 @@ protected:
     dnnl::memory::desc desc;
 
     void setPrecision(ov::element::Type prc) override {
-        desc.get()->data_type = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(prc));
+        precision = prc;
+        desc.get()->data_type = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataTypeForMemory(prc));
+    }
+
+    void setLogicalPrecision(ov::element::Type prc) {
+        precision = prc;
     }
 
 private:
@@ -81,6 +86,8 @@ private:
     size_t getCurrentMemSizeImp() const override;
     bool isDefinedImp() const override;
     MemoryDescPtr cloneWithNewDimsImp(const VectorDims& dims) const override;
+
+    ov::element::Type precision = ov::element::dynamic;
 
     friend DnnlMemoryDescPtr DnnlExtensionUtils::makeDescriptor(const dnnl::memory::desc& desc);
     friend DnnlMemoryDescPtr DnnlExtensionUtils::makeDescriptor(const_dnnl_memory_desc_t desc);

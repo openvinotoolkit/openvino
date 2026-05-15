@@ -73,7 +73,7 @@ template <typename T, typename... Ts>
 constexpr bool one_of_v = (std::is_same_v<T, Ts> || ...);
 
 template <typename T>
-constexpr bool supported_eltwise_ref_types_v = one_of_v<T, float, dnnl::impl::float16_t>;
+constexpr bool supported_eltwise_ref_types_v = one_of_v<T, float, dnnl::impl::float16_t, int64_t>;
 
 template <typename T, typename Enable = std::enable_if_t<supported_eltwise_ref_types_v<T>>>
 class EltwiseRefExecutor : public EltwiseRefBaseExecutor<T> {
@@ -88,7 +88,7 @@ public:
 };
 
 template <typename T>
-constexpr bool supported_bitwise_ref_types_v = one_of_v<T, int8_t, uint8_t, int16_t, uint16_t, int32_t>;
+constexpr bool supported_bitwise_ref_types_v = one_of_v<T, int8_t, uint8_t, int16_t, uint16_t, int32_t, int64_t>;
 
 template <typename T, typename Enable = std::enable_if_t<supported_bitwise_ref_types_v<T>>>
 class BitwiseRefExecutor : public EltwiseRefBaseExecutor<T> {

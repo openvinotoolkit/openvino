@@ -33,6 +33,7 @@
 #include "openvino/itt.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/avg_pool.hpp"
+#include "openvino/op/bitwise_and.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/ceiling.hpp"
 #include "openvino/op/clamp.hpp"
@@ -46,6 +47,7 @@
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/select.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "ov_ops/gather_compressed.hpp"
@@ -282,6 +284,35 @@
 namespace ov::intel_cpu {
 
 using const_node_ptr = const std::shared_ptr<const ov::Node>;
+
+namespace {
+
+bool is_int64_type(const ov::element::Type& type) {
+    return type == ov::element::i64;
+}
+
+void mark_int64_eltwise_inputs_to_keep_precision(const std::shared_ptr<ov::Model>& model) {
+    for (const auto& node : model->get_ordered_ops()) {
+        if (ov::is_type<ov::op::v13::BitwiseAnd>(node)) {
+            for (size_t i = 0; i < node->get_input_size(); ++i) {
+                if (is_int64_type(node->input_value(i).get_element_type())) {
+                    ov::enable_keep_const_precision(node->get_input_node_shared_ptr(i));
+                }
+            }
+            continue;
+        }
+
+        if (const auto select = ov::as_type_ptr<ov::op::v1::Select>(node)) {
+            if (!is_int64_type(select->get_output_element_type(0))) {
+                continue;
+            }
+            ov::enable_keep_const_precision(select->get_input_node_shared_ptr(1));
+            ov::enable_keep_const_precision(select->get_input_node_shared_ptr(2));
+        }
+    }
+}
+
+}  // namespace
 
 bool Transformations::is_decompression_multiply(const_node_ptr& node) {
     auto is_1x1_conv = [](const ov::Node* node) {
@@ -662,6 +693,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     // Do not insert pass::Validate between pass::InsertConvertAfterExtension and pass::ConvertPrecision.
     // This may result in the loss of the original Element type of the Output .
     // element type convert is disabled.
+    mark_int64_eltwise_inputs_to_keep_precision(model);
     CPU_REGISTER_PASS_COMMON(manager,
                              ov::pass::ConvertPrecision,
                              precisions,

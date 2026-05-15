@@ -361,6 +361,23 @@ const auto params_4D_bitwise_i32 = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_Bitwise_i32, EltwiseLayerCPUTest, params_4D_bitwise_i32, EltwiseLayerCPUTest::getTestCaseName);
 
+const auto params_4D_bitwise_i64 = ::testing::Combine(
+    ::testing::Combine(
+        ::testing::ValuesIn(bitwise_in_shapes_4D),
+        ::testing::Values(ov::test::utils::EltwiseTypes::BITWISE_AND),
+        ::testing::ValuesIn(secondaryInputTypes()),
+        ::testing::ValuesIn({ov::test::utils::OpType::VECTOR}),
+        ::testing::Values(ov::element::Type_t::i64),
+        ::testing::Values(ov::element::Type_t::dynamic),
+        ::testing::Values(ov::element::Type_t::dynamic),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
+        ::testing::Values(ov::AnyMap())),
+    ::testing::Values(CPUSpecificParams({}, {}, {}, {})),
+    ::testing::Values(emptyFusingSpec),
+    ::testing::Values(false));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_Bitwise_i64, EltwiseLayerCPUTest, params_4D_bitwise_i64, EltwiseLayerCPUTest::getTestCaseName);
+
 const auto params_4D_bitwise_NOT = ::testing::Combine(
     ::testing::Combine(
         ::testing::ValuesIn(bitwise_in_shapes_4D),
