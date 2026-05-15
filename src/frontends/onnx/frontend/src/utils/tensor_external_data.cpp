@@ -108,7 +108,7 @@ Buffer<ov::AlignedBuffer> TensorExternalData::load_external_data(const std::file
             lazy);
     };
 
-    return read_data_length >= s_lazy_laoding_default_threshold ? get_lazy_buffer() : get_now_buffer();
+    return read_data_length >= s_lazy_loading_default_threshold ? get_lazy_buffer() : get_now_buffer();
 }
 
 Buffer<ov::AlignedBuffer> TensorExternalData::load_external_mem_data() const {

@@ -11,6 +11,7 @@
 
 #include <fstream>
 
+#include "atomic_guard.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/memory_util.hpp"
 #include "openvino/util/file_util.hpp"
@@ -54,6 +55,7 @@ LazyBuffer::~LazyBuffer() {
 }
 
 void LazyBuffer::fetch() const {
+    AtomicGuard lock{m_loading};
     if (!m_loaded && m_byte_size > 0) {
         if (!VirtualAlloc(static_cast<char*>(m_reserved_buffer), m_reserved_size, MEM_COMMIT, PAGE_READWRITE)) {
             OPENVINO_THROW("VirtualAlloc commit failed, err: ", GetLastError());
@@ -74,6 +76,7 @@ void LazyBuffer::fetch() const {
 }
 
 void LazyBuffer::hint_evict() noexcept {
+    AtomicGuard lock{m_loading};
     if (m_loaded) {
         m_loaded = false;
         std::ignore = VirtualFree(m_reserved_buffer, 0, MEM_DECOMMIT);

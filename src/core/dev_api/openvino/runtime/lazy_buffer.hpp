@@ -4,13 +4,14 @@
 
 #pragma once
 
+#include <atomic>
 #include <filesystem>
 
 #include "openvino/runtime/aligned_buffer.hpp"
 
 namespace ov {
 
-constexpr size_t s_lazy_laoding_default_threshold = 0x100000;  // 1MB
+constexpr size_t s_lazy_loading_default_threshold = 0x100000;  // 1MB
 
 /** \brief LazyBuffer is lazy loaded AlignedBuffer which provides a view on a file w/o memory mapping. */
 class OPENVINO_API LazyBuffer : public AlignedBuffer {
@@ -61,8 +62,6 @@ private:
     size_t m_reserved_size{0};
     void* m_reserved_buffer{nullptr};
     mutable bool m_loaded{false};
-
-    // mutex??
-    // descriptor ??
+    mutable std::atomic_bool m_loading{false};
 };
 }  // namespace ov
