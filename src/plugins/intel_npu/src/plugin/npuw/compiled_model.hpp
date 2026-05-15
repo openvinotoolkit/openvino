@@ -169,7 +169,11 @@ private:
         const std::function<std::string(const std::string&)>& decrypt);
     void serialize_orc_container(std::ostream& stream,
                                  bool include_weights_bank,
-                                 const std::function<std::string(const std::string&)>& encrypt) const;
+                                 const std::function<std::string(const std::string&)>& encrypt,
+                                 // Nested serializers may need to preserve BF16 metadata
+                                 // collected by a parent model (e.g. LLMCompiledModel)
+                                 // rather than this object's local snapshot.
+                                 const ov::npuw::s11n::BF16Cache* bf16_consts = nullptr) const;
     void ensure_phase0_compatibility() const;
 
     // This is used for removing too long output tensor names to fix some compilation issues
