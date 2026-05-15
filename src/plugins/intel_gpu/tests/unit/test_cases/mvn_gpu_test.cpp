@@ -802,16 +802,18 @@ struct mvn_random_test_bsv32 : ::testing::TestWithParam<mvn_basic_test_params> {
 
     template <typename T>
     void compare_outputs(const cldnn::memory::ptr out_ref, const cldnn::memory::ptr out_opt) {
-        auto output_lay = out_ref->get_layout();
-        auto opt_output_lay = out_opt->get_layout();
+        auto lockable_out_ref = copy_to_lockable_memory(out_ref);
+        auto lockable_out_opt = copy_to_lockable_memory(out_opt);
+        auto output_lay = lockable_out_ref->get_layout();
+        auto opt_output_lay = lockable_out_opt->get_layout();
 
         size_t b = output_lay.batch();
         size_t f = output_lay.feature();
         size_t x = output_lay.spatial(0);
         size_t y = output_lay.spatial(1);
         size_t z = output_lay.spatial(2);
-        cldnn::mem_lock<T> ref_ptr(out_ref, get_test_stream());
-        cldnn::mem_lock<T> opt_ptr(out_opt, get_test_stream());
+        cldnn::mem_lock<T> ref_ptr(lockable_out_ref, get_test_stream());
+        cldnn::mem_lock<T> opt_ptr(lockable_out_opt, get_test_stream());
 
         float tolerance = (output_lay.data_type == data_types::f16) ? 5.e-2f : 1.e-2f;
 
@@ -846,13 +848,26 @@ struct mvn_random_test_bsv32 : ::testing::TestWithParam<mvn_basic_test_params> {
         }
     }
 
+    cldnn::memory::ptr copy_to_lockable_memory(const cldnn::memory::ptr& mem) {
+        if (mem->get_allocation_type() != allocation_type::usm_device) {
+            return mem;
+        }
+
+        auto& engine = get_test_engine();
+        auto host_mem = engine.allocate_memory(mem->get_layout(),
+                                               engine.get_lockable_preferred_memory_allocation_type());
+        host_mem->copy_from(get_test_stream(), *mem, true);
+        return host_mem;
+    }
+
     void execute(const mvn_basic_test_params& params, bool is_caching_test) {
         auto& size = params.input_size;
         auto& output_pad = params.output_pad;
         auto& engine = get_test_engine();
         bool is_5d = size.spatial[2] > 1;
         auto ref_fmt = is_5d ? format::bfzyx : format::bfyx;
-        auto input = engine.allocate_memory({params.input_type, ref_fmt, params.input_size});
+        auto input = engine.allocate_memory({params.input_type, ref_fmt, params.input_size},
+                                            engine.get_lockable_preferred_memory_allocation_type());
         switch (params.input_type) {
             case data_types::f32:
                 fill_random_data<float>(input, -127, 127);
@@ -956,6 +971,11 @@ struct mvn_test_case_generator_bsv32 : std::vector<mvn_basic_test_params> {
         return *this;
     }
 
+    mvn_test_case_generator_bsv32& fsv_large_spatial_tests(format::type fmt, data_types in_dt) {
+        push_back(mvn_basic_test_params{fmt, in_dt, {1, 16, 257, 256}, true, false, false, padding()});
+        return *this;
+    }
+
     mvn_test_case_generator_bsv32& fsv_zyx_tests(format::type fmt, data_types in_dt) {
         push_back(mvn_basic_test_params{fmt, in_dt, {2, 32, 5, 13, 7}, false, false, false, padding()});
         push_back(mvn_basic_test_params{fmt, in_dt, {2, 32, 5, 13, 7}, true, false, false, padding()});
@@ -986,6 +1006,11 @@ INSTANTIATE_TEST_SUITE_P(mvn_fsv16_f16,
                         mvn_random_test_bsv32,
                         testing::ValuesIn(mvn_test_case_generator_bsv32()
                                               .fsv_tests(format::b_fs_yx_fsv16, data_types::f16)));
+
+INSTANTIATE_TEST_SUITE_P(mvn_fsv16_f16_large_spatial,
+                        mvn_random_test_bsv32,
+                        testing::ValuesIn(mvn_test_case_generator_bsv32()
+                                              .fsv_large_spatial_tests(format::b_fs_yx_fsv16, data_types::f16)));
 
 INSTANTIATE_TEST_SUITE_P(mvn_fsv16_f32,
                         mvn_random_test_bsv32,
