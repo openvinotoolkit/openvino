@@ -116,6 +116,7 @@ using compatibility_OVBlobCompatibilityNPU_PV_Driver_No_Throw = OVBlobCompatibil
 using OVBlobCompatibilityNPU_Metadata_No_Throw = OVBlobCompatibilityNPU;
 using OVBlobCompatibilityCiPNPU = OVBlobCompatibilityNPU;
 
+// TODO fix test
 TEST_P(OVBlobCompatibilityNPU, CanImportAllPrecompiledBlobsForAllOVVersionsAndDrivers) {
     importAndExportModel();
 }

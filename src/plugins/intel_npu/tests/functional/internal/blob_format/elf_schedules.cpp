@@ -16,6 +16,10 @@ const std::vector<ov::AnyMap> weightsSeparationConfig = {
     {{ov::intel_npu::compiler_type.name(), ov::intel_npu::CompilerType::PLUGIN},
      {ov::intel_npu::weightless_blob.name(), true}}};
 
+const std::vector<ov::AnyMap> nonWeightsSeparationConfig = {
+    {{ov::intel_npu::compiler_type.name(), ov::intel_npu::CompilerType::PLUGIN},
+     {ov::intel_npu::weightless_blob.name(), false}}};
+
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                          ELFSchedulesSections,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
@@ -38,9 +42,9 @@ const std::vector<ov::AnyMap> driverConfig = {
     {{ov::intel_npu::compiler_type.name(), ov::intel_npu::CompilerType::DRIVER}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
-                         ELFSchedulesDriver,
+                         ELFSchedulesNoInits,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(driverConfig)),
+                                            ::testing::ValuesIn(nonWeightsSeparationConfig)),
                          ELFSchedulesSections::getTestCaseName);
 
 }  // namespace

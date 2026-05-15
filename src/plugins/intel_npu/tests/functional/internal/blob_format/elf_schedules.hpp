@@ -29,12 +29,11 @@
 namespace {
 // duplicate from tests/functional/behavior/weights_separation.hpp
 // should we move it to common/utils?
-std::shared_ptr<ov::Model> createTestModel(const bool addWeightlessCacheAttribute = true,
-                                           const bool alternativeWeights = false) {
+std::shared_ptr<ov::Model> createTestModelWithWCA() {
     using namespace ov;
 
     constexpr auto precision = element::f32;
-    const float weightsValue = !alternativeWeights ? 1.0f : 2.0f;
+    const float weightsValue = 1.0f;
     auto weights = std::make_shared<op::v0::Constant>(precision, Shape{5}, std::vector<float>{weightsValue});
     auto input = std::make_shared<op::v0::Parameter>(precision, Shape{1});
     auto add = std::make_shared<op::v1::Add>(input, weights);
@@ -43,10 +42,8 @@ std::shared_ptr<ov::Model> createTestModel(const bool addWeightlessCacheAttribut
     input->set_friendly_name("input");
     add->set_friendly_name("add");
 
-    if (addWeightlessCacheAttribute) {
-        weights->get_rt_info()[WeightlessCacheAttribute::get_type_info_static()] =
-            WeightlessCacheAttribute(weights->get_byte_size(), 0, weights->get_element_type());
-    }
+    weights->get_rt_info()[WeightlessCacheAttribute::get_type_info_static()] =
+        WeightlessCacheAttribute(weights->get_byte_size(), 0, weights->get_element_type());
 
     auto model = std::make_shared<ov::Model>(OutputVector{add}, ParameterVector{input}, "Simple with weights");
     ov::util::set_tensors_names(AUTO, *model, {}, {{0, {"add"}}});
@@ -67,17 +64,9 @@ public:
         std::tie(target_device, configuration) = GetParam();
         OVPluginTestBase::SetUp();
 
-        // do we care about the contents of the model? Or about its size?
-        std::shared_ptr<ov::Model> model;
-        if (configuration.count(ov::intel_npu::weightless_blob.name()) &&
-            configuration.at(ov::intel_npu::weightless_blob.name()).as<bool>()) {
-            model = createTestModel(true);
-        } else {
-            model = buildSingleLayerSoftMaxNetwork();
-        }
-
+        // TODO check if any extra WS tests need to be skipped
         CompiledModel compiled_model;
-        OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, target_device, configuration));
+        OV_ASSERT_NO_THROW(compiled_model = core.compile_model(createTestModelWithWCA(), target_device, configuration));
 
         std::stringstream stream;
         compiled_model.export_model(stream);
@@ -117,16 +106,11 @@ public:
 
 protected:
     ov::AnyMap configuration;
-    // should I use cached Core instead?
+    // TODO should we use cached Core instead?
     ov::Core core;
     ov::Tensor blob;
     std::unique_ptr<BlobReader> reader;
 };
-
-TEST_P(ELFSchedulesSections, MainScheduleSectionPresent) {
-    auto section = reader->retrieve_first_section(PredefinedSectionType::ELF_MAIN_SCHEDULE);
-    ASSERT_NE(section, nullptr);
-}
 
 TEST_P(ELFSchedulesSections, MainScheduleSectionNonEmpty) {
     auto section = std::dynamic_pointer_cast<ELFMainScheduleSection>(
@@ -148,7 +132,7 @@ TEST_P(ELFSchedulesSections, MainScheduleDataPageAligned) {
 
 using ELFSchedulesWeightsSeparation = ELFSchedulesSections;
 
-TEST_P(ELFSchedulesWeightsSeparation, InitSchedulesSectionPresent) {
+TEST_P(ELFSchedulesWeightsSeparation, InitSchedulesSectionNonEmpty) {
     auto section = std::dynamic_pointer_cast<ELFInitSchedulesSection>(
         reader->retrieve_first_section(PredefinedSectionType::ELF_INIT_SCHEDULES));
     ASSERT_NE(section, nullptr);
@@ -168,12 +152,14 @@ TEST_P(ELFSchedulesWeightsSeparation, InitSchedulesDataPageAligned) {
     ASSERT_GT(schedules.size(), 0);
 
     auto* blob_begin = static_cast<const uint8_t*>(blob.data());
-    auto* schedule_ptr = static_cast<const uint8_t*>(schedules.front().data());
-    auto offset_within_blob = static_cast<size_t>(schedule_ptr - blob_begin);
-    EXPECT_EQ(offset_within_blob % ::intel_npu::utils::STANDARD_PAGE_SIZE, 0);
+
+    for (const ov::Tensor& schedule : schedules) {
+        const auto* schedule_ptr = static_cast<const uint8_t*>(schedule.data());
+        auto offset_within_blob = static_cast<size_t>(schedule_ptr - blob_begin);
+        EXPECT_EQ(offset_within_blob % ::intel_npu::utils::STANDARD_PAGE_SIZE, 0);
+    }
 }
 
-// not sure if this test makes sense to be kept
 TEST_P(ELFSchedulesWeightsSeparation, InitSchedulesContainedInsideBlob) {
     auto section = std::dynamic_pointer_cast<ELFInitSchedulesSection>(
         reader->retrieve_first_section(PredefinedSectionType::ELF_INIT_SCHEDULES));
@@ -188,9 +174,9 @@ TEST_P(ELFSchedulesWeightsSeparation, InitSchedulesContainedInsideBlob) {
     }
 }
 
-using ELFSchedulesDriver = ELFSchedulesSections;
+using ELFSchedulesNoInits = ELFSchedulesSections;
 
-TEST_P(ELFSchedulesDriver, InitSchedulesSectionAbsent) {
+TEST_P(ELFSchedulesNoInits, InitSchedulesSectionAbsent) {
     auto section = reader->retrieve_first_section(PredefinedSectionType::ELF_INIT_SCHEDULES);
     EXPECT_EQ(section, nullptr);
 }

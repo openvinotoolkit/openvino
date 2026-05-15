@@ -15,8 +15,6 @@ std::unordered_map<CRE::Token, std::shared_ptr<ICapability>> make_caps() {
     return {{CRE::CRE_EVALUATION, std::make_shared<StaticCapability>(CRE::CRE_EVALUATION)}};
 }
 
-// should this lookup the entire buffer?
-// or should it read a fixed expected size from a given buffer offset?
 void compare_aligned_elements(const std::string& buffer, const std::vector<double>& values) {
     for (double value : values) {
         bool found = false;
@@ -28,7 +26,7 @@ void compare_aligned_elements(const std::string& buffer, const std::vector<doubl
                 break;
             }
         }
-        EXPECT_TRUE(found) << "Element " << value << " was not found in the serialised blob";
+        EXPECT_TRUE(found) << "Element " << value << " was not found in the serialized blob";
     }
 }
 
