@@ -10,6 +10,8 @@
 namespace intel_npu {
 
 void OffsetsTable::add_entry(const SectionID id, const uint64_t offset, const uint64_t length) {
+    // TODO maybe add some message when failing
+    // "Section ID already existing in the table: printf(id)"
     OPENVINO_ASSERT(!m_table.count(id));
     OPENVINO_ASSERT(!m_reversed_table.count(offset));
 
@@ -44,6 +46,10 @@ std::optional<SectionID> OffsetsTable::lookup_section_id(const uint64_t offset) 
         return search_result->second;
     }
     return std::nullopt;
+}
+
+bool OffsetsTable::empty() const {
+    return m_table.empty();
 }
 
 OffsetsTableSection::OffsetsTableSection(const OffsetsTable& offsets_table)

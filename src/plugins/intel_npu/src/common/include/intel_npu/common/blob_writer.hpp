@@ -36,7 +36,7 @@ public:
     BlobWriter();
 
     /**
-     * @brief Construct a BlobWriter based on the data parse by the BlobReader.
+     * @brief Construct a BlobWriter based on the data parsed by the BlobReader.
      * @details The BlobReader handles the parsing of a compiled model. The data parsed by this object can be reused to
      * re-export the model using a BlobWriter if requested.
      *
@@ -82,7 +82,7 @@ public:
 
     /**
      * @brief Get the position of the write cursor relative to the beginning of the NPU region.
-     * @note This is part of the section reader API.
+     * @note This is part of the section writer API.
      */
     std::streamoff get_stream_relative_position(std::ostream& stream) const;
 
@@ -90,7 +90,7 @@ public:
      * @brief Move the position of the write cursor.
      * @note This operation allows moving the cursor only within the region allocated to the indicated section. The
      * parsing of each blob section should be done indepent of other sections, thus this constraint.
-     * @note This is part of the section reader API.
+     * @note This is part of the section writer API.
      *
      * @param stream The target stream.
      * @param section_id Used to check if the offset falls within the region allocated to this section.
@@ -99,6 +99,10 @@ public:
     void move_stream_cursor_to_relative_position(std::ostream& stream,
                                                  const SectionID section_id,
                                                  const uint64_t offset);
+
+    // TODO stream write method. Avoid exposing the stream object directly.
+    // TODO consider placing the "section writer API" methods in a different class, corresponding to one writing
+    // session. This should also solve the multi-threading issue.
 
 private:
     /**
@@ -111,7 +115,7 @@ private:
      * @details Calls the "write" method of the given section to fill the payload. Then adds a new entry inside the
      * table of offsets.
      */
-    void write_section(std::ostream& stream, const std::shared_ptr<ISection>& section);
+    void write_section(std::ostream& stream, const std::shared_ptr<ISection>& section, OffsetsTable& offsets_table);
 
     /**
      * @brief Tracks the next available instance ID for each section type. This should assure that the generated section
@@ -123,7 +127,6 @@ private:
      */
     std::queue<std::shared_ptr<ISection>> m_registered_sections;
     CRE m_cre;
-    OffsetsTable m_offsets_table;
 
     /**
      * @brief Holds the offset where the NPU blob region begins. This attribute has value only during a "write"

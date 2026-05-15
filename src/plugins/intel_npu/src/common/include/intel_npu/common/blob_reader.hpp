@@ -20,7 +20,7 @@ namespace intel_npu {
  * @details There should be a 1:1 mapping between "CompiledModel" & "BlobReader" instances.
  *
  * When the user requests the importation of a model, a "BlobReader" object is created. All known section readers will
- * be registered into this object. Later these readers will be used to parse individual sections residing within the
+ * be registered into this object. Later, these readers will be used to parse individual sections residing within the
  * compiled model. The parsed sections can then be retrieved and used by the NPU plugin.
  *
  * During the parse procedure, a compatibility requirements expression (CRE) is evaluated as one of the first steps. If
