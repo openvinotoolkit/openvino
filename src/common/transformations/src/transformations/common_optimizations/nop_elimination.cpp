@@ -595,11 +595,22 @@ bool extract_slice_range_along_axis(const std::shared_ptr<ov::Node>& user,
         if (!end_constant_node)
             return false;
         auto end_values = end_constant_node->cast_vector<int64_t>();
-        if (end_values[concat_axis] > static_cast<int64_t>(concat_shape[concat_axis]))
-            end_values[concat_axis] = static_cast<int64_t>(concat_shape[concat_axis]);
 
-        out_begin = begin_values[concat_axis];
-        out_end_inclusive = end_values[concat_axis] - 1;
+        const auto axis_idx = static_cast<size_t>(concat_axis);
+        if (begin_values.size() <= axis_idx || end_values.size() <= axis_idx)
+            return false;
+
+        const int64_t concat_dim = static_cast<int64_t>(concat_shape[concat_axis]);
+        if (end_values[concat_axis] > concat_dim)
+            end_values[concat_axis] = concat_dim;
+
+        const int64_t begin = begin_values[concat_axis];
+        const int64_t end_inclusive = end_values[concat_axis] - 1;
+        if (begin < 0 || end_inclusive < begin || end_inclusive >= concat_dim)
+            return false;
+
+        out_begin = begin;
+        out_end_inclusive = end_inclusive;
         return true;
     }
 
@@ -629,10 +640,16 @@ bool extract_slice_range_along_axis(const std::shared_ptr<ov::Node>& user,
                 axes_values.push_back(i);
         }
 
+        if (start_values.size() != axes_values.size() || stop_values.size() != axes_values.size() ||
+            step_values.size() != axes_values.size())
+            return false;
+
         const auto rank = static_cast<int64_t>(concat_shape.size());
         for (auto& ax : axes_values) {
             if (ax < 0)
                 ax += rank;
+            if (ax < 0 || ax >= rank)
+                return false;
         }
 
         int64_t axis_pos = -1;
@@ -659,11 +676,16 @@ bool extract_slice_range_along_axis(const std::shared_ptr<ov::Node>& user,
                 return false;
         }
 
-        auto slice_stop = stop_values[axis_pos];
-        if (slice_stop > static_cast<int64_t>(concat_shape[concat_axis]))
-            slice_stop = static_cast<int64_t>(concat_shape[concat_axis]);
+        const int64_t concat_dim = static_cast<int64_t>(concat_shape[concat_axis]);
+        int64_t slice_start = start_values[axis_pos];
+        int64_t slice_stop = stop_values[axis_pos];
+        if (slice_stop > concat_dim)
+            slice_stop = concat_dim;
 
-        out_begin = start_values[axis_pos];
+        if (slice_start < 0 || slice_stop <= slice_start || slice_stop > concat_dim)
+            return false;
+
+        out_begin = slice_start;
         out_end_inclusive = slice_stop - 1;
         return true;
     }
