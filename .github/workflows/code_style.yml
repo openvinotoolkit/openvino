@@ -92,7 +92,7 @@ jobs:
         run: cmake -DENABLE_PYTHON=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=FULL -DSELECTIVE_BUILD=COLLECT -DENABLE_SNIPPETS_LIBXSMM_TPP=ON -B build
 
       - name: Create code style diff
-        run: cmake --build build --target clang_format_fix_all -j8
+        run: cmake --build build --target clang_format_fix_all -j8 -- --quiet
 
       - name: suggester / clang-format
         if: startsWith(github.event_name, 'pull_request')
@@ -124,7 +124,7 @@ jobs:
         run: cmake -DENABLE_CLANG_FORMAT=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=FULL -DSELECTIVE_BUILD=COLLECT -DENABLE_SNIPPETS_LIBXSMM_TPP=ON -DCMAKE_TOOLCHAIN_FILE=cmake/arm64.toolchain.cmake -B build_arm64
 
       - name: Create code style diff
-        run: cmake --build build_arm64 --target clang_format_fix_all -j8
+        run: cmake --build build_arm64 --target clang_format_fix_all -j8 -- --quiet
 
       - name: suggester / clang-format
         if: startsWith(github.event_name, 'pull_request')
@@ -153,7 +153,7 @@ jobs:
         run: cmake -DENABLE_CLANG_FORMAT=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=FULL -DSELECTIVE_BUILD=COLLECT -DTHREADING=SEQ -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/riscv64.linux.toolchain.cmake -B build_riscv64
 
       - name: Create code style diff
-        run: cmake --build build_riscv64 --target clang_format_fix_all -j8
+        run: cmake --build build_riscv64 --target clang_format_fix_all -j8 -- --quiet
 
       - name: suggester / clang-format
         if: startsWith(github.event_name, 'pull_request')
@@ -182,7 +182,7 @@ jobs:
         run: cmake -B build
 
       - name: Shellcheck cmake target
-        run: cmake --build build --target ov_shellcheck -j8
+        run: cmake --build build --target ov_shellcheck -j8 -- --quiet
 
       # always provide suggestions even for skipped scripts in ov_shellcheck tagret
       - name: ShellCheck action
@@ -218,4 +218,4 @@ jobs:
         run: cmake -B build
 
       - name: Naming convention check
-        run: cmake --build build --target ncc_all -j8
+        run: cmake --build build --target ncc_all -j8 -- --quiet

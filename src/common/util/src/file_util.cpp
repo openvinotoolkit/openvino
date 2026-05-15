@@ -47,13 +47,8 @@ std::filesystem::path path_join(Container&& paths) {
     return joined_path;
 }
 
-// TODO: Remove string() / wstring() casts on function call site
 std::filesystem::path ov::util::path_join(std::initializer_list<std::filesystem::path>&& paths) {
     return ::path_join<>(std::move(paths));
-}
-
-std::wstring ov::util::path_join_w(std::initializer_list<std::wstring>&& paths) {
-    return ::path_join<>(std::move(paths)).wstring();
 }
 
 namespace {

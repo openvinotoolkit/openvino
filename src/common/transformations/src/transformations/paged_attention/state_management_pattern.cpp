@@ -295,6 +295,29 @@ static ov::Dimension extract_num_kv_heads(const std::shared_ptr<ov::Node>& unsqu
     }
 };
 
+StateManagementPattern::KvCacheParams StateManagementPattern::find_or_create_kv_params(
+    const std::shared_ptr<ov::op::util::ReadValueBase>& k_rv,
+    const std::shared_ptr<ov::op::util::ReadValueBase>& v_rv,
+    PaParams& pa_params) {
+    const auto& k_var_id = k_rv->get_variable_id() + "/k";
+    const auto& v_var_id = v_rv->get_variable_id() + "/v";
+    auto k_name = "key_cache." + std::to_string(m_layer_index);
+    auto v_name = "value_cache." + std::to_string(m_layer_index);
+    bool write_kv_cache = true;
+
+    if (m_read_value_to_params.count(k_var_id) && m_read_value_to_params.count(v_var_id)) {
+        k_name = m_read_value_to_params.at(k_var_id);
+        v_name = m_read_value_to_params.at(v_var_id);
+        write_kv_cache = false;
+    }
+
+    auto k_param = pa_params.add(k_name, ov::element::dynamic, ov::PartialShape::dynamic(4));
+    auto v_param = pa_params.add(v_name, ov::element::dynamic, ov::PartialShape::dynamic(4));
+    m_read_value_to_params.emplace(k_var_id, k_name);
+    m_read_value_to_params.emplace(v_var_id, v_name);
+    return {k_param, v_param, write_kv_cache};
+}
+
 ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
                                                          ov::pass::paged_attention::PaResults& results,
                                                          const ov::pass::paged_attention::Options& options,
@@ -438,11 +461,26 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
         auto num_k_heads = num_k_heads_dim.get_length();
         auto num_v_heads = num_v_heads_dim.get_length();
 
-        std::string layer_index_str = std::to_string(m_layer_index);
-        auto k_name = "key_cache." + layer_index_str;
-        auto v_name = "value_cache." + layer_index_str;
-        auto k_parameter = pa_params.add(k_name, element::dynamic, ov::PartialShape::dynamic(4));
-        auto v_parameter = pa_params.add(v_name, element::dynamic, ov::PartialShape::dynamic(4));
+        KvCacheParams kv_params;
+
+        if (pattern_map.count(kv_past_var)) {
+            auto rv = ov::as_type_ptr<ov::op::util::ReadValueBase>(pattern_map.at(kv_past_var).get_node_shared_ptr());
+            if (!rv)
+                return false;
+            kv_params = find_or_create_kv_params(rv, rv, pa_params);
+            var_ids_to_remove.insert(rv->get_variable_id());
+        } else {
+            auto k_rv = ov::as_type_ptr<ov::op::util::ReadValueBase>(pattern_map.at(k_past_var).get_node_shared_ptr());
+            auto v_rv = ov::as_type_ptr<ov::op::util::ReadValueBase>(pattern_map.at(v_past_var).get_node_shared_ptr());
+            if (!k_rv || !v_rv)
+                return false;
+            kv_params = find_or_create_kv_params(k_rv, v_rv, pa_params);
+            var_ids_to_remove.insert(k_rv->get_variable_id());
+            var_ids_to_remove.insert(v_rv->get_variable_id());
+        }
+
+        auto& k_parameter = kv_params.k;
+        auto& v_parameter = kv_params.v;
 
         // Set parameters to be in the same precision as the original K/V tensors,
         // that allows to avoid unnecessary Convert operations in the graph
@@ -553,15 +591,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
             alibi_slopes = handle_baichuan2_13b_alibi(pattern_map.at(baichuan2_13b_alibi).get_node_shared_ptr());
         } else {
             alibi_slopes = v0::Constant::create(element::f32, Shape{0}, {});
-        }
-
-        for (const auto& read_value : {k_past_var, v_past_var, kv_past_var}) {
-            if (pattern_map.count(read_value)) {
-                if (auto rv = ov::as_type_ptr<ov::op::util::ReadValueBase>(
-                        pattern_map.at(read_value).get_node_shared_ptr())) {
-                    var_ids_to_remove.insert(rv->get_variable_id());
-                }
-            }
         }
 
         OutputVector pa_arguments = {q_reshape, k_reshape, v_reshape, k_parameter, v_parameter};
@@ -738,7 +767,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
         }
         OPENVINO_ASSERT(pa_arguments.size() == 28);
 
-        auto paged_attention = std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments);
+        auto paged_attention =
+            std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments, kv_params.write_kv_cache);
         paged_attention->get_rt_info()[NUM_K_HEADS] = num_k_heads;
         paged_attention->get_rt_info()[K_HEAD_SIZE] = k_head_size;
         paged_attention->get_rt_info()[NUM_V_HEADS] = num_v_heads;
