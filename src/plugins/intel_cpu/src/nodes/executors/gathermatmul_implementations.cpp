@@ -4,7 +4,6 @@
 
 #include <vector>
 
-#include "memory_desc/cpu_memory_desc.h"
 #include "nodes/executors/executor_implementation.hpp"
 #include "nodes/executors/gathermatmul_config.hpp"
 #include "nodes/executors/implementations.hpp"
