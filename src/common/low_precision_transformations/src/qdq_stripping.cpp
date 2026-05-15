@@ -97,8 +97,8 @@ private:
         if (is_forward && is_scale_invariant(n)) {
             return;
         }
-        // Note: the set of supported nodes is intentionally limited to avoid overcomplicating the adjuster logic and make it safer.
-        // The current set is enough for covering all existing models which require scale adjustment.
+        // Note: the set of supported nodes is intentionally limited to avoid overcomplicating the adjuster logic and
+        // make it safer. The current set is enough for covering all existing models which require scale adjustment.
         if (!ov::is_type_any_of<ov::op::v1::Add,
                                 ov::op::v0::Constant,
                                 ov::op::v0::Convert,
@@ -256,7 +256,18 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
             adjuster.adjust();
         }
 
-        OPENVINO_ASSERT(replace_output_update_name(fq->output(0), fq->input_value(0)), "FQ stripping failed");
+        auto input_low_const = ov::util::get_constant_from_source(fq->input_value(1));
+        auto input_high_const = ov::util::get_constant_from_source(fq->input_value(2));
+        if (input_low_const && input_high_const && ov::shape_size(input_low_const->get_shape()) == 1 &&
+            ov::shape_size(input_high_const->get_shape()) == 1) {
+            auto clamp = std::make_shared<ov::op::v0::Clamp>(fq->input_value(0),
+                                                             input_low_const->cast_vector<double>()[0],
+                                                             input_high_const->cast_vector<double>()[0]);
+            ov::copy_runtime_info(fq, clamp);
+            OPENVINO_ASSERT(replace_node_update_name(fq, clamp), "FQ stripping failed");
+        } else {
+            OPENVINO_ASSERT(replace_output_update_name(fq->output(0), fq->input_value(0)), "FQ stripping failed");
+        }
         model_changed = true;
     }
 
