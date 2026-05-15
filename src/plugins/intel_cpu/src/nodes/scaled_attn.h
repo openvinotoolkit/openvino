@@ -13,6 +13,7 @@
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "graph_context.h"
+#include "kernels/scaled_attn/codecs/codec_kernels.hpp"
 #include "kernels/scaled_attn/mha_kv_cache_codec.hpp"
 #include "memory_state.h"
 #include "node.h"
@@ -126,6 +127,9 @@ private:
     ov::Extensions::Cpu::CacheSpec m_key_spec;
     ov::Extensions::Cpu::CacheSpec m_value_spec;
     MemoryPtr m_per_thread_head_scratch;
+    // Derive per-thread scratch {base, stride} (f32 slots) from m_per_thread_head_scratch.
+    // Indexed as ws[tid] to get per-thread buffer start. {nullptr, 0} when non-codec.
+    ov::Extensions::Cpu::StridedData<float> get_per_thread_scratch() const;
     // Per-token TBQ norm. Populated only when a side has alg=TURBO; empty otherwise.
     PlainTensor m_k_quant_meta_data;
     PlainTensor m_v_quant_meta_data;

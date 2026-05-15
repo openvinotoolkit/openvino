@@ -339,13 +339,12 @@ cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 ANY
                     src/nodes/kernels/scaled_attn/codecs/turboq_quantize.cpp
         API         src/nodes/kernels/scaled_attn/codecs/turboq_quantize.hpp
-        NAME        turboq_quantize_head
+        NAME        turboq_quantize_head turboq_quantize
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
-## @todo claude: turboq_rotation.cpp not cross-compiled — the dispatcher generator
-## cannot handle no-argument functions (turboq_get_rotation_matrix).
-## turboq_matvec is inline in the header and gets SIMD when called from
-## cross-compiled mha_kv_cache_codec.cpp (AVX2/AVX512F variants).
+## turboq_rotation.cpp holds scalar setup only (sign cache, env parsing);
+## SIMD WHT butterfly is inline in turboq_rotation.hpp and gets ISA-specialized
+## when included by cross-compiled translation units.
 
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F ANY
