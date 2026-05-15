@@ -97,6 +97,11 @@ std::optional<CacheReorderPath> parse_cache_reorder_path(const std::shared_ptr<o
         return std::nullopt;
     }
 
+    // PaKVReorder only supports reordering along the block dimension (axis 0)
+    if (gather_axis.value() != 0) {
+        return std::nullopt;
+    }
+
     auto role_and_index = parse_cache_role_and_index(cache->get_friendly_name());
     if (!role_and_index.has_value()) {
         role_and_index = parse_cache_role_and_index(scatter->get_friendly_name());
@@ -149,15 +154,15 @@ std::vector<std::shared_ptr<ov::op::v0::Concat>> get_joint_concat_consumers(
             continue;
         }
 
-        bool has_result_consumer = false;
+        bool all_consumers_are_results = true;
         for (const auto& concat_target : concat->output(0).get_target_inputs()) {
-            if (ov::as_type_ptr<ov::op::v0::Result>(concat_target.get_node()->shared_from_this())) {
-                has_result_consumer = true;
+            if (!ov::as_type_ptr<ov::op::v0::Result>(concat_target.get_node()->shared_from_this())) {
+                all_consumers_are_results = false;
                 break;
             }
         }
 
-        if (has_result_consumer) {
+        if (all_consumers_are_results) {
             concats.push_back(concat);
         }
     }
@@ -167,8 +172,7 @@ std::vector<std::shared_ptr<ov::op::v0::Concat>> get_joint_concat_consumers(
 
 }  // namespace
 
-PaKVReorderFusion::PaKVReorderFusion(ov::element::Type cache_precision = ov::element::dynamic)
-    : m_cache_precision(cache_precision) {}
+PaKVReorderFusion::PaKVReorderFusion(ov::element::Type cache_precision) : m_cache_precision(cache_precision) {}
 
 bool PaKVReorderFusion::run_on_model(const std::shared_ptr<ov::Model>& m) {
     auto block_indices_begins = get_parameter_by_name(m, "block_indices_begins");
