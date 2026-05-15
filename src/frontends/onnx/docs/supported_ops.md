@@ -143,7 +143,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |Reciprocal                                              |1                       |13, 6, 1                        |                                |
 |                        |ReduceL1                                                |18, 13, 1               |18, 13, 11, 1                   |                                |
 |                        |ReduceL2                                                |18, 13, 1               |18, 13, 11, 1                   |                                |
-|                        |ReduceLogSum                                            |18, 1                   |18, 13, 11, 1                   |                                |
+|                        |ReduceLogSum                                            |18, 13, 1               |18, 13, 11, 1                   |                                |
 |                        |ReduceLogSumExp                                         |18, 13, 1               |18, 13, 11, 1                   |                                |
 |                        |ReduceMax                                               |20, 18, 13, 1           |20, 18, 13, 12, 11, 1           |                                |
 |                        |ReduceMean                                              |18, 13, 1               |18, 13, 11, 1                   |                                |
