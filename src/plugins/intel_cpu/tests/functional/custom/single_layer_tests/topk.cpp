@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cstdint>
+#include <limits>
 #include <random>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
@@ -88,7 +90,7 @@ protected:
 
         if (!ov::with_cpu_x86_avx512_core() && netPrecision == ElementType::bf16) {
             selectedType = makeSelectedTypeStr(getPrimitiveType(), ElementType::f32);
-        } else if (netPrecision == ElementType::i64) {
+        } else if (netPrecision == ElementType::i64 || netPrecision == ElementType::u64) {
             selectedType = makeSelectedTypeStr("ref_any", netPrecision);
         } else {
             selectedType = makeSelectedTypeStr(getPrimitiveType(), netPrecision);
@@ -171,6 +173,17 @@ protected:
         } else if (netPrecision == ElementType::i64) {
             auto* rawBlobDataPtr = static_cast<int64_t*>(tensor.data());
             const std::vector<int64_t> data = {1LL << 35, 1LL << 36, 1LL << 37, 5, 7};
+            for (size_t i = 0; i < size; ++i) {
+                rawBlobDataPtr[i] = data[i % data.size()];
+            }
+        } else if (netPrecision == ElementType::u64) {
+            auto* rawBlobDataPtr = static_cast<uint64_t*>(tensor.data());
+            const std::vector<uint64_t> data = {
+                1ULL << 35,
+                1ULL << 63,
+                (1ULL << 63) + 17ULL,
+                std::numeric_limits<uint64_t>::max(),
+                7ULL};
             for (size_t i = 0; i < size; ++i) {
                 rawBlobDataPtr[i] = data[i % data.size()];
             }
@@ -357,6 +370,22 @@ INSTANTIATE_TEST_SUITE_P(smoke_TopK_int64,
                                                                    SortType::SORT_VALUES,
                                                                    false}),
                                                                ::testing::Values(ElementType::i64),
+                                                               ::testing::Values(ElementType::dynamic),
+                                                               ::testing::Values(ElementType::dynamic),
+                                                               ::testing::ValuesIn(inputShapes_int64)),
+                                            ::testing::Values(CPUSpecificParams({}, {}, {"ref_any"}, "ref_any")),
+                                            ::testing::Values(additionalConfig[0])),
+                         TopKLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_TopK_uint64,
+                         TopKLayerCPUTest,
+                         ::testing::Combine(::testing::Combine(::testing::Values(3),
+                                                               ::testing::Values(0),
+                                                               ::testing::Values(SortMode::MAX),
+                                                               ::testing::Values(std::tuple<SortType, bool>{
+                                                                   SortType::SORT_VALUES,
+                                                                   false}),
+                                                               ::testing::Values(ElementType::u64),
                                                                ::testing::Values(ElementType::dynamic),
                                                                ::testing::Values(ElementType::dynamic),
                                                                ::testing::ValuesIn(inputShapes_int64)),
