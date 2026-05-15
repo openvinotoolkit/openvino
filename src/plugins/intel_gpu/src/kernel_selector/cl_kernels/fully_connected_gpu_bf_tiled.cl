@@ -361,18 +361,18 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
         // Load input.
         // Guard OOB batch reads on Xe2+ where OOB access crashes (CL_OUT_OF_RESOURCES).
         #if IS_DYNAMIC || BATCH_LEFTOVER
-        #define LOAD_IN_0(bi) do {                                  \
-                if (bi + out_b < BATCH_SIZE) {                      \
+        #define LOAD_IN_0(bi) do {                                   \
+                if (bi + out_b < BATCH_SIZE) {                       \
                     in_0[bi] = INPUT_BLOCK_READ(input, input_offset);\
-                } else {                                            \
-                    in_0[bi] = 0;                      \
-                }                                                   \
-                input_offset += TILE_IN_B_PITCH;                    \
+                } else {                                             \
+                    in_0[bi] = 0;                                    \
+                }                                                    \
+                input_offset += TILE_IN_B_PITCH;                     \
             } while (false)
         #else
-        #define LOAD_IN_0(bi) do {                                  \
-                in_0[bi] = INPUT_BLOCK_READ(input, input_offset);   \
-                input_offset += TILE_IN_B_PITCH;                    \
+        #define LOAD_IN_0(bi) do {                                   \
+                in_0[bi] = INPUT_BLOCK_READ(input, input_offset);    \
+                input_offset += TILE_IN_B_PITCH;                     \
             } while (false)
         #endif
 

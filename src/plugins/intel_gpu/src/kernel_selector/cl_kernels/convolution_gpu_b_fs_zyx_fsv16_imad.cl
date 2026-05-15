@@ -327,7 +327,7 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                                                 if (input_on_padding) {
                                                     input_int8_arr[v] = input_zp_int8_arr[v];
                                                 } else {
-                                                #endif
+                                            #endif
                                                     if (v + in_f_offset < FSV) {
                                                         input_int8_arr[v] = conv_input[input_idx + tmp * FSV + v];
                                                     } else {
