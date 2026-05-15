@@ -479,3 +479,110 @@ static void test_depth_to_space_fp16_input_fp32_output(bool is_caching_test) {
 TEST(depth_to_space_gpu, fp16_input_fp32_output) {
     test_depth_to_space_fp16_input_fp32_output(false);
 }
+
+// Verify that depth_to_space output preserves 4D rank when followed by a
+// rank-changing reorder (bfyx -> bfzyx).  The rank-changing reorder must NOT
+// be fused into depth_to_space; instead it should remain as a separate
+// (possibly optimized) node so that the kernel sees matching input/output dims.
+TEST(depth_to_space_fp32_gpu, d1811_bs2_no_rank_changing_fusion) {
+    //  Input  : 1x8x1x1  (4D, bfyx)
+    //  Block size : 2
+    //  Output : 1x2x2x2  (4D, bfyx) -> reorder to bfzyx (5D)
+    //
+    //  With optimize_data enabled, the graph optimizer should NOT fuse the
+    //  bfyx->bfzyx reorder into depth_to_space because that would change
+    //  the output rank of a rank-preserving operation.
+
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 8, 1, 1 } });
+    size_t block_size = 2;
+
+    // blocks_first: feature 0..7 -> spatially rearranged
+    set_values(input, { 0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f });
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(depth_to_space("depth_to_space", input_info("input"), block_size, depth_to_space_mode::blocks_first));
+    // Rank-changing reorder: 4D bfyx -> 5D bfzyx
+    topology.add(reorder("reorder_bfzyx", input_info("depth_to_space"), format::bfzyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    auto output = outputs.at("reorder_bfzyx").get_memory();
+    auto out_layout = output->get_layout();
+
+    // Output should be 5D bfzyx
+    ASSERT_EQ(out_layout.format, format::bfzyx);
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    std::vector<float> expected = { 0.f, 2.f, 4.f, 6.f, 1.f, 3.f, 5.f, 7.f };
+
+    for (size_t i = 0; i < expected.size(); ++i) {
+        ASSERT_FLOAT_EQ(expected[i], output_ptr[i]) << "i=" << i;
+    }
+}
+
+TEST(depth_to_space_fp16_gpu, d8_12_576x672_bs2_with_eltwise_and_bfzyx_reshape) {
+    auto& engine = get_test_engine();
+
+    // Use small spatial dims to keep memory manageable in unit tests,
+    // but preserve the essential structure: 4D b_fs_yx_fsv16 input, eltwise
+    // fused, followed by reshape requiring 5D.
+    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 1, 12, 4, 4 } });
+    auto eltw_data = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 1, 3, 8, 8 } });
+
+    size_t block_size = 2;
+
+    // Fill with sequential values
+    std::vector<ov::float16> input_vals(1 * 12 * 4 * 4);
+    for (size_t i = 0; i < input_vals.size(); ++i)
+        input_vals[i] = ov::float16(static_cast<float>(i));
+    set_values(input, input_vals);
+
+    std::vector<ov::float16> eltw_vals(1 * 3 * 8 * 8);
+    for (size_t i = 0; i < eltw_vals.size(); ++i)
+        eltw_vals[i] = ov::float16(1.0f);
+    set_values(eltw_data, eltw_vals);
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(data("eltw_data", eltw_data));
+    // Reorder to b_fs_yx_fsv16 to match the production scenario
+    topology.add(reorder("reorder_fsv16", input_info("input"), format::b_fs_yx_fsv16, data_types::f16));
+    topology.add(depth_to_space("depth_to_space", input_info("reorder_fsv16"), block_size, depth_to_space_mode::blocks_first));
+    // Eltwise add (this gets fused into depth_to_space)
+    topology.add(eltwise("add", { input_info("depth_to_space"), input_info("eltw_data") }, eltwise_mode::sum));
+    // Reorder to bfzyx (rank-changing) - must NOT be fused into depth_to_space
+    topology.add(reorder("reorder_bfzyx", input_info("add"), format::bfzyx, data_types::f16));
+    // Final reorder back to bfyx for easy verification
+    topology.add(reorder("output", input_info("reorder_bfzyx"), format::bfyx, data_types::f16));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    // The key assertion: this must not crash during kernel compilation.
+    // Previously clBuildProgram would fail because of INPUT0_GET_INDEX
+    // macro argument mismatch when the reorder was fused.
+    ASSERT_NO_THROW({
+        network network(engine, topology, config);
+        network.set_input_data("input", input);
+        auto outputs = network.execute();
+        auto output = outputs.at("output").get_memory();
+
+        // Verify output is valid (non-zero, correct shape)
+        auto out_layout = output->get_layout();
+        ASSERT_EQ(out_layout.format, format::bfyx);
+
+        cldnn::mem_lock<ov::float16> output_ptr(output, get_test_stream());
+        // depth_to_space output: 1x3x8x8, eltwise adds 1.0 to each element
+        // Check a few samples are within reasonable range
+        ASSERT_GT(static_cast<float>(output_ptr[0]), -1000.f);
+        ASSERT_LT(static_cast<float>(output_ptr[0]), 1000.f);
+    });
+}

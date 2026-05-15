@@ -13,6 +13,10 @@ product better.
 
 ## Forms of contribution
 
+See also: [AI Usage Policy](./AI_USAGE_POLICY.md).
+If you use AI assistance for any contribution activity (code, docs, issues,
+discussions, or PR communication), read and follow this policy.
+
 ### Provide Feedback
 
    * **Report bugs / issues**
@@ -52,7 +56,7 @@ product better.
      Since the market of computing devices is constantly evolving, OpenVINO is always open to extending
      its support for new hardware. If you want to run inference on a device that is currently not supported,
      you can see how to develop a new plugin for it in the
-     [Plugin Developer Guide](https://docs.openvino.ai/2025/documentation/openvino-extensibility/openvino-plugin-library.html).
+     [Plugin Developer Guide](https://docs.openvino.ai/2026/documentation/openvino-extensibility/openvino-plugin-library.html).
 
 
 ### Improve documentation

@@ -6,6 +6,7 @@
 
 #include <functional>
 #include <pugixml.hpp>
+#include <string_view>
 
 #include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/except.hpp"
@@ -707,9 +708,7 @@ void XmlSerializer::on_adapter(const std::string& name, ov::ValueAccessor<void>&
         if (name == "value" && translate_type_name(m_node_type_name) == "Const") {
             auto a1 = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>>(&adapter);
             auto a2 = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::SharedStringAlignedBuffer>>>(&adapter);
-            size_t new_size = 0;
-            size_t inter_size = 0;
-            // write a header of packed string tensor
+
             std::shared_ptr<uint8_t> header_ptr = nullptr;
             size_t header_size = 0;
             if (a1) {
@@ -718,22 +717,16 @@ void XmlSerializer::on_adapter(const std::string& name, ov::ValueAccessor<void>&
                 a2->get_header(header_ptr, header_size);
             }
 
-            int64_t offset = get_constant_write_handler().write(
-                reinterpret_cast<const char*>(header_ptr.get()),
-                header_size,
-                inter_size,
-                m_compress_to_fp16,
-                m_output_element_type,
-                true);  // header_ptr is allocated in AttributeAdapter that has limited life time
-            new_size += inter_size;
-
-            // write raw strings part
             size_t num_elements = 0;
             if (a1) {
                 num_elements = a1->get()->get_num_elements();
             } else {
                 num_elements = a2->get()->get_num_elements();
             }
+
+            std::vector<std::string_view> chunks;
+            chunks.reserve(1 + num_elements);
+            chunks.emplace_back(reinterpret_cast<const char*>(header_ptr.get()), header_size);
             for (size_t ind = 0; ind < num_elements; ++ind) {
                 const char* raw_string_ptr;
                 size_t raw_string_size;
@@ -742,16 +735,12 @@ void XmlSerializer::on_adapter(const std::string& name, ov::ValueAccessor<void>&
                 } else {
                     a2->get_raw_string_by_index(raw_string_ptr, raw_string_size, ind);
                 }
-
-                get_constant_write_handler().write(raw_string_ptr,
-                                                   raw_string_size,
-                                                   inter_size,
-                                                   m_compress_to_fp16,
-                                                   m_output_element_type,
-                                                   m_data_is_temporary);
-
-                new_size += inter_size;
+                chunks.emplace_back(raw_string_ptr, raw_string_size);
             }
+
+            size_t new_size = 0;
+            const auto offset = get_constant_write_handler().write(chunks, new_size);
+
             m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
             m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
         }

@@ -30,7 +30,6 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(precision_f32(6)),
                        ::testing::Values(ov::element::f32),
                        ::testing::Values(false),  // Need to support True for graph builder in tests
-                       ::testing::Values(MHA::default_thread_count),
                        ::testing::Values(expected_nodes_mha_select),
                        ::testing::Values(3),  // Transpose1 + Less + MHA
                        ::testing::Values(ov::test::utils::DEVICE_CPU),

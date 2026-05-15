@@ -1,0 +1,89 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include <memory>
+#include <optional>
+#include <utility>
+#include <vector>
+
+#include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/shape.hpp"
+
+namespace ov {
+namespace test {
+
+struct MoePatternParams {
+    ov::PartialShape data_shape;
+    size_t topk;
+    size_t number_of_experts;
+    size_t intermediate_size;
+};
+
+enum class MoERoutingType {
+    SOFTMAX,       ///< Softmax -> TopK -> normalize routing
+    SIGMOID_BIAS,  ///< Sigmoid -> Add(bias) -> TopK routing
+};
+
+enum class MoEActivationType {
+    SWISH,     ///< Swish gate activation (SwiGLU)
+    GELU,      ///< Gelu gate activation with Tanh approximation (GeGLU-Tanh)
+    GELU_ERF,  ///< Gelu gate activation with ERF (exact) formula (GeGLU-ERF)
+};
+
+/// Softmax branch:
+///   routing_weights -> Softmax -> TopK -> ReduceSum -> Divide (norm)
+///   [-> Multiply(norm, Gather(per_expert_scale, topk_idx))  when use_per_expert_scale=true]
+///   -> ScatterElementsUpdate -> Transpose -> Reshape -> Unsqueeze
+std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> build_softmax_routing_subgraph(
+    const ov::Output<ov::Node>& routing_weights,
+    size_t number_of_experts,
+    size_t topk,
+    bool use_per_expert_scale = false);
+
+/// Sigmoid+bias branch:
+///   routing_weights -> Sigmoid -> Add(bias) -> TopK -> Convert(i32)
+///   -> GatherElements -> normalize -> ScatterElementsUpdate -> Transpose -> Reshape -> Unsqueeze
+std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> build_sigmoid_bias_routing_subgraph(
+    const ov::Output<ov::Node>& routing_weights,
+    ov::element::Type data_precision,
+    size_t number_of_experts,
+    size_t topk);
+
+// gate_idx: 0 = gate (swish) at even positions (real gpt-oss), 1 = at odd positions.
+std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(
+    const MoePatternParams& moe_params,
+    const ov::element::Type data_precision,
+    const ov::element::Type weights_precision,
+    const bool use_weight_decompression = false,
+    const std::optional<ov::element::Type> decompression_precision = std::nullopt,
+    const std::optional<ov::element::Type> scale_precision = std::nullopt,
+    const std::optional<ov::test::utils::DecompressionType> decompression_multiply_type = std::nullopt,
+    const std::optional<ov::test::utils::DecompressionType> decompression_subtract_type = std::nullopt,
+    const std::optional<bool> reshape_on_decompression = std::nullopt,
+    const std::optional<int> decompression_group_size = std::nullopt,
+    size_t gate_idx = 0);
+
+std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
+    const MoePatternParams& moe_params,
+    const ov::element::Type data_precision,
+    const ov::element::Type weights_precision,
+    const bool use_weight_decompression = false,
+    const std::optional<ov::element::Type> decompression_precision = std::nullopt,
+    const std::optional<ov::element::Type> scale_precision = std::nullopt,
+    const std::optional<ov::test::utils::DecompressionType> decompression_multiply_type = std::nullopt,
+    const std::optional<ov::test::utils::DecompressionType> decompression_subtract_type = std::nullopt,
+    const std::optional<bool> reshape_on_decompression = std::nullopt,
+    const std::optional<int> decompression_group_size = std::nullopt,
+    MoERoutingType routing_type = MoERoutingType::SOFTMAX,
+    MoEActivationType activation_type = MoEActivationType::SWISH,
+    bool use_per_expert_scale = false,
+    bool use_layernorm_multiply = false);
+
+}  // namespace test
+}  // namespace ov

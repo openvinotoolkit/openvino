@@ -1,4 +1,3 @@
-//
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -108,6 +107,8 @@ struct ONNXRTParams {
     using EP = std::variant<std::monostate, OpenVINO>;
     std::optional<int> opt_level;
     EP ep;
+
+    LayerVariantAttr<std::vector<size_t>> reshape;
 };
 
 using InferenceParams = std::variant<std::monostate, OpenVINOParams, ONNXRTParams>;

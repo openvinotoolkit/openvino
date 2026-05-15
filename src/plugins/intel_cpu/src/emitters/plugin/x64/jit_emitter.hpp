@@ -23,6 +23,7 @@
 #include "snippets/emitter.hpp"
 
 #ifdef SNIPPETS_DEBUG_CAPS
+#    include "emitters/snippets/common/jit_debug_emitter_base.hpp"
 #    include "emitters/snippets/x64/verbose.hpp"
 #endif
 
@@ -173,6 +174,10 @@ protected:
 
 #ifdef SNIPPETS_DEBUG_CAPS
     mutable jit_emitter_info_t info_;
+    template <typename>
+    friend class jit_debug_emitter_base_common;
+    template <typename>
+    friend class jit_debug_emitter_base;
     friend class jit_debug_emitter;
 #endif
 

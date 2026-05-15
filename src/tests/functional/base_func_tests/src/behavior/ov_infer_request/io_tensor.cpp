@@ -528,6 +528,9 @@ TEST_P(OVInferRequestCheckTensorPrecision, getOutputsFromSplitFunctionWithSevera
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
 }
 
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVInferRequestIOTensorSetPrecisionTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVInferRequestIOTensorTest);
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov

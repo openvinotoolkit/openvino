@@ -8,6 +8,7 @@ import tempfile
 
 import pytest
 import torch
+from openvino import PartialShape
 
 from torch_utils import TestTorchConvertModel
 
@@ -29,14 +30,32 @@ class TestLightGlueModel(TestTorchConvertModel):
 
         m = LightGlue(extractor_type)
 
-        def get_example():
-            dummy_kpts0 = torch.randn(size=[1, 1580, 2], dtype=torch.float32)
-            dummy_kpts1 = torch.randn(size=[1, 3401, 2], dtype=torch.float32)
-            dummy_desc0 = torch.randn(size=[1, 1580, 256], dtype=torch.float32)
-            dummy_desc1 = torch.randn(size=[1, 3401, 256], dtype=torch.float32)
-            return (dummy_kpts0, dummy_kpts1, dummy_desc0, dummy_desc1)
-        self.example = get_example()
-        self.inputs = get_example()
+        self.example = (
+            torch.randn(size=[1, 1580, 2], dtype=torch.float32),
+            torch.randn(size=[1, 3401, 2], dtype=torch.float32),
+            torch.randn(size=[1, 1580, 256], dtype=torch.float32),
+            torch.randn(size=[1, 3401, 256], dtype=torch.float32),
+        )
+        if getattr(self, "mode", None) == "export":
+            self.dynamo_input = (
+                PartialShape([1, -1, 2]),
+                PartialShape([1, -1, 2]),
+                PartialShape([1, -1, 256]),
+                PartialShape([1, -1, 256]),
+            )
+            self.inputs = (
+                torch.randn(size=[1, 1200, 2], dtype=torch.float32),
+                torch.randn(size=[1, 2800, 2], dtype=torch.float32),
+                torch.randn(size=[1, 1200, 256], dtype=torch.float32),
+                torch.randn(size=[1, 2800, 256], dtype=torch.float32),
+            )
+        else:
+            self.inputs = (
+                torch.randn(size=[1, 1580, 2], dtype=torch.float32),
+                torch.randn(size=[1, 3401, 2], dtype=torch.float32),
+                torch.randn(size=[1, 1580, 256], dtype=torch.float32),
+                torch.randn(size=[1, 3401, 256], dtype=torch.float32),
+            )
         return m
 
     def teardown_class(self):
@@ -45,4 +64,9 @@ class TestLightGlueModel(TestTorchConvertModel):
 
     @pytest.mark.nightly
     def test_convert_model(self, ie_device):
+        self.run("lightglue", "superpoint", ie_device)
+
+    @pytest.mark.nightly
+    def test_convert_model_export(self, ie_device):
+        self.mode = "export"
         self.run("lightglue", "superpoint", ie_device)

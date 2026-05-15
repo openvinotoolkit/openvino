@@ -76,7 +76,7 @@ ParamsKey ResampleKernelOnnx::GetSupportedKey() const {
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
-    k.EnableReampleType(ResampleType::LINEAR_ONNX);
+    k.EnableResampleType(ResampleType::LINEAR_ONNX);
     return k;
 }
 

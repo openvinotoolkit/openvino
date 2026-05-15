@@ -39,11 +39,24 @@ const std::vector<std::vector<InputShape>> inputShapes = {
     },
 };
 
+// @todo claude: enable asymmetric K/V cache precision combinations in a separate PR;
+// for now restrict to symmetric pairs so the SDPA assertion at scaled_attn.cpp:1823 holds.
 INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTest,
         ConcatSDPTest,
         ::testing::Combine(::testing::Values(ElementType::f32),
                            ::testing::ValuesIn(inputShapes),
+                           ::testing::Values("none"),
+                           ::testing::Values("none"),
                            ::testing::Values(true, false),
+                           ::testing::Values(true, false)),
+        ConcatSDPTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTest_U8,
+        ConcatSDPTest,
+        ::testing::Combine(::testing::Values(ElementType::f32),
+                           ::testing::ValuesIn(inputShapes),
+                           ::testing::Values("u8"),
+                           ::testing::Values("u8"),
                            ::testing::Values(true, false),
                            ::testing::Values(true, false)),
         ConcatSDPTest::getTestCaseName);

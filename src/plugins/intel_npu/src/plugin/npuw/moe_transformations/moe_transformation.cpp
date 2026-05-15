@@ -1,5 +1,6 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #include "moe_transformation.hpp"
 
@@ -700,8 +701,8 @@ void MoEModelTransformer::fix_token_count_for_expert_iterative(
     LOG_DEBUG("Fixing token count from " << m_structure_info.input_token_count << " to " << chunk_size
                                          << " for EXPERT_ITERATIVE mode...");
 
-    if (!expert_input_tile_op) {
-        LOG_WARN("Tile node not available for token count fixing");
+    if (!expert_input_tile_op || !router_scores_multiply_op) {
+        LOG_WARN("Skipping token count fix - required nodes not found");
         return;
     }
 
@@ -842,6 +843,11 @@ std::shared_ptr<ov::Model> MoEModelTransformer::apply_expert_transformation(
     }
     auto expert_input_tile_op = key_nodes->tile_node;
     auto router_scores_multiply_op = key_nodes->multiply_node;
+
+    // Additional safety check for Coverity
+    if (!expert_input_tile_op || !router_scores_multiply_op) {
+        return nullptr;
+    }
 
     // Main transformation flow
     auto tile_input = expert_input_tile_op->input_value(0);

@@ -105,7 +105,7 @@ The next extension types are supported:
 TensorFlow conversion into the OpenVINO opset operation requires one pass or two passes:
 * One pass using [Loaders](../tensorflow_common/src/op/) directly transforms TF operation into a sub-graph of OpenVINO opset.
 * Two passes consist of [Loaders](../tensorflow_common/src/op/) and [Internal Transformations](../tensorflow_common/include/helper_transforms),
-where the first pass transforms a TF operation into a sub-graph with [Internal Operations](../tensorflow_common/include/src/helper_ops),
+where the first pass transforms a TF operation into a sub-graph with [Internal Operations](../tensorflow_common/include/helper_ops),
 and the second pass avoids internal operations. Two transformation passes are used when a TensorFlow operation
 cannot be mapped into a sub-graph of the OpenVINO opset, and the conversion depends on the succeeding operations in the graph.
 
@@ -138,16 +138,16 @@ The main rules for loaders implementation:
 ### Two transformation passes using Loader and Internal Transformation
 
 In rare cases, TensorFlow operation conversion requires two transformations (`Loader` and `Internal Transformation`).
-In the first step, `Loader` must convert a TF operation into [Internal Operation](../tensorflow_common/helper_ops) that is used temporarily by the conversion pipeline.
-The internal operation implementation must also contain the `validate_and_infer_types()` method as similar to [OpenVINO Core](https://docs.openvino.ai/2025/api/c_cpp_api/group__ov__ops__cpp__api.html) operations.
+In the first step, `Loader` must convert a TF operation into [Internal Operation](../tensorflow_common/include/helper_ops) that is used temporarily by the conversion pipeline.
+The internal operation implementation must also contain the `validate_and_infer_types()` method as similar to [OpenVINO Core](https://docs.openvino.ai/2026/api/c_cpp_api/group__ov__ops__cpp__api.html) operations.
 
 Here is an example of an implementation for the internal operation `SparseSegmentOps`:
 
 https://github.com/openvinotoolkit/openvino/blob/994ac20d7fd7fc3ec415dbfa5f0bf6ad886a8162/src/frontends/tensorflow_common/include/helper_ops/sparse_segment_ops.hpp#L32-L67
 
 In the second step, `Internal Transformation` based on `ov::pass::MatcherPass` must convert sub-graphs with internal operations into sub-graphs consisting only of the OpenVINO opset.
-For more information about `ov::pass::MatcherPass` based transformations and their development, read [Overview of Transformations API](https://docs.openvino.ai/2025/documentation/openvino-extensibility/transformation-api.html)
-and [OpenVINO Matcher Pass](https://docs.openvino.ai/2025/documentation/openvino-extensibility/transformation-api/matcher-pass.html) documentation.
+For more information about `ov::pass::MatcherPass` based transformations and their development, read [Overview of Transformations API](https://docs.openvino.ai/2026/documentation/openvino-extensibility/transformation-api.html)
+and [OpenVINO Matcher Pass](https://docs.openvino.ai/2026/documentation/openvino-extensibility/transformation-api/matcher-pass.html) documentation.
 The internal transformation must be called in the `ov::frontend::tensorflow::FrontEnd::normalize()` method.
 It is important to check the order of applying internal transformations to avoid situations when some internal operation
 breaks a graph pattern with an internal operation for another internal transformation.

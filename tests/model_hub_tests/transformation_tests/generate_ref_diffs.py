@@ -116,7 +116,7 @@ def main():
 
             # wrapping in try/catch block to continue printing models even if one has failed
             try:
-                paged_attention_transformation(ov_model, use_block_indices_inputs=use_optimizations, use_score_outputs=use_optimizations, allow_score_aggregation=use_optimizations, allow_cache_rotation=use_optimizations, allow_xattention=use_optimizations, allow_adaptive_rkv=use_optimizations)
+                paged_attention_transformation(ov_model, use_block_indices_inputs=use_optimizations, use_score_outputs=use_optimizations, allow_score_aggregation=use_optimizations, allow_cache_rotation=use_optimizations, allow_xattention=use_optimizations, allow_adaptive_rkv=use_optimizations, allow_qq_bias=use_optimizations)
             except:
                 print(f"Couldn't run SDPAToPA transformation on {model_id} and generate diffs.")
                 continue

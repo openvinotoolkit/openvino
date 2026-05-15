@@ -164,6 +164,10 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #ifdef HAS_SINK_INPUT
         const global SINK_DATA_T *sink_ptr,
 #endif
+#if HAS_QQ_BIAS
+        const global QQ_BIAS_DATA_T *qq_bias,
+        const global QQ_BIAS_BEGINS_DATA_T *qq_bias_begins,
+#endif
 #if IS_PAGED_ATTENTION
         const __global int* blocked_indexes_start_and_gws_mapping
 #else
@@ -184,10 +188,16 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     const uint subsequence_end = subsequence_begins[gws_mapping + 1];
     const uint subsequence_query_block_idx = block_start_pos - subsequence_begin;
     int q = subsequence_end - subsequence_begin;
+    #if HAS_QQ_BIAS
+        const uint qq_bias_num = qq_bias_begins[gws_mapping + 1] - qq_bias_begins[gws_mapping];
+        const uint cumulated_spec_num = qq_bias_begins[gws_mapping];
+    #endif
 #if IS_PREFILL
+    const int past_len = 0;
     const int k = q;
 #else
-    const int k = q + past_lens[gws_mapping];
+    const int past_len = past_lens[gws_mapping];
+    const int k = q + past_len;
 #endif
     const int d = HEAD_SIZE;
 #if IS_GQA_SINGLE_TOKEN
@@ -221,17 +231,34 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         uint ldk = HEAD_SIZE * KV_HEADS_NUM + INPUT1_PAD_BEFORE_FEATURE_NUM + INPUT1_PAD_AFTER_FEATURE_NUM;
         uint ldv = HEAD_SIZE * KV_HEADS_NUM + INPUT2_PAD_BEFORE_FEATURE_NUM + INPUT2_PAD_AFTER_FEATURE_NUM;
     #else
+        #if IS_INT4_KV_CACHE
+        // INT4 K BY_CHANNEL Layout::N: ldk = column stride in u4 elements.
+        // ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE is in bytes (packed_block + scale = 12).
+        // Multiply by 2 for u4: 12 * 2 = 24 u4 elements → 12 byte stride.
+        uint ldk = ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE * 2;
+        // INT4 V per-token Layout::N: ldv = row stride in u4 elements.
+        // ADJUSTED_V_HEAD_SIZE is in bytes (packed_head + scale = 68).
+        // Multiply by 2 for u4: 68 * 2 = 136 u4 elements → 68 byte stride.
+        uint ldv = ADJUSTED_V_HEAD_SIZE * 2;
+        #else
         uint ldk = ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
         uint ldv = HEAD_SIZE;
+        #endif
         uint ldkc = HEAD_SIZE * KV_HEADS_NUM + INPUT1_PAD_BEFORE_FEATURE_NUM + INPUT1_PAD_AFTER_FEATURE_NUM;
         uint ldvc = HEAD_SIZE * KV_HEADS_NUM + INPUT2_PAD_BEFORE_FEATURE_NUM + INPUT2_PAD_AFTER_FEATURE_NUM;
         #if IS_KV_COMPRESSED_PA
-            #if IS_KEY_BY_CHANNEL
+            #if IS_INT4_KV_CACHE
+                // INT4 K BY_CHANNEL: scale stride = ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE bytes / 2 in f16 elements
                 uint ldkq = ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE / 2;
+                // INT4 V per-token: scale stride = ADJUSTED_V_HEAD_SIZE bytes / 2 in f16 elements
+                uint ldvq = ADJUSTED_V_HEAD_SIZE / 2;
+            #elif IS_KEY_BY_CHANNEL
+                uint ldkq = ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE / 2;
+                uint ldvq = 1;
             #else
                 uint ldkq = 1;
+                uint ldvq = 1;
             #endif
-            uint ldvq = 1;
         #endif
     #endif
 #else
@@ -281,9 +308,9 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     /* Locate K/Q/V/A matrices within batch */
 #if IS_PAGED_ATTENTION
     #if IS_GQA_SINGLE_TOKEN
-        Q += subsequence_begin * ldq
+        Q += subsequence_begin * ldq * HEADS_NUM * KV_GROUP_SIZE
            + b0 * HEAD_SIZE * KV_GROUP_SIZE + INPUT0_PAD_BEFORE_FEATURE_NUM;
-        A += subsequence_begin * lda
+        A += subsequence_begin * lda * HEADS_NUM * KV_GROUP_SIZE
            + b0 * HEAD_SIZE * KV_GROUP_SIZE;
     #else
         Q += subsequence_begin * ldq
@@ -513,10 +540,22 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         for (;k0 < past_lens[gws_mapping];) {
     #endif
             int k_block_num = k0 / PAGED_ATTENTION_BLOCK_SIZE + sg_i_kq;
-            global KEY_DATA_T *K0 = K + KV_HEADS_NUM * ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE * block_indices[base_block_index + k_block_num]
-                                - PAGED_ATTENTION_BLOCK_SIZE * sg_i_kq;
+            #if IS_INT4_KV_CACHE
+                // INT4 BY_CHANNEL Layout::N: micro-kernel adds sg_i_kq * tile_sg_m * sizeof(u4)
+                // = sg_i_kq * PAGED_ATTENTION_BLOCK_SIZE / 2 bytes
+                global KEY_DATA_T *K0 = K + KV_HEADS_NUM * ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE * block_indices[base_block_index + k_block_num]
+                                        - (uint)(PAGED_ATTENTION_BLOCK_SIZE / 2) * sg_i_kq;
+            #else
+                global KEY_DATA_T *K0 = K + KV_HEADS_NUM * ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE * block_indices[base_block_index + k_block_num]
+                                        - PAGED_ATTENTION_BLOCK_SIZE * sg_i_kq;
+            #endif
             #if IS_KV_COMPRESSED_PA
-                #if IS_KEY_BY_CHANNEL
+                #if IS_INT4_KV_CACHE
+                    // INT4 BY_CHANNEL: scales at packed_block_size offset within each column
+                    // packed_block_size = PAGED_ATTENTION_BLOCK_SIZE / 2 = 8 bytes
+                    global KEY_DATA_T *K0_scales = K0 + (PAGED_ATTENTION_BLOCK_SIZE / 2) * (sg_i_kq + 1);
+                    global KEY_DATA_T *K0_zp = K0_scales + 2;
+                #elif IS_KEY_BY_CHANNEL
                     global KEY_DATA_T *K0_scales = K0 + PAGED_ATTENTION_BLOCK_SIZE * (sg_i_kq + 1);
                     global KEY_DATA_T *K0_zp = K0_scales + 2;
                 #else
@@ -618,6 +657,36 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
                 greater_than, -FLT_MAX, SUBGROUP_SIZE, ugemm_kq_c_type_block0,
                 ugemm_kq_c_type_block1, ugemm_kq_c_type_nblock0,
                 ugemm_kq_c_type_nblock1);
+#endif
+
+#if HAS_QQ_BIAS && IS_PAGED_ATTENTION && (IS_PREFILL == 0)
+        // Apply speculative tree mask (QQ_BIAS) for key tokens that belong to the "new" part of K.
+        // qq_bias is interpreted as [subsequence, QQ_BIAS_NUM (query_spec), QQ_BIAS_NUM (key_spec)].
+        // - query_spec is the query index within the current subsequence (new tokens).
+        // - key_spec is the key index within the new tokens region: (key_idx - past_len).
+        const uint spec_num = (uint)native_sqrt((float)qq_bias_num);
+        const int query_base_local = (int)(wg_j0 + sg_j0_kq);
+        for (int j = 0; j < ugemm_kq_c_type_block1 * ugemm_kq_c_type_nblock1; j++) {
+            const int key_idx = k0 + sg_i0_kq + j;
+            if (key_idx < past_len)
+                    continue;
+
+            const int key_spec = key_idx - past_len;
+            if (qq_bias_num <= 0 || key_spec < 0 || key_spec >= qq_bias_num)
+                    continue;
+
+            for (int i0 = 0; i0 < ugemm_kq_c_type_block0 * ugemm_kq_c_type_nblock0; i0 += SUBGROUP_SIZE) {
+                const int i = i0 + get_sub_group_local_id();
+                const int query_spec = query_base_local + i;
+                if (query_spec < 0 || query_spec >= qq_bias_num)
+                    continue;
+                const uint qq_off = cumulated_spec_num + (query_spec - subsequence_begin) * spec_num + key_spec;
+                if (qq_bias[qq_off] == (QQ_BIAS_DATA_T)0) {
+                    tile_access(S_tile, i0, j, SUBGROUP_SIZE, ugemm_kq_c_type_block0,
+                                ugemm_kq_c_type_block1, ugemm_kq_c_type_nblock0) = -FLT_MAX;
+                }
+            }
+        }
 #endif
 
         /* Before softmax, we will need to scale columns by maximum values to avoid overflow. */
@@ -865,8 +934,14 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             global VAL_DATA_T *Vb0 = V + KV_HEADS_NUM * ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE * block_indices[base_block_index + v_block_num];
             int kb_chunk = min(k - k0 - kb0, PAGED_ATTENTION_BLOCK_SIZE);
             #if IS_KV_COMPRESSED_PA
+                #if IS_INT4_KV_CACHE
+                // INT4: scales embedded at HEAD_SIZE/2 offset within each token row
+                global VAL_DATA_T *Vb0_scales = Vb0 + HEAD_SIZE / 2;
+                global VAL_DATA_T *Vb0_zp = Vb0_scales + 2;
+                #else
                 global VAL_DATA_T *Vb0_scales = Vb0 + HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
                 global VAL_DATA_T *Vb0_zp = Vb0_scales + PAGED_ATTENTION_BLOCK_SIZE * 2;
+                #endif
             #endif
 
             a_tile_type A_tile1 = ugemm_vs(

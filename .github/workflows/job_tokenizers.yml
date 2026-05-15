@@ -57,7 +57,7 @@ jobs:
 
     steps:
       - name: checkout actions
-        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           sparse-checkout: |
@@ -67,7 +67,7 @@ jobs:
           submodules: 'false'
 
       - name: Clone OpenVINO Tokenizers
-        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           repository: 'openvinotoolkit/openvino_tokenizers'
@@ -87,7 +87,7 @@ jobs:
           self-hosted-runner: ${{ runner.os != 'macOS' }}
 
       - name: Download OpenVINO artifacts (wheels)
-        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
           name: openvino_wheels
           path: ${{ env.INSTALL_WHEELS_DIR }}

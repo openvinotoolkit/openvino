@@ -24,11 +24,14 @@ namespace opp = ov::pass::pattern;
 
 SDPA::SDPA(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag) {
     auto past_k_in = opp::wrap_type<ov::op::v0::Parameter>();
-    auto past_k_cvt = opp::optional<ov::op::v0::Convert>({past_k_in->output(0)});
+    // Optional beam-search gather: Parameter → Gather(beam_idx) → ... (stateless LLM models)
+    auto past_k_gather = opp::optional<ov::op::v8::Gather>({past_k_in->output(0), opp::any_input(), opp::any_input()});
+    auto past_k_cvt = opp::optional<ov::op::v0::Convert>({past_k_gather->output(0)});
     auto past_k_cat = opp::wrap_type<ov::op::v0::Concat>({past_k_cvt, opp::any_input()});
 
     auto past_v_in = opp::wrap_type<ov::op::v0::Parameter>();
-    auto past_v_cvt = opp::optional<ov::op::v0::Convert>({past_v_in->output(0)});
+    auto past_v_gather = opp::optional<ov::op::v8::Gather>({past_v_in->output(0), opp::any_input(), opp::any_input()});
+    auto past_v_cvt = opp::optional<ov::op::v0::Convert>({past_v_gather->output(0)});
     auto past_v_cat = opp::wrap_type<ov::op::v0::Concat>({past_v_cvt, opp::any_input()});
 
     // Optional part, probably one of many. Replace by graph traversal!
@@ -51,9 +54,11 @@ SDPA::SDPA(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const st
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
         auto pattern_nodes = std::vector<std::shared_ptr<ov::Node>>{past_k_in,
+                                                                    past_k_gather,
                                                                     past_k_cvt,
                                                                     past_k_cat,
                                                                     past_v_in,
+                                                                    past_v_gather,
                                                                     past_v_cvt,
                                                                     past_v_cat,
                                                                     opt_unsq_k,
@@ -200,6 +205,11 @@ AttentionBroadcast::AttentionBroadcast() {
     // Note: Use [=] to make sure the above objects stay alive in the callback
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
+        auto matched_gather_out = node_to_output.at(gather);
+        if (matched_gather_out.get_target_inputs().size() > 1) {
+            // This pattern is for the Gather that feeds a single Concat.
+            return false;
+        }
         auto matched_concat_out = node_to_output.at(concat);
         auto& matched_concat_tensor = matched_concat_out.get_tensor();
         if (matched_concat_tensor.has_and_set_bound()) {
@@ -251,6 +261,49 @@ AttentionBroadcast2::AttentionBroadcast2() {
     register_matcher(std::make_shared<opp::Matcher>(bcast_kv, "AttentionBroadcast2"), std::move(callback));
 }
 
+// FIXME: Same as AttentionBroadcast but Gather connects to multiple Concats
+AttentionBroadcast3::AttentionBroadcast3() {
+    // NB(dm): We've seen cases where this dynamic subgraph is placed on the K-path,
+    // but I'd expect it could be on the V-path as well - so _kv in the name
+    auto past_kv_in = opp::wrap_type<ov::op::v0::Parameter>();
+    auto past_kv_cvt = opp::optional<ov::op::v0::Convert>({past_kv_in->output(0)});
+    auto past_kv_cat = opp::wrap_type<ov::op::v0::Concat>({past_kv_cvt, opp::any_input()});
+
+    // The dynamic shape calculation to be eliminated
+    // NB: It only works in static shape graphs
+    auto shape_of = opp::wrap_type<ov::op::v3::ShapeOf>({past_kv_cat});
+    auto gather = opp::wrap_type<ov::op::v8::Gather>({shape_of, opp::any_input(), opp::any_input()});
+    auto concat = opp::wrap_type<ov::op::v0::Concat>({gather, opp::any_input(), opp::any_input(), opp::any_input()});
+
+    // Broadcast - the consumer
+    auto unsq_kv = opp::wrap_type<ov::op::v0::Unsqueeze>({past_kv_cat, opp::any_input()});
+    auto bcast_kv = opp::wrap_type<ov::op::v3::Broadcast>({unsq_kv, concat});
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+        auto matched_gather_out = node_to_output.at(gather);
+        if (matched_gather_out.get_target_inputs().size() == 1) {
+            // This pattern only for the Gather feeding multiple Concats.
+            return false;
+        }
+        auto& matched_gather_tensor = matched_gather_out.get_tensor();
+        if (matched_gather_tensor.has_and_set_bound()) {
+            // Replace the dynamic shape calculation with a static constant
+            // This is bad but it in the current realm it is what it is
+            auto new_const = std::make_shared<ov::op::v0::Constant>(matched_gather_tensor.get_upper_value());
+            new_const->set_friendly_name("NPUW/Precalculated/" +
+                                         matched_gather_out.get_node_shared_ptr()->get_friendly_name());
+            for (auto&& input : matched_gather_out.get_target_inputs()) {
+                input.replace_source_output(new_const);
+            }
+            return true;  // root changed
+        }
+        return false;  // root hasn't changed
+    };
+    register_matcher(std::make_shared<opp::Matcher>(bcast_kv, "AttentionBroadcast3"), std::move(callback));
+}
+
 ShapeOfParameter::ShapeOfParameter() {
     auto param_in = opp::wrap_type<ov::op::v0::Parameter>();
     auto param_cvt = opp::wrap_type<ov::op::v0::Convert>({param_in});
@@ -273,6 +326,27 @@ ShapeOfParameter::ShapeOfParameter() {
         return false;  // root hasn't changed (?)
     };
     register_matcher(std::make_shared<opp::Matcher>(param_shp, "ShapeOfParameter"), std::move(callback));
+}
+
+bool RegularizeSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    bool model_changed = false;
+    if (m_run_broadcast_pattern) {
+        ov::pass::GraphRewrite rewr;
+        rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast>();
+        rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast2>();
+        rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast3>();
+
+        model_changed |= rewr.run_on_model(model);
+    }
+
+    // FIXME: generally all these patterns are supposed to improve the partitioning - thus
+    // the performance. However, ShapeOfParameter seems to be working fine for all known case,
+    // while AttentionBroadcast patterns might break the partitioning (related to F16IC).
+    ov::pass::GraphRewrite rewr2;
+    rewr2.add_matcher<ov::npuw::patterns::regularize::ShapeOfParameter>();
+    model_changed |= rewr2.run_on_model(model);
+
+    return model_changed;
 }
 
 }  // namespace regularize

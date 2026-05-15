@@ -11,10 +11,11 @@
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/profiling.hpp"
 #include "intel_npu/utils/utils.hpp"
+#include "intel_npu/utils/vcl/vcl_api.hpp"
+#include "model_serializer.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
-#include "vcl_serializer.hpp"
 #include "weightless_utils.hpp"
 #include "ze_graph_ext_wrappers.hpp"
 
@@ -35,29 +36,6 @@ UsedVersion getUsedVclVersion(uint16_t pluginMajor, uint16_t pluginMinor, const 
         usedMinor = loadedVersion.minor;
     }
     return {usedMajor, usedMinor};
-}
-
-bool isUseBaseModelSerializer(UsedVersion useVersion, const intel_npu::FilteredConfig& config) {
-    // vcl serializer(No copy) is only support for vcl version >= 7.5
-    if (useVersion.Major < 7 || (useVersion.Major == 7 && useVersion.Minor < 5)) {
-        return true;
-    }
-
-    // user pass use_base_model_serializer config
-    if (config.isAvailable(ov::intel_npu::use_base_model_serializer.name()) &&
-        config.has(ov::intel_npu::use_base_model_serializer.name())) {
-        return config.get<intel_npu::USE_BASE_MODEL_SERIALIZER>();
-    }
-
-    // user pass model_serializer_version config
-    if (config.isAvailable(ov::intel_npu::model_serializer_version.name()) &&
-        config.has(ov::intel_npu::model_serializer_version.name())) {
-        return (config.get<intel_npu::MODEL_SERIALIZER_VERSION>() ==
-                ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY);
-    }
-
-    // No VCL serializer was chosen explicitly, will default to the "no weights copy" implementation
-    return false;
 }
 
 struct vcl_allocator : vcl_allocator2_t {
@@ -120,87 +98,19 @@ ov::Tensor make_tensor_from_aligned_addr(uint8_t* allocated, size_t size) {
     ov::Allocator allocator;
     auto tensor = ov::Tensor(ov::element::u8, ov::Shape{size}, allocated);
     auto impl = ov::get_tensor_impl(std::move(tensor));
-    std::shared_ptr<void> ptr(allocated, [allocator, size](uint8_t* p) mutable {
+    std::shared_ptr<void> ptr(allocated, [allocator = std::move(allocator), size](uint8_t* p) mutable {
         if (p == nullptr) {
             OPENVINO_THROW("Pointer is nullptr in memory deallocation of make_tensor_from_aligned_addr!");
         }
         allocator.deallocate(p, size, intel_npu::utils::STANDARD_PAGE_SIZE);
     });
-    impl._so = ptr;
+    impl._so = std::move(ptr);
     return ov::make_tensor(impl);
 }
 
 }  // namespace
 
 namespace intel_npu {
-
-// clang-format off
-#define vcl_symbols_list()                                  \
-    vcl_symbol_statement(vclGetVersion)                     \
-    vcl_symbol_statement(vclCompilerCreate)                 \
-    vcl_symbol_statement(vclCompilerDestroy)                \
-    vcl_symbol_statement(vclCompilerGetProperties)          \
-    vcl_symbol_statement(vclQueryNetworkCreate)             \
-    vcl_symbol_statement(vclQueryNetwork)                   \
-    vcl_symbol_statement(vclQueryNetworkDestroy)            \
-    vcl_symbol_statement(vclExecutableCreate)               \
-    vcl_symbol_statement(vclAllocatedExecutableCreate)      \
-    vcl_symbol_statement(vclExecutableDestroy)              \
-    vcl_symbol_statement(vclExecutableGetSerializableBlob)  \
-    vcl_symbol_statement(vclProfilingCreate)                \
-    vcl_symbol_statement(vclGetDecodedProfilingBuffer)      \
-    vcl_symbol_statement(vclProfilingDestroy)               \
-    vcl_symbol_statement(vclProfilingGetProperties)         \
-    vcl_symbol_statement(vclLogHandleGetString)             \
-    vcl_symbol_statement(vclAllocatedExecutableCreate2)     \
-    vcl_symbol_statement(vclGetCompilerSupportedOptions)    \
-    vcl_symbol_statement(vclGetCompilerIsOptionSupported)   \
-
-
-// symbols that may not be supported in older versions of vcl
-#define vcl_weak_symbols_list()                             \
-    vcl_symbol_statement(vclAllocatedExecutableCreateWSOneShot)
-// clang-format on
-
-class VCLApi {
-public:
-    VCLApi();
-    VCLApi(const VCLApi& other) = delete;
-    VCLApi(VCLApi&& other) = delete;
-    void operator=(const VCLApi&) = delete;
-    void operator=(VCLApi&&) = delete;
-
-    static const std::shared_ptr<VCLApi> getInstance();
-    std::shared_ptr<void> getLibrary() const {
-        return lib;
-    }
-
-#define vcl_symbol_statement(vcl_symbol) decltype(&::vcl_symbol) vcl_symbol;
-    vcl_symbols_list();
-    vcl_weak_symbols_list();
-#undef vcl_symbol_statement
-
-private:
-    std::shared_ptr<void> lib;
-    Logger _logger;
-};
-
-#define vcl_symbol_statement(vcl_symbol)                                                                            \
-    template <typename... Args>                                                                                     \
-    inline typename std::invoke_result<decltype(&::vcl_symbol), Args...>::type wrapped_##vcl_symbol(Args... args) { \
-        const auto& ptr = VCLApi::getInstance();                                                                    \
-        if (ptr->vcl_symbol == nullptr) {                                                                           \
-            OPENVINO_THROW("Unsupported vcl_symbol " #vcl_symbol);                                                  \
-        }                                                                                                           \
-        return ptr->vcl_symbol(std::forward<Args>(args)...);                                                        \
-    }
-vcl_symbols_list();
-vcl_weak_symbols_list();
-#undef vcl_symbol_statement
-#define vcl_symbol_statement(vcl_symbol) inline decltype(&::vcl_symbol) vcl_symbol = wrapped_##vcl_symbol;
-vcl_symbols_list();
-vcl_weak_symbols_list();
-#undef vcl_symbol_statement
 
 static inline std::string getLatestVCLLog(vcl_log_handle_t logHandle) {
     Logger _logger("VCLAPI", Logger::global().level());
@@ -252,48 +162,6 @@ static inline std::string getLatestVCLLog(vcl_log_handle_t logHandle) {
         }                                               \
     }
 
-VCLApi::VCLApi() : _logger("VCLApi", Logger::global().level()) {
-    const std::filesystem::path baseName = "openvino_intel_npu_compiler";
-    try {
-        auto libpath = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), baseName);
-        _logger.debug("Try to load openvino_intel_npu_compiler");
-        this->lib = ov::util::load_shared_object(libpath);
-    } catch (const std::runtime_error& error) {
-        _logger.debug("Failed to load openvino_intel_npu_compiler");
-        OPENVINO_THROW(error.what());
-    }
-
-    try {
-#define vcl_symbol_statement(vcl_symbol) \
-    this->vcl_symbol = reinterpret_cast<decltype(&::vcl_symbol)>(ov::util::get_symbol(lib, #vcl_symbol));
-        vcl_symbols_list();
-#undef vcl_symbol_statement
-    } catch (const std::runtime_error& error) {
-        _logger.debug("Failed to get formal symbols from openvino_intel_npu_compiler");
-        OPENVINO_THROW(error.what());
-    }
-
-#define vcl_symbol_statement(vcl_symbol)                                                                      \
-    try {                                                                                                     \
-        this->vcl_symbol = reinterpret_cast<decltype(&::vcl_symbol)>(ov::util::get_symbol(lib, #vcl_symbol)); \
-    } catch (const std::runtime_error&) {                                                                     \
-        _logger.debug("Failed to get %s from openvino_intel_npu_compiler", #vcl_symbol);                      \
-        this->vcl_symbol = nullptr;                                                                           \
-    }
-    vcl_weak_symbols_list();
-#undef vcl_symbol_statement
-
-#define vcl_symbol_statement(vcl_symbol) vcl_symbol = this->vcl_symbol;
-    vcl_symbols_list();
-    vcl_weak_symbols_list();
-#undef vcl_symbol_statement
-}
-
-const std::shared_ptr<VCLApi> VCLApi::getInstance() {
-    static std::shared_ptr<VCLApi> instance = std::make_shared<VCLApi>();
-    return instance;
-}
-
 const std::shared_ptr<VCLCompilerImpl> VCLCompilerImpl::getInstance() {
     static std::mutex mutex;
     static std::weak_ptr<VCLCompilerImpl> weak_compiler;
@@ -340,10 +208,6 @@ VCLCompilerImpl::VCLCompilerImpl() : _logHandle(nullptr), _logger("VCLCompilerIm
     // info will be processed in compile phase if passed by user.
     _logger.info("Device description is not provided, using default values");
     uint32_t defaultTileCount = std::numeric_limits<uint32_t>::max();
-    if (_vclVersion.major == 7 && _vclVersion.minor < 6) {
-        // For vcl <= 7.5, need to use smaller value to pass check
-        defaultTileCount = std::numeric_limits<uint16_t>::max();
-    }
     vcl_device_desc_t device_desc = {sizeof(vcl_device_desc_t),
                                      0x00,
                                      std::numeric_limits<uint16_t>::max(),
@@ -383,13 +247,16 @@ std::shared_ptr<void> VCLCompilerImpl::getLinkedLibrary() const {
     return VCLApi::getInstance()->getLibrary();
 }
 
-NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const {
+std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
+    const std::shared_ptr<const ov::Model>& model,
+    const FilteredConfig& config) const {
     return compile(model, config, false);
 }
 
-NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Model>& model,
-                                            const Config& config,
-                                            const bool storeWeightlessCacheAttributeFlag) const {
+std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
+    const std::shared_ptr<const ov::Model>& model,
+    const FilteredConfig& config,
+    const bool storeWeightlessCacheAttributeFlag) const {
     _logger.debug("compile start");
 
     /// Check the linked vcl version whether supported in plugin
@@ -404,29 +271,33 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
     compilerVersion.major = _compilerProperties.version.major;
     compilerVersion.minor = _compilerProperties.version.minor;
 
-    const FilteredConfig* filteredConfig = dynamic_cast<const FilteredConfig*>(&config);
-    if (filteredConfig == nullptr) {
-        OPENVINO_THROW("config is not FilteredConfig");
+    const auto isOptionValueSupportedByCompiler = [this](const std::string& optionName,
+                                                         const std::optional<std::string>& optionValue) {
+        return is_option_supported(optionName, optionValue);
+    };
+    auto serializedIR = compiler_utils::serializeIR(model,
+                                                    compilerVersion,
+                                                    maxOpsetVersion,
+                                                    config.get<MODEL_SERIALIZER_VERSION>(),
+                                                    isOptionValueSupportedByCompiler,
+                                                    false,
+                                                    storeWeightlessCacheAttributeFlag);
+    FilteredConfig updatedConfig = config;
+    if (config.isAvailable(ov::intel_npu::model_serializer_version.name())) {
+        updatedConfig.update({{ov::intel_npu::model_serializer_version.name(),
+                               MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion)}});
     }
-    FilteredConfig updatedConfig = *filteredConfig;
-    bool useBaseModelSerializer = true;
-    useBaseModelSerializer = isUseBaseModelSerializer(usedVersion, updatedConfig);
-    _logger.debug("serialize IR method is %s",
-                  useBaseModelSerializer ? "base vcl serializer" : "vcl serializer (not copy weights)");
-    auto serializedIR = driver_compiler_utils::serializeIR(model,
-                                                           compilerVersion,
-                                                           maxOpsetVersion,
-                                                           useBaseModelSerializer,
-                                                           false,
-                                                           storeWeightlessCacheAttributeFlag);
 
     std::string buildFlags;
+    const auto isOptionSupportedByCompiler = [this](const std::string& optionName) {
+        return is_option_supported(optionName);
+    };
+
     _logger.debug("create build flags");
-    buildFlags += driver_compiler_utils::serializeIOInfo(model, true);
+    buildFlags += compiler_utils::serializeIOInfo(model, true);
     buildFlags += " ";
-    buildFlags += driver_compiler_utils::serializeConfig(updatedConfig,
-                                                         compilerVersion,
-                                                         is_option_supported(ov::intel_npu::turbo.name()));
+    buildFlags += compiler_utils::serializeConfig(updatedConfig, compilerVersion, isOptionSupportedByCompiler);
+
     _logger.debug("final build flags to compiler: %s", buildFlags.c_str());
 
     vcl_executable_desc_t exeDesc = {serializedIR.buffer.get(),
@@ -434,43 +305,81 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
                                      buildFlags.c_str(),
                                      buildFlags.size()};
 
-    if (usedVersion.Major >= 7 && usedVersion.Minor >= 4) {
-        // support the lastest vcl api
-        // For VCL 7.4 and later, we can use vclAllocatedExecutableCreate2
-        _logger.debug("Using vclAllocatedExecutableCreate2 for 7.4 <= VCL");
-        vcl_allocator allocator;
+    if (usedVersion.Major > 7 || (usedVersion.Major == 7 && usedVersion.Minor >= 7)) {
+        // Support only the lastest VCL api
+        vcl_allocator_2 allocator;
         uint8_t* blob = nullptr;
-        size_t size = 0;
+        size_t blobSize = 0;
+        uint8_t* compatibilityStringBuffer = nullptr;
+        size_t compatibilityStringSize = 0;
 
-        THROW_ON_FAIL_FOR_VCL("vclAllocatedExecutableCreate2",
-                              vclAllocatedExecutableCreate2(_compilerHandle, exeDesc, &allocator, &blob, &size),
-                              _logHandle);
-        if (size == 0 || blob == nullptr) {
-            OPENVINO_THROW("Failed to create VCL executable, size is zero or blob is null");
+        auto result = vclAllocatedExecutableCreate3(_compilerHandle,
+                                                    exeDesc,
+                                                    &allocator,
+                                                    &blob,
+                                                    &blobSize,
+                                                    &compatibilityStringBuffer,
+                                                    &compatibilityStringSize);
+        if (result != VCL_RESULT_SUCCESS) {
+            // Check if allocations were performed before throwing exception
+            for (const auto& [buffer, size] : allocator.m_info) {
+                allocator.deallocate(&allocator, buffer);
+            }
+            OPENVINO_THROW("Compilation failed. vclAllocatedExecutableCreate3 result: 0x",
+                           std::hex,
+                           uint64_t(result),
+                           " - ",
+                           getLatestVCLLog(_logHandle));
         }
+
+        OPENVINO_ASSERT(blobSize != 0 && blob != nullptr,
+                        "Failed to create VCL executable, the blob size is zero or the blob is null");
+
+        // Retrieve the real allocated size for the blob from the allocator
+        size_t alignedBlobSize = 0;
+        for (auto [buffer, size] : allocator.m_info) {
+            if (buffer == blob) {
+                alignedBlobSize = size;
+                break;
+            }
+        }
+
         // The allocated size from VCL will be equal or smaller than the allocated size in allocator
-        _logger.debug("Blob size from VCL: %zu ptr %p", size, static_cast<void*>(blob));
-        _logger.debug("Allocated vector size: %zu ptr: %p",
-                      allocator.m_size,
-                      static_cast<void*>(allocator.m_allocated));
+        _logger.debug("Blob size from VCL: %zu ptr %p", blobSize, static_cast<void*>(blob));
+        _logger.debug("Allocated vector size: %zu ptr: %p", alignedBlobSize, static_cast<void*>(blob));
 
-        // Use empty metadata as VCL does not support metadata extraction
-        NetworkMetadata metadata;
+        ov::Tensor alignedBlob = make_tensor_from_aligned_addr(blob, alignedBlobSize);
+        std::optional<std::string> compatibilityString;
 
-        _logger.debug("compile end, blob size:%d", allocator.m_size);
-        return NetworkDescription(make_tensor_from_aligned_addr(allocator.m_allocated, allocator.m_size),
-                                  std::move(metadata));
+        // Populate compatibility string only when VCL provides a buffer.
+        if (compatibilityStringBuffer != nullptr) {
+            OPENVINO_ASSERT(compatibilityStringSize != 0,
+                            "Failed to create VCL executable, the compatibility descriptor size is zero");
+            compatibilityString =
+                std::string(reinterpret_cast<char*>(compatibilityStringBuffer), compatibilityStringSize);
+            _logger.debug("Compatibility string from VCL: %s", compatibilityString->c_str());
+
+            allocator.deallocate(&allocator, compatibilityStringBuffer);
+        }
+
+        return std::make_pair<ov::Tensor, std::optional<std::string>>(std::move(alignedBlob),
+                                                                      std::move(compatibilityString));
     } else {
-        OPENVINO_THROW("Not supported VCL version: %d.%d, please use VCL 6.1 or later",
+        OPENVINO_THROW("Unsupported VCL version: ",
                        _vclVersion.major,
-                       _vclVersion.minor);
+                       ".",
+                       _vclVersion.minor,
+                       ", please use VCL 7.7 or later");
     }
 }
 
-std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneShot(
-    const std::shared_ptr<ov::Model>& model,
-    const Config& config) const {
+std::vector<ov::Tensor> VCLCompilerImpl::compileWsOneShot(const std::shared_ptr<ov::Model>& model,
+                                                          const FilteredConfig& config) const {
     _logger.debug("compileWsOneShot start");
+
+    /// Check the linked vcl version whether supported in plugin
+    UsedVersion usedVersion = getUsedVclVersion(VCL_COMPILER_VERSION_MAJOR, VCL_COMPILER_VERSION_MINOR, _vclVersion);
+    _logger.debug("the finally used compiler vcl version is %d.%d", usedVersion.Major, usedVersion.Minor);
 
     const auto maxOpsetVersion = _compilerProperties.supportedOpsets;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
@@ -480,29 +389,32 @@ std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneSh
     compilerVersion.major = _compilerProperties.version.major;
     compilerVersion.minor = _compilerProperties.version.minor;
 
-    const FilteredConfig* filteredConfig = dynamic_cast<const FilteredConfig*>(&config);
-    if (filteredConfig == nullptr) {
-        OPENVINO_THROW("config is not FilteredConfig");
+    const auto isOptionValueSupportedByCompiler = [this](const std::string& optionName,
+                                                         const std::optional<std::string>& optionValue) {
+        return is_option_supported(optionName, optionValue);
+    };
+    auto serializedIR = compiler_utils::serializeIR(model,
+                                                    compilerVersion,
+                                                    maxOpsetVersion,
+                                                    config.get<MODEL_SERIALIZER_VERSION>(),
+                                                    isOptionValueSupportedByCompiler,
+                                                    false,
+                                                    true);
+    FilteredConfig updatedConfig = config;
+    if (config.isAvailable(ov::intel_npu::model_serializer_version.name())) {
+        updatedConfig.update({{ov::intel_npu::model_serializer_version.name(),
+                               MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion)}});
     }
-    FilteredConfig updatedConfig = *filteredConfig;
-    bool useBaseModelSerializer = true;
-    useBaseModelSerializer = isUseBaseModelSerializer({7, 5}, updatedConfig);
-    _logger.debug("serialize IR method is %s",
-                  useBaseModelSerializer ? "base vcl serializer" : "vcl serializer (not copy weights)");
-    auto serializedIR = driver_compiler_utils::serializeIR(model,
-                                                           compilerVersion,
-                                                           maxOpsetVersion,
-                                                           useBaseModelSerializer,
-                                                           false,
-                                                           true);
 
     std::string buildFlags;
+    const auto isOptionSupportedByCompiler = [this](const std::string& optionName) {
+        return is_option_supported(optionName);
+    };
+
     _logger.debug("create build flags");
-    buildFlags += driver_compiler_utils::serializeIOInfo(model, true);
+    buildFlags += compiler_utils::serializeIOInfo(model, true);
     buildFlags += " ";
-    buildFlags += driver_compiler_utils::serializeConfig(updatedConfig,
-                                                         compilerVersion,
-                                                         is_option_supported(ov::intel_npu::turbo.name()));
+    buildFlags += compiler_utils::serializeConfig(updatedConfig, compilerVersion, isOptionSupportedByCompiler);
     _logger.debug("final build flags to compiler: %s", buildFlags.c_str());
 
     vcl_executable_desc_t exeDesc = {serializedIR.buffer.get(),
@@ -522,38 +434,25 @@ std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneSh
         OPENVINO_THROW("Failed to create VCL executable, blobCount is zero");
     }
 
-    std::vector<std::shared_ptr<NetworkDescription>> networkDescrs;
+    std::vector<ov::Tensor> initMainTensors;
     for (auto& blob : allocator.m_info) {
-        // Use empty metadata as VCL does not support metadata extraction
-        NetworkMetadata metadata;
-        networkDescrs.emplace_back(
-            std::make_shared<NetworkDescription>(make_tensor_from_aligned_addr(blob.first, blob.second),
-                                                 std::move(metadata)));
+        initMainTensors.emplace_back(make_tensor_from_aligned_addr(blob.first, blob.second));
     }
-    return networkDescrs;
+    return initMainTensors;
 }
 
-NetworkDescription VCLCompilerImpl::compileWsIterative(const std::shared_ptr<ov::Model>& model,
-                                                       const Config& config,
-                                                       size_t callNumber) const {
+ov::Tensor VCLCompilerImpl::compileWsIterative(const std::shared_ptr<ov::Model>& model,
+                                               const FilteredConfig& config,
+                                               size_t callNumber) const {
     _logger.debug("compileWsIterative start");
-    const FilteredConfig* filteredConfig = dynamic_cast<const FilteredConfig*>(&config);
-    if (filteredConfig == nullptr) {
-        OPENVINO_THROW("config is not FilteredConfig");
-    }
-    FilteredConfig updatedConfig = *filteredConfig;
+    FilteredConfig updatedConfig = config;
     updatedConfig.update({{ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber)}});
-    return compile(model, updatedConfig, true);
-}
-
-intel_npu::NetworkMetadata VCLCompilerImpl::parse(const std::vector<uint8_t>& network, const Config& config) const {
-    // VCL returns empty metadata. In plugin adapter, use driver metadata instead.
-    OPENVINO_THROW_NOT_IMPLEMENTED("VCL does not support parse.");
+    // The compatibility descriptor is not supported in this case
+    return compile(model, updatedConfig, true).first;
 }
 
 std::vector<ov::ProfilingInfo> VCLCompilerImpl::process_profiling_output(const std::vector<uint8_t>& profData,
-                                                                         const std::vector<uint8_t>& network,
-                                                                         const intel_npu::Config& config) const {
+                                                                         const std::vector<uint8_t>& network) const {
     _logger.debug("process_profiling_output start");
 
     vcl_profiling_handle_t profilingHandle;
@@ -600,7 +499,8 @@ uint32_t VCLCompilerImpl::get_version() const {
     return ZE_MAKE_VERSION(_compilerProperties.version.major, _compilerProperties.version.minor);
 }
 
-ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model>& model, const Config& config) const {
+ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model>& model,
+                                           const FilteredConfig& config) const {
     _logger.debug("query start");
 
     /// Check the linked vcl version whether supported in plugin
@@ -614,22 +514,26 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
     ze_graph_compiler_version_info_t compilerVersion;
     compilerVersion.major = _compilerProperties.version.major;
     compilerVersion.minor = _compilerProperties.version.minor;
-    const FilteredConfig* filteredConfig = dynamic_cast<const FilteredConfig*>(&config);
-    if (filteredConfig == nullptr) {
-        OPENVINO_THROW("config is not FilteredConfig");
+    FilteredConfig updatedConfig = config;
+    const auto isOptionValueSupportedByCompiler = [this](const std::string& optionName,
+                                                         const std::optional<std::string>& optionValue) {
+        return is_option_supported(optionName, optionValue);
+    };
+    auto serializedIR = compiler_utils::serializeIR(model,
+                                                    compilerVersion,
+                                                    maxOpsetVersion,
+                                                    config.get<MODEL_SERIALIZER_VERSION>(),
+                                                    isOptionValueSupportedByCompiler);
+    if (config.isAvailable(ov::intel_npu::model_serializer_version.name())) {
+        updatedConfig.update({{ov::intel_npu::model_serializer_version.name(),
+                               MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion)}});
     }
-    FilteredConfig updatedConfig = *filteredConfig;
-    bool useBaseModelSerializer = true;
-    useBaseModelSerializer = isUseBaseModelSerializer(usedVersion, updatedConfig);
-    _logger.debug("serialize IR method is %s",
-                  useBaseModelSerializer ? "base vcl serializer" : "vcl serializer (not copy weights)");
-    auto serializedIR =
-        driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer);
 
     std::string buildFlags;
-    buildFlags += driver_compiler_utils::serializeConfig(updatedConfig,
-                                                         compilerVersion,
-                                                         is_option_supported(ov::intel_npu::turbo.name()));
+    const auto isOptionSupportedByCompiler = [this](const std::string& optionName) {
+        return is_option_supported(optionName);
+    };
+    buildFlags += compiler_utils::serializeConfig(updatedConfig, compilerVersion, isOptionSupportedByCompiler);
     _logger.debug("queryImpl build flags : %s", buildFlags.c_str());
 
     vcl_query_handle_t queryHandle;
@@ -661,36 +565,35 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
 
 bool VCLCompilerImpl::get_supported_options(std::vector<char>& options) const {
     _logger.debug("get_supported_options start");
-    // 1. get size of compiler supported options list
     size_t str_size = 0;
     try {
         THROW_ON_FAIL_FOR_VCL("vclGetCompilerSupportedOptions",
                               vclGetCompilerSupportedOptions(_compilerHandle, nullptr, &str_size),
                               _logHandle);
 
-        if (str_size > 0) {
-            _logger.debug("obtain list");
-            // 2. allocate buffer for it
-            options.resize(str_size);
-            // 3. populate char list
-            THROW_ON_FAIL_FOR_VCL("vclGetCompilerSupportedOptions",
-                                  vclGetCompilerSupportedOptions(_compilerHandle, options.data(), &str_size),
-                                  _logHandle);
-
-            _logger.debug("Option list size %d, got option list", str_size);
+        if (str_size == 0) {
+            _logger.debug("Option list size 0!");
             return true;
-        } else {
-            _logger.debug("Option list size 0 - skipping!");
         }
+
+        _logger.debug("obtain list");
+        options.resize(str_size);
+        THROW_ON_FAIL_FOR_VCL("vclGetCompilerSupportedOptions",
+                              vclGetCompilerSupportedOptions(_compilerHandle, options.data(), &str_size),
+                              _logHandle);
+
+        _logger.debug("Option list size %d, got option list", str_size);
+
+        return true;
     } catch (const std::exception& e) {
         // The API is only supported in new version, just add log here
         _logger.debug("Exception in get_supported_options: %s", e.what());
     }
-    _logger.debug("get_supported_options end, no options found");
+
     return false;
 }
 
-bool VCLCompilerImpl::is_option_supported(const std::string& option, std::optional<std::string> optValue) const {
+bool VCLCompilerImpl::is_option_supported(std::string option, std::optional<std::string> optValue) const {
     try {
         const char* optname_ch = option.c_str();
         const char* optvalue_ch = optValue.has_value() ? optValue.value().c_str() : nullptr;
@@ -706,6 +609,41 @@ bool VCLCompilerImpl::is_option_supported(const std::string& option, std::option
         _logger.debug("Exception in is_option_supported: %s", e.what());
     }
     _logger.debug("option: %s is not supported", option.c_str());
+    return false;
+}
+
+bool VCLCompilerImpl::validate_compatibility_descriptor(const std::string& compatibilityDescriptor,
+                                                        vcl_device_desc_t* in_device_desc) const {
+    vcl_compiler_desc_t compilerDesc;
+    compilerDesc.version = _vclVersion;
+    compilerDesc.debugLevel = static_cast<vcl_log_level_t>(static_cast<int>(Logger::global().level()) + 1);
+
+    // Create a temporary compiler instance for the query to pass the correct device description.
+    // The private compiler instance used by this class was created with default device description.
+    vcl_log_handle_t logHandle = nullptr;
+    vcl_compiler_handle_t compilerHandle = nullptr;
+    try {
+        THROW_ON_FAIL_FOR_VCL("vclCompilerCreate",
+                              vclCompilerCreate(&compilerDesc, in_device_desc, &compilerHandle, &logHandle),
+                              nullptr);
+
+        const char* optname_ch = ov::compatibility_check.name();
+        const char* optvalue_ch = compatibilityDescriptor.c_str();
+        _logger.debug("is_option_supported start for option: %s, value: %s", optname_ch, optvalue_ch);
+        THROW_ON_FAIL_FOR_VCL("vclGetCompilerIsOptionSupported",
+                              vclGetCompilerIsOptionSupported(compilerHandle, optname_ch, optvalue_ch),
+                              logHandle);
+        if (compilerHandle) {
+            vclCompilerDestroy(compilerHandle);
+        }
+        return true;
+    } catch (const std::exception& e) {
+        _logger.debug("Exception in is_option_supported: %s", e.what());
+        if (compilerHandle) {
+            vclCompilerDestroy(compilerHandle);
+        }
+    }
+
     return false;
 }
 
