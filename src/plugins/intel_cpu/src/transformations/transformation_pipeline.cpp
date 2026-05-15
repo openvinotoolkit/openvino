@@ -283,6 +283,33 @@ namespace ov::intel_cpu {
 
 using const_node_ptr = const std::shared_ptr<const ov::Node>;
 
+class KeepScalarBroadcastConstantPrecision : public ov::pass::ModelPass {
+public:
+    OPENVINO_MODEL_PASS_RTTI("KeepScalarBroadcastConstantPrecision");
+
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
+        bool changed = false;
+        for (const auto& node : model->get_ordered_ops()) {
+            if (!ov::as_type_ptr<ov::op::v1::Broadcast>(node) && !ov::as_type_ptr<ov::op::v3::Broadcast>(node)) {
+                continue;
+            }
+
+            const auto data = ov::as_type_ptr<ov::op::v0::Constant>(node->input_value(0).get_node_shared_ptr());
+            if (!data || !data->get_shape().empty()) {
+                continue;
+            }
+
+            const auto& data_type = data->get_element_type();
+            if ((data_type == ov::element::i64 || data_type == ov::element::u64) &&
+                !ov::is_keep_const_precision(data)) {
+                ov::enable_keep_const_precision(data);
+                changed = true;
+            }
+        }
+        return changed;
+    }
+};
+
 bool Transformations::is_decompression_multiply(const_node_ptr& node) {
     auto is_1x1_conv = [](const ov::Node* node) {
         const auto* conv = ov::as_type<const ov::op::v1::Convolution>(node);
@@ -662,6 +689,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     // Do not insert pass::Validate between pass::InsertConvertAfterExtension and pass::ConvertPrecision.
     // This may result in the loss of the original Element type of the Output .
     // element type convert is disabled.
+    CPU_REGISTER_PASS_COMMON(manager, KeepScalarBroadcastConstantPrecision);
     CPU_REGISTER_PASS_COMMON(manager,
                              ov::pass::ConvertPrecision,
                              precisions,
