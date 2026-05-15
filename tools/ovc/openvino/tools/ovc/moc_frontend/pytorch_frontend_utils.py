@@ -156,7 +156,8 @@ def get_pytorch_decoder(model, example_inputs, args):
             decoder = TorchFXPythonDecoder.from_model(
                 model,
                 example_inputs=inputs,
-                dynamic_shapes=dynamic_shapes)
+                dynamic_shapes=dynamic_shapes,
+                module_extensions=extract_module_extensions(args))
         else:
             decoder = TorchScriptPythonDecoder(
                 model,
@@ -175,14 +176,53 @@ def get_pytorch_decoder(model, example_inputs, args):
     return args
 
 
-def get_pytorch_decoder_for_model_on_disk(argv, args):
+def _is_pytorch_zip(path):
+    """Check if a file looks like a PyTorch archive (TorchScript or ExportedProgram).
+
+    Both formats are ZIP archives with specific internal entries.
+    This lightweight check avoids expensive torch.jit.load / torch.export.load
+    calls (and their warnings/side effects) on non-PyTorch files.
+    """
+    import zipfile
+    # Maximum bytes to read from the "archive_format" entry. The expected
+    # content is the literal b"pt2" (3 bytes); cap at a small constant so a
+    # crafted ZIP cannot trigger large/expensive decompression during
+    # auto-detection.
+    _ARCHIVE_FORMAT_MAX_BYTES = 16
     try:
-        from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
-        from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
-        import torch
-    except:
+        if not zipfile.is_zipfile(path):
+            return False
+        with zipfile.ZipFile(path, 'r') as zf:
+            for info in zf.infolist():
+                name = info.filename
+                basename = name.rsplit('/', 1)[-1] if '/' in name else name
+                # TorchScript archives contain data.pkl and constants.pkl
+                if basename == 'data.pkl' or basename == 'constants.pkl':
+                    return True
+                # Older ExportedProgram format (PyTorch ≤2.6)
+                if basename.startswith('serialized_') and basename.endswith('.json'):
+                    return True
+                # Newer PT2 archive format (PyTorch ≥2.7): contains an
+                # "archive_format" entry whose content is b"pt2". Reject
+                # entries with unexpected uncompressed size up-front and
+                # only read a small bounded prefix to avoid CPU/memory
+                # blow-ups on crafted archives.
+                if basename == 'archive_format':
+                    if info.file_size > _ARCHIVE_FORMAT_MAX_BYTES:
+                        continue
+                    try:
+                        with zf.open(info, 'r') as fh:
+                            data = fh.read(_ARCHIVE_FORMAT_MAX_BYTES)
+                        if data == b'pt2':
+                            return True
+                    except Exception:
+                        pass
+            return False
+    except Exception:
         return False
 
+
+def get_pytorch_decoder_for_model_on_disk(argv, args):
     example_inputs = None
     if 'example_input' in args and args['example_input'] is not None:
         example_inputs = args['example_input']
@@ -195,9 +235,27 @@ def get_pytorch_decoder_for_model_on_disk(argv, args):
     if not isinstance(input_model, (str, pathlib.Path)):
         return False
 
+    # Quick structural check: only attempt PyTorch loading for ZIP archives
+    # that contain PyTorch-specific entries. This avoids importing torch,
+    # emitting misleading warnings, and running pickle-based deserialization
+    # on non-PyTorch files (e.g. ONNX, TF, TFLite).
+    if not _is_pytorch_zip(input_model):
+        return False
+
+    try:
+        from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+        from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+        import torch
+    except Exception:
+        # Auto-detection must not fail hard if the PyTorch frontend or torch
+        # itself cannot be imported (missing shared libs, init errors, etc.).
+        # Mirror the broad-except pattern used in convert_impl.py.
+        return False
+
+    inputs = prepare_torch_inputs(example_inputs)
+
     # attempt to load scripted model
     try:
-        inputs = prepare_torch_inputs(example_inputs)
         model = torch.jit.load(input_model)
         model.eval()
         decoder = TorchScriptPythonDecoder(
@@ -208,17 +266,19 @@ def get_pytorch_decoder_for_model_on_disk(argv, args):
         argv.input_model = decoder
         argv.framework = 'pytorch'
         return True
-    except:
+    except Exception:
         pass
+
     # attempt to load exported model
     try:
         exported_program = torch.export.load(input_model)
-        if hasattr(torch, "export") and isinstance(exported_program, (torch.export.ExportedProgram)):
+        if isinstance(exported_program, torch.export.ExportedProgram):
             argv.input_model = TorchFXPythonDecoder.from_exported_program(exported_program)
             argv.framework = 'pytorch'
             return True
-    except:
+    except Exception:
         pass
+
     return False
 
 
