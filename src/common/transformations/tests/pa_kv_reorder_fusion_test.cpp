@@ -135,7 +135,8 @@ TEST_F(TransformationTestsF, PaKVReorderFusion_basic) {
 
         auto block_update_indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{2});
         block_update_indices->set_friendly_name("block_update_indices");
-        auto block_update_indices_begins = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{2});
+        auto block_update_indices_begins =
+            std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{2});
         block_update_indices_begins->set_friendly_name("block_update_indices_begins");
 
         auto gather_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
@@ -144,8 +145,10 @@ TEST_F(TransformationTestsF, PaKVReorderFusion_basic) {
         auto key_gather = std::make_shared<ov::op::v8::Gather>(key_cache, block_update_indices, gather_axis);
         auto value_gather = std::make_shared<ov::op::v8::Gather>(value_cache, block_update_indices, gather_axis);
 
-        auto key_scatter = std::make_shared<ov::op::v3::ScatterUpdate>(key_cache, block_indices, key_gather, scatter_axis);
-        auto value_scatter = std::make_shared<ov::op::v3::ScatterUpdate>(value_cache, block_indices, value_gather, scatter_axis);
+        auto key_scatter =
+            std::make_shared<ov::op::v3::ScatterUpdate>(key_cache, block_indices, key_gather, scatter_axis);
+        auto value_scatter =
+            std::make_shared<ov::op::v3::ScatterUpdate>(value_cache, block_indices, value_gather, scatter_axis);
 
         auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{key_scatter, value_scatter}, 0);
         auto result = std::make_shared<ov::op::v0::Result>(concat);
@@ -174,15 +177,16 @@ TEST_F(TransformationTestsF, PaKVReorderFusion_basic) {
 
         auto block_update_indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{2});
         block_update_indices->set_friendly_name("block_update_indices");
-        auto block_update_indices_begins = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{2});
+        auto block_update_indices_begins =
+            std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{2});
         block_update_indices_begins->set_friendly_name("block_update_indices_begins");
 
         auto pa_kv_reorder = std::make_shared<ov::op::internal::PaKVReorder>(key_cache,
-                                                                              value_cache,
-                                                                              block_indices,
-                                                                              block_indices_begins,
-                                                                              block_update_indices,
-                                                                              block_update_indices_begins);
+                                                                             value_cache,
+                                                                             block_indices,
+                                                                             block_indices_begins,
+                                                                             block_update_indices,
+                                                                             block_update_indices_begins);
         pa_kv_reorder->set_friendly_name("pa_kv_reorder_0");
         auto result = std::make_shared<ov::op::v0::Result>(pa_kv_reorder);
 
@@ -222,8 +226,10 @@ TEST_F(TransformationTestsF, PaKVReorderFusion_skip_on_mismatched_block_indices)
     auto key_gather = std::make_shared<ov::op::v8::Gather>(key_cache, block_update_indices, gather_axis);
     auto value_gather = std::make_shared<ov::op::v8::Gather>(value_cache, block_update_indices, gather_axis);
 
-    auto key_scatter = std::make_shared<ov::op::v3::ScatterUpdate>(key_cache, block_indices_k, key_gather, scatter_axis);
-    auto value_scatter = std::make_shared<ov::op::v3::ScatterUpdate>(value_cache, block_indices_v, value_gather, scatter_axis);
+    auto key_scatter =
+        std::make_shared<ov::op::v3::ScatterUpdate>(key_cache, block_indices_k, key_gather, scatter_axis);
+    auto value_scatter =
+        std::make_shared<ov::op::v3::ScatterUpdate>(value_cache, block_indices_v, value_gather, scatter_axis);
 
     auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{key_scatter, value_scatter}, 0);
     auto result = std::make_shared<ov::op::v0::Result>(concat);
@@ -253,11 +259,11 @@ TEST(PaKVReorderOpTest, OpCreation) {
     auto block_update_indices_begins = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});
 
     auto pa_kv_reorder = std::make_shared<ov::op::internal::PaKVReorder>(key_cache,
-                                                                          value_cache,
-                                                                          block_indices,
-                                                                          block_indices_begins,
-                                                                          block_update_indices,
-                                                                          block_update_indices_begins);
+                                                                         value_cache,
+                                                                         block_indices,
+                                                                         block_indices_begins,
+                                                                         block_update_indices,
+                                                                         block_update_indices_begins);
 
     ASSERT_NE(pa_kv_reorder, nullptr);
     ASSERT_EQ(pa_kv_reorder->get_input_size(), 6);
@@ -285,11 +291,11 @@ TEST(PaKVReorderOpTest, ModelWithOp) {
     block_update_indices_begins->set_friendly_name("block_update_indices_begins");
 
     auto pa_kv_reorder = std::make_shared<ov::op::internal::PaKVReorder>(key_cache,
-                                                                          value_cache,
-                                                                          block_indices,
-                                                                          block_indices_begins,
-                                                                          block_update_indices,
-                                                                          block_update_indices_begins);
+                                                                         value_cache,
+                                                                         block_indices,
+                                                                         block_indices_begins,
+                                                                         block_update_indices,
+                                                                         block_update_indices_begins);
 
     auto result = std::make_shared<ov::op::v0::Result>(pa_kv_reorder->output(0));
 
@@ -325,11 +331,11 @@ TEST(PaKVReorderOpTest, TypeInfo) {
     auto block_update_indices_begins = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});
 
     auto pa_kv_reorder = std::make_shared<ov::op::internal::PaKVReorder>(key_cache,
-                                                                          value_cache,
-                                                                          block_indices,
-                                                                          block_indices_begins,
-                                                                          block_update_indices,
-                                                                          block_update_indices_begins);
+                                                                         value_cache,
+                                                                         block_indices,
+                                                                         block_indices_begins,
+                                                                         block_update_indices,
+                                                                         block_update_indices_begins);
 
     auto type_info = pa_kv_reorder->get_type_info();
     ASSERT_STREQ(type_info.name, "PaKVReorder");
