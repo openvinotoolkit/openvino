@@ -1764,8 +1764,8 @@ public:
                                scratch.moe_fusion_wei_addr.shared_zp[2]};
         }
 
-        GPU_DEBUG_TRACE_DETAIL << "\nexec_batched_gemv(): token_num=" << token_num << ", max_topk=" << max_topk
-                              << ", has_shared=" << _has_shared_expert << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << "\nexec_batched_gemv(): token_num=" << token_num << ", max_topk=" << max_topk << ", has_shared=" << _has_shared_expert
+                               << std::endl;
 
         {
             // scratch.up = up(x) * silu(gate(x)) for all (token, expert) pairs
