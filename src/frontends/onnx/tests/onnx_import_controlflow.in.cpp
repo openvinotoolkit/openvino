@@ -281,6 +281,18 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_input_from_parent_graph
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_state_input_same_name_as_parent_with_invariant) {
+    const auto model = convert_model("controlflow/loop_state_input_same_name_as_parent_with_invariant.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({0.f, 0.f});
+    test_case.add_input<float>({1.f, 1.f});
+
+    test_case.add_expected_output<float>(Shape{1, 2}, {3.f, 3.f});
+    test_case.add_expected_output<float>(Shape{3, 1, 2}, {1.f, 1.f, 2.f, 2.f, 3.f, 3.f});
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_the_proper_opset_in_subgraph) {
     const auto model = convert_model("controlflow/loop_2d_mul_opset1.onnx");
 
