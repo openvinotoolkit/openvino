@@ -61,8 +61,8 @@ struct TurboQDecoder3 {
                            const Params& /*p*/,
                            simd::active_lanes<Ia> /*unused*/) const {
         if constexpr (Ia == simd::isa::scalar) {
-            uint32_t w = read_as<uint32_t>(base);
-            int idx = static_cast<int>((w >> bit_offset) & 0x7);
+            auto w = read_as<uint32_t>(base);
+            auto idx = static_cast<int>((w >> bit_offset) & 0x7);
             return simd::f32_t<Ia>(cb_raw[idx]);
         } else {
             return cb.lookup(unpack_3bit<Ia>(base, shifts, mask, bit_offset));
@@ -91,8 +91,8 @@ struct TurboQDecoder2 {
                            const Params& /*p*/,
                            simd::active_lanes<Ia> /*unused*/) const {
         if constexpr (Ia == simd::isa::scalar) {
-            uint32_t w = read_as<uint32_t>(base);
-            int idx = static_cast<int>((w >> bit_offset) & 0x3);
+            auto w = read_as<uint32_t>(base);
+            auto idx = static_cast<int>((w >> bit_offset) & 0x3);
             return simd::f32_t<Ia>(cb_raw[idx]);
         } else {
             return cb.lookup(unpack_2bit<Ia>(base, shifts, mask, bit_offset));
@@ -100,10 +100,8 @@ struct TurboQDecoder2 {
     }
 };
 
-// Packed byte size for one TurboQ head record.
-size_t turboq_head_bytes(int head_dim, int bits);
-
 // Packed byte size for a full KV row (all heads for one token).
+// turboq_head_bytes is declared in mha_kv_cache_codec.hpp.
 size_t turboq_row_bytes(int num_kv_heads, int head_dim, int bits);
 
 }  // namespace ov::Extensions::Cpu::XARCH
