@@ -52,6 +52,11 @@ static bool isBitwiseAlgorithm(const EltwiseConfig& config) {
                   Algorithm::EltwiseBitwiseRightShift);
 }
 
+static bool isIntegerReferenceAlgorithm(const EltwiseConfig& config) {
+    const auto algorithm = config.attrs.data.algo;
+    return any_of(algorithm, Algorithm::EltwiseDivide, Algorithm::EltwiseFloor);
+}
+
 [[maybe_unused]] static bool isChannelFirstApplicable(const EltwiseConfig& config) {
     auto acceptableRank = [](const size_t rank) {
         return any_of(rank, 1U, 2U, 3U, 4U, 5U);
@@ -144,6 +149,12 @@ static const TypeMapping eltwiseReferenceTypeMapping {
     {{_any, _any},        {just<f32>(), just<f32>()}},
 };
 
+static const TypeMapping integerReferenceTypeMapping {
+    // {src, dst}         pt<src, dst>
+    {{_i32, _i32},         {bypass(), bypass()}},
+    {{_any, _any},         {just<f32>(), just<f32>()}},
+};
+
 static const TypeMapping bitwiseReferenceTypeMapping {
     // {src, dst}         pt<src, dst>
     {{_u8 | _i8 | _u16 | _i16 | _i32, _u8 | _i8 | _u16 | _i16 | _i32},        {bypass(), bypass()}},
@@ -157,6 +168,16 @@ static const TypeMapping aclEltwiseTypeMapping {
     {{_any, _any},                 {just<f32>(), just<f32>()}},
 };
 // clang-format on
+
+static const TypeMapping& getReferenceTypeMapping(const EltwiseConfig& config) {
+    if (isBitwiseAlgorithm(config)) {
+        return bitwiseReferenceTypeMapping;
+    }
+    if (isIntegerReferenceAlgorithm(config)) {
+        return integerReferenceTypeMapping;
+    }
+    return eltwiseReferenceTypeMapping;
+}
 
 struct createOptimalConfigDefault {
     std::optional<EltwiseConfig> operator()(const EltwiseConfig& config) const {
@@ -381,7 +402,7 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
                 return true;
             },
             [](const EltwiseConfig& config) -> std::optional<EltwiseConfig> {
-                const auto& typeMapping = isBitwiseAlgorithm(config) ? bitwiseReferenceTypeMapping : eltwiseReferenceTypeMapping;
+                const auto& typeMapping = getReferenceTypeMapping(config);
                 return createOptimalConfigCommon(config,
                                                  typeMapping,
                                                  LayoutConfig{LayoutType::ncsp, LayoutType::ncsp},
@@ -401,7 +422,7 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
             },
             // createOptimalConfig
             [](const EltwiseConfig& config) -> std::optional<EltwiseConfig> {
-                const auto& typeMapping = isBitwiseAlgorithm(config) ? bitwiseReferenceTypeMapping : eltwiseReferenceTypeMapping;
+                const auto& typeMapping = getReferenceTypeMapping(config);
                 return createOptimalConfigCommon(config,
                                                  typeMapping,
                                                  LayoutConfig{LayoutType::nspc, LayoutType::nspc},

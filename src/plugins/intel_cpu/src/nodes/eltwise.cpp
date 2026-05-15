@@ -153,6 +153,8 @@ const std::map<const ov::DiscreteTypeInfo, Eltwise::Initializer>& Eltwise::getIn
          [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
              node.algorithm = Algorithm::EltwiseDivide;
              node.m_attrs.broadcastingPolicy = determineBroadcastingPolicy(op);
+             const auto divide = ov::as_type_ptr<ov::op::v1::Divide>(op);
+             node.m_attrs.data.pythondiv = divide->is_pythondiv();
          }},
         {ov::op::v0::SquaredDifference::get_type_info_static(),
          []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {

@@ -390,7 +390,7 @@ void jit_divide_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 
 std::set<std::vector<element::Type>> jit_divide_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32, element::f32}, {element::i32, element::i32}};
+    return {{element::f32, element::f32}};
 }
 
 size_t jit_divide_emitter::aux_vecs_count() const {

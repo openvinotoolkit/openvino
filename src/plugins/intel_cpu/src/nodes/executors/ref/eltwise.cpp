@@ -34,6 +34,14 @@
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
+namespace {
+
+bool useIntegerRefExecutor(const EltwiseRefKey& key) {
+    const auto algorithm = key.eltwise_data.front().algo;
+    return any_of(algorithm, Algorithm::EltwiseDivide, Algorithm::EltwiseFloor);
+}
+
+}  // namespace
 
 size_t EltwiseRefKey::hash() const {
     using namespace dnnl::impl;
@@ -45,6 +53,7 @@ size_t EltwiseRefKey::hash() const {
         seed = hash_combine(seed, eltwiseData.alpha);
         seed = hash_combine(seed, eltwiseData.beta);
         seed = hash_combine(seed, eltwiseData.gamma);
+        seed = hash_combine(seed, eltwiseData.pythondiv);
         return seed;
     };
     std::for_each(eltwise_data.begin(), eltwise_data.end(), [&](const EltwiseData& item) {
@@ -87,6 +96,9 @@ static EltwiseExecutorPtr createRefExecutorByPrecision(const EltwiseRefKey& key)
     case ov::element::u16:
         return std::make_shared<BitwiseRefExecutor<uint16_t>>(key);
     case ov::element::i32:
+        if (useIntegerRefExecutor(key)) {
+            return std::make_shared<IntegerRefExecutor<int32_t>>(key);
+        }
         return std::make_shared<BitwiseRefExecutor<int32_t>>(key);
     case ov::element::f16:
         return std::make_shared<EltwiseRefExecutor<dnnl::impl::float16_t>>(key);
@@ -415,6 +427,45 @@ bool EltwiseRefExecutor<T, Enable>::supports([[maybe_unused]] const EltwiseConfi
     return true;
 }
 
+// IntegerRefExecutor implementation
+template <typename T, typename Enable>
+IntegerRefExecutor<T, Enable>::IntegerRefExecutor(const EltwiseRefKey& key) : EltwiseRefBaseExecutor<T>(key) {}
+
+template <typename T, typename Enable>
+void IntegerRefExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_ptrs,
+                                         const VectorDims& dims_out,
+                                         [[maybe_unused]] const CpuParallelPtr& cpu_parallel) {
+    parallel_nt(0, [&](const int ithr, const int nthr) {
+        size_t start = 0;
+        size_t end = 0;
+        splitter(this->m_fullWorkAmount, nthr, ithr, start, end);
+
+        std::vector<size_t> counters(dims_out.size(), 0);
+
+        for (size_t iwork = start; iwork < end; ++iwork) {
+            std::vector<T> src_f(this->m_inputNum);
+            T* dst_ptr_f = nullptr;
+            this->init_ptr(args_ptrs, dims_out, counters, iwork, src_f, dst_ptr_f);
+
+            switch (this->m_opData.algo) {
+            case Algorithm::EltwiseDivide:
+                OPENVINO_ASSERT(src_f[1] != 0, "Integer division by zero is not supported");
+                *dst_ptr_f = src_f[0] / src_f[1];
+                if (this->m_opData.pythondiv && ((src_f[0] < 0) != (src_f[1] < 0)) && src_f[0] % src_f[1] != 0) {
+                    --(*dst_ptr_f);
+                }
+                break;
+            case Algorithm::EltwiseFloor:
+                *dst_ptr_f = src_f[0];
+                break;
+            default:
+                OPENVINO_THROW("Unsupported operation type for Integer Eltwise executor: ",
+                               algToString(this->m_opData.algo));
+            }
+        }
+    });
+}
+
 // BitwiseRefExecutor implementation
 template <typename T, typename Enable>
 BitwiseRefExecutor<T, Enable>::BitwiseRefExecutor(const EltwiseRefKey& key) : EltwiseRefBaseExecutor<T>(key) {}
@@ -485,6 +536,8 @@ template class EltwiseRefBaseExecutor<int32_t>;
 
 template class EltwiseRefExecutor<float>;
 template class EltwiseRefExecutor<dnnl::impl::float16_t>;
+
+template class IntegerRefExecutor<int32_t>;
 
 template class BitwiseRefExecutor<int8_t>;
 template class BitwiseRefExecutor<uint8_t>;

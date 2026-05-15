@@ -5,7 +5,7 @@
 import numpy as np
 import onnx
 import pytest
-from onnx.helper import make_graph, make_model, make_tensor_value_info
+from onnx.helper import make_graph, make_model, make_tensor_value_info, np_dtype_to_tensor_dtype
 
 from tests.tests_python.utils import run_model
 
@@ -24,6 +24,24 @@ def import_and_compute(op_type, input_data_left, input_data_right, opset=7, **no
     model = make_model(graph, producer_name="OpenVINO ONNX Frontend")
     model.opset_import[0].version = opset
     inputs = [i.astype(np.float32) for i in inputs]  # WA for new Python API
+    return run_model(model, inputs)[0]
+
+
+def import_and_compute_typed(op_type, input_data_left, input_data_right, dtype, opset=7, **node_attributes):
+    inputs = [np.array(input_data_left, dtype=dtype), np.array(input_data_right, dtype=dtype)]
+    onnx_node = onnx.helper.make_node(op_type, inputs=["x", "y"], outputs=["z"], **node_attributes)
+    tensor_type = np_dtype_to_tensor_dtype(np.dtype(dtype))
+    output_shape = np.broadcast_shapes(*[value.shape for value in inputs])
+
+    input_tensors = [
+        make_tensor_value_info(name, tensor_type, value.shape)
+        for name, value in zip(onnx_node.input, inputs)
+    ]
+    output_tensors = [make_tensor_value_info(name, tensor_type, output_shape) for name in onnx_node.output]
+
+    graph = make_graph([onnx_node], "compute_graph", input_tensors, output_tensors)
+    model = make_model(graph, producer_name="OpenVINO ONNX Frontend")
+    model.opset_import[0].version = opset
     return run_model(model, inputs)[0]
 
 
@@ -132,3 +150,15 @@ def test_div():
         import_and_compute("Div", [[10, 20, 30], [40, 50, 60]], [2, 5, 6], opset=6, broadcast=1),
         np.array([[5, 4, 5], [20, 10, 10]], dtype=np.float32),
     )
+
+
+def test_div_int32_uses_truncating_onnx_semantics():
+    output = import_and_compute_typed(
+        "Div",
+        [-7, 7, -7, 7, 777777777],
+        [3, -3, -3, 3, 11],
+        np.int32,
+        opset=14,
+    )
+
+    assert np.array_equal(output, np.array([-2, -2, 2, 2, 70707070], dtype=np.int32))

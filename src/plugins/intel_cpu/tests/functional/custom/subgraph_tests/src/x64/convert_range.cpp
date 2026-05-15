@@ -8,10 +8,19 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/range.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/runtime/core.hpp"
+#include "openvino/runtime/tensor.hpp"
+
+#include <cstdint>
+#include <memory>
+#include <vector>
 
 using namespace CPUTestUtils;
 
@@ -152,6 +161,53 @@ TEST_P(ConvertRangeSubgraphCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
     checkResults();
+}
+
+std::shared_ptr<ov::Model> make_int32_divide_model(const ov::Shape& shape, const bool pythondiv) {
+    auto lhs = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, shape);
+    auto rhs = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, shape);
+    auto div = std::make_shared<ov::op::v1::Divide>(lhs, rhs, pythondiv);
+    auto result = std::make_shared<ov::op::v0::Result>(div);
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{lhs, rhs});
+}
+
+void run_int32_divide_test(const std::vector<int32_t>& lhs,
+                           const std::vector<int32_t>& rhs,
+                           const std::vector<int32_t>& expected,
+                           const bool pythondiv) {
+    ASSERT_EQ(lhs.size(), rhs.size());
+    ASSERT_EQ(lhs.size(), expected.size());
+
+    const ov::Shape shape{lhs.size()};
+    std::vector<int32_t> lhs_data = lhs;
+    std::vector<int32_t> rhs_data = rhs;
+    std::vector<int32_t> output(ov::shape_size(shape));
+
+    ov::Core core;
+    auto compiled_model = core.compile_model(make_int32_divide_model(shape, pythondiv), ov::test::utils::DEVICE_CPU);
+    auto infer_request = compiled_model.create_infer_request();
+    infer_request.set_input_tensor(0, ov::Tensor{ov::element::i32, shape, lhs_data.data()});
+    infer_request.set_input_tensor(1, ov::Tensor{ov::element::i32, shape, rhs_data.data()});
+    infer_request.set_output_tensor(ov::Tensor{ov::element::i32, shape, output.data()});
+    infer_request.infer();
+
+    EXPECT_EQ(output, expected);
+}
+
+TEST(Int32DivideAccuracyCPUTest, LargeValuesMatchTruncatingIntegerDivision) {
+    const std::vector<int32_t> lhs = {777777777, 1111111111, 1900000000, -1999999999};
+    const std::vector<int32_t> rhs = {11, 11, 11, 11};
+    const std::vector<int32_t> expected = {70707070, 101010101, 172727272, -181818181};
+
+    run_int32_divide_test(lhs, rhs, expected, false);
+}
+
+TEST(Int32DivideAccuracyCPUTest, NegativeValuesHonorRoundingMode) {
+    const std::vector<int32_t> lhs = {-7, 7, -7, 7};
+    const std::vector<int32_t> rhs = {3, -3, -3, 3};
+
+    run_int32_divide_test(lhs, rhs, {-2, -2, 2, 2}, false);
+    run_int32_divide_test(lhs, rhs, {-3, -3, 2, 2}, true);
 }
 
 const std::vector<std::map<std::string, ov::element::Type>> additionalConfig = {
