@@ -612,7 +612,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_batched_gemv_mtp,
                                                               Moe3GemmTestParams{2, true, 256, 512, 4, 2, 256},
                                                               Moe3GemmTestParams{4, true, 256, 512, 4, 2, 256},
                                                               Moe3GemmTestParams{2, false, 256, 512, 4, 2, 256},
-                                                              Moe3GemmTestParams{4, false, 256, 512, 4, 2, 256})));
+                                                              Moe3GemmTestParams{4, false, 256, 512, 4, 2, 256},
+                                                              // Sub-128 group_size batched GEMV coverage.
+                                                              Moe3GemmTestParams{2, true, 128, 256, 4, 2, 64},
+                                                              Moe3GemmTestParams{2, false, 128, 256, 4, 2, 64})));
 
 class moe_3gemm_compressed_gpu_u4 : public ::testing::TestWithParam<cldnn::MOE3GemmFusedCompressed::RoutingType> {};
 
@@ -896,7 +899,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_batched_gemv_mtp_shared,
                                            Moe3GemmTestParams{2, true, 256, 512, 4, 2, 256},
                                            Moe3GemmTestParams{4, true, 256, 512, 4, 2, 256},
                                            Moe3GemmTestParams{2, false, 256, 512, 4, 2, 256},
-                                           Moe3GemmTestParams{4, false, 256, 512, 4, 2, 256}));
+                                           Moe3GemmTestParams{4, false, 256, 512, 4, 2, 256},
+                                           // Sub-128 group_size batched GEMV coverage.
+                                           Moe3GemmTestParams{2, true, 128, 256, 4, 2, 64},
+                                           Moe3GemmTestParams{2, false, 128, 256, 4, 2, 64}));
 
 TEST_P(moe_3gemm_compressed_gpu_u4, moe_accuracy_test_u4) {
     auto routing_type = GetParam();

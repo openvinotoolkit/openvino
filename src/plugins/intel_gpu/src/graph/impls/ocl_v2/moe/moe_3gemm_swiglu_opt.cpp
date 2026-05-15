@@ -727,6 +727,22 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
 
     GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt: group_size=" << desc->_config.group_size << ", gate_up_group_size=" << gate_up_group_size
                            << ", down_group_size=" << down_group_size << std::endl;
+
+    // Validate GEMV kernel compatibility: ELEMS_PER_LANE = FAKE_GROUP_SIZE / SUBGROUP_SIZE must be >= 2.
+    // Smaller values have no kernel branch and would silently produce wrong results.
+    {
+        const size_t sg = (info.arch >= gpu_arch::xe2) ? 32u : 16u;
+        const size_t fake_gs = std::min(gate_up_group_size, size_t{128});
+        OPENVINO_ASSERT(fake_gs >= 2 * sg,
+                        "MoE GEMV kernel does not support group_size=",
+                        gate_up_group_size,
+                        " on this hardware (SUBGROUP_SIZE=",
+                        sg,
+                        "). Minimum supported group_size is ",
+                        2 * sg,
+                        ". Use a larger quantization group size.");
+    }
+
     jit.make("MAX_TOPK", desc->_config.top_k);
     jit.make("EXPERT_NUM", desc->_config.num_expert);
     jit.make("HIDDEN_SIZE", desc->_config.hidden_size);
