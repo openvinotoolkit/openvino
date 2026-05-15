@@ -14,6 +14,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/memory_util.hpp"
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/parallel_read_streambuf.hpp"
 
 namespace ov {
 LazyBuffer::LazyBuffer(std::filesystem::path file_path, size_t offset, size_t byte_size, size_t alignment)
@@ -59,9 +60,10 @@ void LazyBuffer::load() const {
         }
 
         try {
-            std::ifstream file(m_file_path, std::ios::binary);
+            util::ParallelReadStreamBuf par_buf(m_file_path, static_cast<std::streamoff>(m_offset));
+            std::istream file(&par_buf);
             OPENVINO_ASSERT(file, "Failed to open file: ", m_file_path);
-            file.seekg(m_offset).read(m_aligned_buffer, m_byte_size);
+            file.read(m_aligned_buffer, m_byte_size);
             OPENVINO_ASSERT(file, "Failed to read data from file: ", m_file_path);
         } catch (...) {
             std::ignore = VirtualFree(m_reserved_buffer, 0, MEM_DECOMMIT);
