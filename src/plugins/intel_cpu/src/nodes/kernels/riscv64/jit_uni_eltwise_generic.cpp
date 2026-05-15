@@ -572,10 +572,11 @@ void jit_uni_eltwise_generic<isa>::apply_post_ops() const {
     int input_idx = eltwise_emitter->get_inputs_num();
     int eltwise_post_op_idx = 0;
     for (size_t i = 1; i < eltwise_data_.size(); i++) {
-        OPENVINO_ASSERT(post_op_emitters[eltwise_post_op_idx], "Post-op emitter is missed for code emission!");
+        const auto& post_op_emitter = post_op_emitters[eltwise_post_op_idx];
+        OPENVINO_ASSERT(post_op_emitter, "Post-op emitter is missed for code emission!");
         std::vector<size_t> in_idxs;
         in_idxs.push_back(dst_vec().getIdx());
-        for (size_t j = 1; j < post_op_emitters[eltwise_post_op_idx]->get_inputs_num(); j++) {
+        for (size_t j = 1; j < post_op_emitter->get_inputs_num(); j++) {
             in_idxs.push_back(src_vec(input_idx++).getIdx());
         }
 
@@ -587,25 +588,21 @@ void jit_uni_eltwise_generic<isa>::apply_post_ops() const {
         const auto max_aux_vec_available = get_max_aux_vec_count();
 
         std::vector<size_t> aux_vec_idxs;
-        for (size_t i = 0; i < std::min(eltwise_emitter->aux_vecs_count(), max_aux_vec_available); i++) {
+        for (size_t i = 0; i < std::min(post_op_emitter->aux_vecs_count(), max_aux_vec_available); i++) {
             aux_vec_idxs.push_back(aux_vec(i).getIdx());
         }
 
         std::vector<size_t> aux_gpr_idxs;
-        for (size_t i = 0; i < std::min(eltwise_emitter->aux_gprs_count(), max_aux_gpr_available); i++) {
+        for (size_t i = 0; i < std::min(post_op_emitter->aux_gprs_count(), max_aux_gpr_available); i++) {
             aux_gpr_idxs.push_back(aux_gpr(i).getIdx());
         }
 
         std::vector<size_t> aux_fp_gpr_idxs;
-        for (size_t i = 0; i < std::min(eltwise_emitter->aux_fp_gprs_count(), max_aux_fp_gpr_available); i++) {
+        for (size_t i = 0; i < std::min(post_op_emitter->aux_fp_gprs_count(), max_aux_fp_gpr_available); i++) {
             aux_fp_gpr_idxs.push_back(aux_fp_gpr(i).getIdx());
         }
 
-        post_op_emitters[eltwise_post_op_idx]->emit_code(in_idxs,
-                                                         out_idxs,
-                                                         aux_vec_idxs,
-                                                         aux_gpr_idxs,
-                                                         aux_fp_gpr_idxs);
+        post_op_emitter->emit_code(in_idxs, out_idxs, aux_vec_idxs, aux_gpr_idxs, aux_fp_gpr_idxs);
 
         eltwise_post_op_idx++;
     }
