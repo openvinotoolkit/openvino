@@ -41,6 +41,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/assign.hpp"
 #include "openvino/op/read_value.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/util/common_util.hpp"
 #include "proxy_mem_blk.h"
 #include "scaled_attn.h"
