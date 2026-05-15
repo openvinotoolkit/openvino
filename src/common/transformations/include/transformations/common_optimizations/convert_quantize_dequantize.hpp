@@ -37,6 +37,5 @@ public:
     ConvertQuantizeDequantize(const ov::element::TypeVector& supported_low_precisions = {ov::element::i8,
                                                                                          ov::element::u8,
                                                                                          ov::element::i16,
-                                                                                         ov::element::u16},
-                              const ov::element::TypeVector& supported_original_precisions = {ov::element::f32});
+                                                                                         ov::element::u16});
 };
