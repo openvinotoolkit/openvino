@@ -595,6 +595,16 @@ Example:
         </filters>
     </skip_config>
 
+    <skip_config>
+        <message>Output I4 / U4 precision is not currently supported.</message>
+        <filters>
+            <filter>.*smoke.*OVInferRequestCheckTensorPrecision.*type=i4.*</filter>
+            <filter>.*smoke.*OVInferRequestCheckTensorPrecision.*type=u4.*</filter>
+            <filter>.*smoke.*OVInferRequestIOTensorSetPrecisionTestNPU.*type=i4.*</filter>
+            <filter>.*smoke.*OVInferRequestIOTensorSetPrecisionTestNPU.*type=u4.*</filter>
+        </filters>
+    </skip_config>
+
     <!-- E#109040 -->
     <skip_config>
         <message>Disabled tests for NPU3720</message>

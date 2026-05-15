@@ -365,7 +365,7 @@ public:
     virtual void fuseInto(const NodePtr& parentNode) {
         // The graph supports fusing only of consecutive nodes and some graph logic requires to know through which input
         // port a node was fused into parent one.
-        for (size_t i = 0; i < getParentEdges().size(); i++) {
+        for (int i = 0; i < static_cast<int>(getParentEdges().size()); i++) {
             if (getParentEdgeAt(i)->getParent().get() == parentNode.get()) {
                 setFusingPort(i);
                 break;
@@ -374,7 +374,7 @@ public:
 
         auto parentFusedNodes = parentNode->getFusedWith();
         if (getFusingPort() < 0 && !parentFusedNodes.empty()) {
-            for (size_t i = 0; i < getParentEdges().size(); i++) {
+            for (int i = 0; i < static_cast<int>(getParentEdges().size()); i++) {
                 if (getParentEdgeAt(i)->getParent().get() == parentFusedNodes[parentFusedNodes.size() - 1].get()) {
                     setFusingPort(i);
                     break;
