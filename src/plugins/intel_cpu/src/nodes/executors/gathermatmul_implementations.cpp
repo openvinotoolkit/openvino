@@ -26,13 +26,13 @@
 #endif
 namespace ov::intel_cpu {
 
+#if defined(OV_CPU_WITH_DNNL) && defined(OPENVINO_ARCH_X86_64)
+
 using namespace ov::element;
 using namespace TypeMaskAlias;
 using namespace executor;
 
 using LayoutConfig = std::vector<LayoutType>;
-
-#if defined(OV_CPU_WITH_DNNL) && defined(OPENVINO_ARCH_X86_64)
 
 // GatherMatmul always uses plain (ncsp) layout for all four standard arguments
 static const LayoutConfig dnnlGatherMatmulLayoutConfig{LayoutType::ncsp,
