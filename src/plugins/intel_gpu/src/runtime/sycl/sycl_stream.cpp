@@ -175,7 +175,7 @@ void sycl_stream::wait() {
     // Enqueue barrier with empty wait list to wait for all previously enqueued tasks
     try {
         auto ev = _command_queue.ext_oneapi_submit_barrier();
-        ev.wait();
+        ev.wait_and_throw();
     } catch (::sycl::exception const& err) {
         OPENVINO_THROW(SYCL_ERR_MSG_FMT(err));
     }
@@ -197,7 +197,7 @@ void sycl_stream::wait_for_events(const std::vector<event::ptr>& events) {
 
     if (!syclevents.empty()) {
         try {
-            ::sycl::event::wait(syclevents);
+            ::sycl::event::wait_and_throw(syclevents);
         } catch (::sycl::exception const& err) {
             OPENVINO_THROW(SYCL_ERR_MSG_FMT(err));
         }
