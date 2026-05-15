@@ -6,6 +6,7 @@
 
 #include <cassert>
 #include <cstddef>
+#include <stdexcept>
 
 // Lloyd-Max optimal centroids for the marginal distribution of a rotated
 // unit-norm coordinate (scaled by sqrt(d)). This distribution is Beta-derived
@@ -231,52 +232,58 @@ static constexpr float TURBOQ_BOUNDARIES_4BIT_D512[15] = TBQ_MIDS_4BIT(TURBOQ_CO
 // Fallback for unknown head_dim: asymptotic (N(0,1)) values.
 // ---------------------------------------------------------------------------
 inline const float* turboq_codebook(int bits, int head_dim) {
-    if (bits == 4) {
+    switch (bits) {
+    case 4:
         switch (head_dim) {
         case 128: return TURBOQ_CODEBOOK_4BIT_D128;
         case 256: return TURBOQ_CODEBOOK_4BIT_D256;
         case 512: return TURBOQ_CODEBOOK_4BIT_D512;
         default:  return TURBOQ_CODEBOOK_4BIT;
         }
-    }
-    if (bits == 3) {
+    case 3:
         switch (head_dim) {
         case 128: return TURBOQ_CODEBOOK_3BIT_D128;
         case 256: return TURBOQ_CODEBOOK_3BIT_D256;
         case 512: return TURBOQ_CODEBOOK_3BIT_D512;
         default:  return TURBOQ_CODEBOOK_3BIT;
         }
-    }
-    switch (head_dim) {
-    case 128: return TURBOQ_CODEBOOK_2BIT_D128;
-    case 256: return TURBOQ_CODEBOOK_2BIT_D256;
-    case 512: return TURBOQ_CODEBOOK_2BIT_D512;
-    default:  return TURBOQ_CODEBOOK_2BIT;
+    case 2:
+        switch (head_dim) {
+        case 128: return TURBOQ_CODEBOOK_2BIT_D128;
+        case 256: return TURBOQ_CODEBOOK_2BIT_D256;
+        case 512: return TURBOQ_CODEBOOK_2BIT_D512;
+        default:  return TURBOQ_CODEBOOK_2BIT;
+        }
+    default:
+        throw std::invalid_argument("turboq_codebook: bits must be 2, 3, or 4");
     }
 }
 
 inline const float* turboq_boundaries(int bits, int head_dim) {
-    if (bits == 4) {
+    switch (bits) {
+    case 4:
         switch (head_dim) {
         case 128: return TURBOQ_BOUNDARIES_4BIT_D128;
         case 256: return TURBOQ_BOUNDARIES_4BIT_D256;
         case 512: return TURBOQ_BOUNDARIES_4BIT_D512;
         default:  return TURBOQ_BOUNDARIES_4BIT;
         }
-    }
-    if (bits == 3) {
+    case 3:
         switch (head_dim) {
         case 128: return TURBOQ_BOUNDARIES_3BIT_D128;
         case 256: return TURBOQ_BOUNDARIES_3BIT_D256;
         case 512: return TURBOQ_BOUNDARIES_3BIT_D512;
         default:  return TURBOQ_BOUNDARIES_3BIT;
         }
-    }
-    switch (head_dim) {
-    case 128: return TURBOQ_BOUNDARIES_2BIT_D128;
-    case 256: return TURBOQ_BOUNDARIES_2BIT_D256;
-    case 512: return TURBOQ_BOUNDARIES_2BIT_D512;
-    default:  return TURBOQ_BOUNDARIES_2BIT;
+    case 2:
+        switch (head_dim) {
+        case 128: return TURBOQ_BOUNDARIES_2BIT_D128;
+        case 256: return TURBOQ_BOUNDARIES_2BIT_D256;
+        case 512: return TURBOQ_BOUNDARIES_2BIT_D512;
+        default:  return TURBOQ_BOUNDARIES_2BIT;
+        }
+    default:
+        throw std::invalid_argument("turboq_boundaries: bits must be 2, 3, or 4");
     }
 }
 
