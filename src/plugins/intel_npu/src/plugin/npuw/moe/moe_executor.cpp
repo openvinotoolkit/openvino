@@ -31,24 +31,23 @@ void MoEExecutor::prepare(size_t idx, size_t real_idx, size_t num_sublayers, siz
     const auto& desc =
         *static_cast<const ov::npuw::CompiledModel::CompiledModelDesc*>(m_accessor.get_submodel_desc(real_idx));
 
-    if (!desc.moe_experts.has_value()) {
+    const auto* moe_experts = get_compiled_experts(desc.pipeline.context);
+    if (moe_experts == nullptr) {
         OPENVINO_THROW("MoEExecutor::prepare called on non-MoE submodel[real_idx=", real_idx, "]");
     }
-
-    const auto& moe_experts = desc.moe_experts.value();
 
     // Step 1: Initialize MoE config (only once, on first prepare call)
     if (!m_config.is_valid()) {
         LOG_DEBUG("Creating shared MoE config");
 
-        m_config.num_experts = moe_experts.num_experts;
-        m_config.num_active_experts = moe_experts.num_active_experts;
-        m_config.input_token_count = moe_experts.input_token_count;
-        m_config.expert_hidden_dim = moe_experts.expert_hidden_dim;
-        m_config.param_mapping = moe_experts._param_mapping;
-        m_config.router_scores_idx = moe_experts._router_scores_idx;
-        m_config.expert_input_param_idx = moe_experts._expert_input_param_idx;
-        m_config.compiled_models = moe_experts._compiled_models;
+        m_config.num_experts = moe_experts->num_experts;
+        m_config.num_active_experts = moe_experts->num_active_experts;
+        m_config.input_token_count = moe_experts->input_token_count;
+        m_config.expert_hidden_dim = moe_experts->expert_hidden_dim;
+        m_config.param_mapping = moe_experts->_param_mapping;
+        m_config.router_scores_idx = moe_experts->_router_scores_idx;
+        m_config.expert_input_param_idx = moe_experts->_expert_input_param_idx;
+        m_config.compiled_models = moe_experts->_compiled_models;
 
         // Validate configuration
         if (!m_config.is_valid()) {
@@ -136,18 +135,16 @@ bool MoEExecutor::function_prologue_moe_input(size_t idx,
         *static_cast<const ov::npuw::CompiledModel::CompiledModelDesc*>(m_accessor.get_submodel_desc(real_idx));
 
     // MoE expert layer: handle router scores and expert inputs
-    if (desc.moe_experts) {
-        const auto& moe = desc.moe_experts.value();
-
+    if (const auto* moe = get_compiled_experts(desc.pipeline.context)) {
         // Router scores: store for later use in MoE inference
-        if (moe._router_scores_idx.has_value() && param_idx == moe._router_scores_idx.value()) {
+        if (moe->_router_scores_idx.has_value() && param_idx == moe->_router_scores_idx.value()) {
             NPUW_ASSERT(idx < m_moe_io.size() && "MoEExecutor::prepare() must be called first");
             m_moe_io[idx].router_scores = i_tensor;
             return true;  // Handled by MoE
         }
 
         // Expert inputs: store for later use (batch mode: cache binding, iterative mode: chunking)
-        if (moe._expert_input_param_idx.has_value() && param_idx == moe._expert_input_param_idx.value()) {
+        if (moe->_expert_input_param_idx.has_value() && param_idx == moe->_expert_input_param_idx.value()) {
             NPUW_ASSERT(idx < m_moe_io.size() && "MoEExecutor::prepare() must be called first");
             m_moe_io[idx].expert_input = i_tensor;
             return true;  // Handled by MoE
@@ -159,12 +156,11 @@ bool MoEExecutor::function_prologue_moe_input(size_t idx,
     }
 
     // MoE downstream layer: bind expert output accumulator or other parameters
-    if (desc.moe_experts_downstream) {
-        const auto& moe_downstream = desc.moe_experts_downstream.value();
+    if (const auto* moe_downstream = get_compiled_downstream(desc.pipeline.context)) {
         const auto& iport = desc.compiled_model->inputs()[param_idx];
         auto real_request = m_accessor.get_subrequest(real_idx);
 
-        if (param_idx == moe_downstream.expert_output_param_idx) {
+        if (param_idx == moe_downstream->expert_output_param_idx) {
             // Bind expert output accumulator
             auto output_buffer = m_resources.expert_output_accumulator;
             NPUW_ASSERT(output_buffer && "MoE output buffer not available");
@@ -177,7 +173,7 @@ bool MoEExecutor::function_prologue_moe_input(size_t idx,
     }
 
     // Should not reach here if is_moe flag is set correctly
-    NPUW_ASSERT(false && "MoE flag set but no moe_experts/moe_experts_downstream found");
+    NPUW_ASSERT(false && "MoE flag set but no compiled MoE state found");
     return false;
 }
 
@@ -580,8 +576,9 @@ void MoEExecutor::unpack_single_expert_closure(std::size_t idx, RqPtr request, s
     const auto& func_desc =
         *static_cast<const CompiledModel::CompiledModelDesc*>(m_accessor.get_submodel_desc(real_idx));
 
-    NPUW_ASSERT(func_desc.moe_experts.has_value());
-    const auto num_experts = func_desc.moe_experts->num_experts;
+    const auto* moe_experts = get_compiled_experts(func_desc.pipeline.context);
+    NPUW_ASSERT(moe_experts != nullptr);
+    const auto num_experts = moe_experts->num_experts;
 
     auto& desc_closure = comp_model_desc.closure.get().closure;
 
@@ -675,11 +672,11 @@ void MoEExecutor::unpack_multiple_experts_closure(std::size_t idx,
     const auto& func_desc =
         *static_cast<const CompiledModel::CompiledModelDesc*>(m_accessor.get_submodel_desc(real_idx));
 
-    NPUW_ASSERT(func_desc.moe_experts.has_value());
-    const auto& moe_experts = func_desc.moe_experts.value();
-    const auto num_experts = moe_experts.num_experts;        // Total experts in model (e.g., 32)
-    const size_t K = expert_ids.size();                      // Active experts (e.g., 4)
-    const auto& param_mapping = moe_experts._param_mapping;  // original_idx -> [unrolled_indices]
+    const auto* moe_experts = get_compiled_experts(func_desc.pipeline.context);
+    NPUW_ASSERT(moe_experts != nullptr);
+    const auto num_experts = moe_experts->num_experts;        // Total experts in model (e.g., 32)
+    const size_t K = expert_ids.size();                       // Active experts (e.g., 4)
+    const auto& param_mapping = moe_experts->_param_mapping;  // original_idx -> [unrolled_indices]
 
     auto& desc_closure = comp_model_desc.closure.get().closure;
     const auto& compiled_inputs = func_desc.compiled_model->inputs();

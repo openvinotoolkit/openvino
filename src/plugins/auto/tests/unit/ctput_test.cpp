@@ -176,11 +176,14 @@ TEST_P(AutoCTPUTCallMulti, CTPUTDeviceLoadFailedNoExceptionThrowTest) {
     std::shared_ptr<ov::ICompiledModel> exeNetwork;
     config.insert({ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)});
     config.insert(ov::device::priorities(targetDev));
-    ON_CALL(*core,
-            compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-                          ::testing::Matcher<const std::string&>(StrEq(loadFailedDevice)),
-                          ::testing::Matcher<const ov::AnyMap&>(_)))
-        .WillByDefault(ov::Throw("GeneralError"));
+    // gmock 1.11+ reports calls not matching any EXPECT_CALL as "unexpected"
+    // once any expectation exists for this method, so promote the failing
+    // device setup from ON_CALL to EXPECT_CALL.
+    EXPECT_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(StrEq(loadFailedDevice)),
+                              ::testing::Matcher<const ov::AnyMap&>(_)))
+        .WillRepeatedly(ov::Throw("GeneralError"));
     if (loadFailedDevice != ov::test::utils::DEVICE_CPU) {
         EXPECT_CALL(*core,
                     compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),

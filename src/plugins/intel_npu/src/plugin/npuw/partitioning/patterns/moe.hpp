@@ -29,12 +29,30 @@ constexpr const char* MLP_EXPERT_NAME = ".mlp.expert";
 class GPTOSSExpert : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::moe::GPTOSSExpert");
+    static constexpr const char* pattern_name() {
+        return "GPTOSSExpert";
+    }
+    static constexpr const char* isolation_tag() {
+        return EXPERT_TAG;
+    }
+    static constexpr const char* group_name() {
+        return "moe";
+    }
     GPTOSSExpert(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
 };
 
 class GPTOSSRouter : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::moe::GPTOSSRouter");
+    static constexpr const char* pattern_name() {
+        return "GPTOSSRouter";
+    }
+    static constexpr const char* isolation_tag() {
+        return ROUTER_TAG;
+    }
+    static constexpr const char* group_name() {
+        return "moe";
+    }
     GPTOSSRouter(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
 };
 
