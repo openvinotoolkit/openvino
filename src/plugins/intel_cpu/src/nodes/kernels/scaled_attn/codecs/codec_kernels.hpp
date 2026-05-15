@@ -16,10 +16,11 @@
 
 #include "nodes/kernels/simd/simd_loop.hpp"
 
-namespace ov::Extensions::Cpu::XARCH {
+namespace ov::Extensions::Cpu {
 
 // Lightweight strided pointer — wraps (base, stride) for head-strided arrays.
-// Usage: data[head][offset]
+// Usage: data[head][offset]. POD; not ISA-sensitive, lives outside XARCH so
+// cross-compile dispatch symbols don't depend on the active ISA namespace.
 template <typename T>
 struct StridedData {
     T* data;
@@ -29,6 +30,10 @@ struct StridedData {
         return data + i * stride;
     }
 };
+
+}  // namespace ov::Extensions::Cpu
+
+namespace ov::Extensions::Cpu::XARCH {
 
 // Decode elements at element index j from packed data using a DecodePlan.
 // The plan carries both decoder (how bits become values) and params
