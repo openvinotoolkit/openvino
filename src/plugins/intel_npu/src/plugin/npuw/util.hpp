@@ -139,6 +139,12 @@ struct Impl {
     const V& at_or_at_or_at(const K& k1, const K& k2, const K& k3) const {
         return const_cast<Impl*>(this)->at_or_at_or_at(k1, k2, k3);
     }
+
+    template <typename K>
+    V at_or(const K& k, const V& default_val) const {
+        const auto iter = m->find(k);
+        return iter != m->end() ? iter->second : default_val;
+    }
 };
 
 template <typename M>
@@ -189,6 +195,10 @@ bool matchLoRAMatMulAString(const std::string& input);
 bool matchLoRAMatMulBString(const std::string& input);
 
 bool matchLoRAMatMulAlphaString(const std::string& input);
+
+bool matchLinCacheString(const std::string& input, const std::string& past_or_present = "past");
+
+bool starts_with_past_lincache(const std::string& input_name);
 
 // Structure to hold SDPA pattern nodes
 struct SDPAPatternNodes {
@@ -296,6 +306,10 @@ std::optional<int> isPresentKeyValuesValue(const std::string& str);
 bool isPastKeyParam(const std::string& str);
 // Matches any past value param: contiguous or block-split.
 bool isPastValueParam(const std::string& str);
+
+// To remove input KV params that got badly matched in StatefulToStateless pass
+// in Whisper model.
+bool isRestoredPastKeyValueParam(const std::string& str);
 
 }  // namespace util
 }  // namespace npuw

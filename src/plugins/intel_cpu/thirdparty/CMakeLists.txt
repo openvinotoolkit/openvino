@@ -4,6 +4,24 @@
 
 project(intel_cpu_thirdparty)
 
+# Suppress warnings from thirdparty code only (not from intel_cpu/src)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # C4849 OpenMP 'reduction' clause ignored in 'simd' directive
+    ov_add_compiler_flags(/wd4849)
+    # C4661 no suitable definition provided for explicit template instantiation request
+    ov_add_compiler_flags(/wd4661)
+    # Re-apply warning suppressions inside ov_add_onednn() function scope
+    # (needed because function() creates new variable scope in CMake)
+    ov_add_compiler_flags(/wd4018)
+    ov_add_compiler_flags(/wd4267)
+    ov_add_compiler_flags(/wd4244)
+    ov_add_compiler_flags(/wd4334)
+    ov_add_compiler_flags(/wd4146)
+    ov_add_compiler_flags(/wd5002)
+elseif(OV_COMPILER_IS_INTEL_LLVM AND WIN32)
+    ov_add_compiler_flags("/Wno-microsoft-include")
+endif()
+
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND MSVC_TOOLSET_VERSION GREATER_EQUAL 141)
     # Visual Studio 2017 (v141 toolset)
     # This flag is needed for enabling SIMD vectorization with command '#pragma omp simd'.
@@ -122,16 +140,6 @@ function(ov_add_onednn)
             ov_add_compiler_flags(-Wno-deprecated-this-capture)
             ov_add_compiler_flags(-Wno-deprecated-enum-enum-conversion)
         endif()
-    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        # C4849 OpenMP 'reduction' clause ignored in 'simd' directive
-        ov_add_compiler_flags(/wd4849)
-        # C4661 no suitable definition provided for explicit template instantiation request
-        ov_add_compiler_flags(/wd4661)
-        # C4267, 4244 conversion from 'XXX' to 'YYY', possible loss of data
-        ov_add_compiler_flags(/wd4267)
-        ov_add_compiler_flags(/wd4244)
-        # C4334 '<<': result of 32-bit shift implicitly converted to 64 bits
-        ov_add_compiler_flags(/wd4334)
     endif()
 
     if(SUGGEST_OVERRIDE_SUPPORTED)
