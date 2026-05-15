@@ -231,40 +231,52 @@ static constexpr float TURBOQ_BOUNDARIES_4BIT_D512[15] = TBQ_MIDS_4BIT(TURBOQ_CO
 // Fallback for unknown head_dim: asymptotic (N(0,1)) values.
 // ---------------------------------------------------------------------------
 inline const float* turboq_codebook(int bits, int head_dim) {
+    if (bits == 4) {
+        switch (head_dim) {
+        case 128: return TURBOQ_CODEBOOK_4BIT_D128;
+        case 256: return TURBOQ_CODEBOOK_4BIT_D256;
+        case 512: return TURBOQ_CODEBOOK_4BIT_D512;
+        default:  return TURBOQ_CODEBOOK_4BIT;
+        }
+    }
+    if (bits == 3) {
+        switch (head_dim) {
+        case 128: return TURBOQ_CODEBOOK_3BIT_D128;
+        case 256: return TURBOQ_CODEBOOK_3BIT_D256;
+        case 512: return TURBOQ_CODEBOOK_3BIT_D512;
+        default:  return TURBOQ_CODEBOOK_3BIT;
+        }
+    }
     switch (head_dim) {
-    case 128:
-        return bits == 4   ? TURBOQ_CODEBOOK_4BIT_D128
-               : bits == 3 ? TURBOQ_CODEBOOK_3BIT_D128
-                           : TURBOQ_CODEBOOK_2BIT_D128;
-    case 256:
-        return bits == 4   ? TURBOQ_CODEBOOK_4BIT_D256
-               : bits == 3 ? TURBOQ_CODEBOOK_3BIT_D256
-                           : TURBOQ_CODEBOOK_2BIT_D256;
-    case 512:
-        return bits == 4   ? TURBOQ_CODEBOOK_4BIT_D512
-               : bits == 3 ? TURBOQ_CODEBOOK_3BIT_D512
-                           : TURBOQ_CODEBOOK_2BIT_D512;
-    default:
-        return bits == 4 ? TURBOQ_CODEBOOK_4BIT : bits == 3 ? TURBOQ_CODEBOOK_3BIT : TURBOQ_CODEBOOK_2BIT;
+    case 128: return TURBOQ_CODEBOOK_2BIT_D128;
+    case 256: return TURBOQ_CODEBOOK_2BIT_D256;
+    case 512: return TURBOQ_CODEBOOK_2BIT_D512;
+    default:  return TURBOQ_CODEBOOK_2BIT;
     }
 }
 
 inline const float* turboq_boundaries(int bits, int head_dim) {
+    if (bits == 4) {
+        switch (head_dim) {
+        case 128: return TURBOQ_BOUNDARIES_4BIT_D128;
+        case 256: return TURBOQ_BOUNDARIES_4BIT_D256;
+        case 512: return TURBOQ_BOUNDARIES_4BIT_D512;
+        default:  return TURBOQ_BOUNDARIES_4BIT;
+        }
+    }
+    if (bits == 3) {
+        switch (head_dim) {
+        case 128: return TURBOQ_BOUNDARIES_3BIT_D128;
+        case 256: return TURBOQ_BOUNDARIES_3BIT_D256;
+        case 512: return TURBOQ_BOUNDARIES_3BIT_D512;
+        default:  return TURBOQ_BOUNDARIES_3BIT;
+        }
+    }
     switch (head_dim) {
-    case 128:
-        return bits == 4   ? TURBOQ_BOUNDARIES_4BIT_D128
-               : bits == 3 ? TURBOQ_BOUNDARIES_3BIT_D128
-                           : TURBOQ_BOUNDARIES_2BIT_D128;
-    case 256:
-        return bits == 4   ? TURBOQ_BOUNDARIES_4BIT_D256
-               : bits == 3 ? TURBOQ_BOUNDARIES_3BIT_D256
-                           : TURBOQ_BOUNDARIES_2BIT_D256;
-    case 512:
-        return bits == 4   ? TURBOQ_BOUNDARIES_4BIT_D512
-               : bits == 3 ? TURBOQ_BOUNDARIES_3BIT_D512
-                           : TURBOQ_BOUNDARIES_2BIT_D512;
-    default:
-        return bits == 4 ? TURBOQ_BOUNDARIES_4BIT : bits == 3 ? TURBOQ_BOUNDARIES_3BIT : TURBOQ_BOUNDARIES_2BIT;
+    case 128: return TURBOQ_BOUNDARIES_2BIT_D128;
+    case 256: return TURBOQ_BOUNDARIES_2BIT_D256;
+    case 512: return TURBOQ_BOUNDARIES_2BIT_D512;
+    default:  return TURBOQ_BOUNDARIES_2BIT;
     }
 }
 
