@@ -71,8 +71,7 @@ namespace ov::pass {
 //                                        v
 //
 
-ConvertQuantizeDequantize::ConvertQuantizeDequantize(const ov::element::TypeVector& supported_low_precisions,
-                                                     const ov::element::TypeVector& supported_original_precisions) {
+ConvertQuantizeDequantize::ConvertQuantizeDequantize(const ov::element::TypeVector& supported_low_precisions) {
     MATCHER_SCOPE(ConvertQuantizeDequantize);
     // Allow floating-point input types (fp32, fp16, bf16) for mixed precision support
     auto data_pattern = pattern::any_input([](const Output<Node>& output) {
