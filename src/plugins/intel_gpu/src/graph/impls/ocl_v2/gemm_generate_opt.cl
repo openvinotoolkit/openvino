@@ -258,8 +258,10 @@ KERNEL(gemm_generate_opt)(
 
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    // ---- Phase 2: Sub-group cooperative GEMV with N-block tiling (n+=2) ----
-    // Each subgroup processes 2 adjacent output channels.
+    // ---- Phase 2: Sub-group cooperative GEMV with N-block tiling ----
+    // Each subgroup processes TILE_N=2 adjacent output channels.
+    // K-loop is manually unrolled by 2: all reads for both chunks are issued
+    // before compute, doubling outstanding memory requests per thread.
     const int n = n_wg_start + id_sg * TILE_N;
 
     // Early exit for padding work-groups.
@@ -280,88 +282,153 @@ KERNEL(gemm_generate_opt)(
     float sum_all0 = 0;
     float sum_all1 = 0;
 
-    unroll_for(int gk = 0; gk < K_SIZE / FAKE_GROUP_SIZE; gk++) {
-        // Hoist scale per quantization group boundary.
-        int scale_offset = (gk * FAKE_GROUP_SIZE / GROUP_SIZE) * N_SIZE;
-        half s0 = S[scale_offset];
-        half s1 = S[scale_offset + 1];
+    // K-loop unrolled by 2: process two FAKE_GROUP_SIZE chunks per iteration.
+    // Issue all reads (4 global weight + 2 SLM activation + scale/ZP) before
+    // computing, to maximize outstanding memory requests and hide latency.
+    // K_SIZE / FAKE_GROUP_SIZE is always even (K is multiple of 256).
+    for (int gk = 0; gk < K_SIZE / FAKE_GROUP_SIZE; gk += 2) {
+        // Hoist scale for both chunks.
+        int scale_off_A = (gk * FAKE_GROUP_SIZE / GROUP_SIZE) * N_SIZE;
+        int scale_off_B = ((gk + 1) * FAKE_GROUP_SIZE / GROUP_SIZE) * N_SIZE;
+        half s0_A = S[scale_off_A];
+        half s1_A = S[scale_off_A + 1];
+        half s0_B = S[scale_off_B];
+        half s1_B = S[scale_off_B + 1];
+
 #if HAS_ZP
 #if ZP_IS_U8
-        int zp_offset = (gk * FAKE_GROUP_SIZE / GROUP_SIZE) * N_SIZE;
-        half z_hf0 = convert_half(Z[zp_offset]);
-        half z_hf1 = convert_half(Z[zp_offset + 1]);
+        int zp_off_A = (gk * FAKE_GROUP_SIZE / GROUP_SIZE) * N_SIZE;
+        int zp_off_B = ((gk + 1) * FAKE_GROUP_SIZE / GROUP_SIZE) * N_SIZE;
+        half z0_A = convert_half(Z[zp_off_A]);
+        half z1_A = convert_half(Z[zp_off_A + 1]);
+        half z0_B = convert_half(Z[zp_off_B]);
+        half z1_B = convert_half(Z[zp_off_B + 1]);
 #else
-        int zp_offset = (gk * FAKE_GROUP_SIZE / GROUP_SIZE) * N_SIZE / 2;
-        uchar z_byte = Z[zp_offset];
-        half z_hf0 = convert_half(z_byte & 0xf);
-        half z_hf1 = convert_half(z_byte >> 4);
+        int zp_off_A = (gk * FAKE_GROUP_SIZE / GROUP_SIZE) * N_SIZE / 2;
+        int zp_off_B = ((gk + 1) * FAKE_GROUP_SIZE / GROUP_SIZE) * N_SIZE / 2;
+        uchar z_byte_A = Z[zp_off_A];
+        half z0_A = convert_half(z_byte_A & 0xf);
+        half z1_A = convert_half(z_byte_A >> 4);
+        uchar z_byte_B = Z[zp_off_B];
+        half z0_B = convert_half(z_byte_B & 0xf);
+        half z1_B = convert_half(z_byte_B >> 4);
 #endif
 #endif
 
 #if SG_SIZE == 32
-        // SUBGROUP_SIZE=32: half4 activation (4 elems × 32 lanes = 128 elems/chunk)
-        half2 sum0, sum1;
-        half4 a = as_half4(intel_sub_group_block_read_us4(
+        // ---- Chunk A reads ----
+        half4 a_A = as_half4(intel_sub_group_block_read_us4(
             (const __local ushort*)x_slm + gk * FAKE_GROUP_SIZE));
-        uchar2 b  = intel_sub_group_block_read_uc2(
+        uchar2 bw0_A = intel_sub_group_block_read_uc2(
             (const __global uchar*)B0 + gk * FAKE_GROUP_SIZE / 2);
-        uchar2 b2 = intel_sub_group_block_read_uc2(
+        uchar2 bw1_A = intel_sub_group_block_read_uc2(
             (const __global uchar*)B1 + gk * FAKE_GROUP_SIZE / 2);
+        // ---- Chunk B reads (issued before chunk A compute) ----
+        half4 a_B = as_half4(intel_sub_group_block_read_us4(
+            (const __local ushort*)x_slm + (gk + 1) * FAKE_GROUP_SIZE));
+        uchar2 bw0_B = intel_sub_group_block_read_uc2(
+            (const __global uchar*)B0 + (gk + 1) * FAKE_GROUP_SIZE / 2);
+        uchar2 bw1_B = intel_sub_group_block_read_uc2(
+            (const __global uchar*)B1 + (gk + 1) * FAKE_GROUP_SIZE / 2);
 
-        sum0.s0 = fma(a.s0, DEQUANT_4BIT_LO(b.s0),  (half)0);
-        sum0.s1 = fma(a.s1, DEQUANT_4BIT_LO(b.s1),  (half)0);
-        sum0.s0 = fma(a.s2, DEQUANT_4BIT_HI(b.s0),  sum0.s0);
-        sum0.s1 = fma(a.s3, DEQUANT_4BIT_HI(b.s1),  sum0.s1);
+        // ---- Chunk A compute ----
+        half2 sum0_A, sum1_A;
+        sum0_A.s0 = fma(a_A.s0, DEQUANT_4BIT_LO(bw0_A.s0), (half)0);
+        sum0_A.s1 = fma(a_A.s1, DEQUANT_4BIT_LO(bw0_A.s1), (half)0);
+        sum0_A.s0 = fma(a_A.s2, DEQUANT_4BIT_HI(bw0_A.s0), sum0_A.s0);
+        sum0_A.s1 = fma(a_A.s3, DEQUANT_4BIT_HI(bw0_A.s1), sum0_A.s1);
+        sum1_A.s0 = fma(a_A.s0, DEQUANT_4BIT_LO(bw1_A.s0), (half)0);
+        sum1_A.s1 = fma(a_A.s1, DEQUANT_4BIT_LO(bw1_A.s1), (half)0);
+        sum1_A.s0 = fma(a_A.s2, DEQUANT_4BIT_HI(bw1_A.s0), sum1_A.s0);
+        sum1_A.s1 = fma(a_A.s3, DEQUANT_4BIT_HI(bw1_A.s1), sum1_A.s1);
 
-        sum1.s0 = fma(a.s0, DEQUANT_4BIT_LO(b2.s0), (half)0);
-        sum1.s1 = fma(a.s1, DEQUANT_4BIT_LO(b2.s1), (half)0);
-        sum1.s0 = fma(a.s2, DEQUANT_4BIT_HI(b2.s0), sum1.s0);
-        sum1.s1 = fma(a.s3, DEQUANT_4BIT_HI(b2.s1), sum1.s1);
+        // ---- Chunk B compute ----
+        half2 sum0_B, sum1_B;
+        sum0_B.s0 = fma(a_B.s0, DEQUANT_4BIT_LO(bw0_B.s0), (half)0);
+        sum0_B.s1 = fma(a_B.s1, DEQUANT_4BIT_LO(bw0_B.s1), (half)0);
+        sum0_B.s0 = fma(a_B.s2, DEQUANT_4BIT_HI(bw0_B.s0), sum0_B.s0);
+        sum0_B.s1 = fma(a_B.s3, DEQUANT_4BIT_HI(bw0_B.s1), sum0_B.s1);
+        sum1_B.s0 = fma(a_B.s0, DEQUANT_4BIT_LO(bw1_B.s0), (half)0);
+        sum1_B.s1 = fma(a_B.s1, DEQUANT_4BIT_LO(bw1_B.s1), (half)0);
+        sum1_B.s0 = fma(a_B.s2, DEQUANT_4BIT_HI(bw1_B.s0), sum1_B.s0);
+        sum1_B.s1 = fma(a_B.s3, DEQUANT_4BIT_HI(bw1_B.s1), sum1_B.s1);
 
 #if HAS_ZP
-        sum_all0 += (sum0[0] + sum0[1] - xg_sum[gk] * z_hf0) * s0;
-        sum_all1 += (sum1[0] + sum1[1] - xg_sum[gk] * z_hf1) * s1;
+        sum_all0 += (sum0_A[0] + sum0_A[1] - xg_sum[gk] * z0_A) * s0_A;
+        sum_all1 += (sum1_A[0] + sum1_A[1] - xg_sum[gk] * z1_A) * s1_A;
+        sum_all0 += (sum0_B[0] + sum0_B[1] - xg_sum[gk + 1] * z0_B) * s0_B;
+        sum_all1 += (sum1_B[0] + sum1_B[1] - xg_sum[gk + 1] * z1_B) * s1_B;
 #else
-        sum_all0 += (sum0[0] + sum0[1]) * s0;
-        sum_all1 += (sum1[0] + sum1[1]) * s1;
+        sum_all0 += (sum0_A[0] + sum0_A[1]) * s0_A + (sum0_B[0] + sum0_B[1]) * s0_B;
+        sum_all1 += (sum1_A[0] + sum1_A[1]) * s1_A + (sum1_B[0] + sum1_B[1]) * s1_B;
 #endif
 
 #else  // SG_SIZE == 16
-        // SUBGROUP_SIZE=16: half8 activation (8 elems × 16 lanes = 128 elems/chunk)
-        half4 sum0, sum1;
-        half8 a = as_half8(intel_sub_group_block_read_us8(
+        // ---- Chunk A reads ----
+        half8 a_A = as_half8(intel_sub_group_block_read_us8(
             (const __local ushort*)x_slm + gk * FAKE_GROUP_SIZE));
-        uchar4 b  = intel_sub_group_block_read_uc4(
+        uchar4 bw0_A = intel_sub_group_block_read_uc4(
             (const __global uchar*)B0 + gk * FAKE_GROUP_SIZE / 2);
-        uchar4 b2 = intel_sub_group_block_read_uc4(
+        uchar4 bw1_A = intel_sub_group_block_read_uc4(
             (const __global uchar*)B1 + gk * FAKE_GROUP_SIZE / 2);
+        // ---- Chunk B reads (issued before chunk A compute) ----
+        half8 a_B = as_half8(intel_sub_group_block_read_us8(
+            (const __local ushort*)x_slm + (gk + 1) * FAKE_GROUP_SIZE));
+        uchar4 bw0_B = intel_sub_group_block_read_uc4(
+            (const __global uchar*)B0 + (gk + 1) * FAKE_GROUP_SIZE / 2);
+        uchar4 bw1_B = intel_sub_group_block_read_uc4(
+            (const __global uchar*)B1 + (gk + 1) * FAKE_GROUP_SIZE / 2);
 
-        sum0.s0 = fma(a.s0, DEQUANT_4BIT_LO(b.s0),  (half)0);
-        sum0.s1 = fma(a.s1, DEQUANT_4BIT_LO(b.s1),  (half)0);
-        sum0.s2 = fma(a.s2, DEQUANT_4BIT_LO(b.s2),  (half)0);
-        sum0.s3 = fma(a.s3, DEQUANT_4BIT_LO(b.s3),  (half)0);
+        // ---- Chunk A compute ----
+        half4 sum0_A, sum1_A;
+        sum0_A.s0 = fma(a_A.s0, DEQUANT_4BIT_LO(bw0_A.s0), (half)0);
+        sum0_A.s1 = fma(a_A.s1, DEQUANT_4BIT_LO(bw0_A.s1), (half)0);
+        sum0_A.s2 = fma(a_A.s2, DEQUANT_4BIT_LO(bw0_A.s2), (half)0);
+        sum0_A.s3 = fma(a_A.s3, DEQUANT_4BIT_LO(bw0_A.s3), (half)0);
+        sum0_A.s0 = fma(a_A.s4, DEQUANT_4BIT_HI(bw0_A.s0), sum0_A.s0);
+        sum0_A.s1 = fma(a_A.s5, DEQUANT_4BIT_HI(bw0_A.s1), sum0_A.s1);
+        sum0_A.s2 = fma(a_A.s6, DEQUANT_4BIT_HI(bw0_A.s2), sum0_A.s2);
+        sum0_A.s3 = fma(a_A.s7, DEQUANT_4BIT_HI(bw0_A.s3), sum0_A.s3);
 
-        sum0.s0 = fma(a.s4, DEQUANT_4BIT_HI(b.s0),  sum0.s0);
-        sum0.s1 = fma(a.s5, DEQUANT_4BIT_HI(b.s1),  sum0.s1);
-        sum0.s2 = fma(a.s6, DEQUANT_4BIT_HI(b.s2),  sum0.s2);
-        sum0.s3 = fma(a.s7, DEQUANT_4BIT_HI(b.s3),  sum0.s3);
+        sum1_A.s0 = fma(a_A.s0, DEQUANT_4BIT_LO(bw1_A.s0), (half)0);
+        sum1_A.s1 = fma(a_A.s1, DEQUANT_4BIT_LO(bw1_A.s1), (half)0);
+        sum1_A.s2 = fma(a_A.s2, DEQUANT_4BIT_LO(bw1_A.s2), (half)0);
+        sum1_A.s3 = fma(a_A.s3, DEQUANT_4BIT_LO(bw1_A.s3), (half)0);
+        sum1_A.s0 = fma(a_A.s4, DEQUANT_4BIT_HI(bw1_A.s0), sum1_A.s0);
+        sum1_A.s1 = fma(a_A.s5, DEQUANT_4BIT_HI(bw1_A.s1), sum1_A.s1);
+        sum1_A.s2 = fma(a_A.s6, DEQUANT_4BIT_HI(bw1_A.s2), sum1_A.s2);
+        sum1_A.s3 = fma(a_A.s7, DEQUANT_4BIT_HI(bw1_A.s3), sum1_A.s3);
 
-        sum1.s0 = fma(a.s0, DEQUANT_4BIT_LO(b2.s0), (half)0);
-        sum1.s1 = fma(a.s1, DEQUANT_4BIT_LO(b2.s1), (half)0);
-        sum1.s2 = fma(a.s2, DEQUANT_4BIT_LO(b2.s2), (half)0);
-        sum1.s3 = fma(a.s3, DEQUANT_4BIT_LO(b2.s3), (half)0);
+        // ---- Chunk B compute ----
+        half4 sum0_B, sum1_B;
+        sum0_B.s0 = fma(a_B.s0, DEQUANT_4BIT_LO(bw0_B.s0), (half)0);
+        sum0_B.s1 = fma(a_B.s1, DEQUANT_4BIT_LO(bw0_B.s1), (half)0);
+        sum0_B.s2 = fma(a_B.s2, DEQUANT_4BIT_LO(bw0_B.s2), (half)0);
+        sum0_B.s3 = fma(a_B.s3, DEQUANT_4BIT_LO(bw0_B.s3), (half)0);
+        sum0_B.s0 = fma(a_B.s4, DEQUANT_4BIT_HI(bw0_B.s0), sum0_B.s0);
+        sum0_B.s1 = fma(a_B.s5, DEQUANT_4BIT_HI(bw0_B.s1), sum0_B.s1);
+        sum0_B.s2 = fma(a_B.s6, DEQUANT_4BIT_HI(bw0_B.s2), sum0_B.s2);
+        sum0_B.s3 = fma(a_B.s7, DEQUANT_4BIT_HI(bw0_B.s3), sum0_B.s3);
 
-        sum1.s0 = fma(a.s4, DEQUANT_4BIT_HI(b2.s0), sum1.s0);
-        sum1.s1 = fma(a.s5, DEQUANT_4BIT_HI(b2.s1), sum1.s1);
-        sum1.s2 = fma(a.s6, DEQUANT_4BIT_HI(b2.s2), sum1.s2);
-        sum1.s3 = fma(a.s7, DEQUANT_4BIT_HI(b2.s3), sum1.s3);
+        sum1_B.s0 = fma(a_B.s0, DEQUANT_4BIT_LO(bw1_B.s0), (half)0);
+        sum1_B.s1 = fma(a_B.s1, DEQUANT_4BIT_LO(bw1_B.s1), (half)0);
+        sum1_B.s2 = fma(a_B.s2, DEQUANT_4BIT_LO(bw1_B.s2), (half)0);
+        sum1_B.s3 = fma(a_B.s3, DEQUANT_4BIT_LO(bw1_B.s3), (half)0);
+        sum1_B.s0 = fma(a_B.s4, DEQUANT_4BIT_HI(bw1_B.s0), sum1_B.s0);
+        sum1_B.s1 = fma(a_B.s5, DEQUANT_4BIT_HI(bw1_B.s1), sum1_B.s1);
+        sum1_B.s2 = fma(a_B.s6, DEQUANT_4BIT_HI(bw1_B.s2), sum1_B.s2);
+        sum1_B.s3 = fma(a_B.s7, DEQUANT_4BIT_HI(bw1_B.s3), sum1_B.s3);
 
 #if HAS_ZP
-        sum_all0 += (sum0[0] + sum0[1] + sum0[2] + sum0[3] - xg_sum[gk] * z_hf0) * s0;
-        sum_all1 += (sum1[0] + sum1[1] + sum1[2] + sum1[3] - xg_sum[gk] * z_hf1) * s1;
+        sum_all0 += (sum0_A[0] + sum0_A[1] + sum0_A[2] + sum0_A[3] - xg_sum[gk] * z0_A) * s0_A;
+        sum_all1 += (sum1_A[0] + sum1_A[1] + sum1_A[2] + sum1_A[3] - xg_sum[gk] * z1_A) * s1_A;
+        sum_all0 += (sum0_B[0] + sum0_B[1] + sum0_B[2] + sum0_B[3] - xg_sum[gk + 1] * z0_B) * s0_B;
+        sum_all1 += (sum1_B[0] + sum1_B[1] + sum1_B[2] + sum1_B[3] - xg_sum[gk + 1] * z1_B) * s1_B;
 #else
-        sum_all0 += (sum0[0] + sum0[1] + sum0[2] + sum0[3]) * s0;
-        sum_all1 += (sum1[0] + sum1[1] + sum1[2] + sum1[3]) * s1;
+        sum_all0 += (sum0_A[0] + sum0_A[1] + sum0_A[2] + sum0_A[3]) * s0_A
+                  + (sum0_B[0] + sum0_B[1] + sum0_B[2] + sum0_B[3]) * s0_B;
+        sum_all1 += (sum1_A[0] + sum1_A[1] + sum1_A[2] + sum1_A[3]) * s1_A
+                  + (sum1_B[0] + sum1_B[1] + sum1_B[2] + sum1_B[3]) * s1_B;
 #endif
 
 #endif  // SG_SIZE
@@ -375,35 +442,7 @@ KERNEL(gemm_generate_opt)(
     if (id_local == 0) {
         C[b * N_SIZE + n]     = TO_OUTPUT_TYPE(sum_all0);
         if (n + 1 < N_SIZE)
-            C[b * N_SIZE + n + 1] = TO_OUTPUT_TYPE(sum_all1);
-    }
-}
-
-#undef unroll_for
-
-// ============================================================
-// Branch B2: i8-activation + int4-weight WOQ GEMV  (W4A8)
-// N-parallel high-occupancy, same approach as B1.
-// ============================================================
-#else  // IS_ACT_INT8 == 1
-
-KERNEL(gemm_generate_opt)(
-    OPTIONAL_SHAPE_INFO_ARG
-    const __global INPUT0_TYPE*  A,         // i8/char activation [B, K]
-    const __global uchar*        W,         // u4/i4 packed weight [N, K/2]
-    const __global INPUT2_TYPE*  Scale,     // f16 weight scale, fbyx: [NUM_GROUPS, N]
-#if HAS_ZP
-    const __global uchar*        ZP,        // ZP fbyx
-#endif
-    const __global half*         ActScale,  // f16 per-token activation scale [B]
-    __global OUTPUT_TYPE*        C          // f16 output [B, N]
-)
-{
-    // ---- DISPATCH: one work-item per output channel ----
-    const int n = (int)get_global_id(0);
-    const int b = (int)get_global_id(1);
-
-    if (n >= N_SIZE)
+            C[b * N_SIZE + n + 1] = TO_OUTPUT_TYPE(sum_all1); (n >= N_SIZE)
         return;
 
     // ---- HOIST base pointers ----

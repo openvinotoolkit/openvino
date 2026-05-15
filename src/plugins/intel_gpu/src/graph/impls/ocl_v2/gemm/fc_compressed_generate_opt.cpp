@@ -19,7 +19,10 @@ static constexpr int VEC_SIZE = 8;    // half8 / u4-nibble-vec per iteration
 static constexpr int WG_SIZE  = 256;
 // Legacy constants still emitted for JIT but unused in N-parallel W4A16 path.
 // W4A8 path still references TILE_N and FAKE_GROUP_SIZE for compat.
-static constexpr int TILE_N   = 2;
+// TILE_N is always 2 (matches reference MoE kernel design).
+static constexpr int TILE_N_LARGE = 2;
+static constexpr int TILE_N_SMALL = 2;
+static constexpr int TILE_N_THRESHOLD = 2048;  // unused when LARGE==SMALL
 static constexpr int FAKE_GROUP_SIZE = 128;
 
 // -----------------------------------------------------------------------
@@ -103,11 +106,14 @@ protected:
         const size_t num_groups = shape_sc[shape_sc.size() - 1];
         const size_t group_size = (num_groups > 0) ? (K / num_groups) : K;
 
+        const int tile_n = (N >= TILE_N_THRESHOLD) ? TILE_N_LARGE : TILE_N_SMALL;
+
         return get_kernel_name()
                + "_K" + std::to_string(K)
                + "_N" + std::to_string(N)
                + "_B" + std::to_string(B)
                + "_G" + std::to_string(group_size)
+               + "_T" + std::to_string(tile_n)
                + (in1.data_type == data_types::i4 ? "_i4" : "_u4")
                + (detect_has_zp(params) ? "_zp" : "")
                + (detect_zp_is_u8(params) ? "_u8zp" : "")
@@ -162,6 +168,9 @@ protected:
         // Detect W4A8 mode.
         const bool act_is_i8 = (in0.data_type == data_types::i8);
 
+        // Dynamic TILE_N: 4 for large N (better memory-level parallelism), 2 for small N.
+        const int tile_n = (N >= TILE_N_THRESHOLD) ? TILE_N_LARGE : TILE_N_SMALL;
+
         // Dispatch/size constants for K-parallel sub-group approach.
         jit.add({
             make_jit_constant("K_SIZE",           static_cast<int>(K)),
@@ -170,7 +179,7 @@ protected:
             make_jit_constant("SG_SIZE",          SG_SIZE),
             make_jit_constant("VEC_SIZE",         VEC_SIZE),
             make_jit_constant("WG_SIZE",          WG_SIZE),
-            make_jit_constant("TILE_N",           TILE_N),
+            make_jit_constant("TILE_N",           tile_n),
             make_jit_constant("FAKE_GROUP_SIZE",  FAKE_GROUP_SIZE),
         });
 
@@ -244,11 +253,12 @@ protected:
 
             // SLM-based sub-group cooperative dispatch:
             //   Each work-group has WG_SIZE work-items = num_subgroups subgroups.
-            //   Each subgroup handles TILE_N=2 output channels (N-block tiling).
-            //   N_BLOCK_WG = num_subgroups * TILE_N = (WG_SIZE / SG_SIZE) * 2
+            //   Each subgroup handles tile_n output channels (N-block tiling).
+            //   N_BLOCK_WG = num_subgroups * tile_n
             //   dim0 = num_work_groups * WG_SIZE, dim1 = B
             const size_t num_subgroups = WG_SIZE / SG_SIZE;
-            const size_t n_block_wg = num_subgroups * TILE_N;
+            const int tile_n = (N >= TILE_N_THRESHOLD) ? TILE_N_LARGE : TILE_N_SMALL;
+            const size_t n_block_wg = num_subgroups * tile_n;
             const size_t num_wg = (N + n_block_wg - 1) / n_block_wg;
             auto& wgs = kd.params.workGroups;
             wgs.global = {num_wg * WG_SIZE, B, 1};
