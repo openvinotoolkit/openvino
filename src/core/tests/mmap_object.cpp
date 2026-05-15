@@ -178,34 +178,36 @@ TEST_P(RangedMappingTest, compare_id) {
     std::filesystem::copy_file(m_file_path, other_file_path, ec);
     ASSERT_FALSE(ec) << "Failed to copy file \"" << m_file_path << "\" for test setup: " << ec.message();
 
-    std::shared_ptr<MappedMemory> mm_1, mm_2, other_mm_1, other_mm_2, mm_1_;
-    if (use_file_path) {
-        mm_1 = load_mmap_object(m_file_path, offset_1, size_1);
-        mm_2 = load_mmap_object(m_file_path, offset_2, size_2);
-        other_mm_1 = load_mmap_object(other_file_path, offset_1, size_1);
-        other_mm_2 = load_mmap_object(other_file_path, offset_2, size_2);
-        mm_1_ = load_mmap_object(m_file_path, offset_1, size_1);
-    } else {
-        const auto handle = utils::open_ro_file(m_file_path);
-        mm_1 = load_mmap_object(handle, offset_1, size_1);
-        mm_2 = load_mmap_object(handle, offset_2, size_2);
-        const auto other_handle = utils::open_ro_file(other_file_path);
-        other_mm_1 = load_mmap_object(other_handle, offset_1, size_1);
-        other_mm_2 = load_mmap_object(other_handle, offset_2, size_2);
-        const auto handle_ = utils::open_ro_file(m_file_path);
-        mm_1_ = load_mmap_object(handle_, offset_1, size_1);
+    {
+        std::shared_ptr<MappedMemory> mm_1, mm_2, other_mm_1, other_mm_2, mm_1_;
+        if (use_file_path) {
+            mm_1 = load_mmap_object(m_file_path, offset_1, size_1);
+            mm_2 = load_mmap_object(m_file_path, offset_2, size_2);
+            other_mm_1 = load_mmap_object(other_file_path, offset_1, size_1);
+            other_mm_2 = load_mmap_object(other_file_path, offset_2, size_2);
+            mm_1_ = load_mmap_object(m_file_path, offset_1, size_1);
+        } else {
+            const auto handle = utils::open_ro_file(m_file_path);
+            mm_1 = load_mmap_object(handle, offset_1, size_1);
+            mm_2 = load_mmap_object(handle, offset_2, size_2);
+            const auto other_handle = utils::open_ro_file(other_file_path);
+            other_mm_1 = load_mmap_object(other_handle, offset_1, size_1);
+            other_mm_2 = load_mmap_object(other_handle, offset_2, size_2);
+            const auto handle_ = utils::open_ro_file(m_file_path);
+            mm_1_ = load_mmap_object(handle_, offset_1, size_1);
+        }
+
+        ASSERT_NE(mm_1, nullptr);
+        ASSERT_NE(mm_2, nullptr);
+        ASSERT_NE(other_mm_1, nullptr);
+        ASSERT_NE(other_mm_2, nullptr);
+        ASSERT_NE(mm_1_, nullptr);
+
+        EXPECT_NE(mm_1->get_id(), mm_2->get_id());
+        EXPECT_NE(mm_1->get_id(), other_mm_1->get_id());
+        EXPECT_NE(mm_2->get_id(), other_mm_2->get_id());
+        EXPECT_EQ(mm_1->get_id(), mm_1_->get_id());
     }
-
-    ASSERT_NE(mm_1, nullptr);
-    ASSERT_NE(mm_2, nullptr);
-    ASSERT_NE(other_mm_1, nullptr);
-    ASSERT_NE(other_mm_2, nullptr);
-    ASSERT_NE(mm_1_, nullptr);
-
-    EXPECT_NE(mm_1->get_id(), mm_2->get_id());
-    EXPECT_NE(mm_1->get_id(), other_mm_1->get_id());
-    EXPECT_NE(mm_2->get_id(), other_mm_2->get_id());
-    EXPECT_EQ(mm_1->get_id(), mm_1_->get_id());
 
     std::filesystem::remove(other_file_path);
 }
