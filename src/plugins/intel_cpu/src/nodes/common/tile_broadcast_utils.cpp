@@ -115,7 +115,7 @@ bool TileBroadcastCommon::canBeExecutedInNSPCLayout(VectorDims srcBlockedDims, V
 std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const Node* node, size_t outSize) {
     std::vector<NodeDesc> supportedPrimitiveDescriptors;
     auto precision = node->getOriginalInputPrecisionAtPort(0);
-    auto dataType = DnnlExtensionUtils::ElementTypeToDataType(precision);
+    const auto dataType = DnnlExtensionUtils::ElementTypeToDataType(precision, DnnlExtensionUtils::nothrow_tag{});
 
     const auto& srcDims = node->getInputShapeAtPort(0).getDims();
     const auto& inDataShape = node->getInputShapeAtPort(0);
@@ -148,7 +148,9 @@ std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const Node* node,
 
     config.outConfs.resize(outSize);
 
-    auto pushDesc = [&](dnnl::memory::format_tag inFormat, dnnl::memory::format_tag outFormat) {
+    auto pushDesc = [&](dnnl::memory::data_type dataType,
+                        dnnl::memory::format_tag inFormat,
+                        dnnl::memory::format_tag outFormat) {
         config.inConfs[0].setMemDesc(
             std::make_shared<DnnlBlockedMemoryDesc>(node->getInputShapeAtPort(0), dataType, inFormat));
         for (auto& outConf : config.outConfs) {
@@ -160,33 +162,34 @@ std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const Node* node,
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
     };
 
-    if (!repeats.empty() && inDataShape.getRank() == outDataShapeRank && (any_of(outDataShapeRank, 4U, 5U))) {
+    if (dataType && !repeats.empty() && inDataShape.getRank() == outDataShapeRank &&
+        (any_of(outDataShapeRank, 4U, 5U))) {
         if (canBeExecutedInBlockedLayout(srcDims, repeats, 16)) {
             if (outDataShapeRank == 4) {
-                pushDesc(dnnl::memory::format_tag::nChw16c, dnnl::memory::format_tag::nChw16c);
+                pushDesc(*dataType, dnnl::memory::format_tag::nChw16c, dnnl::memory::format_tag::nChw16c);
             } else {
-                pushDesc(dnnl::memory::format_tag::nCdhw16c, dnnl::memory::format_tag::nCdhw16c);
+                pushDesc(*dataType, dnnl::memory::format_tag::nCdhw16c, dnnl::memory::format_tag::nCdhw16c);
             }
         }
         if (canBeExecutedInBlockedLayout(srcDims, repeats, 8)) {
             if (outDataShapeRank == 4) {
-                pushDesc(dnnl::memory::format_tag::nChw8c, dnnl::memory::format_tag::nChw8c);
+                pushDesc(*dataType, dnnl::memory::format_tag::nChw8c, dnnl::memory::format_tag::nChw8c);
             } else {
-                pushDesc(dnnl::memory::format_tag::nCdhw8c, dnnl::memory::format_tag::nCdhw8c);
+                pushDesc(*dataType, dnnl::memory::format_tag::nCdhw8c, dnnl::memory::format_tag::nCdhw8c);
             }
         }
         if (canBeExecutedInNSPCLayout(srcDims, repeats)) {
             if (outDataShapeRank == 4) {
-                pushDesc(dnnl::memory::format_tag::nhwc, dnnl::memory::format_tag::nhwc);
+                pushDesc(*dataType, dnnl::memory::format_tag::nhwc, dnnl::memory::format_tag::nhwc);
             } else {
-                pushDesc(dnnl::memory::format_tag::ndhwc, dnnl::memory::format_tag::ndhwc);
+                pushDesc(*dataType, dnnl::memory::format_tag::ndhwc, dnnl::memory::format_tag::ndhwc);
             }
         }
     }
 
     auto inFmt = DnnlExtensionUtils::GetPlainFormatByRank(inDataShape.getRank());
     auto outFmt = DnnlExtensionUtils::GetPlainFormatByRank(outDataShapeRank);
-    if (any_of(dnnl::memory::format_tag::undef, inFmt, outFmt)) {
+    if (!dataType || any_of(dnnl::memory::format_tag::undef, inFmt, outFmt)) {
         config.inConfs[0].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(precision, node->getInputShapeAtPort(0)));
         for (size_t i = 0; i < config.outConfs.size(); i++) {
             config.outConfs[i].inPlace(-1);
@@ -196,7 +199,7 @@ std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const Node* node,
         }
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
     } else {
-        pushDesc(inFmt, outFmt);
+        pushDesc(*dataType, inFmt, outFmt);
     }
 
     return supportedPrimitiveDescriptors;
