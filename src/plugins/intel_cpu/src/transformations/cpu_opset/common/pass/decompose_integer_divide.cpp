@@ -28,7 +28,9 @@ DecomposeIntegerDivide::DecomposeIntegerDivide() {
                          }
 
                          auto new_divide =
-                             std::make_shared<ov::op::v1::Divide>(divide->input_value(0), divide->input_value(1));
+                             std::make_shared<ov::op::v1::Divide>(divide->input_value(0),
+                                                                  divide->input_value(1),
+                                                                  divide->is_pythondiv());
                          auto new_floor = std::make_shared<ov::op::v0::Floor>(new_divide);
                          new_floor->set_friendly_name(divide->get_friendly_name());
                          ov::copy_runtime_info(divide, new_floor);

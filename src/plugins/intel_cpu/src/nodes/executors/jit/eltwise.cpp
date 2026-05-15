@@ -404,6 +404,11 @@ bool EltwiseJitExecutor::supports(const EltwiseAttrs& attrs,
     }
 
 #if defined(OPENVINO_ARCH_X86_64)
+    if (any_of(algorithm, Algorithm::EltwiseDivide, Algorithm::EltwiseFloor) &&
+        (contains(input_precisions, ov::element::i32) || contains(output_precisions, ov::element::i32))) {
+        return false;
+    }
+
     return true;
 
 #elif defined(OPENVINO_ARCH_ARM64)

@@ -88,6 +88,19 @@ public:
 };
 
 template <typename T>
+constexpr bool supported_integer_ref_types_v = one_of_v<T, int32_t>;
+
+template <typename T, typename Enable = std::enable_if_t<supported_integer_ref_types_v<T>>>
+class IntegerRefExecutor : public EltwiseRefBaseExecutor<T> {
+public:
+    IntegerRefExecutor(const EltwiseRefKey& key);
+
+    void exec(const jit_eltwise_call_args_ptrs& args_ptrs,
+              const VectorDims& dims_out,
+              [[maybe_unused]] const CpuParallelPtr& cpu_parallel) override;
+};
+
+template <typename T>
 constexpr bool supported_bitwise_ref_types_v = one_of_v<T, int8_t, uint8_t, int16_t, uint16_t, int32_t>;
 
 template <typename T, typename Enable = std::enable_if_t<supported_bitwise_ref_types_v<T>>>

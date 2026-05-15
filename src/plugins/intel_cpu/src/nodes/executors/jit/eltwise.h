@@ -52,6 +52,7 @@ class EltwiseJitExecutor : public IEltwiseExecutor {
                 seed = hash_combine(seed, eltwiseData.alpha);
                 seed = hash_combine(seed, eltwiseData.beta);
                 seed = hash_combine(seed, eltwiseData.gamma);
+                seed = hash_combine(seed, eltwiseData.pythondiv);
                 return seed;
             };
             std::for_each(eltwise_data.begin(), eltwise_data.end(), [&](const EltwiseData& item) {

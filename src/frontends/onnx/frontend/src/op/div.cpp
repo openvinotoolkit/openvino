@@ -20,7 +20,9 @@ ONNX_OP("Div", OPSET_RANGE(1, 6), ai_onnx::opset_1::div);
 
 namespace opset_7 {
 ov::OutputVector div(const ov::frontend::onnx::Node& node) {
-    return {std::make_shared<ov::op::v1::Divide>(node.get_ov_inputs().at(0), node.get_ov_inputs().at(1))};
+    return {std::make_shared<ov::op::v1::Divide>(node.get_ov_inputs().at(0),
+                                                 node.get_ov_inputs().at(1),
+                                                 false)};
 }
 
 ONNX_OP("Div", OPSET_SINCE(7), ai_onnx::opset_7::div);
