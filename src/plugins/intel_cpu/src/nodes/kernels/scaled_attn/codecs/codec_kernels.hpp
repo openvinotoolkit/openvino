@@ -53,7 +53,7 @@ auto decode_at(const uint8_t* data, int j, const Plan& plan, simd::active_lanes<
 // Uses simd_loop_reduce: 4x-unrolled SIMD main loop with vector accumulators,
 // scalar tail, single final horizontal reduction.
 template <typename QT, typename PlanFor>
-float codec_dot(const uint8_t* k, const QT* q, int dim, PlanFor&& plan_for) {
+float codec_dot(const uint8_t* k, const QT* q, int dim, const PlanFor& plan_for) {
     return simd::simd_loop_reduce<4>(
         dim,
         [&](int j, simd::f32& acc) {
@@ -75,7 +75,7 @@ float codec_dot(const uint8_t* k, const QT* q, int dim, PlanFor&& plan_for) {
 template <typename PlanFor>
 void codec_weighted_accum(const uint8_t* v,
                           int dim,
-                          PlanFor&& plan_for,
+                          const PlanFor& plan_for,
                           float outer_scale,
                           StridedData<const float> weights,
                           StridedData<float> accum,

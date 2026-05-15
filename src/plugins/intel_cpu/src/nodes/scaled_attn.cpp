@@ -68,7 +68,7 @@
 
 #include "kernels/scaled_attn/attn_memcpy.hpp"
 #include "kernels/scaled_attn/attn_quant.hpp"
-#include "kernels/scaled_attn/codecs/turboq_codec.hpp"
+#include "kernels/scaled_attn/codecs/codec_kernels.hpp"
 #include "kernels/scaled_attn/codecs/turboq_quantize.hpp"
 #include "kernels/scaled_attn/mha_kv_cache_codec.hpp"
 #include "kernels/scaled_attn/mha_single_token.hpp"
