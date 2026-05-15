@@ -381,6 +381,7 @@ protected:
         jit.make("SOFTMAX_TOPK_ENABLE", 1);
         jit.make("TOP_K", desc->_config.top_k);
         jit.make("VALUE_NUM", desc->_config.num_expert);
+        jit.make("SHARED_EXPERT_ENABLE", desc->_config.num_shared_expert > 0 ? 1 : 0);
         jit.make("MOE_DTYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
         jit.make("MOE_DTYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
         return jit;
@@ -408,6 +409,7 @@ protected:
         jit.make("SIGMOID_BIAS_TOPK_ENABLE", 1);
         jit.make("TOP_K", desc->_config.top_k);
         jit.make("VALUE_NUM", desc->_config.num_expert);
+        jit.make("SHARED_EXPERT_ENABLE", desc->_config.num_shared_expert > 0 ? 1 : 0);
         jit.make("MOE_DTYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
         jit.make("MOE_DTYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
         return jit;
@@ -974,7 +976,7 @@ public:
     bool use_micro_gemm_prefill = false;
     bool use_gpu_mask_gen_prefill = false;
     bool use_grouped_gemm_prefill = false;
-    size_t batched_gemv_threshold = 32;  // token_num <= threshold uses batched GEMV path (non-shared expert only)
+    size_t batched_gemv_threshold = 32;  // token_num <= threshold uses batched GEMV path
 
     moe_3gemm_swiglu_opt_impl() : PrimitiveImplOCL(moe_3gemm_swiglu_opt::get_type_info_static()) {}
     moe_3gemm_swiglu_opt_impl(const program_node& node, const RuntimeParams& params) : moe_3gemm_swiglu_opt_impl() {
@@ -1687,7 +1689,7 @@ public:
 
     // Batched GEMV path: handles token_num > 1 with the same optimized GEMV kernels as exec_single_token.
     // Each workgroup processes one (token, expert) pair. Avoids gather/scatter/CPU-sync overhead of prefill paths.
-    // Only supported for non-shared-expert models (shared expert has routing_weights stride mismatch).
+    // Supports shared expert: EXPERTS_PER_TOKEN = MAX_TOPK + 1 when shared expert is enabled.
     cldnn::event::ptr exec_batched_gemv(const std::vector<cldnn::event::ptr>& events,
                                         typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
                                         scratch_buffers& scratch,
@@ -1726,12 +1728,35 @@ public:
         Stage* stage_down = mlp_down.get();
         Stage* stage_reduce = mlp_reduce.get();
 
-        GPU_DEBUG_TRACE_DETAIL << "\nexec_batched_gemv(): token_num=" << token_num << ", max_topk=" << max_topk << std::endl;
+        std::vector<memory::ptr> extra_args_gate_up;
+        std::vector<memory::ptr> extra_args_down;
+
+        if (_has_shared_expert) {
+            compute_experts += 1;
+
+            extra_args_gate_up = {scratch.moe_fusion_wei_addr.shared_weight[0],
+                                  scratch.moe_fusion_wei_addr.shared_scale[0],
+                                  scratch.moe_fusion_wei_addr.shared_zp[0],
+                                  scratch.moe_fusion_wei_addr.shared_weight[1],
+                                  scratch.moe_fusion_wei_addr.shared_scale[1],
+                                  scratch.moe_fusion_wei_addr.shared_zp[1],
+                                  scratch.moe_fusion_wei_addr.shared_weight[3],
+                                  routing_mem_ptr};
+
+            extra_args_down = {scratch.moe_fusion_wei_addr.shared_weight[2],
+                               scratch.moe_fusion_wei_addr.shared_scale[2],
+                               scratch.moe_fusion_wei_addr.shared_zp[2]};
+        }
+
+        GPU_DEBUG_TRACE_DETAIL << "\nexec_batched_gemv(): token_num=" << token_num << ", max_topk=" << max_topk
+                              << ", has_shared=" << _has_shared_expert << std::endl;
 
         {
             // scratch.up = up(x) * silu(gate(x)) for all (token, expert) pairs
             std::vector<memory::ptr> args_gate_up =
                 {batch_mem_ptr, mlp_gate_wei_mem, mlp_gate_scale_mem, mlp_gate_zp_mem, mlp_up_wei_mem, mlp_up_scale_mem, mlp_up_zp_mem};
+            if (_has_shared_expert)
+                args_gate_up.insert(args_gate_up.end(), extra_args_gate_up.begin(), extra_args_gate_up.end());
             args_gate_up.push_back(hidden_states_mem_ptr);
 
             auto ret_event = execute_stage(events,
@@ -1744,6 +1769,8 @@ public:
 
             // scratch.y = down(scratch.up) * routing_weight for all (token, expert) pairs
             std::vector<memory::ptr> args_down = {batch_mem_ptr, mlp_down_wei_mem, mlp_down_scale_mem, mlp_down_zp_mem};
+            if (_has_shared_expert)
+                args_down.insert(args_down.end(), extra_args_down.begin(), extra_args_down.end());
             args_down.push_back(scratch.up);
             args_down.push_back(routing_mem_ptr);
             ret_event = execute_stage({ret_event},
@@ -2654,8 +2681,7 @@ public:
 
         // Batched GEMV: for small token counts (MTP/speculative decoding), use the same
         // optimized GEMV kernels with batch dimension instead of the prefill GEMM path.
-        // Not supported with shared expert due to routing_weights stride mismatch.
-        if (token_num <= batched_gemv_threshold && !_has_shared_expert) {
+        if (token_num <= batched_gemv_threshold) {
             return exec_batched_gemv({topk_event}, instance, scratch, token_num);
         }
 

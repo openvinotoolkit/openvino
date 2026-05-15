@@ -883,6 +883,21 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                            Moe3GemmTestParams{1, false, 128, 256, 4, 2, 64},
                                            Moe3GemmTestParams{1, true, 256, 512, 4, 2, 64}));
 
+// Batched GEMV with shared expert: MTP/speculative decoding scenarios with shared expert enabled.
+// Exercises the batched GEMV path with EXPERTS_PER_TOKEN = MAX_TOPK + 1.
+INSTANTIATE_TEST_SUITE_P(smoke_batched_gemv_mtp_shared,
+                         moe_3gemm_compressed_gpu_shared_random,
+                         ::testing::Values(Moe3GemmTestParams{2, true, 128, 256, 4, 2, 128},
+                                           Moe3GemmTestParams{4, true, 128, 256, 4, 2, 128},
+                                           Moe3GemmTestParams{8, true, 128, 256, 4, 2, 128},
+                                           Moe3GemmTestParams{2, false, 128, 256, 4, 2, 128},
+                                           Moe3GemmTestParams{4, false, 128, 256, 4, 2, 128},
+                                           Moe3GemmTestParams{8, false, 128, 256, 4, 2, 128},
+                                           Moe3GemmTestParams{2, true, 256, 512, 4, 2, 256},
+                                           Moe3GemmTestParams{4, true, 256, 512, 4, 2, 256},
+                                           Moe3GemmTestParams{2, false, 256, 512, 4, 2, 256},
+                                           Moe3GemmTestParams{4, false, 256, 512, 4, 2, 256}));
+
 TEST_P(moe_3gemm_compressed_gpu_u4, moe_accuracy_test_u4) {
     auto routing_type = GetParam();
     auto& engine = get_test_engine();

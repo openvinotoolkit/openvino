@@ -62,7 +62,9 @@ KERNEL(softmax_topk)(
             softmax_total += local_output[i];
         }
         output_index += batch * TOP_K;
-        output += batch * TOP_K;
+        // Use EXPERTS_PER_TOKEN stride so batched GEMV reads multi-token weights correctly.
+        // For shared expert: EXPERTS_PER_TOKEN=TOP_K+1. For non-shared: TOP_K (no change).
+        output += batch * (TOP_K + SHARED_EXPERT_ENABLE);
 
         for(uint i = 0; i < TOP_K; i++) {
             output[i] = local_output[i]/softmax_total;
@@ -146,7 +148,7 @@ KERNEL(sigmoid_bias_topk)(
         sum_weights += (float)eps_ptr[0];  // epsilon to avoid division by zero
 
         output_index += batch * TOP_K;
-        output += batch * TOP_K;
+        output += batch * (TOP_K + SHARED_EXPERT_ENABLE);
 
         for(uint i = 0; i < actual_topk; i++) {
             output[i] = (MOE_DTYPE)((float)local_output[i] / sum_weights);
