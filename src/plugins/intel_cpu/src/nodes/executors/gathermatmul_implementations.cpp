@@ -8,10 +8,6 @@
 #include "nodes/executors/executor_implementation.hpp"
 #include "nodes/executors/gathermatmul_config.hpp"
 #include "nodes/executors/implementations.hpp"
-#include "nodes/executors/memory_arguments.hpp"
-#include "nodes/executors/precision_translation.hpp"
-#include "nodes/executors/type_mask.hpp"
-#include "openvino/core/type/element_type.hpp"
 #include "utils/arch_macros.h"
 
 #if defined(OV_CPU_WITH_DNNL) && defined(OPENVINO_ARCH_X86_64)
@@ -23,6 +19,10 @@
 #    include "nodes/executors/dnnl/dnnl_gathermatmul_executor.hpp"
 #    include "nodes/executors/executor.hpp"
 #    include "nodes/executors/executor_config.hpp"
+#    include "nodes/executors/memory_arguments.hpp"
+#    include "nodes/executors/precision_translation.hpp"
+#    include "nodes/executors/type_mask.hpp"
+#    include "openvino/core/type/element_type.hpp"
 #endif
 namespace ov::intel_cpu {
 
