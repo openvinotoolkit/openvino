@@ -6,11 +6,13 @@
 
 #include "openvino/op/op.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace op {
+namespace internal {
 
-class PaKVReorder : public ov::op::Op {
+class OPENVINO_API PaKVReorder : public ov::op::Op {
 public:
-    OPENVINO_OP("PaKVReorder", "cpu_plugin_opset");
+    OPENVINO_OP("PaKVReorder");
 
     PaKVReorder() = default;
 
@@ -28,4 +30,6 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace internal
+}  // namespace op
+}  // namespace ov

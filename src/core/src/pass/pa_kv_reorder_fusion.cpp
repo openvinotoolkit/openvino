@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "pa_kv_reorder_fusion.hpp"
+#include "openvino/pass/pa_kv_reorder_fusion.hpp"
 
 #include <optional>
 #include <regex>
@@ -10,17 +10,18 @@
 #include <unordered_map>
 #include <vector>
 
-#include "intel_gpu/op/pa_kv_reorder.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/pa_kv_reorder.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/scatter_update.hpp"
-#include "transformations/utils/utils.hpp"
 
-namespace ov::intel_gpu {
+namespace ov {
+namespace pass {
 namespace {
 
 struct CacheReorderPath {
@@ -116,7 +117,8 @@ std::optional<CacheReorderPath> parse_cache_reorder_path(const std::shared_ptr<o
     return path;
 }
 
-std::shared_ptr<ov::op::v0::Parameter> get_parameter_by_name(const std::shared_ptr<ov::Model>& m, const std::string& parameter_name) {
+std::shared_ptr<ov::op::v0::Parameter> get_parameter_by_name(const std::shared_ptr<ov::Model>& m,
+                                                             const std::string& parameter_name) {
     for (const auto& parameter : m->get_parameters()) {
         if (parameter && parameter->get_friendly_name() == parameter_name) {
             return parameter;
@@ -126,28 +128,9 @@ std::shared_ptr<ov::op::v0::Parameter> get_parameter_by_name(const std::shared_p
     return nullptr;
 }
 
-ov::element::Type format_cache_precision(const ov::element::Type& cache_precision, const ov::element::Type& infer_precision) {
-    return cache_precision == ov::element::f16 && infer_precision == ov::element::bf16 ? infer_precision : cache_precision;
-}
-
-bool is_compressed_cache_type(const ov::element::Type& type) {
-    return type == ov::element::i8 || type == ov::element::u8 || type == ov::element::i4 || type == ov::element::u4;
-}
-
-size_t infer_scales_zp_size(const ov::element::Type& cache_type, const ov::element::Type& infer_precision) {
-    if (!is_compressed_cache_type(cache_type)) {
-        return 0;
-    }
-
-    OPENVINO_ASSERT(cache_type.size() > 0 && infer_precision.size() > 0, "[GPU] Invalid element size for pa_kv_reorder metadata inference");
-    if (cache_type == ov::element::i4 || cache_type == ov::element::u4) {
-        return 4 * infer_precision.size();
-    }
-    return (2 * infer_precision.size()) / cache_type.size();
-}
-
-std::vector<std::shared_ptr<ov::op::v0::Concat>> get_joint_concat_consumers(const ov::Output<ov::Node>& key_scatter_output,
-                                                                            const ov::Output<ov::Node>& value_scatter_output) {
+std::vector<std::shared_ptr<ov::op::v0::Concat>> get_joint_concat_consumers(
+    const ov::Output<ov::Node>& key_scatter_output,
+    const ov::Output<ov::Node>& value_scatter_output) {
     std::vector<std::shared_ptr<ov::op::v0::Concat>> concats;
     for (const auto& target_input : key_scatter_output.get_target_inputs()) {
         auto concat = ov::as_type_ptr<ov::op::v0::Concat>(target_input.get_node()->shared_from_this());
@@ -184,6 +167,9 @@ std::vector<std::shared_ptr<ov::op::v0::Concat>> get_joint_concat_consumers(cons
 
 }  // namespace
 
+PaKVReorderFusion::PaKVReorderFusion(ov::element::Type cache_precision = ov::element::dynamic)
+    : m_cache_precision(cache_precision) {}
+
 bool PaKVReorderFusion::run_on_model(const std::shared_ptr<ov::Model>& m) {
     auto block_indices_begins = get_parameter_by_name(m, "block_indices_begins");
     auto block_update_indices_begins = get_parameter_by_name(m, "block_update_indices_begins");
@@ -216,45 +202,28 @@ bool PaKVReorderFusion::run_on_model(const std::shared_ptr<ov::Model>& m) {
         }
 
         const auto& value_path = value_paths.at(index);
-        if (!same_output(key_path.block_indices, value_path.block_indices) || !same_output(key_path.block_update_indices, value_path.block_update_indices)) {
+        if (!same_output(key_path.block_indices, value_path.block_indices) ||
+            !same_output(key_path.block_update_indices, value_path.block_update_indices)) {
             continue;
         }
 
-        const auto concat_consumers = get_joint_concat_consumers(key_path.scatter->output(0), value_path.scatter->output(0));
+        const auto concat_consumers =
+            get_joint_concat_consumers(key_path.scatter->output(0), value_path.scatter->output(0));
         if (concat_consumers.empty()) {
             continue;
         }
 
-        auto pa_kv_reorder = std::make_shared<ov::intel_gpu::op::PA_KV_Reorder>(key_path.cache->output(0),
-                                                                                value_path.cache->output(0),
-                                                                                key_path.block_indices,
-                                                                                block_indices_begins->output(0),
-                                                                                key_path.block_update_indices,
-                                                                                block_update_indices_begins->output(0));
+        if (m_cache_precision != ov::element::dynamic) {
+            key_path.cache->set_element_type(m_cache_precision);
+            value_path.cache->set_element_type(m_cache_precision);
+        }
 
-        constexpr const char* rt_is_key_by_channel = "pa_kv_reorder.is_key_by_channel";
-        constexpr const char* rt_scales_zp_size = "pa_kv_reorder.scales_zp_size";
-        constexpr const char* rt_key_dim_order = "pa_kv_reorder.key_cache_dim_order";
-        constexpr const char* rt_value_dim_order = "pa_kv_reorder.value_cache_dim_order";
-
-        const auto key_cache_type = format_cache_precision(m_key_cache_precision, m_inference_precision);
-        const auto value_cache_type = format_cache_precision(m_value_cache_precision, m_inference_precision);
-        const auto key_scales_zp_size = infer_scales_zp_size(key_cache_type, m_inference_precision);
-        const auto value_scales_zp_size = infer_scales_zp_size(value_cache_type, m_inference_precision);
-        OPENVINO_ASSERT(key_scales_zp_size == value_scales_zp_size,
-                        "[GPU] PaKVReorderFusion expects equal scales/zp size for key/value cache, but got ",
-                        key_scales_zp_size,
-                        " and ",
-                        value_scales_zp_size);
-        // update key/value type
-        key_path.cache->set_element_type(key_cache_type);
-        value_path.cache->set_element_type(value_cache_type);
-        const bool is_key_by_channel = m_key_cache_quant_by_channel;
-
-        pa_kv_reorder->get_rt_info()[rt_is_key_by_channel] = is_key_by_channel;
-        pa_kv_reorder->get_rt_info()[rt_scales_zp_size] = key_scales_zp_size;
-        pa_kv_reorder->get_rt_info()[rt_key_dim_order] = m_key_cache_dim_order;
-        pa_kv_reorder->get_rt_info()[rt_value_dim_order] = m_value_cache_dim_order;
+        auto pa_kv_reorder = std::make_shared<ov::op::internal::PaKVReorder>(key_path.cache->output(0),
+                                                                             value_path.cache->output(0),
+                                                                             key_path.block_indices,
+                                                                             block_indices_begins->output(0),
+                                                                             key_path.block_update_indices,
+                                                                             block_update_indices_begins->output(0));
 
         ov::copy_runtime_info(key_path.cache, pa_kv_reorder);
         pa_kv_reorder->set_friendly_name("pa_kv_reorder_" + index);
@@ -280,4 +249,5 @@ bool PaKVReorderFusion::run_on_model(const std::shared_ptr<ov::Model>& m) {
     return rewritten;
 }
 
-}  // namespace ov::intel_gpu
+}  // namespace pass
+}  // namespace ov
