@@ -974,7 +974,7 @@ public:
     bool use_micro_gemm_prefill = false;
     bool use_gpu_mask_gen_prefill = false;
     bool use_grouped_gemm_prefill = false;
-    size_t batched_gemv_threshold = 16;  // token_num <= threshold uses batched GEMV path (non-shared expert only)
+    size_t batched_gemv_threshold = 32;  // token_num <= threshold uses batched GEMV path (non-shared expert only)
 
     moe_3gemm_swiglu_opt_impl() : PrimitiveImplOCL(moe_3gemm_swiglu_opt::get_type_info_static()) {}
     moe_3gemm_swiglu_opt_impl(const program_node& node, const RuntimeParams& params) : moe_3gemm_swiglu_opt_impl() {
@@ -1321,6 +1321,7 @@ public:
         cur_moe->use_micro_gemm_prefill = use_micro_gemm_prefill;
         cur_moe->use_gpu_mask_gen_prefill = use_gpu_mask_gen_prefill;
         cur_moe->use_grouped_gemm_prefill = use_grouped_gemm_prefill;
+        cur_moe->batched_gemv_threshold = batched_gemv_threshold;
         cur_moe->_activation_type = _activation_type;
         return cur_moe;
     }
