@@ -215,14 +215,17 @@ class JsonStatisticsReport(StatisticsReport):
 
         def get_average_performance_counters(prof_info_list):
             performance_counters_avg = []
+            lookup = {}
             for prof_info in prof_info_list:
                 for pi in prof_info:
-                    item = next((x for x in performance_counters_avg if x[0].node_name == pi.node_name), None)
+                    item = lookup.get(pi.node_name)
                     if item:
                         item[0].real_time += pi.real_time
                         item[0].cpu_time += pi.cpu_time
                     else:
-                        performance_counters_avg.append([pi])
+                        new_item = [pi]
+                        lookup[pi.node_name] = new_item
+                        performance_counters_avg.append(new_item)
             for pi in performance_counters_avg:
                 pi[0].real_time /= len(prof_info_list)
                 pi[0].cpu_time /= len(prof_info_list)
