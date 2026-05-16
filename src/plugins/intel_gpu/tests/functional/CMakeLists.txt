@@ -5,9 +5,8 @@
 set(TARGET_NAME ov_gpu_func_tests)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    # C4267, 4244 issues from oneDNN headers conversion from 'XXX' to 'YYY', possible loss of data
+    # C4267 issues from oneDNN headers conversion from 'XXX' to 'YYY', possible loss of data
     ov_add_compiler_flags(/wd4267)
-    ov_add_compiler_flags(/wd4244)
     # 'initializing': truncation from 'XXX' to 'YYY'
     ov_add_compiler_flags(/wd4305)
 endif()
@@ -37,6 +36,8 @@ ov_add_test_target(
         LABELS
             OV GPU
 )
+
+ov_gpu_set_runtime_interface_for(${TARGET_NAME})
 
 if(ENABLE_PROXY)
     target_compile_definitions(${TARGET_NAME} PUBLIC PROXY_PLUGIN_ENABLED)

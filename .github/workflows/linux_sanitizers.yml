@@ -267,13 +267,13 @@ jobs:
 
     steps:
       - name: Download OpenVINO package
-        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
           name: ${{ format('openvino_package_{0}', matrix.SANITIZER) }}
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
           name: ${{ format('openvino_tests_{0}', matrix.SANITIZER) }}
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -351,7 +351,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/paddle_tests --gtest_print_time=1 \
+          ${INSTALL_TEST_DIR}/ov_paddle_tests --gtest_print_time=1 \
                 ${{ matrix.SANITIZER != '' && '--gtest_filter=-PaddleFuzzyOpTest/FrontEndFuzzyOpTest.testOpFuzzy/paddle_greater_equal_big_int64_greater_equal_big_int64_pdmodel' || '' }} \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-PaddleTests.xml
 
@@ -532,14 +532,14 @@ jobs:
 
       - name: Download OpenVINO package
         if: ${{ steps.check_matrix.conclusion != 'skipped' }}
-        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
           name: ${{ format('openvino_package_{0}', matrix.SANITIZER) }}
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
         if: ${{ steps.check_matrix.conclusion != 'skipped' }}
-        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
           name: ${{ format('openvino_tests_{0}', matrix.SANITIZER) }}
           path: ${{ env.INSTALL_TEST_DIR }}

@@ -20,10 +20,6 @@
         "ticket": 131657
     },
     {
-        "error_text": "Could not resolve host: github.com",
-        "ticket": 131546
-    },
-    {
         "error_text": "retrieving gpg key timed out",
         "ticket": 131538
     },
@@ -156,10 +152,6 @@
         "ticket": 181450
     },
     {
-        "error_text": "getaddrinfo EAI_AGAIN",
-        "ticket": 178917
-    },
-    {
         "error_text": "terminal prompts disabled",
         "ticket": 181095
     },
@@ -178,5 +170,29 @@
     {
         "error_text": "Failed to FinalizeArtifact: Failed to make request after 5 attempts: Unexpected token",
         "ticket": 181539
+    },
+    {
+        "error_text": "getaddrinfo EAI_AGAIN",
+        "ticket": 182238
+    },
+    {
+        "error_text": "getaddrinfo failed",
+        "ticket": 182238
+    },
+    {
+        "error_text": "Temporary failure in name resolution",
+        "ticket": 182238
+    },
+    {
+        "error_text": "unable to resolve host",
+        "ticket": 182238
+    },
+    {
+        "error_text": "Could not resolve host:",
+        "ticket": 182238
+    },
+    {
+        "error_text": "SSL connect error",
+        "ticket": 182850
     }
 ]

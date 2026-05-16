@@ -55,7 +55,9 @@ static const char target_device_message[] =
 /// @brief message for iterations count
 static const char iterations_count_message[] =
     "Optional. Number of iterations. "
-    "If not specified, the number of iterations is calculated depending on a device.";
+    "If not specified, the number of iterations is calculated depending on a device. "
+    "Set -niter 0 to compile the model and exit without running inference "
+    "(useful for models with dynamic shapes that would otherwise require -shape, -data_shape, or -i).";
 
 // @brief message for enabling caching
 static const char cache_dir_message[] = "Optional. Enables caching of loaded models to specified directory. "

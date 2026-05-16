@@ -38,6 +38,7 @@
 #include "openvino/runtime/plugin_config.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "common_utils/parallel_mem_streambuf.hpp"
 #include "openvino/runtime/weightless_properties_utils.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/weights_path.hpp"
@@ -234,12 +235,7 @@ Plugin::Plugin() {
     set_device_name("GPU");
     register_primitives();
 
-    // Set OCL runtime which should be always available
-#ifdef OV_GPU_WITH_SYCL
-    cldnn::device_query device_query(cldnn::engine_types::sycl, cldnn::runtime_types::ocl);
-#else
-    cldnn::device_query device_query(cldnn::engine_types::ocl, cldnn::runtime_types::ocl);
-#endif
+    cldnn::device_query device_query;
     m_device_map = device_query.get_available_devices();
 
     // Set default configs for each device
@@ -464,8 +460,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model,
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& config) const{
-    SharedStreamBuffer buf{model.data(), model.get_byte_size()};
-    std::istream stream(&buf);
+    ov::intel_gpu::ParallelMemStreamBuf par_buf(model.data(), model.get_byte_size());
+    std::istream stream(&par_buf);
     return import_model(stream, context, config);
 }
 
@@ -931,7 +927,7 @@ uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
     auto context = get_default_contexts().at(device_id);
     const auto& device_info = context->get_device().get_info();
 
-    auto closest_pow_of_2 = [] (float x) {
+    auto closest_pow_of_2 = [] (double x) {
         int lower_power = static_cast<int>(floor(std::log(x) / std::log(2)));
         double lower_value = pow(2, lower_power);        // Current power of 2
         double upper_value = pow(2, lower_power + 1);   // Next power of 2
@@ -967,18 +963,18 @@ uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
     // Initialize the context before use
     context->initialize();
 
-    size_t L3_cache_size = device_info.max_global_cache_size;
+    float L3_cache_size = static_cast<float>(device_info.max_global_cache_size);
     auto config = m_configs_map.at(device_id);
     auto cloned_model = clone_and_transform_model(model, config, context);
     ov::MemBandwidthPressure memPressure = ov::mem_bandwidth_pressure_tolerance(cloned_model, L3_cache_size);
     uint32_t batch = 1;
     if (memPressure.max_mem_tolerance != ov::MemBandwidthPressure::UNKNOWN)
-        batch = std::max(1.0, 16 * closest_pow_of_2(memPressure.max_mem_tolerance));
+        batch = static_cast<uint32_t>(std::max(1.0, 16 * closest_pow_of_2(memPressure.max_mem_tolerance)));
     ov::AnyMap options_for_max_batch;
     options_for_max_batch[ov::hint::model.name()] = model;
     options_for_max_batch[ov::num_streams.name()] = ov::streams::AUTO;
     auto max_batch_size = get_metric(ov::max_batch_size.name(), options_for_max_batch).as<uint32_t>();
-    uint32_t closest = closest_pow_of_2(max_batch_size);
+    uint32_t closest = static_cast<uint32_t>(closest_pow_of_2(max_batch_size));
     batch = std::min(closest, batch);
     batch = std::min(256u, batch); //batch 256 is a max
     GPU_DEBUG_INFO << memPressure.max_mem_tolerance << std::endl;

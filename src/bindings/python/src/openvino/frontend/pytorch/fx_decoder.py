@@ -263,7 +263,9 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                     self.input_types.append(BaseFXDecoder.get_type_for_value(arg))
 
     @classmethod
-    def from_exported_program(cls, exported_program: torch.export.ExportedProgram) -> "TorchFXPythonDecoder":
+    def from_exported_program(
+        cls, exported_program: torch.export.ExportedProgram, dynamic_shapes=True
+    ) -> "TorchFXPythonDecoder":
         """Create a TorchFXPythonDecoder instance from an exported PyTorch program."""
         from packaging import version
         if version.parse(torch.__version__) >= version.parse("2.6"):
@@ -284,7 +286,79 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             exported_program = exported_program.run_decompositions(decomp_table=decomp)
         gm = exported_program.module()
         logger.debug(gm.code)
-        return cls(gm, dynamic_shapes=True)
+        return cls(gm, dynamic_shapes=dynamic_shapes)
+
+    @classmethod
+    def from_model(
+        cls, model: torch.nn.Module, example_inputs,
+        dynamic_shapes=None,
+    ) -> "TorchFXPythonDecoder":
+        """Export a model and create a decoder, auto-patching quantized models.
+
+        This is the ``torch.export`` counterpart of TorchScriptPythonDecoder's
+        auto-patching of quantized models.  The method patches the model before
+        ``torch.export.export`` so that custom ``ov_ext`` ops are captured in
+        the FX graph, then unpatches afterwards.
+
+        :param model: The ``torch.nn.Module`` to export and decode.
+        :param example_inputs: Example inputs for ``torch.export.export``.
+        :param dynamic_shapes: Dynamic shapes specification built by
+            ``_build_dynamic_shapes`` for ``torch.export.export``, or ``None``
+            for a fully static graph.
+        """
+        from openvino.frontend.pytorch import quantized
+
+        quant_patched = False
+        if quantized.detect_quantized_model(model) is not None:
+            try:
+                quantized.patch_quantized_for_export(model)
+                quant_patched = True
+            except Exception as error:
+                logger.warning(
+                    "Failed patching quantized model for torch.export. "
+                    "Conversion of the model will likely be unsuccessful or incorrect",
+                    exc_info=error)
+                try:
+                    quantized.unpatch_quantized_for_export(model)
+                except Exception:
+                    pass
+                quant_patched = False
+
+        try:
+            exported_program = cls._export(model, example_inputs, dynamic_shapes)
+        finally:
+            if quant_patched:
+                quantized.unpatch_quantized_for_export(model)
+
+        return cls.from_exported_program(
+            exported_program, dynamic_shapes=dynamic_shapes is not None)
+
+    @staticmethod
+    def _export(model, inputs, dynamic_shapes=None):
+        """Export a torch.nn.Module using torch.export.export."""
+        model.eval()
+
+        if isinstance(inputs, dict):
+            export_args = ()
+            export_kwargs = inputs
+        else:
+            if isinstance(inputs, torch.Tensor):
+                export_args = (inputs,)
+            elif isinstance(inputs, (list, tuple)):
+                export_args = tuple(inputs)
+            else:
+                export_args = (inputs,)
+            export_kwargs = None
+
+        if export_kwargs is not None:
+            export_args_dict = {"args": export_args, "kwargs": export_kwargs}
+        else:
+            export_args_dict = {"args": export_args}
+
+        if dynamic_shapes is not None:
+            export_args_dict["dynamic_shapes"] = dynamic_shapes
+
+        return torch.export.export(model, **export_args_dict)
 
     @staticmethod
     def get_found_shape(value) -> str:
@@ -363,6 +437,11 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             meta = raw_input.meta
             if "tensor_meta" in meta and hasattr(meta["tensor_meta"], "stride"):
                 strides = list(meta["tensor_meta"].stride)
+                if strides:
+                    return strides
+            # Fallback for Edge dialect nodes where tensor_meta is absent but val is present
+            if "val" in meta and hasattr(meta["val"], "stride"):
+                strides = list(meta["val"].stride())
                 if strides:
                     return strides
         return []

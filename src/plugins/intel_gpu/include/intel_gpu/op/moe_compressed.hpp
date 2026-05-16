@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include "openvino/op/op.hpp"
+#include "openvino/core/attribute_adapter.hpp"
 #include "openvino/op/moe.hpp"
+#include "openvino/op/op.hpp"
 
 namespace ov::intel_gpu::op {
 
@@ -17,10 +18,13 @@ public:
     MOECompressed() = default;
     MOECompressed(const OutputVector& args) : MOE(args) {}
 
+    enum class RoutingType { SOFTMAX, SIGMOID_BIAS };
+
     struct Config : public MOE::Config {
         size_t hidden_size = 0;
         size_t inter_size = 0;
         size_t num_expert = 0;
+        size_t num_shared_expert = 0;
         size_t top_k = 0;
         // numeric_limits<size_t>::max() means per_channel compression (single group).
         // other non-zero value means group compression with this given group_size.
@@ -30,6 +34,7 @@ public:
         size_t has_batch_dim = 0;
         bool has_zp = false;
         ov::element::Type out_type = ov::element::dynamic;
+        RoutingType routing_type = RoutingType::SOFTMAX;
         Config() = default;
         Config(const MOE::Config& moe_config) : MOE::Config(moe_config) {}
     };
@@ -68,8 +73,21 @@ public:
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-private:
+protected:
     Config m_config;
 };
 
+std::ostream& operator<<(std::ostream& s, const MOECompressed::RoutingType& type);
+
 }  // namespace ov::intel_gpu::op
+
+namespace ov {
+template <>
+class AttributeAdapter<ov::intel_gpu::op::MOECompressed::RoutingType> : public EnumAttributeAdapterBase<ov::intel_gpu::op::MOECompressed::RoutingType> {
+public:
+    AttributeAdapter(ov::intel_gpu::op::MOECompressed::RoutingType& value) : EnumAttributeAdapterBase<ov::intel_gpu::op::MOECompressed::RoutingType>(value) {}
+
+    OPENVINO_RTTI("AttributeAdapter<ov::intel_gpu::op::MOECompressed::RoutingType>");
+    ~AttributeAdapter() override = default;
+};
+}  // namespace ov

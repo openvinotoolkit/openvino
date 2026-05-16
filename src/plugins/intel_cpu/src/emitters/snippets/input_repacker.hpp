@@ -38,6 +38,8 @@ struct InputRepacker {
     [[nodiscard]] const CpuBlockedMemoryDescPtr& desc() const;
     [[nodiscard]] const VectorDims& in_offsets() const;
     [[nodiscard]] const VectorDims& out_offsets() const;
+    // Returns true if the input has been already pre-packed (e.g. at compile time by RepackMatMulWeights).
+    [[nodiscard]] bool already_repacked() const;
 
 private:
     std::shared_ptr<const InputRepackerKernel> m_kernel{nullptr};

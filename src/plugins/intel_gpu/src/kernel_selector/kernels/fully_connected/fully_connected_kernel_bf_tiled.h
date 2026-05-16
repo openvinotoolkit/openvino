@@ -31,11 +31,20 @@ public:
     ParamsKey GetSupportedKey() const override;
     DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
 
-    KernelsData GetMultiKernelsData(const Params &params,
-                                     DataLayout dl,
-                                     WeightsLayout wl,
-                                     const std::string exeMode = EXE_MODE_DEFAULT,
-                                     int autoTuneIndex = -1) const;
+    // Indices of kernel slots in the multi-kernel KernelData.
+    // -1 means the kernel is not present.
+    struct DispatchIndices {
+        int32_t quantize   = -1;  // dynamic quantization pre-processing kernel
+        int32_t default_fc = -1;  // FC with KernelType::DEFAULT
+        int32_t slm        = -1;  // FC with KernelType::SLM (large batches)
+        int32_t dyn_b      = -1;  // FC with dyn_b dispatch (small batches)
+    };
+
+    std::pair<KernelsData, DispatchIndices> GetMultiKernelsData(const Params &params,
+                                                                DataLayout dl,
+                                                                WeightsLayout wl,
+                                                                const std::string exeMode = EXE_MODE_DEFAULT,
+                                                                int autoTuneIndex = -1) const;
 
     struct tune_params {
         tune_params(unsigned tile_b,
@@ -82,6 +91,7 @@ protected:
     JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const override;
     bool Validate(const Params& params) const override;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
+    void SetDispatchDataFunc(KernelData& kd, const DispatchIndices& idx) const;
 
     tune_params GetAutoTuneParams(const fully_connected_params& params, KernelType preffered_kernel_type = KernelType::DEFAULT, int idx = -1) const;
 

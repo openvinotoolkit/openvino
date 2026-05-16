@@ -43,35 +43,6 @@ namespace v3 = ov::op::v3;
 namespace v4 = ov::op::v4;
 namespace v8 = ov::op::v8;
 namespace v13 = ov::op::v13;
-namespace {
-
-bool can_move_scale_after_matmul(const ov::Output<ov::Node>& query,
-                                 const ov::Output<ov::Node>& kT,
-                                 const ov::Output<ov::Node>& scale) {
-    const auto& scale_pshape = scale.get_partial_shape();
-    const auto& query_pshape = query.get_partial_shape();
-    if (scale_pshape.is_dynamic() || query_pshape.is_dynamic()) {
-        return false;
-    }
-
-    // According to the ov SDPA specification, the scale input have to be 1d with 1 element
-    // or scalar.
-    if (ov::shape_size(scale_pshape.to_shape()) != 1) {
-        return false;
-    }
-
-    // using the original implementation to calculate the shapes.
-    // we need to move the scale after MatMul only if the tensor after MatMul is smaller.
-    auto q_scaled = std::make_shared<v1::Multiply>(query, scale);
-    auto scaled_attn = std::make_shared<v0::MatMul>(q_scaled, kT);
-    const auto& scaled_attn_pshape = scaled_attn->output(0).get_partial_shape();
-    if (scaled_attn_pshape.is_static()) {
-        return ov::shape_size(query_pshape.to_shape()) > ov::shape_size(scaled_attn_pshape.to_shape());
-    }
-    return false;
-}
-
-}  // namespace
 
 ov::pass::ScaledDotProductAttentionDecomposition::ScaledDotProductAttentionDecomposition() {
     MATCHER_SCOPE(ScaledDotProductAttentionDecomposition);
@@ -153,14 +124,11 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
         register_new_node<v0::Concat>(OutputVector{k_dims_before_transpose, k_last_dim, k_next_dim}, 0);
     auto k_transposed = register_new_node<v1::Transpose>(key, transpose_dims);
 
-    ov::Output<Node> scaled_atten;
-    if (can_move_scale_after_matmul(query, k_transposed, scale)) {
-        auto atten = register_new_node<v0::MatMul>(query, k_transposed)->output(0);
-        scaled_atten = register_new_node<v1::Multiply>(atten, scale)->output(0);
-    } else {
-        auto q_scaled = register_new_node<v1::Multiply>(query, scale);
-        scaled_atten = register_new_node<v0::MatMul>(q_scaled, k_transposed)->output(0);
-    }
+    // Apply scale after MatMul(Q, K^T) per SDPA specification:
+    //   attn_weight = Q @ K^T * scale
+    // Scale is scalar or single-element tensor, so Multiply broadcasts safely over [S_q, S_kv].
+    auto atten = register_new_node<v0::MatMul>(query, k_transposed)->output(0);
+    auto scaled_atten = register_new_node<v1::Multiply>(atten, scale)->output(0);
 
     minus_inf = register_new_node<v1::ConvertLike>(minus_inf, scaled_atten);
 

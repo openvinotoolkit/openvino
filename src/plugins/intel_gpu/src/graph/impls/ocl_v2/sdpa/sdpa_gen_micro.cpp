@@ -15,6 +15,7 @@
 #include "ocl_v2/utils/jitter.hpp"
 #include "scaled_dot_product_attention_inst.h"
 #include "paged_attention_inst.h"
+#include "paged_attention_opt.hpp"
 #include "sdpa_base.hpp"
 #include "../utils/kernel_generator.hpp"
 // clang-format on
@@ -28,12 +29,8 @@ size_t get_subgroup_size(gpu_arch arch) {
     case gpu_arch::xe_hp:
     case gpu_arch::xe_hpg:
         return 8;
-    case gpu_arch::xe_hpc:
-    case gpu_arch::xe2:
-    case gpu_arch::xe3:
-        return 16;
     default:
-        return 0;
+        return 16;
     }
 }
 
@@ -291,7 +288,7 @@ sdpa_config_t xehpg_q_h64_s64_2nd = {8, 8, 8, 8, 8, 2, 8, 2};
 sdpa_config_t xehpg_q_h64_s128_2nd = {16, 8, 8, 8, 8, 4, 8, 4};
 sdpa_config_t xehpg_q_h64_2nd = {16, 16, 8, 8, 16, 2, 8, 4};
 
-sdpa_config_t xehpg_h128_pa = {16, 16, 16, 16, 8, 1, 8, 1};
+sdpa_config_t xehpg_h128_pa = {16, 16, 16, 16, 8, 2, 8, 2};
 sdpa_config_t xehpg_h128 = {16, 16, 32, 8, 8, 2, 4, 4};
 sdpa_config_t xehpg_h128_s32 = {16, 16, 16, 8, 16, 2, 8, 4};
 sdpa_config_t xehpg_h128_2nd = {8, 16, 16, 8, 16, 1, 8, 2};
@@ -953,6 +950,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         const auto has_alibi = params.get_input_layout(paged_attention::PagedAttentionInputIdx::ALIBI).count() > 0;
         const auto has_scale_input = !desc->scale_val.has_value();
         const auto has_scores_output = desc->has_scores_output();
+        const auto has_qq_bias = desc->has_qq_bias;
 
         const auto& in_offsets_map = params.in_port_to_shape_info_offset;
         const auto& out_offsets_map = params.out_port_to_shape_info_offset;
@@ -979,6 +977,14 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
             jit.make("HAS_SINK_INPUT", 1);
         }
 
+        if (has_qq_bias && !m_is_prefill) {
+            jit.make("HAS_QQ_BIAS", 1);
+            const auto& qq_bias_layout = params.input_layouts[paged_attention::PagedAttentionInputIdx::QQ_BIAS];
+            jit.make("QQ_BIAS_DATA_T", to_ocl_type(qq_bias_layout.data_type));
+            const auto& qq_bias_begins_layout = params.input_layouts[paged_attention::PagedAttentionInputIdx::QQ_BIAS_BEGINS];
+            jit.make("QQ_BIAS_BEGINS_DATA_T", to_ocl_type(qq_bias_begins_layout.data_type));
+        }
+
         jit.add(make_layout_jit_constants("OUTPUT", params.output_layouts[0], out_offsets_map.at(0)));
         if (has_scores_output) {
             jit.add(make_layout_jit_constants("OUTPUT" + to_code_string(1), params.output_layouts[1], out_offsets_map.at(1)));
@@ -992,6 +998,9 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
             jit.make("SINK_DATA_T", to_ocl_type(sink_layout.data_type));
             jit.make("HAS_SINK_INPUT", 1);
         }
+
+        // QQ_BIAS is a paged-attention-only feature.
+        jit.make("HAS_QQ_BIAS", 0);
     }
     const auto& device_info = params.get_device_info();
 
@@ -1167,7 +1176,15 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         jit.make("REMAINDER_Q", !q_full);
     } else if (device_info.arch >= gpu_arch::xe_hpc) {
         auto vbytes = n_values.get_length() * ov::element::Type(V.data_type).size();
-        if (lda % 16 == 0 && vbytes % 4 == 0)
+        const auto sg_tile_m = static_cast<size_t>(gemm_vs.getSetting("sg_tile_m"));
+        const auto sg_size = get_subgroup_size(device_info.arch);
+        // tile_ops.cl defines DEF_BLOCK2D_LOAD_STORE for half up to vl=16 (BR=32, BC=8).
+        // tile element vector = sg_tile_m * max_BC / sg_size; must be <= 16 (max defined vl).
+        const bool block2d_compatible = (sg_tile_m * 8 / sg_size) <= 16;  // sg_tile_m <= 32
+        const bool use_block2d = lda % 16 == 0 && vbytes % 4 == 0 && block2d_compatible;
+        GPU_DEBUG_TRACE_DETAIL << "BLOCK_2D_A check: sg_tile_m=" << sg_tile_m << " sg_size=" << sg_size << " lda=" << lda << " vbytes=" << vbytes
+                               << " block2d_compatible=" << block2d_compatible << " => " << (use_block2d ? "enabled" : "disabled") << std::endl;
+        if (use_block2d)
             jit.make("BLOCK_2D_A", 1);
     }
 
@@ -1269,6 +1286,7 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
 
     if (config.is_paged_attention) {
         const auto desc = params.typed_desc<paged_attention>();
+        const auto has_qq_bias = desc->has_qq_bias;
         if (m_is_prefill) {
             args.push_back({ArgumentDescriptor::Types::INPUT, 1});  // Key
             args.push_back({ArgumentDescriptor::Types::INPUT, 0});  // Q
@@ -1293,6 +1311,12 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
 
         if (desc->has_sink_input)
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SINKS});  // sink
+
+        if (has_qq_bias && !m_is_prefill) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS});  // qq_bias
+            args.push_back(
+                {ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS_BEGINS});  // qq_bias_begins                              // qq_bias_num
+        }
 
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});  // blocked_indexes_start_and_gws_mapping
     } else {
@@ -1447,37 +1471,22 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
 
     bool is_quantized =
         (K.data_type == ov::element::u8 || K.data_type == ov::element::i8) || (V.data_type == ov::element::u8 || V.data_type == ov::element::i8);
-    int32_t nkeys_v = n_keys.is_dynamic() ? 0 : n_keys.get_length();
+    int32_t nkeys_v = static_cast<int32_t>(n_keys.is_dynamic() ? 0 : n_keys.get_length());
 
     GPU_DEBUG_TRACE_DETAIL << "k_head_size = " << k_head_size << ", nkeys_v = " << nkeys_v << "\n";
     GPU_DEBUG_TRACE_DETAIL << "thin_q = " << thin_q << ", is_quantized = " << is_quantized << "\n";
     switch (device_info.arch) {
     case gpu_arch::xe_hpg: {
-        config = choose_config_xehpg(static_cast<int32_t>(k_head_size), static_cast<int32_t>(nkeys_v), thin_q, is_quantized, is_paged_attention, is_prefill);
+        config = choose_config_xehpg(static_cast<int32_t>(k_head_size), nkeys_v, thin_q, is_quantized, is_paged_attention, is_prefill);
         break;
     }
     case gpu_arch::xe_hpc:
-        config = choose_config_xehpc(static_cast<int32_t>(k_head_size),
-                                     static_cast<int32_t>(nkeys_v),
-                                     thin_q,
-                                     is_quantized,
-                                     is_integrated,
-                                     is_paged_attention,
-                                     is_prefill);
+        config = choose_config_xehpc(static_cast<int32_t>(k_head_size), nkeys_v, thin_q, is_quantized, is_integrated, is_paged_attention, is_prefill);
         break;
-    case gpu_arch::xe2:
-    case gpu_arch::xe3: {
-        config = choose_config_xe2(static_cast<int32_t>(k_head_size),
-                                   static_cast<int32_t>(nkeys_v),
-                                   thin_q,
-                                   is_quantized,
-                                   is_integrated,
-                                   is_paged_attention,
-                                   is_prefill);
+    default: {
+        config = choose_config_xe2(static_cast<int32_t>(k_head_size), nkeys_v, thin_q, is_quantized, is_integrated, is_paged_attention, is_prefill);
         break;
     }
-    default:
-        break;
     }
 
     OPENVINO_ASSERT(config != nullptr);
@@ -1501,7 +1510,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     problem_kq.A.layout = (is_paged_attention && !is_prefill) ? micro::MatrixLayout::N : micro::MatrixLayout::T;
 
     /* Set up microkernel options */
-    micro::GEMMProtocol::Options opts_kq;
+    micro::GEMMOptions opts_kq;
     opts_kq.localB = true;
     opts_kq.slmPtr = true;
 
@@ -1567,7 +1576,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
 
     problem_kq.B.layout = micro::MatrixLayout::Pr;
     problem_kq.C.layout = micro::MatrixLayout::T;
-    problem_kq.A.setAlignment(micro::alignment_for_ld(k_head_size * problem.Ta));
+    problem_kq.A.setAlignment(micro::alignment_for_ld(static_cast<int>(k_head_size * problem.Ta)));
     if (is_paged_attention && !is_prefill) {
         auto pa_desc = params.typed_desc<paged_attention>();
         const auto paged_attention_block_size = static_cast<int>(paged_attention::block_size);
@@ -1617,7 +1626,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         problem_kcq.A.layout = micro::MatrixLayout::T;
         problem_kcq.B.layout = micro::MatrixLayout::Pr;
         problem_kcq.C.layout = micro::MatrixLayout::T;
-        problem_kcq.A.setAlignment(micro::alignment_for_ld(k_head_size * problem.Ta));
+        problem_kcq.A.setAlignment(micro::alignment_for_ld(static_cast<int>(k_head_size * problem.Ta)));
         problem_kcq.B.setAlignment(64);  // Q is packed in VNNI format in SLM
         problem_kcq.B.crosspack = 2;
         problem_kcq.B.tileR = static_cast<uint16_t>(d_max);
@@ -1635,7 +1644,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     }
 
     /* Set up microkernel options */
-    micro::GEMMProtocol::Options opts_vs;
+    micro::GEMMOptions opts_vs;
     opts_vs.localB = true;
     opts_vs.slmPtr = true;
 
@@ -1696,7 +1705,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
 
     problem_vs.B.layout = micro::MatrixLayout::Pr;
     problem_vs.C.layout = micro::MatrixLayout::N;
-    problem_vs.A.setAlignment(micro::alignment_for_ld(v_head_size * problem.Ta));
+    problem_vs.A.setAlignment(micro::alignment_for_ld(static_cast<int>(v_head_size * problem.Ta)));
     problem_vs.B.setAlignment(64);  // S is packed in SLM
     problem_vs.B.crosspack = 16;
     sizes.m = n_values.is_dynamic() ? -1 : n_values.get_length();
@@ -1735,7 +1744,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
 
         problem_vcs.B.layout = micro::MatrixLayout::Pr;
         problem_vcs.C.layout = micro::MatrixLayout::N;
-        problem_vcs.A.setAlignment(micro::alignment_for_ld(v_head_size * problem.Ta));
+        problem_vcs.A.setAlignment(micro::alignment_for_ld(static_cast<int>(v_head_size * problem.Ta)));
         problem_vcs.B.setAlignment(64);  // S is packed in SLM
         problem_vcs.B.crosspack = 16;
         sizes.m = n_values.is_dynamic() ? -1 : n_values.get_length();

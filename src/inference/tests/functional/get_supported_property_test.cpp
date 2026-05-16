@@ -126,6 +126,16 @@ TEST(PropertyTest, SetCacheDirPropertyCoreNoThrow) {
     EXPECT_EQ(value.as<std::string>(), std::string("./tmp_cache_dir"));
 }
 
+TEST(PropertyTest, SetCachePathPropertyCoreNoThrow) {
+    ov::Core core;
+
+    // ov::cache_path property test
+    ov::Any value;
+    OV_ASSERT_NO_THROW(core.set_property(ov::cache_path("./tmp_cache_dir")));
+    OV_ASSERT_NO_THROW(value = core.get_property(ov::cache_path.name()));
+    EXPECT_EQ(value.as<std::filesystem::path>(), std::filesystem::path("./tmp_cache_dir"));
+}
+
 TEST(PropertyTest, SetTBBForceTerminatePropertyCoreNoThrow) {
     ov::Core core;
 

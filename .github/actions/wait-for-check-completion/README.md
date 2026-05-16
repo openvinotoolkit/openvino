@@ -126,4 +126,4 @@ npm test
 
 ## Dependencies
 
-* Uses `caniuse-lite` sourced from [caniuse.com](caniuse.com)
+* Uses `caniuse-lite` sourced from [caniuse.com](https://caniuse.com)

@@ -55,9 +55,5 @@ inline std::vector<Extension::Ptr> load_extensions(const std::filesystem::path& 
     return load_extensions(so);
 }
 
-template <class T>
-inline std::vector<Extension::Ptr> load_extensions(const std::basic_string<T>& path) {
-    return load_extensions(ov::util::make_path(path));
-}
 }  // namespace detail
 }  // namespace ov

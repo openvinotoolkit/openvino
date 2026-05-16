@@ -154,9 +154,11 @@ arm_compute::Status ACLConvolutionExecutor::validateTensorsInfo(const ACLInfos& 
     aclMemoryInfos[ACLArgs::ACL_SRC_0]->set_quantization_info(arm_compute::QuantizationInfo(1.0));
     aclMemoryInfos[ACLArgs::ACL_WEI]->set_quantization_info(
         weightScale.empty() ? arm_compute::QuantizationInfo(1.0F) : arm_compute::QuantizationInfo(weightScale));
+    const auto dstPrecision = aclMemoryInfos[ACLArgs::ACL_DST]->data_type() == arm_compute::DataType::QASYMM8_SIGNED
+                                  ? ov::element::i8
+                                  : ov::element::u8;
     aclMemoryInfos[ACLArgs::ACL_DST]->set_quantization_info(
-        arm_compute::QuantizationInfo(fqInputScale.empty() ? 1.0F : 1.0F / fqInputScale[0],
-                                      fqInputShift.empty() ? 0 : fqInputShift[0]));
+        getDstQuantizationInfo(fqInputScale, fqInputShift, dstPrecision));
 
     return arm_compute::NEConvolutionLayer::validate(aclMemoryInfos[ACLArgs::ACL_SRC_0].get(),
                                                      aclMemoryInfos[ACLArgs::ACL_WEI].get(),
@@ -186,23 +188,7 @@ std::shared_ptr<arm_compute::TensorInfo> ACLConvolutionExecutor::initTensorInfo(
     const arm_compute::TensorShape& tensorShape,
     const arm_compute::DataType& dataType,
     const arm_compute::DataLayout& dataLayout) {
-    arm_compute::DataType result = arm_compute::DataType::UNKNOWN;
-    switch (dataType) {
-    case arm_compute::DataType::S8: {
-        result = arm_compute::DataType::QASYMM8_SIGNED;
-        break;
-    }
-    case arm_compute::DataType::U8: {
-        result = arm_compute::DataType::QASYMM8;
-        break;
-    }
-    default: {
-        result = dataType;
-        break;
-    }
-    }
-
-    return ACLCommonExecutor::initTensorInfo(tensorShape, result, dataLayout);
+    return ACLCommonExecutor::initTensorInfo(tensorShape, convertToQuantizedType(dataType), dataLayout);
 }
 
 }  // namespace ov::intel_cpu

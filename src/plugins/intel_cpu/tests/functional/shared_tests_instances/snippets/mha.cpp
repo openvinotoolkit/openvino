@@ -56,6 +56,17 @@ std::vector<std::vector<InputShape>> transposedShape_4D_matmul1_const_b() {
     return SNIPPETS_TESTS_STATIC_SHAPES({{1, 300, 8, 32}, {1, 300, 8, 32}, {1, 8, 300, 300}, {1, 300, 8, 32}});
 }
 
+std::vector<std::vector<InputShape>> twoConstBShape_4D() {
+    return SNIPPETS_TESTS_STATIC_SHAPES({{1, 300, 8, 32},   // Q1
+                                         {1, 300, 8, 32},   // K1
+                                         {1, 8, 300, 300},  // Add1
+                                         // V1 is Constant
+                                         {1, 300, 8, 32},   // Q2
+                                         {1, 300, 8, 32},   // K2
+                                         {1, 8, 300, 300},  // Add2
+                                         {1, 8, 300, 32}});  // V2
+}
+
 std::vector<std::vector<InputShape>> transposedShape_3D(bool with_dynamic = true) {
     auto shapes = SNIPPETS_TESTS_STATIC_SHAPES({{128, 12, 64}, {128, 12, 64}, {12, 128, 128}, {128, 12, 64}},
                                                {{68, 6, 92}, {68, 6, 92}, {1, 68, 68}, {68, 6, 92}},
@@ -112,6 +123,21 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_4D_MatMul1_Const_B_Are_Wei_Blocked,
                                             ::testing::Values(true),
                                             ::testing::Values(expected_nodes_mha_4d_f32),
                                             ::testing::Values(2),  // decomposed Transpose + MHA
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                            ::testing::Values(CPUTestUtils::empty_plugin_config)),
+                         MHAConstB::getTestCaseName);
+
+// Ticket: CVS-180477
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_4D_TwoConstB_StaticShapesCacheCollisionRegression,
+                         MHATwoConstB,
+                         ::testing::Combine(::testing::ValuesIn(twoConstBShape_4D()),
+                                            ::testing::ValuesIn(precision_f32(4)),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(false),   // with_mul (unused by MHATwoConstB)
+                                            ::testing::Values(false),   // const_b_matmul0 (unused)
+                                            ::testing::Values(false),   // const_b_matmul1 (unused)
+                                            ::testing::Values(4),
+                                            ::testing::Values(4),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
                                             ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          MHAConstB::getTestCaseName);

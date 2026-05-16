@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,8 +47,17 @@ protected:
     ov::Output<const ov::Node> m_b_en_block;
     ov::Output<const ov::Node> m_b_asr_block;
 
+    // Model A attention mask input (auto-filled from input_ids)
+    ov::Output<const ov::Node> m_a_text_mask;
+    // Original input_ids port (used to compute text_mask at runtime)
+    ov::Output<const ov::Node> m_orig_input_ids;
+    // Real (unpadded) sequence length — set by fill_text_mask(), used to
+    // truncate pred_dur so Model B only processes valid tokens.
+    std::size_t m_real_seq_len = 0;
+
 private:
     void init_tensor(const ov::Output<const ov::Node>& port);
+    void fill_text_mask();
 };
 
 }  // namespace npuw

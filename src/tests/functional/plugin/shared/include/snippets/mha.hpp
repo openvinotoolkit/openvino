@@ -83,6 +83,15 @@ protected:
     bool m_const_b_matmul1 = false;
 };
 
+// Regression test for cache-collision fix for static shapes.
+// Builds a model with two structurally-identical MHA branches that differ ONLY in how V is
+// provided: branch 1 uses a Constant V (→ pre-packed at compile time, constant_repacked_mask=1)
+// while branch 2 uses a runtime Parameter V (→ no pre-packing, constant_repacked_mask=0).
+class MHATwoConstB : public MHAConstB {
+protected:
+    std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
+};
+
 class MHA2D : public MHA {
 protected:
     std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;

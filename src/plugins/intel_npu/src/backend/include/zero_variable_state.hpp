@@ -4,11 +4,10 @@
 
 #pragma once
 
-#include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
+#include "intel_npu/utils/zero/zero_tensor.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
-#include "zero_tensor.hpp"
 
 namespace intel_npu {
 
@@ -23,8 +22,7 @@ public:
                                const std::string& name,
                                const std::shared_ptr<ZeroTensor>& zero_tensor,
                                size_t tensor_index,
-                               size_t related_tensor_index,
-                               const Config& config);
+                               size_t related_tensor_index);
 
     void set_state(const ov::SoPtr<ov::ITensor>& new_state) override;
 
@@ -94,7 +92,6 @@ private:
     bool _is_state_updated = false;
     bool _is_zero_state_update_needed = false;
 
-    const Config _config;
     Logger _logger;
 };
 
