@@ -51,7 +51,7 @@ jobs:
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
-          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*,.github/workflows/ci-doctor.lock.yml'
 
   Docker:
     needs: Smart_CI
@@ -217,7 +217,7 @@ jobs:
             -B ${TBB_BUILD}
 
       - name: Build OneTBB project
-        run: cmake --build ${TBB_BUILD} --parallel $(nproc)
+        run: cmake --build ${TBB_BUILD} --parallel $(nproc) -- --quiet
 
       - name: Install OneTBB project
         run: cmake --install ${TBB_BUILD}
@@ -238,8 +238,8 @@ jobs:
             -DENABLE_SYSTEM_TBB=OFF \
             -DTHREADING=TBB \
             -DTBB_DIR=${{ env.TBB_CMAKE_DIR }} \
-            -DTBBROOT=${{ env.TBB_INSTALL }} \
             -DENABLE_FASTER_BUILD=ON \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
             -DOPENVINO_EXTRA_MODULES=${{ env.OPENVINO_GENAI_REPO }} \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
@@ -255,7 +255,7 @@ jobs:
             -B ${BUILD_DIR}
 
       - name: CMake - build OpenVINO
-        run: cmake --build ${BUILD_DIR} --parallel $(nproc)
+        run: cmake --build ${BUILD_DIR} --parallel $(nproc) -- --quiet
 
       - name: Show ccache stats
         run: ${SCCACHE_PATH} --show-stats
@@ -269,6 +269,14 @@ jobs:
         with:
           name: build_logs_${{ matrix.arch }}
           path: ${{ env.SCCACHE_ERROR_LOG }}
+          if-no-files-found: 'ignore'
+
+      - name: Upload compile_commands
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        if: always()
+        with:
+          name: compile_commands_android_${{ matrix.arch }}
+          path: ${{ env.BUILD_DIR }}/compile_commands.json
           if-no-files-found: 'ignore'
 
       - name: Prepare build and test artifacts (split)
@@ -353,13 +361,13 @@ jobs:
         timeout-minutes: 15
 
       - name: Download CPU test binaries
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
           name: ov_cpu_tests_android_x64
           path: ${{ env.INSTALL_TEST_DIR }}
 
       - name: Download OpenVINO runtime package (Android)
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
           name: ov_android_package_x64
           path: ${{ env.INSTALL_DIR }}
@@ -376,7 +384,7 @@ jobs:
           distribution: 'temurin'
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3.2.2
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
 
       - name: AVD cache
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
@@ -447,13 +455,13 @@ jobs:
         timeout-minutes: 15
 
       - name: Download CPU test binaries
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
           name: ov_cpu_tests_android_x64
           path: ${{ env.INSTALL_TEST_DIR }}
 
       - name: Download OpenVINO runtime package (Android)
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
           name: ov_android_package_x64
           path: ${{ env.INSTALL_DIR }}
@@ -470,7 +478,7 @@ jobs:
           distribution: 'temurin'
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3.2.2
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
 
       - name: AVD cache
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5

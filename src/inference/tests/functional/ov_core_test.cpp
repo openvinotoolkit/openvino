@@ -322,4 +322,13 @@ TEST_P(UnicodePathTest, read_compile_model) {
     std::filesystem::remove_all(prefix_dir);
 }
 
+INSTANTIATE_TEST_SUITE_P(string_paths, UnicodePathTest, testing::Values("test_folder"));
+INSTANTIATE_TEST_SUITE_P(u16_paths, UnicodePathTest, testing::Values(u"test_folder"));
+INSTANTIATE_TEST_SUITE_P(u32_paths, UnicodePathTest, testing::Values(U"test_folder"));
+INSTANTIATE_TEST_SUITE_P(wstring_paths, UnicodePathTest, testing::Values(L"test_folder"));
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+INSTANTIATE_TEST_SUITE_P(unicode_paths, UnicodePathTest, unicode_paths);
+#endif
+
 }  // namespace ov::test
