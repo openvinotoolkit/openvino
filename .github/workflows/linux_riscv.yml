@@ -292,7 +292,7 @@ jobs:
               ;;
           esac
           "${RISCV_TOOLCHAIN_ROOT}"/bin/qemu-riscv64 \
-            -cpu rv64,v=true,vlen=256 \
+            -cpu rv64,v=true,vext_spec=v1.0 \
             "${INSTALL_TEST_DIR}"/ov_cpu_func_tests \
             --gtest_print_time=1 \
             --gtest_filter="${GTEST_FILTER}"
