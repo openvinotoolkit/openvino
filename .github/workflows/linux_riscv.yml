@@ -192,6 +192,7 @@ jobs:
           -DENABLE_WHEEL=OFF
           -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
           -DCMAKE_TOOLCHAIN_FILE=${OPENVINO_REPO}/cmake/toolchains/riscv64.linux.toolchain.cmake
+          -DTHREADING=OMP
           -S ${OPENVINO_REPO}
           -B ${BUILD_DIR}
 
