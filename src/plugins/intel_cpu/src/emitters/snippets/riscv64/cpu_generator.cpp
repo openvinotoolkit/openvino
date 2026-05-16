@@ -361,7 +361,9 @@ CPUTargetMachine::CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, o
 
 std::shared_ptr<ov::snippets::TargetMachine> CPUTargetMachine::clone() const {
     const auto cloned = std::make_shared<CPUTargetMachine>(isa, compiled_kernel_cache);
-    cloned->configurator = std::make_shared<ov::snippets::RuntimeConfigurator>(*configurator);
+    const auto cpu_config = std::dynamic_pointer_cast<CPURuntimeConfigurator>(configurator);
+    OPENVINO_ASSERT(cpu_config, "Expected CPURuntimeConfigurator in CPUTargetMachine::clone()");
+    cloned->configurator = std::make_shared<CPURuntimeConfigurator>(*cpu_config);
 #ifdef SNIPPETS_DEBUG_CAPS
     cloned->debug_config = debug_config;
 #endif
