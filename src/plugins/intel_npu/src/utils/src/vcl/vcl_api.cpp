@@ -10,12 +10,13 @@
 #include "openvino/util/shared_object.hpp"
 
 namespace intel_npu {
-VCLApi::VCLApi() : _logger("VCLApi", Logger::global().level()) {
+VCLApi::VCLApi(const std::string& custom_path) : _logger("VCLApi", Logger::global().level()) {
     const auto baseName = "openvino_intel_npu_compiler_loader";
 
     try {
-        const auto libpath = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), baseName);
-        _logger.debug("Try to load %s", baseName);
+        std::filesystem::path folder_path =
+            custom_path.empty() ? ov::util::get_ov_lib_path() : std::filesystem::path(custom_path);
+        const auto libpath = ov::util::make_plugin_library_name(folder_path, baseName);
         this->lib = ov::util::load_shared_object(libpath);
     } catch (const std::runtime_error& error) {
         _logger.debug("Failed to load %s: %s", baseName, error.what());
@@ -48,8 +49,8 @@ VCLApi::VCLApi() : _logger("VCLApi", Logger::global().level()) {
 #undef vcl_symbol_statement
 }
 
-const std::shared_ptr<VCLApi> VCLApi::getInstance() {
-    static std::shared_ptr<VCLApi> instance = std::make_shared<VCLApi>();
+const std::shared_ptr<VCLApi> VCLApi::getInstance(const std::string& custom_path) {
+    static std::shared_ptr<VCLApi> instance = std::make_shared<VCLApi>(custom_path);
     return instance;
 }
 
