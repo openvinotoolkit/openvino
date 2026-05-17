@@ -579,6 +579,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                 if (fcn_template._pipeline.compile_stage) {
                     fcn_template._pipeline.compile_stage(m_compiled_submodels[id].pipeline,
                                                          m_compiled_submodels[id].pipeline.context);
+                    ov::npuw::moe::clear_partition_state(fcn_template._pipeline.context);
                 }
             } else {
                 const auto real_id = m_compiled_submodels[id].replaced_by.value();
