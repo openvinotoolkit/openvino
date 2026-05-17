@@ -1,5 +1,6 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #include "fallback_unsupported_lp_conv_to_fp16.hpp"
 
@@ -25,6 +26,7 @@
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
@@ -69,7 +71,10 @@ ov::intel_cpu::FallbackUnsupportedLPConvToFP16::FallbackUnsupportedLPConvToFP16(
             return false;
         }
 
-        if (fake_quantize->get_output_element_type(0) == conv->get_input_element_type(0)) {
+        // If there's a Subtract (zero-point dequantization), always apply fallback —
+        // int8 ACL convolution executor does not support zero-point yet
+        const bool has_subtract = ov::is_type<ov::op::v1::Subtract>(conv->get_input_node_ptr(0));
+        if (!has_subtract && fake_quantize->get_output_element_type(0) == conv->get_input_element_type(0)) {
             return false;
         }
 
