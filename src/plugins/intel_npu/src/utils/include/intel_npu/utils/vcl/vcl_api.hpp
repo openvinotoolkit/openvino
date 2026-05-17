@@ -42,13 +42,13 @@ namespace intel_npu {
 
 class VCLApi {
 public:
-    VCLApi();
+    VCLApi(const std::string& custom_path = "");
     VCLApi(const VCLApi& other) = delete;
     VCLApi(VCLApi&& other) = delete;
     void operator=(const VCLApi&) = delete;
     void operator=(VCLApi&&) = delete;
 
-    static const std::shared_ptr<VCLApi> getInstance();
+    static const std::shared_ptr<VCLApi> getInstance(const std::string& custom_path = "");
     std::shared_ptr<void> getLibrary() const {
         return lib;
     }
