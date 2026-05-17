@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <sstream>
+
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/implementation_desc.hpp"
 #include "intel_gpu/runtime/stream.hpp"
@@ -1949,7 +1951,11 @@ void primitive_inst::do_runtime_in_place_crop() {
                     }
                     crop_in_place_optimization::update_in_place_crop_padding_along_feature(u->get_node(), crop_layout, pred_layout, offsets, crop_axis, true);
                 } else if (crop_in_place_optimization::can_crop_be_optimized_simple_data_format(crop_layout, pred_layout)) {
-                    crop_in_place_optimization::update_in_place_crop_padding_simple_data_format(crop_layout, pred_layout, user_info, offsets, crop_axis, true);
+                    if (!crop_in_place_optimization::update_in_place_crop_padding_simple_data_format(crop_layout, pred_layout, user_info, offsets, crop_axis, true)) {
+                        u->set_can_be_optimized(false);
+                        GPU_DEBUG_TRACE_DETAIL << "[In place crop] " << u->id() << " cannot be optimized due to padding indivisibility" << std::endl;
+                        continue;
+                    }
                     if (user_info.first) {
                         auto reshape_inst = crop_users.front();
                         reshape_inst->_impl_params->output_layouts[0] = user_info.second;
@@ -2287,7 +2293,8 @@ void primitive_inst::execute() {
 
     set_out_event(_impl->execute(_impl_params->dep_events, *this));
 
-    GPU_DEBUG_IF(!get_config().get_dump_profiling_data_path().empty()) {
+    GPU_DEBUG_IF(!get_config().get_dump_profiling_data_path().empty() ||
+                 !get_config().get_average_counters().empty()) {
         auto ev = _impl_params->out_event;
         get_network().get_stream().wait_for_events({ev});
 
@@ -2393,6 +2400,12 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
             // sum post-op can use the input buffer as the output buffer
             auto& eltw_node = node.get_dependency(reused_eltwmem_idx);
             const auto& eltw_inst = _network.get_primitive(eltw_node.id());
+            if (eltw_node.is_type<input_layout>() && !eltw_inst->outputs_allocated()) {
+                auto eltw_mem = _network.get_engine().allocate_memory(eltw_node.get_output_layout(), 
+                                                                      _network.get_engine().get_preferred_memory_allocation_type(), 
+                                                                      /*reset*/false);
+                eltw_inst->set_output_memory(eltw_mem, /*check*/false);
+            }
             auto& eltw_mem = eltw_inst->output_memory();
             auto new_mem = eltw_mem.get_engine()->reinterpret_buffer(eltw_mem, node.get_output_layout());
             _outputs.push_back(new_mem);
@@ -2623,7 +2636,8 @@ void primitive_inst::update_weights() {
             reorder_impl->set_arguments(*reorder_inst, args);
             add_dep_event(reorder_impl->execute({}, *reorder_inst));
 
-            GPU_DEBUG_IF(!get_config().get_dump_profiling_data_path().empty()) {
+            GPU_DEBUG_IF(!get_config().get_dump_profiling_data_path().empty() ||
+                         !get_config().get_average_counters().empty()) {
                 stream.wait_for_events(_impl_params->dep_events);
             }
 
@@ -3095,7 +3109,9 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
             if (!impl_manager->support_shapes(params))
                 continue;
 
-            return impl_manager->create(*node, params);
+            auto impl = impl_manager->create(*node, params);
+            if (impl)
+                return impl;
         }
 
         return nullptr;
@@ -3145,11 +3161,12 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
 
             std::unique_ptr<primitive_impl> impl = find_impl(&inst.get_node(), updated_params, shape_types::static_shape);
 
-            if (impl->get_kernels_source().size() > 0) {
+            if (impl && impl->get_kernels_source().size() > 0) {
                 auto kernels = _program.get_kernels_cache().compile(updated_params, impl->get_kernels_source());
                 impl->set_kernels(kernels);
             }
-            cache.add(updated_params, std::move(impl));
+            if (impl)
+                cache.add(updated_params, std::move(impl));
         });
     }
 
@@ -3181,7 +3198,34 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
 
     // 6. Finally, if no impl found so far, we just enforce static impl compilation
     auto static_impl = find_impl(node, updated_params, shape_types::static_shape);
-    OPENVINO_ASSERT(static_impl != nullptr, "No static impl " + node->id());
+    if (!static_impl) {
+        auto stringify_layouts = [](const std::vector<layout>& layouts) {
+            if (layouts.empty())
+                return std::string("<none>");
+
+            std::ostringstream oss;
+            oss << layouts[0].to_short_string();
+            for (size_t i = 1; i < layouts.size(); ++i) {
+                oss << ", " << layouts[i].to_short_string();
+            }
+            return oss.str();
+        };
+
+        std::ostringstream available_impls_oss;
+        available_impls_oss << "available_impls: " << m_available_impls.size() << " [";
+        for (size_t i = 0; i < m_available_impls.size(); ++i) {
+            if (i > 0)
+                available_impls_oss << ",";
+            const auto& m = m_available_impls[i];
+            available_impls_oss << " {type=" << static_cast<int>(m->get_impl_type())
+                                << ", shape=" << static_cast<int>(m->get_shape_type()) << "}";
+        }
+        available_impls_oss << " ]";
+
+        OPENVINO_ASSERT(false, "No static impl " + node->id() + ". " + available_impls_oss.str() +
+                        ". Input: " + stringify_layouts(updated_params.input_layouts) +
+                        ". Output: " + stringify_layouts(updated_params.output_layouts));
+    }
     static_impl->set_node_params(*node);
     if (!inst.can_be_optimized()) {
         auto& kernels_cache = prog.get_kernels_cache();
