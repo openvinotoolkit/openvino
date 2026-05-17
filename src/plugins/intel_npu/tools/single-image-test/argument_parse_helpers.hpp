@@ -70,6 +70,7 @@ DECLARE_string(shape);
 DECLARE_string(data_shape);
 DECLARE_string(skip_output_layers);
 DECLARE_bool(clamp_u8_outputs);
+DECLARE_string(clamp_inf_outputs);
 DECLARE_string(mean_values);
 DECLARE_string(scale_values);
 DECLARE_string(img_bin_precision);
