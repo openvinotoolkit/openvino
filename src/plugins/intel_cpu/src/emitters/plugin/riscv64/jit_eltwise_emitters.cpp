@@ -3303,6 +3303,55 @@ std::set<std::vector<element::Type>> jit_round_half_to_even_emitter::get_support
     return {{element::f32}};
 }
 
+/// SELECT ///
+jit_select_emitter::jit_select_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                                       ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                       const std::shared_ptr<ov::Node>& node)
+    : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {}
+
+jit_select_emitter::jit_select_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                                       ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                       ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {}
+
+size_t jit_select_emitter::get_inputs_num() const {
+    return 3;
+}
+
+size_t jit_select_emitter::aux_fp_gprs_count() const {
+    return 1;
+}
+
+void jit_select_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                   const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
+        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
+    }
+}
+
+template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+void jit_select_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                  const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
+
+    const auto condition = VReg(in_vec_idxs[0]);
+    const auto then_value = VReg(in_vec_idxs[1]);
+    const auto else_value = VReg(in_vec_idxs[2]);
+    const auto dst = VReg(out_vec_idxs[0]);
+    const auto fzero = FReg(aux_fp_gpr_idxs[0]);
+
+    h->fmv_w_x(fzero, zero);
+    h->vmfgt_vf(mask_vreg(), condition, fzero);
+    h->vmerge_vvm(dst, else_value, then_value);
+}
+
+std::set<std::vector<element::Type>> jit_select_emitter::get_supported_precisions(
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32, element::f32, element::f32}};
+}
+
 /// Power Static ///
 jit_power_static_emitter::jit_power_static_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
                                                    ov::intel_cpu::riscv64::cpu_isa_t host_isa,

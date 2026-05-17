@@ -1412,7 +1412,6 @@ void Transformations::MainSnippets() {
                    || ov::is_type<const ov::op::v4::Swish>(n) ||
                    ov::is_type_any_of<const ov::op::v0::Ceiling,
                                       const ov::op::v1::Power,
-                                      const ov::op::v1::Select,
                                       const ov::intel_cpu::SwishNode>(n)
 #endif
                 ;
