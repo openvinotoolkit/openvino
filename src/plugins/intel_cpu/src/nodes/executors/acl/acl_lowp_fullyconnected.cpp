@@ -19,6 +19,7 @@
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/common/cpu_convert.h"
 #include "nodes/executors/acl/acl_common_executor.hpp"
+#include "nodes/executors/acl/acl_isa_guard.hpp"
 #include "nodes/executors/acl/acl_utils.hpp"
 #include "nodes/executors/common/common_utils.hpp"
 #include "nodes/executors/debug_messages.hpp"
@@ -79,6 +80,7 @@ ACLLowpFullyConnectedExecutor::ACLLowpFullyConnectedExecutor(const FCAttrs& attr
 }
 
 bool ACLLowpFullyConnectedExecutor::supports(const FCConfig& config) {
+    VERIFY(mayUseAclGemmBasedExecutor(), UNSUPPORTED_ISA);
     VERIFY(any_of(srcType(config), ov::element::u8, ov::element::i8), UNSUPPORTED_SRC_PRECISIONS);
     VERIFY(weiType(config) == ov::element::i8, UNSUPPORTED_WEI_PRECISIONS);
     VERIFY(dstType(config) == ov::element::f32, UNSUPPORTED_DST_PRECISIONS);
@@ -93,6 +95,9 @@ void ACLLowpFullyConnectedExecutor::updateTensorsShapes(ACLShapes& aclMemoryShap
 }
 
 arm_compute::Status ACLLowpFullyConnectedExecutor::validateTensorsInfo(const ACLInfos& aclMemoryInfos) {
+    if (!mayUseAclGemmBasedExecutor()) {
+        return aclGemmBasedExecutorUnsupportedStatus();
+    }
     const auto& tensor_info = aclMemoryInfos[ACLArgs::ACL_SRC_0];
     if (dequantizationScales.empty()) {
         tensor_info->set_quantization_info(arm_compute::QuantizationInfo(1.F));

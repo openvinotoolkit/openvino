@@ -42,6 +42,7 @@
 #include "nodes/common/reorder_prim.h"
 #include "nodes/convert.h"
 #include "nodes/executors/acl/acl_common_executor.hpp"
+#include "nodes/executors/acl/acl_isa_guard.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
@@ -377,6 +378,9 @@ void acl_fc_executor::ACLWeightFormatGenerator::updateTensorsShapes(ACLShapes& a
 }
 
 arm_compute::Status acl_fc_executor::ACLWeightFormatGenerator::validateTensorsInfo(const ACLInfos& aclMemoryInfos) {
+    if (!mayUseAclGemmBasedExecutor()) {
+        return aclGemmBasedExecutorUnsupportedStatus();
+    }
     if (aclfcAttrs.isConvertedWeights) {
         aclMemoryInfos[ACLArgs::ACL_WEI]->set_data_type(aclMemoryInfos[ACLArgs::ACL_SRC_0]->data_type());
     }

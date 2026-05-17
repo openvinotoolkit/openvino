@@ -24,6 +24,7 @@
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/common/cpu_convert.h"
 #include "nodes/executors/acl/acl_common_executor.hpp"
+#include "nodes/executors/acl/acl_isa_guard.hpp"
 #include "nodes/executors/common/common_utils.hpp"
 #include "nodes/executors/convolution_config.hpp"
 #include "nodes/executors/debug_messages.hpp"
@@ -118,6 +119,7 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
 }
 
 bool ACLConvolutionExecutor::supports(const ConvConfig& config) {
+    VERIFY(mayUseAclGemmBasedExecutor(), UNSUPPORTED_ISA);
     VERIFY(config.attrs.postOps.size() <= 1U, UNSUPPORTED_BY_EXECUTOR);
 
     const auto& srcDesc = config.descs.at(ARG_SRC);
@@ -144,6 +146,9 @@ bool ACLConvolutionExecutor::supports(const ConvConfig& config) {
 }
 
 arm_compute::Status ACLConvolutionExecutor::validateTensorsInfo(const ACLInfos& aclMemoryInfos) {
+    if (!mayUseAclGemmBasedExecutor()) {
+        return aclGemmBasedExecutorUnsupportedStatus();
+    }
     // Note: LPT propagate dequantization scales from src and weights on conv output, and the result scale
     // is applied as weight scale. So quantization configuration forms in the following way:
     // - src quantization info is always trivial

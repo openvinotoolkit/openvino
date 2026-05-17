@@ -17,6 +17,7 @@
 #include "nodes/common/cpu_convert.h"
 #include "nodes/executors/acl/acl_common_executor.hpp"
 #include "nodes/executors/acl/acl_fullyconnected_utils.hpp"
+#include "nodes/executors/acl/acl_isa_guard.hpp"
 #include "nodes/executors/debug_messages.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
@@ -76,6 +77,7 @@ ACLFullyConnectedExecutor::ACLFullyConnectedExecutor(const FCAttrs& attrs,
 }
 
 bool ACLFullyConnectedExecutor::supports(const FCConfig& config) {
+    VERIFY(mayUseAclGemmBasedExecutor(), UNSUPPORTED_ISA);
     VERIFY(any_of(srcType(config), ov::element::f16, ov::element::f32), UNSUPPORTED_SRC_PRECISIONS);
     VERIFY(any_of(weiType(config), ov::element::f16, ov::element::f32), UNSUPPORTED_WEI_PRECISIONS);
     VERIFY(postOpsNumbers(config) < 2, UNSUPPORTED_NUMBER_OF_POSTOPS);
@@ -91,6 +93,9 @@ void ACLFullyConnectedExecutor::updateTensorsShapes(ACLShapes& aclMemoryShapes) 
 }
 
 arm_compute::Status ACLFullyConnectedExecutor::validateTensorsInfo(const ACLInfos& aclMemoryInfos) {
+    if (!mayUseAclGemmBasedExecutor()) {
+        return aclGemmBasedExecutorUnsupportedStatus();
+    }
     if (aclfcAttrs.isConvertedWeights) {
         aclMemoryInfos[ACLArgs::ACL_WEI]->set_data_type(aclMemoryInfos[ACLArgs::ACL_SRC_0]->data_type());
     }
