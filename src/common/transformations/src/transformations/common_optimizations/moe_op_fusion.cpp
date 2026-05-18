@@ -101,7 +101,6 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool ha
     auto end_reshape_m = pattern::wrap_type<v1::Reshape>({reduce_sum_m, end_reshape_shape_m});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        std::cout << "Convert3GatherMatmulMoeBlockToMoeOp START" << std::endl;
         auto& pm = m.get_pattern_value_map();
 
         if (transformation_callback(m.get_match_root())) {
@@ -230,7 +229,6 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool ha
         ov::replace_node(m.get_match_root(), moe_node);
 
         register_new_node(moe_node);
-        std::cout << "Convert3GatherMatmulMoeBlockToMoeOp END" << std::endl;
         return true;
     };
 
@@ -296,7 +294,6 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(bool ha
     auto end_reshape_m = pattern::wrap_type<v1::Reshape>({reduce_sum_m, end_reshape_shape_m});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        std::cout << "Convert2GatherMatmulMoeBlockToMoeOp START" << std::endl;
         auto& pm = m.get_pattern_value_map();
 
         if (transformation_callback(m.get_match_root())) {
@@ -433,7 +430,6 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(bool ha
         ov::replace_node(m.get_match_root(), moe_node);
 
         register_new_node(moe_node);
-        std::cout << "Convert2GatherMatmulMoeBlockToMoeOp END" << std::endl;
         return true;
     };
 

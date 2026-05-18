@@ -41,7 +41,6 @@ ov::pass::ConvertGatherMatmulToGatherMatmulCompressed::ConvertGatherMatmulToGath
     auto gather_matmul = wrap_type<GatherMatmul>({activation, weights_block, indices, bias});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
-        std::cout << "ConvertGatherMatmulToGatherMatmulCompressed START" << std::endl;
         const auto& pattern_map = m.get_pattern_value_map();
         auto bgm = ov::as_type_ptr<GatherMatmul>(pattern_map.at(gather_matmul).get_node_shared_ptr());
         if (!bgm || transformation_callback(bgm)) {
@@ -85,7 +84,6 @@ ov::pass::ConvertGatherMatmulToGatherMatmulCompressed::ConvertGatherMatmulToGath
         new_bgm->set_friendly_name(bgm->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), result_nodes);
         ov::replace_node(bgm, new_bgm);
-        std::cout << "ConvertGatherMatmulToGatherMatmulCompressed END" << std::endl;
         return true;
     };
 

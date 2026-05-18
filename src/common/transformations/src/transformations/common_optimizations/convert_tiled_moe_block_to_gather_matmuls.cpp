@@ -196,7 +196,6 @@ ConvertTiledMoeBlockTo2GatherMatmuls::ConvertTiledMoeBlockTo2GatherMatmuls() {
     auto p = build_2gemm_pattern();
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        std::cout << "Convert2GatherMatmulMoeBlockTo2GatherMatmuls START" << std::endl;
         auto& pm = m.get_pattern_value_map();
 
         if (transformation_callback(m.get_match_root())) {
@@ -275,7 +274,6 @@ ConvertTiledMoeBlockTo2GatherMatmuls::ConvertTiledMoeBlockTo2GatherMatmuls() {
         ov::replace_output_update_name(pm.at(p.reduce_sum), reshape->output(0));
         // To avoid friendly name duplication
         reshape->set_friendly_name(reshape->get_friendly_name() + "_Reshape");
-        std::cout << "ConvertTiledMoeBlockTo3GatherMatmuls END" << std::endl;
         return true;
     };
 
@@ -289,7 +287,6 @@ ConvertTiledMoeBlockTo3GatherMatmuls::ConvertTiledMoeBlockTo3GatherMatmuls() {
     auto p = build_3gemm_pattern();
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        std::cout << "ConvertTiledMoeBlockTo3GatherMatmuls START" << std::endl;
         auto& pm = m.get_pattern_value_map();
 
         if (transformation_callback(m.get_match_root())) {
@@ -362,7 +359,6 @@ ConvertTiledMoeBlockTo3GatherMatmuls::ConvertTiledMoeBlockTo3GatherMatmuls() {
         const auto reshape = std::make_shared<v1::Reshape>(new_reduce_sum, shape_slice, true);
         ov::replace_output_update_name(pm.at(p.reduce_sum), reshape->output(0));
         reshape->set_friendly_name(new_reduce_sum->get_friendly_name() + "_Reshape");
-        std::cout << "ConvertTiledMoeBlockTo3GatherMatmuls END" << std::endl;
         return true;
     };
 
