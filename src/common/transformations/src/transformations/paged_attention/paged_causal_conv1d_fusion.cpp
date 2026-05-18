@@ -34,7 +34,6 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/utils/utils.hpp"
 
 using ov::pass::pattern::any_input;
@@ -104,7 +103,6 @@ PagedCausalConv1DFusion::PagedCausalConv1DFusion(ov::pass::paged_attention::PaPa
                                                     ov::element::dynamic,
                                                     make_conv_state_table_shape(cache_rv->get_output_partial_shape(0)));
 
-        enable_keep_const_precision(conv_state_table);
         var_ids_to_remove.insert(cache_rv->get_variable_id());
 
         auto token_input = pm.at(p_token_input).get_node_shared_ptr();

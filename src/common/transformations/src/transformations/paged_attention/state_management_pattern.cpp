@@ -38,7 +38,6 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace pattern = ov::pass::pattern;
@@ -481,11 +480,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
 
         auto& k_parameter = kv_params.k;
         auto& v_parameter = kv_params.v;
-
-        // Set parameters to be in the same precision as the original K/V tensors,
-        // that allows to avoid unnecessary Convert operations in the graph
-        enable_keep_const_precision(k_parameter);
-        enable_keep_const_precision(v_parameter);
 
         auto kv_transpose_order = v0::Constant::create(element::i64, Shape{4}, {0, 2, 1, 3});
 

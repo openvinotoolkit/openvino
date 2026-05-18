@@ -28,7 +28,6 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/rt_info/keep_const_precision.hpp"
 
 using ov::pass::pattern::any_input;
 using ov::pass::pattern::wrap_type;
@@ -110,7 +109,6 @@ PagedGatedDeltaNetFusion::PagedGatedDeltaNetFusion(ov::pass::paged_attention::Pa
         const auto state_table_param = pa_params.add(make_gated_delta_state_table_name(m_layer_index++),
                                                      ov::element::dynamic,
                                                      make_gated_delta_state_table_shape(state_out.get_partial_shape()));
-        enable_keep_const_precision(state_table_param);
 
         const auto rv = ov::as_type_ptr<ov::op::util::ReadValueBase>(pm.at(read_value).get_node_shared_ptr());
         OPENVINO_ASSERT(rv, "Matched cache node is expected to be ReadValue");
