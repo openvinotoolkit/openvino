@@ -268,7 +268,7 @@ class TestSession:
                 "framework": framework,
                 "precision": precision,
                 "metrics": sample.as_dict(),
-                "familyCpu": CPU_FAMILY,
+                "cpu_family": CPU_FAMILY,
                 "model_size": weights_size
             })
             test_report.append(sample_report)

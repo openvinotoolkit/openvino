@@ -11,6 +11,7 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/type/element_iterator.hpp"
+#include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
@@ -1370,6 +1371,7 @@ bool fuse_type_to_constant(const std::shared_ptr<ov::Node>& node,
         new_const->set_friendly_name(constant->get_friendly_name());
         ov::copy_runtime_info(constant, new_const);
         ov::copy_weightless_cache_attr(constant, new_const);
+        ov::wsh::Extension::hint_evict(*constant);
         return true;
     }
     return false;
