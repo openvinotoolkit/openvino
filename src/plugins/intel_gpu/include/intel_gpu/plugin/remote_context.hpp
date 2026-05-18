@@ -87,7 +87,7 @@ private:
     std::shared_ptr<ov::IRemoteTensor> create_usm(const ov::element::Type type, const ov::Shape& shape, TensorType alloc_type);
     void check_if_shared() const;
 
-    void init_properties();
+    void init_properties() const;
 
     std::shared_ptr<cldnn::device> m_device;
     std::shared_ptr<cldnn::engine> m_engine;
@@ -107,7 +107,8 @@ private:
     bool m_is_initialized = false;
     std::once_flag m_initialize_flag;
 
-    ov::AnyMap properties;
+    mutable ov::AnyMap properties;
+    mutable std::once_flag m_properties_init_flag;
 };
 
 inline RemoteContextImpl::Ptr get_context_impl(ov::SoPtr<ov::IRemoteContext> ptr) {

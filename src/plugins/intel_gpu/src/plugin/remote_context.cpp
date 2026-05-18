@@ -88,7 +88,7 @@ const cldnn::engine& RemoteContextImpl::get_engine() const {
     return *m_engine;
 }
 
-void RemoteContextImpl::init_properties() {
+void RemoteContextImpl::init_properties() const {
     properties = { ov::intel_gpu::ocl_context(m_engine->get_user_context()) };
 
     switch (m_type) {
@@ -110,6 +110,10 @@ void RemoteContextImpl::init_properties() {
 
 const ov::AnyMap& RemoteContextImpl::get_property() const {
     OPENVINO_ASSERT(m_is_initialized, "[GPU] get_property() called on uninitialized context. Please initialize the context before use");
+    std::call_once(m_properties_init_flag, [this]() {
+        init_properties();
+    });
+
     return properties;
 }
 
@@ -246,8 +250,6 @@ void RemoteContextImpl::initialize() {
         m_device->initialize();  // Initialize associated device before use
         m_engine = cldnn::engine::create(
             cldnn::device_query::get_default_engine_type(), cldnn::device_query::get_default_runtime_type(), m_device);
-
-        init_properties();
 
         m_is_initialized = true;
 });

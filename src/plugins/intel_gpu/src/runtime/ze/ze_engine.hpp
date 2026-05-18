@@ -5,7 +5,7 @@
 #pragma once
 
 #include "ze_common.hpp"
-#include "ze_holder.hpp"
+#include "ze_resource.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/stream.hpp"
@@ -33,9 +33,9 @@ public:
     allocation_type get_default_allocation_type() const override { return allocation_type::usm_device; }
     allocation_type detect_usm_allocation_type(const void* memory) const override;
 
-    ze_holder<ze_resource_type::context> get_context_holder() const;
-    ze_driver_handle_t get_driver() const;
-    ze_device_handle_t get_device() const;
+    const ze_context_resource& get_context() const;
+    const ze_driver_resource& get_driver() const;
+    const ze_device_resource& get_device() const;
 
     stream_ptr create_stream(const ExecutionConfig& config) const override;
     stream_ptr create_stream(const ExecutionConfig& config, void *handle) const override;

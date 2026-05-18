@@ -7,7 +7,7 @@
 #include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/stream.hpp"
 #include "ze_common.hpp"
-#include "ze_holder.hpp"
+#include "ze_resource.hpp"
 #include "ze_engine.hpp"
 #include "ze_event.hpp"
 #include "ze_base_event_factory.hpp"
@@ -17,14 +17,14 @@ namespace ze {
 
 class ze_stream : public stream {
 public:
-    ze_command_list_handle_t get_queue() const { return m_cmd_list_holder.get_handle(); }
+    ze_command_list_handle_t get_queue() const { return m_cmd_list.get_ze_handle(); }
     const ze_engine& get_engine() const { return _engine; }
 
     ze_stream(const ze_engine& engine, const ExecutionConfig& config);
     ze_stream(ze_stream&& other)
         : stream(other.m_queue_type, other.m_sync_method)
         , _engine(other._engine)
-        , m_cmd_list_holder(std::move(other.m_cmd_list_holder))
+        , m_cmd_list(std::move(other.m_cmd_list))
         , m_queue_counter(other.m_queue_counter.load())
         , m_last_barrier(other.m_last_barrier.load())
         , m_last_barrier_ev(other.m_last_barrier_ev)
@@ -51,7 +51,7 @@ public:
     event::ptr create_user_event(bool set) override;
     event::ptr create_base_event() override;
     std::unique_ptr<surfaces_lock> create_surfaces_lock(const std::vector<memory::ptr> &mem) const override;
-    ze_holder<ze_resource_type::context> get_context_holder() const;
+    const ze_context_resource& get_context() const;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     dnnl::stream& get_onednn_stream() override;
@@ -61,7 +61,7 @@ private:
     void sync_events(std::vector<event::ptr> const& deps, bool is_output = false);
 
     const ze_engine& _engine;
-    ze_holder<ze_resource_type::command_list> m_cmd_list_holder;
+    ze_command_list_resource m_cmd_list;
     mutable std::atomic<uint64_t> m_queue_counter{0};
     std::atomic<uint64_t> m_last_barrier{0};
     std::shared_ptr<ze_event> m_last_barrier_ev = nullptr;

@@ -13,7 +13,7 @@ using namespace cldnn;
 using namespace ze;
 
 void ze_counter_based_event::wait_impl() {
-    OV_ZE_EXPECT(ze::zeEventHostSynchronize(m_event.get_handle(), endless_wait));
+    OV_ZE_EXPECT(ze::zeEventHostSynchronize(m_event.get_ze_handle(), endless_wait));
 }
 
 void ze_counter_based_event::set_impl() {
@@ -21,7 +21,7 @@ void ze_counter_based_event::set_impl() {
 }
 
 bool ze_counter_based_event::is_set_impl() {
-    auto ret = ze::zeEventQueryStatus(m_event.get_handle());
+    auto ret = ze::zeEventQueryStatus(m_event.get_ze_handle());
     switch (ret) {
     case ZE_RESULT_SUCCESS:
         return true;
@@ -36,7 +36,7 @@ bool ze_counter_based_event::is_set_impl() {
 }
 
 ze_event_handle_t ze_counter_based_event::get_handle() const {
-    return m_event.get_handle();
+    return m_event.get_ze_handle();
 }
 
 std::optional<ze_kernel_timestamp_result_t> ze_counter_based_event::query_timestamp() {
@@ -44,7 +44,7 @@ std::optional<ze_kernel_timestamp_result_t> ze_counter_based_event::query_timest
         return std::nullopt;
     }
     ze_kernel_timestamp_result_t timestamp{};
-    OV_ZE_EXPECT(ze::zeEventQueryKernelTimestamp(m_event.get_handle(), &timestamp));
+    OV_ZE_EXPECT(ze::zeEventQueryKernelTimestamp(m_event.get_ze_handle(), &timestamp));
     return timestamp;
 }
 

@@ -8,7 +8,7 @@
 #include "ocl/ocl_kernel_builder.hpp"
 #include "ocl/ocl_device_detector.hpp"
 
-#include <unordered_map>
+#include <map>
 
 using namespace cldnn;
 using namespace ze;
@@ -33,13 +33,13 @@ void ze_kernel_builder::init_ocl_builder() const {
 }
 
 bool ze_kernel_builder::check_l0_build_support() const {
-    static std::unordered_map<ze_device_handle_t, bool> cache;
+    static std::map<ze_device_handle_t, bool> cache;
     static std::mutex m;
     // Prevent multiple threads from checking support at the same time
     std::lock_guard lock(m);
     const char src[] = R"(__kernel void k(){})";
     auto src_bytes = sizeof(src);
-    auto dev_handle = m_device.get_device();
+    auto dev_handle = m_device.get_device().get_ze_handle();
     if (cache.find(dev_handle) != cache.end()) {
         return cache.at(dev_handle);
     }
@@ -81,9 +81,10 @@ void ze_kernel_builder::build_l0(const void *src, size_t src_bytes, KernelFormat
     }
     ze_module_handle_t module_handle;
     ze_module_build_log_handle_t log_handle;
-    auto ctx_holder = m_device.get_context_holder();
-    ze_result_t build_result = ze::zeModuleCreate(ctx_holder.get_handle(), m_device.get_device(), &module_desc, &module_handle, &log_handle);
-    ze_holder<ze_resource_type::module_build_log> build_log_holder(log_handle, ctx_holder);
+    auto ctx_handle = m_device.get_context().get_ze_handle();
+    auto device_handle = m_device.get_device().get_ze_handle();
+    ze_result_t build_result = ze::zeModuleCreate(ctx_handle, device_handle, &module_desc, &module_handle, &log_handle);
+    ze_module_build_log_resource build_log_holder(log_handle);
     if (build_result != ZE_RESULT_SUCCESS) {
         size_t log_size = 0;
         OV_ZE_EXPECT(ze::zeModuleBuildLogGetString(log_handle, &log_size, nullptr));
@@ -94,7 +95,7 @@ void ze_kernel_builder::build_l0(const void *src, size_t src_bytes, KernelFormat
         GPU_DEBUG_INFO << "-------- End of Kernel build error" << std::endl;
         OPENVINO_THROW("[GPU] Failed to build module");
     }
-    ze_holder<ze_resource_type::module> module_holder(module_handle, ctx_holder);
+    ze_module_resource module_holder(module_handle);
     ze_kernel::create_kernels_from_module(module_holder, build_log_holder, out);
 }
 

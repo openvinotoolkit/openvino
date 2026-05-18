@@ -6,14 +6,14 @@
 
 #include "intel_gpu/runtime/device.hpp"
 #include "ze_common.hpp"
-#include "ze_holder.hpp"
+#include "ze_resource.hpp"
 
 namespace cldnn {
 namespace ze {
 
 struct ze_device : public device {
 public:
-    ze_device(ze_driver_handle_t driver, ze_device_handle_t device, bool initialize = true);
+    ze_device(ze_driver_resource driver, ze_device_resource device, bool initialize = true);
     ze_device(const ze_device &other) = delete;
     ze_device& operator=(const ze_device &other) = delete;
 
@@ -23,11 +23,9 @@ public:
     void initialize() override;
     bool is_initialized() const override;
 
-    ze_driver_handle_t get_driver() const { return _driver; }
-    ze_device_handle_t get_device() const { return _device; }
-    ze_holder<ze_resource_type::context> get_context_holder() const {
-        return _context;
-    }
+    const ze_driver_resource& get_driver() const { return _driver; }
+    const ze_device_resource& get_device() const { return _device; }
+    const ze_context_resource& get_context() const { return _context; }
 
     bool is_same(const device::ptr other) override;
     void set_mem_caps(const memory_capabilities& memory_capabilities) override;
@@ -35,9 +33,9 @@ public:
     ~ze_device() = default;
 
 private:
-    ze_driver_handle_t _driver = nullptr;
-    ze_device_handle_t _device = nullptr;
-    ze_holder<ze_resource_type::context> _context;
+    ze_driver_resource _driver;
+    ze_device_resource _device;
+    ze_context_resource _context;
 
     device_info _info;
     memory_capabilities _mem_caps;

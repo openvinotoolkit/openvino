@@ -335,13 +335,13 @@ memory_capabilities init_memory_caps(ze_device_handle_t device, const device_inf
 }  // namespace
 
 
-ze_device::ze_device(ze_driver_handle_t driver, ze_device_handle_t device, bool initialize)
+ze_device::ze_device(ze_driver_resource driver, ze_device_resource device, bool initialize)
 : _driver(driver)
 , _device(device)
-, _info(init_device_info(driver, device))
-, _mem_caps(init_memory_caps(device, _info)) {
-    OPENVINO_ASSERT(_driver != nullptr, "[GPU] Expected non-null driver handle when creating ze_device");
-    OPENVINO_ASSERT(_device != nullptr, "[GPU] Expected non-null device handle when creating ze_device");
+, _info(init_device_info(driver.get_ze_handle(), device.get_ze_handle()))
+, _mem_caps(init_memory_caps(device.get_ze_handle(), _info)) {
+    OPENVINO_ASSERT(!_driver.is_empty(), "[GPU] Expected non-empty driver when creating ze_device");
+    OPENVINO_ASSERT(!_device.is_empty(), "[GPU] Expected non-empty device when creating ze_device");
     if (initialize) {
         this->initialize();
     }
@@ -353,8 +353,8 @@ void ze_device::initialize() {
 
     ze_context_desc_t context_desc = { ZE_STRUCTURE_TYPE_CONTEXT_DESC, nullptr, 0 };
     ze_context_handle_t ctx = nullptr;
-    OV_ZE_EXPECT(ze::zeContextCreate(_driver, &context_desc, &ctx));
-    _context = ze_holder<ze_resource_type::context>(ctx);
+    OV_ZE_EXPECT(ze::zeContextCreate(_driver.get_ze_handle(), &context_desc, &ctx));
+    _context = ze_context_resource{ctx};
 }
 
 bool ze_device::is_initialized() const {
@@ -365,7 +365,9 @@ bool ze_device::is_same(const device::ptr other) {
     auto casted = downcast<ze_device>(other.get());
     if (!casted)
         return false;
-    return _device == casted->get_device() && _driver == casted->get_driver();
+
+    return _device.get_ze_handle() == casted->get_device().get_ze_handle()
+        && _driver.get_ze_handle() == casted->get_driver().get_ze_handle();
 }
 
 void ze_device::set_mem_caps(const memory_capabilities& memory_capabilities) {

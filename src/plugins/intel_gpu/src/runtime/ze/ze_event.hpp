@@ -5,7 +5,7 @@
 #pragma once
 
 #include "ze_base_event.hpp"
-#include "ze_holder.hpp"
+#include "ze_resource.hpp"
 
 namespace cldnn {
 namespace ze {
@@ -13,11 +13,11 @@ namespace ze {
 // L0 event. Can be either in signaled state or not signaled state.
 struct ze_event : public ze_base_event {
 public:
-    ze_event(uint64_t queue_stamp, const ze_base_event_factory& factory, ze_holder<ze_resource_type::event> ev)
+    ze_event(uint64_t queue_stamp, const ze_base_event_factory& factory, ze_event_resource ev)
         : ze_base_event(queue_stamp)
         , m_factory(factory)
         , m_event(ev) {
-            OPENVINO_ASSERT(!m_event.is_empty(), "[GPU] Attempt to create event with empty holder");
+            OPENVINO_ASSERT(!m_event.is_empty(), "[GPU] Attempt to create event with empty resource");
         }
     void reset() override;
 
@@ -33,7 +33,7 @@ protected:
     // bool add_event_handler_impl(event_handler, void*) override;
 
     const ze_base_event_factory& m_factory;
-    ze_holder<ze_resource_type::event> m_event;
+    ze_event_resource m_event;
 };
 
 }  // namespace ze

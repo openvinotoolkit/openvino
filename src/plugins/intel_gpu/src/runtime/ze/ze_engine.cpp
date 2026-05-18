@@ -13,6 +13,7 @@
 #include "ze_stream.hpp"
 #include "ze_device.hpp"
 #include "ze_kernel.hpp"
+#include "ze_ocl_exporter.hpp"
 #include <exception>
 #include <vector>
 #include <memory>
@@ -39,24 +40,27 @@ void ze_engine::create_onednn_engine(const ExecutionConfig& config) {
     const std::lock_guard<std::mutex> lock(onednn_mutex);
     OPENVINO_ASSERT(_device->get_info().vendor_id == INTEL_VENDOR_ID, "[GPU] OneDNN engine can be used for Intel GPUs only");
     if (!_onednn_engine) {
-        _onednn_engine = std::make_shared<dnnl::engine>(dnnl::ze_interop::make_engine(get_driver(), get_device(), get_context_holder().get_handle()));
+        _onednn_engine = std::make_shared<dnnl::engine>(dnnl::ze_interop::make_engine(
+            get_driver().get_ze_handle(),
+            get_device().get_ze_handle(),
+            get_context().get_ze_handle()
+        ));
     }
 }
 #endif
-
-ze_driver_handle_t ze_engine::get_driver() const {
+const ze_driver_resource& ze_engine::get_driver() const {
     auto casted = std::dynamic_pointer_cast<ze_device>(_device);
     OPENVINO_ASSERT(casted, "[GPU] Invalid device type for ze_engine");
     return casted->get_driver();
 }
 
-ze_holder<ze_resource_type::context> ze_engine::get_context_holder() const {
+const ze_context_resource& ze_engine::get_context() const {
     auto casted = std::dynamic_pointer_cast<ze_device>(_device);
     OPENVINO_ASSERT(casted, "[GPU] Invalid device type for ze_engine");
-    return casted->get_context_holder();
+    return casted->get_context();
 }
 
-ze_device_handle_t ze_engine::get_device() const {
+const ze_device_resource& ze_engine::get_device() const {
     auto casted = std::dynamic_pointer_cast<ze_device>(_device);
     OPENVINO_ASSERT(casted, "[GPU] Invalid device type for ze_engine");
     return casted->get_device();
@@ -122,10 +126,10 @@ memory::ptr ze_engine::reinterpret_buffer(const memory& memory, const layout& ne
 
 memory::ptr ze_engine::reinterpret_handle(const layout& new_layout, shared_mem_params params) {
     if (params.mem_type == shared_mem_type::shared_mem_usm) {
-        auto ctx_holder = get_context_holder();
-        ze::UsmMemory usm_buffer(ctx_holder, get_device(), params.mem);
+        const auto &ctx = get_context();
+        ze::UsmMemory usm_buffer(ctx, get_device(), params.mem);
         size_t actual_mem_size = 0;
-        OV_ZE_EXPECT(ze::zeMemGetAddressRange(ctx_holder.get_handle(), params.mem, nullptr, &actual_mem_size));
+        OV_ZE_EXPECT(ze::zeMemGetAddressRange(ctx.get_ze_handle(), params.mem, nullptr, &actual_mem_size));
         auto requested_mem_size = new_layout.bytes_count();
         OPENVINO_ASSERT(actual_mem_size >= requested_mem_size,
                             "[GPU] shared USM buffer has smaller size (", actual_mem_size,
@@ -147,8 +151,8 @@ memory_ptr ze_engine::create_subbuffer(const memory& memory, const layout& new_l
     OPENVINO_ASSERT(memory_capabilities::is_usm_type(memory.get_allocation_type()), "[GPU] Trying to create subbuffer for non usm memory");
     auto& new_buf = reinterpret_cast<const ze::gpu_usm&>(memory);
     auto ptr = new_buf.get_buffer().get();
-    auto ctx_holder = get_context_holder();
-    auto sub_buffer = ze::UsmMemory(ctx_holder, get_device(), ptr, byte_offset);
+    auto ctx = get_context();
+    auto sub_buffer = ze::UsmMemory(ctx, get_device(), ptr, byte_offset);
     return std::make_shared<ze::gpu_usm>(this,
                              new_layout,
                              sub_buffer,
@@ -174,7 +178,12 @@ std::shared_ptr<kernel_builder> ze_engine::create_kernel_builder() const {
 }
 
 void* ze_engine::get_user_context() const {
-    return static_cast<void*>(get_context_holder().get_handle());
+    auto &device = get_device();
+    // TODO: Add check for interop support
+    auto ctx = get_context();
+    ze_ocl_exporter<ze_resource_type::context, ocl_resource_type::context> ctx_exporter({device});
+    ctx_exporter(ctx);
+    return static_cast<void*>(ctx.get_ocl_handle<ocl_resource_type::context>());
 }
 
 stream::ptr ze_engine::create_stream(const ExecutionConfig& config) const {
