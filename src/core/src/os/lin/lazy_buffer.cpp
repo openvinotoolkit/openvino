@@ -7,6 +7,8 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
+#include <cerrno>
+#include <cstring>
 #include <fstream>
 
 #include "atomic_guard.hpp"
