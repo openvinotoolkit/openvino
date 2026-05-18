@@ -250,8 +250,8 @@ else:
         from optimum.intel import OVModelForCausalLM
         from transformers import AutoTokenizer
 
-        tok = AutoTokenizer.from_pretrained(MODEL_ID, trust_remote_code=True)
-        model = OVModelForCausalLM.from_pretrained(ir_dir, trust_remote_code=True)
+        tok = AutoTokenizer.from_pretrained(MODEL_ID, trust_remote_code=TRUST_RC)
+        model = OVModelForCausalLM.from_pretrained(ir_dir, trust_remote_code=TRUST_RC)
 
         inputs = tok("Hello, world!", return_tensors="pt")
         out = model.generate(**inputs, max_new_tokens=10)

@@ -57,6 +57,6 @@ references:     <list of URLs>
 ```
 
 If `decomposable=yes` - report back to OV Orchestrator; no further core op
-work needed (defer to Transformation agent for decomposition).
+work needed (defer to frontend agent for decomposition).
 
 If `decomposable=no` - proceed to **core_op_implementation** skill.
