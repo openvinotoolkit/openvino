@@ -202,13 +202,14 @@ bool sycl_engine::is_the_same_buffer(const memory& mem1, const memory& mem2) {
     if (&mem1 == &mem2)
         return true;
 
-    if (!memory_capabilities::is_usm_type(mem1.get_allocation_type()))
-        return (reinterpret_cast<const sycl::gpu_buffer&>(mem1).get_buffer() ==
-                reinterpret_cast<const sycl::gpu_buffer&>(mem2).get_buffer());
+    if (!memory_capabilities::is_usm_type(mem1.get_allocation_type())) {
+        return downcast<const sycl::gpu_buffer>(mem1).get_buffer() ==
+               downcast<const sycl::gpu_buffer>(mem2).get_buffer();
+    }
     else
         OPENVINO_NOT_IMPLEMENTED;
-        // return (reinterpret_cast<const sycl::gpu_usm&>(mem1).get_buffer() ==
-        //         reinterpret_cast<const sycl::gpu_usm&>(mem2).get_buffer());
+        // return (downcast<const sycl::gpu_usm>(mem1).get_buffer() ==
+        //         downcast<const sycl::gpu_usm>(mem2).get_buffer());
 }
 
 void* sycl_engine::get_user_context() const {
