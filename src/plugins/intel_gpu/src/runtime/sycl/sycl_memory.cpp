@@ -182,7 +182,7 @@ event::ptr gpu_buffer::copy_from(stream& stream, const void* data_ptr, size_t sr
     check_boundaries(SIZE_MAX, src_offset, _bytes_count, dst_offset, size, "gpu_buffer::copy_from(void*)");
 
     auto& sycl_stream = downcast<sycl::sycl_stream>(stream);
-    auto src_ptr = reinterpret_cast<const char*>(data_ptr) + src_offset;
+    auto src_ptr = static_cast<const char*>(data_ptr) + src_offset;
 
     try {
         auto event = sycl_stream.get_sycl_queue().submit([&](::sycl::handler& cgh) {
@@ -257,7 +257,7 @@ event::ptr gpu_buffer::copy_to(stream& stream, void* data_ptr, size_t src_offset
     auto& sycl_stream = downcast<sycl::sycl_stream>(stream);
     // const qualifier should be removed to construct ::sycl::accessor
     auto& src_buffer = const_cast<::sycl::buffer<std::byte, 1>&>(_buffer);
-    auto dst_ptr = reinterpret_cast<char*>(data_ptr) + dst_offset;
+    auto dst_ptr = static_cast<char*>(data_ptr) + dst_offset;
 
     try {
         auto event = sycl_stream.get_sycl_queue().submit([&](::sycl::handler& cgh) {
