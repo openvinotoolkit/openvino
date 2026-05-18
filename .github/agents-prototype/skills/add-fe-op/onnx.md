@@ -18,8 +18,8 @@ Before writing any code:
 
 | Path | Description |
 |---|---|
-| `src/frontends/onnx/frontend/src/op/` | Per-op translator files — create your new file here. |
-| `src/frontends/onnx/frontend/src/ops_bridge.cpp` | Operator registry — add `ONNX_OP` registration here. |
+| `src/frontends/onnx/frontend/src/op/` | Per-op translator files — create your new file here with `ONNX_OP` registration.|
+| `src/frontends/onnx/frontend/src/ops_bridge.cpp` | Operator registry definition. |
 | `src/frontends/onnx/frontend/src/core/operator_set.hpp` | `ONNX_OP` and `ONNX_OP_M` macros. |
 | `src/frontends/onnx/frontend/src/version_range.hpp` | `OPSET_SINCE`, `OPSET_RANGE`, `OPSET_IN` helpers. |
 | `src/frontends/onnx/frontend/src/core/node.hpp` | `ov::frontend::onnx::Node` — the context object passed to each translator. |
@@ -171,11 +171,9 @@ ov::OutputVector my_op(const ov::frontend::onnx::Node& node) {
 }  // namespace opset_13
 ```
 
-In `ops_bridge.cpp`:
 ```cpp
 ONNX_OP("MyOp", OPSET_RANGE(9, 12), ai_onnx::opset_9::my_op);
 ONNX_OP("MyOp", OPSET_SINCE(13), ai_onnx::opset_13::my_op);
-```
 
 ### 5c. Handling simple binary/elementwise ops
 
@@ -244,17 +242,6 @@ set(SOURCES
     ...
 )
 ```
-
-### 5i. Register in `ops_bridge.cpp`
-
-In `src/frontends/onnx/frontend/src/ops_bridge.cpp`:
-```cpp
-#include "op/<new_op>.hpp"
-...
-ONNX_OP("<OpName>", OPSET_SINCE(<first_opset>), ai_onnx::opset_<first_opset>::<new_op>);
-```
-
----
 
 ## 6. Adding Tests
 

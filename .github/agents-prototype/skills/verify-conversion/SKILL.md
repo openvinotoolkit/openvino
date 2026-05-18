@@ -15,7 +15,7 @@ description: E2E gate — verifies that applied patches produce a working, numer
 > output, silent data corruption, incorrect type/shape inference at runtime) are
 > only caught by an actual inference run.
 
-This is **not** a full strategy matrix run — use `try-conversion` for that.
+This is **not** a full strategy matrix run — use `try-conversion.md` skill for that.
 
 Goal: one conversion, one inference run, numerical sanity check, structured result.
 
