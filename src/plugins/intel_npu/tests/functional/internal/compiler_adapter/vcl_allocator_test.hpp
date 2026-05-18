@@ -96,9 +96,7 @@ protected:
     private:
         void release() {
             if (compiler != nullptr) {
-                if (auto vclApi = ::intel_npu::VCLApi::getInstance()) {
-                    vclApi->vclCompilerDestroy(compiler);
-                }
+                ::intel_npu::vclCompilerDestroy(compiler);
                 compiler = nullptr;
             }
         }
@@ -117,39 +115,37 @@ protected:
         state.buildFlags +=
             " --config NPU_PLATFORM=\"" + platform + "\" NPU_COMPILATION_MODE_PARAMS=\"optimization-level=0\"";
 
-        if (auto vclApi = ::intel_npu::VCLApi::getInstance()) {
-            vcl_version_info_t vclVersion = {};
-            vcl_version_info_t vclProfilingVersion = {};
-            vclApi->vclGetVersion(&vclVersion, &vclProfilingVersion);
+        vcl_version_info_t vclVersion = {};
+        vcl_version_info_t vclProfilingVersion = {};
+        ::intel_npu::vclGetVersion(&vclVersion, &vclProfilingVersion);
 
-            vcl_compiler_desc_t compilerDesc = {};
-            compilerDesc.version = vclVersion;
-            compilerDesc.debugLevel = static_cast<__vcl_log_level_t>(3);
+        vcl_compiler_desc_t compilerDesc = {};
+        compilerDesc.version = vclVersion;
+        compilerDesc.debugLevel =
+            static_cast<__vcl_log_level_t>(static_cast<int>(::intel_npu::Logger::global().level()) + 1);
 
-            uint32_t defaultTileCount = std::numeric_limits<uint32_t>::max();
-            if (vclVersion.major == 7 && vclVersion.minor < 6) {
-                defaultTileCount = std::numeric_limits<uint16_t>::max();
-            }
-
-            vcl_device_desc_t deviceDesc = {sizeof(vcl_device_desc_t),
-                                            0x00,
-                                            std::numeric_limits<uint16_t>::max(),
-                                            defaultTileCount};
-
-            vclApi->vclCompilerCreate(&compilerDesc, &deviceDesc, &state.compiler, &state.logHandle);
+        uint32_t defaultTileCount = std::numeric_limits<uint32_t>::max();
+        if (vclVersion.major == 7 && vclVersion.minor < 6) {
+            defaultTileCount = std::numeric_limits<uint16_t>::max();
         }
+
+        vcl_device_desc_t deviceDesc = {sizeof(vcl_device_desc_t),
+                                        0x00,
+                                        std::numeric_limits<uint16_t>::max(),
+                                        defaultTileCount};
+
+        ::intel_npu::vclCompilerCreate(&compilerDesc, &deviceDesc, &state.compiler, &state.logHandle);
+
         if (state.compiler == nullptr) {
             ADD_FAILURE() << "vclCompilerCreate failed";
             return state;
         }
 
         ze_graph_compiler_version_info_t vclVersionInfo = {0, 0};
-        if (auto vclApi = ::intel_npu::VCLApi::getInstance()) {
-            vcl_compiler_properties_t compilerProp = {};
-            vclApi->vclCompilerGetProperties(state.compiler, &compilerProp);
-            vclVersionInfo.major = compilerProp.version.major;
-            vclVersionInfo.minor = compilerProp.version.minor;
-        }
+        vcl_compiler_properties_t compilerProp = {};
+        ::intel_npu::vclCompilerGetProperties(state.compiler, &compilerProp);
+        vclVersionInfo.major = compilerProp.version.major;
+        vclVersionInfo.minor = compilerProp.version.minor;
 
         auto isOptionValueSupportedByCompiler = [](const std::string&, const std::optional<std::string>&) {
             return true;
