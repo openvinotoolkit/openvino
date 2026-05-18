@@ -123,9 +123,9 @@ TEST(PaKVReorderFusionTest, FusionPattern) {
 TEST_F(TransformationTestsF, PaKVReorderFusion_basic) {
     disable_result_friendly_names_check();
     {
-        auto key_cache = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{4, 2});
+        auto key_cache = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape::dynamic(4));
         key_cache->set_friendly_name("key_cache.0_clone_for_k_update");
-        auto value_cache = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{4, 2});
+        auto value_cache = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape::dynamic(4));
         value_cache->set_friendly_name("value_cache.0_clone_for_v_update");
 
         auto block_indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{2});
@@ -165,9 +165,9 @@ TEST_F(TransformationTestsF, PaKVReorderFusion_basic) {
     }
 
     {
-        auto key_cache = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{4, 2});
+        auto key_cache = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape::dynamic(4));
         key_cache->set_friendly_name("key_cache.0_clone_for_k_update");
-        auto value_cache = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{4, 2});
+        auto value_cache = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape::dynamic(4));
         value_cache->set_friendly_name("value_cache.0_clone_for_v_update");
 
         auto block_indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{2});
@@ -203,9 +203,9 @@ TEST_F(TransformationTestsF, PaKVReorderFusion_basic) {
 
 TEST_F(TransformationTestsF, PaKVReorderFusion_skip_on_mismatched_block_indices) {
     disable_result_friendly_names_check();
-    auto key_cache = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{4, 2});
+    auto key_cache = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape::dynamic(4));
     key_cache->set_friendly_name("key_cache.0_clone_for_k_update");
-    auto value_cache = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{4, 2});
+    auto value_cache = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape::dynamic(4));
     value_cache->set_friendly_name("value_cache.0_clone_for_v_update");
 
     auto block_indices_k = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{2});

@@ -102,12 +102,12 @@ TEST(type_prop, pa_kv_reorder_invalid_key_cache_rank) {
     const auto block_update_indices = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{50});
     const auto block_update_indices_begins = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{4});
 
-    EXPECT_THROW(std::make_shared<op::internal::PaKVReorder>(key_cache,
-                                                             value_cache,
-                                                             block_indices,
-                                                             block_indices_begins,
-                                                             block_update_indices,
-                                                             block_update_indices_begins),
+    EXPECT_THROW(const auto unused = std::make_shared<op::internal::PaKVReorder>(key_cache,
+                                                                                 value_cache,
+                                                                                 block_indices,
+                                                                                 block_indices_begins,
+                                                                                 block_update_indices,
+                                                                                 block_update_indices_begins),
                  ov::NodeValidationFailure);
 }
 
@@ -119,12 +119,12 @@ TEST(type_prop, pa_kv_reorder_invalid_value_cache_rank) {
     const auto block_update_indices = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{50});
     const auto block_update_indices_begins = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{4});
 
-    EXPECT_THROW(std::make_shared<op::internal::PaKVReorder>(key_cache,
-                                                             value_cache,
-                                                             block_indices,
-                                                             block_indices_begins,
-                                                             block_update_indices,
-                                                             block_update_indices_begins),
+    EXPECT_THROW(const auto unused = std::make_shared<op::internal::PaKVReorder>(key_cache,
+                                                                                 value_cache,
+                                                                                 block_indices,
+                                                                                 block_indices_begins,
+                                                                                 block_update_indices,
+                                                                                 block_update_indices_begins),
                  ov::NodeValidationFailure);
 }
 
@@ -136,12 +136,12 @@ TEST(type_prop, pa_kv_reorder_invalid_indices_rank) {
     const auto block_update_indices = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{50});
     const auto block_update_indices_begins = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{4});
 
-    EXPECT_THROW(std::make_shared<op::internal::PaKVReorder>(key_cache,
-                                                             value_cache,
-                                                             block_indices,
-                                                             block_indices_begins,
-                                                             block_update_indices,
-                                                             block_update_indices_begins),
+    EXPECT_THROW(const auto unused = std::make_shared<op::internal::PaKVReorder>(key_cache,
+                                                                                 value_cache,
+                                                                                 block_indices,
+                                                                                 block_indices_begins,
+                                                                                 block_update_indices,
+                                                                                 block_update_indices_begins),
                  ov::NodeValidationFailure);
 }
 
@@ -153,12 +153,12 @@ TEST(type_prop, pa_kv_reorder_invalid_indices_type) {
     const auto block_update_indices = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{50});
     const auto block_update_indices_begins = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{4});
 
-    EXPECT_THROW(std::make_shared<op::internal::PaKVReorder>(key_cache,
-                                                             value_cache,
-                                                             block_indices,
-                                                             block_indices_begins,
-                                                             block_update_indices,
-                                                             block_update_indices_begins),
+    EXPECT_THROW(const auto unused = std::make_shared<op::internal::PaKVReorder>(key_cache,
+                                                                                 value_cache,
+                                                                                 block_indices,
+                                                                                 block_indices_begins,
+                                                                                 block_update_indices,
+                                                                                 block_update_indices_begins),
                  ov::NodeValidationFailure);
 }
 
