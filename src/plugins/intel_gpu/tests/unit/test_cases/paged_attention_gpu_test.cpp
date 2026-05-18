@@ -1813,6 +1813,8 @@ public:
 
     void execute(T& p, bool run_reference = true) {
         ov::element::Type kv_cache_precision = p.kv_cache_precision;
+        
+        printf("device name: %s, id: %d\n", engine.get_device_info().dev_name.c_str(), engine.get_device_info().device_id);
         PagedAttentionManager pam(rg,
                                   get_test_engine(),
                                   get_test_stream(),
@@ -3461,8 +3463,8 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_paged_attention_perf_cm, xattention_test
     disable_reference_compare(paged_attention_test_params{ {{1, 1*4096}, {1, 1*1024}, {4096, 1024}}, 32, 8, 128, 128, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f, 100.0f, 100.0f}, std::vector<int>{256, 256, 256} }),
 }));
 
-constexpr int SEQ_LEN = 4096;
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_paged_attention_perf_token_ids_ocl, paged_attention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+constexpr int SEQ_LEN = 8192;
+INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_perf_token_ids_ocl, paged_attention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
     // best case scenario
     disable_reference_compare(paged_attention_test_params{ {{SEQ_LEN, 0}}, 1, 1, 128, 128, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, false, {}, true, gen_tokens_ids_test_data(SEQ_LEN, 0, 0) }),
     // // avg case scenario
