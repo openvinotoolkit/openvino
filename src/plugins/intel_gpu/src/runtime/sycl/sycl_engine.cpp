@@ -187,7 +187,7 @@ memory::ptr sycl_engine::reinterpret_handle(const layout& new_layout, shared_mem
         } else if (params.mem_type == shared_mem_type::shared_mem_usm) {
             OPENVINO_NOT_IMPLEMENTED;
         } else {
-            OPENVINO_THROW("[GPU] unknown shared object fromat or type");
+            OPENVINO_THROW("[GPU] unknown shared object format or type");
         }
     } catch (const ::sycl::exception& e) {
         OPENVINO_THROW("[GPU] SYCL handle reinterpretation failed: ", e.what());
