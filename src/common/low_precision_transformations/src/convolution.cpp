@@ -107,6 +107,16 @@ bool ConvolutionTransformation::transform(ov::pass::pattern::Matcher &m) {
         return false;
     }
 
+    // check if the match is from a functional Mul rather than dequantization
+    // TODO: make the check general
+    {
+        const auto actInput = convolution->get_input_node_shared_ptr(0);
+        const auto nonDQFactor = ov::as_type_ptr<ov::opset1::Convolution>(actInput->get_input_node_shared_ptr(1));
+        if (nonDQFactor != nullptr) {
+            return false;
+        }
+    }
+
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(convolution, defaultPrecisions);
 
     std::shared_ptr<Node> newMultiplyAfter;
