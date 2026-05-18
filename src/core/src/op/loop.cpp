@@ -8,6 +8,9 @@
 
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/reference/loop.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -368,6 +371,19 @@ bool Loop::has_evaluate() const {
     default:
         return false;
     }
+}
+
+bool Loop::can_constant_fold(const OutputVector& input_values) const {
+    if (!Node::can_constant_fold(input_values))
+        return false;
+    for (const auto& node : m_bodies[0]->get_ordered_ops()) {
+        if (ov::as_type<op::v0::Parameter>(node.get()) || ov::as_type<op::v0::Constant>(node.get()) ||
+            ov::as_type<op::v0::Result>(node.get()))
+            continue;
+        if (!node->has_evaluate())
+            return false;
+    }
+    return true;
 }
 
 void Loop::clone_to(Loop& dst, const OutputVector& new_args) const {

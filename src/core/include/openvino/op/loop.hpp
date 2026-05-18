@@ -67,6 +67,7 @@ public:
                   const ov::TensorVector& inputs,
                   const EvaluationContext& evaluation_context) const override;
     bool has_evaluate() const override;
+    bool can_constant_fold(const OutputVector& input_values) const override;
 
 protected:
     Loop(const Loop&);

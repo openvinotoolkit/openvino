@@ -3863,16 +3863,8 @@ TEST(constant_folding, constant_loop_with_gather_nd) {
     auto result0 = make_shared<op::v0::Result>(out0);
     auto f = make_shared<Model>(ResultVector{result0}, ParameterVector{});
 
-    run_constant_folding(f);
-
-    ASSERT_EQ(count_ops_of_type<op::v5::Loop>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::v0::Constant>(f), 1);
-
-    auto result_node = get_result_constant(f);
-    ASSERT_TRUE(result_node);
-    ASSERT_EQ((Shape{2, 3}), result_node->get_output_shape(0));
-    std::vector<float> expected{3.f, 4.f, 5.f, 0.f, 1.f, 2.f};
-    range_test_check(result_node->cast_vector<float>(), expected);
+    EXPECT_NO_THROW(run_constant_folding(f));
+    ASSERT_EQ(count_ops_of_type<op::v5::Loop>(f), 1);
 }
 
 TEST(constant_folding, disable_constant_folding_for_shapeof) {
