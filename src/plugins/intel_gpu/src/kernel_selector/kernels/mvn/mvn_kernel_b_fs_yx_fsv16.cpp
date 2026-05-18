@@ -168,7 +168,7 @@ JitConstants MVNKernel_b_fs_yx_fsv16::GetJitConstants(const mvn_params& params, 
                          "(output_spatial % OUTPUT_SIZE_X)"};
         }
 
-        auto conf = FusedOpsConfiguration("", idx_order, "normalized", activation_dt);
+        auto conf = FusedOpsConfiguration("", idx_order, "normalized_activation", activation_dt);
         if (params.has_dynamic_tensors()) {
             conf.SetBoundaryCheck(FusedOpsConfiguration::BoundaryCheck::ENABLED);
         }
