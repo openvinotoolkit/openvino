@@ -273,7 +273,6 @@ device_info init_device_info(const ::sycl::device& device, const ::sycl::context
             info.num_threads_per_eu = device.get_info<::sycl::ext::intel::info::device::gpu_hw_threads_per_eu>();
         }
 
-        info.supports_imad = info.supports_imad;
 #if SYCL_EXT_ONEAPI_MATRIX
         auto matrix_combinations = device.get_info<::sycl::ext::oneapi::experimental::info::device::matrix_combinations>();
         info.supports_immad = matrix_combinations.size() > 0;
