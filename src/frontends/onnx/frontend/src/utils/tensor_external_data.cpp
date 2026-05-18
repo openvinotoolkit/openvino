@@ -78,18 +78,19 @@ Buffer<ov::AlignedBuffer> TensorExternalData::load_external_data(const std::file
     } catch (const std::runtime_error& e) {
         throw error::invalid_external_data{e.what()};
     }
-    std::ifstream external_data_stream(full_path, std::ios::binary | std::ios::in | std::ios::ate);
 
-    if (external_data_stream.fail()) {
-        throw error::invalid_external_data{*this};
-    }
-    const uint64_t file_size = static_cast<uint64_t>(external_data_stream.tellg());
-    if (m_data_length > file_size || m_offset > file_size - m_data_length) {
+    const auto file_size = util::file_size(full_path);
+    if (file_size <= 0 || m_data_length > static_cast<uint64_t>(file_size) ||
+        m_offset > static_cast<uint64_t>(file_size) - m_data_length) {
         throw error::invalid_external_data{*this};
     }
 
     uint64_t read_data_length = m_data_length > 0 ? m_data_length : static_cast<uint64_t>(file_size) - m_offset;
     const auto get_now_buffer = [&]() {
+        std::ifstream external_data_stream(full_path, std::ios::binary | std::ios::in | std::ios::ate);
+        if (external_data_stream.fail()) {
+            throw error::invalid_external_data{*this};
+        }
         // default value of m_offset is 0
         external_data_stream.seekg(m_offset, std::ios::beg);
 

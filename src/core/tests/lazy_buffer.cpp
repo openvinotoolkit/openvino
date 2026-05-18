@@ -60,6 +60,18 @@ TEST_F(LazyBufferTest, incorrect_file) {
     }
 }
 
+TEST_F(LazyBufferTest, overflowing_parameters) {
+    write_test_data(4);
+
+    OV_EXPECT_THROW(std::ignore = std::make_unique<LazyBuffer>(m_file_path, 0, std::numeric_limits<size_t>::max()),
+                    AssertFailure,
+                    ::testing::HasSubstr("size is smaller than requested range"));
+
+    OV_EXPECT_THROW(std::ignore = std::make_unique<LazyBuffer>(m_file_path, 0, 4, std::numeric_limits<size_t>::max()),
+                    AssertFailure,
+                    ::testing::HasSubstr("Integer overflow occurred "));
+}
+
 TEST_F(LazyBufferTest, read_file) {
     write_test_data(457);
     const auto test_params = std::vector<std::tuple<size_t, size_t, size_t>>{{0, 10, 64},

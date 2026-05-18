@@ -25,7 +25,8 @@ LazyBuffer::LazyBuffer(std::filesystem::path file_path, size_t offset, size_t by
       m_alignment{alignment} {
     m_byte_size = byte_size;
     const auto file_size = util::file_size(m_file_path);
-    OPENVINO_ASSERT(file_size >= 0 && static_cast<size_t>(file_size) >= m_offset + m_byte_size,
+    OPENVINO_ASSERT(file_size >= 0 && m_offset <= static_cast<size_t>(file_size) &&
+                        m_byte_size <= static_cast<size_t>(file_size) - m_offset,
                     "If file exists it's size is smaller than requested range (file size: ",
                     file_size,
                     ", requested offset: ",
