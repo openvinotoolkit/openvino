@@ -36,7 +36,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |Celu                                                    |12                      |12                              |                                |
 |                        |CenterCropPad                                           |18                      |18                              |                                |
 |                        |Clip                                                    |11, 1                   |13, 12, 11, 6, 1                |                                |
-|                        |Col2Im                                                  |                        |18                              |                                |
+|                        |Col2Im                                                  |18                      |18                              |                                |
 |                        |Compress                                                |9                       |11, 9                           |                                |
 |                        |Concat                                                  |1                       |13, 11, 4, 1                    |                                |
 |                        |ConcatFromSequence                                      |11                      |11                              |Supported only in certain patterns|
@@ -143,7 +143,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |Reciprocal                                              |1                       |13, 6, 1                        |                                |
 |                        |ReduceL1                                                |18, 13, 1               |18, 13, 11, 1                   |                                |
 |                        |ReduceL2                                                |18, 13, 1               |18, 13, 11, 1                   |                                |
-|                        |ReduceLogSum                                            |18, 1                   |18, 13, 11, 1                   |                                |
+|                        |ReduceLogSum                                            |18, 13, 1               |18, 13, 11, 1                   |                                |
 |                        |ReduceLogSumExp                                         |18, 13, 1               |18, 13, 11, 1                   |                                |
 |                        |ReduceMax                                               |20, 18, 13, 1           |20, 18, 13, 12, 11, 1           |                                |
 |                        |ReduceMean                                              |18, 13, 1               |18, 13, 11, 1                   |                                |
