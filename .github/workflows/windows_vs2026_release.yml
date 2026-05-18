@@ -67,7 +67,7 @@ jobs:
     if: "!needs.smart_ci.outputs.skip_workflow"
     uses: ./.github/workflows/job_build_windows.yml
     with:
-      runner: 'aks-win-16-cores-32gb-vs2026-build-st'
+      runner: 'aks-win-16-cores-32gb-vs2026-build'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       build-type: 'Release'
       target-branch: ${{ needs.smart_ci.outputs.target_branch }}
@@ -83,7 +83,7 @@ jobs:
             -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja_multi_config"
 
   Overall_Status:
-    name: ci/gha_overall_status_windows
+    name: ci/gha_overall_status_windows_vs2026
     needs: [ Smart_CI, Build]
     if: ${{ always() }}
     runs-on: ubuntu-latest
@@ -95,4 +95,3 @@ jobs:
             contains(needs.*.result, 'cancelled')
           }}
         run: exit 1
-
