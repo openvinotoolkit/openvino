@@ -50,13 +50,11 @@ LazyBuffer::LazyBuffer(std::filesystem::path file_path, size_t offset, size_t by
 }
 
 LazyBuffer::~LazyBuffer() {
-    if (m_reserved_buffer) {
-        std::ignore = VirtualFree(m_reserved_buffer, 0, MEM_RELEASE);
-    }
+    std::ignore = VirtualFree(m_reserved_buffer, 0, MEM_RELEASE);
 }
 
 void LazyBuffer::ensure_present() const {
-    AtomicGuard lock{m_loading};
+    std::lock_guard lock{m_loading};
     if (!m_loaded && m_byte_size > 0) {
         if (!VirtualAlloc(static_cast<char*>(m_reserved_buffer), m_reserved_size, MEM_COMMIT, PAGE_READWRITE)) {
             OPENVINO_THROW("VirtualAlloc commit failed, err: ", GetLastError());
@@ -69,7 +67,7 @@ void LazyBuffer::ensure_present() const {
             file.read(m_aligned_buffer, m_byte_size);
             OPENVINO_ASSERT(file, "Failed to read data from file: ", m_file_path);
         } catch (...) {
-            std::ignore = VirtualFree(m_reserved_buffer, 0, MEM_DECOMMIT);
+            std::ignore = VirtualFree(m_reserved_buffer, m_reserved_size, MEM_DECOMMIT);
             throw;
         }
         m_loaded = true;
@@ -77,10 +75,10 @@ void LazyBuffer::ensure_present() const {
 }
 
 void LazyBuffer::hint_evict() noexcept {
-    AtomicGuard lock{m_loading};
+    std::lock_guard lock{m_loading};
     if (m_loaded) {
         m_loaded = false;
-        std::ignore = VirtualFree(m_reserved_buffer, 0, MEM_DECOMMIT);
+        std::ignore = VirtualFree(m_reserved_buffer, m_reserved_size, MEM_DECOMMIT);
     }
 }
 

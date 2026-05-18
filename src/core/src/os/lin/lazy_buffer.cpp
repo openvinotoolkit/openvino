@@ -48,13 +48,11 @@ LazyBuffer::LazyBuffer(std::filesystem::path file_path, size_t offset, size_t by
 }
 
 LazyBuffer::~LazyBuffer() {
-    if (m_reserved_buffer) {
-        std::ignore = munmap(m_reserved_buffer, m_reserved_size);
-    }
+    std::ignore = munmap(m_reserved_buffer, m_reserved_size);
 }
 
 void LazyBuffer::ensure_present() const {
-    AtomicGuard lock{m_loading};
+    std::lock_guard lock{m_loading};
     if (!m_loaded && m_byte_size > 0) {
         if (mprotect(m_reserved_buffer, m_reserved_size, PROT_READ | PROT_WRITE) == -1) {
             OPENVINO_THROW("mprotect failed, err: ", std::strerror(errno));
@@ -74,7 +72,7 @@ void LazyBuffer::ensure_present() const {
 }
 
 void LazyBuffer::hint_evict() noexcept {
-    AtomicGuard lock{m_loading};
+    std::lock_guard lock{m_loading};
     if (m_loaded) {
         m_loaded = false;
         std::ignore = mprotect(m_reserved_buffer, m_reserved_size, PROT_NONE);

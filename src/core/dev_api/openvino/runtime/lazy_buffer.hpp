@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <atomic>
 #include <filesystem>
+#include <mutex>
 
 #include "openvino/runtime/aligned_buffer.hpp"
 
@@ -18,7 +18,7 @@ class OPENVINO_API LazyBuffer : public AlignedBuffer {
 public:
     /**
      * \brief Constructs a LazyBuffer which provides a view on a file. The file content is loaded to memory when
-     * get_ptr() is called for the first time after object creation or after unload() is called. The file content is
+     * get_ptr() is called for the first time after object creation or after hint_evict() is called. The file content is
      * loaded at aligned addresses, so the actual allocated memory may be larger than the requested byte size.
      * \param file_path Path to the file to load
      * \param offset Offset in the file to start the view
@@ -63,6 +63,6 @@ private:
     size_t m_reserved_size{0};
     void* m_reserved_buffer{nullptr};
     mutable bool m_loaded{false};
-    mutable std::atomic_bool m_loading{false};
+    mutable std::mutex m_loading;
 };
 }  // namespace ov
