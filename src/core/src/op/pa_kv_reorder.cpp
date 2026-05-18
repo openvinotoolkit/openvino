@@ -30,6 +30,34 @@ bool PaKVReorder::visit_attributes(ov::AttributeVisitor& /*visitor*/) {
 void PaKVReorder::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this, get_input_size() == 6, "PaKVReorder expects 6 inputs, but got ", get_input_size());
 
+    const auto& key_cache_ps = get_input_partial_shape(0);
+    const auto& value_cache_ps = get_input_partial_shape(1);
+
+    NODE_VALIDATION_CHECK(this,
+                          key_cache_ps.rank().is_dynamic() || key_cache_ps.rank().get_length() == 4,
+                          "key_cache must be 4D, got rank ",
+                          key_cache_ps.rank());
+    NODE_VALIDATION_CHECK(this,
+                          value_cache_ps.rank().is_dynamic() || value_cache_ps.rank().get_length() == 4,
+                          "value_cache must be 4D, got rank ",
+                          value_cache_ps.rank());
+
+    for (size_t i = 2; i < 6; i++) {
+        const auto& ps = get_input_partial_shape(i);
+        NODE_VALIDATION_CHECK(this,
+                              ps.rank().is_dynamic() || ps.rank().get_length() == 1,
+                              "Input ",
+                              i,
+                              " (indices) must be 1D, got rank ",
+                              ps.rank());
+        NODE_VALIDATION_CHECK(this,
+                              get_input_element_type(i).is_dynamic() || get_input_element_type(i) == ov::element::i32,
+                              "Input ",
+                              i,
+                              " (indices) must be i32, got ",
+                              get_input_element_type(i));
+    }
+
     set_output_type(0, ov::element::u8, ov::PartialShape{1});
 }
 
