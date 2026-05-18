@@ -64,6 +64,7 @@ std::shared_ptr<ov::frontend::tensorflow_lite::SparsityInfo> ov::frontend::tenso
         sparsity->set_dim_format(dim_format);
         sparsity->set_data_desc(data_desc);
     }
+    sparsity->enable();  // Enable sparsity validation; disables if fields are incomplete
     return sparsity;
 }
 

@@ -13,7 +13,6 @@
 #    include <algorithm>
 #    include <initializer_list>
 #    include <oneapi/dnnl/dnnl.hpp>
-#    include <sstream>
 #    include <string_view>
 #    include <tuple>
 #    include <utility>
@@ -21,15 +20,12 @@
 #    include "../primitive_ocl_base.hpp"
 #    include "../utils/kernel_generator.hpp"
 #    include "common_utils/jitter.hpp"
-#    include "debug_helper.hpp"
 #    include "intel_gpu/graph/kernel_impl_params.hpp"
 #    include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
 #    include "intel_gpu/runtime/lru_cache.hpp"
 #    include "intel_gpu/runtime/stream.hpp"
-#    include "intel_gpu/runtime/utils.hpp"
 #    include "moe_3gemm_fused_inst.h"
 #    include "moe_3gemm_gen_micro.hpp"
-#    include "ocl_v2/utils/fused_ops_jitter.hpp"
 #    include "ocl_v2/utils/jitter.hpp"
 #    include "primitive_inst.h"
 
@@ -57,6 +53,18 @@ dnnl::memory::data_type convert_data_type(cldnn::data_types dt) {
         return dnnl::memory::data_type::u4;
     default:
         throw std::invalid_argument("[clDNN] Unsupported conversion from cldnn to onednn type");
+    }
+}
+
+inline dnnl::algorithm moe_activation_to_dnnl_algo(ov::op::internal::MOE::Activation_type act) {
+    switch (act) {
+    case ov::op::internal::MOE::Activation_type::GEGLU_TANH:
+        return dnnl::algorithm::eltwise_gelu_tanh;
+    case ov::op::internal::MOE::Activation_type::GEGLU_ERF:
+        return dnnl::algorithm::eltwise_gelu_erf;
+    case ov::op::internal::MOE::Activation_type::SWIGLU:
+    default:
+        return dnnl::algorithm::eltwise_swish;
     }
 }
 
@@ -128,10 +136,10 @@ struct onednn_matmul {
         attr.set_fpmath_mode(dnnl::fpmath_mode::f16, true);
         return *this;
     }
-    onednn_matmul& post_op_silu() {
+    onednn_matmul& post_op_gate_activation(dnnl::algorithm algo) {
         float alpha = 1.0f;
         float beta = 0.0f;
-        postops.append_eltwise(dnnl::algorithm::eltwise_swish, alpha, beta);
+        postops.append_eltwise(algo, alpha, beta);
         return *this;
     }
     onednn_matmul& post_op_bin_mul(bool per_oc = true) {
@@ -176,8 +184,8 @@ struct onednn_matmul {
         with_bin_mul,
         with_bin_mul_per_row,
         with_bin_mul_per_row_sum,
-        with_silu,
-        with_silu_bin_mul,
+        with_gate_act,
+        with_gate_act_bin_mul,
         with_sigmoid,
         with_bin_mul_sum,
     };
@@ -191,7 +199,8 @@ struct onednn_matmul {
                   int oc,
                   int ic_group_size,
                   type t,
-                  bool has_zp = true)
+                  bool has_zp = true,
+                  dnnl::algorithm activation_algo = dnnl::algorithm::eltwise_swish)
         : onednn_matmul(act_dtype, weight_dtype, batch, ic, oc, ic_group_size, has_zp) {
         if (t == type::with_bin_mul) {
             bin_post_id = 0;
@@ -216,11 +225,11 @@ struct onednn_matmul {
             post_op_bin_mul(false);
             post_op_sum();
         }
-        if (t == type::with_silu)
-            post_op_silu();
-        if (t == type::with_silu_bin_mul) {
+        if (t == type::with_gate_act)
+            post_op_gate_activation(activation_algo);
+        if (t == type::with_gate_act_bin_mul) {
             bin_post_id = 1;
-            post_op_silu();
+            post_op_gate_activation(activation_algo);
             post_op_bin_mul(true);
         }
 
@@ -308,10 +317,11 @@ struct onednn_linear {
                                 onednn_matmul::type t,
                                 dnnl::memory weight,  // external weight
                                 dnnl::memory scale,
-                                dnnl::memory zp) {
+                                dnnl::memory zp,
+                                dnnl::algorithm activation_algo = dnnl::algorithm::eltwise_swish) {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("onednn_linear::create()"));
         bool has_zp = static_cast<bool>(zp);
-        auto mm = make_cacheable<onednn_matmul>(eng, act_dtype, weight_dtype, batch, ic, oc, ic_group_size, t, has_zp);
+        auto mm = make_cacheable<onednn_matmul>(eng, act_dtype, weight_dtype, batch, ic, oc, ic_group_size, t, has_zp, activation_algo);
         onednn_linear linear;
         linear.mm = mm;
         linear.bin_post_id = mm->bin_post_id;
@@ -601,6 +611,11 @@ protected:
         jit.make("SUBGROUP_SIZE", info.arch >= gpu_arch::xe2 ? 32 : 16);
         jit.make("INTERMEDIA_SIZE", desc->_config.inter_size);
         jit.make("MOE_DTYPE", "half");
+        if (desc->_config.activation_type == ov::op::internal::MOE::Activation_type::GEGLU_TANH) {
+            jit.make("GATE_ACT_GELU_TANH", 1);
+        } else if (desc->_config.activation_type == ov::op::internal::MOE::Activation_type::GEGLU_ERF) {
+            jit.make("GATE_ACT_GELU_ERF", 1);
+        }
         if (m_use_grouped_gemm)
             jit.make("ONEDNN_GROUPED_GEMM_USED", 1);
         return jit;
@@ -758,6 +773,11 @@ protected:
         auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
         add_common_consts(params, jit);
         jit.make("GATE_UP_ENABLE", 1);
+        if (desc->_config.activation_type == ov::op::internal::MOE::Activation_type::GEGLU_TANH) {
+            jit.make("GATE_ACT_GELU_TANH", 1);
+        } else if (desc->_config.activation_type == ov::op::internal::MOE::Activation_type::GEGLU_ERF) {
+            jit.make("GATE_ACT_GELU_ERF", 1);
+        }
         if (!_disable_shared_experts && desc->_config.num_shared_expert > 0 &&
             params.input_layouts.size() > static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT)) {
             jit.make("SHARED_EXPERT_ENABLE", 1);
@@ -941,6 +961,7 @@ public:
     int _shared_intermediate_size;
     int _gate_up_group_size;
     int _down_group_size;
+    ov::op::internal::MOE::Activation_type _activation_type = ov::op::internal::MOE::Activation_type::SWIGLU;
 
     bool _has_shared_expert = false;
     // Shared expert primitives
@@ -1014,9 +1035,9 @@ public:
 
         // Don't change the order of stages
         auto routing_type = node.as<moe_3gemm_fused_compressed>().get_primitive()->_config.routing_type;
-        if (routing_type == ov::intel_gpu::op::MOECompressed::RoutingType::SOFTMAX) {
+        if (routing_type == ov::op::internal::MOECompressed::RoutingType::SOFTMAX) {
             add_stage(softmax_topk, params);
-        } else if (routing_type == ov::intel_gpu::op::MOECompressed::RoutingType::SIGMOID_BIAS) {
+        } else if (routing_type == ov::op::internal::MOECompressed::RoutingType::SIGMOID_BIAS) {
             add_stage(sigmoid_bias_topk, params);
         } else {
             OPENVINO_THROW("Unsupported routing type for moe_3gemm_swiglu_opt_impl: ", static_cast<int>(routing_type));
@@ -1047,6 +1068,7 @@ public:
         _intermediate_size = static_cast<int>(cur_moe->_config.inter_size);
         _gate_up_group_size = static_cast<int>(cur_moe->_config.group_size);
         _down_group_size = static_cast<int>(cur_moe->_config.group_size);
+        _activation_type = cur_moe->_config.activation_type;
 
         if (cur_moe->_config.group_size == std::numeric_limits<size_t>::max()) {
             _gate_up_group_size = static_cast<int>(cur_moe->_config.hidden_size);
@@ -1077,19 +1099,55 @@ public:
         };
 
         _dnnl_weights.resize(cur_moe->_config.num_expert);
+        // Per-GEMM ic_group_size from scale shape; config.group_size can't represent gate/up vs down differing.
+        const auto ic_group_size_from_scale = [](size_t ic, const cldnn::memory::ptr& scale_mem) {
+            const auto& scale_shape = scale_mem->get_layout().get_shape();
+            const size_t num_groups = (scale_shape.size() >= 3) ? scale_shape[2] : 1;
+            return (num_groups <= 1) ? static_cast<int>(ic) : static_cast<int>(ic / num_groups);
+        };
         for (size_t j = 0; j < cur_moe->_config.num_expert; j++) {
             auto& dnnl_weights = _dnnl_weights[j];
             dnnl_weights.resize(3);
             dnnl_weights[0].ic = _hidden_size;
-            dnnl_weights[0].ic_group_size = _gate_up_group_size;
+            dnnl_weights[0].ic_group_size = ic_group_size_from_scale(_hidden_size, moe_fusion_wei_addr.scale[0]);
             dnnl_weights[0].oc = _intermediate_size;
             dnnl_weights[1].ic = _hidden_size;
-            dnnl_weights[1].ic_group_size = _gate_up_group_size;
+            dnnl_weights[1].ic_group_size = ic_group_size_from_scale(_hidden_size, moe_fusion_wei_addr.scale[1]);
             dnnl_weights[1].oc = _intermediate_size;
             dnnl_weights[2].ic = _intermediate_size;
-            dnnl_weights[2].ic_group_size = _down_group_size;
+            dnnl_weights[2].ic_group_size = ic_group_size_from_scale(_intermediate_size, moe_fusion_wei_addr.scale[2]);
             dnnl_weights[2].oc = _hidden_size;
             for (int i = 0; i < 3; i++) {
+                // Cross-check ic/ic_group_size against scale shape (drift caused u8 inf bug).
+                {
+                    const auto& sshape = moe_fusion_wei_addr.scale[i]->get_layout().get_shape();
+                    const size_t scale_num_groups = (sshape.size() >= 3) ? sshape[2] : 1;
+                    OPENVINO_ASSERT(dnnl_weights[i].ic_group_size > 0, "moe_3gemm GEMM ", i, " ic_group_size must be > 0");
+                    OPENVINO_ASSERT(dnnl_weights[i].ic % dnnl_weights[i].ic_group_size == 0,
+                                    "moe_3gemm GEMM ",
+                                    i,
+                                    " ic=",
+                                    dnnl_weights[i].ic,
+                                    " not divisible by ic_group_size=",
+                                    dnnl_weights[i].ic_group_size);
+                    const auto expected_groups = dnnl_weights[i].ic / dnnl_weights[i].ic_group_size;
+                    OPENVINO_ASSERT(static_cast<size_t>(expected_groups) == scale_num_groups,
+                                    "moe_3gemm GEMM ",
+                                    i,
+                                    " ic_group_size=",
+                                    dnnl_weights[i].ic_group_size,
+                                    " (=> ",
+                                    expected_groups,
+                                    " groups) disagrees with scale num_groups=",
+                                    scale_num_groups,
+                                    " (scale shape=",
+                                    sshape,
+                                    ")");
+                    if (cur_moe->_config.has_zp && moe_fusion_wei_addr.zp[i]) {
+                        const auto& zshape = moe_fusion_wei_addr.zp[i]->get_layout().get_shape();
+                        OPENVINO_ASSERT(zshape == sshape, "moe_3gemm GEMM ", i, " scale shape ", sshape, " does not match zp shape ", zshape);
+                    }
+                }
                 // weight shape: [ic, oc], type: u4/i8
                 int64_t wei_offset = j * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc, moe_fusion_wei_addr.weight[i]->get_layout());
                 dnnl_weights[i].weight =
@@ -1167,10 +1225,11 @@ public:
                                                                                   _hidden_size,
                                                                                   _shared_intermediate_size,
                                                                                   _gate_up_group_size,
-                                                                                  t::with_silu_bin_mul,
+                                                                                  t::with_gate_act_bin_mul,
                                                                                   gate_w,
                                                                                   gate_s,
-                                                                                  gate_z));
+                                                                                  gate_z,
+                                                                                  moe_activation_to_dnnl_algo(_activation_type)));
 
         // 3. Scalar Gate (Sigmoid)
         // It is very small weight with shape of [Hidden, 1], and not need to keep compressed, so KeepMOE3GemmConstPrecision will not keep its precision and
@@ -1252,6 +1311,10 @@ public:
         cur_moe->_intermediate_size = _intermediate_size;
         cur_moe->_gate_up_group_size = _gate_up_group_size;
         cur_moe->_down_group_size = _down_group_size;
+        cur_moe->use_micro_gemm_prefill = use_micro_gemm_prefill;
+        cur_moe->use_gpu_mask_gen_prefill = use_gpu_mask_gen_prefill;
+        cur_moe->use_grouped_gemm_prefill = use_grouped_gemm_prefill;
+        cur_moe->_activation_type = _activation_type;
         return cur_moe;
     }
 
@@ -1937,6 +2000,9 @@ public:
         auto hidden_states_layout_dt =
             convert_data_type(instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES))->get_layout().data_type);
 
+        auto cur_moe = instance.get_typed_desc<moe_3gemm_fused_compressed>();
+        const auto gate_activation_algo = moe_activation_to_dnnl_algo(cur_moe->_config.activation_type);
+
         auto& dnnl_weights = _dnnl_weights[expert_no];
         auto kernel = std::make_shared<onednn_kernel>();
 
@@ -1949,10 +2015,11 @@ public:
                                              dnnl_weights[0].ic,
                                              dnnl_weights[0].oc,
                                              dnnl_weights[0].ic_group_size,
-                                             onednn_matmul::type::with_silu_bin_mul,
+                                             onednn_matmul::type::with_gate_act_bin_mul,
                                              dnnl_weights[0].weight,
                                              dnnl_weights[0].scale,
-                                             dnnl_weights[0].zp);
+                                             dnnl_weights[0].zp,
+                                             gate_activation_algo);
 
         // up
         auto up_weight_layout_dt = convert_data_type(instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_1))->get_layout().data_type);
@@ -2465,7 +2532,7 @@ public:
         // routing: softmax+topk or sigmoid+bias+topk
         auto lws_size = config.num_expert;
         cldnn::event::ptr topk_event;
-        if (config.routing_type == ov::intel_gpu::op::MOECompressed::RoutingType::SOFTMAX) {
+        if (config.routing_type == ov::op::internal::MOECompressed::RoutingType::SOFTMAX) {
             topk_event = execute_stage(events,
                                        instance,
                                        *softmax_topk,
@@ -2474,7 +2541,7 @@ public:
                                        {token_num, lws_size},
                                        {1, lws_size},
                                        instance.needs_completion_event());
-        } else if (config.routing_type == ov::intel_gpu::op::MOECompressed::RoutingType::SIGMOID_BIAS) {
+        } else if (config.routing_type == ov::op::internal::MOECompressed::RoutingType::SIGMOID_BIAS) {
             topk_event = execute_stage(events,
                                        instance,
                                        *sigmoid_bias_topk,

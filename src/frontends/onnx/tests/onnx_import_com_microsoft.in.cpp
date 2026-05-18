@@ -1959,6 +1959,63 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_rotary_embedding) {
     test_case.run_with_tolerance_as_fp(0.01f);
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_rotary_embedding_fp16) {
+    // Load the existing rotary_embedding model and change input types to float16
+    // to verify that neg_one constant type matches input element type
+    ov::frontend::FrontEnd::Ptr front_end;
+    auto input_model = load_model("com.microsoft/rotary_embedding.onnx", &front_end);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("input"), ov::element::f16);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("cos_cache"), ov::element::f16);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("sin_cache"), ov::element::f16);
+    const auto model = front_end->convert(input_model);
+
+    using f16 = ov::float16;
+    std::vector<f16> input = {
+        f16(-1.1258f), f16(-1.1524f), f16(-0.2506f), f16(-0.4339f), f16(0.8487f),  f16(0.6920f),  f16(-0.3160f),
+        f16(-2.1152f), f16(0.3223f),  f16(-1.2633f), f16(0.3500f),  f16(0.3081f),  f16(0.1198f),  f16(1.2377f),
+        f16(1.1168f),  f16(-0.2473f), f16(-1.3527f), f16(-1.6959f), f16(0.5667f),  f16(0.7935f),  f16(0.5988f),
+        f16(-1.5551f), f16(-0.3414f), f16(1.8530f),  f16(0.7502f),  f16(-0.5855f), f16(-0.1734f), f16(0.1835f),
+        f16(1.3894f),  f16(1.5863f),  f16(0.9463f),  f16(-0.8437f),
+    };
+    std::vector<int64_t> position_ids = {0, 1};
+    std::vector<f16> cos_cache = {
+        f16(0.8437f),
+        f16(-0.7849f),
+        f16(-0.7829f),
+        f16(0.4581f),
+        f16(-0.9870f),
+        f16(0.6273f),
+        f16(-0.9483f),
+        f16(-0.9962f),
+    };
+    std::vector<f16> sin_cache = {
+        f16(0.5368f),
+        f16(0.6196f),
+        f16(-0.6222f),
+        f16(0.8889f),
+        f16(0.1605f),
+        f16(-0.7788f),
+        f16(0.3174f),
+        f16(-0.0872f),
+    };
+
+    std::vector<f16> expected_output = {
+        f16(-1.4054f), f16(0.4758f), f16(-0.0004f), f16(1.6814f),  f16(0.1117f), f16(-1.2572f), f16(0.4033f),
+        f16(-1.3547f), f16(0.2076f), f16(0.2247f),  f16(0.4209f),  f16(0.361f),  f16(0.2741f),  f16(-1.7542f),
+        f16(-1.0921f), f16(0.1606f), f16(1.239f),   f16(-2.275f),  f16(-0.429f), f16(-0.6289f), f16(-0.8081f),
+        f16(0.3453f),  f16(0.5036f), f16(-1.9152f), f16(-0.9634f), f16(0.8681f), f16(-0.1359f), f16(-0.2564f),
+        f16(-1.2509f), f16(1.4511f), f16(-0.9524f), f16(0.8245f),
+    };
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<f16>(Shape{1, 2, 16}, input);
+    test_case.add_input<int64_t>(Shape{1, 2}, position_ids);
+    test_case.add_input<f16>(Shape{2, 4}, cos_cache);
+    test_case.add_input<f16>(Shape{2, 4}, sin_cache);
+    test_case.add_expected_output<f16>(Shape{1, 2, 16}, expected_output);
+    test_case.run_with_tolerance_as_fp(0.01f);
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_0_input_1_rotary) {
     const auto model = convert_model("com.microsoft/gqa_rotary.onnx");
 
@@ -2046,6 +2103,116 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_0_input_1_rotary) {
     test_case.add_expected_output<float>(Shape{1, 1, 1, 16}, expected_present_key);
     test_case.add_expected_output<float>(Shape{1, 1, 1, 16}, expected_present_value);
     test_case.run_with_tolerance_as_fp();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_0_input_1_rotary_fp16) {
+    // Load the existing GQA rotary model and change float inputs to float16
+    // to verify that neg_one constant type matches input element type in GQA decomposition
+    ov::frontend::FrontEnd::Ptr front_end;
+    auto input_model = load_model("com.microsoft/gqa_rotary.onnx", &front_end);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("query"), ov::element::f16);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("past_key"), ov::element::f16);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("past_value"), ov::element::f16);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("cos_cache"), ov::element::f16);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("sin_cache"), ov::element::f16);
+    const auto model = front_end->convert(input_model);
+
+    using f16 = ov::float16;
+    std::vector<f16> query = {
+        f16(-1.1258f), f16(-1.1524f), f16(-0.2506f), f16(-0.4339f), f16(0.8487f),  f16(0.6920f),  f16(-0.3160f),
+        f16(-2.1152f), f16(0.3223f),  f16(-1.2633f), f16(0.3500f),  f16(0.3081f),  f16(0.1198f),  f16(1.2377f),
+        f16(1.1168f),  f16(-0.2473f), f16(-1.3527f), f16(-1.6959f), f16(0.5667f),  f16(0.7935f),  f16(0.5988f),
+        f16(-1.5551f), f16(-0.3414f), f16(1.8530f),  f16(0.7502f),  f16(-0.5855f), f16(-0.1734f), f16(0.1835f),
+        f16(1.3894f),  f16(1.5863f),  f16(0.9463f),  f16(-0.8437f), f16(1.6459f),  f16(-1.3602f), f16(0.3446f),
+        f16(0.5199f),  f16(-2.6133f), f16(-1.6965f), f16(-0.2282f), f16(0.2800f),  f16(0.2469f),  f16(0.0769f),
+        f16(0.3380f),  f16(0.4544f),  f16(0.4569f),  f16(-0.8654f), f16(0.7813f),  f16(-0.9268f), f16(-0.2188f),
+        f16(-2.4351f), f16(-0.0729f), f16(-0.0340f), f16(0.9625f),  f16(0.3492f),  f16(-0.9215f), f16(-0.0562f),
+        f16(-0.6227f), f16(-0.4637f), f16(1.9218f),  f16(-0.4025f), f16(0.1239f),  f16(1.1648f),  f16(0.9234f),
+        f16(1.3873f),
+    };
+    std::vector<f16> past_key = {};
+    std::vector<f16> past_value = {};
+    std::vector<int> seqlens_k = {0};
+    std::vector<int> total_sequence_length = {1};
+    std::vector<f16> cos_cache = {
+        f16(0.8437f),
+        f16(-0.7849f),
+        f16(-0.7829f),
+        f16(0.4581f),
+        f16(-0.9870f),
+        f16(0.6273f),
+        f16(-0.9483f),
+        f16(-0.9962f),
+    };
+    std::vector<f16> sin_cache = {
+        f16(0.5368f),
+        f16(0.6196f),
+        f16(-0.6222f),
+        f16(0.8889f),
+        f16(0.1605f),
+        f16(-0.7788f),
+        f16(0.3174f),
+        f16(-0.0872f),
+    };
+
+    std::vector<f16> expected_output = {
+        f16(-0.2188f), f16(-2.4351f), f16(-0.0729f), f16(-0.034f),  f16(0.9625f),  f16(0.3492f), f16(-0.9215f),
+        f16(-0.0562f), f16(-0.6227f), f16(-0.4637f), f16(1.9218f),  f16(-0.4025f), f16(0.1239f), f16(1.1648f),
+        f16(0.9234f),  f16(1.3873f),  f16(-0.2188f), f16(-2.4351f), f16(-0.0729f), f16(-0.034f), f16(0.9625f),
+        f16(0.3492f),  f16(-0.9215f), f16(-0.0562f), f16(-0.6227f), f16(-0.4637f), f16(1.9218f), f16(-0.4025f),
+        f16(0.1239f),  f16(1.1648f),  f16(0.9234f),  f16(1.3873f),
+    };
+
+    std::vector<f16> expected_present_key = {
+        f16(1.2561098f),
+        f16(1.0199738f),
+        f16(-0.05948371f),
+        f16(-0.16574995f),
+        f16(2.5059946f),
+        f16(-1.738188f),
+        f16(-0.03158256f),
+        f16(-0.35975295f),
+        f16(1.0918287f),
+        f16(-0.90313876f),
+        f16(-0.4790303f),
+        f16(0.67029977f),
+        f16(-0.87039495f),
+        f16(0.7783688f),
+        f16(-0.81333745f),
+        f16(0.89886224f),
+    };
+
+    std::vector<f16> expected_present_value = {
+        f16(-0.2188f),
+        f16(-2.4351f),
+        f16(-0.0729f),
+        f16(-0.034f),
+        f16(0.9625f),
+        f16(0.3492f),
+        f16(-0.9215f),
+        f16(-0.0562f),
+        f16(-0.6227f),
+        f16(-0.4637f),
+        f16(1.9218f),
+        f16(-0.4025f),
+        f16(0.1239f),
+        f16(1.1648f),
+        f16(0.9234f),
+        f16(1.3873f),
+    };
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<f16>(Shape{1, 1, 64}, query);
+    test_case.add_input<f16>(Shape{1, 1, 0, 16}, past_key);
+    test_case.add_input<f16>(Shape{1, 1, 0, 16}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<int>(Shape{}, total_sequence_length);
+    test_case.add_input<f16>(Shape{1, 8}, cos_cache);
+    test_case.add_input<f16>(Shape{1, 8}, sin_cache);
+    test_case.add_expected_output<f16>(Shape{1, 1, 32}, expected_output);
+    test_case.add_expected_output<f16>(Shape{1, 1, 1, 16}, expected_present_key);
+    test_case.add_expected_output<f16>(Shape{1, 1, 1, 16}, expected_present_value);
+    test_case.run_with_tolerance_as_fp(0.01f);
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_0_input_1_rotary_posid) {

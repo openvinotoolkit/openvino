@@ -10,6 +10,7 @@
 #include <memory>
 #include <vector>
 
+#include "../serialization.hpp"
 #include "../v1/subgraph_pipeline.hpp"
 
 namespace ov {
@@ -23,10 +24,6 @@ namespace compiled {
 struct MoEExperts;
 struct MoEDownstream;
 }  // namespace compiled
-namespace s11n {
-class Stream;
-struct SubmodelDeserializeCtx;
-}  // namespace s11n
 namespace moe {
 
 enum class BehaviorRole {
@@ -49,6 +46,8 @@ const ov::npuw::compiled::MoEDownstream* get_compiled_downstream(const v1::subgr
 bool has_compiled_experts(const v1::subgraphs::CompiledPipeline& pipeline);
 bool has_compiled_downstream(const v1::subgraphs::CompiledPipeline& pipeline);
 bool has_compiled_state(const v1::subgraphs::CompiledPipeline& pipeline);
+
+void clear_partition_state(v1::subgraphs::Context& context);
 
 void serialize_compiled_state(v1::subgraphs::Context& context,
                               ov::npuw::s11n::Stream& stream,
