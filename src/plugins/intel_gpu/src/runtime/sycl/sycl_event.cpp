@@ -129,7 +129,7 @@ bool sycl_event::get_profiling_info_impl(std::list<instrumentation::profiling_in
 
 void sycl_events::wait_impl() {
     try {
-        _last_sycl_event.wait();
+        _last_sycl_event.wait_and_throw();
     } catch (::sycl::exception const& err) {
         OPENVINO_THROW(SYCL_ERR_MSG_FMT(err));
     }
