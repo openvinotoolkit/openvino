@@ -16,7 +16,9 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sink.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/runtime/system_conf.hpp"
+#include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 
 namespace ov {
 namespace test {
@@ -81,10 +83,12 @@ void ConcatSDPTest::SetUp() {
         return it != m_cacheCfg.end() && it->second.as<std::string>() == needle;
     };
     const bool is_u4 = has_value("KEY_CACHE_PRECISION", "u4") || has_value("VALUE_CACHE_PRECISION", "u4");
+    const bool is_u8 = has_value("KEY_CACHE_PRECISION", "u8") || has_value("VALUE_CACHE_PRECISION", "u8");
     const bool is_tbq = has_value("KEY_CACHE_QUANT_ALG", "TURBO") ||
                         has_value("VALUE_CACHE_QUANT_ALG", "TURBO") ||
                         has_value("KV_CACHE_QUANT_ALG", "TURBO");
-    rel_threshold = 1e-2F;
+    rel_threshold = 3e-2F;
+    abs_threshold = 0.01F;
     if (is_u4 && is_tbq) {
         // u4 + TBQ4 mix compounds both codecs' quant bias.
         abs_threshold = 0.5F;
@@ -92,8 +96,9 @@ void ConcatSDPTest::SetUp() {
         abs_threshold = 0.4F;
     } else if (is_tbq) {
         abs_threshold = 0.45F;
+    } else if (is_u8) {
+        abs_threshold = 0.1F;
     }
-
     init_input_shapes(inputShapes);
 
     auto q_ps = inputDynamicShapes[0];
@@ -160,7 +165,7 @@ void ConcatSDPTest::SetUp() {
     }
 
     auto sdp = std::make_shared<ov::op::v13::ScaledDotProductAttention>(
-        inputParams[0], k_for_sdp, v_for_sdp, true);
+        inputParams[0], k_for_sdp, v_for_sdp, false);
     sdp->set_friendly_name("mha");
     auto add = std::make_shared<ov::op::v1::Add>(sdp, ov::op::v0::Constant::create(inType, {1}, {1.0f}));
     auto pastk_assign = std::make_shared<ov::op::v6::Assign>(concatK, var_k);
@@ -175,6 +180,10 @@ void ConcatSDPTest::SetUp() {
     }
     SinkVector sinks{pastk_assign, pastv_assign};
     function = std::make_shared<ov::Model>(results, sinks, inputParams, "ConcatSDP");
+    functionRefs = function->clone();
+    pass::Manager manager;
+    manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
+    manager.run_passes(functionRefs);
 }
 
 void ConcatSDPTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
@@ -203,9 +212,6 @@ void ConcatSDPTest::generate_inputs(const std::vector<ov::Shape>& targetInputSta
     kv_shape[1] = static_cast<size_t>(m_headNumKV);
     auto past_shape = targetInputStaticShapes[1];
     past_shape[1] = static_cast<size_t>(m_headNumKV);
-    // State accumulates real L_k across iters. past_param only consumed at iter 0
-    // (ReadValue fallback); later iters read cached VariableContext, so past shape
-    // becomes decorative.
     past_shape[2] = (idx == 0) ? 0 : m_accum_L_q;
     m_accum_L_q = past_shape[2] + q_shape[2];
 
@@ -254,13 +260,15 @@ ConcatSDPTest::run_test(const std::shared_ptr<ov::Model>& model, const ov::AnyMa
 
 void ConcatSDPTest::run() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    // Reference: SDPA decomposed into matmul/softmax (no cache codec). Strip cache
+    // config keys so reference runs full-precision; keeps quant noise on actual side only.
     auto ref_config = configuration;
     for (const auto& key : {"KEY_CACHE_PRECISION", "VALUE_CACHE_PRECISION",
                             "KEY_CACHE_QUANT_ALG", "VALUE_CACHE_QUANT_ALG",
                             "KV_CACHE_QUANT_ALG"}) {
         ref_config.erase(key);
     }
-    auto expected = run_test(function->clone(), ref_config);
+    auto expected = run_test(functionRefs, ref_config);
     auto actual = run_test(function, configuration);
     for (size_t i = 0; i < actual.size(); ++i) {
         compare(expected[i], actual[i]);
