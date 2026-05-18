@@ -135,6 +135,9 @@ struct PagedAttentionManager {
 
     std::vector<std::vector<uint8_t>> qq_bias;
     std::vector<int> qq_bias_begins;
+
+    // optional token_type_ids; when empty, a default single-element {0} buffer is used
+    std::vector<int> token_type_ids;
     cldnn::engine& test_engine;
     cldnn::stream& test_stream;
     tests::random_generator& rg;
@@ -835,8 +838,11 @@ struct PagedAttentionManager {
     }
 
     memory::ptr get_token_type_ids_memory() {
-        std::vector<int> token_type_ids = { 0 };
-        return get_memory_from_vec(token_type_ids);
+        if (!token_type_ids.empty()) {
+            return get_memory_from_vec(token_type_ids);
+        }
+        std::vector<int> default_token_type_ids = { 0 };
+        return get_memory_from_vec(default_token_type_ids);
     }
 
     memory::ptr get_qq_bias_memory() {
@@ -1867,6 +1873,11 @@ public:
             pam.qq_bias_begins = p.qq_bias_config.qq_bias_begins;
         }
 
+        if (p.token_type_ids.has_value()) {
+            pam.token_type_ids = p.token_type_ids.value();
+            ASSERT_EQ(pam.token_type_ids.size(), static_cast<size_t>(pam.subsequence_descs.back().num_tokens + pam.subsequence_descs.back().past_len));
+        }
+
         if (p.kv_cache_compression) {
             // INT4 quantization has larger error than INT8 (~17x larger step size)
             tolerance = (kv_cache_precision == ov::element::u4 || kv_cache_precision == ov::element::i4) ? 75e-3 : 25e-3;
@@ -2044,6 +2055,7 @@ public:
         pa_prim.heads_num = p.num_heads;
         pa_prim.scale_val = pam.get_default_scale();
         pa_prim.has_alibi = false;
+        pa_prim.has_token_type_ids = p.token_type_ids.has_value();
 
         int num_outputs = 1;
         if (p.scores_mode != ScoresMode::DISABLED) num_outputs++;
@@ -2838,6 +2850,10 @@ struct paged_attention_test_params {
     bool has_qq_bias = false;
     QueryToQueryAttentionDescriptor qq_bias_config = {};
     bool run_reference = true;
+
+    // optional token_type_ids passed to PagedAttention; if set (non-empty), it is forwarded
+    // to the op as the TOKEN_TYPE_IDS input. When std::nullopt, a default {0} buffer is used.
+    std::optional<std::vector<int>> token_type_ids = std::nullopt;
 };
 
 class paged_attention_test : public PagedAttentionTest<paged_attention_test_params> {};
@@ -2937,6 +2953,22 @@ const auto ENABLE_QQ_BIAS = QueryToQueryAttentionDescriptor{{{{1, 0, 0, 0, 1, 1,
 static paged_attention_test_params disable_reference_compare(paged_attention_test_params p) {
     p.run_reference = false;
     return p;
+}
+
+static std::vector<int32_t> gen_tokens_ids_test_data(size_t seq_len, int num_images, size_t avg_img_len) {
+    std::vector<int32_t> v(seq_len, 0);
+    size_t gap = seq_len / (num_images + 1);
+    for (int img = 0; img < num_images; img++) {
+        size_t center = gap * (img + 1);
+        size_t half = avg_img_len / 2;
+        size_t start = (center > half) ? center - half : 0;
+        size_t end = std::min(seq_len, center + half);
+        for (size_t i = start; i < end; i++)
+            v[i] = 1;
+    }
+
+
+    return v;
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_paged_attention, paged_attention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
@@ -3428,3 +3460,14 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_paged_attention_perf_cm, xattention_test
     // mixed prefill+generate
     disable_reference_compare(paged_attention_test_params{ {{1, 1*4096}, {1, 1*1024}, {4096, 1024}}, 32, 8, 128, 128, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f, 100.0f, 100.0f}, std::vector<int>{256, 256, 256} }),
 }));
+
+constexpr int SEQ_LEN = 4096;
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_paged_attention_perf_token_ids_ocl, paged_attention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+    // best case scenario
+    disable_reference_compare(paged_attention_test_params{ {{SEQ_LEN, 0}}, 1, 1, 128, 128, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, false, {}, true, gen_tokens_ids_test_data(SEQ_LEN, 0, 0) }),
+    // // avg case scenario
+    disable_reference_compare(paged_attention_test_params{ {{SEQ_LEN, 0}}, 1, 1, 128, 128, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, false, {}, true, gen_tokens_ids_test_data(SEQ_LEN, 3, SEQ_LEN/4) }),
+    // worst case scenario
+    disable_reference_compare(paged_attention_test_params{ {{SEQ_LEN, 0}}, 1, 1, 128, 128, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, false, {}, true, gen_tokens_ids_test_data(SEQ_LEN, 1, SEQ_LEN) }),
+}));
+
