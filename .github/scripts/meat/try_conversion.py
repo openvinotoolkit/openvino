@@ -162,14 +162,16 @@ for s in strategies:
     if os.path.exists(out_dir):
         shutil.rmtree(out_dir)
 
-    # Install required optimum-intel version when non-stable
-    if s["optimum_version"] != "stable":
+    # Install required optimum-intel version when non-stable.
+    # Set _TRY_CONVERSION_SKIP_PIP=1 to suppress installs (e.g. in tests).
+    _skip_pip = os.environ.get("_TRY_CONVERSION_SKIP_PIP", "")
+    if s["optimum_version"] != "stable" and not _skip_pip:
         subprocess.run(
             [sys.executable, "-m", "pip", "install", "-q", s["optimum_version"]],
             check=False,
         )
 
-    if s.get("transformers_override"):
+    if s.get("transformers_override") and not _skip_pip:
         subprocess.run(
             [sys.executable, "-m", "pip", "install", "-q", s["transformers_override"]],
             check=False,
@@ -187,7 +189,14 @@ for s in strategies:
     cmd.extend(s.get("extra_flags", []))
 
     t0 = time.time()
-    proc = subprocess.run(cmd, capture_output=True, text=True)
+    # shell=True is required on Windows so that cmd.exe resolves the tool via
+    # PATHEXT (real optimum-cli installs as .exe; test stubs may be .bat/.cmd).
+    proc = subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        shell=(sys.platform == "win32"),
+    )
     elapsed = round(time.time() - t0, 1)
 
     attempt = {

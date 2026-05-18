@@ -62,6 +62,12 @@ for path_str in RESULT_FILES:
             missing.append(str(pp))
             print(f"[WARN] Patch not found: {pp} — skipping", file=sys.stderr)
 
+# A missing patch is always an error — check before the no-collected guard
+if missing:
+    if not collected:
+        print("[WARN] No patches collected — nothing to publish")
+    sys.exit(1)
+
 if not collected:
     print("[WARN] No patches collected — nothing to publish")
     sys.exit(0)
@@ -73,6 +79,3 @@ combined.write_text(
     encoding="utf-8",
 )
 print(f"[OV-ORCH] Combined {len(collected)} patches into {combined}")
-
-if missing:
-    sys.exit(1)

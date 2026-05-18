@@ -74,7 +74,17 @@ target_agent = signals.get("target_agent", "optimum-intel")
 
 # Determine overall status
 successful = [a for a in attempts if a.get("success")]
-status = "success" if successful else ("partial" if attempts else "failed")
+if not successful:
+    status = "failed"
+else:
+    winning = successful[-1]
+    if winning.get("inference_ok") is True:
+        status = "success"
+    elif "inference_ok" in winning:
+        # Exported OK but inference check failed
+        status = "partial"
+    else:
+        status = "success"
 
 
 # ---------------------------------------------------------------------------
