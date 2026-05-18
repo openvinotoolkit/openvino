@@ -2022,6 +2022,16 @@ void ScaledDotProductAttention::createPrimitive() {
                     "ScaledDotProductAttention AttentionExecutor creation fails value state " + std::to_string(keyS) +
                         " cannot be divided by group size " + std::to_string(m_key_spec.group_size));
 
+    // For fuse_concat=true the cache is the internal state with quantization per config.
+    // Without fuse_concat the cache is the raw K/V input — use rtPrecision to decode it,
+    // since cpuConfig.{key,value}CachePrecision only describes the internal state.
+    if (!is_turbo(m_key_spec.alg)) {
+        m_key_spec.precision = m_config.config.fuse_concat ? getKeyCachePrecision() : rtPrecision;
+    }
+    if (!is_turbo(m_value_spec.alg)) {
+        m_value_spec.precision = m_config.config.fuse_concat ? getValueCachePrecision() : rtPrecision;
+    }
+
     ScaledDotProductAttentionKey key = {rtPrecision};
 
     auto builder = [&]([[maybe_unused]] const ScaledDotProductAttentionKey& key) -> std::shared_ptr<Executor> {
