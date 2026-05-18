@@ -194,7 +194,7 @@ void jit_rms_kernel<isa>::generate() {
     vbroadcastss(vmm_rsqrt, xmm_rsqrt);
     mov(reg_size, m_jcp.data_size / vec_size);
     mov(reg_src, reg_src_org);
-    if ((m_jcp.data_size / vec_size) != 0) {
+    if (m_jcp.data_size >= vec_size) {
         // Tiny rows rely on the tail path below; emitting a zero-trip vector loop would underflow reg_size.
         align(16);
         Xbyak::Label loop_mul;

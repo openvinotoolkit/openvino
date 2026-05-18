@@ -72,6 +72,30 @@ const std::vector<std::vector<InputShape>> tinyRowBf16Shapes{
             {ov::Shape{15}, ov::Shape{15}}}
         },
     },
+    {
+        {ov::test::InputShape{ov::PartialShape{-1, -1, 7},
+            {ov::Shape{1, 8, 7}, ov::Shape{2, 3, 7}}}
+        },
+        {ov::test::InputShape{ov::PartialShape{7},
+            {ov::Shape{7}, ov::Shape{7}}}
+        },
+    },
+    {
+        {ov::test::InputShape{ov::PartialShape{-1, -1, 8},
+            {ov::Shape{1, 8, 8}, ov::Shape{2, 3, 8}}}
+        },
+        {ov::test::InputShape{ov::PartialShape{8},
+            {ov::Shape{8}, ov::Shape{8}}}
+        },
+    },
+    {
+        {ov::test::InputShape{ov::PartialShape{-1, -1, 3},
+            {ov::Shape{1, 8, 3}, ov::Shape{2, 3, 3}}}
+        },
+        {ov::test::InputShape{ov::PartialShape{3},
+            {ov::Shape{3}, ov::Shape{3}}}
+        },
+    },
 };
 
 const auto params = testing::Combine(testing::Values(ElementType::f32, ElementType::bf16, ElementType::f16),
