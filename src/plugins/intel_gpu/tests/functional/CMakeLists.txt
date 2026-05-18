@@ -108,19 +108,19 @@ if(NOT Vulkan_FOUND AND NOT WIN32)
             SUBBUILD_DIR "${_ov_vk_base_dir}/loader-sub"
         )
         FetchContent_MakeAvailable(ov_vk_loader)
-        if(TARGET vulkan)
+        foreach(_ov_vk_tgt vulkan asm_offset)
             if(CMAKE_C_COMPILER_ID STREQUAL "GNU"
                OR CMAKE_C_COMPILER_ID STREQUAL "Clang"
                OR CMAKE_C_COMPILER_ID STREQUAL "AppleClang"
                OR CMAKE_C_COMPILER_ID STREQUAL "IntelLLVM")
                 # Vulkan-Loader's cJSON and asm_offset trigger warnings that are
                 # promoted to errors in OpenVINO builds;
-                target_compile_options(vulkan PRIVATE
+                target_compile_options(${_ov_vk_tgt} PRIVATE
                                        -Wno-missing-declarations
                                        -Wno-undef
                                        -Wno-typedef-redefinition)
             endif()
-        endif()
+        endforeach()
 
         unset(BUILD_TESTS CACHE)
         unset(BUILD_WSI_XCB_SUPPORT CACHE)
