@@ -8,7 +8,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
-#include <fstream>
 #include <limits>
 #include <memory>
 #include <stdexcept>
@@ -16,25 +15,7 @@
 #include <string_view>
 #include <vector>
 
-#ifdef _WIN32
-#    ifndef NOMINMAX
-#        define NOMINMAX
-#    endif
-#    ifndef WIN32_LEAN_AND_MEAN
-#        define WIN32_LEAN_AND_MEAN
-#    endif
-#    include <windows.h>
-#    ifdef min
-#        undef min
-#    endif
-#    ifdef max
-#        undef max
-#    endif
-#else
-#    include <fcntl.h>
-#    include <sys/stat.h>
-#    include <unistd.h>
-#endif
+#include "openvino/util/parallel_io.hpp"
 
 #include <atomic>
 #include <chrono>
@@ -105,119 +86,33 @@ inline size_t get_layer_from_id(const std::string& id) {
 class parallel_weight_reader {
 public:
     explicit parallel_weight_reader(const std::string& weights_path) : _weights_path(weights_path) {
-        open_shared_handle();
+        std::streamoff file_size = 0;
+        ov::util::get_file_handle_and_size(std::filesystem::path(weights_path), 0, _shared_handle, file_size);
+        _file_size = static_cast<size_t>(file_size);
     }
 
     ~parallel_weight_reader() {
-        close_shared_handle();
+        ov::util::close_file_handle(_shared_handle);
     }
 
     const std::string& path() const {
         return _weights_path;
     }
 
+    size_t file_size() const {
+        return _file_size;
+    }
+
     void read(char* dst, size_t size, size_t file_offset) {
-        if (!single_read(get_shared_handle(), dst, size, file_offset)) {
+        if (!ov::util::positional_read(_shared_handle, dst, size, file_offset)) {
             throw std::runtime_error("Failed to read enough bytes from OTD weight file");
         }
     }
 
 private:
-#ifdef _WIN32
-    using native_handle_t = HANDLE;
-    static constexpr native_handle_t invalid_handle() {
-        return INVALID_HANDLE_VALUE;
-    }
-
-    static native_handle_t open_native_handle(const std::string& weights_path) {
-        auto path = std::filesystem::path(weights_path);
-        auto handle =
-            CreateFileW(path.native().c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
-        if (handle == INVALID_HANDLE_VALUE) {
-            throw std::runtime_error("Failed to open weight file for OTD streaming read");
-        }
-        return handle;
-    }
-
-    static void close_native_handle(native_handle_t handle) {
-        if (handle != INVALID_HANDLE_VALUE) {
-            CloseHandle(handle);
-        }
-    }
-
-    static bool single_read(native_handle_t handle, char* dst, size_t size, size_t file_offset) {
-        char* current = dst;
-        size_t remaining = size;
-        size_t current_offset = file_offset;
-        while (remaining > 0) {
-            const DWORD to_read = static_cast<DWORD>(std::min(remaining, static_cast<size_t>(UINT_MAX - 1024u)));
-            LARGE_INTEGER li = {};
-            li.QuadPart = static_cast<LONGLONG>(current_offset);
-            if (!SetFilePointerEx(handle, li, nullptr, FILE_BEGIN)) {
-                return false;
-            }
-            DWORD bytes_read = 0;
-            if (!ReadFile(handle, current, to_read, &bytes_read, nullptr) || bytes_read == 0) {
-                return false;
-            }
-            current += bytes_read;
-            current_offset += bytes_read;
-            remaining -= bytes_read;
-        }
-        return true;
-    }
-#else
-    using native_handle_t = int;
-    static constexpr native_handle_t invalid_handle() {
-        return -1;
-    }
-
-    static native_handle_t open_native_handle(const std::string& weights_path) {
-        auto fd = ::open(weights_path.c_str(), O_RDONLY | O_CLOEXEC);
-        if (fd == -1) {
-            throw std::runtime_error("Failed to open weight file for OTD streaming read");
-        }
-        return fd;
-    }
-
-    static void close_native_handle(native_handle_t handle) {
-        if (handle != -1) {
-            ::close(handle);
-        }
-    }
-
-    static bool single_read(native_handle_t handle, char* dst, size_t size, size_t file_offset) {
-        char* current = dst;
-        size_t remaining = size;
-        off_t current_offset = static_cast<off_t>(file_offset);
-        while (remaining > 0) {
-            const ssize_t bytes_read = ::pread(handle, current, remaining, current_offset);
-            if (bytes_read <= 0) {
-                return false;
-            }
-            current += bytes_read;
-            current_offset += bytes_read;
-            remaining -= static_cast<size_t>(bytes_read);
-        }
-        return true;
-    }
-#endif
-
-    void open_shared_handle() {
-        _shared_handle = open_native_handle(_weights_path);
-    }
-
-    void close_shared_handle() {
-        close_native_handle(_shared_handle);
-        _shared_handle = invalid_handle();
-    }
-
-    native_handle_t get_shared_handle() const {
-        return _shared_handle;
-    }
-
     std::string _weights_path;
-    native_handle_t _shared_handle = invalid_handle();
+    ov::FileHandle _shared_handle{};
+    size_t _file_size = 0;
 };
 
 inline parallel_weight_reader& get_thread_local_weight_reader(const std::string& weights_path) {
@@ -354,16 +249,11 @@ inline void fill_weights_memory(cldnn::stream& exec_stream,
 
     auto* perf = get_perf_counters();
 
+    auto& weight_reader = get_thread_local_weight_reader(weights_path);
+    const size_t weight_file_size = weight_reader.file_size();
+
     size_t index = 0;
     for (uint32_t expert : experts_list) {
-        // Read from disk
-        // Query file size for validation
-        std::ifstream size_file(weights_path.c_str(), std::ios::in | std::ios::binary | std::ios::ate);
-        OPENVINO_ASSERT(size_file.is_open(), "Failed to open weight file to query size: ", weights_path);
-        auto end_pos = size_file.tellg();
-        OPENVINO_ASSERT(end_pos >= 0, "Failed to query weight file size: ", weights_path);
-        const size_t weight_file_size = static_cast<size_t>(end_pos);
-
         auto make_tensor_fill_plan = [&](size_t base_offset, cldnn::memory_ptr mem, size_t expert_no, size_t lru_expert_no, const char* tensor_name) {
             tensor_fill_plan plan;
             if (!mem)
@@ -390,7 +280,6 @@ inline void fill_weights_memory(cldnn::stream& exec_stream,
             return plan;
         };
 
-        auto& weight_reader = get_thread_local_weight_reader(weights_path);
         for (size_t offset_pos = 0; offset_pos < static_cast<size_t>(cldnn::moe_3gemm_fused_compressed::serialized_weight_offset_count); offset_pos++) {
             auto plan =
                 make_tensor_fill_plan(weight_bin_offsets[offset_pos], tensors_by_offset[offset_pos], expert, lru_experts[index], tensor_names[offset_pos]);
