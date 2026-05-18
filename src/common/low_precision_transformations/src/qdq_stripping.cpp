@@ -260,9 +260,10 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
         auto input_high_const = ov::util::get_constant_from_source(fq->input_value(2));
         if (input_low_const && input_high_const && ov::shape_size(input_low_const->get_shape()) == 1 &&
             ov::shape_size(input_high_const->get_shape()) == 1) {
-            auto clamp = std::make_shared<ov::op::v0::Clamp>(fq->input_value(0),
-                                                             input_low_const->cast_vector<double>()[0],
-                                                             input_high_const->cast_vector<double>()[0]);
+            const double low = input_low_const->cast_vector<double>()[0];
+            const double high = input_high_const->cast_vector<double>()[0];
+            OPENVINO_ASSERT(low <= high, "FQ stripping: input_low (", low, ") > input_high (", high, ")");
+            auto clamp = std::make_shared<ov::op::v0::Clamp>(fq->input_value(0), low, high);
             ov::copy_runtime_info(fq, clamp);
             OPENVINO_ASSERT(replace_node_update_name(fq, clamp), "FQ stripping failed");
         } else {
