@@ -1349,6 +1349,9 @@ public:
         cur_moe->_down_group_size = _down_group_size;
         cur_moe->_lru_expert_num = _lru_expert_num;
         cur_moe->_lru_cache = _lru_cache;  // shared across clones within the same network
+        cur_moe->use_micro_gemm_prefill = use_micro_gemm_prefill;
+        cur_moe->use_gpu_mask_gen_prefill = use_gpu_mask_gen_prefill;
+        cur_moe->use_grouped_gemm_prefill = use_grouped_gemm_prefill;
         cur_moe->_activation_type = _activation_type;
         return cur_moe;
     }
