@@ -8,6 +8,7 @@
 
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
+#include "openvino/core/except.hpp"
 
 #ifndef _WIN32
 #    define LIB_ZE_LOADER_SUFFIX ".1"

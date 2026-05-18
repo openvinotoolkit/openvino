@@ -153,10 +153,10 @@ struct Context {
         << "\"samples\": {";
         for (auto &sample: samples) {
             std::cout << "\"" << sample.first << "\": {"
-            << "\"vmsize\": " << sample.second.virtual_size << ", "
-            << "\"vmpeak\": " << sample.second.virtual_peak << ", "
-            << "\"vmrss\": " << sample.second.resident_size << ", "
-            << "\"vmhwm\": " << sample.second.resident_peak << ", "
+            << "\"system_size\": " << sample.second.virtual_size << ", "
+            << "\"system_peak\": " << sample.second.virtual_peak << ", "
+            << "\"system_rss\": " << sample.second.resident_size << ", "
+            << "\"system_hwm\": " << sample.second.resident_peak << ", "
             << "\"threads\": " << sample.second.thread_count << ", "
             << "\"gpu_local_used\": " << sample.second.gpu_local_used << ", "
             << "\"gpu_local_total\": " << sample.second.gpu_local_total << ", "

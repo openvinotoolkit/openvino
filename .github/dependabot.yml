@@ -172,7 +172,21 @@ updates:
   # Github actions - CI
   #
 
-  # Github actions
+  # Custom Github actions (Node.js)
+  - package-ecosystem: npm
+    directories:
+      - "/.github/actions/**/*"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Asia/Dubai"
+    assignees:
+      - "akashchi"
+      - "mryzhov"
+      - "akladiev"
+    open-pull-requests-limit: 10
+
+  # Github action workflows
   - package-ecosystem: github-actions
     directory: "/"
     schedule:

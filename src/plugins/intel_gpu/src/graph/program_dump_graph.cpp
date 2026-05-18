@@ -219,7 +219,7 @@ void dump_graph_init(std::ofstream& graph,
         std::ostringstream oss;
         if (ptr->is_type<dynamic_quantize>()) {
             auto dyn_quan = ptr->as<dynamic_quantize>().get_primitive();
-            oss << "\n" << "group_sizes: " << ov::util::join(cldnn::convert_vector<int64_t>(dyn_quan->attrs.group_sizes));
+            oss << "\n" << "group_sizes: " << ov::util::join<std::ostream>(cldnn::convert_vector<int64_t>(dyn_quan->attrs.group_sizes));
             if (dyn_quan->attrs.precomputed_reduction) {
                 oss << "\n" << "precomputed_reduction_dt: " << dyn_quan->attrs.precomputed_reduction_dt;
             }
@@ -288,7 +288,7 @@ void dump_graph_init(std::ofstream& graph,
             bool doubled = true;
             auto it = user->get_dependencies().begin();
             while (it != user->get_dependencies().end()) {
-                int input_port = it - user->get_dependencies().begin();
+                int input_port = static_cast<int>(it - user->get_dependencies().begin());
                 if (it->first == node && marked_connection.find({node, input_port}) == marked_connection.end()) {
                     marked_connection.emplace(user, input_port);
                     break;
