@@ -2205,5 +2205,5 @@ TEST_F(TransformationTestsF, EliminateIdentityConvert_convert_multiple_consumers
 
     manager.register_pass<ov::pass::EliminateIdentityConvert>();
 
-    model_ref = model;
+    model_ref = model->clone();
 }
