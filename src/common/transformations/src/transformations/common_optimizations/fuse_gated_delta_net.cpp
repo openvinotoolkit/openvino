@@ -402,8 +402,7 @@ ov::Output<ov::Node> find_qk_anchor(const ov::Output<ov::Node>& start) {
     return {};
 }
 
-ov::Output<ov::Node> align_to_reference_shape(const ov::Output<ov::Node>& src,
-                                              const ov::Output<ov::Node>& reference) {
+ov::Output<ov::Node> align_to_reference_shape(const ov::Output<ov::Node>& src, const ov::Output<ov::Node>& reference) {
     const auto& src_ps = src.get_partial_shape();
     const auto& ref_ps = reference.get_partial_shape();
 
