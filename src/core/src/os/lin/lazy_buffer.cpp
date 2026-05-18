@@ -20,12 +20,15 @@ LazyBuffer::LazyBuffer(std::filesystem::path file_path, size_t offset, size_t by
     : AlignedBuffer(),
       m_file_path{std::move(file_path)},
       m_offset{offset},
-      m_alignment{alignment} {
+      m_alignment{alignment},
+      m_reserved_size{0},
+      m_reserved_buffer{MAP_FAILED},
+      m_loaded{false} {
     m_byte_size = byte_size;
     const auto file_size = util::file_size(m_file_path);
     OPENVINO_ASSERT(file_size >= 0 && m_offset <= static_cast<size_t>(file_size) &&
                         m_byte_size <= static_cast<size_t>(file_size) - m_offset,
-                    "If file exists it's size is smaller than requested range (file size: ",
+                    "If file exists its size is smaller than requested range (file size: ",
                     file_size,
                     ", requested offset: ",
                     m_offset,
@@ -48,7 +51,9 @@ LazyBuffer::LazyBuffer(std::filesystem::path file_path, size_t offset, size_t by
 }
 
 LazyBuffer::~LazyBuffer() {
-    std::ignore = munmap(m_reserved_buffer, m_reserved_size);
+    if (m_reserved_buffer != MAP_FAILED) {
+        std::ignore = munmap(m_reserved_buffer, m_reserved_size);
+    }
 }
 
 void LazyBuffer::ensure_present() const {

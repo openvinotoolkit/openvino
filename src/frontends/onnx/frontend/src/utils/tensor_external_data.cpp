@@ -80,7 +80,7 @@ Buffer<ov::AlignedBuffer> TensorExternalData::load_external_data(const std::file
     }
 
     const auto file_size = util::file_size(full_path);
-    if (file_size <= 0 || m_data_length > static_cast<uint64_t>(file_size) ||
+    if (file_size < 0 || m_data_length > static_cast<uint64_t>(file_size) ||
         m_offset > static_cast<uint64_t>(file_size) - m_data_length) {
         throw error::invalid_external_data{*this};
     }
