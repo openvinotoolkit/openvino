@@ -214,10 +214,23 @@ void test_variable_copy_from_fake_aligned_fc(bool is_caching_test) {
     auto is_4bit = weights_layout_dt == data_types::i4 || weights_layout_dt == data_types::u4;
     auto is_8bit = weights_layout_dt == data_types::i8 || weights_layout_dt == data_types::u8;
     auto is_extra_alignment_needed = input_b >= 256;
-    auto fake_align_base = (is_4bit || is_8bit) && is_extra_alignment_needed ? 64 : 16;
+    // Match runtime logic in fully_connected_inst::get_fake_aligned_params():
+    // iGPU uses base 16 (or 64 for quantized + large batch), dGPU uses base 8.
+    size_t fake_align_base = 8;
+    if (engine.get_device_info().dev_type == cldnn::device_type::integrated_gpu) {
+        fake_align_base = (is_4bit || is_8bit) && is_extra_alignment_needed ? 64 : 16;
+    }
 
-    const auto fc_output_batch_size_aligned = align_to(input_b * input_f, fake_align_base);
-    ASSERT_EQ(fc_output_batch_size, fc_output_batch_size_aligned);
+    const size_t batch_size = static_cast<size_t>(input_b * input_f);
+    const auto fc_output_batch_size_aligned = align_to(batch_size, fake_align_base);
+    // On Xe2+ and IMMAD iGPUs the runtime may roll back fake alignment when
+    // the predecessor buffer is too small (see get_fake_aligned_params_if_possible).
+    // Accept either the aligned or the original unaligned batch size.
+    ASSERT_TRUE(fc_output_batch_size == fc_output_batch_size_aligned ||
+                fc_output_batch_size == batch_size)
+        << "fc_output_batch_size=" << fc_output_batch_size
+        << " expected aligned=" << fc_output_batch_size_aligned
+        << " or unaligned=" << batch_size;
 
     // read_value
     ASSERT_EQ(outputs.size(), size_t(1));
