@@ -91,7 +91,7 @@ static std::vector<std::filesystem::path> list_files(const std::filesystem::path
     if (const auto dir_iter = std::filesystem::directory_iterator(path, ec); !ec) {
         for (const auto& dir_entry : dir_iter) {
             if (!std::filesystem::is_directory(dir_entry.status())) {
-                const auto file_name = dir_entry.path().filename().string();
+                const auto file_name = ov::util::path_to_string(dir_entry.path().filename());
                 if (is_fe_lib_name(file_name)) {
                     res.push_back(dir_entry.path());
                 }
