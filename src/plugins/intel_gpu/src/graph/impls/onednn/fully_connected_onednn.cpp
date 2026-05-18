@@ -310,8 +310,8 @@ public:
             auto partial_shape = impl_params->get_input_layout(0).get_partial_shape();
             auto innermost_len = partial_shape[partial_shape.size() - 1].get_length();
             auto& src_scale_shape = impl_params->input_layouts[src_scale_idx].get_partial_shape();
-            int src_scale_ngroups = src_scale_shape[src_scale_shape.size() - 1].get_length();
-            int src_group_size = innermost_len / src_scale_ngroups;
+            int64_t src_scale_ngroups = src_scale_shape[src_scale_shape.size() - 1].get_length();
+            int64_t src_group_size = innermost_len / src_scale_ngroups;
 
             auto act_scale_data_type = convert_data_type(impl_params->get_input_layout(src_scale_idx).data_type);
             _attrs->set_scales(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, act_scale_data_type);
@@ -373,7 +373,7 @@ public:
                 ds_data_type = convert_data_type(scale_layout.data_type);
                 auto ifm = arg.get_dependency(1).get_output_layout().get_dim(weight_rank - 1);
                 auto ngroups = scale_layout.get_dim(weight_rank - 1);
-                group_size = ifm / ngroups;
+                group_size = static_cast<int>(ifm / ngroups);
                 OPENVINO_ASSERT((group_size == 1 || ngroups == 1 || group_size % 16 == 0),
                     "[GPU] group_size should be aligned to 16 if it is not a single scale group or the group_size is not one.");
                 if (scale_layout.count() == 1) {
@@ -416,8 +416,8 @@ public:
                 auto& partial_shape = impl_params.input_layouts[0].get_partial_shape();
                 auto innermost_len = partial_shape[partial_shape.size() - 1].get_length();
                 auto& src_scale_shape = impl_params.input_layouts[src_scale_idx].get_partial_shape();
-                int src_scale_ngroups = src_scale_shape[src_scale_shape.size() - 1].get_length();
-                int src_group_size = innermost_len / src_scale_ngroups;
+                int64_t src_scale_ngroups = src_scale_shape[src_scale_shape.size() - 1].get_length();
+                int64_t src_group_size = innermost_len / src_scale_ngroups;
 
                 auto act_scale_data_type = convert_data_type(impl_params.input_layouts[src_scale_idx].data_type);
                 attr->set_scales(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, act_scale_data_type);

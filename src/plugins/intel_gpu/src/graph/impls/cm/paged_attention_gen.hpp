@@ -92,52 +92,73 @@ inline std::string get_pa_build_options() {
 
 constexpr uint32_t SG_M = 4;
 constexpr uint32_t SG_N = 8;
-constexpr size_t WG_SIZE = 16;
 constexpr int STRIDE = 16;
 
 enum class PagedAttentionStage : uint8_t { GENERATE = 0, PREFILL = 1, MIXED = 2, UNKNOWN = 3 };
+enum class MixedRouteMode : uint8_t { MULTI = 0, SPLIT = 1 };
 struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
-    PagedAttentionStage stage;
-    size_t max_context_len;
-    // below are rt params for decoding
-    size_t num_of_partitions;
-    // cached single-token Q chunking
-    SingleTokenQChunking q_chunking;
-    // below are rt params for xattn
-    size_t block_wg_m;
-    size_t q_block_pad;
-    size_t k_block_pad;
-    size_t q_stride_pad;
-    size_t q_block_pad_merged;
-    size_t N_kq_groups;
-    size_t M;
-    size_t N;
-    size_t K;
-    size_t xattn_block_size;
+    // common runtime state
+    PagedAttentionStage stage;       // Current PA execution stage
+    size_t max_context_len;          // Maximum KV context length in current batch
+    size_t batch_size_in_sequences;  // Number of subsequences in current request
+
+    // single-token/decode path
+    size_t num_of_partitions;                // Number of KV partitions for decode/finalization
+    SingleTokenQChunking q_chunking;         // Cached single-token Q-head chunking parameters
+    size_t single_token_selected_count = 0;  // Number of subsequences routed to single-token kernel
+
+    // multi-token dispatch size
+    size_t multi_token_wg_count = 0;  // Number of WGs required by pa_multi_token
+
+    // xattention runtime state
+    bool enable_xattn_estimation = false;  // Whether xattn estimate stages are enabled
+    size_t xattn_block_size = 1;           // Selected xattn sparse block size (1/128/256)
+    size_t xattn_num_subseqs = 1;          // Number of subsequences participating in xattn path
+
+    // xattention dispatch sizes
+    size_t xattn_gemmqk_wg_count = 0;  // Exact WG count for xattn_gemm_qk
+    size_t xattn_find_wg_count = 0;    // Exact WG count for xattn_find_block
+    size_t xattn_post_wg_count = 0;    // Exact WG count for xattn_post_proc
+
+    // xattention internal buffer sizing
+    size_t xattn_cumul_kq_max_bytes = 0;   // Total bytes for XATTN_GEMMQK_MAX
+    size_t xattn_cumul_exp_sum_bytes = 0;  // Total bytes for XATTN_GEMMQK_EXPSUMS
+    size_t xattn_cumul_mask_elems = 0;     // Total elements for XATTN_BLOCKMASK
+    size_t xattn_cumul_mask_wg_elems = 0;  // Total elements for XATTN_BLOCKMASK_MERGED
+    size_t xattn_meta_num_int32s = 0;      // Total int32 count in XATTN_SUBSEQ_META
 };
 
 enum PagedAttentionInternBuffIdx {
-    // for decoding kernels
-    DECODE_PARTITIONOUT = 0,  // 0: intermediate partition output
-    DECODE_EXPSUMS = 1,       // 1: softmax exp_sums
-    // for xattn kernels
-    XATTN_GEMMQK_MAX = 2,        // 2: kq_max_wg
-    XATTN_GEMMQK_EXPSUMS = 3,    // 3: kq_exp_partial_sum
-    XATTN_BLOCKMASK = 4,         // 4: sparse_block_mask
-    XATTN_BLOCKMASK_MERGED = 5,  // 5: sparse_block_mask_wg
+    // Decode scratch buffers used by generate path and split-mixed single-token path.
+    DECODE_PARTITIONOUT = 0,  // 0: f32 partial attention outputs before final reduction
+    DECODE_EXPSUMS = 1,       // 1: f32 softmax exp-sum accumulators for partition reduction
+
+    // Routing scratch buffers used to map subsequences onto decode/multi-token kernels.
+    MULTI_TOKEN_WG_MAPPING = 2,         // 2: i32 pairs [block_start_pos, subsequence_id]
+    SINGLE_TOKEN_SELECTED_SEQ_IDS = 3,  // 3: i32 subsequence ids selected for single-token dispatch
+
+    // XAttention estimate scratch buffers for multi-token sparse-attention path.
+    XATTN_GEMMQK_MAX = 4,        // 4: f32 max logits per GEMM-QK work-group tile
+    XATTN_GEMMQK_EXPSUMS = 5,    // 5: f32 partial exp-sums produced by GEMM-QK stage
+    XATTN_BLOCKMASK = 6,         // 6: boolean sparse block mask per q-block / k-block pair
+    XATTN_BLOCKMASK_MERGED = 7,  // 7: boolean sparse block mask after q-block merge in post-proc
+    XATTN_SUBSEQ_META = 8,       // 8: i32 per-subsequence metadata table (16 entries per subsequence)
+    XATTN_FIND_WG_MAP = 9,       // 9: i32 pairs [subseq_id, q_block_idx] for find-block dispatch
+    XATTN_POST_WG_MAP = 10,      // 10: i32 pairs [subseq_id, merged_q_block_idx] for post-proc dispatch
 #if FIND_DEBUG_ACC
-    XATTN_FIND_DEBUG_ACC = 6,  // 6: kq_sum for debug purpose only
+    XATTN_FIND_DEBUG_ACC = 11,  // 11: f16 debug-only KQ accumulation buffer
 #endif
 };
 
 //-----------------------------------------------------------------------------------------------------------------
 // Helpers of XAttention
 //-----------------------------------------------------------------------------------------------------------------
-int64_t get_aligned_seq_len(const kernel_impl_params& impl_param, const PagedAttentionStage& stage, int64_t target_seq_len_block_size);
+// Stage/context helpers shared across CM paged-attention implementation units.
 PagedAttentionStage get_paged_attention_stage(const kernel_impl_params& impl_param);
 size_t get_max_context_len(const kernel_impl_params& params);
-size_t get_past_len(const kernel_impl_params& params, const size_t seq_idx);
+size_t get_batch_size_in_sequences(const std::vector<layout>& input_layouts);
 
+// XAttention policy helpers.
 float get_xattn_thresh(const kernel_impl_params& impl_param, const size_t seq_idx = 0);
 bool bypass_xattn(const kernel_impl_params& impl_param);
 
@@ -156,10 +177,15 @@ public:
     [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
+
+private:
+    static size_t get_kv_update_wg_size(const RuntimeParams& params);
 };
 
 class PagedAttentionGeneratorMultiToken : public PagedAttentionGeneratorBase {
 public:
+    static constexpr size_t _wg_size = 16;
+
     explicit PagedAttentionGeneratorMultiToken(size_t xattn_block_size = 1)
         : PagedAttentionGeneratorBase("pa_multi_token", "_cm_bs" + std::to_string(xattn_block_size)),
           _xattn_block_size(xattn_block_size) {}
@@ -174,7 +200,7 @@ public:
     }
 
     static size_t get_wg_seq_len(const kernel_impl_params& params) {
-        return WG_SIZE * get_q_step(params);
+        return _wg_size * get_q_step(params);
     }
 
     [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;

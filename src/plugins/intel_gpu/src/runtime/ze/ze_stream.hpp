@@ -17,6 +17,7 @@ namespace ze {
 class ze_stream : public stream {
 public:
     ze_command_list_handle_t get_queue() const { return m_command_list; }
+    const ze_engine& get_engine() const { return _engine; }
 
     ze_stream(const ze_engine& engine, const ExecutionConfig& config);
     ze_stream(ze_stream&& other)
