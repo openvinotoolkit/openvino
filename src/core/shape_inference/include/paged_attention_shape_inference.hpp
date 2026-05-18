@@ -92,8 +92,8 @@ std::vector<TRShape> shape_infer(const PagedAttentionExtension* op,
         }
 
         const auto key_cache_et = op->get_input_element_type(3);
-        const std::array<element::Type, 4> supported_types{element::i8, element::u8, element::i4, element::u4};
-        if (std::find(supported_types.begin(), supported_types.end(), key_cache_et) == supported_types.end()) {
+        const auto key_cache_bitwidth = key_cache_et.bitwidth();
+        if (key_cache_bitwidth != 8 && key_cache_bitwidth != 4) {
             return block_size;
         }
 
@@ -109,8 +109,8 @@ std::vector<TRShape> shape_infer(const PagedAttentionExtension* op,
             return block_size;
         }
 
-        const int64_t params_count = key_cache_et == element::i8 ? 1 : 2;
-        const int64_t sub_byte_multiplier = (key_cache_et == element::i4 || key_cache_et == element::u4) ? 2 : 1;
+        const int64_t params_count = (key_cache_et == element::i8 || key_cache_et == element::i4) ? 1 : 2;
+        const int64_t sub_byte_multiplier = 8 / key_cache_bitwidth;
         return block_size - static_cast<int64_t>(sizeof(float)) * params_count * sub_byte_multiplier;
     };
 
