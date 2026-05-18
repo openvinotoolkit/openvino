@@ -51,6 +51,10 @@ DEFINE_string(data_shape, "",
 DEFINE_string(skip_output_layers, "", "Skip output layers from the network."
         " Accept ';' separated list of output layers");
 DEFINE_bool(clamp_u8_outputs, false, "Apply clamping when converting FP to U8");
+DEFINE_string(clamp_inf_outputs, "",
+        "Optional. ';'-separated list of output tensor names for which +/-inf values will be clamped to the "
+        "representable [dtype::lowest, dtype::max] range before metric evaluation. "
+        "Supported element types: f32, f16, bf16. Unsupported types are skipped with a warning.");
 DEFINE_string(mean_values, "",
         "Optional. Mean values to be used for the input image per channel. "
         "Values to be provided in the [channel1,channel2,channel3] format. "
@@ -158,6 +162,7 @@ void utils::parseCommandLine(int argc, char* argv[]) {
     std::cout << "    Scale_values [channel1,channel2,channel3] " << FLAGS_scale_values << std::endl;
     std::cout << "    Skip checking output layers:              " << FLAGS_skip_output_layers << std::endl;
     std::cout << "    Clamp U8 outputs:                         " << FLAGS_clamp_u8_outputs << std::endl;
+    std::cout << "    Clamp inf outputs:                        " << FLAGS_clamp_inf_outputs << std::endl;
     if (FLAGS_run_test) {
         std::cout << "    Reference files directory:                "
                   << (FLAGS_ref_dir.empty() && FLAGS_ref_results.empty() ? "Current directory" : FLAGS_ref_dir)
