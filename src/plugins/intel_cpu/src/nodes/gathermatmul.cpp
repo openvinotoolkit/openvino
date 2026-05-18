@@ -158,13 +158,14 @@ GatherMatmul::GatherMatmul(const std::shared_ptr<ov::Node>& op, const GraphConte
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    m_isCompressed = ov::is_type<ov::op::internal::GatherMatmulCompressed>(op);
+    algorithm = ov::is_type<ov::op::internal::GatherMatmulCompressed>(op) ? Algorithm::GatherMatmulCompressed
+                                                                          : Algorithm::GatherMatmulDefault;
 
     m_atoi[ARG_SRC] = DATA;
     m_atoi[ARG_WEI] = WEIGHTS;
     m_atoi[ARG_SRC_1] = INDICES;
     m_atoi[ARG_BIAS] = BIAS;
-    if (m_isCompressed) {
+    if (algorithm == Algorithm::GatherMatmulCompressed) {
         m_atoi[ARG_SRC_3] = WEIGHT_SCALES;
         m_atoi[ARG_SRC_4] = WEIGHT_ZERO_POINTS;
     }
@@ -191,8 +192,10 @@ void GatherMatmul::initSupportedPrimitiveDescriptors() {
     descs[ARG_WEI] = makeSrcDesc(WEIGHTS);
     descs[ARG_SRC_1] = makeSrcDesc(INDICES);
     descs[ARG_BIAS] = makeSrcDesc(BIAS);
-    descs[ARG_SRC_3] = m_isCompressed ? makeSrcDesc(WEIGHT_SCALES) : MemoryDescUtils::makeEmptyDesc();
-    descs[ARG_SRC_4] = m_isCompressed ? makeSrcDesc(WEIGHT_ZERO_POINTS) : MemoryDescUtils::makeEmptyDesc();
+    descs[ARG_SRC_3] =
+        algorithm == Algorithm::GatherMatmulCompressed ? makeSrcDesc(WEIGHT_SCALES) : MemoryDescUtils::makeEmptyDesc();
+    descs[ARG_SRC_4] = algorithm == Algorithm::GatherMatmulCompressed ? makeSrcDesc(WEIGHT_ZERO_POINTS)
+                                                                      : MemoryDescUtils::makeEmptyDesc();
     descs[ARG_DST] = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(dstTypes.front(), getOutputShapeAtPort(0));
 
     auto executionContext = std::make_shared<ExecutorContext>(context, getImplPriority(), privateWeightCache);
@@ -220,7 +223,7 @@ void GatherMatmul::createPrimitive() {
         m_memory[argId] = getSrcMemoryAtPort(portId);
     }
 
-    if (!m_isCompressed) {
+    if (algorithm != Algorithm::GatherMatmulCompressed) {
         m_memory[ARG_SRC_3] = MemoryDescUtils::makeEmptyMemory(context);
         m_memory[ARG_SRC_4] = MemoryDescUtils::makeEmptyMemory(context);
     }

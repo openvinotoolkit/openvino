@@ -10,6 +10,7 @@
 #include <unordered_map>
 
 #include "cpu_memory.h"
+#include "cpu_types.h"
 #include "graph_context.h"
 #include "node.h"
 #include "nodes/executors/executor.hpp"
@@ -55,7 +56,7 @@ private:
         WEIGHT_ZERO_POINTS,
     };
 
-    bool m_isCompressed = false;
+    Algorithm algorithm = Algorithm::GatherMatmulDefault;
 
     GatherMatmulAttrs m_attrs;
     ExecutorFactoryPtr<GatherMatmulAttrs> m_factory;
