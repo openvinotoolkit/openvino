@@ -34,17 +34,38 @@ UnconvertedOpsReport collect_unconverted_ops(const std::shared_ptr<ov::Model>& m
     if (!model) {
         return report;
     }
-
     for (const auto& node : model->get_ordered_ops()) {
-        // Try framework-specific extractor first
+        // Try framework-specific extractor first.
+        bool claimed = false;
         if (auto result = extractor(node)) {
             report.add(result->first, result->second);
+            claimed = true;
         }
 
-        // Handle MultiSubGraphOp (parent of Loop, If, etc.) - common for all frontends
-        if (const auto& subgraph_op = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
-            for (size_t i = 0; i < subgraph_op->get_internal_subgraphs_size(); ++i) {
-                report.merge(collect_unconverted_ops(subgraph_op->get_function(i), extractor));
+        const bool is_framework_node = ov::is_type<ov::op::util::FrameworkNode>(node);
+
+        // Universal fallback: any FrameworkNode (which the framework-specific
+        // extractor did not claim) left at the end of conversion — typically a
+        // frontend helper like SequenceMark / SequenceAt that no transformation
+        // managed to lower — is an unconverted op too.
+        // NOTE: util::FrameworkNode inherits from MultiSubGraphOp, so this
+        // check MUST come before the MultiSubGraphOp recursion below.
+        if (!claimed && is_framework_node) {
+            const auto& ti = node->get_type_info();
+            std::string op_name = ti.version_id ? std::string(ti.version_id) + "::" + ti.name : std::string(ti.name);
+            report.add(op_name, std::string{});
+            claimed = true;
+        }
+
+        // Handle real MultiSubGraphOp instances (Loop / If / TensorIterator) —
+        // recurse into their body subgraphs. FrameworkNodes are excluded above
+        // because they technically also derive from MultiSubGraphOp but do not
+        // hold conversion-target subgraphs to descend into here.
+        if (!is_framework_node) {
+            if (const auto& subgraph_op = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
+                for (size_t i = 0; i < subgraph_op->get_internal_subgraphs_size(); ++i) {
+                    report.merge(collect_unconverted_ops(subgraph_op->get_function(i), extractor));
+                }
             }
         }
     }

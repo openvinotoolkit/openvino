@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/frontend/sequence_at.hpp"
+
 #include <memory>
 
 #include "core/operator_set.hpp"
@@ -31,24 +33,26 @@ ov::OutputVector sequence_at(const ov::frontend::onnx::Node& node) {
 
     const auto& inputs = node.get_ov_inputs();
 
-    const auto& input_sequence = as_type_ptr<SequenceMark>(inputs[0].get_node_shared_ptr());
-    OPENVINO_ASSERT(input_sequence, "SequenceAt: 'input' must be a sequence");
-
     auto position = inputs[1];
     OPENVINO_ASSERT(position.get_partial_shape().rank().compatible(0), "SequenceAt: 'position' input must be a scalar");
 
-    const auto position_const = ov::util::get_constant_from_source(position);
-    OPENVINO_ASSERT(position_const, "SequenceAt: 'position' input must be constant");
+    // Fast path: input is a SequenceMark chain - resolve directly.
+    if (const auto input_sequence = as_type_ptr<SequenceMark>(inputs[0].get_node_shared_ptr())) {
+        const auto position_const = ov::util::get_constant_from_source(position);
+        if (position_const) {
+            const auto position_value = position_const->cast_vector<std::int64_t>()[0];
+            const auto input_sequence_length = static_cast<std::int64_t>(input_sequence->get_sequence().size());
+            const auto position_value_normalized =
+                position_value < 0 ? position_value + input_sequence_length : position_value;
+            OPENVINO_ASSERT(position_value_normalized >= 0 && position_value_normalized < input_sequence_length,
+                            "SequenceAt: 'position' is out of bounds");
+            return {input_sequence->get_sequence().at(position_value_normalized)};
+        }
+    }
 
-    const auto position_value = position_const->cast_vector<std::int64_t>()[0];
-
-    const auto input_sequence_length = static_cast<std::int64_t>(input_sequence->get_sequence().size());
-
-    const auto position_value_normalized = position_value < 0 ? position_value + input_sequence_length : position_value;
-    OPENVINO_ASSERT(position_value_normalized >= 0 && position_value_normalized < input_sequence_length,
-                    "SequenceAt: 'position' is out of bounds");
-
-    return {input_sequence->get_sequence().at(position_value_normalized)};
+    // Deferred path: the sequence is not directly accessible (e.g., it comes from an
+    // If/Loop output). Emit a helper op that will be resolved by a later transformation.
+    return {std::make_shared<ov::frontend::SequenceAt>(inputs[0], inputs[1])};
 }
 
 /// @brief Registers the SequenceAt operator implementation in the ONNX frontend
