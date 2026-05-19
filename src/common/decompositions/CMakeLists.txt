@@ -51,3 +51,15 @@ target_link_libraries(${TARGET_NAME} INTERFACE
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}_obj)
 
 ov_build_target_faster(${TARGET_NAME}_obj PCH)
+
+# In static builds, frontends (e.g. openvino_onnx_frontend, openvino_pytorch_frontend)
+# become STATIC libraries and propagate their PRIVATE link dependencies via
+# INTERFACE_LINK_LIBRARIES. As a result, the exported OpenVINOTargets references
+# `openvino_decompositions` and CMake requires the target itself to be in the same
+# export set. Install/export the INTERFACE wrapper unconditionally; since its
+# include dirs and object files are wrapped in $<BUILD_INTERFACE:...>, the
+# installed config only propagates `openvino::runtime` (already exported), and no
+# binary artifacts or headers are installed.
+install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets)
+export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
+       APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
