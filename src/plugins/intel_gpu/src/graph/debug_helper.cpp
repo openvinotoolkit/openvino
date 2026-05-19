@@ -111,7 +111,7 @@ std::pair<float, float> __validate_data_range(memory::ptr mem, stream& stream, c
         return {0.0f, 0.0f};
     }
 
-    GPU_DEBUG_INFO << "min, max = " << val_min << ", " << val_max << "  : " << info << " (n=" << count << ")" << std::endl;
+    GPU_DEBUG_INFO << "min, max = " << val_min << ", " << val_max << "  : " << info << "  is_packed " << is_memory_packed << std::endl;
     return {val_min, val_max};
 }
 
@@ -126,9 +126,7 @@ std::pair<float, float> validate_data_range(memory::ptr mem, stream& stream, con
     else if (data_type == cldnn::data_types::u8)
         return __validate_data_range<uint8_t>(mem, stream, data_layout, info);
     else
-        {
-            GPU_DEBUG_INFO << "Unsupport data type for validating data range " << data_type << std::endl;
-        }
+        GPU_DEBUG_INFO << "Unsupport data type for validating data range " << data_type << std::endl;
     return {0.0f, 0.0f};
 }
 
