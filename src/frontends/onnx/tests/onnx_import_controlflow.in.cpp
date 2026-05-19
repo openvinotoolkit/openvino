@@ -941,3 +941,106 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_sequence_insert_chain_new_axis) {
     test_case.add_expected_output<float>(Shape{3, 2}, {1.f, 2.f, 3.f, 4.f, 5.f, 6.f});
     test_case.run();
 }
+
+/// @brief Regression: fixed-N multi-slot sequence carried through a Loop and
+/// conditionally updated by an inner If, then read back via SequenceAt.
+///
+/// The else branch forwards the incoming sequence unchanged (resolving to a
+/// single opaque slot) while the then branch rebuilds the N=2 slot sequence.
+/// This is the SAL slot-resolution case that previously mis-counted the
+/// Loop merged-input slots (1-vs-N reconcile + back-edge undercount), leaving
+/// the SequenceAt consumers unconverted. With the fix the model must lower to
+/// native ops and produce the correct per-slot values.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_loop_if_multi_slot_kv_update) {
+    const auto model = convert_model("controlflow/loop_if_multi_slot_kv_update.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int64_t>({3});   // trip_count
+    test_case.add_input<bool>({true});   // cond_init
+    test_case.add_input<float>({10.f});  // init0
+    test_case.add_input<float>({20.f});  // init1
+
+    // Even iterations (0, 2) rebuild the 2-slot cache to [iter], [iter+1];
+    // odd iteration (1) forwards the cache. After 3 iterations the slots are
+    // [2] and [3], and the model returns slot0 + slot1 = [5].
+    test_case.add_expected_output<float>(Shape{1}, {5.f});
+    test_case.run();
+}
+
+/// @brief Regression: same Loop+If KV-cache pattern, but the then branch
+/// evicts the last slot (SequenceErase) and appends a fresh value
+/// (SequenceInsert) on the live sequence instead of rebuilding it.
+///
+/// Exercises the SequenceErase lowering and SequenceInsert-on-resolved-base
+/// slot reconciliation together with the else-branch passthrough, ensuring the
+/// element type and slot templates of the disconnected back-edge are preserved.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_loop_if_kv_erase_insert) {
+    const auto model = convert_model("controlflow/loop_if_kv_erase_insert.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int64_t>({3});   // trip_count
+    test_case.add_input<bool>({true});   // cond_init
+    test_case.add_input<float>({10.f});  // init0
+    test_case.add_input<float>({20.f});  // init1
+
+    // init [10, 20]; iter0 (even): erase last -> [10], insert 0 -> [10, 0];
+    // iter1 (odd): passthrough [10, 0]; iter2 (even): erase last -> [10],
+    // insert 2 -> [10, 2]. Result slot0 + slot1 = 10 + 2 = [12].
+    test_case.add_expected_output<float>(Shape{1}, {12.f});
+    test_case.run();
+}
+
+/// @brief SAL SequenceLength static-slot-count fallback.
+///
+/// SequenceConstruct(a, b, c) → SequenceLength.  The ONNX FE resolves the
+/// length directly to a compile-time Constant (3) via the SequenceMark fast
+/// path.  This test guards against regressions in SequenceLength resolution for
+/// fully-static sequences.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_sal_sequence_length_static_n_fallback) {
+    const auto model = convert_model("controlflow/sal_sequence_length_static_n.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({1.f, 2.f});  // a
+    test_case.add_input<float>({3.f, 4.f});  // b
+    test_case.add_input<float>({5.f, 6.f});  // c
+
+    // SequenceLength of a 3-element sequence must be the scalar int64 value 3.
+    test_case.add_expected_output<int64_t>(Shape{}, {3});
+    test_case.run();
+}
+
+/// @brief If with rank-mismatched branches: read, clone, and run.
+///
+/// The If node has an intentional rank mismatch: the then-branch returns a
+/// rank-1 Constant [1.0, 2.0] (shape [2]) while the else-branch returns a
+/// rank-0 scalar placeholder 0.0 (shape []).
+///
+/// ONNX FE converts this as-is; the model output has a static rank of 1 but
+/// an unknown extent (declared as float[?] in the ONNX graph).  The test
+/// verifies that:
+///   1. read_model() succeeds without an exception.
+///   2. model->clone() succeeds (guards against stale topological-cache bugs
+///      that would cause std::out_of_range in clone_ov_nodes).
+///   3. Inference with cond=true produces [1.0, 2.0] (then-branch value) and
+///      len=2 (SequenceLength of the 2-element float sequence).
+OPENVINO_TEST(${BACKEND_NAME}, onnx_sal_if_rank_mismatch_repair) {
+    const auto model = convert_model("controlflow/sal_if_rank_mismatch_repair.onnx");
+
+    // The declared ONNX output type is float[?] (rank-1, unknown extent).
+    EXPECT_TRUE(model->get_output_partial_shape(0).rank().is_static());
+    EXPECT_EQ(model->get_output_partial_shape(0).rank().get_length(), 1);
+    // SequenceLength output is a scalar int64.
+    EXPECT_EQ(model->get_output_partial_shape(1), ov::PartialShape{});
+
+    // Model::clone() must succeed.
+    EXPECT_NO_THROW(model->clone());
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    // cond=true: then-branch fires, if_out = [1.0, 2.0] (the then-branch Constant).
+    test_case.add_input<bool>({true});                           // cond
+    test_case.add_input<float>({7.f, 8.f});                      // seq_a (feeds SequenceLength only)
+    test_case.add_input<float>({9.f, 0.f});                      // seq_b
+    test_case.add_expected_output<float>(Shape{2}, {1.f, 2.f});  // if_out
+    test_case.add_expected_output<int64_t>(Shape{}, {2});        // len
+    test_case.run();
+}
