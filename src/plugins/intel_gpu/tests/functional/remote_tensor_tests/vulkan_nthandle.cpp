@@ -61,6 +61,46 @@ bool get_context_first_device(cl_context cl_ctx, cl_device_id& cl_device) {
     return true;
 }
 
+std::vector<int> parse_driver_version(const std::string& version) {
+    std::vector<int> components;
+    std::istringstream stream(version);
+    std::string token;
+    while (std::getline(stream, token, '.')) {
+        try {
+            components.push_back(std::stoi(token));
+        } catch (const std::exception&) {
+        }
+    }
+    return components;
+}
+
+// Lexicographic compare; missing trailing components are treated as 0 so
+// "26.05.37020" is considered equal to "26.05.37020.0" (and thus < 26.05.37020.3).
+bool driver_version_at_least(const std::vector<int>& actual, const std::vector<int>& required) {
+    const size_t count = std::max(actual.size(), required.size());
+    for (size_t i = 0; i < count; ++i) {
+        const int a = i < actual.size() ? actual[i] : 0;
+        const int r = i < required.size() ? required[i] : 0;
+        if (a != r) {
+            return a >= r;
+        }
+    }
+    return true;
+}
+
+bool get_cl_driver_version(cl_device_id cl_device, std::string& driver_version) {
+    size_t size = 0;
+    if (clGetDeviceInfo(cl_device, CL_DRIVER_VERSION, 0, nullptr, &size) != CL_SUCCESS || size == 0) {
+        return false;
+    }
+    std::vector<char> buffer(size);
+    if (clGetDeviceInfo(cl_device, CL_DRIVER_VERSION, size, buffer.data(), nullptr) != CL_SUCCESS) {
+        return false;
+    }
+    driver_version.assign(buffer.data());
+    return true;
+}
+
 bool supports_external_import_handle_type(cl_device_id cl_device, cl_uint handle_type) {
     size_t import_types_size = 0;
     cl_int status = clGetDeviceInfo(cl_device,
@@ -442,7 +482,6 @@ VulkanSharedBuffer create_vulkan_shared_buffer(VulkanTestContext& context, size_
 }
 
 TEST(GpuSharedBufferRemoteTensor, smoke_VulkanRemoteInputToRemoteOutputCopyAndCompare) {
-    GTEST_SKIP() << "skip because driver on ubuntu 22 too old" << std::endl;
     ov::Core core;
     const ov::Shape shape{16'000};
     const size_t element_count = ov::shape_size(shape);
@@ -461,6 +500,18 @@ TEST(GpuSharedBufferRemoteTensor, smoke_VulkanRemoteInputToRemoteOutputCopyAndCo
     auto cl_ctx = static_cast<cl_context>(it->second.as<ov::intel_gpu::ocl::gpu_handle_param>());
     cl_device_id cl_device = nullptr;
     ASSERT_TRUE(get_context_first_device(cl_ctx, cl_device));
+
+    const std::vector<int> required_driver_version = {26, 5, 37020, 3};
+    std::string driver_version_str;
+    if (!get_cl_driver_version(cl_device, driver_version_str)) {
+        GTEST_SKIP() << "Failed to query OpenCL driver version";
+    }
+    const std::vector<int> driver_version = parse_driver_version(driver_version_str);
+    if (!driver_version_at_least(driver_version, required_driver_version)) {
+        GTEST_SKIP() << "Skipping: GPU driver \"" << driver_version_str
+                     << "\" is older than required 26.05.37020.3";
+    }
+
     if (!supports_external_import_handle_type(cl_device, k_cl_external_memory_handle_type)) {
         GTEST_SKIP() << "Device does not support required external-memory handle import type";
     }
