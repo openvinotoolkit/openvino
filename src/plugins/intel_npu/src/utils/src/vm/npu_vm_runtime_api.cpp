@@ -9,6 +9,11 @@
 
 namespace intel_npu {
 
+namespace {
+std::string g_libName{"npu_mlir_runtime"};
+bool g_instanceCreated{false};
+}  // namespace
+
 NPUVMRuntimeApi::NPUVMRuntimeApi(std::string_view libName) {
     const std::string baseName = libName.empty() ? "npu_mlir_runtime" : std::string(libName);
     try {
@@ -40,8 +45,16 @@ NPUVMRuntimeApi::NPUVMRuntimeApi(std::string_view libName) {
 #undef nmr_symbol_statement
 }
 
+void NPUVMRuntimeApi::initialize(std::string_view libName) {
+    if (g_instanceCreated) {
+        OPENVINO_THROW("NPUVMRuntimeApi::initialize() must be called before the first use of getInstance()");
+    }
+    g_libName = libName.empty() ? "npu_mlir_runtime" : std::string(libName);
+}
+
 const std::shared_ptr<NPUVMRuntimeApi>& NPUVMRuntimeApi::getInstance() {
-    static std::shared_ptr<NPUVMRuntimeApi> instance = std::make_shared<NPUVMRuntimeApi>();
+    static std::shared_ptr<NPUVMRuntimeApi> instance = std::make_shared<NPUVMRuntimeApi>(g_libName);
+    g_instanceCreated = true;
     return instance;
 }
 

@@ -40,6 +40,10 @@ public:
 
     ~NPUVMRuntimeApi() = default;
 
+    // Must be called before the first getInstance() invocation.
+    // Throws if the singleton has already been created.
+    static void initialize(std::string_view libName);
+
     static const std::shared_ptr<NPUVMRuntimeApi>& getInstance();
 
 #define nmr_symbol_statement(symbol) decltype(&::symbol) symbol;
