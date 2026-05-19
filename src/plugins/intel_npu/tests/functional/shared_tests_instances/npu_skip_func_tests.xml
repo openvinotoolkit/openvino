@@ -913,7 +913,7 @@ Example:
         </enable_rules>
         <filters>
             <filter>.*InferRequestPropertiesTest.canSetExclusiveAsyncRequests.*</filter>
-            <filter>.*ExecutorsConfig.SetExclusiveAsyncRequestsAndTilesCheckResults.*</filter>
+            <filter>.*ExclusiveAsyncRequestsTests.SetExclusiveAsyncRequestsCheckResults.*configItem=NPU_TILES_2.*</filter>
         </filters>
     </skip_config>
 
