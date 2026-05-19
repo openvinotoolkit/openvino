@@ -1597,12 +1597,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             // WA: hybrid linear-attention (Mamba2 / Gated DeltaNet) models are unstable
             // under per-token INT8 dyn-quant on `linear_attn.out_proj`. Force gs=128 for
             // the whole model if a linear-attention block is detected.
-            if (dynamic_quantization_group_size == UINT64_MAX && is_hybrid_linear_attention_model(*func)) {
-                GPU_DEBUG_LOG << "Dynamic quantization: hybrid linear-attention model detected, "
-                              << "forcing group_size=128 (per-token disabled)" << std::endl;
-                dynamic_quantization_group_size = 128;
-            }
-
+            const bool use_gs128_for_linear_attention = is_hybrid_linear_attention_model(*func);
             const bool group_dyn_quan_allowed = m_context->get_engine().get_device_info().supports_non_uniform_work_group;
             // WA: when platform does not support non-uniform-work-group, it may fail to run dynamic quantization for gs128.
             // This is unlikely to happen. But this WA is added just in case.
@@ -1635,7 +1630,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 }
                 uint64_t adj_group_size = dynamic_quantization_group_size;
                 const bool is_wei_i8u8 = cldnn::one_of(root->get_input_element_type(1), {ov::element::i8, ov::element::u8});
-                if (ov::intel_gpu::DynamicQuantizeFullyConnected::ShouldUseGs128(is_wei_i8u8, use_gs128_for_int8_per_token, adj_group_size)) {
+                if (ov::intel_gpu::DynamicQuantizeFullyConnected::ShouldUseGs128(is_wei_i8u8, use_gs128_for_int8_per_token, adj_group_size, use_gs128_for_linear_attention)) {
                     adj_group_size = 128;
                 }
 
@@ -1690,7 +1685,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 manager.register_pass<ov::intel_gpu::DynamicQuantizeFullyConnected>(dynamic_quantization_group_size,
                                                                                     asymmetric_dyn_quant,
                                                                                     precomputed_reduction,
-                                                                                    use_gs128_for_int8_per_token);
+                                                                                    use_gs128_for_int8_per_token,
+                                                                                    use_gs128_for_linear_attention);
             }
         }
 
