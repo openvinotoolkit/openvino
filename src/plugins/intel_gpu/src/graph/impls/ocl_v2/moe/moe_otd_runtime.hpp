@@ -5,9 +5,12 @@
 #pragma once
 
 #include <array>
+#include <atomic>
+#include <chrono>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <iostream>
 #include <limits>
 #include <memory>
 #include <stdexcept>
@@ -16,10 +19,6 @@
 #include <vector>
 
 #include "openvino/util/parallel_io.hpp"
-
-#include <atomic>
-#include <chrono>
-#include <iostream>
 
 #include "LRUCache.hpp"
 #include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
