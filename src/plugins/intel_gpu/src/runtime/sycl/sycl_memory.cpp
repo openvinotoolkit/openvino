@@ -216,7 +216,7 @@ event::ptr gpu_buffer::copy_from(stream& stream, const memory& src_mem, size_t s
             // TODO: implement
             //auto usm_mem = downcast<const gpu_usm>(&src_mem);
             //return copy_from(stream, usm_mem->buffer_ptr(), src_offset, dst_offset, size, blocking);
-        }
+        } break;
         case allocation_type::sycl_buffer: {
             OPENVINO_ASSERT(!src_mem.get_layout().format.is_image_2d());
 
@@ -239,10 +239,10 @@ event::ptr gpu_buffer::copy_from(stream& stream, const memory& src_mem, size_t s
             } catch (::sycl::exception const& err) {
                 OPENVINO_THROW(SYCL_ERR_MSG_FMT(err));
             }
-        }
+        } break;
         case allocation_type::cl_mem: {
             OPENVINO_THROW("[GPU] SYCL engine does not support allocation_type::cl_mem");
-        }
+        } break;
         default:
             OPENVINO_THROW("[GPU] Unsupported buffer type for gpu_buffer::copy_from() function");
     }
