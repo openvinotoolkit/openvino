@@ -84,9 +84,15 @@ inline float moe_mlp_fast_erf(float x) {
 // extension; fall back to a per-lane indexed gather producing the same
 // distribution: lane i receives { p[i], p[i+SG], ..., p[i+(N-1)*SG] }.
 #ifdef cl_intel_subgroup_local_block_io
+inline ushort2 slm_block_read_us2(const __local ushort* p) { return intel_sub_group_block_read_us2(p); }
 inline ushort4 slm_block_read_us4(const __local ushort* p) { return intel_sub_group_block_read_us4(p); }
 inline ushort8 slm_block_read_us8(const __local ushort* p) { return intel_sub_group_block_read_us8(p); }
 #else
+inline ushort2 slm_block_read_us2(const __local ushort* p) {
+    const int id = get_sub_group_local_id();
+    return (ushort2)(p[id],
+                     p[id + 1 * SUBGROUP_SIZE]);
+}
 inline ushort4 slm_block_read_us4(const __local ushort* p) {
     const int id = get_sub_group_local_id();
     return (ushort4)(p[id],
@@ -169,7 +175,7 @@ inline void gate_up_gemv_n2x_u4(const __global uchar* weight,
             // Each lane reads 2 K-elements (1 byte = 2 nibbles).
             half sum0;
             half sum1;
-            half2 a = as_half2(intel_sub_group_block_read_us2((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            half2 a = as_half2(slm_block_read_us2((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
             uchar b = intel_sub_group_block_read_uc((const __global uchar*)B + gk * FAKE_GROUP_SIZE / 2);
             uchar b2 = intel_sub_group_block_read_uc((const __global uchar*)(B + (K / 2) + gk * FAKE_GROUP_SIZE / 2));
 
@@ -297,7 +303,7 @@ inline void gate_up_gemv_n2x_u8(const __global uchar* weight,
             // Each lane reads 2 K-elements (8-bit weights, 1 byte each).
             float sum0;
             float sum1;
-            half2 a = as_half2(intel_sub_group_block_read_us2((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            half2 a = as_half2(slm_block_read_us2((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
             uchar2 b = intel_sub_group_block_read_uc2((const __global uchar*)B + gk * FAKE_GROUP_SIZE);
             uchar2 b2 = intel_sub_group_block_read_uc2((const __global uchar*)(B + K + gk * FAKE_GROUP_SIZE));
 
@@ -717,7 +723,7 @@ inline void down_gemv_n2x_u4(const __global uchar* weight,
             // Each lane reads 2 K-elements (1 byte = 2 nibbles).
             half sum0;
             half sum1;
-            half2 a = as_half2(intel_sub_group_block_read_us2((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            half2 a = as_half2(slm_block_read_us2((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
             uchar b = intel_sub_group_block_read_uc((const __global uchar*)B + gk * FAKE_GROUP_SIZE / 2);
             uchar b2 = intel_sub_group_block_read_uc((const __global uchar*)(B + (K / 2) + gk * FAKE_GROUP_SIZE / 2));
 
@@ -839,7 +845,7 @@ inline void down_gemv_n2x_u8(const __global uchar* weight,
             // Each lane reads 2 K-elements (8-bit weights, 1 byte each).
             float sum0;
             float sum1;
-            half2 a = as_half2(intel_sub_group_block_read_us2((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            half2 a = as_half2(slm_block_read_us2((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
             uchar2 b = intel_sub_group_block_read_uc2((const __global uchar*)B + gk * FAKE_GROUP_SIZE);
             uchar2 b2 = intel_sub_group_block_read_uc2((const __global uchar*)B + K + gk * FAKE_GROUP_SIZE);
 
