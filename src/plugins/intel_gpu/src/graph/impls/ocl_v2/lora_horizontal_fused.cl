@@ -4,6 +4,19 @@
 
 #include "include/batch_headers/fetch_data.cl"
 
+// __local-pointer overloads of intel_sub_group_block_read* are only declared
+// when cl_intel_subgroup_local_block_io is advertised. NEO 23.x+ no longer
+// declares them implicitly. Use the intrinsic on drivers that expose the
+// extension; fall back to the equivalent per-lane indexed gather (lane i
+// receives word i, matching the block-read distribution).
+#ifdef cl_intel_subgroup_local_block_io
+inline uint   slm_block_read_uint  (const __local uint*   p) { return intel_sub_group_block_read   (p); }
+inline ushort slm_block_read_ushort(const __local ushort* p) { return intel_sub_group_block_read_us(p); }
+#else
+inline uint   slm_block_read_uint  (const __local uint*   p) { return p[get_sub_group_local_id()]; }
+inline ushort slm_block_read_ushort(const __local ushort* p) { return p[get_sub_group_local_id()]; }
+#endif
+
 #ifdef SECOND_TOKEN_A
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
 KERNEL(horizontal_fused_second_token_a)(OPTIONAL_SHAPE_INFO_ARG
@@ -97,18 +110,18 @@ KERNEL(horizontal_fused_second_token_a)(OPTIONAL_SHAPE_INFO_ARG
         __attribute__((opencl_unroll_hint))
         for (int i = 0; i < gemma_sgK; i++) {
 #if ACCUMULATOR_TYPE_SIZE == 4
-            sum += AS_ACCUMULATOR_TYPE(((const __local uint*)(fma_buff + i * MAX_GEMMA_N + n_idx))[get_sub_group_local_id()]);
+            sum += AS_ACCUMULATOR_TYPE(slm_block_read_uint((const __local uint*)(fma_buff + i * MAX_GEMMA_N + n_idx)));
 #else
-            sum += AS_ACCUMULATOR_TYPE(((const __local ushort*)(fma_buff + i * MAX_GEMMA_N + n_idx))[get_sub_group_local_id()]);
+            sum += AS_ACCUMULATOR_TYPE(slm_block_read_ushort((const __local ushort*)(fma_buff + i * MAX_GEMMA_N + n_idx)));
 #endif
         }
     } else {
         // Can't unroll, tail handling
         for (int i = 0; i < sgK; i++) {
 #if ACCUMULATOR_TYPE_SIZE == 4
-            sum += AS_ACCUMULATOR_TYPE(((const __local uint*)(fma_buff + i * MAX_GEMMA_N + n_idx))[get_sub_group_local_id()]);
+            sum += AS_ACCUMULATOR_TYPE(slm_block_read_uint((const __local uint*)(fma_buff + i * MAX_GEMMA_N + n_idx)));
 #else
-            sum += AS_ACCUMULATOR_TYPE(((const __local ushort*)(fma_buff + i * MAX_GEMMA_N + n_idx))[get_sub_group_local_id()]);
+            sum += AS_ACCUMULATOR_TYPE(slm_block_read_ushort((const __local ushort*)(fma_buff + i * MAX_GEMMA_N + n_idx)));
 #endif
         }
     }
@@ -208,9 +221,9 @@ KERNEL(second_token_b)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 
 #if ACCUMULATOR_TYPE_SIZE == 4
-        ACCUMULATOR_TYPE input = AS_ACCUMULATOR_TYPE(((const __local uint*)(reduce_ptr + kk))[get_sub_group_local_id()]);
+        ACCUMULATOR_TYPE input = AS_ACCUMULATOR_TYPE(slm_block_read_uint((const __local uint*)(reduce_ptr + kk)));
 #else
-        ACCUMULATOR_TYPE input = AS_ACCUMULATOR_TYPE(((const __local ushort*)(reduce_ptr + kk))[get_sub_group_local_id()]);
+        ACCUMULATOR_TYPE input = AS_ACCUMULATOR_TYPE(slm_block_read_ushort((const __local ushort*)(reduce_ptr + kk)));
 #endif
         input *= scale;
 
