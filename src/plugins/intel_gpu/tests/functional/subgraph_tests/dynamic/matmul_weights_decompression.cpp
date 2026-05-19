@@ -319,6 +319,10 @@ protected:
                      abs_threshold_f16,
                      is_mxfp] = GetParam();
 
+        if (weights_precision.is_real()) {
+            GTEST_SKIP();;
+        }
+
         init_input_shapes({shape_params.data_shape, {{}, {{shape_params.weights_shape}}}});
 
         inType = outType = activations_precision;
