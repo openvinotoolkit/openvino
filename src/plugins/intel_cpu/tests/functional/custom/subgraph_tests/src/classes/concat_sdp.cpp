@@ -87,17 +87,16 @@ void ConcatSDPTest::SetUp() {
     const bool is_tbq = has_value("KEY_CACHE_QUANT_ALG", "TURBO") ||
                         has_value("VALUE_CACHE_QUANT_ALG", "TURBO") ||
                         has_value("KV_CACHE_QUANT_ALG", "TURBO");
-    rel_threshold = 3e-2F;
-    abs_threshold = 0.02F;
+    rel_threshold = 1e-2F;
+    abs_threshold = 1e-3F;
     if (is_u4 && is_tbq) {
-        // u4 + TBQ4 mix compounds both codecs' quant bias.
-        abs_threshold = 0.5F;
-    } else if (is_u4) {
-        abs_threshold = 0.4F;
-    } else if (is_tbq) {
-        abs_threshold = 0.45F;
-    } else if (is_u8) {
         abs_threshold = 0.1F;
+    } else if (is_u4) {
+        abs_threshold = 0.08F;
+    } else if (is_tbq) {
+        abs_threshold = 0.09F;
+    } else if (is_u8) {
+        abs_threshold = 0.02F;
     }
     init_input_shapes(inputShapes);
 
@@ -194,7 +193,7 @@ void ConcatSDPTest::generate_inputs(const std::vector<ov::Shape>& targetInputSta
         return utils::create_and_fill_tensor_normal_distribution(param->get_element_type(),
                                                                  shape,
                                                                  /*mean=*/0.0F,
-                                                                 /*stddev=*/1.0F,
+                                                                 /*stddev=*/0.2F,
                                                                  seed);
     };
     auto fill_beam_idx = [](const std::shared_ptr<ov::op::v0::Parameter>& param, const ov::Shape& shape, int start) {
