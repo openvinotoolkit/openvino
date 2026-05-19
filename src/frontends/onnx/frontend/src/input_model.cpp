@@ -624,7 +624,6 @@ private:
     void clean_up();
 
     std::vector<std::shared_ptr<OpPlace>> m_op_places;
-    std::map<std::string, std::shared_ptr<OpPlace>> m_op_places_map;
     std::map<std::string, std::shared_ptr<TensorONNXPlace>> m_tensor_places;
     std::vector<ov::frontend::Place::Ptr> m_inputs;
     std::vector<ov::frontend::Place::Ptr> m_outputs;
@@ -646,9 +645,6 @@ private:
     std::shared_ptr<TensorONNXPlace> register_tensor_place(const std::shared_ptr<TensorONNXPlace>& tensor_place);
     std::shared_ptr<TensorONNXPlace> find_tensor_place(const TensorMetaInfo& tensor_meta_info) const;
     std::shared_ptr<TensorONNXPlace> ensure_tensor_place(const TensorMetaInfo& tensor_meta_info);
-    void connect_inputs(const std::shared_ptr<OpPlace>& op_place, const std::shared_ptr<DecoderBaseOperation>& decoder);
-    void connect_outputs(const std::shared_ptr<OpPlace>& op_place,
-                         const std::shared_ptr<DecoderBaseOperation>& decoder);
 };
 
 namespace {
@@ -718,13 +714,17 @@ void InputModel::InputModelONNXImpl::load_model() {
                 op_statistics[op_name]++;
             }
 
-            const auto& operation_name = operation_decoder->get_op_name();
-            if (!operation_name.empty()) {
-                m_op_places_map[operation_name] = op_place;
+            // Register tensor places referenced as op inputs/outputs so the translator
+            // can look them up by name. Port-level relationships (InPortPlace/OutPortPlace)
+            // are not consumed by the unify translation path, so they are not built here.
+            const auto input_count = operation_decoder->get_input_size();
+            for (size_t i = 0; i < input_count; ++i) {
+                ensure_tensor_place(operation_decoder->get_input_tensor_info(i));
             }
-
-            connect_inputs(op_place, operation_decoder);
-            connect_outputs(op_place, operation_decoder);
+            const auto output_count = operation_decoder->get_output_size();
+            for (size_t i = 0; i < output_count; ++i) {
+                ensure_tensor_place(operation_decoder->get_output_tensor_info(i));
+            }
         }
     }
 
@@ -806,45 +806,6 @@ std::shared_ptr<TensorONNXPlace> InputModel::InputModelONNXImpl::ensure_tensor_p
         return existing;
     }
     return register_tensor_place(decode_tensor_place(tensor_meta_info, m_input_model, m_reuse_const_data));
-}
-
-void InputModel::InputModelONNXImpl::connect_inputs(const std::shared_ptr<OpPlace>& op_place,
-                                                    const std::shared_ptr<DecoderBaseOperation>& decoder) {
-    const auto input_count = decoder->get_input_size();
-    for (size_t i = 0; i < input_count; ++i) {
-        auto tensor_place = ensure_tensor_place(decoder->get_input_tensor_info(i));
-        if (!tensor_place) {
-            continue;
-        }
-
-        auto in_port = std::make_shared<InPortPlace>(m_input_model);
-        tensor_place->add_consuming_port(in_port);
-        in_port->set_source_tensor(tensor_place);
-        in_port->set_op(op_place);
-
-        std::string port_name = decoder->get_input_tensor_name(i);
-        if (port_name.empty()) {
-            port_name = "input_" + std::to_string(i);
-        }
-        op_place->add_in_port(in_port, port_name);
-    }
-}
-
-void InputModel::InputModelONNXImpl::connect_outputs(const std::shared_ptr<OpPlace>& op_place,
-                                                     const std::shared_ptr<DecoderBaseOperation>& decoder) {
-    const auto output_count = decoder->get_output_size();
-    for (size_t i = 0; i < output_count; ++i) {
-        auto tensor_place = ensure_tensor_place(decoder->get_output_tensor_info(i));
-        if (!tensor_place) {
-            continue;
-        }
-
-        auto out_port = std::make_shared<OutPortPlace>(m_input_model);
-        tensor_place->add_producing_port(out_port);
-        out_port->set_target_tensor(tensor_place);
-        out_port->set_op(op_place);
-        op_place->add_out_port(out_port, static_cast<int>(i));
-    }
 }
 
 InputModel::InputModelONNXImpl::InputModelONNXImpl(const GraphIterator::Ptr& graph_iterator,
