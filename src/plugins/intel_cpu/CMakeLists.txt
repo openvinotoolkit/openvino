@@ -113,6 +113,15 @@ endif()
 set(OV_CPU_ARM_TARGET_ARCH ${OV_CPU_ARM_TARGET_ARCH_DEFAULT} CACHE STRING "Architecture for ARM ComputeLibrary")
 set_property(CACHE OV_CPU_ARM_TARGET_ARCH PROPERTY STRINGS ${OV_CPU_ARM_TARGET_ARCHS})
 
+set(OV_CPU_ARM_COMPUTE_CXX_FLAGS)
+if(LINUX AND AARCH64 AND OV_CPU_AARCH64_USE_MULTI_ISA)
+    if(OV_COMPILER_IS_CLANG)
+        set(OV_CPU_ARM_COMPUTE_CXX_FLAGS "-march=armv8-a")
+    elseif(CMAKE_COMPILER_IS_GNUCXX)
+        set(OV_CPU_ARM_COMPUTE_CXX_FLAGS "-march=armv8-a")
+    endif()
+endif()
+
 if(X86 OR X86_64 OR AARCH64)
     # disable mlas with webassembly and intel compiler on windows
     if(EMSCRIPTEN OR (WIN32 AND AARCH64) OR MINGW OR
@@ -133,7 +142,17 @@ else()
 endif()
 ov_dependent_option(ENABLE_KLEIDIAI_FOR_CPU "Enable KleidiAI for OpenVINO CPU Plugin" ${ENABLE_KLEIDIAI_FOR_CPU_DEFAULT} "AARCH64" OFF)
 
+if(OV_CPU_ARM_COMPUTE_CXX_FLAGS)
+    set(OV_CPU_CXX_FLAGS_SAVE "${CMAKE_CXX_FLAGS}")
+    string(APPEND CMAKE_CXX_FLAGS " ${OV_CPU_ARM_COMPUTE_CXX_FLAGS}")
+endif()
+
 add_subdirectory(thirdparty)
+
+if(DEFINED OV_CPU_CXX_FLAGS_SAVE)
+    set(CMAKE_CXX_FLAGS "${OV_CPU_CXX_FLAGS_SAVE}")
+    unset(OV_CPU_CXX_FLAGS_SAVE)
+endif()
 
 if(WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNOMINMAX")
