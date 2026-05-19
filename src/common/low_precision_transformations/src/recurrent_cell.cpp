@@ -181,10 +181,7 @@ bool RecurrentCellTransformation::transform(ov::pass::pattern::Matcher& m) {
                 continue;
             }
 
-            const auto& precisionsAttribute = getAttributeFromOutput<PrecisionsAttribute>(fq);
-            const auto& precisions = precisionsAttribute.empty() ?
-                defaultPrecisions :
-                precisionsAttribute.as<PrecisionsAttribute>().value();
+            const auto precisions = getOutputPrecisionAttribute(fq->output(0)).value_or(defaultPrecisions);
             const auto& dataPrecision = getDataPrecision(fq, quantizationDetails, precisions);
             if (dataPrecision.empty() ||
                 ((input.second != element::dynamic) && (dataPrecision.precision != input.second))) {
@@ -220,10 +217,7 @@ bool RecurrentCellTransformation::transform(ov::pass::pattern::Matcher& m) {
             if (is_type<ov::opset5::Constant>(fq_parent)) {
                 auto fq_node = as_type_ptr<ov::opset1::FakeQuantize>(lstm_parent);
                 const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fq_node);
-                const auto precisionsAttribute = getAttributeFromOutput<PrecisionsAttribute>(lstm_parent);
-                const auto precisions = precisionsAttribute.empty()
-                                            ? defaultPrecisions
-                                            : precisionsAttribute.as<PrecisionsAttribute>().value();
+                const auto precisions = getOutputPrecisionAttribute(lstm_parent->output(0)).value_or(defaultPrecisions);
                 const DataPrecision dataPrecision = getDataPrecision(lstm_parent, quantizationDetails, precisions);
                 if (dataPrecision.empty() || dataPrecision.hasZeroPoint) {
                     return false;

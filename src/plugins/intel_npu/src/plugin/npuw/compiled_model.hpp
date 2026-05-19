@@ -18,11 +18,13 @@
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "openvino/util/mmap_object.hpp"
+#include "orc/schema_npuw.hpp"
 #include "partitioning/partitioning.hpp"
 #include "perf.hpp"
 #include "pyramid_attention.hpp"
 #include "serialization.hpp"
 #include "spatial.hpp"
+#include "v1/subgraph_pipeline.hpp"
 #include "weights_bank.hpp"
 
 namespace intel_npu {
@@ -70,6 +72,10 @@ public:
 // Forward declarations
 class InferRequest;
 
+namespace v1::subgraphs {
+class Context;
+}
+
 namespace moe {
 class MoEExecutor;
 }
@@ -80,9 +86,21 @@ class CompiledModel : public ov::npuw::ICompiledModel_v0 {
         std::map<std::string, std::tuple<ov::PropertyMutability, std::function<ov::Any(const ::intel_npu::Config&)>>>;
 
 public:
+    static constexpr ov::npuw::orc::TypeId kOrcType =
+        static_cast<ov::npuw::orc::TypeId>(ov::npuw::orc::schema_npuw::PartitionedModel::ID);
+    // Version 1 introduced an explicit META leaf child section for the model's
+    // own serialized fields, making the PartitionedModel container fully
+    // navigable without schema knowledge.  Version 0 (pre-release only) wrote
+    // those fields as raw s11n bytes at the start of the container body.
+    static constexpr ov::npuw::orc::Version kOrcVersion = 1u;
+
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const ov::AnyMap& properties);
+    CompiledModel(const std::shared_ptr<ov::Model>& model,
+                  const std::shared_ptr<const ov::IPlugin>& plugin,
+                  const ov::AnyMap& properties,
+                  const ov::npuw::v1::subgraphs::PatternRegistry* subgraph_patterns);
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const bool serialized);
@@ -107,6 +125,8 @@ public:
         std::shared_ptr<IBaseInferRequest> internal_request) const override;
     std::string submodel_device(std::size_t idx) const override;
     std::size_t num_submodels() const override;
+    bool attention_dynamic_enabled() const;
+    bool attention_no_copy() const;
     std::shared_ptr<weights::Bank> get_weights_bank() const override;
     void set_weights_bank(std::shared_ptr<weights::Bank> bank) override;
     void finalize_weights_bank() override;
@@ -124,14 +144,9 @@ private:
     friend class LLMInferRequest;
     friend class moe::MoEExecutor;
 
-    bool compile_for_success(std::size_t id);
-    bool compile_for_device(std::size_t id, const std::string& device_to_try);
+    bool compile_for_success(std::size_t id, const std::vector<std::string>& devices);
     ov::SoPtr<ov::ICompiledModel> compile_submodel(const std::shared_ptr<ov::Model>& submodel,
                                                    const std::string& device);
-    void compile_main_model(std::size_t id, const std::string& device);
-    void compile_moe_models(std::size_t id, const std::string& device);
-    void compile_pyramid_attention_models(std::size_t id, const std::string& device);
-    void compile_host_flash_attention_model(std::size_t id, const std::string& device);
 
     void dump_on_fail(std::size_t id, const std::string& device_to_stry, const char* extra);
     std::string format_subgraph_name(std::size_t id, const std::string& funcall) const;
@@ -144,6 +159,24 @@ private:
                                                       const std::shared_ptr<const ov::IPlugin>& plugin,
                                                       const ov::AnyMap& properties,
                                                       const ov::npuw::s11n::CompiledContext& ctx);
+    static std::shared_ptr<CompiledModel> deserialize_orc(std::istream& stream,
+                                                          const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                          const ov::AnyMap& properties);
+    void serialize_orc(std::ostream& stream) const;
+    static std::shared_ptr<CompiledModel> deserialize_orc_container(
+        std::istream& stream,
+        const std::shared_ptr<const ov::IPlugin>& plugin,
+        const ov::AnyMap& properties,
+        bool require_weights_bank,
+        const std::function<std::string(const std::string&)>& decrypt);
+    void serialize_orc_container(std::ostream& stream,
+                                 bool include_weights_bank,
+                                 const std::function<std::string(const std::string&)>& encrypt,
+                                 // Nested serializers may need to preserve BF16 metadata
+                                 // collected by a parent model (e.g. LLMCompiledModel)
+                                 // rather than this object's local snapshot.
+                                 const ov::npuw::s11n::BF16Cache* bf16_consts = nullptr) const;
+    void ensure_phase0_compatibility() const;
 
     // This is used for removing too long output tensor names to fix some compilation issues
     // NB: These two methods has nothing to do with this particular class and should be
@@ -151,7 +184,7 @@ private:
     void remove_long_output_names(const std::shared_ptr<ov::Model>& model);
     void fill_empty_tensor_names(const std::shared_ptr<ov::Model>& model);
 
-    std::shared_ptr<const ::intel_npu::Plugin> get_npuw_plugin() const;
+    std::shared_ptr<const ov::IPlugin> get_npuw_plugin() const;
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
 
     // API for easily create and manage NPUW infer-requests (promoted to ICompiledModel_v0)
@@ -217,7 +250,12 @@ private:
     void init_profiling();
 
     struct CompiledModelDesc {
-        DevList::const_iterator device_it;
+        static constexpr ov::npuw::orc::TypeId kOrcType =
+            static_cast<ov::npuw::orc::TypeId>(ov::npuw::orc::schema_npuw::Subgraph::ID);
+        // Version 0 is the frozen baseline on the wire. Any further layout
+        // changes must be introduced through a new versioned payload.
+        static constexpr ov::npuw::orc::Version kOrcVersion = 0u;
+
         std::set<std::string> devices_to_avoid;
         std::shared_ptr<ov::Model> model;
         ov::SoPtr<ov::ICompiledModel> compiled_model;
@@ -227,35 +265,9 @@ private:
         Subgraph::Gather host_gather;
         Subgraph::QuantUnpackGather quant_unpack_gather;
         std::optional<ov::npuw::compiled::Spatial> spatial;
-        std::optional<ov::npuw::compiled::Attention> attention;
-        std::optional<ov::npuw::compiled::PyramidAttention> pyramid_attention;
-        std::optional<ov::npuw::compiled::HostFlashAttention> host_flash_attention;
-        std::optional<ov::npuw::compiled::MoEExperts> moe_experts;
-        std::optional<ov::npuw::compiled::MoEDownstream> moe_experts_downstream;
+        ov::npuw::v1::subgraphs::CompiledPipeline pipeline;
 
-        // Infer requests for pyramid attention models (if pyramid_attention is present)
-        std::vector<ov::SoPtr<ov::IAsyncInferRequest>> pyramid_infer_requests;
-
-        // Pipeline infer requests for pyramid attention models (if pyramid_attention is present and pipelining is
-        // enabled)
-        std::vector<ov::SoPtr<ov::IAsyncInferRequest>> pyramid_pipeline_requests;
-
-        // HFA tile model indices for infer request vectors
-        enum HFATileIdx : size_t {
-            REGULAR_TILE = 0,  // Regular tile model (intermediate tiles)
-            FINAL_TILE = 1,    // Final tile model (last tile with division and transpose)
-            COUNT = 2          // Total number of HFA tile models
-        };
-
-        // Infer requests for host flash attention tile models (if host_flash_attention is present)
-        // [REGULAR_TILE]: regular tile model, [FINAL_TILE]: final tile model
-        std::vector<ov::SoPtr<ov::IAsyncInferRequest>> hfa_infer_requests;
-
-        // Pipeline infer requests for host flash attention tile models (if host_flash_attention is present and
-        // pipelining is enabled)
-        std::vector<ov::SoPtr<ov::IAsyncInferRequest>> hfa_pipeline_requests;
-
-        // Infer requests for MoE expert models with different chunk sizes (if moe_experts is present)
+        // Infer requests for MoE expert models with different chunk sizes (if MoE expert state is present)
         // Map: chunk_size -> infer_request
         std::map<size_t, ov::SoPtr<ov::IAsyncInferRequest>> moe_infer_requests;
 
@@ -285,17 +297,13 @@ private:
 
         bool forced_to_fcall = false;
 
-        // FIXME: Take it out of structure
-        ov::SoPtr<ov::ICompiledModel> ref_compiled_model;
-        bool switched_to_ref = false;
-
         // Metrics
         execution_stats stat;
 
-        void serialize(std::ostream& stream, const ov::npuw::s11n::WeightsContext& ctx) const;
-        void deserialize(std::istream& stream,
-                         const ov::npuw::s11n::WeightsContext& ctx,
-                         const ov::npuw::s11n::SubmodelDeserializeCtx& submodel_ctx);
+        void serialize(ov::npuw::s11n::Stream& stream,
+                       const ov::npuw::s11n::WeightsContext& ctx,
+                       std::optional<std::size_t> orc_device_index = std::nullopt,
+                       const ov::npuw::s11n::SubmodelDeserializeCtx* submodel_ctx = nullptr);
     };
     std::vector<CompiledModelDesc> m_compiled_submodels;
 

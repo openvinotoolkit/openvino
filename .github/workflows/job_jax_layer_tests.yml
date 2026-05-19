@@ -77,7 +77,6 @@ jobs:
         run: |
           echo "HF_HUB_CACHE=${{ runner.os == 'Linux' && env.HF_HUB_CACHE_LIN || env.HF_HUB_CACHE_WIN }}" >> "$GITHUB_ENV"
           echo "HUGGINGFACE_HUB_CACHE=${{ runner.os == 'Linux' && env.HF_HUB_CACHE_LIN || env.HF_HUB_CACHE_WIN }}" >> "$GITHUB_ENV"
-          echo "PIP_INSTALL_COMMAND=python3 -m pip install" >> "$GITHUB_ENV" # Linux and MacOS only, and just for debug purposes, will be reverted, see PR #34185
 
       - name: Install OpenVINO dependencies (mac)
         if: runner.os == 'macOS'
@@ -110,7 +109,7 @@ jobs:
       - name: Install JAX Layer tests dependencies
         run: |
           # jax test requirements
-          ${{ env.PIP_INSTALL_COMMAND }} -r ${{ env.INSTALL_TEST_DIR }}/requirements_jax
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/requirements_jax
 
       - name: JAX Layer Tests
         if: ${{ fromJSON(inputs.affected-components).JAX_FE.test && runner.arch != 'ARM64' }} # Ticket: 126287, 142196
@@ -122,7 +121,7 @@ jobs:
           PARALLEL: ${{ runner.os == 'Windows' && ' ' || '-n logical'}}
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: ${{ !cancelled() }}
         with:
           name: test-results-python-jax-layers

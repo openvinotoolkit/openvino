@@ -183,6 +183,8 @@ class _PagedAttentionExtension(openvino._pyopenvino.Node):
     """
     def __init__(self, arg0: collections.abc.Sequence[openvino._pyopenvino.Output]) -> None:
         ...
+    def get_write_kv_cache(self) -> bool:
+        ...
 class assign(openvino._pyopenvino.Node):
     """
     openvino.op.assign wraps ov::op::v6::Assign
