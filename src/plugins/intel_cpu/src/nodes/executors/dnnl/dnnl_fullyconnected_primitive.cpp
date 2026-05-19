@@ -173,6 +173,11 @@ static bool useDynamicQuantizationImpl(size_t dqGroupSize,
         if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16)) {
             return false;
         }
+        // On AMX-capable HW, AMX BF16 TMUL outperforms VNNI int8 dyn-quant for bf16 src.
+        // Disable the bf16 dyn-quant entry here so the AMX BF16 path stays in use.
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
+            return false;
+        }
     } else if (srcPrecision == ov::element::f32) {
         if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni) &&
             !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni)) {

@@ -73,7 +73,7 @@ std::shared_ptr<ov::Model> MatmulWeightsDecompression::initSubgraph(
     return create_ov_model(data_precision, params, matMul, "MatmulWeightsDecompression");
 }
 
-void MatmulWeightsDecompression::setUpWithDataPrecision(const ov::element::Type data_precision) {
+void MatmulWeightsDecompression::SetUp() {
     targetDevice = ov::test::utils::DEVICE_CPU;
     const auto& [shape_params,
                  weights_precision,
@@ -90,22 +90,27 @@ void MatmulWeightsDecompression::setUpWithDataPrecision(const ov::element::Type 
     std::tie(postOpMgrPtr, fusedOps) = fusing_params;
     init_input_shapes({shape_params.data_shape});
 
+    const bool dyn_quant_enabled = configuration.count(ov::hint::dynamic_quantization_group_size.name()) &&
+                                   configuration.at(ov::hint::dynamic_quantization_group_size.name()) != 0;
+    const auto inference_precision_hint =
+        configuration.count(ov::hint::inference_precision.name())
+            ? configuration.at(ov::hint::inference_precision.name()).as<ov::element::Type>()
+            : ov::element::dynamic;
+
     if (!configuration.count(ov::hint::dynamic_quantization_group_size.name())) {
         abs_threshold = 5e-3;
     }
 
     // if dynamic quantization is enabled
-    if (configuration.count(ov::hint::dynamic_quantization_group_size.name()) &&
-        configuration.at(ov::hint::dynamic_quantization_group_size.name()) != 0) {
-        abs_threshold = data_precision == ov::element::bf16 ? 0.2 : 0.1;
+    if (dyn_quant_enabled) {
+        abs_threshold = inference_precision_hint == ov::element::bf16 ? 0.2 : 0.1;
     }
 
-    if (configuration.count(ov::hint::inference_precision.name()) &&
-        configuration.at(ov::hint::inference_precision.name()) == ov::element::f16) {
+    if (inference_precision_hint == ov::element::f16) {
         abs_threshold = 0.2;
     }
 
-    const ElementType netType = data_precision;
+    ElementType netType = ov::element::f32;
     inType = outType = netType;
 
     function = initSubgraph(inputDynamicShapes[0],
@@ -119,14 +124,6 @@ void MatmulWeightsDecompression::setUpWithDataPrecision(const ov::element::Type 
                             decompression_multiply_type,
                             decompression_subtract_type,
                             reshape_on_decompression);
-}
-
-void MatmulWeightsDecompression::SetUp() {
-    setUpWithDataPrecision(ov::element::f32);
-}
-
-void MatmulWeightsDecompressionBF16::SetUp() {
-    setUpWithDataPrecision(ov::element::bf16);
 }
 
 void MatmulWeightsDecompression::check_results() {
@@ -151,12 +148,6 @@ void MatmulWeightsDecompression::check_results() {
 }
 
 TEST_P(MatmulWeightsDecompression, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    run();
-    check_results();
-}
-
-TEST_P(MatmulWeightsDecompressionBF16, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     check_results();
