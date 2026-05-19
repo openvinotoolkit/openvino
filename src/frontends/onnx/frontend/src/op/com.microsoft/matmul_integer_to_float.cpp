@@ -50,13 +50,13 @@ ov::OutputVector matmulintegertofloat(const ov::frontend::onnx::Node& node) {
                      "Unsupported input B type. Expected int8 or uint8, got: ",
                      b_int.get_element_type());
 
-    const auto a_dequantized = std::make_shared<ov::op::v1::Subtract>(a_int, a_zero_point);
-    const auto b_dequantized = std::make_shared<ov::op::v1::Subtract>(b_int, b_zero_point);
+    const auto a_int_converted = std::make_shared<ov::op::v0::Convert>(a_int, a_scale.get_element_type());
+    const auto b_int_converted = std::make_shared<ov::op::v0::Convert>(b_int, b_scale.get_element_type());
+    const auto a_zp_converted = std::make_shared<ov::op::v0::Convert>(a_zero_point, a_scale.get_element_type());
+    const auto b_zp_converted = std::make_shared<ov::op::v0::Convert>(b_zero_point, b_scale.get_element_type());
 
-    const auto a_dequantized_converted =
-        std::make_shared<ov::op::v0::Convert>(a_dequantized, a_scale.get_element_type());
-    const auto b_dequantized_converted =
-        std::make_shared<ov::op::v0::Convert>(b_dequantized, b_scale.get_element_type());
+    const auto a_dequantized_converted = std::make_shared<ov::op::v1::Subtract>(a_int_converted, a_zp_converted);
+    const auto b_dequantized_converted = std::make_shared<ov::op::v1::Subtract>(b_int_converted, b_zp_converted);
 
     const auto a_scaled = std::make_shared<ov::op::v1::Multiply>(a_dequantized_converted, a_scale);
     const auto b_scaled = std::make_shared<ov::op::v1::Multiply>(b_dequantized_converted, b_scale);
