@@ -5,12 +5,8 @@
 
 #if defined(OV_GPU_WITH_OCL_RT) && defined(_WIN32) && defined(ENABLE_DX11)
 #include <array>
-#include <algorithm>
 #include <cstring>
-#include <iomanip>
 #include <gtest/gtest.h>
-#include <chrono>
-#include <sstream>
 #include <vector>
 
 #ifndef NOMINMAX
@@ -18,10 +14,8 @@
 #define NOMINMAX_DEFINED_SHARED_BUF_TEST
 #endif
 #include <atlbase.h>
-#include <d3d11.h>
 #include <d3d11_1.h>
 #include <dxgi1_2.h>
-#include <dxgi1_4.h>
 #ifdef NOMINMAX_DEFINED_SHARED_BUF_TEST
 #undef NOMINMAX
 #undef NOMINMAX_DEFINED_SHARED_BUF_TEST
@@ -35,16 +29,6 @@
 #include "openvino/op/result.hpp"
 
 namespace {
-
-std::string format_luid_bytes(const unsigned char* data, size_t size) {
-    std::ostringstream stream;
-    stream << std::hex << std::setfill('0');
-    for (size_t index = 0; index < size; ++index) {
-        stream << std::setw(2) << static_cast<unsigned int>(data[index]);
-    }
-    return stream.str();
-}
-
 bool get_context_device_luid(cl_context cl_ctx, std::array<unsigned char, CL_LUID_SIZE_KHR>& cl_luid) {
     size_t devices_size = 0;
     if (clGetContextInfo(cl_ctx, CL_CONTEXT_DEVICES, 0, nullptr, &devices_size) != CL_SUCCESS ||

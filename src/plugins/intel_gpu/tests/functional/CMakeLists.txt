@@ -55,8 +55,24 @@ if(libva_FOUND)
 endif()
 
 if(WIN32)
-    target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_DX11)
-    target_link_libraries(${TARGET_NAME} PRIVATE d3d11 d3d12 dxgi dxguid)
+    include(CheckIncludeFileCXX)
+    # DX11 and DX12 SDK headers may be available independently; enable each
+    # interop test set only when its corresponding header is present to avoid
+    # build breaks on environments that ship only one of the SDKs.
+    check_include_file_cxx(d3d11.h OV_GPU_FUNC_TESTS_HAVE_D3D11_H)
+    check_include_file_cxx(d3d12.h OV_GPU_FUNC_TESTS_HAVE_D3D12_H)
+
+    if(OV_GPU_FUNC_TESTS_HAVE_D3D11_H)
+        target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_DX11)
+        target_link_libraries(${TARGET_NAME} PRIVATE d3d11)
+    endif()
+    if(OV_GPU_FUNC_TESTS_HAVE_D3D12_H)
+        target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_DX12)
+        target_link_libraries(${TARGET_NAME} PRIVATE d3d12)
+    endif()
+    if(OV_GPU_FUNC_TESTS_HAVE_D3D11_H OR OV_GPU_FUNC_TESTS_HAVE_D3D12_H)
+        target_link_libraries(${TARGET_NAME} PRIVATE dxgi dxguid)
+    endif()
 endif()
 
 if(NOT WIN32)

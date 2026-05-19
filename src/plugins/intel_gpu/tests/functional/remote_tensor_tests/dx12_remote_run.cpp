@@ -19,7 +19,7 @@
 #include "openvino/op/result.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
-#ifdef _WIN32
+#if defined(_WIN32) && defined(ENABLE_DX12)
 
 #    include <d3d12.h>
 #    include <dxgi1_4.h>
@@ -348,4 +348,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                          DX12RemoteRunTests::getTestCaseName);
 
 }
-#endif
+#endif // defined(_WIN32) && defined(ENABLE_DX12)
