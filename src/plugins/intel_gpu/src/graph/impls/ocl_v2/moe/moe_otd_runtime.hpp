@@ -239,14 +239,6 @@ inline void fill_weights_memory(cldnn::stream& exec_stream,
     const std::array<cldnn::memory_ptr, cldnn::moe_3gemm_fused_compressed::serialized_weight_offset_count> tensors_by_offset = {
         {wei_mem.gate_w, wei_mem.up_w, wei_mem.down_w, wei_mem.gate_s, wei_mem.up_s, wei_mem.down_s, wei_mem.gate_z, wei_mem.up_z, wei_mem.down_z}};
 
-    // Helper: compute dst_offset for a given tensor and lru slot (no file validation needed)
-    auto compute_dst_offset = [&](cldnn::memory_ptr mem, size_t lru_expert_no) -> size_t {
-        if (!mem)
-            return 0;
-        const auto total_bytes = mem->get_layout().bytes_count();
-        return lru_expert_no * (total_bytes / num_expert);
-    };
-
     auto* perf = get_perf_counters();
 
     auto& weight_reader = get_thread_local_weight_reader(weights_path);
