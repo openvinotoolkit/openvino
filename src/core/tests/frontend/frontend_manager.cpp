@@ -5,6 +5,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <fstream>
 #include <memory>
 
 #include "common_test_utils/file_utils.hpp"
@@ -502,4 +503,18 @@ TEST(FrontEndManagerTest, Exception_Safety_FrontEnd_Supported_By_Path) {
         auto fe = fem.load_by_framework("mock1");
         fe->supported(std::filesystem::path("throw_now"));
     });
+}
+
+TEST(FrontEndManagerTest, testFindPluginsDoesNotCrashOnUnicodeFilename) {
+    const auto fe_dir = ov::test::utils::to_fs_path(ov::test::utils::getExecutableDirectory());
+    const auto unicode_file = fe_dir / std::filesystem::path(L"\u8FD9\u662F_dummy");
+    { std::ofstream{unicode_file}; }
+    struct ScopedRemove {
+        const std::filesystem::path& path;
+        ~ScopedRemove() {
+            std::filesystem::remove(path);
+        }
+    } cleanup{unicode_file};
+
+    OV_ASSERT_NO_THROW(FrontEndManager{});
 }
