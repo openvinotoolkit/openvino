@@ -31,7 +31,6 @@ static ov::OutputVector makeCosSinCache(const size_t max_position_embeddings,
     //
     for (size_t i = 0, k = 0; i < rotary_ndims; i += 2, k++) {
         auto xita_i = inverse_freq_fp32[i >> 1];
-        std::cout << xita_i << "   ";
         ov::float16* psin = lut_sin.data();
         ov::float16* pcos = lut_cos.data();
         for (size_t m = 0; m < max_position_embeddings; m++, psin += rotary_ndims, pcos += rotary_ndims) {
@@ -44,7 +43,6 @@ static ov::OutputVector makeCosSinCache(const size_t max_position_embeddings,
             psin[k + rotary_ndims / 2] = psin[k];
         }
     }
-    std::cout << std::endl;
 
     auto Cos =
         ov::op::v0::Constant::create(ov::element::f16, ov::Shape({1, max_position_embeddings, rotary_ndims}), lut_cos);
@@ -54,23 +52,29 @@ static ov::OutputVector makeCosSinCache(const size_t max_position_embeddings,
     return {Cos, Sin};
 }
 
-static std::shared_ptr<ov::Node> calculate_freq(const std::shared_ptr<ov::Node> factor_node,
-                                            const std::shared_ptr<ov::Node> mltp_node,
-                                            const std::shared_ptr<ov::Node> power_node) {
-    const auto factor_fp32 = ov::as_type_ptr<ov::op::v0::Constant>(factor_node)->cast_vector<float>();
-    const auto mltp_const_fp32 = ov::as_type_ptr<ov::op::v0::Constant>(mltp_node)->cast_vector<float>();
-    const auto power_const_fp32 = ov::as_type_ptr<ov::op::v0::Constant>(power_node)->cast_vector<float>();
-    auto vector_size = factor_fp32.size();
+static ov::NodeVector calculate_freq(const std::shared_ptr<ov::Node> short_factor_node,
+                                     const std::shared_ptr<ov::Node> long_factor_node,
+                                     const std::shared_ptr<ov::Node> multiply_node,
+                                     const std::shared_ptr<ov::Node> power_node) {
+    const auto short_factor = ov::as_type_ptr<ov::op::v0::Constant>(short_factor_node)->cast_vector<float>();
+    const auto long_factor = ov::as_type_ptr<ov::op::v0::Constant>(long_factor_node)->cast_vector<float>();
+    const auto multiply_const = ov::as_type_ptr<ov::op::v0::Constant>(multiply_node)->cast_vector<float>();
+    const auto power_const = ov::as_type_ptr<ov::op::v0::Constant>(power_node)->cast_vector<float>();
+    auto factor_size = short_factor.size();
 
-    std::vector<float> freq(vector_size, 0.0f);
-    for (size_t i = 0; i < vector_size; i++) {
-        freq[i] = std::pow(factor_fp32[i] * mltp_const_fp32[i], power_const_fp32[0]);
+    std::vector<float> freq(factor_size, 0.0f);
+    std::vector<float> freq_long(factor_size, 0.0f);
+    for (size_t i = 0; i < factor_size; i++) {
+        freq[i] = std::pow(short_factor[i] * multiply_const[i], power_const[0]);
+        freq_long[i] = std::pow(long_factor[i] * multiply_const[i], power_const[0]);
     }
 
     auto inv_freq =
-        std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape({vector_size}), freq);
+        std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape({factor_size}), freq);
+    auto inv_freq_long =
+        std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape({factor_size}), freq_long);
 
-    return inv_freq;
+    return {inv_freq, inv_freq_long};
 }
 
 void replaceSinCosByCache(int max_prompt_len, const ov::OutputVector& cache, const pre_compute::RopePatternDesc* rpe) {
@@ -143,7 +147,6 @@ ov::npuw::patterns::pre_compute::RopePatternLLama2::RopePatternLLama2() : matche
         this->matched_sin = map_sin.at(output_sin).get_node_shared_ptr();
 
         LOG_VERB("Rope found : sin=" << matched_sin->get_name() << ", cos=" << matched_cos->get_name());
-        std::cout << "[DEBUG] Rope found : sin=" << matched_sin->get_name() << ", cos=" << matched_cos->get_name() << std::endl;
 
         return true;
     };
@@ -213,7 +216,6 @@ ov::npuw::patterns::pre_compute::LongRopePatternPhi::LongRopePatternPhi() : matc
         this->matched_sin = map_sin.at(output_sin).get_node_shared_ptr();
 
         LOG_VERB("Rope found : sin=" << matched_sin->get_name() << ", cos=" << matched_cos->get_name());
-        std::cout << "[DEBUG] Long Rope found : sin=" << matched_sin->get_name() << ", cos=" << matched_cos->get_name() << std::endl;
 
         return true;
     };
@@ -292,7 +294,6 @@ ov::npuw::patterns::pre_compute::LongRopePatternPhi_v5::LongRopePatternPhi_v5() 
         this->matched_sin = map_sin.at(output_sin).get_node_shared_ptr();
 
         LOG_VERB("Rope found : sin=" << matched_sin->get_name() << ", cos=" << matched_cos->get_name());
-        std::cout << "[DEBUG] Long Rope v5 found : sin=" << matched_sin->get_name() << ", cos=" << matched_cos->get_name() << std::endl;
 
         return true;
     };
@@ -333,25 +334,25 @@ ov::npuw::patterns::pre_compute::RopeCacheMatcher::RopeCacheMatcher(const uint32
     auto long_rpe_v5 = std::make_shared<LongRopePatternPhi_v5>();
 
     long_rpe_v5->transform_cb = [&]() {
-        auto inv_freq = calculate_freq(long_rpe_v5->matched_short_factor, long_rpe_v5->matched_multiply_const, long_rpe_v5->matched_power_const);
-        auto inv_freq_long = calculate_freq(long_rpe_v5->matched_long_factor, long_rpe_v5->matched_multiply_const, long_rpe_v5->matched_power_const);
+        auto inv_freq = calculate_freq(long_rpe_v5->matched_short_factor,
+                                       long_rpe_v5->matched_long_factor,
+                                       long_rpe_v5->matched_multiply_const,
+                                       long_rpe_v5->matched_power_const);
 
-        auto cache_short = makeCosSinCache(max_prompt_len, inv_freq);
-        auto cache_long = makeCosSinCache(max_prompt_len, inv_freq_long);
+        auto cache_short = makeCosSinCache(max_prompt_len, inv_freq[0]);
+        auto cache_long = makeCosSinCache(max_prompt_len, inv_freq[1]);
 
         auto select_cos = std::make_shared<ov::op::v1::Select>(long_rpe_v5->matched_cond, cache_long[0], cache_short[0]);
         auto select_sin = std::make_shared<ov::op::v1::Select>(long_rpe_v5->matched_cond, cache_long[1], cache_short[1]);
 
         // WA: to get correct sin-cos cache size
-        long_rpe_v5->matched_inv_freq = inv_freq;
+        long_rpe_v5->matched_inv_freq = inv_freq[0];
         replaceSinCosByCache(max_prompt_len, {select_cos, select_sin}, long_rpe_v5.get());
 
         auto max_pos_id_out = long_rpe_v5->max_pos_id->output(0);
         max_pos_id_param.reset(new ov::op::v0::Parameter(max_pos_id_out.get_element_type(), {1}));
         max_pos_id_param->set_friendly_name(longrope_input_name);
         max_pos_id_out.replace(max_pos_id_param->output(0));
-
-        std::cout << "Transformation LongROPE v5 is done!" << std::endl;
     };
     long_rpe_v5->run_on_model(model);
 
