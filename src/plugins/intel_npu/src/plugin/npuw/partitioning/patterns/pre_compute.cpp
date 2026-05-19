@@ -31,6 +31,7 @@ static ov::OutputVector makeCosSinCache(const size_t max_position_embeddings,
     //
     for (size_t i = 0, k = 0; i < rotary_ndims; i += 2, k++) {
         auto xita_i = inverse_freq_fp32[i >> 1];
+        std::cout << xita_i << "   ";
         ov::float16* psin = lut_sin.data();
         ov::float16* pcos = lut_cos.data();
         for (size_t m = 0; m < max_position_embeddings; m++, psin += rotary_ndims, pcos += rotary_ndims) {
@@ -43,6 +44,8 @@ static ov::OutputVector makeCosSinCache(const size_t max_position_embeddings,
             psin[k + rotary_ndims / 2] = psin[k];
         }
     }
+    std::cout << std::endl;
+
     auto Cos =
         ov::op::v0::Constant::create(ov::element::f16, ov::Shape({1, max_position_embeddings, rotary_ndims}), lut_cos);
     auto Sin =
@@ -155,24 +158,18 @@ ov::npuw::patterns::pre_compute::LongRopePatternPhi::LongRopePatternPhi() : matc
 
     auto make_select_pattern = [&](const std::shared_ptr<ov::Node>& position_ids,
                                    const std::shared_ptr<ov::Node>& inv_freq_short,
-                                   const std::shared_ptr<ov::Node>& inv_freq_long,
-                                   const std::shared_ptr<ov::Node>& multiply_const,
-                                   const std::shared_ptr<ov::Node>& power_const) {
+                                   const std::shared_ptr<ov::Node>& inv_freq_long) {
         auto red_max = opp::wrap_type<ov::op::v1::ReduceMax>({position_ids, MakeConstant()});
         auto add = opp::wrap_type<ov::op::v1::Add>({red_max, MakeConstant()});
         // max(position_ids) + 1 <= original_max_position_embeddings
-        // auto leq = opp::wrap_type<ov::op::v1::LessEqual>({add, MakeConstant()});
-        auto leq = opp::wrap_type<ov::op::v1::Greater>({add, MakeConstant()});
+        auto leq = opp::wrap_type<ov::op::v1::LessEqual>({add, MakeConstant()});
 
         auto inv_freq_short_conv = opp::optional<ov::op::v0::Convert>({inv_freq_short->output(0)});
         auto inv_freq_long_conv = opp::optional<ov::op::v0::Convert>({inv_freq_long->output(0)});
 
         // max(position_ids) + 1 <= original_max_position_embeddings ? short_factor : long_factor;
         auto select = opp::wrap_type<ov::op::v1::Select>({leq, inv_freq_short_conv, inv_freq_long_conv});
-        auto multiply = opp::wrap_type<ov::op::v1::Multiply>({select, multiply_const});
-        auto power = opp::wrap_type<ov::op::v1::Power>({multiply, power_const});
-        auto unsqueeze = opp::optional<ov::op::v0::Unsqueeze>({power, MakeConstant()});
-        // auto unsqueeze = opp::optional<ov::op::v0::Unsqueeze>({select, MakeConstant()});
+        auto unsqueeze = opp::optional<ov::op::v0::Unsqueeze>({select, MakeConstant()});
         auto unsqueeze_1 = opp::optional<ov::op::v0::Unsqueeze>({unsqueeze, MakeConstant()});
 
         return std::make_tuple(unsqueeze_1, leq, red_max);
@@ -183,10 +180,7 @@ ov::npuw::patterns::pre_compute::LongRopePatternPhi::LongRopePatternPhi() : matc
     auto inv_freq_short = MakeConstant();
     auto inv_freq_long = MakeConstant();
 
-    auto multiply_const = MakeConstant();
-    auto power_const = MakeConstant();
-
-    auto select_cond_max_pos_id = make_select_pattern(position_ids, inv_freq_short, inv_freq_long, multiply_const, power_const);
+    auto select_cond_max_pos_id = make_select_pattern(position_ids, inv_freq_short, inv_freq_long);
     auto select = std::get<0>(select_cond_max_pos_id);
     auto cond = std::get<1>(select_cond_max_pos_id);
     auto max_pos_id = std::get<2>(select_cond_max_pos_id);
@@ -212,8 +206,6 @@ ov::npuw::patterns::pre_compute::LongRopePatternPhi::LongRopePatternPhi() : matc
         this->matched_concat = map_sin.at(concat_1).get_node_shared_ptr();
         this->matched_inv_freq = map_sin.at(inv_freq_short).get_node_shared_ptr();
         this->matched_inv_freq_long = map_sin.at(inv_freq_long).get_node_shared_ptr();
-        this->matched_mltpl_const = map_sin.at(multiply_const).get_node_shared_ptr();
-        this->matched_power_const = map_sin.at(power_const).get_node_shared_ptr();
         this->matched_cond = map_sin.at(cond).get_node_shared_ptr();
         this->max_pos_id = map_sin.at(max_pos_id).get_node_shared_ptr();
 
@@ -222,6 +214,85 @@ ov::npuw::patterns::pre_compute::LongRopePatternPhi::LongRopePatternPhi() : matc
 
         LOG_VERB("Rope found : sin=" << matched_sin->get_name() << ", cos=" << matched_cos->get_name());
         std::cout << "[DEBUG] Long Rope found : sin=" << matched_sin->get_name() << ", cos=" << matched_cos->get_name() << std::endl;
+
+        return true;
+    };
+
+    matcher.register_patterns({output_sin, output_cos}, make_matcher_callback());
+}
+
+ov::npuw::patterns::pre_compute::LongRopePatternPhi_v5::LongRopePatternPhi_v5() : matcher("sin-cos-matcher") {
+    auto MakeConstant = []() {
+        return opp::wrap_type<ov::op::v0::Constant>();
+    };
+
+    auto make_select_pattern = [&](const std::shared_ptr<ov::Node>& position_ids,
+                                   const std::shared_ptr<ov::Node>& short_factor,
+                                   const std::shared_ptr<ov::Node>& long_factor,
+                                   const std::shared_ptr<ov::Node>& multiply_const,
+                                   const std::shared_ptr<ov::Node>& power_const) {
+        auto red_max = opp::wrap_type<ov::op::v1::ReduceMax>({position_ids, MakeConstant()});
+        auto add = opp::wrap_type<ov::op::v1::Add>({red_max, MakeConstant()});
+        // max(position_ids) + 1 > original_max_position_embeddings
+        auto greater = opp::wrap_type<ov::op::v1::Greater>({add, MakeConstant()});
+
+        auto short_factor_conv = opp::optional<ov::op::v0::Convert>({short_factor->output(0)});
+        auto long_factor_conv = opp::optional<ov::op::v0::Convert>({long_factor->output(0)});
+
+        // max(position_ids) + 1 > original_max_position_embeddings ? long_factor : short_factor;
+        auto select = opp::wrap_type<ov::op::v1::Select>({greater, long_factor_conv, short_factor_conv});
+        auto multiply = opp::wrap_type<ov::op::v1::Multiply>({select, multiply_const});
+        auto power = opp::wrap_type<ov::op::v1::Power>({multiply, power_const});
+        auto unsqueeze = opp::optional<ov::op::v0::Unsqueeze>({power, MakeConstant()});
+        auto unsqueeze_1 = opp::optional<ov::op::v0::Unsqueeze>({unsqueeze, MakeConstant()});
+
+        return std::make_tuple(unsqueeze_1, greater, red_max);
+    };
+
+    auto position_ids = opp::wrap_type<ov::op::v0::Parameter>();
+
+    auto short_factor = MakeConstant();
+    auto long_factor = MakeConstant();
+
+    auto multiply_const = MakeConstant();
+    auto power_const = MakeConstant();
+
+    auto select_cond_max_pos_id = make_select_pattern(position_ids, short_factor, long_factor, multiply_const, power_const);
+    auto select = std::get<0>(select_cond_max_pos_id);
+    auto cond = std::get<1>(select_cond_max_pos_id);
+    auto max_pos_id = std::get<2>(select_cond_max_pos_id);
+
+    auto shape_of = opp::wrap_type<ov::op::v3::ShapeOf>({opp::any_input()});
+    auto gather = opp::wrap_type<ov::op::v8::Gather>({shape_of, opp::any_input(), opp::any_input()});
+    auto concat_1 = opp::wrap_type<ov::op::v0::Concat>({gather, opp::any_input(), opp::any_input()});
+    // here we can seen inverse frequencies as a parameter or constant depending on partitioner passes
+    auto broadcast = opp::wrap_type<ov::op::v3::Broadcast>({select, concat_1});
+    auto unsqueeze = opp::wrap_type<ov::op::v0::Unsqueeze>({position_ids, MakeConstant()});
+    auto convert = opp::wrap_type<ov::op::v0::Convert>({unsqueeze});
+    auto matmul = opp::wrap_type<ov::op::v0::MatMul>({broadcast, convert});
+    auto transpose = opp::wrap_type<ov::op::v1::Transpose>({matmul, opp::any_input()});
+    auto concat_2 = opp::wrap_type<ov::op::v0::Concat>({transpose, opp::any_input()});
+    auto output_sin = opp::wrap_type<ov::op::v0::Sin>({concat_2});
+    auto output_cos = opp::wrap_type<ov::op::v0::Cos>({concat_2});
+
+    init_cb = [=](const auto& matches) {
+        const auto& map_sin = matches.at(output_sin)[0];
+        const auto& map_cos = matches.at(output_cos)[0];
+
+        this->matched_position_ids = map_sin.at(position_ids).get_node_shared_ptr();
+        this->matched_concat = map_sin.at(concat_1).get_node_shared_ptr();
+        this->matched_short_factor = map_sin.at(short_factor).get_node_shared_ptr();
+        this->matched_long_factor = map_sin.at(long_factor).get_node_shared_ptr();
+        this->matched_multiply_const = map_sin.at(multiply_const).get_node_shared_ptr();
+        this->matched_power_const = map_sin.at(power_const).get_node_shared_ptr();
+        this->matched_cond = map_sin.at(cond).get_node_shared_ptr();
+        this->max_pos_id = map_sin.at(max_pos_id).get_node_shared_ptr();
+
+        this->matched_cos = map_cos.at(output_cos).get_node_shared_ptr();
+        this->matched_sin = map_sin.at(output_sin).get_node_shared_ptr();
+
+        LOG_VERB("Rope found : sin=" << matched_sin->get_name() << ", cos=" << matched_cos->get_name());
+        std::cout << "[DEBUG] Long Rope v5 found : sin=" << matched_sin->get_name() << ", cos=" << matched_cos->get_name() << std::endl;
 
         return true;
     };
@@ -244,14 +315,8 @@ ov::npuw::patterns::pre_compute::RopeCacheMatcher::RopeCacheMatcher(const uint32
 
     std::shared_ptr<ov::op::v0::Parameter> max_pos_id_param;
     long_rpe->transform_cb = [&]() {
-        auto inv_freq = calculate_freq(long_rpe->matched_inv_freq, long_rpe->matched_mltpl_const, long_rpe->matched_power_const);
-        auto inv_freq_long = calculate_freq(long_rpe->matched_inv_freq_long, long_rpe->matched_mltpl_const, long_rpe->matched_power_const);
-
-        // auto cache_short = makeCosSinCache(max_prompt_len, long_rpe->matched_inv_freq, "cache_short");
-        auto cache_short = makeCosSinCache(max_prompt_len, inv_freq);
-
-        // auto cache_long = makeCosSinCache(max_prompt_len, long_rpe->matched_inv_freq_long, "cache_long");
-        auto cache_long = makeCosSinCache(max_prompt_len, inv_freq_long);
+        auto cache_short = makeCosSinCache(max_prompt_len, long_rpe->matched_inv_freq);
+        auto cache_long = makeCosSinCache(max_prompt_len, long_rpe->matched_inv_freq_long);
 
         auto select_cos = std::make_shared<ov::op::v1::Select>(long_rpe->matched_cond, cache_short[0], cache_long[0]);
         auto select_sin = std::make_shared<ov::op::v1::Select>(long_rpe->matched_cond, cache_short[1], cache_long[1]);
@@ -264,6 +329,31 @@ ov::npuw::patterns::pre_compute::RopeCacheMatcher::RopeCacheMatcher(const uint32
         max_pos_id_out.replace(max_pos_id_param->output(0));
     };
     long_rpe->run_on_model(model);
+
+    auto long_rpe_v5 = std::make_shared<LongRopePatternPhi_v5>();
+
+    long_rpe_v5->transform_cb = [&]() {
+        auto inv_freq = calculate_freq(long_rpe_v5->matched_short_factor, long_rpe_v5->matched_multiply_const, long_rpe_v5->matched_power_const);
+        auto inv_freq_long = calculate_freq(long_rpe_v5->matched_long_factor, long_rpe_v5->matched_multiply_const, long_rpe_v5->matched_power_const);
+
+        auto cache_short = makeCosSinCache(max_prompt_len, inv_freq);
+        auto cache_long = makeCosSinCache(max_prompt_len, inv_freq_long);
+
+        auto select_cos = std::make_shared<ov::op::v1::Select>(long_rpe_v5->matched_cond, cache_long[0], cache_short[0]);
+        auto select_sin = std::make_shared<ov::op::v1::Select>(long_rpe_v5->matched_cond, cache_long[1], cache_short[1]);
+
+        // WA: to get correct sin-cos cache size
+        long_rpe_v5->matched_inv_freq = inv_freq;
+        replaceSinCosByCache(max_prompt_len, {select_cos, select_sin}, long_rpe_v5.get());
+
+        auto max_pos_id_out = long_rpe_v5->max_pos_id->output(0);
+        max_pos_id_param.reset(new ov::op::v0::Parameter(max_pos_id_out.get_element_type(), {1}));
+        max_pos_id_param->set_friendly_name(longrope_input_name);
+        max_pos_id_out.replace(max_pos_id_param->output(0));
+
+        std::cout << "Transformation LongROPE v5 is done!" << std::endl;
+    };
+    long_rpe_v5->run_on_model(model);
 
     if (max_pos_id_param) {
         model->add_parameters({max_pos_id_param});
