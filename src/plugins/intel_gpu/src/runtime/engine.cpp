@@ -161,7 +161,11 @@ shared_handle engine::import_external_buffer(size_t, shared_handle) {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-void engine::release_imported_external_buffer(shared_handle) {}
+void engine::release_external_handle_ref(shared_handle) {}
+
+memory_ptr engine::share_external_buffer(const layout&, shared_handle) {
+    OPENVINO_NOT_IMPLEMENTED;
+}
 
 memory_ptr engine::share_usm(const layout& layout, shared_handle usm_ptr) {
     shared_mem_params params = { shared_mem_type::shared_mem_usm, nullptr, nullptr, usm_ptr,

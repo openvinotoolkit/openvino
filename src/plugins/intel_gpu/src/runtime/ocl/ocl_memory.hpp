@@ -27,8 +27,10 @@ struct lockable_gpu_mem {
 };
 
 struct gpu_buffer : public lockable_gpu_mem, public memory {
-    gpu_buffer(ocl_engine* engine, const layout& new_layout, const cl::Buffer& buffer, std::shared_ptr<MemoryTracker> mem_tracker);
+    gpu_buffer(ocl_engine* engine, const layout& new_layout, const cl::Buffer& buffer,
+               std::shared_ptr<MemoryTracker> mem_tracker, bool external_imported = false);
     gpu_buffer(ocl_engine* engine, const layout& layout);
+    ~gpu_buffer() override;
 
     void* lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write) override;
     void unlock(const stream& stream) override;
@@ -54,6 +56,7 @@ struct gpu_buffer : public lockable_gpu_mem, public memory {
 
 protected:
     cl::Buffer _buffer;
+    bool _external_imported = false;
 };
 
 struct gpu_image2d : public lockable_gpu_mem, public memory {

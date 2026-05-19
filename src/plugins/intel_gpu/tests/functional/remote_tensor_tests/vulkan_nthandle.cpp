@@ -436,16 +436,13 @@ VulkanSharedBuffer create_vulkan_shared_buffer(VulkanTestContext& context, size_
         return {};
     }
 
-    if (export_vulkan_memory_handle(context.device, shared_buffer.memory, shared_buffer.shared_handle)) {
-        std::cout << "[INFO] Vulkan shared buffer config: usage=STORAGE|XFER_SRC|XFER_DST, memory=DEVICE_LOCAL\n";
-    }
+    export_vulkan_memory_handle(context.device, shared_buffer.memory, shared_buffer.shared_handle);
 
     return shared_buffer;
 }
 
 TEST(GpuSharedBufferRemoteTensor, smoke_VulkanRemoteInputToRemoteOutputCopyAndCompare) {
-    std::cout << "skip because driver on ubuntu 22 too old" << std::endl;
-    GTEST_SKIP();
+    GTEST_SKIP() << "skip because driver on ubuntu 22 too old" << std::endl;
     ov::Core core;
     const ov::Shape shape{16'000};
     const size_t element_count = ov::shape_size(shape);
@@ -498,10 +495,8 @@ TEST(GpuSharedBufferRemoteTensor, smoke_VulkanRemoteInputToRemoteOutputCopyAndCo
                                                     reinterpret_cast<void*>(vk_output_shared.shared_handle),
                                                     ov::intel_gpu::MemType::SHARED_BUF);
     } catch (const ov::Exception& ex) {
-        std::cout << "[INFO] Vulkan NT handle import not supported on this device: " << ex.what() << "\n";
-        GTEST_SKIP() << "Vulkan NT handle import not supported on this configuration";
+        GTEST_SKIP() << "Vulkan NT handle import not supported on this configuration: " << ex.what();
     }
-
     std::vector<float> input_init(element_count, 2.0f);
     ov::Tensor host_input_init(ov::element::f32, shape);
     std::memcpy(host_input_init.data(), input_init.data(), byte_size);

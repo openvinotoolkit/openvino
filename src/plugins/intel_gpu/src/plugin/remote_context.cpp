@@ -159,8 +159,8 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
 
             // For OCL this drops temporary cl_mem ref after share_buffer() retain.
             // For ZE this releases temporary imported USM allocation wrapper.
-            auto tensor = reuse_memory(type, shape, imported, TensorType::BT_BUF_SHARED);
-            m_engine->release_imported_external_buffer(imported);
+            auto tensor = reuse_memory(type, shape, imported, TensorType::BT_BUF_SHARED_IMPORTED);
+            m_engine->release_external_handle_ref(imported);
             
             return { tensor, nullptr };
         } else {

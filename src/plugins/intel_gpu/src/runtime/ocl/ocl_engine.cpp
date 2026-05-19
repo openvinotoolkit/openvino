@@ -15,7 +15,6 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include <set>
 #include <stdexcept>
 
 // NOTE: Due to buggy scope transition of warnings we need to disable warning in place of use/instantation
@@ -130,14 +129,57 @@ shared_handle ocl_engine::import_external_buffer(size_t byte_size, shared_handle
                     "[GPU] Failed to import external memory handle via clCreateBufferWithProperties, error: ",
                     errcode);
 
+
+    cl_platform_id platform = get_cl_device().getInfo<CL_DEVICE_PLATFORM>()();
+    auto pfn_acquire = reinterpret_cast<clEnqueueAcquireExternalMemObjectsKHR_fn>(
+        clGetExtensionFunctionAddressForPlatform(platform, "clEnqueueAcquireExternalMemObjectsKHR"));
+    if (pfn_acquire == nullptr) {
+        clReleaseMemObject(imported);
+        OPENVINO_THROW("[GPU] clEnqueueAcquireExternalMemObjectsKHR is not available; "
+                       "cl_khr_external_memory acquire/release entrypoints are missing on this platform");
+    }
+    auto& svc_stream = downcast<ocl_stream>(get_service_stream());
+    cl_command_queue q = svc_stream.get_cl_queue().get();
+    cl_int acquire_err = pfn_acquire(q, 1, &imported, 0, nullptr, nullptr);
+    if (acquire_err != CL_SUCCESS) {
+        clReleaseMemObject(imported);
+        OPENVINO_THROW("[GPU] clEnqueueAcquireExternalMemObjectsKHR failed, error: ", acquire_err);
+    }
+    clFinish(q);
+
     return static_cast<shared_handle>(imported);
 #endif
 }
 
-void ocl_engine::release_imported_external_buffer(shared_handle imported_handle) {
+void ocl_engine::release_external_handle_ref(shared_handle imported_handle) {
     if (imported_handle != nullptr) {
         clReleaseMemObject(static_cast<cl_mem>(imported_handle));
     }
+}
+
+memory::ptr ocl_engine::share_external_buffer(const layout& new_layout, shared_handle handle) {
+    cl::Buffer buf(static_cast<cl_mem>(handle), true);
+    return std::make_shared<ocl::gpu_buffer>(this, new_layout, buf, nullptr, /*external_imported=*/true);
+}
+
+void ocl_engine::release_external_memory(shared_handle cl_mem_handle) {
+    if (cl_mem_handle == nullptr) {
+        return;
+    }
+    cl_platform_id platform = get_cl_device().getInfo<CL_DEVICE_PLATFORM>()();
+    auto pfn = reinterpret_cast<clEnqueueReleaseExternalMemObjectsKHR_fn>(
+        clGetExtensionFunctionAddressForPlatform(platform, "clEnqueueReleaseExternalMemObjectsKHR"));
+    if (pfn == nullptr) {
+        // Nothing to do: extension entrypoints not available. The cl_mem refcount drop on dtor
+        // will still proceed.
+        return;
+    }
+
+    auto& opencl_stream = downcast<ocl_stream>(get_service_stream());
+    cl_command_queue q = opencl_stream.get_cl_queue().get();
+    cl_mem mem = static_cast<cl_mem>(cl_mem_handle);
+    cl_int err = pfn(q, 1, &mem, 0, nullptr, nullptr);
+    clFinish(q);
 }
 
 memory::ptr ocl_engine::allocate_memory(const layout& layout, allocation_type type, bool reset) {

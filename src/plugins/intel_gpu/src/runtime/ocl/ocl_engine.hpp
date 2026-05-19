@@ -10,7 +10,6 @@
 #include "ocl_device.hpp"
 
 #include <memory>
-#include <set>
 #include <vector>
 #include <utility>
 #include <string>
@@ -29,8 +28,11 @@ public:
     memory_ptr create_subbuffer(const memory& memory, const layout& new_layout, size_t offset) override;
     memory_ptr reinterpret_buffer(const memory& memory, const layout& new_layout) override;
     shared_handle import_external_buffer(size_t byte_size, shared_handle external_handle) override;
-    void release_imported_external_buffer(shared_handle imported_handle) override;
+    void release_external_handle_ref(shared_handle imported_handle) override;
+    memory_ptr share_external_buffer(const layout& layout, shared_handle handle) override;
     bool is_the_same_buffer(const memory& mem1, const memory& mem2) override;
+
+    void release_external_memory(shared_handle cl_mem_handle);
 
     void* get_user_context() const override;
 

@@ -340,6 +340,10 @@ void RemoteTensorImpl::allocate() {
         m_memory_object = engine.share_buffer(m_layout, m_mem);
         break;
     }
+    case TensorType::BT_BUF_SHARED_IMPORTED: {
+        m_memory_object = engine.share_external_buffer(m_layout, m_mem);
+        break;
+    }
     case TensorType::BT_USM_SHARED: {
         m_memory_object = engine.share_usm(m_layout, m_mem);
         break;
@@ -380,6 +384,7 @@ const std::string& RemoteTensorImpl::get_device_name() const {
 
 bool RemoteTensorImpl::is_shared() const noexcept {
     return m_mem_type == TensorType::BT_BUF_SHARED ||
+           m_mem_type == TensorType::BT_BUF_SHARED_IMPORTED ||
            m_mem_type == TensorType::BT_USM_SHARED ||
            m_mem_type == TensorType::BT_IMG_SHARED ||
            m_mem_type == TensorType::BT_SURF_SHARED ||
@@ -445,6 +450,7 @@ void RemoteTensorImpl::update_properties() {
     switch (m_mem_type) {
     case TensorType::BT_BUF_INTERNAL:
     case TensorType::BT_BUF_SHARED:
+    case TensorType::BT_BUF_SHARED_IMPORTED:
         m_properties = {
             ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::OCL_BUFFER),
             ov::intel_gpu::ocl_context(params.context),
