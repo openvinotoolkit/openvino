@@ -311,12 +311,25 @@ IncreasePositionIdsPrecisionForLtxVideo::IncreasePositionIdsPrecisionForLtxVideo
     // A single match is sufficient — subsequent RoPE nodes reuse the precision-upgraded shared path.
     //
     //   Multiply → Add(Constant) → Transpose → Reshape
-    //                                              |
-    //                               +--------------+---------------+
-    //                               |                              |
-    // Sin path (RoPE input 2):    Sin → T → U → B → GND → T → Concat_sin
-    // Cos path (RoPE input 1):    Cos → T → U → B → GND → T → Concat_cos
-    //                                                              |
+    //                                              │
+    //                                     ┌────────┴────────┐
+    //                                     │                 │
+    //                                    Sin               Cos
+    //                                     │                 │
+    //                                  Transpose         Transpose
+    //                                     │                 │
+    //                                  Unsqueeze         Unsqueeze
+    //                                     │                 │
+    //                                  Broadcast         Broadcast
+    //                                     │                 │
+    //                                  GatherND          GatherND
+    //                                     │                 │
+    //                                  Transpose         Transpose
+    //                                     │                 │
+    //                                  Concat_sin        Concat_cos
+    //                                     │                 │
+    //                                     └────────┬────────┘
+    //                                              │
     //                              RoPE(x, Concat_cos, Concat_sin)
 
     // Upstream: Multiply → Add(Constant) → Transpose → Reshape
@@ -359,12 +372,6 @@ IncreasePositionIdsPrecisionForLtxVideo::IncreasePositionIdsPrecisionForLtxVideo
         auto cos_node = ov::as_type_ptr<ov::op::v0::Cos>(pattern_map.at(cos).get_node_shared_ptr());
         auto sin_node = ov::as_type_ptr<ov::op::v0::Sin>(pattern_map.at(sin).get_node_shared_ptr());
 
-        if (!mul_node || !cos_node || !sin_node)
-            return false;
-
-        if (transformation_callback(mul_node))
-            return false;
-
         const auto desired_et = ov::element::f32;
         const auto original_et = mul_node->get_output_element_type(0);
         if (original_et == desired_et)
@@ -373,8 +380,7 @@ IncreasePositionIdsPrecisionForLtxVideo::IncreasePositionIdsPrecisionForLtxVideo
         size_t input_idx = 0;
         bool is_changed = insert_converts_before_if_needed(mul_node, desired_et, input_idx);
         if (is_changed) {
-            if (constant_node)
-                insert_converts_after_if_needed(constant_node, desired_et, input_idx);
+            insert_converts_after_if_needed(constant_node, desired_et, input_idx);
             size_t output_idx = 0;
             insert_converts_after_if_needed(cos_node, original_et, output_idx);
             insert_converts_after_if_needed(sin_node, original_et, output_idx);
