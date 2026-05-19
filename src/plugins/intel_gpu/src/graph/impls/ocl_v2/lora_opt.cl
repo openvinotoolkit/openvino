@@ -3,19 +3,7 @@
 //
 
 #include "include/batch_headers/fetch_data.cl"
-
-// __local-pointer overloads of intel_sub_group_block_read* are only declared
-// when cl_intel_subgroup_local_block_io is advertised. NEO 23.x+ no longer
-// declares them implicitly. Use the intrinsic on drivers that expose the
-// extension; fall back to the equivalent per-lane indexed gather (lane i
-// receives word i, matching the block-read distribution).
-#ifdef cl_intel_subgroup_local_block_io
-inline uint   slm_block_read_uint  (const __local uint*   p) { return intel_sub_group_block_read   (p); }
-inline ushort slm_block_read_ushort(const __local ushort* p) { return intel_sub_group_block_read_us(p); }
-#else
-inline uint   slm_block_read_uint  (const __local uint*   p) { return p[get_sub_group_local_id()]; }
-inline ushort slm_block_read_ushort(const __local ushort* p) { return p[get_sub_group_local_id()]; }
-#endif
+#include "include/batch_headers/sub_group_block_read.cl"
 
 #ifdef SECOND_TOKEN_A
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
@@ -69,9 +57,9 @@ KERNEL(second_token_a)(OPTIONAL_SHAPE_INFO_ARG
 
         for (int kk = 0; kk < klen_sg; kk += SUBGROUP_SIZE) {
 #if ACCUMULATOR_TYPE_SIZE == 4
-            uint input = slm_block_read_uint((const __local uint*)(A_ptr + kk));
+            uint input = _sub_group_block_read_l((const __local uint*)(A_ptr + kk));
 #else
-            ushort input = slm_block_read_ushort((const __local ushort*)(A_ptr + kk));
+            ushort input = _sub_group_block_read_l_us((const __local ushort*)(A_ptr + kk));
 #endif
             __attribute__((opencl_unroll_hint))
             for (int j = 0; j < SUBGROUP_SIZE; j++) {
@@ -101,18 +89,18 @@ KERNEL(second_token_a)(OPTIONAL_SHAPE_INFO_ARG
         __attribute__((opencl_unroll_hint))
         for (int i = 0; i < GEMMA_SGK; i++) {
 #if ACCUMULATOR_TYPE_SIZE == 4
-            sum += AS_ACCUMULATOR_TYPE(slm_block_read_uint((const __local uint*)(fma_buff + i * MAX_LORA_RANK + n_idx)));
+            sum += AS_ACCUMULATOR_TYPE(_sub_group_block_read_l((const __local uint*)(fma_buff + i * MAX_LORA_RANK + n_idx)));
 #else
-            sum += AS_ACCUMULATOR_TYPE(slm_block_read_ushort((const __local ushort*)(fma_buff + i * MAX_LORA_RANK + n_idx)));
+            sum += AS_ACCUMULATOR_TYPE(_sub_group_block_read_l_us((const __local ushort*)(fma_buff + i * MAX_LORA_RANK + n_idx)));
 #endif
         }
     } else {
         // Can't unroll, tail handling.
         for (int i = 0; i < sgK; i++) {
 #if ACCUMULATOR_TYPE_SIZE == 4
-            sum += AS_ACCUMULATOR_TYPE(slm_block_read_uint((const __local uint*)(fma_buff + i * MAX_LORA_RANK + n_idx)));
+            sum += AS_ACCUMULATOR_TYPE(_sub_group_block_read_l((const __local uint*)(fma_buff + i * MAX_LORA_RANK + n_idx)));
 #else
-            sum += AS_ACCUMULATOR_TYPE(slm_block_read_ushort((const __local ushort*)(fma_buff + i * MAX_LORA_RANK + n_idx)));
+            sum += AS_ACCUMULATOR_TYPE(_sub_group_block_read_l_us((const __local ushort*)(fma_buff + i * MAX_LORA_RANK + n_idx)));
 #endif
         }
     }
@@ -176,10 +164,10 @@ KERNEL(second_token_b)(OPTIONAL_SHAPE_INFO_ARG
     for (int kk = 0; kk < LORA_RANK; kk += SUBGROUP_SIZE) {
 #if ACCUMULATOR_TYPE_SIZE == 4
         ACCUMULATOR_TYPE scale = AS_ACCUMULATOR_TYPE(intel_sub_group_block_read((const __global uint*)(state_alpha + kk)));
-        ACCUMULATOR_TYPE input = AS_ACCUMULATOR_TYPE(slm_block_read_uint((const __local uint*)(reduce + kk)));
+        ACCUMULATOR_TYPE input = AS_ACCUMULATOR_TYPE(_sub_group_block_read_l((const __local uint*)(reduce + kk)));
 #else
         ACCUMULATOR_TYPE scale = AS_ACCUMULATOR_TYPE(intel_sub_group_block_read_us((const __global ushort*)(state_alpha + kk)));
-        ACCUMULATOR_TYPE input = AS_ACCUMULATOR_TYPE(slm_block_read_ushort((const __local ushort*)(reduce + kk)));
+        ACCUMULATOR_TYPE input = AS_ACCUMULATOR_TYPE(_sub_group_block_read_l_us((const __local ushort*)(reduce + kk)));
 #endif
         input *= scale;
 
