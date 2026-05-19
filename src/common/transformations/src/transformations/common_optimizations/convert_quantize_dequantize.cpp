@@ -87,9 +87,7 @@ ConvertQuantizeDequantize::ConvertQuantizeDequantize(const ov::element::TypeVect
         {fq_pattern},
         pattern::type_matches_any(supported_low_precisions) && pattern::consumers_count(1));
     // Allow mixed precision: dequantizer can use fp16 even if quantizer uses fp32
-    auto convert2_pattern = pattern::wrap_type<v0::Convert>(
-        {convert1_pattern},
-        pattern::consumers_count(1));
+    auto convert2_pattern = pattern::wrap_type<v0::Convert>({convert1_pattern}, pattern::consumers_count(1));
 
     auto zero_point_pattern = pattern::any_input();
     auto sub_pattern =
@@ -221,7 +219,7 @@ ConvertQuantizeDequantize::ConvertQuantizeDequantize(const ov::element::TypeVect
             auto convert_output = std::make_shared<v0::Convert>(new_fq, mul_output_type);
             convert_output->set_friendly_name(mul->get_friendly_name());
             copy_runtime_info({fq, convert1.get_node_shared_ptr(), convert2.get_node_shared_ptr()},
-                             {new_fq, convert_output});
+                              {new_fq, convert_output});
             final_output = convert_output;
         } else {
             new_fq->set_friendly_name(mul->get_friendly_name());
