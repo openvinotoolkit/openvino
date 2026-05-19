@@ -11,8 +11,10 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
 
+using namespace testing;
+
 namespace ov::test {
-class LazyBufferTest : public ::testing::Test {
+class LazyBufferTest : public Test {
 protected:
     std::filesystem::path m_file_path;
     std::vector<char> m_test_data;
@@ -47,7 +49,7 @@ protected:
 TEST_F(LazyBufferTest, incorrect_file) {
     OV_EXPECT_THROW(std::ignore = std::make_unique<LazyBuffer>(std::filesystem::path{"no_file"}, 1, 2),
                     AssertFailure,
-                    ::testing::HasSubstr("If file exists"));
+                    HasSubstr("If file exists"));
 
     write_test_data(4);
 
@@ -55,7 +57,7 @@ TEST_F(LazyBufferTest, incorrect_file) {
     for (const auto& [offset, size] : test_params) {
         OV_EXPECT_THROW(std::ignore = std::make_unique<LazyBuffer>(m_file_path, offset, size),
                         AssertFailure,
-                        ::testing::HasSubstr("size is smaller than requested range"));
+                        HasSubstr("size is smaller than requested range"));
     }
 }
 
@@ -64,25 +66,25 @@ TEST_F(LazyBufferTest, too_large_size) {
 
     OV_EXPECT_THROW(std::ignore = std::make_unique<LazyBuffer>(m_file_path, 0, std::numeric_limits<size_t>::max()),
                     AssertFailure,
-                    ::testing::HasSubstr("size is smaller than requested range"));
+                    HasSubstr("size is smaller than requested range"));
 }
 
 TEST_F(LazyBufferTest, read_file) {
     write_test_data(457);
-    const auto test_params = std::vector<std::tuple<size_t, size_t, size_t>>{{0, 10, 64},
-                                                                             {5, 20, 64},
-                                                                             {50, 100, 64},
-                                                                             {0, m_test_data.size(), 4096},
-                                                                             {14, 15, 29},
-                                                                             {128, 256, 1001}};
-    for (const auto& [offset, size, alignment] : test_params) {
+    const auto test_params = std::vector<std::tuple<size_t, size_t>>{{0, 10},
+                                                                     {5, 20},
+                                                                     {50, 100},
+                                                                     {0, m_test_data.size()},
+                                                                     {14, 15},
+                                                                     {128, 256}};
+    for (const auto& [offset, size] : test_params) {
         auto lazy_b = LazyBuffer{m_file_path, offset, size};
         AlignedBuffer& buffer = lazy_b;
         char* data_ptr = nullptr;
         ASSERT_NO_THROW((data_ptr = buffer.get_ptr<char>()));
         ASSERT_NE(data_ptr, nullptr);
         ASSERT_EQ(buffer.size(), size);
-        EXPECT_EQ(reinterpret_cast<std::uintptr_t>(data_ptr) % alignment, 0);
+        EXPECT_EQ(reinterpret_cast<std::uintptr_t>(data_ptr) % default_alignment, 0);
         EXPECT_TRUE(std::equal(data_ptr, data_ptr + size, m_test_data.begin() + offset));
     }
 }
@@ -111,7 +113,7 @@ TEST_F(LazyBufferTest, load_on_first_get_ptr) {
     char* second_ptr = nullptr;
     ASSERT_NO_THROW((second_ptr = buffer->get_ptr<char>()));
     ASSERT_EQ(second_ptr, first_ptr);
-    EXPECT_TRUE(std::equal(second_ptr, second_ptr + size, first_rewrite.begin()));
+    EXPECT_THAT(first_rewrite, ElementsAreArray(second_ptr, size));
 }
 
 TEST_F(LazyBufferTest, evict_and_reload) {
@@ -128,13 +130,13 @@ TEST_F(LazyBufferTest, evict_and_reload) {
     char* first_ptr = nullptr;
     ASSERT_NO_THROW((first_ptr = buffer->get_ptr<char>()));
     ASSERT_NE(first_ptr, nullptr);
-    ASSERT_TRUE(std::equal(first_ptr, first_ptr + size, first_rewrite.begin()));
+    ASSERT_THAT(first_rewrite, ElementsAreArray(first_ptr, size));
 
     // After evict(), get_ptr() should load the same file content again
     buffer->hint_evict();
     ASSERT_NO_THROW((first_ptr = buffer->get_ptr<char>()));
     ASSERT_NE(first_ptr, nullptr);
-    ASSERT_TRUE(std::equal(first_ptr, first_ptr + size, first_rewrite.begin()));
+    ASSERT_THAT(first_rewrite, ElementsAreArray(first_ptr, size));
 
     // After evict(), get_ptr() should load the file content again and reflect the second overwrite.
     buffer->hint_evict();
@@ -142,6 +144,6 @@ TEST_F(LazyBufferTest, evict_and_reload) {
     char* second_ptr = nullptr;
     ASSERT_NO_THROW((second_ptr = buffer->get_ptr<char>()));
     ASSERT_EQ(second_ptr, first_ptr);
-    EXPECT_TRUE(std::equal(second_ptr, second_ptr + size, second_rewrite.begin()));
+    EXPECT_THAT(second_rewrite, ElementsAreArray(second_ptr, size));
 }
 }  // namespace ov::test

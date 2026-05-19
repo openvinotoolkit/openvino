@@ -18,11 +18,10 @@
 #include "openvino/util/parallel_read_streambuf.hpp"
 
 namespace ov {
-LazyBuffer::LazyBuffer(std::filesystem::path file_path, size_t offset, size_t byte_size, size_t alignment)
+LazyBuffer::LazyBuffer(std::filesystem::path file_path, size_t offset, size_t byte_size)
     : AlignedBuffer(),
       m_file_path{std::move(file_path)},
       m_offset{offset},
-      m_alignment{alignment},
       m_reserved_size{0},
       m_reserved_buffer{nullptr},
       m_loaded{false} {
@@ -38,18 +37,18 @@ LazyBuffer::LazyBuffer(std::filesystem::path file_path, size_t offset, size_t by
                     m_byte_size,
                     ").");
 
-    m_reserved_size = m_byte_size + m_alignment - 1;
+    m_reserved_size = m_byte_size + default_alignment - 1;
     OPENVINO_ASSERT(m_reserved_size >= m_byte_size,
                     "Integer overflow occurred while calculating reserved size for LazyBuffer (requested byte size: ",
                     m_byte_size,
                     ", alignment: ",
-                    m_alignment,
+                    default_alignment,
                     ").");
     m_reserved_buffer = VirtualAlloc(nullptr, m_reserved_size, MEM_RESERVE, PAGE_NOACCESS);
     OPENVINO_ASSERT(m_reserved_buffer != nullptr, "VirtualAlloc reserve failed, err: ", GetLastError());
 
     m_aligned_buffer = static_cast<char*>(m_reserved_buffer) +
-                       util::align_padding_size(m_alignment, reinterpret_cast<size_t>(m_reserved_buffer));
+                       util::align_padding_size(default_alignment, reinterpret_cast<size_t>(m_reserved_buffer));
 }
 
 LazyBuffer::~LazyBuffer() {
