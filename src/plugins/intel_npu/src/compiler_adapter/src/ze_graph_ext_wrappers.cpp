@@ -401,8 +401,7 @@ GraphDescriptor ZeGraphExtWrappers::getGraphDescriptor(SerializedIR serializedIR
     }
     if (secureCompile) {
         if (_graphExtVersion < ZE_MAKE_VERSION(1, 17)) {
-            _logger.warning("Secure compilation was requested, but the current driver version does not support it. "
-                            "Ignoring the flag.");
+            OPENVINO_THROW("Secure compilation was requested, but the current driver version does not support it.");
         } else {
             _logger.debug("getGraphDescriptor - set ZE_GRAPH_FLAG_SECURE_COMPILE");
             flags |= ZE_GRAPH_FLAG_SECURE_COMPILE;
