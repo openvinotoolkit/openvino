@@ -20,10 +20,9 @@ public:
      * \param file_path Path to the file to load
      * \param offset Offset in the file to start the view
      * \param byte_size Size of the view in bytes
-     * \param alignment Alignment for the loaded buffer.
      * \throws AssertFailure if the file does not exist or the file size is smaller than the requested view.
      */
-    LazyBuffer(std::filesystem::path file_path, size_t offset, size_t byte_size, size_t alignment = default_alignment);
+    LazyBuffer(std::filesystem::path file_path, size_t offset, size_t byte_size);
 
     ~LazyBuffer() override;
 
@@ -53,7 +52,6 @@ protected:
 private:
     const std::filesystem::path m_file_path;
     const size_t m_offset{0};
-    const size_t m_alignment{default_alignment};
     size_t m_reserved_size{0};
     void* m_reserved_buffer{nullptr};
     mutable bool m_loaded{false};

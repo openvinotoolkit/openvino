@@ -25,7 +25,6 @@ protected:
         std::filesystem::remove(m_file_path);
     }
 
-public:
     void write_test_data(size_t size) {
         m_test_data.resize(size);
         std::iota(m_test_data.begin(), m_test_data.end(), 0);
@@ -60,16 +59,12 @@ TEST_F(LazyBufferTest, incorrect_file) {
     }
 }
 
-TEST_F(LazyBufferTest, overflowing_parameters) {
+TEST_F(LazyBufferTest, too_large_size) {
     write_test_data(4);
 
     OV_EXPECT_THROW(std::ignore = std::make_unique<LazyBuffer>(m_file_path, 0, std::numeric_limits<size_t>::max()),
                     AssertFailure,
                     ::testing::HasSubstr("size is smaller than requested range"));
-
-    OV_EXPECT_THROW(std::ignore = std::make_unique<LazyBuffer>(m_file_path, 0, 4, std::numeric_limits<size_t>::max()),
-                    AssertFailure,
-                    ::testing::HasSubstr("Integer overflow occurred "));
 }
 
 TEST_F(LazyBufferTest, read_file) {
@@ -81,11 +76,12 @@ TEST_F(LazyBufferTest, read_file) {
                                                                              {14, 15, 29},
                                                                              {128, 256, 1001}};
     for (const auto& [offset, size, alignment] : test_params) {
-        std::unique_ptr<AlignedBuffer> buffer = std::make_unique<LazyBuffer>(m_file_path, offset, size, alignment);
+        auto lazy_b = LazyBuffer{m_file_path, offset, size};
+        AlignedBuffer& buffer = lazy_b;
         char* data_ptr = nullptr;
-        ASSERT_NO_THROW((data_ptr = buffer->get_ptr<char>()));
+        ASSERT_NO_THROW((data_ptr = buffer.get_ptr<char>()));
         ASSERT_NE(data_ptr, nullptr);
-        ASSERT_EQ(buffer->size(), size);
+        ASSERT_EQ(buffer.size(), size);
         EXPECT_EQ(reinterpret_cast<std::uintptr_t>(data_ptr) % alignment, 0);
         EXPECT_TRUE(std::equal(data_ptr, data_ptr + size, m_test_data.begin() + offset));
     }
@@ -126,7 +122,7 @@ TEST_F(LazyBufferTest, evict_and_reload) {
     const std::vector<char> first_rewrite{'L', 'A', 'Z', 'Y', ' ', 'D', 'A', 'T', 'A'};
     const std::vector<char> second_rewrite{'O', 'V', 'E', 'R', 'W', 'R', 'I', 'T', 'E'};
 
-    const auto buffer = std::make_unique<LazyBuffer>(m_file_path, offset, size, 277);
+    const auto buffer = std::make_unique<LazyBuffer>(m_file_path, offset, size);
 
     overwrite_test_data(offset, first_rewrite);
     char* first_ptr = nullptr;
