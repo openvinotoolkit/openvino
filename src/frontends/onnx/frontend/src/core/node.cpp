@@ -354,12 +354,12 @@ Node::Node(const NodeProto& node_proto, Graph* graph)
               }},
       m_decoder(nullptr),
       m_translate_session(nullptr) {}
-Node::Node(const DecoderBaseOperation& decoder, TranslateSession* translate_session)
+Node::Node(std::shared_ptr<const DecoderBaseOperation> decoder, TranslateSession* translate_session)
     : m_pimpl{nullptr,
               [](Impl* impl) {
 
               }},
-      m_decoder(&decoder),
+      m_decoder(std::move(decoder)),
       m_translate_session(translate_session) {}
 
 Node::Node(Node&& other) noexcept

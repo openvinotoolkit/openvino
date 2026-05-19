@@ -913,13 +913,49 @@ bool ov::npuw::util::matchLoRAMatMulAlphaString(const std::string& input) {
     return ov::npuw::util::matchStringWithLoRAPattern(input, LoRANames::MatMul_alpha);
 }
 
+bool ov::npuw::util::matchLinCacheString(const std::string& input, const std::string& past_or_present) {
+    static std::regex past_regex_pattern("^cache_params\\.past\\.(conv|ssm)\\.(\\d+)$");
+    static std::regex present_regex_pattern("^cache_params\\.present\\.(conv|ssm)\\.(\\d+)$");
+    const std::regex& regex_pattern = (past_or_present == "past") ? past_regex_pattern : present_regex_pattern;
+    return std::regex_match(input, regex_pattern);
+}
+
+bool ov::npuw::util::starts_with_past_lincache(const std::string& input_name) {
+    static constexpr const char* past_lin_conv_cache = "cache_params.past.conv";
+    static constexpr const char* past_lin_ssm_cache = "cache_params.past.ssm";
+    return ov::npuw::util::starts_with(input_name, past_lin_conv_cache) ||
+           ov::npuw::util::starts_with(input_name, past_lin_ssm_cache);
+}
 void ov::npuw::util::fill_tensor_bytes(ov::SoPtr<ov::ITensor> tensor, uint8_t fill_val) {
     auto* tensor_data = reinterpret_cast<uint8_t*>(tensor->data());
     const size_t byte_size = tensor->get_byte_size();
     std::memset(tensor_data, fill_val, byte_size);
 }
 
-std::optional<int> ov::npuw::util::isPastKeyValuesKey(const std::string& str) {
+bool ov::npuw::util::isPastKeyParam(const std::string& str) {
+    // Match any past key param: contiguous or block-split (e.g. key_block_3, key_block_tail).
+    static const std::regex pattern(R"(past_key_values\.\d+\.key(_block_(\d+|tail))?)");
+    return std::regex_match(str, pattern);
+}
+
+bool ov::npuw::util::isPastValueParam(const std::string& str) {
+    // Match any past value param: contiguous or block-split.
+    static const std::regex pattern(R"(past_key_values\.\d+\.value(_block_(\d+|tail))?)");
+    return std::regex_match(str, pattern);
+}
+
+bool ov::npuw::util::isRestoredPastKeyValueParam(const std::string& str) {
+    // Match badly handled KVCache states by StatefulToStateless pass for Whisper.
+    static const std::regex restored_pattern(
+        R"((input_restored\.past_key_values\.(\d+)\.decoder\.(key|value))(present\.(\d+)\.decoder\.(key|value)))");
+    ;
+    return std::regex_match(str, restored_pattern);
+}
+
+std::optional<int> ov::npuw::util::isPastKeyValuesKeyContiguous(const std::string& str) {
+    // Match only the single contiguous past key param (no _block_ suffix).
+    // Allows optional intermediate parts like "encoder" or "decoder" (for Whisper).
+    // Returns the layer index if matched.
     std::regex pattern(R"(past_key_values\.(\d+)(?:\.[^.]+)*\.key)");
     std::smatch match;
     if (std::regex_match(str, match, pattern)) {
@@ -929,7 +965,10 @@ std::optional<int> ov::npuw::util::isPastKeyValuesKey(const std::string& str) {
     return std::nullopt;
 }
 
-std::optional<int> ov::npuw::util::isPastKeyValuesValue(const std::string& str) {
+std::optional<int> ov::npuw::util::isPastKeyValuesValueContiguous(const std::string& str) {
+    // Match only the single contiguous past value param (no _block_ suffix).
+    // Allows optional intermediate parts like "encoder" or "decoder" (for Whisper).
+    // Returns the layer index if matched.
     std::regex pattern(R"(past_key_values\.(\d+)(?:\.[^.]+)*\.value)");
     std::smatch match;
     if (std::regex_match(str, match, pattern)) {

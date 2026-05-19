@@ -237,6 +237,7 @@
 #    include "low_precision/reduce_min.hpp"
 #    include "low_precision/reduce_sum.hpp"
 #    include "openvino/opsets/opset1_decl.hpp"
+#    include "transformations/cpu_opset/arm/pass/align_unsupported_lp_conv_fq_precision.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_conv_bias.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_group_conv.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_group_conv1d.hpp"
@@ -958,12 +959,14 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
         PrecisionsRestriction::create<ov::op::v5::GRUSequence>({{{0, 1}, {ov::element::u8}}}),
     });
 #endif
-    CPU_REGISTER_PASS_COMMON(lptManager,
-                             LowPrecision,
-                             supportedPrecisions,
-                             quantizationRestrictions,
-                             LayerTransformation::Params(true, ov::element::f32, defaultPrecisions));
-
+    auto lowPrecPass = CPU_REGISTER_PASS_COMMON(lptManager,
+                                                LowPrecision,
+                                                supportedPrecisions,
+                                                quantizationRestrictions,
+                                                LayerTransformation::Params(true, ov::element::f32, defaultPrecisions));
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    lowPrecPass->add_markup<AlignUnsupportedLPConvFQPrecision>();
+#endif
     CPU_REGISTER_PASS_ARM(lptManager, ConvertConvolutionBias);
     CPU_REGISTER_PASS_ARM(lptManager, FallbackUnsupportedLPConvToFP16);
     CPU_SET_CALLBACK_ARM(
@@ -992,8 +995,6 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
         FuseMultiplyToFakeQuantizeTransformation);
     CPU_DISABLE_PASS_COMMON(lptManager, MultiplyToGroupConvolutionTransformation);
 
-    // ConvolutionTransformation is disabled temporary until ACL issues are fixed: #1252, #1253
-    CPU_DISABLE_PASS_ARM(lptManager, ConvolutionTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, ConvolutionBackpropDataTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, InterpolateTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, GroupConvolutionTransformation);
@@ -1419,14 +1420,19 @@ void Transformations::MainSnippets() {
         // todo: general tokenization flow is not currently supported for these operations.
         // they can be tokenized only as a part of complex patterns
         auto is_unsupported_by_common_tokenization = [](const std::shared_ptr<const ov::Node>& n) {
-            return (ov::is_type_any_of<const ov::op::v1::Softmax,
-                                       const ov::op::v8::Softmax,
-                                       const ov::op::v0::MatMul,
-                                       const ov::op::v1::Transpose,
-                                       const ov::op::v1::Broadcast,
-                                       const ov::op::v3::Broadcast,
-                                       const ov::op::v1::ReduceMax,
-                                       const ov::op::v1::ReduceSum>(n));
+#if defined(OPENVINO_ARCH_RISCV64)
+            constexpr bool is_unsupported_softmax = false;
+#else
+            const auto is_unsupported_softmax =
+                ov::is_type_any_of<const ov::op::v1::Softmax, const ov::op::v8::Softmax>(n);
+#endif
+
+            return is_unsupported_softmax || (ov::is_type_any_of<const ov::op::v0::MatMul,
+                                                                 const ov::op::v1::Transpose,
+                                                                 const ov::op::v1::Broadcast,
+                                                                 const ov::op::v3::Broadcast,
+                                                                 const ov::op::v1::ReduceMax,
+                                                                 const ov::op::v1::ReduceSum>(n));
         };
         return !is_unsupported(n) && !is_unsupported_by_common_tokenization(n);
     };
