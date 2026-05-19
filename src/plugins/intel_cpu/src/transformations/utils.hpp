@@ -57,6 +57,8 @@ bool match_conv_fq_same_types(const std::shared_ptr<const ov::Node>& node);
 
 bool match_acl_int8_conv_fq_chain(const std::shared_ptr<const ov::Node>& node);
 
+bool match_acl_int8_conv_swish_fq_chain(const std::shared_ptr<const ov::Node>& node);
+
 bool match_acl_int8_pooling_fq_chain(const std::shared_ptr<const ov::Node>& node);
 
 bool is_acl_int8_avg_pool_lpt_skipped(const std::shared_ptr<const ov::Node>& node,

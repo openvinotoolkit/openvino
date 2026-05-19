@@ -24,6 +24,7 @@
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/swish.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/util/avg_pool_base.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
@@ -186,6 +187,33 @@ bool match_acl_int8_conv_add_multiply_chain(const std::shared_ptr<const ov::Node
     }
 
     return ov::is_type<ov::op::v0::FakeQuantize>(second_consumer);
+}
+
+bool match_acl_int8_conv_swish_fq_chain(const std::shared_ptr<const ov::Node>& node) {
+    if (!node) {
+        return false;
+    }
+    if (!ov::is_type<const ov::op::v0::FakeQuantize>(node) ||
+        !any_of(node->get_output_element_type(0), ov::element::Type_t::u8, ov::element::Type_t::i8)) {
+        return false;
+    }
+
+    auto conv  = wrap_type<ov::op::v1::Convolution>();
+    auto mul   = wrap_type<ov::op::v1::Multiply>({conv, any_input()});
+    auto add   = wrap_type<ov::op::v1::Add>({mul, any_input()});
+    auto swish = wrap_type<ov::op::v4::Swish>({add});
+    auto fq    = wrap_type<ov::op::v0::FakeQuantize>(
+                     {swish, any_input(), any_input(), any_input(), any_input()});
+
+    Matcher matcher(fq);
+    if (!matcher.match(std::const_pointer_cast<ov::Node>(node))) {
+        return false;
+    }
+
+    const auto& pattern_map = matcher.get_pattern_value_map();
+    const auto conv_node = pattern_map.at(conv).get_node_shared_ptr();
+
+    return conv_node->get_input_element_type(1) == ov::element::Type_t::i8;
 }
 
 bool match_conv_stride_oc_ic_limit(const std::shared_ptr<const ov::Node>& node,

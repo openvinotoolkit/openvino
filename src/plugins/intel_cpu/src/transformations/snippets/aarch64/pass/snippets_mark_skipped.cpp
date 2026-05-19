@@ -292,6 +292,30 @@ bool isACLInt8ConvFQChainMarked(const std::shared_ptr<Node>& node) {
     }
     return true;
 }
+
+bool isACLInt8ConvSwishFQChainMarked(const std::shared_ptr<Node>& node) {
+    if (!match_acl_int8_conv_swish_fq_chain(node)){
+        return false;
+    }
+    snippets::pass::SetSnippetsNodeType(node, snippets::pass::SnippetsNodeType::SkippedByPlugin);
+
+    const auto swish = ov::as_type_ptr<ov::op::v4::Swish>(node->get_input_node_shared_ptr(0));
+    if (!swish) {
+        return true;
+    }
+    snippets::pass::SetSnippetsNodeType(swish, snippets::pass::SnippetsNodeType::SkippedByPlugin);
+
+    const auto add = ov::as_type_ptr<ov::op::v1::Add>(swish->get_input_node_shared_ptr(0));
+    if (!add) {
+        return true;
+    }
+    snippets::pass::SetSnippetsNodeType(add, snippets::pass::SnippetsNodeType::SkippedByPlugin);
+
+    if (const auto mul = ov::as_type_ptr<ov::op::v1::Multiply>(add->get_input_node_shared_ptr(0)); mul) {
+        snippets::pass::SetSnippetsNodeType(mul, snippets::pass::SnippetsNodeType::SkippedByPlugin);
+    }
+    return true;
+}
 #endif
 
 }  // namespace
@@ -308,6 +332,9 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model>& m) {
             continue;
         }
         if (isACLInt8ConvFQChainMarked(node)) {
+            continue;
+        }
+        if (isACLInt8ConvSwishFQChainMarked(node)) {
             continue;
         }
 #endif
