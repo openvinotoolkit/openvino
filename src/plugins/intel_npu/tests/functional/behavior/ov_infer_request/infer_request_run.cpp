@@ -12,6 +12,7 @@ using namespace ov::test::behavior;
 namespace {
 
 const std::vector<ov::AnyMap> configsInferRequestRunTests = {{}};
+
 const std::vector<ov::AnyMap> configsBooleanPrecisionInferRequestRunTests = {
     {{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN),
       ov::intel_npu::batch_mode(ov::intel_npu::BatchMode::PLUGIN),
@@ -28,6 +29,16 @@ const std::vector<ov::AnyMap> configsBooleanPrecisionInferRequestRunTests = {
     {{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
       ov::intel_npu::batch_mode(ov::intel_npu::BatchMode::COMPILER)}}};
 
+const std::vector<ov::AnyMap> configsForExclusiveAsyncRequests = {
+    {{ov::internal::exclusive_async_requests(true), ov::intel_npu::tiles(2)}},
+    {{ov::internal::exclusive_async_requests(true),
+      ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)}}};
+
+const std::vector<ov::AnyMap> configsWithDifferentNumStreamsTest = {
+    {{ov::num_streams(0)}},
+    {{ov::num_streams(2)}},
+    {{ov::num_streams(8), ov::hint::enable_cpu_pinning(true)}}};
+
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
                          InferRequestRunTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
@@ -35,9 +46,15 @@ INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
                          InferRequestRunTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
-                         ExecutorsConfig,
+                         ExclusiveAsyncRequestsTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(configsInferRequestRunTests)),
+                                            ::testing::ValuesIn(configsForExclusiveAsyncRequests)),
+                         InferRequestRunTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
+                         NumStreamsTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(configsWithDifferentNumStreamsTest)),
                          InferRequestRunTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
