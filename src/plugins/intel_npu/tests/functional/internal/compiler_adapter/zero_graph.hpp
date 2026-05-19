@@ -13,12 +13,14 @@
 #include "common/utils.hpp"
 #include "common/zero_init_mock.hpp"
 #include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
+#include "driver_compiler_adapter.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_mem.hpp"
 #include "intel_npu/utils/zero/zero_mem_pool.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "model_serializer.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
+#include "plugin_compiler_adapter.hpp"
 #include "ze_graph_ext_wrappers.hpp"
 
 using namespace intel_npu;
@@ -401,6 +403,37 @@ TEST_P(IsOptionSupported, PropertySupportedByDriver) {
     } else {
         ASSERT_TRUE(isOptionSupportedResult.has_value());
         ASSERT_TRUE(isOptionSupportedResult.value());
+    }
+}
+
+using EncryptionCallbacks = ZeroGraphTest;
+
+TEST_P(EncryptionCallbacks, EncryptionCallbacksSetSecureCompileFlag) {
+    model = ov::test::utils::make_conv_pool_relu({1, 3, 227, 227}, ov::element::f32);
+
+    auto options = std::make_shared<::intel_npu::OptionsDesc>();
+    options->add<::intel_npu::COMPILER_TYPE>();
+    options->add<::intel_npu::CACHE_ENCRYPTION_CALLBACKS>();
+    auto npu_config = std::make_unique<::intel_npu::FilteredConfig>(options);
+    for (const auto& [propertyName, propertyValue] : configuration) {
+        npu_config->enable(propertyName, true);
+    }
+    npu_config->updateAny(configuration);
+
+    std::shared_ptr<::intel_npu::ICompilerAdapter> compiler;
+    compiler = npu_config->get<::intel_npu::COMPILER_TYPE>() == ov::intel_npu::CompilerType::DRIVER
+                   ? std::dynamic_pointer_cast<::intel_npu::ICompilerAdapter>(
+                         std::make_shared<::intel_npu::DriverCompilerAdapter>(zeroInitStruct))
+                   : std::dynamic_pointer_cast<::intel_npu::ICompilerAdapter>(
+                         std::make_shared<::intel_npu::PluginCompilerAdapter>(zeroInitStruct));
+
+    if (zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 17)) {
+        OV_EXPECT_THROW(compiler->compile(model, *npu_config),
+                        ov::Exception,
+                        testing::HasSubstr(
+                            "Secure compilation was requested, but the current driver version does not support it."));
+    } else {
+        OV_ASSERT_NO_THROW(compiler->compile(model, *npu_config));
     }
 }
 
