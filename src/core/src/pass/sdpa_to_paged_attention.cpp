@@ -17,6 +17,7 @@
 #include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
 #include "transformations/common_optimizations/sdpa_fusion.hpp"
 #include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
+#include "transformations/paged_attention/eliminate_conv_padding_mask_gating.hpp"
 #include "transformations/paged_attention/paged_causal_conv1d_fusion.hpp"
 #include "transformations/paged_attention/paged_gated_delta_net_fusion.hpp"
 #include "transformations/paged_attention/position_ids_replacer.hpp"
@@ -25,6 +26,8 @@
 #include "transformations/paged_attention/total_sequence_length_pattern.hpp"
 #include "transformations/utils/print_model.hpp"
 #include "transformations/utils/utils.hpp"
+
+#include "openvino/pass/visualize_tree.hpp"
 
 using namespace ov::op;
 using ov::pass::paged_attention::PaParams;
@@ -78,6 +81,8 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     OPENVINO_ASSERT(ov::op::util::has_op_with_type<ov::op::v13::ScaledDotProductAttention>(model),
                     "No ScaledDotProductAttention operation observed in the graph, cannot perform "
                     "the SDPAToPagedAttention transformation.");
+
+    // ov::pass::Serialize("gemma_sdpa_to_paged_attention_before.xml", "gemma_sdpa_to_paged_attention_before.bin").run_on_model(model);
 
     m_params = PaParams{model->get_parameters()};
     m_results = PaResults{model->get_results()};
@@ -147,6 +152,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                                                              // nodes are in the expected form before running
                                                              // PagedGatedDeltaNetFusion.
     manager.register_pass<StateManagementPattern>(m_params, m_results, m_options, var_ids_to_remove);
+    manager.register_pass<EliminateConvPaddingMaskGating>();
     manager.register_pass<PagedCausalConv1DFusion>(m_params, var_ids_to_remove);
     manager.register_pass<PagedGatedDeltaNetFusion>(m_params, var_ids_to_remove);
     manager.register_pass<PrevSequenceLengthPattern>(processed_input_ids, max_context_len, position_ids);
@@ -197,7 +203,10 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     model->add_results(m_results.items());
     model->add_parameters(m_params.items());
+    ov::pass::VisualizeTree("sdpa_to_paged_attention_after.svg").run_on_model(model);
+    std::cout << "before validate infer types" << std::endl;
     model->validate_nodes_and_infer_types();
+    std::cout << "after validate infer types" << std::endl;
 
     return true;
 }
