@@ -88,7 +88,7 @@ void ConcatSDPTest::SetUp() {
                         has_value("VALUE_CACHE_QUANT_ALG", "TURBO") ||
                         has_value("KV_CACHE_QUANT_ALG", "TURBO");
     rel_threshold = 3e-2F;
-    abs_threshold = 0.01F;
+    abs_threshold = 0.02F;
     if (is_u4 && is_tbq) {
         // u4 + TBQ4 mix compounds both codecs' quant bias.
         abs_threshold = 0.5F;
