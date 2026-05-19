@@ -171,8 +171,7 @@ void topological_sort_graph(GraphProto* graph) {
 
     // Known tensors: graph inputs and initializers
     std::unordered_set<std::string_view> known_tensors;
-    known_tensors.reserve(static_cast<size_t>(graph->input_size()) +
-                          static_cast<size_t>(graph->initializer_size()));
+    known_tensors.reserve(static_cast<size_t>(graph->input_size()) + static_cast<size_t>(graph->initializer_size()));
     for (const auto& input : graph->input()) {
         known_tensors.insert(input.name());
     }
