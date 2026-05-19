@@ -2,11 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
 #include <cstdint>
 #include <limits>
 #include <random>
+#include <string>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/filter_cpu_info.hpp"
@@ -90,8 +93,8 @@ protected:
 
         if (!ov::with_cpu_x86_avx512_core() && netPrecision == ElementType::bf16) {
             selectedType = makeSelectedTypeStr(getPrimitiveType(), ElementType::f32);
-        } else if (netPrecision == ElementType::i64 || netPrecision == ElementType::u64) {
-            selectedType = makeSelectedTypeStr("ref_any", netPrecision);
+        } else if (expectsReferenceFallback()) {
+            selectedType = "ref";
         } else {
             selectedType = makeSelectedTypeStr(getPrimitiveType(), netPrecision);
         }
@@ -221,6 +224,20 @@ protected:
         }
     }
 
+    bool expectsReferenceFallback() const {
+        return netPrecision == ElementType::i64 || netPrecision == ElementType::u64;
+    }
+
+    bool hasRuntimeLayerType(const std::string& layerType) const {
+        const auto runtimeModel = compiledModel.get_runtime_model();
+        const auto ops = runtimeModel->get_ops();
+        return std::any_of(ops.begin(), ops.end(), [&layerType](const std::shared_ptr<ov::Node>& node) {
+            const auto& rtInfo = node->get_rt_info();
+            const auto it = rtInfo.find(ov::exec_model_info::LAYER_TYPE);
+            return it != rtInfo.end() && it->second.as<std::string>() == layerType;
+        });
+    }
+
 private:
     void generate_dynamic_k(const std::vector<ov::Output<ov::Node>>& funcInputs,
                             const std::vector<ov::Shape>& targetInputStaticShapes) {
@@ -246,7 +263,13 @@ private:
 };
 TEST_P(TopKLayerCPUTest, CompareWithRefs) {
     run();
-    CheckPluginRelatedResults(compiledModel, "TopK");
+    if (expectsReferenceFallback()) {
+        CheckPluginRelatedResults(compiledModel, "Reference");
+        ASSERT_TRUE(hasRuntimeLayerType("Reference"));
+        ASSERT_FALSE(hasRuntimeLayerType("TopK"));
+    } else {
+        CheckPluginRelatedResults(compiledModel, "TopK");
+    }
 }
 
 class TopKLayerInvalidK : public TopKLayerCPUTest {};
@@ -373,7 +396,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_TopK_int64,
                                                                ::testing::Values(ElementType::dynamic),
                                                                ::testing::Values(ElementType::dynamic),
                                                                ::testing::ValuesIn(inputShapes_int64)),
-                                            ::testing::Values(CPUSpecificParams({}, {}, {"ref_any"}, "ref_any")),
+                                            ::testing::Values(CPUSpecificParams({}, {}, {}, {})),
                                             ::testing::Values(additionalConfig[0])),
                          TopKLayerCPUTest::getTestCaseName);
 
@@ -389,7 +412,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_TopK_uint64,
                                                                ::testing::Values(ElementType::dynamic),
                                                                ::testing::Values(ElementType::dynamic),
                                                                ::testing::ValuesIn(inputShapes_int64)),
-                                            ::testing::Values(CPUSpecificParams({}, {}, {"ref_any"}, "ref_any")),
+                                            ::testing::Values(CPUSpecificParams({}, {}, {}, {})),
                                             ::testing::Values(additionalConfig[0])),
                          TopKLayerCPUTest::getTestCaseName);
 

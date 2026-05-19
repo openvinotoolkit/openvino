@@ -59,15 +59,6 @@ using namespace Xbyak;
 
 namespace ov::intel_cpu::node {
 
-static inline bool isTopKJitSupportedPrecision(const ov::element::Type& precision) {
-    return any_of(precision,
-                  ov::element::f32,
-                  ov::element::bf16,
-                  ov::element::i32,
-                  ov::element::i8,
-                  ov::element::u8);
-}
-
 #if defined(OPENVINO_ARCH_X86_64)
 #    define GET_OFF(field) offsetof(jit_topk_call_args, field)
 
@@ -1898,6 +1889,12 @@ bool TopK::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::
         }
 
         auto topKOp = ov::as_type_ptr<const ov::op::util::TopKBase>(op);
+        const auto dataPrecision = topKOp->get_input_element_type(TOPK_DATA);
+        if (any_of(dataPrecision, ov::element::i64, ov::element::u64)) {
+            errorMessage = std::string("Unsupported data precision for CPU TopK: ") + dataPrecision.get_type_name();
+            return false;
+        }
+
         if (!isDynamicNgraphNode(op)) {
             auto topKConst = ov::as_type_ptr<const ov::op::v0::Constant>(topKOp->get_input_node_shared_ptr(TOPK_K));
             if (!topKConst) {
@@ -2006,9 +2003,7 @@ void TopK::initSupportedPrimitiveDescriptors() {
     static const ov::element::Type supportedPrecision[] = {ov::element::f32,
                                                            ov::element::bf16,
                                                            ov::element::i32,
-                                                           ov::element::i64,
                                                            ov::element::i8,
-                                                           ov::element::u64,
                                                            ov::element::u8};
 
     ov::element::Type dataPrecision = getOriginalOutputPrecisionAtPort(TOPK_DATA);
@@ -2023,22 +2018,18 @@ void TopK::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    const bool canUseJit = impl_type != impl_desc_type::ref && isTopKJitSupportedPrecision(dataPrecision);
-    const bool useReferenceAny = any_of(dataPrecision, ov::element::i64, ov::element::u64);
-    const auto selectedImplType = canUseJit ? impl_type : (useReferenceAny ? impl_desc_type::ref_any : impl_type);
-    std::vector<std::pair<LayoutType, LayoutType>> dataFomats{{LayoutType::ncsp, LayoutType::ncsp}};
+    std::vector<std::pair<LayoutType, LayoutType>> dataFomats{{LayoutType::ncsp, LayoutType::ncsp},
 #if defined(OPENVINO_ARCH_X86_64)
-    if (canUseJit) {
-        dataFomats.emplace_back(LayoutType::nspc, LayoutType::nspc);
-        dataFomats.emplace_back(LayoutType::nCsp16c, LayoutType::nCsp16c);
-        dataFomats.emplace_back(LayoutType::nCsp8c, LayoutType::nCsp8c);
-    }
+                                                              {LayoutType::nspc, LayoutType::nspc},
+                                                              {LayoutType::nCsp16c, LayoutType::nCsp16c},
+                                                              {LayoutType::nCsp8c, LayoutType::nCsp8c}
 #endif
+    };
 
     for (const auto& df : dataFomats) {
         addSupportedPrimDesc({{df.first, dataPrecision}, {LayoutType::ncsp, ov::element::i32}},
                              {{df.second, dataPrecision}, {df.second, ov::element::i32}},
-                             selectedImplType);
+                             impl_type);
     }
 }
 
@@ -2106,10 +2097,6 @@ void TopK::prepareParams() {
                     ") exceeds the axis dimension (",
                     src_dims[axis],
                     ").");
-
-    const auto dataPrecision =
-        getSelectedPrimitiveDescriptor()->getConfig().inConfs[TOPK_DATA].getMemDesc()->getPrecision();
-    jit_mode = jit_mode && isTopKJitSupportedPrecision(dataPrecision);
 
     if (jit_mode) {
         if (!preset_params_done) {
@@ -2190,10 +2177,6 @@ void TopK::createPrimitive() {
         updateLastInputDims();
     }
 
-    auto* selectedPD = getSelectedPrimitiveDescriptor();
-    const auto dataPrecision = selectedPD->getConfig().inConfs[TOPK_DATA].getMemDesc()->getPrecision();
-    jit_mode = jit_mode && isTopKJitSupportedPrecision(dataPrecision);
-
     if (jit_mode) {
         if (!preset_params_done) {
             preset_params();
@@ -2204,7 +2187,8 @@ void TopK::createPrimitive() {
         // Such params are useless for dynamic shapes, instead their jit_topk_call_args counterparts
         // will be used. These params are: top_k, axis_dim, sort_stride, work_amount
         auto jcp = jit_topk_config_params();
-        jcp.precision = dataPrecision;
+        auto* selectedPD = getSelectedPrimitiveDescriptor();
+        jcp.precision = selectedPD->getConfig().inConfs[TOPK_DATA].getMemDesc()->getPrecision();
         jcp.data_size = data_size;
         jcp.blk_size = blk_size;
         jcp.layout = layout;
@@ -2264,8 +2248,10 @@ void TopK::execute([[maybe_unused]] const dnnl::stream& strm) {
         topk_process(src_data, dst_data, dst_idx);
     } else {
         if (layout == TopKLayoutType::topk_ncsp) {
+            const auto* in_ptr = reinterpret_cast<const float*>(src_data);
+            auto* out_ptr = reinterpret_cast<float*>(dst_data);
             auto* out_idx_ptr = reinterpret_cast<int32_t*>(dst_idx);
-            topk_ref(src_data, dst_data, out_idx_ptr);
+            topk_ref(in_ptr, out_ptr, out_idx_ptr);
         } else {
             CPU_NODE_THROW("only support plain layout on machine w/o sse42.");
         }
@@ -2495,33 +2481,33 @@ void TopK::calc_dims_size(const VectorDims& layout_dims) {
     }
 }
 
-namespace {
-
-template <typename T, typename Compare, typename Parallel>
-void topk_ref_process(const T* src_data,
-                      T* dst_data,
-                      int32_t* dst_idx,
-                      const VectorDims& in_dims,
-                      int axis,
-                      int top_k,
-                      int dim,
-                      int before_num,
-                      bool sort_index,
-                      const Parallel& cpu_parallel,
-                      Compare compare) {
-    size_t after_num_size = 1;
-    for (size_t i = axis + 1; i < in_dims.size(); i++) {
-        after_num_size *= in_dims[i];
+void TopK::topk_ref(const float* in_ptr, float* out_ptr, int32_t* dst_idx) {
+    if (mode_max) {
+        topk_ref_process(in_ptr, out_ptr, dst_idx, src_dims, [](float x, float y) -> bool {
+            return x > y;
+        });
+    } else {
+        topk_ref_process(in_ptr, out_ptr, dst_idx, src_dims, [](float x, float y) -> bool {
+            return x < y;
+        });
     }
-    const int after_num = static_cast<int>(after_num_size);
+}
+
+void TopK::topk_ref_process(const float* src_data,
+                            float* dst_data,
+                            int32_t* dst_idx,
+                            const VectorDims& in_dims,
+                            std::function<bool(float, float)> compare) const {
+    const auto& cpu_parallel = context->getCpuParallel();
+    int after_num = count(in_dims, axis + 1, in_dims.size());
 
     cpu_parallel->parallel_for2d(before_num, after_num, [&](int i0, int i1) {
-        std::vector<T> max_values(top_k + 1);
+        std::vector<float> max_values(top_k + 1);
         std::vector<int> max_indexes(top_k + 1);
         int s_index = i0 * dim * after_num + i1;
 
         auto swap_func = [&](int index1, int index2) {
-            T tmp_value = max_values[index1];
+            float tmp_value = max_values[index1];
             max_values[index1] = max_values[index2];
             max_values[index2] = tmp_value;
 
@@ -2574,80 +2560,6 @@ void topk_ref_process(const T* src_data,
             }
         }
     });
-}
-
-template <typename T>
-void topk_ref_by_mode(const uint8_t* in_ptr,
-                      uint8_t* out_ptr,
-                      int32_t* dst_idx,
-                      const VectorDims& in_dims,
-                      int axis,
-                      int top_k,
-                      int dim,
-                      int before_num,
-                      bool mode_max,
-                      bool sort_index,
-                      const ov::intel_cpu::GraphContext::CPtr& context) {
-    const auto* src_data = reinterpret_cast<const T*>(in_ptr);
-    auto* dst_data = reinterpret_cast<T*>(out_ptr);
-    const auto& cpu_parallel = context->getCpuParallel();
-    if (mode_max) {
-        topk_ref_process(src_data,
-                         dst_data,
-                         dst_idx,
-                         in_dims,
-                         axis,
-                         top_k,
-                         dim,
-                         before_num,
-                         sort_index,
-                         cpu_parallel,
-                         [](T x, T y) -> bool {
-                             return x > y;
-                         });
-    } else {
-        topk_ref_process(src_data,
-                         dst_data,
-                         dst_idx,
-                         in_dims,
-                         axis,
-                         top_k,
-                         dim,
-                         before_num,
-                         sort_index,
-                         cpu_parallel,
-                         [](T x, T y) -> bool {
-                             return x < y;
-                         });
-    }
-}
-
-}  // namespace
-
-void TopK::topk_ref(const uint8_t* in_ptr, uint8_t* out_ptr, int32_t* dst_idx) {
-    const auto precision =
-        getSelectedPrimitiveDescriptor()->getConfig().inConfs[TOPK_DATA].getMemDesc()->getPrecision();
-    if (precision == ov::element::f32) {
-        topk_ref_by_mode<float>(
-            in_ptr, out_ptr, dst_idx, src_dims, axis, top_k, dim, before_num, mode_max, sort_index, context);
-    } else if (precision == ov::element::i32) {
-        topk_ref_by_mode<int32_t>(
-            in_ptr, out_ptr, dst_idx, src_dims, axis, top_k, dim, before_num, mode_max, sort_index, context);
-    } else if (precision == ov::element::i64) {
-        topk_ref_by_mode<int64_t>(
-            in_ptr, out_ptr, dst_idx, src_dims, axis, top_k, dim, before_num, mode_max, sort_index, context);
-    } else if (precision == ov::element::i8) {
-        topk_ref_by_mode<int8_t>(
-            in_ptr, out_ptr, dst_idx, src_dims, axis, top_k, dim, before_num, mode_max, sort_index, context);
-    } else if (precision == ov::element::u64) {
-        topk_ref_by_mode<uint64_t>(
-            in_ptr, out_ptr, dst_idx, src_dims, axis, top_k, dim, before_num, mode_max, sort_index, context);
-    } else if (precision == ov::element::u8) {
-        topk_ref_by_mode<uint8_t>(
-            in_ptr, out_ptr, dst_idx, src_dims, axis, top_k, dim, before_num, mode_max, sort_index, context);
-    } else {
-        CPU_NODE_THROW("has unsupported reference precision: ", precision);
-    }
 }
 
 inline int TopK::count(const VectorDims& dims, size_t start_ind, size_t end_ind) {
