@@ -271,7 +271,6 @@
 #if defined(OPENVINO_ARCH_RISCV64)
 #    include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
 #    include "openvino/op/power.hpp"
-#    include "openvino/op/select.hpp"
 #    include "openvino/op/swish.hpp"
 #    include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #endif
