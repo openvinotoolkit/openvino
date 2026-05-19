@@ -165,7 +165,7 @@ void Graph::set_argument_value_with_strides(uint32_t id, const void* data, const
     _zeGraphExt->setGraphArgumentValueWithStrides(_graphDesc, id, data, strides);
 }
 
-bool Graph::supports_sequential_inference() const {
+bool Graph::supports_in_order_execution() const {
     if (_zeroInitStruct == nullptr) {
         return false;
     }
@@ -188,7 +188,7 @@ void Graph::initialize_impl(const FilteredConfig& config) {
             commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
         }
     }
-    if (supports_sequential_inference() &&
+    if (supports_in_order_execution() &&
         (config.get<RUN_INFERENCES_SEQUENTIALLY>() || config.get<EXCLUSIVE_ASYNC_REQUESTS>())) {
         _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC in command queue options");
         commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
@@ -201,8 +201,8 @@ void Graph::initialize_impl(const FilteredConfig& config) {
             zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
             config.has<WORKLOAD_TYPE>() ? zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>()) : std::nullopt,
             commandQueueOptions,
-            supports_sequential_inference() && config.get<EXCLUSIVE_ASYNC_REQUESTS>() && sharedCommonQueue ? nullptr
-                                                                                                           : this,
+            supports_in_order_execution() && config.get<EXCLUSIVE_ASYNC_REQUESTS>() && sharedCommonQueue ? nullptr
+                                                                                                         : this,
             sharedCommonQueue,
         };
     }
@@ -219,7 +219,7 @@ void Graph::initialize_impl(const FilteredConfig& config) {
         _batchSize = determine_batch_size();
     }
 
-    if (!supports_sequential_inference() && config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+    if (!supports_in_order_execution() && config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
         auto numberOfCommandLists = _batchSize.has_value() ? *_batchSize : 1;
 
         _lastSubmittedEvent.resize(numberOfCommandLists);

@@ -75,7 +75,7 @@ public:
 
     virtual std::optional<bool> is_profiling_blob() const = 0;
 
-    virtual bool supports_sequential_inference() const = 0;
+    virtual bool supports_in_order_execution() const = 0;
 
     virtual std::optional<std::string_view> get_compatibility_descriptor() const;
 

@@ -196,7 +196,7 @@ public:
 
     std::optional<bool> is_profiling_blob() const override;
 
-    bool supports_sequential_inference() const override;
+    bool supports_in_order_execution() const override;
 
     std::optional<std::string_view> get_compatibility_descriptor() const override;
 

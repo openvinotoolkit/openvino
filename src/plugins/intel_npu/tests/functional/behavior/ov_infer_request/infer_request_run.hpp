@@ -3037,6 +3037,48 @@ TEST_P(ExecutorsConfig, SetNumStreamsTo2CheckResults) {
     }
 }
 
+TEST_P(ExecutorsConfig, SetNumStreamsTo8AndEnableCpuPinningCheckResults) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    auto shape = Shape{1, 2, 64, 64};
+    auto shape_size = ov::shape_size(shape);
+    auto model = createModel(element::f32, shape, "N...");
+
+    configuration[ov::num_streams.name()] = 8;
+    configuration[ov::hint::enable_cpu_pinning.name()] = true;
+    auto compiled_model = core->compile_model(model, target_device, configuration);
+    const uint32_t inferences = 32;
+    std::array<ov::InferRequest, inferences> inference_request;
+
+    for (uint32_t i = 0; i < inferences; i++) {
+        inference_request[i] = compiled_model.create_infer_request();
+
+        auto input_tensor = inference_request[i].get_input_tensor();
+        auto* input_data = reinterpret_cast<float*>(input_tensor.data());
+        for (size_t j = 0; j < shape_size; ++j) {
+            input_data[j] = static_cast<float>(i);
+        }
+    }
+
+    for (uint32_t i = 0; i < inferences; i++) {
+        inference_request[i].start_async();
+    }
+
+    for (uint32_t i = 0; i < inferences; i++) {
+        inference_request[i].wait();
+    }
+
+    for (uint32_t i = 0; i < inferences; i++) {
+        float expected_result = static_cast<float>(i) + 1.f;
+        auto output_tensor = inference_request[i].get_output_tensor();
+        auto* output_tensor_data = reinterpret_cast<float*>(output_tensor.data());
+        for (size_t j = 0; j < shape_size; ++j) {
+            ASSERT_NEAR(output_tensor_data[j], expected_result, 1e-5)
+                << "Inference=" << i << " Expected=" << expected_result << ", actual=" << output_tensor_data[j]
+                << " for index " << j;
+        }
+    }
+}
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
