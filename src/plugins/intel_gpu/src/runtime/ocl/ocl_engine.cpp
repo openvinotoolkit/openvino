@@ -178,7 +178,7 @@ void ocl_engine::release_external_memory(shared_handle cl_mem_handle) {
     auto& opencl_stream = downcast<ocl_stream>(get_service_stream());
     cl_command_queue q = opencl_stream.get_cl_queue().get();
     cl_mem mem = static_cast<cl_mem>(cl_mem_handle);
-    cl_int err = pfn(q, 1, &mem, 0, nullptr, nullptr);
+    pfn(q, 1, &mem, 0, nullptr, nullptr);
     clFinish(q);
 }
 

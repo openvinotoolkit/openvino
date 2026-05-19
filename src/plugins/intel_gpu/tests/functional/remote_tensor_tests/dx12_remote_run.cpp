@@ -76,11 +76,9 @@ public:
 
     void SetUp() override {
         std::tie(target_device, configuration) = this->GetParam();
-
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         OVPluginTestBase::SetUp();
         ov_model = make_model();
-
         createDevice();
     }
 
@@ -244,25 +242,18 @@ TEST_P(DX12RemoteRunTests, CheckRemoteTensorSharedBuChangingTensors) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
-
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
     OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
     auto tensor = inference_request.get_input_tensor();
-
     const auto byte_size = ov::util::get_memory_size(ov::element::f32, shape_size(tensor.get_shape()));
-
     auto context = core->get_default_context(target_device).as<ov::intel_gpu::ocl::ClContext>();;
-
     createHeap(byte_size);
-
     auto remote_tensor = context.create_tensor(ov::element::f32, tensor.get_shape(), shared_mem, ov::intel_gpu::MemType::SHARED_BUF);
     ov::Tensor check_remote_tensor;
     ASSERT_NO_THROW(check_remote_tensor = remote_tensor);
     ASSERT_THROW(check_remote_tensor.data(), ov::Exception);
-
     OV_ASSERT_NO_THROW(inference_request.set_input_tensor(check_remote_tensor));
     OV_ASSERT_NO_THROW(inference_request.infer());
-
     // set random input tensor
     float* random_buffer_tensor = new float[byte_size / sizeof(float)];
     memset(random_buffer_tensor, 1, byte_size);
@@ -278,11 +269,11 @@ TEST_P(DX12RemoteRunTests, CheckRemoteTensorSharedBuChangingTensors) {
     float* output_random_buffer_tensor = new float[output_byte_size / sizeof(float)];
     memset(output_random_buffer_tensor, 1, output_byte_size);
     ov::Tensor outputrandom_tensor_input{ov::element::f32, output_tensor.get_shape(), output_random_buffer_tensor};
-
     OV_ASSERT_NO_THROW(inference_request.set_output_tensor(outputrandom_tensor_input));
     OV_ASSERT_NO_THROW(inference_request.infer());
 
     delete[] random_buffer_tensor;
+    delete[] output_random_buffer_tensor;
 }
 
 TEST_P(DX12RemoteRunTests, CheckOutputDataFromMultipleRuns) {

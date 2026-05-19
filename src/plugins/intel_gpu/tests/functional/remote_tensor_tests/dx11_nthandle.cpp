@@ -220,7 +220,6 @@ TEST(GpuSharedBufferRemoteTensor, smoke_Dx11RemoteInputToRemoteOutputCopyAndComp
         FAIL() << "Failed to get LUID for " << selected_gpu_device;
     }
 
-
     // Create DX11 context for the selected GPU's LUID
     Dx11TestContext dx11 = create_dx11_test_context(cl_luid);
     if (!dx11.device) {
@@ -275,9 +274,7 @@ TEST(GpuSharedBufferRemoteTensor, smoke_Dx11RemoteInputToRemoteOutputCopyAndComp
     for (size_t i = 0; i < element_count; ++i) {
         EXPECT_FLOAT_EQ(input_values[i], 2.0f) << "Input mismatch at index " << i;
     }
-
     infer_req.infer();
-
     ov::Tensor host_output(ov::element::f32, shape);
     remote_output_tensor.copy_to(host_output);
     const auto* output_values = host_output.data<const float>();

@@ -224,11 +224,8 @@ Dx12SharedBuffer create_dx12_shared_buffer(ID3D12Device* device,
             gpu_wait(command_queue, device);
         }
     }
-
     return {resource, shared_handle};
 }
-
-
 
 TEST(GpuSharedBufferRemoteTensor, smoke_Dx12RemoteInputToRemoteOutputCopyAndCompare) {
     ov::Core core;
@@ -272,7 +269,6 @@ TEST(GpuSharedBufferRemoteTensor, smoke_Dx12RemoteInputToRemoteOutputCopyAndComp
     dx12.adapter->GetDesc1(&dxgi_desc);
     std::array<unsigned char, CL_LUID_SIZE_KHR> dxgi_luid{};
     memcpy(dxgi_luid.data(), &dxgi_desc.AdapterLuid, sizeof(dxgi_desc.AdapterLuid));
-
     auto ov_ctx = core.get_default_context(selected_gpu_device).as<ov::intel_gpu::ocl::ClContext>();
 
     {
@@ -346,20 +342,16 @@ TEST(GpuSharedBufferRemoteTensor, smoke_Dx12RemoteInputToRemoteOutputCopyAndComp
     auto infer_req = compiled.create_infer_request();
     infer_req.set_tensor(compiled.input(), remote_input_tensor);
     infer_req.set_tensor(compiled.output(), remote_output_tensor);
-
     ov::Tensor host_input(ov::element::f32, shape);
     remote_input_tensor.copy_to(host_input);
     const auto* input_values = host_input.data<const float>();
     for (size_t i = 0; i < element_count; ++i) {
         EXPECT_FLOAT_EQ(input_values[i], 2.0f) << "Input mismatch at index " << i;
     }
-
     infer_req.infer();
-
     ov::Tensor host_output(ov::element::f32, shape);
     remote_output_tensor.copy_to(host_output);
     const auto* output_values = host_output.data<const float>();
-
     const bool has_non_zero = std::any_of(output_values, output_values + element_count, [](float v) {
         return v != 0.0f;
     });
