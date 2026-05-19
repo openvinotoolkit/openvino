@@ -9,6 +9,7 @@
 
 #include <common/utils.hpp>
 #include <cstddef>
+#include <functional>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
@@ -181,6 +182,9 @@ void SoftMax::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
 }
 
 void SoftMax::prepareParams() {
+    executionPath = ExecutionPath::OneDnn;
+    customJitExec.reset();
+
     auto inpDesc = getParentEdgeAt(0)->getMemory().getDescWithType<DnnlMemoryDesc>();
     const NodeDesc* selected_pd = getSelectedPrimitiveDescriptor();
 
@@ -229,6 +233,48 @@ void SoftMax::prepareParams() {
     execPtr = result.first;
     CPU_NODE_ASSERT(execPtr, "Primitive descriptor was not found.");
 
+    // Keep original priority semantics while allowing easy extension
+    // of fallback implementations by appending new factories.
+    const auto selectedImplType = execPtr->getImplementationType();
+    if (!(selectedImplType & jit)) {
+        const std::vector<std::function<bool()>> fallbackChain = {
+            [&]() {
+                return tryInitCustomJitExecutor(inpDesc);
+            },
+        };
+
+        for (const auto& fallback : fallbackChain) {
+            if (fallback()) {
+                return;
+            }
+        }
+    }
+
+    initOneDnnPrimitiveArgs();
+}
+
+bool SoftMax::tryInitCustomJitExecutor(const DnnlMemoryDescPtr& inpDesc) {
+    const auto inShape = getInputShapeAtPort(0);
+    if (!inShape.isStatic()) {
+        return false;
+    }
+
+    const auto& dims = inShape.getStaticDims();
+    const auto precision = getOriginalInputPrecisionAtPort(0);
+    auto customExec = std::make_unique<ov::intel_cpu::SoftmaxForkExecutor>(dims,
+                                                                            axis,
+                                                                            precision,
+                                                                            inpDesc->getDnnlDesc());
+    if (!customExec->isSupported() || customExec->init() != dnnl::impl::status::success) {
+        return false;
+    }
+
+    customJitExec = std::move(customExec);
+    executionPath = ExecutionPath::CustomJit;
+    return true;
+}
+
+void SoftMax::initOneDnnPrimitiveArgs() {
     auto scratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
 
     primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
@@ -241,6 +287,14 @@ void SoftMax::prepareParams() {
 }
 
 void SoftMax::execute(const dnnl::stream& strm) {
+    if (executionPath == ExecutionPath::CustomJit) {
+        CPU_NODE_ASSERT(customJitExec, "Custom Softmax executor path selected but executor is not initialized");
+        const auto* src = getSrcDataAtPortAs<const uint8_t>(0);
+        auto* dst = getDstDataAtPortAs<uint8_t>(0);
+        customJitExec->execute(src, dst);
+        return;
+    }
+
     if (execPtr) {
         execPtr->exec(primArgs, strm);
     } else {

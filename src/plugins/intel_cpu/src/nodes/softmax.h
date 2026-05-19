@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstddef>
+#include <functional>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
@@ -13,6 +14,7 @@
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
+#include "nodes/executors/x64/softmax_fork_executor.hpp"
 #include "openvino/core/node.hpp"
 
 namespace ov::intel_cpu::node {
@@ -34,8 +36,18 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
+    enum class ExecutionPath {
+        OneDnn,
+        CustomJit
+    };
+
+    bool tryInitCustomJitExecutor(const DnnlMemoryDescPtr& inpDesc);
+    void initOneDnnPrimitiveArgs();
+
     using executorPtr = std::shared_ptr<DnnlExecutorLegacy>;
     executorPtr execPtr = nullptr;
+    std::unique_ptr<ov::intel_cpu::SoftmaxForkExecutor> customJitExec;
+    ExecutionPath executionPath = ExecutionPath::OneDnn;
     size_t axis = 0;
 };
 
