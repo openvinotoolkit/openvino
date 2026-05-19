@@ -113,8 +113,8 @@ jobs:
   Arc_B50_dGPU:
     name: Arc B50 dGPU Tests Level Zero
     needs: [ Build, Smart_CI ]
-    # if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
-    if: ${{ 'false' }} # Ticket: 182905
+    if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
+    # if: ${{ 'false' }} # Ticket: 182905
     timeout-minutes: 80
     strategy:
       max-parallel: 2
