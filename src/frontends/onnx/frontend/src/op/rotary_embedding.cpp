@@ -81,13 +81,60 @@ ov::OutputVector rotary_embedding(const ov::frontend::onnx::Node& node) {
     const int64_t cos_last_dim = cos_pshape[cos_pshape.rank().get_length() - 1].get_length();
     const int64_t half_rotary_dim = partial ? rotary_dim / 2 : cos_last_dim;
 
-    const auto input_rank = input.get_partial_shape().rank();
+    // The cos/sin cache must be wide enough to feed half_rotary_dim columns into
+    // the rope helper; otherwise the downstream Slice/VariadicSplit would build
+    // an invalid graph that only fails much later at shape inference.
+    CHECK_VALID_NODE(node,
+                     half_rotary_dim <= cos_last_dim,
+                     "cos_cache last dimension (",
+                     cos_last_dim,
+                     ") must be >= rotary_embedding_dim/2 (",
+                     half_rotary_dim,
+                     ").");
+
+    const auto& input_pshape = input.get_partial_shape();
+    const auto input_rank = input_pshape.rank();
     CHECK_VALID_NODE(node,
                      input_rank.is_static() && (input_rank.get_length() == 3 || input_rank.get_length() == 4),
                      "RotaryEmbedding input must have static rank 3 or 4.");
     const bool input_is_3d = input_rank.get_length() == 3;
     if (input_is_3d) {
         CHECK_VALID_NODE(node, num_heads > 0, "num_heads attribute is required for 3D input.");
+    }
+
+    // When the head dimension is statically known, validate that rotary_dim fits
+    // into it. For 4D input that is the last dim directly; for 3D input the head
+    // dim is hidden/num_heads, where hidden is the last input dim.
+    if (partial) {
+        const auto& last_input_dim = input_pshape[input_rank.get_length() - 1];
+        if (last_input_dim.is_static()) {
+            const int64_t last_input_dim_val = last_input_dim.get_length();
+            if (input_is_3d) {
+                CHECK_VALID_NODE(node,
+                                 last_input_dim_val % num_heads == 0,
+                                 "Hidden size (",
+                                 last_input_dim_val,
+                                 ") must be divisible by num_heads (",
+                                 num_heads,
+                                 ").");
+                const int64_t head_size = last_input_dim_val / num_heads;
+                CHECK_VALID_NODE(node,
+                                 rotary_dim <= head_size,
+                                 "rotary_embedding_dim (",
+                                 rotary_dim,
+                                 ") must be <= head_size (",
+                                 head_size,
+                                 ").");
+            } else {
+                CHECK_VALID_NODE(node,
+                                 rotary_dim <= last_input_dim_val,
+                                 "rotary_embedding_dim (",
+                                 rotary_dim,
+                                 ") must be <= head_size (",
+                                 last_input_dim_val,
+                                 ").");
+            }
+        }
     }
 
     // ---- Step 1. Normalize layout to [bs, num_heads, seq, head_size] ----

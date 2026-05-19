@@ -24,7 +24,16 @@ set_target_properties(${TARGET_NAME}_obj PROPERTIES POSITION_INDEPENDENT_CODE ON
 target_include_directories(${TARGET_NAME}_obj PUBLIC
     $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>)
 
-target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::runtime)
+# Link against openvino::core::dev (development headers INTERFACE target),
+# not openvino::runtime: the OBJECT library only needs OpenVINO core/op headers
+# at compile time. Depending on the runtime shared library here breaks
+# cross-compilation and static builds where consumers (frontends) absorb the
+# object files and bring in runtime symbols via their own link line.
+target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::core::dev)
+
+if(NOT BUILD_SHARED_LIBS)
+    target_compile_definitions(${TARGET_NAME}_obj PUBLIC OPENVINO_STATIC_LIBRARY)
+endif()
 
 # INTERFACE wrapper that propagates both the headers and the object files to
 # any target that links against it. This keeps `openvino::decompositions` as
