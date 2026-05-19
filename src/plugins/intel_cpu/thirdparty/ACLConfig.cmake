@@ -322,6 +322,13 @@ elseif(NOT TARGET arm_compute::arm_compute)
             set(local_extra_cxx_flags "${local_extra_cxx_flags} -DENABLE_SME -DARM_COMPUTE_ENABLE_SME -DARM_COMPUTE_ENABLE_SME2")
         endif()
 
+        # Keep ACL common code portable in AArch64 multi-ISA builds. SVE/SVE2
+        # objects are still built separately with their own architecture flags.
+        if(LINUX AND AARCH64 AND OV_CPU_AARCH64_USE_MULTI_ISA AND
+           (OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX))
+            set(local_extra_cxx_flags "${local_extra_cxx_flags} -march=armv8-a")
+        endif()
+
         # Export flags
         set(extra_cxx_flags "${local_extra_cxx_flags}" PARENT_SCOPE)
         set(extra_link_flags "${local_extra_link_flags}" PARENT_SCOPE)
