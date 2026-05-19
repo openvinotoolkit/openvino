@@ -26,16 +26,6 @@ namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v3 = ov::op::v3;
 
-namespace {
-
-std::unordered_set<std::shared_ptr<ov::Symbol>> make_symbol_set(std::shared_ptr<ov::Symbol> symbol) {
-    std::unordered_set<std::shared_ptr<ov::Symbol>> symbols;
-    symbols.insert(std::move(symbol));
-    return symbols;
-}
-
-}  // namespace
-
 void ov::batch_util::mark_with_unique_dimension_symbols(const std::shared_ptr<ov::Model>& m) {
     for (auto& parameter : m->get_parameters()) {
         ov::PartialShape new_shape = ov::PartialShape::dynamic(parameter->get_partial_shape().rank());
@@ -86,7 +76,9 @@ void ov::batch_util::mark_layout_independent_batch(const std::shared_ptr<v0::Par
     for (const auto& dim : parameter->get_partial_shape()) {
         if (auto symbol = dim.get_symbol()) {
             if (std::find(r_symbols.begin(), r_symbols.end(), symbol) != r_symbols.end()) {
-                mark_batch(parameter, map, make_symbol_set(std::move(symbol)));
+                std::unordered_set<std::shared_ptr<Symbol>> batches;
+                batches.insert(std::move(symbol));
+                mark_batch(parameter, map, batches);
                 return;
             }
         }
@@ -136,8 +128,11 @@ P2Btype ov::batch_util::find_batch(const std::shared_ptr<ov::Model>& f) {
                 auto batch_dim_symbol = shape[batch_placement.second].get_symbol();
                 if (batch_dim_symbol == nullptr)
                     mark_no_batch(parameter, parameter_to_batch_symbols);
-                else
-                    mark_batch(parameter, parameter_to_batch_symbols, make_symbol_set(std::move(batch_dim_symbol)));
+                else {
+                    std::unordered_set<std::shared_ptr<Symbol>> batches;
+                    batches.insert(std::move(batch_dim_symbol));
+                    mark_batch(parameter, parameter_to_batch_symbols, batches);
+                }
                 continue;  // batch was or was not found at this point -- there is no point in searching further }
             }
             // node is not layout obvious -- checking if dims were propagated through

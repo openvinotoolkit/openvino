@@ -10,6 +10,7 @@
 #include <set>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "openvino/core/except.hpp"
@@ -36,9 +37,10 @@ bool ov::snippets::pass::PropagatePrecision::run_on_model(const std::shared_ptr<
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::PropagatePrecision")
 
     std::unordered_map<std::shared_ptr<ov::opset1::Result>, element::Type> result_types;
-    for (const auto& result : m->get_results()) {
-        const auto result_type = result->get_input_element_type(0);
-        result_types.emplace(result, result_type);
+    for (const auto& model_result : m->get_results()) {
+        auto result = model_result;
+        const auto& result_type = result->get_input_element_type(0);
+        result_types.emplace(std::move(result), result_type);
     }
 
     bool was_updated = false;
