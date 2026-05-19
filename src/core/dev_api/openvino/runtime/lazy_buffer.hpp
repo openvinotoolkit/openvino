@@ -10,9 +10,6 @@
 #include "openvino/runtime/aligned_buffer.hpp"
 
 namespace ov {
-
-constexpr size_t s_lazy_loading_default_threshold = 0x100000;  // 1MB
-
 /** \brief LazyBuffer is lazy loaded AlignedBuffer which provides a view on a file w/o memory mapping. */
 class OPENVINO_API LazyBuffer : public AlignedBuffer {
 public:
@@ -38,7 +35,7 @@ public:
     }
 
     /**
-     * \brief Evicts the buffer from memory. After this call, next call to ensure_present() will load the file content
+     * \brief Evicts the buffer from memory. After this call, next call to hint_prefetch() will load the file content
      * again.
      */
     void hint_evict() noexcept override;
@@ -48,7 +45,7 @@ public:
      * so the actual allocated memory may be larger than the requested byte size.
      * \throws AssertFailure if the file cannot be opened or read. In this case, the buffer remains unloaded.
      */
-    void ensure_present() const override;
+    void hint_prefetch() const override;
 
 protected:
     void hint_evict(size_t offset, size_t size) noexcept override;

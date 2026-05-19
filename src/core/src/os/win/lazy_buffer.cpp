@@ -58,7 +58,7 @@ LazyBuffer::~LazyBuffer() {
     }
 }
 
-void LazyBuffer::ensure_present() const {
+void LazyBuffer::hint_prefetch() const {
     std::lock_guard lock{m_loading};
     if (!m_loaded && m_byte_size > 0) {
         if (!VirtualAlloc(static_cast<char*>(m_reserved_buffer), m_reserved_size, MEM_COMMIT, PAGE_READWRITE)) {

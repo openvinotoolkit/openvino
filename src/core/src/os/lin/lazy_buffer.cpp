@@ -58,7 +58,7 @@ LazyBuffer::~LazyBuffer() {
     }
 }
 
-void LazyBuffer::ensure_present() const {
+void LazyBuffer::hint_prefetch() const {
     std::lock_guard lock{m_loading};
     if (!m_loaded && m_byte_size > 0) {
         if (mprotect(m_reserved_buffer, m_reserved_size, PROT_READ | PROT_WRITE) == -1) {
