@@ -206,7 +206,7 @@ public:
                                                                            outPadding);
         }
 
-        return makeNgraphFunction(prec, params, deconv, "GroupDeconvCPU");
+        return create_ov_model(prec, params, deconv, "GroupDeconvCPU");
     }
 
 protected:

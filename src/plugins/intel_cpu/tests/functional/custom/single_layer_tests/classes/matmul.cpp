@@ -142,7 +142,7 @@ void MatMulLayerCPUTest::SetUp() {
     }
 
     auto matMul = std::make_shared<ov::op::v0::MatMul>(paramOuts[0], matrixB, transpA, transpB);
-    function = makeNgraphFunction(netType, params, matMul, cpuNodeType);
+    function = create_ov_model(netType, params, matMul, cpuNodeType);
     checkFusingPosition = false;
 }
 
@@ -194,6 +194,11 @@ TEST_P(MatMulLayerCPUTest, CompareWithRefs) {
     run();
     CheckPluginRelatedResults(compiledModel, cpuNodeType);
 }
+
+// On some architectures (e.g. RISC-V) filterCPUInfo filters out all backends
+// defined in filterSpecificParams(), producing empty INSTANTIATE_TEST_SUITE_P.
+// gtest >= 1.11 flags this as a failure unless explicitly allowed.
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(MatMulLayerCPUTest);
 
 namespace MatMul {
 const ov::AnyMap& emptyAdditionalConfig() {

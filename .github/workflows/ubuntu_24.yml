@@ -38,7 +38,7 @@ jobs:
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
     steps:
       - name: checkout action
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           sparse-checkout: .github/actions/smart-ci
@@ -54,7 +54,7 @@ jobs:
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
-          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,.github/workflows/ci-doctor.lock.yml'
 
       - name: Show affected components
         run: |
@@ -78,7 +78,7 @@ jobs:
 
       - name: Checkout
         if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
 
       - uses: ./.github/actions/handle_docker
@@ -114,7 +114,7 @@ jobs:
             -DENABLE_TESTS=ON
             -DENABLE_STRICT_DEPENDENCIES=OFF
             -DENABLE_SYSTEM_OPENCL=ON
-            -DCMAKE_VERBOSE_MAKEFILE=ON
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
             -DCPACK_GENERATOR=TGZ
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
 

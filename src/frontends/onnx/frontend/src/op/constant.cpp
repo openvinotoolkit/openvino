@@ -121,7 +121,7 @@ namespace detail {
 ov::OutputVector constant_legacy(const ov::frontend::onnx::Node& node) {
     auto attributes_names = node.get_attribute_names();
     FRONT_END_GENERAL_CHECK(attributes_names.size() == 1,
-                            "The Constant op expects exactly one attribute."
+                            "The Constant op expects exactly one attribute. "
                             "Got: ",
                             attributes_names.size());
 

@@ -24,7 +24,7 @@ jobs:
         skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
       steps:
         - name: checkout action
-          uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+          uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
           timeout-minutes: 15
           with:
             sparse-checkout: .github/actions/smart-ci
@@ -40,7 +40,7 @@ jobs:
             component_pattern: "category: (.*)"
             repo_token: ${{ secrets.GITHUB_TOKEN }}
             skip_when_only_listed_labels_set: 'docs'
-            skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg'
+            skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,.github/workflows/ci-doctor.lock.yml'
 
         - name: Show affected components
           run: |
@@ -58,7 +58,7 @@ jobs:
       images: "${{ steps.handle_docker.outputs.images }}"
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
 
       - uses: ./.github/actions/handle_docker
@@ -80,7 +80,7 @@ jobs:
         - /mount:/mount
       options: --user 1001 # We use standard github-actions user inside container to avoid permission issues after checkout
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           submodules: 'true'
@@ -92,7 +92,7 @@ jobs:
         run: cmake -DENABLE_PYTHON=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=FULL -DSELECTIVE_BUILD=COLLECT -DENABLE_SNIPPETS_LIBXSMM_TPP=ON -B build
 
       - name: Create code style diff
-        run: cmake --build build --target clang_format_fix_all -j8
+        run: cmake --build build --target clang_format_fix_all -j8 -- --quiet
 
       - name: suggester / clang-format
         if: startsWith(github.event_name, 'pull_request')
@@ -112,7 +112,7 @@ jobs:
         - /mount:/mount
       options: --user 1001 # We use standard github-actions user inside container to avoid permission issues after checkout
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           submodules: 'true'
@@ -124,7 +124,7 @@ jobs:
         run: cmake -DENABLE_CLANG_FORMAT=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=FULL -DSELECTIVE_BUILD=COLLECT -DENABLE_SNIPPETS_LIBXSMM_TPP=ON -DCMAKE_TOOLCHAIN_FILE=cmake/arm64.toolchain.cmake -B build_arm64
 
       - name: Create code style diff
-        run: cmake --build build_arm64 --target clang_format_fix_all -j8
+        run: cmake --build build_arm64 --target clang_format_fix_all -j8 -- --quiet
 
       - name: suggester / clang-format
         if: startsWith(github.event_name, 'pull_request')
@@ -144,7 +144,7 @@ jobs:
         - /mount:/mount
       options: --user 1001 # We use standard github-actions user inside container to avoid permission issues after checkout
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           submodules: 'true'
@@ -153,7 +153,7 @@ jobs:
         run: cmake -DENABLE_CLANG_FORMAT=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=FULL -DSELECTIVE_BUILD=COLLECT -DTHREADING=SEQ -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/riscv64.linux.toolchain.cmake -B build_riscv64
 
       - name: Create code style diff
-        run: cmake --build build_riscv64 --target clang_format_fix_all -j8
+        run: cmake --build build_riscv64 --target clang_format_fix_all -j8 -- --quiet
 
       - name: suggester / clang-format
         if: startsWith(github.event_name, 'pull_request')
@@ -173,7 +173,7 @@ jobs:
         - /mount:/mount
       options: --user 1001 # We use standard github-actions user inside container to avoid permission issues after checkout
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           submodules: 'true'
@@ -182,7 +182,7 @@ jobs:
         run: cmake -B build
 
       - name: Shellcheck cmake target
-        run: cmake --build build --target ov_shellcheck -j8
+        run: cmake --build build --target ov_shellcheck -j8 -- --quiet
 
       # always provide suggestions even for skipped scripts in ov_shellcheck tagret
       - name: ShellCheck action
@@ -206,7 +206,7 @@ jobs:
         - /mount:/mount
       options: --user 1001 # We use standard github-actions user inside container to avoid permission issues after checkout
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           submodules: 'true'
@@ -218,4 +218,4 @@ jobs:
         run: cmake -B build
 
       - name: Naming convention check
-        run: cmake --build build --target ncc_all -j8
+        run: cmake --build build --target ncc_all -j8 -- --quiet

@@ -7,7 +7,9 @@
 KERNEL(rms_gpu_ref)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
+#if ELEMENTWISE_AFFINE
     const __global INPUT1_TYPE* gamma,
+#endif
     __global OUTPUT_TYPE* output
     #if HAS_FUSED_OPS_DECLS
         , FUSED_OPS_DECLS
@@ -36,12 +38,16 @@ KERNEL(rms_gpu_ref)(
             for (uint x = 0; x < INPUT0_SIZE_X; x++) {
                 const uint input_idx = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, x);
                 const uint output_idx = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, x);
+#if ELEMENTWISE_AFFINE
 #if INPUT0_DIMS == 4
                 const uint gamma_idx = y;
 #elif INPUT0_DIMS == 5
                 const uint gamma_idx = z;
 #endif
                 OUTPUT_TYPE result = TO_OUTPUT_TYPE(rms) * TO_OUTPUT_TYPE(input[input_idx]) * TO_OUTPUT_TYPE(gamma[gamma_idx]);
+#else
+                OUTPUT_TYPE result = TO_OUTPUT_TYPE(rms) * TO_OUTPUT_TYPE(input[input_idx]);
+#endif
                 #if HAS_FUSED_OPS
                     FUSED_OPS;
                     result = FUSED_OPS_RESULT;

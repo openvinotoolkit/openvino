@@ -118,8 +118,7 @@ std::shared_ptr<ov::pass::pattern::op::Block> mlp3_no_bias_swiglu_block(
     // Convert is optional - pattern matches both with and without type conversion
     auto index_add__Convert_1 = pattern::wrap_type<v0::Convert>({ListUnpack_Squeeze_0_1}) | ListUnpack_Squeeze_0_1;
     auto index_add__Reshape_1 = pattern::wrap_type<v1::Reshape>(
-        {index_add__Convert_1, pattern::wrap_type<v0::Constant>(pattern::value_matches("-1, 1"))},
-        {{"special_zero", false}});
+        {index_add__Convert_1, pattern::wrap_type<v0::Constant>(pattern::value_matches("-1, 1"))});
     auto index_add__Slice_1 =
         pattern::wrap_type<v8::Slice>({index_add__ScatterElementsUpdate_2,
                                        pattern::wrap_type<v0::Constant>(pattern::value_matches("0, 0")),
@@ -129,22 +128,16 @@ std::shared_ptr<ov::pass::pattern::op::Block> mlp3_no_bias_swiglu_block(
     auto index_add__ShapeOf_14 = pattern::wrap_type<v3::ShapeOf>({index_add__Slice_1}, {{"output_type", "i32"}});
     auto index_add__Broadcast_16 =
         pattern::wrap_type<v3::Broadcast>({index_add__Reshape_1, index_add__ShapeOf_14}, {{"mode", "bidirectional"}});
-    auto unsqueeze_Unsqueeze_reshape =
-        pattern::wrap_type<v1::Reshape>({unsqueeze_Unsqueeze, pattern::any_input()}, {{"special_zero", false}});
+    auto unsqueeze_Unsqueeze_reshape = pattern::wrap_type<v1::Reshape>({unsqueeze_Unsqueeze, pattern::any_input()});
     auto index_Gather_2 =
         pattern::wrap_type<v8::Gather>({unsqueeze_Unsqueeze_reshape,
                                         index_add__Convert_1,
                                         pattern::wrap_type<v0::Constant>(pattern::value_matches("0"))},
                                        {{"batch_dims", 0}});
-    auto reshape_Reshape_1_0 =
-        pattern::wrap_type<v1::Reshape>({index_Gather_2, pattern::any_input()}, {{"special_zero", true}});
-    auto reshape_Reshape_1_1 =
-        pattern::wrap_type<v1::Reshape>({reshape_Reshape_1_0, pattern::any_input()}, {{"special_zero", true}});
-    auto reshape_Reshape_1_2 =
-        pattern::wrap_type<v1::Reshape>({reshape_Reshape_1_1, pattern::any_input()}, {{"special_zero", true}});
-
-    auto reshape_Reshape_1 =
-        pattern::wrap_type<v1::Reshape>({reshape_Reshape_1_2, shape_const}, {{"special_zero", true}});
+    auto reshape_Reshape_1_0 = pattern::wrap_type<v1::Reshape>({index_Gather_2, pattern::any_input()});
+    auto reshape_Reshape_1_1 = pattern::wrap_type<v1::Reshape>({reshape_Reshape_1_0, pattern::any_input()});
+    auto reshape_Reshape_1_2 = pattern::wrap_type<v1::Reshape>({reshape_Reshape_1_1, pattern::any_input()});
+    auto reshape_Reshape_1 = pattern::wrap_type<v1::Reshape>({reshape_Reshape_1_2, shape_const});
     auto gate_proj_weight = pattern::any_input(pattern::rank_equals(2));
     auto linear_MatMul_gate = pattern::wrap_type<v0::MatMul>({reshape_Reshape_1, gate_proj_weight},
                                                              {{"transpose_a", false}, {"transpose_b", true}});
@@ -167,8 +160,7 @@ std::shared_ptr<ov::pass::pattern::op::Block> mlp3_no_bias_swiglu_block(
         {index_Reshape, index_Add_1, pattern::wrap_type<v0::Constant>(pattern::value_matches("0"))},
         {{"batch_dims", 0}});
     auto index_Reshape_8_1 = pattern::wrap_type<v1::Reshape>(
-        {index_Gather_3, pattern::wrap_type<v0::Constant>(pattern::value_matches("0, 1"))},
-        {{"special_zero", true}});
+        {index_Gather_3, pattern::wrap_type<v0::Constant>(pattern::value_matches("0, 1"))});
     auto mul_Multiply_2 =
         pattern::wrap_type<v1::Multiply>({linear_MatMul_down, index_Reshape_8_1}, {{"auto_broadcast", "numpy"}});
     auto index_add__Broadcast_17 =
@@ -263,7 +255,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> create_routing_weights_
     auto shape_of = pattern::wrap_type<v3::ShapeOf>({unsqueeze}, {{"output_type", "i32"}});
     auto split = pattern::wrap_type<v1::Split>({shape_of, axes.axis0}, {{"num_splits", 3}});
     split->set_output_size(3);
-    auto reshape = pattern::wrap_type<v1::Reshape>({unsqueeze, pattern::any_input()}, {{"special_zero", true}});
+    auto reshape = pattern::wrap_type<v1::Reshape>({unsqueeze, pattern::any_input()});
 
     return {split, reshape};
 }
@@ -300,7 +292,7 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
 
     // Match the final reshape and residual add after all expert computations
     auto original_shape = pattern::any_input();
-    auto last_reshape = pattern::wrap_type<v1::Reshape>({expert_scatter, original_shape}, {{"special_zero", false}});
+    auto last_reshape = pattern::wrap_type<v1::Reshape>({expert_scatter, original_shape});
     auto residual_input = pattern::any_input();
     auto last_add = pattern::wrap_type<v1::Add>({residual_input, last_reshape}, {{"auto_broadcast", "numpy"}});
 

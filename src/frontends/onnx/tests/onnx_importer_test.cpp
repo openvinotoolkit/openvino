@@ -91,10 +91,10 @@ TEST(ONNX_Importer_Tests, ImportModelWithMultiOutput) {
 TEST(ONNX_Importer_Tests, ImportModelWithNotSupportedOp) {
     try {
         auto model = convert_model("not_supported.onnx");
-        FAIL() << "Any expection was thrown despite the ONNX model is not supported";
+        FAIL() << "No exception was thrown despite the ONNX model not being supported";
     } catch (const Exception& error) {
         EXPECT_PRED_FORMAT2(testing::IsSubstring,
-                            std::string("OpenVINO does not support the following ONNX operations: NotSupported"),
+                            std::string("No conversion rule found for operations: NotSupported-7"),
                             error.what());
     } catch (...) {
         FAIL() << "Expected 'Exception' exception was not thrown despite the ONNX model is not supported";
@@ -114,7 +114,7 @@ TEST(ONNX_Importer_Tests, ImportModelWhenFileDoesNotExist) {
 
 TEST(ONNX_Importer_Tests, ImportModelFromStream) {
     auto model_file_path =
-        test::utils::getModelFromTestModelZoo(util::path_join({TEST_ONNX_MODELS_DIRNAME, "addmul_abc.onnx"}).string());
+        test::utils::getModelFromTestModelZoo(util::path_join({TEST_ONNX_MODELS_DIRNAME, "addmul_abc.onnx"}));
     std::ifstream model_file_stream(model_file_path, std::ifstream::binary);
     ASSERT_TRUE(model_file_stream.is_open());
     int count_adds = 0;
@@ -135,15 +135,15 @@ TEST(ONNX_Importer_Tests, ImportModelFromStream) {
 
 TEST(ONNX_Importer_Tests, ImportModelWithoutMetadata) {
     Core core;
-    auto model = core.read_model(test::utils::getModelFromTestModelZoo(
-        util::path_join({TEST_ONNX_MODELS_DIRNAME, "priorbox_clustered.onnx"}).string()));
+    auto model = core.read_model(
+        test::utils::getModelFromTestModelZoo(util::path_join({TEST_ONNX_MODELS_DIRNAME, "priorbox_clustered.onnx"})));
     ASSERT_FALSE(model->has_rt_info("framework"));
 }
 
 TEST(ONNX_Importer_Tests, ImportModelWithMetadata) {
     Core core;
-    auto model = core.read_model(test::utils::getModelFromTestModelZoo(
-        util::path_join({TEST_ONNX_MODELS_DIRNAME, "model_with_metadata.onnx"}).string()));
+    auto model = core.read_model(
+        test::utils::getModelFromTestModelZoo(util::path_join({TEST_ONNX_MODELS_DIRNAME, "model_with_metadata.onnx"})));
     ASSERT_TRUE(model->has_rt_info("framework"));
 
     const auto rtinfo = model->get_rt_info();

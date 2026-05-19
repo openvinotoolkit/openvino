@@ -4,12 +4,24 @@
 
 #pragma once
 
+#include <cstdint>
 #include <memory>
 
 #include "openvino/core/attribute_adapter.hpp"
 #include "openvino/core/core_visibility.hpp"
 
 namespace ov {
+
+class AlignedBuffer;
+
+class OPENVINO_API IBufferDescriptor {
+public:
+    virtual size_t get_id() const = 0;
+    virtual size_t get_offset() const = 0;
+    virtual std::shared_ptr<ov::AlignedBuffer> get_source_buffer() const = 0;
+    virtual ~IBufferDescriptor();
+};
+
 /// \brief Allocates a block of memory on the specified alignment. The actual size of the
 /// allocated memory is larger than the requested size by the alignment, so allocating 1
 /// byte
@@ -53,10 +65,17 @@ public:
         return get_ptr<T>();
     }
 
+    virtual std::shared_ptr<IBufferDescriptor> get_descriptor() const;
+
     AlignedBuffer(const AlignedBuffer&) = delete;
     AlignedBuffer& operator=(const AlignedBuffer&) = delete;
 
+    virtual void hint_evict() noexcept;
+
 protected:
+    virtual void hint_evict(size_t offset, size_t size) noexcept;
+    static void invoke_evict(AlignedBuffer& buffer, size_t offset, size_t size) noexcept;
+
     char* m_allocated_buffer;
     char* m_aligned_buffer;
     size_t m_byte_size;
@@ -70,5 +89,4 @@ public:
     ~AttributeAdapter() override;
     OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>");
 };
-
 }  // namespace ov

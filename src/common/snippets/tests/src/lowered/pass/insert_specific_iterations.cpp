@@ -6,12 +6,12 @@
 
 #include "lir_test_utils.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/op/result.hpp"
 #include "snippets/lowered/pass/normalize_loop_ids.hpp"
 #include "snippets/lowered/pass/validate_expanded_loops.hpp"
 #include "snippets/op/brgemm.hpp"
 #include "snippets/op/load.hpp"
 #include "snippets/op/loop.hpp"
+#include "snippets/op/result.hpp"
 #include "snippets/op/store.hpp"
 
 namespace ov {
@@ -145,7 +145,7 @@ TEST_F(InsertSpecificIterationsTest, InnerExpandedLoopsCloning) {
             false);
         const auto outer_m_loop_id = loop_manager->add_loop_info(outer_m_loop);
         auto outer_m_loop_end = push_loop_end(linear_ir, *outer_m_loop_begin.first, outer_m_loop_id);
-        auto result = linear_ir->push_node<ov::op::v0::Result>(brgemm.second);
+        auto result = linear_ir->push_node<ov::snippets::op::Result>(brgemm.second);
 
         (*inner_n_loop_begin.first)->set_loop_ids({outer_m_loop_id});
         (*brgemm.first)->set_loop_ids({outer_m_loop_id, inner_n_loop_id});
@@ -262,8 +262,7 @@ TEST_F(InsertSpecificIterationsTest, InnerExpandedLoopsCloning) {
             true);
         const auto outer_m_loop_id_tail = loop_manager->add_loop_info(outer_m_loop_tail);
         auto outer_m_loop_end_tail = push_loop_end(linear_ir_ref, *outer_m_loop_begin_tail.first, outer_m_loop_id_tail);
-
-        auto result = linear_ir_ref->push_node<ov::op::v0::Result>(brgemm2.second);
+        auto result = linear_ir_ref->push_node<ov::snippets::op::Result>(brgemm1.second, OutputVector{brgemm2.second});
 
         const std::map<ExpressionPtr, std::vector<size_t>> expr_to_loop_ids = {
             {*inner_n_loop_1_begin.first, {outer_m_loop_id_main}},
@@ -342,7 +341,7 @@ TEST_F(InsertSpecificIterationsTest, OuterSplitLoopOutsideClonedLoop_InputPortOu
         auto m_split_loop_end = push_loop_end(linear_ir, *m_split_loop_begin.first, m_split_loop_id);
         auto n_loop_end = push_loop_end(linear_ir, *n_loop_begin.first, n_loop_id);
         auto m_outer_loop_end = push_loop_end(linear_ir, *m_outer_loop_begin.first, m_outer_loop_id);
-        auto result = linear_ir->push_node<ov::op::v0::Result>(store.second);
+        auto result = linear_ir->push_node<ov::snippets::op::Result>(store.second);
 
         (*load.first)->set_loop_ids({m_outer_loop_id});
         (*n_loop_begin.first)->set_loop_ids({m_outer_loop_id});
@@ -487,7 +486,7 @@ TEST_F(InsertSpecificIterationsTest, OuterSplitLoopOutsideClonedLoop_InputPortOu
         m_outer_loop_main->replace_with_new_ports((*store_main.first)->get_output_port(0),
                                                   {(*store_tail.first)->get_output_port(0)});
         auto m_outer_loop_end = push_loop_end(linear_ir_ref, *m_outer_loop_begin.first, m_outer_loop_main_id);
-        auto result = linear_ir_ref->push_node<ov::op::v0::Result>(store_tail.second);
+        auto result = linear_ir_ref->push_node<ov::snippets::op::Result>(store_main.second, OutputVector{store_tail.second});
 
         const std::map<ExpressionPtr, std::vector<size_t>> expr_to_loop_ids = {
             {*load.first, {m_outer_loop_main_id}},
@@ -581,7 +580,7 @@ TEST_F(InsertSpecificIterationsTest, OuterSplitLoopOutsideClonedLoop_OutputPortO
         load.first->get()->get_output_port_connector(0)->add_consumer(store_expr->get_input_port(0));
 
         auto m_outer_loop_end = push_loop_end(linear_ir, *m_outer_loop_begin.first, m_outer_loop_id);
-        auto result = linear_ir->push_node<ov::op::v0::Result>(store_expr->get_node()->output(0));
+        auto result = linear_ir->push_node<ov::snippets::op::Result>(store_expr->get_node()->output(0));
 
         (*n_loop_begin.first)->set_loop_ids({m_outer_loop_id});
         (*m_split_loop_begin.first)->set_loop_ids({m_outer_loop_id, n_loop_id});
@@ -733,7 +732,7 @@ TEST_F(InsertSpecificIterationsTest, OuterSplitLoopOutsideClonedLoop_OutputPortO
         m_outer_loop_unified->replace_with_new_ports(store_temp_expr->get_output_port(0),
                                                      {(*store.first)->get_output_port(0)});
         auto m_outer_loop_end = push_loop_end(linear_ir_ref, *m_outer_loop_begin.first, m_outer_loop_main_id);
-        auto result = linear_ir_ref->push_node<ov::op::v0::Result>(store.second);
+        auto result = linear_ir_ref->push_node<ov::snippets::op::Result>(store.second);
 
         const std::map<ExpressionPtr, std::vector<size_t>> expr_to_loop_ids = {
             {*n_loop_main_begin.first, {m_outer_loop_main_id}},

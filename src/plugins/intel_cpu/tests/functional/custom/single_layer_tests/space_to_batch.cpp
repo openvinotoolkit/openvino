@@ -123,7 +123,7 @@ protected:
         params.push_back(padsEndParam);
 
         auto s2b = std::make_shared<ov::op::v1::SpaceToBatch>(params[0], in2, in3, in4);
-        function = makeNgraphFunction(inType, params, s2b, "SpaceToBatchCPU");
+        function = create_ov_model(inType, params, s2b, "SpaceToBatchCPU");
     }
 };
 

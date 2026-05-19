@@ -194,7 +194,7 @@ void ov::ISyncInferRequest::convert_batched_tensors() {
             const auto& tensor = item.second.at(i);
             memcpy(ptr + i * tensor->get_byte_size(), tensor->data(), tensor->get_byte_size());
         });
-        prepared_tensors[item.first] = input_tensor;
+        prepared_tensors[item.first] = std::move(input_tensor);
     }
 
     for (const auto& item : prepared_tensors) {

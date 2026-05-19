@@ -113,8 +113,19 @@ public:
         bool is_indirect = need_indirect_load(static_cast<scaled_dot_product_attention_inst&>(instance));
         GPU_DEBUG_TRACE_DETAIL << "execute indirect = " << is_indirect << ", prefill = " << is_prefill << "\n";
         update_rt_params(instance);
+
+        kernel_dump_info.clear_entries();
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        if (has_stage(regular_micro_multi_tokens) && is_prefill && !is_indirect) {
+        // Check if INT4 KV cache is in use (micro kernel doesn't support INT4 for non-PA SDPA)
+        // Only apply this check when the SDPA node actually uses compressed KV cache (i8/u8/i4/u4 K/V inputs).
+        // Vision Encoder SDPA nodes have f16 K/V inputs and should not be affected by the global config.
+        const auto k_dt = new_params.input_layouts[1].data_type;
+        const bool is_kv_compressed = data_type_traits::is_i8_u8(k_dt) || data_type_traits::is_i4_u4(k_dt);
+        const auto kv_cache_dt = new_params.get_program().get_config().get_kv_cache_precision();
+        const bool is_int4_kv = is_kv_compressed && ov::element::Type(kv_cache_dt).bitwidth() == 4;
+
+        if (has_stage(regular_micro_multi_tokens) && is_prefill && !is_indirect && !is_int4_kv) {
             GPU_DEBUG_TRACE_DETAIL << "execute regular_micro_multi_tokens for prefill \n";
             return execute_stage(events, instance, regular_micro_multi_tokens);
         }
@@ -128,7 +139,7 @@ public:
             return execute_stage(events, instance, is_indirect ? indirect_multi_tokens : regular_multi_tokens);
         }
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        if (has_stage(regular_micro_single_token) && !is_indirect) {
+        if (has_stage(regular_micro_single_token) && !is_indirect && !is_int4_kv) {
             return execute_stage(events, instance, regular_micro_single_token);
         }
 #endif
@@ -209,7 +220,7 @@ bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
 
     auto K_head_size = get_head_size(k_layout, extended_input_k_transpose_order);
     auto V_head_size = get_head_size(v_layout, extended_input_v_transpose_order);
-    if (K_head_size != V_head_size || K_head_size > 256 || V_head_size > 256) {
+    if (K_head_size != V_head_size || K_head_size > 512 || V_head_size > 512) {
         return false;
     }
 
@@ -220,7 +231,7 @@ bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
         params.get_input_layout(mask_idx).count() == 1) {
         return false;
     }
-    if (q_layout.get_partial_shape()[mask_idx].get_length() > 256) {
+    if (q_layout.get_partial_shape()[mask_idx].get_length() > 512) {
         return false;
     }
 

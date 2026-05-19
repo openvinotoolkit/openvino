@@ -7,7 +7,7 @@ graph {
     input: "past_key"
     input: "past_value"
     input: "seqlens_k"
-    input: ""
+    input: "total_sequence_length"
     input: "cos_cache"
     input: "sin_cache"
     output: "output"
@@ -102,6 +102,16 @@ graph {
         shape {
           dim { dim_param: "batch_size" }
           dim { dim_value: 1 }
+        }
+      }
+    }
+  }
+  input {
+    name: "total_sequence_length"
+    type{
+      tensor_type {
+        elem_type: 6
+        shape {
         }
       }
     }

@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <streambuf>
 
-namespace intel_npu::driver_compiler_utils {
+namespace intel_npu::compiler_utils {
 
 /**
  *  @brief Counter stream buffer, just counts the written bytes.
@@ -39,7 +39,7 @@ private:
             return m_size;
         } else {
             // No seek support
-            throw std::runtime_error("Seek operation is not supported for counting_streambuf");
+            OPENVINO_THROW("Seek operation is not supported for counting_streambuf");
         }
     }
 
@@ -71,7 +71,7 @@ private:
             return std::distance(startIt, writeIt);
         } else {
             // No seek support
-            throw std::runtime_error("Seek operation is not supported for writer_streambuf");
+            OPENVINO_THROW("Seek operation is not supported for writer_streambuf");
         }
     }
 
@@ -84,4 +84,4 @@ private:
     OutputIt writeIt;
 };
 
-}  // namespace intel_npu::driver_compiler_utils
+}  // namespace intel_npu::compiler_utils

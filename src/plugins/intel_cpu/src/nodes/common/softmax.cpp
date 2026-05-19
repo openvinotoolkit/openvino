@@ -8,8 +8,8 @@
 #include <cstdint>
 
 #include "cpu/x64/cpu_isa_traits.hpp"
+#include "cpu_parallel.hpp"
 #include "openvino/core/except.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/bfloat16.hpp"
 
@@ -285,14 +285,20 @@ SoftmaxGeneric::SoftmaxGeneric(ov::element::Type inpPrc, ov::element::Type outPr
 }
 
 template <typename in_data_t, typename out_data_t>
-void SoftmaxGeneric::calculate(const in_data_t* src_data, out_data_t* dst_data, int B, int C, int H, int W) {
+void SoftmaxGeneric::calculate(const in_data_t* src_data,
+                               out_data_t* dst_data,
+                               int B,
+                               int C,
+                               int H,
+                               int W,
+                               const CpuParallelPtr& cpu_parallel) {
     for (int b = 0; b < B; b++) {
         int tail_start = 0;
 
         if (softmax_kernel) {
             int blocks_num = H * W / block_size;
 
-            parallel_for(blocks_num, [&](int ib) {
+            cpu_parallel->parallel_for(blocks_num, [&](int ib) {
                 auto arg = jit_args_softmax();
 
                 arg.src = src_data + b * C * H * W + ib * block_size;
@@ -307,7 +313,7 @@ void SoftmaxGeneric::calculate(const in_data_t* src_data, out_data_t* dst_data, 
             tail_start = (H * W / block_size) * block_size;
         }
 
-        parallel_for(H * W - tail_start, [&](int i) {
+        cpu_parallel->parallel_for(H * W - tail_start, [&](int i) {
             int offset = i + tail_start;
             float max = src_data[b * C * H * W + offset];
             for (int c = 0; c < C; c++) {
@@ -330,15 +336,21 @@ void SoftmaxGeneric::calculate(const in_data_t* src_data, out_data_t* dst_data, 
     }
 }
 
-void SoftmaxGeneric::execute(const uint8_t* src_data, uint8_t* dst_data, int B, int C, int H, int W) {
+void SoftmaxGeneric::execute(const uint8_t* src_data,
+                             uint8_t* dst_data,
+                             int B,
+                             int C,
+                             int H,
+                             int W,
+                             const CpuParallelPtr& cpu_parallel) {
     if (ov::element::f32 == input_prec) {
         const auto* float_src_data = reinterpret_cast<const float*>(src_data);
         if (ov::element::f32 == output_prec) {
             auto* float_dst_data = reinterpret_cast<float*>(dst_data);
-            calculate(float_src_data, float_dst_data, B, C, H, W);
+            calculate(float_src_data, float_dst_data, B, C, H, W, cpu_parallel);
         } else if (ov::element::bf16 == output_prec) {
             auto* bf16_dst_data = reinterpret_cast<bfloat16_t*>(dst_data);
-            calculate(float_src_data, bf16_dst_data, B, C, H, W);
+            calculate(float_src_data, bf16_dst_data, B, C, H, W, cpu_parallel);
         } else {
             OPENVINO_THROW("Unsupported output precision: ", output_prec.get_type_name());
         }
@@ -346,10 +358,10 @@ void SoftmaxGeneric::execute(const uint8_t* src_data, uint8_t* dst_data, int B, 
         const auto* bf16_src_data = reinterpret_cast<const bfloat16_t*>(src_data);
         if (ov::element::f32 == output_prec) {
             auto* float_dst_data = reinterpret_cast<float*>(dst_data);
-            calculate(bf16_src_data, float_dst_data, B, C, H, W);
+            calculate(bf16_src_data, float_dst_data, B, C, H, W, cpu_parallel);
         } else if (ov::element::bf16 == output_prec) {
             auto* bf16_dst_data = reinterpret_cast<bfloat16_t*>(dst_data);
-            calculate(bf16_dst_data, bf16_dst_data, B, C, H, W);
+            calculate(bf16_dst_data, bf16_dst_data, B, C, H, W, cpu_parallel);
         } else {
             OPENVINO_THROW("Unsupported output precision: ", output_prec.get_type_name());
         }

@@ -6,14 +6,17 @@
 
 #include <map>
 #include <string>
+#include <unordered_map>
 #include <variant>
 #include <vector>
 
 #include "../attention.hpp"
 #include "../host_flash_attention.hpp"
 #include "../lazy_tensor.hpp"
+#include "../moe_transformations/moe_transformation.hpp"
 #include "../pyramid_attention.hpp"
 #include "../spatial.hpp"
+#include "../v1/subgraph_pipeline.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "openvino/openvino.hpp"
@@ -72,12 +75,17 @@ struct Subgraph {
         int64_t idx_idx = -1;
     };
     QuantUnpackGather _quant_unpack_gather;
+    ov::npuw::v1::subgraphs::FunctionPipeline _pipeline;
 
     using Ref = std::reference_wrapper<Subgraph>;
 
     void settag(const std::string& t) {
         LOG_DEBUG("Subgraph set-tag=" << t);
         _tag = t;
+        _pipeline.registration.patterns.clear();
+        if (!t.empty()) {
+            _pipeline.registration.patterns.push_back(t);
+        }
     }
     std::string gettag() const {
         return _tag;
@@ -103,6 +111,10 @@ struct Function {
     std::optional<ov::npuw::function::PyramidAttention> _pyramid_attention;
     // Host Flash Attention
     std::optional<ov::npuw::function::HostFlashAttention> _host_flash_attention;
+    // MoE expert information - single expert model
+    std::optional<ov::npuw::function::MoEExperts> _moe_experts;
+    std::optional<ov::npuw::function::MoEDownstream> _moe_experts_downstream;
+    ov::npuw::v1::subgraphs::FunctionPipeline _pipeline;
     // FIXME: They should exclude each other (introduce a hierarchy, finally?)
     // FIXME: shouldn't be here. Needed to not unpack some lazy closures in DCOFF
     std::set<std::size_t> _idx_lazy_unpack;
@@ -110,6 +122,10 @@ struct Function {
     void settag(const std::string& t) {
         LOG_DEBUG("Function set-tag=" << t);
         _tag = t;
+        _pipeline.registration.patterns.clear();
+        if (!t.empty()) {
+            _pipeline.registration.patterns.push_back(t);
+        }
     }
     std::string gettag() const {
         return _tag;
@@ -189,6 +205,8 @@ struct Partitioning {
 
 struct PartitioningContext {
     bool use_host_gather_quant = false;
+    const ov::npuw::v1::subgraphs::PatternRegistry* subgraph_patterns = nullptr;
+    mutable std::unordered_map<std::string, std::shared_ptr<ov::Model>> tagged_models;
 };
 
 Partitioning getPartitioning(const std::shared_ptr<ov::Model>& model,

@@ -6,6 +6,7 @@
 
 #include <cmath>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 #include <unordered_set>
@@ -138,6 +139,8 @@ public:
         const bool inPlace = false);
 
     static FakeQuantizeDequantization getDequantizationBelow(const std::shared_ptr<Node>& node, const bool convertIsMandatory = false);
+
+    static std::optional<size_t> getDQConstBranchIndex(const std::shared_ptr<ov::Node>& eltwise);
 
     static FakeQuantizeDequantization normalizeDequantization(FakeQuantizeDequantization dequantization);
 
@@ -339,6 +342,14 @@ ov::Any getAttributeFromOutput(const Output<Node>& output) {
         return {};
     }
     return it->second;
+}
+
+inline std::optional<std::vector<ov::element::Type>> getOutputPrecisionAttribute(const Output<Node>& output) {
+    auto attr = getAttributeFromOutput<PrecisionsAttribute>(output);
+    if (attr.empty()) {
+        return std::nullopt;
+    }
+    return attr.as<PrecisionsAttribute>().value();
 }
 
 bool isDisabled(const std::shared_ptr<Node>& node);

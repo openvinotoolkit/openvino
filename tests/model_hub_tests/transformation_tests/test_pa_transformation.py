@@ -14,6 +14,7 @@ import models_hub_common.utils as utils
 from sdpa2pa_ref_diff import ref_diff_map, ref_diff_map_optimizations, nodes_to_compare
 import pytest
 import os
+import platform
 import re
 
 def apply_transformation_and_compare_diffs(ov_model: ov.Model,
@@ -24,13 +25,14 @@ def apply_transformation_and_compare_diffs(ov_model: ov.Model,
                                            allow_cache_rotation: bool,
                                            allow_xattention: bool,
                                            allow_adaptive_rkv: bool,
+                                           allow_qq_bias: bool,
                                            ie_device: str):
     before_map = {}
     for op in ov_model.get_ordered_ops():
         if op.get_type_name() in nodes_to_compare:
             before_map[op.get_type_name()] = before_map.get(op.get_type_name(), 0) + 1
 
-    paged_attention_transformation(ov_model, use_block_indices_inputs, use_score_outputs, allow_score_aggregation, allow_cache_rotation, allow_xattention, allow_adaptive_rkv)
+    paged_attention_transformation(ov_model, use_block_indices_inputs, use_score_outputs, allow_score_aggregation, allow_cache_rotation, allow_xattention, allow_adaptive_rkv, allow_qq_bias)
     ov.Core().compile_model(ov_model, ie_device)
 
     after_map = {}
@@ -90,6 +92,10 @@ def apply_transformation_and_compare_diffs(ov_model: ov.Model,
         interesting_input_patterns["adaptive_rkv_diversity_block_set_indices"] = r'^adaptive_rkv_diversity_block_set_indices\.[0-9]+';
         interesting_input_patterns["adaptive_rkv_diversity_block_set_indices_begins"] = r'^adaptive_rkv_diversity_block_set_indices_begins\.[0-9]+';
 
+    if (allow_qq_bias):
+        interesting_input_patterns["qq_bias"] = r'^qq_bias$';
+        interesting_input_patterns["qq_bias_begins"] = r'^qq_bias_begins$';
+
     input_counters = {k: 0 for k in interesting_input_patterns}
     output_counters = {k: 0 for k in interesting_output_patterns}
 
@@ -123,6 +129,12 @@ def apply_transformation_and_compare_diffs(ov_model: ov.Model,
         assert input_counters["adaptive_rkv_evictable_sizes"] == 1
         input_counters.pop("adaptive_rkv_evictable_sizes")
 
+    if allow_qq_bias:
+        assert input_counters["qq_bias"] == 1
+        input_counters.pop("qq_bias")
+        assert input_counters["qq_bias_begins"] == 1
+        input_counters.pop("qq_bias_begins")
+
     for input_id, count in input_counters.items():
         assert count == resulting_map["PagedAttentionExtension"], \
                f"The number of {input_id} inputs doesn't correspond to the expected value. Expected {resulting_map['PagedAttentionExtension']}, received {count}"
@@ -143,6 +155,7 @@ def run_pa(tmp_path,
            allow_cache_rotation,
            allow_xattention,
            allow_adaptive_rkv,
+           allow_qq_bias,
            ie_device):
     model_cached = snapshot_download(model_id)  # required to avoid HF rate limits
     model = cls.from_pretrained(model_cached, export=True, trust_remote_code=True)
@@ -156,7 +169,7 @@ def run_pa(tmp_path,
     else:
         raise ValueError(f"Unsupported model class: {cls}")
 
-    apply_transformation_and_compare_diffs(ov_model, model_id, use_block_indices_inputs, use_score_outputs, allow_score_aggregation, allow_cache_rotation, allow_xattention, allow_adaptive_rkv, ie_device)
+    apply_transformation_and_compare_diffs(ov_model, model_id, use_block_indices_inputs, use_score_outputs, allow_score_aggregation, allow_cache_rotation, allow_xattention, allow_adaptive_rkv, allow_qq_bias, ie_device)
 
 PA_PRECOMMIT_TEST_CASES = [
     (OVModelForCausalLM, *model_info_tuple)
@@ -190,6 +203,8 @@ def test_pa_precommit(tmp_path, model_info_tuple, ie_device, use_optimizations):
     model_class, model_name, model_link, mark, reason = model_info_tuple
     assert mark is None or mark == 'skip' or mark == 'xfail', \
         "Incorrect test case: {}, {}".format(model_name, model_link)
+    if platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
+        pytest.skip("PagedAttention tests are not enabled on ARM")
     if mark == 'skip':
         pytest.skip(reason)
     elif mark == 'xfail':
@@ -202,6 +217,7 @@ def test_pa_precommit(tmp_path, model_info_tuple, ie_device, use_optimizations):
                 allow_cache_rotation=True,
                 allow_xattention=True,
                 allow_adaptive_rkv=True,
+                allow_qq_bias=True,
                 ie_device=ie_device)
     else:
         run_pa(tmp_path, model_name, model_link, model_class,
@@ -211,4 +227,5 @@ def test_pa_precommit(tmp_path, model_info_tuple, ie_device, use_optimizations):
                 allow_cache_rotation=False,
                 allow_xattention=False,
                 allow_adaptive_rkv=False,
+                allow_qq_bias=False,
                 ie_device=ie_device)

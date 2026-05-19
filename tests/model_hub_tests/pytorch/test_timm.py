@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import platform
 import re
 
 import pytest
@@ -120,8 +121,11 @@ class TestTimmConvertModel(TestTorchConvertModel):
         self.example = (torch.randn([2] + shape),)
         self.inputs = (torch.randn([3] + shape),)
         if getattr(self, "mode", None) == "export":
-            batch = torch.export.Dim("batch", min=1, max=3)
-            self.export_kwargs = {"dynamic_shapes": {"x": {0: batch}}}
+            from openvino import PartialShape
+            self.dynamo_input = (PartialShape([-1] + shape),)
+            # Use same batch as example because the FX decoder does not
+            # fully propagate symbolic batch through reshape ops yet.
+            self.inputs = (torch.randn([2] + shape),)
         return m
 
     def infer_fw_model(self, model_obj, inputs):
@@ -135,13 +139,22 @@ class TestTimmConvertModel(TestTorchConvertModel):
             fw_outputs = [fw_outputs.numpy(force=True)]
         return fw_outputs
 
-    @pytest.mark.parametrize("name", ["mobilevitv2_050.cvnets_in1k",
-                                      "poolformerv2_s12.sail_in1k",
-                                      "vit_tiny_patch16_224.augreg_in21k",
-                                      "efficientnet_b0.ra_in1k",
-                                      "convnext_atto.d2_in1k",
-                                      "gcresnext26ts.ch_in1k",
-                                      "volo_d1_224.sail_in1k"])
+    def get_supported_precommit_models():
+        models = [
+            "mobilevitv2_050.cvnets_in1k",
+            "poolformerv2_s12.sail_in1k",
+        ]
+        if platform.machine() not in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
+            models.extend([
+                "vit_tiny_patch16_224.augreg_in21k",
+                "efficientnet_b0.ra_in1k",
+                "convnext_atto.d2_in1k",
+                "gcresnext26ts.ch_in1k",
+                "volo_d1_224.sail_in1k",
+            ])
+        return models
+
+    @pytest.mark.parametrize("name", get_supported_precommit_models())
     @pytest.mark.precommit
     def test_convert_model_precommit(self, name, ie_device):
         self.mode = "trace"

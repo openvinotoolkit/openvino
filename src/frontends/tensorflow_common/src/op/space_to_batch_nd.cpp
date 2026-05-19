@@ -39,7 +39,7 @@ void normalize_block_shape_pads_crops(const NodeContext& node,
     auto M = make_shared<v3::ShapeOf>(block_shape, element::i32);
 
     // compute a number of padding elements required to normalize block_shape
-    // in the beggining and in the end
+    // in the beginning and in the end
     auto num_begin = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
     auto num_end = make_shared<v1::Subtract>(input_rank, M)->output(0);
     num_end = make_shared<v1::Subtract>(num_end, num_begin)->output(0);

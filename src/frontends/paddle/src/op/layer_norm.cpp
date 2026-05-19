@@ -29,7 +29,7 @@ NamedOutputs layer_norm(const NodeContext& node) {
                                               dims_node,
                                               Constant::create(element::i64, {}, {1}),
                                               element::i64);
-    // 'Scale' and 'Bias' are in plain, shoule get the real shape. The shape: shape_of_node[begin_norm_axis:-1]
+    // 'Scale' and 'Bias' are in plain, should get the real shape. The shape: shape_of_node[begin_norm_axis:-1]
     const auto scale_bias_shape = std::make_shared<StridedSlice>(shape_of_node,
                                                                  Constant::create(element::i64, {1}, {begin_norm_axis}),
                                                                  Constant::create(element::i64, {1}, {0}),

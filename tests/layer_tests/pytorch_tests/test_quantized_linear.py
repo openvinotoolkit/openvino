@@ -10,16 +10,15 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestQuantizedLinear(PytorchLayerTest):
-    rng = np.random.default_rng(seed=123)
 
     def _prepare_input(self, input_shape=(2, 2)):
-        return (np.round(self.rng.random(input_shape, dtype=np.float32), 4),)
+        return (np.round(self.random.rand(*input_shape), 4),)
 
     def create_model(self, weight_shape, is_bias, scale, zero_point):
 
         class aten_quantized_linear(torch.nn.Module):
             def __init__(self, weight_shape, is_bias, scale, zero_point):
-                super(aten_quantized_linear, self).__init__()
+                super().__init__()
                 if is_bias:
                     self.linear = torch.ao.nn.quantized.Linear(
                         weight_shape[-1], weight_shape[0], True)
@@ -34,15 +33,14 @@ class TestQuantizedLinear(PytorchLayerTest):
                 inp_q = torch.quantize_per_tensor(inp, 1.0, 0, torch.quint8)
                 return torch.dequantize(self.linear(inp_q))
 
-        ref_net = None
 
-        return aten_quantized_linear(weight_shape, is_bias, scale, zero_point), ref_net, "quantized::linear"
+        return aten_quantized_linear(weight_shape, is_bias, scale, zero_point), "quantized::linear"
 
     def create_hardtanh_model(self, weight_shape, is_bias, scale, zero_point, inplace):
 
         class aten_quantized_linear(torch.nn.Module):
             def __init__(self, weight_shape, is_bias, scale, zero_point, inplace):
-                super(aten_quantized_linear, self).__init__()
+                super().__init__()
                 self.hardtanh = torch.nn.Hardtanh(inplace=inplace)
                 if is_bias:
                     self.linear = torch.ao.nn.quantized.Linear(
@@ -59,7 +57,7 @@ class TestQuantizedLinear(PytorchLayerTest):
                 inp_q = self.hardtanh(inp_q)
                 return torch.dequantize(self.linear(inp_q))
 
-        return aten_quantized_linear(weight_shape, is_bias, scale, zero_point, inplace), None, ["quantized::linear", "aten::hardtanh_" if inplace else "aten::hardtanh"]
+        return aten_quantized_linear(weight_shape, is_bias, scale, zero_point, inplace), ["quantized::linear", "aten::hardtanh_" if inplace else "aten::hardtanh"]
 
     @pytest.mark.parametrize("params", [
         {'input_shape': [3, 9], 'weight_shape': [10, 9]},

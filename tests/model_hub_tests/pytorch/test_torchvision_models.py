@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import platform
 import tempfile
 
 import pytest
@@ -83,8 +84,10 @@ class TestTorchHubConvertModel(TestTorchConvertModel):
         if (getattr(self, "mode", None) == "export"
                 and "raft" not in model_name
                 and not model_name.startswith("vit_")):
-            batch = torch.export.Dim("batch", min=1, max=3)
-            self.export_kwargs = {"dynamic_shapes": [{0: batch}]}
+            from openvino import PartialShape, Dimension
+            shape = list(self.example[0].shape)
+            shape[0] = Dimension(1, 3)
+            self.dynamo_input = (PartialShape(shape),)
         return m
 
     def infer_fw_model(self, model_obj, inputs):
@@ -98,11 +101,19 @@ class TestTorchHubConvertModel(TestTorchConvertModel):
             fw_outputs = [fw_outputs.numpy(force=True)]
         return fw_outputs
 
-    @pytest.mark.parametrize("model_name", ["efficientnet_b7",
-                                            "raft_small",
-                                            "swin_v2_s",
-                                            "quantized_mobilenet_v3_large",
-                                            ])
+    def get_supported_precommit_models():
+        models = [
+            "efficientnet_b7",
+        ]
+        if platform.machine() not in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
+            models.extend([
+                "raft_small",
+                "swin_v2_s",
+                "quantized_mobilenet_v3_large",
+            ])
+        return models
+
+    @pytest.mark.parametrize("model_name", get_supported_precommit_models())
     @pytest.mark.precommit
     def test_convert_model_precommit(self, model_name, ie_device):
         self.mode = "trace"

@@ -24,7 +24,7 @@ ov::OutputVector scatter_nd(const ov::frontend::onnx::Node& node) {
         const auto reduction = node.get_attribute_value<std::string>("reduction", "none");
         CHECK_VALID_NODE(node,
                          reduction == "none",
-                         "Unsupported value of attribute: `reduction`. Only `none` is supported, got:",
+                         "Unsupported value of attribute: `reduction`. Only `none` is supported, got: ",
                          reduction);
     }
 

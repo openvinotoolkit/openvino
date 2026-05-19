@@ -74,7 +74,7 @@ protected:
                                                                           attributes.start_axis,
                                                                           attributes.end_axis);
 
-        function = makeNgraphFunction(inPrc, paramRegionYolo, region_yolo, "RegionYolo");
+        function = create_ov_model(inPrc, paramRegionYolo, region_yolo, "RegionYolo");
     }
 };
 

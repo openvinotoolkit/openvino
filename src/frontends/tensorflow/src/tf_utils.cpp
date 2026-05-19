@@ -451,7 +451,7 @@ bool propagate_conditional_flow(const OutputVector& ov_inputs,
     }
 
     // compute output control dependencies
-    // logically, the next nodes will dependend on outputs and input control dependencies
+    // logically, the next nodes will depend on outputs and input control dependencies
     output_control_deps.clear();
     if (to_propagate) {
         output_control_deps = input_control_deps;

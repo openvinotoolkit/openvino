@@ -33,9 +33,8 @@ class TestAminMax(PytorchLayerTest):
 
         model_class = aten_aminmax(dtype, dim, keepdim)
 
-        ref_net = None
 
-        return model_class, ref_net, "aten::aminmax"
+        return model_class, "aten::aminmax"
 
     @pytest.mark.nightly
     @pytest.mark.precommit

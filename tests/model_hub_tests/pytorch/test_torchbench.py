@@ -30,7 +30,7 @@ class TestTorchbenchmarkConvertModel(TestTorchConvertModel):
         os.system(
             f"git clone https://github.com/pytorch/benchmark.git {self.repo_dir.name}")
         subprocess.check_call(
-            ["git", "checkout", "dbc109791dbb0dfb58775a5dc284fc2c3996cb30"], cwd=self.repo_dir.name)
+            ["git", "checkout", "364420aeca07d9519840a5b6e771035e4dff9d72"], cwd=self.repo_dir.name)
 
     def load_model(self, model_name, model_link):
         subprocess.check_call([sys.executable, "install.py"] + [model_name], cwd=self.repo_dir.name)
@@ -39,7 +39,7 @@ class TestTorchbenchmarkConvertModel(TestTorchConvertModel):
         try:
             model_cls = load_model_by_name(
                 model_name)("eval", "cpu", jit=False)
-        except:
+        except TypeError:
             model_cls = load_model_by_name(model_name)("eval", "cpu")
         model, self.example = model_cls.get_module()
         self.inputs = self.example

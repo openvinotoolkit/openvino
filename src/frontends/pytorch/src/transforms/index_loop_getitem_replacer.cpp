@@ -77,7 +77,7 @@ IndexLoopGetitemReplacer::IndexLoopGetitemReplacer() {
 
         auto param_targets = chunk_param->get_output_target_inputs(0);
         if (param_targets.size() != 1) {
-            add_exception_to_fw_node(chunk_op, "aten::chunk: targets more then one.");
+            add_exception_to_fw_node(chunk_op, "aten::chunk: targets more than one.");
             return false;
         }
 

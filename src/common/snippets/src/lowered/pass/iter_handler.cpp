@@ -14,7 +14,6 @@
 #include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/lowered/pass/pass.hpp"
-#include "snippets/op/fill.hpp"
 #include "snippets/op/loop.hpp"
 #include "snippets/op/memory_access.hpp"
 #include "snippets/utils/utils.hpp"
@@ -65,30 +64,6 @@ std::shared_ptr<pass::PassBase> UpdateMemoryAccessCounts::merge(const std::share
         return nullptr;
     }
     return std::make_shared<UpdateMemoryAccessCounts>(merged_count);
-}
-
-SetFillOffset::SetFillOffset(size_t offset) : RangedPass(), m_offset(offset) {}
-
-bool SetFillOffset::run([[maybe_unused]] LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) {
-    for (auto expr_it = begin; expr_it != end; expr_it++) {
-        const auto& node = expr_it->get()->get_node();
-        if (const auto fill = ov::as_type_ptr<ov::snippets::op::Fill>(node)) {
-            fill->set_offset(m_offset);
-        }
-    }
-    return true;
-}
-
-std::shared_ptr<pass::PassBase> SetFillOffset::merge(const std::shared_ptr<pass::PassBase>& other) {
-    if (!other) {
-        return shared_from_this();
-    }
-    const auto casted_pass = ov::as_type_ptr<SetFillOffset>(other);
-    size_t merged_offset = 0;
-    if (!casted_pass || !ov::snippets::utils::merge_dynamic_dim(merged_offset, m_offset, casted_pass->m_offset)) {
-        return nullptr;
-    }
-    return std::make_shared<SetFillOffset>(merged_offset);
 }
 
 bool SetLoopIncrementOne::run(LinearIR& linear_ir,

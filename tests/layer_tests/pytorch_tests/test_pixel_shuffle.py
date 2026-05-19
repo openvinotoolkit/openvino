@@ -1,7 +1,6 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
 import pytest
 
 from pytorch_layer_test_class import PytorchLayerTest
@@ -9,7 +8,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestPixelShuffle(PytorchLayerTest):
     def _prepare_input(self):
-        return (np.random.randn(*self.shape).astype(np.float32),)
+        return (self.random.randn(*self.shape),)
 
     def create_model(self, upscale_factor):
         import torch
@@ -17,13 +16,13 @@ class TestPixelShuffle(PytorchLayerTest):
 
         class aten_pixel_shuffle(torch.nn.Module):
             def __init__(self, upscale_factor):
-                super(aten_pixel_shuffle, self).__init__()
+                super().__init__()
                 self.upscale_factor = upscale_factor
 
             def forward(self, x):
                 return F.pixel_shuffle(x, self.upscale_factor)
 
-        return aten_pixel_shuffle(upscale_factor), None, "aten::pixel_shuffle"
+        return aten_pixel_shuffle(upscale_factor), "aten::pixel_shuffle"
 
     @pytest.mark.parametrize(("upscale_factor,shape"), [(3, [1, 9, 4, 4]),
                                                         (2, [1, 2, 3, 8, 4, 4]),])
@@ -38,7 +37,7 @@ class TestPixelShuffle(PytorchLayerTest):
 
 class TestPixelUnshuffle(PytorchLayerTest):
     def _prepare_input(self):
-        return (np.random.randn(*self.shape).astype(np.float32),)
+        return (self.random.randn(*self.shape),)
 
     def create_model(self, upscale_factor):
         import torch
@@ -46,13 +45,13 @@ class TestPixelUnshuffle(PytorchLayerTest):
 
         class aten_pixel_unshuffle(torch.nn.Module):
             def __init__(self, upscale_factor):
-                super(aten_pixel_unshuffle, self).__init__()
+                super().__init__()
                 self.upscale_factor = upscale_factor
 
             def forward(self, x):
                 return F.pixel_unshuffle(x, self.upscale_factor)
 
-        return aten_pixel_unshuffle(upscale_factor), None, "aten::pixel_unshuffle"
+        return aten_pixel_unshuffle(upscale_factor), "aten::pixel_unshuffle"
 
     @pytest.mark.parametrize(("upscale_factor,shape"), [(3, [1, 1, 12, 12]),
                                                         (2, [1, 2, 3, 2, 8, 8]),])
@@ -67,7 +66,7 @@ class TestPixelUnshuffle(PytorchLayerTest):
 
 class TestChannelShuffle(PytorchLayerTest):
     def _prepare_input(self):
-        return (np.random.randn(*self.shape).astype(np.float32),)
+        return (self.random.randn(*self.shape),)
 
     def create_model(self, groups):
         import torch
@@ -75,13 +74,13 @@ class TestChannelShuffle(PytorchLayerTest):
 
         class aten_channel_shuffle(torch.nn.Module):
             def __init__(self, upscale_factor):
-                super(aten_channel_shuffle, self).__init__()
+                super().__init__()
                 self.upscale_factor = upscale_factor
 
             def forward(self, x):
                 return F.channel_shuffle(x, self.upscale_factor)
 
-        return aten_channel_shuffle(groups), None, "aten::channel_shuffle"
+        return aten_channel_shuffle(groups), "aten::channel_shuffle"
 
     @pytest.mark.parametrize(("groups,shape"), [
         (3, [1, 9, 4, 4]),

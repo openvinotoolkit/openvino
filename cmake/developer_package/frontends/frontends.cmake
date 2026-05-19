@@ -203,7 +203,7 @@ macro(ov_add_frontend)
 
     # Shutdown protobuf when unloading the frontend dynamic library
     if(OV_FRONTEND_PROTOBUF_REQUIRED AND BUILD_SHARED_LIBS)
-        target_link_libraries(${TARGET_NAME} PRIVATE openvino::protobuf_shutdown)
+        target_link_libraries(${TARGET_NAME} PRIVATE openvino::protobuf_shutdown openvino::shutdown)
     endif()
 
     if(NOT BUILD_SHARED_LIBS)

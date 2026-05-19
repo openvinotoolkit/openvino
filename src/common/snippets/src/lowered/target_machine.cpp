@@ -16,7 +16,8 @@
 #include "snippets/lowered/expression.hpp"
 #include "snippets/runtime_configurator.hpp"
 
-using namespace ov::snippets;
+namespace ov::snippets {
+
 std::function<std::shared_ptr<Emitter>(const lowered::ExpressionPtr&)> TargetMachine::get(
     const ov::DiscreteTypeInfo& type) const {
     auto jitter = jitters.find(type);
@@ -42,3 +43,5 @@ const std::shared_ptr<RuntimeConfigurator>& TargetMachine::get_runtime_configura
     OPENVINO_ASSERT(configurator, "RuntimeConfigurator has not been inited!");
     return configurator;
 }
+
+}  // namespace ov::snippets

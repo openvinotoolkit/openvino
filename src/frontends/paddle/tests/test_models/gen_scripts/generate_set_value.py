@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import os
 import sys
 
 #
@@ -12,19 +13,84 @@ from save_model import saveModel
 
 maxint32 = np.iinfo(np.int32).max
 
+
+def _set_attr_ints(op, name, values, framework_pb2):
+    for attr in op.attrs:
+        if attr.name == name:
+            attr.type = framework_pb2.AttrType.LONGS
+            del attr.ints[:]
+            attr.longs[:] = values
+            return True
+    new_attr = op.attrs.add()
+    new_attr.name = name
+    new_attr.type = framework_pb2.AttrType.LONGS
+    new_attr.longs[:] = values
+    return True
+
+
+def _remove_input_list(op, name):
+    removed = False
+    for idx in range(len(op.inputs) - 1, -1, -1):
+        if op.inputs[idx].parameter == name:
+            del op.inputs[idx]
+            removed = True
+    return removed
+
+
+def _update_set_value_attrs(model_path):
+    try:
+        from paddle.fluid.proto import framework_pb2
+    except Exception:
+        from paddle.base.proto import framework_pb2
+
+    program_desc = framework_pb2.ProgramDesc()
+    with open(model_path, "rb") as model_file:
+        program_desc.ParseFromString(model_file.read())
+
+    updated = False
+    for block in program_desc.blocks:
+        for op in block.ops:
+            if op.type != "set_value":
+                continue
+            _remove_input_list(op, "StartsTensorList")
+            _remove_input_list(op, "EndsTensorList")
+            _remove_input_list(op, "StepsTensorList")
+            axes_ok = _set_attr_ints(op, "axes", [0, 1, 0, 1], framework_pb2)
+            starts_ok = _set_attr_ints(op, "starts", [0], framework_pb2)
+            ends_ok = _set_attr_ints(op, "ends", [1], framework_pb2)
+            steps_ok = _set_attr_ints(op, "steps", [1], framework_pb2)
+            updated = updated or (axes_ok and starts_ok and ends_ok
+                                  and steps_ok)
+
+    if not updated:
+        raise RuntimeError("set_value op not found when mutating pdmodel")
+
+    with open(model_path, "wb") as model_file:
+        model_file.write(program_desc.SerializeToString())
+
+
 def concat(data):
     data = [np.expand_dims(d, 0) for d in data]
     return np.concatenate(data, axis=0)
 
 
-def paddle_set_value(name: str, x, value, callback, dtype, starts=None, ends=None, steps=None, is_dynamic=False):
+def paddle_set_value(name: str,
+                     x,
+                     value,
+                     callback,
+                     dtype,
+                     starts=None,
+                     ends=None,
+                     steps=None,
+                     is_dynamic=False):
 
     paddle.enable_static()
 
-    with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
+    with paddle.static.program_guard(paddle.static.Program(),
+                                     paddle.static.Program()):
         node_x = paddle.static.data(name="x", shape=x.shape, dtype=dtype)
-        value_shape = (0,) if isinstance(value, (int, float)) else value.shape
-        value_shape = (-1,) * len(value_shape) if is_dynamic else value_shape
+        value_shape = (0, ) if isinstance(value, (int, float)) else value.shape
+        value_shape = (-1, ) * len(value_shape) if is_dynamic else value_shape
         node_v = paddle.static.data(name="v", shape=value_shape, dtype=dtype)
         cpu = paddle.static.cpu_places(1)
         exe = paddle.static.Executor(cpu[0])
@@ -41,11 +107,18 @@ def paddle_set_value(name: str, x, value, callback, dtype, starts=None, ends=Non
             node_starts = paddle.assign(input_starts)
             node_ends = paddle.assign(input_ends)
             node_steps = paddle.assign(input_steps)
-            out = callback(paddle.clone(node_x), node_v, node_starts, node_ends, node_steps)
+            out = callback(paddle.clone(node_x), node_v, node_starts,
+                           node_ends, node_steps)
 
         outs = exe.run(feed=feed, fetch_list=[out])
         feed_vars = [node_x, node_v]
-        saveModel(name, exe, feed_vars=feed_vars, fetchlist=[out], inputs=inputs, outputs=[outs[0]], target_dir=sys.argv[1])
+        saveModel(name,
+                  exe,
+                  feed_vars=feed_vars,
+                  fetchlist=[out],
+                  inputs=inputs,
+                  outputs=[outs[0]],
+                  target_dir=sys.argv[1])
 
 
 def build_slice(starts, ends, steps) -> list:
@@ -70,7 +143,8 @@ def main():
         if paddle.__version__ < "2.6.0":
             x[1:2, 0:4:2, 2:4] = value
         else:
-            x = paddle.static.setitem(x, (1, slice(0, 4, 2), slice(2, 4)), value)
+            x = paddle.static.setitem(x, (1, slice(0, 4, 2), slice(2, 4)),
+                                      value)
         return x
 
     paddle_set_value("set_value1", data, value, set_value1, dtype)
@@ -84,7 +158,7 @@ def main():
         if paddle.__version__ < "2.6.0":
             x[2:5] = value
         else:
-            x = paddle.static.setitem(x, (slice(2, 5),), value)
+            x = paddle.static.setitem(x, (slice(2, 5), ), value)
         return x
 
     paddle_set_value("set_value2", data, value, set_value2, dtype)
@@ -98,7 +172,9 @@ def main():
         if paddle.__version__ < "2.6.0":
             x[:, :, 1:4] = value
         else:
-            x = paddle.static.setitem(x, (slice(None), slice(None), slice(1, 4)), value)
+            x = paddle.static.setitem(x,
+                                      (slice(None), slice(None), slice(1, 4)),
+                                      value)
         return x
 
     paddle_set_value("set_value3", data, value, set_value3, dtype)
@@ -118,7 +194,8 @@ def main():
             x = paddle.static.setitem(x, build_slice(*slice), value)
         return x
 
-    paddle_set_value("set_value4", data, value, set_value4, dtype, starts, ends, steps)
+    paddle_set_value("set_value4", data, value, set_value4, dtype, starts,
+                     ends, steps)
 
     shape = (10, 5)
     dtype = "int32"
@@ -135,7 +212,8 @@ def main():
             x = paddle.static.setitem(x, build_slice(*slice), value)
         return x
 
-    paddle_set_value("set_value5", data, value, set_value5, dtype, starts, ends, steps)
+    paddle_set_value("set_value5", data, value, set_value5, dtype, starts,
+                     ends, steps)
 
     # shape = (17, 19)
     # dtype = "float32"
@@ -175,7 +253,8 @@ def main():
             x = paddle.static.setitem(x, build_slice(*slice), value)
         return x
 
-    paddle_set_value("set_value8", data, value, set_value8, dtype, starts, ends, steps)
+    paddle_set_value("set_value8", data, value, set_value8, dtype, starts,
+                     ends, steps)
 
     # shape = (10, 5)
     # dtype = "float32"
@@ -203,7 +282,58 @@ def main():
             x = paddle.static.setitem(x, build_slice(*slice), value)
         return x
 
-    paddle_set_value("set_value_dynamic2", data, value, set_value7, dtype, starts, ends, steps, is_dynamic=True)
+    paddle_set_value("set_value_dynamic2",
+                     data,
+                     value,
+                     set_value7,
+                     dtype,
+                     starts,
+                     ends,
+                     steps,
+                     is_dynamic=True)
+
+    input_data = np.random.randn(2, 3).astype("float32")
+    value_data = np.array([1.0], dtype="float32")
+
+    with paddle.static.program_guard(paddle.static.Program(),
+                                     paddle.static.Program()):
+        node_x = paddle.static.data(name="x",
+                                    shape=input_data.shape,
+                                    dtype="float32")
+        node_v = paddle.static.data(name="v",
+                                    shape=value_data.shape,
+                                    dtype="float32")
+
+        if paddle.__version__ < "2.6.0":
+            node_out = paddle.assign(node_x)
+            node_out[0:1] = node_v
+        else:
+            node_out = paddle.static.setitem(node_x, (slice(0, 1), ), node_v)
+
+        cpu = paddle.static.cpu_places(1)
+        exe = paddle.static.Executor(cpu[0])
+        exe.run(paddle.static.default_startup_program())
+        outs = exe.run(feed={
+            "x": input_data,
+            "v": value_data
+        },
+                       fetch_list=[node_out])
+
+        saveModel(
+            "set_value_invalid_attr_sizes",
+            exe,
+            feed_vars=[node_x, node_v],
+            fetchlist=[node_out],
+            inputs=[input_data, value_data],
+            outputs=[outs[0]],
+            target_dir=sys.argv[1],
+        )
+
+    model_dir = os.path.join(sys.argv[1], "set_value_invalid_attr_sizes")
+    model_path = os.path.join(model_dir,
+                              "set_value_invalid_attr_sizes.pdmodel")
+    _update_set_value_attrs(model_path)
+
 
 if __name__ == "__main__":
     main()

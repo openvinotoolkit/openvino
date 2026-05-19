@@ -5,8 +5,10 @@
 
 @setlocal
 SETLOCAL EnableDelayedExpansion
-set "SAMPLES_SOURCE_DIR=%~dp0"
-FOR %%i IN ("%SAMPLES_SOURCE_DIR%\.") DO set SAMPLES_TYPE=%%~nxi
+@REM %~dp0 ends with a backslash which escapes
+@REM the closing quote in "%SAMPLES_SOURCE_DIR%". Append a dot to prevent this.
+set "SAMPLES_SOURCE_DIR=%~dp0."
+FOR %%i IN ("%SAMPLES_SOURCE_DIR%") DO set SAMPLES_TYPE=%%~nxi
 
 set "SAMPLES_BUILD_DIR=%USERPROFILE%\Documents\Intel\OpenVINO\openvino_%SAMPLES_TYPE%_samples_build"
 set SAMPLES_INSTALL_DIR=

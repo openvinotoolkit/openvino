@@ -12,7 +12,7 @@
 namespace ov {
 namespace util {
 
-#ifdef ENABLE_OPENVINO_DEBUG
+#ifdef ENABLE_DEBUG_CAPS
 // Switch on verbose matching logging using OV_VERBOSE_LOGGING=true
 static const bool verbose = ov::util::getenv_bool("OV_VERBOSE_LOGGING");
 

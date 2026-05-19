@@ -10,10 +10,12 @@
 #include "paged_attention_opt.hpp"
 
 #include "intel_gpu/graph/kernel_impl_params.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
 #include "ocl_v2/utils/jitter.hpp"
 #include "scaled_dot_product_attention_inst.h"
 #include "paged_attention_inst.h"
+#include "paged_attention_opt.hpp"
 #include "sdpa_base.hpp"
 #include "../utils/kernel_generator.hpp"
 // clang-format on
@@ -27,12 +29,8 @@ size_t get_subgroup_size(gpu_arch arch) {
     case gpu_arch::xe_hp:
     case gpu_arch::xe_hpg:
         return 8;
-    case gpu_arch::xe_hpc:
-    case gpu_arch::xe2:
-    case gpu_arch::xe3:
-        return 16;
     default:
-        return 0;
+        return 16;
     }
 }
 
@@ -57,6 +55,10 @@ micro::Type convert_type(ov::element::Type t) {
         return micro::Type::u8;
     case ov::element::i32:
         return micro::Type::s32;
+    case ov::element::u4:
+        return micro::Type::u4;
+    case ov::element::i4:
+        return micro::Type::s4;
     default:
         break;
     }
@@ -290,7 +292,7 @@ sdpa_config_t xehpg_q_h64_s64_2nd = {8, 8, 8, 8, 8, 2, 8, 2};
 sdpa_config_t xehpg_q_h64_s128_2nd = {16, 8, 8, 8, 8, 4, 8, 4};
 sdpa_config_t xehpg_q_h64_2nd = {16, 16, 8, 8, 16, 2, 8, 4};
 
-sdpa_config_t xehpg_h128_pa = {16, 16, 16, 16, 8, 1, 8, 1};
+sdpa_config_t xehpg_h128_pa = {16, 16, 16, 16, 8, 2, 8, 2};
 sdpa_config_t xehpg_h128 = {16, 16, 32, 8, 8, 2, 4, 4};
 sdpa_config_t xehpg_h128_s32 = {16, 16, 16, 8, 16, 2, 8, 4};
 sdpa_config_t xehpg_h128_2nd = {8, 16, 16, 8, 16, 1, 8, 2};
@@ -434,6 +436,13 @@ sdpa_config_t xe2_q_h256_s1152_2nd_integrated = {16, 16, 64, 16, 4, 1, 4, 1};
 sdpa_config_t xe2_q_h256_s768_2nd_integrated = {64, 16, 16, 16, 16, 1, 16, 1};
 sdpa_config_t xe2_q_h256_s512_2nd_integrated = {32, 32, 32, 16, 16, 1, 8, 2};
 sdpa_config_t xe2_q_h256_s384_2nd_integrated = {16, 16, 16, 16, 16, 1, 16, 1};
+
+sdpa_config_t xe3_h128 = {32, 16, 32, 16, 16, 2, 16, 2};
+sdpa_config_t xe3_h256 = {32, 16, 32, 16, 16, 2, 16, 2};
+
+sdpa_config_t xe3_h512 = {32, 16, 32, 16, 16, 2, 16, 2};
+sdpa_config_t xe3_h512_2nd = {32, 16, 32, 16, 16, 1, 16, 1};
+sdpa_config_t xe3_q_h512_2nd = {32, 16, 32, 16, 16, 1, 16, 1};
 
 sdpa_config_t* choose_config_xehpg(int head_size, int seq, bool thin_q, bool quantized, bool is_pa, bool is_prefill) {
     if (head_size <= 32) {
@@ -784,6 +793,25 @@ sdpa_config_t* choose_config_xe2(int head_size, int seq, bool thin_q, bool quant
     }
     return choose_config_xehpc(head_size, seq, thin_q, quantized, is_integrated, is_pa, is_prefill);
 }
+sdpa_config_t* choose_config_xe3p(int head_size, int seq, bool thin_q, bool quantized, bool is_integrated, bool is_pa, bool is_prefill) {
+    if (head_size <= 128) {
+        return &xe3_h128;
+    }
+    if (head_size <= 256) {
+        return &xe3_h256;
+        return choose_config_xe2(head_size, seq, thin_q, quantized, is_integrated, is_pa, is_prefill);
+    }
+    if (head_size <= 512) {
+        if (thin_q) {
+            if (quantized) {
+                return &xe3_q_h512_2nd;
+            }
+            return &xe3_h512_2nd;
+        }
+        return &xe3_h512;
+    }
+    return choose_config_xe2(head_size, seq, thin_q, quantized, is_integrated, is_pa, is_prefill);
+}
 
 }  // namespace
 
@@ -952,6 +980,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         const auto has_alibi = params.get_input_layout(paged_attention::PagedAttentionInputIdx::ALIBI).count() > 0;
         const auto has_scale_input = !desc->scale_val.has_value();
         const auto has_scores_output = desc->has_scores_output();
+        const auto has_qq_bias = desc->has_qq_bias;
 
         const auto& in_offsets_map = params.in_port_to_shape_info_offset;
         const auto& out_offsets_map = params.out_port_to_shape_info_offset;
@@ -978,6 +1007,14 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
             jit.make("HAS_SINK_INPUT", 1);
         }
 
+        if (has_qq_bias && !m_is_prefill) {
+            jit.make("HAS_QQ_BIAS", 1);
+            const auto& qq_bias_layout = params.input_layouts[paged_attention::PagedAttentionInputIdx::QQ_BIAS];
+            jit.make("QQ_BIAS_DATA_T", to_ocl_type(qq_bias_layout.data_type));
+            const auto& qq_bias_begins_layout = params.input_layouts[paged_attention::PagedAttentionInputIdx::QQ_BIAS_BEGINS];
+            jit.make("QQ_BIAS_BEGINS_DATA_T", to_ocl_type(qq_bias_begins_layout.data_type));
+        }
+
         jit.add(make_layout_jit_constants("OUTPUT", params.output_layouts[0], out_offsets_map.at(0)));
         if (has_scores_output) {
             jit.add(make_layout_jit_constants("OUTPUT" + to_code_string(1), params.output_layouts[1], out_offsets_map.at(1)));
@@ -991,6 +1028,9 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
             jit.make("SINK_DATA_T", to_ocl_type(sink_layout.data_type));
             jit.make("HAS_SINK_INPUT", 1);
         }
+
+        // QQ_BIAS is a paged-attention-only feature.
+        jit.make("HAS_QQ_BIAS", 0);
     }
     const auto& device_info = params.get_device_info();
 
@@ -1113,16 +1153,32 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         auto pa_desc = params.typed_desc<paged_attention>();
         jit.make("IS_KV_COMPRESSED_PA", true);
 
+        const auto kv_precision = params.get_program().get_config().get_kv_cache_precision();
+        const bool is_int4_logical = data_type_traits::is_i4_u4(kv_precision);
+
         auto scales_zp_size = 4;  // scale + zp
-        if (pa_desc->is_key_by_channel) {
+        if (is_int4_logical) {
+            // INT4 KV cache with BY_CHANNEL K quantization:
+            // K: dim order {0,1,3,2} (col-major), packed block_size in innermost dim
+            //    physical: [blocks, heads, head_size, packed_block + scales] u8
+            //    packed_block = block_size/2 bytes, scales = 4 bytes
+            // V: dim order {0,1,2,3} (row-major), packed head_size in innermost dim
+            //    physical: [blocks, heads, block_size, packed_head + scales] u8
+            jit.make("IS_INT4_KV_CACHE", 1);
+            jit.make("IS_KEY_BY_CHANNEL", 1);
+            jit.make("ADJUSTED_K_HEAD_SIZE", k_head_size);
+            jit.make("ADJUSTED_V_HEAD_SIZE", v_head_size / 2 + scales_zp_size);
+            jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", config.paged_attention_block_size / 2 + scales_zp_size);
+        } else if (pa_desc->is_key_by_channel) {
             jit.make("IS_KEY_BY_CHANNEL", 1);
             jit.make("ADJUSTED_K_HEAD_SIZE", k_head_size);
             jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", config.paged_attention_block_size + scales_zp_size);
+            jit.make("ADJUSTED_V_HEAD_SIZE", v_head_size + scales_zp_size);
         } else {
             jit.make("ADJUSTED_K_HEAD_SIZE", k_head_size + scales_zp_size);
             jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", config.paged_attention_block_size);
+            jit.make("ADJUSTED_V_HEAD_SIZE", v_head_size + scales_zp_size);
         }
-        jit.make("ADJUSTED_V_HEAD_SIZE", v_head_size + scales_zp_size);
     } else if (config.is_paged_attention) {
         jit.make("ADJUSTED_K_HEAD_SIZE", k_head_size);
         jit.make("ADJUSTED_V_HEAD_SIZE", v_head_size);
@@ -1153,15 +1209,28 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     jit.make("KV_GROUP_SIZE", Q_num_heads_dim / K_num_heads_dim);
 
     if (d_full) {
-        if (ldq % 4 == 0)
+        const auto sg_size = get_subgroup_size(device_info.arch);
+        constexpr size_t packed_elems_per_uint = sizeof(uint32_t) / sizeof(ov::float16);
+        constexpr size_t max_block_elems = 16;  // max 16 elements per block load/store per item
+        const auto q_block_elems = (d_max / packed_elems_per_uint) / sg_size;
+        if (ldq % 4 == 0 && q_block_elems <= max_block_elems)
             jit.make("BLOCK_Q", 1);
         // TODO: Causes accuracy drop for static SD model. Enable back once the issue is resolved
-        // if (lda % 4 == 0 && v_full)
+        // const auto a_block_elems = static_cast<size_t>(gemm_vs.getSetting("sg_tile_m")) / sg_size;
+        // if (lda % 4 == 0 && v_full && a_block_elems <= max_block_elems)
         //     jit.make("BLOCK_A", 1);
         jit.make("REMAINDER_Q", !q_full);
     } else if (device_info.arch >= gpu_arch::xe_hpc) {
         auto vbytes = n_values.get_length() * ov::element::Type(V.data_type).size();
-        if (lda % 16 == 0 && vbytes % 4 == 0)
+        const auto sg_tile_m = static_cast<size_t>(gemm_vs.getSetting("sg_tile_m"));
+        const auto sg_size = get_subgroup_size(device_info.arch);
+        // tile_ops.cl defines DEF_BLOCK2D_LOAD_STORE for half up to vl=16 (BR=32, BC=8).
+        // tile element vector = sg_tile_m * max_BC / sg_size; must be <= 16 (max defined vl).
+        const bool block2d_compatible = (sg_tile_m * 8 / sg_size) <= 16;  // sg_tile_m <= 32
+        const bool use_block2d = lda % 16 == 0 && vbytes % 4 == 0 && block2d_compatible;
+        GPU_DEBUG_TRACE_DETAIL << "BLOCK_2D_A check: sg_tile_m=" << sg_tile_m << " sg_size=" << sg_size << " lda=" << lda << " vbytes=" << vbytes
+                               << " block2d_compatible=" << block2d_compatible << " => " << (use_block2d ? "enabled" : "disabled") << std::endl;
+        if (use_block2d)
             jit.make("BLOCK_2D_A", 1);
     }
 
@@ -1263,6 +1332,7 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
 
     if (config.is_paged_attention) {
         const auto desc = params.typed_desc<paged_attention>();
+        const auto has_qq_bias = desc->has_qq_bias;
         if (m_is_prefill) {
             args.push_back({ArgumentDescriptor::Types::INPUT, 1});  // Key
             args.push_back({ArgumentDescriptor::Types::INPUT, 0});  // Q
@@ -1287,6 +1357,12 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
 
         if (desc->has_sink_input)
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SINKS});  // sink
+
+        if (has_qq_bias && !m_is_prefill) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS});  // qq_bias
+            args.push_back(
+                {ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS_BEGINS});  // qq_bias_begins                              // qq_bias_num
+        }
 
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});  // blocked_indexes_start_and_gws_mapping
     } else {
@@ -1441,37 +1517,29 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
 
     bool is_quantized =
         (K.data_type == ov::element::u8 || K.data_type == ov::element::i8) || (V.data_type == ov::element::u8 || V.data_type == ov::element::i8);
-    int32_t nkeys_v = n_keys.is_dynamic() ? 0 : n_keys.get_length();
+    int32_t nkeys_v = static_cast<int32_t>(n_keys.is_dynamic() ? 0 : n_keys.get_length());
 
     GPU_DEBUG_TRACE_DETAIL << "k_head_size = " << k_head_size << ", nkeys_v = " << nkeys_v << "\n";
     GPU_DEBUG_TRACE_DETAIL << "thin_q = " << thin_q << ", is_quantized = " << is_quantized << "\n";
     switch (device_info.arch) {
     case gpu_arch::xe_hpg: {
-        config = choose_config_xehpg(static_cast<int32_t>(k_head_size), static_cast<int32_t>(nkeys_v), thin_q, is_quantized, is_paged_attention, is_prefill);
+        config = choose_config_xehpg(static_cast<int32_t>(k_head_size), nkeys_v, thin_q, is_quantized, is_paged_attention, is_prefill);
         break;
     }
     case gpu_arch::xe_hpc:
-        config = choose_config_xehpc(static_cast<int32_t>(k_head_size),
-                                     static_cast<int32_t>(nkeys_v),
-                                     thin_q,
-                                     is_quantized,
-                                     is_integrated,
-                                     is_paged_attention,
-                                     is_prefill);
+        config = choose_config_xehpc(static_cast<int32_t>(k_head_size), nkeys_v, thin_q, is_quantized, is_integrated, is_paged_attention, is_prefill);
         break;
     case gpu_arch::xe2:
-    case gpu_arch::xe3: {
-        config = choose_config_xe2(static_cast<int32_t>(k_head_size),
-                                   static_cast<int32_t>(nkeys_v),
-                                   thin_q,
-                                   is_quantized,
-                                   is_integrated,
-                                   is_paged_attention,
-                                   is_prefill);
+    case gpu_arch::xe3:
+        config = choose_config_xe2(static_cast<int32_t>(k_head_size), nkeys_v, thin_q, is_quantized, is_integrated, is_paged_attention, is_prefill);
+        break;
+    case gpu_arch::xe3p:
+        config = choose_config_xe3p(static_cast<int32_t>(k_head_size), nkeys_v, thin_q, is_quantized, is_integrated, is_paged_attention, is_prefill);
+        break;
+    default: {
+        config = choose_config_xe2(static_cast<int32_t>(k_head_size), nkeys_v, thin_q, is_quantized, is_integrated, is_paged_attention, is_prefill);
         break;
     }
-    default:
-        break;
     }
 
     OPENVINO_ASSERT(config != nullptr);
@@ -1487,22 +1555,34 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     problem.Ta_ext = convert_type(K.data_type);
     problem.Tb_ext = convert_type(Q.data_type);
 
+    // Detect INT4 KV cache: stored as u8 but logical precision is u4/i4
+    const auto kv_cache_precision = is_paged_attention ? params.get_program().get_config().get_kv_cache_precision() : ov::element::dynamic;
+    const bool is_int4_kv_cache = data_type_traits::is_i4_u4(kv_cache_precision);
+
+    // For INT4 PA generate: override Ta_ext to u4/i4 so micro-kernel handles u4 unpacking
+    if (is_int4_kv_cache && is_paged_attention && !is_prefill) {
+        problem.Ta_ext = convert_type(kv_cache_precision);
+    }
+
     problem.Ta = problem.Tb = micro::Type::f16;
     problem.Tc = problem.Tc_ext = micro::Type::f32;
     problem.Ts = problem.Tc;
 
     auto problem_kq = problem;
+    // Both INT4 and INT8 K cache use dim order {0,1,3,2} (column-major / Layout::N).
     problem_kq.A.layout = (is_paged_attention && !is_prefill) ? micro::MatrixLayout::N : micro::MatrixLayout::T;
 
     /* Set up microkernel options */
-    micro::GEMMProtocol::Options opts_kq;
+    micro::GEMMOptions opts_kq;
     opts_kq.localB = true;
     opts_kq.slmPtr = true;
 
     const bool use_asymmetric_quantization = configuration.use_asymmetric_quantization;
 
     if (is_paged_attention && !is_prefill && is_quantized) {
-        problem.Ta = micro::Type::s8;
+        if (!is_int4_kv_cache) {
+            problem.Ta = micro::Type::s8;
+        }
 
         const auto scale_dt = convert_type(ov::element::f16);
         problem_kq.Ta_scale = scale_dt;
@@ -1518,7 +1598,13 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         problem_kq.aOffset = micro::ABOffset::Calc;
 
         auto pa_desc = params.typed_desc<paged_attention>();
-        if (pa_desc->is_key_by_channel) {
+        if (is_int4_kv_cache) {
+            // INT4 BY_CHANNEL: per-channel quantization (one scale/zp per head dim for all tokens in block)
+            // Same quantization grouping as INT8 BY_CHANNEL.
+            problem_kq.aqGroupM = config->unroll_m_kq * config->wg_m_kq;
+            problem_kq.aqGroupK = 1;
+            // BY_CHANNEL scales: Layout::N (stride-1 between rows, ldkq stride between columns)
+        } else if (pa_desc->is_key_by_channel) {
             problem_kq.aqGroupM = config->unroll_m_kq * config->wg_m_kq;
             problem_kq.aqGroupK = 1;
         } else {
@@ -1561,13 +1647,19 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
 
     problem_kq.B.layout = micro::MatrixLayout::Pr;
     problem_kq.C.layout = micro::MatrixLayout::T;
-    problem_kq.A.setAlignment(micro::alignment_for_ld(k_head_size * problem.Ta));
+    problem_kq.A.setAlignment(micro::alignment_for_ld(static_cast<int>(k_head_size * problem.Ta)));
     if (is_paged_attention && !is_prefill) {
         auto pa_desc = params.typed_desc<paged_attention>();
         const auto paged_attention_block_size = static_cast<int>(paged_attention::block_size);
-        problem_kq.A.setAlignment(paged_attention_block_size * problem.Ta);
-        if (is_quantized && pa_desc->is_key_by_channel) {
-            problem_kq.A.setAlignment(paged_attention_block_size * problem.Ta + 4);  // scale - 2 bytes, zp - 2 bytes
+        if (is_int4_kv_cache) {
+            // INT4 BY_CHANNEL Layout::N: lda = packed_block_bytes + scales
+            // = block_size * u4 + 4 = 16 * 0.5 + 4 = 12 bytes
+            problem_kq.A.setAlignment(paged_attention_block_size * problem.Ta_ext + 4);
+        } else {
+            problem_kq.A.setAlignment(paged_attention_block_size * problem.Ta);
+            if (is_quantized && pa_desc->is_key_by_channel) {
+                problem_kq.A.setAlignment(paged_attention_block_size * problem.Ta + 4);  // scale - 2 bytes, zp - 2 bytes
+            }
         }
     }
     problem_kq.B.setAlignment(64);  // Q is packed in VNNI format in SLM
@@ -1611,7 +1703,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         problem_kcq.A.layout = micro::MatrixLayout::T;
         problem_kcq.B.layout = micro::MatrixLayout::Pr;
         problem_kcq.C.layout = micro::MatrixLayout::T;
-        problem_kcq.A.setAlignment(micro::alignment_for_ld(k_head_size * problem.Ta));
+        problem_kcq.A.setAlignment(micro::alignment_for_ld(static_cast<int>(k_head_size * problem.Ta)));
         problem_kcq.B.setAlignment(64);  // Q is packed in VNNI format in SLM
         problem_kcq.B.crosspack = 2;
         problem_kcq.B.tileR = static_cast<uint16_t>(d_max);
@@ -1629,13 +1721,17 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     }
 
     /* Set up microkernel options */
-    micro::GEMMProtocol::Options opts_vs;
+    micro::GEMMOptions opts_vs;
     opts_vs.localB = true;
     opts_vs.slmPtr = true;
 
     /* Update for second GEMM: V*S */
     auto problem_vs = problem;
     problem_vs.Ta_ext = convert_type(V.data_type);
+    // For INT4 V: override Ta_ext to u4/i4
+    if (is_int4_kv_cache && is_paged_attention && !is_prefill) {
+        problem_vs.Ta_ext = convert_type(kv_cache_precision);
+    }
     problem_vs.A.layout = micro::MatrixLayout::N;
 
     if (is_paged_attention && !is_prefill && is_quantized) {
@@ -1654,6 +1750,13 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
 
         problem_vs.aqGroupM = static_cast<int>(v_head_size);
         problem_vs.aqGroupK = 1;
+
+        // NOTE: V*S scale Layout stays ::N (the default set above), which is correct.
+        // V*S A = V[m=head_dim, k=tokens], so per-token scales form a [1, tokens] matrix.
+        // With Layout::N: scale(0, token) = base + token * ldvq = 68-byte stride. Correct.
+        // (Layout::T would give stride-1 = 2-byte intervals, which is wrong.)
+        // This differs from K*Q where A = K[m=tokens, k=head_dim], scale is [tokens, 1],
+        // and Layout::T is needed to get the token stride via ldkq.
 
         opts_vs.scaleA = true;
         opts_vs.offsetA = true;
@@ -1690,7 +1793,14 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
 
     problem_vs.B.layout = micro::MatrixLayout::Pr;
     problem_vs.C.layout = micro::MatrixLayout::N;
-    problem_vs.A.setAlignment(micro::alignment_for_ld(v_head_size * problem.Ta));
+
+    if (is_int4_kv_cache && is_paged_attention && !is_prefill) {
+        // INT4 V: ldv = packed_head_bytes + scales = v_head_size * u4 + 4 = 68
+        problem_vs.A.setAlignment(static_cast<int>(v_head_size * problem_vs.Ta_ext) + 4);
+    } else {
+        problem_vs.A.setAlignment(micro::alignment_for_ld(static_cast<int>(v_head_size * problem.Ta)));
+    }
+
     problem_vs.B.setAlignment(64);  // S is packed in SLM
     problem_vs.B.crosspack = 16;
     sizes.m = n_values.is_dynamic() ? -1 : n_values.get_length();
@@ -1729,7 +1839,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
 
         problem_vcs.B.layout = micro::MatrixLayout::Pr;
         problem_vcs.C.layout = micro::MatrixLayout::N;
-        problem_vcs.A.setAlignment(micro::alignment_for_ld(v_head_size * problem.Ta));
+        problem_vcs.A.setAlignment(micro::alignment_for_ld(static_cast<int>(v_head_size * problem.Ta)));
         problem_vcs.B.setAlignment(64);  // S is packed in SLM
         problem_vcs.B.crosspack = 16;
         sizes.m = n_values.is_dynamic() ? -1 : n_values.get_length();

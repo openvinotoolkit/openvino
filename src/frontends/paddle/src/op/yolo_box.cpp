@@ -37,7 +37,7 @@ NamedOutputs yolo_box(const NodeContext& node_context) {
     auto const_class_num = Constant::create<int64_t>(i64, {1}, {class_num});
 
     // Paddle anchors attribute is of type int32. Convert to float for computing
-    // convinient.
+    // convenient.
     auto _anchors = node_context.get_attribute<std::vector<int32_t>>("anchors");
 
     std::vector<float> anchors(_anchors.size());

@@ -13,7 +13,6 @@ GPU_DEFINE_PRIMITIVE_TYPE_ID(paged_attention)
 
 paged_attention_node::typed_program_node(const std::shared_ptr<paged_attention> prim, program& prog)
     : parent(prim, prog) {
-    can_share_internal_buffer(false);
 }
 
 layout paged_attention_inst::calc_output_layout(const paged_attention_node& /*node*/, kernel_impl_params const& impl_param) {
@@ -40,31 +39,38 @@ std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_no
     const auto key_cache_idx = cldnn::paged_attention::PagedAttentionInputIdx::KEY_CACHE;
     const auto& key_cache_ps = impl_param.get_input_layout(key_cache_idx).get_partial_shape();
     const auto& key_cache_quant_mode = impl_param.get_program().get_config().get_key_cache_quant_mode();
+    const auto key_cache_dt = impl_param.get_program().get_config().get_kv_cache_precision();
     bool key_cache_compressed = impl_param.get_input_layout(key_cache_idx).data_type == ov::element::i8 ||
-                                impl_param.get_input_layout(key_cache_idx).data_type == ov::element::u8;
+                                impl_param.get_input_layout(key_cache_idx).data_type == ov::element::u8 ||
+                                data_type_traits::is_i4_u4(key_cache_dt);
     auto expected_block_size = desc->has_xattention ? paged_attention::block_size_xattn : paged_attention::block_size;
+    // Both INT4 and INT8 BY_CHANNEL use dim order {0,1,3,2} with block_size at dim[3].
+    const bool is_int4 = data_type_traits::is_i4_u4(key_cache_dt);
     if (key_cache_compressed && key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
-        expected_block_size += 4;
+        if (is_int4) {
+            // INT4 BY_CHANNEL: block_size dim is packed (u4→u8) + scale/zp = block_size/2 + sizeof(fp16)*2
+            expected_block_size = expected_block_size / 2 + 4;
+        } else {
+            constexpr size_t kv_sub_block_size = 16;
+            OPENVINO_ASSERT(expected_block_size % kv_sub_block_size == 0,
+                            "[GPU] Invalid block size for BY_CHANNEL key cache quantization: ",
+                            expected_block_size,
+                            ". Expected multiple of ",
+                            kv_sub_block_size);
+            expected_block_size += expected_block_size / kv_sub_block_size * 4;
+        }
     }
+
     OPENVINO_ASSERT((key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) == desc->is_key_by_channel,
                      "[GPU] Paged Attention key cache quantization mode mismatch: prim.is_key_by_channel : ",
                      desc->is_key_by_channel, " but exec_config : ", impl_param.get_program().get_config().get_key_cache_quant_mode());
 
+    // Both INT4 and INT8 BY_CHANNEL use {0,1,3,2} dim order (block_size at dim[3]).
     const auto block_size_idx = desc->has_xattention ? 2 : 3;
     bool valid_block_size = key_cache_ps.is_dynamic() ||
                             (key_cache_ps[block_size_idx].get_length() == static_cast<ov::Dimension::value_type>(expected_block_size));
     OPENVINO_ASSERT(valid_block_size, "[GPU] Incorrect block size for Paged Attention operation for key cache quant mode "
                     , key_cache_quant_mode, ". Expected ", expected_block_size, ", but got ", key_cache_ps[block_size_idx].get_length());
-
-    // TODO: as a preview feature, only single sequence is supported so far. Will remove this check once
-    // full function ready in near future.
-    if (desc->has_xattention) {
-        const auto& subseq_begins_ps = impl_param.get_input_layout(PagedAttentionInputIdx::SUBSEQUENCE_BEGINS).get_partial_shape();
-        bool valid_subseq_count = subseq_begins_ps.is_dynamic() ||
-                                (subseq_begins_ps[0].get_length() == static_cast<ov::Dimension::value_type>(2));
-        if (!valid_subseq_count)
-            OPENVINO_THROW("[GPU] Unexpected sub sequences count for XAttention. Got ", subseq_begins_ps[0].get_length() - 1);
-    }
 
     std::vector<layout> output_layouts{ data_layout };
 
@@ -136,6 +142,7 @@ std::string paged_attention_inst::to_string(const paged_attention_node& node) {
     paged_attention_info.add("has_xattention", desc->has_xattention);
     paged_attention_info.add("has_sink_input", desc->has_sink_input);
     paged_attention_info.add("has_adaptive_rkv", desc->has_adaptive_rkv);
+    paged_attention_info.add("has_qq_bias", desc->has_qq_bias);
     paged_attention_info.add("scale", desc->scale_val.value_or(1.0f));
     paged_attention_info.add("is_key_by_channel", desc->is_key_by_channel);
     paged_attention_info.add("key_cache_dt", node.get_input_layout(cldnn::paged_attention::PagedAttentionInputIdx::KEY_CACHE).data_type);
@@ -160,6 +167,14 @@ paged_attention_inst::typed_primitive_inst(network& network, const paged_attenti
         const auto alibi_input_idx = PagedAttentionInputIdx::ALIBI;
         const auto alibi_layout = node.get_input_layout(alibi_input_idx);
         OPENVINO_ASSERT(heads_num == alibi_layout.count(), "[GPU] ALiBi layout count must match heads_num");
+    }
+
+    // Validate qq_bias input (uint8, dynamic shape) if present
+    if (desc->has_qq_bias) {
+        const auto qq_bias_input_idx = cldnn::paged_attention::PagedAttentionInputIdx::QQ_BIAS;
+        const auto& qq_bias_layout = node.get_input_layout(qq_bias_input_idx);
+        OPENVINO_ASSERT(qq_bias_layout.data_type == ov::element::u8,
+            "[GPU] qq_bias input must be uint8");
     }
 
     OPENVINO_ASSERT(heads_num % kv_heads_num == 0, "[GPU] heads_num must be divisible by kv_heads_num");

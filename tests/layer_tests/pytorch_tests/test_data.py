@@ -21,14 +21,13 @@ class ModelGrad(torch.nn.Module):
 
 class TestPrimData(PytorchLayerTest):
     def _prepare_input(self):
-        np.random.seed(self.seed)
         if self.dtype in (torch.complex64, torch.complex128):
-            real = (np.random.randn(*self.shape) * 10).astype(np.float32)
-            imag = (np.random.randn(*self.shape) * 10).astype(np.float32)
+            real = self.random.randn(*self.shape) * 10
+            imag = self.random.randn(*self.shape) * 10
             data = real + 1j * imag
             data = data.astype(np.complex128 if self.dtype == torch.complex128 else np.complex64)
         else:
-            data = (np.random.randn(*self.shape) * 10).astype(np.float32)
+            data = self.random.randn(*self.shape) * 10
         tensor = torch.from_numpy(data).to(self.dtype)
         return (tensor.numpy(),)
 
@@ -37,15 +36,13 @@ class TestPrimData(PytorchLayerTest):
     def test_data_basic(self, shape, dtype, ie_device, precision, ir_version):
         self.shape = shape
         self.dtype = dtype
-        self.seed = 0
-        self._test(Model(), None, "prim::data", ie_device, precision, ir_version)
+        self._test(Model(), "prim::data", ie_device, precision, ir_version)
 
     @pytest.mark.parametrize("dtype", [torch.float32, torch.int32])
     def test_data_requires_grad(self, dtype, ie_device, precision, ir_version):
         self.shape = (3, 2)
         self.dtype = dtype
-        self.seed = 1
-        self._test(ModelGrad(), None, "prim::data", ie_device, precision, ir_version)
+        self._test(ModelGrad(), "prim::data", ie_device, precision, ir_version)
 
     @pytest.mark.parametrize("dtype", [torch.complex64, torch.complex128])
     @pytest.mark.parametrize("shape", [[2, 3], [1, 5], [4]])
@@ -56,8 +53,7 @@ class TestPrimData(PytorchLayerTest):
     def test_data_complex(self, shape, dtype, ie_device, precision, ir_version):
         self.shape = shape
         self.dtype = dtype
-        self.seed = 2
-        self._test(Model(), None, "prim::data", ie_device, precision, ir_version)
+        self._test(Model(), "prim::data", ie_device, precision, ir_version)
 
     @pytest.mark.parametrize("dtype", [torch.complex64, torch.complex128])
     @pytest.mark.xfail(
@@ -67,5 +63,4 @@ class TestPrimData(PytorchLayerTest):
     def test_data_complex_requires_grad(self, dtype, ie_device, precision, ir_version):
         self.shape = (2, 3)
         self.dtype = dtype
-        self.seed = 3
-        self._test(ModelGrad(), None, "prim::data", ie_device, precision, ir_version)
+        self._test(ModelGrad(), "prim::data", ie_device, precision, ir_version)

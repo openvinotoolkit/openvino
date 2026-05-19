@@ -33,7 +33,7 @@ jobs:
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
     steps:
       - name: checkout action
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           sparse-checkout: .github/actions/smart-ci
@@ -49,7 +49,7 @@ jobs:
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
-          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*,.github/workflows/ci-doctor.lock.yml'
 
       - name: Show affected components
         run: |
@@ -69,11 +69,11 @@ jobs:
       - name: Set mock output images if pipeline should be skipped
         if: ${{ needs.smart_ci.outputs.skip_workflow == 'True' }}
         id: mock_image
-        run: echo "images={\"ov_build\":{\"ubuntu_24_04_x64\":\"mock\", \"ubuntu_22_04_arm64\":\"mock\", \"ubuntu_22_04_riscv_xuantie\":\"mock\"}}" >> "$GITHUB_OUTPUT"
+        run: echo "images={\"ov_build\":{\"ubuntu_24_04_x64\":\"mock\", \"ubuntu_22_04_arm64\":\"mock\", \"ubuntu_22_04_riscv_gnu\":\"mock\"}}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout
         if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
 
       - uses: ./.github/actions/handle_docker
@@ -82,7 +82,7 @@ jobs:
         with:
           images: |
             ov_build/ubuntu_24_04_x64
-            ov_build/ubuntu_22_04_riscv_xuantie
+            ov_build/ubuntu_22_04_riscv
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
@@ -104,7 +104,7 @@ jobs:
 
       - name: Checkout
         if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
 
       - uses: ./.github/actions/handle_docker
@@ -157,7 +157,7 @@ jobs:
           echo "✓ Connection string loaded and masked"
 
       - name: Clone OpenVINO
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           path: ${{ env.OPENVINO_REPO }}
@@ -174,6 +174,7 @@ jobs:
             -DENABLE_PYTHON=OFF \
             -DENABLE_TESTS=OFF \
             -DENABLE_NCC_STYLE=OFF \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
             -S ${OPENVINO_REPO} \
@@ -187,6 +188,14 @@ jobs:
           --config ${{ env.CMAKE_BUILD_TYPE }} \
           --target openvino_intel_cpu_plugin \
           -- --quiet -k 0
+
+      - name: Upload compile_commands
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        if: always()
+        with:
+          name: compile_commands_clang_tidy_x86_64
+          path: ${{ env.BUILD_DIR }}/compile_commands.json
+          if-no-files-found: 'ignore'
 
       - name: Show sccache stats
         run: ${SCCACHE_PATH} --show-stats
@@ -231,7 +240,7 @@ jobs:
           echo "✓ Connection string loaded and masked"
 
       - name: Clone OpenVINO
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           path: ${{ env.OPENVINO_REPO }}
@@ -249,6 +258,7 @@ jobs:
             -DENABLE_TESTS=OFF \
             -DENABLE_NCC_STYLE=OFF \
             -DCMAKE_RULE_MESSAGES=OFF \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
             -S ${OPENVINO_REPO} \
@@ -264,6 +274,14 @@ jobs:
           -- -k
         # TODO: add --quiet after switch to Ubuntu 24.04+
 
+      - name: Upload compile_commands
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        if: always()
+        with:
+          name: compile_commands_clang_tidy_aarch64
+          path: ${{ env.BUILD_DIR }}/compile_commands.json
+          if-no-files-found: 'ignore'
+
       - name: Show sccache stats
         run: ${SCCACHE_PATH} --show-stats
 
@@ -276,7 +294,7 @@ jobs:
         shell: bash
     runs-on: aks-linux-16-cores-32gb
     container:
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_riscv_xuantie }}
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_riscv }}
       volumes:
         - /mount:/mount
         - /home/runner/secrets/:/secrets:ro
@@ -307,7 +325,7 @@ jobs:
           echo "✓ Connection string loaded and masked"
 
       - name: Clone OpenVINO
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           path: ${{ env.OPENVINO_REPO }}
@@ -317,7 +335,7 @@ jobs:
         run: |
           cmake \
             -G "${{ env.CMAKE_GENERATOR }}" \
-            -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/riscv64-100-xuantie-gnu.toolchain.cmake \
+            -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/riscv64.linux.toolchain.cmake \
             -DENABLE_CLANG_TIDY=ON \
             -DENABLE_PROFILING_ITT=FULL \
             -DENABLE_DEBUG_CAPS=ON \
@@ -326,6 +344,7 @@ jobs:
             -DENABLE_TESTS=OFF \
             -DENABLE_NCC_STYLE=OFF \
             -DCMAKE_RULE_MESSAGES=OFF \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
             -DTHREADING=SEQ \
@@ -341,6 +360,14 @@ jobs:
           --target openvino_intel_cpu_plugin \
           -- -k
         # TODO: add --quiet after switch to Ubuntu 24.04+
+
+      - name: Upload compile_commands
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        if: always()
+        with:
+          name: compile_commands_clang_tidy_riscv64
+          path: ${{ env.BUILD_DIR }}/compile_commands.json
+          if-no-files-found: 'ignore'
 
   Overall_Status:
     name: ci/gha_overall_status_clang_tidy

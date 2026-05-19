@@ -6,6 +6,8 @@
 
 #include <onnx/onnx_pb.h>
 
+#include <filesystem>
+
 #include "core/sparse_tensor.hpp"
 #include "core/tensor.hpp"
 #include "openvino/core/except.hpp"
@@ -46,11 +48,15 @@ inline float get_value(const AttributeProto& attribute) {
 
 template <>
 inline std::vector<float> get_value(const AttributeProto& attribute) {
+#if defined(_MSC_VER)
+#    pragma warning(push)
+#    pragma warning(disable : 4244)
+#endif
     switch (attribute.type()) {
     case AttributeProto_AttributeType::AttributeProto_AttributeType_INT:
         return {static_cast<float>(attribute.i())};
     case AttributeProto_AttributeType::AttributeProto_AttributeType_INTS:
-        return {std::begin(attribute.floats()), std::end(attribute.floats())};
+        return {std::begin(attribute.ints()), std::end(attribute.ints())};
     case AttributeProto_AttributeType::AttributeProto_AttributeType_FLOAT:
         return {attribute.f()};
     case AttributeProto_AttributeType::AttributeProto_AttributeType_FLOATS:
@@ -58,6 +64,9 @@ inline std::vector<float> get_value(const AttributeProto& attribute) {
     default:
         ONNX_INVALID_ATTR(attribute.type(), "INT, INTS, FLOAT, FLOATS");
     }
+#if defined(_MSC_VER)
+#    pragma warning(pop)
+#endif
 }
 
 template <>
@@ -178,7 +187,7 @@ public:
 
     Attribute() = delete;
     Attribute(const AttributeProto& attribute_proto,
-              const std::string& model_dir,
+              const std::filesystem::path& model_dir,
               detail::MappedMemoryHandles mmap_cache)
         : m_attribute_proto{&attribute_proto},
           m_model_dir{model_dir},
@@ -332,7 +341,7 @@ public:
 
 private:
     const AttributeProto* m_attribute_proto;
-    std::string m_model_dir;
+    std::filesystem::path m_model_dir;
     detail::MappedMemoryHandles m_mmap_cache;
 };
 

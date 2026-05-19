@@ -7,6 +7,7 @@
 #include <iterator>
 #include <queue>
 
+#include "openvino/core/memory_util.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/util/log.hpp"
@@ -26,7 +27,8 @@ std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> decode_tensor_pl
         std::vector<std::string>{tensor_meta_info.m_tensor_name},
         tensor_meta_info.m_quantization_info,
         tensor_meta_info.m_sparsity_info,
-        tensor_meta_info.m_tensor_data);
+        tensor_meta_info.m_tensor_data,
+        tensor_meta_info.m_tensor_data_size);
     return tensor_place;
 }
 
@@ -145,6 +147,24 @@ void InputModel::InputModelTFLiteImpl::load_model() {
             if (m_tensor_places.count(name) == 0) {
                 m_tensor_places[name] = place;
                 if (auto data = place->get_data()) {
+                    if (place->get_partial_shape().is_static()) {
+                        const auto shape = place->get_partial_shape().to_shape();
+                        const auto required_size_opt = ov::util::get_memory_size_safe(place->get_element_type(), shape);
+                        FRONT_END_GENERAL_CHECK(required_size_opt.has_value(),
+                                                "TensorFlow Lite Frontend: tensor \"",
+                                                name,
+                                                "\" has a shape/type combination that overflows size computation. "
+                                                "The model file may be corrupted.");
+                        const auto buffer_size = place->get_data_size();
+                        FRONT_END_GENERAL_CHECK(buffer_size == 0 || buffer_size >= required_size_opt.value(),
+                                                "TensorFlow Lite Frontend: tensor \"",
+                                                name,
+                                                "\" buffer size (",
+                                                buffer_size,
+                                                " bytes) is smaller than required by its shape and type (",
+                                                required_size_opt.value(),
+                                                " bytes). The model file may be corrupted.");
+                    }
                     auto constant = ov::op::v0::Constant::create(place->get_element_type(),
                                                                  place->get_partial_shape().to_shape(),
                                                                  data);

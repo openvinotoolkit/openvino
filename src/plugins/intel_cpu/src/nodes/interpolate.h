@@ -114,7 +114,10 @@ private:
                                 VectorDims dstDims,
                                 const std::vector<float>& dataScales);
 
-        virtual void exec(const uint8_t* in_ptr_, uint8_t* out_ptr_, const void* post_ops_data_) = 0;
+        virtual void exec(const uint8_t* in_ptr_,
+                          uint8_t* out_ptr_,
+                          const void* post_ops_data_,
+                          const CpuParallelPtr& cpu_parallel) = 0;
         virtual ~InterpolateExecutorBase() = default;
         [[nodiscard]] VectorDims getSrcDimPad5d() const {
             return srcDimPad5d;
@@ -184,7 +187,10 @@ private:
                                const std::vector<float>& dataScales,
                                const dnnl::primitive_attr& attr);
 
-        void exec(const uint8_t* in_ptr_, uint8_t* out_ptr_, const void* post_ops_data_) override;
+        void exec(const uint8_t* in_ptr_,
+                  uint8_t* out_ptr_,
+                  const void* post_ops_data_,
+                  const CpuParallelPtr& cpu_parallel) override;
 
     private:
         // nearest neighbor
@@ -198,7 +204,8 @@ private:
                       int IW,
                       int OD,
                       int OH,
-                      int OW);
+                      int OW,
+                      const CpuParallelPtr& cpu_parallel);
         void NNCGathered(const uint8_t* in_ptr_,
                          uint8_t* out_ptr_,
                          const void* post_ops_data_,
@@ -209,7 +216,8 @@ private:
                          int IW,
                          int OD,
                          int OH,
-                         int OW);
+                         int OW,
+                         const CpuParallelPtr& cpu_parallel);
 
         // onnx linear
         void linearOnnxPlanar(const uint8_t* in_ptr_,
@@ -222,7 +230,8 @@ private:
                               int IW,
                               int OD,
                               int OH,
-                              int OW);
+                              int OW,
+                              const CpuParallelPtr& cpu_parallel);
         void linearOnnxCGathered(const uint8_t* in_ptr_,
                                  uint8_t* out_ptr_,
                                  const void* post_ops_data_,
@@ -233,7 +242,8 @@ private:
                                  int IW,
                                  int OD,
                                  int OH,
-                                 int OW);
+                                 int OW,
+                                 const CpuParallelPtr& cpu_parallel);
 
         // cubic
         void cubicPlanar(const uint8_t* in_ptr_,
@@ -244,7 +254,8 @@ private:
                          int IH,
                          int IW,
                          int OH,
-                         int OW);
+                         int OW,
+                         const CpuParallelPtr& cpu_parallel);
         void cubicCGathered(const uint8_t* in_ptr_,
                             uint8_t* out_ptr_,
                             const void* post_ops_data_,
@@ -253,7 +264,8 @@ private:
                             int IH,
                             int IW,
                             int OH,
-                            int OW);
+                            int OW,
+                            const CpuParallelPtr& cpu_parallel);
 
         // pillow bilinear and pillow bicubic
         void pillowCGathered(const uint8_t* in_ptr_,
@@ -280,11 +292,23 @@ private:
               dataScales(_dataScales),
               refInterpAttrs(interpAttrs) {}
 
-        void exec(const uint8_t* in_ptr_, uint8_t* out_ptr_, const void* post_ops_data_) override;
+        void exec(const uint8_t* in_ptr_,
+                  uint8_t* out_ptr_,
+                  const void* post_ops_data_,
+                  const CpuParallelPtr& cpu_parallel) override;
 
     private:
-        void
-        NNRef(const uint8_t* in_ptr_, uint8_t* out_ptr_, int B, int C, int ID, int IH, int IW, int OD, int OH, int OW);
+        void NNRef(const uint8_t* in_ptr_,
+                   uint8_t* out_ptr_,
+                   int B,
+                   int C,
+                   int ID,
+                   int IH,
+                   int IW,
+                   int OD,
+                   int OH,
+                   int OW,
+                   const CpuParallelPtr& cpu_parallel);
         void linearOnnxRef(const uint8_t* in_ptr_,
                            uint8_t* out_ptr_,
                            int B,
@@ -294,9 +318,18 @@ private:
                            int IW,
                            int OD,
                            int OH,
-                           int OW);
+                           int OW,
+                           const CpuParallelPtr& cpu_parallel);
 
-        void cubicRef(const uint8_t* in_ptr_, uint8_t* out_ptr_, int B, int C, int IH, int IW, int OH, int OW);
+        void cubicRef(const uint8_t* in_ptr_,
+                      uint8_t* out_ptr_,
+                      int B,
+                      int C,
+                      int IH,
+                      int IW,
+                      int OH,
+                      int OW,
+                      const CpuParallelPtr& cpu_parallel);
         void linearInterpolation(const uint8_t* in_ptr_,
                                  uint8_t* out_ptr_,
                                  int B,
@@ -311,7 +344,8 @@ private:
                                  int OH,
                                  int OW,
                                  int kernel_width,
-                                 bool antialias);
+                                 bool antialias,
+                                 const CpuParallelPtr& cpu_parallel);
         void pillowRef(const uint8_t* in_ptr_, uint8_t* out_ptr_, int B, int C, int IH, int IW, int OH, int OW);
         void
         pillowRefNCHWAsNHWC(const uint8_t* in_ptr_, uint8_t* out_ptr_, int B, int C, int IH, int IW, int OH, int OW);

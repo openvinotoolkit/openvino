@@ -26,13 +26,13 @@ OutputVector translate_crop_and_resize_bilinear(const NodeContext& node) {
     auto box_ind = node.get_input(2);
     auto crop_size = node.get_input(3);
 
-    // try to retrive crop_size as the constant, otherwise, we cannot support it
+    // try to retrieve crop_size as the constant, otherwise, we cannot support it
     Shape crop_sizes;
     get_const_input(node, 3, &crop_sizes);
 
     // concatenate boxes and box_ind inputs because
     // ROIPooling accepts ROIs in a format [batch_id, x_1, y_1, x_2, y_2]
-    // prepare box_ind for futher concatenation
+    // prepare box_ind for further concatenation
     auto const_one = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
     box_ind = make_shared<v0::Unsqueeze>(box_ind, const_one);
     box_ind = make_shared<v0::Convert>(box_ind, element::f32);
@@ -54,7 +54,7 @@ OutputVector translate_crop_and_resize_bilinear(const NodeContext& node) {
 }
 
 OutputVector translate_crop_and_resize_op(const NodeContext& node) {
-    // retieve attributes
+    // retrieve attributes
     // some cases like non-zero extrapolation_value are not supported
     auto method = node.get_attribute<string>("method", "bilinear");
     auto extrapolation_value = node.get_attribute<float>("extrapolation_value", 0.0f);

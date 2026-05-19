@@ -29,6 +29,8 @@ struct Version {
     size_t tweak = 0;
     size_t build = 0;
 
+    constexpr Version() = default;
+
     explicit Version(const char* version_str) {
         // Pattern: MAJOR.MINOR.PATCH[.TWEAK]-BUILD-...
         std::regex full_pattern(R"(^([0-9]+)\.([0-9]+)\.([0-9]+)(?:\.([0-9]+))?\-([0-9]+)\-.*)");
@@ -57,30 +59,37 @@ struct Version {
 
     explicit Version(std::string_view version_str) : Version(version_str.data()) {}
 
+    explicit constexpr Version(size_t major, size_t minor, size_t patch, size_t tweak = 0, size_t build = 0)
+        : major{major},
+          minor{minor},
+          patch{patch},
+          tweak{tweak},
+          build{build} {}
+
     // Comparison operators
-    bool operator==(const Version& other) const {
+    constexpr bool operator==(const Version& other) const {
         return std::tie(major, minor, patch, tweak, build) ==
                std::tie(other.major, other.minor, other.patch, other.tweak, other.build);
     }
 
-    bool operator!=(const Version& other) const {
+    constexpr bool operator!=(const Version& other) const {
         return !(*this == other);
     }
 
-    bool operator<(const Version& other) const {
+    constexpr bool operator<(const Version& other) const {
         return std::tie(major, minor, patch, tweak, build) <
                std::tie(other.major, other.minor, other.patch, other.tweak, other.build);
     }
 
-    bool operator>(const Version& other) const {
+    constexpr bool operator>(const Version& other) const {
         return other < *this;
     }
 
-    bool operator<=(const Version& other) const {
+    constexpr bool operator<=(const Version& other) const {
         return !(other < *this);
     }
 
-    bool operator>=(const Version& other) const {
+    constexpr bool operator>=(const Version& other) const {
         return !(*this < other);
     }
 };

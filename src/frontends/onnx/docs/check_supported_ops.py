@@ -51,7 +51,8 @@ known_domains = {
     "OPENVINO_ONNX_DOMAIN":"org.openvinotoolkit",
     "MICROSOFT_DOMAIN":"com.microsoft",
     "PYTORCH_ATEN_DOMAIN":"org.pytorch.aten",
-    "MMDEPLOY_DOMAIN":"mmdeploy"
+    "MMDEPLOY_DOMAIN":"mmdeploy",
+    "AIONNX_ML_DOMAIN":"ai.onnx.ml"
 }
 
 hdr = ""
@@ -63,7 +64,7 @@ with open(supported_ops_doc, 'rt') as src:
         if line.count('|') == 6:
             table_line += 1
         if table_line > 2:
-            row = [cell.strip() for cell in line.split('|')] # Split line by "|" delimeter and remove spaces
+            row = [cell.strip() for cell in line.split('|')] # Split line by "|" delimiter and remove spaces
             domain = row[1]
             if not domain in ops:
                 ops[domain] = {}

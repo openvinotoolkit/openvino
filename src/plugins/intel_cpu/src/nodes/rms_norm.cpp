@@ -26,9 +26,9 @@
 #include "shape_inference/custom/rms_norm.hpp"
 #include "utils/general_utils.h"
 #ifdef OPENVINO_ARCH_X86_64
+#    include "cpu_parallel.hpp"
 #    include "kernels/x64/rms_kernel.hpp"
 #    include "nodes/kernels/x64/jit_kernel_base.hpp"
-#    include "openvino/core/parallel.hpp"
 #endif
 
 #include <string>
@@ -101,7 +101,9 @@ struct RMSNorm::RMSNormExecutor : public RMSNorm::Executor {
         jcp.eps = eps;
         m_kernel = createJitKernel(jcp);
     }
-    void execute(const std::vector<MemoryPtr>& inputs, const MemoryPtr output) override {
+    void execute(const std::vector<MemoryPtr>& inputs,
+                 const MemoryPtr output,
+                 const CpuParallelPtr& cpu_parallel) override {
         auto* src = inputs[0]->getDataAs<uint8_t>();
         auto* dst = output->getDataAs<uint8_t>();
         auto* scale = inputs[1]->getDataAs<float>();
@@ -112,7 +114,7 @@ struct RMSNorm::RMSNormExecutor : public RMSNorm::Executor {
         const auto src_stride = src_strides[src_strides.size() - 2] * m_precision.size();
         const auto dst_stride = dst_strides[dst_strides.size() - 2] * m_precision.size();
         auto n = shape_size(shape) / shape[shape.size() - 1];
-        parallel_for(n, [&](size_t i) {
+        cpu_parallel->parallel_for(n, [&](size_t i) {
             execJitKernel(m_kernel, src + i * src_stride, dst + i * dst_stride, scale);
         });
     }
@@ -187,7 +189,7 @@ void RMSNorm::execute([[maybe_unused]] const dnnl::stream& strm) {
         inputs[i] = getSrcMemoryAtPort(i);
     }
 
-    m_executor->execute(inputs, getDstMemoryAtPort(0));
+    m_executor->execute(inputs, getDstMemoryAtPort(0), context->getCpuParallel());
 }
 
 bool RMSNorm::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {

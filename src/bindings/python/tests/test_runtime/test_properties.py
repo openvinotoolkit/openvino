@@ -5,6 +5,7 @@
 import pytest
 import numpy as np
 import os
+from pathlib import Path
 
 import openvino as ov
 import openvino.properties as props
@@ -54,6 +55,14 @@ def test_properties_rw_base():
             ),
         ),
         (
+            props.CompatibilityCheck,
+            (
+                (props.CompatibilityCheck.NOT_APPLICABLE, "CompatibilityCheck.NOT_APPLICABLE", 0),
+                (props.CompatibilityCheck.SUPPORTED, "CompatibilityCheck.SUPPORTED", 1),
+                (props.CompatibilityCheck.UNSUPPORTED, "CompatibilityCheck.UNSUPPORTED", 2),
+            ),
+        ),
+        (
             props.WorkloadType,
             (
                 (props.WorkloadType.DEFAULT, "WorkloadType.DEFAULT", 0),
@@ -87,9 +96,7 @@ def test_properties_rw_base():
         ),
         (
             hints.ModelDistributionPolicy,
-            (
-                (hints.ModelDistributionPolicy.TENSOR_PARALLEL, "ModelDistributionPolicy.TENSOR_PARALLEL", 0),
-            ),
+            ((hints.ModelDistributionPolicy.TENSOR_PARALLEL, "ModelDistributionPolicy.TENSOR_PARALLEL", 0),),
         ),
         (
             hints.ExecutionMode,
@@ -186,6 +193,8 @@ def test_conflicting_enum(proxy_enums, expected_values):
         (props.range_for_async_infer_requests, "RANGE_FOR_ASYNC_INFER_REQUESTS"),
         (props.execution_devices, "EXECUTION_DEVICES"),
         (props.loaded_from_cache, "LOADED_FROM_CACHE"),
+        (props.runtime_requirements, "RUNTIME_REQUIREMENTS"),
+        (props.compatibility_check, "COMPATIBILITY_CHECK"),
         (device.full_name, "FULL_DEVICE_NAME"),
         (device.architecture, "DEVICE_ARCHITECTURE"),
         (device.type, "DEVICE_TYPE"),
@@ -203,6 +212,7 @@ def test_conflicting_enum(proxy_enums, expected_values):
         (intel_npu.device_total_mem_size, "NPU_DEVICE_TOTAL_MEM_SIZE"),
         (intel_npu.driver_version, "NPU_DRIVER_VERSION"),
         (intel_npu.compiler_version, "NPU_COMPILER_VERSION"),
+        (intel_npu.max_tiles, "NPU_MAX_TILES")
     ],
 )
 def test_properties_ro(ov_property_ro, expected_value):
@@ -479,11 +489,6 @@ def test_properties_ro(ov_property_ro, expected_value):
             ((128, 128),),
         ),
         (
-            intel_npu.max_tiles,
-            "NPU_MAX_TILES",
-            ((128, 128),),
-        ),
-        (
             intel_npu.bypass_umd_caching,
             "NPU_BYPASS_UMD_CACHING",
             ((True, True),),
@@ -644,6 +649,13 @@ def test_single_property_setting(device):
 
     assert props.streams.Num.AUTO.to_integer() == -1
     assert isinstance(core.get_property(device, streams.num()), int)
+
+
+def test_property_pathlib_path(device):
+    core = Core()
+
+    core.set_property(device, {"CACHE_DIR": Path("./test_cache")})
+    assert core.get_property(device, props.cache_dir) == str(Path("./test_cache"))
 
 
 @pytest.mark.skipif(

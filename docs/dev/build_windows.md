@@ -76,7 +76,7 @@ To pack PDB files, it's essential to run cmake command to create a dedicated arc
     ```
   or install the wheel with pip:
   ```
-  pip install build/wheels/openvino-2025.4.0-9612-cp313-cp313-win_arm64.whl
+  pip install build/wheels/openvino-2026.0.0-9612-cp313-cp313-win_arm64.whl
   ```
   > **NOTE**: Wheels are generated under the `<build>/wheels/` directory. Substitute the filename with the artifact that matches your Python version and target architecture.
 

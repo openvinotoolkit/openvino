@@ -26,7 +26,7 @@ ov::OutputVector translate_size_op(const NodeContext& node) {
 
     auto complex_type_mark = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
 
-    // retrive attribute of the output type
+    // retrieve attribute of the output type
     auto out_type = node.get_attribute<element::Type>("out_type", element::i32);
 
     if (complex_type_mark) {

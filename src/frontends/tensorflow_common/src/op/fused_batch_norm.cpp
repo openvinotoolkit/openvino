@@ -265,7 +265,7 @@ NamedOutputVector translate_fused_batch_norm_op(const NodeContext& node) {
         compute_fused_batch_norm_inference(node, fused_batch_norm, batch_mean, batch_variance);
     }
 
-    // create fictious output for reserved outputs of FusedBatchNorm operation
+    // create fictitious output for reserved outputs of FusedBatchNorm operation
     auto zero_const = create_same_type_const_scalar<float>(scale, 0);
     auto zero_const2 = create_same_type_const_scalar<float>(scale, 0);
 

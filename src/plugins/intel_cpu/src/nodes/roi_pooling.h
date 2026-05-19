@@ -27,6 +27,8 @@ struct jit_roi_pooling_params {
 
     int c_block, nb_c, nb_c_blocking;
 
+    int b_num;
+
     double spatial_scale;
     int pooled_h;
     int pooled_w;
@@ -100,7 +102,8 @@ private:
         ROIPoolingExecutor() = default;
         virtual void exec(const ov::intel_cpu::IMemory& srcData,
                           const ov::intel_cpu::IMemory& srcRoi,
-                          const ov::intel_cpu::IMemory& dst) = 0;
+                          const ov::intel_cpu::IMemory& dst,
+                          const CpuParallelPtr& cpuParallel) = 0;
         virtual ~ROIPoolingExecutor() = default;
 
         static std::shared_ptr<ROIPoolingExecutor> createROIPoolingNewExecutor(const jit_roi_pooling_params& jpp);

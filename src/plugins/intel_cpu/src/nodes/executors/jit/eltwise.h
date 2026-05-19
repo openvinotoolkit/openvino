@@ -113,7 +113,9 @@ class EltwiseJitExecutor : public IEltwiseExecutor {
 public:
     EltwiseJitExecutor(const Key& key);
 
-    void exec(const jit_eltwise_call_args_ptrs& args_ptrs, const VectorDims& dims_out) override;
+    void exec(const jit_eltwise_call_args_ptrs& args_ptrs,
+              const VectorDims& dims_out,
+              const CpuParallelPtr& cpu_parallel) override;
     [[nodiscard]] const VectorDims& getOutDims() const override;
     [[nodiscard]] size_t getBatchDimIdx() const override;
     [[nodiscard]] static impl_desc_type implType();

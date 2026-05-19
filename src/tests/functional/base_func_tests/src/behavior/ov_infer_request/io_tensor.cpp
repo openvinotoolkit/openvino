@@ -19,7 +19,7 @@ namespace test {
 namespace behavior {
 
 void OVInferRequestIOTensorTest::SetUp() {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     OVInferRequestTests::SetUp();
     try {
@@ -527,6 +527,9 @@ TEST_P(OVInferRequestCheckTensorPrecision, getOutputsFromSplitFunctionWithSevera
     EXPECT_NO_THROW(tensor2 = request.get_output_tensor(1));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
 }
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVInferRequestIOTensorSetPrecisionTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVInferRequestIOTensorTest);
 
 }  // namespace behavior
 }  // namespace test

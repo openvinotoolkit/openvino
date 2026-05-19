@@ -165,22 +165,22 @@ void test_variable_copy_from_fake_aligned_fc(bool is_caching_test) {
     auto& engine = get_test_engine();
 
     const int32_t input_b = 3, input_f = 590, input_x = 768, weight_b = 768;
-    auto input_dyn_layout = layout{ ov::PartialShape{ ov::Dimension(), input_f, input_x }, data_types::f32, format::bfyx };
-    auto input_data = engine.allocate_memory(layout{ ov::PartialShape{ input_b, input_f, input_x }, data_types::f32, format::bfyx });
-    auto input_data_rnd = rg.generate_random_1d<float>(input_b * input_f * input_x, 0, 1);
+    auto input_dyn_layout = layout{ ov::PartialShape{ ov::Dimension(), input_f, input_x }, data_types::f16, format::bfyx };
+    auto input_data = engine.allocate_memory(layout{ ov::PartialShape{ input_b, input_f, input_x }, data_types::f16, format::bfyx });
+    auto input_data_rnd = rg.generate_random_1d<ov::float16>(input_b * input_f * input_x, 0, 1);
     set_values(input_data, input_data_rnd);
 
-    auto weights_data_layout = layout{ov::PartialShape{weight_b, input_x}, data_types::f32, format::os_iyx_osv32};
+    auto weights_data_layout = layout{ov::PartialShape{weight_b, input_x}, data_types::f16, format::os_iyx_osv32};
     auto weights_data = engine.allocate_memory(weights_data_layout);
-    auto weights_data_rnd = rg.generate_random_1d<float>(weights_data_layout.count(), 0, 1);
+    auto weights_data_rnd = rg.generate_random_1d<ov::float16>(weights_data_layout.count(), 0, 1);
     set_values(weights_data, weights_data_rnd);
 
-    auto bias_data_layout = layout{ov::PartialShape{1, 1, weight_b}, data_types::f32, format::bfyx};
+    auto bias_data_layout = layout{ov::PartialShape{1, 1, weight_b}, data_types::f16, format::bfyx};
     auto bias_data = engine.allocate_memory(bias_data_layout);
-    auto bias_data_rnd = rg.generate_random_1d<float>(bias_data_layout.count(), 0, 1);
+    auto bias_data_rnd = rg.generate_random_1d<ov::float16>(bias_data_layout.count(), 0, 1);
     set_values(bias_data, bias_data_rnd);
 
-    const layout variable_layout{{input_b, input_f, input_x}, data_types::f32, format::bfyx};
+    const layout variable_layout{{input_b, input_f, input_x}, data_types::f16, format::bfyx};
 
     topology topology;
     topology.add(input_layout("input", input_dyn_layout));
@@ -214,10 +214,23 @@ void test_variable_copy_from_fake_aligned_fc(bool is_caching_test) {
     auto is_4bit = weights_layout_dt == data_types::i4 || weights_layout_dt == data_types::u4;
     auto is_8bit = weights_layout_dt == data_types::i8 || weights_layout_dt == data_types::u8;
     auto is_extra_alignment_needed = input_b >= 256;
-    auto fake_align_base = (is_4bit || is_8bit) && is_extra_alignment_needed ? 64 : 16;
+    // Match runtime logic in fully_connected_inst::get_fake_aligned_params():
+    // iGPU uses base 16 (or 64 for quantized + large batch), dGPU uses base 8.
+    size_t fake_align_base = 8;
+    if (engine.get_device_info().dev_type == cldnn::device_type::integrated_gpu) {
+        fake_align_base = (is_4bit || is_8bit) && is_extra_alignment_needed ? 64 : 16;
+    }
 
-    const auto fc_output_batch_size_aligned = align_to(input_b * input_f, fake_align_base);
-    ASSERT_EQ(fc_output_batch_size, fc_output_batch_size_aligned);
+    const size_t batch_size = static_cast<size_t>(input_b * input_f);
+    const auto fc_output_batch_size_aligned = align_to(batch_size, fake_align_base);
+    // On Xe2+ and IMMAD iGPUs the runtime may roll back fake alignment when
+    // the predecessor buffer is too small (see get_fake_aligned_params_if_possible).
+    // Accept either the aligned or the original unaligned batch size.
+    ASSERT_TRUE(fc_output_batch_size == fc_output_batch_size_aligned ||
+                fc_output_batch_size == batch_size)
+        << "fc_output_batch_size=" << fc_output_batch_size
+        << " expected aligned=" << fc_output_batch_size_aligned
+        << " or unaligned=" << batch_size;
 
     // read_value
     ASSERT_EQ(outputs.size(), size_t(1));

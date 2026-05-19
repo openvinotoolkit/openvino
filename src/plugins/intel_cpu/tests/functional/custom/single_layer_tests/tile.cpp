@@ -90,7 +90,7 @@ protected:
         } else {
             tileNode = std::make_shared<ov::op::v0::Tile>(functionParams[0], functionParams[1]);
         }
-        function = makeNgraphFunction(netPrecision, functionParams, tileNode, "CPUTile");
+        function = create_ov_model(netPrecision, functionParams, tileNode, "CPUTile");
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
@@ -156,7 +156,7 @@ const std::vector<std::vector<ov::test::InputShape>> staticInputShapes4D = {{{{}
                                                                                {2, 16, 3, 4}}}},
                                                                             {{{},
                                                                               {// Static shapes
-                                                                               {1, 16, 1, 1}}}}};
+                                                                               {1, 16, 3, 1}}}}};
 const std::vector<std::vector<ov::test::InputShape>> dynamicInputShapes4D = {
     {{// Origin dynamic shapes
       {ov::Dimension(1, 20), ov::Dimension(10, 20), ov::Dimension(1, 20), ov::Dimension(1, 20)},

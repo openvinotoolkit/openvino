@@ -31,7 +31,7 @@ std::string ModelRange::get_range_id(const std::shared_ptr<ov::Node>& node) {
 }
 
 ov::Tensor ModelRange::generate_input(std::shared_ptr<ov::Node> node, size_t port, const ov::Shape& targetShape) {
-    auto inputMap = ov::test::utils::getInputMap();
+    const auto& inputMap = ov::test::utils::getInputMap();
     auto it = inputMap.find(node->get_type_info());
     if (it == inputMap.end()) {
         throw std::runtime_error("Couln't find Operation in inputMap: " + std::string(node->get_type_name()));

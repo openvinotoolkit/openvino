@@ -8,8 +8,7 @@ from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 class TestHardSigmoid(PytorchLayerTest):
     def _prepare_input(self, shape, dtype):
-        import numpy as np
-        return (np.random.randn(*shape).astype(dtype),)
+        return (self.random.randn(*shape, dtype=dtype),)
 
     def create_model(self, inplace):
         import torch
@@ -17,15 +16,14 @@ class TestHardSigmoid(PytorchLayerTest):
 
         class aten_hardsigmoid(torch.nn.Module):
             def __init__(self, inplace):
-                super(aten_hardsigmoid, self).__init__()
+                super().__init__()
                 self.inplace = inplace
 
             def forward(self, x):
                 return F.hardsigmoid(x, self.inplace), x
 
-        ref_net = None
 
-        return aten_hardsigmoid(inplace), ref_net, "aten::hardsigmoid" if not inplace else "aten::hardsigmoid_"
+        return aten_hardsigmoid(inplace), "aten::hardsigmoid" if not inplace else "aten::hardsigmoid_"
 
     @pytest.mark.nightly
     @pytest.mark.precommit

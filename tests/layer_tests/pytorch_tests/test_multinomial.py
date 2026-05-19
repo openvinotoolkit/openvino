@@ -41,9 +41,8 @@ class TestMultinomial(PytorchLayerTest):
                     return torch.sort(op)[0]
                 return op
 
-        ref_net = None
 
-        return aten_multinomial(replacement, out, test_type), ref_net, "aten::multinomial"
+        return aten_multinomial(replacement, out, test_type), "aten::multinomial"
 
     @pytest.mark.parametrize(
         ("input", "num_samples", "replacement", "test_type"),

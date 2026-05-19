@@ -125,7 +125,7 @@ ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
 
         // Determine gate_up_type based on pattern matching
         LLMMLPNode::GATE_UP_TYPE gate_up_type = LLMMLPNode::GATE_UP_TYPE::SEPARATE;
-        if (pattern_map.count(gate_up_proj_split)) {
+        if (pattern_map.find(gate_up_proj_split) != pattern_map.end()) {
             auto mlp_gated_up_node = pattern_map.at(mlp_gated_up).get_node_shared_ptr();
             auto input0 = mlp_gated_up_node->input_value(0);
             auto input1 = mlp_gated_up_node->input_value(1);

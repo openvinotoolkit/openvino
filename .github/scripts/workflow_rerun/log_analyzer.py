@@ -39,6 +39,7 @@ class LogAnalyzer:
 
         self.found_matching_error = False
         self.found_error_ticket = None
+        self.matched_error_text = None
 
     def _collect_errors_to_look_for(self) -> None:
         with open(file=self._path_to_errors_file,
@@ -123,6 +124,7 @@ class LogAnalyzer:
                     LOGGER.info(f'FOUND "{error["error_text"]}" ERROR IN {log_file["path"]}. TICKET: {error["ticket"]}')
                     self.found_matching_error = True
                     self.found_error_ticket = error['ticket']
+                    self.matched_error_text = error['error_text']
                     return
 
 

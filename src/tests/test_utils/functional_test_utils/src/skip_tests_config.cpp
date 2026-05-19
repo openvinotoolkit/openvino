@@ -9,9 +9,7 @@
 
 #include "common_test_utils/file_utils.hpp"
 
-namespace ov {
-namespace test {
-namespace utils {
+namespace ov::test::utils {
 
 bool disable_tests_skipping = false;
 
@@ -19,18 +17,16 @@ bool current_test_is_disabled() {
     if (disable_tests_skipping)
         return false;
 
-    const auto fullName = ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name() + std::string(".") +
-                          ::testing::UnitTest::GetInstance()->current_test_info()->name();
+    const auto full_name = ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name() +
+                           std::string(".") + ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
-    for (const auto& pattern : disabledTestPatterns()) {
-        std::regex re(pattern);
-        if (std::regex_match(fullName, re))
+    for (const auto& re : disabled_test_patterns()) {
+        if (std::regex_match(full_name, re)) {
             return true;
+        }
     }
 
     return false;
 }
 
-}  // namespace utils
-}  // namespace test
-}  // namespace ov
+}  // namespace ov::test::utils

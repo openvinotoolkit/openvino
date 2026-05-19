@@ -25,7 +25,7 @@ flows:
 
 .. note
 
-   NNCF offers a Python API, for compressing PyTorch, TensorFlow 2.x, ONNX, and OpenVINO IR
+   NNCF offers a Python API, for compressing PyTorch, ONNX, and OpenVINO IR
    model formats. OpenVINO IR offers the most comprehensive support.
 
 

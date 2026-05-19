@@ -9,6 +9,7 @@ from models_hub_common.utils import retry
 import models_hub_common.utils as utils
 import pytest
 import os
+import platform
 import re
 
 def get_read_value_ops(model: ov.Model):
@@ -80,6 +81,17 @@ def run_stateful_to_stateless_in_runtime(tmp_path, model_id, model_link):
 def test_stateful_to_stateless_precommit(tmp_path, model_name, model_link, mark, reason, ie_device):
     assert mark is None or mark == 'skip' or mark == 'xfail', \
         "Incorrect test case: {}, {}".format(model_name, model_link)
+    arm_machine_names = {'arm', 'armv7l', 'aarch64', 'arm64', 'ARM64'}
+    arm_dtype_mismatch_models = {
+        "hf-internal-testing/tiny-random-LlamaForCausalLM",
+        "hf-internal-testing/tiny-random-StableLmForCausalLM",
+        "hf-internal-testing/tiny-random-PhiForCausalLM",
+        "hf-internal-testing/tiny-random-CodeGenForCausalLM",
+        "hf-internal-testing/tiny-random-Starcoder2ForCausalLM",
+        "hf-internal-testing/tiny-random-OPTForCausalLM",
+    }
+    if platform.machine() in arm_machine_names and model_name in arm_dtype_mismatch_models:
+        pytest.skip("stateful_to_stateless dtype mismatch on ARM")
     if mark == 'skip':
         pytest.skip(reason)
     elif mark == 'xfail':

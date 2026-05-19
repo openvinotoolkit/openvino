@@ -100,7 +100,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_ab_plus_c_inference) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_scalar_initializers_shape_check) {
-    // initializers defined witout the "dims" field should produce Constants with an empty Shape
+    // initializers defined without the "dims" field should produce Constants with an empty Shape
     // initializers with "dims: 0" should be have the same way (Shape{} not Shape{0})
     const auto model = convert_model("dynamic_shapes/scalar_initializers.onnx");
 

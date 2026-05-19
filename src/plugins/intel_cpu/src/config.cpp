@@ -48,8 +48,9 @@ Config::Config() {
  * configuration properties
  */
 void Config::applyDebugCapsProperties() {
-    // always enable perf counters for verbose, performance summary and average counters
-    if (!debugCaps.verbose.empty() || debugCaps.summaryPerf || !debugCaps.averageCountersPath.empty()) {
+    // always enable perf counters for verbose, performance summary, average counters and exec graph serialization
+    if (!debugCaps.verbose.empty() || debugCaps.summaryPerf || !debugCaps.averageCountersPath.empty() ||
+        !debugCaps.execGraphPath.empty()) {
         collectPerfCounters = true;
     }
 }
@@ -329,7 +330,12 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             try {
                 kvCachePrecisionSetExplicitly = true;
                 const auto prec = val.as<ov::element::Type>();
-                if (any_of(prec, ov::element::f32, ov::element::f16, ov::element::bf16, ov::element::u8)) {
+                if (any_of(prec,
+                           ov::element::f32,
+                           ov::element::f16,
+                           ov::element::bf16,
+                           ov::element::u8,
+                           ov::element::u4)) {
                     kvCachePrecision = prec;
                 } else {
                     OPENVINO_THROW("invalid value");
@@ -339,7 +345,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                val.as<std::string>(),
                                " for property key ",
                                ov::hint::kv_cache_precision.name(),
-                               ". Supported values: u8, bf16, f16, f32");
+                               ". Supported values: u8, u4, bf16, f16, f32");
             }
         } else if (key == ov::key_cache_precision.name()) {
             try {
@@ -554,13 +560,6 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         streams = 1;
         streamsChanged = true;
     }
-
-#if defined(OV_CPU_WITH_SHL)
-    // TODO: multi-stream execution is unsafe when SHL is used:
-    //       The library uses global static variables as flags and counters.
-    streams = 1;
-    streamsChanged = true;
-#endif
 
     this->modelType = modelType;
 

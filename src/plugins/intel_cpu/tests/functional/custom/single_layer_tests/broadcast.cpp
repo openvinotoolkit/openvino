@@ -134,7 +134,7 @@ protected:
             }
         }
 
-        function = makeNgraphFunction(netPrecision, functionParams, broadcastOp, "Broadcast");
+        function = create_ov_model(netPrecision, functionParams, broadcastOp, "Broadcast");
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {

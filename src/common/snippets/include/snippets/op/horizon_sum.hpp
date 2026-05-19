@@ -24,6 +24,7 @@ public:
     OPENVINO_OP("HorizonSum", "SnippetsOpset");
 
     explicit HorizonSum(const Output<Node>& x);
+    explicit HorizonSum(const OutputVector& x);
     HorizonSum() = default;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;

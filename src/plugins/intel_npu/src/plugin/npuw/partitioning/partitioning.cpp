@@ -21,6 +21,7 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "patterns/dcoff.hpp"
+#include "patterns/moe.hpp"
 #include "patterns/opt.hpp"
 #include "traits.hpp"
 
@@ -33,6 +34,119 @@ inline bool operator==(const std::reference_wrapper<Subgraph>& lhs, const std::r
 }
 }  // namespace npuw
 }  // namespace ov
+
+void ov::npuw::v1::subgraphs::PatternRegistry::apply(ov::npuw::Function& function) const {
+    for (const auto& registration : m_registrations) {
+        if (!registration.tag.empty() && function.gettag() != registration.tag) {
+            continue;
+        }
+
+        auto& func_pipeline = function._pipeline;
+        if (func_pipeline.registration.group.empty()) {
+            func_pipeline.registration.group = registration.group;
+        }
+        if (func_pipeline.registration.name.empty()) {
+            func_pipeline.registration.name = registration.name;
+        }
+        if (!registration.pattern.empty() &&
+            std::find(func_pipeline.registration.patterns.begin(),
+                      func_pipeline.registration.patterns.end(),
+                      registration.pattern) == func_pipeline.registration.patterns.end()) {
+            func_pipeline.registration.patterns.push_back(registration.pattern);
+        }
+
+        auto previous_partition_stage = func_pipeline.partition_stage;
+        func_pipeline.partition_stage = [previous_partition_stage, registration](
+                                            ov::npuw::Function& staged_function,
+                                            ov::npuw::v1::subgraphs::Context& ctx) {
+            if (previous_partition_stage) {
+                previous_partition_stage(staged_function, ctx);
+            }
+            if (registration.partition_stage) {
+                registration.partition_stage(staged_function, ctx);
+            }
+        };
+
+        auto previous_compile_stage = func_pipeline.compile_stage;
+        func_pipeline.compile_stage = [previous_compile_stage, registration](
+                                          ov::npuw::v1::subgraphs::CompiledPipeline& compiled_pipeline,
+                                          ov::npuw::v1::subgraphs::Context& compiled_context) {
+            if (previous_compile_stage) {
+                previous_compile_stage(compiled_pipeline, compiled_context);
+            }
+            if (registration.compile_stage) {
+                registration.compile_stage(compiled_pipeline, compiled_context);
+            }
+            if (registration.runtime_factory) {
+                ov::npuw::v1::subgraphs::RuntimeBehaviorSpec spec;
+                spec.registration = compiled_pipeline.registration;
+                spec.context = compiled_context;
+                spec.factory = registration.runtime_factory;
+                compiled_pipeline.runtime_behavior = std::move(spec);
+            }
+        };
+    }
+}
+
+void ov::npuw::v1::subgraphs::PatternRegistry::apply(ov::npuw::Subgraph& subgraph) const {
+    for (const auto& registration : m_registrations) {
+        if (!registration.tag.empty() && subgraph.gettag() != registration.tag) {
+            continue;
+        }
+
+        auto& subgraph_pipeline = subgraph._pipeline;
+        if (subgraph_pipeline.registration.group.empty()) {
+            subgraph_pipeline.registration.group = registration.group;
+        }
+        if (subgraph_pipeline.registration.name.empty()) {
+            subgraph_pipeline.registration.name = registration.name;
+        }
+        if (!registration.pattern.empty() &&
+            std::find(subgraph_pipeline.registration.patterns.begin(),
+                      subgraph_pipeline.registration.patterns.end(),
+                      registration.pattern) == subgraph_pipeline.registration.patterns.end()) {
+            subgraph_pipeline.registration.patterns.push_back(registration.pattern);
+        }
+
+        auto previous_partition_stage = subgraph_pipeline.partition_stage;
+        subgraph_pipeline.partition_stage = [previous_partition_stage, registration](
+                                                ov::npuw::Function& staged_function,
+                                                ov::npuw::v1::subgraphs::Context& ctx) {
+            if (previous_partition_stage) {
+                previous_partition_stage(staged_function, ctx);
+            }
+            if (registration.partition_stage) {
+                registration.partition_stage(staged_function, ctx);
+            }
+        };
+
+        auto previous_compile_stage = subgraph_pipeline.compile_stage;
+        subgraph_pipeline.compile_stage = [previous_compile_stage, registration](
+                                              ov::npuw::v1::subgraphs::CompiledPipeline& compiled_pipeline,
+                                              ov::npuw::v1::subgraphs::Context& compiled_context) {
+            if (previous_compile_stage) {
+                previous_compile_stage(compiled_pipeline, compiled_context);
+            }
+            if (registration.compile_stage) {
+                registration.compile_stage(compiled_pipeline, compiled_context);
+            }
+            if (registration.runtime_factory) {
+                ov::npuw::v1::subgraphs::RuntimeBehaviorSpec spec;
+                spec.registration = compiled_pipeline.registration;
+                spec.context = compiled_context;
+                spec.factory = registration.runtime_factory;
+                compiled_pipeline.runtime_behavior = std::move(spec);
+            }
+        };
+    }
+}
+
+void ov::npuw::v1::subgraphs::PatternRegistry::append_from(const PatternRegistry& other) {
+    for (auto registration : other.m_registrations) {
+        registration.id = ++m_next_id;
+        m_registrations.push_back(std::move(registration));
+    }
+}
 
 template <typename T2>
 struct std::hash<std::pair<ov::npuw::Subgraph::Ref, T2>> {
@@ -335,6 +449,7 @@ public:
     void matchRepeatedSubgraphs(const std::string& func_name);
     void spatial(const std::string& func_name);
     void attention(const std::string& func_name);
+
     void optimize(const std::string& func_name);
     void decompressionCutOff(const std::string& func_name);
 
@@ -424,6 +539,9 @@ void Partitioner::identifySubgraphs() {
 
         group.sg._avoid_list = group.avoid_list;
         group.sg.settag(group.gettag());
+        if (part_ctx.subgraph_patterns != nullptr) {
+            part_ctx.subgraph_patterns->apply(group.sg);
+        }
         // Note inputs and outputs are included in the above set, so if
         // we are here, those nodes should be present in the model.
 
@@ -1391,12 +1509,19 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
             HANDLE_CASE(f8e4m3, uint8_t);
             HANDLE_CASE(f16, uint16_t);
             HANDLE_CASE(f32, float);
+            HANDLE_CASE(u8, uint8_t);
 #undef HANDLE_CASE
         default:
             OPENVINO_THROW("Unable to handle type ", node_a->output(0));
         }
         return false;
     };
+    // Helper to check if a constant is MoE Gather indices (marked by GatherTo2DGather pass)
+    auto is_moe_gather_const = [](const CTPtr& const_node) -> bool {
+        const auto& rt_info = const_node->get_rt_info();
+        return rt_info.count("npuw_moe_gather_indices") > 0;
+    };
+
     auto check_and_mark = [&](const ov::npuw::RepeatedBlock::MatchedLayers& bank) {
         std::unordered_set<CTPtr> instances;
         for (auto&& l : bank) {
@@ -1408,19 +1533,30 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
         LOG_DEBUG("Checking a bank with prototype node " << proto_node << "...");
         LOG_BLOCK();
 
-        if (ov::npuw::partitioning::traits::is_tiny_shape(proto_shape) &&
-            std::all_of(instances.begin(), instances.end(), [&](const CTPtr& other_node) -> bool {
-                return (other_node->output(0).get_shape() == proto_node->output(0).get_shape()) &&
-                       values_are_the_same(proto_node, other_node);
-            })) {
-            // Check passed for this group.
-            LOG_DEBUG("[KEEP] It is safe to keep this bank in function");
-            for (auto&& const_node : instances) {
-                func_group.consts_to_keep.insert(const_node);
-            }
-        } else {
-            LOG_DEBUG("[CUT ] This group of Const ops will be cut-off from the function: "
+        bool is_tiny = ov::npuw::partitioning::traits::is_tiny_shape(proto_shape);
+        bool is_moe_gather = is_moe_gather_const(proto_node);
+        if (!is_tiny && !is_moe_gather) {
+            LOG_DEBUG("[CUT ] Not tiny shape and not MoE Gather indices - will be cut-off from the function");
+            return;
+        }
+
+        bool all_identical = std::all_of(instances.begin(), instances.end(), [&](const CTPtr& other_node) -> bool {
+            return (other_node->output(0).get_shape() == proto_node->output(0).get_shape()) &&
+                   values_are_the_same(proto_node, other_node);
+        });
+        if (!all_identical) {
+            LOG_DEBUG("[CUT ] Values differ across instances - will be cut-off from the function: "
                       << proto_node->get_friendly_name());
+            return;
+        }
+
+        if (is_moe_gather) {
+            LOG_DEBUG("[KEEP] MoE Gather indices constant - identical across all repeats");
+        } else {
+            LOG_DEBUG("[KEEP] Tiny shape constant - safe to keep in function");
+        }
+        for (auto&& const_node : instances) {
+            func_group.consts_to_keep.insert(const_node);
         }
     };
     for (auto&& bank : rep_block.consts) {
@@ -1463,9 +1599,12 @@ void Partitioner::saveTailDictConstants(const std::string& func_name) {
     using CPtr = std::shared_ptr<ov::op::v0::Constant>;
     std::vector<CPtr> to_keep;
 
+    ov::npuw::patterns::opt::Context ctx;
+    ctx.mm_gate = cfg.get<::intel_npu::NPUW_MM_GATED>();
+
     ov::pass::GraphRewrite rewr;
-    rewr.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulAsymm>(std::ref(to_keep));
-    rewr.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulSymm>(std::ref(to_keep));
+    rewr.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulAsymm>(std::ref(ctx), std::ref(to_keep));
+    rewr.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulFP8>(std::ref(ctx), std::ref(to_keep));
     rewr.run_on_model(model_group.front());
 
     for (auto&& const_to_keep : to_keep) {
@@ -1624,6 +1763,9 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
     function._model = func_ggg.mdls.front();
     function._param_offset = body_sg._parameters.size();
     function.settag(body_sg.gettag());
+    if (part_ctx.subgraph_patterns != nullptr) {
+        part_ctx.subgraph_patterns->apply(function);
+    }
     std::size_t new_param_idx = function._param_offset;
 
     for (auto&& node_ptr : function._model->get_ordered_ops()) {
@@ -1933,7 +2075,8 @@ void Partitioner::attention(const std::string& func_name) {
     // Try HFA (Host Flash Attention)
     if (attn_mode == "HFA") {
         LOG_DEBUG("Attempting HostFlashAttention based on config");
-        f._host_flash_attention = ov::npuw::function::HostFlashAttention::from(f._model);
+        f._host_flash_attention =
+            ov::npuw::function::HostFlashAttention::from(f._model, cfg.get<::intel_npu::NPUW_ATTN_HFA_FUSED>());
         if (f._host_flash_attention) {
             LOG_VERB("Done - HFA (Host Flash Attention)");
             return;
@@ -2459,12 +2602,41 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
     LOG_BLOCK();
 
     ov::npuw::Ensemble ens;
+    ov::npuw::Partitioning P;
+    ov::npuw::PartitioningContext effective_ctx = ctx;
 
     // Try to load the partitioning plan...
+    // Ensure all nodes in the model have unique friendly names before online partitioning.
+    // The online partitioner and the subsequent bank-building steps (completeRepeating,
+    // propagateScalars, etc.) use friendly_name as a node identity key in std::set<string>
+    // and std::map. If two physically different nodes share the same friendly_name (which
+    // can happen with some model exporters), they will be silently merged or cause bank
+    // size mismatches, leading to NPUW_ASSERT(all_ok) failures in sanityCheck.
+    // We resolve this by appending a numeric suffix to any duplicated name.
+    {
+        std::unordered_map<std::string, size_t> name_count;
+        for (auto& node : model->get_ordered_ops()) {
+            name_count[node->get_friendly_name()]++;
+        }
+        std::unordered_map<std::string, size_t> name_seen;
+        for (auto& node : model->get_ordered_ops()) {
+            const auto& name = node->get_friendly_name();
+            if (name_count[name] > 1) {
+                size_t idx = name_seen[name]++;
+                if (idx > 0) {
+                    // Keep the first occurrence as-is to avoid disturbing the
+                    // prototype (funcall0) node names that everything else maps to.
+                    node->set_friendly_name(name + "_npuw_dedup_" + std::to_string(idx));
+                    LOG_WARN("NPUW: renamed duplicate node '" << name << "' to '" << node->get_friendly_name() << "'");
+                }
+            }
+        }
+    }
+
     const std::string file_path = cfg.get<::intel_npu::NPUW_PLAN>();
     if (file_path.empty()) {
         LOG_INFO("No " << ::intel_npu::NPUW_PLAN().key() << " property is provided! Using online partitioning.");
-        ens = ov::npuw::online::buildPartitioning(model, cfg);
+        ens = ov::npuw::online::buildPartitioning(model, cfg, effective_ctx.subgraph_patterns);
     } else {
         ens = load_groups(model, file_path);
     }
@@ -2512,18 +2684,22 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
         }  // for(ens.groups)
     }  // if(fcew.enabled)
 
-    Partitioning P;
     P.total_gflops = ens.gflops;
 
-    Partitioner p(model, ens, P, cfg, ctx);
+    Partitioner p(model, ens, P, cfg, effective_ctx);
     p.identifySubgraphs();
 
     if (!ens.repeated.empty()) {
         if (cfg.get<::intel_npu::NPUW_FOLD>()) {
             // Do full-featured folding
             auto all_functions = p.initFunctionPipeline(Partitioner::FunctionPipelineType::FOLD);
+
+            // Pass 1: Register all functions and apply general transformations
+            // - matchRepeatedSubgraphs() populates P.functions with all function definitions
+            // - Other transformations (spatial, attention, optimize, etc.) can be applied
+            //   independently without cross-function dependencies
             for (auto&& func_group : all_functions) {
-                LOG_INFO("FOLD: Process function " << func_group << "...");
+                LOG_INFO("FOLD Pass 1: Register and transform function " << func_group << "...");
                 LOG_BLOCK();
                 p.propagateSlices(func_group);
                 p.propagateConverts(func_group);
@@ -2535,11 +2711,40 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 p.saveTailDictConstants(func_group);
                 p.matchParameters(func_group);
                 p.matchResults(func_group);
-                p.matchRepeatedSubgraphs(func_group);
+                p.matchRepeatedSubgraphs(func_group);  // This populates P.functions
                 p.spatial(func_group);
                 p.attention(func_group);
                 p.optimize(func_group);
                 p.decompressionCutOff(func_group);
+            }
+
+            // Pass 2: run deferred partition-stage transformations after all functions are registered.
+            // Partitioning stays generic here: it only exposes shared lookup helpers through the
+            // pipeline context and then runs the registered callbacks.
+            for (auto&& func_group : all_functions) {
+                LOG_INFO("FOLD Pass 2: Partition-stage pipeline for " << func_group << "...");
+                LOG_BLOCK();
+                auto& function = P.functions.at(func_group);
+                if (function._pipeline.partition_stage) {
+                    function._pipeline.context.put<ov::npuw::v1::subgraphs::PartitioningCallbacks>(
+                        {[&P, &part_ctx = effective_ctx](const std::string& tag) -> std::shared_ptr<ov::Model> {
+                            auto cached = part_ctx.tagged_models.find(tag);
+                            if (cached != part_ctx.tagged_models.end()) {
+                                return cached->second;
+                            }
+                            for (const auto& [name, candidate] : P.functions) {
+                                if (candidate.gettag() == tag) {
+                                    part_ctx.tagged_models.emplace(tag, candidate._model);
+                                    return candidate._model;
+                                }
+                            }
+                            return nullptr;
+                        }});
+                    function._pipeline.partition_stage(function, function._pipeline.context);
+                    // The callback captures partitioning state by reference, so keep it scoped to this
+                    // immediate partition-stage invocation and remove it before the context outlives us.
+                    function._pipeline.context.erase<ov::npuw::v1::subgraphs::PartitioningCallbacks>();
+                }
             }
         } else if (cfg.get<::intel_npu::NPUW_CWAI>()) {
             // Less brutal version - just transform repeated blocks

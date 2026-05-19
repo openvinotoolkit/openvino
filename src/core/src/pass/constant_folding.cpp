@@ -8,6 +8,7 @@
 #include "openvino/core/constant_fold_utils.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -106,7 +107,11 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
 
     bool rewritten = pre_calculated_values_folding(model);
 
-    for (const auto& original_node : model->get_ordered_ops()) {
+    // Creating a local vector and moving each element to reduce memory peak.
+    // Elements of 'nodes' vector are nullptr after the std::move in the loop.
+    auto nodes = model->get_ordered_ops();
+    for (size_t n = 0; n < nodes.size(); ++n) {
+        auto original_node = std::move(nodes[n]);
         auto node = original_node;
         if (!original_node->can_constant_fold(original_node->input_values())) {
             if (auto sub_graph_node = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
@@ -157,6 +162,14 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
                     // Propagate runtime info attributes to replacement
                     copy_runtime_info(original_node, replacement_ptr);
                     ov::copy_weightless_cache_attr(original_node, replacement_ptr);
+                    // Evict data if original node is constant or convert with constant input
+                    if (auto constant = ov::as_type_ptr<ov::op::v0::Constant>(original_node)) {
+                        ov::wsh::Extension::hint_evict(*constant);
+                    } else if (auto convert = ov::as_type_ptr<ov::op::v0::Convert>(original_node)) {
+                        if (auto const_input = ov::as_type<ov::op::v0::Constant>(convert->get_input_node_ptr(0))) {
+                            ov::wsh::Extension::hint_evict(*const_input);
+                        }
+                    }
 
                     rewritten = true;
                 }

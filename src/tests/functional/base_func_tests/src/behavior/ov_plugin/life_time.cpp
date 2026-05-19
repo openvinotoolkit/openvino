@@ -99,7 +99,7 @@ TEST_P(OVHoldersTest, LoadedAny) {
 }
 
 TEST_P(OVHoldersTest, LoadedRemoteContext) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::RemoteContext ctx;
     {
@@ -170,6 +170,10 @@ TEST_P(OVHoldersTestOnImportedNetwork, CreateRequestWithCoreRemoved) {
     core = ov::Core{};
     auto request = compiled_model.create_infer_request();
 }
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVHoldersTestOnImportedNetwork);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVHoldersTestWithConfig);
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov

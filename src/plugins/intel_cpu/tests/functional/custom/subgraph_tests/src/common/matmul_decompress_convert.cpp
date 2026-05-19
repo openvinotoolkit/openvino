@@ -208,7 +208,7 @@ protected:
 
         auto matMul = std::make_shared<ov::op::v0::MatMul>(params[0], inputB, transpA, transpB);
 
-        function = CPUTestsBase::makeNgraphFunction(netType, params, matMul, cpuNodeType);
+        function = CPUTestsBase::create_ov_model(netType, params, matMul, cpuNodeType);
     }
 
     virtual void check_execution_graph() {
@@ -471,7 +471,7 @@ protected:
 
         auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{matMul0, matMul1}, 0);
 
-        function = CPUTestsBase::makeNgraphFunction(netType, params, concat, cpuNodeType);
+        function = CPUTestsBase::create_ov_model(netType, params, concat, cpuNodeType);
     }
 };
 

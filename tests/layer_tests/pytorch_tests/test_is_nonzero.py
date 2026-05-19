@@ -21,9 +21,8 @@ class TestIsNonZero(PytorchLayerTest):
             def forward(self, input_tensor):
                 return torch.is_nonzero(input_tensor)
 
-        ref_net = None
 
-        return aten_is_nonzero(), ref_net, "aten::is_nonzero"
+        return aten_is_nonzero(), "aten::is_nonzero"
 
     @pytest.mark.nightly
     @pytest.mark.precommit

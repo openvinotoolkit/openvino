@@ -10,6 +10,7 @@
 #include <sstream>
 #include <unordered_map>
 
+#include "../../../v1/subgraph_pipeline.hpp"
 #include "attribute_visitor.hpp"
 #include "intel_npu/config/config.hpp"
 #include "openvino/openvino.hpp"
@@ -42,6 +43,7 @@ struct PassContext {
     std::vector<Avoid> avoids;
     std::vector<Isolate> isolates;
     std::vector<std::string> nofolds;
+    const ov::npuw::v1::subgraphs::PatternRegistry* subgraph_patterns = nullptr;
 };
 
 // Forward declaration
@@ -96,7 +98,8 @@ static const std::map<std::string, std::string> ISOL_PRESETS = {{"COMPUTE",
                                                                  "P:RMSNorm3/compute,P:RMSNorm4/compute,"
                                                                  "P:VariadicSplit/compute"},
                                                                 {"FAKE", "P:FakeConvert/fake,P:FakeQuantize/fake"},
-                                                                {"ATTN", "P:SDPA/attn,P:SDPADecomposed/attn"}};
+                                                                {"ATTN", "P:SDPA/attn,P:SDPADecomposed/attn"},
+                                                                {"MOE", "P:GPTOSSExpert/expert,P:GPTOSSRouter/router"}};
 }  // namespace util
 
 }  // namespace online

@@ -26,7 +26,7 @@ void JitTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::v
     auto* dstData = dst[0]->getDataAs<uint8_t>();
     const int MB = src[0]->getStaticDims()[0];
 
-    pKernel->execute(srcData, dstData, MB);
+    pKernel->execute(srcData, dstData, MB, context->getCpuParallel());
 }
 
 bool JitTransposeExecutor::init(const TransposeParams& transposeParams,

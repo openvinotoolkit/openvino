@@ -206,7 +206,7 @@ OutputVector translate_scaled_dot_product_attention_fx(const NodeContext& contex
     // Index 3 is dropout
     auto causal = false;
     if (context.has_attribute("is_causal")) {
-        causal = context.get_attribute<bool>("scale");
+        causal = context.get_attribute<bool>("is_causal");
     } else if (!context.input_is_none(4)) {
         causal = context.const_input<bool>(4);
     }

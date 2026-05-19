@@ -1,7 +1,6 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
 import pytest
 import torch
 
@@ -17,7 +16,7 @@ from pytorch_layer_test_class import PytorchLayerTest, skip_check
 class TestAdd(PytorchLayerTest):
 
     def _prepare_input(self):
-        return (np.random.randn(2, 5, 3, 4).astype(np.float32), self.input_rhs)
+        return (self.random.randn(2, 5, 3, 4), self.input_rhs)
 
     def create_model(self, alpha, op_type):
         class aten_add(torch.nn.Module):
@@ -33,9 +32,8 @@ class TestAdd(PytorchLayerTest):
             def forward2(self, lhs, rhs):
                 return lhs.add_(rhs, alpha=self.alpha)
 
-        ref_net = None
 
-        return aten_add(alpha, op_type), ref_net, f"aten::{op_type}"
+        return aten_add(alpha, op_type), f"aten::{op_type}"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -43,19 +41,20 @@ class TestAdd(PytorchLayerTest):
     @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize("op_type", ["add", skip_check("add_")])
     def test_add(self, ie_device, precision, ir_version, alpha, input_shape_rhs, op_type):
-        self.input_rhs = np.random.randn(*input_shape_rhs).astype(np.float32)
-        self._test(*self.create_model(alpha, op_type), ie_device, precision, ir_version, use_convert_model=True)
+        self.input_rhs = self.random.randn(*input_shape_rhs)
+        self._test(*self.create_model(alpha, op_type), ie_device, precision, ir_version, use_convert_model=True,
+                   fx_kind="aten.add")
 
 
 class TestAddTypes(PytorchLayerTest):
 
     def _prepare_input(self):
         if len(self.lhs_shape) == 0:
-            return (torch.randint(0, 10, self.rhs_shape).to(self.rhs_type).numpy(),)
+            return (self.random.randint(0, 10, size=self.rhs_shape, dtype=self.rhs_type),)
         elif len(self.rhs_shape) == 0:
-            return (torch.randint(0, 10, self.lhs_shape).to(self.lhs_type).numpy(),)
-        return (torch.randint(0, 10, self.lhs_shape).to(self.lhs_type).numpy(),
-                torch.randint(0, 10, self.rhs_shape).to(self.rhs_type).numpy())
+            return (self.random.randint(0, 10, size=self.lhs_shape, dtype=self.lhs_type),)
+        return (self.random.randint(0, 10, size=self.lhs_shape, dtype=self.lhs_type),
+                self.random.randint(0, 10, size=self.rhs_shape, dtype=self.rhs_type))
 
     def create_model(self, lhs_type, lhs_shape, rhs_type, rhs_shape):
 
@@ -64,6 +63,7 @@ class TestAddTypes(PytorchLayerTest):
                 super().__init__()
                 self.lhs_type = lhs_type
                 self.rhs_type = rhs_type
+                self.register_buffer('scalar_one', torch.tensor(1))
                 if len(lhs_shape) == 0:
                     self.forward = self.forward1
                 elif len(rhs_shape) == 0:
@@ -72,17 +72,16 @@ class TestAddTypes(PytorchLayerTest):
                     self.forward = self.forward3
 
             def forward1(self, rhs):
-                return torch.add(torch.tensor(1).to(self.lhs_type), rhs.to(self.rhs_type), alpha=2)
+                return torch.add(self.scalar_one.to(self.lhs_type), rhs.to(self.rhs_type), alpha=2)
 
             def forward2(self, lhs):
-                return torch.add(lhs.to(self.lhs_type), torch.tensor(1).to(self.rhs_type), alpha=2)
+                return torch.add(lhs.to(self.lhs_type), self.scalar_one.to(self.rhs_type), alpha=2)
 
             def forward3(self, lhs, rhs):
                 return torch.add(lhs.to(self.lhs_type), rhs.to(self.rhs_type), alpha=2)
 
-        ref_net = None
 
-        return aten_add(lhs_type, lhs_shape, rhs_type, rhs_shape), ref_net, "aten::add"
+        return aten_add(lhs_type, lhs_shape, rhs_type, rhs_shape), "aten::add"
 
     @pytest.mark.parametrize(("lhs_type", "rhs_type"),
                              [[torch.bool, torch.uint8],
@@ -124,18 +123,17 @@ class TestAddTypes(PytorchLayerTest):
 class TestAddLists(PytorchLayerTest):
 
     def _prepare_input(self):
-        return (np.random.randn(2, 5, 3, 4).astype(np.float32),)
+        return (self.random.randn(2, 5, 3, 4),)
 
     def create_model(self):
         class aten_add(torch.nn.Module):
             def forward(self, x):
                 return x.reshape(x.shape[:-1] + (-1,))
 
-        return aten_add(), None, "aten::add"
+        return aten_add(), "aten::add"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     def test_add(self, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision, ir_version)
@@ -144,23 +142,22 @@ class TestAddLists(PytorchLayerTest):
 class TestAddBool(PytorchLayerTest):
 
     def _prepare_input(self):
-        input2 = np.random.randint(0, 2, (1, 3, 20, 24)).astype(bool)
-        input1 = np.random.randint(0, 2, (1, 3, 20, 24)).astype(bool)
+        input2 = self.random.randint(0, 2, (1, 3, 20, 24), dtype=bool)
+        input1 = self.random.randint(0, 2, (1, 3, 20, 24), dtype=bool)
         return (input1, input2)
 
     def create_model(self, lhs_type=torch.bool, rhs_type=torch.bool):
         class aten_add(torch.nn.Module):
             def __init__(self):
-                super(aten_add, self).__init__()
+                super().__init__()
                 self.lhs_type = lhs_type
                 self.rhs_type = rhs_type
 
             def forward(self, x1, x2):
                 return torch.add(x1.to(self.rhs_type), x2.to(self.lhs_type))
 
-        ref_net = None
 
-        return aten_add(), ref_net, "aten::add"
+        return aten_add(), "aten::add"
 
     @pytest.mark.parametrize(("lhs_type", "rhs_type"), [
         (torch.bool, torch.bool),
@@ -179,8 +176,8 @@ class TestAddWithLhsComplex(PytorchLayerTest):
     def _prepare_input(self):
         rhs_input_shape = [3, 4, 5]
         lhs_input_shape = rhs_input_shape + [2]
-        return [torch.randint(0, 10, lhs_input_shape).to(self.lhs_type).numpy(),
-                torch.randint(0, 10, rhs_input_shape).to(self.rhs_type).numpy()]
+        return [self.random.randint(0, 10, size=lhs_input_shape, dtype=self.lhs_type),
+            self.random.randint(0, 10, size=rhs_input_shape, dtype=self.rhs_type)]
 
     def create_model(self, alpha, op_type):
         class aten_add(torch.nn.Module):
@@ -200,9 +197,8 @@ class TestAddWithLhsComplex(PytorchLayerTest):
                 res = lhs.add_(rhs, alpha=self.alpha)
                 return torch.view_as_real(res + lhs)
 
-        ref_net = None
 
-        return aten_add(alpha, op_type), ref_net, f"aten::{op_type}"
+        return aten_add(alpha, op_type), f"aten::{op_type}"
 
     @pytest.mark.parametrize('alpha', (0, 0.5))
     @pytest.mark.parametrize("lhs_type",
@@ -229,8 +225,8 @@ class TestAddWithRhsComplex(PytorchLayerTest):
     def _prepare_input(self):
         lhs_input_shape = [3, 4, 5]
         rhs_input_shape = lhs_input_shape + [2]
-        return [torch.randint(0, 10, lhs_input_shape).to(self.lhs_type).numpy(),
-                torch.randint(0, 10, rhs_input_shape).to(self.rhs_type).numpy()]
+        return [self.random.randint(0, 10, size=lhs_input_shape, dtype=self.lhs_type),
+            self.random.randint(0, 10, size=rhs_input_shape, dtype=self.rhs_type)]
 
     def create_model(self, alpha):
         class aten_add(torch.nn.Module):
@@ -244,9 +240,8 @@ class TestAddWithRhsComplex(PytorchLayerTest):
                 res = torch.add(lhs, rhs, alpha=self.alpha)
                 return torch.view_as_real(res)
 
-        ref_net = None
 
-        return aten_add(alpha), ref_net, f"aten::add"
+        return aten_add(alpha), f"aten::add"
 
     @pytest.mark.parametrize('alpha', (0, 0.5))
     @pytest.mark.parametrize("rhs_type",
@@ -272,8 +267,8 @@ class TestAddWithBothComplex(PytorchLayerTest):
     def _prepare_input(self):
         input_shape = [3, 4, 5]
         input_shape = input_shape + [2]
-        return [torch.randint(0, 10, input_shape).to(self.lhs_type).numpy(),
-                torch.randint(0, 10, input_shape).to(self.rhs_type).numpy()]
+        return [self.random.randint(0, 10, size=input_shape, dtype=self.lhs_type),
+            self.random.randint(0, 10, size=input_shape, dtype=self.rhs_type)]
 
     def create_model(self, alpha, op_type):
         class aten_add(torch.nn.Module):
@@ -295,9 +290,8 @@ class TestAddWithBothComplex(PytorchLayerTest):
                 res = lhs.add_(rhs, alpha=self.alpha)
                 return torch.view_as_real(res + lhs)
 
-        ref_net = None
 
-        return aten_add(alpha, op_type), ref_net, f"aten::{op_type}"
+        return aten_add(alpha, op_type), f"aten::{op_type}"
 
     @pytest.mark.parametrize('alpha', (0, 0.5))
     @pytest.mark.parametrize("lhs_type",

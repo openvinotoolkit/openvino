@@ -16,7 +16,7 @@ namespace ai_onnx {
 namespace opset_1 {
 ov::OutputVector image_scaler(const ov::frontend::onnx::Node& node) {
     const auto inputs = node.get_ov_inputs();
-    FRONT_END_GENERAL_CHECK(inputs.size() == 1, "ImageScaler 1 input tensor. Got: ", inputs.size());
+    FRONT_END_GENERAL_CHECK(inputs.size() == 1, "ImageScaler expects 1 input tensor. Got: ", inputs.size());
 
     const auto data = inputs[0];
     const auto& data_shape = data.get_partial_shape();

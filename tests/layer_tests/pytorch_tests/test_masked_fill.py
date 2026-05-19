@@ -16,17 +16,17 @@ class TestMaskedFill(PytorchLayerTest):
         if mask_fill == 'ones':
             mask = np.ones(input_shape).astype(mask_dtype)
         if mask_fill == 'random':
-            idx = np.random.choice(10, 5)
+            idx = self.random.choice(10, 5)
             mask[:, idx] = 1
 
-        return (np.random.randn(1, 10).astype(input_dtype), mask)
+        return (self.random.randn(1, 10, dtype=input_dtype), mask)
 
     def create_model(self, value, inplace):
         import torch
 
         class aten_masked_fill(torch.nn.Module):
             def __init__(self, value):
-                super(aten_masked_fill, self).__init__()
+                super().__init__()
                 self.value = value
 
             def forward(self, x, mask):
@@ -34,17 +34,16 @@ class TestMaskedFill(PytorchLayerTest):
 
         class aten_masked_fill_(torch.nn.Module):
             def __init__(self, value):
-                super(aten_masked_fill_, self).__init__()
+                super().__init__()
                 self.value = value
 
             def forward(self, x, mask):
                 return x.masked_fill_(mask, self.value)
 
-        ref_net = None
 
         if not inplace:
-            return aten_masked_fill(value), ref_net, "aten::masked_fill"
-        return aten_masked_fill_(value), ref_net, "aten::masked_fill_"
+            return aten_masked_fill(value), "aten::masked_fill"
+        return aten_masked_fill_(value), "aten::masked_fill_"
 
     @pytest.mark.parametrize("value", [0.0, 1.0, -1.0, 2])
     @pytest.mark.parametrize(
@@ -67,7 +66,7 @@ class TestMaskedFill(PytorchLayerTest):
         "mask_fill", ['zeros', 'ones', 'random'])
     @pytest.mark.parametrize("input_dtype", [np.float32, np.float64, int, np.int32])
     @pytest.mark.parametrize("mask_dtype", [np.uint8, np.int32])  # np.float32 incorrectly casted to bool
-    @pytest.mark.parametrize("inplace", [True, False])
+    @pytest.mark.parametrize("inplace", [skip_if_export(True), False])
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export

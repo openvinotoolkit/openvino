@@ -6,6 +6,7 @@
 
 #include <onnx/onnx_pb.h>
 
+#include <filesystem>
 #include <memory>
 #include <string>
 #include <vector>
@@ -23,7 +24,7 @@ namespace frontend {
 namespace onnx {
 class Graph : public std::enable_shared_from_this<Graph> {
 public:
-    Graph(const std::string& model_dir,
+    Graph(const std::filesystem::path& model_dir,
           const std::shared_ptr<ModelProto>& model_proto,
           detail::MappedMemoryHandles mmap_cache,
           ov::frontend::ExtensionHolder extensions = {});
@@ -40,7 +41,7 @@ public:
     const std::string& get_name() const {
         return m_model->get_graph().name();
     }
-    const std::string& model_dir() const {
+    const std::filesystem::path& model_dir() const {
         return m_model_dir;
     }
     detail::MappedMemoryHandles get_mmap_cache() const {
@@ -55,6 +56,11 @@ public:
     ov::OutputVector make_ov_nodes(const ov::frontend::onnx::Node& onnx_node);
 
     const OpsetImports& get_opset_imports() const;
+
+    int64_t get_opset_version(const std::string& domain) const {
+        return m_model->get_opset_version(domain);
+    }
+
     virtual ~Graph() = default;
 
     const ov::frontend::ExtensionHolder& get_extensions() const {
@@ -62,7 +68,7 @@ public:
     }
 
 protected:
-    Graph(const std::string& model_dir,
+    Graph(const std::filesystem::path& model_dir,
           const std::shared_ptr<ModelProto>& model,
           std::unique_ptr<GraphCache>&& cache,
           detail::MappedMemoryHandles mmap_cache,
@@ -87,7 +93,7 @@ protected:
 private:
     std::vector<Node> m_nodes;
 
-    std::string m_model_dir;
+    std::filesystem::path m_model_dir;
     detail::MappedMemoryHandles m_mmap_cache;
     OperatorsBridge m_ops_bridge;
 };
@@ -97,13 +103,13 @@ private:
 ///             cache.
 class Subgraph : public Graph {
 public:
-    /// \brief      Subgraph a GraphCache class object.
+    /// \brief      Subgraph holds a GraphCache class object.
     ///
     /// \param[in]  model          The ONNX model object.
     /// \param[in]  parent_graph   The reference to the parent graph.
     Subgraph(const std::shared_ptr<ModelProto>& model, Graph* parent_graph);
 
-    /// \brief      Return nodes which are on the edge the subgraph and the parent graph.
+    /// \brief      Return nodes which are on the edge of the subgraph and the parent graph.
     /// \return     Vector of edge nodes from parent scope.
     const std::vector<ov::Output<ov::Node>> get_inputs_from_parent() const;
 

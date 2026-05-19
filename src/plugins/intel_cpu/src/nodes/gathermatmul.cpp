@@ -38,13 +38,12 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
+#include "ov_ops/gather_matmul.hpp"
+#include "ov_ops/gather_matmul_compressed.hpp"
 #include "shape_inference/custom/gathermatmul.hpp"
-#include "transformations/cpu_opset/common/op/batch_gather_matmul.hpp"
-#include "transformations/cpu_opset/common/op/batch_gather_matmul_compressed.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils/general_utils.h"
 
@@ -243,12 +242,12 @@ private:
 
 bool GatherMatmul::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        // Check if the operation is BatchGatherMatmul or BatchGatherMatmulCompressed
-        const bool isBatchGatherMatmul = ov::is_type<ov::intel_cpu::BatchGatherMatmul>(op);
-        const bool isBatchGatherMatmulCompressed = ov::is_type<ov::intel_cpu::BatchGatherMatmulCompressed>(op);
+        // Check if the operation is GatherMatmul or GatherMatmulCompressed
+        const bool isGatherMatmul = ov::is_type<ov::op::internal::GatherMatmul>(op);
+        const bool isGatherMatmulCompressed = ov::is_type<ov::op::internal::GatherMatmulCompressed>(op);
 
-        if (!isBatchGatherMatmul && !isBatchGatherMatmulCompressed) {
-            errorMessage = "Only BatchGatherMatmul and BatchGatherMatmulCompressed operations are supported. Got: " +
+        if (!isGatherMatmul && !isGatherMatmulCompressed) {
+            errorMessage = "Only GatherMatmul and GatherMatmulCompressed operations are supported. Got: " +
                            std::string(op->get_type_info().name);
             return false;
         }
@@ -260,7 +259,7 @@ bool GatherMatmul::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
         }
 
         // For compressed variant, check that scales and zero points are constant
-        if (isBatchGatherMatmulCompressed) {
+        if (isGatherMatmulCompressed) {
             if (op->get_input_size() > WEIGHT_SCALES) {
                 if (!ov::op::util::is_on_path<ov::op::v0::Constant>(op->input_value(WEIGHT_SCALES))) {
                     errorMessage = "Only constant weight scales are supported for GatherMatmul operation";
@@ -372,7 +371,7 @@ GatherMatmul::GatherMatmul(const std::shared_ptr<ov::Node>& op, const GraphConte
     }
 
     // Determine the algorithm type
-    if (ov::is_type<ov::intel_cpu::BatchGatherMatmulCompressed>(op)) {
+    if (ov::is_type<ov::op::internal::GatherMatmulCompressed>(op)) {
         algorithm = Algorithm::GatherMatmulCompressed;
     } else {
         algorithm = Algorithm::GatherMatmulDefault;
@@ -705,6 +704,7 @@ private:
 }  // namespace
 
 void GatherMatmul::execute(const dnnl::stream& strm) {
+    const auto& cpu_parallel = context->getCpuParallel();
     const auto& srcMem = getParentEdgeAt(DATA)->getMemoryPtr();
     const auto& biasMem = getParentEdgeAt(BIAS)->getMemoryPtr();
     const auto& indexMem = getParentEdgeAt(INDICES)->getMemoryPtr();
@@ -782,7 +782,7 @@ void GatherMatmul::execute(const dnnl::stream& strm) {
                     continue;
                 }
 
-                parallel_for(M_size, [&](size_t m) {
+                cpu_parallel->parallel_for(M_size, [&](size_t m) {
                     auto* dst_row = tmp_input_offset(m);
 
                     if (m < num_valid_rows) {
@@ -805,7 +805,7 @@ void GatherMatmul::execute(const dnnl::stream& strm) {
                 gemm_impl->exec(strm, src, dst, wei, bias, scale, zp);
 
                 // Immediately scatter results while they're hot in cache
-                parallel_for(num_valid_rows, [&](size_t m) {
+                cpu_parallel->parallel_for(num_valid_rows, [&](size_t m) {
                     const auto* src_row = tmp_dst_offset(m);
                     const auto row_id = gather_idx_map[gather_axis_index * M + m].first;
                     const auto batch_index = gather_idx_map[gather_axis_index * M + m].second;

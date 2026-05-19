@@ -27,17 +27,17 @@ OutputVector translate_div_no_nan_op(const NodeContext& node) {
     zero = make_shared<v1::ConvertLike>(zero, denom);
     one = make_shared<v1::ConvertLike>(one, denom);
 
-    // compute a mask to get positions of Nan values of division result
+    // compute a mask to get positions of NaN values of division result
     auto is_zero = make_shared<v1::Equal>(denom, zero);
 
-    // fix zeros in the denomimator to avoid undefined behaviour
+    // fix zeros in the denominator to avoid undefined behaviour
     auto fixed_denom = make_shared<v1::Select>(is_zero, one, denom);
 
-    // compute Division and do not afraid division by zero
+    // compute Division and do not fear division by zero
     // since all of them fixed
     auto div = make_shared<v1::Divide>(numer, fixed_denom);
 
-    // set zero to the result where initially the denomimator is zero
+    // set zero to the result where initially the denominator is zero
     auto div_no_nan = make_shared<v1::Select>(is_zero, zero, div);
     set_node_name(node.get_name(), div_no_nan);
     return div_no_nan->outputs();

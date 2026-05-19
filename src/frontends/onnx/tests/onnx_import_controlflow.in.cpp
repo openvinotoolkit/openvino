@@ -9,6 +9,7 @@
 #include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
 #include "onnx_utils.hpp"
+#include "openvino/frontend/exception.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/multiply.hpp"
 
@@ -235,6 +236,23 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_value_access_to_body_sc
     } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
+}
+
+// Regression test: Loop body with too few inputs relative to loop-carried
+// dependencies must throw instead of accessing body_inputs out of bounds.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_too_few_body_inputs_exception) {
+    OV_EXPECT_THROW(convert_model("controlflow/loop_too_few_body_inputs.onnx"),
+                    ov::AssertFailure,
+                    testing::AllOf(testing::HasSubstr("loop body graph canonical inputs size"),
+                                   testing::HasSubstr("does not match the sum of loop carried dependencies")));
+}
+
+// Regression test: Loop body with too few outputs relative to loop-carried
+// dependencies must throw instead of accessing body_outputs out of bounds.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_too_few_body_outputs_exception) {
+    OV_EXPECT_THROW(convert_model("controlflow/loop_too_few_body_outputs.onnx"),
+                    ov::AssertFailure,
+                    testing::HasSubstr("loop body graph outputs size"));
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_value_the_same_node_from_parent_and_subgraph) {
@@ -758,6 +776,69 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_if_negative_missing_branches) {
     }
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_if_with_initializer_as_output) {
+    /*
+       if (condition) {
+         return identity(x)
+       } else {
+         return initializer constant [0, 0, 0]
+       }
+       Tests that an If branch whose output is directly an initializer
+       (no compute nodes, no graph inputs) converts correctly.
+    */
+    const auto model = convert_model("controlflow/if_with_initializer_as_output.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // condition == true => return x
+    test_case.add_input<bool>({true});
+    test_case.add_input<float>({1.0f, 2.0f, 3.0f});
+    test_case.add_expected_output<float>({1.0f, 2.0f, 3.0f});
+    test_case.run();
+
+    // condition == false => return initializer [0, 0, 0]
+    test_case.add_input<bool>({false});
+    test_case.add_input<float>({1.0f, 2.0f, 3.0f});
+    test_case.add_expected_output<float>({0.0f, 0.0f, 0.0f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_loop_with_initializer_as_output) {
+    /*
+       Loop body declares an initializer ("step") as one of its graph outputs
+       in addition to the canonical [cond_out, loop_carried_out].
+       The body output count therefore exceeds 1 + node.get_outputs_size(); the
+       trailing Constant pass-through must be trimmed so num_scan_outputs is 0
+       and the Loop converts correctly.
+    */
+    const auto model = convert_model("controlflow/loop_with_initializer_as_output.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int64_t>({3});   // trip_count
+    test_case.add_input<bool>({true});   // cond_in
+    test_case.add_input<float>({0.0f});  // x_init
+    test_case.add_expected_output<float>(Shape{1}, {3.0f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_scan_with_initializer_as_output) {
+    /*
+       Scan body declares an initializer ("leak") as a trailing graph output.
+       The body output count would otherwise be miscounted as an extra scan
+       output; the trailing Constant pass-through must be trimmed so the
+       Scan converts with num_scan_outputs equal to node.get_outputs_size() -
+       num_initial_values.
+    */
+    const auto model = convert_model("controlflow/scan_with_initializer_as_output.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1}, {0.0f});                           // init_state
+    test_case.add_input<float>(Shape{3, 1}, {1.0f, 2.0f, 3.0f});            // seq
+    test_case.add_expected_output<float>(Shape{1}, {6.0f});                 // final_state = 0+1+2+3
+    test_case.add_expected_output<float>(Shape{3, 1}, {1.0f, 3.0f, 6.0f});  // scan outputs
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_if_negative_mismatch_between_branches_output) {
     try {
         const auto model = convert_model("controlflow/if_negative_mismatch_between_branches_output.onnx");
@@ -768,4 +849,60 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_if_negative_mismatch_between_branches_output
     } catch (...) {
         FAIL() << "Model import failed for unexpected reason";
     }
+}
+
+// ~~~~~~~~SEQUENCE PATTERN TESTS:~~~~~~~~
+// Tests for SequenceEmpty -> Loop(SequenceInsert) -> ConcatFromSequence pattern
+
+/// @brief Test SequenceEmpty -> Loop(SequenceInsert) -> ConcatFromSequence pattern with axis=1
+/// This tests the full sequence pattern where:
+/// 1. SequenceEmpty creates an empty sequence
+/// 2. Loop accumulates iteration indices (cast to float, reshaped to [1]) via SequenceInsert
+/// 3. ConcatFromSequence concatenates the sequence elements into a single tensor along axis=1
+/// The transformation rewrites the pattern: SequenceMark -> Loop(SequenceInsert) -> ConcatFromSequence
+/// into native OpenVINO operations using Loop's built-in concatenation mechanism
+OPENVINO_TEST(${BACKEND_NAME}, onnx_loop_sequence_insert_concat) {
+    const auto model = convert_model("controlflow/loop_sequence_insert_direct.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    // trip_count = 5
+    test_case.add_input<int64_t>({5});
+    // cond_init = true
+    test_case.add_input<bool>({true});
+
+    // Expected output: [[0, 1, 2, 3, 4]] as float tensor of shape [1, 5]
+    test_case.add_expected_output<float>(Shape{1, 5}, {0.f, 1.f, 2.f, 3.f, 4.f});
+    test_case.run();
+}
+
+/// @brief Test ConcatFromSequence with new_axis=false
+/// Loop accumulates [2] tensors, ConcatFromSequence concatenates without adding new axis
+OPENVINO_TEST(${BACKEND_NAME}, onnx_loop_sequence_concat_no_new_axis) {
+    const auto model = convert_model("controlflow/loop_sequence_concat_no_new_axis.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    // trip_count = 3
+    test_case.add_input<int64_t>({3});
+    // cond_init = true
+    test_case.add_input<bool>({true});
+
+    // Each iteration produces [i, i+0.5], concatenated: [0, 0.5, 1, 1.5, 2, 2.5]
+    test_case.add_expected_output<float>(Shape{6}, {0.f, 0.5f, 1.f, 1.5f, 2.f, 2.5f});
+    test_case.run();
+}
+
+/// @brief Test SequenceConstruct -> ConcatFromSequence pattern
+/// SequenceConstruct creates a sequence from input tensors, ConcatFromSequence concatenates them
+OPENVINO_TEST(${BACKEND_NAME}, onnx_sequence_construct_concat) {
+    const auto model = convert_model("controlflow/sequence_construct_concat.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    // Three input tensors of shape [2]
+    test_case.add_input<float>({1.f, 2.f});  // input_a
+    test_case.add_input<float>({3.f, 4.f});  // input_b
+    test_case.add_input<float>({5.f, 6.f});  // input_c
+
+    // With axis=0, new_axis=1: stack three [2] tensors -> [3, 2]
+    test_case.add_expected_output<float>(Shape{3, 2}, {1.f, 2.f, 3.f, 4.f, 5.f, 6.f});
+    test_case.run();
 }

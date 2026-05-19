@@ -308,7 +308,7 @@ void fuse_loop_cond(std::shared_ptr<LoopCond>& loop_cond,
         merge->output(0).replace(param_node->output(0));
     }
 
-    // create condition model to inject inside Loop operaion
+    // create condition model to inject inside Loop operation
     auto cond_model_params = cond_model->get_parameters();
     for (const auto& op : cond_model->get_ordered_ops()) {
         auto merge = ov::as_type_ptr<Merge>(op);
@@ -850,7 +850,7 @@ std::shared_ptr<ov::Model> TranslateSession::get_body_ov_model(const std::string
                     body_input_model->set_partial_shape(body_input_place, input_shapes[input_ind]);
                 }
                 // set variable to the corresponding place
-                // it is needed to propogate variable values inside a body graph like HashTable
+                // it is needed to propagate variable values inside a body graph like HashTable
                 // without this, conversion of LookupTableFind operations will not be possible
                 if (const auto& input_var = as_type_ptr<Variable>(ov_inputs[input_ind].get_node_shared_ptr())) {
                     body_input_model->set_variable(body_input_place, input_var);

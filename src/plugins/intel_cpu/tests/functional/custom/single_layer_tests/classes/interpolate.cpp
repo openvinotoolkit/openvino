@@ -185,7 +185,7 @@ void InterpolateLayerCPUTest::SetUp() {
         interp = std::make_shared<ov::op::v11::Interpolate>(params[0], sizesInput, axesInput, interpAttr);
     }
 
-    function = makeNgraphFunction(ngPrc, params, interp, "InterpolateCPU");
+    function = create_ov_model(ngPrc, params, interp, "InterpolateCPU");
 
     ov::pass::Manager m;
     m.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();

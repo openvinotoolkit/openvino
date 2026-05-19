@@ -8,7 +8,7 @@
 #include <memory>
 #include <random>
 
-#include "test_engine/models/model_generator.hpp"
+#include "test_engine/models/model_builder.hpp"
 #include "test_engine/mocks/mock_plugins.hpp"
 #include "test_engine/mocks/register_in_ov.hpp"
 #include "intel_npu/npuw_private_properties.hpp"
@@ -28,7 +28,7 @@ public:
 
     ov::AnyMap use_npuw_props;
     std::shared_ptr<ov::Model> model;
-    ModelGenerator model_generator;
+    test::npuw::ModelBuilder model_builder;
 
     void SetUp() override {
         mock_npu_plugin = std::make_shared<MockNpuPlugin>();

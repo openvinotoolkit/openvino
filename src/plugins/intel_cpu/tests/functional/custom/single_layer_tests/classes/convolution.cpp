@@ -195,7 +195,7 @@ void ConvolutionLayerCPUTest::SetUp() {
     auto convolution = ov::test::utils::make_convolution(inputParams[0], netType, kernel, stride, padBegin,
                                                          padEnd, dilation, padType, convOutChannels,
                                                          inputGenData.count(1) ? std::make_optional(inputGenData.at(1)) : std::nullopt);
-    function = makeNgraphFunction(netType, inputParams, convolution, "Convolution", qinfo);
+    function = create_ov_model(netType, inputParams, convolution, "Convolution", qinfo);
 }
 
 TEST_P(ConvolutionLayerCPUTest, CompareWithRefs) {

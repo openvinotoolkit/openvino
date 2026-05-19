@@ -53,6 +53,11 @@ bool Pad::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
             return false;
         }
 
+        if (op->get_input_element_type(0) == element::string) {
+            errorMessage = "Pad operation with string input is not supported";
+            return false;
+        }
+
         const auto* pad = ov::as_type<const op::util::PadBase>(op.get());
         const auto pad_mode = pad->get_pad_mode();
         if (none_of(pad_mode, op::PadMode::CONSTANT, op::PadMode::EDGE, op::PadMode::REFLECT, op::PadMode::SYMMETRIC)) {
@@ -235,6 +240,7 @@ bool Pad::isExecutable() const {
 
 void Pad::prepareParams() {
     updateLastInputDims();
+    attrs.cpuParallel = context->getCpuParallel();
     execPtr = std::make_shared<PadExecutor>(attrs, srcMemory, dstMemory);
 }
 
@@ -428,7 +434,6 @@ void Pad::PadExecutor::exec(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemP
 
 void Pad::execute([[maybe_unused]] const dnnl::stream& strm) {
     CPU_NODE_ASSERT(execPtr, "has not compiled executor.");
-
     execPtr->exec(getSrcMemoryAtPort(0), getDstMemoryAtPort(0));
 }
 
@@ -479,7 +484,7 @@ void Pad::PadExecutor::padConstantCommon(const MemoryPtr& srcMemPtr, const Memor
     const T value = static_cast<T>(params.attrs.padValue);
     if (zeroInputDimsCase) {
         const auto workAmount = dstMemPtr->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
-        parallel_for(workAmount, [&](size_t i) {
+        params.attrs.cpuParallel->parallel_for(workAmount, [&](size_t i) {
             dstData[i] = value;
         });
 

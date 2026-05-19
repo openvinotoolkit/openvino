@@ -100,7 +100,7 @@ OutputVector translate_adaptive_max_pool_base(const NodeContext& context,
     pooled_indices = context.mark_node(std::make_shared<v0::Convert>(pooled_indices, element::i64));
     pooled_tensor = context.mark_node(std::make_shared<v1::Reshape>(pooled_tensor, output_shape, false));
     pooled_indices = context.mark_node(std::make_shared<v1::Reshape>(pooled_indices, output_shape, false));
-    // aten::adaptive_max_pool{n}d always returns tuple with 2 tensors: pooled tensor and indicies
+    // aten::adaptive_max_pool{n}d always returns tuple with 2 tensors: pooled tensor and indices
     // output selecting only first or preserve both made outside of operation by return_indices flag
     return {std::move(pooled_tensor), std::move(pooled_indices)};
 };

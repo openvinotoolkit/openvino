@@ -9,8 +9,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestGetItem(PytorchLayerTest):
     def _prepare_input(self, input_shape):
-        import numpy as np
-        return (np.random.randn(*input_shape).astype(np.float32),)
+        return (self.random.randn(*input_shape),)
 
     def create_model(self, idx, case="size_with_getitem"):
         class aten_size_get_item(torch.nn.Module):
@@ -33,14 +32,13 @@ class TestGetItem(PytorchLayerTest):
                     res = x.shape[-self.idx]
                 return res
 
-        ref_net = None
         op_cls = {
             "getitem": (aten_size_get_item, ["aten::size", "aten::__getitem__"]),
             "getitem_with_if": (aten_size_get_item_with_if, ["aten::size", "aten::__getitem__", "prim::If"])
         }
         op, op_in_graph = op_cls[case]
 
-        return op(idx), ref_net, op_in_graph
+        return op(idx), op_in_graph
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -94,12 +92,11 @@ class aten_add_getitem(torch.nn.Module):
 
 class TestAddGetItem(PytorchLayerTest):
     def _prepare_input(self):
-        import numpy as np
-        return (np.random.randn(2, 1, 3),)
+        return (self.random.randn(2, 1, 3),)
 
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.parametrize("idx", [-4, -3, -2, -1, 0, 1, 2, 3])
     def test_add_cat(self, ie_device, precision, ir_version, idx):
-        self._test(aten_add_getitem(idx), None, ["aten::__getitem__", "aten::add", "prim::ListConstruct"],
+        self._test(aten_add_getitem(idx), ["aten::__getitem__", "aten::add", "prim::ListConstruct"],
                    ie_device, precision, ir_version, freeze_model=False, use_convert_model=True)
