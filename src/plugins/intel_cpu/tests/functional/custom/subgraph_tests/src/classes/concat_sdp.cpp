@@ -68,9 +68,7 @@ void ConcatSDPTest::SetUp() {
     }
 
     targetDevice = ov::test::utils::DEVICE_CPU;
-    if (inType == ElementType::bf16 || inType == ElementType::f16) {
-        configuration["INFERENCE_PRECISION_HINT"] = ov::element::Type(inType).get_type_name();
-    }
+    configuration["INFERENCE_PRECISION_HINT"] = ov::element::Type(inType).get_type_name();
     for (const auto& kv : m_cacheCfg) {
         configuration[kv.first] = kv.second;
     }
