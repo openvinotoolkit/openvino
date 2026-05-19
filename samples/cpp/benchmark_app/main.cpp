@@ -1091,8 +1091,18 @@ int main(int argc, char* argv[]) {
         bool useGpuMem = false;
         bool useNpuMem = false;
 
+        bool enable_use_device_mem = true;
+        if (device_name.find("GPU") == 0){
+#if OV_GPU_WITH_OCL_RT
+            enable_use_device_mem = true;
+#else
+            enable_use_device_mem = false;
+#endif
+        }
+
+
         std::map<std::string, ov::TensorVector> inputsData;
-        if (isFlagSetInCommandLine("use_device_mem")) {
+        if (enable_use_device_mem && isFlagSetInCommandLine("use_device_mem")) {
             if (device_name.find("GPU") == 0) {
                 inputsData = ::gpu::get_remote_input_tensors(inputFiles,
                                                              app_inputs_info,
