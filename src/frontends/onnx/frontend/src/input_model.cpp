@@ -573,7 +573,7 @@ public:
     std::vector<std::shared_ptr<OpPlace>>& get_op_places() {
         return m_op_places;
     }
-    std::map<std::string, std::shared_ptr<TensorONNXPlace>>& get_tensor_places() {
+    std::unordered_map<std::string, std::shared_ptr<TensorONNXPlace>>& get_tensor_places() {
         return m_tensor_places;
     }
 
@@ -624,7 +624,7 @@ private:
     void clean_up();
 
     std::vector<std::shared_ptr<OpPlace>> m_op_places;
-    std::map<std::string, std::shared_ptr<TensorONNXPlace>> m_tensor_places;
+    std::unordered_map<std::string, std::shared_ptr<TensorONNXPlace>> m_tensor_places;
     std::vector<ov::frontend::Place::Ptr> m_inputs;
     std::vector<ov::frontend::Place::Ptr> m_outputs;
 
@@ -679,16 +679,19 @@ void InputModel::InputModelONNXImpl::load_model() {
         const auto& decoder = m_graph_iterator->get_decoder();
 
         if (auto tensor_decoder = std::dynamic_pointer_cast<DecoderBaseTensor>(decoder)) {
-            auto tensor_place =
-                decode_tensor_place(tensor_decoder->get_tensor_info(), m_input_model, m_reuse_const_data);
+            const auto& tensor_meta_info = tensor_decoder->get_tensor_info();
             const auto output_idx = tensor_decoder->get_output_idx();
-            tensor_place->set_input_index(tensor_decoder->get_input_idx());
-            tensor_place->set_output_index(output_idx);
-
-            const bool has_data = tensor_place->get_data() != nullptr || tensor_place->get_data_location() != nullptr;
+            const bool has_data =
+                tensor_meta_info.m_tensor_data != nullptr || tensor_meta_info.m_external_location != nullptr;
             // Skip constants that are not graph outputs — they don't contribute to the model graph.
+            // Check the raw meta-info before allocating a TensorONNXPlace, so initializers
+            // that are also graph inputs don't pay an alloc-and-discard cost.
             if (has_data && output_idx < 0)
                 continue;
+
+            auto tensor_place = decode_tensor_place(tensor_meta_info, m_input_model, m_reuse_const_data);
+            tensor_place->set_input_index(tensor_decoder->get_input_idx());
+            tensor_place->set_output_index(output_idx);
 
             auto tensor_place_registered = register_tensor_place(tensor_place);
             if (!tensor_place_registered)
@@ -701,11 +704,9 @@ void InputModel::InputModelONNXImpl::load_model() {
                 output_indices.push_back(output_idx);
             }
         } else {
-            auto op_place = std::make_shared<OpPlace>(m_input_model, decoder);
-            m_op_places.push_back(op_place);
-
             auto operation_decoder = std::dynamic_pointer_cast<DecoderBaseOperation>(decoder);
             FRONT_END_GENERAL_CHECK(operation_decoder, "Operation decoder is expected");
+            m_op_places.push_back(std::make_shared<OpPlace>(m_input_model, decoder));
 
             if (m_telemetry) {
                 std::string op_name =
@@ -714,9 +715,12 @@ void InputModel::InputModelONNXImpl::load_model() {
                 op_statistics[op_name]++;
             }
 
-            // Register tensor places referenced as op inputs/outputs so the translator
-            // can look them up by name. Port-level relationships (InPortPlace/OutPortPlace)
-            // are not consumed by the unify translation path, so they are not built here.
+            // Register tensor places referenced as op inputs so the translator can look them up
+            // by name. Op outputs are pre-emitted by the GraphIterator as tensor decoders right
+            // before the corresponding op decoder, so they are already in m_tensor_places by the
+            // time we get here — find_tensor_place hits the cache and avoids an allocation.
+            // Port-level relationships (InPortPlace/OutPortPlace) are not consumed by the unify
+            // translation path, so they are not built here.
             const auto input_count = operation_decoder->get_input_size();
             for (size_t i = 0; i < input_count; ++i) {
                 ensure_tensor_place(operation_decoder->get_input_tensor_info(i));
@@ -980,7 +984,8 @@ std::vector<std::shared_ptr<ov::frontend::onnx::OpPlace>> InputModel::get_op_pla
     return _impl->get_op_places();
 }
 
-std::map<std::string, std::shared_ptr<ov::frontend::onnx::TensorONNXPlace>>& InputModel::get_tensor_places() const {
+std::unordered_map<std::string, std::shared_ptr<ov::frontend::onnx::TensorONNXPlace>>& InputModel::get_tensor_places()
+    const {
     return _impl->get_tensor_places();
 }
 
