@@ -7,12 +7,8 @@
 #include <memory>
 #include <string>
 
-<<<<<<< HEAD
-#include "compiler_impl.hpp"
 #include "compiler_schedules_sections.hpp"
-=======
 #include "dynamic_graph.hpp"
->>>>>>> upstream/master
 #include "graph.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/itt.hpp"
@@ -70,6 +66,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compile");
 
     _logger.debug("compile start");
+    OPENVINO_ASSERT(blobWriter);
     auto [tensor, compatibilityDescriptor] = _compiler->compile(model, config);
     _logger.debug("compile end");
 
@@ -105,9 +102,8 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         std::move(networkMeta),
         std::move(tensor),
         config,
-<<<<<<< HEAD
-        /* persistentBlob = */ true,  // exporting the blob shall be available in such a scenario
-        _compiler);
+        compatibilityDescriptor,
+        /* persistentBlob = */ true);  // exporting the blob shall be available in such a scenario
 
     // Tell the blob writer to store the main schedule in the blob at export time: Requirement: understanding the ELF
     // schedule.
@@ -117,19 +113,12 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     return graph;
 }
 
-std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<ov::Model>& model,
+std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Model>&& model,
                                                          const FilteredConfig& config,
                                                          const std::shared_ptr<BlobWriter>& blobWriter) const {
-=======
-        compatibilityDescriptor,
-        /* persistentBlob = */ true);  // exporting the blob shall be available in such a scenario
-}
-
-std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Model>&& model,
-                                                         const FilteredConfig& config) const {
->>>>>>> upstream/master
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compileWS");
     _logger.debug("compile start");
+    OPENVINO_ASSERT(blobWriter);
 
     FilteredConfig localConfig = config;
     if (!localConfig.has<SEPARATE_WEIGHTS_VERSION>()) {
@@ -263,9 +252,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         tensorsInits,
         std::move(model),
         localConfig,
-<<<<<<< HEAD
-        /* persistentBlob = */ true,  // exporting the blob shall be available in such a scenario
-        _compiler);
+        /* persistentBlob = */ true);  // exporting the blob shall be available in such a scenario
 
     // At export time, all schedules (main + inits) shall be stored in the blob. Requirements: understanding the ELF
     // schedule & the capability of running the WS pipeline.
@@ -275,80 +262,6 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
     blobWriter->register_section(std::make_shared<ELFInitSchedulesSection>(weightlessGraph));
 
     return weightlessGraph;
-}
-
-std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
-    const ov::Tensor& mainBlob,
-    const FilteredConfig& config,
-    const std::optional<std::vector<ov::Tensor>>& initBlobs,
-    const std::optional<std::shared_ptr<const ov::Model>>& model) const {
-    OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "parse");
-
-    GraphDescriptor mainGraphDesc;
-    NetworkMetadata mainNetworkMetadata;
-
-    if (_zeGraphExt) {
-        _logger.debug("parse start");
-        mainGraphDesc = _zeGraphExt->getGraphDescriptor(mainBlob.data(), mainBlob.get_byte_size());
-        mainNetworkMetadata = _zeGraphExt->getNetworkMeta(mainGraphDesc);
-        _logger.debug("main schedule parse end");
-        if (model) {
-            mainNetworkMetadata.name = model.value()->get_friendly_name();
-        } else {
-            _logger.info("networkMeta name is empty in parse!");
-        }
-    } else {
-        _logger.warning("no zeGraphExt, metadata is empty from vcl compiler.");
-    }
-
-    // exporting the blob when we get it from cache or ov::hint::compiled_blob property
-    // shall be available
-    const bool blobIsPersistent = config.has<COMPILED_BLOB>()       ? true
-                                  : config.has<LOADED_FROM_CACHE>() ? config.get<LOADED_FROM_CACHE>()
-                                                                    : false;
-
-    if (!initBlobs.has_value()) {
-        return std::make_shared<Graph>(_zeGraphExt,
-                                       _zeroInitStruct,
-                                       mainGraphDesc,
-                                       std::move(mainNetworkMetadata),
-                                       mainBlob,
-                                       config,
-                                       blobIsPersistent,
-                                       _compiler);
-    }
-
-    // The presence of init schedules means weights separation has been enabled at compilation time. Use a specific
-    // "Graph" object as wrapper over all L0 handles.
-    std::vector<GraphDescriptor> initGraphDescriptors;
-    std::vector<NetworkMetadata> initNetworkMetadata;
-
-    for (const auto& initBlob : initBlobs.value()) {
-        if (_zeGraphExt) {
-            auto initGraphDesc = _zeGraphExt->getGraphDescriptor(initBlob.data(), initBlob.get_byte_size());
-            auto initNetworkMeta = _zeGraphExt->getNetworkMeta(initGraphDesc);
-
-            initGraphDescriptors.push_back(initGraphDesc);
-            initNetworkMetadata.push_back(std::move(initNetworkMeta));
-        }
-    }
-
-    _logger.debug("init schedules parse end");
-    return std::make_shared<WeightlessGraph>(_zeGraphExt,
-                                             _zeroInitStruct,
-                                             mainGraphDesc,
-                                             std::move(mainNetworkMetadata),
-                                             mainBlob,
-                                             initGraphDescriptors,
-                                             std::move(initNetworkMetadata),
-                                             initBlobs,
-                                             model.value(),
-                                             config,
-                                             blobIsPersistent,
-                                             _compiler);
-=======
-        /* persistentBlob = */ true);  // exporting the blob shall be available in such a scenario
->>>>>>> upstream/master
 }
 
 ov::SupportedOpsMap PluginCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,

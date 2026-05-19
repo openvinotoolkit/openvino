@@ -15,6 +15,7 @@
 #include "compiled_model.hpp"
 #include "driver_compiler_adapter.hpp"
 #include "graph.hpp"
+#include "intel_npu/common/blob_writer.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/config/config.hpp"
@@ -248,7 +249,7 @@ TEST_P(ZeroInferRequestTests, BooleanSetTensorSetTensorsWork) {
         copy_model = batchedModel;
     }
 
-    auto graph = compiler->compile(copy_model, *npu_config);
+    auto graph = compiler->compile(copy_model, *npu_config, std::make_shared<::intel_npu::BlobWriter>());
     if (batch) {
         graph->set_batch_size(batch.value());
     }
@@ -259,7 +260,7 @@ TEST_P(ZeroInferRequestTests, BooleanSetTensorSetTensorsWork) {
         device,
         graph,
         *npu_config,
-        batch);
+        std::make_shared<::intel_npu::BlobWriter>());
     OPENVINO_ASSERT(compiledModel->inputs()[0].get_element_type() == element_type);
     OPENVINO_ASSERT(compiledModel->inputs()[1].get_element_type() == element_type);
 

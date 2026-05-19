@@ -9,13 +9,9 @@
 #include <string>
 
 #include "backends_registry.hpp"
-<<<<<<< HEAD
 #include "intel_npu/common/cre.hpp"
-#include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/icapability.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
-=======
->>>>>>> upstream/master
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "metadata.hpp"

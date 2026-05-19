@@ -31,14 +31,9 @@ public:
      * @param blobWriter TODO
      * @return A "WeightlessGraph" type of object.
      */
-<<<<<<< HEAD
-    virtual std::shared_ptr<IGraph> compileWS(const std::shared_ptr<ov::Model>& model,
+    virtual std::shared_ptr<IGraph> compileWS(std::shared_ptr<ov::Model>&& model,
                                               const FilteredConfig& config,
                                               const std::shared_ptr<BlobWriter>& blobWriter) const = 0;
-=======
-    virtual std::shared_ptr<IGraph> compileWS(std::shared_ptr<ov::Model>&& model,
-                                              const FilteredConfig& config) const = 0;
->>>>>>> upstream/master
 
     virtual ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model,
                                       const FilteredConfig& config) const = 0;

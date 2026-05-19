@@ -23,19 +23,9 @@ public:
                                     const FilteredConfig& config,
                                     const std::shared_ptr<BlobWriter>& blobWriter) const override;
 
-<<<<<<< HEAD
-    std::shared_ptr<IGraph> compileWS(const std::shared_ptr<ov::Model>& model,
+    std::shared_ptr<IGraph> compileWS(std::shared_ptr<ov::Model>&& model,
                                       const FilteredConfig& config,
                                       const std::shared_ptr<BlobWriter>& blobWriter) const override;
-
-    std::shared_ptr<IGraph> parse(
-        const ov::Tensor& mainBlob,
-        const FilteredConfig& config,
-        const std::optional<std::vector<ov::Tensor>>& initBlobs = std::nullopt,
-        const std::optional<std::shared_ptr<const ov::Model>>& model = std::nullopt) const override;
-=======
-    std::shared_ptr<IGraph> compileWS(std::shared_ptr<ov::Model>&& model, const FilteredConfig& config) const override;
->>>>>>> upstream/master
 
     ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model,
                               const FilteredConfig& config) const override;

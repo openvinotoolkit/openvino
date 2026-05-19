@@ -13,12 +13,11 @@ using namespace ov::test::behavior;
 const std::vector<ov::AnyMap> emptyConfig = {{}};
 
 const std::vector<ov::AnyMap> weightsSeparationConfig = {
-    {{ov::intel_npu::compiler_type.name(), ov::intel_npu::CompilerType::PLUGIN},
-     {ov::intel_npu::weightless_blob.name(), true}}};
+    {{ov::intel_npu::compiler_type.name(), ov::intel_npu::CompilerType::PLUGIN}, {ov::enable_weightless.name(), true}}};
 
 const std::vector<ov::AnyMap> nonWeightsSeparationConfig = {
     {{ov::intel_npu::compiler_type.name(), ov::intel_npu::CompilerType::PLUGIN},
-     {ov::intel_npu::weightless_blob.name(), false}}};
+     {ov::enable_weightless.name(), false}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                          ELFSchedulesSections,

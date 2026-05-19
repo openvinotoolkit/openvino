@@ -29,11 +29,7 @@ public:
      * @param stream Where the content is placed
      * @return TODO
      */
-<<<<<<< HEAD
     virtual uint64_t export_main_blob(std::ostream& stream) const = 0;
-=======
-    virtual std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const;
->>>>>>> upstream/master
 
     virtual std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData) const;
 

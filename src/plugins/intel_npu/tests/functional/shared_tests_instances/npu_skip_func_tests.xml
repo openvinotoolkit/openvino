@@ -793,8 +793,6 @@ Example:
         </filters>
     </skip_config>
 
-<<<<<<< HEAD
-=======
     <skip_config>
         <message>Non "developer build" CiDs don't support weights separation yet</message>
         <filters>
@@ -802,7 +800,6 @@ Example:
         </filters>
     </skip_config>
 
->>>>>>> upstream/master
     <!-- E#170977 -->
     <skip_config>
         <message>Data type u1/u2 not supported by NPU3720.</message>

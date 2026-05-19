@@ -12,11 +12,8 @@
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/options.hpp"
-<<<<<<< HEAD
-#include "io_layouts_section.hpp"
-=======
 #include "intel_npu/utils/utils.hpp"
->>>>>>> upstream/master
+#include "io_layouts_section.hpp"
 #include "metadata.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -40,6 +37,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
       _graph(graph),
       _blobWriter(blobWriter) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
+    OPENVINO_ASSERT(blobWriter);
 
     // Support for specific properties might depend on the characteristics of the compiled model.
     // Adjust lower level config availability to influence the supported properties list if needed
@@ -117,15 +115,7 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
 
-<<<<<<< HEAD
     // TODO what should _config.get<EXPORT_RAW_BLOB>() do now?
-
-    _blobWriter->write(stream);
-=======
-    uint64_t blobSizesBeforeVersioning;
-    std::optional<uint64_t> blobSizeAfterEncryption = std::nullopt;
-    std::optional<std::vector<uint64_t>> initBlobSizes;
-
     if (_propertiesManager->getConfig().has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
         _propertiesManager->getConfig().get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr) {
         std::string encryptedBlobStr;
@@ -133,57 +123,25 @@ void CompiledModel::export_model(std::ostream& stream) const {
             std::string tmpBlobStr;
             {
                 std::stringstream tmpStringStream;
-                std::tie(blobSizesBeforeVersioning, initBlobSizes) =
-                    _graph->export_blob(tmpStringStream);  // +1x blob size
-                tmpBlobStr = tmpStringStream.str();        // +2x blob size
+                _blobWriter->write(tmpStringStream);  // +1x blob size
+                tmpBlobStr = tmpStringStream.str();   // +2x blob size
             }  // -1x blob size when deallocating temporary stringstream
             encryptedBlobStr =
                 _propertiesManager->getConfig().get<CACHE_ENCRYPTION_CALLBACKS>().encrypt(tmpBlobStr);  // +2x blob size
-            blobSizeAfterEncryption = encryptedBlobStr.size();
-            if (blobSizeAfterEncryption.value() % utils::STANDARD_PAGE_SIZE != 0) {
+            uint64_t blobSizeAfterEncryption = encryptedBlobStr.size();
+            if (blobSizeAfterEncryption % utils::STANDARD_PAGE_SIZE != 0) {
                 _logger.warning("Encrypted blob size %" PRIu64
                                 " is not page aligned, memory optimization when reading this blob "
                                 "won't be applied",
-                                blobSizeAfterEncryption.value());
+                                blobSizeAfterEncryption);
             }
         }  // -1x blob size when deallocating temporary blob string
         stream.write(encryptedBlobStr.c_str(), encryptedBlobStr.size());
     }  // -1x blob size when deallocating encrypted blob string
     else {
         //  Write blob directly to user's output stream
-        std::tie(blobSizesBeforeVersioning, initBlobSizes) = _graph->export_blob(stream);
+        _blobWriter->write(stream);
     }
-
-    if (!_propertiesManager->getConfig().get<EXPORT_RAW_BLOB>()) {
-        std::optional<std::vector<ov::Layout>> inputLayouts = std::vector<ov::Layout>();
-        std::optional<std::vector<ov::Layout>> outputLayouts = std::vector<ov::Layout>();
-
-        for (const ov::Output<const ov::Node>& nodeOutput : inputs()) {
-            inputLayouts->push_back(
-                std::dynamic_pointer_cast<const ov::op::v0::Parameter>(nodeOutput.get_node_shared_ptr())->get_layout());
-        }
-        for (const ov::Output<const ov::Node>& nodeOutput : outputs()) {
-            outputLayouts->push_back(
-                std::dynamic_pointer_cast<const ov::op::v0::Result>(nodeOutput.get_node_shared_ptr())->get_layout());
-        }
-
-        std::optional<uint32_t> compilerVersion = std::nullopt;
-        if (_propertiesManager->getConfig().has(ov::intel_npu::compiler_version.name())) {
-            compilerVersion = _propertiesManager->getConfig().get<COMPILER_VERSION>();
-        }
-
-        Metadata<CURRENT_METADATA_VERSION>(blobSizesBeforeVersioning,
-                                           CURRENT_OPENVINO_VERSION,
-                                           initBlobSizes,
-                                           _batchSize,
-                                           inputLayouts,
-                                           outputLayouts,
-                                           compilerVersion,
-                                           blobSizeAfterEncryption,
-                                           _graph->get_compatibility_descriptor())
-            .write(stream);
-    }
->>>>>>> upstream/master
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
@@ -257,35 +215,8 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         OPENVINO_ASSERT(_graph != nullptr, "Missing graph");
         return _graph->get_metadata().name;
     } else if (name == ov::runtime_requirements.name()) {
-        // Reading the (dummy) property content to check if it is supported
-        _propertiesManager->getProperty(name);
-
-        auto compatibilityDescriptor = _graph->get_compatibility_descriptor();
-        if (compatibilityDescriptor.has_value()) {
-            const auto descriptorView = compatibilityDescriptor.value();
-            _logger.debug("Runtime requirements from the graph %.*s length: %zu",
-                          static_cast<int>(descriptorView.size()),
-                          descriptorView.data(),
-                          descriptorView.size());
-        }
-
-        std::ostringstream requirementsString;
-        Metadata<CURRENT_METADATA_VERSION>(
-            0,  // no real blob
-            CURRENT_OPENVINO_VERSION,
-            std::nullopt,  // weightless blobs are not supported
-            _batchSize,
-            std::nullopt,  // input_layouts are not relevant for the compatibility check
-            std::nullopt,  // output_layouts are not relevant for the compatibility check
-            std::nullopt,  // skip compiler version as well since it is already included in runtime requirements string
-            std::nullopt,  // skip encrypted blob size since it is not relevant for the compatibility check
-            compatibilityDescriptor)
-            .write_as_text(requirementsString);
-        _logger.debug("Runtime requirements string: %s length: %zu",
-                      requirementsString.str().c_str(),
-                      requirementsString.str().length());
-
-        return requirementsString.str();
+        // TODO compatibility string
+        return "";
     }
 
     // default behaviour

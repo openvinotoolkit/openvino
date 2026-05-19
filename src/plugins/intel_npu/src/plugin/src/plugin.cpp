@@ -9,34 +9,24 @@
 
 #include "batch_size_section.hpp"
 #include "compiled_model.hpp"
-<<<<<<< HEAD
-#include "compiler_adapter_factory.hpp"
 #include "compiler_schedules_sections.hpp"
 #include "driver_compiler_adapter.hpp"
 #include "intel_npu/common/blob_reader.hpp"
 #include "intel_npu/common/blob_writer.hpp"
-=======
 #include "intel_npu/common/compiler_adapter_factory.hpp"
->>>>>>> upstream/master
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/itt.hpp"
-<<<<<<< HEAD
-#include "intel_npu/common/static_capability.hpp"
-=======
 #include "intel_npu/common/parser_factory.hpp"
->>>>>>> upstream/master
+#include "intel_npu/common/static_capability.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
-<<<<<<< HEAD
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "io_layouts_section.hpp"
-=======
 #include "metrics.hpp"
->>>>>>> upstream/master
 #include "npuw/compiled_model.hpp"
 #include "npuw/llm_compiled_model.hpp"
 #include "npuw/orc/schema_npuw.hpp"
@@ -168,8 +158,7 @@ std::shared_ptr<ov::ICompiledModel> import_model_npuw(std::istream& stream,
                                                       ov::AnyMap& properties,
                                                       std::shared_ptr<const ov::IPlugin> pluginSO) {
     if (const auto header = ov::npuw::orc::is_orc(stream);
-        header.has_value() &&
-        header->schema_uuid == ov::npuw::orc::schema_npuw::NPUW_ORC_PARTITIONED_SCHEMA) {
+        header.has_value() && header->schema_uuid == ov::npuw::orc::schema_npuw::NPUW_ORC_PARTITIONED_SCHEMA) {
         return ov::npuw::CompiledModel::import_model(stream, pluginSO, properties);
     }
 
@@ -225,7 +214,6 @@ std::shared_ptr<const ov::Model> exclude_model_ptr_from_map(ov::AnyMap& properti
     return modelPtr;
 }
 
-<<<<<<< HEAD
 /**
  * @brief Registers all blob sections readers known to the plugin.
  * @note The CRE & OffsetsTable sections should have been already registered (e.g. in the BlobReader ctor) since these
@@ -238,54 +226,7 @@ void register_known_sections(const std::shared_ptr<BlobReader>& blobReader) {
     blobReader->register_reader(PredefinedSectionType::IO_LAYOUTS, IOLayoutsSection::read);
 }
 
-}  // namespace
-
-namespace intel_npu {
-
-Plugin::Plugin()
-    : _options(std::make_shared<OptionsDesc>()),
-      _globalConfig(_options),
-      _logger("NPUPlugin", Logger::global().level()) {
-    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::Plugin");
-
-    for (const CRE::Token token : CRE::DEFAULT_PLUGIN_CAPABILITIES_TOKENS) {
-        register_capability(std::make_shared<StaticCapability>(token));
-    }
-
-    set_device_name("NPU");
-
-    // parse env_variables to get LOG_LEVEL if needed
-    _options->add<LOG_LEVEL>();
-    _globalConfig.parseEnvVars();
-    Logger::global().setLevel(_globalConfig.get<LOG_LEVEL>());
-    _logger.setLevel(_globalConfig.get<LOG_LEVEL>());
-
-    OV_ITT_TASK_CHAIN(PLUGIN, itt::domains::NPUPlugin, "Plugin::Plugin", "GetBackend");
-    // backend registry shall be created after configs are updated
-    _backendsRegistry = std::make_unique<BackendsRegistry>();
-    _backend = _backendsRegistry->getEngineBackend();
-
-    if (_backend) {
-        OV_ITT_TASK_NEXT(PLUGIN, "registerBackendOptions");
-        _backend->registerOptions(*_options);
-    }
-
-    OV_ITT_TASK_NEXT(PLUGIN, "createMetrics");
-    _metrics = std::make_unique<Metrics>(_backend);
-
-    OV_ITT_TASK_NEXT(PLUGIN, "InitOptions");
-    init_options();
-
-    /// Init and register properties
-    OV_ITT_TASK_NEXT(PLUGIN, "RegisterProperties");
-    _properties = std::make_unique<Properties>(PropertiesType::PLUGIN, _globalConfig, _metrics, _backend);
-    _properties->registerProperties();
-}
-
-void Plugin::init_options() {
-=======
 void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredConfig& config) {
->>>>>>> upstream/master
     // Initialize (note: it will reset registered options)
     options.reset();
 
@@ -348,7 +289,6 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     REGISTER_OPTION(RUNTIME_REQUIREMENTS);
     REGISTER_OPTION(COMPATIBILITY_CHECK);
 
-
     if (backend) {
         // Options registered only if drivers is present and supports the corresponding extension
         REGISTER_OPTION(MAX_TILES);
@@ -406,6 +346,11 @@ namespace intel_npu {
 
 Plugin::Plugin() : _logger("NPUPlugin", Logger::global().level()) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::Plugin");
+
+    for (const CRE::Token token : CRE::DEFAULT_PLUGIN_CAPABILITIES_TOKENS) {
+        register_capability(std::make_shared<StaticCapability>(token));
+    }
+
     set_device_name("NPU");
 
     std::shared_ptr<OptionsDesc> options = std::make_shared<OptionsDesc>();
@@ -451,14 +396,16 @@ void Plugin::set_property(const ov::AnyMap& properties) {
     _propertiesManager->setProperty(properties);
 }
 
-
-ov::CompatibilityCheck Plugin::validate_compatibility_descriptor(ov::intel_npu::CompilerType compilerType, const ov::AnyMap& arguments) const {
+ov::CompatibilityCheck Plugin::validate_compatibility_descriptor(ov::intel_npu::CompilerType compilerType,
+                                                                 const ov::AnyMap& arguments) const {
     if (arguments.empty() || arguments.find(ov::runtime_requirements.name()) == arguments.end()) {
         return ov::CompatibilityCheck::NOT_APPLICABLE;
     }
 
     const auto& runtimeRequirements = arguments.at(ov::runtime_requirements.name()).as<const std::string&>();
-    _logger.debug("Received runtime_requirements: %s length: %zu", runtimeRequirements.c_str(), runtimeRequirements.length());
+    _logger.debug("Received runtime_requirements: %s length: %zu",
+                  runtimeRequirements.c_str(),
+                  runtimeRequirements.length());
 
     // NPU Plugin's runtime requirements are captured in its metadata.
     // For now plugin's requirements are met if metadata can be retrieved from the tensor
@@ -470,7 +417,8 @@ ov::CompatibilityCheck Plugin::validate_compatibility_descriptor(ov::intel_npu::
     } catch (const std::exception& ex) {
         // Unsupported version, could not read the metadata or an unknown error has occured. Report that the
         // requirements are not met.
-        _logger.debug("Failed to read metadata from the runtime requirements. The requirements are not met. %s", ex.what());
+        _logger.debug("Failed to read metadata from the runtime requirements. The requirements are not met. %s",
+                      ex.what());
         return ov::CompatibilityCheck::UNSUPPORTED;
     }
 
@@ -495,7 +443,8 @@ ov::CompatibilityCheck Plugin::validate_compatibility_descriptor(ov::intel_npu::
             return ov::CompatibilityCheck::UNSUPPORTED;
         }
     } catch (const std::exception&) {
-        _logger.error("Failed to create the recommended compiler type for the compatibility check %d. The requirements are not met.",
+        _logger.error("Failed to create the recommended compiler type for the compatibility check %d. The requirements "
+                      "are not met.",
                       static_cast<int>(compilerType));
         return ov::CompatibilityCheck::NOT_APPLICABLE;
     }
@@ -709,21 +658,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     std::shared_ptr<intel_npu::IGraph> graph;
 
-<<<<<<< HEAD
-    auto compileWithConfig = [&](const auto& modelToCompile, const auto& config, const auto& blobWriter) {
-        if (!localConfig.get<WEIGHTLESS_BLOB>()) {
+    auto compileWithConfig = [&](auto&& modelToCompile, const auto& config, const auto& blobWriter) {
+        if (!localConfig.get<ENABLE_WEIGHTLESS>()) {
             return compiler->compile(modelToCompile, config, blobWriter);
         } else {
             check_weightless_cache_attribute_occurrence(model);
-            return compiler->compileWS(modelToCompile, config, blobWriter);
-=======
-    auto compileWithConfig = [&](auto&& modelToCompile, const auto& config) {
-        if (!localConfig.get<ENABLE_WEIGHTLESS>()) {
-            return compiler->compile(modelToCompile, config);
-        } else {
-            check_weightless_cache_attribute_occurrence(model);
-            return compiler->compileWS(std::move(modelToCompile), config);
->>>>>>> upstream/master
+            return compiler->compileWS(std::move(modelToCompile), config, blobWriter);
         }
     };
 
@@ -755,16 +695,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             std::stringstream strStream;
             strStream << ov::hint::PerformanceMode::THROUGHPUT;
             modifiedConfig.update({{ov::hint::performance_mode.name(), strStream.str()}});
-<<<<<<< HEAD
-
-            graph = compileWithConfig(modelToCompile, modifiedConfig, blobWriter);
+            graph = compileWithConfig(std::move(modelToCompile), modifiedConfig, blobWriter);
         } else {
-            graph = compileWithConfig(modelToCompile, localConfig, blobWriter);  // No copy
-=======
-            graph = compileWithConfig(std::move(modelToCompile), modifiedConfig);
-        } else {
-            graph = compileWithConfig(std::move(modelToCompile), localConfig);
->>>>>>> upstream/master
+            graph = compileWithConfig(std::move(modelToCompile), localConfig, blobWriter);
         }
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
@@ -852,30 +785,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     }
 
     try {
-<<<<<<< HEAD
         size_t blobSize = BlobReader::get_npu_region_size(stream);
-=======
-        const bool skipCompatibility =
-            (npuPluginProperties.find(DISABLE_VERSION_CHECK::key().data()) != npuPluginProperties.end())
-                ? npuPluginProperties[DISABLE_VERSION_CHECK::key().data()].as<bool>()
-                : _propertiesManager->getConfig().get<DISABLE_VERSION_CHECK>();
-        const bool importRawBlob =
-            (npuPluginProperties.find(IMPORT_RAW_BLOB::key().data()) != npuPluginProperties.end())
-                ? npuPluginProperties[IMPORT_RAW_BLOB::key().data()].as<bool>()
-                : _propertiesManager->getConfig().get<IMPORT_RAW_BLOB>();
-        std::unique_ptr<MetadataBase> metadata = nullptr;
-        size_t blobSize = MetadataBase::getFileSize(stream);
-
-        if (!importRawBlob && !skipCompatibility) {
-            // Read only metadata from the stream and check if blob is compatible. Load blob into memory only in case it
-            // passes compatibility checks.
-            metadata = read_metadata_from(stream);
-            blobSize = metadata->get_blob_size();
-        } else {
-            _logger.info("Blob compatibility check skipped.");
-        }
-        OPENVINO_ASSERT(blobSize > 0, "Parsed blob size is empty from the given stream!");
->>>>>>> upstream/master
 
         ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
         ov::Tensor tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
@@ -883,11 +793,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
             OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
         }
         stream.read(tensor.data<char>(), static_cast<std::streamsize>(blobSize));
-<<<<<<< HEAD
-        return parse(tensor, npu_plugin_properties);
-=======
-        return parse(tensor, std::move(metadata), npuPluginProperties);
->>>>>>> upstream/master
+        return parse(tensor, npuPluginProperties);
     } catch (const std::exception& ex) {
         OPENVINO_THROW("Can't import network: ", ex.what());
     } catch (...) {
@@ -927,37 +833,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
     }
 
     try {
-<<<<<<< HEAD
-        size_t blobSize = BlobReader::get_npu_region_size(compiled_blob);
+        size_t blobSize = BlobReader::get_npu_region_size(compiledBlob);
 
-        const ov::Tensor roiTensor(compiled_blob,
-                                   ov::Coordinate{0},
-                                   ov::Coordinate{blobSize});  // ROI tensor to skip NPU plugin metadata
-        return parse(roiTensor, npu_plugin_properties);
-=======
-        const bool skipCompatibility =
-            (npuPluginProperties.find(DISABLE_VERSION_CHECK::key().data()) != npuPluginProperties.end())
-                ? npuPluginProperties[DISABLE_VERSION_CHECK::key().data()].as<bool>()
-                : _propertiesManager->getConfig().get<DISABLE_VERSION_CHECK>();
-        const bool importRawBlob =
-            (npuPluginProperties.find(IMPORT_RAW_BLOB::key().data()) != npuPluginProperties.end())
-                ? npuPluginProperties[IMPORT_RAW_BLOB::key().data()].as<bool>()
-                : _propertiesManager->getConfig().get<IMPORT_RAW_BLOB>();
-        std::unique_ptr<MetadataBase> metadata = nullptr;
-        size_t blobSize = compiledBlob.get_byte_size();
-
-        if (!importRawBlob && !skipCompatibility) {
-            metadata = read_metadata_from(compiledBlob);
-            blobSize = metadata->get_blob_size();
-        } else {
-            _logger.info("Blob compatibility check skipped.");
-        }
-        OPENVINO_ASSERT(blobSize > 0, "Parsed blob size is empty from the given buffer!");
         const ov::Tensor roiTensor(compiledBlob,
                                    ov::Coordinate{0},
                                    ov::Coordinate{blobSize});  // ROI tensor to skip NPU plugin metadata
-        return parse(roiTensor, std::move(metadata), npuPluginProperties);
->>>>>>> upstream/master
+        return parse(roiTensor, npuPluginProperties);
     } catch (const std::exception& ex) {
         OPENVINO_THROW("Can't import network: ", ex.what());
     } catch (...) {
@@ -1045,7 +926,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig, c
             "The usage of a compiled model can lead to undefined behavior. Please use OpenVINO IR instead!");
     }
 
-<<<<<<< HEAD
     blobReader->read(_capabilities);
     auto mainScheduleSection = std::dynamic_pointer_cast<ELFMainScheduleSection>(
         blobReader->retrieve_first_section(PredefinedSectionType::ELF_MAIN_SCHEDULE));
@@ -1061,87 +941,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig, c
     const bool weightsSeparationEnabled = initSchedulesSection != nullptr;
 
     if (weightsSeparationEnabled) {
-=======
-    const bool isNotNullDecryption = localConfig.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
-                                     localConfig.get<CACHE_ENCRYPTION_CALLBACKS>().decrypt != nullptr;
-    if (!metadata && isNotNullDecryption) {
-        _logger.warning(
-            "Received decryption callback, but metadata parsing is skipped and cannot determine if blob was "
-            "encrypted or not.");
-    }
-
-    ov::Tensor tensor = tensorBig;
-    if (isNotNullDecryption &&
-        (metadata == nullptr || (metadata != nullptr && metadata->is_encrypted_blob().value_or(false)))) {
-        {
-            std::string decryptedBlobStr;
-            {
-                std::string encryptedBlobStr(tensor.data<const char>(), tensor.get_byte_size());  // +1x blob size
-                decryptedBlobStr =
-                    localConfig.get<CACHE_ENCRYPTION_CALLBACKS>().decrypt(encryptedBlobStr);  // +2x blob size
-            }  // -1x blob size when deallocating temporary encrypted blob string
-            ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
-            size_t alignedSize = utils::align_size_to_standard_page_size(decryptedBlobStr.size());
-            size_t paddingSize = alignedSize - decryptedBlobStr.size();
-            tensor = ov::Tensor(ov::element::u8, ov::Shape{alignedSize},
-                                customAllocator);  // +1x blob size
-            std::memcpy(tensor.data<char>(), decryptedBlobStr.c_str(), decryptedBlobStr.size());
-            if (paddingSize > 0) {
-                // If user altered in some way initial blob during encryption, check if its size is still paged aligned
-                _logger.warning("Decrypted blob size was not page aligned, additional %zu bytes padding will be added",
-                                paddingSize);
-                std::memset(tensor.data<char>() + decryptedBlobStr.size(), 0, paddingSize);
-            }
-        }  // -1x blob size when deallocating decrypted blob string
-    }
-
-    uint64_t mainSize = tensor.get_byte_size();
-    std::optional<std::vector<uint64_t>> initSizes;
-    std::optional<int64_t> batchSize = std::nullopt;
-
-    if (metadata) {
-        if (metadata->is_encrypted_blob().value_or(false) && !isNotNullDecryption) {
-            OPENVINO_THROW("Blob is encrypted, but no decryption callback was provided!");
-        }
-
-        size_t accumulator = 0;
-        initSizes = metadata->get_init_sizes();
-        mainSize = initSizes.has_value()
-                       ? metadata->get_blob_size() - std::accumulate(initSizes->begin(), initSizes->end(), accumulator)
-                       : metadata->get_blob_size();
-        batchSize = metadata->get_batch_size();
-
-        std::optional<uint32_t> compilerVersion = metadata->get_compiler_version();
-        if (compilerVersion.has_value()) {
-            localConfig.update({{ov::intel_npu::compiler_version.name(), std::to_string(compilerVersion.value())}});
-            _logger.debug("Imported model was compiled with compiler version: %u.%u",
-                          ONEAPI_VERSION_MAJOR(compilerVersion.value()),
-                          ONEAPI_VERSION_MINOR(compilerVersion.value()));
-        }
-    } else {
-        _logger.warning(
-            "Metadata parsing is skipped, if this is a weightless blob, init schedules cannot be parsed from it!");
-    }
-
-    const ov::Tensor tensorMain(tensor,
-                                ov::Coordinate{0},
-                                ov::Coordinate{mainSize});  // ROI tensor to skip NPU plugin metadata
-
-    std::vector<ov::Tensor> tensorsInits;
-    const bool weightsSeparationEnabled = initSizes.has_value();
-
-    if (weightsSeparationEnabled) {
-        // Read the init compiled models as well
-        size_t cursorPosition = mainSize;
-        for (uint64_t initSize : initSizes.value()) {
-            const ov::Tensor tensorInit(tensor,
-                                        ov::Coordinate{cursorPosition},
-                                        ov::Coordinate{cursorPosition + initSize});
-            tensorsInits.push_back(tensorInit);
-            cursorPosition += initSize;
-        }
-
->>>>>>> upstream/master
         // Retrieve the ov::Model used for compilation. This is required for extracting and matching the weights
         if (!originalModel) {
             if (!localConfig.get<WEIGHTS_PATH>().empty()) {
@@ -1175,45 +974,20 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig, c
         check_weightless_cache_attribute_occurrence(originalModel);
     }
 
-    auto graph = compiler->parse(
+    ParserFactory parserFactory;
+    auto parser = parserFactory.getParser(_backend->getInitStructs());
+
+    auto graph = parser->parse(
         mainScheduleSection->get_schedule(),
         localConfig,
         weightsSeparationEnabled ? std::make_optional(initSchedulesSection->get_schedules()) : std::nullopt,
-        weightsSeparationEnabled ? std::make_optional(originalModel) : std::nullopt);
+        weightsSeparationEnabled ? std::make_optional(originalModel) : std::nullopt,
+        std::nullopt);  // TODO compatibility string
 
-<<<<<<< HEAD
     mainScheduleSection->set_graph(std::dynamic_pointer_cast<Graph>(graph));
     if (weightsSeparationEnabled) {
         initSchedulesSection->set_graph(std::dynamic_pointer_cast<WeightlessGraph>(graph));
     }
-=======
-    // Special case for PERF_COUNT as it requires compiler_type detection in case it is still set to PREFER_PLUGIN
-    if (localConfig.has<PERF_COUNT>() && localConfig.get<PERF_COUNT>() &&
-        localConfig.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
-        ov::intel_npu::CompilerType compilerType = localConfig.get<COMPILER_TYPE>();
-        CompilerAdapterFactory factory;
-        (void)factory.getCompiler(_backend, compilerType, device->getName());
-
-        localConfig.update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compilerType)}});
-    }
-
-    ParserFactory parserFactory;
-    auto parser = parserFactory.getParser(_backend->getInitStructs());
-
-    // Convert descriptor to an owning string before metadata is potentially destroyed.
-    std::optional<std::string> compatibilityDescriptor = std::nullopt;
-    if (metadata) {
-        if (const auto descriptorView = metadata->get_compatibility_descriptor(); descriptorView.has_value()) {
-            compatibilityDescriptor = std::string(descriptorView.value());
-        }
-    }
-
-    auto graph = parser->parse(tensorMain,
-                               localConfig,
-                               initBlobs,
-                               weightsSeparationEnabled ? std::make_optional(std::move(originalModel)) : std::nullopt,
-                               compatibilityDescriptor);
->>>>>>> upstream/master
 
     graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
     const std::shared_ptr<ov::Model> modelDummy = create_dummy_model(

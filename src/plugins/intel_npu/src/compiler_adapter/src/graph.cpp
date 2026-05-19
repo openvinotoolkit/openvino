@@ -123,10 +123,6 @@ std::tuple<uint64_t, uint64_t, std::optional<uint32_t>> Graph::write_blob_to_str
         for (const uint8_t* it = blobRawPtr; it != blobRawPtr + blobSize; ++it) {
             blobHash = ((blobHash.value() << 7) + blobHash.value()) + static_cast<uint32_t>(*it);
         }
-<<<<<<< HEAD
-=======
-        _logger.info("Blob size: %zu, hash: %x", blobSize, result);
->>>>>>> upstream/master
     }
 
     size_t sizeWithPadding = utils::align_size_to_standard_page_size(blobSize);
@@ -137,11 +133,6 @@ std::tuple<uint64_t, uint64_t, std::optional<uint32_t>> Graph::write_blob_to_str
         if (!stream) {
             OPENVINO_THROW("Write padding to stream failed. Blob is broken!");
         }
-<<<<<<< HEAD
-=======
-
-        _logger.info("Blob size with padding: %zu", size);
->>>>>>> upstream/master
     }
 
     return {blobSize, sizeWithPadding, blobHash};
@@ -157,12 +148,10 @@ uint64_t Graph::export_main_blob(std::ostream& stream) const {
         write_blob_to_stream(_graphDesc, _blob, stream, _logger.level() >= ov::log::Level::INFO);
 
     if (hash.has_value()) {
-        std::stringstream str;
-        str << "Blob size: " << size << ", hash: " << std::hex << hash.value();
-        _logger.info(str.str().c_str());
+        _logger.info("Blob size: %zu, hash: %x", size, hash.value());
     }
 
-    _logger.info("Blob size with padding: %ld", sizeWithPadding);
+    _logger.info("Blob size with padding: %zu", sizeWithPadding);
     _logger.info("Write blob to stream successfully.");
     return sizeWithPadding;
 }

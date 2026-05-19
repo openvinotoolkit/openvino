@@ -43,6 +43,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
                                                        const FilteredConfig& config,
                                                        const std::shared_ptr<BlobWriter>& blobWriter) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "compile");
+    OPENVINO_ASSERT(blobWriter);
 
     const ze_graph_compiler_version_info_t& compilerVersion = _compilerProperties.compilerVersion;
     const auto maxOpsetVersion = _compilerProperties.maxOVOpsetVersionSupported;
@@ -94,13 +95,13 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     auto networkMeta = _zeGraphExt->getNetworkMeta(graphDesc);
     networkMeta.name = model->get_friendly_name();
 
-<<<<<<< HEAD
     auto graph = std::make_shared<Graph>(_zeGraphExt,
                                          _zeroInitStruct,
                                          graphDesc,
                                          std::move(networkMeta),
                                          /* blob = */ std::nullopt,
-                                         config);
+                                         updatedConfig,
+                                         /* compatibilityDescriptor = */ std::nullopt);
 
     // Tell the blob writer to store the main schedule in the blob at export time: Requirement: understanding the ELF
     // schedule.
@@ -110,23 +111,11 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     return graph;
 }
 
-std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<ov::Model>& model,
+std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Model>&& model,
                                                          const FilteredConfig& config,
                                                          const std::shared_ptr<BlobWriter>& blobWriter) const {
-=======
-    return std::make_shared<Graph>(_zeGraphExt,
-                                   _zeroInitStruct,
-                                   graphDesc,
-                                   std::move(networkMeta),
-                                   /* blob = */ std::nullopt,
-                                   updatedConfig,
-                                   /* compatibilityDescriptor = */ std::nullopt);
-}
-
-std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Model>&& model,
-                                                         const FilteredConfig& config) const {
->>>>>>> upstream/master
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "compileWS");
+    OPENVINO_ASSERT(blobWriter);
 
     const ze_graph_compiler_version_info_t& compilerVersion = _compilerProperties.compilerVersion;
     if ((compilerVersion.major < 6) || (compilerVersion.major == 6 && compilerVersion.minor < 3)) {
@@ -228,7 +217,6 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         _logger.info("Compilation memory usage: Peak %lld KB", compile_model_mem_end - compile_model_mem_start);
     }
 
-<<<<<<< HEAD
     auto weightlessGraph = std::make_shared<WeightlessGraph>(_zeGraphExt,
                                                              _zeroInitStruct,
                                                              mainGraphHandle,
@@ -238,7 +226,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
                                                              std::move(initNetworkMetadata),
                                                              /* initBlobs = */ std::nullopt,
                                                              model,
-                                                             config);
+                                                             updatedConfig);
 
     // At export time, all schedules (main + inits) shall be stored in the blob. Requirements: understanding the ELF
     // schedule & the capability of running the WS pipeline.
@@ -248,73 +236,6 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
     blobWriter->register_section(std::make_shared<ELFInitSchedulesSection>(weightlessGraph));
 
     return weightlessGraph;
-}
-
-std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
-    const ov::Tensor& mainBlob,
-    const FilteredConfig& config,
-    const std::optional<std::vector<ov::Tensor>>& initBlobs,
-    const std::optional<std::shared_ptr<const ov::Model>>& model) const {
-    OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "parse");
-
-    _logger.debug("parse start");
-    auto mainGraphDesc = _zeGraphExt->getGraphDescriptor(mainBlob.data(), mainBlob.get_byte_size());
-    _logger.debug("parse end");
-
-    OV_ITT_TASK_NEXT(PARSE_BLOB, "getNetworkMeta");
-    auto networkMeta = _zeGraphExt->getNetworkMeta(mainGraphDesc);
-
-    // exporting the blob when we get it from cache or ov::hint::compiled_blob property
-    // shall be available
-    const bool blobIsPersistent = config.has<COMPILED_BLOB>()       ? true
-                                  : config.has<LOADED_FROM_CACHE>() ? config.get<LOADED_FROM_CACHE>()
-                                                                    : false;
-
-    if (!initBlobs.has_value()) {
-        return std::make_shared<Graph>(_zeGraphExt,
-                                       _zeroInitStruct,
-                                       mainGraphDesc,
-                                       std::move(networkMeta),
-                                       mainBlob,
-                                       config,
-                                       blobIsPersistent);
-    }
-
-    // The presence of init schedules means weights separation has been enabled at compilation time. Use a specific
-    // "Graph" object as wrapper over all L0 handles.
-    std::vector<GraphDescriptor> initGraphDescriptors;
-    std::vector<NetworkMetadata> initMetadata;
-
-    for (const auto& initBlob : initBlobs.value()) {
-        auto initGraphDesc = _zeGraphExt->getGraphDescriptor(initBlob.data(), initBlob.get_byte_size());
-
-        initGraphDescriptors.push_back(initGraphDesc);
-        initMetadata.push_back(_zeGraphExt->getNetworkMeta(initGraphDesc));
-    }
-
-    return std::make_shared<WeightlessGraph>(_zeGraphExt,
-                                             _zeroInitStruct,
-                                             mainGraphDesc,
-                                             std::move(networkMeta),
-                                             mainBlob,
-                                             initGraphDescriptors,
-                                             std::move(initMetadata),
-                                             initBlobs,
-                                             model.value(),
-                                             config,
-                                             blobIsPersistent);
-=======
-    return std::make_shared<WeightlessGraph>(_zeGraphExt,
-                                             _zeroInitStruct,
-                                             mainGraphHandle,
-                                             std::move(mainNetworkMetadata),
-                                             /* mainBlob = */ std::nullopt,
-                                             initGraphDescriptors,
-                                             std::move(initNetworkMetadata),
-                                             /* initBlobs = */ std::nullopt,
-                                             std::move(model),
-                                             updatedConfig);
->>>>>>> upstream/master
 }
 
 ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,
