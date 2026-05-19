@@ -48,6 +48,7 @@ private:
     const ov::SoPtr<IEngineBackend> _backend;
     std::vector<std::string> _supportedMetrics;
     std::vector<std::string> _supportedConfigKeys;
+    static constexpr uint32_t _maxNoOfOptimalInferRequests = 8u;
     const std::vector<std::string> _optimizationCapabilities = {
         ov::device::capability::FP16,
         ov::device::capability::INT8,
@@ -55,10 +56,10 @@ private:
     };
 
     // Metric to provide a hint for a range for number of async infer requests. (bottom bound, upper bound, step)
-    const std::tuple<uint32_t, uint32_t, uint32_t> _rangeForAsyncInferRequests{1u, 8u, 1u};
+    const std::tuple<uint32_t, uint32_t, uint32_t> _rangeForAsyncInferRequests{1u, _maxNoOfOptimalInferRequests, 1u};
 
     // Metric to provide information about a range for streams.(bottom bound, upper bound)
-    const std::tuple<uint32_t, uint32_t> _rangeForStreams{0u, 8u};
+    const std::tuple<uint32_t, uint32_t> _rangeForStreams{0u, _maxNoOfOptimalInferRequests};
 
     std::string getDeviceName(const std::string& specifiedDeviceName) const;
     std::shared_ptr<intel_npu::IDevice> getDevice(const std::string& specifiedDeviceName) const;

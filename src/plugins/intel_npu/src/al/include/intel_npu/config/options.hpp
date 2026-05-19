@@ -691,8 +691,8 @@ struct NUM_STREAMS final : OptionBase<NUM_STREAMS, ov::streams::Num> {
     }
 
     static void validateValue(const ov::streams::Num& num) {
-        if (num < ov::streams::AUTO) {
-            OPENVINO_THROW("NUM_STREAMS can not be set with this value: ",
+        if (num != ov::streams::AUTO && num < 0) {
+            OPENVINO_THROW("NUM_STREAMS cannot be set to this value: ",
                            num,
                            ". Supported values are positive integers or ov::streams::AUTO");
         }
