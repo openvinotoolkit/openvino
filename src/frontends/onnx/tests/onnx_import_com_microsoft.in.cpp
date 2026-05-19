@@ -3438,3 +3438,145 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_group_norm_channels_last) {
     test_case.add_expected_output<float>(shape, output);
     test_case.run();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bifurcation_detector_phase1_bifurcates) {
+    // src=[10,20,30,40,50], cur=[99], prev_idx=0, pred=[10,20,99]
+    // Phase 1: pred matches src at k=0,1; mismatch at k=2 -> bifur_idx=2
+    //          tokens = cur ++ pred[0:3] = [99,10,20,99]
+    // Phase 2 (n=1): suffix=[99] not in src -> suffix_idx stays -1
+    const auto model = convert_model("com.microsoft/bifurcation_detector_with_pred.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int64_t>(Shape{5}, {10, 20, 30, 40, 50});
+    test_case.add_input<int64_t>(Shape{1}, {99});
+    test_case.add_input<int64_t>(Shape{}, {0});
+    test_case.add_input<int64_t>(Shape{3}, {10, 20, 99});
+    test_case.add_expected_output<int64_t>(Shape{4}, {99, 10, 20, 99});
+    test_case.add_expected_output<int64_t>(Shape{}, {-1});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bifurcation_detector_no_pred_unique_suffix) {
+    // src=[1,2,3,4,5], cur=[1,2], prev_idx=0, no pred
+    // Phase 1: tokens = cur = [1,2]
+    // Phase 2 (n=1): suffix=[2] found uniquely at idx=1; candidate=2; count==1 -> suffix_idx=2
+    //         (n=2): suffix=[1,2] found uniquely at idx=0; candidate=2; count==1 -> suffix_idx=2
+    const auto model = convert_model("com.microsoft/bifurcation_detector_no_pred.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int64_t>(Shape{5}, {1, 2, 3, 4, 5});
+    test_case.add_input<int64_t>(Shape{2}, {1, 2});
+    test_case.add_input<int64_t>(Shape{}, {-1});
+    test_case.add_expected_output<int64_t>(Shape{2}, {1, 2});
+    test_case.add_expected_output<int64_t>(Shape{}, {2});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bifurcation_detector_no_pred_ambiguous_suffix) {
+    // src=[1,2,3,1,2], cur=[9,1,2], prev_idx=-1, no pred
+    // Phase 1: tokens = cur = [9,1,2]
+    // Phase 2 (n=1): suffix=[2] found at idx 1 and 4 -> count>=2 -> suffix_idx=-1
+    //         (n=2): suffix=[1,2] found at idx 0 and 3 -> count>=2 -> suffix_idx=-1
+    const auto model = convert_model("com.microsoft/bifurcation_detector_no_pred.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int64_t>(Shape{5}, {1, 2, 3, 1, 2});
+    test_case.add_input<int64_t>(Shape{3}, {9, 1, 2});
+    test_case.add_input<int64_t>(Shape{}, {-1});
+    test_case.add_expected_output<int64_t>(Shape{3}, {9, 1, 2});
+    test_case.add_expected_output<int64_t>(Shape{}, {-1});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bifurcation_detector_bifurcation_at_first_token) {
+    // src=[1,2,3], cur=[10,20], prev_idx=0, pred=[99,2,3,0]
+    // Phase 1: pred[0]=99 != src[0]=1 -> bifur_idx=0, take=1, pred_kept=[99]
+    //          tokens = cur ++ [99] = [10,20,99]
+    // Phase 2 (n=1): suffix=[99] not in src -> suffix_idx stays -1
+    const auto model = convert_model("com.microsoft/bifurcation_detector_with_pred.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int64_t>(Shape{3}, {1, 2, 3});
+    test_case.add_input<int64_t>(Shape{2}, {10, 20});
+    test_case.add_input<int64_t>(Shape{}, {0});
+    test_case.add_input<int64_t>(Shape{4}, {99, 2, 3, 0});
+    test_case.add_expected_output<int64_t>(Shape{3}, {10, 20, 99});
+    test_case.add_expected_output<int64_t>(Shape{}, {-1});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bifurcation_detector_full_match_no_bifurcation) {
+    // src=[10,20,30], cur=[5], prev_idx=0, pred=[10,20,30,99]
+    // Phase 1: n=min(4,3)=3. pred[0..2] all match src[0..2] -> bifur_idx=3 (full match)
+    //          take=4, pred_kept=[10,20,30,99], tokens=[5,10,20,30,99]
+    // Phase 2 (n=1): suffix=[99] not in src -> suffix_idx stays -1
+    const auto model = convert_model("com.microsoft/bifurcation_detector_with_pred.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int64_t>(Shape{3}, {10, 20, 30});
+    test_case.add_input<int64_t>(Shape{1}, {5});
+    test_case.add_input<int64_t>(Shape{}, {0});
+    test_case.add_input<int64_t>(Shape{4}, {10, 20, 30, 99});
+    test_case.add_expected_output<int64_t>(Shape{5}, {5, 10, 20, 30, 99});
+    test_case.add_expected_output<int64_t>(Shape{}, {-1});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bifurcation_detector_prev_idx_at_boundary) {
+    // src=[1,5,3,4], cur=[10,20], prev_idx=4 (==src_len), pred=[99]
+    // Phase 1: n=min(1, 4-4)=0 -> bifur_idx=0, take=1, pred_kept=pred[0:1]=[99]
+    //          tokens = cur ++ [99] = [10,20,99]
+    // Phase 2 (n=1): suffix=[99] not in src -> suffix_idx stays -1
+    const auto model = convert_model("com.microsoft/bifurcation_detector_with_pred.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int64_t>(Shape{4}, {1, 5, 3, 4});
+    test_case.add_input<int64_t>(Shape{2}, {10, 20});
+    test_case.add_input<int64_t>(Shape{}, {4});
+    test_case.add_input<int64_t>(Shape{1}, {99});
+    test_case.add_expected_output<int64_t>(Shape{3}, {10, 20, 99});
+    test_case.add_expected_output<int64_t>(Shape{}, {-1});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bifurcation_detector_bifurcation_and_suffix_match_combined) {
+    // src=[10,20,30,40,50,60], cur=[5,8], prev_idx=3, pred=[40,50,99,0]
+    // Phase 1: n=min(4, 6-3)=3. pred[0..2]=[40,50,99] vs src[3..5]=[40,50,60]
+    //          match at k=0,1; mismatch at k=2 -> bifur_idx=2, take=3
+    //          pred_kept=[40,50,99], tokens=[5,8,40,50,99]
+    // Phase 2 (n=1): suffix=[99] not in src -> suffix_idx stays -1
+    const auto model = convert_model("com.microsoft/bifurcation_detector_with_pred.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int64_t>(Shape{6}, {10, 20, 30, 40, 50, 60});
+    test_case.add_input<int64_t>(Shape{2}, {5, 8});
+    test_case.add_input<int64_t>(Shape{}, {3});
+    test_case.add_input<int64_t>(Shape{4}, {40, 50, 99, 0});
+    test_case.add_expected_output<int64_t>(Shape{5}, {5, 8, 40, 50, 99});
+    test_case.add_expected_output<int64_t>(Shape{}, {-1});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bifurcation_detector_suffix_match_at_end_of_src) {
+    // src=[1,2,3], cur=[5,3], prev_idx=0, no pred
+    // Phase 1: tokens = cur = [5,3]
+    // Phase 2 (n=1): suffix=[3] unique at src[2]; candidate=3 == src_len -> out_of_range,
+    //                assign suffix_idx=3 then stop.
+    //         (n=2): stopped -> suffix_idx stays 3
+    const auto model = convert_model("com.microsoft/bifurcation_detector_no_pred.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int64_t>(Shape{3}, {1, 2, 3});
+    test_case.add_input<int64_t>(Shape{2}, {5, 3});
+    test_case.add_input<int64_t>(Shape{}, {0});
+    test_case.add_expected_output<int64_t>(Shape{2}, {5, 3});
+    test_case.add_expected_output<int64_t>(Shape{}, {3});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bifurcation_detector_ngram_exceeds_tokens_len) {
+    // src=[1..10], cur=[5,3], prev_idx=0, no pred, min_ngram=5, max_ngram=7
+    // Phase 1: tokens = cur = [5,3] (len 2)
+    // Phase 2: n=5 > tokens_len=2 -> n_too_large -> skip, stop. Same for n=6,7.
+    //          suffix_idx stays at initial -1.
+    const auto model = convert_model("com.microsoft/bifurcation_detector_no_pred_ngram_5_7.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int64_t>(Shape{10}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
+    test_case.add_input<int64_t>(Shape{2}, {5, 3});
+    test_case.add_input<int64_t>(Shape{}, {0});
+    test_case.add_expected_output<int64_t>(Shape{2}, {5, 3});
+    test_case.add_expected_output<int64_t>(Shape{}, {-1});
+    test_case.run();
+}
