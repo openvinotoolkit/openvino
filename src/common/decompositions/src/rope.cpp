@@ -7,9 +7,9 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/convert_like.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace decompositions {
@@ -36,16 +36,7 @@ ov::Output<ov::Node> rope(ov::pass::NodeRegistry& reg,
     auto first_half_mul_cos = reg.make<ov::op::v1::Multiply>(first_half, cos);
     auto second_half_mul_sin = reg.make<ov::op::v1::Multiply>(second_half, sin);
 
-    ov::Output<ov::Node> neg_one;
-    {
-        const auto& et = x.get_element_type();
-        if (et.is_static() && et != ov::element::dynamic) {
-            neg_one = reg.make<ov::op::v0::Constant>(et, ov::Shape{}, std::vector<float>{-1.0f});
-        } else {
-            auto c = reg.make<ov::op::v0::Constant>(ov::element::f32, ov::Shape{}, std::vector<float>{-1.0f});
-            neg_one = reg.make<ov::op::v1::ConvertLike>(c, x);
-        }
-    }
+    auto neg_one = detail::typed_scalar(reg, x, -1.0f);
     auto neg_second_half_mul_sin = reg.make<ov::op::v1::Multiply>(second_half_mul_sin, neg_one);
     auto first_part = reg.make<ov::op::v1::Add>(first_half_mul_cos, neg_second_half_mul_sin);
 

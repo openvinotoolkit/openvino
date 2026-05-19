@@ -5,29 +5,16 @@
 #include "openvino/decompositions/rms_norm.hpp"
 
 #include "openvino/op/add.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/convert_like.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/sqrt.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace decompositions {
 
-namespace {
-// Create a scalar constant typed as `x` so that pattern matchers in the
-// corresponding fusion transformation (which expect a raw `Constant` or
-// `Convert(Constant)`, not `ConvertLike`) can recognise the sub-graph.
-ov::Output<ov::Node> typed_scalar(ov::pass::NodeRegistry& reg, const ov::Output<ov::Node>& x, float value) {
-    const auto& et = x.get_element_type();
-    if (et.is_static() && et != ov::element::dynamic) {
-        return reg.make<ov::op::v0::Constant>(et, ov::Shape{}, std::vector<float>{value});
-    }
-    auto c = reg.make<ov::op::v0::Constant>(ov::element::f32, ov::Shape{}, std::vector<float>{value});
-    return reg.make<ov::op::v1::ConvertLike>(c, x);
-}
-}  // namespace
+using detail::typed_scalar;
 
 ov::Output<ov::Node> rms_norm(ov::pass::NodeRegistry& reg,
                               const ov::Output<ov::Node>& x,
