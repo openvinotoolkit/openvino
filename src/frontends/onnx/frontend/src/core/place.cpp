@@ -49,6 +49,12 @@ void OpPlace::ensure_ports_materialized() const {
     if (m_ports_materialized) {
         return;
     }
+    // Bindings (op<->tensor connectivity) are populated lazily by the owning InputModel
+    // on first port API access. If a provider is registered, run it before materializing
+    // the InPort/OutPort objects so they have something to wire.
+    if (auto provider = lazy_bindings_provider()) {
+        provider->ensure_bindings_populated();
+    }
     m_ports_materialized = true;
 
     // const_cast is safe: shared_from_this() is logically const and we only mutate
@@ -294,6 +300,9 @@ void TensorPlace::ensure_producing_port_materialized() const {
     if (m_producing_port_materialized) {
         return;
     }
+    if (auto provider = lazy_bindings_provider()) {
+        provider->ensure_bindings_populated();
+    }
     m_producing_port_materialized = true;
     if (auto op = m_producing_op.lock()) {
         // Triggers materialization of all of op's input/output ports, which in turn pushes
@@ -305,6 +314,9 @@ void TensorPlace::ensure_producing_port_materialized() const {
 void TensorPlace::ensure_consuming_ports_materialized() const {
     if (m_consuming_ports_materialized) {
         return;
+    }
+    if (auto provider = lazy_bindings_provider()) {
+        provider->ensure_bindings_populated();
     }
     m_consuming_ports_materialized = true;
     for (const auto& binding : m_consuming_op_bindings) {

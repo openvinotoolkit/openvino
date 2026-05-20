@@ -553,7 +553,7 @@ namespace frontend {
 namespace onnx {
 namespace unify {
 
-class InputModel::InputModelONNXImpl {
+class InputModel::InputModelONNXImpl : public ov::frontend::onnx::LazyBindingsProvider {
 public:
     InputModelONNXImpl(const GraphIterator::Ptr& graph_iterator,
                        const ov::frontend::InputModel& input_model,
@@ -619,14 +619,19 @@ public:
         return m_model_dir;
     }
 
+    // LazyBindingsProvider — Place objects call this on first port API access.
+    void ensure_bindings_populated() override;
+
 private:
     void load_model();
     void clean_up();
+    void populate_bindings();
 
     std::vector<std::shared_ptr<OpPlace>> m_op_places;
     std::unordered_map<std::string, std::shared_ptr<TensorONNXPlace>> m_tensor_places;
     std::vector<ov::frontend::Place::Ptr> m_inputs;
     std::vector<ov::frontend::Place::Ptr> m_outputs;
+    bool m_bindings_populated = false;
 
     std::shared_ptr<GraphIterator> m_graph_iterator;
     const ov::frontend::InputModel& m_input_model;
@@ -707,6 +712,7 @@ void InputModel::InputModelONNXImpl::load_model() {
             auto operation_decoder = std::dynamic_pointer_cast<DecoderBaseOperation>(decoder);
             FRONT_END_GENERAL_CHECK(operation_decoder, "Operation decoder is expected");
             auto op_place = std::make_shared<OpPlace>(m_input_model, decoder);
+            op_place->set_lazy_bindings_provider(this);
             m_op_places.push_back(op_place);
 
             if (m_telemetry) {
@@ -716,34 +722,13 @@ void InputModel::InputModelONNXImpl::load_model() {
                 op_statistics[op_name]++;
             }
 
-            // Record cheap tensor<->op bindings instead of eagerly allocating
-            // InPortPlace/OutPortPlace objects. The actual port objects are
-            // materialized lazily by OpPlace::ensure_ports_materialized() on first
-            // access to a port-related getter on either side. This keeps load_model
-            // proportional to the number of nodes, deferring ~2*N port allocations
-            // that the public Place API only needs on demand.
+            // Pre-register tensor places for op inputs so TranslateSession can look up
+            // initializers / graph inputs by name. No bindings or per-output decoder
+            // calls happen here: op<->tensor connectivity is built lazily by
+            // populate_bindings() on first port API access.
             const auto input_count = operation_decoder->get_input_size();
             for (size_t i = 0; i < input_count; ++i) {
-                auto tensor_place = ensure_tensor_place(operation_decoder->get_input_tensor_info(i));
-                if (!tensor_place) {
-                    continue;
-                }
-                std::string port_name = operation_decoder->get_input_tensor_name(i);
-                if (port_name.empty()) {
-                    port_name = "input_" + std::to_string(i);
-                }
-                op_place->bind_input_tensor(tensor_place, port_name);
-                tensor_place->bind_consuming_op(op_place, port_name);
-            }
-            const auto output_count = operation_decoder->get_output_size();
-            for (size_t i = 0; i < output_count; ++i) {
-                auto tensor_place = ensure_tensor_place(operation_decoder->get_output_tensor_info(i));
-                if (!tensor_place) {
-                    continue;
-                }
-                const auto out_idx = static_cast<int>(i);
-                op_place->bind_output_tensor(tensor_place, out_idx);
-                tensor_place->bind_producing_op(op_place, out_idx);
+                ensure_tensor_place(operation_decoder->get_input_tensor_info(i));
             }
         }
     }
@@ -802,6 +787,7 @@ std::shared_ptr<TensorONNXPlace> InputModel::InputModelONNXImpl::register_tensor
         return nullptr;
     }
 
+    tensor_place->set_lazy_bindings_provider(this);
     const auto& tensor_name = names.front();
     const auto it = m_tensor_places.emplace(tensor_name, tensor_place).first;
     return it->second;
@@ -826,6 +812,50 @@ std::shared_ptr<TensorONNXPlace> InputModel::InputModelONNXImpl::ensure_tensor_p
         return existing;
     }
     return register_tensor_place(decode_tensor_place(tensor_meta_info, m_input_model, m_reuse_const_data));
+}
+
+void InputModel::InputModelONNXImpl::ensure_bindings_populated() {
+    if (m_bindings_populated) {
+        return;
+    }
+    m_bindings_populated = true;
+    populate_bindings();
+}
+
+void InputModel::InputModelONNXImpl::populate_bindings() {
+    // Builds the op<->tensor connectivity that load_model deliberately skipped. This is
+    // the public Place API view of the graph and is only ever needed when a caller
+    // queries InPort/OutPort/consuming-port/producing-port on a Place. The conversion
+    // path (TranslateSession) does not touch any of these.
+    for (const auto& op_place : m_op_places) {
+        const auto operation_decoder = std::dynamic_pointer_cast<DecoderBaseOperation>(op_place->get_decoder());
+        if (!operation_decoder) {
+            continue;
+        }
+        const auto input_count = operation_decoder->get_input_size();
+        for (size_t i = 0; i < input_count; ++i) {
+            auto tensor_place = ensure_tensor_place(operation_decoder->get_input_tensor_info(i));
+            if (!tensor_place) {
+                continue;
+            }
+            std::string port_name = operation_decoder->get_input_tensor_name(i);
+            if (port_name.empty()) {
+                port_name = "input_" + std::to_string(i);
+            }
+            op_place->bind_input_tensor(tensor_place, port_name);
+            tensor_place->bind_consuming_op(op_place, port_name);
+        }
+        const auto output_count = operation_decoder->get_output_size();
+        for (size_t i = 0; i < output_count; ++i) {
+            auto tensor_place = ensure_tensor_place(operation_decoder->get_output_tensor_info(i));
+            if (!tensor_place) {
+                continue;
+            }
+            const auto out_idx = static_cast<int>(i);
+            op_place->bind_output_tensor(tensor_place, out_idx);
+            tensor_place->bind_producing_op(op_place, out_idx);
+        }
+    }
 }
 
 InputModel::InputModelONNXImpl::InputModelONNXImpl(const GraphIterator::Ptr& graph_iterator,

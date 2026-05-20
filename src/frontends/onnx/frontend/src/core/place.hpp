@@ -14,6 +14,17 @@ namespace onnx {
 class TensorPlace;
 class OpPlace;
 
+// Lazy hook that lets Place objects ask the owning InputModel to populate the op<->tensor
+// bindings on demand. The bindings are not built during load_model; they are materialized
+// the first time a public Place API touches a port-related getter on a place returned by
+// the InputModel. The primary conversion path (TranslateSession) does not call into the
+// port API and therefore never triggers this.
+class LazyBindingsProvider {
+public:
+    virtual ~LazyBindingsProvider() = default;
+    virtual void ensure_bindings_populated() = 0;
+};
+
 class Place : public ov::frontend::Place {
 public:
     Place(const ov::frontend::InputModel& input_model, const std::vector<std::string>& names)
@@ -37,14 +48,22 @@ public:
         m_names = names;
     }
 
+    void set_lazy_bindings_provider(LazyBindingsProvider* provider) {
+        m_lazy_provider = provider;
+    }
+
 protected:
     const ov::frontend::InputModel& get_input_model_ref() const {
         return m_input_model;
+    }
+    LazyBindingsProvider* lazy_bindings_provider() const {
+        return m_lazy_provider;
     }
 
 private:
     const ov::frontend::InputModel& m_input_model;
     std::vector<std::string> m_names;
+    LazyBindingsProvider* m_lazy_provider = nullptr;
 };
 
 class InPortPlace : public Place {
