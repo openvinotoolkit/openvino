@@ -412,11 +412,13 @@ static int64_t getOptimalNumberOfInferRequestsInParallel(const Config& config) {
 Properties::Properties(const PropertiesType pType,
                        const FilteredConfig& config,
                        const std::shared_ptr<Metrics>& metrics,
-                       const ov::SoPtr<IEngineBackend>& backend)
+                 const ov::SoPtr<IEngineBackend>& backend,
+                 const std::shared_ptr<const CompiledModelContext>& compiledModelContext)
     : _pType(pType),
       _config(config),
       _metrics(metrics),
       _backend(backend),
+    _compiledModelContext(compiledModelContext),
       _logger("Properties", _config.get<LOG_LEVEL>()) {
     registerProperties();
 }
@@ -433,6 +435,7 @@ Properties::Properties(const Properties& other)
                            other._currentlyUsedPlatform,
                            other._compilerConfigsFilteredByCompiler,
                            other._compatibilityCheckFiltered,
+                           other._compiledModelContext,
                            other._properties,
                            other._supportedProperties};
       }()) {}
@@ -447,6 +450,7 @@ Properties::Properties(CopyState&& state)
       _currentlyUsedPlatform(std::move(state.currentlyUsedPlatform)),
       _compilerConfigsFilteredByCompiler(state.compilerConfigsFilteredByCompiler),
       _compatibilityCheckFiltered(state.compatibilityCheckFiltered),
+            _compiledModelContext(std::move(state.compiledModelContext)),
       _properties(std::move(state.properties)),
       _supportedProperties(std::move(state.supportedProperties)) {}
 
@@ -841,10 +845,12 @@ void Properties::registerCompiledModelProperties() {
                                  RUNTIME_REQUIREMENTS,
                                  true,
                                  ov::PropertyMutability::RO,
-                                 [](const Config& /* unusedConfig */) {
-                                     // This property is implemented in compiled model directly
-                                     // This implementation here serves only to publish it in supported_properties
-                                     return std::string("");
+                                 [&](const Config& /* unusedConfig */) {
+                                     OPENVINO_ASSERT(_compiledModelContext != nullptr,
+                                                     "CompiledModel context is required for runtime_requirements");
+                                     OPENVINO_ASSERT(_compiledModelContext->getRuntimeRequirements != nullptr,
+                                                     "CompiledModel runtime_requirements callback is not available");
+                                     return _compiledModelContext->getRuntimeRequirements();
                                  });
 
     // 2. Metrics (static device and enviroment properties)
@@ -852,11 +858,11 @@ void Properties::registerCompiledModelProperties() {
     // REGISTER_SIMPLE_METRIC format: (property, public true/false, return value)
     // REGISTER_CUSTOM_METRIC format: (property, public true/false, return value function)
 
-    REGISTER_CUSTOM_METRIC(ov::model_name, true, [](const Config&) {
-        // TODO: log an error here as the code shouldn't have gotten here
-        // this property is implemented in compiled model directly
-        // this implementation here serves only to publish it in supported_properties
-        return std::string("invalid");
+    REGISTER_CUSTOM_METRIC(ov::model_name, true, [&](const Config&) {
+        OPENVINO_ASSERT(_compiledModelContext != nullptr, "CompiledModel context is required for model_name");
+        OPENVINO_ASSERT(_compiledModelContext->getModelName != nullptr,
+                        "CompiledModel model_name callback is not available");
+        return _compiledModelContext->getModelName();
     });
     REGISTER_SIMPLE_METRIC(ov::optimal_number_of_infer_requests,
                            true,

@@ -15,6 +15,11 @@ enum class PropertiesType { PLUGIN, COMPILED_MODEL };
 
 class Properties final {
 public:
+    struct CompiledModelContext {
+        std::function<ov::Any()> getModelName;
+        std::function<ov::Any()> getRuntimeRequirements;
+    };
+
     /**
      * @brief Properties handler constructor
      * @param pType - type of object this handler gets attached to: PLUGIN or COMPILED_MODEL
@@ -24,7 +29,8 @@ public:
     Properties(const PropertiesType pType,
                const FilteredConfig& config,
                const std::shared_ptr<Metrics>& metrics = nullptr,
-               const ov::SoPtr<IEngineBackend>& backend = {nullptr});
+               const ov::SoPtr<IEngineBackend>& backend = {nullptr},
+               const std::shared_ptr<const CompiledModelContext>& compiledModelContext = nullptr);
 
     Properties(const Properties& other);
     Properties& operator=(const Properties& other) = delete;
@@ -89,6 +95,7 @@ private:
         std::string currentlyUsedPlatform;
         bool compilerConfigsFilteredByCompiler;
         bool compatibilityCheckFiltered;
+        std::shared_ptr<const CompiledModelContext> compiledModelContext;
         std::map<std::string, std::tuple<SupportPredicate, ov::PropertyMutability, std::function<ov::Any(const Config&)>>>
             properties;
         std::vector<ov::PropertyName> supportedProperties;
@@ -100,6 +107,7 @@ private:
     FilteredConfig _config;
     std::shared_ptr<Metrics> _metrics;
     ov::SoPtr<IEngineBackend> _backend;
+    std::shared_ptr<const CompiledModelContext> _compiledModelContext;
     Logger _logger;
 
     ov::intel_npu::CompilerType _currentlyUsedCompiler = ov::intel_npu::CompilerType::PREFER_PLUGIN;
