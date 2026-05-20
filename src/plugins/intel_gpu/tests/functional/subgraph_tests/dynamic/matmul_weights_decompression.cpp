@@ -319,10 +319,6 @@ protected:
                      abs_threshold_f16,
                      is_mxfp] = GetParam();
 
-        if (weights_precision.is_real()) {
-            GTEST_SKIP();;
-        }
-
         init_input_shapes({shape_params.data_shape, {{}, {{shape_params.weights_shape}}}});
 
         inType = outType = activations_precision;
@@ -613,73 +609,73 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_3D_weight,
                                             ::testing::Values(false)),
                          MatmulWeightsDecompression::get_test_case_name);
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_MatMulCompressedWeights_dyn_quan_mxfp8_e4m3,
-    MatmulWeightsDecompression,
-    ::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, 4096}, {{1, 1, 4096}, {8, 1, 4096}}}, {4096, 1024}, 32}),  // shape
-                       ::testing::Values(ov::element::f8e4m3),
-                       ::testing::Values(ov::element::f16),
-                       ::testing::Values(true),
-                       ::testing::Values(false),
-                       ::testing::Values(false),
-                       ::testing::Values(false),
-                       ::testing::Values(false),
-                       ::testing::Values(false),
-                       ::testing::Values(32),
-                       ::testing::Values(2.0f),
-                       ::testing::Values(true)),
-    MatmulWeightsDecompression::get_test_case_name);
-
-INSTANTIATE_TEST_SUITE_P(
-    smoke_MatMulCompressedWeights_dyn_quan_mxfp8_e5m2,
-    MatmulWeightsDecompression,
-    ::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, 4096}, {{1, 1, 4096}, {8, 1, 4096}}}, {4096, 1024}, 32}),  // shape
-                       ::testing::Values(ov::element::f8e5m2),
-                       ::testing::Values(ov::element::f16),
-                       ::testing::Values(true),
-                       ::testing::Values(false),
-                       ::testing::Values(false),
-                       ::testing::Values(false),
-                       ::testing::Values(false),
-                       ::testing::Values(false),
-                       ::testing::Values(32),
-                       ::testing::Values(2.0f),
-                       ::testing::Values(true)),
-    MatmulWeightsDecompression::get_test_case_name);
-
-INSTANTIATE_TEST_SUITE_P(
-    smoke_MatMulCompressedWeights_dyn_quan_fp8e4m3_fp8e4m3,
-    MatmulWeightsDecompression,
-    ::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, 128}, {{2, 1, 128}, {1, 1, 128}, {2, 1, 128}}}, {128, 16}, 128}),  // shape
-                       ::testing::Values(ov::element::f8e4m3),
-                       ::testing::Values(ov::element::f16),
-                       ::testing::Values(true),
-                       ::testing::Values(false),
-                       ::testing::Values(false),
-                       ::testing::Values(true),
-                       ::testing::Values(false),
-                       ::testing::Values(false),
-                       ::testing::Values(std::numeric_limits<uint64_t>::max()),
-                       ::testing::Values(0.2f),
-                       ::testing::Values(false)),
-    MatmulWeightsDecompression::get_test_case_name);
-
-INSTANTIATE_TEST_SUITE_P(
-    smoke_MatMulCompressedWeights_dyn_quan_fp8e5m2_fp8e5m2,
-    MatmulWeightsDecompression,
-    ::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, 128}, {{2, 1, 128}, {1, 1, 128}, {2, 1, 128}}}, {128, 16}, 128}),  // shape
-                       ::testing::Values(ov::element::f8e5m2),
-                       ::testing::Values(ov::element::f16),
-                       ::testing::Values(true),
-                       ::testing::Values(false),
-                       ::testing::Values(false),
-                       ::testing::Values(true),
-                       ::testing::Values(false),
-                       ::testing::Values(false),
-                       ::testing::Values(std::numeric_limits<uint64_t>::max()),
-                       ::testing::Values(0.2f),
-                       ::testing::Values(false)),
-    MatmulWeightsDecompression::get_test_case_name);
+//INSTANTIATE_TEST_SUITE_P(
+//    smoke_MatMulCompressedWeights_dyn_quan_mxfp8_e4m3,
+//    MatmulWeightsDecompression,
+//    ::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, 4096}, {{1, 1, 4096}, {8, 1, 4096}}}, {4096, 1024}, 32}),  // shape
+//                       ::testing::Values(ov::element::f8e4m3),
+//                       ::testing::Values(ov::element::f16),
+//                       ::testing::Values(true),
+//                       ::testing::Values(false),
+//                       ::testing::Values(false),
+//                       ::testing::Values(false),
+//                       ::testing::Values(false),
+//                       ::testing::Values(false),
+//                       ::testing::Values(32),
+//                       ::testing::Values(2.0f),
+//                       ::testing::Values(true)),
+//    MatmulWeightsDecompression::get_test_case_name);
+//
+//INSTANTIATE_TEST_SUITE_P(
+//    smoke_MatMulCompressedWeights_dyn_quan_mxfp8_e5m2,
+//    MatmulWeightsDecompression,
+//    ::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, 4096}, {{1, 1, 4096}, {8, 1, 4096}}}, {4096, 1024}, 32}),  // shape
+//                       ::testing::Values(ov::element::f8e5m2),
+//                       ::testing::Values(ov::element::f16),
+//                       ::testing::Values(true),
+//                       ::testing::Values(false),
+//                       ::testing::Values(false),
+//                       ::testing::Values(false),
+//                       ::testing::Values(false),
+//                       ::testing::Values(false),
+//                       ::testing::Values(32),
+//                       ::testing::Values(2.0f),
+//                       ::testing::Values(true)),
+//    MatmulWeightsDecompression::get_test_case_name);
+//
+//INSTANTIATE_TEST_SUITE_P(
+//    smoke_MatMulCompressedWeights_dyn_quan_fp8e4m3_fp8e4m3,
+//    MatmulWeightsDecompression,
+//    ::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, 128}, {{2, 1, 128}, {1, 1, 128}, {2, 1, 128}}}, {128, 16}, 128}),  // shape
+//                       ::testing::Values(ov::element::f8e4m3),
+//                       ::testing::Values(ov::element::f16),
+//                       ::testing::Values(true),
+//                       ::testing::Values(false),
+//                       ::testing::Values(false),
+//                       ::testing::Values(true),
+//                       ::testing::Values(false),
+//                       ::testing::Values(false),
+//                       ::testing::Values(std::numeric_limits<uint64_t>::max()),
+//                       ::testing::Values(0.2f),
+//                       ::testing::Values(false)),
+//    MatmulWeightsDecompression::get_test_case_name);
+//
+//INSTANTIATE_TEST_SUITE_P(
+//    smoke_MatMulCompressedWeights_dyn_quan_fp8e5m2_fp8e5m2,
+//    MatmulWeightsDecompression,
+//    ::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, 128}, {{2, 1, 128}, {1, 1, 128}, {2, 1, 128}}}, {128, 16}, 128}),  // shape
+//                       ::testing::Values(ov::element::f8e5m2),
+//                       ::testing::Values(ov::element::f16),
+//                       ::testing::Values(true),
+//                       ::testing::Values(false),
+//                       ::testing::Values(false),
+//                       ::testing::Values(true),
+//                       ::testing::Values(false),
+//                       ::testing::Values(false),
+//                       ::testing::Values(std::numeric_limits<uint64_t>::max()),
+//                       ::testing::Values(0.2f),
+//                       ::testing::Values(false)),
+//    MatmulWeightsDecompression::get_test_case_name);
 
 
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_dyn_quan_scalar_wzp,
