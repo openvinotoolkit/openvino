@@ -77,6 +77,7 @@ public:
 
 private:
     using PropertyGetter = std::function<ov::Any(const Config&)>;
+    using SupportPredicate = std::function<bool(const FilteredConfig&)>;
 
     struct CopyState {
         PropertiesType pType;
@@ -88,7 +89,7 @@ private:
         std::string currentlyUsedPlatform;
         bool compilerConfigsFilteredByCompiler;
         bool compatibilityCheckFiltered;
-        std::map<std::string, std::tuple<bool, ov::PropertyMutability, std::function<ov::Any(const Config&)>>>
+        std::map<std::string, std::tuple<SupportPredicate, ov::PropertyMutability, std::function<ov::Any(const Config&)>>>
             properties;
         std::vector<ov::PropertyName> supportedProperties;
     };
@@ -110,8 +111,8 @@ private:
     // Boolean to signal that compatibility check was already filtered by compiler support
     bool _compatibilityCheckFiltered = false;
 
-    // properties map: {name -> [supported, mutable, eval function]}
-    std::map<std::string, std::tuple<bool, ov::PropertyMutability, std::function<ov::Any(const Config&)>>> _properties;
+    // properties map: {name -> [support predicate, mutability, value getter]}
+    std::map<std::string, std::tuple<SupportPredicate, ov::PropertyMutability, std::function<ov::Any(const Config&)>>> _properties;
     std::vector<ov::PropertyName> _supportedProperties;
 
     // The compatibility_check property is supported only in case at least one of the compilers (CID or CIP) supports it
@@ -121,7 +122,7 @@ private:
 
     // Internal registration helpers used by macros to centralize common logic.
     void registerProperty(const std::string& name,
-                          bool isPublic,
+                          SupportPredicate predicate,
                           ov::PropertyMutability mutability,
                           const PropertyGetter& getter);
 
@@ -153,6 +154,7 @@ private:
     void registerProperties();
     void registerPluginProperties();
     void registerCompiledModelProperties();
+    void refreshSupportedProperties();
 
     const std::vector<ov::PropertyName> _cachingProperties = [] {
         std::vector<ov::PropertyName> properties = {

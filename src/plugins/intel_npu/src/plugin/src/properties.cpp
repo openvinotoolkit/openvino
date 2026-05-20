@@ -278,12 +278,18 @@ namespace intel_npu {
  * @note This macro does not offer any compiled-model specific checks, such as
  * if the config options this property maps to has actual value, nor it enforces RO, like previous macros.
  */
-#define TRY_REGISTER_CUSTOM_PROPERTY(OPT_NAME, OPT_TYPE, PROP_VISIBILITY, PROP_MUTABILITY, PROP_RETFUNC)  \
-    do {                                                                                                  \
-        std::string o_name = OPT_NAME.name();                                                             \
-        if (_config.isAvailable(o_name)) {                                                                \
-            registerProperty(o_name, PROP_VISIBILITY, PROP_MUTABILITY, PROP_RETFUNC);                    \
-        }                                                                                                 \
+#define TRY_REGISTER_CUSTOM_PROPERTY(OPT_NAME, OPT_TYPE, PROP_VISIBILITY, PROP_MUTABILITY, PROP_RETFUNC)   \
+    do {                                                                                                   \
+        std::string o_name = OPT_NAME.name();                                                              \
+        if (_config.hasOpt(o_name)) {                                                                      \
+            const bool _vis_val = PROP_VISIBILITY;                                                         \
+            registerProperty(o_name,                                                                       \
+                             [_vis_val, o_name](const FilteredConfig& cfg) {                               \
+                                 return _vis_val && cfg.isAvailable(o_name);                               \
+                             },                                                                            \
+                             PROP_MUTABILITY,                                                              \
+                             PROP_RETFUNC);                                                                \
+        }                                                                                                  \
     } while (0)
 
 /**
@@ -306,7 +312,11 @@ namespace intel_npu {
  */
 #define FORCE_REGISTER_CUSTOM_PROPERTY(OPT_NAME, OPT_TYPE, PROP_VISIBILITY, PROP_MUTABILITY, PROP_RETFUNC)     \
     do {                                                                                                       \
-        registerProperty(OPT_NAME.name(), PROP_VISIBILITY, PROP_MUTABILITY, PROP_RETFUNC);                    \
+        const bool _vis_val = PROP_VISIBILITY;                                                                 \
+        registerProperty(OPT_NAME.name(),                                                                      \
+                         [_vis_val](const FilteredConfig&) { return _vis_val; },                               \
+                         PROP_MUTABILITY,                                                                      \
+                         PROP_RETFUNC);                                                                        \
     } while (0)
 
 /**
@@ -329,8 +339,9 @@ namespace intel_npu {
  */
 #define REGISTER_SIMPLE_METRIC(PROP_NAME, PROP_VISIBILITY, PROP_RETVAL)                                      \
     do {                                                                                                     \
+        const bool _vis_val = PROP_VISIBILITY;                                                               \
         registerProperty(PROP_NAME.name(),                                                                   \
-                         PROP_VISIBILITY,                                                                    \
+                         [_vis_val](const FilteredConfig&) { return _vis_val; },                             \
                          ov::PropertyMutability::RO,                                                         \
                          [&](const Config& config) -> auto {                                                 \
                              return PROP_RETVAL;                                                             \
@@ -354,9 +365,13 @@ namespace intel_npu {
  * @note This macro does not offer any compiled-model specific checks
  */
 // Macro for defining metrics with custom return function
-#define REGISTER_CUSTOM_METRIC(PROP_NAME, PROP_VISIBILITY, PROP_RETFUNC)                                 \
-    do {                                                                                                 \
-        registerProperty(PROP_NAME.name(), PROP_VISIBILITY, ov::PropertyMutability::RO, PROP_RETFUNC);  \
+#define REGISTER_CUSTOM_METRIC(PROP_NAME, PROP_VISIBILITY, PROP_RETFUNC)                                     \
+    do {                                                                                                     \
+        const bool _vis_val = PROP_VISIBILITY;                                                               \
+        registerProperty(PROP_NAME.name(),                                                                   \
+                         [_vis_val](const FilteredConfig&) { return _vis_val; },                             \
+                         ov::PropertyMutability::RO,                                                         \
+                         PROP_RETFUNC);                                                                      \
     } while (0)
 
 // Local helper function for appending platform name to the config
@@ -436,10 +451,10 @@ Properties::Properties(CopyState&& state)
       _supportedProperties(std::move(state.supportedProperties)) {}
 
 void Properties::registerProperty(const std::string& name,
-                                  bool isPublic,
+                                  SupportPredicate predicate,
                                   ov::PropertyMutability mutability,
                                   const PropertyGetter& getter) {
-    _properties.emplace(name, std::make_tuple(isPublic, mutability, getter));
+    _properties.emplace(name, std::make_tuple(std::move(predicate), mutability, getter));
 }
 
 void Properties::registerConfigProperty(const std::string& name,
@@ -452,21 +467,34 @@ void Properties::registerConfigProperty(const std::string& name,
         return;
     }
 
-    if (!_config.isAvailable(name)) {
+    if (!_config.hasOpt(name)) {
         return;
     }
 
-    bool isPublic = visibilityOverride.value_or(_config.getOpt(name).isPublic());
+    bool baseIsPublic = visibilityOverride.value_or(_config.getOpt(name).isPublic());
     ov::PropertyMutability isMutable = mutabilityOverride.value_or(_config.getOpt(name).mutability());
 
     if (_pType == PropertiesType::COMPILED_MODEL) {
         isMutable = ov::PropertyMutability::RO;
         if (forcePublicInCompiledModel) {
-            isPublic = true;
+            baseIsPublic = true;
         }
     }
 
-    registerProperty(name, isPublic, isMutable, getter);
+    SupportPredicate predicate = [optName = name, baseIsPublic](const FilteredConfig& cfg) {
+        return baseIsPublic && cfg.isAvailable(optName);
+    };
+
+    registerProperty(name, std::move(predicate), isMutable, getter);
+}
+
+void Properties::refreshSupportedProperties() {
+    _supportedProperties.clear();
+    for (const auto& [name, entry] : _properties) {
+        if (std::get<0>(entry)(_config)) {
+            _supportedProperties.emplace_back(ov::PropertyName(name, std::get<1>(entry)));
+        }
+    }
 }
 
 void Properties::registerProperties() {
@@ -489,13 +517,8 @@ void Properties::registerProperties() {
     // 2.3. Common metrics (exposed same way by both Plugin and CompiledModel)
     REGISTER_SIMPLE_METRIC(ov::supported_properties, true, _supportedProperties);
 
-    // 3. Populate supported properties list
-    // ========
-    for (auto& property : _properties) {
-        if (std::get<0>(property.second)) {
-            _supportedProperties.emplace_back(ov::PropertyName(property.first, std::get<1>(property.second)));
-        }
-    }
+    // 3. Populate supported properties list by evaluating predicates
+    refreshSupportedProperties();
 }
 
 void Properties::registerPluginProperties() {
@@ -867,7 +890,7 @@ ov::Any Properties::getProperty(const std::string& name) {
 
         bool needToResetProperties = false;
         if (name == ov::compatibility_check.name() || name == ov::supported_properties.name()) {
-            // Mark that properties need to be registered again if the internal config is updated
+            // Mark that supported properties need to be refreshed if the internal config is updated
             needToResetProperties = disable_compatibility_check_if_needed();
         }
         // Special case for Supported Properties and Caching Properties as they are compiler dependent. So we need to
@@ -913,8 +936,8 @@ ov::Any Properties::getProperty(const std::string& name) {
         }
 
         if (needToResetProperties) {
-            // reset properties for the new options
-            registerProperties();
+            // re-evaluate predicates for the updated config
+            refreshSupportedProperties();
         }
     }
 
@@ -983,8 +1006,8 @@ void Properties::setProperty(const ov::AnyMap& properties) {
                 // filter out options again
                 filterPropertiesByCompilerSupport(_config, compiler.get(), _backend, _logger);
 
-                // reset properties for the new options
-                registerProperties();
+                // re-evaluate predicates for the updated config
+                refreshSupportedProperties();
                 _compilerConfigsFilteredByCompiler = true;
                 _currentlyUsedCompiler = compilerType;
                 _currentlyUsedPlatform = std::move(compilationPlatform);
@@ -1042,7 +1065,7 @@ bool Properties::isPropertySupported(const std::string& name) {
         if (name == ov::compatibility_check.name()) {
             bool disabled = disable_compatibility_check_if_needed();
             if (disabled) {
-                registerProperties();
+                refreshSupportedProperties();
                 return false;
             }
         }
@@ -1093,8 +1116,8 @@ bool Properties::isPropertySupported(const std::string& name) {
             // filter out options again
             filterPropertiesByCompilerSupport(_config, compiler.get(), _backend, _logger);
 
-            // reset properties for the new options
-            registerProperties();
+            // re-evaluate predicates for the updated config
+            refreshSupportedProperties();
             _compilerConfigsFilteredByCompiler = true;
             _currentlyUsedCompiler = compilerType;
             _currentlyUsedPlatform = std::move(compilationPlatform);
