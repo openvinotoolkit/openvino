@@ -46,15 +46,15 @@
 // __local-pointer variants. cl_intel_subgroups* only defines __global overloads of
 // intel_sub_group_block_read*; the __local overloads come from the separate
 // cl_intel_subgroup_local_block_io extension, which NEO 23.x+ no longer declares
-// implicitly. The _l-suffixed family below routes to the intrinsic when the
+// implicitly. The _slm-suffixed family below routes to the intrinsic when the
 // extension is advertised and falls back to an inline-emulation per-lane gather
-// otherwise — see DECLARE_BLOCK_READ_LOCAL_EMULATION and the macro blocks at the
+// otherwise — see DECLARE_BLOCK_READ_SLM_EMULATION and the macro blocks at the
 // bottom of this file.
-#define BLOCK_READ_FUNC_LOCAL_size1       _sub_group_block_read_l_uc
-#define BLOCK_READ_FUNC_LOCAL_size2       _sub_group_block_read_l_us
-#define BLOCK_READ_FUNC_LOCAL_size4       _sub_group_block_read_l
-#define BLOCK_READ_FUNC_LOCAL_size8       _sub_group_block_read_l_ul
-#define BLOCK_READ_FUNC_LOCAL(type_size)  CAT(BLOCK_READ_FUNC_LOCAL_size, type_size)
+#define BLOCK_READ_FUNC_SLM_size1       _sub_group_block_read_slm_uc
+#define BLOCK_READ_FUNC_SLM_size2       _sub_group_block_read_slm_us
+#define BLOCK_READ_FUNC_SLM_size4       _sub_group_block_read_slm
+#define BLOCK_READ_FUNC_SLM_size8       _sub_group_block_read_slm_ul
+#define BLOCK_READ_FUNC_SLM(type_size)  CAT(BLOCK_READ_FUNC_SLM_size, type_size)
 
 #define BLOCK_READN_FUNC_SIZE_DEF(type_size, vector_size)   MAKE_VECTOR_TYPE(BLOCK_READ_FUNC(type_size), vector_size)
 #define BLOCK_READN_FUNC_size1(vector_size)                 BLOCK_READN_FUNC_SIZE_DEF(1, vector_size)
@@ -63,18 +63,18 @@
 #define BLOCK_READN_FUNC_size8(vector_size)                 BLOCK_READN_FUNC_SIZE_DEF(8, vector_size)
 #define BLOCK_READN_FUNC(type_size, vector_size)            CAT(BLOCK_READN_FUNC_size, type_size)(vector_size)
 
-#define BLOCK_READN_FUNC_LOCAL_SIZE_DEF(type_size, vector_size)   MAKE_VECTOR_TYPE(BLOCK_READ_FUNC_LOCAL(type_size), vector_size)
-#define BLOCK_READN_FUNC_LOCAL_size1(vector_size)                 BLOCK_READN_FUNC_LOCAL_SIZE_DEF(1, vector_size)
-#define BLOCK_READN_FUNC_LOCAL_size2(vector_size)                 BLOCK_READN_FUNC_LOCAL_SIZE_DEF(2, vector_size)
-#define BLOCK_READN_FUNC_LOCAL_size4(vector_size)                 BLOCK_READN_FUNC_LOCAL_SIZE_DEF(4, vector_size)
-#define BLOCK_READN_FUNC_LOCAL_size8(vector_size)                 BLOCK_READN_FUNC_LOCAL_SIZE_DEF(8, vector_size)
-#define BLOCK_READN_FUNC_LOCAL(type_size, vector_size)            CAT(BLOCK_READN_FUNC_LOCAL_size, type_size)(vector_size)
+#define BLOCK_READN_FUNC_SLM_SIZE_DEF(type_size, vector_size)   MAKE_VECTOR_TYPE(BLOCK_READ_FUNC_SLM(type_size), vector_size)
+#define BLOCK_READN_FUNC_SLM_size1(vector_size)                 BLOCK_READN_FUNC_SLM_SIZE_DEF(1, vector_size)
+#define BLOCK_READN_FUNC_SLM_size2(vector_size)                 BLOCK_READN_FUNC_SLM_SIZE_DEF(2, vector_size)
+#define BLOCK_READN_FUNC_SLM_size4(vector_size)                 BLOCK_READN_FUNC_SLM_SIZE_DEF(4, vector_size)
+#define BLOCK_READN_FUNC_SLM_size8(vector_size)                 BLOCK_READN_FUNC_SLM_SIZE_DEF(8, vector_size)
+#define BLOCK_READN_FUNC_SLM(type_size, vector_size)            CAT(BLOCK_READN_FUNC_SLM_size, type_size)(vector_size)
 
 #define BLOCK_READN_RAW(type_size, vector_size, addr_space, ptr, offset)                                        \
     BLOCK_READN_FUNC(type_size, vector_size)((const addr_space BLOCK_READ_TYPE(type_size)*)(ptr) + (offset))
 
 #define BLOCK_READN_RAW_SLM(type_size, vector_size, ptr, offset)                                                \
-    BLOCK_READN_FUNC_LOCAL(type_size, vector_size)((const __local BLOCK_READ_TYPE(type_size)*)(ptr) + (offset))
+    BLOCK_READN_FUNC_SLM(type_size, vector_size)((const __local BLOCK_READ_TYPE(type_size)*)(ptr) + (offset))
 
 #define BLOCK_READN(type, vector_size, ptr, offset)                                                             \
     AS_TYPE(MAKE_VECTOR_TYPE(type, vector_size), BLOCK_READN_RAW(TYPE_SIZE(type), vector_size, __global, ptr, offset))
@@ -140,9 +140,9 @@
     return ret; \
 }
 
-#define BLOCK_READ_FUNC_NAME_LOCAL(type_size, vec_size) MAKE_VECTOR_TYPE(BLOCK_READ_FUNC_LOCAL(type_size), vec_size)
-#define DECLARE_BLOCK_READ_LOCAL_EMULATION(type_size, vec_size) \
-    inline MAKE_VECTOR_TYPE(BLOCK_READ_TYPE(type_size), vec_size) BLOCK_READ_FUNC_NAME_LOCAL(type_size, vec_size)(const __local BLOCK_READ_TYPE(type_size)* ptr) { \
+#define BLOCK_READ_FUNC_NAME_SLM(type_size, vec_size) MAKE_VECTOR_TYPE(BLOCK_READ_FUNC_SLM(type_size), vec_size)
+#define DECLARE_BLOCK_READ_SLM_EMULATION(type_size, vec_size) \
+    inline MAKE_VECTOR_TYPE(BLOCK_READ_TYPE(type_size), vec_size) BLOCK_READ_FUNC_NAME_SLM(type_size, vec_size)(const __local BLOCK_READ_TYPE(type_size)* ptr) { \
     uint idx = get_sub_group_local_id(); \
     MAKE_VECTOR_TYPE(BLOCK_READ_TYPE(type_size), vec_size) ret; \
     BLOCK_READ_IMPL(vec_size) \
@@ -162,15 +162,15 @@
 #endif
 
 #if defined(cl_intel_subgroup_local_block_io)
-    #define _sub_group_block_read_l(ptr)  intel_sub_group_block_read(ptr)
-    #define _sub_group_block_read_l2(ptr) intel_sub_group_block_read2(ptr)
-    #define _sub_group_block_read_l4(ptr) intel_sub_group_block_read4(ptr)
-    #define _sub_group_block_read_l8(ptr) intel_sub_group_block_read8(ptr)
+    #define _sub_group_block_read_slm(ptr)  intel_sub_group_block_read(ptr)
+    #define _sub_group_block_read_slm2(ptr) intel_sub_group_block_read2(ptr)
+    #define _sub_group_block_read_slm4(ptr) intel_sub_group_block_read4(ptr)
+    #define _sub_group_block_read_slm8(ptr) intel_sub_group_block_read8(ptr)
 #elif (__OPENCL_C_VERSION__ >= 200)
-    DECLARE_BLOCK_READ_LOCAL_EMULATION(4, 1)
-    DECLARE_BLOCK_READ_LOCAL_EMULATION(4, 2)
-    DECLARE_BLOCK_READ_LOCAL_EMULATION(4, 4)
-    DECLARE_BLOCK_READ_LOCAL_EMULATION(4, 8)
+    DECLARE_BLOCK_READ_SLM_EMULATION(4, 1)
+    DECLARE_BLOCK_READ_SLM_EMULATION(4, 2)
+    DECLARE_BLOCK_READ_SLM_EMULATION(4, 4)
+    DECLARE_BLOCK_READ_SLM_EMULATION(4, 8)
 #endif
 
 #if defined(cl_intel_subgroups_short)
@@ -186,15 +186,15 @@
 #endif
 
 #if defined(cl_intel_subgroup_local_block_io)
-    #define _sub_group_block_read_l_us(ptr)  intel_sub_group_block_read_us(ptr)
-    #define _sub_group_block_read_l_us2(ptr) intel_sub_group_block_read_us2(ptr)
-    #define _sub_group_block_read_l_us4(ptr) intel_sub_group_block_read_us4(ptr)
-    #define _sub_group_block_read_l_us8(ptr) intel_sub_group_block_read_us8(ptr)
+    #define _sub_group_block_read_slm_us(ptr)  intel_sub_group_block_read_us(ptr)
+    #define _sub_group_block_read_slm_us2(ptr) intel_sub_group_block_read_us2(ptr)
+    #define _sub_group_block_read_slm_us4(ptr) intel_sub_group_block_read_us4(ptr)
+    #define _sub_group_block_read_slm_us8(ptr) intel_sub_group_block_read_us8(ptr)
 #elif (__OPENCL_C_VERSION__ >= 200)
-    DECLARE_BLOCK_READ_LOCAL_EMULATION(2, 1)
-    DECLARE_BLOCK_READ_LOCAL_EMULATION(2, 2)
-    DECLARE_BLOCK_READ_LOCAL_EMULATION(2, 4)
-    DECLARE_BLOCK_READ_LOCAL_EMULATION(2, 8)
+    DECLARE_BLOCK_READ_SLM_EMULATION(2, 1)
+    DECLARE_BLOCK_READ_SLM_EMULATION(2, 2)
+    DECLARE_BLOCK_READ_SLM_EMULATION(2, 4)
+    DECLARE_BLOCK_READ_SLM_EMULATION(2, 8)
 #endif
 
 #if defined(cl_intel_subgroups_char)
@@ -212,17 +212,17 @@
 #endif
 
 #if defined(cl_intel_subgroup_local_block_io)
-    #define _sub_group_block_read_l_uc(ptr)   intel_sub_group_block_read_uc(ptr)
-    #define _sub_group_block_read_l_uc2(ptr)  intel_sub_group_block_read_uc2(ptr)
-    #define _sub_group_block_read_l_uc4(ptr)  intel_sub_group_block_read_uc4(ptr)
-    #define _sub_group_block_read_l_uc8(ptr)  intel_sub_group_block_read_uc8(ptr)
-    #define _sub_group_block_read_l_uc16(ptr) intel_sub_group_block_read_uc16(ptr)
+    #define _sub_group_block_read_slm_uc(ptr)   intel_sub_group_block_read_uc(ptr)
+    #define _sub_group_block_read_slm_uc2(ptr)  intel_sub_group_block_read_uc2(ptr)
+    #define _sub_group_block_read_slm_uc4(ptr)  intel_sub_group_block_read_uc4(ptr)
+    #define _sub_group_block_read_slm_uc8(ptr)  intel_sub_group_block_read_uc8(ptr)
+    #define _sub_group_block_read_slm_uc16(ptr) intel_sub_group_block_read_uc16(ptr)
 #elif (__OPENCL_C_VERSION__ >= 200)
-    DECLARE_BLOCK_READ_LOCAL_EMULATION(1, 1)
-    DECLARE_BLOCK_READ_LOCAL_EMULATION(1, 2)
-    DECLARE_BLOCK_READ_LOCAL_EMULATION(1, 4)
-    DECLARE_BLOCK_READ_LOCAL_EMULATION(1, 8)
-    DECLARE_BLOCK_READ_LOCAL_EMULATION(1, 16)
+    DECLARE_BLOCK_READ_SLM_EMULATION(1, 1)
+    DECLARE_BLOCK_READ_SLM_EMULATION(1, 2)
+    DECLARE_BLOCK_READ_SLM_EMULATION(1, 4)
+    DECLARE_BLOCK_READ_SLM_EMULATION(1, 8)
+    DECLARE_BLOCK_READ_SLM_EMULATION(1, 16)
 #endif
 
 #if defined(cl_intel_subgroups_long)
@@ -238,13 +238,13 @@
 #endif
 
 #if defined(cl_intel_subgroup_local_block_io)
-    #define _sub_group_block_read_l_ul(ptr)  intel_sub_group_block_read_ul(ptr)
-    #define _sub_group_block_read_l_ul2(ptr) intel_sub_group_block_read_ul2(ptr)
-    #define _sub_group_block_read_l_ul4(ptr) intel_sub_group_block_read_ul4(ptr)
-    #define _sub_group_block_read_l_ul8(ptr) intel_sub_group_block_read_ul8(ptr)
+    #define _sub_group_block_read_slm_ul(ptr)  intel_sub_group_block_read_ul(ptr)
+    #define _sub_group_block_read_slm_ul2(ptr) intel_sub_group_block_read_ul2(ptr)
+    #define _sub_group_block_read_slm_ul4(ptr) intel_sub_group_block_read_ul4(ptr)
+    #define _sub_group_block_read_slm_ul8(ptr) intel_sub_group_block_read_ul8(ptr)
 #elif (__OPENCL_C_VERSION__ >= 200)
-    DECLARE_BLOCK_READ_LOCAL_EMULATION(8, 1)
-    DECLARE_BLOCK_READ_LOCAL_EMULATION(8, 2)
-    DECLARE_BLOCK_READ_LOCAL_EMULATION(8, 4)
-    DECLARE_BLOCK_READ_LOCAL_EMULATION(8, 8)
+    DECLARE_BLOCK_READ_SLM_EMULATION(8, 1)
+    DECLARE_BLOCK_READ_SLM_EMULATION(8, 2)
+    DECLARE_BLOCK_READ_SLM_EMULATION(8, 4)
+    DECLARE_BLOCK_READ_SLM_EMULATION(8, 8)
 #endif

@@ -98,18 +98,18 @@ KERNEL(horizontal_fused_second_token_a)(OPTIONAL_SHAPE_INFO_ARG
         __attribute__((opencl_unroll_hint))
         for (int i = 0; i < gemma_sgK; i++) {
 #if ACCUMULATOR_TYPE_SIZE == 4
-            sum += AS_ACCUMULATOR_TYPE(_sub_group_block_read_l((const __local uint*)(fma_buff + i * MAX_GEMMA_N + n_idx)));
+            sum += AS_ACCUMULATOR_TYPE(_sub_group_block_read_slm((const __local uint*)(fma_buff + i * MAX_GEMMA_N + n_idx)));
 #else
-            sum += AS_ACCUMULATOR_TYPE(_sub_group_block_read_l_us((const __local ushort*)(fma_buff + i * MAX_GEMMA_N + n_idx)));
+            sum += AS_ACCUMULATOR_TYPE(_sub_group_block_read_slm_us((const __local ushort*)(fma_buff + i * MAX_GEMMA_N + n_idx)));
 #endif
         }
     } else {
         // Can't unroll, tail handling
         for (int i = 0; i < sgK; i++) {
 #if ACCUMULATOR_TYPE_SIZE == 4
-            sum += AS_ACCUMULATOR_TYPE(_sub_group_block_read_l((const __local uint*)(fma_buff + i * MAX_GEMMA_N + n_idx)));
+            sum += AS_ACCUMULATOR_TYPE(_sub_group_block_read_slm((const __local uint*)(fma_buff + i * MAX_GEMMA_N + n_idx)));
 #else
-            sum += AS_ACCUMULATOR_TYPE(_sub_group_block_read_l_us((const __local ushort*)(fma_buff + i * MAX_GEMMA_N + n_idx)));
+            sum += AS_ACCUMULATOR_TYPE(_sub_group_block_read_slm_us((const __local ushort*)(fma_buff + i * MAX_GEMMA_N + n_idx)));
 #endif
         }
     }
@@ -209,9 +209,9 @@ KERNEL(second_token_b)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 
 #if ACCUMULATOR_TYPE_SIZE == 4
-        ACCUMULATOR_TYPE input = AS_ACCUMULATOR_TYPE(_sub_group_block_read_l((const __local uint*)(reduce_ptr + kk)));
+        ACCUMULATOR_TYPE input = AS_ACCUMULATOR_TYPE(_sub_group_block_read_slm((const __local uint*)(reduce_ptr + kk)));
 #else
-        ACCUMULATOR_TYPE input = AS_ACCUMULATOR_TYPE(_sub_group_block_read_l_us((const __local ushort*)(reduce_ptr + kk)));
+        ACCUMULATOR_TYPE input = AS_ACCUMULATOR_TYPE(_sub_group_block_read_slm_us((const __local ushort*)(reduce_ptr + kk)));
 #endif
         input *= scale;
 
