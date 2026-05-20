@@ -106,13 +106,11 @@ void fixup_legacy_nodes(::ONNX_NAMESPACE::ModelProto& model_proto) {
     }
 }
 
-/// \brief Visit all external references of a subgraph (and nested subgraphs), invoking
-/// \p sink for each name that is referenced but not defined within the subgraph itself.
-/// Uses std::string_view because the underlying protobuf strings outlive this call.
+/// \brief Invoke \p sink for each name referenced by \p subgraph (and nested subgraphs)
+/// that is not defined within \p subgraph itself.
 using ExternalRefSink = std::function<void(std::string_view)>;
 
 void walk_subgraph_external_refs(const GraphProto& subgraph, const ExternalRefSink& sink) {
-    // Build set of names defined within this subgraph.
     std::unordered_set<std::string_view> subgraph_defined;
     subgraph_defined.reserve(static_cast<size_t>(subgraph.input_size()) +
                              static_cast<size_t>(subgraph.initializer_size()) +
@@ -130,30 +128,23 @@ void walk_subgraph_external_refs(const GraphProto& subgraph, const ExternalRefSi
             }
         }
     }
-    // Filtering forwarder for nested subgraph references.
-    const ExternalRefSink forward_if_external = [&](std::string_view name) {
-        if (subgraph_defined.count(name) == 0) {
+    const ExternalRefSink emit_if_external = [&](std::string_view name) {
+        if (!name.empty() && subgraph_defined.count(name) == 0) {
             sink(name);
         }
     };
     for (const auto& sub_node : subgraph.node()) {
         for (const auto& inp : sub_node.input()) {
-            if (!inp.empty() && subgraph_defined.count(inp) == 0) {
-                sink(inp);
-            }
+            emit_if_external(inp);
         }
         for (const auto& attr : sub_node.attribute()) {
             if (attr.has_g()) {
-                walk_subgraph_external_refs(attr.g(), forward_if_external);
+                walk_subgraph_external_refs(attr.g(), emit_if_external);
             }
         }
     }
-    // Subgraph outputs may directly reference outer-scope tensors.
     for (const auto& output : subgraph.output()) {
-        const auto& name = output.name();
-        if (!name.empty() && subgraph_defined.count(name) == 0) {
-            sink(name);
-        }
+        emit_if_external(output.name());
     }
 }
 
