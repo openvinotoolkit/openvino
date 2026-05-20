@@ -39,6 +39,24 @@ cl::PFN_clCreateFromD3D11Buffer cl::BufferDX::pfn_clCreateFromD3D11Buffer = NULL
 #include "intel_gpu/runtime/file_util.hpp"
 #endif
 
+namespace {
+// Local fallback typedefs for cl_khr_external_memory entrypoints. Some OpenCL headers shipped
+// on build hosts do not provide these typedefs even when CL_VERSION_3_0 is defined, so declare
+// our own pointer-to-function types to avoid relying on the system header naming.
+using pfn_clEnqueueAcquireExternalMemObjectsKHR = cl_int (CL_API_CALL*)(cl_command_queue,
+                                                                       cl_uint,
+                                                                       const cl_mem*,
+                                                                       cl_uint,
+                                                                       const cl_event*,
+                                                                       cl_event*);
+using pfn_clEnqueueReleaseExternalMemObjectsKHR = cl_int (CL_API_CALL*)(cl_command_queue,
+                                                                       cl_uint,
+                                                                       const cl_mem*,
+                                                                       cl_uint,
+                                                                       const cl_event*,
+                                                                       cl_event*);
+}  // namespace
+
 namespace cldnn {
 namespace ocl {
 
@@ -131,7 +149,7 @@ shared_handle ocl_engine::import_external_buffer(size_t byte_size, shared_handle
 
 
     cl_platform_id platform = get_cl_device().getInfo<CL_DEVICE_PLATFORM>();
-    auto pfn_acquire = reinterpret_cast<clEnqueueAcquireExternalMemObjectsKHR_fn>(
+    auto pfn_acquire = reinterpret_cast<pfn_clEnqueueAcquireExternalMemObjectsKHR>(
         clGetExtensionFunctionAddressForPlatform(platform, "clEnqueueAcquireExternalMemObjectsKHR"));
     if (pfn_acquire == nullptr) {
         clReleaseMemObject(imported);
@@ -167,7 +185,7 @@ void ocl_engine::release_external_memory(shared_handle cl_mem_handle) {
         return;
     }
     cl_platform_id platform = get_cl_device().getInfo<CL_DEVICE_PLATFORM>();
-    auto pfn = reinterpret_cast<clEnqueueReleaseExternalMemObjectsKHR_fn>(
+    auto pfn = reinterpret_cast<pfn_clEnqueueReleaseExternalMemObjectsKHR>(
         clGetExtensionFunctionAddressForPlatform(platform, "clEnqueueReleaseExternalMemObjectsKHR"));
     if (pfn == nullptr) {
         // Nothing to do: extension entrypoints not available. The cl_mem refcount drop on dtor
