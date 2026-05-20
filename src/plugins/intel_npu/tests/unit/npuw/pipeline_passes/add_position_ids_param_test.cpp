@@ -266,4 +266,20 @@ TEST(AddPositionIdsParamTest, ClampInputIsReplacedToPositionIds) {
             << "Squeeze should be fed by position_ids parameter";
     }
 }
+
+// Running the pass a second time must not alter the graph (no duplicate position_ids).
+TEST(AddPositionIdsParamTest, ReapplyDoesNotModifyGraph) {
+    auto model = build_model_with_lfm2_like_pattern();
+    ov::npuw::AddPositionIdsParam().run_on_model(model);
+
+    const size_t params_after_first = model->get_parameters().size();
+    const size_t ops_after_first = model->get_ops().size();
+
+    ov::npuw::AddPositionIdsParam().run_on_model(model);
+
+    EXPECT_EQ(model->get_parameters().size(), params_after_first)
+        << "Second pass should not add duplicate parameters";
+    EXPECT_EQ(model->get_ops().size(), ops_after_first)
+        << "Second pass should not add duplicate operations";
+}
 }  // namespace

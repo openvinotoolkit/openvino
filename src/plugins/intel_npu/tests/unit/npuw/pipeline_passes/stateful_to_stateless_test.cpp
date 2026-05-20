@@ -4,8 +4,6 @@
 
 #include <gtest/gtest.h>
 
-#include <algorithm>
-#include <regex>
 #include <string>
 #include <vector>
 
