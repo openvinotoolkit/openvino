@@ -14,7 +14,7 @@ using ov::op::v0::Parameter, ov::test::NodeBuilder;
 TEST(attributes, grouped_matmul_v17_3d_3d) {
     NodeBuilder::opset().insert<ov::op::v17::GroupedMatMul>();
     const auto mat_a = std::make_shared<Parameter>(ov::element::f32, ov::PartialShape{3, 4, 64});
-    const auto mat_b = std::make_shared<Parameter>(ov::element::f32, ov::PartialShape{3, 64, 128});
+    const auto mat_b = std::make_shared<Parameter>(ov::element::f32, ov::PartialShape{3, 128, 64});
 
     const auto op = std::make_shared<ov::op::v17::GroupedMatMul>(mat_a, mat_b);
     NodeBuilder builder(op, {mat_a, mat_b});
@@ -27,7 +27,7 @@ TEST(attributes, grouped_matmul_v17_3d_3d) {
 TEST(attributes, grouped_matmul_v17_2d_3d_with_offsets) {
     NodeBuilder::opset().insert<ov::op::v17::GroupedMatMul>();
     const auto mat_a = std::make_shared<Parameter>(ov::element::f32, ov::PartialShape{16, 64});
-    const auto mat_b = std::make_shared<Parameter>(ov::element::f32, ov::PartialShape{3, 64, 128});
+    const auto mat_b = std::make_shared<Parameter>(ov::element::f32, ov::PartialShape{3, 128, 64});
     const auto offsets = std::make_shared<Parameter>(ov::element::i32, ov::PartialShape{3});
 
     const auto op = std::make_shared<ov::op::v17::GroupedMatMul>(mat_a, mat_b, offsets);

@@ -42,8 +42,8 @@ std::vector<TRShape> shape_infer(const GroupedMatMul* op,
         const auto M = mat_a_shape[1];
         const auto K_a = mat_a_shape[2];
         const auto G_b = mat_b_shape[0];
-        const auto K_b = mat_b_shape[1];
-        const auto N = mat_b_shape[2];
+        const auto N = mat_b_shape[1];
+        const auto K_b = mat_b_shape[2];
 
         auto merged_G = DimType();
         auto merged_K = DimType();
@@ -81,8 +81,8 @@ std::vector<TRShape> shape_infer(const GroupedMatMul* op,
         const auto total_rows = mat_a_shape[0];
         const auto K_a = mat_a_shape[1];
         const auto G = mat_b_shape[0];
-        const auto K_b = mat_b_shape[1];
-        const auto N = mat_b_shape[2];
+        const auto N = mat_b_shape[1];
+        const auto K_b = mat_b_shape[2];
 
         auto merged_K = DimType();
         NODE_VALIDATION_CHECK(op,

@@ -25,10 +25,10 @@ The operation supports three input combinations based on tensor dimensions:
 Used for computing expert outputs from routed tokens:
 
 * ``mat_a``: Shape ``[total_tokens, K]`` - all tokens packed contiguously
-* ``mat_b``: Shape ``[G, K, N]`` - per-group (expert) weight matrices
+* ``mat_b``: Shape ``[G, N, K]`` - per-group (expert) weight matrices (stored transposed)
 * ``offsets``: Shape ``[G]`` - cumulative token boundaries
 
-For group ``i``, computes: ``output[start:end] = mat_a[start:end] @ mat_b[i]``
+For group ``i``, computes: ``output[start:end] = mat_a[start:end] @ mat_b[i].T``
 
 where ``start = offsets[i-1]`` (or 0 for i=0) and ``end = offsets[i]``.
 
@@ -39,10 +39,10 @@ Output shape: ``[total_tokens, N]``
 Used when all groups have the same number of tokens:
 
 * ``mat_a``: Shape ``[G, M, K]`` - per-group inputs
-* ``mat_b``: Shape ``[G, K, N]`` - per-group weights
+* ``mat_b``: Shape ``[G, N, K]`` - per-group weights (stored transposed)
 * ``offsets``: Not used (must not be provided)
 
-For each group ``i``, computes: ``output[i] = mat_a[i] @ mat_b[i]``
+For each group ``i``, computes: ``output[i] = mat_a[i] @ mat_b[i].T``
 
 Output shape: ``[G, M, N]``
 
@@ -81,8 +81,8 @@ For example, with tokens per group ``[3, 5, 2]``, offsets would be ``[3, 8, 10]`
 
 * **2**: ``mat_b`` - Tensor of type *T* with second operand. Required.
   
-  * Case 1 (2D×3D): Shape ``[G, K, N]``
-  * Case 2 (3D×3D): Shape ``[G, K, N]``
+  * Case 1 (2D×3D): Shape ``[G, N, K]``
+  * Case 2 (3D×3D): Shape ``[G, N, K]``
   * Case 3 (2D×2D): Shape ``[total_tokens, N]``
 
 * **3**: ``offsets`` - 1D tensor of type *T_IDX* with group boundaries. Optional.
@@ -117,10 +117,10 @@ For example, with tokens per group ``[3, 5, 2]``, offsets would be ``[3, 8, 10]`
                <dim>10</dim>
                <dim>64</dim>
            </port>
-           <port id="1">  <!-- mat_b: 3 experts, K=64, N=128 -->
+           <port id="1">  <!-- mat_b: 3 experts, N=128, K=64 -->
                <dim>3</dim>
-               <dim>64</dim>
                <dim>128</dim>
+               <dim>64</dim>
            </port>
            <port id="2">  <!-- offsets: [3, 8, 10] -->
                <dim>3</dim>
@@ -146,10 +146,10 @@ For example, with tokens per group ``[3, 5, 2]``, offsets would be ``[3, 8, 10]`
                <dim>4</dim>
                <dim>64</dim>
            </port>
-           <port id="1">  <!-- mat_b: 3 groups, K=64, N=128 -->
+           <port id="1">  <!-- mat_b: 3 groups, N=128, K=64 -->
                <dim>3</dim>
-               <dim>64</dim>
                <dim>128</dim>
+               <dim>64</dim>
            </port>
        </input>
        <output>

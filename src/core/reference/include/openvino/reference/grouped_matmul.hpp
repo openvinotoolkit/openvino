@@ -33,6 +33,24 @@ void simple_matmul(const T* A, const T* B, T* out, size_t M, size_t K, size_t N)
     }
 }
 
+/// \brief Simple 2D matmul with transposed B: out = A @ B^T
+/// \param A Input matrix A of shape (M, K)
+/// \param B Input matrix B of shape (N, K)  -- stored as [N, K], i.e. B transposed
+/// \param out Output matrix of shape (M, N) - must be pre-zeroed
+/// \param M Number of rows in A
+/// \param N Number of rows in B (= columns in the logical B^T)
+/// \param K Shared dimension
+template <typename T>
+void simple_matmul_transposed_b(const T* A, const T* B, T* out, size_t M, size_t N, size_t K) {
+    for (size_t i = 0; i < M; ++i) {
+        for (size_t j = 0; j < N; ++j) {
+            for (size_t k = 0; k < K; ++k) {
+                out[i * N + j] += A[i * K + k] * B[j * K + k];
+            }
+        }
+    }
+}
+
 }  // namespace details
 
 /// \brief Reference kernel for GroupedMatMul computation.
@@ -70,10 +88,10 @@ void grouped_matmul(const T* mat_a,
         const size_t G = mat_a_shape[0];
         const size_t M = mat_a_shape[1];
         const size_t K = mat_a_shape[2];
-        const size_t N = mat_b_shape[2];
+        const size_t N = mat_b_shape[1];  // mat_b is [G, N, K]
 
         const size_t mat_a_group_stride = M * K;
-        const size_t mat_b_group_stride = K * N;
+        const size_t mat_b_group_stride = N * K;
         const size_t out_group_stride = M * N;
 
         for (size_t g = 0; g < G; ++g) {
@@ -84,7 +102,7 @@ void grouped_matmul(const T* mat_a,
             // Zero the output for this group
             std::fill(out_ptr, out_ptr + out_group_stride, T{0});
 
-            details::simple_matmul(a_ptr, b_ptr, out_ptr, M, K, N);
+            details::simple_matmul_transposed_b(a_ptr, b_ptr, out_ptr, M, N, K);
         }
         return;
     }
@@ -94,9 +112,9 @@ void grouped_matmul(const T* mat_a,
         const size_t total_rows = mat_a_shape[0];
         const size_t K = mat_a_shape[1];
         const size_t G = mat_b_shape[0];
-        const size_t N = mat_b_shape[2];
+        const size_t N = mat_b_shape[1];  // mat_b is [G, N, K]
 
-        const size_t mat_b_group_stride = K * N;
+        const size_t mat_b_group_stride = N * K;
 
         // Zero the output
         std::fill(out, out + total_rows * N, T{0});
@@ -111,7 +129,7 @@ void grouped_matmul(const T* mat_a,
                 const T* b_ptr = mat_b + g * mat_b_group_stride;
                 T* out_ptr = out + start * N;
 
-                details::simple_matmul(a_ptr, b_ptr, out_ptr, num_rows, K, N);
+                details::simple_matmul_transposed_b(a_ptr, b_ptr, out_ptr, num_rows, N, K);
             }
             start = end;
         }

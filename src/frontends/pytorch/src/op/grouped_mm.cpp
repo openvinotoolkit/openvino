@@ -3,8 +3,10 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/grouped_matmul.hpp"
+#include "openvino/op/transpose.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -32,6 +34,14 @@ OutputVector translate_grouped_mm(const NodeContext& context) {
     PYTORCH_OP_CONVERSION_CHECK(!has_bias, "_grouped_mm: 'bias' argument is not supported.");
 
     align_eltwise_input_types(context, a, b, false, false);
+
+    // PyTorch provides mat_b as [G, K, N]; GroupedMatMul-17 expects [G, N, K].
+    // Apply the transpose only for 3D weights (Cases 1 and 2); leave 2D untouched (Case 3).
+    const auto b_rank = b.get_partial_shape().rank();
+    if (b_rank.is_static() && b_rank.get_length() == 3) {
+        auto perm = context.mark_node(v0::Constant::create(element::i32, Shape{3}, std::vector<int32_t>{0, 2, 1}));
+        b = context.mark_node(std::make_shared<v1::Transpose>(b, perm));
+    }
 
     Output<Node> result;
     if (has_offs) {

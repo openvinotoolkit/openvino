@@ -22,7 +22,6 @@
 #include "openvino/op/search_sorted.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
-#include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -42,15 +41,6 @@ namespace v15 = ov::op::v15;
 namespace v17 = ov::op::v17;
 
 using ov::op::internal::GatherMatmul;
-
-// Build B' = Transpose(B, [0, 2, 1])  -> [G, N, K]
-ov::Output<ov::Node> transpose_weights(const ov::Output<ov::Node>& b, ov::NodeVector& new_nodes) {
-    auto perm = v0::Constant::create(ov::element::i32, ov::Shape{3}, {0, 2, 1});
-    auto transpose = std::make_shared<v1::Transpose>(b, perm);
-    new_nodes.push_back(perm);
-    new_nodes.push_back(transpose);
-    return transpose;
-}
 
 // Build the identity-per-group `indices` for Case 2:
 //     indices = Broadcast(Unsqueeze(Range(0, G), 0), [M, G])
@@ -159,15 +149,14 @@ ConvertGroupedMatMulToGatherMatmul::ConvertGroupedMatMulToGatherMatmul() {
 
         if (a_rank == 3 && b_rank == 3 && input_size == 2) {
             // ---- Case 2: 3D x 3D, no offsets ----
-            // A:[G,M,K] B:[G,K,N] -> GatherMatmul(A, Transpose(B), indices=[M,G]) -> [G,M,N]
-            auto b_t = transpose_weights(mat_b, new_nodes);
+            // A:[G,M,K] B:[G,N,K] -> GatherMatmul(A, B, indices=[M,G]) -> [G,M,N]
             auto indices = build_case2_indices(mat_a, new_nodes);
-            auto gm = std::make_shared<GatherMatmul>(mat_a, b_t, indices);
+            auto gm = std::make_shared<GatherMatmul>(mat_a, mat_b, indices);
             new_nodes.push_back(gm);
             replacement = gm;
         } else if (a_rank == 2 && b_rank == 3 && input_size == 3) {
             // ---- Case 1: 2D x 3D with offsets ----
-            // A:[T,K] B:[G,K,N] offs:[G] -> Squeeze(GatherMatmul(Unsqueeze(A,0), Transpose(B), idx[T,1]), 0) -> [T,N]
+            // A:[T,K] B:[G,N,K] offs:[G] -> Squeeze(GatherMatmul(Unsqueeze(A,0), B, idx[T,1]), 0) -> [T,N]
             const auto offsets = gmm->input_value(2);
 
             auto a_unsq_axis = v0::Constant::create(ov::element::i32, ov::Shape{1}, {0});
@@ -175,10 +164,9 @@ ConvertGroupedMatMulToGatherMatmul::ConvertGroupedMatMulToGatherMatmul() {
             new_nodes.push_back(a_unsq_axis);
             new_nodes.push_back(a_3d);
 
-            auto b_t = transpose_weights(mat_b, new_nodes);
             auto indices = build_case1_indices(mat_a, offsets, new_nodes);
 
-            auto gm = std::make_shared<GatherMatmul>(a_3d, b_t, indices);   // [1, T, N]
+            auto gm = std::make_shared<GatherMatmul>(a_3d, mat_b, indices);   // [1, T, N]
             auto squeeze_axis = v0::Constant::create(ov::element::i32, ov::Shape{1}, {0});
             auto out = std::make_shared<v0::Squeeze>(gm, squeeze_axis);     // [T, N]
 

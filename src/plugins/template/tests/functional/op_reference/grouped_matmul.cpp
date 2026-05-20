@@ -127,25 +127,27 @@ std::vector<GroupedMatMulParams> generateParams() {
     // Case 2: 3D × 3D batched - simple 2 groups, 2×2 matmul each
     // Group 0: [[1,2],[3,4]] @ [[1,2],[3,4]] = [[7,10],[15,22]]
     // Group 1: [[5,6],[7,8]] @ [[5,6],[7,8]] = [[67,78],[91,106]]
+    // mat_b stored as [G, N, K]: group 0 = [[1,3],[2,4]], group 1 = [[5,7],[6,8]]
     params.push_back(GroupedMatMulParams(
         Shape{2, 2, 2},                                                    // mat_a: (G=2, M=2, K=2)
-        Shape{2, 2, 2},                                                    // mat_b: (G=2, K=2, N=2)
+        Shape{2, 2, 2},                                                    // mat_b: (G=2, N=2, K=2)
         Shape{2, 2, 2},                                                    // output: (G=2, M=2, N=2)
         ET,
         std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8},                            // mat_a
-        std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8},                            // mat_b
+        std::vector<T>{1, 3, 2, 4, 5, 7, 6, 8},                            // mat_b (transposed per group)
         std::vector<T>{7, 10, 15, 22, 67, 78, 91, 106},                    // expected
         "3D_3D_2groups_2x2" + type_suffix));
 
     // Case 2: 3D × 3D - single group
     // [[1,2,3],[4,5,6]] @ [[1,2],[3,4],[5,6]] = [[22,28],[49,64]]
+    // mat_b stored as [G, N, K]: group 0 = [[1,3,5],[2,4,6]]
     params.push_back(GroupedMatMulParams(
         Shape{1, 2, 3},                                                    // mat_a: (G=1, M=2, K=3)
-        Shape{1, 3, 2},                                                    // mat_b: (G=1, K=3, N=2)
+        Shape{1, 2, 3},                                                    // mat_b: (G=1, N=2, K=3)
         Shape{1, 2, 2},                                                    // output: (G=1, M=2, N=2)
         ET,
         std::vector<T>{1, 2, 3, 4, 5, 6},                                  // mat_a
-        std::vector<T>{1, 2, 3, 4, 5, 6},                                  // mat_b
+        std::vector<T>{1, 3, 5, 2, 4, 6},                                  // mat_b (transposed)
         std::vector<T>{22, 28, 49, 64},                                    // expected
         "3D_3D_1group_2x3_3x2" + type_suffix));
 
@@ -153,15 +155,16 @@ std::vector<GroupedMatMulParams> generateParams() {
     // Expert 0 gets rows [0:2], Expert 1 gets rows [2:3]
     // mat_a[:2] @ mat_b[0] = [[1,2],[3,4]] @ [[1,2],[3,4]] = [[7,10],[15,22]]
     // mat_a[2:3] @ mat_b[1] = [[5,6]] @ [[5,6],[7,8]] = [[67,78]]
+    // mat_b stored as [G, N, K]: expert 0 = [[1,3],[2,4]], expert 1 = [[5,7],[6,8]]
     params.push_back(GroupedMatMulParams(
         Shape{3, 2},                                                       // mat_a: (total_tokens=3, K=2)
-        Shape{2, 2, 2},                                                    // mat_b: (G=2, K=2, N=2)
+        Shape{2, 2, 2},                                                    // mat_b: (G=2, N=2, K=2)
         Shape{2},                                                          // offsets: cumulative [2, 3]
         Shape{3, 2},                                                       // output: (total_tokens=3, N=2)
         ET,
         element::i32,
         std::vector<T>{1, 2, 3, 4, 5, 6},                                  // mat_a
-        std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8},                            // mat_b
+        std::vector<T>{1, 3, 2, 4, 5, 7, 6, 8},                            // mat_b (transposed per group)
         std::vector<int32_t>{2, 3},                                        // offsets
         std::vector<T>{7, 10, 15, 22, 67, 78},                             // expected
         "2D_3D_2experts_offsets" + type_suffix));

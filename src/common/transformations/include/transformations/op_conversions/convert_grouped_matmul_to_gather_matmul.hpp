@@ -15,18 +15,18 @@ namespace ov::pass {
 ///
 /// Supported cases (matching the GroupedMatMul-17 spec):
 ///  * Case (3D x 3D, no offsets):
-///        A:[G,M,K], B:[G,K,N]            ->  out:[G,M,N]
+///        A:[G,M,K], B:[G,N,K]            ->  out:[G,M,N]
 ///    Mapped as:
 ///        A'      = A                                 // [G, M, K]
-///        B'      = Transpose(B, [0,2,1])             // [G, N, K]  (transp_b=true)
+///        B'      = B                                 // [G, N, K]  (transp_b=true already)
 ///        indices = Broadcast(Range(0,G), [M, G])     // indices[m,g] = g
 ///        out     = GatherMatmul(A', B', indices)     // [G, M, N]
 ///
 ///  * Case (2D x 3D with offsets):
-///        A:[T,K], B:[G,K,N], offs:[G]    ->  out:[T,N]
+///        A:[T,K], B:[G,N,K], offs:[G]    ->  out:[T,N]
 ///    Mapped as:
 ///        A'      = Unsqueeze(A, 0)                                  // [1, T, K]
-///        B'      = Transpose(B, [0,2,1])                            // [G, N, K]
+///        B'      = B                                                // [G, N, K]
 ///        idx1d   = SearchSorted(offsets, Range(0,T), right=true)    // [T]
 ///        indices = Unsqueeze(idx1d, -1)                             // [T, 1]
 ///        gm      = GatherMatmul(A', B', indices)                    // [1, T, N]
