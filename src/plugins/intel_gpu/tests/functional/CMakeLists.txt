@@ -85,12 +85,6 @@ if(NOT Vulkan_FOUND AND NOT WIN32)
     else()
         include(FetchContent)
 
-        # Use a short base directory and short content names to avoid hitting the
-        # Windows MAX_PATH (260 chars) limit. FetchContent embeds the content name
-        # multiple times into nested subbuild paths, so long names like
-        # "ov_gpu_func_tests_vulkan_headers" easily overflow MAX_PATH on CI.
-        set(_ov_vk_base_dir "${CMAKE_BINARY_DIR}/_vk")
-
         set(VULKAN_HEADERS_ENABLE_TESTS OFF)
         set(VULKAN_HEADERS_ENABLE_INSTALL OFF)
         FetchContent_Declare(
@@ -98,9 +92,6 @@ if(NOT Vulkan_FOUND AND NOT WIN32)
             GIT_REPOSITORY https://github.com/KhronosGroup/Vulkan-Headers.git
             GIT_TAG ${OV_GPU_FUNC_TESTS_VULKAN_TAG}
             GIT_SHALLOW TRUE
-            SOURCE_DIR   "${_ov_vk_base_dir}/headers-src"
-            BINARY_DIR   "${_ov_vk_base_dir}/headers-bld"
-            SUBBUILD_DIR "${_ov_vk_base_dir}/headers-sub"
         )
         FetchContent_MakeAvailable(ov_vk_headers)
         string(REGEX REPLACE "^v" "" VulkanHeaders_VERSION "${OV_GPU_FUNC_TESTS_VULKAN_TAG}")
@@ -119,9 +110,6 @@ if(NOT Vulkan_FOUND AND NOT WIN32)
             GIT_REPOSITORY https://github.com/KhronosGroup/Vulkan-Loader.git
             GIT_TAG ${OV_GPU_FUNC_TESTS_VULKAN_TAG}
             GIT_SHALLOW TRUE
-            SOURCE_DIR   "${_ov_vk_base_dir}/loader-src"
-            BINARY_DIR   "${_ov_vk_base_dir}/loader-bld"
-            SUBBUILD_DIR "${_ov_vk_base_dir}/loader-sub"
         )
         FetchContent_MakeAvailable(ov_vk_loader)
         foreach(_ov_vk_tgt vulkan asm_offset)
