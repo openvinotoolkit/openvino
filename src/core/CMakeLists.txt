@@ -15,17 +15,6 @@ file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
 file(GLOB_RECURSE PUBLIC_HEADERS ${OV_CORE_INCLUDE_PATH}/*.hpp)
 file(GLOB_RECURSE DEV_HEADERS ${OV_CORE_DEV_API_PATH}/*.hpp)
 
-if (WIN32)
-    file(GLOB_RECURSE LIN_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.cpp
-                                ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.hpp)
-    list(REMOVE_ITEM LIBRARY_SRC ${LIN_FILES})
-else()
-    file(GLOB_RECURSE WIN_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.cpp
-                                ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.hpp)
-    list(REMOVE_ITEM LIBRARY_SRC ${WIN_FILES})
-endif()
-
-
 add_subdirectory(reference)
 add_subdirectory(shape_inference)
 add_subdirectory(xml_util)

@@ -4,15 +4,9 @@
 
 #include "openvino/runtime/lazy_buffer.hpp"
 
-#include <sys/mman.h>
-#include <unistd.h>
-
-#include <cerrno>
-#include <cstring>
-#include <fstream>
+#include <istream>
 #include <mutex>
 
-#include "atomic_guard.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/memory_util.hpp"
 #include "openvino/util/file_util.hpp"
