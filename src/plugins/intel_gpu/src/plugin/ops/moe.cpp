@@ -107,7 +107,51 @@ static void CreateMOE3GemmFusedCompressedOp(ProgramBuilder& p, const std::shared
         xml_offsets_ready = true;
     };
 
-    auto get_const_offset = [&](size_t index) -> size_t {
+    // Extract a layer-scoping pattern from the MOE op name (e.g., "layers.0.experts")
+    // to disambiguate same-sized constants across different layers.
+    auto extract_layer_pattern = [](const std::string& moe_name) -> std::string {
+        // Match patterns like "layers.N.experts" or "layers.NN.experts"
+        auto pos = moe_name.find("layers.");
+        if (pos == std::string::npos) return {};
+        auto end = moe_name.find(".experts", pos);
+        if (end == std::string::npos) {
+            end = moe_name.find("/experts", pos);
+            if (end == std::string::npos) return {};
+            return moe_name.substr(pos, end - pos + 8);  // include "/experts"
+        }
+        return moe_name.substr(pos, end - pos + 8);  // include ".experts"
+    };
+
+    // Projection-identifying keywords for each offset slot (3 projections × {weight, scale, zp}).
+    // Slot layout: [weight_0, weight_1, weight_2, scale_0, scale_1, scale_2, zp_0, zp_1, zp_2]
+    // Projection 0: gate (VariadicSplit.0), Projection 1: up (VariadicSplit.1), Projection 2: down (down_proj)
+    struct ProjHint {
+        std::vector<std::string> patterns;   // candidate substrings in the XML name
+        std::vector<std::string> suffixes;   // suffix patterns (e.g., "/scale", "/zero_point")
+    };
+    auto get_proj_hint = [](size_t offset_slot) -> ProjHint {
+        // offset_slot 0-2: weights, 3-5: scales, 6-8: zps
+        size_t proj_idx = offset_slot % 3;
+        ProjHint hint;
+        if (proj_idx == 0) {
+            hint.patterns = {"VariadicSplit.0", "gate_proj", "gate"};
+        } else if (proj_idx == 1) {
+            hint.patterns = {"VariadicSplit.1", "up_proj", "up"};
+        } else {
+            hint.patterns = {"down_proj", "VariadicSplit.2"};
+        }
+        if (offset_slot < 3) {
+            // weight: no suffix or just the base name
+            hint.suffixes = {};
+        } else if (offset_slot < 6) {
+            hint.suffixes = {"/scale"};
+        } else {
+            hint.suffixes = {"/zero_point"};
+        }
+        return hint;
+    };
+
+    auto get_const_offset = [&](size_t index, size_t offset_slot) -> size_t {
         auto node = op->input_value(index).get_node_shared_ptr();
         auto const_op = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
         OPENVINO_ASSERT(const_op != nullptr, "Expected constant input for MOE3GemmFusedCompressed");
@@ -205,7 +249,91 @@ static void CreateMOE3GemmFusedCompressedOp(ProgramBuilder& p, const std::shared
             return size_candidates[0].entry->offset;
         }
 
+        // Layer+projection scoped resolution: use the MOE node name to identify the layer,
+        // and the offset slot to identify the projection role.
         if (size_candidates.size() > 1) {
+            const auto& moe_name = op->get_friendly_name();
+            std::string layer_pat = extract_layer_pattern(moe_name);
+            ProjHint hint = get_proj_hint(offset_slot);
+
+            // Filter candidates by layer pattern
+            std::vector<SizeCandidate> layer_filtered;
+            if (!layer_pat.empty()) {
+                for (auto& sc : size_candidates) {
+                    if (sc.name.find(layer_pat) != std::string::npos) {
+                        layer_filtered.push_back(sc);
+                    }
+                }
+            }
+
+            // If layer filtering narrowed it to one, use it
+            if (layer_filtered.size() == 1 && layer_filtered[0].entry != nullptr) {
+                layer_filtered[0].entry->used = true;
+                return layer_filtered[0].entry->offset;
+            }
+
+            // Further filter by projection hint patterns
+            auto& search_pool = layer_filtered.empty() ? size_candidates : layer_filtered;
+            for (const auto& pat : hint.patterns) {
+                std::vector<SizeCandidate> proj_filtered;
+                for (auto& sc : search_pool) {
+                    if (sc.name.find(pat) != std::string::npos) {
+                        proj_filtered.push_back(sc);
+                    }
+                }
+                if (proj_filtered.size() == 1 && proj_filtered[0].entry != nullptr) {
+                    proj_filtered[0].entry->used = true;
+                    return proj_filtered[0].entry->offset;
+                }
+                // If pattern+suffix narrows further
+                if (proj_filtered.size() > 1 && !hint.suffixes.empty()) {
+                    for (const auto& suffix : hint.suffixes) {
+                        std::vector<SizeCandidate> suffix_filtered;
+                        for (auto& sc : proj_filtered) {
+                            // Check if name ends with the suffix
+                            if (sc.name.size() >= suffix.size() &&
+                                sc.name.compare(sc.name.size() - suffix.size(), suffix.size(), suffix) == 0) {
+                                suffix_filtered.push_back(sc);
+                            }
+                        }
+                        if (suffix_filtered.size() == 1 && suffix_filtered[0].entry != nullptr) {
+                            suffix_filtered[0].entry->used = true;
+                            return suffix_filtered[0].entry->offset;
+                        }
+                    }
+                }
+            }
+
+            // Also try suffix-only filtering (for weight slots where suffix is empty,
+            // the weight is the entry that does NOT end with /scale or /zero_point)
+            if (offset_slot < 3 && !search_pool.empty()) {
+                std::vector<SizeCandidate> weight_filtered;
+                for (auto& sc : search_pool) {
+                    bool is_scale_or_zp = (sc.name.find("/scale") != std::string::npos) ||
+                                          (sc.name.find("/zero_point") != std::string::npos);
+                    if (!is_scale_or_zp) {
+                        weight_filtered.push_back(sc);
+                    }
+                }
+                if (weight_filtered.size() == 1 && weight_filtered[0].entry != nullptr) {
+                    weight_filtered[0].entry->used = true;
+                    return weight_filtered[0].entry->offset;
+                }
+                // Further filter weights by projection pattern
+                for (const auto& pat : hint.patterns) {
+                    std::vector<SizeCandidate> proj_wt_filtered;
+                    for (auto& sc : weight_filtered) {
+                        if (sc.name.find(pat) != std::string::npos) {
+                            proj_wt_filtered.push_back(sc);
+                        }
+                    }
+                    if (proj_wt_filtered.size() == 1 && proj_wt_filtered[0].entry != nullptr) {
+                        proj_wt_filtered[0].entry->used = true;
+                        return proj_wt_filtered[0].entry->offset;
+                    }
+                }
+            }
+
             std::ostringstream oss;
             const size_t max_candidates_to_log = 8;
             for (size_t i = 0; i < std::min(max_candidates_to_log, size_candidates.size()); i++) {
@@ -223,6 +351,9 @@ static void CreateMOE3GemmFusedCompressedOp(ProgramBuilder& p, const std::shared
                            name,
                            ", byte_size=", expected_size,
                            ", size_candidates=", size_candidates.size(),
+                           ", layer_pat=", layer_pat,
+                           ", offset_slot=", offset_slot,
+                           ", moe_name=", moe_name,
                            ", sample_candidates=", oss.str());
         }
 
@@ -246,7 +377,7 @@ static void CreateMOE3GemmFusedCompressedOp(ProgramBuilder& p, const std::shared
     // Serialized offsets are only needed for OTD path (weight-on-demand loading).
     if (otd_enabled) {
         for (size_t i = 0; i < const_input_idx_by_offset.size(); i++) {
-            weight_bin_offsets[i] = get_const_offset(const_input_idx_by_offset[i]);
+            weight_bin_offsets[i] = get_const_offset(const_input_idx_by_offset[i], i);
         }
     }
     ///   0: hidden_states - input tensor with hidden representations
