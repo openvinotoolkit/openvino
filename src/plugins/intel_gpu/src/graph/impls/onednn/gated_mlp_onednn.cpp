@@ -84,9 +84,15 @@ protected:
             auto scale_up_mem = instance.dep_memory_ptr(idx++);
             auto scale_down_mem = instance.dep_memory_ptr(idx++);
 
-            auto scale_desc_gate = onednn::layout_to_memory_desc_flatten(scale_gate_mem->get_layout(), dnnl::memory::format_tag::a);
-            auto scale_desc_up = onednn::layout_to_memory_desc_flatten(scale_up_mem->get_layout(), dnnl::memory::format_tag::a);
-            auto scale_desc_down = onednn::layout_to_memory_desc_flatten(scale_down_mem->get_layout(), dnnl::memory::format_tag::a);
+            auto make_scale_zp_desc = [](const layout& l, const char* name) {
+                const auto& ps = l.get_partial_shape();
+                GPU_DEBUG_TRACE << "GMLP_SCALE_DBG " << name << " shape=" << ps << " dt=" << l.data_type << std::endl;
+                return onednn::layout_to_memory_desc_flatten(l, dnnl::memory::format_tag::a);
+            };
+
+            auto scale_desc_gate = make_scale_zp_desc(scale_gate_mem->get_layout(), "scale_gate");
+            auto scale_desc_up = make_scale_zp_desc(scale_up_mem->get_layout(), "scale_up");
+            auto scale_desc_down = make_scale_zp_desc(scale_down_mem->get_layout(), "scale_down");
 
             args[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS_GATE] = scale_gate_mem->get_onednn_memory(scale_desc_gate);
             args[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS_UP] = scale_up_mem->get_onednn_memory(scale_desc_up);
@@ -97,9 +103,9 @@ protected:
                 auto zp_up_mem = instance.dep_memory_ptr(idx++);
                 auto zp_down_mem = instance.dep_memory_ptr(idx++);
 
-                auto zp_desc_gate = onednn::layout_to_memory_desc_flatten(zp_gate_mem->get_layout(), dnnl::memory::format_tag::a);
-                auto zp_desc_up = onednn::layout_to_memory_desc_flatten(zp_up_mem->get_layout(), dnnl::memory::format_tag::a);
-                auto zp_desc_down = onednn::layout_to_memory_desc_flatten(zp_down_mem->get_layout(), dnnl::memory::format_tag::a);
+                auto zp_desc_gate = make_scale_zp_desc(zp_gate_mem->get_layout(), "zp_gate");
+                auto zp_desc_up = make_scale_zp_desc(zp_up_mem->get_layout(), "zp_up");
+                auto zp_desc_down = make_scale_zp_desc(zp_down_mem->get_layout(), "zp_down");
 
                 args[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS_GATE] = zp_gate_mem->get_onednn_memory(zp_desc_gate);
                 args[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS_UP] = zp_up_mem->get_onednn_memory(zp_desc_up);
@@ -165,9 +171,9 @@ protected:
                     return;
                 }
 
-                // Weight is [OC, IC], scale is [OC, ngroups] — IC and ngroups are at dim(1)
+                // Weight is [OC, IC], scale is [ngroups, OC] after transpose in fuse_gated_mlp
                 const auto ifm = weight_layout.get_dim(1);
-                const auto ngroups = scale_layout.get_dim(1);
+                const auto ngroups = scale_layout.get_dim(0);
                 OPENVINO_ASSERT(ngroups > 0, "[GPU] Invalid grouped scale layout for gated_mlp: ngroups is zero");
                 OPENVINO_ASSERT(ifm % ngroups == 0,
                                 "[GPU] Invalid grouped scale layout for gated_mlp: ifm ", ifm,
@@ -193,9 +199,9 @@ protected:
                         return;
                     }
 
-                    // Weight is [OC, IC], zp is [OC, ngroups] — IC and ngroups are at dim(1)
+                    // Weight is [OC, IC], zp is [ngroups, OC] after transpose in fuse_gated_mlp
                     const auto ifm = weight_layout.get_dim(1);
-                    const auto ngroups = zp_layout.get_dim(1);
+                    const auto ngroups = zp_layout.get_dim(0);
                     OPENVINO_ASSERT(ngroups > 0, "[GPU] Invalid grouped zero-point layout for gated_mlp: ngroups is zero");
                     OPENVINO_ASSERT(ifm % ngroups == 0,
                                     "[GPU] Invalid grouped zero-point layout for gated_mlp: ifm ", ifm,

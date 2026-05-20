@@ -242,6 +242,16 @@ FuseGatedMLP::FuseGatedMLP() {
             flatten_to_2d(info->scale);
             if (info->has_zero_point)
                 flatten_to_2d(info->zero_point);
+
+            // oneDNN matmul with grouped scales expects scale data in {ngroups, OC} order,
+            // but OpenVINO stores it as {OC, ngroups}. Transpose to match oneDNN layout.
+            const auto& scale_ps = info->scale.get_partial_shape();
+            if (scale_ps.rank().is_static() && scale_ps.rank().get_length() == 2
+                && scale_ps[0] != scale_ps[1]) {
+                info->scale = create_transpose(info->scale, "scale_transpose");
+                if (info->has_zero_point)
+                    info->zero_point = create_transpose(info->zero_point, "zp_transpose");
+            }
         }
 
         const bool compressed_all = gate_info.compressed && up_info.compressed && down_info.compressed;
