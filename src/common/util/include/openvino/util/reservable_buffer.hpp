@@ -9,7 +9,8 @@
 #include <string_view>
 
 namespace ov::util {
-struct ReservableBuffer {
+class ReservableBuffer {
+public:
     ReservableBuffer(size_t byte_size);
     ~ReservableBuffer();
 

@@ -10,7 +10,7 @@
 #include <cstring>
 #include <stdexcept>
 #include <string>
-#include <utility>
+#include <tuple>
 
 namespace ov::util {
 ReservableBuffer::ReservableBuffer(size_t byte_size) : m_reserved_size{byte_size}, m_reserved_buffer{MAP_FAILED} {
