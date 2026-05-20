@@ -1100,7 +1100,6 @@ int main(int argc, char* argv[]) {
         }
 #endif
 
-
         std::map<std::string, ov::TensorVector> inputsData;
         if (enable_use_device_mem && isFlagSetInCommandLine("use_device_mem")) {
             if (device_name.find("GPU") == 0) {
