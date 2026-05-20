@@ -16,7 +16,6 @@ if(ENABLE_INTEL_CPU)
     add_subdirectory(snippets)
 endif()
 
-add_subdirectory(decompositions)
 add_subdirectory(transformations)
 add_subdirectory(offline_transformations)
 add_subdirectory(low_precision_transformations)

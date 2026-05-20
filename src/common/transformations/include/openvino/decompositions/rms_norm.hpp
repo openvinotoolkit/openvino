@@ -7,6 +7,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/pass/node_registry.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ov {
 namespace decompositions {
@@ -36,11 +37,11 @@ namespace decompositions {
 ///               share element type with \p x.
 /// \param scale  Optional scaling tensor (gamma). Pass an empty Output to skip
 ///               the trailing multiplication.
-ov::Output<ov::Node> rms_norm(ov::pass::NodeRegistry& reg,
-                              const ov::Output<ov::Node>& x,
-                              const ov::Output<ov::Node>& axes,
-                              const ov::Output<ov::Node>& eps,
-                              const ov::Output<ov::Node>& scale = {});
+ov::Output<ov::Node> TRANSFORMATIONS_API rms_norm(ov::pass::NodeRegistry& reg,
+                                                  const ov::Output<ov::Node>& x,
+                                                  const ov::Output<ov::Node>& axes,
+                                                  const ov::Output<ov::Node>& eps,
+                                                  const ov::Output<ov::Node>& scale = {});
 
 }  // namespace decompositions
 }  // namespace ov

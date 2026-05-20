@@ -9,6 +9,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/pass/node_registry.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ov {
 namespace decompositions {
@@ -39,11 +40,11 @@ namespace decompositions {
 /// \param cos             Cosine cache broadcastable to [?, 1, ?, head_size/2].
 /// \param sin             Sine cache broadcastable to [?, 1, ?, head_size/2].
 /// \param half_head_size  Number of element pairs per head, i.e. head_size / 2.
-ov::Output<ov::Node> rope(ov::pass::NodeRegistry& reg,
-                          const ov::Output<ov::Node>& x,
-                          const ov::Output<ov::Node>& cos,
-                          const ov::Output<ov::Node>& sin,
-                          int64_t half_head_size);
+ov::Output<ov::Node> TRANSFORMATIONS_API rope(ov::pass::NodeRegistry& reg,
+                                              const ov::Output<ov::Node>& x,
+                                              const ov::Output<ov::Node>& cos,
+                                              const ov::Output<ov::Node>& sin,
+                                              int64_t half_head_size);
 
 }  // namespace decompositions
 }  // namespace ov
