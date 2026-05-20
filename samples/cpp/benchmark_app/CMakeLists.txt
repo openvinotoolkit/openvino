@@ -13,9 +13,11 @@ ov_add_sample(NAME ${TARGET_NAME}
               DEPENDENCIES ${GFLAGS_TARGET} format_reader ie_samples_utils)
 
 if(DEFINED GPU_RT_TYPE AND GPU_RT_TYPE STREQUAL "L0")
-    target_compile_definitions(${TARGET_NAME} PRIVATE OV_GPU_WITH_ZE_RT=1)
+    target_compile_definitions(${TARGET_NAME} PRIVATE OV_GPU_WITH_ZE_RT=1 OV_GPU_WITH_OCL_RT=0)
+elseif(DEFINED GPU_RT_TYPE AND GPU_RT_TYPE STREQUAL "OCL")
+    target_compile_definitions(${TARGET_NAME} PRIVATE OV_GPU_WITH_ZE_RT=0 OV_GPU_WITH_OCL_RT=1)
 else()
-    target_compile_definitions(${TARGET_NAME} PRIVATE OV_GPU_WITH_ZE_RT=0)
+    target_compile_definitions(${TARGET_NAME} PRIVATE OV_GPU_WITH_ZE_RT=0 OV_GPU_WITH_OCL_RT=0)
 endif()
 
 # Required nlohmann_json dependency
