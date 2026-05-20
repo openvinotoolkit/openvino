@@ -12,6 +12,12 @@ ov_add_sample(NAME ${TARGET_NAME}
               HEADERS ${HDR}
               DEPENDENCIES ${GFLAGS_TARGET} format_reader ie_samples_utils)
 
+if(DEFINED GPU_RT_TYPE AND GPU_RT_TYPE STREQUAL "L0")
+    target_compile_definitions(${TARGET_NAME} PRIVATE OV_GPU_WITH_ZE_RT=1)
+else()
+    target_compile_definitions(${TARGET_NAME} PRIVATE OV_GPU_WITH_ZE_RT=0)
+endif()
+
 # Required nlohmann_json dependency
 
 if(NOT TARGET nlohmann_json::nlohmann_json)

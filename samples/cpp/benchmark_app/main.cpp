@@ -1091,16 +1091,14 @@ int main(int argc, char* argv[]) {
         bool useGpuMem = false;
         bool useNpuMem = false;
 
-        // disabling --use_device_mem is a workaroud until L0 device allocation is implemented.
+        // disabling -use_device_mem is a workaroud until L0 device allocation is implemented.
         bool enable_use_device_mem = true;
+#if OV_GPU_WITH_ZE_RT
         if (device_name.find("GPU") == 0){
-#if OV_GPU_WITH_OCL_RT
-            enable_use_device_mem = true;
-#else
+            slog::warn << "-use_device_mem option is being ignored (not yet implemented for L0 RT)" << slog::endl;
             enable_use_device_mem = false;
-            slog::warn << "--use_device_mem option is being ignored (not yet implemented for L0 RT)" << slog::endl;
-#endif
         }
+#endif
 
 
         std::map<std::string, ov::TensorVector> inputsData;
