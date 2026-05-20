@@ -15,11 +15,12 @@ namespace pass {
  * @brief Eliminates the conv padding mask gating subgraph introduced by transformers 5.0+.
  *
  * Transformers 5.0 added `apply_mask_to_padding_states` which multiplies hidden_states
- * by attention_mask before conv layers. In PagedAttention mode, sequences are packed
- * contiguously without padding, so this gating is always an identity (mask is all-1s).
+ * by attention_mask before conv layers. First observed in the LFM2 model.
+ * In PagedAttention mode, sequences are packed contiguously without padding, so this gating is
+ * always an identity (mask is all-1s).
  *
  * Matches the pattern:
- *   attention_mask -> Slice -> Unsqueeze -> Convert -> Multiply -> Add -> Multiply(H, mask_expr)
+ * attention_mask -> Slice -> Unsqueeze -> Convert -> Multiply -> Add -> Multiply(H, mask_expr)
  * and replaces the final Multiply with its hidden_states input directly.
  */
 class TRANSFORMATIONS_API EliminateConvPaddingMaskGating : public ov::pass::MatcherPass {
