@@ -18,12 +18,11 @@
 #include <string_view>
 #include <vector>
 
-#include "openvino/util/parallel_io.hpp"
-
 #include "LRUCache.hpp"
 #include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
 #include "intel_gpu/runtime/stream.hpp"
 #include "moe_3gemm_fused_inst.h"
+#include "openvino/util/parallel_io.hpp"
 
 namespace ov::intel_gpu::ocl::moe_otd {
 
