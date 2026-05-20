@@ -54,7 +54,7 @@ private:
 BufferWeightsProvider::BufferWeightsProvider(std::shared_ptr<ov::AlignedBuffer> weights)
     : m_weights(std::move(weights)) {}
 
-std::shared_ptr<ov::AlignedBuffer> BufferWeightsProvider::load_region(size_t offset, size_t size) const {
+std::shared_ptr<ov::AlignedBuffer> BufferWeightsProvider::load_region(size_t offset, size_t size) {
     OPENVINO_ASSERT(m_weights != nullptr, "Empty weights data in bin file or bin file cannot be found!");
     OPENVINO_ASSERT(offset <= m_weights->size() && size <= m_weights->size() - offset,
                     "Incorrect weights in bin file!");
@@ -77,7 +77,7 @@ FileWeightsProvider::FileWeightsProvider(std::filesystem::path weights_path)
     m_weights_size = static_cast<size_t>(std::filesystem::file_size(m_weights_path));
 }
 
-std::shared_ptr<ov::AlignedBuffer> FileWeightsProvider::load_region(size_t offset, size_t size) const {
+std::shared_ptr<ov::AlignedBuffer> FileWeightsProvider::load_region(size_t offset, size_t size) {
     OPENVINO_ASSERT(offset <= m_weights_size && size <= m_weights_size - offset, "Incorrect weights in bin file!");
 
     const FileWeightsProvider::WeightsRegionKey key{offset, size};
@@ -500,7 +500,7 @@ XmlDeserializer::XmlDeserializer(const pugi::xml_node& node,
       m_variables(variables),
       m_version(version) {}
 
-std::shared_ptr<ov::AlignedBuffer> XmlDeserializer::load_weights_region(size_t offset, size_t size) const {
+std::shared_ptr<ov::AlignedBuffer> XmlDeserializer::load_weights_region(size_t offset, size_t size) {
     OPENVINO_ASSERT(m_weights_provider, "Empty weights data in bin file or bin file cannot be found!");
     return m_weights_provider->load_region(offset, size);
 }

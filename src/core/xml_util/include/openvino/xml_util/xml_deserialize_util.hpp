@@ -51,7 +51,7 @@ class WeightsProvider {
 public:
     virtual ~WeightsProvider() = default;
 
-    virtual std::shared_ptr<ov::AlignedBuffer> load_region(size_t offset, size_t size) const = 0;
+    virtual std::shared_ptr<ov::AlignedBuffer> load_region(size_t offset, size_t size) = 0;
     virtual size_t size() const = 0;
 };
 
@@ -59,7 +59,7 @@ class BufferWeightsProvider : public WeightsProvider {
 public:
     explicit BufferWeightsProvider(std::shared_ptr<ov::AlignedBuffer> weights);
 
-    std::shared_ptr<ov::AlignedBuffer> load_region(size_t offset, size_t size) const override;
+    std::shared_ptr<ov::AlignedBuffer> load_region(size_t offset, size_t size) override;
     size_t size() const override;
 
 private:
@@ -70,7 +70,7 @@ class FileWeightsProvider : public WeightsProvider {
 public:
     explicit FileWeightsProvider(std::filesystem::path weights_path);
 
-    std::shared_ptr<ov::AlignedBuffer> load_region(size_t offset, size_t size) const override;
+    std::shared_ptr<ov::AlignedBuffer> load_region(size_t offset, size_t size) override;
     size_t size() const override;
 
 private:
@@ -80,7 +80,7 @@ private:
     size_t m_weights_size = 0;
     size_t m_weights_source_id = 0;
     std::shared_ptr<ov::AlignedBuffer> m_weights_source_handle;
-    mutable std::map<WeightsRegionKey, std::shared_ptr<ov::AlignedBuffer>> m_loaded_weights_regions;
+    std::map<WeightsRegionKey, std::shared_ptr<ov::AlignedBuffer>> m_loaded_weights_regions;
 };
 
 class XmlDeserializer : public ov::AttributeVisitor {
@@ -172,7 +172,7 @@ private:
         return std::make_unique<XmlDeserializer>(node, get_weights_provider(), opsets, extensions, variables, version);
     }
 
-    std::shared_ptr<ov::AlignedBuffer> load_weights_region(size_t offset, size_t size) const;
+    std::shared_ptr<ov::AlignedBuffer> load_weights_region(size_t offset, size_t size);
     size_t get_available_weights_size() const;
 
     // -- DATA --
