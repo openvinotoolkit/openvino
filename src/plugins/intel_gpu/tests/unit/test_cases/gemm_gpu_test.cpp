@@ -18,6 +18,7 @@
 #include "layout_optimizer.h"
 
 #include <cstddef>
+#include <algorithm>
 #include <vector>
 
 using namespace cldnn;
@@ -2547,6 +2548,11 @@ struct gemm_base_test_params {
 #define CASE_GEMM_FP32_TILED_NN_BROADCAST_4 64, 1, 2, 1, 1, 2, 2, 2, 2, 2, 2, false, false, \
 1.0f, 4.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -10, 10, 8 }, { -10, 10, 8 }, { -10, 10, 8 }
 
+// Reduced shape from real model MatMul_147904 (M=128, K=1025, N=199, f_num=32)
+// Key OOB conditions preserved: N%16=7, K%16=1; M and batch reduced to keep CPU ref cost low
+#define CASE_GEMM_FP32_TILED_NN_UNALIGNED_1 32, 199, 17, 1, 4, 1, 4, 1, 1, 1, 4, false, false, \
+1.0f, 0.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -10, 10, 8 }, { -10, 10, 8 }, { -10, 10, 8 }
+
 #define CASE_GEMM_FP16_TILED_NN_1 64, 32, 32, 1, 1, 1, 1, 1, 1, 1, 1, false, false, \
 1.5f, 2.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
 #define CASE_GEMM_FP16_TILED_NN_2 128, 64, 64, 1, 1, 1, 1, 1, 1, 1, 1, false, false, \
@@ -2712,6 +2718,13 @@ public:
         topology.add(reorder("reorder_bfyx", input_info("gemm_bfyx"), format::bfyx, data_types::f32));
 
         ov::intel_gpu::ImplementationDesc gemm_impl = getImplementationDesc(p);
+
+        // gemm_mmad_int8_slm requires SIMD8 with no wider-SIMD fallback
+        const auto& supported_simd = engine.get_device_info().supported_simd_sizes;
+        if (p.kernel_name == "gemm_mmad_int8_slm" &&
+            std::none_of(supported_simd.begin(), supported_simd.end(), [](size_t s) { return s == 8; })) {
+            GTEST_SKIP() << p.kernel_name << " requires SIMD8 which is not supported on this platform";
+        }
 
         ExecutionConfig cfg = get_test_default_config(engine);
         cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm_bfyx", gemm_impl} }));
@@ -3280,7 +3293,7 @@ public:
 
             ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, std::string(""), impl_types::onednn };
             ExecutionConfig cfg{ ov::intel_gpu::queue_type(QueueTypes::in_order),
-                                 ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm", gemm_impl} }),
+                                 ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm_ref", gemm_impl} }),
                                  ov::intel_gpu::optimize_data(true),
                                  ov::intel_gpu::allow_new_shape_infer(true) };
 
@@ -3662,6 +3675,13 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp32_tiled_nn_broadcast_tests, ::testing
     gemm_base_test_params{ CASE_GEMM_FP32_TILED_NN_BROADCAST_4, "gemm_tiled_opt" },
 }));
 
+class gemm_fp32_tiled_nn_unaligned_tests : public ::GemmBaseTest<gemm_base_test_params, float, float, float, float, float> {};
+TEST_P(gemm_fp32_tiled_nn_unaligned_tests, basic) { auto p = GetParam(); execute(p); }
+
+INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp32_tiled_nn_unaligned_tests, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
+    gemm_base_test_params{ CASE_GEMM_FP32_TILED_NN_UNALIGNED_1, "gemm_tiled_opt" },
+}));
+
 class gemm_fp16_tiled_nn_tests : public ::GemmBaseTest<gemm_base_test_params, ov::float16, ov::float16, ov::float16, ov::float16, ov::float16> {};
 TEST_P(gemm_fp16_tiled_nn_tests, basic) { auto p = GetParam(); execute(p); }
 
@@ -3749,6 +3769,7 @@ TEST_P(gemm_fp32_tiled_nt_tests, basic_cached) { auto p = GetParam(); execute(p,
 TEST_P(gemm_fp32_tiled_tn_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
 TEST_P(gemm_fp32_tiled_tt_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
 TEST_P(gemm_fp32_tiled_nn_broadcast_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
+TEST_P(gemm_fp32_tiled_nn_unaligned_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
 TEST_P(gemm_fp16_tiled_nn_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
 TEST_P(gemm_fp16_tiled_nt_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
 TEST_P(gemm_fp16_tiled_tn_tests, basic_cached) { auto p = GetParam(); execute(p, true); }

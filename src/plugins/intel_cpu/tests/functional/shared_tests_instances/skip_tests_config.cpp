@@ -132,8 +132,6 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*FakeConvertLayerTest.*dataPrecision=bf16.*)"),
             // Need to generate sequence exactly in the i64 data type. Enable in scope of i64 enabling.
             std::regex(R"(.*RandomUniformLayerTestCPU.*OutPrc=i64.*)"),
-            // Issue: 123815 (Tests are sensintive to available thread count on testing machines)
-            std::regex(R"(.*smoke_Snippets_MHA_.?D_SplitDimensionM_static.*)"),
             // Issue: 126095
             std::regex(R"(^smoke_Multinomial(?:Static|Dynamic)+(?:Log)*.*seed_g=0_seed_o=0.*device=CPU.*)"),
             // Issue: 129931
@@ -415,7 +413,9 @@ const std::vector<std::regex>& disabled_test_patterns() {
             // unsupported layout
             std::regex(R"(GatherAddAvgpool.smoke_CompareWithRefs)"),
             std::regex(R"(smoke_StaticAdaPoolAvg(4|5)DLayoutTest/AdaPoolLayerCPUTest.*_outFmts=nd?hwc_1)"),
-            std::regex(R"(.*smoke_CompareWithRefs_Mvn(4|5)D(_Static)?/MvnLayerCPUTest.CompareWithRefs.*inFmts=nd?hwc.*)"),
+            std::regex(R"(.*smoke_CompareWithRefs_Mvn(4|5)D(_Static|_across_channels)?/MvnLayerCPUTest.CompareWithRefs.*inFmts=nd?hwc.*)"),
+            // MatMul tokenization is not enabled
+            std::regex(R"(SubgraphSelectPD\.smoke_CompareWithRefs)"),
             std::regex(R"(.*smoke_TopK(_int32|_bubble_BLK_on_channel_horiz)?(_dynamic)?/TopKLayerCPUTest.CompareWithRefs.*inFmts=(nhwc|nChw8c|nChw16c).x.*)"),
             std::regex(R"(.*smoke_(Group)?Convolution(2|3)D/ConvConcatSubgraphTest.CompareWithRefs.*)"),
             std::regex(R"(.*smoke_FakeQuantizeCache_(4|5)D/FakeQuantizeCacheTest.CompareWithRefs.*inFmts=(nhwc|nChw8c|ndhwc|nCdhw8c).*)"),
@@ -475,9 +475,8 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*proposal_params/.*)"),
             // Quantized models unsupported
             std::regex(R"(.*Quantized.*)"),
-            std::regex(R"(smoke_Snippets.*\[.*\?.*\].*)"),
-            std::regex(R"(smoke_Snippets.*IS\[0\]=\[1\.1\.\.10\.1\.\.8\.1\.\.4\].*)"),
-            std::regex(R"(smoke_Snippets(?!_(Eltwise|ThreeInputsEltwise)(/|_)).*)"),
+            std::regex(R"(smoke_Snippets(?!_(Eltwise|ThreeInputsEltwise|PrecisionPropagation_Convertion|Convert.*|Transpose[^/_]*|Reduce|Softmax(?=/)|AddSoftmax)(/|_)).*)"),
+            std::regex(R"(.*smoke_Snippets_TransposeMatMulBias/ExplicitTransposeMatMulBias.*)"),
             std::regex(R"(.*_enforceSnippets=1.*)"),
 #endif
 #if !defined(OPENVINO_ARCH_X86_64)
@@ -506,7 +505,6 @@ const std::vector<std::regex>& disabled_test_patterns() {
             // Tests to be enabled on ARM64
             std::regex(R"(smoke_Snippets_ConvAdd/ConvEltwise.CompareWithRefImpl.*)"),
             std::regex(R"(smoke_Snippets_GroupNormalization.*)"),
-            std::regex(R"(smoke_Snippets_PrecisionPropagation_Convertion.*)"),
 #endif
 #if !defined(OPENVINO_ARCH_ARM64) && !defined(OPENVINO_ARCH_X86_64) && !defined(OPENVINO_ARCH_RISCV64)
             // smoke_Snippets test cases are on platforms except x64, ARM64 and RISCV64
@@ -649,6 +647,11 @@ const std::vector<std::regex>& disabled_test_patterns() {
             // In other cases there might be accuracy problems.
             patterns.emplace_back(std::regex(R"(.*smoke_EltwiseChain/EltwiseChainTest.CompareWithRefs.*InPRC3=i32_Op0=Div_Op1.*)"));
             patterns.emplace_back(std::regex(R"(.*smoke_CompareWithRefs_static.*eltwise_op_type=Div.*model_type=i32.*)"));
+        }
+        if (!ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv_zvfh)) {
+            // Snippets Convert on RISC-V requires Zvfh instructions.
+            patterns.emplace_back(std::regex(R"(.*smoke_Snippets_Convert.*_IT=\([^)]*f16[^)]*\).*)"));
+            patterns.emplace_back(std::regex(R"(.*smoke_Snippets_Convert.*_OT=\([^)]*f16[^)]*\).*)"));
         }
 #endif
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)

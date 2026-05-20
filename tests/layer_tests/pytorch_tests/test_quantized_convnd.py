@@ -7,21 +7,18 @@ import pytest
 import numpy as np
 import torch
 
-from openvino.frontend import FrontEndManager
-from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestQuantizedConv2D(PytorchLayerTest):
-    rng = np.random.default_rng(seed=123)
 
     def _prepare_input(self):
-        return (np.round(self.rng.random([2, 3, 25, 25], dtype=np.float32), 4),)
+        return (np.round(self.random.rand(2, 3, 25, 25), 4),)
 
     def create_model(self, weights_shape, strides, pads, dilations, groups, bias, relu, scale, zero_point):
         class quantized_conv2d(torch.nn.Module):
             def __init__(self):
-                super(quantized_conv2d, self).__init__()
+                super().__init__()
                 if not relu:
                     conv_func = torch.ao.nn.quantized.Conv2d
                 else:
@@ -47,13 +44,12 @@ class TestQuantizedConv2D(PytorchLayerTest):
                 conv = self.conv(x_quantized)
                 return torch.dequantize(conv)
 
-        ref_net = None
         if not relu:
             op_name = "quantized::conv2d"
         else:
             op_name = "quantized::conv2d_relu"
 
-        return quantized_conv2d(), ref_net, op_name
+        return quantized_conv2d(), op_name
 
     @pytest.mark.parametrize(
         "params",

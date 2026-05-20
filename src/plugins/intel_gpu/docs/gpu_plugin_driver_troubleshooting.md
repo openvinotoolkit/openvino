@@ -22,16 +22,16 @@ Number of devices                                 1
   Device OpenCL C Version                         OpenCL C 3.0
   Device Type                                     GPU
 ```
-## 1. Make sure that you have GPU on your system
+## Make sure that you have GPU on your system
 
 Some Intel® CPUs might not have integrated GPU, so if you want to run OpenVINO on iGPU, go to [ark.intel website](https://ark.intel.com/) and make sure that your CPU has it.
 
-## 2. Make sure that OpenCL® Runtime is installed
+## Make sure that OpenCL® Runtime is installed
 
-OpenCL runtime is a part of the GPU driver on Windows, but on Linux it should be installed separately. For the installation tips, refer to [OpenVINO docs](https://docs.openvino.ai/2025/get-started/install-openvino/install-openvino-linux.html) and [OpenCL Compute Runtime docs](https://github.com/intel/compute-runtime/tree/master/opencl/doc).
+OpenCL runtime is a part of the GPU driver on Windows, but on Linux it should be installed separately. For the installation tips, refer to [OpenVINO docs](https://docs.openvino.ai/2026/get-started/install-openvino/install-openvino-linux.html) and [OpenCL Compute Runtime docs](https://github.com/intel/compute-runtime/tree/master/opencl/doc).
 To get the support of Intel® Iris® Xe MAX Graphics with Linux, follow the [driver installation guide](https://dgpu-docs.intel.com/devices/iris-xe-max-graphics/index.html)
 
-## 3. Make sure that user has all required permissions to work with GPU device
+## Make sure that user has all required permissions to work with GPU device
 
 Add the current Linux user to the `video` and `render` group:
 ```
@@ -40,14 +40,14 @@ sudo usermod -a -G render "$(whoami)"
 ```
 Note: The required group depends on the Linux distribution. Adding to both `video` and `render` is a safe option.
 
-## 4. Make sure that iGPU is enabled
+## Make sure that iGPU is enabled
 
 ```
 $ cat /sys/devices/pci0000\:00/0000\:00\:02.0/enable
 1
 ```
 
-## 5. Make sure that "/etc/OpenCL/vendors/intel.icd" contains proper paths to the OpenCL driver
+## Make sure that "/etc/OpenCL/vendors/intel.icd" contains proper paths to the OpenCL driver
 
 ```
 $ cat /etc/OpenCL/vendors/intel.icd
@@ -55,13 +55,54 @@ $ cat /etc/OpenCL/vendors/intel.icd
 ```
 Note: path to the runtime lib may vary in different driver versions
 
-## 6. Use LD_DEBUG=libs to trace loaded libraries
+## On Linux, make sure your KMD(kernel-mode driver) is loaded
+
+On Xe2+ platform, KMD name is `xe`. Before that, it was `i915`.
+
+Check the required module is properly loaded
+```
+$ lsmod | grep -w -e ^xe -e ^i915
+xe                   2723840  0
+i915                 4288512  16
+```
+
+## On Linux, make sure your UMD(user-mode driver) is up-to-date
+
+Old UMD may not work properly on newer HW. Make sure the UMD is up-to-date.
+In the example below, 25.31 means year 2025 and 31st week.
+```
+$ dpkg -l | grep intel-opencl-icd
+ii  intel-opencl-icd       25.31.34666.3-0             amd64        Intel graphics compute runtime for OpenCL
+```
+
+## If clinfo reports `build program : error -6` for kernel queries
+
+`clinfo | grep 'Preferred work group size multiple'` returning `<getWGsizes:...: build program : error -6>`
+indicates the OpenCL kernel compiler (IGC) is broken despite the device being recognized.
+
+**Potential Cause:** Stale manually-installed `intel-igc-core` / `intel-igc-opencl` packages (not managed by the PPA)
+shadow the newer `libigc2` installed by `kobuk-team/intel-graphics` PPA.
+
+Remove and reinstall the IGC packages:
+```bash
+sudo apt-get remove -y intel-igc-core intel-igc-opencl intel-igc-core-2 intel-igc-opencl-2
+sudo apt-get install -y intel-opencl-icd
+```
+After reinstallation, all lines of `clinfo | grep 'Preferred work group size multiple'` should show some number, like `64`.
+
+If the failure persists, check `apt-cache policy` to understand the package state better:
+```bash
+apt-cache policy intel-igc-core intel-igc-opencl intel-igc-core-2 intel-igc-opencl-2
+```
+A package installed outside of apt (e.g. via `dpkg -i`) will show only priority `100` with `/var/lib/dpkg/status` as its sole source and no repository URL. Such packages are never auto-upgraded and can shadow newer versions installed by a PPA.
+
+## Use LD_DEBUG=libs to trace loaded libraries
 
 For more details, see the [OpenCL on Linux](https://github.com/bashbaug/OpenCLPapers/blob/markdown/OpenCLOnLinux.md)
 
-## 7. If you are using dGPU with XMX, ensure that HW_MATMUL feature is recognized
+## If you are using dGPU with XMX, ensure that HW_MATMUL feature is recognized
 
-OpenVINO contains *hello_query_device* sample application: [link](https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples/hello-query-device.html)
+OpenVINO contains *hello_query_device* sample application: [link](https://docs.openvino.ai/2026/get-started/learn-openvino/openvino-samples/hello-query-device.html)
 
 With this option, you can check whether Intel XMX(Xe Matrix Extension) feature is properly recognized or not. This is a hardware feature to accelerate matrix operations and available on some discrete GPUs.
 
@@ -71,7 +112,7 @@ $ ./hello_query_device.py
 [ INFO ]                OPTIMIZATION_CAPABILITIES: FP32, BIN, FP16, INT8, GPU_HW_MATMUL, GPU_USM_MEMORY
 ```
 
-## 8. If you have errors with OpenCL headers in application build
+## If you have errors with OpenCL headers in application build
 OpenCL headers should be installed in your system to build application using OpenCL objects. OpenVINO source code distribution contains OpenCL headers thirdparty/ocl/cl_headers. Alternatively you can
 install them from [OpenCL Git](https://github.com/KhronosGroup/OpenCL-Headers). To ensure compatibility, make sure that the installed version of OpenCL headers had been released before the OpenVINO version you are using.
 

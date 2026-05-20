@@ -26,11 +26,9 @@ if(NOT BUILD_SHARED_LIBS)
         "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/include/*.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/include/*.hpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/include/*.h"
-        "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/include/*.hpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/src/*.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/src/*.hpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/src/*.h"
-        "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/src/*.hpp")
+        "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/src/*.h")
 
     # parse API symbols
     foreach(onednn_file IN LISTS onednn_files)
@@ -174,8 +172,6 @@ if(NOT OV_CPU_WITH_ACL)
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/acl/*)
 endif()
 
-list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/shl/*)
-
 if(NOT X86_64)
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/x64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/x64/*
@@ -192,11 +188,8 @@ if(NOT (AARCH64 OR ARM))
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/tpp/aarch64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/plugin/aarch64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/tpp/aarch64/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/aarch64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/aarch64/*)
-endif()
-
-if(NOT (AARCH64 OR ARM))
-    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/aarch64/*)
 endif()
 
 if(NOT AARCH64)
@@ -316,14 +309,21 @@ cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 SVE ANY
                     src/nodes/kernels/scaled_attn/attn_memcpy.cpp
         API         src/nodes/kernels/scaled_attn/attn_memcpy.hpp
-        NAME        attn_memcpy paged_attn_memcpy attn_memcpy2d_kernel
+        NAME        attn_memcpy paged_attn_memcpy attn_memcpy2d attn_memcpy2d_kernel
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 SVE NEON_FP16 ANY
                     src/nodes/kernels/scaled_attn/attn_quant.cpp
         API         src/nodes/kernels/scaled_attn/attn_quant.hpp
-        NAME        attn_quantkv paged_attn_quantkv attn_quant_u8 attn_dequant_u8 attn_quant_by_channel_u8 attn_dequant_by_channel_u8
+        NAME        paged_attn_quantkv attn_quant_u8 attn_dequant_u8 attn_quant_by_token attn_quant_by_channel attn_quant_by_channel_u8 attn_dequant_by_channel_u8
+        NAMESPACE   ov::Extensions::Cpu::XARCH
+)
+cross_compiled_file(${TARGET_NAME}
+        ARCH AVX512F AVX2 ANY
+                    src/nodes/kernels/scaled_attn/mha_kv_cache_codec.cpp
+        API         src/nodes/kernels/scaled_attn/mha_kv_cache_codec.hpp
+        NAME        mha_kv_cache
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 
@@ -332,6 +332,22 @@ cross_compiled_file(${TARGET_NAME}
                     src/nodes/kernels/x64/mlp_utils.cpp
         API         src/nodes/kernels/x64/mlp_utils.hpp
         NAME        llm_mlp_transpose_epi32_16x16  llm_mlp_quantize_bf16_i8 llm_mlp_quantize_f16_i8 llm_mlp_dequantize_i32_f32
+        NAMESPACE   ov::Extensions::Cpu::XARCH
+)
+
+cross_compiled_file(${TARGET_NAME}
+        ARCH AVX512F AVX2 ANY
+                    src/nodes/kernels/linear_attn/recurrent_linear_attn.cpp
+        API         src/nodes/kernels/linear_attn/recurrent_linear_attn.hpp
+        NAME        recurrent_linear_attn recurrent_linear_attn_paged
+        NAMESPACE   ov::Extensions::Cpu::XARCH
+)
+
+cross_compiled_file(${TARGET_NAME}
+        ARCH AVX512F AVX2 ANY
+                    src/nodes/kernels/paged_causal_conv1d.cpp
+        API         src/nodes/kernels/paged_causal_conv1d.hpp
+        NAME        paged_causal_conv1d_exec
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 
@@ -349,13 +365,9 @@ set(PCH_EXCLUDE_FILES
     src/emitters/plugin/x64/debug_capabilities.cpp
     src/emitters/plugin/aarch64/debug_capabilities.cpp
     src/nodes/executors/printers.cpp
-    src/emitters/snippets/x64/jit_debug_emitter.cpp
-    src/emitters/snippets/x64/jit_debug_emitter.cpp
     src/emitters/snippets/x64/jit_perf_count_rdtsc_emitters.cpp
     src/emitters/snippets/x64/jit_segfault_detector_emitter.cpp
     src/emitters/snippets/x64/verbose.cpp
-    src/emitters/snippets/aarch64/jit_debug_emitter.cpp
-    src/emitters/snippets/aarch64/jit_debug_emitter.cpp
     src/emitters/snippets/aarch64/jit_segfault_detector_emitter.cpp
     src/emitters/snippets/aarch64/verbose.cpp
     src/transformations/snippets/x64/op/perf_count_rdtsc.cpp)

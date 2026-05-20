@@ -90,13 +90,13 @@ ov::frontend::ExtensionHolder subgraph_required_extensions(
 }
 }  // namespace detail
 
-Graph::Graph(const std::string& model_dir,
+Graph::Graph(const std::filesystem::path& model_dir,
              const std::shared_ptr<ModelProto>& model_proto,
              detail::MappedMemoryHandles mmap_cache,
              ov::frontend::ExtensionHolder extensions)
     : Graph(model_dir, model_proto, common::make_unique<GraphCache>(), mmap_cache, std::move(extensions)) {}
 
-Graph::Graph(const std::string& model_dir,
+Graph::Graph(const std::filesystem::path& model_dir,
              const std::shared_ptr<ModelProto>& model_proto,
              std::unique_ptr<GraphCache>&& cache,
              detail::MappedMemoryHandles mmap_cache,
@@ -458,6 +458,9 @@ Output<ov::Node> Subgraph::get_ov_node_from_cache(const std::string& name) {
         return from_parent_node;
     auto new_param = std::make_shared<ov::op::v0::Parameter>(from_parent_node.get_element_type(),
                                                              from_parent_node.get_partial_shape());
+    // Set the original tensor name on the parameter output so that partition_body_parameters
+    // in Loop conversion can look it up via translate_session->lookup_tensor().
+    new_param->output(0).set_names({name});
     m_parameter_to_parent_node_map.insert({new_param, name});
     m_cache->emplace_node(name, new_param);
     m_parameters.push_back(new_param);

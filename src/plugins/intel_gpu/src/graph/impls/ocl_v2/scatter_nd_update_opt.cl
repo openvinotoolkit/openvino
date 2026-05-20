@@ -89,7 +89,8 @@ KERNEL(scatter_nd_update_opt)(OPTIONAL_SHAPE_INFO_ARG
 
     for (uint i = 0; i < INDICES_LAST_DIM; ++i) {
         indices_coord[INDICES_RANK - 1] = i;
-        target_coord[i] = indices[GET_INDICES_INDEX(INPUT1_ORDER)];
+        int indices_val = indices[GET_INDICES_INDEX(INPUT1_ORDER)];
+        target_coord[i] = indices_val + (INPUT0_DIMS * (indices_val < 0));
     }
 
     for (uint i = INDICES_LAST_DIM; i < OUTPUT_DIMS; ++i) {

@@ -4,6 +4,7 @@
 
 #include "unfold_sync_infer_request.hpp"
 
+#include "attn/attn_subgraph.hpp"
 #include "compiled_model.hpp"
 #include "logging.hpp"
 #include "openvino/core/parallel.hpp"
@@ -30,7 +31,7 @@ ov::npuw::UnfoldInferRequest::UnfoldInferRequest(const std::shared_ptr<ov::npuw:
             if (proto_comp_model_desc.spatial) {
                 NPUW_ASSERT(false && "Spatial is not supported in unfold");
             }
-            if (proto_comp_model_desc.attention) {
+            if (ov::npuw::attn::get_compiled_dynamic(proto_comp_model_desc.pipeline.context) != nullptr) {
                 NPUW_ASSERT(false && "Dynamic is not supported in unfold");
             }
         }  // if(replaced_by)
@@ -39,7 +40,6 @@ ov::npuw::UnfoldInferRequest::UnfoldInferRequest(const std::shared_ptr<ov::npuw:
         auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
         // NB: UnfoldInferRequest is _NOT_ fail-safe! Fail means fail here
         m_subrequests[i] = proto_comp_model_desc.compiled_model->create_infer_request();
-        m_subrequest_devices[i] = *proto_comp_model_desc.device_it;
         LOG_INFO("DONE");
     }  // for(submodels)
 

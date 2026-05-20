@@ -11,6 +11,6 @@ For assistance regarding snippets, contact a member of [openvino-ie-transformati
 
 ## See also
 
- * [OpenVINO™ README](../../../README.md)
- * [OpenVINO Core Components](../../README.md)
- * [Developer documentation](../../../docs/dev/index.md)
+ * [OpenVINO™ README](/README.md)
+ * [OpenVINO Core Components](/src/core/README.md)
+ * [Developer documentation](/docs/dev/index.md)

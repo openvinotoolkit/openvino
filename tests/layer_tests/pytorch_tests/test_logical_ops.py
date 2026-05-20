@@ -1,14 +1,17 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import numpy as np
 import pytest
-from pytorch_layer_test_class import PytorchLayerTest
+from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 class TestLogicalOp(PytorchLayerTest):
 
     def _prepare_input(self, out, unary, first_dtype, second_dtype):
-        x = np.random.randint(1, 5, (1, 10)).astype(first_dtype)
+        x = self.random.randint(1, 5, (1, 10), dtype=first_dtype)
         if unary:
             return (x, ) if not out else (x, np.zeros_like(x).astype(bool))
-        y = np.random.randint(1, 5, (1, 10)).astype(second_dtype)
+        y = self.random.randint(1, 5, (1, 10), dtype=second_dtype)
         if not out:
             return x, y
         return x, y, np.zeros_like(x).astype(bool)
@@ -46,18 +49,18 @@ class TestLogicalOp(PytorchLayerTest):
             def forward_not_out(self, tensor_a, out):
                 return self.op(tensor_a, out=out), out
 
-        ref_net = None
 
-        return aten_logical(op, out), ref_net, f"aten::logical_{op_name}"
+        return aten_logical(op, out), f"aten::logical_{op_name}"
  
 
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_fx_backend
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("op_type", ["and", "or", "not", "xor"])
     @pytest.mark.parametrize("first_dtype", ["bool", "int32", 'int8', 'float32'])
     @pytest.mark.parametrize("second_dtype", ["bool", "int32", 'int8', 'float32'])
-    @pytest.mark.parametrize("out", [True, False])
+    @pytest.mark.parametrize("out", [skip_if_export(True), False])
     def test_logical(self, op_type, out, first_dtype, second_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(op_type, out),
                    ie_device, precision, ir_version, 

@@ -4,14 +4,13 @@
 import numpy as np
 import pytest
 import torch
-import openvino as ov
 from pytorch_layer_test_class import PytorchLayerTest
 
 class TestPolar(PytorchLayerTest):
     def _prepare_input(self, input_shape=(1, 1000), dtype=np.float32):
         return (
-            np.random.uniform(0, 10, input_shape).astype(dtype),
-            np.random.uniform(-np.pi, np.pi, input_shape).astype(dtype)
+            self.random.uniform(0, 10, input_shape, dtype=dtype),
+            self.random.uniform(-np.pi, np.pi, input_shape, dtype=dtype)
         )
 
     def create_model(self):
@@ -19,8 +18,7 @@ class TestPolar(PytorchLayerTest):
             def forward(self, abs, angle):
                 complex_tensor = torch.polar(abs, angle)
                 return torch.view_as_real(complex_tensor)
-        ref_net = None
-        return PolarModel(), None, "aten::polar"
+        return PolarModel(), "aten::polar"
 
     @pytest.mark.parametrize("input_case", [
         (1, 1000),

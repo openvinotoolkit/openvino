@@ -83,12 +83,27 @@ KERNEL(convolution_gpu_bfyx_f16_depthwise)(
     INPUT_TYPE8 src_block_0 = DT_INPUT_BLOCK_READ8(input, input_offset + (input_y + 0) * input_y_pitch + (input_x) * input_x_pitch);
     INPUT_TYPE8 src_block_1 = DT_INPUT_BLOCK_READ8(input, input_offset + (input_y + 1) * input_y_pitch + (input_x) * input_x_pitch);
     INPUT_TYPE8 src_block_2 = DT_INPUT_BLOCK_READ8(input, input_offset + (input_y + 2) * input_y_pitch + (input_x) * input_x_pitch);
-    INPUT_TYPE src_tail_00 = DT_INPUT_BLOCK_READ(input, input_offset + (input_y + 0) * input_y_pitch + (input_x + 8) * input_x_pitch);
-    INPUT_TYPE src_tail_01 = DT_INPUT_BLOCK_READ(input, input_offset + (input_y + 0) * input_y_pitch + (input_x + 9) * input_x_pitch);
-    INPUT_TYPE src_tail_10 = DT_INPUT_BLOCK_READ(input, input_offset + (input_y + 1) * input_y_pitch + (input_x + 8) * input_x_pitch);
-    INPUT_TYPE src_tail_11 = DT_INPUT_BLOCK_READ(input, input_offset + (input_y + 1) * input_y_pitch + (input_x + 9) * input_x_pitch);
-    INPUT_TYPE src_tail_20 = DT_INPUT_BLOCK_READ(input, input_offset + (input_y + 2) * input_y_pitch + (input_x + 8) * input_x_pitch);
-    INPUT_TYPE src_tail_21 = DT_INPUT_BLOCK_READ(input, input_offset + (input_y + 2) * input_y_pitch + (input_x + 9) * input_x_pitch);
+
+    const bool valid_x6 = (x + 6) < OUTPUT_SIZE_X;
+    const bool valid_x7 = (x + 7) < OUTPUT_SIZE_X;
+
+    INPUT_TYPE src_tail_00 = INPUT0_VAL_ZERO;
+    INPUT_TYPE src_tail_01 = INPUT0_VAL_ZERO;
+    INPUT_TYPE src_tail_10 = INPUT0_VAL_ZERO;
+    INPUT_TYPE src_tail_11 = INPUT0_VAL_ZERO;
+    INPUT_TYPE src_tail_20 = INPUT0_VAL_ZERO;
+    INPUT_TYPE src_tail_21 = INPUT0_VAL_ZERO;
+
+    if (valid_x6) {
+        src_tail_00 = DT_INPUT_BLOCK_READ(input, input_offset + (input_y + 0) * input_y_pitch + (input_x + 8) * input_x_pitch);
+        src_tail_10 = DT_INPUT_BLOCK_READ(input, input_offset + (input_y + 1) * input_y_pitch + (input_x + 8) * input_x_pitch);
+        src_tail_20 = DT_INPUT_BLOCK_READ(input, input_offset + (input_y + 2) * input_y_pitch + (input_x + 8) * input_x_pitch);
+    }
+    if (valid_x7) {
+        src_tail_01 = DT_INPUT_BLOCK_READ(input, input_offset + (input_y + 0) * input_y_pitch + (input_x + 9) * input_x_pitch);
+        src_tail_11 = DT_INPUT_BLOCK_READ(input, input_offset + (input_y + 1) * input_y_pitch + (input_x + 9) * input_x_pitch);
+        src_tail_21 = DT_INPUT_BLOCK_READ(input, input_offset + (input_y + 2) * input_y_pitch + (input_x + 9) * input_x_pitch);
+    }
 
 #if X_BLOCK_SIZE == 8
     for (uint i = 0; i < X_BLOCK_SIZE - 2; i++)
@@ -105,7 +120,7 @@ KERNEL(convolution_gpu_bfyx_f16_depthwise)(
         dst[i] = mad(src_block_2[i + 1], wei_21, dst[i]);
         dst[i] = mad(src_block_2[i + 2], wei_22, dst[i]);
     }
-    {
+    if (valid_x6) {
         dst[6] = mad(src_block_0[6], wei_00, dst[6]);
         dst[6] = mad(src_block_0[7], wei_01, dst[6]);
         dst[6] = mad(src_tail_00,    wei_02, dst[6]);
@@ -118,7 +133,7 @@ KERNEL(convolution_gpu_bfyx_f16_depthwise)(
         dst[6] = mad(src_block_2[7], wei_21, dst[6]);
         dst[6] = mad(src_tail_20,    wei_22, dst[6]);
     }
-    {
+    if (valid_x7) {
         dst[7] = mad(src_block_0[7], wei_00, dst[7]);
         dst[7] = mad(src_tail_00,    wei_01, dst[7]);
         dst[7] = mad(src_tail_01,    wei_02, dst[7]);

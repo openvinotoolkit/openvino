@@ -43,15 +43,14 @@ def decompress_symmetric(input, scale):
 
 
 class TestMatMulU4Weights(PytorchLayerTest):
-    rng = np.random.default_rng(seed=123)
 
     def _prepare_input(self):
-        return (np.round(5.00 * self.rng.random([2, 4], dtype=np.float32) - 2.50, 4),)
+        return (np.round(5.00 * self.random.rand(2, 4) - 2.50, 4),)
 
     def create_model(self, group_size):
         class aten_mm_u4(torch.nn.Module):
             def __init__(self, compressed_weight, scale, zero_point, weight_shape):
-                super(aten_mm_u4, self).__init__()
+                super().__init__()
                 self.compressed_weight_shape = compressed_weight.shape
                 self.packed_weight = torch.nn.Parameter(pack_uint4(compressed_weight), requires_grad=False)
 
@@ -77,22 +76,21 @@ class TestMatMulU4Weights(PytorchLayerTest):
 
                 return torch.matmul(x, weight)
 
-        ref_net = None
 
         weight_shape = (4, 2)
         ngroups = weight_shape[0] // group_size
         compressed_weight_shape = (ngroups, group_size, weight_shape[1])
         zero_point_shape = scale_shape = (ngroups, 1, weight_shape[1])
 
-        compressed_weight = (15.00 * self.rng.random(compressed_weight_shape, dtype=np.float32)).astype(dtype=np.uint8)
-        scale = np.round(10.00 * self.rng.random(scale_shape, dtype=np.float32) - 5.00)
-        zero_point = (15.00 * self.rng.random(zero_point_shape, dtype=np.float32)).astype(dtype=np.uint8)
+        compressed_weight = self.random.randint(0, 16, size=compressed_weight_shape, dtype=np.uint8)
+        scale = self.random.randint(-5, 6, size=scale_shape, dtype=np.int32)
+        zero_point = self.random.randint(0, 16, size=zero_point_shape, dtype=np.uint8)
 
         t_compressed_weight = torch.from_numpy(compressed_weight)
         t_scale = torch.from_numpy(scale)
         t_zero_point = torch.from_numpy(zero_point)
 
-        return aten_mm_u4(t_compressed_weight, t_scale, t_zero_point, weight_shape), ref_net, ["aten::matmul"]
+        return aten_mm_u4(t_compressed_weight, t_scale, t_zero_point, weight_shape), ["aten::matmul"]
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -110,15 +108,14 @@ class TestMatMulU4Weights(PytorchLayerTest):
 
 
 class TestMatMulI4Weights(PytorchLayerTest):
-    rng = np.random.default_rng(seed=123)
 
     def _prepare_input(self):
-        return (np.round(5.00 * self.rng.random([2, 4], dtype=np.float32) - 2.50, 4),)
+        return (np.round(5.00 * self.random.rand(2, 4) - 2.50, 4),)
 
     def create_model(self, group_size):
         class aten_mm_i4(torch.nn.Module):
             def __init__(self, compressed_weight, scale, weight_shape):
-                super(aten_mm_i4, self).__init__()
+                super().__init__()
                 self.compressed_weight_shape = compressed_weight.shape
                 self.packed_weight = torch.nn.Parameter(pack_int4(compressed_weight), requires_grad=False)
 
@@ -138,22 +135,19 @@ class TestMatMulI4Weights(PytorchLayerTest):
 
                 return torch.matmul(x, weight)
 
-        ref_net = None
 
         weight_shape = (4, 2)
         ngroups = weight_shape[0] // group_size
         compressed_weight_shape = (ngroups, group_size, weight_shape[1])
         scale_shape = (ngroups, 1, weight_shape[1])
 
-        compressed_weight = (16.00 * self.rng.random(compressed_weight_shape, dtype=np.float32) - 8.00).astype(
-            dtype=np.int8
-        )
-        scale = np.round(10.00 * self.rng.random(scale_shape, dtype=np.float32) - 5.00)
+        compressed_weight = self.random.randint(-8, 8, size=compressed_weight_shape, dtype=np.int8)
+        scale = self.random.randint(-5, 6, size=scale_shape, dtype=np.int32)
 
         t_compressed_weight = torch.from_numpy(compressed_weight)
         t_scale = torch.from_numpy(scale)
 
-        return aten_mm_i4(t_compressed_weight, t_scale, weight_shape), ref_net, ["aten::matmul"]
+        return aten_mm_i4(t_compressed_weight, t_scale, weight_shape), ["aten::matmul"]
 
     @pytest.mark.nightly
     @pytest.mark.precommit

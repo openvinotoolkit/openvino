@@ -74,6 +74,7 @@ static void CreateInterpolateOp(ProgramBuilder& p, const std::shared_ptr<ov::op:
     static const size_t AXES_INDEX = 3;
 
     auto attrs = op->get_attrs();
+    const float cube_coeff = static_cast<float>(attrs.cube_coeff);
 
     auto sizes_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(SIZES_INDEX));
     std::vector<int64_t> sizes = sizes_constant ? sizes_constant->cast_vector<int64_t>() : std::vector<int64_t>{};
@@ -101,7 +102,7 @@ static void CreateInterpolateOp(ProgramBuilder& p, const std::shared_ptr<ov::op:
                                                              attrs.pads_begin,
                                                              attrs.pads_end,
                                                              attrs.antialias,
-                                                             attrs.cube_coeff,
+                                                             cube_coeff,
                                                              attrs.mode,
                                                              attrs.shape_calculation_mode,
                                                              attrs.coordinate_transformation_mode,
@@ -115,7 +116,7 @@ static void CreateInterpolateOp(ProgramBuilder& p, const std::shared_ptr<ov::op:
                                                              attrs.pads_begin,
                                                              attrs.pads_end,
                                                              attrs.antialias,
-                                                             attrs.cube_coeff,
+                                                             cube_coeff,
                                                              attrs.mode,
                                                              attrs.shape_calculation_mode,
                                                              attrs.coordinate_transformation_mode,
@@ -133,7 +134,7 @@ static void CreateInterpolateOp(ProgramBuilder& p, const std::shared_ptr<ov::op:
                                                          attrs.pads_begin,
                                                          attrs.pads_end,
                                                          attrs.antialias,
-                                                         attrs.cube_coeff,
+                                                         cube_coeff,
                                                          attrs.mode,
                                                          attrs.shape_calculation_mode,
                                                          attrs.coordinate_transformation_mode,
@@ -154,6 +155,7 @@ static void CreateInterpolateOp(ProgramBuilder& p, const std::shared_ptr<ov::op:
     };
 
     auto attrs = op->get_attrs();
+    const float cube_coeff = static_cast<float>(attrs.cube_coeff);
 
     auto scales_or_sizes_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(eScalesOrSizesIndex));
     std::vector<float> scales = scales_or_sizes_constant && attrs.shape_calculation_mode == ov::op::v11::Interpolate::ShapeCalcMode::SCALES ?
@@ -181,7 +183,7 @@ static void CreateInterpolateOp(ProgramBuilder& p, const std::shared_ptr<ov::op:
                                                              attrs.pads_begin,
                                                              attrs.pads_end,
                                                              attrs.antialias,
-                                                             attrs.cube_coeff,
+                                                             cube_coeff,
                                                              attrs.mode,
                                                              attrs.shape_calculation_mode,
                                                              attrs.coordinate_transformation_mode,
@@ -195,7 +197,7 @@ static void CreateInterpolateOp(ProgramBuilder& p, const std::shared_ptr<ov::op:
                                                              attrs.pads_begin,
                                                              attrs.pads_end,
                                                              attrs.antialias,
-                                                             attrs.cube_coeff,
+                                                             cube_coeff,
                                                              attrs.mode,
                                                              attrs.shape_calculation_mode,
                                                              attrs.coordinate_transformation_mode,
@@ -214,7 +216,7 @@ static void CreateInterpolateOp(ProgramBuilder& p, const std::shared_ptr<ov::op:
                                                          attrs.pads_begin,
                                                          attrs.pads_end,
                                                          attrs.antialias,
-                                                         attrs.cube_coeff,
+                                                         cube_coeff,
                                                          attrs.mode,
                                                          attrs.shape_calculation_mode,
                                                          attrs.coordinate_transformation_mode,

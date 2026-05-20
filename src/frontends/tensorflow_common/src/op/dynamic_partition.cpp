@@ -40,6 +40,14 @@ OutputVector translate_dynamic_partition_op(const NodeContext& node) {
 
     // retrieve num_partitions attribute
     auto num_partitions = node.get_attribute<int64_t>("num_partitions");
+    TENSORFLOW_OP_VALIDATION(
+        node,
+        num_partitions > 0,
+        "DynamicPartition expects positive num_partitions attribute, got: " + std::to_string(num_partitions));
+    TENSORFLOW_OP_VALIDATION(
+        node,
+        num_partitions <= static_cast<int64_t>(std::numeric_limits<int32_t>::max()),
+        "DynamicPartition num_partitions attribute exceeds int32 range, got: " + std::to_string(num_partitions));
 
     // compute how many slices are collected for each partition
     // 1. initially assume that we collect zero slices for each partition

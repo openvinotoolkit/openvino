@@ -142,10 +142,10 @@ public:
 
     CPUInfo getCPUInfo() const;
     std::shared_ptr<ov::Model> create_ov_model(const ov::element::Type& ngPrc,
-                                                  ov::ParameterVector& params,
-                                                  const std::shared_ptr<ov::Node>& lastNode,
-                                                  std::string name,
-                                                  const QuantizationInfo& qinfo = {});
+                                               ov::ParameterVector& params,
+                                               const std::shared_ptr<ov::Node>& lastNode,
+                                               std::string name,
+                                               const QuantizationInfo& qinfo = {});
 
     void CheckPluginRelatedResults(const ov::CompiledModel& execNet, const std::set<std::string>& nodeType) const;
     void CheckPluginRelatedResults(const ov::CompiledModel& execNet, const std::string& nodeType) const;
@@ -187,12 +187,6 @@ const ov::AnyMap cpu_bf16_plugin_config = {{ov::hint::inference_precision(ov::el
 const ov::AnyMap cpu_f32_plugin_config = {{ov::hint::inference_precision(ov::element::f32)}};
 
 // utility functions
-void CheckNumberOfNodesWithType(const ov::CompiledModel& compiledModel,
-                                const std::string& nodeType,
-                                size_t expectedCount);
-void CheckNumberOfNodesWithTypes(const ov::CompiledModel& compiledModel,
-                                 const std::unordered_set<std::string>& nodeTypes,
-                                 size_t expectedCount);
 bool containsNonSupportedFormat(const std::vector<cpu_memory_format_t>& formats,
                                 const std::vector<cpu_memory_format_t>& non_supported_f);
 bool containsSupportedFormatsOnly(const std::vector<cpu_memory_format_t>& formats,

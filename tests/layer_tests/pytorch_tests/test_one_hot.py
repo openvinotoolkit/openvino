@@ -9,7 +9,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestOneHot(PytorchLayerTest):
     def _prepare_input(self):
-        return (np.random.randint(0, 100, (1,1000)).astype(np.int32),)
+        return (self.random.randint(0, 100, (1,1000), dtype=np.int32),)
 
     def create_model(self, num_classes):
         import torch
@@ -17,13 +17,13 @@ class TestOneHot(PytorchLayerTest):
 
         class aten_one_hot(torch.nn.Module):
             def __init__(self, num_classes):
-                super(aten_one_hot, self).__init__()
+                super().__init__()
                 self.num_classes = num_classes
 
             def forward(self, x):
                 return F.one_hot(torch.arange(0, x.numel()) % 3, self.num_classes)
 
-        return aten_one_hot(num_classes), None, "aten::one_hot"
+        return aten_one_hot(num_classes), "aten::one_hot"
 
     @pytest.mark.parametrize(("num_classes"), [-1, 3, 1000,])
     @pytest.mark.nightly

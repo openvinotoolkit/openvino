@@ -49,6 +49,11 @@ namespace ov::intel_cpu::node {
 
 struct PagedAttentionKey {
     ov::element::Type rtPrecision;
+    ov::element::Type keyCachePrecision;
+    ov::element::Type valueCachePrecision;
+    bool quantKeyByChannel;
+    bool quantValueByChannel;
+    bool isSageAttn;
 
     [[nodiscard]] size_t hash() const;
     bool operator==(const PagedAttentionKey& rhs) const;
@@ -57,14 +62,19 @@ struct PagedAttentionKey {
 size_t PagedAttentionKey::hash() const {
     size_t seed = 0;
     seed = hash_combine(seed, rtPrecision.hash());
+    seed = hash_combine(seed, keyCachePrecision.hash());
+    seed = hash_combine(seed, valueCachePrecision.hash());
+    seed = hash_combine(seed, quantKeyByChannel);
+    seed = hash_combine(seed, quantValueByChannel);
+    seed = hash_combine(seed, isSageAttn);
 
     return seed;
 }
 
 bool PagedAttentionKey::operator==(const PagedAttentionKey& rhs) const {
-    auto retVal = rtPrecision == rhs.rtPrecision;
-
-    return retVal;
+    return rtPrecision == rhs.rtPrecision && keyCachePrecision == rhs.keyCachePrecision &&
+           valueCachePrecision == rhs.valueCachePrecision && quantKeyByChannel == rhs.quantKeyByChannel &&
+           quantValueByChannel == rhs.quantValueByChannel && isSageAttn == rhs.isSageAttn;
 }
 
 PagedAttention::PagedAttention(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
@@ -99,7 +109,7 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
         creatorsMap.at(LayoutType::ncsp)
             ->createSharedDesc(rtPrecision, getInputShapeAtPort(PagedAttentionExecutor::ID_V)));
 
-    CPU_NODE_ASSERT(orgInputNumber == 25U, "The input number of PagedAttention should be 25.");
+    CPU_NODE_ASSERT(orgInputNumber == 28U, "The input number of PagedAttention should be 28.");
     // kvcache, float, []
     auto past_key_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
     auto past_value_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
@@ -207,8 +217,22 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
                 ov::element::i32,
                 getInputShapeAtPort(PagedAttentionExecutor::ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES_BEGINS)));
 
+    // token_type_ids, i32, [B_token | 0] or [1, B_token]
+    config.inConfs[PagedAttentionExecutor::ID_TOKEN_TYPE_IDS].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_TOKEN_TYPE_IDS)));
+
     config.outConfs[2].setMemDesc(
         creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::f32, getOutputShapeAtPort(2)));
+
+    // qq_bias, uint8, [batch_mask_size_in_sequences]
+    config.inConfs[PagedAttentionExecutor::ID_QQ_BIAS].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(ov::element::u8, getInputShapeAtPort(PagedAttentionExecutor::ID_QQ_BIAS)));
+    // qq_bias_begins, int32, [B_seq + 1]
+    config.inConfs[PagedAttentionExecutor::ID_QQ_BIAS_BEGINS].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_QQ_BIAS_BEGINS)));
 
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref_any);
 }
@@ -232,19 +256,21 @@ bool PagedAttention::isQuantByChannel(const Config::CacheQuantMode mode,
 void PagedAttention::createPrimitive() {
     auto rtPrecision = getRuntimePrecision();
 
-    // in one model, kvCachePrecision could not be changed so no need to care whether it may be changed.
-    PagedAttentionKey key = {rtPrecision};
+    auto kCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
+    auto vCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
+    const auto& cpuConfig = context->getConfig();
+    bool quantKeybyChannel = isQuantByChannel(cpuConfig.keyCacheQuantMode, cpuConfig.keyCachePrecision, true);
+    bool quantValuebyChannel = isQuantByChannel(cpuConfig.valueCacheQuantMode, cpuConfig.valueCachePrecision, false);
+
+    PagedAttentionKey key = {rtPrecision,
+                             kCachePrecision,
+                             vCachePrecision,
+                             quantKeybyChannel,
+                             quantValuebyChannel,
+                             cpuConfig.enableSageAttn};
 
     auto builder = [&]([[maybe_unused]] const PagedAttentionKey& key) -> std::shared_ptr<PagedAttentionExecutor> {
 #if defined(OPENVINO_ARCH_X86_64) || (defined(OPENVINO_ARCH_ARM64))
-        // Since we are quantize only last dim it's safe to use the last dim of KV.
-        auto kCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
-        auto vCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
-        const auto& cpuConfig = context->getConfig();
-
-        bool quantKeybyChannel = isQuantByChannel(cpuConfig.keyCacheQuantMode, cpuConfig.keyCachePrecision, true);
-        bool quantValuebyChannel =
-            isQuantByChannel(cpuConfig.valueCacheQuantMode, cpuConfig.valueCachePrecision, false);
         PagedAttnQuantParams params{cpuConfig.keyCacheGroupSize,
                                     cpuConfig.valueCacheGroupSize,
                                     quantKeybyChannel,
@@ -315,7 +341,17 @@ void PagedAttention::execute([[maybe_unused]] const dnnl::stream& strm) {
         size_t num_elements_in_output = 0;
 
         const size_t K_CACHE_IDX = PagedAttentionExecutor::ID_KCACHE;
-        const size_t block_size = inputs[K_CACHE_IDX]->getStaticDims()[2];
+        // For by-channel quantized caches, dim[2] includes parameter header rows
+        // (scales/zps). Subtract them to get the actual PA block_size.
+        const auto& cpuConfig = context->getConfig();
+        bool quantKeybyChannel = isQuantByChannel(cpuConfig.keyCacheQuantMode, cpuConfig.keyCachePrecision, true);
+        size_t block_size = inputs[K_CACHE_IDX]->getStaticDims()[2];
+        if (quantKeybyChannel && cpuConfig.keyCachePrecision.is_integral()) {
+            size_t params_count = (cpuConfig.keyCachePrecision == ov::element::i8) ? 1 : 2;
+            size_t key_sub_byte_mult = (cpuConfig.keyCachePrecision == ov::element::u4) ? 2 : 1;
+            size_t key_params_size = sizeof(float) * params_count * key_sub_byte_mult;
+            block_size -= key_params_size;
+        }
 
         const size_t ADAPTIVE_RKV_EVICTABLE_SIZES_IDX = PagedAttentionExecutor::ID_ADAPTIVE_RKV_EVICTABLE_SIZES;
         auto evictable_sizes_dims = inputs[ADAPTIVE_RKV_EVICTABLE_SIZES_IDX]->getStaticDims();

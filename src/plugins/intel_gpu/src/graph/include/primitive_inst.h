@@ -15,6 +15,7 @@
 #include "openvino/core/partial_shape.hpp"
 #include "program_node.h"
 #include "primitive_type.h"
+#include "kernel_dump_info.hpp"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/graph/serialization/helpers.hpp"
 #include "intel_gpu/graph/serialization/cl_kernel_data_serializer.hpp"
@@ -46,12 +47,14 @@ class PrimitiveInstTestHelper;
 struct ImplementationManager;
 
 struct BufferDescriptor {
-    explicit BufferDescriptor(const layout& l, bool lockable = false) : m_lockable(lockable), m_layout(l) {}
-    BufferDescriptor(const ov::PartialShape& shape, ov::element::Type type, bool lockable = false)
-        : BufferDescriptor(layout(shape, type, format::bfyx), lockable) {}
-    BufferDescriptor(size_t elements_count, ov::element::Type type, bool lockable = false)
-        : BufferDescriptor(layout({static_cast<int64_t>(elements_count)}, type, format::bfyx), lockable) {}
+    explicit BufferDescriptor(const layout& l, bool lockable = false, bool shareable = true)
+        : m_lockable(lockable), m_shareable(shareable), m_layout(l) {}
+    BufferDescriptor(const ov::PartialShape& shape, ov::element::Type type, bool lockable = false, bool shareable = true)
+        : BufferDescriptor(layout(shape, type, format::bfyx), lockable, shareable) {}
+    BufferDescriptor(size_t elements_count, ov::element::Type type, bool lockable = false, bool shareable = true)
+        : BufferDescriptor(layout({static_cast<int64_t>(elements_count)}, type, format::bfyx), lockable, shareable) {}
     bool m_lockable = false;
+    bool m_shareable = true;  // Whether this buffer can be shared via memory pool across primitives
     layout m_layout;
 };
 
@@ -127,9 +130,10 @@ struct primitive_impl {
             ib >> dummy;
         }
     }
-    // returns a pair of batch program hash and kernel entry of each ocl impl. Returns "" for other impl types.
-    virtual std::pair<std::string, std::string> get_kernels_dump_info() const {
-        return std::make_pair("", "");
+    // Returns a KernelDumpInfo object that contains a batch program hash and a kernel entry of each ocl impl. Returns empty object for other impl types.
+    // If static impl_params is provided, then only actually executed kernel entries are returned.
+    virtual KernelDumpInfo get_kernels_dump_info(const cldnn::kernel_impl_params& impl_params) const {
+        return KernelDumpInfo{};
     }
 
     // If this flag is set as false, the memory allocated for this primitive is not allowed to be reused
@@ -320,7 +324,6 @@ public:
     bool mem_allocated() const { return _mem_allocated; }
     bool is_dynamic() const { return _is_dynamic; }
     bool can_share_buffer() const { return _can_share_buffer; }
-    bool can_share_internal_buffer() const { return _can_share_internal_buffer; }
     bool is_constant() const { return _is_constant; }
     bool needs_completion_event() const { return _needs_completion_event; }
     bool has_unfused_subgraph() const { return (_unfused_subgraph != nullptr); }
@@ -366,6 +369,7 @@ public:
     std::shared_ptr<const PType> get_typed_desc() const { return _impl_params->typed_desc<PType>(); }
 
     virtual void update_output_memory() {}
+    void clear_output_memory();
 
     virtual int32_t get_prealloc_iter_num() { return -1; }
     virtual void update_shape_info_tensor(const kernel_impl_params& params);
@@ -438,7 +442,6 @@ protected:
     size_t _fused_mem_offset = 0;
     bool _can_be_optimized = false;
     bool _can_share_buffer = true;
-    bool _can_share_internal_buffer = true;
     bool _is_constant = false;
     bool _needs_completion_event = false;
 
@@ -448,7 +451,7 @@ protected:
     std::vector<memory::ptr> allocate_outputs(kernel_impl_params* updated_params = nullptr,
                                               bool reset_mem = true,
                                               bool runtime_alloc = false);
-    memory::ptr allocate_internal_buffer(const layout& layout, size_t idx, bool reset = true, bool lockable = false);
+    memory::ptr allocate_internal_buffer(const layout& layout, size_t idx, bool reset = true, bool lockable = false, bool shareable = true);
     void allocate_shape_info_memory();
     static std::vector<primitive_inst*> build_exec_deps(
         std::vector<std::pair<primitive_inst*, int32_t>> const& mem_deps);
@@ -506,8 +509,6 @@ protected:
     }
 
     virtual bool need_reset_output_memory() const;
-
-    void clear_output_memory();
 
     // This could be implemented via single map std::unordered_map<instrumentation::perf_counter_key, std::tuple<int64_t, size_t>>
     // but the overhead on using perf_counter_key as map key is too big, thus we use hash as map key

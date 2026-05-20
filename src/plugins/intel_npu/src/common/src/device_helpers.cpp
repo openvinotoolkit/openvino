@@ -27,32 +27,48 @@ uint32_t utils::getSliceIdBySwDeviceId(const uint32_t swDevId) {
     return sliceId;
 }
 
-std::string utils::getPlatformByDeviceName(const std::string& deviceName) {
+std::string utils::getPlatformByDeviceName(const std::string_view deviceName) {
     const auto platformPos = deviceName.rfind('.');
-    const auto platformName = (platformPos == std::string::npos) ? deviceName : deviceName.substr(0, platformPos);
+    const std::string_view platformName =
+        (platformPos == std::string::npos) ? deviceName : deviceName.substr(0, platformPos);
 
-    return platformName;
+    return std::string(platformName);
 }
 
 std::string utils::getCompilationPlatform(const std::string_view platform,
-                                          const std::string& deviceId,
+                                          const std::string_view deviceId,
                                           std::vector<std::string> availableDevicesNames) {
     // Platform parameter has a higher priority than deviceID
     if (platform != ov::intel_npu::Platform::AUTO_DETECT) {
-        return std::string(platform);
+        return ov::intel_npu::Platform::standardize(platform);
     }
 
     // Get compilation platform from deviceID
     if (!deviceId.empty()) {
-        return utils::getPlatformByDeviceName(deviceId);
+        return ov::intel_npu::Platform::standardize(utils::getPlatformByDeviceName(deviceId));
     }
 
     // Automatic detection of compilation platform
     if (availableDevicesNames.empty()) {
-        OPENVINO_THROW("No NPU devices were found.");
+        return std::string();
     }
 
-    return utils::getPlatformByDeviceName(availableDevicesNames.at(0));
+    return ov::intel_npu::Platform::standardize(utils::getPlatformByDeviceName(availableDevicesNames.at(0)));
+}
+
+std::shared_ptr<IDevice> utils::getDeviceById(const ov::SoPtr<IEngineBackend>& engineBackend,
+                                              const std::string& deviceId) {
+    if (engineBackend == nullptr) {
+        return nullptr;
+    }
+
+    try {
+        return engineBackend->getDevice(deviceId);
+    } catch (...) {
+        Logger("getDeviceById", Logger::global().level())
+            .warning("The specified device (\"%s\") was not found.", deviceId.c_str());
+    }
+    return nullptr;
 }
 
 }  // namespace intel_npu

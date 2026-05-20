@@ -7,6 +7,11 @@ USER root
 RUN echo "timeout=60" >> /etc/dnf/dnf.conf && \
     echo "retries=10" >> /etc/dnf/dnf.conf
 
+# Hackity hack: Fedora 29 is out of support for so long now
+# that we need to steal `ca-certificates` from Rocky Linux 8 repos
+# to trust "storage.openvinotoolkit.org" again
+RUN rpm -ihv --force https://download.rockylinux.org/pub/rocky/8/BaseOS/x86_64/os/Packages/c/ca-certificates-2025.2.80_v9.0.304-80.2.el8_10.noarch.rpm
+
 RUN dnf update -y && dnf install -y \
     git \
     curl \
@@ -108,6 +113,9 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3.14 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.14t get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
+
+# Install newer ninja (dnf ships older version lacking --quiet)
+RUN python3 -m pip install --no-cache-dir ninja==1.13.0
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
 

@@ -1557,6 +1557,8 @@ std::shared_ptr<ov::Model> generateUnaryEltwise(const std::shared_ptr<ov::op::Op
         eltwiseNode = std::make_shared<ov::op::v0::Elu>(param, 0.5f);
     } else if (ov::is_type<ov::op::v0::Erf>(node)) {
         eltwiseNode = std::make_shared<ov::op::v0::Erf>(param);
+    } else if (ov::is_type<ov::op::v17::ErfInv>(node)) {
+        eltwiseNode = std::make_shared<ov::op::v17::ErfInv>(param);
     } else if (ov::is_type<ov::op::v0::Exp>(node)) {
         eltwiseNode = std::make_shared<ov::op::v0::Exp>(param);
     } else if (ov::is_type<ov::op::v0::Floor>(node)) {
@@ -2273,6 +2275,7 @@ OpGenerator getOpGeneratorMap() {
 #include "openvino/opsets/opset14_tbl.hpp"
 #include "openvino/opsets/opset15_tbl.hpp"
 #include "openvino/opsets/opset16_tbl.hpp"
+#include "openvino/opsets/opset17_tbl.hpp"
 #undef _OPENVINO_OP_REG
     };
     return opGeneratorMap;
