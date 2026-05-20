@@ -179,9 +179,12 @@ void topological_sort_graph(GraphProto* graph) {
         known_tensors.insert(init.name());
     }
 
-    // Build producer map for node outputs
+    // Build producer map for node outputs. A node can declare multiple outputs (Split,
+    // TopK, BatchNorm, LSTM, ...), so reserve 2x num_nodes to cover the common
+    // multi-output cases without rehashing on large graphs. This is just a hint: if
+    // the actual output count exceeds the reservation the map rehashes automatically.
     std::unordered_map<std::string_view, int> producer_by_tensor;
-    producer_by_tensor.reserve(static_cast<size_t>(num_nodes));
+    producer_by_tensor.reserve(static_cast<size_t>(num_nodes) * 2);
     for (int i = 0; i < num_nodes; ++i) {
         for (const auto& out : graph->node(i).output()) {
             if (!out.empty()) {
