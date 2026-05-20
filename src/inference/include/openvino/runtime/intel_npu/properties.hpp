@@ -103,42 +103,6 @@ static constexpr ov::Property<uint32_t, ov::PropertyMutability::RO> driver_versi
 static constexpr ov::Property<CompilerType> compiler_type{"NPU_COMPILER_TYPE"};
 
 /**
- * @brief [Only for NPU Plugin]
- * Type: enum
- * Selects the VM runtime mode used for HostCompile model execution.
- * JIT uses npu_mlir_runtime; INTERPRETER uses npu_interpreter_runtime.
- */
-enum class VmRuntimeMode { JIT, INTERPRETER };
-
-/**
- * @brief Prints a string representation of ov::intel_npu::VmRuntimeMode to a stream
- * @param out An output stream to send to
- * @param mode A VM runtime mode value to print to a stream
- * @return A reference to the `out` stream
- */
-inline std::ostream& operator<<(std::ostream& out, const VmRuntimeMode& mode) {
-    switch (mode) {
-    case VmRuntimeMode::JIT: {
-        out << "JIT";
-    } break;
-    case VmRuntimeMode::INTERPRETER: {
-        out << "INTERPRETER";
-    } break;
-    default:
-        out << static_cast<uint32_t>(mode);
-        break;
-    }
-    return out;
-}
-
-/**
- * @brief [Only for NPU Plugin]
- * Type: VmRuntimeMode, default is JIT.
- * Selects the VM runtime library used for HostCompile model execution.
- */
-static constexpr ov::Property<VmRuntimeMode> vm_runtime_mode{"NPU_VM_RUNTIME_MODE"};
-
-/**
  * @brief [Only for NPU plugin]
  * Type: uint32_t
  * Read-only property to get NPU compiler version. Composite of Major (16bit MSB) and Minor (16bit LSB)

@@ -18,7 +18,6 @@
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
-#include "intel_npu/utils/vm/npu_vm_runtime_api.hpp"
 #include "metrics.hpp"
 #include "npuw/compiled_model.hpp"
 #include "npuw/llm_compiled_model.hpp"
@@ -270,7 +269,6 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     REGISTER_OPTION(CACHE_ENCRYPTION_CALLBACKS);
     REGISTER_OPTION(RUNTIME_REQUIREMENTS);
     REGISTER_OPTION(COMPATIBILITY_CHECK);
-    REGISTER_OPTION(NPU_VM_RUNTIME_MODE);
 
 
     if (backend) {
@@ -348,14 +346,6 @@ Plugin::Plugin() : _logger("NPUPlugin", Logger::global().level()) {
 
     OV_ITT_TASK_NEXT(PLUGIN, "InitConfig");
     init_config(_backend._ptr.get(), *options, config);
-
-    {
-        const std::string_view libName =
-            (config.get<NPU_VM_RUNTIME_MODE>() == ov::intel_npu::VmRuntimeMode::INTERPRETER)
-                ? "npu_interpreter_runtime"
-                : "npu_mlir_runtime";
-        NPUVMRuntimeApi::initialize(libName);
-    }
 
     if (_backend) {
         OV_ITT_TASK_NEXT(PLUGIN, "RegisterBackendOptions");

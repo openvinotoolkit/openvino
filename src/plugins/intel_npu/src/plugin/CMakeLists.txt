@@ -27,7 +27,6 @@ target_link_libraries(${TARGET_NAME}
         openvino_npu_common
         openvino_npu_compiler_adapter
         openvino_npu_level_zero_backend
-        openvino::npu_vm_runtime_api
 )
 
 if(NOT BUILD_SHARED_LIBS)
