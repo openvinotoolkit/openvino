@@ -94,7 +94,7 @@ void GatedMLP::validate_and_infer_types() {
 
     ov::op::v0::MatMul matmul;
     matmul.set_transpose_a(false);
-    matmul.set_transpose_b(false);
+    matmul.set_transpose_b(true);
 
     auto up_shapes = ov::op::v0::shape_infer(&matmul, std::vector<ov::PartialShape>{src_ps, w_up_ps});
     auto gate_shapes = ov::op::v0::shape_infer(&matmul, std::vector<ov::PartialShape>{src_ps, w_gate_ps});

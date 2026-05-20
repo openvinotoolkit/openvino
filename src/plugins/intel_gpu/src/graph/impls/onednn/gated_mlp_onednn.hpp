@@ -55,6 +55,15 @@ struct GatedMLPImplementationManager : public ImplementationManager {
     in_out_fmts_t query_formats(const program_node& node) const override {
         std::vector<format::type> in_fmts(node.get_dependencies().size(), format::any);
         std::vector<format::type> out_fmts(node.get_outputs_count(), format::any);
+
+        size_t out_rank = node.get_output_layout().get_rank();
+        for (size_t idx = 0; idx < node.get_dependencies().size(); idx++) {
+            if (node.get_dependency(idx).is_constant())
+                continue;
+            in_fmts[idx] = format::get_default_format(out_rank);
+        }
+        out_fmts[0] = format::get_default_format(out_rank);
+
         return {in_fmts, out_fmts};
     }
 };

@@ -39,7 +39,7 @@ std::vector<layout> gated_mlp_inst::calc_output_layouts(gated_mlp_node const& no
 
     ov::op::v0::MatMul matmul;
     matmul.set_transpose_a(false);
-    matmul.set_transpose_b(false);
+    matmul.set_transpose_b(true);
 
     auto up_shapes = ov::op::v0::shape_infer(&matmul, std::vector<ShapeType>{input_shapes[0], input_shapes[2]});
     auto gate_shapes = ov::op::v0::shape_infer(&matmul, std::vector<ShapeType>{input_shapes[0], input_shapes[1]});

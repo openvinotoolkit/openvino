@@ -13,6 +13,7 @@
 #include "openvino/op/swish.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
@@ -82,23 +83,9 @@ FuseGatedMLP::FuseGatedMLP() {
                 MatcherPass::register_new_node(transpose);
             }
             transpose->set_friendly_name(transpose_name);
-            ov::disable_constant_folding(transpose);
             new_ops.push_back(transpose);
             return transpose->output(0);
         };
-
-        ov::Output<ov::Node> gate_weights = gate->input_value(1);
-        ov::Output<ov::Node> up_weights = up->input_value(1);
-        ov::Output<ov::Node> down_weights = down->input_value(1);
-        if (gate->get_transpose_b()) {
-            gate_weights = create_transpose(gate->input_value(1), gate->get_friendly_name() + "/transpose_b_for_gmlp");
-        }
-        if (up->get_transpose_b()) {
-            up_weights = create_transpose(up->input_value(1), up->get_friendly_name() + "/transpose_b_for_gmlp");
-        }
-        if (down->get_transpose_b()) {
-            down_weights = create_transpose(down->input_value(1), down->get_friendly_name() + "/transpose_b_for_gmlp");
-        }
 
         struct decompression_info {
             bool compressed = false;
@@ -113,10 +100,20 @@ FuseGatedMLP::FuseGatedMLP() {
             return et == ov::element::u8 || et == ov::element::i8 || et == ov::element::u4 || et == ov::element::i4;
         };
 
-        auto parse_decompression = [&](const ov::Output<ov::Node>& maybe_decompressed_weight) -> decompression_info {
+        auto extract_compression_info = [&](const ov::Output<ov::Node>& maybe_decompressed_weight) -> decompression_info {
             decompression_info info;
+            info.weight = maybe_decompressed_weight;
 
-            auto direct_convert = ov::as_type_ptr<ov::op::v0::Convert>(maybe_decompressed_weight.get_node_shared_ptr());
+            // Look through Reshape: grouped quantization stores weights as 3D [OC, ngroups, group_size]
+            // with a Reshape to 2D [OC, IC] before MatMul.
+            auto input_to_parse = maybe_decompressed_weight;
+            std::shared_ptr<ov::op::v1::Reshape> top_reshape;
+            if (ov::as_type_ptr<ov::op::v1::Reshape>(maybe_decompressed_weight.get_node_shared_ptr())) {
+                top_reshape = ov::as_type_ptr<ov::op::v1::Reshape>(maybe_decompressed_weight.get_node_shared_ptr());
+                input_to_parse = top_reshape->input_value(0);
+            }
+
+            auto direct_convert = ov::as_type_ptr<ov::op::v0::Convert>(input_to_parse.get_node_shared_ptr());
             if (direct_convert) {
                 auto compressed_weights = direct_convert->input_value(0);
                 if (is_compressed_const(compressed_weights)) {
@@ -130,10 +127,9 @@ FuseGatedMLP::FuseGatedMLP() {
                 }
             }
 
-            auto mul = ov::as_type_ptr<ov::op::v1::Multiply>(maybe_decompressed_weight.get_node_shared_ptr());
-            if (!mul) {
+            auto mul = ov::as_type_ptr<ov::op::v1::Multiply>(input_to_parse.get_node_shared_ptr());
+            if (!mul)
                 return info;
-            }
 
             ov::Output<ov::Node> dequant_input;
             ov::Output<ov::Node> scale_input;
@@ -222,79 +218,70 @@ FuseGatedMLP::FuseGatedMLP() {
         };
 
         std::shared_ptr<ov::Node> gmlp;
-        auto gate_dq = parse_decompression(gate->input_value(1));
-        auto up_dq = parse_decompression(up->input_value(1));
-        auto down_dq = parse_decompression(down->input_value(1));
+        auto gate_info = extract_compression_info(gate->input_value(1));
+        auto up_info = extract_compression_info(up->input_value(1));
+        auto down_info = extract_compression_info(down->input_value(1));
 
-        const bool compressed_all = gate_dq.compressed && up_dq.compressed && down_dq.compressed;
-        const bool has_zp_all = gate_dq.has_zero_point && up_dq.has_zero_point && down_dq.has_zero_point;
-        const bool has_no_zp_all = !gate_dq.has_zero_point && !up_dq.has_zero_point && !down_dq.has_zero_point;
+        // Grouped quantization stores weights/scales/zp as 3D (e.g. [OC, ngroups, group_size]).
+        // Flatten to 2D for GatedMLP/oneDNN.
+        auto flatten_to_2d = [&](ov::Output<ov::Node>& tensor) {
+            const auto& ps = tensor.get_partial_shape();
+            if (!ps.rank().is_static() || ps.rank().get_length() <= 2)
+                return;
+            auto target_shape = ov::op::v0::Constant::create(ov::element::i64, {2}, {0, -1});
+            auto reshape = std::make_shared<ov::op::v1::Reshape>(tensor, target_shape, true);
+            new_ops.push_back(target_shape);
+            new_ops.push_back(reshape);
+            tensor = reshape->output(0);
+        };
+
+        for (auto* info : {&gate_info, &up_info, &down_info}) {
+            if (!info->compressed)
+                continue;
+            flatten_to_2d(info->weight);
+            flatten_to_2d(info->scale);
+            if (info->has_zero_point)
+                flatten_to_2d(info->zero_point);
+        }
+
+        const bool compressed_all = gate_info.compressed && up_info.compressed && down_info.compressed;
+        const bool has_zp_all = gate_info.has_zero_point && up_info.has_zero_point && down_info.has_zero_point;
+        const bool has_no_zp_all = !gate_info.has_zero_point && !up_info.has_zero_point && !down_info.has_zero_point;
+
+        // oneDNN gated_mlp expects weights in [OC, IC] physical layout. With ba format tag,
+        // layout_to_memory_desc converts [OC, IC] to oneDNN logical dims [IC, OC] as expected
+        // by the gated_mlp primitive descriptor.
+        // When transpose_b=true, weights are already [OC, IC] — no transpose needed.
+        // When transpose_b=false, weights are [IC, OC] and must be transposed to [OC, IC].
+        if (!gate->get_transpose_b())
+            gate_info.weight = create_transpose(gate_info.weight, gate->get_friendly_name() + "/transpose_gate");
+        if (!up->get_transpose_b())
+            up_info.weight = create_transpose(up_info.weight, up->get_friendly_name() + "/transpose_up");
+        if (!down->get_transpose_b())
+            down_info.weight = create_transpose(down_info.weight, down->get_friendly_name() + "/transpose_down");
 
         if (compressed_all && (has_zp_all || has_no_zp_all)) {
-            auto transpose_for_compressed = [&](ov::Output<ov::Node> tensor, bool need_transpose, const std::string& name_suffix) {
-                if (!need_transpose) {
-                    return tensor;
-                }
-
-                const auto rank = tensor.get_partial_shape().rank();
-                if (!rank.is_static() || rank.get_length() < 2) {
-                    return tensor;
-                }
-
-                return create_transpose(tensor, name_suffix);
-            };
-
-            auto gate_weight = transpose_for_compressed(gate_dq.weight,
-                                                        gate->get_transpose_b(),
-                                                        gate->get_friendly_name() + "/transpose_compressed_weight_for_gmlp");
-            auto up_weight = transpose_for_compressed(up_dq.weight,
-                                                      up->get_transpose_b(),
-                                                      up->get_friendly_name() + "/transpose_compressed_weight_for_gmlp");
-            auto down_weight = transpose_for_compressed(down_dq.weight,
-                                                        down->get_transpose_b(),
-                                                        down->get_friendly_name() + "/transpose_compressed_weight_for_gmlp");
-
-            auto gate_scale = transpose_for_compressed(gate_dq.scale,
-                                                       gate->get_transpose_b() && ov::shape_size(gate_dq.scale.get_shape()) > 1,
-                                                       gate->get_friendly_name() + "/transpose_compressed_scale_for_gmlp");
-            auto up_scale = transpose_for_compressed(up_dq.scale,
-                                                     up->get_transpose_b() && ov::shape_size(up_dq.scale.get_shape()) > 1,
-                                                     up->get_friendly_name() + "/transpose_compressed_scale_for_gmlp");
-            auto down_scale = transpose_for_compressed(down_dq.scale,
-                                                       down->get_transpose_b() && ov::shape_size(down_dq.scale.get_shape()) > 1,
-                                                       down->get_friendly_name() + "/transpose_compressed_scale_for_gmlp");
-
             if (has_zp_all) {
-                auto gate_zp = transpose_for_compressed(gate_dq.zero_point,
-                                                        gate->get_transpose_b() && ov::shape_size(gate_dq.zero_point.get_shape()) > 1,
-                                                        gate->get_friendly_name() + "/transpose_compressed_zp_for_gmlp");
-                auto up_zp = transpose_for_compressed(up_dq.zero_point,
-                                                      up->get_transpose_b() && ov::shape_size(up_dq.zero_point.get_shape()) > 1,
-                                                      up->get_friendly_name() + "/transpose_compressed_zp_for_gmlp");
-                auto down_zp = transpose_for_compressed(down_dq.zero_point,
-                                                        down->get_transpose_b() && ov::shape_size(down_dq.zero_point.get_shape()) > 1,
-                                                        down->get_friendly_name() + "/transpose_compressed_zp_for_gmlp");
-
                 gmlp = std::make_shared<ov::intel_gpu::op::GatedMLP>(up->input_value(0),
-                                                                      gate_weight,
-                                                                      up_weight,
-                                                                      down_weight,
-                                                                      gate_scale,
-                                                                      up_scale,
-                                                                      down_scale,
-                                                                      gate_zp,
-                                                                      up_zp,
-                                                                      down_zp,
+                                                                      gate_info.weight,
+                                                                      up_info.weight,
+                                                                      down_info.weight,
+                                                                      gate_info.scale,
+                                                                      up_info.scale,
+                                                                      down_info.scale,
+                                                                      gate_info.zero_point,
+                                                                      up_info.zero_point,
+                                                                      down_info.zero_point,
                                                                       ov::op::internal::GLU::GluType::Swish,
                                                                       down->get_output_element_type(0));
             } else {
                 gmlp = std::make_shared<ov::intel_gpu::op::GatedMLP>(up->input_value(0),
-                                                                      gate_weight,
-                                                                      up_weight,
-                                                                      down_weight,
-                                                                      gate_scale,
-                                                                      up_scale,
-                                                                      down_scale,
+                                                                      gate_info.weight,
+                                                                      up_info.weight,
+                                                                      down_info.weight,
+                                                                      gate_info.scale,
+                                                                      up_info.scale,
+                                                                      down_info.scale,
                                                                       ov::op::internal::GLU::GluType::Swish,
                                                                       down->get_output_element_type(0));
             }
@@ -302,9 +289,9 @@ FuseGatedMLP::FuseGatedMLP() {
 
         if (!gmlp) {
             gmlp = std::make_shared<ov::intel_gpu::op::GatedMLP>(up->input_value(0),
-                                                                  gate_weights,
-                                                                  up_weights,
-                                                                  down_weights,
+                                                                  gate_info.weight,
+                                                                  up_info.weight,
+                                                                  down_info.weight,
                                                                   ov::op::internal::GLU::GluType::Swish,
                                                                   down->get_output_element_type(0));
         }

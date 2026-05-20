@@ -131,10 +131,26 @@ protected:
             return dnnl::memory::desc({outer, inner}, onednn::convert_data_type(l.data_type), dnnl::memory::format_tag::ab);
         };
 
+        // Weights are [OC, IC] in OpenVINO but oneDNN expects [IC, OC] in ba format.
+        // {inner, outer} with ba gives the same physical layout as {outer, inner} with ab.
+        auto to_2d_weight_md = [](const layout& l, const char* tensor_name) {
+            const auto& ps = l.get_partial_shape();
+            OPENVINO_ASSERT(ps.rank().is_static() && ps.rank().get_length() >= 2,
+                            "[GPU] gated_mlp expects rank >= 2 for ", tensor_name);
+            OPENVINO_ASSERT(ps.is_static(),
+                            "[GPU] gated_mlp expects static shape for ", tensor_name,
+                            " at oneDNN primitive descriptor creation");
+
+            const auto shape = ps.to_shape();
+            const auto inner = static_cast<dnnl::memory::dim>(shape.back());
+            const auto outer = static_cast<dnnl::memory::dim>(ov::shape_size(shape) / shape.back());
+            return dnnl::memory::desc({inner, outer}, onednn::convert_data_type(l.data_type), dnnl::memory::format_tag::ba);
+        };
+
         auto src_md = to_2d_md(impl_params.get_input_layout(0), "src");
-        auto wg_md = to_2d_md(impl_params.get_input_layout(1), "weights_gate");
-        auto wu_md = to_2d_md(impl_params.get_input_layout(2), "weights_up");
-        auto wd_md = to_2d_md(impl_params.get_input_layout(3), "weights_down");
+        auto wg_md = to_2d_weight_md(impl_params.get_input_layout(1), "weights_gate");
+        auto wu_md = to_2d_weight_md(impl_params.get_input_layout(2), "weights_up");
+        auto wd_md = to_2d_weight_md(impl_params.get_input_layout(3), "weights_down");
         auto dst_md = to_2d_md(impl_params.get_output_layout(0), "dst");
 
         if (prim->compressed_weights) {
@@ -149,8 +165,9 @@ protected:
                     return;
                 }
 
-                const auto ifm = weight_layout.get_dim(0);
-                const auto ngroups = scale_layout.get_dim(0);
+                // Weight is [OC, IC], scale is [OC, ngroups] — IC and ngroups are at dim(1)
+                const auto ifm = weight_layout.get_dim(1);
+                const auto ngroups = scale_layout.get_dim(1);
                 OPENVINO_ASSERT(ngroups > 0, "[GPU] Invalid grouped scale layout for gated_mlp: ngroups is zero");
                 OPENVINO_ASSERT(ifm % ngroups == 0,
                                 "[GPU] Invalid grouped scale layout for gated_mlp: ifm ", ifm,
@@ -176,8 +193,9 @@ protected:
                         return;
                     }
 
-                    const auto ifm = weight_layout.get_dim(0);
-                    const auto ngroups = zp_layout.get_dim(0);
+                    // Weight is [OC, IC], zp is [OC, ngroups] — IC and ngroups are at dim(1)
+                    const auto ifm = weight_layout.get_dim(1);
+                    const auto ngroups = zp_layout.get_dim(1);
                     OPENVINO_ASSERT(ngroups > 0, "[GPU] Invalid grouped zero-point layout for gated_mlp: ngroups is zero");
                     OPENVINO_ASSERT(ifm % ngroups == 0,
                                     "[GPU] Invalid grouped zero-point layout for gated_mlp: ifm ", ifm,
