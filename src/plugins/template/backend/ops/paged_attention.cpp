@@ -65,6 +65,8 @@ bool evaluate(const ov::op::PagedAttentionExtension* pa_op,
     const int32_t* arkv_evict_ptr = inputs[22].get_size() > 0 ? inputs[22].data<int32_t>() : nullptr;
     const int32_t* arkv_indices_ptr = inputs[23].get_size() > 0 ? inputs[23].data<int32_t>() : nullptr;
     const int32_t* arkv_begins_ptr = inputs[24].get_size() > 0 ? inputs[24].data<int32_t>() : nullptr;
+    const int32_t* token_type_ids_ptr = inputs[25].get_size() > 0 ? inputs[25].data<int32_t>() : nullptr;
+    const std::size_t token_type_ids_count = inputs[25].get_size();
 
     ov::reference::paged_attention<T>(node_key,
                                       cache_manager,
@@ -108,6 +110,8 @@ bool evaluate(const ov::op::PagedAttentionExtension* pa_op,
                                       arkv_evict_ptr,              // adaptive_rkv_evictable_sizes
                                       arkv_indices_ptr,            // adaptive_rkv_diversity_block_set_indices
                                       arkv_begins_ptr,             // adaptive_rkv_diversity_block_set_indices_begins
+                                      token_type_ids_ptr,          // token_type_ids
+                                      token_type_ids_count,        // token_type_ids_count
                                       inputs[0].get_shape(),
                                       inputs[1].get_shape(),
                                       inputs[2].get_shape(),

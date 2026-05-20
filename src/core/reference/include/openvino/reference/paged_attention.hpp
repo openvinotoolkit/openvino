@@ -191,6 +191,8 @@ void paged_attention(std::uintptr_t node_key,
                      const int32_t* adaptive_rkv_evictable_sizes,
                      const int32_t* adaptive_rkv_diversity_block_set_indices,
                      const int32_t* adaptive_rkv_diversity_block_set_indices_begins,
+                     const int32_t* token_type_ids,
+                     std::size_t token_type_ids_count,
                      const ov::Shape& query_shape,
                      const ov::Shape& key_shape,
                      const ov::Shape& value_shape,
@@ -267,6 +269,35 @@ void paged_attention(std::uintptr_t node_key,
 
     // Parse token-to-sequence partition
     const auto seq_begins = detail::parse_subsequence_ranges(subsequence_begins, subseq_count, seq_count, batch_tokens);
+
+    // Bidirectional image attention: precompute image group boundaries from token_type_ids.
+    // For each image token (type==1), _image_group_end[i] = exclusive end of its contiguous group
+    // within the same subsequence (in global batched token space).
+    // For text tokens (type==0), _image_group_end[i] = -1.
+    const bool has_token_types = (token_type_ids != nullptr && token_type_ids_count > 0);
+    std::vector<int32_t> image_group_end;
+    if (has_token_types) {
+        image_group_end.resize(batch_tokens, -1);
+        for (std::size_t s = 0; s < seq_count; ++s) {
+            const auto seq_begin = static_cast<int32_t>(seq_begins[s]);
+            const auto seq_end = static_cast<int32_t>(seq_begins[s + 1]);
+            // Backward scan within this subsequence to find group ends
+            for (int32_t i = seq_end - 1; i >= seq_begin; --i) {
+                const std::size_t idx = static_cast<std::size_t>(i);
+                if (idx < token_type_ids_count && token_type_ids[idx] == 1) {
+                    if (i + 1 < seq_end &&
+                        static_cast<std::size_t>(i + 1) < token_type_ids_count &&
+                        token_type_ids[i + 1] == 1) {
+                        image_group_end[idx] = image_group_end[static_cast<std::size_t>(i + 1)];
+                    } else {
+                        image_group_end[idx] = i + 1;
+                    }
+                } else {
+                    image_group_end[idx] = -1;
+                }
+            }
+        }
+    }
 
     // Prepare mapping for rotated blocks (block_id -> rotated_index)
     std::unordered_map<int32_t, int32_t> rotated_map;
@@ -511,27 +542,47 @@ void paged_attention(std::uintptr_t node_key,
         // Base offset for out_scores for this sequence (concatenation order is sequence order)
         const std::size_t score_base = score_prefix[s];
 
+        // First pass: write all new tokens' KV into the cache.
+        // This must happen before attention computation so that bidirectional
+        // image groups can attend to future tokens within the same group.
+        for (std::size_t i = 0; i < new_len; ++i) {
+            const std::size_t token = t_begin + i;
+            const std::int32_t qpos = past + static_cast<std::int32_t>(i);
+            const T* krow = key + token * key_features;
+            const T* vrow = value + token * value_features;
+            cache_manager->write_token_kv<T>(node_key, s, qpos, krow, vrow);
+        }
+
+        // Second pass: compute attention for each token.
         for (std::size_t i = 0; i < new_len; ++i) {
             const std::size_t token = t_begin + i;
             const std::int32_t qpos = past + static_cast<std::int32_t>(i);
 
-            // Append this token's KV into the cache
-            const T* krow = key + token * key_features;
-            const T* vrow = value + token * value_features;
-            cache_manager->write_token_kv<T>(node_key, s, qpos, krow, vrow);
-
             // Determine attention window
+            // ncausal = number of KV positions accessible (from 0), i.e. attend to [0, ncausal-1]
+            std::int32_t ncausal = qpos + 1;
+
+            // Bidirectional image attention: extend ncausal to image group end
+            if (has_token_types && token < batch_tokens &&
+                token < token_type_ids_count && token_type_ids[token] == 1 &&
+                image_group_end[token] >= 0) {
+                // Convert group end from global token space to KV position space
+                const std::int32_t group_end_kv = past + static_cast<std::int32_t>(
+                    static_cast<std::size_t>(image_group_end[token]) - t_begin);
+                ncausal = std::min(group_end_kv, past + static_cast<std::int32_t>(new_len));
+            }
+
             std::int32_t start = 0;
             if (max_context_i > 0) {
-                start = std::max(start, qpos + 1 - max_context_i);
+                start = std::max(start, ncausal - max_context_i);
             }
             if (sliding_window_i > 0) {
-                start = std::max(start, qpos + 1 - sliding_window_i);
+                start = std::max(start, ncausal - sliding_window_i);
             }
             if (start < 0) {
                 start = 0;
             }
-            const std::int32_t end = qpos;
+            const std::int32_t end = ncausal - 1;
             const std::size_t ctx_len = (end >= start) ? static_cast<std::size_t>(end - start + 1) : 0;
             if (ctx_len == 0) {
                 // No context (shouldn't happen for causal), output zeros

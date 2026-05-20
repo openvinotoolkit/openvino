@@ -579,6 +579,8 @@ TEST(PagedCacheManagerTest, ReferenceKernelEvictionNoCorruption) {
                                           nullptr,
                                           nullptr,
                                           nullptr,
+                                          nullptr,
+                                          0,
                                           {step1_tokens, q_features},
                                           {step1_tokens, kv_features},
                                           {step1_tokens, kv_features},
@@ -651,6 +653,8 @@ TEST(PagedCacheManagerTest, ReferenceKernelEvictionNoCorruption) {
                                           nullptr,
                                           nullptr,
                                           nullptr,
+                                          nullptr,
+                                          0,
                                           {step2_tokens, q_features},
                                           {step2_tokens, kv_features},
                                           {step2_tokens, kv_features},
@@ -1466,6 +1470,8 @@ TEST(PagedCacheManagerTest, PoolKernelChangesEvictionVictimViaPA) {
             nullptr,  // adaptive_rkv_evictable_sizes
             nullptr,  // adaptive_rkv_diversity_block_set_indices
             nullptr,  // adaptive_rkv_diversity_block_set_indices_begins
+            nullptr,  // token_type_ids
+            0,        // token_type_ids_count
             {tokens, q_features},
             {tokens, kv_features},
             {tokens, kv_features},
@@ -1532,6 +1538,8 @@ TEST(PagedCacheManagerTest, PoolKernelChangesEvictionVictimViaPA) {
                                               nullptr,
                                               nullptr,
                                               nullptr,
+                                              nullptr,
+                                              0,
                                               {1, q_features},
                                               {1, kv_features},
                                               {1, kv_features},
@@ -1564,4 +1572,340 @@ TEST(PagedCacheManagerTest, PoolKernelChangesEvictionVictimViaPA) {
     // At least one of seq 1, seq 2 should be evicted (one front block freed)
     EXPECT_FALSE(a1 && a2) << "pk=1: one of seq 1/2 should have lost its front block";
     EXPECT_FALSE(b1 && b2) << "pk=7: one of seq 1/2 should have lost its front block";
+}
+
+// ===================================================================
+// Bidirectional image attention via token_type_ids
+// ===================================================================
+
+// Helper: run paged_attention with given token_type_ids and sliding_window, return output
+static std::vector<float> run_pa_with_token_types(
+    const std::vector<float>& q,
+    const std::vector<float>& k,
+    const std::vector<float>& v,
+    std::size_t num_tokens,
+    std::size_t q_heads,
+    std::size_t kv_heads,
+    std::size_t head_size,
+    const std::vector<int32_t>& token_type_ids,
+    int32_t sliding_window_val = 0) {
+    const std::size_t q_features = q_heads * head_size;
+    const std::size_t kv_features = kv_heads * head_size;
+    const std::size_t block_size = 4;
+    const std::size_t num_blocks = 8;
+
+    ov::Shape cache_shape = {num_blocks, kv_heads, block_size, head_size};
+    std::vector<float> key_cache(num_blocks * kv_heads * block_size * head_size, 0.f);
+    std::vector<float> val_cache(num_blocks * kv_heads * block_size * head_size, 0.f);
+
+    auto mgr = std::make_unique<PagedCacheManager>(ov::element::f32, EvictionPolicy::FIFO, 0);
+    constexpr std::uintptr_t nk = 200;
+
+    std::int32_t past = 0;
+    mgr->ensure_operator(nk,
+                         key_cache.data(),
+                         val_cache.data(),
+                         cache_shape,
+                         cache_shape,
+                         nullptr, 0, nullptr, 0,
+                         &past, 1);
+
+    std::int32_t subseq[2] = {0, static_cast<int32_t>(num_tokens)};
+    // scale=1.0 so softmax input = raw dot product, keeps expected values simple
+    float scale_val = 1.0f;
+    std::int32_t score_window = 0;
+    std::vector<int32_t> block_idx(num_blocks);
+    std::iota(block_idx.begin(), block_idx.end(), 0);
+    std::vector<int32_t> block_begins = {0, static_cast<int32_t>(num_blocks)};
+
+    const int32_t* sliding_ptr = (sliding_window_val > 0) ? &sliding_window_val : nullptr;
+    const int32_t* token_types_ptr = token_type_ids.empty() ? nullptr : token_type_ids.data();
+    std::size_t token_types_count = token_type_ids.size();
+
+    std::vector<float> out(num_tokens * q_features, -999.f);
+
+    ov::reference::paged_attention<float>(nk,
+                                          mgr.get(),
+                                          out.data(),
+                                          nullptr,
+                                          nullptr,
+                                          q.data(),
+                                          k.data(),
+                                          v.data(),
+                                          key_cache.data(),
+                                          val_cache.data(),
+                                          &past,
+                                          subseq,
+                                          block_idx.data(),
+                                          block_idx.size(),
+                                          block_begins.data(),
+                                          block_begins.size(),
+                                          &scale_val,
+                                          ov::element::f32,
+                                          sliding_ptr,
+                                          nullptr,
+                                          ov::element::Type{},
+                                          {},
+                                          nullptr,
+                                          &score_window,
+                                          1,
+                                          nullptr,
+                                          0,
+                                          nullptr,
+                                          {},
+                                          nullptr,
+                                          ov::element::Type{},
+                                          {},
+                                          nullptr,
+                                          ov::element::Type{},
+                                          nullptr,
+                                          nullptr,
+                                          nullptr,
+                                          ov::element::Type{},
+                                          nullptr,
+                                          nullptr,
+                                          nullptr,
+                                          nullptr,
+                                          token_types_ptr,
+                                          token_types_count,
+                                          {num_tokens, q_features},
+                                          {num_tokens, kv_features},
+                                          {num_tokens, kv_features},
+                                          cache_shape,
+                                          cache_shape,
+                                          {1},
+                                          {2});
+    return out;
+}
+
+// Bidirectional attention: image tokens attend to the full image group.
+// With uniform Q=[1,0,0,0], K=[1,0,0,0] (all dots=1), scale=1.0, softmax produces
+// uniform weights 1/N over all N attended positions. Output = mean(V[attended]).
+TEST(PagedAttentionRefTest, BidirectionalImageAttention_GroupTokensSameOutput) {
+    // 6 tokens: [text, image, image, image, text, text]
+    // Image tokens 1,2,3 form a group -> each attends to positions {0,1,2,3}.
+    // Text token 0 attends to {0}, text token 4 attends to {0..4}, text token 5 to {0..5}.
+    const std::size_t num_tokens = 6;
+    const std::size_t q_heads = 2;
+    const std::size_t kv_heads = 2;
+    const std::size_t head_size = 4;
+    const std::size_t q_features = q_heads * head_size;
+    const std::size_t kv_features = kv_heads * head_size;
+
+    std::vector<float> q(num_tokens * q_features, 0.f);
+    std::vector<float> k(num_tokens * kv_features, 0.f);
+    std::vector<float> v(num_tokens * kv_features, 0.f);
+
+    for (std::size_t i = 0; i < num_tokens; i++) {
+        q[i * q_features] = 1.0f;
+        k[i * kv_features] = 1.0f;
+        // First value feature = position+1, rest zeros
+        v[i * kv_features] = static_cast<float>(i + 1);
+    }
+
+    std::vector<int32_t> token_types = {0, 1, 1, 1, 0, 0};
+
+    auto out = run_pa_with_token_types(q, k, v, num_tokens, q_heads, kv_heads, head_size, token_types);
+
+    // All outputs should be finite
+    for (std::size_t i = 0; i < out.size(); i++) {
+        EXPECT_TRUE(std::isfinite(out[i])) << "output[" << i << "] is not finite";
+    }
+
+    // Image tokens 1,2,3: all attend to {0,1,2,3}, uniform weight -> mean = (1+2+3+4)/4 = 2.5
+    const float img_expected = 2.5f;
+    EXPECT_NEAR(out[1 * q_features], img_expected, 0.01f);
+    EXPECT_NEAR(out[2 * q_features], img_expected, 0.01f);
+    EXPECT_NEAR(out[3 * q_features], img_expected, 0.01f);
+
+    // Text token 0: attends to {0} -> output = v[0] = 1.0
+    EXPECT_NEAR(out[0 * q_features], 1.0f, 0.01f);
+
+    // Text token 4: causal, attends to {0,1,2,3,4} -> mean = (1+2+3+4+5)/5 = 3.0
+    EXPECT_NEAR(out[4 * q_features], 3.0f, 0.01f);
+
+    // Text token 5: causal, attends to {0..5} -> mean = (1+2+3+4+5+6)/6 = 3.5
+    EXPECT_NEAR(out[5 * q_features], 3.5f, 0.01f);
+}
+
+// Text tokens remain strictly causal even when token_type_ids is present.
+TEST(PagedAttentionRefTest, BidirectionalImageAttention_TextTokensCausal) {
+    // 5 tokens: [image, image, text, text, text]
+    // Image group: {0,1}. Text tokens: {2,3,4}.
+    const std::size_t num_tokens = 5;
+    const std::size_t q_heads = 1;
+    const std::size_t kv_heads = 1;
+    const std::size_t head_size = 4;
+    const std::size_t q_features = q_heads * head_size;
+    const std::size_t kv_features = kv_heads * head_size;
+
+    std::vector<float> q(num_tokens * q_features, 0.f);
+    std::vector<float> k(num_tokens * kv_features, 0.f);
+    std::vector<float> v(num_tokens * kv_features, 0.f);
+
+    for (std::size_t i = 0; i < num_tokens; i++) {
+        q[i * q_features] = 1.0f;
+        k[i * kv_features] = 1.0f;
+        v[i * kv_features] = static_cast<float>(i + 1);
+    }
+
+    std::vector<int32_t> token_types = {1, 1, 0, 0, 0};
+
+    auto out = run_pa_with_token_types(q, k, v, num_tokens, q_heads, kv_heads, head_size, token_types);
+
+    for (std::size_t i = 0; i < out.size(); i++) {
+        EXPECT_TRUE(std::isfinite(out[i])) << "output[" << i << "] is not finite";
+    }
+
+    // Image tokens 0,1: attend to {0,1} -> mean = (1+2)/2 = 1.5
+    EXPECT_NEAR(out[0 * q_features], 1.5f, 0.01f);
+    EXPECT_NEAR(out[1 * q_features], 1.5f, 0.01f);
+
+    // Text token 2: causal, attends to {0,1,2} -> mean = (1+2+3)/3 = 2.0
+    EXPECT_NEAR(out[2 * q_features], 2.0f, 0.01f);
+
+    // Text token 3: causal, attends to {0,1,2,3} -> mean = (1+2+3+4)/4 = 2.5
+    EXPECT_NEAR(out[3 * q_features], 2.5f, 0.01f);
+
+    // Text token 4: causal, attends to {0,1,2,3,4} -> mean = (1+2+3+4+5)/5 = 3.0
+    EXPECT_NEAR(out[4 * q_features], 3.0f, 0.01f);
+}
+
+// Sliding window interacts correctly with bidirectional image attention.
+// The window is applied relative to the extended ncausal, not the default causal position.
+TEST(PagedAttentionRefTest, BidirectionalImageAttention_SlidingWindow) {
+    // 8 tokens: [text, text, image, image, image, image, text, text]
+    // Image group: tokens 2,3,4,5 -> group end = 6 -> ncausal = 6.
+    // Sliding window = 3 -> start = max(0, 6-3) = 3, end = 5.
+    // All image tokens see KV positions {3,4,5}: uniform weight -> mean(v[3..5]).
+    const std::size_t num_tokens = 8;
+    const std::size_t q_heads = 1;
+    const std::size_t kv_heads = 1;
+    const std::size_t head_size = 4;
+    const std::size_t q_features = q_heads * head_size;
+    const std::size_t kv_features = kv_heads * head_size;
+
+    std::vector<float> q(num_tokens * q_features, 0.f);
+    std::vector<float> k(num_tokens * kv_features, 0.f);
+    std::vector<float> v(num_tokens * kv_features, 0.f);
+
+    for (std::size_t i = 0; i < num_tokens; i++) {
+        q[i * q_features] = 1.0f;
+        k[i * kv_features] = 1.0f;
+        v[i * kv_features] = static_cast<float>(i + 1) * 10.0f;
+    }
+
+    std::vector<int32_t> token_types = {0, 0, 1, 1, 1, 1, 0, 0};
+    int32_t sliding_window = 3;
+
+    auto out = run_pa_with_token_types(q, k, v, num_tokens, q_heads, kv_heads, head_size,
+                                       token_types, sliding_window);
+
+    for (std::size_t i = 0; i < out.size(); i++) {
+        EXPECT_TRUE(std::isfinite(out[i])) << "output[" << i << "] is not finite";
+    }
+
+    // Image tokens 2,3,4,5: all see {3,4,5} -> mean = (40+50+60)/3 = 50.0
+    const float img_expected = 50.0f;
+    EXPECT_NEAR(out[2 * q_features], img_expected, 0.01f);
+    EXPECT_NEAR(out[3 * q_features], img_expected, 0.01f);
+    EXPECT_NEAR(out[4 * q_features], img_expected, 0.01f);
+    EXPECT_NEAR(out[5 * q_features], img_expected, 0.01f);
+
+    // Text token 0: ncausal=1, SW=3 -> start=0, end=0. Sees {0}. Out = v[0] = 10.
+    EXPECT_NEAR(out[0 * q_features], 10.0f, 0.01f);
+
+    // Text token 1: ncausal=2, SW=3 -> start=0, end=1. Sees {0,1}. Out = (10+20)/2 = 15.
+    EXPECT_NEAR(out[1 * q_features], 15.0f, 0.01f);
+
+    // Text token 6: ncausal=7, SW=3 -> start=4, end=6. Sees {4,5,6}. Out = (50+60+70)/3 = 60.
+    EXPECT_NEAR(out[6 * q_features], 60.0f, 0.01f);
+
+    // Text token 7: ncausal=8, SW=3 -> start=5, end=7. Sees {5,6,7}. Out = (60+70+80)/3 = 70.
+    EXPECT_NEAR(out[7 * q_features], 70.0f, 0.01f);
+}
+
+// Multiple disjoint image groups are handled independently.
+TEST(PagedAttentionRefTest, BidirectionalImageAttention_MultipleGroups) {
+    // 8 tokens: [image, image, text, image, image, image, text, text]
+    // Group 1: tokens {0,1} -> ncausal=2 for both. Group 2: tokens {3,4,5} -> ncausal=6.
+    const std::size_t num_tokens = 8;
+    const std::size_t q_heads = 1;
+    const std::size_t kv_heads = 1;
+    const std::size_t head_size = 4;
+    const std::size_t q_features = q_heads * head_size;
+    const std::size_t kv_features = kv_heads * head_size;
+
+    std::vector<float> q(num_tokens * q_features, 0.f);
+    std::vector<float> k(num_tokens * kv_features, 0.f);
+    std::vector<float> v(num_tokens * kv_features, 0.f);
+
+    for (std::size_t i = 0; i < num_tokens; i++) {
+        q[i * q_features] = 1.0f;
+        k[i * kv_features] = 1.0f;
+        v[i * kv_features] = static_cast<float>(i + 1);
+    }
+
+    std::vector<int32_t> token_types = {1, 1, 0, 1, 1, 1, 0, 0};
+
+    auto out = run_pa_with_token_types(q, k, v, num_tokens, q_heads, kv_heads, head_size, token_types);
+
+    for (std::size_t i = 0; i < out.size(); i++) {
+        EXPECT_TRUE(std::isfinite(out[i])) << "output[" << i << "] is not finite";
+    }
+
+    // Group 1 (tokens 0,1): both attend to {0,1} -> mean = (1+2)/2 = 1.5
+    EXPECT_NEAR(out[0 * q_features], 1.5f, 0.01f);
+    EXPECT_NEAR(out[1 * q_features], 1.5f, 0.01f);
+
+    // Text token 2: causal, attends to {0,1,2} -> mean = (1+2+3)/3 = 2.0
+    EXPECT_NEAR(out[2 * q_features], 2.0f, 0.01f);
+
+    // Group 2 (tokens 3,4,5): all attend to {0,1,2,3,4,5} -> mean = (1+2+3+4+5+6)/6 = 3.5
+    EXPECT_NEAR(out[3 * q_features], 3.5f, 0.01f);
+    EXPECT_NEAR(out[4 * q_features], 3.5f, 0.01f);
+    EXPECT_NEAR(out[5 * q_features], 3.5f, 0.01f);
+
+    // Text token 6: causal, attends to {0..6} -> mean = (1+2+3+4+5+6+7)/7 = 4.0
+    EXPECT_NEAR(out[6 * q_features], 4.0f, 0.01f);
+
+    // Text token 7: causal, attends to {0..7} -> mean = (1+..+8)/8 = 4.5
+    EXPECT_NEAR(out[7 * q_features], 4.5f, 0.01f);
+}
+
+// All-text token_type_ids is equivalent to standard causal behavior.
+TEST(PagedAttentionRefTest, BidirectionalImageAttention_AllTextCausal) {
+    // 4 tokens, all text. Each causal: token i attends to {0..i}.
+    const std::size_t num_tokens = 4;
+    const std::size_t q_heads = 1;
+    const std::size_t kv_heads = 1;
+    const std::size_t head_size = 4;
+    const std::size_t q_features = q_heads * head_size;
+    const std::size_t kv_features = kv_heads * head_size;
+
+    std::vector<float> q(num_tokens * q_features, 0.f);
+    std::vector<float> k(num_tokens * kv_features, 0.f);
+    std::vector<float> v(num_tokens * kv_features, 0.f);
+
+    for (std::size_t i = 0; i < num_tokens; i++) {
+        q[i * q_features] = 1.0f;
+        k[i * kv_features] = 1.0f;
+        v[i * kv_features] = static_cast<float>(i + 1);
+    }
+
+    std::vector<int32_t> all_text = {0, 0, 0, 0};
+    auto out = run_pa_with_token_types(q, k, v, num_tokens, q_heads, kv_heads, head_size, all_text);
+
+    for (std::size_t i = 0; i < out.size(); i++) {
+        EXPECT_TRUE(std::isfinite(out[i])) << "output[" << i << "] is not finite";
+    }
+
+    // Token 0: sees {0} -> 1.0
+    EXPECT_NEAR(out[0 * q_features], 1.0f, 0.01f);
+    // Token 1: sees {0,1} -> (1+2)/2 = 1.5
+    EXPECT_NEAR(out[1 * q_features], 1.5f, 0.01f);
+    // Token 2: sees {0,1,2} -> (1+2+3)/3 = 2.0
+    EXPECT_NEAR(out[2 * q_features], 2.0f, 0.01f);
+    // Token 3: sees {0,1,2,3} -> (1+2+3+4)/4 = 2.5
+    EXPECT_NEAR(out[3 * q_features], 2.5f, 0.01f);
 }
