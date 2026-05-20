@@ -130,7 +130,7 @@ shared_handle ocl_engine::import_external_buffer(size_t byte_size, shared_handle
                     errcode);
 
 
-    cl_platform_id platform = get_cl_device().getInfo<CL_DEVICE_PLATFORM>()();
+    cl_platform_id platform = get_cl_device().getInfo<CL_DEVICE_PLATFORM>();
     auto pfn_acquire = reinterpret_cast<clEnqueueAcquireExternalMemObjectsKHR_fn>(
         clGetExtensionFunctionAddressForPlatform(platform, "clEnqueueAcquireExternalMemObjectsKHR"));
     if (pfn_acquire == nullptr) {
@@ -166,7 +166,7 @@ void ocl_engine::release_external_memory(shared_handle cl_mem_handle) {
     if (cl_mem_handle == nullptr) {
         return;
     }
-    cl_platform_id platform = get_cl_device().getInfo<CL_DEVICE_PLATFORM>()();
+    cl_platform_id platform = get_cl_device().getInfo<CL_DEVICE_PLATFORM>();
     auto pfn = reinterpret_cast<clEnqueueReleaseExternalMemObjectsKHR_fn>(
         clGetExtensionFunctionAddressForPlatform(platform, "clEnqueueReleaseExternalMemObjectsKHR"));
     if (pfn == nullptr) {
