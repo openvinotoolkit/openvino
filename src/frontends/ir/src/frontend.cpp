@@ -161,7 +161,7 @@ void FrontEnd::add_extension(const ov::Extension::Ptr& ext) {
 InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
     std::ifstream local_model_stream;
     std::istream* provided_model_stream = nullptr;
-    std::shared_ptr<ov::AlignedBuffer> model_buf;  //
+    std::shared_ptr<ov::AlignedBuffer> model_buf;
     std::shared_ptr<ov::util::WeightsProvider> weights_provider;
 
     auto create_extensions_map = [&]() -> std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> {
