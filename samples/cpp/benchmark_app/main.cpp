@@ -1091,6 +1091,7 @@ int main(int argc, char* argv[]) {
         bool useGpuMem = false;
         bool useNpuMem = false;
 
+        // disabling --use_device_mem is a workaroud until L0 device allocation is implemented.
         bool enable_use_device_mem = true;
         if (device_name.find("GPU") == 0){
 #if OV_GPU_WITH_OCL_RT
