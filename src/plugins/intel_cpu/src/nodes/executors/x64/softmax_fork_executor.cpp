@@ -1,15 +1,24 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #include "nodes/executors/x64/softmax_fork_executor.hpp"
 
-#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <vector>
 
-#include "common/memory_desc_wrapper.hpp"
+#include "common/c_types_map.hpp"
 #include "common/dnnl_thread.hpp"
+#include "common/memory_desc_wrapper.hpp"
+#include "common/nstl.hpp"
+#include "common/opdesc.hpp"
 #include "common/utils.hpp"
+#include "cpu/x64/cpu_isa_traits.hpp"
 #include "nodes/kernels/x64/jit_softmax_fork_kernel_f32.hpp"
+#include "oneapi/dnnl/dnnl.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
@@ -88,13 +97,15 @@ status_t SoftmaxForkExecutor::init() {
 
     if (mayiuse(avx512_core)) {
         return initForIsa<avx512_core>();
-    } else if (mayiuse(avx2)) {
-        return initForIsa<avx2>();
-    } else if (mayiuse(sse41)) {
-        return initForIsa<sse41>();
-    } else {
-        return status::unimplemented;
     }
+    if (mayiuse(avx2)) {
+        return initForIsa<avx2>();
+    }
+    if (mayiuse(sse41)) {
+        return initForIsa<sse41>();
+    }
+
+    return status::unimplemented;
 }
 
 template <cpu_isa_t isa>
@@ -157,7 +168,7 @@ void SoftmaxForkExecutor::execute(const uint8_t* src, uint8_t* dst) const {
 
         parallel(0, ker);
     } else {
-        const int ouBlocks = dnnl::impl::utils::div_up(outerSize, jpp.outer_block);
+        const size_t ouBlocks = dnnl::impl::utils::div_up(outerSize, jpp.outer_block);
         const size_t workAmount = ouBlocks;
 
         auto ker = [&](const int ithr, const int nthr) {

@@ -1,14 +1,14 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #pragma once
 
 #include <cstddef>
 #include <cstdint>
 #include <memory>
-#include <vector>
-
 #include <oneapi/dnnl/dnnl.hpp>
+#include <vector>
 
 #include "common/c_types_map.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
@@ -45,7 +45,7 @@ private:
     size_t m_axis = 0;
     ov::element::Type m_precision;
     dnnl::memory::desc m_srcDesc;
-    dnnl::impl::cpu::x64::jit_softmax_conf_t m_jpp {};
+    dnnl::impl::cpu::x64::jit_softmax_conf_t m_jpp{};
     bool m_isSupported = false;
     std::unique_ptr<IKernelExecutor> m_kernelExecutor;
 };

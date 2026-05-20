@@ -9,12 +9,12 @@
 
 #include <common/utils.hpp>
 #include <cstddef>
-#include <functional>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <shape_inference/shape_inference_pass_through.hpp>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "common/primitive_hashing_utils.hpp"
@@ -35,6 +35,13 @@
 #include "openvino/op/softmax.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
+
+#ifdef OPENVINO_ARCH_X86_64
+#    include <common/c_types_map.hpp>
+#    include <cstdint>
+
+#    include "nodes/executors/x64/softmax_fork_executor.hpp"
+#endif
 
 using namespace dnnl;
 
@@ -183,7 +190,9 @@ void SoftMax::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
 
 void SoftMax::prepareParams() {
     executionPath = ExecutionPath::OneDnn;
+#ifdef OPENVINO_ARCH_X86_64
     customJitExec.reset();
+#endif
 
     auto inpDesc = getParentEdgeAt(0)->getMemory().getDescWithType<DnnlMemoryDesc>();
     const NodeDesc* selected_pd = getSelectedPrimitiveDescriptor();
@@ -236,23 +245,20 @@ void SoftMax::prepareParams() {
     // Keep original priority semantics while allowing easy extension
     // of fallback implementations by appending new factories.
     const auto selectedImplType = execPtr->getImplementationType();
+#ifdef OPENVINO_ARCH_X86_64
     if (!(selectedImplType & jit)) {
-        const std::vector<std::function<bool()>> fallbackChain = {
-            [&]() {
-                return tryInitCustomJitExecutor(inpDesc);
-            },
-        };
-
-        for (const auto& fallback : fallbackChain) {
-            if (fallback()) {
-                return;
-            }
+        if (tryInitCustomJitExecutor(inpDesc)) {
+            return;
         }
     }
+#else
+    (void)selectedImplType;
+#endif
 
     initOneDnnPrimitiveArgs();
 }
 
+#ifdef OPENVINO_ARCH_X86_64
 bool SoftMax::tryInitCustomJitExecutor(const DnnlMemoryDescPtr& inpDesc) {
     const auto inShape = getInputShapeAtPort(0);
     if (!inShape.isStatic()) {
@@ -261,10 +267,8 @@ bool SoftMax::tryInitCustomJitExecutor(const DnnlMemoryDescPtr& inpDesc) {
 
     const auto& dims = inShape.getStaticDims();
     const auto precision = getOriginalInputPrecisionAtPort(0);
-    auto customExec = std::make_unique<ov::intel_cpu::SoftmaxForkExecutor>(dims,
-                                                                            axis,
-                                                                            precision,
-                                                                            inpDesc->getDnnlDesc());
+    auto customExec =
+        std::make_unique<ov::intel_cpu::SoftmaxForkExecutor>(dims, axis, precision, inpDesc->getDnnlDesc());
     if (!customExec->isSupported() || customExec->init() != dnnl::impl::status::success) {
         return false;
     }
@@ -273,6 +277,7 @@ bool SoftMax::tryInitCustomJitExecutor(const DnnlMemoryDescPtr& inpDesc) {
     executionPath = ExecutionPath::CustomJit;
     return true;
 }
+#endif
 
 void SoftMax::initOneDnnPrimitiveArgs() {
     auto scratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
@@ -287,6 +292,7 @@ void SoftMax::initOneDnnPrimitiveArgs() {
 }
 
 void SoftMax::execute(const dnnl::stream& strm) {
+#ifdef OPENVINO_ARCH_X86_64
     if (executionPath == ExecutionPath::CustomJit) {
         CPU_NODE_ASSERT(customJitExec, "Custom Softmax executor path selected but executor is not initialized");
         const auto* src = getSrcDataAtPortAs<const uint8_t>(0);
@@ -294,6 +300,7 @@ void SoftMax::execute(const dnnl::stream& strm) {
         customJitExec->execute(src, dst);
         return;
     }
+#endif
 
     if (execPtr) {
         execPtr->exec(primArgs, strm);
