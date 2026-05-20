@@ -260,7 +260,7 @@ Output<Node> rearrange_constant_nncf(const Output<Node>& c,
 
     int16_t zero_point = 0;
     // for 3 bit symmetric quantization we set zero point to 4 (midpoint of u4 range) to allow using the same dequantization subgraph as for asymmetric quantization.
-    if (sym && dst_bits != 3) {
+    if (sym && (dst_bits != 3 && dst_bits != 2)) {
         // For signed quantization we need to convert zero point to signed representation as well.
         zero_point = static_cast<int16_t>(1 << (dst_bits - 1));
     }
@@ -476,7 +476,7 @@ OutputVector translate_linear_nncf(const NodeContext& context) {
     FRONT_END_OP_CONVERSION_CHECK(bits == 8 || bits == 4 || bits == 3 || bits == 2,
                                   "Only {8, 4, 3, 2} bit NNCF is supported.");
     if (sym) {
-        FRONT_END_OP_CONVERSION_CHECK(bits == 3 || bits == 4 || bits == 8, "Only 3, 4  or 8 bit NNCF is supported for symmetric quantization.");
+        FRONT_END_OP_CONVERSION_CHECK(bits == 2 || bits == 3 || bits == 4 || bits == 8, "Only 2, 3, 4  or 8 bit NNCF is supported for symmetric quantization.");
     }
 
     auto new_qweight = rearrange_constant_nncf(qweight, static_cast<uint32_t>(group_size),
@@ -493,13 +493,13 @@ OutputVector translate_linear_nncf(const NodeContext& context) {
     Output<Node> weight;
     // we don not have i3 type, so for 3 bit symmetric compression we represent weights as u3 minus zero point, which is 4 (midpoint of u4 range).
     // This allows us to use the same dequantization subgraph as for asymmetric quantization, just with zero point = 4.
-    if (sym && bits  != 3) {
+    if (sym && (bits  != 3 && bits != 2)) {
         weight = low_precision_subgraph_sym(context, x, new_qweight, new_scales, out_shape);
     } else {
         Output<Node> new_qzeros;
-        if (sym && bits == 3) {
+        if (sym && (bits == 3 || bits == 2)) {
             // For 3-bit symmetric quantization we set zero point to 4 (midpoint of u4 range) to allow using the same dequantization subgraph as for asymmetric quantization.
-            new_qzeros = context.mark_node(std::make_shared<v0::Constant>(element::u3, Shape{}, std::vector<uint8_t>{4}));
+            new_qzeros = context.mark_node(std::make_shared<v0::Constant>(bits == 3 ? element::u3 : element::u2, Shape{}, std::vector<uint8_t>{1 << (bits - 1)}));
         } else {
             new_qzeros = rearrange_constant_nncf(qzeros, 1, static_cast<uint32_t>(bits), static_cast<uint32_t>(8), false);
         }
