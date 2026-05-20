@@ -1097,6 +1097,7 @@ int main(int argc, char* argv[]) {
             enable_use_device_mem = true;
 #else
             enable_use_device_mem = false;
+            slog::warn << "--use_device_mem option is being ignored (not yet implemented for L0 RT)" << slog::endl;
 #endif
         }
 
