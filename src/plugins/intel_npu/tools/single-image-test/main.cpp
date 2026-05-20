@@ -18,10 +18,12 @@
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
 
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <optional>
 #include <regex>
 #include <sstream>
@@ -29,6 +31,37 @@
 #include <vector>
 
 using TensorMap = std::map<std::string, ov::Tensor>;
+
+// Clamp +/-inf elements to the representable range of the buffer element type.
+template <typename T>
+static void clampInfInBuffer(T* data, size_t count) {
+    const T posMax = std::numeric_limits<T>::max();
+    const T negMin = std::numeric_limits<T>::lowest();
+    for (size_t i = 0; i < count; ++i) {
+        const float val = static_cast<float>(data[i]);
+        if (std::isinf(val)) {
+            data[i] = (val > 0.0f) ? posMax : negMin;
+        }
+    }
+}
+
+// Clamp +/-inf elements in a tensor in-place.
+// Returns true on success; returns false for unsupported (non-float) element types.
+static bool clampInfInTensor(ov::Tensor& tensor) {
+    const auto et = tensor.get_element_type();
+    const size_t count = tensor.get_size();
+    if (et == ov::element::f32) {
+        clampInfInBuffer(tensor.data<float>(), count);
+        return true;
+    } else if (et == ov::element::f16) {
+        clampInfInBuffer(tensor.data<ov::float16>(), count);
+        return true;
+    } else if (et == ov::element::bf16) {
+        clampInfInBuffer(tensor.data<ov::bfloat16>(), count);
+        return true;
+    }
+    return false;
+}
 
 struct TensorDescriptor {
     ov::element::Type precision;
@@ -2763,6 +2796,32 @@ static int runSingleImageTest() {
                     auto layoutIt = outputLayouts.find(tensorName);
                     if (layoutIt != outputLayouts.end()) {
                         filteredOutputLayouts.emplace(tensorName, layoutIt->second);
+                    }
+                }
+
+                // Clamp +/-inf values in the specified output tensors before metric evaluation.
+                if (!FLAGS_clamp_inf_outputs.empty()) {
+                    const auto infClampNames = splitStringList(FLAGS_clamp_inf_outputs, ';');
+                    for (const auto& name : infClampNames) {
+                        const auto outIt = filteredOutputTensors.find(name);
+                        const auto refIt = filteredReferenceTensors.find(name);
+                        if (outIt == filteredOutputTensors.end() && refIt == filteredReferenceTensors.end()) {
+                            std::cerr << "Warning: tensor '" << name
+                                      << "' specified in --clamp_inf_outputs was not found in output tensors"
+                                      << std::endl;
+                            continue;
+                        }
+                        if (outIt != filteredOutputTensors.end()) {
+                            if (!clampInfInTensor(outIt->second)) {
+                                std::cerr << "Warning: tensor '" << name << "' has element type "
+                                          << outIt->second.get_element_type()
+                                          << " which is not supported for inf clamping, skipping" << std::endl;
+                                continue;
+                            }
+                        }
+                        if (refIt != filteredReferenceTensors.end()) {
+                            clampInfInTensor(refIt->second);
+                        }
                     }
                 }
 
