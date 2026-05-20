@@ -71,13 +71,12 @@ ze_result_t set_kernel_arg(ze_kernel_handle_t& kernel, uint32_t idx, cldnn::memo
         auto handle = image.get_handle();
         GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel << " set arg (image) " << idx << " mem: " << handle << " size: " << mem->size() << std::endl;
         return ze::zeKernelSetArgumentValue(kernel, idx, sizeof(handle), &handle);
-    } else if (memory_capabilities::is_usm_type(mem->get_allocation_type())) {
+    } else if (memory_capabilities::is_usm_type(mem->get_allocation_type()) || mem->get_allocation_type() == allocation_type::cl_mem) {
         auto &usm = downcast<const ze::gpu_usm>(*mem);
-        const auto& buf = usm.get_buffer();
+        auto ptr = usm.buffer_ptr();
         auto mem_type = usm.get_allocation_type();
         GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel << " set arg (" << mem_type << ") " << idx
-                            << " mem: " << buf.get() << " size: " << mem->size() << std::endl;
-        auto ptr = buf.get();
+                            << " mem: " << ptr << " size: " << mem->size() << std::endl;
         return ze::zeKernelSetArgumentValue(kernel, idx, sizeof(ptr), &ptr);
     } else {
         return ZE_RESULT_ERROR_INVALID_ARGUMENT;
@@ -240,6 +239,25 @@ ze_stream::ze_stream(const ze_engine &engine, const ExecutionConfig& config)
         << ", use_counter_based_events=" << use_counter_based_events
         << ")" << std::endl;
 }
+
+ze_stream::ze_stream(const ze_engine& engine, const ExecutionConfig& config, ze_command_list_resource cmd_list)
+    : stream(config.get_queue_type(), stream::get_expected_sync_method(config))
+    , _engine(engine)
+    , m_cmd_list(std::move(cmd_list)) {
+    const auto &info = engine.get_device_info();
+    bool use_counter_based_events = m_queue_type == QueueTypes::in_order && info.supports_counter_based_events;
+
+    m_user_ev_factory = std::make_shared<ze_event_factory>(engine, config.get_enable_profiling());
+    if (use_counter_based_events) {
+        m_ev_factory = std::make_shared<ze_counter_based_event_factory>(engine, config.get_enable_profiling());
+    } else {
+        m_ev_factory = m_user_ev_factory;
+    }
+    GPU_DEBUG_INFO << "[GPU] Created L0 stream from existing command list ("
+        << "use_counter_based_events=" << use_counter_based_events
+        << ")" << std::endl;
+    }
+
 
 ze_stream::~ze_stream() {
 #ifdef ENABLE_ONEDNN_FOR_GPU

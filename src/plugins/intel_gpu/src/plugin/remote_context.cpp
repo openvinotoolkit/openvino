@@ -67,9 +67,10 @@ RemoteContextImpl::RemoteContextImpl(const std::map<std::string, RemoteContextIm
 
     const auto initialize_devices = true;
 
-    cldnn::device_query device_query(context_id, m_va_display, ctx_device_id, target_tile_id, initialize_devices);
-    auto device_map = device_query.get_available_devices();
-
+    // Always use OCL for device query
+    // Query will return devices compatible with default runtime
+    cldnn::device_query ocl_device_query(cldnn::engine_types::ocl, cldnn::runtime_types::ocl, context_id, m_va_display, ctx_device_id, target_tile_id, initialize_devices);
+    auto device_map = ocl_device_query.get_available_devices();
     OPENVINO_ASSERT(device_map.size() == 1, "[GPU] Exactly one device expected in case of context sharing, but ", device_map.size(), " found");
 
     m_device = device_map.begin()->second;
@@ -88,7 +89,7 @@ const cldnn::engine& RemoteContextImpl::get_engine() const {
     return *m_engine;
 }
 
-void RemoteContextImpl::init_properties() const {
+void RemoteContextImpl::init_properties() {
     properties = { ov::intel_gpu::ocl_context(m_engine->get_user_context()) };
 
     switch (m_type) {
@@ -100,9 +101,6 @@ void RemoteContextImpl::init_properties() const {
         properties.insert(ov::intel_gpu::context_type(ov::intel_gpu::ContextType::VA_SHARED));
         properties.insert(ov::intel_gpu::va_device(m_va_display));
         break;
-    case ContextType::ZE:
-        properties.insert(ov::intel_gpu::context_type(ov::intel_gpu::ContextType::ZE));
-        break;
     default:
         OPENVINO_THROW("[GPU] Unsupported shared context type ", m_type);
     }
@@ -110,10 +108,6 @@ void RemoteContextImpl::init_properties() const {
 
 const ov::AnyMap& RemoteContextImpl::get_property() const {
     OPENVINO_ASSERT(m_is_initialized, "[GPU] get_property() called on uninitialized context. Please initialize the context before use");
-    std::call_once(m_properties_init_flag, [this]() {
-        init_properties();
-    });
-
     return properties;
 }
 
@@ -250,6 +244,8 @@ void RemoteContextImpl::initialize() {
         m_device->initialize();  // Initialize associated device before use
         m_engine = cldnn::engine::create(
             cldnn::device_query::get_default_engine_type(), cldnn::device_query::get_default_runtime_type(), m_device);
+
+        init_properties();
 
         m_is_initialized = true;
 });

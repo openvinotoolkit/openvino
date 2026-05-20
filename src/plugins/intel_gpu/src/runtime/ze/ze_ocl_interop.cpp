@@ -5,15 +5,16 @@
 #include "ze_ocl_interop.hpp"
 
 #include <vector>
+#include <utility>
 
 namespace cldnn {
 namespace ze {
 namespace {
 
-static constexpr cl_uint CL_L0_CONTEXT_HANDLE = 0x10021;
-static constexpr cl_uint CL_L0_IMMEDIATE_CMD_LIST_HANDLE = 0x10022;
-static constexpr cl_uint CL_L0_MEM_OBJ_HANDLE = 0x10024;
-static constexpr cl_uint CL_L0_DEVICE_HANDLE = 0x10025;
+static constexpr cl_uint CL_L0_CONTEXT_HANDLE = 0x42B0;
+static constexpr cl_uint CL_L0_IMMEDIATE_CMD_LIST_HANDLE = 0x42B1;
+static constexpr cl_uint CL_L0_MEM_OBJ_HANDLE = 0x42B3;
+static constexpr cl_uint CL_L0_DEVICE_HANDLE = 0x42B4;
 
 inline void expect_success(cl_int error, void *handle, const std::string& message) {
     if (error != CL_SUCCESS || handle == nullptr) {
@@ -21,6 +22,68 @@ inline void expect_success(cl_int error, void *handle, const std::string& messag
             " (Error code: ", std::to_string(error),
             ", returned handle=", std::to_string((uintptr_t)handle), ")");
     }
+}
+
+std::vector<cl_device_id> find_ocl_devices() {
+    cl_int error;
+    cl_uint numPlatforms = 0;
+    error = clGetPlatformIDs(0, nullptr, &numPlatforms);
+    if (error != CL_SUCCESS || numPlatforms == 0) {
+        return {};
+    }
+    std::vector<cl_platform_id> platform_ids(numPlatforms);
+    error = clGetPlatformIDs(platform_ids.size(), platform_ids.data(), nullptr);
+    if (error != CL_SUCCESS) {
+        return {};
+    }
+    std::vector<cl_device_id> device_ids;
+    for (auto &platform : platform_ids) {
+        cl_uint num_devices = 0;
+        error = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 0, nullptr, &num_devices);
+        if (error != CL_SUCCESS || num_devices == 0) {
+            continue;
+        }
+        size_t old_size = device_ids.size();
+        size_t new_size = old_size + num_devices;
+        device_ids.resize(new_size);
+        error = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, num_devices, device_ids.data() + old_size, nullptr);
+        if (error != CL_SUCCESS) {
+            continue;
+        }
+    }
+    return device_ids;
+}
+
+std::vector<std::pair<ze_driver_handle_t, ze_device_handle_t>> find_ze_devices() {
+    ze_init_driver_type_desc_t desc = { ZE_STRUCTURE_TYPE_INIT_DRIVER_TYPE_DESC, nullptr, ZE_INIT_DRIVER_TYPE_FLAG_GPU };
+    ze_result_t error;
+    uint32_t driver_count = 0;
+    error = zeInitDrivers(&driver_count, nullptr, &desc);
+    if (error != ZE_RESULT_SUCCESS || driver_count == 0) {
+        return {};
+    }
+    std::vector<ze_driver_handle_t> drivers(driver_count);
+    error = zeInitDrivers(&driver_count, drivers.data(), &desc);
+    if (error != ZE_RESULT_SUCCESS) {
+        return {};
+    }
+    std::vector<std::pair<ze_driver_handle_t, ze_device_handle_t>> all_devices;
+    for (auto &driver : drivers) {
+        uint32_t device_count = 0;
+        error = zeDeviceGet(driver, &device_count, nullptr);
+        if (error != ZE_RESULT_SUCCESS || device_count == 0) {
+            continue;
+        }
+        std::vector<ze_device_handle_t> devices(device_count);
+        error = zeDeviceGet(driver, &device_count, devices.data());
+        if (error != ZE_RESULT_SUCCESS) {
+            continue;
+        }
+        for (auto &device : devices) {
+            all_devices.emplace_back(driver, device);
+        }
+    }
+    return all_devices;
 }
 
 } // namespace
@@ -36,73 +99,12 @@ bool ze_ocl_interop::check_support(ze_device_handle_t ze_device) const {
 };
 
 void ze_ocl_interop::init() {
-    // Initialize OpenCL and find devices
-    auto get_ocl_devices = []() -> std::vector<cl_device_id> {
-        cl_int error;
-        cl_uint numPlatforms = 0;
-
-        error = clGetPlatformIDs(0, nullptr, &numPlatforms);
-        if (error != CL_SUCCESS || numPlatforms == 0) {
-            return {};
-        }
-        std::vector<cl_platform_id> platform_ids(numPlatforms);
-        error = clGetPlatformIDs(platform_ids.size(), platform_ids.data(), nullptr);
-        if (error != CL_SUCCESS) {
-            return {};
-        }
-        std::vector<cl_device_id> device_ids;
-        for (auto &platform : platform_ids) {
-            cl_uint num_devices = 0;
-            error = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 0, nullptr, &num_devices);
-            if (error != CL_SUCCESS || num_devices == 0) {
-                continue;
-            }
-            size_t old_size = device_ids.size();
-            size_t new_size = old_size + num_devices;
-            device_ids.resize(new_size);
-            error = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, num_devices, device_ids.data() + old_size, nullptr);
-            if (error != CL_SUCCESS) {
-                continue;
-            }
-        }
-        return device_ids;
-    };
-
     // Initialize Level Zero and find devices
-    auto get_ze_devices = []() -> std::vector<ze_device_handle_t> {
-        ze_init_driver_type_desc_t desc = { ZE_STRUCTURE_TYPE_INIT_DRIVER_TYPE_DESC, nullptr, ZE_INIT_DRIVER_TYPE_FLAG_GPU };
-        ze_result_t error;
-        uint32_t driver_count = 0;
-        error = zeInitDrivers(&driver_count, nullptr, &desc);
-        if (error != ZE_RESULT_SUCCESS || driver_count == 0) {
-            return {};
-        }
-        std::vector<ze_driver_handle_t> drivers(driver_count);
-        error = zeInitDrivers(&driver_count, drivers.data(), &desc);
-        if (error != ZE_RESULT_SUCCESS) {
-            return {};
-        }
-        std::vector<ze_device_handle_t> devices;
-        for (auto &driver : drivers) {
-            uint32_t device_count = 0;
-            error = zeDeviceGet(driver, &device_count, nullptr);
-            if (error != ZE_RESULT_SUCCESS || device_count == 0) {
-                continue;
-            }
-            size_t old_size = devices.size();
-            size_t new_size = old_size + device_count;
-            devices.resize(new_size);
-            error = zeDeviceGet(driver, &device_count, devices.data() + old_size);
-            if (error != ZE_RESULT_SUCCESS) {
-                continue;
-            }
-        }
-        return devices;
-    };
-    auto ze_devices = get_ze_devices();
-    auto ocl_devices = get_ocl_devices();
+    auto ze_devices = find_ze_devices();
+    // Initialize OpenCL and find devices
+    auto ocl_devices = find_ocl_devices();
     for (auto &ze_device : ze_devices) {
-        _device_map[ze_device] = nullptr;
+        _device_map[ze_device.second] = nullptr;
     }
     for (auto &ocl_device : ocl_devices) {
         ze_device_handle_t ze_dev = nullptr;
@@ -121,6 +123,17 @@ cl_device_id ze_ocl_interop::find_ocl_device(ze_device_handle_t ze_device) const
         OPENVINO_THROW("[GPU] Failed to find matching OCL device for given ZE device");
     }
     return it->second;
+}
+
+ze_driver_handle_t ze_ocl_interop::find_ze_driver(cl_device_id ocl_device) const {
+    auto ze_device = get_ze_device(ocl_device);
+    auto all_devices = find_ze_devices();
+    for (auto &device : all_devices) {
+        if (device.second == ze_device) {
+            return device.first;
+        }
+    }
+    OPENVINO_THROW("[GPU] Failed to find matching ZE driver for given ZE device");
 }
 
 ze_context_handle_t ze_ocl_interop::get_ze_context(cl_context context) const {

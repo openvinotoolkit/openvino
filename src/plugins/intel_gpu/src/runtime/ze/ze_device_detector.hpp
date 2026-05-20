@@ -28,5 +28,7 @@ private:
     std::vector<device::ptr> create_device_list_from_user_device(void* user_device) const;
 };
 
+device::ptr create_ze_device_from_ocl_device(device::ptr ocl_device, bool initialize_devices = false);
+
 }  // namespace ze
 }  // namespace cldnn

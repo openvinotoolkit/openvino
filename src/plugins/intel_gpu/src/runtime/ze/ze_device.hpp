@@ -13,7 +13,7 @@ namespace ze {
 
 struct ze_device : public device {
 public:
-    ze_device(ze_driver_resource driver, ze_device_resource device, bool initialize = true);
+    ze_device(ze_driver_resource driver, ze_device_resource device, ze_context_resource context, bool initialize_device = true);
     ze_device(const ze_device &other) = delete;
     ze_device& operator=(const ze_device &other) = delete;
 

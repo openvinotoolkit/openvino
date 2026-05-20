@@ -317,15 +317,7 @@ void RemoteTensorImpl::allocate() {
 
     switch (m_mem_type) {
     case TensorType::BT_BUF_INTERNAL: {
-        // BT_BUF_INTERNAL should map to cl_mem however L0 engine can not allocate cl_mem
-        if (engine.supports_allocation(cldnn::allocation_type::cl_mem)) {
-            m_memory_object = engine.allocate_memory(m_layout, cldnn::allocation_type::cl_mem, reset);
-        } else {
-            // Fall back to usm_host and override memory type
-            GPU_DEBUG_INFO << "[Warning] [GPU] Could not allocate cl_mem, using usm_host allocation instead\n";
-            m_mem_type = TensorType::BT_USM_HOST_INTERNAL;
-            m_memory_object = engine.allocate_memory(m_layout, cldnn::allocation_type::usm_host, reset);
-        }
+        m_memory_object = engine.allocate_memory(m_layout, cldnn::allocation_type::cl_mem, reset);
         break;
     }
     case TensorType::BT_USM_HOST_INTERNAL: {

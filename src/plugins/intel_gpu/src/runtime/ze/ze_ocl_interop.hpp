@@ -56,6 +56,7 @@ public:
     bool check_support(ze_device_handle_t ze_device) const;
 
     cl_device_id find_ocl_device(ze_device_handle_t ze_device) const;
+    ze_driver_handle_t find_ze_driver(cl_device_id ocl_device) const;
 
     ze_context_handle_t get_ze_context(cl_context context) const;
     ze_command_list_handle_t get_ze_cmd_list(cl_command_queue queue) const;

@@ -323,6 +323,7 @@ memory_capabilities init_memory_caps(ze_device_handle_t device, const device_inf
         }
         if (device_memory_access_properties.deviceAllocCapabilities) {
             memory_caps.push_back(allocation_type::usm_device);
+            memory_caps.push_back(allocation_type::cl_mem);
         }
     }
     if (info.supports_image) {
@@ -335,15 +336,16 @@ memory_capabilities init_memory_caps(ze_device_handle_t device, const device_inf
 }  // namespace
 
 
-ze_device::ze_device(ze_driver_resource driver, ze_device_resource device, bool initialize)
-: _driver(driver)
-, _device(device)
-, _info(init_device_info(driver.get_ze_handle(), device.get_ze_handle()))
-, _mem_caps(init_memory_caps(device.get_ze_handle(), _info)) {
+ze_device::ze_device(ze_driver_resource driver, ze_device_resource device, ze_context_resource context, bool initialize_device)
+: _driver(std::move(driver))
+, _device(std::move(device))
+, _context(std::move(context))
+, _info(init_device_info(_driver.get_ze_handle(), _device.get_ze_handle()))
+, _mem_caps(init_memory_caps(_device.get_ze_handle(), _info)) {
     OPENVINO_ASSERT(!_driver.is_empty(), "[GPU] Expected non-empty driver when creating ze_device");
     OPENVINO_ASSERT(!_device.is_empty(), "[GPU] Expected non-empty device when creating ze_device");
-    if (initialize) {
-        this->initialize();
+    if (initialize_device) {
+        initialize();
     }
 }
 
@@ -362,7 +364,7 @@ bool ze_device::is_initialized() const {
 }
 
 bool ze_device::is_same(const device::ptr other) {
-    auto casted = downcast<ze_device>(other.get());
+    auto casted = std::dynamic_pointer_cast<ze_device>(other);
     if (!casted)
         return false;
 

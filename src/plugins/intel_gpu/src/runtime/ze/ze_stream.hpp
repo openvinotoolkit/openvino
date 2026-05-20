@@ -21,6 +21,7 @@ public:
     const ze_engine& get_engine() const { return _engine; }
 
     ze_stream(const ze_engine& engine, const ExecutionConfig& config);
+    ze_stream(const ze_engine& engine, const ExecutionConfig& config, ze_command_list_resource cmd_list);
     ze_stream(ze_stream&& other)
         : stream(other.m_queue_type, other.m_sync_method)
         , _engine(other._engine)

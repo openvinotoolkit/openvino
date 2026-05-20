@@ -18,6 +18,41 @@ struct ze_ocl_importer {
 };
 
 template<>
+struct ze_ocl_importer<ocl_resource_type::device, ze_resource_type::driver> {
+public:
+    static constexpr ocl_resource_type source_type = ocl_resource_type::device;
+    static constexpr ze_resource_type target_type = ze_resource_type::driver;
+    using ocl_handle_t = typename ocl_resource_info<source_type>::handle_t;
+    using resource_t = ze_resource<target_type>;
+    resource_t operator()(ocl_handle_t handle) const {
+        ze_ocl_interop &interop = ze_ocl_interop::get_instance();
+        auto ze_handle = interop.find_ze_driver(handle);
+        resource_t resource(ze_handle, true);
+        cl_platform_id platform;
+        cl_int error = clGetDeviceInfo(handle, CL_DEVICE_PLATFORM, sizeof(cl_platform_id), &platform, nullptr);
+        OPENVINO_ASSERT(error == CL_SUCCESS, "[GPU] Failed to get OpenCL platform from device handle (Error code: ", std::to_string(error), ")");
+        resource.attach_ocl_handle<ocl_resource_type::platform>(platform, true);
+        return resource;
+    }
+};
+
+template<>
+struct ze_ocl_importer<ocl_resource_type::device, ze_resource_type::device> {
+public:
+    static constexpr ocl_resource_type source_type = ocl_resource_type::device;
+    static constexpr ze_resource_type target_type = ze_resource_type::device;
+    using ocl_handle_t = typename ocl_resource_info<source_type>::handle_t;
+    using resource_t = ze_resource<target_type>;
+    resource_t operator()(ocl_handle_t handle) const {
+        ze_ocl_interop &interop = ze_ocl_interop::get_instance();
+        auto ze_handle = interop.get_ze_device(handle);
+        resource_t resource(ze_handle, true);
+        resource.attach_ocl_handle<source_type>(handle, true);
+        return resource;
+    }
+};
+
+template<>
 struct ze_ocl_importer<ocl_resource_type::context, ze_resource_type::context> {
 public:
     static constexpr ocl_resource_type source_type = ocl_resource_type::context;

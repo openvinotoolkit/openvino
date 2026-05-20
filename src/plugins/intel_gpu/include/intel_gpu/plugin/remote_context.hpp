@@ -87,18 +87,15 @@ private:
     std::shared_ptr<ov::IRemoteTensor> create_usm(const ov::element::Type type, const ov::Shape& shape, TensorType alloc_type);
     void check_if_shared() const;
 
-    void init_properties() const;
+    void init_properties();
 
     std::shared_ptr<cldnn::device> m_device;
     std::shared_ptr<cldnn::engine> m_engine;
     ov::intel_gpu::gpu_handle_param m_va_display = nullptr;
     ov::intel_gpu::gpu_handle_param m_external_queue = nullptr;
 
-#ifdef OV_GPU_WITH_ZE_RT
-    ContextType m_type = ContextType::ZE;
-#else
+
     ContextType m_type = ContextType::OCL;
-#endif
     std::string m_device_name = "";
     static const size_t cache_capacity = 100;
     cldnn::LruCache<size_t, cldnn::memory::ptr> m_memory_cache = cldnn::LruCache<size_t, cldnn::memory::ptr>(cache_capacity);
@@ -107,8 +104,7 @@ private:
     bool m_is_initialized = false;
     std::once_flag m_initialize_flag;
 
-    mutable ov::AnyMap properties;
-    mutable std::once_flag m_properties_init_flag;
+    ov::AnyMap properties;
 };
 
 inline RemoteContextImpl::Ptr get_context_impl(ov::SoPtr<ov::IRemoteContext> ptr) {
