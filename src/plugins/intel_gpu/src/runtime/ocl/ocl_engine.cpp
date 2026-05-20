@@ -39,24 +39,6 @@ cl::PFN_clCreateFromD3D11Buffer cl::BufferDX::pfn_clCreateFromD3D11Buffer = NULL
 #include "intel_gpu/runtime/file_util.hpp"
 #endif
 
-namespace {
-// Local fallback typedefs for cl_khr_external_memory entrypoints. Some OpenCL headers shipped
-// on build hosts do not provide these typedefs even when CL_VERSION_3_0 is defined, so declare
-// our own pointer-to-function types to avoid relying on the system header naming.
-using pfn_clEnqueueAcquireExternalMemObjectsKHR = cl_int (CL_API_CALL*)(cl_command_queue,
-                                                                       cl_uint,
-                                                                       const cl_mem*,
-                                                                       cl_uint,
-                                                                       const cl_event*,
-                                                                       cl_event*);
-using pfn_clEnqueueReleaseExternalMemObjectsKHR = cl_int (CL_API_CALL*)(cl_command_queue,
-                                                                       cl_uint,
-                                                                       const cl_mem*,
-                                                                       cl_uint,
-                                                                       const cl_event*,
-                                                                       cl_event*);
-}  // namespace
-
 namespace cldnn {
 namespace ocl {
 
@@ -64,6 +46,16 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 ocl_error::ocl_error(cl::Error const& err)
     : ov::Exception("[GPU] " + std::string(err.what()) + std::string(", error code: ") + std::to_string(err.err())) {}
 OPENVINO_SUPPRESS_DEPRECATED_END
+
+namespace {
+cl_platform_id get_platform_id_for_device(const cl::Device& device) {
+    cl_platform_id platform = nullptr;
+    cl_int err = clGetDeviceInfo(device.get(), CL_DEVICE_PLATFORM, sizeof(platform), &platform, nullptr);
+    OPENVINO_ASSERT(err == CL_SUCCESS && platform != nullptr,
+                    "[GPU] Failed to retrieve CL_DEVICE_PLATFORM, error: ", err);
+    return platform;
+}
+}  // namespace
 
 ocl_engine::ocl_engine(const device::ptr dev, runtime_types runtime_type)
     : engine(dev) {
@@ -148,20 +140,13 @@ shared_handle ocl_engine::import_external_buffer(size_t byte_size, shared_handle
                     errcode);
 
 
-    cl_platform_id platform = get_cl_device().getInfo<CL_DEVICE_PLATFORM>();
-    auto pfn_acquire = reinterpret_cast<pfn_clEnqueueAcquireExternalMemObjectsKHR>(
-        clGetExtensionFunctionAddressForPlatform(platform, "clEnqueueAcquireExternalMemObjectsKHR"));
-    if (pfn_acquire == nullptr) {
-        clReleaseMemObject(imported);
-        OPENVINO_THROW("[GPU] clEnqueueAcquireExternalMemObjectsKHR is not available; "
-                       "cl_khr_external_memory acquire/release entrypoints are missing on this platform");
-    }
+    cl_platform_id platform = get_platform_id_for_device(get_cl_device());
     auto& svc_stream = downcast<ocl_stream>(get_service_stream());
     cl_command_queue q = svc_stream.get_cl_queue().get();
-    cl_int acquire_err = pfn_acquire(q, 1, &imported, 0, nullptr, nullptr);
+    cl_int acquire_err = cl::ExternalMemoryHelper::acquire(platform, q, imported);
     if (acquire_err != CL_SUCCESS) {
         clReleaseMemObject(imported);
-        OPENVINO_THROW("[GPU] clEnqueueAcquireExternalMemObjectsKHR failed, error: ", acquire_err);
+        OPENVINO_THROW("[GPU] clEnqueueAcquireExternalMemObjectsKHR failed or unavailable, error: ", acquire_err);
     }
     clFinish(q);
 
@@ -184,19 +169,12 @@ void ocl_engine::release_external_memory(shared_handle cl_mem_handle) {
     if (cl_mem_handle == nullptr) {
         return;
     }
-    cl_platform_id platform = get_cl_device().getInfo<CL_DEVICE_PLATFORM>();
-    auto pfn = reinterpret_cast<pfn_clEnqueueReleaseExternalMemObjectsKHR>(
-        clGetExtensionFunctionAddressForPlatform(platform, "clEnqueueReleaseExternalMemObjectsKHR"));
-    if (pfn == nullptr) {
-        // Nothing to do: extension entrypoints not available. The cl_mem refcount drop on dtor
-        // will still proceed.
-        return;
-    }
-
+    cl_platform_id platform = get_platform_id_for_device(get_cl_device());
     auto& opencl_stream = downcast<ocl_stream>(get_service_stream());
     cl_command_queue q = opencl_stream.get_cl_queue().get();
     cl_mem mem = static_cast<cl_mem>(cl_mem_handle);
-    pfn(q, 1, &mem, 0, nullptr, nullptr);
+    // If the extension entrypoint is missing, the cl_mem refcount drop on dtor will still proceed.
+    cl::ExternalMemoryHelper::release(platform, q, mem);
     clFinish(q);
 }
 
