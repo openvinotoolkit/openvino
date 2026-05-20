@@ -81,7 +81,13 @@ jitUniGatherKernel<isa>::jitUniGatherKernel(const jGatherConfParams& jcp)
         permMask8bitUni = permMask8bitA5;
         permMask16bitUni = permMask16bitA5;
     }
-    dstStep = is_real16_to_f32 ? 2 * vlen : (is_f32_to_bf16 ? vlen / 2 : vlen);
+    if (is_real16_to_f32) {
+        dstStep = 2 * vlen;
+    } else if (is_f32_to_bf16) {
+        dstStep = vlen / 2;
+    } else {
+        dstStep = vlen;
+    }
     if (is_real16_to_f32 || is_f32_to_bf16) {
         convert_emitter =
             std::make_unique<jit_convert_saturation_emitter>(this, isa, jcp.in_prec, jcp.out_prec, ov::element::f32);
