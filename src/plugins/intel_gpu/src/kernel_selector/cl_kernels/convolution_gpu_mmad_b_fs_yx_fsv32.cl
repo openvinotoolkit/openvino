@@ -173,11 +173,22 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32)(
                             }
                             else
                             {
+#if SUB_GROUP_SIZE == 8
                                 line_cache[xb] = AS_TYPE(PACKED_IN_TYPE, _sub_group_block_read((const __global uint*)(input + in_addr +
                                                                             icb * input_fs_pitch +
                                                                             kd * DILATION_SIZE_Z * input_z_pitch +
                                                                             kh * DILATION_SIZE_Y * input_y_pitch +
                                                                             xb * input_x_pitch)));
+#else
+                                // SIMD16: _sub_group_block_read reads 16 uints (64 bytes) but only
+                                // 8 uints (ISV_SIZE=32 bytes) exist per spatial position, causing
+                                // OOB reads at boundaries on Xe2+. Use per-lane scalar read instead.
+                                line_cache[xb] = AS_TYPE(PACKED_IN_TYPE, ((const __global uint*)(input + in_addr +
+                                                                            icb * input_fs_pitch +
+                                                                            kd * DILATION_SIZE_Z * input_z_pitch +
+                                                                            kh * DILATION_SIZE_Y * input_y_pitch +
+                                                                            xb * input_x_pitch))[lid]);
+#endif
                             }
                         }
                     }
