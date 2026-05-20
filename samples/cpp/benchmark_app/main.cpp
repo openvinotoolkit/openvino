@@ -1094,7 +1094,7 @@ int main(int argc, char* argv[]) {
         // disabling -use_device_mem is a workaroud until L0 device allocation is implemented.
         bool enable_use_device_mem = true;
 #if OV_GPU_WITH_ZE_RT
-        if (device_name.find("GPU") == 0){
+        if (device_name.find("GPU") == 0) {
             slog::warn << "-use_device_mem option is being ignored (not yet implemented for L0 RT)" << slog::endl;
             enable_use_device_mem = false;
         }
