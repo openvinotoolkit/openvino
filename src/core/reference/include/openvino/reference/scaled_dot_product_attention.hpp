@@ -161,6 +161,12 @@ void scaled_dot_product_attention(const T* query,
                               gk_softmax_shape,
                               ov::AxisSet{gk_softmax_shape.size() - 1});
 
+    for (auto& v : qk_data_softmax) {
+        if (v != v) {
+            v = T{0};
+        }
+    }
+
     if (sink) {
         std::vector<T> qk_data_sliced(qk_data.size(), 0);
         ov::reference::helpers::slice_last_dimension(reinterpret_cast<const char*>(qk_data_softmax.data()),

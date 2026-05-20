@@ -18,6 +18,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater_eq.hpp"
+#include "openvino/op/is_nan.hpp"
 #include "openvino/op/logical_not.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
@@ -42,6 +43,7 @@ namespace v1 = ov::op::v1;
 namespace v3 = ov::op::v3;
 namespace v4 = ov::op::v4;
 namespace v8 = ov::op::v8;
+namespace v10 = ov::op::v10;
 namespace v13 = ov::op::v13;
 
 ov::pass::ScaledDotProductAttentionDecomposition::ScaledDotProductAttentionDecomposition() {
@@ -184,6 +186,9 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
     } else {
         scaled_atten = register_new_node<v8::Softmax>(scaled_atten, -1);
     }
+
+    auto is_nan = register_new_node<v10::IsNaN>(scaled_atten);
+    scaled_atten = register_new_node<v1::Select>(is_nan, zero_f, scaled_atten)->output(0);
 
     auto result = register_new_node<v0::MatMul>(scaled_atten, value);
     result->set_friendly_name(node->get_friendly_name());

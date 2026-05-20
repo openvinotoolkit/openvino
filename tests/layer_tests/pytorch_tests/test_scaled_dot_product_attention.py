@@ -139,3 +139,29 @@ class TestScaledDotProductAttentionWithGroupQuery(PytorchLayerTest):
         self._test(*self.create_model(mask, is_causal, dtype, mask_shape),
                    ie_device, precision, ir_version, dynamic_shapes=dyn_shapes,
                    kwargs_to_prepare_input={"dtype": dtype})
+
+
+class TestScaledDotProductAttentionFullyMaskedBoolMask(PytorchLayerTest):
+
+    def _prepare_input(self):
+        return (self.random.randn(1, 1, 3, 4, dtype=np.float32),
+                self.random.randn(1, 1, 3, 4, dtype=np.float32),
+                self.random.randn(1, 1, 3, 4, dtype=np.float32),
+                np.zeros((1, 1, 3, 3), dtype=bool))
+
+    def create_model(self):
+        import torch
+        import torch.nn.functional as F
+
+        class aten_sdpa_bool_mask(torch.nn.Module):
+            def forward(self, query, key, value, mask):
+                return F.scaled_dot_product_attention(query, key, value, attn_mask=mask)
+
+        return aten_sdpa_bool_mask(), 'aten::scaled_dot_product_attention'
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_scaled_dot_product_atten_all_false_bool_mask(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(),
+                   ie_device, precision, ir_version,
+                   dynamic_shapes=False)
