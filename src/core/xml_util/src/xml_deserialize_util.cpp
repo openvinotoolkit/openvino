@@ -64,7 +64,7 @@ std::shared_ptr<ov::AlignedBuffer> BufferWeightsProvider::load_region(size_t off
 }
 
 size_t BufferWeightsProvider::size() const {
-    return m_weights ? m_weights->size() : 0;
+    return m_weights->size();
 }
 
 FileWeightsProvider::FileWeightsProvider(std::filesystem::path weights_path)
