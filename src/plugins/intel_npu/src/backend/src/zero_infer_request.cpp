@@ -902,6 +902,9 @@ void ZeroInferRequest::update_states_if_memory_changed() {
 
 void ZeroInferRequest::infer() {
     OV_ITT_SCOPED_TASK_BASE(itt::domains::InferenceNPU, "SyncInferenceNPU");
+    if (_config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        OPENVINO_THROW("Only start async is supported when RUN_INFERENCES_SEQUENTIALLY is enabled!");
+    }
 
     infer_async();
     get_result();

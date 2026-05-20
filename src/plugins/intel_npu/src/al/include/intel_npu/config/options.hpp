@@ -668,7 +668,7 @@ struct NUM_STREAMS final : OptionBase<NUM_STREAMS, ov::streams::Num> {
         if (num != ov::streams::AUTO && num < 0) {
             OPENVINO_THROW("NUM_STREAMS cannot be set to this value: ",
                            num,
-                           ". Supported values are positive integers or ov::streams::AUTO");
+                           ". Supported values are non-negative integers (including 0) or ov::streams::AUTO");
         }
     }
 

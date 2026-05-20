@@ -165,14 +165,6 @@ void Graph::set_argument_value_with_strides(uint32_t id, const void* data, const
     _zeGraphExt->setGraphArgumentValueWithStrides(_graphDesc, id, data, strides);
 }
 
-bool Graph::supports_in_order_execution() const {
-    if (_zeroInitStruct == nullptr) {
-        return false;
-    }
-
-    return _zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1);
-}
-
 void Graph::initialize_impl(const FilteredConfig& config) {
     _logger.debug("Graph initialize start");
 
@@ -188,22 +180,20 @@ void Graph::initialize_impl(const FilteredConfig& config) {
             commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
         }
     }
-    if (supports_in_order_execution() &&
-        (config.get<RUN_INFERENCES_SEQUENTIALLY>() || config.get<EXCLUSIVE_ASYNC_REQUESTS>())) {
+    if (_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1) &&
+        config.has<RUN_INFERENCES_SEQUENTIALLY>() && config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
         _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC in command queue options");
         commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
     }
 
     {
         std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
-        const bool sharedCommonQueue = config.get<SHARED_COMMON_QUEUE>();
         _commandQueueDesc = CommandQueueDesc{
             zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
             config.has<WORKLOAD_TYPE>() ? zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>()) : std::nullopt,
             commandQueueOptions,
-            supports_in_order_execution() && config.get<EXCLUSIVE_ASYNC_REQUESTS>() && sharedCommonQueue ? nullptr
-                                                                                                         : this,
-            sharedCommonQueue,
+            this,
+            config.get<SHARED_COMMON_QUEUE>(),
         };
     }
 
@@ -219,7 +209,8 @@ void Graph::initialize_impl(const FilteredConfig& config) {
         _batchSize = determine_batch_size();
     }
 
-    if (!supports_in_order_execution() && config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+    if (_zeroInitStruct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
+        config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
         auto numberOfCommandLists = _batchSize.has_value() ? *_batchSize : 1;
 
         _lastSubmittedEvent.resize(numberOfCommandLists);

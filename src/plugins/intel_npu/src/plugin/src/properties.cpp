@@ -763,7 +763,6 @@ void Properties::registerCompiledModelProperties() {
 
     TRY_REGISTER_VARPUB_PROPERTY(ov::intel_npu::batch_mode, BATCH_MODE, false);
     TRY_REGISTER_VARPUB_PROPERTY(ov::intel_npu::shared_common_queue, SHARED_COMMON_QUEUE, false);
-    TRY_REGISTER_VARPUB_PROPERTY(ov::internal::exclusive_async_requests, EXCLUSIVE_ASYNC_REQUESTS, false);
 
     TRY_REGISTER_CUSTOM_PROPERTY(ov::hint::model_priority,
                                  MODEL_PRIORITY,

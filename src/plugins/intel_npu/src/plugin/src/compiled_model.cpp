@@ -9,6 +9,7 @@
 #include <string_view>
 
 #include "async_infer_request.hpp"
+#include "executor.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/config.hpp"
@@ -18,12 +19,9 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
-#include "openvino/runtime/threading/executor_manager.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace intel_npu {
-
-using intel_npu::envVarStrToBool;
 
 CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -49,13 +47,15 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     OV_ITT_TASK_CHAIN(COMPILED_MODEL, itt::domains::NPUPlugin, "CompiledModel::CompiledModel", "initialize_properties");
     _propertiesManager = std::make_unique<Properties>(PropertiesType::COMPILED_MODEL, localConfig);
 
-    configure_stream_executors(_propertiesManager->getConfig());
-
     OV_ITT_TASK_SKIP(COMPILED_MODEL);
 }
 
 std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::create_infer_request");
+
+    std::call_once(_streamExecutorsInitFlag, [this] {
+        const_cast<CompiledModel*>(this)->configure_stream_executors();
+    });
 
     // sanity check
     OPENVINO_ASSERT(_device != nullptr, "No available devices. Failed to create infer request!");
@@ -271,86 +271,45 @@ void CompiledModel::release_memory() {
     }
 }
 
-void CompiledModel::configure_stream_executors(const FilteredConfig& config) {
-    // In case of exclusive async requests, the plugin must use global executors to ensure async infer requests
-    // from different compiled models run in the order they are started. The global executors use a single thread
-    // to ensure sequential execution.
-    if (config.get<EXCLUSIVE_ASYNC_REQUESTS>()) {
-        set_task_executor(
-            ov::threading::executor_manager()->get_executor("Intel NPU plugin start inferences executor"));
-        set_callback_executor(ov::threading::executor_manager()->get_executor("Intel NPU plugin callback executor"));
-
-        if (config.get<SHARED_COMMON_QUEUE>() && _graph->supports_in_order_execution()) {
-            _resultExecutor =
-                ov::threading::executor_manager()->get_executor("Intel NPU plugin wait inferences executor");
-        } else {
-            _resultExecutor = nullptr;
-        }
-        return;
-    }
+void CompiledModel::configure_stream_executors() {
+    const FilteredConfig& config = get_config();
 
     // In case of sequential execution of async requests for the same compiled model, the compiled model must use
     // dedicated executors with a single thread to ensure sequential execution of its async requests.
     if (config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
-        set_task_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(
-            ov::threading::IStreamsExecutor::Config{"Intel NPU plugin start inferences executor"}));
-        _resultExecutor = std::make_shared<ov::threading::CPUStreamsExecutor>(
-            ov::threading::IStreamsExecutor::Config{"Intel NPU plugin wait inferences executor"});
-        set_callback_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(
-            ov::threading::IStreamsExecutor::Config{"Intel NPU plugin callback executor"}));
+        set_task_executor(make_executor("Intel NPU plugin start inferences executor", 1));
+        _resultExecutor = make_executor("Intel NPU plugin wait inferences executor", 1);
+        set_callback_executor(make_executor("Intel NPU plugin callback executor", 1));
+
         return;
     }
 
-    struct ExecutorStreams {
-        int task = 1;
-        int wait = 1;
-        int callback = 1;
-    };
-
-    // Determine the number of streams to use for each executor from the num_streams value.
-    ExecutorStreams executorStreams;
     const auto numStreams = config.get<NUM_STREAMS>();
-    if (numStreams == 0) {
-        executorStreams.task = 0;
-    } else if (numStreams > 0) {
-        executorStreams.task = numStreams;
-        executorStreams.wait = numStreams;
-        executorStreams.callback = numStreams;
+    if (numStreams > 0) {
+        const size_t workers = static_cast<size_t>(numStreams);
+
+        set_task_executor(make_executor("Intel NPU plugin start inferences executor", workers));
+        _resultExecutor = make_executor("Intel NPU plugin wait inferences executor", workers);
+        set_callback_executor(make_executor("Intel NPU plugin callback executor", workers));
+    } else if (numStreams == 0) {
+        // For special case when num_streams is explicitly set to 0, start inference will happen in the same thread as
+        // the call to InferRequest::start_async, while wait and callback executors will still be created with a single
+        // worker.
+        set_task_executor(make_executor("Intel NPU plugin start inferences executor", 0));
+        _resultExecutor = make_executor("Intel NPU plugin wait inferences executor", 1);
+        set_callback_executor(nullptr);
     } else {
-        const auto numStreamsValue =
-            static_cast<int>(utils::getOptimalNumberOfInferRequestsInParallel(config.get<PLATFORM>(),
-                                                                              ov::hint::PerformanceMode::THROUGHPUT));
-        executorStreams.wait = numStreamsValue;
-        executorStreams.callback = numStreamsValue;
+        // Auto mode (default): workers are created on demand. The baseline number of workers that stay alive during
+        // idle periods (30 s timeout) is derived from the optimal number of parallel infer requests recommended for
+        // the current platform in THROUGHPUT mode. The pool can then grow dynamically to match runtime workload.
+        const size_t keepWorkers = static_cast<size_t>(
+            utils::getOptimalNumberOfInferRequestsInParallel(config.get<PLATFORM>(),
+                                                             ov::hint::PerformanceMode::THROUGHPUT));
+
+        set_task_executor(make_executor("Intel NPU plugin run inferences executor", keepWorkers, true));
+        _resultExecutor = nullptr;
+        set_callback_executor(nullptr);
     }
-
-    // When CPU pinning is enabled, the plugin will use dedicated executors pinned to P-cores.
-    if (config.get<ENABLE_CPU_PINNING>()) {
-        auto getPinnedConfig = [](const char* name, int streams) {
-            return ov::threading::IStreamsExecutor::Config{/* name = */ name,
-                                                           /* streams = */ streams,
-                                                           /* threads_per_stream = */ 1,
-                                                           /* thread_preferred_core_type = */
-                                                           ov::hint::SchedulingCoreType::PCORE_ONLY,
-                                                           /* cpu_reservation = */ false,
-                                                           /* cpu_pinning = */ true};
-        };
-
-        set_task_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(
-            getPinnedConfig("Intel NPU plugin start inferences executor", executorStreams.task)));
-        _resultExecutor = std::make_shared<ov::threading::CPUStreamsExecutor>(
-            getPinnedConfig("Intel NPU plugin wait inferences executor", executorStreams.wait));
-        set_callback_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(
-            getPinnedConfig("Intel NPU plugin callback executor", executorStreams.callback)));
-        return;
-    }
-
-    set_task_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(
-        ov::threading::IStreamsExecutor::Config{"Intel NPU plugin start inferences executor", executorStreams.task}));
-    _resultExecutor = std::make_shared<ov::threading::CPUStreamsExecutor>(
-        ov::threading::IStreamsExecutor::Config{"Intel NPU plugin wait inferences executor", executorStreams.wait});
-    set_callback_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(
-        ov::threading::IStreamsExecutor::Config{"Intel NPU plugin callback executor", executorStreams.callback}));
 }
 
 }  // namespace intel_npu

@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <mutex>
 #include <optional>
 
 #include "intel_npu/common/icompiled_model.hpp"
@@ -61,7 +62,7 @@ public:
 
 private:
     // For special config, stream executors must be set accordingly to ensure correct behavior.
-    void configure_stream_executors(const FilteredConfig& config);
+    void configure_stream_executors();
 
     Logger _logger;
 
@@ -70,6 +71,7 @@ private:
     std::shared_ptr<IGraph> _graph;
 
     std::shared_ptr<ov::threading::ITaskExecutor> _resultExecutor = nullptr;
+    mutable std::once_flag _streamExecutorsInitFlag;
 
     std::optional<int64_t> _batchSize;
 };

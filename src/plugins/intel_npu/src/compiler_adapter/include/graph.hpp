@@ -60,8 +60,6 @@ public:
 
     std::optional<bool> is_profiling_blob() const override;
 
-    bool supports_in_order_execution() const override;
-
     void evict_memory() override;
 
     std::optional<std::string_view> get_compatibility_descriptor() const override;
