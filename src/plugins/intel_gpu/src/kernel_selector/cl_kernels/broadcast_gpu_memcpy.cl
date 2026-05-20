@@ -65,27 +65,40 @@ KERNEL(broadcast_gpu_memcpy)(
     const uint in_row_base = INPUT0_GET_INDEX(in_b, in_f, in_y, 0);
 #endif
 
-    // Linear copy of X dimension: each work-item handles consecutive chunks
-    const uint x_per_wi = MEMCPY_VEC_SIZE;
-    const uint x_start = lid * x_per_wi;
+    // Linear copy of X dimension with batch replication
+    const uint total_wis = get_global_size(0);
+    const uint vec_size = MEMCPY_VEC_SIZE;
 
-    if (x_start + x_per_wi <= OUTPUT_SIZE_X) {
-        // Full vector load/store
-        MAKE_VECTOR_TYPE(INPUT0_TYPE, MEMCPY_VEC_SIZE) in_vec = CAT(vload, MEMCPY_VEC_SIZE)(0, &input[in_row_base + x_start]);
-        MAKE_VECTOR_TYPE(OUTPUT_TYPE, MEMCPY_VEC_SIZE) out_vec;
-        out_vec.s0 = TO_OUTPUT_TYPE(in_vec.s0);
-        out_vec.s1 = TO_OUTPUT_TYPE(in_vec.s1);
-        out_vec.s2 = TO_OUTPUT_TYPE(in_vec.s2);
-        out_vec.s3 = TO_OUTPUT_TYPE(in_vec.s3);
-        out_vec.s4 = TO_OUTPUT_TYPE(in_vec.s4);
-        out_vec.s5 = TO_OUTPUT_TYPE(in_vec.s5);
-        out_vec.s6 = TO_OUTPUT_TYPE(in_vec.s6);
-        out_vec.s7 = TO_OUTPUT_TYPE(in_vec.s7);
-        CAT(vstore, MEMCPY_VEC_SIZE)(out_vec, 0, &output[out_row_base + x_start]);
-    } else if (x_start < OUTPUT_SIZE_X) {
-        // Scalar tail
-        for (uint x = x_start; x < OUTPUT_SIZE_X; x++) {
-            output[out_row_base + x] = TO_OUTPUT_TYPE(input[in_row_base + x]);
+    for (uint x_start = lid * vec_size; x_start < OUTPUT_SIZE_X; x_start += total_wis * vec_size) {
+        if (x_start + vec_size <= OUTPUT_SIZE_X) {
+            MAKE_VECTOR_TYPE(INPUT0_TYPE, MEMCPY_VEC_SIZE) in_vec = CAT(vload, MEMCPY_VEC_SIZE)(0, &input[in_row_base + x_start]);
+            MAKE_VECTOR_TYPE(OUTPUT_TYPE, MEMCPY_VEC_SIZE) out_vec;
+            out_vec.s0 = TO_OUTPUT_TYPE(in_vec.s0);
+            out_vec.s1 = TO_OUTPUT_TYPE(in_vec.s1);
+            out_vec.s2 = TO_OUTPUT_TYPE(in_vec.s2);
+            out_vec.s3 = TO_OUTPUT_TYPE(in_vec.s3);
+            out_vec.s4 = TO_OUTPUT_TYPE(in_vec.s4);
+            out_vec.s5 = TO_OUTPUT_TYPE(in_vec.s5);
+            out_vec.s6 = TO_OUTPUT_TYPE(in_vec.s6);
+            out_vec.s7 = TO_OUTPUT_TYPE(in_vec.s7);
+#if BATCH_REPEAT > 1
+            for (uint br = 0; br < BATCH_REPEAT; br++) {
+                CAT(vstore, MEMCPY_VEC_SIZE)(out_vec, 0, &output[out_row_base + br * OUTPUT_BATCH_PITCH + x_start]);
+            }
+#else
+            CAT(vstore, MEMCPY_VEC_SIZE)(out_vec, 0, &output[out_row_base + x_start]);
+#endif
+        } else if (x_start < OUTPUT_SIZE_X) {
+            for (uint x = x_start; x < OUTPUT_SIZE_X; x++) {
+                OUTPUT_TYPE val = TO_OUTPUT_TYPE(input[in_row_base + x]);
+#if BATCH_REPEAT > 1
+                for (uint br = 0; br < BATCH_REPEAT; br++) {
+                    output[out_row_base + br * OUTPUT_BATCH_PITCH + x] = val;
+                }
+#else
+                output[out_row_base + x] = val;
+#endif
+            }
         }
     }
 }

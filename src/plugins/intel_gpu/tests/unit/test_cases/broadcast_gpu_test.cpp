@@ -2411,3 +2411,83 @@ TEST(broadcast_gpu_opt_fp16, bfyx_4x5x1x1_to_4x5x6x1_axis_Y_6) {
 TEST(broadcast_gpu_opt_fp16, bfyx_4x5x1x1_to_4x5x11x1_axis_Y_11) {
     run_broadcast_gpu_opt_y_axis({4,5,1,1},{-1,-1,1,1},{4,5,11,1},{1,1,11,1});
 }
+
+// ===== Tests targeting broadcast_gpu_memcpy kernel (batch-repeat path) =====
+// The memcpy kernel fires when:
+//   input.Batch() == 1, output.Batch() > 1, input bytes > 16KB,
+//   input.X() == output.X(), output.X() >= 32, planar format, no fused ops.
+// These tests stress the BATCH_REPEAT loop and OUTPUT_BATCH_PITCH stride math.
+
+// Basic batch broadcast, X divisible by VEC_SIZE=8.
+TEST(broadcast_gpu_memcpy, bfyx_1x16x32x64_to_8x16x32x64_axes_0) {
+    start_broadcast_test<float>(format::bfyx, data_types::f32, {8,16,32,64}, {16,32,64}, {0});
+}
+
+// FP16 path (most common in inference).
+TEST(broadcast_gpu_memcpy, bfyx_fp16_1x16x32x64_to_8x16x32x64_axes_0) {
+    start_broadcast_test<ov::float16>(format::bfyx, data_types::f16, {8,16,32,64}, {16,32,64}, {0});
+}
+
+// X NOT divisible by VEC_SIZE=8 -> exercises scalar tail loop.
+TEST(broadcast_gpu_memcpy, bfyx_1x16x32x70_to_8x16x32x70_axes_0_x_not_aligned) {
+    start_broadcast_test<float>(format::bfyx, data_types::f32, {8,16,32,70}, {16,32,70}, {0});
+}
+
+// X just at threshold (kMinXForMemcpy = 32).
+TEST(broadcast_gpu_memcpy, bfyx_1x16x16x32_to_4x16x16x32_axes_0_x_min_threshold) {
+    start_broadcast_test<float>(format::bfyx, data_types::f32, {4,16,16,32}, {16,16,32}, {0});
+}
+
+// Non-power-of-2 batch.
+TEST(broadcast_gpu_memcpy, bfyx_1x16x32x64_to_3x16x32x64_axes_0_batch_3) {
+    start_broadcast_test<float>(format::bfyx, data_types::f32, {3,16,32,64}, {16,32,64}, {0});
+}
+
+TEST(broadcast_gpu_memcpy, bfyx_1x16x32x64_to_17x16x32x64_axes_0_batch_17) {
+    start_broadcast_test<float>(format::bfyx, data_types::f32, {17,16,32,64}, {16,32,64}, {0});
+}
+
+// 5D bfzyx layout.
+TEST(broadcast_gpu_memcpy, bfzyx_1x8x4x32x64_to_4x8x4x32x64_axes_0) {
+    start_broadcast_test<float>(format::bfzyx, data_types::f32, {4,8,4,32,64}, {8,4,32,64}, {0});
+}
+
+// FP16 5D path.
+TEST(broadcast_gpu_memcpy, bfzyx_fp16_1x8x4x32x64_to_4x8x4x32x64_axes_0) {
+    start_broadcast_test<ov::float16>(format::bfzyx, data_types::f16, {4,8,4,32,64}, {8,4,32,64}, {0});
+}
+
+// INT8 path (verifies TO_OUTPUT_TYPE on small types).
+TEST(broadcast_gpu_memcpy, bfyx_int8_1x16x32x64_to_8x16x32x64_axes_0) {
+    start_broadcast_test<int8_t>(format::bfyx, data_types::i8, {8,16,32,64}, {16,32,64}, {0});
+}
+
+// INT64 path.
+TEST(broadcast_gpu_memcpy, bfyx_int64_1x4x16x32_to_4x4x16x32_axes_0) {
+    start_broadcast_test<int64_t>(format::bfyx, data_types::i64, {4,4,16,32}, {4,16,32}, {0});
+}
+
+// Input just above the 16KB threshold (input has 4096 fp32 = 16KB exactly, must be > 16KB).
+// 4*16*64 fp32 = 16384 bytes = 16KB exactly -> threshold check (input_bytes > 16*1024) fails -> ref kernel.
+// 4*16*65 fp32 = 16640 bytes -> memcpy kernel.
+TEST(broadcast_gpu_memcpy, bfyx_1x4x16x65_to_4x4x16x65_axes_0_above_threshold) {
+    start_broadcast_test<float>(format::bfyx, data_types::f32, {4,4,16,65}, {4,16,65}, {0});
+}
+
+// Input just below threshold -> should use ref kernel (verifies fallback works).
+TEST(broadcast_gpu_memcpy, bfyx_1x4x16x32_to_4x4x16x32_axes_0_below_threshold_uses_ref) {
+    start_broadcast_test<float>(format::bfyx, data_types::f32, {4,4,16,32}, {4,16,32}, {0});
+}
+
+// Combined batch+feature broadcast (memcpy fires for batch dim only, output has multiple features).
+// Input [1,1,32,64] -> Output [4,16,32,64]: batch broadcast (1->4) AND feature broadcast (1->16).
+// memcpy kernel handles this because output.Batch>1, input.Batch==1; feature is handled via in_row_base modulo.
+TEST(broadcast_gpu_memcpy, bfyx_1x1x32x64_to_4x16x32x64_axes_0_1) {
+    start_broadcast_test<float>(format::bfyx, data_types::f32, {4,16,32,64}, {32,64}, {0,1});
+}
+
+// Y broadcast WITH batch broadcast. memcpy excludes Y-only broadcast but should accept this.
+// Input [1,16,1,64] -> Output [4,16,32,64]: batch (1->4) AND Y (1->32).
+TEST(broadcast_gpu_memcpy, bfyx_1x16x1x64_to_4x16x32x64_axes_0_2) {
+    start_broadcast_test<float>(format::bfyx, data_types::f32, {4,16,32,64}, {16,1,64}, {0,2});
+}

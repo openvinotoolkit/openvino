@@ -69,6 +69,13 @@ bool BroadcastKernelMemcpy::Validate(const Params& params) const {
     if (!p.fused_ops.empty())
         return false;
 
+    // Only use memcpy kernel when batch-repeat gives benefit (large input, batch broadcast)
+    // Otherwise ref kernel is faster due to lower per-element overhead
+    size_t input_bytes = input.LogicalSize() * BytesPerElement(input.GetDType());
+    bool has_batch_repeat = (input.Batch().v == 1) && (output.Batch().v > 1) && (input_bytes > 16 * 1024);
+    if (!has_batch_repeat)
+        return false;
+
     return true;
 }
 
@@ -84,24 +91,34 @@ KernelsData BroadcastKernelMemcpy::GetKernelsData(const Params& params) const {
     if (!Validate(params))
         return {};
 
+    const auto& input = prim_params.inputs[0];
     const auto& output = prim_params.outputs[0];
     const size_t out_x = output.X().v;
+
+    // Batch repeat: dispatch over input batch only, kernel writes to all output batches.
+    // Only beneficial when input is large enough that redundant reads aren't cached.
+    size_t batch_repeat = 1;
+    size_t input_bytes = input.LogicalSize() * BytesPerElement(input.GetDType());
+    if (input.Batch().v == 1 && output.Batch().v > 1 && input_bytes > 16 * 1024) {
+        batch_repeat = output.Batch().v;
+    }
+    const size_t dispatch_batch = output.Batch().v / batch_repeat;
+
     const size_t num_rows = output.Y().v * output.Z().v * output.W().v
-                          * output.Feature().v * output.Batch().v;
+                          * output.Feature().v * dispatch_batch;
     const size_t work_items_per_row = (out_x + kMemcpyVecSize - 1) / kMemcpyVecSize;
 
     DispatchData dispatchData;
-    size_t lws_x = std::min(work_items_per_row, static_cast<size_t>(32));
-    while (lws_x > 1 && work_items_per_row % lws_x != 0)
-        lws_x /= 2;
-    size_t gws_x = ((work_items_per_row + lws_x - 1) / lws_x) * lws_x;
+    constexpr size_t kWIsPerRow = 32;
+    size_t gws_x = std::min(work_items_per_row, kWIsPerRow);
     dispatchData.gws = { gws_x, num_rows, 1 };
-    dispatchData.lws = { lws_x, 1, 1 };
+    dispatchData.lws = { gws_x, 1, 1 };
 
     KernelData k_data = KernelData::Default<broadcast_params>(params);
 
     auto cldnn_jit = MakeBaseParamsJitConstants(prim_params);
     cldnn_jit.AddConstant(MakeJitConstant("MEMCPY_VEC_SIZE", kMemcpyVecSize));
+    cldnn_jit.AddConstant(MakeJitConstant("BATCH_REPEAT", batch_repeat));
     auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
