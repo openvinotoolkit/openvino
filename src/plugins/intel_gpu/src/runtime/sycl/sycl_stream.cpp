@@ -16,8 +16,6 @@
 #include <vector>
 #include <memory>
 
-#include "ocl/ocl_kernel.hpp"  // for testing purposes
-
 // NOTE: Due to buggy scope transition of warnings we need to disable warning in place of use/instantation
 //       of some types (even though we already disabled them in scope of definition of these types).
 //       Moreover this warning is pretty much now only for annoyance: it is generated due to lack
