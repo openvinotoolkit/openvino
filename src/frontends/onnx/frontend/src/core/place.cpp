@@ -32,6 +32,57 @@ OpPlace::OpPlace(const ov::frontend::InputModel& input_model, std::shared_ptr<De
       m_op_decoder(op_decoder),
       m_back_edge_set(false) {}
 
+void OpPlace::bind_input_tensor(const std::shared_ptr<TensorPlace>& tensor, const std::string& port_name) {
+    m_input_bindings.push_back(InputBinding{tensor, port_name});
+}
+
+void OpPlace::bind_output_tensor(const std::shared_ptr<TensorPlace>& tensor, int idx) {
+    FRONT_END_GENERAL_CHECK(idx >= 0, "Output port index to be bound is negative.");
+    const auto out_idx = static_cast<size_t>(idx);
+    if (out_idx >= m_output_bindings.size()) {
+        m_output_bindings.resize(out_idx + 1);
+    }
+    m_output_bindings[out_idx] = tensor;
+}
+
+void OpPlace::ensure_ports_materialized() const {
+    if (m_ports_materialized) {
+        return;
+    }
+    m_ports_materialized = true;
+
+    // const_cast is safe: shared_from_this() is logically const and we only mutate
+    // members declared mutable (m_input_ports / m_output_ports).
+    auto self = const_cast<OpPlace*>(this)->shared_from_this();
+    const auto& input_model = get_input_model_ref();
+
+    for (const auto& binding : m_input_bindings) {
+        auto tensor = binding.tensor.lock();
+        if (!tensor) {
+            continue;
+        }
+        auto in_port = std::make_shared<InPortPlace>(input_model);
+        in_port->set_op(self);
+        in_port->set_source_tensor(tensor);
+        tensor->add_consuming_port(in_port);
+        m_input_ports[binding.port_name].push_back(in_port);
+    }
+    for (size_t i = 0; i < m_output_bindings.size(); ++i) {
+        auto tensor = m_output_bindings[i].lock();
+        if (!tensor) {
+            continue;
+        }
+        auto out_port = std::make_shared<OutPortPlace>(input_model);
+        out_port->set_op(self);
+        out_port->set_target_tensor(tensor);
+        tensor->add_producing_port(out_port);
+        if (i >= m_output_ports.size()) {
+            m_output_ports.resize(i + 1);
+        }
+        m_output_ports[i] = out_port;
+    }
+}
+
 void OpPlace::set_next_iteration_back_edge(const std::string& next_iteration_producer_name,
                                            size_t next_iteration_producer_output_port_idx) {
     m_next_iteration_producer_name = next_iteration_producer_name;
@@ -47,10 +98,12 @@ void OpPlace::get_next_iteration_back_edge(std::string& next_iteration_producer_
 }
 
 const std::vector<std::shared_ptr<OutPortPlace>>& OpPlace::get_output_ports() const {
+    ensure_ports_materialized();
     return m_output_ports;
 }
 
 const std::map<std::string, std::vector<std::shared_ptr<InPortPlace>>>& OpPlace::get_input_ports() const {
+    ensure_ports_materialized();
     return m_input_ports;
 }
 
@@ -61,6 +114,7 @@ std::shared_ptr<DecoderBase> OpPlace::get_decoder() const {
 void OpPlace::add_out_port(const std::shared_ptr<OutPortPlace>& output, int idx) {
     FRONT_END_GENERAL_CHECK(idx >= 0, "Output port index to be added is negative.");
     size_t output_port_index = static_cast<size_t>(idx);
+    ensure_ports_materialized();
     while (output_port_index >= m_output_ports.size()) {
         m_output_ports.push_back(std::shared_ptr<OutPortPlace>());
     }
@@ -68,20 +122,24 @@ void OpPlace::add_out_port(const std::shared_ptr<OutPortPlace>& output, int idx)
 }
 
 void OpPlace::add_in_port(const std::shared_ptr<InPortPlace>& input, const std::string& name) {
+    ensure_ports_materialized();
     m_input_ports[name].push_back(input);
 }
 
 ov::frontend::Place::Ptr OpPlace::get_input_port(const std::string& name) const {
+    ensure_ports_materialized();
     FRONT_END_GENERAL_CHECK(m_input_ports.at(name).size() == 1, "Only one input port should exist.");
     return m_input_ports.at(name)[0];
 }
 
 ov::frontend::Place::Ptr OpPlace::get_input_port(int outputPortIndex) const {
+    ensure_ports_materialized();
     FRONT_END_GENERAL_CHECK(m_input_ports.size() == 1, "Only one named input port should exist.");
     return m_input_ports.begin()->second[outputPortIndex];
 }
 
 ov::frontend::Place::Ptr OpPlace::get_output_port(int outputPortIndex) const {
+    ensure_ports_materialized();
     FRONT_END_GENERAL_CHECK(outputPortIndex >= 0, "outputPortIndex is negative.");
     size_t output_port_index = static_cast<size_t>(outputPortIndex);
     FRONT_END_GENERAL_CHECK(m_output_ports.size() > output_port_index, "No port with index: ", output_port_index);
@@ -89,17 +147,20 @@ ov::frontend::Place::Ptr OpPlace::get_output_port(int outputPortIndex) const {
 }
 
 ov::frontend::Place::Ptr OpPlace::get_output_port() const {
+    ensure_ports_materialized();
     FRONT_END_GENERAL_CHECK(m_output_ports.size() == 1, "Only one output port should exist.");
     return m_output_ports[0];
 }
 
 ov::frontend::Place::Ptr OpPlace::get_input_port() const {
+    ensure_ports_materialized();
     FRONT_END_GENERAL_CHECK(m_input_ports.size() == 1 && m_input_ports.begin()->second.size() == 1,
                             "Only one input port should exist.");
     return m_input_ports.begin()->second[0];
 }
 
 std::vector<ov::frontend::Place::Ptr> OpPlace::get_consuming_operations() const {
+    ensure_ports_materialized();
     std::vector<ov::frontend::Place::Ptr> consuming_ops;
     for (const auto& out_port : m_output_ports) {
         auto consuming_ops_out = out_port->get_consuming_operations();
@@ -113,6 +174,7 @@ std::vector<ov::frontend::Place::Ptr> OpPlace::get_consuming_operations(int outp
 }
 
 std::vector<ov::frontend::Place::Ptr> OpPlace::get_consuming_ports() const {
+    ensure_ports_materialized();
     std::vector<ov::frontend::Place::Ptr> consuming_ports;
     for (const auto& out_port : m_output_ports) {
         auto consuming_ops_out = out_port->get_consuming_ports();
@@ -122,6 +184,7 @@ std::vector<ov::frontend::Place::Ptr> OpPlace::get_consuming_ports() const {
 }
 
 ov::frontend::Place::Ptr OpPlace::get_input_port(const std::string& inputName, int inputPortIndex) const {
+    ensure_ports_materialized();
     FRONT_END_GENERAL_CHECK(inputPortIndex >= 0, "inputPortIndex is negative.");
     size_t input_port_index = static_cast<size_t>(inputPortIndex);
     FRONT_END_GENERAL_CHECK(input_port_index <= m_input_ports.at(inputName).size(), "inputPortIndex is out of bounds.");
@@ -189,6 +252,7 @@ TensorPlace::TensorPlace(const ov::frontend::InputModel& input_model,
       m_operation_name(operation_name) {}
 
 std::vector<ov::frontend::Place::Ptr> TensorPlace::get_consuming_ports() const {
+    ensure_consuming_ports_materialized();
     std::vector<ov::frontend::Place::Ptr> consuming_ports;
     for (const auto& consuming_port : m_consuming_ports) {
         if (const auto& locked = consuming_port.lock()) {
@@ -201,6 +265,7 @@ std::vector<ov::frontend::Place::Ptr> TensorPlace::get_consuming_ports() const {
 }
 
 ov::frontend::Place::Ptr TensorPlace::get_producing_port() const {
+    ensure_producing_port_materialized();
     FRONT_END_GENERAL_CHECK(m_producing_ports.size() == 1, "Only one producing port is supported.");
     if (const auto& producing_port = m_producing_ports[0].lock()) {
         return producing_port;
@@ -216,7 +281,41 @@ void TensorPlace::add_consuming_port(const std::shared_ptr<InPortPlace>& in_port
     m_consuming_ports.push_back(in_port);
 }
 
+void TensorPlace::bind_producing_op(const std::shared_ptr<OpPlace>& op, int out_idx) {
+    m_producing_op = op;
+    m_producing_op_out_idx = out_idx;
+}
+
+void TensorPlace::bind_consuming_op(const std::shared_ptr<OpPlace>& op, const std::string& port_name) {
+    m_consuming_op_bindings.emplace_back(op, port_name);
+}
+
+void TensorPlace::ensure_producing_port_materialized() const {
+    if (m_producing_port_materialized) {
+        return;
+    }
+    m_producing_port_materialized = true;
+    if (auto op = m_producing_op.lock()) {
+        // Triggers materialization of all of op's input/output ports, which in turn pushes
+        // an OutPortPlace onto this tensor's m_producing_ports.
+        op->ensure_ports_materialized();
+    }
+}
+
+void TensorPlace::ensure_consuming_ports_materialized() const {
+    if (m_consuming_ports_materialized) {
+        return;
+    }
+    m_consuming_ports_materialized = true;
+    for (const auto& binding : m_consuming_op_bindings) {
+        if (auto op = binding.first.lock()) {
+            op->ensure_ports_materialized();
+        }
+    }
+}
+
 std::vector<ov::frontend::Place::Ptr> TensorPlace::get_consuming_operations() const {
+    ensure_consuming_ports_materialized();
     std::vector<ov::frontend::Place::Ptr> consuming_ops;
     for (const auto& consuming_port : m_consuming_ports) {
         if (auto port_ptr = consuming_port.lock()) {
