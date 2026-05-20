@@ -190,7 +190,8 @@ std::unique_ptr<llvm::Module> lowerToLLVMIR(Operation* module, llvm::LLVMContext
     // Specify target machine
     if (!triple.empty() && !cpuName.empty()) {
         std::string error;
-        const llvm::Target* target = llvm::TargetRegistry::lookupTarget(triple, error);
+        llvm::Triple tripleObj(triple);
+        const llvm::Target* target = llvm::TargetRegistry::lookupTarget(tripleObj, error);
         if (!target) {
             llvm::errs() << "Error while looking up target triple: ";
             llvm::errs() << error << "\n";
