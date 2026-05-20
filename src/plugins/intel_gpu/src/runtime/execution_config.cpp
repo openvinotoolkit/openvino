@@ -31,6 +31,7 @@
 #include "openvino/runtime/weightless_properties_utils.hpp"
 #include "ov_ops/dynamic_quantize.hpp"
 #include "ov_ops/rms.hpp"
+#include "openvino/op/gated_delta_net.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov::intel_gpu {
@@ -65,6 +66,9 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
         return true;
 
     if (ov::is_type<ov::op::internal::DynamicQuantize>(op) || ov::is_type<ov::op::internal::RMS>(op))
+        return true;
+
+    if (ov::is_type<ov::op::internal::GatedDeltaNet>(op))
         return true;
 
     if (ov::is_type<ov::op::v5::Loop>(op)) {
