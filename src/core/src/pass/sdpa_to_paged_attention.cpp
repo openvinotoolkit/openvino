@@ -82,8 +82,6 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                     "No ScaledDotProductAttention operation observed in the graph, cannot perform "
                     "the SDPAToPagedAttention transformation.");
 
-    // ov::pass::Serialize("gemma_sdpa_to_paged_attention_before.xml", "gemma_sdpa_to_paged_attention_before.bin").run_on_model(model);
-
     m_params = PaParams{model->get_parameters()};
     m_results = PaResults{model->get_results()};
     auto max_context_len = m_params.add("max_context_len", element::i32, PartialShape{});
@@ -203,10 +201,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     model->add_results(m_results.items());
     model->add_parameters(m_params.items());
-    ov::pass::VisualizeTree("sdpa_to_paged_attention_after.svg").run_on_model(model);
-    std::cout << "before validate infer types" << std::endl;
     model->validate_nodes_and_infer_types();
-    std::cout << "after validate infer types" << std::endl;
 
     return true;
 }
