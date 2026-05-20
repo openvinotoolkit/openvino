@@ -2,11 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/gather.hpp"
+
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/matmul.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/general_utils.h"
-#include "openvino/op/gather.hpp"
 
 using namespace CPUTestUtils;
 namespace ov {
@@ -63,7 +66,7 @@ public:
 protected:
     void SetUp() override {
         const ElementType intInputsPrecision = ElementType::i64;
-        const auto &[inputShapes, axisAndBatchDims, netPrecision, isAxisConstant, cpuParams, additionalConfig] =
+        const auto& [inputShapes, axisAndBatchDims, netPrecision, isAxisConstant, cpuParams, additionalConfig] =
             this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         axis = std::get<0>(axisAndBatchDims);
@@ -72,7 +75,8 @@ protected:
         init_input_shapes(inputShapes);
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
-        if (intel_cpu::contains_key_value(additionalConfig, {ov::hint::inference_precision.name(), ov::element::bf16})) {
+        if (intel_cpu::contains_key_value(additionalConfig,
+                                          {ov::hint::inference_precision.name(), ov::element::bf16})) {
             selectedType = makeSelectedTypeStr(selectedType, ElementType::bf16);
         } else {
             selectedType = makeSelectedTypeStr(selectedType, netPrecision);
@@ -123,11 +127,15 @@ protected:
                 const auto dataTypeSize = funcInput.get_element_type().size();
                 in_data.start_from = 0;
                 in_data.range = dataTypeSize == 4 ? 0x7FFFFFFF : dataTypeSize == 2 ? 0xFFFF : 0xFF;
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[0], in_data);
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                                 targetInputStaticShapes[0],
+                                                                 in_data);
             } else if (funcInput.get_node()->get_friendly_name() == "indices") {
                 in_data.start_from = -axisDim;
                 in_data.range = axisDim * 2;
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[1], in_data);
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                                 targetInputStaticShapes[1],
+                                                                 in_data);
             } else if (funcInput.get_node()->get_friendly_name() == "axis") {
                 in_data.start_from = axis;
                 in_data.range = 1;
@@ -153,7 +161,7 @@ class GatherInPlaceLayerTestCPU : public testing::WithParamInterface<GatherInPla
                                   public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<GatherInPlaceLayerTestCPUParams>& obj) {
-        const auto &[inputShapes, indices, axis, netPrecision, cpuParams] = obj.param;
+        const auto& [inputShapes, indices, axis, netPrecision, cpuParams] = obj.param;
         std::ostringstream result;
         result << "IS=(";
 
@@ -177,7 +185,7 @@ protected:
     void SetUp() override {
         constexpr ElementType intInputsPrecision = ElementType::i64;
         constexpr int batchDims = 0;
-        const auto &[inputShapes, indices, axis, netPrecision, cpuParams] = this->GetParam();
+        const auto& [inputShapes, indices, axis, netPrecision, cpuParams] = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes({inputShapes});
@@ -196,6 +204,51 @@ protected:
     }
 };
 
+class GatherF32ToBF16OutputTestCPU : virtual public ov::test::SubgraphBaseTest {
+protected:
+    void SetUp() override {
+        targetDevice = ov::test::utils::DEVICE_CPU;
+        configuration.insert({ov::hint::inference_precision.name(), ov::element::bf16});
+        init_input_shapes({{{}, {{33}}}});
+
+        std::vector<float> dataValues(64);
+        for (size_t index = 0; index < dataValues.size(); ++index) {
+            dataValues[index] = static_cast<float>(index) / 8.F;
+        }
+
+        std::vector<float> weightsValues(16);
+        for (size_t index = 0; index < weightsValues.size(); ++index) {
+            weightsValues[index] = static_cast<float>(static_cast<int>(index % 13) - 6) / 16.F;
+        }
+
+        auto data = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{64, 1}, dataValues);
+        auto indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, inputDynamicShapes.front());
+        indices->set_friendly_name("indices");
+        auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+        auto gather = std::make_shared<ov::op::v8::Gather>(data, indices, axis);
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(
+            gather,
+            ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 16}, weightsValues));
+
+        function = std::make_shared<ov::Model>(matmul, ov::ParameterVector{indices}, "GatherF32ToBF16OutputCPU");
+
+        rel_threshold = 0.01;
+        abs_threshold = 0.01;
+    }
+
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        inputs.clear();
+        ov::Tensor indicesTensor{ov::element::i64, targetInputStaticShapes.front()};
+        auto* indicesData = indicesTensor.data<int64_t>();
+        const auto indicesCount = ov::shape_size(targetInputStaticShapes.front());
+        for (size_t index = 0; index < indicesCount; ++index) {
+            indicesData[index] = static_cast<int64_t>(index % 64);
+        }
+
+        inputs.insert({function->get_parameters().front(), indicesTensor});
+    }
+};
+
 TEST_P(GatherLayerTestCPU, CompareWithRefs) {
     run();
     CheckPluginRelatedResults(compiledModel, "Gather");
@@ -204,6 +257,13 @@ TEST_P(GatherLayerTestCPU, CompareWithRefs) {
 TEST_P(GatherInPlaceLayerTestCPU, CompareWithRefs) {
     run();
     CheckPluginRelatedResults(compiledModel, "Gather");
+}
+
+TEST_F(GatherF32ToBF16OutputTestCPU, smoke_static_f32_input_bf16_output) {
+    if (!ov::with_cpu_x86_bfloat16()) {
+        GTEST_SKIP();
+    }
+    run();
 }
 
 namespace {
