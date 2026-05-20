@@ -2449,12 +2449,12 @@ TEST(broadcast_gpu_memcpy, bfyx_1x16x32x64_to_17x16x32x64_axes_0_batch_17) {
 
 // 5D bfzyx layout.
 TEST(broadcast_gpu_memcpy, bfzyx_1x8x4x32x64_to_4x8x4x32x64_axes_0) {
-    start_broadcast_test<float>(format::bfzyx, data_types::f32, {4,8,4,32,64}, {8,4,32,64}, {0});
+    start_broadcast_test_5d<float>(format::bfzyx, data_types::f32, {4,8,4,32,64}, {8,4,32,64}, {0});
 }
 
 // FP16 5D path.
 TEST(broadcast_gpu_memcpy, bfzyx_fp16_1x8x4x32x64_to_4x8x4x32x64_axes_0) {
-    start_broadcast_test<ov::float16>(format::bfzyx, data_types::f16, {4,8,4,32,64}, {8,4,32,64}, {0});
+    start_broadcast_test_5d<ov::float16>(format::bfzyx, data_types::f16, {4,8,4,32,64}, {8,4,32,64}, {0});
 }
 
 // INT8 path (verifies TO_OUTPUT_TYPE on small types).
@@ -2487,7 +2487,7 @@ TEST(broadcast_gpu_memcpy, bfyx_1x1x32x64_to_4x16x32x64_axes_0_1) {
 }
 
 // Y broadcast WITH batch broadcast. memcpy excludes Y-only broadcast but should accept this.
-// Input [1,16,1,64] -> Output [4,16,32,64]: batch (1->4) AND Y (1->32).
-TEST(broadcast_gpu_memcpy, bfyx_1x16x1x64_to_4x16x32x64_axes_0_2) {
-    start_broadcast_test<float>(format::bfyx, data_types::f32, {4,16,32,64}, {16,1,64}, {0,2});
+// Input [16,64] (dims F,X) -> Output [4,16,32,64]: batch (axis 0) AND Y (axis 2) are broadcast.
+TEST(broadcast_gpu_memcpy, bfyx_16x64_to_4x16x32x64_axes_0_2) {
+    start_broadcast_test<float>(format::bfyx, data_types::f32, {4,16,32,64}, {16,64}, {0,2});
 }

@@ -53,10 +53,19 @@ bool BroadcastKernelMemcpy::Validate(const Params& params) const {
     if (input.GetLayout() != output.GetLayout())
         return false;
 
-    if (input.X().v != output.X().v)
+    if (output.X().v < kMinXForMemcpy)
         return false;
 
-    if (output.X().v < kMinXForMemcpy)
+    if (!p.fused_ops.empty())
+        return false;
+
+    // X-broadcast splat: input.X==1, output.X>=32. Read 1 scalar, fill VEC_SIZE elements.
+    bool is_x_broadcast = (input.X().v == 1) && (output.X().v > 1);
+    if (is_x_broadcast)
+        return true;
+
+    // Standard memcpy path requires X dimensions to match.
+    if (input.X().v != output.X().v)
         return false;
 
     // Don't use memcpy kernel for Y-only broadcast — ref kernel's Y-blocking is faster
@@ -64,9 +73,6 @@ bool BroadcastKernelMemcpy::Validate(const Params& params) const {
         && (input.Feature().v == output.Feature().v)
         && (input.Y().v != output.Y().v);
     if (is_y_only_broadcast)
-        return false;
-
-    if (!p.fused_ops.empty())
         return false;
 
     // Only use memcpy kernel when batch-repeat gives benefit (large input, batch broadcast)
@@ -95,12 +101,18 @@ KernelsData BroadcastKernelMemcpy::GetKernelsData(const Params& params) const {
     const auto& output = prim_params.outputs[0];
     const size_t out_x = output.X().v;
 
+    // X-broadcast splat: each work-item reads one scalar and fills VEC_SIZE consecutive output elements.
+    bool is_x_broadcast = (input.X().v == 1) && (output.X().v > 1);
+
     // Batch repeat: dispatch over input batch only, kernel writes to all output batches.
     // Only beneficial when input is large enough that redundant reads aren't cached.
+    // Skip batch_repeat for X-broadcast — input is already tiny per row, no benefit.
     size_t batch_repeat = 1;
-    size_t input_bytes = input.LogicalSize() * BytesPerElement(input.GetDType());
-    if (input.Batch().v == 1 && output.Batch().v > 1 && input_bytes > 16 * 1024) {
-        batch_repeat = output.Batch().v;
+    if (!is_x_broadcast) {
+        size_t input_bytes = input.LogicalSize() * BytesPerElement(input.GetDType());
+        if (input.Batch().v == 1 && output.Batch().v > 1 && input_bytes > 16 * 1024) {
+            batch_repeat = output.Batch().v;
+        }
     }
     const size_t dispatch_batch = output.Batch().v / batch_repeat;
 
@@ -119,6 +131,7 @@ KernelsData BroadcastKernelMemcpy::GetKernelsData(const Params& params) const {
     auto cldnn_jit = MakeBaseParamsJitConstants(prim_params);
     cldnn_jit.AddConstant(MakeJitConstant("MEMCPY_VEC_SIZE", kMemcpyVecSize));
     cldnn_jit.AddConstant(MakeJitConstant("BATCH_REPEAT", batch_repeat));
+    cldnn_jit.AddConstant(MakeJitConstant("IS_X_BROADCAST", is_x_broadcast ? 1 : 0));
     auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 

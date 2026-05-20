@@ -69,6 +69,20 @@ KERNEL(broadcast_gpu_memcpy)(
     const uint total_wis = get_global_size(0);
     const uint vec_size = MEMCPY_VEC_SIZE;
 
+#if IS_X_BROADCAST
+    // X-broadcast: read one scalar, fill VEC_SIZE consecutive output positions per work-item.
+    const OUTPUT_TYPE scalar_val = TO_OUTPUT_TYPE(input[in_row_base]);
+    MAKE_VECTOR_TYPE(OUTPUT_TYPE, MEMCPY_VEC_SIZE) out_vec = (MAKE_VECTOR_TYPE(OUTPUT_TYPE, MEMCPY_VEC_SIZE))(scalar_val);
+    for (uint x_start = lid * vec_size; x_start < OUTPUT_SIZE_X; x_start += total_wis * vec_size) {
+        if (x_start + vec_size <= OUTPUT_SIZE_X) {
+            CAT(vstore, MEMCPY_VEC_SIZE)(out_vec, 0, &output[out_row_base + x_start]);
+        } else if (x_start < OUTPUT_SIZE_X) {
+            for (uint x = x_start; x < OUTPUT_SIZE_X; x++) {
+                output[out_row_base + x] = scalar_val;
+            }
+        }
+    }
+#else
     for (uint x_start = lid * vec_size; x_start < OUTPUT_SIZE_X; x_start += total_wis * vec_size) {
         if (x_start + vec_size <= OUTPUT_SIZE_X) {
             MAKE_VECTOR_TYPE(INPUT0_TYPE, MEMCPY_VEC_SIZE) in_vec = CAT(vload, MEMCPY_VEC_SIZE)(0, &input[in_row_base + x_start]);
@@ -101,4 +115,5 @@ KERNEL(broadcast_gpu_memcpy)(
             }
         }
     }
+#endif
 }
