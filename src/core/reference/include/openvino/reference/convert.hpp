@@ -90,7 +90,7 @@ inline constexpr double f16_compression_max_abs_error = 1.0;
 /// Maximum tolerated relative round-trip error abs_diff / |src| for an
 /// in-range element. Elements above this threshold are accumulated into the
 /// combined rejection count used together with f16_compression_keep_threshold.
-inline constexpr double f16_compression_max_rel_error = 1e-4;
+inline constexpr double f16_compression_max_rel_error = 1e-3;
 /// Proportion of combined rejections (out-of-FP16-range + high relative-error)
 /// at which the Constant is kept in its original precision (FP32 / FP64), i.e.
 /// no FP16 compression is applied.
