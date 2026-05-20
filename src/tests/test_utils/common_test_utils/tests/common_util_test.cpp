@@ -161,8 +161,16 @@ TEST_F(CommonUtilsTest, view_to_number_invalid_input){
 
 TEST_F(CommonUtilsTest, view_to_floating_point_number){
     EXPECT_FLOAT_EQ(123.456f, util::view_to_number<float>("123.456").value());
+    EXPECT_FLOAT_EQ(-123.456f, util::view_to_number<float>("-123.456").value());
+    EXPECT_FLOAT_EQ(-std::numeric_limits<float>::infinity(), util::view_to_number<float>("-inf").value());
+    EXPECT_FLOAT_EQ(std::numeric_limits<float>::infinity(), util::view_to_number<float>("inf").value());
+    EXPECT_TRUE(std::isnan(util::view_to_number<float>("nan").value()));
+
     EXPECT_DOUBLE_EQ(123.456, util::view_to_number<double>("123.456").value());
     EXPECT_DOUBLE_EQ(-123.456, util::view_to_number<double>("-123.456").value());
+    EXPECT_DOUBLE_EQ(-std::numeric_limits<double>::infinity(), util::view_to_number<double>("-inf").value());
+    EXPECT_DOUBLE_EQ(std::numeric_limits<double>::infinity(), util::view_to_number<double>("inf").value());
+    EXPECT_TRUE(std::isnan(util::view_to_number<double>("nan").value()));
 }
 
 TEST_F(CommonUtilsTest, ends_with) {
