@@ -6015,7 +6015,7 @@ TEST_F(SDPAToPATest, SDPAToPA_LFM2_EliminateConvPaddingMaskGating) {
     }
     {
         auto multiply_gate_param = make_param(PartialShape{DYN, DYN, DYN}, element::f32, "gate_param");
-        auto matmul_param = make_param(PartialShape{48, 16}, element::f32, "matmul_param");
+        auto matmul_param = make_param(PartialShape{48, 16}, element::f32, "weights");
         auto matmul =
             makeOP<v0::MatMul>({matmul_param, multiply_gate_param}, {{"transpose_a", false}, {"transpose_b", true}});
         auto res = makeOP<v0::Result>({matmul});
