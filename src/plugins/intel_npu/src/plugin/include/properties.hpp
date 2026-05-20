@@ -76,6 +76,8 @@ public:
     ov::intel_npu::CompilerType determineCompilerTypeForCompatibilityCheck() const;
 
 private:
+    using PropertyGetter = std::function<ov::Any(const Config&)>;
+
     struct CopyState {
         PropertiesType pType;
         FilteredConfig config;
@@ -116,6 +118,19 @@ private:
     // To avoid loading the compiler library and check the support when the property is registered, the check can
     // be performed at a later stage, when the property is actually queried.
     bool disable_compatibility_check_if_needed();
+
+    // Internal registration helpers used by macros to centralize common logic.
+    void registerProperty(const std::string& name,
+                          bool isPublic,
+                          ov::PropertyMutability mutability,
+                          const PropertyGetter& getter);
+
+    void registerConfigProperty(const std::string& name,
+                                const PropertyGetter& getter,
+                                std::optional<bool> visibilityOverride = std::nullopt,
+                                std::optional<ov::PropertyMutability> mutabilityOverride = std::nullopt,
+                                bool requireSetInConfig = false,
+                                bool forcePublicInCompiledModel = false);
 
     /**
      * @brief Checks whether a property was registered by its name
