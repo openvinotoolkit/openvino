@@ -148,8 +148,7 @@ void walk_subgraph_external_refs(const GraphProto& subgraph, const ExternalRefSi
             }
         }
     }
-    // Subgraph outputs may directly reference outer-scope tensors when the body
-    // has no node producing them (e.g., an If branch returning a parent value).
+    // Subgraph outputs may directly reference outer-scope tensors.
     for (const auto& output : subgraph.output()) {
         const auto& name = output.name();
         if (!name.empty() && subgraph_defined.count(name) == 0) {
@@ -165,11 +164,9 @@ void topological_sort_graph(GraphProto* graph) {
         return;
     }
 
-    // Hash keys are std::string_view backed by protobuf-owned strings (stable for the
-    // duration of this function) to avoid the per-name std::string allocation that
-    // std::unordered_set<std::string> would impose.
+    // Keys are string_views into protobuf-owned strings (stable for this function's scope).
 
-    // Known tensors: graph inputs and initializers
+    // Known tensors: graph inputs and initializers.
     std::unordered_set<std::string_view> known_tensors;
     known_tensors.reserve(static_cast<size_t>(graph->input_size()) + static_cast<size_t>(graph->initializer_size()));
     for (const auto& input : graph->input()) {
@@ -179,10 +176,8 @@ void topological_sort_graph(GraphProto* graph) {
         known_tensors.insert(init.name());
     }
 
-    // Build producer map for node outputs. A node can declare multiple outputs (Split,
-    // TopK, BatchNorm, LSTM, ...), so reserve 2x num_nodes to cover the common
-    // multi-output cases without rehashing on large graphs. This is just a hint: if
-    // the actual output count exceeds the reservation the map rehashes automatically.
+    // Producer map for node outputs. 2x num_nodes is a hint sized for common multi-output
+    // ops (Split, TopK, BatchNorm, LSTM, ...); the map rehashes if exceeded.
     std::unordered_map<std::string_view, int> producer_by_tensor;
     producer_by_tensor.reserve(static_cast<size_t>(num_nodes) * 2);
     for (int i = 0; i < num_nodes; ++i) {
@@ -193,18 +188,11 @@ void topological_sort_graph(GraphProto* graph) {
         }
     }
 
-    // Build dependency graph: producer -> consumer and indegree per consumer.
-    // Track dependencies that are neither known graph inputs/initializers nor produced
-    // by any node in this graph.
-    //
-    // Edge deduplication trick: when a single node references the same producer through
-    // multiple inputs (or through both direct inputs and a subgraph attribute), we must
-    // count the edge only once. `last_seen_for[p]` holds the consumer index for which
-    // producer `p` most recently produced an edge; comparing it to the current consumer
-    // index avoids using an unordered_set<uint64_t> for edge dedup.
+    // Build adjacency and indegree. Unresolved external deps bump indegree without an
+    // edge, so such nodes never become ready and the final size check keeps original order.
+    // last_seen_for[p] dedups multiple edges from producer p to the same consumer.
     std::vector<std::vector<int>> adjacency(num_nodes);
     std::vector<int> indegree(num_nodes, 0);
-    std::vector<int> unresolved_external(num_nodes, 0);
     std::vector<int> last_seen_for(num_nodes, -1);
 
     for (int i = 0; i < num_nodes; ++i) {
@@ -215,7 +203,7 @@ void topological_sort_graph(GraphProto* graph) {
             }
             const auto producer_it = producer_by_tensor.find(dep);
             if (producer_it == producer_by_tensor.end()) {
-                ++unresolved_external[i];
+                ++indegree[i];  // unresolved external dep
                 return;
             }
             const int producer_idx = producer_it->second;
@@ -236,10 +224,10 @@ void topological_sort_graph(GraphProto* graph) {
         }
     }
 
-    // Kahn's algorithm: queue nodes with all dependencies satisfied
+    // Kahn's algorithm.
     std::queue<int> ready_nodes;
     for (int i = 0; i < num_nodes; ++i) {
-        if (indegree[i] == 0 && unresolved_external[i] == 0) {
+        if (indegree[i] == 0) {
             ready_nodes.push(i);
         }
     }
@@ -254,19 +242,17 @@ void topological_sort_graph(GraphProto* graph) {
         order.push_back(node_idx);
 
         for (const auto consumer_idx : adjacency[node_idx]) {
-            if (--indegree[consumer_idx] == 0 && unresolved_external[consumer_idx] == 0) {
+            if (--indegree[consumer_idx] == 0) {
                 ready_nodes.push(consumer_idx);
             }
         }
     }
 
     if (static_cast<int>(order.size()) != num_nodes) {
-        return;  // Cycle detected or missing input - keep original order
+        return;  // cycle or unresolved dep — keep original order
     }
 
-    // Permute the protobuf nodes in place using SwapElements (O(1) pointer swap on the
-    // RepeatedPtrField) to avoid two deep copies of every NodeProto. pos[i] holds the
-    // target position of the node currently at index i.
+    // Permute nodes in place via SwapElements (O(1) pointer swap on RepeatedPtrField).
     std::vector<int> pos(num_nodes);
     for (int k = 0; k < num_nodes; ++k) {
         pos[order[k]] = k;
