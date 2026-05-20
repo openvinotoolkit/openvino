@@ -141,7 +141,12 @@ ov::frontend::Place::Ptr OpPlace::get_input_port(const std::string& name) const 
 ov::frontend::Place::Ptr OpPlace::get_input_port(int outputPortIndex) const {
     ensure_ports_materialized();
     FRONT_END_GENERAL_CHECK(m_input_ports.size() == 1, "Only one named input port should exist.");
-    return m_input_ports.begin()->second[outputPortIndex];
+    FRONT_END_GENERAL_CHECK(outputPortIndex >= 0, "outputPortIndex is negative.");
+    size_t output_port_index = static_cast<size_t>(outputPortIndex);
+    FRONT_END_GENERAL_CHECK(m_input_ports.begin()->second.size() > output_port_index,
+                            "No input port with index: ",
+                            output_port_index);
+    return m_input_ports.begin()->second[output_port_index];
 }
 
 ov::frontend::Place::Ptr OpPlace::get_output_port(int outputPortIndex) const {

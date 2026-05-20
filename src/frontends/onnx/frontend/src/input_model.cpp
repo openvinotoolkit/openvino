@@ -818,8 +818,8 @@ void InputModel::InputModelONNXImpl::ensure_bindings_populated() {
     if (m_bindings_populated) {
         return;
     }
-    m_bindings_populated = true;
     populate_bindings();
+    m_bindings_populated = true;
 }
 
 void InputModel::InputModelONNXImpl::populate_bindings() {
