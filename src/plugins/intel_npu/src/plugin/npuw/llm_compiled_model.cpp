@@ -248,8 +248,8 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
         LOG_WARN(compiler_gate_support_msg << "unsupported");
     }
 
-    if (desc.arch == "5010" && desc.compiler_ver >= ONEAPI_MAKE_VERSION(7, 29)) {
-        // Flash attention tile is supported starting from compiler version 7.29 on NPU5010
+    if (desc.arch == "5010" && desc.compiler_ver >= ONEAPI_MAKE_VERSION(8, 1)) {
+        // Flash attention tile with GQA is supported starting from compiler version 8.1 on NPU5010
         desc.support_flash_attention_tile = true;
     }
 

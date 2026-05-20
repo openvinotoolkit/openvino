@@ -88,9 +88,11 @@ class CompiledModel : public ov::npuw::ICompiledModel_v0 {
 public:
     static constexpr ov::npuw::orc::TypeId kOrcType =
         static_cast<ov::npuw::orc::TypeId>(ov::npuw::orc::schema_npuw::PartitionedModel::ID);
-    // Version 0 is the frozen baseline on the wire. Any further layout changes
-    // must be introduced through a new versioned payload rather than by mutating v0.
-    static constexpr ov::npuw::orc::Version kOrcVersion = 0u;
+    // Version 1 introduced an explicit META leaf child section for the model's
+    // own serialized fields, making the PartitionedModel container fully
+    // navigable without schema knowledge.  Version 0 (pre-release only) wrote
+    // those fields as raw s11n bytes at the start of the container body.
+    static constexpr ov::npuw::orc::Version kOrcVersion = 1u;
 
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
