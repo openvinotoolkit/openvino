@@ -111,7 +111,7 @@ jobs:
         with:
           images: |
             ov_build/ubuntu_22_04_riscv
-            ov_test/ubuntu_22_04_riscv_xuantie
+            ov_test/ubuntu_22_04_riscv
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
@@ -192,6 +192,7 @@ jobs:
           -DENABLE_WHEEL=OFF
           -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
           -DCMAKE_TOOLCHAIN_FILE=${OPENVINO_REPO}/cmake/toolchains/riscv64.linux.toolchain.cmake
+          -DTHREADING=OMP
           -S ${OPENVINO_REPO}
           -B ${BUILD_DIR}
 
@@ -247,7 +248,7 @@ jobs:
     needs: [Smart_CI, Docker, Build]
     runs-on: aks-linux-4-cores-16gb
     container:
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_riscv_xuantie }}
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_riscv }}
       volumes:
         - ${{ github.workspace }}:${{ github.workspace }}
     defaults:
@@ -292,7 +293,7 @@ jobs:
               ;;
           esac
           "${RISCV_TOOLCHAIN_ROOT}"/bin/qemu-riscv64 \
-            -cpu rv64,x-v=true,vlen=256 \
+            -cpu rv64,v=true,vext_spec=v1.0 \
             "${INSTALL_TEST_DIR}"/ov_cpu_func_tests \
             --gtest_print_time=1 \
             --gtest_filter="${GTEST_FILTER}"
