@@ -58,7 +58,6 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "openvino/op/variadic_split.hpp"
-#include "openvino/pass/visualize_tree.hpp"
 #include "transformations/paged_attention/eliminate_conv_padding_mask_gating.hpp"
 #include "transformations/paged_attention/position_ids_replacer.hpp"
 #include "transformations/paged_attention/prev_sequence_length_pattern.hpp"
