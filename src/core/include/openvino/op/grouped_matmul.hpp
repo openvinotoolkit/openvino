@@ -14,17 +14,17 @@ namespace ov::op::v17 {
 ///
 /// - **Case 1 (2D × 3D)**: MoE forward pass
 ///   - mat_a: (total_tokens, K) - rows partitioned by offsets
-///   - mat_b: (G, K, N) - per-group weights
+///   - mat_b: (G, N, K) - per-group weights (stored transposed)
 ///   - output: (total_tokens, N) - each group's output in corresponding rows
 ///
 /// - **Case 2 (3D × 3D)**: Batched uniform (no offsets needed)
 ///   - mat_a: (G, M, K) - per-group inputs
-///   - mat_b: (G, K, N) - per-group weights
+///   - mat_b: (G, N, K) - per-group weights (stored transposed)
 ///   - output: (G, M, N) - per-group outputs
 ///
 /// - **Case 3 (2D × 2D)**: MoE weight gradient
 ///   - mat_a: (K, total_tokens) - trailing dim partitioned by offsets
-///   - mat_b: (total_tokens, N) - leading dim partitioned by offsets
+///   - mat_b: (N, total_tokens) - columns partitioned by offsets (stored transposed)
 ///   - output: (G, K, N) - per-group gradient matrices
 ///
 /// \ingroup ov_ops_cpp_api
@@ -37,7 +37,7 @@ public:
     /// \brief Constructs a GroupedMatMul operation without offsets (3D × 3D case).
     ///
     /// \param mat_a First input tensor (G, M, K)
-    /// \param mat_b Second input tensor (G, K, N)
+    /// \param mat_b Second input tensor (G, N, K)
     GroupedMatMul(const Output<Node>& mat_a, const Output<Node>& mat_b);
 
     /// \brief Constructs a GroupedMatMul operation with offsets (2D × 3D or 2D × 2D).

@@ -110,8 +110,8 @@ std::vector<TRShape> shape_infer(const GroupedMatMul* op,
 
         const auto K = mat_a_shape[0];
         const auto total_tokens_a = mat_a_shape[1];
-        const auto total_tokens_b = mat_b_shape[0];
-        const auto N = mat_b_shape[1];
+        const auto N = mat_b_shape[0];
+        const auto total_tokens_b = mat_b_shape[1];
 
         auto merged_tokens = DimType();
         NODE_VALIDATION_CHECK(op,

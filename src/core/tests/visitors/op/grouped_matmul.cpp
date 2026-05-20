@@ -41,7 +41,7 @@ TEST(attributes, grouped_matmul_v17_2d_3d_with_offsets) {
 TEST(attributes, grouped_matmul_v17_2d_2d_with_offsets) {
     NodeBuilder::opset().insert<ov::op::v17::GroupedMatMul>();
     const auto mat_a = std::make_shared<Parameter>(ov::element::f32, ov::PartialShape{64, 16});
-    const auto mat_b = std::make_shared<Parameter>(ov::element::f32, ov::PartialShape{16, 128});
+    const auto mat_b = std::make_shared<Parameter>(ov::element::f32, ov::PartialShape{128, 16});
     const auto offsets = std::make_shared<Parameter>(ov::element::i64, ov::PartialShape{3});
 
     const auto op = std::make_shared<ov::op::v17::GroupedMatMul>(mat_a, mat_b, offsets);

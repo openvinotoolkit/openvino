@@ -140,7 +140,7 @@ void grouped_matmul(const T* mat_a,
     if (a_ndim == 2 && b_ndim == 2) {
         const size_t K = mat_a_shape[0];
         const size_t total_tokens = mat_a_shape[1];
-        const size_t N = mat_b_shape[1];
+        const size_t N = mat_b_shape[0];  // mat_b is [N, total_tokens]
 
         const size_t out_group_stride = K * N;
 
@@ -155,14 +155,14 @@ void grouped_matmul(const T* mat_a,
             std::fill(out_ptr, out_ptr + out_group_stride, T{0});
 
             if (num_tokens > 0) {
-                // mat_a[:, start:end] @ mat_b[start:end, :]
+                // mat_a[:, start:end] @ mat_b[:, start:end].T
                 // mat_a is (K, total_tokens), so slice along columns
-                // mat_b is (total_tokens, N), so slice along rows
+                // mat_b is (N, total_tokens), so slice along columns too
                 for (size_t row = 0; row < K; ++row) {
                     for (size_t t = 0; t < num_tokens; ++t) {
                         const T a_val = mat_a[row * total_tokens + (start + t)];
                         for (size_t col = 0; col < N; ++col) {
-                            out_ptr[row * N + col] += a_val * mat_b[(start + t) * N + col];
+                            out_ptr[row * N + col] += a_val * mat_b[col * total_tokens + (start + t)];
                         }
                     }
                 }

@@ -51,10 +51,10 @@ Output shape: ``[G, M, N]``
 Used during backpropagation for computing per-expert weight gradients:
 
 * ``mat_a``: Shape ``[K, total_tokens]`` - transposed activations
-* ``mat_b``: Shape ``[total_tokens, N]`` - gradient output
+* ``mat_b``: Shape ``[N, total_tokens]`` - gradient output (stored transposed)
 * ``offsets``: Shape ``[G]`` - cumulative token boundaries
 
-For group ``i``, computes: ``output[i] = mat_a[:, start:end] @ mat_b[start:end, :]``
+For group ``i``, computes: ``output[i] = mat_a[:, start:end] @ mat_b[:, start:end].T``
 
 Output shape: ``[G, K, N]``
 
@@ -83,7 +83,7 @@ For example, with tokens per group ``[3, 5, 2]``, offsets would be ``[3, 8, 10]`
   
   * Case 1 (2D×3D): Shape ``[G, N, K]``
   * Case 2 (3D×3D): Shape ``[G, N, K]``
-  * Case 3 (2D×2D): Shape ``[total_tokens, N]``
+  * Case 3 (2D×2D): Shape ``[N, total_tokens]``
 
 * **3**: ``offsets`` - 1D tensor of type *T_IDX* with group boundaries. Optional.
   
@@ -172,9 +172,9 @@ For example, with tokens per group ``[3, 5, 2]``, offsets would be ``[3, 8, 10]`
                <dim>64</dim>
                <dim>16</dim>
            </port>
-           <port id="1">  <!-- mat_b: total_tokens=16, N=128 -->
-               <dim>16</dim>
+           <port id="1">  <!-- mat_b: N=128, total_tokens=16 -->
                <dim>128</dim>
+               <dim>16</dim>
            </port>
            <port id="2">  <!-- offsets: [4, 12, 16] for 3 groups -->
                <dim>3</dim>
