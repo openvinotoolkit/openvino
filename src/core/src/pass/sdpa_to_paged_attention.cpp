@@ -27,8 +27,6 @@
 #include "transformations/utils/print_model.hpp"
 #include "transformations/utils/utils.hpp"
 
-#include "openvino/pass/visualize_tree.hpp"
-
 using namespace ov::op;
 using ov::pass::paged_attention::PaParams;
 using ov::pass::paged_attention::PaResults;
