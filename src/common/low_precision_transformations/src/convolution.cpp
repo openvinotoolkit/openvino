@@ -69,6 +69,16 @@ size_t ConvolutionTransformation::getInputChannels(const std::shared_ptr<ov::Nod
 bool ConvolutionTransformation::transform(ov::pass::pattern::Matcher &m) {
     auto convolution = m.get_match_root();
 
+    // check if the match is from a functional Mul rather than dequantization
+    // TODO: make the check general
+    {
+        const auto actInput = convolution->get_input_node_shared_ptr(0);
+        const auto nonDQFactor = ov::as_type_ptr<ov::opset1::Convolution>(actInput->get_input_node_shared_ptr(1));
+        if (nonDQFactor != nullptr) {
+            return false;
+        }
+    }
+
     if (!canConvolutionBeTransformed(convolution, defaultPrecisions)) {
         const auto weightInput = convolution->get_input_node_shared_ptr(1);
         const auto reshapeFromWeights = ov::as_type_ptr<ov::opset1::Reshape>(weightInput);
@@ -105,16 +115,6 @@ bool ConvolutionTransformation::transform(ov::pass::pattern::Matcher &m) {
 
     if (updatePrecisions && !fqOnWeightsWasDecomposed) {
         return false;
-    }
-
-    // check if the match is from a functional Mul rather than dequantization
-    // TODO: make the check general
-    {
-        const auto actInput = convolution->get_input_node_shared_ptr(0);
-        const auto nonDQFactor = ov::as_type_ptr<ov::opset1::Convolution>(actInput->get_input_node_shared_ptr(1));
-        if (nonDQFactor != nullptr) {
-            return false;
-        }
     }
 
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(convolution, defaultPrecisions);
