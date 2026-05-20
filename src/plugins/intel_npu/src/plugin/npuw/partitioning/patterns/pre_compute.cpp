@@ -69,10 +69,8 @@ static ov::NodeVector calculate_freq(const std::shared_ptr<ov::Node> short_facto
         freq_long[i] = std::pow(long_factor[i] * multiply_const[i], power_const[0]);
     }
 
-    auto inv_freq =
-        std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape({factor_size}), freq);
-    auto inv_freq_long =
-        std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape({factor_size}), freq_long);
+    auto inv_freq = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape({factor_size}), freq);
+    auto inv_freq_long = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape({factor_size}), freq_long);
 
     return {inv_freq, inv_freq_long};
 }
@@ -259,7 +257,8 @@ ov::npuw::patterns::pre_compute::LongRopePatternPhi_v5::LongRopePatternPhi_v5() 
     auto multiply_const = MakeConstant();
     auto power_const = MakeConstant();
 
-    auto select_cond_max_pos_id = make_select_pattern(position_ids, short_factor, long_factor, multiply_const, power_const);
+    auto select_cond_max_pos_id =
+        make_select_pattern(position_ids, short_factor, long_factor, multiply_const, power_const);
     auto select = std::get<0>(select_cond_max_pos_id);
     auto cond = std::get<1>(select_cond_max_pos_id);
     auto max_pos_id = std::get<2>(select_cond_max_pos_id);
@@ -342,8 +341,10 @@ ov::npuw::patterns::pre_compute::RopeCacheMatcher::RopeCacheMatcher(const uint32
         auto cache_short = makeCosSinCache(max_prompt_len, inv_freq[0]);
         auto cache_long = makeCosSinCache(max_prompt_len, inv_freq[1]);
 
-        auto select_cos = std::make_shared<ov::op::v1::Select>(long_rpe_v5->matched_cond, cache_long[0], cache_short[0]);
-        auto select_sin = std::make_shared<ov::op::v1::Select>(long_rpe_v5->matched_cond, cache_long[1], cache_short[1]);
+        auto select_cos =
+            std::make_shared<ov::op::v1::Select>(long_rpe_v5->matched_cond, cache_long[0], cache_short[0]);
+        auto select_sin =
+            std::make_shared<ov::op::v1::Select>(long_rpe_v5->matched_cond, cache_long[1], cache_short[1]);
 
         // WA: to get correct sin-cos cache size
         long_rpe_v5->matched_inv_freq = inv_freq[0];
