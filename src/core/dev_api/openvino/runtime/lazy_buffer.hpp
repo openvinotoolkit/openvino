@@ -4,12 +4,18 @@
 
 #pragma once
 
+#include <atomic>
 #include <filesystem>
+#include <memory>
 #include <mutex>
 
 #include "openvino/runtime/aligned_buffer.hpp"
 
 namespace ov {
+namespace util {
+class ReservableBuffer;
+}
+
 /** \brief LazyBuffer is lazy loaded AlignedBuffer which provides a view on a file w/o memory mapping. */
 class OPENVINO_API LazyBuffer : public AlignedBuffer {
 public:
@@ -24,7 +30,12 @@ public:
      */
     LazyBuffer(std::filesystem::path file_path, size_t offset, size_t byte_size);
 
+    LazyBuffer(LazyBuffer&&) noexcept;
+    LazyBuffer& operator=(LazyBuffer&&) noexcept;
     ~LazyBuffer() override;
+
+    LazyBuffer(const LazyBuffer&) = delete;
+    LazyBuffer& operator=(const LazyBuffer&) = delete;
 
     /**
      * \brief Gets aligned pointer to reserved buffer without loading data into it.
@@ -50,11 +61,12 @@ protected:
     void hint_evict(size_t offset, size_t size) noexcept override;
 
 private:
-    const std::filesystem::path m_file_path;
-    const size_t m_offset{0};
-    size_t m_reserved_size{0};
-    void* m_reserved_buffer{nullptr};
-    mutable bool m_loaded{false};
+    std::filesystem::path m_file_path;
+    size_t m_offset{0};
+
+    mutable std::atomic<bool> m_loaded{false};
     mutable std::mutex m_loading;
+
+    std::unique_ptr<util::ReservableBuffer> m_impl;
 };
 }  // namespace ov
