@@ -69,38 +69,8 @@ size_t ConvolutionTransformation::getInputChannels(const std::shared_ptr<ov::Nod
 bool ConvolutionTransformation::transform(ov::pass::pattern::Matcher &m) {
     auto convolution = m.get_match_root();
 
-    // check if the match is from a functional Mul rather than dequantization
-    // TODO: make the check general
-    {
-        const auto actInput = convolution->get_input_node_shared_ptr(0);
-        const auto nonDQFactor = ov::as_type_ptr<ov::opset1::Convolution>(actInput->get_input_node_shared_ptr(1));
-        if (nonDQFactor != nullptr) {
-            return false;
-        }
-    }
-
     if (!canConvolutionBeTransformed(convolution, defaultPrecisions)) {
-        const auto weightInput = convolution->get_input_node_shared_ptr(1);
-        const auto reshapeFromWeights = ov::as_type_ptr<ov::opset1::Reshape>(weightInput);
-        FakeQuantizeDequantization dequantization = reshapeFromWeights == nullptr ?
-                                                    NetworkHelper::getDequantization(convolution, defaultPrecisions, 1ul) :
-                                                    NetworkHelper::getDequantization(reshapeFromWeights, defaultPrecisions);
-        if (dequantization.empty()) {
-            const auto fqOnWeights = getFakeQuantizeOnWeights(convolution);
-            std::shared_ptr<ov::Node> resultConstant = NetworkHelper::fold_fake_quantize(fqOnWeights);
-            if (reshapeFromWeights != nullptr) {
-                resultConstant = fold_reshape<ov::opset1::Reshape>(
-                        resultConstant,
-                        reshapeFromWeights->input_value(1),
-                        false);
-            }
-            if (ov::is_type<ov::opset1::Constant>(resultConstant)) {
-                replace_node(weightInput, resultConstant);
-            }
-        } else {
-            NetworkHelper::foldDequantization(dequantization.multiply, 0, defaultPrecisions, true);
-        }
-        return true;
+        return false;
     }
 
     convolution = NetworkHelper::separateInStandaloneBranch(convolution, defaultPrecisions);
