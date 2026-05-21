@@ -263,6 +263,7 @@ void ov::hetero::SubgraphCollector::split_cyclic_dependencies() {
             const auto& cyc_dep = node_subgraph_cyclic_input_dependencies[node_idx];
             if (!bit_any(cyc_dep))
                 return;
+            const SubgraphId my_sg = subgraph_id_by_index[node_idx];
             // Collect all subgraph inputs that the cyclic feedback transitively depends on.
             Bits cyclic_inputs_dependencies(W, 0ULL);
             for (size_t w = 0; w < W; ++w) {
@@ -273,6 +274,23 @@ void ov::hetero::SubgraphCollector::split_cyclic_dependencies() {
                     const auto& cyclic_input = bit_to_input[b];
                     const auto cyclic_input_idx = get_index_by_node(cyclic_input.get_source_output().get_node());
                     bit_or(cyclic_inputs_dependencies, node_subgraph_input_dependencies[cyclic_input_idx]);
+                }
+            }
+            // Also include dependencies at cycle re-entry points: boundary edges where
+            // data from another subgraph flows back into this one. Without this, the
+            // intersection check below misses edges that bridge independently-entered
+            // nodes (e.g., a shared constant) to the cycle's return path.
+            const auto& sg_dep = node_subgraph_input_dependencies[node_idx];
+            for (size_t w = 0; w < W; ++w) {
+                uint64_t bits = sg_dep[w];
+                while (bits) {
+                    const size_t b = (w << 6) + ctz64(bits);
+                    bits &= bits - 1;
+                    if (!bit_is_graph_input[b] && bit_owner_subgraph[b] == my_sg &&
+                        bit_producer_subgraph[b] != my_sg) {
+                        const auto owner_idx = get_index_by_node(bit_to_input[b].get_node());
+                        bit_or(cyclic_inputs_dependencies, node_subgraph_input_dependencies[owner_idx]);
+                    }
                 }
             }
             for (const auto& input : ordered_inputs[node_idx]) {

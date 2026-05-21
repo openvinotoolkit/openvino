@@ -214,6 +214,121 @@ std::shared_ptr<ov::Model> create_nested_cyclic_chain_model() {
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
 }
 
+// Model: shared constant bridges disjoint paths into one subgraph via indirect Union-Find merge.
+//
+// Topology: param(M0) → A(M0,+other_const) → B(M1) → C(M0,+shared_const) → res1
+//                                            A → X(M0,+shared_const) → res2
+//
+// Union-Find merges {param, other_const, A, X, shared_const, C, res1, res2} into one subgraph
+// because X (reachable via res2) connects A to shared_const, and shared_const connects to C.
+// This subgraph depends on B (via C←B) and B depends on the same subgraph (via B←A) → cycle.
+// split_cyclic_dependencies() must detect the cycle re-entry point (C←B) and promote
+// C.input(1) (from shared_const) as a boundary to break the cycle.
+std::shared_ptr<ov::Model> create_shared_const_indirect_bridge_cycle_model() {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{4});
+    param->set_friendly_name("input");
+    auto shared_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1.0f});
+    shared_const->set_friendly_name("shared_const");
+    auto other_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {2.0f});
+    other_const->set_friendly_name("other_const");
+    // A: DEV0, uses param + other_const (NOT shared_const!)
+    auto a = std::make_shared<ov::op::v1::Add>(param, other_const);
+    a->set_friendly_name("A");
+    // X: DEV0, uses A + shared_const — bridges shared_const into A's subgraph via Union-Find.
+    // Crucially, X leads to res2, so it IS in get_ordered_ops().
+    auto x = std::make_shared<ov::op::v1::Add>(a, shared_const);
+    x->set_friendly_name("X");
+    // B: DEV1, uses A (cross-device boundary, unary op to minimize noise)
+    auto b = std::make_shared<ov::op::v0::Abs>(a);
+    b->set_friendly_name("B");
+    // C: DEV0, uses B + shared_const (after DEV1 detour, merges with A's sg via shared_const)
+    auto c = std::make_shared<ov::op::v1::Add>(b, shared_const);
+    c->set_friendly_name("C");
+    auto res1 = std::make_shared<ov::op::v0::Result>(c);
+    res1->set_friendly_name("res1");
+    // res2 makes X reachable — the key to triggering the bug
+    auto res2 = std::make_shared<ov::op::v0::Result>(x);
+    res2->set_friendly_name("res2");
+    return std::make_shared<ov::Model>(ov::ResultVector{res1, res2}, ov::ParameterVector{param});
+}
+
+// Model: shared constant IS the cycle source — it directly feeds a cross-device op AND merges
+// with the cycle re-entry node through a purely internal chain.
+// Topology: param(DEV0) → A(DEV0) → B(DEV1, +shared_const) → C(DEV0) → res1
+//           shared_const(DEV0) → X(DEV0) → C(DEV0)
+//           X → res2
+//
+// A→B: cross-device (DEV0→DEV1) → boundary.
+// shared_const→B: cross-device (DEV0→DEV1) → boundary (constant IS the cycle source!).
+// B→C: cross-device (DEV1→DEV0) → boundary.
+// shared_const→X: same device → NOT boundary → merge via Union-Find.
+// X→C: same device → NOT boundary → merge via Union-Find.
+//
+// Union-Find: SG0={param,A}, SG1={B}, SG2={shared_const,X,C,res1,res2}.
+// Cycle: SG2→SG1 (shared_const→B) and SG1→SG2 (B→C).
+// split_cyclic_dependencies() must promote C.input(1) (from X) as a boundary,
+// yielding 4 subgraphs: {param,A}(DEV0), {B}(DEV1), {shared_const,X,res2}(DEV0), {C,res1}(DEV0).
+std::shared_ptr<ov::Model> create_shared_const_as_cycle_source_model() {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{4});
+    param->set_friendly_name("param");
+    auto shared_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1.0f});
+    shared_const->set_friendly_name("shared_const");
+    // A: DEV0, uses param only
+    auto a = std::make_shared<ov::op::v0::Abs>(param);
+    a->set_friendly_name("A");
+    // B: DEV1, uses A + shared_const. shared_const→B is the KEY cross-device edge making
+    // shared_const the cycle source (SG2 produces output to SG1).
+    auto b = std::make_shared<ov::op::v1::Add>(a, shared_const);
+    b->set_friendly_name("B");
+    // X: DEV0, uses shared_const. Merges with shared_const (same device, internal).
+    auto x = std::make_shared<ov::op::v0::Abs>(shared_const);
+    x->set_friendly_name("X");
+    // C: DEV0, uses B (boundary, re-entry from SG1) + X (internal, merged with shared_const).
+    // Without the fix, the intersection check fails because cyclic_inputs_dependencies
+    // doesn't include shared_const's self-boundary bit.
+    auto c = std::make_shared<ov::op::v1::Add>(b, x);
+    c->set_friendly_name("C");
+    auto res1 = std::make_shared<ov::op::v0::Result>(c);
+    res1->set_friendly_name("res1");
+    auto res2 = std::make_shared<ov::op::v0::Result>(x);
+    res2->set_friendly_name("res2");
+    return std::make_shared<ov::Model>(ov::ResultVector{res1, res2}, ov::ParameterVector{param});
+}
+
+// Model: shared constant fans out to three consumers across two devices.
+// Topology: param(GPU) → Node_A(GPU, +shared_const) → Node_B(CPU, +shared_const) → Node_C(GPU, +shared_const) → res
+//
+// shared_const(GPU) → Node_A(GPU): same affinity → NOT boundary, merged via Union-Find.
+// shared_const(GPU) → Node_B(CPU): different affinity → IS boundary (cross-device edge).
+// shared_const(GPU) → Node_C(GPU): same affinity → NOT boundary, merged via Union-Find.
+//
+// Union-Find produces one GPU subgraph {param, shared_const, Node_A, Node_C, res} + one CPU {Node_B}.
+// GPU depends on Node_B (Node_C←Node_B) and Node_B depends on GPU (Node_B←Node_A) → cycle.
+// split_cyclic_dependencies() must promote Node_C.input(0) (from Node_B) as a boundary,
+// yielding 3 subgraphs: {param, shared_const, Node_A}(GPU), {Node_B}(CPU), {Node_C, res}(GPU).
+std::shared_ptr<ov::Model> create_shared_const_cross_device_fanout_model() {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{4});
+    param->set_friendly_name("param");
+    auto shared_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1.0f});
+    shared_const->set_friendly_name("shared_const");
+    // Node_A: GPU, consumes param + shared_const (same device → merged with shared_const)
+    auto node_a = std::make_shared<ov::op::v1::Add>(param, shared_const);
+    node_a->set_friendly_name("Node_A");
+    // Node_B: CPU, consumes Node_A + shared_const
+    //   Node_A→Node_B is boundary (GPU→CPU)
+    //   shared_const→Node_B is boundary (GPU→CPU) — this is the KEY edge
+    auto node_b = std::make_shared<ov::op::v1::Add>(node_a, shared_const);
+    node_b->set_friendly_name("Node_B");
+    // Node_C: GPU, consumes Node_B + shared_const
+    //   Node_B→Node_C is boundary (CPU→GPU)
+    //   shared_const→Node_C is NOT boundary (GPU→GPU) — merges Node_C into shared_const's subgraph
+    auto node_c = std::make_shared<ov::op::v1::Add>(node_b, shared_const);
+    node_c->set_friendly_name("Node_C");
+    auto res = std::make_shared<ov::op::v0::Result>(node_c);
+    res->set_friendly_name("res");
+    return std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{param});
+}
+
 // Stateful model: param → read_value → add(+c1) → {result, assign(sink)}.
 // Single-device by design — exercises Subgraph::_sinks wire-through and
 // create_submodel_from_collected_subgraph()'s sink-preserving construction without
@@ -947,9 +1062,69 @@ INSTANTIATE_TEST_SUITE_P(
             1,
             true,
             true,
+        },
+        // --- Shared constant indirect bridge: shared_const bridges A and C into one subgraph via X.
+        // split_cyclic_dependencies() detects the cycle re-entry point and promotes
+        // C.input(1) (from shared_const) as a boundary, splitting the M0 group into
+        // {param, other_const, shared_const, A, X, res2} and {C, res1}, yielding 3 subgraphs.
+        SubgraphCollectorTestParam{
+            "shared_const_indirect_bridge_cycle",
+            create_shared_const_indirect_bridge_cycle_model,
+            {{"input", "MOCK.0"}, {"shared_const", "MOCK.0"}, {"other_const", "MOCK.0"},
+             {"A", "MOCK.0"}, {"X", "MOCK.0"},
+             {"B", "MOCK.1"}, {"C", "MOCK.0"}, {"res1", "MOCK.0"}, {"res2", "MOCK.0"}},
+            "",
+            3,
+            {"MOCK.0", "MOCK.0", "MOCK.1"},
+            {},
+            {},
+            {},
+            0,
+            false,
+            false,
+        },
+        // --- Shared constant cross-device fanout: shared_const fans out to 3 consumers on 2 devices.
+        // Union-Find merges same-affinity edges into one GPU subgraph containing Node_A and Node_C.
+        // split_cyclic_dependencies() promotes Node_C.input(0) (from Node_B) as a boundary,
+        // yielding 3 subgraphs: {param, shared_const, Node_A}(GPU), {Node_B}(CPU), {Node_C, res}(GPU).
+        SubgraphCollectorTestParam{
+            "shared_const_cross_device_fanout_cycle",
+            create_shared_const_cross_device_fanout_model,
+            {{"param", "MOCK.0"}, {"shared_const", "MOCK.0"}, {"Node_A", "MOCK.0"},
+             {"Node_B", "MOCK.1"}, {"Node_C", "MOCK.0"}, {"res", "MOCK.0"}},
+            "",
+            3,
+            {"MOCK.0", "MOCK.0", "MOCK.1"},
+            {},
+            {},
+            {},
+            0,
+            true,
+            true,
+        },
+        // --- Shared constant AS the cycle source: shared_const directly feeds B (cross-device),
+        // making it the cycle producer. It also merges with the re-entry node C via the internal
+        // chain shared_const→X→C. split_cyclic_dependencies() promotes C.input(1) (from X),
+        // yielding 4 subgraphs: {param,A}(DEV0), {B}(DEV1), {shared_const,X,res2}(DEV0), {C,res1}(DEV0).
+        SubgraphCollectorTestParam{
+            "shared_const_as_cycle_source",
+            create_shared_const_as_cycle_source_model,
+            {{"param", "MOCK.0"}, {"shared_const", "MOCK.0"}, {"A", "MOCK.0"}, {"X", "MOCK.0"},
+             {"B", "MOCK.1"}, {"C", "MOCK.0"}, {"res1", "MOCK.0"}, {"res2", "MOCK.0"}},
+            "",
+            4,
+            {"MOCK.0", "MOCK.0", "MOCK.0", "MOCK.1"},
+            {},
+            {},
+            {},
+            0,
+            true,
+            true,
         }
     ),
     [](const testing::TestParamInfo<SubgraphCollectorTestParam>& info) {
         return info.param.test_name;
     });
 // clang-format on
+
+
