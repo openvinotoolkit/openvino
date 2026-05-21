@@ -48,6 +48,8 @@ using namespace dnnl;
 using namespace ov::element;
 using namespace executor;
 
+static dnnl::memory::dim countSparseNnz(const MemoryCPtr& weightsMem);
+
 // @todo rewrite using hash_builder
 size_t DnnlFCPrimitive::Key::hash() const {
     using namespace dnnl::impl;
@@ -63,6 +65,7 @@ size_t DnnlFCPrimitive::Key::hash() const {
 
     seed = hash_combine(seed, get_attr_hash(*attr.get()));
     seed = hash_combine(seed, sparseWeights);
+    seed = hash_combine(seed, sparseNnz);
     seed = hash_combine(seed, modelType);
 
     return seed;
@@ -84,8 +87,8 @@ bool DnnlFCPrimitive::Key::operator==(const Key& rhs) const {
         result = result && dst && rhs.dst && dst->getDnnlDesc() == rhs.dst->getDnnlDesc();
     }
 
-    result =
-        result && *attr.get() == *rhs.attr.get() && sparseWeights == rhs.sparseWeights && modelType == rhs.modelType;
+    result = result && *attr.get() == *rhs.attr.get() && sparseWeights == rhs.sparseWeights &&
+             sparseNnz == rhs.sparseNnz && modelType == rhs.modelType;
 
     return result;
 }
@@ -99,12 +102,15 @@ std::shared_ptr<DnnlFCPrimitive> DnnlFCPrimitive::create(const MemoryArgs& memor
     const auto& biaDesc = MemoryDescUtils::convertToDnnlMemoryDesc(memory.at(ARG_BIAS)->getDescPtr());
     const auto& dstDesc = MemoryDescUtils::convertToDnnlMemoryDesc(memory.at(ARG_DST)->getDescPtr());
 
+    const auto sparseNnz = attrs.sparseWeights ? countSparseNnz(memory.at(ARG_WEI)) : 0;
+
     Key dnnlFCKey{srcDesc,
                   weiDesc,
                   biaDesc,
                   dstDesc,
                   shapeAgnosticData->m_primAttrs.attr,
                   attrs.sparseWeights,
+                  sparseNnz,
                   attrs.modelType};
 
     auto builder = [&context](const Key& dnnlKey) {
@@ -299,6 +305,48 @@ static dnnl::memory::desc normalizeDescriptor(const dnnl::memory::desc& desc) {
     return desc;
 }
 
+static dnnl::memory::dim countSparseNnz(const MemoryCPtr& weightsMem) {
+    OPENVINO_ASSERT(weightsMem, "weights memory is nullptr");
+
+    const auto count = weightsMem->getShape().getElementsCount();
+    const auto weightsDt = weightsMem->getDataType();
+
+    dnnl::memory::dim nnz = 0;
+    switch (weightsDt) {
+    case dnnl::memory::data_type::s8: {
+        const auto* data = weightsMem->getDataAs<const int8_t>();
+        for (size_t i = 0; i < count; i++) {
+            if (data[i] != 0) {
+                nnz++;
+            }
+        }
+        break;
+    }
+    case dnnl::memory::data_type::u8: {
+        const auto* data = weightsMem->getDataAs<const uint8_t>();
+        for (size_t i = 0; i < count; i++) {
+            if (data[i] != 0) {
+                nnz++;
+            }
+        }
+        break;
+    }
+    case dnnl::memory::data_type::f32: {
+        const auto* data = weightsMem->getDataAs<const float>();
+        for (size_t i = 0; i < count; i++) {
+            if (data[i] != 0.0F) {
+                nnz++;
+            }
+        }
+        break;
+    }
+    default:
+        OPENVINO_THROW("Unsupported sparse weights data type: ", static_cast<int>(weightsDt));
+    }
+
+    return nnz;
+}
+
 static dnnl::inner_product_forward::primitive_desc createDescriptorInternal(const dnnl::memory::desc& inputDesc,
                                                                             const dnnl::memory::desc& weightDesc,
                                                                             const dnnl::memory::desc& biasDesc,
@@ -306,6 +354,7 @@ static dnnl::inner_product_forward::primitive_desc createDescriptorInternal(cons
                                                                             const dnnl::primitive_attr& attr,
                                                                             const dnnl::engine& engine,
                                                                             const bool useSparseWeights,
+                                                                            const dnnl::memory::dim sparseNnz,
                                                                             const bool useWeightsDecompression) {
     const auto normalizedInputDesc = normalizeDescriptor(inputDesc);
     const auto normalizedOutputDesc = normalizeDescriptor(outputDesc);
@@ -333,7 +382,7 @@ static dnnl::inner_product_forward::primitive_desc createDescriptorInternal(cons
     }
 
     const dnnl::memory::desc weightsDesc =
-        useSparseWeights ? dnnl::memory::desc::packed_v0(normalizedWeightDesc.get_dims(), wdt)
+        useSparseWeights ? dnnl::memory::desc::packed(normalizedWeightDesc.get_dims(), wdt, sparseNnz)
                          : dnnl::memory::desc(normalizedWeightDesc.get_dims(), wdt, memory::format_tag::any);
 
     return {engine,
@@ -353,6 +402,7 @@ static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
                                           const dnnl::engine& engine,
                                           const std::vector<impl_desc_type>& implPriorities,
                                           const bool useSparseWeights,
+                                          const dnnl::memory::dim sparseNnz,
                                           const bool useWeightsDecompression) {
     auto prim_desc = createDescriptorInternal(inputDesc,
                                               weightDesc,
@@ -361,6 +411,7 @@ static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
                                               attr,
                                               engine,
                                               useSparseWeights,
+                                              sparseNnz,
                                               useWeightsDecompression);
     OPENVINO_ASSERT(prim_desc, "Failed to create inner_product primitive descriptor");
     auto first_desc = dnnl::inner_product_forward::primitive_desc(prim_desc.get());
@@ -445,6 +496,7 @@ DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs&
     const dnnl::memory::desc biaDnnlDesc = MemoryDescUtils::convertToDnnlMemoryDesc(biasDesc)->getDnnlDesc();
 
     const auto useSparseWeights = attrs.sparseWeights;
+    const auto sparseNnz = useSparseWeights ? countSparseNnz(memory.at(ARG_WEI)) : 0;
     const auto primDesc = createPrimitiveDesc(srcDnnlDesc,
                                               weiDnnlDesc,
                                               biaDnnlDesc,
@@ -453,6 +505,7 @@ DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs&
                                               context->getEngine(),
                                               context->getImplPriorities(),
                                               useSparseWeights,
+                                              sparseNnz,
                                               useWeightsDecompression);
 
     const auto weightsDesc = DnnlExtensionUtils::makeDescriptor(primDesc.weights_desc());
@@ -496,6 +549,7 @@ DnnlFCPrimitive::DnnlFCPrimitive(const Key& key,
           engine,
           implPriorities,
           key.sparseWeights,
+          key.sparseNnz,
           useWeightsDecompressionImpl(key.src->getPrecision(), key.wei->getPrecision(), key.modelType))),
       m_implType(implTypeFromPrimDesc(m_primDesc)),
       m_srcDesc(DnnlExtensionUtils::makeDescriptor(m_primDesc.src_desc())),

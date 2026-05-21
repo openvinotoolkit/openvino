@@ -25,10 +25,14 @@
 #if defined(OV_CPU_WITH_MLAS) && defined(OPENVINO_ARCH_X86_64)
 #    include "nodes/executors/mlas/mlas_gemm.hpp"
 #endif
+#if defined(OPENVINO_ARCH_X86_64)
+#    include "nodes/executors/x64/brgemm_fc_decomp_executor.hpp"
+#endif
 #include "nodes/executors/precision_matcher.hpp"
 #include "nodes/executors/precision_translation.hpp"
 #include "nodes/executors/type_mask.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/util/env_util.hpp"
 #include "utils/arch_macros.h"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
@@ -167,6 +171,11 @@ static const TypeMapping dnnlMatMulTypeMapping {
     return config.attrs.postOps.empty();
 }
 
+static inline bool brgemmFCDecompEnabledByEnv() {
+    // Default enabled: only explicit false/0 disables this implementation.
+    return ov::util::getenv_bool("OV_CPU_ENABLE_BRGEMM_FC_DECOMP", true);
+}
+
 [[maybe_unused]] static inline bool dnnlMatMulSupportedPrecision(const FCConfig& config) {
     // support regular float type matmul
     if (any_of(srcType(config), f32, f16, bf16) && any_of(weiType(config), f32, f16, bf16)) {
@@ -211,6 +220,22 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             HasNoOptimalConfig<FCAttrs>{},
             AcceptsAnyShape<FCAttrs>,
             CreateDefault<MlasGemmExecutor, FCAttrs>{}
+            )
+        OV_CPU_INSTANCE_X64(
+            "fullyconnected_brgemm_fc_decomp",
+            ExecutorType::Jit,
+            OperationType::FullyConnected,
+            // supports
+            [](const FCConfig& config) -> bool {
+                VERIFY(brgemmFCDecompEnabledByEnv(), "Disabled by OV_CPU_ENABLE_BRGEMM_FC_DECOMP");
+                VERIFY(noPostOps(config), UNSUPPORTED_POST_OPS);
+                VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
+                VERIFY(BrgemmFCDecompExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
+                return true;
+            },
+            HasNoOptimalConfig<FCAttrs>{},
+            AcceptsAnyShape<FCAttrs>,
+            CreateDefault<BrgemmFCDecompExecutor, FCAttrs>{}
             )
         OV_CPU_INSTANCE_X64(
             "convolution_1x1_dnnl",

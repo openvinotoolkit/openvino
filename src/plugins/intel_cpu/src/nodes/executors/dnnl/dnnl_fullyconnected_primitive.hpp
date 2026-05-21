@@ -31,6 +31,7 @@ class DnnlFCPrimitive {
         DnnlMemoryDescCPtr dst;
         dnnl::primitive_attr attr;
         bool sparseWeights;
+        dnnl::memory::dim sparseNnz;
         Config::ModelType modelType;
 
         [[nodiscard]] size_t hash() const;
