@@ -20,6 +20,7 @@
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "transformations/utils/utils.hpp"
 #include "openvino/core/graph_util.hpp"
+#include <optional>
 
 namespace ov::intel_gpu {
 using ov::pass::pattern::op::Or;
@@ -43,11 +44,13 @@ UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
     auto input_c_kvcache_m = wrap_type<ov::intel_gpu::op::KVCache>({any_input(), any_input()});
 
     auto input_b_rope_m = wrap_type<ov::op::internal::RoPE>({any_input(), any_input(), any_input()});
-    auto concat_b_m = optional<ov::op::v0::Concat>({input_b_rope_m, any_input()});
+    auto concat_b_m = optional<ov::op::v0::Concat>({any_input(), any_input()});
+    auto pre_reshape_input_b_m = std::make_shared<Or>(OutputVector{input_b_rope_m, concat_b_m});
 
     auto input_c_transpose_m = wrap_type<ov::op::v1::Transpose>({any_input(), any_input()});
-    auto input_c_reshape_m = optional<ov::op::v1::Reshape>({any_input(), any_input()});
-    auto concat_c_m = optional<ov::op::v0::Concat>({input_c_reshape_m, any_input()});
+    auto input_c_reshape_m = optional<ov::op::v1::Reshape>({input_c_transpose_m, any_input()});
+    auto concat_c_m = optional<ov::op::v0::Concat>({any_input(), any_input()});
+    auto pre_reshape_input_c_m = std::make_shared<Or>(OutputVector{input_c_transpose_m, input_c_reshape_m, concat_c_m});
 
     auto axes_const_b_m = wrap_type<ov::op::v0::Constant>();
     auto axes_const_c_m = wrap_type<ov::op::v0::Constant>();
@@ -55,8 +58,8 @@ UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
     auto unsqueeze_b_m = wrap_type<ov::op::v0::Unsqueeze>({input_b_kvcache_m, axes_const_b_m}, unsqueeze_predicate);
     auto unsqueeze_c_m = wrap_type<ov::op::v0::Unsqueeze>({input_c_kvcache_m, axes_const_c_m}, unsqueeze_predicate);
 
-    auto pre_reshape_b_m = wrap_type<ov::op::v1::Reshape>({concat_b_m, any_input()}, unsqueeze_predicate);
-    auto pre_reshape_c_m = wrap_type<ov::op::v1::Reshape>({concat_c_m, any_input()}, unsqueeze_predicate);
+    auto pre_reshape_b_m = wrap_type<ov::op::v1::Reshape>({pre_reshape_input_b_m, any_input()}, unsqueeze_predicate);
+    auto pre_reshape_c_m = wrap_type<ov::op::v1::Reshape>({pre_reshape_input_c_m, any_input()}, unsqueeze_predicate);
 
     auto broadcast_input_b_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{unsqueeze_b_m, pre_reshape_b_m});
     auto broadcast_input_c_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{unsqueeze_c_m, pre_reshape_c_m});
@@ -144,7 +147,7 @@ UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
 
         auto ensure_4d = [&](const ov::Output<ov::Node>& input,
                              const std::shared_ptr<ov::Node>& orig_5d_expansion,
-                             const std::shared_ptr<ov::Node>& orig_broadcast) -> ov::Output<ov::Node> {
+                             const std::shared_ptr<ov::Node>& orig_broadcast) -> std::optional<ov::Output<ov::Node>> {
             const auto& pshape = input.get_partial_shape();
 
             // If it's already 4D, we don't need to do anything
@@ -166,11 +169,13 @@ UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
                 }
             }
 
-            if (broadcast_axis == -1) return input; // Safety fallback
+            if (broadcast_axis == -1) return std::nullopt;
 
             // handle if the 5D expansion was a reshape
             if (auto reshape_node = ov::as_type_ptr<ov::op::v1::Reshape>(orig_5d_expansion)) {
                 auto shape_const = ov::as_type_ptr<ov::op::v0::Constant>(reshape_node->get_input_node_shared_ptr(1));
+
+                if (!shape_const) return std::nullopt;
                 auto shape_vec = shape_const->cast_vector<int64_t>(); // e.g., [-1, 1, 2, 1, 128]
 
                 // Remove the broadcast axis to get the 4D target
@@ -183,7 +188,7 @@ UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
                 return new_reshape->output(0);
             }
 
-            return input;
+            return std::nullopt;
         };
 
         std::shared_ptr<ov::Node> k_5d;
@@ -197,24 +202,26 @@ UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
         auto k_bc = pattern_map.at(broadcast_b_m).get_node_shared_ptr();
         auto v_bc = pattern_map.at(broadcast_c_m).get_node_shared_ptr();
 
-         OutputVector data_inputs;
-         data_inputs.push_back(pattern_map.at(input_a_m).get_node_shared_ptr());               // Q input
-         if (pattern_map.find(unsqueeze_b_m) != pattern_map.end()) {
-             data_inputs.push_back(pattern_map.at(input_b_kvcache_m).get_node_shared_ptr());   // K input from KVCache
-         } else if (pattern_map.find(pre_reshape_b_m) != pattern_map.end()) {
+        OutputVector data_inputs;
+        data_inputs.push_back(pattern_map.at(input_a_m).get_node_shared_ptr());               // Q input
+        if (pattern_map.find(unsqueeze_b_m) != pattern_map.end()) {
+            data_inputs.push_back(pattern_map.at(input_b_kvcache_m).get_node_shared_ptr());   // K input from KVCache
+        } else if (pattern_map.find(pre_reshape_b_m) != pattern_map.end()) {
             ov::Output<ov::Node> key_input = k_5d->input_value(0);
-            key_input = ensure_4d(key_input, k_5d, k_bc);
-            data_inputs.push_back(key_input);
+            auto opt_key_input =  ensure_4d(key_input, k_5d, k_bc);
+            if (!opt_key_input) return false;
+            data_inputs.push_back(opt_key_input.value());
         } else {
             return false;
         }
 
         if (pattern_map.find(unsqueeze_c_m) != pattern_map.end()) {
-             data_inputs.push_back(pattern_map.at(input_c_kvcache_m).get_node_shared_ptr());   // V input from KVCache
+            data_inputs.push_back(pattern_map.at(input_c_kvcache_m).get_node_shared_ptr());   // V input from KVCache
         } else if (pattern_map.find(pre_reshape_c_m) != pattern_map.end()) {
             ov::Output<ov::Node> value_input = v_5d->input_value(0);
-            value_input = ensure_4d(value_input, v_5d, v_bc);
-            data_inputs.push_back(value_input);
+            auto opt_value_input = ensure_4d(value_input, v_5d, v_bc);
+            if (!opt_value_input) return false;
+            data_inputs.push_back(opt_value_input.value());
         } else {
             return false;
         }
