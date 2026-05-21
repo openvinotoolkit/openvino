@@ -102,7 +102,11 @@ KERNEL (permute_tile_8x8_4x4_fsv)(
 #else // !REORDERED_OUTPUT_TILED_ORDER
     if (F_NO_REMAINDER_CONDITION) {
         // read and transpose
+#ifdef YZ_REMAINDER_CONDITION
+        unroll_for (uint lh = 0; lh < (((YZ_REMAINDER_CONDITION)) ? YZ_REMAINDER_SIZE : TILE_SIZE); ++lh) {
+#else
         unroll_for (uint lh = 0; lh < TILE_SIZE; ++lh) {
+#endif
             const uint input_idx = INPUT0_GET_TILED_INDEX(INPUT0_TILED_ORDER);
             INPUTVTYPE read_data = AS_INPUTVTYPE(VLOAD(0, input + input_idx));
 
@@ -153,7 +157,11 @@ KERNEL (permute_tile_8x8_4x4_fsv)(
 #ifdef F_REMAINDER_CONDITION
     else if (F_REMAINDER_CONDITION) {
         // read and transpose
+#ifdef YZ_REMAINDER_CONDITION
+        unroll_for (uint lh = 0; lh < (((YZ_REMAINDER_CONDITION)) ? YZ_REMAINDER_SIZE : TILE_SIZE); ++lh) {
+#else
         unroll_for (uint lh = 0; lh < TILE_SIZE; ++lh) {
+#endif
             const uint input_idx = INPUT0_GET_TILED_INDEX(INPUT0_TILED_ORDER);
             INPUTVTYPE read_data = AS_INPUTVTYPE(VLOAD(0, input + input_idx));
             unroll_for (uint lw = 0; lw < F_REMAINDER_SIZE; ++lw) {

@@ -344,6 +344,14 @@ ov::Any getAttributeFromOutput(const Output<Node>& output) {
     return it->second;
 }
 
+inline std::optional<std::vector<ov::element::Type>> getOutputPrecisionAttribute(const Output<Node>& output) {
+    auto attr = getAttributeFromOutput<PrecisionsAttribute>(output);
+    if (attr.empty()) {
+        return std::nullopt;
+    }
+    return attr.as<PrecisionsAttribute>().value();
+}
+
 bool isDisabled(const std::shared_ptr<Node>& node);
 
 }  // namespace low_precision

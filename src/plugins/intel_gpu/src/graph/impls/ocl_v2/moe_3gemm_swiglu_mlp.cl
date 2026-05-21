@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "include/batch_headers/sub_group_block_read.cl"
+
 #define unroll_for __attribute__((opencl_unroll_hint)) for
 
 // Fake group size for compatibility and computation performance balance.
@@ -123,7 +125,7 @@ inline void gate_up_gemv_n2x_u4(const __global uchar* weight,
 #    if ELEMS_PER_LANE == 4
             half2 sum0;
             half2 sum1;
-            half4 a = as_half4(intel_sub_group_block_read_us4((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            half4 a = as_half4(_sub_group_block_read_slm_us4((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
             uchar2 b = intel_sub_group_block_read_uc2((const __global uchar*)B + gk * FAKE_GROUP_SIZE / 2);
             uchar2 b2 = intel_sub_group_block_read_uc2((const __global uchar*)(B + (K / 2) + gk * FAKE_GROUP_SIZE / 2));
 
@@ -148,7 +150,7 @@ inline void gate_up_gemv_n2x_u4(const __global uchar* weight,
             // Each lane reads 2 K-elements (1 byte = 2 nibbles).
             half sum0;
             half sum1;
-            half2 a = as_half2(intel_sub_group_block_read_us2((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            half2 a = as_half2(_sub_group_block_read_slm_us2((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
             uchar b = intel_sub_group_block_read_uc((const __global uchar*)B + gk * FAKE_GROUP_SIZE / 2);
             uchar b2 = intel_sub_group_block_read_uc((const __global uchar*)(B + (K / 2) + gk * FAKE_GROUP_SIZE / 2));
 
@@ -168,7 +170,7 @@ inline void gate_up_gemv_n2x_u4(const __global uchar* weight,
 #    else
             half4 sum0;
             half4 sum1;
-            half8 a = as_half8(intel_sub_group_block_read_us8((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            half8 a = as_half8(_sub_group_block_read_slm_us8((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
             uchar4 b = intel_sub_group_block_read_uc4((const __global uchar*)B + gk * FAKE_GROUP_SIZE / 2);
             uchar4 b2 = intel_sub_group_block_read_uc4((const __global uchar*)(B + (K / 2) + gk * FAKE_GROUP_SIZE / 2));
 
@@ -251,7 +253,7 @@ inline void gate_up_gemv_n2x_u8(const __global uchar* weight,
 #    if ELEMS_PER_LANE == 4
             float2 sum0;
             float2 sum1;
-            half4 a = as_half4(intel_sub_group_block_read_us4((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            half4 a = as_half4(_sub_group_block_read_slm_us4((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
             uchar4 b = intel_sub_group_block_read_uc4((const __global uchar*)B + gk * FAKE_GROUP_SIZE);
             uchar4 b2 = intel_sub_group_block_read_uc4((const __global uchar*)(B + K + gk * FAKE_GROUP_SIZE));
 
@@ -276,7 +278,7 @@ inline void gate_up_gemv_n2x_u8(const __global uchar* weight,
             // Each lane reads 2 K-elements (8-bit weights, 1 byte each).
             float sum0;
             float sum1;
-            half2 a = as_half2(intel_sub_group_block_read_us2((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            half2 a = as_half2(_sub_group_block_read_slm_us2((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
             uchar2 b = intel_sub_group_block_read_uc2((const __global uchar*)B + gk * FAKE_GROUP_SIZE);
             uchar2 b2 = intel_sub_group_block_read_uc2((const __global uchar*)(B + K + gk * FAKE_GROUP_SIZE));
 
@@ -296,7 +298,7 @@ inline void gate_up_gemv_n2x_u8(const __global uchar* weight,
 #    else
             float4 sum0;
             float4 sum1;
-            half8 a = as_half8(intel_sub_group_block_read_us8((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            half8 a = as_half8(_sub_group_block_read_slm_us8((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
             uchar8 b = intel_sub_group_block_read_uc8((const __global uchar*)B + gk * FAKE_GROUP_SIZE);
             uchar8 b2 = intel_sub_group_block_read_uc8((const __global uchar*)(B + K + gk * FAKE_GROUP_SIZE));
 
@@ -675,7 +677,7 @@ inline void down_gemv_n2x_u4(const __global uchar* weight,
 #    if ELEMS_PER_LANE == 4
             half2 sum0;
             half2 sum1;
-            half4 a = as_half4(intel_sub_group_block_read_us4((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            half4 a = as_half4(_sub_group_block_read_slm_us4((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
             uchar2 b = intel_sub_group_block_read_uc2((const __global uchar*)B + gk * FAKE_GROUP_SIZE / 2);
             uchar2 b2 = intel_sub_group_block_read_uc2((const __global uchar*)(B + (K / 2) + gk * FAKE_GROUP_SIZE / 2));
 
@@ -700,7 +702,7 @@ inline void down_gemv_n2x_u4(const __global uchar* weight,
             // Each lane reads 2 K-elements (1 byte = 2 nibbles).
             half sum0;
             half sum1;
-            half2 a = as_half2(intel_sub_group_block_read_us2((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            half2 a = as_half2(_sub_group_block_read_slm_us2((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
             uchar b = intel_sub_group_block_read_uc((const __global uchar*)B + gk * FAKE_GROUP_SIZE / 2);
             uchar b2 = intel_sub_group_block_read_uc((const __global uchar*)(B + (K / 2) + gk * FAKE_GROUP_SIZE / 2));
 
@@ -720,7 +722,7 @@ inline void down_gemv_n2x_u4(const __global uchar* weight,
 #    else
             half4 sum0;
             half4 sum1;
-            half8 a = as_half8(intel_sub_group_block_read_us8((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            half8 a = as_half8(_sub_group_block_read_slm_us8((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
             uchar4 b = intel_sub_group_block_read_uc4((const __global uchar*)B + gk * FAKE_GROUP_SIZE / 2);
             uchar4 b2 = intel_sub_group_block_read_uc4((const __global uchar*)(B + (K / 2) + gk * FAKE_GROUP_SIZE / 2));
 
@@ -797,7 +799,7 @@ inline void down_gemv_n2x_u8(const __global uchar* weight,
 #    if ELEMS_PER_LANE == 4
             float2 sum0;
             float2 sum1;
-            half4 a = as_half4(intel_sub_group_block_read_us4((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            half4 a = as_half4(_sub_group_block_read_slm_us4((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
             uchar4 b = intel_sub_group_block_read_uc4((const __global uchar*)B + gk * FAKE_GROUP_SIZE);
             uchar4 b2 = intel_sub_group_block_read_uc4((const __global uchar*)B + K + gk * FAKE_GROUP_SIZE);
 
@@ -822,7 +824,7 @@ inline void down_gemv_n2x_u8(const __global uchar* weight,
             // Each lane reads 2 K-elements (8-bit weights, 1 byte each).
             float sum0;
             float sum1;
-            half2 a = as_half2(intel_sub_group_block_read_us2((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            half2 a = as_half2(_sub_group_block_read_slm_us2((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
             uchar2 b = intel_sub_group_block_read_uc2((const __global uchar*)B + gk * FAKE_GROUP_SIZE);
             uchar2 b2 = intel_sub_group_block_read_uc2((const __global uchar*)B + K + gk * FAKE_GROUP_SIZE);
 
@@ -842,7 +844,7 @@ inline void down_gemv_n2x_u8(const __global uchar* weight,
 #    else
             float4 sum0;
             float4 sum1;
-            half8 a = as_half8(intel_sub_group_block_read_us8((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            half8 a = as_half8(_sub_group_block_read_slm_us8((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
             uchar8 b = intel_sub_group_block_read_uc8((const __global uchar*)B + gk * FAKE_GROUP_SIZE);
             uchar8 b2 = intel_sub_group_block_read_uc8((const __global uchar*)(B + K + gk * FAKE_GROUP_SIZE));
 
@@ -934,7 +936,7 @@ inline void down_gemv_n2x_f16(const __global half* weight, __global MOE_DTYPE* r
 #    else
             half4 sum0;
             half4 sum1;
-            half8 a = as_half8(intel_sub_group_block_read_us8((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            half8 a = as_half8(_sub_group_block_read_slm_us8((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
             half8 b = as_half8(intel_sub_group_block_read_us8((const __global ushort*)B + gk * FAKE_GROUP_SIZE));
             half8 b2 = as_half8(intel_sub_group_block_read_us8((const __global ushort*)B + K + gk * FAKE_GROUP_SIZE));
 
