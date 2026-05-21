@@ -4,6 +4,9 @@
 
 #pragma once
 #include <cmath>
+#include <limits>
+#include <type_traits>
+#include <vector>
 
 #include "openvino/core/shape.hpp"
 #include "openvino/reference/add.hpp"
@@ -124,6 +127,26 @@ void scaled_dot_product_attention(const T* query,
                               ov::op::AutoBroadcastType::NUMPY);
     }
 
+    std::vector<char> fully_masked_row;
+    const bool has_bool_mask = (mask != nullptr) && !is_causal && std::is_same_v<TMask, char>;
+    const bool needs_fully_masked_guard = has_bool_mask && (sink == nullptr);
+    if (needs_fully_masked_guard) {
+        const auto last_dim = qk_shape.back();
+        const auto rows = (last_dim > 0) ? shape_size(qk_shape) / last_dim : size_t{0};
+        const T neg_inf = -std::numeric_limits<T>::infinity();
+        fully_masked_row.assign(rows, 0);
+        for (size_t r = 0; r < rows; ++r) {
+            bool all_neg_inf = last_dim > 0;
+            for (size_t c = 0; c < last_dim; ++c) {
+                if (!(qk_data[r * last_dim + c] == neg_inf)) {
+                    all_neg_inf = false;
+                    break;
+                }
+            }
+            fully_masked_row[r] = all_neg_inf ? 1 : 0;
+        }
+    }
+
     auto gk_softmax_shape = qk_shape;
     if (sink) {
         OPENVINO_ASSERT(qk_shape.size() == sink_shape.size());
@@ -161,9 +184,15 @@ void scaled_dot_product_attention(const T* query,
                               gk_softmax_shape,
                               ov::AxisSet{gk_softmax_shape.size() - 1});
 
-    for (auto& v : qk_data_softmax) {
-        if (v != v) {
-            v = T{0};
+    if (needs_fully_masked_guard) {
+        const auto last_dim = gk_softmax_shape.back();
+        for (size_t r = 0; r < fully_masked_row.size(); ++r) {
+            if (!fully_masked_row[r]) {
+                continue;
+            }
+            for (size_t c = 0; c < last_dim; ++c) {
+                qk_data_softmax[r * last_dim + c] = T{0};
+            }
         }
     }
 

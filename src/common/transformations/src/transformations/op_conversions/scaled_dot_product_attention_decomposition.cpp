@@ -16,13 +16,14 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/equal.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater_eq.hpp"
-#include "openvino/op/is_nan.hpp"
 #include "openvino/op/logical_not.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/range.hpp"
+#include "openvino/op/reduce_max.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -43,7 +44,6 @@ namespace v1 = ov::op::v1;
 namespace v3 = ov::op::v3;
 namespace v4 = ov::op::v4;
 namespace v8 = ov::op::v8;
-namespace v10 = ov::op::v10;
 namespace v13 = ov::op::v13;
 
 ov::pass::ScaledDotProductAttentionDecomposition::ScaledDotProductAttentionDecomposition() {
@@ -134,6 +134,7 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
 
     minus_inf = register_new_node<v1::ConvertLike>(minus_inf, scaled_atten);
 
+    bool has_bool_mask = false;
     if (node->get_causal() || node->get_input_size() > 3) {
         Output<Node> mask;
         Output<Node> atten_mask;
@@ -145,6 +146,7 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
             // score.
             if (mask.get_element_type() == element::boolean) {
                 atten_mask = register_new_node<v1::Select>(mask, zero_f, minus_inf);
+                has_bool_mask = true;
             } else {
                 atten_mask = mask;
             }
@@ -164,6 +166,14 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
             atten_mask = register_new_node<v1::Select>(triu, mask, zero_f);
         }
         scaled_atten = register_new_node<v1::Add>(scaled_atten, atten_mask);
+    }
+
+    Output<Node> fully_masked_rows;
+    const bool needs_fully_masked_guard = has_bool_mask && !has_sink;
+    if (needs_fully_masked_guard) {
+        auto reduce_axis = register_new_node(v0::Constant::create(element::i64, Shape{1}, {-1}));
+        auto row_max = register_new_node<v1::ReduceMax>(scaled_atten, reduce_axis, true);
+        fully_masked_rows = register_new_node<v1::Equal>(row_max, minus_inf);
     }
 
     if (has_sink) {
@@ -187,8 +197,9 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
         scaled_atten = register_new_node<v8::Softmax>(scaled_atten, -1);
     }
 
-    auto is_nan = register_new_node<v10::IsNaN>(scaled_atten);
-    scaled_atten = register_new_node<v1::Select>(is_nan, zero_f, scaled_atten)->output(0);
+    if (needs_fully_masked_guard) {
+        scaled_atten = register_new_node<v1::Select>(fully_masked_rows, zero_f, scaled_atten)->output(0);
+    }
 
     auto result = register_new_node<v0::MatMul>(scaled_atten, value);
     result->set_friendly_name(node->get_friendly_name());
