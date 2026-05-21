@@ -17,11 +17,8 @@ JitConstants GatherMatmulScatterGenerator::get_jit_constants(const kernel_impl_p
 
     const auto& in_offsets_map = params.in_port_to_shape_info_offset;
     LayoutJitter input_jitter(params.input_layouts[gather_matmul::BGMInputIdx::INPUT], in_offsets_map.at(gather_matmul::BGMInputIdx::INPUT));
-    LayoutJitter indices_jitter(params.input_layouts[gather_matmul::BGMInputIdx::INDICES], in_offsets_map.at(gather_matmul::BGMInputIdx::INDICES));
 
     jit.make("N_TOKENS", input_jitter.dim(ChannelName::FEATURE));
-    jit.make("N_ACTIVATED_EXPERTS", input_jitter.dim(ChannelName::BATCH));
-    jit.make("TOP_K", indices_jitter.dim(ChannelName::FEATURE));
 
     return jit;
 }
