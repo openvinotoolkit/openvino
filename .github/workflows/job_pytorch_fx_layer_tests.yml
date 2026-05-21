@@ -31,18 +31,19 @@ jobs:
   PyTorch_FX_Layer_Tests:
     name: PyTorch FX Layer Tests
     timeout-minutes: 60
-    runs-on: ${{ inputs.runner }}
+    runs-on: aks-linux-4-cores-16gb-st
     container:
       image: ${{ inputs.image }}
       volumes:
         - /mount:/mount
+        - /home/runner/secrets/:/secrets:ro
         - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
-      options: "-e HF_TOKEN" # Needed for HuggingFace cache authentication
     defaults:
       run:
         shell: ${{ contains(inputs.runner, 'win') && 'pwsh' || 'bash' }}
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
+      # HF_TOKEN_PATH: ${{ contains(inputs.runner, 'win') && 'C:\mount\secrets\huggingface\hf-token' || '/secrets/huggingface/hf-token' }}
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
@@ -50,12 +51,27 @@ jobs:
       HF_HUB_VERBOSITY: debug
       TRANSFORMERS_VERBOSITY: debug
     steps:
+      # - name: Debug HF token path (Linux/macOS)
+      #   if: ${{ runner.os != 'Windows' }}
+      #   shell: bash
+      #   run: |
+      #     echo "HF_TOKEN_PATH=${HF_TOKEN_PATH}"
+      #     ls -la "${HF_TOKEN_PATH}" 2>&1 || echo "File not found: ${HF_TOKEN_PATH}"
+
+      # - name: Debug HF token path (Windows)
+      #   if: ${{ runner.os == 'Windows' }}
+      #   shell: pwsh
+      #   run: |
+      #     Write-Host "HF_TOKEN_PATH=$env:HF_TOKEN_PATH"
+      #     if (Test-Path $env:HF_TOKEN_PATH) { Get-Item $env:HF_TOKEN_PATH } else { Write-Host "File not found: $env:HF_TOKEN_PATH" }
+
       - name: Fetch setup_python and install wheels actions
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           sparse-checkout: |
             .github/actions
+            .github/scripts
           sparse-checkout-cone-mode: false
           submodules: 'false'
 
