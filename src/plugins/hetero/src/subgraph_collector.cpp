@@ -286,8 +286,7 @@ void ov::hetero::SubgraphCollector::split_cyclic_dependencies() {
                 while (bits) {
                     const size_t b = (w << 6) + ctz64(bits);
                     bits &= bits - 1;
-                    if (!bit_is_graph_input[b] && bit_owner_subgraph[b] == my_sg &&
-                        bit_producer_subgraph[b] != my_sg) {
+                    if (!bit_is_graph_input[b] && bit_owner_subgraph[b] == my_sg && bit_producer_subgraph[b] != my_sg) {
                         const auto owner_idx = get_index_by_node(bit_to_input[b].get_node());
                         bit_or(cyclic_inputs_dependencies, node_subgraph_input_dependencies[owner_idx]);
                     }
