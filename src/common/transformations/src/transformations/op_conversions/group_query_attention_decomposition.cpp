@@ -292,7 +292,7 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::rotaryEmbe
     auto in_split = register_new_node<v1::VariadicSplit>(rope_input, split_axis, split_lengths)->outputs();
     auto first_half_mul_cos = register_new_node<v1::Multiply>(in_split[0], cos_4d);
     auto second_half_mul_sin = register_new_node<v1::Multiply>(in_split[1], sin_4d);
-    auto neg_one = v0::Constant::create(ov::element::f32, ov::Shape{}, {-1.0f});
+    auto neg_one = v0::Constant::create(input.get_element_type(), ov::Shape{}, {-1.0f});
     auto neg_second_sin = register_new_node<v1::Multiply>(second_half_mul_sin, neg_one);
     auto res_0 = register_new_node<v1::Add>(first_half_mul_cos, neg_second_sin);
     auto second_half_mul_cos = register_new_node<v1::Multiply>(in_split[1], cos_4d);

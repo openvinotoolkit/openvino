@@ -260,7 +260,63 @@ public:
         return m_id;
     }
 
-    void hint_evict(size_t offset, size_t size) noexcept override;
+    void hint_evict(size_t offset, size_t size) noexcept override {}
+
+private:
+    void set_id(const HANDLE h, const size_t offset, const size_t size) {
+        if (FILE_ID_INFO info; GetFileInformationByHandleEx(h, FileIdInfo, &info, sizeof(info))) {
+            static_assert(sizeof(info.FileId) == 16);
+            uint64_t fid_l, fid_r;
+            std::memcpy(&fid_l, &info.FileId, sizeof(fid_l));
+            std::memcpy(&fid_r, reinterpret_cast<const char*>(&info.FileId) + sizeof(fid_l), sizeof(fid_r));
+            m_id = util::u64_hash_combine(offset, {size, info.VolumeSerialNumber, fid_l, fid_r});
+        } else {
+            throw std::runtime_error{"Cannot obtain file id info for handle " +
+                                     std::to_string(reinterpret_cast<uint64_t>(h))};
+        }
+    }
+
+    void map(const std::filesystem::path& path, const HANDLE h, const size_t offset, const size_t size) {
+        if (h == INVALID_HANDLE_VALUE) {
+            throw std::runtime_error("Can not open file " + util::path_to_string(path) +
+                                     " for mapping. Ensure that file exists and has appropriate permissions");
+        }
+        m_handle = HandleHolder(h);
+
+        LARGE_INTEGER file_size_large;
+        if (::GetFileSizeEx(m_handle.get(), &file_size_large) == 0) {
+            throw std::runtime_error("Can not get file size for " + util::path_to_string(path) + ". Error " +
+                                     std::to_string(::GetLastError()));
+        }
+        const auto file_size = static_cast<size_t>(file_size_large.QuadPart);
+        m_size = (size == auto_size) ? file_size - offset : size;
+        if (offset + m_size > file_size || offset + m_size < offset) {
+            throw std::runtime_error("Requested mapping range exceeds file size for " + util::path_to_string(path));
+        }
+
+        if (m_size > 0) {
+            m_mapping = HandleHolder(::CreateFileMapping(m_handle.get(), 0, PAGE_READONLY, 0, 0, 0));
+            if (m_mapping.get() == INVALID_HANDLE_VALUE) {
+                throw std::runtime_error("Can not create file mapping for " + util::path_to_string(path));
+            }
+
+            SYSTEM_INFO system_info;
+            ::GetSystemInfo(&system_info);
+            const auto aligned_offset =
+                (offset / system_info.dwAllocationGranularity) * system_info.dwAllocationGranularity;
+            const auto aligned_size = offset + m_size - aligned_offset;
+            m_mapped_view = ::MapViewOfFile(m_mapping.get(),
+                                            FILE_MAP_READ,
+                                            aligned_offset >> 32,
+                                            aligned_offset & 0xffffffff,
+                                            aligned_size);
+            if (!m_mapped_view) {
+                throw std::runtime_error("Can not create map view for " + util::path_to_string(path) + ". Error " +
+                                         std::to_string(::GetLastError()));
+            }
+            m_data = reinterpret_cast<char*>(m_mapped_view) + (offset - aligned_offset);
+        }
+    }
 
 private:
     /**

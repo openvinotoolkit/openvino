@@ -11,6 +11,8 @@
 #include "intel_npu/config/npuw.hpp"
 #include "model_builder.hpp"
 #include "openvino/openvino.hpp"
+#include "openvino/util/codec_xor.hpp"
+#include "orc.hpp"
 #include "serialization.hpp"
 
 using ov::test::npuw::ModelBuilder;
@@ -24,6 +26,10 @@ public:
     }
 
 protected:
+    static ov::EncryptionCallbacks xor_callbacks() {
+        return {ov::util::codec_xor, ov::util::codec_xor};
+    }
+
     static ov::Tensor make_input_tensor(const ov::Output<const ov::Node>& input) {
         ov::Tensor tensor(input.get_element_type(), input.get_shape());
 
@@ -98,12 +104,72 @@ TEST_P(ImportNonLLMBlobTestNPUW, CacheModeOptimizeSpeed) {
 
     std::stringstream blob;
     compiled.export_model(blob);
+    EXPECT_TRUE(ov::npuw::orc::is_orc(blob).has_value());
 
     EXPECT_NO_THROW({
         auto imported = m_core.import_model(blob, "NPU", m_props);
         auto imported_outputs = infer_outputs(imported);
         expect_outputs_equal(compiled_outputs, imported_outputs);
     });
+}
+
+TEST_P(ImportNonLLMBlobTestNPUW, CacheModeOptimizeSpeedEncrypted) {
+    ov::AnyMap wai_props = GetParam();
+    m_props.insert(wai_props.begin(), wai_props.end());
+    m_props["CACHE_MODE"] = "OPTIMIZE_SPEED";
+    m_props[ov::cache_encryption_callbacks.name()] = xor_callbacks();
+
+    auto compiled = m_core.compile_model(m_ov_model, "NPU", m_props);
+    auto compiled_outputs = infer_outputs(compiled);
+
+    std::stringstream blob;
+    compiled.export_model(blob);
+    EXPECT_TRUE(ov::npuw::orc::is_orc(blob).has_value());
+
+    EXPECT_NO_THROW({
+        auto imported = m_core.import_model(blob, "NPU", m_props);
+        auto imported_outputs = infer_outputs(imported);
+        expect_outputs_equal(compiled_outputs, imported_outputs);
+    });
+}
+
+TEST_P(ImportNonLLMBlobTestNPUW, CacheModeOptimizeSpeedEncryptedRequiresDecryptCallback) {
+    ov::AnyMap wai_props = GetParam();
+    m_props.insert(wai_props.begin(), wai_props.end());
+    m_props["CACHE_MODE"] = "OPTIMIZE_SPEED";
+    m_props[ov::cache_encryption_callbacks.name()] = ov::EncryptionCallbacks{ov::util::codec_xor, nullptr};
+
+    auto compiled = m_core.compile_model(m_ov_model, "NPU", m_props);
+
+    std::stringstream blob;
+    compiled.export_model(blob);
+    EXPECT_TRUE(ov::npuw::orc::is_orc(blob).has_value());
+
+    auto import_props = m_props;
+    import_props.erase(ov::cache_encryption_callbacks.name());
+    try {
+        auto imported = m_core.import_model(blob, "NPU", import_props);
+        (void)imported;
+        FAIL() << "Expected encrypted ORC import to require a decrypt callback";
+    } catch (const ov::Exception& ex) {
+        EXPECT_NE(std::string(ex.what()).find("Blob is encrypted, but no decryption callback was provided"),
+                  std::string::npos)
+            << ex.what();
+    }
+}
+
+TEST_P(ImportNonLLMBlobTestNPUW, CacheModeOptimizeSpeedEnsureCompatibility) {
+    ov::AnyMap wai_props = GetParam();
+    m_props.insert(wai_props.begin(), wai_props.end());
+    m_props["CACHE_MODE"] = "OPTIMIZE_SPEED";
+    m_props["NPUW_ENSURE_COMPATIBILITY"] = "YES";
+
+    auto compiled = m_core.compile_model(m_ov_model, "NPU", m_props);
+    std::stringstream blob;
+    // This synthetic repeated-block model does not satisfy the phase-0 compatibility contract:
+    // even with NPU-only placement it still exercises non-versioned behavior-owned state today,
+    // so ENSURE_COMPATIBILITY is expected to reject export rather than produce a misleading blob.
+    EXPECT_THROW(compiled.export_model(blob), ov::Exception);
 }
 
 TEST_P(ImportNonLLMBlobTestNPUW, CacheModeOptimizeSizeWithModelPtr) {
@@ -116,6 +182,7 @@ TEST_P(ImportNonLLMBlobTestNPUW, CacheModeOptimizeSizeWithModelPtr) {
 
     std::stringstream blob;
     compiled.export_model(blob);
+    EXPECT_TRUE(ov::npuw::orc::is_orc(blob).has_value());
 
     EXPECT_NO_THROW({
         auto import_props = m_props;
@@ -124,6 +191,47 @@ TEST_P(ImportNonLLMBlobTestNPUW, CacheModeOptimizeSizeWithModelPtr) {
         auto imported_outputs = infer_outputs(imported);
         expect_outputs_equal(compiled_outputs, imported_outputs);
     });
+}
+
+TEST_P(ImportNonLLMBlobTestNPUW, CacheModeOptimizeSizeWithModelPtrEncryptedDifferentDecryptSize) {
+    ov::AnyMap wai_props = GetParam();
+    m_props.insert(wai_props.begin(), wai_props.end());
+    m_props["CACHE_MODE"] = "OPTIMIZE_SIZE";
+    m_props[ov::cache_encryption_callbacks.name()] =
+        ov::EncryptionCallbacks{[](const std::string& unencrypted_blob) {
+                                    std::string copy_blob = unencrypted_blob;
+                                    copy_blob += "<encrypt-tail>";
+                                    return ov::util::codec_xor(copy_blob);
+                                },
+                                [](const std::string& encrypted_blob) {
+                                    std::string decrypted_blob = ov::util::codec_xor(encrypted_blob);
+                                    decrypted_blob += "<decrypt-tail>";
+                                    return decrypted_blob;
+                                }};
+
+    auto compiled = m_core.compile_model(m_ov_model, "NPU", m_props);
+
+    std::stringstream blob;
+    compiled.export_model(blob);
+    EXPECT_TRUE(ov::npuw::orc::is_orc(blob).has_value());
+
+    auto import_props = m_props;
+    import_props[ov::hint::model.name()] = std::static_pointer_cast<const ov::Model>(m_ov_model);
+    EXPECT_NO_THROW({
+        auto imported = m_core.import_model(blob, "NPU", import_props);
+        (void)imported;
+    });
+}
+
+TEST_P(ImportNonLLMBlobTestNPUW, CacheModeOptimizeSizeWithModelPtrEnsureCompatibility) {
+    ov::AnyMap wai_props = GetParam();
+    m_props.insert(wai_props.begin(), wai_props.end());
+    m_props["CACHE_MODE"] = "OPTIMIZE_SIZE";
+    m_props["NPUW_ENSURE_COMPATIBILITY"] = "YES";
+
+    auto compiled = m_core.compile_model(m_ov_model, "NPU", m_props);
+    std::stringstream blob;
+    EXPECT_THROW(compiled.export_model(blob), ov::Exception);
 }
 
 using ImportNonLLMNonWAIBlobTestNPUW = ImportNonLLMBlobTestNPUW;
@@ -137,12 +245,24 @@ TEST_P(ImportNonLLMNonWAIBlobTestNPUW, CacheModeOptimizeSizeNoModelPtr) {
 
     std::stringstream blob;
     compiled.export_model(blob);
+    EXPECT_TRUE(ov::npuw::orc::is_orc(blob).has_value());
 
     EXPECT_NO_THROW({
         auto imported = m_core.import_model(blob, "NPU", m_props);
         auto imported_outputs = infer_outputs(imported);
         expect_outputs_equal(compiled_outputs, imported_outputs);
     });
+}
+
+TEST_P(ImportNonLLMNonWAIBlobTestNPUW, CacheModeOptimizeSizeNoModelPtrEnsureCompatibility) {
+    ov::AnyMap wai_props = GetParam();
+    m_props.insert(wai_props.begin(), wai_props.end());
+    m_props["CACHE_MODE"] = "OPTIMIZE_SIZE";
+    m_props["NPUW_ENSURE_COMPATIBILITY"] = "YES";
+
+    auto compiled = m_core.compile_model(m_ov_model, "NPU", m_props);
+    std::stringstream blob;
+    EXPECT_THROW(compiled.export_model(blob), ov::Exception);
 }
 
 using ImportNonLLMWAIBlobTestNPUW = ImportNonLLMBlobTestNPUW;
@@ -155,27 +275,38 @@ TEST_P(ImportNonLLMWAIBlobTestNPUW, CacheModeOptimizeSizeNoModelPtr) {
 
     std::stringstream blob;
     compiled.export_model(blob);
+    EXPECT_TRUE(ov::npuw::orc::is_orc(blob).has_value());
     try {
         auto imported = m_core.import_model(blob, "NPU", m_props);
         FAIL() << "Expected import to throw when WAI weightless blob is imported without MODEL_PTR/WEIGHTS_PATH";
     } catch (const ov::Exception& ex) {
         const std::string what = ex.what();
-        const bool has_expected_text =
-            what.find("Blob is weightless") != std::string::npos &&
-            what.find("WEIGHTS_PATH") != std::string::npos &&
-            what.find("MODEL_PTR") != std::string::npos;
+        const bool has_expected_text = what.find("Blob is weightless") != std::string::npos &&
+                                       what.find("WEIGHTS_PATH") != std::string::npos &&
+                                       what.find("MODEL_PTR") != std::string::npos;
         EXPECT_TRUE(has_expected_text) << "Unexpected exception message: " << what;
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(Only_NPU_USE_NPUW, ImportNonLLMBlobTestNPUW,
-    testing::Values(ov::AnyMap{}));
-INSTANTIATE_TEST_SUITE_P(NPUW_FOLD, ImportNonLLMBlobTestNPUW,
-    testing::Values(ov::AnyMap{{"NPUW_FOLD", "YES"}}));
-INSTANTIATE_TEST_SUITE_P(NPUW_CWAI, ImportNonLLMBlobTestNPUW,
-    testing::Values(ov::AnyMap{{"NPUW_CWAI", "YES"}}));
+TEST_P(ImportNonLLMWAIBlobTestNPUW, CacheModeOptimizeSizeNoModelPtrEnsureCompatibility) {
+    ov::AnyMap wai_props = GetParam();
+    m_props.insert(wai_props.begin(), wai_props.end());
+    m_props["CACHE_MODE"] = "OPTIMIZE_SIZE";
+    m_props["NPUW_ENSURE_COMPATIBILITY"] = "YES";
 
-INSTANTIATE_TEST_SUITE_P(NPUW_NON_WAI, ImportNonLLMNonWAIBlobTestNPUW,
-    testing::Values(ov::AnyMap{}, ov::AnyMap{{"NPUW_FUNCALL_FOR_ALL", "YES"}}));
-INSTANTIATE_TEST_SUITE_P(NPUW_WAI, ImportNonLLMWAIBlobTestNPUW,
-    testing::Values(ov::AnyMap{{"NPUW_FOLD", "YES"}}, ov::AnyMap{{"NPUW_CWAI", "YES"}}));
+    auto compiled = m_core.compile_model(m_ov_model, "NPU", m_props);
+
+    std::stringstream blob;
+    EXPECT_THROW(compiled.export_model(blob), ov::Exception);
+}
+
+INSTANTIATE_TEST_SUITE_P(Only_NPU_USE_NPUW, ImportNonLLMBlobTestNPUW, testing::Values(ov::AnyMap{}));
+INSTANTIATE_TEST_SUITE_P(NPUW_FOLD, ImportNonLLMBlobTestNPUW, testing::Values(ov::AnyMap{{"NPUW_FOLD", "YES"}}));
+INSTANTIATE_TEST_SUITE_P(NPUW_CWAI, ImportNonLLMBlobTestNPUW, testing::Values(ov::AnyMap{{"NPUW_CWAI", "YES"}}));
+
+INSTANTIATE_TEST_SUITE_P(NPUW_NON_WAI,
+                         ImportNonLLMNonWAIBlobTestNPUW,
+                         testing::Values(ov::AnyMap{}, ov::AnyMap{{"NPUW_FUNCALL_FOR_ALL", "YES"}}));
+INSTANTIATE_TEST_SUITE_P(NPUW_WAI,
+                         ImportNonLLMWAIBlobTestNPUW,
+                         testing::Values(ov::AnyMap{{"NPUW_FOLD", "YES"}}, ov::AnyMap{{"NPUW_CWAI", "YES"}}));
