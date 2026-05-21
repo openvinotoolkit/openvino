@@ -136,7 +136,7 @@ std::vector<InternalBuffer> get_internal_buffer_sizes(const arg_max_min_params& 
         buffer_sizes.push_back(iav_type_size * sort_size * ops_size * 2);
     }
     buffer_sizes.push_back(4 * group_num * ops_size * 2);
-    buffer_sizes.push_back(ops_size * elem_size);
+    buffer_sizes.push_back(ops_size * group_num);
 
     return buffer_sizes;
 }
