@@ -118,13 +118,23 @@ KernelsData BroadcastKernelMemcpy::GetKernelsData(const Params& params) const {
 
     const size_t num_rows = output.Y().v * output.Z().v * output.W().v
                           * output.Feature().v * dispatch_batch;
-    const size_t work_items_per_row = (out_x + kMemcpyVecSize - 1) / kMemcpyVecSize;
+
+    // Subgroup block-write fast path for X-broadcast splat.
+    // 16-lane subgroup × block_write8 = 128 elements per call. Requires X % 128 == 0
+    // and a dtype the block-write helpers handle (1/2/4/8 byte element sizes).
+    bool x_broadcast_block_write = is_x_broadcast && (out_x % 128 == 0);
 
     DispatchData dispatchData;
-    constexpr size_t kWIsPerRow = 32;
-    size_t gws_x = std::min(work_items_per_row, kWIsPerRow);
-    dispatchData.gws = { gws_x, num_rows, 1 };
-    dispatchData.lws = { gws_x, 1, 1 };
+    if (x_broadcast_block_write) {
+        dispatchData.gws = { 16, num_rows, 1 };
+        dispatchData.lws = { 16, 1, 1 };
+    } else {
+        const size_t work_items_per_row = (out_x + kMemcpyVecSize - 1) / kMemcpyVecSize;
+        constexpr size_t kWIsPerRow = 32;
+        size_t gws_x = std::min(work_items_per_row, kWIsPerRow);
+        dispatchData.gws = { gws_x, num_rows, 1 };
+        dispatchData.lws = { gws_x, 1, 1 };
+    }
 
     KernelData k_data = KernelData::Default<broadcast_params>(params);
 
@@ -132,6 +142,7 @@ KernelsData BroadcastKernelMemcpy::GetKernelsData(const Params& params) const {
     cldnn_jit.AddConstant(MakeJitConstant("MEMCPY_VEC_SIZE", kMemcpyVecSize));
     cldnn_jit.AddConstant(MakeJitConstant("BATCH_REPEAT", batch_repeat));
     cldnn_jit.AddConstant(MakeJitConstant("IS_X_BROADCAST", is_x_broadcast ? 1 : 0));
+    cldnn_jit.AddConstant(MakeJitConstant("X_BROADCAST_BLOCK_WRITE", x_broadcast_block_write ? 1 : 0));
     auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 

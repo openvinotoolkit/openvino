@@ -3,11 +3,16 @@
 //
 
 #include "include/fetch_utils.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
 
 // Memcpy-style broadcast kernel: each work-group copies one output row (X dimension)
 // from input to output. Outer dimensions (B, F, W, Z, Y) are broadcast via modulo.
 // This avoids per-element get_idx_pos() computation — address is computed once per row.
 
+#if X_BROADCAST_BLOCK_WRITE
+__attribute__((reqd_work_group_size(16, 1, 1)))
+__attribute__((intel_reqd_sub_group_size(16)))
+#endif
 KERNEL(broadcast_gpu_memcpy)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
@@ -70,8 +75,16 @@ KERNEL(broadcast_gpu_memcpy)(
     const uint vec_size = MEMCPY_VEC_SIZE;
 
 #if IS_X_BROADCAST
-    // X-broadcast: read one scalar, fill VEC_SIZE consecutive output positions per work-item.
+    // X-broadcast: read one scalar, fill consecutive output positions per work-item.
     const OUTPUT_TYPE scalar_val = TO_OUTPUT_TYPE(input[in_row_base]);
+#if X_BROADCAST_BLOCK_WRITE
+    // Subgroup block-write path: 16 lanes collectively emit 128 elements per call
+    // (block_write8 = 8 elems/lane * SIMD16). Requires OUTPUT_SIZE_X % 128 == 0.
+    MAKE_VECTOR_TYPE(OUTPUT_TYPE, 8) out_vec8 = (MAKE_VECTOR_TYPE(OUTPUT_TYPE, 8))(scalar_val);
+    for (uint x_start = 0; x_start < OUTPUT_SIZE_X; x_start += 128) {
+        DT_OUTPUT_BLOCK_WRITE8(output, out_row_base + x_start, out_vec8);
+    }
+#else
     MAKE_VECTOR_TYPE(OUTPUT_TYPE, MEMCPY_VEC_SIZE) out_vec = (MAKE_VECTOR_TYPE(OUTPUT_TYPE, MEMCPY_VEC_SIZE))(scalar_val);
     for (uint x_start = lid * vec_size; x_start < OUTPUT_SIZE_X; x_start += total_wis * vec_size) {
         if (x_start + vec_size <= OUTPUT_SIZE_X) {
@@ -82,6 +95,7 @@ KERNEL(broadcast_gpu_memcpy)(
             }
         }
     }
+#endif
 #else
     for (uint x_start = lid * vec_size; x_start < OUTPUT_SIZE_X; x_start += total_wis * vec_size) {
         if (x_start + vec_size <= OUTPUT_SIZE_X) {
