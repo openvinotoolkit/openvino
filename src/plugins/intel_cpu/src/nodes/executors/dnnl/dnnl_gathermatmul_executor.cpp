@@ -296,11 +296,10 @@ private:
     size_t m_num_bits;
     std::bitset<2> m_broadcast_mask;
 };
-}  // namespace
 
 // ---- normalizeM helper -------------------------------------------------------
 
-static Dim normalizeM(Dim M) {
+Dim normalizeM(Dim M) {
     if (M < 512) {
         M = rnd_up(M, 16);
     } else if (M < 1024) {
@@ -313,7 +312,7 @@ static Dim normalizeM(Dim M) {
 
 // ---- GatherMatmulDnnlExecutor -----------------------------------------------
 
-static dnnl::memory::desc makeBiasMd(dnnl::memory::dim N, const MemoryPtr& biasMem) {
+dnnl::memory::desc makeBiasMd(dnnl::memory::dim N, const MemoryPtr& biasMem) {
     if (!biasMem || biasMem->getDesc().empty()) {
         return {};
     }
@@ -322,6 +321,7 @@ static dnnl::memory::desc makeBiasMd(dnnl::memory::dim N, const MemoryPtr& biasM
                               DnnlExtensionUtils::ElementTypeToDataType(bias_precision),
                               dnnl::memory::format_tag::a);
 }
+}  // namespace
 
 bool GatherMatmulDnnlExecutor::supports([[maybe_unused]] const GatherMatmulConfig& config) {
 #ifdef OPENVINO_ARCH_X86_64
