@@ -109,10 +109,8 @@ bool match_acl_int8_conv_swish_fq_chain(const std::shared_ptr<const ov::Node>& n
 
     Matcher matcher(fq);
     if (!matcher.match(std::const_pointer_cast<ov::Node>(node))) {
-        std::cerr << "[SWISH_MATCH] FAILED for FQ: " << node->get_friendly_name() << std::endl;
         return false;
     }
-    std::cerr << "[SWISH_MATCH] MATCHED: " << node->get_friendly_name() << std::endl;
 
     const auto& pattern_map = matcher.get_pattern_value_map();
     const auto conv_node = pattern_map.at(conv).get_node_shared_ptr();
