@@ -46,10 +46,19 @@ NPUVMRuntimeApi::NPUVMRuntimeApi(std::string_view libName) {
 }
 
 void NPUVMRuntimeApi::initialize(std::string_view libName) {
+    const std::string resolvedName = libName.empty() ? "npu_mlir_runtime" : std::string(libName);
     if (g_instanceCreated) {
-        OPENVINO_THROW("NPUVMRuntimeApi::initialize() must be called before the first use of getInstance()");
+        if (g_libName != resolvedName) {
+            OPENVINO_THROW("NPUVMRuntimeApi is already initialized with '",
+                           g_libName,
+                           "', cannot reinitialize with '",
+                           resolvedName,
+                           "'");
+        }
+        // Same library — idempotent, nothing to do.
+        return;
     }
-    g_libName = libName.empty() ? "npu_mlir_runtime" : std::string(libName);
+    g_libName = resolvedName;
 }
 
 const std::shared_ptr<NPUVMRuntimeApi>& NPUVMRuntimeApi::getInstance() {
