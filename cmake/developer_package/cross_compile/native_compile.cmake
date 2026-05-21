@@ -17,6 +17,7 @@ ProcessorCount(PROCESSOR_COUNT)
 #
 function(ov_native_compile_external_project)
     set(oneValueRequiredArgs NATIVE_INSTALL_DIR TARGET_NAME NATIVE_SOURCE_SUBDIR)
+    set(oneValueOptionalArgs EXTRA_COMPILE_FLAGS)
     set(multiValueArgs CMAKE_ARGS NATIVE_TARGETS)
     cmake_parse_arguments(ARG "" "${oneValueRequiredArgs};${oneValueOptionalArgs}" "${multiValueArgs}" ${ARGN})
 
@@ -64,8 +65,11 @@ function(ov_native_compile_external_project)
     endif()
 
     # compile flags
+    if(ARG_EXTRA_COMPILE_FLAGS)
+        set(compile_flags "${ARG_EXTRA_COMPILE_FLAGS}")
+    endif()
     if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
-        set(compile_flags "-Wno-undef -Wno-error -Wno-deprecated-declarations")
+        set(compile_flags "${compile_flags} -Wno-undef -Wno-error -Wno-deprecated-declarations")
     endif()
 
     if(ARG_NATIVE_SOURCE_SUBDIR)

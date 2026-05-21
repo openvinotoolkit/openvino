@@ -1742,8 +1742,8 @@ public:
                     total_matrix_elements += evictable_size * evictable_size;
                     total_vector_elements += evictable_size;
                 }
-                GPU_DEBUG_TRACE_DETAIL << "Adaptive RKV: Allocating dynamic buffers - "
-                                       << "matrix: " << total_matrix_elements << ", vector: " << total_vector_elements << std::endl;
+                GPU_DEBUG_TRACE_DETAIL << "Adaptive RKV: Allocating dynamic buffers - " << "matrix: " << total_matrix_elements
+                                       << ", vector: " << total_vector_elements << std::endl;
             } else {
                 // Fallback: use maximum size (512) if runtime values not available
                 const size_t max_evictable_size = 512;

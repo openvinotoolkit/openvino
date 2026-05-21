@@ -793,7 +793,7 @@ sdpa_config_t* choose_config_xe2(int head_size, int seq, bool thin_q, bool quant
     }
     return choose_config_xehpc(head_size, seq, thin_q, quantized, is_integrated, is_pa, is_prefill);
 }
-sdpa_config_t* choose_config_xe3(int head_size, int seq, bool thin_q, bool quantized, bool is_integrated, bool is_pa, bool is_prefill) {
+sdpa_config_t* choose_config_xe3p(int head_size, int seq, bool thin_q, bool quantized, bool is_integrated, bool is_pa, bool is_prefill) {
     if (head_size <= 128) {
         return &xe3_h128;
     }
@@ -1060,16 +1060,16 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
 
     auto data_inputs_num = micro_get_input_num(params, config);
 
-    size_t attn_input_idx = 3;
     size_t scale_input_idx = 4;
     jit.make("IS_CAUSAL", config.is_causal);
     if (!config.is_paged_attention) {
+        const bool has_attn_mask_input = sdpa_has_runtime_attn_mask_input(params);
         if (config.has_const_attn_mask_val) {
             jit.make("WITH_ATTN_MASK", 0);
             jit.make("STATIC_SCALAR_ATTN_MASK_VALUE", config.attn_mask_val);
             // scale_input_idx -= 1;
         } else {
-            jit.make("WITH_ATTN_MASK", data_inputs_num > attn_input_idx);
+            jit.make("WITH_ATTN_MASK", has_attn_mask_input ? 1 : 0);
         }
     } else {
         jit.make("WITH_ATTN_MASK", 0);
@@ -1307,7 +1307,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     jit.add(unit_parameters("VAL"));
     jit.add(unit_parameters("DST"));
 
-    if (data_inputs_num > 3 && !config.has_const_attn_mask_val) {
+    if (data_inputs_num > 3 && !config.is_paged_attention && sdpa_has_runtime_attn_mask_input(params)) {
         jit.add(convert_strides("MSK", "INPUT3", {0, 1, 2, 3}));
         jit.add(unit_parameters("MSK"));
     }
@@ -1372,7 +1372,7 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});                                        // A
 
         const uint32_t attn_mask_idx = ScaledDotProductAttentionInputIdx::ATTN_MASK;
-        if (config.input_num > attn_mask_idx && !config.has_const_attn_mask_val)
+        if (sdpa_has_runtime_attn_mask_input(params))
             args.push_back({ArgumentDescriptor::Types::INPUT, attn_mask_idx});  // mask
         const uint32_t scale_idx = ScaledDotProductAttentionInputIdx::SCALE;
         if (config.input_num > scale_idx && !config.has_const_scale_val)
@@ -1530,12 +1530,11 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         config = choose_config_xehpc(static_cast<int32_t>(k_head_size), nkeys_v, thin_q, is_quantized, is_integrated, is_paged_attention, is_prefill);
         break;
     case gpu_arch::xe2:
+    case gpu_arch::xe3:
         config = choose_config_xe2(static_cast<int32_t>(k_head_size), nkeys_v, thin_q, is_quantized, is_integrated, is_paged_attention, is_prefill);
         break;
-    case gpu_arch::xe3:
-    case gpu_arch::xe3p_35_10:
-    case gpu_arch::xe3p_35_11:
-        config = choose_config_xe3(static_cast<int32_t>(k_head_size), nkeys_v, thin_q, is_quantized, is_integrated, is_paged_attention, is_prefill);
+    case gpu_arch::xe3p:
+        config = choose_config_xe3p(static_cast<int32_t>(k_head_size), nkeys_v, thin_q, is_quantized, is_integrated, is_paged_attention, is_prefill);
         break;
     default: {
         config = choose_config_xe2(static_cast<int32_t>(k_head_size), nkeys_v, thin_q, is_quantized, is_integrated, is_paged_attention, is_prefill);

@@ -31,6 +31,7 @@
 #include "openvino/runtime/weightless_properties_utils.hpp"
 #include "ov_ops/dynamic_quantize.hpp"
 #include "ov_ops/rms.hpp"
+#include "openvino/op/gated_delta_net.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov::intel_gpu {
@@ -65,6 +66,9 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
         return true;
 
     if (ov::is_type<ov::op::internal::DynamicQuantize>(op) || ov::is_type<ov::op::internal::RMS>(op))
+        return true;
+
+    if (ov::is_type<ov::op::internal::GatedDeltaNet>(op))
         return true;
 
     if (ov::is_type<ov::op::v5::Loop>(op)) {
@@ -200,6 +204,7 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
     apply_rt_info(context, get_rt_info(model), is_LLM, is_paged_attention_model, has_lora);
 
     const auto& ops = model.get_ops();
+    const auto& info = dynamic_cast<const RemoteContextImpl*>(context)->get_engine().get_device_info();
 
     std::function<void(std::shared_ptr<Node>)> process_op = [&, this](std::shared_ptr<Node> op) {
         if (requires_new_shape_infer(op)) {
@@ -213,7 +218,9 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
         }
 
         // Allow using onednn for models with LSTMSequence op as it's much more performant than existing ocl impl
-        if (ov::is_type<ov::op::v5::LSTMSequence>(op) || ov::is_type<ov::op::v5::GRUSequence>(op)) {
+        // Onednn only support on Gen12 (XeLP) and later architectures
+        if ((ov::is_type<ov::op::v5::LSTMSequence>(op) || ov::is_type<ov::op::v5::GRUSequence>(op)) &&
+            info.arch >= cldnn::gpu_arch::xe_lp) {
             m_use_onednn = true;
         }
 
@@ -268,7 +275,6 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
         }
     }
 
-    const auto& info = dynamic_cast<const RemoteContextImpl*>(context)->get_engine().get_device_info();
     auto is_auxiliary_kv_update_model = [](const ov::Model& model) {
         if (model.get_rt_info().count("auxiliary_kv_update_model")) {
             return model.get_rt_info<ov::Any>("auxiliary_kv_update_model").template as<bool>();

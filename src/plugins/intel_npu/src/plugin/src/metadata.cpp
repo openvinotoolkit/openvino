@@ -169,6 +169,27 @@ Metadata<METADATA_VERSION_2_5>::Metadata(uint64_t blobSize,
     _version = METADATA_VERSION_2_5;
 }
 
+Metadata<METADATA_VERSION_2_6>::Metadata(uint64_t blobSize,
+                                         const std::optional<OpenvinoVersion>& ovVersion,
+                                         const std::optional<std::vector<uint64_t>>& initSizes,
+                                         const std::optional<int64_t> batchSize,
+                                         const std::optional<std::vector<ov::Layout>>& inputLayouts,
+                                         const std::optional<std::vector<ov::Layout>>& outputLayouts,
+                                         const std::optional<uint32_t> compilerVersion,
+                                         const std::optional<uint64_t>& blobSizeAfterEncryption,
+                                         const std::optional<std::string_view> compatibilityDescriptor)
+    : Metadata<METADATA_VERSION_2_5>{blobSize,
+                                     ovVersion,
+                                     initSizes,
+                                     batchSize,
+                                     inputLayouts,
+                                     outputLayouts,
+                                     compilerVersion,
+                                     blobSizeAfterEncryption},
+      _compatibilityDescriptor{compatibilityDescriptor} {
+    _version = METADATA_VERSION_2_6;
+}
+
 void MetadataBase::read(std::istream& tensor) {
     _source = Source(tensor);
     read();
@@ -307,6 +328,18 @@ void Metadata<METADATA_VERSION_2_5>::read() {
     _isEncryptedBlob = isEncryptedBlob;
 }
 
+void Metadata<METADATA_VERSION_2_6>::read() {
+    Metadata<METADATA_VERSION_2_5>::read();
+
+    uint64_t reqs_len;
+    read_data_from_source(reinterpret_cast<char*>(&reqs_len), sizeof(reqs_len));
+    if (reqs_len > 0) {
+        std::string reqs(reqs_len, '\0');
+        read_data_from_source(reqs.data(), reqs_len);
+        _compatibilityDescriptor = std::move(reqs);
+    }
+}
+
 void Metadata<METADATA_VERSION_2_0>::read_as_text() {
     const auto it = _textAttrs.find(MetadataTextKeys::OV);
     if (it == _textAttrs.end()) {
@@ -343,6 +376,22 @@ void Metadata<METADATA_VERSION_2_2>::read_as_text() {
     }
     const int64_t batchValue = std::stoll(it->second);
     _batchSize = batchValue != 0 ? std::optional<int64_t>(batchValue) : std::nullopt;
+}
+
+void Metadata<METADATA_VERSION_2_6>::read_as_text() {
+    Metadata<METADATA_VERSION_2_5>::read_as_text();
+
+    const auto it = _textAttrs.find(MetadataTextKeys::COMPAT_DESC);
+    if (it == _textAttrs.end() || it->second.empty()) {
+        return;
+    }
+
+    const std::string& v = it->second;
+    if (v.size() >= 2 && v.front() == '[' && v.back() == ']') {
+        _compatibilityDescriptor = v.substr(1, v.size() - 2);
+    } else {
+        OPENVINO_THROW("Human-readable metadata: 'desc' value is not bracket-enclosed: ", v);
+    }
 }
 
 void Metadata<METADATA_VERSION_2_0>::write(std::ostream& stream) {
@@ -405,6 +454,17 @@ void Metadata<METADATA_VERSION_2_5>::write(std::ostream& stream) {
 
     const uint8_t isEncryptedBlob = _isEncryptedBlob.value_or(false);
     stream.write(reinterpret_cast<const char*>(&isEncryptedBlob), sizeof(isEncryptedBlob));
+}
+
+void Metadata<METADATA_VERSION_2_6>::write(std::ostream& stream) {
+    Metadata<METADATA_VERSION_2_5>::write(stream);
+
+    const std::string& compatDesc = _compatibilityDescriptor.value_or("");
+    const uint64_t compatDesc_len = compatDesc.size();
+    stream.write(reinterpret_cast<const char*>(&compatDesc_len), sizeof(compatDesc_len));
+    if (compatDesc_len > 0) {
+        stream.write(compatDesc.data(), static_cast<std::streamsize>(compatDesc_len));
+    }
 
     append_blob_size_and_magic(stream);
 }
@@ -435,6 +495,18 @@ void Metadata<METADATA_VERSION_2_2>::write_as_text(std::ostream& stream) {
     }
 }
 
+void Metadata<METADATA_VERSION_2_6>::write_as_text(std::ostream& stream) {
+    Metadata<METADATA_VERSION_2_5>::write_as_text(stream);
+
+    if (_compatibilityDescriptor.has_value() && !_compatibilityDescriptor->empty()) {
+        std::string desc = _compatibilityDescriptor.value();
+        if (!desc.empty() && desc.back() == '\0') {
+            desc.pop_back();
+        }
+        write_text_field(stream, MetadataTextKeys::COMPAT_DESC, '[' + desc + ']');
+    }
+}
+
 std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSize) {
     uint16_t major = MetadataBase::get_major(version), minor = MetadataBase::get_minor(version);
     if (major != CURRENT_METADATA_MAJOR_VERSION || minor > CURRENT_METADATA_MINOR_VERSION) {
@@ -461,6 +533,8 @@ std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSiz
         return std::make_unique<Metadata<METADATA_VERSION_2_4>>(blobSize);
     case METADATA_VERSION_2_5:
         return std::make_unique<Metadata<METADATA_VERSION_2_5>>(blobSize);
+    case METADATA_VERSION_2_6:
+        return std::make_unique<Metadata<METADATA_VERSION_2_6>>(blobSize);
     default:
         return nullptr;
     }
@@ -618,6 +692,10 @@ std::optional<bool> MetadataBase::is_encrypted_blob() const {
     return std::nullopt;
 }
 
+std::optional<std::string_view> MetadataBase::get_compatibility_descriptor() const {
+    return std::nullopt;
+}
+
 std::optional<std::vector<uint64_t>> Metadata<METADATA_VERSION_2_1>::get_init_sizes() const {
     return _initSizes;
 }
@@ -640,6 +718,10 @@ std::optional<uint32_t> Metadata<METADATA_VERSION_2_4>::get_compiler_version() c
 
 std::optional<bool> Metadata<METADATA_VERSION_2_5>::is_encrypted_blob() const {
     return _isEncryptedBlob;
+}
+
+std::optional<std::string_view> Metadata<METADATA_VERSION_2_6>::get_compatibility_descriptor() const {
+    return _compatibilityDescriptor;
 }
 
 }  // namespace intel_npu
