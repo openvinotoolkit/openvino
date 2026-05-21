@@ -405,6 +405,74 @@ TEST(type_prop, paged_attention_outputs_1_and_2_shapes) {
     EXPECT_EQ(op->get_output_element_type(2), element::f32);
 }
 
+TEST(type_prop, paged_attention_adaptive_rkv_quantized_bychannel_diversity_shape) {
+    using namespace ov::op;
+
+    const auto query = std::make_shared<v0::Parameter>(element::f32, PartialShape{1, 64});
+    const auto key = std::make_shared<v0::Parameter>(element::f32, PartialShape{1, 64});
+    const auto value = std::make_shared<v0::Parameter>(element::f32, PartialShape{1, 64});
+    const auto key_cache = std::make_shared<v0::Parameter>(element::u4, PartialShape{4, 2, 48, 32});
+    const auto value_cache = std::make_shared<v0::Parameter>(element::u4, PartialShape{4, 2, 48, 32});
+    const auto past_lens = std::make_shared<v0::Constant>(element::i32, Shape{1}, std::vector<int32_t>{0});
+    const auto subsequence_begins = std::make_shared<v0::Parameter>(element::i32, PartialShape{2});
+    const auto block_indices = std::make_shared<v0::Parameter>(element::i32, PartialShape{1});
+    const auto block_indices_begins = std::make_shared<v0::Parameter>(element::i32, PartialShape{2});
+    const auto scale = std::make_shared<v0::Parameter>(element::f32, PartialShape{});
+    const auto sliding_window = std::make_shared<v0::Parameter>(element::i32, PartialShape{});
+    const auto alibi_slopes = std::make_shared<v0::Parameter>(element::f32, PartialShape{0});
+    const auto max_context_len = std::make_shared<v0::Parameter>(element::i32, PartialShape{});
+    const auto score_aggregation_window = std::make_shared<v0::Parameter>(element::i32, PartialShape{});
+    const auto rotated_block_indices = std::make_shared<v0::Parameter>(element::i32, PartialShape{0});
+    const auto rotation_deltas = std::make_shared<v0::Parameter>(element::i32, PartialShape{0});
+    const auto rotation_trig_lut = std::make_shared<v0::Parameter>(element::f32, PartialShape{0});
+    const auto xattention_threshold = std::make_shared<v0::Parameter>(element::f32, PartialShape{0});
+    const auto xattention_block_size = std::make_shared<v0::Parameter>(element::i32, PartialShape{});
+    const auto xattention_stride = std::make_shared<v0::Parameter>(element::i32, PartialShape{});
+    const auto sinks = std::make_shared<v0::Parameter>(element::f32, PartialShape{0});
+    const auto adaptive_rkv_start_size = std::make_shared<v0::Constant>(element::i32, Shape{}, std::vector<int32_t>{0});
+    const auto adaptive_rkv_evictable_sizes =
+        std::make_shared<v0::Constant>(element::i32, Shape{1}, std::vector<int32_t>{32});
+    const auto adaptive_rkv_diversity_block_set_indices =
+        std::make_shared<v0::Parameter>(element::i32, PartialShape{1});
+    const auto adaptive_rkv_diversity_block_set_indices_begins =
+        std::make_shared<v0::Parameter>(element::i32, PartialShape{2});
+    const auto token_type_ids = std::make_shared<v0::Parameter>(element::i32, PartialShape{0});
+    const auto qq_bias = std::make_shared<v0::Parameter>(element::u8, PartialShape{0});
+    const auto qq_bias_begins = std::make_shared<v0::Parameter>(element::i32, PartialShape{0});
+
+    OutputVector args = {query,
+                         key,
+                         value,
+                         key_cache,
+                         value_cache,
+                         past_lens,
+                         subsequence_begins,
+                         block_indices,
+                         block_indices_begins,
+                         scale,
+                         sliding_window,
+                         alibi_slopes,
+                         max_context_len,
+                         score_aggregation_window,
+                         rotated_block_indices,
+                         rotation_deltas,
+                         rotation_trig_lut,
+                         xattention_threshold,
+                         xattention_block_size,
+                         xattention_stride,
+                         sinks,
+                         adaptive_rkv_start_size,
+                         adaptive_rkv_evictable_sizes,
+                         adaptive_rkv_diversity_block_set_indices,
+                         adaptive_rkv_diversity_block_set_indices_begins,
+                         token_type_ids,
+                         qq_bias,
+                         qq_bias_begins};
+
+    const auto op = std::make_shared<op::PagedAttentionExtension>(args);
+    EXPECT_EQ(op->get_output_partial_shape(2), (PartialShape{32}));
+}
+
 static ov::OutputVector make_args_with_token_type(const std::shared_ptr<ov::op::v0::Parameter>& token_type_ids) {
     using namespace ov::op;
     const auto query = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{3, 4});
