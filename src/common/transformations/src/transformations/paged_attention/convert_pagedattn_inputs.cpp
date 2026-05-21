@@ -16,6 +16,7 @@
 #include "openvino/op/paged_gated_delta_net.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/log.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov::pass;
@@ -116,6 +117,15 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config,
                 m_update_precision_func(value_cache_precision);
                 key_cache->set_element_type(key_cache_precision);
                 value_cache->set_element_type(value_cache_precision);
+            }
+
+            // Prevent the ConvertPrecision pass from converting sub-byte cache
+            // precisions (e.g. u4→u8). The PA executor handles quantized caches natively.
+            if (key_cache_precision.bitwidth() < 8) {
+                enable_keep_const_precision(key_cache);
+            }
+            if (value_cache_precision.bitwidth() < 8) {
+                enable_keep_const_precision(value_cache);
             }
 
             key_cache->validate_and_infer_types();
