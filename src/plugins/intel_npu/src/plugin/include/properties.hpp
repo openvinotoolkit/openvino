@@ -18,6 +18,7 @@ public:
     struct CompiledModelContext {
         std::function<ov::Any()> getModelName;
         std::function<ov::Any()> getRuntimeRequirements;
+        std::function<bool()> hasRuntimeRequirements;
     };
 
     /**

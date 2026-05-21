@@ -293,6 +293,27 @@ namespace intel_npu {
     } while (0)
 
 /**
+ * @brief Macro for registering compiled-model properties backed by explicit context callbacks.
+ *
+ * This macro is intended for properties whose support and value are derived from compiled-model state rather than
+ * config availability.
+ *
+ * @param OPT_NAME Class/type of the option (will fetch .name() from it)
+ * @param SUPPORT_EXPR Expression returning whether the property is supported in the current compiled-model context
+ * @param PROP_RETFUNC Custom lambda callback function for the resulting property
+ */
+#define TRY_REGISTER_COMPILEDMODEL_CONTEXT_PROPERTY(OPT_NAME, SUPPORT_EXPR, PROP_RETFUNC)                 \
+    do {                                                                                                  \
+        std::string o_name = OPT_NAME.name();                                                             \
+        if (_config.hasOpt(o_name)) {                                                                     \
+            registerProperty(o_name,                                                                      \
+                             [&](const FilteredConfig& /* unusedConfig */) { return SUPPORT_EXPR; },      \
+                             ov::PropertyMutability::RO,                                                  \
+                             PROP_RETFUNC);                                                               \
+        }                                                                                                 \
+    } while (0)
+
+/**
  * @brief Macro for force registering a fully custom property (no option entry validation.
  *
  * Same as TRY_REGISTER_CUSTOM_PROPERTY but without any checks. It will force register the property.
@@ -839,17 +860,22 @@ void Properties::registerCompiledModelProperties() {
                                    [](const Config& /* unusedConfig */) {
                                        return std::shared_ptr<const ov::Model>(nullptr);
                                    });
-    TRY_REGISTER_CUSTOM_PROPERTY(ov::runtime_requirements,
-                                 RUNTIME_REQUIREMENTS,
-                                 true,
-                                 ov::PropertyMutability::RO,
-                                 [&](const Config& /* unusedConfig */) {
-                                     OPENVINO_ASSERT(_compiledModelContext != nullptr,
-                                                     "CompiledModel context is required for runtime_requirements");
-                                     OPENVINO_ASSERT(_compiledModelContext->getRuntimeRequirements != nullptr,
-                                                     "CompiledModel runtime_requirements callback is not available");
-                                     return _compiledModelContext->getRuntimeRequirements();
-                                 });
+    TRY_REGISTER_COMPILEDMODEL_CONTEXT_PROPERTY(
+        ov::runtime_requirements,
+        [&]() {
+            OPENVINO_ASSERT(_compiledModelContext != nullptr,
+                            "CompiledModel context is required for runtime_requirements");
+            OPENVINO_ASSERT(_compiledModelContext->hasRuntimeRequirements != nullptr,
+                            "CompiledModel runtime_requirements support callback is not available");
+            return _compiledModelContext->hasRuntimeRequirements();
+        }(),
+        [&](const Config& /* unusedConfig */) {
+            OPENVINO_ASSERT(_compiledModelContext != nullptr,
+                            "CompiledModel context is required for runtime_requirements");
+            OPENVINO_ASSERT(_compiledModelContext->getRuntimeRequirements != nullptr,
+                            "CompiledModel runtime_requirements callback is not available");
+            return _compiledModelContext->getRuntimeRequirements();
+        });
 
     // 2. Metrics (static device and enviroment properties)
     // ========

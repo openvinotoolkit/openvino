@@ -37,14 +37,6 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
       _batchSize(batchSize) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
 
-    // Support for specific properties might depend on the characteristics of the compiled model.
-    // Adjust lower level config availability to influence the supported properties list if needed
-    FilteredConfig localConfig = config;
-    if (!_graph->get_compatibility_descriptor().has_value()) {
-        _logger.debug("Graph's compatibility descriptor has no value. Disabling RUNTIME_REQUIREMENTS property.");
-        localConfig.enable(ov::runtime_requirements.name(), false);
-    }
-
     auto compiledModelContext = std::make_shared<Properties::CompiledModelContext>();
     compiledModelContext->getModelName = [this]() {
         return get_model_name_property();
@@ -52,10 +44,13 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     compiledModelContext->getRuntimeRequirements = [this]() {
         return get_runtime_requirements_property();
     };
+    compiledModelContext->hasRuntimeRequirements = [this]() {
+        return _graph->get_compatibility_descriptor().has_value();
+    };
 
     OV_ITT_TASK_CHAIN(COMPILED_MODEL, itt::domains::NPUPlugin, "CompiledModel::CompiledModel", "initialize_properties");
     _propertiesManager = std::make_unique<Properties>(PropertiesType::COMPILED_MODEL,
-                                                      localConfig,
+                                                      config,
                                                       std::shared_ptr<Metrics>{},
                                                       ov::SoPtr<IEngineBackend>{},
                                                       compiledModelContext);
