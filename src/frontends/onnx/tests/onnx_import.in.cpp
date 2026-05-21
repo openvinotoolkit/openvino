@@ -2720,6 +2720,25 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_prelu_C_1_1) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_prelu_1d_slope_matches_channel) {
+    auto model = convert_model("prelu_1d_slope_matches_channel.onnx");
+
+    Inputs inputs;
+    inputs.emplace_back(std::vector<float>{-1.0f, -2.0f, -3.0f, -4.0f, -5.0f, -6.0f, -7.0f, -8.0f, -9.0f,
+                                           -10.0f, -11.0f, -12.0f, -13.0f, -14.0f, -15.0f, -16.0f, -17.0f, -18.0f});
+
+    inputs.emplace_back(std::vector<float>{0.5f, 1.5f, 2.5f});
+
+    auto expected_output = std::vector<float>{-0.5f, -3.0f, -7.5f, -2.0f, -7.5f, -15.0f,
+                                              -3.5f, -12.0f, -22.5f, -5.0f, -16.5f, -30.0f,
+                                              -6.5f, -21.0f, -37.5f, -8.0f, -25.5f, -45.0f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_selu) {
     auto model = convert_model("selu.onnx");
 
