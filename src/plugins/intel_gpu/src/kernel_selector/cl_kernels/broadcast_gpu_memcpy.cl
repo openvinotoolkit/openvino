@@ -97,18 +97,27 @@ KERNEL(broadcast_gpu_memcpy)(
     }
 #endif
 #else
+    // Runtime X-broadcast detection: if INPUT0_SIZE_X==1 at runtime (only relevant for
+     // dynamic shapes — static IS_X_BROADCAST=1 takes the splat fast path above), each
+     // output element reads input[0]. For static where INPUT0_SIZE_X is a compile-time
+     // literal equal to OUTPUT_SIZE_X, the branch folds away and codegen is unchanged.
     for (uint x_start = lid * vec_size; x_start < OUTPUT_SIZE_X; x_start += total_wis * vec_size) {
         if (x_start + vec_size <= OUTPUT_SIZE_X) {
-            MAKE_VECTOR_TYPE(INPUT0_TYPE, MEMCPY_VEC_SIZE) in_vec = CAT(vload, MEMCPY_VEC_SIZE)(0, &input[in_row_base + x_start]);
             MAKE_VECTOR_TYPE(OUTPUT_TYPE, MEMCPY_VEC_SIZE) out_vec;
-            out_vec.s0 = TO_OUTPUT_TYPE(in_vec.s0);
-            out_vec.s1 = TO_OUTPUT_TYPE(in_vec.s1);
-            out_vec.s2 = TO_OUTPUT_TYPE(in_vec.s2);
-            out_vec.s3 = TO_OUTPUT_TYPE(in_vec.s3);
-            out_vec.s4 = TO_OUTPUT_TYPE(in_vec.s4);
-            out_vec.s5 = TO_OUTPUT_TYPE(in_vec.s5);
-            out_vec.s6 = TO_OUTPUT_TYPE(in_vec.s6);
-            out_vec.s7 = TO_OUTPUT_TYPE(in_vec.s7);
+            if (INPUT0_SIZE_X == 1) {
+                const OUTPUT_TYPE scalar_val = TO_OUTPUT_TYPE(input[in_row_base]);
+                out_vec = (MAKE_VECTOR_TYPE(OUTPUT_TYPE, MEMCPY_VEC_SIZE))(scalar_val);
+            } else {
+                MAKE_VECTOR_TYPE(INPUT0_TYPE, MEMCPY_VEC_SIZE) in_vec = CAT(vload, MEMCPY_VEC_SIZE)(0, &input[in_row_base + x_start]);
+                out_vec.s0 = TO_OUTPUT_TYPE(in_vec.s0);
+                out_vec.s1 = TO_OUTPUT_TYPE(in_vec.s1);
+                out_vec.s2 = TO_OUTPUT_TYPE(in_vec.s2);
+                out_vec.s3 = TO_OUTPUT_TYPE(in_vec.s3);
+                out_vec.s4 = TO_OUTPUT_TYPE(in_vec.s4);
+                out_vec.s5 = TO_OUTPUT_TYPE(in_vec.s5);
+                out_vec.s6 = TO_OUTPUT_TYPE(in_vec.s6);
+                out_vec.s7 = TO_OUTPUT_TYPE(in_vec.s7);
+            }
 #if BATCH_REPEAT > 1
             for (uint br = 0; br < BATCH_REPEAT; br++) {
                 CAT(vstore, MEMCPY_VEC_SIZE)(out_vec, 0, &output[out_row_base + br * OUTPUT_BATCH_PITCH + x_start]);
@@ -118,7 +127,8 @@ KERNEL(broadcast_gpu_memcpy)(
 #endif
         } else if (x_start < OUTPUT_SIZE_X) {
             for (uint x = x_start; x < OUTPUT_SIZE_X; x++) {
-                OUTPUT_TYPE val = TO_OUTPUT_TYPE(input[in_row_base + x]);
+                const uint in_x = (INPUT0_SIZE_X == 1) ? 0 : x;
+                OUTPUT_TYPE val = TO_OUTPUT_TYPE(input[in_row_base + in_x]);
 #if BATCH_REPEAT > 1
                 for (uint br = 0; br < BATCH_REPEAT; br++) {
                     output[out_row_base + br * OUTPUT_BATCH_PITCH + x] = val;

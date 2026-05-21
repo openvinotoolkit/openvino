@@ -9,6 +9,8 @@ namespace kernel_selector {
 
 static constexpr size_t kMemcpyVecSize = 8;
 static constexpr size_t kMinXForMemcpy = 32;
+static constexpr size_t kBatchRepeatInputBytesThreshold = 16 * 1024;
+static constexpr size_t kWIsPerRow = 32;
 
 ParamsKey BroadcastKernelMemcpy::GetSupportedKey() const {
     ParamsKey k;
@@ -38,28 +40,90 @@ ParamsKey BroadcastKernelMemcpy::GetSupportedKey() const {
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
+    k.EnableDynamicShapesSupport();
 
     return k;
 }
+
+namespace {
+
+// Optimization decisions for the memcpy kernel. For static shapes these are
+// computed from actual sizes; for dynamic shapes only the always-safe baseline
+// (plain vstore8 path) is used.
+struct MemcpyChoices {
+    size_t batch_repeat = 1;
+    bool is_x_broadcast = false;
+    bool x_broadcast_block_write = false;
+    size_t num_rows = 0;
+    size_t out_x = 0;
+};
+
+MemcpyChoices PickStaticChoices(const broadcast_params& p) {
+    const auto& input = p.inputs[0];
+    const auto& output = p.outputs[0];
+
+    MemcpyChoices c;
+    c.out_x = output.X().v;
+    c.is_x_broadcast = (input.X().v == 1) && (output.X().v > 1);
+
+    // Skip batch_repeat for X-broadcast — input is already tiny per row.
+    if (!c.is_x_broadcast) {
+        const size_t input_bytes = input.LogicalSize() * BytesPerElement(input.GetDType());
+        if (input.Batch().v == 1 && output.Batch().v > 1 && input_bytes > kBatchRepeatInputBytesThreshold) {
+            c.batch_repeat = output.Batch().v;
+        }
+    }
+    const size_t dispatch_batch = output.Batch().v / c.batch_repeat;
+    c.num_rows = output.Y().v * output.Z().v * output.W().v * output.Feature().v * dispatch_batch;
+    c.x_broadcast_block_write = c.is_x_broadcast && (c.out_x % 128 == 0);
+    return c;
+}
+
+CommonDispatchData ComputeDispatch(const MemcpyChoices& c) {
+    CommonDispatchData dispatchData;
+    if (c.x_broadcast_block_write) {
+        dispatchData.gws = { 16, c.num_rows, 1 };
+        dispatchData.lws = { 16, 1, 1 };
+    } else {
+        const size_t work_items_per_row = (c.out_x + kMemcpyVecSize - 1) / kMemcpyVecSize;
+        const size_t gws_x = std::min(work_items_per_row, kWIsPerRow);
+        dispatchData.gws = { gws_x, c.num_rows, 1 };
+        dispatchData.lws = { gws_x, 1, 1 };
+    }
+    return dispatchData;
+}
+
+}  // namespace
 
 bool BroadcastKernelMemcpy::Validate(const Params& params) const {
     const auto& p = static_cast<const broadcast_params&>(params);
     const auto& input = p.inputs[0];
     const auto& output = p.outputs[0];
 
-    if (input.is_dynamic() || output.is_dynamic())
-        return false;
-
     if (input.GetLayout() != output.GetLayout())
-        return false;
-
-    if (output.X().v < kMinXForMemcpy)
         return false;
 
     if (!p.fused_ops.empty())
         return false;
 
-    // X-broadcast splat: input.X==1, output.X>=32. Read 1 scalar, fill VEC_SIZE elements.
+    // Memcpy kernel does not implement axis-permutation logic that explicit-mode broadcasts require
+    // (canonicalize_shapes places the dynamic-rank input in a position the kernel doesn't reorder).
+    // Numpy-mode broadcasts always have identity axis ordering and are safe.
+    if (p.is_explicit_mode)
+        return false;
+
+    if (input.is_dynamic() || output.is_dynamic()) {
+        // Dynamic numpy-mode: kernel handles X-broadcast at runtime via INPUT0_SIZE_X==1
+        // branch, and outer dims via per-row modulo. Size-dependent optimizations
+        // (BATCH_REPEAT, JIT-time IS_X_BROADCAST splat, BLOCK_WRITE) are disabled —
+        // win comes from the per-row vload8/vstore8 vs ref's per-element get_idx_pos.
+        return true;
+    }
+
+    if (output.X().v < kMinXForMemcpy)
+        return false;
+
+    // X-broadcast splat: input.X==1, output.X>=32.
     bool is_x_broadcast = (input.X().v == 1) && (output.X().v > 1);
     if (is_x_broadcast)
         return true;
@@ -77,8 +141,9 @@ bool BroadcastKernelMemcpy::Validate(const Params& params) const {
 
     // Only use memcpy kernel when batch-repeat gives benefit (large input, batch broadcast)
     // Otherwise ref kernel is faster due to lower per-element overhead
-    size_t input_bytes = input.LogicalSize() * BytesPerElement(input.GetDType());
-    bool has_batch_repeat = (input.Batch().v == 1) && (output.Batch().v > 1) && (input_bytes > 16 * 1024);
+    const size_t input_bytes = input.LogicalSize() * BytesPerElement(input.GetDType());
+    const bool has_batch_repeat = (input.Batch().v == 1) && (output.Batch().v > 1)
+                                && (input_bytes > kBatchRepeatInputBytesThreshold);
     if (!has_batch_repeat)
         return false;
 
@@ -89,6 +154,25 @@ KernelsPriority BroadcastKernelMemcpy::GetKernelsPriority(const Params& /*params
     return FORCE_PRIORITY_8;
 }
 
+void BroadcastKernelMemcpy::GetUpdateDispatchDataFunc(KernelData& kd) const {
+    kd.update_dispatch_data_func = [](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const broadcast_params&>(params);
+        // For dynamic shapes, the kernel was JIT-compiled with the safe baseline
+        // (BATCH_REPEAT=1, IS_X_BROADCAST=0, X_BROADCAST_BLOCK_WRITE=0). Recompute
+        // num_rows from runtime shapes; do not enable size-dependent optimizations.
+        MemcpyChoices c;
+        const auto& output = prim_params.outputs[0];
+        c.out_x = output.X().v;
+        c.num_rows = output.Y().v * output.Z().v * output.W().v
+                   * output.Feature().v * output.Batch().v;
+        const auto dispatchData = ComputeDispatch(c);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
+    };
+}
+
 KernelsData BroadcastKernelMemcpy::GetKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::BROADCAST);
 
@@ -97,52 +181,28 @@ KernelsData BroadcastKernelMemcpy::GetKernelsData(const Params& params) const {
     if (!Validate(params))
         return {};
 
-    const auto& input = prim_params.inputs[0];
-    const auto& output = prim_params.outputs[0];
-    const size_t out_x = output.X().v;
-
-    // X-broadcast splat: each work-item reads one scalar and fills VEC_SIZE consecutive output elements.
-    bool is_x_broadcast = (input.X().v == 1) && (output.X().v > 1);
-
-    // Batch repeat: dispatch over input batch only, kernel writes to all output batches.
-    // Only beneficial when input is large enough that redundant reads aren't cached.
-    // Skip batch_repeat for X-broadcast — input is already tiny per row, no benefit.
-    size_t batch_repeat = 1;
-    if (!is_x_broadcast) {
-        size_t input_bytes = input.LogicalSize() * BytesPerElement(input.GetDType());
-        if (input.Batch().v == 1 && output.Batch().v > 1 && input_bytes > 16 * 1024) {
-            batch_repeat = output.Batch().v;
-        }
-    }
-    const size_t dispatch_batch = output.Batch().v / batch_repeat;
-
-    const size_t num_rows = output.Y().v * output.Z().v * output.W().v
-                          * output.Feature().v * dispatch_batch;
-
-    // Subgroup block-write fast path for X-broadcast splat.
-    // 16-lane subgroup × block_write8 = 128 elements per call. Requires X % 128 == 0
-    // and a dtype the block-write helpers handle (1/2/4/8 byte element sizes).
-    bool x_broadcast_block_write = is_x_broadcast && (out_x % 128 == 0);
-
-    DispatchData dispatchData;
-    if (x_broadcast_block_write) {
-        dispatchData.gws = { 16, num_rows, 1 };
-        dispatchData.lws = { 16, 1, 1 };
+    MemcpyChoices choices;
+    if (!prim_params.has_dynamic_tensors()) {
+        choices = PickStaticChoices(prim_params);
     } else {
-        const size_t work_items_per_row = (out_x + kMemcpyVecSize - 1) / kMemcpyVecSize;
-        constexpr size_t kWIsPerRow = 32;
-        size_t gws_x = std::min(work_items_per_row, kWIsPerRow);
-        dispatchData.gws = { gws_x, num_rows, 1 };
-        dispatchData.lws = { gws_x, 1, 1 };
+        // Safe baseline for dynamic shapes; final num_rows recomputed at dispatch time.
+        choices.batch_repeat = 1;
+        choices.is_x_broadcast = false;
+        choices.x_broadcast_block_write = false;
+        choices.num_rows = 1;  // placeholder; update_dispatch_data overwrites
+        choices.out_x = 1;
     }
+
+    const auto dispatchData = ComputeDispatch(choices);
 
     KernelData k_data = KernelData::Default<broadcast_params>(params);
+    GetUpdateDispatchDataFunc(k_data);
 
     auto cldnn_jit = MakeBaseParamsJitConstants(prim_params);
     cldnn_jit.AddConstant(MakeJitConstant("MEMCPY_VEC_SIZE", kMemcpyVecSize));
-    cldnn_jit.AddConstant(MakeJitConstant("BATCH_REPEAT", batch_repeat));
-    cldnn_jit.AddConstant(MakeJitConstant("IS_X_BROADCAST", is_x_broadcast ? 1 : 0));
-    cldnn_jit.AddConstant(MakeJitConstant("X_BROADCAST_BLOCK_WRITE", x_broadcast_block_write ? 1 : 0));
+    cldnn_jit.AddConstant(MakeJitConstant("BATCH_REPEAT", choices.batch_repeat));
+    cldnn_jit.AddConstant(MakeJitConstant("IS_X_BROADCAST", choices.is_x_broadcast ? 1 : 0));
+    cldnn_jit.AddConstant(MakeJitConstant("X_BROADCAST_BLOCK_WRITE", choices.x_broadcast_block_write ? 1 : 0));
     auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
@@ -154,7 +214,7 @@ KernelsData BroadcastKernelMemcpy::GetKernelsData(const Params& params) const {
                      1,
                      0,
                      1,
-                     false);
+                     prim_params.is_shape_agnostic);
 
     return {k_data};
 }
