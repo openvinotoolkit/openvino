@@ -4,8 +4,10 @@
 
 #pragma once
 
+#include <istream>
 #include <map>
 #include <ostream>
+#include <sstream>
 
 #include "openvino/core/except.hpp"
 #include "intel_gpu/primitives/primitive.hpp"
@@ -45,6 +47,7 @@ inline std::ostream& operator<<(std::ostream& out, const impl_types& impl_type) 
         case impl_types::ocl: out << "ocl"; break;
         case impl_types::onednn: out << "onednn"; break;
         case impl_types::cm: out << "cm"; break;
+        case impl_types::sycl: out << "sycl"; break;
         case impl_types::any: out << "any"; break;
         default: out << "unknown"; break;
     }
@@ -65,6 +68,8 @@ inline std::istream& operator>>(std::istream& is, impl_types& impl_type) {
         impl_type = impl_types::onednn;
     } else if (str == "cm") {
         impl_type = impl_types::cm;
+    } else if (str == "sycl") {
+        impl_type = impl_types::sycl;
     } else if (str == "any") {
         impl_type = impl_types::any;
     } else {
@@ -131,6 +136,43 @@ struct ImplementationDesc {
 inline std::ostream& operator<<(std::ostream& out, const ImplementationDesc& desc) {
     out << desc.impl_type << ":" << desc.kernel_name << ":" << desc.output_format;
     return out;
+}
+
+inline std::istream& operator>>(std::istream& is, ImplementationDesc& desc) {
+    std::string str;
+    is >> str;
+
+    const auto first_sep = str.find(':');
+    const auto second_sep = str.find(':', first_sep == std::string::npos ? first_sep : first_sep + 1);
+    if (first_sep == std::string::npos || second_sep == std::string::npos) {
+        OPENVINO_THROW("Invalid ImplementationDesc value: ", str,
+                       ". Expected format: impl_type:kernel_name:output_format");
+    }
+
+    const auto impl_type_str = str.substr(0, first_sep);
+    const auto kernel_name_str = str.substr(first_sep + 1, second_sep - first_sep - 1);
+    const auto output_format_str = str.substr(second_sep + 1);
+
+    {
+        std::istringstream impl_type_ss(impl_type_str);
+        impl_type_ss >> desc.impl_type;
+    }
+    desc.kernel_name = kernel_name_str;
+
+    if (output_format_str == "any") {
+        desc.output_format = cldnn::format::any;
+        return is;
+    }
+
+    for (int i = 0; i < static_cast<int>(cldnn::format::type::format_num); i++) {
+        const auto format_type = static_cast<cldnn::format::type>(i);
+        if (cldnn::format(format_type).to_string() == output_format_str) {
+            desc.output_format = format_type;
+            return is;
+        }
+    }
+
+    OPENVINO_THROW("Unsupported output format: ", output_format_str);
 }
 
 using ImplForcingMap = std::map<cldnn::primitive_id, ImplementationDesc>;
