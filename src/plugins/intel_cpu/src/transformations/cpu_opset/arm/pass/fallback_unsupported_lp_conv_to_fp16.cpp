@@ -11,7 +11,6 @@
 #include <utility>
 #include <vector>
 
-#include "conv_mul_add_fq_block.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
@@ -57,6 +56,13 @@ struct ConvMulAddPattern {
     std::shared_ptr<ov::Node> add;
 };
 
+struct ConvMulAddFQPattern {
+    std::shared_ptr<ov::Node> convolution;
+    std::shared_ptr<ov::Node> multiply;
+    std::shared_ptr<ov::Node> add;
+    std::shared_ptr<ov::Node> fake_quantize;
+};
+
 ConvMulAddPattern create_conv_mul_add_pattern() {
     using namespace ov::pass::pattern;
 
@@ -81,6 +87,15 @@ ConvMulAddPattern create_conv_mul_add_pattern() {
     });
     auto add = wrap_type<ov::op::v1::Add>({multiply, bias_const});
     return {conv, multiply, add};
+}
+
+ConvMulAddFQPattern create_conv_mul_add_fq_pattern() {
+    using namespace ov::pass::pattern;
+
+    const auto conv_mul_add = create_conv_mul_add_pattern();
+    auto fake_quantize =
+        wrap_type<ov::op::v0::FakeQuantize>({conv_mul_add.add, any_input(), any_input(), any_input(), any_input()});
+    return {conv_mul_add.convolution, conv_mul_add.multiply, conv_mul_add.add, fake_quantize};
 }
 
 bool fallback_lp_conv_to_fp16(const std::shared_ptr<ov::op::v1::Convolution>& conv,
@@ -139,22 +154,23 @@ bool fallback_lp_conv_to_fp16(const std::shared_ptr<ov::op::v1::Convolution>& co
 }  // namespace
 
 ov::intel_cpu::FallbackUnsupportedLPConvToFP16::FallbackUnsupportedLPConvToFP16() {
-    auto conv_mul_add_fq = std::make_shared<ov::intel_cpu::ConvMulAddFQBlock>(false);
+    const auto conv_mul_add_fq = create_conv_mul_add_fq_pattern();
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        const auto conv_out = conv_mul_add_fq->get_anchor("convolution", pattern_map);
-        const auto mul_out = conv_mul_add_fq->get_anchor("multiply", pattern_map);
-        const auto add_out = conv_mul_add_fq->get_anchor("add", pattern_map);
-        const auto fq_out = conv_mul_add_fq->get_anchor("fake_quantize", pattern_map);
-        if (!conv_out || !mul_out || !add_out || !fq_out) {
+        const auto conv_out_it = pattern_map.find(conv_mul_add_fq.convolution);
+        const auto mul_out_it = pattern_map.find(conv_mul_add_fq.multiply);
+        const auto add_out_it = pattern_map.find(conv_mul_add_fq.add);
+        const auto fq_out_it = pattern_map.find(conv_mul_add_fq.fake_quantize);
+        if (conv_out_it == pattern_map.end() || mul_out_it == pattern_map.end() ||
+            add_out_it == pattern_map.end() || fq_out_it == pattern_map.end()) {
             return false;
         }
 
-        const auto conv = ov::as_type_ptr<ov::op::v1::Convolution>(conv_out->get_node_shared_ptr());
-        const auto mul = ov::as_type_ptr<ov::op::v1::Multiply>(mul_out->get_node_shared_ptr());
-        const auto add = ov::as_type_ptr<ov::op::v1::Add>(add_out->get_node_shared_ptr());
-        const auto fake_quantize = ov::as_type_ptr<ov::op::v0::FakeQuantize>(fq_out->get_node_shared_ptr());
+        const auto conv = ov::as_type_ptr<ov::op::v1::Convolution>(conv_out_it->second.get_node_shared_ptr());
+        const auto mul = ov::as_type_ptr<ov::op::v1::Multiply>(mul_out_it->second.get_node_shared_ptr());
+        const auto add = ov::as_type_ptr<ov::op::v1::Add>(add_out_it->second.get_node_shared_ptr());
+        const auto fake_quantize = ov::as_type_ptr<ov::op::v0::FakeQuantize>(fq_out_it->second.get_node_shared_ptr());
         if (!conv || !mul || !add || !fake_quantize) {
             return false;
         }
@@ -169,7 +185,7 @@ ov::intel_cpu::FallbackUnsupportedLPConvToFP16::FallbackUnsupportedLPConvToFP16(
         return fallback_lp_conv_to_fp16(conv, mul, add);
     };
 
-    auto matcher = std::make_shared<pattern::Matcher>(conv_mul_add_fq, "FallbackUnsupportedLPConvToFP16");
+    auto matcher = std::make_shared<pattern::Matcher>(conv_mul_add_fq.fake_quantize, "FallbackUnsupportedLPConvToFP16");
     register_matcher(matcher, callback);
 
     const auto conv_mul_add = create_conv_mul_add_pattern();

@@ -12,7 +12,7 @@
  *     cannot stay on the intended int8 path into an explicit fp16 path.
  *
  *     The pass has two local matcher entry points:
- *       1. Convolution -> Multiply -> Add -> [Clamp] -> FakeQuantize
+ *       1. Convolution -> Multiply -> Add -> FakeQuantize
  *       2. Convolution -> Multiply -> Add
  *
  *     The Convolution activation can arrive either directly as u8/i8 or through an
@@ -24,8 +24,8 @@
  *       2. FakeQuantize output precision differs from the Convolution activation precision.
  *
  *     The second matcher is intentionally suffix-based: it rewrites the local
- *     Convolution -> Multiply -> Add fragment without requiring a trailing FakeQuantize
- *     node to be part of the matched subgraph.
+ *     Convolution -> Multiply -> Add fragment without requiring trailing Clamp or
+ *     FakeQuantize nodes to be part of the matched subgraph.
  *
  *     For that local Convolution -> Multiply -> Add matcher, the matched low-precision
  *     suffix is rewritten unconditionally once it is found.
@@ -64,11 +64,6 @@
  *                                   |
  *                                   v
  *                            +-------------+
- *                            | Clamp (opt) |
- *                            +------+------+
- *                                   |
- *                                   v
- *                            +-------------+
  *                            | FakeQuantize|
  *                            +------+------+
  *                                   |
@@ -77,7 +72,7 @@
  *                            |   Result    |
  *                            +-------------+
  *
- * Before (local suffix matched without a trailing FakeQuantize anchor):
+ * Before (local suffix matched without trailing Clamp/FakeQuantize anchors):
  *
  * +--------------+      +---------------+
  * | Input (u8/i8)|      | Weights (i8)  |
@@ -100,9 +95,14 @@
  *             +------+------+
  *                    |
  *                    v
- *             +-------------+
- *             |   Result    |
- *             +-------------+
+ *             +-------------------------+
+ *             | [Clamp] -> [FakeQuantize]|
+ *             +------------+------------+
+ *                          |
+ *                          v
+ *                   +-------------+
+ *                   |   Result    |
+ *                   +-------------+
  *
  * After:
  *
