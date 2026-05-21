@@ -433,11 +433,20 @@ def validate_configs(config_dir: Path) -> list[ConfigValidationIssue]:
     """Validate coverage YAML configs and return any issues found."""
     issues: list[ConfigValidationIssue] = []
 
-    suites = {
+    known_suites = {
         "cpp": config_dir / "tests_cpp.yml",
         "python": config_dir / "tests_python.yml",
         "js": config_dir / "tests_js.yml",
     }
+
+    suites = {suite: path for suite, path in known_suites.items() if path.is_file()}
+    for path in sorted(config_dir.glob("tests_*.yml")):
+        if path not in known_suites.values():
+            issues.append(ConfigValidationIssue("config", path.name, "unsupported coverage suite config file"))
+
+    if not suites:
+        issues.append(ConfigValidationIssue("config", str(config_dir), "no coverage suite config files found"))
+        return issues
 
     for suite, path in suites.items():
         data = _load_yaml(path)

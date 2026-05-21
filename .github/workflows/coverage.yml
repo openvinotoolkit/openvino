@@ -896,6 +896,11 @@ jobs:
           pattern: coverage-js-*
           path: ${{ github.workspace }}/artifacts/js
 
+      - name: Install coverage Python dependencies
+        uses: ./.github/actions/coverage_toolkit
+        with:
+          command: install-requirements
+
       - name: Resolve selected lanes
         id: lanes
         env:
@@ -970,6 +975,11 @@ jobs:
           pattern: ${{ matrix.upload.artifact_pattern }}
           path: ${{ github.workspace }}/artifacts/${{ matrix.upload.artifact_group }}
           merge-multiple: false
+
+      - name: Install coverage Python dependencies
+        uses: ./.github/actions/coverage_toolkit
+        with:
+          command: install-requirements
 
       - name: Resolve Codecov upload files
         id: upload_files
