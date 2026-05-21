@@ -238,7 +238,7 @@ public:
     }
 };
 
-TEST_P(DX12RemoteRunTests, CheckRemoteTensorSharedBuf) {
+TEST_P(DX12RemoteRunTests, smoke_CheckRemoteTensorSharedBuf) {
     // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel compiled_model;
@@ -264,7 +264,7 @@ TEST_P(DX12RemoteRunTests, CheckRemoteTensorSharedBuf) {
     OV_ASSERT_NO_THROW(inference_request.infer());
 }
 
-TEST_P(DX12RemoteRunTests, CheckRemoteTensorSharedBuChangingTensors) {
+TEST_P(DX12RemoteRunTests, smoke_CheckRemoteTensorSharedBuChangingTensors) {
     // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel compiled_model;
@@ -303,7 +303,7 @@ TEST_P(DX12RemoteRunTests, CheckRemoteTensorSharedBuChangingTensors) {
     delete[] output_random_buffer_tensor;
 }
 
-TEST_P(DX12RemoteRunTests, CheckOutputDataFromMultipleRuns) {
+TEST_P(DX12RemoteRunTests, smoke_CheckOutputDataFromMultipleRuns) {
     // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 

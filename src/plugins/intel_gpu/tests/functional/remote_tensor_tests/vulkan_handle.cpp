@@ -504,7 +504,7 @@ TEST(GpuSharedBufferRemoteTensor, smoke_VulkanRemoteInputToRemoteOutputCopyAndCo
     cl_device_id cl_device = nullptr;
     ASSERT_TRUE(get_context_first_device(cl_ctx, cl_device));
 
-    const std::vector<int> required_driver_version = {26, 5, 37020, 3}; // found that test work on this version
+    const std::vector<int> required_driver_version = {25, 22, 33944, 8}; // found that test work on this version, not work on 25.18.33578.6
     std::string driver_version_str;
     if (!get_cl_driver_version(cl_device, driver_version_str)) {
         GTEST_SKIP() << "Failed to query OpenCL driver version";
@@ -512,7 +512,7 @@ TEST(GpuSharedBufferRemoteTensor, smoke_VulkanRemoteInputToRemoteOutputCopyAndCo
     const std::vector<int> driver_version = parse_driver_version(driver_version_str);
     if (!driver_version_at_least(driver_version, required_driver_version)) {
         GTEST_SKIP() << "Skipping: GPU driver \"" << driver_version_str
-                     << "\" is older than tested 26.05.37020.3";
+                     << "\" is older than tested 25.22.33944.8";
     }
 
     if (!supports_external_import_handle_type(cl_device, k_cl_external_memory_handle_type)) {
