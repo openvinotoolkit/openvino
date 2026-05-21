@@ -7,6 +7,7 @@
 
 #include <fstream>
 #include <memory>
+#include <random>
 
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
@@ -507,7 +508,8 @@ TEST(FrontEndManagerTest, Exception_Safety_FrontEnd_Supported_By_Path) {
 
 TEST(FrontEndManagerTest, testFindPluginsDoesNotCrashOnUnicodeFilename) {
     const auto fe_dir = ov::test::utils::to_fs_path(ov::test::utils::getExecutableDirectory());
-    const auto unicode_file = fe_dir / std::filesystem::path(L"\u8FD9\u662F_dummy");
+    std::mt19937 rng{std::random_device{}()};
+    const auto unicode_file = fe_dir / std::filesystem::u8path(u8"\u8FD9\u662F_" + std::to_string(rng()));
     { std::ofstream{unicode_file}; }
     struct ScopedRemove {
         const std::filesystem::path& path;
