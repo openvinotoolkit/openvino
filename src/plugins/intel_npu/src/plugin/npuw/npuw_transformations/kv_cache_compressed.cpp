@@ -39,12 +39,15 @@ std::string cacheName(bool is_key) {
 }
 
 ov::element::Type resolve_zp_type(bool is_key, const ov::npuw::KVCacheCompressionConfig& cfg) {
-    if (is_key && cfg.quantization_type == ov::npuw::KVCacheCompressionConfig::QuantizationType::Asymmetric &&
-        cfg.quantization_dt == ov::element::i8) {
-        return ov::element::u8;
-    }
+    const bool is_symmetric = cfg.quantization_type == ov::npuw::KVCacheCompressionConfig::QuantizationType::Symmetric;
 
-    return cfg.quantization_dt;
+    // Key-cache asymmetric i8 follows the compiler-pattern i8 storage override.
+    const auto mode = (!is_symmetric && is_key && cfg.quantization_dt == ov::element::i8)
+                          ? ov::npuw::util::DynamicQuantDecomposeMode::CompilerPatternI8
+                          : ov::npuw::util::DynamicQuantDecomposeMode::HandcraftedSymmetricI8;
+
+    return ov::npuw::util::resolve_dynamic_quant_storage_types(mode, is_symmetric, cfg.quantization_dt)
+        .zero_point_type;
 }
 
 // ── V2 helper functions (ONNX DynamicQuantizeLinear style) ────────────────────
