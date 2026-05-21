@@ -40,7 +40,7 @@ bool ov::snippets::pass::PropagatePrecision::run_on_model(const std::shared_ptr<
     for (const auto& model_result : m->get_results()) {
         auto result = model_result;
         const auto& result_type = result->get_input_element_type(0);
-        result_types.emplace(std::move(result), result_type);
+        result_types.emplace(std::shared_ptr<ov::opset1::Result>(result), result->get_input_element_type(0));
     }
 
     bool was_updated = false;
