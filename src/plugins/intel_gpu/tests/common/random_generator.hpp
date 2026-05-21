@@ -4,8 +4,12 @@
 
 #pragma once
 
+#include <cstdint>
 #include <random>
 #include <set>
+#include <string>
+#include <string_view>
+#include <vector>
 
 #define GET_SUITE_NAME  (std::string(::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name()) + \
                          std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()))
