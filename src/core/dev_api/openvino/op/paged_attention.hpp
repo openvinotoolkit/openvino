@@ -55,16 +55,22 @@ public:
     /// 25  token_type_ids                                   [B_token] or [B_token, 1], i32  optional
     /// 26  qq_bias                                          [total_bias_bytes], u8    optional
     /// 27  qq_bias_begins                                   [B_seq + 1], i32          optional
-    explicit PagedAttentionExtension(const ov::OutputVector& args);
+    explicit PagedAttentionExtension(const ov::OutputVector& args, bool write_kv_cache = true);
 
     void validate_and_infer_types() override;
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
+    bool visit_attributes(ov::AttributeVisitor& visitor) override;
 
     const ov::element::Type get_out_type(int index) const;
     void set_out_type(int index, const ov::element::Type& output_type);
 
+    bool get_write_kv_cache() const {
+        return m_write_kv_cache;
+    }
+
 protected:
     std::vector<ov::element::Type> m_output_type = {ov::element::dynamic, ov::element::dynamic, ov::element::dynamic};
+    bool m_write_kv_cache = true;
 };
 
 }  // namespace op

@@ -216,7 +216,7 @@ JitConstants ScatterUpdateKernelRef::GetJitConstants(const scatter_update_params
             std::string def_pitch = "UPDATES_" + GetAxisName(dims, i) + "_PITCH";
             std::string src_pitch = "1";
             jit.AddConstant(MakeJitConstant(def_pitch, src_pitch));
-        } else if (i == (axis_value - 1)) {
+        } else if (axis_value > 0 && i == (axis_value - 1)) {
             get_update_idx_src += default_order[i] + ", ";
             std::string def_pitch = "UPDATES_" + GetAxisName(dims, i) + "_PITCH";
             std::string src_pitch = "(UPDATES_" + GetAxisName(dims, i + 1) + "_PITCH * INDICES_SIZE)";

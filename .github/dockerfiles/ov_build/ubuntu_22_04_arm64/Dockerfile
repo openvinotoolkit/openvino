@@ -87,8 +87,9 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
 ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     curl https://bootstrap.pypa.io/pip/3.8/get-pip.py -o get-pip-3-8.py && \
+    curl https://bootstrap.pypa.io/pip/3.9/get-pip.py -o get-pip-3-9.py && \
     python3 get-pip-3-8.py --no-cache-dir pip==${PIP_VERSION} && \
-    python3.9 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3.9 get-pip-3-9.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.10 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.11 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.12 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
