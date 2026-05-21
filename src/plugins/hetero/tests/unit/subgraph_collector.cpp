@@ -1080,8 +1080,8 @@ INSTANTIATE_TEST_SUITE_P(
             {},
             {},
             0,
-            false,
-            false,
+            true,
+            true,
         },
         // --- Shared constant cross-device fanout: shared_const fans out to 3 consumers on 2 devices.
         // Union-Find merges same-affinity edges into one GPU subgraph containing Node_A and Node_C.
