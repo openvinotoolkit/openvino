@@ -1579,16 +1579,15 @@ TEST(PagedCacheManagerTest, PoolKernelChangesEvictionVictimViaPA) {
 // ===================================================================
 
 // Helper: run paged_attention with given token_type_ids and sliding_window, return output
-static std::vector<float> run_pa_with_token_types(
-    const std::vector<float>& q,
-    const std::vector<float>& k,
-    const std::vector<float>& v,
-    std::size_t num_tokens,
-    std::size_t q_heads,
-    std::size_t kv_heads,
-    std::size_t head_size,
-    const std::vector<int32_t>& token_type_ids,
-    int32_t sliding_window_val = 0) {
+static std::vector<float> run_pa_with_token_types(const std::vector<float>& q,
+                                                  const std::vector<float>& k,
+                                                  const std::vector<float>& v,
+                                                  std::size_t num_tokens,
+                                                  std::size_t q_heads,
+                                                  std::size_t kv_heads,
+                                                  std::size_t head_size,
+                                                  const std::vector<int32_t>& token_type_ids,
+                                                  int32_t sliding_window_val = 0) {
     const std::size_t q_features = q_heads * head_size;
     const std::size_t kv_features = kv_heads * head_size;
     const std::size_t block_size = 4;
@@ -1607,8 +1606,12 @@ static std::vector<float> run_pa_with_token_types(
                          val_cache.data(),
                          cache_shape,
                          cache_shape,
-                         nullptr, 0, nullptr, 0,
-                         &past, 1);
+                         nullptr,
+                         0,
+                         nullptr,
+                         0,
+                         &past,
+                         1);
 
     std::int32_t subseq[2] = {0, static_cast<int32_t>(num_tokens)};
     // scale=1.0 so softmax input = raw dot product, keeps expected values simple
@@ -1797,8 +1800,7 @@ TEST(PagedAttentionRefTest, BidirectionalImageAttention_SlidingWindow) {
     std::vector<int32_t> token_types = {0, 0, 1, 1, 1, 1, 0, 0};
     int32_t sliding_window = 3;
 
-    auto out = run_pa_with_token_types(q, k, v, num_tokens, q_heads, kv_heads, head_size,
-                                       token_types, sliding_window);
+    auto out = run_pa_with_token_types(q, k, v, num_tokens, q_heads, kv_heads, head_size, token_types, sliding_window);
 
     for (std::size_t i = 0; i < out.size(); i++) {
         EXPECT_TRUE(std::isfinite(out[i])) << "output[" << i << "] is not finite";
