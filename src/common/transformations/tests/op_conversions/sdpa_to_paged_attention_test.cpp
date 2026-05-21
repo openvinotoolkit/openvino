@@ -720,7 +720,10 @@ TEST(SDPAToPAKeepConstPrecisionTest, Qwen7bChat_KVCacheParamsMarkedKeepConstPrec
             const std::string& parameter_name = parameter->get_friendly_name();
             if (parameter_name.rfind("key_cache.", 0) == 0 || parameter_name.rfind("value_cache.", 0) == 0) {
                 kv_cache_params_count += 1;
-                EXPECT_TRUE(is_keep_const_precision(parameter)) << "Parameter is not marked: " << parameter_name;Collapse commentComment on line L723mryzhov commented on May 19, 2026 mryzhovon May 19, 2026ContributorMore actionswe can check that precision is dynamic...ReactWrite a replyResolve comment
+                EXPECT_TRUE(is_keep_const_precision(parameter)) << "Parameter is not marked: " << parameter_name;
+                Collapse commentComment on line L723mryzhov commented on May 19, 2026 mryzhovon May 19,
+                    2026ContributorMore actionswe can check that precision is dynamic... ReactWrite a
+                        replyResolve comment
             }
         }
         EXPECT_GT(kv_cache_params_count, 0);
