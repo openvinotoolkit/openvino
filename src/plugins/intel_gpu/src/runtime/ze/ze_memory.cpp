@@ -236,7 +236,6 @@ allocation_type gpu_usm::detect_allocation_type(const ze_engine* engine, const v
             alloc_type = allocation_type::unknown;
             break;
     }
-    OPENVINO_ASSERT(alloc_type != allocation_type::unknown, "[GPU] Detected unknown USM alloc type");
     return alloc_type;
 }
 
@@ -289,7 +288,8 @@ void* gpu_usm::lock(const stream& stream, mem_lock_type type) {
     std::lock_guard<std::mutex> locker(_mutex);
     if (0 == _lock_count) {
         auto& _ze_stream = downcast<const ze_stream>(stream);
-        if (get_allocation_type() == allocation_type::usm_device) {
+        auto alloc_type = get_allocation_type();
+        if (alloc_type == allocation_type::usm_device || alloc_type == allocation_type::cl_mem) {
             if (type != mem_lock_type::read) {
                 throw std::runtime_error("Unable to lock allocation_type::usm_device with write lock_type.");
             }
@@ -319,9 +319,7 @@ void gpu_usm::unlock(const stream& /* stream */) {
     }
     _lock_count--;
     if (0 == _lock_count) {
-        if (get_allocation_type() == allocation_type::usm_device) {
-            _host_buffer.drop();
-        }
+        _host_buffer.drop();
         _mapped_ptr = nullptr;
     }
 }
@@ -391,7 +389,8 @@ event::ptr gpu_usm::copy_from(stream& stream, const memory& src_mem, size_t src_
 
     auto _ze_stream = downcast<ze_stream>(&stream);
     auto _ze_event = downcast<ze_base_event>(result_event.get())->get_handle();
-    OPENVINO_ASSERT(memory_capabilities::is_usm_type(src_mem.get_allocation_type()));
+    auto alloc_type = src_mem.get_allocation_type();
+    OPENVINO_ASSERT(memory_capabilities::is_usm_type(alloc_type) || alloc_type == allocation_type::cl_mem, "[GPU] Source memory for gpu_usm::copy_from(memory&) should be USM or OpenCL buffer");
 
     auto usm_mem = downcast<const gpu_usm>(&src_mem);
     auto src_ptr = reinterpret_cast<const char*>(usm_mem->buffer_ptr()) + src_offset;
