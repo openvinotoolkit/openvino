@@ -1119,8 +1119,7 @@ MemStatePtr MemoryInputSDPA::makeState() const {
     return std::make_shared<VariableStateKVcache>(state_name,
                                                   original_desc,
                                                   internal_desc,
-                                                  quant_param.by_channel,
-                                                  quant_param.group_size);
+                                                  quant_param);
 }
 
 void MemoryInputSDPA::runStatic(dnnl::stream strm) {

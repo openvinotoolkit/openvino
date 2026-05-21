@@ -7,32 +7,11 @@
 
 #include <cstddef>
 
+#include "cache_spec.hpp"
 #include "cpu_parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "utils/plain_tensor.hpp"
-
-namespace ov::Extensions::Cpu {
-
-// Per-side KV cache specification.
-// alg=SCALAR (raw/u8/u4) or TURBO (TBQ rotation+codebook).
-// precision: logical per-side precision (u3/u4 for TBQ bits; u8/u4/f16/bf16/f32 for SCALAR).
-// Distinct from the backing storage precision of the cache PlainTensor (TBQ stores packed
-// bytes into a u8 buffer).
-// group_size: per-group granularity (SCALAR u8/u4); ignored for TURBO and raw.
-// by_channel: for SCALAR u8, enables per-channel quant mode.
-struct CacheSpec {
-    ov::internal::CacheQuantAlgorithm alg = ov::internal::CacheQuantAlgorithm::SCALAR;
-    ov::element::Type precision = ov::element::dynamic;
-    size_t group_size = 0;
-    bool by_channel = false;
-
-    [[nodiscard]] bool is_turbo() const {
-        return alg == ov::internal::CacheQuantAlgorithm::TURBO;
-    }
-};
-
-}  // namespace ov::Extensions::Cpu
 
 namespace ov::Extensions::Cpu::XARCH {
 
