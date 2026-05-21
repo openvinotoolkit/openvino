@@ -4,6 +4,8 @@
 
 #include "intel_npu/utils/vm/npu_vm_runtime_api.hpp"
 
+#include <algorithm>
+
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 
@@ -43,6 +45,14 @@ NPUVMRuntimeApi::NPUVMRuntimeApi(std::string_view libName) {
 #define nmr_symbol_statement(symbol) symbol = this->symbol;
     nmr_symbols_list();
 #undef nmr_symbol_statement
+}
+
+void NPUVMRuntimeApi::initializeFromBlob(const void* data, size_t size) {
+    const size_t headerSize = std::min(size, size_t{20});
+    const std::string_view header(static_cast<const char*>(data), headerSize);
+    const std::string_view libName =
+        (header.find("NPUByte\x00") != std::string_view::npos) ? "npu_interpreter_runtime" : "npu_mlir_runtime";
+    initialize(libName);
 }
 
 void NPUVMRuntimeApi::initialize(std::string_view libName) {

@@ -45,6 +45,10 @@ public:
     // Throws only if re-initialized with a different library after creation.
     static void initialize(std::string_view libName);
 
+    // Inspects the blob header to select the appropriate runtime library and calls initialize().
+    // Selects "npu_interpreter_runtime" for NPUByte blobs, "npu_mlir_runtime" otherwise.
+    static void initializeFromBlob(const void* data, size_t size);
+
     static const std::shared_ptr<NPUVMRuntimeApi>& getInstance();
 
 #define nmr_symbol_statement(symbol) decltype(&::symbol) symbol;

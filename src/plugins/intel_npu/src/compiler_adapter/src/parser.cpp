@@ -42,10 +42,7 @@ std::shared_ptr<IGraph> Parser::parse(const ov::Tensor& mainBlob,
     }
     if (header.find("llvm") != std::string::npos || header.find("NPUByte\x00") != std::string::npos) {
         _logger.debug("Create graph for dynamic blob, use internal function to get metadata!");
-        const std::string_view vmRuntimeLibName = (header.find("NPUByte\x00") != std::string::npos)
-                                                      ? "npu_interpreter_runtime"
-                                                      : "npu_mlir_runtime";
-        NPUVMRuntimeApi::initialize(vmRuntimeLibName);
+        NPUVMRuntimeApi::initializeFromBlob(data, size);
         return std::make_shared<DynamicGraph>(_zeroInitStruct, mainBlob, true, config);
     }
 
