@@ -37,8 +37,8 @@
 #include "openvino/runtime/infer_request.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "utils/cpu_test_utils.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
+#include "utils/cpu_test_utils.hpp"
 #include "utils/general_utils.h"
 
 using namespace ov::test;
