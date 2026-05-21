@@ -1256,7 +1256,7 @@ inline void multiply_scalar(ov::float16* a, ov::float16* a_dst, const ov::float1
 #endif
 
 inline float reduce_sum(const float* data, size_t n) {
-    float s = 0.0f;
+    float s = 0.0F;
     size_t i = 0;
 #if defined(HAVE_AVX512F)
     {
