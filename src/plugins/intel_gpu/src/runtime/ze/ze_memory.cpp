@@ -290,12 +290,12 @@ void* gpu_usm::lock(const stream& stream, mem_lock_type type) {
         auto& _ze_stream = downcast<const ze_stream>(stream);
         auto alloc_type = get_allocation_type();
         if (alloc_type == allocation_type::usm_device || alloc_type == allocation_type::cl_mem) {
-            if (type != mem_lock_type::read) {
-                throw std::runtime_error("Unable to lock allocation_type::usm_device with write lock_type.");
-            }
+            GPU_DEBUG_LOG << "Copy usm_device buffer to host buffer." << std::endl;
             auto *zero_engine = downcast<ze_engine>(_engine);
             _host_buffer = allocate_usm_host(zero_engine->get_context(), _bytes_count);
-            OV_ZE_EXPECT(ze::zeCommandListAppendMemoryCopy(_ze_stream.get_queue(),
+            // Always copy device data to host buffer (treat write as read_write internally).
+            // This ensures the host buffer always has valid data, making nested locks safe.
+            OV_ZE_EXPECT(zeCommandListAppendMemoryCopy(_ze_stream.get_queue(),
                                     _host_buffer.get_ze_handle().ptr,
                                     _buffer.get_ze_handle().ptr,
                                     _bytes_count,
@@ -308,17 +308,31 @@ void* gpu_usm::lock(const stream& stream, mem_lock_type type) {
             _mapped_ptr = _buffer.get_ze_handle().ptr;
         }
     }
+    if (!_host_buffer.is_empty()) {
+        // Update write back flag on every lock call
+        _copy_back_to_device = _copy_back_to_device || (type != mem_lock_type::read);
+    }
     _lock_count++;
     return _mapped_ptr;
 }
 
-void gpu_usm::unlock(const stream& /* stream */) {
+void gpu_usm::unlock(const stream& stream) {
     std::lock_guard<std::mutex> locker(_mutex);
-    if (0 == _lock_count) {
-        OPENVINO_THROW("[GPU] Trying to unlock an already unlocked buffer");
-    }
+    OPENVINO_ASSERT(_lock_count != 0, "[GPU] Trying to unlock an already unlocked buffer");
     _lock_count--;
     if (0 == _lock_count) {
+        if (_copy_back_to_device) {
+                auto& _ze_stream = downcast<const ze_stream>(stream);
+                OV_ZE_EXPECT(zeCommandListAppendMemoryCopy(_ze_stream.get_queue(),
+                                        _buffer.get_ze_handle().ptr,
+                                        _host_buffer.get_ze_handle().ptr,
+                                        _bytes_count,
+                                        nullptr,
+                                        0,
+                                        nullptr));
+                OV_ZE_EXPECT(zeCommandListHostSynchronize(_ze_stream.get_queue(), endless_wait));
+        }
+        _copy_back_to_device = false;
         _host_buffer.drop();
         _mapped_ptr = nullptr;
     }

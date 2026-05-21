@@ -5807,7 +5807,7 @@ TEST_F(SDPAToPATest, SDPAToPA_Gemma3_TokenTypeIds) {
     }
 }
 
-TEST(SDPAToPASharedKVCacheTest, Gemma3n_SharedKVCache_TwoLayersSameReadValue) {
+TEST(SDPAToPA, Gemma3n_SharedKVCache_TwoLayersSameReadValue) {
     // Replicates real Gemma 3n architecture:
     // - inputs_embeds [?,?,2048], 2 KV heads, 8 Q heads, head_dim=256, GQA ratio=4
     // - RMSNorm → K/V/Q projections → KV cache → GQA broadcast → SDPA
@@ -5984,6 +5984,164 @@ TEST(SDPAToPASharedKVCacheTest, Gemma3n_SharedKVCache_TwoLayersSameReadValue) {
     }
     EXPECT_EQ(key_cache_count, 1u) << "Expected 1 key_cache parameter (shared)";
     EXPECT_EQ(value_cache_count, 1u) << "Expected 1 value_cache parameter (shared)";
+}
+
+TEST(SDPAToPA, SingleLayerSlidingWindow) {
+    // Simplified Gemma3-270 model with a single attention layer.
+    // The key part is the sliding window mask subgraph (BitwiseAnd chain)
+    // that gptoss_gemma3_sliding_window_pattern() must match to extract the window size.
+
+    const int num_heads = 4;
+    const int head_dim = 256;
+    const int hidden_size = num_heads * head_dim;  // 1024
+    const int64_t sliding_window_offset = -512;
+
+    auto input_ids = make_param(PartialShape{DYN, DYN}, element::i64, "input_ids");
+    auto attention_mask = make_param(PartialShape{DYN, DYN}, element::i64, "attention_mask");
+    auto position_ids = make_param(PartialShape{DYN, DYN}, element::i64, "position_ids");
+    auto beam_idx = make_param(PartialShape{DYN}, element::i32, "beam_idx");
+    auto params = nodes_to_params({input_ids, attention_mask, position_ids, beam_idx});
+
+    // Embedding (simplified)
+    auto embed_weight = makeConst(element::f32, ov::Shape{32000, (size_t)hidden_size}, MOCK_VALUE);
+    auto embeddings = makeOP<v8::Gather>({embed_weight, input_ids, 0}, {{"batch_dims", 0}});
+
+    // Shared shape info (used by mask and KV cache helpers)
+    auto shape_pos = makeOP<v3::ShapeOf>({position_ids}, {{"output_type", "i64"}});
+    auto batch_dim = makeOP<v8::Gather>({shape_pos, {0}, 0}, {{"batch_dims", 0}});
+
+    // Gemma3 sliding window mask subgraph
+    auto make_gemma3_sliding_window_mask = [&](std::shared_ptr<ov::Node> pos_ids,
+                                               std::shared_ptr<ov::Node> attn_mask,
+                                               int64_t sw_offset) {
+        auto shape_pos = makeOP<v3::ShapeOf>({pos_ids}, {{"output_type", "i64"}});
+        auto batch_dim = makeOP<v8::Gather>({shape_pos, {0}, 0}, {{"batch_dims", 0}});
+        auto cur_len_scalar = makeOP<v8::Gather>({shape_pos, 1, 0}, {{"batch_dims", 0}});
+
+        // kv_idx: [1, 1, total_len]
+        auto kv_range = makeOP<v4::Range>({0, cur_len_scalar, 1}, {{"output_type", "i64"}});
+        auto kv_unsq1 = makeOP<v0::Unsqueeze>({kv_range, 0});
+        auto kv_idx = makeOP<v0::Unsqueeze>({kv_unsq1, 0});
+
+        // q_idx: [1, 1, cur_len, 1]
+        auto q_range = makeOP<v4::Range>({0, cur_len_scalar, 1}, {{"output_type", "i64"}});
+        auto q_unsq1 = makeOP<v0::Unsqueeze>({q_range, 0});
+        auto q_unsq2 = makeOP<v0::Unsqueeze>({q_unsq1, 0});
+        auto q_idx = makeOP<v0::Unsqueeze>({q_unsq2, 3});
+
+        // Causal mask: LessEqual(kv_idx, q_idx)
+        auto less_equal = makeOP<v1::LessEqual>({kv_idx, q_idx}, {numpy_broadcast});
+
+        // Sliding window: Greater(kv_idx, q_idx + offset)
+        auto offset_const = makeConst(element::i64, ov::Shape({1, 1, 1, 1}), {(int)sw_offset});
+        auto add_offset = makeOP<v1::Add>({q_idx, offset_const}, {numpy_broadcast});
+        auto greater = makeOP<v1::Greater>({kv_idx, add_offset}, {numpy_broadcast});
+
+        // BitwiseAnd chain for sliding window
+        auto const_true_1 = makeConst(element::boolean, ov::Shape({}), {1});
+        auto bitwise_and_0 = makeOP<v13::BitwiseAnd>({const_true_1, greater}, {{"auto_broadcast", "numpy"}});
+        auto bitwise_and_1 = makeOP<v13::BitwiseAnd>({bitwise_and_0, less_equal}, {{"auto_broadcast", "numpy"}});
+        auto const_true_2 = makeConst(element::boolean, ov::Shape({}), {1});
+        auto bitwise_and_2 = makeOP<v13::BitwiseAnd>({const_true_2, bitwise_and_1}, {{"auto_broadcast", "numpy"}});
+
+        // attention_mask → boolean reshape [batch, 1, 1, seq]
+        auto attn_mask_bool = makeOP<v0::Convert>({attn_mask}, {{"destination_type", "boolean"}});
+        auto attn_mask_reshape = makeOP<v1::Reshape>({attn_mask_bool, {0, 1, 1, -1}}, {{"special_zero", true}});
+
+        // Sliding window mask: combined with attention_mask
+        auto bitwise_and_3 = makeOP<v13::BitwiseAnd>({bitwise_and_2, attn_mask_reshape}, {{"auto_broadcast", "numpy"}});
+
+        // Broadcast shape [batch, 1, cur_len, total_len]
+        auto cur_len_unsq = makeOP<v0::Unsqueeze>({cur_len_scalar, 0});
+        auto bcast_shape = makeOP<v0::Concat>({batch_dim, {1l}, cur_len_unsq, cur_len_unsq}, {{"axis", 0}});
+
+        auto sw_broadcast = makeOP<v3::Broadcast>({bitwise_and_3, bcast_shape}, {{"mode", "bidirectional"}});
+        return makeOP<v1::Select>({sw_broadcast, 0.0f, -65504.0f}, {numpy_broadcast});
+    };
+
+    auto sw_select = make_gemma3_sliding_window_mask(position_ids, attention_mask, sliding_window_offset);
+
+    struct KVCacheResult {
+        std::shared_ptr<ov::Node> concat;
+        std::shared_ptr<v6::Assign> assign;
+    };
+    auto make_kv_cache = [&](std::shared_ptr<ov::Node> cur, const std::string& var_id) -> KVCacheResult {
+        auto var = std::make_shared<ov::op::util::Variable>(
+            ov::op::util::VariableInfo{ov::PartialShape{DYN, num_heads, DYN, head_dim}, ov::element::f32, var_id});
+        auto init_shape =
+            makeOP<v0::Concat>({batch_dim, {(int64_t)num_heads}, {0l}, {(int64_t)head_dim}}, {{"axis", 0}});
+        auto init = makeOP<v3::Broadcast>({0.0f, init_shape}, {{"mode", "numpy"}});
+        std::shared_ptr<ov::Node> read = std::make_shared<v6::ReadValue>(init, var);
+        auto past = makeOP<v8::Gather>({read, beam_idx, 0}, {{"batch_dims", 0}});
+        auto concat = makeOP<v0::Concat>({past, cur}, {{"axis", -2}});
+        auto assign = std::make_shared<v6::Assign>(concat, var);
+        return {concat, assign};
+    };
+
+    // Projection helper (simplified: no RoPE, no GQA, no bias)
+    auto make_projection = [&](std::shared_ptr<ov::Node> input, int out_size, int heads) {
+        auto weight = makeConst(element::f32, ov::Shape({(size_t)out_size, (size_t)hidden_size}), MOCK_VALUE);
+        auto matmul = makeOP<v0::MatMul>({input, weight}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto reshape = makeOP<v1::Reshape>({matmul, {0, 0, heads, head_dim}}, {{"special_zero", true}});
+        return makeOP<v1::Transpose>({reshape, {0, 2, 1, 3}});
+    };
+
+    // Single layer: Sliding window attention
+    auto Q_0 = make_projection(embeddings, hidden_size, num_heads);
+    auto K_0 = make_projection(embeddings, hidden_size, num_heads);
+    auto V_0 = make_projection(embeddings, hidden_size, num_heads);
+
+    auto kv_0 = make_kv_cache(K_0, "past_key_values.0.key");
+    auto vv_0 = make_kv_cache(V_0, "past_key_values.0.value");
+
+    auto sdpa_0 =
+        makeOP<v13::ScaledDotProductAttention>({Q_0, kv_0.concat, vv_0.concat, sw_select, 1.0f}, {{"causal", false}});
+
+    // Output (simplified: no output projection, no residual, no MLP)
+    auto res = std::make_shared<v0::Result>(sdpa_0);
+
+    auto model = std::make_shared<ov::Model>(OutputVector{res}, SinkVector{kv_0.assign, vv_0.assign}, params);
+
+    ov::pass::Manager pass_manager;
+    pass_manager.register_pass<ov::pass::SDPAToPagedAttention>();
+    pass_manager.run_passes(model);
+
+    std::shared_ptr<ov::op::PagedAttentionExtension> pa;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (auto node = ov::as_type_ptr<ov::op::PagedAttentionExtension>(op)) {
+            pa = node;
+        }
+    }
+    ASSERT_NE(pa, nullptr);
+
+    // Check sliding_window value (input port 10)
+    // Should have offset * -1 = 512
+    auto sw_input = pa->input_value(10);
+    auto mul = ov::as_type_ptr<v1::Multiply>(sw_input.get_node_shared_ptr());
+    ASSERT_NE(mul, nullptr) << "PA sliding_window should be Multiply node (offset * -1)";
+
+    // Verify the -1 constant
+    auto neg_one = ov::as_type_ptr<v0::Constant>(mul->input_value(1).get_node_shared_ptr());
+    ASSERT_NE(neg_one, nullptr);
+    EXPECT_EQ(neg_one->cast_vector<int32_t>()[0], -1);
+
+    // Trace through Convert → Squeeze → original constant
+    auto convert_node = mul->input_value(0).get_node_shared_ptr();
+    std::shared_ptr<ov::Node> squeeze_node;
+    if (ov::as_type_ptr<v0::Convert>(convert_node)) {
+        squeeze_node = convert_node->input_value(0).get_node_shared_ptr();
+    } else {
+        squeeze_node = convert_node;
+    }
+
+    std::shared_ptr<v0::Constant> offset_node;
+    if (auto sq = ov::as_type_ptr<v15::Squeeze>(squeeze_node)) {
+        offset_node = ov::as_type_ptr<v0::Constant>(sq->input_value(0).get_node_shared_ptr());
+    } else {
+        offset_node = ov::as_type_ptr<v0::Constant>(squeeze_node);
+    }
+    ASSERT_NE(offset_node, nullptr) << "Could not find original offset constant";
+    EXPECT_EQ(offset_node->cast_vector<int64_t>()[0], sliding_window_offset);
 }
 
 /*
