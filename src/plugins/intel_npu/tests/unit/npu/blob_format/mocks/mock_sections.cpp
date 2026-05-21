@@ -6,8 +6,8 @@
 
 MockSection_1::MockSection_1(double value) : ISection(MockTypes::MOCK_1), value(value) {}
 
-void MockSection_1::write(std::ostream& stream, BlobWriter* writer) {
-    stream.write(reinterpret_cast<const char*>(&value), sizeof(value));
+void MockSection_1::write(const std::unique_ptr<BlobWriterInterface>& writer) {
+    writer->write(&value, sizeof(value));
 }
 
 double MockSection_1::get_value() const {
@@ -22,15 +22,14 @@ std::shared_ptr<ISection> MockSection_1::read(BlobReader* blob_reader, const siz
 
 MockSection_2::MockSection_2(const std::vector<double>& values) : ISection(MockTypes::MOCK_2), values(values) {}
 
-void MockSection_2::write(std::ostream& stream, BlobWriter* writer) {
-    static constexpr char zeros[ALIGNMENT] = {};
+void MockSection_2::write(const std::unique_ptr<BlobWriterInterface>& writer) {
     uint64_t size = values.size();
-    stream.write(reinterpret_cast<const char*>(&size), sizeof(size));
+    writer->write(&size, sizeof(size));
     for (const double& value : values) {
-        const uint64_t pos = static_cast<uint64_t>(writer->get_stream_relative_position(stream));
-        const uint64_t padding = (ALIGNMENT - (pos % ALIGNMENT)) % ALIGNMENT;
-        stream.write(zeros, static_cast<std::streamsize>(padding));
-        stream.write(reinterpret_cast<const char*>(&value), sizeof(value));
+        const uint64_t pos = static_cast<uint64_t>(writer->get_offset_relative_to_npu_region());
+        const uint64_t padding_size = (ALIGNMENT - (pos % ALIGNMENT)) % ALIGNMENT;
+        writer->add_padding(padding_size);
+        writer->write(&value, sizeof(value));
     }
 }
 
@@ -66,9 +65,9 @@ MockSection_3::MockSection_3(const std::shared_ptr<MockSection_1>& section_1,
       section_1(section_1),
       section_2(section_2) {}
 
-void MockSection_3::write(std::ostream& stream, BlobWriter* writer) {
-    section_1->write(stream, writer);
-    section_2->write(stream, writer);
+void MockSection_3::write(const std::unique_ptr<BlobWriterInterface>& writer) {
+    section_1->write(writer);
+    section_2->write(writer);
 }
 
 std::pair<double, std::vector<double>> MockSection_3::get_values() const {
@@ -95,21 +94,20 @@ MockSectionWithTable::MockSectionWithTable(std::shared_ptr<MockSection_1> sectio
       parsed_reachables(std::move(parsed_reachables)),
       embedded_table(std::move(embedded_table)) {}
 
-void MockSectionWithTable::write(std::ostream& stream, BlobWriter* writer) {
+void MockSectionWithTable::write(const std::unique_ptr<BlobWriterInterface>& writer) {
     const uint64_t number_of_entries = static_cast<uint64_t>(reachables.size());
-    const uint64_t payload_start = static_cast<uint64_t>(writer->get_stream_relative_position(stream));
+    const uint64_t payload_start = static_cast<uint64_t>(writer->get_offset_relative_to_current_section());
     // stream position + size of table location field + size of member field section_1
     const uint64_t table_location = payload_start + sizeof(uint64_t) + sizeof(double);
 
-    stream.write(reinterpret_cast<const char*>(&table_location), sizeof(table_location));
-    section_1->write(stream, writer);
+    writer->write(&table_location, sizeof(table_location));
+    section_1->write(writer);
 
     // reserve entries payload
-    stream.write(reinterpret_cast<const char*>(&number_of_entries), sizeof(number_of_entries));
-    const auto table_entries_pos = stream.tellp();
+    writer->write(&number_of_entries, sizeof(number_of_entries));
+    const auto table_entries_pos = writer->get_offset_relative_to_current_section();
     const uint64_t total_entry_bytes = number_of_entries * OffsetsTable::get_entry_size();
-    std::vector<char> zeros(total_entry_bytes, 0);
-    stream.write(zeros.data(), static_cast<std::streamsize>(total_entry_bytes));
+    writer->add_padding(total_entry_bytes);
 
     // write the reachable sections
     std::vector<Entry> entries;
@@ -117,22 +115,22 @@ void MockSectionWithTable::write(std::ostream& stream, BlobWriter* writer) {
     for (const auto& r : reachables) {
         const SectionType type = r->get_section_type();
         const SectionTypeInstance instance = counters[type]++;
-        const uint64_t offset = static_cast<uint64_t>(writer->get_stream_relative_position(stream));
-        r->write(stream, writer);
-        stream.seekp(0, std::ios_base::end);
-        const uint64_t length = static_cast<uint64_t>(writer->get_stream_relative_position(stream)) - offset;
+        const uint64_t offset = static_cast<uint64_t>(writer->get_offset_relative_to_current_section());
+        r->write(writer);
+        writer->seek_to_the_end();
+        const uint64_t length = static_cast<uint64_t>(writer->get_offset_relative_to_current_section()) - offset;
         entries.push_back({SectionID(type, instance), offset, length});
     }
 
     // go back to entries payload and write the actual entries
-    stream.seekp(table_entries_pos);
+    writer->move_cursor_relative_to_current_section(table_entries_pos);
     for (const auto& e : entries) {
-        stream.write(reinterpret_cast<const char*>(&e.id.type), sizeof(e.id.type));
-        stream.write(reinterpret_cast<const char*>(&e.id.type_instance), sizeof(e.id.type_instance));
-        stream.write(reinterpret_cast<const char*>(&e.offset), sizeof(e.offset));
-        stream.write(reinterpret_cast<const char*>(&e.length), sizeof(e.length));
+        writer->write(&e.id.type, sizeof(e.id.type));
+        writer->write(&e.id.type_instance, sizeof(e.id.type_instance));
+        writer->write(&e.offset, sizeof(e.offset));
+        writer->write(&e.length, sizeof(e.length));
     }
-    stream.seekp(0, std::ios_base::end);
+    writer->seek_to_the_end();
 }
 
 std::shared_ptr<MockSection_1> MockSectionWithTable::get_section_1() const {

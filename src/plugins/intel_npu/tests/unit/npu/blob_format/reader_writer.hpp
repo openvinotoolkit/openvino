@@ -17,6 +17,7 @@ using namespace intel_npu;
 namespace {
 constexpr int64_t BATCH = 0xDEADBEEF;
 
+// TODO interface tests as well
 void prepare_writer(const std::shared_ptr<BlobWriter>& blobWriter,
                     const std::vector<CRE::Token>& expression,
                     const std::vector<std::shared_ptr<ISection>> sections) {

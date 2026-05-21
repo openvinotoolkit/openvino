@@ -9,6 +9,7 @@
 #include "batch_size_section.hpp"
 #include "intel_npu/common/blob_reader.hpp"
 #include "intel_npu/common/blob_writer.hpp"
+#include "utils.hpp"
 
 using namespace intel_npu;
 
@@ -17,17 +18,17 @@ protected:
     void SetUp() override {
         batch_size = 0xDEADBEEF;
         section = std::make_shared<BatchSizeSection>(batch_size);
-        writer = std::make_shared<BlobWriter>();
+        writer = ov::unit_test::intel_npu::create_default_writer_interface();
     }
 
     int64_t batch_size;
     std::shared_ptr<BatchSizeSection> section;
-    std::shared_ptr<BlobWriter> writer;
+    std::unique_ptr<BlobWriterInterface> writer;
+    std::stringstream stream;
 };
 
 TEST_F(BatchSizeSectionUnitTests, WriteRead) {
-    std::stringstream stream;
-    section->write(stream, writer.get());
+    section->write(writer);
 
     const std::string buffer = stream.str();
     ov::Tensor source_tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());

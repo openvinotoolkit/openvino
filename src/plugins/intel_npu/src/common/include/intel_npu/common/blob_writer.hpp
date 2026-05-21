@@ -24,6 +24,16 @@ public:
                         const std::unordered_map<SectionType, SectionTypeInstance>& next_type_instance_id);
 
     /**
+     * @brief Add a new blob section to the writing queue.
+     *
+     * @param section The section to be added in the writing queue.
+     * @return The instance ID of the section. This number corresponds to the order within the writing queue and it is
+     * used to distringuish between sections of the same type. This number is unique only among sections of the same
+     * type.
+     */
+    SectionTypeInstance register_section(const std::shared_ptr<ISection>& section);
+
+    /**
      * @brief Append a new token to the CRE, at depth-level 1. All tokens found at this depth-level are bound by a
      * logical "AND" operator.
      *
@@ -40,6 +50,8 @@ public:
     void append_compatibility_requirement(const std::vector<CRE::Token>& requirement_tokens);
 
     void write(const void* source, const size_t size);
+
+    void add_padding(const size_t size);
 
     std::streamoff get_offset_relative_to_current_section() const;
 
@@ -70,7 +82,13 @@ public:
     void seek_to_the_end();
 
 private:
-    friend BlobWriter;
+    friend class BlobWriter;
+
+    // Granting these two sections access to the stream object helps keep the code more modular. The functions that
+    // write the compiler schedules use a stream object as parameter. The older blob format code relies on the same
+    // functions.
+    friend class ELFMainScheduleSection;
+    friend class ELFInitSchedulesSection;
 
     std::reference_wrapper<std::ostream> m_stream;
 
@@ -179,7 +197,7 @@ private:
      * @details Calls the "write" method of the given section to fill the payload. Then adds a new entry inside the
      * table of offsets.
      */
-    void write_section(const std::shared_ptr<BlobWriterInterface>& blob_writer_interface,
+    void write_section(const std::unique_ptr<BlobWriterInterface>& blob_writer_interface,
                        const std::shared_ptr<ISection>& section,
                        OffsetsTable& offsets_table);
 

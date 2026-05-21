@@ -15,7 +15,7 @@
 using namespace intel_npu;
 
 using CREParams = std::tuple<std::string, std::vector<CRE::Token>, std::vector<uint16_t>, bool>;
-
+// TODO CRE section tests
 class CREUnitTests : public ::testing::TestWithParam<CREParams> {
 protected:
     void SetUp() override {

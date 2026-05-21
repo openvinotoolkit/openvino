@@ -100,7 +100,7 @@ class CRESection final : public ISection {
 public:
     CRESection(const CRE& cre);
 
-    void write(std::ostream& stream, BlobWriter* writer) override;
+    void write(const std::unique_ptr<BlobWriterInterface>& writer) override;
 
     CRE get_cre() const;
 

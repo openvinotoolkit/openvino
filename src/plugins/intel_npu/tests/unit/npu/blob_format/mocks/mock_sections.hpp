@@ -22,7 +22,7 @@ class MockSection_1 : public ISection {
 public:
     MockSection_1(double value);
 
-    void write(std::ostream& stream, BlobWriter* writer) override;
+    void write(const std::unique_ptr<BlobWriterInterface>& writer) override;
 
     double get_value() const;
 
@@ -36,7 +36,7 @@ class MockSection_2 : public intel_npu::ISection {
 public:
     MockSection_2(const std::vector<double>& values);
 
-    void write(std::ostream& stream, BlobWriter* writer) override;
+    void write(const std::unique_ptr<BlobWriterInterface>& writer) override;
 
     std::vector<double> get_values() const;
 
@@ -54,7 +54,7 @@ class MockSection_3 : public intel_npu::ISection {
 public:
     MockSection_3(const std::shared_ptr<MockSection_1>& section_1, const std::shared_ptr<MockSection_2>& section_2);
 
-    void write(std::ostream& stream, BlobWriter* writer) override;
+    void write(const std::unique_ptr<BlobWriterInterface>& writer) override;
 
     std::pair<double, std::vector<double>> get_values() const;
 
@@ -72,7 +72,7 @@ public:
     // called only in case of write method
     MockSectionWithTable(std::shared_ptr<MockSection_1> section_1, std::vector<std::shared_ptr<ISection>> reachables);
 
-    void write(std::ostream& stream, BlobWriter* writer) override;
+    void write(const std::unique_ptr<BlobWriterInterface>& writer) override;
 
     std::shared_ptr<MockSection_1> get_section_1() const;
 

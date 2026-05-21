@@ -10,6 +10,7 @@
 #include "intel_npu/common/blob_writer.hpp"
 #include "io_layouts_section.hpp"
 #include "openvino/core/layout.hpp"
+#include "utils.hpp"
 
 using namespace intel_npu;
 
@@ -23,19 +24,19 @@ protected:
         std::tie(input_layouts, output_layouts) = GetParam();
 
         section = std::make_shared<IOLayoutsSection>(input_layouts, output_layouts);
-        writer = std::make_shared<BlobWriter>();
+        writer = ov::unit_test::intel_npu::create_default_writer_interface(stream);
     }
 
     std::shared_ptr<IOLayoutsSection> section;
     std::shared_ptr<BlobReader> reader;
-    std::shared_ptr<BlobWriter> writer;
+    std::unique_ptr<BlobWriterInterface> writer;
     std::stringstream stream;
 };
 
 using ValidLayouts = IOLayoutsSectionUnitTests;
 
 TEST_P(ValidLayouts, WriteRead) {
-    section->write(stream, writer.get());
+    section->write(writer);
 
     const std::string buffer = stream.str();
     ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
@@ -60,9 +61,9 @@ TEST_F(IOLayoutsSectionRead, TooSmallSectionLength) {
 
 TEST_F(IOLayoutsSectionRead, LessLayoutsThanExpected) {
     IOLayoutsSection real_section({ov::Layout("NCHW"), ov::Layout("NHWC")}, {ov::Layout("NCHW"), ov::Layout("NHWC")});
-    BlobWriter writer;
     std::stringstream stream;
-    real_section.write(stream, &writer);
+    auto writer = ov::unit_test::intel_npu::create_default_writer_interface(stream);
+    real_section.write(writer);
     std::string buffer = stream.str();
 
     // overwrite total number of layouts
@@ -77,9 +78,9 @@ TEST_F(IOLayoutsSectionRead, LessLayoutsThanExpected) {
 
 TEST_F(IOLayoutsSectionRead, InvalidLayout) {
     IOLayoutsSection valid_section({ov::Layout("N")}, {});
-    BlobWriter writer;
     std::stringstream stream;
-    valid_section.write(stream, &writer);
+    auto writer = ov::unit_test::intel_npu::create_default_writer_interface(stream);
+    valid_section.write(writer);
     std::string buffer = stream.str();
 
     // overwrite input layout '[N]' with '[%]'

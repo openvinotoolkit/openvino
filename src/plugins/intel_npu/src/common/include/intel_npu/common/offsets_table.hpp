@@ -48,7 +48,7 @@ class OffsetsTableSection final : public ISection {
 public:
     OffsetsTableSection(const OffsetsTable& offsets_table);
 
-    void write(std::ostream& stream, BlobWriter* writer) override;
+    void write(const std::unique_ptr<BlobWriterInterface>& writer) override;
 
     OffsetsTable get_table() const;
 

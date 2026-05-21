@@ -42,7 +42,7 @@ bool operator==(const SectionID& sid1, const SectionID& sid2);
 
 std::ostream& operator<<(std::ostream& out, const SectionID& id);
 
-class BlobWriter;
+class BlobWriterInterface;
 class BlobReader;
 
 /**
@@ -76,7 +76,7 @@ public:
     /**
      * @brief Method used to instruct the BlobWriter how to write the current section into the provided stream.
      */
-    virtual void write(const std::weak_ptr<BlobWriterInterface>& writer) = 0;
+    virtual void write(const std::unique_ptr<BlobWriterInterface>& writer) = 0;
 
     SectionType get_section_type() const;
 
@@ -97,12 +97,15 @@ public:
     std::optional<SectionID> get_section_id() const;
 
 private:
+    // Access required to set the section type instance ID
     friend class BlobWriter;
+    friend class BlobWriterInterface;
     friend class BlobReader;
 
     /**
-     * @brief Standard setter.
-     * @note Only BlobWriters & BlobReaders should be allowed to manipulate the type instance ID.
+     * @note Only BlobWriters & BlobReaders should be allowed to manipulate the type instance ID. This is because the
+     * instance ID denotes, by convention, the order in which the sections of the given type have been registered to be
+     * written in the blob.
      */
     void set_section_type_instance(const SectionTypeInstance type_instance) const;
 

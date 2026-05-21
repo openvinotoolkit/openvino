@@ -56,13 +56,13 @@ OffsetsTableSection::OffsetsTableSection(const OffsetsTable& offsets_table)
     : ISection(PredefinedSectionType::OFFSETS_TABLE),
       m_offsets_table(offsets_table) {}
 
-void OffsetsTableSection::write(std::ostream& stream, BlobWriter* writer) {
+void OffsetsTableSection::write(const std::unique_ptr<BlobWriterInterface>& writer) {
     for (const auto& [key, value] : m_offsets_table.m_table) {
         // Section type ID, Section instanfce type ID, offset, length
-        stream.write(reinterpret_cast<const char*>(&key.type), sizeof(key.type));
-        stream.write(reinterpret_cast<const char*>(&key.type_instance), sizeof(key.type_instance));
-        stream.write(reinterpret_cast<const char*>(&value.first), sizeof(value.first));
-        stream.write(reinterpret_cast<const char*>(&value.second), sizeof(value.second));
+        writer->write(&key.type, sizeof(key.type));
+        writer->write(&key.type_instance, sizeof(key.type_instance));
+        writer->write(&value.first, sizeof(value.first));
+        writer->write(&value.second, sizeof(value.second));
     }
 }
 

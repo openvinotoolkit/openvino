@@ -13,8 +13,8 @@ BatchSizeSection::BatchSizeSection(const int64_t batch_size)
     : ISection(PredefinedSectionType::BATCH_SIZE),
       m_batch_size(batch_size) {}
 
-void BatchSizeSection::write(std::ostream& stream, BlobWriter* writer) {
-    stream.write(reinterpret_cast<const char*>(&m_batch_size), sizeof(m_batch_size));
+void BatchSizeSection::write(const std::unique_ptr<BlobWriterInterface>& writer) {
+    writer->write(&m_batch_size, sizeof(m_batch_size));
 }
 
 int64_t BatchSizeSection::get_batch_size() const {

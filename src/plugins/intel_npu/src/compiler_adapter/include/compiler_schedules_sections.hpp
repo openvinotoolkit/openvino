@@ -15,7 +15,7 @@ public:
 
     ELFMainScheduleSection(ov::Tensor main_schedule);
 
-    void write(std::ostream& stream, BlobWriter* writer) override;
+    void write(const std::unique_ptr<BlobWriterInterface>& writer) override;
 
     void set_graph(const std::shared_ptr<Graph>& graph);
 
@@ -34,7 +34,7 @@ public:
 
     ELFInitSchedulesSection(std::vector<ov::Tensor>& init_schedules);
 
-    void write(std::ostream& stream, BlobWriter* writer) override;
+    void write(const std::unique_ptr<BlobWriterInterface>& writer) override;
 
     void set_graph(const std::shared_ptr<WeightlessGraph>& weightless_graph);
 
