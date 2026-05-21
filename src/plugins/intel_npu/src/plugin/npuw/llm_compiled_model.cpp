@@ -11,11 +11,12 @@
 #include "llm_infer_request.hpp"
 #include "logging.hpp"
 #include "moe_transformations/apply_moe_device_routed_transforms.hpp"
+#include "npuw_transformations/add_position_ids_param.hpp"
 #include "npuw_transformations/convert_kvcache_to_precision.hpp"
 #include "npuw_transformations/decompose_gqa.hpp"
 #include "npuw_transformations/lora_stateful_to_stateless.hpp"
 #include "npuw_transformations/optimize_value_tensors.hpp"
-#include "npuw_transformations/patch_phi3_sliding_mask.hpp"
+#include "npuw_transformations/patch_sliding_window_mask.hpp"
 #include "npuw_transformations/reshape_sliced_head_to_static.hpp"
 #include "npuw_transformations/reshape_to_static.hpp"
 #include "npuw_transformations/slice_out_embeds.hpp"
@@ -197,11 +198,16 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
     if (!plugin->get_core()) {
         return std::nullopt;
     }
-    const auto all_devices = plugin->get_core()->get_property("NPU", ov::available_devices);
+    std::vector<std::string> all_devices;
+    try {
+        all_devices = plugin->get_core()->get_property("NPU", ov::available_devices);
+    } catch (const ov::Exception& ex) {
+        LOG_WARN("Failed to query NPU capabilities, defaulting LLM config to backend-agnostic path: " << ex.what());
+        return std::nullopt;
+    }
     if (all_devices.empty()) {
         return std::nullopt;
     }
-
     NPUDesc desc;
     desc.arch = plugin->get_property(ov::device::architecture.name(), ov::AnyMap{}).as<std::string>();
     desc.max_tiles = plugin->get_property(ov::intel_npu::max_tiles.name(), ov::AnyMap{}).as<int64_t>();
@@ -242,8 +248,8 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
         LOG_WARN(compiler_gate_support_msg << "unsupported");
     }
 
-    if (desc.arch == "5010" && desc.compiler_ver >= ONEAPI_MAKE_VERSION(7, 29)) {
-        // Flash attention tile is supported starting from compiler version 7.29 on NPU5010
+    if (desc.arch == "5010" && desc.compiler_ver >= ONEAPI_MAKE_VERSION(8, 1)) {
+        // Flash attention tile with GQA is supported starting from compiler version 8.1 on NPU5010
         desc.support_flash_attention_tile = true;
     }
 
@@ -308,14 +314,52 @@ ov::AnyMap get_default_common_config(const std::optional<NPUDesc>& npudesc) {
     } else {
         config.emplace("NPUW_FUNCALL_FOR_ALL", "YES");
     }
+    auto set_max_tiles_based_on_arch = [&config, &npudesc]() {
+        if (!npudesc.has_value()) {
+            return;
+        }
+        LOG_DEBUG("NPU architecture detected: " << npudesc->arch << ", max tiles: " << npudesc->max_tiles
+                                                << ", compiler DQ support: " << (npudesc->compiler_dq ? "YES" : "NO"));
+
+        // Platform parameter has a higher priority than deviceID
+        std::string npu_platform;
+        if (npudesc->arch != ov::intel_npu::Platform::AUTO_DETECT) {
+            npu_platform = ov::intel_npu::Platform::standardize(npudesc->arch);
+        } else {
+            npu_platform = npudesc->arch;
+        }
+
+        bool set_npu_tiles = false;
+        std::string arch_added_compilation_param;
+        if (npu_platform == ov::intel_npu::Platform::NPU3720) {
+            // Keep baseline settings.
+        } else if (npu_platform == ov::intel_npu::Platform::NPU4000) {
+            set_npu_tiles = true;
+            arch_added_compilation_param = "optimization-level=3";
+        } else if (npu_platform == ov::intel_npu::Platform::NPU5010 ||
+                   npu_platform == ov::intel_npu::Platform::NPU5020) {
+            set_npu_tiles = true;
+        } else if (npu_platform == ov::intel_npu::Platform::AUTO_DETECT) {
+            arch_added_compilation_param = "performance-hint-override=latency";
+        } else {
+            LOG_WARN("Unknown NPU platform: " << npu_platform << ". Default config will be used.");
+        }
+
+        if (set_npu_tiles) {
+            config["NPU_TILES"] = npudesc->max_tiles;
+        }
+
+        if (!arch_added_compilation_param.empty()) {
+            config["NPU_COMPILATION_MODE_PARAMS"] =
+                config["NPU_COMPILATION_MODE_PARAMS"].as<std::string>() + " " + arch_added_compilation_param;
+        }
+    };
+    set_max_tiles_based_on_arch();
     return config;
 }
 
 ov::AnyMap get_default_prefill_config(const std::shared_ptr<ov::Model>& model, const std::optional<NPUDesc>& npudesc) {
     auto config = get_default_common_config(npudesc);
-    if (npudesc.has_value() && npudesc->arch == "4000" && npudesc->max_tiles != -1) {
-        config.emplace("NPU_TILES", npudesc->max_tiles);
-    }
     // Specify NPUW DQ if Compiler DQ is not enabled
     if (!npudesc.has_value() || !npudesc->compiler_dq) {
         if (is_cw_compressed(model)) {
@@ -367,7 +411,7 @@ void merge_config_with(ov::AnyMap& lhs, const ov::AnyMap& rhs) {
 
 void split_llm_properties(const ov::AnyMap& properties, ov::AnyMap& llm_properties, ov::AnyMap& other_properties) {
     for (auto it = properties.begin(); it != properties.end(); ++it) {
-        if (it->first.find("NPUW_LLM") != it->first.npos) {
+        if (it->first.find("NPUW_LLM") != it->first.npos || it->first.find("NPUW_WHISPER") != it->first.npos) {
             llm_properties.insert(*it);
         } else {
             other_properties.insert(*it);
@@ -631,8 +675,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     ov::AnyMap other_props;
     split_llm_properties(properties, npuw_llm_props, other_props);
     const auto npudesc = extract_npu_descriptor(plugin, other_props);
-    auto use_whisper_key = pop_option(other_props, std::string("NPUW_WHISPER"));
-    auto whisper_eos_token = pop_option(other_props, std::string("NPUW_WHISPER_EOS_TOKEN"));
     auto use_eagle_key = pop_option(other_props, std::string("NPUW_EAGLE"));
 
     // Remove map-valued section configs before m_cfg.update(any_copy(...)), since Config expects string options.
@@ -666,14 +708,14 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_INFO("Set NPUW_ATTN_HFA_FUSED to YES");
     }
 
-    m_is_whisper = use_whisper_key.value_or(false).as<bool>() == true;
+    m_is_whisper = m_cfg.get<::intel_npu::NPUW_WHISPER>();
     if (m_is_whisper) {
         m_cfg.update({{"NPUW_LLM_SHARED_HEAD", "NO"}});
         m_cfg.update({{"NPUW_LLM_PREFILL_CHUNK_SIZE", "0"}});
         m_cfg.update({{"NPUW_LLM_CACHE_ROPE", "NO"}});
         m_cfg.update({{"NPUW_LLM_OPTIMIZE_V_TENSORS", "NO"}});
 
-        m_eos_token_id = whisper_eos_token.value_or(50257).as<uint64_t>();
+        m_eos_token_id = m_cfg.get<::intel_npu::NPUW_WHISPER_EOS_TOKEN>();
     }
 
     m_is_eagle = use_eagle_key.value_or(false).as<bool>() == true;
@@ -767,6 +809,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_DEBUG("Text-embedding model rebuild");
         ov::npuw::util::PrepareTextEmbeddingModel(seq_len_dim).run_on_model(kvcache_model);
     } else {
+        LOG_DEBUG("Adding position_ids input in case it doesn't exist in model: LFM-2 case.");
+        ov::npuw::AddPositionIdsParam().run_on_model(kvcache_model);
         LOG_DEBUG("Transform kvcache model from stateful to stateless.");
         ov::pass::StatefulToStateless().run_on_model(kvcache_model);
     }
@@ -782,8 +826,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto lm_head_model = check_and_cut_lm_head(kvcache_model, m_cfg);
 
     if (!m_is_whisper) {
-        LOG_DEBUG("Try patch Phi-3 sliding window mask, if it exists.");
-        ov::npuw::PatchPhi3SlidingMask().run_on_model(kvcache_model);
+        LOG_DEBUG("Try patch sliding window attention mask (Phi-3, Gemma-2, Gemma-3, Gemma-4), if it exists.");
+        ov::npuw::PatchSlidingWindowMask().run_on_model(kvcache_model);
     }
 
     LOG_DEBUG("Creating prefill model as clone of transformed kvcache one.");
@@ -799,11 +843,32 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         m_kvcache_desc = KVCacheDesc{whisper_max_prompt_size, whisper_kvcache_size, 0u, whisper_seq_len_dim, 1u};
         whisper_lhs_seq_size =
             static_cast<uint32_t>(prefill_model->input("encoder_hidden_states").get_partial_shape()[1].get_length());
+        auto whisper_decompose_sdpa = m_cfg.get<::intel_npu::NPUW_WHISPER_DECOMPOSE_SDPA>();
+        if (whisper_decompose_sdpa) {
+            m_kvcache_desc.max_prompt_size = whisper_kvcache_size - 1;
+        }
 
-        ov::npuw::util::PrepareWhisperPrefillModel(m_kvcache_desc.max_prompt_size,
-                                                   whisper_lhs_seq_size)
-            .run_on_model(prefill_model);                                          // Whisper decoder model
+        auto prepare_prefill_model = ov::npuw::util::PrepareWhisperPrefillModel(m_kvcache_desc.max_prompt_size,
+                                                                                whisper_lhs_seq_size,
+                                                                                whisper_decompose_sdpa);
+        prepare_prefill_model.run_on_model(prefill_model);                         // Whisper decoder model
         ov::npuw::util::PrepareWhisperKVCacheModel().run_on_model(kvcache_model);  // Whisper decoder_with_past model
+
+        // FIXME: Whisper Decompose SDPA
+        // WA: to mock new "cross_attention_qk_scaled_scores" outputs in original model
+        if (whisper_decompose_sdpa) {
+            m_decomposed_sdpa_size = prepare_prefill_model.get_decomposed_sdpa_size();
+            auto& mutable_outputs = const_cast<std::vector<ov::Output<const ov::Node>>&>(this->outputs());
+            for (size_t idx = 0; idx < m_decomposed_sdpa_size; idx++) {
+                auto fake_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{});
+                auto fake_result = std::make_shared<ov::op::v0::Result>(fake_param);
+                fake_result->output(0).get_tensor().add_names(
+                    {WhisperInferRequest::whisper_layer_names::qk_scores,
+                     WhisperInferRequest::whisper_layer_names::qk_scores_ + std::to_string(idx)});
+
+                mutable_outputs.emplace_back(fake_result->output(0));
+            }
+        }
     }
 
     LOG_DEBUG("Make prefill model with static shapes");
@@ -812,14 +877,17 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         ov::npuw::ReshapeToStatic(static_cast<uint32_t>(m_prefill_chunk_size),
                                   m_kvcache_desc.max_prompt_size,
                                   axes,
-                                  m_max_lora_rank)
+                                  m_max_lora_rank,
+                                  0,
+                                  true)
             .run_on_model(prefill_model);
     } else {
         ov::npuw::ReshapeToStatic(m_kvcache_desc.max_prompt_size,
                                   m_kvcache_desc.max_prompt_size,
                                   axes,
                                   m_max_lora_rank,
-                                  whisper_lhs_seq_size)
+                                  whisper_lhs_seq_size,
+                                  true)
             .run_on_model(prefill_model);
     }
     LOG_DEBUG("Make kvcache model with static shapes");
@@ -914,6 +982,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     LOG_DEBUG("Converting KV-cache in prefill model to" << kv_kache_storage_type);
     ov::npuw::ConvertKVCacheToPrecision(kv_kache_storage_type).run_on_model(prefill_model);
 
+    std::optional<std::string> user_compilation_mode_params = std::nullopt;
+    if (const auto it = other_props.find("NPU_COMPILATION_MODE_PARAMS"); it != other_props.end()) {
+        user_compilation_mode_params = it->second.as<std::string>();
+    }
+
     auto prefill_config =
         prefill_config_opt.value_or(get_default_prefill_config(prefill_model, npudesc)).as<ov::AnyMap>();
 
@@ -925,6 +998,14 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto generate_config =
         generate_config_opt.value_or(get_default_generate_config(npudesc, generate_hint)).as<ov::AnyMap>();
 
+    const std::optional<std::string> default_compilation_mode_params =
+        [&prefill_config]() -> std::optional<std::string> {
+        if (const auto it = prefill_config.find("NPU_COMPILATION_MODE_PARAMS"); it != prefill_config.end()) {
+            return it->second.as<std::string>();
+        }
+        return std::nullopt;
+    }();
+
     auto prefill_config_addition_value =
         prefill_config_addition.has_value() ? prefill_config_addition.value().as<ov::AnyMap>() : ov::AnyMap{};
     auto generate_config_addition_value =
@@ -935,12 +1016,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     merge_config_with(prefill_config, prefill_config_addition_value);
     merge_config_with(generate_config, generate_config_addition_value);
 
-    // Convert LLM-specific attention hints to NPUW_ATTN
-    if (npuw_llm_props.count("NPUW_LLM_PREFILL_ATTENTION_HINT")) {
-        prefill_config["NPUW_ATTN"] = npuw_llm_props["NPUW_LLM_PREFILL_ATTENTION_HINT"];
-    }
-    if (npuw_llm_props.count("NPUW_LLM_GENERATE_ATTENTION_HINT")) {
-        generate_config["NPUW_ATTN"] = npuw_llm_props["NPUW_LLM_GENERATE_ATTENTION_HINT"];
+    if (user_compilation_mode_params.has_value() && default_compilation_mode_params.has_value() &&
+        user_compilation_mode_params.value() != default_compilation_mode_params.value()) {
+        LOG_WARN("User-provided NPU_COMPILATION_MODE_PARAMS overrides arch-aware setting \""
+                 << default_compilation_mode_params.value() << "\". User value: \""
+                 << user_compilation_mode_params.value() << "\".");
     }
 
     // Generate a random weights bank name unique to this LLMCompiledModel object
@@ -957,12 +1037,28 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "4"},
         {"NPUW_UNFOLD_IREQS", "NO"},
     };
-    if (prefill_attn_dyn || prefill_attn_pyramid || prefill_attn_hfa) {
+
+    if (m_use_chunk_prefill && (prefill_attn_pyramid || prefill_attn_hfa || prefill_attn_dyn)) {
+        prefill_config["NPUW_ATTN"] = ::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT::toString(prefill_attn_hint);
         merge_config_with(prefill_config, dyn_attn_opts);
     }
-    if (generate_attn_dyn || generate_attn_pyramid || generate_attn_hfa) {
+
+    if (generate_attn_pyramid || generate_attn_hfa || generate_attn_dyn) {
+        generate_config["NPUW_ATTN"] = ::intel_npu::NPUW_LLM_GENERATE_ATTENTION_HINT::toString(generate_attn_hint);
         merge_config_with(generate_config, dyn_attn_opts);
     }
+
+    // Note: with dynamic attention in EITHER STAGE, we have to
+    // explicitly disable the run-time fallback to so extra ov::Model
+    // references won't be held by the npuw::CompiledModel, resulting
+    // in a higher memory consumption. This behavior should be reworked!
+    // The reason here is that NPUW_DEVICES may come as a global setting,
+    // impacting all the stages.
+    if (prefill_attn_dyn || generate_attn_dyn) {
+        prefill_config["NPUW_FALLBACK_EXEC"] = "NO";
+        generate_config["NPUW_FALLBACK_EXEC"] = "NO";
+    }
+
     if (is_moe) {
         // Apply MoE configuration for prefill stage
         const auto prefill_moe_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_MOE_HINT>();
@@ -980,17 +1076,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             }
             LOG_INFO("DEVICE_ROUTED MoE transformations completed");
         }
-    }
-    // Note: with dynamic attention in EITHER STAGE, we have to
-    // explicitly disable the run-time fallback to so extra ov::Model
-    // references won't be held by the npuw::CompiledModel, resulting
-    // in a higher memory consumption. This behavior should be reworked!
-    // The reason here is that NPUW_DEVICES may come as a global setting,
-    // impacting all the stages.
-    if (prefill_attn_dyn || generate_attn_dyn) {
-        const ov::AnyMap no_runtime_fallback = {{"NPUW_FALLBACK_EXEC", "NO"}};
-        merge_config_with(prefill_config, no_runtime_fallback);
-        merge_config_with(generate_config, no_runtime_fallback);
     }
 
     if (m_is_whisper) {
@@ -1134,7 +1219,7 @@ void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
     }
 }
 
-void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw::s11n::CompiledContext& ctx) const {
+void ov::npuw::LLMCompiledModel::serialize(std::ostream& raw_stream, const ov::npuw::s11n::CompiledContext& ctx) const {
     LOG_INFO("Serializing LLMCompiledModel...");
     LOG_BLOCK();
 
@@ -1149,41 +1234,32 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
     }
 
     auto write_model_meta = [&](std::ostream& model_stream) {
+        auto stream = Stream::writer(model_stream);
         // Serialize name
-        write(model_stream, m_name);
+        stream & m_name;
 
         // Serialize inputs and outputs
-        write(model_stream, inputs());
-        write(model_stream, outputs());
+        stream& inputs() & outputs();
 
         // Serialize LLMCompiledModel-specific data
-        write(model_stream, m_kvcache_desc.max_prompt_size);
-        write(model_stream, m_kvcache_desc.total_size);
-        write(model_stream, m_kvcache_desc.num_stored_tokens);
-        write(model_stream, m_kvcache_desc.dim);
-        write(model_stream, m_kvcache_desc.max_generation_token_len);
-        write(model_stream, m_kvcache_desc.v_tensors_transposed_pre);
-        write(model_stream, m_kvcache_desc.v_tensors_transposed_gen);
-        write(model_stream, m_prefill_chunk_size);
-        write(model_stream, m_use_chunk_prefill);
-        write(model_stream, m_max_lora_rank);
-        write(model_stream, m_enable_prefix_caching);
-        write(model_stream, m_prefix_caching_block_size);
-        write(model_stream, m_prefix_caching_max_num_blocks);
-        write(model_stream, m_is_whisper);
-        write(model_stream, m_eos_token_id);
-        write(model_stream, m_is_eagle);
-        write(model_stream, m_is_embedding);
+        stream & m_kvcache_desc.max_prompt_size & m_kvcache_desc.total_size & m_kvcache_desc.num_stored_tokens &
+            m_kvcache_desc.dim & m_kvcache_desc.max_generation_token_len & m_kvcache_desc.v_tensors_transposed_pre &
+            m_kvcache_desc.v_tensors_transposed_gen & m_prefill_chunk_size & m_use_chunk_prefill & m_max_lora_rank &
+            m_enable_prefix_caching & m_prefix_caching_block_size & m_prefix_caching_max_num_blocks & m_is_whisper &
+            m_eos_token_id & m_decomposed_sdpa_size & m_is_eagle & m_is_embedding;
 
         // Write config
-        write(model_stream, m_cfg);
+        stream & m_cfg;
 
         // Serialize KV cache model variants
-        write(model_stream, m_kvcache_sizes);
-        write(model_stream, static_cast<uint32_t>(m_generate_compiled_variants.size()));
+        auto variant_count = static_cast<uint32_t>(m_generate_compiled_variants.size());
+        stream & m_kvcache_sizes & variant_count;
 
         // Serialize CompiledModels
         // Note: no need to pass any encryption here as it's done in export_model()
+        // This cache is collected on the original LLM graph before BF16->FP16
+        // conversion and submodel splitting. Child CompiledModels must serialize
+        // this propagated view, not just their local post-transform snapshot.
         CompiledContext enc_ctx(false, nullptr, nullptr, m_bf16_consts);
 
         // Serialize all generate variants
@@ -1193,7 +1269,7 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
 
         m_prefill_compiled->serialize(model_stream, enc_ctx);
         const bool is_shared_lm_head = m_lm_head_compiled != nullptr;
-        write(model_stream, is_shared_lm_head);
+        stream & is_shared_lm_head;
         if (is_shared_lm_head) {
             m_lm_head_compiled->serialize(model_stream, enc_ctx);
         }
@@ -1202,24 +1278,24 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
     std::stringstream non_encrypted_stream;
     if (ctx.encrypted) {
         NPUW_ASSERT(ctx.encrypt && "Encryption function isn't provided!");
-        non_encrypted_stream.copyfmt(stream);
+        non_encrypted_stream.copyfmt(raw_stream);
         write_model_meta(non_encrypted_stream);
         std::string encrypted_str = ctx.encrypt(non_encrypted_stream.str());
-        write(stream, encrypted_str);
+        write(raw_stream, encrypted_str);
     } else {
-        write_model_meta(stream);
+        write_model_meta(raw_stream);
     }
 
     // Serialize bank name
     const auto& kv_bank = m_kvcache_compiled->get_weights_bank();
     const auto& p_bank = m_prefill_compiled->get_weights_bank();
     NPUW_ASSERT(kv_bank && p_bank && kv_bank == p_bank && "Prefill and KVCache models' weight bank should be shared!");
-    write(stream, kv_bank->get_name());
+    auto stream = Stream::writer(raw_stream);
+    auto bank_name = kv_bank->get_name();
+    stream & bank_name;
 
     if (!is_weightless) {
-        // Serialize weights bank
-        // Note: no need to encrypt weights in full flow
-        kv_bank->serialize(stream);
+        stream&* kv_bank;
     }
 
     LOG_INFO("Done.");
@@ -1280,9 +1356,9 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
 
     auto read_and_finalize_banks = [&](std::istream& model_stream,
                                        const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled) {
-        // Deserialize weights bank name
+        auto stream = Stream::reader(model_stream);
         std::string bank_name;
-        read(model_stream, bank_name);
+        stream & bank_name;
 
         if (is_weightless) {
             auto bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
@@ -1300,8 +1376,8 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
                 compiled->m_lm_head_compiled->finalize_weights_bank();
             }
         } else {
-            auto bank =
-                ov::npuw::weights::Bank::deserialize(model_stream, compiled->get_plugin()->get_core(), bank_name);
+            auto bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
+            stream&* bank;
 
             compiled->m_kvcache_compiled->set_weights_bank(bank);
             for (const auto& compiled_variant : compiled->m_generate_compiled_variants) {
@@ -1366,49 +1442,40 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     using namespace ov::npuw::s11n;
 
     auto read_model_meta = [&](std::istream& model_stream) {
+        auto stream = Stream::reader(model_stream);
         // Deserialize model name first
         std::string model_name;
-        read(model_stream, model_name);
+        stream & model_name;
 
         // Create a dummy CompiledModel with an empty ov::Model - this will skip the constructor flow
         // to continue deserialization
         ov::ParameterVector parameters;
         ov::NodeVector results;
 
-        read(model_stream, parameters);
-        read(model_stream, results);
+        stream & parameters & results;
 
         auto ov_model = std::make_shared<ov::Model>(ov::as_output_vector(results), parameters, model_name);
 
         auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(ov_model, plugin, true);
 
         // Deserialize LLMCompiledModel-specific data
-        read(model_stream, compiled->m_kvcache_desc.max_prompt_size);
-        read(model_stream, compiled->m_kvcache_desc.total_size);
-        read(model_stream, compiled->m_kvcache_desc.num_stored_tokens);
-        read(model_stream, compiled->m_kvcache_desc.dim);
-        read(model_stream, compiled->m_kvcache_desc.max_generation_token_len);
-        read(model_stream, compiled->m_kvcache_desc.v_tensors_transposed_pre);
-        read(model_stream, compiled->m_kvcache_desc.v_tensors_transposed_gen);
-        read(model_stream, compiled->m_prefill_chunk_size);
-        read(model_stream, compiled->m_use_chunk_prefill);
-        read(model_stream, compiled->m_max_lora_rank);
-        read(model_stream, compiled->m_enable_prefix_caching);
-        read(model_stream, compiled->m_prefix_caching_block_size);
-        read(model_stream, compiled->m_prefix_caching_max_num_blocks);
-        read(model_stream, compiled->m_is_whisper);
-        read(model_stream, compiled->m_eos_token_id);
-        read(model_stream, compiled->m_is_eagle);
-        read(model_stream, compiled->m_is_embedding);
+        stream & compiled->m_kvcache_desc.max_prompt_size & compiled->m_kvcache_desc.total_size &
+            compiled->m_kvcache_desc.num_stored_tokens & compiled->m_kvcache_desc.dim &
+            compiled->m_kvcache_desc.max_generation_token_len & compiled->m_kvcache_desc.v_tensors_transposed_pre &
+            compiled->m_kvcache_desc.v_tensors_transposed_gen & compiled->m_prefill_chunk_size &
+            compiled->m_use_chunk_prefill & compiled->m_max_lora_rank & compiled->m_enable_prefix_caching &
+            compiled->m_prefix_caching_block_size & compiled->m_prefix_caching_max_num_blocks & compiled->m_is_whisper &
+            compiled->m_eos_token_id & compiled->m_decomposed_sdpa_size & compiled->m_is_eagle &
+            compiled->m_is_embedding;
 
         // Deserialize config
-        read(model_stream, compiled->m_cfg);
+        stream & compiled->m_cfg;
         compiled->implement_properties();
 
         // Deserialize KV cache model variants
-        read(model_stream, compiled->m_kvcache_sizes);
+        stream & compiled->m_kvcache_sizes;
         uint32_t num_variants = 0;
-        read(model_stream, num_variants);
+        stream & num_variants;
 
         compiled->m_generate_compiled_variants.reserve(num_variants);
 
@@ -1429,7 +1496,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
 
         compiled->m_prefill_compiled = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
         bool is_shared_lm_head = false;
-        read(model_stream, is_shared_lm_head);
+        stream & is_shared_lm_head;
         if (is_shared_lm_head) {
             compiled->m_lm_head_compiled =
                 ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
@@ -1532,6 +1599,7 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::shared_lm_head, NPUW_LLM_SHARED_HEAD, get),
                           BIND(npuw::whisper::enabled, NPUW_WHISPER, get),
                           BIND(npuw::whisper::whisper_eos_token, NPUW_WHISPER_EOS_TOKEN, get),
+                          BIND(npuw::whisper::whisper_decompose_sdpa, NPUW_WHISPER_DECOMPOSE_SDPA, get),
                           BIND(npuw::eagle::enabled, NPUW_EAGLE, get),
                           BIND(npuw::text_embed::enabled, NPUW_TEXT_EMBED, get)});
 #undef BIND

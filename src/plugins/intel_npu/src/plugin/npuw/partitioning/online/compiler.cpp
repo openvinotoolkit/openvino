@@ -223,11 +223,14 @@ class Compiler {
     }
 
 public:
-    Compiler(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& cfg)
+    Compiler(const std::shared_ptr<ov::Model>& model,
+             ::intel_npu::Config& cfg,
+             const ov::npuw::v1::subgraphs::PatternRegistry* subgraph_patterns)
         : m_model(model),
           m_snapshot(std::make_shared<Snapshot>(model)),
           m_cfg(cfg) {
         PassContext ctx(m_cfg);
+        ctx.subgraph_patterns = subgraph_patterns;
 
         if (currentPipeline() == Pipeline::NONE && ctx.avoids.empty()) {
             none_fast();
@@ -351,10 +354,12 @@ private:
 }  // namespace ov
 
 // TODO: decouple configuration for partitioning from the plugin's cfg.
-ov::npuw::Ensemble ov::npuw::online::buildPartitioning(const std::shared_ptr<ov::Model>& model,
-                                                       ::intel_npu::Config& cfg) {
+ov::npuw::Ensemble ov::npuw::online::buildPartitioning(
+    const std::shared_ptr<ov::Model>& model,
+    ::intel_npu::Config& cfg,
+    const ov::npuw::v1::subgraphs::PatternRegistry* subgraph_patterns) {
     // Creates compiler and runs partitioning algorithm.
-    ov::npuw::online::Compiler partitioner(model, cfg);
+    ov::npuw::online::Compiler partitioner(model, cfg, subgraph_patterns);
 
     // Convert groups formed after passes into plugin-compatible data structure.
     return partitioner.getPartitioning();

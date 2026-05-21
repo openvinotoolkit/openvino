@@ -14,6 +14,7 @@
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/gelu.hpp"
 #include "openvino/op/minimum.hpp"
 #include "openvino/op/moe.hpp"
 #include "openvino/op/multiply.hpp"
@@ -24,6 +25,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/gather_matmul.hpp"
@@ -39,13 +41,21 @@ using ov::op::internal::MOECompressed;
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v4 = ov::op::v4;
+namespace v7 = ov::op::v7;
 namespace v8 = ov::op::v8;
 
-Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(size_t has_batch_dim) {
+// Logical K from a weight shape: rank-3 [E, ofm, K] or rank-4 [E, ofm, G, GS].
+static size_t weight_logical_K(const ov::Shape& shape) {
+    OPENVINO_ASSERT(shape.size() == 3 || shape.size() == 4, "MOE weight must be rank 3 or 4, got rank ", shape.size());
+    return shape.size() == 4 ? shape[2] * shape[3] : shape[2];
+}
+
+Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool has_batch_dim) {
     MATCHER_SCOPE(Convert3GatherMatmulMoeBlockToMoeOp);
 
-    auto experts_reshape_m = pattern::any_input();
-    auto unsqueeze_m = pattern::wrap_type<v0::Unsqueeze>({experts_reshape_m, pattern::any_input()});
+    auto hidden_states_m = pattern::any_input();
+    auto hidden_state_reshape = pattern::optional<v1::Reshape>({hidden_states_m, pattern::any_input()});
+    auto unsqueeze_m = pattern::wrap_type<v0::Unsqueeze>({hidden_state_reshape, pattern::any_input()});
 
     auto gate_w_m = pattern::any_input();
     auto topk_indices_m = pattern::any_input();
@@ -60,7 +70,8 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(size_t 
     // Or-pattern
     auto bgm_gate_m = std::make_shared<pattern::op::Or>(OutputVector{bgm_gate_4_m, bgm_gate_6_m});
 
-    auto swish_m = pattern::wrap_type<v4::Swish>({bgm_gate_m});
+    // Gate activation: Swish (SwiGLU) or Gelu (GeGLU) with TANH or ERF approximation.
+    auto swish_m = pattern::wrap_type<v4::Swish, v7::Gelu>({bgm_gate_m});
 
     auto up_w_m = pattern::any_input();
     auto bgm_up_4_m = pattern::wrap_type<GatherMatmul>({unsqueeze_m, up_w_m, topk_indices_m, pattern::any_input()});
@@ -96,8 +107,7 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(size_t 
             return false;
         }
 
-        auto experts_reshape_node = pm.at(experts_reshape_m).get_node_shared_ptr();
-        auto hidden_states = experts_reshape_node->input_value(0);
+        auto hidden_states = pm.at(hidden_states_m);
 
         auto routing = pm.at(routing_unsqueeze_m).get_node_shared_ptr();
         auto topk_indices = pm.at(topk_indices_m);
@@ -105,17 +115,27 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(size_t 
         auto up_w = pm.at(up_w_m);
         auto down_w = pm.at(down_w_m);
 
-        // Extract expert_beta from Swish
+        // Extract expert_beta and detect activation type from the matched gate activation node.
         float expert_beta = 1.0f;
-        auto swish_node = pm.at(swish_m).get_node_shared_ptr();
+        ov::op::internal::MOE::Activation_type activation_type = ov::op::internal::MOE::Activation_type::SWIGLU;
+        auto activation_node = pm.at(swish_m).get_node_shared_ptr();
 
-        auto swish_op = ov::as_type_ptr<v4::Swish>(swish_node);
-        OPENVINO_ASSERT(swish_op, "Unexpected node type matched for Swish: ", *swish_node);
-
-        if (swish_op->get_input_size() > 1) {
-            if (auto beta_const = ov::as_type_ptr<v0::Constant>(swish_op->get_input_node_shared_ptr(1))) {
-                expert_beta = beta_const->cast_vector<float>()[0];
+        if (auto swish_op = ov::as_type_ptr<v4::Swish>(activation_node)) {
+            if (swish_op->get_input_size() > 1) {
+                if (auto beta_const = ov::as_type_ptr<v0::Constant>(swish_op->get_input_node_shared_ptr(1))) {
+                    expert_beta = beta_const->cast_vector<float>()[0];
+                }
             }
+        } else if (auto gelu_op = ov::as_type_ptr<v7::Gelu>(activation_node)) {
+            if (gelu_op->get_approximation_mode() == ov::op::GeluApproximationMode::TANH) {
+                activation_type = ov::op::internal::MOE::Activation_type::GEGLU_TANH;
+            } else if (gelu_op->get_approximation_mode() == ov::op::GeluApproximationMode::ERF) {
+                activation_type = ov::op::internal::MOE::Activation_type::GEGLU_ERF;
+            } else {
+                return false;
+            }
+        } else {
+            OPENVINO_THROW("Unexpected node type matched for gate activation: ", activation_node);
         }
 
         std::shared_ptr<ov::Node> moe_node;
@@ -153,21 +173,30 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(size_t 
             auto wei_partial_shape = gate_w.get_partial_shape();
             OPENVINO_ASSERT(wei_partial_shape.is_static(), "MOE weight shape should be static.");
             auto weight_shape = wei_partial_shape.to_shape();
-            bool group_compressed = (weight_shape.size() == 4);
 
             auto topk_shape = topk_indices.get_partial_shape();
             OPENVINO_ASSERT(topk_shape[1].is_static(), "K dimension in moe topk input should be static.");
 
+            // group_size derived from down-scale; weight_logical_K handles rank-3/4.
+            const auto gate_K = weight_logical_K(weight_shape);
+            const auto down_K = weight_logical_K(pm.at(down_w_m).get_partial_shape().to_shape());
+            const auto down_scale_shape = pm.at(down_scale_m).get_partial_shape().to_shape();
+            const size_t down_num_groups = (down_scale_shape.size() >= 3) ? down_scale_shape[2] : 1;
+            const size_t group_size =
+                (down_num_groups <= 1) ? std::numeric_limits<size_t>::max() : (down_K / down_num_groups);
+            // dynamic-typed zp = symmetric placeholder.
+            const bool has_zp = pm.at(gate_zp_m).get_element_type() != ov::element::dynamic;
+
             MOECompressed::Config compressed_config{
-                {ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU, 0.0f, expert_beta},
-                group_compressed ? weight_shape[2] * weight_shape[3] : weight_shape[2],
+                {ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU, 0.0f, expert_beta, 0, activation_type},
+                gate_K,
                 weight_shape[1],
                 weight_shape[0],
                 0,  // num_shared_expert
                 static_cast<size_t>(topk_shape[1].get_length()),
-                group_compressed ? weight_shape[3] : std::numeric_limits<size_t>::max(),
+                group_size,
                 has_batch_dim,
-                false,
+                has_zp,
                 ov::element::f16,
             };
 
@@ -184,7 +213,11 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(size_t 
                 moe_node = moe_compressed;
             }
         } else {
-            ov::op::internal::MOE::Config config{ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU, 0.0f, expert_beta};
+            ov::op::internal::MOE::Config config{ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU,
+                                                 0.0f,
+                                                 expert_beta,
+                                                 0,
+                                                 activation_type};
             // Plain MOE with 6 inputs
             ov::OutputVector moe_inputs = {hidden_states, routing, topk_indices, gate_w, up_w, down_w};
 
@@ -203,11 +236,12 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(size_t 
     this->register_matcher(matcher, callback);
 }
 
-Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(size_t has_batch_dim) {
+Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(bool has_batch_dim) {
     MATCHER_SCOPE(Convert2GatherMatmulMoeBlockToMoeOp);
 
-    auto experts_reshape_m = pattern::any_input();
-    auto unsqueeze_m = pattern::wrap_type<v0::Unsqueeze>({experts_reshape_m, pattern::any_input()});
+    auto hidden_states_m = pattern::any_input();
+    auto hidden_state_reshape = pattern::optional<v1::Reshape>({hidden_states_m, pattern::any_input()});
+    auto unsqueeze_m = pattern::wrap_type<v0::Unsqueeze>({hidden_state_reshape, pattern::any_input()});
 
     auto gate_up_w_m = pattern::any_input();
     auto topk_indices_m = pattern::any_input();
@@ -247,9 +281,12 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(size_t 
         {multiply2_m, down_w_m, topk_indices_m, down_bias_m, down_scale_m, down_zp_m});
     auto bgm_down_m = bgm_down_4_m | bgm_down_6_m;
 
-    // Compact routing: Transpose → Unsqueeze
-    auto routing_transpose_m = pattern::wrap_type<v1::Transpose>({pattern::any_input(), pattern::any_input()});
-    auto routing_unsqueeze_m = pattern::wrap_type<v0::Unsqueeze>({routing_transpose_m, pattern::any_input()});
+    // No-op Reshape between Transpose and Unsqueeze remains in the graph because
+    // CommonOptimizations run after MoE passes in the GPU pipeline; match it as optional here.
+    auto routing_transpose_order_m = pattern::wrap_type<v0::Constant>(pattern::value_matches("1, 0"));
+    auto routing_transpose_m = pattern::wrap_type<v1::Transpose>({pattern::any_input(), routing_transpose_order_m});
+    auto routing_reshape_m = pattern::optional<v1::Reshape>({routing_transpose_m, pattern::any_input()});
+    auto routing_unsqueeze_m = pattern::wrap_type<v0::Unsqueeze>({routing_reshape_m, pattern::any_input()});
 
     auto final_mul_m = pattern::wrap_type<v1::Multiply>({bgm_down_m, routing_unsqueeze_m});
     auto reduce_sum_m = pattern::wrap_type<v1::ReduceSum>({final_mul_m, pattern::any_input()}, {{"keep_dims", false}});
@@ -263,10 +300,12 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(size_t 
             return false;
         }
 
-        auto experts_reshape_node = pm.at(experts_reshape_m).get_node_shared_ptr();
-        auto hidden_states = experts_reshape_node->input_value(0);
+        auto hidden_states = pm.at(hidden_states_m);
 
-        auto routing = pm.at(routing_unsqueeze_m).get_node_shared_ptr();
+        // Bypass the [1,0] Transpose: moe_scatter_reduction expects tokens-major routing.
+        // Order is enforced by the pattern (value_matches("1, 0")).
+        auto routing_transpose_node = pm.at(routing_transpose_m).get_node_shared_ptr();
+        ov::Output<ov::Node> routing = routing_transpose_node->input_value(0);
         auto topk_indices = pm.at(topk_indices_m);
         auto gate_up_w = pm.at(gate_up_w_m);
         auto gate_up_bias = pm.at(gate_up_bias_m);
@@ -278,11 +317,30 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(size_t 
         float expert_beta = swish_beta_const->cast_vector<float>()[0];
 
         // Extract expert_alpha from Clamp max
-        float expert_alpha = 0.0f;
-
         auto clamp_node = pm.at(clamp_m).get_node_shared_ptr();
         auto clamp_op = ov::as_type_ptr<v0::Clamp>(clamp_node);
         OPENVINO_ASSERT(clamp_op, "Unexpected node type matched for clamp: ", *clamp_node);
+        float expert_alpha = static_cast<float>(clamp_op->get_max());
+
+        // gate_idx = start of the swish (slice2) lane on the step-2 axis.
+        auto slice2_node = pm.at(slice2_m).get_node_shared_ptr();
+        auto slice2_start_c = ov::as_type_ptr<v0::Constant>(slice2_node->input_value(1).get_node_shared_ptr());
+        auto slice2_step_c = ov::as_type_ptr<v0::Constant>(slice2_node->input_value(3).get_node_shared_ptr());
+        if (!slice2_start_c || !slice2_step_c) {
+            return false;
+        }
+        const auto starts = slice2_start_c->cast_vector<int64_t>();
+        const auto steps = slice2_step_c->cast_vector<int64_t>();
+        if (starts.size() != steps.size()) {
+            return false;
+        }
+        size_t gate_idx = 0;
+        for (size_t i = 0; i < steps.size(); ++i) {
+            if (steps[i] == 2) {
+                gate_idx = static_cast<size_t>(starts[i]);
+                break;
+            }
+        }
 
         std::shared_ptr<ov::Node> moe_node;
 
@@ -327,22 +385,28 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(size_t 
             // Populate compressed config from weight shapes
             auto weight_shape = gate_up_w.get_shape();
             auto scale_shape = pm.at(gate_up_scale_m).get_shape();
-            bool group_compressed = (weight_shape.size() == 4);
-            size_t hidden = group_compressed ? weight_shape[2] * weight_shape[3] : weight_shape[2];
+            const size_t hidden = weight_logical_K(weight_shape);
 
             auto topk_indices_shape = topk_indices.get_partial_shape();
             auto topk_rank = topk_indices_shape.rank().get_length();
             OPENVINO_ASSERT(topk_indices_shape[topk_rank - 1].is_static(),
                             "K dimension in moe topk_indices input should be static.");
 
+            // group_size derived from down-scale; weight_logical_K handles rank-3/4.
+            const auto down_K = weight_logical_K(pm.at(down_w_m).get_partial_shape().to_shape());
+            const auto down_scale_shape = pm.at(down_scale_m).get_partial_shape().to_shape();
+            const size_t down_num_groups = (down_scale_shape.size() >= 3) ? down_scale_shape[2] : 1;
+            const size_t group_size =
+                (down_num_groups <= 1) ? std::numeric_limits<size_t>::max() : (down_K / down_num_groups);
+
             MOECompressed::Config compressed_config{
-                {ov::op::internal::MOE::Expert_type::GEMM2_BIAS_SWIGLU_CLAMP, expert_alpha, expert_beta},
+                {ov::op::internal::MOE::Expert_type::GEMM2_BIAS_SWIGLU_CLAMP, expert_alpha, expert_beta, gate_idx},
                 hidden,
                 weight_shape[1],
                 weight_shape[0],
                 0,  // num_shared_expert
                 static_cast<size_t>(topk_indices_shape[topk_rank - 1].get_length()),
-                group_compressed ? weight_shape[3] : std::numeric_limits<size_t>::max(),
+                group_size,
                 has_batch_dim,
                 has_zp,
                 ov::element::dynamic,
@@ -352,7 +416,8 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(size_t 
         } else {
             const ov::op::internal::MOE::Config config{ov::op::internal::MOE::Expert_type::GEMM2_BIAS_SWIGLU_CLAMP,
                                                        expert_alpha,
-                                                       expert_beta};
+                                                       expert_beta,
+                                                       gate_idx};
             // Plain MOE with 7 inputs
             const ov::OutputVector moe_inputs =
                 {hidden_states, routing, topk_indices, gate_up_w, gate_up_bias, down_w, down_bias};

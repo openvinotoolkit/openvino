@@ -59,10 +59,11 @@
 #include "openvino/op/util/variable.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/visualize_tree.hpp"
-#include "transformations/sdpa_to_paged_attention/position_ids_replacer.hpp"
-#include "transformations/sdpa_to_paged_attention/prev_sequence_length_pattern.hpp"
-#include "transformations/sdpa_to_paged_attention/state_management_pattern.hpp"
-#include "transformations/sdpa_to_paged_attention/total_sequence_length_pattern.hpp"
+#include "transformations/paged_attention/position_ids_replacer.hpp"
+#include "transformations/paged_attention/prev_sequence_length_pattern.hpp"
+#include "transformations/paged_attention/state_management_pattern.hpp"
+#include "transformations/paged_attention/total_sequence_length_pattern.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/utils/gen_pattern.hpp"
 
 using namespace ov;
@@ -665,6 +666,67 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_General) {
     disable_rt_info_check();
 }
 
+TEST(SDPAToPAKeepConstPrecisionTest, Qwen7bChat_KVCacheParamsMarkedKeepConstPrecision) {
+    for (const auto& model_precision : std::vector<element::Type>{element::f16, element::f32}) {
+        auto beam_idx = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN}}, el_type_i64});
+        auto position_ids = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN, DYN}}, el_type_i64});
+        auto attention_mask = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN, DYN}}, el_type_i64});
+        auto input_ids = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN, DYN}}, el_type_i64});
+        NodeVector input_nodes{input_ids, attention_mask, position_ids, beam_idx};
+        auto params = nodes_to_params(input_nodes);
+
+        beam_idx->output(0).add_names({"beam_idx"});
+        position_ids->output(0).add_names({"position_ids"});
+        attention_mask->output(0).add_names({"attention_mask"});
+        input_ids->output(0).add_names({"input_ids"});
+
+        auto embeddings = Qwen7bChatSDPA::gen_embeddings(input_ids);
+        auto qkv_proj = Qwen7bChatSDPA::gen_qkv_proj(embeddings);
+
+        auto k_cache = Qwen7bChatSDPA::gen_cache(input_ids, beam_idx, "K_cache");
+        auto v_cache = Qwen7bChatSDPA::gen_cache(input_ids, beam_idx, "V_cache");
+
+        auto current_seq_len = Qwen7bChatSDPA::gen_current_len(input_ids);
+        auto past_seq_len = Qwen7bChatSDPA::gen_past_len(k_cache);
+        auto total_seq_len = Qwen7bChatSDPA::gen_total_len(current_seq_len, past_seq_len);
+
+        auto neg_cur_seq_len = Qwen7bChatSDPA::neg_mul(current_seq_len);
+        auto head_size = shared_ptr<Node>();
+        auto rope_emb_sin =
+            Qwen7bChatSDPA::gen_rope_emb_sin(total_seq_len, neg_cur_seq_len, head_size, model_precision);
+        auto rope_emb_cos = Qwen7bChatSDPA::gen_rope_emb_cos(total_seq_len, neg_cur_seq_len, model_precision);
+
+        auto rope_q = Qwen7bChatSDPA::gen_rope(QKV::Q, qkv_proj, head_size, rope_emb_sin, rope_emb_cos);
+        auto rope_k = Qwen7bChatSDPA::gen_rope(QKV::K, qkv_proj, head_size, rope_emb_sin, rope_emb_cos);
+
+        auto total_seq_len_2 = Qwen7bChatSDPA::gen_total_seq_len_2(past_seq_len, rope_k);
+        auto past_seq_len_2 = Qwen7bChatSDPA::gen_past_seq_len_2(total_seq_len_2, rope_q);
+
+        auto Q = Qwen7bChatSDPA::gen_Q(past_seq_len_2, total_seq_len_2, rope_q);
+        auto K = Qwen7bChatSDPA::gen_K(k_cache, rope_k);
+        auto V = Qwen7bChatSDPA::gen_V(v_cache, qkv_proj);
+
+        auto attention_mask_to_sdpa = Qwen7bChatSDPA::gen_attention_mask(Q, attention_mask, total_seq_len_2);
+        auto sdpa = std::make_shared<v13::ScaledDotProductAttention>(Q, K, V, attention_mask_to_sdpa, false);
+        auto res = std::make_shared<v0::Result>(sdpa);
+
+        auto transformed_model = std::make_shared<ov::Model>(ResultVector{res}, params);
+        ov::pass::Manager local_manager;
+        local_manager.register_pass<ov::pass::SDPAToPagedAttention>();
+        local_manager.run_passes(transformed_model);
+
+        size_t kv_cache_params_count = 0;
+        for (const auto& parameter : transformed_model->get_parameters()) {
+            const std::string& parameter_name = parameter->get_friendly_name();
+            if (parameter_name.rfind("key_cache.", 0) == 0 || parameter_name.rfind("value_cache.", 0) == 0) {
+                kv_cache_params_count += 1;
+                EXPECT_TRUE(is_keep_const_precision(parameter)) << "Parameter is not marked: " << parameter_name;
+            }
+        }
+        EXPECT_GT(kv_cache_params_count, 0);
+    }
+}
+
 TEST_F(SDPAToPATest, SDPAToPA_Qwen7bChat_TotalSequenceLengthPattern) {
     {
         // Inputs to SDPA transformer:
@@ -780,6 +842,250 @@ TEST_F(SDPAToPATest, SDPAToPA_Qwen7bChat_PositionIDsReplacerQwenPattern) {
     comparator.disable(FunctionsComparator::PRECISIONS);
     disable_result_friendly_names_check();
     disable_rt_info_check();
+}
+
+TEST_F(SDPAToPATest, SDPAToPA_PositionIDsReplacerLFM2_DequantStartBranch) {
+    {
+        auto max_context_len = std::make_shared<v0::Parameter>(element::i64, PartialShape{});
+        auto prev_seq_len = std::make_shared<v0::Parameter>(element::i64, PartialShape{});
+        auto curr_seq_len = std::make_shared<v0::Parameter>(element::i64, PartialShape{});
+        auto lhs = std::make_shared<v0::Parameter>(element::f32, PartialShape{1, 1, 1});
+        auto position_ids = std::make_shared<v0::Parameter>(element::i64, PartialShape{1, DYN});
+
+        auto start_subtract = std::make_shared<v1::Subtract>(max_context_len, prev_seq_len);
+        auto start = std::make_shared<v0::Convert>(start_subtract, element::i64);
+        auto end = std::make_shared<v1::Add>(start, curr_seq_len);
+        auto step = v0::Constant::create(element::i64, Shape{}, {1});
+        auto range = std::make_shared<v4::Range>(start, end, step, element::i64);
+        range->set_friendly_name("lfm2_range");
+
+        auto unsqueeze_axis = v0::Constant::create(element::i64, Shape{1}, {0});
+        auto unsqueeze_1 = std::make_shared<v0::Unsqueeze>(range, unsqueeze_axis);
+        auto unsqueeze_2 = std::make_shared<v0::Unsqueeze>(unsqueeze_1, unsqueeze_axis);
+        auto convert = std::make_shared<v0::Convert>(unsqueeze_2, element::f32);
+        auto matmul = std::make_shared<v0::MatMul>(lhs, convert, false, false);
+        auto transpose =
+            std::make_shared<v1::Transpose>(matmul, v0::Constant::create(element::i64, Shape{3}, {0, 2, 1}));
+        auto concat = std::make_shared<v0::Concat>(OutputVector{transpose, transpose}, 2);
+        auto cos = std::make_shared<v0::Cos>(concat);
+        auto sin = std::make_shared<v0::Sin>(concat);
+        auto q = std::make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto mul_l = std::make_shared<v1::Multiply>(cos, q);
+        auto mul_r = std::make_shared<v1::Multiply>(sin, q);
+        auto add = std::make_shared<v1::Add>(mul_l, mul_r);
+        auto result = std::make_shared<v0::Result>(add);
+
+        model =
+            std::make_shared<Model>(ResultVector{result},
+                                    ParameterVector{max_context_len, prev_seq_len, curr_seq_len, lhs, position_ids, q});
+        manager.register_pass<pass::PositionIDsReplacerLFM2>(position_ids);
+    }
+
+    {
+        auto max_context_len = std::make_shared<v0::Parameter>(element::i64, PartialShape{});
+        auto prev_seq_len = std::make_shared<v0::Parameter>(element::i64, PartialShape{});
+        auto curr_seq_len = std::make_shared<v0::Parameter>(element::i64, PartialShape{});
+        auto lhs = std::make_shared<v0::Parameter>(element::f32, PartialShape{1, 1, 1});
+        auto position_ids = std::make_shared<v0::Parameter>(element::i64, PartialShape{1, DYN});
+
+        auto pos_ids_shape = v0::Constant::create(element::i64, Shape{1}, {-1});
+        auto position_ids_1d = std::make_shared<v1::Reshape>(position_ids, pos_ids_shape, false);
+        position_ids_1d->set_friendly_name("lfm2_range_position_ids");
+
+        auto unsqueeze_axis = v0::Constant::create(element::i64, Shape{1}, {0});
+        auto unsqueeze_1 = std::make_shared<v0::Unsqueeze>(position_ids_1d, unsqueeze_axis);
+        auto unsqueeze_2 = std::make_shared<v0::Unsqueeze>(unsqueeze_1, unsqueeze_axis);
+        auto convert = std::make_shared<v0::Convert>(unsqueeze_2, element::f32);
+        auto matmul = std::make_shared<v0::MatMul>(lhs, convert, false, false);
+        auto transpose =
+            std::make_shared<v1::Transpose>(matmul, v0::Constant::create(element::i64, Shape{3}, {0, 2, 1}));
+        auto concat = std::make_shared<v0::Concat>(OutputVector{transpose, transpose}, 2);
+        auto concat_transpose =
+            std::make_shared<v1::Transpose>(concat, v0::Constant::create(element::i64, Shape{3}, {1, 0, 2}));
+        auto cos = std::make_shared<v0::Cos>(concat_transpose);
+        auto sin = std::make_shared<v0::Sin>(concat_transpose);
+        auto q = std::make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto mul_l = std::make_shared<v1::Multiply>(cos, q);
+        auto mul_r = std::make_shared<v1::Multiply>(sin, q);
+        auto add = std::make_shared<v1::Add>(mul_l, mul_r);
+
+        model_ref =
+            std::make_shared<Model>(OutputVector{add},
+                                    ParameterVector{max_context_len, prev_seq_len, curr_seq_len, lhs, position_ids, q});
+    }
+
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+}
+
+TEST_F(SDPAToPATest, SDPAToPA_PositionIDsReplacerLFM2_DirectParameterBranch) {
+    {
+        auto max_context_len = std::make_shared<v0::Parameter>(element::i64, PartialShape{});
+        auto curr_seq_len = std::make_shared<v0::Parameter>(element::i64, PartialShape{});
+        auto lhs = std::make_shared<v0::Parameter>(element::f32, PartialShape{1, 1, 1});
+        auto position_ids = std::make_shared<v0::Parameter>(element::i64, PartialShape{DYN});
+
+        auto end = std::make_shared<v1::Add>(max_context_len, curr_seq_len);
+        auto step = v0::Constant::create(element::i64, Shape{}, {1});
+        auto range = std::make_shared<v4::Range>(max_context_len, end, step, element::i64);
+        range->set_friendly_name("lfm2_range");
+
+        auto shape_3d = v0::Constant::create(element::i64, Shape{3}, {1, 1, -1});
+        auto reshape = std::make_shared<v1::Reshape>(range, shape_3d, false);
+        auto convert = std::make_shared<v0::Convert>(reshape, element::f32);
+        auto matmul = std::make_shared<v0::MatMul>(lhs, convert, false, false);
+        auto concat = std::make_shared<v0::Concat>(OutputVector{matmul, matmul}, 2);
+        auto cos = std::make_shared<v0::Cos>(concat);
+        auto sin = std::make_shared<v0::Sin>(concat);
+        auto q = std::make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto mul_l = std::make_shared<v1::Multiply>(cos, q);
+        auto mul_r = std::make_shared<v1::Multiply>(sin, q);
+        auto add = std::make_shared<v1::Add>(mul_l, mul_r);
+        auto result = std::make_shared<v0::Result>(add);
+
+        model = std::make_shared<Model>(ResultVector{result},
+                                        ParameterVector{max_context_len, curr_seq_len, lhs, position_ids, q});
+        manager.register_pass<pass::PositionIDsReplacerLFM2>(position_ids);
+    }
+
+    {
+        auto max_context_len = std::make_shared<v0::Parameter>(element::i64, PartialShape{});
+        auto curr_seq_len = std::make_shared<v0::Parameter>(element::i64, PartialShape{});
+        auto lhs = std::make_shared<v0::Parameter>(element::f32, PartialShape{1, 1, 1});
+        auto position_ids = std::make_shared<v0::Parameter>(element::i64, PartialShape{DYN});
+
+        auto shape_3d = v0::Constant::create(element::i64, Shape{3}, {1, 1, -1});
+        auto reshape = std::make_shared<v1::Reshape>(position_ids, shape_3d, false);
+        auto convert = std::make_shared<v0::Convert>(reshape, element::f32);
+        auto matmul = std::make_shared<v0::MatMul>(lhs, convert, false, false);
+        auto concat = std::make_shared<v0::Concat>(OutputVector{matmul, matmul}, 2);
+        auto concat_transpose =
+            std::make_shared<v1::Transpose>(concat, v0::Constant::create(element::i64, Shape{3}, {1, 0, 2}));
+        auto cos = std::make_shared<v0::Cos>(concat_transpose);
+        auto sin = std::make_shared<v0::Sin>(concat_transpose);
+        auto q = std::make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto mul_l = std::make_shared<v1::Multiply>(cos, q);
+        auto mul_r = std::make_shared<v1::Multiply>(sin, q);
+        auto add = std::make_shared<v1::Add>(mul_l, mul_r);
+
+        model_ref = std::make_shared<Model>(OutputVector{add},
+                                            ParameterVector{max_context_len, curr_seq_len, lhs, position_ids, q});
+    }
+
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+}
+
+TEST_F(SDPAToPATest, SDPAToPA_PositionIDsReplacerLFM2_DirectParameterBranchRank3ConcatTranspose) {
+    {
+        auto max_context_len = std::make_shared<v0::Parameter>(element::i64, PartialShape{});
+        auto curr_seq_len = std::make_shared<v0::Parameter>(element::i64, PartialShape{});
+        auto lhs = std::make_shared<v0::Parameter>(element::f32, PartialShape{1, 1, 1});
+        auto position_ids = std::make_shared<v0::Parameter>(element::i64, PartialShape{DYN});
+
+        auto end = std::make_shared<v1::Add>(max_context_len, curr_seq_len);
+        auto step = v0::Constant::create(element::i64, Shape{}, {1});
+        auto range = std::make_shared<v4::Range>(max_context_len, end, step, element::i64);
+        range->set_friendly_name("lfm2_range");
+
+        auto shape_3d = v0::Constant::create(element::i64, Shape{3}, {1, 1, -1});
+        auto reshape = std::make_shared<v1::Reshape>(range, shape_3d, false);
+        auto convert = std::make_shared<v0::Convert>(reshape, element::f32);
+        auto matmul = std::make_shared<v0::MatMul>(lhs, convert, false, false);
+        auto concat = std::make_shared<v0::Concat>(OutputVector{matmul, matmul}, 2);
+        auto cos = std::make_shared<v0::Cos>(concat);
+        auto sin = std::make_shared<v0::Sin>(concat);
+        auto q = std::make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto mul_l = std::make_shared<v1::Multiply>(cos, q);
+        auto mul_r = std::make_shared<v1::Multiply>(sin, q);
+        auto add = std::make_shared<v1::Add>(mul_l, mul_r);
+        auto result = std::make_shared<v0::Result>(add);
+
+        model = std::make_shared<Model>(ResultVector{result},
+                                        ParameterVector{max_context_len, curr_seq_len, lhs, position_ids, q});
+        manager.register_pass<pass::PositionIDsReplacerLFM2>(position_ids);
+    }
+
+    {
+        auto max_context_len = std::make_shared<v0::Parameter>(element::i64, PartialShape{});
+        auto curr_seq_len = std::make_shared<v0::Parameter>(element::i64, PartialShape{});
+        auto lhs = std::make_shared<v0::Parameter>(element::f32, PartialShape{1, 1, 1});
+        auto position_ids = std::make_shared<v0::Parameter>(element::i64, PartialShape{DYN});
+
+        auto shape_3d = v0::Constant::create(element::i64, Shape{3}, {1, 1, -1});
+        auto reshape = std::make_shared<v1::Reshape>(position_ids, shape_3d, false);
+        auto convert = std::make_shared<v0::Convert>(reshape, element::f32);
+        auto matmul = std::make_shared<v0::MatMul>(lhs, convert, false, false);
+        auto concat = std::make_shared<v0::Concat>(OutputVector{matmul, matmul}, 2);
+        auto concat_transpose =
+            std::make_shared<v1::Transpose>(concat, v0::Constant::create(element::i64, Shape{3}, {1, 0, 2}));
+        auto cos = std::make_shared<v0::Cos>(concat_transpose);
+        auto sin = std::make_shared<v0::Sin>(concat_transpose);
+        auto q = std::make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto mul_l = std::make_shared<v1::Multiply>(cos, q);
+        auto mul_r = std::make_shared<v1::Multiply>(sin, q);
+        auto add = std::make_shared<v1::Add>(mul_l, mul_r);
+
+        model_ref = std::make_shared<Model>(OutputVector{add},
+                                            ParameterVector{max_context_len, curr_seq_len, lhs, position_ids, q});
+    }
+
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+}
+
+TEST_F(SDPAToPATest, SDPAToPA_PositionIDsReplacerLFM2_DirectParameterBranchRank4ConcatTranspose) {
+    {
+        auto max_context_len = std::make_shared<v0::Parameter>(element::i64, PartialShape{});
+        auto curr_seq_len = std::make_shared<v0::Parameter>(element::i64, PartialShape{});
+        auto lhs = std::make_shared<v0::Parameter>(element::f32, PartialShape{1, 1, 1, 1});
+        auto position_ids = std::make_shared<v0::Parameter>(element::i64, PartialShape{DYN});
+
+        auto end = std::make_shared<v1::Add>(max_context_len, curr_seq_len);
+        auto step = v0::Constant::create(element::i64, Shape{}, {1});
+        auto range = std::make_shared<v4::Range>(max_context_len, end, step, element::i64);
+        range->set_friendly_name("lfm2_range");
+
+        auto shape_4d = v0::Constant::create(element::i64, Shape{4}, {1, 1, 1, -1});
+        auto reshape = std::make_shared<v1::Reshape>(range, shape_4d, false);
+        auto convert = std::make_shared<v0::Convert>(reshape, element::f32);
+        auto matmul = std::make_shared<v0::MatMul>(lhs, convert, false, false);
+        auto concat = std::make_shared<v0::Concat>(OutputVector{matmul, matmul}, 3);
+        auto cos = std::make_shared<v0::Cos>(concat);
+        auto sin = std::make_shared<v0::Sin>(concat);
+        auto q = std::make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto mul_l = std::make_shared<v1::Multiply>(cos, q);
+        auto mul_r = std::make_shared<v1::Multiply>(sin, q);
+        auto add = std::make_shared<v1::Add>(mul_l, mul_r);
+        auto result = std::make_shared<v0::Result>(add);
+
+        model = std::make_shared<Model>(ResultVector{result},
+                                        ParameterVector{max_context_len, curr_seq_len, lhs, position_ids, q});
+        manager.register_pass<pass::PositionIDsReplacerLFM2>(position_ids);
+    }
+
+    {
+        auto max_context_len = std::make_shared<v0::Parameter>(element::i64, PartialShape{});
+        auto curr_seq_len = std::make_shared<v0::Parameter>(element::i64, PartialShape{});
+        auto lhs = std::make_shared<v0::Parameter>(element::f32, PartialShape{1, 1, 1, 1});
+        auto position_ids = std::make_shared<v0::Parameter>(element::i64, PartialShape{DYN});
+
+        auto shape_4d = v0::Constant::create(element::i64, Shape{4}, {1, 1, 1, -1});
+        auto reshape = std::make_shared<v1::Reshape>(position_ids, shape_4d, false);
+        auto convert = std::make_shared<v0::Convert>(reshape, element::f32);
+        auto matmul = std::make_shared<v0::MatMul>(lhs, convert, false, false);
+        auto concat = std::make_shared<v0::Concat>(OutputVector{matmul, matmul}, 3);
+        auto concat_transpose =
+            std::make_shared<v1::Transpose>(concat, v0::Constant::create(element::i64, Shape{4}, {2, 1, 0, 3}));
+        auto cos = std::make_shared<v0::Cos>(concat_transpose);
+        auto sin = std::make_shared<v0::Sin>(concat_transpose);
+        auto q = std::make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto mul_l = std::make_shared<v1::Multiply>(cos, q);
+        auto mul_r = std::make_shared<v1::Multiply>(sin, q);
+        auto add = std::make_shared<v1::Add>(mul_l, mul_r);
+
+        model_ref = std::make_shared<Model>(OutputVector{add},
+                                            ParameterVector{max_context_len, curr_seq_len, lhs, position_ids, q});
+    }
+
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
 }
 
 // TODO: split the models in blocks the way it's done for Qwen and make the code not to be such a clutter
@@ -3275,7 +3581,8 @@ TEST_F(SDPAToPATest, SDPAToPA_LFM2) {
         auto MatMul11 = makeOP<v0::MatMul>({Convert21, Convert22}, {{"transpose_a", false}, {"transpose_b", false}});
         auto Transpose10 = makeOP<v1::Transpose>({MatMul11, {0, 2, 1}});
         auto Concat8 = makeOP<v0::Concat>({Transpose10, Transpose10}, {{"axis", -1}});
-        auto Cos0 = makeOP<v0::Cos>({Concat8});
+        auto Transpose11_rope = makeOP<v1::Transpose>({Concat8, {1, 0, 2}});
+        auto Cos0 = makeOP<v0::Cos>({Transpose11_rope});
         auto Unsqueeze7 = makeOP<v0::Unsqueeze>({Cos0, 1});
         auto Multiply20 = makeOP<v1::Multiply>({Transpose9, Unsqueeze7}, {{"auto_broadcast", "numpy"}});
         auto Slice4 = makeOP<v8::Slice>({Transpose9, {2}, {LLONG_MAX}, {1}, {3}});
@@ -3283,7 +3590,7 @@ TEST_F(SDPAToPATest, SDPAToPA_LFM2) {
         auto Multiply21 = makeOP<v1::Multiply>({Slice4, Convert23}, {{"auto_broadcast", "numpy"}});
         auto Slice5 = makeOP<v8::Slice>({Transpose9, {0}, {2}, {1}, {3}});
         auto Concat9 = makeOP<v0::Concat>({Multiply21, Slice5}, {{"axis", -1}});
-        auto Sin0 = makeOP<v0::Sin>({Concat8});
+        auto Sin0 = makeOP<v0::Sin>({Transpose11_rope});
         auto Unsqueeze8 = makeOP<v0::Unsqueeze>({Sin0, 1});
         auto Multiply22 = makeOP<v1::Multiply>({Concat9, Unsqueeze8}, {{"auto_broadcast", "numpy"}});
         auto Add18 = makeOP<v1::Add>({Multiply20, Multiply22}, {{"auto_broadcast", "numpy"}});
@@ -4086,7 +4393,8 @@ TEST_F(SDPAToPATest, SDPAToPA_LFM2) {
         auto MatMul11 = makeOP<v0::MatMul>({Convert23, Convert24}, {{"transpose_a", false}, {"transpose_b", false}});
         auto Transpose10 = makeOP<v1::Transpose>({MatMul11, {0, 2, 1}});
         auto Concat7 = makeOP<v0::Concat>({Transpose10, Transpose10}, {{"axis", -1}});
-        auto Cos0 = makeOP<v0::Cos>({Concat7});
+        auto Transpose10_rope = makeOP<v1::Transpose>({Concat7, {1, 0, 2}});
+        auto Cos0 = makeOP<v0::Cos>({Transpose10_rope});
         auto Unsqueeze8 = makeOP<v0::Unsqueeze>({Cos0, 1});
         auto Multiply20 = makeOP<v1::Multiply>({Transpose9, Unsqueeze8}, {{"auto_broadcast", "numpy"}});
         auto Slice4 = makeOP<v8::Slice>({Transpose9, {2}, {LLONG_MAX}, {1}, {3}});
@@ -4094,7 +4402,7 @@ TEST_F(SDPAToPATest, SDPAToPA_LFM2) {
         auto Multiply21 = makeOP<v1::Multiply>({Slice4, Convert25}, {{"auto_broadcast", "numpy"}});
         auto Slice5 = makeOP<v8::Slice>({Transpose9, {0}, {2}, {1}, {3}});
         auto Concat8 = makeOP<v0::Concat>({Multiply21, Slice5}, {{"axis", -1}});
-        auto Sin0 = makeOP<v0::Sin>({Concat7});
+        auto Sin0 = makeOP<v0::Sin>({Transpose10_rope});
         auto Unsqueeze9 = makeOP<v0::Unsqueeze>({Sin0, 1});
         auto Multiply22 = makeOP<v1::Multiply>({Concat8, Unsqueeze9}, {{"auto_broadcast", "numpy"}});
         auto Add18 = makeOP<v1::Add>({Multiply20, Multiply22}, {{"auto_broadcast", "numpy"}});
@@ -5497,6 +5805,343 @@ TEST_F(SDPAToPATest, SDPAToPA_Gemma3_TokenTypeIds) {
         disable_result_friendly_names_check();
         disable_rt_info_check();
     }
+}
+
+TEST(SDPAToPA, Gemma3n_SharedKVCache_TwoLayersSameReadValue) {
+    // Replicates real Gemma 3n architecture:
+    // - inputs_embeds [?,?,2048], 2 KV heads, 8 Q heads, head_dim=256, GQA ratio=4
+    // - RMSNorm → K/V/Q projections → KV cache → GQA broadcast → SDPA
+    // - Layers 18 and 20 share the same K/V cache (same ReadValue variable_id)
+
+    const int hidden_size = 2048;
+    const int kv_heads = 2;
+    const int q_heads = 8;
+    const int head_dim = 256;
+    const int kv_proj_size = kv_heads * head_dim;  // 512
+    const int q_proj_size = q_heads * head_dim;    // 2048
+    const int gqa_ratio = q_heads / kv_heads;      // 4
+
+    // Linear projection (MatMul → Reshape → Transpose)
+    // Returns transposed output with shape [batch, heads, seq, head_dim]
+    auto make_projection = [&](std::shared_ptr<ov::Node> input, int out_size, int heads) {
+        auto weight = makeConst(element::f32, ov::Shape({(size_t)out_size, (size_t)hidden_size}), MOCK_VALUE);
+        auto matmul = makeOP<v0::MatMul>({input, weight}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto reshape = makeOP<v1::Reshape>({matmul, {0, 0, heads, head_dim}}, {{"special_zero", true}});
+        return makeOP<v1::Transpose>({reshape, {0, 2, 1, 3}});
+    };
+
+    // KV cache path (Variable → ReadValue → Gather(beam_idx) → Concat(past, cur))
+    // Returns {concat, past, assign, variable}
+    struct KVCacheResult {
+        std::shared_ptr<ov::Node> concat;
+        std::shared_ptr<ov::Node> past;
+        std::shared_ptr<v6::Assign> assign;
+    };
+    auto make_kv_cache = [&](std::shared_ptr<ov::Node> cur,
+                             const std::string& var_id,
+                             std::shared_ptr<ov::Node> batch_gather,
+                             std::shared_ptr<ov::Node> beam) -> KVCacheResult {
+        auto var = std::make_shared<ov::op::util::Variable>(
+            ov::op::util::VariableInfo{ov::PartialShape{DYN, kv_heads, DYN, head_dim}, ov::element::f32, var_id});
+        auto init_shape =
+            makeOP<v0::Concat>({batch_gather, {(int64_t)kv_heads}, {0l}, {(int64_t)head_dim}}, {{"axis", 0}});
+        auto init = makeOP<v3::Broadcast>({0.0f, init_shape}, {{"mode", "numpy"}});
+        std::shared_ptr<ov::Node> read = std::make_shared<v6::ReadValue>(init, var);
+        auto past = makeOP<v8::Gather>({read, beam, 0}, {{"batch_dims", 0}});
+        auto concat = makeOP<v0::Concat>({past, cur}, {{"axis", -2}});
+        auto assign = std::make_shared<v6::Assign>(concat, var);
+        return {concat, past, assign};
+    };
+
+    // GQA broadcast (Unsqueeze → Broadcast → Reshape to expand KV heads to Q heads)
+    auto make_gqa_broadcast = [&](std::shared_ptr<ov::Node> kv_concat, std::shared_ptr<ov::Node> bcast_shape) {
+        auto unsqueeze = makeOP<v0::Unsqueeze>({kv_concat, 2});
+        auto broadcast = makeOP<v3::Broadcast>({unsqueeze, bcast_shape}, {{"mode", "bidirectional"}});
+        return makeOP<v1::Reshape>({broadcast, {0, q_heads, -1, head_dim}}, {{"special_zero", true}});
+    };
+
+    // Stub mask subgraph: only ensures position_ids and attention_mask are connected to the graph.
+    // The transformation removes attention_mask and rewires position_ids, so it doesn't inspect mask internals.
+    auto make_attn_mask =
+        [&](std::shared_ptr<ov::Node> pos_ids, std::shared_ptr<ov::Node> attn_mask, std::shared_ptr<ov::Node> kv_past) {
+            auto shape_pos = makeOP<v3::ShapeOf>({pos_ids}, {{"output_type", "i64"}});
+            auto cur_len = makeOP<v8::Gather>({shape_pos, 1, 0}, {{"batch_dims", 0}});
+            auto cur_len_1d = makeOP<v1::Reshape>({cur_len, {1}}, {{"special_zero", false}});
+            auto cur_len_scalar = makeOP<v0::Squeeze>({cur_len_1d, 0});
+
+            auto shape_past = makeOP<v3::ShapeOf>({kv_past}, {{"output_type", "i64"}});
+            auto past_len = makeOP<v8::Gather>({shape_past, 2, 0}, {{"batch_dims", 0}});
+
+            auto total_len = makeOP<v1::Add>({cur_len_scalar, past_len}, {{"auto_broadcast", "numpy"}});
+            auto total_len_unsq = makeOP<v0::Unsqueeze>({total_len, 0});
+            auto batch_dim = makeOP<v8::Gather>({shape_pos, {0}, 0}, {{"batch_dims", 0}});
+            auto bcast_shape = makeOP<v0::Concat>({batch_dim, {1l}, cur_len_1d, total_len_unsq}, {{"axis", 0}});
+
+            auto mask_f32 = makeOP<v0::Convert>({attn_mask}, {{"destination_type", "f32"}});
+            auto mask_bcast = makeOP<v3::Broadcast>({mask_f32, bcast_shape}, {{"mode", "bidirectional"}});
+            auto past_len_1d = makeOP<v1::Reshape>({past_len, {1}}, {{"special_zero", false}});
+            auto slice_end = makeOP<v1::Add>({past_len_1d, cur_len_1d}, {{"auto_broadcast", "numpy"}});
+            return makeOP<v8::Slice>({mask_bcast, {0}, slice_end, {1}, {3}});
+        };
+
+    // RMSNorm: x / sqrt(mean(x^2) + eps) * weight
+    auto make_rms_norm = [&](std::shared_ptr<ov::Node> input, int size) {
+        auto power = makeOP<v1::Power>({input, single_val(3, 2.0f)}, {{"auto_broadcast", "numpy"}});
+        auto mean = makeOP<v1::ReduceMean>({power, {-1}}, {{"keep_dims", true}});
+        auto add_eps = makeOP<v1::Add>({mean, single_val(3, 1e-6f)}, {{"auto_broadcast", "numpy"}});
+        auto sqrt = makeOP<v0::Sqrt>({add_eps});
+        auto div = makeOP<v1::Divide>({input, sqrt}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
+        auto weight = makeConst(element::f32, ov::Shape({1, 1, (size_t)size}), MOCK_VALUE);
+        return makeOP<v1::Multiply>({div, weight}, {{"auto_broadcast", "numpy"}});
+    };
+
+    auto beam_idx = make_param(PartialShape{DYN}, element::i32, "beam_idx");
+    auto position_ids = make_param(PartialShape{DYN, DYN}, element::i64, "position_ids");
+    auto attention_mask = make_param(PartialShape{DYN, DYN}, element::i64, "attention_mask");
+    auto inputs_embeds = make_param(PartialShape{DYN, DYN, hidden_size}, element::f32, "inputs_embeds");
+    auto params = nodes_to_params({beam_idx, position_ids, attention_mask, inputs_embeds});
+
+    auto ShapeOf0 = makeOP<v3::ShapeOf>({inputs_embeds}, {{"output_type", "i64"}});
+    auto Gather0 = makeOP<v8::Gather>({ShapeOf0, {0}, 0}, {{"batch_dims", 0}});
+
+    auto ln_out = make_rms_norm(inputs_embeds, hidden_size);
+
+    // K/V projections and cache
+    auto K_cur = make_projection(ln_out, kv_proj_size, kv_heads);
+    auto V_cur = make_projection(ln_out, kv_proj_size, kv_heads);
+
+    auto [k_concat, k_past, k_assign] = make_kv_cache(K_cur, "past_key_values.18.keypresent.18.key", Gather0, beam_idx);
+    auto [v_concat, v_past, v_assign] =
+        make_kv_cache(V_cur, "past_key_values.18.valuepresent.18.value", Gather0, beam_idx);
+
+    // GQA broadcast shape (shared between K and V)
+    auto k_shape = makeOP<v3::ShapeOf>({k_concat}, {{"output_type", "i64"}});
+    auto k_gather_dims = makeOP<v8::Gather>({k_shape, {0, 1}, 0}, {{"batch_dims", 0}});
+    auto k_gather_dims2 = makeOP<v8::Gather>({k_shape, {2, 3}, 0}, {{"batch_dims", 0}});
+    auto bcast_shape_kv = makeOP<v0::Concat>({k_gather_dims, {(int64_t)gqa_ratio}, k_gather_dims2}, {{"axis", 0}});
+
+    auto K_shared = make_gqa_broadcast(k_concat, bcast_shape_kv);
+    auto V_shared = make_gqa_broadcast(v_concat, bcast_shape_kv);
+
+    auto Slice_mask = make_attn_mask(position_ids, attention_mask, k_past);
+
+    // Two SDPA layers sharing the same K/V, each with own Q projection
+    auto Q_18 = make_projection(ln_out, q_proj_size, q_heads);
+    auto sdpa_18 =
+        makeOP<v13::ScaledDotProductAttention>({Q_18, K_shared, V_shared, Slice_mask, 1.0f}, {{"causal", false}});
+
+    auto Q_20 = make_projection(ln_out, q_proj_size, q_heads);
+    auto sdpa_20 =
+        makeOP<v13::ScaledDotProductAttention>({Q_20, K_shared, V_shared, Slice_mask, 1.0f}, {{"causal", false}});
+
+    auto add_outputs = makeOP<v1::Add>({sdpa_18, sdpa_20}, {numpy_broadcast});
+    auto res = make_shared<v0::Result>(add_outputs);
+
+    auto model = std::make_shared<ov::Model>(OutputVector{res}, SinkVector{k_assign, v_assign}, params);
+
+    ov::pass::Manager pass_manager;
+    pass_manager.register_pass<ov::pass::SDPAToPagedAttention>();
+    pass_manager.run_passes(model);
+
+    std::vector<std::shared_ptr<ov::op::PagedAttentionExtension>> pa_nodes;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(op)) {
+            pa_nodes.push_back(pa);
+        }
+    }
+
+    ASSERT_EQ(pa_nodes.size(), 2u) << "Expected 2 PagedAttention nodes (owner + shared)";
+
+    // Identify owner and shared by write_kv_cache attribute
+    std::shared_ptr<ov::op::PagedAttentionExtension> owner_pa, shared_pa;
+    for (const auto& pa : pa_nodes) {
+        if (pa->get_write_kv_cache()) {
+            ASSERT_EQ(owner_pa, nullptr) << "Expected exactly one owner PA (write_kv_cache=true)";
+            owner_pa = pa;
+        } else {
+            ASSERT_EQ(shared_pa, nullptr) << "Expected exactly one shared PA (write_kv_cache=false)";
+            shared_pa = pa;
+        }
+    }
+    ASSERT_NE(owner_pa, nullptr) << "No owner PA found (write_kv_cache=true)";
+    ASSERT_NE(shared_pa, nullptr) << "No shared PA found (write_kv_cache=false)";
+
+    // Both PAs must reference the SAME key_cache and value_cache Parameters
+    auto owner_k = owner_pa->input(3).get_source_output().get_node_shared_ptr();
+    auto owner_v = owner_pa->input(4).get_source_output().get_node_shared_ptr();
+    auto shared_k = shared_pa->input(3).get_source_output().get_node_shared_ptr();
+    auto shared_v = shared_pa->input(4).get_source_output().get_node_shared_ptr();
+    EXPECT_EQ(owner_k, shared_k) << "Owner and shared PA should share the same key_cache Parameter";
+    EXPECT_EQ(owner_v, shared_v) << "Owner and shared PA should share the same value_cache Parameter";
+
+    // Only 1 unique key_cache and 1 unique value_cache Parameter should exist
+    size_t key_cache_count = 0, value_cache_count = 0;
+    for (const auto& param : model->get_parameters()) {
+        if (param->get_friendly_name().find("key_cache") != std::string::npos)
+            key_cache_count++;
+        if (param->get_friendly_name().find("value_cache") != std::string::npos)
+            value_cache_count++;
+    }
+    EXPECT_EQ(key_cache_count, 1u) << "Expected 1 key_cache parameter (shared)";
+    EXPECT_EQ(value_cache_count, 1u) << "Expected 1 value_cache parameter (shared)";
+}
+
+TEST(SDPAToPA, SingleLayerSlidingWindow) {
+    // Simplified Gemma3-270 model with a single attention layer.
+    // The key part is the sliding window mask subgraph (BitwiseAnd chain)
+    // that gptoss_gemma3_sliding_window_pattern() must match to extract the window size.
+
+    const int num_heads = 4;
+    const int head_dim = 256;
+    const int hidden_size = num_heads * head_dim;  // 1024
+    const int64_t sliding_window_offset = -512;
+
+    auto input_ids = make_param(PartialShape{DYN, DYN}, element::i64, "input_ids");
+    auto attention_mask = make_param(PartialShape{DYN, DYN}, element::i64, "attention_mask");
+    auto position_ids = make_param(PartialShape{DYN, DYN}, element::i64, "position_ids");
+    auto beam_idx = make_param(PartialShape{DYN}, element::i32, "beam_idx");
+    auto params = nodes_to_params({input_ids, attention_mask, position_ids, beam_idx});
+
+    // Embedding (simplified)
+    auto embed_weight = makeConst(element::f32, ov::Shape{32000, (size_t)hidden_size}, MOCK_VALUE);
+    auto embeddings = makeOP<v8::Gather>({embed_weight, input_ids, 0}, {{"batch_dims", 0}});
+
+    // Shared shape info (used by mask and KV cache helpers)
+    auto shape_pos = makeOP<v3::ShapeOf>({position_ids}, {{"output_type", "i64"}});
+    auto batch_dim = makeOP<v8::Gather>({shape_pos, {0}, 0}, {{"batch_dims", 0}});
+
+    // Gemma3 sliding window mask subgraph
+    auto make_gemma3_sliding_window_mask = [&](std::shared_ptr<ov::Node> pos_ids,
+                                               std::shared_ptr<ov::Node> attn_mask,
+                                               int64_t sw_offset) {
+        auto shape_pos = makeOP<v3::ShapeOf>({pos_ids}, {{"output_type", "i64"}});
+        auto batch_dim = makeOP<v8::Gather>({shape_pos, {0}, 0}, {{"batch_dims", 0}});
+        auto cur_len_scalar = makeOP<v8::Gather>({shape_pos, 1, 0}, {{"batch_dims", 0}});
+
+        // kv_idx: [1, 1, total_len]
+        auto kv_range = makeOP<v4::Range>({0, cur_len_scalar, 1}, {{"output_type", "i64"}});
+        auto kv_unsq1 = makeOP<v0::Unsqueeze>({kv_range, 0});
+        auto kv_idx = makeOP<v0::Unsqueeze>({kv_unsq1, 0});
+
+        // q_idx: [1, 1, cur_len, 1]
+        auto q_range = makeOP<v4::Range>({0, cur_len_scalar, 1}, {{"output_type", "i64"}});
+        auto q_unsq1 = makeOP<v0::Unsqueeze>({q_range, 0});
+        auto q_unsq2 = makeOP<v0::Unsqueeze>({q_unsq1, 0});
+        auto q_idx = makeOP<v0::Unsqueeze>({q_unsq2, 3});
+
+        // Causal mask: LessEqual(kv_idx, q_idx)
+        auto less_equal = makeOP<v1::LessEqual>({kv_idx, q_idx}, {numpy_broadcast});
+
+        // Sliding window: Greater(kv_idx, q_idx + offset)
+        auto offset_const = makeConst(element::i64, ov::Shape({1, 1, 1, 1}), {(int)sw_offset});
+        auto add_offset = makeOP<v1::Add>({q_idx, offset_const}, {numpy_broadcast});
+        auto greater = makeOP<v1::Greater>({kv_idx, add_offset}, {numpy_broadcast});
+
+        // BitwiseAnd chain for sliding window
+        auto const_true_1 = makeConst(element::boolean, ov::Shape({}), {1});
+        auto bitwise_and_0 = makeOP<v13::BitwiseAnd>({const_true_1, greater}, {{"auto_broadcast", "numpy"}});
+        auto bitwise_and_1 = makeOP<v13::BitwiseAnd>({bitwise_and_0, less_equal}, {{"auto_broadcast", "numpy"}});
+        auto const_true_2 = makeConst(element::boolean, ov::Shape({}), {1});
+        auto bitwise_and_2 = makeOP<v13::BitwiseAnd>({const_true_2, bitwise_and_1}, {{"auto_broadcast", "numpy"}});
+
+        // attention_mask → boolean reshape [batch, 1, 1, seq]
+        auto attn_mask_bool = makeOP<v0::Convert>({attn_mask}, {{"destination_type", "boolean"}});
+        auto attn_mask_reshape = makeOP<v1::Reshape>({attn_mask_bool, {0, 1, 1, -1}}, {{"special_zero", true}});
+
+        // Sliding window mask: combined with attention_mask
+        auto bitwise_and_3 = makeOP<v13::BitwiseAnd>({bitwise_and_2, attn_mask_reshape}, {{"auto_broadcast", "numpy"}});
+
+        // Broadcast shape [batch, 1, cur_len, total_len]
+        auto cur_len_unsq = makeOP<v0::Unsqueeze>({cur_len_scalar, 0});
+        auto bcast_shape = makeOP<v0::Concat>({batch_dim, {1l}, cur_len_unsq, cur_len_unsq}, {{"axis", 0}});
+
+        auto sw_broadcast = makeOP<v3::Broadcast>({bitwise_and_3, bcast_shape}, {{"mode", "bidirectional"}});
+        return makeOP<v1::Select>({sw_broadcast, 0.0f, -65504.0f}, {numpy_broadcast});
+    };
+
+    auto sw_select = make_gemma3_sliding_window_mask(position_ids, attention_mask, sliding_window_offset);
+
+    struct KVCacheResult {
+        std::shared_ptr<ov::Node> concat;
+        std::shared_ptr<v6::Assign> assign;
+    };
+    auto make_kv_cache = [&](std::shared_ptr<ov::Node> cur, const std::string& var_id) -> KVCacheResult {
+        auto var = std::make_shared<ov::op::util::Variable>(
+            ov::op::util::VariableInfo{ov::PartialShape{DYN, num_heads, DYN, head_dim}, ov::element::f32, var_id});
+        auto init_shape =
+            makeOP<v0::Concat>({batch_dim, {(int64_t)num_heads}, {0l}, {(int64_t)head_dim}}, {{"axis", 0}});
+        auto init = makeOP<v3::Broadcast>({0.0f, init_shape}, {{"mode", "numpy"}});
+        std::shared_ptr<ov::Node> read = std::make_shared<v6::ReadValue>(init, var);
+        auto past = makeOP<v8::Gather>({read, beam_idx, 0}, {{"batch_dims", 0}});
+        auto concat = makeOP<v0::Concat>({past, cur}, {{"axis", -2}});
+        auto assign = std::make_shared<v6::Assign>(concat, var);
+        return {concat, assign};
+    };
+
+    // Projection helper (simplified: no RoPE, no GQA, no bias)
+    auto make_projection = [&](std::shared_ptr<ov::Node> input, int out_size, int heads) {
+        auto weight = makeConst(element::f32, ov::Shape({(size_t)out_size, (size_t)hidden_size}), MOCK_VALUE);
+        auto matmul = makeOP<v0::MatMul>({input, weight}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto reshape = makeOP<v1::Reshape>({matmul, {0, 0, heads, head_dim}}, {{"special_zero", true}});
+        return makeOP<v1::Transpose>({reshape, {0, 2, 1, 3}});
+    };
+
+    // Single layer: Sliding window attention
+    auto Q_0 = make_projection(embeddings, hidden_size, num_heads);
+    auto K_0 = make_projection(embeddings, hidden_size, num_heads);
+    auto V_0 = make_projection(embeddings, hidden_size, num_heads);
+
+    auto kv_0 = make_kv_cache(K_0, "past_key_values.0.key");
+    auto vv_0 = make_kv_cache(V_0, "past_key_values.0.value");
+
+    auto sdpa_0 =
+        makeOP<v13::ScaledDotProductAttention>({Q_0, kv_0.concat, vv_0.concat, sw_select, 1.0f}, {{"causal", false}});
+
+    // Output (simplified: no output projection, no residual, no MLP)
+    auto res = std::make_shared<v0::Result>(sdpa_0);
+
+    auto model = std::make_shared<ov::Model>(OutputVector{res}, SinkVector{kv_0.assign, vv_0.assign}, params);
+
+    ov::pass::Manager pass_manager;
+    pass_manager.register_pass<ov::pass::SDPAToPagedAttention>();
+    pass_manager.run_passes(model);
+
+    std::shared_ptr<ov::op::PagedAttentionExtension> pa;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (auto node = ov::as_type_ptr<ov::op::PagedAttentionExtension>(op)) {
+            pa = node;
+        }
+    }
+    ASSERT_NE(pa, nullptr);
+
+    // Check sliding_window value (input port 10)
+    // Should have offset * -1 = 512
+    auto sw_input = pa->input_value(10);
+    auto mul = ov::as_type_ptr<v1::Multiply>(sw_input.get_node_shared_ptr());
+    ASSERT_NE(mul, nullptr) << "PA sliding_window should be Multiply node (offset * -1)";
+
+    // Verify the -1 constant
+    auto neg_one = ov::as_type_ptr<v0::Constant>(mul->input_value(1).get_node_shared_ptr());
+    ASSERT_NE(neg_one, nullptr);
+    EXPECT_EQ(neg_one->cast_vector<int32_t>()[0], -1);
+
+    // Trace through Convert → Squeeze → original constant
+    auto convert_node = mul->input_value(0).get_node_shared_ptr();
+    std::shared_ptr<ov::Node> squeeze_node;
+    if (ov::as_type_ptr<v0::Convert>(convert_node)) {
+        squeeze_node = convert_node->input_value(0).get_node_shared_ptr();
+    } else {
+        squeeze_node = convert_node;
+    }
+
+    std::shared_ptr<v0::Constant> offset_node;
+    if (auto sq = ov::as_type_ptr<v15::Squeeze>(squeeze_node)) {
+        offset_node = ov::as_type_ptr<v0::Constant>(sq->input_value(0).get_node_shared_ptr());
+    } else {
+        offset_node = ov::as_type_ptr<v0::Constant>(squeeze_node);
+    }
+    ASSERT_NE(offset_node, nullptr) << "Could not find original offset constant";
+    EXPECT_EQ(offset_node->cast_vector<int64_t>()[0], sliding_window_offset);
 }
 
 /*

@@ -56,21 +56,6 @@ using namespace ov::intel_cpu;
 // currently depends on brgemm which only support x64 or ARM SVE
 #if defined(OPENVINO_ARCH_X86_64) || (defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE))
 
-#    if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
-
-#        define prefetch_bytes(bytes, sel, advance, src) \
-            {                                            \
-                auto* p = reinterpret_cast<char*>(src);  \
-                for (size_t i = 0; i < bytes; i += 64)   \
-                    _mm_prefetch(p + i + advance, sel);  \
-            }
-
-#    else
-
-#        define prefetch_bytes(bytes, sel, advance, src)
-
-#    endif
-
 // dequant f16/u8 to float
 template <typename T,
           ov::element::Type_t SRC_PREC,
@@ -101,7 +86,7 @@ static inline void dequant(float* dst,
 
 template <typename TDST,
           ov::element::Type_t SRC_PREC,
-          std::enable_if_t<any_of(SRC_PREC, ov::element::u4, ov::element::u8), bool> = true>
+          std::enable_if_t<any_of(SRC_PREC, ov::element::i8, ov::element::u4, ov::element::u8), bool> = true>
 void dequant(TDST* dst,
              void* src,
              const size_t N,
@@ -110,17 +95,20 @@ void dequant(TDST* dst,
              const size_t group_size,
              const bool quant_bychannel) {
     // The layout for per token per head:
-    // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
-    // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
+    // i8: |scale(f32)|quantized feature(i8,idx_1)|...|quantized feature(i8,idx_S)|
+    // u8/u4: |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|...|quantized feature(u8,idx_S)|
     auto* s = reinterpret_cast<uint8_t*>(src);
-    const size_t params_offset = sizeof(float) * 2;
     constexpr size_t sub_byte_multiplier = get_sub_byte_multiplier(SRC_PREC);
+    constexpr size_t param_count = SRC_PREC == ov::element::i8 ? 1 : 2;
+    constexpr size_t params_offset = sizeof(float) * param_count;
     if (quant_bychannel) {
-        auto* p_scales = reinterpret_cast<float*>(s);
-        auto* p_zps = p_scales + K;
-        s = s + sizeof(float) * 2 * K;
         if constexpr (any_of(SRC_PREC, ov::element::u8, ov::element::u4)) {
+            auto* p_scales = reinterpret_cast<float*>(s);
+            auto* p_zps = p_scales + K;
+            s = s + sizeof(float) * 2 * K;
             attn_dequant_by_channel_kernel<TDST, SRC_PREC>(s, dst, N, K, K / sub_byte_multiplier, K, p_scales, p_zps);
+        } else {
+            OPENVINO_THROW("dequant: i8 doesn't support by-channel quantization.");
         }
     } else {
         for (size_t n = 0; n < N; n++) {
@@ -461,13 +449,16 @@ struct MHAHelper {
     bool _use_softmax_sparse_mask = false;
 
     // Bidirectional attention for image token groups (e.g. Gemma3 VLM)
-    bool _has_image_tokens = false;         // true only when token_type_ids input is provided
-    PlainTensor _token_type;                // [total_batched_tokens], int32 — 0=text, 1=image
-    std::vector<int32_t> _image_group_end;  // for image token i, the exclusive end of its group
+    bool _has_image_tokens = false;           // true only when token_type_ids input is provided
+    PlainTensor _token_type;                  // [total_batched_tokens], int32 — 0=text, 1=image
+    std::vector<int32_t> _image_group_end;    // for image token i, the exclusive end of its group
+    std::vector<int32_t> _image_group_begin;  // for image token i, the inclusive start of its group
 
     // Precompute image group boundaries from token_type_ids.
-    // For each image token, _image_group_end[i] = index past the last contiguous image token in the same group.
-    // For text tokens, _image_group_end[i] = -1.
+    // For each image token:
+    //   _image_group_end[i] = index past the last contiguous image token in the same group
+    //   _image_group_begin[i] = index of the first contiguous image token in the same group
+    // For text tokens, both are -1.
     void set_token_type(const PlainTensor& token_type,
                         const PlainTensor& subsequence_begins,
                         const PlainTensor& past_lens) {
@@ -475,25 +466,39 @@ struct MHAHelper {
         _token_type = token_type;
         auto total_tokens = static_cast<int32_t>(token_type.m_dims[0]);
         _image_group_end.resize(total_tokens);
+        _image_group_begin.resize(total_tokens);
 
         auto seq_count = static_cast<int32_t>(past_lens.m_dims[0]);
         for (int32_t seq = 0; seq < seq_count; seq++) {
             auto seq_begin = subsequence_begins.ptr<int32_t>()[seq];
             auto seq_end = subsequence_begins.ptr<int32_t>()[seq + 1];
 
-            // Backward scan within this subsequence to find group ends
-            for (int32_t i = seq_end - 1; i >= seq_begin; i--) {
-                if (token_type.ptr<int32_t>()[i] == 1) {  // image token
-                    if (i + 1 < seq_end && token_type.ptr<int32_t>()[i + 1] == 1) {
-                        _image_group_end[i] = _image_group_end[i + 1];
-                    } else {
-                        _image_group_end[i] = i + 1;
-                    }
-                } else {
+            // Record both boundaries for each contiguous image group
+            for (int32_t i = seq_begin; i < seq_end;) {
+                if (token_type.ptr<int32_t>()[i] != 1) {
+                    _image_group_begin[i] = -1;
                     _image_group_end[i] = -1;
+                    ++i;
+                } else {
+                    const int32_t group_begin = i;
+                    while (i < seq_end && token_type.ptr<int32_t>()[i] == 1) {
+                        ++i;
+                    }
+                    const int32_t group_end = i;
+                    for (int32_t j = group_begin; j < group_end; ++j) {
+                        _image_group_begin[j] = group_begin;
+                        _image_group_end[j] = group_end;
+                    }
                 }
             }
         }
+    }
+
+    void clear_token_type() {
+        _has_image_tokens = false;
+        _token_type = PlainTensor();
+        _image_group_end.clear();
+        _image_group_begin.clear();
     }
 
     // Return the adjusted ncausal that extends to the image group end for image tokens.
@@ -507,6 +512,17 @@ struct MHAHelper {
             return std::min(static_cast<size_t>(_image_group_end[q_global_idx]), cur_kv_len);
         }
         return default_ncausal;
+    }
+
+    [[nodiscard]] size_t get_sliding_start_idx(size_t q_global_idx, size_t default_ncausal) const {
+        const size_t sw_start = default_ncausal > _sliding_window ? default_ncausal - _sliding_window : 0UL;
+        if (!_has_image_tokens || q_global_idx >= _image_group_begin.size()) {
+            return sw_start;
+        }
+        if (_token_type.ptr<int32_t>()[q_global_idx] == 1) {
+            return std::min(static_cast<size_t>(_image_group_begin[q_global_idx]), sw_start);
+        }
+        return sw_start;
     }
     CpuParallelPtr _cpu_parallel;
 
@@ -847,7 +863,8 @@ struct MHAHelper {
 
             for (size_t m = q_start; m < q_end; m++) {
                 // apply attention mask & sofmax
-                auto ncausal = get_ncausal(q_token_start + m, cur_kv_len - q_cnt + (m - q_start) + 1, cur_kv_len);
+                const auto causal_pos = cur_kv_len - q_cnt + (m - q_start) + 1;
+                const auto ncausal = get_ncausal(q_token_start + m, causal_pos, cur_kv_len);
                 auto* score = _weight.ptr<float>(ithr, h - hq_beg, m - q_start);
                 // dequantization of q matrix could be fused with _d_scale since softmax is done by row
                 float revised_d_scale =
@@ -861,13 +878,9 @@ struct MHAHelper {
                     sink = &sinks.at<float>({0, h, 0, 0}, true);
                 }
                 if (_sliding_window) {
-                    size_t start_idx = 0;
-                    auto new_causal = ncausal;
+                    const auto start_idx = get_sliding_start_idx(q_token_start + m, causal_pos);
+                    const auto new_causal = ncausal - start_idx;
                     float* alibi_lookup = nullptr;
-                    if (ncausal > _sliding_window) {
-                        start_idx = ncausal - _sliding_window;
-                        new_causal = _sliding_window;
-                    }
 
                     // Handle sparse attention mask for sliding window
                     if (!sparse_attention_mask.empty() && sparse_attention_mask[batch_in_seq].ptr_v() != nullptr &&
@@ -1056,7 +1069,8 @@ struct MHAHelper {
 
             for (size_t m = q_start; m < q_end; m++) {
                 // apply softmax in f32 precision
-                auto ncausal = get_ncausal(q_token_start + m, cur_kv_len - q_cnt + (m - q_start) + 1, cur_kv_len);
+                const auto causal_pos = cur_kv_len - q_cnt + (m - q_start) + 1;
+                const auto ncausal = get_ncausal(q_token_start + m, causal_pos, cur_kv_len);
                 auto soft_in = _weight.ptr<float>(ithr, h - hq_beg, m - q_start);
                 auto score = _weight.ptr<float>(ithr, h - hq_beg, m - q_start);
                 PlainTensor f32_cvt;
@@ -1068,13 +1082,9 @@ struct MHAHelper {
                     soft_in = f32_cvt.ptr<float>(0);
                 }
                 if (_sliding_window) {
-                    size_t start_idx = 0;
-                    auto new_causal = ncausal;
+                    const auto start_idx = get_sliding_start_idx(q_token_start + m, causal_pos);
+                    const auto new_causal = ncausal - start_idx;
                     float* alibi_lookup = nullptr;
-                    if (ncausal > _sliding_window) {
-                        start_idx = ncausal - static_cast<size_t>(_sliding_window);
-                        new_causal = _sliding_window;
-                    }
                     attn_softmax_kernel<float>(soft_in + start_idx,
                                                reinterpret_cast<DATA_TYPE*>(score) + start_idx,
                                                _d_scale,
@@ -1212,7 +1222,7 @@ struct MHAHelper {
         for (size_t pq = 0; pq < q_len; pq++) {
             for (size_t h = hq_beg; h < hq_end; h++) {
                 // apply attention mask & sofmax
-                auto ncausal = get_ncausal(q_token_start + pq, cur_kv_len, cur_kv_len);
+                const auto ncausal = get_ncausal(q_token_start + pq, cur_kv_len, cur_kv_len);
                 float* score = _weight.ptr<float>(ithr, h - hq_beg, pq);
                 OPENVINO_DEBUG_ASSERT(score != nullptr, "PagedAttention: _weight buffer must be allocated");
                 float* alibi_lookup = nullptr;
@@ -1226,13 +1236,9 @@ struct MHAHelper {
                     sink = &sinks.at<float>({0, h, 0, 0}, true);
                 }
                 if (_sliding_window) {
-                    size_t start_idx = 0;
-                    size_t new_causal = ncausal;
+                    const auto start_idx = get_sliding_start_idx(q_token_start + pq, cur_kv_len);
+                    const size_t new_causal = ncausal - start_idx;
                     float* sw_alibi_lookup = nullptr;
-                    if (ncausal > _sliding_window) {
-                        start_idx = ncausal - _sliding_window;
-                        new_causal = _sliding_window;
-                    }
                     attn_softmax_kernel<float>(score + start_idx,
                                                score + start_idx,
                                                _d_scale,
@@ -1423,7 +1429,7 @@ struct MHAHelper {
         auto loop_softmax = [&](size_t b, size_t h, size_t pq) {
             auto cur_kv_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + 1;
             auto q_token_start = static_cast<size_t>(subsequence_begins.ptr<int32_t>()[b]);
-            auto ncausal = get_ncausal(q_token_start + pq, cur_kv_len, cur_kv_len);
+            const auto ncausal = get_ncausal(q_token_start + pq, cur_kv_len, cur_kv_len);
             //  apply attention mask & sofmax
             float* score = _weight_bhl.ptr<float>(b, h, pq);
             OPENVINO_DEBUG_ASSERT(score != nullptr, "PagedAttention: _weight_bhl buffer must be allocated");
@@ -1438,13 +1444,9 @@ struct MHAHelper {
                 sink = &sinks.at<float>({0, h, 0, 0}, true);
             }
             if (_sliding_window) {
-                size_t start_idx = 0;
-                size_t new_causal = ncausal;
+                const auto start_idx = get_sliding_start_idx(q_token_start + pq, cur_kv_len);
+                const size_t new_causal = ncausal - start_idx;
                 float* sw_alibi_lookup = nullptr;
-                if (ncausal > _sliding_window) {
-                    start_idx = ncausal - _sliding_window;
-                    new_causal = _sliding_window;
-                }
                 attn_softmax_kernel<float>(score + start_idx,
                                            score + start_idx,
                                            _d_scale,
@@ -1940,6 +1942,10 @@ struct AttentionExecutor : public PagedAttentionExecutor {
     Xattn _xatt;
 #    endif
 
+    // Scratchpads for compute_adaptive_rkv_diversity to avoid per-call allocations.
+    std::vector<float> _arkv_evict_keys;
+    std::vector<float> _arkv_scratch;
+
     explicit AttentionExecutor(const CpuParallelPtr& cpu_parallel)
         : _helper(MHAHelper<DATA_TYPE, KEY_PREC, VALUE_PREC>(cpu_parallel)),
           _kernel(_helper),
@@ -2314,6 +2320,186 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         }
     }
 
+    // Compute per-block diversity scores for Adaptive R-KV cache eviction
+    // (https://arxiv.org/pdf/2505.24133v3).
+    //
+    // For each sequence in the batch:
+    //   Phase 0 – Gather only eviction-area key tokens from the paged KV cache
+    //   Phase 1 – L2-normalize each token vector (dot product → cosine similarity)
+    //   Phase 2 – Pairwise cosine similarity within the eviction area
+    //   Phase 3 – Per-row: zero diagonal, threshold below row mean
+    //   Phase 4 – Average thresholded values across all KV heads
+    //   Phase 5 – Block-sum rows and negate → diversity scores
+    //
+    // Output per sequence: [evict_blocks, evictable_size] written to output_arkv_similarity.
+    //
+    // Optimizations vs. the reference implementation:
+    //   - Only eviction-area tokens are gathered (start-area and tail skipped)
+    //   - Gathering, normalization, similarity, and block-sum are all parallelized
+    //   - Dot products / reductions / vector ops use SIMD via common.hpp helpers
+    void compute_adaptive_rkv_diversity(const PlainTensor& k_cache,
+                                        int32_t adaptive_rkv_start_size,
+                                        const PlainTensor& adaptive_rkv_evictable_sizes,
+                                        const PlainTensor& adaptive_rkv_diversity_block_set_indices,
+                                        const PlainTensor& adaptive_rkv_diversity_block_set_indices_begins,
+                                        PlainTensor& output_arkv_similarity) {
+        const size_t B_seq = adaptive_rkv_evictable_sizes.size(0);
+        const size_t Hk = _helper.Hk;
+        const size_t S = _helper.S;
+        const size_t block_size = _helper._block_size;
+        auto* output_ptr = output_arkv_similarity.ptr<float>();
+        size_t output_offset = 0;
+
+        for (size_t seq_idx = 0; seq_idx < B_seq; seq_idx++) {
+            const auto evictable_size = static_cast<size_t>(adaptive_rkv_evictable_sizes.ptr<int32_t>()[seq_idx]);
+            if (evictable_size == 0) {
+                continue;
+            }
+
+            const auto block_set_begin =
+                static_cast<size_t>(adaptive_rkv_diversity_block_set_indices_begins.ptr<int32_t>()[seq_idx]);
+            const auto block_set_end =
+                static_cast<size_t>(adaptive_rkv_diversity_block_set_indices_begins.ptr<int32_t>()[seq_idx + 1]);
+            const auto block_count = block_set_end - block_set_begin;
+            const auto token_count = block_count * block_size;
+
+            const auto start_size = static_cast<size_t>(adaptive_rkv_start_size);
+            OPENVINO_ASSERT(start_size % block_size == 0);
+            OPENVINO_ASSERT(evictable_size % block_size == 0);
+            OPENVINO_ASSERT(token_count >= start_size + evictable_size,
+                            "Adaptive RKV diversity block set is too small for requested start and eviction sizes");
+
+            // ── Phase 0: Load target data; Gather only the eviction-area key tokens. ─────────
+            // Layout: [Hk, evictable_size, S].  Only the blocks covering the
+            // eviction window [start_size, start_size + evictable_size) are
+            // retrieved; start-area and trailing blocks are skipped entirely.
+            const size_t start_blocks = start_size / block_size;
+            const size_t evict_block_count = evictable_size / block_size;
+            const size_t evict_keys_size = Hk * evictable_size * S;
+            if (_arkv_evict_keys.size() < evict_keys_size) {
+                _arkv_evict_keys.resize(evict_keys_size);
+            }
+            auto& evict_keys = _arkv_evict_keys;
+
+            _cpu_parallel->parallel_for2d(Hk, evict_block_count, [&](size_t hk, size_t eb) {
+                const auto global_block_idx = start_blocks + eb;
+                const auto block_number = static_cast<size_t>(
+                    adaptive_rkv_diversity_block_set_indices.ptr<int32_t>()[block_set_begin + global_block_idx]);
+                auto* dst = evict_keys.data() + hk * evictable_size * S + eb * block_size * S;
+
+                if constexpr (any_of(KEY_PREC, ov::element::i8, ov::element::u8, ov::element::u4)) {
+                    auto* src =
+                        k_cache.ptr<typename ov::element_type_traits<KEY_PREC>::value_type, KEY_PREC>(block_number, hk);
+                    dequant<float, KEY_PREC>(dst,
+                                             src,
+                                             block_size,
+                                             S,
+                                             block_size,
+                                             _helper._params.key_group_size,
+                                             _helper._params.quant_key_bychannel);
+                } else {
+                    auto* src = k_cache.ptr<typename ov::element_type_traits<KEY_PREC>::value_type>(block_number, hk);
+                    cvt_copy(dst, src, block_size, S, S, S);
+                }
+            });
+
+            // ── Phase 1: L2-normalize each eviction token (in-place) ──────
+            // After this step dot(row_i, row_j) == cosine_similarity(i, j).
+            constexpr float eps = std::numeric_limits<float>::epsilon();
+            _cpu_parallel->parallel_for(Hk * evictable_size, [&](size_t idx) {
+                const size_t hk_idx = idx / evictable_size;
+                const size_t t = idx % evictable_size;
+                float* row = evict_keys.data() + hk_idx * evictable_size * S + t * S;
+                float sq_sum = dot_product(row, row, S, nullptr, nullptr, nullptr, 0);
+                multiply_scalar(row, row, 1.0F / std::sqrt(sq_sum + eps), S);
+            });
+
+            // ── Phase 2–5 (fused): Cosine similarity → threshold → subtract into output ─
+            // For each block, iterate its block_size token rows. For each row,
+            // compute per-head cosine similarities, threshold below row mean,
+            // and immediately subtract (scaled by 1/Hk) into the output row.
+            // Parallelized over blocks so each thread owns its output row exclusively.
+            const float inv_hk = 1.0F / static_cast<float>(Hk);
+            const auto nthr = static_cast<size_t>(parallel_get_max_threads());
+            const size_t scratch_size = nthr * evictable_size;
+            if (_arkv_scratch.size() < scratch_size)
+                _arkv_scratch.resize(scratch_size);
+
+            float* out = output_ptr + output_offset;
+            _cpu_parallel->parallel_for(evict_block_count, [&](size_t blk) {
+                const auto ithr = static_cast<size_t>(parallel_get_thread_num());
+                float* sim_row = _arkv_scratch.data() + ithr * evictable_size;
+                float* out_row = out + blk * evictable_size;
+                std::memset(out_row, 0, evictable_size * sizeof(float));
+
+                for (size_t t = 0; t < block_size; t++) {
+                    const size_t row = blk * block_size + t;
+                    for (size_t hk_idx = 0; hk_idx < Hk; hk_idx++) {
+                        const float* head_keys = evict_keys.data() + hk_idx * evictable_size * S;
+                        const float* row_key = head_keys + row * S;
+
+                        for (size_t col = 0; col < evictable_size; col++) {
+                            sim_row[col] =
+                                (col == row)
+                                    ? 0.0F
+                                    : dot_product(row_key, head_keys + col * S, S, nullptr, nullptr, nullptr, 0);
+                        }
+
+                        float mean = reduce_sum(sim_row, evictable_size) / static_cast<float>(evictable_size);
+                        size_t i = 0;
+#    if defined(HAVE_AVX512F)
+                        {
+                            auto vmean = _mm512_set1_ps(mean);
+                            auto vnihk = _mm512_set1_ps(-inv_hk);
+                            for (; i + vec_len_f32_avx512 <= evictable_size; i += vec_len_f32_avx512) {
+                                auto vsim = _mm512_loadu_ps(sim_row + i);
+                                auto vout = _mm512_loadu_ps(out_row + i);
+                                auto mask = _mm512_cmp_ps_mask(vsim, vmean, _CMP_GE_OQ);
+                                vout = _mm512_fmadd_ps(_mm512_maskz_mov_ps(mask, vsim), vnihk, vout);
+                                _mm512_storeu_ps(out_row + i, vout);
+                            }
+                        }
+#    elif defined(HAVE_AVX2)
+                        {
+                            auto vmean = _mm256_set1_ps(mean);
+                            auto vnihk = _mm256_set1_ps(-inv_hk);
+                            auto vz = _mm256_setzero_ps();
+                            for (; i + vec_len_f32_avx2 <= evictable_size; i += vec_len_f32_avx2) {
+                                auto vsim = _mm256_loadu_ps(sim_row + i);
+                                auto vout = _mm256_loadu_ps(out_row + i);
+                                auto vcmp = _mm256_cmp_ps(vsim, vmean, _CMP_GE_OQ);
+                                vout = _mm256_fmadd_ps(_mm256_blendv_ps(vz, vsim, vcmp), vnihk, vout);
+                                _mm256_storeu_ps(out_row + i, vout);
+                            }
+                        }
+#    elif defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE)
+                        {
+                            auto sve_len = vec_len_f32_sve();
+                            svbool_t pg = svptrue_b32();
+                            auto svmean_val = svdup_n_f32(mean);
+                            auto svnihk = svdup_n_f32(-inv_hk);
+                            for (; i + sve_len <= evictable_size; i += sve_len) {
+                                svfloat32_t vsim = svld1_f32(pg, sim_row + i);
+                                svfloat32_t vout = svld1_f32(pg, out_row + i);
+                                svbool_t ge = svcmpge_f32(pg, vsim, svmean_val);
+                                svfloat32_t vt = svsel_f32(ge, vsim, svdup_n_f32(0.0f));
+                                vout = svmla_f32_z(pg, vout, vt, svnihk);
+                                svst1_f32(pg, out_row + i, vout);
+                            }
+                        }
+#    endif
+                        for (; i < evictable_size; i++) {
+                            if (sim_row[i] >= mean) {
+                                out_row[i] -= sim_row[i] * inv_hk;
+                            }
+                        }
+                    }
+                }
+            });
+            output_offset += evict_block_count * evictable_size;
+        }
+    }
+
     void execute(const std::vector<MemoryPtr>& inputs, const std::vector<MemoryPtr> outputs) override {
         PlainTensor q;
         PlainTensor k;
@@ -2396,8 +2582,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         if (token_type_ids) {
             _helper.set_token_type(token_type_ids, subsequence_begins, past_lens);
         } else {
-            _helper._token_type = PlainTensor();
-            _helper._image_group_end.clear();
+            _helper.clear_token_type();
         }
 
         if (rotated_block_indices) {
@@ -2427,6 +2612,15 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                 score_aggregation_window,
                 sinks,
                 sparse_attention_mask);
+
+        if (adaptive_rkv_evictable_sizes && adaptive_rkv_diversity_block_set_indices) {
+            compute_adaptive_rkv_diversity(k_cache,
+                                           adaptive_rkv_start_size,
+                                           adaptive_rkv_evictable_sizes,
+                                           adaptive_rkv_diversity_block_set_indices,
+                                           adaptive_rkv_diversity_block_set_indices_begins,
+                                           output_arkv_similarity);
+        }
     }
 };
 #endif

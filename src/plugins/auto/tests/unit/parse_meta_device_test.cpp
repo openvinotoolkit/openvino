@@ -147,7 +147,7 @@ const std::vector<ConfigParams> testConfigs = {
                   {"GPU.0", {}, -1, "", std::string(igpuFullDeviceName) + "_0", 1},
                   {"GPU.1", {}, -1, "", std::string(dgpuFullDeviceName) + "_1", 1}},
                  false,
-                 3},
+                 4},
     ConfigParams{"CPU(1),GPU(2),OTHER(4)",
                  {{"CPU", {}, 1, "", "CPU_", 0},
                   {"GPU.0", {}, 2, "", std::string(igpuFullDeviceName) + "_0", 1},
@@ -158,7 +158,7 @@ const std::vector<ConfigParams> testConfigs = {
 
     ConfigParams{"CPU(-1),GPU,OTHER", {}, true, 0},
     ConfigParams{"CPU(NA),GPU,OTHER", {}, true, 0},
-    ConfigParams{"INVALID_DEVICE", {}, false, 0},
+    ConfigParams{"INVALID_DEVICE", {}, false, 1},
     // GPU will be expanded to GPU.0 and GPU.1 with same device priority(0).
     ConfigParams{"GPU",
                  {
