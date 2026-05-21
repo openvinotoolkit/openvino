@@ -379,18 +379,19 @@ std::optional<T> view_to_number(std::string_view sv) noexcept {
         return result.ec == std::errc() ? std::make_optional(value) : std::nullopt;
     } else {
         if (sv == "inf") {
-            return std::numeric_limits<T>::infinity();
+            return std::make_optional(std::numeric_limits<T>::infinity());
         } else if (sv == "-inf") {
-            return -std::numeric_limits<T>::infinity();
+            return std::make_optional(-std::numeric_limits<T>::infinity());
         } else if (sv == "nan") {
-            return std::numeric_limits<T>::quiet_NaN();
+            return std::make_optional(std::numeric_limits<T>::quiet_NaN());
+        } else {
+            StringViewStreamBuf buf{sv};
+            std::istream stream{&buf};
+            stream.imbue(std::locale::classic());
+            T value{};
+            stream >> value;
+            return stream ? std::make_optional<T>(value) : std::nullopt;
         }
-        StringViewStreamBuf buf{sv};
-        std::istream stream{&buf};
-        stream.imbue(std::locale::classic());
-        T value{};
-        stream >> value;
-        return stream ? std::make_optional<T>(value) : std::nullopt;
     }
 }
 
