@@ -902,6 +902,7 @@ Example:
         </filters>
     </skip_config>
 
+    <!-- C#187111 -->
     <skip_config>
         <message>TiWithLstmCell model won't provide `WeightlessCacheAttribute` in constants' rt_info</message>
         <enable_rules>

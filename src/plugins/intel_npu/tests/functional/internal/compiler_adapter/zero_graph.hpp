@@ -411,21 +411,20 @@ using EncryptionCallbacks = ZeroGraphTest;
 TEST_P(EncryptionCallbacks, EncryptionCallbacksSetSecureCompileFlag) {
     model = ov::test::utils::make_conv_pool_relu({1, 3, 227, 227}, ov::element::f32);
 
-    auto options = std::make_shared<::intel_npu::OptionsDesc>();
-    options->add<::intel_npu::COMPILER_TYPE>();
-    options->add<::intel_npu::CACHE_ENCRYPTION_CALLBACKS>();
-    auto npu_config = std::make_unique<::intel_npu::FilteredConfig>(options);
+    auto options = std::make_shared<OptionsDesc>();
+    options->add<COMPILER_TYPE>();
+    options->add<CACHE_ENCRYPTION_CALLBACKS>();
+    auto npu_config = std::make_unique<FilteredConfig>(options);
     for (const auto& [propertyName, propertyValue] : configuration) {
         npu_config->enable(propertyName, true);
     }
     npu_config->updateAny(configuration);
 
-    std::shared_ptr<::intel_npu::ICompilerAdapter> compiler;
-    compiler = npu_config->get<::intel_npu::COMPILER_TYPE>() == ov::intel_npu::CompilerType::DRIVER
-                   ? std::dynamic_pointer_cast<::intel_npu::ICompilerAdapter>(
-                         std::make_shared<::intel_npu::DriverCompilerAdapter>(zeroInitStruct))
-                   : std::dynamic_pointer_cast<::intel_npu::ICompilerAdapter>(
-                         std::make_shared<::intel_npu::PluginCompilerAdapter>(zeroInitStruct));
+    std::shared_ptr<ICompilerAdapter> compiler;
+    compiler =
+        npu_config->get<COMPILER_TYPE>() == intel_npu::CompilerType::DRIVER
+            ? std::dynamic_pointer_cast<ICompilerAdapter>(std::make_shared<DriverCompilerAdapter>(zeroInitStruct))
+            : std::dynamic_pointer_cast<ICompilerAdapter>(std::make_shared<PluginCompilerAdapter>(zeroInitStruct));
 
     if (zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 17)) {
         OV_EXPECT_THROW(compiler->compile(model, *npu_config),
