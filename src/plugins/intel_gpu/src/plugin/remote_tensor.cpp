@@ -450,9 +450,15 @@ void RemoteTensorImpl::update_properties() {
     switch (m_mem_type) {
     case TensorType::BT_BUF_INTERNAL:
     case TensorType::BT_BUF_SHARED:
-    case TensorType::BT_BUF_SHARED_IMPORTED:
         m_properties = {
             ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::OCL_BUFFER),
+            ov::intel_gpu::ocl_context(params.context),
+            ov::intel_gpu::mem_handle(params.mem),
+        };
+        break;
+    case TensorType::BT_BUF_SHARED_IMPORTED:
+        m_properties = {
+            ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::OCL_BUFFER_FROM_HANDLE),
             ov::intel_gpu::ocl_context(params.context),
             ov::intel_gpu::mem_handle(params.mem),
         };

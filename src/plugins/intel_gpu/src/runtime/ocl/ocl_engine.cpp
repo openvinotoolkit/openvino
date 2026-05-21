@@ -10,8 +10,6 @@
 #include "ocl_memory.hpp"
 #include "ocl_stream.hpp"
 #include "ocl_engine_factory.hpp"
-#include <CL/cl.h>
-#include <CL/cl_ext.h>
 #include <string>
 #include <vector>
 #include <memory>

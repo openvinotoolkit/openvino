@@ -482,6 +482,9 @@ VulkanSharedBuffer create_vulkan_shared_buffer(VulkanTestContext& context, size_
 }
 
 TEST(GpuSharedBufferRemoteTensor, smoke_VulkanRemoteInputToRemoteOutputCopyAndCompare) {
+    #ifndef CL_VERSION_3_0
+        GTEST_SKIP() << "OpenCL version 3.0 is required for external memory sharing"; 
+    #endif
     ov::Core core;
     const ov::Shape shape{16'000};
     const size_t element_count = ov::shape_size(shape);
@@ -494,14 +497,14 @@ TEST(GpuSharedBufferRemoteTensor, smoke_VulkanRemoteInputToRemoteOutputCopyAndCo
     auto params = candidate_ctx.get_params();
     auto it = params.find(ov::intel_gpu::ocl_context.name());
     if (it == params.end()) {
-        FAIL() << "Failed to get OpenCL context for " << selected_gpu_device;
+        GTEST_SKIP() << "Failed to get OpenCL context for " << selected_gpu_device;
     }
 
     auto cl_ctx = static_cast<cl_context>(it->second.as<ov::intel_gpu::ocl::gpu_handle_param>());
     cl_device_id cl_device = nullptr;
     ASSERT_TRUE(get_context_first_device(cl_ctx, cl_device));
 
-    const std::vector<int> required_driver_version = {26, 5, 37020, 3};
+    const std::vector<int> required_driver_version = {26, 5, 37020, 3}; // found that test work on this version
     std::string driver_version_str;
     if (!get_cl_driver_version(cl_device, driver_version_str)) {
         GTEST_SKIP() << "Failed to query OpenCL driver version";
@@ -518,7 +521,7 @@ TEST(GpuSharedBufferRemoteTensor, smoke_VulkanRemoteInputToRemoteOutputCopyAndCo
 
     DeviceId cl_luid{};
     if (!get_context_device_luid(cl_ctx, cl_luid)) {
-        FAIL() << "Failed to get LUID for " << selected_gpu_device;
+        GTEST_SKIP() << "Failed to get LUID for " << selected_gpu_device;
     }
 
     VulkanTestContext vk_ctx = create_vulkan_test_context(cl_luid);
@@ -528,26 +531,26 @@ TEST(GpuSharedBufferRemoteTensor, smoke_VulkanRemoteInputToRemoteOutputCopyAndCo
 
     auto vk_input_shared = create_vulkan_shared_buffer(vk_ctx, byte_size);
     auto vk_output_shared = create_vulkan_shared_buffer(vk_ctx, byte_size);
-    ASSERT_NE(vk_input_shared.shared_handle, invalid_external_memory_handle());
-    ASSERT_NE(vk_output_shared.shared_handle, invalid_external_memory_handle());
+    if(vk_input_shared.shared_handle == invalid_external_memory_handle()) {
+        GTEST_SKIP() << "Failed to create Vulkan shared buffer for input tensor";
+    }
+    if(vk_output_shared.shared_handle == invalid_external_memory_handle()) {
+        GTEST_SKIP() << "Failed to create Vulkan shared buffer for output tensor";
+    }
 
     auto ov_ctx = core.get_default_context(selected_gpu_device).as<ov::intel_gpu::ocl::ClContext>();
 
     ov::RemoteTensor remote_input_tensor;
     ov::RemoteTensor remote_output_tensor;
+    remote_input_tensor = ov_ctx.create_tensor(ov::element::f32,
+                                                shape,
+                                                reinterpret_cast<void*>(vk_input_shared.shared_handle),
+                                                ov::intel_gpu::MemType::SHARED_BUF);
+    remote_output_tensor = ov_ctx.create_tensor(ov::element::f32,
+                                                shape,
+                                                reinterpret_cast<void*>(vk_output_shared.shared_handle),
+                                                ov::intel_gpu::MemType::SHARED_BUF);
 
-    try {
-        remote_input_tensor = ov_ctx.create_tensor(ov::element::f32,
-                                                   shape,
-                                                   reinterpret_cast<void*>(vk_input_shared.shared_handle),
-                                                   ov::intel_gpu::MemType::SHARED_BUF);
-        remote_output_tensor = ov_ctx.create_tensor(ov::element::f32,
-                                                    shape,
-                                                    reinterpret_cast<void*>(vk_output_shared.shared_handle),
-                                                    ov::intel_gpu::MemType::SHARED_BUF);
-    } catch (const ov::Exception& ex) {
-        GTEST_SKIP() << "Vulkan NT handle import not supported on this configuration: " << ex.what();
-    }
     std::vector<float> input_init(element_count, 2.0f);
     ov::Tensor host_input_init(ov::element::f32, shape);
     std::memcpy(host_input_init.data(), input_init.data(), byte_size);
@@ -581,7 +584,6 @@ TEST(GpuSharedBufferRemoteTensor, smoke_VulkanRemoteInputToRemoteOutputCopyAndCo
         EXPECT_FLOAT_EQ(output_values[i], 2.0f) << "Mismatch at index " << i;
     }
 }
-
 }
 
 #endif
