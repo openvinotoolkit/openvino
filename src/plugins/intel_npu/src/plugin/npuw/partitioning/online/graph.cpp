@@ -93,8 +93,8 @@ own::ade::EdgeHandle own::ade::Graph::link(const own::ade::NodeHandle& src, cons
     auto edge = std::make_shared<own::ade::Edge>(src, dst);
     own::ade::EdgeHandle eh{edge};
     m_edges.emplace(edge.get(), MetaPtr<own::ade::Edge>{edge, own::ade::Meta{}});
-    src->m_dst_edges.insert(eh);
-    dst->m_src_edges.insert(eh);
+    src->m_dst_edges.insert(own::ade::EdgeHandle(eh));
+    dst->m_src_edges.insert(own::ade::EdgeHandle(eh));
     dst->src_nodes_cache_dirty = true;
     return eh;
 }
@@ -147,7 +147,7 @@ std::vector<own::ade::NodeHandle> own::ade::Graph::nodes() const {
 void own::ade::Graph::dfs(own::ade::NodeHandle& nh,
                           std::unordered_set<own::ade::NodeHandle>& visited,
                           std::stack<own::ade::NodeHandle>& stack) const {
-    visited.insert(nh);
+    visited.insert(own::ade::NodeHandle(nh));
     auto dst_nodes = nh->dstNodes();
 
     // FIXME: this was introduced to make the graph

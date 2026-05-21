@@ -32,9 +32,9 @@ Group::Group(const std::shared_ptr<ov::Node>& node,
       m_id(gid),
       m_graph(g),
       m_snapshot(snapshot) {
-    m_input_layers.insert(node);
-    m_output_layers.insert(node);
-    m_content.insert(node);
+    m_input_layers.insert(std::shared_ptr<ov::Node>(node));
+    m_output_layers.insert(std::shared_ptr<ov::Node>(node));
+    m_content.insert(std::shared_ptr<ov::Node>(node));
 }
 
 Group::Group(size_t gid,
@@ -57,14 +57,14 @@ void Group::includeExtraLayers(detail::OVNodeSet& input_layers,
             auto target_input = layer->get_input_source_output(i);
             auto layer_parent = target_input.get_node()->shared_from_this();
             if (ov::op::util::is_parameter(layer_parent)) {
-                input_layers.insert(layer);
+                input_layers.insert(std::shared_ptr<ov::Node>(layer));
             }
             // Also include Converts
             if (!isOp(layer_parent)) {
                 if (!ov::op::util::is_constant(layer_parent) && !ov::op::util::is_parameter(layer_parent) &&
                     !ov::op::util::is_output(layer_parent)) {
                     NPUW_ASSERT(ov::is_type<ov::op::v0::Convert>(layer_parent));
-                    extra_content.insert(layer_parent);
+                    extra_content.insert(std::shared_ptr<ov::Node>(layer_parent));
                 }
             }
         }
@@ -73,14 +73,14 @@ void Group::includeExtraLayers(detail::OVNodeSet& input_layers,
             for (const auto& target_output : target_outputs) {
                 auto layer_child = target_output.get_node()->shared_from_this();
                 if (ov::op::util::is_output(layer_child)) {
-                    output_layers.insert(layer);
+                    output_layers.insert(std::shared_ptr<ov::Node>(layer));
                 }
             }
         }
     }
 
     for (const auto& layer : extra_content) {
-        content.insert(layer);
+        content.insert(std::shared_ptr<ov::Node>(layer));
     }
 }
 
@@ -144,17 +144,17 @@ const std::unordered_set<std::shared_ptr<ov::Node>>& Group::getOutputs() const {
 }
 
 void Group::addInput(const std::shared_ptr<ov::Node>& node) {
-    m_input_layers.insert(node);
+    m_input_layers.insert(std::shared_ptr<ov::Node>(node));
     m_mic_io_valid = false;
 }
 
 void Group::addOutput(const std::shared_ptr<ov::Node>& node) {
-    m_output_layers.insert(node);
+    m_output_layers.insert(std::shared_ptr<ov::Node>(node));
     m_mic_io_valid = false;
 }
 
 void Group::addContent(const std::shared_ptr<ov::Node>& node) {
-    m_content.insert(node);
+    m_content.insert(std::shared_ptr<ov::Node>(node));
 }
 
 size_t Group::getId() const {
@@ -188,12 +188,12 @@ void Group::updateInputLayers(const Group::GPtr& gptr_other) {
         auto node_prod = locked_snapshot->getNodeProducers(layer);
         for (const auto& prod : node_prod) {
             if (m_content.find(prod) == m_content.end()) {
-                selected.insert(prod);
+                selected.insert(std::shared_ptr<ov::Node>(prod));
             }
         }
         for (const auto& l : selected) {
             if (isOp(l)) {
-                m_input_layers.insert(layer);
+                m_input_layers.insert(std::shared_ptr<ov::Node>(layer));
             }
         }
     }
@@ -219,7 +219,7 @@ void Group::updateOutputLayers(const Group::GPtr& gptr_other) {
             }
         }
         if (!reject) {
-            m_output_layers.insert(layer);
+            m_output_layers.insert(std::shared_ptr<ov::Node>(layer));
         }
     }
 }
@@ -280,7 +280,7 @@ void Group::fuseWith(const Group::GPtr& gptr_cons) {
 
     // Merge 2 contents together
     for (const auto& layer : gptr_cons->m_content) {
-        m_content.insert(layer);
+        m_content.insert(std::shared_ptr<ov::Node>(layer));
     }
 
     takeFlags(gptr_cons);
@@ -301,7 +301,7 @@ void Group::fuseInputs(const std::pair<Group::GPtr, Group::GPtr>& gptr_inputs) {
     // Update ov::node to own::ade::NodeHandle map and merge all contents together
     for (const auto& layer : absorbed_group->m_content) {
         node_to_gr->at(layer) = absorbing_group;
-        absorbing_group->m_content.insert(layer);
+        absorbing_group->m_content.insert(std::shared_ptr<ov::Node>(layer));
     }
     absorbing_group->takeFlags(absorbed_group);
     absorbing_group->updateInputLayers(absorbed_group);
@@ -350,7 +350,7 @@ bool Group::hasCycle(const Group::GPtr& gptr_cons) const {
         // skip self during this iter
         if (!(m_nh == prod)) {
             st.push(prod);
-            visited.insert(prod);  // mark at push time to avoid duplicate pushes
+            visited.insert(own::ade::NodeHandle(prod));  // mark at push time to avoid duplicate pushes
         }
     }
 
@@ -366,7 +366,7 @@ bool Group::hasCycle(const Group::GPtr& gptr_cons) const {
         for (const auto& prod : nh->srcNodes()) {
             if (!visited.count(prod)) {
                 st.push(prod);
-                visited.insert(prod);  // mark at push time
+                visited.insert(own::ade::NodeHandle(prod));  // mark at push time
             }
         }
     }
