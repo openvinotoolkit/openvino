@@ -225,17 +225,21 @@ void VariableStateSingleBuffer::commit_impl() {
 VariableStateKVcache::VariableStateKVcache(const std::string& name,
                                            MemoryDescPtr external_desc,
                                            BlockedMemoryDescPtr dense_internal_desc,
-                                           const bool quant_by_channel,
-                                           const size_t group_size)
+                                           ov::Extensions::Cpu::CacheSpec spec)
     : VariableStateBase(name, std::move(external_desc)),
       m_dense_internal_desc(std::move(dense_internal_desc)),
-      m_quant_by_channel(quant_by_channel),
-      m_group_size(group_size) {
+      m_spec(spec),
+      m_quant_by_channel(spec.by_channel),
+      m_group_size(spec.group_size) {
     auto&& shape = get_external_desc()->getShape();
     OPENVINO_ASSERT(shape.isDynamic(), "VariableStateKVcache is unexpectedly initalized with a static tensor");
 }
 
 ov::SoPtr<ov::ITensor> VariableStateKVcache::get_state() const {
+    OPENVINO_ASSERT(!m_spec.is_turbo(),
+                    "get_state() is not supported for KV cache with TURBO quantization. "
+                    "TURBO stores packed bits and per-token norm in separate metadata; "
+                    "scalar dequant path cannot reconstruct the original tensor.");
     if (!m_internal_mem || !m_hidden_state || is_reset_state()) {
         auto new_desc = to_static(get_external_desc());
         auto external_mem = std::make_shared<Memory>(get_engine(), new_desc);
@@ -312,6 +316,10 @@ ov::SoPtr<ov::ITensor> VariableStateKVcache::get_state() const {
 }
 
 void VariableStateKVcache::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
+    OPENVINO_ASSERT(!m_spec.is_turbo(),
+                    "set_state() is not supported for KV cache with TURBO quantization. "
+                    "TURBO requires rotation+codebook encoding plus per-token norm metadata "
+                    "owned by the SDPA node; external state cannot be injected directly.");
     // 1. reset the memory object
     m_state = state;  // simply to extend the lifetime
     auto state_desc = MemoryDescUtils::generateCpuBlockedMemoryDesc(m_state);
