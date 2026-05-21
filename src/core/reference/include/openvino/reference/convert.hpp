@@ -82,27 +82,33 @@ void convert<bfloat16, float>(const bfloat16* arg, float* out, size_t count);
 template <>
 void convert<int32_t, float16>(const int32_t* arg, float16* out, size_t count);
 
-/// Maximum tolerated |abs(src - round_trip_f16(src))| for an in-range element.
+/// @brief Maximum tolerated |abs(src - round_trip_f16(src))| for an in-range element.
 /// If any element exceeds this threshold, the whole tensor is kept in its
 /// original precision (FP32 / FP64 — acts as a tensor-wide veto in
 /// check_f16_compression()).
 inline constexpr double f16_compression_max_abs_error = 1.0;
-/// Maximum tolerated relative round-trip error abs_diff / |src| for an
-/// in-range element. Elements above this threshold are accumulated into the
-/// combined rejection count used together with f16_compression_keep_threshold.
-inline constexpr double f16_compression_max_rel_error = 1e-3;
-/// Proportion of combined rejections (out-of-FP16-range + high relative-error)
+/// @brief Maximum tolerated relative round-trip error abs_diff / |src| for an in-range element when compressing a
+/// single scalar value. Used by the f16 scalar compression path (e.g. for RoPE constants), which is more sensitive to
+/// precision
+inline constexpr double f16_scalar_compression_max_rel_error = 1e-4;
+/// @brief  Maximum tolerated relative round-trip error abs_diff / |src| for an in-range element when compressing a
+/// whole tensor. Elements above this threshold are accumulated into the combined rejection count used together with
+/// f16_compression_keep_threshold. This is a looser threshold than f16_scalar_compression_max_rel_error to allow more
+/// aggressive compression at the tensor level, where individual high-relative-error elements may be "diluted" by many
+/// low-relative-error elements.
+inline constexpr double f16_tensor_compression_max_rel_error = 1e-3;
+/// @brief Proportion of combined rejections (out-of-FP16-range + high relative-error)
 /// at which the Constant is kept in its original precision (FP32 / FP64), i.e.
 /// no FP16 compression is applied.
 inline constexpr float f16_compression_keep_threshold = 0.75f;
 
-/// Result of a single-pass FP16-compression feasibility check produced by
+/// @brief Result of a single-pass FP16-compression feasibility check produced by
 /// check_f16_compression(). Used by CompressFloatConstantsImpl to decide
 /// whether a floating-point Constant may be safely compressed to FP16.
 struct CompressionCheckResult {
     /// Combined count of rejected elements: values outside the finite FP16
     /// range PLUS in-range values whose FP16 conversion exceeds
-    /// f16_compression_max_rel_error. Compared against
+    /// f16_tensor_compression_max_rel_error. Compared against
     /// f16_compression_keep_threshold to keep the Constant in its original
     /// precision. For a pure out-of-range count, use count_out_of_f16_range().
     size_t rejected_count;
@@ -119,8 +125,12 @@ struct CompressionCheckResult {
 /// CompressionCheckResult::has_lossy. Otherwise accumulates a combined
 /// rejection count (out-of-FP16-range + high relative-error) in
 /// CompressionCheckResult::rejected_count, to be compared against
-/// f16_compression_keep_threshold. JIT/AVX-512 (or AVX2+F16C) accelerated on
-/// x86; falls back to a scalar loop elsewhere.
+/// f16_compression_keep_threshold. The relative-error threshold is selected
+/// internally from the input size: single-element inputs use
+/// f16_scalar_compression_max_rel_error, while larger tensors use
+/// f16_tensor_compression_max_rel_error.
+/// JIT/AVX-512 (or AVX2+F16C) accelerated on x86 for tensors; single-element
+/// inputs fall back to a scalar loop.
 CompressionCheckResult check_f16_compression(const float* arg, size_t count);
 
 /// Counts elements in `arg` that fall outside the finite FP16 range (subnormal
