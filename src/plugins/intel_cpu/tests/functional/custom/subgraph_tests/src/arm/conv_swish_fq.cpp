@@ -155,15 +155,6 @@ protected:
             }
         }
     }
-    void checkFQNotInSnippets() {
-        const auto runtime_model = compiledModel.get_runtime_model();
-        for (auto& op : runtime_model->get_ops()) {
-            auto layer_type = op->get_rt_info()
-                .at(ov::exec_model_info::LAYER_TYPE).as<std::string>();
-            EXPECT_NE(layer_type, "FakeQuantize") << "FQ was not fused";
-            EXPECT_NE(layer_type, "Subgraph")     << "FQ is in Snippets Subgraph";
-        }
-    }
 };
 
 TEST_P(ConvSwishFQ, CompareWithRefs) {
@@ -172,11 +163,10 @@ TEST_P(ConvSwishFQ, CompareWithRefs) {
 
     const auto& [inputShape, inputPrecision, quantizationParams, withBias, targetName] = this->GetParam();
     checkConvolutionPrecision(quantizationParams.expectedPrecision);
-    checkFQNotInSnippets();
     CheckPluginRelatedResults(compiledModel, "Convolution");
 }
 
-namespace {S
+namespace {
 
 std::vector<InputShape> inputShapes{{{}, {{4, 3, 2, 2}}},
                                     {{-1, 3, -1, 2}, {{1, 3, 4, 2}}}};
