@@ -595,6 +595,16 @@ Example:
         </filters>
     </skip_config>
 
+    <skip_config>
+        <message>Output I4 / U4 precision is not currently supported.</message>
+        <filters>
+            <filter>.*smoke.*OVInferRequestCheckTensorPrecision.*type=i4.*</filter>
+            <filter>.*smoke.*OVInferRequestCheckTensorPrecision.*type=u4.*</filter>
+            <filter>.*smoke.*OVInferRequestIOTensorSetPrecisionTestNPU.*type=i4.*</filter>
+            <filter>.*smoke.*OVInferRequestIOTensorSetPrecisionTestNPU.*type=u4.*</filter>
+        </filters>
+    </skip_config>
+
     <!-- E#109040 -->
     <skip_config>
         <message>Disabled tests for NPU3720</message>
@@ -892,6 +902,7 @@ Example:
         </filters>
     </skip_config>
 
+    <!-- C#187111 -->
     <skip_config>
         <message>TiWithLstmCell model won't provide `WeightlessCacheAttribute` in constants' rt_info</message>
         <enable_rules>
@@ -914,6 +925,46 @@ Example:
             <filter>.*OVPropertiesDefaultSupportedTests.CanSetDefaultValueBackToPlugin.*</filter>
             <filter>.*OVClassCompiledModelGetConfigTest.GetConfigNoThrow.*</filter>
             <filter>.*OVSpecificDeviceGetConfigTest.GetConfigSpecificDeviceNoThrow.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- E#213889 -->
+    <skip_config>
+        <message>Older drivers cannot compile models with encryption callback</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+            <device>3720</device>
+        </enable_rules>
+        <filters>
+            <filter>.*CompileModelWithCacheEncryptionTest.CanImportModelWithoutException.*</filter>
+            <filter>.*OVClassCompiledModelPropertiesTests.CanUseCache.*CACHE_ENCRYPTION_CALLBACKS.*</filter>
+            <filter>.*OVClassCompileModelWithCorrectPropertiesTest.CompileModelWithCorrectPropertiesTest.*CACHE_ENCRYPTION_CALLBACKS.*</filter>
+            <filter>.*OVClassCompiledModelGetPropertyTest_MODEL_PRIORITY.GetMetricNoThrow.*CACHE_ENCRYPTION_CALLBACKS.*</filter>
+            <filter>.*OVClassCompiledModelGetPropertyTest_DEVICE_PRIORITY.GetMetricNoThrow.*CACHE_ENCRYPTION_CALLBACKS.*</filter>
+            <filter>.*OVClassCompiledModelGetPropertyTest_EXEC_DEVICES.CanGetExecutionDeviceInfo.*CACHE_ENCRYPTION_CALLBACKS.*</filter>
+            <filter>.*OVCompileModelGetExecutionDeviceTests.CanGetExecutionDeviceInfo.*CACHE_ENCRYPTION_CALLBACKS.*</filter>
+            <filter>.*WeightlessCacheAccuracy.ReadConcatSplitAssign.*config=_.*</filter>
+            <filter>.*WeightlessCacheAccuracy.SingleConcatWithConstant.*config=_.*</filter>
+            <filter>.*WeightlessCacheAccuracy.TiWithLstmCell.*config=_.*</filter>
+            <filter>.*OVHoldersTestNPU.CompileModelWithEncryptionWorksAfterConfigDeallocate.*</filter>
+            <filter>.*ClassPluginPropertiesTestSuite5NPU.CanSetMutablePropertiesToCompiledModel.*CACHE_ENCRYPTION_CALLBACKS.*</filter>
+            <filter>.*OVWeightlessCacheAccuracyNPU.SimpleTestModel.*config=_.*</filter>
+            <filter>.*OVWeightlessCacheAccuracyNPU.TestModelWeightlessWithDummyConstants.*config=_.*</filter>
+            <filter>.*OVWeightlessCacheAccuracyNPU.TestModelLightInitSchedule.*config=_.*</filter>
+            <filter>.*OVWeightlessCacheAccuracyNPU.TestModelWeightlessWithDuplicateConstants.*config=_.*</filter>
+            <filter>.*OVCompiledGraphImportExportTestNPU.ImportingEncryptedBlobThrows.*</filter>
+            <filter>.*OVCompiledGraphImportExportTestNPU.DifferentSizesOfEncryptedVsDecryptedBlobWorks.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>PV driver cannot compile models securely</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+            <driver_version>1688</driver_version>
+        </enable_rules>
+        <filters>
+            <filter>.*OVHoldersTestNPU.CompileModelWithEncryptionWorksAfterConfigDeallocate.*</filter>
         </filters>
     </skip_config>
 

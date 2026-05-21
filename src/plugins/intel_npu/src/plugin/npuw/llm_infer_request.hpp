@@ -12,6 +12,7 @@
 #include "llm_infer_base_request.hpp"
 #include "llm_lora_states.hpp"
 #include "llm_prefix_caching.hpp"
+#include "llm_stored_tokens_state.hpp"
 #include "openvino/core/descriptor/output.hpp"
 #include "perf.hpp"
 
@@ -33,7 +34,15 @@ protected:
     void apply_lora();
     void clear_chunk_prefill_kv_cache();
     void copy_kvcache();
-
+    void update_kvcache_for(std::shared_ptr<ov::IAsyncInferRequest> request,
+                            const PortsMap& in_ports,
+                            const PortsMap& out_ports,
+                            uint32_t num_tokens,
+                            bool v_transposed) override;
+    void copy_lincache(std::shared_ptr<ov::IAsyncInferRequest> from_request,
+                       std::shared_ptr<ov::IAsyncInferRequest> to_request,
+                       const std::unordered_map<std::string, ov::Output<const ov::Node>>& from_ports,
+                       const std::unordered_map<std::string, ov::Output<const ov::Node>>& to_ports);
     // Create and initialize generate variant requests with memory sharing
     void create_generate_request_variants(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model);
 
@@ -97,8 +106,8 @@ protected:
 
     ov::Output<const ov::Node> m_lm_head_logits_port;
 
-    // Cache past_key_values ports for efficient clearing in prepare_for_new_conversation
-    std::vector<ov::Output<const ov::Node>> m_prefill_past_kv_ports;
+    std::vector<std::string> m_kvcache_past_names;
+    std::vector<std::string> m_lincache_past_names;
 
     // NB: It can be either input_ids(LLM) or inputs_embeds(VLM)
     std::string m_input_ids_name;
@@ -113,6 +122,9 @@ protected:
 
     // Support Eagle3 speculative decoding
     Eagle3Extension m_eagle3_ext;
+
+    // Support reset of stored tokens to 0 from external pipeline
+    ov::SoPtr<ov::npuw::StoredTokensState> m_stored_tokens_state;
 
     // Support LoRA
     std::vector<ov::SoPtr<ov::IVariableState>> m_variableStates;
