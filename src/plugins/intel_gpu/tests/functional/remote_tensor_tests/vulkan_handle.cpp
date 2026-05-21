@@ -512,7 +512,7 @@ TEST(GpuSharedBufferRemoteTensor, smoke_VulkanRemoteInputToRemoteOutputCopyAndCo
     const std::vector<int> driver_version = parse_driver_version(driver_version_str);
     if (!driver_version_at_least(driver_version, required_driver_version)) {
         GTEST_SKIP() << "Skipping: GPU driver \"" << driver_version_str
-                     << "\" is older than required 26.05.37020.3";
+                     << "\" is older than tested 26.05.37020.3";
     }
 
     if (!supports_external_import_handle_type(cl_device, k_cl_external_memory_handle_type)) {
