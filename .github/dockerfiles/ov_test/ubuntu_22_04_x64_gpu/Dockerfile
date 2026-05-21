@@ -12,12 +12,7 @@ RUN echo 'Acquire::Retries "10";' > /etc/apt/apt.conf && \
 ENV DEBIAN_FRONTEND="noninteractive" \
     TZ="Europe/London"
 
-RUN touch /etc/apt/sources.list.d/ubuntu.sources && \
-    if [ -f /etc/apt/sources.list ]; then \
-        sed -i -E 's|http://(archive|security).ubuntu.com/ubuntu|http://azure.archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list; \
-    fi && \
-    sed -i -E 's|http://(archive|security).ubuntu.com/ubuntu|http://azure.archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources && \
-    apt-get update && \
+RUN apt-get update && \
     apt-get install software-properties-common && \
     add-apt-repository --yes --no-update ppa:git-core/ppa && \
     add-apt-repository --yes --no-update ppa:deadsnakes/ppa && \
