@@ -41,7 +41,8 @@ public:
     ~NPUVMRuntimeApi() = default;
 
     // Must be called before the first getInstance() invocation.
-    // Throws if the singleton has already been created.
+    // Re-initialization with the same library is a no-op after the singleton has been created.
+    // Throws only if re-initialized with a different library after creation.
     static void initialize(std::string_view libName);
 
     static const std::shared_ptr<NPUVMRuntimeApi>& getInstance();
