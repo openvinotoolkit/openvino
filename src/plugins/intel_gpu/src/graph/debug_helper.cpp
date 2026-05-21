@@ -515,9 +515,7 @@ NodeDebugHelper::NodeDebugHelper(const primitive_inst& inst)
 NodeDebugHelper::~NodeDebugHelper() {
     const auto& config = m_network.get_config();
 
-    if (config.get_validate_output_buffer()
-        && !m_network.is_internal()
-        && is_target_iteration(m_iter, config.get_dump_iterations())) {
+    if (config.get_validate_output_buffer() && !m_network.is_internal()) {
         m_stream.finish(); // Wait for stream completion before checking output buffers
         for (size_t i = 0; i < m_inst.outputs_memory_count(); i++) {
             auto output_mem = m_inst.output_memory_ptr(i);
