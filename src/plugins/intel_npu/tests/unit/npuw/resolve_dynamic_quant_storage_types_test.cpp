@@ -18,8 +18,10 @@ struct ResolveStorageTypesParams {
     DQMode mode;
     bool is_symmetric;
     ov::element::Type quant_dt;
+    ov::element::Type scale_dt;
     ov::element::Type expected_quantized_data_type;
     ov::element::Type expected_zero_point_type;
+    ov::element::Type expected_scale_type;
 };
 
 const char* mode_to_token(DQMode mode) {
@@ -54,48 +56,58 @@ const char* type_to_token(const ov::element::Type& type) {
 std::string make_test_name(const ResolveStorageTypesParams& p) {
     std::ostringstream os;
     os << mode_to_token(p.mode) << "_" << (p.is_symmetric ? "Sym" : "Asym") << "_Q" << type_to_token(p.quant_dt)
+       << "_S" << type_to_token(p.scale_dt)
        << "_RQ" << type_to_token(p.expected_quantized_data_type) << "_RZ"
-       << type_to_token(p.expected_zero_point_type);
+       << type_to_token(p.expected_zero_point_type) << "_RS" << type_to_token(p.expected_scale_type);
     return os.str();
 }
 
 std::vector<ResolveStorageTypesParams> make_all_cases() {
-    static const std::vector<DQMode> modes = {
-        DQMode::HandcraftedSymmetricI8,
-        DQMode::OnnxDynamicQuantizeLinear,
-        DQMode::CompilerPatternI8,
+    return {
+        {DQMode::HandcraftedSymmetricI8, true, ov::element::u8, ov::element::f32, ov::element::u8,
+         ov::element::dynamic, ov::element::f32},
+        {DQMode::HandcraftedSymmetricI8, true, ov::element::i8, ov::element::f32, ov::element::i8,
+         ov::element::dynamic, ov::element::f32},
+        {DQMode::HandcraftedSymmetricI8, true, ov::element::i4, ov::element::f32, ov::element::i4,
+         ov::element::dynamic, ov::element::f32},
+        {DQMode::HandcraftedSymmetricI8, false, ov::element::u8, ov::element::f32, ov::element::u8,
+         ov::element::u8, ov::element::f32},
+        {DQMode::HandcraftedSymmetricI8, false, ov::element::i8, ov::element::f32, ov::element::i8,
+         ov::element::i8, ov::element::f32},
+        {DQMode::HandcraftedSymmetricI8, false, ov::element::i4, ov::element::f32, ov::element::i4,
+         ov::element::i4, ov::element::f32},
+
+        {DQMode::OnnxDynamicQuantizeLinear, true, ov::element::u8, ov::element::f32, ov::element::u8,
+         ov::element::dynamic, ov::element::f32},
+        {DQMode::OnnxDynamicQuantizeLinear, true, ov::element::i8, ov::element::f32, ov::element::i8,
+         ov::element::dynamic, ov::element::f32},
+        {DQMode::OnnxDynamicQuantizeLinear, true, ov::element::i4, ov::element::f32, ov::element::i4,
+         ov::element::dynamic, ov::element::f32},
+        {DQMode::OnnxDynamicQuantizeLinear, false, ov::element::u8, ov::element::f32, ov::element::u8,
+         ov::element::u8, ov::element::f32},
+        {DQMode::OnnxDynamicQuantizeLinear, false, ov::element::i8, ov::element::f32, ov::element::i8,
+         ov::element::i8, ov::element::f32},
+        {DQMode::OnnxDynamicQuantizeLinear, false, ov::element::i4, ov::element::f32, ov::element::i4,
+         ov::element::i4, ov::element::f32},
+
+        {DQMode::CompilerPatternI8, true, ov::element::u8, ov::element::f32, ov::element::u8,
+         ov::element::dynamic, ov::element::f32},
+        {DQMode::CompilerPatternI8, true, ov::element::i8, ov::element::f32, ov::element::i8,
+         ov::element::dynamic, ov::element::f32},
+        {DQMode::CompilerPatternI8, true, ov::element::i4, ov::element::f32, ov::element::i4,
+         ov::element::dynamic, ov::element::f32},
+        {DQMode::CompilerPatternI8, false, ov::element::u8, ov::element::f32, ov::element::u8,
+         ov::element::u8, ov::element::f32},
+        {DQMode::CompilerPatternI8, false, ov::element::i8, ov::element::f32, ov::element::u8,
+         ov::element::u8, ov::element::f32},
+        {DQMode::CompilerPatternI8, false, ov::element::i4, ov::element::f32, ov::element::i4,
+         ov::element::i4, ov::element::f32},
+
+        {DQMode::CompilerPatternI8, false, ov::element::i8, ov::element::f16, ov::element::u8,
+         ov::element::u8, ov::element::f16},
+        {DQMode::OnnxDynamicQuantizeLinear, true, ov::element::u8, ov::element::f16, ov::element::u8,
+         ov::element::dynamic, ov::element::f16},
     };
-    static const std::vector<ov::element::Type> quant_dtypes = {
-        ov::element::u8,
-        ov::element::i8,
-        ov::element::i4,
-    };
-
-    std::vector<ResolveStorageTypesParams> cases;
-    cases.reserve(modes.size() * 2 * quant_dtypes.size());
-
-    for (const auto mode : modes) {
-        for (const bool is_symmetric : {true, false}) {
-            for (const auto& quant_dt : quant_dtypes) {
-                ResolveStorageTypesParams p{};
-                p.mode = mode;
-                p.is_symmetric = is_symmetric;
-                p.quant_dt = quant_dt;
-
-                p.expected_quantized_data_type = quant_dt;
-                p.expected_zero_point_type = is_symmetric ? ov::element::dynamic : quant_dt;
-
-                if (!is_symmetric && mode == DQMode::CompilerPatternI8 && quant_dt == ov::element::i8) {
-                    p.expected_quantized_data_type = ov::element::u8;
-                    p.expected_zero_point_type = ov::element::u8;
-                }
-
-                cases.push_back(p);
-            }
-        }
-    }
-
-    return cases;
 }
 
 class ResolveDynamicQuantStorageTypesTest : public ::testing::TestWithParam<ResolveStorageTypesParams> {};
@@ -103,10 +115,12 @@ class ResolveDynamicQuantStorageTypesTest : public ::testing::TestWithParam<Reso
 TEST_P(ResolveDynamicQuantStorageTypesTest, CoversAllQuantDtSymmetryAndDecomposeModeCombinations) {
     const auto& p = GetParam();
 
-    const auto resolved = ov::npuw::util::resolve_dynamic_quant_storage_types(p.mode, p.is_symmetric, p.quant_dt);
+    const auto resolved =
+        ov::npuw::util::resolve_dynamic_quant_storage_types(p.mode, p.is_symmetric, p.quant_dt, p.scale_dt);
 
     EXPECT_EQ(resolved.quantized_data_type, p.expected_quantized_data_type);
     EXPECT_EQ(resolved.zero_point_type, p.expected_zero_point_type);
+    EXPECT_EQ(resolved.scale_type, p.expected_scale_type);
 }
 
 INSTANTIATE_TEST_SUITE_P(AllCombinations,

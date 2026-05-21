@@ -54,11 +54,13 @@ enum class DynamicQuantDecomposeMode {
 struct DynamicQuantStorageTypes {
     ov::element::Type quantized_data_type = ov::element::dynamic;
     ov::element::Type zero_point_type = ov::element::dynamic;
+    ov::element::Type scale_type = ov::element::f32;
 };
 
 DynamicQuantStorageTypes resolve_dynamic_quant_storage_types(DynamicQuantDecomposeMode decompose_mode,
                                                              bool is_symmetric,
-                                                             const ov::element::Type& quant_dt);
+                                                             const ov::element::Type& quant_dt,
+                                                             const ov::element::Type& scale_dt = ov::element::f32);
 
 struct UnpackOptions {
     bool bUseOvParallelFor;

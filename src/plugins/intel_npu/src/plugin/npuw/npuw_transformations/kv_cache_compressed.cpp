@@ -171,7 +171,14 @@ ov::OutputVector dynamic_quantize_linear_v3(const ov::Output<ov::Node>& input,
     auto convertOutput = std::make_shared<ov::op::v0::Convert>(clampOutput, storage_types.quantized_data_type);
     convertOutput->set_friendly_name(make_name("Convert_output"));
 
-    return {convertOutput->output(0), multiplyScale->output(0), convertZp->output(0)};
+    std::shared_ptr<ov::Node> scaleOutput = multiplyScale;
+    if (storage_types.scale_type != ov::element::f32) {
+        auto convertScale = std::make_shared<ov::op::v0::Convert>(multiplyScale, storage_types.scale_type);
+        convertScale->set_friendly_name(make_name("Convert_scale"));
+        scaleOutput = convertScale;
+    }
+
+    return {convertOutput->output(0), scaleOutput->output(0), convertZp->output(0)};
 }
 
 }  // anonymous namespace
@@ -236,7 +243,8 @@ ov::npuw::DecomposeDynamicQuantize3::DecomposeDynamicQuantize3() {
         const auto storage_types = ov::npuw::util::resolve_dynamic_quant_storage_types(
             ov::npuw::util::DynamicQuantDecomposeMode::CompilerPatternI8,
             false,
-            attrs.quantization_dt);
+            attrs.quantization_dt,
+            attrs.scale_dt);
 
         LOG_DEBUG("Found DynamicQuantize : " << dq_ptr->get_friendly_name() << " decomposing");
         LOG_BLOCK();
