@@ -30,6 +30,15 @@ static inline cldnn::event::ptr create_event(stream& stream, size_t bytes_count)
     return stream.create_base_event();
 }
 
+bool check_allocation_range(ze_context_handle_t ctx, void *ptr, size_t expected_size) {
+    void *base = nullptr;
+    size_t allocation_size = 0;
+    OV_ZE_EXPECT(ze::zeMemGetAddressRange(ctx, ptr, &base, &allocation_size));
+    void *alloc_end = static_cast<char*>(base) + allocation_size;
+    void *ptr_end = static_cast<char*>(ptr) + expected_size;
+    return (ptr >= base) && (ptr_end <= alloc_end);
+}
+
 std::vector<ze_event_handle_t> get_ze_events(const std::vector<event::ptr>& events) {
     std::vector<ze_event_handle_t> ze_events;
     ze_events.reserve(events.size());
@@ -249,14 +258,16 @@ allocation_type gpu_usm::detect_allocation_type(const ze_engine* engine, const z
 gpu_usm::gpu_usm(ze_engine* engine, const layout& new_layout, ze_usm_resource buffer, allocation_type type, std::shared_ptr<MemoryTracker> mem_tracker)
     : lockable_gpu_mem()
     , memory(engine, new_layout, type, mem_tracker)
-    , _buffer(buffer) {
+    , _buffer(std::move(buffer)) {
+    auto ctx_handle = engine->get_context().get_ze_handle();
+    auto ptr = _buffer.get_ze_handle().ptr;
+    auto expected_size = new_layout.bytes_count();
+    OPENVINO_ASSERT(check_allocation_range(ctx_handle, ptr, expected_size),
+                    "[GPU] Allocation is smaller than the size required by the layout");
 }
 
 gpu_usm::gpu_usm(ze_engine* engine, const layout& new_layout, ze_usm_resource buffer, std::shared_ptr<MemoryTracker> mem_tracker)
-    : lockable_gpu_mem()
-    , memory(engine, new_layout, detect_allocation_type(engine, buffer), mem_tracker)
-    , _buffer(buffer) {
-}
+    : gpu_usm(engine, new_layout, std::move(buffer), detect_allocation_type(engine, buffer), mem_tracker) {}
 
 gpu_usm::gpu_usm(ze_engine* engine, const layout& layout, allocation_type type)
     : lockable_gpu_mem()

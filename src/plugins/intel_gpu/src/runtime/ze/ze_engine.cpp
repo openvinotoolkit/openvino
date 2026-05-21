@@ -134,12 +134,6 @@ memory::ptr ze_engine::reinterpret_handle(const layout& new_layout, shared_mem_p
         ov_ze_usm_handle usm_handle{ctx.get_ze_handle(), params.mem};
         bool is_shared = true;
         ze_usm_resource usm_res(usm_handle, is_shared);
-        size_t actual_mem_size = 0;
-        OV_ZE_EXPECT(ze::zeMemGetAddressRange(ctx.get_ze_handle(), params.mem, nullptr, &actual_mem_size));
-        auto requested_mem_size = new_layout.bytes_count();
-        OPENVINO_ASSERT(actual_mem_size >= requested_mem_size,
-                            "[GPU] shared USM buffer has smaller size (", actual_mem_size,
-                            ") than specified layout (", requested_mem_size, ")");
         return std::make_shared<ze::gpu_usm>(this, new_layout, usm_res, nullptr);
     }  else if (params.mem_type == shared_mem_type::shared_mem_buffer) {
         const auto &ctx = get_context();
