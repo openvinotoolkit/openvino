@@ -418,8 +418,8 @@ Properties::Properties(const PropertiesType pType,
       _config(config),
       _metrics(metrics),
       _backend(backend),
-    _compiledModelContext(compiledModelContext),
-      _logger("Properties", _config.get<LOG_LEVEL>()) {
+            _compiledModelContext(compiledModelContext),
+            _logger("Properties", _config.get<LOG_LEVEL>()) {
     registerProperties();
 }
 
@@ -435,9 +435,7 @@ Properties::Properties(const Properties& other)
                            other._currentlyUsedPlatform,
                            other._compilerConfigsFilteredByCompiler,
                            other._compatibilityCheckFiltered,
-                           other._compiledModelContext,
-                           other._properties,
-                           other._supportedProperties};
+                                                     other._compiledModelContext};
       }()) {}
 
 Properties::Properties(CopyState&& state)
@@ -450,9 +448,9 @@ Properties::Properties(CopyState&& state)
       _currentlyUsedPlatform(std::move(state.currentlyUsedPlatform)),
       _compilerConfigsFilteredByCompiler(state.compilerConfigsFilteredByCompiler),
       _compatibilityCheckFiltered(state.compatibilityCheckFiltered),
-            _compiledModelContext(std::move(state.compiledModelContext)),
-      _properties(std::move(state.properties)),
-      _supportedProperties(std::move(state.supportedProperties)) {}
+            _compiledModelContext(std::move(state.compiledModelContext)) {
+    registerProperties();
+}
 
 void Properties::registerProperty(const std::string& name,
                                   SupportPredicate predicate,
@@ -949,6 +947,9 @@ ov::Any Properties::getProperty(const std::string& name) {
 
     auto&& configIterator = _properties.find(name);
     if (configIterator != _properties.cend()) {
+        if (_config.hasOpt(name) && !_config.isAvailable(name)) {
+            OPENVINO_THROW("Unsupported configuration key: ", name);
+        }
         if (std::get<1>(configIterator->second) == ov::PropertyMutability::WO) {
             _logger.warning("Trying to get WRITE-ONLY property: %s. Returning empty `ov::Any` object",
                             name.c_str());  // throw OV exception instead
@@ -1038,6 +1039,9 @@ void Properties::setProperty(const ov::AnyMap& properties) {
                 OPENVINO_THROW("Unsupported configuration key: ", value.first);
             }
         } else {
+                if (_config.hasOpt(value.first) && !_config.isAvailable(value.first)) {
+                    OPENVINO_THROW("Unsupported configuration key: ", value.first);
+                }
             if (std::get<1>(_properties[value.first]) == ov::PropertyMutability::RO) {
                 OPENVINO_THROW("READ-ONLY configuration key: ", value.first);
             } else if (value.first == ov::cache_encryption_callbacks.name()) {

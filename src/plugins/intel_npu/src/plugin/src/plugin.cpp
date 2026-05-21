@@ -1086,7 +1086,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
 
     OV_ITT_TASK_NEXT(PLUGIN_PARSE_MODEL, "parse");
 
-    return std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, graph, localConfig, batchSize);
+    auto compiledModel = std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, graph, localConfig, batchSize);
+    return compiledModel;
 }
 
 void Plugin::update_log_level(const ov::AnyMap& properties) const {

@@ -96,9 +96,6 @@ private:
         bool compilerConfigsFilteredByCompiler;
         bool compatibilityCheckFiltered;
         std::shared_ptr<const CompiledModelContext> compiledModelContext;
-        std::map<std::string, std::tuple<SupportPredicate, ov::PropertyMutability, std::function<ov::Any(const Config&)>>>
-            properties;
-        std::vector<ov::PropertyName> supportedProperties;
     };
 
     explicit Properties(CopyState&& state);
