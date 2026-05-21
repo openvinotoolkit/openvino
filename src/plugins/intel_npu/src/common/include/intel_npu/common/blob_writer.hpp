@@ -16,6 +16,90 @@
 
 namespace intel_npu {
 
+class BlobWriterInterface {
+public:
+    BlobWriterInterface(std::ostream& stream,
+                        const std::queue<std::shared_ptr<ISection>>& registered_sections,
+                        const CRE& cre,
+                        const std::unordered_map<SectionType, SectionTypeInstance>& next_type_instance_id);
+
+    /**
+     * @brief Append a new token to the CRE, at depth-level 1. All tokens found at this depth-level are bound by a
+     * logical "AND" operator.
+     *
+     * @param requirement_token
+     */
+    void append_compatibility_requirement(const CRE::Token requirement_token);
+
+    /**
+     * @brief Append a new CRE subexpression to the CRE, at depth-level 1. All tokens found at this depth-level are
+     * bound by a logical "AND" operator.
+     *
+     * @param requirement_token
+     */
+    void append_compatibility_requirement(const std::vector<CRE::Token>& requirement_tokens);
+
+    void write(const void* source, const size_t size);
+
+    std::streamoff get_offset_relative_to_current_section() const;
+
+    void move_cursor_relative_to_current_section(const size_t offset);
+
+    /**
+     * @brief Get the position of the write cursor relative to the beginning of the NPU region.
+     * @note When imported, the NPU region of the blob will be aligned to 4096. This method is intended to be used by
+     * section writers that have alignment requirements. The section writer may perform padding to obtain the desired
+     * alignment at import time.
+     */
+    std::streamoff get_offset_relative_to_npu_region() const;
+
+    /**
+     * @brief Move the position of the write cursor relative to the beginning of the NPU region.
+     * @note When imported, the NPU region of the blob will be aligned to 4096. This method is intended to be used by
+     * section writers that have alignment requirements. The section writer may perform padding to obtain the desired
+     * alignment at import time.
+     * @note This operation is bound checked. The current section writer cannot move outside its designated memory
+     * region.
+     *
+     * @param stream The target stream.
+     * @param section_id Used to check if the offset falls within the region allocated to this section.
+     * @param offset Where to move the cursor. This number is relative to the beginning of the NPU region.
+     */
+    void move_cursor_relative_to_npu_region(const size_t offset);
+
+    void seek_to_the_end();
+
+private:
+    friend BlobWriter;
+
+    std::reference_wrapper<std::ostream> m_stream;
+
+    /**
+     * @brief Tracks the next available instance ID for each section type. This should assure that the generated section
+     * IDs (type + instance) are unique per compiled model.
+     */
+    std::unordered_map<SectionType, SectionTypeInstance> m_next_type_instance_id;
+    /**
+     * @brief Queue that holds all sections to be written at export time.
+     */
+    std::queue<std::shared_ptr<ISection>> m_registered_sections;
+    CRE m_cre;
+
+    /**
+     * @brief Holds the offset where the NPU blob region begins
+     */
+    const std::streampos m_stream_npu_region_start;
+
+    /**
+     * @brief Holds the offset where the section that is being written into the stream start
+     * @note This attribute is mainly used for bound checking the write operations. The "write" method of one section
+     * should not write inside the payload of another section.
+     */
+    std::streampos m_stream_current_section_start;
+
+    Logger m_logger;
+};
+
 /**
  * @brief Class responsible for exporting the NPU specific data a compiled model.
  * @details There should be a 1:1 mapping between "CompiledModel" & "BlobWriter" instances.
@@ -80,26 +164,6 @@ public:
      */
     void append_compatibility_requirement(const std::vector<CRE::Token>& requirement_tokens);
 
-    /**
-     * @brief Get the position of the write cursor relative to the beginning of the NPU region.
-     * @note This is part of the section writer API.
-     */
-    std::streamoff get_stream_relative_position(std::ostream& stream) const;
-
-    /**
-     * @brief Move the position of the write cursor.
-     * @note This operation allows moving the cursor only within the region allocated to the indicated section. The
-     * parsing of each blob section should be done indepent of other sections, thus this constraint.
-     * @note This is part of the section writer API.
-     *
-     * @param stream The target stream.
-     * @param section_id Used to check if the offset falls within the region allocated to this section.
-     * @param offset Where to move the cursor. This number is relative to the beginning of the NPU region.
-     */
-    void move_stream_cursor_to_relative_position(std::ostream& stream,
-                                                 const SectionID section_id,
-                                                 const uint64_t offset);
-
     // TODO stream write method. Avoid exposing the stream object directly.
     // TODO consider placing the "section writer API" methods in a different class, corresponding to one writing
     // session. This should also solve the multi-threading issue.
@@ -115,7 +179,9 @@ private:
      * @details Calls the "write" method of the given section to fill the payload. Then adds a new entry inside the
      * table of offsets.
      */
-    void write_section(std::ostream& stream, const std::shared_ptr<ISection>& section, OffsetsTable& offsets_table);
+    void write_section(const std::shared_ptr<BlobWriterInterface>& blob_writer_interface,
+                       const std::shared_ptr<ISection>& section,
+                       OffsetsTable& offsets_table);
 
     /**
      * @brief Tracks the next available instance ID for each section type. This should assure that the generated section
@@ -127,12 +193,6 @@ private:
      */
     std::queue<std::shared_ptr<ISection>> m_registered_sections;
     CRE m_cre;
-
-    /**
-     * @brief Holds the offset where the NPU blob region begins. This attribute has value only during a "write"
-     * operation.
-     */
-    std::optional<std::streampos> m_stream_base = std::nullopt;
 
     Logger m_logger;
 };

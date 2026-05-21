@@ -76,7 +76,7 @@ public:
     /**
      * @brief Method used to instruct the BlobWriter how to write the current section into the provided stream.
      */
-    virtual void write(std::ostream& stream, BlobWriter* writer) = 0;
+    virtual void write(const std::weak_ptr<BlobWriterInterface>& writer) = 0;
 
     SectionType get_section_type() const;
 
