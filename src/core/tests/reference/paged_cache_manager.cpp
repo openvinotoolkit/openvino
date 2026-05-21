@@ -1771,7 +1771,6 @@ TEST(PagedAttentionRefTest, BidirectionalImageAttention_TextTokensCausal) {
     EXPECT_NEAR(out[4 * q_features], 3.0f, 0.01f);
 }
 
-// Sliding window interacts correctly with bidirectional image attention.
 // The window is applied relative to the extended ncausal, not the default causal position.
 TEST(PagedAttentionRefTest, BidirectionalImageAttention_SlidingWindow) {
     // 8 tokens: [text, text, image, image, image, image, text, text]
@@ -1825,7 +1824,7 @@ TEST(PagedAttentionRefTest, BidirectionalImageAttention_SlidingWindow) {
     EXPECT_NEAR(out[7 * q_features], 70.0f, 0.01f);
 }
 
-// Multiple disjoint image groups are handled independently.
+// Multiple image groups are handled independently.
 TEST(PagedAttentionRefTest, BidirectionalImageAttention_MultipleGroups) {
     // 8 tokens: [image, image, text, image, image, image, text, text]
     // Group 1: tokens {0,1} -> ncausal=2 for both. Group 2: tokens {3,4,5} -> ncausal=6.
@@ -1873,7 +1872,7 @@ TEST(PagedAttentionRefTest, BidirectionalImageAttention_MultipleGroups) {
     EXPECT_NEAR(out[7 * q_features], 4.5f, 0.01f);
 }
 
-// All-text token_type_ids is equivalent to standard causal behavior.
+// All-text token_type_ids is equivalent to standard causal behavior
 TEST(PagedAttentionRefTest, BidirectionalImageAttention_AllTextCausal) {
     // 4 tokens, all text. Each causal: token i attends to {0..i}.
     const std::size_t num_tokens = 4;
