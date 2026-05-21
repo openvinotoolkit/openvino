@@ -14,6 +14,7 @@
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/gelu.hpp"
 #include "openvino/op/minimum.hpp"
 #include "openvino/op/moe.hpp"
 #include "openvino/op/multiply.hpp"
@@ -40,6 +41,7 @@ using ov::op::internal::MOECompressed;
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v4 = ov::op::v4;
+namespace v7 = ov::op::v7;
 namespace v8 = ov::op::v8;
 
 // Logical K from a weight shape: rank-3 [E, ofm, K] or rank-4 [E, ofm, G, GS].
@@ -51,8 +53,9 @@ static size_t weight_logical_K(const ov::Shape& shape) {
 Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool has_batch_dim) {
     MATCHER_SCOPE(Convert3GatherMatmulMoeBlockToMoeOp);
 
-    auto experts_reshape_m = pattern::any_input();
-    auto unsqueeze_m = pattern::wrap_type<v0::Unsqueeze>({experts_reshape_m, pattern::any_input()});
+    auto hidden_states_m = pattern::any_input();
+    auto hidden_state_reshape = pattern::optional<v1::Reshape>({hidden_states_m, pattern::any_input()});
+    auto unsqueeze_m = pattern::wrap_type<v0::Unsqueeze>({hidden_state_reshape, pattern::any_input()});
 
     auto gate_w_m = pattern::any_input();
     auto topk_indices_m = pattern::any_input();
@@ -67,7 +70,8 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool ha
     // Or-pattern
     auto bgm_gate_m = std::make_shared<pattern::op::Or>(OutputVector{bgm_gate_4_m, bgm_gate_6_m});
 
-    auto swish_m = pattern::wrap_type<v4::Swish>({bgm_gate_m});
+    // Gate activation: Swish (SwiGLU) or Gelu (GeGLU) with TANH or ERF approximation.
+    auto swish_m = pattern::wrap_type<v4::Swish, v7::Gelu>({bgm_gate_m});
 
     auto up_w_m = pattern::any_input();
     auto bgm_up_4_m = pattern::wrap_type<GatherMatmul>({unsqueeze_m, up_w_m, topk_indices_m, pattern::any_input()});
@@ -103,8 +107,7 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool ha
             return false;
         }
 
-        auto experts_reshape_node = pm.at(experts_reshape_m).get_node_shared_ptr();
-        auto hidden_states = experts_reshape_node->input_value(0);
+        auto hidden_states = pm.at(hidden_states_m);
 
         auto routing = pm.at(routing_unsqueeze_m).get_node_shared_ptr();
         auto topk_indices = pm.at(topk_indices_m);
@@ -112,17 +115,27 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool ha
         auto up_w = pm.at(up_w_m);
         auto down_w = pm.at(down_w_m);
 
-        // Extract expert_beta from Swish
+        // Extract expert_beta and detect activation type from the matched gate activation node.
         float expert_beta = 1.0f;
-        auto swish_node = pm.at(swish_m).get_node_shared_ptr();
+        ov::op::internal::MOE::Activation_type activation_type = ov::op::internal::MOE::Activation_type::SWIGLU;
+        auto activation_node = pm.at(swish_m).get_node_shared_ptr();
 
-        auto swish_op = ov::as_type_ptr<v4::Swish>(swish_node);
-        OPENVINO_ASSERT(swish_op, "Unexpected node type matched for Swish: ", *swish_node);
-
-        if (swish_op->get_input_size() > 1) {
-            if (auto beta_const = ov::as_type_ptr<v0::Constant>(swish_op->get_input_node_shared_ptr(1))) {
-                expert_beta = beta_const->cast_vector<float>()[0];
+        if (auto swish_op = ov::as_type_ptr<v4::Swish>(activation_node)) {
+            if (swish_op->get_input_size() > 1) {
+                if (auto beta_const = ov::as_type_ptr<v0::Constant>(swish_op->get_input_node_shared_ptr(1))) {
+                    expert_beta = beta_const->cast_vector<float>()[0];
+                }
             }
+        } else if (auto gelu_op = ov::as_type_ptr<v7::Gelu>(activation_node)) {
+            if (gelu_op->get_approximation_mode() == ov::op::GeluApproximationMode::TANH) {
+                activation_type = ov::op::internal::MOE::Activation_type::GEGLU_TANH;
+            } else if (gelu_op->get_approximation_mode() == ov::op::GeluApproximationMode::ERF) {
+                activation_type = ov::op::internal::MOE::Activation_type::GEGLU_ERF;
+            } else {
+                return false;
+            }
+        } else {
+            OPENVINO_THROW("Unexpected node type matched for gate activation: ", activation_node);
         }
 
         std::shared_ptr<ov::Node> moe_node;
@@ -175,7 +188,7 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool ha
             const bool has_zp = pm.at(gate_zp_m).get_element_type() != ov::element::dynamic;
 
             MOECompressed::Config compressed_config{
-                {ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU, 0.0f, expert_beta},
+                {ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU, 0.0f, expert_beta, 0, activation_type},
                 gate_K,
                 weight_shape[1],
                 weight_shape[0],
@@ -200,7 +213,11 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool ha
                 moe_node = moe_compressed;
             }
         } else {
-            ov::op::internal::MOE::Config config{ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU, 0.0f, expert_beta};
+            ov::op::internal::MOE::Config config{ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU,
+                                                 0.0f,
+                                                 expert_beta,
+                                                 0,
+                                                 activation_type};
             // Plain MOE with 6 inputs
             ov::OutputVector moe_inputs = {hidden_states, routing, topk_indices, gate_w, up_w, down_w};
 
@@ -222,8 +239,9 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool ha
 Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(bool has_batch_dim) {
     MATCHER_SCOPE(Convert2GatherMatmulMoeBlockToMoeOp);
 
-    auto experts_reshape_m = pattern::any_input();
-    auto unsqueeze_m = pattern::wrap_type<v0::Unsqueeze>({experts_reshape_m, pattern::any_input()});
+    auto hidden_states_m = pattern::any_input();
+    auto hidden_state_reshape = pattern::optional<v1::Reshape>({hidden_states_m, pattern::any_input()});
+    auto unsqueeze_m = pattern::wrap_type<v0::Unsqueeze>({hidden_state_reshape, pattern::any_input()});
 
     auto gate_up_w_m = pattern::any_input();
     auto topk_indices_m = pattern::any_input();
@@ -282,8 +300,7 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(bool ha
             return false;
         }
 
-        auto experts_reshape_node = pm.at(experts_reshape_m).get_node_shared_ptr();
-        auto hidden_states = experts_reshape_node->input_value(0);
+        auto hidden_states = pm.at(hidden_states_m);
 
         // Bypass the [1,0] Transpose: moe_scatter_reduction expects tokens-major routing.
         // Order is enforced by the pattern (value_matches("1, 0")).

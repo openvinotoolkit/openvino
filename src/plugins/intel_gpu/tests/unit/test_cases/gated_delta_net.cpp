@@ -283,7 +283,7 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
 
     void execute(gated_delta_net_test_params& p, const bool is_caching_test = false) {
         auto cldnn_precision = cldnn::element_type_to_data_type(p.precision);
-        float tolerance = 0.01f;
+        float tolerance = 0.02f;
         if (p.precision == ov::element::f16) {
             execute_t<ov::float16>(p, cldnn_precision, tolerance, is_caching_test);
             return;

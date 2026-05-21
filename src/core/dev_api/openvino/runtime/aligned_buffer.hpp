@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <memory>
 
 #include "openvino/core/attribute_adapter.hpp"
@@ -12,6 +13,7 @@
 namespace ov {
 
 class AlignedBuffer;
+
 class OPENVINO_API IBufferDescriptor {
 public:
     virtual size_t get_id() const = 0;
@@ -68,7 +70,12 @@ public:
     AlignedBuffer(const AlignedBuffer&) = delete;
     AlignedBuffer& operator=(const AlignedBuffer&) = delete;
 
+    virtual void hint_evict() noexcept;
+
 protected:
+    virtual void hint_evict(size_t offset, size_t size) noexcept;
+    static void invoke_evict(AlignedBuffer& buffer, size_t offset, size_t size) noexcept;
+
     char* m_allocated_buffer;
     char* m_aligned_buffer;
     size_t m_byte_size;
