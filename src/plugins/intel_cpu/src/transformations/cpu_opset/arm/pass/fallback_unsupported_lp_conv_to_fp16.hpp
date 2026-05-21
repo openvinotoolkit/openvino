@@ -8,22 +8,39 @@
 
 /*
  * Description:
- *     FallbackUnsupportedLPConvToFP16 detects quantized Convolution patterns with
- *     Convolution -> Multiply -> Add -> FakeQuantize that cannot execute as int8.
+ *     FallbackUnsupportedLPConvToFP16 rewrites low-precision ARM convolution slices that
+ *     cannot stay on the intended int8 path into an explicit fp16 path.
  *
- *     The pass fires when either:
- *       1. The Convolution activation comes from a Subtract (zero-point dequantization),
- *          indicating the int8 path is broken for this Conv (unconditional fallback).
- *       2. The FakeQuantize output precision differs from Conv activation precision
- *          (original type-mismatch case).
+ *     The pass has two local matcher entry points:
+ *       1. Convolution -> Multiply -> Add -> [Clamp] -> FakeQuantize
+ *       2. Convolution -> Multiply -> Add
  *
- *     The pass moves DQ scaling from Convolution output path to Convolution weights:
- *     post-conv DQ Multiply is removed, and equivalent scaling is applied on weights
- *     before Convolution.
- *     This avoids fp16 overflow on large post-conv values that would otherwise be scaled
- *     in the output path.
+ *     The Convolution activation can arrive either directly as u8/i8 or through an
+ *     optional Convert -> Subtract zero-point dequantization chain.
  *
- * Before (case 1 - Subtract on activation):
+ *     For the FakeQuantize case, fallback is applied when either:
+ *       1. The Convolution activation comes from a Subtract, which means the zero-point
+ *          path is present and the int8 ACL convolution executor is not applicable.
+ *       2. FakeQuantize output precision differs from the Convolution activation precision.
+ *
+ *     The second matcher is intentionally suffix-based: it rewrites the local
+ *     Convolution -> Multiply -> Add fragment without requiring a trailing FakeQuantize
+ *     node to be part of the matched subgraph.
+ *
+ *     For that local Convolution -> Multiply -> Add matcher, the matched low-precision
+ *     suffix is rewritten unconditionally once it is found.
+ *
+ *     The rewrite moves the post-convolution dequantization scale from the output path to
+ *     the Convolution weights:
+ *       - activation is converted to fp16 if needed
+ *       - weights are converted to fp16 if needed
+ *       - Multiply scales are converted to fp16, reshaped to the weights rank, and folded
+ *         into the weights through a new Multiply
+ *       - the original post-convolution Multiply is removed by cloning the Convolution with
+ *         fp16 activation and scaled fp16 weights
+ *       - Add, optional Clamp, and optional FakeQuantize stay downstream
+ *
+ * Before (FakeQuantize case, zero-point activation shown):
  *
  *  +--------+     +----------+
  *  |Convert | --> | Subtract | (zero-point)    +---------------+
@@ -47,6 +64,11 @@
  *                                   |
  *                                   v
  *                            +-------------+
+ *                            | Clamp (opt) |
+ *                            +------+------+
+ *                                   |
+ *                                   v
+ *                            +-------------+
  *                            | FakeQuantize|
  *                            +------+------+
  *                                   |
@@ -55,7 +77,7 @@
  *                            |   Result    |
  *                            +-------------+
  *
- * Before (case 2 - type mismatch, no Subtract):
+ * Before (local suffix matched without a trailing FakeQuantize anchor):
  *
  * +--------------+      +---------------+
  * | Input (u8/i8)|      | Weights (i8)  |
@@ -79,11 +101,6 @@
  *                    |
  *                    v
  *             +-------------+
- *             | FakeQuantize|  (output precision != Conv activation precision)
- *             +------+------+
- *                    |
- *                    v
- *             +-------------+
  *             |   Result    |
  *             +-------------+
  *
@@ -101,6 +118,11 @@
  * +--------------+      +----------------+      +---------+--------+          v
  * | DQ Scales    | ---> | Convert (f16)  | ---> |    Reshape       |   +------+------+
  * +--------------+      +----------------+      +------------------+   |     Add     |
+ *                                                                      +------+------+
+ *                                                                             |
+ *                                                                             v
+ *                                                                      +------+------+
+ *                                                                      | Clamp (opt) |
  *                                                                      +------+------+
  *                                                                             |
  *                                                                             v
