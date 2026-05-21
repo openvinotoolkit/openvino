@@ -179,7 +179,7 @@ TEST(ExtractSubgraphTest, MultimapOverload_MultiInputChain) {
 TEST(ExtractSubgraphTest, MultimapOverload_BranchingModel_BothBranches) {
     auto model = build_branch_model();
 
-    // Extract both activation branches but not Mul: inputs at Relu.0 and Sigmoid.0, outputs at Relu.0 and Sigmoid.0
+    // Extract only Mul: cut both Mul inputs to Parameters and use Mul output as the subgraph output
     const std::multimap<std::string, size_t> inputs_map = {{"Mul", 0}, {"Mul", 1}};
     const std::multimap<std::string, size_t> outputs_map = {{"Mul", 0}};
 

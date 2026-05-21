@@ -30,7 +30,12 @@ std::shared_ptr<ov::Model> extract_subgraph(const std::shared_ptr<ov::Model>& mo
 
         const auto& source_output = input.get_source_output();
         replaced_outputs.push_back(source_output);
-        ov::replace_output_update_name(source_output, new_parameter->output(0));
+        OPENVINO_ASSERT(ov::replace_output_update_name(source_output, new_parameter->output(0)),
+                        "extract_subgraph: failed to replace boundary source output '",
+                        source_output.get_node()->get_friendly_name(),
+                        "' at port ",
+                        source_output.get_index(),
+                        ". The requested subgraph input cannot be replaced safely.");
     }
     OPENVINO_ASSERT(subgraph_parameters.size() == replaced_outputs.size(),
                     "extract_subgraph: number of subgraph_parameters is not equal to the number of replaced_outputs");
