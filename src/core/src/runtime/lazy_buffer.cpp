@@ -39,15 +39,15 @@ LazyBuffer::LazyBuffer(std::filesystem::path file_path, size_t offset, size_t by
                     default_alignment,
                     ").");
 
-    m_impl = std::make_unique<util::ReservableBuffer>(reserve_size);
-    const auto reserved_buffer = m_impl->reserve();
+    m_buffer = std::make_unique<util::ReservableBuffer>(reserve_size);
+    const auto reserved_buffer = m_buffer->pointer();
     OPENVINO_ASSERT(reserved_buffer != nullptr,
                     "Failed to reserve memory for LazyBuffer (requested byte size: ",
                     m_byte_size,
                     ", reserved size: ",
                     reserve_size,
                     "). Error: ",
-                    m_impl->get_last_error());
+                    m_buffer->last_error());
     m_aligned_buffer = static_cast<char*>(reserved_buffer) +
                        util::align_padding_size(default_alignment, reinterpret_cast<size_t>(reserved_buffer));
 }
@@ -57,7 +57,7 @@ LazyBuffer::LazyBuffer(LazyBuffer&& other) noexcept
       m_file_path{std::move(other.m_file_path)},
       m_offset{other.m_offset},
       m_loaded{other.m_loaded.load()},
-      m_impl{std::move(other.m_impl)} {
+      m_buffer{std::move(other.m_buffer)} {
     other.m_loaded = false;
     other.m_offset = 0;
 };
@@ -68,7 +68,7 @@ LazyBuffer& LazyBuffer::operator=(LazyBuffer&& other) noexcept {
         m_file_path = std::move(other.m_file_path);
         m_offset = other.m_offset;
         m_loaded = other.m_loaded.load();
-        m_impl = std::move(other.m_impl);
+        m_buffer = std::move(other.m_buffer);
 
         other.m_loaded = false;
         other.m_offset = 0;
@@ -79,13 +79,13 @@ LazyBuffer& LazyBuffer::operator=(LazyBuffer&& other) noexcept {
 LazyBuffer::~LazyBuffer() = default;
 
 void LazyBuffer::hint_prefetch() const {
-    if (!m_loaded) {
+    if (!m_loaded.load(std::memory_order_acquire)) {
         std::lock_guard lock{m_loading};
-        if (m_loaded) {
+        if (m_loaded.load(std::memory_order_relaxed)) {
             return;
         }
-        if (!m_impl->acquire()) {
-            OPENVINO_THROW("Failed to acquire memory for LazyBuffer. Error: ", m_impl->get_last_error());
+        if (!m_buffer->acquire()) {
+            OPENVINO_THROW("Failed to acquire memory for LazyBuffer. Error: ", m_buffer->last_error());
         }
         try {
             util::ParallelReadStreamBuf par_buf(m_file_path, static_cast<std::streamoff>(m_offset));
@@ -93,21 +93,21 @@ void LazyBuffer::hint_prefetch() const {
             OPENVINO_ASSERT(file, "Failed to open file: ", m_file_path);
             file.read(m_aligned_buffer, m_byte_size);
             OPENVINO_ASSERT(file, "Failed to read data from file: ", m_file_path);
-            m_loaded = true;
+            m_loaded.store(true, std::memory_order_release);
         } catch (...) {
-            m_impl->evict();
+            m_buffer->evict();
             throw;
         }
     }
 }
 
 void LazyBuffer::hint_evict() noexcept {
-    if (m_loaded) {
+    if (m_loaded.load(std::memory_order_acquire)) {
         try {
             std::lock_guard lock{m_loading};
-            if (m_loaded) {
-                m_impl->evict();
-                m_loaded = false;
+            if (m_loaded.load(std::memory_order_relaxed)) {
+                m_buffer->evict();
+                m_loaded.store(false, std::memory_order_release);
             }
         } catch (...) {
         }

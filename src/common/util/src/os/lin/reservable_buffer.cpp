@@ -13,43 +13,30 @@
 #include <tuple>
 
 namespace ov::util {
-ReservableBuffer::ReservableBuffer(size_t byte_size) : m_reserved_size{byte_size}, m_reserved_buffer{MAP_FAILED} {
+ReservableBuffer::ReservableBuffer(size_t byte_size)
+    : m_reserved_size{byte_size},
+      m_reserved_buffer{MAP_FAILED},
+      m_last_error{} {
     if (byte_size == 0) {
-        throw std::runtime_error("Cannot reserve zero bytes.");
+        throw std::runtime_error("Zero size buffer makes no sense");
     }
-}
-
-void* ReservableBuffer::reserve() {
-    if (m_reserved_buffer != MAP_FAILED) {
-        m_last_error = "Region is already reserved.";
-        return nullptr;
-    }
-    m_last_error.clear();
     m_reserved_buffer = mmap(nullptr, m_reserved_size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if (m_reserved_buffer == MAP_FAILED) {
-        m_last_error = std::string{"mmap failed, err: "} + std::strerror(errno);
-        return nullptr;
+        throw std::runtime_error(std::string{"mmap failed, err: "} + std::strerror(errno));
     }
-    return m_reserved_buffer;
 }
 
 ReservableBuffer::~ReservableBuffer() {
-    if (m_reserved_buffer != MAP_FAILED) {
-        std::ignore = munmap(m_reserved_buffer, m_reserved_size);
-    }
+    std::ignore = munmap(m_reserved_buffer, m_reserved_size);
 }
 
 bool ReservableBuffer::acquire() {
     m_last_error.clear();
-    if (m_reserved_buffer != MAP_FAILED && m_reserved_size > 0) {
-        if (mprotect(m_reserved_buffer, m_reserved_size, PROT_READ | PROT_WRITE) == -1) {
-            m_last_error = std::string{"mprotect failed, err: "} + std::strerror(errno);
-            return false;
-        }
-        return true;
+    if (mprotect(m_reserved_buffer, m_reserved_size, PROT_READ | PROT_WRITE) == -1) {
+        m_last_error = std::string{"mprotect failed, err: "} + std::strerror(errno);
+        return false;
     }
-    m_last_error = "Region is not reserved.";
-    return false;
+    return true;
 }
 
 void ReservableBuffer::evict() noexcept {
@@ -64,7 +51,7 @@ void ReservableBuffer::evict(size_t offset, size_t size) noexcept {
     }
 }
 
-std::string_view ReservableBuffer::get_last_error() const noexcept {
+std::string_view ReservableBuffer::last_error() const noexcept {
     return m_last_error;
 }
 }  // namespace ov::util

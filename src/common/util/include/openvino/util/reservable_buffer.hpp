@@ -17,17 +17,24 @@ public:
     ReservableBuffer(const ReservableBuffer&) = delete;
     ReservableBuffer& operator=(const ReservableBuffer&) = delete;
 
-    void* reserve();
+    void* pointer() const noexcept {
+        return m_reserved_buffer;
+    }
+
+    size_t size() const noexcept {
+        return m_reserved_size;
+    }
+
     bool acquire();
     void evict() noexcept;
     void evict(size_t offset, size_t size) noexcept;
 
-    std::string_view get_last_error() const noexcept;
+    std::string_view last_error() const noexcept;
 
 private:
     const size_t m_reserved_size{0};
     void* m_reserved_buffer{nullptr};
 
-    std::string m_last_error;
+    std::string m_last_error{};
 };
 }  // namespace ov::util

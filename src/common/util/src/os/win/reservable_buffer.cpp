@@ -15,43 +15,30 @@
 #include <string>
 
 namespace ov::util {
-ReservableBuffer::ReservableBuffer(size_t byte_size) : m_reserved_size{byte_size}, m_reserved_buffer{nullptr} {
+ReservableBuffer::ReservableBuffer(size_t byte_size)
+    : m_reserved_size{byte_size},
+      m_reserved_buffer{nullptr},
+      m_last_error{} {
     if (byte_size == 0) {
-        throw std::runtime_error("Cannot reserve zero bytes.");
+        throw std::runtime_error("Zero size buffer makes no sense");
     }
-}
-
-void* ReservableBuffer::reserve() {
-    if (m_reserved_buffer != nullptr) {
-        m_last_error = "Region is already reserved.";
-        return nullptr;
-    }
-    m_last_error.clear();
     m_reserved_buffer = VirtualAlloc(nullptr, m_reserved_size, MEM_RESERVE, PAGE_NOACCESS);
     if (m_reserved_buffer == nullptr) {
-        m_last_error = std::string{"VirtualAlloc failed, err: "} + std::to_string(GetLastError());
-        return nullptr;
+        throw std::runtime_error(std::string{"VirtualAlloc failed, err: "} + std::to_string(GetLastError()));
     }
-    return m_reserved_buffer;
 }
 
 ReservableBuffer::~ReservableBuffer() {
-    if (m_reserved_buffer != nullptr) {
-        std::ignore = VirtualFree(m_reserved_buffer, 0, MEM_RELEASE);
-    }
+    std::ignore = VirtualFree(m_reserved_buffer, 0, MEM_RELEASE);
 }
 
 bool ReservableBuffer::acquire() {
     m_last_error.clear();
-    if (m_reserved_buffer != nullptr) {
-        if (VirtualAlloc(m_reserved_buffer, m_reserved_size, MEM_COMMIT, PAGE_READWRITE) == nullptr) {
-            m_last_error = std::string{"VirtualAlloc commit failed, err: "} + std::to_string(GetLastError());
-            return false;
-        }
-        return true;
+    if (VirtualAlloc(m_reserved_buffer, m_reserved_size, MEM_COMMIT, PAGE_READWRITE) == nullptr) {
+        m_last_error = std::string{"VirtualAlloc commit failed, err: "} + std::to_string(GetLastError());
+        return false;
     }
-    m_last_error = "Region is not reserved.";
-    return false;
+    return true;
 }
 
 void ReservableBuffer::evict() noexcept {
@@ -66,7 +53,7 @@ void ReservableBuffer::evict(size_t offset, size_t size) noexcept {
     }
 }
 
-std::string_view ReservableBuffer::get_last_error() const noexcept {
+std::string_view ReservableBuffer::last_error() const noexcept {
     return m_last_error;
 }
 }  // namespace ov::util
