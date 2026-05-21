@@ -162,30 +162,34 @@ if(NOT Vulkan_FOUND AND NOT WIN32)
             endif()
 
             if(_ov_vk_lib_location)
+                get_filename_component(_ov_vk_lib_name "${_ov_vk_lib_location}" NAME)
                 install(FILES "${_ov_vk_lib_location}"
                         DESTINATION ${_ov_vk_install_dir}
                         COMPONENT tests)
-                install(FILES "${_ov_vk_lib_location}"
-                        DESTINATION ${_ov_vk_install_dir}
-                        RENAME libvulkan.so.1
-                        COMPONENT tests)
-                install(FILES "${_ov_vk_lib_location}"
-                        DESTINATION ${_ov_vk_install_dir}
-                        RENAME libvulkan.so
-                        COMPONENT tests)
+
+                install(CODE "
+                    execute_process(COMMAND \${CMAKE_COMMAND} -E create_symlink
+                        \"${_ov_vk_lib_name}\"
+                        \"\${CMAKE_INSTALL_PREFIX}/${_ov_vk_install_dir}/libvulkan.so.1\")
+                    execute_process(COMMAND \${CMAKE_COMMAND} -E create_symlink
+                        \"libvulkan.so.1\"
+                        \"\${CMAKE_INSTALL_PREFIX}/${_ov_vk_install_dir}/libvulkan.so\")
+                "
+                COMPONENT tests)
             endif()
         else()
             install(FILES "$<TARGET_FILE:Vulkan::Vulkan>"
                     DESTINATION ${_ov_vk_install_dir}
                     COMPONENT tests)
-            install(FILES "$<TARGET_FILE:Vulkan::Vulkan>"
-                    DESTINATION ${_ov_vk_install_dir}
-                    RENAME libvulkan.so.1
-                    COMPONENT tests)
-            install(FILES "$<TARGET_FILE:Vulkan::Vulkan>"
-                    DESTINATION ${_ov_vk_install_dir}
-                    RENAME libvulkan.so
-                    COMPONENT tests)
+            install(CODE "
+                execute_process(COMMAND \${CMAKE_COMMAND} -E create_symlink
+                    \"$<TARGET_FILE_NAME:Vulkan::Vulkan>\"
+                    \"\${CMAKE_INSTALL_PREFIX}/${_ov_vk_install_dir}/libvulkan.so.1\")
+                execute_process(COMMAND \${CMAKE_COMMAND} -E create_symlink
+                    \"libvulkan.so.1\"
+                    \"\${CMAKE_INSTALL_PREFIX}/${_ov_vk_install_dir}/libvulkan.so\")
+            "
+            COMPONENT tests)
         endif()
     endif()
 endif()
