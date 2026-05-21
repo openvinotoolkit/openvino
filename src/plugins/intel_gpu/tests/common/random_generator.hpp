@@ -13,6 +13,16 @@
 namespace tests {
 static const uint32_t DEFAULT_SEED = 0;
 
+// Use a deterministic FNV-1a hash instead of std::hash algorithm
+inline uint32_t stable_string_seed(std::string_view seed) {
+    uint32_t hash = 2166136261u;
+    for (unsigned char ch : seed) {
+        hash ^= ch;
+        hash *= 16777619u;
+    }
+    return hash;
+}
+
 class random_generator {
 public:
     random_generator() = default;
@@ -26,8 +36,7 @@ public:
     }
 
     void set_seed(const std::string& seed) {
-        auto seed_hash = std::hash<std::string>{}(seed);
-        set_seed(static_cast<uint32_t>(seed_hash));
+        set_seed(stable_string_seed(seed));
     }
 
     void set_seed(const uint32_t seed) {
