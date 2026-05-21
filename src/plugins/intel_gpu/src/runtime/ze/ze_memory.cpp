@@ -478,30 +478,12 @@ dnnl::memory gpu_usm::get_onednn_grouped_memory(dnnl::memory::desc desc, const m
 }
 #endif
 
-shared_mem_params gpu_usm::get_internal_params() const {
-    auto zero_engine = downcast<const ze_engine>(_engine);
-    auto device_res = zero_engine->get_device();
-    auto ctx_res = zero_engine->get_context();
-    ze_ocl_exporter<ze_resource_type::context, ocl_resource_type::context> ctx_exporter({device_res});
-    ctx_exporter(ctx_res);
-
-    void *exported = nullptr;
-    if (get_allocation_type() == allocation_type::cl_mem) {
-        cl_mem_flags flags = 0;
-        size_t buffer_size = _bytes_count;
-        ze_ocl_exporter<ze_resource_type::usm_memory, ocl_resource_type::mem_object> exporter({device_res, ctx_res, flags, buffer_size});
-        exporter(_buffer);
-        exported = _buffer.get_ocl_handle<ocl_resource_type::mem_object>();
-    } else {
-        // No need to convert when exporting USM pointer
-        exported = _buffer.get_ze_handle().ptr;
-    }
-
-    return {
+shared_mem_params gpu_usm::get_internal_params(runtime_types rt_type) const {
+    auto params = shared_mem_params {
         shared_mem_type::shared_mem_usm,
-        ctx_res.get_ocl_handle<ocl_resource_type::context>(),
         nullptr,
-        exported,
+        nullptr,
+        nullptr,
 #ifdef _WIN32
         nullptr,
 #else
@@ -509,6 +491,32 @@ shared_mem_params gpu_usm::get_internal_params() const {
 #endif
         0
     };
+    auto zero_engine = downcast<const ze_engine>(_engine);
+    auto ctx_res = zero_engine->get_context();
+    if (rt_type == runtime_types::ze) {
+        params.context = ctx_res.get_ze_handle();
+        params.mem = _buffer.get_ze_handle().ptr;
+        return params;
+    } else if (rt_type == runtime_types::ocl) {
+        auto device_res = zero_engine->get_device();
+        ze_ocl_exporter<ze_resource_type::context, ocl_resource_type::context> ctx_exporter({device_res});
+        ctx_exporter(ctx_res);
+        params.context = ctx_res.get_ocl_handle<ocl_resource_type::context>();
+        if (get_allocation_type() == allocation_type::cl_mem) {
+            cl_mem_flags flags = 0;
+            size_t buffer_size = _bytes_count;
+            ze_ocl_exporter<ze_resource_type::usm_memory, ocl_resource_type::mem_object> exporter({device_res, ctx_res, flags, buffer_size});
+            exporter(_buffer);
+            params.mem_type = shared_mem_type::shared_mem_buffer;
+            params.mem = _buffer.get_ocl_handle<ocl_resource_type::mem_object>();
+        } else {
+            // No need to convert when exporting USM pointer
+            params.mem = _buffer.get_ze_handle().ptr;
+        }
+    } else {
+        OPENVINO_THROW("[GPU] Unsupported runtime type for gpu_usm internal params");
+    }
+    return params;
 }
 
 gpu_image2d::gpu_image2d(ze_engine* engine, const layout& layout)
@@ -715,20 +723,12 @@ event::ptr gpu_image2d::fill(stream& stream, unsigned char pattern, const std::v
     return result_event;
 }
 
-shared_mem_params gpu_image2d::get_internal_params() const {
-    auto zero_engine = downcast<const ze_engine>(_engine);
-    auto device_res = zero_engine->get_device();
-    auto ctx_res = zero_engine->get_context();
-    cl_mem_flags flags = 0;
-    cl_image_format img_fmt =  get_cl_image_format(get_layout());
-    cl_image_desc img_desc = get_cl_image_desc(get_layout());
-    ze_ocl_exporter<ze_resource_type::image, ocl_resource_type::mem_object> exporter({device_res, ctx_res, flags, img_fmt, img_desc});
-    exporter(_image_holder);
-    return {
+shared_mem_params gpu_image2d::get_internal_params(runtime_types rt_type) const {
+    auto params = shared_mem_params {
         shared_mem_type::shared_mem_image,
-        ctx_res.get_ocl_handle<ocl_resource_type::context>(),
         nullptr,
-        _image_holder.get_ocl_handle<ocl_resource_type::mem_object>(),
+        nullptr,
+        nullptr,
 #ifdef _WIN32
         nullptr,
 #else
@@ -736,6 +736,23 @@ shared_mem_params gpu_image2d::get_internal_params() const {
 #endif
         0
     };
+    auto zero_engine = downcast<const ze_engine>(_engine);
+    auto ctx_res = zero_engine->get_context();
+    if (rt_type == runtime_types::ze) {
+        params.context = ctx_res.get_ze_handle();
+        params.mem = _image_holder.get_ze_handle();
+        return params;
+    } else if (rt_type == runtime_types::ocl) {
+        auto device_res = zero_engine->get_device();
+        cl_mem_flags flags = 0;
+        cl_image_format img_fmt =  get_cl_image_format(get_layout());
+        cl_image_desc img_desc = get_cl_image_desc(get_layout());
+        ze_ocl_exporter<ze_resource_type::image, ocl_resource_type::mem_object> exporter({device_res, ctx_res, flags, img_fmt, img_desc});
+        exporter(_image_holder);
+        params.context = ctx_res.get_ocl_handle<ocl_resource_type::context>();
+        params.mem = _image_holder.get_ocl_handle<ocl_resource_type::mem_object>();
+    }
+    return params;
 }
 
 event::ptr gpu_image2d::copy_from(stream& stream, const void* data_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) {

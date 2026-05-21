@@ -23,12 +23,23 @@ Type extract_object(const ov::AnyMap& params, const ov::Property<Type>& p) {
     return res.as<Type>();
 }
 
+ContextType get_default_context_type() {
+    #ifdef OV_GPU_WITH_ZE_RT
+        return ContextType::ZE;
+    #elif defined(OV_GPU_WITH_OCL_RT)
+        return ContextType::OCL;
+    #else
+        #error "Expected OpenVINO GPU runtime macros to be defined"
+    #endif
+}
+
 }  // namespace
 
 RemoteContextImpl::RemoteContextImpl(const std::string& device_name, std::vector<cldnn::device::ptr> devices, bool initialize_ctx)
     : m_device_name(device_name) {
     OPENVINO_ASSERT(devices.size() == 1, "[GPU] Currently context can be created for single device only");
     m_device = devices.front();
+    m_type = get_default_context_type();
 
     if (initialize_ctx) {
         initialize();
@@ -39,6 +50,7 @@ RemoteContextImpl::RemoteContextImpl(const std::map<std::string, RemoteContextIm
     gpu_handle_param context_id = nullptr;
     int ctx_device_id = 0;
     int target_tile_id = -1;
+    m_type = get_default_context_type();
 
     if (params.size()) {
         auto ctx_type = extract_object(params, ov::intel_gpu::context_type);
@@ -56,10 +68,12 @@ RemoteContextImpl::RemoteContextImpl(const std::map<std::string, RemoteContextIm
         } else if (ctx_type == ov::intel_gpu::ContextType::VA_SHARED) {
             m_va_display = extract_object(params, ov::intel_gpu::va_device);
             OPENVINO_ASSERT(m_va_display != nullptr, "[GPU] Can't create shared VA/DX context as user handle is nullptr! Params:\n", params);
-            m_type = ContextType::VA_SHARED;
+        } else if (ctx_type == ov::intel_gpu::ContextType::ZE) {
+            OPENVINO_THROW("Level Zero interoperability is not supported");
         } else {
             OPENVINO_THROW("Invalid execution context type", ctx_type);
         }
+        m_type = ctx_type;
         if (params.find(ov::intel_gpu::tile_id.name()) != params.end()) {
             target_tile_id = extract_object(params, ov::intel_gpu::tile_id);
         }
@@ -90,16 +104,20 @@ const cldnn::engine& RemoteContextImpl::get_engine() const {
 }
 
 void RemoteContextImpl::init_properties() {
-    properties = { ov::intel_gpu::ocl_context(m_engine->get_user_context()) };
-
     switch (m_type) {
     case ContextType::OCL:
         properties.insert(ov::intel_gpu::context_type(ov::intel_gpu::ContextType::OCL));
+        properties.insert(ov::intel_gpu::ocl_context(m_engine->get_user_context(cldnn::runtime_types::ocl)));
         properties.insert(ov::intel_gpu::ocl_queue(m_external_queue));
         break;
     case ContextType::VA_SHARED:
         properties.insert(ov::intel_gpu::context_type(ov::intel_gpu::ContextType::VA_SHARED));
+        properties.insert(ov::intel_gpu::ocl_context(m_engine->get_user_context(cldnn::runtime_types::ocl)));
         properties.insert(ov::intel_gpu::va_device(m_va_display));
+        break;
+    case ContextType::ZE:
+        properties.insert(ov::intel_gpu::context_type(ov::intel_gpu::ContextType::ZE));
+        properties.insert(ov::intel_gpu::ocl_context(m_engine->get_user_context(cldnn::runtime_types::ze)));
         break;
     default:
         OPENVINO_THROW("[GPU] Unsupported shared context type ", m_type);
@@ -243,7 +261,7 @@ void RemoteContextImpl::initialize() {
 
         m_device->initialize();  // Initialize associated device before use
         m_engine = cldnn::engine::create(
-            cldnn::device_query::get_default_engine_type(), cldnn::device_query::get_default_runtime_type(), m_device);
+            cldnn::get_default_engine_type(), cldnn::get_default_runtime_type(), m_device);
 
         init_properties();
 

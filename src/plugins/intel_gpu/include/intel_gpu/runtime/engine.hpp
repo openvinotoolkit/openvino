@@ -104,8 +104,8 @@ public:
     /// Returns device object associated with the engine
     const device::ptr get_device() const;
 
-    /// Returns OpenCL user context handle which was used to create the engine
-    virtual void* get_user_context() const = 0;
+    /// Returns L0 or OpenCL user context handle which was used to create the engine.
+    virtual void* get_user_context(runtime_types rt_type) const = 0;
 
     /// Returns the total maximum amount of GPU memory allocated by engine in current process for all allocation types
     uint64_t get_max_used_device_memory() const;

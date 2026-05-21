@@ -11,27 +11,6 @@
 namespace cldnn {
 int device_query::device_id = -1;
 
-engine_types device_query::get_default_engine_type() {
-    auto engine_type = engine_types::ocl;
-#ifdef OV_GPU_WITH_ZE_RT
-    engine_type = engine_types::ze;
-#elif defined(OV_GPU_WITH_OCL_RT)
-    engine_type = engine_types::ocl;
-#elif defined(OV_GPU_WITH_SYCL)
-    engine_type = engine_types::sycl;
-#endif
-    return engine_type;
-}
-runtime_types device_query::get_default_runtime_type() {
-    auto rt_type = runtime_types::ocl;
-#ifdef OV_GPU_WITH_ZE_RT
-    rt_type = runtime_types::ze;
-#elif defined(OV_GPU_WITH_OCL_RT)
-    rt_type = runtime_types::ocl;
-#endif
-    return rt_type;
-}
-
 device_query::device_query(void* user_context,
                            void* user_device,
                            int ctx_device_id,

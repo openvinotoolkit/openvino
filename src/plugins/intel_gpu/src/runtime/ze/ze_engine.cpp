@@ -197,13 +197,18 @@ std::shared_ptr<kernel_builder> ze_engine::create_kernel_builder() const {
     return std::make_shared<ze_kernel_builder>(*casted);
 }
 
-void* ze_engine::get_user_context() const {
-    auto &device = get_device();
-    // TODO: Add check for interop support
+void* ze_engine::get_user_context(runtime_types rt_type) const {
     auto ctx = get_context();
-    ze_ocl_exporter<ze_resource_type::context, ocl_resource_type::context> ctx_exporter({device});
-    ctx_exporter(ctx);
-    return static_cast<void*>(ctx.get_ocl_handle<ocl_resource_type::context>());
+    if (rt_type == runtime_types::ze) {
+        return ctx.get_ze_handle();
+    } else if (rt_type == runtime_types::ocl) {
+        auto &device = get_device();
+        ze_ocl_exporter<ze_resource_type::context, ocl_resource_type::context> ctx_exporter({device});
+        ctx_exporter(ctx);
+        return ctx.get_ocl_handle<ocl_resource_type::context>();
+    } else {
+        OPENVINO_THROW("[GPU] ZE engine cannot provide context for ", rt_type);
+    }
 }
 
 stream::ptr ze_engine::create_stream(const ExecutionConfig& config) const {
