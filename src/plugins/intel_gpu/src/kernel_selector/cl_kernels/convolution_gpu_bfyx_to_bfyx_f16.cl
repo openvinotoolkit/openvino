@@ -22,6 +22,7 @@
 REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 __attribute__((reqd_work_group_size(1, SUB_GROUP_SIZE, 1)))
 KERNEL(convolution_gpu_bfyx_to_bfyx_f16)(
+    OPTIONAL_SHAPE_INFO_ARG
     __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output,
     __global FILTER_TYPE* weights
