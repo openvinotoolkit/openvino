@@ -1653,6 +1653,8 @@ TEST(prepare_buffer_fusing, in_place_onednn_concat_static) {
 #endif  // ENABLE_ONEDNN_FOR_GPU
 
 TEST(prepare_buffer_fusing, in_place_concat_with_fsv32_to_fsv16_reorder_regression) {
+    // Regression test for fsv32->fsv16 reorder + in-place concat path.
+    // Keep in-place enabled, then verify buffer sharing and output channel order.
     auto& engine = get_test_engine();
 
     auto in_layout = layout{ov::PartialShape{1, 32, 1, 1, 1}, data_types::f32, format::bfzyx};
@@ -1692,18 +1694,21 @@ TEST(prepare_buffer_fusing, in_place_concat_with_fsv32_to_fsv16_reorder_regressi
     EXPECT_NO_THROW(output = network.execute());
 
     const auto& concat_inst = network.get_primitive("concat");
+    // This case is expected to be in-place after prepare_buffer_fusing.
     ASSERT_TRUE(concat_inst->can_be_optimized());
 
     auto concat_mem = concat_inst->output_memory_ptr();
     auto input1_fsv16_mem = network.get_primitive("input1_fsv16")->output_memory_ptr();
     auto input2_fsv16_mem = network.get_primitive("input2_fsv16")->output_memory_ptr();
 
+    // In-place concat means all these primitives point to the same underlying buffer.
     ASSERT_EQ(concat_mem.get(), input1_fsv16_mem.get());
     ASSERT_EQ(concat_mem.get(), input2_fsv16_mem.get());
 
     auto out_mem = output.at("output").get_memory();
     cldnn::mem_lock<float> output_ptr(out_mem, get_test_stream());
 
+    // Validate semantic correctness: first 32 channels from input1, next 32 from input2.
     ASSERT_EQ(out_mem->count(), 64);
     for (size_t i = 0; i < 32; ++i) {
         ASSERT_EQ(output_ptr[i], input1_vals[i]);
