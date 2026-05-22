@@ -5,14 +5,45 @@
 #include "fuse_clamp_and_fake_quantize.hpp"
 
 #include <memory>
-#include <utility>
 
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/op/clamp.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "utils/rt_info/fake_quantize_clamp_bounds.hpp"
+
+namespace {
+
+bool clamp_covers_fake_quantize_interval(const std::shared_ptr<ov::op::v0::Clamp>& clamp,
+                                         const std::shared_ptr<ov::op::v0::FakeQuantize>& fq) {
+    const auto input_low = ov::as_type_ptr<const ov::op::v0::Constant>(fq->get_input_node_shared_ptr(1));
+    const auto input_high = ov::as_type_ptr<const ov::op::v0::Constant>(fq->get_input_node_shared_ptr(2));
+    if (!input_low || !input_high) {
+        return false;
+    }
+
+    const auto input_low_values = input_low->cast_vector<float>();
+    const auto input_high_values = input_high->cast_vector<float>();
+    const auto clamp_low = static_cast<float>(clamp->get_min());
+    const auto clamp_high = static_cast<float>(clamp->get_max());
+
+    for (const auto value : input_low_values) {
+        if (clamp_low > value) {
+            return false;
+        }
+    }
+
+    for (const auto value : input_high_values) {
+        if (clamp_high < value) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+}  // namespace
 
 ov::intel_cpu::FuseClampAndFakeQuantize::FuseClampAndFakeQuantize() {
     MATCHER_SCOPE(FuseClampAndFakeQuantize);
@@ -28,7 +59,7 @@ ov::intel_cpu::FuseClampAndFakeQuantize::FuseClampAndFakeQuantize() {
 
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(m.get_match_root());
-        if (!fq || fq->get_levels() == 2) {
+        if (!fq) {
             return false;
         }
 
@@ -38,32 +69,20 @@ ov::intel_cpu::FuseClampAndFakeQuantize::FuseClampAndFakeQuantize() {
             return false;
         }
 
-        auto fused_low = 0.f;
-        auto fused_high = 0.f;
-        auto has_bounds = false;
-        if (const auto existing_bounds = ov::intel_cpu::get_fake_quantize_clamp_bounds(fq)) {
-            fused_low = existing_bounds->low();
-            fused_high = existing_bounds->high();
-            has_bounds = true;
-        }
-
+        auto removed_redundant_clamp = false;
         while ((clamp = ov::as_type_ptr<ov::op::v0::Clamp>(current_output.get_node_shared_ptr()))) {
-            const auto clamp_low = static_cast<float>(clamp->get_min());
-            const auto clamp_high = static_cast<float>(clamp->get_max());
-
-            if (!has_bounds) {
-                fused_low = clamp_low;
-                fused_high = clamp_high;
-                has_bounds = true;
-            } else {
-                std::tie(fused_low, fused_high) =
-                    ov::intel_cpu::compose_clamp_intervals(clamp_low, clamp_high, fused_low, fused_high);
+            if (!clamp_covers_fake_quantize_interval(clamp, fq)) {
+                break;
             }
 
             current_output = clamp->input_value(0);
+            removed_redundant_clamp = true;
         }
 
-        ov::intel_cpu::set_fake_quantize_clamp_bounds(fq, fused_low, fused_high);
+        if (!removed_redundant_clamp) {
+            return false;
+        }
+
         fq->input(0).replace_source_output(current_output);
         fq->validate_and_infer_types();
         return true;

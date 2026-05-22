@@ -47,7 +47,6 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/util/attr_types.hpp"
-#include "utils/rt_info/fake_quantize_clamp_bounds.hpp"
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
@@ -1356,15 +1355,6 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
 
             for (size_t i = 0; i < cropHigh.size(); i++) {
                 cropHigh[i] = inputHighData[isInputHighBroadcasted ? 0 : i];
-            }
-
-            if (const auto clamp_bounds = ov::intel_cpu::get_fake_quantize_clamp_bounds(op)) {
-                for (size_t i = 0; i < cropLow.size(); i++) {
-                    std::tie(cropLow[i], cropHigh[i]) = ov::intel_cpu::compose_clamp_intervals(clamp_bounds->low(),
-                                                                                                 clamp_bounds->high(),
-                                                                                                 cropLow[i],
-                                                                                                 cropHigh[i]);
-                }
             }
 
             for (size_t i = 0; i < inputScale.size(); i++) {

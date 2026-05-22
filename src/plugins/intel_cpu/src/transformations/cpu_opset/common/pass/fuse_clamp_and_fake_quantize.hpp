@@ -8,14 +8,14 @@
 
 /*
  * Description:
- *     FuseClampAndFakeQuantize detects Clamp -> FakeQuantize patterns for non-binary
- *     FakeQuantize operations, removes the explicit Clamp nodes from the ov::Model,
- *     stores the effective Clamp interval in FakeQuantize runtime info,
+ *     FuseClampAndFakeQuantize detects redundant Clamp -> FakeQuantize patterns,
+ *     removes Clamp nodes whose interval fully covers the FakeQuantize input interval,
  *     and rewires FakeQuantize directly to the source before Clamp.
  *
  * Supported patterns:
- *     1. Clamp -> FakeQuantize, where FakeQuantize levels > 2
- *     2. Chains of consecutive Clamp nodes before FakeQuantize
+ *     1. Clamp -> FakeQuantize, where Clamp range is wider than or equal to the
+ *        FakeQuantize input interval
+ *     2. Chains of consecutive redundant Clamp nodes before FakeQuantize
  *
  * Before:
  *
@@ -45,9 +45,9 @@
  * |   Input   |
  * +-----+-----+
  *       |
- * +-----v----------------------------------+
- * | FakeQuantize + rt_info(ClampBounds)    |
- * +-----+----------------------------------+
+ * +-----v-------------+
+ * |   FakeQuantize    |
+ * +-----+-------------+
  *       |
  * +-----v-----+
  * |  Result   |
