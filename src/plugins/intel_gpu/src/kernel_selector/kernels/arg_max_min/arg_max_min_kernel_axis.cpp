@@ -114,6 +114,28 @@ ArgMaxMinKernelBase::DispatchData ArgMaxMinKernelAxis::SetDefault(const arg_max_
     return dispatchData;
 }
 
+namespace {
+std::vector<InternalBuffer> get_internal_buffer_sizes(const arg_max_min_params& params) {
+    const size_t elem_size = params.inputs[0].ElementSize();
+    const size_t iav_type_size = Align(elem_size + 4, 4);
+    const size_t sort_size = getSortSize(params);
+    const size_t ops_size = getOperationNumber(params);
+    const size_t group_size = params.topK >= 8 ? params.topK : 8;
+
+    if (0 == sort_size || 0 == ops_size) {
+        return {0, 0, 0};
+    }
+    const size_t first_buff_size = (params.topK == 1) ? iav_type_size * sort_size * 2 : iav_type_size * sort_size * ops_size * 2;
+
+    const size_t group_num = (sort_size + group_size - 1) / group_size;
+    const size_t second_buff_size = 4 * group_num * ops_size * 2;
+
+    const size_t third_buff_size = Align(ops_size * group_num, elem_size);
+
+    return {first_buff_size, second_buff_size, third_buff_size};
+}
+}  // namespace
+
 void ArgMaxMinKernelAxis::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const arg_max_min_params&>(params);
@@ -123,21 +145,7 @@ void ArgMaxMinKernelAxis::GetUpdateDispatchDataFunc(KernelData& kd) const {
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
         kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
 
-        const size_t elem_size = prim_params.inputs[0].ElementSize();
-        const size_t iav_type_size = Align(elem_size + 4, 4);
-        const size_t sort_size = getSortSize(prim_params);
-        const size_t ops_size = getOperationNumber(prim_params);
-        const size_t group_size = prim_params.topK >= 8 ? prim_params.topK : 8;
-        const size_t group_num = ((sort_size - 1) / group_size) + 1;
-
-        kd.internalBuffers.clear();
-        if (prim_params.topK == 1) {
-            kd.internalBuffers.push_back(iav_type_size * sort_size * 2);
-        } else {
-            kd.internalBuffers.push_back(iav_type_size * sort_size * ops_size * 2);
-        }
-        kd.internalBuffers.push_back(4 * group_num * ops_size * 2);
-        kd.internalBuffers.push_back(ops_size * elem_size);
+        kd.internalBuffers = get_internal_buffer_sizes(prim_params);
         kd.internalBufferDataType = prim_params.inputs[0].GetDType();
     };
 }
@@ -176,9 +184,7 @@ KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params) const {
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
-        kd.internalBuffers.push_back(orgParams.inputs[0].PhysicalSizeInBytes());
-        kd.internalBuffers.push_back(orgParams.inputs[0].PhysicalSizeInBytes());
-        kd.internalBuffers.push_back(orgParams.inputs[0].PhysicalSizeInBytes());
+        kd.internalBuffers = get_internal_buffer_sizes(orgParams);
         kd.internalBufferDataType = orgParams.inputs[0].GetDType();
     }
 
