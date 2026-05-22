@@ -64,6 +64,7 @@ jobs:
       runner: 'aks-win-32-cores-64gb-build'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       build-type: 'Release'
+      build-variant: 'LevelZero'
       target-branch: ${{ needs.smart_ci.outputs.target_branch }}
       build-additional-python-wheels: true
       cmake-options: >-
