@@ -122,23 +122,17 @@ std::vector<InternalBuffer> get_internal_buffer_sizes(const arg_max_min_params& 
     const size_t ops_size = getOperationNumber(params);
     const size_t group_size = params.topK >= 8 ? params.topK : 8;
 
-    std::vector<InternalBuffer> buffer_sizes;
-    if (sort_size == 0 || ops_size == 0) {
-        buffer_sizes.resize(3);
-        return buffer_sizes;
+    if (0 == sort_size || 0 == ops_size) {
+        return {0, 0, 0};
     }
+    const size_t first_buff_size = (params.topK == 1) ? iav_type_size * sort_size * 2 : iav_type_size * sort_size * ops_size * 2;
 
     const size_t group_num = (sort_size + group_size - 1) / group_size;
+    const size_t second_buff_size = 4 * group_num * ops_size * 2;
 
-    if (params.topK == 1) {
-        buffer_sizes.push_back(iav_type_size * sort_size * 2);
-    } else {
-        buffer_sizes.push_back(iav_type_size * sort_size * ops_size * 2);
-    }
-    buffer_sizes.push_back(4 * group_num * ops_size * 2);
-    buffer_sizes.push_back(Align(ops_size * group_num, elem_size));
+    const size_t third_buff_size = Align(ops_size * group_num, elem_size);
 
-    return buffer_sizes;
+    return {first_buff_size, second_buff_size, third_buff_size};
 }
 }  // namespace
 
