@@ -14,12 +14,10 @@ std::vector<TRShape> shape_infer(const GroupedMatMul* op,
                                  const std::vector<TShape>& input_shapes,
                                  const ITensorAccessor& tensor_accessor = make_tensor_accessor()) {
     const auto num_inputs = input_shapes.size();
-    NODE_VALIDATION_CHECK(op, num_inputs == 4, "GroupedMatMul expects exactly 4 inputs.");
+    NODE_VALIDATION_CHECK(op, num_inputs == 2 || num_inputs == 3, "GroupedMatMul expects 2 or 3 inputs.");
 
     const auto& mat_a_shape = input_shapes[0];
     const auto& mat_b_shape = input_shapes[1];
-    const auto& offsets_shape = input_shapes[2];
-    const auto& bias_shape = input_shapes[3];
 
     const auto mat_a_rank = mat_a_shape.rank();
     const auto mat_b_rank = mat_b_shape.rank();
@@ -32,20 +30,14 @@ std::vector<TRShape> shape_infer(const GroupedMatMul* op,
     const auto a_ndim = mat_a_shape.size();
     const auto b_ndim = mat_b_shape.size();
 
-    // Helper: detect Shape{0} — the "empty / not applicable" placeholder
-    auto is_empty = [](const TShape& s) -> bool {
-        if (s.rank().is_dynamic())
-            return false;
-        return s.rank().get_length() == 1 && s[0].is_static() && s[0].get_length() == 0;
-    };
-
-    const bool offsets_is_empty = is_empty(offsets_shape);
-    const bool bias_is_empty = is_empty(bias_shape);
-
     using DimType = typename TShape::value_type;
 
-    // Case 2: 3D × 3D (batched, uniform group sizes) - offsets are Shape{0}
+    // Case 2: 3D × 3D (batched, uniform group sizes) - no offsets needed
     if (a_ndim == 3 && b_ndim == 3) {
+        NODE_VALIDATION_CHECK(op,
+                              num_inputs == 2,
+                              "GroupedMatMul 3D×3D case requires exactly 2 inputs (no offsets).");
+
         const auto G_a = mat_a_shape[0];
         const auto M = mat_a_shape[1];
         const auto K_a = mat_a_shape[2];
@@ -70,23 +62,17 @@ std::vector<TRShape> shape_infer(const GroupedMatMul* op,
                               K_b,
                               ").");
 
-        if (!bias_is_empty && bias_shape.rank().is_static()) {
-            NODE_VALIDATION_CHECK(op,
-                                  bias_shape.size() == 2,
-                                  "GroupedMatMul bias must be 2D [G, N], got rank: ",
-                                  bias_shape.size());
-        }
-
         return {TRShape{merged_G, M, N}};
     }
 
-    // Case 1: 2D × 3D (MoE forward pass) - requires non-empty offsets
+    // Case 1: 2D × 3D (MoE forward pass) - requires offsets
     if (a_ndim == 2 && b_ndim == 3) {
         NODE_VALIDATION_CHECK(op,
-                              !offsets_is_empty,
+                              num_inputs == 3,
                               "GroupedMatMul 2D×3D case requires offsets input.");
 
-        if (!offsets_is_empty) {
+        if (num_inputs == 3) {
+            const auto& offsets_shape = input_shapes[2];
             NODE_VALIDATION_CHECK(op,
                                   offsets_shape.rank().is_dynamic() || offsets_shape.size() == 1,
                                   "GroupedMatMul offsets must be 1D tensor.");
@@ -107,26 +93,19 @@ std::vector<TRShape> shape_infer(const GroupedMatMul* op,
                               K_b,
                               ").");
 
-        if (!bias_is_empty && bias_shape.rank().is_static()) {
-            NODE_VALIDATION_CHECK(op,
-                                  bias_shape.size() == 2,
-                                  "GroupedMatMul bias must be 2D [G, N], got rank: ",
-                                  bias_shape.size());
-        }
-
         // Output has same number of rows as mat_a
         return {TRShape{total_rows, N}};
     }
 
-    // Case 3: 2D × 2D (MoE weight gradient) - requires non-empty offsets
+    // Case 3: 2D × 2D (MoE weight gradient) - requires offsets
     if (a_ndim == 2 && b_ndim == 2) {
         NODE_VALIDATION_CHECK(op,
-                              !offsets_is_empty,
+                              num_inputs == 3,
                               "GroupedMatMul 2D×2D case requires offsets input.");
 
-        const auto& off_shape = offsets_shape;
+        const auto& offsets_shape = input_shapes[2];
         NODE_VALIDATION_CHECK(op,
-                              off_shape.rank().is_dynamic() || off_shape.size() == 1,
+                              offsets_shape.rank().is_dynamic() || offsets_shape.size() == 1,
                               "GroupedMatMul offsets must be 1D tensor.");
 
         const auto K = mat_a_shape[0];
@@ -144,17 +123,10 @@ std::vector<TRShape> shape_infer(const GroupedMatMul* op,
                               total_tokens_b,
                               ").");
 
-        if (!bias_is_empty && bias_shape.rank().is_static()) {
-            NODE_VALIDATION_CHECK(op,
-                                  bias_shape.size() == 2,
-                                  "GroupedMatMul bias must be 2D [G, N], got rank: ",
-                                  bias_shape.size());
-        }
-
         // Output shape is (G, K, N) where G is determined by offsets
         auto G = DimType();
-        if (off_shape.rank().is_static() && off_shape[0].is_static()) {
-            G = off_shape[0];
+        if (offsets_shape.rank().is_static() && offsets_shape[0].is_static()) {
+            G = offsets_shape[0];
         } else {
             G = Dimension::dynamic();
         }

@@ -13,7 +13,6 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/broadcast.hpp"
-#include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -42,11 +41,6 @@ namespace v15 = ov::op::v15;
 namespace v17 = ov::op::v17;
 
 using ov::op::internal::GatherMatmul;
-
-static bool is_empty_pshape(const ov::PartialShape& ps) {
-    return ps.rank().is_static() && ps.rank().get_length() == 1 && ps[0].is_static() &&
-           ps[0].get_length() == 0;
-}
 
 // Build the identity-per-group `indices` for Case 2:
 //     indices = Broadcast(Unsqueeze(Range(0, G), 0), [M, G])
@@ -137,6 +131,7 @@ ConvertGroupedMatMulToGatherMatmul::ConvertGroupedMatMulToGatherMatmul() {
         }
         const size_t a_rank = a_pshape.size();
         const size_t b_rank = b_pshape.size();
+        const size_t input_size = gmm->get_input_size();
 
         const auto mat_a = gmm->input_value(0);
         const auto mat_b = gmm->input_value(1);
@@ -149,32 +144,17 @@ ConvertGroupedMatMulToGatherMatmul::ConvertGroupedMatMulToGatherMatmul() {
             return false;
         }
 
-        const auto& bias_pshape = gmm->get_input_partial_shape(3);
-        const bool bias_is_empty = is_empty_pshape(bias_pshape);
-        const auto bias_val = gmm->input_value(3);
-
         ov::NodeVector new_nodes;
         std::shared_ptr<ov::Node> replacement;
 
-        if (a_rank == 3 && b_rank == 3) {
+        if (a_rank == 3 && b_rank == 3 && input_size == 2) {
             // ---- Case 2: 3D x 3D, no offsets ----
             // A:[G,M,K] B:[G,N,K] -> GatherMatmul(A, B, indices=[M,G]) -> [G,M,N]
             auto indices = build_case2_indices(mat_a, new_nodes);
             auto gm = std::make_shared<GatherMatmul>(mat_a, mat_b, indices);
             new_nodes.push_back(gm);
             replacement = gm;
-
-            if (!bias_is_empty) {
-                // bias [G, N] -> Unsqueeze(axis=1) -> [G, 1, N] -> Add to [G, M, N]
-                auto unsq_axis = v0::Constant::create(ov::element::i32, ov::Shape{1}, {1});
-                auto bias_3d = std::make_shared<v0::Unsqueeze>(bias_val, unsq_axis);
-                auto with_bias = std::make_shared<v1::Add>(replacement, bias_3d);
-                new_nodes.push_back(unsq_axis);
-                new_nodes.push_back(bias_3d);
-                new_nodes.push_back(with_bias);
-                replacement = with_bias;
-            }
-        } else if (a_rank == 2 && b_rank == 3) {
+        } else if (a_rank == 2 && b_rank == 3 && input_size == 3) {
             // ---- Case 1: 2D x 3D with offsets ----
             // A:[T,K] B:[G,N,K] offs:[G] -> Squeeze(GatherMatmul(Unsqueeze(A,0), B, idx[T,1]), 0) -> [T,N]
             const auto offsets = gmm->input_value(2);
@@ -194,22 +174,6 @@ ConvertGroupedMatMulToGatherMatmul::ConvertGroupedMatMulToGatherMatmul() {
             new_nodes.push_back(squeeze_axis);
             new_nodes.push_back(out);
             replacement = out;
-
-            if (!bias_is_empty) {
-                // indices is [T, 1]; squeeze axis=1 to get idx_1d [T]
-                // then Gather(bias[G,N], idx_1d[T], axis=0) -> [T, N] -> Add to output [T, N]
-                auto sq_axis = v0::Constant::create(ov::element::i32, ov::Shape{1}, {1});
-                auto idx_1d = std::make_shared<v0::Squeeze>(indices, sq_axis);
-                auto axis0 = v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
-                auto bias_per_token = std::make_shared<v8::Gather>(bias_val, idx_1d, axis0);
-                auto with_bias = std::make_shared<v1::Add>(replacement, bias_per_token);
-                new_nodes.push_back(sq_axis);
-                new_nodes.push_back(idx_1d);
-                new_nodes.push_back(axis0);
-                new_nodes.push_back(bias_per_token);
-                new_nodes.push_back(with_bias);
-                replacement = with_bias;
-            }
         } else {
             // Case 3 (2D x 2D weight gradient) and any unexpected shape combinations
             // are not handled by GatherMatmul — leave the graph untouched so the

@@ -31,6 +31,8 @@ OutputVector translate_grouped_mm(const NodeContext& context) {
     const bool has_bias = context.get_input_size() > 3 && !context.input_is_none(3);
     const bool has_out_dtype = context.get_input_size() > 4 && !context.input_is_none(4);
 
+    PYTORCH_OP_CONVERSION_CHECK(!has_bias, "_grouped_mm: 'bias' argument is not supported.");
+
     align_eltwise_input_types(context, a, b, false, false);
 
     // PyTorch provides mat_b as [G, K, N] (3D) or [total_tokens, N] (2D).
@@ -45,26 +47,15 @@ OutputVector translate_grouped_mm(const NodeContext& context) {
     }
 
     Output<Node> result;
-    if (has_offs && has_bias) {
+    if (has_offs) {
         auto offs = context.get_input(2);
-        if (offs.get_element_type().is_static() && offs.get_element_type() != element::i32 &&
-            offs.get_element_type() != element::i64) {
-            offs = context.mark_node(std::make_shared<v0::Convert>(offs, element::i32));
-        }
-        auto bias = context.get_input(3);
-        result = context.mark_node(std::make_shared<v17::GroupedMatMul>(a, b, offs, bias));
-    } else if (has_offs) {
-        auto offs = context.get_input(2);
+        // GroupedMatMul expects an integer offsets tensor; PyTorch typically
+        // provides int32, but normalize anything else to i32 to be safe.
         if (offs.get_element_type().is_static() && offs.get_element_type() != element::i32 &&
             offs.get_element_type() != element::i64) {
             offs = context.mark_node(std::make_shared<v0::Convert>(offs, element::i32));
         }
         result = context.mark_node(std::make_shared<v17::GroupedMatMul>(a, b, offs));
-    } else if (has_bias) {
-        auto empty_offs =
-            context.mark_node(v0::Constant::create(element::i32, Shape{0}, std::vector<int32_t>{}));
-        auto bias = context.get_input(3);
-        result = context.mark_node(std::make_shared<v17::GroupedMatMul>(a, b, empty_offs, bias));
     } else {
         result = context.mark_node(std::make_shared<v17::GroupedMatMul>(a, b));
     }
