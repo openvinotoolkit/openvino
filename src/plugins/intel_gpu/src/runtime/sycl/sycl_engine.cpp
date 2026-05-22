@@ -36,7 +36,7 @@ sycl_engine::sycl_engine(const device::ptr dev, runtime_types runtime_type)
     : engine(dev) {
     OPENVINO_ASSERT(runtime_type == runtime_types::sycl, "[GPU] Invalid runtime type specified for SYCL engine. Only SYCL runtime is supported");
 
-    _service_stream.reset(new sycl_stream(*this, ExecutionConfig()));
+    _service_stream = std::make_unique<sycl_stream>(*this, ExecutionConfig());
 }
 
 backend_types sycl_engine::backend_type() const {
