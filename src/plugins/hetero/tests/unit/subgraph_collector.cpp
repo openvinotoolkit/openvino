@@ -227,9 +227,9 @@ std::shared_ptr<ov::Model> create_nested_cyclic_chain_model() {
 std::shared_ptr<ov::Model> create_shared_const_indirect_bridge_cycle_model() {
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{4});
     param->set_friendly_name("input");
-    auto shared_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1.0f});
+    auto shared_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{4}, {1.0f, 1.0f, 1.0f, 1.0f});
     shared_const->set_friendly_name("shared_const");
-    auto other_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {2.0f});
+    auto other_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{4}, {2.0f, 2.0f, 2.0f, 2.0f});
     other_const->set_friendly_name("other_const");
     // A: DEV0, uses param + other_const (NOT shared_const!)
     auto a = std::make_shared<ov::op::v1::Add>(param, other_const);
@@ -271,7 +271,7 @@ std::shared_ptr<ov::Model> create_shared_const_indirect_bridge_cycle_model() {
 std::shared_ptr<ov::Model> create_shared_const_as_cycle_source_model() {
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{4});
     param->set_friendly_name("param");
-    auto shared_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1.0f});
+    auto shared_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{4}, {1.0f, 1.0f, 1.0f, 1.0f});
     shared_const->set_friendly_name("shared_const");
     // A: DEV0, uses param only
     auto a = std::make_shared<ov::op::v0::Abs>(param);
@@ -309,7 +309,7 @@ std::shared_ptr<ov::Model> create_shared_const_as_cycle_source_model() {
 std::shared_ptr<ov::Model> create_shared_const_cross_device_fanout_model() {
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{4});
     param->set_friendly_name("param");
-    auto shared_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1.0f});
+    auto shared_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{4}, {1.0f, 1.0f, 1.0f, 1.0f});
     shared_const->set_friendly_name("shared_const");
     // Node_A: GPU, consumes param + shared_const (same device → merged with shared_const)
     auto node_a = std::make_shared<ov::op::v1::Add>(param, shared_const);
@@ -1066,7 +1066,8 @@ INSTANTIATE_TEST_SUITE_P(
         // --- Shared constant indirect bridge: shared_const bridges A and C into one subgraph via X.
         // split_cyclic_dependencies() detects the cycle re-entry point and promotes
         // C.input(1) (from shared_const) as a boundary, splitting the M0 group into
-        // {param, other_const, shared_const, A, X, res2} and {C, res1}, yielding 3 subgraphs.
+        // {param, other_const, shared_const, A, X, res2} and {C, res1}, yielding 3 subgraphs:
+        // {param, other_const, shared_const, A, X, res2}(M0), {B}(M1), {C, res1}(M0).
         SubgraphCollectorTestParam{
             "shared_const_indirect_bridge_cycle",
             create_shared_const_indirect_bridge_cycle_model,
