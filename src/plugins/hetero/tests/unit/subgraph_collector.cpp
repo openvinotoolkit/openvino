@@ -333,8 +333,10 @@ std::shared_ptr<ov::Model> create_shared_const_no_cycle_model() {
 //
 // Union-Find produces one GPU subgraph {param, shared_const, Node_A, Node_C, res} + one CPU {Node_B}.
 // GPU depends on Node_B (Node_C←Node_B) and Node_B depends on GPU (Node_B←Node_A) → cycle.
-// split_cyclic_dependencies() must promote Node_C.input(0) (from Node_B) as a boundary,
-// yielding 3 subgraphs: {param, shared_const, Node_A}(GPU), {Node_B}(CPU), {Node_C, res}(GPU).
+// Note: Node_C.input(0) from Node_B is already a boundary from init() (CPU→GPU).
+// split_cyclic_dependencies() promotes Node_C.input(1) (from shared_const) to separate Node_C
+// from the shared_const/Node_A group, yielding 3 subgraphs:
+// {param, shared_const, Node_A}(GPU), {Node_B}(CPU), {Node_C, res}(GPU).
 std::shared_ptr<ov::Model> create_shared_const_cross_device_fanout_model() {
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{4});
     param->set_friendly_name("param");
@@ -1116,7 +1118,7 @@ INSTANTIATE_TEST_SUITE_P(
         },
         // --- Shared constant cross-device fanout: shared_const fans out to 3 consumers on 2 devices.
         // Union-Find merges same-affinity edges into one GPU subgraph containing Node_A and Node_C.
-        // split_cyclic_dependencies() promotes Node_C.input(0) (from Node_B) as a boundary,
+        // split_cyclic_dependencies() promotes Node_C.input(1) (from shared_const) as a boundary,
         // yielding 3 subgraphs: {param, shared_const, Node_A}(GPU), {Node_B}(CPU), {Node_C, res}(GPU).
         SubgraphCollectorTestParam{
             "shared_const_cross_device_fanout_cycle",
