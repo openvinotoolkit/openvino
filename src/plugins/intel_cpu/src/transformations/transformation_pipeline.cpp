@@ -142,6 +142,7 @@
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 
 // CPU specific transformations
+#include "transformations/cpu_opset/common/pass/fuse_clamp_and_fake_quantize.hpp"
 #include "transformations/cpu_opset/common/pass/insert_convert_after_extension.hpp"
 #include "transformations/cpu_opset/common/pass/ngram_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/permute_slice_n_interpolation.hpp"
@@ -518,6 +519,14 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             qdq_stripping_manager.register_pass<FQStrippingTransformation>(std::set<size_t>{levels::int16}, false);
             qdq_stripping_manager.run_passes(model);
         }
+    }
+
+    {
+        ov::pass::Manager clamp_fq_cleanup_manager("CPU:ClampFQCleanup");
+        clamp_fq_cleanup_manager.set_per_pass_validation(false);
+        CPU_REGISTER_PASS_COMMON(clamp_fq_cleanup_manager, FuseClampAndFakeQuantize);
+        CPU_REGISTER_PASS_COMMON(clamp_fq_cleanup_manager, ov::pass::Validate);
+        clamp_fq_cleanup_manager.run_passes(model);
     }
 
     ov::pass::Manager manager("Plugin:CPU");
