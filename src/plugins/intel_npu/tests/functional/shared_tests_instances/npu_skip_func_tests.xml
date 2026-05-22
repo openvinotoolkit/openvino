@@ -400,17 +400,6 @@ Example:
         </filters>
     </skip_config>
 
-    <!-- E#85493 -->
-    <skip_config>
-        <message>Runs only on NPU3720 with Level Zero enabled #85493</message>
-        <enable_rules>
-            <device>!3720</device>
-        </enable_rules>
-        <filters>
-            <filter>.*InferRequestRunTests.MultipleExecutorStreamsTestsSyncInfers.*</filter>
-        </filters>
-    </skip_config>
-
     <!-- E###### -->
     <skip_config>
         <message>Other devices than NPU doesn't allow to set NPU properties with OV1.0 and CACHE_DIR + PLUGIN is not supported</message>
@@ -965,6 +954,14 @@ Example:
         </enable_rules>
         <filters>
             <filter>.*OVHoldersTestNPU.CompileModelWithEncryptionWorksAfterConfigDeallocate.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>Exclusive Async Request is not supported by NPU</message>
+        <filters>
+            <filter>.*InferRequestPropertiesTest.canSetExclusiveAsyncRequests.*</filter>
+            <filter>.*InferRequestPropertiesTest.ReusableCPUStreamsExecutor.*</filter>
         </filters>
     </skip_config>
 
