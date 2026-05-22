@@ -23,7 +23,6 @@ public:
     const ::sycl::device& get_device() const { return _device; }
     const ::sycl::context& get_context() const { return _context; }
     const ::sycl::platform& get_platform() const { return _platform; }
-    // const ::sycl::usm_helper& get_usm_helper() const { return *_usm_helper; }
 
     bool is_same(const device::ptr other) override;
 
@@ -38,7 +37,6 @@ private:
     device_info _info;
     memory_capabilities _mem_caps;
     bool _is_initialized = false;
-    // std::unique_ptr<::sycl::usm_helper> _usm_helper;
 };
 
 }  // namespace sycl

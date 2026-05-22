@@ -38,7 +38,6 @@ public:
 
     const ::sycl::context& get_sycl_context() const;
     const ::sycl::device& get_sycl_device() const;
-    // const ::sycl::UsmHelper& get_usm_helper() const;
 
     bool extension_supported(::sycl::aspect extension) const;
 

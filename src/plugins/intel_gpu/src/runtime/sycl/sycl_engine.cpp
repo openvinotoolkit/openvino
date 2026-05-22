@@ -24,14 +24,6 @@
 #pragma GCC diagnostic ignored "-Wignored-attributes"
 #endif
 
-
-
-
-
-
-
-
-
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include <oneapi/dnnl/dnnl_sycl.hpp>
 #include "intel_gpu/runtime/file_util.hpp"
@@ -39,11 +31,6 @@
 
 namespace cldnn {
 namespace sycl {
-
-
-
-
-
 
 sycl_engine::sycl_engine(const device::ptr dev, runtime_types runtime_type)
     : engine(dev) {
