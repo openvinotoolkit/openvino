@@ -902,7 +902,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig, const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::parse");
 
-    auto blobReader = std::make_shared<BlobReader>(tensorBig);
+    auto blobReader = std::make_shared<BlobReader>();
     register_known_sections(blobReader);
     auto localProperties = properties;
 
@@ -926,7 +926,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig, c
             "The usage of a compiled model can lead to undefined behavior. Please use OpenVINO IR instead!");
     }
 
-    blobReader->read(_capabilities);
+    blobReader->read(tensorBig, _capabilities);
     auto mainScheduleSection = std::dynamic_pointer_cast<ELFMainScheduleSection>(
         blobReader->retrieve_first_section(PredefinedSectionType::ELF_MAIN_SCHEDULE));
     auto initSchedulesSection = std::dynamic_pointer_cast<ELFInitSchedulesSection>(

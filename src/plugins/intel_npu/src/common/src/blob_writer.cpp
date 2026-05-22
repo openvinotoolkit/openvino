@@ -178,6 +178,7 @@ void BlobWriter::write_section(const std::unique_ptr<BlobWriterInterface>& blob_
 void BlobWriter::write(std::ostream& stream) {
     // Only the attributes within this object will be altered. This is done to ensure write idempotency and thread
     // safety
+    // TODO just use references instead. no dynamic dispatch
     auto blob_writer_interface =
         std::make_unique<BlobWriterInterface>(stream, m_registered_sections, m_cre, m_next_type_instance_id);
 

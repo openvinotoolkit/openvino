@@ -12,8 +12,61 @@
 
 #include "intel_npu/common/icapability.hpp"
 #include "intel_npu/common/offsets_table.hpp"
+#include "intel_npu/utils/logger/logger.hpp"
 
 namespace intel_npu {
+
+class BlobReaderInterface final {
+public:
+    /**
+     * @brief Constructs a BlobReader, associating it with the given compiled model source.
+     */
+    BlobReaderInterface(const ov::Tensor& source,
+                        const size_t section_start,
+                        const size_t section_length,
+                        const size_t npu_region_size);
+
+    /**
+     * @brief Reads data from the compiled model source and copies it to the given destination. Also the read cursor is
+     * advanced according to the given size.
+     */
+    void copy_data_from_source(char* destination, const size_t size);
+
+    /**
+     * @brief Returns a pointer to the current position of the cursor, then advances the cursor according to the given
+     * size. This method avoids copying the content of the compiled model.
+     */
+    const void* interpret_data_from_source(const size_t size);
+
+    /**
+     * @brief Returns an RoI tensor pointing to the current position of the cursor, then advances the cursor according
+     * to the given size. This method avoids copying the content of the compiled model.
+     */
+    ov::Tensor get_roi_tensor(const size_t size);
+
+    size_t get_offset_relative_to_current_section() const;
+
+    void move_cursor_relative_to_current_section(const size_t offset);
+
+    size_t get_offset_relative_to_npu_region() const;
+
+    void move_cursor_relative_to_npu_region(const size_t offset);
+
+    size_t get_section_length() const;
+
+private:
+    std::reference_wrapper<const ov::Tensor> m_source;
+
+    /**
+     * @brief Tracks where the blob reading was left off
+     */
+    size_t m_cursor;
+
+    size_t m_section_start;
+    size_t m_section_end;
+
+    Logger m_logger;
+};
 
 /**
  * @brief Class responsible for parsing the NPU specific data of a compiled model.
@@ -30,12 +83,12 @@ namespace intel_npu {
  * The BlobReader also exposes an API required to meet the needs of all custom section readers (implemented in
  * the class inheriting "ISection").
  */
-class BlobReader {
+class BlobReader final {
 public:
     /**
      * @brief Constructs a BlobReader, associating it with the given compiled model source.
      */
-    BlobReader(const ov::Tensor& source);
+    BlobReader();
 
     /**
      * @brief Parses the given compiled model using all section readers registered so far.
@@ -43,13 +96,13 @@ public:
      * @param plugin_capabilities Indicates all capabilities of the NPU plugin. This mapping is used to evaluate the
      * CRE.
      */
-    void read(const std::unordered_map<CRE::Token, std::shared_ptr<ICapability>>& plugin_capabilities);
+    void read(const ov::Tensor& source,
+              const std::unordered_map<CRE::Token, std::shared_ptr<ICapability>>& plugin_capabilities);
 
     /**
      * @brief Register a new section reader for the given section type.
      */
-    void register_reader(const SectionType type,
-                         std::function<std::shared_ptr<ISection>(BlobReader*, const size_t)> reader);
+    void register_reader(const SectionType type, std::function<std::shared_ptr<ISection>(BlobReaderInterface&)> reader);
 
     /**
      * @brief Retrieve a parsed section.
@@ -73,39 +126,6 @@ public:
         const SectionType type);
 
     /**
-     * @brief Reads data from the compiled model source and copies it to the given destination. Also the read cursor is
-     * advanced according to the given size.
-     * @note This is part of the section reader API. TODO: any way to reinforce this constraint?
-     */
-    void copy_data_from_source(char* destination, const size_t size);
-
-    /**
-     * @brief Returns a pointer to the current position of the cursor, then advances the cursor according to the given
-     * size. This method avoids copying the content of the compiled model.
-     * @note This is part of the section reader API.
-     */
-    const void* interpret_data_from_source(const size_t size);
-
-    /**
-     * @brief Returns an RoI tensor pointing to the current position of the cursor, then advances the cursor according
-     * to the given size. This method avoids copying the content of the compiled model.
-     * @note This is part of the section reader API.
-     */
-    ov::Tensor get_roi_tensor(const size_t size);
-
-    /**
-     * @note This is part of the section reader API.
-     * @returns The curent position of the read cursor, relative to the beginning of the NPU blob region.
-     */
-    size_t get_cursor_relative_position();
-
-    /**
-     * @note This is part of the section reader API.
-     * @returns The curent position of the read cursor, relative to the beginning of the NPU blob region.
-     */
-    void move_cursor_to_relative_position(const size_t offset);
-
-    /**
      * @brief Extracts the size of the NPU blob region from the given stream.
      * @details This number is a field found at the beginning of the NPU blob region.
      */
@@ -121,12 +141,6 @@ private:
     friend class BlobWriter;
 
     /**
-     * @brief Where the compiled model resides.
-     */
-    std::reference_wrapper<const ov::Tensor> m_source;
-    size_t m_npu_region_size;
-    OffsetsTable m_offsets_table;
-    /**
      * @brief All sections obtained after parsing the compiled model.
      */
     std::unordered_map<SectionType, std::unordered_map<SectionTypeInstance, std::shared_ptr<ISection>>>
@@ -134,12 +148,9 @@ private:
     /**
      * @brief All known section readers that can be used to parse the compiled model.
      */
-    std::unordered_map<SectionType, std::function<std::shared_ptr<ISection>(BlobReader*, const size_t)>> m_readers;
+    std::unordered_map<SectionType, std::function<std::shared_ptr<ISection>(BlobReaderInterface&)>> m_readers;
 
-    /**
-     * @brief Tracks where the blob reading was left off
-     */
-    size_t m_cursor;
+    Logger m_logger;
 };
 
 }  // namespace intel_npu

@@ -16,7 +16,7 @@
 
 namespace intel_npu {
 
-class BlobWriterInterface {
+class BlobWriterInterface final {
 public:
     BlobWriterInterface(std::ostream& stream,
                         const std::queue<std::shared_ptr<ISection>>& registered_sections,
@@ -133,7 +133,7 @@ private:
  * Additionally, the BlobWriter exposes an API required to meet the needs of all custom section writers (implemented in
  * the class inheriting "ISection").
  */
-class BlobWriter {
+class BlobWriter final {
 public:
     BlobWriter();
 
