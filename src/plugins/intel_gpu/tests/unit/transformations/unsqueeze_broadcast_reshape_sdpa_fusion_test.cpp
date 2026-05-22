@@ -420,8 +420,8 @@ TEST_F(TransformationTestsF, UnsqueezeBroadReshapeSDPAFusion8) {
         std::vector<int64_t> ref_4d_shape_val = {1, 1, 968, 256};
         auto k_ref_shape_4d = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, ref_4d_shape_val);
         auto v_ref_shape_4d = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, ref_4d_shape_val);
-        auto k_ref_4d = std::make_shared<ov::op::v1::Reshape>(input_k_3d, k_ref_shape_4d, true);
-        auto v_ref_4d = std::make_shared<ov::op::v1::Reshape>(input_v_3d, v_ref_shape_4d, true);
+        auto k_ref_4d = std::make_shared<ov::op::v1::Reshape>(input_k_3d, k_ref_shape_4d, false);
+        auto v_ref_4d = std::make_shared<ov::op::v1::Reshape>(input_v_3d, v_ref_shape_4d, false);
 
         auto inputs = ov::OutputVector{input_q, k_ref_4d, v_ref_4d};
         auto sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(inputs, is_causal, in0_order, in1_order, in2_order, out_order);
@@ -480,7 +480,7 @@ TEST_F(TransformationTestsF, UnsqueezeBroadReshapeSDPAFusion9) {
         auto v_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 1, 256});
         auto v_trans_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{3}, {0, 1, 2});
         auto input_v = std::make_shared<ov::op::v1::Transpose>(v_input, v_trans_const);
-        std::vector<int64_t> ref_4d_shape_val = {-1, 1, 2, 128};
+        std::vector<int64_t> ref_4d_shape_val = {0, 1, 2, 128};
         auto k_ref_shape_4d = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, ref_4d_shape_val);
         auto v_ref_shape_4d = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, ref_4d_shape_val);
         auto k_ref_4d = std::make_shared<ov::op::v1::Reshape>(input_k, k_ref_shape_4d, true);

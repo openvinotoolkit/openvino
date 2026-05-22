@@ -160,7 +160,7 @@ UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
             auto pshape_out = orig_broadcast->get_output_partial_shape(0);
             int broadcast_axis = -1;
 
-            for (size_t i = 0; i < 5; ++i) {
+            for (size_t i = 0; i < pshape_in.size(); ++i) {
                 if (pshape_in[i].is_static() && pshape_out[i].is_static()) {
                     if (pshape_in[i].get_length() == 1 && pshape_out[i].get_length() > 1) {
                         broadcast_axis = static_cast<int>(i);
@@ -173,17 +173,43 @@ UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
 
             // handle if the 5D expansion was a reshape
             if (auto reshape_node = ov::as_type_ptr<ov::op::v1::Reshape>(orig_5d_expansion)) {
-                auto shape_const = ov::as_type_ptr<ov::op::v0::Constant>(reshape_node->get_input_node_shared_ptr(1));
+                auto pshape = reshape_node->get_output_partial_shape(0);
+                bool orig_special_zero = reshape_node->get_special_zero();
+                std::vector<int64_t> shape_vec;
+                for (const auto& dim : pshape) {
+                    if (dim.is_static()) {
+                        shape_vec.push_back(dim.get_length());
+                    } else {
+                       shape_vec.push_back(orig_special_zero ? 0 : -1);
+                    }
+                }
+                // Remove the broadcast axis
+                shape_vec.erase(shape_vec.begin() + broadcast_axis);
 
-                if (!shape_const) return std::nullopt;
-                auto shape_vec = shape_const->cast_vector<int64_t>(); // e.g., [-1, 1, 2, 1, 128]
+                auto new_shape_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, shape_vec);
+                auto new_reshape = std::make_shared<ov::op::v1::Reshape>(input, new_shape_const, orig_special_zero);
+                new_reshape->set_friendly_name(input.get_node()->get_friendly_name() + "_dynamic_4d_reshape");
+                ov::copy_runtime_info({orig_5d_expansion, orig_broadcast}, {new_shape_const, new_reshape});
+                return new_reshape->output(0);
+            }
 
-                // Remove the broadcast axis to get the 4D target
-                shape_vec.erase(shape_vec.begin() + broadcast_axis); // Becomes [-1, 1, 2, 128]
+            if (auto unsqueeze_node = ov::as_type_ptr<ov::op::v0::Unsqueeze>(orig_5d_expansion)) {
+                auto pshape = unsqueeze_node->get_output_partial_shape(0);
+                std::vector<int64_t> shape_vec;
+                for (const auto& dim : pshape) {
+                    if (dim.is_static()) {
+                        shape_vec.push_back(dim.get_length());
+                    } else {
+                        shape_vec.push_back(0);
+                    }
+                }
+
+                // Remove the broadcast axis
+                shape_vec.erase(shape_vec.begin() + broadcast_axis);
 
                 auto new_shape_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, shape_vec);
                 auto new_reshape = std::make_shared<ov::op::v1::Reshape>(input, new_shape_const, true);
-                new_reshape->set_friendly_name(input.get_node()->get_friendly_name() + "_dynamic_4d_reshape");
+                new_reshape->set_friendly_name(input.get_node()->get_friendly_name() + "_dynamic_4d_unsqueeze_to_reshape");
                 ov::copy_runtime_info({orig_5d_expansion, orig_broadcast}, {new_shape_const, new_reshape});
                 return new_reshape->output(0);
             }
