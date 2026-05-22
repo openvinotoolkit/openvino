@@ -20,7 +20,7 @@ namespace pass {
  * always an identity (mask is all-1s).
  *
  * Matches the pattern:
- * attention_mask -> Slice -> Unsqueeze -> Convert -> Multiply -> Add -> Multiply(H, mask_expr)
+ * attention_mask -> Slice -> Unsqueeze -> [Convert] -> Multiply -> Add -> Multiply(H, mask_expr)
  * and replaces the final Multiply with its hidden_states input directly.
  */
 class TRANSFORMATIONS_API EliminateConvPaddingMaskGating : public ov::pass::MatcherPass {

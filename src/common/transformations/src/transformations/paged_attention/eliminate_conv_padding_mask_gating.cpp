@@ -26,9 +26,9 @@ namespace ov::pass {
 EliminateConvPaddingMaskGating::EliminateConvPaddingMaskGating() {
     MATCHER_SCOPE(EliminateConvPaddingMaskGating);
 
-    // Pattern: attention_mask -> Slice -> Unsqueeze -> Convert -> Multiply -> Add -> Multiply(H, mask_expr)
+    // Pattern: attention_mask -> Slice -> Unsqueeze -> [Convert] -> Multiply -> Add -> Multiply(H, mask_expr)
     auto attn_mask = wrap_type<v0::Parameter>([](const ov::Output<ov::Node>& output) {
-        return output.get_node_shared_ptr()->get_friendly_name() == "attention_mask";
+        return output.get_names().count("attention_mask");
     });
     auto slice = wrap_type<v8::Slice>({attn_mask, any_input(), any_input(), any_input(), any_input()});
     auto unsqueeze = wrap_type<v0::Unsqueeze>({slice, any_input()});
