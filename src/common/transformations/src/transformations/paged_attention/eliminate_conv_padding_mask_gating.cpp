@@ -31,7 +31,7 @@ EliminateConvPaddingMaskGating::EliminateConvPaddingMaskGating() {
         return output.get_names().count("attention_mask");
     });
     auto slice = wrap_type<v8::Slice>({attn_mask, any_input(), any_input(), any_input(), any_input()});
-    auto unsqueeze = wrap_type<v0::Unsqueeze>({slice, any_input()});
+    auto unsqueeze = pattern::optional<v0::Unsqueeze>({slice, any_input()});
     auto convert = pattern::optional<v0::Convert>({unsqueeze});
     auto mul_mask = wrap_type<v1::Multiply>({convert, any_input()});
     auto add = wrap_type<v1::Add>({mul_mask, any_input()});
