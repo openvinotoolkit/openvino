@@ -44,8 +44,8 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
         ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({first_input_m, a_order_m},
                                                           pattern::shape_matches("[?, hidden_in, 1, 1]"));
     auto direct_activation_m = ov::pass::pattern::any_input();
-    auto a_m =
-        std::make_shared<ov::pass::pattern::op::Or>(OutputVector{transpose_activations_m, reshape_activations_m, direct_activation_m});
+    auto a_m = std::make_shared<ov::pass::pattern::op::Or>(
+        OutputVector{transpose_activations_m, reshape_activations_m, direct_activation_m});
 
     auto weights_const_m = wrap_type<ov::op::v0::Constant>(pattern::shape_matches("[?, ?, 1, 1]") ||
                                                            pattern::shape_matches("[?, ?, ?, 1, 1]"));
@@ -269,8 +269,9 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
         } else if (!has_input_transpose && !has_input_reshape) {
             // No transpose or reshape on activation input - activation is in NCHW [N, C, H, W].
             // Insert NCHW->NHWC transpose [0, 2, 3, 1] so matmul gets [..., C] as last dim.
-            auto nchw_to_nhwc_order = std::make_shared<ov::op::v0::Constant>(
-                ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 2, 3, 1});
+            auto nchw_to_nhwc_order = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
+                                                                             ov::Shape{4},
+                                                                             std::vector<int64_t>{0, 2, 3, 1});
             auto transpose_input = std::make_shared<ov::op::v1::Transpose>(activation, nchw_to_nhwc_order);
             transpose_input->set_friendly_name(activation->get_friendly_name() + "_nchw_to_nhwc");
             ov::copy_runtime_info(conv1x1, transpose_input);
@@ -353,8 +354,9 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
             ov::replace_node(consumer_reshape, reshape_final);
         } else {
             // No transpose or reshape consumer - add NHWC->NCHW transpose
-            auto nhwc_to_nchw_order = std::make_shared<ov::op::v0::Constant>(
-                ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 3, 1, 2});
+            auto nhwc_to_nchw_order = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
+                                                                             ov::Shape{4},
+                                                                             std::vector<int64_t>{0, 3, 1, 2});
             auto transpose_to_nchw = std::make_shared<ov::op::v1::Transpose>(final_out, nhwc_to_nchw_order);
             transpose_to_nchw->set_friendly_name(outermost->get_friendly_name());
             ov::copy_runtime_info(m.get_matched_nodes(), transpose_to_nchw);
