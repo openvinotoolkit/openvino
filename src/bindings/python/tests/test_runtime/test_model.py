@@ -33,20 +33,12 @@ from openvino import (
     Tensor,
     Type,
     get_batch,
+    get_version,
     save_model,
     serialize,
     set_batch,
-    OVAny,
 )
-from openvino import Output, get_version
 from openvino.op.util import VariableInfo, Variable
-
-from tests.utils.helpers import (
-    generate_add_model,
-    generate_model_with_memory,
-    create_filenames_for_ir,
-)
-from openvino.op.util import Variable, VariableInfo
 
 
 def make_add_with_variable_model(shape, variable_id: str, dtype=np.float32) -> Model:
@@ -727,8 +719,12 @@ def test_reshape_single_input_flat_list_with_list_intervals():
 
     shape = model.input(0).get_partial_shape()
     assert shape[0] == 1
-    assert shape[1].is_dynamic and shape[1].get_min_length() == 1 and shape[1].get_max_length() == 10
-    assert shape[2].is_dynamic and shape[2].get_min_length() == 2 and shape[2].get_max_length() == 20
+    assert shape[1].is_dynamic
+    assert shape[1].get_min_length() == 1
+    assert shape[1].get_max_length() == 10
+    assert shape[2].is_dynamic
+    assert shape[2].get_min_length() == 2
+    assert shape[2].get_max_length() == 20
     assert shape[3] == 5
 
 
