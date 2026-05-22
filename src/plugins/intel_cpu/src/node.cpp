@@ -58,6 +58,10 @@
 #include "utils/ngraph_utils.hpp"
 #include "utils/rt_info/memory_formats_attribute.hpp"
 
+#ifndef CPU_DEBUG_CAPS
+#    include <ostream>
+#endif
+
 using namespace dnnl;
 using namespace openvino;
 using namespace ov::intel_cpu::node;
