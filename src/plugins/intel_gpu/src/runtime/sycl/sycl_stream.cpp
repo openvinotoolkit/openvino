@@ -37,9 +37,7 @@ sycl_stream::sycl_stream(const sycl_engine &engine, const ExecutionConfig& confi
     , _engine(engine) {
     auto context = engine.get_sycl_context();
     auto device = engine.get_sycl_device();
-    sycl::command_queues_builder queue_builder;
-    queue_builder.set_profiling(config.get_enable_profiling());
-    queue_builder.set_out_of_order(m_queue_type == QueueTypes::out_of_order);
+    sycl::command_queues_builder queue_builder(config.get_enable_profiling(), m_queue_type == QueueTypes::out_of_order);
 
     OPENVINO_ASSERT(m_sync_method != SyncMethods::none || m_queue_type == QueueTypes::in_order,
                     "[GPU] Unexpected sync method (none) is specified for out_of_order queue");

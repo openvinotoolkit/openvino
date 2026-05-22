@@ -9,9 +9,9 @@
 namespace cldnn {
 namespace sycl {
 
-command_queues_builder::command_queues_builder()
-    : _profiling(false),
-      _out_of_order(false) {}
+command_queues_builder::command_queues_builder(bool profiling, bool out_of_order)
+    : _profiling(profiling),
+      _out_of_order(out_of_order) {}
 
 ::sycl::property_list command_queues_builder::get_properties(const ::sycl::device& device) {
     bool profiling = _profiling;

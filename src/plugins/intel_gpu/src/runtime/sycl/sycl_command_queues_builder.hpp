@@ -12,10 +12,8 @@ namespace sycl {
 
 class command_queues_builder {
 public:
-    command_queues_builder();
+    command_queues_builder(bool profiling = false, bool out_of_order = false);
     sycl_queue_type build(const ::sycl::context& context, const ::sycl::device& device);
-    void set_profiling(bool flag) { _profiling = flag; }
-    void set_out_of_order(bool flag) { _out_of_order = flag; }
 
 private:
     bool _profiling;
