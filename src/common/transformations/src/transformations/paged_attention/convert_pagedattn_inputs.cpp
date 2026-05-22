@@ -16,6 +16,7 @@
 #include "openvino/op/paged_gated_delta_net.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/log.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov::pass;
@@ -84,6 +85,8 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config,
                 format_cache_precision(m_config.valueCachePrecision, m_config.inferencePrecision);
             key_cache->set_element_type(key_cache_precision);
             value_cache->set_element_type(value_cache_precision);
+            enable_keep_const_precision(key_cache);
+            enable_keep_const_precision(value_cache);
             if (pa_op->get_rt_info().count("num_k_heads") && pa_op->get_rt_info().count("k_head_size") &&
                 pa_op->get_rt_info().count("num_v_heads") && pa_op->get_rt_info().count("v_head_size")) {
                 const auto key_cache_shape = init_cache_shape(pa_op->get_rt_info()["num_k_heads"].as<size_t>(),
@@ -116,6 +119,17 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config,
                 m_update_precision_func(value_cache_precision);
                 key_cache->set_element_type(key_cache_precision);
                 value_cache->set_element_type(value_cache_precision);
+                enable_keep_const_precision(key_cache);
+                enable_keep_const_precision(value_cache);
+            }
+
+            // Prevent the ConvertPrecision pass from converting sub-byte cache
+            // precisions (e.g. u4→u8). The PA executor handles quantized caches natively.
+            if (key_cache_precision.bitwidth() < 8) {
+                enable_keep_const_precision(key_cache);
+            }
+            if (value_cache_precision.bitwidth() < 8) {
+                enable_keep_const_precision(value_cache);
             }
 
             key_cache->validate_and_infer_types();
@@ -134,6 +148,7 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config,
             }
 
             conv_state_table->set_element_type(conv_cache_precision);
+            enable_keep_const_precision(conv_state_table);
             conv_state_table->validate_and_infer_types();
             return true;
         }
@@ -150,6 +165,7 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config,
             }
 
             gated_delta_state_table->set_element_type(gated_delta_cache_precision);
+            enable_keep_const_precision(gated_delta_state_table);
             gated_delta_state_table->validate_and_infer_types();
             return true;
         }
