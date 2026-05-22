@@ -32,7 +32,7 @@ bool does_device_match_config(const ::sycl::device& device) {
 namespace cldnn {
 namespace sycl {
 
-static std::vector<::sycl::device> getSubDevices(::sycl::device& rootDevice) {
+static std::vector<::sycl::device> getSubDevices(const ::sycl::device& rootDevice) {
     uint32_t maxSubDevices = rootDevice.get_info<::sycl::info::device::partition_max_sub_devices>();
     if (maxSubDevices == 0) {
         return {};

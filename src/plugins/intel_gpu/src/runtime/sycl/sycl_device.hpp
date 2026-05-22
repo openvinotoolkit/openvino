@@ -21,7 +21,6 @@ public:
     bool is_initialized() const override { return _is_initialized; };
 
     const ::sycl::device& get_device() const { return _device; }
-    ::sycl::device& get_device() { return _device; }
     const ::sycl::context& get_context() const { return _context; }
     const ::sycl::platform& get_platform() const { return _platform; }
     // const ::sycl::usm_helper& get_usm_helper() const { return *_usm_helper; }
