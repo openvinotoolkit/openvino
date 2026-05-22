@@ -20,7 +20,6 @@
 #undef NOMINMAX_DEFINED_SHARED_BUF_TEST
 #endif
 #include "openvino/runtime/core.hpp"
-#include "openvino/runtime/intel_gpu/ocl/dx.hpp"
 #include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -268,19 +267,19 @@ TEST(GpuSharedBufferRemoteTensor, smoke_Dx11RemoteInputToRemoteOutputCopyAndComp
                                        static_cast<UINT>(byte_size));
     dx11.device_ctx->Flush();
 
-    auto d3d_ctx = ov::intel_gpu::ocl::D3DContext(core, dx11.device);
+    auto ocl_ctx = core.get_default_context(selected_gpu_device).as<ov::intel_gpu::ocl::ClContext>();
 
-    auto remote_input_tensor = d3d_ctx.create_tensor(ov::element::f32,
+    auto remote_input_tensor = ocl_ctx.create_tensor(ov::element::f32,
                                                      shape,
                                                      dx_input_shared.shared_handle,
                                                      ov::intel_gpu::MemType::SHARED_BUF);
-    auto remote_output_tensor = d3d_ctx.create_tensor(ov::element::f32,
+    auto remote_output_tensor = ocl_ctx.create_tensor(ov::element::f32,
                                                       shape,
                                                       dx_output_shared.shared_handle,
                                                       ov::intel_gpu::MemType::SHARED_BUF);
 
     auto model = make_copy_model(shape);
-    auto compiled = core.compile_model(model, d3d_ctx);
+    auto compiled = core.compile_model(model, ocl_ctx);
     auto infer_req = compiled.create_infer_request();
     infer_req.set_tensor(compiled.input(), remote_input_tensor);
     infer_req.set_tensor(compiled.output(), remote_output_tensor);
