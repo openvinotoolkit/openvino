@@ -18,13 +18,6 @@
 #include <oneapi/dnnl/dnnl_sycl.hpp>
 #endif
 
-#define TRY_CATCH_SYCL_ERROR(...)               \
-    try {                                     \
-        __VA_ARGS__;                          \
-    } catch (::sycl::exception const& err) {          \
-        OPENVINO_THROW(SYCL_ERR_MSG_FMT(err)); \
-    }
-
 namespace cldnn {
 namespace sycl {
 
