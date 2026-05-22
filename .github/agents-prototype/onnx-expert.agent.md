@@ -31,18 +31,18 @@ You have reference skill files with detailed workflows. **Do NOT read all skill 
 
 ### Pre-submission steps
 
-```bash
+```
 # 1. Review changes
 git diff -- src/frontends/onnx/
 
 # 2. Build
-cmake --build build --target openvino_onnx_frontend ov_onnx_frontend_tests -j$(nproc)
+cmake --build build --target openvino_onnx_frontend ov_onnx_frontend_tests
 
 # 3. Run tests
-cd build && ctest -R "ov_onnx_frontend_tests" --output-on-failure -j$(nproc)
+cd build && ctest -R "ov_onnx_frontend_tests" --output-on-failure
 
 # 4. Format
-cmake --build build --target clang_format_fix_all -j$(nproc)
+cmake --build build --target clang_format_fix_all
 ```
 
 ## Key principles
@@ -53,6 +53,45 @@ cmake --build build --target clang_format_fix_all -j$(nproc)
 - Every fix needs a test (`.prototxt` + C++ test case), all ONNX tests must pass, and clang-format must be applied.
 
 See the skill files for detailed guidance, code examples, and source locations.
+
+## ONNX FE Type System Invariants
+
+### SequenceMark Invariant
+
+Every operation that produces a sequence output **MUST** wrap its output node in
+`ov::frontend::SequenceMark` at the point of creation.
+
+This invariant is enforced by design: downstream transformations (e.g. `SequenceConcatReplacer`)
+recognize sequences exclusively via `SequenceMark` wrappers. A sequence-producing op that
+omits `SequenceMark` makes all downstream transformations blind to its output.
+
+**Pattern to follow** (from `sequence_insert.cpp`):
+```
+auto result = std::make_shared<SomeOutputNode>(inputs...);
+result->output(0).get_tensor().add_names({...});
+const auto sequence_mark = std::make_shared<ov::frontend::SequenceMark>(result, ...);
+return {sequence_mark};
+```
+
+**When a consumer transformation fails** (e.g. pattern does not match, callback returns false):
+1. First check: does the failing consumer expect `SequenceMark` inputs?
+2. If yes: trace backward to the sequence-producing op and verify it wraps output in `SequenceMark`.
+3. **Fix the producer** — not the consumer. Adding a special branch to a consumer to handle
+   bare (unwrapped) inputs from a defective producer is a workaround, not a fix.
+
+Reference: `src/frontends/onnx/frontend/src/op/sequence_insert.cpp` and PR #36015.
+
+## Root-Cause vs. Workaround
+
+When debugging a conversion or inference failure, always identify whether the problem is at
+the **producer** (an op that emits incorrect output) or the **consumer** (a transformation
+or op that fails because it received unexpected input).
+
+- **Preferred fix:** correct the producer to emit the canonical output the ecosystem expects.
+- **Workaround (avoid):** extend the consumer to accept non-canonical input from a broken producer.
+
+A 1–3 line fix at the producer is almost always correct. A 20+ line workaround at the consumer
+leaves the producer broken for all other consumers and makes the codebase harder to reason about.
 
 ## When to escalate
 

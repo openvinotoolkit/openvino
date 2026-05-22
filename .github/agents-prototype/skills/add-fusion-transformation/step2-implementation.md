@@ -17,145 +17,83 @@ Covers: header, source, CMake registration, pass-pipeline registration.
 
 ### Step 1: Create Header File
 
-Location:
-```
-src/common/transformations/include/transformations/<domain>/<pass_name>.hpp
-```
+Location: `src/common/transformations/include/transformations/<domain>/<pass_name>.hpp`
 
-Minimum header template:
-```cpp
-// Copyright (C) 2024 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
-#pragma once
+Read an existing transformation header as your template. Good references:
+- `src/common/transformations/include/transformations/common_optimizations/fuse_u4_weights_zero_point.hpp`
+- `src/common/transformations/include/transformations/common_optimizations/matmul_multiply_fusion.hpp`
 
-#include "openvino/pass/matcher_pass.hpp"
-#include "transformations_visibility.hpp"
+Every header must include:
+- `OPENVINO_RTTI("ClassName", "0")` macro
+- `TRANSFORMATIONS_API` export macro
+- A doxygen comment with before/after ASCII diagram
 
-namespace ov::pass {
-
-/// @brief Fuses <describe pattern> into a single <TargetOp>.
-///
-/// Before:
-///   MatMul + Add(bias) → fuse into LinearOp
-///
-/// After:
-///   LinearOp(input, weights, bias)
-class TRANSFORMATIONS_API FuseMyOp : public MatcherPass {
-public:
-    OPENVINO_RTTI("FuseMyOp", "0");
-    FuseMyOp();
-};
-
-}  // namespace ov::pass
-```
-
-For `FunctionPass`:
-```cpp
-class TRANSFORMATIONS_API MyFunctionPass : public FunctionPass {
-public:
-    OPENVINO_RTTI("MyFunctionPass", "0");
-    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
-};
-```
+Do not copy-paste the template file directly; read and adapt the structure.
 
 ### Step 2: Create Source File
 
-Location:
-```
-src/common/transformations/src/<domain>/<pass_name>.cpp
-```
+Location: `src/common/transformations/src/<domain>/<pass_name>.cpp`
 
-#### `MatcherPass` body (most common case)
+Use the template below as your starting point, then read the closest existing transformation to
+adapt the pattern to your sub-graph:
+
 ```cpp
-#include "transformations/<domain>/<pass_name>.hpp"
+// Starting template — adapt node types, input count, and guards to your sub-graph.
 
-#include "openvino/core/rt_info.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/matmul.hpp"
-#include "openvino/pass/pattern/matcher.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
+<PassName>::<PassName>() {
+    MATCHER_SCOPE(<PassName>);
 
-// Include the new fused op header (from Core OpSpec outputs)
-#include "ov_ops/my_fused_op.hpp"
-
-ov::pass::FuseMyOp::FuseMyOp() {
-    MATCHER_SCOPE(FuseMyOp);
-
-    // --- Pattern definition ---
-    auto input   = pattern::any_input(pattern::has_static_rank());
+    // Describe the pattern bottom-up (root last):
+    auto input   = pattern::any_input();
     auto weights = pattern::wrap_type<ov::op::v0::Constant>();
-    auto matmul  = pattern::wrap_type<ov::op::v0::MatMul>({input, weights});
-    auto bias    = pattern::wrap_type<ov::op::v0::Constant>();
-    auto add     = pattern::wrap_type<ov::op::v1::Add>(
-                       {matmul, bias},
-                       pattern::consumers_count(1));  // add must have exactly one consumer
+    auto root_op = pattern::wrap_type<ov::op::vN::SomeOp>({input, weights});
 
-    // --- Callback ---
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        const auto& pmap   = m.get_pattern_map();
-        const auto& matmul_node = pmap.at(matmul);
-        const auto& bias_node   = std::dynamic_pointer_cast<ov::op::v0::Constant>(pmap.at(bias));
-        const auto& add_node    = pmap.at(add);
+        const auto& pmap = m.get_pattern_map();
+        const auto& root = pmap.at(root_op);
 
-        // Build fused op
-        auto fused = std::make_shared<ov::op::internal::MyFusedOp>(
-            matmul_node->input_value(0),   // input
-            matmul_node->input_value(1),   // weights
-            bias_node);                    // bias
+        // Guard: skip if node is shared (multiple consumers)
+        if (root->get_output_target_inputs(0).size() != 1)
+            return false;
 
-        // Preserve name and RT info
-        fused->set_friendly_name(add_node->get_friendly_name());
-        ov::copy_runtime_info({matmul_node, add_node}, fused);
-
-        // Replace
-        ov::replace_node(add_node, fused);
+        auto fused = std::make_shared<ov::op::vN::FusedOp>(
+            pmap.at(input), pmap.at(weights));
+        ov::copy_runtime_info({root}, fused);
+        fused->set_friendly_name(root->get_friendly_name());
+        ov::replace_node(root, fused);
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(add, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(root_op, matcher_name);
     register_matcher(m, callback);
 }
 ```
 
-Key helpers:
-- `pattern::consumers_count(N)` — gate on number of output consumers
-- `pattern::has_static_rank()` — only match when rank is known at compile time
-- `pattern::type_matches(element::f32)` — only match specific dtype
-- `ov::copy_runtime_info({...}, new_node)` — propagate runtime metadata
-- `ov::replace_node(old, new)` — the only safe node replacement method
+Key implementation patterns to follow from the template:
 
-#### `FunctionPass` body
-```cpp
-bool ov::pass::MyFunctionPass::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    bool changed = false;
-    for (const auto& node : model->get_ordered_ops()) {
-        if (auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(node)) {
-            // Check conditions, build replacement, call replace_node
-            changed = true;
-        }
-    }
-    return changed;
-}
-```
+- Use `MATCHER_SCOPE(ClassName)` at the start of the constructor
+- Use `pattern::wrap_type<Op>({...})` for node matching
+- Use `pattern::consumers_count(N)` to guard on consumer count
+- Call `ov::copy_runtime_info({old_nodes...}, new_node)` before replacement
+- Call `fused->set_friendly_name(root->get_friendly_name())`
+- Call `ov::replace_node(old_root, new_node)` as the last step
+- Return `true` from callback on successful replacement
+
+Real transformations to read before adapting your code:
+- `src/common/transformations/src/transformations/common_optimizations/fuse_u4_weights_zero_point.cpp`
+- `src/common/transformations/src/transformations/common_optimizations/matmul_multiply_fusion.cpp`
+
+For `FunctionPass` (full-graph traversal), read:
+- `src/common/transformations/src/transformations/common_optimizations/align_mixed_fp32_fp16_types.cpp`
 
 ### Step 3: Update CMakeLists.txt
 
-In `src/common/transformations/CMakeLists.txt`, add the new `.cpp` source:
-```cmake
-set(LIBRARY_SRC
-    ...
-    src/<domain>/<pass_name>.cpp
-    ...
-)
+The CMake build system picks up any `.cpp` file listed in the `LIBRARY_SRC` variable.
+Add your new `.cpp` to `src/common/transformations/CMakeLists.txt` in the `LIBRARY_SRC` set.
+Add the corresponding `.hpp` to `PUBLIC_HEADERS`.
 
-set(PUBLIC_HEADERS
-    ...
-    include/transformations/<domain>/<pass_name>.hpp
-    ...
-)
-```
+**Do not add a new `add_library` or `add_test_target` call** — the existing targets
+already compile everything in `LIBRARY_SRC`.
 
 ### Step 4: Register in the Pass Pipeline
 
@@ -185,22 +123,15 @@ pass_config->enable<ov::pass::FuseMyOp>();
 
 ### Step 5: Self-Check
 
-Run a quick Python validation before writing tests:
-```python
-import openvino as ov
-import openvino.transformations as ovt
+After writing implementation and tests, verify the transformation fires correctly.
+Run the cross-platform validation script:
 
-model = ov.Core().read_model("openvino_model.xml")
-manager = ov.pass.Manager()
-manager.register_pass(ovt.FuseMyOp())
-manager.run_passes(model)
-
-# Check the fused op is present
-fused_ops = [n for n in model.get_ordered_ops()
-             if n.get_type_name() == "MyFusedOp"]
-assert len(fused_ops) > 0, "Transformation did not fire!"
-print(f"Fused {len(fused_ops)} op(s) successfully")
 ```
+python .github/scripts/meat/validate_transformation.py --pass-name <ClassName>
+```
+
+The script loads the model at `agent-results/analyze-and-convert/ov_model_*/openvino_model.xml`,
+applies the transformation, and reports whether the fused op appears in the resulting graph.
 
 ---
 

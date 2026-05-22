@@ -106,47 +106,49 @@ OP_CONVERTER(translate_<new_op>) {
 
 ### 5a. Create the translator file
 
-```bash
-# Create the source file:
-cat > src/frontends/pytorch/src/op/<new_op>.cpp << 'EOF'
-// Copyright (C) 2018-2026 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+Use the template below as your starting point, then read the matching example to adapt it
+to your op's specific inputs and attribute handling:
+
+```cpp
+// src/frontends/pytorch/src/op/<new_op>.cpp
+// Starting template — adapt inputs, attribute reads, and OV op to your case.
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/op/...hpp"
+#include "openvino/op/<ov_op>.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace op {
-
-using namespace ov::op;
+namespace ov::frontend::pytorch::op {
 
 OutputVector translate_<new_op>(const NodeContext& context) {
-    num_inputs_check(context, 1, 3);  // min, max inputs
+    // Minimum 1 input, maximum 3 — adjust for your op:
+    num_inputs_check(context, 1, 3);
+
     const auto x = context.get_input(0);
 
-    // Handle optional inputs:
-    if (!context.input_is_none(1)) {
-        const auto bias = context.get_input(1);
-        auto add_result = context.mark_node(std::make_shared<v1::Add>(x, bias));
-        return {add_result};
-    }
-    return {context.mark_node(std::make_shared<v0::Relu>(x))};
+    // Read constant scalar attribute (if needed):
+    // const auto alpha = context.const_input<float>(1);
+
+    // Read constant integer attribute (if needed):
+    // const auto dim = context.const_input<int64_t>(2);
+
+    // Guard optional input (if needed):
+    // if (!context.input_is_none(1)) { ... }
+
+    auto result = std::make_shared<ov::op::v0::YourOp>(x /*, other inputs */);
+    return {context.mark_node(result)};
 }
 
-}  // namespace op
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
-EOF
+} // namespace ov::frontend::pytorch::op
 ```
 
-Also declare the function in `src/frontends/pytorch/src/op/op.hpp` (or in the new `.hpp` if complex):
-```cpp
-OutputVector translate_<new_op>(const NodeContext& context);
-```
+> `context.mark_node(...)` is **mandatory** on every created OV node — do not omit it.
+
+Real implementations to read before adapting your code:
+- `src/frontends/pytorch/src/op/upsample.cpp` — optional inputs, resize semantics
+- `src/frontends/pytorch/src/op/layer_norm.cpp` — shared helpers (`normalize_axis`, `make_optional_bias`)
+- `src/frontends/pytorch/src/op/linear.cpp` — attribute translation, bias handling
+
+After creating the file, declare the translator in `src/frontends/pytorch/src/op/op.hpp`.
 
 ### 5b. 1:1 mapping (no custom translator needed)
 

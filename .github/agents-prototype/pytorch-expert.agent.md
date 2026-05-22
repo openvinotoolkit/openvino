@@ -31,20 +31,25 @@ You have reference skill files with detailed workflows. **Do NOT read all skill 
 
 ### Pre-submission steps
 
-```bash
+```
 # 1. Review changes
 git diff -- src/frontends/pytorch/
 
-# 2. Build
-cmake --build build --target openvino_pytorch_frontend -j$(nproc)
+# 2. Build (use your build directory)
+cmake --build build --target openvino_pytorch_frontend
 
 # 3. Run layer tests (both modes)
-TEST_DEVICE=CPU TEST_PRECISION=FP32 python3 -m pytest tests/layer_tests/pytorch_tests/test_<op>.py -v -k "precommit"
-TEST_DEVICE=CPU TEST_PRECISION=FP32 PYTORCH_TRACING_MODE=EXPORT python3 -m pytest tests/layer_tests/pytorch_tests/test_<op>.py -v -k "precommit_torch_export"
+python -m pytest tests/layer_tests/pytorch_tests/test_<op>.py -v -k "precommit"
+python -m pytest tests/layer_tests/pytorch_tests/test_<op>.py -v -k "precommit_torch_export"
 
 # 4. Format
-cmake --build build --target clang_format_fix_all -j$(nproc)
+cmake --build build --target clang_format_fix_all
 ```
+
+> **For NEW op translators:** Precommit tests are the minimum — new translators must also pass
+> the full nightly layer-test suite. Ensure tests are not marked only with `@pytest.mark.precommit`;
+> they must also be runnable in nightly mode (`@pytest.mark.nightly` or `@pytest.mark.regression`).
+> Do not submit a new translator relying solely on precommit coverage.
 
 ## Key principles
 
@@ -56,6 +61,36 @@ cmake --build build --target clang_format_fix_all -j$(nproc)
 - Every fix needs a Python layer test with `@pytest.mark.precommit` and `@pytest.mark.precommit_torch_export` markers.
 
 See the skill files for detailed guidance, code examples, and source locations.
+
+## Diagnostic Checklists
+
+### RoPE Position Precision Checklist
+
+When investigating an accuracy issue in a model that uses Rotary Position Embedding (RoPE)
+or any position-dependent attention mechanism, apply this checklist:
+
+1. **Check position IDs dtype.** Are position IDs (`input_ids`, `position_ids`) converted with
+   `aten::to` to `float16` or `bfloat16`? Position indices should stay in `int32/int64`.
+   A dtype cast of position IDs to FP16 truncates large position values (≥ 2048).
+
+2. **Trace the conversion of trig inputs.** Locate where `cos_cached` / `sin_cached` is
+   created or sliced. Check whether the slice index is derived from a position ID that was
+   cast to FP16 earlier.
+
+3. **Check the translator for `aten::embedding` / `aten::index_select`.** The index tensor
+   must remain integer. If the translator emits `Convert(index, f16)` anywhere in the
+   normalization step — that is the bug.
+
+4. **Verify at FP32 reference.** Run with `TEST_PRECISION=FP32` to confirm the issue
+   disappears; compare with FP16 result to isolate precision sensitivity.
+
+5. **Check trig constants.** If the model embeds large cached `cos`/`sin` tables as FP16
+   constants, verify the constant-folding step did not convert them from FP32 source tensors
+   while discarding precision.
+
+**Root-cause principle:** Precision errors in position-dependent attention are almost always
+caused by integer→float casts in the indexing path, not in the trig computation itself.
+Fix the cast at the source; do not add numerical stabilization downstream.
 
 ## When to escalate
 

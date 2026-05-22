@@ -21,10 +21,17 @@ Expected outcome:
 
 This workflow applies to OpenVINO transformation development in `openvino/` for:
 
-- Pattern-based graph fusion
-- Subgraph replacement with:
+- **Fusion transformations** — pattern-based graph fusion that replaces a matched subgraph with:
   - a single fused op, or
   - several ops preserving semantics with lower runtime overhead
+  - _Purpose: optimization (reduced dispatch overhead, better hardware mapping)_
+
+- **Decomposition transformations** — pattern-based replacement that expands a complex op into a
+  sequence of simpler, already-supported ops:
+  - _Purpose: **enablement prerequisite** — makes an unsupported op runnable on all backends
+    without adding a new core op. Use when the semantics can be faithfully expressed via existing ops._
+  - Decomposition is the first thing to evaluate when a new op is needed. If the op is
+    decomposable, no new core op class is necessary.
 
 The workflow covers:
 

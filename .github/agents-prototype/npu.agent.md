@@ -70,59 +70,39 @@ Skip silently if `gh` is unavailable, not authenticated, or the command fails.
 
 ---
 
-Skip silently if `gh` is unavailable, not authenticated, or the command fails.
+## NPUW Idempotency Guard (Shared KV Cache)
+
+NPUW applies subgraph folding on partitioned graphs. When a model shares `ReadValue`/`Assign`
+state across multiple subgraph partitions (e.g. models with grouped-query attention), NPUW
+fold operations may apply the same weight-folding transform more than once to the same
+state variable, corrupting it.
+
+**Guard to apply when implementing or reviewing any NPUW weight-folding pass:**
+- Before folding a constant input into a state-connected node, verify the state variable
+  is not shared: check that `ReadValue->get_output_target_inputs(0).size() == 1`.
+- Mark the fold as applied via a runtime attribute tag (e.g. `FoldedTag`) on the affected node.
+- At the start of each fold pass, check for `FoldedTag` and skip already-folded nodes.
+- This ensures the pass is idempotent: safe to run multiple times without double-application.
+
+Reference: regression in NPUW for models with shared KV cache (Gemma3n, Gemma4 family).
 
 ---
 
-## Checkpoint Protocol
+## Novel Tensors via per_layer_inputs
 
-You are given a **120-minute session** (GitHub Actions timeout). Post a single
-mid-run checkpoint comment to the tracking issue after hardware detection and
-before the main fix or test phase.
+When a model introduces a new tensor type that NPUW does not recognize (e.g. a new quantization
+scale format, a novel activation storage layout, or an op-specific auxiliary tensor):
 
-This allows:
-- A human to see real-time progress without downloading anything.
-- A re-triggered session to skip already-completed phases.
+1. **Do not add a special case in the main inference path.** This pollutes the critical path
+   and makes the novel tensor type implicitly part of the API.
 
-### Checkpoint comment format
+2. **Use `per_layer_inputs`.** Register the novel tensor as a per-layer input in the NPUW
+   partition metadata. This keeps the inference path clean and makes the tensor visible for
+   debugging without changing the execution contract.
 
-Post a GitHub issue comment with this structure:
+3. **Verify the tensor is a true novel type** (not a shape variant or dtype variant of an
+   existing tensor) before adding it to `per_layer_inputs`. Use the op spec from
+   `agent-results/core-opspec/` to confirm.
 
-```markdown
-## ⏱ Checkpoint — NPU Agent (<model_id>)
-
-| Field | Value |
-|---|---|
-| **Phase reached** | `hardware_detected` \| `fix_started` \| `testing` |
-| **Hardware status** | `<available / not available>` |
-| **Progress** | `<brief summary of what was done>` |
-| **Next action** | `<what remains to complete the task>` |
-
-<!-- checkpoint {"agent":"npu_agent","phase":"<phase>","outcome":"<outcome>"} -->
-```
-
-### Re-trigger resume
-
-When invoked on an issue that already has a checkpoint comment from a previous
-run:
-1. Read the `<!-- checkpoint ... -->` marker.
-2. If `phase` is `hardware_detected` or later, skip hardware detection.
-3. Resume from the noted `next_action`.
-4. State explicitly: `Resuming after previous session — skipping to <phase>`.
-
----
-
-## Job Communication Protocol
-
-When your work is complete — regardless of outcome — post a comment to the
-tracking issue containing **exactly** this marker on its own line:
-
-    <!-- agent-complete {"agent":"npu_agent","status":"<STATUS>","npu_available":"<true|false>"} -->
-
-- `agent`: `"npu_agent"` (fixed)
-- `status`: `"success"` | `"failed"` | `"skipped"`
-- `npu_available`: `"true"` if NPU hardware was detected; `"false"` (combined with `status=skipped`) when not available
-
-Place your full Markdown report above or below this marker.
-The polling job reads **only** this marker to forward outputs to the orchestrator.
-
+4. Write a unit test that verifies the tensor is correctly passed through NPUW partitioning
+   and is present in the per-layer output dictionary.

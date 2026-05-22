@@ -75,15 +75,14 @@ Add to `src/frontends/tensorflow/CMakeLists.txt`.
 
 ## ONNX Registration
 
-The `ONNX_OP` macro in the translator file covers both registration and opset
-versioning. Ensure the macro is present at the bottom of the translator `.cpp`:
+For ONNX ops, there is no separate registration file to edit. The `ONNX_OP` macro is
+placed **at the bottom of the per-op `.cpp` translator file** (not in `ops_bridge.cpp`).
 
-```cpp
-ONNX_OP("<OpName>", OPSET_RANGE(<min_ver>, <max_ver>), op::set_<version>::<op_name>);
-```
+Verify the macro is present in your new file. See `skills/add-fe-op/onnx.md` §4
+for the correct macro syntax and opset-range helpers.
 
-If the translator file already contains `ONNX_OP`, no separate registration
-file changes are needed — just verify the opset range is correct.
+If the translator file already contains `ONNX_OP`, no other registration
+changes are needed — just verify the opset range is correct.
 
 ### ONNX CMakeLists.txt
 

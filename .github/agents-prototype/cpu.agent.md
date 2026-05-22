@@ -156,6 +156,31 @@ CPU execution, load the debug skill before retrying:
   only if it already meets these performance criteria — otherwise use it as
   algorithmic reference and reimplement with optimisations.
 
+---
+
+## Shared KV Cache — StatefulSDPAFusion Guard
+
+Models that share a single `ReadValue`/`Assign` across multiple SDPA blocks
+(e.g. Gemma3n, Gemma4 families with grouped-query attention variants) violate
+the 1-to-1 state-to-consumer assumption of `StatefulSDPAFusion`.
+
+Failing to guard against this causes one of the following:
+- Silent result corruption: only the first SDPA consumer gets the correct KV cache;
+  the others receive stale or empty state.
+- A runtime crash from a double-assignment to the same state tensor.
+
+**Guard to apply before fusing:**
+
+In the `StatefulSDPAFusion` matcher callback:
+1. Locate the `ReadValue` node matched by the pattern.
+2. Count its downstream consumers: `readvalue->get_output_target_inputs(0).size()`.
+3. If count `> 1` — return `false`; do **not** fuse.
+
+Also verify the corresponding `Assign` has the same downstream-consumer count check
+before removing it from the graph.
+
+Reference: shared KV cache regression introduced in Gemma3n/4 support cycle.
+
 ## Output Contract
 
 | Output field | Type | Description |
@@ -176,57 +201,3 @@ PR. Write patches to the result JSON only. The orchestrator creates one central 
 **Standalone invocation** (no `pr_mode` set): follow the [`submit-draft-pr`](skills/submit-draft-pr/SKILL.md)
 skill — it handles branch naming, existing-PR deduplication, fork creation, and `gh pr create`.
 Skip silently if `gh` is unavailable, not authenticated, or the command fails.
-
----
-
-## Checkpoint Protocol
-
-You are given a **120-minute session** (GitHub Actions timeout). Post a checkpoint
-comment to the tracking issue **after completing each numbered step** (Op Analysis
-→ Node Implementation → ISA Optimization → Testing), not only when done.
-
-This allows:
-- A human to see real-time progress without downloading anything.
-- A re-triggered session to resume exactly where this one left off.
-
-### Checkpoint comment format
-
-Post a GitHub issue comment with this structure after every skill step:
-
-```markdown
-## ⏱ Checkpoint — Step <N> complete (<model_id>)
-
-| Field | Value |
-|---|---|
-| **Step completed** | `op_analysis` \| `node_implementation` \| `isa_optimization` \| `testing` |
-| **Outcome** | `success` \| `failed` \| `partial` \| `skipped` |
-| **Key finding** | `<one-sentence summary>` |
-| **Next step** | `<step name, or "none — done / escalating">` |
-
-<!-- checkpoint {"agent":"cpu_agent","step":"<step>","outcome":"<outcome>"} -->
-```
-
-### Re-trigger resume
-
-When invoked on an issue that already has a checkpoint comment from a previous
-run:
-1. Read the `<!-- checkpoint ... -->` marker.
-2. If `step` is `op_analysis` or later, skip completed steps.
-3. Resume from the noted `next_step`.
-4. State explicitly: `Resuming after previous session — skipping to <step>`.
-
----
-
-## Job Communication Protocol
-
-When your work is complete — regardless of outcome — post a comment to the
-tracking issue containing **exactly** this marker on its own line:
-
-    <!-- agent-complete {"agent":"cpu_agent","status":"<STATUS>"} -->
-
-- `agent`: `"cpu_agent"` (fixed)
-- `status`: `"success"` | `"failed"` | `"skipped"`
-
-Place your full Markdown report above or below this marker.
-The polling job reads **only** this marker to forward outputs to the orchestrator.
-

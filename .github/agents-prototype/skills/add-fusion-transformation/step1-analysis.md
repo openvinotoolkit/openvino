@@ -17,37 +17,22 @@ transformation type before any implementation work begins. Produces a structured
 
 ### Step 1: Load Op Spec and Existing Graph
 
-Obtain the op spec from agent-results:
-```bash
-# Op spec is written by Core OpSpec Agent to agent-results/core-opspec/
-OP_SPEC_PATH=$(python3 -c "
-import json
-try:
-    d = json.load(open('agent-results/core-opspec/core_opspec_result.json'))
-    print(d.get('op_spec_path', ''))
-except Exception:
-    print('')
-")
-[ -n "$OP_SPEC_PATH" ] && cat "$OP_SPEC_PATH" || echo "[WARN] Op spec not found in agent-results/core-opspec/"
-```
+Obtain the op spec from `agent-results/core-opspec/` (written by Core OpSpec Agent).
+If not available, find the op specification in the OpenVINO documentation directory:
+`docs/articles_en/documentation/openvino-ir-format/operation-sets/`
 
-Export the model to IR (using cached IR if available) and visualise the target
-sub-graph:
-```python
-import openvino as ov
-
-model = ov.Core().read_model("openvino_model.xml")
-# Find the target nodes by op type or friendly name
-target = [n for n in model.get_ordered_ops()
-          if n.get_type_name() in {"MatMul", "Add", "Tanh"}]
-for n in target:
-    print(n.get_friendly_name(), n.get_type_name(),
-          [i.get_shape() for i in n.inputs()])
-```
+Export the target model to IR and locate the sub-graph visually using the
+OpenVINO Model Explorer or by reading the XML file directly. Focus on
+identifying:
+- Which node types appear before/after the target op
+- Constant vs. dynamic inputs on each node
+- Shape and dtype at each port
+- Output consumer count for each node
 
 ### Step 2: Draw the Sub-Graph Pattern
 
-Produce a textual node diagram:
+Produce a textual node diagram (**this is an example structure — adapt to your actual sub-graph**):
+
 ```
 Parameter(input) ──► MatMul ──────────────► Add ──► Result
                        ▲                     ▲
@@ -92,41 +77,50 @@ Is the fusion local (fixed sub-graph topology)?
 
 ### Step 5: Find a Template to Follow
 
-Search for the syntactically closest existing transformation:
-```bash
-# Find transformations that match a similar pattern (e.g., MatMul + Add fusion)
-grep -r "MatMul\|GemmFusion\|LinearFusion" \
-  src/common/transformations/include/transformations/ --include="*.hpp" -l
+Search for the syntactically closest existing transformation in `src/common/transformations/`
+by subgraph depth and operator types. For example, if your pattern fuses two ops, look for
+existing two-op fusions; if it decomposes a complex op, look for similar decompositions.
+
+Search the headers directory to find candidates:
+
+```
+dir src\common\transformations\include\transformations\common_optimizations\
 ```
 
-Read that file fully — it is your implementation template.
+Read the closest match in full — it is your implementation template.
+Do not copy-paste; understand each section before adapting it to your pattern.
 
 ### Step 6: Output `transformation_analysis.md`
 
-```markdown
+Write your analysis result to `agent-results/transformation/transformation_analysis.md`.
+Include at minimum:
+- ASCII diagram of the matched sub-graph
+- Chosen transformation type and rationale
+- Constant constraints for each input
+- Template reference (path to the transformation used as template)
+- Registration target (which pipeline file and position)
+
+**Example output structure** (adapt content to your specific transformation):
+
+```
 ## Transformation Analysis
 
-**Target pattern:**
-```
-<ASCII diagram>
-```
+Target pattern: [ASCII diagram]
 
-**Transformation type:** MatcherPass
+Transformation type: MatcherPass
 
-**Rationale:** The pattern has a fixed topology of 3 ops
-(MatMul, Add, optional Tanh) with constant weights and bias.
-MatcherPass is optimal — it fires once per match with O(n) complexity.
+Rationale: Fixed topology of 3 ops with constant weights and bias.
+MatcherPass is optimal — fires once per match with O(n) complexity.
 
-**Constant constraints:**
-- weights: MUST be Constant (used as a compile-time weight tensor)
+Constant constraints:
+- weights: MUST be Constant
 - bias: MUST be Constant
 
-**Template reference:**
-`src/common/transformations/src/transformations/common_optimizations/fuse_u4_weights_zero_point.cpp`
+Template reference:
+src/common/transformations/src/transformations/common_optimizations/fuse_u4_weights_zero_point.cpp
 
-**Registration target:**
-`src/common/transformations/src/transformations/common_optimizations/common_optimizations.cpp`
-via `ADD_MATCHER(manager, FuseMyLinearFusion)`
+Registration target:
+src/common/transformations/src/transformations/common_optimizations/common_optimizations.cpp
 ```
 
 ---

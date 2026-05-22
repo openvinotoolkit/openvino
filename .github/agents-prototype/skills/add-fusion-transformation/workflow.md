@@ -5,30 +5,11 @@
 
 ## Purpose
 
-End-to-end workflow for implementing a new **pattern-based graph fusion transformation**
-in OpenVINO. Covers: problem framing → design → implementation → registration →
-unit tests → patch generation.
+End-to-end workflow for implementing a new **pattern-based graph fusion or decomposition
+transformation** in OpenVINO. Covers: problem framing → design → implementation →
+registration → unit tests → patch generation.
 
-Based on PR #40 ("Skill Workflow for OpenVINO Fusion transformation") and the
-OpenVINO transformation API patterns in `src/common/transformations/`.
-
----
-
-## Scope
-
-This workflow applies to OpenVINO transformation development in `openvino/` for:
-
-- Pattern-based graph fusion
-- Subgraph replacement with:
-  - a single fused op, or
-  - several ops preserving semantics with lower runtime overhead
-
-The workflow covers:
-
-1. Pattern design and safety guards
-2. Pass implementation and registration
-3. Runtime correctness constraints (shape/type/friendly name/rt_info)
-4. Unit and functional regression tests
+Based on the OpenVINO transformation API patterns in `src/common/transformations/`.
 
 ---
 
@@ -134,12 +115,11 @@ Checklist after writing:
 
 Determine registration location from the analysis output.
 
-For **common_optimizations**:
-```cpp
-// Find the section that groups related fusion passes (e.g., linear layer fusions)
-// Insert FuseMyOp alphabetically/logically within that group
-ADD_MATCHER(manager, FuseMyOp)
-```
+For **common_optimizations**, find the section that groups related passes and insert
+your pass alphabetically/logically within that group.
+
+The CMake build system picks up any new `.cpp` in `src/common/transformations/src/` automatically
+— **do NOT manually edit `CMakeLists.txt`** unless you are adding a new subdirectory.
 
 Verify the registration order does not break existing passes:
 - Constant folding must run BEFORE pattern-matching passes that require constant inputs
@@ -151,92 +131,19 @@ Location: `src/common/transformations/tests/<domain>/`
 
 Required test file: `test_<pass_name>.cpp`
 
-```cpp
-#include <gtest/gtest.h>
-#include "transformations/<domain>/<pass_name>.hpp"
-#include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/matmul.hpp"
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/result.hpp"
+Read the closest existing transformation test as your template. Good references:
+- `src/common/transformations/tests/common_optimizations/fuse_u4_weights_zero_point.cpp`
+- `src/common/transformations/tests/common_optimizations/matmul_multiply_fusion_tests.cpp`
 
-using namespace ov;
-
-// --- Test 1: Positive — pattern fires correctly ---
-TEST_F(TransformationTestsF, FuseMyOp_Basic) {
-    {  // "model" block — the input graph
-        auto input   = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 768});
-        auto weights = op::v0::Constant::create(element::f32, Shape{768, 3072}, {0.1f});
-        auto bias    = op::v0::Constant::create(element::f32, Shape{3072}, {0.0f});
-        auto mm      = std::make_shared<op::v0::MatMul>(input, weights, false, true);
-        auto add     = std::make_shared<op::v1::Add>(mm, bias);
-        auto result  = std::make_shared<op::v0::Result>(add);
-        model = std::make_shared<Model>(ResultVector{result}, ParameterVector{input});
-
-        manager.register_pass<pass::FuseMyOp>();
-    }
-    {  // "model_ref" block — the expected output graph
-        auto input_r   = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 768});
-        auto weights_r = op::v0::Constant::create(element::f32, Shape{768, 3072}, {0.1f});
-        auto bias_r    = op::v0::Constant::create(element::f32, Shape{3072}, {0.0f});
-        auto fused_r   = std::make_shared<op::internal::MyFusedOp>(input_r, weights_r, bias_r);
-        auto result_r  = std::make_shared<op::v0::Result>(fused_r);
-        model_ref = std::make_shared<Model>(ResultVector{result_r}, ParameterVector{input_r});
-    }
-}
-
-// --- Test 2: Negative — non-constant weights, pass must NOT fire ---
-TEST_F(TransformationTestsF, FuseMyOp_Negative_DynamicWeights) {
-    {
-        auto input   = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 768});
-        auto weights = std::make_shared<op::v0::Parameter>(element::f32, Shape{768, 3072});
-        auto bias    = op::v0::Constant::create(element::f32, Shape{3072}, {0.0f});
-        auto mm      = std::make_shared<op::v0::MatMul>(input, weights, false, true);
-        auto add     = std::make_shared<op::v1::Add>(mm, bias);
-        auto result  = std::make_shared<op::v0::Result>(add);
-        model = std::make_shared<Model>(ResultVector{result}, ParameterVector{input, weights});
-
-        manager.register_pass<pass::FuseMyOp>();
-    }
-    // model_ref not set → TransformationTestsF checks model is UNCHANGED
-}
-
-// --- Test 3: Output type preserved ---
-TEST_F(TransformationTestsF, FuseMyOp_OutputTypePreserved) {
-    {
-        auto input   = std::make_shared<op::v0::Parameter>(element::f16, Shape{2, 768});
-        auto weights = op::v0::Constant::create(element::f16, Shape{768, 3072}, {0.1f});
-        auto bias    = op::v0::Constant::create(element::f16, Shape{3072}, {0.0f});
-        auto mm      = std::make_shared<op::v0::MatMul>(input, weights, false, true);
-        auto add     = std::make_shared<op::v1::Add>(mm, bias);
-        auto result  = std::make_shared<op::v0::Result>(add);
-        model = std::make_shared<Model>(ResultVector{result}, ParameterVector{input});
-
-        manager.register_pass<pass::FuseMyOp>();
-    }
-    {
-        auto input_r   = std::make_shared<op::v0::Parameter>(element::f16, Shape{2, 768});
-        auto weights_r = op::v0::Constant::create(element::f16, Shape{768, 3072}, {0.1f});
-        auto bias_r    = op::v0::Constant::create(element::f16, Shape{3072}, {0.0f});
-        auto fused_r   = std::make_shared<op::internal::MyFusedOp>(input_r, weights_r, bias_r);
-        model_ref = std::make_shared<Model>(ResultVector{std::make_shared<op::v0::Result>(fused_r)},
-                                            ParameterVector{input_r});
-    }
-}
-```
-
-Add to the test's `CMakeLists.txt`:
-```cmake
-add_test_target(ov_transformations_func_tests
-    SOURCES test_<pass_name>.cpp
-)
-```
+Each test file must include at minimum:
+- **One positive test** (`TransformationTestsF`) that verifies the pattern fires and produces the expected replacement graph.
+- **One negative test** that verifies the pattern does NOT fire when a guard condition fails (e.g., non-constant weights, multi-consumer output).
+- **One output-type-preservation test** for FP16/BF16 inputs if the fusion touches precision.
 
 **Functional / layer tests (when externally observable):**
-- If fusion changes user-visible behavior or a performance-sensitive execution path,
-  add/extend functional tests under `tests/layer_tests/` or `tests/functional/`.
-- Cover representative input shapes/dtypes and backend-relevant conditions.
-- Keep tests minimal and deterministic.
+If the fusion changes user-visible behavior or a performance-sensitive execution path,
+add/extend functional tests under `tests/layer_tests/` or `tests/functional/`.
+Keep tests minimal and deterministic.
 
 ### Step 7: Build, Verify and Generate Patch
 

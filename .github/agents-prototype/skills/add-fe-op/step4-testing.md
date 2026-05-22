@@ -77,67 +77,27 @@ Use the existing test harness (`onnx_test_utils.hpp`) for ONNX.
 
 ## Conversion Validation
 
-### When OV is installed and FE changes are included
+After writing translator and registration, run the end-to-end conversion check using the
+**`verify-conversion`** skill:
 
-```python
-import openvino as ov
-import torch
+> Read and follow: `skills/verify-conversion/SKILL.md`
 
-class Model(torch.nn.Module):
-    def forward(self, x):
-        return torch.<op_name>(x)
-
-model = Model()
-dummy = torch.randn(2, 4, 4)
-ov_model = ov.convert_model(model, example_input=dummy)
-compiled = ov.compile_model(ov_model, "CPU")
-result = compiled({"x": dummy.numpy()})
-print(f"Conversion OK — output shape: {result[0].shape}")
-```
-
-Run this script. If it produces OV graph nodes (not framework fallback nodes),
-report `validation=pass`.
-
-### When OV is not installed with FE changes
-
-> **Do NOT build OpenVINO.** Compilation takes too long on GHA nodes.
-
-Mark validation as `blocked`:
-
-```
-validation: blocked — installed OV package does not include the patched FE.
-                      Conversion check cannot run. Patch is provided for manual review.
-```
-
-**Critical:** Never report `success` when conversion was tested against a
-package that does not contain the FE patch.
+The skill auto-detects the conversion path (optimum-intel / ovc / convert_model) and
+runs a numerical sanity check. Report the outcome (`validation=pass|fail|blocked`) back
+to the FE Agent before generating the patch.
 
 ---
 
 ## Git Patch Generation
 
-After translator, registration, and test files are written, generate a
-`git format-patch` from the openvino working tree.
+After translator, registration, and test files are written, generate a patch file.
+Run:
 
-```bash
-# Stage all FE changes
-git add src/frontends/<frontend>/src/op/<op_name>.cpp
-git add src/frontends/<frontend>/src/op_table.cpp
-git add src/frontends/<frontend>/CMakeLists.txt
-git add tests/layer_tests/<frontend>_tests/test_<op_name>.py
-
-# Commit locally (do NOT push to openvino)
-git commit -m "feat(fe/<frontend>): add translator for <op_name>"
-
-# Export patch
-git format-patch HEAD~1 --stdout > ../patches/fe_<op_name>_<frontend>.patch
-
-# Verify it applies cleanly to a fresh checkout
-git apply --check ../patches/fe_<op_name>_<frontend>.patch
-echo "Patch check exit code: $?"
+```
+python .github/scripts/meat/generate_patch.py --component fe_<frontend> --op <op_name>
 ```
 
-Place final patch in: `patches/fe_<op_name>_<frontend>.patch`
+Place the resulting `.patch` file in `agent-results/frontend/patches/`.
 
 ---
 
@@ -145,16 +105,8 @@ Place final patch in: `patches/fe_<op_name>_<frontend>.patch`
 
 Write the patch path and validation status to the FE Agent output file:
 
-```bash
-# Patch is already in agent-results/pytorch-fe/patches/
-echo "Patch: patches/fe_<op_name>_<frontend>.patch  validation: <pass|fail|blocked>" \
-  >> agent-results/pytorch-fe/fe_result.json
 ```
-
-Optionally post as PR comment if `gh` is available and `GITHUB_TOKEN` is set:
-```bash
-gh pr comment --body "$(printf '**FE patch: %s (%s)**\n\nValidation: %s\n\n```patch\n%s\n```' \
-  '<op_name>' '<frontend>' '<status>' "$(cat patches/fe_<op_name>_<frontend>.patch)")" 2>/dev/null || true
+python .github/scripts/meat/record_result.py --agent frontend --op <op_name> --patch <patch_path> --validation <pass|fail|blocked>
 ```
 
 ---

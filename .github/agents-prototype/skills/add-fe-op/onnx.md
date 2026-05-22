@@ -18,8 +18,7 @@ Before writing any code:
 
 | Path | Description |
 |---|---|
-| `src/frontends/onnx/frontend/src/op/` | Per-op translator files — create your new file here with `ONNX_OP` registration.|
-| `src/frontends/onnx/frontend/src/ops_bridge.cpp` | Operator registry definition. |
+| `src/frontends/onnx/frontend/src/op/` | Per-op translator files — create your new `.cpp` file here. `ONNX_OP` registration goes at the bottom of this file. |
 | `src/frontends/onnx/frontend/src/core/operator_set.hpp` | `ONNX_OP` and `ONNX_OP_M` macros. |
 | `src/frontends/onnx/frontend/src/version_range.hpp` | `OPSET_SINCE`, `OPSET_RANGE`, `OPSET_IN` helpers. |
 | `src/frontends/onnx/frontend/src/core/node.hpp` | `ov::frontend::onnx::Node` — the context object passed to each translator. |
@@ -60,26 +59,20 @@ bool valid = common::is_input_valid(node, 2);
 
 ## 4. Registration Macros
 
-In `ops_bridge.cpp`:
+The `ONNX_OP` macro is placed **at the bottom of the per-op `.cpp` file** (not in `ops_bridge.cpp`). Look at existing op files such as `src/frontends/onnx/frontend/src/op/sequence_insert.cpp` or `src/frontends/onnx/frontend/src/op/resize.cpp` as reference.
 
-```cpp
-#include "op/<new_op>.hpp"
+**Example** (adapt op name and version range to your op):
 
-namespace ai_onnx {
-namespace opset_1 {
-// Define translator in .hpp/.cpp file
-}  // namespace opset_1
-}  // namespace ai_onnx
-
-// Register with a single opset version range:
+```
+// Single version range:
 ONNX_OP("GridSample", OPSET_SINCE(16), ai_onnx::opset_16::grid_sample);
 
-// Register with version ranges — when behavior changed at opset 11:
+// Multiple ranges when behavior changed between opsets:
 ONNX_OP("Resize", OPSET_RANGE(10, 10), ai_onnx::opset_10::resize);
 ONNX_OP("Resize", OPSET_RANGE(11, 17), ai_onnx::opset_11::resize);
 ONNX_OP("Resize", OPSET_SINCE(18), ai_onnx::opset_18::resize);
 
-// Register for specific opset versions (when there are gaps):
+// Specific individual opset versions (when there are gaps):
 ONNX_OP("Cast", OPSET_IN({1, 6, 9, 13, 19}), ai_onnx::opset_13::cast);
 ```
 
@@ -89,67 +82,13 @@ ONNX_OP("Cast", OPSET_IN({1, 6, 9, 13, 19}), ai_onnx::opset_13::cast);
 
 ### 5a. Create the translator file
 
-```bash
-# Create the header file:
-cat > src/frontends/onnx/frontend/src/op/<new_op>.hpp << 'EOF'
-// Copyright (C) 2018-2026 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+ONNX op translators consist of **a single `.cpp` file only** — no corresponding `.hpp` is needed.
 
-#pragma once
+Read an existing op as your template. Good references:
+- `src/frontends/onnx/frontend/src/op/sequence_insert.cpp` (simple, recent pattern)
+- `src/frontends/onnx/frontend/src/op/resize.cpp` (multi-opset-version example)
 
-#include "core/node.hpp"
-
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
-
-namespace opset_<first_version> {
-ov::OutputVector <new_op>(const ov::frontend::onnx::Node& node);
-}  // namespace opset_<first_version>
-
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
-EOF
-
-# Create the source file:
-cat > src/frontends/onnx/frontend/src/op/<new_op>.cpp << 'EOF'
-// Copyright (C) 2018-2026 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
-
-#include "op/<new_op>.hpp"
-
-#include "core/node.hpp"
-#include "openvino/op/...hpp"
-
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
-
-namespace opset_<first_version> {
-
-ov::OutputVector <new_op>(const ov::frontend::onnx::Node& node) {
-    const auto inputs = node.get_ov_inputs();
-    const auto x = inputs[0];
-
-    // ... read attributes ...
-    const auto axis = node.get_attribute_value<int64_t>("axis", 0);
-
-    // ... build OpenVINO subgraph ...
-    return {std::make_shared<ov::op::v0::...>(x)};
-}
-
-}  // namespace opset_<first_version>
-
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
-EOF
-```
+Adapt the chosen template to your op. Do not copy-paste blindly — understand each section before writing.
 
 ### 5b. Handling multiple opset versions
 
@@ -329,7 +268,7 @@ cmake --build build --target clang_format_fix_all -j$(nproc)
 - [ ] **Optional inputs guarded** — `common::is_input_valid(node, N)` used for all optional inputs.
 - [ ] **Default attribute values** — per ONNX spec for each opset version.
 - [ ] **CMakeLists.txt updated** — new `.cpp` added to `SOURCES`.
-- [ ] **`ops_bridge.cpp` updated** — `ONNX_OP` registration added.
+- [ ] **`ONNX_OP` registration added** — macro at bottom of the new `.cpp` translator file (not in `ops_bridge.cpp`).
 - [ ] **Test model added** — `.prototxt` covers basic case and edge cases.
 - [ ] **C++ test added** — at least one test in `onnx_import.in.cpp`.
 - [ ] **All ONNX tests pass** — `ctest -R ov_onnx_frontend_tests` green.

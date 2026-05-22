@@ -65,26 +65,15 @@ and apply its conventions. Key points for this agent:
 
 ### Step 0: Bootstrap Manifest
 
-```bash
-# Read op spec from Core OpSpec Agent output
-OP_SPEC_PATH=$(python3 -c "import json; d=json.load(open('agent-results/pipeline_state.json')); print(d.get('ov_orchestrator', {}).get('op_spec_path', ''))")
+Read the op spec from Core OpSpec Agent output:
+
+```
+python .github/scripts/meat/read_op_spec.py
 ```
 
-Download the op spec produced by Core OpSpec Agent:
-```bash
-# Op spec is written to agent-results/core-opspec/ by the Core OpSpec Agent
-OP_SPEC_PATH=$(python3 -c "import json; d=json.load(open('agent-results/core-opspec/core_opspec_result.json')); print(d.get('op_spec_path', ''))")
-cat "$OP_SPEC_PATH"
-```
-
-If `custom_op_patch_found=true` and `patch_type=transformation` in manifest
-context, apply the proposed patch immediately:
-```bash
-git am incoming.patch
-```
-Verify it compiles before proceeding.
-
-### Step 1: Analyse Target Sub-Graph
+The script reads `agent-results/core-opspec/core_opspec_result.json` and prints the op spec path.
+If a `patch_type=transformation` patch is available in `agent-results/`, apply it with `git apply`
+and verify it compiles before proceeding.
 
 Follow `skills/add-fusion-transformation/SKILL.md` → step1-analysis:
 
@@ -110,72 +99,34 @@ Follow `skills/add-fusion-transformation/SKILL.md` → step1-analysis:
 
 Follow `skills/add-fusion-transformation/SKILL.md` → step2-implementation.
 
-#### File layout
+File layout:
 ```
 src/common/transformations/include/transformations/<domain>/<pass_name>.hpp
 src/common/transformations/src/<domain>/<pass_name>.cpp
 ```
 
-#### MatcherPass template
-```cpp
-// <pass_name>.hpp
-class TRANSFORMATIONS_API FuseMyOp : public ov::pass::MatcherPass {
-public:
-    OPENVINO_RTTI("FuseMyOp", "0");
-    FuseMyOp();
-};
-
-// <pass_name>.cpp
-FuseMyOp::FuseMyOp() {
-    MATCHER_SCOPE(FuseMyOp);
-    auto input   = pattern::any_input();
-    auto weights = pattern::wrap_type<ov::op::v0::Constant>();
-    auto matmul  = pattern::wrap_type<ov::op::v0::MatMul>({input, weights});
-    auto bias    = pattern::wrap_type<ov::op::v0::Constant>();
-    auto add     = pattern::wrap_type<ov::op::v1::Add>({matmul, bias});
-
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        const auto& pmap = m.get_pattern_map();
-        auto fused = std::make_shared<op::v0::MyFusedOp>(
-            pmap.at(matmul)->input_value(0), pmap.at(weights), pmap.at(bias));
-        ov::replace_node(pmap.at(add), fused);
-        return true;
-    };
-    auto m = std::make_shared<pattern::Matcher>(add, matcher_name);
-    register_matcher(m, callback);
-}
-```
-
-Key rules:
-- Use `pattern::any_input()` for variable inputs, `wrap_type<Constant>()` for
-  constant inputs.
-- Always call `ov::replace_node(old, new)` — never delete nodes manually.
-- Copy `friendly_name` and RT info from matched node to new op where applicable.
-- Preserve output element type.
+Read the closest existing transformation source as your template (identified in
+step1-analysis). Key implementation rules:
+- Use `MATCHER_SCOPE(ClassName)` at the start of the constructor
+- Use `pattern::wrap_type<Op>({...})` and `pattern::consumers_count(N)` for guards
+- Call `ov::copy_runtime_info({old_nodes...}, new_node)` before replacement
+- Call `fused->set_friendly_name(root->get_friendly_name())`
+- Call `ov::replace_node(old_root, new_node)` as the last step — never delete nodes manually
+- Return `true` from callback on successful replacement
+- Preserve output element type
 
 ### Step 3: Register in Pass Pipeline
 
-```bash
-grep -r "ADD_MATCHER\|register_pass" src/common/transformations/src/transformations/common_optimizations/common_optimizations.cpp
-```
+Find the registration location from `transformation_analysis.md` (output of step1-analysis).
 
-Common registration locations:
-- `src/common/transformations/src/transformations/common_optimizations/common_optimizations.cpp`
-  (general — all backends)
-- `src/plugins/intel_cpu/src/graph_optimizer.cpp` (CPU-exclusive fusion)
+For **common_optimizations** (general, all backends):
+Insert `ADD_MATCHER(manager, <PassName>)` in `src/common/transformations/src/transformations/common_optimizations/common_optimizations.cpp`.
 
-Registration:
-```cpp
-// common_optimizations.cpp
-ADD_MATCHER(manager, FuseMyOp)
-```
+For **CPU-exclusive** fusion:
+Insert `manager.register_pass<ov::pass::<PassName>>();` in `src/plugins/intel_cpu/src/graph_optimizer.cpp`.
 
-Update `src/common/transformations/CMakeLists.txt`:
-```cmake
-set(LIBRARY_SRC
-    ...
-    src/<domain>/<pass_name>.cpp
-```
+Add the new `.cpp` to `LIBRARY_SRC` in `src/common/transformations/CMakeLists.txt`.
+The CMake build picks up all files in `LIBRARY_SRC` — no new `add_library` call needed.
 
 ### Step 4: Write Tests
 
@@ -186,30 +137,18 @@ Required test cases:
 2. **Negative** — pattern does NOT match (e.g., non-constant weight) → graph unchanged
 3. **Type-propagation** — output shape/type correct after fusion
 
-```cpp
-#include "common_test_utils/ov_test_utils.hpp"
-
-TEST_F(TransformationTestsF, FuseMyOpBasic) {
-    // Build "before" graph, run pass, compare to "after" reference
-    ...
-}
-
-TEST_F(TransformationTestsF, FuseMyOpNegative_DynamicWeights) {
-    // Non-constant weights — pass must not fire
-    ...
-}
-```
+Read the closest existing transformation test as your template. See
+`skills/add-fusion-transformation/workflow.md` → Step 6 for the test structure conventions.
 
 ### Step 5: Record Patch
 
-```bash
-git format-patch HEAD~<N> --stdout > transformation-<pass_name>-${GITHUB_RUN_ID}.patch
+Run the cross-platform patch generation script:
 
-# Patch is already in agent-results/transformation/ and will be picked up by OV Orchestrator
-echo "Patch saved: transformation-<pass_name>-${GITHUB_RUN_ID:-local}.patch"
+```
+python .github/scripts/meat/generate_patch.py --component transformation --op <op_name>
 ```
 
-The patch is available in `agent-results/transformation/` for the OV Orchestrator to collect.
+The patch is saved to `agent-results/transformation/` for the OV Orchestrator to collect.
 
 ---
 
@@ -230,6 +169,14 @@ The patch is available in `agent-results/transformation/` for the OV Orchestrato
 
 ---
 
+## Constraints
+
+- Reports only to OV Orchestrator — does not call other agents directly.
+- Must provide test results when successful.
+- Write all results to `agent-results/transformation/`; do not post to GitHub issues or create PRs unless invoked standalone.
+
+---
+
 ## PR Creation
 
 **`pr_mode: delegated_to_orchestrator`** (invoked by Enable Operator Agent): do **not** create a
@@ -241,62 +188,59 @@ Skip silently if `gh` is unavailable, not authenticated, or the command fails.
 
 ---
 
-## Checkpoint Protocol
+## Root Cause vs. Workaround
 
-You are given a **120-minute session** (GitHub Actions timeout). Post a checkpoint
-comment to the tracking issue **after completing each numbered step**, not only
-when done or escalating.
+Before implementing any fix, apply this decision gate:
 
-This allows:
-- A human to see real-time progress without downloading anything.
-- A re-triggered session to resume exactly where this one left off.
+**When a transformation fails to match** (returns false / callback never fires):
+1. Ask: "Is the input graph in the canonical form this transformation expects?"
+2. If NOT — trace backward to find which **producer** is not emitting canonical output.
+3. Fix the producer — not the transformation's matching logic.
 
-### Checkpoint comment format
+**Workaround anti-pattern** (do NOT do this):
+- Adding extra branches to a transformation's callback to handle non-canonical inputs
+- Example: `if (isa<SequenceInsert>(input)) { /* special case */ }` in a consumer transformation
 
-Post a GitHub issue comment with this structure after every step:
+**Root-cause fix** (preferred):
+- Make the producer emit the correct output type/wrapper at its point of creation
+- This is almost always a 1–3 line change vs. a 20+ line workaround
+- It keeps all future consumers correct without modification
 
-```markdown
-## ⏱ Checkpoint — Step <N> complete (<model_id>)
-
-| Field | Value |
-|---|---|
-| **Step completed** | `<step name>` |
-| **Outcome** | `success` \| `failed` \| `partial` |
-| **Key finding** | `<one-sentence summary of what was discovered or done>` |
-| **Next step** | `<step name, or "none — done / escalating">` |
-
-<!-- checkpoint {"agent":"transformation_agent","step":"<N>","outcome":"<outcome>","next_step":"<text>"} -->
-```
-
-### Re-trigger resume
-
-When invoked on an issue that already has checkpoint comments from a previous
-run, read them first and:
-1. Find the last `<!-- checkpoint ... -->` marker and its `step` value.
-2. Resume from the step immediately after the last completed one.
-3. Do not repeat already-completed steps.
-4. State explicitly: `Resuming after previous session — continuing from Step <N>`.
+If you are unsure which approach is correct, write your analysis in
+`agent-results/transformation/questions.md` and report `status=blocked_needs_review`
+before submitting a patch.
 
 ---
 
-## Job Communication Protocol
+## Shared Node / Idempotency Guard
 
-When your work is complete — regardless of outcome — post a comment to the
-tracking issue containing **exactly** this marker on its own line:
+Before finalizing any match pattern, check for shared nodes:
 
-    <!-- agent-complete {"agent":"transformation_agent","status":"<STATUS>","next_agent":"openvino_orchestrator","model_id":"<MODEL_ID>","next_context":"<ONE_LINE_SUMMARY>","iteration":<N>} -->
-
-- `agent`: `"transformation_agent"` (fixed)
-- `status`: `"success"` | `"failed"`
-- `next_agent`: `"openvino_orchestrator"` — OV Orchestrator collects results from
-  all parallel agents (Transformation, CPU, GPU) before proceeding
-- `model_id`: sanitized HuggingFace model ID
-- `next_context`: one-line outcome (e.g. `"FuseGatedDeltaNetRecurrent MatcherPass added"`)
-- `iteration`: pass through unchanged
-
-Place your full Markdown agent report above or below this marker.
+- Verify `node->get_output_target_inputs(0).size() == 1` for every node you plan to remove
+  or replace. If >1: the node is shared — fusing it may corrupt other consumers.
+- For stateful patterns (`ReadValue`, `Assign`, state): verify the 1-to-1 state-to-consumer
+  assumption still holds. Models with shared KV cache (Gemma3n, Gemma4 families) violate this.
+- Guard: `if (node->get_output_target_inputs(0).size() != 1) return false;`
 
 ---
+
+## Diagnostic Checklist: MatMulMultiplyFusion Overflow Guard
+
+When implementing or reviewing a `MatMul + Multiply(×scalar)` fusion that absorbs the
+scalar into the weight matrix, apply this check before fusion:
+
+1. Is `|scalar| > 1` AND is the weight dtype `f16` or `bf16`?
+2. If both — **skip the fusion for this instance**.
+
+**Why:** Absorbing a large scalar changes operation order:
+- Original: `MatMul(large_input, weights) → small_output × scalar` (safe — magnitude reduced first)
+- Fused: `MatMul(large_input, weights × scalar)` — intermediate values can overflow FP16 (max ≈ 65504)
+
+Add a guard in the fusion callback:
+- Check the constant value of the scalar input
+- If `abs(scalar) > 1.0 && (weight_element_type == f16 || weight_element_type == bf16)` → return false
+
+Reference: PR #35689 (Gemma4-26B-A4B-it-int4 accuracy regression from MatMulMultiplyFusion).
 
 ## Constraints
 

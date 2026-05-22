@@ -114,6 +114,61 @@ print(f"Dominant error class: {dominant_class}")
 
 ---
 
+## Step 2.5 — Search Git History for Similar Fixes
+
+Before generating routing signals, search the repository's git log for recent commits that
+solved the same class of problem. This gives the downstream coding agent a prior-art hint,
+preventing repeated workarounds for problems that already have a canonical fix.
+
+```python
+import subprocess
+
+def search_prior_art(error_class: str, op_name: str) -> list:
+    """Return up to 10 recent commit one-liners relevant to this error class."""
+    term_map = {
+        "missing_conversion_rule": [op_name, "add op translator", "add converter", "frontend: add"],
+        "accuracy_regression":     [op_name, "fp16 overflow", "precision fix", "accuracy", "fp16"],
+        "frontend_error":          [op_name, "frontend: fix", "normalize", "conversion fix"],
+        "inference_runtime_error": [op_name, "cpu: fix", "plugin fix", "inference"],
+        "ir_validation_error":     [op_name, "shape inference", "type prop", "core: fix"],
+    }
+    terms = term_map.get(error_class, [op_name])
+    seen, results = set(), []
+    for term in terms[:4]:
+        try:
+            out = subprocess.check_output(
+                ["git", "log", "--oneline", "-15", f"--grep={term}"],
+                text=True, stderr=subprocess.DEVNULL,
+            )
+            for line in out.strip().splitlines():
+                if line and line not in seen:
+                    seen.add(line)
+                    results.append({"term": term, "commit": line})
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            pass
+    return results[:10]
+
+op_name = profile.get("missing_ops", [""])[0] if profile.get("missing_ops") else ""
+prior_art = search_prior_art(dominant_class, op_name)
+
+with open("prior_art.json", "w") as f:
+    json.dump({"error_class": dominant_class, "op": op_name, "commits": prior_art}, f, indent=2)
+
+if prior_art:
+    print("Prior art found:")
+    for entry in prior_art:
+        print(f"  [{entry['term']}] {entry['commit']}")
+else:
+    print("No prior art found in git history — proceeding without hints.")
+```
+
+The resulting `prior_art.json` is included in the routing report and passed to the downstream
+coding agent as context. The agent should use it to confirm the canonical fix pattern rather
+than implementing from scratch.
+```
+
+---
+
 ## Step 3 — Extract Routing Signals
 
 ```python
@@ -223,6 +278,7 @@ print(f"Excerpts saved for {len(excerpts)} failed attempt(s).")
 |------|----------|
 | `routing_signals.json` | Machine-readable signals for orchestrator routing |
 | `error_excerpts.json` | Key traceback excerpts per attempt |
+| `prior_art.json` | Recent git commits that fixed similar problems (empty list if none found) |
 
 Key signal fields consumed by orchestrator:
 

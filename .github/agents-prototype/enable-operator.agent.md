@@ -24,17 +24,19 @@ via `agent-results/pipeline_state.json` to re-check those paths when OV work con
 
 ## Sub-Agents (callable)
 
-When calling sub-agents, use paths relative to `.github/agents-prototype/`:
+When calling sub-agents, use paths relative to ``:
 
 | Priority | Agent | Agent file | Purpose |
 |----------|-------|-----------|---------|
-| 1 | **Frontend Agent** | `.github/agents-prototype/frontend.agent.md` | Frontend conversion: framework op → OV graph nodes |
-| 2 | **Core OpSpec** | `.github/agents-prototype/core-opspec.agent.md` | New core op spec + implementation (on FE escalation) |
-| 3 (parallel) | **Transformation** | `.github/agents-prototype/transformation.agent.md` | Graph fusion transformation — starts from Core op spec |
-| 3 (parallel) | **CPU** | `.github/agents-prototype/cpu.agent.md` | CPU plugin kernel — starts from Core op spec |
-| 3 (parallel) | **GPU** | `.github/agents-prototype/gpu.agent.md` | GPU plugin kernel — starts from Core op spec |
-| 3 (parallel) | **NPU** | `.github/agents-prototype/npu.agent.md` | NPU plugin stub — runs in parallel; currently non-functional |
-| 4 | **Package Builder** | `.github/agents-prototype/package-builder.agent.md` | Assemble fixed OV package |
+| 0.5 | **Analyze and Convert** | `analyze-and-convert.agent.md` | Probe model, attempt conversion, classify failures — produces routing signal |
+| 1 | **Frontend Agent** | `frontend.agent.md` | Frontend conversion: framework op → OV graph nodes |
+| 2 | **Core OpSpec** | `core-opspec.agent.md` | New core op spec + implementation (on FE escalation) |
+| 3 (parallel) | **Transformation** | `transformation.agent.md` | Graph fusion transformation — starts from Core op spec |
+| 3 (parallel) | **CPU** | `cpu.agent.md` | CPU plugin kernel — starts from Core op spec |
+| 3 (parallel) | **GPU** | `gpu.agent.md` | GPU plugin kernel — starts from Core op spec |
+| 3 (parallel) | **NPU** | `npu.agent.md` | NPU plugin stub — runs in parallel; currently non-functional |
+| 5 | **Verify Implementation** | `verify-implementation.agent.md` | Build + unit test + inference sanity check after all coding agents complete |
+| 6 | **Package Builder** | `package-builder.agent.md` | Assemble fixed OV package |
 
 > **NPU note:** Invoked for structural completeness but currently non-functional. Always treat
 > NPU result as non-blocking regardless of status.
@@ -66,8 +68,8 @@ When a sub-agent reports failure or unexpected behaviour, load the relevant skil
 
 | Symptom | Skill | Path |
 |---------|-------|------|
-| MatcherPass not firing, pattern not matched, callback never triggers | `debug-matcher-pass` | `.github/agents-prototype/skills/debug-matcher-pass/SKILL.md` |
-| CPU/GPU crash, wrong accuracy, performance regression, IR serialisation issue | `debug` | `.github/agents-prototype/skills/debug/SKILL.md` |
+| MatcherPass not firing, pattern not matched, callback never triggers | `debug-matcher-pass` | `skills/debug-matcher-pass/SKILL.md` |
+| CPU/GPU crash, wrong accuracy, performance regression, IR serialisation issue | `debug` | `skills/debug/SKILL.md` |
 
 Load the relevant skill and include its diagnosis steps in the sub-agent's retry prompt.
 
@@ -138,11 +140,51 @@ Log all findings:
 [OV-ORCH] Bootstrap: fe_complete=false op_spec_ready=false final_pass_complete=false existing_patches=0 invocations=0
 ```
 
-### Phase 1: Classify Failing Component
+### Phase 0.5: Understand the Problem
 
-Parse the `error_context` string from `agent-results/pipeline_state.json` (format: `error_class/detail`).
+> **Skip if** `agent-results/analyze-and-convert/report.json` already exists with `status: complete`.
 
-Run the classification script (cross-platform, works on Linux/macOS/Windows):
+Before routing to any coding agent, invoke the **Analyze and Convert Agent**:
+
+```
+agent: analyze-and-convert.agent.md
+inputs:
+  model_id: <extracted from pipeline_state.json — null if not available>
+  error_log: <ov_orchestrator.error_context>
+  mode: analyze_only
+```
+
+The agent runs probe-model → try-conversion → classify-failure and writes
+`agent-results/analyze-and-convert/routing_signal.json`:
+```json
+{
+  "component": "frontend|transformation|core_op|cpu_plugin|gpu_plugin|npu_plugin|unknown",
+  "confidence": "high|medium|low",
+  "evidence": "string — key snippet from conversion output or error",
+  "missing_ops": ["aten::erfinv"],
+  "fusion_pattern_detected": false
+}
+```
+
+Log:
+```
+[OV-ORCH] [phase=understand] component=frontend confidence=high evidence="Cannot create 'erfinv' node"
+```
+
+> **When no model ID is available** (error_context is a raw traceback with no downloadable model),
+> pass `model_id: null` — the agent will run classify-failure from the error log alone and emit
+> the routing signal with `confidence: low`. Fall through to Phase 1 fallback.
+
+### Phase 1: Route Using Analysis
+
+Read `agent-results/analyze-and-convert/routing_signal.json` produced by Phase 0.5.
+
+**Primary path** — when `routing_signal.confidence` is `high` or `medium`:
+- Set `ov_orchestrator.classified_component = routing_signal.component`
+- Propagate `routing_signal.fusion_pattern_detected` → `ov_orchestrator.fusion_pattern_detected`
+
+**Fallback** — when `routing_signal.confidence` is `low` or the file is absent.
+Run the classification script:
 
 ```
 python .github/scripts/meat/classify_component.py
@@ -151,7 +193,7 @@ python .github/scripts/meat/classify_component.py
 The script reads `agent-results/pipeline_state.json`, maps `error_class` to a component,
 detects co-located ops, and prints `component=<value>` to stdout.
 
-Classification map:
+Classification map (fallback only):
 | `error_class` | `component` |
 |---|---|
 | `missing_conversion_rule` | `frontend` |
@@ -173,17 +215,24 @@ Log result:
 [OV-ORCH] Classified component: frontend (error_class=missing_conversion_rule op=aten::erfinv)
 ```
 
-**Then apply fusion pattern check (see § Decision Intelligence) before Phase 2.**
-If fusion pattern detected, skip Phase 2 and go directly to Transformation Agent.
+### Phase 2: Dispatch First Agent
 
-### Phase 2: FE Agent (Priority 1)
+> **Skip entirely if** `signals.fe_complete == true` (prior iteration already completed FE work).
 
-**Invoke FE Agent first** unless:
-- `signals.fe_complete == true` (already done), OR
-- Fusion pattern was detected in Phase 1 (see § Decision Intelligence) → skip to Transformation Agent
+Based on `ov_orchestrator.classified_component` (Phase 1), route to the first agent:
 
-**Exception for fusion:** If `ov_orchestrator.fusion_pattern_detected == true`, bypass Phase 2 and Phase 3
-entirely. Invoke Transformation Agent directly with all `co_located_ops` as context.
+| `classified_component` | First agent | Notes |
+|---|---|---|
+| `frontend` or `unknown` | FE Agent | Most ops surface first as a missing conversion rule |
+| `transformation` | Transformation Agent | Bypass FE; go directly to parallel gate |
+| `core_op` | Core OpSpec Agent | Bypass FE; Transformation/CPU/GPU/NPU follow after spec is ready |
+| `cpu_plugin` / `gpu_plugin` | Core OpSpec first | Plugin agents require an op spec; parallel gate follows |
+| `npu_plugin` | NPU Agent | Non-blocking |
+
+**Fusion shortcut:** If `ov_orchestrator.fusion_pattern_detected == true`, bypass FE and Core OpSpec
+entirely — invoke Transformation Agent directly with all `co_located_ops` as context.
+
+#### When `classified_component == frontend` (or `unknown`)
 
 Log before invocation:
 ```
@@ -336,39 +385,69 @@ Log:
 [OV-ORCH] [phase=FE-final] result=success ops=<names> fe_complete=true final_pass_complete=true
 ```
 
-### Phase 6: E2E Verification Gate
+### Phase 5: Build and Test Verification
 
-> **This phase is a hard gate. Phase 7 (PR) must not start until all checks
-> below pass. Do not open a PR against a failing or untested pipeline.**
+> **Mandatory gate before E2E.** The E2E gate (Phase 6) must not start until
+> build + unit tests pass. Do not invoke E2E on uncompiled or untested code.
 
-Run the
-**[`skills/verify-conversion/SKILL.md`](.github/agents-prototype/skills/verify-conversion/SKILL.md)** skill.
-
-The skill:
-1. Auto-detects the correct conversion path (optimum-intel for HuggingFace models,
-   native `ovc`/`convert_model` for local ONNX/PyTorch/TF models).
-2. Runs a real end-to-end inference through the OV plugin layer.
-3. Validates output sanity (no NaN/Inf, non-empty tensors, non-blank LM output).
-
-It writes the result to `agent-results/enable-operator/verify_result.json`.
-
-After the skill completes, **also verify sub-agent test results**:
+Invoke the **Verify Implementation Agent**:
 
 ```
-python .github/scripts/meat/check_subagent_results.py
+agent: verify-implementation.agent.md
 ```
 
-The script scans all sub-agent result JSONs for `status=failed` or failing `test_results`.
-Exits with code 1 and prints details if any failure is found.
+The agent:
+1. Reads all sub-agent result JSONs to identify changed build targets
+2. Builds each changed target with `cmake --build build --target <target>`
+3. Runs unit tests for each target with `ctest -R <pattern>`
+4. If an OpenVINO IR model is available, runs a quick inference sanity check
+
+It writes results to `agent-results/verify-implementation/verify_result.json`.
 
 **Gate outcomes:**
 
 | Condition | Action |
 |---|---|
-| `verify_passed == true` AND no sub-agent test failures | ✅ Proceed to Phase 7 |
-| `verify_passed == false`, new distinct error | Classify and route to the appropriate agent (one more iteration within this invocation) |
-| Sub-agent test failures present | Fix the failing agent before proceeding — do **not** open a PR with known test failures |
-| `verify_passed == false`, same error as before | Escalate: report failure, do not open a PR |
+| `status=success` (build + tests + inference all pass) | ✅ Proceed to Phase 6 |
+| Build fails | Re-invoke the failing coding agent with the compile error; do **not** open a PR |
+| Unit tests fail | Re-invoke the failing coding agent with the test output; do **not** open a PR |
+| Test not found (0 executed) | Re-invoke the agent that added the test — it was not registered correctly |
+| Inference crash (segfault / NaN) | Re-invoke the responsible plugin agent with the crash context |
+
+Log:
+```
+[OV-ORCH] [phase=verify] build=ok tests=ok inference=ok → unblocking Phase 6
+```
+
+### Phase 6: E2E Verification Gate
+
+> **This phase is a hard gate. Phase 7 (PR) must not start until all checks
+> below pass. Do not open a PR against a failing or untested pipeline.**
+
+Invoke the **Verify Implementation Agent** in `e2e_gate` mode:
+
+```
+agent: verify-implementation.agent.md
+inputs:
+  mode: e2e_gate
+  model_id: <from pipeline_state.json>
+```
+
+In `e2e_gate` mode the agent runs:
+1. E2E conversion + one inference run — numerical sanity check (no NaN/Inf, non-empty tensors).
+2. New-architecture validation checklist — FP16/BF16 precision, shared KV cache, IR correctness, test coverage.
+3. Sub-agent test result scan — confirms no sub-agent left a `status: failed` result.
+
+It writes results to `agent-results/verify-implementation/e2e_result.json`.
+
+**Gate outcomes:**
+
+| Condition | Action |
+|---|---|
+| `e2e_result.status == success` | ✅ Proceed to Phase 7 |
+| E2E conversion fails, new distinct error | Classify and route to the appropriate agent (one more iteration within this invocation) |
+| Checklist has `FAIL` or sub-agent tests fail | Fix the failing agent; re-run Phase 5 before proceeding |
+| E2E conversion fails, same error as before | Escalate: report failure, do not open a PR |
 
 Log:
 ```
@@ -378,7 +457,7 @@ Log:
 ### Phase 7: Collect Patches + Draft PR
 
 > **HARD STOP — mandatory pre-conditions before this phase may start:**
-> - `agent-results/enable-operator/verify_result.json` must exist with `verify_passed: true` AND `e2e_passed: true`
+> - `agent-results/verify-implementation/e2e_result.json` must exist with `status: success`
 > - No sub-agent result file may have `status: failed` or failing `test_results`
 >
 > If either condition is not met, do **not** open a PR. Fix the underlying issue first.
@@ -448,12 +527,19 @@ Print final status block:
 ═════════════════════════════════════════════════════════════════
   Enable Operator Agent — <model_id>
   Status:               success
+  Analysis [0.5]:       component=frontend confidence=high
   FE:                   escalate_to_core → final_pass_success
   Core:                 success (erfinv op added)
   Transform [parallel]: success
   CPU       [parallel]: success
   GPU       [parallel]: failed (non-blocking)
   NPU       [parallel]: failed (non-functional agent, non-blocking)
+  Build/Test [verify]:  build=ok  unit_tests=ok  inference=ok
+  E2E gate:             verify_passed=true  e2e_passed=true
+  Branch:               agents/enable-erfinv-op-<sha>
+  Changed files:        src/frontends/pytorch/src/op/erfinv.cpp
+                        src/common/transformations/...
+                        tests/...
   PR:                   https://github.com/openvinotoolkit/openvino/pull/XXXX
   → Common Orchestrator: requires_optimum_recheck=true requires_genai_check=true
 ═════════════════════════════════════════════════════════════════
@@ -531,8 +617,9 @@ Append to `agent-results/pipeline.log`.
 
 ## Constraints
 
-- FE Agent always runs first — **exception:** if a fusion pattern is detected in Phase 1
-  (`fusion_pattern_detected == true`), skip FE and go directly to Transformation Agent.
+- First agent is determined by `routing_signal.component` from Phase 0.5 (analyze-and-convert).
+  Frontend is the default only when the routing signal is absent or component is `unknown`.
+  **Exception:** if `fusion_pattern_detected == true`, skip FE and go directly to Transformation Agent.
 - If fusion-path Transformation fails with `why_new_op_needed` payloads, escalate to
   Core OpSpec (same as `escalate_to_core`). This is the recovery path for failed fusions.
 - Core OpSpec only when FE cannot solve alone (`escalate_to_core` or `failed`).
