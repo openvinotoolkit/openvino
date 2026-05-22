@@ -60,11 +60,15 @@ public:
         : m_scale_divisor(scale_divisor),
           m_fq(fq.get()) {}
 
-    void adjust() {
+    bool adjust(bool apply_scaling = true) {
         propagate_backward(m_fq);
         propagate_forward(m_fq);
 
-        if (scale_adjustment_possible()) {
+        if (!scale_adjustment_possible()) {
+            return false;
+        }
+
+        if (apply_scaling) {
             for (auto& input : m_pending_adjustments) {
                 auto original_const = input.get_source_output();
                 auto divisor_const =
@@ -75,6 +79,7 @@ public:
                 input.replace_source_output(new_const);
             }
         }
+        return true;
     }
 
 private:
@@ -250,12 +255,17 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
         const auto max_dq_scale = *std::max_element(dq_scale_values.begin(), dq_scale_values.end());
         constexpr auto threshold = 1.0f;
 
-        if (need_weights_adjustment && max_dq_scale > threshold) {
-            constexpr auto ratio = 10.0f;
-            ScaleAdjuster adjuster(max_dq_scale * ratio, fq);
-            adjuster.adjust();
+        constexpr auto ratio = 10.0f;
+        const bool need_scaling = need_weights_adjustment && max_dq_scale > threshold;
+        ScaleAdjuster adjuster(max_dq_scale * ratio, fq);
+        if (adjuster.adjust(need_scaling)) {
+            // All paths lead to scale-invariant layers: safe to remove FQ without clamping.
+            OPENVINO_ASSERT(replace_output_update_name(fq->output(0), fq->input_value(0)), "FQ stripping failed");
+            model_changed = true;
+            continue;
         }
 
+        // Replace FQ with Clamp to preserve value range constraint.
         auto input_low_const = ov::util::get_constant_from_source(fq->input_value(1));
         auto input_high_const = ov::util::get_constant_from_source(fq->input_value(2));
         if (input_low_const && input_high_const && ov::shape_size(input_low_const->get_shape()) == 1 &&
@@ -267,7 +277,8 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
             ov::copy_runtime_info(fq, clamp);
             OPENVINO_ASSERT(replace_node_update_name(fq, clamp), "FQ stripping failed");
         } else {
-            OPENVINO_ASSERT(replace_output_update_name(fq->output(0), fq->input_value(0)), "FQ stripping failed");
+            // Per-channel: can't use Clamp, keep FQ as is.
+            continue;
         }
         model_changed = true;
     }

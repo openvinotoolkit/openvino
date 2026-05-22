@@ -80,8 +80,10 @@ TEST_P(QDQStrippingTest, NeedScalingResidualBlockNoFinalMVN) {
     model = QDQStrippingFunction::build_residual_block_pattern(input_shape,
                                                                quantization_precision,
                                                                /*skip_final_mvn=*/true);
-    model_ref =
-        QDQStrippingFunction::build_residual_block_pattern_ref(input_shape, quantization_precision, false, true);
+    model_ref = QDQStrippingFunction::build_residual_block_pattern_ref(input_shape,
+                                                                       quantization_precision,
+                                                                       need_weights_adjustment,
+                                                                       true);
 }
 
 TEST_P(QDQStrippingTest, NeedScalingForwardBias) {
@@ -91,6 +93,14 @@ TEST_P(QDQStrippingTest, NeedScalingForwardBias) {
     model_ref = QDQStrippingFunction::build_forward_bias_pattern_ref(input_shape,
                                                                      quantization_precision,
                                                                      need_weights_adjustment);
+}
+
+TEST_P(QDQStrippingTest, ConvChainNoScaleInvariant) {
+    const auto& [need_weights_adjustment, quantization_precision] = GetParam();
+    const auto input_shape = ov::PartialShape{1, 3, 8, 8};
+    model = QDQStrippingFunction::build_conv_chain_pattern(input_shape, ov::element::i16);
+    model_ref =
+        QDQStrippingFunction::build_conv_chain_pattern_ref(input_shape, ov::element::i16, need_weights_adjustment);
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT,

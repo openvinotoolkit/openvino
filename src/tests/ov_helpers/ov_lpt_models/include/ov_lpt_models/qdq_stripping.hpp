@@ -81,6 +81,13 @@ public:
                                                                      const ov::element::Type& quantization_precision,
                                                                      bool need_weights_adjustment = true);
 
+    // Conv chain without scale-invariant layers (no Softmax/MVN).
+    static std::shared_ptr<ov::Model> build_conv_chain_pattern(const ov::PartialShape& input_shape,
+                                                               const ov::element::Type& quantization_precision);
+    static std::shared_ptr<ov::Model> build_conv_chain_pattern_ref(const ov::PartialShape& input_shape,
+                                                                   const ov::element::Type& quantization_precision,
+                                                                   bool need_weights_adjustment = true);
+
 private:
     // Builds one residual block: MVN → Conv+bias [→ optional FQ or Clamp] + shortcut → Add.
     // Shared by build_residual_block_pattern (source) and build_residual_block_pattern_ref (ref).
