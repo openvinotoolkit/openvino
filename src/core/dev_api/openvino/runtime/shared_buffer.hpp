@@ -202,19 +202,4 @@ protected:
     const size_t m_size;
     size_t m_offset;
 };
-
-/// \brief OwningSharedStreamBuffer is a SharedStreamBuffer which owns its shared object.
-class OwningSharedStreamBuffer : public SharedStreamBuffer {
-public:
-    OwningSharedStreamBuffer(std::shared_ptr<ov::AlignedBuffer> buffer)
-        : SharedStreamBuffer(static_cast<char*>(buffer->get_ptr()), buffer->size()),
-          m_shared_obj(buffer) {}
-
-    std::shared_ptr<ov::AlignedBuffer> get_buffer() {
-        return m_shared_obj;
-    }
-
-protected:
-    std::shared_ptr<ov::AlignedBuffer> m_shared_obj;
-};
 }  // namespace ov

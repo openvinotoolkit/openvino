@@ -17,6 +17,7 @@
 
 #include "cpu_shape.h"
 #include "cpu_types.h"
+#include "edge.h"
 #include "eltwise.h"
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"
