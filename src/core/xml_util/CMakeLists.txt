@@ -30,6 +30,15 @@ target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime)
 # LTO
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
+if(ENABLE_LTO AND CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 15)
+    # GCC 15's lto1 emits a false-positive -Wstringop-overflow through std::unordered_set<std::string>
+    # in the xml_deserialize_util.cpp parsing path.
+    set_source_files_properties(
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/xml_deserialize_util.cpp
+        PROPERTIES COMPILE_FLAGS "-fno-lto"
+    )
+endif()
+
 if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME} PUBLIC OPENVINO_STATIC_LIBRARY)
 endif()
