@@ -13,6 +13,9 @@
 #include <openvino/core/shape.hpp>
 #include <iostream>
 #include <sstream>
+#include <fstream>
+#include <cstdlib>
+#include <sys/stat.h>
 
 namespace {
 
@@ -112,6 +115,51 @@ protected:
                 args[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS_DOWN] = zp_down_mem->get_onednn_memory(zp_desc_down);
             }
         }
+
+        // DO NOT MERGE - Dump all gated_mlp inputs to /tmp/gmlp_dump/ when OV_GPU_GMLP_DUMP is set
+        static int dump_call_count = 0;
+        const char* dump_env = std::getenv("OV_GPU_GMLP_DUMP");
+        if (dump_env && dump_call_count == 0) {
+            const std::string dump_dir(dump_env);
+            mkdir(dump_dir.c_str(), 0755);
+
+            auto dump_mem = [&](memory::ptr mem, const std::string& name) {
+                auto& stream = instance.get_network().get_stream();
+                const auto& layout = mem->get_layout();
+                const size_t bytes = layout.bytes_count();
+                std::vector<uint8_t> buf(bytes);
+                mem->copy_to(stream, buf.data(), false);
+                stream.finish();
+
+                std::ofstream f(dump_dir + "/" + name + ".bin", std::ios::binary);
+                f.write(reinterpret_cast<const char*>(buf.data()), bytes);
+                f.close();
+
+                std::cerr << "GMLP_DUMP: " << name << " shape=" << layout.get_partial_shape()
+                          << " dt=" << layout.data_type << " bytes=" << bytes << std::endl;
+            };
+
+            dump_mem(src_mem, "src");
+            dump_mem(wg_mem, "w_gate");
+            dump_mem(wu_mem, "w_up");
+            dump_mem(wd_mem, "w_down");
+
+            if (prim->compressed_weights) {
+                int didx = 4;
+                dump_mem(instance.dep_memory_ptr(didx++), "scale_gate");
+                dump_mem(instance.dep_memory_ptr(didx++), "scale_up");
+                dump_mem(instance.dep_memory_ptr(didx++), "scale_down");
+                if (prim->has_decompression_zero_points) {
+                    dump_mem(instance.dep_memory_ptr(didx++), "zp_gate");
+                    dump_mem(instance.dep_memory_ptr(didx++), "zp_up");
+                    dump_mem(instance.dep_memory_ptr(didx++), "zp_down");
+                }
+            }
+
+            // Also dump output after execution for reference comparison
+            std::cerr << "GMLP_DUMP: dumped layer " << dump_call_count << " inputs to " << dump_dir << std::endl;
+        }
+        dump_call_count++;
 
         return args;
     }
