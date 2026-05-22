@@ -47,22 +47,12 @@ KERNEL (reorder_data_fsv)(
 #endif
     const uint in_b_pitch = in_fs_pitch * IN_FEATURE_SLICE_NUM;
 
-    const uint out_x_pitch = OUT_FSV;
-    const uint out_y_pitch = out_x_pitch * OUTPUT_SIZE_X;
 #ifdef INPUT0_DIMS_5
-    const uint out_z_pitch = out_y_pitch * OUTPUT_SIZE_Y;
-    const uint out_fs_pitch = out_z_pitch * OUTPUT_SIZE_Z;
-#else
-    const uint out_fs_pitch = out_y_pitch * OUTPUT_SIZE_Y;
-#endif
-    const uint out_b_pitch = out_fs_pitch * OUT_FEATURE_SLICE_NUM;
-
-#ifdef INPUT0_DIMS_5
-    const uint out_offset_base = b * out_b_pitch + fs_out * out_fs_pitch + z * out_z_pitch + y * out_y_pitch + x * OUT_FSV;
     const uint in_spatial_base = b * in_b_pitch + z * in_z_pitch + y * in_y_pitch + x * IN_FSV;
+#define OUT_INDEX(f) OUTPUT_GET_INDEX(b, (f), z, y, x)
 #else
-    const uint out_offset_base = b * out_b_pitch + fs_out * out_fs_pitch + y * out_y_pitch + x * OUT_FSV;
     const uint in_spatial_base = b * in_b_pitch + y * in_y_pitch + x * IN_FSV;
+#define OUT_INDEX(f) OUTPUT_GET_INDEX(b, (f), y, x)
 #endif
 
 #ifdef FSV_VECTORIZED
@@ -75,10 +65,10 @@ KERNEL (reorder_data_fsv)(
             const uint f_chunk = f_base + r * VEC_SIZE;
             if (f_chunk < INPUT0_FEATURE_NUM) {
                 INPUT_VEC_TYPE v = VLOAD_VEC(0, input + in_spatial_base + fs_in * in_fs_pitch);
-                VSTORE_VEC(CONVERT_OUT_VEC(v), 0, output + out_offset_base + r * VEC_SIZE);
+                VSTORE_VEC(CONVERT_OUT_VEC(v), 0, output + OUT_INDEX(f_chunk));
             } else {
                 OUTPUT_VEC_TYPE zero = (OUTPUT_VEC_TYPE)(0);
-                VSTORE_VEC(zero, 0, output + out_offset_base + r * VEC_SIZE);
+                VSTORE_VEC(zero, 0, output + OUT_INDEX(f_chunk));
             }
         }
     #else
@@ -87,10 +77,10 @@ KERNEL (reorder_data_fsv)(
         const uint sub = fs_out % RATIO;
         if (f_base < INPUT0_FEATURE_NUM) {
             INPUT_VEC_TYPE v = VLOAD_VEC(0, input + in_spatial_base + fs_in * in_fs_pitch + sub * VEC_SIZE);
-            VSTORE_VEC(CONVERT_OUT_VEC(v), 0, output + out_offset_base);
+            VSTORE_VEC(CONVERT_OUT_VEC(v), 0, output + OUT_INDEX(f_base));
         } else {
             OUTPUT_VEC_TYPE zero = (OUTPUT_VEC_TYPE)(0);
-            VSTORE_VEC(zero, 0, output + out_offset_base);
+            VSTORE_VEC(zero, 0, output + OUT_INDEX(f_base));
         }
     #endif
 #else
@@ -101,10 +91,12 @@ KERNEL (reorder_data_fsv)(
             const uint fs_in = f / IN_FSV;
             const uint fsv_in = f % IN_FSV;
             const uint in_offset = in_spatial_base + fs_in * in_fs_pitch + fsv_in;
-            output[out_offset_base + i] = ACTIVATION(TO_OUTPUT_TYPE(input[in_offset]), ACTIVATION_PARAMS);
+            output[OUT_INDEX(f)] = ACTIVATION(TO_OUTPUT_TYPE(input[in_offset]), ACTIVATION_PARAMS);
         } else {
-            output[out_offset_base + i] = TO_OUTPUT_TYPE(0);
+            output[OUT_INDEX(f)] = TO_OUTPUT_TYPE(0);
         }
     }
 #endif
+
+#undef OUT_INDEX
 }
