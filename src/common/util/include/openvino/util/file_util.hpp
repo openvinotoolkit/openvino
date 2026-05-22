@@ -17,6 +17,7 @@
 #include "openvino/util/util.hpp"
 #include "openvino/util/wstring_convert_util.hpp"
 
+
 namespace ov::util {
 
 inline std::filesystem::path library_prefix() {

@@ -79,10 +79,8 @@ void load_static_plugins(std::vector<PluginInfo>& res) {
 
 static bool is_fe_lib_name(std::basic_string_view<std::filesystem::path::value_type> file_name) {
     using sv = std::basic_string_view<std::filesystem::path::value_type>;
-    static const std::filesystem::path prefix_path{FRONTEND_LIB_PREFIX};
-    static const std::filesystem::path suffix_path{FRONTEND_LIB_SUFFIX};
-    const sv prefix{prefix_path.native()};
-    const sv suffix{suffix_path.native()};
+    static constexpr sv prefix{OV_WSTR(FRONTEND_LIB_PREFIX)};
+    static constexpr sv suffix{OV_WSTR(FRONTEND_LIB_SUFFIX)};
     return file_name.size() > prefix.size() + suffix.size() && file_name.substr(0, prefix.size()) == prefix &&
            ov::util::ends_with(file_name, suffix);
 }
