@@ -322,8 +322,6 @@ public:
                                  const Shape& shape,
                                  void* shared_buffer,
                                  const MemType memory_type) {
-        OPENVINO_ASSERT(memory_type == MemType::SHARED_BUF,
-                        "Only SHARED_BUF memory type is currently supported for GPU shared_buffer API");
         OPENVINO_ASSERT(shared_buffer != nullptr, "shared_buffer must not be nullptr for SHARED_BUF memory type");
 
         AnyMap params = {{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::OCL_BUFFER_FROM_HANDLE},
