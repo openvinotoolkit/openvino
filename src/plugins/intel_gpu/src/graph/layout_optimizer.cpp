@@ -4,6 +4,7 @@
 
 #include "layout_optimizer.h"
 #include "registry/implementation_manager.hpp"
+#include "shallow_conv_utils.hpp"
 #include "intel_gpu/primitives/implementation_desc.hpp"
 #include "primitive_inst.h"
 #include "program_helpers.h"
@@ -700,7 +701,13 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(const layout& input_layout,
     int32_t feature_block_size = 16;
     bool correct_data_type = (input_layout.data_type == data_types::f16 || input_layout.data_type == data_types::f32) &&
                              (weights_layout.data_type == input_layout.data_type);
-    bool correct_batch = (input_layout.batch() == 1) || (input_layout.batch() > 1 && input_layout.data_type == data_types::f32);
+    // ConvolutionKernel_bfyx_to_bfyx_f16 can directly produce b_fs_yx_fsv16 output
+    // from a ≤4-channel bfyx input (e.g. RGB/RGBD first conv) for any batch size and dtype,
+    // eliminating the expensive bfyx→b_fs_yx_fsv16 reorder that is otherwise inserted.
+    const bool is_small_channel_fsv16_eligible = is_shallow_conv_fsv16_candidate(input_layout, output_layout);
+    bool correct_batch = (input_layout.batch() == 1) ||
+                         (input_layout.batch() > 1 && input_layout.data_type == data_types::f32) ||
+                         is_small_channel_fsv16_eligible;
     bool correct_spatial_dims = input_layout.spatial(2) == 1 && input_layout.spatial(3) == 1;
     int32_t required_feature_num = weak_restrictions ? feature_block_size / 2 : feature_block_size;
     bool correct_in_feature = (input_layout.feature() >= required_feature_num &&

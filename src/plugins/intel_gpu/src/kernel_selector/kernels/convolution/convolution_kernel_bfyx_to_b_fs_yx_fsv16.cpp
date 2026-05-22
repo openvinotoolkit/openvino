@@ -55,6 +55,11 @@ ParamsKey ConvolutionKernel_bfyx_to_bfyx_f16::GetSupportedKey() const {
     k.EnableNonBiasTerm();
     k.EnableBatching();
     k.EnableDifferentTypes();
+    // Enable dynamic-batch models (e.g. FlashOCC image_encoder with batch=-1).
+    // Without this, the kernel is rejected when any model dimension is dynamic,
+    // causing OV to fall back to ConvolutionKernel_bfyx_os_iyx_osv16 (bfyx
+    // output) followed by an expensive bfyx→b_fs_yx_fsv16 reorder (+13% cost).
+    k.EnableDynamicShapesSupport();
     return k;
 }
 
@@ -81,7 +86,10 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_to_bfyx_f16::SetDefau
 
     dispatchData.gws[0] = CeilDiv(x, autoTune.blockWidth) * y;
     dispatchData.gws[1] = Align(f, sub_group_size);
-    dispatchData.gws[2] = b;
+    // Guard against batch=0 (unknown at JIT time for dynamic-batch models).
+    // The update_dispatch_data_func will call SetDefault again at runtime with
+    // the real batch size.
+    dispatchData.gws[2] = b > 0 ? b : 1;
 
     dispatchData.lws[0] = 1;
     dispatchData.lws[1] = sub_group_size;
@@ -92,7 +100,13 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_to_bfyx_f16::SetDefau
 
 KernelsPriority ConvolutionKernel_bfyx_to_bfyx_f16::GetKernelsPriority(const Params& params) const {
     const auto& p = static_cast<const convolution_params&>(params);
-
+    // For shallow convolutions (<=4 input channels) this is the only kernel that directly
+    // produces b_fs_yx_fsv16 from a bfyx input, so prefer it over os_iyx_osv16 (which requires
+    // an extra reorder afterward) regardless of batch size.  For wider convolutions keep the
+    // historical batch-dependent priority so large-batch behavior is unchanged.
+    if (p.inputs[0].Feature().v <= 4) {
+        return FORCE_PRIORITY_2;
+    }
     return p.inputs[0].Batch().v == 1 ? FORCE_PRIORITY_2 : FORCE_PRIORITY_7;
 }
 
