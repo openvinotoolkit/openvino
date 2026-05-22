@@ -230,20 +230,16 @@ UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
 
         OutputVector data_inputs;
         data_inputs.push_back(pattern_map.at(input_a_m).get_node_shared_ptr());               // Q input
-        if (pattern_map.find(unsqueeze_b_m) != pattern_map.end()) {
-            data_inputs.push_back(pattern_map.at(input_b_kvcache_m).get_node_shared_ptr());   // K input from KVCache
-        } else if (pattern_map.find(pre_reshape_b_m) != pattern_map.end()) {
+        if (pattern_map.count(unsqueeze_b_m) || pattern_map.count(pre_reshape_b_m)) {
             ov::Output<ov::Node> key_input = k_5d->input_value(0);
-            auto opt_key_input =  ensure_4d(key_input, k_5d, k_bc);
+            auto opt_key_input = ensure_4d(key_input, k_5d, k_bc);
             if (!opt_key_input) return false;
             data_inputs.push_back(opt_key_input.value());
         } else {
             return false;
         }
 
-        if (pattern_map.find(unsqueeze_c_m) != pattern_map.end()) {
-            data_inputs.push_back(pattern_map.at(input_c_kvcache_m).get_node_shared_ptr());   // V input from KVCache
-        } else if (pattern_map.find(pre_reshape_c_m) != pattern_map.end()) {
+        if (pattern_map.count(unsqueeze_c_m) || pattern_map.count(pre_reshape_c_m)) {
             ov::Output<ov::Node> value_input = v_5d->input_value(0);
             auto opt_value_input = ensure_4d(value_input, v_5d, v_bc);
             if (!opt_value_input) return false;
