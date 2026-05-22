@@ -18,4 +18,13 @@ public:
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
 };
 
+// Expert-major order + per-expert cumulative end-offsets for dnnl::memory::desc::grouped().
+class GatherMatmulOnednnSortGenerator : public GatherMatmulSortGenerator {
+public:
+    GatherMatmulOnednnSortGenerator() = default;
+
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override;
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override;
+};
+
 }  // namespace ov::intel_gpu::ocl

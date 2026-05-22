@@ -229,9 +229,14 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         // Reading the (dummy) property content to check if it is supported
         _propertiesManager->getProperty(name);
 
-        _logger.debug("Runtime requirements from the graph %s length: %zu",
-                      _graph->get_compatibility_descriptor().value(),
-                      _graph->get_compatibility_descriptor().value().size());
+        auto compatibilityDescriptor = _graph->get_compatibility_descriptor();
+        if (compatibilityDescriptor.has_value()) {
+            const auto descriptorView = compatibilityDescriptor.value();
+            _logger.debug("Runtime requirements from the graph %.*s length: %zu",
+                          static_cast<int>(descriptorView.size()),
+                          descriptorView.data(),
+                          descriptorView.size());
+        }
 
         std::ostringstream requirementsString;
         Metadata<CURRENT_METADATA_VERSION>(
@@ -243,7 +248,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             std::nullopt,  // output_layouts are not relevant for the compatibility check
             std::nullopt,  // skip compiler version as well since it is already included in runtime requirements string
             std::nullopt,  // skip encrypted blob size since it is not relevant for the compatibility check
-            _graph->get_compatibility_descriptor())
+            compatibilityDescriptor)
             .write_as_text(requirementsString);
         _logger.debug("Runtime requirements string: %s length: %zu",
                       requirementsString.str().c_str(),

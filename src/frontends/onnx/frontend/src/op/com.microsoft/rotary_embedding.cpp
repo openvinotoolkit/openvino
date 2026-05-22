@@ -136,7 +136,7 @@ ov::OutputVector rotary_embedding(const ov::frontend::onnx::Node& node) {
     auto in_split = std::make_shared<v1::VariadicSplit>(rope_input, split_axis, split_lengths)->outputs();
     auto first_half_mul_cos = std::make_shared<v1::Multiply>(in_split[0], cos_4d);
     auto second_half_mul_sin = std::make_shared<v1::Multiply>(in_split[1], sin_4d);
-    const auto neg_one = v0::Constant::create(ov::element::f32, ov::Shape{}, {-1.0f});
+    const auto neg_one = v0::Constant::create(input.get_element_type(), ov::Shape{}, {-1.0f});
     auto neg_second_sin = std::make_shared<v1::Multiply>(second_half_mul_sin, neg_one);
     auto res_0 = std::make_shared<v1::Add>(first_half_mul_cos, neg_second_sin);
     auto second_half_mul_cos = std::make_shared<v1::Multiply>(in_split[1], cos_4d);
