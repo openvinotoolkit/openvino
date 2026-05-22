@@ -1312,16 +1312,13 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
             break;
         }
         case ActivationFunction::SOFTPLUS: {
-            // Use type-generic formula (no scalar-only convert_float/convert_half):
-            //   log(exp(input) + 1)
-            // OpenCL defines log() and exp() for half, half2, half4, float, float4, etc.,
-            // so this macro compiles correctly for both the scalar ref kernel (half input)
-            // and the vectorised opt kernel (half4 input).  Float-upcast was used previously
-            // but made the macro incompatible with vector types.
-            // Precision note: for F16 the computation stays in half precision; overflow of
-            // exp() begins at x ≈ 11.09 (half max ≈ 65504) and gives +INF, identical to
-            // the float-promoted path.  Typical NN activation ranges are well within bounds.
-            jitConstants.AddConstant(MakeJitConstant(macro_def, (log(exp(input) + one)).str()));
+            // Numerically stable Softplus: max(x, 0) + log(1 + exp(-|x|))
+            // Mathematically equivalent to log(1 + exp(x)) for all x, but exp(-|x|) ∈ [0,1]
+            // so it never overflows even at the float16 limit (≈ 65504).
+            // Compiles correctly for both scalar (half, float) and vector (half4, float4)
+            // types using the type-dispatched max_func and abs_func helpers.
+            jitConstants.AddConstant(MakeJitConstant(macro_def,
+                (max_func(input, zero) + log(one + exp(neg(abs_func(input))))).str()));
             break;
         }
         case ActivationFunction::SOFTSIGN: {
