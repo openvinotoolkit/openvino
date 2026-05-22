@@ -968,4 +968,37 @@ Example:
         </filters>
     </skip_config>
 
+    <!-- E#216296 -->
+    <skip_config>
+        <message>Test failed with compile error.</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+        </enable_rules>
+        <filters>
+            <filter>.*SerializationTestNPUW.CompiledModelPhase0CompatibilityExportSucceedsWithStaticAttention.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- E#218097-->
+    <skip_config>
+        <message>CoreThreadingTest intermittent failures</message>
+        <enable_rules>
+            <operating_system>windows</operating_system>
+        </enable_rules>
+        <filters>
+            <filter>.*CoreThreadingTest.smoke_QueryModel.*</filter>
+            <filter>.*CoreThreadingTestsWithIter.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- E#218402-->
+    <skip_config>
+        <message>Some Compatibility checks fail in 2026.28 engineering drop WW21 Compiler. Fixed in later versions.</message>
+        <filters>
+            <filter>.*ClassCompatibilityStringTestSuite.CompatibilityCheckIsSupported.*</filter>
+            <filter>.*ClassCompatibilityStringTestSuite.CompatibilityCheckInvalidArgument.*</filter>
+            <filter>.*ClassCompatibilityStringTestSuite.CompatibilityStringGenerateAndCheck.*</filter>
+        </filters>
+    </skip_config>
+
 </skip_configs>
