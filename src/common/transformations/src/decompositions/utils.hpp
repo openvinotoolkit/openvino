@@ -11,7 +11,7 @@
 #include "openvino/pass/node_registry.hpp"
 
 namespace ov {
-namespace decompositions {
+namespace decomposition {
 namespace detail {
 
 // Create a scalar constant typed as `x` so that pattern matchers in the
@@ -29,5 +29,5 @@ inline ov::Output<ov::Node> typed_scalar(ov::pass::NodeRegistry& reg,
 }
 
 }  // namespace detail
-}  // namespace decompositions
+}  // namespace decomposition
 }  // namespace ov

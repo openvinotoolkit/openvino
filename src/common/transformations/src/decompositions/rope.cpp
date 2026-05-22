@@ -12,7 +12,7 @@
 #include "utils.hpp"
 
 namespace ov {
-namespace decompositions {
+namespace decomposition {
 
 ov::Output<ov::Node> rope(ov::pass::NodeRegistry& reg,
                           const ov::Output<ov::Node>& x,
@@ -47,5 +47,5 @@ ov::Output<ov::Node> rope(ov::pass::NodeRegistry& reg,
     return reg.make<ov::op::v0::Concat>(ov::NodeVector{first_part, second_part}, /*axis=*/-1);
 }
 
-}  // namespace decompositions
+}  // namespace decomposition
 }  // namespace ov

@@ -7669,7 +7669,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_layer_normalization_biased) {
 }
 
 // Minimal smoke test for the standard ONNX opset-23 RMSNormalization translator.
-// Verifies that the decomposition built via ov::decompositions::rms_norm produces
+// Verifies that the decomposition built via ov::decomposition::rms_norm produces
 // the expected RMS-normalized output. Comprehensive coverage lives in the ONNX
 // node conformance suite (test_rms_normalization_*).
 OPENVINO_TEST(${BACKEND_NAME}, onnx_rms_normalization) {

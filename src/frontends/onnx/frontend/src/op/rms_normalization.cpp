@@ -80,7 +80,7 @@ ov::OutputVector rms_normalization(const ov::frontend::onnx::Node& node) {
     // Build inv-rms via the shared helper (no scale here — scale is applied after the
     // cast back to the original type, per ONNX spec).
     ov::pass::NodeRegistry reg;
-    ov::Output<ov::Node> normalized = ov::decompositions::rms_norm(reg, x, axes, eps);
+    ov::Output<ov::Node> normalized = ov::decomposition::rms_norm(reg, x, axes, eps);
 
     if (needs_cast) {
         normalized = std::make_shared<v1::ConvertLike>(normalized, inputs[0]);

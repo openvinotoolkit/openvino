@@ -12,7 +12,7 @@
 #include "transformations_visibility.hpp"
 
 namespace ov {
-namespace decompositions {
+namespace decomposition {
 
 /// \brief Build the canonical (simplest) RoPE decomposition that is
 ///        guaranteed to be fused by ov::pass::RoPEFusion into
@@ -46,5 +46,5 @@ ov::Output<ov::Node> TRANSFORMATIONS_API rope(ov::pass::NodeRegistry& reg,
                                               const ov::Output<ov::Node>& sin,
                                               int64_t half_head_size);
 
-}  // namespace decompositions
+}  // namespace decomposition
 }  // namespace ov

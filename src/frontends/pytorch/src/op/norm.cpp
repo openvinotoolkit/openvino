@@ -376,7 +376,7 @@ OutputVector translate_rms_norm(const NodeContext& context) {
         scale = context.get_input(2);
     }
     ov::pass::NodeRegistry reg;
-    auto result = ov::decompositions::rms_norm(reg, x, axes, eps, scale);
+    auto result = ov::decomposition::rms_norm(reg, x, axes, eps, scale);
     context.mark_nodes(reg.get());
     return {result};
 }

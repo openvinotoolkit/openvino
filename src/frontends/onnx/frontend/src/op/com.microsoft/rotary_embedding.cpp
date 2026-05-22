@@ -129,7 +129,7 @@ ov::OutputVector rotary_embedding(const ov::frontend::onnx::Node& node) {
 
     // Core RoPE formula via shared decomposition helper.
     ov::pass::NodeRegistry rope_reg;
-    ov::Output<ov::Node> output = ov::decompositions::rope(rope_reg, rope_input, cos_4d, sin_4d, half_head_size_val);
+    ov::Output<ov::Node> output = ov::decomposition::rope(rope_reg, rope_input, cos_4d, sin_4d, half_head_size_val);
 
     // For interleaved mode, re-interleave the result
     if (interleaved) {

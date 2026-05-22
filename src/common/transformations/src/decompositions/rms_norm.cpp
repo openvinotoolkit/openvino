@@ -12,7 +12,7 @@
 #include "utils.hpp"
 
 namespace ov {
-namespace decompositions {
+namespace decomposition {
 
 using detail::typed_scalar;
 
@@ -37,5 +37,5 @@ ov::Output<ov::Node> rms_norm(ov::pass::NodeRegistry& reg,
     return result;
 }
 
-}  // namespace decompositions
+}  // namespace decomposition
 }  // namespace ov

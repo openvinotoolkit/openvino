@@ -38,7 +38,7 @@ TEST_F(TransformationTestsF, DecompositionRope_FusedByRoPEFusion) {
         auto sin = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, cos_sin_shape);
 
         ov::pass::NodeRegistry reg;
-        auto rope = ov::decompositions::rope(reg, x, cos, sin, half_head_size);
+        auto rope = ov::decomposition::rope(reg, x, cos, sin, half_head_size);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{x, cos, sin});
         manager.register_pass<RoPEFusion>();

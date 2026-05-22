@@ -37,7 +37,7 @@ TEST_F(TransformationTestsF, DecompositionRmsNorm_FusedByRMSFusion_WithGamma) {
         auto gamma = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{6}, gamma_values);
 
         ov::pass::NodeRegistry reg;
-        auto rms = ov::decompositions::rms_norm(reg, input, axes, eps, gamma);
+        auto rms = ov::decomposition::rms_norm(reg, input, axes, eps, gamma);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{rms}, ov::ParameterVector{input});
         manager.register_pass<RMSFusion>(/*force_tail_convert=*/false);

@@ -46,7 +46,7 @@ ov::OutputVector rotary_embedding(const ov::frontend::onnx::Node& node) {
     //
     // Strategy: normalize layout to [bs, num_heads, seq, head_size], optionally peel off
     // the no-rotate tail of the head dim, optionally de-interleave for the interleaved
-    // mode, delegate the core formula to ov::decompositions::rope (recognised by
+    // mode, delegate the core formula to ov::decomposition::rope (recognised by
     // ov::pass::RoPEFusion), then undo the wrappers.
     //
     // Note: we never need to know `head_size` statically — the rope helper's split is
@@ -198,7 +198,7 @@ ov::OutputVector rotary_embedding(const ov::frontend::onnx::Node& node) {
 
     // ---- Step 5. Core RoPE formula via the shared decomposition helper ----
     ov::pass::NodeRegistry rope_reg;
-    ov::Output<ov::Node> rotated = ov::decompositions::rope(rope_reg, rope_input, cos, sin, half_rotary_dim);
+    ov::Output<ov::Node> rotated = ov::decomposition::rope(rope_reg, rope_input, cos, sin, half_rotary_dim);
 
     // ---- Step 6. Re-interleave if needed (mirror of step 4) ----
     if (interleaved) {

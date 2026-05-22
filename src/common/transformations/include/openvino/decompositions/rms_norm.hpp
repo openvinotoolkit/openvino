@@ -10,7 +10,7 @@
 #include "transformations_visibility.hpp"
 
 namespace ov {
-namespace decompositions {
+namespace decomposition {
 
 /// \brief Build a reference RMSNorm decomposition matched by ov::pass::RMSFusion.
 ///
@@ -43,5 +43,5 @@ ov::Output<ov::Node> TRANSFORMATIONS_API rms_norm(ov::pass::NodeRegistry& reg,
                                                   const ov::Output<ov::Node>& eps,
                                                   const ov::Output<ov::Node>& scale = {});
 
-}  // namespace decompositions
+}  // namespace decomposition
 }  // namespace ov
