@@ -9,57 +9,48 @@
 #include <string>
 
 #include "IpfClient.h"
+#include "nlohmann/json.hpp"
 #include "openvino/util/idevice_monitor.hpp"
 
 namespace ov::util {
 class XPUDeviceMonitorImpl : public IDeviceMonitorImpl {
 public:
-    XPUDeviceMonitorImpl(const std::string& device_luid) : m_device_luid(device_luid) {
-        std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl: creating with LUID=\"" << device_luid << "\"" << std::endl;
-        // Step 1: Create IPF ClientApi
+    XPUDeviceMonitorImpl(const std::string& device_luid, const std::string& device_type = "GPU")
+        : m_device_luid(device_luid),
+          m_device_type(device_type) {
+        std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl: creating with LUID=\"" << device_luid
+                  << "\", type=\"" << device_type << "\"" << std::endl;
         try {
             m_ipf = std::make_unique<Ipf::ClientApi>();
             std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl: IPF ClientApi created successfully" << std::endl;
         } catch (const std::exception& e) {
             std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl: IPF ClientApi creation failed: " << e.what() << std::endl;
             m_ipf = nullptr;
-            return;
         } catch (...) {
-            std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl: IPF ClientApi creation failed (unknown exception)" << std::endl;
+            std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl: IPF ClientApi creation failed (unknown exception)"
+                      << std::endl;
             m_ipf = nullptr;
-            return;
-        }
-        // Step 2: Verify IPF connection by reading CPU brand string
-        try {
-            auto brand = m_ipf->GetValue("Platform.SOC.Info.BrandString");
-            std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl: SOC.Info.BrandString = " << brand << std::endl;
-        } catch (const std::exception& e) {
-            std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl: SOC.Info.BrandString query failed: " << e.what() << std::endl;
-        } catch (...) {
-            std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl: SOC.Info.BrandString query failed (unknown)" << std::endl;
         }
     }
 
     std::map<std::string, float> get_utilization() override {
         std::map<std::string, float> result;
-        if (m_device_luid.empty() || !m_ipf) {
-            std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl::get_utilization: "
-                      << (m_device_luid.empty() ? "LUID is empty" : "m_ipf is null")
-                      << ", returning empty map" << std::endl;
+        if (!m_ipf) {
+            std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl::get_utilization: m_ipf is null" << std::endl;
             return result;
         }
         try {
-            std::string device_path = "Platform.GPU." + m_device_luid + ".Utilization";
-            std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl::get_utilization: trying \"" << device_path << "\"" << std::endl;
-            auto value_str = m_ipf->GetValue(device_path);
-            if (!value_str.empty() && value_str != "null") {
-                result[m_device_luid] = std::stof(value_str);
-                return result;
-            }
-            // Fallback: generic GPU utilization
-            value_str = m_ipf->GetValue("Platform.GPU.Utilization");
-            if (!value_str.empty() && value_str != "null") {
-                result[m_device_luid] = std::stof(value_str);
+            auto json_str = m_ipf->GetNode("Platform.Features.AISelector");
+            std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl::get_utilization: AISelector = " << json_str << std::endl;
+            auto j = nlohmann::json::parse(json_str);
+            if (j.contains("Performance")) {
+                std::string key = m_device_type + "Utilization";
+                if (j["Performance"].contains(key)) {
+                    result[m_device_luid] = j["Performance"][key].get<float>();
+                } else {
+                    std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl::get_utilization: key \"" << key
+                              << "\" not found in Performance" << std::endl;
+                }
             }
         } catch (const std::exception& e) {
             std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl::get_utilization: exception: " << e.what() << std::endl;
@@ -71,6 +62,7 @@ public:
 
 private:
     std::string m_device_luid;
+    std::string m_device_type;
     std::unique_ptr<Ipf::ClientApi> m_ipf;
 };
 

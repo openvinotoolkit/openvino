@@ -293,9 +293,10 @@ public:
                              StrEq(ov::intel_auto::devices_utilization_threshold.name()),
                              _))
             .WillByDefault(Return(ov::Any(properties_thresholds)));
-        ON_CALL(*plugin, get_device_utilization).WillByDefault([this](const std::string& luid) {
-            return deviceUtilization;
-        });
+        ON_CALL(*plugin, get_device_utilization)
+            .WillByDefault([this](const std::string& luid, const std::string& device_type) {
+                return deviceUtilization;
+            });
         ON_CALL(*plugin, get_valid_device)
             .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
                 return plugin->Plugin::get_valid_device(metaDevices, netPrecision);

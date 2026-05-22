@@ -577,8 +577,9 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     return res;
 }
 
-std::map<std::string, float> Plugin::get_device_utilization(const std::string& device_luid) const {
-    return ov::util::get_device_utilization(device_luid);
+std::map<std::string, float> Plugin::get_device_utilization(const std::string& device_luid,
+                                                             const std::string& device_type) const {
+    return ov::util::get_device_utilization(device_luid, device_type);
 }
 
 std::list<DeviceInformation> Plugin::get_valid_device(const std::vector<DeviceInformation>& meta_devices,
@@ -737,7 +738,7 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
                                             ->get_property(device->device_name, ov::device::luid.name(), {})
                                             .as<std::string>()
                                       : "";
-                    device_utilization = get_device_utilization(device_luid);
+                    device_utilization = get_device_utilization(device_luid, parsed.get_device_name());
                     for (const auto& item : device_utilization)
                         LOG_DEBUG_TAG("Device: %s\tID: %s\tutilization: %s",
                                       device->device_name.c_str(),

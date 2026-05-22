@@ -72,7 +72,8 @@ public:
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
                                                              const ov::SoPtr<ov::IRemoteContext>& context,
                                                              const ov::AnyMap& properties) const override;
-    MOCKTESTMACRO std::map<std::string, float> get_device_utilization(const std::string& device) const;
+    MOCKTESTMACRO std::map<std::string, float> get_device_utilization(const std::string& device,
+                                                                       const std::string& device_type = "") const;
 
     std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& model,
                                                              const ov::AnyMap& properties) const override;

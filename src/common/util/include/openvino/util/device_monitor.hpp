@@ -10,5 +10,6 @@
 
 #include "openvino/util/idevice_monitor.hpp"
 namespace ov::util {
-std::map<std::string, float> get_device_utilization(const std::string& device_id);
+std::map<std::string, float> get_device_utilization(const std::string& device_id,
+                                                    const std::string& device_type = "");
 }  // namespace ov::util

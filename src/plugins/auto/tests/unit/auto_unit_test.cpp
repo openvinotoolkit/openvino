@@ -135,10 +135,11 @@ ov::mock_auto_plugin::tests::BaseTest::BaseTest(const MODELTYPE modelType) {
         return plugin->Plugin::get_property(name, arguments);
     });
 
-    ON_CALL(*plugin, get_device_utilization).WillByDefault([](const std::string& device) {
-        std::map<std::string, float> result;
-        return result;
-    });
+    ON_CALL(*plugin, get_device_utilization)
+        .WillByDefault([](const std::string& device, const std::string& device_type) {
+            std::map<std::string, float> result;
+            return result;
+        });
 }
 
 ov::mock_auto_plugin::tests::BaseTest::~BaseTest() {
