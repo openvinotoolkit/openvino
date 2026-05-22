@@ -9,6 +9,7 @@
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/mutable_data.hpp>
 #include <arg_max_min_inst.h>
+#include "arg_max_min/arg_max_min_kernel_axis.h"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "test_utils.h"
 
@@ -734,6 +735,81 @@ TEST(arg_max_gpu_min_large_output_size, sort_by_indices) {
     ASSERT_EQ(outputs.begin()->first, "arg_max");
 
     // No data checking.  The test will fail to compile if kernel not switch to use global memory
+}
+
+TEST(arg_max_gpu_topk_axis, large_output_size_internal_buffer_sizes_match_update_path) {
+    kernel_selector::arg_max_min_params params;
+    params.inputs[0] = kernel_selector::DataTensor(std::vector<size_t>{20000, 1, 1, 1},
+                                                   kernel_selector::Datatype::F32,
+                                                   kernel_selector::DataLayout::yxfb);
+    params.outputs[0] = kernel_selector::DataTensor(std::vector<size_t>{6000, 1, 1, 1},
+                                                    kernel_selector::Datatype::F32,
+                                                    kernel_selector::DataLayout::yxfb);
+    params.argMaxMinAxis = kernel_selector::ArgMaxMinAxis::BATCH;
+    params.argMaxMinOut = kernel_selector::ArgMaxMinOut::MAX;
+    params.argMaxMinSortType = kernel_selector::ArgMaxMinSortType::INDEX;
+    params.topK = 6000;
+    params.outputs_num = 1;
+    // Selector-level tests construct EngineInfo manually. We only need a non-zero
+    // maxWorkGroupSize so GetOptimalLocalWorkGroupSizes() can derive valid LWS;
+    // 256 is the smallest stable bucket in the selector heuristics and avoids
+    // baking in 512/1024-specific behavior that is irrelevant to this test.
+    params.engineInfo.maxWorkGroupSize = 256;
+
+    kernel_selector::ArgMaxMinKernelAxis kernel;
+    auto kernels_data = kernel.GetKernelsData(params);
+
+    ASSERT_EQ(kernels_data.size(), size_t(1));
+    auto& kd = kernels_data[0];
+    ASSERT_FALSE(kd.internalBuffers.empty());
+    ASSERT_TRUE(static_cast<bool>(kd.update_dispatch_data_func));
+
+    const auto initial_buffers = kd.internalBuffers;
+    kd.update_dispatch_data_func(params, kd);
+
+    ASSERT_EQ(initial_buffers.size(), kd.internalBuffers.size());
+    for (size_t i = 0; i < initial_buffers.size(); ++i) {
+        ASSERT_EQ(initial_buffers[i].byte_count, kd.internalBuffers[i].byte_count) << "buffer index=" << i;
+        ASSERT_EQ(initial_buffers[i].lockable, kd.internalBuffers[i].lockable) << "buffer index=" << i;
+    }
+}
+
+TEST(arg_max_gpu_topk_axis, zero_sort_size_internal_buffers_are_clamped) {
+    kernel_selector::arg_max_min_params init_params;
+    init_params.inputs[0] = kernel_selector::DataTensor(std::vector<size_t>{20000, 1, 1, 1},
+                                                        kernel_selector::Datatype::F32,
+                                                        kernel_selector::DataLayout::yxfb);
+    init_params.outputs[0] = kernel_selector::DataTensor(std::vector<size_t>{6000, 1, 1, 1},
+                                                         kernel_selector::Datatype::F32,
+                                                         kernel_selector::DataLayout::yxfb);
+    init_params.argMaxMinAxis = kernel_selector::ArgMaxMinAxis::BATCH;
+    init_params.argMaxMinOut = kernel_selector::ArgMaxMinOut::MAX;
+    init_params.argMaxMinSortType = kernel_selector::ArgMaxMinSortType::INDEX;
+    init_params.topK = 6000;
+    init_params.outputs_num = 1;
+    init_params.engineInfo.maxWorkGroupSize = 256;
+
+    kernel_selector::arg_max_min_params zero_params = init_params;
+    zero_params.inputs[0] = kernel_selector::DataTensor(std::vector<size_t>{0, 1, 1, 1},
+                                                        kernel_selector::Datatype::F32,
+                                                        kernel_selector::DataLayout::yxfb);
+    zero_params.outputs[0] = kernel_selector::DataTensor(std::vector<size_t>{0, 1, 1, 1},
+                                                         kernel_selector::Datatype::F32,
+                                                         kernel_selector::DataLayout::yxfb);
+
+    kernel_selector::ArgMaxMinKernelAxis kernel;
+    auto kernels_data = kernel.GetKernelsData(init_params);
+
+    ASSERT_EQ(kernels_data.size(), size_t(1));
+    auto& kd = kernels_data[0];
+    ASSERT_TRUE(static_cast<bool>(kd.update_dispatch_data_func));
+
+    kd.update_dispatch_data_func(zero_params, kd);
+
+    ASSERT_EQ(kd.internalBuffers.size(), size_t(3));
+    for (size_t i = 0; i < kd.internalBuffers.size(); ++i) {
+        ASSERT_EQ(kd.internalBuffers[i].byte_count, size_t(0)) << "buffer index=" << i;
+    }
 }
 
 template <typename T>
