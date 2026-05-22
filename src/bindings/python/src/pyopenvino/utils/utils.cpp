@@ -106,6 +106,10 @@ py::object from_ov_any_map(const ov::AnyMap& map) {
 }
 
 py::object from_ov_any(const ov::Any& any) {
+    // Empty Any (e.g. write-only property queried via get_property)
+    if (any.empty()) {
+        return py::none();
+    }
     // Check for py::object
     if (any.is<std::shared_ptr<py::object>>()) {
         return *any.as<std::shared_ptr<py::object>>();
