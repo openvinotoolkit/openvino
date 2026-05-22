@@ -40,6 +40,12 @@ RemoteContextImpl::RemoteContextImpl(const std::string& device_name, std::vector
     OPENVINO_ASSERT(devices.size() == 1, "[GPU] Currently context can be created for single device only");
     m_device = devices.front();
     m_type = get_default_context_type();
+    const auto &info = m_device->get_info();
+    if (m_type == ContextType::ZE && info.supports_leo) {
+        m_type = ContextType::OCL;
+        GPU_DEBUG_INFO << "Enabled Level Zero - OpenCL interoperability for "
+            << m_device_name << " (" << info.dev_name << ")" << std::endl;
+    }
 
     if (initialize_ctx) {
         initialize();

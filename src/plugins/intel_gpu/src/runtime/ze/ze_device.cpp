@@ -4,6 +4,7 @@
 
 #include "ze_device.hpp"
 #include "ze_common.hpp"
+#include "ze_ocl_interop.hpp"
 #include "compute_runtime/zex_common.h"
 
 #include "compute_runtime/ze_intel_gpu.h"
@@ -219,6 +220,7 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     info.supports_immad = supports_dp_properties && (dp_properties.flags & ZE_INTEL_DEVICE_MODULE_EXP_FLAG_DPAS) != 0;
 
     info.supports_usm = device_memory_access_properties.hostAllocCapabilities && device_memory_access_properties.deviceAllocCapabilities;
+    info.supports_leo = ze_ocl_interop::get_instance().check_support(device);
 
     // FIXME: Could not find how to retrieve those from L0
     info.supports_work_group_collective_functions = false;
