@@ -1186,6 +1186,10 @@ public:
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::TOKEN_TYPE_IDS});  // token_type_ids
         }
 
+        if (desc->has_sink_input) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SINKS});  // sink
+        }
+
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
@@ -1256,6 +1260,12 @@ public:
 
         if (desc->has_token_type_ids) {
             jit.make("HAS_TOKEN_TYPE_IDS", 1);
+        }
+
+        if (desc->has_sink_input) {
+            const auto& sink_layout = params.input_layouts[PagedAttentionInputIdx::SINKS];
+            jit.make("SINK_DATA_T", to_ocl_type(sink_layout.data_type));
+            jit.make("HAS_SINK_INPUT", 1);
         }
 
         return jit;
