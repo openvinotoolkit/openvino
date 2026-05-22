@@ -65,7 +65,7 @@ jobs:
       BUILD_DIR: "${{ github.workspace }}\\openvino_build"
       ARTIFACTS_SHARE: "C:\\mount\\build-artifacts"
       MANIFEST_PATH: "${{ github.workspace }}\\manifest.yml"
-      PRODUCT_TYPE: 'public_windows_vs2022_${{ inputs.build-type }}_${{ inputs.build-variant }}'
+      PRODUCT_TYPE: 'public_windows_vs2022_${{ inputs.build-type }}'
     steps:
       - name: Clone OpenVINO
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries

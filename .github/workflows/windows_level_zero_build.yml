@@ -1,4 +1,4 @@
-name: Windows L0 Build
+name: Windows Level Zero Build
 on:
   workflow_dispatch:
     inputs:
