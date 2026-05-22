@@ -1,7 +1,6 @@
 # Skill: FE Op Testing
 
 > Source: `skills/add-fe-op/SKILL.md` (Steps 4, 5, 6)
-> Agent: `fe_agent`
 
 ## Prerequisites
 
@@ -9,69 +8,14 @@
 
 ---
 
-## Test Files to Create
+## Writing Tests
 
-### PyTorch layer test
+Follow the test patterns described in the per-frontend skill files:
+- **PyTorch**: [pytorch.md](pytorch.md) §5 — `PytorchLayerTest` class structure, TorchScript and FX paths, `@pytest.mark.nightly` / `@pytest.mark.precommit`
+- **ONNX**: [onnx.md](onnx.md) §6 — `.prototxt` test model and C++ GTest pattern
+- **TensorFlow / generic**: follow naming conventions in `tests/layer_tests/tensorflow_tests/`
 
-File: `tests/layer_tests/pytorch_tests/test_<op_name>.py`
-
-```python
-import numpy as np
-import pytest
-import torch
-
-from pytorch_layer_test_class import PytorchLayerTest
-
-
-class TestOpName(PytorchLayerTest):
-    def _prepare_input(self, shape):
-        return (np.random.randn(*shape).astype(np.float32),)
-
-    def create_model(self):
-        class Model(torch.nn.Module):
-            def forward(self, x):
-                return torch.<op_name>(x)
-
-        return Model(), None, ["aten::<op_name>"]
-
-    @pytest.mark.parametrize("shape", [[2, 4], [1, 3, 5]])
-    @pytest.mark.nightly
-    @pytest.mark.precommit
-    def test_<op_name>(self, shape, ie_device, precision, ir_version):
-        self._test(self.create_model(), self._prepare_input(shape), ie_device, precision, ir_version)
-
-
-class TestOpNameFX(PytorchLayerTest):
-    """Same test through the FX / torch.export path."""
-
-    def _prepare_input(self):
-        return (np.random.randn(2, 4, 4).astype(np.float32),)
-
-    def create_model(self):
-        class Model(torch.nn.Module):
-            def forward(self, x):
-                return torch.<op_name>(x)
-
-        return Model(), None, ["aten.<op_name>.default"]
-
-    @pytest.mark.nightly
-    @pytest.mark.precommit
-    def test_<op_name>_fx(self, ie_device, precision, ir_version):
-        self._test(self.create_model(), self._prepare_input(), ie_device, precision, ir_version)
-```
-
-### TensorFlow layer test
-
-File: `tests/layer_tests/tensorflow_tests/test_tf_<op_name>.py`
-
-Follow naming and structure conventions from existing TF layer tests in the same
-directory. Use `TensorFlowLayerTest` base class.
-
-### ONNX frontend smoke test
-
-File: `src/frontends/onnx/tests/test_<op_name>.cpp` (not applicable to PyTorch)
-
-Use the existing test harness (`onnx_test_utils.hpp`) for ONNX.
+Look at tests for a similar existing op in the same directory as the starting point.
 
 ---
 
