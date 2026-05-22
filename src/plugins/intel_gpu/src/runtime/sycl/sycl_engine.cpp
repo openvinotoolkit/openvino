@@ -4,7 +4,7 @@
 
 #include "sycl_engine.hpp"
 #include "intel_gpu/runtime/utils.hpp"
-#include "sycl/sycl_kernel.hpp"
+#include "sycl_kernel.hpp"
 #include "sycl_common.hpp"
 #include "sycl_memory.hpp"
 #include "sycl_stream.hpp"
