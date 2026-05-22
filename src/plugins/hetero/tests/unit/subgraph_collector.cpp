@@ -295,6 +295,35 @@ std::shared_ptr<ov::Model> create_shared_const_as_cycle_source_model() {
     return std::make_shared<ov::Model>(ov::ResultVector{res1, res2}, ov::ParameterVector{param});
 }
 
+// Negative test: shared constant merges nodes via Union-Find but NO cycle exists.
+// Topology: param(DEV0) → A(DEV0, +shared_const) → B(DEV1) → res
+//           shared_const(DEV0) → X(DEV0) → res2
+//
+// Union-Find: SG0={param, shared_const, A, X, res2}, SG1={B, res}.
+// Data flows only SG0→SG1 (A→B), never back — NO cycle.
+// split_cyclic_dependencies() must NOT promote any boundary (no over-splitting).
+// Expected: 2 subgraphs, not 3.
+std::shared_ptr<ov::Model> create_shared_const_no_cycle_model() {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{4});
+    param->set_friendly_name("param");
+    auto shared_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{4}, {1.0f, 1.0f, 1.0f, 1.0f});
+    shared_const->set_friendly_name("shared_const");
+    // A: DEV0, uses param + shared_const
+    auto a = std::make_shared<ov::op::v1::Add>(param, shared_const);
+    a->set_friendly_name("A");
+    // X: DEV0, uses shared_const (merges with shared_const via Union-Find)
+    auto x = std::make_shared<ov::op::v0::Abs>(shared_const);
+    x->set_friendly_name("X");
+    // B: DEV1, uses A only (one-way cross-device, no feedback)
+    auto b = std::make_shared<ov::op::v0::Abs>(a);
+    b->set_friendly_name("B");
+    auto res = std::make_shared<ov::op::v0::Result>(b);
+    res->set_friendly_name("res");
+    auto res2 = std::make_shared<ov::op::v0::Result>(x);
+    res2->set_friendly_name("res2");
+    return std::make_shared<ov::Model>(ov::ResultVector{res, res2}, ov::ParameterVector{param});
+}
+
 // Model: shared constant fans out to three consumers across two devices.
 // Topology: param(GPU) → Node_A(GPU, +shared_const) → Node_B(CPU, +shared_const) → Node_C(GPU, +shared_const) → res
 //
@@ -1077,7 +1106,8 @@ INSTANTIATE_TEST_SUITE_P(
             "",
             3,
             {"MOCK.0", "MOCK.0", "MOCK.1"},
-            {},
+            {{"input", 0}, {"other_const", 0}, {"shared_const", 0}, {"A", 0}, {"X", 0}, {"res2", 0},
+             {"B", 3}, {"C", 4}, {"res1", 4}},
             {},
             {},
             0,
@@ -1096,7 +1126,8 @@ INSTANTIATE_TEST_SUITE_P(
             "",
             3,
             {"MOCK.0", "MOCK.0", "MOCK.1"},
-            {},
+            {{"param", 0}, {"shared_const", 0}, {"Node_A", 0},
+             {"Node_B", 2}, {"Node_C", 3}, {"res", 3}},
             {},
             {},
             0,
@@ -1115,6 +1146,26 @@ INSTANTIATE_TEST_SUITE_P(
             "",
             4,
             {"MOCK.0", "MOCK.0", "MOCK.0", "MOCK.1"},
+            {{"param", 0}, {"A", 0},
+             {"shared_const", 1}, {"X", 1}, {"res2", 1},
+             {"B", 2}, {"C", 3}, {"res1", 3}},
+            {},
+            {},
+            0,
+            true,
+            true,
+        },
+        // --- Negative: shared constant merges nodes via Union-Find but NO cycle exists.
+        // Data flows only SG0→SG1 (A→B), never back. Must produce exactly 2 subgraphs
+        // without over-splitting — verifies the re-entry scan doesn't fire spuriously.
+        SubgraphCollectorTestParam{
+            "shared_const_no_cycle_no_split",
+            create_shared_const_no_cycle_model,
+            {{"param", "MOCK.0"}, {"shared_const", "MOCK.0"}, {"A", "MOCK.0"}, {"X", "MOCK.0"},
+             {"B", "MOCK.1"}, {"res", "MOCK.1"}, {"res2", "MOCK.0"}},
+            "",
+            2,
+            {"MOCK.0", "MOCK.1"},
             {},
             {},
             {},
