@@ -1315,10 +1315,16 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
             break;
         }
         case ActivationFunction::SOFTPLUS: {
-            const JitTerm input_f = out_dt == Datatype::F16 ? JitTerm{"convert_float(input)"} : input;
-            const JitTerm output =
-                out_dt == Datatype::F16 ? JitTerm{"convert_half(" + (log(exp(input_f) + one)).str() + ")"} : JitTerm{(log(exp(input_f) + one)).str()};
-            jitConstants.AddConstant(MakeJitConstant(macro_def, output.str()));
+            // Use type-generic formula (no scalar-only convert_float/convert_half):
+            //   log(exp(input) + 1)
+            // OpenCL defines log() and exp() for half, half2, half4, float, float4, etc.,
+            // so this macro compiles correctly for both the scalar ref kernel (half input)
+            // and the vectorised opt kernel (half4 input).  Float-upcast was used previously
+            // but made the macro incompatible with vector types.
+            // Precision note: for F16 the computation stays in half precision; overflow of
+            // exp() begins at x ≈ 11.09 (half max ≈ 65504) and gives +INF, identical to
+            // the float-promoted path.  Typical NN activation ranges are well within bounds.
+            jitConstants.AddConstant(MakeJitConstant(macro_def, (log(exp(input) + one)).str()));
             break;
         }
         case ActivationFunction::SOFTSIGN: {

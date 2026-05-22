@@ -2747,3 +2747,42 @@ TEST(activation_gpu, has_proper_synchronization) {
         ASSERT_EQ(test_mem[i], ref_mem[i]);
     }
 }
+
+// Regression: ActivationKernelOpt now handles SOFTPLUS with F16 on dynamic-batch models.
+// Before the change the kernel was not declared for dynamic shapes, so forcing it on a
+// dynamic-batch Softplus node failed with "Could not find a suitable kernel".
+TEST(activation_f16_fw_gpu, softplus_dynamic_batch_opt_kernel) {
+    auto& engine = get_test_engine();
+
+    const size_t b = 1, f = 16, y = 4, x = 4;
+    // dynamic batch (the FlashOCC case): batch is the only dynamic dimension
+    layout in_layout{ ov::PartialShape({ -1, f, y, x }), data_types::f16, format::b_fs_yx_fsv16 };
+    auto input = engine.allocate_memory({ data_types::f16, format::b_fs_yx_fsv16, tensor{ b, f, y, x } });
+    set_random_values<ov::float16>(input);
+
+    topology topology(input_layout("input", in_layout),
+                      activation("activation", input_info("input"), activation_func::softplus));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    ov::intel_gpu::ImplementationDesc impl = { format::b_fs_yx_fsv16, "activation_opt" };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "activation", impl } }));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    auto out_mem = outputs.at("activation").get_memory();
+
+    auto inst = network.get_primitive("activation");
+    ASSERT_TRUE(inst->get_impl() != nullptr);
+    ASSERT_EQ(inst->get_impl()->get_kernel_name(), "activation_opt");
+
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16> in_ptr(input, get_test_stream());
+    for (size_t i = 0; i < out_ptr.size(); ++i) {
+        float xv = static_cast<float>(in_ptr[i]);
+        float expected = std::log1p(std::exp(xv));
+        ASSERT_FALSE(std::isinf(static_cast<float>(out_ptr[i])));
+        ASSERT_NEAR(static_cast<float>(out_ptr[i]), expected, 1e-2f);
+    }
+}
