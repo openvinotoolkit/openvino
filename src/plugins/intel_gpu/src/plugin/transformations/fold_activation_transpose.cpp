@@ -64,7 +64,9 @@ FoldActivationTranspose::FoldActivationTranspose() {
         auto c_transpose = pattern_map.at(c_transpose_m).get_node_shared_ptr();
 
         ov::copy_runtime_info(swish, swish_new);
+        swish_new->set_friendly_name(swish->get_friendly_name());
         ov::copy_runtime_info(mul, mul_new);
+        mul_new->set_friendly_name(c_transpose->get_friendly_name());
         ov::replace_node(c_transpose, mul_new);
 
         return true;
