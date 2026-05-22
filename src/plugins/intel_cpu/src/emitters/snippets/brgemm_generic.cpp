@@ -10,8 +10,6 @@
 #include <cstdint>
 #include <iterator>
 #include <optional>
-#include <sstream>
-#include <string>
 #include <tuple>
 #include <vector>
 
@@ -25,6 +23,11 @@
 #include "snippets/lowered/loop_port.hpp"
 #include "snippets/utils/utils.hpp"
 #include "utils/general_utils.h"
+
+#ifdef SNIPPETS_DEBUG_CAPS
+#    include <sstream>
+#    include <string>
+#endif
 
 #define PRINT(X) ss << #X << " = " << (X) << "\n"
 #define EQ(X)    X == rhs.X
