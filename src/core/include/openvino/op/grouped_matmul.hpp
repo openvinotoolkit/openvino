@@ -27,6 +27,13 @@ namespace ov::op::v17 {
 ///   - mat_b: (N, total_tokens) - columns partitioned by offsets (stored transposed)
 ///   - output: (G, K, N) - per-group gradient matrices
 ///
+/// All four inputs are always required. Pass a 1D tensor of Shape{0} to indicate
+/// "not applicable":
+///   - offsets: Shape{0} for Case 2 (3D×3D, no group offsets needed)
+///   - bias: Shape{0} when no per-group bias is desired
+///
+/// Bias shape (when provided): [G, N] — added after the matmul for each group.
+///
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API GroupedMatMul : public ov::op::Op {
 public:
@@ -35,19 +42,30 @@ public:
     GroupedMatMul() = default;
 
     /// \brief Constructs a GroupedMatMul operation without offsets (3D × 3D case).
+    ///        Injects empty Shape{0} placeholder constants for offsets and bias.
     ///
     /// \param mat_a First input tensor (G, M, K)
     /// \param mat_b Second input tensor (G, N, K)
     GroupedMatMul(const Output<Node>& mat_a, const Output<Node>& mat_b);
 
     /// \brief Constructs a GroupedMatMul operation with offsets (2D × 3D or 2D × 2D).
+    ///        Injects an empty Shape{0} placeholder constant for bias.
     ///
     /// \param mat_a First input tensor
     /// \param mat_b Second input tensor
     /// \param offsets Cumulative offsets tensor of shape (G,) indicating group boundaries.
-    ///                For 2D×3D: partitions rows of mat_a.
-    ///                For 2D×2D: partitions shared dimension of both operands.
     GroupedMatMul(const Output<Node>& mat_a, const Output<Node>& mat_b, const Output<Node>& offsets);
+
+    /// \brief Constructs a GroupedMatMul operation with all four inputs.
+    ///
+    /// \param mat_a First input tensor
+    /// \param mat_b Second input tensor (stored transposed)
+    /// \param offsets Cumulative offsets tensor of shape (G,), or Shape{0} for Case 2.
+    /// \param bias Per-group bias of shape (G, N), or Shape{0} for no bias.
+    GroupedMatMul(const Output<Node>& mat_a,
+                  const Output<Node>& mat_b,
+                  const Output<Node>& offsets,
+                  const Output<Node>& bias);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;

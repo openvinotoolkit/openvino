@@ -66,6 +66,7 @@ void simple_matmul_transposed_b(const T* A, const T* B, T* out, size_t M, size_t
 /// \param mat_a Pointer to first input tensor.
 /// \param mat_b Pointer to second input tensor.
 /// \param offsets Pointer to offsets tensor (nullptr for 3D×3D case).
+/// \param bias Pointer to per-group bias [G, N] (nullptr for no bias).
 /// \param out Pointer to output tensor (pre-allocated).
 /// \param mat_a_shape Shape of mat_a.
 /// \param mat_b_shape Shape of mat_b.
@@ -75,6 +76,7 @@ template <typename T, typename TIdx = int32_t>
 void grouped_matmul(const T* mat_a,
                     const T* mat_b,
                     const TIdx* offsets,
+                    const T* bias,
                     T* out,
                     const Shape& mat_a_shape,
                     const Shape& mat_b_shape,
@@ -103,6 +105,16 @@ void grouped_matmul(const T* mat_a,
             std::fill(out_ptr, out_ptr + out_group_stride, T{0});
 
             details::simple_matmul_transposed_b(a_ptr, b_ptr, out_ptr, M, N, K);
+
+            // Add per-group bias: bias[g, n] broadcast over M
+            if (bias) {
+                const T* bias_g = bias + g * N;
+                for (size_t m = 0; m < M; ++m) {
+                    for (size_t n = 0; n < N; ++n) {
+                        out_ptr[m * N + n] += bias_g[n];
+                    }
+                }
+            }
         }
         return;
     }
@@ -130,6 +142,16 @@ void grouped_matmul(const T* mat_a,
                 T* out_ptr = out + start * N;
 
                 details::simple_matmul_transposed_b(a_ptr, b_ptr, out_ptr, num_rows, N, K);
+
+                // Add per-group bias: bias[g, n] applied to all tokens in this group
+                if (bias) {
+                    const T* bias_g = bias + g * N;
+                    for (size_t r = 0; r < num_rows; ++r) {
+                        for (size_t n = 0; n < N; ++n) {
+                            out_ptr[r * N + n] += bias_g[n];
+                        }
+                    }
+                }
             }
             start = end;
         }
@@ -156,14 +178,22 @@ void grouped_matmul(const T* mat_a,
 
             if (num_tokens > 0) {
                 // mat_a[:, start:end] @ mat_b[:, start:end].T
-                // mat_a is (K, total_tokens), so slice along columns
-                // mat_b is (N, total_tokens), so slice along columns too
                 for (size_t row = 0; row < K; ++row) {
                     for (size_t t = 0; t < num_tokens; ++t) {
                         const T a_val = mat_a[row * total_tokens + (start + t)];
                         for (size_t col = 0; col < N; ++col) {
                             out_ptr[row * N + col] += a_val * mat_b[col * total_tokens + (start + t)];
                         }
+                    }
+                }
+            }
+
+            // Add per-group bias: bias[g, n] broadcast over K
+            if (bias) {
+                const T* bias_g = bias + g * N;
+                for (size_t row = 0; row < K; ++row) {
+                    for (size_t n = 0; n < N; ++n) {
+                        out_ptr[row * N + n] += bias_g[n];
                     }
                 }
             }

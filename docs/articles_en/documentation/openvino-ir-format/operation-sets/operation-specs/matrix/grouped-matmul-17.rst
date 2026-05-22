@@ -27,8 +27,9 @@ Used for computing expert outputs from routed tokens:
 * ``mat_a``: Shape ``[total_tokens, K]`` - all tokens packed contiguously
 * ``mat_b``: Shape ``[G, N, K]`` - per-group (expert) weight matrices (stored transposed)
 * ``offsets``: Shape ``[G]`` - cumulative token boundaries
+* ``bias`` *(optional)*: Shape ``[G, N]`` - per-group bias, or Shape ``{0}`` if unused
 
-For group ``i``, computes: ``output[start:end] = mat_a[start:end] @ mat_b[i].T``
+For group ``i``, computes: ``output[start:end] = mat_a[start:end] @ mat_b[i].T + bias[i]``
 
 where ``start = offsets[i-1]`` (or 0 for i=0) and ``end = offsets[i]``.
 
@@ -40,9 +41,10 @@ Used when all groups have the same number of tokens:
 
 * ``mat_a``: Shape ``[G, M, K]`` - per-group inputs
 * ``mat_b``: Shape ``[G, N, K]`` - per-group weights (stored transposed)
-* ``offsets``: Not used (must not be provided)
+* ``offsets``: Shape ``{0}`` (not used; pass an empty 1D tensor)
+* ``bias`` *(optional)*: Shape ``[G, N]`` - per-group bias, or Shape ``{0}`` if unused
 
-For each group ``i``, computes: ``output[i] = mat_a[i] @ mat_b[i].T``
+For each group ``i``, computes: ``output[i] = mat_a[i] @ mat_b[i].T + bias[i]``
 
 Output shape: ``[G, M, N]``
 
@@ -53,8 +55,9 @@ Used during backpropagation for computing per-expert weight gradients:
 * ``mat_a``: Shape ``[K, total_tokens]`` - transposed activations
 * ``mat_b``: Shape ``[N, total_tokens]`` - gradient output (stored transposed)
 * ``offsets``: Shape ``[G]`` - cumulative token boundaries
+* ``bias`` *(optional)*: Shape ``[G, N]`` - per-group bias, or Shape ``{0}`` if unused
 
-For group ``i``, computes: ``output[i] = mat_a[:, start:end] @ mat_b[:, start:end].T``
+For group ``i``, computes: ``output[i] = mat_a[:, start:end] @ mat_b[:, start:end].T + bias[i]``
 
 Output shape: ``[G, K, N]``
 
@@ -85,11 +88,15 @@ For example, with tokens per group ``[3, 5, 2]``, offsets would be ``[3, 8, 10]`
   * Case 2 (3D×3D): Shape ``[G, N, K]``
   * Case 3 (2D×2D): Shape ``[N, total_tokens]``
 
-* **3**: ``offsets`` - 1D tensor of type *T_IDX* with group boundaries. Optional.
+* **3**: ``offsets`` - 1D tensor of type *T_IDX* with group boundaries. Required.
   
-  * Shape: ``[G]`` containing cumulative offsets
-  * Required for Case 1 (2D×3D) and Case 3 (2D×2D)
-  * Must not be provided for Case 2 (3D×3D)
+  * Shape ``[G]`` for Case 1 and Case 3 (containing cumulative offsets)
+  * Shape ``{0}`` (empty 1D tensor) for Case 2 (offsets not used)
+
+* **4**: ``bias`` - 1D or 2D tensor of type *T* with per-group bias. Required.
+  
+  * Shape ``[G, N]`` when bias is applied after the matmul for each group
+  * Shape ``{0}`` (empty 1D tensor) when no bias is used
 
 **Outputs**
 
@@ -125,9 +132,13 @@ For example, with tokens per group ``[3, 5, 2]``, offsets would be ``[3, 8, 10]`
            <port id="2">  <!-- offsets: [3, 8, 10] -->
                <dim>3</dim>
            </port>
+           <port id="3">  <!-- bias: 3 experts, N=128 -->
+               <dim>3</dim>
+               <dim>128</dim>
+           </port>
        </input>
        <output>
-           <port id="3">  <!-- output: 10 tokens, N=128 -->
+           <port id="4">  <!-- output: 10 tokens, N=128 -->
                <dim>10</dim>
                <dim>128</dim>
            </port>
@@ -151,9 +162,16 @@ For example, with tokens per group ``[3, 5, 2]``, offsets would be ``[3, 8, 10]`
                <dim>128</dim>
                <dim>64</dim>
            </port>
+           <port id="2">  <!-- offsets: empty (Shape{0}, not used for 3D×3D) -->
+               <dim>0</dim>
+           </port>
+           <port id="3">  <!-- bias: 3 groups, N=128 -->
+               <dim>3</dim>
+               <dim>128</dim>
+           </port>
        </input>
        <output>
-           <port id="2">  <!-- output: 3 groups, M=4, N=128 -->
+           <port id="4">  <!-- output: 3 groups, M=4, N=128 -->
                <dim>3</dim>
                <dim>4</dim>
                <dim>128</dim>
@@ -179,9 +197,12 @@ For example, with tokens per group ``[3, 5, 2]``, offsets would be ``[3, 8, 10]`
            <port id="2">  <!-- offsets: [4, 12, 16] for 3 groups -->
                <dim>3</dim>
            </port>
+           <port id="3">  <!-- bias: empty (Shape{0}, no bias) -->
+               <dim>0</dim>
+           </port>
        </input>
        <output>
-           <port id="3">  <!-- output: 3 groups, K=64, N=128 -->
+           <port id="4">  <!-- output: 3 groups, K=64, N=128 -->
                <dim>3</dim>
                <dim>64</dim>
                <dim>128</dim>

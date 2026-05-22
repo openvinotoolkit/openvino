@@ -171,7 +171,69 @@ TEST_F(TypePropGroupedMatMulTest, case3_2d_2d_missing_offsets) {
                     HasSubstr("requires offsets"));
 }
 
-// ==================== Error cases ====================
+// ==================== Bias tests ====================
+
+TEST_F(TypePropGroupedMatMulTest, case1_2d_3d_with_bias) {
+    const auto mat_a = std::make_shared<Parameter>(element::f32, PartialShape{16, 64});
+    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{3, 128, 64});
+    const auto offsets = std::make_shared<Parameter>(element::i32, PartialShape{3});
+    const auto bias = std::make_shared<Parameter>(element::f32, PartialShape{3, 128});
+
+    const auto op = make_op(mat_a, mat_b, offsets, bias);
+    op->validate_and_infer_types();
+
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{16, 128}));
+}
+
+TEST_F(TypePropGroupedMatMulTest, case2_3d_3d_with_bias) {
+    const auto mat_a = std::make_shared<Parameter>(element::f32, PartialShape{3, 4, 64});
+    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{3, 128, 64});
+    // For Case 2 (3D×3D): offsets must be Shape{0} (empty placeholder)
+    const auto offsets = std::make_shared<op::v0::Constant>(element::i32, Shape{0}, std::vector<int32_t>{});
+    const auto bias = std::make_shared<Parameter>(element::f32, PartialShape{3, 128});
+
+    const auto op = make_op(mat_a, mat_b, offsets, bias);
+    op->validate_and_infer_types();
+
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 4, 128}));
+}
+
+TEST_F(TypePropGroupedMatMulTest, case3_2d_2d_with_bias) {
+    const auto mat_a = std::make_shared<Parameter>(element::f32, PartialShape{64, 16});
+    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{128, 16});
+    const auto offsets = std::make_shared<Parameter>(element::i32, PartialShape{3});
+    const auto bias = std::make_shared<Parameter>(element::f32, PartialShape{3, 128});
+
+    const auto op = make_op(mat_a, mat_b, offsets, bias);
+    op->validate_and_infer_types();
+
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 64, 128}));
+}
+
+TEST_F(TypePropGroupedMatMulTest, bias_dtype_mismatch) {
+    const auto mat_a = std::make_shared<Parameter>(element::f32, PartialShape{16, 64});
+    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{3, 128, 64});
+    const auto offsets = std::make_shared<Parameter>(element::i32, PartialShape{3});
+    const auto bias = std::make_shared<Parameter>(element::f16, PartialShape{3, 128});  // wrong type
+
+    OV_EXPECT_THROW(std::ignore = make_op(mat_a, mat_b, offsets, bias),
+                    ov::NodeValidationFailure,
+                    HasSubstr("Bias element type must match"));
+}
+
+TEST_F(TypePropGroupedMatMulTest, bias_wrong_rank) {
+    const auto mat_a = std::make_shared<Parameter>(element::f32, PartialShape{16, 64});
+    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{3, 128, 64});
+    const auto offsets = std::make_shared<Parameter>(element::i32, PartialShape{3});
+    const auto bias = std::make_shared<Parameter>(element::f32, PartialShape{128});  // 1D instead of 2D
+
+    OV_EXPECT_THROW(std::ignore = make_op(mat_a, mat_b, offsets, bias),
+                    ov::NodeValidationFailure,
+                    HasSubstr("bias must be 2D"));
+}
 
 TEST_F(TypePropGroupedMatMulTest, unsupported_ndim_combination) {
     const auto mat_a = std::make_shared<Parameter>(element::f32, PartialShape{3, 4, 64});

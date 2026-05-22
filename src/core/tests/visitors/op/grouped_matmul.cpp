@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/constant.hpp"
 #include "openvino/op/grouped_matmul.hpp"
 
 #include <gtest/gtest.h>
@@ -46,6 +47,21 @@ TEST(attributes, grouped_matmul_v17_2d_2d_with_offsets) {
 
     const auto op = std::make_shared<ov::op::v17::GroupedMatMul>(mat_a, mat_b, offsets);
     NodeBuilder builder(op, {mat_a, mat_b, offsets});
+    auto g_op = ov::as_type_ptr<ov::op::v17::GroupedMatMul>(builder.create());
+
+    EXPECT_EQ(g_op->get_output_partial_shape(0), op->get_output_partial_shape(0));
+    EXPECT_EQ(g_op->get_output_element_type(0), op->get_output_element_type(0));
+}
+TEST(attributes, grouped_matmul_v17_with_bias) {
+    NodeBuilder::opset().insert<ov::op::v17::GroupedMatMul>();
+    const auto mat_a = std::make_shared<Parameter>(ov::element::f32, ov::PartialShape{3, 4, 64});
+    const auto mat_b = std::make_shared<Parameter>(ov::element::f32, ov::PartialShape{3, 128, 64});
+    const auto offsets =
+        std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{0}, std::vector<int32_t>{});
+    const auto bias = std::make_shared<Parameter>(ov::element::f32, ov::PartialShape{3, 128});
+
+    const auto op = std::make_shared<ov::op::v17::GroupedMatMul>(mat_a, mat_b, offsets, bias);
+    NodeBuilder builder(op, {mat_a, mat_b, offsets, bias});
     auto g_op = ov::as_type_ptr<ov::op::v17::GroupedMatMul>(builder.create());
 
     EXPECT_EQ(g_op->get_output_partial_shape(0), op->get_output_partial_shape(0));
