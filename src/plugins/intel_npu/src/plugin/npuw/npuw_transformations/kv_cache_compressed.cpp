@@ -38,15 +38,13 @@ std::string cacheName(bool is_key) {
     return is_key ? g_key_cache_name : g_value_cache_name;
 }
 
-ov::element::Type resolve_zp_type(bool is_key, const ov::npuw::KVCacheCompressionConfig& cfg) {
+ov::element::Type resolve_zp_type(const ov::npuw::KVCacheCompressionConfig& cfg) {
     const bool is_symmetric = cfg.quantization_type == ov::npuw::KVCacheCompressionConfig::QuantizationType::Symmetric;
-
-    // Key-cache asymmetric i8 follows the compiler-pattern i8 storage override.
-    const auto mode = (!is_symmetric && is_key && cfg.quantization_dt == ov::element::i8)
-                          ? ov::npuw::util::DynamicQuantDecomposeMode::CompilerPatternI8
-                          : ov::npuw::util::DynamicQuantDecomposeMode::HandcraftedSymmetricI8;
-
-    return ov::npuw::util::resolve_dynamic_quant_storage_types(mode, is_symmetric, cfg.quantization_dt).zero_point_type;
+    return ov::npuw::util::resolve_dynamic_quant_storage_types(
+               ov::npuw::util::DynamicQuantDecomposeMode::HandcraftedSymmetricI8,
+               is_symmetric,
+               cfg.quantization_dt)
+        .zero_point_type;
 }
 
 // ── V2 helper functions (ONNX DynamicQuantizeLinear style) ────────────────────
@@ -467,7 +465,7 @@ void ov::npuw::run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov
             bool is_key,
             const KVCacheCompressionConfig& cfg) -> std::shared_ptr<ov::op::internal::DynamicQuantize> {
         const std::string kv_name = cacheName(is_key);
-        const auto zp_type = resolve_zp_type(is_key, cfg);
+        const auto zp_type = resolve_zp_type(cfg);
 
         const bool is_asym = cfg.quantization_type == KVCacheCompressionConfig::QuantizationType::Asymmetric;
 
@@ -508,7 +506,7 @@ void ov::npuw::run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov
                                     bool isKey,
                                     const KVCacheCompressionConfig& cfg) {
         const std::string node_name = isKey ? g_key_cache_name : g_value_cache_name;
-        const auto zp_type = resolve_zp_type(isKey, cfg);
+        const auto zp_type = resolve_zp_type(cfg);
 
         // TODO: adding back slash here kills partitioning - fix that
         auto make_dq_name = [&make_name, &node_name](auto base_name) {

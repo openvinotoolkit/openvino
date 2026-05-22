@@ -40,7 +40,7 @@ bool any_name_contains(const ov::Output<const ov::Node>& port, std::string_view 
 const std::map<ov::element::Type, std::map<std::string, ov::element::Type>>& precision_key_input_matrix() {
     static const std::map<ov::element::Type, std::map<std::string, ov::element::Type>> matrix = {
         {ov::element::u8, {{"value", ov::element::u8}, {"scale", ov::element::f32}, {"zero_point", ov::element::u8}}},
-        {ov::element::i8, {{"value", ov::element::i8}, {"scale", ov::element::f32}, {"zero_point", ov::element::u8}}}};
+        {ov::element::i8, {{"value", ov::element::i8}, {"scale", ov::element::f32}, {"zero_point", ov::element::i8}}}};
     return matrix;
 }
 
@@ -78,7 +78,6 @@ void expect_kv_cache_input_types(const std::shared_ptr<ov::Model>& model,
                                  const ov::element::Type kv_type,
                                  const bool check_quant_aux_ports = true) {
     // Key cache: asymmetric quantization -> value tensor + scale (f32) + zero_point.
-    // For i8 hint the past-key zero-point boundary is exposed as u8 to avoid signed asymmetric key-cache storage.
     // Value cache: symmetric quantization -> value tensor (i4) + scale (f32), no zero_point.
     const bool is_quantized = is_quantized_kv_type(kv_type);
 
