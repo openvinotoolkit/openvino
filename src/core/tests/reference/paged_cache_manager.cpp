@@ -1806,23 +1806,23 @@ TEST(PagedAttentionRefTest, BidirectionalImageAttention_SlidingWindow) {
         EXPECT_TRUE(std::isfinite(out[i])) << "output[" << i << "] is not finite";
     }
 
-    // Image tokens 2,3,4,5: all see {3,4,5} -> mean = (40+50+60)/3 = 50.0
-    const float img_expected = 50.0f;
-    EXPECT_NEAR(out[2 * q_features], img_expected, 0.01f);
-    EXPECT_NEAR(out[3 * q_features], img_expected, 0.01f);
-    EXPECT_NEAR(out[4 * q_features], img_expected, 0.01f);
-    EXPECT_NEAR(out[5 * q_features], img_expected, 0.01f);
+    // Sliding window start uses original causal_pos, pulled back to image_group_begin.
+    // Token 2: causal_pos=3, sw_start=0, group_begin=2, start=min(0,2)=0, ncausal=6. Sees {0..5}.
+    EXPECT_NEAR(out[2 * q_features], (10 + 20 + 30 + 40 + 50 + 60) / 6.f, 0.01f);  // 35.0
+    // Token 3: causal_pos=4, sw_start=1, group_begin=2, start=min(1,2)=1, ncausal=6. Sees {1..5}.
+    EXPECT_NEAR(out[3 * q_features], (20 + 30 + 40 + 50 + 60) / 5.f, 0.01f);  // 40.0
+    // Token 4: causal_pos=5, sw_start=2, group_begin=2, start=min(2,2)=2, ncausal=6. Sees {2..5}.
+    EXPECT_NEAR(out[4 * q_features], (30 + 40 + 50 + 60) / 4.f, 0.01f);  // 45.0
+    // Token 5: causal_pos=6, sw_start=3, group_begin=2, start=min(3,2)=2, ncausal=6. Sees {2..5}.
+    EXPECT_NEAR(out[5 * q_features], (30 + 40 + 50 + 60) / 4.f, 0.01f);  // 45.0
 
-    // Text token 0: ncausal=1, SW=3 -> start=0, end=0. Sees {0}. Out = v[0] = 10.
+    // Text token 0: causal_pos=1, SW=3 -> start=0. Sees {0}. Out = 10.
     EXPECT_NEAR(out[0 * q_features], 10.0f, 0.01f);
-
-    // Text token 1: ncausal=2, SW=3 -> start=0, end=1. Sees {0,1}. Out = (10+20)/2 = 15.
+    // Text token 1: causal_pos=2, SW=3 -> start=0. Sees {0,1}. Out = 15.
     EXPECT_NEAR(out[1 * q_features], 15.0f, 0.01f);
-
-    // Text token 6: ncausal=7, SW=3 -> start=4, end=6. Sees {4,5,6}. Out = (50+60+70)/3 = 60.
+    // Text token 6: causal_pos=7, SW=3 -> start=4. Sees {4,5,6}. Out = 60.
     EXPECT_NEAR(out[6 * q_features], 60.0f, 0.01f);
-
-    // Text token 7: ncausal=8, SW=3 -> start=5, end=7. Sees {5,6,7}. Out = (60+70+80)/3 = 70.
+    // Text token 7: causal_pos=8, SW=3 -> start=5. Sees {5,6,7}. Out = 70.
     EXPECT_NEAR(out[7 * q_features], 70.0f, 0.01f);
 }
 
@@ -1909,4 +1909,58 @@ TEST(PagedAttentionRefTest, BidirectionalImageAttention_AllTextCausal) {
     EXPECT_NEAR(out[2 * q_features], 2.0f, 0.01f);
     // Token 3: sees {0,1,2,3} -> (1+2+3+4)/4 = 2.5
     EXPECT_NEAR(out[3 * q_features], 2.5f, 0.01f);
+}
+
+// Sliding window smaller than the group: group_begin pullback ensures later image tokens
+// still see the group beginning even when the sliding window would clip it away.
+TEST(PagedAttentionRefTest, BidirectionalImageAttention_GroupBeginPullback) {
+    // 6 tokens: [text, image, image, image, image, text]
+    // Image group: tokens {1,2,3,4}, sliding_window = 2.
+    const std::size_t num_tokens = 6;
+    const std::size_t q_heads = 1;
+    const std::size_t kv_heads = 1;
+    const std::size_t head_size = 4;
+    const std::size_t q_features = q_heads * head_size;
+    const std::size_t kv_features = kv_heads * head_size;
+
+    std::vector<float> q(num_tokens * q_features, 0.f);
+    std::vector<float> k(num_tokens * kv_features, 0.f);
+    std::vector<float> v(num_tokens * kv_features, 0.f);
+
+    for (std::size_t i = 0; i < num_tokens; i++) {
+        q[i * q_features] = 1.0f;
+        k[i * kv_features] = 1.0f;
+        v[i * kv_features] = static_cast<float>(i + 1) * 10.0f;
+    }
+
+    std::vector<int32_t> token_types = {0, 1, 1, 1, 1, 0};
+    int32_t sliding_window = 2;
+
+    auto out = run_pa_with_token_types(q, k, v, num_tokens, q_heads, kv_heads, head_size, token_types, sliding_window);
+
+    for (std::size_t i = 0; i < out.size(); i++) {
+        EXPECT_TRUE(std::isfinite(out[i])) << "output[" << i << "] is not finite";
+    }
+
+    // Token 0: text, causal_pos=1, SW=2, start=0. Sees {0}. Out = 10.
+    EXPECT_NEAR(out[0 * q_features], 10.0f, 0.01f);
+
+    // Token 1: causal_pos=2, sw_start=0, group_begin=1, start=min(0,1)=0, ncausal=5.
+    //   Sees {0,1,2,3,4}. Mean = (10+20+30+40+50)/5 = 30.
+    EXPECT_NEAR(out[1 * q_features], 30.0f, 0.01f);
+
+    // Token 2: causal_pos=3, sw_start=1, group_begin=1, start=min(1,1)=1, ncausal=5.
+    //   Sees {1,2,3,4}. Mean = (20+30+40+50)/4 = 35.
+    EXPECT_NEAR(out[2 * q_features], 35.0f, 0.01f);
+
+    // Token 3: causal_pos=4, sw_start=2, group_begin=1, start=min(2,1)=1, ncausal=5.
+    //   Sees {1,2,3,4}. Mean = (20+30+40+50)/4 = 35.
+    EXPECT_NEAR(out[3 * q_features], 35.0f, 0.01f);
+
+    // Token 4: causal_pos=5, sw_start=3, group_begin=1, start=min(3,1)=1, ncausal=5.
+    //   Sees {1,2,3,4}. Mean = (20+30+40+50)/4 = 35.
+    EXPECT_NEAR(out[4 * q_features], 35.0f, 0.01f);
+
+    // Token 5: text, causal_pos=6, SW=2, start=4. Sees {4,5}. Mean = (50+60)/2 = 55.
+    EXPECT_NEAR(out[5 * q_features], 55.0f, 0.01f);
 }
