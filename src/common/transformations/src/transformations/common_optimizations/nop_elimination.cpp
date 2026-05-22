@@ -646,8 +646,7 @@ bool extract_slice_range_along_axis(const std::shared_ptr<ov::Node>& user,
 
         const auto rank = static_cast<int64_t>(concat_shape.size());
         for (auto& ax : axes_values) {
-            if (ax < 0)
-                ax += rank;
+            ax = ov::util::normalize(ax, rank);
             if (ax < 0 || ax >= rank)
                 return false;
         }
@@ -733,10 +732,8 @@ std::shared_ptr<ov::Node> build_residual_slice(const std::shared_ptr<ov::Node>& 
             axes_values.push_back(i);
     }
     const auto rank = static_cast<int64_t>(new_concat_node->get_output_partial_shape(0).size());
-    for (auto& ax : axes_values) {
-        if (ax < 0)
-            ax += rank;
-    }
+    for (auto& ax : axes_values)
+        ax = ov::util::normalize(ax, rank);
     int64_t axis_pos = 0;
     for (size_t i = 0; i < axes_values.size(); ++i) {
         if (axes_values[i] == concat_axis) {
