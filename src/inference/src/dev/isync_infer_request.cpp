@@ -275,15 +275,6 @@ void ov::ISyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
                     " != ",
                     port.get_element_type());
     bool is_dynamic = port.get_partial_shape().is_dynamic();
-    std::string port_tensor_names;
-    {
-        const char* sep = "";
-        for (const auto& name : port.get_tensor().get_names()) {
-            port_tensor_names += sep;
-            port_tensor_names += name;
-            sep = ",";
-        }
-    }
     OPENVINO_ASSERT(is_dynamic || port.get_shape() == tensor->get_shape(),
                     "The ",
                     tensor_type,
@@ -293,11 +284,7 @@ void ov::ISyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
                     tensor->get_shape(),
                     " expecting ",
                     port.get_shape(),
-                    ". Port: friendly_name='",
-                    port.get_node()->get_friendly_name(),
-                    "', tensor_names={",
-                    port_tensor_names,
-                    "}.");
+                    ".");
     OPENVINO_ASSERT(
         std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr) || tensor->data() != nullptr || is_dynamic,
         "Tensor data equal nullptr!");
