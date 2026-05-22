@@ -46,8 +46,7 @@ ov::element::Type resolve_zp_type(bool is_key, const ov::npuw::KVCacheCompressio
                           ? ov::npuw::util::DynamicQuantDecomposeMode::CompilerPatternI8
                           : ov::npuw::util::DynamicQuantDecomposeMode::HandcraftedSymmetricI8;
 
-    return ov::npuw::util::resolve_dynamic_quant_storage_types(mode, is_symmetric, cfg.quantization_dt)
-        .zero_point_type;
+    return ov::npuw::util::resolve_dynamic_quant_storage_types(mode, is_symmetric, cfg.quantization_dt).zero_point_type;
 }
 
 // ── V2 helper functions (ONNX DynamicQuantizeLinear style) ────────────────────
