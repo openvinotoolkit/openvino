@@ -1751,6 +1751,41 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmul_integer_to_float) {
     test_case.run();
 }
 
+// Regression test: when a zero point is greater than the data value, the
+// Subtract used to dequantize must be performed in floating point. Previously
+// the cast to float happened after the Subtract, causing modular wraparound on
+// unsigned integer inputs (e.g. uint8(1) - uint8(10) = 247 instead of -9).
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmul_integer_to_float_uint8_zp_gt_data) {
+    const auto model = convert_model("com.microsoft/matmul_integer_to_float_uint8.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<uint8_t> data_A{1, 2, 3, 4, 5, 6};
+    const std::vector<uint8_t> data_B{7, 8, 9, 10, 11, 12};
+
+    const std::vector<float> a_scale{0.5f, 0.5f, 0.5f};
+    const std::vector<float> b_scale{0.5f, 0.5f};
+
+    // Zero points intentionally larger than some data values to exercise the
+    // signed-subtraction path that the fix enables.
+    const std::vector<uint8_t> a_zero_point{10, 0, 5};
+    const std::vector<uint8_t> b_zero_point{2, 3};
+
+    const std::vector<float> bias{0.5f, 0.25f};
+
+    const std::vector<float> expected_output{-11.75f, -12.0f, 4.0f, 3.75f};
+
+    test_case.add_input<uint8_t>(Shape{2, 3}, data_A);
+    test_case.add_input<uint8_t>(Shape{3, 2}, data_B);
+    test_case.add_input<float>(Shape{3}, a_scale);
+    test_case.add_input<float>(Shape{2}, b_scale);
+    test_case.add_input<uint8_t>(Shape{3}, a_zero_point);
+    test_case.add_input<uint8_t>(Shape{2}, b_zero_point);
+    test_case.add_input<float>(Shape{2}, bias);
+    test_case.add_expected_output<float>(Shape{2, 2}, expected_output);
+
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinear_avg_pool) {
     const auto model = convert_model("com.microsoft/qlinear_avg_pool.onnx");
     auto test_case = ov::test::TestCase(model, s_device);
