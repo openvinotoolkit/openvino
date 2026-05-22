@@ -1652,6 +1652,65 @@ TEST(prepare_buffer_fusing, in_place_onednn_concat_static) {
 }
 #endif  // ENABLE_ONEDNN_FOR_GPU
 
+TEST(prepare_buffer_fusing, in_place_concat_with_fsv32_to_fsv16_reorder_regression) {
+    auto& engine = get_test_engine();
+
+    auto in_layout = layout{ov::PartialShape{1, 32, 1, 1, 1}, data_types::f32, format::bfzyx};
+
+    topology topology;
+    topology.add(input_layout("input1", in_layout));
+    topology.add(input_layout("input2", in_layout));
+    topology.add(reorder("input1_fsv16", input_info("input1"), format::b_fs_zyx_fsv16, data_types::f16));
+    topology.add(reorder("input2_fsv32", input_info("input2"), format::b_fs_zyx_fsv32, data_types::f16));
+    topology.add(reorder("input2_fsv16", input_info("input2_fsv32"), format::b_fs_zyx_fsv16, data_types::f16));
+    topology.add(concatenation("concat", {input_info("input1_fsv16"), input_info("input2_fsv16")}, 1));
+    topology.add(reorder("output", input_info("concat"), format::bfzyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(false));
+
+    network network(engine, topology, config);
+
+    auto input_memory1 = engine.allocate_memory(in_layout);
+    auto input_memory2 = engine.allocate_memory(in_layout);
+
+    std::vector<float> input1_vals(32);
+    std::vector<float> input2_vals(32);
+    for (size_t i = 0; i < 32; ++i) {
+        input1_vals[i] = static_cast<float>(i + 1);
+        input2_vals[i] = static_cast<float>(1000 + i + 1);
+    }
+
+    set_values<float>(input_memory1, input1_vals);
+    set_values<float>(input_memory2, input2_vals);
+
+    network.set_input_data("input1", input_memory1);
+    network.set_input_data("input2", input_memory2);
+
+    std::map<cldnn::primitive_id, cldnn::network_output> output;
+    EXPECT_NO_THROW(output = network.execute());
+
+    const auto& concat_inst = network.get_primitive("concat");
+    ASSERT_TRUE(concat_inst->can_be_optimized());
+
+    auto concat_mem = concat_inst->output_memory_ptr();
+    auto input1_fsv16_mem = network.get_primitive("input1_fsv16")->output_memory_ptr();
+    auto input2_fsv16_mem = network.get_primitive("input2_fsv16")->output_memory_ptr();
+
+    ASSERT_EQ(concat_mem.get(), input1_fsv16_mem.get());
+    ASSERT_EQ(concat_mem.get(), input2_fsv16_mem.get());
+
+    auto out_mem = output.at("output").get_memory();
+    cldnn::mem_lock<float> output_ptr(out_mem, get_test_stream());
+
+    ASSERT_EQ(out_mem->count(), 64);
+    for (size_t i = 0; i < 32; ++i) {
+        ASSERT_EQ(output_ptr[i], input1_vals[i]);
+        ASSERT_EQ(output_ptr[i + 32], input2_vals[i]);
+    }
+}
+
 TEST(prepare_buffer_fusing, inner_axis_data_offset_with_gemm_user) {
     tests::random_generator rg(GET_SUITE_NAME);
 
