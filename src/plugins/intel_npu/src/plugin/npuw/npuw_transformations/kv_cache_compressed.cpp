@@ -38,15 +38,6 @@ std::string cacheName(bool is_key) {
     return is_key ? g_key_cache_name : g_value_cache_name;
 }
 
-ov::element::Type resolve_zp_type(const ov::npuw::KVCacheCompressionConfig& cfg) {
-    const bool is_symmetric = cfg.quantization_type == ov::npuw::KVCacheCompressionConfig::QuantizationType::Symmetric;
-    return ov::npuw::util::resolve_dynamic_quant_storage_types(
-               ov::npuw::util::DynamicQuantDecomposeMode::HandcraftedSymmetricI8,
-               is_symmetric,
-               cfg.quantization_dt)
-        .zero_point_type;
-}
-
 // ── V2 helper functions (ONNX DynamicQuantizeLinear style) ────────────────────
 
 std::shared_ptr<ov::Node> find_min_value(const ov::Output<ov::Node>& input, size_t reduce_axes) {
@@ -465,9 +456,11 @@ void ov::npuw::run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov
             bool is_key,
             const KVCacheCompressionConfig& cfg) -> std::shared_ptr<ov::op::internal::DynamicQuantize> {
         const std::string kv_name = cacheName(is_key);
-        const auto zp_type = resolve_zp_type(cfg);
-
         const bool is_asym = cfg.quantization_type == KVCacheCompressionConfig::QuantizationType::Asymmetric;
+        const auto storage_types = ov::npuw::util::resolve_dynamic_quant_storage_types(
+            ov::npuw::util::DynamicQuantDecomposeMode::HandcraftedSymmetricI8,
+            !is_asym,
+            cfg.quantization_dt);
 
         auto rank = dq_input.get_partial_shape().size();
         std::vector<uint64_t> shape_group_size(rank, 1);
@@ -481,7 +474,7 @@ void ov::npuw::run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov
         dq_config.group_sizes = shape_group_size;
 
         if (is_asym) {
-            dq_config.zp_dt = zp_type;
+            dq_config.zp_dt = storage_types.zero_point_type;
         }
 
         auto kv_dyn_quant = std::make_shared<ov::op::internal::DynamicQuantize>(dq_input, dq_config);
@@ -506,7 +499,11 @@ void ov::npuw::run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov
                                     bool isKey,
                                     const KVCacheCompressionConfig& cfg) {
         const std::string node_name = isKey ? g_key_cache_name : g_value_cache_name;
-        const auto zp_type = resolve_zp_type(cfg);
+        const bool is_asym = cfg.quantization_type == KVCacheCompressionConfig::QuantizationType::Asymmetric;
+        const auto storage_types = ov::npuw::util::resolve_dynamic_quant_storage_types(
+            ov::npuw::util::DynamicQuantDecomposeMode::HandcraftedSymmetricI8,
+            !is_asym,
+            cfg.quantization_dt);
 
         // TODO: adding back slash here kills partitioning - fix that
         auto make_dq_name = [&make_name, &node_name](auto base_name) {
@@ -530,10 +527,11 @@ void ov::npuw::run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov
         // reconstruct k and v caches intgeres values  to matmul using one of Dequantize approach
         // use zp on quant/dequant only in case od assym
         std::shared_ptr<ov::Node> fp_subtracted_zp = start_node;
-        if (cfg.quantization_type == KVCacheCompressionConfig::QuantizationType::Asymmetric) {
+        if (is_asym) {
             //  Subtract zero-point - TODO: share this memory with DynamicQuantize/read/assign?
-            auto zp =
-                create_parameter_with_name(zp_type, clear_embedding_index(start_node, isKey), make_dq_param_name("zp"));
+            auto zp = create_parameter_with_name(storage_types.zero_point_type,
+                                                 clear_embedding_index(start_node, isKey),
+                                                 make_dq_param_name("zp"));
 
             // this probably to be optimized by compiler - but for now we need it to avoid types mismatch
             auto converted_zp = std::make_shared<ov::op::v0::Convert>(zp, ov::element::f32);
