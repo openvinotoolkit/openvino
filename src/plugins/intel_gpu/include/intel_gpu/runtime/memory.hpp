@@ -192,13 +192,8 @@ struct mem_lock {
     mem_lock(const mem_lock& other) = delete;
     mem_lock& operator=(const mem_lock& other) = delete;
 
-#if defined(_SECURE_SCL) && (_SECURE_SCL > 0)
-    auto begin() & { return stdext::make_checked_array_iterator(_ptr, size()); }
-    auto end() & { return stdext::make_checked_array_iterator(_ptr, size(), size()); }
-#else
     T* begin() & { return _ptr; }
     T* end() & { return _ptr + size(); }
-#endif
 
     /// @brief Provides indexed access to pointed memory.
     T& operator[](size_t idx) const& {

@@ -50,21 +50,12 @@ public:
     size_t size() const { return _size; }
     bool empty() const { return _size == 0; }
 
-#if defined(_SECURE_SCL) && (_SECURE_SCL > 0)
-    typedef stdext::checked_array_iterator<T*> iterator;
-    typedef stdext::checked_array_iterator<const T*> const_iterator;
-    iterator begin() const { return stdext::make_checked_array_iterator(_data, _size); }
-    iterator end() const { return stdext::make_checked_array_iterator(_data, _size, _size); }
-    const_iterator cbegin() const { return stdext::make_checked_array_iterator(_data, _size); }
-    const_iterator cend() const { return stdext::make_checked_array_iterator(_data, _size, _size); }
-#else
     typedef T* iterator;
     typedef T* const_iterator;
     iterator begin() const { return _data; }
     iterator end() const { return _data + _size; }
     const_iterator cbegin() const { return _data; }
     const_iterator cend() const { return _data + _size; }
-#endif
 
     T& operator[](size_t idx) const {
         assert(idx < _size);
