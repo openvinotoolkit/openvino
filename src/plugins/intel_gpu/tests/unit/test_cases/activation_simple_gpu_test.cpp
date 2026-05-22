@@ -2786,3 +2786,28 @@ TEST(activation_f16_fw_gpu, softplus_dynamic_batch_opt_kernel) {
         ASSERT_NEAR(static_cast<float>(out_ptr[i]), expected, 1e-2f);
     }
 }
+
+// Regression: the F16 Softplus macro overflows for inputs around 11 (exp overflows f16).
+// The stable max(x,0)+log(1+exp(-|x|)) form must produce a finite, correct value for
+// large positive inputs.
+TEST(activation_f16_fw_gpu, softplus_f16_large_input_finite) {
+    auto& engine = get_test_engine();
+
+    tensor input_shape{1, 1, 1, 1};
+    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, input_shape });
+    set_values<ov::float16>(input, std::vector<ov::float16>{ ov::float16(15.0f) });
+
+    topology topology(input_layout("input", input->get_layout()),
+                      activation("activation", input_info("input"), activation_func::softplus));
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input);
+
+    auto out_mem = network.execute().at("activation").get_memory();
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
+
+    float v = static_cast<float>(out_ptr[0]);
+    ASSERT_FALSE(std::isinf(v));
+    ASSERT_FALSE(std::isnan(v));
+    // softplus(15) ~= 15.0
+    ASSERT_NEAR(v, 15.0f, 1e-1f);
+}

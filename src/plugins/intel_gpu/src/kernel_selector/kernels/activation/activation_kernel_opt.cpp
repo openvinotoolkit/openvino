@@ -105,9 +105,8 @@ bool ActivationKernelOpt::Validate(const Params& p) const {
         }
     }
 
-    // Note: SOFTPLUS for F16 is now supported — the JIT macro in jitter.cpp uses the
-    // numerically stable max(x, 0) + log(1 + exp(-|x|)) form which never overflows in
-    // float16, and compiles for half4 vectors in this kernel.
+    // Note: SOFTPLUS for F16 is now supported — the JIT macro uses type-generic
+    // log(exp(input) + 1) which compiles for half4 vectors in this kernel.
 
     return true;
 }
