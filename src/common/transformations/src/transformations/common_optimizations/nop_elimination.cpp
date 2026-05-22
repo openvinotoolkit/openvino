@@ -597,6 +597,7 @@ bool extract_slice_range_along_axis(const std::shared_ptr<ov::Node>& user,
         auto end_values = end_constant_node->cast_vector<int64_t>();
 
         const auto axis_idx = static_cast<size_t>(concat_axis);
+        // StridedSlice with active masks may carry begin/end shorter than rank — index only after length check.
         if (begin_values.size() <= axis_idx || end_values.size() <= axis_idx)
             return false;
 
@@ -606,7 +607,8 @@ bool extract_slice_range_along_axis(const std::shared_ptr<ov::Node>& user,
 
         const int64_t begin = begin_values[concat_axis];
         const int64_t end_inclusive = end_values[concat_axis] - 1;
-        if (begin < 0 || end_inclusive < begin || end_inclusive >= concat_dim)
+        // Downstream coverage logic requires a valid absolute range; upper bound is enforced by the clamp above.
+        if (begin < 0 || end_inclusive < begin)
             return false;
 
         out_begin = begin;
@@ -640,11 +642,13 @@ bool extract_slice_range_along_axis(const std::shared_ptr<ov::Node>& user,
                 axes_values.push_back(i);
         }
 
+        // v8::Slice spec: start/stop/step are indexed in parallel with axes; otherwise the model is malformed.
         if (start_values.size() != axes_values.size() || stop_values.size() != axes_values.size() ||
             step_values.size() != axes_values.size())
             return false;
 
         const auto rank = static_cast<int64_t>(concat_shape.size());
+        // ov::util::normalize() converts negative indices but does not validate the range.
         for (auto& ax : axes_values) {
             ax = ov::util::normalize(ax, rank);
             if (ax < 0 || ax >= rank)
@@ -658,14 +662,17 @@ bool extract_slice_range_along_axis(const std::shared_ptr<ov::Node>& user,
                 break;
             }
         }
+        // Slice does not touch concat_axis — not a Concat-input splitter.
         if (axis_pos == -1)
             return false;
 
+        // NOPE pattern requires each Slice to reconstruct its Concat input verbatim; step != 1 skips elements.
         for (const auto& s : step_values) {
             if (s != 1)
                 return false;
         }
 
+        // Analog of StridedSlice's begin_mask/end_mask: on non-concat axes the slice must cover the full dimension.
         for (size_t i = 0; i < axes_values.size(); ++i) {
             if (static_cast<int64_t>(i) == axis_pos)
                 continue;
@@ -681,7 +688,8 @@ bool extract_slice_range_along_axis(const std::shared_ptr<ov::Node>& user,
         if (slice_stop > concat_dim)
             slice_stop = concat_dim;
 
-        if (slice_start < 0 || slice_stop <= slice_start || slice_stop > concat_dim)
+        // Reject negative start and empty/inverted range; upper bound is enforced by the clamp above.
+        if (slice_start < 0 || slice_stop <= slice_start)
             return false;
 
         out_begin = slice_start;
