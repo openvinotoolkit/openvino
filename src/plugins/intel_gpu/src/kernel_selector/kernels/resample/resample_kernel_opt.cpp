@@ -74,6 +74,7 @@ ParamsKey ResampleKernelOpt::GetSupportedKey() const {
     k.EnableTensorPitches();
     k.EnableBatching();
     k.EnableResampleType(ResampleType::BILINEAR_INTERP);
+    k.EnableResampleType(ResampleType::LINEAR_ONNX);
     k.EnableResampleType(ResampleType::NEAREST_NEIGHBOR);
     k.EnableResampleType(ResampleType::CAFFE_BILINEAR_INTERP);
     return k;
@@ -156,7 +157,8 @@ bool ResampleKernelOpt::Validate(const Params& p) const {
 
     if ((input.GetDType() == Datatype::UINT8 || input.GetDType() == Datatype::INT8) &&
         params.resampleType != ResampleType::NEAREST_NEIGHBOR &&
-        params.resampleType != ResampleType::BILINEAR_INTERP)
+        params.resampleType != ResampleType::BILINEAR_INTERP &&
+        params.resampleType != ResampleType::LINEAR_ONNX)
         DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     // in the case of 5D support only NEAREST_NEIGHBOR
