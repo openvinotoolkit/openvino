@@ -74,6 +74,7 @@ ParamsKey ResampleKernelOpt::GetSupportedKey() const {
     k.EnableTensorPitches();
     k.EnableBatching();
     k.EnableResampleType(ResampleType::BILINEAR_INTERP);
+    k.EnableResampleType(ResampleType::LINEAR_ONNX);
     k.EnableResampleType(ResampleType::NEAREST_NEIGHBOR);
     k.EnableResampleType(ResampleType::CAFFE_BILINEAR_INTERP);
     return k;
@@ -156,12 +157,22 @@ bool ResampleKernelOpt::Validate(const Params& p) const {
 
     if ((input.GetDType() == Datatype::UINT8 || input.GetDType() == Datatype::INT8) &&
         params.resampleType != ResampleType::NEAREST_NEIGHBOR &&
-        params.resampleType != ResampleType::BILINEAR_INTERP)
+        params.resampleType != ResampleType::BILINEAR_INTERP &&
+        params.resampleType != ResampleType::LINEAR_ONNX)
         DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     // in the case of 5D support only NEAREST_NEIGHBOR
     if (input.Dimentions() == 5 && params.resampleType != ResampleType::NEAREST_NEIGHBOR)
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+
+    // LINEAR_ONNX in resample_opt does not implement OOB-to-zero for padded
+    // coordinates; let resample_onnx (which does) handle those cases.
+    if (params.resampleType == ResampleType::LINEAR_ONNX) {
+        for (size_t i = 0; i < params.pads_begin.size(); ++i) {
+            if (params.pads_begin[i] != 0 || params.pads_end[i] != 0)
+                DO_NOT_USE_THIS_KERNEL(p.layerID);
+        }
+    }
 
     return true;
 }
