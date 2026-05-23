@@ -235,20 +235,12 @@ public:
     }
 
     static void set_active_device_id(const std::string& device_id) {
-#ifdef GPU_DEBUG_CONFIG
         get_active_device_index() = parse_device_index(device_id);
-#else
-        (void)device_id;
-#endif
     }
 
-        static void set_active_sub_device_idx(uint32_t sub_device_idx) {
-    #ifdef GPU_DEBUG_CONFIG
+    static void set_active_sub_device_idx(uint32_t sub_device_idx) {
         get_active_sub_device_index() = static_cast<int>(sub_device_idx);
-    #else
-        (void)sub_device_idx;
-    #endif
-        }
+    }
 
     void print_mem_usage_info() {
         auto mem_usage = get_elapsed_mem_usage();
@@ -256,7 +248,7 @@ public:
                               " KB (current RSS: " + std::to_string(_after.rss) +
                               " KB; peak RSS: " + std::to_string(_after.peak_rss) + " KB)";
 
-        int64_t vram_local_used = get_vram_local_used_kb();
+        int64_t vram_local_used = get_gpu_dedicated_vram_used_kb();
         if (vram_local_used >= 0) {
             log_msg += ", (local_used : " + std::to_string(vram_local_used) + " KB)";
         }
@@ -264,14 +256,13 @@ public:
         GPU_DEBUG_LOG << log_msg << std::endl;
     }
 
-    int64_t get_vram_local_used_kb() {
+    int64_t get_gpu_dedicated_vram_used_kb() {
 #if defined(_WIN32)
         using Microsoft::WRL::ComPtr;
         static ComPtr<IDXGIFactory4> dxgi_factory;
         static ComPtr<IDXGIAdapter3> selected_adapter;
         static bool initialized = false;
         static bool init_failed = false;
-    #ifdef GPU_DEBUG_CONFIG
         static int selected_device_index = -1;
 
         const int current_device_index = get_active_device_index().load();
@@ -280,9 +271,6 @@ public:
             initialized = false;
             init_failed = false;
         }
-    #else
-        const int current_device_index = -1;
-    #endif
 
         if (!initialized && !init_failed) {
             // One-time initialization of DXGI
@@ -321,9 +309,7 @@ public:
                 return -1;
             }
             initialized = true;
-#ifdef GPU_DEBUG_CONFIG
             selected_device_index = current_device_index;
-#endif
         }
 
         if (init_failed || !selected_adapter) {
@@ -334,7 +320,6 @@ public:
         int64_t total_local_used = 0;
         const int KiB = 1024;
 
-#ifdef GPU_DEBUG_CONFIG
         const int active_sub_device_idx = get_active_sub_device_index().load();
         if (active_sub_device_idx >= 0) {
             DXGI_QUERY_VIDEO_MEMORY_INFO info;
@@ -343,7 +328,6 @@ public:
             }
             return -1;
         }
-#endif
 
         int nodeId = 0;
         DXGI_QUERY_VIDEO_MEMORY_INFO info;
@@ -359,7 +343,6 @@ public:
     }
 
 private:
-#ifdef GPU_DEBUG_CONFIG
     static int parse_device_index(const std::string& device_id) {
         if (device_id.empty()) {
             return -1;
@@ -386,7 +369,6 @@ private:
         static std::atomic<int> active_sub_device_index{-1};
         return active_sub_device_index;
     }
-#endif
 
     memory_footprint get_memory_footprint() {
         memory_footprint footprint;

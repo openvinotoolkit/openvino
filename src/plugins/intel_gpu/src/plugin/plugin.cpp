@@ -25,9 +25,7 @@
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "intel_gpu/runtime/itt.hpp"
-#ifdef GPU_DEBUG_CONFIG
 #include "intel_gpu/runtime/profiling.hpp"
-#endif
 #include "openvino/core/any.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -253,14 +251,9 @@ Plugin::Plugin() {
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& orig_config) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model");
     std::string device_id = get_device_id(orig_config);
-#ifdef GPU_DEBUG_CONFIG
-    cldnn::instrumentation::mem_usage_logger::set_active_device_id(device_id);
-#endif
-
     auto context = get_default_context(device_id);
-#ifdef GPU_DEBUG_CONFIG
-    cldnn::instrumentation::mem_usage_logger::set_active_sub_device_idx(context->get_device().get_info().sub_device_idx);
-#endif
+    GPU_DEBUG_SET_ACTIVE_DEVICE(device_id);
+    GPU_DEBUG_SET_ACTIVE_SUB_DEVICE(context->get_device().get_info().sub_device_idx);
 
     OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] compile_model: Couldn't find config for GPU with id ", device_id);
 
@@ -283,10 +276,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     context_impl->initialize();
 
     auto device_id = ov::DeviceIDParser{context_impl->get_device_name()}.get_device_id();
-#ifdef GPU_DEBUG_CONFIG
-    cldnn::instrumentation::mem_usage_logger::set_active_device_id(device_id);
-    cldnn::instrumentation::mem_usage_logger::set_active_sub_device_idx(context_impl->get_device().get_info().sub_device_idx);
-#endif
+    GPU_DEBUG_SET_ACTIVE_DEVICE(device_id);
+    GPU_DEBUG_SET_ACTIVE_SUB_DEVICE(context_impl->get_device().get_info().sub_device_idx);
 
     OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] compile_model: Couldn't find config for GPU with id ", device_id);
 
@@ -391,13 +382,9 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model, const ov::AnyMap& config) const {
     std::string device_id = get_device_id(config);
-#ifdef GPU_DEBUG_CONFIG
-    cldnn::instrumentation::mem_usage_logger::set_active_device_id(device_id);
-#endif
     auto context = get_default_context(device_id);
-#ifdef GPU_DEBUG_CONFIG
-    cldnn::instrumentation::mem_usage_logger::set_active_sub_device_idx(context->get_device().get_info().sub_device_idx);
-#endif
+    GPU_DEBUG_SET_ACTIVE_DEVICE(device_id);
+    GPU_DEBUG_SET_ACTIVE_SUB_DEVICE(context->get_device().get_info().sub_device_idx);
     return import_model(model, { context, nullptr }, config);
 }
 
@@ -410,10 +397,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     context_impl->initialize();
 
     auto device_id = ov::DeviceIDParser{context_impl->get_device_name()}.get_device_id();
-#ifdef GPU_DEBUG_CONFIG
-    cldnn::instrumentation::mem_usage_logger::set_active_device_id(device_id);
-    cldnn::instrumentation::mem_usage_logger::set_active_sub_device_idx(context_impl->get_device().get_info().sub_device_idx);
-#endif
+    GPU_DEBUG_SET_ACTIVE_DEVICE(device_id);
+    GPU_DEBUG_SET_ACTIVE_SUB_DEVICE(context_impl->get_device().get_info().sub_device_idx);
 
     // check ov::loaded_from_cache property and erase it due to not needed any more.
     auto _orig_config = orig_config;
