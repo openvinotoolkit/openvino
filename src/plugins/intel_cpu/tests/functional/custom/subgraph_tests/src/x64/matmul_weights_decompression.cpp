@@ -308,7 +308,7 @@ std::vector<ov::AnyMap> filter_additional_config_dyn_quant_bf16() {
     // adjusting the decompression chain to bf16; the test should not pre-bake bf16
     // into the IR.
     std::vector<ov::AnyMap> additional_config = {};
-    if (ov::with_cpu_x86_bfloat16() && ov::with_cpu_x86_avx512_core_vnni() && !ov::with_cpu_x86_avx512_core_amx()) {
+    if (ov::with_cpu_x86_bfloat16() && !ov::with_cpu_x86_avx512_core_amx()) {
         additional_config = {
             {ov::hint::dynamic_quantization_group_size(0), ov::hint::inference_precision(ov::element::bf16)},
             {ov::hint::dynamic_quantization_group_size(16), ov::hint::inference_precision(ov::element::bf16)},
