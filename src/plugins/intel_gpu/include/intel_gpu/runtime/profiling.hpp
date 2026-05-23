@@ -248,9 +248,9 @@ public:
                               " KB (current RSS: " + std::to_string(_after.rss) +
                               " KB; peak RSS: " + std::to_string(_after.peak_rss) + " KB)";
 
-        int64_t vram_local_used = get_gpu_dedicated_vram_used_kb();
-        if (vram_local_used >= 0) {
-            log_msg += ", (local_used : " + std::to_string(vram_local_used) + " KB)";
+        int64_t gpu_vram_used = get_gpu_dedicated_vram_used_kb();
+        if (gpu_vram_used >= 0) {
+            log_msg += ", (gpu_vram_used : " + std::to_string(gpu_vram_used) + " KB)";
         }
 
         GPU_DEBUG_LOG << log_msg << std::endl;
@@ -317,7 +317,7 @@ public:
         }
 
         // Query VRAM usage for selected tile node when available, otherwise across all nodes.
-        int64_t total_local_used = 0;
+        int64_t total_vram_used = 0;
         const int KiB = 1024;
 
         const int active_sub_device_idx = get_active_sub_device_index().load();
@@ -332,11 +332,11 @@ public:
         int nodeId = 0;
         DXGI_QUERY_VIDEO_MEMORY_INFO info;
         while (S_OK == selected_adapter->QueryVideoMemoryInfo(nodeId, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &info)) {
-            total_local_used += info.CurrentUsage / KiB;
+            total_vram_used += info.CurrentUsage / KiB;
             nodeId++;
         }
 
-        return total_local_used;
+        return total_vram_used;
 #else
         return -1;  // Not available on non-Windows platforms
 #endif
