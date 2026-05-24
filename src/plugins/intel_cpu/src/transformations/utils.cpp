@@ -92,11 +92,7 @@ bool match_acl_int8_conv_fq_chain(const std::shared_ptr<const ov::Node>& node) {
 }
 
 bool match_acl_int8_conv_swish_fq_chain(const std::shared_ptr<const ov::Node>& node) {
-    if (!node) {
-        return false;
-    }
-    if (!ov::is_type<const ov::op::v0::FakeQuantize>(node) ||
-        !any_of(node->get_output_element_type(0), ov::element::Type_t::u8, ov::element::Type_t::i8)) {
+    if (!node || !ov::is_type<const ov::op::v0::FakeQuantize>(node)) {
         return false;
     }
 
@@ -115,7 +111,10 @@ bool match_acl_int8_conv_swish_fq_chain(const std::shared_ptr<const ov::Node>& n
     const auto& pattern_map = matcher.get_pattern_value_map();
     const auto conv_node = pattern_map.at(conv).get_node_shared_ptr();
 
-    return conv_node->get_input_element_type(1) == ov::element::Type_t::i8;
+    return any_of(conv_node->get_input_element_type(0), 
+                    ov::element::Type_t::i8,
+                    ov::element::Type_t::u8) &&
+            conv_node->get_input_element_type(1)== ov::element::Type_t::i8;
 }
 
 bool match_conv_stride_oc_ic_limit(const std::shared_ptr<const ov::Node>& node,
