@@ -7,6 +7,13 @@
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 
+// Forward declaration of the opaque VM runtime handle. The actual definition lives in
+// <intel_npu/runtime/npu_vm_runtime.hpp> and is included by translation units that need
+// to dereference / call into the VM runtime. Keeping it forward-declared here avoids
+// pulling the VM headers into every consumer of the IGraph interface.
+struct _npu_vm_runtime_handle_t;
+using npu_vm_runtime_handle_t = struct _npu_vm_runtime_handle_t*;
+
 namespace intel_npu {
 
 class IDynamicGraph : public IGraph {
@@ -60,13 +67,9 @@ public:
     IDynamicGraph() = default;
     ~IDynamicGraph() override = default;
 
-    virtual void execute(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                         GraphArguments& args,
-                         std::vector<ze_command_list_handle_t>& commandLists,
-                         ze_command_queue_handle_t commandQueue,
-                         ze_fence_handle_t inferenceFence,
-                         ze_event_handle_t event,
-                         ze_graph_profiling_pool_handle_t profiling);
+    /// Return the VM runtime engine handle backing this graph, or nullptr if none.
+    /// Used by the pipeline to drive @c npuVMRuntimeExecute directly.
+    virtual npu_vm_runtime_handle_t get_vm_runtime_handle() const;
 
     virtual void getBinding(GraphArguments& args);
 
