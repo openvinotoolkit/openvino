@@ -33,8 +33,6 @@ public:
         virtual uint64_t getNumSubgraphs() = 0;
         virtual void getBinding(GraphArguments& binding) = 0;
         virtual npu_vm_runtime_handle_t getVmRuntimeHandle() const = 0;
-        virtual void predictOutputShape(std::vector<MemRefType>& inputDescriptors,
-                                        std::vector<MemRefType>& outputDescriptors) = 0;
         virtual ~Impl() {};
     };
 
@@ -76,9 +74,6 @@ public:
     npu_vm_runtime_handle_t get_vm_runtime_handle() const override;
 
     uint64_t get_num_subgraphs() const override;
-
-    void predict_output_shape(std::vector<MemRefType>& inputDescriptors,
-                              std::vector<MemRefType>& outputDescriptors) override;
 
     std::optional<bool> is_profiling_blob() const override;
 

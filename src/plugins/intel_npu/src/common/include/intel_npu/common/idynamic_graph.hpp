@@ -74,9 +74,6 @@ public:
     virtual void getBinding(GraphArguments& args);
 
     virtual uint64_t get_num_subgraphs() const;
-
-    virtual void predict_output_shape(std::vector<MemRefType>& inputDescriptors,
-                                      std::vector<MemRefType>& outputDescriptors);
 };
 
 }  // namespace intel_npu

@@ -97,6 +97,9 @@ public:
                                 size_t batch_index,
                                 const std::shared_ptr<ov::ITensor>& userTensor = nullptr) override;
 
+    void predict_output_shape(std::vector<IDynamicGraph::MemRefType>& inputs,
+                              std::vector<IDynamicGraph::MemRefType>& outputs) override;
+
 private:
     void execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
                             IDynamicGraph::GraphArguments& args,
