@@ -71,8 +71,6 @@ public:
     /// Used by the pipeline to drive @c npuVMRuntimeExecute directly.
     virtual npu_vm_runtime_handle_t get_vm_runtime_handle() const;
 
-    virtual void getBinding(GraphArguments& args);
-
     virtual uint64_t get_num_subgraphs() const;
 };
 

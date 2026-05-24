@@ -154,10 +154,6 @@ npu_vm_runtime_handle_t IDynamicGraph::get_vm_runtime_handle() const {
     return nullptr;
 }
 
-void IDynamicGraph::getBinding(GraphArguments&) {
-    OPENVINO_THROW("getBinding not implemented");
-}
-
 uint64_t IDynamicGraph::get_num_subgraphs() const {
     OPENVINO_THROW("get_num_subgraphs not implemented");
 }

@@ -26,12 +26,7 @@ public:
 
     public:
         virtual void initialize(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata) = 0;
-        virtual void setArgumentValue(uint32_t argi, const void* argv) = 0;
-        virtual void setArgumentValueWithStrides(uint32_t argi,
-                                                 const void* argv,
-                                                 const std::vector<size_t>& strides) = 0;
         virtual uint64_t getNumSubgraphs() = 0;
-        virtual void getBinding(GraphArguments& binding) = 0;
         virtual npu_vm_runtime_handle_t getVmRuntimeHandle() const = 0;
         virtual ~Impl() {};
     };
@@ -42,12 +37,6 @@ public:
                  const FilteredConfig& config);
 
     std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
-
-    void set_argument_value(uint32_t argi, const void* argv) const override;
-
-    void set_argument_value_with_strides(uint32_t id,
-                                         const void* data,
-                                         const std::vector<size_t>& strides) const override;
 
     ze_graph_handle_t get_handle() const override;
 
@@ -68,8 +57,6 @@ public:
     uint32_t get_unique_id() override;
     void set_last_submitted_id(uint32_t id_index) override;
     uint32_t get_last_submitted_id() const override;
-
-    void getBinding(GraphArguments& args) override;
 
     npu_vm_runtime_handle_t get_vm_runtime_handle() const override;
 

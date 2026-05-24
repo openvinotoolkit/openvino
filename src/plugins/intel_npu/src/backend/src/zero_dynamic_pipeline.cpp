@@ -86,7 +86,7 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
     for (size_t i = 0; i < _batch_size; i++) {
         _logger.debug("DynamicPipeline - set args for command list number: %zu", i);
 
-        _command_lists.at(i)->bind(dynamicGraph);
+        _command_lists.at(i)->bind(_graph->get_metadata());
         auto& graphArguments = _command_lists.at(i)->getBinding();
 
         size_t io_index = 0;
@@ -99,15 +99,6 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
             if (input_tensors.at(io_index).size() > 1) {
                 _logger.debug("DynamicPipeline - set args for input index: %zu", io_index);
                 const auto& tensor = input_tensors.at(io_index).at(i);
-                if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() ||
-                    tensor->get_strides().empty()) {
-                    dynamicGraph->set_argument_value(desc.indexUsedByDriver, tensor->data());
-                } else {
-                    dynamicGraph->set_argument_value_with_strides(
-                        desc.indexUsedByDriver,
-                        tensor->data(),
-                        get_strides(tensor->get_strides(), tensor->get_element_type().size()));
-                }
                 size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
                 graphArguments.setArgumentProperties(desc.indexUsedByDriver,
                                                      tensor->data(),
@@ -121,19 +112,12 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
             const auto& tensor = input_tensors.at(io_index).at(0);
             size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
             if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
-                dynamicGraph->set_argument_value(
-                    desc.indexUsedByDriver,
-                    static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_byte_size()) / _batch_size);
                 graphArguments.setArgumentProperties(
                     desc.indexUsedByDriver,
                     static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_byte_size()) / _batch_size,
                     tensor->get_shape(),
                     get_strides(tensor->get_strides(), elementSize));
             } else {
-                dynamicGraph->set_argument_value_with_strides(
-                    desc.indexUsedByDriver,
-                    static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
-                    get_strides(tensor->get_strides(), tensor->get_element_type().size()));
                 graphArguments.setArgumentProperties(
                     desc.indexUsedByDriver,
                     static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
@@ -149,20 +133,12 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
             const auto& tensor = output_tensors.at(io_index);
             size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
             if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
-                dynamicGraph->set_argument_value(
-                    desc.indexUsedByDriver,
-                    static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_byte_size()) / _batch_size);
                 graphArguments.setArgumentProperties(
                     desc.indexUsedByDriver,
                     static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_byte_size()) / _batch_size,
                     tensor->get_shape(),
                     get_strides(tensor->get_strides(), elementSize));
             } else {
-                dynamicGraph->set_argument_value_with_strides(
-                    desc.indexUsedByDriver,
-                    static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
-                    get_strides(tensor->get_strides(), elementSize));
-
                 graphArguments.setArgumentProperties(
                     desc.indexUsedByDriver,
                     static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),

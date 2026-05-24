@@ -5,6 +5,7 @@
 #pragma once
 
 #include "intel_npu/common/idynamic_graph.hpp"
+#include "intel_npu/common/network_metadata.hpp"
 #include "zero_pipeline.hpp"
 
 namespace intel_npu {
@@ -36,8 +37,11 @@ class DynamicPipeline final : public IPipeline {
             return _commandListHandles.data();
         }
 
-        void bind(IDynamicGraph* graph) {
-            graph->getBinding(_binding);
+        /// Allocate per-IO MemRef slots driven by the network metadata. The pipeline ctor fills
+        /// each slot's data/shape/strides via setArgumentProperties; this just sizes the vectors.
+        void bind(const NetworkMetadata& metadata) {
+            _binding._inputs.assign(metadata.inputs.size(), {});
+            _binding._outputs.assign(metadata.outputs.size(), {});
         }
 
         std::vector<ze_command_list_handle_t>& getHandles() {
