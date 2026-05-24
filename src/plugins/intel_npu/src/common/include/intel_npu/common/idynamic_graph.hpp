@@ -57,7 +57,6 @@ public:
         std::vector<MemRefType> _outputs;
         std::shared_ptr<void> _impl;
 
-        void setArgumentValue(uint32_t argi, const void* argv);
         void setArgumentProperties(uint32_t argi,
                                    const void* argv,
                                    const ov::Shape& shapes,

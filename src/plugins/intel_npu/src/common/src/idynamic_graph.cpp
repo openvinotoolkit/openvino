@@ -117,35 +117,34 @@ std::string IDynamicGraph::MemRefType::toString() {
     return stream.str();
 }
 
-void IDynamicGraph::GraphArguments::setArgumentValue(uint32_t argi, const void* argv) {
-    if (argi < _inputs.size()) {
-        _inputs[argi]._basePtr = _inputs[argi]._data = const_cast<void*>(argv);
-    } else {
-        auto idx = argi - _inputs.size();
-        if (idx < _outputs.size()) {
-            _outputs[idx]._basePtr = _outputs[idx]._data = const_cast<void*>(argv);
-        }
-    }
-}
-
 void IDynamicGraph::GraphArguments::setArgumentProperties(uint32_t argi,
                                                           const void* argv,
                                                           const ov::Shape& sizes,
                                                           const std::vector<size_t>& strides) {
-    if (argi < _inputs.size()) {
-        _inputs[argi]._basePtr = _inputs[argi]._data = const_cast<void*>(argv);
-        for (int64_t i = 0; i < _inputs[argi]._dimsCount; i++) {
-            _inputs[argi]._sizes[i] = sizes[i];
-            _inputs[argi]._strides[i] = strides[i];
+    auto assign_slot = [&](MemRefType& slot) {
+        slot._basePtr = slot._data = const_cast<void*>(argv);
+        if (slot._dimsCount == 0) {
+            slot._dimsCount = static_cast<int64_t>(sizes.size());
+            slot._sizes.resize(sizes.size());
+            slot._strides.resize(strides.size());
+        } else if (slot._dimsCount != static_cast<int64_t>(sizes.size())) {
+            OPENVINO_THROW("Dimension count mismatch. Current dimension count: ",
+                           slot._dimsCount,
+                           ", new dimension count: ",
+                           sizes.size());
         }
+        for (int64_t i = 0; i < slot._dimsCount; i++) {
+            slot._sizes[i] = static_cast<int64_t>(sizes[i]);
+            slot._strides[i] = static_cast<int64_t>(strides[i]);
+        }
+    };
+
+    if (argi < _inputs.size()) {
+        assign_slot(_inputs[argi]);
     } else {
         auto idx = argi - _inputs.size();
         if (idx < _outputs.size()) {
-            _outputs[idx]._basePtr = _outputs[idx]._data = const_cast<void*>(argv);
-            for (int64_t i = 0; i < _outputs[idx]._dimsCount; i++) {
-                _outputs[idx]._sizes[i] = sizes[i];
-                _outputs[idx]._strides[i] = strides[i];
-            }
+            assign_slot(_outputs[idx]);
         }
     }
 }
