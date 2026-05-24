@@ -1,9 +1,10 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-//
 
-#include "intel_npu/common/idynamic_graph.hpp"
+#include "intel_npu/common/graph_arguments.hpp"
+
+#include <sstream>
 
 #include "openvino/core/except.hpp"
 

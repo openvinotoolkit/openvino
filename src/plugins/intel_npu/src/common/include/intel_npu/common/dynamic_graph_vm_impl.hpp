@@ -7,7 +7,7 @@
 #include <memory>
 #include <vector>
 
-#include "intel_npu/common/idynamic_graph.hpp"
+#include "intel_npu/common/graph_arguments.hpp"
 #include "intel_npu/utils/vm/npu_vm_runtime_api.hpp"
 #include "openvino/core/except.hpp"
 

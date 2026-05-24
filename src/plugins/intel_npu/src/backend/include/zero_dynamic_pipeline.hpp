@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "intel_npu/common/idynamic_graph.hpp"
+#include "intel_npu/common/graph_arguments.hpp"
 #include "intel_npu/common/network_metadata.hpp"
 #include "zero_pipeline.hpp"
 

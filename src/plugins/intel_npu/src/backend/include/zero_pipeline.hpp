@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "intel_npu/common/idynamic_graph.hpp"
+#include "intel_npu/common/graph_arguments.hpp"
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/utils/zero/zero_tensor.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
