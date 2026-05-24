@@ -28,6 +28,14 @@ std::optional<std::string_view> IGraph::get_compatibility_descriptor() const {
     OPENVINO_THROW("get_compatibility_descriptor not implemented");
 }
 
+npu_vm_runtime_handle_t IGraph::get_vm_runtime_handle() const {
+    return nullptr;
+}
+
+uint64_t IGraph::get_num_subgraphs() const {
+    return 1;
+}
+
 void IGraph::initialize(const FilteredConfig& config) {
     std::lock_guard<std::mutex> lock(_initialize_mutex);
 

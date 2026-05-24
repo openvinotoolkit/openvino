@@ -56,9 +56,6 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
 
     _logger.debug("DynamicPipeline - initialization started, batch size: %i", _batch_size);
 
-    intel_npu::IDynamicGraph* dynamicGraph = dynamic_cast<intel_npu::IDynamicGraph*>(graph.get());
-    OPENVINO_ASSERT(dynamicGraph != nullptr, "Failed to cast graph to IDynamicGraph");
-
     if (!_sync_output_with_fences) {
         _event_pool = std::make_shared<EventPool>(_init_structs, _batch_size ? static_cast<uint32_t>(_batch_size) : 1);
 
@@ -69,7 +66,7 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
     }
     _logger.debug("DynamicPipeline - event pool and command queue setup completed");
 
-    uint64_t num_of_subgraphs = dynamicGraph->get_num_subgraphs();
+    uint64_t num_of_subgraphs = graph->get_num_subgraphs();
 
     _command_lists.reserve(_batch_size);
     for (size_t i = 0; i < _batch_size; i++) {
@@ -154,10 +151,7 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
 void DynamicPipeline::push() {
     _logger.debug("push - started");
 
-    auto* dynamicGraph = dynamic_cast<IDynamicGraph*>(_graph.get());
-    OPENVINO_ASSERT(dynamicGraph != nullptr, "Failed to cast graph to IDynamicGraph");
-
-    const npu_vm_runtime_handle_t vmRuntime = dynamicGraph->get_vm_runtime_handle();
+    const npu_vm_runtime_handle_t vmRuntime = _graph->get_vm_runtime_handle();
     OPENVINO_ASSERT(vmRuntime != nullptr, "DynamicPipeline requires a valid VM runtime engine");
 
     const auto command_queue_desc = _graph->get_command_queue_desc();
@@ -202,7 +196,7 @@ void DynamicPipeline::push() {
 }
 
 void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
-                                         IDynamicGraph::GraphArguments& args,
+                                         GraphArguments& args,
                                          std::vector<ze_command_list_handle_t>& commandLists,
                                          ze_command_queue_handle_t commandQueue,
                                          ze_fence_handle_t fence,
@@ -295,14 +289,11 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
     _logger.debug("execute_vm_runtime - completed");
 }
 
-void DynamicPipeline::predict_output_shape(std::vector<IDynamicGraph::MemRefType>& inputDescriptors,
-                                           std::vector<IDynamicGraph::MemRefType>& outputDescriptors) {
+void DynamicPipeline::predict_output_shape(std::vector<MemRefType>& inputDescriptors,
+                                           std::vector<MemRefType>& outputDescriptors) {
     _logger.debug("predict_output_shape - started");
 
-    auto* dynamicGraph = dynamic_cast<IDynamicGraph*>(_graph.get());
-    OPENVINO_ASSERT(dynamicGraph != nullptr, "predict_output_shape requires an IDynamicGraph");
-
-    const npu_vm_runtime_handle_t vmRuntime = dynamicGraph->get_vm_runtime_handle();
+    const npu_vm_runtime_handle_t vmRuntime = _graph->get_vm_runtime_handle();
     OPENVINO_ASSERT(vmRuntime != nullptr, "predict_output_shape requires a valid VM runtime engine");
 
     std::vector<npu_vm_runtime_mem_ref_handle_t> inputs;

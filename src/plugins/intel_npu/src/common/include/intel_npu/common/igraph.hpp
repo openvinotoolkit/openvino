@@ -16,6 +16,13 @@
 #include "openvino/runtime/profiling_info.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
+// Forward declaration of the opaque VM runtime handle. The actual definition lives in
+// <intel_npu/runtime/npu_vm_runtime.hpp> and is included by translation units that need
+// to dereference / call into the VM runtime. Keeping it forward-declared here avoids
+// pulling the VM headers into every consumer of the IGraph interface.
+struct _npu_vm_runtime_handle_t;
+using npu_vm_runtime_handle_t = struct _npu_vm_runtime_handle_t*;
+
 namespace intel_npu {
 
 class IGraph : public std::enable_shared_from_this<IGraph> {
@@ -76,6 +83,14 @@ public:
     virtual std::optional<bool> is_profiling_blob() const = 0;
 
     virtual std::optional<std::string_view> get_compatibility_descriptor() const;
+
+    /// Return the VM-runtime engine handle backing this graph, or nullptr if the graph does
+    /// not use the VM-runtime (e.g. static driver-only graphs). Used by the dynamic pipeline
+    /// to drive @c npuVMRuntimeExecute.
+    virtual npu_vm_runtime_handle_t get_vm_runtime_handle() const;
+
+    /// Return the number of subgraphs this graph contains. Defaults to 1 for static graphs.
+    virtual uint64_t get_num_subgraphs() const;
 
 protected:
     virtual void initialize_impl(const FilteredConfig& config);

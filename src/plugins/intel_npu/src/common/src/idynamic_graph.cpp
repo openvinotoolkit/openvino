@@ -9,11 +9,11 @@
 
 namespace intel_npu {
 
-void IDynamicGraph::MemRefType::setArg(const void* arg) {
+void MemRefType::setArg(const void* arg) {
     _basePtr = _data = arg;
 }
 
-void IDynamicGraph::MemRefType::setSize(const ov::Shape& shape) {
+void MemRefType::setSize(const ov::Shape& shape) {
     // Note: check difference between shape from compiler and shape from IR.
     if (_dimsCount == 0) {
         _dimsCount = static_cast<uint32_t>(shape.size());
@@ -31,7 +31,7 @@ void IDynamicGraph::MemRefType::setSize(const ov::Shape& shape) {
     }
 }
 
-void IDynamicGraph::MemRefType::setStrides(const ov::Strides& strides, int32_t elementSize) {
+void MemRefType::setStrides(const ov::Strides& strides, int32_t elementSize) {
     if (_dimsCount == 0) {
         OPENVINO_THROW("Dimension count is zero, shall call setSize before setStrides");
     } else if (_dimsCount != static_cast<int64_t>(strides.size())) {
@@ -46,7 +46,7 @@ void IDynamicGraph::MemRefType::setStrides(const ov::Strides& strides, int32_t e
     }
 }
 
-void IDynamicGraph::MemRefType::set(const void* arg, int64_t offset, std::shared_ptr<ov::ITensor> tensor) {
+void MemRefType::set(const void* arg, int64_t offset, std::shared_ptr<ov::ITensor> tensor) {
     _basePtr = _data = arg;
     _offset = offset;
     if (_dimsCount == 0) {
@@ -71,7 +71,7 @@ void IDynamicGraph::MemRefType::set(const void* arg, int64_t offset, std::shared
     }
 }
 
-void IDynamicGraph::MemRefType::updateStride() {
+void MemRefType::updateStride() {
     // Note: NCHW layout style
     uint64_t stride = 1;
     for (int64_t i = _dimsCount - 1; i >= 0; --i) {
@@ -81,7 +81,7 @@ void IDynamicGraph::MemRefType::updateStride() {
 }
 
 // The comparision only checks shape and strides now
-bool IDynamicGraph::MemRefType::compare(const IDynamicGraph::MemRefType& memref) {
+bool MemRefType::compare(const MemRefType& memref) {
     if (memref._dimsCount != _dimsCount || _sizes.size() != memref._sizes.size() ||
         _strides.size() != memref._strides.size())
         return false;
@@ -96,7 +96,7 @@ bool IDynamicGraph::MemRefType::compare(const IDynamicGraph::MemRefType& memref)
     return true;
 }
 
-std::ostream& operator<<(std::ostream& os, const IDynamicGraph::MemRefType& memRef) {
+std::ostream& operator<<(std::ostream& os, const MemRefType& memRef) {
     os << "BasePtr: " << memRef._basePtr << ", Data: " << memRef._data << ", Offset: " << memRef._offset
        << ", Sizes: [";
     for (int64_t size : memRef._sizes) {
@@ -111,16 +111,16 @@ std::ostream& operator<<(std::ostream& os, const IDynamicGraph::MemRefType& memR
     return os;
 }
 
-std::string IDynamicGraph::MemRefType::toString() {
+std::string MemRefType::toString() {
     std::stringstream stream;
     stream << *this;
     return stream.str();
 }
 
-void IDynamicGraph::GraphArguments::setArgumentProperties(uint32_t argi,
-                                                          const void* argv,
-                                                          const ov::Shape& sizes,
-                                                          const std::vector<size_t>& strides) {
+void GraphArguments::setArgumentProperties(uint32_t argi,
+                                           const void* argv,
+                                           const ov::Shape& sizes,
+                                           const std::vector<size_t>& strides) {
     auto assign_slot = [&](MemRefType& slot) {
         slot._basePtr = slot._data = const_cast<void*>(argv);
         if (slot._dimsCount == 0) {
@@ -147,14 +147,6 @@ void IDynamicGraph::GraphArguments::setArgumentProperties(uint32_t argi,
             assign_slot(_outputs[idx]);
         }
     }
-}
-
-npu_vm_runtime_handle_t IDynamicGraph::get_vm_runtime_handle() const {
-    return nullptr;
-}
-
-uint64_t IDynamicGraph::get_num_subgraphs() const {
-    OPENVINO_THROW("get_num_subgraphs not implemented");
 }
 
 }  // namespace intel_npu

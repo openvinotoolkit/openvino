@@ -16,7 +16,7 @@
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace intel_npu {
-class DynamicGraph final : public IDynamicGraph {
+class DynamicGraph final : public IGraph {
 public:
     using MemRefTypeImpl = DynamicGraphMemRefImpl;
     using GraphArgumentsImpl = DynamicGraphArgumentsImpl;

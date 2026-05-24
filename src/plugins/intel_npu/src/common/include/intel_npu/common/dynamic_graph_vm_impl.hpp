@@ -14,7 +14,7 @@
 namespace intel_npu {
 
 /**
- * @brief Implementation of the opaque @c _impl carried by @ref IDynamicGraph::MemRefType.
+ * @brief Implementation of the opaque @c _impl carried by @ref MemRefType.
  * @details Wraps a VM-runtime MemRef handle and tracks whether the host-side description
  * changed since the last sync to the device.
  *
@@ -35,16 +35,16 @@ struct DynamicGraphMemRefImpl {
     }
 
     /// Push the latest host-side description into the underlying VM MemRef and record what changed.
-    void updateMemRefHandleStatus(IDynamicGraph::MemRefType& memref) {
+    void updateMemRefHandleStatus(MemRefType& memref) {
         if (_memRef == nullptr) {
             createMemRef(memref._dimsCount);
         } else {
-            IDynamicGraph::MemRefType tempMemRef(memref._basePtr,
-                                                 memref._data,
-                                                 memref._offset,
-                                                 memref._sizes,
-                                                 memref._strides,
-                                                 memref._dimsCount);
+            MemRefType tempMemRef(memref._basePtr,
+                                  memref._data,
+                                  memref._offset,
+                                  memref._sizes,
+                                  memref._strides,
+                                  memref._dimsCount);
             alignWithHandle(tempMemRef);
 
             _ptrUpdated = (memref._basePtr != tempMemRef._basePtr || memref._data != tempMemRef._data ||
@@ -65,7 +65,7 @@ struct DynamicGraphMemRefImpl {
     }
 
     /// Read the description currently stored in the VM MemRef back into @p memref.
-    void alignWithHandle(IDynamicGraph::MemRefType& memref) {
+    void alignWithHandle(MemRefType& memref) {
         if (_memRef == nullptr) {
             return;
         }
@@ -99,7 +99,7 @@ private:
 };
 
 /**
- * @brief Implementation of the opaque @c _impl carried by @ref IDynamicGraph::GraphArguments.
+ * @brief Implementation of the opaque @c _impl carried by @ref GraphArguments.
  * @details Owns the VM execution context and the flattened MemRef-handle arrays used by
  * @c npuVMRuntimeExecute. The execution context is created lazily by the pipeline on the
  * first execute call and destroyed when this struct is destroyed.

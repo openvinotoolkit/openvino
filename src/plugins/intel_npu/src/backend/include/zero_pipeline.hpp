@@ -39,8 +39,8 @@ public:
 
     /// Run VM-runtime output shape prediction for dynamic pipelines.
     /// Default no-op so static pipelines need not implement it.
-    virtual void predict_output_shape(std::vector<IDynamicGraph::MemRefType>& /*inputs*/,
-                                      std::vector<IDynamicGraph::MemRefType>& /*outputs*/) {}
+    virtual void predict_output_shape(std::vector<MemRefType>& /*inputs*/,
+                                      std::vector<MemRefType>& /*outputs*/) {}
 
     std::vector<ov::ProfilingInfo> get_profiling_info() const;
 

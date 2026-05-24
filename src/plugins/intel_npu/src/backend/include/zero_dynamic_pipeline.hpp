@@ -12,7 +12,7 @@ namespace intel_npu {
 
 class DynamicPipeline final : public IPipeline {
     struct PipelinedCommandLists {
-        mutable IDynamicGraph::GraphArguments _binding;
+        mutable GraphArguments _binding;
 
         std::vector<std::unique_ptr<CommandList>> _commandLists;
         // Store command list handles to pass it to ExecutionEngine
@@ -48,7 +48,7 @@ class DynamicPipeline final : public IPipeline {
             return _commandListHandles;
         }
 
-        IDynamicGraph::GraphArguments& getBinding() {
+        GraphArguments& getBinding() {
             return _binding;
         }
 
@@ -101,12 +101,12 @@ public:
                                 size_t batch_index,
                                 const std::shared_ptr<ov::ITensor>& userTensor = nullptr) override;
 
-    void predict_output_shape(std::vector<IDynamicGraph::MemRefType>& inputs,
-                              std::vector<IDynamicGraph::MemRefType>& outputs) override;
+    void predict_output_shape(std::vector<MemRefType>& inputs,
+                              std::vector<MemRefType>& outputs) override;
 
 private:
     void execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
-                            IDynamicGraph::GraphArguments& args,
+                            GraphArguments& args,
                             std::vector<ze_command_list_handle_t>& commandLists,
                             ze_command_queue_handle_t commandQueue,
                             ze_fence_handle_t fence,
