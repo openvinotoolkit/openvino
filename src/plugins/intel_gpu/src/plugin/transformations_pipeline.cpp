@@ -126,6 +126,7 @@
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 #include "transformations/common_optimizations/mvn_fusion.hpp"
 #include "transformations/common_optimizations/convert_tiled_moe_block_to_gather_matmuls.hpp"
+#include "transformations/op_conversions/convert_grouped_matmul_to_gather_matmul.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/rms_fusion.hpp"
 #include "transformations/common_optimizations/sdpa_scale_fusion.hpp"
@@ -549,6 +550,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // MOE: TiledMoeBlock -> GatherMatmuls(compressed) -> MoeOp(compressed) -> MoeOpWithRouting(compressed).
         // Gated on supports_immad: GatherMatmul backend is systolic-only.
         if (device_info.supports_immad) {
+            // Convert public GroupedMatMul-17 into the internal GatherMatmul
+            // consumed by the GPU `gather_matmul` primitive. Must run before
+            // ConvertGatherMatmulToGatherMatmulCompressed below.
+            manager.register_pass<ov::pass::ConvertGroupedMatMulToGatherMatmul>();
             manager.register_pass<ov::pass::ConvertTiledMoeBlockToGatherMatmuls>();
 
             // f32 listed because this pass runs before ConvertPrecision (line ~588);
@@ -1481,6 +1486,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 ov::op::v1::Transpose::get_type_info_static(),
             };
             manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMovScalar>(allowed_data_movement_ops);
+            manager.register_pass<ov::pass::SharedOpOptimization>();
             manager.register_pass<ov::pass::Validate>();
         }
 

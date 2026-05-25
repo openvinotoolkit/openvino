@@ -287,6 +287,9 @@ REGISTER_FACTORY(v16, OneHot);
 REGISTER_FACTORY(v16, Identity);
 REGISTER_FACTORY(v16, SegmentMax);
 
+// ------------------------------ Supported v17 ops ----------------------------- //
+REGISTER_FACTORY(v17, ErfInv);
+
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);
 REGISTER_FACTORY(internal, GenerateProposalsIEInternal);
@@ -320,4 +323,5 @@ REGISTER_FACTORY(internal, MOE3GemmFusedCompressed);
 REGISTER_FACTORY(internal, MOECompressed);
 REGISTER_FACTORY(internal, GatedDeltaNet);
 REGISTER_FACTORY(internal, PagedCausalConv1D);
+REGISTER_FACTORY(internal, GatherMatmul);
 REGISTER_FACTORY(internal, GatherMatmulCompressed);

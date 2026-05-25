@@ -20,7 +20,7 @@ class TypePropGroupedMatMulTest : public TypePropOpTest<op::v17::GroupedMatMul> 
 
 TEST_F(TypePropGroupedMatMulTest, case1_2d_3d_basic) {
     const auto mat_a = std::make_shared<Parameter>(element::f32, PartialShape{16, 64});
-    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{3, 64, 128});
+    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{3, 128, 64});
     const auto offsets = std::make_shared<Parameter>(element::i32, PartialShape{3});
 
     const auto op = make_op(mat_a, mat_b, offsets);
@@ -32,7 +32,7 @@ TEST_F(TypePropGroupedMatMulTest, case1_2d_3d_basic) {
 
 TEST_F(TypePropGroupedMatMulTest, case1_2d_3d_dynamic_rows) {
     const auto mat_a = std::make_shared<Parameter>(element::f32, PartialShape{Dimension::dynamic(), 64});
-    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{3, 64, 128});
+    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{3, 128, 64});
     const auto offsets = std::make_shared<Parameter>(element::i32, PartialShape{3});
 
     const auto op = make_op(mat_a, mat_b, offsets);
@@ -44,7 +44,7 @@ TEST_F(TypePropGroupedMatMulTest, case1_2d_3d_dynamic_rows) {
 
 TEST_F(TypePropGroupedMatMulTest, case1_2d_3d_f16) {
     const auto mat_a = std::make_shared<Parameter>(element::f16, PartialShape{16, 64});
-    const auto mat_b = std::make_shared<Parameter>(element::f16, PartialShape{3, 64, 128});
+    const auto mat_b = std::make_shared<Parameter>(element::f16, PartialShape{3, 128, 64});
     const auto offsets = std::make_shared<Parameter>(element::i64, PartialShape{3});
 
     const auto op = make_op(mat_a, mat_b, offsets);
@@ -56,7 +56,7 @@ TEST_F(TypePropGroupedMatMulTest, case1_2d_3d_f16) {
 
 TEST_F(TypePropGroupedMatMulTest, case1_2d_3d_inner_dim_mismatch) {
     const auto mat_a = std::make_shared<Parameter>(element::f32, PartialShape{16, 64});
-    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{3, 32, 128});  // K=32 != 64
+    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{3, 128, 32});  // K=32 != 64
     const auto offsets = std::make_shared<Parameter>(element::i32, PartialShape{3});
 
     OV_EXPECT_THROW(std::ignore = make_op(mat_a, mat_b, offsets),
@@ -66,7 +66,7 @@ TEST_F(TypePropGroupedMatMulTest, case1_2d_3d_inner_dim_mismatch) {
 
 TEST_F(TypePropGroupedMatMulTest, case1_2d_3d_missing_offsets) {
     const auto mat_a = std::make_shared<Parameter>(element::f32, PartialShape{16, 64});
-    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{3, 64, 128});
+    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{3, 128, 64});
 
     OV_EXPECT_THROW(std::ignore = make_op(mat_a, mat_b),
                     ov::NodeValidationFailure,
@@ -77,7 +77,7 @@ TEST_F(TypePropGroupedMatMulTest, case1_2d_3d_missing_offsets) {
 
 TEST_F(TypePropGroupedMatMulTest, case2_3d_3d_basic) {
     const auto mat_a = std::make_shared<Parameter>(element::f32, PartialShape{3, 4, 64});
-    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{3, 64, 128});
+    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{3, 128, 64});
 
     const auto op = make_op(mat_a, mat_b);
     op->validate_and_infer_types();
@@ -88,7 +88,7 @@ TEST_F(TypePropGroupedMatMulTest, case2_3d_3d_basic) {
 
 TEST_F(TypePropGroupedMatMulTest, case2_3d_3d_bf16) {
     const auto mat_a = std::make_shared<Parameter>(element::bf16, PartialShape{8, 4, 512});
-    const auto mat_b = std::make_shared<Parameter>(element::bf16, PartialShape{8, 512, 2048});
+    const auto mat_b = std::make_shared<Parameter>(element::bf16, PartialShape{8, 2048, 512});
 
     const auto op = make_op(mat_a, mat_b);
     op->validate_and_infer_types();
@@ -99,7 +99,7 @@ TEST_F(TypePropGroupedMatMulTest, case2_3d_3d_bf16) {
 
 TEST_F(TypePropGroupedMatMulTest, case2_3d_3d_dynamic_batch) {
     const auto mat_a = std::make_shared<Parameter>(element::f32, PartialShape{Dimension::dynamic(), 4, 64});
-    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{Dimension::dynamic(), 64, 128});
+    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{Dimension::dynamic(), 128, 64});
 
     const auto op = make_op(mat_a, mat_b);
     op->validate_and_infer_types();
@@ -110,7 +110,7 @@ TEST_F(TypePropGroupedMatMulTest, case2_3d_3d_dynamic_batch) {
 
 TEST_F(TypePropGroupedMatMulTest, case2_3d_3d_batch_mismatch) {
     const auto mat_a = std::make_shared<Parameter>(element::f32, PartialShape{3, 4, 64});
-    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{5, 64, 128});
+    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{5, 128, 64});
 
     OV_EXPECT_THROW(std::ignore = make_op(mat_a, mat_b),
                     ov::NodeValidationFailure,
@@ -119,7 +119,7 @@ TEST_F(TypePropGroupedMatMulTest, case2_3d_3d_batch_mismatch) {
 
 TEST_F(TypePropGroupedMatMulTest, case2_3d_3d_inner_dim_mismatch) {
     const auto mat_a = std::make_shared<Parameter>(element::f32, PartialShape{3, 4, 64});
-    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{3, 32, 128});
+    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{3, 128, 32});
 
     OV_EXPECT_THROW(std::ignore = make_op(mat_a, mat_b),
                     ov::NodeValidationFailure,
@@ -130,7 +130,7 @@ TEST_F(TypePropGroupedMatMulTest, case2_3d_3d_inner_dim_mismatch) {
 
 TEST_F(TypePropGroupedMatMulTest, case3_2d_2d_basic) {
     const auto mat_a = std::make_shared<Parameter>(element::f32, PartialShape{64, 16});
-    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{16, 128});
+    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{128, 16});
     const auto offsets = std::make_shared<Parameter>(element::i32, PartialShape{3});
 
     const auto op = make_op(mat_a, mat_b, offsets);
@@ -142,7 +142,7 @@ TEST_F(TypePropGroupedMatMulTest, case3_2d_2d_basic) {
 
 TEST_F(TypePropGroupedMatMulTest, case3_2d_2d_dynamic_groups) {
     const auto mat_a = std::make_shared<Parameter>(element::f32, PartialShape{64, 16});
-    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{16, 128});
+    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{128, 16});
     const auto offsets = std::make_shared<Parameter>(element::i32, PartialShape{Dimension::dynamic()});
 
     const auto op = make_op(mat_a, mat_b, offsets);
@@ -154,7 +154,7 @@ TEST_F(TypePropGroupedMatMulTest, case3_2d_2d_dynamic_groups) {
 
 TEST_F(TypePropGroupedMatMulTest, case3_2d_2d_shared_dim_mismatch) {
     const auto mat_a = std::make_shared<Parameter>(element::f32, PartialShape{64, 16});
-    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{20, 128});  // 20 != 16
+    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{128, 20});  // 20 != 16
     const auto offsets = std::make_shared<Parameter>(element::i32, PartialShape{3});
 
     OV_EXPECT_THROW(std::ignore = make_op(mat_a, mat_b, offsets),
@@ -164,7 +164,7 @@ TEST_F(TypePropGroupedMatMulTest, case3_2d_2d_shared_dim_mismatch) {
 
 TEST_F(TypePropGroupedMatMulTest, case3_2d_2d_missing_offsets) {
     const auto mat_a = std::make_shared<Parameter>(element::f32, PartialShape{64, 16});
-    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{16, 128});
+    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{128, 16});
 
     OV_EXPECT_THROW(std::ignore = make_op(mat_a, mat_b),
                     ov::NodeValidationFailure,
@@ -184,7 +184,7 @@ TEST_F(TypePropGroupedMatMulTest, unsupported_ndim_combination) {
 
 TEST_F(TypePropGroupedMatMulTest, dtype_mismatch) {
     const auto mat_a = std::make_shared<Parameter>(element::f32, PartialShape{3, 4, 64});
-    const auto mat_b = std::make_shared<Parameter>(element::f16, PartialShape{3, 64, 128});
+    const auto mat_b = std::make_shared<Parameter>(element::f16, PartialShape{3, 128, 64});
 
     OV_EXPECT_THROW(std::ignore = make_op(mat_a, mat_b),
                     ov::NodeValidationFailure,
@@ -193,7 +193,7 @@ TEST_F(TypePropGroupedMatMulTest, dtype_mismatch) {
 
 TEST_F(TypePropGroupedMatMulTest, invalid_offsets_dtype) {
     const auto mat_a = std::make_shared<Parameter>(element::f32, PartialShape{16, 64});
-    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{3, 64, 128});
+    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{3, 128, 64});
     const auto offsets = std::make_shared<Parameter>(element::f32, PartialShape{3});
 
     OV_EXPECT_THROW(std::ignore = make_op(mat_a, mat_b, offsets),
@@ -203,7 +203,7 @@ TEST_F(TypePropGroupedMatMulTest, invalid_offsets_dtype) {
 
 TEST_F(TypePropGroupedMatMulTest, offsets_not_1d) {
     const auto mat_a = std::make_shared<Parameter>(element::f32, PartialShape{16, 64});
-    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{3, 64, 128});
+    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{3, 128, 64});
     const auto offsets = std::make_shared<Parameter>(element::i32, PartialShape{3, 2});  // 2D, not 1D
 
     OV_EXPECT_THROW(std::ignore = make_op(mat_a, mat_b, offsets),

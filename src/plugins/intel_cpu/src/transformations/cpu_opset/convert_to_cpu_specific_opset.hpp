@@ -34,6 +34,7 @@
 #include "transformations/op_conversions/convert_fc_to_compressed.hpp"
 #include "transformations/op_conversions/convert_fc_to_quantized_legacy.hpp"
 #include "transformations/op_conversions/convert_gather_matmul_to_compressed.hpp"
+#include "transformations/op_conversions/convert_grouped_matmul_to_gather_matmul.hpp"
 
 namespace ov::intel_cpu {
 
@@ -42,6 +43,10 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
 
     ov::pass::Manager manager("CPU:ConvertToCPUSpecificOpset");
     manager.set_per_pass_validation(false);
+
+    // Convert public GroupedMatMul-17 into the internal GatherMatmul
+    // Must run before the compression pass.
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertGroupedMatMulToGatherMatmul);
 
     // TransformMoeBlockToGatherMatmuls
     CPU_REGISTER_PASS_X64(manager, ov::pass::ConvertTiledMoeBlockToGatherMatmuls);

@@ -34,8 +34,9 @@ class TestGroupedMM(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
     def test_grouped_mm(self, kwargs_to_prepare_input, ie_device, precision, ir_version):
-        if ie_device == "GPU":
-            pytest.skip("_grouped_mm is not supported on GPU")
+        # GPU lowers GroupedMatMul only when B is a Constant (gather_matmul kernel needs constant weights).
+        if ie_device.startswith("GPU"):
+            pytest.skip("GPU requires constant weights for GroupedMatMul lowering")
         self._test(*self.create_model(), ie_device, precision, ir_version,
                    kwargs_to_prepare_input=kwargs_to_prepare_input,
                    trace_model=True)
@@ -70,8 +71,92 @@ class TestGroupedMMOffsets(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
     def test_grouped_mm_offs(self, kwargs_to_prepare_input, ie_device, precision, ir_version):
-        if ie_device == "GPU":
-            pytest.skip("_grouped_mm is not supported on GPU")
+        # GPU lowers GroupedMatMul only when B is a Constant (gather_matmul kernel needs constant weights).
+        if ie_device.startswith("GPU"):
+            pytest.skip("GPU requires constant weights for GroupedMatMul lowering")
         self._test(*self.create_model(), ie_device, precision, ir_version,
                    kwargs_to_prepare_input=kwargs_to_prepare_input,
+                   trace_model=True)
+
+
+class TestGroupedMMConstWeights(PytorchLayerTest):
+    """`torch._grouped_mm` with weights baked into the module as a buffer.
+
+    With the weights folded as a Constant in the IR, the CPU
+    `ConvertGroupedMatMulToGatherMatmul` pass can lower the op to the internal
+    `GatherMatmul` and the kernel `GatherMatmul::execute` should fire.
+    """
+
+    def _prepare_input(self, a_shape=(2, 3, 8)):
+        return (self.random.randn(*a_shape).astype("float32"),)
+
+    def create_model(self, b_shape=(2, 8, 16)):
+        import torch
+        b_np = self.random.randn(*b_shape).astype("float32")
+
+        class aten_grouped_mm_const_b(torch.nn.Module):
+            def __init__(self, b):
+                super().__init__()
+                self.register_buffer("b", torch.from_numpy(b))
+
+            def forward(self, a):
+                return torch._grouped_mm(a, self.b)
+
+        return aten_grouped_mm_const_b(b_np), "aten::_grouped_mm"
+
+    @pytest.mark.parametrize("a_shape,b_shape", [
+        ((2, 3, 8), (2, 8, 16)),
+        ((4, 1, 8), (4, 8, 8)),
+        ((1, 8, 16), (1, 16, 8)),
+        ((3, 7, 16), (3, 16, 8)),
+    ])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_grouped_mm_const_b(self, a_shape, b_shape, ie_device, precision, ir_version):
+        # GPU `gather_matmul` kernel is f16-only (DPAS).
+        if ie_device.startswith("GPU") and precision == "FP32":
+            pytest.skip("GPU gather_matmul kernel does not support f32 activations/weights")
+        self._test(*self.create_model(b_shape=b_shape), ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={"a_shape": a_shape},
+                   trace_model=True)
+
+
+class TestGroupedMMOffsetsConstWeights(PytorchLayerTest):
+    """`torch._grouped_mm` with `offs` and weights baked in as a buffer."""
+
+    def _prepare_input(self, total_tokens=24, offsets=(8, 16, 24), k=8):
+        import numpy as np
+        return (
+            self.random.randn(total_tokens, k).astype("float32"),
+            np.asarray(offsets, dtype=np.int32),
+        )
+
+    def create_model(self, k=8, n=8, num_groups=3):
+        import torch
+        b_np = self.random.randn(num_groups, k, n).astype("float32")
+
+        class aten_grouped_mm_offs_const_b(torch.nn.Module):
+            def __init__(self, b):
+                super().__init__()
+                self.register_buffer("b", torch.from_numpy(b))
+
+            def forward(self, a, offs):
+                return torch._grouped_mm(a, self.b, offs=offs)
+
+        return aten_grouped_mm_offs_const_b(b_np), "aten::_grouped_mm"
+
+    @pytest.mark.parametrize("total_tokens,k,n,offsets", [
+        (24, 8, 8, (8, 16, 24)),
+        (16, 16, 8, (8, 16)),
+        (8, 8, 16, (8,)),
+    ])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_grouped_mm_offs_const_b(self, total_tokens, k, n, offsets, ie_device, precision, ir_version):
+        # GPU `gather_matmul` kernel is f16-only (DPAS).
+        if ie_device.startswith("GPU") and precision == "FP32":
+            pytest.skip("GPU gather_matmul kernel does not support f32 activations/weights")
+        self._test(*self.create_model(k=k, n=n, num_groups=len(offsets)),
+                   ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={"total_tokens": total_tokens, "offsets": offsets, "k": k},
                    trace_model=True)

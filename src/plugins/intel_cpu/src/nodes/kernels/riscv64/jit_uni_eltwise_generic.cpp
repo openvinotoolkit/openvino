@@ -247,7 +247,7 @@ void jit_uni_eltwise_generic<isa>::update_vlen(const Xbyak_riscv::Reg& gpr_work_
     current_lmul = lmul;
     current_sew = sew;
 
-    const auto byte_shift = static_cast<const uint32_t>(sew2bytes(sew) >> 1);
+    const auto byte_shift = static_cast<uint32_t>(sew2bytes(sew) >> 1);
     slli(reg_bvlen, reg_vlen, byte_shift);
 }
 
