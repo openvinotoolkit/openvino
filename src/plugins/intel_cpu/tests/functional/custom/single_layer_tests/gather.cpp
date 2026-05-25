@@ -204,12 +204,14 @@ protected:
     }
 };
 
-class GatherF32ToBF16OutputTestCPU : virtual public ov::test::SubgraphBaseTest {
+class GatherF32ToBF16OutputTestCPU : public testing::WithParamInterface<size_t>,
+                                     virtual public ov::test::SubgraphBaseTest {
 protected:
     void SetUp() override {
+        const auto indicesSize = GetParam();
         targetDevice = ov::test::utils::DEVICE_CPU;
         configuration.insert({ov::hint::inference_precision.name(), ov::element::bf16});
-        init_input_shapes({{{}, {{33}}}});
+        init_input_shapes({{{}, {{indicesSize}}}});
 
         std::vector<float> dataValues(64);
         for (size_t index = 0; index < dataValues.size(); ++index) {
@@ -259,7 +261,7 @@ TEST_P(GatherInPlaceLayerTestCPU, CompareWithRefs) {
     CheckPluginRelatedResults(compiledModel, "Gather");
 }
 
-TEST_F(GatherF32ToBF16OutputTestCPU, smoke_static_f32_input_bf16_output) {
+TEST_P(GatherF32ToBF16OutputTestCPU, smoke_static_f32_input_bf16_output) {
     if (!ov::with_cpu_x86_bfloat16()) {
         GTEST_SKIP();
     }
@@ -271,6 +273,12 @@ const std::vector<ElementType> netPrecisions = {ElementType::f32, ElementType::b
 
 std::vector<ov::AnyMap> additionalConfig = {{{ov::hint::inference_precision(ov::element::f32)}},
                                             {{ov::hint::inference_precision(ov::element::bf16)}}};
+
+const std::vector<size_t> gatherF32ToBF16IndicesSizes = {33, 32, 15, 8, 7};
+
+INSTANTIATE_TEST_SUITE_P(smoke_static_f32_input_bf16_output,
+                         GatherF32ToBF16OutputTestCPU,
+                         ::testing::ValuesIn(gatherF32ToBF16IndicesSizes));
 
 std::vector<bool> isAxisConst{true, false};
 const CPUSpecificParams cpuParamsRef{{}, {}, {"ref_any"}, "ref_any"};
