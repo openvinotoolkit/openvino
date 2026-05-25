@@ -1,17 +1,18 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <memory>
-
-#include "openvino/core/except.hpp"
-#include "openvino/core/node.hpp"
-#include "openvino/core/node_output.hpp"
-#include "openvino/core/node_vector.hpp"
-#include "openvino/core/type.hpp"
-#include "snippets/op/perf_count.hpp"
 #ifdef SNIPPETS_DEBUG_CAPS
 
 #    include "perf_count_rdtsc.hpp"
+
+#    include <memory>
+
+#    include "openvino/core/except.hpp"
+#    include "openvino/core/node.hpp"
+#    include "openvino/core/node_output.hpp"
+#    include "openvino/core/node_vector.hpp"
+#    include "openvino/core/type.hpp"
+#    include "snippets/op/perf_count.hpp"
 
 using namespace ov;
 using namespace ov::intel_cpu;
