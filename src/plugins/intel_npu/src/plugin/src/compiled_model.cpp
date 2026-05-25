@@ -229,9 +229,14 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         // Reading the (dummy) property content to check if it is supported
         _propertiesManager->getProperty(name);
 
-        _logger.debug("Runtime requirements from the graph %s length: %zu",
-                      _graph->get_compatibility_descriptor().value(),
-                      _graph->get_compatibility_descriptor().value().size());
+        auto compatibilityDescriptor = _graph->get_compatibility_descriptor();
+        if (compatibilityDescriptor.has_value()) {
+            const auto descriptorView = compatibilityDescriptor.value();
+            _logger.debug("Runtime requirements from the graph %.*s length: %zu",
+                          static_cast<int>(descriptorView.size()),
+                          descriptorView.data(),
+                          descriptorView.size());
+        }
 
         std::ostringstream requirementsString;
         Metadata<CURRENT_METADATA_VERSION>(
@@ -243,7 +248,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             std::nullopt,  // output_layouts are not relevant for the compatibility check
             std::nullopt,  // skip compiler version as well since it is already included in runtime requirements string
             std::nullopt,  // skip encrypted blob size since it is not relevant for the compatibility check
-            _graph->get_compatibility_descriptor())
+            compatibilityDescriptor)
             .write_as_text(requirementsString);
         _logger.debug("Runtime requirements string: %s length: %zu",
                       requirementsString.str().c_str(),
@@ -272,9 +277,7 @@ void CompiledModel::release_memory() {
 
 void CompiledModel::configure_stream_executors() {
     std::shared_ptr<ov::threading::ITaskExecutor> task_executor;
-    if (get_plugin()->get_property(ov::internal::exclusive_async_requests.name(), {}).as<bool>()) {
-        task_executor = ov::threading::executor_manager()->get_executor("NPU");
-    } else if (get_property(ov::hint::enable_cpu_pinning.name()).as<bool>()) {
+    if (get_property(ov::hint::enable_cpu_pinning.name()).as<bool>()) {
         auto executor_config = ov::threading::IStreamsExecutor::Config{
             /* name = */ "Intel NPU plugin executor",
             /* streams = */ get_plugin()->get_property(ov::num_streams.name(), {}).as<ov::streams::Num>(),
