@@ -467,6 +467,32 @@ struct BATCH_MODE final : OptionBase<BATCH_MODE, ov::intel_npu::BatchMode> {
     }
 };
 
+struct EXCLUSIVE_ASYNC_REQUESTS final : OptionBase<EXCLUSIVE_ASYNC_REQUESTS, bool> {
+    static std::string_view key() {
+        return ov::internal::exclusive_async_requests.name();
+    }
+
+    static bool defaultValue() {
+        return false;
+    }
+
+    static bool isPublic() {
+        return false;
+    }
+
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RW;
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "bool";
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+};
+
 struct PROFILING_TYPE final : OptionBase<PROFILING_TYPE, ov::intel_npu::ProfilingType> {
     static std::string_view key() {
         return ov::intel_npu::profiling_type.name();

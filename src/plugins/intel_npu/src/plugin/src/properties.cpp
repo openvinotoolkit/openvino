@@ -524,6 +524,7 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::device::id, DEVICE_ID);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::num_streams, NUM_STREAMS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::weights_path, WEIGHTS_PATH);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::internal::exclusive_async_requests, EXCLUSIVE_ASYNC_REQUESTS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::compilation_mode_params, COMPILATION_MODE_PARAMS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::dma_engines, DMA_ENGINES);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::tiles, TILES);
