@@ -98,6 +98,12 @@ if(GPU_RT_TYPE STREQUAL "SYCL" AND NOT OV_GPU_WITH_SYCL)
     message(FATAL_ERROR "GPU_RT_TYPE is set to SYCL, but SYCL is not available for the selected compiler/environment.")
 endif()
 
+# When -fsycl and -flto are both active, archive members are emitted in a format
+# that the linker cannot read from static libraries ("archive member is neither ET_REL nor LLVM bitcode").
+if(OV_GPU_WITH_SYCL AND ENABLE_LTO)
+    message(FATAL_ERROR "Intel GPU plugin with SYCL is not supported with ENABLE_LTO=ON")
+endif()
+
 if(WIN32)
     add_definitions(-DNOMINMAX)
 endif()
