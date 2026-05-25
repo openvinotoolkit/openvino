@@ -76,6 +76,30 @@ auto available_pred = [](const program_node& input) {
     return true;
 };
 
+// Primitives that read input by explicit tensor coordinate and therefore correctly skip
+// padding on the input side. reorder and permute are excluded because some of their
+// implementations copy over raw buffer byte ranges and would include padding bytes.
+//
+// A can_be_optimzied node is excluded as it is transparent and shares buffer with
+// downstream consumers whoes types are not checked
+//
+// Eltwise is safe only when broadcast_spec is NONE/EXPLICIT, i.e, when both inputs
+// were declared equal-shape at graph construction and no dimension is expanded
+// over the padded region of the padded predecessor.
+auto reads_padded_input_safely = [](const program_node& user) {
+    if (user.can_be_optimized())
+        return false;
+    if (user.is_type<eltwise>()) {
+        auto broadcast_type = user.as<eltwise>().get_primitive()->broadcast_spec.m_type;
+        return broadcast_type == ov::op::AutoBroadcastType::NONE;
+    }
+    return user.is_type<convolution>()   ||
+           user.is_type<deconvolution>() ||
+           user.is_type<pooling>()       ||
+           user.is_type<activation>()    ||
+           user.is_type<quantize>();
+};
+
 bool concat_in_place_optimization::match(const program_node& concat_node,
                                          kernel_impl_params& concat_params,
                                          std::vector<kernel_impl_params>& pred_params,
@@ -148,9 +172,16 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         // TODO: handle optimized reshape
         if (pred.first->is_type<reshape>() && pred.first->can_be_optimized())
             return false;
-        // TODO: Investigate if this condition is needed
-        if (pred.first->get_users().size() > 2)
-            return false;
+        // A predecessor with more than two users can still be fused if all non-concat
+        // users correctly handle a padded input buffer.
+        if (pred.first->get_users().size() > 2) {
+            for (const auto& user : pred.first->get_users()) {
+                if (user->is_type<concatenation>())
+                    continue;
+                if (!reads_padded_input_safely(*user))
+                    return false;
+            }
+        }
 
        // Check that input isn't optimized out concatenation along different axis.
         if (pred.first->is_type<concatenation>() && pred.first->can_be_optimized()) {
