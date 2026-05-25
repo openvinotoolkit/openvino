@@ -94,24 +94,26 @@ static inline std::string getLatestVCLLog(vcl_log_handle_t logHandle) {
         }                                               \
     }
 
-const std::shared_ptr<VCLCompilerImpl> VCLCompilerImpl::getInstance() {
+const std::shared_ptr<VCLCompilerImpl> VCLCompilerImpl::getInstance(const std::string& custom_path) {
     static std::mutex mutex;
     static std::weak_ptr<VCLCompilerImpl> weak_compiler;
 
     std::lock_guard<std::mutex> lock(mutex);
     auto compiler = weak_compiler.lock();
     if (!compiler) {
-        compiler = std::make_shared<VCLCompilerImpl>();
+        compiler = std::make_shared<VCLCompilerImpl>(custom_path);
         weak_compiler = compiler;
     }
     return compiler;
 }
 
-VCLCompilerImpl::VCLCompilerImpl() : _logHandle(nullptr), _logger("VCLCompilerImpl", Logger::global().level()) {
+VCLCompilerImpl::VCLCompilerImpl(const std::string& custom_path)
+    : _logHandle(nullptr),
+      _logger("VCLCompilerImpl", Logger::global().level()) {
     _logger.debug("VCLCompilerImpl constructor start");
 
     // Load VCL library
-    (void)VCLApi::getInstance();
+    (void)VCLApi::getInstance(custom_path);
 
     // Initialize the VCL API
     THROW_ON_FAIL_FOR_VCL("vclGetVersion", vclGetVersion(&_vclVersion, &_vclProfilingVersion), nullptr);

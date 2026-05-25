@@ -42,7 +42,7 @@ namespace intel_npu {
 
 class VCLApi {
 public:
-    VCLApi(const std::string& custom_path = std::string());
+    VCLApi(const std::string& custom_path);
     VCLApi(const VCLApi& other) = delete;
     VCLApi(VCLApi&& other) = delete;
     void operator=(const VCLApi&) = delete;
