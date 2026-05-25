@@ -112,6 +112,84 @@ std::shared_ptr<ov::Model> build_static_generate_model() {
     return build_static_llm_model(1, 2047);
 }
 
+std::shared_ptr<ov::Model> build_static_attention_llm_model() {
+    LLMConfig config;
+    config.num_layers = 2;
+    config.hidden_size = 64;
+    config.num_heads = 4;
+    config.head_dim = 16;
+    config.num_kv_heads = 2;
+    config.vocab_size = 256;
+    config.force_gqa_broadcast = true;
+
+    ModelBuilder mb;
+    auto model = mb.build_llm(config);
+
+    ov::pass::StatefulToStateless().run_on_model(model);
+    model = model->clone();
+
+    constexpr int64_t query_len = 4;
+    constexpr int64_t past_len = 8;
+    std::map<std::string, ov::PartialShape> new_shapes;
+    for (const auto& input : model->inputs()) {
+        const auto& name = input.get_any_name();
+        auto shape = input.get_partial_shape();
+        if (name.find("input_ids") != std::string::npos || name.find("token_type_ids") != std::string::npos) {
+            new_shapes[name] = {1, query_len};
+        } else if (name.find("attention_mask") != std::string::npos) {
+            new_shapes[name] = {1, query_len + past_len};
+        } else if (name.find("position_ids") != std::string::npos) {
+            new_shapes[name] = {1, query_len};
+        } else {
+            shape[0] = 1;
+            shape[2] = past_len;
+            new_shapes[name] = shape;
+        }
+    }
+    model->reshape(new_shapes);
+    model->validate_nodes_and_infer_types();
+    return model;
+}
+
+std::shared_ptr<ov::Model> build_static_attention_mixed_llm_model() {
+    LLMConfig config;
+    config.num_layers = 4;
+    config.hidden_size = 64;
+    config.num_heads = 4;
+    config.head_dim = 16;
+    config.num_kv_heads = 2;
+    config.vocab_size = 256;
+    config.force_gqa_broadcast = true;
+
+    ModelBuilder mb;
+    auto model = mb.build_llm(config);
+
+    ov::pass::StatefulToStateless().run_on_model(model);
+    model = model->clone();
+
+    constexpr int64_t query_len = 4;
+    constexpr int64_t past_len = 8;
+    std::map<std::string, ov::PartialShape> new_shapes;
+    for (const auto& input : model->inputs()) {
+        const auto& name = input.get_any_name();
+        auto shape = input.get_partial_shape();
+        if (name.find("input_ids") != std::string::npos || name.find("token_type_ids") != std::string::npos) {
+            new_shapes[name] = {1, query_len};
+        } else if (name.find("attention_mask") != std::string::npos) {
+            new_shapes[name] = {1, query_len + past_len};
+        } else if (name.find("position_ids") != std::string::npos) {
+            new_shapes[name] = {1, query_len};
+        } else {
+            shape[0] = 1;
+            shape[2] = past_len;
+            new_shapes[name] = shape;
+        }
+    }
+    model->reshape(new_shapes);
+    model->validate_nodes_and_infer_types();
+    return model;
+}
+
 std::shared_ptr<ov::Model> build_repeated_model(std::size_t repetitions = 10) {
     ModelBuilder mb;
     return mb.get_model_with_repeated_blocks(repetitions);
@@ -268,6 +346,57 @@ TEST(PartitioningOptionsTest, CwaiCreatesFunctionCallsForRepeatedBlocks) {
     EXPECT_TRUE(std::any_of(partitioning.subgraphs.begin(), partitioning.subgraphs.end(), [](const ov::npuw::Subgraph& sg) {
         return !sg._funcall.empty();
     }));
+}
+
+TEST(PartitioningOptionsTest, FoldOnlyProcessesTaggedRepeatedFamiliesWithoutCwai) {
+    auto cfg = make_cfg({{"NPUW_ONLINE_PIPELINE", "REP"},
+                         {"NPUW_ONLINE_ISOLATE", "ATTN"},
+                         {"NPUW_ATTN", "DYNAMIC"},
+                         {"NPUW_ONLINE_KEEP_BLOCKS", "2"},
+                         {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "1"},
+                         {"NPUW_FOLD_ONLY", "attn"}});
+    auto partitioning = ov::npuw::getPartitioning(build_static_attention_llm_model(), cfg);
+
+    EXPECT_FALSE(partitioning.functions.empty());
+    EXPECT_TRUE(std::any_of(partitioning.subgraphs.begin(), partitioning.subgraphs.end(), [](const ov::npuw::Subgraph& sg) {
+        return !sg._funcall.empty();
+    }));
+}
+
+TEST(PartitioningOptionsTest, FoldOnlyAndCwaiProcessTaggedAndUntaggedRepeatedFamilies) {
+    const auto base_cfg = ::intel_npu::Config::ConfigMap{{"NPUW_ONLINE_PIPELINE", "REP"},
+                                                         {"NPUW_ONLINE_ISOLATE", "COMPUTE,ATTN"},
+                                                         {"NPUW_ONLINE_KEEP_BLOCKS", "2"},
+                                                         {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "1"},
+                                                         {"NPUW_FOLD_ONLY", "attn"},
+                                                         {"NPUW_ATTN", "STATIC"}};
+    auto fold_only_cfg = make_cfg(base_cfg);
+    auto fold_only_partitioning = ov::npuw::getPartitioning(build_static_attention_mixed_llm_model(), fold_only_cfg);
+
+    auto mixed_cfg = base_cfg;
+    mixed_cfg["NPUW_CWAI"] = "YES";
+    auto mixed_cfg_obj = make_cfg(mixed_cfg);
+    auto mixed_partitioning = ov::npuw::getPartitioning(build_static_attention_mixed_llm_model(), mixed_cfg_obj);
+
+    EXPECT_TRUE(std::any_of(mixed_partitioning.functions.begin(), mixed_partitioning.functions.end(), [](const auto& func) {
+        return func.second.gettag() == "attn";
+    }));
+
+    const auto has_cwai_function = [](const ov::npuw::Partitioning& partitioning) {
+        return std::any_of(partitioning.functions.begin(), partitioning.functions.end(), [](const auto& func) {
+            return func.first.find("__") != std::string::npos;
+        });
+    };
+    const auto has_cwai_funcall = [](const ov::npuw::Partitioning& partitioning) {
+        return std::any_of(partitioning.subgraphs.begin(), partitioning.subgraphs.end(), [](const ov::npuw::Subgraph& sg) {
+            return sg._funcall.find("__") != std::string::npos;
+        });
+    };
+
+    EXPECT_FALSE(has_cwai_function(fold_only_partitioning));
+    EXPECT_FALSE(has_cwai_funcall(fold_only_partitioning));
+    EXPECT_TRUE(has_cwai_function(mixed_partitioning));
+    EXPECT_TRUE(has_cwai_funcall(mixed_partitioning));
 }
 
 TEST(PartitioningOptionsTest, PlanFileReusesDumpedPartitioningStructure) {

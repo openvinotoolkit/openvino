@@ -5,8 +5,8 @@
 #include "pyopenvino/graph/ops/internal/gqa_extension.hpp"
 
 #include "openvino/core/op_extension.hpp"
-#include "openvino/op/op.hpp"
 #include "openvino/op/group_query_attention.hpp"
+#include "openvino/op/op.hpp"
 #include "pyopenvino/core/common.hpp"
 
 namespace py = pybind11;
