@@ -153,8 +153,8 @@ bool CRE::check_compatibility(const std::unordered_map<CRE::Token, std::shared_p
 
 CRESection::CRESection(const CRE& cre) : ISection(PredefinedSectionType::CRE), m_cre(cre) {}
 
-void CRESection::write(const std::unique_ptr<BlobWriterInterface>& writer) {
-    writer->write(m_cre.get_expression().data(), m_cre.get_expression_length() * sizeof(CRE::Token));
+void CRESection::write(BlobWriterInterface& writer) {
+    writer.write(m_cre.get_expression().data(), m_cre.get_expression_length() * sizeof(CRE::Token));
 }
 
 CRE CRESection::get_cre() const {

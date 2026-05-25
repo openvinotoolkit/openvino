@@ -6,8 +6,8 @@
 
 MockSection_1::MockSection_1(double value) : ISection(MockTypes::MOCK_1), value(value) {}
 
-void MockSection_1::write(const std::unique_ptr<BlobWriterInterface>& writer) {
-    writer->write(&value, sizeof(value));
+void MockSection_1::write(BlobWriterInterface& writer) {
+    writer.write(&value, sizeof(value));
 }
 
 double MockSection_1::get_value() const {
@@ -22,14 +22,14 @@ std::shared_ptr<ISection> MockSection_1::read(BlobReaderInterface& blob_reader) 
 
 MockSection_2::MockSection_2(const std::vector<double>& values) : ISection(MockTypes::MOCK_2), values(values) {}
 
-void MockSection_2::write(const std::unique_ptr<BlobWriterInterface>& writer) {
+void MockSection_2::write(BlobWriterInterface& writer) {
     uint64_t size = values.size();
-    writer->write(&size, sizeof(size));
+    writer.write(&size, sizeof(size));
     for (const double& value : values) {
-        const uint64_t pos = static_cast<uint64_t>(writer->get_offset_relative_to_npu_region());
+        const uint64_t pos = static_cast<uint64_t>(writer.get_offset_relative_to_npu_region());
         const uint64_t padding_size = (ALIGNMENT - (pos % ALIGNMENT)) % ALIGNMENT;
-        writer->add_padding(padding_size);
-        writer->write(&value, sizeof(value));
+        writer.add_padding(padding_size);
+        writer.write(&value, sizeof(value));
     }
 }
 
@@ -65,7 +65,7 @@ MockSection_3::MockSection_3(const std::shared_ptr<MockSection_1>& section_1,
       section_1(section_1),
       section_2(section_2) {}
 
-void MockSection_3::write(const std::unique_ptr<BlobWriterInterface>& writer) {
+void MockSection_3::write(BlobWriterInterface& writer) {
     section_1->write(writer);
     section_2->write(writer);
 }
@@ -94,20 +94,20 @@ MockSectionWithTable::MockSectionWithTable(std::shared_ptr<MockSection_1> sectio
       parsed_reachables(std::move(parsed_reachables)),
       embedded_table(std::move(embedded_table)) {}
 
-void MockSectionWithTable::write(const std::unique_ptr<BlobWriterInterface>& writer) {
+void MockSectionWithTable::write(BlobWriterInterface& writer) {
     const uint64_t number_of_entries = static_cast<uint64_t>(reachables.size());
-    const uint64_t payload_start = static_cast<uint64_t>(writer->get_offset_relative_to_current_section());
+    const uint64_t payload_start = static_cast<uint64_t>(writer.get_offset_relative_to_current_section());
     // stream position + size of table location field + size of member field section_1
     const uint64_t table_location = payload_start + sizeof(uint64_t) + sizeof(double);
 
-    writer->write(&table_location, sizeof(table_location));
+    writer.write(&table_location, sizeof(table_location));
     section_1->write(writer);
 
     // reserve entries payload
-    writer->write(&number_of_entries, sizeof(number_of_entries));
-    const auto table_entries_pos = writer->get_offset_relative_to_current_section();
+    writer.write(&number_of_entries, sizeof(number_of_entries));
+    const auto table_entries_pos = writer.get_offset_relative_to_current_section();
     const uint64_t total_entry_bytes = number_of_entries * OffsetsTable::get_entry_size();
-    writer->add_padding(total_entry_bytes);
+    writer.add_padding(total_entry_bytes);
 
     // write the reachable sections
     std::vector<Entry> entries;
@@ -115,22 +115,22 @@ void MockSectionWithTable::write(const std::unique_ptr<BlobWriterInterface>& wri
     for (const auto& r : reachables) {
         const SectionType type = r->get_section_type();
         const SectionTypeInstance instance = counters[type]++;
-        const uint64_t offset = static_cast<uint64_t>(writer->get_offset_relative_to_current_section());
+        const uint64_t offset = static_cast<uint64_t>(writer.get_offset_relative_to_current_section());
         r->write(writer);
-        writer->seek_to_the_end();
-        const uint64_t length = static_cast<uint64_t>(writer->get_offset_relative_to_current_section()) - offset;
+        writer.seek_to_the_end();
+        const uint64_t length = static_cast<uint64_t>(writer.get_offset_relative_to_current_section()) - offset;
         entries.push_back({SectionID(type, instance), offset, length});
     }
 
     // go back to entries payload and write the actual entries
-    writer->move_cursor_relative_to_current_section(table_entries_pos);
+    writer.move_cursor_relative_to_current_section(table_entries_pos);
     for (const auto& e : entries) {
-        writer->write(&e.id.type, sizeof(e.id.type));
-        writer->write(&e.id.type_instance, sizeof(e.id.type_instance));
-        writer->write(&e.offset, sizeof(e.offset));
-        writer->write(&e.length, sizeof(e.length));
+        writer.write(&e.id.type, sizeof(e.id.type));
+        writer.write(&e.id.type_instance, sizeof(e.id.type_instance));
+        writer.write(&e.offset, sizeof(e.offset));
+        writer.write(&e.length, sizeof(e.length));
     }
-    writer->seek_to_the_end();
+    writer.seek_to_the_end();
 }
 
 std::shared_ptr<MockSection_1> MockSectionWithTable::get_section_1() const {

@@ -24,17 +24,16 @@ protected:
         std::tie(input_layouts, output_layouts) = GetParam();
 
         section = std::make_shared<IOLayoutsSection>(input_layouts, output_layouts);
-        writer = ov::unit_test::intel_npu::create_default_writer_interface(stream);
     }
 
     std::shared_ptr<IOLayoutsSection> section;
-    std::unique_ptr<BlobWriterInterface> writer;
     std::stringstream stream;
 };
 
 using ValidLayouts = IOLayoutsSectionUnitTests;
 
 TEST_P(ValidLayouts, WriteRead) {
+    BlobWriterInterface writer = ov::unit_test::intel_npu::create_default_writer_interface(stream);
     section->write(writer);
 
     const std::string buffer = stream.str();

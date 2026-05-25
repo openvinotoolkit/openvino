@@ -15,7 +15,7 @@ class BatchSizeSection final : public ISection {
 public:
     BatchSizeSection(const int64_t batch_size);
 
-    void write(const std::unique_ptr<BlobWriterInterface>& writer) override;
+    void write(BlobWriterInterface& writer) override;
 
     int64_t get_batch_size() const;
 

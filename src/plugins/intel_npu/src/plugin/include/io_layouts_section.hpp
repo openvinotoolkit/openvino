@@ -15,7 +15,7 @@ class IOLayoutsSection final : public ISection {
 public:
     IOLayoutsSection(const std::vector<ov::Layout>& input_layouts, const std::vector<ov::Layout>& output_layouts);
 
-    void write(const std::unique_ptr<BlobWriterInterface>& writer) override;
+    void write(BlobWriterInterface& writer) override;
 
     std::vector<ov::Layout> get_input_layouts() const;
 

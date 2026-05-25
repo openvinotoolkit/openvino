@@ -76,7 +76,7 @@ public:
     /**
      * @brief Method used to instruct the BlobWriter how to write the current section into the provided stream.
      */
-    virtual void write(const std::unique_ptr<BlobWriterInterface>& writer) = 0;
+    virtual void write(BlobWriterInterface& writer) = 0;
 
     SectionType get_section_type() const;
 

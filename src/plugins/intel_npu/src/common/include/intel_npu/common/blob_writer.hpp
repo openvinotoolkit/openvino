@@ -198,7 +198,7 @@ private:
      * @details Calls the "write" method of the given section to fill the payload. Then adds a new entry inside the
      * table of offsets.
      */
-    void write_section(const std::unique_ptr<BlobWriterInterface>& blob_writer_interface,
+    void write_section(BlobWriterInterface& blob_writer_interface,
                        const std::shared_ptr<ISection>& section,
                        OffsetsTable& offsets_table);
 

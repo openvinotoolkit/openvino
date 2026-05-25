@@ -156,17 +156,17 @@ void BlobWriter::append_compatibility_requirement(const std::vector<CRE::Token>&
     m_cre.append_to_expression(requirement_tokens);
 }
 
-void BlobWriter::write_section(const std::unique_ptr<BlobWriterInterface>& blob_writer_interface,
+void BlobWriter::write_section(BlobWriterInterface& blob_writer_interface,
                                const std::shared_ptr<ISection>& section,
                                OffsetsTable& offsets_table) {
-    blob_writer_interface->seek_to_the_end();
-    blob_writer_interface->m_stream_current_section_start = blob_writer_interface->m_stream.get().tellp();
-    const uint64_t offset = blob_writer_interface->get_offset_relative_to_npu_region();
+    blob_writer_interface.seek_to_the_end();
+    blob_writer_interface.m_stream_current_section_start = blob_writer_interface.m_stream.get().tellp();
+    const uint64_t offset = blob_writer_interface.get_offset_relative_to_npu_region();
 
     section->write(blob_writer_interface);
 
-    blob_writer_interface->seek_to_the_end();
-    const uint64_t length = static_cast<uint64_t>(blob_writer_interface->get_offset_relative_to_npu_region() - offset);
+    blob_writer_interface.seek_to_the_end();
+    const uint64_t length = static_cast<uint64_t>(blob_writer_interface.get_offset_relative_to_npu_region() - offset);
 
     // All sections registered within the BlobWriter are automatically added to the table of offsets
     const std::optional<SectionID> section_id = section->get_section_id();
@@ -179,8 +179,7 @@ void BlobWriter::write(std::ostream& stream) {
     // Only the attributes within this object will be altered. This is done to ensure write idempotency and thread
     // safety
     // TODO just use references instead. no dynamic dispatch
-    auto blob_writer_interface =
-        std::make_unique<BlobWriterInterface>(stream, m_registered_sections, m_cre, m_next_type_instance_id);
+    BlobWriterInterface blob_writer_interface(stream, m_registered_sections, m_cre, m_next_type_instance_id);
 
     // The table of offsets corresponds to a single blob written into a stream. Therefore, this table should exist
     // only within the scope of the writing session.
@@ -204,9 +203,9 @@ void BlobWriter::write(std::ostream& stream) {
 
     // The region of non-persistent format (list of key-length-payload sections, any order & no restrictions w.r.t. the
     // content of the payload)
-    while (!m_registered_sections.empty()) {
-        const std::shared_ptr<ISection>& section = m_registered_sections.front();
-        m_registered_sections.pop();
+    while (!blob_writer_interface.m_registered_sections.empty()) {
+        const std::shared_ptr<ISection>& section = blob_writer_interface.m_registered_sections.front();
+        blob_writer_interface.m_registered_sections.pop();
 
         write_section(blob_writer_interface, section, offsets_table);
     }
@@ -215,18 +214,18 @@ void BlobWriter::write(std::ostream& stream) {
     // Note: this was left near the end jic some writers had to register some more capability IDs for some reason
     // TODO: in that case, reading this blob and then writing it again would add redundant CRE tokens. Maybe a redesign
     // would be useful here.
-    const auto cre_section = std::make_shared<CRESection>(m_cre);
+    const auto cre_section = std::make_shared<CRESection>(blob_writer_interface.m_cre);
     cre_section->set_section_type_instance(FIRST_INSTANCE_ID);
     write_section(blob_writer_interface, cre_section, offsets_table);
 
     // Write the table of offsets
-    offsets_table_location = blob_writer_interface->get_offset_relative_to_npu_region();
+    offsets_table_location = blob_writer_interface.get_offset_relative_to_npu_region();
 
     const auto offsets_table_section = std::make_shared<OffsetsTableSection>(offsets_table);
     offsets_table_section->set_section_type_instance(FIRST_INSTANCE_ID);
     write_section(blob_writer_interface, offsets_table_section, offsets_table);
 
-    npu_region_size = blob_writer_interface->get_offset_relative_to_npu_region();
+    npu_region_size = blob_writer_interface.get_offset_relative_to_npu_region();
     offsets_table_size = npu_region_size - offsets_table_location;
 
     // Go back to the beginning and write the size of the whole NPU region & the location of the offsets table

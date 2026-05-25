@@ -18,18 +18,18 @@ ELFMainScheduleSection::ELFMainScheduleSection(ov::Tensor main_schedule)
     : ISection(PredefinedSectionType::ELF_MAIN_SCHEDULE),
       m_main_schedule(main_schedule) {}
 
-void ELFMainScheduleSection::write(const std::unique_ptr<BlobWriterInterface>& writer) {
+void ELFMainScheduleSection::write(BlobWriterInterface& writer) {
     // At import time, position "cursor = 0" is guaranteed to be aligned to the standard page size (4096). Therefore, we
     // only need to make sure the value of the cursor is a multiple of 4096 before writting any schedule.
 
     // Also take the padding size into account, we'll write that first
-    const auto cursor = writer->get_offset_relative_to_npu_region() + sizeof(uint64_t);
+    const auto cursor = writer.get_offset_relative_to_npu_region() + sizeof(uint64_t);
     size_t cursor_and_padding = utils::align_size_to_standard_page_size(cursor);
     uint64_t padding_size = cursor_and_padding - cursor;
-    writer->write(&padding_size, sizeof(padding_size));
-    writer->add_padding(padding_size);
+    writer.write(&padding_size, sizeof(padding_size));
+    writer.add_padding(padding_size);
 
-    m_graph->export_main_blob(writer->m_stream.get());
+    m_graph->export_main_blob(writer.m_stream.get());
 }
 
 void ELFMainScheduleSection::set_graph(const std::shared_ptr<Graph>& graph) {
@@ -59,30 +59,30 @@ ELFInitSchedulesSection::ELFInitSchedulesSection(std::vector<ov::Tensor>& init_s
     : ISection(PredefinedSectionType::ELF_INIT_SCHEDULES),
       m_init_schedules(std::move(init_schedules)) {}
 
-void ELFInitSchedulesSection::write(const std::unique_ptr<BlobWriterInterface>& writer) {
+void ELFInitSchedulesSection::write(BlobWriterInterface& writer) {
     const uint64_t number_of_inits = m_weightless_graph->get_number_of_inits();
-    writer->write(&number_of_inits, sizeof(number_of_inits));
+    writer.write(&number_of_inits, sizeof(number_of_inits));
 
     // Placeholder until we get the sizes written in the stream
-    const auto will_get_to_this_later = writer->get_offset_relative_to_current_section();
-    writer->add_padding(number_of_inits * sizeof(uint64_t));
+    const auto will_get_to_this_later = writer.get_offset_relative_to_current_section();
+    writer.add_padding(number_of_inits * sizeof(uint64_t));
 
     // At import time, position "cursor = 0" is guaranteed to be aligned to the standard page size (4096). Therefore, we
     // only need to make sure the value of the cursor is a multiple of 4096 before writting any schedule.
 
     // Also take the padding size into account, we'll write that next
-    const auto cursor = writer->get_offset_relative_to_npu_region() + sizeof(uint64_t);
+    const auto cursor = writer.get_offset_relative_to_npu_region() + sizeof(uint64_t);
     size_t cursor_and_padding = utils::align_size_to_standard_page_size(cursor);
     size_t padding_size = cursor_and_padding - cursor;
-    writer->write(&padding_size, sizeof(padding_size));
-    writer->add_padding(padding_size);
+    writer.write(&padding_size, sizeof(padding_size));
+    writer.add_padding(padding_size);
 
-    const std::vector<uint64_t> init_sizes = m_weightless_graph->export_init_blobs(writer->m_stream.get());
+    const std::vector<uint64_t> init_sizes = m_weightless_graph->export_init_blobs(writer.m_stream.get());
 
     // Go back and write the sizes of the init schedules
-    writer->move_cursor_relative_to_current_section(will_get_to_this_later);
+    writer.move_cursor_relative_to_current_section(will_get_to_this_later);
     for (const uint64_t init_size : init_sizes) {
-        writer->write(&init_size, sizeof(init_size));
+        writer.write(&init_size, sizeof(init_size));
     }
 }
 
