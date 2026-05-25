@@ -4,6 +4,7 @@
 
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
+#include "openvino/decompositions/low_precision_dequantize.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/convert.hpp"
@@ -75,12 +76,8 @@ ov::OutputVector dynamic_quantize_matmul(const ov::frontend::onnx::Node& node) {
     // here https://tomwildenhain-microsoft.github.io/onnxruntime/docs/performance/quantization.html B_dequantized = (B
     // - b_zero_point) * b_scale
 
-    ov::Output<ov::Node> B_dequantized = std::make_shared<v0::Convert>(B, b_scale.get_element_type());
-    if (b_zero_point.get_node_shared_ptr()) {
-        b_zero_point = std::make_shared<v0::Convert>(b_zero_point, b_scale.get_element_type());
-        B_dequantized = std::make_shared<v1::Subtract>(B_dequantized, b_zero_point);
-    }
-    B_dequantized = std::make_shared<v1::Multiply>(B_dequantized, b_scale);
+    ov::pass::NodeRegistry reg;
+    ov::Output<ov::Node> B_dequantized = ov::decomposition::low_precision_dequantize(reg, B, b_scale, b_zero_point);
 
     // A, B are N-dimensional matrices. According to example ONNX models for this operator, the suboperations pass input
     // A/B such that B's shape is already transposed. E.g.

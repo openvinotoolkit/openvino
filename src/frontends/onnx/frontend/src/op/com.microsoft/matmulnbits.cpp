@@ -8,6 +8,7 @@
 #include "core/null_node.hpp"
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
+#include "openvino/decompositions/low_precision_dequantize.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -254,15 +255,14 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
 
         // use fp16 for compute
 
-        // convert b to fp16
-        auto converted_b = std::make_shared<v0::Convert>(casted_b, a.get_element_type());
-
-        // sub and scale
-        const auto sub_b = std::make_shared<v1::Subtract>(converted_b, converted_zero_points);
+        // sub and scale via the shared low-precision dequantization helper
         const auto scales_fp16 = std::make_shared<v0::Convert>(scales, a.get_element_type());
         const auto scales_reshaped =
             op::util::reshape(scales_fp16, ov::Shape{static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col), 1});
-        const auto scaled_b = std::make_shared<v1::Multiply>(sub_b, scales_reshaped);
+
+        ov::pass::NodeRegistry reg;
+        auto scaled_b =
+            ov::decomposition::low_precision_dequantize(reg, casted_b, scales_reshaped, converted_zero_points);
 
         // reshape b to [N, K]
         auto shape_b = v0::Constant::create(ov::element::i32, ov::Shape{2}, {0, -1});

@@ -3,6 +3,7 @@
 //
 
 #include "default_opset.hpp"
+#include "openvino/decompositions/low_precision_dequantize.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
 namespace ov {
@@ -35,9 +36,8 @@ NamedOutputs dequantize_linear(const NodeContext& node) {
     const auto bit_length = node.get_attribute<int32_t>("bit_length");
     const auto range = (1 << (bit_length - 1)) - 1;
     const auto range_node = std::make_shared<default_opset::Constant>(element::f32, Shape{1}, (1.0 / range));
-    const auto real_scale = std::make_shared<default_opset::Multiply>(scale, range_node);
+    ov::Output<ov::Node> real_scale = std::make_shared<default_opset::Multiply>(scale, range_node);
 
-    auto q_node = std::make_shared<default_opset::Convert>(x, element::f32);
     // extract the ATTRIBUTES and explanation for quant_axis:
     //             / [-1]      --- per-tensor, scale is always 1-D
     // quant_axis  - [0 or 1]  --- per-channel, scale may be 1-D or 2-D, needing to reshape for input shape.
@@ -51,13 +51,8 @@ NamedOutputs dequantize_linear(const NodeContext& node) {
                                     return quant_axis == value;
                                 }),
                     "dequantize_linear quant_axis is NOT in the range of [-1, 0, 1].");
-    if (quant_axis == -1) {
-        const auto zp_node = std::make_shared<default_opset::Convert>(zero_point, element::f32);
-        const auto out_node =
-            std::make_shared<default_opset::Multiply>(std::make_shared<default_opset::Subtract>(q_node, zp_node),
-                                                      real_scale);
-        return node.default_single_output_mapping({out_node}, {"Y"});
-    } else {
+    ov::Output<ov::Node> zp_input = zero_point;
+    if (quant_axis != -1) {
         // But for per-channel scenario, the shape of scale is NOT stable.
         // Sometimes scale is 1-D and sometimes scale is 2-D. But the last dim(e.g. s[len-1]) really makes sense.
         // Let's prepare a pattern to reshape operation according to the scale shape.
@@ -65,15 +60,12 @@ NamedOutputs dequantize_linear(const NodeContext& node) {
         reshape_pattern.at(quant_axis) = scale_shape[scale_shape_length - 1].get_length();
         const auto reshape_node =
             std::make_shared<default_opset::Constant>(element::i32, Shape{reshape_pattern.size()}, reshape_pattern);
-        const auto reshape_scale = std::make_shared<default_opset::Reshape>(real_scale, reshape_node, true);
-        const auto zp_node = std::make_shared<default_opset::Convert>(
-            std::make_shared<default_opset::Reshape>(zero_point, reshape_node, true),
-            element::f32);
-        const auto out_node =
-            std::make_shared<default_opset::Multiply>(std::make_shared<default_opset::Subtract>(q_node, zp_node),
-                                                      reshape_scale);
-        return node.default_single_output_mapping({out_node}, {"Y"});
+        real_scale = std::make_shared<default_opset::Reshape>(real_scale, reshape_node, true);
+        zp_input = std::make_shared<default_opset::Reshape>(zero_point, reshape_node, true);
     }
+    ov::pass::NodeRegistry reg;
+    auto out_node = ov::decomposition::low_precision_dequantize(reg, x, real_scale, zp_input);
+    return node.default_single_output_mapping({out_node.get_node_shared_ptr()}, {"Y"});
 }
 
 }  // namespace op

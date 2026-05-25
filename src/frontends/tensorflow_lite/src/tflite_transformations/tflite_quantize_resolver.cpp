@@ -8,6 +8,7 @@
 
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/decompositions/low_precision_dequantize.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
@@ -196,13 +197,22 @@ pass::TFLQuantizeReplacer::TFLQuantizeReplacer() {
 
         if (is_constant) {
             fuse_zp_to_weights(output, zp, zp_shape);
-            output = make_shared<v0::Convert>(output, element::f32);
-            disable_constant_folding(output.get_node_shared_ptr());
+            ov::Output<ov::Node> zp_input;
             if (std::any_of(zp.begin(), zp.end(), [](const int64_t& i) {
                     return i != 0;
-                }))
-                output = std::make_shared<v1::Subtract>(output, zp_node);
-            output = std::make_shared<v1::Multiply>(output, scale_node);
+                })) {
+                zp_input = zp_node;
+            }
+            ov::pass::NodeRegistry reg;
+            output = ov::decomposition::low_precision_dequantize(reg, output, scale_node, zp_input);
+            // Disable constant folding on the leading Convert created inside the helper
+            // so that compressed weights are preserved for low-precision plugins.
+            for (const auto& n : reg.get()) {
+                if (ov::is_type<v0::Convert>(n)) {
+                    disable_constant_folding(n);
+                    break;
+                }
+            }
             tfl_quantize->output(0).replace(output);
             return true;
         }

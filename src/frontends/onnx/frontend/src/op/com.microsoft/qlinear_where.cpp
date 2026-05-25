@@ -3,6 +3,7 @@
 
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
+#include "openvino/decompositions/low_precision_dequantize.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/convert.hpp"
@@ -33,14 +34,9 @@ ov::OutputVector qlinear_where(const ov::frontend::onnx::Node& node) {
     auto z_scale = node.get_ov_inputs().at(7);
     auto z_zero_point = node.get_ov_inputs().at(8);
 
-    auto x_minus_zero_point = std::make_shared<v1::Subtract>(x, x_zero_point);
-    auto y_minus_zero_point = std::make_shared<v1::Subtract>(y, y_zero_point);
-
-    auto x_minus_zero_point_float = std::make_shared<v0::Convert>(x_minus_zero_point, x_scale.get_element_type());
-    auto y_minus_zero_point_float = std::make_shared<v0::Convert>(y_minus_zero_point, y_scale.get_element_type());
-
-    auto x_dequant = std::make_shared<v1::Multiply>(x_scale, x_minus_zero_point_float);
-    auto y_dequant = std::make_shared<v1::Multiply>(y_scale, y_minus_zero_point_float);
+    ov::pass::NodeRegistry reg;
+    auto x_dequant = ov::decomposition::low_precision_dequantize(reg, x, x_scale, x_zero_point);
+    auto y_dequant = ov::decomposition::low_precision_dequantize(reg, y, y_scale, y_zero_point);
 
     auto selected = std::make_shared<v1::Select>(condition, x_dequant, y_dequant);
 

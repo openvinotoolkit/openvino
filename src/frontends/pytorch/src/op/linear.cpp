@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/decompositions/low_precision_dequantize.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/matmul.hpp"
@@ -80,16 +81,10 @@ Output<Node> low_precision_subgraph(const NodeContext& context,
                                     const Output<Node>& zero_points,
                                     const Output<Node>& scales,
                                     const Output<Node>& out_shape) {
-    auto new_qweight = context.mark_node(std::make_shared<v0::Convert>(weights, scales.get_element_type()));
-    auto new_qzeros = context.mark_node(std::make_shared<v0::Convert>(zero_points, scales.get_element_type()));
-
-    auto w_s = context.mark_node(std::make_shared<v1::Subtract>(new_qweight, new_qzeros));
-    auto weight = context.mark_node(std::make_shared<v1::Multiply>(w_s, scales));
-    auto weight_shape = weights.get_shape();
-    if (out_shape.get_node() != nullptr) {
-        weight = context.mark_node(std::make_shared<v1::Reshape>(weight, out_shape, false));
-    }
-    weight = context.mark_node(std::make_shared<v1::ConvertLike>(weight, x));
+    ov::pass::NodeRegistry reg;
+    auto weight = ov::decomposition::low_precision_dequantize(reg, weights, scales, zero_points, out_shape);
+    weight = reg.make<v1::ConvertLike>(weight, x);
+    context.mark_nodes(reg.get());
     return weight;
 }
 

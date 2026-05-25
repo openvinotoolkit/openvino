@@ -5,6 +5,7 @@
 #include "core/null_node.hpp"
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
+#include "openvino/decompositions/low_precision_dequantize.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/avg_pool.hpp"
@@ -49,12 +50,11 @@ ov::OutputVector qlinear_activation(const ov::frontend::onnx::Node& node, const 
                      "Input tensor must be either int8 or uint8. Got: ",
                      input_tensor.get_element_type());
 
-    auto input_subtracted = std::make_shared<v1::Subtract>(input_tensor, input_zero_point);
+    ov::pass::NodeRegistry reg;
     auto input_dequantized =
-        std::make_shared<v1::Multiply>(std::make_shared<v0::Convert>(input_subtracted, input_scale.get_element_type()),
-                                       input_scale);
+        ov::decomposition::low_precision_dequantize(reg, input_tensor, input_scale, input_zero_point);
 
-    auto activation_result = activation_fn(input_dequantized);
+    auto activation_result = activation_fn(input_dequantized.get_node_shared_ptr());
 
     auto scaled_result_float = std::make_shared<v1::Divide>(activation_result, output_scale);
     auto quantized_result =
