@@ -2500,7 +2500,9 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         }
     }
 
-    void execute(const std::vector<MemoryPtr>& inputs, const std::vector<MemoryPtr> outputs) override {
+    void execute(const std::vector<MemoryPtr>& inputs,
+                 const std::vector<MemoryPtr> outputs,
+                 bool write_kv_cache) override {
         PlainTensor q;
         PlainTensor k;
         PlainTensor v;
@@ -2585,18 +2587,20 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             _helper.clear_token_type();
         }
 
-        if (rotated_block_indices) {
-            // Rotate kv cache currently doesn't support quantized cache.
-            // for u8 it only supports compilation but throws exception in the runtime
-            // TODO: implement u4/u8
-            rotate_kv_cache<KEY_PREC>(k_cache,
-                                      rotated_block_indices,
-                                      rotation_deltas,
-                                      rotation_trig_lut,
-                                      _helper._block_rotation_coefficient_scratch);
-        }
+        if (write_kv_cache) {
+            if (rotated_block_indices) {
+                // Rotate kv cache currently doesn't support quantized cache.
+                // for u8 it only supports compilation but throws exception in the runtime
+                // TODO: implement u4/u8
+                rotate_kv_cache<KEY_PREC>(k_cache,
+                                          rotated_block_indices,
+                                          rotation_deltas,
+                                          rotation_trig_lut,
+                                          _helper._block_rotation_coefficient_scratch);
+            }
 
-        concat_pastkv(k, v, k_cache, v_cache, past_lens, subsequence_begins, block_indices, block_indices_begins);
+            concat_pastkv(k, v, k_cache, v_cache, past_lens, subsequence_begins, block_indices, block_indices_begins);
+        }
 
         _kernel(q,
                 k_cache,
