@@ -32,9 +32,9 @@ TEST_F(BatchSizeSectionUnitTests, WriteRead) {
 
     const std::string buffer = stream.str();
     ov::Tensor source_tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
-    BlobReader reader(source_tensor);
+    BlobReaderInterface reader(source_tensor, 0, stream.tellp(), stream.tellp());
 
-    auto read_section = BatchSizeSection::read(&reader, stream.tellp());
+    auto read_section = BatchSizeSection::read(reader);
     auto casted_section = std::dynamic_pointer_cast<BatchSizeSection>(read_section);
     ASSERT_TRUE(casted_section);
     EXPECT_EQ(casted_section->get_batch_size(), batch_size);
@@ -43,6 +43,6 @@ TEST_F(BatchSizeSectionUnitTests, WriteRead) {
 TEST_F(BatchSizeSectionUnitTests, InvalidSectionLength) {
     std::vector<uint8_t> dummy(0xFFFF, 0xFF);
     ov::Tensor source(ov::element::u8, ov::Shape{dummy.size()}, const_cast<uint8_t*>(dummy.data()));
-    BlobReader reader(source);
-    ASSERT_ANY_THROW(BatchSizeSection::read(&reader, source.get_byte_size() - 1));
+    BlobReaderInterface reader(source, 0, source.get_byte_size() - 1, source.get_byte_size());
+    ASSERT_ANY_THROW(BatchSizeSection::read(reader));
 }

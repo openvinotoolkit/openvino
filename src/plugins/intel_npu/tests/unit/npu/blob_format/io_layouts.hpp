@@ -28,7 +28,6 @@ protected:
     }
 
     std::shared_ptr<IOLayoutsSection> section;
-    std::shared_ptr<BlobReader> reader;
     std::unique_ptr<BlobWriterInterface> writer;
     std::stringstream stream;
 };
@@ -40,9 +39,9 @@ TEST_P(ValidLayouts, WriteRead) {
 
     const std::string buffer = stream.str();
     ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
-    reader = std::make_shared<BlobReader>(tensor);
+    BlobReaderInterface reader(tensor, 0, stream.tellp(), stream.tellp());
 
-    auto read_section = section->read(reader.get(), stream.tellp());
+    auto read_section = section->read(reader);
 
     auto layouts_result = std::dynamic_pointer_cast<IOLayoutsSection>(read_section);
     ASSERT_TRUE(layouts_result);
@@ -55,8 +54,8 @@ using IOLayoutsSectionRead = ::testing::Test;
 TEST_F(IOLayoutsSectionRead, TooSmallSectionLength) {
     std::vector<uint8_t> dummy(0xFFFF, 0xFF);
     ov::Tensor tensor(ov::element::u8, ov::Shape{dummy.size()}, const_cast<uint8_t*>(dummy.data()));
-    BlobReader reader(tensor);
-    ASSERT_ANY_THROW(IOLayoutsSection::read(&reader, sizeof(uint64_t) - 1));
+    BlobReaderInterface reader(tensor, 0, tensor.get_byte_size() - 1, tensor.get_byte_size());
+    ASSERT_ANY_THROW(IOLayoutsSection::read(reader));
 }
 
 TEST_F(IOLayoutsSectionRead, LessLayoutsThanExpected) {
@@ -72,8 +71,8 @@ TEST_F(IOLayoutsSectionRead, LessLayoutsThanExpected) {
     std::memcpy(buffer.data() + sizeof(uint64_t), &fake_count, sizeof(fake_count));
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
-    BlobReader reader(tensor);
-    ASSERT_ANY_THROW(IOLayoutsSection::read(&reader, buffer.size()));
+    BlobReaderInterface reader(tensor, 0, tensor.get_byte_size(), tensor.get_byte_size());
+    ASSERT_ANY_THROW(IOLayoutsSection::read(reader));
 }
 
 TEST_F(IOLayoutsSectionRead, InvalidLayout) {
@@ -91,10 +90,10 @@ TEST_F(IOLayoutsSectionRead, InvalidLayout) {
     buffer[layout_offset + 2] = ']';
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
-    BlobReader reader(tensor);
+    BlobReaderInterface reader(tensor, 0, tensor.get_byte_size(), tensor.get_byte_size());
 
     std::shared_ptr<ISection> read_section;
-    ASSERT_NO_THROW(read_section = IOLayoutsSection::read(&reader, buffer.size()));
+    ASSERT_NO_THROW(read_section = IOLayoutsSection::read(reader));
 
     const auto layouts_result = std::dynamic_pointer_cast<IOLayoutsSection>(read_section);
     ASSERT_TRUE(layouts_result);

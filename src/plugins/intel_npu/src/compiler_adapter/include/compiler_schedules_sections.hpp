@@ -21,7 +21,7 @@ public:
 
     ov::Tensor get_schedule() const;
 
-    static std::shared_ptr<ISection> read(BlobReader* blob_reader, const size_t section_length);
+    static std::shared_ptr<ISection> read(BlobReaderInterface& blob_reader);
 
 private:
     std::shared_ptr<Graph> m_graph;
@@ -40,7 +40,7 @@ public:
 
     std::vector<ov::Tensor> get_schedules() const;
 
-    static std::shared_ptr<ISection> read(BlobReader* blob_reader, const size_t section_length);
+    static std::shared_ptr<ISection> read(BlobReaderInterface& blob_reader);
 
 private:
     std::shared_ptr<WeightlessGraph> m_weightless_graph;

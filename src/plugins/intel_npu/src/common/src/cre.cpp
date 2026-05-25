@@ -161,12 +161,12 @@ CRE CRESection::get_cre() const {
     return m_cre;
 }
 
-std::shared_ptr<ISection> CRESection::read(BlobReader* blob_reader, const size_t section_length) {
-    size_t number_of_tokens = section_length / sizeof(CRE::Token);
+std::shared_ptr<ISection> CRESection::read(BlobReaderInterface& blob_reader) {
+    size_t number_of_tokens = blob_reader.get_section_length() / sizeof(CRE::Token);
     OPENVINO_ASSERT(number_of_tokens != 0);
 
     std::vector<CRE::Token> tokens(number_of_tokens);
-    blob_reader->copy_data_from_source(reinterpret_cast<char*>(tokens.data()), number_of_tokens * sizeof(CRE::Token));
+    blob_reader.copy_data_from_source(reinterpret_cast<char*>(tokens.data()), number_of_tokens * sizeof(CRE::Token));
 
     return std::make_shared<CRESection>(CRE(tokens));
 }

@@ -21,7 +21,7 @@ public:
 
     std::vector<ov::Layout> get_output_layouts() const;
 
-    static std::shared_ptr<ISection> read(BlobReader* blob_reader, const size_t section_length);
+    static std::shared_ptr<ISection> read(BlobReaderInterface& blob_reader);
 
 private:
     std::vector<ov::Layout> m_input_layouts;

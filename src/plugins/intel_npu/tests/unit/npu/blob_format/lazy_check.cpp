@@ -31,11 +31,11 @@ std::shared_ptr<MockSectionWithTable> write_read_section_with_table(std::shared_
     const std::string buffer = stream.str();
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, const_cast<char*>(buffer.data()));
-    BlobReader reader(tensor);
+    BlobReader reader;
     reader.register_reader(MockTypes::MOCK_2, MockSection_2::read);
     reader.register_reader(MockTypes::MOCK_3, MockSection_3::read);
     reader.register_reader(MockTypes::MOCK_WITH_TABLE, MockSectionWithTable::read);
-    reader.read(make_caps());
+    reader.read(tensor, make_caps());
 
     return std::dynamic_pointer_cast<MockSectionWithTable>(reader.retrieve_first_section(MockTypes::MOCK_WITH_TABLE));
 }

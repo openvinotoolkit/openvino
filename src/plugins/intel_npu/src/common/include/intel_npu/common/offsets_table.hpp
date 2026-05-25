@@ -52,7 +52,7 @@ public:
 
     OffsetsTable get_table() const;
 
-    static std::shared_ptr<ISection> read(BlobReader* blob_reader, const size_t section_length);
+    static std::shared_ptr<ISection> read(BlobReaderInterface& blob_reader);
 
 private:
     OffsetsTable m_offsets_table;

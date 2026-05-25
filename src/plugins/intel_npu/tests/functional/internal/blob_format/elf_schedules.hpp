@@ -75,7 +75,7 @@ public:
         blob = ov::Tensor(ov::element::u8, ov::Shape{blobSize});
         stream.read(blob.data<char>(), static_cast<std::streamsize>(blobSize));
 
-        reader = std::make_unique<BlobReader>(blob);
+        reader = std::make_unique<BlobReader>();
         reader->register_reader(PredefinedSectionType::ELF_MAIN_SCHEDULE, ELFMainScheduleSection::read);
         reader->register_reader(PredefinedSectionType::ELF_INIT_SCHEDULES, ELFInitSchedulesSection::read);
 
@@ -83,7 +83,7 @@ public:
         for (auto token : CRE::DEFAULT_PLUGIN_CAPABILITIES_TOKENS) {
             caps[token] = std::make_shared<StaticCapability>(token);
         }
-        reader->read(caps);
+        reader->read(blob, caps);
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<std::tuple<std::string, ov::AnyMap>>& obj) {

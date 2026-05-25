@@ -41,14 +41,14 @@ ov::Tensor ELFMainScheduleSection::get_schedule() const {
     return m_main_schedule;
 }
 
-std::shared_ptr<ISection> ELFMainScheduleSection::read(BlobReader* blob_reader, const size_t section_length) {
+std::shared_ptr<ISection> ELFMainScheduleSection::read(BlobReaderInterface& blob_reader) {
     // Skip the first padding
     uint64_t padding_size;
-    blob_reader->copy_data_from_source(reinterpret_cast<char*>(&padding_size), sizeof(padding_size));
-    blob_reader->interpret_data_from_source(padding_size);
+    blob_reader.copy_data_from_source(reinterpret_cast<char*>(&padding_size), sizeof(padding_size));
+    blob_reader.interpret_data_from_source(padding_size);
 
     return std::make_shared<ELFMainScheduleSection>(
-        blob_reader->get_roi_tensor(section_length - sizeof(uint64_t) - padding_size));
+        blob_reader.get_roi_tensor(blob_reader.get_section_length() - sizeof(uint64_t) - padding_size));
 }
 
 ELFInitSchedulesSection::ELFInitSchedulesSection(const std::shared_ptr<WeightlessGraph>& weightless_graph)
@@ -95,25 +95,25 @@ std::vector<ov::Tensor> ELFInitSchedulesSection::get_schedules() const {
     return m_init_schedules;
 }
 
-std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReader* blob_reader, const size_t section_length) {
+std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReaderInterface& blob_reader) {
     uint64_t number_of_inits;
-    blob_reader->copy_data_from_source(reinterpret_cast<char*>(&number_of_inits), sizeof(number_of_inits));
+    blob_reader.copy_data_from_source(reinterpret_cast<char*>(&number_of_inits), sizeof(number_of_inits));
 
     std::vector<uint64_t> init_sizes;
     uint64_t value;
     while (number_of_inits--) {
-        blob_reader->copy_data_from_source(reinterpret_cast<char*>(&value), sizeof(value));
+        blob_reader.copy_data_from_source(reinterpret_cast<char*>(&value), sizeof(value));
         init_sizes.push_back(value);
     }
 
     // Skip the first padding
     uint64_t padding_size;
-    blob_reader->copy_data_from_source(reinterpret_cast<char*>(&padding_size), sizeof(padding_size));
-    blob_reader->interpret_data_from_source(padding_size);
+    blob_reader.copy_data_from_source(reinterpret_cast<char*>(&padding_size), sizeof(padding_size));
+    blob_reader.interpret_data_from_source(padding_size);
 
     std::vector<ov::Tensor> init_schedules;
     for (const auto& init_size : init_sizes) {
-        init_schedules.push_back(blob_reader->get_roi_tensor(init_size));
+        init_schedules.push_back(blob_reader.get_roi_tensor(init_size));
     }
 
     return std::make_shared<ELFInitSchedulesSection>(init_schedules);

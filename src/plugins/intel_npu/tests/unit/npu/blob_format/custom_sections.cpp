@@ -46,9 +46,9 @@ TEST(MockSection1, WriteRead) {
     const std::string buffer = stream.str();
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
-    BlobReader reader(tensor);
+    BlobReader reader;
     reader.register_reader(MockTypes::MOCK_1, MockSection_1::read);
-    reader.read(make_caps());
+    reader.read(tensor, make_caps());
 
     auto result = std::dynamic_pointer_cast<MockSection_1>(reader.retrieve_first_section(MockTypes::MOCK_1));
     ASSERT_TRUE(result);
@@ -65,9 +65,9 @@ TEST(MockSection2, WriteRead) {
     compare_aligned_elements(buffer, VALUES);
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
-    BlobReader reader(tensor);
+    BlobReader reader;
     reader.register_reader(MockTypes::MOCK_2, MockSection_2::read);
-    reader.read(make_caps());
+    reader.read(tensor, make_caps());
 
     auto result = std::dynamic_pointer_cast<MockSection_2>(reader.retrieve_first_section(MockTypes::MOCK_2));
     ASSERT_TRUE(result);
@@ -84,9 +84,9 @@ TEST(MockSection2, WriteReadEmpty) {
     const std::string buffer = stream.str();
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
-    BlobReader reader(tensor);
+    BlobReader reader;
     reader.register_reader(MockTypes::MOCK_2, MockSection_2::read);
-    reader.read(make_caps());
+    reader.read(tensor, make_caps());
 
     auto result = std::dynamic_pointer_cast<MockSection_2>(reader.retrieve_first_section(MockTypes::MOCK_2));
     ASSERT_TRUE(result);
@@ -104,9 +104,9 @@ TEST(MockSection3, WriteRead) {
     compare_aligned_elements(buffer, VALUES);
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
-    BlobReader reader(tensor);
+    BlobReader reader;
     reader.register_reader(MockTypes::MOCK_3, MockSection_3::read);
-    reader.read(make_caps());
+    reader.read(tensor, make_caps());
 
     auto result = std::dynamic_pointer_cast<MockSection_3>(reader.retrieve_first_section(MockTypes::MOCK_3));
     ASSERT_TRUE(result);
@@ -128,10 +128,10 @@ TEST(MockSections, GetROITensors) {
 
     std::vector<uint8_t> data(buffer.begin(), buffer.end());
     ov::Tensor tensor(ov::element::u8, ov::Shape{data.size()}, data.data());
-    BlobReader reader(tensor);
+    BlobReader reader;
     reader.register_reader(MockTypes::MOCK_1, MockSection_1::read);
     reader.register_reader(MockTypes::MOCK_2, MockSection_2::read);
-    reader.read(make_caps());
+    reader.read(tensor, make_caps());
 
     auto offsets_section = std::dynamic_pointer_cast<OffsetsTableSection>(
         reader.retrieve_first_section(PredefinedSectionType::OFFSETS_TABLE));
@@ -144,11 +144,12 @@ TEST(MockSections, GetROITensors) {
     auto length_2 = table.lookup_length(SectionID(MockTypes::MOCK_2, 0)).value();
     ASSERT_TRUE(offset_1 && length_1 && offset_2 && length_2);
 
-    reader.move_cursor_to_relative_position(offset_1);
-    auto roi_1 = reader.get_roi_tensor(length_1);
+    BlobReaderInterface interface(tensor, 0, tensor.get_byte_size(), tensor.get_byte_size());
+    interface.move_cursor_relative_to_npu_region(offset_1);
+    auto roi_1 = interface.get_roi_tensor(length_1);
 
-    reader.move_cursor_to_relative_position(offset_2);
-    auto roi_2 = reader.get_roi_tensor(length_2);
+    interface.move_cursor_relative_to_npu_region(offset_2);
+    auto roi_2 = interface.get_roi_tensor(length_2);
 
     EXPECT_EQ(roi_1.data<uint8_t>(), tensor.data<uint8_t>() + offset_1);
     EXPECT_EQ(roi_1.get_byte_size(), length_1);
@@ -197,11 +198,11 @@ TEST(MockSectionWithTable, WriteRead) {
     compare_aligned_elements(buffer, VALUES_D);
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
-    BlobReader reader(tensor);
+    BlobReader reader;
     reader.register_reader(MockTypes::MOCK_2, MockSection_2::read);
     reader.register_reader(MockTypes::MOCK_3, MockSection_3::read);
     reader.register_reader(MockTypes::MOCK_WITH_TABLE, MockSectionWithTable::read);
-    reader.read(make_caps());
+    reader.read(tensor, make_caps());
 
     auto result =
         std::dynamic_pointer_cast<MockSectionWithTable>(reader.retrieve_first_section(MockTypes::MOCK_WITH_TABLE));

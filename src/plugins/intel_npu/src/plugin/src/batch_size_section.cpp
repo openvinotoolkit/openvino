@@ -21,7 +21,8 @@ int64_t BatchSizeSection::get_batch_size() const {
     return m_batch_size;
 }
 
-std::shared_ptr<ISection> BatchSizeSection::read(BlobReader* blob_reader, const size_t section_length) {
+std::shared_ptr<ISection> BatchSizeSection::read(BlobReaderInterface& blob_reader) {
+    const size_t section_length = blob_reader.get_section_length();
     OPENVINO_ASSERT(section_length == sizeof(int64_t),
                     "BatchSizeSection: incorrect section length ",
                     section_length,
@@ -29,7 +30,7 @@ std::shared_ptr<ISection> BatchSizeSection::read(BlobReader* blob_reader, const 
                     sizeof(int64_t));
 
     int64_t batch_size;
-    blob_reader->copy_data_from_source(reinterpret_cast<char*>(&batch_size), sizeof(batch_size));
+    blob_reader.copy_data_from_source(reinterpret_cast<char*>(&batch_size), sizeof(batch_size));
 
     return std::make_shared<BatchSizeSection>(batch_size);
 }

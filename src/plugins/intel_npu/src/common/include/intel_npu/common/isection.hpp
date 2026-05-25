@@ -43,7 +43,7 @@ bool operator==(const SectionID& sid1, const SectionID& sid2);
 std::ostream& operator<<(std::ostream& out, const SectionID& id);
 
 class BlobWriterInterface;
-class BlobReader;
+class BlobReaderInterface;
 
 /**
  * @brief Section types already known by the NPU plugin. These section type IDs are reserved.

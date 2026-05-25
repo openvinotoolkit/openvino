@@ -70,19 +70,19 @@ OffsetsTable OffsetsTableSection::get_table() const {
     return m_offsets_table;
 }
 
-std::shared_ptr<ISection> OffsetsTableSection::read(BlobReader* blob_reader, const size_t section_length) {
+std::shared_ptr<ISection> OffsetsTableSection::read(BlobReaderInterface& blob_reader) {
     OffsetsTable offsets_table;
-    size_t number_of_sections_in_table = section_length / offsets_table.get_entry_size();
+    size_t number_of_sections_in_table = blob_reader.get_section_length() / offsets_table.get_entry_size();
     SectionType type;
     SectionTypeInstance type_instance;
     uint64_t offset;
     uint64_t length;
 
     while (number_of_sections_in_table--) {
-        blob_reader->copy_data_from_source(reinterpret_cast<char*>(&type), sizeof(type));
-        blob_reader->copy_data_from_source(reinterpret_cast<char*>(&type_instance), sizeof(type_instance));
-        blob_reader->copy_data_from_source(reinterpret_cast<char*>(&offset), sizeof(offset));
-        blob_reader->copy_data_from_source(reinterpret_cast<char*>(&length), sizeof(length));
+        blob_reader.copy_data_from_source(reinterpret_cast<char*>(&type), sizeof(type));
+        blob_reader.copy_data_from_source(reinterpret_cast<char*>(&type_instance), sizeof(type_instance));
+        blob_reader.copy_data_from_source(reinterpret_cast<char*>(&offset), sizeof(offset));
+        blob_reader.copy_data_from_source(reinterpret_cast<char*>(&length), sizeof(length));
         offsets_table.add_entry(SectionID(type, type_instance), offset, length);
     }
 

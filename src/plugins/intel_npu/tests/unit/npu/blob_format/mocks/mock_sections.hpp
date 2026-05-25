@@ -26,7 +26,7 @@ public:
 
     double get_value() const;
 
-    static std::shared_ptr<ISection> read(BlobReader* blob_reader, const size_t section_length);
+    static std::shared_ptr<ISection> read(BlobReaderInterface& blob_reader);
 
 private:
     double value;
@@ -40,7 +40,7 @@ public:
 
     std::vector<double> get_values() const;
 
-    static std::shared_ptr<ISection> read(BlobReader* blob_reader, const size_t section_length);
+    static std::shared_ptr<ISection> read(BlobReaderInterface& blob_reader);
 
     static uint64_t write_size(size_t n_values, uint64_t start_offset);
 
@@ -58,7 +58,7 @@ public:
 
     std::pair<double, std::vector<double>> get_values() const;
 
-    static std::shared_ptr<ISection> read(BlobReader* blob_reader, const size_t section_length);
+    static std::shared_ptr<ISection> read(BlobReaderInterface& blob_reader);
 
 private:
     std::shared_ptr<MockSection_1> section_1;
@@ -80,11 +80,11 @@ public:
 
     OffsetsTable get_embedded_table() const;
 
-    static std::shared_ptr<ISection> read(BlobReader* blob_reader, const size_t section_length);
+    static std::shared_ptr<ISection> read(BlobReaderInterface& blob_reader);
 
 private:
     // Dispatches to the concrete read() for the given embedded section type.
-    static std::shared_ptr<ISection> read_embedded(BlobReader* blob_reader, SectionType type, size_t length);
+    static std::shared_ptr<ISection> read_embedded(BlobReaderInterface& blob_reader, SectionType type);
 
     // called only in case of read method
     MockSectionWithTable(std::shared_ptr<MockSection_1> section_1,
