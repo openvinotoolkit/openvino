@@ -565,15 +565,14 @@ void paged_attention(std::uintptr_t node_key,
             }
 
             int32_t start = 0;
-            if (max_context_i > 0) {
+            if (max_context_i > 0)
                 start = std::max(start, causal_pos - max_context_i);
-            } else if (sliding_window_i > 0) {
+            if (sliding_window_i > 0)
                 start = std::max(start, causal_pos - sliding_window_i);
-            } else if (is_image) {
+            if (is_image)
                 start = std::min(start, past + (image_group_begin[token] - t_begin_i));
-            } else if (start < 0) {
+            if (start < 0)
                 start = 0;
-            }
             const std::int32_t end = ncausal - 1;
             const std::size_t ctx_len = (end >= start) ? static_cast<std::size_t>(end - start + 1) : 0;
             if (ctx_len == 0) {
