@@ -18,6 +18,8 @@
 #    include <windows.h>
 
 #    include "psapi.h"
+#else
+#    include <unistd.h>
 #endif
 
 namespace ov {
@@ -39,8 +41,8 @@ std::ostream& operator<<(std::ostream& os, OpType type) {
 }
 
 std::string generateTestFilePrefix() {
-    // Generate unique file names based on test name, thread id and timestamp
-    // This allows execution of tests in parallel (stress mode)
+    // Generate unique file names based on test name, process id, thread id and timestamp.
+    // This allows execution of tests in parallel across threads and processes.
     auto testInfo = ::testing::UnitTest::GetInstance()->current_test_info();
     std::string testName = testInfo->test_case_name();
     testName += testInfo->name();
@@ -48,7 +50,12 @@ std::string generateTestFilePrefix() {
     std::stringstream ss;
     auto ts = std::chrono::duration_cast<std::chrono::microseconds>(
         std::chrono::high_resolution_clock::now().time_since_epoch());
-    ss << testName << "_" << std::this_thread::get_id() << "_" << ts.count();
+#ifdef _WIN32
+    const auto pid = static_cast<uint64_t>(::GetCurrentProcessId());
+#else
+    const auto pid = static_cast<uint64_t>(::getpid());
+#endif
+    ss << testName << "_" << pid << "_" << std::this_thread::get_id() << "_" << ts.count();
     testName = ss.str();
     std::replace(testName.begin(), testName.end(), ':', '_');
     return testName;

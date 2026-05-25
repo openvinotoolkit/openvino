@@ -22,6 +22,7 @@
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
+#include "edge.h"
 #include "executors/memory_arguments.hpp"
 #include "fake_quantize.h"
 #include "graph_context.h"

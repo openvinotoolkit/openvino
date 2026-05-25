@@ -248,8 +248,8 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
         LOG_WARN(compiler_gate_support_msg << "unsupported");
     }
 
-    if (desc.arch == "5010" && desc.compiler_ver >= ONEAPI_MAKE_VERSION(7, 29)) {
-        // Flash attention tile is supported starting from compiler version 7.29 on NPU5010
+    if (desc.arch == "5010" && desc.compiler_ver >= ONEAPI_MAKE_VERSION(8, 1)) {
+        // Flash attention tile with GQA is supported starting from compiler version 8.1 on NPU5010
         desc.support_flash_attention_tile = true;
     }
 
@@ -1257,6 +1257,9 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& raw_stream, const ov::n
 
         // Serialize CompiledModels
         // Note: no need to pass any encryption here as it's done in export_model()
+        // This cache is collected on the original LLM graph before BF16->FP16
+        // conversion and submodel splitting. Child CompiledModels must serialize
+        // this propagated view, not just their local post-transform snapshot.
         CompiledContext enc_ctx(false, nullptr, nullptr, m_bf16_consts);
 
         // Serialize all generate variants

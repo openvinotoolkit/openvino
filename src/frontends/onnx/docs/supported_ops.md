@@ -36,7 +36,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |Celu                                                    |12                      |12                              |                                |
 |                        |CenterCropPad                                           |18                      |18                              |                                |
 |                        |Clip                                                    |11, 1                   |13, 12, 11, 6, 1                |                                |
-|                        |Col2Im                                                  |                        |18                              |                                |
+|                        |Col2Im                                                  |18                      |18                              |                                |
 |                        |Compress                                                |9                       |11, 9                           |                                |
 |                        |Concat                                                  |1                       |13, 11, 4, 1                    |                                |
 |                        |ConcatFromSequence                                      |11                      |11                              |Supported only in certain patterns|
@@ -134,6 +134,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |QLinearConv                                             |10                      |10                              |                                |
 |                        |QLinearMatMul                                           |10                      |21, 10                          |                                |
 |                        |QuantizeLinear                                          |21, 13, 10              |21, 19, 13, 10                  |                                |
+|                        |RMSNormalization                                        |23                      |23                              |                                |
 |                        |RNN                                                     |1                       |22, 14, 7, 1                    |                                |
 |                        |RandomNormal                                            |1                       |22, 1                           |                                |
 |                        |RandomNormalLike                                        |1                       |22, 1                           |                                |
@@ -143,7 +144,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |Reciprocal                                              |1                       |13, 6, 1                        |                                |
 |                        |ReduceL1                                                |18, 13, 1               |18, 13, 11, 1                   |                                |
 |                        |ReduceL2                                                |18, 13, 1               |18, 13, 11, 1                   |                                |
-|                        |ReduceLogSum                                            |18, 1                   |18, 13, 11, 1                   |                                |
+|                        |ReduceLogSum                                            |18, 13, 1               |18, 13, 11, 1                   |                                |
 |                        |ReduceLogSumExp                                         |18, 13, 1               |18, 13, 11, 1                   |                                |
 |                        |ReduceMax                                               |20, 18, 13, 1           |20, 18, 13, 12, 11, 1           |                                |
 |                        |ReduceMean                                              |18, 13, 1               |18, 13, 11, 1                   |                                |
@@ -157,6 +158,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |Resize                                                  |11, 10                  |19, 18, 13, 11, 10              |                                |
 |                        |ReverseSequence                                         |10                      |10                              |                                |
 |                        |RoiAlign                                                |16, 10                  |22, 16, 10                      |                                |
+|                        |RotaryEmbedding                                         |23                      |23                              |                                |
 |                        |Round                                                   |11                      |22, 11                          |                                |
 |                        |STFT                                                    |17                      |17                              |                                |
 |                        |Scan                                                    |9, 8                    |21, 19, 16, 11, 9, 8            |                                |
