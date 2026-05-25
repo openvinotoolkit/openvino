@@ -236,7 +236,7 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         idx++;
     }
 
-    // Implicit concat for onednn only when use_usm and batch 1.
+    // Implicit concat for onednn only when use_usm and batch 1 on the batch axis.
     if (is_onednn_impl) {
         bool use_usm = concat_node.get_program().get_engine().use_unified_shared_memory();
         const layout& concat_out_l = concat_params.get_output_layout();
@@ -246,7 +246,11 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
             // Return true in build time, it will be checked again in runtime
             return true;
         } else {
-            if (concat_out_l.batch() > 1)
+            // Block formats (b_fs_yx_fsv16 etc.) are not contiguous along the batch axis,
+            // so batch-axis (axis=0) concat with batch>1 cannot safely alias buffers.
+            // Feature-axis and other axes are fine — the 64-byte alignment check above is
+            // the correctness gate for those cases.
+            if (concat_axis_index == 0 && concat_out_l.batch() > 1)
                 return false;
             const auto& dims_order = concat_out_l.format.dims_order();
             for (auto dim : dims_order) {
