@@ -1055,6 +1055,9 @@ public:
         auto batched_gemv_threshold_str = std::getenv("MOE_BATCHED_GEMV_THRESHOLD");
         if (batched_gemv_threshold_str) {
             batched_gemv_threshold = std::stoul(batched_gemv_threshold_str);
+            if (batched_gemv_threshold <= 0) {
+                batched_gemv_threshold = 1;
+            }
             GPU_DEBUG_TRACE_DETAIL << "MOE_BATCHED_GEMV_THRESHOLD = " << batched_gemv_threshold << std::endl;
         }
 
@@ -1604,106 +1607,7 @@ public:
         return std::make_tuple(mem, layout);
     }
 
-    cldnn::event::ptr exec_single_token(const std::vector<cldnn::event::ptr>& events,
-                                        typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
-                                        scratch_buffers& scratch) {
-        auto cur_moe = instance.get_typed_desc<moe_3gemm_fused_compressed>();
-        int max_topk = static_cast<int>(cur_moe->_config.top_k);
-
-        auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
-        auto batch_mem_ptr = scratch.topk_id;
-        auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES));
-        auto routing_mem_ptr = scratch.topk_weights;
-        _hidden_size = static_cast<int>(cur_moe->_config.hidden_size);
-        _intermediate_size = static_cast<int>(cur_moe->_config.inter_size);
-
-        const size_t subgroup_size = instance.get_impl_params()->get_device_info().arch >= gpu_arch::xe2 ? 32 : 16;
-        const size_t max_work_group_size = instance.get_impl_params()->get_device_info().max_work_group_size;
-
-        // gate
-        const auto& mlp_gate_wei_mem = scratch.moe_fusion_wei_addr.weight[0];
-        const auto& mlp_gate_scale_mem = scratch.moe_fusion_wei_addr.scale[0];
-        const auto& mlp_gate_zp_mem = scratch.moe_fusion_wei_addr.zp[0];
-
-        // up
-        const auto& mlp_up_wei_mem = scratch.moe_fusion_wei_addr.weight[1];
-        const auto& mlp_up_scale_mem = scratch.moe_fusion_wei_addr.scale[1];
-        const auto& mlp_up_zp_mem = scratch.moe_fusion_wei_addr.zp[1];
-
-        // down
-        const auto& mlp_down_wei_mem = scratch.moe_fusion_wei_addr.weight[2];
-        const auto& mlp_down_scale_mem = scratch.moe_fusion_wei_addr.scale[2];
-        const auto& mlp_down_zp_mem = scratch.moe_fusion_wei_addr.zp[2];
-        event::ptr ret;
-
-        size_t compute_experts = static_cast<size_t>(max_topk);
-        Stage* stage_gate_up = mlp_gate_up.get();
-        Stage* stage_down = mlp_down.get();
-        Stage* stage_reduce = mlp_reduce.get();
-
-        std::vector<memory::ptr> extra_args_gate_up;
-        std::vector<memory::ptr> extra_args_down;
-
-        if (_has_shared_expert) {
-            compute_experts += 1;
-
-            extra_args_gate_up = {scratch.moe_fusion_wei_addr.shared_weight[0],
-                                  scratch.moe_fusion_wei_addr.shared_scale[0],
-                                  scratch.moe_fusion_wei_addr.shared_zp[0],
-                                  scratch.moe_fusion_wei_addr.shared_weight[1],
-                                  scratch.moe_fusion_wei_addr.shared_scale[1],
-                                  scratch.moe_fusion_wei_addr.shared_zp[1],
-                                  scratch.moe_fusion_wei_addr.shared_weight[3],
-                                  routing_mem_ptr};
-
-            extra_args_down = {scratch.moe_fusion_wei_addr.shared_weight[2],
-                               scratch.moe_fusion_wei_addr.shared_scale[2],
-                               scratch.moe_fusion_wei_addr.shared_zp[2]};
-        }
-        {
-            // scratch.up = up(x) * silu(gate(x))
-            std::vector<memory::ptr> args_gate_up =
-                {batch_mem_ptr, mlp_gate_wei_mem, mlp_gate_scale_mem, mlp_gate_zp_mem, mlp_up_wei_mem, mlp_up_scale_mem, mlp_up_zp_mem};
-            if (_has_shared_expert)
-                args_gate_up.insert(args_gate_up.end(), extra_args_gate_up.begin(), extra_args_gate_up.end());
-            args_gate_up.push_back(hidden_states_mem_ptr);
-
-            auto ret_event = execute_stage(events,
-                                           instance,
-                                           *stage_gate_up,
-                                           args_gate_up,
-                                           {scratch.up},
-                                           {compute_experts, subgroup_size, static_cast<size_t>(_intermediate_size / N_BLOCK)},
-                                           {1, subgroup_size, SUBGROUP_NUM});
-
-            // scratch.y = down(scratch.up) * weight[expert_no]
-            std::vector<memory::ptr> args_down = {batch_mem_ptr, mlp_down_wei_mem, mlp_down_scale_mem, mlp_down_zp_mem};
-            if (_has_shared_expert)
-                args_down.insert(args_down.end(), extra_args_down.begin(), extra_args_down.end());
-            args_down.push_back(scratch.up);
-            args_down.push_back(routing_mem_ptr);
-            ret_event = execute_stage({ret_event},
-                                      instance,
-                                      *stage_down,
-                                      args_down,
-                                      {scratch.y},
-                                      {compute_experts, subgroup_size, static_cast<size_t>(_hidden_size / N_BLOCK)},
-                                      {1, subgroup_size, SUBGROUP_NUM});
-
-            // final = sum(scratch.y)
-            ret = execute_stage({ret_event},
-                                instance,
-                                *stage_reduce,
-                                {scratch.y},
-                                {final_hidden_states_mem_ptr},
-                                {static_cast<size_t>(1), static_cast<size_t>(_hidden_size)},
-                                {1, std::min(max_work_group_size, size_t{1024})},
-                                instance.needs_completion_event());
-        }
-        return ret;
-    }
-
-    // Batched GEMV path: handles token_num > 1 with the same optimized GEMV kernels as exec_single_token.
+    // Batched GEMV path: handles token_num >= 1 with optimized GEMV kernels.
     // Each workgroup processes one (token, expert) pair. Avoids gather/scatter/CPU-sync overhead of prefill paths.
     // Supports shared expert: EXPERTS_PER_TOKEN = MAX_TOPK + 1 when shared expert is enabled.
     cldnn::event::ptr exec_batched_gemv(const std::vector<cldnn::event::ptr>& events,
@@ -2689,14 +2593,8 @@ public:
             OPENVINO_THROW("Unsupported routing type ", static_cast<int>(config.routing_type));
         }
 
-        // Single token is a special case, we don't need to do gather/scatter,
-        // and we can apply optimal kernels against memory bound to improve performance.
-        if (token_num == 1) {
-            return exec_single_token({topk_event}, instance, scratch);
-        }
-
-        // Batched GEMV: for small token counts (MTP/speculative decoding), use the same
-        // optimized GEMV kernels with batch dimension instead of the prefill GEMM path.
+        // Batched GEMV: for small token counts (including single token, MTP/speculative decoding),
+        // use optimized GEMV kernels with batch dimension. Avoids gather/scatter overhead.
         if (token_num <= batched_gemv_threshold) {
             return exec_batched_gemv({topk_event}, instance, scratch, token_num);
         }
