@@ -10,13 +10,10 @@
 #include <map>
 #include <memory>
 #include <set>
-#include <sstream>
-#include <string>
 #include <utility>
 #include <vector>
 
 #include "openvino/core/except.hpp"
-#include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/kernel_executor_table.hpp"
@@ -33,6 +30,12 @@
 #include "snippets/op/reorder.hpp"
 #include "snippets/utils/loop_utils.hpp"
 #include "snippets/utils/utils.hpp"
+#ifdef SNIPPETS_DEBUG_CAPS
+#    include <sstream>
+#    include <string>
+
+#    include "openvino/core/shape.hpp"
+#endif  // SNIPPETS_DEBUG_CAPS
 
 namespace ov::snippets {
 

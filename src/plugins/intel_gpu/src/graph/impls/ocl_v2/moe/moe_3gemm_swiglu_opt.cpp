@@ -13,8 +13,6 @@
 #    include <algorithm>
 #    include <initializer_list>
 #    include <oneapi/dnnl/dnnl.hpp>
-#    include <oneapi/dnnl/dnnl_ocl.hpp>
-#    include <sstream>
 #    include <string_view>
 #    include <tuple>
 #    include <utility>
@@ -22,15 +20,13 @@
 #    include "../primitive_ocl_base.hpp"
 #    include "../utils/kernel_generator.hpp"
 #    include "common_utils/jitter.hpp"
-#    include "debug_helper.hpp"
+#    include "impls/onednn/grouped_matmul_helper.hpp"
 #    include "intel_gpu/graph/kernel_impl_params.hpp"
 #    include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
 #    include "intel_gpu/runtime/lru_cache.hpp"
 #    include "intel_gpu/runtime/stream.hpp"
-#    include "intel_gpu/runtime/utils.hpp"
 #    include "moe_3gemm_fused_inst.h"
 #    include "moe_3gemm_gen_micro.hpp"
-#    include "ocl_v2/utils/fused_ops_jitter.hpp"
 #    include "ocl_v2/utils/jitter.hpp"
 #    include "primitive_inst.h"
 
@@ -39,6 +35,12 @@ namespace ov::intel_gpu::ocl {
 namespace {
 
 using namespace ov::intel_gpu::ocl;
+
+// Bring shared onednn matmul wrappers into this anonymous namespace so existing call sites
+// that reference `onednn_matmul`, `onednn_linear`, etc. unqualified continue to compile after
+// the definitions moved to impls/onednn/grouped_matmul_helper.hpp.
+using cldnn::onednn::onednn_linear;
+using cldnn::onednn::onednn_matmul;
 
 dnnl::memory::data_type convert_data_type(cldnn::data_types dt) {
     switch (dt) {
@@ -61,305 +63,17 @@ dnnl::memory::data_type convert_data_type(cldnn::data_types dt) {
     }
 }
 
-struct onednn_matmul {
-    dnnl::matmul m_prim;
-    dnnl::memory::desc m_wei_md;
-    dnnl::memory::data_type m_w_type;
-    dnnl::memory::data_type m_a_type;  // activation dtype
-    dnnl::memory::dim m_K;
-    dnnl::memory::dim m_N;
-    dnnl::memory::dim m_M;
-    dnnl::memory::dim m_K_groups;
-
-    dnnl::primitive_attr attr;
-    dnnl::post_ops postops;
-
-    onednn_matmul(dnnl::memory::data_type act_dtype,
-                  dnnl::memory::data_type weight_dtype,
-                  int batch_size,
-                  int ic,
-                  int oc,
-                  int ic_group_size = -1,
-                  bool has_zp = true) {
-        m_a_type = act_dtype;
-        m_w_type = weight_dtype;
-        m_K_groups = 0;
-        m_K = ic;
-        m_N = oc;
-        m_M = DNNL_RUNTIME_DIM_VAL;
-        if (batch_size > 0) {
-            // jit-gemm kernel only support static batch size
-            m_M = batch_size;
-        }
-        if (ic_group_size >= 0) {
-            w_scale(ic_group_size);
-            if (has_zp)
-                w_zp(ic_group_size);
-            fpmath_f16();
-        }
+inline dnnl::algorithm moe_activation_to_dnnl_algo(ov::op::internal::MOE::Activation_type act) {
+    switch (act) {
+    case ov::op::internal::MOE::Activation_type::GEGLU_TANH:
+        return dnnl::algorithm::eltwise_gelu_tanh;
+    case ov::op::internal::MOE::Activation_type::GEGLU_ERF:
+        return dnnl::algorithm::eltwise_gelu_erf;
+    case ov::op::internal::MOE::Activation_type::SWIGLU:
+    default:
+        return dnnl::algorithm::eltwise_swish;
     }
-
-    onednn_matmul& w_scale(int k_group_size) {
-        if (k_group_size <= 0) {
-            m_K_groups = 1;
-            // per-OC, no grouping in K dimension
-            attr.set_scales(DNNL_ARG_WEIGHTS, (0 << 0) + (1 << 1), {1}, dnnl::memory::data_type::f16);
-        } else {
-            OPENVINO_ASSERT((k_group_size % 32) == 0);
-            OPENVINO_ASSERT((m_K % k_group_size) == 0);
-            m_K_groups = m_K / k_group_size;
-            attr.set_scales(DNNL_ARG_WEIGHTS, (1 << 0) + (1 << 1), {k_group_size, 1}, dnnl::memory::data_type::f16);
-        }
-        return *this;
-    }
-
-    onednn_matmul& w_zp(int k_group_size) {
-        if (k_group_size <= 0) {
-            OPENVINO_ASSERT(m_K_groups == 1);
-            attr.set_zero_points(DNNL_ARG_WEIGHTS, (0 << 0) + (1 << 1), {1}, m_w_type);
-        } else {
-            OPENVINO_ASSERT((m_K % k_group_size) == 0);
-            m_K_groups = (m_K / k_group_size);
-            attr.set_zero_points(DNNL_ARG_WEIGHTS, (1 << 0) + (1 << 1), {k_group_size, 1}, m_w_type);
-        }
-        return *this;
-    }
-
-    onednn_matmul& fpmath_f16() {
-        attr.set_fpmath_mode(dnnl::fpmath_mode::f16, true);
-        return *this;
-    }
-    onednn_matmul& post_op_silu() {
-        float alpha = 1.0f;
-        float beta = 0.0f;
-        postops.append_eltwise(dnnl::algorithm::eltwise_swish, alpha, beta);
-        return *this;
-    }
-    onednn_matmul& post_op_bin_mul(bool per_oc = true) {
-        dnnl::memory::dim batch_size = m_M;
-        if (batch_size == DNNL_RUNTIME_DIM_VAL)
-            batch_size = 1024 * 1024;  // big enough fake static batch
-
-        dnnl::memory::desc bin_mul_md = dnnl::memory::desc(dnnl::memory::dims({batch_size, per_oc ? m_N : 1}), m_a_type, dnnl::memory::format_tag::ab);
-        postops.append_binary(dnnl::algorithm::binary_mul, bin_mul_md);
-        return *this;
-    }
-
-    onednn_matmul& post_op_sum(float scale = 1.f, int32_t zero_point = 0) {
-        postops.append_sum(scale, zero_point, dnnl::memory::data_type::undef);
-        return *this;
-    }
-
-    void create(dnnl::engine eng) {
-        if (postops.len() > 0) {
-            attr.set_post_ops(postops);
-        }
-
-        dnnl::memory::desc src_md = dnnl::memory::desc(dnnl::memory::dims({m_M, m_K}), m_a_type, dnnl::memory::format_tag::ab);
-        dnnl::memory::desc dst_md = dnnl::memory::desc(dnnl::memory::dims({m_M, m_N}), m_a_type, dnnl::memory::format_tag::ab);
-
-        // use fixed weight-layout to prevent shape-dependent weight-layout changes
-        dnnl::memory::desc wei_md = dnnl::memory::desc(dnnl::memory::dims({m_K, m_N}), m_w_type, dnnl::memory::format_tag::ba);
-
-        // Create primitive descriptor.
-        auto matmul_pd = dnnl::matmul::primitive_desc(eng, src_md, wei_md, dst_md, attr);
-
-        // Pre-packed weights stored as int8_t
-        m_wei_md = matmul_pd.weights_desc();
-
-        // Create the primitive.
-        m_prim = dnnl::matmul(matmul_pd);
-    }
-
-    // this creator is for predefined matmul primitive types
-    enum class type {
-        none,
-        with_bin_mul,
-        with_bin_mul_per_row,
-        with_bin_mul_per_row_sum,
-        with_silu,
-        with_silu_bin_mul,
-        with_sigmoid,
-        with_bin_mul_sum,
-    };
-    int bin_post_id = -1;
-    bool bin_per_row = false;
-    onednn_matmul(dnnl::engine eng,
-                  dnnl::memory::data_type act_dtype,
-                  dnnl::memory::data_type weight_dtype,
-                  int batch,
-                  int ic,
-                  int oc,
-                  int ic_group_size,
-                  type t,
-                  bool has_zp = true)
-        : onednn_matmul(act_dtype, weight_dtype, batch, ic, oc, ic_group_size, has_zp) {
-        if (t == type::with_bin_mul) {
-            bin_post_id = 0;
-            post_op_bin_mul(true);
-        }
-        if (t == type::with_bin_mul_sum) {
-            bin_post_id = 0;
-            post_op_bin_mul(false);
-            post_op_sum();
-        }
-        if (t == type::with_sigmoid) {
-            postops.append_eltwise(dnnl::algorithm::eltwise_logistic, 1.0f, 0.0f);
-        }
-        if (t == type::with_bin_mul_per_row) {
-            bin_post_id = 0;
-            bin_per_row = true;
-            post_op_bin_mul(false);
-        }
-        if (t == type::with_bin_mul_per_row_sum) {
-            bin_post_id = 0;
-            bin_per_row = true;
-            post_op_bin_mul(false);
-            post_op_sum();
-        }
-        if (t == type::with_silu)
-            post_op_silu();
-        if (t == type::with_silu_bin_mul) {
-            bin_post_id = 1;
-            post_op_silu();
-            post_op_bin_mul(true);
-        }
-
-        create(eng);
-    }
-};
-
-// all jit-based/performance-aware function should be a functor/callable because:
-//   - it needs to hold reference to kernel (to save build time & resources)
-//   - it needs to do other compile time preparation work and hold the relevant
-//     runtime-data-struct (to make runtime faster)
-// to optimize compile-time-workload itself, the functor instance itself should be
-// cached with compile-time parameter as the key.
-//
-// because it's a functor, which supposed to have no states, so cache-factory should
-// always return shared_ptr to constant object, so it won't behave differently when being
-// called by different caller, and this also ensure it's multi-threading safe since it
-// won't modify it's content.
-//
-template <typename... TTypes>
-class tuple_hasher {
-private:
-    typedef std::tuple<TTypes...> Tuple;
-    template <int N>
-    size_t hash(Tuple& value) const {
-        return 0;
-    }
-    template <int N, typename THead, typename... TTail>
-    size_t hash(Tuple& value) const {
-        constexpr int Index = N - sizeof...(TTail) - 1;
-        return std::hash<THead>()(std::get<Index>(value)) ^ hash<N, TTail...>(value);
-    }
-
-public:
-    size_t operator()(Tuple value) const {
-        auto hv = hash<sizeof...(TTypes), TTypes...>(value);
-        return hv;
-    }
-};
-
-// create const object with internal cache with constructor-args as the key
-// this helps reduces construction time overhead, and perfectly suitable
-// for caching functor/callable.
-template <class T, typename... CArgs>
-std::shared_ptr<const T> make_cacheable(dnnl::engine eng, CArgs... cargs) {
-    std::shared_ptr<const T> sptr;
-    auto key = std::make_tuple(cargs...);
-    static std::unordered_map<decltype(key), std::weak_ptr<const T>, tuple_hasher<CArgs...>> cache;
-    static std::mutex mutex;
-    std::lock_guard<std::mutex> guard(mutex);
-    auto it = cache.find(key);
-    if (it != cache.end()) {
-        auto& wptr = it->second;
-        sptr = wptr.lock();
-        if (!sptr) {
-            sptr = std::make_shared<T>(eng, cargs...);
-            wptr = sptr;
-        }
-    } else {
-        sptr = std::make_shared<T>(eng, cargs...);
-        cache.emplace(std::make_pair(key, std::weak_ptr<const T>(sptr)));
-    }
-    return sptr;
 }
-
-struct onednn_linear {
-    std::shared_ptr<const onednn_matmul> mm;
-    dnnl::memory weight;
-    dnnl::memory scale;
-    dnnl::memory zp;
-    dnnl::matmul m_prim;
-    dnnl::memory::dim m_K;
-    dnnl::memory::dim m_N;
-    dnnl::memory::dim m_batch;
-    dnnl::memory::data_type m_a_type;
-    int bin_post_id;
-
-    static onednn_linear create(dnnl::engine eng,
-                                dnnl::memory::data_type act_dtype,
-                                dnnl::memory::data_type weight_dtype,
-                                int batch,
-                                int ic,
-                                int oc,
-                                int ic_group_size,
-                                onednn_matmul::type t,
-                                dnnl::memory weight,  // external weight
-                                dnnl::memory scale,
-                                dnnl::memory zp) {
-        OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("onednn_linear::create()"));
-        bool has_zp = static_cast<bool>(zp);
-        auto mm = make_cacheable<onednn_matmul>(eng, act_dtype, weight_dtype, batch, ic, oc, ic_group_size, t, has_zp);
-        onednn_linear linear;
-        linear.mm = mm;
-        linear.bin_post_id = mm->bin_post_id;
-        linear.m_prim = mm->m_prim;
-        linear.m_K = mm->m_K;
-        linear.m_N = mm->m_N;
-        linear.m_batch = batch;
-        linear.m_a_type = mm->m_a_type;
-        linear.weight = weight;
-
-        if (scale) {
-            // https://uxlfoundation.github.io/oneDNN/page_weights_decompression_matmul_cpp.html
-            // Quantization Group size for scales. Must be divisible by 32.
-            linear.scale = scale;
-            if (zp) {
-                linear.zp = zp;
-            }
-        }
-        return linear;
-    }
-
-    void forward(dnnl::stream& stream, int m, dnnl::memory src_mem, dnnl::memory dst_mem, dnnl::memory bin_mem) {
-        OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("onednn_linear::forward()"));
-        dnnl::memory::dim M = m;
-
-        if (!(m_batch == 0 || m_batch == M)) {
-            OPENVINO_THROW("onednn_linear::forward(): invalid batch size m_batch=", m_batch, " M=", M);
-        }
-
-        std::unordered_map<int, dnnl::memory> args;
-        args.insert({DNNL_ARG_SRC, src_mem});
-        args.insert({DNNL_ARG_WEIGHTS, weight});
-        // args.insert({DNNL_ARG_BIAS, bias_mem});
-        args.insert({DNNL_ARG_DST, dst_mem});
-
-        if (scale) {
-            args.insert({DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale});
-        }
-        if (zp) {
-            args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, zp});
-        }
-        if (bin_mem) {
-            args.insert({DNNL_ARG_ATTR_MULTIPLE_POST_OP(bin_post_id) | DNNL_ARG_SRC_1, bin_mem});
-        }
-        m_prim.execute(stream, args);
-    }
-};
 
 class MoE3GemmSwigluSoftMaxTopK : public KernelGenerator {
 public:
@@ -602,6 +316,11 @@ protected:
         jit.make("SUBGROUP_SIZE", info.arch >= gpu_arch::xe2 ? 32 : 16);
         jit.make("INTERMEDIA_SIZE", desc->_config.inter_size);
         jit.make("MOE_DTYPE", "half");
+        if (desc->_config.activation_type == ov::op::internal::MOE::Activation_type::GEGLU_TANH) {
+            jit.make("GATE_ACT_GELU_TANH", 1);
+        } else if (desc->_config.activation_type == ov::op::internal::MOE::Activation_type::GEGLU_ERF) {
+            jit.make("GATE_ACT_GELU_ERF", 1);
+        }
         if (m_use_grouped_gemm)
             jit.make("ONEDNN_GROUPED_GEMM_USED", 1);
         return jit;
@@ -759,6 +478,11 @@ protected:
         auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
         add_common_consts(params, jit);
         jit.make("GATE_UP_ENABLE", 1);
+        if (desc->_config.activation_type == ov::op::internal::MOE::Activation_type::GEGLU_TANH) {
+            jit.make("GATE_ACT_GELU_TANH", 1);
+        } else if (desc->_config.activation_type == ov::op::internal::MOE::Activation_type::GEGLU_ERF) {
+            jit.make("GATE_ACT_GELU_ERF", 1);
+        }
         if (!_disable_shared_experts && desc->_config.num_shared_expert > 0 &&
             params.input_layouts.size() > static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT)) {
             jit.make("SHARED_EXPERT_ENABLE", 1);
@@ -854,9 +578,6 @@ dnnl::memory convert2dnnl(const memory::ptr& ptr, const std::vector<int64_t>& di
     return ptr->get_onednn_memory(dnnl::memory::desc(dnnl::memory::dims(dim), convert_data_type(ptr->get_layout().data_type), tag), offset);
 }
 
-static bool use_micro_gemm_prefill;
-static bool use_gpu_mask_gen_prefill;
-static bool use_grouped_gemm_prefill;
 class moe_3gemm_swiglu_opt_impl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::MoE3GemmSwigluImpl)
@@ -945,6 +666,7 @@ public:
     int _shared_intermediate_size;
     int _gate_up_group_size;
     int _down_group_size;
+    ov::op::internal::MOE::Activation_type _activation_type = ov::op::internal::MOE::Activation_type::SWIGLU;
 
     bool _has_shared_expert = false;
     // Shared expert primitives
@@ -952,6 +674,11 @@ public:
     std::shared_ptr<onednn_linear> _shared_up_proj;
     std::shared_ptr<onednn_linear> _shared_down_proj;
     std::shared_ptr<onednn_linear> _shared_gate_gate_proj;  // The scalar gate for shared expert
+
+    // Instance-specific flags (not static to avoid race conditions)
+    bool use_micro_gemm_prefill = false;
+    bool use_gpu_mask_gen_prefill = false;
+    bool use_grouped_gemm_prefill = false;
 
     moe_3gemm_swiglu_opt_impl() : PrimitiveImplOCL(moe_3gemm_swiglu_opt::get_type_info_static()) {}
     moe_3gemm_swiglu_opt_impl(const program_node& node, const RuntimeParams& params) : moe_3gemm_swiglu_opt_impl() {
@@ -1013,9 +740,9 @@ public:
 
         // Don't change the order of stages
         auto routing_type = node.as<moe_3gemm_fused_compressed>().get_primitive()->_config.routing_type;
-        if (routing_type == ov::intel_gpu::op::MOECompressed::RoutingType::SOFTMAX) {
+        if (routing_type == ov::op::internal::MOECompressed::RoutingType::SOFTMAX) {
             add_stage(softmax_topk, params);
-        } else if (routing_type == ov::intel_gpu::op::MOECompressed::RoutingType::SIGMOID_BIAS) {
+        } else if (routing_type == ov::op::internal::MOECompressed::RoutingType::SIGMOID_BIAS) {
             add_stage(sigmoid_bias_topk, params);
         } else {
             OPENVINO_THROW("Unsupported routing type for moe_3gemm_swiglu_opt_impl: ", static_cast<int>(routing_type));
@@ -1046,6 +773,7 @@ public:
         _intermediate_size = static_cast<int>(cur_moe->_config.inter_size);
         _gate_up_group_size = static_cast<int>(cur_moe->_config.group_size);
         _down_group_size = static_cast<int>(cur_moe->_config.group_size);
+        _activation_type = cur_moe->_config.activation_type;
 
         if (cur_moe->_config.group_size == std::numeric_limits<size_t>::max()) {
             _gate_up_group_size = static_cast<int>(cur_moe->_config.hidden_size);
@@ -1076,19 +804,55 @@ public:
         };
 
         _dnnl_weights.resize(cur_moe->_config.num_expert);
+        // Per-GEMM ic_group_size from scale shape; config.group_size can't represent gate/up vs down differing.
+        const auto ic_group_size_from_scale = [](size_t ic, const cldnn::memory::ptr& scale_mem) {
+            const auto& scale_shape = scale_mem->get_layout().get_shape();
+            const size_t num_groups = (scale_shape.size() >= 3) ? scale_shape[2] : 1;
+            return (num_groups <= 1) ? static_cast<int>(ic) : static_cast<int>(ic / num_groups);
+        };
         for (size_t j = 0; j < cur_moe->_config.num_expert; j++) {
             auto& dnnl_weights = _dnnl_weights[j];
             dnnl_weights.resize(3);
             dnnl_weights[0].ic = _hidden_size;
-            dnnl_weights[0].ic_group_size = _gate_up_group_size;
+            dnnl_weights[0].ic_group_size = ic_group_size_from_scale(_hidden_size, moe_fusion_wei_addr.scale[0]);
             dnnl_weights[0].oc = _intermediate_size;
             dnnl_weights[1].ic = _hidden_size;
-            dnnl_weights[1].ic_group_size = _gate_up_group_size;
+            dnnl_weights[1].ic_group_size = ic_group_size_from_scale(_hidden_size, moe_fusion_wei_addr.scale[1]);
             dnnl_weights[1].oc = _intermediate_size;
             dnnl_weights[2].ic = _intermediate_size;
-            dnnl_weights[2].ic_group_size = _down_group_size;
+            dnnl_weights[2].ic_group_size = ic_group_size_from_scale(_intermediate_size, moe_fusion_wei_addr.scale[2]);
             dnnl_weights[2].oc = _hidden_size;
             for (int i = 0; i < 3; i++) {
+                // Cross-check ic/ic_group_size against scale shape (drift caused u8 inf bug).
+                {
+                    const auto& sshape = moe_fusion_wei_addr.scale[i]->get_layout().get_shape();
+                    const size_t scale_num_groups = (sshape.size() >= 3) ? sshape[2] : 1;
+                    OPENVINO_ASSERT(dnnl_weights[i].ic_group_size > 0, "moe_3gemm GEMM ", i, " ic_group_size must be > 0");
+                    OPENVINO_ASSERT(dnnl_weights[i].ic % dnnl_weights[i].ic_group_size == 0,
+                                    "moe_3gemm GEMM ",
+                                    i,
+                                    " ic=",
+                                    dnnl_weights[i].ic,
+                                    " not divisible by ic_group_size=",
+                                    dnnl_weights[i].ic_group_size);
+                    const auto expected_groups = dnnl_weights[i].ic / dnnl_weights[i].ic_group_size;
+                    OPENVINO_ASSERT(static_cast<size_t>(expected_groups) == scale_num_groups,
+                                    "moe_3gemm GEMM ",
+                                    i,
+                                    " ic_group_size=",
+                                    dnnl_weights[i].ic_group_size,
+                                    " (=> ",
+                                    expected_groups,
+                                    " groups) disagrees with scale num_groups=",
+                                    scale_num_groups,
+                                    " (scale shape=",
+                                    sshape,
+                                    ")");
+                    if (cur_moe->_config.has_zp && moe_fusion_wei_addr.zp[i]) {
+                        const auto& zshape = moe_fusion_wei_addr.zp[i]->get_layout().get_shape();
+                        OPENVINO_ASSERT(zshape == sshape, "moe_3gemm GEMM ", i, " scale shape ", sshape, " does not match zp shape ", zshape);
+                    }
+                }
                 // weight shape: [ic, oc], type: u4/i8
                 int64_t wei_offset = j * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc, moe_fusion_wei_addr.weight[i]->get_layout());
                 dnnl_weights[i].weight =
@@ -1166,10 +930,11 @@ public:
                                                                                   _hidden_size,
                                                                                   _shared_intermediate_size,
                                                                                   _gate_up_group_size,
-                                                                                  t::with_silu_bin_mul,
+                                                                                  t::with_gate_act_bin_mul,
                                                                                   gate_w,
                                                                                   gate_s,
-                                                                                  gate_z));
+                                                                                  gate_z,
+                                                                                  moe_activation_to_dnnl_algo(_activation_type)));
 
         // 3. Scalar Gate (Sigmoid)
         // It is very small weight with shape of [Hidden, 1], and not need to keep compressed, so KeepMOE3GemmConstPrecision will not keep its precision and
@@ -1251,6 +1016,10 @@ public:
         cur_moe->_intermediate_size = _intermediate_size;
         cur_moe->_gate_up_group_size = _gate_up_group_size;
         cur_moe->_down_group_size = _down_group_size;
+        cur_moe->use_micro_gemm_prefill = use_micro_gemm_prefill;
+        cur_moe->use_gpu_mask_gen_prefill = use_gpu_mask_gen_prefill;
+        cur_moe->use_grouped_gemm_prefill = use_grouped_gemm_prefill;
+        cur_moe->_activation_type = _activation_type;
         return cur_moe;
     }
 
@@ -1936,6 +1705,9 @@ public:
         auto hidden_states_layout_dt =
             convert_data_type(instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES))->get_layout().data_type);
 
+        auto cur_moe = instance.get_typed_desc<moe_3gemm_fused_compressed>();
+        const auto gate_activation_algo = moe_activation_to_dnnl_algo(cur_moe->_config.activation_type);
+
         auto& dnnl_weights = _dnnl_weights[expert_no];
         auto kernel = std::make_shared<onednn_kernel>();
 
@@ -1948,10 +1720,11 @@ public:
                                              dnnl_weights[0].ic,
                                              dnnl_weights[0].oc,
                                              dnnl_weights[0].ic_group_size,
-                                             onednn_matmul::type::with_silu_bin_mul,
+                                             onednn_matmul::type::with_gate_act_bin_mul,
                                              dnnl_weights[0].weight,
                                              dnnl_weights[0].scale,
-                                             dnnl_weights[0].zp);
+                                             dnnl_weights[0].zp,
+                                             gate_activation_algo);
 
         // up
         auto up_weight_layout_dt = convert_data_type(instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_1))->get_layout().data_type);
@@ -2214,8 +1987,6 @@ public:
         auto cur_moe = instance.get_typed_desc<moe_3gemm_fused_compressed>();
         const auto& config = cur_moe->_config;
         auto& dnn_stream = stream.get_onednn_stream();
-        auto& engine = instance.get_network().get_engine();
-        auto& onednn_engine = engine.get_onednn_engine();
 
         auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES));
         auto token_num = get_seq_len(hidden_states_layout);
@@ -2320,8 +2091,19 @@ public:
         // ----------------------------------------------------------------
         // Steps 3-5: OneDNN grouped GEMM – gate, up, SiLU, down
         // ----------------------------------------------------------------
+        // SAFETY CHECK: Verify grouped_offsets buffer exists before accessing
+        if (intermediates_memories.size() <= MOE_INTERNAL_BUFFER_GROUPED_OFFSETS) {
+            OPENVINO_THROW("[MOE_3GEMM_GROUPED_BUG] Grouped GEMM path requires buffer ",
+                           MOE_INTERNAL_BUFFER_GROUPED_OFFSETS,
+                           " (GROUPED_OFFSETS) but only ",
+                           intermediates_memories.size(),
+                           " buffers allocated. ",
+                           "This indicates a mismatch between buffer allocation and execution path. ",
+                           "use_grouped_gemm_prefill=",
+                           use_grouped_gemm_prefill);
+        }
         auto& gk = get_grouped_kernel(total_gathered_tokens, instance);
-        auto* offsets_ptr = intermediates_memories[MOE_INTERNAL_BUFFER_GROUPED_OFFSETS]->buffer_ptr();
+        auto row_offsets = intermediates_memories[MOE_INTERNAL_BUFFER_GROUPED_OFFSETS];
 
         // Runtime dispatch hint: actual max tokens assigned to any single expert.
         // Passed as DNNL_ARG_HINT_MAX_GROUP_SIZE to each grouped matmul execute(),
@@ -2330,26 +2112,12 @@ public:
         auto hint_md = dnnl::memory::desc::host_scalar(dnnl::memory::data_type::s32);
         dnnl::memory hint_mem(hint_md, static_cast<int32_t>(max_tokens_per_expert));
 
-        // Helper: wrap a flat USM buffer as an OneDNN grouped memory (data + expert row-offsets)
-        auto make_grouped_mem = [&](const dnnl::memory::desc& md, void* buf_ptr) {
-            return dnnl::ocl_interop::make_memory(md,
-                                                  onednn_engine,
-                                                  dnnl::ocl_interop::memory_kind::usm,
-                                                  {reinterpret_cast<uint8_t*>(buf_ptr), reinterpret_cast<uint8_t*>(offsets_ptr)});
-        };
-
         // gate GEMM: [total, hidden] * W_gate[E,hidden,inter] -> [total, inter]
         {
-            auto src_mem = make_grouped_mem(gk.gate_pd.src_desc(), scratch.x->buffer_ptr());
-            auto dst_mem = make_grouped_mem(gk.gate_pd.dst_desc(), scratch.gate->buffer_ptr());
-            auto w_mem = dnnl::ocl_interop::make_memory(gk.gate_pd.weights_desc(),
-                                                        onednn_engine,
-                                                        dnnl::ocl_interop::memory_kind::usm,
-                                                        scratch.moe_fusion_wei_addr.weight[0]->buffer_ptr());
-            auto scale_mem = dnnl::ocl_interop::make_memory(gk.gate_scale_md,
-                                                            onednn_engine,
-                                                            dnnl::ocl_interop::memory_kind::usm,
-                                                            scratch.moe_fusion_wei_addr.scale[0]->buffer_ptr());
+            auto src_mem = scratch.x->get_onednn_grouped_memory(gk.gate_pd.src_desc(), *row_offsets);
+            auto dst_mem = scratch.gate->get_onednn_grouped_memory(gk.gate_pd.dst_desc(), *row_offsets);
+            auto w_mem = scratch.moe_fusion_wei_addr.weight[0]->get_onednn_memory(gk.gate_pd.weights_desc());
+            auto scale_mem = scratch.moe_fusion_wei_addr.scale[0]->get_onednn_memory(gk.gate_scale_md);
 
             std::unordered_map<int, dnnl::memory> args{{DNNL_ARG_SRC, src_mem},
                                                        {DNNL_ARG_WEIGHTS, w_mem},
@@ -2357,27 +2125,17 @@ public:
                                                        {DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem},
                                                        {DNNL_ARG_HINT_MAX_GROUP_SIZE, hint_mem}};
             if (gk.has_zp) {
-                args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS,
-                             dnnl::ocl_interop::make_memory(gk.gate_zp_md,
-                                                            onednn_engine,
-                                                            dnnl::ocl_interop::memory_kind::usm,
-                                                            scratch.moe_fusion_wei_addr.zp[0]->buffer_ptr())});
+                args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, scratch.moe_fusion_wei_addr.zp[0]->get_onednn_memory(gk.gate_zp_md)});
             }
             gk.gate_prim.execute(dnn_stream, args);
         }
 
         // up GEMM: [total, hidden] * W_up[E,hidden,inter] -> [total, inter]
         {
-            auto src_mem = make_grouped_mem(gk.up_pd.src_desc(), scratch.x->buffer_ptr());
-            auto dst_mem = make_grouped_mem(gk.up_pd.dst_desc(), scratch.up->buffer_ptr());
-            auto w_mem = dnnl::ocl_interop::make_memory(gk.up_pd.weights_desc(),
-                                                        onednn_engine,
-                                                        dnnl::ocl_interop::memory_kind::usm,
-                                                        scratch.moe_fusion_wei_addr.weight[1]->buffer_ptr());
-            auto scale_mem = dnnl::ocl_interop::make_memory(gk.up_scale_md,
-                                                            onednn_engine,
-                                                            dnnl::ocl_interop::memory_kind::usm,
-                                                            scratch.moe_fusion_wei_addr.scale[1]->buffer_ptr());
+            auto src_mem = scratch.x->get_onednn_grouped_memory(gk.up_pd.src_desc(), *row_offsets);
+            auto dst_mem = scratch.up->get_onednn_grouped_memory(gk.up_pd.dst_desc(), *row_offsets);
+            auto w_mem = scratch.moe_fusion_wei_addr.weight[1]->get_onednn_memory(gk.up_pd.weights_desc());
+            auto scale_mem = scratch.moe_fusion_wei_addr.scale[1]->get_onednn_memory(gk.up_scale_md);
 
             std::unordered_map<int, dnnl::memory> args{{DNNL_ARG_SRC, src_mem},
                                                        {DNNL_ARG_WEIGHTS, w_mem},
@@ -2385,11 +2143,7 @@ public:
                                                        {DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem},
                                                        {DNNL_ARG_HINT_MAX_GROUP_SIZE, hint_mem}};
             if (gk.has_zp) {
-                args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS,
-                             dnnl::ocl_interop::make_memory(gk.up_zp_md,
-                                                            onednn_engine,
-                                                            dnnl::ocl_interop::memory_kind::usm,
-                                                            scratch.moe_fusion_wei_addr.zp[1]->buffer_ptr())});
+                args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, scratch.moe_fusion_wei_addr.zp[1]->get_onednn_memory(gk.up_zp_md)});
             }
             gk.up_prim.execute(dnn_stream, args);
         }
@@ -2411,16 +2165,10 @@ public:
 
         // down GEMM: [total, inter] * W_down[E,inter,hidden] -> [total, hidden]
         {
-            auto src_mem = make_grouped_mem(gk.down_pd.src_desc(), scratch.gate->buffer_ptr());
-            auto dst_mem = make_grouped_mem(gk.down_pd.dst_desc(), scratch.y->buffer_ptr());
-            auto w_mem = dnnl::ocl_interop::make_memory(gk.down_pd.weights_desc(),
-                                                        onednn_engine,
-                                                        dnnl::ocl_interop::memory_kind::usm,
-                                                        scratch.moe_fusion_wei_addr.weight[2]->buffer_ptr());
-            auto scale_mem = dnnl::ocl_interop::make_memory(gk.down_scale_md,
-                                                            onednn_engine,
-                                                            dnnl::ocl_interop::memory_kind::usm,
-                                                            scratch.moe_fusion_wei_addr.scale[2]->buffer_ptr());
+            auto src_mem = scratch.gate->get_onednn_grouped_memory(gk.down_pd.src_desc(), *row_offsets);
+            auto dst_mem = scratch.y->get_onednn_grouped_memory(gk.down_pd.dst_desc(), *row_offsets);
+            auto w_mem = scratch.moe_fusion_wei_addr.weight[2]->get_onednn_memory(gk.down_pd.weights_desc());
+            auto scale_mem = scratch.moe_fusion_wei_addr.scale[2]->get_onednn_memory(gk.down_scale_md);
 
             std::unordered_map<int, dnnl::memory> args{{DNNL_ARG_SRC, src_mem},
                                                        {DNNL_ARG_WEIGHTS, w_mem},
@@ -2428,11 +2176,7 @@ public:
                                                        {DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem},
                                                        {DNNL_ARG_HINT_MAX_GROUP_SIZE, hint_mem}};
             if (gk.has_zp) {
-                args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS,
-                             dnnl::ocl_interop::make_memory(gk.down_zp_md,
-                                                            onednn_engine,
-                                                            dnnl::ocl_interop::memory_kind::usm,
-                                                            scratch.moe_fusion_wei_addr.zp[2]->buffer_ptr())});
+                args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, scratch.moe_fusion_wei_addr.zp[2]->get_onednn_memory(gk.down_zp_md)});
             }
             gk.down_prim.execute(dnn_stream, args);
         }
@@ -2493,7 +2237,7 @@ public:
         // routing: softmax+topk or sigmoid+bias+topk
         auto lws_size = config.num_expert;
         cldnn::event::ptr topk_event;
-        if (config.routing_type == ov::intel_gpu::op::MOECompressed::RoutingType::SOFTMAX) {
+        if (config.routing_type == ov::op::internal::MOECompressed::RoutingType::SOFTMAX) {
             topk_event = execute_stage(events,
                                        instance,
                                        *softmax_topk,
@@ -2502,7 +2246,7 @@ public:
                                        {token_num, lws_size},
                                        {1, lws_size},
                                        instance.needs_completion_event());
-        } else if (config.routing_type == ov::intel_gpu::op::MOECompressed::RoutingType::SIGMOID_BIAS) {
+        } else if (config.routing_type == ov::op::internal::MOECompressed::RoutingType::SIGMOID_BIAS) {
             topk_event = execute_stage(events,
                                        instance,
                                        *sigmoid_bias_topk,
@@ -2558,6 +2302,16 @@ public:
             // same in-order OCL queue, so submission order guarantees execution order.
             // No explicit wait() is needed — the in-order queue serializes all GPU work,
             // and any subsequent primitive on the same queue will see the completed output.
+            if (use_grouped_gemm_prefill && ret_env) {
+                // ensure grouped GEMM fully completes before executing shared expert, which relies on its output being ready;
+                // For grouped_gemm path, scatter_reduce (OCL) is preceded by multiple OCL <--> OneDNN
+                // transitions inside exec_prefill_grouped_gemm. The implicit ordering between
+                // the OCL queue and OneDNN's stream cannot be relied upon across this many
+                // back-and-forth submissions, so the shared expert's down_proj sum post-op
+                // (which reads+writes final_hidden_states) can race with scatter_reduce.
+                // Force the scatter_reduce write to be visible before submitting the shared expert.
+                ret_env->wait();
+            }
             execute_shared_expert(stream.get_onednn_stream(), static_cast<int>(token_num), hidden_states_mem_ptr, final_hidden_states_mem_ptr, scratch);
         }
         return ret_env;

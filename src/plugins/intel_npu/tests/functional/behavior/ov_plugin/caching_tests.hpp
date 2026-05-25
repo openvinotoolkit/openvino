@@ -4,12 +4,11 @@
 
 #pragma once
 
-#include <level_zero/ze_api.h>  // not redundant, needed for `ze_structure_type_t` structure
-
 #include <behavior/ov_plugin/caching_tests.hpp>
 
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/core/log_util.hpp"
+#include "openvino/runtime/intel_npu/properties.hpp"
 
 namespace ov {
 namespace test {
@@ -20,7 +19,7 @@ using OVCompileModelLoadFromFileTestBaseNPU = CompileModelLoadFromFileTestBase;
 TEST_P(OVCompileModelLoadFromFileTestBaseNPU, BlobWithOVHeaderAligmentCanBeImported) {
     core->set_property(ov::cache_dir(m_cacheFolderName));
 
-    if (!intel_npu::ZeroInitStructsHolder::getInstance()->isExternalMemoryStandardAllocationSupported()) {
+    if (!::intel_npu::ZeroInitStructsHolder::getInstance()->isExternalMemoryStandardAllocationSupported()) {
         GTEST_SKIP() << "Standard allocation is not supported by the current configuration.";
     }
 

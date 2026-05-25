@@ -700,6 +700,40 @@ TEST(TransformationTests, ConvertMatMulToFullyConnectedExceptionTest_sibling_mat
     ASSERT_TRUE(success == false);
 }
 
+TEST(TransformationTests, ConvertMatMulToFullyConnected_clone_shared_convert) {
+    auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 10, 32});
+    auto input2 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 10, 64});
+    auto weights = ov::opset1::Constant::create(ov::element::f16, ov::Shape{64, 32}, {1});
+    auto convert = std::make_shared<ov::opset1::Convert>(weights, ov::element::f32);
+    ov::mark_as_decompression(convert);
+
+    auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+    auto fc1 = std::make_shared<op::FullyConnected>(input1, convert, no_bias);
+    auto matmul2 = std::make_shared<ov::opset1::MatMul>(input2, convert, false, false);
+
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{fc1, matmul2},
+                                             ov::ParameterVector{input1, input2});
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>();
+    // Without the fix, the pass mutates the shared Convert in-place and breaks fc1's
+    // weight shape, causing validate_and_infer_types to throw inside run_passes.
+    ASSERT_NO_THROW(manager.run_passes(model));
+
+    size_t fc_count = 0;
+    size_t matmul_count = 0;
+    for (auto& op : model->get_ops()) {
+        std::string type_name(op->get_type_name());
+        if (type_name.find("FullyConnected") != std::string::npos) {
+            ++fc_count;
+        } else if (type_name == "MatMul") {
+            ++matmul_count;
+        }
+    }
+    ASSERT_EQ(fc_count, 2u);
+    ASSERT_EQ(matmul_count, 0u);
+}
+
 TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedExceptionTest) {
     {
         auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 10, 64});
@@ -726,5 +760,24 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedExceptionTest) {
         auto matmul2 = std::make_shared<ov::opset1::MatMul>(convert_2, convert, true, false);
 
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul1, matmul2}, ov::ParameterVector{input1});
+    }
+}
+
+TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest_rank_a_less_than_rank_b) {
+    {
+        auto activation = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 128});
+        auto weights = ov::opset1::Constant::create(ov::element::f32, ov::Shape{1, 1, 256, 128}, {1.0f});
+        auto matmul = std::make_shared<ov::opset1::MatMul>(activation, weights, false, true);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{activation});
+        manager.register_pass<ConvertMatMulToFullyConnected>(true);  // supports_immad=true
+    }
+    {
+        // Expected: MatMul remains unchanged (rank_a=2 < rank_b=4 rejected by rank check)
+        auto activation = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 128});
+        auto weights = ov::opset1::Constant::create(ov::element::f32, ov::Shape{1, 1, 256, 128}, {1.0f});
+        auto matmul = std::make_shared<ov::opset1::MatMul>(activation, weights, false, true);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{activation});
     }
 }

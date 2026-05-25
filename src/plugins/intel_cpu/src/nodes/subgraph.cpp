@@ -58,7 +58,7 @@
 #    include "executors/aarch64/subgraph.hpp"
 #    include "snippets/lowered/pass/init_loops.hpp"
 #    include "snippets/lowered/pass/insert_buffers.hpp"
-#    include "snippets/lowered/pass/insert_reg_spills.hpp"
+#    include "snippets/lowered/pass/insert_loops.hpp"
 #    include "transformations/snippets/aarch64/pass/brgemm_to_gemm_cpu.hpp"
 #    include "transformations/snippets/aarch64/pass/lowered/adjust_gemm_copy_b_loop_ports.hpp"
 #    include "transformations/snippets/aarch64/pass/lowered/gemm_cpu_blocking.hpp"
@@ -77,10 +77,13 @@
 #endif
 
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
-#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
 #    include "snippets/lowered/pass/insert_perf_count_verbose.hpp"
 #    include "snippets/lowered/pass/mark_loops.hpp"
+#endif
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
 #    include "snippets/pass/propagate_precision.hpp"
+#    include "transformations/snippets/common/pass/lowered/fuse_load_store_and_convert.hpp"
 #endif
 
 #if defined(OPENVINO_ARCH_X86_64)
@@ -95,7 +98,6 @@
 #    include "transformations/snippets/x64/pass/fuse_brgemm_cpu_postops.hpp"
 #    include "transformations/snippets/x64/pass/lowered/adjust_brgemm_copy_b_loop_ports.hpp"
 #    include "transformations/snippets/x64/pass/lowered/brgemm_cpu_blocking.hpp"
-#    include "transformations/snippets/x64/pass/lowered/fuse_load_store_and_convert.hpp"
 #    include "transformations/snippets/x64/pass/lowered/insert_brgemm_copy_buffers.hpp"
 #    include "transformations/snippets/x64/pass/lowered/parallelize_gated_mlp_n_loops.hpp"
 #    include "transformations/snippets/x64/pass/remove_converts.hpp"
@@ -675,9 +677,10 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
     return backend_passes;
 }
 
-Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() {
+Subgraph::ControlFlowPasses
+Subgraph::getControlFlowPasses() {  // NOLINT(readability-convert-member-functions-to-static)
     ControlFlowPasses backend_passes;
-#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
     using PassPosition = ov::snippets::pass::PassPosition;
     using Place = PassPosition::Place;
 #endif
@@ -700,6 +703,14 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() {
 #    define SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(PASS_PLACE, TARGET_PASS, PASS, ...)
 #endif  // OPENVINO_ARCH_ARM64
 
+#if defined(OPENVINO_ARCH_RISCV64)
+#    define SNIPPETS_REGISTER_PASS_RELATIVE_RISCV64(PASS_PLACE, TARGET_PASS, PASS, ...)            \
+        backend_passes.emplace_back(PassPosition(PASS_PLACE, TARGET_PASS::get_type_info_static()), \
+                                    std::make_shared<PASS>(__VA_ARGS__))
+#else
+#    define SNIPPETS_REGISTER_PASS_RELATIVE_RISCV64(PASS_PLACE, TARGET_PASS, PASS, ...)
+#endif  // OPENVINO_ARCH_RISCV64
+
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
                                            ov::snippets::lowered::pass::MarkLoops,
                                            ov::intel_cpu::pass::BrgemmCPUBlocking);
@@ -720,6 +731,10 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() {
                                               ov::intel_cpu::pass::GemmCPUBlocking,
                                               ov::snippets::lowered::pass::InsertPerfCountVerbose,
                                               getName());
+        SNIPPETS_REGISTER_PASS_RELATIVE_RISCV64(Place::After,
+                                                ov::snippets::lowered::pass::MarkLoops,
+                                                ov::snippets::lowered::pass::InsertPerfCountVerbose,
+                                                getName());
     }
 #endif  // SNIPPETS_DEBUG_CAPS
 
@@ -730,6 +745,9 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() {
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
                                            ov::snippets::lowered::pass::InsertLoops,
                                            ov::intel_cpu::pass::FuseLoadStoreConvert);
+    SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::After,
+                                          ov::snippets::lowered::pass::InsertLoops,
+                                          ov::intel_cpu::pass::FuseLoadStoreConvert);
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
                                            ov::snippets::lowered::pass::InsertBuffers,
                                            ov::intel_cpu::pass::InsertBrgemmCopyBuffers);
@@ -751,12 +769,13 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() {
                                           ov::snippets::lowered::pass::MarkLoops,
                                           ov::intel_cpu::tpp::pass::BrgemmTPPBlocking);
     SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::After,
-                                          ov::snippets::lowered::pass::InsertLoops,
+                                          ov::intel_cpu::pass::FuseLoadStoreConvert,
                                           ov::intel_cpu::tpp::pass::SetTPPLeadingDim);
 #endif
 
 #undef SNIPPETS_REGISTER_PASS_RELATIVE_X86_64
 #undef SNIPPETS_REGISTER_PASS_RELATIVE_ARM64
+#undef SNIPPETS_REGISTER_PASS_RELATIVE_RISCV64
     return backend_passes;
 }
 
@@ -831,10 +850,6 @@ void Subgraph::optimizeIR() {
 
     const auto control_flow_config = std::make_shared<ov::snippets::lowered::pass::PassConfig>();
     const auto control_flow_passes = getControlFlowPasses();
-#if defined(OPENVINO_ARCH_ARM64)
-    // enable it after emitters for RegSpillBegin and RegSpillEnd are implemented on ARM in CVS-162498
-    control_flow_config->disable<ov::snippets::lowered::pass::InsertRegSpills>();
-#endif
 
 #ifdef SNIPPETS_LIBXSMM_TPP
     // Note: temporary disabled. Re-enable after ticket 132833 is resolved

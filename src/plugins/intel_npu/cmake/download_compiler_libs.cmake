@@ -4,14 +4,14 @@
 
 # This script resolves the prebuilt NPU Plugin Compiler dependency by downloading and extracting the appropriate
 # archive based on the current platform. The expected location of the archive and naming convention is as follows:
-#     vcl version: 8.1.0
+#     vcl version: 7.7.0
 #     release: releases/unified/2026/20
 #     storage location: https://storage.openvinotoolkit.org/dependencies/thirdparty
 #     WINDOWS: 
-#         windows2022: npu_compiler_vcl_windows_2022-8_1_0-727e603.zip
+#         windows2022: npu_compiler_vcl_windows_2022-7_7_0-a282305.zip
 #     LINUX:
-#         ubuntu22.04: npu_compiler_vcl_ubuntu_22_04-8_1_0-727e603.tar.gz
-#         ubuntu24.04: npu_compiler_vcl_ubuntu_24_04-8_1_0-727e603.tar.gz
+#         ubuntu22.04: npu_compiler_vcl_ubuntu_22_04-7_7_0-a282305.tar.gz
+#         ubuntu24.04: npu_compiler_vcl_ubuntu_24_04-7_7_0-a282305.tar.gz
 #
 # This script replicates cmake/dependencies.cmake common OV dependency resolution logic including:
 #     THIRDPARTY_SERVER_PATH environment variable or cmake options support that allows
@@ -48,13 +48,13 @@ endfunction()
 if(ENABLE_INTEL_NPU_COMPILER)
     message(STATUS "Resolving prebuilt NPU Plugin Compiler dependencies...")
 
-    set(PLUGIN_COMPILER_VERSION_MAJOR 8)
-    set(PLUGIN_COMPILER_VERSION_MINOR 1)
+    set(PLUGIN_COMPILER_VERSION_MAJOR 7)
+    set(PLUGIN_COMPILER_VERSION_MINOR 7)
     set(PLUGIN_COMPILER_VERSION_PATCH 0)
-    set(PLUGIN_COMPILER_COMMIT_SHA 727e603)
-    set(PLUGIN_COMPILER_WINDOWS_2022_CHECKSUM f7cb6501df6e38fc90e6591470069d3a705749113b39438e92391271bc6835c1)
-    set(PLUGIN_COMPILER_UBUNTU_22_04_CHECKSUM d50bf866a37a2d599709fb6a805de86fd9b052a67b588d2a83558a224aaf7e95)
-    set(PLUGIN_COMPILER_UBUNTU_24_04_CHECKSUM 3c9c5960c4a86577652cd9a96cb4630576ec398f126fd8b37979063b63929448)
+    set(PLUGIN_COMPILER_COMMIT_SHA a282305)
+    set(PLUGIN_COMPILER_WINDOWS_2022_CHECKSUM aa94213af3deed2aaab216c7d39e0787cff002156428a432d1395f94cf23ca6f)
+    set(PLUGIN_COMPILER_UBUNTU_22_04_CHECKSUM 789572fb15dc580484fac1b2f542842f5eb2834234410d059f0977ca14bbeb6a)
+    set(PLUGIN_COMPILER_UBUNTU_24_04_CHECKSUM faece2ee29de4905301c80d872177527c4011e98639bbed6445b70e5ce543d5f)
 
     set(PLUGIN_COMPILER_VERSION_UNDERSCORE "${PLUGIN_COMPILER_VERSION_MAJOR}_${PLUGIN_COMPILER_VERSION_MINOR}_${PLUGIN_COMPILER_VERSION_PATCH}")
     message(STATUS "The prebuilt compiler version is ${PLUGIN_COMPILER_VERSION_MAJOR}.${PLUGIN_COMPILER_VERSION_MINOR}.${PLUGIN_COMPILER_VERSION_PATCH}.${PLUGIN_COMPILER_COMMIT_SHA}")
@@ -93,18 +93,15 @@ if(ENABLE_INTEL_NPU_COMPILER)
         return()
     endif()
 
-    set(PLUGIN_COMPILER_PACKAGE_SUBDIR "")
     set(PLUGIN_COMPILER_PACKAGE_NAME "${PLUGIN_COMPILER_PACKAGE_PREFIX}-${PLUGIN_COMPILER_VERSION_UNDERSCORE}-${PLUGIN_COMPILER_COMMIT_SHA}.${PLUGIN_COMPILER_PACKAGE_EXT}")
     if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
         set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
-        set(PLUGIN_COMPILER_PACKAGE_SUBDIR "npu_compiler/")
     elseif(DEFINED THIRDPARTY_SERVER_PATH)
         set(IE_PATH_TO_DEPS "${THIRDPARTY_SERVER_PATH}")
-        set(PLUGIN_COMPILER_PACKAGE_SUBDIR "npu_compiler/")
     endif()
 
     RESOLVE_DEPENDENCY(NPU_PLUGIN_COMPILER
-            ${PLUGIN_COMPILER_ARCHIVE_TYPE} "${PLUGIN_COMPILER_PACKAGE_SUBDIR}${PLUGIN_COMPILER_PACKAGE_NAME}"
+            ${PLUGIN_COMPILER_ARCHIVE_TYPE} "npu_compiler/${PLUGIN_COMPILER_PACKAGE_NAME}"
             TARGET_PATH "${TEMP}/${PLATFORM_SUBDIR}/npu_compiler_${PLUGIN_COMPILER_VERSION_UNDERSCORE}_${PLUGIN_COMPILER_COMMIT_SHA}"
             ENVIRONMENT "NPU_PLUGIN_COMPILER_ROOT"
             FOLDER

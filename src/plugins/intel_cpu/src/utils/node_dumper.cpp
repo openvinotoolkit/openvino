@@ -1,25 +1,24 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#include "node_dumper.h"
+
 #include <algorithm>
 #include <cstddef>
 #include <filesystem>
 #include <iostream>
+#include <regex>
+#include <sstream>
+#include <string>
 
 #include "cpu_types.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
+#include "node.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
-#ifdef CPU_DEBUG_CAPS
-
-#    include <regex>
-#    include <sstream>
-#    include <string>
-
-#    include "memory_desc/cpu_memory_desc_utils.h"
-#    include "node.h"
-#    include "node_dumper.h"
-#    include "utils/blob_dump.h"
-#    include "utils/debug_caps_config.h"
+#include "utils/blob_dump.h"
+#include "utils/debug_caps_config.h"
 
 namespace ov::intel_cpu {
 
@@ -209,5 +208,3 @@ void dumpOutputBlobs(const NodePtr& node, const DebugCapsConfig& config, int cou
 }
 
 }  // namespace ov::intel_cpu
-
-#endif  // CPU_DEBUG_CAPS

@@ -1,14 +1,16 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <algorithm>
-#include <cstdlib>
 
-#include "openvino/core/except.hpp"
-#include "openvino/util/common_util.hpp"
+#include "snippets/utils/debug_caps_config.hpp"
+
 #ifdef SNIPPETS_DEBUG_CAPS
 
-#    include "snippets/utils/debug_caps_config.hpp"
+#    include <algorithm>
+#    include <cstdlib>
+
+#    include "openvino/core/except.hpp"
+#    include "openvino/util/common_util.hpp"
 
 namespace ov::snippets {
 
@@ -32,7 +34,7 @@ void DebugCapsConfig::readProperties() {
 }
 
 void DebugCapsConfig::PropertyGroup::parseAndSet(const std::string& str) {
-    const auto& options = ov::util::split(str, ' ');
+    const auto& options = ov::util::split(str, " ");
     const auto& propertySetters = getPropertySetters();
     bool failed = false;
     auto getHelp = [propertySetters]() {
@@ -47,7 +49,7 @@ void DebugCapsConfig::PropertyGroup::parseAndSet(const std::string& str) {
         if (option.empty()) {
             continue;
         }
-        const auto& parts = ov::util::split(option, '=');
+        const auto& parts = ov::util::split(option, "=");
         if (parts.size() > 2) {
             failed = true;
             break;
@@ -59,7 +61,7 @@ void DebugCapsConfig::PropertyGroup::parseAndSet(const std::string& str) {
                                                    return setter->getPropertyName() == propertyName;
                                                });
         if (foundSetter == propertySetters.end() ||
-            !(*foundSetter)->parseAndSet(parts.size() == 1 ? "" : parts.back())) {
+            !(*foundSetter)->parseAndSet(parts.size() == 1 ? "" : std::string(parts.back()))) {
             failed = true;
             break;
         }

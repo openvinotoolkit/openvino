@@ -11,6 +11,7 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/type/element_iterator.hpp"
+#include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
@@ -662,11 +663,7 @@ bool fuse_type_to_parameter(const std::shared_ptr<ov::Node>& node,
             auto convert = std::make_shared<v0::Convert>(param, to);
             for (auto& input : param_consumers) {
                 const auto consumer = input.get_node();
-                if (ov::is_type<v0::Result>(consumer) || ov::is_type<v0::Convert>(consumer) ||
-                    // TODO: refactor after ngraph op defined
-                    // The fourth and fifth inputs are kvcache and should be directly connected to parameters
-                    (consumer->get_type_name() == std::string("PagedAttentionExtension") &&
-                     (input.get_index() == 3 || input.get_index() == 4))) {
+                if (ov::is_type<v0::Result>(consumer) || ov::is_type<v0::Convert>(consumer)) {
                     continue;
                 }
                 input.replace_source_output(convert);
@@ -1383,6 +1380,7 @@ bool fuse_type_to_constant(const std::shared_ptr<ov::Node>& node,
         new_const->set_friendly_name(constant->get_friendly_name());
         ov::copy_runtime_info(constant, new_const);
         ov::copy_weightless_cache_attr(constant, new_const);
+        ov::wsh::Extension::hint_evict(*constant);
         return true;
     }
     return false;

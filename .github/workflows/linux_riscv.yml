@@ -83,7 +83,7 @@ jobs:
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs,GPU,NPU'
-          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*,.github/workflows/ci-doctor.lock.yml'
 
       - name: Get target branch
         id: set_target_branch
@@ -111,7 +111,7 @@ jobs:
         with:
           images: |
             ov_build/ubuntu_22_04_riscv
-            ov_test/ubuntu_22_04_riscv_xuantie
+            ov_test/ubuntu_22_04_riscv
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
@@ -188,15 +188,16 @@ jobs:
           -DENABLE_PYTHON=OFF
           -DENABLE_TESTS=ON
           -DENABLE_STRICT_DEPENDENCIES=OFF
-          -DCMAKE_VERBOSE_MAKEFILE=ON
+          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
           -DENABLE_WHEEL=OFF
           -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
           -DCMAKE_TOOLCHAIN_FILE=${OPENVINO_REPO}/cmake/toolchains/riscv64.linux.toolchain.cmake
+          -DTHREADING=OMP
           -S ${OPENVINO_REPO}
           -B ${BUILD_DIR}
 
       - name: Cmake - Build
-        run: cmake --build ${BUILD_DIR} --parallel $(nproc)
+        run: cmake --build ${BUILD_DIR} --parallel $(nproc) -- --quiet
 
       - name: Show ccache stats and cleanup
         run: |
@@ -219,7 +220,7 @@ jobs:
 
       - name: Upload openvino package
         if: ${{ always() }}
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
@@ -227,11 +228,19 @@ jobs:
 
       - name: Upload openvino tests package
         if: ${{ always() }}
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
           if-no-files-found: 'error'
+
+      - name: Upload compile_commands
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        if: always()
+        with:
+          name: compile_commands_linux_riscv
+          path: ${{ env.BUILD_DIR }}/compile_commands.json
+          if-no-files-found: 'ignore'
 
   CPU_Functional_Tests:
     name: CPU functional tests
@@ -239,7 +248,7 @@ jobs:
     needs: [Smart_CI, Docker, Build]
     runs-on: aks-linux-4-cores-16gb
     container:
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_riscv_xuantie }}
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_riscv }}
       volumes:
         - ${{ github.workspace }}:${{ github.workspace }}
     defaults:
@@ -284,7 +293,7 @@ jobs:
               ;;
           esac
           "${RISCV_TOOLCHAIN_ROOT}"/bin/qemu-riscv64 \
-            -cpu rv64,x-v=true,vlen=256 \
+            -cpu rv64,v=true,vext_spec=v1.0 \
             "${INSTALL_TEST_DIR}"/ov_cpu_func_tests \
             --gtest_print_time=1 \
             --gtest_filter="${GTEST_FILTER}"
