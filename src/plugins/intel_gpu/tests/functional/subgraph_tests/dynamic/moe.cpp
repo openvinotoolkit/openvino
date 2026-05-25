@@ -273,13 +273,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE2GemmCompressedFusion,
 // MoEGatherMatmulTest: alias for MoECompressedFusionTest with force_gather_matmul=true.
 using MoEGatherMatmulTest = MoECompressedFusionTest;
 
-// u8 excluded: GatherMatmul prefill micro-kernel for u8 is not selectable yet.
 INSTANTIATE_TEST_SUITE_P(smoke_MoEGatherMatmul,
                          MoEGatherMatmulTest,
                          ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
                                             ::testing::Values(MoePatternType::GEMM3),
                                             ::testing::ValuesIn(routing_types),
-                                            ::testing::Values(ov::element::u4),
+                                            ::testing::ValuesIn(weights_precisions),
                                             ::testing::Values(ov::element::f16),  // decompression_precision
                                             ::testing::Values(ov::element::f16),  // scale_precision
                                             ::testing::Values(ov::test::utils::DecompressionType::full),
@@ -299,7 +298,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE2GemmGatherMatmul,
                          ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
                                             ::testing::Values(MoePatternType::GEMM2),
                                             ::testing::Values(MoERoutingType::SOFTMAX),
-                                            ::testing::Values(ov::element::u4),
+                                            ::testing::ValuesIn(weights_precisions),
                                             ::testing::Values(ov::element::f16),  // decompression_precision
                                             ::testing::Values(ov::element::f16),  // scale_precision
                                             ::testing::Values(ov::test::utils::DecompressionType::full),
