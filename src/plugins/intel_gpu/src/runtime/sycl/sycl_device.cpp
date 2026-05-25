@@ -146,7 +146,9 @@ int driver_dev_id() {
 }
 
 device_type get_device_type(const ::sycl::device& device) {
-    auto unified_mem = device.has(::sycl::aspect::usm_host_allocations);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    auto unified_mem = device.get_info<::sycl::info::device::host_unified_memory>();
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     return unified_mem ? device_type::integrated_gpu : device_type::discrete_gpu;
 }
