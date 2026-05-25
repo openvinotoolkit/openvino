@@ -276,19 +276,8 @@ void CompiledModel::release_memory() {
 }
 
 void CompiledModel::configure_stream_executors() {
-    std::shared_ptr<ov::threading::ITaskExecutor> task_executor;
-    if (get_property(ov::hint::enable_cpu_pinning.name()).as<bool>()) {
-        auto executor_config = ov::threading::IStreamsExecutor::Config{
-            /* name = */ "Intel NPU plugin executor",
-            /* streams = */ get_plugin()->get_property(ov::num_streams.name(), {}).as<ov::streams::Num>(),
-            /* threads_per_stream = */ 1,
-            /* thread_preferred_core_type = */ ov::hint::SchedulingCoreType::PCORE_ONLY,
-            /* cpu_reservation = */ true};
-        task_executor = std::make_shared<ov::threading::CPUStreamsExecutor>(executor_config);
-    } else {
-        task_executor = std::make_shared<ov::threading::CPUStreamsExecutor>(
-            ov::threading::IStreamsExecutor::Config{"NPUPlugin executor"});
-    }
+    std::shared_ptr<ov::threading::ITaskExecutor> task_executor = std::make_shared<ov::threading::CPUStreamsExecutor>(
+        ov::threading::IStreamsExecutor::Config{"NPUPlugin executor"});
 
     set_task_executor(std::move(task_executor));
     const auto executorId = _graph->get_metadata().name + "_NPUResultExecutor";

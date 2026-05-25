@@ -16,7 +16,6 @@ namespace {
 
 std::vector<std::pair<std::string, ov::Any>> exe_network_supported_properties = {
     {ov::hint::num_requests.name(), ov::Any(8)},
-    {ov::hint::enable_cpu_pinning.name(), ov::Any(true)},
     {ov::hint::performance_mode.name(), ov::Any(ov::hint::PerformanceMode::THROUGHPUT)},
     {ov::optimal_number_of_infer_requests.name(), ov::Any(2)},
 };
@@ -27,7 +26,6 @@ std::vector<std::pair<std::string, ov::Any>> exe_network_public_mutable_properti
 
 std::vector<std::pair<std::string, ov::Any>> exe_network_immutable_properties = {
     {std::make_pair(ov::optimal_number_of_infer_requests.name(), ov::Any(2))},
-    {std::make_pair(ov::hint::enable_cpu_pinning.name(), ov::Any(false))},
     {std::make_pair(ov::supported_properties.name(), ov::Any("deadbeef"))},
     {std::make_pair(ov::model_name.name(), ov::Any("deadbeef"))},
     {ov::hint::model.name(), ov::Any(std::shared_ptr<const ov::Model>(nullptr))},
@@ -40,7 +38,6 @@ std::vector<std::pair<std::string, ov::Any>> plugin_public_mutable_properties = 
     {ov::enable_profiling.name(), ov::Any(true)},
     {ov::compilation_num_threads.name(), ov::Any(1)},
     {ov::hint::performance_mode.name(), ov::Any(ov::hint::PerformanceMode::THROUGHPUT)},
-    {ov::hint::enable_cpu_pinning.name(), ov::Any(true)},
     {ov::log::level.name(), ov::Any(ov::log::Level::ERR)},
     {ov::device::id.name(), ov::Any(ov::test::utils::getDeviceNameID(ov::test::utils::getDeviceName()))},
 };
