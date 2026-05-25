@@ -2,7 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import sys
+import os
 from unittest import TestCase
+from tempfile import TemporaryDirectory
 from tests import skip_commit_slider_devtest
 
 sys.path.append('./')
@@ -22,6 +24,38 @@ from test_data import FirstBadVersionData, FirstValidVersionData,\
     TableTemplate
 
 class CommitSliderTest(TestCase):
+    def testBmMetricParsesCsvReport(self):
+        from utils.helpers import parseBenchmarkMetricReport
+
+        with TemporaryDirectory() as tmpdir:
+            report_path = os.path.join(tmpdir, "benchmark_report.csv")
+            with open(report_path, "w", encoding="utf-8") as report:
+                report.write("Execution results\n")
+                report.write("Median latency (ms);0.75\n")
+                report.write("Average latency (ms);0.70\n")
+                report.write("Min latency (ms);0.60\n")
+                report.write("Max latency (ms);0.90\n")
+                report.write("throughput;1000.00\n")
+
+            self.assertAlmostEqual(parseBenchmarkMetricReport(report_path, "latency:median"), 0.75)
+            self.assertAlmostEqual(parseBenchmarkMetricReport(report_path, "latency:average"), 0.70)
+            self.assertAlmostEqual(parseBenchmarkMetricReport(report_path, "latency:min"), 0.60)
+            self.assertAlmostEqual(parseBenchmarkMetricReport(report_path, "latency:max"), 0.90)
+            self.assertAlmostEqual(parseBenchmarkMetricReport(report_path, "throughput"), 1000.0)
+
+    def testBmMetricCommandForcesCsvReport(self):
+        from utils.helpers import prepareBenchmarkMetricCommand
+
+        command = prepareBenchmarkMetricCommand(
+            "./benchmark_app -m model.xml -report_type detailed_counters -report_folder old_reports -json_stats true",
+            "/tmp/new_reports",
+        )
+
+        self.assertIn("-report_type no_counters", command)
+        self.assertIn("-report_folder /tmp/new_reports", command)
+        self.assertNotIn("detailed_counters", command)
+        self.assertNotIn("-json_stats", command)
+
     @skip_commit_slider_devtest
     def testFirstValidVersion(self):
         breakCommit, updatedData = getExpectedCommit(

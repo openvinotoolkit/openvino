@@ -81,6 +81,14 @@ def parse_and_check_command_line():
 
     return args, is_network_compiled
 
+def use_console_microseconds(avg_latency_ms):
+    return avg_latency_ms < 1.0
+
+def format_console_latency(value_ms, avg_latency_ms):
+    if use_console_microseconds(avg_latency_ms):
+        return f'{value_ms * 1000:.2f} us'
+    return f'{value_ms:.2f} ms'
+
 def main():
     statistics = None
     try:
@@ -713,24 +721,24 @@ def main():
         if MULTI_DEVICE_NAME not in device_name:
             logger.info('Latency:')
             if args.latency_percentile == 50:
-                logger.info(f'   Median:        {median_latency_ms:.2f} ms')
+                logger.info(f'   Median:        {format_console_latency(median_latency_ms, avg_latency_ms)}')
             elif args.latency_percentile != 50:
-                logger.info(f'   {args.latency_percentile} percentile:     {median_latency_ms:.2f} ms')
-            logger.info(f'   Average:       {avg_latency_ms:.2f} ms')
-            logger.info(f'   Min:           {min_latency_ms:.2f} ms')
-            logger.info(f'   Max:           {max_latency_ms:.2f} ms')
+                logger.info(f'   {args.latency_percentile} percentile:     {format_console_latency(median_latency_ms, avg_latency_ms)}')
+            logger.info(f'   Average:       {format_console_latency(avg_latency_ms, avg_latency_ms)}')
+            logger.info(f'   Min:           {format_console_latency(min_latency_ms, avg_latency_ms)}')
+            logger.info(f'   Max:           {format_console_latency(max_latency_ms, avg_latency_ms)}')
 
             if pcseq:
                 logger.info("Latency for each data shape group:")
                 for idx,group in enumerate(benchmark.latency_groups):
                     logger.info(f"{idx+1}.{str(group)}")
                     if args.latency_percentile == 50:
-                        logger.info(f'   Median:     {group.median:.2f} ms')
+                        logger.info(f'   Median:     {format_console_latency(group.median, group.avg)}')
                     elif args.latency_percentile != 50:
-                        logger.info(f'   {args.latency_percentile} percentile:     {group.median:.2f} ms')
-                    logger.info(f'   Average:    {group.avg:.2f} ms')
-                    logger.info(f'   Min:        {group.min:.2f} ms')
-                    logger.info(f'   Max:        {group.max:.2f} ms')
+                        logger.info(f'   {args.latency_percentile} percentile:     {format_console_latency(group.median, group.avg)}')
+                    logger.info(f'   Average:    {format_console_latency(group.avg, group.avg)}')
+                    logger.info(f'   Min:        {format_console_latency(group.min, group.avg)}')
+                    logger.info(f'   Max:        {format_console_latency(group.max, group.avg)}')
 
         logger.info(f'Throughput:   {fps:.2f} FPS')
 

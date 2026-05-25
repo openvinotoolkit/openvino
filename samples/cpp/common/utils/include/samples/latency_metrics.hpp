@@ -21,23 +21,20 @@ public:
 
     LatencyMetrics(const std::vector<double>& latencies,
                    const std::string& data_shape = "",
-                   size_t percentile_boundary = 50,
-                   bool high_precision = false)
+                   size_t percentile_boundary = 50)
         : data_shape(data_shape),
-          high_precision(high_precision),
           percentile_boundary(percentile_boundary) {
         fill_data(latencies, percentile_boundary);
     }
 
     void write_to_stream(std::ostream& stream) const;
-    void write_to_slog() const;
+    void write_to_slog(bool adaptive_latency_unit = false) const;
 
     double median_or_percentile = 0;
     double avg = 0;
     double min = 0;
     double max = 0;
     std::string data_shape;
-    bool high_precision = false;
 
 private:
     void fill_data(std::vector<double> latencies, size_t percentile_boundary);

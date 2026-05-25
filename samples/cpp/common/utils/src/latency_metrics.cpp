@@ -14,37 +14,21 @@
 
 void LatencyMetrics::write_to_stream(std::ostream& stream) const {
     std::ios::fmtflags fmt(std::cout.flags());
-    int precision = high_precision ? 6 : 2;
-    
-    if (high_precision) {
-        // Convert to microseconds for ultra low latency applications
-        stream << data_shape << ";" << std::fixed << std::setprecision(precision) 
-               << (median_or_percentile * 1000.0) << ";" << (avg * 1000.0) << ";"
-               << (min * 1000.0) << ";" << (max * 1000.0);
-    } else {
-        stream << data_shape << ";" << std::fixed << std::setprecision(precision) 
-               << median_or_percentile << ";" << avg << ";"
-               << min << ";" << max;
-    }
-    
+    stream << data_shape << ";" << std::fixed << std::setprecision(2) << median_or_percentile << ";" << avg << ";"
+           << min << ";" << max;
     std::cout.flags(fmt);
 }
 
-void LatencyMetrics::write_to_slog() const {
+void LatencyMetrics::write_to_slog(bool adaptive_latency_unit) const {
     std::string percentileStr = (percentile_boundary == 50)
                                     ? "   Median:           "
                                     : "   " + std::to_string(percentile_boundary) + " percentile:     ";
 
-    auto format_value = [this](double value) -> std::string {
-        if (high_precision) {
-            // Convert milliseconds to microseconds for ultra low latency applications
-            return double_to_string_high_precision(value * 1000.0);
-        } else {
-            return double_to_string(value);
-        }
+    const bool use_microseconds = adaptive_latency_unit && avg < 1.0;
+    auto format_value = [use_microseconds](double value) -> std::string {
+        return double_to_string(use_microseconds ? value * 1000.0 : value);
     };
-    
-    std::string unit = high_precision ? " µs" : " ms";
+    const char* unit = use_microseconds ? " us" : " ms";
 
     slog::info << percentileStr << format_value(median_or_percentile) << unit << slog::endl;
     slog::info << "   Average:          " << format_value(avg) << unit << slog::endl;

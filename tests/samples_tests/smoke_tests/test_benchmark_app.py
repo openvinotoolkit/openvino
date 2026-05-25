@@ -39,6 +39,34 @@ def create_random_4bit_bin_file(tmp_path, shape, name):
         f.write(raw_data)
 
 
+def create_low_latency_model():
+    inp = opset.parameter([1], ov.Type.f32, name='input')
+    relu = opset.relu(inp)
+    result = opset.result(relu, name='relu')
+    return ov.Model([result], [inp], 'low_latency_model')
+
+
+def read_csv_report(report_path):
+    report = {}
+    with report_path.open(encoding='utf-8') as file:
+        for line in file:
+            line = line.strip()
+            if not line or ';' not in line:
+                continue
+            parts = [item for item in line.split(';') if item]
+            if len(parts) >= 2:
+                report[parts[0]] = parts[1]
+    return report
+
+
+def get_avg_latency_from_report(report_data):
+    for key, value in report_data.items():
+        normalized = key.lower()
+        if normalized in {'avg latency', 'average latency (ms)', 'latency_avg'}:
+            return float(value)
+    raise AssertionError(f'Average latency entry was not found in report: {report_data}')
+
+
 def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape=None, iop=None, nstreams=None,
            layout=None, pin=None, cache=None, tmp_path=None, model='bvlcalexnet-12.onnx',
            inp='dog-224x224.bmp', batch='1', niter='10', max_irate=None, tm=None):
@@ -83,7 +111,8 @@ def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape
 
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
 def test_benchmark_app_help(sample_language):
-    get_cmd_output(get_executable(sample_language), '-h')
+    output = get_cmd_output(get_executable(sample_language), '-h')
+    assert '-high_precision_latency' not in output
 
 
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
@@ -284,3 +313,37 @@ def test_benchmark_app_no_warmup_with_api_modes(sample_language, device, api, ca
     assert 'FPS' in output
     assert 'Skipping warmup inference due to -no_warmup flag' in output
     assert 'First inference took' not in output
+
+
+@pytest.mark.skipif('CPU' not in get_devices(), reason='sub-millisecond formatting is validated on CPU')
+@pytest.mark.parametrize('sample_language', ['C++', 'Python'])
+@pytest.mark.parametrize('json_stats', [False, True])
+def test_benchmark_app_sub_ms_console_output_only(sample_language, json_stats, cache, tmp_path):
+    model = create_low_latency_model()
+    report_folder = tmp_path / ('json_report' if json_stats else 'csv_report')
+    report_folder.mkdir()
+
+    output = get_cmd_output(
+        get_executable(sample_language),
+        *prepend(cache, model=model, tmp_path=tmp_path),
+        '-d', 'CPU',
+        '-api', 'sync',
+        '-nireq', '1',
+        '-niter', '20',
+        '-report_type', 'no_counters',
+        '-report_folder', report_folder,
+        *(('-json_stats=true',) if json_stats else ()),
+    )
+
+    assert 'Latency:' in output
+    assert 'Average:' in output
+    assert ' us' in output
+    assert 'Throughput' in output
+
+    if json_stats:
+        with (report_folder / 'benchmark_report.json').open(encoding='utf-8') as file:
+            report = json.load(file)['execution_results']
+    else:
+        report = read_csv_report(report_folder / 'benchmark_report.csv')
+
+    assert get_avg_latency_from_report(report) < 1.0

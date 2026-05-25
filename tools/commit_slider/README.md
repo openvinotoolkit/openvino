@@ -80,6 +80,10 @@ There are several predefined configurations in *utils/cfg_samples* folder, which
 Searching of performance degradation of *benchmark_app*.
 *bm_perf.json*
 `<model_path>` - path to model for benchmarking, `perfAppropriateDeviation` may be changed to make acceptance condition more strict or soft. 
+For ``benchmark_app`` performance runs, commit_slider reads metrics from
+``benchmark_report.csv`` generated with ``-report_type no_counters`` in its own
+temporary ``-report_folder``, so console latency formatting changes do not
+affect metric collection.
 
 ###### Comparation of blobs
 Checking of accuracy degradation via blob comparation.
