@@ -26,18 +26,6 @@ inline bool isSpecialBothProperty(const std::string& key) {
            key == ov::log::level.name();
 }
 
-inline bool isEnableCpuPinningProperty(const std::string& key) {
-    return key == ov::hint::enable_cpu_pinning.name();
-}
-
-inline bool hasEnableCpuPinningProperty(const ov::AnyMap& properties) {
-    return properties.find(ov::hint::enable_cpu_pinning.name()) != properties.end();
-}
-
-inline void logEnableCpuPinningDeprecation(intel_npu::Logger& logger) {
-    logger.warning(intel_npu::ENABLE_CPU_PINNING::deprecationMessage());
-}
-
 void filterPropertiesByCompilerSupport(intel_npu::FilteredConfig& config,
                                        const intel_npu::ICompilerAdapter* compiler,
                                        const ov::SoPtr<intel_npu::IEngineBackend>& backend,
@@ -960,8 +948,8 @@ void Properties::setProperty(const ov::AnyMap& properties) {
         _logger.setLevel(properties.at(ov::log::level.name()).as<ov::log::Level>());
     }
 
-    if (hasEnableCpuPinningProperty(properties)) {
-        logEnableCpuPinningDeprecation(_logger);
+    if (properties.find(ov::hint::enable_cpu_pinning.name()) != properties.end()) {
+        _logger.warning(intel_npu::ENABLE_CPU_PINNING::deprecationMessage());
     }
 
     std::unique_ptr<ICompilerAdapter> compiler = nullptr;
@@ -1053,8 +1041,8 @@ void Properties::setProperty(const ov::AnyMap& properties) {
 
 bool Properties::isPropertySupported(const std::string& name) {
     std::lock_guard<std::mutex> lock(_mutex);
-    if (isEnableCpuPinningProperty(name)) {
-        logEnableCpuPinningDeprecation(_logger);
+    if (name == ov::hint::enable_cpu_pinning.name()) {
+        _logger.warning(intel_npu::ENABLE_CPU_PINNING::deprecationMessage());
     }
 
     if (_pType == PropertiesType::PLUGIN) {
@@ -1151,8 +1139,8 @@ FilteredConfig Properties::getConfigForSpecificCompiler(const ov::AnyMap& proper
                                    _logger);
         }();
 
-    if (hasEnableCpuPinningProperty(properties)) {
-        logEnableCpuPinningDeprecation(logger);
+    if (properties.find(ov::hint::enable_cpu_pinning.name()) != properties.end()) {
+        logger.warning(intel_npu::ENABLE_CPU_PINNING::deprecationMessage());
     }
 
     std::optional<ov::intel_npu::CompilerType> propertiesCompilerType = std::nullopt;
@@ -1211,8 +1199,8 @@ FilteredConfig Properties::getConfigWithCompilerPropertiesDisabled(const ov::Any
         disableCompilerProperties(updatedConfig, _backend);
     }
 
-    if (hasEnableCpuPinningProperty(properties)) {
-        logEnableCpuPinningDeprecation(logger);
+    if (properties.find(ov::hint::enable_cpu_pinning.name()) != properties.end()) {
+        logger.warning(intel_npu::ENABLE_CPU_PINNING::deprecationMessage());
     }
 
     if (properties.empty()) {
