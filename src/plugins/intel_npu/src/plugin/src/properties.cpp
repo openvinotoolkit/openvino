@@ -35,9 +35,7 @@ inline bool hasEnableCpuPinningProperty(const ov::AnyMap& properties) {
 }
 
 inline void logEnableCpuPinningDeprecation(intel_npu::Logger& logger) {
-    logger.warning("The \"%s\" property is deprecated and has no effect on the NPU Plugin. It will be removed in "
-                   "the OpenVINO 2027.0 release.",
-                   ov::hint::enable_cpu_pinning.name());
+    logger.warning(intel_npu::ENABLE_CPU_PINNING::deprecationMessage());
 }
 
 void filterPropertiesByCompilerSupport(intel_npu::FilteredConfig& config,
@@ -560,9 +558,7 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::export_raw_blob, EXPORT_RAW_BLOB);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::import_raw_blob, IMPORT_RAW_BLOB);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::batch_compiler_mode_settings, BATCH_COMPILER_MODE_SETTINGS);
-    OPENVINO_SUPPRESS_DEPRECATED_START
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::enable_cpu_pinning, ENABLE_CPU_PINNING);
-    OPENVINO_SUPPRESS_DEPRECATED_END
     TRY_REGISTER_SIMPLE_PROPERTY(ov::workload_type, WORKLOAD_TYPE);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::enable_weightless, ENABLE_WEIGHTLESS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::separate_weights_version, SEPARATE_WEIGHTS_VERSION);
@@ -753,9 +749,7 @@ void Properties::registerCompiledModelProperties() {
     // FORCE_REGISTER_CUSTOM_PROPERTY format: (property, visibility, mutability, custom_return_lambda_function)
 
     // Permanent properties
-    OPENVINO_SUPPRESS_DEPRECATED_START
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::enable_cpu_pinning, ENABLE_CPU_PINNING);
-    OPENVINO_SUPPRESS_DEPRECATED_END
     TRY_REGISTER_SIMPLE_PROPERTY(ov::log::level, LOG_LEVEL);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::loaded_from_cache, LOADED_FROM_CACHE);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::performance_mode, PERFORMANCE_HINT);
@@ -870,9 +864,7 @@ ov::Any Properties::getProperty(const std::string& name) {
     std::lock_guard<std::mutex> lock(_mutex);
 
     if (name == ov::hint::enable_cpu_pinning.name()) {
-        _logger.warning("The \"%s\" property is deprecated and has no effect on the NPU Plugin. It will be removed in "
-                        "the OpenVINO 2027.0 release.",
-                        ov::hint::enable_cpu_pinning.name());
+        _logger.warning(intel_npu::ENABLE_CPU_PINNING::deprecationMessage());
     }
 
     if (_pType == PropertiesType::PLUGIN) {
