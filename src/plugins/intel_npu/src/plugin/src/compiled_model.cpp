@@ -58,21 +58,6 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                       "register the IOLayoutsSection");
     // TODO more logs, more ITT traces
 
-    std::vector<ov::Layout> inputLayouts;
-    std::vector<ov::Layout> outputLayouts;
-
-    for (const ov::Output<const ov::Node>& nodeOutput : inputs()) {
-        inputLayouts.push_back(
-            std::dynamic_pointer_cast<const ov::op::v0::Parameter>(nodeOutput.get_node_shared_ptr())->get_layout());
-    }
-    for (const ov::Output<const ov::Node>& nodeOutput : outputs()) {
-        outputLayouts.push_back(
-            std::dynamic_pointer_cast<const ov::op::v0::Result>(nodeOutput.get_node_shared_ptr())->get_layout());
-    }
-
-    _blobWriter->register_section(
-        std::make_shared<IOLayoutsSection>(std::move(inputLayouts), std::move(outputLayouts)));
-
     OV_ITT_TASK_SKIP(COMPILED_MODEL);
 }
 

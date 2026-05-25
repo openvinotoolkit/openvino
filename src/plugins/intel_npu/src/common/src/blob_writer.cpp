@@ -147,7 +147,7 @@ void BlobWriter::register_section_from_blob_reader(const std::shared_ptr<ISectio
     OPENVINO_ASSERT(section->get_section_type_instance().has_value());
     const SectionTypeInstance candidate = section->get_section_type_instance().value() + 1;
     m_next_type_instance_id[section_type] =
-        candidate > m_next_type_instance_id[section_type] ? candidate : m_next_type_instance_id[section_type];
+        candidate > m_next_type_instance_id[section_type] ? candidate + 1 : m_next_type_instance_id[section_type];
 
     m_registered_sections.push(section);
 }
@@ -205,6 +205,9 @@ void BlobWriter::write(std::ostream& stream) {
     stream.write(reinterpret_cast<const char*>(&offsets_table_location), sizeof(offsets_table_location));
     stream.write(reinterpret_cast<const char*>(&offsets_table_size), sizeof(offsets_table_size));
 
+    std::cout << "region of non-persistent format " << blob_writer_interface.get_offset_relative_to_npu_region()
+              << std::endl;
+
     // The region of non-persistent format (list of key-length-payload sections, any order & no restrictions w.r.t. the
     // content of the payload)
     while (!blob_writer_interface.m_registered_sections.empty()) {
@@ -212,6 +215,9 @@ void BlobWriter::write(std::ostream& stream) {
         blob_writer_interface.m_registered_sections.pop();
 
         write_section(blob_writer_interface, section, offsets_table);
+        std::cout << "After section " << section->get_section_type() << " "
+                  << section->get_section_type_instance().value() << " "
+                  << blob_writer_interface.get_offset_relative_to_npu_region() << std::endl;
     }
 
     // Write the CRESection
@@ -221,6 +227,7 @@ void BlobWriter::write(std::ostream& stream) {
     const auto cre_section = std::make_shared<CRESection>(blob_writer_interface.m_cre);
     cre_section->set_section_type_instance(FIRST_INSTANCE_ID);
     write_section(blob_writer_interface, cre_section, offsets_table);
+    std::cout << "After CRE " << blob_writer_interface.get_offset_relative_to_npu_region() << std::endl;
 
     // Write the table of offsets
     offsets_table_location = blob_writer_interface.get_offset_relative_to_npu_region();
@@ -228,6 +235,7 @@ void BlobWriter::write(std::ostream& stream) {
     const auto offsets_table_section = std::make_shared<OffsetsTableSection>(offsets_table);
     offsets_table_section->set_section_type_instance(FIRST_INSTANCE_ID);
     write_section(blob_writer_interface, offsets_table_section, offsets_table);
+    std::cout << "After offsets " << blob_writer_interface.get_offset_relative_to_npu_region() << std::endl;
 
     npu_region_size = blob_writer_interface.get_offset_relative_to_npu_region();
     offsets_table_size = npu_region_size - offsets_table_location;

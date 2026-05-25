@@ -735,6 +735,21 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         OPENVINO_THROW("Unexpected exception thrown upon attempting to create the \"CompiledModel\" object");
     }
 
+    // Registed the IO layouts section
+    std::vector<ov::Layout> inputLayouts;
+    std::vector<ov::Layout> outputLayouts;
+
+    for (const ov::Output<const ov::Node>& nodeOutput : compiledModel->inputs()) {
+        inputLayouts.push_back(
+            std::dynamic_pointer_cast<const ov::op::v0::Parameter>(nodeOutput.get_node_shared_ptr())->get_layout());
+    }
+    for (const ov::Output<const ov::Node>& nodeOutput : compiledModel->outputs()) {
+        outputLayouts.push_back(
+            std::dynamic_pointer_cast<const ov::op::v0::Result>(nodeOutput.get_node_shared_ptr())->get_layout());
+    }
+
+    blobWriter->register_section(std::make_shared<IOLayoutsSection>(std::move(inputLayouts), std::move(outputLayouts)));
+
     ++_compiledModelLoadCounter;
     OV_ITT_TASK_SKIP(PLUGIN_COMPILE_MODEL);
 
