@@ -8,7 +8,6 @@
 
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
-#include "openvino/core/except.hpp"
 
 #ifndef _WIN32
 #    define LIB_ZE_LOADER_SUFFIX ".1"
@@ -17,24 +16,16 @@
 namespace ov {
 ZeroApi::ZeroApi() {
     const std::filesystem::path baseName = "ze_loader";
-    try {
-        auto libpath = ov::util::make_plugin_library_name({}, baseName);
+    auto libpath = ov::util::make_plugin_library_name({}, baseName);
 #if !defined(_WIN32) && !defined(ANDROID)
-        libpath += LIB_ZE_LOADER_SUFFIX;
+    libpath += LIB_ZE_LOADER_SUFFIX;
 #endif
-        this->lib = ov::util::load_shared_object(libpath);
-    } catch (const std::runtime_error& error) {
-        OPENVINO_THROW(error.what());
-    }
+    this->lib = ov::util::load_shared_object(libpath);
 
-    try {
 #define symbol_statement(symbol) \
     this->symbol = reinterpret_cast<decltype(&::symbol)>(ov::util::get_symbol(lib, #symbol));
-        symbols_list();
+    symbols_list();
 #undef symbol_statement
-    } catch (const std::runtime_error& error) {
-        OPENVINO_THROW(error.what());
-    }
 
 #define symbol_statement(symbol)                                                                  \
     try {                                                                                         \

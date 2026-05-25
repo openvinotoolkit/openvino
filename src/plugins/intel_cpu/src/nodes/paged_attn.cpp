@@ -24,8 +24,10 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/paged_attention.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "transformations/utils/utils.hpp"
@@ -49,6 +51,11 @@ namespace ov::intel_cpu::node {
 
 struct PagedAttentionKey {
     ov::element::Type rtPrecision;
+    ov::element::Type keyCachePrecision;
+    ov::element::Type valueCachePrecision;
+    bool quantKeyByChannel;
+    bool quantValueByChannel;
+    bool isSageAttn;
 
     [[nodiscard]] size_t hash() const;
     bool operator==(const PagedAttentionKey& rhs) const;
@@ -57,14 +64,19 @@ struct PagedAttentionKey {
 size_t PagedAttentionKey::hash() const {
     size_t seed = 0;
     seed = hash_combine(seed, rtPrecision.hash());
+    seed = hash_combine(seed, keyCachePrecision.hash());
+    seed = hash_combine(seed, valueCachePrecision.hash());
+    seed = hash_combine(seed, quantKeyByChannel);
+    seed = hash_combine(seed, quantValueByChannel);
+    seed = hash_combine(seed, isSageAttn);
 
     return seed;
 }
 
 bool PagedAttentionKey::operator==(const PagedAttentionKey& rhs) const {
-    auto retVal = rtPrecision == rhs.rtPrecision;
-
-    return retVal;
+    return rtPrecision == rhs.rtPrecision && keyCachePrecision == rhs.keyCachePrecision &&
+           valueCachePrecision == rhs.valueCachePrecision && quantKeyByChannel == rhs.quantKeyByChannel &&
+           quantValueByChannel == rhs.quantValueByChannel && isSageAttn == rhs.isSageAttn;
 }
 
 PagedAttention::PagedAttention(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
@@ -76,6 +88,9 @@ PagedAttention::PagedAttention(const std::shared_ptr<ov::Node>& op, const GraphC
     // output score may have no child
     m_hasScore = !op->get_output_target_inputs(1).empty();
     m_has_adaptive_rkv_diversity_output = !op->get_output_target_inputs(2).empty();
+    const auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(op);
+    CPU_NODE_ASSERT(pa, "Only PagedAttentionExtension is supported in PagedAttention node.");
+    m_write_kv_cache = pa->get_write_kv_cache();
 }
 
 void PagedAttention::initSupportedPrimitiveDescriptors() {
@@ -246,19 +261,21 @@ bool PagedAttention::isQuantByChannel(const Config::CacheQuantMode mode,
 void PagedAttention::createPrimitive() {
     auto rtPrecision = getRuntimePrecision();
 
-    // in one model, kvCachePrecision could not be changed so no need to care whether it may be changed.
-    PagedAttentionKey key = {rtPrecision};
+    auto kCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
+    auto vCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
+    const auto& cpuConfig = context->getConfig();
+    bool quantKeybyChannel = isQuantByChannel(cpuConfig.keyCacheQuantMode, cpuConfig.keyCachePrecision, true);
+    bool quantValuebyChannel = isQuantByChannel(cpuConfig.valueCacheQuantMode, cpuConfig.valueCachePrecision, false);
+
+    PagedAttentionKey key = {rtPrecision,
+                             kCachePrecision,
+                             vCachePrecision,
+                             quantKeybyChannel,
+                             quantValuebyChannel,
+                             cpuConfig.enableSageAttn};
 
     auto builder = [&]([[maybe_unused]] const PagedAttentionKey& key) -> std::shared_ptr<PagedAttentionExecutor> {
 #if defined(OPENVINO_ARCH_X86_64) || (defined(OPENVINO_ARCH_ARM64))
-        // Since we are quantize only last dim it's safe to use the last dim of KV.
-        auto kCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
-        auto vCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
-        const auto& cpuConfig = context->getConfig();
-
-        bool quantKeybyChannel = isQuantByChannel(cpuConfig.keyCacheQuantMode, cpuConfig.keyCachePrecision, true);
-        bool quantValuebyChannel =
-            isQuantByChannel(cpuConfig.valueCacheQuantMode, cpuConfig.valueCachePrecision, false);
         PagedAttnQuantParams params{cpuConfig.keyCacheGroupSize,
                                     cpuConfig.valueCacheGroupSize,
                                     quantKeybyChannel,
@@ -329,7 +346,17 @@ void PagedAttention::execute([[maybe_unused]] const dnnl::stream& strm) {
         size_t num_elements_in_output = 0;
 
         const size_t K_CACHE_IDX = PagedAttentionExecutor::ID_KCACHE;
-        const size_t block_size = inputs[K_CACHE_IDX]->getStaticDims()[2];
+        // For by-channel quantized caches, dim[2] includes parameter header rows
+        // (scales/zps). Subtract them to get the actual PA block_size.
+        const auto& cpuConfig = context->getConfig();
+        bool quantKeybyChannel = isQuantByChannel(cpuConfig.keyCacheQuantMode, cpuConfig.keyCachePrecision, true);
+        size_t block_size = inputs[K_CACHE_IDX]->getStaticDims()[2];
+        if (quantKeybyChannel && cpuConfig.keyCachePrecision.is_integral()) {
+            size_t params_count = (cpuConfig.keyCachePrecision == ov::element::i8) ? 1 : 2;
+            size_t key_sub_byte_mult = (cpuConfig.keyCachePrecision == ov::element::u4) ? 2 : 1;
+            size_t key_params_size = sizeof(float) * params_count * key_sub_byte_mult;
+            block_size -= key_params_size;
+        }
 
         const size_t ADAPTIVE_RKV_EVICTABLE_SIZES_IDX = PagedAttentionExecutor::ID_ADAPTIVE_RKV_EVICTABLE_SIZES;
         auto evictable_sizes_dims = inputs[ADAPTIVE_RKV_EVICTABLE_SIZES_IDX]->getStaticDims();
@@ -356,7 +383,7 @@ void PagedAttention::execute([[maybe_unused]] const dnnl::stream& strm) {
         }
     }
 
-    m_executor->execute(inputs, outputs);
+    m_executor->execute(inputs, outputs, m_write_kv_cache);
 }
 
 bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
