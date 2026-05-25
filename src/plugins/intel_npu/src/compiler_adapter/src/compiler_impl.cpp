@@ -97,12 +97,24 @@ static inline std::string getLatestVCLLog(vcl_log_handle_t logHandle) {
 const std::shared_ptr<VCLCompilerImpl> VCLCompilerImpl::getInstance(const std::string& custom_path) {
     static std::mutex mutex;
     static std::weak_ptr<VCLCompilerImpl> weak_compiler;
+    static std::string initialized_path;
 
     std::lock_guard<std::mutex> lock(mutex);
     auto compiler = weak_compiler.lock();
     if (!compiler) {
         compiler = std::make_shared<VCLCompilerImpl>(custom_path);
         weak_compiler = compiler;
+        initialized_path = custom_path;
+    } else {
+        if (!custom_path.empty() && custom_path != initialized_path) {
+            OPENVINO_THROW("Cannot change compiler path across multiple getInstance() calls! "
+                           "First path used: '",
+                           initialized_path,
+                           "', "
+                           "Requested second path: '",
+                           custom_path,
+                           "'");
+        }
     }
     return compiler;
 }
