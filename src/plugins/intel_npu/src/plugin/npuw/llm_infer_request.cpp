@@ -7,6 +7,7 @@
 #include <regex>
 
 #include "infer_request_utils.hpp"
+#include "intel_npu/common/itt.hpp"
 #include "llm_compiled_model.hpp"
 #include "logging.hpp"
 #include "openvino/core/parallel.hpp"
@@ -954,6 +955,7 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
                                               ov::SoPtr<ov::ITensor> position_ids,
                                               ov::SoPtr<ov::ITensor> token_type_ids,
                                               ov::SoPtr<ov::ITensor> per_layer_inputs) {
+    OV_ITT_SCOPED_TASK(itt::domains::InferenceNPU, "LLM/prefill");
     LOG_DEBUG("Calling inference for prefill model...");
     LOG_BLOCK();
 
@@ -1014,6 +1016,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                                                ov::SoPtr<ov::ITensor> position_ids,
                                                ov::SoPtr<ov::ITensor> token_type_ids,
                                                ov::SoPtr<ov::ITensor> per_layer_inputs) {
+    OV_ITT_SCOPED_TASK(itt::domains::InferenceNPU, "LLM/generate");
     LOG_DEBUG("Calling inference for generate model...");
     LOG_BLOCK();
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;

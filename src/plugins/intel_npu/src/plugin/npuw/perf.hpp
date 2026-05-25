@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include "intel_npu/common/itt.hpp"
 #include "logging.hpp"
 
 namespace ov {
@@ -64,10 +65,15 @@ private:
     T total = 0;
     std::string name;
     bool enabled = false;
+    openvino::itt::handle_t itt_handle = nullptr;
 
 public:
     metric() = default;
-    metric(metric&& m) : records(std::move(m.records)), name(std::move(m.name)), enabled(m.enabled) {}
+    metric(metric&& m)
+        : records(std::move(m.records)),
+          name(std::move(m.name)),
+          enabled(m.enabled),
+          itt_handle(m.itt_handle) {}
 
     explicit metric(const std::string& named, bool active = false) : name(named), enabled(active) {}
 
@@ -106,6 +112,10 @@ public:
         if (!enabled) {
             f();
         } else {
+            if (!itt_handle) {
+                itt_handle = openvino::itt::handle(name);
+            }
+            openvino::itt::ScopedTask<::intel_npu::itt::domains::InferenceNPU> itt_scope(itt_handle);
             *this += U::sample(f);
         }
     }
