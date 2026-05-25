@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include <fstream>
+#include <string_view>
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
@@ -85,7 +86,7 @@ TEST_F(LazyBufferTest, read_file) {
         ASSERT_NE(data_ptr, nullptr);
         ASSERT_EQ(buffer.size(), size);
         EXPECT_EQ(reinterpret_cast<std::uintptr_t>(data_ptr) % default_alignment, 0);
-        EXPECT_TRUE(std::equal(data_ptr, data_ptr + size, m_test_data.begin() + offset));
+        EXPECT_THAT(std::string_view(data_ptr, size), ElementsAreArray(m_test_data.data() + offset, size));
     }
 }
 

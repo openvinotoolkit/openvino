@@ -26,7 +26,6 @@ public:
     }
 
     bool acquire();
-    void evict() noexcept;
     void evict(size_t offset, size_t size) noexcept;
 
     std::string_view last_error() const noexcept;

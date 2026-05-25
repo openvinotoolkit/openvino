@@ -39,15 +39,12 @@ bool ReservableBuffer::acquire() {
     return true;
 }
 
-void ReservableBuffer::evict() noexcept {
-    m_last_error.clear();
-    std::ignore = mprotect(m_reserved_buffer, m_reserved_size, PROT_NONE);
-}
-
 void ReservableBuffer::evict(size_t offset, size_t size) noexcept {
     m_last_error.clear();
     if (offset == 0 && size >= m_reserved_size) {
-        evict();
+        if (mprotect(m_reserved_buffer, m_reserved_size, PROT_NONE) == -1) {
+            m_last_error = std::string{"mprotect failed, err: "} + std::strerror(errno);
+        }
     }
 }
 

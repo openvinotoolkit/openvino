@@ -95,28 +95,26 @@ void LazyBuffer::hint_prefetch() const {
             OPENVINO_ASSERT(file, "Failed to read data from file: ", m_file_path);
             m_loaded.store(true, std::memory_order_release);
         } catch (...) {
-            m_buffer->evict();
+            m_buffer->evict(0, m_byte_size);
             throw;
         }
     }
 }
 
 void LazyBuffer::hint_evict() noexcept {
+    hint_evict(0, m_byte_size);
+}
+
+void LazyBuffer::hint_evict(size_t offset, size_t size) noexcept {
     if (m_loaded.load(std::memory_order_acquire)) {
         try {
             std::lock_guard lock{m_loading};
             if (m_loaded.load(std::memory_order_relaxed)) {
-                m_buffer->evict();
+                m_buffer->evict(offset, size);
                 m_loaded.store(false, std::memory_order_release);
             }
         } catch (...) {
         }
-    }
-}
-
-void LazyBuffer::hint_evict(size_t offset, size_t size) noexcept {
-    if (offset == 0 && size >= m_byte_size) {
-        hint_evict();
     }
 }
 }  // namespace ov
