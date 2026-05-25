@@ -70,7 +70,9 @@ std::streamoff BlobWriterInterface::get_offset_relative_to_current_section() con
 
 void BlobWriterInterface::move_cursor_relative_to_current_section(const size_t offset) {
     OPENVINO_ASSERT(m_stream.get().good());
-    m_stream.get().seekp(m_stream_npu_region_start + static_cast<std::streamoff>(offset));
+    m_stream.get().seekp(m_stream_current_section_start + static_cast<std::streamoff>(offset));
+    // This check will fail if the destination goes beyond the end of the stream
+    OPENVINO_ASSERT(m_stream.get().good());
 }
 
 std::streamoff BlobWriterInterface::get_offset_relative_to_npu_region() const {
@@ -87,6 +89,8 @@ void BlobWriterInterface::move_cursor_relative_to_npu_region(const size_t offset
                     ". Minimum allowed value: ",
                     m_stream_current_section_start - m_stream_npu_region_start);
     m_stream.get().seekp(m_stream_npu_region_start + static_cast<std::streamoff>(offset));
+    // This check will fail if the destination goes beyond the end of the stream
+    OPENVINO_ASSERT(m_stream.get().good());
 }
 
 void BlobWriterInterface::seek_to_the_end() {
