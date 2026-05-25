@@ -14,9 +14,7 @@ VCLApi::VCLApi(const std::string& custom_path) : _logger("VCLApi", Logger::globa
     const auto baseName = "openvino_intel_npu_compiler_loader";
 
     try {
-        std::filesystem::path folder_path =
-            custom_path.empty() ? ov::util::get_ov_lib_path() : std::filesystem::path(custom_path);
-        const auto libpath = ov::util::make_plugin_library_name(folder_path, baseName);
+        const auto libpath = ov::util::make_plugin_library_name(std::filesystem::path(custom_path), baseName);
         this->lib = ov::util::load_shared_object(libpath);
     } catch (const std::runtime_error& error) {
         _logger.debug("Failed to load %s: %s", baseName, error.what());
