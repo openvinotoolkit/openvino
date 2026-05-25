@@ -684,6 +684,18 @@ def test_reshape_list_of_shapes(multi_input_model):
     assert multi_input_model.input("C").shape == (10,)
 
 
+def test_reshape_list_of_shapes_with_duplicate_input_names():
+    """Multi-input reshape should preserve inputs by output identity, not input names."""
+    input_a = ops.parameter([2, 2], name="dup")
+    input_b = ops.parameter([3, 3], name="dup")
+    model = Model([input_a + input_a, input_b + input_b], [input_a, input_b], "duplicate_name_model")
+
+    model.reshape([[1, 1], [2, 2]])
+
+    assert model.input(0).shape == (1, 1)
+    assert model.input(1).shape == (2, 2)
+
+
 def test_reshape_list_of_shapes_wrong_size(multi_input_model):
     """Providing wrong number of shapes should raise an error."""
     input_shapes = [[2, 2], [1, 3, 224, 244]]  # Missing third input

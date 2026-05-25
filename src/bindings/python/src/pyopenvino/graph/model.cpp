@@ -577,7 +577,7 @@ void regclass_graph_Model(py::module m) {
             }
 
             // MULTI-INPUT FORMAT
-            std::map<std::string, ov::PartialShape> new_shapes_map;
+            std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes_map;
 
             // Helper to parse inner shape containers
             auto parse_shape = [](py::handle shape_handle) -> ov::PartialShape {
@@ -599,7 +599,7 @@ void regclass_graph_Model(py::module m) {
                     throw std::runtime_error("Each shape must be a list or tuple.");
                 }
                 py::sequence shape_seq = shape_handle.cast<py::sequence>();
-                new_shapes_map[inputs[i].get_any_name()] = parse_shape(shape_seq);
+                new_shapes_map.emplace(inputs[i], parse_shape(shape_seq));
             }
 
             const auto new_variables_shapes = get_variables_shapes(variables_shapes);
