@@ -1454,6 +1454,15 @@ public:
         scratch.moe_fusion_wei_addr.scale[2] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SCALE_2));
         scratch.moe_fusion_wei_addr.zp[2] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ZP_2));
 
+        // For symmetric quantization (has_zp=false), ZP inputs are element::dynamic placeholders
+        // with zero-count layout. Use scale memory as a dummy to avoid null pointer issues.
+        const auto& config = instance.get_typed_desc<moe_3gemm_fused_compressed>()->_config;
+        if (!config.has_zp) {
+            scratch.moe_fusion_wei_addr.zp[0] = scratch.moe_fusion_wei_addr.scale[0];
+            scratch.moe_fusion_wei_addr.zp[1] = scratch.moe_fusion_wei_addr.scale[1];
+            scratch.moe_fusion_wei_addr.zp[2] = scratch.moe_fusion_wei_addr.scale[2];
+        }
+
         // shared expert
         size_t dep_count = instance.dependencies().size();
         if (dep_count >= static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_GATE_WEIGHT) + 1) {
@@ -1474,6 +1483,13 @@ public:
 
             // Scalar Gate - f16
             scratch.moe_fusion_wei_addr.shared_weight[3] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_GATE_WEIGHT));
+
+            // For symmetric quantization, shared expert ZPs are also element::dynamic placeholders
+            if (!config.has_zp) {
+                scratch.moe_fusion_wei_addr.shared_zp[0] = scratch.moe_fusion_wei_addr.shared_scale[0];
+                scratch.moe_fusion_wei_addr.shared_zp[1] = scratch.moe_fusion_wei_addr.shared_scale[1];
+                scratch.moe_fusion_wei_addr.shared_zp[2] = scratch.moe_fusion_wei_addr.shared_scale[2];
+            }
         }
     }
 
