@@ -145,6 +145,15 @@ private:
      */
     std::unordered_map<SectionType, std::unordered_map<SectionTypeInstance, std::shared_ptr<ISection>>>
         m_parsed_sections;
+
+    /**
+     * @brief The order in which the sections have been parse.
+     * @note This order is used only to ensure idempotency. A BlobWriter can be built using the sections parsed by a
+     * BlobReader. By making use of this order, the BlobWriter is able to export a blob that has the exact same content
+     * the original one had.
+     */
+    std::vector<SectionID> m_parsed_sections_order;
+
     /**
      * @brief All known section readers that can be used to parse the compiled model.
      */

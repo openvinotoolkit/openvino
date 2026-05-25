@@ -151,12 +151,12 @@ void BlobReader::read(const ov::Tensor& source,
                                        ->get_table();
 
     // Step 2: Look for the CRE and evaluate it
-    std::optional<uint64_t> offset = m_offsets_table.lookup_offset(CRE_SECTION_ID);
-    std::optional<uint64_t> section_length = m_offsets_table.lookup_length(CRE_SECTION_ID);
-    OPENVINO_ASSERT(offset.has_value(), "The CRE was not found within the table of offsets");
-    cursor = move_cursor_with_bound_checking(offset.value(), npu_region_size);
+    std::optional<uint64_t> cre_location = m_offsets_table.lookup_offset(CRE_SECTION_ID);
+    std::optional<uint64_t> cre_length = m_offsets_table.lookup_length(CRE_SECTION_ID);
+    OPENVINO_ASSERT(cre_location.has_value(), "The CRE was not found within the table of offsets");
+    cursor = move_cursor_with_bound_checking(cre_location.value(), npu_region_size);
 
-    interface = BlobReaderInterface(source, cursor, section_length.value(), npu_region_size);
+    interface = BlobReaderInterface(source, cursor, cre_length.value(), npu_region_size);
     m_parsed_sections[PredefinedSectionType::CRE][FIRST_INSTANCE_ID] = CRESection::read(interface);
     m_parsed_sections[PredefinedSectionType::CRE][FIRST_INSTANCE_ID]->set_section_type_instance(FIRST_INSTANCE_ID);
     const bool is_compatible =
@@ -168,8 +168,13 @@ void BlobReader::read(const ov::Tensor& source,
     // Step 3: Parse all known sections
     cursor = move_cursor_with_bound_checking(where_the_region_of_persistent_format_starts, npu_region_size);
     while (cursor < npu_region_size) {
+        // The table of offsets & CRE have already been parsed
         if (cursor == offsets_table_location) {
             cursor = move_cursor_with_bound_checking(cursor + offsets_table_size, npu_region_size);
+            continue;
+        }
+        if (cursor == cre_location.value()) {
+            cursor = move_cursor_with_bound_checking(cursor + cre_length.value(), npu_region_size);
             continue;
         }
         // TODO somehow check that all sections within the table of offsets have been addressed
@@ -177,7 +182,7 @@ void BlobReader::read(const ov::Tensor& source,
         OPENVINO_ASSERT(section_id.has_value(),
                         "Did not find any section corresponding to the relative offset ",
                         cursor);
-        section_length = m_offsets_table.lookup_length(section_id.value());
+        const std::optional<uint64_t> section_length = m_offsets_table.lookup_length(section_id.value());
 
         const size_t next_section_location = cursor + section_length.value();
 
@@ -188,6 +193,7 @@ void BlobReader::read(const ov::Tensor& source,
                 m_readers.at(section_id.value().type)(interface);
             m_parsed_sections[section_id.value().type][section_id.value().type_instance]->set_section_type_instance(
                 section_id.value().type_instance);
+            m_parsed_sections_order.push_back(section_id.value());
         }
 
         cursor = move_cursor_with_bound_checking(next_section_location, npu_region_size);
