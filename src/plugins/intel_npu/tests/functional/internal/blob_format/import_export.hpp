@@ -15,6 +15,8 @@
 namespace ov::test::behavior {
 using namespace ::intel_npu;
 
+// TODO should also check consecutive exports
+// TODO same tests (as units?) but with fewer sections
 TEST(BlobFormat, ExportImportExportSameModel) {
     ov::Core core;
     std::shared_ptr<ov::Model> model = buildSingleLayerSoftMaxNetwork();

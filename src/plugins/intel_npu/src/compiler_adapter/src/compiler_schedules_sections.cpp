@@ -23,10 +23,8 @@ void ELFMainScheduleSection::write(BlobWriterInterface& writer) {
     // only need to make sure the value of the cursor is a multiple of 4096 before writting any schedule.
 
     // Also take the padding size into account, we'll write that first
-    const auto cursor = writer.get_offset_relative_to_npu_region() + sizeof(uint64_t);
-    size_t cursor_and_padding = utils::align_size_to_standard_page_size(cursor);
-    uint64_t padding_size = cursor_and_padding - cursor;
-    writer.write(&padding_size, sizeof(padding_size));
+    const size_t offset = writer.get_offset_relative_to_npu_region();
+    const size_t padding_size = utils::align_size_to_standard_page_size(offset) - offset;
     writer.add_padding(padding_size);
 
     m_graph->export_main_blob(writer.m_stream.get());
@@ -43,12 +41,12 @@ ov::Tensor ELFMainScheduleSection::get_schedule() const {
 
 std::shared_ptr<ISection> ELFMainScheduleSection::read(BlobReaderInterface& blob_reader) {
     // Skip the first padding
-    uint64_t padding_size;
-    blob_reader.copy_data_from_source(reinterpret_cast<char*>(&padding_size), sizeof(padding_size));
+    const size_t offset = blob_reader.get_offset_relative_to_npu_region();
+    const size_t padding_size = utils::align_size_to_standard_page_size(offset) - offset;
     blob_reader.interpret_data_from_source(padding_size);
 
     return std::make_shared<ELFMainScheduleSection>(
-        blob_reader.get_roi_tensor(blob_reader.get_section_length() - sizeof(uint64_t) - padding_size));
+        blob_reader.get_roi_tensor(blob_reader.get_section_length() - padding_size));
 }
 
 ELFInitSchedulesSection::ELFInitSchedulesSection(const std::shared_ptr<WeightlessGraph>& weightless_graph)
@@ -71,10 +69,8 @@ void ELFInitSchedulesSection::write(BlobWriterInterface& writer) {
     // only need to make sure the value of the cursor is a multiple of 4096 before writting any schedule.
 
     // Also take the padding size into account, we'll write that next
-    const auto cursor = writer.get_offset_relative_to_npu_region() + sizeof(uint64_t);
-    size_t cursor_and_padding = utils::align_size_to_standard_page_size(cursor);
-    size_t padding_size = cursor_and_padding - cursor;
-    writer.write(&padding_size, sizeof(padding_size));
+    const size_t offset = writer.get_offset_relative_to_npu_region();
+    const size_t padding_size = utils::align_size_to_standard_page_size(offset) - offset;
     writer.add_padding(padding_size);
 
     const std::vector<uint64_t> init_sizes = m_weightless_graph->export_init_blobs(writer.m_stream.get());
@@ -107,8 +103,8 @@ std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReaderInterface& blo
     }
 
     // Skip the first padding
-    uint64_t padding_size;
-    blob_reader.copy_data_from_source(reinterpret_cast<char*>(&padding_size), sizeof(padding_size));
+    const size_t offset = blob_reader.get_offset_relative_to_npu_region();
+    const size_t padding_size = utils::align_size_to_standard_page_size(offset) - offset;
     blob_reader.interpret_data_from_source(padding_size);
 
     std::vector<ov::Tensor> init_schedules;
