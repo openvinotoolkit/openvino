@@ -1011,8 +1011,7 @@ TEST_P(SubgraphCollectorParamTest, split_by_affinity) {
                     ++actual;
                 }
             }
-            EXPECT_EQ(param.expected_constants_per_submodel[i], actual)
-                << "Constant count mismatch in subgraph " << i;
+            EXPECT_EQ(param.expected_constants_per_submodel[i], actual) << "Constant count mismatch in subgraph " << i;
         }
     }
 
