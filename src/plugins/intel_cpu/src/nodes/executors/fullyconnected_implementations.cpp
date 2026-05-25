@@ -228,7 +228,6 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             // supports
             [](const FCConfig& config) -> bool {
                 VERIFY(brgemmFCDecompEnabledByEnv(), "Disabled by OV_CPU_ENABLE_BRGEMM_FC_DECOMP");
-                VERIFY(noPostOps(config), UNSUPPORTED_POST_OPS);
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                 VERIFY(BrgemmFCDecompExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
                 return true;

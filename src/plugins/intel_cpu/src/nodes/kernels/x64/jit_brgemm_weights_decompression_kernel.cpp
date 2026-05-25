@@ -13,6 +13,8 @@
 #include <cstdint>
 #include <functional>
 
+#include "plugin_data_types.hpp"
+
 #define GET_OFF(field) offsetof(weights_decompression_runtime_params_t, field)
 
 namespace ov::intel_cpu {
@@ -55,7 +57,7 @@ void jit_brgemm_weights_decompression_kernel_t<isa>::init_decomp_params(std::fun
                 uni_vbroadcastss(vmm_params(static_cast<int>(ocb)), xmm_params);
                 break;
             }
-            case data_type::u2: {
+            case plugin_data_type::u2: {
                 auto xmm_params = Xmm(vmm_params(static_cast<int>(ocb)).getIdx());
                 auto reg_tmp_32 = Reg32(reg_tmp.getIdx());
                 movzx(reg_tmp_32, ptr[reg_params]);
@@ -136,7 +138,7 @@ void jit_brgemm_weights_decompression_kernel_t<isa>::load_weights(Vmm vmm_load, 
         uni_vcvtdq2ps(vmm_load, vmm_load);
         break;
     }
-    case data_type::u2: {
+    case plugin_data_type::u2: {
         uni_vpmovzxbd(vmm_load, addr);
         if (ic == 0) {
             uni_vpsrld(vmm_load, vmm_load, 6);
@@ -318,7 +320,7 @@ void jit_brgemm_weights_decompression_kernel_t<isa>::generate() {
 
     size_t weights_dt_size = types::data_type_size(jcp_.weights_dt);
     size_t typesize_scale = [&] {
-        if (jcp_.weights_dt == data_type::u2) {
+        if (jcp_.weights_dt == plugin_data_type::u2) {
             return size_t(4);
         } else if (one_of(jcp_.weights_dt, data_type::nf4, data_type::s4, data_type::u4, data_type::f4_e2m1)) {
             return size_t(2);
@@ -368,7 +370,7 @@ void jit_brgemm_weights_decompression_kernel_t<isa>::generate() {
                 for (size_t ic = 0; ic < jcp_.ic_internal_size; ic++) {
                     auto ymm_store = Ymm(vmm_weights(static_cast<int>(ic)).getIdx());
                     size_t decomp_buffer_offset =
-                        jcp_.weights_dt == data_type::u2
+                        jcp_.weights_dt == plugin_data_type::u2
                             ? (((ic / 2) * oc_blocks_num + ocb) * 2 + (ic % 2)) * vec_size * decomp_buf_dt_size
                             : (ocb * jcp_.ic_internal_size + ic) * vec_size * decomp_buf_dt_size;
                     const auto decomp_buffer_addr = ptr[reg_decomp_buffer + decomp_buffer_offset];

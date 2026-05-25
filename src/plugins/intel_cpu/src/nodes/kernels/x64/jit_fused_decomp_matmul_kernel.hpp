@@ -14,12 +14,12 @@
 namespace ov::intel_cpu {
 
 struct fused_decomp_matmul_compile_params_t {
-    size_t oc_block;       // 32 (AVX2) or 64 (AVX512)
-    size_t ic_block;       // rd_block aligned to group size
+    size_t oc_block;  // 32 (AVX2) or 64 (AVX512)
+    size_t ic_block;  // rd_block aligned to group size
 
-    dnnl::impl::data_type_t src_dt;    // f32, bf16, or s8 (dyn_quant)
-    dnnl::impl::data_type_t wei_dt;    // u8, s8, u4, s4, nf4, f4_e2m1, u2
-    dnnl::impl::data_type_t dst_dt;    // f32
+    dnnl::impl::data_type_t src_dt;  // f32, bf16, or s8 (dyn_quant)
+    dnnl::impl::data_type_t wei_dt;  // u8, s8, u4, s4, nf4, f4_e2m1, u2
+    dnnl::impl::data_type_t dst_dt;  // f32
 
     bool with_scales = false;
     bool broadcast_scales = false;
@@ -61,7 +61,7 @@ protected:
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 struct jit_fused_decomp_matmul_kernel_t : public jit_fused_decomp_matmul_kernel_base_t,
-                                           public dnnl::impl::cpu::x64::jit_generator_t {
+                                          public dnnl::impl::cpu::x64::jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_fused_decomp_matmul_kernel_t)
 
     explicit jit_fused_decomp_matmul_kernel_t(const fused_decomp_matmul_compile_params_t& jcp);
@@ -89,27 +89,55 @@ private:
     void load_zero_points(int num_oc_regs);
 
     // Accumulator registers
-    Vmm vmm_acc(int ocb) { return Vmm(ocb); }
+    Vmm vmm_acc(int ocb) {
+        return Vmm(ocb);
+    }
 
     // Scale/ZP registers (loaded per IC group, shared across IC iterations)
-    int nb_oc_regs() const { return static_cast<int>(jcp_.oc_block / simd_w); }
+    int nb_oc_regs() const {
+        return static_cast<int>(jcp_.oc_block / simd_w);
+    }
 
-    Vmm vmm_wei_scale(int ocb) { return Vmm(nb_oc_regs() + ocb); }
-    Vmm vmm_wei_zp(int ocb) { return Vmm(2 * nb_oc_regs() + ocb); }
+    Vmm vmm_wei_scale(int ocb) {
+        return Vmm(nb_oc_regs() + ocb);
+    }
+    Vmm vmm_wei_zp(int ocb) {
+        return Vmm(2 * nb_oc_regs() + ocb);
+    }
 
     // Working registers (allocated from top)
-    Vmm vmm_src_bcast() { return Vmm(n_vregs - 1); }
-    Vmm vmm_wei_load() { return Vmm(n_vregs - 2); }
-    Vmm vmm_tmp0() { return Vmm(n_vregs - 3); }
-    Vmm vmm_tmp1() { return Vmm(n_vregs - 4); }
+    Vmm vmm_src_bcast() {
+        return Vmm(n_vregs - 1);
+    }
+    Vmm vmm_wei_load() {
+        return Vmm(n_vregs - 2);
+    }
+    Vmm vmm_tmp0() {
+        return Vmm(n_vregs - 3);
+    }
+    Vmm vmm_tmp1() {
+        return Vmm(n_vregs - 4);
+    }
 
     // Lookup table / mask registers
-    Vmm vmm_lookup() { return Vmm(n_vregs - 5); }
-    Vmm vmm_lookup_low() { return Vmm(n_vregs - 5); }
-    Vmm vmm_lookup_high() { return Vmm(n_vregs - 6); }
-    Vmm vmm_mask_val() { return Vmm(n_vregs - 7); }
-    Vmm vmm_mask8() { return Vmm(n_vregs - 8); }
-    Vmm vmm_mask7() { return Vmm(n_vregs - 9); }
+    Vmm vmm_lookup() {
+        return Vmm(n_vregs - 5);
+    }
+    Vmm vmm_lookup_low() {
+        return Vmm(n_vregs - 5);
+    }
+    Vmm vmm_lookup_high() {
+        return Vmm(n_vregs - 6);
+    }
+    Vmm vmm_mask_val() {
+        return Vmm(n_vregs - 7);
+    }
+    Vmm vmm_mask8() {
+        return Vmm(n_vregs - 8);
+    }
+    Vmm vmm_mask7() {
+        return Vmm(n_vregs - 9);
+    }
 
     // GPRs
     Xbyak::Reg64 reg_src = Xbyak::Reg64(8);

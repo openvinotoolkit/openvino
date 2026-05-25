@@ -21,6 +21,7 @@
 
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "plugin_data_types.hpp"
 
 namespace ov::intel_cpu {
 
@@ -50,12 +51,12 @@ static data_type_t to_dnnl_dt(ov::element::Type et) {
     if (et == ov::element::f8e8m0)
         return data_type::e8m0;
     if (et == ov::element::u2)
-        return data_type::u2;
+        return plugin_data_type::u2;
     return data_type::undef;
 }
 
 static size_t get_typesize_scale(data_type_t dt) {
-    if (dt == data_type::u2)
+    if (dt == plugin_data_type::u2)
         return 4;
     if (one_of(dt, data_type::nf4, data_type::s4, data_type::u4, data_type::f4_e2m1))
         return 2;
@@ -106,8 +107,8 @@ BrgemmFCWeightsDecompression::BrgemmFCWeightsDecompression(const BrgemmFCWeights
 }
 
 bool BrgemmFCWeightsDecompression::initFusedKernels(const BrgemmFCWeightsDecompressionConfig& config,
-                                                     data_type_t dnnl_wei_dt,
-                                                     data_type_t dnnl_src_dt) {
+                                                    data_type_t dnnl_wei_dt,
+                                                    data_type_t dnnl_src_dt) {
     fused_decomp_matmul_compile_params_t jcp = {};
     jcp.oc_block = m_oc_block;
     jcp.src_dt = config.with_src_dynamic_quant ? data_type::s8 : dnnl_src_dt;
@@ -120,16 +121,15 @@ bool BrgemmFCWeightsDecompression::initFusedKernels(const BrgemmFCWeightsDecompr
 
     jcp.with_zero_points = config.with_zero_points;
     jcp.broadcast_zero_points = config.broadcast_zero_points;
-    jcp.zero_points_dt = to_dnnl_dt(config.zero_points_dt);
-    if (jcp.zero_points_dt == data_type::undef)
-        jcp.zero_points_dt = data_type::u8;
+    // Sub-byte ZP types (u4, u2) are unpacked to u8 by the orchestrator before calling the kernel
+    jcp.zero_points_dt = data_type::u8;
 
     jcp.is_dyn_quant = config.with_src_dynamic_quant;
     jcp.with_src_grouped_sum = config.with_src_grouped_sum;
 
     // Compute ic_block: base block depends on weight type, then align to group sizes
     size_t base_block;
-    if (dnnl_wei_dt == data_type::u2) {
+    if (dnnl_wei_dt == plugin_data_type::u2) {
         base_block = 64;
     } else if (one_of(dnnl_wei_dt, data_type::nf4, data_type::s4, data_type::u4, data_type::f4_e2m1)) {
         base_block = 32;
@@ -143,6 +143,12 @@ bool BrgemmFCWeightsDecompression::initFusedKernels(const BrgemmFCWeightsDecompr
         base_block = std::min(base_block, config.zero_points_ic_group_size);
     if (config.with_src_dynamic_quant && config.src_quant_group_size > 0)
         base_block = std::min(base_block, config.src_quant_group_size);
+
+    // When dyn-quant with ZP compensation is active, ic_block must equal src_sum_group_size
+    // so that grouped_sum covers exactly the same IC range as the kernel's accumulator.
+    if (config.with_src_dynamic_quant && config.with_src_grouped_sum && config.src_sum_group_size > 0) {
+        base_block = config.src_sum_group_size;
+    }
 
     jcp.ic_block = base_block;
     m_ic_block = base_block;
@@ -164,12 +170,12 @@ bool BrgemmFCWeightsDecompression::initFusedKernels(const BrgemmFCWeightsDecompr
 }
 
 void BrgemmFCWeightsDecompression::initPrepackKernels(const BrgemmFCWeightsDecompressionConfig& config,
-                                                       data_type_t dnnl_wei_dt,
-                                                       data_type_t dnnl_src_dt) {
+                                                      data_type_t dnnl_wei_dt,
+                                                      data_type_t dnnl_src_dt) {
     weights_decompression_compile_params_t jcp = {};
     jcp.oc_size = m_oc_block;
 
-    if (dnnl_wei_dt == data_type::u2) {
+    if (dnnl_wei_dt == plugin_data_type::u2) {
         jcp.ic_internal_size = 4;
     } else if (dnnl_src_dt == data_type::bf16 ||
                one_of(dnnl_wei_dt, data_type::nf4, data_type::s4, data_type::u4, data_type::f4_e2m1)) {
@@ -204,9 +210,11 @@ void BrgemmFCWeightsDecompression::initPrepackKernels(const BrgemmFCWeightsDecom
                      brgemm_addr,
                      brg_dt_a,
                      brg_dt_b,
-                     false, false,
+                     false,
+                     false,
                      brgemm_row_major,
-                     1.0F, 1.0F,
+                     1.0F,
+                     1.0F,
                      static_cast<dim_t>(config.K),
                      static_cast<dim_t>(m_oc_block),
                      static_cast<dim_t>(config.N),
@@ -221,9 +229,11 @@ void BrgemmFCWeightsDecompression::initPrepackKernels(const BrgemmFCWeightsDecom
                          brgemm_addr,
                          brg_dt_a,
                          brg_dt_b,
-                         false, false,
+                         false,
+                         false,
                          brgemm_row_major,
-                         1.0F, 1.0F,
+                         1.0F,
+                         1.0F,
                          static_cast<dim_t>(config.K),
                          static_cast<dim_t>(m_oc_block),
                          static_cast<dim_t>(config.N),
@@ -258,7 +268,45 @@ size_t BrgemmFCWeightsDecompression::getScratchpadSize(int num_threads) const {
         }
     }
 
-    return decomp_buf_size + qsrc_size + src_scales_size + src_grouped_sum_size + tmp_acc_size;
+    // Per-thread repack buffer for fused kernel
+    size_t repack_buf_size = 0;
+    if (m_use_fused_kernel) {
+        auto dnnl_wei_dt = to_dnnl_dt(m_config.wei_dt);
+        size_t typesize_scale = get_typesize_scale(dnnl_wei_dt);
+        if (m_config.with_src_dynamic_quant) {
+            // VNNI path: unpacked to full bytes, layout [IC_groups, OC, rd_step=4]
+            repack_buf_size = static_cast<size_t>(num_threads) * m_oc_block * m_ic_block;
+        } else {
+            // Float path: packed bytes, layout [IC_bytes, OC]
+            repack_buf_size = static_cast<size_t>(num_threads) * m_oc_block * m_ic_block / typesize_scale;
+        }
+    }
+
+    // Transposed scales/zp buffers: original layout [OC, IC_groups] → transposed [IC_groups, OC]
+    size_t transposed_scales_size = 0;
+    size_t transposed_zp_size = 0;
+    if (m_use_fused_kernel) {
+        if (m_config.with_scales && m_config.scales_ic_group_size > 0 && m_config.scales_ic_group_size < m_config.K) {
+            size_t num_scale_groups = m_config.K / m_config.scales_ic_group_size;
+            size_t s_dt_size = (m_config.scales_dt != ov::element::Type() && m_config.scales_dt.size() > 0)
+                                   ? m_config.scales_dt.size()
+                                   : sizeof(float);
+            transposed_scales_size = m_config.N * num_scale_groups * s_dt_size;
+        }
+        if (m_config.with_zero_points) {
+            if (m_config.broadcast_zero_points) {
+                transposed_zp_size = sizeof(uint8_t);
+            } else {
+                size_t num_zp_groups = 1;
+                if (m_config.zero_points_ic_group_size > 0 && m_config.zero_points_ic_group_size < m_config.K)
+                    num_zp_groups = m_config.K / m_config.zero_points_ic_group_size;
+                transposed_zp_size = m_config.N * num_zp_groups * sizeof(uint8_t);
+            }
+        }
+    }
+
+    return decomp_buf_size + qsrc_size + src_scales_size + src_grouped_sum_size + tmp_acc_size + repack_buf_size +
+           transposed_scales_size + transposed_zp_size;
 }
 
 void BrgemmFCWeightsDecompression::execute(const void* src,
@@ -322,19 +370,168 @@ void BrgemmFCWeightsDecompression::executeFused(const void* src,
 
     const size_t scales_dt_size =
         (cfg.scales_dt != ov::element::Type() && cfg.scales_dt.size() > 0) ? cfg.scales_dt.size() : sizeof(float);
-    const size_t zp_dt_size = (cfg.zero_points_dt != ov::element::Type() && cfg.zero_points_dt.size() > 0)
-                                  ? cfg.zero_points_dt.size()
-                                  : sizeof(float);
+    const bool is_dyn_quant = cfg.with_src_dynamic_quant;
+
+    // Per-thread repack buffer for transposing weight tiles
+    const size_t repack_tile_bytes =
+        is_dyn_quant ? (m_oc_block * m_ic_block) : (m_oc_block * m_ic_block / typesize_scale);
+    uint8_t* repack_base = reinterpret_cast<uint8_t*>(scratch_buf + offset);
+    offset += static_cast<size_t>(num_threads) * repack_tile_bytes;
+
+    // Transpose per-group scales from [OC, IC_groups] to [IC_groups, OC] for contiguous SIMD loads
+    const uint8_t* effective_scales = scales_u8;
+    if (cfg.with_scales && cfg.scales_ic_group_size > 0 && cfg.scales_ic_group_size < cfg.K && scales_u8) {
+        size_t num_scale_groups = cfg.K / cfg.scales_ic_group_size;
+        uint8_t* transposed_scales = reinterpret_cast<uint8_t*>(scratch_buf + offset);
+        offset += cfg.N * num_scale_groups * scales_dt_size;
+        for (size_t oc = 0; oc < cfg.N; oc++) {
+            for (size_t g = 0; g < num_scale_groups; g++) {
+                memcpy(transposed_scales + (g * cfg.N + oc) * scales_dt_size,
+                       scales_u8 + (oc * num_scale_groups + g) * scales_dt_size,
+                       scales_dt_size);
+            }
+        }
+        effective_scales = transposed_scales;
+    }
+
+    // Unpack sub-byte ZP to u8 and transpose per-group from [OC, IC_groups] to [IC_groups, OC]
+    const uint8_t* effective_zp = zp_u8;
+    if (cfg.with_zero_points && zp_u8) {
+        auto dnnl_zp_dt = to_dnnl_dt(cfg.zero_points_dt);
+        size_t zp_typesize_scale = get_typesize_scale(dnnl_zp_dt);
+
+        if (cfg.broadcast_zero_points) {
+            // Single scalar ZP value — unpack the first element to u8
+            uint8_t* unpacked_zp = reinterpret_cast<uint8_t*>(scratch_buf + offset);
+            offset += sizeof(uint8_t);
+            if (zp_typesize_scale == 1) {
+                unpacked_zp[0] = zp_u8[0];
+            } else if (zp_typesize_scale == 2) {
+                unpacked_zp[0] = zp_u8[0] & 0x0F;
+            } else {
+                unpacked_zp[0] = zp_u8[0] & 0x03;
+            }
+            effective_zp = unpacked_zp;
+        } else {
+            size_t num_zp_groups = 1;
+            if (cfg.zero_points_ic_group_size > 0 && cfg.zero_points_ic_group_size < cfg.K)
+                num_zp_groups = cfg.K / cfg.zero_points_ic_group_size;
+            const size_t total_zp_elems = cfg.N * num_zp_groups;
+            uint8_t* unpacked_zp = reinterpret_cast<uint8_t*>(scratch_buf + offset);
+            offset += total_zp_elems * sizeof(uint8_t);
+
+            // Unpack from packed format to u8, with transpose [OC, groups] → [groups, OC]
+            for (size_t oc = 0; oc < cfg.N; oc++) {
+                for (size_t g = 0; g < num_zp_groups; g++) {
+                    size_t src_elem_idx = oc * num_zp_groups + g;
+                    size_t dst_idx = g * cfg.N + oc;
+                    uint8_t val;
+                    if (zp_typesize_scale == 1) {
+                        val = zp_u8[src_elem_idx];
+                    } else if (zp_typesize_scale == 2) {
+                        val = (zp_u8[src_elem_idx / 2] >> ((src_elem_idx % 2) * 4)) & 0x0F;
+                    } else {
+                        val = (zp_u8[src_elem_idx / 4] >> ((src_elem_idx % 4) * 2)) & 0x03;
+                    }
+                    unpacked_zp[dst_idx] = val;
+                }
+            }
+            effective_zp = unpacked_zp;
+        }
+    }
+
+    const size_t K_bytes = cfg.K / typesize_scale;  // total IC bytes per OC row
+    const size_t rd_step = 4;                       // VNNI group size
+    // const size_t rd_step_bytes = rd_step / typesize_scale;
 
     // Weight layout is [OC, IC] with sub-byte packing.
-    // Scales/ZP layout: per-group is [IC_groups, OC] or broadcast.
+    // Float path kernel expects [IC_bytes, OC] byte layout (byte-transposed).
+    // Dyn-quant path kernel expects [IC_groups, OC, rd_step_bytes] layout (VNNI interleave).
+    // We repack each tile before calling the kernel.
     parallel_nd(static_cast<dim_t>(cfg.M), static_cast<dim_t>(nb_oc), [&](dim_t mb, dim_t ocb_idx) {
+        int tid = parallel_get_thread_num();
+        uint8_t* repack_buf = repack_base + tid * repack_tile_bytes;
+
         size_t oc = static_cast<size_t>(ocb_idx) * m_oc_block;
+        size_t cur_oc_size = std::min(m_oc_block, cfg.N - oc);
         float* dst_ptr = dst_f32 + mb * cfg.N + oc;
 
         for (size_t icb_idx = 0; icb_idx < nb_ic; icb_idx++) {
             size_t ic = icb_idx * m_ic_block;
             size_t cur_ic_size = std::min(m_ic_block, cfg.K - ic);
+            size_t cur_ic_bytes = cur_ic_size / typesize_scale;
+
+            if (is_dyn_quant) {
+                // VNNI repack: unpack sub-byte weights to u8 values
+                // Output layout: [n_rd_groups, oc_block, rd_step=4] — 4 u8 values per OC per group
+                // vpdpbusd needs 4 consecutive u8 values in each dword lane
+                size_t n_rd_groups = cur_ic_size / rd_step;
+                size_t ic_tail = cur_ic_size % rd_step;
+                for (size_t oc_i = 0; oc_i < cur_oc_size; oc_i++) {
+                    const uint8_t* src_row = weights_u8 + (oc + oc_i) * K_bytes + ic / typesize_scale;
+                    for (size_t g = 0; g < n_rd_groups; g++) {
+                        for (size_t r = 0; r < rd_step; r++) {
+                            size_t elem_idx = g * rd_step + r;
+                            uint8_t val;
+                            if (typesize_scale == 1) {
+                                val = src_row[elem_idx];
+                            } else if (typesize_scale == 2) {
+                                uint8_t byte = src_row[elem_idx / 2];
+                                val = (elem_idx % 2 == 0) ? (byte & 0x0F) : ((byte >> 4) & 0x0F);
+                            } else {
+                                uint8_t byte = src_row[elem_idx / 4];
+                                int shift = (elem_idx % 4) * 2;
+                                val = (byte >> shift) & 0x03;
+                            }
+                            repack_buf[g * m_oc_block * rd_step + oc_i * rd_step + r] = val;
+                        }
+                    }
+                    if (ic_tail > 0) {
+                        for (size_t r = 0; r < rd_step; r++) {
+                            if (r < ic_tail) {
+                                size_t elem_idx = n_rd_groups * rd_step + r;
+                                uint8_t val;
+                                if (typesize_scale == 1) {
+                                    val = src_row[elem_idx];
+                                } else if (typesize_scale == 2) {
+                                    uint8_t byte = src_row[elem_idx / 2];
+                                    val = (elem_idx % 2 == 0) ? (byte & 0x0F) : ((byte >> 4) & 0x0F);
+                                } else {
+                                    uint8_t byte = src_row[elem_idx / 4];
+                                    int shift = (elem_idx % 4) * 2;
+                                    val = (byte >> shift) & 0x03;
+                                }
+                                repack_buf[n_rd_groups * m_oc_block * rd_step + oc_i * rd_step + r] = val;
+                            } else {
+                                repack_buf[n_rd_groups * m_oc_block * rd_step + oc_i * rd_step + r] = 0;
+                            }
+                        }
+                    }
+                }
+                // Zero-pad OC tail
+                if (cur_oc_size < m_oc_block) {
+                    size_t total_groups = n_rd_groups + (ic_tail > 0 ? 1 : 0);
+                    for (size_t g = 0; g < total_groups; g++) {
+                        for (size_t oc_i = cur_oc_size; oc_i < m_oc_block; oc_i++) {
+                            memset(repack_buf + g * m_oc_block * rd_step + oc_i * rd_step, 0, rd_step);
+                        }
+                    }
+                }
+            } else {
+                // Float path repack: buffer[ic_byte * oc_block + oc_i] = weight byte
+                for (size_t oc_i = 0; oc_i < cur_oc_size; oc_i++) {
+                    const uint8_t* src_row = weights_u8 + (oc + oc_i) * K_bytes + ic / typesize_scale;
+                    for (size_t ic_byte = 0; ic_byte < cur_ic_bytes; ic_byte++) {
+                        repack_buf[ic_byte * m_oc_block + oc_i] = src_row[ic_byte];
+                    }
+                }
+                // Zero-pad OC tail
+                if (cur_oc_size < m_oc_block) {
+                    for (size_t ic_byte = 0; ic_byte < cur_ic_bytes; ic_byte++) {
+                        memset(repack_buf + ic_byte * m_oc_block + cur_oc_size, 0, m_oc_block - cur_oc_size);
+                    }
+                }
+            }
 
             // Source pointer for this IC block
             const void* src_ptr;
@@ -344,32 +541,29 @@ void BrgemmFCWeightsDecompression::executeFused(const void* src,
                 src_ptr = static_cast<const char*>(src) + (mb * cfg.K + ic) * cfg.src_dt.size();
             }
 
-            // Weight pointer: [OC, IC] layout, offset to (oc, ic)
-            const void* wei_ptr = weights_u8 + (oc * cfg.K + ic) / typesize_scale;
-
             // Scales pointer for this IC group
             const void* wei_scales_ptr = nullptr;
             if (cfg.with_scales) {
                 if (cfg.broadcast_scales) {
-                    wei_scales_ptr = scales_u8;
+                    wei_scales_ptr = effective_scales;
                 } else if (cfg.scales_ic_group_size == 0 || cfg.scales_ic_group_size >= cfg.K) {
-                    wei_scales_ptr = scales_u8 + oc * scales_dt_size;
+                    wei_scales_ptr = effective_scales + oc * scales_dt_size;
                 } else {
                     size_t scale_group = ic / cfg.scales_ic_group_size;
-                    wei_scales_ptr = scales_u8 + (scale_group * cfg.N + oc) * scales_dt_size;
+                    wei_scales_ptr = effective_scales + (scale_group * cfg.N + oc) * scales_dt_size;
                 }
             }
 
-            // Zero points pointer for this IC group
+            // Zero points pointer for this IC group (always u8 after unpacking)
             const void* wei_zp_ptr = nullptr;
             if (cfg.with_zero_points) {
                 if (cfg.broadcast_zero_points) {
-                    wei_zp_ptr = zp_u8;
+                    wei_zp_ptr = effective_zp;
                 } else if (cfg.zero_points_ic_group_size == 0 || cfg.zero_points_ic_group_size >= cfg.K) {
-                    wei_zp_ptr = zp_u8 + oc * zp_dt_size;
+                    wei_zp_ptr = effective_zp + oc;
                 } else {
                     size_t zp_group = ic / cfg.zero_points_ic_group_size;
-                    wei_zp_ptr = zp_u8 + (zp_group * cfg.N + oc) * zp_dt_size;
+                    wei_zp_ptr = effective_zp + (zp_group * cfg.N + oc);
                 }
             }
 
@@ -387,7 +581,7 @@ void BrgemmFCWeightsDecompression::executeFused(const void* src,
 
             fused_decomp_matmul_runtime_params_t rt_params = {};
             rt_params.src_ptr = src_ptr;
-            rt_params.wei_ptr = wei_ptr;
+            rt_params.wei_ptr = repack_buf;
             rt_params.dst_ptr = dst_ptr;
             rt_params.scales_ptr = wei_scales_ptr;
             rt_params.zero_points_ptr = wei_zp_ptr;
@@ -402,18 +596,18 @@ void BrgemmFCWeightsDecompression::executeFused(const void* src,
 }
 
 void BrgemmFCWeightsDecompression::executePrepack(const void* src,
-                                                   const void* weights,
-                                                   void* dst,
-                                                   const void* scales,
-                                                   const void* zero_points,
-                                                   void* scratchpad,
-                                                   int num_threads) const {
+                                                  const void* weights,
+                                                  void* dst,
+                                                  const void* scales,
+                                                  const void* zero_points,
+                                                  void* scratchpad,
+                                                  int num_threads) const {
     const auto& cfg = m_config;
     auto dnnl_wei_dt = to_dnnl_dt(cfg.wei_dt);
     const size_t typesize_scale = get_typesize_scale(dnnl_wei_dt);
 
     const size_t ic_internal_block = [&] {
-        if (dnnl_wei_dt == data_type::u2)
+        if (dnnl_wei_dt == plugin_data_type::u2)
             return size_t(4);
         if (to_dnnl_dt(cfg.src_dt) == data_type::bf16 ||
             one_of(dnnl_wei_dt, data_type::nf4, data_type::s4, data_type::u4, data_type::f4_e2m1))
@@ -510,7 +704,8 @@ void BrgemmFCWeightsDecompression::executePrepack(const void* src,
                     const void* src_ptr = static_cast<const void*>(qsrc + mb * cfg.K + ic);
                     bool is_ic_tail = (cur_ic_size < m_ic_block);
                     auto* brg_kernel = is_ic_tail ? m_brg_kernel_ic_tail : m_brg_kernel;
-                    if (!brg_kernel) continue;
+                    if (!brg_kernel)
+                        continue;
 
                     std::fill(local_tmp_acc, local_tmp_acc + cur_oc_size, 0.0F);
                     brgemm_batch_element_t batch_elem;
@@ -590,12 +785,13 @@ void BrgemmFCWeightsDecompression::executePrepack(const void* src,
 }
 
 void BrgemmFCWeightsDecompression::performSrcQuantization(const void* src,
-                                                           int8_t* qsrc,
-                                                           float* src_dscales,
-                                                           int32_t* src_grouped_sum,
-                                                           const BrgemmFCWeightsDecompressionConfig& cfg,
-                                                           size_t ic_groups) const {
-    if (!m_src_quant_kernel) return;
+                                                          int8_t* qsrc,
+                                                          float* src_dscales,
+                                                          int32_t* src_grouped_sum,
+                                                          const BrgemmFCWeightsDecompressionConfig& cfg,
+                                                          size_t ic_groups) const {
+    if (!m_src_quant_kernel)
+        return;
 
     size_t vec_loop_end = (ic_groups - 1) * cfg.src_quant_group_size;
     const auto* src_f32 = static_cast<const float*>(src);
