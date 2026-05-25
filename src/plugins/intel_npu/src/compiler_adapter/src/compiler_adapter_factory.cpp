@@ -6,6 +6,7 @@
 
 #include "driver_compiler_adapter.hpp"
 #include "intel_npu/npu_private_properties.hpp"
+#include "openvino/util/file_util.hpp"
 #include "plugin_compiler_adapter.hpp"
 
 namespace intel_npu {
@@ -29,7 +30,8 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(const ov::
             if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
                 if (_pluginCompilerIsPresent) {
                     try {
-                        return std::make_unique<PluginCompilerAdapter>(engineBackend->getInitStructs());
+                        auto ov_lib_path = ov::util::path_to_string(ov::util::get_ov_lib_path());
+                        return std::make_unique<PluginCompilerAdapter>(engineBackend->getInitStructs(), ov_lib_path);
                     } catch (...) {
                         _pluginCompilerIsPresent = false;
                         compilerType = ov::intel_npu::CompilerType::DRIVER;
@@ -46,11 +48,12 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(const ov::
     }
 
     if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
+        auto ov_lib_path = ov::util::path_to_string(ov::util::get_ov_lib_path());
         if (engineBackend == nullptr) {
-            return std::make_unique<PluginCompilerAdapter>(nullptr);
+            return std::make_unique<PluginCompilerAdapter>(nullptr, ov_lib_path);
         }
 
-        return std::make_unique<PluginCompilerAdapter>(engineBackend->getInitStructs());
+        return std::make_unique<PluginCompilerAdapter>(engineBackend->getInitStructs(), ov_lib_path);
     } else if (compilerType == ov::intel_npu::CompilerType::DRIVER) {
         if (engineBackend == nullptr || engineBackend->getDevice() == nullptr) {
             OPENVINO_THROW("Could not find an NPU device. The driver compiler requires a valid device to be present in "
