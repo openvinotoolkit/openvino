@@ -19,15 +19,17 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "shape_inference/shape_inference_internal_dyn.hpp"
+#include "openvino/op/pa_kv_reorder.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/plain_tensor.hpp"
 
 namespace ov::intel_cpu::node {
 
 bool PaKVReorder::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (op->get_type_name() != std::string("PaKVReorder")) {
+        if (!ov::is_type<ov::op::internal::PaKVReorder>(op)) {
             errorMessage = "Unsupported operation type for PaKVReorder CPU node: " + std::string(op->get_type_name());
             return false;
         }
@@ -49,7 +51,7 @@ bool PaKVReorder::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
 }
 
 PaKVReorder::PaKVReorder(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
-    : Node(op, context, InternalDynShapeInferFactory()) {
+    : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -70,8 +72,11 @@ void PaKVReorder::initSupportedPrimitiveDescriptors() {
         return;
     }
 
-    addSupportedPrimDesc({{LayoutType::ncsp, ov::element::dynamic},
-                          {LayoutType::ncsp, ov::element::dynamic},
+    const auto key_cache_precision = getOriginalInputPrecisionAtPort(0);
+    const auto value_cache_precision = getOriginalInputPrecisionAtPort(1);
+
+    addSupportedPrimDesc({{LayoutType::ncsp, key_cache_precision},
+                          {LayoutType::ncsp, value_cache_precision},
                           {LayoutType::ncsp, ov::element::i32},
                           {LayoutType::ncsp, ov::element::i32},
                           {LayoutType::ncsp, ov::element::i32},
@@ -112,9 +117,10 @@ void PaKVReorder::execute([[maybe_unused]] const dnnl::stream& strm) {
     CPU_NODE_ASSERT(block_indices_begins.size(0) == block_update_indices_begins.size(0),
                     "expects block_indices_begins and block_update_indices_begins to have same length");
 
-    // Delegate to optimized kernel implementation with parallel execution
-    // Quantization configuration (m_key_by_channel, m_value_by_channel) was determined at createPrimitive time
-    // Thread-local buffers are used internally for quantization scratch space
+    // The KV cache tensors are modified in-place: PaKVReorder rewrites tokens within key_cache and
+    // value_cache and produces only a dummy [1] u8 status output. This violates the usual immutable-input
+    // contract and is a special case intended exclusively for the GenAI paged-attention backend, where the
+    // cache is owned by the runtime and the reorder is applied between main/draft decoding steps.
     ov::Extensions::Cpu::XARCH::reorder_kv_cache(key_cache,
                                                  value_cache,
                                                  block_indices,

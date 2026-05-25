@@ -64,13 +64,13 @@ void validate_begin_offsets(const int32_t* begins_ptr,
 struct BatchReorderContext {
     size_t src_block = 0;
     size_t dst_block = 0;
-    bool same_block = false;
     int32_t op_begin = 0;
     int32_t op_end = 0;
     size_t block_size = 0;
     size_t dst_actual_tokens = 0;
     const int32_t* update_ptr = nullptr;
     size_t hidden = 0;
+    bool same_block = false;
 };
 
 /**
@@ -238,7 +238,10 @@ void dispatch_and_process_cache(ov::element::Type_t prec,
         process_cache_batch_non_quantized<ov::element::f16>(cache, ctx, kv_heads, cpu_parallel);
     } else {
         OPENVINO_THROW("PaKVReorder supports only f32, bf16, f16, u8, and u4 KV cache precisions. ",
-                       "int8 KV cache is not supported.");
+                       "Received cache element type: ",
+                       prec,
+                       ".",
+                       prec == ov::element::i8 ? " int8 KV cache is not supported." : "");
     }
 }
 

@@ -5,6 +5,7 @@
 #include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "internal_properties.hpp"
+#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/parameter.hpp"
@@ -172,7 +173,10 @@ public:
                      bool enable_qq_bias,
                      const std::vector<uint8_t>& qq_bias_data = {},
                      const std::vector<int32_t>& qq_bias_begins_data = {}) {
-        configuration[ov::hint::inference_precision.name()] = ov::element::f32;
+        // Use f32 inference precision for stable cross-type comparison, except for bf16 where we
+        // explicitly want to exercise the bf16 paged-attention executor path.
+        configuration[ov::hint::inference_precision.name()] =
+            (data_type == ov::element::bf16) ? ov::element::bf16 : ov::element::f32;
         function = model;
         compile_model();
         auto infer_request = compiledModel.create_infer_request();
@@ -192,6 +196,11 @@ public:
                 auto* p = t.data<ov::float16>();
                 for (size_t i = 0; i < t.get_size(); i++) {
                     p[i] = ov::float16(base + stride * static_cast<float>(i % 17));
+                }
+            } else if (t.get_element_type() == ov::element::bf16) {
+                auto* p = t.data<ov::bfloat16>();
+                for (size_t i = 0; i < t.get_size(); i++) {
+                    p[i] = ov::bfloat16(base + stride * static_cast<float>(i % 17));
                 }
             }
         };
@@ -406,6 +415,12 @@ TEST_P(PagedAttnQQBiasTest, SpeculativeDecodingTreeMask) {
                 float val = static_cast<float>(data[i]);
                 EXPECT_FALSE(std::isnan(val)) << name << " contains NaN at index " << i;
             }
+        } else if (t.get_element_type() == ov::element::bf16) {
+            auto* data = t.data<ov::bfloat16>();
+            for (size_t i = 0; i < t.get_size(); i++) {
+                float val = static_cast<float>(data[i]);
+                EXPECT_FALSE(std::isnan(val)) << name << " contains NaN at index " << i;
+            }
         }
     };
 
@@ -454,6 +469,16 @@ TEST_P(PagedAttnQQBiasTest, SpeculativeDecodingTreeMask) {
             if (diff > 1e-3f)
                 diff_count++;
         }
+    } else if (inType == ov::element::bf16) {
+        auto* data_tree = result_tree.decode_output.data<ov::bfloat16>();
+        auto* data_ref = result_ref.decode_output.data<ov::bfloat16>();
+        for (size_t i = 0; i < result_tree.decode_output.get_size(); i++) {
+            float diff = std::abs(static_cast<float>(data_tree[i]) - static_cast<float>(data_ref[i]));
+            if (diff > max_diff)
+                max_diff = diff;
+            if (diff > 5e-3f)
+                diff_count++;
+        }
     }
 
     // Outputs should differ when tree pattern != full causal
@@ -481,7 +506,7 @@ const std::vector<QQBiasPattern> qq_bias_patterns = {{"tree_4tokens",
 
 INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnQQBias,
                          PagedAttnQQBiasTest,
-                         ::testing::Combine(::testing::Values(ElementType::f32, ElementType::f16),
+                         ::testing::Combine(::testing::Values(ElementType::f32, ElementType::f16, ElementType::bf16),
                                             ::testing::Values(4, 8),  // past_len
                                             ::testing::Values(4),     // num_draft tokens
                                             ::testing::Values(64, 72),  // head_size
