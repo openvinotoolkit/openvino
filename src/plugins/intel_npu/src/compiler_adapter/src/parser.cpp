@@ -8,6 +8,7 @@
 #include "graph.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
+#include "intel_npu/utils/vm/npu_vm_runtime_api.hpp"
 #include "weightless_graph.hpp"
 
 namespace intel_npu {
@@ -41,6 +42,7 @@ std::shared_ptr<IGraph> Parser::parse(const ov::Tensor& mainBlob,
     }
     if (header.find("llvm") != std::string::npos || header.find("NPUByte\x00") != std::string::npos) {
         _logger.debug("Create graph for dynamic blob, use internal function to get metadata!");
+        NPUVMRuntimeApi::initializeFromBlob(data, size);
         return std::make_shared<DynamicGraph>(_zeroInitStruct, mainBlob, true, config);
     }
 
