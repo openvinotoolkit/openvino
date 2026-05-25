@@ -245,6 +245,127 @@ void dispatch_and_process_cache(ov::element::Type_t prec,
     }
 }
 
+// Reorder a single cache tensor (either K or V). The loop over sequences and the per-sequence
+// batch grouping are run independently for K and V so that one full tensor is processed before
+// the other, which keeps the active working set on a single tensor and lets hardware prefetchers
+// and the L2/L3 working set stay focused. The cost is that the bookkeeping (max-dst scan and
+// batch grouping) is recomputed once per pass.
+void reorder_one_cache(PlainTensor& cache,
+                       ov::element::Type_t prec,
+                       bool by_channel,
+                       size_t hidden,
+                       size_t kv_heads,
+                       size_t block_size,
+                       size_t seq_count,
+                       const int32_t* block_idx_ptr,
+                       const int32_t* block_idx_begins_ptr,
+                       const int32_t* update_ptr,
+                       const int32_t* update_begins_ptr,
+                       const CpuParallelPtr& cpu_parallel) {
+    cpu_parallel->parallel_for(seq_count, [&](size_t seq) {
+        const int32_t op_begin = update_begins_ptr[seq];
+        const int32_t op_end = update_begins_ptr[seq + 1];
+        if (op_end <= op_begin) {
+            return;
+        }
+
+        const int32_t block_indices_base = block_idx_begins_ptr[seq];
+        const int32_t blocks_in_seq = block_idx_begins_ptr[seq + 1] - block_indices_base;
+        if (blocks_in_seq <= 0) {
+            return;
+        }
+
+        int32_t max_dst_logical = -1;
+        size_t max_dst_block_local = 0;
+        size_t max_dst_token = 0;
+        for (int32_t op = op_begin; op < op_end; op++) {
+            const int32_t dst_logical = update_ptr[op * 2 + 1];
+            if (dst_logical > max_dst_logical) {
+                max_dst_logical = dst_logical;
+                max_dst_block_local = static_cast<size_t>(dst_logical) / block_size;
+                max_dst_token = static_cast<size_t>(dst_logical) % block_size;
+            }
+        }
+
+        auto get_block_actual_tokens = [&](size_t block_local) -> size_t {
+            if (block_local < max_dst_block_local) {
+                return block_size;
+            }
+            if (block_local == max_dst_block_local) {
+                return max_dst_token + 1;
+            }
+            return block_size;
+        };
+
+        for (int32_t op = op_begin; op < op_end;) {
+            const int32_t pair_base = op * 2;
+            const int32_t src_logical = update_ptr[pair_base + 0];
+            const int32_t dst_logical = update_ptr[pair_base + 1];
+
+            if (src_logical < 0 || dst_logical < 0) {
+                op++;
+                continue;
+            }
+
+            const auto src_block_local = static_cast<size_t>(src_logical) / block_size;
+            const auto dst_block_local = static_cast<size_t>(dst_logical) / block_size;
+
+            if (src_block_local >= static_cast<size_t>(blocks_in_seq) ||
+                dst_block_local >= static_cast<size_t>(blocks_in_seq)) {
+                op++;
+                continue;
+            }
+
+            const auto src_block = static_cast<size_t>(block_idx_ptr[block_indices_base + src_block_local]);
+            const auto dst_block = static_cast<size_t>(block_idx_ptr[block_indices_base + dst_block_local]);
+
+            int32_t batch_end = op + 1;
+            while (batch_end < op_end) {
+                const int32_t n_pair_base = batch_end * 2;
+                const int32_t n_src_logical = update_ptr[n_pair_base + 0];
+                const int32_t n_dst_logical = update_ptr[n_pair_base + 1];
+
+                if (n_src_logical < 0 || n_dst_logical < 0) {
+                    batch_end++;
+                    continue;
+                }
+
+                const auto n_src_block_local = static_cast<size_t>(n_src_logical) / block_size;
+                const auto n_dst_block_local = static_cast<size_t>(n_dst_logical) / block_size;
+
+                if (n_src_block_local >= static_cast<size_t>(blocks_in_seq) ||
+                    n_dst_block_local >= static_cast<size_t>(blocks_in_seq)) {
+                    batch_end++;
+                    continue;
+                }
+
+                const auto n_src_block = static_cast<size_t>(block_idx_ptr[block_indices_base + n_src_block_local]);
+                const auto n_dst_block = static_cast<size_t>(block_idx_ptr[block_indices_base + n_dst_block_local]);
+
+                if (n_src_block != src_block || n_dst_block != dst_block) {
+                    break;
+                }
+                batch_end++;
+            }
+
+            BatchReorderContext ctx;
+            ctx.src_block = src_block;
+            ctx.dst_block = dst_block;
+            ctx.same_block = (src_block == dst_block);
+            ctx.op_begin = op;
+            ctx.op_end = batch_end;
+            ctx.block_size = block_size;
+            ctx.dst_actual_tokens = get_block_actual_tokens(dst_block_local);
+            ctx.update_ptr = update_ptr;
+            ctx.hidden = hidden;
+
+            dispatch_and_process_cache(prec, cache, ctx, by_channel, kv_heads, cpu_parallel);
+
+            op = batch_end;
+        }
+    });
+}
+
 }  // namespace
 
 // Reorders KV cache tokens within each sequence after logical token positions change.
@@ -380,121 +501,34 @@ void reorder_kv_cache(PlainTensor& key_cache,
     const auto key_prec = key_cache.get_precision();
     const auto value_prec = value_cache.get_precision();
 
-    cpu_parallel->parallel_for(seq_count, [&](size_t seq) {
-        const int32_t op_begin = update_begins_ptr[seq];
-        const int32_t op_end = update_begins_ptr[seq + 1];
-        if (op_end <= op_begin) {
-            return;
-        }
+    // Process the whole K tensor first, then the whole V tensor. K and V are independent address
+    // ranges, so handling them in separate passes keeps each pass focused on a single tensor's
+    // working set instead of bouncing between two large buffers per batch group.
+    reorder_one_cache(key_cache,
+                      key_prec,
+                      key_by_channel,
+                      key_hidden,
+                      kv_heads,
+                      block_size,
+                      seq_count,
+                      block_idx_ptr,
+                      block_idx_begins_ptr,
+                      update_ptr,
+                      update_begins_ptr,
+                      cpu_parallel);
 
-        const int32_t block_indices_base = block_idx_begins_ptr[seq];
-        const int32_t blocks_in_seq = block_idx_begins_ptr[seq + 1] - block_indices_base;
-        if (blocks_in_seq <= 0) {
-            return;
-        }
-
-        int32_t max_dst_logical = -1;
-        size_t max_dst_block_local = 0;
-        size_t max_dst_token = 0;
-        for (int32_t op = op_begin; op < op_end; op++) {
-            const int32_t dst_logical = update_ptr[op * 2 + 1];
-            if (dst_logical > max_dst_logical) {
-                max_dst_logical = dst_logical;
-                max_dst_block_local = static_cast<size_t>(dst_logical) / block_size;
-                max_dst_token = static_cast<size_t>(dst_logical) % block_size;
-            }
-        }
-
-        auto get_block_actual_tokens = [&](size_t block_local) -> size_t {
-            if (block_local < max_dst_block_local) {
-                return block_size;
-            }
-            if (block_local == max_dst_block_local) {
-                return max_dst_token + 1;
-            }
-            return block_size;
-        };
-
-        for (int32_t op = op_begin; op < op_end;) {
-            const int32_t pair_base = op * 2;
-            const int32_t src_logical = update_ptr[pair_base + 0];
-            const int32_t dst_logical = update_ptr[pair_base + 1];
-
-            if (src_logical < 0 || dst_logical < 0) {
-                op++;
-                continue;
-            }
-
-            const auto src_block_local = static_cast<size_t>(src_logical) / block_size;
-            const auto dst_block_local = static_cast<size_t>(dst_logical) / block_size;
-
-            if (src_block_local >= static_cast<size_t>(blocks_in_seq) ||
-                dst_block_local >= static_cast<size_t>(blocks_in_seq)) {
-                op++;
-                continue;
-            }
-
-            const auto src_block = static_cast<size_t>(block_idx_ptr[block_indices_base + src_block_local]);
-            const auto dst_block = static_cast<size_t>(block_idx_ptr[block_indices_base + dst_block_local]);
-
-            int32_t batch_end = op + 1;
-            while (batch_end < op_end) {
-                const int32_t n_pair_base = batch_end * 2;
-                const int32_t n_src_logical = update_ptr[n_pair_base + 0];
-                const int32_t n_dst_logical = update_ptr[n_pair_base + 1];
-
-                if (n_src_logical < 0 || n_dst_logical < 0) {
-                    batch_end++;
-                    continue;
-                }
-
-                const auto n_src_block_local = static_cast<size_t>(n_src_logical) / block_size;
-                const auto n_dst_block_local = static_cast<size_t>(n_dst_logical) / block_size;
-
-                if (n_src_block_local >= static_cast<size_t>(blocks_in_seq) ||
-                    n_dst_block_local >= static_cast<size_t>(blocks_in_seq)) {
-                    batch_end++;
-                    continue;
-                }
-
-                const auto n_src_block = static_cast<size_t>(block_idx_ptr[block_indices_base + n_src_block_local]);
-                const auto n_dst_block = static_cast<size_t>(block_idx_ptr[block_indices_base + n_dst_block_local]);
-
-                if (n_src_block != src_block || n_dst_block != dst_block) {
-                    break;
-                }
-                batch_end++;
-            }
-
-            BatchReorderContext key_ctx;
-            key_ctx.src_block = src_block;
-            key_ctx.dst_block = dst_block;
-            key_ctx.same_block = (src_block == dst_block);
-            key_ctx.op_begin = op;
-            key_ctx.op_end = batch_end;
-            key_ctx.block_size = block_size;
-            key_ctx.dst_actual_tokens = get_block_actual_tokens(dst_block_local);
-            key_ctx.update_ptr = update_ptr;
-            key_ctx.hidden = key_hidden;
-
-            dispatch_and_process_cache(key_prec, key_cache, key_ctx, key_by_channel, kv_heads, cpu_parallel);
-
-            BatchReorderContext value_ctx;
-            value_ctx.src_block = src_block;
-            value_ctx.dst_block = dst_block;
-            value_ctx.same_block = (src_block == dst_block);
-            value_ctx.op_begin = op;
-            value_ctx.op_end = batch_end;
-            value_ctx.block_size = block_size;
-            value_ctx.dst_actual_tokens = get_block_actual_tokens(dst_block_local);
-            value_ctx.update_ptr = update_ptr;
-            value_ctx.hidden = value_hidden;
-
-            dispatch_and_process_cache(value_prec, value_cache, value_ctx, value_by_channel, kv_heads, cpu_parallel);
-
-            op = batch_end;
-        }
-    });
+    reorder_one_cache(value_cache,
+                      value_prec,
+                      value_by_channel,
+                      value_hidden,
+                      kv_heads,
+                      block_size,
+                      seq_count,
+                      block_idx_ptr,
+                      block_idx_begins_ptr,
+                      update_ptr,
+                      update_begins_ptr,
+                      cpu_parallel);
 }
 
 }  // namespace ov::Extensions::Cpu::XARCH
