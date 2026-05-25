@@ -59,7 +59,6 @@ protected:
         ::intel_npu::SerializedIR serializedIR;
         vcl_compiler_handle_t compiler = nullptr;
         vcl_log_handle_t logHandle = nullptr;
-        vcl_executable_desc_t desc = {};
 
         CompilerSetupState() = default;
         CompilerSetupState(const CompilerSetupState&) = delete;
@@ -68,11 +67,9 @@ protected:
             : buildFlags(std::move(other.buildFlags)),
               serializedIR(std::move(other.serializedIR)),
               compiler(other.compiler),
-              logHandle(other.logHandle),
-              desc(other.desc) {
+              logHandle(other.logHandle) {
             other.compiler = nullptr;
             other.logHandle = nullptr;
-            other.desc = {};
         }
         CompilerSetupState& operator=(CompilerSetupState&& other) noexcept {
             if (this != &other) {
@@ -81,10 +78,8 @@ protected:
                 serializedIR = std::move(other.serializedIR);
                 compiler = other.compiler;
                 logHandle = other.logHandle;
-                desc = other.desc;
                 other.compiler = nullptr;
                 other.logHandle = nullptr;
-                other.desc = {};
             }
             return *this;
         }
@@ -162,11 +157,6 @@ protected:
                             ::intel_npu::MODEL_SERIALIZER_VERSION::toString(state.serializedIR.serializerVersion) +
                             "\"";
 
-        state.desc = {state.serializedIR.buffer.get(),
-                      state.serializedIR.size,
-                      state.buildFlags.c_str(),
-                      state.buildFlags.size()};
-
         return state;
     }
 };
@@ -180,8 +170,13 @@ TEST_P(VclAllocatorFuncTests, VerifyAllocation) {
     auto setup = createCompilerAndDescriptor();
     ASSERT_NE(setup.compiler, nullptr);
 
+    vcl_executable_desc_t desc = {setup.serializedIR.buffer.get(),
+                                  setup.serializedIR.size,
+                                  setup.buildFlags.c_str(),
+                                  setup.buildFlags.size()};
+
     auto result = ::intel_npu::vclAllocatedExecutableCreate3(setup.compiler,
-                                                             setup.desc,
+                                                             desc,
                                                              allocator.get(),
                                                              &blobBuffer,
                                                              &blobSize,
@@ -220,8 +215,13 @@ TEST_P(VclAllocatorFuncTests, VerifyDeallocation) {
     auto setup = createCompilerAndDescriptor();
     ASSERT_NE(setup.compiler, nullptr);
 
+    vcl_executable_desc_t desc = {setup.serializedIR.buffer.get(),
+                                  setup.serializedIR.size,
+                                  setup.buildFlags.c_str(),
+                                  setup.buildFlags.size()};
+
     auto result = ::intel_npu::vclAllocatedExecutableCreate3(setup.compiler,
-                                                             setup.desc,
+                                                             desc,
                                                              allocator.get(),
                                                              &blobBuffer,
                                                              &blobSize,
@@ -254,8 +254,13 @@ TEST_P(VclAllocatorFuncTests, VerifyOwnershipTransferToTensor) {
     auto setup = createCompilerAndDescriptor();
     ASSERT_NE(setup.compiler, nullptr);
 
+    vcl_executable_desc_t desc = {setup.serializedIR.buffer.get(),
+                                  setup.serializedIR.size,
+                                  setup.buildFlags.c_str(),
+                                  setup.buildFlags.size()};
+
     auto result = ::intel_npu::vclAllocatedExecutableCreate3(setup.compiler,
-                                                             setup.desc,
+                                                             desc,
                                                              allocator.get(),
                                                              &blobBuffer,
                                                              &blobSize,
@@ -303,8 +308,13 @@ TEST_P(VclAllocatorFuncTests, VerifyOrphanMemoryCleanupOnDestruction) {
     auto setup = createCompilerAndDescriptor();
     ASSERT_NE(setup.compiler, nullptr);
 
+    vcl_executable_desc_t desc = {setup.serializedIR.buffer.get(),
+                                  setup.serializedIR.size,
+                                  setup.buildFlags.c_str(),
+                                  setup.buildFlags.size()};
+
     auto result = ::intel_npu::vclAllocatedExecutableCreate3(setup.compiler,
-                                                             setup.desc,
+                                                             desc,
                                                              allocator.get(),
                                                              &blobBuffer,
                                                              &blobSize,

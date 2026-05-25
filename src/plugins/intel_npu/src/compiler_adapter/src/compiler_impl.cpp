@@ -94,7 +94,9 @@ static inline std::string getLatestVCLLog(vcl_log_handle_t logHandle) {
         }                                               \
     }
 
-VCLCompilerImpl::VCLCompilerImpl() : _logHandle(nullptr), _logger("VCLCompilerImpl", Logger::global().level()) {
+VCLCompilerImpl::VCLCompilerImpl(const std::string& custom_path)
+    : _logHandle(nullptr),
+      _logger("VCLCompilerImpl", Logger::global().level()) {
     _logger.debug("VCLCompilerImpl constructor start");
 
     // Load VCL library
