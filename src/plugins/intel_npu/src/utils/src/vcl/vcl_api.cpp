@@ -48,7 +48,25 @@ VCLApi::VCLApi(const std::string& custom_path) : _logger("VCLApi", Logger::globa
 }
 
 const std::shared_ptr<VCLApi> VCLApi::getInstance(const std::string& custom_path) {
-    static std::shared_ptr<VCLApi> instance = std::make_shared<VCLApi>(custom_path);
+    static std::mutex mtx;
+    std::lock_guard<std::mutex> lock(mtx);
+
+    static std::string initialized_path;
+    static std::shared_ptr<VCLApi> instance = nullptr;
+
+    if (!instance) {
+        initialized_path = custom_path;
+        instance = std::make_shared<VCLApi>(custom_path);
+    } else {
+        if (!custom_path.empty() && custom_path != initialized_path) {
+            OPENVINO_THROW("VCLApi has already been initialized with path: '",
+                           initialized_path,
+                           "'. Dynamic switching to a new compiler path: '",
+                           custom_path,
+                           "' in the same process is not supported.");
+        }
+    }
+
     return instance;
 }
 
