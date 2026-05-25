@@ -21,9 +21,6 @@ namespace intel_npu {
 
 class DynamicGraphImpl : public DynamicGraph::Impl {
 public:
-    using MemRefType = DynamicGraph::MemRefType;
-
-public:
     DynamicGraphImpl() : _engineProperties{}, _logger("DynamicGraphImpl", Logger::global().level()) {}
     void initialize(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata) override;
     void createExecutionEngine(std::optional<ov::Tensor>& blob);
