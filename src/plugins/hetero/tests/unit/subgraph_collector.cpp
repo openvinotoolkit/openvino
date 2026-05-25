@@ -410,9 +410,14 @@ std::shared_ptr<ov::Model> create_multiple_shared_constants_partial_cycle_model(
 //
 // Topology: param1(M0) ─┐
 //           param2(M0) ─┴→ A(M0) ──┬→ B(M1) ──┬→ C(M0,+param2) → res_c
-//                                  │           └→ F(M0,+C_const) → res_f
+//                                  │           └→ B2(M1) → F(M0,+C_const) → res_f
 //                                  └→ X(M0,+C_const) → res_x
 //           A consumes param2 and X consumes C_const, anchoring both in sg0 (the producer side).
+//           B2 is an extra M1 Abs on F's path so that F is strictly deeper than C in topological
+//           order. This pins the subgraph-ID assignment (the collector visits Results in topo
+//           order); without it, C and F would be symmetric forks of B and the resulting sg2/sg3
+//           labeling — and therefore every NodeInfo in the expected mapping — would be order-
+//           dependent across builds.
 std::shared_ptr<ov::Model> create_mixed_parameter_constant_bridge_cycle_model() {
     auto param1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{4});
     param1->set_friendly_name("param1");
@@ -429,8 +434,10 @@ std::shared_ptr<ov::Model> create_mixed_parameter_constant_bridge_cycle_model() 
     // C: re-entry #1, Parameter bridge.
     auto c = std::make_shared<ov::op::v1::Add>(b, param2);
     c->set_friendly_name("C");
-    // F: re-entry #2, Constant bridge (independent of C).
-    auto f = std::make_shared<ov::op::v1::Add>(b, c_const);
+    // F: re-entry #2, Constant bridge. Extra Abs (B2) pins topo order so F-subgraph > C-subgraph.
+    auto b2 = std::make_shared<ov::op::v0::Abs>(b);
+    b2->set_friendly_name("B2");
+    auto f = std::make_shared<ov::op::v1::Add>(b2, c_const);
     f->set_friendly_name("F");
     auto res_c = std::make_shared<ov::op::v0::Result>(c);
     res_c->set_friendly_name("res_c");
