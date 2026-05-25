@@ -767,4 +767,98 @@ TEST_P(CheckCompilerPropertyWhenImporting, CheckImportWithCompilerPropertyAfterC
               std::string::npos);
 }
 
+using CheckCpuPinning = ClassExecutableNetworkGetPropertiesTestNPU;
+
+TEST_P(CheckCpuPinning, CheckCompileModelWithCpuPinningFromSetProperty) {
+    std::string logs;
+    std::mutex logs_mutex;
+    ov::Core core;
+    ov::CompiledModel compiled_model;
+
+    ov::log::Level previous_log_level = ov::log::Level::NO;
+    OV_ASSERT_NO_THROW(previous_log_level = core.get_property(deviceName, ov::log::level));
+    core.set_property(deviceName, ov::log::level(ov::log::Level::INFO));
+
+    // Keep this std::function alive while logging is active.
+    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
+        std::lock_guard<std::mutex> lock(logs_mutex);
+        logs.append(msg);
+        logs.push_back('\n');
+    };
+
+    {
+        ov::test::utils::LogCallbackGuard log_callback_guard(log_cb);
+        OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::hint::enable_cpu_pinning(true)));
+        OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, deviceName));
+    }
+    OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::log::level(previous_log_level)));
+
+    bool enable_cpu_pinning = false;
+    OV_ASSERT_NO_THROW(enable_cpu_pinning = compiled_model.get_property(ov::hint::enable_cpu_pinning));
+    ASSERT_TRUE(enable_cpu_pinning);
+
+    std::vector<ov::PropertyName> core_supported_properties;
+    OV_ASSERT_NO_THROW(core_supported_properties = core.get_property(deviceName, ov::supported_properties));
+    ASSERT_EQ(std::find(core_supported_properties.cbegin(),
+                        core_supported_properties.cend(),
+                        ov::hint::enable_cpu_pinning.name()),
+              core_supported_properties.cend());
+
+    std::vector<ov::PropertyName> compiled_supported_properties;
+    OV_ASSERT_NO_THROW(compiled_supported_properties = compiled_model.get_property(ov::supported_properties));
+    ASSERT_EQ(std::find(compiled_supported_properties.cbegin(),
+                        compiled_supported_properties.cend(),
+                        ov::hint::enable_cpu_pinning.name()),
+              compiled_supported_properties.cend());
+
+    ASSERT_NE(logs.find("The \"ENABLE_CPU_PINNING\" property is deprecated and has no effect on the NPU Plugin."),
+              std::string::npos);
+}
+
+TEST_P(CheckCpuPinning, CheckCompileModelWithCpuPinningFromCompileProperty) {
+    std::string logs;
+    std::mutex logs_mutex;
+    ov::Core core;
+    ov::CompiledModel compiled_model;
+
+    ov::log::Level previous_log_level = ov::log::Level::NO;
+    OV_ASSERT_NO_THROW(previous_log_level = core.get_property(deviceName, ov::log::level));
+    core.set_property(deviceName, ov::log::level(ov::log::Level::INFO));
+
+    // Keep this std::function alive while logging is active.
+    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
+        std::lock_guard<std::mutex> lock(logs_mutex);
+        logs.append(msg);
+        logs.push_back('\n');
+    };
+
+    {
+        ov::test::utils::LogCallbackGuard log_callback_guard(log_cb);
+        OV_ASSERT_NO_THROW(compiled_model =
+                               core.compile_model(model, deviceName, {ov::hint::enable_cpu_pinning(true)}));
+    }
+    OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::log::level(previous_log_level)));
+
+    bool enable_cpu_pinning = false;
+    OV_ASSERT_NO_THROW(enable_cpu_pinning = compiled_model.get_property(ov::hint::enable_cpu_pinning));
+    ASSERT_TRUE(enable_cpu_pinning);
+
+    std::vector<ov::PropertyName> core_supported_properties;
+    OV_ASSERT_NO_THROW(core_supported_properties = core.get_property(deviceName, ov::supported_properties));
+    ASSERT_EQ(std::find(core_supported_properties.cbegin(),
+                        core_supported_properties.cend(),
+                        ov::hint::enable_cpu_pinning.name()),
+              core_supported_properties.cend());
+
+    std::vector<ov::PropertyName> compiled_supported_properties;
+    OV_ASSERT_NO_THROW(compiled_supported_properties = compiled_model.get_property(ov::supported_properties));
+    ASSERT_EQ(std::find(compiled_supported_properties.cbegin(),
+                        compiled_supported_properties.cend(),
+                        ov::hint::enable_cpu_pinning.name()),
+              compiled_supported_properties.cend());
+
+    ASSERT_NE(logs.find("The \"ENABLE_CPU_PINNING\" property is deprecated and has no effect on the NPU Plugin."),
+              std::string::npos);
+}
+
 }  // namespace
