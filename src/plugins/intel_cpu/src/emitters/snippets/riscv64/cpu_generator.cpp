@@ -64,6 +64,7 @@
 #include "openvino/op/prelu.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/round.hpp"
+#include "openvino/op/select.hpp"
 #include "openvino/op/sigmoid.hpp"
 #include "openvino/op/softsign.hpp"
 #include "openvino/op/sqrt.hpp"
@@ -311,6 +312,7 @@ CPUTargetMachine::CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, o
 
     // fused operations
     jitters[intel_cpu::FusedMulAdd::get_type_info_static()] = emitter_factory.from_node<jit_mul_add_emitter>();
+    jitters[op::v1::Select::get_type_info_static()] = emitter_factory.from_node<jit_select_emitter>();
 
     // binary operations
     jitters[op::v1::Add::get_type_info_static()] = emitter_factory.from_node<jit_add_emitter>();
@@ -370,7 +372,9 @@ CPUTargetMachine::CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, o
 
 std::shared_ptr<ov::snippets::TargetMachine> CPUTargetMachine::clone() const {
     const auto cloned = std::make_shared<CPUTargetMachine>(isa, compiled_kernel_cache);
-    cloned->configurator = std::make_shared<ov::snippets::RuntimeConfigurator>(*configurator);
+    const auto cpu_config = std::dynamic_pointer_cast<CPURuntimeConfigurator>(configurator);
+    OPENVINO_ASSERT(cpu_config, "Expected CPURuntimeConfigurator in CPUTargetMachine::clone()");
+    cloned->configurator = std::make_shared<CPURuntimeConfigurator>(*cpu_config);
 #ifdef SNIPPETS_DEBUG_CAPS
     cloned->debug_config = debug_config;
 #endif
