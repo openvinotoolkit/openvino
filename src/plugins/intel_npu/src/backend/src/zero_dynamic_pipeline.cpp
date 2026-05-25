@@ -239,7 +239,7 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
     }
 
     if (!firstExecution && noTensorChange) {
-        _logger.debug("execute_vm_runtime - reuse command list (no tensor change)");
+        _logger.debug("Reuse command list without update since no tensor change detected");
         auto result = zeCommandQueueExecuteCommandLists(commandQueue,
                                                         static_cast<uint32_t>(commandLists.size()),
                                                         commandLists.data(),
@@ -250,8 +250,9 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
         return;
     }
 
-    _logger.debug("execute_vm_runtime - reset command lists");
-    // Reset commandLists since there are tensors with new shapes (or first execution); can not reuse via update.
+    _logger.debug("Reset command list to run with runtime");
+    // Reset commandLists since there are tensor with new shapes or it is the first execution, can not reuse command
+    // list with update
     for (auto& cmdList : commandLists) {
         zeCommandListReset(cmdList);
     }
