@@ -289,11 +289,13 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
     _logger.debug("execute_vm_runtime - completed");
 }
 
-void DynamicPipeline::predict_output_shape(std::vector<MemRefType>& inputDescriptors,
+void DynamicPipeline::predict_output_shape(const IGraph& graph,
+                                           std::vector<MemRefType>& inputDescriptors,
                                            std::vector<MemRefType>& outputDescriptors) {
-    _logger.debug("predict_output_shape - started");
+    Logger logger("DynamicPipeline::predict_output_shape", Logger::global().level());
+    logger.debug("predict_output_shape - started");
 
-    const npu_vm_runtime_handle_t vmRuntime = _graph->get_vm_runtime_handle();
+    const npu_vm_runtime_handle_t vmRuntime = graph.get_vm_runtime_handle();
     OPENVINO_ASSERT(vmRuntime != nullptr, "predict_output_shape requires a valid VM runtime engine");
 
     std::vector<npu_vm_runtime_mem_ref_handle_t> inputs;
@@ -340,7 +342,7 @@ void DynamicPipeline::predict_output_shape(std::vector<MemRefType>& inputDescrip
         outImpl->alignWithHandle(out);
     }
 
-    _logger.debug("predict_output_shape - completed");
+    logger.debug("predict_output_shape - completed");
 }
 
 void DynamicPipeline::pull() {

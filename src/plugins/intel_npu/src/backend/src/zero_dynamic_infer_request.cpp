@@ -272,8 +272,7 @@ void ZeroDynamicInferRequest::predict_shapes(std::vector<MemRefType>& outputProp
 
         auto originalOutputProps = outputProps;
 
-        OPENVINO_ASSERT(_pipeline != nullptr, "predict_shapes requires an initialized pipeline");
-        _pipeline->predict_output_shape(inputPros, outputProps);
+        DynamicPipeline::predict_output_shape(*_graph, inputPros, outputProps);
 
         for (size_t i = 0; i < outputProps.size(); i++) {
             if (!originalOutputProps[i].compare(outputProps[i])) {

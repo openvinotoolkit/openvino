@@ -101,8 +101,13 @@ public:
                                 size_t batch_index,
                                 const std::shared_ptr<ov::ITensor>& userTensor = nullptr) override;
 
-    void predict_output_shape(std::vector<MemRefType>& inputs,
-                              std::vector<MemRefType>& outputs) override;
+    /// Run VM-runtime output shape prediction. Independent of pipeline instance state
+    /// (depends only on the graph's VM runtime handle), so it is callable before the
+    /// pipeline is constructed -- in particular from the first inference's predict_shapes
+    /// path, which runs prior to lazy pipeline creation in prepare_inputs().
+    static void predict_output_shape(const IGraph& graph,
+                                     std::vector<MemRefType>& inputs,
+                                     std::vector<MemRefType>& outputs);
 
 private:
     void execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,

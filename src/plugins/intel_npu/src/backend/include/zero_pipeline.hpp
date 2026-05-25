@@ -37,11 +37,6 @@ public:
                                         size_t batch_index,
                                         const std::shared_ptr<ov::ITensor>& userTensor = nullptr) = 0;
 
-    /// Run VM-runtime output shape prediction for dynamic pipelines.
-    /// Default no-op so static pipelines need not implement it.
-    virtual void predict_output_shape(std::vector<MemRefType>& /*inputs*/,
-                                      std::vector<MemRefType>& /*outputs*/) {}
-
     std::vector<ov::ProfilingInfo> get_profiling_info() const;
 
     virtual ~IPipeline() = default;
