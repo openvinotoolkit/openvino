@@ -21,10 +21,14 @@ std::vector<TRShape> shape_infer(const util::ConvertColorToNV12Base* op, const s
 
     if (rank.is_dynamic()) {
         if (op->is_single_plane()) {
-            return {TRShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic(), 1}}; // Y + UV planes
+            return {TRShape{ov::Dimension::dynamic(),
+                            ov::Dimension::dynamic(),
+                            ov::Dimension::dynamic(),
+                            1}};  // Y + UV planes
         } else {
-            return {TRShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic(), 1},  // Y plane
-                    TRShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic(), 2}}; // UV plane
+            return {
+                TRShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic(), 1},   // Y plane
+                TRShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic(), 2}};  // UV plane
         }
     }
 
@@ -41,8 +45,8 @@ std::vector<TRShape> shape_infer(const util::ConvertColorToNV12Base* op, const s
         NODE_SHAPE_INFER_CHECK(op, input_shapes, !dim::is_empty(height), "Image height computation failed");
         return {TRShape{shape_rgb[0], std::move(height), shape_rgb[2], 1}};
     } else {
-        return {TRShape{shape_rgb[0], shape_rgb[1], shape_rgb[2], 1},  // Y plane
-                TRShape{shape_rgb[0], shape_rgb[1] / 2, shape_rgb[2] / 2, 2}}; // UV plane
+        return {TRShape{shape_rgb[0], shape_rgb[1], shape_rgb[2], 1},           // Y plane
+                TRShape{shape_rgb[0], shape_rgb[1] / 2, shape_rgb[2] / 2, 2}};  // UV plane
     }
 }
 }  // namespace ov::op
