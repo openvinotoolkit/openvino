@@ -21,12 +21,7 @@ ov::OutputVector reshape(const ov::frontend::onnx::Node& node) {
     const auto data = ov_inputs.at(0);
 
     ov::Output<ov::Node> pattern;
-    // The `allowzero` attribute was introduced in Reshape-14 and applies to
-    // both the legacy `shape` attribute form (opset 1) and the modern input
-    // form (opset 5+). When `allowzero=0` (the default), a `0` in the shape
-    // spec means "copy the corresponding dimension from the input". When
-    // `allowzero=1`, a `0` is taken literally as a zero-sized dim. Map this
-    // to OpenVINO's `special_zero` parameter, which is the inverse.
+    // ONNX `allowzero` is the inverse of OpenVINO's `special_zero`.
     const bool special_zero = !node.get_attribute_value<int64_t>("allowzero", 0);
     // Since opset 5 the target shape is provided as input
     if (ov_inputs.size() == 2) {
@@ -38,7 +33,6 @@ ov::OutputVector reshape(const ov::frontend::onnx::Node& node) {
             pattern = v0::Constant::create(ov::element::i64, {0}, {});
         }
     } else {
-        // Legacy opset 1 path: target shape is provided via the `shape` attribute.
         pattern = node.get_attribute_as_constant<std::vector<int64_t>>("shape", {});
     }
 
