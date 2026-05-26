@@ -549,7 +549,7 @@ class jit_swish_emitter : public jit_emitter {
 
     private: 
         std::unique_ptr<jit_sigmoid_emitter> sigmoid_emitter{nullptr};
-        float alpha_ = 1.0f;
+        float alpha_ = 1.0F;
 
         void emit_impl(const std::vector<size_t> & in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override; 
         template<ov::intel_cpu::riscv64::cpu_isa_t isa> 
