@@ -74,9 +74,7 @@ public:
 
     virtual void hint_evict() noexcept;
 
-    /**
-     * \brief Ensures the buffer is available and populated with actual data.
-     */
+    /// \brief Ensures the buffer is available and populated with actual data.
     virtual void hint_prefetch() const;
 
 protected:

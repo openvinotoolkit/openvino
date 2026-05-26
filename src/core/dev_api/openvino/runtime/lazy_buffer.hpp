@@ -20,13 +20,13 @@ class ReservableBuffer;
 class OPENVINO_API LazyBuffer : public AlignedBuffer {
 public:
     /**
-     * \brief Constructs a LazyBuffer which provides a view on a file. The file content is loaded to memory when
+     * @brief Constructs a LazyBuffer which provides a view on a file. The file content is loaded to memory when
      * get_ptr() is called for the first time after object creation or after hint_evict() is called. The file content is
      * loaded at aligned addresses, so the actual allocated memory may be larger than the requested byte size.
-     * \param file_path Path to the file to load
-     * \param offset Offset in the file to start the view
-     * \param byte_size Size of the view in bytes
-     * \throws AssertFailure if the file does not exist or the file size is smaller than the requested view.
+     * @param file_path Path to the file to load
+     * @param offset Offset in the file to start the view
+     * @param byte_size Size of the view in bytes
+     * @throws AssertFailure if the file does not exist or the file size is smaller than the requested view.
      */
     LazyBuffer(std::filesystem::path file_path, size_t offset, size_t byte_size);
 
@@ -38,22 +38,22 @@ public:
     LazyBuffer& operator=(const LazyBuffer&) = delete;
 
     /**
-     * \brief Gets aligned pointer to reserved buffer without loading data into it.
+     * @brief Gets aligned pointer to reserved buffer without loading data into it.
      */
     void* get_reserved_ptr() const noexcept {
         return m_aligned_buffer;
     }
 
     /**
-     * \brief Evicts the buffer from memory. After this call, next call to hint_prefetch() will load the file content
+     * @brief Evicts the buffer from memory. After this call, next call to hint_prefetch() will load the file content
      * again.
      */
     void hint_evict() noexcept override;
 
     /**
-     * \brief Loads the file content if it is not loaded yet. The content is loaded at aligned addresses,
+     * @brief Loads the file content if it is not loaded yet. The content is loaded at aligned addresses,
      * so the actual allocated memory may be larger than the requested byte size.
-     * \throws AssertFailure if the file cannot be opened or read. In this case, the buffer remains unloaded.
+     * @throws AssertFailure if the file cannot be opened or read. In this case, the buffer remains unloaded.
      */
     void hint_prefetch() const override;
 

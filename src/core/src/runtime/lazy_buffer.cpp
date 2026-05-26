@@ -10,8 +10,8 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/memory_util.hpp"
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/memory.hpp"
 #include "openvino/util/parallel_read_streambuf.hpp"
-#include "openvino/util/reservable_buffer.hpp"
 
 namespace ov {
 LazyBuffer::LazyBuffer(std::filesystem::path file_path, size_t offset, size_t byte_size)
