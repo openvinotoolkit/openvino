@@ -639,6 +639,22 @@ TEST(type_prop, interpolate_v11_non_constant_axes_scales) {
     EXPECT_THAT(get_shape_symbols(interp->get_output_partial_shape(0)), Each(nullptr));
 }
 
+TEST(type_prop, interpolate_v11_f64) {
+    const auto image = std::make_shared<ov::op::v0::Parameter>(element::f64, Shape{1, 3, 30, 60});
+    const auto scales = ov::op::v0::Constant::create<float>(element::f32, Shape{2}, {0.5f, 0.5f});
+    const auto axes = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
+
+    ov::op::util::InterpolateBase::InterpolateAttrs attrs;
+    attrs.mode = ov::op::util::InterpolateBase::InterpolateMode::NEAREST;
+    attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SCALES;
+    attrs.pads_begin = {0, 0, 0, 0};
+    attrs.pads_end = {0, 0, 0, 0};
+    auto interp = std::make_shared<ov::op::v11::Interpolate>(image, scales, axes, attrs);
+
+    EXPECT_EQ(interp->get_element_type(), element::f64);
+    EXPECT_EQ(interp->get_shape(), (Shape{1, 3, 15, 30}));
+}
+
 TEST(type_prop, interpolate_v11_scales_incorrect_et) {
     const auto image = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 30, 60});
     const auto scales = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {2, 2});

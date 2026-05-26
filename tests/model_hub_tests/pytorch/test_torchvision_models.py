@@ -84,8 +84,10 @@ class TestTorchHubConvertModel(TestTorchConvertModel):
         if (getattr(self, "mode", None) == "export"
                 and "raft" not in model_name
                 and not model_name.startswith("vit_")):
-            batch = torch.export.Dim("batch", min=1, max=3)
-            self.export_kwargs = {"dynamic_shapes": [{0: batch}]}
+            from openvino import PartialShape, Dimension
+            shape = list(self.example[0].shape)
+            shape[0] = Dimension(1, 3)
+            self.dynamo_input = (PartialShape(shape),)
         return m
 
     def infer_fw_model(self, model_obj, inputs):

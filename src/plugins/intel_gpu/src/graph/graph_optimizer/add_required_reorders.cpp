@@ -7,6 +7,7 @@
 #include "program_node.h"
 #include "convert_color_inst.h"
 #include "fully_connected_inst.h"
+#include "gated_mlp_inst.h"
 #include "assign_inst.h"
 #include "mvn_inst.h"
 
@@ -115,11 +116,7 @@ void add_required_reorders::add_reorder(program& p, program_node* node, program_
     if (keep_original_dt)
         reorder_layout.data_type = node->get_output_layout().data_type;
 
-    auto new_reorder = std::make_shared<reorder>(node->id() + "_reorder_" + usr->id(), node->id(), reorder_layout);
-    auto& new_reorder_node = p.get_or_create(new_reorder);
-    new_reorder_node.set_output_layout(reorder_layout, false);
-
-    // ToDo: add a method to program class which adds an intermediate node given a node and its user
+    // dep index in reorder id distinguishes multi-port edges; otherwise add_intermediate fails on the second pass.
     auto it = std::find_if(usr->get_dependencies().begin(), usr->get_dependencies().end(),
     [&](const std::pair<program_node*, int32_t>& dep) {
         return node == dep.first;
@@ -131,6 +128,12 @@ void add_required_reorders::add_reorder(program& p, program_node* node, program_
     if (idx < 0 || (size_t)idx >= usr->get_dependencies().size()) {
         throw std::runtime_error("Internal Error: container index out of range exception.");
     }
+
+    auto new_reorder = std::make_shared<reorder>(
+        node->id() + "_reorder_" + usr->id() + "_p" + std::to_string(idx), node->id(), reorder_layout);
+    auto& new_reorder_node = p.get_or_create(new_reorder);
+    new_reorder_node.set_output_layout(reorder_layout, false);
+
     p.add_intermediate(new_reorder_node, *usr, idx);
     new_reorder_node.recalc_output_layouts(false);
 }
@@ -276,7 +279,7 @@ void add_required_reorders::run(program& p) {
             continue;
 
         bool correct_layout_selected = false;
-        bool weights_data = (usr->is_type<convolution>() || usr->is_type<deconvolution>() || usr->is_type<fully_connected>());
+        bool weights_data = (usr->is_type<convolution>() || usr->is_type<deconvolution>() || usr->is_type<fully_connected>() || usr->is_type<gated_mlp>());
 
         layout original_layout = usr->get_output_layout();
 
@@ -339,6 +342,6 @@ void add_required_reorders::run(program& p) {
         OPENVINO_ASSERT(correct_layout_selected,
                         "[GPU] No layout format available for ", usr->id(),  ", impl_type: ", usr->get_preferred_impl_type(),
                         " (format: ", original_layout.format.to_string(),
-                        ", data_type: ", ov::element::Type(original_layout.data_type), ") ");
+                        ", data_type: ", ov::element::Type(original_layout.data_type), ") ", original_layout.to_string(), ", ", correct_layout_selected);
     }
 }

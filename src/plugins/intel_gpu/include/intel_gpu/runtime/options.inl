@@ -20,7 +20,7 @@ OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, queue_throttle, ov::intel_gpu::hin
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, queue_priority, ov::hint::Priority::MEDIUM, "Low-level hint that controls queue priority property")
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, enable_sdpa_optimization, true, "Enable/Disable fused SDPA primitive execution")
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, enable_lora_operation, true, "Enable/Disable LoRA operation. The separate operation is less versatile, but has better performance")
-OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, enable_large_allocations, false, "Enable/Disable large buffer allocations (>4gb). Enabling this option may lead to performance degradation")
+OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, enable_large_allocations, false, "Allow buffer allocations that exceed the device max allocation size. Enabling this option may lead to performance degradation")
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, enable_loop_unrolling, true, "Enable/Disable Loop/TensorIterator operation unrolling")
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, disable_winograd_convolution, false, "Enable/Disable winograd convolution implementation if available")
 OV_CONFIG_RELEASE_OPTION(ov::internal, exclusive_async_requests, false, "")
@@ -60,7 +60,7 @@ OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, dynamic_quantization_threshold,
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, dynamic_quantization_precomputed_reduction, true, "Precompute reduction of activation for faster dynamic quantization in case of asymmetric weight")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, allow_bypass_xattn, true, "Allow bypass xattn execution if threshold >= 1.0.")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, weightless_attr, nullptr, "Used to configure ov::WeightlessCacheAttribute for constants that are not loaded from a .bin file. This typically applies to non-IR inputs (e.g., ORT)")
-
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, pa_mixed_route_mode, std::string("split"), "Mixed route mode for CM paged attention. Supported values: multi, split")
 
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, help, false, "Print help message for all config options")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, verbose, 0, "Enable logging for debugging purposes. The higher value the more verbose output. 0 - Disabled, 4 - Maximum verbosity")
@@ -74,6 +74,7 @@ OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, debug_config, "", "Path to debug co
 
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_onednn_post_ops_opt, false, "Disable optimization pass for onednn post-ops")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_profiling_data_path, "", "Save csv file with per-stage and per-primitive profiling data to specified folder")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, average_counters, "", "Save csv file with per-primitive averaged execution time. Output format matches benchmark_app --report_type average_counters and OV_CPU_AVERAGE_COUNTERS")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_graphs_path, "", "Save intermediate graph representations during model compilation pipeline to specified folder")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_sources_path, "", "Save generated sources for each kernel to specified folder")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_tensors_path, "", "Save intermediate in/out tensors of each primitive to specified folder")
@@ -90,6 +91,7 @@ OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_runtime_buffer_fusing, false, "Dis
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_post_ops_fusions, 0, "Disable fusions of operations as post-ops/fused-ops. Detailed debugging is possible by entering specific numbers. 1 specifies to disable all fusions of post-ops. 2-8 specifies to enable only single fusion sub-module from fuse_reorder() to optimize_fused_opt(). 11-13 specifies to enable only single fusion sub-module in fuse_simple_primitives.")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_horizontal_fc_fusion, false, "Disable pass which merges QKV projections into single MatMul")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_fc_swiglu_fusion, false, "Disable pass which merges FC and SwiGLU ops")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_gated_mlp_fusion, true, "Disable pass which fuses FC+SwiGLU to GatedMLP")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_fake_alignment, false, "Disable fake alignment feature which tries to keep gpu friendly memory alignment for arbitrary tensor shapes")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_moe_opt, false, "Disable mixture of expert optimization")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_memory_reuse, false, "Disable memory reuse for activation tensors")
@@ -99,5 +101,6 @@ OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dry_run_path, "", "Enables mode which part
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, validate_output_buffer, false, "Validate output buffers of all layers which have fp16 data-type to find 'inf' and 'nan' value.")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dynamic_quantization_bisect, std::numeric_limits<int64_t>::max(), "Apply dynamic quantization only up to this count")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dynamic_quantization_single, -1, "Apply dynamic quantization only to this index")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, network_marker, false, "Insert named OpenCL marker kernels at network execution start/finish for CLIntercept tracing")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, list_layers, false, "Print layers list")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, print_input_data_shapes, false, "print input data shapes")

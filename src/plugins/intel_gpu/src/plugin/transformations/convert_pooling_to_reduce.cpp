@@ -50,7 +50,7 @@ ov::intel_gpu::ConvertAvgPoolingToReduce::ConvertAvgPoolingToReduce() {
 
         auto reduce = std::make_shared<ov::op::v1::ReduceMean>(
             pool->input_value(0),
-            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{axes_shape.size()}, axes_shape),
+            ov::op::v0::Constant::create(ov::element::i32, ov::Shape{axes_shape.size()}, axes_shape),
             true);
 
         reduce->set_friendly_name(pool->get_friendly_name());

@@ -23,14 +23,14 @@ struct ReferenceData {
     size_t kernel_m;
 };
 
-struct SplitDimensionMParams {
+struct MHAParallelWASplitParams {
     InputData input;
     ReferenceData reference;
 };
 
-class SplitDimensionMTest : public testing::TestWithParam<SplitDimensionMParams> {
+class MHAParallelWASplitTest : public testing::TestWithParam<MHAParallelWASplitParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<SplitDimensionMParams> obj);
+    static std::string getTestCaseName(testing::TestParamInfo<MHAParallelWASplitParams> obj);
 };
 
 }  // namespace snippets

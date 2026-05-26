@@ -187,7 +187,7 @@ void set_arguments_impl(ocl_kernel_type& kernel,
             case args_t::LOCAL_MEMORY_SIZE:
                 OPENVINO_ASSERT(args[i].index < data.local_memory_args->size() && data.local_memory_args->at(args[i].index),
                                 "The allocated local memory is necessary to set kernel arguments.");
-                status = set_kernel_arg(kernel, i,  data.local_memory_args->at(args[i].index));
+                status = set_kernel_arg(kernel, i, static_cast<uint32_t>(data.local_memory_args->at(args[i].index)));
                 break;
                 break;
             default:

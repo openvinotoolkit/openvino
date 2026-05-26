@@ -323,7 +323,7 @@ class ScopedThread {
 public:
     explicit ScopedThread(std::thread t) : _t(std::move(t)) {
         if (!_t.joinable()) {
-            std::logic_error("Thread is not joinable!");
+            throw std::logic_error("Thread is not joinable!");
         }
     }
     ~ScopedThread() {

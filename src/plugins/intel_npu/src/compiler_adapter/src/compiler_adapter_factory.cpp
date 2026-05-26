@@ -12,7 +12,8 @@ namespace intel_npu {
 
 ov::intel_npu::CompilerType CompilerAdapterFactory::determineAppropriateCompilerTypeBasedOnPlatform(
     std::string_view platform) const {
-    if (platform == ov::intel_npu::Platform::NPU4000 || platform == ov::intel_npu::Platform::NPU5010) {
+    if (platform == ov::intel_npu::Platform::NPU4000 || platform == ov::intel_npu::Platform::NPU5010 ||
+        platform == ov::intel_npu::Platform::NPU5020) {
         return ov::intel_npu::CompilerType::PLUGIN;
     }
 
@@ -59,7 +60,7 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(const ov::
         // It is required to check if the device is compatible with the provided platform, as the driver compiler
         // will be used.
         auto deviceName = engineBackend->getDevice()->getName();
-        if (deviceName != platform && deviceName != "AUTO_DETECT") {
+        if (!platform.empty() && deviceName != platform && deviceName != "AUTO_DETECT") {
             OPENVINO_THROW("Could not find a valid NPU device for the provided configuration.");
         }
 

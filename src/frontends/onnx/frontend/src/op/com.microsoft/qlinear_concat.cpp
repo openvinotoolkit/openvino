@@ -23,9 +23,12 @@ namespace com_microsoft {
 namespace opset_1 {
 
 ov::OutputVector qlinear_concat(const ov::frontend::onnx::Node& node) {
-    common::default_op_checks(node, 3);
-
     auto inputs = node.get_ov_inputs();
+    FRONT_END_OP_CONVERSION_CHECK(inputs.size() >= 5 && (inputs.size() - 2) % 3 == 0,
+                                  "QLinearConcat: expected 2 + 3*N inputs (Y_scale, Y_zero_point, and N groups of "
+                                  "(X, X_scale, X_zero_point)), got: ",
+                                  inputs.size());
+
     auto Y_scale = inputs[0];
     auto Y_zero_point =
         ov::op::util::is_null(inputs[1]) ? v0::Constant::create(Y_scale.get_element_type(), {}, {0}) : inputs[1];

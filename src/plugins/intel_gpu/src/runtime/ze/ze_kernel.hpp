@@ -19,11 +19,11 @@ public:
     static void create_kernels_from_module(std::shared_ptr<ze_module_holder> module, std::vector<kernel::ptr> &out) {
         ze_module_handle_t module_handle = module->get_module_handle();
         uint32_t kernel_count = 0;
-        OV_ZE_EXPECT(zeModuleGetKernelNames(module_handle, &kernel_count, nullptr));
+        OV_ZE_EXPECT(ze::zeModuleGetKernelNames(module_handle, &kernel_count, nullptr));
         std::vector<const char*> kernel_names(kernel_count);
         // Specification does not mention who is responsible for the returned pointers
         // Assume Level Zero owns the pointers and they will remain valid as long as the module resource
-        OV_ZE_EXPECT(zeModuleGetKernelNames(module_handle, &kernel_count, kernel_names.data()));
+        OV_ZE_EXPECT(ze::zeModuleGetKernelNames(module_handle, &kernel_count, kernel_names.data()));
 
         ze_kernel_flags_t flags = 0;
         ze_kernel_desc_t kernel_desc = {
@@ -36,7 +36,7 @@ public:
             }
             kernel_desc.pKernelName = name_cstr;
             ze_kernel_handle_t kernel_handle;
-            OV_ZE_EXPECT(zeKernelCreate(module_handle, &kernel_desc, &kernel_handle));
+            OV_ZE_EXPECT(ze::zeKernelCreate(module_handle, &kernel_desc, &kernel_handle));
             auto kernel_holder = std::make_shared<ze_kernel_holder>(kernel_handle, module);
             out.push_back(std::make_shared<ze_kernel>(kernel_holder, name));
         }
@@ -61,7 +61,7 @@ public:
             descriptor.pNext = nullptr;
             descriptor.flags = 0;
             descriptor.pKernelName = m_kernel_id.c_str();
-            OV_ZE_EXPECT(zeKernelCreate(module_handle, &descriptor, &cloned_handle));
+            OV_ZE_EXPECT(ze::zeKernelCreate(module_handle, &descriptor, &cloned_handle));
             auto kernel_holder = std::make_shared<ze_kernel_holder>(cloned_handle, m_kernel->get_module());
             return std::make_shared<ze_kernel>(kernel_holder, m_kernel_id);
         }
@@ -78,10 +78,10 @@ public:
     std::vector<uint8_t> get_binary() const override {
         size_t binary_size = 0;
         ze_module_handle_t module_handle = get_module_handle();
-        OV_ZE_EXPECT(zeModuleGetNativeBinary(module_handle, &binary_size, nullptr));
+        OV_ZE_EXPECT(ze::zeModuleGetNativeBinary(module_handle, &binary_size, nullptr));
 
         std::vector<uint8_t> binary(binary_size);
-        OV_ZE_EXPECT(zeModuleGetNativeBinary(module_handle, &binary_size, binary.data()));
+        OV_ZE_EXPECT(ze::zeModuleGetNativeBinary(module_handle, &binary_size, binary.data()));
 
         return binary;
     }
@@ -89,10 +89,10 @@ public:
     std::string get_build_log() const override {
         ze_module_build_log_handle_t build_log_handle = m_kernel->get_module()->get_build_log_handle();
         size_t log_size = 0;
-        OV_ZE_EXPECT(zeModuleBuildLogGetString(build_log_handle, &log_size, nullptr));
+        OV_ZE_EXPECT(ze::zeModuleBuildLogGetString(build_log_handle, &log_size, nullptr));
 
         std::string log(log_size, ' ');
-        OV_ZE_EXPECT(zeModuleBuildLogGetString(build_log_handle, &log_size, log.data()));
+        OV_ZE_EXPECT(ze::zeModuleBuildLogGetString(build_log_handle, &log_size, log.data()));
         return log;
     }
 

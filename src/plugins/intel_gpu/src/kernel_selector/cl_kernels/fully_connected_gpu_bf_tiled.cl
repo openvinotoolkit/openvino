@@ -337,7 +337,11 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     // For fp16 we need to ensure that all block reads are aligned to 4 byte (2 words) boundary.
     // To do this solve first input feature separately.
     {
-        INPUT0_TYPE tmp_input = input[input_offset + get_sub_group_local_id() % TILE_B * TILE_IN_B_PITCH];
+        // Guard OOB batch reads on Xe2+ where OOB access crashes (CL_OUT_OF_RESOURCES).
+        uint sglid_b = get_sub_group_local_id() % TILE_B;
+        INPUT0_TYPE tmp_input = (out_b + sglid_b < BATCH_SIZE)
+            ? input[input_offset + sglid_b * TILE_IN_B_PITCH]
+            : INPUT0_VAL_ZERO;
         ACCUMULATOR_VEC_TYPE tmp_wei = TO_ACCUMULATOR_VEC_TYPE(BLOCK_READN(FILTER_TYPE, TILE_OFM, weights, weights_offset));
         #if COMPRESSED_WEIGHTS
             tmp_wei = (tmp_wei - d_zp) * d_scale;
@@ -355,10 +359,22 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     __attribute__((opencl_unroll_hint(1)))
     for (uint ni = 0; ni < iterations; ++ni) {
         // Load input.
-        #define LOAD_IN_0(bi) do {                                  \
-                in_0[bi] = INPUT_BLOCK_READ(input, input_offset);   \
-                input_offset += TILE_IN_B_PITCH;                    \
+        // Guard OOB batch reads on Xe2+ where OOB access crashes (CL_OUT_OF_RESOURCES).
+        #if IS_DYNAMIC || BATCH_LEFTOVER
+        #define LOAD_IN_0(bi) do {                                   \
+                if (bi + out_b < BATCH_SIZE) {                       \
+                    in_0[bi] = INPUT_BLOCK_READ(input, input_offset);\
+                } else {                                             \
+                    in_0[bi] = 0;                                    \
+                }                                                    \
+                input_offset += TILE_IN_B_PITCH;                     \
             } while (false)
+        #else
+        #define LOAD_IN_0(bi) do {                                   \
+                in_0[bi] = INPUT_BLOCK_READ(input, input_offset);    \
+                input_offset += TILE_IN_B_PITCH;                     \
+            } while (false)
+        #endif
 
         CONST_LOOP(TILE_B, LOAD_IN_0);
         #undef LOAD_IN_0
@@ -651,10 +667,22 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     // Handle leftovers in normal case without alignment correction.
     #define LEFTOVER_IFM               (MAIN_LOOP_ELEMENTS_COUNT % (TILE_IFM * SIMD))
     {
+        // Guard OOB batch reads on Xe2+ where OOB access crashes (CL_OUT_OF_RESOURCES).
+        #if IS_DYNAMIC || BATCH_LEFTOVER
+        #define LOAD_IN_0(bi) do {                                  \
+                if (bi + out_b < BATCH_SIZE) {                      \
+                    in_0[bi] = INPUT_BLOCK_READ(input, input_offset);\
+                } else {                                            \
+                    in_0[bi] = 0;                      \
+                }                                                   \
+                input_offset += TILE_IN_B_PITCH;                    \
+            } while (false)
+        #else
         #define LOAD_IN_0(bi) do {                                  \
                 in_0[bi] = INPUT_BLOCK_READ(input, input_offset);   \
                 input_offset += TILE_IN_B_PITCH;                    \
             } while (false)
+        #endif
 
         CONST_LOOP(TILE_B, LOAD_IN_0);
         #undef LOAD_IN_0
@@ -1253,7 +1281,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                             ACCUM_DQ_TYPE modified_calc_buff = ((int *)(&acc_tmp[fi]))[bi] - ((float)(wei_zp[fi]) * activation_sum[bi]);
                             ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += (convert_half)(convert_float(modified_calc_buff) * (float)ds * (float)de_quantize_scale[bi]);
                         #else
-                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += convert_half(((int *)(&acc_tmp[fi]))[bi]) * de_quantize_scale[bi] * ds;
+                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += (convert_half)(convert_float(((int *)(&acc_tmp[fi]))[bi]) * (float)de_quantize_scale[bi] * (float)ds);
                         #endif
                         acc_tmp[fi][bi] = 0;
                     }
@@ -1284,7 +1312,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                             ACCUM_DQ_TYPE modified_calc_buff = ((float)((int *)(&acc_tmp[fi]))[bi]) - ((float)(wei_zp[fi]) * activation_sum[bi]);
                             ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += (convert_half)(convert_float(modified_calc_buff) * (float)ds * (float)de_quantize_scale[bi]);
                         #else
-                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += convert_half(((int *)(&acc_tmp[fi]))[bi]) * de_quantize_scale[bi] * ds;
+                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += (convert_half)(convert_float(((int *)(&acc_tmp[fi]))[bi]) * (float)de_quantize_scale[bi] * (float)ds);
                         #endif
                         acc_tmp[fi][bi] = 0;
                     }
@@ -1299,7 +1327,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                 ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
                 #if COMPRESSED_WEIGHTS_INT8
                     float modified_calc_buff = ((float)((int *)(&acc_tmp[fi]))[bi]) - ((float)(wei_zp[fi]) * activation_sum[bi]);
-                    ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] = (convert_half)(modified_calc_buff) * ds * de_quantize_scale[bi];
+                    ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] = (convert_half)(modified_calc_buff) * de_quantize_scale[bi] * ds;
                 #else
                     ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] = convert_half(((int *)(&acc_tmp[fi]))[bi]) * de_quantize_scale[bi] * ds;
                 #endif
