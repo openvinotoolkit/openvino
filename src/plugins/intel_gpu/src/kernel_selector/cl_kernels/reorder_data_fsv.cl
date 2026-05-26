@@ -38,20 +38,20 @@ KERNEL (reorder_data_fsv)(
     const uint f_base = fs_out * OUT_FSV;
 
     const uint in_x_pitch = IN_FSV;
-    const uint in_y_pitch = in_x_pitch * INPUT0_SIZE_X;
+    const uint in_y_pitch = in_x_pitch * (INPUT0_PAD_BEFORE_SIZE_X + INPUT0_SIZE_X + INPUT0_PAD_AFTER_SIZE_X);
 #ifdef INPUT0_DIMS_5
-    const uint in_z_pitch = in_y_pitch * INPUT0_SIZE_Y;
-    const uint in_fs_pitch = in_z_pitch * INPUT0_SIZE_Z;
+    const uint in_z_pitch = in_y_pitch * (INPUT0_PAD_BEFORE_SIZE_Y + INPUT0_SIZE_Y + INPUT0_PAD_AFTER_SIZE_Y);
+    const uint in_fs_pitch = in_z_pitch * (INPUT0_PAD_BEFORE_SIZE_Z + INPUT0_SIZE_Z + INPUT0_PAD_AFTER_SIZE_Z);
 #else
-    const uint in_fs_pitch = in_y_pitch * INPUT0_SIZE_Y;
+    const uint in_fs_pitch = in_y_pitch * (INPUT0_PAD_BEFORE_SIZE_Y + INPUT0_SIZE_Y + INPUT0_PAD_AFTER_SIZE_Y);
 #endif
     const uint in_b_pitch = in_fs_pitch * IN_FEATURE_SLICE_NUM;
 
 #ifdef INPUT0_DIMS_5
-    const uint in_spatial_base = b * in_b_pitch + z * in_z_pitch + y * in_y_pitch + x * IN_FSV;
+    const uint in_spatial_base = (b + INPUT0_PAD_BEFORE_BATCH_NUM) * in_b_pitch + (INPUT0_PAD_BEFORE_FEATURE_NUM / IN_FSV) * in_fs_pitch + (z + INPUT0_PAD_BEFORE_SIZE_Z) * in_z_pitch + (y + INPUT0_PAD_BEFORE_SIZE_Y) * in_y_pitch + (x + INPUT0_PAD_BEFORE_SIZE_X) * IN_FSV;
 #define OUT_INDEX(f) OUTPUT_GET_INDEX(b, (f), z, y, x)
 #else
-    const uint in_spatial_base = b * in_b_pitch + y * in_y_pitch + x * IN_FSV;
+    const uint in_spatial_base = (b + INPUT0_PAD_BEFORE_BATCH_NUM) * in_b_pitch + (INPUT0_PAD_BEFORE_FEATURE_NUM / IN_FSV) * in_fs_pitch + (y + INPUT0_PAD_BEFORE_SIZE_Y) * in_y_pitch + (x + INPUT0_PAD_BEFORE_SIZE_X) * IN_FSV;
 #define OUT_INDEX(f) OUTPUT_GET_INDEX(b, (f), y, x)
 #endif
 
