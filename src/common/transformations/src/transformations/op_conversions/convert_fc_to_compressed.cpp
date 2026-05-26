@@ -114,14 +114,23 @@ ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
             std::shared_ptr<ov::Node> node = in.get_node_shared_ptr();
             if (in_rank == 1) {
                 // Reshape rank-1 per-channel constant to rank-2 [N, 1] without inserting
-                // a runtime Reshape: only Constant inputs reach this point.
+                // a runtime Reshape: only Constant inputs reach this point, optionally
+                // wrapped in a Convert injected by convert_u4const_to_u8 for u4 zero-point.
+                std::shared_ptr<ov::Node> reshaped;
                 if (auto c = ov::as_type_ptr<v0::Constant>(node)) {
-                    node = std::make_shared<v0::Constant>(*c, ov::Shape{c->get_shape()[0], 1});
-                } else {
+                    reshaped = std::make_shared<v0::Constant>(*c, ov::Shape{c->get_shape()[0], 1});
+                } else if (auto cvt = ov::as_type_ptr<v0::Convert>(node)) {
+                    if (auto c = ov::as_type_ptr<v0::Constant>(cvt->get_input_node_shared_ptr(0))) {
+                        auto reshaped_const = std::make_shared<v0::Constant>(*c, ov::Shape{c->get_shape()[0], 1});
+                        result_nodes.push_back(reshaped_const);
+                        reshaped = std::make_shared<v0::Convert>(reshaped_const, cvt->get_destination_type());
+                    }
+                }
+                if (!reshaped) {
                     return node;
                 }
-                result_nodes.push_back(node);
-                return node;
+                result_nodes.push_back(reshaped);
+                return reshaped;
             }
             std::shared_ptr<ov::Node> perm = transpose_const;
             if (ov::shape_size(perm->get_shape()) != in_rank) {
