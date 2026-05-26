@@ -538,8 +538,7 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, SharedConstantNotReshapedForOtherConsume
                                                         std::vector<int64_t>{0},
                                                         std::vector<int64_t>{0});
 
-        model = std::make_shared<ov::Model>(ov::OutputVector{multiply, slice},
-                                            ov::ParameterVector{input, slice_input});
+        model = std::make_shared<ov::Model>(ov::OutputVector{multiply, slice}, ov::ParameterVector{input, slice_input});
         manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMov>();
     }
     {
