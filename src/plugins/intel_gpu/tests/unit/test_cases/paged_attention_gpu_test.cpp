@@ -2953,6 +2953,272 @@ static std::vector<int32_t> gen_tokens_ids_test_data(size_t seq_len, int num_ima
     return v;
 }
 
+// Test class to verify FlashAttnV2 sink correction produces same output as V1 path.
+// This exercises the fix for attention sink handling in the FlashAttnV2 online-softmax path.
+class paged_attention_sink_v1_v2_test : public PagedAttentionTest<paged_attention_test_params> {
+protected:
+    std::vector<ov::float16> run_pa_with_sinks(paged_attention_test_params& p, bool disable_fa_v2) {
+        ov::element::Type kv_cache_precision = p.kv_cache_precision;
+
+        PagedAttentionManager pam(rg,
+                                  get_test_engine(),
+                                  get_test_stream(),
+                                  p.subsequences,
+                                  p.num_heads,
+                                  p.num_kv_heads,
+                                  p.k_head_size,
+                                  p.v_head_size,
+                                  p.block_size,
+                                  p.sliding_window_size,
+                                  p.kv_cache_compression,
+                                  p.key_cache_quant_mode,
+                                  p.scores_mode == ScoresMode::SNAPKV,
+                                  false,  // has_xattention
+                                  p.rotation_config,
+                                  kv_cache_precision);
+
+        // Populate sinks with realistic non-zero values [1, num_heads, 1, 1]
+        // Sink values are per-head scalar logits (typically small negative or small positive)
+        pam.sinks.resize(p.num_heads);
+        for (int h = 0; h < p.num_heads; h++) {
+            pam.sinks[h] = ov::float16(-1.0f + 0.3f * h);  // e.g., -1.0, -0.7, -0.4, ...
+        }
+
+        auto query_mem = pam.get_query_memory();
+        auto key_mem = pam.get_key_memory();
+        auto value_mem = pam.get_value_memory();
+        auto key_cache_mem = pam.get_key_cache_memory();
+        auto value_cache_mem = pam.get_value_cache_memory();
+        auto past_lens_mem = pam.get_past_lens_memory();
+        auto subsequence_begins_mem = pam.get_subsequence_begins_memory();
+        auto block_indices_mem = pam.get_block_indices_memory();
+        auto block_indices_begins_mem = pam.get_block_indices_begins_memory();
+        auto scale_mem = pam.get_scale_memory();
+        auto sliding_window_mem = pam.get_sliding_window_memory();
+        auto alibi_mem = pam.get_alibi_memory();
+        auto max_context_len_mem = pam.get_max_context_len_memory();
+        auto score_aggregation_mem = pam.get_score_aggregation();
+        auto rotated_block_indices_mem = pam.get_rotated_block_indices_memory();
+        auto rotation_deltas_mem = pam.get_rotation_deltas_memory();
+        auto rotation_trig_lut_mem = pam.get_rotation_trig_lut_memory();
+        auto xattention_threshold_mem = pam.get_xattention_threshold_memory();
+        auto xattention_block_size_mem = pam.get_xattention_block_size_memory();
+        auto xattention_stride_mem = pam.get_xattention_stride_memory();
+        auto sinks_mem = pam.get_sinks_memory();
+        auto adaptive_rkv_start_size_mem = pam.get_adaptive_rkv_start_size_memory();
+        auto adaptive_rkv_evictable_sizes_mem = pam.get_adaptive_rkv_evictable_sizes_memory();
+        auto adaptive_rkv_diversity_block_set_indices_mem = pam.get_adaptive_rkv_diversity_block_set_indices_memory();
+        auto adaptive_rkv_diversity_block_set_indices_begins_mem = pam.get_adaptive_rkv_diversity_block_set_indices_begins_memory();
+        auto token_type_ids_mem = pam.get_token_type_ids_memory();
+        auto qq_bias = pam.get_qq_bias_memory();
+        auto qq_bias_begins = pam.get_qq_bias_begins_memory();
+
+        auto query_layout = query_mem->get_layout();
+        auto key_layout = key_mem->get_layout();
+        auto value_layout = value_mem->get_layout();
+        auto key_cache_layout = key_cache_mem->get_layout();
+        auto value_cache_layout = value_cache_mem->get_layout();
+        auto past_lens_layout = past_lens_mem->get_layout();
+        auto subsequence_begins_layout = subsequence_begins_mem->get_layout();
+        auto block_indices_layout = block_indices_mem->get_layout();
+        auto block_indices_begins_layout = block_indices_begins_mem->get_layout();
+        auto scale_layout = scale_mem->get_layout();
+        auto sliding_window_layout = sliding_window_mem->get_layout();
+        auto alibi_layout = alibi_mem->get_layout();
+        auto max_context_len_layout = max_context_len_mem->get_layout();
+        auto score_aggregation_window_layout = score_aggregation_mem->get_layout();
+        auto rotated_block_indices_layout = rotated_block_indices_mem->get_layout();
+        auto rotation_deltas_layout = rotation_deltas_mem->get_layout();
+        auto rotation_trig_lut_layout = rotation_trig_lut_mem->get_layout();
+        auto xattention_threshold_layout = xattention_threshold_mem->get_layout();
+        auto xattention_block_size_layout = xattention_block_size_mem->get_layout();
+        auto xattention_stride_layout = xattention_stride_mem->get_layout();
+        auto sinks_layout = sinks_mem->get_layout();
+        auto adaptive_rkv_start_size_layout = adaptive_rkv_start_size_mem->get_layout();
+        auto adaptive_rkv_evictable_sizes_layout = adaptive_rkv_evictable_sizes_mem->get_layout();
+        auto adaptive_rkv_diversity_block_set_indices_layout = adaptive_rkv_diversity_block_set_indices_mem->get_layout();
+        auto adaptive_rkv_diversity_block_set_indices_begins_layout = adaptive_rkv_diversity_block_set_indices_begins_mem->get_layout();
+        auto token_type_ids_layout = token_type_ids_mem->get_layout();
+        auto qq_bias_layout = qq_bias->get_layout();
+        auto qq_bias_begins_layout = qq_bias_begins->get_layout();
+
+        // Make layouts dynamic
+        query_layout.set_partial_shape(ov::PartialShape{ -1, p.num_heads * p.k_head_size });
+        key_layout.set_partial_shape(ov::PartialShape{ -1, p.num_kv_heads * p.k_head_size });
+        value_layout.set_partial_shape(ov::PartialShape{ -1, p.num_kv_heads * p.v_head_size });
+        { auto pshape = key_cache_layout.get_partial_shape(); pshape[0] = -1; key_cache_layout.set_partial_shape(pshape); }
+        { auto pshape = value_cache_layout.get_partial_shape(); pshape[0] = -1; value_cache_layout.set_partial_shape(pshape); }
+        past_lens_layout.set_partial_shape(ov::PartialShape{ -1 });
+        subsequence_begins_layout.set_partial_shape(ov::PartialShape{ -1 });
+        block_indices_layout.set_partial_shape(ov::PartialShape{ -1 });
+        block_indices_begins_layout.set_partial_shape(ov::PartialShape{ -1 });
+        score_aggregation_window_layout.set_partial_shape(ov::PartialShape{ -1 });
+        rotated_block_indices_layout.set_partial_shape(ov::PartialShape{ -1 });
+        rotation_deltas_layout.set_partial_shape(ov::PartialShape{ -1, -1 });
+        rotation_trig_lut_layout.set_partial_shape(ov::PartialShape{ -1, p.k_head_size });
+        xattention_threshold_layout.set_partial_shape(ov::PartialShape{ -1 });
+        adaptive_rkv_evictable_sizes_layout.set_partial_shape(ov::PartialShape{ -1 });
+        adaptive_rkv_diversity_block_set_indices_layout.set_partial_shape(ov::PartialShape{ -1 });
+        adaptive_rkv_diversity_block_set_indices_begins_layout.set_partial_shape(ov::PartialShape{ -1 });
+        qq_bias_layout.set_partial_shape(ov::PartialShape{ -1 });
+        qq_bias_begins_layout.set_partial_shape(ov::PartialShape{ -1 });
+
+        std::vector<input_info> pa_inputs = {
+            input_info("query"), input_info("key"), input_info("value"),
+            input_info("key_cache"), input_info("value_cache"),
+            input_info("past_lens"), input_info("subsequence_begins"),
+            input_info("block_indices"), input_info("block_indices_begins"),
+            input_info("scale"), input_info("sliding_window"), input_info("alibi"),
+            input_info("max_context_len"), input_info("score_aggregation_window"),
+            input_info("rotated_block_indices"), input_info("rotation_deltas"),
+            input_info("rotation_trig_lut_modified"),
+            input_info("xattention_threshold"), input_info("xattention_block_size"),
+            input_info("xattention_stride"), input_info("sinks"),
+            input_info("adaptive_rkv_start_size"), input_info("adaptive_rkv_evictable_sizes"),
+            input_info("adaptive_rkv_diversity_block_set_indices"),
+            input_info("adaptive_rkv_diversity_block_set_indices_begins"),
+            input_info("token_type_ids"), input_info("qq_bias"), input_info("qq_bias_begins")
+        };
+
+        auto pa_prim = paged_attention("paged_attention", pa_inputs);
+        pa_prim.k_head_size = p.k_head_size;
+        pa_prim.v_head_size = p.v_head_size;
+        pa_prim.kv_heads_num = p.num_kv_heads;
+        pa_prim.heads_num = p.num_heads;
+        pa_prim.scale_val = pam.get_default_scale();
+        pa_prim.has_alibi = false;
+        pa_prim.has_token_type_ids = false;
+        pa_prim.has_sink_input = true;  // We provide non-empty sinks
+        pa_prim.num_outputs = 1;
+        pa_prim.has_rotated_blocks = false;
+        pa_prim.has_score_aggregation = false;
+        pa_prim.has_adaptive_rkv = false;
+        pa_prim.sliding_window = p.sliding_window_size;
+        pa_prim.is_key_by_channel = false;
+        pa_prim.has_xattention = false;
+        pa_prim.has_qq_bias = false;
+
+        topology topology;
+        topology.add(
+            input_layout("query", query_layout),
+            input_layout("key", key_layout),
+            input_layout("value", value_layout),
+            input_layout("key_cache", key_cache_layout),
+            input_layout("value_cache", value_cache_layout),
+            input_layout("past_lens", past_lens_layout),
+            input_layout("subsequence_begins", subsequence_begins_layout),
+            input_layout("block_indices", block_indices_layout),
+            input_layout("block_indices_begins", block_indices_begins_layout),
+            input_layout("scale", scale_layout),
+            input_layout("sliding_window", sliding_window_layout),
+            input_layout("alibi", alibi_layout),
+            input_layout("max_context_len", max_context_len_layout),
+            input_layout("score_aggregation_window", score_aggregation_window_layout),
+            pa_prim,
+            reorder("output_data", input_info("paged_attention", 0), format::bfyx, data_types::f16)
+        );
+
+        topology.add(input_layout("rotated_block_indices", rotated_block_indices_layout));
+        topology.add(input_layout("rotation_deltas", rotation_deltas_layout));
+        topology.add(input_layout("rotation_trig_lut", rotation_trig_lut_layout));
+        topology.add(activation("rotation_trig_lut_modified", input_info("rotation_trig_lut"), activation_func::none));
+        topology.add(input_layout("xattention_threshold", xattention_threshold_layout));
+        topology.add(input_layout("xattention_block_size", xattention_block_size_layout));
+        topology.add(input_layout("xattention_stride", xattention_stride_layout));
+        topology.add(input_layout("sinks", sinks_layout));
+        topology.add(input_layout("adaptive_rkv_start_size", adaptive_rkv_start_size_layout));
+        topology.add(input_layout("adaptive_rkv_evictable_sizes", adaptive_rkv_evictable_sizes_layout));
+        topology.add(input_layout("adaptive_rkv_diversity_block_set_indices", adaptive_rkv_diversity_block_set_indices_layout));
+        topology.add(input_layout("adaptive_rkv_diversity_block_set_indices_begins", adaptive_rkv_diversity_block_set_indices_begins_layout));
+        topology.add(input_layout("token_type_ids", token_type_ids_layout));
+        topology.add(input_layout("qq_bias", qq_bias_layout));
+        topology.add(input_layout("qq_bias_begins", qq_bias_begins_layout));
+
+        ExecutionConfig config = get_test_default_config(get_test_engine());
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::could_use_flashattn_v2(disable_fa_v2));
+        config.set_property(ov::internal::key_cache_quant_mode(p.key_cache_quant_mode));
+
+        network::ptr network = get_network(get_test_engine(), topology, config, get_test_stream_ptr(), false);
+        network->set_input_data("query", query_mem);
+        network->set_input_data("key", key_mem);
+        network->set_input_data("value", value_mem);
+        network->set_input_data("key_cache", key_cache_mem);
+        network->set_input_data("value_cache", value_cache_mem);
+        network->set_input_data("past_lens", past_lens_mem);
+        network->set_input_data("subsequence_begins", subsequence_begins_mem);
+        network->set_input_data("block_indices", block_indices_mem);
+        network->set_input_data("block_indices_begins", block_indices_begins_mem);
+        network->set_input_data("scale", scale_mem);
+        network->set_input_data("sliding_window", sliding_window_mem);
+        network->set_input_data("alibi", alibi_mem);
+        network->set_input_data("max_context_len", max_context_len_mem);
+        network->set_input_data("score_aggregation_window", score_aggregation_mem);
+        network->set_input_data("rotated_block_indices", rotated_block_indices_mem);
+        network->set_input_data("rotation_deltas", rotation_deltas_mem);
+        network->set_input_data("rotation_trig_lut", rotation_trig_lut_mem);
+        network->set_input_data("xattention_threshold", xattention_threshold_mem);
+        network->set_input_data("xattention_block_size", xattention_block_size_mem);
+        network->set_input_data("xattention_stride", xattention_stride_mem);
+        network->set_input_data("sinks", sinks_mem);
+        network->set_input_data("adaptive_rkv_start_size", adaptive_rkv_start_size_mem);
+        network->set_input_data("adaptive_rkv_evictable_sizes", adaptive_rkv_evictable_sizes_mem);
+        network->set_input_data("adaptive_rkv_diversity_block_set_indices", adaptive_rkv_diversity_block_set_indices_mem);
+        network->set_input_data("adaptive_rkv_diversity_block_set_indices_begins", adaptive_rkv_diversity_block_set_indices_begins_mem);
+        network->set_input_data("token_type_ids", token_type_ids_mem);
+        network->set_input_data("qq_bias", qq_bias);
+        network->set_input_data("qq_bias_begins", qq_bias_begins);
+
+        auto outputs = network->execute();
+        auto output_data_mem = outputs.at("output_data").get_memory();
+
+        std::vector<ov::float16> result(output_data_mem->count());
+        mem_lock<ov::float16, mem_lock_type::read> mem_ptr(output_data_mem, get_test_stream());
+        for (size_t i = 0; i < output_data_mem->count(); i++)
+            result[i] = mem_ptr[i];
+
+        return result;
+    }
+};
+
+TEST_P(paged_attention_sink_v1_v2_test, compare_fa_v1_v2_with_sinks) {
+    auto p = GetParam();
+
+    // Use same RNG seed for both runs to get identical input data
+    rg.set_seed(GET_SUITE_NAME);
+    auto output_v1 = run_pa_with_sinks(p, /*disable_fa_v2=*/true);
+
+    rg.set_seed(GET_SUITE_NAME);
+    auto output_v2 = run_pa_with_sinks(p, /*disable_fa_v2=*/false);
+
+    ASSERT_EQ(output_v1.size(), output_v2.size());
+
+    // V1 and V2 paths may use different accumulation order, allow small tolerance
+    const float sink_tolerance = 5e-3f;
+    for (size_t i = 0; i < output_v1.size(); i++) {
+        ASSERT_NEAR(static_cast<float>(output_v1[i]), static_cast<float>(output_v2[i]), sink_tolerance)
+            << " V1 vs V2 mismatch with sinks at index=" << i;
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_sink, paged_attention_sink_v1_v2_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+    // head_size=64: triggers FlashAttnV2 fallback on xe3p (no micro-kernel for h64)
+    // Generation phase (single-token) - both V1 and V2 correctly apply sinks
+    // Note: Multi-token prompt cases are excluded because the non-FlashAttnV2 multi-token path
+    // does not apply sinks (separate known limitation), making V1/V2 comparison invalid for prompts.
+    // 2nd token (generation phase with past context)
+    paged_attention_test_params{ {{1, 34}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false },
+    // 2nd token with longer past context
+    paged_attention_test_params{ {{1, 128}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false },
+    // GQA: num_heads=8, num_kv_heads=2
+    paged_attention_test_params{ {{1, 64}}, 8, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false },
+    // With sliding window (attention sink + sliding window is the common real-world pattern)
+    paged_attention_test_params{ {{1, 128}}, 4, 4, 64, 64, 16, 64, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false },
+    // Multiple 2nd tokens in batch
+    paged_attention_test_params{ {{1, 34}, {1, 100}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false },
+}));
+
 INSTANTIATE_TEST_SUITE_P(smoke_paged_attention, paged_attention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
     /* with scores output, use SnapKV */
     paged_attention_test_params{ {{10, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES_SNAPKV, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }, // 1st token
