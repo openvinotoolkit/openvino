@@ -20,14 +20,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                                             ::testing::ValuesIn(config)),
                          ov::test::utils::appendPlatformTypeTestName<OVCompileModelLoadFromFileTestBaseNPU>);
 
-const std::vector<ov::AnyMap> configEncryptionCallbacks = {
-    {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
-     ov::cache_encryption_callbacks(ov::EncryptionCallbacks{ov::util::codec_xor, ov::util::codec_xor})}};
-
-INSTANTIATE_TEST_SUITE_P(
-    compatibility_smoke_BehaviorTests,
-    OVCompileModelLoadFromFileTestBaseWithEncryptionNPU,
-    ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU), ::testing::ValuesIn(configEncryptionCallbacks)),
-    ov::test::utils::appendPlatformTypeTestName<OVCompileModelLoadFromFileTestBaseWithEncryptionNPU>);
-
 }  // namespace

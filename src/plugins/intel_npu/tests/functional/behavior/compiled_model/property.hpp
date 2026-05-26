@@ -861,4 +861,24 @@ TEST_P(CheckCpuPinning, CheckCompileModelWithCpuPinningFromCompileProperty) {
               std::string::npos);
 }
 
+using CheckSecureCompilationFlag = ClassExecutableNetworkGetPropertiesTestNPU;
+
+TEST_P(CheckSecureCompilationFlag, EncryptionCallbacksForOlderDriverThrows) {
+    if (::intel_npu::ZeroInitStructsHolder::getInstance()->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 17)) {
+        OV_EXPECT_THROW(core->compile_model(model, deviceName, {{configKey, configValue}}),
+                        ov::Exception,
+                        testing::HasSubstr(
+                            "Secure compilation was requested, but the current driver version does not support it."));
+        core->set_property(deviceName, {{configKey, configValue}});
+        OV_EXPECT_THROW(core->compile_model(model, deviceName, {}),
+                        ov::Exception,
+                        testing::HasSubstr(
+                            "Secure compilation was requested, but the current driver version does not support it."));
+    } else {
+        OV_ASSERT_NO_THROW(core->compile_model(model, deviceName, {{configKey, configValue}}));
+        core->set_property(deviceName, {{configKey, configValue}});
+        OV_ASSERT_NO_THROW(core->compile_model(model, deviceName, {}));
+    }
+}
+
 }  // namespace

@@ -170,4 +170,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_CheckCompilerVersion,
                                             ::testing::ValuesIn(valid_device_ids)),
                          CheckCompilerVersionProperty::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_CheckSecureCompilationFlag,
+                         CheckSecureCompilationFlag,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(exe_network_public_mutable_properties)),
+                         CheckSecureCompilationFlag::getTestCaseName);
+
 }  // namespace
