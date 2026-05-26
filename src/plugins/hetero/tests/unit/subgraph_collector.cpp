@@ -884,7 +884,8 @@ struct SubgraphCollectorTestParam {
     std::vector<size_t> expected_constants_per_submodel = {};
     std::vector<size_t> expected_parameters_per_submodel = {};
     std::vector<size_t> expected_results_per_submodel = {};
-    std::vector<std::set<std::string>> expected_runtime_subgraph_nodes = {};  // final ordered subgraph membership by non-interface, non-Constant op names
+    std::vector<std::set<std::string>> expected_runtime_subgraph_nodes =
+        {};  // final ordered subgraph membership by non-interface, non-Constant op names
 };
 
 class SubgraphCollectorParamTest : public testing::TestWithParam<SubgraphCollectorTestParam> {};
