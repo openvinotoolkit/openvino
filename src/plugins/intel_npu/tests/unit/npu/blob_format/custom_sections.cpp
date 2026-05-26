@@ -144,7 +144,7 @@ TEST(MockSections, GetROITensors) {
     auto length_2 = table.lookup_length(SectionID(MockTypes::MOCK_2, 0)).value();
     ASSERT_TRUE(offset_1 && length_1 && offset_2 && length_2);
 
-    BlobReaderInterface interface(tensor, 0, tensor.get_byte_size(), tensor.get_byte_size());
+    BlobReaderInterface interface(tensor, 0, tensor.get_byte_size(), tensor.get_byte_size(), {});
     interface.move_cursor_relative_to_npu_region(offset_1);
     auto roi_1 = interface.get_roi_tensor(length_1);
 

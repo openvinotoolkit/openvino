@@ -38,7 +38,7 @@ TEST_P(ValidLayouts, WriteRead) {
 
     const std::string buffer = stream.str();
     ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
-    BlobReaderInterface reader(tensor, 0, stream.tellp(), stream.tellp());
+    BlobReaderInterface reader(tensor, 0, stream.tellp(), stream.tellp(), {});
 
     auto read_section = section->read(reader);
 
@@ -53,7 +53,7 @@ using IOLayoutsSectionRead = ::testing::Test;
 TEST_F(IOLayoutsSectionRead, TooSmallSectionLength) {
     std::vector<uint8_t> dummy(0xFFFF, 0xFF);
     ov::Tensor tensor(ov::element::u8, ov::Shape{dummy.size()}, const_cast<uint8_t*>(dummy.data()));
-    BlobReaderInterface reader(tensor, 0, tensor.get_byte_size() - 1, tensor.get_byte_size());
+    BlobReaderInterface reader(tensor, 0, tensor.get_byte_size() - 1, tensor.get_byte_size(), {});
     ASSERT_ANY_THROW(IOLayoutsSection::read(reader));
 }
 
@@ -70,7 +70,7 @@ TEST_F(IOLayoutsSectionRead, LessLayoutsThanExpected) {
     std::memcpy(buffer.data() + sizeof(uint64_t), &fake_count, sizeof(fake_count));
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
-    BlobReaderInterface reader(tensor, 0, tensor.get_byte_size(), tensor.get_byte_size());
+    BlobReaderInterface reader(tensor, 0, tensor.get_byte_size(), tensor.get_byte_size(), {});
     ASSERT_ANY_THROW(IOLayoutsSection::read(reader));
 }
 
@@ -89,7 +89,7 @@ TEST_F(IOLayoutsSectionRead, InvalidLayout) {
     buffer[layout_offset + 2] = ']';
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
-    BlobReaderInterface reader(tensor, 0, tensor.get_byte_size(), tensor.get_byte_size());
+    BlobReaderInterface reader(tensor, 0, tensor.get_byte_size(), tensor.get_byte_size(), {});
 
     std::shared_ptr<ISection> read_section;
     ASSERT_NO_THROW(read_section = IOLayoutsSection::read(reader));

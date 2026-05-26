@@ -20,14 +20,17 @@ size_t move_cursor_with_bound_checking(const size_t destination, const size_t np
 
 namespace intel_npu {
 
-BlobReaderInterface::BlobReaderInterface(const ov::Tensor& source,
-                                         const size_t section_start,
-                                         const size_t section_length,
-                                         const size_t npu_region_size)
+BlobReaderInterface::BlobReaderInterface(
+    const ov::Tensor& source,
+    const size_t section_start,
+    const size_t section_length,
+    const size_t npu_region_size,
+    const std::unordered_map<CRE::Token, std::shared_ptr<ICapability>>& plugin_capabilities)
     : m_source(source),
       m_cursor(section_start),
       m_section_start(section_start),
       m_section_end(section_start + section_length),
+      m_plugin_capabilities(plugin_capabilities),
       m_logger("BlobReaderInterface", Logger::global().level()) {
     OPENVINO_ASSERT(section_start + section_length <= npu_region_size);
 }
@@ -70,6 +73,10 @@ void BlobReaderInterface::move_cursor_relative_to_npu_region(const size_t offset
 
 size_t BlobReaderInterface::get_section_length() const {
     return m_section_end - m_section_start;
+}
+
+std::unordered_map<CRE::Token, std::shared_ptr<ICapability>> BlobReaderInterface::get_plugin_capabilities() const {
+    return m_plugin_capabilities;
 }
 
 BlobReader::BlobReader() : m_logger("BlobReader", Logger::global().level()) {
@@ -141,7 +148,7 @@ void BlobReader::read(const ov::Tensor& source,
     const size_t where_the_region_of_persistent_format_starts = cursor;
     cursor = move_cursor_with_bound_checking(offsets_table_location, npu_region_size);
 
-    BlobReaderInterface interface(source, cursor, offsets_table_size, npu_region_size);
+    BlobReaderInterface interface(source, cursor, offsets_table_size, npu_region_size, plugin_capabilities);
     m_parsed_sections[PredefinedSectionType::OFFSETS_TABLE][FIRST_INSTANCE_ID] = OffsetsTableSection::read(interface);
     m_parsed_sections[PredefinedSectionType::OFFSETS_TABLE][FIRST_INSTANCE_ID]->set_section_type_instance(
         FIRST_INSTANCE_ID);
@@ -156,7 +163,7 @@ void BlobReader::read(const ov::Tensor& source,
     OPENVINO_ASSERT(cre_location.has_value(), "The CRE was not found within the table of offsets");
     cursor = move_cursor_with_bound_checking(cre_location.value(), npu_region_size);
 
-    interface = BlobReaderInterface(source, cursor, cre_length.value(), npu_region_size);
+    interface = BlobReaderInterface(source, cursor, cre_length.value(), npu_region_size, plugin_capabilities);
     m_parsed_sections[PredefinedSectionType::CRE][FIRST_INSTANCE_ID] = CRESection::read(interface);
     m_parsed_sections[PredefinedSectionType::CRE][FIRST_INSTANCE_ID]->set_section_type_instance(FIRST_INSTANCE_ID);
     const bool is_compatible =
@@ -188,7 +195,8 @@ void BlobReader::read(const ov::Tensor& source,
 
         // Read the section if we have a reader for it. Otherwise, skip it.
         if (m_readers.count(section_id.value().type)) {
-            interface = BlobReaderInterface(source, cursor, section_length.value(), npu_region_size);
+            interface =
+                BlobReaderInterface(source, cursor, section_length.value(), npu_region_size, plugin_capabilities);
             m_parsed_sections[section_id.value().type][section_id.value().type_instance] =
                 m_readers.at(section_id.value().type)(interface);
             m_parsed_sections[section_id.value().type][section_id.value().type_instance]->set_section_type_instance(

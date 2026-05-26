@@ -24,7 +24,8 @@ public:
     BlobReaderInterface(const ov::Tensor& source,
                         const size_t section_start,
                         const size_t section_length,
-                        const size_t npu_region_size);
+                        const size_t npu_region_size,
+                        const std::unordered_map<CRE::Token, std::shared_ptr<ICapability>>& plugin_capabilities);
 
     /**
      * @brief Reads data from the compiled model source and copies it to the given destination. Also the read cursor is
@@ -54,6 +55,8 @@ public:
 
     size_t get_section_length() const;
 
+    std::unordered_map<CRE::Token, std::shared_ptr<ICapability>> get_plugin_capabilities() const;
+
 private:
     std::reference_wrapper<const ov::Tensor> m_source;
 
@@ -64,6 +67,8 @@ private:
 
     size_t m_section_start;
     size_t m_section_end;
+
+    std::unordered_map<CRE::Token, std::shared_ptr<ICapability>> m_plugin_capabilities;
 
     Logger m_logger;
 };
