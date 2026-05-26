@@ -67,7 +67,7 @@
 #    define OV_GPU_CREATE_INSTANCE_ONEDNN(...)
 #endif
 
-#if OV_GPU_WITH_SYCL
+#ifdef OV_GPU_WITH_SYCL_RT
 #    define OV_GPU_CREATE_INSTANCE_SYCL(...) EXPAND(CREATE_INSTANCE(__VA_ARGS__))
 #else
 #    define OV_GPU_CREATE_INSTANCE_SYCL(...)
