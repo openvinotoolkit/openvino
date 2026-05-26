@@ -20,6 +20,7 @@ class TRANSFORMATIONS_API EliminateScatterUpdate;
 class TRANSFORMATIONS_API EliminateReduceReshape;
 class TRANSFORMATIONS_API EliminatePad;
 class TRANSFORMATIONS_API EliminateSplit;
+class TRANSFORMATIONS_API EliminateSequentialFakeQuantize;
 class TRANSFORMATIONS_API EliminateSplitConcat;
 class TRANSFORMATIONS_API EliminateSqueeze;
 class TRANSFORMATIONS_API EliminateUnsqueeze;
@@ -145,6 +146,33 @@ class ov::pass::EliminateSplit : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("EliminateSplit");
     EliminateSplit();
+};
+
+/**
+ * @ingroup ov_transformation_common_api
+ * @brief EliminateSequentialFakeQuantize removes redundant FakeQuantize after FakeQuantize when:
+ *  - Case 1: all parameters and levels match exactly.
+ *  - Case 2: the second FakeQuantize is identity on its own range (input range equals output range).
+ *  - Case 3: the first output range is a subrange of the second output range.
+ *  - Case 4: the second FakeQuantize has a degenerate grid (zero step) and ranges match exactly.
+ *  - Case 5: the first output grid is aligned to the second output grid (integer multiple offset and step).
+ *
+ * Examples:
+ *  - Case 1 (exact match):
+ *    FQ1(x, [-1, 1] -> [-1, 1], levels=256) -> FQ2(x, [-1, 1] -> [-1, 1], levels=256) => FQ1
+ *  - Case 2 (identity on own range):
+ *    FQ1(x, [-1, 1] -> [-1, 1], levels=256) -> FQ2(x, [-2, 2] -> [-2, 2], levels=511) => FQ1
+ *  - Case 3 (subrange):
+ *    FQ1(x, [-1, 1] -> [-1, 1], levels=256) -> FQ2(x, [-2, 2] -> [-2, 2], levels=256) => FQ1
+ *  - Case 4 (degenerate grid):
+ *    FQ1(x, [0, 1] -> [0, 1], levels=256) -> FQ2(x, [1, 1] -> [1, 1], levels=256) => FQ1
+ *  - Case 5 (aligned grids):
+ *    FQ1(x, [-1, 1] -> [-1, 1], levels=256) -> FQ2(x, [-2, 2] -> [-2, 2], levels=511) => FQ1
+ */
+class ov::pass::EliminateSequentialFakeQuantize : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("EliminateSequentialFakeQuantize");
+    EliminateSequentialFakeQuantize();
 };
 
 /**

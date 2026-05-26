@@ -4,6 +4,7 @@
 
 #include "transformations/common_optimizations/nop_elimination.hpp"
 
+#include <cmath>
 #include <functional>
 #include <memory>
 #include <numeric>
@@ -19,6 +20,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_elements.hpp"
 #include "openvino/op/gru_sequence.hpp"
@@ -140,6 +142,33 @@ static bool eliminate_nop(const std::shared_ptr<Node>& node) {
         return replace_output_update_name(node->output(0), node->input_value(0));
     }
     return false;
+}
+
+static bool inputs_equal_or_same_constant(const Output<Node>& lhs, const Output<Node>& rhs) {
+    if (lhs == rhs) {
+        return true;
+    }
+
+    auto lhs_const = ov::as_type_ptr<v0::Constant>(lhs.get_node_shared_ptr());
+    auto rhs_const = ov::as_type_ptr<v0::Constant>(rhs.get_node_shared_ptr());
+    if (!lhs_const || !rhs_const) {
+        return false;
+    }
+
+    return ov::compare_constants(lhs_const, rhs_const);
+}
+
+static bool is_close(double lhs, double rhs, double eps = 1e-12) {
+    return std::fabs(lhs - rhs) <= eps * (1.0 + std::max(std::fabs(lhs), std::fabs(rhs)));
+}
+
+static bool is_integer_multiple(double value, double step, double eps = 1e-9) {
+    if (step == 0.0) {
+        return is_close(value, 0.0, eps);
+    }
+
+    const double ratio = value / step;
+    return is_close(ratio, std::round(ratio), eps);
 }
 
 // Check if first dim is dynamic, other dims are static
@@ -376,6 +405,97 @@ static bool eliminate_unsqueeze(const std::shared_ptr<Node>& node) {
 SIMPLE_MATCHER_PASS_DEFINITION(EliminateReshape, eliminate_reshape_v1, v1::Reshape);
 SIMPLE_MATCHER_PASS_DEFINITION(EliminateBroadcast, eliminate_nop, v1::Broadcast, v3::Broadcast);
 SIMPLE_MATCHER_PASS_DEFINITION(EliminateGather, simplify_gather, v1::Gather, ov::op::v7::Gather, v8::Gather);
+
+EliminateSequentialFakeQuantize::EliminateSequentialFakeQuantize() {
+    MATCHER_SCOPE(EliminateSequentialFakeQuantize);
+    auto fq1 = pattern::wrap_type<v0::FakeQuantize>(
+        {pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()});
+    auto fq2 = pattern::wrap_type<v0::FakeQuantize>(
+        {fq1, pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()});
+    
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        auto fq2 = ov::as_type_ptr<v0::FakeQuantize>(m.get_match_root());
+        if (!fq2) {
+            return false;
+        }
+
+        auto fq1 = ov::as_type_ptr<v0::FakeQuantize>(fq2->input_value(0).get_node_shared_ptr());
+        if (!fq1) {
+            return false;
+        }
+
+        bool all_inputs_equal = true;
+        for (size_t i = 1; i < fq1->get_input_size(); ++i) {
+            if (!inputs_equal_or_same_constant(fq1->input_value(i), fq2->input_value(i))) {
+                all_inputs_equal = false;
+                break;
+            }
+        }
+
+        // Case 1: identical parameters and levels -> second FQ is redundant.
+        if (all_inputs_equal && fq1->get_levels() == fq2->get_levels()) {
+            return replace_output_update_name(fq2->output(0), fq1->output(0));
+        }
+
+        double fq1_out_low = 0.0;
+        double fq1_out_high = 0.0;
+        double fq2_in_low = 0.0;
+        double fq2_in_high = 0.0;
+        double fq2_out_low = 0.0;
+        double fq2_out_high = 0.0;
+
+        if (!ov::op::util::get_constant_value(fq1->input_value(3).get_node_shared_ptr(), fq1_out_low) ||
+            !ov::op::util::get_constant_value(fq1->input_value(4).get_node_shared_ptr(), fq1_out_high) ||
+            !ov::op::util::get_constant_value(fq2->input_value(1).get_node_shared_ptr(), fq2_in_low) ||
+            !ov::op::util::get_constant_value(fq2->input_value(2).get_node_shared_ptr(), fq2_in_high) ||
+            !ov::op::util::get_constant_value(fq2->input_value(3).get_node_shared_ptr(), fq2_out_low) ||
+            !ov::op::util::get_constant_value(fq2->input_value(4).get_node_shared_ptr(), fq2_out_high) ||
+            !std::isfinite(fq1_out_low) || !std::isfinite(fq1_out_high) || !std::isfinite(fq2_in_low) ||
+            !std::isfinite(fq2_in_high) || !std::isfinite(fq2_out_low) || !std::isfinite(fq2_out_high)) {
+            return false;
+        }
+
+        // Case 2: handle subrange/identity path only when FQ2 is identity on its own range.
+        if (!is_close(fq2_in_low, fq2_out_low) || !is_close(fq2_in_high, fq2_out_high)) {
+            return false;
+        }
+
+        // Case 3: FQ1 output must lie within the FQ2 output range.
+        if (fq1_out_low < fq2_out_low || fq1_out_high > fq2_out_high) {
+            return false;
+        }
+
+        const auto fq2_levels = static_cast<double>(fq2->get_levels());
+        if (fq2_levels <= 1.0) {
+            return false;
+        }
+
+        const double fq2_step = (fq2_out_high - fq2_out_low) / (fq2_levels - 1.0);
+        // Case 4: degenerate FQ2 grid -> remove only if ranges match exactly.
+        if (is_close(fq2_step, 0.0)) {
+            if (is_close(fq1_out_low, fq2_out_low) && is_close(fq1_out_high, fq2_out_high)) {
+                return replace_output_update_name(fq2->output(0), fq1->output(0));
+            }
+            return false;
+        }
+
+        const auto fq1_levels = static_cast<double>(fq1->get_levels());
+        if (fq1_levels <= 1.0) {
+            return false;
+        }
+
+        const double fq1_step = (fq1_out_high - fq1_out_low) / (fq1_levels - 1.0);
+        // Case 5: FQ1 grid must align to FQ2 grid (may have different levels).
+        if (!is_integer_multiple(fq1_out_low - fq2_out_low, fq2_step) || !is_integer_multiple(fq1_step, fq2_step)) {
+            return false;
+        }
+
+        return replace_output_update_name(fq2->output(0), fq1->output(0));
+    };
+
+    auto m = std::make_shared<pattern::Matcher>(fq2, matcher_name);
+    register_matcher(m, callback);
+}
 
 EliminateReduceReshape::EliminateReduceReshape() {
     MATCHER_SCOPE(EliminateReduceReshape);
@@ -1390,6 +1510,7 @@ PrepareShapeOpsForEliminationAroundBE::PrepareShapeOpsForEliminationAroundBE() {
 
 ov::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
     // shape-agnostic transformations
+    ADD_MATCHER_FOR_THIS(EliminateSequentialFakeQuantize)
     ADD_MATCHER_FOR_THIS(EliminatePad)
     ADD_MATCHER_FOR_THIS(EliminateReduceReshape)
     ADD_MATCHER_FOR_THIS(EliminateConvert)
