@@ -170,7 +170,7 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
 
     info.vendor_id = device_properties.vendorId;
     info.dev_name = device_properties.name;
-    // L0 returns drivers version in different format than OCL
+    // ZE returns drivers version in different format than OCL
     info.driver_version = std::to_string(driver_properties.driverVersion);
     info.dev_type = (device_properties.flags & ZE_DEVICE_PROPERTY_FLAG_INTEGRATED) ? device_type::integrated_gpu : device_type::discrete_gpu;
 
@@ -220,7 +220,7 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
 
     info.supports_usm = device_memory_access_properties.hostAllocCapabilities && device_memory_access_properties.deviceAllocCapabilities;
 
-    // FIXME: Could not find how to retrieve those from L0
+    // FIXME: Could not find how to retrieve those from ZE
     info.supports_work_group_collective_functions = false;
     info.supports_intel_planar_yuv = false;
     info.supports_khr_subgroups = true;
@@ -228,7 +228,7 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     info.supports_intel_subgroups_short = true;
     info.supports_intel_subgroups_char = true;
     info.supports_intel_required_subgroup_size = true;
-    // queue families correspond to L0 cmd queue ordinal and index
+    // queue families correspond to ZE cmd queue ordinal and index
     info.supports_queue_families = true;
 
     if (supports_ip_version) {

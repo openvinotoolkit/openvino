@@ -65,7 +65,7 @@ void ocl_engine::create_onednn_engine(const ExecutionConfig& config) {
         auto casted = std::dynamic_pointer_cast<ocl_device>(_device);
         OPENVINO_ASSERT(casted, "[GPU] Invalid device type stored in ocl_engine");
 #ifdef OV_GPU_WITH_ZE_RT
-        OPENVINO_THROW("[GPU] Using OCL OneDNN API with L0 runtime");
+        OPENVINO_THROW("[GPU] Using OCL OneDNN API with Level Zero runtime");
 #else
         _onednn_engine = std::make_shared<dnnl::engine>(dnnl::ocl_interop::make_engine(casted->get_device().get(), casted->get_context().get()));
 #endif

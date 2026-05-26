@@ -317,7 +317,7 @@ void RemoteTensorImpl::allocate() {
 
     switch (m_mem_type) {
     case TensorType::BT_BUF_INTERNAL: {
-        // BT_BUF_INTERNAL should map to cl_mem however L0 engine can not allocate cl_mem
+        // BT_BUF_INTERNAL should map to cl_mem however ZE engine can not allocate cl_mem
         if (engine.supports_allocation(cldnn::allocation_type::cl_mem)) {
             m_memory_object = engine.allocate_memory(m_layout, cldnn::allocation_type::cl_mem, reset);
         } else {
