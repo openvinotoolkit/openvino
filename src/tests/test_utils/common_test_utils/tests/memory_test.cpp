@@ -62,7 +62,6 @@ TEST_F(AlignSizeUpTest, zero_size_returns_zero) {
     EXPECT_EQ(0u, util::align_size_up(0, 4096));
 }
 
-
 using AlignSizeDownTest = testing::Test;
 
 TEST_F(AlignSizeDownTest, already_aligned_value_is_unchanged) {
@@ -88,7 +87,6 @@ TEST_F(AlignSizeDownTest, zero_size_returns_zero) {
     EXPECT_EQ(0u, util::align_size_down(0, 64));
     EXPECT_EQ(0u, util::align_size_down(0, 4096));
 }
-
 
 using AlignRegionTest = testing::Test;
 
@@ -120,4 +118,33 @@ TEST_F(AlignRegionTest, result_covers_original_range) {
         EXPECT_GE(r.m_address + r.m_length, base + 128u) << "base=" << base;
     }
 }
+
+using AlignedAllocTest = testing::Test;
+
+TEST_F(AlignedAllocTest, returns_non_null_for_valid_args) {
+    void* ptr = util::aligned_alloc(128, 64);
+    ASSERT_NE(nullptr, ptr);
+    util::aligned_free(ptr);
+}
+
+TEST_F(AlignedAllocTest, pointer_satisfies_requested_alignment) {
+    for (auto align : {1u, 2u, 4u, 8u, 16u, 32u, 64u, 128u, 256u}) {
+        void* ptr = util::aligned_alloc(256, align);
+        ASSERT_NE(nullptr, ptr) << "align=" << align;
+        EXPECT_EQ(0u, reinterpret_cast<uintptr_t>(ptr) % align) << "align=" << align;
+        util::aligned_free(ptr);
+    }
+}
+
+TEST_F(AlignedAllocTest, zero_alignment_uses_default_alignment) {
+    void* ptr = util::aligned_alloc(64, 0);
+    ASSERT_NE(nullptr, ptr);
+    EXPECT_EQ(0u, reinterpret_cast<uintptr_t>(ptr) % alignof(std::max_align_t));
+    util::aligned_free(ptr);
+}
+
+TEST_F(AlignedAllocTest, free_nullptr_is_noop) {
+    EXPECT_NO_FATAL_FAILURE(util::aligned_free(nullptr));
+}
+
 }  // namespace ov::test

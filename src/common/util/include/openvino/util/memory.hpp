@@ -24,7 +24,6 @@ constexpr size_t align_size_up(size_t size, size_t alignment) noexcept {
 /**
  * @brief Rounds @p size down to the nearest multiple of @p alignment.
  *
- * @param size       Value to round down.
  * @param alignment  Alignment boundary. Must be a power of two and greater than zero.
  * @return Largest value <= @p size that is a multiple of @p alignment.
  */
@@ -56,5 +55,23 @@ constexpr AlignedRegion align_region(uintptr_t base, size_t raw_len, size_t alig
     const auto gap = static_cast<size_t>(base - aligned);
     return {aligned, raw_len + gap, gap};
 }
+
+/**
+ * @brief Allocates @p size bytes of uninitialized memory on the specified @p alignment boundary.
+ *
+ *
+ * @param size       Number of bytes to allocate. Must be greater than zero.
+ * @param alignment  Desired alignment in bytes. Must be a power of two.
+ *                   Passing `0` applies no specific alignment constraint (`alignof(std::max_align_t)` is used).
+ * @return Pointer to the allocated memory, or `nullptr` on failure.
+ */
+void* aligned_alloc(size_t size, size_t alignment) noexcept;
+
+/**
+ * @brief Releases memory previously allocated by @ref aligned_alloc.
+ *
+ * @param ptr  Pointer returned by @ref aligned_alloc. Passing `nullptr` is a no-op.
+ */
+void aligned_free(void* ptr) noexcept;
 
 }  // namespace ov::util
