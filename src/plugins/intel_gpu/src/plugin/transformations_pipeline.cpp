@@ -482,7 +482,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             case ov::element::f16: return device_info.supports_fp16;
             case ov::element::f32: return true; // assume that all GPUs support f32 data type
             case ov::element::f64: return device_info.supports_fp64;
-            case ov::element::bf16: return true;
+            case ov::element::bf16: return device_info.supports_immad;
             default: return false;
         }
         return false;
