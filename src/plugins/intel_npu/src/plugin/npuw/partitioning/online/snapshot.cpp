@@ -10,6 +10,7 @@
 #include "../patterns/compute.hpp"
 #include "../patterns/moe.hpp"
 #include "../patterns/sdpa.hpp"
+#include "../patterns/gqa.hpp"
 #include "group.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/opsets/opset1.hpp"
@@ -769,6 +770,7 @@ void Snapshot::earlyRegroup() {
                 HNDL_FAKE(FakeQuantize);
                 HNDL_ATTN(SDPA);
                 HNDL_ATTN(SDPADecomposed);
+                HNDL_ATTN(GQA);
 #undef HNDL_MOE
 #undef HNDL_ATTN
 #undef HNDL_FAKE
