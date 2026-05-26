@@ -39,21 +39,6 @@ namespace npuw {
 class KVCacheBlockManager {
 public:
     /**
-     * @brief Represents a single block of KV cache memory
-     */
-    struct Block {
-        ov::SoPtr<ov::ITensor> tensor;  ///< Block memory tensor (allocated on-demand)
-        uint32_t num_tokens = 0;        ///< Number of tokens stored in this block
-
-        enum class State {
-            FREE,       ///< Block is free and available for allocation
-            ALLOCATED,  ///< Block is allocated but not yet filled
-            FULL,       ///< Block is completely filled
-        };
-        State state = State::FREE;
-    };
-
-    /**
      * @brief Construct a new KV Cache Block Manager
      *
      * @param block_size Number of tokens per block
@@ -149,6 +134,15 @@ public:
     }
 
 private:
+    /**
+     * @brief Represents a single block of KV cache memory
+     */
+    struct Block {
+        ov::SoPtr<ov::ITensor> tensor;  ///< Block memory tensor (allocated on-demand)
+        uint32_t num_tokens = 0;        ///< Number of tokens stored in this block
+        bool is_allocated = false;      ///< True when block is in use; false = free
+    };
+
     uint32_t block_size_;                  ///< Number of tokens per block
     uint32_t max_blocks_;                  ///< Maximum blocks in pool
     std::vector<Block> blocks_;            ///< All blocks (free + allocated)
