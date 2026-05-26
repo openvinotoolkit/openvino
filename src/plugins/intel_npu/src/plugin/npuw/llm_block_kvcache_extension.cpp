@@ -346,7 +346,6 @@ bool BlockKVCacheExtension::redirect_prefill_outputs_to_new_blocks(
 
     LOG_DEBUG("Pre-binding complete: allocated=" << total_blocks_allocated << " blocks, bound=" << total_outputs_bound
                                                  << " outputs");
-    m_prefill_outputs_redirected = true;
     return true;
 }
 
@@ -369,10 +368,6 @@ void BlockKVCacheExtension::restore_prefill_output_buffers(
     // The model then writes into its own buffers, and copy_prefill_outputs_to_blocks() copies
     // the result into the correct blocks afterwards.
 
-    if (!m_prefill_outputs_redirected) {
-        LOG_VERB("Prefill outputs already pointing to original tensors - no restore needed");
-        return;
-    }
     OPENVINO_ASSERT(!m_prefill_original_output_tensors.empty(),
                     "Original output tensors were not snapshotted during initialize().");
 
@@ -398,7 +393,6 @@ void BlockKVCacheExtension::restore_prefill_output_buffers(
     }
 
     LOG_DEBUG("Restore complete: restored=" << total_restored << " tensors");
-    m_prefill_outputs_redirected = false;
 }
 
 // ============================================================================
@@ -406,9 +400,7 @@ void BlockKVCacheExtension::restore_prefill_output_buffers(
 // ============================================================================
 
 void BlockKVCacheExtension::init_generate_kv_block_bindings(
-    const std::shared_ptr<ov::IAsyncInferRequest>& kvcache_request,
-    const PortsMap& kvcache_in_ports,
-    uint32_t num_stored_tokens) {
+    const std::shared_ptr<ov::IAsyncInferRequest>& kvcache_request) {
     if (m_kv_cache_block_managers.empty()) {
         return;
     }
@@ -430,9 +422,6 @@ void BlockKVCacheExtension::init_generate_kv_block_bindings(
     auto& kvcache_desc = m_compiled_model->m_kvcache_desc;
     const auto& variant_layer_helpers = m_variant_block_binding_helpers.at(kvcache_request);
 
-    size_t total_numbered_bound = 0;
-    size_t total_tail_copied = 0;
-
     auto process_blocks = [&](uint32_t layer_idx,
                               KVCacheBlockManager* manager,
                               const BlockBindingHelper& helper,
@@ -443,25 +432,19 @@ void BlockKVCacheExtension::init_generate_kv_block_bindings(
             return;
         }
         for (size_t block_idx = 0; block_idx < allocated_blocks.size(); ++block_idx) {
-            uint32_t block_id = allocated_blocks[block_idx];
-            auto block_tensor = manager->get_block_tensor(block_id);
-            uint32_t tokens_in_block = manager->get_block_tokens(block_id);
-            bool is_tail = helper.should_treat_as_tail(static_cast<uint32_t>(block_idx));
-            if (is_tail) {
+            const uint32_t block_id = allocated_blocks[block_idx];
+            const auto block_tensor = manager->get_block_tensor(block_id);
+            if (helper.should_treat_as_tail(static_cast<uint32_t>(block_idx))) {
                 copy_block_to_tail_input(block_tensor,
                                          0u,
-                                         tokens_in_block,
+                                         manager->get_block_tokens(block_id),
                                          kv_dim,
                                          helper.tail_input_port.value(),
                                          kvcache_request);
-                total_tail_copied++;
                 LOG_VERB("Bound tail " << kv_type_name << " layer_" << layer_idx << " block_" << block_idx);
-            } else {
-                if (block_idx < helper.numbered_input_ports.size()) {
-                    kvcache_request->set_tensor(helper.numbered_input_ports[block_idx], block_tensor);
-                    total_numbered_bound++;
-                    LOG_VERB("Bound numbered " << kv_type_name << " layer_" << layer_idx << " block_" << block_idx);
-                }
+            } else if (block_idx < helper.numbered_input_ports.size()) {
+                kvcache_request->set_tensor(helper.numbered_input_ports[block_idx], block_tensor);
+                LOG_VERB("Bound numbered " << kv_type_name << " layer_" << layer_idx << " block_" << block_idx);
             }
         }
     };
@@ -481,13 +464,12 @@ void BlockKVCacheExtension::init_generate_kv_block_bindings(
         }
     }
 
-    LOG_DEBUG("Initial binding complete: numbered=" << total_numbered_bound << ", tail=" << total_tail_copied);
+    LOG_DEBUG("Initial binding complete.");
 }
 
 void BlockKVCacheExtension::update_generate_bindings(uint32_t old_num_tokens,
                                                      uint32_t new_num_tokens,
-                                                     const std::shared_ptr<ov::IAsyncInferRequest>& kvcache_request,
-                                                     const PortsMap& kvcache_in_ports) {
+                                                     const std::shared_ptr<ov::IAsyncInferRequest>& kvcache_request) {
     if (m_kv_cache_block_managers.empty()) {
         return;
     }
@@ -498,15 +480,12 @@ void BlockKVCacheExtension::update_generate_bindings(uint32_t old_num_tokens,
     auto& kvcache_desc = m_compiled_model->m_kvcache_desc;
     const auto& variant_layer_helpers = m_variant_block_binding_helpers.at(kvcache_request);
 
-    size_t total_tail_updates = 0;
-    size_t total_new_bindings = 0;
-
     auto update_blocks = [&](uint32_t layer_idx,
                              KVCacheBlockManager* manager,
                              const BlockBindingHelper& helper,
                              uint32_t kv_dim,
                              const char* kv_type_name) {
-        auto allocated_blocks = manager->get_allocated_blocks();
+        const auto allocated_blocks = manager->get_allocated_blocks();
         if (allocated_blocks.empty()) {
             return;
         }
@@ -515,55 +494,51 @@ void BlockKVCacheExtension::update_generate_bindings(uint32_t old_num_tokens,
         // so old_num_tokens must be positive.
         NPUW_ASSERT(old_num_tokens > 0);
 
-        uint32_t final_block_idx = helper.get_block_index_for_position(new_num_tokens - 1);
-        uint32_t old_block_idx = helper.get_block_index_for_position(old_num_tokens - 1);
+        const uint32_t old_block_idx = helper.get_block_index_for_position(old_num_tokens - 1);
+        const uint32_t final_block_idx = helper.get_block_index_for_position(new_num_tokens - 1);
 
-        // Bind every block that was newly entered during this step (boundary crossings).
-        // In standard decoding (input_tokens_len=1) this loop runs 0 or 1 times.
-        // In speculative decoding it may run more times if input_tokens_len > block_size.
-        for (uint32_t bidx = old_block_idx + 1; bidx <= final_block_idx; ++bidx) {
-            if (bidx >= static_cast<uint32_t>(allocated_blocks.size())) {
-                break;
+        if (final_block_idx > old_block_idx) {
+            // A block boundary was crossed: bind each newly entered block.
+            // In standard decoding (input_tokens_len=1) this loop runs exactly once.
+            // In speculative decoding it may run more times if input_tokens_len > block_size.
+            //   - Numbered blocks: zero-copy via set_tensor().
+            //   - Tail block:      full copy from token 0 of the block.
+            for (uint32_t bidx = old_block_idx + 1;
+                 bidx <= final_block_idx && bidx < static_cast<uint32_t>(allocated_blocks.size());
+                 ++bidx) {
+                const uint32_t block_id = allocated_blocks[bidx];
+                if (helper.should_treat_as_tail(bidx)) {
+                    copy_block_to_tail_input(manager->get_block_tensor(block_id),
+                                             0u,
+                                             manager->get_block_tokens(block_id),
+                                             kv_dim,
+                                             helper.tail_input_port.value(),
+                                             kvcache_request);
+                    LOG_VERB("Updated tail " << kv_type_name << " layer_" << layer_idx << " block_" << bidx
+                                             << " (crossed block boundary)");
+                } else if (bidx < helper.numbered_input_ports.size()) {
+                    kvcache_request->set_tensor(helper.numbered_input_ports[bidx], manager->get_block_tensor(block_id));
+                    LOG_VERB("Bound new numbered " << kv_type_name << " layer_" << layer_idx << " block_" << bidx);
+                }
             }
-            bool block_is_tail = helper.should_treat_as_tail(bidx);
-            if (block_is_tail) {
-                uint32_t block_id = allocated_blocks[bidx];
+        } else {
+            // No block boundary crossed: old and new tokens both reside in the same block.
+            // Numbered blocks share memory with BlockManager — no action needed.
+            // Tail block requires an incremental copy for the newly added tokens only.
+            if (helper.should_treat_as_tail(final_block_idx)) {
+                const uint32_t block_id = allocated_blocks[final_block_idx];
+                const uint32_t block_start = final_block_idx * helper.block_size;
+                const uint32_t prev_tokens = old_num_tokens - block_start;
+                const uint32_t new_tokens = manager->get_block_tokens(block_id);
                 copy_block_to_tail_input(manager->get_block_tensor(block_id),
-                                         0u,
-                                         manager->get_block_tokens(block_id),
+                                         prev_tokens,
+                                         new_tokens,
                                          kv_dim,
                                          helper.tail_input_port.value(),
                                          kvcache_request);
-                total_tail_updates++;
-                LOG_VERB("Updated tail " << kv_type_name << " layer_" << layer_idx << " block_" << bidx
-                                         << " (crossed block boundary)");
-            } else if (bidx < helper.numbered_input_ports.size()) {
-                uint32_t block_id = allocated_blocks[bidx];
-                kvcache_request->set_tensor(helper.numbered_input_ports[bidx], manager->get_block_tensor(block_id));
-                total_new_bindings++;
-                LOG_VERB("Bound new numbered " << kv_type_name << " layer_" << layer_idx << " block_" << bidx);
+                LOG_VERB("Refreshed tail " << kv_type_name << " layer_" << layer_idx << " block_" << final_block_idx
+                                           << " [" << prev_tokens << ".." << new_tokens << "]");
             }
-        }
-
-        // If the final block is a tail block and was NOT newly entered by the loop above
-        // (i.e., old and new tokens are in the same block), incrementally copy only the
-        // tokens added this step. Numbered blocks share memory with BlockManager and need
-        // no explicit update.
-        bool final_is_tail = helper.should_treat_as_tail(final_block_idx);
-        if (final_is_tail && final_block_idx == old_block_idx) {
-            uint32_t block_id = allocated_blocks[final_block_idx];
-            uint32_t block_start_pos = final_block_idx * helper.block_size;
-            uint32_t prev_tokens_in_block = old_num_tokens - block_start_pos;
-            uint32_t new_tokens_in_block = manager->get_block_tokens(block_id);
-            copy_block_to_tail_input(manager->get_block_tensor(block_id),
-                                     prev_tokens_in_block,
-                                     new_tokens_in_block,
-                                     kv_dim,
-                                     helper.tail_input_port.value(),
-                                     kvcache_request);
-            total_tail_updates++;
-            LOG_VERB("Refreshed tail " << kv_type_name << " layer_" << layer_idx << " block_" << final_block_idx << " ["
-                                       << prev_tokens_in_block << ".." << new_tokens_in_block << "]");
         }
     };
 
@@ -581,8 +556,6 @@ void BlockKVCacheExtension::update_generate_bindings(uint32_t old_num_tokens,
             update_blocks(layer_idx, layer_managers.value_manager.get(), layer_helpers.value_helper, kv_dim, "value");
         }
     }
-
-    LOG_DEBUG("Update complete: tail_updates=" << total_tail_updates << ", new_bindings=" << total_new_bindings);
 }
 
 // ============================================================================
@@ -630,37 +603,38 @@ void BlockKVCacheExtension::copy_outputs_to_blocks(const std::shared_ptr<ov::IAs
             src_to_copy = uu::make_tensor_slice(src_tensor, kv_dim, src_seq_len - num_tokens, src_seq_len);
         }
 
-        uint32_t block_size = block_manager->get_block_size();
-        uint32_t start_pos = current_kv_position;
-        uint32_t end_pos = current_kv_position + num_tokens;
-        uint32_t start_block_idx = start_pos / block_size;
-        uint32_t end_block_idx = (end_pos - 1) / block_size;
+        const uint32_t block_size = block_manager->get_block_size();
+        const uint32_t start_pos = current_kv_position;
+        const uint32_t end_pos = current_kv_position + num_tokens;
+        const uint32_t start_block_idx = start_pos / block_size;
+        const uint32_t end_block_idx = (end_pos - 1) / block_size;
 
+        // Allocate any blocks that do not yet exist, then fetch the final list once.
         auto allocated_blocks = block_manager->get_allocated_blocks();
-        uint32_t blocks_needed = end_block_idx + 1;
-        while (allocated_blocks.size() < blocks_needed) {
-            auto new_block_id = block_manager->allocate_block();
-            OPENVINO_ASSERT(new_block_id.has_value(), "Failed to allocate block for KV cache — pool exhausted");
-            allocated_blocks = block_manager->get_allocated_blocks();
+        for (uint32_t b = static_cast<uint32_t>(allocated_blocks.size()); b <= end_block_idx; ++b) {
+            OPENVINO_ASSERT(block_manager->allocate_block().has_value(),
+                            "Failed to allocate block for KV cache — pool exhausted");
         }
+        allocated_blocks = block_manager->get_allocated_blocks();
 
+        // Write tokens across blocks.
+        // The first block may be partially filled: start writing at (start_pos % block_size).
+        // Every subsequent block is written from position 0 up to min(remaining, block_size).
         uint32_t tokens_written = 0;
         for (uint32_t block_idx = start_block_idx; block_idx <= end_block_idx; ++block_idx) {
-            uint32_t block_id = allocated_blocks[block_idx];
-            auto block_tensor = block_manager->get_block_tensor(block_id);
+            const uint32_t block_id = allocated_blocks[block_idx];
+            const auto block_tensor = block_manager->get_block_tensor(block_id);
 
-            uint32_t block_start_pos = block_idx * block_size;
-            uint32_t write_start_in_block = (start_pos > block_start_pos) ? (start_pos - block_start_pos) : 0;
-            uint32_t write_end_in_block = std::min(end_pos - block_start_pos, block_size);
-            uint32_t tokens_in_this_block = write_end_in_block - write_start_in_block;
+            const uint32_t write_start = (block_idx == start_block_idx) ? (start_pos % block_size) : 0u;
+            const uint32_t write_end = std::min(end_pos - block_idx * block_size, block_size);
+            const uint32_t count = write_end - write_start;
 
-            auto dst_slice = uu::make_tensor_slice(block_tensor, kv_dim, write_start_in_block, write_end_in_block);
-            auto src_slice =
-                uu::make_tensor_slice(src_to_copy, kv_dim, tokens_written, tokens_written + tokens_in_this_block);
+            const auto dst_slice = uu::make_tensor_slice(block_tensor, kv_dim, write_start, write_end);
+            const auto src_slice = uu::make_tensor_slice(src_to_copy, kv_dim, tokens_written, tokens_written + count);
             uu::copy_tensor_by_dim(src_slice, dst_slice, kv_dim, kv_dim);
 
-            tokens_written += tokens_in_this_block;
-            block_manager->update_block_tokens(block_id, write_end_in_block);
+            tokens_written += count;
+            block_manager->update_block_tokens(block_id, write_end);
         }
         OPENVINO_ASSERT(tokens_written == num_tokens, "Mismatch: wrote ", tokens_written, " but expected ", num_tokens);
     }
@@ -681,8 +655,7 @@ void BlockKVCacheExtension::commit_generate_kv_and_rebind(
     uint32_t new_num_tokens,
     uint32_t input_tokens_len,
     const std::shared_ptr<ov::IAsyncInferRequest>& kvcache_request,
-    const PortsMap& kvcache_out_ports,
-    const PortsMap& kvcache_in_ports) {
+    const PortsMap& kvcache_out_ports) {
     // Step 1: Write the newly generated token(s) into block storage (partial block, copy-based)
     copy_outputs_to_blocks(kvcache_request,
                            kvcache_out_ports,
@@ -691,7 +664,7 @@ void BlockKVCacheExtension::commit_generate_kv_and_rebind(
                            old_num_tokens);
 
     // Step 2: Re-bind model inputs if we crossed a block boundary or need tail update
-    update_generate_bindings(old_num_tokens, new_num_tokens, kvcache_request, kvcache_in_ports);
+    update_generate_bindings(old_num_tokens, new_num_tokens, kvcache_request);
 }
 
 // ============================================================================
