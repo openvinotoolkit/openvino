@@ -4,7 +4,6 @@
 
 #include "disable_fp16_comp_cumsum_sin_gen.hpp"
 
-#include "openvino/core/rt_info.hpp"
 #include "openvino/op/cum_sum.hpp"
 #include "openvino/op/interpolate.hpp"
 #include "openvino/op/multiply.hpp"

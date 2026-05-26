@@ -11,6 +11,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/select.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils.hpp"
@@ -22,33 +23,23 @@ IncreaseAtan2DivPrecision::IncreaseAtan2DivPrecision() {
 
     // After common ConvertDivide pass, Divide(a, b) is rewritten to
     // Multiply(a, Power(b, -1)). Match the post-ConvertDivide form.
-    auto mul_m = wrap_type<ov::op::v1::Multiply>({any_input(), any_input()});
+    // Multiply is commutative, so accept Power on either input.
+    auto power_m = wrap_type<ov::op::v1::Power>({any_input(), wrap_type<ov::op::v0::Constant>()});
+    auto mul_m = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{
+        wrap_type<ov::op::v1::Multiply>({any_input(), power_m}),
+        wrap_type<ov::op::v1::Multiply>({power_m, any_input()}),
+    });
     auto atan_m = wrap_type<ov::op::v0::Atan>({mul_m});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
-        auto mul_node = pattern_map.at(mul_m).get_node_shared_ptr();
         auto atan_node = pattern_map.at(atan_m).get_node_shared_ptr();
+        auto mul_node = atan_node->get_input_node_shared_ptr(0);
 
         if (transformation_callback(mul_node)) {
             return false;
         }
-
-        // Locate the Power(b, Constant) input of the Multiply.
-        std::shared_ptr<ov::op::v1::Power> power_node;
-        for (size_t i = 0; i < mul_node->get_input_size(); ++i) {
-            auto in = mul_node->get_input_node_shared_ptr(i);
-            auto p = ov::as_type_ptr<ov::op::v1::Power>(in);
-            if (!p)
-                continue;
-            if (!ov::as_type_ptr<ov::op::v0::Constant>(p->get_input_node_shared_ptr(1)))
-                continue;
-            power_node = p;
-            break;
-        }
-        if (!power_node)
-            return false;
 
         const auto desired_et = ov::element::f32;
         const auto original_et = mul_node->get_output_element_type(0);
@@ -57,6 +48,7 @@ IncreaseAtan2DivPrecision::IncreaseAtan2DivPrecision() {
         if (!original_et.is_real())
             return false;
 
+        auto power_node = ov::as_type_ptr<ov::op::v1::Power>(pattern_map.at(power_m).get_node_shared_ptr());
         // Capture the original divisor (b in Power(b, -1)) before promotion so
         // the imag==0 guard below compares against the source values.
         const auto imag_src = power_node->input_value(0);
