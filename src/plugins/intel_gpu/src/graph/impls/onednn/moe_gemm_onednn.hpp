@@ -43,12 +43,14 @@ struct MoEGemmImplementationManager : public ImplementationManager {
 
         static const std::vector<ov::element::Type_t> supported_activation_types = {
             ov::element::f16,
+            ov::element::bf16,
             ov::element::i8,
             ov::element::u8,
         };
 
         static const std::vector<ov::element::Type_t> supported_weight_types = {
             ov::element::f16,
+            ov::element::bf16,
             ov::element::u4,
             ov::element::i4,
             ov::element::i8,
