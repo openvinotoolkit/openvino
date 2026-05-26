@@ -20,7 +20,9 @@
 using namespace testing;
 using namespace ov;
 
-using FuseClampAndFakeQuantizeParams = std::tuple<std::pair<float, float>, std::pair<float, float>, bool>;
+using FuseClampAndFakeQuantizeParams = std::tuple<std::pair<float, float>,  // clamp range
+                                                  std::pair<float, float>,  // fq input range
+                                                  bool>;                    // whether Clamp is expected to be fused
 
 class FuseClampAndFakeQuantizeTestP : public testing::WithParamInterface<FuseClampAndFakeQuantizeParams>,
                                       public TransformationTestsF {};
@@ -66,32 +68,5 @@ INSTANTIATE_TEST_SUITE_P(TransformationTests,
                          ::testing::Values(FuseClampAndFakeQuantizeParams({0.f, 10.f}, {1.f, 4.f}, true),
                                            FuseClampAndFakeQuantizeParams({1.f, 4.f}, {1.f, 4.f}, true),
                                            FuseClampAndFakeQuantizeParams({0.f, 2.f}, {1.f, 4.f}, false),
-                                           FuseClampAndFakeQuantizeParams({2.f, 8.f}, {1.f, 4.f}, false)));
-
-TEST_F(TransformationTestsF, FuseClampAndFakeQuantizeLevels2) {
-    const Shape data_shape{1, 3, 8, 8};
-    {
-        auto data = std::make_shared<opset8::Parameter>(element::f32, data_shape);
-        auto clamp = std::make_shared<op::v0::Clamp>(data, 0.f, 2.f);
-        auto input_low = op::v0::Constant::create(element::f32, Shape{1}, {1.f});
-        auto input_high = op::v0::Constant::create(element::f32, Shape{1}, {1.f});
-        auto output_low = op::v0::Constant::create(element::f32, Shape{1}, {0.f});
-        auto output_high = op::v0::Constant::create(element::f32, Shape{1}, {1.f});
-        auto fq = std::make_shared<op::v0::FakeQuantize>(clamp, input_low, input_high, output_low, output_high, 2);
-
-        model = std::make_shared<Model>(OutputVector{fq}, ParameterVector{data});
-        manager.register_pass<ov::pass::FuseClampAndFakeQuantize>();
-    }
-    {
-        auto data = std::make_shared<opset8::Parameter>(element::f32, data_shape);
-        auto input_low = op::v0::Constant::create(element::f32, Shape{1}, {1.f});
-        auto input_high = op::v0::Constant::create(element::f32, Shape{1}, {1.f});
-        auto output_low = op::v0::Constant::create(element::f32, Shape{1}, {0.f});
-        auto output_high = op::v0::Constant::create(element::f32, Shape{1}, {1.f});
-        auto fq = std::make_shared<op::v0::FakeQuantize>(data, input_low, input_high, output_low, output_high, 2);
-
-        model_ref = std::make_shared<Model>(OutputVector{fq}, ParameterVector{data});
-    }
-
-    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-}
+                                           FuseClampAndFakeQuantizeParams({2.f, 8.f}, {1.f, 4.f}, false),
+                                           FuseClampAndFakeQuantizeParams({1.f, 4.f}, {0.f, 10.f}, false)));

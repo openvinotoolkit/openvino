@@ -16,33 +16,6 @@
 
 namespace v0 = ov::op::v0;
 
-namespace {
-
-bool clamp_covers_fake_quantize_interval(const std::shared_ptr<v0::Clamp>& clamp,
-                                         const std::shared_ptr<v0::Constant>& input_low,
-                                         const std::shared_ptr<v0::Constant>& input_high) {
-    const auto input_low_values = input_low->cast_vector<float>();
-    const auto input_high_values = input_high->cast_vector<float>();
-    const auto clamp_low = static_cast<float>(clamp->get_min());
-    const auto clamp_high = static_cast<float>(clamp->get_max());
-
-    for (const auto value : input_low_values) {
-        if (clamp_low > value) {
-            return false;
-        }
-    }
-
-    for (const auto value : input_high_values) {
-        if (clamp_high < value) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-}  // namespace
-
 namespace ov::pass {
 
 FuseClampAndFakeQuantize::FuseClampAndFakeQuantize() {
@@ -66,8 +39,21 @@ FuseClampAndFakeQuantize::FuseClampAndFakeQuantize() {
             return false;
         }
 
-        if (!clamp_covers_fake_quantize_interval(clamp, input_low, input_high)) {
-            return false;
+        const auto input_low_values = input_low->cast_vector<float>();
+        const auto input_high_values = input_high->cast_vector<float>();
+        const auto clamp_low = static_cast<float>(clamp->get_min());
+        const auto clamp_high = static_cast<float>(clamp->get_max());
+
+        for (const auto value : input_low_values) {
+            if (clamp_low > value) {
+                return false;
+            }
+        }
+
+        for (const auto value : input_high_values) {
+            if (clamp_high < value) {
+                return false;
+            }
         }
 
         return ov::replace_output_update_name(clamp->output(0), clamp->input_value(0));
