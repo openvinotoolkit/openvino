@@ -77,7 +77,7 @@
 #include "openvino/pass/visualize_tree.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
-#include "transformations/rt_info/disable_fp16_compression.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "transformations/rt_info/original_precision_attribute.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -376,13 +376,13 @@ TEST(TransformationTests, ConvertPrecision_Range_i32_to_i64) {
         auto add = std::make_shared<v1::Add>(reshape, add_const);
         auto res = std::make_shared<v0::Result>(add);
 
-        disable_compression_to(start, ov::element::f16);
-        disable_compression_to(reduction_axes, ov::element::f16);
-        disable_compression_to(stop, ov::element::f16);
-        disable_compression_to(step, ov::element::f16);
-        disable_compression_to(range, ov::element::f16);
-        disable_compression_to(add_const, ov::element::f16);
-        disable_compression_to(add, ov::element::f16);
+        disable_compression(start, ov::element::f16);
+        disable_compression(reduction_axes, ov::element::f16);
+        disable_compression(stop, ov::element::f16);
+        disable_compression(step, ov::element::f16);
+        disable_compression(range, ov::element::f16);
+        disable_compression(add_const, ov::element::f16);
+        disable_compression(add, ov::element::f16);
 
         model = std::make_shared<Model>(OutputVector{res}, ParameterVector{param});
 

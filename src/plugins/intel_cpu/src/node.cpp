@@ -49,7 +49,7 @@
 #include "selective_build.h"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "shape_inference/shape_inference_status.hpp"
-#include "transformations/rt_info/disable_fp16_compression.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include "utils/cpu_utils.hpp"
 #endif
@@ -183,7 +183,7 @@ Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const Sh
     if (it != rtInfo.end()) {
         enforceBF16evenForGraphTail = it->second.as<bool>();
     }
-    if (is_compression_disabled_to(op, element::f16)) {
+    if (is_compression_disabled(op, element::f16)) {
         keepOriginalPrecision = true;
     }
 }
