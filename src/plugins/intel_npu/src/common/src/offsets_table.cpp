@@ -48,6 +48,10 @@ std::optional<SectionID> OffsetsTable::lookup_section_id(const uint64_t offset) 
     return std::nullopt;
 }
 
+size_t OffsetsTable::get_number_of_entries() const {
+    return m_table.size();
+}
+
 bool OffsetsTable::empty() const {
     return m_table.empty();
 }

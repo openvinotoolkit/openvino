@@ -142,10 +142,6 @@ public:
      */
     void append_compatibility_requirement(const std::vector<CRE::Token>& requirement_tokens);
 
-    // TODO stream write method. Avoid exposing the stream object directly.
-    // TODO consider placing the "section writer API" methods in a different class, corresponding to one writing
-    // session. This should also solve the multi-threading issue.
-
 private:
     std::streamoff get_offset_relative_to_npu_region(std::ostream& stream,
                                                      const std::streampos stream_npu_region_start) const;

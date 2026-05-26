@@ -29,6 +29,8 @@ public:
 
     std::optional<SectionID> lookup_section_id(const uint64_t offset) const;
 
+    size_t get_number_of_entries() const;
+
     bool empty() const;
 
 private:
