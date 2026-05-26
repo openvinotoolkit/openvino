@@ -9,7 +9,7 @@
 
 #include <sstream>
 
-#include "intel_npu/common/dynamic_graph_vm_impl.hpp"
+#include "intel_npu/common/dynamic_graph_arguments_impl.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
@@ -201,7 +201,7 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
                                          ze_command_queue_handle_t commandQueue,
                                          ze_fence_handle_t fence,
                                          ze_event_handle_t event) {
-    _logger.debug("execute_vm_runtime - started");
+    _logger.debug("Start to execute graph with runtime engine");
 
     const bool firstExecution = (args._impl == nullptr);
     std::shared_ptr<DynamicGraphArgumentsImpl> argsImpl =
@@ -278,6 +278,7 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
     params->inferenceFence = fence;
     params->event = event;
 
+    _logger.debug("Execute graph with runtime engine");
     if (npuVMRuntimeExecute(vmRuntime, params) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
         OPENVINO_THROW("Failed to execute VM runtime engine");
     }
@@ -286,7 +287,7 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
         args._impl = argsImpl;
     }
 
-    _logger.debug("execute_vm_runtime - completed");
+    _logger.debug("Completed to execute graph with runtime engine");
 }
 
 void DynamicPipeline::predict_output_shape(const IGraph& graph,
