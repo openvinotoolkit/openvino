@@ -22,10 +22,7 @@ public:
     virtual ~IBufferDescriptor();
 };
 
-/// \brief Allocates a block of memory on the specified alignment. The actual size of the
-/// allocated memory is larger than the requested size by the alignment, so allocating 1
-/// byte
-/// on 64 byte alignment will allocate 65 bytes.
+/// \brief Allocates a block of memory which starts at an aligned address determined by \p alignment.
 class OPENVINO_API AlignedBuffer {
 public:
     // Allocator objects and the allocation interfaces are owned by the
@@ -76,7 +73,6 @@ protected:
     virtual void hint_evict(size_t offset, size_t size) noexcept;
     static void invoke_evict(AlignedBuffer& buffer, size_t offset, size_t size) noexcept;
 
-    char* m_allocated_buffer;
     char* m_aligned_buffer;
     size_t m_byte_size;
 };
@@ -87,6 +83,6 @@ class OPENVINO_API AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>
 public:
     AttributeAdapter(std::shared_ptr<ov::AlignedBuffer>& value);
     ~AttributeAdapter() override;
-    OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>");
+    OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>");
 };
 }  // namespace ov
