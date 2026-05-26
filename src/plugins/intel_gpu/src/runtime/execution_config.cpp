@@ -314,6 +314,62 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
                         "Please use BY_CHANNEL mode or switch to 8-bit (i8) KV cache precision.");
     }
 
+    // Estimate per-token KV-cache memory size
+    size_t num_attn_layers = 0;
+    size_t kv_heads = 0;
+    size_t head_size = 0;
+    for (const auto& op : ops) {
+        if (is_paged_attention_model) {
+            if (ov::is_type<ov::op::PagedAttentionExtension>(op)) {
+                num_attn_layers++;
+                if (kv_heads == 0) {
+                    // KEY_CACHE input (idx 3): [num_blocks, kv_heads, head_size, block_size]
+                    const auto& key_cache_ps = op->get_input_partial_shape(3);
+                    if (key_cache_ps.rank().is_static() && key_cache_ps.rank().get_length() >= 4) {
+                        if (key_cache_ps[1].is_static()) kv_heads = key_cache_ps[1].get_length();
+                        if (key_cache_ps[2].is_static()) head_size = key_cache_ps[2].get_length();
+                    }
+                }
+            }
+        } else {
+            if (ov::is_type<ov::intel_gpu::op::KVCache>(op)) {
+                num_attn_layers++;
+                if (kv_heads == 0) {
+                    // past input (idx 0): [batch, kv_heads, seq_len, head_size]
+                    const auto& past_ps = op->get_input_partial_shape(0);
+                    if (past_ps.rank().is_static() && past_ps.rank().get_length() >= 4) {
+                        if (past_ps[1].is_static()) kv_heads = past_ps[1].get_length();
+                        if (past_ps[3].is_static()) head_size = past_ps[3].get_length();
+                    }
+                }
+            }
+        }
+    }
+    // KVCache nodes come in pairs (key + value) for SDPA
+    if (!is_paged_attention_model && num_attn_layers > 0)
+        num_attn_layers /= 2;
+
+    const auto kv_precision = ov::element::Type(get_kv_cache_precision());
+    GPU_DEBUG_LOG << "[GPU] KV-cache precision: " << kv_precision
+                  << " (" << kv_precision.bitwidth() << "-bit)"
+                  << ", backend: " << (is_paged_attention_model ? "PagedAttention" : "SDPA")
+                  << ", is_LLM: " << is_LLM;
+    if (num_attn_layers > 0 && kv_heads > 0 && head_size > 0) {
+        // per-token KV data = num_layers * 2(K+V) * kv_heads * head_size * bitwidth / 8
+        const size_t per_token_data = num_attn_layers * 2 * kv_heads * head_size * kv_precision.bitwidth() / 8;
+        // Compression overhead (scale + zp per group, group_size = head_size):
+        // scale(fp16) + zp(fp16) = 4 bytes per (layer, K/V, head, token)
+        const size_t per_token_comp_overhead = (kv_precision.bitwidth() < 16) ? num_attn_layers * 2 * kv_heads * 4 : 0;
+        const size_t per_token_bytes = per_token_data + per_token_comp_overhead;
+        GPU_DEBUG_LOG << ", layers: " << num_attn_layers << ", kv_heads: " << kv_heads
+                      << ", head_size: " << head_size << ", per-token KV memory: " << per_token_bytes << " bytes"
+                      << " (data: " << per_token_data << " + comp: " << per_token_comp_overhead << ")"
+                      << " (1K tokens: " << per_token_bytes * 1024 / (1024 * 1024) << " MB"
+                      << ", 8K: " << per_token_bytes * 8192 / (1024 * 1024) << " MB"
+                      << ", 128K: " << per_token_bytes * 131072 / (1024 * 1024) << " MB)";
+    }
+    GPU_DEBUG_LOG << std::endl;
+
     // Disable FlashAttn V2 online softmax tricks by default for non-LLMs.
     if (!is_set_by_user(ov::intel_gpu::could_use_flashattn_v2) && !is_LLM) {
         m_could_use_flashattn_v2 = false;
