@@ -2124,7 +2124,7 @@ jit_swish_emitter::jit_swish_emitter(ov::intel_cpu::riscv64::jit_generator_t* ho
 jit_swish_emitter::jit_swish_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
                                        ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                                        ov::element::Type exec_prc)
-    : jit_swish_emitter(host, 1.0f, host_isa, exec_prc) {}
+    : jit_swish_emitter(host, 1.0F, host_isa, exec_prc) {}
 jit_swish_emitter::jit_swish_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
                                        ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                                        [[maybe_unused]] const std::shared_ptr<ov::Node>& node,
