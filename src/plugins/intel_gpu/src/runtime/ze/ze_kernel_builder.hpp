@@ -26,9 +26,9 @@ public:
 
 private:
     /// @brief Check if L0 can build kernels from source
-    bool check_l0_build_support() const;
+    bool check_ze_build_support() const;
     /// @brief Build module through L0 API
-    std::shared_ptr<ze_module_holder> build_module_l0(const void *src, size_t src_bytes, KernelFormat src_format, const std::string &options) const;
+    std::shared_ptr<ze_module_holder> build_module_ze(const void *src, size_t src_bytes, KernelFormat src_format, const std::string &options) const;
     /// @brief Build module through OCL API and repackage to L0 module
     std::shared_ptr<ze_module_holder> build_module_ocl(const void *src, size_t src_bytes, KernelFormat src_format, const std::string &options) const;
     void init_ocl_builder() const;
