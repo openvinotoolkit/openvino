@@ -4,7 +4,16 @@
 
 #include "subgraph_collector.hpp"
 
-#include <deque>
+#include <algorithm>
+#include <cstdint>
+#include <iterator>
+#include <map>
+#include <numeric>
+#include <unordered_map>
+
+#if defined(_MSC_VER)
+#    include <intrin.h>
+#endif
 
 #include "graph_debug_dump.hpp"
 #include "op/device_subgraph.hpp"
@@ -18,27 +27,6 @@
 #include "openvino/util/common_util.hpp"
 #include "transformations/utils/utils.hpp"
 namespace {
-
-template <typename Set>
-static Set intersection(const Set& lhs, const Set& rhs) {
-    Set result;
-    const auto& min_size_set = (lhs.size() < rhs.size()) ? lhs : rhs;
-    const auto& max_size_set = (lhs.size() >= rhs.size()) ? lhs : rhs;
-    for (auto&& val : min_size_set)
-        if (max_size_set.find(val) != max_size_set.end())
-            result.insert(val);
-    return result;
-}
-
-template <typename Set>
-static bool intersects(const Set& lhs, const Set& rhs) {
-    const auto& min_size_set = (lhs.size() < rhs.size()) ? lhs : rhs;
-    const auto& max_size_set = (lhs.size() >= rhs.size()) ? lhs : rhs;
-    for (auto&& val : min_size_set)
-        if (max_size_set.find(val) != max_size_set.end())
-            return true;
-    return false;
-}
 
 template <typename T>
 static std::vector<T> addition(const std::vector<T>& vector1, const std::vector<T>& vector2) {
@@ -77,7 +65,6 @@ ov::hetero::SubgraphCollector::SubgraphCollector(const std::shared_ptr<ov::Model
       _intermediate_parameters{},
       _intermediate_results(),
       _affinities{affinities},
-      _node_input_dependencies{},
       _subgraph_inputs{},
       _subgraph_parameter_to_prev_result{} {
     init();
@@ -90,21 +77,18 @@ bool ov::hetero::SubgraphCollector::is_graph_input_node(const ov::Node* node) co
 }
 
 void ov::hetero::SubgraphCollector::init() {
-    // Get all subgraph inputs using just node affinities. Also collect transitive closure
+    // Seed _subgraph_inputs from per-node affinities: Parameters/Constants are self-boundaries,
+    // and any cross-affinity input edge is a boundary; Result nodes inherit producer affinity.
     for (const auto& node : _ordered_ops) {
         if (is_graph_input_node(node.get())) {
             _subgraph_inputs.insert(Input{node.get(), 0});
-            _node_input_dependencies[node].insert(Input{node.get(), 0});
         } else {
-            auto inputs = node->inputs();
-            auto& node_input_dependency = _node_input_dependencies[node];
-            for (const auto& input : inputs) {
-                node_input_dependency.insert(input);
-                auto& input_dependency = _node_input_dependencies[input_node(input)];
-                node_input_dependency.insert(input_dependency.begin(), input_dependency.end());
-                if (_affinities.at(node) != _affinities.at(input_node(input))) {
+            const auto& node_affinity = _affinities.at(node);
+            for (const auto& input : node->inputs()) {
+                const auto source = input_node(input);
+                if (node_affinity != _affinities.at(source)) {
                     if (ov::op::util::is_output(node)) {
-                        _affinities[node] = _affinities.at(input_node(input));
+                        _affinities[node] = _affinities.at(source);
                     } else {
                         _subgraph_inputs.insert(input);
                     }
@@ -113,92 +97,270 @@ void ov::hetero::SubgraphCollector::init() {
         }
     }
 }
+
 void ov::hetero::SubgraphCollector::split_cyclic_dependencies() {
+    // Iteratively detect cross-subgraph cycles (subgraph A feeds B and B feeds A) and break them
+    // by promoting offending edges into _subgraph_inputs until no new boundaries are added.
+    const size_t nodes_count = _ordered_ops.size();
+    std::unordered_map<const ov::Node*, size_t> node_to_index;
+    node_to_index.reserve(nodes_count);
+    std::vector<InputVector> ordered_inputs(nodes_count);
+    for (size_t i = 0; i < nodes_count; ++i) {
+        node_to_index.emplace(_ordered_ops[i].get(), i);
+        ordered_inputs[i] = _ordered_ops[i]->inputs();
+    }
+
+    auto get_index_by_node = [&node_to_index](const ov::Node* node) {
+        const auto it = node_to_index.find(node);
+        OPENVINO_ASSERT(it != node_to_index.end());
+        return it->second;
+    };
+
+    // Bitset helpers. Subgraph-input dependency sets are represented as packed
+    // 64-bit words indexed by a dense id assigned to each member of
+    // _subgraph_inputs at the start of every outer iteration. This replaces the
+    // previous std::set<Input>-based propagation: union/intersect/test become
+    // O(S/64) bitwise ops with no per-element hashing/comparator/allocation,
+    // typically ~50-100x faster for graphs with hundreds of subgraph inputs.
+    using Bits = std::vector<uint64_t>;
+    auto ctz64 = [](uint64_t x) -> unsigned {
+    // Precondition: x != 0. Both __builtin_ctzll(0) and _BitScanForward64 with a zero
+    // mask are undefined; all call sites guard with `while (bits)` before invoking.
+#if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_AMD64))
+        unsigned long idx;
+        _BitScanForward64(&idx, x);
+        return static_cast<unsigned>(idx);
+#elif defined(_MSC_VER)
+        unsigned idx = 0;
+        while ((x & 1ULL) == 0) {
+            x >>= 1;
+            ++idx;
+        }
+        return idx;
+#else
+        return static_cast<unsigned>(__builtin_ctzll(x));
+#endif
+    };
+    auto set_bit = [](Bits& b, size_t i) {
+        b[i >> 6] |= (1ULL << (i & 63));
+    };
+    auto bit_or = [](Bits& a, const Bits& b) {
+        for (size_t i = 0; i < a.size(); ++i)
+            a[i] |= b[i];
+    };
+    auto bit_intersects = [](const Bits& a, const Bits& b) {
+        for (size_t i = 0; i < a.size(); ++i)
+            if (a[i] & b[i])
+                return true;
+        return false;
+    };
+    auto bit_any = [](const Bits& a) {
+        for (uint64_t v : a)
+            if (v)
+                return true;
+        return false;
+    };
+
     // Split cyclic dependencies.
     for (size_t prev_subgraphs = 0, cyclic_split_step = 0; prev_subgraphs != _subgraph_inputs.size();
          ++cyclic_split_step) {
         OPENVINO_ASSERT(cyclic_split_step < _ordered_ops.size(), "Cannot resolve cycles during submodels split!");
         prev_subgraphs = _subgraph_inputs.size();
         auto subgraph_ids = collect_subgraphs_ids();
-        // All inputs that belong to the same subgraph as node
-        NodeMap<InputSet> node_subgraph_input_dependencies;
-        // All inputs that depends on the same subgraph as node
-        NodeMap<InputSet> node_subgraph_cyclic_iput_dependencies;
+
+        std::vector<SubgraphId> subgraph_id_by_index(nodes_count);
         for (const auto& node : _ordered_ops) {
-            auto& node_subgraph_input_dependency = node_subgraph_input_dependencies[node];
-            auto all_node_subgraph_inputs = intersection(_node_input_dependencies[node], _subgraph_inputs);
-            for (const auto& subgraph_input : all_node_subgraph_inputs) {
-                if (subgraph_ids[node] == subgraph_ids[subgraph_input.get_node()->shared_from_this()]) {
-                    node_subgraph_input_dependency.emplace(subgraph_input);
-                }
+            const auto index = get_index_by_node(node.get());
+            subgraph_id_by_index[index] = subgraph_ids.at(node);
+        }
+
+        // === Phase 1: assign a dense bit id to every current subgraph input. ===
+        const size_t S = _subgraph_inputs.size();
+        const size_t W = (S + 63) / 64;
+        struct InputHash {
+            size_t operator()(const Input& in) const noexcept {
+                // Input == {Node*, port_index}. Mix the pointer with the port to avoid
+                // collisions across multiple inputs of the same node.
+                const auto h1 = std::hash<const ov::Node*>{}(in.get_node());
+                const auto h2 = std::hash<size_t>{}(in.get_index());
+                return h1 ^ (h2 + 0x9e3779b97f4a7c15ULL + (h1 << 6) + (h1 >> 2));
             }
-            auto& node_subgraph_cyclic_input_dependency = node_subgraph_cyclic_iput_dependencies[node];
-            for (const auto& subgraph_input : all_node_subgraph_inputs) {
-                if (!is_graph_input_node(subgraph_input.get_node()) &&
-                    subgraph_ids[node] == subgraph_ids[input_node(subgraph_input)]) {
-                    node_subgraph_cyclic_input_dependency.emplace(subgraph_input);
+        };
+        std::unordered_map<Input, size_t, InputHash> input_to_bit;
+        input_to_bit.reserve(S * 2);
+        std::vector<Input> bit_to_input;
+        bit_to_input.reserve(S);
+        for (const auto& in : _subgraph_inputs) {
+            input_to_bit.emplace(in, bit_to_input.size());
+            bit_to_input.push_back(in);
+        }
+
+        // === Phase 2: per-bit metadata used by the per-node classification step. ===
+        std::vector<SubgraphId> bit_owner_subgraph(S);  // subgraph of subgraph_input.get_node()
+        std::vector<SubgraphId> bit_producer_subgraph(
+            S);  // subgraph of producing node (only meaningful when not graph input)
+        std::vector<uint8_t> bit_is_graph_input(S);
+        for (size_t b = 0; b < S; ++b) {
+            const auto& in = bit_to_input[b];
+            const auto owner = in.get_node();
+            bit_owner_subgraph[b] = subgraph_id_by_index[get_index_by_node(owner)];
+            const bool gi = is_graph_input_node(owner);
+            bit_is_graph_input[b] = gi ? 1 : 0;
+            bit_producer_subgraph[b] = gi ? static_cast<SubgraphId>(-1)
+                                          : subgraph_id_by_index[get_index_by_node(in.get_source_output().get_node())];
+        }
+
+        // === Phase 3: forward-propagate subgraph-input dependencies in topological order. ===
+        // Equivalent to intersection(full_transitive_closure, _subgraph_inputs)
+        // but bounded by |_subgraph_inputs| via the bitset width.
+        std::vector<Bits> node_input_deps(nodes_count, Bits(W, 0ULL));
+        for (size_t node_idx = 0; node_idx < nodes_count; ++node_idx) {
+            const auto& node = _ordered_ops[node_idx];
+            auto& deps = node_input_deps[node_idx];
+            if (is_graph_input_node(node.get())) {
+                Input self_input{node.get(), 0};
+                const auto it = input_to_bit.find(self_input);
+                if (it != input_to_bit.end()) {
+                    set_bit(deps, it->second);
+                }
+            } else {
+                for (const auto& input : ordered_inputs[node_idx]) {
+                    const auto it = input_to_bit.find(input);
+                    if (it != input_to_bit.end()) {
+                        set_bit(deps, it->second);
+                    }
+                    const auto source_idx = get_index_by_node(input.get_source_output().get_node());
+                    bit_or(deps, node_input_deps[source_idx]);
                 }
             }
         }
 
-        for (const auto& node : _ordered_ops) {
-            auto& node_subgraph_cyclic_input_dependency = node_subgraph_cyclic_iput_dependencies[node];
-            if (!node_subgraph_cyclic_input_dependency.empty()) {
-                // Collect all subgraph inputs that cyclic subgraph output depends on
-                InputSet cyclic_inputs_dependencies;
-                for (const auto& cyclicInput : node_subgraph_cyclic_input_dependency) {
-                    for (const auto& input : node_subgraph_input_dependencies[input_node(cyclicInput)]) {
-                        cyclic_inputs_dependencies.emplace(input);
+        // === Phase 4a: classify each node's deps into same-subgraph and cyclic-feedback subsets. ===
+        std::vector<Bits> node_subgraph_input_dependencies(nodes_count, Bits(W, 0ULL));
+        std::vector<Bits> node_subgraph_cyclic_input_dependencies(nodes_count, Bits(W, 0ULL));
+        for (size_t node_idx = 0; node_idx < nodes_count; ++node_idx) {
+            const auto& deps = node_input_deps[node_idx];
+            const SubgraphId my_sg = subgraph_id_by_index[node_idx];
+            auto& sg_dep = node_subgraph_input_dependencies[node_idx];
+            auto& cyc_dep = node_subgraph_cyclic_input_dependencies[node_idx];
+            for (size_t w = 0; w < W; ++w) {
+                uint64_t bits = deps[w];
+                while (bits) {
+                    const size_t b = (w << 6) + ctz64(bits);
+                    bits &= bits - 1;
+                    if (bit_owner_subgraph[b] == my_sg) {
+                        set_bit(sg_dep, b);
                     }
-                }
-                for (const auto& input : node->inputs()) {
-                    auto& input_node_subgraph_cyclic_input_dependency =
-                        node_subgraph_cyclic_iput_dependencies[input_node(input)];
-                    auto& input_node_subgraph_input_dependency = node_subgraph_input_dependencies[input_node(input)];
-                    if (!intersects(node_subgraph_cyclic_input_dependency,
-                                    input_node_subgraph_cyclic_input_dependency) &&
-                        intersects(cyclic_inputs_dependencies, input_node_subgraph_input_dependency)) {
-                        _subgraph_inputs.insert(input);
+                    if (!bit_is_graph_input[b] && bit_producer_subgraph[b] == my_sg) {
+                        set_bit(cyc_dep, b);
                     }
                 }
             }
+        }
+
+        // === Phase 4b: for each node with cyclic feedback, promote offending edges into _subgraph_inputs. ===
+        auto promote_boundaries_for_node = [&](size_t node_idx) {
+            const auto& cyc_dep = node_subgraph_cyclic_input_dependencies[node_idx];
+            if (!bit_any(cyc_dep))
+                return;
+            // Collect all subgraph inputs that the cyclic feedback transitively depends on.
+            Bits cyclic_inputs_dependencies(W, 0ULL);
+            for (size_t w = 0; w < W; ++w) {
+                uint64_t bits = cyc_dep[w];
+                while (bits) {
+                    const size_t b = (w << 6) + ctz64(bits);
+                    bits &= bits - 1;
+                    const auto& cyclic_input = bit_to_input[b];
+                    const auto cyclic_input_idx = get_index_by_node(cyclic_input.get_source_output().get_node());
+                    bit_or(cyclic_inputs_dependencies, node_subgraph_input_dependencies[cyclic_input_idx]);
+                }
+            }
+            for (const auto& input : ordered_inputs[node_idx]) {
+                const auto input_source_idx = get_index_by_node(input.get_source_output().get_node());
+                const auto& src_cyc_dep = node_subgraph_cyclic_input_dependencies[input_source_idx];
+                const auto& src_sg_dep = node_subgraph_input_dependencies[input_source_idx];
+                if (!bit_intersects(cyc_dep, src_cyc_dep) && bit_intersects(cyclic_inputs_dependencies, src_sg_dep)) {
+                    _subgraph_inputs.insert(input);
+                }
+            }
+        };
+        for (size_t node_idx = 0; node_idx < nodes_count; ++node_idx) {
+            promote_boundaries_for_node(node_idx);
         }
     }
 }
 
 ov::hetero::SubgraphCollector::SubgraphIdsMap ov::hetero::SubgraphCollector::collect_subgraphs_ids() {
-    std::deque<SubgraphId> subgraph_ids;
-    NodeMap<SubgraphId*> subgraph_id_ptrs;
-    for (const auto& node : _ordered_ops) {
-        auto all_node_inputs = node->inputs();
-        InputVector inputs;
-        for (const auto& input : all_node_inputs) {
+    // Assign a SubgraphId to every node via Union-Find: nodes connected by non-boundary edges
+    // share an id. IDs are allocated as a counter at root creation, and merges keep the first
+    // input's id (matches the original numbering for backward-compatible mapping/tests).
+    const size_t n = _ordered_ops.size();
+    std::unordered_map<const ov::Node*, size_t> idx;
+    idx.reserve(n);
+    for (size_t i = 0; i < n; ++i) {
+        idx.emplace(_ordered_ops[i].get(), i);
+    }
+
+    std::vector<size_t> parent(n);
+    std::iota(parent.begin(), parent.end(), size_t{0});
+    std::vector<SubgraphId> comp_id(n, -1);
+    auto find = [&parent](size_t x) {
+        while (parent[x] != x) {
+            parent[x] = parent[parent[x]];
+            x = parent[x];
+        }
+        return x;
+    };
+    // Always parent `b`'s root under `a`'s root, so `a`'s root stays canonical
+    // and its comp_id (the first input's id) wins.
+    auto unite_keep_first = [&](size_t a, size_t b) {
+        const auto ra = find(a);
+        const auto rb = find(b);
+        if (ra != rb) {
+            parent[rb] = ra;
+        }
+    };
+
+    SubgraphId counter = 0;
+    InputVector srcs_buf;
+    for (size_t i = 0; i < n; ++i) {
+        srcs_buf.clear();
+        for (const auto& input : _ordered_ops[i]->inputs()) {
             if (_subgraph_inputs.find(input) == _subgraph_inputs.end()) {
-                inputs.emplace_back(std::move(input));
+                srcs_buf.emplace_back(input);
             }
         }
-        if (inputs.empty()) {
-            subgraph_ids.push_back(static_cast<SubgraphId>(subgraph_ids.size()));
-            subgraph_id_ptrs.emplace(node, &(subgraph_ids.back()));
+        if (srcs_buf.empty()) {
+            comp_id[find(i)] = counter++;
         } else {
-            auto first_input_subgraph_id_ptr = subgraph_id_ptrs[input_node(inputs.front())];
-            for (const auto& input : inputs) {
-                auto input_id = *subgraph_id_ptrs[input_node(input)];
-                for (auto& subgraph_id : subgraph_ids) {
-                    if (subgraph_id == input_id) {
-                        subgraph_id = *first_input_subgraph_id_ptr;
-                    }
-                }
+            const auto first_src_it = idx.find(srcs_buf.front().get_source_output().get_node());
+            OPENVINO_ASSERT(first_src_it != idx.end());
+            const size_t first_src = first_src_it->second;
+            const SubgraphId first_id = comp_id[find(first_src)];
+            unite_keep_first(first_src, i);
+            for (size_t k = 1; k < srcs_buf.size(); ++k) {
+                const auto src_it = idx.find(srcs_buf[k].get_source_output().get_node());
+                OPENVINO_ASSERT(src_it != idx.end());
+                unite_keep_first(first_src, src_it->second);
             }
-            subgraph_id_ptrs.emplace(node, first_input_subgraph_id_ptr);
+            // first_src's root is preserved by unite_keep_first; reassert its id.
+            comp_id[find(first_src)] = first_id;
         }
     }
+
     SubgraphIdsMap result;
-    for (const auto& subgraph_id_ptr : subgraph_id_ptrs) {
-        result.emplace(subgraph_id_ptr.first, *(subgraph_id_ptr.second));
+    result.reserve(n);
+    for (size_t i = 0; i < n; ++i) {
+        const auto id = comp_id[find(i)];
+        OPENVINO_ASSERT(id != static_cast<SubgraphId>(-1),
+                        "SubgraphCollector: node '",
+                        _ordered_ops[i]->get_friendly_name(),
+                        "' was not assigned a subgraph id (Union-Find invariant violated).");
+        result.emplace(_ordered_ops[i], id);
     }
     return result;
 }
+
 void ov::hetero::SubgraphCollector::split_subgraphs_by_parameter_results() {
     // Sort subgraph inputs by order
     InputVector ordered_subgraph_inputs;

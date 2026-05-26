@@ -20,11 +20,14 @@ function(_ov_gtest_filter_install_interface TARGET TYPE)
     get_target_property(include_dirs ${TARGET} INTERFACE_INCLUDE_DIRECTORIES)
     foreach(include_dir IN LISTS include_dirs)
         if(NOT include_dir MATCHES ".*INSTALL_INTERFACE.*")
-            # remove leading and trailing parts of generator expressions
-            string(REPLACE "$<BUILD_INTERFACE:" "" include_dir "${include_dir}")
-            string(REPLACE ">" "" include_dir "${include_dir}")
-            # wrap to BUILD_INTERFACE again
-            list(APPEND final_include_dirs "$<BUILD_INTERFACE:${include_dir}>")
+            # unwrap the outer BUILD_INTERFACE, preserving inner generator
+            # expressions such as $<SEMICOLON> introduced by upstream gtest.
+            string(REGEX REPLACE "^\\$<BUILD_INTERFACE:(.*)>$" "\\1" include_dir "${include_dir}")
+            # expand $<SEMICOLON> back into a real list so we can rewrap each entry
+            string(REPLACE "$<SEMICOLON>" ";" include_dir "${include_dir}")
+            foreach(dir IN LISTS include_dir)
+                list(APPEND final_include_dirs "$<BUILD_INTERFACE:${dir}>")
+            endforeach()
         endif()
     endforeach()
 

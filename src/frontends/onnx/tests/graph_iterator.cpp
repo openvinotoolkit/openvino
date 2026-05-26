@@ -387,3 +387,204 @@ TEST(FrontEndGraphIteratorTest, topological_sort_initializer_dependency) {
     test_case.add_expected_output<float>(ov::Shape{3}, {0.f, 2.f, 5.f});
     test_case.run();
 }
+
+// --- override_all_outputs tests ---
+// Uses split_equal_parts_default.onnx: Split(input{6}) -> output_1{2}, output_2{2}, output_3{2}
+
+// Helper: load a model with multiple outputs and return (frontend, input_model).
+static std::pair<ov::frontend::FrontEnd::Ptr, ov::frontend::InputModel::Ptr> load_split_model() {
+    const auto model_path = ov::util::path_join(
+        {ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, "split_equal_parts_default.onnx"});
+    auto frontend = ov::frontend::FrontEndManager().load_by_framework("onnx");
+    auto input_model = frontend->load(model_path);
+    return {frontend, input_model};
+}
+
+// Select a single output out of three.
+TEST(FrontEndGraphIteratorTest, override_all_outputs_select_single) {
+    if (!ov::frontend::onnx::tests::is_graph_iterator_enabled()) {
+        GTEST_SKIP() << "This test requires GraphIterator (ONNX_ITERATOR=1)";
+    }
+    auto [fe, input_model] = load_split_model();
+    ASSERT_NE(input_model, nullptr);
+
+    auto outputs = input_model->get_outputs();
+    ASSERT_EQ(outputs.size(), 3);
+
+    // Keep only output_2
+    auto out2 = input_model->get_place_by_tensor_name("output_2");
+    ASSERT_NE(out2, nullptr);
+    input_model->override_all_outputs({out2});
+
+    auto model = fe->convert(input_model);
+    ASSERT_NE(model, nullptr);
+    ASSERT_EQ(model->get_results().size(), 1);
+
+    // Split([1, 2, 3, 4, 5, 6]) -> [1,2], [3,4], [5,6]; keep only [3,4]
+    ov::test::TestCase test_case(model);
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f, 5.f, 6.f});
+    test_case.add_expected_output<float>(ov::Shape{2}, {3.f, 4.f});
+    test_case.run();
+}
+
+// Select two outputs out of three (subset).
+TEST(FrontEndGraphIteratorTest, override_all_outputs_select_subset) {
+    if (!ov::frontend::onnx::tests::is_graph_iterator_enabled()) {
+        GTEST_SKIP() << "This test requires GraphIterator (ONNX_ITERATOR=1)";
+    }
+    auto [fe, input_model] = load_split_model();
+    ASSERT_NE(input_model, nullptr);
+
+    // Keep output_1 and output_3, drop output_2
+    auto out1 = input_model->get_place_by_tensor_name("output_1");
+    auto out3 = input_model->get_place_by_tensor_name("output_3");
+    ASSERT_NE(out1, nullptr);
+    ASSERT_NE(out3, nullptr);
+    input_model->override_all_outputs({out1, out3});
+
+    auto model = fe->convert(input_model);
+    ASSERT_NE(model, nullptr);
+    ASSERT_EQ(model->get_results().size(), 2);
+
+    // Split([1,2,3,4,5,6]) -> [1,2], [3,4], [5,6]; keep [1,2] and [5,6]
+    ov::test::TestCase test_case(model);
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f, 5.f, 6.f});
+    test_case.add_expected_output<float>(ov::Shape{2}, {1.f, 2.f});
+    test_case.add_expected_output<float>(ov::Shape{2}, {5.f, 6.f});
+    test_case.run();
+}
+
+// Reverse the order of all three outputs.
+TEST(FrontEndGraphIteratorTest, override_all_outputs_reorder) {
+    if (!ov::frontend::onnx::tests::is_graph_iterator_enabled()) {
+        GTEST_SKIP() << "This test requires GraphIterator (ONNX_ITERATOR=1)";
+    }
+    auto [fe, input_model] = load_split_model();
+    ASSERT_NE(input_model, nullptr);
+
+    // Original order: output_1, output_2, output_3.  Request reversed.
+    auto out1 = input_model->get_place_by_tensor_name("output_1");
+    auto out2 = input_model->get_place_by_tensor_name("output_2");
+    auto out3 = input_model->get_place_by_tensor_name("output_3");
+    input_model->override_all_outputs({out3, out2, out1});
+
+    auto model = fe->convert(input_model);
+    ASSERT_NE(model, nullptr);
+    ASSERT_EQ(model->get_results().size(), 3);
+
+    // Verify output order by checking result output names
+    std::vector<std::string> result_names;
+    for (const auto& r : model->get_results()) {
+        result_names.push_back(r->get_input_source_output(0).get_any_name());
+    }
+    EXPECT_EQ(result_names, (std::vector<std::string>{"output_3", "output_2", "output_1"}));
+}
+
+// Passing a place from a different model should throw NotImplementedFailure.
+TEST(FrontEndGraphIteratorTest, override_all_outputs_invalid_place_throws) {
+    if (!ov::frontend::onnx::tests::is_graph_iterator_enabled()) {
+        GTEST_SKIP() << "This test requires GraphIterator (ONNX_ITERATOR=1)";
+    }
+    auto [fe, input_model] = load_split_model();
+    ASSERT_NE(input_model, nullptr);
+
+    // Load a different model and get a place from it
+    auto model_path2 = ov::util::path_join(
+        {ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, "topological_sort/reverse_chain.onnx"});
+    auto input_model2 = fe->load(model_path2);
+    auto foreign_place = input_model2->get_place_by_tensor_name("Y");
+    ASSERT_NE(foreign_place, nullptr);
+
+    EXPECT_THROW(input_model->override_all_outputs({foreign_place}), ov::frontend::GeneralFailure);
+}
+
+// Passing an empty output list should throw a general check failure.
+TEST(FrontEndGraphIteratorTest, override_all_outputs_empty_throws) {
+    if (!ov::frontend::onnx::tests::is_graph_iterator_enabled()) {
+        GTEST_SKIP() << "This test requires GraphIterator (ONNX_ITERATOR=1)";
+    }
+    auto [fe, input_model] = load_split_model();
+    ASSERT_NE(input_model, nullptr);
+
+    EXPECT_THROW(input_model->override_all_outputs({}), ov::frontend::GeneralFailure);
+}
+
+//
+//   graph {
+//     node { input: "inputA" input: "shape" output: "expandOutput_0" op_type: "Expand" }
+//     initializer { dims: 0  data_type: INT64  name: "shape" }   // no data
+//     input  { name: "inputA"        type { tensor_type { elem_type: FLOAT shape {} } } }
+//     output { name: "expandOutput_0" type { tensor_type { elem_type: FLOAT shape {} } } }
+//   }
+TEST(FrontEndGraphIteratorTest, loads_programmatic_empty_shape_initializer_graph) {
+    auto model_proto = std::make_shared<ModelProto>();
+    model_proto->set_ir_version(13);
+    model_proto->set_producer_name("OpenVINO ONNX Frontend");
+
+    auto* opset = model_proto->add_opset_import();
+    opset->set_version(25);
+
+    auto* graph = model_proto->mutable_graph();
+    graph->set_name("");
+
+    // Expand node: Expand("inputA", "shape") -> "expandOutput_0"
+    auto* node = graph->add_node();
+    node->set_name("_0");
+    node->set_op_type("Expand");
+    node->add_input("inputA");
+    node->add_input("shape");
+    node->add_output("expandOutput_0");
+
+    // Initializer: "shape" — 1-D INT64 tensor with 0 elements and NO data payload.
+    // When decoded: m_data=nullptr, m_data_location=nullptr, partial_shape={0}.
+    // This triggers the `else if (get_partial_shape() == PartialShape{0})` branch in
+    // translate_session.cpp (line 87), creating an empty Constant rather than reading data.
+    auto* init = graph->add_initializer();
+    init->set_name("shape");
+    init->set_data_type(7);  // INT64
+    init->add_dims(0);       // shape [0]: 1-D tensor with zero elements
+
+    // Input: "inputA" — float32 scalar (empty shape)
+    auto* input = graph->add_input();
+    input->set_name("inputA");
+    auto* input_type = input->mutable_type()->mutable_tensor_type();
+    input_type->set_elem_type(1);  // FLOAT
+    input_type->mutable_shape();   // empty shape → scalar
+
+    // Output: "expandOutput_0" — float32 scalar (empty shape)
+    auto* output = graph->add_output();
+    output->set_name("expandOutput_0");
+    auto* output_type = output->mutable_type()->mutable_tensor_type();
+    output_type->set_elem_type(1);  // FLOAT
+    output_type->mutable_shape();   // empty shape → scalar
+
+    auto iter = std::make_shared<ov::frontend::onnx::GraphIteratorProto>(
+        ov::frontend::onnx::GraphIteratorProtoMemoryManagementMode::External_Stream);
+    iter->initialize(model_proto);
+    iter->reset();
+
+    auto graph_iter = std::dynamic_pointer_cast<ov::frontend::onnx::GraphIterator>(iter);
+    auto frontend = ov::frontend::FrontEndManager().load_by_framework("onnx");
+    ASSERT_NE(frontend, nullptr);
+    ASSERT_TRUE(frontend->supported(graph_iter));
+
+    auto input_model = frontend->load(graph_iter);
+    ASSERT_NE(input_model, nullptr);
+
+    std::shared_ptr<ov::Model> model;
+    ASSERT_NO_THROW(model = frontend->convert(input_model));
+    ASSERT_NE(model, nullptr);
+
+    ASSERT_EQ(iter->get_mmap_cache(), nullptr);
+    ASSERT_NE(iter->get_stream_cache(), nullptr);
+    ASSERT_EQ(iter->get_stream_cache()->size(), 0);  // no external files opened
+    ASSERT_EQ(model->get_ordered_ops().size(), 4);   // Parameter, Constant(shape), Expand, Result
+    for (const auto& op : model->get_ordered_ops()) {
+        if (ov::is_type<ov::op::v0::Constant>(op)) {
+            auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(op);
+            EXPECT_EQ(const_node->get_element_type(), ov::element::i64);
+            EXPECT_EQ(const_node->get_shape(), ov::Shape{1});
+            EXPECT_EQ(const_node->get_vector<int64_t>(), std::vector<int64_t>{1});
+        }
+    }
+}

@@ -28,6 +28,7 @@ class TestRemainder(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_fx_backend
     def test_remainder(self, ie_device, precision, ir_version, input_shape_rhs):
         self.input_rhs = self.random.randn(*input_shape_rhs)
         self._test(*self.create_model(), ie_device, precision, ir_version, use_convert_model=True)

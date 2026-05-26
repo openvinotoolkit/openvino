@@ -3598,8 +3598,7 @@ TEST(eltwise_gpu_f16, fs_b_yx_fsv32_broadcast_bfyx)
     auto& engine = get_test_engine();
     bool f16_supported = engine.get_device_info().supports_fp16;
     if (!f16_supported) {
-        std::cout << "[ SKIPPED ] float16 combinations are skipped (cl_khr_fp16 is not supported)." << std::endl;
-        return;
+        GTEST_SKIP() << "float16 combinations are skipped (cl_khr_fp16 is not supported).";
     }
 
     tensor::value_type input_b = 2;

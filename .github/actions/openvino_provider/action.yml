@@ -43,7 +43,7 @@ inputs:
   pip_extra_url:
     description: 'Source URL hosting OpenVINO wheels, for passing to pip as --extra-index-url'
     required: false
-    default: 'https://storage.openvinotoolkit.org/simple/wheels'
+    default: 'https://storage.openvinotoolkit.org/simple/wheels/nightly'
 
 outputs:
   ov_artifact_name:
@@ -215,8 +215,7 @@ runs:
 
         version=${rc_version:-${dev_version:-$release_version}}
 
-        extra_index="--pre --extra-index-url ${{ inputs.pip_extra_url }}/nightly \
-          --extra-index-url ${{ inputs.pip_extra_url }}/pre-release"
+        extra_index="--pre --extra-index-url ${{ inputs.pip_extra_url }}"
 
         echo "ov_version=$version" >> $GITHUB_OUTPUT
         echo "ov_wheel_source=$extra_index" >> $GITHUB_OUTPUT

@@ -49,9 +49,9 @@ public:
 
         const auto weights_idx = 1 + 0;
         const auto& weights_layout = impl_param.input_layouts[weights_idx].convert_to_weights_layout(primitive->grouped_weights_shape);
-        uint32_t kx = weights_layout.spatial(0);
-        uint32_t ky = weights_layout.spatial(1);
-        uint32_t kz = weights_layout.spatial(2);
+        uint32_t kx = static_cast<uint32_t>(weights_layout.spatial(0));
+        uint32_t ky = static_cast<uint32_t>(weights_layout.spatial(1));
+        uint32_t kz = static_cast<uint32_t>(weights_layout.spatial(2));
 
         params.filterSize = { kx, ky, kz };
 

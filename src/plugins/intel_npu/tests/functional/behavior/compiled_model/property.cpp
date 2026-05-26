@@ -5,6 +5,7 @@
 #include "property.hpp"
 
 #include <openvino/runtime/intel_npu/properties.hpp>
+#include <openvino/util/codec_xor.hpp>
 #include <vector>
 
 #include "common/npu_test_env_cfg.hpp"
@@ -17,8 +18,11 @@ std::vector<std::pair<std::string, ov::Any>> exe_network_supported_properties = 
     {ov::hint::num_requests.name(), ov::Any(8)},
     {ov::hint::enable_cpu_pinning.name(), ov::Any(true)},
     {ov::hint::performance_mode.name(), ov::Any(ov::hint::PerformanceMode::THROUGHPUT)},
-    {ov::hint::model_priority.name(), ov::Any(ov::hint::Priority::MEDIUM)},
     {ov::optimal_number_of_infer_requests.name(), ov::Any(2)},
+};
+
+std::vector<std::pair<std::string, ov::Any>> exe_network_public_mutable_properties = {
+    {ov::cache_encryption_callbacks.name(), ov::Any(ov::EncryptionCallbacks{ov::util::codec_xor, ov::util::codec_xor})},
 };
 
 std::vector<std::pair<std::string, ov::Any>> exe_network_immutable_properties = {
@@ -50,9 +54,7 @@ std::vector<std::pair<std::string, ov::Any>> compat_plugin_internal_mutable_prop
 };
 
 std::vector<std::pair<std::string, ov::Any>> plugin_internal_mutable_properties = {
-    {ov::intel_npu::max_tiles.name(), ov::Any(8)},
-    {ov::intel_npu::stepping.name(), ov::Any(4)},
-};
+    {ov::intel_npu::stepping.name(), ov::Any(4)}};
 
 std::vector<std::pair<std::string, ov::Any>> plugin_public_immutable_properties = {
     {ov::device::uuid.name(), ov::Any("deadbeef")},
@@ -66,7 +68,7 @@ std::vector<std::pair<std::string, ov::Any>> plugin_public_immutable_properties 
     {ov::optimal_number_of_infer_requests.name(), ov::Any(4)},
     {ov::intel_npu::device_alloc_mem_size.name(), ov::Any(2)},
     {ov::intel_npu::device_total_mem_size.name(), ov::Any(2)},
-};
+    {ov::intel_npu::max_tiles.name(), ov::Any(9999)}};
 
 std::vector<std::pair<std::string, ov::Any>> invalid_device_ids = {
     {ov::device::id.name(), "NPU.1"},
@@ -131,6 +133,12 @@ INSTANTIATE_TEST_SUITE_P(
                                                                                  ov::Any("THISCONFIGVALUENOTEXIST"))})),
     ClassPluginPropertiesTestSuite4NPU::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_ClassExecutableNetworkSetPropertiesTestNPU,
+                         ClassPluginPropertiesTestSuite5NPU,
+                         ::testing::Combine(::testing::Values(ov::test::utils::getDeviceName()),
+                                            ::testing::ValuesIn(exe_network_public_mutable_properties)),
+                         ClassPluginPropertiesTestSuite5NPU::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_ClassExecutableNetworkInvalidDeviceIDTestNPU,
                          ClassExecutableNetworkInvalidDeviceIDTestSuite,
                          ::testing::Combine(::testing::Values(ov::test::utils::getDeviceName()),
@@ -152,5 +160,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_CheckCompilerType,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(valid_device_ids)),
                          CheckCompilerTypeProperty::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_CheckCompilerVersion,
+                         CheckCompilerVersionProperty,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(valid_device_ids)),
+                         CheckCompilerVersionProperty::getTestCaseName);
 
 }  // namespace

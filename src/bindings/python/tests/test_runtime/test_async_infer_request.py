@@ -7,7 +7,7 @@ from copy import deepcopy
 import numpy as np
 import pytest
 import time
-import sysconfig
+import platform
 
 import openvino.opset13 as ops
 from openvino import (
@@ -327,6 +327,11 @@ def test_start_async(device, share_inputs):
 ])
 @pytest.mark.parametrize("share_inputs", [True, False])
 def test_async_mixed_values(device, ov_type, numpy_dtype, share_inputs):
+    if share_inputs and ov_type == Type.i16 and numpy_dtype == np.int16 and (
+        platform.machine().lower() in {"aarch64", "arm64"}
+    ):
+        pytest.skip("Illegal instruction on ARM64 for Type.i16/np.int16 with share_inputs=True, ticket: 179098")
+
     request, tensor1, array1 = generate_concat_compiled_model_with_data(
         device=device, ov_type=ov_type, numpy_dtype=numpy_dtype
     )

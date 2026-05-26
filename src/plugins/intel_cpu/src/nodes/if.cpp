@@ -67,9 +67,8 @@ void If::PortMapHelper::redefineTo() {
             // Only the shape is updated, the memory type remains unchanged
             dstMemPtrs[j]->redefineDesc(originalDstMemDescs[j]->cloneWithNewDims(newShape));
         }
-
-        size = srcMemPtr->getShape().getElementsCount();
     }
+    size = srcMemPtr->getShape().getElementsCount();
 }
 
 bool If::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
@@ -256,7 +255,7 @@ std::deque<MemoryPtr> If::getToMemories(const Node* node, const size_t port) {
 }
 
 void If::execute(const dnnl::stream& strm) {
-    const auto condition = static_cast<const bool>((getSrcDataAtPortAs<const uint8_t>(0))[0]);
+    const auto condition = static_cast<bool>((getSrcDataAtPortAs<const uint8_t>(0))[0]);
 
     auto& beforeMappers = condition ? beforeThenMappers : beforeElseMappers;
     auto& afterMappers = condition ? afterThenMappers : afterElseMappers;

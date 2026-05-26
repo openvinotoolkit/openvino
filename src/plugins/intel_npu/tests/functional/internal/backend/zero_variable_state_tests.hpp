@@ -24,6 +24,7 @@
 #include "intel_npu/utils/zero/zero_host_tensor.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
+#include "intel_npu/utils/zero/zero_tensor.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/runtime/core.hpp"
@@ -31,7 +32,6 @@
 #include "remote_context.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "zero_backend.hpp"
-#include "zero_tensor.hpp"
 #include "zero_variable_state.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
@@ -50,8 +50,6 @@ protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     ov::AnyMap configuration;
     std::shared_ptr<::intel_npu::ZeroInitStructsHolder> init_struct;
-    std::shared_ptr<::intel_npu::OptionsDesc> options = std::make_shared<::intel_npu::OptionsDesc>();
-    ::intel_npu::Config npu_config = ::intel_npu::Config(options);
 
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<CompilationParams>& obj) {
@@ -96,9 +94,8 @@ TEST_P(ZeroVariableStateTests, CreateZeroStateAndCheckAgainstZeroTensorState) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     auto shape = Shape{1, 2, 2, 2};
-    auto zero_tensor = std::make_shared<::intel_npu::ZeroTensor>(init_struct, npu_config, element::f32, shape, true);
-    auto zero_state =
-        std::make_shared<::intel_npu::ZeroVariableState>(init_struct, "state", zero_tensor, 1, 1, npu_config);
+    auto zero_tensor = std::make_shared<::intel_npu::ZeroTensor>(init_struct, element::f32, shape, true);
+    auto zero_state = std::make_shared<::intel_npu::ZeroVariableState>(init_struct, "state", zero_tensor, 1, 1);
     ASSERT_TRUE(::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(),
                                                                             zero_state->get_state()->data()));
 
@@ -121,13 +118,12 @@ TEST_P(ZeroVariableStateTests, CreateZeroStateAndUseSetStateWithZeroTensor) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     auto shape = Shape{1, 2, 2, 2};
-    auto zero_tensor0 = std::make_shared<::intel_npu::ZeroTensor>(init_struct, npu_config, element::f32, shape, true);
-    auto zero_state =
-        std::make_shared<::intel_npu::ZeroVariableState>(init_struct, "state", zero_tensor0, 1, 1, npu_config);
+    auto zero_tensor0 = std::make_shared<::intel_npu::ZeroTensor>(init_struct, element::f32, shape, true);
+    auto zero_state = std::make_shared<::intel_npu::ZeroVariableState>(init_struct, "state", zero_tensor0, 1, 1);
     ASSERT_TRUE(::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(),
                                                                             zero_state->get_state()->data()));
 
-    auto zero_tensor1 = std::make_shared<::intel_npu::ZeroTensor>(init_struct, npu_config, element::f32, shape, true);
+    auto zero_tensor1 = std::make_shared<::intel_npu::ZeroTensor>(init_struct, element::f32, shape, true);
     zero_state->set_state(zero_tensor1);
     ASSERT_TRUE(::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(),
                                                                             zero_state->get_state()->data()));
@@ -156,9 +152,8 @@ TEST_P(ZeroVariableStateTests, CreateZeroStateAndUseSetStateWithNormalTensor) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     auto shape = Shape{1, 2, 2, 2};
-    auto zero_tensor = std::make_shared<::intel_npu::ZeroTensor>(init_struct, npu_config, element::f32, shape, true);
-    auto zero_state =
-        std::make_shared<::intel_npu::ZeroVariableState>(init_struct, "state", zero_tensor, 1, 1, npu_config);
+    auto zero_tensor = std::make_shared<::intel_npu::ZeroTensor>(init_struct, element::f32, shape, true);
+    auto zero_state = std::make_shared<::intel_npu::ZeroVariableState>(init_struct, "state", zero_tensor, 1, 1);
     ASSERT_TRUE(::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(),
                                                                             zero_state->get_user_state()->data()));
 
@@ -198,9 +193,8 @@ TEST_P(ZeroVariableStateTests, CreateZeroStateAndUseSetStateWithNormalTensorAfte
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     auto shape = Shape{1, 2, 2, 2};
-    auto zero_tensor = std::make_shared<::intel_npu::ZeroTensor>(init_struct, npu_config, element::f32, shape, true);
-    auto zero_state =
-        std::make_shared<::intel_npu::ZeroVariableState>(init_struct, "state", zero_tensor, 1, 1, npu_config);
+    auto zero_tensor = std::make_shared<::intel_npu::ZeroTensor>(init_struct, element::f32, shape, true);
+    auto zero_state = std::make_shared<::intel_npu::ZeroVariableState>(init_struct, "state", zero_tensor, 1, 1);
     ASSERT_TRUE(::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(),
                                                                             zero_state->get_state()->data()));
 
@@ -243,9 +237,8 @@ TEST_P(ZeroVariableStateTests, CreateZeroStateAndUseSetStateWithHostTensor) {
     auto zero_context = std::make_shared<::intel_npu::RemoteContextImpl>(engine_backend);
     auto shape = Shape{1, 2, 2, 2};
 
-    auto zero_tensor = std::make_shared<::intel_npu::ZeroTensor>(init_struct, npu_config, element::f32, shape, true);
-    auto zero_state =
-        std::make_shared<::intel_npu::ZeroVariableState>(init_struct, "state", zero_tensor, 1, 1, npu_config);
+    auto zero_tensor = std::make_shared<::intel_npu::ZeroTensor>(init_struct, element::f32, shape, true);
+    auto zero_state = std::make_shared<::intel_npu::ZeroVariableState>(init_struct, "state", zero_tensor, 1, 1);
 
     // shape size is unaligned to standard page size, expect to fail
     auto host_tensor =
@@ -284,9 +277,8 @@ TEST_P(ZeroVariableStateTests, CreateZeroStateAndUseSetStateWithRemoteTensor) {
     auto zero_context = std::make_shared<::intel_npu::RemoteContextImpl>(engine_backend);
     auto shape = Shape{1, 2, 2, 2};
 
-    auto zero_tensor = std::make_shared<::intel_npu::ZeroTensor>(init_struct, npu_config, element::f32, shape, true);
-    auto zero_state =
-        std::make_shared<::intel_npu::ZeroVariableState>(init_struct, "state", zero_tensor, 1, 1, npu_config);
+    auto zero_tensor = std::make_shared<::intel_npu::ZeroTensor>(init_struct, element::f32, shape, true);
+    auto zero_state = std::make_shared<::intel_npu::ZeroVariableState>(init_struct, "state", zero_tensor, 1, 1);
 
     // shape size is unaligned to standard page size, expect to fail
     auto remote_tensor =

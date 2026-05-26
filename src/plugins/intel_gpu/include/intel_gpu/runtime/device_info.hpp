@@ -34,6 +34,7 @@ enum class gpu_arch {
     xe_hpc = 6,
     xe2 = 7,
     xe3 = 8,
+    xe3p = 9,
 };
 
 /// @brief Defines version of GFX IP
