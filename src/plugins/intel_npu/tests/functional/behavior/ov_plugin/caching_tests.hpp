@@ -46,6 +46,20 @@ TEST_P(OVCompileModelLoadFromFileTestBaseNPU, BlobWithOVHeaderAligmentCanBeImpor
                 ::testing::HasSubstr("getGraphDescriptor - set ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT"));
 }
 
+using OVCompileModelLoadFromFileTestBaseWithEncryptionNPU = OVCompileModelLoadFromFileTestBaseNPU;
+
+TEST_P(OVCompileModelLoadFromFileTestBaseWithEncryptionNPU, EncryptionCallbacksForOlderDriverThrows) {
+    core->set_property(ov::cache_dir(m_cacheFolderName));
+    if (::intel_npu::ZeroInitStructsHolder::getInstance()->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 17)) {
+        OV_EXPECT_THROW(core->compile_model(m_modelName, targetDevice, configuration),
+                        ov::Exception,
+                        testing::HasSubstr(
+                            "Secure compilation was requested, but the current driver version does not support it."));
+    } else {
+        OV_ASSERT_NO_THROW(core->compile_model(m_modelName, targetDevice, configuration));
+    }
+}
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
