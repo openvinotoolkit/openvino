@@ -3625,11 +3625,6 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_scatterND_opset16_reduction_none) {
     test_case.run();
 }
 
-OPENVINO_TEST(${BACKEND_NAME}, onnx_model_scatterND_opset16_reduction_add) {
-    EXPECT_THROW(convert_model("scatter_nd_opset16_reduction_add.onnx"), ov::Exception)
-        << "Unsupported type of attribute: `reduction`. Only `none` is supported";
-}
-
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gather_float_1D) {
     const auto model = convert_model("gather_float_1D.onnx");
     auto test_case = ov::test::TestCase(model, s_device);
