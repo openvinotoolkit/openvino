@@ -283,8 +283,7 @@ void ZeroDynamicInferRequest::predict_shapes(std::vector<MemRefType>& outputProp
     }
 }
 
-void ZeroDynamicInferRequest::check_tensor_and_predicted_shapes(
-    const std::vector<MemRefType>& outputProps) {
+void ZeroDynamicInferRequest::check_tensor_and_predicted_shapes(const std::vector<MemRefType>& outputProps) {
     if (outputProps.empty()) {
         _logger.debug("check_tensor_and_predicted_shapes - no output props to check, skip check");
         return;

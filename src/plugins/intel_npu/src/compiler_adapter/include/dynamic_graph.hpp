@@ -28,7 +28,7 @@ public:
         virtual void initialize(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata) = 0;
         virtual uint64_t getNumSubgraphs() = 0;
         virtual npu_vm_runtime_handle_t getVmRuntimeHandle() const = 0;
-        virtual ~Impl() {};
+        virtual ~Impl(){};
     };
 
     DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
