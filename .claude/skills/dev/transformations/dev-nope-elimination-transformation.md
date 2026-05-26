@@ -32,11 +32,12 @@ Create or update a transformation that locates specified node types or patterns 
 7. Add explicit checks to skip the transformation when any precondition fails.
 8. Add unit tests to verify graph rewriting (match count, replaced nodes, and structural properties).
 9. Add functional tests to verify inference matches baseline outputs.
-10. Document edge cases and why they are skipped (if applicable). Provide a simple examples in the transformation description
+10. Document edge cases and why they are skipped (if applicable). Provide a simple examples in the transformation description.
+12. Prefer parameterized tests (`TEST_P`) when several cases share the same graph structure.
 
 ## Implementation Notes
 - Use `ov::replace_node` and `ov::copy_runtime_info` to preserve metadata.
-- The callback function should be defined directly inside the transformation..
+- The callback function should be defined directly inside the transformation.
 - Keep changes minimal and avoid duplicating logic from existing utilities. Use existing helper functions, extend them, or create new ones for common helpers (src/common/transformations/src/transformations/utils). Keep transformation-specific helpers within the transformation (Prefer using lambda functions).
 - If removing nodes, ensure output consumers are redirected safely.
 - If replacing, keep output element types and shapes consistent.
