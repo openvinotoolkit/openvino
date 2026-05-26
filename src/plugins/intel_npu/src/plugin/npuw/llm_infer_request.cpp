@@ -903,14 +903,17 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         // Constraint: only valid when the chunk is block-aligned (current_prompts_len % block_size == 0).
         // Prefill uses left-padding, so a non-aligned chunk would write padding data into the block.
         // In that case we restore the original output buffers and fall back to the copy path.
+        bool zero_copy_prefill = false;
         if (m_block_kvcache_ext.is_enabled()) {
-            uint32_t block_size = m_block_kvcache_ext.get_block_size();
+            const uint32_t block_size = m_block_kvcache_ext.get_block_size();
             if (current_prompts_len % block_size == 0) {
                 // Zero-copy path: redirect outputs directly to new blocks before infer()
-                m_block_kvcache_ext.redirect_prefill_outputs_to_new_blocks(m_prefill_request,
-                                                                           m_prefill_out_ports,
-                                                                           static_cast<uint32_t>(current_prompts_len));
-            } else {
+                zero_copy_prefill = m_block_kvcache_ext.redirect_prefill_outputs_to_new_blocks(
+                    m_prefill_request,
+                    m_prefill_out_ports,
+                    static_cast<uint32_t>(current_prompts_len));
+            }
+            if (!zero_copy_prefill) {
                 LOG_DEBUG("Chunk not block-aligned (" << current_prompts_len << " % " << block_size
                                                       << " != 0), falling back to copy path");
                 // CRITICAL: restore original output buffers so the model does not write into
@@ -941,14 +944,14 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
 
         // Update KV cache blocks after inference
         if (m_block_kvcache_ext.is_enabled()) {
-            if (m_block_kvcache_ext.prefill_outputs_redirected()) {
+            if (zero_copy_prefill) {
                 // Zero-copy path: model wrote KV cache directly into blocks during infer().
                 // redirect_prefill_outputs_to_new_blocks() already pre-allocated blocks,
                 // redirected output tensors, and updated block metadata — nothing left to do.
                 LOG_DEBUG("Zero-copy prefill complete - no post-inference work needed");
             } else {
                 // Copy path: copy from the model's output buffer into blocks.
-                uint32_t kv_position_before = kvcache_desc.num_stored_tokens;
+                const uint32_t kv_position_before = kvcache_desc.num_stored_tokens;
                 m_block_kvcache_ext.copy_prefill_outputs_to_blocks(m_prefill_request,
                                                                    m_prefill_out_ports,
                                                                    static_cast<uint32_t>(current_prompts_len),
@@ -971,10 +974,10 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             // Copy calculated key/values chunk from present k/v layer to past k/v layer for storage
             if (!m_block_kvcache_ext.is_enabled()) {
                 update_kvcache_for(m_prefill_request,
-                               m_prefill_in_ports,
-                               m_prefill_out_ports,
-                               static_cast<uint32_t>(current_prompts_len),
-                               kvcache_desc.v_tensors_transposed_pre);
+                                   m_prefill_in_ports,
+                                   m_prefill_out_ports,
+                                   static_cast<uint32_t>(current_prompts_len),
+                                   kvcache_desc.v_tensors_transposed_pre);
             }
 
             copy_lincache(m_prefill_request, m_prefill_request, m_prefill_out_ports, m_prefill_in_ports);
@@ -1145,9 +1148,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                 } else {
                     // For block mode, perform initial binding of blocks to model inputs
                     // This establishes zero-copy binding for numbered blocks and copies tail blocks
-                    m_block_kvcache_ext.init_generate_kv_block_bindings(m_kvcache_request,
-                                                                        m_kvcache_in_ports,
-                                                                        kvcache_desc.num_stored_tokens);
+                    m_block_kvcache_ext.init_generate_kv_block_bindings(m_kvcache_request);
                 }
                 copy_lincache(m_prefill_request, m_kvcache_request, m_prefill_out_ports, m_kvcache_in_ports);
             }
@@ -1236,17 +1237,16 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
             if (kvcache_desc.num_stored_tokens < kvcache_desc.total_size) {
                 if (m_block_kvcache_ext.is_enabled()) {
                     m_block_kvcache_ext.commit_generate_kv_and_rebind(tokens_before_infer,
-                                                                    kvcache_desc.num_stored_tokens,
-                                                                    input_tokens_len,
-                                                                    m_kvcache_request,
-                                                                    m_kvcache_out_ports,
-                                                                    m_kvcache_in_ports);
+                                                                      kvcache_desc.num_stored_tokens,
+                                                                      input_tokens_len,
+                                                                      m_kvcache_request,
+                                                                      m_kvcache_out_ports);
                 } else {
                     update_kvcache_for(m_kvcache_request,
-                                   m_kvcache_in_ports,
-                                   m_kvcache_out_ports,
-                                   input_tokens_len,
-                                   kvcache_desc.v_tensors_transposed_gen);
+                                       m_kvcache_in_ports,
+                                       m_kvcache_out_ports,
+                                       input_tokens_len,
+                                       kvcache_desc.v_tensors_transposed_gen);
                 }
             }
         });
@@ -1264,17 +1264,16 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
             if (kvcache_desc.num_stored_tokens < kvcache_desc.total_size) {
                 if (m_block_kvcache_ext.is_enabled()) {
                     m_block_kvcache_ext.commit_generate_kv_and_rebind(tokens_before_infer,
-                                                                    kvcache_desc.num_stored_tokens,
-                                                                    input_tokens_len,
-                                                                    m_kvcache_request,
-                                                                    m_kvcache_out_ports,
-                                                                    m_kvcache_in_ports);
+                                                                      kvcache_desc.num_stored_tokens,
+                                                                      input_tokens_len,
+                                                                      m_kvcache_request,
+                                                                      m_kvcache_out_ports);
                 } else {
                     update_kvcache_for(m_kvcache_request,
-                                   m_kvcache_in_ports,
-                                   m_kvcache_out_ports,
-                                   input_tokens_len,
-                                   kvcache_desc.v_tensors_transposed_gen);
+                                       m_kvcache_in_ports,
+                                       m_kvcache_out_ports,
+                                       input_tokens_len,
+                                       kvcache_desc.v_tensors_transposed_gen);
                 }
             }
         });

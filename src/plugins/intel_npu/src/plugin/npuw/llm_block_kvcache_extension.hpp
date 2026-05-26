@@ -83,12 +83,6 @@ public:
     // Reuse the PortsMap type alias from the base class for consistency
     using PortsMap = std::unordered_map<std::string, ov::Output<const ov::Node>>;
 
-    // Pre-computed binding helpers for one layer (key + value)
-    struct LayerBlockBindingHelpers {
-        BlockBindingHelper key_helper;
-        BlockBindingHelper value_helper;
-    };
-
     BlockKVCacheExtension() = default;
 
     // -------------------------------------------------------------------------
@@ -117,10 +111,6 @@ public:
 
     bool is_enabled() const {
         return m_enabled;
-    }
-
-    bool is_empty() const {
-        return m_kv_cache_block_managers.empty();
     }
 
     uint32_t get_block_size() const;
@@ -156,13 +146,10 @@ public:
      * @return true if redirect was applied (block-aligned); call restore_prefill_output_buffers()
      *         before inference when this returns false.
      */
-    bool redirect_prefill_outputs_to_new_blocks(const std::shared_ptr<ov::IAsyncInferRequest>& prefill_request,
-                                                const PortsMap& prefill_out_ports,
-                                                uint32_t num_new_tokens);
-
-    bool prefill_outputs_redirected() const {
-        return m_prefill_outputs_redirected;
-    }
+    [[nodiscard]] bool redirect_prefill_outputs_to_new_blocks(
+        const std::shared_ptr<ov::IAsyncInferRequest>& prefill_request,
+        const PortsMap& prefill_out_ports,
+        uint32_t num_new_tokens);
 
     /**
      * @brief Restore original output buffers when zero-copy cannot be used.
@@ -182,11 +169,8 @@ public:
      * Called once per conversation when m_generate_initialized is false.
      * Numbered blocks get zero-copy binding; tail blocks are copied in.
      *
-     * @param num_stored_tokens Total tokens in KV cache at call time.
      */
-    void init_generate_kv_block_bindings(const std::shared_ptr<ov::IAsyncInferRequest>& kvcache_request,
-                                         const PortsMap& kvcache_in_ports,
-                                         uint32_t num_stored_tokens);
+    void init_generate_kv_block_bindings(const std::shared_ptr<ov::IAsyncInferRequest>& kvcache_request);
 
     /**
      * @brief Copy prefill outputs into blocks after inference (zero-copy fallback).
@@ -219,8 +203,7 @@ public:
                                        uint32_t new_num_tokens,
                                        uint32_t input_tokens_len,
                                        const std::shared_ptr<ov::IAsyncInferRequest>& kvcache_request,
-                                       const PortsMap& kvcache_out_ports,
-                                       const PortsMap& kvcache_in_ports);
+                                       const PortsMap& kvcache_out_ports);
 
 private:
     // -------------------------------------------------------------------------
@@ -242,6 +225,12 @@ private:
 
     // layer_idx → {key_block_names, value_block_names}
     using LayerBlockNames = std::unordered_map<uint32_t, std::pair<std::vector<std::string>, std::vector<std::string>>>;
+
+    // Pre-computed binding helpers for one layer (key + value)
+    struct LayerBlockBindingHelpers {
+        BlockBindingHelper key_helper;
+        BlockBindingHelper value_helper;
+    };
 
     // Pre-computed classification for each KV output port (e.g. "present.0.key").
     // Built once in initialize(); used by copy_outputs_to_blocks() to avoid per-call regex.
@@ -281,8 +270,7 @@ private:
     // Re-bind model inputs after a generate step (called by commit_generate_kv_and_rebind).
     void update_generate_bindings(uint32_t old_num_tokens,
                                   uint32_t new_num_tokens,
-                                  const std::shared_ptr<ov::IAsyncInferRequest>& kvcache_request,
-                                  const PortsMap& kvcache_in_ports);
+                                  const std::shared_ptr<ov::IAsyncInferRequest>& kvcache_request);
 
     // -------------------------------------------------------------------------
     // State
@@ -304,7 +292,6 @@ private:
 
     // Zero-copy prefill output state
     std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> m_prefill_original_output_tensors;
-    bool m_prefill_outputs_redirected = false;
 };
 
 }  // namespace npuw
