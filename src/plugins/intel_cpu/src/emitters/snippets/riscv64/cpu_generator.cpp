@@ -45,7 +45,6 @@
 #include "openvino/op/hsigmoid.hpp"
 #include "openvino/op/hswish.hpp"
 #include "openvino/op/swish.hpp"
-#include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "openvino/op/is_finite.hpp"
 #include "openvino/op/is_inf.hpp"
 #include "openvino/op/is_nan.hpp"
