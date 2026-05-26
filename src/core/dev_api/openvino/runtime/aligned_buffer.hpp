@@ -22,11 +22,6 @@ public:
     virtual ~IBufferDescriptor();
 };
 
-/**
- * \brief Default alignemnt for buffers.
- */
-constexpr size_t default_alignment = 64;
-
 /// \brief Allocates a block of memory on the specified alignment. The actual size of the
 /// allocated memory is larger than the requested size by the alignment, so allocating 1
 /// byte
@@ -36,7 +31,7 @@ public:
     // Allocator objects and the allocation interfaces are owned by the
     // creators of AlignedBuffers. They need to ensure that the lifetime of
     // allocator exceeds the lifetime of this AlignedBuffer.
-    AlignedBuffer(size_t byte_size, size_t alignment = default_alignment);
+    AlignedBuffer(size_t byte_size, size_t alignment = 64);
 
     AlignedBuffer();
     virtual ~AlignedBuffer();

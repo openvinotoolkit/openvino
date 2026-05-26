@@ -66,7 +66,5 @@ private:
 
     mutable std::atomic<bool> m_loaded{false};
     mutable std::mutex m_loading;
-
-    std::unique_ptr<util::ReservableBuffer> m_buffer;
 };
 }  // namespace ov

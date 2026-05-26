@@ -13,42 +13,38 @@
 #include <tuple>
 
 namespace ov::util {
-ReservableBuffer::ReservableBuffer(size_t byte_size)
-    : m_reserved_size{byte_size},
-      m_reserved_buffer{MAP_FAILED},
-      m_last_error{} {
-    if (byte_size == 0) {
-        throw std::runtime_error("Zero size buffer makes no sense");
+void* reserve_buffer(size_t size, std::string* error) noexcept {
+    const auto p = mmap(nullptr, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (p == MAP_FAILED) {
+        if (error) {
+            *error = std::string{"mmap failed, err: "} + std::strerror(errno);
+        }
+        return nullptr;
     }
-    m_reserved_buffer = mmap(nullptr, m_reserved_size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    if (m_reserved_buffer == MAP_FAILED) {
-        throw std::runtime_error(std::string{"mmap failed, err: "} + std::strerror(errno));
-    }
+    return p;
 }
 
-ReservableBuffer::~ReservableBuffer() {
-    std::ignore = munmap(m_reserved_buffer, m_reserved_size);
-}
-
-bool ReservableBuffer::acquire() {
-    m_last_error.clear();
-    if (mprotect(m_reserved_buffer, m_reserved_size, PROT_READ | PROT_WRITE) == -1) {
-        m_last_error = std::string{"mprotect failed, err: "} + std::strerror(errno);
-        return false;
-    }
-    return true;
-}
-
-void ReservableBuffer::evict(size_t offset, size_t size) noexcept {
-    m_last_error.clear();
-    if (offset == 0 && size >= m_reserved_size) {
-        if (mprotect(m_reserved_buffer, m_reserved_size, PROT_NONE) == -1) {
-            m_last_error = std::string{"mprotect failed, err: "} + std::strerror(errno);
+void acquire_buffer(void* reserved_buffer, size_t size, std::string* error) noexcept {
+    if (mprotect(reserved_buffer, size, PROT_READ | PROT_WRITE) == -1) {
+        if (error) {
+            *error = std::string{"mprotect failed, err: "} + std::strerror(errno);
         }
     }
 }
 
-std::string_view ReservableBuffer::last_error() const noexcept {
-    return m_last_error;
+void evict_buffer(void* reserved_buffer, size_t size, std::string* error) noexcept {
+    if (mprotect(reserved_buffer, size, PROT_NONE) == -1) {
+        if (error) {
+            *error = std::string{"mprotect failed, err: "} + std::strerror(errno);
+        }
+    }
+}
+
+void release_buffer(void* reserved_buffer, size_t byte_size, std::string* error) noexcept {
+    if (munmap(reserved_buffer, byte_size) == -1) {
+        if (error) {
+            *error = std::string{"munmap failed, err: "} + std::strerror(errno);
+        }
+    }
 }
 }  // namespace ov::util

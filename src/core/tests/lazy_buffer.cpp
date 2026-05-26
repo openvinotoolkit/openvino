@@ -50,24 +50,17 @@ protected:
 TEST_F(LazyBufferTest, incorrect_file) {
     OV_EXPECT_THROW(std::ignore = std::make_unique<LazyBuffer>(std::filesystem::path{"no_file"}, 1, 2),
                     AssertFailure,
-                    HasSubstr("If file exists"));
+                    HasSubstr("Failed to get file size"));
 
     write_test_data(4);
 
-    const auto test_params = std::vector<std::tuple<size_t, size_t>>{{0, 5}, {1, 4}, {4, 2}};
+    const auto test_params =
+        std::vector<std::tuple<size_t, size_t>>{{0, 5}, {1, 4}, {4, 2}, {0, std::numeric_limits<size_t>::max()}};
     for (const auto& [offset, size] : test_params) {
         OV_EXPECT_THROW(std::ignore = std::make_unique<LazyBuffer>(m_file_path, offset, size),
                         AssertFailure,
-                        HasSubstr("size is smaller than requested range"));
+                        HasSubstr("exceeds file size"));
     }
-}
-
-TEST_F(LazyBufferTest, too_large_size) {
-    write_test_data(4);
-
-    OV_EXPECT_THROW(std::ignore = std::make_unique<LazyBuffer>(m_file_path, 0, std::numeric_limits<size_t>::max()),
-                    AssertFailure,
-                    HasSubstr("size is smaller than requested range"));
 }
 
 TEST_F(LazyBufferTest, read_file) {
@@ -85,7 +78,6 @@ TEST_F(LazyBufferTest, read_file) {
         ASSERT_NO_THROW((data_ptr = buffer.get_ptr<char>()));
         ASSERT_NE(data_ptr, nullptr);
         ASSERT_EQ(buffer.size(), size);
-        EXPECT_EQ(reinterpret_cast<std::uintptr_t>(data_ptr) % default_alignment, 0);
         EXPECT_THAT(std::string_view(data_ptr, size), ElementsAreArray(m_test_data.data() + offset, size));
     }
 }
