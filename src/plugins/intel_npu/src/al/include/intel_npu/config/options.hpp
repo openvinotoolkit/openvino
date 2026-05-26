@@ -687,7 +687,11 @@ struct NUM_STREAMS final : OptionBase<NUM_STREAMS, ov::streams::Num> {
     }
 };
 
-struct ENABLE_CPU_PINNING final : OptionBase<ENABLE_CPU_PINNING, bool> {
+struct OPENVINO_DEPRECATED("This property is deprecated and has no effect on the NPU Plugin. It will be removed in "
+                           "the OpenVINO 2027.0 release.") ENABLE_CPU_PINNING final OPENVINO_SUPPRESS_DEPRECATED_START
+    : OptionBase<ENABLE_CPU_PINNING, bool> {
+    OPENVINO_SUPPRESS_DEPRECATED_END
+
     static std::string_view key() {
         return ov::hint::enable_cpu_pinning.name();
     }
@@ -696,9 +700,6 @@ struct ENABLE_CPU_PINNING final : OptionBase<ENABLE_CPU_PINNING, bool> {
         return false;
     }
 
-    // Keep this option type non-deprecated to avoid compile-time deprecation diagnostics
-    // in plugin registration code paths. The deprecation is NPU-plugin-specific and is
-    // communicated through runtime warnings and docs.
     static constexpr const char* deprecationMessage() {
         return "The \"ENABLE_CPU_PINNING\" property is deprecated and has no effect on the NPU Plugin. It will "
                "be removed in the OpenVINO 2027.0 release.";
