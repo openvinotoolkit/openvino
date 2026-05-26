@@ -15,6 +15,7 @@ VCLApi::VCLApi(const std::string& custom_path) : _logger("VCLApi", Logger::globa
 
     try {
         const auto libpath = ov::util::make_plugin_library_name(std::filesystem::path(custom_path), baseName);
+        _logger.debug("Try to load: %s", ov::util::path_to_string(libpath).c_str());
         this->lib = ov::util::load_shared_object(libpath);
     } catch (const std::runtime_error& error) {
         _logger.debug("Failed to load %s: %s", baseName, error.what());
