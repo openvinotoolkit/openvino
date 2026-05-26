@@ -2359,6 +2359,57 @@ TEST_F(TransformationTestsF, EliminateConcatStridedSliceNonUnitStrides) {
     }
 }
 
+TEST_F(TransformationTestsF, EliminateConcatStridedSliceEmptyMaskNonAxisAligned) {
+    {
+        int64_t axis = 2;
+        auto param1 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 3});
+        auto param2 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 3});
+        auto concat = make_shared<v0::Concat>(ov::as_output_vector({param1, param2}), axis);
+
+        // Empty begin_mask/end_mask — slice1 has begin[1]=1 so it is NOT axis-aligned along concat_axis=2.
+        std::vector<int64_t> empty_mask{};
+        auto begin1 = v0::Constant::create(element::i64, Shape{3}, {0, 1, 0});
+        auto end1 = v0::Constant::create(element::i64, Shape{3}, {2, 10, 3});
+        auto strides1 = v0::Constant::create(element::i64, Shape{3}, {1, 1, 1});
+        auto slice1 = std::make_shared<v1::StridedSlice>(concat, begin1, end1, strides1, empty_mask, empty_mask);
+        auto relu1 = std::make_shared<op::v0::Relu>(slice1);
+        auto result1 = std::make_shared<op::v0::Result>(relu1);
+
+        auto begin2 = v0::Constant::create(element::i64, Shape{3}, {0, 0, 3});
+        auto end2 = v0::Constant::create(element::i64, Shape{3}, {2, 10, 6});
+        auto strides2 = v0::Constant::create(element::i64, Shape{3}, {1, 1, 1});
+        auto slice2 = std::make_shared<v1::StridedSlice>(concat, begin2, end2, strides2, empty_mask, empty_mask);
+        auto relu2 = std::make_shared<op::v0::Relu>(slice2);
+        auto result2 = std::make_shared<op::v0::Result>(relu2);
+
+        model = std::make_shared<ov::Model>(ResultVector{result1, result2}, ParameterVector{param1, param2});
+        manager.register_pass<ov::pass::EliminateConcatStridedSlice>();
+    }
+    {
+        int64_t axis = 2;
+        auto param1 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 3});
+        auto param2 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 3});
+        auto concat = make_shared<v0::Concat>(ov::as_output_vector({param1, param2}), axis);
+
+        std::vector<int64_t> empty_mask{};
+        auto begin1 = v0::Constant::create(element::i64, Shape{3}, {0, 1, 0});
+        auto end1 = v0::Constant::create(element::i64, Shape{3}, {2, 10, 3});
+        auto strides1 = v0::Constant::create(element::i64, Shape{3}, {1, 1, 1});
+        auto slice1 = std::make_shared<v1::StridedSlice>(concat, begin1, end1, strides1, empty_mask, empty_mask);
+        auto relu1 = std::make_shared<op::v0::Relu>(slice1);
+        auto result1 = std::make_shared<op::v0::Result>(relu1);
+
+        auto begin2 = v0::Constant::create(element::i64, Shape{3}, {0, 0, 3});
+        auto end2 = v0::Constant::create(element::i64, Shape{3}, {2, 10, 6});
+        auto strides2 = v0::Constant::create(element::i64, Shape{3}, {1, 1, 1});
+        auto slice2 = std::make_shared<v1::StridedSlice>(concat, begin2, end2, strides2, empty_mask, empty_mask);
+        auto relu2 = std::make_shared<op::v0::Relu>(slice2);
+        auto result2 = std::make_shared<op::v0::Result>(relu2);
+
+        model_ref = std::make_shared<ov::Model>(ResultVector{result1, result2}, ParameterVector{param1, param2});
+    }
+}
+
 TEST_F(TransformationTestsF, EliminateConcatStridedSliceWithAxesV8Slice) {
     {
         int64_t axis = 1;

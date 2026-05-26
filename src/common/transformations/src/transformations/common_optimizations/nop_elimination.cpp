@@ -614,6 +614,28 @@ bool extract_slice_range_along_axis(const std::shared_ptr<ov::Node>& user,
         if (begin_values.size() <= axis_idx || end_values.size() <= axis_idx)
             return false;
 
+        // Empty/short begin_mask|end_mask means explicit begin/end is used on those axes.
+        // On every non-concat axis with active begin/end the slice must cover the full
+        // dimension — analog of the v8::Slice non-concat-axis guard below.
+        const auto& begin_mask = strided_slice_node->get_begin_mask();
+        const auto& end_mask = strided_slice_node->get_end_mask();
+        const auto rank = static_cast<int64_t>(concat_shape.size());
+        for (int64_t ax = 0; ax < rank; ++ax) {
+            if (ax == concat_axis)
+                continue;
+            const bool begin_used = static_cast<size_t>(ax) >= begin_mask.size() || begin_mask[ax] == 0;
+            const bool end_used = static_cast<size_t>(ax) >= end_mask.size() || end_mask[ax] == 0;
+            if (begin_used) {
+                if (static_cast<size_t>(ax) >= begin_values.size() || begin_values[ax] != 0)
+                    return false;
+            }
+            if (end_used) {
+                const auto dim_size = static_cast<int64_t>(concat_shape[ax]);
+                if (static_cast<size_t>(ax) >= end_values.size() || end_values[ax] < dim_size)
+                    return false;
+            }
+        }
+
         const int64_t concat_dim = static_cast<int64_t>(concat_shape[concat_axis]);
         if (end_values[concat_axis] > concat_dim)
             end_values[concat_axis] = concat_dim;
