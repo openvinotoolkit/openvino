@@ -52,6 +52,10 @@ public:
                      const ov::AnyMap& properties,
                      CompiledModelFactory factory = make_compiled_model);
 
+    static std::shared_ptr<ov::npuw::ICompiledModel> import_model(std::istream& stream,
+                                                                   const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                                   const ov::AnyMap& properties);
+
     void export_model(std::ostream& stream) const override;
     std::shared_ptr<const ov::Model> get_runtime_model() const override;
 
