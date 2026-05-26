@@ -246,19 +246,21 @@ KERNEL(dynamic_quantize_gpu_opt)(
 #endif
 
     MAKE_VECTOR_TYPE(SCALE_TYPE, VEC_SIZE) val_scaled = TO_TYPE_N(SCALE_TYPE, VEC_SIZE, val) * (MAKE_VECTOR_TYPE(SCALE_TYPE, VEC_SIZE))scale;
-    val = TO_TYPE_N(INPUT0_TYPE, VEC_SIZE, val_scaled);
 #if F4E2M1_OUTPUT
     val_scaled = clamp(val_scaled, -TO_SCALE_TYPE(OUTPUT_VAL_MAX), TO_SCALE_TYPE(OUTPUT_VAL_MAX));
     MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE) out_f4 = TO_TYPE_N_SAT(OUTPUT_TYPE, VEC_SIZE, val_scaled);
     VSTORE_F4(out_f4.data, 0, (uchar*)(&output[output_offset + (blockid  * block_size) / ELEMENTS_PER_BYTE]));
 #elif IS_F8
+    val = TO_TYPE_N(INPUT0_TYPE, VEC_SIZE, val_scaled);
     MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE) out = TO_TYPE_N_SAT(OUTPUT_TYPE, VEC_SIZE, val);
     VSTORE_N(out.data, 0, (char*)(&output[output_offset + (blockid * block_size)]));
 #elif ASYMMETRIC_QUANTIZATION
+    val = TO_TYPE_N(INPUT0_TYPE, VEC_SIZE, val_scaled);
     val *= scale;
     val += zp;
     VSTORE_N(CAT(CONVERT_UCHAR_N, _rte)(val), 0, output + output_offset + (blockid * block_size));
 #else // i8 symmetric
+    val = TO_TYPE_N(INPUT0_TYPE, VEC_SIZE, val_scaled);
     val *= scale;
     VSTORE_N(CAT(CONVERT_CHAR_N, _rte)(val), 0, output + output_offset + (blockid * block_size));
 #endif
@@ -388,18 +390,20 @@ KERNEL(dynamic_quantize_gpu_opt)(
             continue;
 
         MAKE_VECTOR_TYPE(SCALE_TYPE, VEC_SIZE) val_scaled = TO_TYPE_N(SCALE_TYPE, VEC_SIZE, val[i]) * (MAKE_VECTOR_TYPE(SCALE_TYPE, VEC_SIZE))scale;
-        val[i] = TO_TYPE_N(INPUT0_TYPE, VEC_SIZE, val_scaled);
 #if F4E2M1_OUTPUT
         val_scaled = clamp(val_scaled, -TO_SCALE_TYPE(OUTPUT_VAL_MAX), TO_SCALE_TYPE(OUTPUT_VAL_MAX));
         MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE) out_f4 = TO_TYPE_N_SAT(OUTPUT_TYPE, VEC_SIZE, val_scaled);
         VSTORE_F4(out_f4.data, 0, (uchar*)(&output[output_byte_offset + ((local_id * iteration + i) * block_size) / ELEMENTS_PER_BYTE]));
 #elif IS_F8
+        val[i] = TO_TYPE_N(INPUT0_TYPE, VEC_SIZE, val_scaled);
         MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE) out = TO_TYPE_N_SAT(OUTPUT_TYPE, VEC_SIZE, val[i]);
         VSTORE_N(out.data, 0, (char*)(&output[offset + ((local_id * iteration + i) * block_size)]));
 #elif ASYMMETRIC_QUANTIZATION
+        val[i] = TO_TYPE_N(INPUT0_TYPE, VEC_SIZE, val_scaled);
         val[i] += zp;
         VSTORE_N(CAT(CONVERT_UCHAR_N, _rte)(val[i]), 0, output + offset + ((local_id * iteration + i) * block_size));
 #else // i8 symmetric
+        val[i] = TO_TYPE_N(INPUT0_TYPE, VEC_SIZE, val_scaled);
         VSTORE_N(CAT(CONVERT_CHAR_N, _rte)(val[i]), 0, output + offset + ((local_id * iteration + i) * block_size));
 #endif
     }
