@@ -62,6 +62,12 @@ static ov::NodeVector calculate_freq(const std::shared_ptr<ov::Node> short_facto
     const auto power_const = ov::as_type_ptr<ov::op::v0::Constant>(power_node)->cast_vector<float>();
     auto factor_size = short_factor.size();
 
+    OPENVINO_ASSERT(short_factor.size() == multiply_const.size() && long_factor.size() == multiply_const.size(),
+                    "Invalid constants for LongRopePatternPhi_v5, expected same size for short_factor, long_factor "
+                    "and multiply_const");
+    OPENVINO_ASSERT(power_const.size() == 1,
+                    "Invalid constants for LongRopePatternPhi_v5, expected single value for power_const");
+
     std::vector<float> freq(factor_size, 0.0f);
     std::vector<float> freq_long(factor_size, 0.0f);
     for (size_t i = 0; i < factor_size; i++) {
