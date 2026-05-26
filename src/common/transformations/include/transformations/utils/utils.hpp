@@ -80,9 +80,6 @@ inline bool has_decompression_converts(const std::shared_ptr<const ov::Model>& f
 float cast_eps_to_float(double eps_d);
 
 inline bool is_scalar_or_single_elem_constant(const std::shared_ptr<ov::op::v0::Constant>& constant) {
-    if (!constant) {
-        return false;
-    }
     return constant && shape_size(constant->get_shape()) == 1;
 }
 
