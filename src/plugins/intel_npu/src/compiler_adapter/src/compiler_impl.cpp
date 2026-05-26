@@ -165,7 +165,7 @@ VCLCompilerImpl::~VCLCompilerImpl() {
 }
 
 std::shared_ptr<void> VCLCompilerImpl::getLinkedLibrary() const {
-    return VCLApi::getInstance()->getLibrary();
+    return VCLApi::getInstance("")->getLibrary();
 }
 
 std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
