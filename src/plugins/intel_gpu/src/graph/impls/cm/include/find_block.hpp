@@ -212,11 +212,11 @@ CM_INLINE void find(uint slm, int m_block,
 #endif
         // The paper reference keeps this accumulation in half, but Xe1 long
         // sparse prefill over-masks if we follow that literally here. Keep the
-        // runtime scores in float for thresholding and causal block selection.
+        // thresholding path in float while storing scores using SOFTMAX_TYPE.
         sum_m_after_add += data.row(0);
-        cm_ptr_store<int, TOKEN_SHARE_MAX>((int*)kq_exp_partial_sum, j * (int)sizeof(float), data.row(0).format<int>());
+        cm_ptr_store<int, TOKEN_SHARE_MAX>((int*)kq_exp_partial_sum, j * (int)sizeof(SOFTMAX_TYPE), data.row(0).format<int>());
 #if DEBUG_ACC == 1
-        cm_ptr_store<int, TOKEN_SHARE_MAX>((int*)kq_sum, j * (int)sizeof(float), data.row(0).format<int>());
+        cm_ptr_store<int, TOKEN_SHARE_MAX>((int*)kq_sum, j * (int)sizeof(SOFTMAX_TYPE), data.row(0).format<int>());
 #endif
         cm_ptr_store<int, TOKEN_SHARE_MAX / 4>((int*)block_mask, j, zero.format<int>());
     }
@@ -237,19 +237,19 @@ CM_INLINE void find(uint slm, int m_block,
     auto acc_score    = sorted_tmp + sorted_tmp_bytes;
 
 #if IS_CAUSAL == 1
-    auto score_p = (float*)score;
-    float s_0 = score_p[0];
-    float s_causal = score_p[causal_start_index + m_block];
+    auto score_p = (SOFTMAX_TYPE*)score;
+    SOFTMAX_TYPE s_0 = score_p[0];
+    SOFTMAX_TYPE s_causal = score_p[causal_start_index + m_block];
     float s_sum = s_0;
     if (causal_start_index + m_block) s_sum += s_causal;
-    score_p[0] = -1.f;
-    score_p[causal_start_index + m_block] = -1.f;
+    score_p[0] = SOFTMAX_TYPE(-1);
+    score_p[causal_start_index + m_block] = SOFTMAX_TYPE(-1);
     uchar* block_mask_p = (uchar*)block_mask;
-    auto sorted_value_p = (float*)sorted_value;
+    auto sorted_value_p = (SOFTMAX_TYPE*)sorted_value;
     auto sorted_index_p = (ushort*)sorted_index;
-    auto acc_score_p = (float*)acc_score;
-    // Preserve the historical debug/acc buffer contract even though the causal
-    // path now performs float-based selection without calling sort<half>.
+    auto acc_score_p = (SOFTMAX_TYPE*)acc_score;
+    // Preserve the historical debug/acc buffer contract while using
+    // float-based causal block selection on Xe1.
     sorted_value_p[0] = 0;
     sorted_value_p[1] = s_sum;
     sorted_index_p[0] = 0;
@@ -283,7 +283,7 @@ CM_INLINE void find(uint slm, int m_block,
         sorted_index_p[j] = static_cast<ushort>(best_idx);
         sorted_value_p[j] = best_score;
         block_mask_p[best_idx] = 1;
-        score_p[best_idx] = -1.f;
+        score_p[best_idx] = SOFTMAX_TYPE(-1);
         sum_cur += best_score;
     }
 #if DEBUG_ACC == 1
@@ -296,11 +296,11 @@ CM_INLINE void find(uint slm, int m_block,
     //     block_mask_p[j] = 0;
 
 #else
-    sort<half>(slm, score, sorted_value, sorted_index, sorted_tmp, k_block_pad);
+    sort<SOFTMAX_TYPE>(slm, score, sorted_value, sorted_index, sorted_tmp, k_block_pad);
     uchar* block_mask_p = (uchar*)block_mask;
-    auto sorted_value_p = (half*)sorted_value;
+    auto sorted_value_p = (SOFTMAX_TYPE*)sorted_value;
     auto sorted_index_p = (ushort*)sorted_index;
-    auto acc_score_p = (half*)acc_score;
+    auto acc_score_p = (SOFTMAX_TYPE*)acc_score;
     block_mask_p[0] = 1;
     float sum_cur = 0;
 #if DEBUG_ACC == 1
