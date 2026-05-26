@@ -56,10 +56,11 @@ const std::shared_ptr<VCLApi> VCLApi::getInstance(const std::string& custom_path
     static std::shared_ptr<VCLApi> instance = nullptr;
 
     if (!instance) {
-        const auto effective_path =
-            custom_path.empty() ? ov::util::path_to_string(ov::util::get_ov_lib_path()) : custom_path;
-        initialized_path = effective_path;
-        instance = std::make_shared<VCLApi>(effective_path);
+        if (custom_path.empty()) {
+            OPENVINO_THROW("VCLApi requires a valid path for initialization!");
+        }
+        initialized_path = custom_path;
+        instance = std::make_shared<VCLApi>(custom_path);
     } else {
         if (!custom_path.empty() && custom_path != initialized_path) {
             OPENVINO_THROW("VCLApi has already been initialized with path: '",

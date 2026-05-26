@@ -102,11 +102,12 @@ const std::shared_ptr<VCLCompilerImpl> VCLCompilerImpl::getInstance(const std::s
     std::lock_guard<std::mutex> lock(mutex);
     auto compiler = weak_compiler.lock();
     if (!compiler) {
-        const auto effective_path =
-            custom_path.empty() ? ov::util::path_to_string(ov::util::get_ov_lib_path()) : custom_path;
-        compiler = std::make_shared<VCLCompilerImpl>(effective_path);
+        if (custom_path.empty()) {
+            OPENVINO_THROW("VCLCompilerImpl requires a valid path for initialization!");
+        }
+        compiler = std::make_shared<VCLCompilerImpl>(custom_path);
         weak_compiler = compiler;
-        initialized_path = effective_path;
+        initialized_path = custom_path;
     } else {
         if (!custom_path.empty() && custom_path != initialized_path) {
             OPENVINO_THROW("Cannot change compiler path across multiple getInstance() calls! "
@@ -192,7 +193,7 @@ VCLCompilerImpl::~VCLCompilerImpl() {
 }
 
 std::shared_ptr<void> VCLCompilerImpl::getLinkedLibrary() const {
-    return VCLApi::getInstance()->getLibrary();
+    return VCLApi::getInstance("")->getLibrary();
 }
 
 std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
