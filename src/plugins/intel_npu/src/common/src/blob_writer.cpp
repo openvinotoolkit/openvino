@@ -19,38 +19,11 @@ constexpr intel_npu::SectionTypeInstance FIRST_INSTANCE_ID = 0;
 
 namespace intel_npu {
 
-BlobWriterInterface::BlobWriterInterface(
-    std::ostream& stream,
-    const std::queue<std::shared_ptr<ISection>>& registered_sections,
-    const CRE& cre,
-    const std::unordered_map<SectionType, SectionTypeInstance>& next_type_instance_id)
+BlobWriterInterface::BlobWriterInterface(std::ostream& stream, const std::streampos stream_npu_region_start)
     : m_stream(stream),
-      m_next_type_instance_id(next_type_instance_id),
-      m_registered_sections(registered_sections),
-      m_cre(cre),
-      m_stream_npu_region_start(stream.tellp()),
+      m_stream_npu_region_start(stream_npu_region_start),
+      m_stream_current_section_start(stream.tellp()),
       m_logger("BlobWriterInterface", Logger::global().level()) {}
-
-SectionTypeInstance BlobWriterInterface::register_section(const std::shared_ptr<ISection>& section) {
-    const SectionType section_type = section->get_section_type();
-    if (!m_next_type_instance_id.count(section_type)) {
-        m_next_type_instance_id[section_type] = FIRST_INSTANCE_ID;
-    }
-
-    const SectionTypeInstance type_instance_id = m_next_type_instance_id[section_type]++;
-    section->set_section_type_instance(type_instance_id);
-    m_registered_sections.push(section);
-
-    return type_instance_id;
-}
-
-void BlobWriterInterface::append_compatibility_requirement(const CRE::Token requirement_token) {
-    m_cre.append_to_expression(requirement_token);
-}
-
-void BlobWriterInterface::append_compatibility_requirement(const std::vector<CRE::Token>& requirement_tokens) {
-    m_cre.append_to_expression(requirement_tokens);
-}
 
 void BlobWriterInterface::write(const void* source, const size_t size) {
     OPENVINO_ASSERT(m_stream.get().good());
@@ -119,6 +92,12 @@ BlobWriter::BlobWriter(const std::shared_ptr<BlobReader>& blob_reader)
     }
 }
 
+std::streamoff BlobWriter::get_offset_relative_to_npu_region(std::ostream& stream,
+                                                             const std::streampos stream_npu_region_start) const {
+    OPENVINO_ASSERT(stream.good());
+    return stream.tellp() - stream_npu_region_start;
+}
+
 SectionTypeInstance BlobWriter::register_section(const std::shared_ptr<ISection>& section) {
     const SectionType section_type = section->get_section_type();
     if (!m_next_type_instance_id.count(section_type)) {
@@ -157,16 +136,17 @@ void BlobWriter::append_compatibility_requirement(const std::vector<CRE::Token>&
     m_cre.append_to_expression(requirement_tokens);
 }
 
-void BlobWriter::write_section(BlobWriterInterface& blob_writer_interface,
+void BlobWriter::write_section(std::ostream& stream,
                                const std::shared_ptr<ISection>& section,
-                               OffsetsTable& offsets_table) {
-    blob_writer_interface.seek_to_the_end();
-    blob_writer_interface.m_stream_current_section_start = blob_writer_interface.m_stream.get().tellp();
-    const uint64_t offset = blob_writer_interface.get_offset_relative_to_npu_region();
+                               const std::streampos stream_npu_region_start,
+                               OffsetsTable& offsets_table) const {
+    stream.seekp(0, std::ios_base::end);
+    const uint64_t offset = get_offset_relative_to_npu_region(stream, stream_npu_region_start);
+    BlobWriterInterface blob_writer_interface(stream, stream_npu_region_start);
 
     section->write(blob_writer_interface);
 
-    blob_writer_interface.seek_to_the_end();
+    stream.seekp(0, std::ios_base::end);
     const uint64_t length = static_cast<uint64_t>(blob_writer_interface.get_offset_relative_to_npu_region() - offset);
 
     // All sections registered within the BlobWriter are automatically added to the table of offsets
@@ -176,11 +156,11 @@ void BlobWriter::write_section(BlobWriterInterface& blob_writer_interface,
     offsets_table.add_entry(section_id.value(), offset, length);
 }
 
-void BlobWriter::write(std::ostream& stream) {
-    // Only the attributes within this object will be altered. This is done to ensure write idempotency and thread
-    // safety
-    // TODO just use references instead. no dynamic dispatch
-    BlobWriterInterface blob_writer_interface(stream, m_registered_sections, m_cre, m_next_type_instance_id);
+void BlobWriter::write(std::ostream& stream) const {
+    // Operate on this copy instead of the attribute. This is necessary to ensure write idempotency by keeping the
+    // attributes unchanged.
+    std::queue<std::shared_ptr<ISection>> registered_sections = m_registered_sections;
+    const std::streampos stream_npu_region_start = stream.tellp();
 
     // The table of offsets corresponds to a single blob written into a stream. Therefore, this table should exist
     // only within the scope of the writing session.
@@ -204,29 +184,29 @@ void BlobWriter::write(std::ostream& stream) {
 
     // The region of non-persistent format (list of key-length-payload sections, any order & no restrictions w.r.t.
     // the content of the payload)
-    while (!blob_writer_interface.m_registered_sections.empty()) {
-        const std::shared_ptr<ISection>& section = blob_writer_interface.m_registered_sections.front();
-        blob_writer_interface.m_registered_sections.pop();
+    while (!registered_sections.empty()) {
+        const std::shared_ptr<ISection>& section = registered_sections.front();
+        registered_sections.pop();
 
-        write_section(blob_writer_interface, section, offsets_table);
+        write_section(stream, section, stream_npu_region_start, offsets_table);
     }
 
     // Write the CRESection
     // Note: this was left near the end jic some writers had to register some more capability IDs for some reason
     // TODO: in that case, reading this blob and then writing it again would add redundant CRE tokens. Maybe a
     // redesign would be useful here.
-    const auto cre_section = std::make_shared<CRESection>(blob_writer_interface.m_cre);
+    const auto cre_section = std::make_shared<CRESection>(m_cre);
     cre_section->set_section_type_instance(FIRST_INSTANCE_ID);
-    write_section(blob_writer_interface, cre_section, offsets_table);
+    write_section(stream, cre_section, stream_npu_region_start, offsets_table);
 
     // Write the table of offsets
-    offsets_table_location = blob_writer_interface.get_offset_relative_to_npu_region();
+    offsets_table_location = get_offset_relative_to_npu_region(stream, stream_npu_region_start);
 
     const auto offsets_table_section = std::make_shared<OffsetsTableSection>(offsets_table);
     offsets_table_section->set_section_type_instance(FIRST_INSTANCE_ID);
-    write_section(blob_writer_interface, offsets_table_section, offsets_table);
+    write_section(stream, offsets_table_section, stream_npu_region_start, offsets_table);
 
-    npu_region_size = blob_writer_interface.get_offset_relative_to_npu_region();
+    npu_region_size = get_offset_relative_to_npu_region(stream, stream_npu_region_start);
     offsets_table_size = npu_region_size - offsets_table_location;
 
     // Go back to the beginning and write the size of the whole NPU region & the location of the offsets table

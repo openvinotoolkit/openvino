@@ -19,36 +19,7 @@ namespace intel_npu {
 
 class BlobWriterInterface final {
 public:
-    BlobWriterInterface(std::ostream& stream,
-                        const std::queue<std::shared_ptr<ISection>>& registered_sections,
-                        const CRE& cre,
-                        const std::unordered_map<SectionType, SectionTypeInstance>& next_type_instance_id);
-
-    /**
-     * @brief Add a new blob section to the writing queue.
-     *
-     * @param section The section to be added in the writing queue.
-     * @return The instance ID of the section. This number corresponds to the order within the writing queue and it is
-     * used to distringuish between sections of the same type. This number is unique only among sections of the same
-     * type.
-     */
-    SectionTypeInstance register_section(const std::shared_ptr<ISection>& section);
-
-    /**
-     * @brief Append a new token to the CRE, at depth-level 1. All tokens found at this depth-level are bound by a
-     * logical "AND" operator.
-     *
-     * @param requirement_token
-     */
-    void append_compatibility_requirement(const CRE::Token requirement_token);
-
-    /**
-     * @brief Append a new CRE subexpression to the CRE, at depth-level 1. All tokens found at this depth-level are
-     * bound by a logical "AND" operator.
-     *
-     * @param requirement_token
-     */
-    void append_compatibility_requirement(const std::vector<CRE::Token>& requirement_tokens);
+    BlobWriterInterface(std::ostream& stream, const std::streampos stream_npu_region_start);
 
     void write(const void* source, const size_t size);
 
@@ -92,17 +63,6 @@ private:
     friend class ELFInitSchedulesSection;
 
     std::reference_wrapper<std::ostream> m_stream;
-
-    /**
-     * @brief Tracks the next available instance ID for each section type. This should assure that the generated section
-     * IDs (type + instance) are unique per compiled model.
-     */
-    std::unordered_map<SectionType, SectionTypeInstance> m_next_type_instance_id;
-    /**
-     * @brief Queue that holds all sections to be written at export time.
-     */
-    std::queue<std::shared_ptr<ISection>> m_registered_sections;
-    CRE m_cre;
 
     /**
      * @brief Holds the offset where the NPU blob region begins
@@ -160,12 +120,11 @@ public:
     /**
      * @brief Writes all sections within the writing queue into the provided stream.
      * @note This operation is idempotent. I.e. calling this function twice in a row (but on different streams) will
-     * yield tha same result. This is done by saving & restoring the attributes of the class, the writing queue
-     * included.
+     * yield the same result. For this reason, the attributes of the object should not be modified during this call.
      *
      * @param stream Where the blob will be stored.
      */
-    void write(std::ostream& stream);
+    void write(std::ostream& stream) const;
 
     /**
      * @brief Append a new token to the CRE, at depth-level 1. All tokens found at this depth-level are bound by a
@@ -188,6 +147,9 @@ public:
     // session. This should also solve the multi-threading issue.
 
 private:
+    std::streamoff get_offset_relative_to_npu_region(std::ostream& stream,
+                                                     const std::streampos stream_npu_region_start) const;
+
     /**
      * @brief Helper function. Registers a section that has been already parsed by the BlobReader.
      */
@@ -198,9 +160,10 @@ private:
      * @details Calls the "write" method of the given section to fill the payload. Then adds a new entry inside the
      * table of offsets.
      */
-    void write_section(BlobWriterInterface& blob_writer_interface,
+    void write_section(std::ostream& stream,
                        const std::shared_ptr<ISection>& section,
-                       OffsetsTable& offsets_table);
+                       const std::streampos stream_npu_region_start,
+                       OffsetsTable& offsets_table) const;
 
     /**
      * @brief Tracks the next available instance ID for each section type. This should assure that the generated section
