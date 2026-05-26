@@ -168,33 +168,25 @@ public:
 
         for (size_t i = 0; i + 1 < subsequence_begins.size(); ++i) {
             const auto q_len = static_cast<size_t>(std::max<int32_t>(subsequence_begins[i + 1] - subsequence_begins[i], 0));
-            if (q_len == 0)
-                continue;
-
-            if (use_split_mixed) {
-                const auto past_len = static_cast<size_t>(std::max<int32_t>(past_lens[i], 0));
-                const bool decode_subseq = (q_len == 1) && (past_len > 0);
-                if (decode_subseq)
-                    continue;
-            }
-
             const auto past_len_s = static_cast<size_t>(std::max<int32_t>(past_lens[i], 0));
             const size_t kv_len = past_len_s + q_len;
             const size_t subseq_q_begin = static_cast<size_t>(subsequence_begins[i]);
             const int32_t bi_begin = (i < block_indices_begins.size()) ? block_indices_begins[i] : 0;
+            const bool decode_subseq = use_split_mixed && (q_len == 1) && (past_len_s > 0);
 
             const size_t M_s = q_len / STRIDE;
             const size_t N_s = kv_len / STRIDE;
-            const size_t q_stride_pad_s = round_up_to(M_s, block_wg_m);
-            const size_t N_kq_groups_s = ceil_div(N_s, block_wg_n);
-            const size_t q_block_pad_s = ceil_div(q_len, block_size);
-            const size_t k_block_pad_s = k_block_in_group * N_kq_groups_s;
-            const size_t merged_q_blocks_s = ceil_div(q_block_pad_s, merged_q_num);
-            const size_t k_block_s = ceil_div(kv_len, block_size);
-            const size_t q_block_s = ceil_div(q_len, block_size);
-            const size_t causal_start_s = k_block_s - q_block_s;
-            const size_t q_start_strided_s = (kv_len - q_len) / STRIDE;
-            const size_t wg_count_s = N_kq_groups_s * (q_stride_pad_s / block_wg_m);
+            const bool enable_subseq_xattn = q_len > 0 && !decode_subseq && M_s > 0 && N_s > 0;
+            const size_t q_stride_pad_s = enable_subseq_xattn ? round_up_to(M_s, block_wg_m) : 0;
+            const size_t N_kq_groups_s = enable_subseq_xattn ? ceil_div(N_s, block_wg_n) : 0;
+            const size_t q_block_pad_s = enable_subseq_xattn ? ceil_div(q_len, block_size) : 0;
+            const size_t k_block_pad_s = enable_subseq_xattn ? k_block_in_group * N_kq_groups_s : 0;
+            const size_t merged_q_blocks_s = enable_subseq_xattn ? ceil_div(q_block_pad_s, merged_q_num) : 0;
+            const size_t k_block_s = enable_subseq_xattn ? ceil_div(kv_len, block_size) : 0;
+            const size_t q_block_s = enable_subseq_xattn ? ceil_div(q_len, block_size) : 0;
+            const size_t causal_start_s = enable_subseq_xattn ? k_block_s - q_block_s : 0;
+            const size_t q_start_strided_s = enable_subseq_xattn ? (kv_len - q_len) / STRIDE : 0;
+            const size_t wg_count_s = enable_subseq_xattn ? N_kq_groups_s * (q_stride_pad_s / block_wg_m) : 0;
             const int32_t subseq_id = to_i32_checked(num_xattn_subseqs, "subseq_id");
 
             m_xattn_meta.push_back(to_i32_checked(subseq_q_begin, "subseq_q_begin"));
@@ -215,14 +207,16 @@ public:
             // Store global WG start offset for this subsequence (prefix sum before adding this subsequence's wg_count_s).
             m_xattn_meta.push_back(to_i32_checked(total_wg_count, "total_wg_count"));
 
-            for (size_t m = 0; m < q_block_pad_s; ++m) {
-                m_xattn_find_wg_map.push_back(subseq_id);
-                m_xattn_find_wg_map.push_back(to_i32_checked(m, "find_q_block_idx"));
-            }
+            if (enable_subseq_xattn) {
+                for (size_t m = 0; m < q_block_pad_s; ++m) {
+                    m_xattn_find_wg_map.push_back(subseq_id);
+                    m_xattn_find_wg_map.push_back(to_i32_checked(m, "find_q_block_idx"));
+                }
 
-            for (size_t m_merged = 0; m_merged < merged_q_blocks_s; ++m_merged) {
-                m_xattn_post_wg_map.push_back(subseq_id);
-                m_xattn_post_wg_map.push_back(to_i32_checked(m_merged, "post_merged_q_block_idx"));
+                for (size_t m_merged = 0; m_merged < merged_q_blocks_s; ++m_merged) {
+                    m_xattn_post_wg_map.push_back(subseq_id);
+                    m_xattn_post_wg_map.push_back(to_i32_checked(m_merged, "post_merged_q_block_idx"));
+                }
             }
 
             cumul_kq_max_bytes += N_kq_groups_s * q_stride_pad_s * sizeof_softmax * heads_num;
@@ -309,8 +303,29 @@ public:
             if (desc->has_xattention) {
                 validate_xattn_inputs(params, rt_params->batch_size_in_sequences);
 
-                rt_params->enable_xattn_estimation = true;
-                update_xattn_rt_params(instance);
+                if (!bypass_xattn(params)) {
+                    rt_params->enable_xattn_estimation = true;
+                    update_xattn_rt_params(instance);
+                    // It is valid to have no XAttention estimate workgroups when all subsequences
+                    // are decode-only or too short for the strided estimate path. In this case,
+                    // disable XAttention estimation and fall back to dense PA by using block_size=1.
+                    // If GEMM-QK work exists, find/post workgroups must also exist; otherwise the
+                    // estimate metadata/workgroup maps are inconsistent.
+                    if (rt_params->xattn_gemmqk_wg_count == 0) {
+                        rt_params->enable_xattn_estimation = false;
+                        rt_params->xattn_block_size = 1;
+                    } else {
+                        OPENVINO_ASSERT(rt_params->xattn_find_wg_count > 0 && rt_params->xattn_post_wg_count > 0,
+                                        "XAttention estimate workgroups are inconsistent: gemmqk=",
+                                        rt_params->xattn_gemmqk_wg_count,
+                                        ", find=",
+                                        rt_params->xattn_find_wg_count,
+                                        ", post=",
+                                        rt_params->xattn_post_wg_count);
+                    }
+                } else {
+                    rt_params->xattn_block_size = 1;
+                }
             } else {
                 rt_params->xattn_block_size = 1;  // disable xattn for pa
             }
@@ -666,7 +681,7 @@ public:
 
 #if FIND_DEBUG_ACC
                 auto count_elements_kq_sum = static_cast<int64_t>(rt_params->xattn_cumul_mask_elems);
-                internal_buffers.emplace_back(std::max<int64_t>(1, count_elements_kq_sum), ov::element::f16);  // 11: kq_sum
+                internal_buffers.emplace_back(std::max<int64_t>(1, count_elements_kq_sum), ov::element::f32);  // 11: kq_sum
 #endif
 
                 GPU_DEBUG_TRACE_DETAIL << "  internal buffer sizes: count_kq_max_wg=" << count_kq_max_wg * 4

@@ -454,6 +454,7 @@ void pa_kernel_lsc_prefetch_f16(
 
             auto skip_compute = [&](int pos) -> bool {
                 if (sb_shift < 0) return false;
+                if (!sparse_mask_base) return false;
                 return !*(reinterpret_cast<bool*>(sparse_mask_base) + ((uint)pos >> sb_shift));
             };
 
