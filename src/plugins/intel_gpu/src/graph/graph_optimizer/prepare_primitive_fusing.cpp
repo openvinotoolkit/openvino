@@ -1561,3 +1561,4 @@ void prepare_primitive_fusing::optimize_fused_ops(program& p) {
         }
     }
 }
+

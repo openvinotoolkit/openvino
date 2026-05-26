@@ -20,6 +20,7 @@
 #include "program_helpers.h"
 
 #include <memory>
+#include <fully_connected_inst.h>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -97,4 +98,45 @@ TEST(add_onednn_optimization_attributes, sum_post_op_for_residual_connection) {
     // Check whether fusing_type is properly selected as sum for residual connection pattern
     ASSERT_EQ(fusing_type, add_fusing_type::sum);
 
+}
+
+
+TEST(add_onednn_optimization_attributes, fc_sum_u8_uses_binary_per_tensor) {
+    auto& engine = get_test_engine();
+
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    auto in_layout = layout{ ov::PartialShape({32, 16}), data_types::u8, format::bfyx };
+    auto weights_mem = engine.allocate_memory({ ov::PartialShape({8, 16}), data_types::u8, format::bfyx });
+    auto extra_layout = layout{ ov::PartialShape({32, 8}), data_types::u8, format::bfyx };
+
+    topology topology;
+    topology.add(data("weights", weights_mem));
+    topology.add(input_layout("input", in_layout));
+    topology.add(input_layout("extra_input", extra_layout));
+
+    topology.add(fully_connected("fc", input_info("input"), { "weights" }, "", data_types::u8));
+    topology.add(eltwise("sum", { input_info("fc"), input_info("extra_input") }, eltwise_mode::sum));
+    topology.add(reorder("out", input_info("sum"), format::bfyx, data_types::u8));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    auto prog = program::build_program(engine, topology, config, false, true);
+    ASSERT_NE(prog, nullptr);
+
+    prog->get_layout_optimizer().add_all_onednn_impls_optimization_attribute();
+
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
+    program_wrapper::apply_opt_pass<add_onednn_optimization_attributes>(*prog);
+
+    // eltwise should be fused into fc as a post-op
+    auto& fc_node = prog->get_node("fc");
+    auto& fused = fc_node.get_fused_primitives();
+    ASSERT_EQ(fused.size(), 1);
+
+    auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(fc_node, fused[0]);
+    ASSERT_EQ(fusing_type, add_fusing_type::binary_per_tensor);
 }
