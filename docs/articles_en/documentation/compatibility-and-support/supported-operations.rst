@@ -211,8 +211,10 @@ Data as of OpenVINO 2025.4.1 (December 18, 2025).
        Reshape
        Resize
        ReverseSequence
+       RMSNormalization
        RNN
        RoiAlign
+       RotaryEmbedding
        Round
        Scan
        ScatterElements
