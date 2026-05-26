@@ -1061,6 +1061,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 return;
 
             std::vector<std::pair<program_node*, int32_t>> parents = node.get_dependencies();
+
             std::vector<bool> can_fuse_parents = { false, false };
 
             for (size_t i = 0; i < parents.size(); i++) {
@@ -1561,4 +1562,3 @@ void prepare_primitive_fusing::optimize_fused_ops(program& p) {
         }
     }
 }
-
