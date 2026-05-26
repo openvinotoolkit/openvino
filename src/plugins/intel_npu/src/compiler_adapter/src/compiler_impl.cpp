@@ -102,9 +102,11 @@ const std::shared_ptr<VCLCompilerImpl> VCLCompilerImpl::getInstance(const std::s
     std::lock_guard<std::mutex> lock(mutex);
     auto compiler = weak_compiler.lock();
     if (!compiler) {
-        compiler = std::make_shared<VCLCompilerImpl>(custom_path);
+        const auto effective_path =
+            custom_path.empty() ? ov::util::path_to_string(ov::util::get_ov_lib_path()) : custom_path;
+        compiler = std::make_shared<VCLCompilerImpl>(effective_path);
         weak_compiler = compiler;
-        initialized_path = custom_path;
+        initialized_path = effective_path;
     } else {
         if (!custom_path.empty() && custom_path != initialized_path) {
             OPENVINO_THROW("Cannot change compiler path across multiple getInstance() calls! "
