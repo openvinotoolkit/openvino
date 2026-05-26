@@ -58,7 +58,7 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "openvino/op/variadic_split.hpp"
-#include "openvino/pass/visualize_tree.hpp"
+#include "transformations/paged_attention/eliminate_conv_padding_mask_gating.hpp"
 #include "transformations/paged_attention/position_ids_replacer.hpp"
 #include "transformations/paged_attention/prev_sequence_length_pattern.hpp"
 #include "transformations/paged_attention/state_management_pattern.hpp"
@@ -6142,6 +6142,45 @@ TEST(SDPAToPA, SingleLayerSlidingWindow) {
     }
     ASSERT_NE(offset_node, nullptr) << "Could not find original offset constant";
     EXPECT_EQ(offset_node->cast_vector<int64_t>()[0], sliding_window_offset);
+}
+
+TEST_F(SDPAToPATest, SDPAToPA_LFM2_EliminateConvPaddingMaskGating) {
+    {
+        auto attention_mask = make_param(PartialShape{DYN, DYN}, element::i32, "attention_mask");
+        auto slice = makeOP<v8::Slice>({attention_mask, {0}, {1}, {1}, {1}});
+        auto unsqueeze = makeOP<v0::Unsqueeze>({slice, 1});
+        auto convert = makeOP<v0::Convert>({unsqueeze}, {{"destination_type", "f32"}});
+        auto multiply = makeOP<v1::Multiply>({convert, 1024.0f}, {{"auto_broadcast", "numpy"}});
+        auto add = makeOP<v1::Add>({multiply, 1024.0f}, {{"auto_broadcast", "numpy"}});
+        auto multiply_gate_param = make_param(PartialShape{DYN, DYN, DYN}, element::f32, "gate_param");
+        auto multiply_gate = makeOP<v1::Multiply>({multiply_gate_param, add}, {{"auto_broadcast", "numpy"}});
+
+        auto matmul_param = make_param(PartialShape{48, 16}, element::f32, "weights");
+        auto matmul =
+            makeOP<v0::MatMul>({matmul_param, multiply_gate}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto res = makeOP<v0::Result>({matmul});
+
+        auto params = nodes_to_params({attention_mask, matmul_param, multiply_gate_param});
+        model = std::make_shared<ov::Model>(OutputVector{res}, ParameterVector{params});
+
+        ov::pass::Manager pass_manager;
+        pass_manager.set_per_pass_validation(false);
+        pass_manager.register_pass<ov::pass::EliminateConvPaddingMaskGating>();
+        pass_manager.run_passes(model);
+
+        model->remove_parameter(params[0]);
+    }
+    {
+        auto multiply_gate_param = make_param(PartialShape{DYN, DYN, DYN}, element::f32, "gate_param");
+        auto matmul_param = make_param(PartialShape{48, 16}, element::f32, "weights");
+        auto matmul =
+            makeOP<v0::MatMul>({matmul_param, multiply_gate_param}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto res = makeOP<v0::Result>({matmul});
+
+        auto params = nodes_to_params({matmul_param, multiply_gate_param});
+
+        model_ref = std::make_shared<ov::Model>(OutputVector{res}, ParameterVector{params});
+    }
 }
 
 /*
