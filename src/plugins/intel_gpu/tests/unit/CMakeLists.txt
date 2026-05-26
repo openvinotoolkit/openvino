@@ -62,6 +62,16 @@ if (NOT GPU_RT_TYPE STREQUAL "L0")
     endforeach()
 endif()
 
+file(GLOB_RECURSE SOURCES_WITH_SYCL_RT
+  "${CMAKE_CURRENT_SOURCE_DIR}/module_tests/sycl/*.cpp"
+  )
+
+if (NOT GPU_RT_TYPE STREQUAL "SYCL")
+  foreach (SOURCE_FILE IN LISTS SOURCES_WITH_SYCL_RT)
+    list (REMOVE_ITEM SOURCES_MAIN ${SOURCE_FILE})
+  endforeach()
+endif()
+
 if (NOT ENABLE_ONEDNN_FOR_GPU)
     set(EXCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/onednn/")
     foreach (SOURCE_FILE IN LISTS SOURCES_MAIN)
