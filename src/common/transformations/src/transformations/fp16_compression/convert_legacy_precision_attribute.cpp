@@ -14,7 +14,7 @@ bool ov::pass::ConvertLegacyPrecisionAttribute::run_on_model(const std::shared_p
     for (const auto& node : model->get_ordered_ops()) {
         if (node->get_rt_info().count(DisableFP16Compression::get_type_info_static())) {
             node->get_rt_info().erase(DisableFP16Compression::get_type_info_static());  // remove legacy attribute
-            disable_compression_to(node, element::f16);
+            disable_conversion(node, element::f16);
             changed = true;
         }
 

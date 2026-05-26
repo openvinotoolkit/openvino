@@ -47,7 +47,7 @@ TEST(ConvertLegacyPrecisionAttributeTest, basic_migration) {
     DisabledPrecisionMap expected = {{element::dynamic, {element::f16}}};
     ASSERT_EQ(attr.m_disabled_precisions, expected);
 
-    ASSERT_TRUE(is_compression_disabled_to(matmul, element::f16));
+    ASSERT_TRUE(is_conversion_disabled(matmul, element::f16));
 }
 
 TEST(ConvertLegacyPrecisionAttributeTest, no_legacy_attribute) {
@@ -67,7 +67,7 @@ TEST(ConvertLegacyPrecisionAttributeTest, no_legacy_attribute) {
     const auto& rt_info = matmul->get_rt_info();
     ASSERT_FALSE(rt_info.count(DisableFP16Compression::get_type_info_static()));
     ASSERT_FALSE(rt_info.count(DisablePrecisionConversion::get_type_info_static()));
-    ASSERT_FALSE(is_compression_disabled_to(matmul, element::f16));
+    ASSERT_FALSE(is_conversion_disabled(matmul, element::f16));
 }
 
 TEST(ConvertLegacyPrecisionAttributeTest, multiple_nodes) {
@@ -90,11 +90,11 @@ TEST(ConvertLegacyPrecisionAttributeTest, multiple_nodes) {
     // Both nodes should be migrated
     ASSERT_FALSE(add->get_rt_info().count(DisableFP16Compression::get_type_info_static()));
     ASSERT_TRUE(add->get_rt_info().count(DisablePrecisionConversion::get_type_info_static()));
-    ASSERT_TRUE(is_compression_disabled_to(add, element::f16));
+    ASSERT_TRUE(is_conversion_disabled(add, element::f16));
 
     ASSERT_FALSE(matmul->get_rt_info().count(DisableFP16Compression::get_type_info_static()));
     ASSERT_TRUE(matmul->get_rt_info().count(DisablePrecisionConversion::get_type_info_static()));
-    ASSERT_TRUE(is_compression_disabled_to(matmul, element::f16));
+    ASSERT_TRUE(is_conversion_disabled(matmul, element::f16));
 }
 
 }  // namespace ov::test

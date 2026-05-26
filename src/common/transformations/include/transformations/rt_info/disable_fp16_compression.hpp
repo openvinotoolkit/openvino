@@ -6,7 +6,6 @@
 
 #include <map>
 #include <set>
-#include <unordered_map>
 #include <vector>
 
 #include "openvino/core/attribute_adapter.hpp"
@@ -50,91 +49,87 @@ public:
 };
 
 /**
- * @brief Disable precision compression from any type (dynamic) to the specified type on a @ref Node.
+ * @brief Disable precision conversion from any type (dynamic) to the specified type on a @ref Node.
  *
  * @param node  Node to apply the attribute to.
- * @param to    Target element type to disable compression to.
+ * @param to    Target element type to disable conversion to.
  */
-TRANSFORMATIONS_API void disable_compression_to(const std::shared_ptr<Node>& node, const element::Type& to);
+TRANSFORMATIONS_API void disable_conversion(const std::shared_ptr<Node>& node, const element::Type& to);
 
 /**
- * @brief Disable precision compression from one type to another on a @ref Node.
+ * @brief Disable precision conversion from one type to another on a @ref Node.
  *
  * @param node  Node to apply the attribute to.
  * @param from  Source element type.
  * @param to    Target element type.
  */
-TRANSFORMATIONS_API void disable_compression_from_to(const std::shared_ptr<Node>& node,
-                                                     const element::Type& from,
-                                                     const element::Type& to);
+TRANSFORMATIONS_API void disable_conversion(const std::shared_ptr<Node>& node,
+                                            const element::Type& from,
+                                            const element::Type& to);
 
 /**
- * @brief Disable precision compression for all combinations of the specified source and target types on a @ref Node.
+ * @brief Disable precision conversion for all combinations of the specified source and target types on a @ref Node.
  *
  * @param node        Node to apply the attribute to.
  * @param from_types  Source element types.
  * @param to_types    Target element types.
  */
-TRANSFORMATIONS_API void disable_compression_from_to(const std::shared_ptr<Node>& node,
-                                                     const std::vector<element::Type>& from_types,
-                                                     const std::vector<element::Type>& to_types);
+TRANSFORMATIONS_API void disable_conversion(const std::shared_ptr<Node>& node,
+                                            const std::vector<element::Type>& from_types,
+                                            const std::vector<element::Type>& to_types);
 
 /**
- * @brief Enable precision compression from any type (dynamic) to the specified type on a @ref Node.
+ * @brief Enable precision conversion from any type (dynamic) to the specified type on a @ref Node.
  *
  * @param node  Node to remove the attribute from.
- * @param to    Target element type to enable compression to.
+ * @param to    Target element type to enable conversion to.
  */
-TRANSFORMATIONS_API void enable_compression_to(const std::shared_ptr<Node>& node, const element::Type& to);
+TRANSFORMATIONS_API void enable_conversion(const std::shared_ptr<Node>& node, const element::Type& to);
 
 /**
- * @brief Enable precision compression from one type to another on a @ref Node.
+ * @brief Enable precision conversion from one type to another on a @ref Node.
  *
  * @param node  Node to remove the attribute from.
  * @param from  Source element type.
  * @param to    Target element type.
  */
-TRANSFORMATIONS_API void enable_compression_from_to(const std::shared_ptr<Node>& node,
-                                                    const element::Type& from,
-                                                    const element::Type& to);
+TRANSFORMATIONS_API void enable_conversion(const std::shared_ptr<Node>& node,
+                                           const element::Type& from,
+                                           const element::Type& to);
 
 /**
- * @brief Enable precision compression for all combinations of the specified source and target types on a @ref Node.
+ * @brief Enable precision conversion for all combinations of the specified source and target types on a @ref Node.
  *
  * @param node        Node to remove the attribute from.
  * @param from_types  Source element types.
  * @param to_types    Target element types.
  */
-TRANSFORMATIONS_API void enable_compression_from_to(const std::shared_ptr<Node>& node,
-                                                    const std::vector<element::Type>& from_types,
-                                                    const std::vector<element::Type>& to_types);
+TRANSFORMATIONS_API void enable_conversion(const std::shared_ptr<Node>& node,
+                                           const std::vector<element::Type>& from_types,
+                                           const std::vector<element::Type>& to_types);
 
 /**
- * @brief Check if precision compression from any type (dynamic) to the specified type is disabled on a @ref Node.
+ * @brief Check if precision conversion from any type (dynamic) to the specified type is disabled on a @ref Node.
  *
  * @param node  Node to check.
  * @param to    Target element type to check.
- * @return true if compression to the given type is disabled, false otherwise.
+ * @return true if conversion to the given type is disabled, false otherwise.
  */
-TRANSFORMATIONS_API bool is_compression_disabled_to(const std::shared_ptr<const Node>& node, const element::Type& to);
+TRANSFORMATIONS_API bool is_conversion_disabled(const std::shared_ptr<const Node>& node, const element::Type& to);
 
 /**
- * @brief Check if precision compression from one type to another is disabled on a @ref Node.
+ * @brief Check if precision conversion from one type to another is disabled on a @ref Node.
  *
  * @param node  Node to check.
  * @param from  Source element type.
  * @param to    Target element type.
- * @return true if compression from the given source to the given target type is disabled, false otherwise.
+ * @return true if conversion from the given source to the given target type is disabled, false otherwise.
  */
-TRANSFORMATIONS_API bool is_compression_disabled_from_to(const std::shared_ptr<const Node>& node,
-                                                         const element::Type& from,
-                                                         const element::Type& to);
-struct ElementTypeHash {
-    size_t operator()(const ov::element::Type& t) const {
-        return t.hash();
-    }
-};
-using DisabledPrecisionMap = std::unordered_map<ov::element::Type, std::set<ov::element::Type>, ElementTypeHash>;
+TRANSFORMATIONS_API bool is_conversion_disabled(const std::shared_ptr<const Node>& node,
+                                                const element::Type& from,
+                                                const element::Type& to);
+
+using DisabledPrecisionMap = std::map<ov::element::Type, std::set<ov::element::Type>>;
 
 class TRANSFORMATIONS_API DisablePrecisionConversion : public RuntimeAttribute {
 public:

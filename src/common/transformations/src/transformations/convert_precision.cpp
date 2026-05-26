@@ -16,6 +16,7 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/reference/convert.hpp"
+#include "openvino/util/common_util.hpp"
 #include "ov_ops/rms.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/fp16_compression/align_mixed_fp32_fp16_types.hpp"
@@ -179,13 +180,9 @@ bool node_is_replaced(const std::shared_ptr<Node>& node) {
 static precisions_map filter_precisions_for_node(const std::shared_ptr<ov::Node>& node,
                                                  const precisions_map& precisions) {
     precisions_map result = precisions;
-    for (auto it = result.begin(); it != result.end();) {
-        if (is_compression_disabled_from_to(node, it->first, it->second)) {
-            it = result.erase(it);
-        } else {
-            ++it;
-        }
-    }
+    ov::util::erase_if(result, [&](const precisions_map::value_type& entry) {
+        return is_conversion_disabled(node, entry.first, entry.second);
+    });
     return result;
 }
 
@@ -301,7 +298,7 @@ bool convert_function_precision(ov::pass::PassBase& pass,
     // the pass on constant-heavy models.
 
     for (size_t i = 0; i < ops.size(); ++i) {
-        auto node = std::move(ops[i]);      
+        auto node = std::move(ops[i]);
         auto node_precisions = filter_precisions_for_node(node, precisions);
 
         // Skip nodes where all requested conversions are disabled (e.g. sensitive ops kept in FP32)

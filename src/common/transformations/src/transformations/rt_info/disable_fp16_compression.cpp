@@ -16,15 +16,15 @@ const std::string& get_postponed_fp16_compression_tag() {
 }  // namespace
 
 void ov::disable_fp16_compression(const std::shared_ptr<Node>& node) {
-    disable_compression_to(node, element::f16);
+    disable_conversion(node, element::f16);
 }
 
 void ov::enable_fp16_compression(const std::shared_ptr<Node>& node) {
-    enable_compression_to(node, element::f16);
+    enable_conversion(node, element::f16);
 }
 
 bool ov::fp16_compression_is_disabled(const std::shared_ptr<const Node>& node) {
-    return is_compression_disabled_to(node, element::f16);
+    return is_conversion_disabled(node, element::f16);
 }
 
 void ov::postpone_fp16_compression(ov::RTMap& rt_info) {
@@ -39,13 +39,11 @@ void ov::do_not_postpone_fp16_compression(ov::RTMap& rt_info) {
     rt_info.erase(get_postponed_fp16_compression_tag());
 }
 
-void ov::disable_compression_to(const std::shared_ptr<Node>& node, const element::Type& to) {
-    return disable_compression_from_to(node, element::dynamic, to);
+void ov::disable_conversion(const std::shared_ptr<Node>& node, const element::Type& to) {
+    return disable_conversion(node, element::dynamic, to);
 }
 
-void ov::disable_compression_from_to(const std::shared_ptr<Node>& node,
-                                     const element::Type& from,
-                                     const element::Type& to) {
+void ov::disable_conversion(const std::shared_ptr<Node>& node, const element::Type& from, const element::Type& to) {
     auto& rt_info = node->get_rt_info();
     auto it = rt_info.find(DisablePrecisionConversion::get_type_info_static());
     if (it != rt_info.end()) {
@@ -56,23 +54,21 @@ void ov::disable_compression_from_to(const std::shared_ptr<Node>& node,
     }
 }
 
-void ov::disable_compression_from_to(const std::shared_ptr<Node>& node,
-                                     const std::vector<element::Type>& from_types,
-                                     const std::vector<element::Type>& to_types) {
+void ov::disable_conversion(const std::shared_ptr<Node>& node,
+                            const std::vector<element::Type>& from_types,
+                            const std::vector<element::Type>& to_types) {
     for (const auto& from : from_types) {
         for (const auto& to : to_types) {
-            disable_compression_from_to(node, from, to);
+            disable_conversion(node, from, to);
         }
     }
 }
 
-void ov::enable_compression_to(const std::shared_ptr<Node>& node, const element::Type& to) {
-    enable_compression_from_to(node, element::dynamic, to);
+void ov::enable_conversion(const std::shared_ptr<Node>& node, const element::Type& to) {
+    enable_conversion(node, element::dynamic, to);
 }
 
-void ov::enable_compression_from_to(const std::shared_ptr<Node>& node,
-                                    const element::Type& from,
-                                    const element::Type& to) {
+void ov::enable_conversion(const std::shared_ptr<Node>& node, const element::Type& from, const element::Type& to) {
     auto& rt_info = node->get_rt_info();
     auto it = rt_info.find(DisablePrecisionConversion::get_type_info_static());
     if (it != rt_info.end()) {
@@ -87,23 +83,23 @@ void ov::enable_compression_from_to(const std::shared_ptr<Node>& node,
     }
 }
 
-void ov::enable_compression_from_to(const std::shared_ptr<Node>& node,
-                                    const std::vector<element::Type>& from_types,
-                                    const std::vector<element::Type>& to_types) {
+void ov::enable_conversion(const std::shared_ptr<Node>& node,
+                           const std::vector<element::Type>& from_types,
+                           const std::vector<element::Type>& to_types) {
     for (const auto& from : from_types) {
         for (const auto& to : to_types) {
-            enable_compression_from_to(node, from, to);
+            enable_conversion(node, from, to);
         }
     }
 }
 
-bool ov::is_compression_disabled_to(const std::shared_ptr<const Node>& node, const element::Type& to) {
-    return is_compression_disabled_from_to(node, element::dynamic, to);
+bool ov::is_conversion_disabled(const std::shared_ptr<const Node>& node, const element::Type& to) {
+    return is_conversion_disabled(node, element::dynamic, to);
 }
 
-bool ov::is_compression_disabled_from_to(const std::shared_ptr<const Node>& node,
-                                         const element::Type& from,
-                                         const element::Type& to) {
+bool ov::is_conversion_disabled(const std::shared_ptr<const Node>& node,
+                                const element::Type& from,
+                                const element::Type& to) {
     auto& rt_info = node->get_rt_info();
     auto it = rt_info.find(DisablePrecisionConversion::get_type_info_static());
     if (it != rt_info.end()) {
