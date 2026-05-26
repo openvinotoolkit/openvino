@@ -33,8 +33,7 @@ FuseClampAndFakeQuantize::FuseClampAndFakeQuantize() {
         const auto clamp = ov::as_type_ptr<v0::Clamp>(pattern_map.at(clamp_pattern).get_node_shared_ptr());
         const auto fq = ov::as_type_ptr<v0::FakeQuantize>(pattern_map.at(fq_pattern).get_node_shared_ptr());
         const auto input_low = ov::as_type_ptr<v0::Constant>(pattern_map.at(input_low_pattern).get_node_shared_ptr());
-        const auto input_high =
-            ov::as_type_ptr<v0::Constant>(pattern_map.at(input_high_pattern).get_node_shared_ptr());
+        const auto input_high = ov::as_type_ptr<v0::Constant>(pattern_map.at(input_high_pattern).get_node_shared_ptr());
         if (!clamp || !fq || !input_low || !input_high) {
             return false;
         }
