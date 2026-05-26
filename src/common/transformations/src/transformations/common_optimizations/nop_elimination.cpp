@@ -584,6 +584,19 @@ bool extract_slice_range_along_axis(const std::shared_ptr<ov::Node>& user,
             return false;
         }
 
+        // NOPE pattern requires unit strides — non-unit strides skip elements and cannot reconstruct the Concat input.
+        if (strided_slice_node->get_input_size() == 4) {
+            const auto& strides_constant_node =
+                ov::util::get_constant_from_source(strided_slice_node->get_input_node_shared_ptr(3));
+            if (!strides_constant_node)
+                return false;
+            auto strides_values = strides_constant_node->cast_vector<int64_t>();
+            for (const auto& s : strides_values) {
+                if (s != 1)
+                    return false;
+            }
+        }
+
         const auto& begin_constant_node =
             ov::util::get_constant_from_source(strided_slice_node->get_input_node_shared_ptr(1));
         if (!begin_constant_node)
