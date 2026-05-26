@@ -456,17 +456,42 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                     if (const auto* dynamic = ov::npuw::attn::get_compiled_dynamic(pipeline.context)) {
                         auto& io =
                             get_behavior_io(state, ctx.subgraph_idx, get_param_base(ctx, ctx.real_subgraph_idx), 0u);
-                        const bool is_non_param_mask = std::none_of(dynamic->params.begin(),
-                                                                    dynamic->params.end(),
-                                                                    [&](auto&& param) {
-                                                                        return param.idx == input_idx;
-                                                                    }) &&
-                                                       input_idx != dynamic->mask_idx;
+                        ensure_dynamic_selector(ctx, state);
+                        auto kv_param_it =
+                            std::find_if(dynamic->params.begin(), dynamic->params.end(), [&](const auto& p) {
+                                return p.idx == input_idx;
+                            });
+                        const bool is_kv_param = (kv_param_it != dynamic->params.end());
+                        const bool is_mask = (input_idx == dynamic->mask_idx);
                         const auto& iport = compiled_model->inputs()[input_idx];
-                        if (is_non_param_mask) {
-                            ctx.target_request->set_tensor(iport, tensor);
-                        } else {
+                        if (is_mask) {
+                            // Mask requires context-dependent construction — defer to prologue()
                             io.inputs.at(input_idx) = tensor;
+                        } else if (is_kv_param) {
+                            const auto& param = *kv_param_it;
+                            const auto pos_id = state.attention_selector->length();
+                            if (pos_id == -1) {
+                                // Fallback: dynamic range not identified — bind full tensor
+                                ctx.target_request->set_tensor(iport, tensor);
+                            } else {
+                                const auto past_len = state.attention_selector->past_length();
+                                const auto& view = ov::npuw::util::view(tensor, param.dim, 0, past_len);
+                                const auto& shape = view->get_shape();
+                                const bool do_copy = get_request(ctx).subgraph_needs_copy(ctx.subgraph_idx) &&
+                                                     !get_request(ctx).attention_no_copy();
+                                if (do_copy && ov::shape_size(shape) > 0) {
+                                    const auto& dst = ctx.target_request->get_tensor(iport);
+                                    dst->set_shape(shape);
+                                    view->copy_to(dst._ptr);
+                                } else if (do_copy && ov::shape_size(shape) == 0) {
+                                    ctx.target_request->get_tensor(iport)->set_shape(shape);
+                                } else {
+                                    ctx.target_request->set_tensor(iport, view);
+                                }
+                            }
+                        } else {
+                            // Non-KV, non-mask: bind directly
+                            ctx.target_request->set_tensor(iport, tensor);
                         }
                         return true;
                     }
@@ -478,17 +503,92 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         ensure_pyramid_selector(ctx, state);
                         const auto pyramid_id = state.pyramid_selector->pyramid_id();
                         const auto& info = pyramid->_attention_infos[pyramid_id];
-                        const bool is_non_param_mask = std::none_of(info.params.begin(),
-                                                                    info.params.end(),
-                                                                    [&](auto&& param) {
-                                                                        return param.idx == input_idx;
-                                                                    }) &&
-                                                       input_idx != info.mask_idx;
+                        const bool is_mask = (input_idx == info.mask_idx);
+                        auto param_it = std::find_if(info.params.begin(), info.params.end(), [&](const auto& p) {
+                            return p.idx == input_idx;
+                        });
+                        const bool is_kv_param = (param_it != info.params.end());
                         const auto& iport = compiled_model->inputs()[input_idx];
-                        if (is_non_param_mask) {
-                            ctx.target_request->set_tensor(iport, tensor);
-                        } else {
+                        if (is_mask) {
+                            // Mask requires context-dependent construction — defer to prologue()
                             io.inputs.at(input_idx) = tensor;
+                        } else if (is_kv_param) {
+                            const auto& param = *param_it;
+                            using namespace ov::npuw::runtime;
+                            // iport comes from the main compiled model (full KV shape).
+                            // For set_tensor we must use the port from the pyramid model's compiled
+                            // model so the zero backend shape check passes. For the last pyramid model
+                            // _compiled_models[pyramid_id] == the main compiled model, so pyramid_iport
+                            // == iport and there is no behavioural difference.
+                            // get_tensor calls below intentionally keep iport: they look up by index /
+                            // name without strict shape validation.
+                            const auto& pyramid_iport = pyramid->_compiled_models[pyramid_id]->inputs()[input_idx];
+                            if (state.pyramid_selector->length() == -1) {
+                                // Fallback: dynamic range not identified — bind directly
+                                ctx.target_request->set_tensor(pyramid_iport, tensor);
+                            } else {
+                                // Pyramid dynamic range identified
+                                const auto past_len = state.pyramid_selector->past_length();
+                                const auto this_case = state.pyramid_selector->this_case();
+
+                                // Strided I/O is available for non-last pyramid models compiled with
+                                // enable_strides_for. The last model reuses the main compiled subgraph (compiled
+                                // without enable_strides_for), so it always falls back to the copy path.
+                                const bool use_tensor_view =
+                                    pyramid->_can_use_tensor_view && (pyramid_id < pyramid->num_models() - 1);
+
+                                const auto& input_shape = tensor->get_shape();
+                                if (this_case == pyramid_attention::Selector::Case::PREFILL) {
+                                    if (static_cast<int64_t>(input_shape[param.dim]) == past_len) {
+                                        ctx.target_request->set_tensor(pyramid_iport, tensor);
+                                    } else {
+                                        const auto& view = ov::npuw::util::view(tensor, param.dim, 0, past_len);
+                                        const auto& shape = view->get_shape();
+                                        if (ov::shape_size(shape) == 0) {
+                                            ctx.target_request->get_tensor(iport)->set_shape(shape);
+                                        } else if (use_tensor_view) {
+                                            const auto model_past_len = static_cast<int64_t>(info.context_length) -
+                                                                        static_cast<int64_t>(info.query_size);
+                                            LOG_DEBUG("Use tensor view: past_len=" << past_len << " model_past_len="
+                                                                                   << model_past_len);
+                                            ctx.target_request->set_tensor(
+                                                pyramid_iport,
+                                                ov::npuw::util::view(tensor, param.dim, 0, model_past_len));
+                                        } else {
+                                            const auto& dst = ctx.target_request->get_tensor(iport);
+                                            ov::npuw::util::copy_tensor_by_dim(view,
+                                                                               dst,
+                                                                               static_cast<uint32_t>(param.dim),
+                                                                               static_cast<uint32_t>(param.dim));
+                                        }
+                                    }
+                                } else {
+                                    NPUW_ASSERT(this_case == pyramid_attention::Selector::Case::GENERATE);
+                                    NPUW_ASSERT(static_cast<int64_t>(input_shape[param.dim]) != past_len);
+                                    const auto& dst = ctx.target_request->get_tensor(iport);
+                                    if (dst->get_shape() == input_shape) {
+                                        ctx.target_request->set_tensor(pyramid_iport, tensor);
+                                    } else if (use_tensor_view) {
+                                        const auto model_past_len = static_cast<int64_t>(info.context_length) -
+                                                                    static_cast<int64_t>(info.query_size);
+                                        LOG_DEBUG("Use tensor view: past_len=" << past_len
+                                                                               << " model_past_len=" << model_past_len);
+                                        ctx.target_request->set_tensor(
+                                            pyramid_iport,
+                                            ov::npuw::util::view(tensor, param.dim, 0, model_past_len));
+                                    } else {
+                                        const auto& view = ov::npuw::util::view(tensor, param.dim, 0, past_len);
+                                        const auto& dst_slice = ov::npuw::util::view(dst, param.dim, 0, past_len);
+                                        ov::npuw::util::copy_tensor_by_dim(view,
+                                                                           dst_slice,
+                                                                           static_cast<uint32_t>(param.dim),
+                                                                           static_cast<uint32_t>(param.dim));
+                                    }
+                                }
+                            }
+                        } else {
+                            // Non-KV, non-mask: bind directly
+                            ctx.target_request->set_tensor(iport, tensor);
                         }
                         return true;
                     }

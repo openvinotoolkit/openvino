@@ -89,6 +89,12 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
         auto rank_a = shape_a.rank().get_length();
         auto rank_b = shape_b.rank().get_length();
 
+        // The fully_connected primitive does not support this situation (rank_a < rank_b).
+        // So, we need to choose GEMM instead of fully_connected.
+        if (rank_a < rank_b) {
+            return false;
+        }
+
         /*
          *  get_aligned_shapes function align two input shapes to have the same size and
          *  the same batch dimensions (last two dimensions are not comparable).
@@ -194,17 +200,12 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
         }
 
         // Connect Convert to new input if needed
-        if (is_convert && transpose_node && !can_reuse_transpose) {
+        if (is_convert) {
             auto convert = pattern_map.at(weights_m).get_node_shared_ptr();
             auto new_convert = convert->clone_with_new_inputs({fc_input_b});
             new_ops.push_back(new_convert);
             new_convert->validate_and_infer_types();
             fc_input_b = new_convert;
-        } else if (is_convert) {
-            auto convert = pattern_map.at(weights_m).get_node_shared_ptr();
-            convert->input(0).replace_source_output(fc_input_b);
-            convert->validate_and_infer_types();
-            fc_input_b = convert;
         }
 
         auto no_bias = std::make_shared<op::Placeholder>();

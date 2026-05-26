@@ -15,6 +15,7 @@
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/utils.hpp"
+#include "intel_npu/utils/vm/npu_vm_runtime_api.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
 #include "mem_usage.hpp"
@@ -64,10 +65,12 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compile");
 
     _logger.debug("compile start");
-    auto tensor = _compiler->compile(model, config);
+    auto [tensor, compatibilityDescriptor] = _compiler->compile(model, config);
     _logger.debug("compile end");
 
-    if (config.get<COMPILATION_MODE>() == "HostCompile") {
+    if (config.get<COMPILATION_MODE>().find("HostCompile") == 0) {
+        NPUVMRuntimeApi::initializeFromBlob(tensor.data(), tensor.get_byte_size());
+
         // metadata will be obtained in initialze() of DynamicGraph
         _logger.debug("Use dynamicGraph to hold blob for HostCompile mode!");
         return std::make_shared<DynamicGraph>(_zeroInitStruct, std::move(tensor), true, config);
@@ -99,6 +102,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         std::move(networkMeta),
         std::move(tensor),
         config,
+        compatibilityDescriptor,
         /* persistentBlob = */ true);  // exporting the blob shall be available in such a scenario
 }
 
@@ -292,6 +296,29 @@ bool PluginCompilerAdapter::is_option_supported(std::string optname, std::option
                       hasValue ? value.c_str() : "null");
         return false;
     }
+}
+
+bool PluginCompilerAdapter::validate_compatibility_descriptor(const std::string& compatibilityDescriptor) const {
+    if (_zeroInitStruct && _zeroInitStruct->getDevice()) {
+        ze_device_properties_t device_properties = {};
+        device_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
+        auto result = zeDeviceGetProperties(_zeroInitStruct->getDevice(), &device_properties);
+
+        if (result == ZE_RESULT_SUCCESS) {
+            vcl_device_desc_t vcl_desc = {sizeof(vcl_device_desc_t),
+                                          device_properties.deviceId,
+                                          static_cast<uint16_t>(device_properties.subdeviceId),
+                                          device_properties.numSlices};
+
+            _logger.info("Validating compatibility logic using deviceID: 0x%X, maxTiles: %u",
+                         vcl_desc.deviceID,
+                         vcl_desc.tileCount);
+
+            return _compiler->validate_compatibility_descriptor(compatibilityDescriptor, &vcl_desc);
+        }
+    }
+
+    return false;
 }
 
 }  // namespace intel_npu

@@ -26,6 +26,10 @@ RUN apt-get update && \
         tzdata \
         # parallel gzip
         pigz \
+        # Python
+        python3 \
+        python3-tomli \
+        python3-venv \
         # Compilers
         gcc \
         g++ \
@@ -41,16 +45,17 @@ RUN apt-get update && \
         && \
     rm -rf /var/lib/apt/lists/*
 
-# build xuintie qemu emulator only
-ARG XUANTIE_VERSION="V2.10.2"
-ARG XUANTIE_REPO="https://github.com/XUANTIE-RV/xuantie-gnu-toolchain"
-ARG XUINTIE_PATH="/opt/riscv"
-ARG XUINTIE_TMP_PATH="/tmp/xuantie"
-ARG XUINTIE_SRC="/tmp/xuantie/src"
-    
-RUN mkdir -p ${XUINTIE_TMP_PATH} && cd ${XUINTIE_TMP_PATH} && \
-    git clone --branch ${XUANTIE_VERSION} --depth 1 ${XUANTIE_REPO} ${XUINTIE_SRC} && \
-    cd ${XUINTIE_SRC} && git submodule update --init -- qemu && \
-    cd ${XUINTIE_SRC}/qemu && ./configure --prefix=${XUINTIE_PATH} --interp-prefix=/usr/riscv64-linux-gnu --target-list=riscv64-linux-user && \
-    make -j$(nproc) && make install && \
-    rm -rf ${XUINTIE_TMP_PATH}
+# build riscv-collab qemu emulator only
+ARG RISCV_GNU_TOOLCHAIN_REF="2026.05.06"
+ARG RISCV_GNU_TOOLCHAIN_REPO="https://github.com/riscv-collab/riscv-gnu-toolchain.git"
+ARG RISCV_TOOLCHAIN_PATH="/opt/riscv"
+ARG RISCV_TOOLCHAIN_TMP_PATH="/tmp/riscv-gnu-toolchain"
+ARG RISCV_TOOLCHAIN_SRC="/tmp/riscv-gnu-toolchain/src"
+
+RUN mkdir -p ${RISCV_TOOLCHAIN_TMP_PATH} && cd ${RISCV_TOOLCHAIN_TMP_PATH} && \
+    git clone --branch ${RISCV_GNU_TOOLCHAIN_REF} --depth 1 ${RISCV_GNU_TOOLCHAIN_REPO} ${RISCV_TOOLCHAIN_SRC} && \
+    cd ${RISCV_TOOLCHAIN_SRC} && git submodule update --init -- qemu && \
+    cd ${RISCV_TOOLCHAIN_SRC}/qemu && \
+    ./configure --prefix=${RISCV_TOOLCHAIN_PATH} --interp-prefix=/usr/riscv64-linux-gnu --target-list=riscv64-linux-user && \
+    make -j"$(nproc)" && make install && \
+    rm -rf ${RISCV_TOOLCHAIN_TMP_PATH}

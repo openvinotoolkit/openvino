@@ -121,6 +121,7 @@ std::vector<Case> make_cases() {
         bool_case<::intel_npu::NPUW_ATTN_NO_COPY>("NPUW_ATTN_NO_COPY", "YES", true),
         bool_case<::intel_npu::NPUW_ATTN_HFA_FUSED>("NPUW_ATTN_HFA_FUSED", "YES", true),
         bool_case<::intel_npu::NPUW_PARALLEL_COMPILE>("NPUW_PARALLEL_COMPILE", "YES", true),
+        bool_case<::intel_npu::NPUW_ENSURE_COMPATIBILITY>("NPUW_ENSURE_COMPATIBILITY", "YES", true),
         bool_case<::intel_npu::NPUW_FUNCALL_ASYNC>("NPUW_FUNCALL_ASYNC", "YES", true),
         bool_case<::intel_npu::NPUW_UNFOLD_IREQS>("NPUW_UNFOLD_IREQS", "YES", true),
         bool_case<::intel_npu::NPUW_FALLBACK_EXEC>("NPUW_FALLBACK_EXEC", "NO", false),
@@ -201,5 +202,12 @@ std::string case_name(const testing::TestParamInfo<Case>& info) {
 }
 
 INSTANTIATE_TEST_SUITE_P(NPUWOptions, SmokeTest, ::testing::ValuesIn(make_cases()), case_name);
+
+TEST(NPUWConfigOptionsSmokeTest, AttentionHintDefaultsCanDifferPerOption) {
+    const auto cfg = make_config();
+
+    EXPECT_EQ(cfg.getString<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>(), "PYRAMID");
+    EXPECT_EQ(cfg.getString<::intel_npu::NPUW_LLM_GENERATE_ATTENTION_HINT>(), "STATIC");
+}
 
 }  // namespace

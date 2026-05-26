@@ -287,6 +287,9 @@ REGISTER_FACTORY(v16, OneHot);
 REGISTER_FACTORY(v16, Identity);
 REGISTER_FACTORY(v16, SegmentMax);
 
+// ------------------------------ Supported v17 ops ----------------------------- //
+REGISTER_FACTORY(v17, ErfInv);
+
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);
 REGISTER_FACTORY(internal, GenerateProposalsIEInternal);

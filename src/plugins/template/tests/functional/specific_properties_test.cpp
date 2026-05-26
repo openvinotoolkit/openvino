@@ -40,7 +40,7 @@ TEST(PropertyTest, PluginReportsRequirementsMetForValidRequirements) {
 
     const auto compat =
         core->get_property("TEMPLATE", ov::compatibility_check, std::make_pair(ov::runtime_requirements.name(), reqs));
-    EXPECT_EQ(compat, ov::CompatibilityCheck::OPTIMAL);
+    EXPECT_EQ(compat, ov::CompatibilityCheck::SUPPORTED);
 }
 
 TEST(PropertyTest, PluginRejectsModifiedRequirements) {
@@ -66,7 +66,7 @@ TEST(PropertyTest, PluginAcceptModifiedRequirements) {
     std::string tampered = "tampered_" + reqs;
 
     EXPECT_EQ(core->get_property("TEMPLATE", ov::compatibility_check, {{ov::runtime_requirements.name(), tampered}}),
-              ov::CompatibilityCheck::PREFER_RECOMPILATION);
+              ov::CompatibilityCheck::UNSUPPORTED);
 }
 
 TEST(PropertyTest, PluginRejectsEmptyRequirements) {

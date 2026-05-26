@@ -109,7 +109,7 @@ static const char infer_num_streams_message[] =
     "Optional. Number of streams to use for inference on the CPU or GPU devices "
     "(for HETERO and MULTI device cases use format <dev1>:<nstreams1>,<dev2>:<nstreams2> or just "
     "<nstreams>). "
-    "Default value is determined automatically for a device.Please note that although the "
+    "Default value is determined automatically for a device. Please note that although the "
     "automatic selection "
     "usually provides a reasonable performance, it still may be non - optimal for some cases, "
     "especially for "
