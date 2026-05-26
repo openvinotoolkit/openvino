@@ -13,6 +13,7 @@
 #include "network_test.h"
 #include <intel_gpu/runtime/utils.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/dynamic_quantize.hpp>
 #include "intel_gpu/primitives/fully_connected.hpp"
 #include <intel_gpu/primitives/quantize.hpp>
 #include <intel_gpu/primitives/data.hpp>
@@ -21,6 +22,7 @@
 #include "fully_connected_inst.h"
 
 #include <cmath>
+#include <limits>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -3847,6 +3849,95 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         OPENVINO_ASSERT((avg/count) < 1);
     }
 
+    void test_dynamic_quantize_runtime_skip_guards() {
+        tests::random_generator rg(GET_SUITE_NAME);
+        auto& engine = get_test_engine();
+
+        if (!engine.get_device_info().supports_immad)
+            GTEST_SKIP();
+
+        constexpr long int seq_num = 40;
+        constexpr long int ifm_num = 128;
+        constexpr long int ofm_num = 256;
+        constexpr long int scales_group_size = 128;
+
+        auto weights_mem = engine.allocate_memory({ {ofm_num, ifm_num}, data_types::i4, format::bfyx });
+        auto scale_mem = engine.allocate_memory({ {ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx });
+
+        auto weights_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 4);
+        auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * (ifm_num / scales_group_size), 0.01f, 0.1f);
+        set_values(weights_mem, weights_data);
+        set_values(scale_mem, scale_data);
+
+        auto is_dynamic_quantize_skipped = [&](long int batch_num,
+                                               const std::vector<ov::float16>& input_data,
+                                               uint64_t dynamic_quantize_group_size,
+                                               const ov::intel_gpu::ImplementationDesc& fc_impl_desc) {
+            auto input_ps = ov::PartialShape{ batch_num, seq_num, ifm_num };
+            auto input_mem = engine.allocate_memory({ input_ps, data_types::f16, format::bfyx });
+            set_values(input_mem, input_data);
+
+            dynamic_quantize::Attributes dq_config;
+            dq_config.quantization_dt = data_types::i8;
+            dq_config.scale_dt = data_types::f16;
+            dq_config.group_sizes = {1, 1, dynamic_quantize_group_size};
+
+            auto fc_prim = fully_connected("fc_prim",
+                                           input_info("dyn_quan", 0),
+                                           "weights",
+                                           "",
+                                           "scale",
+                                           "",
+                                           input_info("dyn_quan", 1),
+                                           input_info("", 0),
+                                           input_info("", 0),
+                                           data_types::f16,
+                                           3,
+                                           2);
+
+            topology topology(
+                input_layout("input", layout{ ov::PartialShape{ -1, -1, ifm_num }, data_types::f16, format::bfyx }),
+                data("weights", weights_mem),
+                data("scale", scale_mem),
+                dynamic_quantize("dyn_quan", input_info("input"), dq_config, 2),
+                fc_prim
+            );
+
+            auto config = get_test_default_config(engine);
+            config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+            config.set_property(ov::intel_gpu::optimize_data(true));
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc_prim", fc_impl_desc} }));
+
+            network network(engine, topology, config);
+            network.set_input_data("input", input_mem);
+
+            network.get_primitive("input")->prepare_primitive();
+            auto dyn_quan = network.get_primitive("dyn_quan");
+            dyn_quan->prepare_primitive();
+            return dyn_quan->can_be_optimized();
+        };
+
+        auto single_input = rg.generate_random_1d<ov::float16>(seq_num * ifm_num, -2.f, 2.f);
+        std::vector<ov::float16> batched_input;
+        batched_input.reserve(single_input.size() * 2);
+        batched_input.insert(batched_input.end(), single_input.begin(), single_input.end());
+        batched_input.insert(batched_input.end(), single_input.begin(), single_input.end());
+
+        ov::intel_gpu::ImplementationDesc ocl_fc_impl = { format::bfyx, "fully_connected_gpu_bf_tiled", impl_types::ocl };
+        EXPECT_TRUE(is_dynamic_quantize_skipped(1, single_input, scales_group_size, ocl_fc_impl))
+            << "Grouped DynamicQuantize may still use the OCL FC fast path for small single-request shapes";
+        EXPECT_FALSE(is_dynamic_quantize_skipped(2, batched_input, scales_group_size, ocl_fc_impl))
+            << "The threshold must still execute DynamicQuantize when the token batch is above the threshold";
+        EXPECT_FALSE(is_dynamic_quantize_skipped(1, single_input, std::numeric_limits<uint64_t>::max(), ocl_fc_impl))
+            << "Per-token DynamicQuantize must not be skipped unless FC can reproduce the same quantization semantics";
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        ov::intel_gpu::ImplementationDesc onednn_fc_impl = { format::bfyx, "", impl_types::onednn };
+        EXPECT_FALSE(is_dynamic_quantize_skipped(1, single_input, scales_group_size, onednn_fc_impl))
+            << "oneDNN FC does not provide an equivalent runtime fast path for skipped DynamicQuantize";
+#endif
+    }
+
     // Test for FP16 overflow prevention in dynamic quantization scale multiplication.
     // When convert_half(acc_tmp) * ds exceeds FP16 max (65504), the intermediate overflows to INF.
     // The fix reorders multiplication to: convert_half(acc_tmp) * de_quantize_scale * ds,
@@ -5135,6 +5226,10 @@ TEST_F(fully_connected_gpu_tests, compressed_int4_dyn_quan_large_activation_no_o
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_dyn_quan_large_activation_no_overflow_dynamic) {
     this->test_compressed_int4_dyn_quan_large_activation_no_overflow(true, 512);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_dynamic_quantize_runtime_skip_guards) {
+    this->test_dynamic_quantize_runtime_skip_guards();
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_batch_1) {

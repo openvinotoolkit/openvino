@@ -8,10 +8,52 @@
 
 #include "primitive_type_base.h"
 #include "json_object.h"
+#include <limits>
 #include <string>
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(dynamic_quantize);
+
+static bool can_skip_for_fully_connected(dynamic_quantize_node const& node, fully_connected_node const& fc_node) {
+    const auto& attrs = node.get_primitive()->attrs;
+
+    if (attrs.quantization_type != ov::op::internal::DynamicQuantize::QuantizationType::Symmetric ||
+        attrs.quantization_dt != ov::element::i8 ||
+        attrs.scale_dt != ov::element::f16 ||
+        attrs.precomputed_reduction ||
+        attrs.group_sizes.empty() ||
+        attrs.group_sizes.back() == std::numeric_limits<uint64_t>::max()) {
+        return false;
+    }
+
+    bool has_equivalent_fc_fast_path = false;
+    const auto& forced_impls = fc_node.get_program().get_config().get_force_implementations();
+    auto forced_impl = forced_impls.find(fc_node.id());
+    if (forced_impl != forced_impls.end()) {
+        if (forced_impl->second.impl_type != impl_types::ocl) {
+            return false;
+        }
+        if (!forced_impl->second.kernel_name.empty() &&
+            forced_impl->second.kernel_name.find("fully_connected_gpu_bf_tiled") == std::string::npos) {
+            return false;
+        }
+        has_equivalent_fc_fast_path = forced_impl->second.kernel_name.find("fully_connected_gpu_bf_tiled") != std::string::npos;
+    }
+
+    const auto* fc_impl = fc_node.get_selected_impl();
+    if (fc_impl != nullptr) {
+        if (fc_impl->is_onednn()) {
+            return false;
+        }
+        has_equivalent_fc_fast_path |= fc_impl->get_kernel_name().find("fully_connected_gpu_bf_tiled") != std::string::npos;
+    }
+
+    if (fc_node.get_preferred_impl_type() == impl_types::onednn && !has_equivalent_fc_fast_path) {
+        return false;
+    }
+
+    return has_equivalent_fc_fast_path;
+}
 
 // We should skip dynamic_quantization execution for 2nd token of LLM because it does not show performance gain.
 // can_be_optimized flag will be turned on from primitive_inst::update_shape function
@@ -26,16 +68,22 @@ static bool should_skip_execution(dynamic_quantize_node const& node, const layou
     if (!(*node.get_users().begin())->is_type<fully_connected>())
         return false;
 
-    // If batch size is 1, dynamic_quantize is disabled for performance reason
+    auto& fc_user = (*node.get_users().begin())->as<fully_connected>();
+    if (!can_skip_for_fully_connected(node, fc_user)) {
+        GPU_DEBUG_TRACE << node.id() << "  dyn_quan is not runtime-skipped: no equivalent FC fast path" << std::endl;
+        return false;
+    }
+
     size_t input_batch = act_layout.batch();
     if (act_layout.format == format::bfyx && act_layout.get_partial_shape().size() != 2) {
         // 3D input
         input_batch = act_layout.batch() * act_layout.feature();
     }
 
-    if (node.get_program().get_config().get_dynamic_quantization_threshold() >= input_batch) {
+    const auto dynamic_quantization_threshold = node.get_program().get_config().get_dynamic_quantization_threshold();
+    if (dynamic_quantization_threshold != 0 && dynamic_quantization_threshold >= input_batch) {
         GPU_DEBUG_TRACE << node.id() << "  dyn_quan is turned off: input batch size is too small - " << input_batch << " / "
-                        << node.get_program().get_config().get_dynamic_quantization_threshold() << std::endl;
+                        << dynamic_quantization_threshold << std::endl;
         return true;
     }
 
