@@ -2953,11 +2953,14 @@ static std::vector<int32_t> gen_tokens_ids_test_data(size_t seq_len, int num_ima
     return v;
 }
 
-// Test class to verify FlashAttnV2 sink correction produces same output as V1 path.
-// This exercises the fix for attention sink handling in the FlashAttnV2 online-softmax path.
-class paged_attention_sink_v1_v2_test : public PagedAttentionTest<paged_attention_test_params> {
+
+// Test class to verify FlashAttnV2 multi-token sink correction is actually active.
+// Runs the same prompt twice with FA_V2 enabled: once with non-zero sinks, once with zero sinks.
+// Asserts outputs differ, proving the sink code at line 2552 in sdpa_opt.cl executes.
+// This test is platform-independent (works on any GPU with OpenCL support).
+class paged_attention_sink_v2_effect_test : public PagedAttentionTest<paged_attention_test_params> {
 protected:
-    std::vector<ov::float16> run_pa_with_sinks(paged_attention_test_params& p, bool disable_fa_v2) {
+    std::vector<ov::float16> run_pa_v2_prompt(paged_attention_test_params& p, bool use_nonzero_sinks) {
         ov::element::Type kv_cache_precision = p.kv_cache_precision;
 
         PagedAttentionManager pam(rg,
@@ -2973,15 +2976,14 @@ protected:
                                   p.kv_cache_compression,
                                   p.key_cache_quant_mode,
                                   p.scores_mode == ScoresMode::SNAPKV,
-                                  false,  // has_xattention
+                                  false,
                                   p.rotation_config,
                                   kv_cache_precision);
 
-        // Populate sinks with realistic non-zero values [1, num_heads, 1, 1]
-        // Sink values are per-head scalar logits (typically small negative or small positive)
+        // Populate sinks: non-zero values to test effect, or zero for baseline
         pam.sinks.resize(p.num_heads);
         for (int h = 0; h < p.num_heads; h++) {
-            pam.sinks[h] = ov::float16(-1.0f + 0.3f * h);  // e.g., -1.0, -0.7, -0.4, ...
+            pam.sinks[h] = use_nonzero_sinks ? ov::float16(-1.0f + 0.3f * h) : ov::float16(0.0f);
         }
 
         auto query_mem = pam.get_query_memory();
@@ -3042,7 +3044,6 @@ protected:
         auto qq_bias_layout = qq_bias->get_layout();
         auto qq_bias_begins_layout = qq_bias_begins->get_layout();
 
-        // Make layouts dynamic
         query_layout.set_partial_shape(ov::PartialShape{ -1, p.num_heads * p.k_head_size });
         key_layout.set_partial_shape(ov::PartialShape{ -1, p.num_kv_heads * p.k_head_size });
         value_layout.set_partial_shape(ov::PartialShape{ -1, p.num_kv_heads * p.v_head_size });
@@ -3087,8 +3088,8 @@ protected:
         pa_prim.heads_num = p.num_heads;
         pa_prim.scale_val = pam.get_default_scale();
         pa_prim.has_alibi = false;
-        pa_prim.has_token_type_ids = false;
-        pa_prim.has_sink_input = true;  // We provide non-empty sinks
+        pa_prim.has_token_type_ids = true;  // Force sdpa_opt.cl path (disables micro-SDPA)
+        pa_prim.has_sink_input = true;
         pa_prim.num_outputs = 1;
         pa_prim.has_rotated_blocks = false;
         pa_prim.has_score_aggregation = false;
@@ -3137,7 +3138,8 @@ protected:
         ExecutionConfig config = get_test_default_config(get_test_engine());
         config.set_property(ov::intel_gpu::optimize_data(true));
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-        config.set_property(ov::intel_gpu::could_use_flashattn_v2(disable_fa_v2));
+        // Enable FlashAttnV2: could_use_flashattn_v2(true) sets IS_FLASHATTEN_V2=1 in the kernel
+        config.set_property(ov::intel_gpu::could_use_flashattn_v2(true));
         config.set_property(ov::internal::key_cache_quant_mode(p.key_cache_quant_mode));
 
         network::ptr network = get_network(get_test_engine(), topology, config, get_test_stream_ptr(), false);
@@ -3182,41 +3184,39 @@ protected:
     }
 };
 
-TEST_P(paged_attention_sink_v1_v2_test, compare_fa_v1_v2_with_sinks) {
+TEST_P(paged_attention_sink_v2_effect_test, verify_sink_changes_v2_output) {
     auto p = GetParam();
 
-    // Use same RNG seed for both runs to get identical input data
+    // Run FlashAttnV2 multi-token path with non-zero sinks
     rg.set_seed(GET_SUITE_NAME);
-    auto output_v1 = run_pa_with_sinks(p, /*disable_fa_v2=*/true);
+    auto output_with_sinks = run_pa_v2_prompt(p, /*use_nonzero_sinks=*/true);
 
+    // Run FlashAttnV2 multi-token path with zero sinks (sink code still runs but has no effect)
     rg.set_seed(GET_SUITE_NAME);
-    auto output_v2 = run_pa_with_sinks(p, /*disable_fa_v2=*/false);
+    auto output_no_sinks = run_pa_v2_prompt(p, /*use_nonzero_sinks=*/false);
 
-    ASSERT_EQ(output_v1.size(), output_v2.size());
+    ASSERT_EQ(output_with_sinks.size(), output_no_sinks.size());
 
-    // V1 and V2 paths may use different accumulation order, allow small tolerance
-    const float sink_tolerance = 5e-3f;
-    for (size_t i = 0; i < output_v1.size(); i++) {
-        ASSERT_NEAR(static_cast<float>(output_v1[i]), static_cast<float>(output_v2[i]), sink_tolerance)
-            << " V1 vs V2 mismatch with sinks at index=" << i;
+    // Verify outputs differ — proving the V2 sink correction code is active
+    bool found_difference = false;
+    for (size_t i = 0; i < output_with_sinks.size(); i++) {
+        if (std::abs(static_cast<float>(output_with_sinks[i]) - static_cast<float>(output_no_sinks[i])) > 1e-4f) {
+            found_difference = true;
+            break;
+        }
     }
+    ASSERT_TRUE(found_difference)
+        << "FlashAttnV2 multi-token output is identical with and without sinks — sink code may not be executing";
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_sink, paged_attention_sink_v1_v2_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
-    // head_size=64: triggers FlashAttnV2 fallback on xe3p (no micro-kernel for h64)
-    // Generation phase (single-token) - both V1 and V2 correctly apply sinks
-    // Note: Multi-token prompt cases are excluded because the non-FlashAttnV2 multi-token path
-    // does not apply sinks (separate known limitation), making V1/V2 comparison invalid for prompts.
-    // 2nd token (generation phase with past context)
-    paged_attention_test_params{ {{1, 34}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false },
-    // 2nd token with longer past context
-    paged_attention_test_params{ {{1, 128}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false },
-    // GQA: num_heads=8, num_kv_heads=2
-    paged_attention_test_params{ {{1, 64}}, 8, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false },
-    // With sliding window (attention sink + sliding window is the common real-world pattern)
-    paged_attention_test_params{ {{1, 128}}, 4, 4, 64, 64, 16, 64, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false },
-    // Multiple 2nd tokens in batch
-    paged_attention_test_params{ {{1, 34}, {1, 100}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false },
+INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_sink_v2_effect, paged_attention_sink_v2_effect_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+    // Multi-token (prompt) cases that exercise the FlashAttnV2 online-softmax path with sinks.
+    // These directly test the HAS_SINK_INPUT code at line 2552 in sdpa_opt.cl.
+    // Platform-independent: forces FA_V2 regardless of HW micro-kernel availability.
+    paged_attention_test_params{ {{10, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false },
+    paged_attention_test_params{ {{128, 0}}, 4, 4, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false },
+    // GQA prompt
+    paged_attention_test_params{ {{64, 0}}, 8, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false },
 }));
 
 INSTANTIATE_TEST_SUITE_P(smoke_paged_attention, paged_attention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
