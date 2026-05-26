@@ -17,8 +17,7 @@
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/opsets/opset8_decl.hpp"
 
-using namespace testing;
-using namespace ov;
+namespace ov::test {
 
 using FuseClampAndFakeQuantizeParams = std::tuple<std::pair<float, float>,  // clamp range
                                                   std::pair<float, float>,  // fq input range
@@ -70,3 +69,5 @@ INSTANTIATE_TEST_SUITE_P(TransformationTests,
                                            FuseClampAndFakeQuantizeParams({0.f, 2.f}, {1.f, 4.f}, false),
                                            FuseClampAndFakeQuantizeParams({2.f, 8.f}, {1.f, 4.f}, false),
                                            FuseClampAndFakeQuantizeParams({1.f, 4.f}, {0.f, 10.f}, false)));
+
+}  // namespace ov::test
