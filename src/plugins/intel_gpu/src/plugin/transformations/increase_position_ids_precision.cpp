@@ -358,14 +358,14 @@ IncreasePositionIdsPrecisionForLtxVideo::IncreasePositionIdsPrecisionForLtxVideo
     auto cos_concat = wrap_type<ov::op::v0::Concat>({any_input(), cos_transpose2});
 
     // RoPE: input 0 = x, input 1 = cos_concat, input 2 = sin_concat
-    auto rope = wrap_type<ov::op::internal::RoPE>({any_input(), cos_concat, sin_concat});
+    auto rope = wrap_type<ov::op::internal::RoPE>({any_input(), cos_concat, sin_concat},
+        [](const ov::Output<ov::Node>& output) {
+            auto node = ov::as_type_ptr<ov::op::internal::RoPE>(output.get_node_shared_ptr());
+            return node && node->get_config().is_ltx_video;
+        });
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-
-        auto rope_node = ov::as_type_ptr<ov::op::internal::RoPE>(m.get_match_root());
-        if (!rope_node || !rope_node->get_config().is_ltx_video)
-            return false;
 
         auto mul_node = ov::as_type_ptr<ov::op::v1::Multiply>(pattern_map.at(mul).get_node_shared_ptr());
         auto constant_node = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(add_constant).get_node_shared_ptr());
