@@ -884,6 +884,7 @@ struct SubgraphCollectorTestParam {
     std::vector<size_t> expected_constants_per_submodel = {};
     std::vector<size_t> expected_parameters_per_submodel = {};
     std::vector<size_t> expected_results_per_submodel = {};
+    std::vector<std::set<std::string>> expected_runtime_subgraph_nodes = {};  // final ordered subgraph membership by non-interface, non-Constant op names
 };
 
 class SubgraphCollectorParamTest : public testing::TestWithParam<SubgraphCollectorTestParam> {};
@@ -933,6 +934,46 @@ TEST_P(SubgraphCollectorParamTest, split_by_affinity) {
     const auto& [subgraphs, mapping] = collector.run();
 
     ASSERT_EQ(param.expected_subgraph_count, subgraphs.size());
+
+    std::map<size_t, size_t> actual_to_expected_subgraph_ids;
+    std::vector<size_t> expected_to_actual_subgraph_ids;
+    if (!param.expected_runtime_subgraph_nodes.empty()) {
+        ASSERT_EQ(param.expected_runtime_subgraph_nodes.size(), subgraphs.size());
+        expected_to_actual_subgraph_ids.resize(subgraphs.size());
+        std::set<size_t> matched_expected_subgraphs;
+        for (size_t i = 0; i < subgraphs.size(); ++i) {
+            const auto submodel = create_submodel_from_collected_subgraph(subgraphs[i]);
+            std::set<std::string> actual_node_names;
+
+            for (const auto& op : submodel->get_ordered_ops()) {
+                if (std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) ||
+                    std::dynamic_pointer_cast<ov::op::v0::Result>(op) ||
+                    std::dynamic_pointer_cast<ov::op::v0::Constant>(op)) {
+                    continue;
+                }
+                actual_node_names.insert(op->get_friendly_name());
+            }
+
+            ASSERT_FALSE(actual_node_names.empty()) << "Failed to derive canonical nodes for subgraph " << i;
+
+            bool matched = false;
+            for (size_t expected_idx = 0; expected_idx < param.expected_runtime_subgraph_nodes.size(); ++expected_idx) {
+                if (param.expected_runtime_subgraph_nodes[expected_idx] != actual_node_names) {
+                    continue;
+                }
+
+                ASSERT_TRUE(matched_expected_subgraphs.insert(expected_idx).second)
+                    << "Duplicate canonical subgraph match for expected subgraph " << expected_idx;
+                ASSERT_TRUE(actual_to_expected_subgraph_ids.emplace(i, expected_idx).second)
+                    << "Duplicate canonical ID assignment for actual subgraph " << i;
+                expected_to_actual_subgraph_ids[expected_idx] = i;
+                matched = true;
+                break;
+            }
+
+            ASSERT_TRUE(matched) << "Failed to match actual subgraph " << i << " to expected runtime membership";
+        }
+    }
 
     // Check affinities (sorted comparison)
     if (!param.expected_affinities.empty()) {
@@ -984,9 +1025,43 @@ TEST_P(SubgraphCollectorParamTest, split_by_affinity) {
                                !param.expected_mapping._outputs_to_submodels_outputs.empty() ||
                                !param.expected_mapping._submodels_input_to_prev_output.empty();
     if (check_mapping) {
-        ASSERT_EQ(param.expected_mapping._inputs_to_submodels_inputs, mapping._inputs_to_submodels_inputs);
-        ASSERT_EQ(param.expected_mapping._outputs_to_submodels_outputs, mapping._outputs_to_submodels_outputs);
-        ASSERT_EQ(param.expected_mapping._submodels_input_to_prev_output, mapping._submodels_input_to_prev_output);
+        auto normalized_mapping = mapping;
+
+        // Some partition shapes are structurally identical across platforms but receive different
+        // runtime subgraph numbering. When the expected final subgraph membership is provided,
+        // normalize the actual subgraph indices back to that canonical numbering, then keep the
+        // mapping comparison exact.
+        if (!param.expected_runtime_subgraph_nodes.empty()) {
+            const auto remap_node_info = [&](const NodeInfo& info) -> NodeInfo {
+                const auto it = actual_to_expected_subgraph_ids.find(info.first);
+                if (it == actual_to_expected_subgraph_ids.end()) {
+                    ADD_FAILURE() << "Missing canonical subgraph ID for actual subgraph " << info.first;
+                    return info;
+                }
+                return NodeInfo{it->second, info.second};
+            };
+
+            std::transform(normalized_mapping._inputs_to_submodels_inputs.begin(),
+                           normalized_mapping._inputs_to_submodels_inputs.end(),
+                           normalized_mapping._inputs_to_submodels_inputs.begin(),
+                           remap_node_info);
+            std::transform(normalized_mapping._outputs_to_submodels_outputs.begin(),
+                           normalized_mapping._outputs_to_submodels_outputs.end(),
+                           normalized_mapping._outputs_to_submodels_outputs.begin(),
+                           remap_node_info);
+
+            std::map<NodeInfo, NodeInfo> remapped_prev_outputs;
+            for (const auto& [submodel_input, prev_output] : normalized_mapping._submodels_input_to_prev_output) {
+                remapped_prev_outputs.emplace(remap_node_info(submodel_input), remap_node_info(prev_output));
+            }
+            normalized_mapping._submodels_input_to_prev_output = std::move(remapped_prev_outputs);
+        }
+
+        ASSERT_EQ(param.expected_mapping._inputs_to_submodels_inputs, normalized_mapping._inputs_to_submodels_inputs);
+        ASSERT_EQ(param.expected_mapping._outputs_to_submodels_outputs,
+                  normalized_mapping._outputs_to_submodels_outputs);
+        ASSERT_EQ(param.expected_mapping._submodels_input_to_prev_output,
+                  normalized_mapping._submodels_input_to_prev_output);
     }
 
     // Per-subgraph structural counts. Used as direct evidence for promotions that are realized by
@@ -997,21 +1072,24 @@ TEST_P(SubgraphCollectorParamTest, split_by_affinity) {
     if (!param.expected_parameters_per_submodel.empty()) {
         ASSERT_EQ(param.expected_parameters_per_submodel.size(), subgraphs.size());
         for (size_t i = 0; i < subgraphs.size(); ++i) {
-            EXPECT_EQ(param.expected_parameters_per_submodel[i], subgraphs[i]._parameters.size())
+            const size_t actual_idx = expected_to_actual_subgraph_ids.empty() ? i : expected_to_actual_subgraph_ids[i];
+            EXPECT_EQ(param.expected_parameters_per_submodel[i], subgraphs[actual_idx]._parameters.size())
                 << "Parameter count mismatch in subgraph " << i;
         }
     }
     if (!param.expected_results_per_submodel.empty()) {
         ASSERT_EQ(param.expected_results_per_submodel.size(), subgraphs.size());
         for (size_t i = 0; i < subgraphs.size(); ++i) {
-            EXPECT_EQ(param.expected_results_per_submodel[i], subgraphs[i]._results.size())
+            const size_t actual_idx = expected_to_actual_subgraph_ids.empty() ? i : expected_to_actual_subgraph_ids[i];
+            EXPECT_EQ(param.expected_results_per_submodel[i], subgraphs[actual_idx]._results.size())
                 << "Result count mismatch in subgraph " << i;
         }
     }
     if (!param.expected_constants_per_submodel.empty()) {
         ASSERT_EQ(param.expected_constants_per_submodel.size(), subgraphs.size());
         for (size_t i = 0; i < subgraphs.size(); ++i) {
-            auto submodel = create_submodel_from_collected_subgraph(subgraphs[i]);
+            const size_t actual_idx = expected_to_actual_subgraph_ids.empty() ? i : expected_to_actual_subgraph_ids[i];
+            auto submodel = create_submodel_from_collected_subgraph(subgraphs[actual_idx]);
             size_t actual = 0;
             for (const auto& op : submodel->get_ordered_ops()) {
                 if (std::dynamic_pointer_cast<ov::op::v0::Constant>(op)) {
@@ -1376,30 +1454,34 @@ INSTANTIATE_TEST_SUITE_P(
              {"B", 2}, {"C", 3}, {"res1", 3}},
             {},
             // Inter-subgraph wiring after Phase 4b promotion. Run-time subgraph order:
-            //   sg0 = {param, A}(MOCK.0)
-            //   sg1 = {shared_const, X, res2}(MOCK.0)
+            //   sg0 = {shared_const, X, res2}(MOCK.0)
+            //   sg1 = {param, A}(MOCK.0)
             //   sg2 = {B}(MOCK.1)
             //   sg3 = {C, res1}(MOCK.0)        <- newly split off via PROMOTED C.input(1) <- X.
-            //   inputs_to_submodels_inputs:   param -> sg0 param 0
+            //   inputs_to_submodels_inputs:   param -> sg1 param 0
             //   outputs_to_submodels_outputs: res1  -> sg3 output 0
-            //                                 res2  -> sg1 output 0
+            //                                 res2  -> sg0 output 0
             //   submodels_input_to_prev_output:
-            //     sg2.in[0] (B.input(0))     <- sg0.out[0] (A)
+            //     sg2.in[0] (B.input(0))     <- sg1.out[0] (A)
             //     sg3.in[0] (C.input(0))     <- sg2.out[0] (B)         <- existing cycle edge
-            //     sg3.in[1] (C.input(1))     <- sg1.out[1] (X)         <- PROMOTED boundary
-            // sg1 exposes X as an extra output (beyond res2) precisely because the promotion
+            //     sg3.in[1] (C.input(1))     <- sg0.out[1] (X)         <- PROMOTED boundary
+            // sg0 exposes X as an extra output (beyond res2) precisely because the promotion
             // turned X->C into a cross-subgraph edge; this entry is the direct evidence that
             // split_cyclic_dependencies() promoted X (not, e.g., A or shared_const).
             SubgraphsMappingInfo{
-                /*_inputs_to_submodels_inputs*/ {NodeInfo{0, 0}},
-                /*_outputs_to_submodels_outputs*/ {NodeInfo{3, 0}, NodeInfo{1, 0}},
+                /*_inputs_to_submodels_inputs*/ {NodeInfo{1, 0}},
+                /*_outputs_to_submodels_outputs*/ {NodeInfo{3, 0}, NodeInfo{0, 0}},
                 /*_submodels_input_to_prev_output*/
-                {{NodeInfo{2, 0}, NodeInfo{0, 0}},
+                {{NodeInfo{2, 0}, NodeInfo{1, 0}},
                  {NodeInfo{3, 0}, NodeInfo{2, 0}},
-                 {NodeInfo{3, 1}, NodeInfo{1, 1}}}},
+                 {NodeInfo{3, 1}, NodeInfo{0, 1}}}},
             0,
             true,
             true,
+            {},
+            {},
+            {},
+            {std::set<std::string>{"X"}, std::set<std::string>{"A"}, std::set<std::string>{"B"}, std::set<std::string>{"C"}},
         },
         // --- Negative: shared constant merges nodes via Union-Find but NO cycle exists.
         // Data flows only SG0→SG1 (A→B), never back. Must produce exactly 2 subgraphs
@@ -1507,25 +1589,25 @@ INSTANTIATE_TEST_SUITE_P(
         // nodes carry one bridge each; the boundary realization is provably different:
         //   sg0 = {param1, param2, A, C_const, X, res_x}(MOCK.0)
         //   sg1 = {B}(MOCK.1)
-        //   sg2 = {F, res_f}(MOCK.0)   <- cloned C_const inside (Constant bridge, NO mapping entry)
-        //   sg3 = {C, res_c}(MOCK.0)   <- receives param2 via cross-subgraph edge (Parameter bridge)
+        //   sg2 = {C, res_c}(MOCK.0)   <- receives param2 via cross-subgraph edge (Parameter bridge)
+        //   sg3 = {F, res_f}(MOCK.0)   <- cloned C_const inside (Constant bridge, NO mapping entry)
         //   inputs_to_submodels_inputs:   param1 -> sg0 param 0, param2 -> sg0 param 1
-        //   outputs_to_submodels_outputs: res_c -> sg3.out[0], res_f -> sg2.out[0],
+        //   outputs_to_submodels_outputs: res_c -> sg2.out[0], res_f -> sg3.out[0],
         //                                 res_x -> sg0.out[0], res_b -> sg1.out[0]
         //   submodels_input_to_prev_output:
         //     sg1.in[0] (B.input(0))         <- sg0.out[1] (A, auto-Result)
-        //     sg2.in[0] (F.input(0)=B)       <- sg1.out[1] (B, auto-Result)
-        //     sg3.in[0] (C.input(0)=B)       <- sg1.out[1] (B, same)
-        //     sg3.in[1] (C.input(1)=param2)  <- sg0.out[2] (param2, auto-Result)   <- PARAMETER BRIDGE
-        // The {3,1} <- {0,2} entry is the literal cross-subgraph edge for param2. The absence of
-        // any sg2.in[?] <- sg0.out[?] entry for C_const is the literal evidence that C_const was
-        // realized by duplication (confirmed by expected_constants_per_submodel = {1,0,1,0}).
+        //     sg2.in[0] (C.input(0)=B)       <- sg1.out[2] (B, auto-Result)
+        //     sg2.in[1] (C.input(1)=param2)  <- sg0.out[2] (param2, auto-Result)   <- PARAMETER BRIDGE
+        //     sg3.in[0] (F.input(0)=B2)      <- sg1.out[1] (B2, auto-Result)
+        // The {2,1} <- {0,2} entry is the literal cross-subgraph edge for param2. The absence of
+        // any sg3.in[?] <- sg0.out[?] entry for C_const is the literal evidence that C_const was
+        // realized by duplication (confirmed by expected_constants_per_submodel = {1,0,0,1}).
         SubgraphCollectorTestParam{
             "mixed_parameter_constant_bridge_cycle",
             create_mixed_parameter_constant_bridge_cycle_model,
             {{"param1", "MOCK.0"}, {"param2", "MOCK.0"}, {"C_const", "MOCK.0"},
              {"A", "MOCK.0"}, {"X", "MOCK.0"}, {"C", "MOCK.0"}, {"F", "MOCK.0"},
-             {"B", "MOCK.1"},
+             {"B", "MOCK.1"}, {"B2", "MOCK.1"},
              {"res_c", "MOCK.0"}, {"res_f", "MOCK.0"}, {"res_x", "MOCK.0"}, {"res_b", "MOCK.1"}},
             "",
             4,
@@ -1535,12 +1617,12 @@ INSTANTIATE_TEST_SUITE_P(
             SubgraphsMappingInfo{
                 /*_inputs_to_submodels_inputs*/ {NodeInfo{0, 0}, NodeInfo{0, 1}},
                 /*_outputs_to_submodels_outputs*/
-                {NodeInfo{3, 0}, NodeInfo{2, 0}, NodeInfo{0, 0}, NodeInfo{1, 0}},
+                 {NodeInfo{2, 0}, NodeInfo{3, 0}, NodeInfo{0, 0}, NodeInfo{1, 0}},
                 /*_submodels_input_to_prev_output*/
                 {{NodeInfo{1, 0}, NodeInfo{0, 1}},
-                 {NodeInfo{2, 0}, NodeInfo{1, 1}},
-                 {NodeInfo{3, 0}, NodeInfo{1, 1}},
-                 {NodeInfo{3, 1}, NodeInfo{0, 2}}}},
+                  {NodeInfo{2, 0}, NodeInfo{1, 2}},
+                  {NodeInfo{2, 1}, NodeInfo{0, 2}},
+                  {NodeInfo{3, 0}, NodeInfo{1, 1}}}},
             0,
             // merge round-trip disabled: the round-trip helper currently does not handle
             // Parameter cross-edges (same model Parameter referenced both as a top-level input
@@ -1549,9 +1631,10 @@ INSTANTIATE_TEST_SUITE_P(
             // above; the round-trip limitation is orthogonal and out of scope here.
             false,
             false,
-            /*expected_constants_per_submodel*/ {1, 0, 1, 0},
-            /*expected_parameters_per_submodel*/ {2, 1, 1, 2},
-            /*expected_results_per_submodel*/ {3, 2, 1, 1},
+            /*expected_constants_per_submodel*/ {1, 0, 0, 1},
+            /*expected_parameters_per_submodel*/ {2, 1, 2, 1},
+            /*expected_results_per_submodel*/ {3, 3, 1, 1},
+            {std::set<std::string>{"A", "X"}, std::set<std::string>{"B", "B2"}, std::set<std::string>{"C"}, std::set<std::string>{"F"}},
         }
     ),
     [](const testing::TestParamInfo<SubgraphCollectorTestParam>& info) {
