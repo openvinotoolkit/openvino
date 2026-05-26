@@ -143,7 +143,7 @@ void Plugin::transform_model(std::shared_ptr<ov::Model>& model, const ExecutionC
 }
 
 std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_ptr<const ov::Model>& model,
-                                                             const ExecutionConfig& config,
+                                                             ExecutionConfig& config,
                                                              const std::shared_ptr<RemoteContextImpl>& context) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::clone_and_transform_model");
     GPU_DEBUG_DEFINE_MEM_LOGGER("Plugin::clone_and_transform_model");
@@ -162,6 +162,17 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
     // property can be computed for transformed model only.
     auto config_copy = config.clone();
     config_copy.finalize(context.get(), model.get());
+
+    // Propagate auto-detected kv_cache_precision from the pre-transformation finalize
+    // to the original config. This is needed because model transformations may convert
+    // 4-bit weight constants (u4/i4) to higher precision, making the detection fail
+    // during the second finalize on the transformed model.
+    if (config.get_user_properties().find(ov::hint::kv_cache_precision.name()) == config.get_user_properties().end()) {
+        auto detected_kv_prec = config_copy.get_kv_cache_precision();
+        if (detected_kv_prec != ov::element::dynamic) {
+            config.set_user_property({ov::hint::kv_cache_precision(detected_kv_prec)}, OptionVisibility::RELEASE);
+        }
+    }
 
     std::string dump_path = GPU_DEBUG_VALUE_OR(config_copy.get_dump_graphs_path(), "");
     GPU_DEBUG_IF(!dump_path.empty()) {

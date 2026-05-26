@@ -579,6 +579,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                 if (fcn_template._pipeline.compile_stage) {
                     fcn_template._pipeline.compile_stage(m_compiled_submodels[id].pipeline,
                                                          m_compiled_submodels[id].pipeline.context);
+                    ov::npuw::moe::clear_partition_state(fcn_template._pipeline.context);
                 }
             } else {
                 const auto real_id = m_compiled_submodels[id].replaced_by.value();
@@ -686,8 +687,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             auto forced_dev_it = std::find(m_dev_list.begin(), m_dev_list.end(), forced_device);
             if (forced_dev_it == m_dev_list.end()) {
                 LOG_WARN("Target device for Subgraph[" << id << "] was set to " << forced_device
-                                                       << ", but was not found in the device list: " << "["
-                                                       << dev_list_str << "] -- ignoring");
+                                                       << ", but was not found in the device list: "
+                                                       << "[" << dev_list_str << "] -- ignoring");
             } else {
                 LOG_INFO("Force Subgraph[" << id << "] target device to " << *forced_dev_it);
                 devices.push_back(*forced_dev_it);
@@ -1049,10 +1050,10 @@ void ov::npuw::CompiledModel::serialize_orc(std::ostream& stream) const {
     serialize_orc_container(stream, true, get_encrypt_callback(m_non_npuw_props));
 }
 
-void ov::npuw::CompiledModel::serialize_orc_container(
-    std::ostream& stream,
-    bool include_weights_bank,
-    const std::function<std::string(const std::string&)>& encrypt) const {
+void ov::npuw::CompiledModel::serialize_orc_container(std::ostream& stream,
+                                                      bool include_weights_bank,
+                                                      const std::function<std::string(const std::string&)>& encrypt,
+                                                      const ov::npuw::s11n::BF16Cache* bf16_consts) const {
     using namespace ov::npuw;
 
     if (m_cfg.get<::intel_npu::NPUW_ENSURE_COMPATIBILITY>()) {
@@ -1065,6 +1066,11 @@ void ov::npuw::CompiledModel::serialize_orc_container(
 
     bool is_weightless = should_use_weightless_flow(m_non_npuw_props, m_cfg, m_const_to_offset);
     LOG_INFO("Serialization will be done via " << (is_weightless ? "weightless" : "flow with weights") << ".");
+    // For top-level CompiledModel export we serialize this model's own BF16 cache.
+    // For nested export (e.g. inside LLMCompiledModel) the parent may provide a
+    // cache collected before graph splitting / BF16->FP16 conversion, and that
+    // propagated view must win so weightless import can reconstruct tensors correctly.
+    const auto& bf16_cache = bf16_consts != nullptr ? *bf16_consts : m_bf16_consts;
 
     ov::AnyMap serializable_props = m_non_npuw_props;
     serializable_props.erase(ov::cache_encryption_callbacks.name());
@@ -1099,22 +1105,28 @@ void ov::npuw::CompiledModel::serialize_orc_container(
     const auto root_flags =
         encrypt ? static_cast<ov::npuw::orc::SectionFlags>(ov::npuw::orc::SectionFlag::ENCRYPTED) : 0u;
     ov::npuw::orc::with_section(stream, kOrcType, kOrcVersion, root_flags, [&] {
-        auto meta_stream = ov::npuw::s11n::Stream::writer(stream);
-        meta_stream & m_name;
-        meta_stream& inputs() & outputs();
-        meta_stream & m_inputs_to_submodels_inputs & m_outputs_to_submodels_outputs & m_param_subscribers &
-            m_submodels_input_to_prev_output;
-        meta_stream & m_dev_list;
-        meta_stream& const_cast<::intel_npu::Config&>(m_cfg);
-        meta_stream & serializable_props;
-        meta_stream & is_weightless;
-        meta_stream& const_cast<ov::npuw::s11n::BF16Cache&>(m_bf16_consts);
-        if (encrypt) {
-            std::stringstream payload_stream(std::ios::in | std::ios::out | std::ios::binary);
-            write_children(payload_stream);
-            auto encrypted_payload = encrypt(payload_stream.str());
-            meta_stream & encrypted_payload;
-        } else {
+        ov::npuw::orc::with_leaf_section(stream, ov::npuw::orc::META_SECTION_TYPE, 0u, [&] {
+            auto meta_stream = ov::npuw::s11n::Stream::writer(stream);
+            meta_stream & m_name;
+            meta_stream& inputs() & outputs();
+            meta_stream & m_inputs_to_submodels_inputs & m_outputs_to_submodels_outputs & m_param_subscribers &
+                m_submodels_input_to_prev_output;
+            meta_stream & m_dev_list;
+            meta_stream& const_cast<::intel_npu::Config&>(m_cfg);
+            meta_stream & serializable_props;
+            meta_stream & is_weightless;
+            // Persist the BF16 interpretation map that weightless import later feeds
+            // into LazyTensor::read_weight() when it decides whether raw bytes should
+            // be read as FP16 directly or converted from BF16 source storage.
+            meta_stream& const_cast<ov::npuw::s11n::BF16Cache&>(bf16_cache);
+            if (encrypt) {
+                std::stringstream payload_stream(std::ios::in | std::ios::out | std::ios::binary);
+                write_children(payload_stream);
+                auto encrypted_payload = encrypt(payload_stream.str());
+                meta_stream & encrypted_payload;
+            }
+        });
+        if (!encrypt) {
             write_children(stream);
         }
     });
@@ -1143,28 +1155,59 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
         OPENVINO_THROW("Unsupported ORC NPUW root section");
     }
 
-    auto meta_stream = ov::npuw::s11n::Stream::reader(stream);
-
-    std::string model_name;
-    ov::ParameterVector parameters;
-    ov::NodeVector results;
+    // Variables populated during metadata read but used in the child-reading
+    // phase below.  Extracted before the version branch so both paths share
+    // the same child-consuming lambdas.
+    std::shared_ptr<ov::npuw::CompiledModel> compiled;
     bool is_weightless = false;
-    meta_stream & model_name & parameters & results;
-
-    auto ov_model = std::make_shared<ov::Model>(ov::as_output_vector(results), parameters, model_name);
-    auto compiled = std::make_shared<ov::npuw::CompiledModel>(ov_model, plugin, true);
-    compiled->m_name = std::move(model_name);
-    meta_stream & compiled->m_inputs_to_submodels_inputs & compiled->m_outputs_to_submodels_outputs &
-        compiled->m_param_subscribers & compiled->m_submodels_input_to_prev_output;
-    meta_stream & compiled->m_dev_list;
-    meta_stream & compiled->m_cfg;
-    compiled->m_cfg.parseEnvVars();
-    meta_stream & compiled->m_non_npuw_props;
-    meta_stream & is_weightless;
-    meta_stream & compiled->m_bf16_consts;
-    compiled->m_import_weights_ctx = make_import_weights_ctx(properties, is_weightless, compiled->m_bf16_consts);
+    std::string encrypted_payload;
 
     const bool encrypted = ov::npuw::orc::has_flag(root.header().flags, ov::npuw::orc::SectionFlag::ENCRYPTED);
+
+    // Read the model-level metadata fields.  In v0 these were written as raw
+    // s11n bytes directly into the container body; v1 wraps them in an
+    // explicit META leaf child so the section tree is fully self-describing.
+    auto read_meta_fields = [&]() {
+        auto meta_stream = ov::npuw::s11n::Stream::reader(stream);
+
+        std::string model_name;
+        ov::ParameterVector parameters;
+        ov::NodeVector results;
+        meta_stream & model_name & parameters & results;
+
+        auto ov_model = std::make_shared<ov::Model>(ov::as_output_vector(results), parameters, model_name);
+        compiled = std::make_shared<ov::npuw::CompiledModel>(ov_model, plugin, true);
+        compiled->m_name = std::move(model_name);
+        meta_stream & compiled->m_inputs_to_submodels_inputs & compiled->m_outputs_to_submodels_outputs &
+            compiled->m_param_subscribers & compiled->m_submodels_input_to_prev_output;
+        meta_stream & compiled->m_dev_list;
+        meta_stream & compiled->m_cfg;
+        compiled->m_cfg.parseEnvVars();
+        meta_stream & compiled->m_non_npuw_props;
+        meta_stream & is_weightless;
+        meta_stream & compiled->m_bf16_consts;
+        if (encrypted) {
+            meta_stream & encrypted_payload;
+        }
+    };
+
+    if (root.header().version == 0) {
+        // v0: metadata written as raw s11n bytes at the start of the container body.
+        read_meta_fields();
+    } else if (root.header().version == 1) {
+        // v1: metadata wrapped in a META leaf child section.
+        ov::npuw::orc::ScopedReadSection meta(stream);
+        if (meta.header().type != ov::npuw::orc::META_SECTION_TYPE ||
+            !ov::npuw::orc::has_flag(meta.header().flags, ov::npuw::orc::SectionFlag::LEAF)) {
+            OPENVINO_THROW("Expected ORC NPUW metadata section, got type ", meta.header().type);
+        }
+        read_meta_fields();
+        meta.expect_end();
+    } else {
+        OPENVINO_THROW("Unsupported ORC NPUW PartitionedModel version ", root.header().version);
+    }
+
+    compiled->m_import_weights_ctx = make_import_weights_ctx(properties, is_weightless, compiled->m_bf16_consts);
     bool have_weights = false;
     auto peek_child_header = [](std::istream& child_source) {
         const auto saved = child_source.tellg();
@@ -1224,8 +1267,6 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
     };
 
     if (encrypted) {
-        std::string encrypted_payload;
-        meta_stream & encrypted_payload;
         root.expect_end();
 
         const auto decrypt_fn = decrypt ? decrypt : get_decrypt_callback_or_throw(properties);
@@ -1267,9 +1308,13 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream, const ov::npuw::s1
     if (enc_ctx.encrypted) {
         NPUW_ASSERT(enc_ctx.encrypt && "Encryption function isn't provided!");
     }
+    // Preserve the caller-provided BF16 cache for nested serialization.
+    // LLMCompiledModel relies on this to pass original-model BF16 metadata down
+    // into child CompiledModel blobs.
     serialize_orc_container(stream,
                             false,
-                            enc_ctx.encrypted ? enc_ctx.encrypt : std::function<std::string(const std::string&)>{});
+                            enc_ctx.encrypted ? enc_ctx.encrypt : std::function<std::string(const std::string&)>{},
+                            &enc_ctx.bf16_consts);
 }
 
 std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
@@ -1686,11 +1731,47 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
 
         std::vector<ov::SoPtr<ov::ICompiledModel>> compiled_models(total_models);
 
+        // Check if device supports strided I/O for non-last pyramid models.
+        // The last model reuses the already-compiled main subgraph model (compiled without
+        // enable_strides_for), so strided I/O only applies to the explicitly compiled models.
+        bool support_strides_for = false;
+        std::string npu_device_str;
+        std::string saved_strides;
+        for (const auto& device : devices) {
+            if (ov::npuw::util::starts_with(device, "NPU") && models_to_compile > 0 &&
+                !pyramid_attn->_attention_infos.empty()) {
+                const auto supported_properties =
+                    get_npuw_plugin()->get_core()->get_property(device, ov::supported_properties);
+                support_strides_for = std::find(supported_properties.begin(),
+                                                supported_properties.end(),
+                                                ov::intel_npu::enable_strides_for.name()) != supported_properties.end();
+                if (support_strides_for) {
+                    pyramid_attn->_can_use_tensor_view = true;
+                    const auto& first_model = pyramid_attn_models[0];
+                    const auto& first_info = pyramid_attn->_attention_infos[0];
+                    npu_device_str = device;
+                    const auto& strides_key = ov::intel_npu::enable_strides_for.name();
+                    const ov::Any existing_any =
+                        ov::npuw::util::at::_(m_meta_devices[npu_device_str]).at_or(strides_key, std::string{});
+                    saved_strides = existing_any.as<std::string>();
+                    std::string strided_inputs = saved_strides;
+                    for (const auto& param : first_info.params) {
+                        if (!strided_inputs.empty()) {
+                            strided_inputs += ",";
+                        }
+                        strided_inputs += first_model->inputs()[param.idx].get_any_name();
+                    }
+                    m_meta_devices[npu_device_str][strides_key] = strided_inputs;
+                    LOG_INFO("Enabled using tensor view for device: " << device
+                                                                      << " for pyramid inputs: " << strided_inputs);
+                }  // if(support_strides_for)
+            }  // if(npu)
+        }  // for(devices)
+
         auto compile_one = [&](size_t model_id) {
             compiled_models[model_id] =
                 make_wrapped(pyramid_attn_models[model_id], "/pyramid_" + std::to_string(model_id), devices);
         };
-
         const bool par_opt = m_cfg.get<::intel_npu::NPUW_PARALLEL_COMPILE>();
         if (par_opt && models_to_compile > 0) {
             ov::parallel_for(models_to_compile, compile_one);
@@ -1707,7 +1788,16 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
 
         pyramid_attn->set_compiled_models(std::move(compiled_models));
         LOG_INFO("Pyramid attention compilation complete for Subgraph[" << id << "]");
-    }
+
+        if (support_strides_for && !npu_device_str.empty()) {
+            const auto& strides_key = ov::intel_npu::enable_strides_for.name();
+            if (saved_strides.empty()) {
+                m_meta_devices[npu_device_str].erase(strides_key);
+            } else {
+                m_meta_devices[npu_device_str][strides_key] = saved_strides;
+            }
+        }
+    }  // if (pyramid_attn)
 
     if (auto* hfa = ov::npuw::attn::get_compiled_hfa(desc.pipeline.context)) {
         LOG_INFO("Compiling host flash attention tile models for Subgraph[" << id << "]...");
@@ -1716,6 +1806,9 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
         if (!hfa->_tile_model_to_compile) {
             LOG_WARN("Host flash attention tile model is null, skipping compilation");
         } else {
+            bool supports_strides_for = false;
+            std::string npu_device_str;
+            std::string saved_strides;
             for (const auto& device : devices) {
                 if (!ov::npuw::util::starts_with(device, "NPU")) {
                     continue;
@@ -1723,26 +1816,45 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
 
                 const auto supported_properties =
                     get_npuw_plugin()->get_core()->get_property(device, ov::supported_properties);
-                const auto support_strides_for =
+                const bool support_strides_for =
                     std::find(supported_properties.begin(),
                               supported_properties.end(),
                               ov::intel_npu::enable_strides_for.name()) != supported_properties.end();
                 if (!support_strides_for) {
-                    continue;
+                    break;
                 }
 
                 hfa->_can_use_tensor_view = true;
-                auto strided_inputs_name = std::string(hfa_tile_input_id_to_string(HFATileInputId::K_TILE)) + "," +
-                                           std::string(hfa_tile_input_id_to_string(HFATileInputId::V_TILE));
-                m_meta_devices[device][ov::intel_npu::enable_strides_for.name()] = strided_inputs_name;
-                LOG_INFO("Enabled using tensor view for device: " << device << " for inputs: " << strided_inputs_name);
+                npu_device_str = device;
+                const auto& strides_key = ov::intel_npu::enable_strides_for.name();
+                const ov::Any existing_any =
+                    ov::npuw::util::at::_(m_meta_devices[device]).at_or(strides_key, std::string{});
+                saved_strides = existing_any.as<std::string>();
+                std::string strided_inputs = saved_strides;
+                if (!strided_inputs.empty()) {
+                    strided_inputs += ",";
+                }
+                strided_inputs += std::string(hfa_tile_input_id_to_string(HFATileInputId::K_TILE)) + "," +
+                                  std::string(hfa_tile_input_id_to_string(HFATileInputId::V_TILE));
+                m_meta_devices[device][strides_key] = strided_inputs;
+                supports_strides_for = true;
+                LOG_INFO("Enabled using tensor view for device: " << device << " for inputs: " << strided_inputs);
             }
 
             hfa->set_compiled_tile_model(make_wrapped(hfa->_tile_model_to_compile, "/hfa_tile", devices));
             hfa->set_compiled_final_tile_model(desc.compiled_model);
             LOG_INFO("Host flash attention compilation complete for Subgraph[" << id << "]");
+
+            if (supports_strides_for && !npu_device_str.empty()) {
+                const auto& strides_key = ov::intel_npu::enable_strides_for.name();
+                if (saved_strides.empty()) {
+                    m_meta_devices[npu_device_str].erase(strides_key);
+                } else {
+                    m_meta_devices[npu_device_str][strides_key] = saved_strides;
+                }
+            }
         }
-    }
+    }  //  if (hfa)
 
     return true;
 }
@@ -1810,7 +1922,8 @@ void ov::npuw::CompiledModel::dump_subgraph_model(std::size_t id,
     LOG_INFO("Dumping Subgraph[" << id << "]");
     LOG_BLOCK();
     if (real_id != id) {
-        LOG_INFO("NOTE: Dumping Subgraph[" << real_id << "]" << " as it is a function body for Subgraph[" << id << "]");
+        LOG_INFO("NOTE: Dumping Subgraph[" << real_id << "]"
+                                           << " as it is a function body for Subgraph[" << id << "]");
     }
 
     const std::string dump_dir = m_cfg.get<::intel_npu::NPUW_DUMP_SUBS_DIR>();

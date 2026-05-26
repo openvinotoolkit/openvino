@@ -497,7 +497,7 @@ JitConstants FusedOpsCodeGenerator::make_op_jit_constants(const FusedOpsConfigur
 
             // Input shift
             if (p->_need_pre_shift) {
-                op_decls += make_statement(tmp_var.assign(tmp_var + pre_scale)).str();
+                op_decls += make_statement(tmp_var.assign(tmp_var + pre_shift)).str();
             }
 
             // Round operation isn't needed if output type is int8/uint8 and scale coefficient in all output channels is equal to 1.0

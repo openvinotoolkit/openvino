@@ -112,7 +112,11 @@ void compile_transformed_expert_models(const CompiledExpertsState& runtime_exper
     OPENVINO_ASSERT(runtime_experts != nullptr, "Expected compiled MoE experts state");
     LOG_INFO("Compiling MoE expert models...");
     LOG_BLOCK();
-    for (const auto& entry : runtime_experts->_models_to_compile) {
+    // Compile from a snapshot so set_compiled_model() can erase the temporary
+    // source ov::Model safely. Erasing from the original map while iterating it
+    // is undefined behavior and may leave transformed expert models retained.
+    const auto models_to_compile = runtime_experts->_models_to_compile;
+    for (const auto& entry : models_to_compile) {
         runtime_experts->set_compiled_model(
             entry.first,
             compile_ctx.compile_model(entry.second, "/moe_chunk_" + std::to_string(entry.first), compile_ctx.devices));
@@ -133,6 +137,10 @@ void configure_expert_compile(ov::npuw::v1::subgraphs::CompiledPipeline& compile
     const auto& models_to_compile = compiled_experts->_models_to_compile;
     OPENVINO_ASSERT(!models_to_compile.empty(), "Fatal: MoEExperts has no models to compile!");
     put_compiled_experts(compiled_context, compiled_experts);
+    // The compiled state owns the temporary models needed for compilation. Drop the
+    // partition-time transform state so those ov::Model instances do not stay pinned
+    // in the persistent subgraph context after compilation finishes.
+    compiled_context.erase<ov::npuw::function::MoEExperts>();
 
     attach_runtime_behavior(compiled_pipeline, compiled_context, BehaviorRole::EXPERTS, true);
     compiled_pipeline.compile_executor = [compiled_experts](ov::npuw::v1::subgraphs::CompileContext& compile_ctx) {
@@ -175,6 +183,10 @@ void configure_downstream_compile(ov::npuw::v1::subgraphs::CompiledPipeline& com
     }
     auto compiled_downstream = std::make_shared<ov::npuw::compiled::MoEDownstream>(*downstream);
     put_compiled_downstream(compiled_context, compiled_downstream);
+    // Keep only the compiled/runtime representation in the persistent context.
+    // The transform-time holder still owns the modified ov::Model and would keep it
+    // alive for the whole CompiledModel lifetime otherwise.
+    compiled_context.erase<ov::npuw::function::MoEDownstream>();
 
     attach_runtime_behavior(compiled_pipeline, compiled_context, BehaviorRole::DOWNSTREAM, true);
     const auto previous_compile_executor = compiled_pipeline.compile_executor;
@@ -220,6 +232,11 @@ bool has_compiled_downstream(const v1::subgraphs::CompiledPipeline& pipeline) {
 
 bool has_compiled_state(const v1::subgraphs::CompiledPipeline& pipeline) {
     return has_compiled_experts(pipeline) || has_compiled_downstream(pipeline);
+}
+
+void clear_partition_state(v1::subgraphs::Context& context) {
+    context.erase<ov::npuw::function::MoEExperts>();
+    context.erase<ov::npuw::function::MoEDownstream>();
 }
 
 void serialize_compiled_state(v1::subgraphs::Context& context,
