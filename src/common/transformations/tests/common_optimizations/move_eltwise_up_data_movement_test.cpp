@@ -566,7 +566,7 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, SharedConstantNotReshapedForOtherConsume
                                                         std::vector<int64_t>{0},
                                                         std::vector<int64_t>{0});
 
-        model_ref = std::make_shared<ov::Model>(ov::OutputVector{unsqueeze, slice},
-                                                ov::ParameterVector{input, slice_input});
+        model_ref =
+            std::make_shared<ov::Model>(ov::OutputVector{unsqueeze, slice}, ov::ParameterVector{input, slice_input});
     }
 }
