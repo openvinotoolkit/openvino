@@ -11,6 +11,8 @@
 #include <unordered_set>
 #include <vector>
 
+#ifdef GPU_DEBUG_CONFIG
+
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
@@ -51,8 +53,7 @@ bool matches_name(const std::vector<std::string>& forced_names, const std::strin
 std::unordered_set<ov::Node*> collect_seeds(
     const std::shared_ptr<ov::Model>& model,
     const std::vector<std::string>& forced_types,
-    const std::vector<std::string>& forced_names,
-    std::vector<std::string>& skipped_types) {
+    const std::vector<std::string>& forced_names) {
     const bool has_types = !forced_types.empty();
     const bool has_names = !forced_names.empty();
     std::unordered_set<ov::Node*> f32_region;
@@ -63,11 +64,6 @@ std::unordered_set<ov::Node*> collect_seeds(
 
         bool type_match = !has_types || matches_type(forced_types, node_type);
         bool name_match = !has_names || matches_name(forced_names, node_name);
-
-        if (!type_match &&
-            std::find(skipped_types.begin(), skipped_types.end(), node_type) == skipped_types.end()) {
-            skipped_types.push_back(node_type);
-        }
 
         if (!type_match || !name_match)
             continue;
@@ -271,8 +267,7 @@ bool ForceFP32Selective::run_on_model(const std::shared_ptr<ov::Model>& model) {
 
 
     // Phase 1: Seed Collection
-    std::vector<std::string> skipped_types;
-    auto f32_region = collect_seeds(model, m_forced_types, m_forced_names, skipped_types);
+    auto f32_region = collect_seeds(model, m_forced_types, m_forced_names);
 
     // Phase 2: Region Expansion
     expand_region(model, f32_region);
@@ -286,15 +281,10 @@ bool ForceFP32Selective::run_on_model(const std::shared_ptr<ov::Model>& model) {
     GPU_DEBUG_LOG << "[ForceFP32Selective] Done. Region=" << f32_region.size()
                   << "  Forced=" << forced_count << std::endl;
 
-    if (!skipped_types.empty()) {
-        std::stringstream ss;
-        ss << "[ForceFP32Selective] Skipped types: ";
-        for (const auto& t : skipped_types) ss << t << ",";
-        GPU_DEBUG_LOG << ss.str() << std::endl;
-    }
-
     return changed;
 }
 
 }  // namespace intel_gpu
 }  // namespace ov
+
+#endif // GPU_DEBUG_CONFIG

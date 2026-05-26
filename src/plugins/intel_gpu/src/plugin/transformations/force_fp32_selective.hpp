@@ -9,9 +9,11 @@
 #include <vector>
 
 #include "openvino/pass/pass.hpp"
+#ifdef GPU_DEBUG_CONFIG
 
 namespace ov {
 namespace intel_gpu {
+
 
 /**
  * @brief Force FP32 precision for specific layer types (debug feature)
@@ -37,7 +39,7 @@ public:
     OPENVINO_MODEL_PASS_RTTI("ForceFP32Selective");
 
     ForceFP32Selective(const std::vector<std::string>& forced_types,
-                       const std::vector<std::string>& forced_names = {})
+                       const std::vector<std::string>& forced_names)
         : m_forced_types(forced_types), m_forced_names(forced_names) {}
 
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
@@ -47,5 +49,8 @@ private:
     std::vector<std::string> m_forced_names;
 };
 
+
 }  // namespace intel_gpu
 }  // namespace ov
+
+#endif // GPU_DEBUG_CONFIG
