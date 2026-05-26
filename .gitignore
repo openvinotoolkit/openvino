@@ -69,11 +69,3 @@ coverage
 /tools/commit_slider/slider_cache/*
 /src/plugins/intel_cpu/thirdparty/ComputeLibrary/build/arm_compute_version.embed
 .github/GITHUB_OUTPUT
-
-
-/models
-/reports
-/jit_riscv_demo
-/datasets
-/packages
-/python_libs
