@@ -83,7 +83,7 @@ inline bool is_scalar_or_single_elem_constant(const std::shared_ptr<ov::op::v0::
     if (!constant) {
         return false;
     }
-    return is_scalar(constant->get_shape()) || shape_size(constant->get_shape()) == 1;
+    return constant && shape_size(constant->get_shape()) == 1;
 }
 
 template <typename T>
