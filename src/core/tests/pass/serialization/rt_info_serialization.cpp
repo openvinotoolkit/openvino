@@ -296,8 +296,7 @@ TEST(RTInfoSerialization, disable_precision_conversion_xml_format) {
         ov::disable_conversion(matmul, ov::element::f32, ov::element::bf16);
         ov::disable_conversion(matmul, ov::element::f32, ov::element::f16);
         auto result = std::make_shared<ov::op::v0::Result>(matmul);
-        auto built_model =
-            std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{data_1, data_2});
+        auto built_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{data_1, data_2});
         built_model->set_friendly_name("TestModel");
         data_1->set_friendly_name("input_1");
         data_2->set_friendly_name("input_2");
