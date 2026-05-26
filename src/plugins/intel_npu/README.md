@@ -209,7 +209,6 @@ The following properties are supported (may differ based on current system confi
 | `ov::device::uuid`/</br> | RO | Returns the Universal Unique ID of the NPU device. | `N/A`| `N/A` |
 | `ov::device::architecture`/</br>`DEVICE_ARCHITECTURE` | RO | Returns the platform information. | `N/A`| `N/A` |
 | `ov::device::full_name`/</br>`FULL_DEVICE_NAME` | RO | Returns the full name of the NPU device. | `N/A`| `N/A` |
-| `ov::internal::exclusive_async_requests`/</br>`EXCLUSIVE_ASYNC_REQUESTS` | RW | Allows to use exclusive task executor for asynchronous infer requests. | `YES`/ `NO`| `NO` |
 | `ov::device::type`/</br>`DEVICE_TYPE` | RO | Returns the type of device, discrete or integrated. | `DISCRETE` /</br>`INTEGRATED` | `N/A` |
 | `ov::device::gops`/</br>`DEVICE_GOPS` | RO | Returns the Giga OPS per second count (GFLOPS or GIOPS) for a set of precisions supported by specified device. | `N/A`| `N/A` |
 | `ov::device::pci_info`/</br>`DEVICE_PCI_INFO` | RO | Returns the PCI bus information of device. See PCIInfo struct definition for details | `N/A`| `N/A` |

@@ -150,8 +150,7 @@ std::shared_ptr<ov::ICompiledModel> import_model_npuw(std::istream& stream,
                                                       ov::AnyMap& properties,
                                                       std::shared_ptr<const ov::IPlugin> pluginSO) {
     if (const auto header = ov::npuw::orc::is_orc(stream);
-        header.has_value() &&
-        header->schema_uuid == ov::npuw::orc::schema_npuw::NPUW_ORC_PARTITIONED_SCHEMA) {
+        header.has_value() && header->schema_uuid == ov::npuw::orc::schema_npuw::NPUW_ORC_PARTITIONED_SCHEMA) {
         return ov::npuw::CompiledModel::import_model(stream, pluginSO, properties);
     }
 
@@ -234,7 +233,6 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     REGISTER_OPTION(ENABLE_CPU_PINNING);
     REGISTER_OPTION(INFERENCE_PRECISION_HINT);
     REGISTER_OPTION(MODEL_PRIORITY);
-    REGISTER_OPTION(EXCLUSIVE_ASYNC_REQUESTS);
     REGISTER_OPTION(COMPILATION_MODE_PARAMS);
     REGISTER_OPTION(DMA_ENGINES);
     REGISTER_OPTION(TILES);
@@ -269,7 +267,6 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     REGISTER_OPTION(CACHE_ENCRYPTION_CALLBACKS);
     REGISTER_OPTION(RUNTIME_REQUIREMENTS);
     REGISTER_OPTION(COMPATIBILITY_CHECK);
-
 
     if (backend) {
         // Options registered only if drivers is present and supports the corresponding extension
@@ -373,14 +370,16 @@ void Plugin::set_property(const ov::AnyMap& properties) {
     _propertiesManager->setProperty(properties);
 }
 
-
-ov::CompatibilityCheck Plugin::validate_compatibility_descriptor(ov::intel_npu::CompilerType compilerType, const ov::AnyMap& arguments) const {
+ov::CompatibilityCheck Plugin::validate_compatibility_descriptor(ov::intel_npu::CompilerType compilerType,
+                                                                 const ov::AnyMap& arguments) const {
     if (arguments.empty() || arguments.find(ov::runtime_requirements.name()) == arguments.end()) {
         return ov::CompatibilityCheck::NOT_APPLICABLE;
     }
 
     const auto& runtimeRequirements = arguments.at(ov::runtime_requirements.name()).as<const std::string&>();
-    _logger.debug("Received runtime_requirements: %s length: %zu", runtimeRequirements.c_str(), runtimeRequirements.length());
+    _logger.debug("Received runtime_requirements: %s length: %zu",
+                  runtimeRequirements.c_str(),
+                  runtimeRequirements.length());
 
     // NPU Plugin's runtime requirements are captured in its metadata.
     // For now plugin's requirements are met if metadata can be retrieved from the tensor
@@ -392,7 +391,8 @@ ov::CompatibilityCheck Plugin::validate_compatibility_descriptor(ov::intel_npu::
     } catch (const std::exception& ex) {
         // Unsupported version, could not read the metadata or an unknown error has occured. Report that the
         // requirements are not met.
-        _logger.debug("Failed to read metadata from the runtime requirements. The requirements are not met. %s", ex.what());
+        _logger.debug("Failed to read metadata from the runtime requirements. The requirements are not met. %s",
+                      ex.what());
         return ov::CompatibilityCheck::UNSUPPORTED;
     }
 
@@ -417,7 +417,8 @@ ov::CompatibilityCheck Plugin::validate_compatibility_descriptor(ov::intel_npu::
             return ov::CompatibilityCheck::UNSUPPORTED;
         }
     } catch (const std::exception&) {
-        _logger.error("Failed to create the recommended compiler type for the compatibility check %d. The requirements are not met.",
+        _logger.error("Failed to create the recommended compiler type for the compatibility check %d. The requirements "
+                      "are not met.",
                       static_cast<int>(compilerType));
         return ov::CompatibilityCheck::NOT_APPLICABLE;
     }
