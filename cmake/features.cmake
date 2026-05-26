@@ -44,7 +44,10 @@ endif()
 # Set default GPU runtime to OCL
 set(OV_GPU_DEFAULT_RT "OCL")
 if (ENABLE_INTEL_GPU)
-    ov_option_enum (GPU_RT_TYPE "Type of GPU runtime. Supported value: OCL and L0" ${OV_GPU_DEFAULT_RT} ALLOWED_VALUES L0 OCL)
+    ov_option_enum (GPU_RT_TYPE "Type of GPU runtime. Supported value: OCL and ZE (L0 is accepted as ZE alias)" ${OV_GPU_DEFAULT_RT} ALLOWED_VALUES ZE OCL L0)
+    if(GPU_RT_TYPE STREQUAL "L0")
+        set(GPU_RT_TYPE "ZE" CACHE STRING "Type of GPU runtime" FORCE)
+    endif()
 endif()
 
 ov_dependent_option (ENABLE_ONEDNN_FOR_GPU "Enable oneDNN with GPU support" ${ENABLE_ONEDNN_FOR_GPU_DEFAULT} "ENABLE_INTEL_GPU" OFF)

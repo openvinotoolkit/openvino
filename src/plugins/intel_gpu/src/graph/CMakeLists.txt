@@ -37,7 +37,7 @@ set(COMMON_LINK_LIBRARIES openvino::shape_inference # for tensor accessor
                           OpenCL::OpenCL # Onednn needs OCL headers even when running L0
 )
 
-if(GPU_RT_TYPE STREQUAL "L0")
+if(GPU_RT_TYPE STREQUAL "ZE")
     # Onednn needs L0 headers
     list(APPEND COMMON_LINK_LIBRARIES openvino::zero_loader)
 endif()
