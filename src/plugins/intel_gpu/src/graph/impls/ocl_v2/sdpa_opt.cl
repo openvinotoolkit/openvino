@@ -2549,7 +2549,7 @@ KERNEL(sdpa_opt)(
         } /* end of QK*V calculation */
     } /* end of iter over source sequence length */
 
-#if IS_FLASHATTEN_V2 && defined(HAS_SINK_INPUT)
+#if IS_FLASHATTEN_V2 && HAS_SINK_INPUT
     // Apply attention sink after all KV partitions are processed.
     // Sink adds a virtual logit to the softmax denominator with zero V contribution.
     {
