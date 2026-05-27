@@ -92,7 +92,8 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool ha
     auto bgm_down_m = std::make_shared<pattern::op::Or>(OutputVector{bgm_down_4_m, bgm_down_6_m});
 
     // Compact routing: Transpose → Unsqueeze
-    auto routing_transpose_m = pattern::wrap_type<v1::Transpose>({pattern::any_input(), pattern::any_input()});
+    auto routing_m = pattern::any_input();
+    auto routing_transpose_m = pattern::wrap_type<v1::Transpose>({routing_m, pattern::any_input()});
     auto routing_unsqueeze_m = pattern::wrap_type<v0::Unsqueeze>({routing_transpose_m, pattern::any_input()});
 
     auto final_mul_m = pattern::wrap_type<v1::Multiply>({bgm_down_m, routing_unsqueeze_m}, pattern::consumers_count(1));
@@ -109,7 +110,7 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool ha
 
         auto hidden_states = pm.at(hidden_states_m);
 
-        auto routing = pm.at(routing_unsqueeze_m).get_node_shared_ptr();
+        auto routing = pm.at(routing_m);
         auto topk_indices = pm.at(topk_indices_m);
         auto gate_w = pm.at(gate_w_m);
         auto up_w = pm.at(up_w_m);
