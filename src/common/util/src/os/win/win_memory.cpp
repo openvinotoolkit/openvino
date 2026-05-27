@@ -28,7 +28,7 @@ void aligned_free(void* ptr) noexcept {
 }
 
 void* reserve_buffer(size_t size, std::string* error) noexcept {
-    const auto p = VirtualAlloc(NULL, m_reserved_size, MEM_RESERVE, PAGE_NOACCESS);
+    const auto p = VirtualAlloc(NULL, size, MEM_RESERVE, PAGE_NOACCESS);
     if (p == NULL) {
         if (error) {
             *error = std::string{"VirtualAlloc reserve failed, err: "} + std::to_string(GetLastError());
@@ -39,7 +39,7 @@ void* reserve_buffer(size_t size, std::string* error) noexcept {
 }
 
 void acquire_buffer(void* reserved_buffer, size_t size, std::string* error) noexcept {
-    if (VirtualAlloc(m_reserved_buffer, m_reserved_size, MEM_COMMIT, PAGE_READWRITE) == NULL) {
+    if (VirtualAlloc(reserved_buffer, size, MEM_COMMIT, PAGE_READWRITE) == NULL) {
         if (error) {
             *error = std::string{"VirtualAlloc commit failed, err: "} + std::to_string(GetLastError());
         }
@@ -55,7 +55,7 @@ void evict_buffer(void* reserved_buffer, size_t size, std::string* error) noexce
 }
 
 void release_buffer(void* reserved_buffer, size_t byte_size, std::string* error) noexcept {
-    if (VirtualFree(m_reserved_buffer, 0, MEM_RELEASE) == 0) {
+    if (VirtualFree(reserved_buffer, 0, MEM_RELEASE) == 0) {
         if (error) {
             *error = std::string{"VirtualFree release failed, err: "} + std::to_string(GetLastError());
         }
