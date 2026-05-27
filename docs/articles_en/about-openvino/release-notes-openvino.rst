@@ -103,7 +103,7 @@ NPU Device Plugin
 OpenVINO Node.js API
 ---------------------------------------------------------------------------------------------
 
-* Error handling in the Node.js API has been enhanced for Core and AsyncInferQueue classes, providing more robust and predictable exception management during model loading and inference operations. 
+* Error handling in the Node.js API has been enhanced for ``Core`` and ``AsyncInferQueue`` classes, providing more robust and predictable exception management during model loading and inference operations. 
 
 PyTorch Framework Support
 ---------------------------------------------------------------------------------------------
@@ -129,8 +129,8 @@ Performance
 
 New models and hardware support 
 
-* Restored support for generative models on hosts with CPUs without AVX2 instruction set when using supported discrete GPUs. 
-* Added support for Xe GPUs for MoE models, including Intel Arc A770. 
+* Restored support for generative models on hosts with CPUs without Intel® AVX2 instruction set when using supported discrete GPUs. 
+* Added support for Intel® Xe GPUs for MoE models, including Intel® Arc™ A770. 
 * Enabled execution of GPT-OSS-20b with INT8 precision and GPT-OSS-120b with INT4 precision on GPU. 
 * Enabled models and support for MoE for Qwen3.5, Qwen3.6, Qwen3-Coder-Next, and Gemma 4 (without continuous batching). 
 * Fixed chat template rendering for DeepSeek and Granite models when processing non-ASCII characters. 
@@ -151,7 +151,7 @@ New or improved endpoints capabilities
 * Fixed default seed parameter to use random values, ensuring non-deterministic responses from LLM models. 
 * Added LoRA adapter support for both image generation models and LLM models. 
 * Added support of streaming for audio/transcriptions endpoint 
-* Introduced OVMS_AUDIO_MAX_FILE_SIZE_BYTES environment variable that controls the upper bound on memory that a single audio request can allocate for decoded data. 
+* Introduced ``OVMS_AUDIO_MAX_FILE_SIZE_BYTES`` environment variable that controls the upper bound on memory that a single audio request can allocate for decoded data. 
 
 Limitations: 
 
@@ -168,7 +168,7 @@ OpenVINO Tokenizers
 
 * Added ONNX Frontend extension with new translators for tokenization-related operations: Label Encoder, StringNormalizer, Tokenizer, TFID Vectorizer. 
 * Updated TensorFlow Frontend extension with AsString operation translator. 
-* Extended python CLI with new ``check`` and ``diagnose`` tools. 
+* Extended Python CLI with new ``check`` and ``diagnose`` tools. 
 * Reduced binary size on Linux and Mac platforms. 
 
 OpenVINO™ GenAI
@@ -216,8 +216,8 @@ Known Issues
 | ID: 186412
 | Description:
 | Gemma 4 INT8/INT4 weight compressed models require explicitly setting KV cache group size to 
-  64 to preserve accuracy. This modification has been included in the latest version of Intel 
-  Optimum for model export.
+  64 to preserve accuracy. This modification has been included in the latest version of Optimum 
+  Intel for model export.
 
 | **Component: OpenVINO Runtime**
 | ID: 186160
@@ -251,7 +251,7 @@ Known Issues
 | **Component: GPU Plugin**
 | ID: 180852
 | Description:
-| GPT-ossOSS-120b can demonstrate low accuracy on GPU platforms and requires 
+| GPT-OSS-120b can demonstrate low accuracy on GPU platforms and requires 
   ACTIVATIONS_SCALE_FACTOR 8.
 
 Previous 2026 releases
