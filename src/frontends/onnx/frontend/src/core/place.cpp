@@ -55,7 +55,6 @@ void OpPlace::ensure_ports_materialized() const {
     if (auto provider = lazy_bindings_provider()) {
         provider->ensure_bindings_populated();
     }
-    m_ports_materialized = true;
 
     // const_cast is safe: shared_from_this() is logically const and we only mutate
     // members declared mutable (m_input_ports / m_output_ports).
@@ -87,6 +86,9 @@ void OpPlace::ensure_ports_materialized() const {
         }
         m_output_ports[i] = out_port;
     }
+    // Set the flag only after successful materialization so that a thrown allocation
+    // does not leave the object marked as materialized with incomplete port vectors.
+    m_ports_materialized = true;
 }
 
 void OpPlace::set_next_iteration_back_edge(const std::string& next_iteration_producer_name,
@@ -138,15 +140,14 @@ ov::frontend::Place::Ptr OpPlace::get_input_port(const std::string& name) const 
     return m_input_ports.at(name)[0];
 }
 
-ov::frontend::Place::Ptr OpPlace::get_input_port(int outputPortIndex) const {
+ov::frontend::Place::Ptr OpPlace::get_input_port(int inputPortIndex) const {
     ensure_ports_materialized();
     FRONT_END_GENERAL_CHECK(m_input_ports.size() == 1, "Only one named input port should exist.");
-    FRONT_END_GENERAL_CHECK(outputPortIndex >= 0, "outputPortIndex is negative.");
-    size_t output_port_index = static_cast<size_t>(outputPortIndex);
-    FRONT_END_GENERAL_CHECK(m_input_ports.begin()->second.size() > output_port_index,
-                            "No input port with index: ",
-                            output_port_index);
-    return m_input_ports.begin()->second[output_port_index];
+    FRONT_END_GENERAL_CHECK(inputPortIndex >= 0, "inputPortIndex is negative.");
+    size_t input_port_index = static_cast<size_t>(inputPortIndex);
+    const auto& ports = m_input_ports.begin()->second;
+    FRONT_END_GENERAL_CHECK(input_port_index < ports.size(), "inputPortIndex is out of bounds.");
+    return ports[input_port_index];
 }
 
 ov::frontend::Place::Ptr OpPlace::get_output_port(int outputPortIndex) const {
@@ -198,7 +199,7 @@ ov::frontend::Place::Ptr OpPlace::get_input_port(const std::string& inputName, i
     ensure_ports_materialized();
     FRONT_END_GENERAL_CHECK(inputPortIndex >= 0, "inputPortIndex is negative.");
     size_t input_port_index = static_cast<size_t>(inputPortIndex);
-    FRONT_END_GENERAL_CHECK(input_port_index <= m_input_ports.at(inputName).size(), "inputPortIndex is out of bounds.");
+    FRONT_END_GENERAL_CHECK(input_port_index < m_input_ports.at(inputName).size(), "inputPortIndex is out of bounds.");
     return m_input_ports.at(inputName)[input_port_index];
 }
 
@@ -308,12 +309,12 @@ void TensorPlace::ensure_producing_port_materialized() const {
     if (auto provider = lazy_bindings_provider()) {
         provider->ensure_bindings_populated();
     }
-    m_producing_port_materialized = true;
     if (auto op = m_producing_op.lock()) {
         // Triggers materialization of all of op's input/output ports, which in turn pushes
         // an OutPortPlace onto this tensor's m_producing_ports.
         op->ensure_ports_materialized();
     }
+    m_producing_port_materialized = true;
 }
 
 void TensorPlace::ensure_consuming_ports_materialized() const {
@@ -323,12 +324,12 @@ void TensorPlace::ensure_consuming_ports_materialized() const {
     if (auto provider = lazy_bindings_provider()) {
         provider->ensure_bindings_populated();
     }
-    m_consuming_ports_materialized = true;
     for (const auto& binding : m_consuming_op_bindings) {
         if (auto op = binding.first.lock()) {
             op->ensure_ports_materialized();
         }
     }
+    m_consuming_ports_materialized = true;
 }
 
 std::vector<ov::frontend::Place::Ptr> TensorPlace::get_consuming_operations() const {

@@ -819,6 +819,8 @@ void InputModel::InputModelONNXImpl::ensure_bindings_populated() {
         return;
     }
     populate_bindings();
+    // Set the flag only after successful population so a thrown decoder error leaves
+    // the model in a state where a later call can retry, rather than silently skipping.
     m_bindings_populated = true;
 }
 
