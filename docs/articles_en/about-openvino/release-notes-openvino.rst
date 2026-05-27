@@ -29,10 +29,10 @@ What's New
 
   * New models supported: Gemma 4 E2B and Gemma 4 E4B  
 
-     * Only on CPUs & GPUs: Qwen3-Coder-Next, Qwen3.5, Qwen3.6, Trinity  
-     * Only on CPUs: YOLO26
-     * Only on GPUs: Gemma 4 31B and Gemma 4 26B-A4B  
-     * Extended to GPUs: GPT-OSS 120B  
+    * Only on CPUs & GPUs: Qwen3-Coder-Next, Qwen3.5, Qwen3.6, Trinity  
+    * Only on CPUs: YOLO26
+    * Only on GPUs: Gemma 4 31B and Gemma 4 26B-A4B  
+    * Extended to GPUs: GPT-OSS 120B  
   * Scaled Dot-Product Attention (SDPA) path support added for LFM2 models   
   * Support for Hugging Face Transformers v5.0, ensuring compatibility with the latest model architecture for enhanced interoperability.  
 
@@ -122,11 +122,13 @@ OpenVINO™ Model Server
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Performance 
+
 * Improved performance on Intel Data Center GPU Flex 60 and Flex 70 for Qwen3-30B MoE model family. 
 * Improved multinomial algorithm performance, reducing latency for generation with temperature > 0. 
 * Improved model loading and pipeline initialization performance for new inference requests. 
 
 New models and hardware support 
+
 * Restored support for generative models on hosts with CPUs without AVX2 instruction set when using supported discrete GPUs. 
 * Added support for Xe GPUs for MoE models, including Intel Arc A770. 
 * Enabled execution of GPT-OSS-20b with INT8 precision and GPT-OSS-120b with INT4 precision on GPU. 
@@ -135,11 +137,13 @@ New models and hardware support
 * Added tool parsers for Gemma 4 and LFM2 models. 
 
 Deployment ease 
+
 * Improved default performance tuning to use resource constraints in Docker containers, with default number of REST workers, OpenVINO inference streams, threads, and CPU pinning configurations avoiding quota and ulimit settings on Linux to prevent overallocation and performance degradation in Docker and Kubernetes environments. 
 * Enhanced deployment capabilities with local generative model startup options and runtime parameter configuration through CLI, enabling generative model deployment from read-only filesystems with configurable runtime parameters such as target device and cache size for seamless KServe and OpenShift integration. 
 * Improved model pulling recovery mechanisms to resume interrupted Hugging Face model downloads from the previous checkpoint in case of failures or interruptions. 
 
 New or improved endpoints capabilities 
+
 * Added initial support for ``/responses`` endpoint. 
 * Fixed server readiness endpoint behavior - ``/v2/health/ready`` now correctly reports success when all models are fully initialized and returns appropriate errors when models are not loaded. 
 * Added ``min_p`` sampling parameter for enhanced generation control. 
@@ -150,20 +154,9 @@ New or improved endpoints capabilities
 * Introduced OVMS_AUDIO_MAX_FILE_SIZE_BYTES environment variable that controls the upper bound on memory that a single audio request can allocate for decoded data. 
 
 Limitations: 
+
 * Gemma 4 and LFM2 MoE models supported without Continuous Batching 
-
-``/responses`` endpoint doesn't include built-in tools, audio input and multinomial output. There are also no session management capabilities. 
-* Enhanced support for Qwen3-MOE models and GPT-OSS-20b delivers improved performance, accuracy, and robust concurrent request handling with continuous batching capabilities. These models are now available in pre-optimized OpenVINO™ format directly on the Hugging Face hub, making it very easy to deploy them. 
-* Added support for Qwen3-VL models with function calling capabilities, enabling this vision language model in agentic scenarios.  
-* Extended ``/image`` endpoint to support inpainting and outpainting capabilities. It is now possible to pass the input image along with a mask to edit parts of the image or to extend the input image. 
-* Other improvements and fixes: 
-
-  * Server logs now report current KV cache allocation alongside current usage metrics. With dynamic cache size (default setting), allocation automatically scales during runtime based on the request's concurrency and processed context length. 
-  * Generation request cancellation is now supported for NPU devices, where requests from disconnected clients will be cancelled. 
-  * The finish reason now returns ``tool_calls`` when the model generates a function call, in line with OpenAI API standards. 
-  * Corrected tokens usage reporting in the text generation last streaming event with NPU execution  
-  * Added extra streaming event right after the first token is generated, in line with OpenAI API. This will correct TTFT metric benchmarking using tools relying on streaming events. 
-  * Enhanced error handling for Hugging Face Hub model pulling/downloads includes retry and resume capabilities to address network connectivity issues with large model files. Download operations can now recover from previous errors or be reported in logs when recovery is not possible. 
+* ``/responses`` endpoint doesn't include built-in tools, audio input and multinomial output. There are also no session management capabilities. 
 
 Neural Network Compression Framework
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
