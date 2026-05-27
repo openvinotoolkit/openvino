@@ -1596,10 +1596,19 @@ TEST_P(concat_implicit_gpu_4d_i8, input_order_opt_b_fs_yx_fsv32) {
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(concat_implicit_gpu_4d_i8);
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
+namespace {
+
+void skip_if_no_immad(const engine& engine) {
+    if (!engine.get_device_info().supports_immad) {
+        GTEST_SKIP() << "Skipping oneDNN concat test: device does not support IMMAD";
+    }
+}
+
+}  // namespace
+
 TEST(concat_gpu_onednn, basic_input_types) {
     auto& engine = get_test_engine();
-    if (!engine.get_device_info().supports_immad)
-        return;
+    skip_if_no_immad(engine);
 
     auto input0 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 4, 3 } });
     auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 4, 3 } });
@@ -1669,8 +1678,7 @@ TEST(concat_gpu_onednn, basic_input_types) {
 
 TEST(concat_gpu_onednn, impl_selection_unaligned_feature_axis) {
     auto& engine = get_test_engine();
-    if (!engine.get_device_info().supports_immad)
-        return;
+    skip_if_no_immad(engine);
 
     layout in_layout = { data_types::f16, format::b_fs_yx_fsv16, { 1, 18, 2, 2 } };
     auto input0 = engine.allocate_memory(in_layout);
@@ -1704,8 +1712,7 @@ TEST(concat_gpu_onednn, impl_selection_unaligned_feature_axis) {
 
 TEST(concat_gpu_onednn, impl_selection_partial_feature_block_falls_back_to_ocl) {
     auto& engine = get_test_engine();
-    if (!engine.get_device_info().supports_immad)
-        return;
+    skip_if_no_immad(engine);
 
     const int32_t batch = 1;
     const int32_t feature = 8;
@@ -1772,8 +1779,7 @@ TEST(concat_gpu_onednn, impl_selection_partial_feature_block_falls_back_to_ocl) 
 
 TEST(concat_gpu_onednn, dynamic_non_block_aligned_feature) {
     auto& engine = get_test_engine();
-    if (!engine.get_device_info().supports_immad)
-        return;
+    skip_if_no_immad(engine);
 
     tests::random_generator rg(GET_SUITE_NAME);
 
@@ -1845,8 +1851,7 @@ TEST(concat_gpu_onednn, dynamic_non_block_aligned_feature) {
 
 TEST(concat_gpu_onednn, b_fs_yx_fsv16_input_types) {
     auto& engine = get_test_engine();
-    if (!engine.get_device_info().supports_immad)
-        return;
+    skip_if_no_immad(engine);
 
     tests::random_generator rg(GET_SUITE_NAME);
     const int32_t input_b = 1, input_f = 88, input_y = 52, input_x = 52;
@@ -2063,10 +2068,7 @@ public:
     void test() {
         auto& engine = get_test_engine();
         auto& stream = get_test_stream();
-        if (!engine.get_device_info().supports_immad) {
-            // This case is only for device that uses onednn.
-            return;
-        }
+        skip_if_no_immad(engine);
         auto input = generate_input();
         format::type fmt = testing::get<4>(GetParam());
 
@@ -2254,10 +2256,7 @@ public:
     void test() {
         auto& engine = get_test_engine();
         auto& stream = get_test_stream();
-        if (!engine.get_device_info().supports_immad) {
-            // This case is only for device that uses onednn.
-            return;
-        }
+        skip_if_no_immad(engine);
         auto input = generate_input();
         format::type fmt = testing::get<4>(GetParam());
 
