@@ -18,7 +18,6 @@
 #include "metadata.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "openvino/runtime/system_conf.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace intel_npu {
