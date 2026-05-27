@@ -15,7 +15,6 @@
 #include "snippets/lowered/loop_port.hpp"
 #include "snippets/op/result.hpp"
 #include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
-#include "transformations/snippets/aarch64/op/gemm_utils.hpp"
 
 namespace ov::test::snippets {
 
@@ -30,13 +29,13 @@ TEST(AdjustGemmCopyBLoopPorts, RescalesFinalizationOffset) {
     constexpr size_t N = 130;
     constexpr int64_t original_ptr_increment = 2;
     constexpr int64_t original_finalization_offset = -20;
+    constexpr size_t n_step = 16;
+    constexpr int64_t expected_ptr_increment = 74;
+    constexpr int64_t expected_finalization_offset = -740;
     const auto precision = ov::element::f32;
     const auto data_size = static_cast<int64_t>(precision.size());
-    const auto n_step = aarch64::gemm_utils::repacking::get_rhs_packed_n_step(precision);
-    const auto expected_ptr_increment = static_cast<int64_t>(
-        aarch64::gemm_utils::repacking::get_rhs_packed_offset(precision, n_step, K) / (n_step * precision.size()));
-    const auto expected_finalization_offset =
-        expected_ptr_increment * (original_finalization_offset / original_ptr_increment);
+    // f32 KAI packs one 4-byte bias plus K 4-byte RHS values per lane:
+    // ptr_increment = 16 * (4 + 73 * 4) / (16 * 4) = 74, finalization_offset = -20 * 74 / 2.
 
     ov::snippets::lowered::Config lir_config;
     lir_config.m_manual_build_support = true;

@@ -45,6 +45,8 @@ int64_t get_rhs_packed_ptr_increment(const ov::element::Type& precision, size_t 
         return snippets::utils::get_dynamic_value<int64_t>();
     }
 
+    // KAI packs RHS by N blocks: one bias value plus K RHS values per N lane.
+    // Derive the snippets ptr_increment from KAI byte offsets; for current f32/f16 packers this reduces to K + 1.
     const auto n_step = aarch64::gemm_utils::repacking::get_rhs_packed_n_step(precision);
     OPENVINO_ASSERT(n_increment % n_step == 0, "GEMM N loop increment must be aligned with KAI RHS packed N step");
 
