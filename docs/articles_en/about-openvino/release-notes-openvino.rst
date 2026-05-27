@@ -29,10 +29,10 @@ What's New
 
   * New models supported: Gemma 4 E2B and Gemma 4 E4B  
 
-    * Only on CPUs & GPUs: Qwen3-Coder-Next, Qwen3.5, Qwen3.6, Trinity  
+    * Only on CPUs & GPUs: Only on CPUs & GPUs: Qwen3-Coder-Next, Qwen3.5, Qwen3.6, Trinity-mini, LFM2-24B-A2B, LFM2-8B-A1B, LFM2.5-350M​  
     * Only on CPUs: YOLO26
     * Only on GPUs: Gemma 4 31B and Gemma 4 26B-A4B  
-    * Extended to GPUs: GPT-OSS 120B  
+    * Extended to GPUs: GPT-OSS-120B  
   * Scaled Dot-Product Attention (SDPA) path support added for LFM2 models   
   * Support for Hugging Face Transformers v5.0, ensuring compatibility with the latest model architecture for enhanced interoperability.  
 
@@ -78,7 +78,7 @@ GPU Device Plugin
 * Enabled by-channel INT8 KV cache quantization by default for GPU XAttention (sparse attention), delivering improved accuracy and aligning the configuration with the standard path. 
 * INT4 KV cache quantization has been enabled, reducing memory consumption for key-value cache storage during LLM inference. 
 * Improved Qwen3-vl-4b performance for TTFT, TPOT, and model loading. 
-* The GPT-OSS-20b model now supports INT8 weight precision and runs on Intel® Core™ Ultra Series 2 processors (H-SKUs) and Intel® Arc™ GPUs. 
+* The GPT-OSS-20B model now supports INT8 weight precision and runs on Intel® Core™ Ultra Series 2 processors (H-SKUs) and Intel® Arc™ GPUs. 
 * Improved ResNet-34 performance on Intel® Xe2 architecture. 
 
 NPU Device Plugin
@@ -131,7 +131,7 @@ New models and hardware support
 
 * Restored support for generative models on hosts with CPUs without Intel® AVX2 instruction set when using supported discrete GPUs. 
 * Added support for Intel® Xe GPUs for MoE models, including Intel® Arc™ A770. 
-* Enabled execution of GPT-OSS-20b with INT8 precision and GPT-OSS-120b with INT4 precision on GPU. 
+* Enabled execution of GPT-OSS-20B with INT8 precision and GPT-OSS-120B with INT4 precision on GPU. 
 * Enabled models and support for MoE for Qwen3.5, Qwen3.6, Qwen3-Coder-Next, and Gemma 4 (without continuous batching). 
 * Fixed chat template rendering for DeepSeek and Granite models when processing non-ASCII characters. 
 * Added tool parsers for Gemma 4 and LFM2 models. 
@@ -251,7 +251,7 @@ Known Issues
 | **Component: GPU Plugin**
 | ID: 180852
 | Description:
-| GPT-OSS-120b can demonstrate low accuracy on GPU platforms and requires 
+| GPT-OSS-120B can demonstrate low accuracy on GPU platforms and requires 
   ACTIVATIONS_SCALE_FACTOR 8.
 
 Previous 2026 releases
@@ -264,7 +264,7 @@ Previous 2026 releases
   * More Gen AI coverage and frameworks integrations to minimize code changes
 
     * New models supported on CPUs & GPUs: Qwen3 VL
-    * New models supported on CPUs: GPT-OSS 120B
+    * New models supported on CPUs: GPT-OSS-120B
     * Preview: Introducing the OpenVINO backend for llama.cpp, which enables optimized inference on Intel CPUs, GPUs, and NPUs. Validated on GGUF models such as Llama-3.2-1B-Instruct-GGUF, Phi-3-mini-4k-instruct-gguf, Qwen2.5-1.5B-Instruct-GGUF, and Mistral-7B-Instruct-v0.3.
     * New notebook: Unified VLM chatbot with video file support and interactive model switching across Qwen3-VL, Qwen2.5-VL, and LLaVa-NeXT-Video.
 
@@ -281,7 +281,7 @@ Previous 2026 releases
     * Prompt Lookup Decoding extended to vision-language pipelines, delivering significantly faster token generation for multimodal workloads on Intel CPUs and GPUs.
     * OpenVINO™ GenAI now has a smaller runtime footprint after eliminating ICU DLL dependencies from tokenization, leading to reduced memory usage, faster startup, and easier deployment.
     * OpenVINO GenAI introduces WhisperPipeline for Node.js via its NPM package, delivering production-ready speech recognition with word-level audio-to-text transcription.
-    * OpenVINO™ Model Server enhances support for Qwen3-MOE and GPT-OSS-20b models, delivering improved performance, accuracy, and robust concurrent request handling with continuous batching. These pre-optimized models are available on Hugging Face for easy deployment. Additionally, the Model Server introduces image inpainting and outpainting capabilities via the /image endpoint for AI image editing.
+    * OpenVINO™ Model Server enhances support for Qwen3-MOE and GPT-OSS-20B models, delivering improved performance, accuracy, and robust concurrent request handling with continuous batching. These pre-optimized models are available on Hugging Face for easy deployment. Additionally, the Model Server introduces image inpainting and outpainting capabilities via the /image endpoint for AI image editing.
 
   **OpenVINO™ Runtime**
 
@@ -359,7 +359,7 @@ Previous 2026 releases
 
   **OpenVINO™ Model Server**
 
-  * Enhanced support for Qwen3-MOE models and GPT-OSS-20b delivers improved performance, accuracy, and robust concurrent request handling with continuous batching capabilities. These models are now available in pre-optimized OpenVINO™ format directly on the Hugging Face hub, making it very easy to deploy them.
+  * Enhanced support for Qwen3-MOE models and GPT-OSS-20B delivers improved performance, accuracy, and robust concurrent request handling with continuous batching capabilities. These models are now available in pre-optimized OpenVINO™ format directly on the Hugging Face hub, making it very easy to deploy them.
   * Added support for Qwen3-VL models with function calling capabilities, enabling this vision language model in agentic scenarios.
   * Extended ``/image`` endpoint to support inpainting and outpainting capabilities. It is now possible to pass the input image along with a mask to edit parts of the image or to extend the input image.
   * Other improvements and fixes: 
@@ -638,7 +638,7 @@ Previous 2026 releases
 	| **Component: OpenVINO Runtime**
 	| ID: 181161
 	| Description:
-	|   gpt-oss-20b int4 on Intel® Core™ Ultra Series 3 iGPUs is validated for production use in
+	|   GPT-OSS-20B int4 on Intel® Core™ Ultra Series 3 iGPUs is validated for production use in
 		single-stream and low-concurrency text generation scenarios with short-to-medium context
 		lengths; support for high-concurrency serving with long contexts is being optimized and
 		will be available in an upcoming release. For production deployments requiring sustained
