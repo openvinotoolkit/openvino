@@ -9,9 +9,7 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
-#include "openvino/op/multiply.hpp"
 #include "openvino/op/select.hpp"
-#include "openvino/op/subtract.hpp"
 #include "utils/common.hpp"
 
 using namespace ov::op;

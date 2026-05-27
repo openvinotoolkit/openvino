@@ -7,10 +7,7 @@
 #include "openvino/decompositions/low_precision_dequantize.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/subtract.hpp"
 #include "utils/common.hpp"
 
 using namespace ov::op;

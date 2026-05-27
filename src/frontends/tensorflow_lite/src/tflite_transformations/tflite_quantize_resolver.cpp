@@ -21,7 +21,6 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "tflite_ops/tflite_quantize.hpp"
-#include "transformations/rt_info/disable_constant_folding.hpp"
 #include "utils.hpp"
 
 using namespace std;
@@ -205,14 +204,6 @@ pass::TFLQuantizeReplacer::TFLQuantizeReplacer() {
             }
             ov::pass::NodeRegistry reg;
             output = ov::decomposition::low_precision_dequantize(reg, output, scale_node, zp_input);
-            // Disable constant folding on the leading Convert created inside the helper
-            // so that compressed weights are preserved for low-precision plugins.
-            for (const auto& n : reg.get()) {
-                if (ov::is_type<v0::Convert>(n)) {
-                    disable_constant_folding(n);
-                    break;
-                }
-            }
             tfl_quantize->output(0).replace(output);
             return true;
         }

@@ -21,6 +21,12 @@ namespace decomposition {
 ///   y = Multiply(Subtract(Convert(x, scale_type), zp), scale)                // asymmetric
 /// optionally followed by a Reshape when \p output_shape is provided.
 ///
+/// MarkDequantization matches the Multiply(Subtract(Convert(...), zp), scale)
+/// / Multiply(Convert(...), scale) pattern and protects the leading Convert
+/// from ConstantFolding. The optional trailing Reshape and any caller-applied
+/// ConvertLike sit *outside* the matched pattern — they do not break matching,
+/// but they are not themselves marked as dequantization nodes.
+///
 /// The output element type is taken from \p scale. If \p zero_point is given
 /// and its element type differs from \p scale, a Convert is inserted on the
 /// zero_point input as well — both forms (with and without that Convert) are

@@ -18,9 +18,11 @@
 #include "openvino/core/model.hpp"
 #include "openvino/decompositions/low_precision_dequantize.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
@@ -32,6 +34,21 @@ namespace {
 bool find_marked_dequantization_op(const std::shared_ptr<ov::Model>& model, const ov::NodeTypeInfo& type) {
     for (const auto& op : model->get_ordered_ops()) {
         if (op->get_type_info() == type && ov::is_dequantization_node(op)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool has_low_precision_constant_through_convert(const std::shared_ptr<ov::Model>& model,
+                                                const ov::element::Type& low_precision_type) {
+    for (const auto& op : model->get_ordered_ops()) {
+        if (op->get_type_info() != ov::op::v0::Convert::get_type_info_static()) {
+            continue;
+        }
+        const auto input_node = op->get_input_node_shared_ptr(0);
+        if (input_node->get_type_info() == ov::op::v0::Constant::get_type_info_static() &&
+            input_node->get_output_element_type(0) == low_precision_type) {
             return true;
         }
     }
@@ -54,12 +71,15 @@ TEST(DecompositionLowPrecisionDequantize, RecognizedByMarkDequantization_Asymmet
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::MarkDequantization>(
         ov::element::TypeVector{ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4});
+    manager.register_pass<ov::pass::ConstantFolding>();
     manager.run_passes(model);
 
     EXPECT_TRUE(find_marked_dequantization_op(model, ov::op::v1::Subtract::get_type_info_static()))
         << "MarkDequantization did not mark the Subtract emitted by low_precision_dequantize";
     EXPECT_TRUE(find_marked_dequantization_op(model, ov::op::v1::Multiply::get_type_info_static()))
         << "MarkDequantization did not mark the Multiply emitted by low_precision_dequantize";
+    EXPECT_TRUE(has_low_precision_constant_through_convert(model, ov::element::u8))
+        << "ConstantFolding folded the leading Convert(u8) — MarkDequantization should have protected it";
 }
 
 TEST(DecompositionLowPrecisionDequantize, RecognizedByMarkDequantization_Symmetric) {
@@ -75,11 +95,14 @@ TEST(DecompositionLowPrecisionDequantize, RecognizedByMarkDequantization_Symmetr
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::MarkDequantization>(
         ov::element::TypeVector{ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4});
+    manager.register_pass<ov::pass::ConstantFolding>();
     manager.run_passes(model);
 
     EXPECT_TRUE(find_marked_dequantization_op(model, ov::op::v1::Multiply::get_type_info_static()))
         << "MarkDequantization did not mark the Multiply emitted by low_precision_dequantize "
            "in the symmetric (no zero_point) branch";
+    EXPECT_TRUE(has_low_precision_constant_through_convert(model, ov::element::i8))
+        << "ConstantFolding folded the leading Convert(i8) — MarkDequantization should have protected it";
 }
 
 TEST(DecompositionLowPrecisionDequantize, RecognizedByMarkDequantization_U4Asymmetric) {
@@ -98,10 +121,13 @@ TEST(DecompositionLowPrecisionDequantize, RecognizedByMarkDequantization_U4Asymm
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::MarkDequantization>(
         ov::element::TypeVector{ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4});
+    manager.register_pass<ov::pass::ConstantFolding>();
     manager.run_passes(model);
 
     EXPECT_TRUE(find_marked_dequantization_op(model, ov::op::v1::Subtract::get_type_info_static()))
         << "MarkDequantization did not mark the Subtract for the u4 grouped case";
     EXPECT_TRUE(find_marked_dequantization_op(model, ov::op::v1::Multiply::get_type_info_static()))
         << "MarkDequantization did not mark the Multiply for the u4 grouped case";
+    EXPECT_TRUE(has_low_precision_constant_through_convert(model, ov::element::u4))
+        << "ConstantFolding folded the leading Convert(u4) — MarkDequantization should have protected it";
 }

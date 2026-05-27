@@ -11,8 +11,6 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/subtract.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "utils/common.hpp"
 

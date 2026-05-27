@@ -6,10 +6,8 @@
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/matmul.hpp"
-#include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
-#include "openvino/op/subtract.hpp"
 #include "utils.hpp"
 
 namespace ov {
