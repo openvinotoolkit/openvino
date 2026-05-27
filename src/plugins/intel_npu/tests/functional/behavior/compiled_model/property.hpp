@@ -864,20 +864,23 @@ TEST_P(CheckCpuPinning, CheckCompileModelWithCpuPinningFromCompileProperty) {
 using CheckSecureCompilationFlag = ClassExecutableNetworkGetPropertiesTestNPU;
 
 TEST_P(CheckSecureCompilationFlag, EncryptionCallbacksForOlderDriverThrows) {
+    ov::Core core;
+    ov::AnyMap configuration = {{configKey, configValue},
+                                ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)};
     if (::intel_npu::ZeroInitStructsHolder::getInstance()->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 17)) {
-        OV_EXPECT_THROW(core->compile_model(model, deviceName, {{configKey, configValue}}),
+        OV_EXPECT_THROW(core.compile_model(model, deviceName, configuration),
                         ov::Exception,
                         testing::HasSubstr(
                             "Secure compilation was requested, but the current driver version does not support it."));
-        core->set_property(deviceName, {{configKey, configValue}});
-        OV_EXPECT_THROW(core->compile_model(model, deviceName, {}),
+        core.set_property(deviceName, configuration);
+        OV_EXPECT_THROW(core.compile_model(model, deviceName, {}),
                         ov::Exception,
                         testing::HasSubstr(
                             "Secure compilation was requested, but the current driver version does not support it."));
     } else {
-        OV_ASSERT_NO_THROW(core->compile_model(model, deviceName, {{configKey, configValue}}));
-        core->set_property(deviceName, {{configKey, configValue}});
-        OV_ASSERT_NO_THROW(core->compile_model(model, deviceName, {}));
+        OV_ASSERT_NO_THROW(core.compile_model(model, deviceName, configuration));
+        core.set_property(deviceName, configuration);
+        OV_ASSERT_NO_THROW(core.compile_model(model, deviceName, {}));
     }
 }
 
