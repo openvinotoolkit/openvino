@@ -247,7 +247,6 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
         }
     };
 
-    bool auto_enable_4bit_kv = false;
     // Trace MatMul weight input through the decompression subgraph
     // (Convert→Subtract→Multiply→Reshape→Convert→Constant) to check for 4-bit weights.
     auto has_4bit_matmul_weights = [](const std::shared_ptr<Node>& op) -> bool {
@@ -270,7 +269,7 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
     for (const auto& op : ops) {
         process_op(op);
 
-        if (auto_enable_4bit_kv && !has_4bit_weights && has_4bit_matmul_weights(op)) {
+        if (!has_4bit_weights && has_4bit_matmul_weights(op)) {
             has_4bit_weights = true;
         }
     }

@@ -19,6 +19,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/sigmoid.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/strided_slice.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/opsets/opset8_decl.hpp"
@@ -506,5 +507,63 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, PerChannelReshapeMultiply) {
         auto reshape = std::make_shared<v1::Reshape>(multiply, reshape_constant, false);
 
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{reshape}, ov::ParameterVector{input});
+    }
+}
+
+TEST_F(MoveEltwiseUpThroughDataMovTest, SharedConstantNotReshapedForOtherConsumers) {
+    const ov::Shape data_shape{1, 3, 224, 224};
+    const std::vector<int64_t> input_order = {3, 2, 1, 0};
+    const int64_t unsqueeze_axis = 2;
+    {
+        auto input = std::make_shared<v0::Parameter>(ov::element::i64, data_shape);
+
+        auto transpose_const = v0::Constant::create(ov::element::i64, ov::Shape{input_order.size()}, input_order);
+        auto transpose = std::make_shared<v1::Transpose>(input, transpose_const);
+
+        auto unsqueeze_const = v0::Constant::create(ov::element::i64, ov::Shape{}, {unsqueeze_axis});
+        auto unsqueeze = std::make_shared<v0::Unsqueeze>(transpose, unsqueeze_const);
+
+        auto shared_const = v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
+
+        auto multiply = std::make_shared<v1::Multiply>(unsqueeze, shared_const);
+
+        auto slice_input = std::make_shared<v0::Parameter>(ov::element::f32, ov::Shape{4});
+        auto begin = v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+        auto stride = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+        auto slice = std::make_shared<v1::StridedSlice>(slice_input,
+                                                        begin,
+                                                        shared_const,
+                                                        stride,
+                                                        std::vector<int64_t>{0},
+                                                        std::vector<int64_t>{0});
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{multiply, slice}, ov::ParameterVector{input, slice_input});
+        manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMov>();
+    }
+    {
+        auto input = std::make_shared<v0::Parameter>(ov::element::i64, data_shape);
+
+        auto shared_const = v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
+        auto scalar_const = v0::Constant::create(ov::element::i64, ov::Shape{}, {2});
+        auto multiply = std::make_shared<v1::Multiply>(input, scalar_const);
+
+        auto transpose_const = v0::Constant::create(ov::element::i64, ov::Shape{input_order.size()}, input_order);
+        auto transpose = std::make_shared<v1::Transpose>(multiply, transpose_const);
+
+        auto unsqueeze_const = v0::Constant::create(ov::element::i64, ov::Shape{}, {unsqueeze_axis});
+        auto unsqueeze = std::make_shared<v0::Unsqueeze>(transpose, unsqueeze_const);
+
+        auto slice_input = std::make_shared<v0::Parameter>(ov::element::f32, ov::Shape{4});
+        auto begin = v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+        auto stride = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+        auto slice = std::make_shared<v1::StridedSlice>(slice_input,
+                                                        begin,
+                                                        shared_const,
+                                                        stride,
+                                                        std::vector<int64_t>{0},
+                                                        std::vector<int64_t>{0});
+
+        model_ref =
+            std::make_shared<ov::Model>(ov::OutputVector{unsqueeze, slice}, ov::ParameterVector{input, slice_input});
     }
 }
