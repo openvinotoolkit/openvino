@@ -1078,9 +1078,10 @@ public:
         scratch.topk_id = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::TOPK_INDICES));
         scratch.up = intermediates_memories[MOE_INTERNAL_BUFFER_UP_OUTPUT];
         scratch.y = intermediates_memories[MOE_INTERNAL_BUFFER_DOWN_OUTPUT];
+        // Routing weights scratch buffer (used in prefill paths and reused as shared_gate_vals in batched GEMV)
+        scratch.routing_weights = intermediates_memories[MOE_INTERNAL_BUFFER_ROUTING_WEIGHTS];
         if (token_num > 1) {
             scratch.x = intermediates_memories[MOE_INTERNAL_BUFFER_GATE_UP_INPUT];
-            scratch.routing_weights = intermediates_memories[MOE_INTERNAL_BUFFER_ROUTING_WEIGHTS];
             scratch.gate = intermediates_memories[MOE_INTERNAL_BUFFER_GATE_OUTPUT];
             const auto& config = instance.get_typed_desc<moe_3gemm_fused_compressed>()->_config;
             int expert_num = static_cast<int>(config.num_expert);
@@ -1332,7 +1333,7 @@ public:
                                   scratch.moe_fusion_wei_addr.shared_scale[1],
                                   scratch.moe_fusion_wei_addr.shared_zp[1],
                                   scratch.moe_fusion_wei_addr.shared_weight[3],
-                                  routing_mem_ptr};
+                                  scratch.routing_weights};  // reused as shared_gate_out [token_num]
 
             extra_args_down = {scratch.moe_fusion_wei_addr.shared_weight[2],
                                scratch.moe_fusion_wei_addr.shared_scale[2],
@@ -1363,7 +1364,9 @@ public:
             if (_has_shared_expert)
                 args_down.insert(args_down.end(), extra_args_down.begin(), extra_args_down.end());
             args_down.push_back(scratch.up);
-            args_down.push_back(routing_mem_ptr);
+            args_down.push_back(routing_mem_ptr);  // compact topk_weights [token_num * MAX_TOPK]
+            if (_has_shared_expert)
+                args_down.push_back(scratch.routing_weights);  // shared_gate_in [token_num]
             ret_event = execute_stage({ret_event},
                                       instance,
                                       *stage_down,
