@@ -74,6 +74,9 @@ JitConstants GatherMatmulBatchedGemmGenerator::get_jit_constants(const kernel_im
         else
             jit.make("NUM_GROUPS", 1);
 
+        // Scales are physically [E, G, N]; must match GatherMatmulMicroGenerator.
+        jit.make("SCALE_ZP_NO_TRANSPOSE", 1);
+
         size_t expert_stride = weight_shape.size() == 4 ? (weight_shape[1] * weight_shape[2] * weight_shape[3]) : (weight_shape[1] * weight_shape[2]);
         if (is_u4_i4) {
             jit.make("EXPERT_STRIDE", expert_stride / 2);

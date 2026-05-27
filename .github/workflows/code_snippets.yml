@@ -45,14 +45,22 @@ jobs:
         run: brew install scons
 
       - name: CMake configure
-        run: cmake -DCMAKE_BUILD_TYPE=Release -DTHREADING=SEQ -B build
+        run: cmake -DCMAKE_BUILD_TYPE=Release -DTHREADING=SEQ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -B build
 
       - name: Build snippets
         if: ${{ runner.os == 'Linux' || runner.os == 'macOS'}}
-        run:  cmake --build build --target openvino_docs_snippets --parallel $(nproc)
+        run:  cmake --build build --target openvino_docs_snippets --parallel $(nproc) -- --quiet
 
       - name: Build snippets Windows
         if: ${{ runner.os == 'Windows'}}
         shell: pwsh
-        run:  cmake --build build --target openvino_docs_snippets --parallel $ENV:NUMBER_OF_PROCESSORS
+        run:  cmake --build build --target openvino_docs_snippets --parallel $ENV:NUMBER_OF_PROCESSORS -- /verbosity:minimal
+
+      - name: Upload compile_commands
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        if: always()
+        with:
+          name: compile_commands_code_snippets_${{ matrix.os }}
+          path: build/compile_commands.json
+          if-no-files-found: 'ignore'
 

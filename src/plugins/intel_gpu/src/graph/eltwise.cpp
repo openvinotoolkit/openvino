@@ -394,35 +394,28 @@ eltwise_inst::typed_primitive_inst(network& network, eltwise_node const& node) :
                                       out_y,
                                       "");
         }
-    } else {
+    } else if (inputs_count > 1) {
+        ov::op::v1::Add op;
+        op.set_autob(prim->broadcast_spec);
         bool use_new_shape_infer = network.get_config().get_allow_new_shape_infer();
-        auto input0_pshape = node.get_input_pshape(0);
 
+        auto output_shape = node.get_input_pshape(0);
         for (size_t i = 1; i < inputs_count; ++i) {
             auto input_pshape = node.get_input_pshape(i);
-
-            if (input0_pshape.size() > input_pshape.size()) {
-                if (use_new_shape_infer) {
-                    input_pshape.insert(input_pshape.begin(), input0_pshape.size() - input_pshape.size(), 1);
-                } else {
-                    input_pshape.insert(input_pshape.end(), input0_pshape.size() - input_pshape.size(), 1);
-                }
+            // cldnn legacy path right-pads the shorter shape with 1s so
+            // per-channel operands (e.g. [1, C, 1, 1]) broadcast against
+            // higher-rank outputs (e.g. [1, C, D, H, W]).
+            if (!use_new_shape_infer && output_shape.size() > input_pshape.size()) {
+                input_pshape.insert(input_pshape.end(),
+                                    output_shape.size() - input_pshape.size(),
+                                    1);
             }
-
-            auto base_pshape = input0_pshape;
-            if (prim->broadcast_spec == ov::op::AutoBroadcastType::NUMPY &&
-                base_pshape.size() < input_pshape.size()) {
-                base_pshape.insert(base_pshape.begin(), input_pshape.size() - base_pshape.size(), 1);
-            }
-
-            for (size_t d = 0; d < base_pshape.size(); ++d) {
-                bool sizes_equal = base_pshape[d] == input_pshape[d];
-                bool broadcast =
-                    (base_pshape[d] == 1 || input_pshape[d] == 1) && (base_pshape[d] != 1 || input_pshape[d] != 1);
-                CLDNN_ERROR_BOOL(node.id(),
-                                 "Sizes equal or broadcast is possible",
-                                 !(sizes_equal || broadcast),
-                                 "Invalid input shapes");
+            try {
+                output_shape = ov::op::eltwise_shape_infer(&op,
+                                                           std::vector<ov::PartialShape>{output_shape, input_pshape})
+                                   .front();
+            } catch (const std::exception& ex) {
+                CLDNN_ERROR_MESSAGE(node.id(), std::string("Invalid input shapes: ") + ex.what());
             }
         }
     }
@@ -484,7 +477,7 @@ bool eltwise_node::need_align_for_numpy_broadcast(const layout& input) const {
     auto pshape_a_rank = get_input_pshape(0).size();
     auto pshape_b_rank = get_input_pshape(1).size();
     auto small_pshape_rank = (pshape_a_rank > pshape_b_rank) ? pshape_b_rank : pshape_a_rank;
-    if (pshape_a_rank != pshape_b_rank && pshape_a_rank > 1 && pshape_b_rank > 1 &&
+    if (pshape_a_rank != pshape_b_rank && small_pshape_rank > 0 &&
         input.get_partial_shape().rank() == small_pshape_rank)
         return true;
 

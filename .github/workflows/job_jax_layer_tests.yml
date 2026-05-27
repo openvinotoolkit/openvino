@@ -28,6 +28,8 @@ env:
   PIP_CACHE_PATH_WIN: "C:\\mount\\caches\\pip\\win"
   HF_HUB_CACHE_LIN: /mount/caches/huggingface
   HF_HUB_CACHE_WIN: "C:\\mount\\caches\\huggingface"
+  HF_TOKEN_PATH_LIN: /secrets/huggingface/token-secondary
+  HF_TOKEN_PATH_WIN: "C:\\mount\\secrets\\huggingface\\token-secondary"
 
 jobs:
   JAX_Layer_Tests:
@@ -38,8 +40,8 @@ jobs:
       image: ${{ inputs.image }}
       volumes:
         - /mount:/mount
+        - /home/runner/secrets/:/secrets:ro
         - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
-      options: "-e HF_TOKEN"
     defaults:
       run:
         shell: ${{ contains(inputs.runner, 'win') && 'pwsh' || 'bash' }}
@@ -77,6 +79,7 @@ jobs:
         run: |
           echo "HF_HUB_CACHE=${{ runner.os == 'Linux' && env.HF_HUB_CACHE_LIN || env.HF_HUB_CACHE_WIN }}" >> "$GITHUB_ENV"
           echo "HUGGINGFACE_HUB_CACHE=${{ runner.os == 'Linux' && env.HF_HUB_CACHE_LIN || env.HF_HUB_CACHE_WIN }}" >> "$GITHUB_ENV"
+          echo "HF_TOKEN_PATH=${{ runner.os == 'Linux' && env.HF_TOKEN_PATH_LIN || env.HF_TOKEN_PATH_WIN }}" >> "$GITHUB_ENV"
 
       - name: Install OpenVINO dependencies (mac)
         if: runner.os == 'macOS'
@@ -121,7 +124,7 @@ jobs:
           PARALLEL: ${{ runner.os == 'Windows' && ' ' || '-n logical'}}
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: ${{ !cancelled() }}
         with:
           name: test-results-python-jax-layers

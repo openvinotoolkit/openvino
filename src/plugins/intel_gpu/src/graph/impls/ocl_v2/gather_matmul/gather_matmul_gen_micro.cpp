@@ -10,7 +10,6 @@
 #include "intel_gpu/primitives/gather_matmul.hpp"
 #include "intel_gpu/primitives/swiglu.hpp"
 #include "ocl_v2/utils/jitter.hpp"
-#include "gather_matmul_inst.h"
 #include "../utils/kernel_generator.hpp"
 #include "gemmstone/kernel_selector.hpp"
 
@@ -63,9 +62,6 @@ gathermatmul_config GatherMatmulMicroGenerator::get_config(const kernel_impl_par
         cfg.weight_zp_idx = gather_matmul::BGMInputIdx::WEIGHT_ZP;
         const auto& weight_shape = params.input_layouts[gather_matmul::BGMInputIdx::WEIGHT].get_shape();
         auto k = (weight_shape.size() == 4) ? weight_shape[2] * weight_shape[3] : weight_shape[2];
-        // Scale layout [E, N, G]; gemmstone A_scale.layout=T with leading_dim=NUM_GROUPS.
-        // Strided SIMD reads are a minor perf ceiling — upstream Transpose to [E, G, N] hits
-        // CL_OUT_OF_RESOURCES in microkernel selection.
         const auto& scale_shape_for_groups = params.input_layouts[cfg.weight_scale_idx].get_shape();
         OPENVINO_ASSERT(scale_shape_for_groups.size() > 2 && scale_shape_for_groups[2] > 0,
                         "GatherMatmul: weight scale shape must have a positive group dim at index 2, got ",
@@ -119,6 +115,9 @@ JitConstants GatherMatmulMicroGenerator::get_jit_constants(const kernel_impl_par
             jit.make("NUM_GROUPS", scale_shape[2]);
         else
             jit.make("NUM_GROUPS", 1);
+
+        // Scales are physically [E, G, N]; must match GatherMatmulBatchedGemmGenerator.
+        jit.make("SCALE_ZP_NO_TRANSPOSE", 1);
 
         size_t expert_stride = weight_shape.size() == 4 ? (weight_shape[1] * weight_shape[2] * weight_shape[3]) : (weight_shape[1] * weight_shape[2]);
         if (is_u4_i4) {
@@ -245,8 +244,8 @@ void GatherMatmulMicroGenerator::init_microkernels(const kernel_impl_params& par
 
         problem.Ta_scale = convert_type(params.get_input_layout(bgm_cfg.weight_scale_idx).data_type);
         problem.A_scale.setAlignment(2);
-        // Scales [E, G, N] (transposed in ConvertGatherMatmulToGatherMatmulCompressed) → gemmstone T layout.
-        problem.A_scale.layout = micro::MatrixLayout::T;
+        // Per-expert scales are physically [G, N]; N + leading_dim=m_gemm reads them as-is.
+        problem.A_scale.layout = micro::MatrixLayout::N;
         problem.asPtrDims = static_cast<int>(MICRO_DIMENSIONALITY::MATRIX);
 
         problem.aqGroupM = 1;

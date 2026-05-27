@@ -12,6 +12,7 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/gelu.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
@@ -35,6 +36,7 @@ namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v3 = ov::op::v3;
 namespace v4 = ov::op::v4;
+namespace v7 = ov::op::v7;
 namespace v8 = ov::op::v8;
 namespace v12 = ov::op::v12;
 
@@ -137,7 +139,7 @@ struct MOE3GEMMPatternNodes {
 MOE3GEMMPatternNodes build_3gemm_pattern() {
     MOE3GEMMPatternNodes p;
 
-    p.experts_input = pattern::wrap_type<v1::Reshape>({pattern::any_input(), pattern::any_input()});
+    p.experts_input = pattern::any_input();
     p.tile = pattern::wrap_type<v0::Tile>({p.experts_input, pattern::any_input()}, pattern::consumers_count(1));
     p.after_tile_reshape = pattern::wrap_type<v1::Reshape>({p.tile, pattern::any_input()}, pattern::consumers_count(2));
 
@@ -145,7 +147,7 @@ MOE3GEMMPatternNodes build_3gemm_pattern() {
     p.gate_matmul = pattern::wrap_type<v0::MatMul>(
         {p.after_tile_reshape, pattern::any_input()},
         pattern::consumers_count(1) && pattern::attrs_match({{"transpose_a", false}, {"transpose_b", true}}));
-    p.swish = pattern::wrap_type<v4::Swish>({p.gate_matmul}, pattern::consumers_count(1));
+    p.swish = pattern::wrap_type<v4::Swish, v7::Gelu>({p.gate_matmul}, pattern::consumers_count(1));
     // Second GEMM (up_projection)
     p.up_matmul = pattern::wrap_type<v0::MatMul>(
         {p.after_tile_reshape, pattern::any_input()},

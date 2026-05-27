@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <stdlib.h>
-
 #include <fstream>
 #include <string>
 
@@ -14,6 +12,7 @@
 #include "openvino/util/mmap_object.hpp"
 #include "ov_tensorflow/tensor_bundle.pb.h"
 #include "ov_tensorflow/trackable_object_graph.pb.h"
+#include "parse_output_index.hpp"
 #include "tf_utils.hpp"
 
 #ifdef ENABLE_SNAPPY_COMPRESSION
@@ -23,6 +22,13 @@
 namespace ov {
 namespace frontend {
 namespace tensorflow {
+
+namespace {
+// RestoreV2 data inputs (per the TF Op definition): prefix(0), tensor_names(1),
+// shape_and_slices(2). Control inputs ('^'-prefixed) live in the same input list
+// and are filtered out by the data-port check below.
+constexpr int tensor_names_index = 1;
+}  // namespace
 
 void VariablesIndex::read_variables_index_block(std::ifstream& fs,
                                                 const VIBlock& index,
@@ -378,6 +384,62 @@ void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::Grap
         }
     }
 
+    const auto get_variable_name = [](const PtrNode::SharedPtrNode& rv2_node, int idx) -> std::string {
+        std::string tensor_name;
+        if (rv2_node->node->input().size() > tensor_names_index) {
+            const std::string& in = rv2_node->node->input(tensor_names_index);
+            if (!in.empty() && in[0] != '^') {
+                tensor_name = in;
+            }
+        }
+        FRONT_END_GENERAL_CHECK(!tensor_name.empty(), "RestoreV2 node is missing tensor_names input");
+        std::vector<std::string> parsed;
+        PtrNode::parse_node_name(tensor_name, parsed);
+        // Match by local node name on the rv2_node's already-linked inputs. Pointer-based:
+        // works in both top-level and StatefulPartitionedCall scopes (the global node dictionary
+        // uses prefixed keys for SPC-flattened nodes, but each PtrNode's NodeDef carries its
+        // local name in both cases). Also catches the case where associate_node compacted the
+        // inputs vector and inputs[1] silently refers to a non-tensor_names Const.
+        PtrNode::SharedPtrNode tn_ptr = nullptr;
+        for (const auto& input : rv2_node->inputs) {
+            if (input->node->name() == parsed[0]) {
+                tn_ptr = input;
+                break;
+            }
+        }
+        FRONT_END_GENERAL_CHECK(tn_ptr != nullptr,
+                                "RestoreV2 tensor_names input not found among RestoreV2 inputs: ",
+                                parsed[0]);
+        const auto* tn_node = tn_ptr->node;
+        const auto value_attr_it = tn_node->attr().find("value");
+        FRONT_END_GENERAL_CHECK(tn_node->op() == "Const" && value_attr_it != tn_node->attr().end(),
+                                "RestoreV2 tensor_names input is not a Const with 'value' attribute");
+        const auto& tensor = value_attr_it->second.tensor();
+        FRONT_END_GENERAL_CHECK(idx >= 0 && idx < tensor.string_val_size(),
+                                "RestoreV2 output index out of range: ",
+                                idx,
+                                " (size=",
+                                tensor.string_val_size(),
+                                ")");
+        return tensor.string_val(idx);
+    };
+
+    // Parse the integer suffix of a "RestoreV2:N" reference. The colon-less form
+    // (size < 2) implicitly refers to output 0 — preserved here as an explicit
+    // call-site default. Anything past the colon must be a strictly valid in-range
+    // integer; non-numeric, trailing garbage and overflow all throw via
+    // FRONT_END_GENERAL_CHECK below.
+    const auto resolve_output_index = [](const std::vector<std::string>& restore_output) -> int {
+        if (restore_output.size() < 2) {
+            return 0;
+        }
+        const auto parsed = parse_output_index(restore_output.back());
+        FRONT_END_GENERAL_CHECK(parsed.has_value(),
+                                "RestoreV2 output index is not a valid integer: ",
+                                restore_output.back());
+        return *parsed;
+    };
+
     for (const auto& node : nodes) {
         if (node.second->op() == "AssignVariableOp") {
             // TODO: assets reading
@@ -405,13 +467,10 @@ void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::Grap
                     FRONT_END_THROW("Unexpected topology near AssignVariableOp");
                 }
 
-                int output_index = std::atoi(restore_output[restore_output.size() - 1].c_str());
+                const int output_index = resolve_output_index(restore_output);
 
                 // Expected path is: Const(tensor_names) -(0)-(1)-> RestoreV2
-                const auto& variable_name =
-                    restorev2_nodes[0]->inputs[1]->node->attr().at("value").tensor().string_val(output_index);
-
-                variables_map[varhandle_nodes[0]->node->name()] = variable_name;
+                variables_map[varhandle_nodes[0]->node->name()] = get_variable_name(restorev2_nodes[0], output_index);
             }
         } else if (node.second->op() == "Assign") {
             std::vector<PtrNode::SharedPtrNode> restorev2_nodes;
@@ -433,13 +492,10 @@ void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::Grap
                 // Expected path is: RestoreV2 -(output_index)-(1)-> Assign
                 PtrNode::parse_node_name(node.second->node->input(1), restore_output);
 
-                int output_index = std::atoi(restore_output[restore_output.size() - 1].c_str());
+                const int output_index = resolve_output_index(restore_output);
 
                 // Expected path is: Const(tensor_names) -(0)-(1)-> RestoreV2
-                const auto& variable_name =
-                    restorev2_nodes[0]->inputs[1]->node->attr().at("value").tensor().string_val(output_index);
-
-                variables_map[variablev2_nodes[0]->node->name()] = variable_name;
+                variables_map[variablev2_nodes[0]->node->name()] = get_variable_name(restorev2_nodes[0], output_index);
             }
         } else if (node.second->op() == "LookupTableImportV2") {
             std::vector<PtrNode::SharedPtrNode> hash_tablev2_nodes;
