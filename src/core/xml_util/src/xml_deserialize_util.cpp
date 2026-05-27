@@ -71,7 +71,7 @@ FileWeightsProvider::FileWeightsProvider(std::filesystem::path weights_path)
     : m_weights_path(std::move(weights_path)),
       m_weights_source_id(std::hash<std::decay_t<decltype(m_weights_path.native())>>{}(m_weights_path.native())),
       m_weights_source_handle(std::make_shared<ov::AlignedBuffer>()) {
-    std::ifstream weights_stream(m_weights_path, std::ios::binary | std::ios::ate);
+    std::ifstream weights_stream(m_weights_path, std::ios::binary);
     OPENVINO_ASSERT(weights_stream.is_open(), "Weights file ", m_weights_path, " cannot be opened!");
 
     m_weights_size = static_cast<size_t>(std::filesystem::file_size(m_weights_path));
