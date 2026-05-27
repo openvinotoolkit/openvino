@@ -6,6 +6,12 @@
 
 // #include "intel_npu/common/igraph.hpp"
 // #include "intel_npu/utils/zero/zero_init.hpp"
+#include <cstdint>
+#include <iosfwd>
+#include <memory>
+#include <string>
+#include <vector>
+
 
 namespace intel_npu {
 

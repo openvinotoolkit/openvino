@@ -7,6 +7,8 @@
 #include <sstream>
 
 #include "openvino/core/except.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/runtime/itensor.hpp"
 
 namespace intel_npu {
 
