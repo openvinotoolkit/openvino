@@ -14,7 +14,10 @@ class ConvolutionBackpropDataDilationTest : public ConvolutionBackpropDataLayerT
 protected:
     void SetUp() override {
         ConvolutionBackpropDataLayerTest::SetUp();
-        // FP16 deconv with dilation has inherent quantization error (~0.25 for values >128)
+        // FP16 outputs have limited precision (~1/1024 mantissa). For dilated deconv with
+        // larger spatial inputs, output values can be large enough that FP16 rounding error
+        // exceeds the default epsilon-based threshold. This is not an accumulator issue
+        // (accumulator is already FP32 for dilated FP16) but an output representation limit.
         const auto& [convParams, model_type, shapes, output_shapes, dev] = this->GetParam();
         if (model_type == ov::element::f16) {
             abs_threshold = 0.5;
