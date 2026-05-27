@@ -9,10 +9,12 @@
 
 #include <sstream>
 
+#include "intel_npu/common/dynamic_graph_vm_impl.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/vm/npu_vm_runtime_api.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
@@ -179,6 +181,9 @@ void DynamicPipeline::push() {
     auto* dynamicGraph = dynamic_cast<IDynamicGraph*>(_graph.get());
     OPENVINO_ASSERT(dynamicGraph != nullptr, "Failed to cast graph to IDynamicGraph");
 
+    const npu_vm_runtime_handle_t vmRuntime = dynamicGraph->get_vm_runtime_handle();
+    OPENVINO_ASSERT(vmRuntime != nullptr, "DynamicPipeline requires a valid VM runtime engine");
+
     const auto command_queue_desc = _graph->get_command_queue_desc();
     const bool command_queue_version_changed = (command_queue_desc.key() != _command_queue->desc().key());
     if (command_queue_version_changed) {
@@ -214,16 +219,104 @@ void DynamicPipeline::push() {
             }
         }
 
-        dynamicGraph->execute(_init_structs,
-                              graphArguments,
-                              command_lists->getHandles(),
-                              commandQueueHandle,
-                              fence,
-                              event,
-                              nullptr);
+        execute_vm_runtime(vmRuntime, graphArguments, command_lists->getHandles(), commandQueueHandle, fence, event);
     }
 
     _logger.debug("push - completed");
+}
+
+void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
+                                         IDynamicGraph::GraphArguments& args,
+                                         std::vector<ze_command_list_handle_t>& commandLists,
+                                         ze_command_queue_handle_t commandQueue,
+                                         ze_fence_handle_t fence,
+                                         ze_event_handle_t event) {
+    _logger.debug("execute_vm_runtime - started");
+
+    const bool firstExecution = (args._impl == nullptr);
+    std::shared_ptr<DynamicGraphArgumentsImpl> argsImpl =
+        firstExecution ? std::make_shared<DynamicGraphArgumentsImpl>()
+                       : std::static_pointer_cast<DynamicGraphArgumentsImpl>(args._impl);
+
+    bool noTensorChange = true;
+    npu_vm_runtime_execute_params_t* params = &argsImpl->_executeParams;
+
+    for (auto& in : args._inputs) {
+        auto inImpl = std::static_pointer_cast<DynamicGraphMemRefImpl>(in._impl);
+        if (inImpl == nullptr) {
+            inImpl = std::make_shared<DynamicGraphMemRefImpl>();
+            in._impl = inImpl;
+        }
+        inImpl->updateMemRefHandleStatus(in);
+        if (firstExecution) {
+            argsImpl->_inputMemRefs.push_back(inImpl->_memRef);
+        } else if (inImpl->_ptrUpdated || inImpl->_shapeUpdated || inImpl->_strideUpdated) {
+            noTensorChange = false;
+        }
+    }
+    for (auto& out : args._outputs) {
+        auto outImpl = std::static_pointer_cast<DynamicGraphMemRefImpl>(out._impl);
+        if (outImpl == nullptr) {
+            outImpl = std::make_shared<DynamicGraphMemRefImpl>();
+            out._impl = outImpl;
+        }
+        outImpl->updateMemRefHandleStatus(out);
+        if (firstExecution) {
+            argsImpl->_outputMemRefs.push_back(outImpl->_memRef);
+        } else if (outImpl->_ptrUpdated || outImpl->_shapeUpdated || outImpl->_strideUpdated) {
+            noTensorChange = false;
+        }
+    }
+
+    if (!firstExecution && noTensorChange) {
+        _logger.debug("execute_vm_runtime - reuse command list (no tensor change)");
+        auto result = zeCommandQueueExecuteCommandLists(commandQueue,
+                                                        static_cast<uint32_t>(commandLists.size()),
+                                                        commandLists.data(),
+                                                        fence);
+        if (result != ZE_RESULT_SUCCESS) {
+            OPENVINO_THROW("Failed to submit command lists");
+        }
+        return;
+    }
+
+    _logger.debug("execute_vm_runtime - reset command lists");
+    // Reset commandLists since there are tensors with new shapes (or first execution); can not reuse via update.
+    for (auto& cmdList : commandLists) {
+        zeCommandListReset(cmdList);
+    }
+
+    // Lazily create the VM execution context (owned by argsImpl, destroyed with it).
+    if (params->executionContext == nullptr) {
+        if (npuVMRuntimeCreateExecutionContext(vmRuntime, &params->executionContext) !=
+            NPU_VM_RUNTIME_RESULT_SUCCESS) {
+            OPENVINO_THROW("Failed to create a VM execution context");
+        }
+        _logger.debug("execute_vm_runtime - execution context created");
+    }
+
+    params->pInputs = argsImpl->_inputMemRefs.data();
+    params->numOfInputs = static_cast<uint32_t>(argsImpl->_inputMemRefs.size());
+    params->pOutputs = argsImpl->_outputMemRefs.data();
+    params->numOfOutputs = static_cast<uint32_t>(argsImpl->_outputMemRefs.size());
+    params->ctx = _init_structs->getContext();
+    params->device = _init_structs->getDevice();
+    params->graphDdiTableExt = _init_structs->getGraphDdiTable().getImpl();
+    params->commandLists = commandLists.data();
+    params->numCommandLists = static_cast<uint64_t>(commandLists.size());
+    params->commandQueue = commandQueue;
+    params->inferenceFence = fence;
+    params->event = event;
+
+    if (npuVMRuntimeExecute(vmRuntime, params) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+        OPENVINO_THROW("Failed to execute VM runtime engine");
+    }
+
+    if (firstExecution) {
+        args._impl = argsImpl;
+    }
+
+    _logger.debug("execute_vm_runtime - completed");
 }
 
 void DynamicPipeline::pull() {
