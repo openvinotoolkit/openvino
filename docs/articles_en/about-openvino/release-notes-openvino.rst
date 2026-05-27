@@ -30,6 +30,7 @@ What's New
   * New models supported: Gemma 4 E2B and Gemma 4 E4B  
 
      * Only on CPUs & GPUs: Qwen3-Coder-Next, Qwen3.5, Qwen3.6, Trinity  
+     * Only on CPUs: YOLO26
      * Only on GPUs: Gemma 4 31B and Gemma 4 26B-A4B  
      * Extended to GPUs: GPT-OSS 120B  
   * Scaled Dot-Product Attention (SDPA) path support added for LFM2 models   
@@ -62,7 +63,6 @@ Common Plugin
 * Improved model serialization error handling and report errors when there is no space on disk to store model. 
 * The ``ov::save_model`` function now adds runtime attributes containing the OpenVINO version used for saving, enabling better model provenance tracking and version compatibility management. 
 * Constant folding failures have been resolved when unsupported floating-point precision was encountered; operations now automatically fall back to FP32 precision to ensure successful model optimization. 
-
 
 CPU Device Plugin
 ---------------------------------------------------------------------------------------------
@@ -209,7 +209,7 @@ New models and use cases:
 * `Hunyuan Machine Translation (experimental)   <https://openvinotoolkit.github.io/openvino_notebooks/?search=Hunyuan+Machine+Translation>`__ 
 * `VoxCPM2 Text-to-Speech (experimental)   <https://openvinotoolkit.github.io/openvino_notebooks/?search=VoxCPM2+Text-to-Speech>`__ 
 * `Text-to-Image Generation with ERNIE-Image-Turbo (experimental)   <https://openvinotoolkit.github.io/openvino_notebooks/?search=Text-to-Image+Generation+with+ERNIE-Image-Turbo>`__ 
-* `MedASR Medical Speech Recognition   <https://openvinotoolkit.github.io/openvino_notebooks/?search=MedASR+Medical+Speech+Recognition >`__ 
+* `MedASR Medical Speech Recognition   <https://openvinotoolkit.github.io/openvino_notebooks/?search=MedASR+Medical+Speech+Recognition>`__ 
 * `FLUX.2 Klein Image Generation (experimental)   <https://openvinotoolkit.github.io/openvino_notebooks/?search=FLUX.2+Klein+Image+Generation>`__ 
 * `Document parsing with GLM-OCR (experimental)   <https://openvinotoolkit.github.io/openvino_notebooks/?search=Document+parsing+with+GLM-OCR>`__ 
 * `Document parsing with MinerU 2.5 (experimental)   <https://openvinotoolkit.github.io/openvino_notebooks/?search=MinerU>`__ 
