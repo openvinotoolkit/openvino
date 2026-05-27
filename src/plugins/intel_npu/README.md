@@ -196,6 +196,8 @@ The following properties are supported (may differ based on current system confi
 | `ov::range_for_streams`/</br>`RANGE_FOR_STREAMS` | RO | Returns a tuple (bottom, top).</br> Not used by the NPU plugin. | `N/A`| `N/A` |
 | `ov::enable_profiling`/</br>`PERF_COUNT` | RW | Enables or disables performance counters. | `YES`/ `NO` | `NO` |
 | `ov::workload_type`/</br>`WORKLOAD_TYPE` | RW | Selects the NPU workload profile for model execution. | `DEFAULT`/ `EFFICIENT`| `DEFAULT` |
+| `ov::runtime_requirements`/</br>`RUNTIME_REQUIREMENTS` | RO | Returns a string containing the runtime requirements of the compiled model. The string can be used with `ov::compatibility_check` to check compatibility before import. | `N/A` | `N/A` |
+| `ov::compatibility_check`/</br>`COMPATIBILITY_CHECK` | RO | Checks whether the current runtime is compatible with a compiled model, using a requirements string passed through `ov::runtime_requirements`. | `SUPPORTED`/</br>`UNSUPPORTED`/</br>`NOT_APPLICABLE` | `NOT_APPLICABLE` |
 | `ov::hint::performance_mode`/</br>`PERFORMANCE_HINT` | RW | Sets the performance profile used to determine default values of Tiles/DMAs/NIREQs.</br>Default values for each profile are documented below. | `THROUGHPUT`/</br>`LATENCY`/</br>`UNDEFINED` | `UNDEFINED` |
 | `ov::hint::num_requests`/</br>`PERFORMANCE_HINT_NUM_REQUESTS` | RW | Sets the number of outstanding inference requests. | `[0-]` | `1` |
 | `ov::hint::model_priority`/</br>`MODEL_PRIORITY` | RW | Assigns a priority for the model execution. | `LOW`/</br>`MEDIUM`/</br>`HIGH` | `MEDIUM` |
@@ -331,6 +333,17 @@ Notes regarding on-device vs offline compilation:
 Setting extra properties during offline compilation may result in compiled models that cannot be executed on SKUs with fewer resources or on drivers that do not support those features.  
 Example: Setting ``performance-hint-override=latency`` through ``ov::intel_npu::compilation_mode_params`` instructs the compiler to use all available resources for the given platform. If ``ov::intel_npu::max_tiles`` is not provided, the compiler falls back to a fixed lookup table embedded in the library to determine available resources, which might not be representative of all SKUs.
 <br>
+
+### ov::runtime_requirements and ov::compatibility_check
+
+A string containing plugin-specific runtime requirements can be retrieved from a compiled model using the ``ov::runtime_requirements`` property:
+```
+    auto requirements = compiled_model.get_property(ov::runtime_requirements);
+```
+This string can later be used before import to check the compatibility of the described model with the current runtime:
+```
+    auto compat = core.get_property("NPU", ov::compatibility_check, {{ov::runtime_requirements.name(), requirements}});
+```
 
 ## Stateful models
 
