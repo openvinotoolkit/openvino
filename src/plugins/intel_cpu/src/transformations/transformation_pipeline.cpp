@@ -271,7 +271,6 @@
 #if defined(OPENVINO_ARCH_RISCV64)
 #    include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
 #    include "openvino/op/power.hpp"
-#    include "openvino/op/select.hpp"
 #    include "openvino/op/swish.hpp"
 #    include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #endif
@@ -585,47 +584,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
     CPU_REGISTER_PASS_COMMON(manager, SDPASubgraphFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::GatedDeltaNetFusion);
-    ov::pass::ConvertPagedAttnInputs::KVCacheConfig cacheConfig;
-    cacheConfig.keyCachePrecision = config.keyCachePrecision;
-    cacheConfig.valueCachePrecision = config.valueCachePrecision;
-    cacheConfig.inferencePrecision = config.inferencePrecision;
-    cacheConfig.keyCacheGroupSize = config.keyCacheGroupSize;
-    cacheConfig.valueCacheGroupSize = config.valueCacheGroupSize;
-    cacheConfig.keyCacheBlockSize = 32;
-    cacheConfig.valueCacheBlockSize = 32;
-
-    cacheConfig.keyCacheQuantBychannel =
-        node::PagedAttention::isQuantByChannel(config.keyCacheQuantMode, config.keyCachePrecision, true);
-    cacheConfig.valueCacheQuantBychannel =
-        node::PagedAttention::isQuantByChannel(config.valueCacheQuantMode, config.valueCachePrecision, false);
-    cacheConfig.keyCacheDimOrder = {0, 1, 2, 3};
-    cacheConfig.valueCacheDimOrder = {0, 1, 2, 3};
-    auto update_paged_attention_shape_func = [](const ov::element::Type& precision,
-                                                const bool bychannel,
-                                                const size_t group_num,
-                                                int64_t& head_size,
-                                                int64_t& block_size) {
-        if (precision == ov::element::i8) {
-            if (bychannel) {
-                block_size += sizeof(float);
-            } else {
-                head_size += sizeof(float) * group_num;
-            }
-        } else if (precision == ov::element::u8) {
-            if (bychannel) {
-                block_size += 2 * sizeof(float);
-            } else {
-                head_size += sizeof(float) * 2 * group_num;
-            }
-        } else if (precision == ov::element::u4) {
-            if (bychannel) {
-                block_size += 2 * sizeof(float) * 2;
-            } else {
-                head_size += sizeof(float) * 2 * group_num * 2;
-            }
-        }
-    };
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPagedAttnInputs, cacheConfig, update_paged_attention_shape_func);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstPrecision, decompression_precisions, false, true);
     CPU_SET_CALLBACK_COMMON(
@@ -672,6 +630,47 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
 
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::EliminateConvert);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::EliminateIdentityConvert);
+    ov::pass::ConvertPagedAttnInputs::KVCacheConfig cacheConfig;
+    cacheConfig.keyCachePrecision = config.keyCachePrecision;
+    cacheConfig.valueCachePrecision = config.valueCachePrecision;
+    cacheConfig.inferencePrecision = config.inferencePrecision;
+    cacheConfig.keyCacheGroupSize = config.keyCacheGroupSize;
+    cacheConfig.valueCacheGroupSize = config.valueCacheGroupSize;
+    cacheConfig.keyCacheBlockSize = 32;
+    cacheConfig.valueCacheBlockSize = 32;
+
+    cacheConfig.keyCacheQuantBychannel =
+        node::PagedAttention::isQuantByChannel(config.keyCacheQuantMode, config.keyCachePrecision, true);
+    cacheConfig.valueCacheQuantBychannel =
+        node::PagedAttention::isQuantByChannel(config.valueCacheQuantMode, config.valueCachePrecision, false);
+    cacheConfig.keyCacheDimOrder = {0, 1, 2, 3};
+    cacheConfig.valueCacheDimOrder = {0, 1, 2, 3};
+    auto update_paged_attention_shape_func = [](const ov::element::Type& precision,
+                                                const bool bychannel,
+                                                const size_t group_num,
+                                                int64_t& head_size,
+                                                int64_t& block_size) {
+        if (precision == ov::element::i8) {
+            if (bychannel) {
+                block_size += sizeof(float);
+            } else {
+                head_size += sizeof(float) * group_num;
+            }
+        } else if (precision == ov::element::u8) {
+            if (bychannel) {
+                block_size += 2 * sizeof(float);
+            } else {
+                head_size += sizeof(float) * 2 * group_num;
+            }
+        } else if (precision == ov::element::u4) {
+            if (bychannel) {
+                block_size += 2 * sizeof(float) * 2;
+            } else {
+                head_size += sizeof(float) * 2 * group_num * 2;
+            }
+        }
+    };
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPagedAttnInputs, cacheConfig, update_paged_attention_shape_func);
     CPU_REGISTER_PASS_COMMON(manager, SwapConvertTranspose);
     CPU_REGISTER_PASS_X64(manager, ConvertToInteraction);
     CPU_REGISTER_PASS_X64(manager, ConvertInteractionInt8);
@@ -1412,7 +1411,6 @@ void Transformations::MainSnippets() {
                    || ov::is_type<const ov::op::v4::Swish>(n) ||
                    ov::is_type_any_of<const ov::op::v0::Ceiling,
                                       const ov::op::v1::Power,
-                                      const ov::op::v1::Select,
                                       const ov::intel_cpu::SwishNode>(n)
 #endif
                 ;
