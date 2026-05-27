@@ -6150,7 +6150,31 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_grid_sample_opset20_linear) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_grid_sample_opset20_cubic) {
     const auto model = convert_model("grid_sample_opset20_cubic.onnx");
-    ASSERT_TRUE(model != nullptr);
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 4, 4}, gen_range<float>(16));
+    test_case.add_input<float>(
+        Shape{1, 6, 6, 2},
+        {-1.0000f, -1.0000f, -0.6000f, -1.0000f, -0.2000f, -1.0000f, 0.2000f,  -1.0000f, 0.6000f,  -1.0000f, 1.0000f,
+         -1.0000f, -1.0000f, -0.6000f, -0.6000f, -0.6000f, -0.2000f, -0.6000f, 0.2000f,  -0.6000f, 0.6000f,  -0.6000f,
+         1.0000f,  -0.6000f, -1.0000f, -0.2000f, -0.6000f, -0.2000f, -0.2000f, -0.2000f, 0.2000f,  -0.2000f, 0.6000f,
+         -0.2000f, 1.0000f,  -0.2000f, -1.0000f, 0.2000f,  -0.6000f, 0.2000f,  -0.2000f, 0.2000f,  0.2000f,  0.2000f,
+         0.6000f,  0.2000f,  1.0000f,  0.2000f,  -1.0000f, 0.6000f,  -0.6000f, 0.6000f,  -0.2000f, 0.6000f,  0.2000f,
+         0.6000f,  0.6000f,  0.6000f,  1.0000f,  0.6000f,  -1.0000f, 1.0000f,  -0.6000f, 1.0000f,  -0.2000f, 1.0000f,
+         0.2000f,  1.0000f,  0.6000f,  1.0000f,  1.0000f,  1.0000});
+
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 6, 6},
+        {-0.2344f, -0.3005f, 0.1930f, 0.5570f, 1.1332f,  0.6094f, 0.3594f, 1.2865f,  2.1882f,
+         2.9965f,  4.4699f,  2.2330f, 2.1783f, 5.2767f,  5.6800f, 6.4080f, 8.1440f,  3.8658f,
+         3.6343f,  8.5098f,  8.5920f, 9.3200f, 11.3770f, 5.3218f, 6.0939f, 14.0200f, 13.6572f,
+         14.4655f, 17.2033f, 7.9675f, 3.1406f, 7.1937f,  6.9430f, 7.3070f, 8.6273f,  3.9844f});
+
+    test_case.run_with_tolerance_as_fp(1.0e-3f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_grid_sample_opset20_5d_input_rejected) {
+    EXPECT_THROW(convert_model("grid_sample_opset20_5d.onnx"), ov::Exception);
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_concat_empty_init) {
