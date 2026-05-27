@@ -483,7 +483,7 @@ typedef struct _ze_intel_mem_selected_format_modifier_exp_properties_t {
 ///         2. Set pCount to the address of a uint32_t with the number of elements in the pDrmFormatModifiers
 ///            array to retrieve the list of supported DRM format modifiers.
 ///     - The application can use the returned DRM format modifiers to:
-///         1. Create ZE images with supported DRM format modifiers.
+///         1. Create L0 images with supported DRM format modifiers.
 ///         2. Compare with DRM format modifiers from other APIs (like Vulkan) to find common
 ///            modifiers that work for interop scenarios.
 ///
@@ -525,7 +525,7 @@ zeIntelImageGetFormatModifiersSupportedExp(
 ///         2. Set pCount to the address of a uint32_t with the number of elements in the pDrmFormatModifiers
 ///            array to retrieve the list of supported DRM format modifiers.
 ///     - The application can use the returned DRM format modifiers to:
-///         1. Create ZE memory allocations with supported DRM format modifiers.
+///         1. Create L0 memory allocations with supported DRM format modifiers.
 ///         2. Compare with DRM format modifiers from other APIs (like Vulkan) to find common
 ///            modifiers that work for interop scenarios.
 ///
