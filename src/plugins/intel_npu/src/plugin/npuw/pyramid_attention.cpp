@@ -136,12 +136,12 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
         const size_t num_blocks_needed = model_idx;  // model[idx] needs exactly idx past blocks
 
         // Lambda: shrink one Concat (key or value) to keep only num_blocks_needed past inputs.
-        // Returns false on error.
-        auto shrink_concat_inputs = [&](const std::shared_ptr<ov::Node>& concat_node) -> bool {
+        // Returns the new (shrunk) Concat node on success, nullptr on error.
+        auto shrink_concat_inputs = [&](const std::shared_ptr<ov::Node>& concat_node) -> std::shared_ptr<ov::Node> {
             auto concat = std::dynamic_pointer_cast<ov::op::v0::Concat>(concat_node);
             if (!concat) {
                 LOG_WARN("  Block shrink: expected a Concat node, got something else");
-                return false;
+                return nullptr;
             }
 
             const size_t total_inputs = concat->get_input_size();
@@ -151,7 +151,7 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
             if (num_blocks_needed > num_global_past_blocks) {
                 LOG_WARN("  Block shrink: model[" << model_idx << "] needs " << num_blocks_needed
                                                   << " blocks but global model only has " << num_global_past_blocks);
-                return false;
+                return nullptr;
             }
 
             ov::OutputVector new_inputs;
@@ -193,7 +193,7 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
             }
 
             LOG_DEBUG("  Concat shrunken: " << total_inputs << " inputs -> " << new_inputs.size() << " inputs");
-            return true;
+            return new_concat;
         };
 
         // Find SDPA pattern in the cloned model.
@@ -210,8 +210,9 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
             value_concat_axis = ov::util::try_normalize_axis(vc->get_axis(), out_shape.rank(), *vc);
         }
 
-        if (!shrink_concat_inputs(cloned_pattern.past_key_concat_node) ||
-            !shrink_concat_inputs(cloned_pattern.past_value_concat_node)) {
+        auto shrunk_key = shrink_concat_inputs(cloned_pattern.past_key_concat_node);
+        auto shrunk_value = shrink_concat_inputs(cloned_pattern.past_value_concat_node);
+        if (!shrunk_key || !shrunk_value) {
             LOG_WARN("Failed to shrink Concat nodes for block-mode pyramid model[" << model_idx << "]");
             return std::nullopt;
         }
@@ -232,43 +233,25 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
         // lookup entirely. reshape(Output<Node>) can silently miss, reshape(string) uses
         // tensor names (not friendly names), so set_partial_shape() is the safest path.
         auto mask_param = find_mask_parameter(cloned_pattern.add_node);
-        if (mask_param) {
-            ov::PartialShape new_mask_shape = mask_param->get_partial_shape();
-            if (new_mask_shape.rank().is_static() && new_mask_shape.rank().get_length() > 0) {
-                new_mask_shape[new_mask_shape.rank().get_length() - 1] = current_context_length;
-                mask_param->set_partial_shape(new_mask_shape);
-                LOG_INFO("  Set mask '" << mask_param->get_friendly_name() << "' partial shape -> " << new_mask_shape);
-            }
-        } else {
-            LOG_WARN("  No mask parameter found in block-mode cloned model (model_idx=" << model_idx << ")");
+        if (!mask_param) {
+            LOG_WARN("Could not find mask parameter for block-mode pyramid model[" << model_idx << "]");
+            return std::nullopt;
+        }
+        ov::PartialShape new_mask_shape = mask_param->get_partial_shape();
+        if (new_mask_shape.rank().is_static() && new_mask_shape.rank().get_length() > 0) {
+            new_mask_shape[new_mask_shape.rank().get_length() - 1] = current_context_length;
+            mask_param->set_partial_shape(new_mask_shape);
+            LOG_INFO("  Set mask '" << mask_param->get_friendly_name() << "' partial shape -> " << new_mask_shape);
         }
 
         cloned_model->validate_nodes_and_infer_types();
-
-        // Build a minimal Attention descriptor for block mode.
-        // Cannot use create_attention_from_model() because is_valid() requires past_key_param_nodes
-        // to be non-empty — model[0] has 0 past block params after shrinking, so it always fails.
-        // Call find_sdpa_pattern_nodes() unconditionally and extract mask + block params directly.
         ov::npuw::function::Attention block_attention;
-        {
-            auto post_pattern = find_sdpa_pattern_nodes(cloned_model);
-            auto mask_p = (post_pattern.add_node ? find_mask_parameter(post_pattern.add_node)
-                                                 : find_mask_parameter(cloned_pattern.add_node));
-            if (!mask_p) {
-                LOG_WARN("Could not find mask parameter for block-mode pyramid model[" << model_idx << "]");
-                return std::nullopt;
-            }
-            block_attention._mask = mask_p;
-            block_attention._mask_shape = mask_p->get_shape();
-
-            // Collect past key/value block parameter indices from the (shrunk) Concat inputs.
-            collect_concat_block_indices(cloned_model,
-                                         post_pattern.past_key_concat_node,
-                                         block_attention.past_key_block_variant_param_indices);
-            collect_concat_block_indices(cloned_model,
-                                         post_pattern.past_value_concat_node,
-                                         block_attention.past_value_block_variant_param_indices);
-        }
+        block_attention._mask = mask_param;
+        block_attention._mask_shape = mask_param->get_shape();
+        collect_concat_block_indices(cloned_model, shrunk_key, block_attention.past_key_block_variant_param_indices);
+        collect_concat_block_indices(cloned_model,
+                                     shrunk_value,
+                                     block_attention.past_value_block_variant_param_indices);
 
         LOG_INFO("Block-mode pyramid model[" << model_idx << "] ready: " << num_blocks_needed
                                              << " past block(s), context=" << current_context_length);
