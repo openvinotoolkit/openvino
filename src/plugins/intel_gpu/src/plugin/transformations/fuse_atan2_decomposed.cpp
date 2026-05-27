@@ -13,106 +13,87 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/select.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov::intel_gpu {
 
-namespace {
+FuseAtan2Decomposed::FuseAtan2Decomposed() {
+    using namespace ov::pass::pattern;
 
-// Walk Atan(div) → (lhs, rhs). div may be either Divide(lhs, rhs) (frontend
-// form) or Multiply(lhs, Power(rhs, -1)) (post-ConvertDivide form). Returns
-// false if neither shape is found.
-bool extract_atan2_args(const std::shared_ptr<ov::Node>& atan_node,
-                        ov::Output<ov::Node>& lhs,
-                        ov::Output<ov::Node>& rhs) {
-    auto div_node = atan_node->get_input_node_shared_ptr(0);
+    // Atan(div) where div is Divide(lhs, rhs) (frontend form) or
+    // Multiply(lhs, Power(rhs, -1)) (post-ConvertDivide form, Multiply is
+    // commutative so cover both input orderings).
+    auto exp_neg1_m = wrap_type<ov::op::v0::Constant>(
+        ov::op::util::constant_predicate<float>([](const std::vector<float>& v) {
+            return v.size() == 1 && v[0] == -1.0f;
+        }));
+    auto power_m = wrap_type<ov::op::v1::Power>({any_input(), exp_neg1_m});
+    auto divide_m = wrap_type<ov::op::v1::Divide>({any_input(), any_input()});
+    auto mul_m = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{
+        wrap_type<ov::op::v1::Multiply>({any_input(), power_m}),
+        wrap_type<ov::op::v1::Multiply>({power_m, any_input()}),
+    });
+    auto div_m = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{divide_m, mul_m});
+    auto atan_m = wrap_type<ov::op::v0::Atan>({div_m});
 
-    if (auto div = ov::as_type_ptr<ov::op::v1::Divide>(div_node)) {
-        lhs = div->input_value(0);
-        rhs = div->input_value(1);
-        return true;
-    }
+    // Sel3 (root) → Sel2(any, atan, Sel1(any, branch_p, branch_m))
+    // Both Sel1 branches must consume the same Atan; verified in the callback.
+    auto sel1_m = wrap_type<ov::op::v1::Select>({any_input(), any_input(), any_input()});
+    auto sel2_m = wrap_type<ov::op::v1::Select>({any_input(), atan_m, sel1_m});
+    auto sel3_m = wrap_type<ov::op::v1::Select>({any_input(), any_input(), sel2_m});
 
-    if (auto mul = ov::as_type_ptr<ov::op::v1::Multiply>(div_node)) {
-        for (size_t i = 0; i < 2; ++i) {
-            auto pow = ov::as_type_ptr<ov::op::v1::Power>(mul->get_input_node_shared_ptr(i));
-            if (!pow)
-                continue;
-            auto exp_const = ov::as_type_ptr<ov::op::v0::Constant>(pow->get_input_node_shared_ptr(1));
-            if (!exp_const)
-                continue;
-            std::vector<float> exp_val;
-            try {
-                exp_val = exp_const->cast_vector<float>();
-            } catch (...) {
-                continue;
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
+        auto sel3 = pattern_map.at(sel3_m).get_node_shared_ptr();
+        auto sel2 = pattern_map.at(sel2_m).get_node_shared_ptr();
+        auto sel1 = pattern_map.at(sel1_m).get_node_shared_ptr();
+        auto atan = pattern_map.at(atan_m).get_node_shared_ptr();
+
+        if (transformation_callback(sel3))
+            return false;
+
+        // Both branches of Sel1 must consume the Atan (the only structural
+        // fingerprint robust to constant folding of the special-case chain).
+        auto branch_uses_atan = [&](const std::shared_ptr<ov::Node>& branch) {
+            for (size_t i = 0; i < branch->get_input_size(); ++i) {
+                if (branch->get_input_node_shared_ptr(i) == atan)
+                    return true;
             }
-            if (exp_val.empty() || exp_val[0] != -1.0f)
-                continue;
-            lhs = mul->input_value(1 - i);
+            return false;
+        };
+        if (!branch_uses_atan(sel1->get_input_node_shared_ptr(1)) ||
+            !branch_uses_atan(sel1->get_input_node_shared_ptr(2)))
+            return false;
+
+        // Pattern guarantees atan->input(0) is either Divide or Multiply(_, Power(_, -1)).
+        ov::Output<ov::Node> lhs, rhs;
+        auto div_node = atan->get_input_node_shared_ptr(0);
+        if (auto div = ov::as_type_ptr<ov::op::v1::Divide>(div_node)) {
+            lhs = div->input_value(0);
+            rhs = div->input_value(1);
+        } else {
+            auto mul = ov::as_type_ptr<ov::op::v1::Multiply>(div_node);
+            const size_t pow_idx = ov::is_type<ov::op::v1::Power>(mul->get_input_node_shared_ptr(0)) ? 0 : 1;
+            auto pow = ov::as_type_ptr<ov::op::v1::Power>(mul->get_input_node_shared_ptr(pow_idx));
+            lhs = mul->input_value(1 - pow_idx);
             rhs = pow->input_value(0);
-            return true;
         }
-    }
-    return false;
-}
 
-bool try_fuse_at_select_root(const std::shared_ptr<ov::Node>& sel3_node) {
-    auto sel3 = ov::as_type_ptr<ov::op::v1::Select>(sel3_node);
-    if (!sel3)
-        return false;
+        const auto& y_et = lhs.get_element_type();
+        if (!y_et.is_real() || rhs.get_element_type() != y_et)
+            return false;
 
-    auto sel2 = ov::as_type_ptr<ov::op::v1::Select>(sel3->get_input_node_shared_ptr(2));
-    if (!sel2)
-        return false;
-    auto atan = ov::as_type_ptr<ov::op::v0::Atan>(sel2->get_input_node_shared_ptr(1));
-    if (!atan)
-        return false;
-
-    auto sel1 = ov::as_type_ptr<ov::op::v1::Select>(sel2->get_input_node_shared_ptr(2));
-    if (!sel1)
-        return false;
-
-    // Both branches of Sel1 must be Add(atan, ±π).
-    auto branch_uses_atan = [&](const std::shared_ptr<ov::Node>& branch) {
-        for (size_t i = 0; i < branch->get_input_size(); ++i) {
-            if (branch->get_input_node_shared_ptr(i) == atan)
-                return true;
-        }
-        return false;
+        auto atan2 = std::make_shared<ov::intel_gpu::op::Atan2>(lhs, rhs);
+        atan2->set_friendly_name(sel3->get_friendly_name());
+        ov::copy_runtime_info({sel3, sel2, sel1, atan}, atan2);
+        ov::replace_node(sel3, atan2);
+        return true;
     };
-    auto add_p = sel1->get_input_node_shared_ptr(1);
-    auto add_m = sel1->get_input_node_shared_ptr(2);
-    if (!branch_uses_atan(add_p) || !branch_uses_atan(add_m))
-        return false;
 
-    ov::Output<ov::Node> lhs, rhs;
-    if (!extract_atan2_args(atan, lhs, rhs))
-        return false;
-
-    const auto& y_et = lhs.get_element_type();
-    if (!y_et.is_real())
-        return false;
-    if (rhs.get_element_type() != y_et)
-        return false;
-
-    auto atan2 = std::make_shared<ov::intel_gpu::op::Atan2>(lhs, rhs);
-    atan2->set_friendly_name(sel3->get_friendly_name());
-    ov::copy_runtime_info({sel3, sel2, sel1, atan}, atan2);
-    ov::replace_node(sel3, atan2);
-    return true;
-}
-
-}  // namespace
-
-bool FuseAtan2Decomposed::run_on_model(const std::shared_ptr<ov::Model>& m) {
-    bool changed = false;
-    // Snapshot ops first because replace_node mutates the model's op list.
-    const auto ops = m->get_ordered_ops();
-    for (const auto& node : ops) {
-        if (try_fuse_at_select_root(node))
-            changed = true;
-    }
-    return changed;
+    auto m = std::make_shared<Matcher>(sel3_m, "FuseAtan2Decomposed");
+    this->register_matcher(m, callback);
 }
 
 }  // namespace ov::intel_gpu
