@@ -9,7 +9,7 @@
 
 #include <sstream>
 
-#include "intel_npu/common/dynamic_graph_vm_impl.hpp"
+#include "intel_npu/common/dynamic_graph_arguments_impl.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
@@ -201,7 +201,7 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
                                          ze_command_queue_handle_t commandQueue,
                                          ze_fence_handle_t fence,
                                          ze_event_handle_t event) {
-    _logger.debug("execute_vm_runtime - started");
+    _logger.debug("Start to execute graph with runtime engine");
 
     const bool firstExecution = (args._impl == nullptr);
     std::shared_ptr<DynamicGraphArgumentsImpl> argsImpl =
@@ -239,7 +239,7 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
     }
 
     if (!firstExecution && noTensorChange) {
-        _logger.debug("execute_vm_runtime - reuse command list (no tensor change)");
+        _logger.debug("Reuse command list without update since no tensor change detected");
         auto result = zeCommandQueueExecuteCommandLists(commandQueue,
                                                         static_cast<uint32_t>(commandLists.size()),
                                                         commandLists.data(),
@@ -250,16 +250,16 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
         return;
     }
 
-    _logger.debug("execute_vm_runtime - reset command lists");
-    // Reset commandLists since there are tensors with new shapes (or first execution); can not reuse via update.
+    _logger.debug("Reset command list to run with runtime");
+    // Reset commandLists since there are tensor with new shapes or it is the first execution, can not reuse command
+    // list with update
     for (auto& cmdList : commandLists) {
         zeCommandListReset(cmdList);
     }
 
     // Lazily create the VM execution context (owned by argsImpl, destroyed with it).
     if (params->executionContext == nullptr) {
-        if (npuVMRuntimeCreateExecutionContext(vmRuntime, &params->executionContext) !=
-            NPU_VM_RUNTIME_RESULT_SUCCESS) {
+        if (npuVMRuntimeCreateExecutionContext(vmRuntime, &params->executionContext) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
             OPENVINO_THROW("Failed to create a VM execution context");
         }
         _logger.debug("execute_vm_runtime - execution context created");
@@ -278,6 +278,7 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
     params->inferenceFence = fence;
     params->event = event;
 
+    _logger.debug("Execute graph with runtime engine");
     if (npuVMRuntimeExecute(vmRuntime, params) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
         OPENVINO_THROW("Failed to execute VM runtime engine");
     }
@@ -286,7 +287,7 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
         args._impl = argsImpl;
     }
 
-    _logger.debug("execute_vm_runtime - completed");
+    _logger.debug("Completed to execute graph with runtime engine");
 }
 
 void DynamicPipeline::predict_output_shape(const IGraph& graph,
@@ -301,8 +302,7 @@ void DynamicPipeline::predict_output_shape(const IGraph& graph,
     std::vector<npu_vm_runtime_mem_ref_handle_t> inputs;
     inputs.reserve(inputDescriptors.size());
     for (auto& in : inputDescriptors) {
-        std::shared_ptr<DynamicGraphMemRefImpl> inImpl =
-            std::static_pointer_cast<DynamicGraphMemRefImpl>(in._impl);
+        std::shared_ptr<DynamicGraphMemRefImpl> inImpl = std::static_pointer_cast<DynamicGraphMemRefImpl>(in._impl);
         if (inImpl == nullptr) {
             inImpl = std::make_shared<DynamicGraphMemRefImpl>();
             in._impl = inImpl;
@@ -314,8 +314,7 @@ void DynamicPipeline::predict_output_shape(const IGraph& graph,
     std::vector<npu_vm_runtime_mem_ref_handle_t> outputs;
     outputs.reserve(outputDescriptors.size());
     for (auto& out : outputDescriptors) {
-        std::shared_ptr<DynamicGraphMemRefImpl> outImpl =
-            std::static_pointer_cast<DynamicGraphMemRefImpl>(out._impl);
+        std::shared_ptr<DynamicGraphMemRefImpl> outImpl = std::static_pointer_cast<DynamicGraphMemRefImpl>(out._impl);
         if (outImpl == nullptr) {
             outImpl = std::make_shared<DynamicGraphMemRefImpl>();
             out._impl = outImpl;
@@ -335,8 +334,7 @@ void DynamicPipeline::predict_output_shape(const IGraph& graph,
     }
 
     for (auto& out : outputDescriptors) {
-        std::shared_ptr<DynamicGraphMemRefImpl> outImpl =
-            std::static_pointer_cast<DynamicGraphMemRefImpl>(out._impl);
+        std::shared_ptr<DynamicGraphMemRefImpl> outImpl = std::static_pointer_cast<DynamicGraphMemRefImpl>(out._impl);
         OPENVINO_ASSERT(outImpl != nullptr,
                         "MemRefType implementation is broken, unknown error happens in shape prediction.");
         outImpl->alignWithHandle(out);

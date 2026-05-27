@@ -4,14 +4,17 @@
 
 #pragma once
 
-#include "intel_npu/common/igraph.hpp"
-#include "intel_npu/utils/zero/zero_init.hpp"
+#include <cstdint>
+#include <iosfwd>
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/runtime/itensor.hpp"
 
 namespace intel_npu {
-
-/// Host-side description of a single VM-runtime MemRef. Used as the per-IO entry inside
-/// @ref GraphArguments. The opaque @c _impl pointer carries a @c DynamicGraphMemRefImpl
-/// (defined in dynamic_graph_vm_impl.hpp) which owns the underlying VM MemRef handle.
 struct MemRefType {
     const void* _basePtr;
     const void* _data;
@@ -46,9 +49,6 @@ struct MemRefType {
     std::string toString();
 };
 
-/// Runtime carrier for VM-pipeline inputs/outputs. Owned by @c PipelinedCommandLists.
-/// The opaque @c _impl holds a @c DynamicGraphArgumentsImpl (VM execution context + cached
-/// mem-ref vectors), created lazily on first VM execution.
 struct GraphArguments {
     std::vector<MemRefType> _inputs;
     std::vector<MemRefType> _outputs;
