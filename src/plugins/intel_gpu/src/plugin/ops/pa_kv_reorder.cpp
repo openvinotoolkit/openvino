@@ -32,8 +32,10 @@ size_t infer_scales_zp_size(const ov::element::Type& cache_type, const ov::eleme
     if (!is_compressed_cache_type(cache_type)) {
         return 0;
     }
+    // One scale + one zp (each `infer_precision`-typed) per quantization group, matching
+    // pa_kv_cache_update kernel which writes comp_ptr[token]=1/scale, comp_ptr[BLOCK+token]=zp.
     if (cache_type == ov::element::i4 || cache_type == ov::element::u4) {
-        return 4 * infer_precision.size();
+        return 2 * infer_precision.size();
     }
     return (2 * infer_precision.size()) / cache_type.size();
 }
@@ -47,7 +49,10 @@ static void CreatePA_KV_ReorderOp(ProgramBuilder& p, const std::shared_ptr<ov::o
     auto prim = cldnn::pa_kv_reorder(cldnn::primitive_id(layer_type_name_ID(op)), std::vector<cldnn::input_info>(inputs.begin(), inputs.end()));
 
     const auto& config = p.get_config();
-    const auto cache_type = op->get_input_element_type(cldnn::pa_kv_reorder::PaKVReorderInputIdx::KEY_CACHE);
+    // Use configured kv_cache_precision (e.g. u4) — NOT the parameter's element type, which
+    // ConvertPagedAttnInputs rewrites to i8/u8 for RemoteTensor compatibility even when the
+    // underlying cache layout is packed u4.
+    const auto cache_type = config.get_kv_cache_precision();
     const auto infer_precision = config.get_inference_precision();
     const auto key_cache_quant_mode = config.get_key_cache_quant_mode();
 
