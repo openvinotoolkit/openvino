@@ -92,6 +92,8 @@ endif()
 ov_build_target_faster(${TARGET_NAME} PCH)
 
 if(GPU_RT_TYPE STREQUAL "SYCL")
+  # Some sources include oneDNN headers that require SYCL backend support.
+  # Without the SYCL compilation flag, the compiler will fail with "Unsupported compiler" error.
   add_sycl_to_target(TARGET ${TARGET_NAME} SOURCES)
 endif()
 
