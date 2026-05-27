@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
 #include "eltwise_inst.h"
 #include "registry/implementation_manager.hpp"
 
