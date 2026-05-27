@@ -293,116 +293,75 @@ void ov::npuw::LLMInferRequest::bind_past_kv() {
 void ov::npuw::LLMInferRequest::create_generate_request_variants(
     const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model) {
     // Create multiple generate model variants' requests
-    m_generate_requests.reserve(compiled_model->m_generate_compiled_variants.size());
+    const size_t num_variants = compiled_model->m_generate_compiled_variants.size();
+    m_generate_requests.reserve(num_variants);
+
+    // Helper: register a created request — stores it and builds its port maps.
+    auto register_request = [&](const std::shared_ptr<ov::IAsyncInferRequest>& req) {
+        m_generate_requests.push_back(req);
+        std::unordered_map<std::string, ov::Output<const ov::Node>> in_ports, out_ports;
+        for (const auto& p : req->get_compiled_model()->inputs()) {
+            in_ports.emplace(p.get_any_name(), p);
+        }
+        for (const auto& p : req->get_compiled_model()->outputs()) {
+            out_ports.emplace(p.get_any_name(), p);
+        }
+        m_generate_variant_in_ports.emplace(req, std::move(in_ports));
+        m_generate_variant_out_ports.emplace(req, std::move(out_ports));
+    };
 
     const bool is_block_based_kvcache = compiled_model->m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE>();
     if (is_block_based_kvcache) {
-        // ========================================================================
-        // Block-based KV Cache Mode: No buffer pre-allocation needed
-        // ========================================================================
-        // In block mode, KV cache blocks are dynamically allocated by BlockManager
-        // and bound to model inputs via init_generate_kv_block_bindings()
-        // before the first generate inference. No need to pre-allocate large continuous buffers.
-        // ========================================================================
-
-        for (size_t i = 0; i < compiled_model->m_generate_compiled_variants.size(); ++i) {
-            auto generate_request = compiled_model->m_generate_compiled_variants[i]->create_infer_request();
-            m_generate_requests.push_back(generate_request);
-
-            // Build input/output ports mapping for this variant
-            std::unordered_map<std::string, ov::Output<const ov::Node>> variant_in_ports;
-            std::unordered_map<std::string, ov::Output<const ov::Node>> variant_out_ports;
-
-            for (const auto& input_port : generate_request->get_compiled_model()->inputs()) {
-                variant_in_ports.emplace(input_port.get_any_name(), input_port);
-            }
-            for (const auto& output_port : generate_request->get_compiled_model()->outputs()) {
-                variant_out_ports.emplace(output_port.get_any_name(), output_port);
-            }
-
-            m_generate_variant_in_ports.emplace(generate_request, std::move(variant_in_ports));
-            m_generate_variant_out_ports.emplace(generate_request, std::move(variant_out_ports));
+        // Block mode: KV blocks are dynamically allocated by BlockManager and bound
+        // via init_generate_kv_block_bindings() before the first generate inference.
+        // No buffer pre-allocation or sharing is needed.
+        for (size_t i = 0; i < num_variants; ++i) {
+            register_request(compiled_model->m_generate_compiled_variants[i]->create_infer_request());
         }
     } else {
-        // ========================================================================
-        // Legacy Continuous Buffer Mode: Pre-allocate and share KV buffer
-        // ========================================================================
-        // For non-block mode, create the largest variant first and share its
-        // KV buffer with smaller variants to save memory.
-        // ========================================================================
+        // Non-block mode: create the largest variant first and share its KV buffer
+        // with smaller variants to save memory.
+        auto largest_request = compiled_model->m_generate_compiled_variants.back()->create_infer_request();
 
-        // First, create the largest variant request (last one in the list)
-        auto largest_generate_request = compiled_model->m_generate_compiled_variants.back()->create_infer_request();
-
-        // Store past KV tensors from the largest variant for sharing
         std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> largest_past_kv_tensors;
-        for (const auto& input_port : largest_generate_request->get_compiled_model()->inputs()) {
+        std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> past_lin_tensors;
+        for (const auto& input_port : largest_request->get_compiled_model()->inputs()) {
             const auto& input_name = input_port.get_any_name();
             if (ov::npuw::util::starts_with(input_name, layer_names::past_key_values)) {
-                largest_past_kv_tensors[input_name] = largest_generate_request->get_tensor(input_port);
+                largest_past_kv_tensors[input_name] = largest_request->get_tensor(input_port);
+            } else if (ov::npuw::util::starts_with_past_lincache(input_name)) {
+                past_lin_tensors[input_name] = largest_request->get_tensor(input_port);
             }
         }
 
-        std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> past_lin_tensors;
-        for (const auto& input_port : largest_generate_request->get_compiled_model()->inputs()) {
-            const auto& input_name = input_port.get_any_name();
-            if (ov::npuw::util::starts_with_past_lincache(input_name)) {
-                past_lin_tensors[input_name] = largest_generate_request->get_tensor(input_port);
-            }
-        }
+        for (size_t i = 0; i < num_variants; ++i) {
+            auto generate_request = (i == num_variants - 1)
+                                        ? largest_request
+                                        : compiled_model->m_generate_compiled_variants[i]->create_infer_request();
 
-        // Create all variant requests and share past KV tensors
-        for (size_t i = 0; i < compiled_model->m_generate_compiled_variants.size(); ++i) {
-            std::shared_ptr<ov::IAsyncInferRequest> generate_request;
-
-            if (i == compiled_model->m_generate_compiled_variants.size() - 1) {
-                // Use the already created largest variant
-                generate_request = largest_generate_request;
-            } else {
-                // Create smaller variant
-                generate_request = compiled_model->m_generate_compiled_variants[i]->create_infer_request();
-
-                // Share past KV tensors from the largest variant
+            if (i < num_variants - 1) {
+                // Share past KV and lincache tensors from the largest variant.
                 for (const auto& input_port : generate_request->get_compiled_model()->inputs()) {
                     const auto& input_name = input_port.get_any_name();
                     if (ov::npuw::util::starts_with(input_name, layer_names::past_key_values)) {
                         OPENVINO_ASSERT(largest_past_kv_tensors.find(input_name) != largest_past_kv_tensors.end(),
                                         "Unexpected input name: ",
                                         input_name);
-                        auto largest_tensor = largest_past_kv_tensors[input_name];
-                        auto small_shape = input_port.get_shape();
-
-                        // Wrap the largest tensor's data pointer with smaller shape
-                        auto shared_tensor = ov::SoPtr<ov::ITensor>(
-                            ov::make_tensor(input_port.get_element_type(), small_shape, largest_tensor->data()),
-                            nullptr);
-
+                        auto shared_tensor =
+                            ov::SoPtr<ov::ITensor>(ov::make_tensor(input_port.get_element_type(),
+                                                                   input_port.get_shape(),
+                                                                   largest_past_kv_tensors.at(input_name)->data()),
+                                                   nullptr);
                         generate_request->set_tensor(input_port, shared_tensor);
                     } else if (ov::npuw::util::starts_with_past_lincache(input_name)) {
                         OPENVINO_ASSERT(past_lin_tensors.find(input_name) != past_lin_tensors.end(),
                                         "Unexpected input name: ",
                                         input_name);
-                        auto lin_tensor = past_lin_tensors[input_name];
-                        generate_request->set_tensor(input_port, lin_tensor);
+                        generate_request->set_tensor(input_port, past_lin_tensors.at(input_name));
                     }
                 }
             }
-
-            m_generate_requests.push_back(generate_request);
-
-            // Build input/output ports mapping for this variant
-            std::unordered_map<std::string, ov::Output<const ov::Node>> variant_in_ports;
-            std::unordered_map<std::string, ov::Output<const ov::Node>> variant_out_ports;
-
-            for (const auto& input_port : generate_request->get_compiled_model()->inputs()) {
-                variant_in_ports.emplace(input_port.get_any_name(), input_port);
-            }
-            for (const auto& output_port : generate_request->get_compiled_model()->outputs()) {
-                variant_out_ports.emplace(output_port.get_any_name(), output_port);
-            }
-
-            m_generate_variant_in_ports.emplace(generate_request, std::move(variant_in_ports));
-            m_generate_variant_out_ports.emplace(generate_request, std::move(variant_out_ports));
+            register_request(generate_request);
         }
     }
 
@@ -1230,9 +1189,8 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     });
     kvcache_desc.num_stored_tokens += input_tokens_len;
 
-    if (m_lm_head_request) {
-        LOG_DEBUG("Calling inference for LM head model asynchronously");
-        m_lm_head_request->start_async();
+    // Shared post-infer KV cache update for both lm_head and non-lm_head paths.
+    auto do_update_kvcache = [&]() {
         m_llm_profile["N/generate:3.update_kvcache"].record([&]() {
             if (kvcache_desc.num_stored_tokens < kvcache_desc.total_size) {
                 if (m_block_kvcache_ext.is_enabled()) {
@@ -1250,6 +1208,12 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                 }
             }
         });
+    };
+
+    if (m_lm_head_request) {
+        LOG_DEBUG("Calling inference for LM head model asynchronously");
+        m_lm_head_request->start_async();
+        do_update_kvcache();
         m_llm_profile["N/generate:4.copy_lincache"].record([&]() {
             copy_lincache(m_kvcache_request, m_kvcache_request, m_kvcache_out_ports, m_kvcache_in_ports);
         });
@@ -1260,23 +1224,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
             m_logits = m_lm_head_request->get_tensor(m_lm_head_logits_port);
         });
     } else {
-        m_llm_profile["N/generate:3.update_kvcache"].record([&]() {
-            if (kvcache_desc.num_stored_tokens < kvcache_desc.total_size) {
-                if (m_block_kvcache_ext.is_enabled()) {
-                    m_block_kvcache_ext.commit_generate_kv_and_rebind(tokens_before_infer,
-                                                                      kvcache_desc.num_stored_tokens,
-                                                                      input_tokens_len,
-                                                                      m_kvcache_request,
-                                                                      m_kvcache_out_ports);
-                } else {
-                    update_kvcache_for(m_kvcache_request,
-                                       m_kvcache_in_ports,
-                                       m_kvcache_out_ports,
-                                       input_tokens_len,
-                                       kvcache_desc.v_tensors_transposed_gen);
-                }
-            }
-        });
+        do_update_kvcache();
         m_llm_profile["N/generate:4.copy_lincache"].record([&]() {
             copy_lincache(m_kvcache_request, m_kvcache_request, m_kvcache_out_ports, m_kvcache_in_ports);
         });
