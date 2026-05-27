@@ -158,6 +158,55 @@ INSTANTIATE_TEST_SUITE_P(SequentialFakeQuantize,
                          testing::ValuesIn(sequential_fq_params),
                          SequentialFakeQuantizeTests::get_test_case_name);
 
+struct MergedFqParams {
+    std::vector<float> fq1;
+    size_t fq1_levels;
+    std::vector<float> fq2;
+    size_t fq2_levels;
+    std::string name;
+};
+
+class MergedFakeQuantizeTests : public TransformationTestsF, public testing::WithParamInterface<MergedFqParams> {
+public:
+    static std::string get_test_case_name(testing::TestParamInfo<MergedFqParams> info) {
+        return info.param.name;
+    }
+};
+
+TEST_P(MergedFakeQuantizeTests, CompareFunctions) {
+    const auto& p = GetParam();
+    {
+        auto input = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 16, 16});
+        auto fq1 = make_fake_quantize(input, p.fq1[0], p.fq1[1], p.fq1[2], p.fq1[3], p.fq1_levels);
+        auto fq2 = make_fake_quantize(fq1, p.fq2[0], p.fq2[1], p.fq2[2], p.fq2[3], p.fq2_levels);
+        auto abs = std::make_shared<v0::Abs>(fq2);
+        model = std::make_shared<ov::Model>(OutputVector{abs}, ParameterVector{input});
+    }
+    {
+        auto input = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 16, 16});
+        // Reference model with merged FQ: FQ1's input range -> FQ2's output range, FQ1's levels
+        auto merged_fq = make_fake_quantize(input, p.fq1[0], p.fq1[1], p.fq2[2], p.fq2[3], p.fq1_levels);
+        auto abs = std::make_shared<v0::Abs>(merged_fq);
+        model_ref = std::make_shared<ov::Model>(OutputVector{abs}, ParameterVector{input});
+    }
+
+    manager.register_pass<ov::pass::NopElimination>();
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+const std::vector<MergedFqParams> merged_fq_params = {
+    {{-2.0f, 2.0f, -1.0f, 1.0f}, 256, {-1.0f, 1.0f, -0.5f, 0.5f}, 256, "merge_compressed_output"},
+    {{-4.0f, 4.0f, -2.0f, 2.0f}, 256, {-2.0f, 2.0f, -1.0f, 1.0f}, 256, "merge_different_input_ranges"},
+    {{-3.0f, 3.0f, -1.5f, 1.5f}, 512, {-1.5f, 1.5f, -0.75f, 0.75f}, 512, "merge_odd_levels"},
+};
+
+INSTANTIATE_TEST_SUITE_P(MergedFakeQuantize,
+                         MergedFakeQuantizeTests,
+                         testing::ValuesIn(merged_fq_params),
+                         MergedFakeQuantizeTests::get_test_case_name);
+
 template <typename Op>
 void test_nop_eliminate_broadcast() {
     std::shared_ptr<ov::Model> f;

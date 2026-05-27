@@ -412,7 +412,7 @@ EliminateSequentialFakeQuantize::EliminateSequentialFakeQuantize() {
         {pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()});
     auto fq2 = pattern::wrap_type<v0::FakeQuantize>(
         {fq1, pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()});
-    
+
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto fq2 = ov::as_type_ptr<v0::FakeQuantize>(m.get_match_root());
         if (!fq2) {
@@ -439,10 +439,21 @@ EliminateSequentialFakeQuantize::EliminateSequentialFakeQuantize() {
 
         double fq1_out_low = 0.0;
         double fq1_out_high = 0.0;
+        double fq1_in_low = 0.0;
+        double fq1_in_high = 0.0;
         double fq2_in_low = 0.0;
         double fq2_in_high = 0.0;
         double fq2_out_low = 0.0;
         double fq2_out_high = 0.0;
+
+        if (!ov::op::util::get_constant_value(fq1->input_value(1).get_node_shared_ptr(), fq1_in_low) ||
+            !ov::op::util::get_constant_value(fq1->input_value(2).get_node_shared_ptr(), fq1_in_high) ||
+            !std::isfinite(fq1_in_low) || !std::isfinite(fq1_in_high)) {
+            return false;
+        }
+        if (fq1_in_high <= fq1_in_low) {
+            return false;
+        }
 
         if (!ov::op::util::get_constant_value(fq1->input_value(3).get_node_shared_ptr(), fq1_out_low) ||
             !ov::op::util::get_constant_value(fq1->input_value(4).get_node_shared_ptr(), fq1_out_high) ||
@@ -455,13 +466,16 @@ EliminateSequentialFakeQuantize::EliminateSequentialFakeQuantize() {
             return false;
         }
 
-        // Case 2: handle subrange/identity path only when FQ2 is identity on its own range.
-        if (!is_close(fq2_in_low, fq2_out_low) || !is_close(fq2_in_high, fq2_out_high)) {
+        // Check if FQ1 output range is within FQ2 input range (necessary for any optimization).
+        if (fq1_out_low < fq2_in_low || fq1_out_high > fq2_in_high) {
             return false;
         }
 
-        // Case 3: FQ1 output must lie within the FQ2 output range.
-        if (fq1_out_low < fq2_out_low || fq1_out_high > fq2_out_high) {
+        // Case 2: handle subrange/identity path only when FQ2 is identity on its own range.
+        const bool fq2_is_identity = is_close(fq2_in_low, fq2_out_low) && is_close(fq2_in_high, fq2_out_high);
+
+        // Case 3: FQ1 output must lie within the FQ2 output range (only for elimination case).
+        if (fq2_is_identity && (fq1_out_low < fq2_out_low || fq1_out_high > fq2_out_high)) {
             return false;
         }
 
@@ -490,7 +504,35 @@ EliminateSequentialFakeQuantize::EliminateSequentialFakeQuantize() {
             return false;
         }
 
-        return replace_output_update_name(fq2->output(0), fq1->output(0));
+        // If we reach here, grids align.
+        if (fq2_is_identity) {
+            // Case 1-5 elimination: FQ2 is identity and grids align -> eliminate FQ2.
+            return replace_output_update_name(fq2->output(0), fq1->output(0));
+        }
+
+        // Case 6: Merge FQ1 and FQ2 into a single FQ when grids align but FQ2 is not identity.
+        // Both must have the same levels to ensure mathematical correctness.
+        if (fq1->get_levels() != fq2->get_levels()) {
+            return false;
+        }
+
+        // Create merged FQ with FQ1's input range and FQ2's output range.
+        auto fq1_in_low_const = v0::Constant::create(element::f32, Shape{}, {static_cast<float>(fq1_in_low)});
+        auto fq1_in_high_const = v0::Constant::create(element::f32, Shape{}, {static_cast<float>(fq1_in_high)});
+        auto fq2_out_low_const = v0::Constant::create(element::f32, Shape{}, {static_cast<float>(fq2_out_low)});
+        auto fq2_out_high_const = v0::Constant::create(element::f32, Shape{}, {static_cast<float>(fq2_out_high)});
+
+        auto merged_fq = std::make_shared<v0::FakeQuantize>(fq1->input_value(0),
+                                                            fq1_in_low_const,
+                                                            fq1_in_high_const,
+                                                            fq2_out_low_const,
+                                                            fq2_out_high_const,
+                                                            fq1->get_levels());
+
+        merged_fq->set_friendly_name(fq2->get_friendly_name());
+        ov::copy_runtime_info({fq1, fq2}, merged_fq);
+        ov::replace_node(fq2, merged_fq);
+        return true;
     };
 
     auto m = std::make_shared<pattern::Matcher>(fq2, matcher_name);
