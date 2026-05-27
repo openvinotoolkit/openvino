@@ -42,13 +42,15 @@ FuseClampAndFakeQuantize::FuseClampAndFakeQuantize() {
         const auto clamp_low = static_cast<float>(clamp->get_min());
         const auto clamp_high = static_cast<float>(clamp->get_max());
 
-        if (!std::all_of(input_low_values.begin(), input_low_values.end(),
-                         [&](auto v) { return v >= clamp_low; })) {
+        if (!std::all_of(input_low_values.begin(), input_low_values.end(), [&](auto v) {
+                return v >= clamp_low;
+            })) {
             return false;
         }
 
-        if (!std::all_of(input_high_values.begin(), input_high_values.end(),
-                        [&](auto v) { return v <= clamp_high; })) {
+        if (!std::all_of(input_high_values.begin(), input_high_values.end(), [&](auto v) {
+                return v <= clamp_high;
+            })) {
             return false;
         }
 
