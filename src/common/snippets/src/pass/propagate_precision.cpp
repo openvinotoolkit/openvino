@@ -9,7 +9,6 @@
 #include <memory>
 #include <set>
 #include <string>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -36,11 +35,12 @@ bool ov::snippets::pass::PropagatePrecision::run_on_model(const std::shared_ptr<
     RUN_ON_MODEL_SCOPE(PropagatePrecision);
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::PropagatePrecision")
 
-    std::unordered_map<std::shared_ptr<ov::opset1::Result>, element::Type> result_types;
+    std::vector<std::pair<std::shared_ptr<ov::opset1::Result>, element::Type>> result_types;
+    result_types.reserve(m->get_results().size());
     for (const auto& model_result : m->get_results()) {
         auto result = model_result;
-        const auto& result_type = result->get_input_element_type(0);
-        result_types.emplace(std::shared_ptr<ov::opset1::Result>(result), result->get_input_element_type(0));
+        const auto result_type = result->get_input_element_type(0);
+        result_types.emplace_back(std::move(result), result_type);
     }
 
     bool was_updated = false;
@@ -174,11 +174,11 @@ bool ov::snippets::pass::PropagatePrecision::run_on_model(const std::shared_ptr<
         }
     }
 
-    for (auto& result_type : result_types) {
-        const auto result = result_type.first;
+    for (const auto& result_type : result_types) {
+        const auto& result = result_type.first;
         const auto actual_type = result->get_input_element_type(0);
         const auto expected_type = result_type.second;
-        if (actual_type != result_type.second) {
+        if (actual_type != expected_type) {
             was_updated = true;
             auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(result->input_value(0), expected_type);
             copy_runtime_info(result->get_input_node_shared_ptr(0), convert);

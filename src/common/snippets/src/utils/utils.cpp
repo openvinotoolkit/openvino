@@ -454,14 +454,14 @@ void init_strides(const VectorDims& shape, size_t rank, size_t data_size, size_t
 
 void visit_path(const lowered::ExpressionPtr& expr,
                 std::unordered_set<lowered::ExpressionPtr>& visited,
-                const std::function<void(lowered::ExpressionPtr)>& func,
+                const std::function<void(const lowered::ExpressionPtr&)>& func,
                 bool visit_parent_path) {
     std::deque<lowered::ExpressionPtr> exprs{expr};
 
     auto continue_traversal = [&](lowered::ExpressionPtr expr) {
         if (visited.count(expr) == 0) {
             exprs.push_front(expr);
-            visited.emplace(lowered::ExpressionPtr(expr));
+            visited.emplace(std::move(expr));
         }
     };
 
@@ -472,14 +472,12 @@ void visit_path(const lowered::ExpressionPtr& expr,
 
         if (visit_parent_path) {
             for (const auto& input_connector : curr_expr->get_input_port_connectors()) {
-                auto parent_expr = input_connector->get_source().get_expr();
-                continue_traversal(std::move(parent_expr));
+                continue_traversal(input_connector->get_source().get_expr());
             }
         } else {
             for (const auto& output_connector : curr_expr->get_output_port_connectors()) {
                 for (const auto& consumer : output_connector->get_consumers()) {
-                    auto consumer_expr = consumer.get_expr();
-                    continue_traversal(std::move(consumer_expr));
+                    continue_traversal(consumer.get_expr());
                 }
             }
         }
