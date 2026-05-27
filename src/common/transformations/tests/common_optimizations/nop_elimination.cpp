@@ -2459,8 +2459,7 @@ TEST_F(TransformationTestsF, EliminateConcatStridedSliceUnitStridesResidual) {
         auto strides_unit = v0::Constant::create(element::i64, Shape{3}, {1, 1, 1});
         auto begin2 = v0::Constant::create(element::i64, Shape{3}, {0, 0, 0});
         auto end2 = v0::Constant::create(element::i64, Shape{3}, {0, 0, 9});
-        auto slice2 =
-            std::make_shared<v1::StridedSlice>(new_concat, begin2, end2, strides_unit, begin_mask, end_mask);
+        auto slice2 = std::make_shared<v1::StridedSlice>(new_concat, begin2, end2, strides_unit, begin_mask, end_mask);
         auto relu = std::make_shared<op::v0::Relu>(slice2);
         auto result2 = std::make_shared<op::v0::Result>(relu);
 
