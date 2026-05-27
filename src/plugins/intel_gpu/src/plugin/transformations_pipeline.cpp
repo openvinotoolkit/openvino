@@ -578,6 +578,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 std::vector<ov::element::Type>{ov::element::f32, ov::element::f16},
                 std::vector<ov::element::Type>{ov::element::u4, ov::element::i4,
                                                ov::element::i8, ov::element::u8});
+            manager.register_pass<ov::intel_gpu::FuseMoERouter>();
 
             if (!disable_moe_opt) {
                 // PA models flatten batch into seq.
@@ -588,7 +589,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 // queue stays out-of-order and the oneDNN stream creation may assert.
                 manager.register_pass<ov::pass::MoeOpFusion>(has_batch_dim);
                 manager.register_pass<ov::intel_gpu::FuseMOESharedExpert>();
-                manager.register_pass<ov::intel_gpu::FuseMoERouter>();
             }
         }
         manager.register_pass<ov::pass::GatedDeltaNetFusion>();

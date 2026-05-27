@@ -273,11 +273,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE2GemmCompressedFusion,
                                             ::testing::Values(false)),  // use_layernorm_multiply
                          MoECompressedFusionTest::getTestCaseName);
 
-// MoEGatherMatmulTest: alias for MoECompressedFusionTest with force_gather_matmul=true.
-using MoEGatherMatmulTest = MoECompressedFusionTest;
-
 INSTANTIATE_TEST_SUITE_P(smoke_MoEGatherMatmul,
-                         MoEGatherMatmulTest,
+                         MoECompressedFusionTest,
                          ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
                                             ::testing::Values(MoePatternType::GEMM3),
                                             ::testing::ValuesIn(routing_types),
@@ -293,11 +290,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoEGatherMatmul,
                                             ::testing::Values(MoEActivationType::SWISH),
                                             ::testing::Values(false),   // use_per_expert_scale
                                             ::testing::Values(false)),  // use_layernorm_multiply
-                         MoEGatherMatmulTest::getTestCaseName);
+                         MoECompressedFusionTest::getTestCaseName);
 
 // 2-GEMM unfused: covers GatherMatmul OCL clamp/bias/swiglu compile path.
 INSTANTIATE_TEST_SUITE_P(smoke_MoE2GemmGatherMatmul,
-                         MoEGatherMatmulTest,
+                         MoECompressedFusionTest,
                          ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
                                             ::testing::Values(MoePatternType::GEMM2),
                                             ::testing::Values(MoERoutingType::SOFTMAX),
@@ -313,7 +310,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE2GemmGatherMatmul,
                                             ::testing::Values(MoEActivationType::SWISH),
                                             ::testing::Values(false),   // use_per_expert_scale
                                             ::testing::Values(false)),  // use_layernorm_multiply
-                         MoEGatherMatmulTest::getTestCaseName);
+                         MoECompressedFusionTest::getTestCaseName);
 
 // Gemma-4 style: Gelu activation + SOFTMAX routing with a per-expert scale table (Const[N] → Gather(topk_idx) → Multiply).
 INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmGeluCompressed,
