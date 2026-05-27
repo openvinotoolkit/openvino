@@ -517,10 +517,10 @@ EliminateSequentialFakeQuantize::EliminateSequentialFakeQuantize() {
         }
 
         // Create merged FQ with FQ1's input range and FQ2's output range.
-        auto fq1_in_low_const = v0::Constant::create(element::f32, Shape{}, {static_cast<float>(fq1_in_low)});
-        auto fq1_in_high_const = v0::Constant::create(element::f32, Shape{}, {static_cast<float>(fq1_in_high)});
-        auto fq2_out_low_const = v0::Constant::create(element::f32, Shape{}, {static_cast<float>(fq2_out_low)});
-        auto fq2_out_high_const = v0::Constant::create(element::f32, Shape{}, {static_cast<float>(fq2_out_high)});
+        auto fq1_in_low_const = v0::Constant::create(element::f32, Shape{1}, {static_cast<float>(fq1_in_low)});
+        auto fq1_in_high_const = v0::Constant::create(element::f32, Shape{1}, {static_cast<float>(fq1_in_high)});
+        auto fq2_out_low_const = v0::Constant::create(element::f32, Shape{1}, {static_cast<float>(fq2_out_low)});
+        auto fq2_out_high_const = v0::Constant::create(element::f32, Shape{1}, {static_cast<float>(fq2_out_high)});
 
         auto merged_fq = std::make_shared<v0::FakeQuantize>(fq1->input_value(0),
                                                             fq1_in_low_const,

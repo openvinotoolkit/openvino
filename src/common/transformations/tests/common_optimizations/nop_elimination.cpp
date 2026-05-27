@@ -197,9 +197,9 @@ TEST_P(MergedFakeQuantizeTests, CompareFunctions) {
 }
 
 const std::vector<MergedFqParams> merged_fq_params = {
-    {{-2.0f, 2.0f, -1.0f, 1.0f}, 256, {-1.0f, 1.0f, -0.5f, 0.5f}, 256, "merge_compressed_output"},
-    {{-4.0f, 4.0f, -2.0f, 2.0f}, 256, {-2.0f, 2.0f, -1.0f, 1.0f}, 256, "merge_different_input_ranges"},
-    {{-3.0f, 3.0f, -1.5f, 1.5f}, 512, {-1.5f, 1.5f, -0.75f, 0.75f}, 512, "merge_odd_levels"},
+    {{-2.0f, 2.0f, -1.0f, 1.0f}, 256, {-1.0f, 1.0f, -1.0f, 0.0f}, 256, "merge_compressed_output"},
+    {{-4.0f, 4.0f, -2.0f, 2.0f}, 256, {-2.0f, 2.0f, -2.0f, 0.0f}, 256, "merge_different_input_ranges"},
+    {{-3.0f, 3.0f, -1.5f, 1.5f}, 512, {-1.5f, 1.5f, -1.5f, 0.0f}, 512, "merge_even_levels"},
 };
 
 INSTANTIATE_TEST_SUITE_P(MergedFakeQuantize,
