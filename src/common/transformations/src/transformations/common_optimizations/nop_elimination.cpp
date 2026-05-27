@@ -757,7 +757,12 @@ std::shared_ptr<ov::Node> build_residual_slice(const std::shared_ptr<ov::Node>& 
         end_values[concat_axis] = slice_end - new_start_value + 1;
         new_slice_in_nodes.push_back(v0::Constant::create(ov::element::i64, ov::Shape{end_values.size()}, end_values));
 
-        return slice_node->clone_with_new_inputs(ov::as_output_vector(new_slice_in_nodes));
+        // Preserve strides on the 4-input StridedSlice form; the upstream guard in
+        // extract_slice_range_along_axis() already pins it to a unit-stride constant.
+        ov::OutputVector new_inputs = ov::as_output_vector(new_slice_in_nodes);
+        if (slice_node->get_input_size() == 4)
+            new_inputs.push_back(slice_node->input_value(3));
+        return slice_node->clone_with_new_inputs(new_inputs);
     }
 
     // v8::Slice: sparse axes indexing — update only the axis_pos entry, keep step/axes as-is.

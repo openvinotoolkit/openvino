@@ -2410,6 +2410,65 @@ TEST_F(TransformationTestsF, EliminateConcatStridedSliceEmptyMaskNonAxisAligned)
     }
 }
 
+// Exercises build_residual_slice() with a 4-input v1::StridedSlice (explicit unit strides):
+// one exact-match user is eliminated, the other forces a residual rebuild whose clone must
+// preserve the strides input.
+TEST_F(TransformationTestsF, EliminateConcatStridedSliceUnitStridesResidual) {
+    {
+        int64_t axis = 2;
+        auto param1 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 3});
+        auto param2 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 4});
+        auto param3 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 5});
+        auto concat = make_shared<v0::Concat>(ov::as_output_vector({param1, param2, param3}), axis);
+
+        std::vector<int64_t> begin_mask{1, 1, 0};
+        std::vector<int64_t> end_mask{1, 1, 0};
+        auto strides_unit = v0::Constant::create(element::i64, Shape{3}, {1, 1, 1});
+
+        // Exact match against param1.
+        auto begin1 = v0::Constant::create(element::i64, Shape{3}, {0, 0, 0});
+        auto end1 = v0::Constant::create(element::i64, Shape{3}, {0, 0, 3});
+        auto slice1 = std::make_shared<v1::StridedSlice>(concat, begin1, end1, strides_unit, begin_mask, end_mask);
+        auto add_param = make_shared<op::v0::Parameter>(element::f32, Shape{2, 10, 3});
+        auto add = std::make_shared<op::v1::Add>(slice1, add_param);
+        auto result1 = std::make_shared<op::v0::Result>(add);
+
+        // Mismatch — spans param2+param3 ([3,11]); forces residual rebuild.
+        auto begin2 = v0::Constant::create(element::i64, Shape{3}, {0, 0, 3});
+        auto end2 = v0::Constant::create(element::i64, Shape{3}, {0, 0, 12});
+        auto slice2 = std::make_shared<v1::StridedSlice>(concat, begin2, end2, strides_unit, begin_mask, end_mask);
+        auto relu = std::make_shared<op::v0::Relu>(slice2);
+        auto result2 = std::make_shared<op::v0::Result>(relu);
+
+        model = std::make_shared<ov::Model>(ResultVector{result1, result2},
+                                            ParameterVector{param1, param2, param3, add_param});
+        manager.register_pass<ov::pass::EliminateConcatStridedSlice>();
+    }
+    {
+        int64_t axis = 2;
+        auto param1 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 3});
+        auto param2 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 4});
+        auto param3 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 5});
+        auto add_param = make_shared<op::v0::Parameter>(element::f32, Shape{2, 10, 3});
+        auto add = std::make_shared<op::v1::Add>(param1, add_param);
+        auto result1 = std::make_shared<op::v0::Result>(add);
+
+        auto new_concat = make_shared<v0::Concat>(ov::as_output_vector({param2, param3}), axis);
+        std::vector<int64_t> begin_mask{1, 1, 0};
+        std::vector<int64_t> end_mask{1, 1, 0};
+        auto strides_unit = v0::Constant::create(element::i64, Shape{3}, {1, 1, 1});
+        auto begin2 = v0::Constant::create(element::i64, Shape{3}, {0, 0, 0});
+        auto end2 = v0::Constant::create(element::i64, Shape{3}, {0, 0, 9});
+        auto slice2 =
+            std::make_shared<v1::StridedSlice>(new_concat, begin2, end2, strides_unit, begin_mask, end_mask);
+        auto relu = std::make_shared<op::v0::Relu>(slice2);
+        auto result2 = std::make_shared<op::v0::Result>(relu);
+
+        model_ref = std::make_shared<ov::Model>(ResultVector{result1, result2},
+                                                ParameterVector{param1, param2, param3, add_param});
+    }
+}
+
 TEST_F(TransformationTestsF, EliminateConcatStridedSliceWithAxesV8Slice) {
     {
         int64_t axis = 1;
