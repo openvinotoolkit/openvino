@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "intel_npu/common/idynamic_graph.hpp"
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/utils/zero/zero_tensor.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
@@ -35,6 +36,11 @@ public:
                                         const std::shared_ptr<ZeroTensor>& tensor,
                                         size_t batch_index,
                                         const std::shared_ptr<ov::ITensor>& userTensor = nullptr) = 0;
+
+    /// Run VM-runtime output shape prediction for dynamic pipelines.
+    /// Default no-op so static pipelines need not implement it.
+    virtual void predict_output_shape(std::vector<IDynamicGraph::MemRefType>& /*inputs*/,
+                                      std::vector<IDynamicGraph::MemRefType>& /*outputs*/) {}
 
     std::vector<ov::ProfilingInfo> get_profiling_info() const;
 
