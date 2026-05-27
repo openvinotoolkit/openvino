@@ -55,8 +55,8 @@ void ov::disable_conversion(const std::shared_ptr<Node>& node, const element::Ty
 }
 
 void ov::disable_conversion(const std::shared_ptr<Node>& node,
-                            const std::vector<element::Type>& from_types,
-                            const std::vector<element::Type>& to_types) {
+                            const element::TypeVector& from_types,
+                            const element::TypeVector& to_types) {
     for (const auto& from : from_types) {
         for (const auto& to : to_types) {
             disable_conversion(node, from, to);
@@ -84,8 +84,8 @@ void ov::enable_conversion(const std::shared_ptr<Node>& node, const element::Typ
 }
 
 void ov::enable_conversion(const std::shared_ptr<Node>& node,
-                           const std::vector<element::Type>& from_types,
-                           const std::vector<element::Type>& to_types) {
+                           const element::TypeVector& from_types,
+                           const element::TypeVector& to_types) {
     for (const auto& from : from_types) {
         for (const auto& to : to_types) {
             enable_conversion(node, from, to);

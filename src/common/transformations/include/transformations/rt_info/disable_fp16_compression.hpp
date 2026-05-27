@@ -75,8 +75,8 @@ TRANSFORMATIONS_API void disable_conversion(const std::shared_ptr<Node>& node,
  * @param to_types    Target element types.
  */
 TRANSFORMATIONS_API void disable_conversion(const std::shared_ptr<Node>& node,
-                                            const std::vector<element::Type>& from_types,
-                                            const std::vector<element::Type>& to_types);
+                                            const element::TypeVector& from_types,
+                                            const element::TypeVector& to_types);
 
 /**
  * @brief Enable precision conversion from any type (dynamic) to the specified type on a @ref Node.
@@ -105,8 +105,8 @@ TRANSFORMATIONS_API void enable_conversion(const std::shared_ptr<Node>& node,
  * @param to_types    Target element types.
  */
 TRANSFORMATIONS_API void enable_conversion(const std::shared_ptr<Node>& node,
-                                           const std::vector<element::Type>& from_types,
-                                           const std::vector<element::Type>& to_types);
+                                           const element::TypeVector& from_types,
+                                           const element::TypeVector& to_types);
 
 /**
  * @brief Check if precision conversion from any type (dynamic) to the specified type is disabled on a @ref Node.
