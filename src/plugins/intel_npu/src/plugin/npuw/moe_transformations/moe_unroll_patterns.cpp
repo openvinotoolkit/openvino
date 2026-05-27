@@ -207,7 +207,7 @@ inline ov::OutputVector prepare_input_branches(ov::Output<ov::Node> matmul_input
     // Pattern 3: Sliceable input - create Slice operations
     LOG_INFO("  Detected Pattern 3: Sliceable input, creating " << num_branches << " Slice operations");
 
-    auto input0_shape = matmul_input0.get_partial_shape();
+    const auto& input0_shape = matmul_input0.get_partial_shape();
     if (!input0_shape.rank().is_static()) {
         LOG_ERROR("  Input0 shape rank is not static for slicing");
         return branches;
@@ -307,8 +307,8 @@ UnrollMoEMatMul::UnrollMoEMatMul(std::shared_ptr<ov::Model> model) : model_(mode
         }
 
         // Get parameter shapes to determine num_experts
-        auto scale_orig_shape = scale_param->get_partial_shape();
-        auto weights_orig_shape = weights_param->get_partial_shape();
+        const auto& scale_orig_shape = scale_param->get_partial_shape();
+        const auto& weights_orig_shape = weights_param->get_partial_shape();
 
         if (!scale_orig_shape.rank().is_static() || !weights_orig_shape.rank().is_static()) {
             LOG_DEBUG("  Parameter shapes are not static, skipping");

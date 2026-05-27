@@ -324,8 +324,8 @@ void ov::npuw::LLMInferRequest::create_generate_request_variants(
                     OPENVINO_ASSERT(largest_past_kv_tensors.find(input_name) != largest_past_kv_tensors.end(),
                                     "Unexpected input name: ",
                                     input_name);
-                    auto largest_tensor = largest_past_kv_tensors[input_name];
-                    auto small_shape = input_port.get_shape();
+                    const auto& largest_tensor = largest_past_kv_tensors[input_name];
+                    const auto& small_shape = input_port.get_shape();
 
                     // Wrap the largest tensor's data pointer with smaller shape
                     auto shared_tensor = ov::SoPtr<ov::ITensor>(
@@ -337,7 +337,7 @@ void ov::npuw::LLMInferRequest::create_generate_request_variants(
                     OPENVINO_ASSERT(past_lin_tensors.find(input_name) != past_lin_tensors.end(),
                                     "Unexpected input name: ",
                                     input_name);
-                    auto lin_tensor = past_lin_tensors[input_name];
+                    const auto& lin_tensor = past_lin_tensors[input_name];
                     generate_request->set_tensor(input_port, lin_tensor);
                 }
             }

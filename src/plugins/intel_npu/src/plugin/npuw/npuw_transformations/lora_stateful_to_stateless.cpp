@@ -17,7 +17,7 @@ void convert_stateful_lora_to_stateless(const std::shared_ptr<ov::Model>& model)
     typedef std::shared_ptr<ov::op::util::ReadValueBase> PReadValue;
     std::vector<PReadValue> readValues;
     std::vector<PAssign> assigns;
-    auto sinks = model->get_sinks();
+    const auto& sinks = model->get_sinks();
     for (size_t i = 0; i < sinks.size(); ++i) {
         if (auto assign = ov::as_type_ptr<ov::op::util::AssignBase>(sinks[i])) {
             auto variable_name = assign->get_variable_id();
