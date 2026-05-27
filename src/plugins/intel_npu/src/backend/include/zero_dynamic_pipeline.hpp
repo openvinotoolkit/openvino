@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "intel_npu/common/idynamic_graph.hpp"
+#include "intel_npu/common/graph_arguments.hpp"
 #include "intel_npu/common/network_metadata.hpp"
 #include "zero_pipeline.hpp"
 
@@ -12,7 +12,7 @@ namespace intel_npu {
 
 class DynamicPipeline final : public IPipeline {
     struct PipelinedCommandLists {
-        mutable IDynamicGraph::GraphArguments _binding;
+        mutable GraphArguments _binding;
 
         std::vector<std::unique_ptr<CommandList>> _commandLists;
         // Store command list handles to pass it to ExecutionEngine
@@ -48,7 +48,7 @@ class DynamicPipeline final : public IPipeline {
             return _commandListHandles;
         }
 
-        IDynamicGraph::GraphArguments& getBinding() {
+        GraphArguments& getBinding() {
             return _binding;
         }
 
@@ -101,12 +101,17 @@ public:
                                 size_t batch_index,
                                 const std::shared_ptr<ov::ITensor>& userTensor = nullptr) override;
 
-    void predict_output_shape(std::vector<IDynamicGraph::MemRefType>& inputs,
-                              std::vector<IDynamicGraph::MemRefType>& outputs) override;
+    /// Run VM-runtime output shape prediction. Independent of pipeline instance state
+    /// (depends only on the graph's VM runtime handle), so it is callable before the
+    /// pipeline is constructed -- in particular from the first inference's predict_shapes
+    /// path, which runs prior to lazy pipeline creation in prepare_inputs().
+    static void predict_output_shape(const IGraph& graph,
+                                     std::vector<MemRefType>& inputs,
+                                     std::vector<MemRefType>& outputs);
 
 private:
     void execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
-                            IDynamicGraph::GraphArguments& args,
+                            GraphArguments& args,
                             std::vector<ze_command_list_handle_t>& commandLists,
                             ze_command_queue_handle_t commandQueue,
                             ze_fence_handle_t fence,
