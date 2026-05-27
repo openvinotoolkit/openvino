@@ -11,8 +11,12 @@ using namespace cldnn;
 
 void build_implementations::run(program& p) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "pass::build_implementations");
-    if (p.get_config().get_partial_build_program() ||
-        p.get_engine().runtime_type() == runtime_types::sycl) {
+    if (p.get_config().get_partial_build_program()) {
+        return;
+    }
+
+    // Skip for the SYCL runtime because JIT compilation is not supported
+    if (p.get_engine().runtime_type() == runtime_types::sycl) {
         return;
     }
 
