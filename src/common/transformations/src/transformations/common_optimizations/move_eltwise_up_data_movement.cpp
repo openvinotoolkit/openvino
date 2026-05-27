@@ -121,7 +121,8 @@ ov::pass::MoveEltwiseUpThroughDataMovScalar::MoveEltwiseUpThroughDataMovScalar(
                 auto old_eltwise_const = ov::as_type_ptr<ov::opset8::Constant>(eltwise->get_input_node_shared_ptr(i));
                 if (old_eltwise_const->get_shape().size() != 0) {
                     auto new_constant = std::make_shared<ov::opset8::Constant>(*old_eltwise_const.get(), ov::Shape{});
-                    ov::replace_node_update_name(old_eltwise_const, new_constant);
+                    ov::copy_runtime_info(old_eltwise_const, new_constant);
+                    eltwise->input(i).replace_source_output(new_constant->output(0));
                 }
             }
         }
