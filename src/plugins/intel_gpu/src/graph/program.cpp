@@ -1842,6 +1842,10 @@ void program::cancel_compilation_context() {
 }
 
 void program::save(cldnn::BinaryOutputBuffer& ob) const {
+    if (_engine.runtime_type() == runtime_types::sycl) {
+        OPENVINO_THROW("[GPU] program::save is not supported for SYCL runtime");
+    }
+
     std::map<cldnn::memory::ptr, std::vector<const cldnn::program_node*>> mutable_datas_ptrs;
     ob << nodes_map.size();
 
@@ -1908,18 +1912,15 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
     processing_order.save(ob);
 
     {
+        auto& kernels_cache = get_kernels_cache();
         std::vector<primitive_id> impl_ids;
         for (auto& node : processing_order) {
             if (node->get_selected_impl() != nullptr) {
                 impl_ids.emplace_back(node->id());
-                if (_kernels_cache) {
-                    _kernels_cache->add_to_cached_kernels(node->get_selected_impl()->get_kernels());
-                }
+                kernels_cache.add_to_cached_kernels(node->get_selected_impl()->get_kernels());
             }
         }
-        if (_kernels_cache) {
-            ob << *_kernels_cache;
-        }
+        ob << kernels_cache;
         ob << impl_ids;
         for (auto& impl_id : impl_ids) {
             std::string type_name = get_node_ptr(impl_id)->get_selected_impl()->m_manager->get_type_info().name;
@@ -1927,11 +1928,7 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
             auto params = get_node_ptr(impl_id)->get_kernel_impl_params();
             ob.setKernelImplParams(params.get());
             ob << get_node_ptr(impl_id)->selected_impl;
-            std::vector<std::string> cached_kernel_ids;
-            if (_kernels_cache) {
-                cached_kernel_ids = get_node_ptr(impl_id)->get_selected_impl()->get_cached_kernel_ids(*_kernels_cache);
-            }
-            ob << cached_kernel_ids;
+            ob << get_node_ptr(impl_id)->get_selected_impl()->get_cached_kernel_ids(kernels_cache);
         }
     }
 
@@ -1970,6 +1967,10 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
 void program::load(cldnn::BinaryInputBuffer& ib,
                    std::shared_ptr<const ov::Model> model_ptr,
                    std::shared_ptr<ov::intel_gpu::GpuWeightlessCacheMap> cache_attr_map) {
+    if (_engine.runtime_type() == runtime_types::sycl) {
+        OPENVINO_THROW("[GPU] program::load is not supported for SYCL runtime");
+    }
+
     init_program();
 
     std::shared_ptr<WeightsMemory> weights_memory = nullptr;
@@ -2089,9 +2090,8 @@ void program::load(cldnn::BinaryInputBuffer& ib,
     processing_order.load(ib, *this);
 
     {
-        if (_kernels_cache) {
-            ib >> *_kernels_cache;
-        }
+        auto& kernels_cache = get_kernels_cache();
+        ib >> kernels_cache;
 
         std::vector<primitive_id> impl_ids;
         ib >> impl_ids;
@@ -2111,9 +2111,7 @@ void program::load(cldnn::BinaryInputBuffer& ib,
 
             std::vector<std::string> cached_kernel_ids;
             ib >> cached_kernel_ids;
-            if (_kernels_cache) {
-                p_node.selected_impl->init_by_cached_kernels(*_kernels_cache, cached_kernel_ids);
-            }
+            p_node.selected_impl->init_by_cached_kernels(get_kernels_cache(), cached_kernel_ids);
         }
     }
 
