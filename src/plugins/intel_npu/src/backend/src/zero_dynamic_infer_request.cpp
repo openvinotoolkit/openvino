@@ -220,11 +220,10 @@ void ZeroDynamicInferRequest::predict_shapes(std::vector<IDynamicGraph::MemRefTy
     // Predict output shapes based on current inputs
     intel_npu::IDynamicGraph* dynamicGraph = dynamic_cast<intel_npu::IDynamicGraph*>(_graph.get());
     if (dynamicGraph && _isTensorChanged) {
-        IDynamicGraph::GraphArguments graphArgs;
-        // Need change to use arguments in pipeline
-        dynamicGraph->getBinding(graphArgs);
-        std::vector<IDynamicGraph::MemRefType> inputPros = graphArgs._inputs;
-        outputProps = graphArgs._outputs;
+        // MemRef slots are sized from network metadata; per-element data/shape/strides are populated
+        // below from user/level-zero tensors (or metadata fallback) before predict_output_shape().
+        std::vector<IDynamicGraph::MemRefType> inputPros(_metadata.inputs.size());
+        outputProps.assign(_metadata.outputs.size(), {});
 
         // TODO: Support Batch later
         // Update input Info
