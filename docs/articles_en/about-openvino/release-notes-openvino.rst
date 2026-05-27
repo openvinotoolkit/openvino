@@ -29,7 +29,7 @@ What's New
 
   * New models supported: Gemma 4 E2B and Gemma 4 E4B  
 
-    * Only on CPUs & GPUs: Only on CPUs & GPUs: Qwen3-Coder-Next, Qwen3.5, Qwen3.6, Trinity-mini, LFM2-24B-A2B, LFM2-8B-A1B, LFM2.5-350M​  
+    * Only on CPUs & GPUs: Qwen3-Coder-Next, Qwen3.5, Qwen3.6, Trinity-mini, LFM2-24B-A2B, LFM2-8B-A1B, LFM2.5-350M​  
     * Only on CPUs: YOLO26
     * Only on GPUs: Gemma 4 31B and Gemma 4 26B-A4B  
     * Extended to GPUs: GPT-OSS-120B  
