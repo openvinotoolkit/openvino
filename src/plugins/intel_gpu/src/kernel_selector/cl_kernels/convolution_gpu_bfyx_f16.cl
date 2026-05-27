@@ -157,6 +157,9 @@ KERNEL(convolution_bfyx_f16)(
 #else
 #if GROUPED
     for (uint g = group; g < group + groups_per_sub_group; g++) {
+        const uint my_group = group + (sglid / FILTER_OFM_NUM);
+        if (groups_per_sub_group > 1 && g != my_group)
+            continue;
         const uint in_split_offset = g * input_fs_pitch * (FILTER_IFM_NUM / FEATURE_SLICE_SIZE);
         const uint filter_split_offset = g * FILTER_GROUPS_PITCH;
         const uint filter_offset = (feature_block % (FILTER_OFM_NUM / FEATURE_SLICE_SIZE)) * filter_os_pitch;
