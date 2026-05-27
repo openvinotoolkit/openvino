@@ -4,8 +4,8 @@
 
 #include "executor.hpp"
 
-#include <algorithm>
 #include <condition_variable>
+#include <exception>
 #include <mutex>
 #include <queue>
 #include <thread>
@@ -13,7 +13,6 @@
 #include <vector>
 
 #include "intel_npu/common/itt.hpp"
-#include "openvino/runtime/threading/immediate_executor.hpp"
 
 namespace intel_npu {
 
@@ -50,12 +49,12 @@ public:
         std::lock_guard<std::mutex> lock(_mutex);
 
         if (_allowWorkerGrowth) {
-            start_worker_locked(static_cast<int>(_workers.size()));
+            start_worker_locked();
             return;
         }
 
         while (_activeWorkers < _workersBaseline) {
-            start_worker_locked(static_cast<int>(_workers.size()));
+            start_worker_locked();
         }
     }
 
@@ -66,13 +65,16 @@ public:
         }
         _condition.notify_all();
         for (auto& worker : _workers) {
-            if (worker.joinable()) {
-                worker.join();
+            if (worker.thread.joinable()) {
+                worker.thread.join();
             }
         }
     }
 
     void run(ov::threading::Task task) override {
+        reap_finished_workers();
+        rethrow_pending_task_exception();
+
         if (_workersBaseline == 0 && !_allowWorkerGrowth) {
             task();
             return;
@@ -84,7 +86,7 @@ public:
 
             if (_allowWorkerGrowth) {
                 while ((_tasks.size() + _busyWorkers) > _activeWorkers) {
-                    start_worker_locked(static_cast<int>(_workers.size()));
+                    start_worker_locked();
                 }
             }
         }
@@ -92,51 +94,131 @@ public:
     }
 
 private:
-    void start_worker_locked(int workerId) {
-        ++_activeWorkers;
-        _workers.emplace_back([this, workerId] {
-            openvino::itt::threadName(_name + "_" + std::to_string(workerId));
-            for (;;) {
-                ov::threading::Task task;
-                {
-                    std::unique_lock<std::mutex> lock(_mutex);
-                    while (!_stopped && _tasks.empty()) {
-                        if (_activeWorkers > _workersBaseline) {
-                            if (!_condition.wait_for(lock, _idleTimeout, [&] {
-                                    return _stopped || !_tasks.empty();
-                                })) {
-                                if (_activeWorkers > _workersBaseline) {
-                                    --_activeWorkers;
-                                    return;
-                                }
+    struct WorkerEntry {
+        std::thread thread;
+        bool finished = false;
+    };
 
-                                continue;
+    void rethrow_pending_task_exception() {
+        std::exception_ptr pending;
+        {
+            std::lock_guard<std::mutex> lock(_mutex);
+            pending = _pendingTaskException;
+            _pendingTaskException = nullptr;
+        }
+
+        if (pending != nullptr) {
+            std::rethrow_exception(pending);
+        }
+    }
+
+    void reap_finished_workers() {
+        std::vector<std::thread> threadsToJoin;
+        std::vector<size_t> joinedIndices;
+
+        {
+            std::lock_guard<std::mutex> lock(_mutex);
+            for (const auto index : _retiredWorkerIndices) {
+                if (_workers[index].finished && _workers[index].thread.joinable()) {
+                    threadsToJoin.emplace_back(std::move(_workers[index].thread));
+                    joinedIndices.emplace_back(index);
+                }
+            }
+            _retiredWorkerIndices.clear();
+        }
+
+        for (auto& thread : threadsToJoin) {
+            thread.join();
+        }
+
+        if (!joinedIndices.empty()) {
+            std::lock_guard<std::mutex> lock(_mutex);
+            for (const auto index : joinedIndices) {
+                _workers[index].finished = false;
+                _freeWorkerIndices.emplace_back(index);
+            }
+        }
+    }
+
+    void start_worker_locked() {
+        const size_t workerId = _nextWorkerId++;
+        size_t workerIndex = 0;
+        const bool reuseSlot = !_freeWorkerIndices.empty();
+        if (!_freeWorkerIndices.empty()) {
+            workerIndex = _freeWorkerIndices.back();
+            _freeWorkerIndices.pop_back();
+        } else {
+            workerIndex = _workers.size();
+            _workers.emplace_back();
+        }
+
+        try {
+            std::thread workerThread([this, workerId, workerIndex] {
+                openvino::itt::threadName(_name + "_" + std::to_string(workerId));
+                for (;;) {
+                    ov::threading::Task task;
+                    {
+                        std::unique_lock<std::mutex> lock(_mutex);
+                        while (!_stopped && _tasks.empty()) {
+                            if (_activeWorkers > _workersBaseline) {
+                                if (!_condition.wait_for(lock, _idleTimeout, [&] {
+                                        return _stopped || !_tasks.empty();
+                                    })) {
+                                    if (_activeWorkers > _workersBaseline) {
+                                        --_activeWorkers;
+                                        _workers[workerIndex].finished = true;
+                                        _retiredWorkerIndices.emplace_back(workerIndex);
+                                        return;
+                                    }
+
+                                    continue;
+                                }
+                            } else {
+                                _condition.wait(lock, [&] {
+                                    return _stopped || !_tasks.empty();
+                                });
                             }
-                        } else {
-                            _condition.wait(lock, [&] {
-                                return _stopped || !_tasks.empty();
-                            });
+                        }
+
+                        if (_stopped && _tasks.empty()) {
+                            --_activeWorkers;
+                            _workers[workerIndex].finished = true;
+                            _retiredWorkerIndices.emplace_back(workerIndex);
+                            return;
+                        }
+
+                        task = std::move(_tasks.front());
+                        _tasks.pop();
+                        ++_busyWorkers;
+                    }
+
+                    try {
+                        task();
+                    } catch (...) {
+                        std::lock_guard<std::mutex> lock(_mutex);
+                        if (_pendingTaskException == nullptr) {
+                            _pendingTaskException = std::current_exception();
                         }
                     }
 
-                    if (_stopped && _tasks.empty()) {
-                        --_activeWorkers;
-                        return;
+                    {
+                        std::lock_guard<std::mutex> lock(_mutex);
+                        --_busyWorkers;
                     }
-
-                    task = std::move(_tasks.front());
-                    _tasks.pop();
-                    ++_busyWorkers;
                 }
+            });
 
-                task();
-
-                {
-                    std::lock_guard<std::mutex> lock(_mutex);
-                    --_busyWorkers;
-                }
+            _workers[workerIndex].thread = std::move(workerThread);
+            _workers[workerIndex].finished = false;
+            ++_activeWorkers;
+        } catch (...) {
+            if (reuseSlot) {
+                _freeWorkerIndices.emplace_back(workerIndex);
+            } else {
+                _workers.pop_back();
             }
-        });
+            throw;
+        }
     }
 
     const std::string _name;
@@ -146,7 +228,11 @@ private:
     std::mutex _mutex;
     std::condition_variable _condition;
     std::queue<ov::threading::Task> _tasks;
-    std::vector<std::thread> _workers;
+    std::vector<WorkerEntry> _workers;
+    std::vector<size_t> _retiredWorkerIndices;
+    std::vector<size_t> _freeWorkerIndices;
+    std::exception_ptr _pendingTaskException;
+    size_t _nextWorkerId = 0;
     size_t _activeWorkers = 0;
     size_t _busyWorkers = 0;
     bool _stopped = false;

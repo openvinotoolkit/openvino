@@ -6,7 +6,6 @@
 
 #include <chrono>
 #include <memory>
-#include <string>
 #include <string_view>
 
 #include "openvino/runtime/threading/itask_executor.hpp"
