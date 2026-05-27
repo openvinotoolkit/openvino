@@ -723,71 +723,45 @@ static void build_sdpa_param_mapping(HostFlashAttention& hfa,
         hfa._sdpa_param_index_map[SDPAInputId::QUERY] = q_idx;
     }
 
-    // Extract past_key parameters - all inputs of past_key_concat except the last (present_key)
-    if (pattern_nodes.past_key_concat_node) {
-        size_t num_inputs = pattern_nodes.past_key_concat_node->get_input_size();
-
-        // Clear and reserve space for blocks
-        hfa._past_key_block_indices.clear();
-        hfa._past_key_block_indices.reserve(num_inputs - 1);
-
-        // Extract all past_key block parameters (all inputs except the last one)
-        for (size_t i = 0; i < num_inputs - 1; ++i) {
-            if (auto past_k_block_param =
-                    extract_param(pattern_nodes.past_key_concat_node->get_input_node_shared_ptr(i))) {
-                std::size_t block_idx = model->get_parameter_index(past_k_block_param);
-                hfa._past_key_block_indices.push_back(block_idx);
-                LOG_DEBUG("  Found past_key block[" << i << "] at parameter index " << block_idx);
-
-                // Keep first block in map for backward compatibility (default continuous past_key input)
-                if (i == 0) {
-                    hfa._sdpa_param_index_map[SDPAInputId::PAST_KEY] = block_idx;
-                }
+    // Extract past KV parameters from a Concat node: all inputs except the last are treated as
+    // past (one entry in non-block mode, multiple entries in block mode); the last input is
+    // the present key/value. Key and value follow identical logic.
+    auto extract_kv_params = [&](const std::shared_ptr<ov::Node>& concat_node,
+                                 std::vector<std::size_t>& block_indices,
+                                 SDPAInputId past_id,
+                                 SDPAInputId present_id,
+                                 const char* kv_name) {
+        if (!concat_node)
+            return;
+        const size_t n = concat_node->get_input_size();
+        block_indices.clear();
+        block_indices.reserve(n - 1);
+        for (size_t i = 0; i < n - 1; ++i) {
+            if (auto param = extract_param(concat_node->get_input_node_shared_ptr(i))) {
+                const std::size_t idx = model->get_parameter_index(param);
+                block_indices.push_back(idx);
+                LOG_DEBUG("  Found " << kv_name << " block[" << i << "] at parameter index " << idx);
+                if (i == 0)
+                    hfa._sdpa_param_index_map[past_id] = idx;  // backward-compat single-block entry
             }
         }
-
-        // Extract present_key parameter - last input of past_key_concat
-        size_t last_input_idx = num_inputs - 1;
-        if (auto present_k_param =
-                extract_param(pattern_nodes.past_key_concat_node->get_input_node_shared_ptr(last_input_idx))) {
-            std::size_t present_k_idx = model->get_parameter_index(present_k_param);
-            hfa._sdpa_param_index_map[SDPAInputId::PRESENT_KEY] = present_k_idx;
-            LOG_DEBUG("  Found present_key at parameter index " << present_k_idx);
+        if (auto param = extract_param(concat_node->get_input_node_shared_ptr(n - 1))) {
+            const std::size_t idx = model->get_parameter_index(param);
+            hfa._sdpa_param_index_map[present_id] = idx;
+            LOG_DEBUG("  Found " << kv_name << "_present at parameter index " << idx);
         }
-    }
+    };
 
-    // Extract past_value parameters - all inputs of past_value_concat except the last (present_value)
-    if (pattern_nodes.past_value_concat_node) {
-        size_t num_inputs = pattern_nodes.past_value_concat_node->get_input_size();
-
-        // Clear and reserve space for blocks
-        hfa._past_value_block_indices.clear();
-        hfa._past_value_block_indices.reserve(num_inputs - 1);
-
-        // Extract all past_value block parameters (all inputs except the last one)
-        for (size_t i = 0; i < num_inputs - 1; ++i) {
-            if (auto past_v_block_param =
-                    extract_param(pattern_nodes.past_value_concat_node->get_input_node_shared_ptr(i))) {
-                std::size_t block_idx = model->get_parameter_index(past_v_block_param);
-                hfa._past_value_block_indices.push_back(block_idx);
-                LOG_DEBUG("  Found past_value block[" << i << "] at parameter index " << block_idx);
-
-                // Keep first block in map for backward compatibility (default continuous past_value input)
-                if (i == 0) {
-                    hfa._sdpa_param_index_map[SDPAInputId::PAST_VALUE] = block_idx;
-                }
-            }
-        }
-
-        // Extract present_value parameter - last input of past_value_concat
-        size_t last_input_idx = num_inputs - 1;
-        if (auto present_v_param =
-                extract_param(pattern_nodes.past_value_concat_node->get_input_node_shared_ptr(last_input_idx))) {
-            std::size_t present_v_idx = model->get_parameter_index(present_v_param);
-            hfa._sdpa_param_index_map[SDPAInputId::PRESENT_VALUE] = present_v_idx;
-            LOG_DEBUG("  Found present_value at parameter index " << present_v_idx);
-        }
-    }
+    extract_kv_params(pattern_nodes.past_key_concat_node,
+                      hfa._past_key_block_indices,
+                      SDPAInputId::PAST_KEY,
+                      SDPAInputId::PRESENT_KEY,
+                      "past_key");
+    extract_kv_params(pattern_nodes.past_value_concat_node,
+                      hfa._past_value_block_indices,
+                      SDPAInputId::PAST_VALUE,
+                      SDPAInputId::PRESENT_VALUE,
+                      "past_value");
 
     // Extract mask parameter - input 1 of add_node
     if (auto add_param = extract_param(pattern_nodes.add_node->get_input_node_shared_ptr(1))) {
