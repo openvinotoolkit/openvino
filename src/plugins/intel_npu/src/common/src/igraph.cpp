@@ -28,7 +28,7 @@ std::optional<std::string_view> IGraph::get_compatibility_descriptor() const {
     OPENVINO_THROW("get_compatibility_descriptor not implemented");
 }
 
-npu_vm_runtime_handle_t IGraph::get_vm_runtime_handle() const {
+_npu_vm_runtime_handle_t* IGraph::get_vm_runtime_handle() const {
     return nullptr;
 }
 

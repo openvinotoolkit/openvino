@@ -21,7 +21,6 @@
 // to dereference / call into the VM runtime. Keeping it forward-declared here avoids
 // pulling the VM headers into every consumer of the IGraph interface.
 struct _npu_vm_runtime_handle_t;
-using npu_vm_runtime_handle_t = struct _npu_vm_runtime_handle_t*;
 
 namespace intel_npu {
 
@@ -42,6 +41,7 @@ public:
     virtual std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData) const;
 
     virtual void set_argument_value(uint32_t id, const void* data) const;
+
     virtual void set_argument_value_with_strides(uint32_t id,
                                                  const void* data,
                                                  const std::vector<size_t>& strides) const;
@@ -87,7 +87,7 @@ public:
     /// Return the VM-runtime engine handle backing this graph, or nullptr if the graph does
     /// not use the VM-runtime (e.g. static driver-only graphs). Used by the dynamic pipeline
     /// to drive @c npuVMRuntimeExecute.
-    virtual npu_vm_runtime_handle_t get_vm_runtime_handle() const;
+    virtual _npu_vm_runtime_handle_t* get_vm_runtime_handle() const;
 
     /// Return the number of subgraphs this graph contains. Defaults to 1 for static graphs.
     virtual uint64_t get_num_subgraphs() const;

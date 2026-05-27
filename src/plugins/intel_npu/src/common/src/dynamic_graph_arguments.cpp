@@ -2,11 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_npu/common/graph_arguments.hpp"
-
 #include <sstream>
 
-#include "openvino/core/except.hpp"
+#include "intel_npu/common/dynamic_graph_arguments.hpp"
 
 namespace intel_npu {
 
