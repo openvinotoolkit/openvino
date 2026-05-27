@@ -9,7 +9,8 @@
 #include <mutex>
 
 // #include "intel_npu/common/dynamic_graph_arguments_impl.hpp"
-// #include "intel_npu/common/dynamic_graph_arguments.hpp"
+// #include "intel_npu/common/dynamic_graph_arguments.hpp" // contain #include "intel_npu/common/igraph.hpp"
+#include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/network_metadata.hpp"
 #include "intel_npu/utils/vm/npu_vm_runtime_api.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"

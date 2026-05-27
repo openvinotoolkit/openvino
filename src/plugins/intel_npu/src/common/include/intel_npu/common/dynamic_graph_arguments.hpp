@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "intel_npu/common/igraph.hpp"
-#include "intel_npu/utils/zero/zero_init.hpp"
+// #include "intel_npu/common/igraph.hpp"
+// #include "intel_npu/utils/zero/zero_init.hpp"
 
 namespace intel_npu {
 
