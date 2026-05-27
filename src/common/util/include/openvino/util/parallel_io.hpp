@@ -22,6 +22,11 @@ inline constexpr FileHandle INVALID_HANDLE_VALUE = -1;
 
 inline constexpr size_t default_parallel_io_threshold = 4UL * 1024 * 1024;  ///< 4 MB default threshold for parallel I/O
 inline constexpr size_t default_parallel_io_min_chunk = 2UL * 1024 * 1024;  ///< 2 MB minimum chunk size per thread
+/** @brief Default upper bound for ParallelReadStreamBuf::prefetch() requests.
+ *  Sized to cover a typical large-model deserialization burst in a single window while keeping
+ *  prefetch allocation and dispatch cost bounded. Reads outside the window fall back to file I/O.
+ */
+inline constexpr size_t default_parallel_io_prefetch_cap = 32UL * 1024 * 1024;
 
 /**
  * @brief Open a file for reading and retrieve its size.

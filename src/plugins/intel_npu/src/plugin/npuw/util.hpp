@@ -37,6 +37,31 @@ bool starts_with(const std::string& str, const std::string& prefix);
 
 std::string fmt(std::size_t number, std::size_t total);
 
+// Matches the three DynamicQuantize decomposition implementations declared in
+// kv_cache_compressed.hpp.
+enum class DynamicQuantDecomposeMode {
+    // V1: handcrafted symmetric-style path, i8 range [-127, 127].
+    HandcraftedSymmetricI8 = 1,
+
+    // V2: ONNX DynamicQuantizeLinear-style path, u8 range [0, 255].
+    OnnxDynamicQuantizeLinear = 2,
+
+    // V3: compiler pattern-style path. i8 requests are materialized as u8
+    // storage for the asymmetric decomposition branch.
+    CompilerPatternI8 = 3,
+};
+
+struct DynamicQuantStorageTypes {
+    ov::element::Type quantized_data_type = ov::element::dynamic;
+    ov::element::Type zero_point_type = ov::element::dynamic;
+    ov::element::Type scale_type = ov::element::f32;
+};
+
+DynamicQuantStorageTypes resolve_dynamic_quant_storage_types(DynamicQuantDecomposeMode decompose_mode,
+                                                             bool is_symmetric,
+                                                             const ov::element::Type& quant_dt,
+                                                             const ov::element::Type& scale_dt = ov::element::f32);
+
 struct UnpackOptions {
     bool bUseOvParallelFor;
     size_t nPartitions;  // if 0 we use 64 elements step in parallel for, otherwise  target workload is dynamically
@@ -139,6 +164,12 @@ struct Impl {
     const V& at_or_at_or_at(const K& k1, const K& k2, const K& k3) const {
         return const_cast<Impl*>(this)->at_or_at_or_at(k1, k2, k3);
     }
+
+    template <typename K>
+    V at_or(const K& k, const V& default_val) const {
+        const auto iter = m->find(k);
+        return iter != m->end() ? iter->second : default_val;
+    }
 };
 
 template <typename M>
@@ -189,6 +220,10 @@ bool matchLoRAMatMulAString(const std::string& input);
 bool matchLoRAMatMulBString(const std::string& input);
 
 bool matchLoRAMatMulAlphaString(const std::string& input);
+
+bool matchLinCacheString(const std::string& input, const std::string& past_or_present = "past");
+
+bool starts_with_past_lincache(const std::string& input_name);
 
 // Structure to hold SDPA pattern nodes
 struct SDPAPatternNodes {
@@ -275,10 +310,31 @@ private:
     mutable bool done = false;
 };
 
-std::optional<int> isPastKeyValuesKey(const std::string& str);
-std::optional<int> isPastKeyValuesValue(const std::string& str);
+// Matches only the contiguous (non-block-split) past key param. Returns the layer index if matched.
+std::optional<int> isPastKeyValuesKeyContiguous(const std::string& str);
+// Matches only the contiguous (non-block-split) past value param. Returns the layer index if matched.
+std::optional<int> isPastKeyValuesValueContiguous(const std::string& str);
+
+// Backward compatibility: Alias for isPastKeyValuesKeyContiguous
+inline std::optional<int> isPastKeyValuesKey(const std::string& str) {
+    return isPastKeyValuesKeyContiguous(str);
+}
+// Backward compatibility: Alias for isPastKeyValuesValueContiguous
+inline std::optional<int> isPastKeyValuesValue(const std::string& str) {
+    return isPastKeyValuesValueContiguous(str);
+}
+
 std::optional<int> isPresentKeyValuesKey(const std::string& str);
 std::optional<int> isPresentKeyValuesValue(const std::string& str);
+
+// Matches any past key param: contiguous (past_key_values.N.key) or block-split (key_block_M).
+bool isPastKeyParam(const std::string& str);
+// Matches any past value param: contiguous or block-split.
+bool isPastValueParam(const std::string& str);
+
+// To remove input KV params that got badly matched in StatefulToStateless pass
+// in Whisper model.
+bool isRestoredPastKeyValueParam(const std::string& str);
 
 }  // namespace util
 }  // namespace npuw

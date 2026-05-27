@@ -19,6 +19,7 @@
 #include "just_sync_infer_request.hpp"
 #include "llm_test_helpers.hpp"
 #include "model_builder.hpp"
+#include "partitioning/patterns/sdpa.hpp"
 #include "unfold_sync_infer_request.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/openvino.hpp"
@@ -123,6 +124,23 @@ std::size_t count_runtime_behaviors(const std::shared_ptr<ov::npuw::CompiledMode
                          compiled_model->m_compiled_submodels.end(),
                          [](const auto& desc) {
                              return desc.pipeline.runtime_behavior.has_value();
+                         });
+}
+
+// Count subgraphs where the attention runtime behavior was attached.  The test keys off the
+// behavior's registered attn identity rather than only handles_function_prologue, since that
+// callback flag is not unique to attention behaviors.
+std::size_t count_dyn_attn_behaviors(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model) {
+    return std::count_if(compiled_model->m_compiled_submodels.begin(),
+                         compiled_model->m_compiled_submodels.end(),
+                         [](const auto& desc) {
+                             if (!desc.pipeline.runtime_behavior.has_value()) {
+                                 return false;
+                             }
+                             const auto& spec = *desc.pipeline.runtime_behavior;
+                             return spec.handles_function_prologue &&
+                                    spec.registration.group == ov::npuw::patterns::attn::SDPA::group_name() &&
+                                    spec.registration.name == ov::npuw::patterns::attn::SDPA::pattern_name();
                          });
 }
 
@@ -282,8 +300,14 @@ protected:
                 {"NPUW_DEVICES", "CPU"},
                 {"NPUW_UNFOLD_IREQS", "NO"},
                 {"NPUW_ATTN", "DYNAMIC"},
+                {"NPUW_FOLD", "YES"},
                 {"NPUW_ONLINE_PIPELINE", "REP"},
-                {"NPUW_ONLINE_ISOLATE", "ATTN"}};
+                {"NPUW_ONLINE_ISOLATE", "ATTN"},
+                // The test model has only 2 layers so repeated blocks appear only twice.
+                // Lower the thresholds so they survive cleanUpUniquesImpl and ens.repeated
+                // stays non-empty (required for the FOLD pass to run at all).
+                {"NPUW_ONLINE_KEEP_BLOCKS", "2"},
+                {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "1"}};
     }
 
     ov::AnyMap unfold_props() const {
@@ -437,6 +461,70 @@ TEST_F(SubgraphBehaviorInferTest, RuntimeBehaviorForcesJustInferRequestWhenUnfol
     ASSERT_NE(behavior_request, nullptr);
     EXPECT_NE(std::dynamic_pointer_cast<ov::npuw::JustInferRequest>(behavior_request), nullptr);
     EXPECT_EQ(std::dynamic_pointer_cast<ov::npuw::UnfoldInferRequest>(behavior_request), nullptr);
+}
+
+// --- Dynamic-attention behavior gating tests ---
+//
+// These tests verify two properties:
+//
+//  1. When NPUW_ATTN=DYNAMIC + NPUW_ONLINE_ISOLATE=ATTN are set and the model has SDPA nodes
+//     with dynamic KV-cache dimensions, the attn runtime behavior IS attached to the attention
+//     subgraphs.
+//
+//  2. When either condition is absent (STATIC mode or no isolation), NO DynAttnBehavior is
+//     attached.  This proves the gate is working correctly.
+//
+// build_dynamic_llm_model() produces a stateful→stateless-converted LLM whose KV-cache
+// parameters retain dynamic dimensions — the exact shape that function::Attention::from()
+// requires to succeed in DYNAMIC mode.
+
+TEST_F(SubgraphBehaviorInferTest, DynAttnBehaviorAttachedWhenDynamicAttentionRequested) {
+    auto model = ov::test::npuw::build_dynamic_attention_llm_model();
+    ASSERT_GT(count_sdpa_nodes(model), 0u) << "Dynamic LLM model must contain SDPA nodes";
+
+    auto plugin = std::make_shared<TestPlugin>();
+    auto core = make_core(plugin);
+    plugin->set_core(core);
+
+    // base_props() has NPUW_ATTN=DYNAMIC and NPUW_ONLINE_ISOLATE=ATTN
+    auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, base_props());
+    EXPECT_GT(count_dyn_attn_behaviors(compiled), 0u)
+        << "DynAttnBehavior must be attached when NPUW_ATTN=DYNAMIC and NPUW_ONLINE_ISOLATE=ATTN";
+}
+
+TEST_F(SubgraphBehaviorInferTest, DynAttnBehaviorNotAttachedWithStaticAttentionMode) {
+    auto model = ov::test::npuw::build_dynamic_attention_llm_model();
+
+    auto plugin = std::make_shared<TestPlugin>();
+    auto core = make_core(plugin);
+    plugin->set_core(core);
+
+    auto props = base_props();
+    props["NPUW_ATTN"] = std::string("STATIC");
+    auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, props);
+    EXPECT_EQ(count_dyn_attn_behaviors(compiled), 0u)
+        << "DynAttnBehavior must NOT be attached when NPUW_ATTN=STATIC";
+}
+
+TEST_F(SubgraphBehaviorInferTest, DynAttnBehaviorNotAttachedWithoutAttnIsolation) {
+    auto model = ov::test::npuw::build_dynamic_attention_llm_model();
+
+    auto plugin = std::make_shared<TestPlugin>();
+    auto core = make_core(plugin);
+    plugin->set_core(core);
+
+    // Remove NPUW_ONLINE_ISOLATE so no "attn" functions are created by the online partitioner.
+    ov::AnyMap props = {{"NPU_USE_NPUW", "YES"},
+                        {"NPUW_DEVICES", "CPU"},
+                        {"NPUW_UNFOLD_IREQS", "NO"},
+                        {"NPUW_ATTN", std::string("DYNAMIC")},
+                        {"NPUW_FOLD", "YES"},
+                        {"NPUW_ONLINE_PIPELINE", "REP"},
+                        {"NPUW_ONLINE_KEEP_BLOCKS", "2"},
+                        {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "1"}};
+    auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, props);
+    EXPECT_EQ(count_dyn_attn_behaviors(compiled), 0u)
+        << "DynAttnBehavior must NOT be attached when NPUW_ONLINE_ISOLATE=ATTN is not set";
 }
 
 }  // namespace

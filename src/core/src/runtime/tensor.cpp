@@ -21,6 +21,7 @@
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
+#include "openvino/util/parallel_read_streambuf.hpp"
 
 namespace ov {
 
@@ -190,10 +191,10 @@ Shape resolve_static_shape(size_t available_size,
     return static_shape;
 }
 
-void read_tensor_via_ifstream(const std::filesystem::path& file_name, Tensor& tensor, size_t offset) {
+void read_tensor_via_istream(const std::filesystem::path& file_name, Tensor& tensor, size_t offset) {
     OPENVINO_ASSERT(tensor.get_element_type() != ov::element::string);
-    std::ifstream fin(file_name, std::ios::binary);
-    fin.seekg(offset);
+    ov::util::ParallelReadStreamBuf buffer(file_name, offset, tensor.get_byte_size());
+    std::istream fin(&buffer);
     const auto bytes_to_read = static_cast<std::streamsize>(tensor.get_byte_size());
     fin.read(static_cast<char*>(tensor.data()), bytes_to_read);
     OPENVINO_ASSERT(fin.gcount() == bytes_to_read, "Cannot read ", bytes_to_read, " bytes from ", file_name);
@@ -261,7 +262,7 @@ Tensor read_tensor_data(const std::filesystem::path& file_name,
         const auto available_size = static_cast<size_t>(file_size - offset_in_bytes);
         const auto static_shape = resolve_static_shape(available_size, element_type, partial_shape);
         const auto tensor = std::make_shared<ov::Tensor>(element_type, static_shape);
-        read_tensor_via_ifstream(file_name, *tensor.get(), offset_in_bytes);
+        read_tensor_via_istream(file_name, *tensor.get(), offset_in_bytes);
         auto result = wrap_obj_to_viewtensor(tensor, tensor->data(), element_type, static_shape);
         set_tensor_source_id(result, util::get_id_for_file(file_name, offset_in_bytes, tensor->get_byte_size()));
         return result;
