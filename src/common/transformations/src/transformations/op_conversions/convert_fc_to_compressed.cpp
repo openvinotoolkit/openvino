@@ -106,9 +106,12 @@ ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
         // downstream consumers (e.g. DnnlPostOpsComposer in the CPU plugin) which require
         // rank-2/3 decompression params can prepack them. Inputs with a single element
         // are left as-is.
+        // All inputs reaching this lambda are Constants (optionally wrapped in a Convert
+        // injected by `convert_u4const_to_u8`), so their shapes are always static.
         auto apply_transpose = [&](const ov::Output<ov::Node>& in) -> std::shared_ptr<ov::Node> {
-            const auto in_rank = in.get_partial_shape().size();
-            if (in_rank == 0 || ov::shape_size(in.get_shape()) == 1) {
+            const auto& in_shape = in.get_shape();
+            const auto in_rank = in_shape.size();
+            if (in_rank == 0 || ov::shape_size(in_shape) == 1) {
                 return in.get_node_shared_ptr();
             }
             std::shared_ptr<ov::Node> node = in.get_node_shared_ptr();
