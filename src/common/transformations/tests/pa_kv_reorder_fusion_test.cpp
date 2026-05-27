@@ -140,8 +140,7 @@ TEST_F(TransformationTestsF, PaKVReorderFusion_basic) {
         auto key_gather = std::make_shared<op::v8::Gather>(key_cache, block_update_indices, gather_axis);
         auto value_gather = std::make_shared<op::v8::Gather>(value_cache, block_update_indices, gather_axis);
 
-        auto key_scatter =
-            std::make_shared<op::v3::ScatterUpdate>(key_cache, block_indices, key_gather, scatter_axis);
+        auto key_scatter = std::make_shared<op::v3::ScatterUpdate>(key_cache, block_indices, key_gather, scatter_axis);
         auto value_scatter =
             std::make_shared<op::v3::ScatterUpdate>(value_cache, block_indices, value_gather, scatter_axis);
 
@@ -220,8 +219,7 @@ TEST_F(TransformationTestsF, PaKVReorderFusion_skip_on_mismatched_block_indices)
     auto key_gather = std::make_shared<op::v8::Gather>(key_cache, block_update_indices, gather_axis);
     auto value_gather = std::make_shared<op::v8::Gather>(value_cache, block_update_indices, gather_axis);
 
-    auto key_scatter =
-        std::make_shared<op::v3::ScatterUpdate>(key_cache, block_indices_k, key_gather, scatter_axis);
+    auto key_scatter = std::make_shared<op::v3::ScatterUpdate>(key_cache, block_indices_k, key_gather, scatter_axis);
     auto value_scatter =
         std::make_shared<op::v3::ScatterUpdate>(value_cache, block_indices_v, value_gather, scatter_axis);
 
