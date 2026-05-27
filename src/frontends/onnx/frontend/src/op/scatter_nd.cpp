@@ -41,7 +41,7 @@ ov::OutputVector scatter_nd(const ov::frontend::onnx::Node& node) {
     auto updates = ov_inputs.at(2);
 
     const auto reduction_onnx = node.get_attribute_value<std::string>("reduction", "none");
-    v15::ScatterNDUpdate::Reduction reduction_ov;
+    v15::ScatterNDUpdate::Reduction reduction_ov = v15::ScatterNDUpdate::Reduction::NONE;
     if (reduction_onnx == "none") {
         reduction_ov = v15::ScatterNDUpdate::Reduction::NONE;
     } else if (reduction_onnx == "add") {
