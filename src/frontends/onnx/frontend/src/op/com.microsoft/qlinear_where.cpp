@@ -33,9 +33,8 @@ ov::OutputVector qlinear_where(const ov::frontend::onnx::Node& node) {
     auto z_scale = node.get_ov_inputs().at(7);
     auto z_zero_point = node.get_ov_inputs().at(8);
 
-    ov::pass::NodeRegistry reg;
-    auto x_dequant = ov::decomposition::low_precision_dequantize(reg, x, x_scale, x_zero_point);
-    auto y_dequant = ov::decomposition::low_precision_dequantize(reg, y, y_scale, y_zero_point);
+    auto x_dequant = ov::decomposition::low_precision_dequantize(x, x_scale, x_zero_point);
+    auto y_dequant = ov::decomposition::low_precision_dequantize(y, y_scale, y_zero_point);
 
     auto selected = std::make_shared<v1::Select>(condition, x_dequant, y_dequant);
 

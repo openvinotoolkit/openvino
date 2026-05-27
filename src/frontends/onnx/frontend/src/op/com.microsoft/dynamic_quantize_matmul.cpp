@@ -73,8 +73,7 @@ ov::OutputVector dynamic_quantize_matmul(const ov::frontend::onnx::Node& node) {
     // here https://tomwildenhain-microsoft.github.io/onnxruntime/docs/performance/quantization.html B_dequantized = (B
     // - b_zero_point) * b_scale
 
-    ov::pass::NodeRegistry reg;
-    ov::Output<ov::Node> B_dequantized = ov::decomposition::low_precision_dequantize(reg, B, b_scale, b_zero_point);
+    ov::Output<ov::Node> B_dequantized = ov::decomposition::low_precision_dequantize(B, b_scale, b_zero_point);
 
     // A, B are N-dimensional matrices. According to example ONNX models for this operator, the suboperations pass input
     // A/B such that B's shape is already transposed. E.g.

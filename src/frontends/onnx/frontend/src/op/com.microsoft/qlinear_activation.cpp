@@ -50,9 +50,7 @@ ov::OutputVector qlinear_activation(const ov::frontend::onnx::Node& node, const 
                      "Input tensor must be either int8 or uint8. Got: ",
                      input_tensor.get_element_type());
 
-    ov::pass::NodeRegistry reg;
-    auto input_dequantized =
-        ov::decomposition::low_precision_dequantize(reg, input_tensor, input_scale, input_zero_point);
+    auto input_dequantized = ov::decomposition::low_precision_dequantize(input_tensor, input_scale, input_zero_point);
 
     auto activation_result = activation_fn(input_dequantized.get_node_shared_ptr());
 

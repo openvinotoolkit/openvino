@@ -58,9 +58,8 @@ ov::OutputVector qlinear_op(const ov::frontend::onnx::Node& node, BinaryOp binar
         ", B_zero_point: ",
         B_zero_point.get_element_type());
 
-    ov::pass::NodeRegistry reg;
-    auto A_scaled = ov::decomposition::low_precision_dequantize(reg, A, A_scale, A_zero_point);
-    auto B_scaled = ov::decomposition::low_precision_dequantize(reg, B, B_scale, B_zero_point);
+    auto A_scaled = ov::decomposition::low_precision_dequantize(A, A_scale, A_zero_point);
+    auto B_scaled = ov::decomposition::low_precision_dequantize(B, B_scale, B_zero_point);
 
     auto result_scaled = binary_op(A_scaled, B_scaled);
 

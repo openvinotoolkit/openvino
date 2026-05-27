@@ -47,9 +47,8 @@ ov::OutputVector matmulintegertofloat(const ov::frontend::onnx::Node& node) {
                      "Unsupported input B type. Expected int8 or uint8, got: ",
                      b_int.get_element_type());
 
-    ov::pass::NodeRegistry reg;
-    auto a_scaled = ov::decomposition::low_precision_dequantize(reg, a_int, a_scale, a_zero_point);
-    auto b_scaled = ov::decomposition::low_precision_dequantize(reg, b_int, b_scale, b_zero_point);
+    auto a_scaled = ov::decomposition::low_precision_dequantize(a_int, a_scale, a_zero_point);
+    auto b_scaled = ov::decomposition::low_precision_dequantize(b_int, b_scale, b_zero_point);
 
     const auto matmul_result = std::make_shared<ov::op::v0::MatMul>(a_scaled, b_scaled);
 

@@ -62,8 +62,7 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node, int64_t
         common::validate_scalar_input("Zero point", zero_point);
     }
 
-    ov::pass::NodeRegistry reg;
-    auto result = ov::decomposition::low_precision_dequantize(reg, x, scale, zero_point);
+    auto result = ov::decomposition::low_precision_dequantize(x, scale, zero_point);
     return {result};
 }
 }  // namespace detail
@@ -171,8 +170,7 @@ ov::OutputVector dequantize_linear(const ov::Output<ov::Node>& x,
         zp = reshape_input(zero_point, axis, x_shape);
     }
 
-    ov::pass::NodeRegistry reg;
-    auto result = ov::decomposition::low_precision_dequantize(reg, x, scale_reshaped, zp);
+    auto result = ov::decomposition::low_precision_dequantize(x, scale_reshaped, zp);
     return {result};
 }
 }  // namespace detail
@@ -254,8 +252,7 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
         if (inputs.size() > 2) {
             zp = inputs[2];
         }
-        ov::pass::NodeRegistry reg;
-        auto scaled_x = ov::decomposition::low_precision_dequantize(reg, src_x, scale, zp);
+        auto scaled_x = ov::decomposition::low_precision_dequantize(src_x, scale, zp);
         return {scaled_x};
     }
 
@@ -292,8 +289,7 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
 
     auto out_shape = std::make_shared<v0::ShapeOf>(src_x);
 
-    ov::pass::NodeRegistry reg;
-    auto reshaped_scaled_x = ov::decomposition::low_precision_dequantize(reg, broadcastable_x, scale, zp, out_shape);
+    auto reshaped_scaled_x = ov::decomposition::low_precision_dequantize(broadcastable_x, scale, zp, out_shape);
 
     reshaped_scaled_x.get_node_shared_ptr()->set_friendly_name(node.get_name());
 

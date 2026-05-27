@@ -260,9 +260,7 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
         const auto scales_reshaped =
             op::util::reshape(scales_fp16, ov::Shape{static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col), 1});
 
-        ov::pass::NodeRegistry reg;
-        auto scaled_b =
-            ov::decomposition::low_precision_dequantize(reg, casted_b, scales_reshaped, converted_zero_points);
+        auto scaled_b = ov::decomposition::low_precision_dequantize(casted_b, scales_reshaped, converted_zero_points);
 
         // reshape b to [N, K]
         auto shape_b = v0::Constant::create(ov::element::i32, ov::Shape{2}, {0, -1});

@@ -33,7 +33,6 @@ ov::OutputVector qlinear_concat(const ov::frontend::onnx::Node& node) {
     auto Y_zero_point =
         ov::op::util::is_null(inputs[1]) ? v0::Constant::create(Y_scale.get_element_type(), {}, {0}) : inputs[1];
 
-    ov::pass::NodeRegistry reg;
     ov::OutputVector dequantized_inputs;
     for (size_t i = 2; i < inputs.size(); i += 3) {
         auto X = inputs[i];
@@ -41,7 +40,7 @@ ov::OutputVector qlinear_concat(const ov::frontend::onnx::Node& node) {
         auto X_zero_point =
             ov::op::util::is_null(inputs[i + 2]) ? v0::Constant::create(X.get_element_type(), {}, {0}) : inputs[i + 2];
 
-        dequantized_inputs.push_back(ov::decomposition::low_precision_dequantize(reg, X, X_scale, X_zero_point));
+        dequantized_inputs.push_back(ov::decomposition::low_precision_dequantize(X, X_scale, X_zero_point));
     }
 
     auto axis = node.get_attribute_value<int64_t>("axis");

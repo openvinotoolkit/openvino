@@ -202,8 +202,7 @@ pass::TFLQuantizeReplacer::TFLQuantizeReplacer() {
                 })) {
                 zp_input = zp_node;
             }
-            ov::pass::NodeRegistry reg;
-            output = ov::decomposition::low_precision_dequantize(reg, output, scale_node, zp_input);
+            output = ov::decomposition::low_precision_dequantize(output, scale_node, zp_input);
             tfl_quantize->output(0).replace(output);
             return true;
         }

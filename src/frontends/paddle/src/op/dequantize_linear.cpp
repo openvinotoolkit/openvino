@@ -63,8 +63,7 @@ NamedOutputs dequantize_linear(const NodeContext& node) {
         real_scale = std::make_shared<default_opset::Reshape>(real_scale, reshape_node, true);
         zp_input = std::make_shared<default_opset::Reshape>(zero_point, reshape_node, true);
     }
-    ov::pass::NodeRegistry reg;
-    auto out_node = ov::decomposition::low_precision_dequantize(reg, x, real_scale, zp_input);
+    auto out_node = ov::decomposition::low_precision_dequantize(x, real_scale, zp_input);
     return node.default_single_output_mapping({out_node.get_node_shared_ptr()}, {"Y"});
 }
 

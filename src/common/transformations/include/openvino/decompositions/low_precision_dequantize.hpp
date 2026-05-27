@@ -39,7 +39,13 @@ namespace decomposition {
 ///
 /// All nodes created by the helper are added to \p reg so the caller can
 /// post-process them uniformly (e.g. PyTorch frontend iterates the registry
-/// and calls NodeContext::mark_node on each entry).
+/// and calls NodeContext::mark_node on each entry). Callers that don't need
+/// post-processing can use the overload without a NodeRegistry.
+///
+/// When \p output_shape is provided, a Reshape is appended only if the
+/// Multiply output shape doesn't already match it (statically). This avoids
+/// inserting a no-op Reshape when broadcasting already produces the desired
+/// shape.
 ///
 /// \param reg          Node registry that collects every node created by the helper.
 /// \param x            Quantized input tensor (typically a low-precision Constant).
@@ -48,9 +54,18 @@ namespace decomposition {
 /// \param zero_point   Optional zero point. When provided a Subtract is
 ///                     inserted between the Convert and the Multiply.
 /// \param output_shape Optional shape constant. When provided a Reshape with
-///                     special_zero=false is appended after the Multiply.
+///                     special_zero=false is appended after the Multiply
+///                     (skipped if the Multiply output already has that shape).
 ov::Output<ov::Node> TRANSFORMATIONS_API low_precision_dequantize(ov::pass::NodeRegistry& reg,
                                                                   const ov::Output<ov::Node>& x,
+                                                                  const ov::Output<ov::Node>& scale,
+                                                                  const ov::Output<ov::Node>& zero_point = {},
+                                                                  const ov::Output<ov::Node>& output_shape = {});
+
+/// \brief Convenience overload for callers that do not need access to the
+///        intermediate nodes. Internally allocates a NodeRegistry and
+///        forwards to the registry-based overload.
+ov::Output<ov::Node> TRANSFORMATIONS_API low_precision_dequantize(const ov::Output<ov::Node>& x,
                                                                   const ov::Output<ov::Node>& scale,
                                                                   const ov::Output<ov::Node>& zero_point = {},
                                                                   const ov::Output<ov::Node>& output_shape = {});
