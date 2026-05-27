@@ -66,20 +66,20 @@ using PFNMapViewOfFile3 = PVOID(WINAPI*)(HANDLE, HANDLE, PVOID, ULONG64, SIZE_T,
 using PFNUnmapViewOfFile2 = BOOL(WINAPI*)(HANDLE, PVOID, ULONG);
 
 /** @brief Helper class to load placeholder APIs dynamically and check availability at runtime. */
-struct PlaceholderApis {
+struct PlaceholderApi {
     PFNVirtualAlloc2 m_virtual_alloc2{};
     PFNMapViewOfFile3 m_map_view_of_file3{};
     PFNUnmapViewOfFile2 m_unmap_view_of_file2{};
     bool m_available{};
 
-    static const PlaceholderApis& instance() {
-        static const PlaceholderApis s = load();
+    static const PlaceholderApi& instance() {
+        static const PlaceholderApi s = load();
         return s;
     }
 
 private:
-    static PlaceholderApis load() {
-        PlaceholderApis a;
+    static PlaceholderApi load() {
+        PlaceholderApi a;
         if (const HMODULE h = ::GetModuleHandleW(L"kernelbase.dll")) {
             a.m_virtual_alloc2 = reinterpret_cast<PFNVirtualAlloc2>(::GetProcAddress(h, "VirtualAlloc2"));
             a.m_map_view_of_file3 = reinterpret_cast<PFNMapViewOfFile3>(::GetProcAddress(h, "MapViewOfFile3"));
@@ -94,7 +94,7 @@ private:
 // Note: MapViewOfFile3 truncates its ULONG64 Offset to LONG32 internally, so offsets >= 2^31
 // will fail with ERROR_ACCESS_DENIED. Files larger than 2 GiB require an NtMapViewOfSectionEx
 // call instead; this path is not yet implemented.
-static PVOID replace_placeholder(const PlaceholderApis& api,
+static PVOID replace_placeholder(const PlaceholderApi& api,
                                  HANDLE section,
                                  HANDLE proc,
                                  char* base,
@@ -329,7 +329,7 @@ private:
      * @brief Maps the file section in ≤1 GiB chunks into [base, base+actual_map_size) of an existing placeholder.
      * On failure, fully cleans up (unmaps mapped chunks and frees all split VA) and returns an empty vector.
      */
-    std::vector<char*> map_file_chunks(const PlaceholderApis& api,
+    std::vector<char*> map_file_chunks(const PlaceholderApi& api,
                                        HANDLE proc,
                                        char* base,
                                        size_t alloc_size,
@@ -342,7 +342,7 @@ private:
      * @return HandleHolder for the anonymous section (valid = success).
      *         On failure, tail_placeholder is left as a placeholder for the caller to free.
      */
-    HandleHolder fill_anon_tail(const PlaceholderApis& api,
+    HandleHolder fill_anon_tail(const PlaceholderApi& api,
                                 HANDLE proc,
                                 char* tail_placeholder,
                                 size_t tail_size,
@@ -389,7 +389,7 @@ LONG NTAPI MmapVehRegistry::veh(PEXCEPTION_POINTERS ep) {
 MapHolder::~MapHolder() {
     if (m_view_base && m_total_va_size != 0) {
         // Placeholder path: unregister VEH, unmap all views, free all VA allocations.
-        const auto& api = PlaceholderApis::instance();
+        const auto& api = PlaceholderApi::instance();
         const auto proc = GetCurrentProcess();
 
         // Unregister from VEH registry BEFORE unmapping so the VEH cannot
@@ -437,14 +437,21 @@ void MapHolder::set_id(HANDLE h, size_t offset, size_t size) {
         std::memcpy(&fid_l, &info.FileId, sizeof(fid_l));
         std::memcpy(&fid_r, reinterpret_cast<const char*>(&info.FileId) + sizeof(fid_l), sizeof(fid_r));
         m_id = util::u64_hash_combine(offset, {size, info.VolumeSerialNumber, fid_l, fid_r});
+    } else if (BY_HANDLE_FILE_INFORMATION info; ::GetFileInformationByHandle(h, &info)) {
+        // GetFileInformationByHandleEx/FileIdInfo is unavailable (network FS, ReFS, older FS).
+        // Fall back to the legacy NTFS/FAT file index + volume serial, which are stable across separate opens of the
+        // same file (unlike a raw HANDLE value).
+        const uint64_t file_index = (static_cast<uint64_t>(info.nFileIndexHigh) << 32) | info.nFileIndexLow;
+        m_id = util::u64_hash_combine(offset, {size, info.dwVolumeSerialNumber, file_index});
     } else {
-        // fallback to hashing the handle value if FileIdInfo is unavailable
-        // e.g network filesystems or older Windows versions
+        // Last-resort fallback when no stable file identity metadata is available
+        // (e.g. exotic virtual filesystems). HANDLE values are process-local and
+        // change across opens, so weight sharing may not work in this case.
         m_id = util::u64_hash_combine(offset, {size, std::hash<HANDLE>{}(h)});
     }
 }
 
-std::vector<char*> MapHolder::map_file_chunks(const PlaceholderApis& api,
+std::vector<char*> MapHolder::map_file_chunks(const PlaceholderApi& api,
                                               HANDLE proc,
                                               char* base,
                                               size_t alloc_size,
@@ -491,7 +498,7 @@ std::vector<char*> MapHolder::map_file_chunks(const PlaceholderApis& api,
     return mapped;
 }
 
-HandleHolder MapHolder::fill_anon_tail(const PlaceholderApis& api,
+HandleHolder MapHolder::fill_anon_tail(const PlaceholderApi& api,
                                        HANDLE proc,
                                        char* tail_placeholder,
                                        size_t tail_size,
@@ -505,14 +512,15 @@ HandleHolder MapHolder::fill_anon_tail(const PlaceholderApis& api,
 
     if (tail_data_size > 0) {
         const auto off = static_cast<ULONG64>(file_tail_offset);
-        const auto src = static_cast<const char*>(::MapViewOfFile(m_handle.get(),
-                                                                  FILE_MAP_READ,
-                                                                  static_cast<DWORD>(off >> 32),
-                                                                  static_cast<DWORD>(off & 0xFFFFFFFF),
-                                                                  tail_data_size));
-        if (!src)
+        const auto src = ::MapViewOfFile(m_handle.get(),
+                                          FILE_MAP_READ,
+                                          static_cast<DWORD>(off >> 32),
+                                          static_cast<DWORD>(off & 0xFFFFFFFF),
+                                          tail_data_size);
+        if (!src) {
             return HandleHolder{};
-        const auto dst = static_cast<char*>(::MapViewOfFile(anon.get(), FILE_MAP_WRITE, 0, 0, tail_data_size));
+        }
+        auto dst = ::MapViewOfFile(anon.get(), FILE_MAP_WRITE, 0, 0, tail_data_size);
         if (!dst) {
             ::UnmapViewOfFile(src);
             return HandleHolder{};
@@ -535,7 +543,7 @@ HandleHolder MapHolder::fill_anon_tail(const PlaceholderApis& api,
 }
 
 bool MapHolder::try_placeholder_setup(size_t aligned_offset, size_t head_pad, size_t total_va_size, size_t file_size) {
-    const auto& api = PlaceholderApis::instance();
+    const auto& api = PlaceholderApi::instance();
     if (!api.m_available) {
         return false;
     }
@@ -700,7 +708,7 @@ void MapHolder::set_from_handle(FileHandle handle, size_t offset, size_t size) {
 }
 
 bool MapHolder::remap_placeholder(HANDLE proc, char* base, size_t size) {
-    const auto& api = PlaceholderApis::instance();
+    const auto& api = PlaceholderApi::instance();
     const size_t va_offset = base - m_view_base;
     const ULONG64 file_off = static_cast<ULONG64>(m_aligned_offset + va_offset);
 
@@ -709,7 +717,7 @@ bool MapHolder::remap_placeholder(HANDLE proc, char* base, size_t size) {
 }
 
 bool MapHolder::try_remap_slot(uintptr_t fault_addr) {
-    const auto& api = PlaceholderApis::instance();
+    const auto& api = PlaceholderApi::instance();
     if (!api.m_available || !m_view_base || m_total_va_size == 0) {
         return false;
     }
@@ -760,7 +768,7 @@ bool MapHolder::try_remap_slot(uintptr_t fault_addr) {
 }
 
 std::pair<char*, char*> MapHolder::compute_evict_range(size_t offset, size_t size) const noexcept {
-    if (!m_view_base || m_total_va_size == 0 || !PlaceholderApis::instance().m_available)
+    if (!m_view_base || m_total_va_size == 0 || !PlaceholderApi::instance().m_available)
         return {};
 
     // Clamp offset and size to [0, m_size) to prevent size_t overflow in subsequent arithmetic.
@@ -797,7 +805,7 @@ void MapHolder::evict_chunk(HANDLE proc,
                             char* chunk_end,
                             char* evict_begin,
                             char* evict_end) noexcept {
-    const auto& api = PlaceholderApis::instance();
+    const auto& api = PlaceholderApi::instance();
     if (!api.m_unmap_view_of_file2(proc, chunk_base, MEM_PRESERVE_PLACEHOLDER))
         return;
 
