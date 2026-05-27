@@ -109,7 +109,7 @@ jobs:
         run: |
           # for 'template' extension
           export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}/:$LD_LIBRARY_PATH
-          python3 -m pytest -sv ${INSTALL_TEST_DIR}/pyopenvino \
+          python3 -m pytest -s -q -ra ${INSTALL_TEST_DIR}/pyopenvino \
             --junitxml=${INSTALL_TEST_DIR}/TEST-Pyngraph.xml \
             --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_utils/test_utils.py
 
@@ -121,7 +121,7 @@ jobs:
           python3 -m pip install -r ${INSTALL_TEST_DIR}/bindings/python/requirements_test.txt
           # for 'template' extension
           export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}/:$LD_LIBRARY_PATH
-          python3 -m pytest -sv ${INSTALL_TEST_DIR}/pyopenvino \
+          python3 -m pytest -s -q -ra ${INSTALL_TEST_DIR}/pyopenvino \
             --junitxml=${INSTALL_TEST_DIR}/TEST-Pyngraph_new_numpy.xml \
             --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_utils/test_utils.py
 
