@@ -8,6 +8,7 @@
 #include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
 
 #include <algorithm>
+#include <climits>
 #include <cpu/aarch64/jit_generator.hpp>
 #include <cstddef>
 #include <cstdint>
@@ -174,6 +175,52 @@ void EmitABIRegSpills::load_regs_from_stack(dnnl::impl::cpu::aarch64::jit_genera
     const auto total_shift = total_gpr_shift + get_total_vec_shift(regs_to_load);
     if (total_shift > 0) {
         h->add(h->sp, h->sp, total_shift);
+    }
+}
+
+size_t EmitABIRegSpills::compute_memory_buffer_size(const std::vector<Xbyak_aarch64::Reg>& regs) {
+    size_t needed_buffer_size = 0;
+    for (const auto& reg : regs) {
+        const auto reg_bit_size = reg.getBit();
+        OPENVINO_ASSERT(reg_bit_size % CHAR_BIT == 0, "Unexpected reg bit size");
+        needed_buffer_size += reg_bit_size / CHAR_BIT;
+    }
+    return needed_buffer_size;
+}
+
+void EmitABIRegSpills::store_regs_to_memory(dnnl::impl::cpu::aarch64::jit_generator_t* h,
+                                            const std::vector<Xbyak_aarch64::Reg>& regs_to_store,
+                                            Xbyak_aarch64::XReg memory_ptr_reg) {
+    uint32_t memory_ptr_offset = 0;
+    for (const auto& reg : regs_to_store) {
+        const auto addr = Xbyak_aarch64::ptr(memory_ptr_reg, static_cast<int32_t>(memory_ptr_offset));
+        memory_ptr_offset += reg.getBit() / CHAR_BIT;
+        if (is_gpr(reg)) {
+            h->str(as_gpr(reg), addr);
+        } else if (is_vec(reg)) {
+            h->str(as_vec(reg), addr);
+        } else {
+            OV_CPU_JIT_EMITTER_THROW("Unsupported register type in Arm64 memory spill helper");
+        }
+    }
+}
+
+void EmitABIRegSpills::load_regs_from_memory(dnnl::impl::cpu::aarch64::jit_generator_t* h,
+                                             const std::vector<Xbyak_aarch64::Reg>& regs_to_load,
+                                             Xbyak_aarch64::XReg memory_ptr_reg,
+                                             uint32_t memory_byte_size) {
+    uint32_t memory_ptr_offset = memory_byte_size;
+    for (size_t i = regs_to_load.size(); i > 0; --i) {
+        const auto& reg = regs_to_load[i - 1];
+        memory_ptr_offset -= reg.getBit() / CHAR_BIT;
+        const auto addr = Xbyak_aarch64::ptr(memory_ptr_reg, static_cast<int32_t>(memory_ptr_offset));
+        if (is_gpr(reg)) {
+            h->ldr(as_gpr(reg), addr);
+        } else if (is_vec(reg)) {
+            h->ldr(as_vec(reg), addr);
+        } else {
+            OV_CPU_JIT_EMITTER_THROW("Unsupported register type in Arm64 memory spill helper");
+        }
     }
 }
 

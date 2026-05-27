@@ -90,14 +90,14 @@ void jit_binary_call_emitter::init_binary_call_regs(size_t num_binary_args,
         return SIZE_MAX;
     };
 
-    // Allocate call address register from temporary registers (X8-X18, excluding X18)
-    auto call_reg = find_available(8, 18);
-    OV_CPU_JIT_EMITTER_ASSERT(call_reg != SIZE_MAX, "No available temporary register for call address");
+    OV_CPU_JIT_EMITTER_ASSERT(!aux_gpr_idxs.empty(), "No auxiliary GPR available for call address");
+    const auto call_reg = aux_gpr_idxs.back();
+    aux_gpr_idxs.pop_back();
+    OV_CPU_JIT_EMITTER_ASSERT(std::find(used_gpr_idxs.begin(), used_gpr_idxs.end(), call_reg) == used_gpr_idxs.end() &&
+                                  call_reg >= num_binary_args,
+                              "Call address register must not overlap with call operands");
     m_call_address_reg = Xbyak_aarch64::XReg(static_cast<int>(call_reg));
     all_used_idxs.push_back(call_reg);
-    if (m_regs_to_spill.find({snippets::RegType::gpr, call_reg}) == m_regs_to_spill.end()) {
-        m_regs_to_spill.emplace(snippets::RegType::gpr, call_reg);
-    }
 
     // Allocate callee-saved register (X19-X28) for stack alignment
     auto callee_reg = find_available(19, 29);

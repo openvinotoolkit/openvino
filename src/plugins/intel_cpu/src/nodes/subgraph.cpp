@@ -63,6 +63,7 @@
 #    include "transformations/snippets/aarch64/pass/lowered/adjust_gemm_copy_b_loop_ports.hpp"
 #    include "transformations/snippets/aarch64/pass/lowered/gemm_cpu_blocking.hpp"
 #    include "transformations/snippets/aarch64/pass/lowered/insert_gemm_copy_buffers.hpp"
+#    include "transformations/snippets/aarch64/pass/lowered/parallelize_gated_mlp_n_loops.hpp"
 #elif defined(OPENVINO_ARCH_RISCV64)
 #    include <nodes/kernels/riscv64/cpu_isa_traits.hpp>
 
@@ -720,6 +721,9 @@ Subgraph::getControlFlowPasses() {  // NOLINT(readability-convert-member-functio
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
                                            ov::intel_cpu::pass::BrgemmCPUBlocking,
                                            ov::intel_cpu::pass::ParallelizeGatedMlpNLoops);
+    SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::After,
+                                          ov::intel_cpu::pass::GemmCPUBlocking,
+                                          ov::intel_cpu::pass::aarch64::ParallelizeGatedMlpNLoops);
 #ifdef SNIPPETS_DEBUG_CAPS
     const auto& debug_config = subgraph_attrs->snippet->get_debug_config();
     if (debug_config.perf_count_mode != snippets::DebugCapsConfig::PerfCountMode::Disabled) {

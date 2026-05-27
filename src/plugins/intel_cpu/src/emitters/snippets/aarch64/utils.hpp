@@ -37,6 +37,14 @@ public:
                                     const std::vector<Xbyak_aarch64::Reg>& regs_to_store);
     static void load_regs_from_stack(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                                      const std::vector<Xbyak_aarch64::Reg>& regs_to_load);
+    [[nodiscard]] static size_t compute_memory_buffer_size(const std::vector<Xbyak_aarch64::Reg>& regs);
+    static void store_regs_to_memory(dnnl::impl::cpu::aarch64::jit_generator_t* h,
+                                     const std::vector<Xbyak_aarch64::Reg>& regs_to_store,
+                                     Xbyak_aarch64::XReg memory_ptr_reg);
+    static void load_regs_from_memory(dnnl::impl::cpu::aarch64::jit_generator_t* h,
+                                      const std::vector<Xbyak_aarch64::Reg>& regs_to_load,
+                                      Xbyak_aarch64::XReg memory_ptr_reg,
+                                      uint32_t memory_byte_size);
 
 private:
     dnnl::impl::cpu::aarch64::jit_generator_t* h = nullptr;

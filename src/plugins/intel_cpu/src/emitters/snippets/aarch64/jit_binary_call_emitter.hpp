@@ -22,7 +22,7 @@ namespace ov::intel_cpu::aarch64 {
  * by managing register spilling, stack alignment, and calling conventions according to ARM64 AAPCS.
  * This follows the same pattern as the x64 jit_binary_call_emitter but adapted for ARM64 architecture.
  */
-class jit_binary_call_emitter : public jit_emitter {
+class jit_binary_call_emitter : public virtual jit_emitter {
 public:
     jit_binary_call_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                             dnnl::impl::cpu::aarch64::cpu_isa_t isa,
