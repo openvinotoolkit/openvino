@@ -26,6 +26,12 @@ inline bool isSpecialBothProperty(const std::string& key) {
            key == ov::log::level.name();
 }
 
+inline void logCpuPinningDeprecationWarning(intel_npu::Logger& logger) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    logger.warning(intel_npu::ENABLE_CPU_PINNING::deprecationMessage());
+    OPENVINO_SUPPRESS_DEPRECATED_END
+}
+
 void filterPropertiesByCompilerSupport(intel_npu::FilteredConfig& config,
                                        const intel_npu::ICompilerAdapter* compiler,
                                        const ov::SoPtr<intel_npu::IEngineBackend>& backend,
@@ -524,7 +530,6 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::device::id, DEVICE_ID);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::num_streams, NUM_STREAMS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::weights_path, WEIGHTS_PATH);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::internal::exclusive_async_requests, EXCLUSIVE_ASYNC_REQUESTS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::compilation_mode_params, COMPILATION_MODE_PARAMS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::dma_engines, DMA_ENGINES);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::tiles, TILES);
@@ -547,7 +552,9 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::export_raw_blob, EXPORT_RAW_BLOB);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::import_raw_blob, IMPORT_RAW_BLOB);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::batch_compiler_mode_settings, BATCH_COMPILER_MODE_SETTINGS);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::enable_cpu_pinning, ENABLE_CPU_PINNING);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     TRY_REGISTER_SIMPLE_PROPERTY(ov::workload_type, WORKLOAD_TYPE);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::enable_weightless, ENABLE_WEIGHTLESS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::separate_weights_version, SEPARATE_WEIGHTS_VERSION);
@@ -596,7 +603,6 @@ void Properties::registerPluginProperties() {
                                      // This implementation here serves only to publish it in supported_properties
                                      return false;
                                  });
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::enable_cpu_pinning, ENABLE_CPU_PINNING);
 
     TRY_REGISTER_CUSTOM_PROPERTY(
         ov::cache_encryption_callbacks,
@@ -739,7 +745,9 @@ void Properties::registerCompiledModelProperties() {
     // FORCE_REGISTER_CUSTOM_PROPERTY format: (property, visibility, mutability, custom_return_lambda_function)
 
     // Permanent properties
+    OPENVINO_SUPPRESS_DEPRECATED_START
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::enable_cpu_pinning, ENABLE_CPU_PINNING);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     TRY_REGISTER_SIMPLE_PROPERTY(ov::log::level, LOG_LEVEL);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::loaded_from_cache, LOADED_FROM_CACHE);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::performance_mode, PERFORMANCE_HINT);
@@ -852,6 +860,11 @@ void Properties::registerCompiledModelProperties() {
 
 ov::Any Properties::getProperty(const std::string& name) {
     std::lock_guard<std::mutex> lock(_mutex);
+
+    if (name == ov::hint::enable_cpu_pinning.name()) {
+        logCpuPinningDeprecationWarning(_logger);
+    }
+
     if (_pType == PropertiesType::PLUGIN) {
         bool propertyIsCompilerConfig = false;
         bool propertyIsRegistered = true;
@@ -941,8 +954,12 @@ ov::Any Properties::getProperty(const std::string& name) {
 void Properties::setProperty(const ov::AnyMap& properties) {
     std::lock_guard<std::mutex> lock(_mutex);
 
-    if (properties.count(ov::log::level.name()) != 0) {
+    if (properties.find(ov::log::level.name()) != properties.end()) {
         _logger.setLevel(properties.at(ov::log::level.name()).as<ov::log::Level>());
+    }
+
+    if (properties.find(ov::hint::enable_cpu_pinning.name()) != properties.end()) {
+        logCpuPinningDeprecationWarning(_logger);
     }
 
     std::unique_ptr<ICompilerAdapter> compiler = nullptr;
@@ -1034,6 +1051,10 @@ void Properties::setProperty(const ov::AnyMap& properties) {
 
 bool Properties::isPropertySupported(const std::string& name) {
     std::lock_guard<std::mutex> lock(_mutex);
+    if (name == ov::hint::enable_cpu_pinning.name()) {
+        logCpuPinningDeprecationWarning(_logger);
+    }
+
     if (_pType == PropertiesType::PLUGIN) {
         const bool isRegistered = isPropertyRegistered(name);
         const bool isConfigOption = _config.hasOpt(name);
@@ -1128,6 +1149,10 @@ FilteredConfig Properties::getConfigForSpecificCompiler(const ov::AnyMap& proper
                                    _logger);
         }();
 
+    if (properties.find(ov::hint::enable_cpu_pinning.name()) != properties.end()) {
+        logCpuPinningDeprecationWarning(logger);
+    }
+
     std::optional<ov::intel_npu::CompilerType> propertiesCompilerType = std::nullopt;
     std::optional<std::string> propertiesPlatform = std::nullopt;
     if (compilerConfigsFilteredByCompiler) {
@@ -1182,6 +1207,10 @@ FilteredConfig Properties::getConfigWithCompilerPropertiesDisabled(const ov::Any
 
     if (compilerConfigsFilteredByCompiler) {
         disableCompilerProperties(updatedConfig, _backend);
+    }
+
+    if (properties.find(ov::hint::enable_cpu_pinning.name()) != properties.end()) {
+        logCpuPinningDeprecationWarning(logger);
     }
 
     if (properties.empty()) {
