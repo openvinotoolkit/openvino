@@ -148,6 +148,11 @@ Datatype DeconvolutionKernelBase::GetAccumulatorType(const deconvolution_params&
         (params.dilation.x > 1 || params.dilation.y > 1 || params.dilation.z > 1))
         return Datatype::F32;
 
+    // input is either fp32 or fp16
+    // for fp32->fp16 accumulate to fp16, otherwise accumulate to input type
+    if (params.outputs[0].GetDType() == Datatype::F16)
+        return Datatype::F16;
+
     return params.inputs[0].GetDType();
 }
 
