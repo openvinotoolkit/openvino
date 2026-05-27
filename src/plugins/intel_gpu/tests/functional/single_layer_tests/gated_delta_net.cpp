@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/ov_tensor_utils.hpp"
-#include "common_test_utils/test_common.hpp"
+#include "openvino/op/gated_delta_net.hpp"
+
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "common_test_utils/test_common.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
-#include "openvino/op/gated_delta_net.hpp"
 #include "openvino/runtime/core.hpp"
 
 namespace {
@@ -75,20 +77,20 @@ protected:
     std::shared_ptr<ov::Model> model;
 };
 
-TEST_P(GatedDeltaNetStaticTest, CompareWithCPU) {
+TEST_P(GatedDeltaNetStaticTest, CompareWithTemplate) {
     auto inputs = generate_inputs();
 
-    ov::Core core;
-
-    // Run on CPU (reference)
-    auto compiled_cpu = core.compile_model(model, "CPU");
-    auto req_cpu = compiled_cpu.create_infer_request();
-    for (const auto& [param, tensor] : inputs) {
-        req_cpu.set_tensor(param->output(0), tensor);
+    // Build input tensor vector for infer_on_template
+    ov::TensorVector input_tensors;
+    for (const auto& param : model->get_parameters()) {
+        input_tensors.push_back(inputs.at(param));
     }
-    req_cpu.infer();
+
+    // Run on TEMPLATE (reference)
+    auto ref_outputs = ov::test::utils::infer_on_template(model, input_tensors);
 
     // Run on GPU
+    ov::Core core;
     auto compiled_gpu = core.compile_model(model, "GPU");
     auto req_gpu = compiled_gpu.create_infer_request();
     for (const auto& [param, tensor] : inputs) {
@@ -98,9 +100,8 @@ TEST_P(GatedDeltaNetStaticTest, CompareWithCPU) {
 
     // Compare outputs
     for (size_t i = 0; i < model->get_output_size(); i++) {
-        auto out_cpu = req_cpu.get_output_tensor(i);
         auto out_gpu = req_gpu.get_output_tensor(i);
-        ov::test::utils::compare(out_cpu, out_gpu, 1e-2, 1e-2);
+        ov::test::utils::compare(ref_outputs[i], out_gpu, 1e-2, 1e-2);
     }
 }
 
