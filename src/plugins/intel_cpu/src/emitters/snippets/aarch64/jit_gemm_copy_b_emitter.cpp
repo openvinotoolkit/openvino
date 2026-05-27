@@ -88,16 +88,11 @@ void jit_gemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in, const std
     std::vector<size_t> mem_ptrs_idxs{in[0], out[0]};
 
     init_binary_call_regs(3, mem_ptrs_idxs);
-    if (const auto* f16_executor = std::get_if<std::shared_ptr<GemmCopyBF16KaiKernelExecutor>>(&m_kernel_executor)) {
-        emit_call(*f16_executor, mem_ptrs_idxs);
-        return;
-    }
-    if (const auto* f32_executor = std::get_if<std::shared_ptr<GemmCopyBF32KaiKernelExecutor>>(&m_kernel_executor)) {
-        emit_call(*f32_executor, mem_ptrs_idxs);
-        return;
-    }
-
-    OV_CPU_JIT_EMITTER_THROW("Unexpected GemmCopyB executor type");
+    std::visit(
+        [&](const auto& kernel_executor) {
+            emit_call(kernel_executor, mem_ptrs_idxs);
+        },
+        m_kernel_executor);
 }
 
 template <typename ExecutorT>
