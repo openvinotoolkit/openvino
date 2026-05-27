@@ -371,13 +371,12 @@ private:
 };
 
 LONG NTAPI MmapVehRegistry::veh(PEXCEPTION_POINTERS ep) {
-    if (ep->ExceptionRecord->ExceptionCode != EXCEPTION_ACCESS_VIOLATION) {
-        return EXCEPTION_CONTINUE_SEARCH;
-    }
-    // Only handle read faults (ExceptionInformation[0] == 0).
-    // Write/execute faults to read-only or no-access pages are not remappable and must propagate
-    // to avoid an infinite fault loop (remap as PAGE_READONLY, re-execute write, fault again).
-    if (ep->ExceptionRecord->ExceptionInformation[0] != 0) {
+    // Only handle read access violations (ExceptionInformation[0] == 0).
+    // Short-circuit: ExceptionInformation[0] is only valid for EXCEPTION_ACCESS_VIOLATION
+    // (NumberParameters may be 0 for other codes). Write/execute faults (values 1/8) must not
+    // be remapped: doing so leaves the fault condition unchanged and causes an infinite fault loop.
+    if (ep->ExceptionRecord->ExceptionCode != EXCEPTION_ACCESS_VIOLATION ||
+        ep->ExceptionRecord->ExceptionInformation[0] != 0) {
         return EXCEPTION_CONTINUE_SEARCH;
     }
     const auto fault_addr = static_cast<uintptr_t>(ep->ExceptionRecord->ExceptionInformation[1]);
