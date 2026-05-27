@@ -20,17 +20,15 @@ void MoERouterFused::validate_and_infer_types() {
     auto input_type = get_input_element_type(0);
     auto input_pshape = get_input_partial_shape(0);
 
-    ov::PartialShape out_shape;
-    if (input_pshape.rank().is_static() && input_pshape.rank().get_length() >= 1) {
-        out_shape = ov::PartialShape{input_pshape[0], static_cast<int64_t>(m_config.top_k)};
-    } else {
-        out_shape = ov::PartialShape::dynamic(2);
+    ov::PartialShape out_shape = input_pshape;
+    if (input_pshape.rank().is_static()) {
+        *out_shape.rbegin() = static_cast<int64_t>(m_config.top_k);
     }
 
     // Output 0: topk_weights [num_tokens, top_k] — same type as input
     set_output_type(0, input_type, out_shape);
-    // Output 1: topk_indices [num_tokens, top_k] — u32
-    set_output_type(1, ov::element::u32, out_shape);
+    // Output 1: topk_indices [num_tokens, top_k] — i32
+    set_output_type(1, ov::element::i32, out_shape);
 }
 
 std::shared_ptr<ov::Node> MoERouterFused::clone_with_new_inputs(const ov::OutputVector& new_args) const {

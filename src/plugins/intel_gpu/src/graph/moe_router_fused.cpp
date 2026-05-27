@@ -45,8 +45,8 @@ std::vector<layout> moe_router_fused_inst::calc_output_layouts(const moe_router_
 
     // Output 0: topk_weights [num_tokens, top_k] — same element type as input
     layout weights_layout(out_shape, input_layout.data_type, format::bfyx);
-    // Output 1: topk_indices [num_tokens, top_k] — u32
-    layout indices_layout(out_shape, ov::element::u32, format::bfyx);
+    // Output 1: topk_indices [num_tokens, top_k] — i32
+    layout indices_layout(out_shape, ov::element::i32, format::bfyx);
 
     return {weights_layout, indices_layout};
 }

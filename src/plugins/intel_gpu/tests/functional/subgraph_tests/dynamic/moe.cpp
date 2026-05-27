@@ -163,9 +163,9 @@ protected:
             ov::test::CheckNumberOfNodesWithType(compiledModel,
                                                  pattern_type == MoePatternType::GEMM3 ? "moe_3gemm_fused_compressed" : "moe_gemm",
                                                  pattern_type == MoePatternType::GEMM3 ? 1 : 2);
-            if (pattern_type == MoePatternType::GEMM3) {
-                ov::test::CheckNumberOfNodesWithType(compiledModel, "moe_router_fused", 1);
-            }
+        }
+        if (pattern_type == MoePatternType::GEMM3) {
+            ov::test::CheckNumberOfNodesWithType(compiledModel, "moe_router_fused", 1);
         }
     }
 

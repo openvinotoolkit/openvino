@@ -22,7 +22,7 @@ namespace ov::intel_gpu::op {
 ///
 /// Outputs:
 ///   0: topk_weights   [num_tokens, top_k]  — normalized routing weights (f16/f32)
-///   1: topk_indices   [num_tokens, top_k]  — selected expert indices (u32)
+///   1: topk_indices   [num_tokens, top_k]  — selected expert indices (i32)
 ///
 class MoERouterFused : public ov::op::Op {
 public:
