@@ -173,7 +173,10 @@ static const std::map<format::type, format_traits> format_traits_map {
 
 const format_traits& format::traits(type fmt) {
     auto it = format_traits_map.find(fmt);
-    OPENVINO_ASSERT(it != format_traits_map.end(), "[GPU] Format description is missing in fmt traits");
+    OPENVINO_ASSERT(it != format_traits_map.end(),
+                    "[GPU] Format description is missing in fmt traits (fmt=",
+                    static_cast<int32_t>(fmt),
+                    ")");
     return it->second;
 }
 

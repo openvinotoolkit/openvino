@@ -12,15 +12,9 @@
 #include "openvino/util/file_util.hpp"
 
 namespace {
-// [SD3-DBG] Unconditional dump of every OV exception text right before it is thrown.
-// This is intentionally noisy and exists only to diagnose the stable-diffusion-v3
-// GPU abort on Arc B390 where the closest-exported-symbol heuristic in the c10
-// abort handler points at an unrelated symbol (isQuantizedStatic) and the actual
-// exception message is otherwise lost when the unhandled C++ exception terminates
-// the process via std::terminate.
-inline void sd3_dbg_dump_throw(const char* kind, const std::string& what_text) {
-    std::cout << "[SD3-DBG] OV THROW kind=" << kind << " what=" << what_text << std::flush;
-    std::cerr << "[SD3-DBG] OV THROW kind=" << kind << " what=" << what_text << std::flush;
+// Keep the helper wired into the exception creation sites, but leave it silent
+// so timing-sensitive repro runs only pay for terminate logging.
+inline void sd3_dbg_dump_throw(const char*, const std::string&) {
 }
 
 // [SD3-DBG] Global std::set_terminate backstop. Catches ANY uncaught exception
@@ -31,7 +25,6 @@ inline void sd3_dbg_dump_throw(const char* kind, const std::string& what_text) {
 struct Sd3DbgTerminateInstaller {
     Sd3DbgTerminateInstaller() {
         m_prev = std::set_terminate(&Sd3DbgTerminateInstaller::handler);
-        std::cout << "[SD3-DBG] std::set_terminate handler installed (prev=" << reinterpret_cast<void*>(m_prev) << ")" << std::endl;
     }
     static std::terminate_handler m_prev;
     static void handler() {
@@ -41,22 +34,17 @@ struct Sd3DbgTerminateInstaller {
                 try {
                     std::rethrow_exception(eptr);
                 } catch (const std::exception& e) {
-                    std::cout << "[SD3-DBG] TERMINATE uncaught std::exception type=" << typeid(e).name()
-                              << " what=" << e.what() << std::endl;
                     std::cerr << "[SD3-DBG] TERMINATE uncaught std::exception type=" << typeid(e).name()
                               << " what=" << e.what() << std::endl;
                 } catch (...) {
-                    std::cout << "[SD3-DBG] TERMINATE uncaught non-std exception" << std::endl;
                     std::cerr << "[SD3-DBG] TERMINATE uncaught non-std exception" << std::endl;
                 }
             } else {
-                std::cout << "[SD3-DBG] TERMINATE called with no current_exception (direct std::terminate or noexcept violation)" << std::endl;
                 std::cerr << "[SD3-DBG] TERMINATE called with no current_exception (direct std::terminate or noexcept violation)" << std::endl;
             }
         } catch (...) {
             // never let the handler itself throw
         }
-        std::cout.flush();
         std::cerr.flush();
         // Chain to previous handler if any (likely torch's c10 handler) so behavior is unchanged.
         if (m_prev) {
