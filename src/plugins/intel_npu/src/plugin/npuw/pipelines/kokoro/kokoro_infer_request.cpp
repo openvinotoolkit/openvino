@@ -109,7 +109,7 @@ void ov::npuw::KokoroInferRequest::init_tensor(const ov::Output<const ov::Node>&
 ov::npuw::KokoroInferRequest::KokoroInferRequest(const std::shared_ptr<ov::npuw::KokoroCompiledModel>& compiled_model)
     : ov::ISyncInferRequest(compiled_model),
       m_kokoro_compiled_model(compiled_model) {
-    const auto original_inputs = m_kokoro_compiled_model->inputs();
+    const auto& original_inputs = m_kokoro_compiled_model->inputs();
 
     for (const auto& input_port : original_inputs) {
         init_tensor(input_port);
@@ -124,7 +124,7 @@ ov::npuw::KokoroInferRequest::KokoroInferRequest(const std::shared_ptr<ov::npuw:
     m_model_b_request = m_kokoro_compiled_model->model_b()->create_infer_request();
 
     // Map Model A inputs
-    const auto a_inputs = m_model_a_request->get_compiled_model()->inputs();
+    const auto& a_inputs = m_model_a_request->get_compiled_model()->inputs();
     std::vector<std::string> missing_ports;
     for (const auto& a_in : a_inputs) {
         const auto& names = a_in.get_names();
@@ -155,7 +155,7 @@ ov::npuw::KokoroInferRequest::KokoroInferRequest(const std::shared_ptr<ov::npuw:
     throw_if_missing(missing_ports);
 
     // Map Model A outputs
-    const auto a_outputs = m_model_a_request->get_compiled_model()->outputs();
+    const auto& a_outputs = m_model_a_request->get_compiled_model()->outputs();
     auto pred_dur_port = ov::npuw::util::find_port_by_name(a_outputs, "pred_dur");
     auto en_left_port = ov::npuw::util::find_port_by_name(a_outputs, "en_left");
     auto asr_left_port = ov::npuw::util::find_port_by_name(a_outputs, "asr_left");
@@ -167,7 +167,7 @@ ov::npuw::KokoroInferRequest::KokoroInferRequest(const std::shared_ptr<ov::npuw:
     m_a_asr_left = asr_left_port.value();
 
     // Map Model B inputs
-    const auto b_inputs = m_model_b_request->get_compiled_model()->inputs();
+    const auto& b_inputs = m_model_b_request->get_compiled_model()->inputs();
     std::vector<std::string> b_missing_ports;
     for (const auto& b_in : b_inputs) {
         const auto& names = b_in.get_names();
@@ -227,8 +227,8 @@ void ov::npuw::KokoroInferRequest::infer() {
     OPENVINO_ASSERT(m_model_a_request);
     OPENVINO_ASSERT(m_model_b_request);
 
-    const auto original_inputs = m_kokoro_compiled_model->inputs();
-    const auto original_outputs = m_kokoro_compiled_model->outputs();
+    const auto& original_inputs = m_kokoro_compiled_model->inputs();
+    const auto& original_outputs = m_kokoro_compiled_model->outputs();
 
     // 1) Auto-fill text_mask from input_ids and infer Model A
     if (m_a_text_mask.get_node()) {
@@ -290,8 +290,8 @@ void ov::npuw::KokoroInferRequest::infer() {
 
     // 3) Prepare Model B
     const auto b_model = m_model_b_request->get_compiled_model();
-    const auto b_inputs = b_model->inputs();
-    const auto b_outputs = b_model->outputs();
+    const auto& b_inputs = b_model->inputs();
+    const auto& b_outputs = b_model->outputs();
 
     OPENVINO_ASSERT(m_b_en_block.get_node(), "Kokoro Model B input 'en_block' not initialized");
     OPENVINO_ASSERT(m_b_asr_block.get_node(), "Kokoro Model B input 'asr_block' not initialized");

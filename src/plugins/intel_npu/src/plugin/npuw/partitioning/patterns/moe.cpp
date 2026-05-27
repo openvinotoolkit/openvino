@@ -93,7 +93,7 @@ GPTOSSExpert::GPTOSSExpert(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
     auto reshape2 = opp::wrap_type<ov::op::v1::Reshape>({add3, opp::any_input()});
     auto output_multiply = opp::wrap_type<ov::op::v1::Multiply>({reshape2, opp::any_input()});
 
-    auto node_to_gptr = snapshot->getNodeToGroupMap();
+    const auto& node_to_gptr = snapshot->getNodeToGroupMap();
 
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
@@ -236,7 +236,7 @@ GPTOSSRouter::GPTOSSRouter(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
     auto slice = opp::wrap_type<ov::op::v8::Slice>(
         {softmax, opp::any_input(), shapeof_topk, opp::any_input(), opp::any_input()});
 
-    auto node_to_gptr = snapshot->getNodeToGroupMap();
+    const auto& node_to_gptr = snapshot->getNodeToGroupMap();
 
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();

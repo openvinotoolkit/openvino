@@ -177,7 +177,7 @@ bool is_int8_compressed(const std::shared_ptr<ov::Model>& model) {
         // NB: Model isn't compressed by NNCF - skip
         return false;
     }
-    auto mode = model->get_rt_info<std::string>(rt_info_path);
+    const auto& mode = model->get_rt_info<std::string>(rt_info_path);
     if (mode.find("int8") != std::string::npos) {
         return true;
     }
@@ -228,7 +228,7 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
         desc.compiler_ver = plugin->get_property(ov::intel_npu::compiler_version.name(), ov::AnyMap{}).as<int64_t>();
     } else {
         // NPU_COMPILER_TYPE is specified in config, get compiler version for the specified compiler type
-        auto target_compiler_type = compiler_type_it->second.as<std::string>();
+        const auto& target_compiler_type = compiler_type_it->second.as<std::string>();
         desc.compiler_ver = plugin
                                 ->get_property(ov::intel_npu::compiler_version.name(),
                                                ov::AnyMap{{ov::intel_npu::compiler_type.name(), target_compiler_type}})
@@ -502,8 +502,9 @@ void apply_moe_config(ov::AnyMap& stage_config,
     } else if (moe_hint == ::intel_npu::npuw::llm::MoEHint::DENSE) {
         LOG_INFO("MoE config for " << stage_name << " stage: DENSE (all experts active)");
         // DENSE mode requires CPU-only device due to extremely long NPU compilation time and high resource consumption
-        auto npuw_devices =
-            stage_config.count("NPUW_DEVICES") ? stage_config.at("NPUW_DEVICES").as<std::string>() : "NPU";
+        const auto& npuw_devices =
+            stage_config.count("NPUW_DEVICES") ? stage_config.at("NPUW_DEVICES").as<std::string>()
+                                               : static_cast<const std::string&>(std::string("NPU"));
         NPUW_ASSERT(npuw_devices == "CPU" &&
                     "MoE DENSE mode requires CPU-only device (NPUW_DEVICES must be 'CPU'). "
                     "DENSE activates all experts simultaneously, causing extremely long NPU compilation time. "
@@ -1006,15 +1007,14 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         return std::nullopt;
     }();
 
-    auto prefill_config_addition_value =
-        prefill_config_addition.has_value() ? prefill_config_addition.value().as<ov::AnyMap>() : ov::AnyMap{};
-    auto generate_config_addition_value =
-        generate_config_addition.has_value() ? generate_config_addition.value().as<ov::AnyMap>() : ov::AnyMap{};
-
     merge_config_with(prefill_config, other_props);
     merge_config_with(generate_config, other_props);
-    merge_config_with(prefill_config, prefill_config_addition_value);
-    merge_config_with(generate_config, generate_config_addition_value);
+    if (prefill_config_addition.has_value()) {
+        merge_config_with(prefill_config, prefill_config_addition.value().as<ov::AnyMap>());
+    }
+    if (generate_config_addition.has_value()) {
+        merge_config_with(generate_config, generate_config_addition.value().as<ov::AnyMap>());
+    }
 
     if (user_compilation_mode_params.has_value() && default_compilation_mode_params.has_value() &&
         user_compilation_mode_params.value() != default_compilation_mode_params.value()) {
@@ -1138,8 +1138,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     if (lm_head_model) {
         auto lm_head_config = get_default_lm_head_config(npudesc);
         merge_config_with(lm_head_config, other_props);
-        auto lm_head_config_addition_value = lm_head_config_addition.value_or(ov::AnyMap{}).as<ov::AnyMap>();
-        merge_config_with(lm_head_config, lm_head_config_addition_value);
+        if (lm_head_config_addition.has_value()) {
+            merge_config_with(lm_head_config, lm_head_config_addition.value().as<ov::AnyMap>());
+        }
 
         apply_weights_bank_name(lm_head_config, weights_bank_name);
 

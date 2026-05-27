@@ -162,7 +162,7 @@ bool MoEExecutor::function_prologue_moe_input(size_t idx,
 
         if (param_idx == moe_downstream->expert_output_param_idx) {
             // Bind expert output accumulator
-            auto output_buffer = m_resources.expert_output_accumulator;
+            const auto& output_buffer = m_resources.expert_output_accumulator;
             NPUW_ASSERT(output_buffer && "MoE output buffer not available");
             real_request->set_tensor(iport, output_buffer);
         } else {
@@ -301,7 +301,7 @@ void MoEExecutor::run_expert_batch(size_t idx, size_t real_idx, const std::vecto
     if (m_config.expert_input_param_idx.has_value()) {
         const auto expert_input_idx = m_config.expert_input_param_idx.value();
         const auto& expert_input_port = desc.compiled_model->inputs()[expert_input_idx];
-        auto expert_input_tensor = io.expert_input;
+        const auto& expert_input_tensor = io.expert_input;
         if (!expert_input_tensor) {
             OPENVINO_THROW("MoE: Expert input tensor not available");
         }
@@ -310,7 +310,7 @@ void MoEExecutor::run_expert_batch(size_t idx, size_t real_idx, const std::vecto
 
     // 4.2: Bind output tensor (from io, set in function_prologue)
     const auto& output_port = desc.compiled_model->outputs()[0];
-    auto output_tensor = io.outputs.at(0);
+    const auto& output_tensor = io.outputs.at(0);
     if (!output_tensor) {
         OPENVINO_THROW("MoE: Output tensor not available");
     }
@@ -353,8 +353,8 @@ void MoEExecutor::run_expert_iterative(size_t idx, size_t real_idx, const std::v
     auto expert_input_source = io.expert_input;
 
     // Calculate output embedding dimension from any compiled model (all have same output shape)
-    auto any_compiled_model = m_config.compiled_models.begin()->second;
-    auto output_shape = any_compiled_model->outputs()[0].get_shape();
+    const auto& any_compiled_model = m_config.compiled_models.begin()->second;
+    const auto& output_shape = any_compiled_model->outputs()[0].get_shape();
     size_t embed_dim = (output_shape.size() == 4) ? output_shape[3] : output_shape[1];
 
     // Process each expert sequentially
@@ -532,7 +532,7 @@ void MoEExecutor::set_router_scores(size_t idx,
     }
 
     // Get router scores source tensor and element type
-    auto router_scores_source = io.router_scores;
+    const auto& router_scores_source = io.router_scores;
     auto elem_type = router_scores_source->get_element_type();
 
     // Get compiled model from config

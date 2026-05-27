@@ -818,7 +818,7 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
     for (std::size_t i = 0; i < func_desc.compiled_model->outputs().size(); i++) {
         LOG_DEBUG("Binding result[" << i << "]...");
         auto& oport = func_desc.compiled_model->outputs()[i];
-        auto o_tensor = m_funcall_result.at({idx, i});
+        const auto& o_tensor = m_funcall_result.at({idx, i});
         if (ov::npuw::moe::has_compiled_experts(func_desc.pipeline)) {
             // MoE case - delegate to executor for output binding
             m_moe_executor->function_prologue_moe_output(idx, i, o_tensor);

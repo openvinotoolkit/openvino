@@ -48,7 +48,7 @@ SDPA::SDPA(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const st
     auto trans = opp::wrap_type<ov::op::v1::Transpose>({sdpa, opp::any_input()});
     auto reshape = opp::wrap_type<ov::op::v1::Reshape>({trans, opp::any_input()});
 
-    auto node_to_gptr = snapshot->getNodeToGroupMap();
+    const auto& node_to_gptr = snapshot->getNodeToGroupMap();
 
     // Note: Use [=] to make sure the above objects stay alive in the callback
     auto callback = [=](ov::pass::pattern::Matcher& m) {
@@ -141,7 +141,7 @@ SDPADecomposed::SDPADecomposed(const std::shared_ptr<ov::npuw::online::Snapshot>
     auto transpose = opp::wrap_type<ov::op::v1::Transpose>({matmul2, opp::any_input()});
     auto reshape3 = opp::wrap_type<ov::op::v1::Reshape>({transpose, opp::any_input()});
 
-    auto node_to_gptr = snapshot->getNodeToGroupMap();
+    const auto& node_to_gptr = snapshot->getNodeToGroupMap();
 
     // Note: Use [=] to make sure the above objects stay alive in the callback
     auto callback = [=](ov::pass::pattern::Matcher& m) {

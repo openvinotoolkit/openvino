@@ -404,7 +404,7 @@ std::optional<MoEDownstream> detect_and_transform_moe_downstream(const std::shar
         const auto& param = params[param_idx];
 
         // Validate shape: must be [N, 1, H, W] where N > 1
-        auto param_shape = param->get_partial_shape();
+        const auto& param_shape = param->get_partial_shape();
         if (!param_shape.rank().is_static() || param_shape.rank().get_length() != 4) {
             continue;
         }
@@ -564,7 +564,7 @@ void MoEModelTransformer::replace_tile_with_new_tile(const ov::Output<ov::Node>&
                                                      ov::Output<ov::Node>& node_before_matmul,
                                                      const std::string& friendly_name,
                                                      size_t num_target_experts) const {
-    auto matmul_input_shape = node_before_matmul.get_shape();
+    const auto& matmul_input_shape = node_before_matmul.get_shape();
     ov::Shape target_expert_shape = matmul_input_shape;
     target_expert_shape[0] = num_target_experts;
 
@@ -645,7 +645,7 @@ void MoEModelTransformer::fix_parameters_with_num_experts(const std::shared_ptr<
             continue;
         }
 
-        auto param_shape = param->get_partial_shape();
+        const auto& param_shape = param->get_partial_shape();
         if (param_shape.rank().is_static() && param_shape.rank().get_length() > 0) {
             auto shape = param_shape.to_shape();
             bool needs_fix = false;
@@ -746,7 +746,7 @@ void MoEModelTransformer::fix_token_count_for_expert_iterative(
     // Fix Parameter shapes
     size_t original_token_count = m_structure_info.input_token_count;
     for (const auto& param : params_to_fix) {
-        auto param_shape = param->get_partial_shape();
+        const auto& param_shape = param->get_partial_shape();
         if (param_shape.rank().is_static() && param_shape.rank().get_length() >= 2) {
             auto shape = param_shape.to_shape();
 

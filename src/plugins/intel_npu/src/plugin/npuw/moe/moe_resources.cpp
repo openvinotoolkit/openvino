@@ -63,7 +63,7 @@ void MoEResources::initialize_expert_iterative_mode(
     ov::Shape buffer_shape = {active_experts, 1, num_tokens, embed_dim};
 
     // Infer element type from first compiled model output
-    auto first_model = config.compiled_models.begin()->second;
+    const auto& first_model = config.compiled_models.begin()->second;
     auto output_element_type = first_model->outputs()[0].get_element_type();
 
     expert_output_accumulator = allocator(output_element_type, buffer_shape, device);
