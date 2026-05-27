@@ -7,7 +7,8 @@ set(TARGET_NAME openvino_npu_vm_utils)
 file(GLOB_RECURSE SOURCES *.cpp)
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
-add_library(${TARGET_NAME} OBJECT ${SOURCES})
+add_library(${TARGET_NAME} STATIC ${SOURCES})
+add_library(openvino::npu_vm_utils ALIAS ${TARGET_NAME})
 
 set_target_properties(${TARGET_NAME} PROPERTIES
     INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO}
@@ -28,3 +29,5 @@ target_include_directories(${TARGET_NAME}
 if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME} PRIVATE OPENVINO_STATIC_LIBRARY)
 endif()
+
+ov_install_static_lib(${TARGET_NAME} ${NPU_INTERNAL_COMPONENT})
