@@ -319,6 +319,63 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
     _logger.debug("execute_vm_runtime - completed");
 }
 
+void DynamicPipeline::predict_output_shape(std::vector<IDynamicGraph::MemRefType>& inputDescriptors,
+                                           std::vector<IDynamicGraph::MemRefType>& outputDescriptors) {
+    _logger.debug("predict_output_shape - started");
+
+    auto* dynamicGraph = dynamic_cast<IDynamicGraph*>(_graph.get());
+    OPENVINO_ASSERT(dynamicGraph != nullptr, "predict_output_shape requires an IDynamicGraph");
+
+    const npu_vm_runtime_handle_t vmRuntime = dynamicGraph->get_vm_runtime_handle();
+    OPENVINO_ASSERT(vmRuntime != nullptr, "predict_output_shape requires a valid VM runtime engine");
+
+    std::vector<npu_vm_runtime_mem_ref_handle_t> inputs;
+    inputs.reserve(inputDescriptors.size());
+    for (auto& in : inputDescriptors) {
+        std::shared_ptr<DynamicGraphMemRefImpl> inImpl =
+            std::static_pointer_cast<DynamicGraphMemRefImpl>(in._impl);
+        if (inImpl == nullptr) {
+            inImpl = std::make_shared<DynamicGraphMemRefImpl>();
+            in._impl = inImpl;
+        }
+        inImpl->updateMemRefHandleStatus(in);
+        inputs.push_back(inImpl->_memRef);
+    }
+
+    std::vector<npu_vm_runtime_mem_ref_handle_t> outputs;
+    outputs.reserve(outputDescriptors.size());
+    for (auto& out : outputDescriptors) {
+        std::shared_ptr<DynamicGraphMemRefImpl> outImpl =
+            std::static_pointer_cast<DynamicGraphMemRefImpl>(out._impl);
+        if (outImpl == nullptr) {
+            outImpl = std::make_shared<DynamicGraphMemRefImpl>();
+            out._impl = outImpl;
+        }
+        outImpl->updateMemRefHandleStatus(out);
+        outputs.push_back(outImpl->_memRef);
+    }
+
+    npu_vm_runtime_predict_output_shape_params_t params{};
+    params.pInputs = inputs.data();
+    params.numOfInputs = static_cast<uint32_t>(inputs.size());
+    params.pOutputs = outputs.data();
+    params.numOfOutputs = static_cast<uint32_t>(outputs.size());
+
+    if (npuVMRuntimePredictOutputShape(vmRuntime, &params) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+        OPENVINO_THROW("Failed to predict output shapes via VM runtime engine");
+    }
+
+    for (auto& out : outputDescriptors) {
+        std::shared_ptr<DynamicGraphMemRefImpl> outImpl =
+            std::static_pointer_cast<DynamicGraphMemRefImpl>(out._impl);
+        OPENVINO_ASSERT(outImpl != nullptr,
+                        "MemRefType implementation is broken, unknown error happens in shape prediction.");
+        outImpl->alignWithHandle(out);
+    }
+
+    _logger.debug("predict_output_shape - completed");
+}
+
 void DynamicPipeline::pull() {
     _logger.debug("pull - started");
     OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PULL, itt::domains::LevelZeroBackend, "DynamicPipeline", "pull");
