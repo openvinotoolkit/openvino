@@ -371,9 +371,15 @@ private:
 };
 
 LONG NTAPI MmapVehRegistry::veh(PEXCEPTION_POINTERS ep) {
-    if (ep->ExceptionRecord->ExceptionCode != EXCEPTION_ACCESS_VIOLATION)
+    if (ep->ExceptionRecord->ExceptionCode != EXCEPTION_ACCESS_VIOLATION) {
         return EXCEPTION_CONTINUE_SEARCH;
-    // ExceptionInformation[0] = 0 (read) or 1 (write); [1] = faulting address.
+    }
+    // Only handle read faults (ExceptionInformation[0] == 0).
+    // Write/execute faults to read-only or no-access pages are not remappable and must propagate
+    // to avoid an infinite fault loop (remap as PAGE_READONLY, re-execute write, fault again).
+    if (ep->ExceptionRecord->ExceptionInformation[0] != 0) {
+        return EXCEPTION_CONTINUE_SEARCH;
+    }
     const auto fault_addr = static_cast<uintptr_t>(ep->ExceptionRecord->ExceptionInformation[1]);
     auto& reg = instance();
     std::shared_lock lock(reg.m_mtx);
@@ -403,8 +409,11 @@ MapHolder::~MapHolder() {
                 MEMORY_BASIC_INFORMATION mbi{};
                 if (!query_region(current, mbi))
                     break;
-                if (mbi.Type == MEM_MAPPED)
-                    api.m_unmap_view_of_file2(proc, mbi.BaseAddress, MEM_PRESERVE_PLACEHOLDER);
+                if (mbi.Type == MEM_MAPPED) {
+                    // Pass AllocationBase: UnmapViewOfFile2 requires the view's base address
+                    // as originally mapped; BaseAddress may be a sub-region mid-view.
+                    api.m_unmap_view_of_file2(proc, mbi.AllocationBase, MEM_PRESERVE_PLACEHOLDER);
+                }
                 void* alloc_base = mbi.AllocationBase;
                 if (allocations_to_free.empty() || allocations_to_free.back() != alloc_base)
                     allocations_to_free.push_back(alloc_base);
@@ -651,7 +660,7 @@ void MapHolder::setup(HANDLE file_handle, size_t offset, size_t size) {
 void MapHolder::set(const std::filesystem::path& path, size_t offset, size_t size) {
     auto fh = ::CreateFileW(path.c_str(),
                             GENERIC_READ,
-                            FILE_SHARE_READ,
+                            FILE_SHARE_READ | FILE_SHARE_DELETE,
                             nullptr,
                             OPEN_EXISTING,
                             FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS,
@@ -663,8 +672,9 @@ void MapHolder::set(const std::filesystem::path& path, size_t offset, size_t siz
 
     HandleHolder fh_holder{fh};
     setup(fh, offset, size);
-    // Keep the file handle alive to block DeleteFile while this MapHolder exists.
-    // The file was opened with FILE_SHARE_READ only, so DeleteFileW will fail with ERROR_SHARING_VIOLATION.
+    // Keep the file handle alive so the section object can always resolve page faults
+    // back to the original file data, even if the caller deletes or renames the file.
+    // FILE_SHARE_DELETE allows std::filesystem::remove() to succeed while the mapping is alive.
     m_file_handle = std::move(fh_holder);
 }
 
@@ -754,7 +764,10 @@ std::pair<char*, char*> MapHolder::compute_evict_range(size_t offset, size_t siz
     if (!m_view_base || m_total_va_size == 0 || !PlaceholderApis::instance().m_available)
         return {};
 
-    const auto effective_size = (size == auto_size) ? m_size - std::min(offset, m_size) : size;
+    // Clamp offset and size to [0, m_size) to prevent size_t overflow in subsequent arithmetic.
+    const size_t clamped_offset = std::min(offset, m_size);
+    const size_t available = m_size - clamped_offset;
+    const auto effective_size = (size == auto_size) ? available : std::min(size, available);
     if (effective_size == 0)
         return {};
 
@@ -762,11 +775,11 @@ std::pair<char*, char*> MapHolder::compute_evict_range(size_t offset, size_t siz
 
     // Convert user [offset, size) to a VA range relative to m_view_base.
     const size_t head_pad = static_cast<size_t>(static_cast<char*>(m_data) - m_view_base);
-    const size_t va_begin_raw = head_pad + offset;
+    const size_t va_begin_raw = head_pad + clamped_offset;
     if (va_begin_raw >= m_total_va_size)
         return {};
 
-    const size_t va_end = std::min(head_pad + offset + effective_size, m_total_va_size);
+    const size_t va_end = std::min(head_pad + clamped_offset + effective_size, m_total_va_size);
 
     // Outward gran-rounding: expand the eviction range to cover any partial granule.
     // Safe with VEH: a fault on any byte in the granule triggers a full-granule remap.
