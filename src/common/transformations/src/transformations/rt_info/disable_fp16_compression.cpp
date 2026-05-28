@@ -129,15 +129,11 @@ bool ov::DisablePrecisionConversion::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
+// Format: "from:to1,to2;from2:to3,to4;" - each entry terminated by ';'
 const std::string& ov::AttributeAdapter<ov::DisabledPrecisionMap>::get() {
     std::ostringstream oss;
-    if (!m_ref.empty()) {
-        auto it = m_ref.begin();
-        oss << it->first << ':' << ov::util::join<std::ostream>(it->second, ",");
-        for (++it; it != m_ref.end(); ++it) {
-            const auto& [from, to] = *it;
-            oss << ';' << from << ':' << ov::util::join<std::ostream>(to, ",");
-        }
+    for (const auto& [from, to] : m_ref) {
+        oss << from << ':' << ov::util::join<std::ostream>(to, ",") << ';';
     }
     m_serialized = oss.str();
     return m_serialized;
