@@ -151,7 +151,7 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
 void DynamicPipeline::push() {
     _logger.debug("push - started");
 
-    const npu_vm_runtime_handle_t vmRuntime = _graph->get_vm_runtime_handle();
+    _npu_vm_runtime_handle_t* const vmRuntime = _graph->get_vm_runtime_handle();
     OPENVINO_ASSERT(vmRuntime != nullptr, "DynamicPipeline requires a valid VM runtime engine");
 
     const auto command_queue_desc = _graph->get_command_queue_desc();
@@ -195,7 +195,7 @@ void DynamicPipeline::push() {
     _logger.debug("push - completed");
 }
 
-void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
+void DynamicPipeline::execute_vm_runtime(_npu_vm_runtime_handle_t* vmRuntime,
                                          GraphArguments& args,
                                          std::vector<ze_command_list_handle_t>& commandLists,
                                          ze_command_queue_handle_t commandQueue,
@@ -296,7 +296,7 @@ void DynamicPipeline::predict_output_shape(const IGraph& graph,
     Logger logger("DynamicPipeline::predict_output_shape", Logger::global().level());
     logger.debug("predict_output_shape - started");
 
-    const npu_vm_runtime_handle_t vmRuntime = graph.get_vm_runtime_handle();
+    _npu_vm_runtime_handle_t* const vmRuntime = graph.get_vm_runtime_handle();
     OPENVINO_ASSERT(vmRuntime != nullptr, "predict_output_shape requires a valid VM runtime engine");
 
     std::vector<npu_vm_runtime_mem_ref_handle_t> inputs;

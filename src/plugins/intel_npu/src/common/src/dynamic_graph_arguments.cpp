@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <sstream>
-
 #include "intel_npu/common/dynamic_graph_arguments.hpp"
+
+#include <sstream>
 
 namespace intel_npu {
 
