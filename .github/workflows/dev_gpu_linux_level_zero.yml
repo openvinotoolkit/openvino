@@ -66,7 +66,7 @@ jobs:
       - name: Set mock output images if pipeline should be skipped
         if: ${{ needs.smart_ci.outputs.skip_workflow == 'True' }}
         id: mock_image
-        run: echo "images={\"ov_test\":{\"ubuntu_24_04_x64\":\"mock\"},\"ov_build\":{\"ubuntu_24_04_x64\":\"mock\"}}" >> "$GITHUB_OUTPUT"
+        run: echo "images={\"ov_test\":{\"ubuntu_24_04_x64\":\"mock\",\"ubuntu_24_04_x64_dgpu\":\"mock\"},\"ov_build\":{\"ubuntu_24_04_x64\":\"mock\"}}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout
         if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
@@ -79,6 +79,7 @@ jobs:
         with:
           images: |
             ov_build/ubuntu_24_04_x64
+            ov_test/ubuntu_24_04_x64_dgpu
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
@@ -112,9 +113,8 @@ jobs:
 
   Arc_B50_dGPU:
     name: Arc B50 dGPU Tests Level Zero
-    needs: [ Build, Smart_CI ]
+    needs: [ Build, Docker, Smart_CI ]
     if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
-    # if: ${{ 'false' }} # Ticket: 182905
     timeout-minutes: 80
     strategy:
       max-parallel: 2
@@ -123,7 +123,7 @@ jobs:
       group: 'Intel-GPU'
       labels: [ 'self-hosted', 'dgpu', 'Arc-B50', 'Linux' ]
     container:
-      image: ubuntu:24.04
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_dgpu }}
       volumes:
         - /usr/local/share/ca-certificates:/usr/local/share/ca-certificates:ro
         - ${{ github.workspace }}:${{ github.workspace }}
@@ -135,7 +135,7 @@ jobs:
       DEBIAN_FRONTEND: noninteractive
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-      GTEST_PARALLEL_SCRIPT: ${{ github.workspace }}/gtest_parallel.py
+      GTEST_PARALLEL_SCRIPT: /usr/local/bin/gtest_parallel.py
       NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
     steps:
       - name: Download OpenVINO artifacts (package)
@@ -152,32 +152,9 @@ jobs:
 
       - name: Extract OpenVINO packages
         run: |
-            apt-get update && apt-get install -y pigz
             pigz -dc openvino_package.tar.gz | tar -xf - -v
             pigz -dc openvino_tests.tar.gz | tar -xf - -v
         working-directory: ${{ env.INSTALL_DIR }}
-
-      - name: Install dependencies (Linux)
-        run: |
-          $INSTALL_DIR/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -c=gpu -y
-          apt-get update && apt-get install -y wget software-properties-common ca-certificates gpg-agent tzdata clinfo
-        env:
-          DEBIAN_FRONTEND: noninteractive
-          TZ: "Europe/London"
-
-      - name: Get gtest-parallel script
-        run: wget https://raw.githubusercontent.com/google/gtest-parallel/master/gtest_parallel.py
-
-
-      - name: Install media & display runtimes
-        run: |
-          apt-get update
-          apt-get install -y software-properties-common ca-certificates wget pigz python3
-          add-apt-repository -y ppa:kobuk-team/intel-graphics
-          apt-get update
-          apt-get install -y libze-intel-gpu1 libze1 intel-metrics-discovery intel-opencl-icd clinfo intel-gsc \
-            intel-media-va-driver-non-free libmfx-gen1 libvpl2 libvpl-tools libva-glx2 va-driver-all vainfo \
-            libze-dev intel-ocloc libze-intel-gpu-raytracing
 
       - name: Verify devices
         run: clinfo
@@ -204,7 +181,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status_dev_gpu_linux_level_zero
-    needs: [ Smart_CI, Docker, Build ]
+    needs: [ Smart_CI, Docker, Build, Arc_B50_dGPU ]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
