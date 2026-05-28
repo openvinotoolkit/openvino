@@ -64,7 +64,7 @@ jobs:
       runner: 'aks-win-16-cores-32gb-build'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       build-type: 'Release'
-      build-variant: 'levelzero'
+      build-variant: 'vs2022_levelzero'
       target-branch: ${{ needs.smart_ci.outputs.target_branch }}
       build-additional-python-wheels: true
       cmake-options: >-
