@@ -153,24 +153,6 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     const auto concat_kv_len = get_dimensions(K.get_node_shared_ptr(), {2});
     const auto concat_kv_len_scalar = register_new_node<v0::Squeeze>(concat_kv_len);
 
-    // Broadcast KV if grouped query attention
-    const size_t kv_num_heads_factor = num_heads / kv_num_heads;
-    if (kv_num_heads_factor > 1) {
-        const auto kv_shape = register_new_node<v3::ShapeOf>(K);
-        const auto kv_shape_prev_2 = get_dimensions(kv_shape, {0, 1});
-        const auto kv_shape_last_2 = get_dimensions(kv_shape, {2, 3});
-        auto new_kv_shape = register_new_node<v0::Concat>(ov::NodeVector{kv_shape_prev_2, one, kv_shape_last_2}, 0);
-        K = register_new_node<v1::Reshape>(K, new_kv_shape, false);
-        V = register_new_node<v1::Reshape>(V, new_kv_shape, false);
-        K = register_new_node<v0::Concat>(ov::OutputVector(kv_num_heads_factor, K), 2);
-        V = register_new_node<v0::Concat>(ov::OutputVector(kv_num_heads_factor, V), 2);
-        const auto q_shape = register_new_node<v3::ShapeOf>(Q);
-        const auto q_shape_prev_2 = get_dimensions(q_shape, {0, 1});
-        auto extended_kv_shape = register_new_node<v0::Concat>(ov::NodeVector{q_shape_prev_2, kv_shape_last_2}, 0);
-        K = register_new_node<v1::Reshape>(K, extended_kv_shape, false);
-        V = register_new_node<v1::Reshape>(V, extended_kv_shape, false);
-    }
-
     // Make attention mask
     std::shared_ptr<ov::Node> mask;
     if (node->get_input_size() > 10 && !is_null(node->input_value(10))) {

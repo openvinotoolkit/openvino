@@ -43,9 +43,6 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
     if (key_rank.is_static()) {
         const bool& key_input_correctness =
             key_rank.get_length() >= 3 &&
-            TRShape::broadcast_merge_into(n_dims,
-                                          TRShape(std::vector<DimType>(key.begin(), key.end() - 2)),
-                                          AutoBroadcastType::NUMPY) &&
             DimType::merge(e_dim, e_dim, *(key.end() - 1));
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
@@ -59,9 +56,6 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
     if (value_rank.is_static()) {
         const bool& value_input_correctness =
             value_rank.get_length() >= 3 &&
-            TRShape::broadcast_merge_into(n_dims,
-                                          TRShape(std::vector<DimType>(value.begin(), value.end() - 2)),
-                                          AutoBroadcastType::NUMPY) &&
             DimType::merge(s_dim, s_dim, *(value.end() - 2));
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
