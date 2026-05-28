@@ -22,8 +22,6 @@
 #define ATTR_BUF [[type("buffer_t")]]
 #endif
 
-constexpr uint wg_size = WG_SIZE;
-
 #if KV_CACHE_COMPRESSION == 2
 constexpr uint MAX_SEQS = 256;
 #endif

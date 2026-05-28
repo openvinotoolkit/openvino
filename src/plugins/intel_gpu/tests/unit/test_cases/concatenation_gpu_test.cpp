@@ -1599,7 +1599,7 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(concat_implicit_gpu_4d_i8);
 TEST(concat_gpu_onednn, basic_input_types) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
-        return;
+        GTEST_SKIP() << "Skipping oneDNN concat test: device does not support IMMAD";
 
     auto input0 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 4, 3 } });
     auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 4, 3 } });
@@ -1670,7 +1670,7 @@ TEST(concat_gpu_onednn, basic_input_types) {
 TEST(concat_gpu_onednn, impl_selection_unaligned_feature_axis) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
-        return;
+        GTEST_SKIP() << "Skipping oneDNN concat test: device does not support IMMAD";
 
     layout in_layout = { data_types::f16, format::b_fs_yx_fsv16, { 1, 18, 2, 2 } };
     auto input0 = engine.allocate_memory(in_layout);
@@ -1702,10 +1702,78 @@ TEST(concat_gpu_onednn, impl_selection_unaligned_feature_axis) {
     ASSERT_NO_THROW(network.execute());
 }
 
+TEST(concat_gpu_onednn, impl_selection_partial_feature_block_falls_back_to_ocl) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "Skipping oneDNN concat test: device does not support IMMAD";
+
+    const int32_t batch = 1;
+    const int32_t feature = 8;
+    const int32_t spatial_y = 16;
+    const int32_t spatial_x = 16;
+    const int32_t feature_block = 16;
+    layout in_layout = { data_types::f16, format::b_fs_yx_fsv16, { batch, feature, spatial_x, spatial_y } };
+    layout out_layout = { data_types::f16, format::bfyx, { batch, feature * 2, spatial_x, spatial_y } };
+
+    auto fill_input = [&](int32_t base_value) {
+        auto values = std::vector<ov::float16>(in_layout.get_linear_size(), ov::float16(std::numeric_limits<float>::quiet_NaN()));
+        for (int32_t b = 0; b < batch; ++b) {
+            for (int32_t f = 0; f < feature; ++f) {
+                for (int32_t y = 0; y < spatial_y; ++y) {
+                    for (int32_t x = 0; x < spatial_x; ++x) {
+                        auto coords = tensor(cldnn::batch(b), cldnn::feature(f), spatial(x, y, 0, 0));
+                        auto offset = in_layout.get_linear_offset(coords);
+                        values[offset] = ov::float16(base_value + f);
+                    }
+                }
+            }
+        }
+        return values;
+    };
+
+    auto input0 = engine.allocate_memory(in_layout);
+    auto input1 = engine.allocate_memory(in_layout);
+    set_values(input0, fill_input(0));
+    set_values(input1, fill_input(feature_block));
+
+    topology topology(
+            input_layout("input0", in_layout),
+            input_layout("input1", in_layout),
+            concatenation("concat",
+                          { input_info("input0"), input_info("input1") },
+                          1,
+                          data_types::f16),
+            reorder("reorder_out", input_info("concat"), out_layout)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input0", input0);
+    network.set_input_data("input1", input1);
+
+    auto concat_inst = network.get_primitive("concat");
+    auto impl = concat_inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->m_manager != nullptr);
+    EXPECT_EQ(impl->m_manager->get_impl_type(), impl_types::ocl);
+    EXPECT_FALSE(impl->is_onednn());
+
+    auto outputs = network.execute();
+    auto output_memory = outputs.at("reorder_out").get_memory();
+    cldnn::mem_lock<ov::float16> output_ptr(output_memory, get_test_stream());
+
+    for (size_t i = 0; i < output_memory->get_layout().count(); ++i) {
+        ASSERT_FALSE(std::isnan(static_cast<float>(output_ptr[i])))
+            << "NaN detected at index " << i;
+    }
+}
+
 TEST(concat_gpu_onednn, dynamic_non_block_aligned_feature) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
-        return;
+        GTEST_SKIP() << "Skipping oneDNN concat test: device does not support IMMAD";
 
     tests::random_generator rg(GET_SUITE_NAME);
 
@@ -1778,7 +1846,7 @@ TEST(concat_gpu_onednn, dynamic_non_block_aligned_feature) {
 TEST(concat_gpu_onednn, b_fs_yx_fsv16_input_types) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
-        return;
+        GTEST_SKIP() << "Skipping oneDNN concat test: device does not support IMMAD";
 
     tests::random_generator rg(GET_SUITE_NAME);
     const int32_t input_b = 1, input_f = 88, input_y = 52, input_x = 52;
@@ -1995,10 +2063,6 @@ public:
     void test() {
         auto& engine = get_test_engine();
         auto& stream = get_test_stream();
-        if (!engine.get_device_info().supports_immad) {
-            // This case is only for device that uses onednn.
-            return;
-        }
         auto input = generate_input();
         format::type fmt = testing::get<4>(GetParam());
 
@@ -2033,6 +2097,9 @@ using concat_implicit_gpu_onednn_4d_f16 = concat_gpu_4d_implicit_onednn<ov::floa
 using concat_implicit_gpu_onednn_4d_i8 = concat_gpu_4d_implicit_onednn<int8_t>;
 
 TEST_P(concat_implicit_gpu_onednn_4d_f16, default) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "Skipping oneDNN concat test: device does not support IMMAD";
     ASSERT_NO_FATAL_FAILURE(test());
 }
 
@@ -2058,6 +2125,9 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                         concat_gpu_implicit::PrintToStringParamName);
 
 TEST_P(concat_implicit_gpu_onednn_4d_i8, default) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "Skipping oneDNN concat test: device does not support IMMAD";
     ASSERT_NO_FATAL_FAILURE(test());
 }
 
@@ -2186,10 +2256,6 @@ public:
     void test() {
         auto& engine = get_test_engine();
         auto& stream = get_test_stream();
-        if (!engine.get_device_info().supports_immad) {
-            // This case is only for device that uses onednn.
-            return;
-        }
         auto input = generate_input();
         format::type fmt = testing::get<4>(GetParam());
 
@@ -2228,6 +2294,9 @@ using concat_no_implicit_gpu_onednn_4d_f16 = concat_gpu_4d_explicit<ov::float16>
 using concat_no_implicit_gpu_onednn_4d_f16_spatial = concat_gpu_4d_explicit<ov::float16>;
 
 TEST_P(concat_no_implicit_gpu_onednn_4d_f16, default) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "Skipping oneDNN concat test: device does not support IMMAD";
     ASSERT_NO_FATAL_FAILURE(test());
 }
 
@@ -2240,11 +2309,17 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                         concat_gpu_implicit::PrintToStringParamName);
 
 TEST_P(concat_no_implicit_gpu_onednn_4d_f16_spatial, default) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "Skipping oneDNN concat test: device does not support IMMAD";
     set_concat_axis(2);
     ASSERT_NO_FATAL_FAILURE(test());
 }
 
 TEST_P(concat_no_implicit_gpu_onednn_4d_f16_spatial, other_spatial) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "Skipping oneDNN concat test: device does not support IMMAD";
     set_concat_axis(3);
     ASSERT_NO_FATAL_FAILURE(test());
 }
