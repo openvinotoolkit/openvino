@@ -1,6 +1,8 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+// Copyright (C) 2026 FUJITSU LIMITED
+//
 
 #include "sycl_command_queues_builder.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"

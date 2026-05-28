@@ -1,6 +1,8 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+// Copyright (C) 2026 FUJITSU LIMITED
+//
 
 ///
 /// \file This file wraps sycl/sycl.hpp and disables temporary some warnings that this header can emit.
