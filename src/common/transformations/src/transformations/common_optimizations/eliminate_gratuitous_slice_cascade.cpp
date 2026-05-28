@@ -5,7 +5,9 @@
 #include "transformations/common_optimizations/eliminate_gratuitous_slice_cascade.hpp"
 
 #include <algorithm>
+#include <functional>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "itt.hpp"
@@ -81,6 +83,41 @@ bool is_less_with_all_nonneg_size(const std::shared_ptr<ov::Node>& node) {
     });
 }
 
+// Accept the two forms of the Select's condition input that the matcher can fold:
+//   - a pre-folded boolean Constant (TransposeSinking's inner CF already collapsed `Less(size, 0)`)
+//   - a live `Less(size_const, zero_const)` with non-negative size
+// Both must evaluate to all-false so the Select picks the else branch.
+bool is_acceptable_cascade_condition(const std::shared_ptr<ov::Node>& cond) {
+    return is_all_false_bool_constant(cond) || is_less_with_all_nonneg_size(cond);
+}
+
+// The Select's else branch in the gratuitous cascade is either:
+//   - a pre-folded v0::Constant (Add(start_const, size_const) already collapsed), or
+//   - a live `v1::Add(v0::Constant, v0::Constant)` (translator output before CF).
+// Returned shape carries exactly one of these forms.
+struct ElseBranch {
+    std::shared_ptr<v0::Constant> folded;   // set iff already a single Constant
+    std::shared_ptr<v1::Add> add;           // set iff Add(C, C)
+    std::shared_ptr<v0::Constant> start_n;  // set iff Add(C, C)
+    std::shared_ptr<v0::Constant> size_n;   // set iff Add(C, C)
+};
+
+std::optional<ElseBranch> try_extract_else_branch(const std::shared_ptr<ov::Node>& node) {
+    if (auto folded = ov::as_type_ptr<v0::Constant>(node)) {
+        return ElseBranch{folded, nullptr, nullptr, nullptr};
+    }
+    auto add = ov::as_type_ptr<v1::Add>(node);
+    if (!add) {
+        return std::nullopt;
+    }
+    auto start_n = ov::as_type_ptr<v0::Constant>(add->input_value(0).get_node_shared_ptr());
+    auto size_n = ov::as_type_ptr<v0::Constant>(add->input_value(1).get_node_shared_ptr());
+    if (!start_n || !size_n) {
+        return std::nullopt;
+    }
+    return ElseBranch{nullptr, add, start_n, size_n};
+}
+
 }  // namespace
 
 ov::pass::EliminateGratuitousSliceCascade::EliminateGratuitousSliceCascade() {
@@ -93,63 +130,50 @@ ov::pass::EliminateGratuitousSliceCascade::EliminateGratuitousSliceCascade() {
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-
-        auto select_value = pattern_map.at(select_pat);
-        auto select_node = ov::as_type_ptr<v1::Select>(select_value.get_node_shared_ptr());
+        auto select_node = ov::as_type_ptr<v1::Select>(pattern_map.at(select_pat).get_node_shared_ptr());
         if (!select_node) {
             return false;
         }
 
-        // The condition is either:
-        //   - a pre-folded boolean Constant (TransposeSinking's inner CF already collapsed
-        //     `Less(size, 0)`), or
-        //   - a live `Less(size_const, zero_const)` with statically-known non-negative size.
-        // Either way, it must evaluate to all-false so the Select picks the else branch.
-        const auto cond_raw = select_node->input_value(0).get_node_shared_ptr();
-        if (!is_all_false_bool_constant(cond_raw) && !is_less_with_all_nonneg_size(cond_raw)) {
+        if (!is_acceptable_cascade_condition(select_node->input_value(0).get_node_shared_ptr())) {
             return false;
         }
 
-        // The else-branch is either a pre-folded Constant (Add of two Constants already
-        // collapsed) or a live `Add(start_const, size_const)`.
-        // In both cases, replace the Select with a single Constant carrying the literal
-        // `start + size` values. Emitting a Constant — not just `Add(C, C)` — makes the
-        // downstream Slice statically inferable even in pipelines that do not run a
-        // ConstantFolding pass after this matcher (notably NPUW's pre-partition stage).
-        const auto else_raw = select_node->input_value(2).get_node_shared_ptr();
-
-        if (auto folded = ov::as_type_ptr<v0::Constant>(else_raw)) {
-            return ov::replace_output_update_name(select_node->output(0), folded->output(0));
-        }
-
-        auto add_node = ov::as_type_ptr<v1::Add>(else_raw);
-        if (!add_node) {
-            return false;
-        }
-        auto start_n = ov::as_type_ptr<v0::Constant>(add_node->input_value(0).get_node_shared_ptr());
-        auto size_n = ov::as_type_ptr<v0::Constant>(add_node->input_value(1).get_node_shared_ptr());
-        if (!start_n || !size_n) {
+        auto else_opt = try_extract_else_branch(select_node->input_value(2).get_node_shared_ptr());
+        if (!else_opt) {
             return false;
         }
 
-        const auto start_vals = start_n->cast_vector<int64_t>();
-        const auto size_vals = size_n->cast_vector<int64_t>();
+        // Pre-folded Constant — replace Select directly.
+        if (else_opt->folded) {
+            return ov::replace_output_update_name(select_node->output(0), else_opt->folded->output(0));
+        }
+
+        // Live Add(C, C) — synthesise a single Constant carrying start + size.
+        // Emitting a Constant (not just `Add(C, C)`) makes the downstream Slice statically
+        // inferable even in pipelines that do not run a follow-up ConstantFolding pass
+        // (notably NPUW's pre-partition stage).
+        const auto start_vals = else_opt->start_n->cast_vector<int64_t>();
+        const auto size_vals = else_opt->size_n->cast_vector<int64_t>();
         if (start_vals.empty() || start_vals.size() != size_vals.size()) {
             return false;
         }
-        std::vector<int64_t> stop_vals(start_vals.size());
-        for (size_t i = 0; i < start_vals.size(); ++i) {
-            stop_vals[i] = start_vals[i] + size_vals[i];
-        }
-
-        const auto add_out_pshape = add_node->get_output_partial_shape(0);
+        const auto add_out_pshape = else_opt->add->get_output_partial_shape(0);
         if (add_out_pshape.is_dynamic()) {
             return false;
         }
-        const auto add_et = add_node->get_element_type();
-        auto new_constant = std::make_shared<v0::Constant>(add_et, add_out_pshape.get_shape(), stop_vals);
-        ov::copy_runtime_info({select_node, add_node, start_n, size_n}, new_constant);
 
+        std::vector<int64_t> stop_vals(start_vals.size());
+        std::transform(start_vals.begin(),
+                       start_vals.end(),
+                       size_vals.begin(),
+                       stop_vals.begin(),
+                       std::plus<int64_t>());
+
+        auto new_constant = std::make_shared<v0::Constant>(else_opt->add->get_element_type(),
+                                                           add_out_pshape.get_shape(),
+                                                           stop_vals);
+        ov::copy_runtime_info({select_node, else_opt->add, else_opt->start_n, else_opt->size_n}, new_constant);
         return ov::replace_output_update_name(select_node->output(0), new_constant->output(0));
     };
 

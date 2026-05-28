@@ -7,12 +7,12 @@
 #include <gtest/gtest.h>
 
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/less.hpp"
@@ -26,40 +26,70 @@ using namespace ov;
 
 namespace {
 
-// Builds the exact subgraph that translate_slice_op emits, but with the Less and Add
-// already constant-folded (as TransposeSinking's inner CF does in the read_model path).
-// The Select is fed by:
-//   - cond:  Constant<bool>(`cond_values`)
-//   - then:  ConvertLike(ShapeOf(Parameter<input_shape>), size_constant)
-//   - else:  Add(start_constant, size_constant)   (kept as Add — matcher must compute start+size)
-// The Select feeds Slice's stop input.
-std::shared_ptr<Model> build_slice_cascade_model(const PartialShape& input_shape,
-                                                 const std::vector<int32_t>& start_vals,
-                                                 const std::vector<int32_t>& size_vals,
-                                                 const std::vector<bool>& cond_vals,
-                                                 bool add_inputs_constant = true) {
-    const auto rank = start_vals.size();
-    auto data = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
+// Parameterized case for the gratuitous-Slice-cascade matcher.
+//
+// All six cases share the same topology:
+//     Slice(data, start_const, Select(cond, ConvertLike(ShapeOf(data), size), Add(start, size)), step)
+// They differ along four axes:
+//   - cond_form        : the Select's condition is either a pre-folded boolean Constant
+//                        (TransposeSinking's inner CF already collapsed `Less(size, 0)`)
+//                        or a live `Less(size_const, zero_scalar)`.
+//   - bool_cond_vals   : values for the pre-folded boolean Constant (used iff cond_form == BoolConstant).
+//   - less_rhs_val     : rhs of the live `Less` (used iff cond_form == LiveLess). The lhs is the
+//                        same `size` Constant used by the Add — matching the translator output.
+//   - size_is_parameter: when true, `size` is a Parameter (forces the matcher off — no folded
+//                        start+size Constant is synthesisable).
+// `expect_fold` controls the assertion: the matcher must fire (Select count → 0; Slice's stop is
+// now a Constant carrying `expected_stop_vals`; Slice output is static) or not fire (Select count
+// stays 1).
+struct CascadeCase {
+    enum class CondForm { BoolConstant, LiveLess };
 
-    auto start_const = op::v0::Constant::create(element::i32, Shape{rank}, start_vals);
+    std::string name;
+    PartialShape input_shape;
+
+    CondForm cond_form;
+    std::vector<bool> bool_cond_vals;  // iff CondForm::BoolConstant
+    int32_t less_rhs_val;              // iff CondForm::LiveLess
+
+    std::vector<int32_t> start_vals;
+    std::vector<int32_t> size_vals;
+    bool size_is_parameter;
+
+    bool expect_fold;
+    std::vector<int64_t> expected_stop_vals;
+};
+
+std::shared_ptr<Model> build_cascade_model(const CascadeCase& c) {
+    const auto rank = c.start_vals.size();
+    auto data = std::make_shared<op::v0::Parameter>(element::f32, c.input_shape);
+    auto start_const = op::v0::Constant::create(element::i32, Shape{rank}, c.start_vals);
+
     std::shared_ptr<Node> size_input;
-    if (add_inputs_constant) {
-        size_input = op::v0::Constant::create(element::i32, Shape{rank}, size_vals);
-    } else {
+    if (c.size_is_parameter) {
         size_input = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{static_cast<int64_t>(rank)});
+    } else {
+        size_input = op::v0::Constant::create(element::i32, Shape{rank}, c.size_vals);
     }
-    auto cond_const = op::v0::Constant::create(element::boolean, Shape{rank}, cond_vals);
+
+    std::shared_ptr<Node> cond_node;
+    if (c.cond_form == CascadeCase::CondForm::BoolConstant) {
+        cond_node = op::v0::Constant::create(element::boolean, Shape{rank}, c.bool_cond_vals);
+    } else {
+        // The live `Less` mirrors translator output: lhs is the same size Constant used by Add.
+        auto less_rhs = op::v0::Constant::create(element::i32, Shape{}, std::vector<int32_t>{c.less_rhs_val});
+        cond_node = std::make_shared<op::v1::Less>(size_input, less_rhs);
+    }
 
     auto shape_of = std::make_shared<op::v3::ShapeOf>(data);
-    auto then_branch = std::make_shared<op::v1::ConvertLike>(shape_of, size_input);
-    auto else_branch = std::make_shared<op::v1::Add>(start_const, size_input);
-
-    auto stop = std::make_shared<op::v1::Select>(cond_const, then_branch, else_branch);
-    auto const_one = op::v0::Constant::create(element::i32, Shape{rank}, std::vector<int32_t>(rank, 1));
-    auto slice = std::make_shared<op::v8::Slice>(data, start_const, stop, const_one);
+    auto cvtlike = std::make_shared<op::v1::ConvertLike>(shape_of, size_input);
+    auto add = std::make_shared<op::v1::Add>(start_const, size_input);
+    auto select = std::make_shared<op::v1::Select>(cond_node, cvtlike, add);
+    auto step = op::v0::Constant::create(element::i32, Shape{rank}, std::vector<int32_t>(rank, 1));
+    auto slice = std::make_shared<op::v8::Slice>(data, start_const, select, step);
 
     ParameterVector params{data};
-    if (!add_inputs_constant) {
+    if (c.size_is_parameter) {
         params.push_back(ov::as_type_ptr<op::v0::Parameter>(size_input));
     }
     return std::make_shared<Model>(OutputVector{slice}, params);
@@ -67,18 +97,20 @@ std::shared_ptr<Model> build_slice_cascade_model(const PartialShape& input_shape
 
 }  // namespace
 
-// Positive case: condition is all-false, Add inputs are both Constants, size is non-negative.
-// Matcher must fire: Select is removed; Slice's stop input is fed by a Constant; Slice
-// output shape resolves to static.
-TEST(EliminateGratuitousSliceCascade, all_nonneg_size_folds_cascade_into_constant) {
-    auto model = build_slice_cascade_model(/*input_shape=*/PartialShape{1, 128, 8, 256},
-                                           /*start=*/{0, 0, 0, 0},
-                                           /*size=*/{1, 128, 4, 128},
-                                           /*cond=*/{false, false, false, false});
+class EliminateGratuitousSliceCascadeP : public testing::WithParamInterface<CascadeCase>, public testing::Test {};
+
+TEST_P(EliminateGratuitousSliceCascadeP, MatcherBehavesAsPredicted) {
+    const auto& param = GetParam();
+    auto model = build_cascade_model(param);
 
     pass::Manager manager;
     manager.register_pass<pass::EliminateGratuitousSliceCascade>();
     manager.run_passes(model);
+
+    if (!param.expect_fold) {
+        EXPECT_EQ(count_ops_of_type<op::v1::Select>(model), 1);
+        return;
+    }
 
     EXPECT_EQ(count_ops_of_type<op::v1::Select>(model), 0);
 
@@ -87,124 +119,96 @@ TEST(EliminateGratuitousSliceCascade, all_nonneg_size_folds_cascade_into_constan
     const auto slice = ov::as_type_ptr<op::v8::Slice>(results[0]->get_input_node_shared_ptr(0));
     ASSERT_NE(slice, nullptr);
 
-    // Slice's stop input must now be a Constant produced by the matcher.
-    auto stop_producer = slice->get_input_node_shared_ptr(2);
-    auto stop_const = ov::as_type_ptr<op::v0::Constant>(stop_producer);
-    ASSERT_NE(stop_const, nullptr);
-    EXPECT_EQ(stop_const->cast_vector<int64_t>(), (std::vector<int64_t>{1, 128, 4, 128}));
-
-    // Slice output shape must be static after the pass + validate.
-    EXPECT_TRUE(slice->get_output_partial_shape(0).is_static());
-    EXPECT_EQ(slice->get_output_partial_shape(0).get_shape(), Shape({1, 128, 4, 128}));
-}
-
-// Same as above but condition is a live Less(size_const, zero_const) — the form emitted
-// straight by the translator, before any ConstantFolding has run. Matcher must still fire.
-TEST(EliminateGratuitousSliceCascade, live_less_condition_folds_cascade) {
-    auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 128, 8, 256});
-    auto start_const = op::v0::Constant::create(element::i32, Shape{4}, std::vector<int32_t>{0, 0, 0, 0});
-    auto size_const = op::v0::Constant::create(element::i32, Shape{4}, std::vector<int32_t>{1, 128, 4, 128});
-    auto zero_scalar = op::v0::Constant::create(element::i32, Shape{}, std::vector<int32_t>{0});
-    auto less = std::make_shared<op::v1::Less>(size_const, zero_scalar);
-    auto shape_of = std::make_shared<op::v3::ShapeOf>(data);
-    auto cvtlike = std::make_shared<op::v1::ConvertLike>(shape_of, size_const);
-    auto add = std::make_shared<op::v1::Add>(start_const, size_const);
-    auto select = std::make_shared<op::v1::Select>(less, cvtlike, add);
-    auto step = op::v0::Constant::create(element::i32, Shape{4}, std::vector<int32_t>{1, 1, 1, 1});
-    auto slice = std::make_shared<op::v8::Slice>(data, start_const, select, step);
-    auto model = std::make_shared<Model>(OutputVector{slice}, ParameterVector{data});
-
-    pass::Manager manager;
-    manager.register_pass<pass::EliminateGratuitousSliceCascade>();
-    manager.run_passes(model);
-
-    EXPECT_EQ(count_ops_of_type<op::v1::Select>(model), 0);
     auto stop_const = ov::as_type_ptr<op::v0::Constant>(slice->get_input_node_shared_ptr(2));
     ASSERT_NE(stop_const, nullptr);
-    EXPECT_EQ(stop_const->cast_vector<int64_t>(), (std::vector<int64_t>{1, 128, 4, 128}));
-    EXPECT_TRUE(slice->get_output_partial_shape(0).is_static());
-    EXPECT_EQ(slice->get_output_partial_shape(0).get_shape(), Shape({1, 128, 4, 128}));
+    EXPECT_EQ(stop_const->cast_vector<int64_t>(), param.expected_stop_vals);
+
+    ASSERT_TRUE(slice->get_output_partial_shape(0).is_static());
+    Shape expected_out;
+    for (size_t i = 0; i < param.expected_stop_vals.size(); ++i) {
+        expected_out.push_back(static_cast<size_t>(param.expected_stop_vals[i] - param.start_vals[i]));
+    }
+    EXPECT_EQ(slice->get_output_partial_shape(0).get_shape(), expected_out);
 }
 
-// Negative case: a Less with a non-negative-size lhs but a non-zero rhs would not produce
-// an all-false mask — matcher must not fire.
-TEST(EliminateGratuitousSliceCascade, less_with_nonzero_rhs_keeps_cascade) {
-    auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 128, 8, 256});
-    auto start_const = op::v0::Constant::create(element::i32, Shape{4}, std::vector<int32_t>{0, 0, 0, 0});
-    auto size_const = op::v0::Constant::create(element::i32, Shape{4}, std::vector<int32_t>{1, 128, 4, 128});
-    auto wrong_rhs = op::v0::Constant::create(element::i32, Shape{}, std::vector<int32_t>{2});
-    auto less = std::make_shared<op::v1::Less>(size_const, wrong_rhs);
-    auto shape_of = std::make_shared<op::v3::ShapeOf>(data);
-    auto cvtlike = std::make_shared<op::v1::ConvertLike>(shape_of, size_const);
-    auto add = std::make_shared<op::v1::Add>(start_const, size_const);
-    auto select = std::make_shared<op::v1::Select>(less, cvtlike, add);
-    auto step = op::v0::Constant::create(element::i32, Shape{4}, std::vector<int32_t>{1, 1, 1, 1});
-    auto slice = std::make_shared<op::v8::Slice>(data, start_const, select, step);
-    auto model = std::make_shared<Model>(OutputVector{slice}, ParameterVector{data});
+INSTANTIATE_TEST_SUITE_P(
+    EliminateGratuitousSliceCascade,
+    EliminateGratuitousSliceCascadeP,
+    ::testing::ValuesIn(std::vector<CascadeCase>{
+        // Positive: condition is all-false bool Constant, Add inputs are both Constants → fold.
+        {"all_nonneg_size_folds_cascade_into_constant",
+         PartialShape{1, 128, 8, 256},
+         CascadeCase::CondForm::BoolConstant,
+         /*bool_cond_vals=*/{false, false, false, false},
+         /*less_rhs_val=*/0,
+         /*start_vals=*/{0, 0, 0, 0},
+         /*size_vals=*/{1, 128, 4, 128},
+         /*size_is_parameter=*/false,
+         /*expect_fold=*/true,
+         /*expected_stop_vals=*/{1, 128, 4, 128}},
+        // Positive: condition is a live `Less(size_const, 0)` with non-negative size → fold.
+        {"live_less_condition_folds_cascade",
+         PartialShape{1, 128, 8, 256},
+         CascadeCase::CondForm::LiveLess,
+         /*bool_cond_vals=*/{},
+         /*less_rhs_val=*/0,
+         /*start_vals=*/{0, 0, 0, 0},
+         /*size_vals=*/{1, 128, 4, 128},
+         /*size_is_parameter=*/false,
+         /*expect_fold=*/true,
+         /*expected_stop_vals=*/{1, 128, 4, 128}},
+        // Negative: live `Less` rhs is non-zero → not the original `Less(size, 0)` mask → keep.
+        {"less_with_nonzero_rhs_keeps_cascade",
+         PartialShape{1, 128, 8, 256},
+         CascadeCase::CondForm::LiveLess,
+         /*bool_cond_vals=*/{},
+         /*less_rhs_val=*/2,
+         /*start_vals=*/{0, 0, 0, 0},
+         /*size_vals=*/{1, 128, 4, 128},
+         /*size_is_parameter=*/false,
+         /*expect_fold=*/false,
+         /*expected_stop_vals=*/{}},
+        // Negative: live `Less` lhs has a negative value (legitimate `size=-1` cascade) → keep.
+        {"less_with_neg_size_keeps_cascade",
+         PartialShape{1, 128, 8, 256},
+         CascadeCase::CondForm::LiveLess,
+         /*bool_cond_vals=*/{},
+         /*less_rhs_val=*/0,
+         /*start_vals=*/{0, 0, 0, 0},
+         /*size_vals=*/{1, 128, 4, -1},
+         /*size_is_parameter=*/false,
+         /*expect_fold=*/false,
+         /*expected_stop_vals=*/{}},
+        // Negative: pre-folded condition is mixed → not all-false → keep.
+        {"mixed_condition_keeps_cascade",
+         PartialShape{1, 128, 8, 256},
+         CascadeCase::CondForm::BoolConstant,
+         /*bool_cond_vals=*/{false, false, false, true},
+         /*less_rhs_val=*/0,
+         /*start_vals=*/{0, 0, 0, 0},
+         /*size_vals=*/{1, 128, 4, 128},
+         /*size_is_parameter=*/false,
+         /*expect_fold=*/false,
+         /*expected_stop_vals=*/{}},
+        // Negative: Add's size operand is a Parameter, not a Constant → cannot synthesise stop → keep.
+        {"non_constant_add_input_keeps_cascade",
+         PartialShape{1, 128, 8, 256},
+         CascadeCase::CondForm::BoolConstant,
+         /*bool_cond_vals=*/{false, false, false, false},
+         /*less_rhs_val=*/0,
+         /*start_vals=*/{0, 0, 0, 0},
+         /*size_vals=*/{1, 128, 4, 128},
+         /*size_is_parameter=*/true,
+         /*expect_fold=*/false,
+         /*expected_stop_vals=*/{}},
+    }),
+    [](const testing::TestParamInfo<CascadeCase>& info) {
+        return info.param.name;
+    });
 
-    pass::Manager manager;
-    manager.register_pass<pass::EliminateGratuitousSliceCascade>();
-    manager.run_passes(model);
-
-    EXPECT_EQ(count_ops_of_type<op::v1::Select>(model), 1);
-}
-
-// Negative case: a Less whose lhs has a negative value (the legitimate `size=-1`
-// cascade path) must not be folded — matcher must not fire.
-TEST(EliminateGratuitousSliceCascade, less_with_neg_size_keeps_cascade) {
-    auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 128, 8, 256});
-    auto start_const = op::v0::Constant::create(element::i32, Shape{4}, std::vector<int32_t>{0, 0, 0, 0});
-    auto size_const = op::v0::Constant::create(element::i32, Shape{4}, std::vector<int32_t>{1, 128, 4, -1});
-    auto zero_scalar = op::v0::Constant::create(element::i32, Shape{}, std::vector<int32_t>{0});
-    auto less = std::make_shared<op::v1::Less>(size_const, zero_scalar);
-    auto shape_of = std::make_shared<op::v3::ShapeOf>(data);
-    auto cvtlike = std::make_shared<op::v1::ConvertLike>(shape_of, size_const);
-    auto add = std::make_shared<op::v1::Add>(start_const, size_const);
-    auto select = std::make_shared<op::v1::Select>(less, cvtlike, add);
-    auto step = op::v0::Constant::create(element::i32, Shape{4}, std::vector<int32_t>{1, 1, 1, 1});
-    auto slice = std::make_shared<op::v8::Slice>(data, start_const, select, step);
-    auto model = std::make_shared<Model>(OutputVector{slice}, ParameterVector{data});
-
-    pass::Manager manager;
-    manager.register_pass<pass::EliminateGratuitousSliceCascade>();
-    manager.run_passes(model);
-
-    EXPECT_EQ(count_ops_of_type<op::v1::Select>(model), 1);
-}
-
-// Negative case A: condition is mixed (some true, some false). The original Less mask
-// would not be all-false, so the rewrite is algebraically invalid — matcher must NOT fire.
-TEST(EliminateGratuitousSliceCascade, mixed_condition_keeps_cascade) {
-    auto model = build_slice_cascade_model(/*input_shape=*/PartialShape{1, 128, 8, 256},
-                                           /*start=*/{0, 0, 0, 0},
-                                           /*size=*/{1, 128, 4, 128},
-                                           /*cond=*/{false, false, false, true});
-
-    pass::Manager manager;
-    manager.register_pass<pass::EliminateGratuitousSliceCascade>();
-    manager.run_passes(model);
-
-    EXPECT_EQ(count_ops_of_type<op::v1::Select>(model), 1);
-}
-
-// Negative case B: Add's inputs are not both Constants (size is a Parameter here). The
-// matcher cannot synthesise a literal stop Constant, so it must NOT fire — Select stays.
-TEST(EliminateGratuitousSliceCascade, non_constant_add_input_keeps_cascade) {
-    auto model = build_slice_cascade_model(/*input_shape=*/PartialShape{1, 128, 8, 256},
-                                           /*start=*/{0, 0, 0, 0},
-                                           /*size=*/{1, 128, 4, 128},
-                                           /*cond=*/{false, false, false, false},
-                                           /*add_inputs_constant=*/false);
-
-    pass::Manager manager;
-    manager.register_pass<pass::EliminateGratuitousSliceCascade>();
-    manager.run_passes(model);
-
-    EXPECT_EQ(count_ops_of_type<op::v1::Select>(model), 1);
-}
-
-// Negative case C: A generic Select whose then-branch isn't ConvertLike(ShapeOf(...)) — the
-// matcher's pattern is intentionally narrow and must not touch unrelated Select nodes.
+// A generic Select whose then-branch isn't ConvertLike(ShapeOf(...)) — the matcher's pattern is
+// intentionally narrow and must not touch unrelated Select nodes. Kept as a standalone test
+// because the topology is fundamentally different from the cascade cases above.
 TEST(EliminateGratuitousSliceCascade, unrelated_select_pattern_is_preserved) {
     auto x = std::make_shared<op::v0::Parameter>(element::i32, Shape{4});
     auto y = std::make_shared<op::v0::Parameter>(element::i32, Shape{4});
