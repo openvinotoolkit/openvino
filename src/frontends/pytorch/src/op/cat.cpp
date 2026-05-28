@@ -29,7 +29,8 @@ using namespace ov::op;
 OutputVector translate_cat_common(const NodeContext& context,
                                   const std::deque<ov::Output<ov::Node>>& list_elems,
                                   int64_t axis,
-                                  bool is_fx) {
+                                  bool is_fx,
+                                  bool drop_empty = true) {
     if (list_elems.empty()) {
         // couldn't get list elements - create ConcatFromSequence for SequenceConcatReplacer to handle
         auto concat_from_seq = std::make_shared<ov::frontend::ConcatFromSequence>(context.get_input(0), axis, false);
@@ -84,10 +85,40 @@ OutputVector translate_cat_common(const NodeContext& context,
     } else {
         inputs_vec = OutputVector(list_elems.begin(), list_elems.end());
     }
-    const auto first_in_type = list_elems.front().get_element_type();
+    // PyTorch's cat discards statically empty tensors (any dim == 0), even
+    // when their rank disagrees with the other operands (a common pattern is
+    // an empty cache initialised as torch.empty(0) being concatenated with
+    // higher-rank tensors). OV's Concat is strict, so drop those inputs here.
+    // Note: torch.stack does NOT drop empty tensors, so callers operating on
+    // stack-like ops must pass drop_empty=false.
+    if (drop_empty && inputs_vec.size() > 1) {
+        OutputVector filtered;
+        filtered.reserve(inputs_vec.size());
+        for (const auto& in : inputs_vec) {
+            const auto& ps = in.get_partial_shape();
+            bool statically_empty = false;
+            if (ps.rank().is_static()) {
+                for (const auto& d : ps) {
+                    if (d.is_static() && d.get_length() == 0) {
+                        statically_empty = true;
+                        break;
+                    }
+                }
+            }
+            if (!statically_empty) {
+                filtered.push_back(in);
+            }
+        }
+        if (!filtered.empty() && filtered.size() < inputs_vec.size()) {
+            inputs_vec = std::move(filtered);
+        }
+    }
+    // Type promotion is computed from the (possibly filtered) inputs_vec to
+    // stay consistent with the operands actually fed into Concat.
+    const auto first_in_type = inputs_vec.front().get_element_type();
     const bool is_mixed_type =
-        list_elems.size() > 1 && (std::any_of(std::next(list_elems.begin()),
-                                              list_elems.end(),
+        inputs_vec.size() > 1 && (std::any_of(std::next(inputs_vec.begin()),
+                                              inputs_vec.end(),
                                               [&first_in_type](const ov::Output<ov::Node>& input) {
                                                   return input.get_element_type() != first_in_type ||
                                                          input.get_element_type() == ov::element::dynamic;
@@ -193,7 +224,9 @@ OutputVector translate_stack(const NodeContext& context) {
     for (const auto& elem : list_elems) {
         unsqueezed.push_back(context.mark_node(std::make_shared<v0::Unsqueeze>(elem, dim)));
     }
-    auto out = translate_cat_common(context, unsqueezed, axis, false);
+    // torch.stack does NOT silently drop empty operands (unlike torch.cat),
+    // so disable the drop-empty filter for the stack path.
+    auto out = translate_cat_common(context, unsqueezed, axis, false, /*drop_empty=*/false);
     if (!context.input_is_none(2)) {
         context.mutate_input(2, out[0]);
     }
@@ -231,7 +264,8 @@ OutputVector translate_stack_fx(const NodeContext& context) {
         auto stack_input = context.mark_node(std::make_shared<v0::Unsqueeze>(stack_inputs[i], dim));
         list_elems.push_back(stack_input);
     }
-    return translate_cat_common(context, list_elems, axis, true);
+    // torch.stack does NOT silently drop empty operands.
+    return translate_cat_common(context, list_elems, axis, true, /*drop_empty=*/false);
 }
 
 OutputVector translate_hstack(const NodeContext& context) {

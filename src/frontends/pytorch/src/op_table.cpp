@@ -109,6 +109,9 @@ OP_CONVERTER(translate_fft_irfftn);
 OP_CONVERTER(translate_fft_rfft);
 OP_CONVERTER(translate_fft_rfft2);
 OP_CONVERTER(translate_fft_rfftn);
+OP_CONVERTER(translate_fft_r2c);
+OP_CONVERTER(translate_fft_c2r);
+OP_CONVERTER(translate_fft_c2c);
 OP_CONVERTER(translate_fill);
 OP_CONVERTER(translate_fill_diagonal);
 OP_CONVERTER(translate_flatten);
@@ -955,6 +958,21 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.fill_.Scalar", op::inplace_op<op::translate_fill>},
         {"aten.fill.Tensor", op::translate_fill},
         {"aten.fill_.Tensor", op::inplace_op<op::translate_fill>},
+        {"aten.fft_fft.default", op::translate_fft_fft},
+        {"aten.fft_fft2.default", op::translate_fft_fft2},
+        {"aten.fft_fftn.default", op::translate_fft_fftn},
+        {"aten.fft_ifft.default", op::translate_fft_ifft},
+        {"aten.fft_ifft2.default", op::translate_fft_ifft2},
+        {"aten.fft_ifftn.default", op::translate_fft_ifftn},
+        {"aten.fft_irfft.default", op::translate_fft_irfft},
+        {"aten.fft_irfft2.default", op::translate_fft_irfft2},
+        {"aten.fft_irfftn.default", op::translate_fft_irfftn},
+        {"aten.fft_rfft.default", op::translate_fft_rfft},
+        {"aten.fft_rfft2.default", op::translate_fft_rfft2},
+        {"aten.fft_rfftn.default", op::translate_fft_rfftn},
+        {"aten._fft_c2c.default", op::translate_fft_c2c},
+        {"aten._fft_c2r.default", op::translate_fft_c2r},
+        {"aten._fft_r2c.default", op::translate_fft_r2c},
         {"aten.flip.default", op::translate_flip},
         {"aten.floor.default", op::translate_1to1_match_1_inputs<opset10::Floor>},
         {"aten.floor_divide.default", op::translate_floor_divide},

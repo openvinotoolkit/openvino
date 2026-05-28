@@ -1,0 +1,18 @@
+# Speech SSL / ASR models (Wav2Vec2-family)
+# Trace fails because forward returns Optional[Tensor] (length output) which torch.jit.trace cannot handle.
+WAV2VEC2_BASE,none,xfail_trace,Returns Optional[Tensor] which torch.jit.trace cannot handle
+WAV2VEC2_ASR_BASE_960H,none,xfail_trace,Returns Optional[Tensor] which torch.jit.trace cannot handle
+HUBERT_BASE,none,xfail_trace,Returns Optional[Tensor] which torch.jit.trace cannot handle
+WAVLM_BASE,none,xfail_trace,Returns Optional[Tensor] which torch.jit.trace cannot handle
+MMS_FA,none,xfail_trace,Returns Optional[Tensor] which torch.jit.trace cannot handle
+# Source separation
+CONVTASNET_BASE_LIBRI2MIX,none
+HDEMUCS_HIGH_MUSDB,none
+# Speech quality estimation
+SQUIM_OBJECTIVE,none,xfail_trace,jit.trace fails inside transformer attention (GetAttr resolution)
+SQUIM_SUBJECTIVE,none
+# Streaming RNN-T transcribe path
+EMFORMER_RNNT,none
+# Autoregressive TTS / vocoder - data-dependent shapes / unbounded loops, not exportable / traceable
+TACOTRON2_GRIFFINLIM_CHAR_LJSPEECH,none,skip,Tacotron2.infer has data-dependent shapes (FakeTensor in zeros size); jit.trace fails on dispatched LSTM forward__0
+TACOTRON2_WAVERNN_CHAR_LJSPEECH,none,skip,WaveRNN vocoder generates samples in an autoregressive loop - export hangs / not practically convertible

@@ -304,13 +304,26 @@ template <>
 std::string NodeContext::const_input<std::string>(size_t index) const {
     FRONT_END_GENERAL_CHECK(!input_is_none(index), "Input with index: ", index, " is none.");
     auto input_node = get_input_from_visible_context(index).get_node_shared_ptr();
-    auto input = ov::as_type_ptr<PtFrameworkNode>(input_node);
-    FRONT_END_GENERAL_CHECK(input,
+    if (auto input = ov::as_type_ptr<PtFrameworkNode>(input_node)) {
+        return input->get_decoder()->as_string();
+    }
+    // FX decoder encodes Python strings as 1-D u8 Constants holding the UTF-8
+    // bytes (see fx_decoder.py: `bytearray(arg, "utf-8")` -> u8 tensor of rank
+    // 1). Restrict the fallback to that exact shape so unrelated u8 tensors
+    // that happen to reach this slot raise rather than decode as strings.
+    if (auto c = ov::as_type_ptr<v0::Constant>(input_node)) {
+        const auto& shape = c->get_shape();
+        if (c->get_element_type() == element::u8 && shape.size() == 1) {
+            const auto* p = static_cast<const char*>(c->get_data_ptr());
+            return std::string(p, p + shape[0]);
+        }
+    }
+    FRONT_END_GENERAL_CHECK(false,
                             "Input node with index ",
                             index,
                             " cannot be interpreted as FrameworkNode with string constant: ",
                             input_node);
-    return input->get_decoder()->as_string();
+    return {};  // unreachable; FRONT_END_GENERAL_CHECK throws.
 }
 
 namespace {

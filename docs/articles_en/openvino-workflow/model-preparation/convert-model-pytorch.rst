@@ -250,6 +250,51 @@ validation during export:
        input=PartialShape([Dimension(1, 8), 3, Dimension(128, 512), Dimension(128, 512)]),
    )
 
+Example: torchaudio speech recognition (Wav2Vec2)
++++++++++++++++++++++++++++++++++++++++++++++++++
+
+`torchaudio.pipelines <https://pytorch.org/audio/stable/pipelines.html>`__ ships pre-trained
+audio models bundled with the matching pre/post-processing. ``WAV2VEC2_ASR_BASE_960H`` and
+the rest of the Wav2Vec2 family take a single ``waveforms`` input of shape
+``[batch, time]`` — both axes typically vary at runtime, so we mark them as dynamic with
+``torch.export.Dim.AUTO``:
+
+.. code-block:: py
+   :force:
+
+   import torch
+   from torch.export import Dim, export
+   from torchaudio.pipelines import WAV2VEC2_ASR_BASE_960H
+
+   import openvino as ov
+
+   model = WAV2VEC2_ASR_BASE_960H.get_model().eval()
+   # Use a non-1 batch in the example so torch.export does not specialize the
+   # batch dimension to 1.
+   example_input = (torch.randn(2, 16000),)
+
+   exported = export(
+       model,
+       example_input,
+       strict=False,
+       dynamic_shapes={"waveforms": {0: Dim.AUTO, 1: Dim.AUTO}},
+   )
+   ov_model = ov.convert_model(exported, example_input=list(example_input))
+
+The resulting ``ov_model`` has input shape ``[?, ?]`` and accepts any batch and any audio
+length at inference time. If a dimension is fixed in your application (for example, you
+always run with batch 1), drop it from ``dynamic_shapes`` to get a more constrained — and
+typically slightly faster — model.
+
+The same recipe applies to other Wav2Vec2-family bundles
+(``WAV2VEC2_BASE``, ``HUBERT_BASE``, ``WAVLM_BASE``, ``MMS_FA``, …) — only the bundle name
+changes.
+
+For running inference on the resulting ``ov.Model``, see
+:doc:`../running-inference`. The bundle's ``get_labels()`` and ``sample_rate`` expose the
+post-processing pieces (CTC labels, expected sample rate) needed to decode emissions into
+text.
+
 Converting a PyTorch Model from Disk
 ####################################
 

@@ -6,6 +6,7 @@
 
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -142,8 +143,63 @@ OutputVector translate_pad_common(const NodeContext& context,
 }
 }  // namespace
 
+namespace {
+// For complex inputs, prepend [0, 0] to paddings (PyTorch layout starts from
+// the last dim) so that the extra real/imag trailing dim of the [..., 2]
+// representation is not padded.
+Output<Node> adjust_paddings_for_complex(const NodeContext& context, const Output<Node>& paddings) {
+    auto zeros = context.mark_node(v0::Constant::create(element::i32, Shape{2}, {0, 0}));
+    auto zeros_like = context.mark_node(std::make_shared<v1::ConvertLike>(zeros, paddings));
+    return context.mark_node(std::make_shared<v0::Concat>(OutputVector{zeros_like, paddings}, 0));
+}
+
+// Returns true when ``pad_value`` is a statically-known scalar zero. Used to
+// guard the complex-pad path: a non-zero scalar pad_value would fill both the
+// real and imag slots of the unwrapped [..., 2] tensor, producing v + v*j
+// instead of PyTorch's v + 0*j semantics.
+bool is_static_zero(const Output<Node>& pad_value) {
+    const auto c = ov::util::get_constant_from_source(pad_value);
+    if (!c) {
+        return false;
+    }
+    if (shape_size(c->get_shape()) != 1) {
+        return false;
+    }
+    const auto vals = c->cast_vector<double>();
+    return !vals.empty() && vals[0] == 0.0;
+}
+
+OutputVector translate_pad_with_complex(const NodeContext& context,
+                                        const Output<Node>& data_in,
+                                        const Output<Node>& paddings_in,
+                                        const Output<Node>& pad_value,
+                                        const std::string& mode) {
+    auto complex_type_mark = as_type_ptr<ComplexTypeMark>(data_in.get_node_shared_ptr());
+    Output<Node> data = data_in;
+    Output<Node> paddings = paddings_in;
+    if (complex_type_mark) {
+        // The complex tensor is represented as [..., 2] real (real/imag).
+        // OV's Pad fills new positions with a scalar that lands in both the
+        // real and imag slots, so a non-zero pad_value would yield v + v*j
+        // instead of PyTorch's v + 0*j. Reject explicitly; the common case
+        // (mode='constant' with the default value=0, plus 'reflect' /
+        // 'replicate' / 'circular' which ignore pad_value) is fine.
+        PYTORCH_OP_CONVERSION_CHECK(mode != "constant" || is_static_zero(pad_value),
+                                    "aten::pad with a non-zero value on complex tensors is not supported.");
+        data = complex_type_mark->get_data();
+        paddings = adjust_paddings_for_complex(context, paddings);
+    }
+    auto out = translate_pad_common(context, data, paddings, pad_value, mode);
+    if (complex_type_mark) {
+        const auto& complex_dtype = complex_type_mark->get_complex_part_type();
+        return {context.mark_node(std::make_shared<ComplexTypeMark>(out[0], complex_dtype))};
+    }
+    return out;
+}
+}  // namespace
+
 OutputVector translate_pad(const NodeContext& context) {
-    num_inputs_check(context, 2, 4);
+    num_inputs_check(context, 2, 4, true);
     auto data = context.get_input(0);
     auto paddings = get_input_concat_if_list(context, 1);
     std::string mode = "constant";
@@ -158,18 +214,18 @@ OutputVector translate_pad(const NodeContext& context) {
             pad_value = context.get_input(3);
         }
     }
-    return translate_pad_common(context, data, paddings, pad_value, mode);
+    return translate_pad_with_complex(context, data, paddings, pad_value, mode);
 }
 
 OutputVector translate_constant_pad_nd(const NodeContext& context) {
-    num_inputs_check(context, 2, 3);
+    num_inputs_check(context, 2, 3, true);
     auto data = context.get_input(0);
     auto paddings = get_input_concat_if_list(context, 1);
     Output<Node> pad_value = context.mark_node(v0::Constant::create(element::f32, Shape{}, {0}));
     if (!context.input_is_none(2)) {
         pad_value = context.get_input(2);
     }
-    return translate_pad_common(context, data, paddings, pad_value);
+    return translate_pad_with_complex(context, data, paddings, pad_value, "constant");
 }
 
 OutputVector translate_reflection_pad_nd(const NodeContext& context) {

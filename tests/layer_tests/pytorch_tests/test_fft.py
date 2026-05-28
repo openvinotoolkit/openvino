@@ -3,6 +3,7 @@
 
 from sys import platform
 
+import numpy as np
 import pytest
 import torch
 
@@ -162,3 +163,94 @@ class TestFFT(PytorchLayerTest):
         m = aten_fft(op, s, dim, norm, in_complex)
         self._test(m, aten_name, ie_device,
                    precision, ir_version, trace_model=True, dynamic_shapes=False, custom_eps=1e-3)
+
+
+class aten_rfft_irfft(torch.nn.Module):
+    """Real -> rfft -> irfft -> real round-trip.
+
+    With ``run_decompositions_for_export=True`` the exported graph contains
+    ``aten._fft_r2c`` and ``aten._fft_c2r`` (the lowered ops) instead of the
+    higher-level ``aten.fft_rfft`` / ``aten.fft_irfft`` wrappers.
+    """
+
+    def __init__(self, n, dim, norm):
+        super().__init__()
+        self.n = n
+        self.dim = dim
+        self.norm = norm
+
+    def forward(self, x):
+        spec = torch.fft.rfft(x, n=self.n, dim=self.dim, norm=self.norm)
+        return torch.fft.irfft(spec, n=self.n, dim=self.dim, norm=self.norm)
+
+
+class aten_fft_ifft_real(torch.nn.Module):
+    """Real ([..., 2]) -> view_as_complex -> fft -> ifft -> view_as_real.
+
+    Exercises ``aten._fft_c2c`` in both forward and inverse directions when
+    decomposition is enabled.
+    """
+
+    def __init__(self, dim, norm):
+        super().__init__()
+        self.dim = dim
+        self.norm = norm
+
+    def forward(self, x):
+        c = torch.view_as_complex(x)
+        c = torch.fft.fft(c, dim=self.dim, norm=self.norm)
+        c = torch.fft.ifft(c, dim=self.dim, norm=self.norm)
+        return torch.view_as_real(c)
+
+
+@pytest.mark.skipif(not PytorchLayerTest.use_torch_export(),
+                    reason="Lowered aten._fft_* ops are produced only by torch.export's "
+                           "default decomposition pipeline.")
+class TestLoweredFFT(PytorchLayerTest):
+    """Tests for the lowered aten._fft_* ops produced by torch.export decomposition.
+
+    The high-level ``aten.fft_*`` ops are kept by the OpenVINO frontend's
+    custom decomposition table - so to actually drive
+    ``aten._fft_c2r`` / ``_fft_r2c`` / ``_fft_c2c`` translators we run
+    ``run_decompositions()`` after export. The model itself is written with
+    the user-facing ``torch.fft`` API so the reference path stays valid.
+    """
+
+    def _prepare_input(self):
+        return (self.random.randn(*self.input_shape).astype(np.float32),)
+
+    @pytest.mark.parametrize("input_shape", [[16], [8, 16], [4, 8, 16]])
+    @pytest.mark.parametrize("dim", [-1])
+    # CPU plugin currently crashes on the Multiply/Divide that "forward" and
+    # "ortho" emit on top of the (I)RDFT output. The same crash happens for
+    # the high-level fft_irfft translator and is pre-existing - covered here
+    # only with norms that bypass the post-norm scaling.
+    @pytest.mark.parametrize("norm", [None, "backward"])
+    @pytest.mark.parametrize("n", [None])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.skipif(platform == 'darwin', reason="Ticket - 122182")
+    def test_fft_r2c_c2r(self, ie_device, precision, ir_version, input_shape, dim, norm, n):
+        self.input_shape = input_shape
+        m = aten_rfft_irfft(n, dim, norm)
+        # The exported+decomposed graph holds both the forward (r2c) and the
+        # inverse (c2r) lowered ops; assert both are present.
+        self._test(m, ("aten::_fft_r2c", "aten::_fft_c2r"), ie_device, precision, ir_version,
+                   fx_kind=("aten._fft_r2c", "aten._fft_c2r"),
+                   run_decompositions_for_export=True,
+                   custom_eps=1e-3)
+
+    @pytest.mark.parametrize("input_shape", [[16, 2], [8, 16, 2], [4, 8, 16, 2]])
+    @pytest.mark.parametrize("dim", [-1])
+    # See note on test_fft_r2c_c2r about "forward" / "ortho".
+    @pytest.mark.parametrize("norm", [None, "backward"])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.skipif(platform == 'darwin', reason="Ticket - 122182")
+    def test_fft_c2c(self, ie_device, precision, ir_version, input_shape, dim, norm):
+        self.input_shape = input_shape
+        m = aten_fft_ifft_real(dim, norm)
+        self._test(m, "aten::_fft_c2c", ie_device, precision, ir_version,
+                   fx_kind="aten._fft_c2c",
+                   run_decompositions_for_export=True,
+                   custom_eps=1e-3)

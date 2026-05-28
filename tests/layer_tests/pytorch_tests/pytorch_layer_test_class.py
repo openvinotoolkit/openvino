@@ -338,6 +338,11 @@ class PytorchLayerTest:
                 dynamic_shapes = kwargs.get('dynamic_shapes_for_export', {})
 
                 em = export(model, tuple(torch_inputs), dynamic_shapes=dynamic_shapes)
+                # Optionally run the default decomposition pipeline so tests
+                # that target lowered ATen ops (e.g. aten._fft_c2r) actually
+                # see those ops in the exported graph.
+                if kwargs.get('run_decompositions_for_export', False):
+                    em = em.run_decompositions()
 
                 # Verify FX graph operations exist
                 # Use explicit fx_kind if provided, otherwise auto-derive from TorchScript kind

@@ -9,9 +9,11 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/greater_eq.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/select.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/tile.hpp"
@@ -43,6 +45,14 @@ OutputVector translate_unfold(const NodeContext& context) {
 
     auto dimension = context.mark_node(std::make_shared<v0::Unsqueeze>(context.get_input(1), const_0));
     dimension = context.mark_node(std::make_shared<v0::Convert>(dimension, element::i32));
+    // Normalize a possibly-negative dim to its positive form so the
+    // downstream Slice(begin=0, end=dimension) and Slice(begin=dimension+1)
+    // calls cover the right ranges. Without this, a negative dim like -1
+    // makes the shape-prefix slice empty and the suffix slice cover the full
+    // shape, producing a bogus ``required_shape`` for the final Reshape.
+    auto neg_check = context.mark_node(std::make_shared<v1::GreaterEqual>(dimension, const_0_list));
+    auto dimension_pos = context.mark_node(std::make_shared<v1::Add>(dimension, input_rank));
+    dimension = context.mark_node(std::make_shared<v1::Select>(neg_check, dimension, dimension_pos));
     auto dimension_plus_1 = context.mark_node(std::make_shared<v1::Add>(dimension, const_1_list));
 
     auto size_scalar = get_input_as_i32(context, 2);

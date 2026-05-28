@@ -240,6 +240,134 @@ OutputVector translate_fft_irfftn(const NodeContext& context) {
     return translate_fft_base<v9::IRDFT>(context, -1, true, false, true, true);
 }
 
+namespace {
+// PyTorch encodes normalization mode as an int in low-level FFT ops:
+//   forward direction (fft / rfft / c2c forward / r2c):
+//     0 -> "backward" (no scaling), 1 -> "ortho",  2 -> "forward" (1/n)
+//   inverse direction (ifft / irfft / c2c inverse / c2r):
+//     0 -> "forward",                1 -> "ortho", 2 -> "backward"
+std::string norm_int_to_string(int64_t norm_int, bool inverse) {
+    if (norm_int == 1) {
+        return "ortho";
+    }
+    if (!inverse) {
+        return norm_int == 0 ? "backward" : "forward";
+    }
+    return norm_int == 0 ? "forward" : "backward";
+}
+
+// Common path for the lowered _fft_* ops. They share schema:
+//   self, int[] dim, int normalization, <last_arg>
+// where <last_arg> is op-specific (last_dim_size for c2r, onesided for r2c,
+// forward flag for c2c). All three always operate over full input sizes for
+// the non-final dims.
+template <typename T>
+OutputVector translate_lowered_fft(const NodeContext& context,
+                                   bool complex_input,
+                                   bool complex_output,
+                                   bool inverse,
+                                   bool is_irfft) {
+    num_inputs_check(context, 4, 4, true);
+    auto input = context.get_input(0);
+
+    // Compute the shape BEFORE unwrapping ComplexTypeMark: get_shape_rank
+    // recognises the mark and returns the user-visible (complex-domain) shape,
+    // i.e. it strips the trailing [...,2] real/imag dim. Doing it after unwrap
+    // would gather the trailing 2 instead of the real frequency dim when
+    // the user passes a negative ``dim``.
+    Output<Node> shape;
+    Output<Node> rank_scalar;
+    std::tie(shape, rank_scalar) = get_shape_rank(context, input, true);
+
+    auto complex_type_mark = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
+    if (complex_type_mark) {
+        PYTORCH_OP_CONVERSION_CHECK(complex_input, "Operation does not support complex type tensor on input.");
+        input = complex_type_mark->get_data();
+    } else if (complex_input) {
+        auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+        zero = context.mark_node(std::make_shared<v1::ConvertLike>(zero, input));
+        input = std::make_shared<ComplexTypeMark>(input, zero)->get_data();
+    }
+
+    // dim: int[] (always provided in lowered schema)
+    auto dim = get_input_concat_if_list(context, 1);
+    dim = context.mark_node(std::make_shared<v0::Convert>(dim, element::i32));
+    auto const_neg_1_1d = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
+    if (dim.get_partial_shape().rank().is_dynamic() || dim.get_partial_shape().rank().get_length() == 0) {
+        dim = context.mark_node(std::make_shared<v1::Reshape>(dim, const_neg_1_1d, false));
+    }
+
+    // Build s = gather(complex-domain shape, dim). For c2r, override the last
+    // entry with the user-provided last_dim_size.
+    auto const_0 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+    Output<Node> s = context.mark_node(std::make_shared<v8::Gather>(shape, dim, const_0));
+    if (is_irfft) {
+        // _fft_c2r: input 3 is last_dim_size (SymInt scalar). Replace s[-1].
+        auto last_dim_size = get_input_as_i32(context, 3);
+        last_dim_size = context.mark_node(std::make_shared<v1::Reshape>(last_dim_size, const_neg_1_1d, false));
+        auto s_shape = context.mark_node(std::make_shared<v3::ShapeOf>(s, element::i32));
+        auto const_1 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
+        auto last_idx = context.mark_node(std::make_shared<v1::Subtract>(s_shape, const_1));
+        s = context.mark_node(std::make_shared<v3::ScatterUpdate>(s, last_idx, last_dim_size, const_0));
+    }
+
+    auto norm_int = context.const_input<int64_t>(2);
+    const std::string norm = norm_int_to_string(norm_int, inverse);
+
+    auto node = context.mark_node(std::make_shared<T>(input, dim, s));
+    Output<Node> normalized = normalize(context, node, s, norm, inverse);
+    if (complex_output) {
+        // Preserve the input's complex_part_type when present, so downstream
+        // get_complex_part_type() reads the user-facing dtype rather than the
+        // post-normalize element type.
+        const auto& complex_dtype =
+            complex_type_mark ? complex_type_mark->get_complex_part_type() : normalized.get_element_type();
+        normalized = context.mark_node(std::make_shared<ComplexTypeMark>(normalized, complex_dtype));
+    }
+    return {normalized};
+}
+}  // namespace
+
+OutputVector translate_fft_r2c(const NodeContext& context) {
+    // aten::_fft_r2c(Tensor self, int[] dim, int normalization, bool onesided) -> Tensor
+    // We always emit RDFT (onesided result). When onesided=false PyTorch
+    // expects the full DFT spectrum, but in practice the decomposition only
+    // uses onesided=true; reject the other path explicitly.
+    auto onesided = context.const_input<bool>(3);
+    PYTORCH_OP_CONVERSION_CHECK(onesided, "_fft_r2c with onesided=False is not supported.");
+    return translate_lowered_fft<v9::RDFT>(context,
+                                           /*complex_input=*/false,
+                                           /*complex_output=*/true,
+                                           /*inverse=*/false,
+                                           /*is_irfft=*/false);
+}
+
+OutputVector translate_fft_c2r(const NodeContext& context) {
+    // aten::_fft_c2r(Tensor self, int[] dim, int normalization, SymInt last_dim_size) -> Tensor
+    return translate_lowered_fft<v9::IRDFT>(context,
+                                            /*complex_input=*/true,
+                                            /*complex_output=*/false,
+                                            /*inverse=*/true,
+                                            /*is_irfft=*/true);
+}
+
+OutputVector translate_fft_c2c(const NodeContext& context) {
+    // aten::_fft_c2c(Tensor self, SymInt[] dim, int normalization, bool forward) -> Tensor
+    auto forward = context.const_input<bool>(3);
+    if (forward) {
+        return translate_lowered_fft<v7::DFT>(context,
+                                              /*complex_input=*/true,
+                                              /*complex_output=*/true,
+                                              /*inverse=*/false,
+                                              /*is_irfft=*/false);
+    }
+    return translate_lowered_fft<v7::IDFT>(context,
+                                           /*complex_input=*/true,
+                                           /*complex_output=*/true,
+                                           /*inverse=*/true,
+                                           /*is_irfft=*/false);
+}
+
 }  // namespace op
 }  // namespace pytorch
 }  // namespace frontend
