@@ -2068,7 +2068,6 @@ public:
     void test() {
         auto& engine = get_test_engine();
         auto& stream = get_test_stream();
-        skip_if_no_immad(engine);
         auto input = generate_input();
         format::type fmt = testing::get<4>(GetParam());
 
@@ -2103,6 +2102,8 @@ using concat_implicit_gpu_onednn_4d_f16 = concat_gpu_4d_implicit_onednn<ov::floa
 using concat_implicit_gpu_onednn_4d_i8 = concat_gpu_4d_implicit_onednn<int8_t>;
 
 TEST_P(concat_implicit_gpu_onednn_4d_f16, default) {
+    auto& engine = get_test_engine();
+    skip_if_no_immad(engine);
     ASSERT_NO_FATAL_FAILURE(test());
 }
 
@@ -2128,6 +2129,8 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                         concat_gpu_implicit::PrintToStringParamName);
 
 TEST_P(concat_implicit_gpu_onednn_4d_i8, default) {
+    auto& engine = get_test_engine();
+    skip_if_no_immad(engine);
     ASSERT_NO_FATAL_FAILURE(test());
 }
 
@@ -2256,7 +2259,6 @@ public:
     void test() {
         auto& engine = get_test_engine();
         auto& stream = get_test_stream();
-        skip_if_no_immad(engine);
         auto input = generate_input();
         format::type fmt = testing::get<4>(GetParam());
 
@@ -2295,6 +2297,8 @@ using concat_no_implicit_gpu_onednn_4d_f16 = concat_gpu_4d_explicit<ov::float16>
 using concat_no_implicit_gpu_onednn_4d_f16_spatial = concat_gpu_4d_explicit<ov::float16>;
 
 TEST_P(concat_no_implicit_gpu_onednn_4d_f16, default) {
+    auto& engine = get_test_engine();
+    skip_if_no_immad(engine);
     ASSERT_NO_FATAL_FAILURE(test());
 }
 
@@ -2307,11 +2311,15 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                         concat_gpu_implicit::PrintToStringParamName);
 
 TEST_P(concat_no_implicit_gpu_onednn_4d_f16_spatial, default) {
+    auto& engine = get_test_engine();
+    skip_if_no_immad(engine);
     set_concat_axis(2);
     ASSERT_NO_FATAL_FAILURE(test());
 }
 
 TEST_P(concat_no_implicit_gpu_onednn_4d_f16_spatial, other_spatial) {
+    auto& engine = get_test_engine();
+    skip_if_no_immad(engine);
     set_concat_axis(3);
     ASSERT_NO_FATAL_FAILURE(test());
 }
