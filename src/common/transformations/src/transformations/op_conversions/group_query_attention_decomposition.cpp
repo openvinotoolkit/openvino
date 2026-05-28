@@ -63,8 +63,6 @@ ov::pass::GroupQueryAttentionDecomposition::GroupQueryAttentionDecomposition() {
 
 ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     std::shared_ptr<ov::op::internal::GroupQueryAttention> node) {
-    const auto num_heads = node->get_num_heads();
-    const auto kv_num_heads = node->get_kv_num_heads();
     const auto scale = node->get_scale();
     const auto do_rotary = node->get_do_rotary();
     const auto rotary_interleaved = node->get_rotary_interleaved();
