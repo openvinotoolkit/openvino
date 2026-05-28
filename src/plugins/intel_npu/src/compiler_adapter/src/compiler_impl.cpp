@@ -94,34 +94,6 @@ static inline std::string getLatestVCLLog(vcl_log_handle_t logHandle) {
         }                                               \
     }
 
-const std::shared_ptr<VCLCompilerImpl> VCLCompilerImpl::getInstance(const std::string& library_dir) {
-    static std::mutex mutex;
-    static std::weak_ptr<VCLCompilerImpl> weak_compiler;
-    static std::string initialized_dir;
-
-    std::lock_guard<std::mutex> lock(mutex);
-    auto compiler = weak_compiler.lock();
-    if (!compiler) {
-        if (library_dir.empty()) {
-            OPENVINO_THROW("VCLCompilerImpl requires a valid path for initialization!");
-        }
-        compiler = std::make_shared<VCLCompilerImpl>(library_dir);
-        weak_compiler = compiler;
-        initialized_dir = library_dir;
-    } else {
-        if (!library_dir.empty() && library_dir != initialized_dir) {
-            OPENVINO_THROW("Cannot change compiler path across multiple getInstance() calls! "
-                           "First path used: '",
-                           initialized_dir,
-                           "', "
-                           "Requested second path: '",
-                           library_dir,
-                           "'");
-        }
-    }
-    return compiler;
-}
-
 VCLCompilerImpl::VCLCompilerImpl(const std::string& library_dir)
     : _logHandle(nullptr),
       _logger("VCLCompilerImpl", Logger::global().level()) {

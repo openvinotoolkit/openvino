@@ -21,7 +21,6 @@ class VCLCompilerImpl final : public std::enable_shared_from_this<VCLCompilerImp
 public:
     VCLCompilerImpl(const std::string& library_dir);
     ~VCLCompilerImpl();
-    static const std::shared_ptr<VCLCompilerImpl> getInstance(const std::string& library_dir);
 
     /**
      * @brief Transforms a network from the OpenVINO model representation to a format executable
