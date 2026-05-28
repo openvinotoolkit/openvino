@@ -5,15 +5,8 @@
 
 #include <stdexcept>
 #include <string>
-#include <array>
-#include <tuple>
 #include <atomic>
-#include <cstdint>
-#include <cstddef>
-#include <cstring>
 #include <fstream>
-#include <filesystem>
-#include <system_error>
 
 #ifndef _WIN32
 #include <unistd.h>
@@ -51,86 +44,57 @@ MemoryFile::~MemoryFile() {
 }
 
 
-namespace fs = std::filesystem;
-
-bool write_file(const fs::path& p, const uint8_t* buf, size_t len) {
-    std::ofstream out(p, std::ios::binary | std::ios::trunc);
+bool write_file(const std::filesystem::path& p, std::string_view data) {
+    std::ofstream out(p, std::ios::binary);
     if (!out) return false;
-    if (len) out.write(reinterpret_cast<const char*>(buf),
-                    static_cast<std::streamsize>(len));
+    if (!data.empty())
+        out.write(data.data(), static_cast<std::streamsize>(data.size()));
     return out.good();
 }
 
-inline uint64_t next_id() {
+uint64_t next_id() {
     static std::atomic<uint64_t> id{0};
     return ++id;
 }
 
-fs::path& temp_root() {
-    static fs::path root = []{
-        fs::path dir = fs::temp_directory_path() / "openvino_read_model_fuzz";
+std::filesystem::path& temp_root() {
+    static std::filesystem::path root = []{
+        std::filesystem::path dir = std::filesystem::temp_directory_path() / "openvino_read_model_fuzz";
         std::error_code ec;
-        fs::create_directories(dir, ec);
-        return ec ? fs::temp_directory_path() : dir;
+        std::filesystem::create_directories(dir, ec);
+        return ec ? std::filesystem::temp_directory_path() : dir;
     }();
     return root;
 }
 
 
-const fs::path create_model_file(const uint8_t* data, size_t size, const char* ext) {
-    const auto id = next_id();
-    const auto base = std::string("model_") + std::to_string(id);
-    const fs::path path = temp_root() / (base + ext);
-    if (!write_file(path, data, size)) {
+std::filesystem::path create_model_file(const uint8_t* data, size_t size, const std::filesystem::path& ext) {
+    auto name = std::filesystem::path("model_" + std::to_string(next_id()));
+    name += ext;
+    const auto path = temp_root() / name;
+    if (!write_file(path, std::string_view(reinterpret_cast<const char*>(data), size))) {
         throw std::runtime_error("Write to file failed");
     }
-    return path;
+	return path;
 }
 
 
-std::array<std::tuple<const uint8_t*, size_t>, 2> split_data(const uint8_t* data, size_t size, const uint8_t* delim, size_t delim_size) {
-    std::array<std::tuple<const uint8_t*, size_t>, 2> result;
-    size_t split = SIZE_MAX;
-    for (size_t i = 0; i + delim_size <= size; ++i) {
-        if (std::memcmp(data + i, delim, delim_size) == 0) {
-            split = i;
-            break;
-        }
-    }
-    if (split == SIZE_MAX)
-        throw std::runtime_error("Problem detected during spliting fuzzer input data");
-
-    const uint8_t* data0 = data;
-    size_t data0_size = split;
-    result[0] = {data0, data0_size};
-    const uint8_t* data1 = data + split + delim_size;
-    size_t data1_size = size - (split + delim_size);
-    result[1] = {data1, data1_size};
-    return result;
+std::array<std::string_view, 2> split_data(std::string_view data, std::string_view delim) {
+    const auto pos = data.find(delim);
+    if (pos == std::string_view::npos)
+        throw std::runtime_error("Problem detected during splitting fuzzer input data");
+    return {data.substr(0, pos), data.substr(pos + delim.size())};
 }
 
 
-std::tuple<fs::path, fs::path> create_ir_model_files(const uint8_t* data, size_t size, const uint8_t* delim, size_t delim_size) {
-
-    std::array<std::tuple<const uint8_t*, size_t>, 2> fuzz_data = split_data(data, size, delim, delim_size);
-
-    const uint8_t* xml_data = std::get<0>(fuzz_data[0]);
-    size_t xml_size = std::get<1>(fuzz_data[0]);
-    const uint8_t* bin_data = std::get<0>(fuzz_data[1]);
-    size_t bin_size = std::get<1>(fuzz_data[1]);
-
-    const auto id = next_id();
-    const auto base = std::string("model_") + std::to_string(id);
-    const fs::path xml_path = temp_root() / (base + ".xml");
-    const fs::path bin_path = temp_root() / (base + ".bin");
-
-    if (!write_file(xml_path, xml_data, xml_size)) {
+std::tuple<std::filesystem::path, std::filesystem::path> create_ir_model_files(const uint8_t* data, size_t size, std::string_view delim) {
+    const auto [xml_sv, bin_sv] = split_data({reinterpret_cast<const char*>(data), size}, delim);
+    const auto stem = std::string("model_") + std::to_string(next_id());
+    const auto xml_path = temp_root() / (stem + ".xml");
+    const auto bin_path = temp_root() / (stem + ".bin");
+    if (!write_file(xml_path, xml_sv))
         throw std::runtime_error("Write to xml file failed");
-    }
-
-    if (!write_file(bin_path, bin_data, bin_size)) {
+    if (!write_file(bin_path, bin_sv))
         throw std::runtime_error("Write to bin file failed");
-    }
-
     return {xml_path, bin_path};
 }

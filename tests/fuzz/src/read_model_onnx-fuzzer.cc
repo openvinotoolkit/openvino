@@ -4,20 +4,19 @@
 #include "openvino/openvino.hpp"
 #include "fuzz-utils.h"
 
-
-extern "C" int LLVMFuzzerTestOneInput(const uint8_t* Data, size_t Size) {
+extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     ov::Core core;
-    int result = 0;
-    try { 
-        const std::filesystem::path model_file = create_model_file(Data, Size, ".onnx");
-        ScopedRemove cleanup{model_file, {}};
-        auto model = core.read_model(model_file.string());
-        if (model) {
-            (void)model->get_name();
-            (void)model->outputs();
-            (void)model->inputs();
+
+    try {
+        const auto model_file = create_model_file(data, size, ".onnx");
+        ScopedRemove cleanup{model_file};
+
+        if (const auto model = core.read_model(model_file); model) {
+            model->get_name();
+            model->outputs();
+            model->inputs();
         }
     } catch (...) {}
-
-    return result;
+	
+    return 0;
 }
