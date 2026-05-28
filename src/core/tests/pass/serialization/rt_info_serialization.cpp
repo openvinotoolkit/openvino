@@ -199,7 +199,7 @@ TEST_F(RTInfoSerializationTest, rt_info_disable_precision_conversion_roundtrip) 
     ASSERT_TRUE(it_f32->second.count(ov::element::f16));
 }
 
-// Pins the serialization format "from:to1,to2;from2:to3,to4;". Do not change without updating model compatibility.
+// Pins the serialization format "from:to1,to2;from2:to3,to4". Do not change without updating model compatibility.
 TEST(RTInfoSerialization, disable_precision_conversion_xml_format) {
     std::string ref_ir_xml = R"V0G0N(<?xml version="1.0"?>
 <net name="TestModel" version="11">
@@ -225,7 +225,7 @@ TEST(RTInfoSerialization, disable_precision_conversion_xml_format) {
 		<layer id="2" name="matmul" type="MatMul" version="opset1">
 			<data transpose_a="false" transpose_b="false" />
 			<rt_info>
-				<attribute name="DisablePrecisionConversion" version="0" value="dynamic:f16;f32:bf16,f16;" />
+				<attribute name="DisablePrecisionConversion" version="0" value="dynamic:f16;f32:bf16,f16" />
 			</rt_info>
 			<input>
 				<port id="0" precision="FP32">
