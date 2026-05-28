@@ -22,6 +22,7 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
              NetworkMetadata metadata,
              std::optional<ov::Tensor> blob,
              const FilteredConfig& config,
+             const std::optional<std::string>& compatibilityDescriptor,
              const bool blobIsPersistent,
              const bool calledFromWeightlessGraph)
     : IGraph(),
@@ -30,6 +31,7 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
       _graphDesc(graphDesc),
       _metadata(std::move(metadata)),
       _blob(std::move(blob)),
+      _compatibilityDescriptor(compatibilityDescriptor),
       _blobIsPersistent(blobIsPersistent),
       _logger("Graph", config.get<LOG_LEVEL>()) {
     if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
@@ -140,7 +142,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std
 }
 
 std::vector<ov::ProfilingInfo> Graph::process_profiling_output(const std::vector<uint8_t>& profData) const {
-    auto compiler = VCLCompilerImpl::getInstance();
+    auto compiler = std::make_shared<VCLCompilerImpl>();
     OPENVINO_ASSERT(compiler != nullptr, "Profiling post-processing requires the NPU plugin compiler library");
 
     std::vector<uint8_t> blob(_blob->get_byte_size());
@@ -264,6 +266,10 @@ void Graph::set_last_submitted_id(uint32_t id_index) {
 
 uint32_t Graph::get_last_submitted_id() const {
     return _lastSubmittedId;
+}
+
+std::optional<std::string_view> Graph::get_compatibility_descriptor() const {
+    return _compatibilityDescriptor;
 }
 
 std::optional<bool> Graph::is_profiling_blob() const {

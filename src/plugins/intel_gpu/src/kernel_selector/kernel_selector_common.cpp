@@ -83,6 +83,7 @@ std::string toString(ActivationFunction activation) {
         case ActivationFunction::GELU_TANH:                 method = "GELU_TANH"; break;
         case ActivationFunction::ROUND_HALF_TO_EVEN:        method = "ROUND_HALF_TO_EVEN"; break;
         case ActivationFunction::ROUND_HALF_AWAY_FROM_ZERO: method = "ROUND_HALF_AWAY_FROM_ZERO"; break;
+        case ActivationFunction::ERFINV:                    method = "ERFINV"; break;
         default: break;
     }
     return method;
@@ -208,6 +209,7 @@ std::string toString(EltwiseMode b_mode) {
         case EltwiseMode::SQRT:   return "SQRT";
         case EltwiseMode::RSQRT:  return "RSQRT";
         case EltwiseMode::ASSIGN: return "ASSIGN";
+        case EltwiseMode::ATAN2:  return "ATAN2";
         default: return "";
     }
 }

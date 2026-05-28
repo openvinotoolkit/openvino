@@ -283,8 +283,6 @@ class TestUnaryOp(PytorchLayerTest):
                              ])
     def test_unary_op_out(self, op_type, dtype, ie_device, precision, ir_version):
         self.dtype = dtype
-        if ie_device == "GPU" and op_type == "aten::erfinv":
-            pytest.xfail(reason="erfinv is not supported on GPU")
         self._test(unary_op_out_net(OPS[op_type], dtype), op_type,
                    ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"unit_range": op_type in ("aten::atanh", "aten::erfinv")})
