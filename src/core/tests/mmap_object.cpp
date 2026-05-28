@@ -230,4 +230,81 @@ INSTANTIATE_TEST_SUITE_P(MappedMemory,
                                             ::testing::ValuesIn(std::vector<bool>{true, false})),
                          RangedMappingTest::test_name);
 
+class HintEvictTest : public ::testing::Test {
+protected:
+    std::filesystem::path m_file_path;
+    std::vector<uint8_t> m_expected;
+    static constexpr size_t k_hint_evict_file_size = 64 * 1024 * 2;
+
+    void SetUp() override {
+        m_expected.resize(k_hint_evict_file_size);
+        for (size_t i = 0; i < k_hint_evict_file_size; ++i) {
+            // Prime-modulo pattern: easy to spot any byte corruption in failure output.
+            m_expected[i] = static_cast<uint8_t>(i % 251);
+        }
+        m_file_path = utils::generateTestFilePrefix() + "_hint_evict";
+        std::ofstream out(m_file_path, std::ios::binary);
+        ASSERT_TRUE(out.is_open()) << "Failed to create temp file: " << m_file_path;
+        out.write(reinterpret_cast<const char*>(m_expected.data()), k_hint_evict_file_size);
+        ASSERT_TRUE(out.good());
+    }
+
+    void TearDown() override {
+        std::filesystem::remove(m_file_path);
+    }
+
+    static std::vector<uint8_t> read_mapped(MappedMemory& mm) {
+        return {reinterpret_cast<uint8_t*>(mm.data()), reinterpret_cast<uint8_t*>(mm.data()) + mm.size()};
+    }
+};
+
+TEST_F(HintEvictTest, full_evict_then_read_matches_original) {
+    auto mm = load_mmap_object(m_file_path);
+    ASSERT_NE(mm, nullptr);
+    ASSERT_EQ(mm->size(), k_hint_evict_file_size);
+
+    // Verify initial content before eviction.
+    ASSERT_EQ(read_mapped(*mm), m_expected);
+
+    // Evict all mapped pages.
+    mm->hint_evict(0, auto_size);
+
+    // All bytes must be transparently restored and unchanged.
+    EXPECT_EQ(read_mapped(*mm), m_expected);
+}
+
+TEST_F(HintEvictTest, partial_evict_then_read_matches_original) {
+    auto mm = load_mmap_object(m_file_path);
+    ASSERT_NE(mm, nullptr);
+    ASSERT_EQ(mm->size(), k_hint_evict_file_size);
+
+    // Evict the middle half; the first and last quarters remain mapped.
+    const size_t quarter = k_hint_evict_file_size / 4;
+    mm->hint_evict(quarter, k_hint_evict_file_size / 2);
+
+    // All bytes — including the evicted middle — must be readable and correct.
+    EXPECT_EQ(read_mapped(*mm), m_expected);
+}
+
+TEST_F(HintEvictTest, multiple_evict_cycles_are_idempotent) {
+    auto mm = load_mmap_object(m_file_path);
+    ASSERT_NE(mm, nullptr);
+
+    for (int cycle = 0; cycle < 3; ++cycle) {
+        mm->hint_evict(0, auto_size);
+        EXPECT_EQ(read_mapped(*mm), m_expected) << "Data mismatch after evict cycle " << cycle;
+    }
+}
+
+TEST_F(HintEvictTest, evict_then_read_via_file_handle_matches_original) {
+    const auto handle = utils::open_ro_file(m_file_path);
+    auto mm = load_mmap_object(handle, 0, auto_size);
+    ASSERT_NE(mm, nullptr);
+    ASSERT_EQ(mm->size(), k_hint_evict_file_size);
+
+    mm->hint_evict(0, auto_size);
+
+    EXPECT_EQ(read_mapped(*mm), m_expected);
+}
+
 }  // namespace ov::test
