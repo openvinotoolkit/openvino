@@ -248,8 +248,8 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
         LOG_WARN(compiler_gate_support_msg << "unsupported");
     }
 
-    if (desc.arch == "5010" && desc.compiler_ver >= ONEAPI_MAKE_VERSION(7, 29)) {
-        // Flash attention tile is supported starting from compiler version 7.29 on NPU5010
+    if (desc.arch == "5010" && desc.compiler_ver >= ONEAPI_MAKE_VERSION(8, 1)) {
+        // Flash attention tile with GQA is supported starting from compiler version 8.1 on NPU5010
         desc.support_flash_attention_tile = true;
     }
 
@@ -553,6 +553,16 @@ std::shared_ptr<ov::Model> check_and_cut_lm_head(const std::shared_ptr<ov::Model
     }
 
     return lm_head_model;
+}
+
+bool has_phi_v5_longrope_pattern(const std::shared_ptr<ov::Model>& model) {
+    auto long_rope = std::make_shared<ov::npuw::patterns::pre_compute::LongRopePatternPhi_v5>();
+    bool matched = false;
+    long_rope->transform_cb = [&]() {
+        matched = true;
+    };
+    long_rope->run_on_model(model);
+    return matched;
 }
 
 }  // namespace
@@ -1095,8 +1105,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_DEBUG("Caching preROPE ");
         const uint32_t CACHE_ROPE_START = 2048;
         const bool is_best = (generate_hint == ::intel_npu::npuw::llm::GenerateHint::BEST_PERF);
+        const bool force_rope_cache = has_phi_v5_longrope_pattern(prefill_model);
 
-        if (!is_best || (max_prompt_len >= CACHE_ROPE_START)) {
+        if (!is_best || (max_prompt_len >= CACHE_ROPE_START || force_rope_cache)) {
             LOG_DEBUG("Enable RoPE Cache for prefill");
             ov::npuw::patterns::pre_compute::RopeCache rope_prefill_cacher(
                 max_prompt_len,
@@ -1107,7 +1118,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         // Apply RoPE Cache to all generate variant models
         for (size_t i = 0; i < generate_model_variants.size(); ++i) {
             const uint32_t kv_size = m_kvcache_sizes[i];
-            if (!is_best || (kv_size >= CACHE_ROPE_START)) {
+            if (!is_best || (kv_size >= CACHE_ROPE_START || force_rope_cache)) {
                 LOG_DEBUG("Enable RoPE Cache for generate variant with size: " << kv_size);
                 ov::npuw::patterns::pre_compute::RopeCache rope_cacher(
                     kv_size,

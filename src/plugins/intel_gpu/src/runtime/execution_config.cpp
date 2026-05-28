@@ -31,6 +31,7 @@
 #include "openvino/runtime/weightless_properties_utils.hpp"
 #include "ov_ops/dynamic_quantize.hpp"
 #include "ov_ops/rms.hpp"
+#include "openvino/op/gated_delta_net.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov::intel_gpu {
@@ -65,6 +66,9 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
         return true;
 
     if (ov::is_type<ov::op::internal::DynamicQuantize>(op) || ov::is_type<ov::op::internal::RMS>(op))
+        return true;
+
+    if (ov::is_type<ov::op::internal::GatedDeltaNet>(op))
         return true;
 
     if (ov::is_type<ov::op::v5::Loop>(op)) {
@@ -243,7 +247,6 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
         }
     };
 
-    bool auto_enable_4bit_kv = false;
     // Trace MatMul weight input through the decompression subgraph
     // (Convert→Subtract→Multiply→Reshape→Convert→Constant) to check for 4-bit weights.
     auto has_4bit_matmul_weights = [](const std::shared_ptr<Node>& op) -> bool {
@@ -266,7 +269,7 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
     for (const auto& op : ops) {
         process_op(op);
 
-        if (auto_enable_4bit_kv && !has_4bit_weights && has_4bit_matmul_weights(op)) {
+        if (!has_4bit_weights && has_4bit_matmul_weights(op)) {
             has_4bit_weights = true;
         }
     }

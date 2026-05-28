@@ -15,6 +15,7 @@
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/utils.hpp"
+#include "intel_npu/utils/vm/npu_vm_runtime_api.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
 #include "mem_usage.hpp"
@@ -34,7 +35,7 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
 
     _logger.info("Loading PLUGIN compiler");
     try {
-        auto vclCompilerPtr = VCLCompilerImpl::getInstance();
+        auto vclCompilerPtr = std::make_shared<VCLCompilerImpl>();
         OPENVINO_ASSERT(vclCompilerPtr != nullptr, "VCL compiler is nullptr");
         auto vclLib = vclCompilerPtr->getLinkedLibrary();
         _logger.info("PLUGIN VCL compiler is loading");
@@ -67,7 +68,9 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     auto [tensor, compatibilityDescriptor] = _compiler->compile(model, config);
     _logger.debug("compile end");
 
-    if (config.get<COMPILATION_MODE>() == "HostCompile") {
+    if (config.get<COMPILATION_MODE>().find("HostCompile") == 0) {
+        NPUVMRuntimeApi::initializeFromBlob(tensor.data(), tensor.get_byte_size());
+
         // metadata will be obtained in initialze() of DynamicGraph
         _logger.debug("Use dynamicGraph to hold blob for HostCompile mode!");
         return std::make_shared<DynamicGraph>(_zeroInitStruct, std::move(tensor), true, config);
