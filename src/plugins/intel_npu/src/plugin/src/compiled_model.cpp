@@ -285,9 +285,11 @@ void CompiledModel::configure_stream_executors() {
 
     const auto numStreams = config.get<NUM_STREAMS>();
     if (numStreams > 0) {
+        // Use a single thread for start executors to reduce contention on the shared task queue,
+        // while scaling wait and callback executors workers with num_streams to improve result fetch throughput.
         const size_t workers = static_cast<size_t>(numStreams);
 
-        set_task_executor(make_executor("Intel NPU plugin start inferences executor", workers));
+        set_task_executor(make_executor("Intel NPU plugin start inferences executor", 1));
         _resultExecutor = make_executor("Intel NPU plugin wait inferences executor", workers);
         set_callback_executor(make_executor("Intel NPU plugin callback executor", workers));
     } else if (numStreams == 0) {
