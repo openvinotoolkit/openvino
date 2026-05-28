@@ -133,7 +133,6 @@ void parse_pre_process(pugi::xml_node& root,
                                    " x ",
                                    input_type.size());
                 }
-                OPENVINO_ASSERT(weights_provider, "Empty weights data in bin file or bin file cannot be found!");
                 if (const_offset > weights_provider->size() || const_size > weights_provider->size() - const_offset) {
                     OPENVINO_THROW("mean value offset and size are out of weights size range");
                 }
