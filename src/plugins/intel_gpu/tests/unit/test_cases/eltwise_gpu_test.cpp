@@ -2252,6 +2252,48 @@ TEST(eltwise_gpu_f32, pow_in2x2x2x2_broadcast_all) {
     }
 }
 
+TEST(eltwise_gpu_f32, atan2_basic_in1x1x1x8) {
+    auto& engine = get_test_engine();
+
+    auto input_y = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 8 } });
+    auto input_x = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 8 } });
+
+    topology topology;
+    topology.add(input_layout("input_y", input_y->get_layout()));
+    topology.add(input_layout("input_x", input_x->get_layout()));
+    topology.add(eltwise("eltwise", { input_info("input_y"), input_info("input_x") }, eltwise_mode::atan2));
+
+    // (y, x) pairs covering all four quadrants and axis cases.
+    std::vector<std::pair<float, float>> ys_xs = {
+        { 1.f,  1.f},   //  Q1 →  π/4
+        { 1.f, -1.f},   //  Q2 →  3π/4
+        {-1.f, -1.f},   //  Q3 → -3π/4
+        {-1.f,  1.f},   //  Q4 → -π/4
+        { 1.f,  0.f},   //  +y axis →  π/2
+        {-1.f,  0.f},   //  -y axis → -π/2
+        { 0.f,  1.f},   //  +x axis →  0
+        { 0.f, -1.f},   //  -x axis →  π
+    };
+
+    std::vector<float> ys, xs;
+    for (auto& p : ys_xs) { ys.push_back(p.first); xs.push_back(p.second); }
+    set_values(input_y, ys);
+    set_values(input_x, xs);
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input_y", input_y);
+    network.set_input_data("input_x", input_x);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("eltwise").get_memory();
+    cldnn::mem_lock<float> out_ptr(output, get_test_stream());
+
+    for (size_t i = 0; i < ys_xs.size(); ++i) {
+        float expected = std::atan2(ys_xs[i].first, ys_xs[i].second);
+        ASSERT_NEAR(out_ptr[i], expected, 1e-5f) << "i=" << i;
+    }
+}
+
 TEST(eltwise_gpu_f32, add_basic_in2x2x2x2_broadcast_2_inputs_same_dim) {
     auto& engine = get_test_engine();
 
