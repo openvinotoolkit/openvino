@@ -1033,7 +1033,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.min.dim", op::translate_min_dim_fx},
         {"aten.minimum.default", op::translate_minimum},
         {"aten.mish.default", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Mish>},
-        {"aten.mm.default", op::translate_1to1_match_2_inputs<opset10::MatMul>},
+        {"aten.mm.default", op::translate_1to1_match_2_inputs_align_types<opset10::MatMul>},
         {"aten.mul.Scalar", op::translate_mul},
         {"aten.mul.Tensor", op::translate_mul},
         {"aten.mul_.Tensor", op::translate_mul},
