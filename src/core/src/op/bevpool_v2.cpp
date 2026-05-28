@@ -9,6 +9,7 @@
 
 #include "itt.hpp"
 #include "openvino/core/type/float16.hpp"
+#include "openvino/reference/bevpool_v2.hpp"
 
 namespace {
 std::vector<int64_t> to_i64_vector(const ov::Tensor& t) {
@@ -70,64 +71,22 @@ bool evaluate_bevpool_v2(const ov::Tensor& cf,
 
     const auto idx_values = to_i64_vector(idx);
     const auto itv_values = to_i64_vector(itv);
-    if (itv_values.size() % 3 != 0) {
-        return false;
-    }
 
-    const auto dw_len = static_cast<int64_t>(ov::shape_size(dw.get_shape()));
-    const auto cf_len = static_cast<int64_t>(ov::shape_size(cf_shape));
-    const auto out_len = static_cast<int64_t>(ov::shape_size(output.get_shape()));
-
-    const auto feature_area = static_cast<int64_t>(image_width) * static_cast<int64_t>(image_height);
-    const auto depth_bins = static_cast<int64_t>((d_bound.max - d_bound.min) / d_bound.step);
-    const auto depth_span = depth_bins * feature_area;
-    const auto out_plane = static_cast<int64_t>(feature_width) * static_cast<int64_t>(feature_height);
-    if (feature_area <= 0 || depth_bins <= 0 || depth_span <= 0 || out_plane <= 0) {
-        return false;
-    }
-
-    auto* out_data = output.data<T>();
-    std::fill(out_data, out_data + out_len, T{0});
-
-    const auto* cf_data = cf.data<const T>();
-    const auto* dw_data = dw.data<const T>();
-
-    const auto interval_count = itv_values.size() / 3;
-    for (size_t interval = 0; interval < interval_count; ++interval) {
-        const auto start = itv_values[interval * 3 + 0];
-        const auto end = itv_values[interval * 3 + 1];
-        const auto bev_base = itv_values[interval * 3 + 2];
-        if (start < 0 || end < start || static_cast<size_t>(end) > idx_values.size()) {
-            continue;
-        }
-
-        for (uint32_t c = 0; c < output_channels; ++c) {
-            float acc = 0.f;
-            for (int64_t i = start; i < end; ++i) {
-                const auto dw_index = idx_values[static_cast<size_t>(i)];
-                if (dw_index < 0 || dw_index >= dw_len) {
-                    continue;
-                }
-
-                const auto camera_idx = dw_index / depth_span;
-                const auto feature_idx = dw_index % feature_area;
-                const auto cf_offset = (camera_idx * feature_area + feature_idx) * static_cast<int64_t>(input_channels) +
-                                       static_cast<int64_t>(c);
-                if (cf_offset < 0 || cf_offset >= cf_len) {
-                    continue;
-                }
-
-                acc += static_cast<float>(cf_data[cf_offset]) * static_cast<float>(dw_data[dw_index]);
-            }
-
-            const auto out_index = bev_base + static_cast<int64_t>(c) * out_plane;
-            if (out_index >= 0 && out_index < out_len) {
-                out_data[out_index] = static_cast<T>(acc);
-            }
-        }
-    }
-
-    return true;
+    return ov::reference::bevpool_v2<T>(cf.data<const T>(),
+                                        ov::shape_size(cf_shape),
+                                        dw.data<const T>(),
+                                        ov::shape_size(dw.get_shape()),
+                                        idx_values,
+                                        itv_values,
+                                        output.data<T>(),
+                                        ov::shape_size(output.get_shape()),
+                                        input_channels,
+                                        output_channels,
+                                        image_width,
+                                        image_height,
+                                        feature_width,
+                                        feature_height,
+                                        d_bound);
 }
 }  // namespace
 
