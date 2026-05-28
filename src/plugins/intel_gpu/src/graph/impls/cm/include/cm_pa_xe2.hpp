@@ -654,9 +654,8 @@ void pa_kernel_lsc_prefetch_f16(
 
     if (q_tokens_in_tile < 0) q_tokens_in_tile = 0;
     if (q_tokens_in_tile > q_step) q_tokens_in_tile = q_step;
-      
-    // Fp16 path does not use workgroup-level barriers as in `pa_lsc_u8`,
-    // so lanes with zero valid query tokens can early exit.
+
+    // Fp16 path does not use workgroup-level barriers as in `pa_lsc_u8`, so lanes with zero valid query tokens can early exit.
     if (q_tokens_in_tile == 0) return;
 
     lsc::block_2d_desc<uint, 1, REG_N, REG_K / 2> b2dQ(
