@@ -106,6 +106,10 @@ static bool fc_bf_tiled_supports_internal_dynamic_quantize(const fully_connected
     return kernel_selector::fc_kernel_bf_tiled_utils::is_weight_dyn_quantizable(is_4bit_weight, is_8bit_asym_weight);
 }
 
+static bool is_fc_bf_tiled_kernel(const std::string& kernel_name) {
+    return kernel_name == "fully_connected_gpu_bf_tiled";
+}
+
 static bool can_skip_for_fully_connected(const dynamic_quantize_node& node,
                                          const fully_connected_node& fc_node,
                                          const layout& act_layout,
@@ -132,11 +136,10 @@ static bool can_skip_for_fully_connected(const dynamic_quantize_node& node,
         if (forced_impl->second.impl_type != impl_types::ocl) {
             return false;
         }
-        if (!forced_impl->second.kernel_name.empty() &&
-            forced_impl->second.kernel_name.find("fully_connected_gpu_bf_tiled") == std::string::npos) {
+        if (!forced_impl->second.kernel_name.empty() && !is_fc_bf_tiled_kernel(forced_impl->second.kernel_name)) {
             return false;
         }
-        has_equivalent_fc_fast_path = forced_impl->second.kernel_name.find("fully_connected_gpu_bf_tiled") != std::string::npos;
+        has_equivalent_fc_fast_path = is_fc_bf_tiled_kernel(forced_impl->second.kernel_name);
     }
 
     const auto* fc_impl = fc_node.get_selected_impl();
@@ -144,7 +147,7 @@ static bool can_skip_for_fully_connected(const dynamic_quantize_node& node,
         if (fc_impl->is_onednn()) {
             return false;
         }
-        has_equivalent_fc_fast_path |= fc_impl->get_kernel_name().find("fully_connected_gpu_bf_tiled") != std::string::npos;
+        has_equivalent_fc_fast_path |= is_fc_bf_tiled_kernel(fc_impl->get_kernel_name());
     }
 
     if (fc_node.get_preferred_impl_type() == impl_types::onednn && !has_equivalent_fc_fast_path) {

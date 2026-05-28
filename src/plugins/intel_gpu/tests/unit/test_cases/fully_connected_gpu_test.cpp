@@ -3943,6 +3943,7 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         }
 
         ov::intel_gpu::ImplementationDesc ocl_fc_impl = { format::bfyx, "fully_connected_gpu_bf_tiled", impl_types::ocl };
+        ov::intel_gpu::ImplementationDesc dyn_b_fc_impl = { format::bfyx, "fully_connected_gpu_bf_tiled_dyn_b", impl_types::ocl };
         if (engine.get_device_info().dev_type == device_type::integrated_gpu) {
             EXPECT_FALSE(is_dynamic_quantize_skipped(1, single_input, weights_mem, scales_group_size, &ocl_fc_impl))
                 << "Small-batch OCL FC dispatch reads the original F16 input and must keep standalone DynamicQuantize";
@@ -3954,6 +3955,8 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
                 << "Runtime skip must keep standalone DynamicQuantize when its group size differs from the FC internal path";
             EXPECT_FALSE(is_dynamic_quantize_skipped(slm_batch_num, slm_input, u8_weights_mem, scales_group_size, &ocl_fc_impl, 512))
                 << "Symmetric 8-bit weights do not have a validated FC internal DynamicQuantize path";
+            EXPECT_FALSE(is_dynamic_quantize_skipped(slm_batch_num, slm_input, weights_mem, scales_group_size, &dyn_b_fc_impl, 512))
+                << "DynB FC reads the original F16 input and must not be treated as the internal DynamicQuantize path";
             EXPECT_FALSE(is_dynamic_quantize_skipped(1, single_input, weights_mem, std::numeric_limits<uint64_t>::max(), &ocl_fc_impl))
                 << "Per-token DynamicQuantize must not be skipped unless FC can reproduce the same quantization semantics";
         }
