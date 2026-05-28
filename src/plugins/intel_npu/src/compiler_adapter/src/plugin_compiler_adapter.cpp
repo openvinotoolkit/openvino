@@ -35,7 +35,7 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
 
     _logger.info("Loading PLUGIN compiler");
     try {
-        auto vclCompilerPtr = VCLCompilerImpl::getInstance();
+        auto vclCompilerPtr = std::make_shared<VCLCompilerImpl>();
         OPENVINO_ASSERT(vclCompilerPtr != nullptr, "VCL compiler is nullptr");
         auto vclLib = vclCompilerPtr->getLinkedLibrary();
         _logger.info("PLUGIN VCL compiler is loading");
