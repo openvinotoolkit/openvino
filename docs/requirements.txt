@@ -7,7 +7,7 @@ breathe==4.36.0
 certifi==2026.5.20
 colorama==0.4.6
 Cython==3.2.4
-docutils==0.21.2
+docutils==0.23
 idna==3.13
 imagesize==2.0.0
 importlib-metadata>=4.8.0,<10.0.0
