@@ -28,6 +28,7 @@
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/log.hpp"
 #include "tf_framework_node.hpp"
+#include "transformations/common_optimizations/eliminate_gratuitous_slice_cascade.hpp"
 #include "transformations/common_optimizations/eliminate_loop_inputs_outputs.hpp"
 #include "transformations/common_optimizations/remove_concat_zero_dim_input.hpp"
 #include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
@@ -427,6 +428,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::pass::UnrollIf>();
     manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
     manager.register_pass<ov::pass::TransposeSinkingGeneral>();
+    manager.register_pass<ov::pass::EliminateGratuitousSliceCascade>();
     manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
     manager.register_pass<ov::pass::ResolveNameCollisions>(true);
     manager.run_passes(model);

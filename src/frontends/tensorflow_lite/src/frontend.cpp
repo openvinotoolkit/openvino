@@ -16,6 +16,7 @@
 #include "tf_framework_node.hpp"
 #include "tflite_transformations/rfft2d_complex_abs.h"
 #include "tflite_transformations/tflite_quantize_resolver.hpp"
+#include "transformations/common_optimizations/eliminate_gratuitous_slice_cascade.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/resolve_names_collisions.hpp"
@@ -278,6 +279,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& function) const {
     manager.register_pass<ov::frontend::tensorflow_lite::pass::Rfft2dSimplifier>();
     manager.register_pass<ov::pass::TransposeSinking>();
     manager.register_pass<ov::pass::TransposeSinkingGeneral>();
+    manager.register_pass<ov::pass::EliminateGratuitousSliceCascade>();
     manager.register_pass<ov::pass::ResolveNameCollisions>(true);
     manager.run_passes(function);
 }
