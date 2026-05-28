@@ -47,7 +47,7 @@ protected:
 
         try {
             std::string ov_lib_dir = ov::test::utils::getOpenvinoLibDirectory();
-            ::intel_npu::VCLApi::getInstance(ov_lib_dir);
+            ::intel_npu::VCLApi::createInstance(ov_lib_dir);
         } catch (const std::exception&) {
             GTEST_SKIP() << "Couldn't load compiler library";
         }

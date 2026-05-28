@@ -48,12 +48,14 @@ VCLApi::VCLApi(const std::string& library_dir) : _logger("VCLApi", Logger::globa
 #undef vcl_symbol_statement
 }
 
-const std::shared_ptr<VCLApi> VCLApi::getInstance(const std::string& library_dir) {
-    static std::mutex mtx;
-    std::lock_guard<std::mutex> lock(mtx);
+namespace {
+std::mutex mtx;
+std::string initialized_dir;
+std::shared_ptr<VCLApi> instance = nullptr;
+}  // namespace
 
-    static std::string initialized_dir;
-    static std::shared_ptr<VCLApi> instance = nullptr;
+const std::shared_ptr<VCLApi> VCLApi::createInstance(const std::string& library_dir) {
+    std::lock_guard<std::mutex> lock(mtx);
 
     if (!instance) {
         if (library_dir.empty()) {
@@ -69,6 +71,16 @@ const std::shared_ptr<VCLApi> VCLApi::getInstance(const std::string& library_dir
                            library_dir,
                            "' in the same process is not supported.");
         }
+    }
+
+    return instance;
+}
+
+const std::shared_ptr<VCLApi> VCLApi::getInstance() {
+    std::lock_guard<std::mutex> lock(mtx);
+
+    if (!instance) {
+        OPENVINO_THROW("VCLApi has not been initialized yet!");
     }
 
     return instance;
