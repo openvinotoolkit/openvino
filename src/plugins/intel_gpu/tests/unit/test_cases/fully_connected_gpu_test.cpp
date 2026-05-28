@@ -3853,8 +3853,9 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
 
-        if (!engine.get_device_info().supports_immad)
-            GTEST_SKIP();
+        if (!engine.get_device_info().supports_immad) {
+            GTEST_SKIP() << "DynamicQuantize runtime skip guards require IMMAD support";
+        }
 
         constexpr long int seq_num = 40;
         constexpr long int ifm_num = 128;

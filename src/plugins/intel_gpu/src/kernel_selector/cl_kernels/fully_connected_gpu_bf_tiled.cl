@@ -43,21 +43,21 @@ KERNEL(quantize_input)(
         max_value = fmax(max_value, temp);
     }
 
-    INPUT0_TYPE quan_scale = 127.0h / max_value;
+    INPUT0_TYPE inv_quan_scale = 127.0h / max_value;
     #if COMPRESSED_WEIGHTS_INT8
         int quantized_sum = 0;
     #endif
     for (uint i = 0 ; i < quantize_block ; ++i) {
         input_0 = vload4(0, &input[input_offset + i * 4]);
-        quantized_value = CAT(CAT(convert_, MAKE_VECTOR_TYPE(DQ_TYPE, INPUT_LOAD_SIZE)), _rte)(input_0 * quan_scale);
+        quantized_value = CAT(CAT(convert_, MAKE_VECTOR_TYPE(DQ_TYPE, INPUT_LOAD_SIZE)), _rte)(input_0 * inv_quan_scale);
         #if COMPRESSED_WEIGHTS_INT8
             quantized_sum += quantized_value[0] + quantized_value[1] + quantized_value[2] + quantized_value[3];
         #endif
         vstore4(quantized_value, 0, &quantized_input[input_offset + i * 4]);
     }
 
-    // Pair of quantizing_scale and quantized activation_sum for each group
-    quan_var[offset * 2] = convert_half(1.0h / quan_scale);
+    // Pair of dequantization scale and quantized activation_sum for each group
+    quan_var[offset * 2] = convert_half(1.0h / inv_quan_scale);
     #if COMPRESSED_WEIGHTS_INT8
         quan_var[(offset * 2) + 1] = convert_half(quantized_sum);
     #endif
