@@ -169,7 +169,7 @@
              return e_type_even::get_supported_precisions(n);                                     \
          }                                                                                        \
          OPENVINO_THROW("Unsupported Round mode");                                                \
-     }}
+}}
      
 namespace ov {
 
