@@ -3853,6 +3853,10 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
 
+        if (engine.get_device_info().dev_type == device_type::discrete_gpu) {
+            GTEST_SKIP() << "DynamicQuantize runtime skip guard targets the integrated-GPU FC SLM internal path";
+        }
+
         if (!engine.get_device_info().supports_immad) {
             GTEST_SKIP() << "DynamicQuantize runtime skip guards require IMMAD support";
         }
@@ -3873,7 +3877,8 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         auto is_dynamic_quantize_skipped = [&](long int batch_num,
                                                const std::vector<ov::float16>& input_data,
                                                uint64_t dynamic_quantize_group_size,
-                                               const ov::intel_gpu::ImplementationDesc* fc_impl_desc) {
+                                               const ov::intel_gpu::ImplementationDesc* fc_impl_desc,
+                                               size_t dynamic_quantization_threshold = 64) {
             auto input_ps = ov::PartialShape{ batch_num, seq_num, ifm_num };
             auto input_mem = engine.allocate_memory({ input_ps, data_types::f16, format::bfyx });
             set_values(input_mem, input_data);
@@ -3907,6 +3912,7 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
             auto config = get_test_default_config(engine);
             config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
             config.set_property(ov::intel_gpu::optimize_data(true));
+            config.set_property(ov::intel_gpu::dynamic_quantization_threshold(dynamic_quantization_threshold));
             if (fc_impl_desc != nullptr) {
                 config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc_prim", *fc_impl_desc} }));
             }
@@ -3925,14 +3931,29 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         batched_input.reserve(single_input.size() * 2);
         batched_input.insert(batched_input.end(), single_input.begin(), single_input.end());
         batched_input.insert(batched_input.end(), single_input.begin(), single_input.end());
+        std::vector<ov::float16> slm_input;
+        constexpr long int slm_batch_num = 8;
+        slm_input.reserve(single_input.size() * slm_batch_num);
+        for (long int batch = 0; batch < slm_batch_num; ++batch) {
+            slm_input.insert(slm_input.end(), single_input.begin(), single_input.end());
+        }
 
         ov::intel_gpu::ImplementationDesc ocl_fc_impl = { format::bfyx, "fully_connected_gpu_bf_tiled", impl_types::ocl };
-        EXPECT_TRUE(is_dynamic_quantize_skipped(1, single_input, scales_group_size, &ocl_fc_impl))
-            << "Grouped DynamicQuantize may still use the OCL FC fast path for small single-request shapes";
-        EXPECT_FALSE(is_dynamic_quantize_skipped(2, batched_input, scales_group_size, &ocl_fc_impl))
-            << "The threshold must still execute DynamicQuantize when the token batch is above the threshold";
-        EXPECT_FALSE(is_dynamic_quantize_skipped(1, single_input, std::numeric_limits<uint64_t>::max(), &ocl_fc_impl))
-            << "Per-token DynamicQuantize must not be skipped unless FC can reproduce the same quantization semantics";
+        if (engine.get_device_info().dev_type == device_type::integrated_gpu) {
+            EXPECT_FALSE(is_dynamic_quantize_skipped(1, single_input, scales_group_size, &ocl_fc_impl))
+                << "Small-batch OCL FC dispatch reads the original F16 input and must keep standalone DynamicQuantize";
+            EXPECT_FALSE(is_dynamic_quantize_skipped(2, batched_input, scales_group_size, &ocl_fc_impl))
+                << "The threshold must still execute DynamicQuantize when the token batch is above the threshold";
+            EXPECT_TRUE(is_dynamic_quantize_skipped(slm_batch_num, slm_input, scales_group_size, &ocl_fc_impl, 512))
+                << "Runtime skip is allowed only when integrated-GPU FC dispatch can use the internal dyn-quantized SLM path";
+            EXPECT_FALSE(is_dynamic_quantize_skipped(slm_batch_num, slm_input, 64, &ocl_fc_impl, 512))
+                << "Runtime skip must keep standalone DynamicQuantize when its group size differs from the FC internal path";
+            EXPECT_FALSE(is_dynamic_quantize_skipped(1, single_input, std::numeric_limits<uint64_t>::max(), &ocl_fc_impl))
+                << "Per-token DynamicQuantize must not be skipped unless FC can reproduce the same quantization semantics";
+        }
+
+        EXPECT_FALSE(is_dynamic_quantize_skipped(1, single_input, scales_group_size, nullptr))
+            << "The production path must keep explicit DynamicQuantize for small batches without a proven internal FC path";
         EXPECT_FALSE(is_dynamic_quantize_skipped(1, single_input, std::numeric_limits<uint64_t>::max(), nullptr))
             << "The production path must also keep explicit per-token DynamicQuantize execution";
         EXPECT_FALSE(is_dynamic_quantize_skipped(2, batched_input, scales_group_size, nullptr))

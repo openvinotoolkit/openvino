@@ -109,6 +109,11 @@ size_t get_scale_group_size(const fully_connected_params& params);
 bool is_8bit_asym_wei(const fully_connected_params& params);
 bool is_weight_dyn_quantizable(const fully_connected_params& params);
 bool is_per_token_dynamic_quantize(const fully_connected_params& params);
+size_t get_dynamic_quantize_group_size(size_t requested_group_size,
+                                       size_t scale_group_size,
+                                       size_t zp_group_size,
+                                       bool has_decompression_zp,
+                                       bool is_8bit_asym_weight);
 size_t get_dynamic_quantize_group_size(const fully_connected_params& params);
 bool should_dynamic_quantize(const fully_connected_params& params);
 bool is_weight_vertical(const fully_connected_params& params, size_t output_f);

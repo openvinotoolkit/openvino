@@ -4,6 +4,7 @@
 
 #include "ov_ops/dynamic_quantize.hpp"
 #include "dynamic_quantize_inst.h"
+#include "fully_connected/fully_connected_kernel_bf_tiled.h"
 #include "fully_connected_inst.h"
 
 #include "primitive_type_base.h"
@@ -14,7 +15,82 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(dynamic_quantize);
 
-static bool can_skip_for_fully_connected(dynamic_quantize_node const& node, fully_connected_node const& fc_node) {
+static bool fc_bf_tiled_uses_internal_dynamic_quantize(const fully_connected_node& fc_node, size_t input_batch) {
+    // Mirror FullyConnected_bf_tiled runtime dispatch: internal DynamicQuantize is used only by the SLM kernel.
+    if (fc_node.get_program().get_engine().get_device_info().dev_type != device_type::integrated_gpu) {
+        return false;
+    }
+
+    constexpr size_t default_alignment = 16;
+    constexpr size_t min_slm_size = 256;
+    return input_batch + default_alignment > min_slm_size;
+}
+
+static size_t get_static_last_dim(const layout& layout) {
+    const auto& shape = layout.get_partial_shape();
+    if (shape.rank().is_dynamic() || shape.size() == 0 || shape[shape.size() - 1].is_dynamic()) {
+        return 0;
+    }
+
+    return static_cast<size_t>(shape[shape.size() - 1].get_length());
+}
+
+static size_t get_fc_scale_group_size(const fully_connected_node& fc_node) {
+    const auto& fc_prim = fc_node.get_primitive();
+    if (!fc_prim->decompression_scale.is_valid()) {
+        return 0;
+    }
+
+    const size_t scale_dep_idx = 2 + (fc_prim->bias.is_valid() ? 1 : 0);
+    if (fc_node.get_dependencies().size() <= scale_dep_idx) {
+        return 0;
+    }
+
+    const auto ifm_size = get_static_last_dim(fc_node.weights().get_output_layout());
+    const auto scale_groups = get_static_last_dim(fc_node.get_dependency(scale_dep_idx).get_output_layout());
+    if (ifm_size == 0 || scale_groups == 0 || ifm_size % scale_groups != 0) {
+        return 0;
+    }
+
+    return ifm_size / scale_groups;
+}
+
+static size_t get_fc_zp_group_size(const fully_connected_node& fc_node) {
+    const auto& fc_prim = fc_node.get_primitive();
+    if (!fc_prim->decompression_zero_point.is_valid()) {
+        return 0;
+    }
+
+    const size_t zp_dep_idx = 2 + (fc_prim->bias.is_valid() ? 1 : 0) + 1;
+    if (fc_node.get_dependencies().size() <= zp_dep_idx) {
+        return 0;
+    }
+
+    const auto ifm_size = get_static_last_dim(fc_node.weights().get_output_layout());
+    const auto zp_groups = get_static_last_dim(fc_node.get_dependency(zp_dep_idx).get_output_layout());
+    if (ifm_size == 0 || zp_groups == 0 || ifm_size % zp_groups != 0) {
+        return 0;
+    }
+
+    return ifm_size / zp_groups;
+}
+
+static size_t get_fc_internal_dynamic_quantize_group_size(const fully_connected_node& fc_node) {
+    const auto& fc_prim = fc_node.get_primitive();
+    const auto weight_type = fc_node.weights().get_output_layout().data_type;
+    const bool has_zp = fc_prim->decompression_zero_point.is_valid() ||
+                        fc_prim->decompression_zero_point_scalar.has_value();
+    const bool is_8bit_asym_weight = weight_type == data_types::u8 && has_zp;
+
+    return kernel_selector::fc_kernel_bf_tiled_utils::get_dynamic_quantize_group_size(
+        fc_node.get_program().get_config().get_dynamic_quantization_group_size(),
+        get_fc_scale_group_size(fc_node),
+        get_fc_zp_group_size(fc_node),
+        has_zp,
+        is_8bit_asym_weight);
+}
+
+static bool can_skip_for_fully_connected(const dynamic_quantize_node& node, const fully_connected_node& fc_node, size_t input_batch) {
     const auto& attrs = node.get_primitive()->attrs;
 
     if (attrs.quantization_type != ov::op::internal::DynamicQuantize::QuantizationType::Symmetric ||
@@ -52,11 +128,14 @@ static bool can_skip_for_fully_connected(dynamic_quantize_node const& node, full
         return false;
     }
 
-    return has_equivalent_fc_fast_path;
+    const auto fc_internal_group_size = get_fc_internal_dynamic_quantize_group_size(fc_node);
+    return has_equivalent_fc_fast_path &&
+           fc_internal_group_size == attrs.group_sizes.back() &&
+           fc_bf_tiled_uses_internal_dynamic_quantize(fc_node, input_batch);
 }
 
-// We should skip dynamic_quantization execution for 2nd token of LLM because it does not show performance gain.
-// can_be_optimized flag will be turned on from primitive_inst::update_shape function
+// can_be_optimized flag will be turned on from primitive_inst::update_shape function only when the
+// following primitive can reproduce DynamicQuantize semantics internally for the current shape.
 static bool should_skip_execution(dynamic_quantize_node const& node, const layout &act_layout) {
     if (!node.is_runtime_skippable()
         || !act_layout.is_static())
@@ -68,16 +147,16 @@ static bool should_skip_execution(dynamic_quantize_node const& node, const layou
     if (!(*node.get_users().begin())->is_type<fully_connected>())
         return false;
 
-    auto& fc_user = (*node.get_users().begin())->as<fully_connected>();
-    if (!can_skip_for_fully_connected(node, fc_user)) {
-        GPU_DEBUG_TRACE << node.id() << "  dyn_quan is not runtime-skipped: no equivalent FC fast path" << std::endl;
-        return false;
-    }
-
     size_t input_batch = act_layout.batch();
     if (act_layout.format == format::bfyx && act_layout.get_partial_shape().size() != 2) {
         // 3D input
         input_batch = act_layout.batch() * act_layout.feature();
+    }
+
+    auto& fc_user = (*node.get_users().begin())->as<fully_connected>();
+    if (!can_skip_for_fully_connected(node, fc_user, input_batch)) {
+        GPU_DEBUG_TRACE << node.id() << "  dyn_quan is not runtime-skipped: no equivalent FC fast path" << std::endl;
+        return false;
     }
 
     const auto dynamic_quantization_threshold = node.get_program().get_config().get_dynamic_quantization_threshold();
