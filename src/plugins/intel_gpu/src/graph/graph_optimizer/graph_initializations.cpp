@@ -72,16 +72,19 @@ bool is_layer_name_match(const primitive_id& key, const primitive_id& node_id) {
     const auto lower_key = to_lower_copy(key);
     const auto lower_node = to_lower_copy(node_id);
 
-    if (lower_node == lower_key) {
-        return true;
-    }
+    const bool is_prefix = lower_node.rfind(lower_key + ":", 0) == 0;
+    const bool is_suffix = lower_node.size() > lower_key.size() &&
+                           lower_node.compare(lower_node.size() - lower_key.size(), lower_key.size(), lower_key) == 0 &&
+                           lower_node[lower_node.size() - lower_key.size() - 1] == ':';
+    return is_prefix || is_suffix;
+}
 
-    const std::string prefix = lower_key + ":";
-    if (lower_node.rfind(prefix, 0) == 0) {
-        return true;
+void validate_pattern_forcing_desc(const primitive_id& key, const ov::intel_gpu::ImplementationDesc& desc) {
+    if (!desc.kernel_name.empty() || desc.output_format != format::any) {
+        OPENVINO_THROW("[GPU] force_implementations pattern or layer-name key '",
+                       key,
+                       "' can only force implementation type. Use an exact primitive id to force kernel or layout.");
     }
-
-    return lower_node.find(lower_key) != std::string::npos;
 }
 
 }  // namespace
@@ -115,13 +118,15 @@ void graph_initializations::run(program& p) {
         if (p.has_node(kv.first)) {
             p.get_node(kv.first).set_forced_impl_type(kv.second.impl_type);
             found_match = true;
+            continue;
+        }
+
+        if (is_pattern_key(kv.first) || !has_primitive_suffix(kv.first)) {
+            validate_pattern_forcing_desc(kv.first, kv.second);
         }
 
         for (auto& node_kv : p.nodes_map) {
             const auto& node_id = node_kv.first;
-            if (node_id == kv.first) {
-                continue;
-            }
 
             bool matched = false;
             if (is_pattern_key(kv.first)) {

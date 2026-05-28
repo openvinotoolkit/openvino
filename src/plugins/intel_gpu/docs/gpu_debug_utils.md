@@ -201,7 +201,7 @@ You can force a specific implementation for chosen primitives by setting ```OV_G
      Supported forms:
      - ```'layer_name:primitive_id'``` for exact primitive match
      - ```layer_name``` to force all runtime primitives generated from this layer
-     - wildcard pattern with ```*``` (for example, ```Concat_*``` or ```'layer_name:*'```)
+    - wildcard pattern with ```*``` (for example, ```concat:*``` or ```'layer_name:*'```)
      Use quotation marks when the name contains a colon, otherwise the colon is treated as a separator.
  - ```Impl``` is the forced implementation name, available: ```any```, ```ocl```, ```cm```, ```sycl```, ```onednn```, ```common```, ```cpu```
  - ```Kernel``` is the name of the kernel you'd like to be executed. Please note that currently forcing the specific kernel works only for ```ocl``` implementation
@@ -211,13 +211,15 @@ You can force a specific implementation for chosen primitives by setting ```OV_G
 
  `OV_GPU_FORCE_IMPLEMENTATIONS={Name:Impl:Kernel:Layout},{Name:Impl:Kernel:Layout},...`
 
+For pattern or layer-name matches, only `Impl` is applied. `Kernel` and `Layout` are supported for exact primitive names only.
+
 For example, to force the `ocl` implementation for all `Concat` runtime primitives in a model, you can use a wildcard pattern:
 
 ```sh
-export OV_GPU_FORCE_IMPLEMENTATIONS="{Concat_*:ocl::}"
+export OV_GPU_FORCE_IMPLEMENTATIONS="{'concat:*':ocl::any}"
 ```
 
-This matches all runtime primitive names that start with `Concat_` and leaves `Kernel` and `Layout` unspecified.
+This matches all runtime primitive names that start with `concat:` and leaves `Kernel` unspecified and `Layout` as `any`.
 
 ## Layer in/out buffer dumps
 
