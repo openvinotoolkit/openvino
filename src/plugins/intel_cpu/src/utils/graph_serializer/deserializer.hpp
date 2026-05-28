@@ -13,6 +13,7 @@
 #include "openvino/core/model.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
+#include "openvino/xml_util/weights_provider.hpp"
 #include "utils/codec_xor.hpp"
 
 namespace ov {

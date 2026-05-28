@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include <cstddef>
-#include <filesystem>
 #include <functional>
 #include <map>
 #include <pugixml.hpp>
@@ -20,6 +18,7 @@
 #include "openvino/opsets/opset.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/util/common_util.hpp"
+#include "openvino/xml_util/weights_provider.hpp"
 
 namespace ov::util {
 struct GenericLayerParams;
@@ -46,42 +45,6 @@ void str_to_container(const std::string& value, T& res) {
 
 template <>
 void str_to_container<std::vector<std::string>>(const std::string& value, std::vector<std::string>& res);
-
-class WeightsProvider {
-public:
-    virtual ~WeightsProvider() = default;
-
-    virtual std::shared_ptr<ov::AlignedBuffer> load_region(size_t offset, size_t size) = 0;
-    virtual size_t size() const = 0;
-};
-
-class BufferWeightsProvider : public WeightsProvider {
-public:
-    explicit BufferWeightsProvider(std::shared_ptr<ov::AlignedBuffer> weights);
-
-    std::shared_ptr<ov::AlignedBuffer> load_region(size_t offset, size_t size) override;
-    size_t size() const override;
-
-private:
-    std::shared_ptr<ov::AlignedBuffer> m_weights;
-};
-
-class FileWeightsProvider : public WeightsProvider {
-public:
-    explicit FileWeightsProvider(std::filesystem::path weights_path);
-
-    std::shared_ptr<ov::AlignedBuffer> load_region(size_t offset, size_t size) override;
-    size_t size() const override;
-
-private:
-    using WeightsRegionKey = std::pair<size_t, size_t>;
-
-    std::filesystem::path m_weights_path;
-    size_t m_weights_size = 0;
-    size_t m_weights_source_id = 0;
-    std::shared_ptr<ov::AlignedBuffer> m_weights_source_handle;
-    std::map<WeightsRegionKey, std::shared_ptr<ov::AlignedBuffer>> m_loaded_weights_regions;
-};
 
 class XmlDeserializer : public ov::AttributeVisitor {
 public:
