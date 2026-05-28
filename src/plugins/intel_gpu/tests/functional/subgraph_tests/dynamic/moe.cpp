@@ -155,6 +155,8 @@ protected:
         ov::test::SubgraphBaseTest::validate();
         const auto pattern_type = std::get<1>(GetParam());
         const auto force_gather_matmul = std::get<11>(GetParam());
+        const auto use_per_expert_scale = std::get<13>(GetParam());
+        const auto layer_norm_mul = std::get<14>(GetParam());
         if (force_gather_matmul) {
             // GEMM3: gate, up, down → 3 GatherMatmul ops; GEMM2: fused gate_up + down → 2.
             ov::test::CheckNumberOfNodesWithType(compiledModel, "gather_matmul", pattern_type == MoePatternType::GEMM3 ? 3 : 2);
@@ -166,7 +168,22 @@ protected:
         }
         if (pattern_type == MoePatternType::GEMM3) {
             ov::test::CheckNumberOfNodesWithType(compiledModel, "moe_router_fused", 1);
+            // Additional check to make sure that there are no extra scales on the routing path
+            // Even if the original model has this scale, FuseMoERouterScale pass must fuse it into the MOECompressed op
+            if (!force_gather_matmul) {
+                size_t expected_eltwise_count = 0;
+                // Note: use_per_expert_scale adds 2 scales: before routing matmul and after router output,
+                // the second one is fused into MoE by FuseMoERouterScale
+                if (use_per_expert_scale) {
+                    expected_eltwise_count += 1;
+                }
+                if (layer_norm_mul) {
+                    expected_eltwise_count += 1;
+                }
+                ov::test::CheckNumberOfNodesWithType(compiledModel, "Eltwise", expected_eltwise_count);
+            }
         }
+        ov::pass::Serialize("exec.xml", "").run_on_model(std::const_pointer_cast<ov::Model>(compiledModel.get_runtime_model()));
     }
 
     void TearDown() override {

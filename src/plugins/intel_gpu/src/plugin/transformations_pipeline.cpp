@@ -94,6 +94,7 @@
 #include "plugin/transformations/fuse_gated_mlp.hpp"
 #include "plugin/transformations/fuse_atan2_decomposed.hpp"
 #include "plugin/transformations/fuse_moe_router.hpp"
+#include "plugin/transformations/fuse_moe_router_scale.hpp"
 #include "plugin/transformations/increase_position_ids_precision.hpp"
 #include "plugin/transformations/indirect_kv_cache.hpp"
 #include "plugin/transformations/keep_moe_3gemm_const_precision.hpp"
@@ -588,6 +589,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 // disabled (e.g. via OV_GPU_USE_ONEDNN=0 on an IMMAD GPU), the
                 // queue stays out-of-order and the oneDNN stream creation may assert.
                 manager.register_pass<ov::pass::MoeOpFusion>(has_batch_dim);
+                manager.register_pass<ov::intel_gpu::FuseMoERouterScale>();
                 manager.register_pass<ov::intel_gpu::FuseMOESharedExpert>();
             }
         }
