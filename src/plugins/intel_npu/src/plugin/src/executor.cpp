@@ -4,7 +4,9 @@
 
 #include "executor.hpp"
 
+#include <algorithm>
 #include <condition_variable>
+#include <deque>
 #include <exception>
 #include <mutex>
 #include <queue>
@@ -82,7 +84,7 @@ public:
 
         {
             std::lock_guard<std::mutex> lock(_mutex);
-            _tasks.emplace(std::move(task));
+            _tasks.push(TaskEntry{std::move(task), std::this_thread::get_id()});
 
             if (_allowWorkerGrowth) {
                 while ((_tasks.size() + _busyWorkers) > _activeWorkers) {
@@ -94,17 +96,35 @@ public:
     }
 
 private:
+    struct TaskEntry {
+        ov::threading::Task task;
+        std::thread::id submitterId;
+    };
+
     struct WorkerEntry {
         std::thread thread;
         bool finished = false;
     };
 
+    struct PendingTaskException {
+        std::exception_ptr exception;
+        std::thread::id submitterId;
+    };
+
     void rethrow_pending_task_exception() {
         std::exception_ptr pending;
+        const auto currentCaller = std::this_thread::get_id();
         {
             std::lock_guard<std::mutex> lock(_mutex);
-            pending = _pendingTaskException;
-            _pendingTaskException = nullptr;
+            const auto it = std::find_if(_pendingTaskExceptions.begin(),
+                                         _pendingTaskExceptions.end(),
+                                         [&](const PendingTaskException& item) {
+                                             return item.submitterId == currentCaller;
+                                         });
+            if (it != _pendingTaskExceptions.end()) {
+                pending = it->exception;
+                _pendingTaskExceptions.erase(it);
+            }
         }
 
         if (pending != nullptr) {
@@ -157,6 +177,7 @@ private:
                 openvino::itt::threadName(_name + "_" + std::to_string(workerId));
                 for (;;) {
                     ov::threading::Task task;
+                    std::thread::id submitterId;
                     {
                         std::unique_lock<std::mutex> lock(_mutex);
                         while (!_stopped && _tasks.empty()) {
@@ -187,7 +208,8 @@ private:
                             return;
                         }
 
-                        task = std::move(_tasks.front());
+                        task = std::move(_tasks.front().task);
+                        submitterId = _tasks.front().submitterId;
                         _tasks.pop();
                         ++_busyWorkers;
                     }
@@ -196,9 +218,7 @@ private:
                         task();
                     } catch (...) {
                         std::lock_guard<std::mutex> lock(_mutex);
-                        if (_pendingTaskException == nullptr) {
-                            _pendingTaskException = std::current_exception();
-                        }
+                        _pendingTaskExceptions.push_back(PendingTaskException{std::current_exception(), submitterId});
                     }
 
                     {
@@ -227,11 +247,11 @@ private:
     const std::chrono::milliseconds _idleTimeout;
     std::mutex _mutex;
     std::condition_variable _condition;
-    std::queue<ov::threading::Task> _tasks;
+    std::queue<TaskEntry> _tasks;
     std::vector<WorkerEntry> _workers;
     std::vector<size_t> _retiredWorkerIndices;
     std::vector<size_t> _freeWorkerIndices;
-    std::exception_ptr _pendingTaskException;
+    std::deque<PendingTaskException> _pendingTaskExceptions;
     size_t _nextWorkerId = 0;
     size_t _activeWorkers = 0;
     size_t _busyWorkers = 0;
