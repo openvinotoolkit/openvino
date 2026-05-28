@@ -131,12 +131,13 @@ bool ov::DisablePrecisionConversion::visit_attributes(AttributeVisitor& visitor)
 
 const std::string& ov::AttributeAdapter<ov::DisabledPrecisionMap>::get() {
     std::ostringstream oss;
-    bool first_entry = true;
-    for (const auto& [from_type, to_types] : m_ref) {
-        if (!first_entry)
-            oss << ';';
-        first_entry = false;
-        oss << from_type.to_string() << ':' << ov::util::join(to_types, ",");
+    if (!m_ref.empty()) {
+        auto it = m_ref.begin();
+        oss << it->first << ':' << ov::util::join<std::ostream>(it->second, ",");
+        for (++it; it != m_ref.end(); ++it) {
+            const auto& [from, to] = *it;
+            oss << ';' << from << ':' << ov::util::join<std::ostream>(to, ",");
+        }
     }
     m_serialized = oss.str();
     return m_serialized;
@@ -144,23 +145,16 @@ const std::string& ov::AttributeAdapter<ov::DisabledPrecisionMap>::get() {
 
 void ov::AttributeAdapter<ov::DisabledPrecisionMap>::set(const std::string& value) {
     m_ref.clear();
-    if (value.empty())
-        return;
-    std::istringstream iss(value);
-    std::string entry;
-    while (std::getline(iss, entry, ';')) {
-        auto colon_pos = entry.find(':');
-        if (colon_pos == std::string::npos)
-            continue;
-        element::Type from_type(entry.substr(0, colon_pos));
-        std::string to_part = entry.substr(colon_pos + 1);
-        auto& to_set = m_ref[from_type];
-        if (!to_part.empty()) {
-            std::istringstream to_stream(to_part);
-            std::string to_name;
-            while (std::getline(to_stream, to_name, ',')) {
-                to_set.insert(element::Type(to_name));
-            }
+    for (std::string_view sv(value); !sv.empty();) {
+        const auto sep_pos = sv.find(';');
+        const auto entry = sv.substr(0, sep_pos);
+        sv = sep_pos != std::string_view::npos ? sv.substr(sep_pos + 1) : std::string_view{};
+        if (const auto colon_pos = entry.find(':'); colon_pos != std::string_view::npos) {
+            element::Type from_type(std::string(entry.substr(0, colon_pos)));
+            auto& to_set = m_ref[from_type];
+            ov::util::view_transform(entry.substr(colon_pos + 1), std::inserter(to_set, to_set.end()), ",", [](auto s) {
+                return element::Type(std::string(s));
+            });
         }
     }
 }
