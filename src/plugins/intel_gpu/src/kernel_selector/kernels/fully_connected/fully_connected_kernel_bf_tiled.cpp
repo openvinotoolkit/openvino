@@ -95,13 +95,14 @@ bool is_8bit_asym_wei(const fully_connected_params& params) {
 
 bool is_weight_dyn_quantizable(const fully_connected_params& params) {
     auto weight_type = params.weights.GetDType();
-    if (weight_type == WeightsType::INT4 || weight_type == WeightsType::UINT4)
-        return true;
-    // No validated case of sym 8bit weight
-    if (is_8bit_asym_wei(params))
-        return true;
+    const bool is_4bit_weight = weight_type == WeightsType::INT4 || weight_type == WeightsType::UINT4;
 
-    return false;
+    return is_weight_dyn_quantizable(is_4bit_weight, is_8bit_asym_wei(params));
+}
+
+bool is_weight_dyn_quantizable(bool is_4bit_weight, bool is_8bit_asym_weight) {
+    // No validated case of sym 8bit weight.
+    return is_4bit_weight || is_8bit_asym_weight;
 }
 
 bool is_per_token_dynamic_quantize(const fully_connected_params& params) {

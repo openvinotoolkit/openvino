@@ -35,6 +35,12 @@ static size_t get_static_last_dim(const layout& layout) {
     return static_cast<size_t>(shape[shape.size() - 1].get_length());
 }
 
+static bool has_fc_decompression_zp(const fully_connected_node& fc_node) {
+    const auto& fc_prim = fc_node.get_primitive();
+    return fc_prim->decompression_zero_point.is_valid() ||
+           fc_prim->decompression_zero_point_scalar.has_value();
+}
+
 static size_t get_fc_scale_group_size(const fully_connected_node& fc_node) {
     const auto& fc_prim = fc_node.get_primitive();
     if (!fc_prim->decompression_scale.is_valid()) {
@@ -57,6 +63,10 @@ static size_t get_fc_scale_group_size(const fully_connected_node& fc_node) {
 
 static size_t get_fc_zp_group_size(const fully_connected_node& fc_node) {
     const auto& fc_prim = fc_node.get_primitive();
+    if (fc_prim->decompression_zero_point_scalar.has_value()) {
+        return get_static_last_dim(fc_node.weights().get_output_layout());
+    }
+
     if (!fc_prim->decompression_zero_point.is_valid()) {
         return 0;
     }
@@ -76,10 +86,8 @@ static size_t get_fc_zp_group_size(const fully_connected_node& fc_node) {
 }
 
 static size_t get_fc_internal_dynamic_quantize_group_size(const fully_connected_node& fc_node) {
-    const auto& fc_prim = fc_node.get_primitive();
     const auto weight_type = fc_node.weights().get_output_layout().data_type;
-    const bool has_zp = fc_prim->decompression_zero_point.is_valid() ||
-                        fc_prim->decompression_zero_point_scalar.has_value();
+    const bool has_zp = has_fc_decompression_zp(fc_node);
     const bool is_8bit_asym_weight = weight_type == data_types::u8 && has_zp;
 
     return kernel_selector::fc_kernel_bf_tiled_utils::get_dynamic_quantize_group_size(
@@ -90,7 +98,18 @@ static size_t get_fc_internal_dynamic_quantize_group_size(const fully_connected_
         is_8bit_asym_weight);
 }
 
-static bool can_skip_for_fully_connected(const dynamic_quantize_node& node, const fully_connected_node& fc_node, size_t input_batch) {
+static bool fc_bf_tiled_supports_internal_dynamic_quantize(const fully_connected_node& fc_node) {
+    const auto weight_type = fc_node.weights().get_output_layout().data_type;
+    const bool is_4bit_weight = weight_type == data_types::i4 || weight_type == data_types::u4;
+    const bool is_8bit_asym_weight = weight_type == data_types::u8 && has_fc_decompression_zp(fc_node);
+
+    return kernel_selector::fc_kernel_bf_tiled_utils::is_weight_dyn_quantizable(is_4bit_weight, is_8bit_asym_weight);
+}
+
+static bool can_skip_for_fully_connected(const dynamic_quantize_node& node,
+                                         const fully_connected_node& fc_node,
+                                         const layout& act_layout,
+                                         size_t input_batch) {
     const auto& attrs = node.get_primitive()->attrs;
 
     if (attrs.quantization_type != ov::op::internal::DynamicQuantize::QuantizationType::Symmetric ||
@@ -99,6 +118,10 @@ static bool can_skip_for_fully_connected(const dynamic_quantize_node& node, cons
         attrs.precomputed_reduction ||
         attrs.group_sizes.empty() ||
         attrs.group_sizes.back() == std::numeric_limits<uint64_t>::max()) {
+        return false;
+    }
+
+    if (act_layout.data_type != data_types::f16 || !fc_bf_tiled_supports_internal_dynamic_quantize(fc_node)) {
         return false;
     }
 
@@ -129,7 +152,11 @@ static bool can_skip_for_fully_connected(const dynamic_quantize_node& node, cons
     }
 
     const auto fc_internal_group_size = get_fc_internal_dynamic_quantize_group_size(fc_node);
+    const auto input_features = get_static_last_dim(act_layout);
     return has_equivalent_fc_fast_path &&
+           fc_internal_group_size != 0 &&
+           input_features != 0 &&
+           input_features % fc_internal_group_size == 0 &&
            fc_internal_group_size == attrs.group_sizes.back() &&
            fc_bf_tiled_uses_internal_dynamic_quantize(fc_node, input_batch);
 }
@@ -154,7 +181,7 @@ static bool should_skip_execution(dynamic_quantize_node const& node, const layou
     }
 
     auto& fc_user = (*node.get_users().begin())->as<fully_connected>();
-    if (!can_skip_for_fully_connected(node, fc_user, input_batch)) {
+    if (!can_skip_for_fully_connected(node, fc_user, act_layout, input_batch)) {
         GPU_DEBUG_TRACE << node.id() << "  dyn_quan is not runtime-skipped: no equivalent FC fast path" << std::endl;
         return false;
     }

@@ -107,6 +107,7 @@ std::pair<size_t, size_t> get_output_aligned_bf_size(const fully_connected_param
                                                      int32_t align_f = 1);
 size_t get_scale_group_size(const fully_connected_params& params);
 bool is_8bit_asym_wei(const fully_connected_params& params);
+bool is_weight_dyn_quantizable(bool is_4bit_weight, bool is_8bit_asym_weight);
 bool is_weight_dyn_quantizable(const fully_connected_params& params);
 bool is_per_token_dynamic_quantize(const fully_connected_params& params);
 size_t get_dynamic_quantize_group_size(size_t requested_group_size,
