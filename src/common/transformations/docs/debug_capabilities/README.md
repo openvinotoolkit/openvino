@@ -22,7 +22,7 @@ They can be activated at runtime and are useful for analyzing transformation beh
 
 * [Subgraph extraction](extract_subgraph.md)
   When to use: working with a large model where full compilation or inference is slow, or where the serialized IR is too large to read or render in graph visualization tools — extract only the relevant subgraph as a standalone `ov::Model`, serialize to IR, and continue investigation on the smaller model independently.
-  Example: `ov::op::util::extract_subgraph(model, {{"MatMul_0", 0}}, {{"Softmax_0", 0}})`
+  Example: `extract_subgraph(model, {{"MatMul_0", 0}}, {{"Softmax_0", 0}})`
 
 ## See also
 
