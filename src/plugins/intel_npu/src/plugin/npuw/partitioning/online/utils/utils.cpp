@@ -235,4 +235,6 @@ ov::npuw::online::PassContext::PassContext(const ::intel_npu::Config& cfg) {
     avoids = ov::npuw::online::util::getAvoids(cfg);
     isolates = ov::npuw::online::util::getIsolates(cfg);
     nofolds = ov::npuw::online::util::getNoFolds(cfg);
+    fuse_unfolded = cfg.get<::intel_npu::NPUW_FUSE_UNFOLDED>();
+    fold_only_tags = ov::npuw::online::util::splitByComma(cfg.get<::intel_npu::NPUW_FOLD_ONLY>());
 }
