@@ -714,7 +714,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             graph->set_batch_size(batch.value());
         }
 
-        blobWriter->append_compatibility_requirement(CRE::PredefinedCapabilityToken::BATCHING);
         blobWriter->register_section(std::make_shared<BatchSizeSection>(batch.value()));
     }
 

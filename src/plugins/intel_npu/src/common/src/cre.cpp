@@ -37,7 +37,7 @@ void InvalidCRE::create(const char* file,
     throw InvalidCRE(make_what(file, line, check_string, context_info, explanation));
 }
 
-CRE::CRE() : m_expression({CRE::AND}) {}
+CRE::CRE() {}
 
 CRE::CRE(const std::vector<Token>& expression) : m_expression(expression) {}
 
@@ -57,6 +57,10 @@ size_t CRE::get_expression_length() const {
 
 std::vector<CRE::Token> CRE::get_expression() const {
     return m_expression;
+}
+
+bool CRE::empty() const {
+    return m_expression.empty();
 }
 
 void CRE::advance_iterator(std::vector<Token>::const_iterator& expression_iterator) {

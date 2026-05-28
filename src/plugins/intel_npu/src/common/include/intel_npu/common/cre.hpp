@@ -73,6 +73,8 @@ public:
 
     std::vector<Token> get_expression() const;
 
+    bool empty() const;
+
     /**
      * @brief Evaluates the expression against the given NPU plugin capabilities.
      * @details The plugin capabilities are evaluated in a lazy manner: the check support function is called only upon

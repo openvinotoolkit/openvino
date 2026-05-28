@@ -71,17 +71,13 @@ void BlobWriterInterface::seek_to_the_end() {
     m_stream.get().seekp(0, std::ios_base::end);
 }
 
-BlobWriter::BlobWriter() : m_logger("BlobWriter", Logger::global().level()) {
-    append_compatibility_requirement(CRE::PredefinedCapabilityToken::CRE_EVALUATION);
-}
+BlobWriter::BlobWriter() : m_logger("BlobWriter", Logger::global().level()) {}
 
 BlobWriter::BlobWriter(const std::shared_ptr<BlobReader>& blob_reader)
     : m_logger("BlobWriter", Logger::global().level()) {
     // TODO review the class const qualifiers
     const auto cre_section = blob_reader->retrieve_section(CRE_SECTION_ID);
     OPENVINO_ASSERT(cre_section != nullptr, "The CRE section was not found within the BlobReader");
-
-    m_cre = std::dynamic_pointer_cast<CRESection>(cre_section)->get_cre();
 
     for (const SectionID& section_id : blob_reader->m_parsed_sections_order) {
         // The CRE & offsets table sections are added by the write() method after writing all registered sections
@@ -111,6 +107,37 @@ SectionTypeInstance BlobWriter::register_section(const std::shared_ptr<ISection>
     return type_instance_id;
 }
 
+CRE BlobWriter::build_cre() const {
+    CRE cre({CRE::AND});
+    cre.append_to_expression(CRE::PredefinedCapabilityToken::CRE_EVALUATION);
+
+    // Go through all sections to find out the tokens that are needed. There may be a many-to-many mapping between
+    // section types and capabilities in the future. The switch case here should not imply that one-to-many is the only
+    // possible relationship.
+    std::queue<std::shared_ptr<ISection>> registered_sections = m_registered_sections;
+    while (!registered_sections.empty()) {
+        const std::shared_ptr<ISection>& section = registered_sections.front();
+        registered_sections.pop();
+
+        switch (section->get_section_type()) {
+        case PredefinedSectionType::ELF_MAIN_SCHEDULE: {
+            cre.append_to_expression(CRE::PredefinedCapabilityToken::ELF_SCHEDULE);
+            break;
+        }
+        case PredefinedSectionType::ELF_INIT_SCHEDULES:
+            cre.append_to_expression(CRE::PredefinedCapabilityToken::WEIGHTS_SEPARATION);
+            break;
+        case PredefinedSectionType::BATCH_SIZE:
+            cre.append_to_expression(CRE::PredefinedCapabilityToken::BATCHING);
+            break;
+            // default:
+            // break;
+        }
+    }
+
+    return cre;
+}
+
 void BlobWriter::register_section_from_blob_reader(const std::shared_ptr<ISection>& section) {
     const SectionType section_type = section->get_section_type();
     if (!m_next_type_instance_id.count(section_type)) {
@@ -126,14 +153,6 @@ void BlobWriter::register_section_from_blob_reader(const std::shared_ptr<ISectio
         candidate > m_next_type_instance_id[section_type] ? candidate + 1 : m_next_type_instance_id[section_type];
 
     m_registered_sections.push(section);
-}
-
-void BlobWriter::append_compatibility_requirement(const CRE::Token requirement_token) {
-    m_cre.append_to_expression(requirement_token);
-}
-
-void BlobWriter::append_compatibility_requirement(const std::vector<CRE::Token>& requirement_tokens) {
-    m_cre.append_to_expression(requirement_tokens);
 }
 
 void BlobWriter::write_section(std::ostream& stream,
@@ -195,7 +214,8 @@ void BlobWriter::write(std::ostream& stream) const {
     // Note: this was left near the end jic some writers had to register some more capability IDs for some reason
     // TODO: in that case, reading this blob and then writing it again would add redundant CRE tokens. Maybe a
     // redesign would be useful here.
-    const auto cre_section = std::make_shared<CRESection>(m_cre);
+    // TODO update this
+    const auto cre_section = std::make_shared<CRESection>(build_cre());
     cre_section->set_section_type_instance(FIRST_INSTANCE_ID);
     write_section(stream, cre_section, stream_npu_region_start, offsets_table);
 

@@ -103,9 +103,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
                                          updatedConfig,
                                          /* compatibilityDescriptor = */ std::nullopt);
 
-    // Tell the blob writer to store the main schedule in the blob at export time: Requirement: understanding the ELF
-    // schedule.
-    blobWriter->append_compatibility_requirement(CRE::PredefinedCapabilityToken::ELF_SCHEDULE);
+    // Tell the blob writer to store the main schedule in the blob at export time
     blobWriter->register_section(std::make_shared<ELFMainScheduleSection>(graph));
 
     return graph;
@@ -228,10 +226,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
                                                              model,
                                                              updatedConfig);
 
-    // At export time, all schedules (main + inits) shall be stored in the blob. Requirements: understanding the ELF
-    // schedule & the capability of running the WS pipeline.
-    blobWriter->append_compatibility_requirement(CRE::PredefinedCapabilityToken::ELF_SCHEDULE);
-    blobWriter->append_compatibility_requirement(CRE::PredefinedCapabilityToken::WEIGHTS_SEPARATION);
+    // At export time, all schedules (main + inits) shall be stored in the blob.
     blobWriter->register_section(std::make_shared<ELFMainScheduleSection>(weightlessGraph));
     blobWriter->register_section(std::make_shared<ELFInitSchedulesSection>(weightlessGraph));
 

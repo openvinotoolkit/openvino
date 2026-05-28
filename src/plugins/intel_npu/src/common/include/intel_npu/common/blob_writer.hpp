@@ -126,25 +126,18 @@ public:
      */
     void write(std::ostream& stream) const;
 
-    /**
-     * @brief Append a new token to the CRE, at depth-level 1. All tokens found at this depth-level are bound by a
-     * logical "AND" operator.
-     *
-     * @param requirement_token
-     */
-    void append_compatibility_requirement(const CRE::Token requirement_token);
-
-    /**
-     * @brief Append a new CRE subexpression to the CRE, at depth-level 1. All tokens found at this depth-level are
-     * bound by a logical "AND" operator.
-     *
-     * @param requirement_token
-     */
-    void append_compatibility_requirement(const std::vector<CRE::Token>& requirement_tokens);
-
 private:
     std::streamoff get_offset_relative_to_npu_region(std::ostream& stream,
                                                      const std::streampos stream_npu_region_start) const;
+
+    /**
+     * @brief Build a Compatibility Requirements Expression (CRE) based on the sections registered so far.
+     * @note This function should be called either before writing tbe CRE section into a stream or before building the
+     * compatibility string.
+     * @note The CRE is built on demand and not stored in order to make sure the CRE is aligned with the content of the
+     * blob.
+     */
+    CRE build_cre() const;
 
     /**
      * @brief Helper function. Registers a section that has been already parsed by the BlobReader.
@@ -170,7 +163,6 @@ private:
      * @brief Queue that holds all sections to be written at export time.
      */
     std::queue<std::shared_ptr<ISection>> m_registered_sections;
-    CRE m_cre;
 
     Logger m_logger;
 };

@@ -57,7 +57,7 @@ std::shared_ptr<ISection> IOLayoutsSection::read(BlobReaderInterface& blob_reade
     blob_reader.copy_data_from_source(reinterpret_cast<char*>(&number_of_output_layouts),
                                       sizeof(number_of_output_layouts));
 
-    const Logger logger("IOLayoutsSection", Logger::global().level());  // TODO is the verbosity correct?
+    const Logger logger("IOLayoutsSection", Logger::global().level());
 
     const auto read_n_layouts = [&](const uint64_t number_of_layouts, const char* logger_addition) {
         std::vector<ov::Layout> layouts;

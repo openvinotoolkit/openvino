@@ -21,7 +21,8 @@ constexpr int64_t BATCH = 0xDEADBEEF;
 void prepare_writer(const std::shared_ptr<BlobWriter>& blobWriter,
                     const std::vector<CRE::Token>& expression,
                     const std::vector<std::shared_ptr<ISection>> sections) {
-    blobWriter->append_compatibility_requirement(expression);
+    // TODO how to test this without the interface?
+    // blobWriter->append_compatibility_requirement(expression);
     for (const auto& section : sections) {
         blobWriter->register_section(section);
     }

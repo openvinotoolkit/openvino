@@ -158,7 +158,6 @@ std::shared_ptr<ISection> MockSectionWithTable::read_embedded(BlobReaderInterfac
 }
 
 std::shared_ptr<ISection> MockSectionWithTable::read(BlobReaderInterface& blob_reader) {
-    // TODO ajust using the reader interface
     uint64_t table_location;
     blob_reader.copy_data_from_source(reinterpret_cast<char*>(&table_location), sizeof(table_location));
 
