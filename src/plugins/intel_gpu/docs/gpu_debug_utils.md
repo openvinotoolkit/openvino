@@ -197,7 +197,12 @@ When the source is dumped, it contains a huge amount of macros(`#define`). For r
 You can force a specific implementation for chosen primitives by setting ```OV_GPU_FORCE_IMPLEMENTATIONS``` option. Variable expects strings with the following format:
 
 `OV_GPU_FORCE_IMPLEMENTATIONS={Name:Impl:Kernel:Layout}`, where
- - ```Name``` is the name of the primitive, for which you'd like to force a specific implementation. Name used in this context has the following form: ```'layer_name:primitive_id'```. Use quotation marks, otherwise the colon in the name will be treated as a separator.
+ - ```Name``` is the name of the primitive, for which you'd like to force a specific implementation.
+     Supported forms:
+     - ```'layer_name:primitive_id'``` for exact primitive match
+     - ```layer_name``` to force all runtime primitives generated from this layer
+     - wildcard pattern with ```*``` (for example, ```Concat_*``` or ```'layer_name:*'```)
+     Use quotation marks when the name contains a colon, otherwise the colon is treated as a separator.
  - ```Impl``` is the forced implementation name, available: ```any```, ```ocl```, ```cm```, ```sycl```, ```onednn```, ```common```, ```cpu```
  - ```Kernel``` is the name of the kernel you'd like to be executed. Please note that currently forcing the specific kernel works only for ```ocl``` implementation
  - ```Layout``` is the output layout. The full list of available layouts is available [here](../include/intel_gpu/runtime/format.hpp)
@@ -205,6 +210,14 @@ You can force a specific implementation for chosen primitives by setting ```OV_G
  You can force implementation for more than 1 primitive:
 
  `OV_GPU_FORCE_IMPLEMENTATIONS={Name:Impl:Kernel:Layout},{Name:Impl:Kernel:Layout},...`
+
+For example, to force the `ocl` implementation for all `Concat` runtime primitives in a model, you can use a wildcard pattern:
+
+```sh
+export OV_GPU_FORCE_IMPLEMENTATIONS="{Concat_*:ocl::}"
+```
+
+This matches all runtime primitive names that start with `Concat_` and leaves `Kernel` and `Layout` unspecified.
 
 ## Layer in/out buffer dumps
 
