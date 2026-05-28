@@ -2163,16 +2163,16 @@ void jit_swish_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 
     auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
-    // берем последний вспомогательный вектор для сохранения x
+    // we take the last auxiliary vector to save x
     auto aux_save = VReg(aux_vec_idxs.back());
-    //сохраняем исходное значение x 
+    //saving the original value of x
     h->vmv_v_v(aux_save, src); // aux_save = src
-    // загружаем alpha и умножаем src = alpha * x
+    // load alpha and multiply src = alpha * x
     auto alpha_reg = FReg(aux_fp_gpr_idxs[0]);
     load_table_val("swish_alpha", alpha_reg);
     h->vfmul_vf(src, src, alpha_reg);
-    // вызываем эмиттер sigmoid, который кладет результат в dst
-    // передаем ему все вспомогательные регистры, кроме последнего 
+    // we call the sigmoid emitter, which puts the result in dst
+    // we pass all auxiliary registers to it, except the last one
     std::vector<size_t> sigmoid_aux_vec_idxs(
         aux_vec_idxs.begin(), 
         aux_vec_idxs.begin() + sigmoid_emitter->aux_vecs_count()
@@ -2195,9 +2195,7 @@ void jit_swish_emitter::emit_data() const {
     sigmoid_emitter->emit_data();
     jit_emitter::emit_data();
 }
-void jit_swish_emitter::register_table_entries() {
-    //push_arg_entry_of("swish_alpha", dnnl::impl::float2int(alpha_));
-}
+
 // LESS ///
 jit_less_emitter::jit_less_emitter(jit_generator_t* host, cpu_isa_t host_isa, element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {
