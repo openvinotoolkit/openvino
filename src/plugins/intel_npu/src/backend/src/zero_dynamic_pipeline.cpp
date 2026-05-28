@@ -4,7 +4,7 @@
 
 #include "zero_dynamic_pipeline.hpp"
 
-#include <ze_api.h>
+#include <level_zero/ze_api.h>
 #include <ze_graph_ext.h>
 
 #include <sstream>
@@ -58,9 +58,7 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
     OPENVINO_ASSERT(dynamicGraph != nullptr, "Failed to cast graph to IDynamicGraph");
 
     if (!_sync_output_with_fences) {
-        _event_pool = std::make_shared<EventPool>(_init_structs->getDevice(),
-                                                  _init_structs->getContext(),
-                                                  _batch_size ? static_cast<uint32_t>(_batch_size) : 1);
+        _event_pool = std::make_shared<EventPool>(_init_structs, _batch_size ? static_cast<uint32_t>(_batch_size) : 1);
 
         _events.reserve(_batch_size);
         for (size_t i = 0; i < _batch_size; i++) {
@@ -182,7 +180,7 @@ void DynamicPipeline::push() {
     OPENVINO_ASSERT(dynamicGraph != nullptr, "Failed to cast graph to IDynamicGraph");
 
     const auto command_queue_desc = _graph->get_command_queue_desc();
-    const bool command_queue_version_changed = (command_queue_desc.key != _command_queue->desc().key);
+    const bool command_queue_version_changed = (command_queue_desc.key() != _command_queue->desc().key());
     if (command_queue_version_changed) {
         _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, command_queue_desc);
 
@@ -216,11 +214,8 @@ void DynamicPipeline::push() {
             }
         }
 
-        // L0 wrapper handle closed command list
-        command_lists->resetCommandList();
-
         dynamicGraph->execute(_init_structs,
-                              command_lists->getBinding(),
+                              graphArguments,
                               command_lists->getHandles(),
                               commandQueueHandle,
                               fence,
@@ -259,7 +254,6 @@ void DynamicPipeline::reset() const {
             _events.at(i)->reset();
         }
     }
-
     _logger.debug("reset - completed");
 }
 
@@ -267,7 +261,7 @@ void DynamicPipeline::update_graph_arguments(uint32_t index,
                                              const std::shared_ptr<ZeroTensor>& zeroTensor,
                                              const std::shared_ptr<ov::ITensor>& userTensor) {
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "DynamicPipeline", "updateCommandList");
-    _logger.debug("update_graph_arguments - update command list");
+    _logger.debug("update_graph_arguments - started");
     // This is the tensor with right shape and strides
     // The required check is alredy done in inferRequest
     const std::shared_ptr<ov::ITensor>& tensor = userTensor ? userTensor : zeroTensor;
@@ -289,6 +283,7 @@ void DynamicPipeline::update_graph_arguments(uint32_t index,
                 tensor->get_shape());
         }
     }
+    _logger.debug("update_graph_arguments - completed");
 }
 
 void DynamicPipeline::update_graph_arguments(uint32_t index,
@@ -310,19 +305,11 @@ void DynamicPipeline::update_graph_arguments(uint32_t index,
                     "Command list index is higher than the number of Command lists ",
                     batch_index);
 
-    if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
-        _command_lists.at(batch_index)
-            ->updateMutableCommandList(index,
-                                       zeroTensor->data(),
-                                       get_strides(tensor->get_strides(), elementSize),
-                                       tensor->get_shape());
-    } else {
-        _command_lists.at(batch_index)
-            ->updateMutableCommandList(index,
-                                       zeroTensor->data(),
-                                       get_strides(tensor->get_strides(), elementSize),
-                                       tensor->get_shape());
-    }
+    _command_lists.at(batch_index)
+        ->updateMutableCommandList(index,
+                                   zeroTensor->data(),
+                                   get_strides(tensor->get_strides(), elementSize),
+                                   tensor->get_shape());
 }
 
 }  // namespace intel_npu

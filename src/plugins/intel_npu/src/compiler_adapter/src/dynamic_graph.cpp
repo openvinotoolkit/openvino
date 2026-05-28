@@ -14,6 +14,7 @@
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 
 namespace intel_npu {
@@ -23,7 +24,7 @@ public:
     using MemRefType = DynamicGraph::MemRefType;
 
 public:
-    DynamicGraphImpl() : _logger("DynamicGraphImpl", Logger::global().level()) {}
+    DynamicGraphImpl() : _engineProperties{}, _logger("DynamicGraphImpl", Logger::global().level()) {}
     void initialize(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata) override;
     void createExecutionEngine(std::optional<ov::Tensor>& blob);
     void prepareMetadata(NetworkMetadata& metadata);
@@ -72,23 +73,25 @@ void DynamicGraphImpl::initialize(std::optional<ov::Tensor>& blob, NetworkMetada
 
     _binding._inputs.resize(metadata.inputs.size());
 
-    // dump output of _metadata
-    _logger.debug("Dump metadata info from blob");
-    _logger.debug("Metadata inputs: %d", metadata.inputs.size());
-    for (const auto& input : metadata.inputs) {
-        _logger.debug("Input compiler name: %s input node name: %s shapeFromCompiler: %s shapeFromIRModel: %s",
-                      input.nameFromCompiler.c_str(),
-                      input.nodeFriendlyName.c_str(),
-                      input.shapeFromCompiler.to_string().c_str(),
-                      input.shapeFromIRModel.has_value() ? input.shapeFromIRModel->to_string().c_str() : "N/A");
-    }
-    _logger.debug("Metadata outputs: %d", metadata.outputs.size());
-    for (const auto& output : metadata.outputs) {
-        _logger.debug("Output compiler name: %s output node name: %s shapeFromCompiler: %s shapeFromIRModel: %s",
-                      output.nameFromCompiler.c_str(),
-                      output.nodeFriendlyName.c_str(),
-                      output.shapeFromCompiler.to_string().c_str(),
-                      output.shapeFromIRModel.has_value() ? output.shapeFromIRModel->to_string().c_str() : "N/A");
+    if (_logger.level() >= ov::log::Level::DEBUG) {
+        // dump output of _metadata
+        _logger.debug("Dump metadata info from blob");
+        _logger.debug("Metadata inputs: %d", metadata.inputs.size());
+        for (const auto& input : metadata.inputs) {
+            _logger.debug("Input compiler name: %s input node name: %s shapeFromCompiler: %s shapeFromIRModel: %s",
+                          input.nameFromCompiler.c_str(),
+                          input.nodeFriendlyName.c_str(),
+                          input.shapeFromCompiler.to_string().c_str(),
+                          input.shapeFromIRModel.has_value() ? input.shapeFromIRModel->to_string().c_str() : "N/A");
+        }
+        _logger.debug("Metadata outputs: %d", metadata.outputs.size());
+        for (const auto& output : metadata.outputs) {
+            _logger.debug("Output compiler name: %s output node name: %s shapeFromCompiler: %s shapeFromIRModel: %s",
+                          output.nameFromCompiler.c_str(),
+                          output.nodeFriendlyName.c_str(),
+                          output.shapeFromCompiler.to_string().c_str(),
+                          output.shapeFromIRModel.has_value() ? output.shapeFromIRModel->to_string().c_str() : "N/A");
+        }
     }
 
     auto& inputs = _binding._inputs;
@@ -229,10 +232,10 @@ void DynamicGraphImpl::prepareMetadata(NetworkMetadata& metadata) {
         ioDesc.supportsStridedLayout = true;
         switch (arg.type) {
         case ZE_GRAPH_ARGUMENT_TYPE_INPUT: {
-            metadata.inputs.push_back(ioDesc);
+            metadata.inputs.push_back(std::move(ioDesc));
         } break;
         case ZE_GRAPH_ARGUMENT_TYPE_OUTPUT: {
-            metadata.outputs.push_back(ioDesc);
+            metadata.outputs.push_back(std::move(ioDesc));
         } break;
         default: {
             OPENVINO_THROW("Invalid ze_graph_argument_type_t found in ze_graph_argument_properties_3_t object: ",
@@ -280,20 +283,16 @@ void DynamicGraphImpl::setArgumentValueWithStrides(uint32_t argi,
     if (argi < inputs.size()) {
         _logger.debug("setArgumentValueWithStrides for index %d (input %d)", argi, argi);
         inputs[argi].setArg(argv);
-
-        for (int64_t i = 0; i < inputs[argi]._dimsCount; i++) {
-            inputs[argi]._strides[i] = strides[i];
-        }
+        // The passed strides are based on element
+        inputs[argi].setStrides(strides);
     } else {
         auto& outputs = _binding._outputs;
         auto idx = argi - inputs.size();
         _logger.debug("setArgumentValueWithStrides for index %d (output %d)", argi, idx);
         if (idx < outputs.size()) {
             outputs[idx].setArg(argv);
-
-            for (int64_t i = 0; i < outputs[idx]._dimsCount; i++) {
-                outputs[idx]._strides[i] = strides[i];
-            }
+            // The passed strides are based on elemnt
+            outputs[idx].setStrides(strides);
         }
     }
 }
@@ -305,12 +304,13 @@ void DynamicGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>
                                     ze_fence_handle_t fence,
                                     ze_event_handle_t event,
                                     ze_graph_profiling_pool_handle_t profiling) {
+    _logger.debug("Start to execute graph with runtime engine");
     std::shared_ptr<DynamicGraph::GraphArgumentsImpl> argsImpl =
         args._impl ? std::static_pointer_cast<DynamicGraph::GraphArgumentsImpl>(args._impl)
                    : std::make_shared<DynamicGraph::GraphArgumentsImpl>();
 
+    bool noTensorChange = true;
     npu_vm_runtime_execute_params_t* params = &argsImpl->_executeParams;
-
     for (auto& in : args._inputs) {
         std::shared_ptr<DynamicGraph::MemRefTypeImpl> inImpl =
             std::static_pointer_cast<DynamicGraph::MemRefTypeImpl>(in._impl);
@@ -321,6 +321,8 @@ void DynamicGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>
         inImpl->UpdateMemRefHandleStatus(in);
         if (args._impl == nullptr) {
             argsImpl->_inputMemRefs.push_back(inImpl->_memRef);
+        } else if (inImpl->_ptrUpdated || inImpl->_shapeUpdated || inImpl->_strideUpdated) {
+            noTensorChange = false;
         }
     }
     for (auto& out : args._outputs) {
@@ -333,6 +335,37 @@ void DynamicGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>
         outImpl->UpdateMemRefHandleStatus(out);
         if (args._impl == nullptr) {
             argsImpl->_outputMemRefs.push_back(outImpl->_memRef);
+        } else if (outImpl->_ptrUpdated || outImpl->_shapeUpdated || outImpl->_strideUpdated) {
+            noTensorChange = false;
+        }
+    }
+
+    if (args._impl == nullptr || !noTensorChange) {
+        _logger.debug("Reset command list to run with runtime");
+        // Reset commandLists since there are tensor with new shapes or it is the first execution, can not reuse command
+        // list with update
+        for (auto& cmdList : commandLists) {
+            zeCommandListReset(cmdList);
+        }
+    } else {
+        _logger.debug("Reuse command list without update since no tensor change detected");
+
+        auto result = zeCommandQueueExecuteCommandLists(commandQueue,
+                                                        static_cast<uint32_t>(commandLists.size()),
+                                                        commandLists.data(),
+                                                        fence);
+        if (result != ZE_RESULT_SUCCESS) {
+            OPENVINO_THROW("Failed to submit command lists");
+        }
+        return;
+    }
+
+    // Prepare execution context for each graph arguments
+    if (params->executionContext == nullptr) {
+        if (npuVMRuntimeCreateExecutionContext(_engine, &params->executionContext) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+            OPENVINO_THROW("Failed to create a VM execution context");
+        } else {
+            _logger.debug("Execution context is created successfully.");
         }
     }
 
@@ -349,6 +382,7 @@ void DynamicGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>
     params->inferenceFence = fence;
     params->event = event;
 
+    _logger.debug("Execute graph with runtime engine");
     if (npuVMRuntimeExecute(_engine, params) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
         OPENVINO_THROW("Failed to execute VM runtime engine");
     }
@@ -418,6 +452,7 @@ DynamicGraph::DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroIni
     }
 
     _impl = std::make_unique<DynamicGraphImpl>();
+
     // TODO: metadata needs to be parsed even when CREATE_EXECUTOR is 0 or DEFER_WEIGHTS_LOAD is YES, keep here to
     // support pure compilation without vm runtime initialize VM execution engine, metadata, input&output
     // descriptors
@@ -463,9 +498,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> DynamicGraph::export_b
             result = ((result << 7) + result) + static_cast<uint32_t>(*it);
         }
 
-        std::stringstream str;
-        str << "Blob size: " << blobSize << ", hash: " << std::hex << result;
-        _logger.info(str.str().c_str());
+        _logger.info("Blob size: %zu, hash: %x", blobSize, result);
     }
 
     size_t size = utils::align_size_to_standard_page_size(blobSize);
@@ -476,7 +509,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> DynamicGraph::export_b
             _logger.error("Write padding to stream failed. Blob is broken!");
             return std::make_pair(0, std::nullopt);
         }
-        _logger.info("Blob size with padding: %ld", size);
+        _logger.info("Blob size with padding: %zu", size);
     }
     _logger.info("Write blob to stream successfully.");
     return std::make_pair(size, std::nullopt);
@@ -502,14 +535,10 @@ void DynamicGraph::set_workload_type(const ov::WorkloadType workloadType) {
 
     std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
     auto zeWorkloadType = zeroUtils::toZeQueueWorkloadType(workloadType);
-    if (_commandQueueDesc.workload == zeWorkloadType) {
+    if (_commandQueueDesc.workload() == zeWorkloadType) {
         return;
     }
-    _commandQueueDesc.workload = zeWorkloadType;
-
-    const ZeroCmdQueueKey key{_zeroInitStruct->getContext(), _zeroInitStruct->getDevice(), _commandQueueDesc};
-    const auto queueKeyHash = ZeroCmdQueueKeyHash{}(key);
-    _commandQueueDesc.key = static_cast<uint64_t>(queueKeyHash);
+    _commandQueueDesc.set_workload(zeWorkloadType);
 }
 
 void DynamicGraph::set_model_priority(const ov::hint::Priority modelPriority) {
@@ -519,14 +548,10 @@ void DynamicGraph::set_model_priority(const ov::hint::Priority modelPriority) {
 
     std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
     auto zeModelPriority = zeroUtils::toZeQueuePriority(modelPriority);
-    if (_commandQueueDesc.priority == zeModelPriority) {
+    if (_commandQueueDesc.priority() == zeModelPriority) {
         return;
     }
-    _commandQueueDesc.priority = zeModelPriority;
-
-    const ZeroCmdQueueKey key{_zeroInitStruct->getContext(), _zeroInitStruct->getDevice(), _commandQueueDesc};
-    const auto queueKeyHash = ZeroCmdQueueKeyHash{}(key);
-    _commandQueueDesc.key = static_cast<uint64_t>(queueKeyHash);
+    _commandQueueDesc.set_priority(zeModelPriority);
 }
 
 void DynamicGraph::set_argument_value(uint32_t argi, const void* argv) const {
@@ -593,10 +618,6 @@ void DynamicGraph::initialize_impl(const FilteredConfig& config) {
             commandQueueOptions,
             this,
             config.get<SHARED_COMMON_QUEUE>()};
-
-        const ZeroCmdQueueKey key{_zeroInitStruct->getContext(), _zeroInitStruct->getDevice(), _commandQueueDesc};
-        const auto queueKeyHash = ZeroCmdQueueKeyHash{}(key);
-        _commandQueueDesc.key = static_cast<uint64_t>(queueKeyHash);
     }
 
     _logger.debug("Graph initialize finish");
@@ -730,6 +751,11 @@ void DynamicGraph::predict_output_shape(std::vector<MemRefType>& inputDescriptor
 
 std::optional<bool> DynamicGraph::is_profiling_blob() const {
     _logger.warning("Profiling is not supported for DynamicGraph");
+    return std::nullopt;
+}
+
+std::optional<std::string_view> DynamicGraph::get_compatibility_descriptor() const {
+    _logger.warning("Compatibility descriptor is not supported for DynamicGraph");
     return std::nullopt;
 }
 

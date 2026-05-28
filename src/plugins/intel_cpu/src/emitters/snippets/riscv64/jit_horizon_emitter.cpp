@@ -17,6 +17,7 @@
 #include "snippets/lowered/expression.hpp"
 #include "snippets/op/horizon_max.hpp"
 #include "snippets/op/horizon_sum.hpp"
+#include "utils.hpp"
 #include "xbyak_riscv/xbyak_riscv.hpp"
 #include "xbyak_riscv/xbyak_riscv_csr.hpp"
 
@@ -48,9 +49,9 @@ void jit_horizon_emitter::emit_impl(const std::vector<size_t>& in, const std::ve
 
 template <cpu_isa_t isa>
 void jit_horizon_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    static constexpr size_t lane_count = 4;
-    static constexpr auto stack_size = static_cast<int>(lane_count * sizeof(float));
     static constexpr auto elt_size = static_cast<int>(sizeof(float));
+    const auto lane_count = ov::intel_cpu::riscv64::utils::get_snippet_lanes();
+    const auto stack_size = static_cast<int>(lane_count * sizeof(float));
 
     OPENVINO_ASSERT(aux_gpr_idxs.size() >= 2, "Horizon emitter expects two auxiliary GPR registers");
     OPENVINO_ASSERT(aux_fp_gpr_idxs.size() >= 2, "Horizon emitter expects two auxiliary FP GPR registers");
@@ -90,8 +91,7 @@ void jit_horizon_emitter::emit_isa(const std::vector<size_t>& in, const std::vec
     h->bne(active_lanes, Xbyak_riscv::zero, reduce_loop);
     h->L(reduce_done);
 
-    // Keep x64 behavior: replicate reduced scalar to all lanes.
-    h->vsetivli(Xbyak_riscv::zero, lane_count, Xbyak_riscv::SEW::e32, Xbyak_riscv::LMUL::m1);
+    set_vector_length(h, lane_count, Xbyak_riscv::SEW::e32, aux_gpr_idxs);
     h->vfmv_v_f(dst, acc);
     h->addi(Xbyak_riscv::sp, Xbyak_riscv::sp, stack_size);
 }

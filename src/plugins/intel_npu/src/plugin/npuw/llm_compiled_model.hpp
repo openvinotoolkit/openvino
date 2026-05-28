@@ -124,6 +124,7 @@ private:
 
     bool m_is_whisper = false;
     uint64_t m_eos_token_id = 0;
+    size_t m_decomposed_sdpa_size = 0;
 
     bool m_is_embedding = false;
 

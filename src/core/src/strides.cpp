@@ -7,10 +7,7 @@
 #include "openvino/util/common_util.hpp"
 
 std::ostream& ov::operator<<(std::ostream& s, const ov::Strides& strides) {
-    s << "Strides{";
-    s << ov::util::join(strides);
-    s << "}";
-    return s;
+    return s << "Strides{" << ov::util::join<std::ostream>(strides) << "}";
 }
 
 ov::Strides::Strides() : std::vector<size_t>() {}

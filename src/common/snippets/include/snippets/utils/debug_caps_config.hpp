@@ -1,7 +1,6 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <cstddef>
 #include <cstdint>
 #ifdef SNIPPETS_DEBUG_CAPS
 
@@ -137,7 +136,9 @@ private:
         ~MultipleStringPropertySetter() override = default;
 
         bool parseAndSet(const std::string& str) override {
-            propertyValues = ov::util::split(ov::util::to_lower(str), ',');
+            const auto lower = ov::util::to_lower(str);
+            const auto parts = ov::util::split(lower, ",");
+            propertyValues.assign(parts.begin(), parts.end());
             return true;
         }
 
@@ -167,8 +168,8 @@ private:
         ~BitsetFilterPropertySetter() override = default;
 
         bool parseAndSet(const std::string& str) override {
-            const auto& tokens =
-                str.empty() ? std::vector<std::string>{"all"} : ov::util::split(ov::util::to_lower(str), ',');
+            const auto lower = ov::util::to_lower(str);
+            const auto tokens = str.empty() ? std::vector<std::string_view>{"all"} : ov::util::split(lower, ",");
             property.reset();
             for (const auto& token : tokens) {
                 const bool tokenVal = (token.front() != '-');

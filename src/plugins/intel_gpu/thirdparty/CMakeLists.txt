@@ -36,6 +36,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
         if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
             ov_add_compiler_flags(-Wno-undef)
             ov_add_compiler_flags(-Wno-missing-declarations)
+            ov_add_compiler_flags(-Wno-ignored-attributes)
             if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11 AND CMAKE_COMPILER_IS_GNUCXX)
                 ov_add_compiler_flags(-Wno-array-bounds)
                 ov_add_compiler_flags(-Wno-stringop-overflow)
@@ -57,6 +58,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
         # pass common variables
         foreach(cmake_var IN ITEMS CMAKE_SYSTEM_NAME CMAKE_SYSTEM_VERSION
                                    CMAKE_SYSTEM_PROCESSOR CMAKE_TOOLCHAIN_FILE
+                                   CMAKE_SYSROOT
                                    CMAKE_VERBOSE_MAKEFILE CMAKE_GENERATOR
                                    CMAKE_CXX_COMPILER CMAKE_C_COMPILER
                                    CMAKE_CXX_COMPILER_LAUNCHER CMAKE_C_COMPILER_LAUNCHER)
@@ -64,6 +66,14 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 list(APPEND cmake_extra_args "-D${cmake_var}=${${cmake_var}}")
             endif()
         endforeach()
+
+        # CMAKE_FIND_ROOT_PATH is a CMake list (semicolon-separated); pass via CMAKE_CACHE_ARGS like other lists below.
+        set(onednn_gpu_cache_args
+            "-DDNNL_ENABLE_PRIMITIVE:STRING=${ONEDNN_ENABLED_PRIMITIVES}"
+            "-DDNNL_ENABLE_PRIMITIVE_GPU_ISA:STRING=${ONEDNN_ENABLED_ISA}")
+        if(CMAKE_FIND_ROOT_PATH)
+            list(APPEND onednn_gpu_cache_args "-DCMAKE_FIND_ROOT_PATH:STRING=${CMAKE_FIND_ROOT_PATH}")
+        endif()
 
         # pass compilation flags
         foreach(lang IN ITEMS C CXX)
@@ -95,6 +105,12 @@ if(ENABLE_ONEDNN_FOR_GPU)
         endif()
         if(OpenCL_INCLUDE_DIR)
             list(APPEND cmake_extra_args "-DOpenCL_INCLUDE_DIR=${OpenCL_INCLUDE_DIR}")
+        elseif(TARGET OpenCL::OpenCL)
+            # If OpenCL target exists but OpenCL_INCLUDE_DIR is not set, extract from target
+            get_target_property(opencl_include_dirs OpenCL::OpenCL INTERFACE_INCLUDE_DIRECTORIES)
+            if(opencl_include_dirs)
+                list(APPEND cmake_extra_args "-DOpenCL_INCLUDE_DIRS=${opencl_include_dirs}")
+            endif()
         endif()
 
         set(onednn_gpu_lib "${CMAKE_STATIC_LIBRARY_PREFIX}${DNNL_GPU_LIBRARY_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX}")
@@ -102,8 +118,13 @@ if(ENABLE_ONEDNN_FOR_GPU)
         set(ONEDNN_GPU_DIR ${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu CACHE FILEPATH "Path to oneDNN GPU repository")
         if(GPU_RUNTIME STREQUAL "L0")
             set(ONEDNN_GPU_RT "ZE")
+            # OneDNN is using different version of L0 headers
+            # Disable LTO to avoid build issues
+            # Enable once headers are unified MFDNN-14973
+            set(ONEDNN_ENABLE_LTO OFF)
         elseif(GPU_RUNTIME STREQUAL "OCL")
             set(ONEDNN_GPU_RT "OCL")
+            set(ONEDNN_ENABLE_LTO ${ENABLE_LTO})
         endif()
 
         ExternalProject_Add(onednn_gpu_build
@@ -115,7 +136,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
             # Configure Step Options:
             CMAKE_ARGS
                 ${cmake_extra_args}
-                "-DCMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE=${ENABLE_LTO}"
+                "-DCMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE=${ONEDNN_ENABLE_LTO}"
                 "-DCMAKE_POLICY_DEFAULT_CMP0069=NEW"
                 "-DDNNL_TARGET_ARCH=${ONEDNN_TARGET_ARCH}"
                 "-DDNNL_CPU_RUNTIME=NONE"
@@ -133,9 +154,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 "-DDNNL_LIBRARY_TYPE=STATIC"
                 "-DDNNL_EXPERIMENTAL_PROFILING=ON"
                 "-DONEDNN_BUILD_GRAPH=OFF"
-                # specifically for Conan, because it overrides CMAKE_PREFIX_PATH and oneDNN's FindOpenCL.cmake is ignored
-                # Conan's FindOpenCL.cmake module does not set OpenCL_INCLUDE_DIRS, so we need to set it manually
-                "-DOpenCL_INCLUDE_DIRS=$<TARGET_PROPERTY:OpenCL::OpenCL,INTERFACE_INCLUDE_DIRECTORIES>"
+                "-DDNNL_EXPERIMENTAL_GROUPED_MEMORY=ON"
                 # Conan calls cmake with default value for CMP0091, so we have to bypass it to oneDNN build
                 # because we bypass conan_toolchain.cmake via CMAKE_TOOLCHAIN_FILE
                 "-DCMAKE_POLICY_DEFAULT_CMP0091=NEW"
@@ -143,8 +162,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 # The arguments below requires list to be passed as argument
                 # which doesn't work properly when passed to CMAKE_ARGS.
                 # Thus we pass it via CMAKE_CACHE_ARGS
-                "-DDNNL_ENABLE_PRIMITIVE:STRING=${ONEDNN_ENABLED_PRIMITIVES}"
-                "-DDNNL_ENABLE_PRIMITIVE_GPU_ISA:STRING=${ONEDNN_ENABLED_ISA}"
+                ${onednn_gpu_cache_args}
             # Build Step Options:
             BUILD_BYPRODUCTS ${ONEDNN_GPU_LIB_PATH}
             # Target Options:

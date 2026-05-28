@@ -67,6 +67,8 @@
 
 #include "kernels/scaled_attn/attn_memcpy.hpp"
 #include "kernels/scaled_attn/attn_quant.hpp"
+#include "kernels/scaled_attn/codecs/cache_codec.hpp"
+#include "kernels/scaled_attn/mha_kv_cache_codec.hpp"
 #include "kernels/scaled_attn/mha_single_token.hpp"
 #include "kernels/scaled_attn/softmax.hpp"
 #include "kernels/x64/brgemm_kernel.hpp"
@@ -78,6 +80,31 @@ using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
 namespace ov::intel_cpu::node {
+
+static bool is_quantized_cache(ov::element::Type prec) {
+    return prec == ov::element::u8 || prec == ov::element::u4;
+}
+
+// Compress and write cur tensor into the KV cache (dst) at position L0.
+// Handles u8/u4 quant (per-group or by-channel) and raw precision-matching copy.
+static void compress_cache(const PlainTensor& cur,
+                           PlainTensor& dst,
+                           size_t L0,
+                           ov::element::Type quant_precision,
+                           PlainTensor& scale_zp,
+                           size_t group_size,
+                           bool quant_by_channel,
+                           const CpuParallelPtr& cpu_parallel) {
+    if (is_quantized_cache(quant_precision)) {
+        if (quant_by_channel) {
+            attn_quant_by_channel(cur, dst, scale_zp, L0, group_size, cpu_parallel);
+        } else {
+            attn_quant_by_token(cur, dst, scale_zp, L0, group_size, cpu_parallel);
+        }
+    } else {
+        attn_memcpy2d(cur, dst, L0, cpu_parallel);
+    }
+}
 
 struct ScaledDotProductAttentionKey {
     ov::element::Type rtPrecision;
@@ -1352,7 +1379,10 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
     PlainTensor attn_buf;  // f32[[B|1],[H|1], L1|1, L0+L1]
 
     MHAKernel<KType, T> kernel;
+    // @todo replace with mha_kv_cache when ARM is supported
     MHASingleToken kernel_single_token;
+    PlainTensor m_attn_w;
+    PlainTensor m_attn_score;
 
     explicit AttentionExecutor(GraphContext::CPtr ctx,
                                size_t k_group_size,
@@ -1382,7 +1412,9 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
                  const MemoryPtr presentv_input,
                  const MemoryPtr beam_input,
                  const PlainTensor& k_scale_zp,
-                 const PlainTensor& v_scale_zp) override {
+                 const PlainTensor& v_scale_zp,
+                 ov::Extensions::Cpu::CacheCodec k_codec,
+                 ov::Extensions::Cpu::CacheCodec v_codec) override {
         bool has_in_reshape = config.config.input_BLHxS;
         bool has_out_transpose = config.config.output_BLHxS;
         bool fuse_causal_attn = config.config.fuse_causal_attn;
@@ -1534,20 +1566,56 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
             //  1, in matrix mutiply, using AMX is not efficency because the M dimension of A will alway be 1
             //  2, using float will save the repack cost which typically is required for bf16/int8 opt
             //  3, using dot product can leverage the SIMD while easily adapt to indirect kv cache
-            kernel_single_token(q_input,
-                                present_key,
-                                present_value,
-                                alibi_mask,
-                                use_attn_mask ? attn_mask : PlainTensor(),
-                                output_emb,
-                                beam_table,
-                                has_out_transpose,
-                                auto_causal,
-                                scale_input,
-                                k_scale_zp,
-                                v_scale_zp,
-                                sink_input,
-                                context->getCpuParallel());
+
+            // Use mha_kv_cache pipeline for all single-token decoding.
+            // This unifies quantized (u8/u4) and raw paths through a single codec-generic pipeline.
+            // temporary OV_TURBOQ_LEGACY_ATTN=1 reverts to the old per-type dispatch.
+            // ARM SIMD abstraction not yet wired through mha_kv_cache — fall back to legacy.
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+            const bool use_new_pipeline = false;
+#else
+            static const bool force_legacy = std::getenv("OV_CPU_LEGACY_ATTN") != nullptr;
+            const bool use_new_pipeline = !force_legacy;
+#endif
+            if (use_new_pipeline) {
+                mha_kv_cache(q_input,
+                             present_key,
+                             present_value,
+                             alibi_mask,
+                             use_attn_mask ? attn_mask : PlainTensor(),
+                             beam_table,
+                             output_emb,
+                             m_attn_w,
+                             m_attn_score,
+                             has_out_transpose,
+                             scale_input,
+                             k_codec,
+                             v_codec,
+                             auto_causal,
+                             sink_input,
+                             context->getCpuParallel(),
+                             k_scale_zp,
+                             kernel_single_token.m_key_group_size,
+                             v_scale_zp,
+                             kernel_single_token.m_value_group_size,
+                             q_input.get_precision(),
+                             SV);
+            } else {
+                kernel_single_token(q_input,
+                                    present_key,
+                                    present_value,
+                                    alibi_mask,
+                                    use_attn_mask ? attn_mask : PlainTensor(),
+                                    output_emb,
+                                    beam_table,
+                                    has_out_transpose,
+                                    auto_causal,
+                                    scale_input,
+                                    k_scale_zp,
+                                    v_scale_zp,
+                                    sink_input,
+                                    context->getCpuParallel());
+            }
         }
 
 #if defined(OPENVINO_ARCH_ARM64)
@@ -1753,8 +1821,13 @@ ScaledDotProductAttention::ScaledDotProductAttention(const std::shared_ptr<ov::N
     const auto keyS = *(keyDims.end() - 1);
     const auto valueS = *(valueDims.end() - 1);
     CPU_NODE_ASSERT(valueCachePrecision == keyCachePrecision, "supports same key/value cache precision");
-    CPU_NODE_ASSERT(any_of(keyCachePrecision, ov::element::f32, ov::element::f16, ov::element::bf16, ov::element::u8),
-                    "supports key/value cache precision f32, f16, bf16, u8 but gets ",
+    CPU_NODE_ASSERT(any_of(keyCachePrecision,
+                           ov::element::f32,
+                           ov::element::f16,
+                           ov::element::bf16,
+                           ov::element::u8,
+                           ov::element::u4),
+                    "supports key/value cache precision f32, f16, bf16, u8, u4 but gets ",
                     keyCachePrecision);
     m_key_quant_param.groupSize = (cpuConfig.keyCacheGroupSize == 0 || keyS % cpuConfig.keyCacheGroupSize != 0)
                                       ? keyS
@@ -1888,6 +1961,34 @@ void ScaledDotProductAttention::createPrimitive() {
     OPENVINO_ASSERT(valueS % m_value_quant_param.groupSize == 0,
                     "ScaledDotProductAttention AttentionExecutor creation fails value state " + std::to_string(keyS) +
                         " cannot be divided by group size " + std::to_string(m_key_quant_param.groupSize));
+    // Compute cache codecs — fixed for model lifetime.
+    // For fuse_concat=true the cache is the internal state with quantization per config.
+    // Without fuse_concat the cache is the raw K/V input — use the input precision directly,
+    // since config.keyCachePrecision/valueCachePrecision only describe the internal state.
+    auto codec_from_precision = [](ov::element::Type prec, bool by_channel) {
+        using ov::Extensions::Cpu::CacheCodec;
+        if (prec == ov::element::u8) {
+            return by_channel ? CacheCodec::U8_BY_CHANNEL : CacheCodec::U8;
+        }
+        if (prec == ov::element::u4) {
+            return CacheCodec::U4;
+        }
+        if (prec == ov::element::f16) {
+            return CacheCodec::RAW_F16;
+        }
+        if (prec == ov::element::bf16) {
+            return CacheCodec::RAW_BF16;
+        }
+        return CacheCodec::RAW_F32;
+    };
+    // For fuse_concat the cache state precision is decided by getKVCachePrecision(),
+    // which downgrades the f16 hint to rtPrecision when rtPrecision == bf16. Using
+    // m_*_quant_param.precision here would pick the raw cpuConfig hint (f16) and
+    // mismatch the actual cache layout, decoding bf16 bytes as f16.
+    const auto cache_precision = m_config.config.fuse_concat ? getKVCachePrecision() : rtPrecision;
+    m_k_codec = codec_from_precision(cache_precision, m_key_quant_param.isByChannel);
+    m_v_codec = codec_from_precision(cache_precision, false);
+
     ScaledDotProductAttentionKey key = {rtPrecision};
 
     auto builder = [&]([[maybe_unused]] const ScaledDotProductAttentionKey& key) -> std::shared_ptr<Executor> {
@@ -1992,8 +2093,17 @@ void ScaledDotProductAttention::execute(const dnnl::stream& strm) {
         presentk_input = inputs[1];
         presentv_input = inputs[2];
     }
-    m_executor
-        ->execute(strm, m_config, inputs, output, presentk_input, presentv_input, beam_input, k_scale_zp, v_scale_zp);
+    m_executor->execute(strm,
+                        m_config,
+                        inputs,
+                        output,
+                        presentk_input,
+                        presentv_input,
+                        beam_input,
+                        k_scale_zp,
+                        v_scale_zp,
+                        m_k_codec,
+                        m_v_codec);
 }
 
 bool ScaledDotProductAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
@@ -2071,6 +2181,47 @@ std::vector<T> permute_axes(const std::vector<T>& shape, const std::vector<size_
     return results;
 }
 
+// BHLS dims -> original-model dim order via the inverse of `order`.
+// SDPA states inputs as BHLS; the model may permute axes, so the cache is
+// allocated in the model's native order and then laid out as LBHS via real_order.
+static std::vector<size_t> bhls_to_model_shape(const std::vector<size_t>& bhls, const std::vector<size_t>& order) {
+    std::vector<size_t> shape(bhls.size());
+    for (size_t i = 0; i < bhls.size(); i++) {
+        shape[order[i]] = bhls[i];
+    }
+    return shape;
+}
+
+// Build the KV-cache memory desc with logical BHLS dims and LBHS physical layout.
+static std::shared_ptr<CpuBlockedMemoryDesc> make_kv_cache_desc(ov::element::Type prec,
+                                                                size_t B,
+                                                                size_t H,
+                                                                size_t L_total,
+                                                                size_t inner,
+                                                                const std::vector<size_t>& order,
+                                                                const std::vector<size_t>& real_order) {
+    const auto shape = bhls_to_model_shape({B, H, L_total, inner}, order);
+    return std::make_shared<CpuBlockedMemoryDesc>(prec, Shape(shape), permute_axes(shape, real_order), real_order);
+}
+
+// Per-channel groups along L; per-token groups along inner. L_total is (L0+L1)*2.
+static std::vector<size_t> compute_scale_zp_shape(const ScaledDotProductAttention::SDPAQuantParam& quant_param,
+                                                  size_t hidden_states,
+                                                  size_t B,
+                                                  size_t H,
+                                                  size_t L_total,
+                                                  const std::vector<size_t>& order,
+                                                  const std::vector<size_t>& real_order) {
+    std::vector<size_t> bhls;
+    if (quant_param.isByChannel) {
+        const size_t group_nums = div_up(L_total, quant_param.groupSize) * 2;
+        bhls = {B, H, group_nums, hidden_states};
+    } else {
+        bhls = {B, H, L_total, hidden_states / quant_param.groupSize * 2};
+    }
+    return permute_axes(bhls_to_model_shape(bhls, order), real_order);
+}
+
 void ScaledDotProductAttention::resetBeamTablePastkv(const MemoryPtr& mem_cur_k,
                                                      const MemoryPtr& mem_cur_v,
                                                      const MemoryPtr& mem_beam_idx) {
@@ -2130,17 +2281,9 @@ void ScaledDotProductAttention::resetBeamTablePastkv(const MemoryPtr& mem_cur_k,
         // shape is the shape used by the original model which maybe different from BHLS, reverse here is to permute
         // BHLS to original model shape. BHLS is the stated input shape of SDPA, however internally we use LBHS for
         // KV-cache storage. real_order is used to permute the original shape to LBHS
-        std::vector<size_t> shape = reverse({B, H, (L0 + L1) * 2, S});
-        auto mem_desc_k = std::make_shared<CpuBlockedMemoryDesc>(kvcache_precision,
-                                                                 Shape(shape),
-                                                                 permute_axes(shape, real_order),
-                                                                 real_order);
+        auto mem_desc_k = make_kv_cache_desc(kvcache_precision, B, H, (L0 + L1) * 2, S, order, real_order);
         auto new_internal_mem_k = std::make_shared<Memory>(getEngine(), mem_desc_k);
-        shape = reverse({B, H, (L0 + L1) * 2, SV});
-        auto mem_desc_v = std::make_shared<CpuBlockedMemoryDesc>(kvcache_precision,
-                                                                 Shape(shape),
-                                                                 permute_axes(shape, real_order),
-                                                                 real_order);
+        auto mem_desc_v = make_kv_cache_desc(kvcache_precision, B, H, (L0 + L1) * 2, SV, order, real_order);
         auto new_internal_mem_v = std::make_shared<Memory>(getEngine(), mem_desc_v);
 
         PlainTensor new_pastk;
@@ -2158,37 +2301,24 @@ void ScaledDotProductAttention::resetBeamTablePastkv(const MemoryPtr& mem_cur_k,
             old_past_v.reset(old_internal_mem_v);
             old_past_k = old_past_k.permute(order);
             old_past_v = old_past_v.permute(order);
+            const size_t k_row_bytes = S * old_past_k.m_element_size / old_past_k.m_sub_byte_multiplier;
+            const size_t v_row_bytes = SV * old_past_v.m_element_size / old_past_v.m_sub_byte_multiplier;
             cpu_parallel->parallel_for3d(B, H, L0, [&](size_t b, size_t h, size_t m) {
                 auto idx = static_cast<size_t>(table[b]);
                 auto b_kv = static_cast<size_t>(old_beam_table_k.at<int32_t>({idx, m}));
-                memcpy(&new_pastk.at<char>({b, h, m}),
-                       &old_past_k.at<char>({b_kv, h, m}),
-                       S * old_past_k.m_element_size);
-                memcpy(&new_pastv.at<char>({b, h, m}),
-                       &old_past_v.at<char>({b_kv, h, m}),
-                       SV * old_past_v.m_element_size);
+                memcpy(&new_pastk.at<char>({b, h, m}), &old_past_k.at<char>({b_kv, h, m}), k_row_bytes);
+                memcpy(&new_pastv.at<char>({b, h, m}), &old_past_v.at<char>({b_kv, h, m}), v_row_bytes);
             });
         }
-        if (kvcache_precision == ov::element::u8) {
+        if (is_quantized_cache(kvcache_precision)) {
             auto& old_scale_zp_k = m_k_state->get_scale_zp();
             auto& old_scale_zp_v = m_v_state->get_scale_zp();
             PlainTensor new_scale_zp_k;
             PlainTensor new_scale_zp_v;
-            auto get_scale_zp_shape = [&](const SDPAQuantParam& quant_param, const size_t hidden_states) {
-                std::vector<size_t> shape;
-                if (quant_param.isByChannel) {
-                    // round_up to group_size
-                    size_t group_nums = div_up((L0 + L1) * 2, quant_param.groupSize) * 2;
-                    shape = reverse({B, H, group_nums, hidden_states});
-                } else {
-                    shape = reverse({B, H, (L0 + L1) * 2, hidden_states / quant_param.groupSize * 2});
-                }
-                return permute_axes(shape, real_order);
-            };
-            std::vector<size_t> real_shape = get_scale_zp_shape(m_key_quant_param, S);
-            new_scale_zp_k.resize<float>(real_shape);
-            real_shape = get_scale_zp_shape(m_value_quant_param, SV);
-            new_scale_zp_v.resize<float>(real_shape);
+            new_scale_zp_k.resize<float>(
+                compute_scale_zp_shape(m_key_quant_param, S, B, H, (L0 + L1) * 2, order, real_order));
+            new_scale_zp_v.resize<float>(
+                compute_scale_zp_shape(m_value_quant_param, SV, B, H, (L0 + L1) * 2, order, real_order));
             if (L0 > 0) {
                 auto update_scales_zp =
                     [&](const SDPAQuantParam& quant_param, PlainTensor& new_scale_zp, PlainTensor& old_scale_zp) {
@@ -2250,29 +2380,24 @@ void ScaledDotProductAttention::resetBeamTablePastkv(const MemoryPtr& mem_cur_k,
                                                             VectorDims{},
                                                             strides);
         new_internal_mem_v->redefineDesc(mem_desc_v);
-        if (kvcache_precision == ov::element::u8) {
-            // past_k's shape is BHLS, internal layout LBHS
-            // scale_zp's shape is LBHS, internal layout LBHS
-            auto newMemDesc = std::make_shared<CpuBlockedMemoryDesc>(
-                ov::element::f32,
-                ov::intel_cpu::Shape{static_cast<size_t>(parallel_get_max_threads()), m_key_quant_param.groupSize * S});
-            auto scratchMem = context->getScratchPad()->createScratchPadMem(newMemDesc);
-            auto* temp_buffer = scratchMem->getDataAs<float>();
-            attn_quantkv(cur_k,
-                         cur_v,
-                         temp_buffer,
-                         new_pastk,
-                         new_pastv,
-                         m_k_state->get_scale_zp(),
-                         m_v_state->get_scale_zp(),
-                         L0,
-                         m_key_quant_param.isByChannel,
-                         m_key_quant_param.groupSize,
-                         m_value_quant_param.groupSize,
-                         cpu_parallel);
-        } else {
-            attn_memcpy(cur_k, cur_v, new_pastk.slice(2, L0, L0 + L1), new_pastv.slice(2, L0, L0 + L1), cpu_parallel);
-        }
+        auto k_scale_zp = m_k_state->get_scale_zp();
+        auto v_scale_zp = m_v_state->get_scale_zp();
+        compress_cache(cur_k,
+                       new_pastk,
+                       L0,
+                       kvcache_precision,
+                       k_scale_zp,
+                       m_key_quant_param.groupSize,
+                       m_key_quant_param.isByChannel,
+                       cpu_parallel);
+        compress_cache(cur_v,
+                       new_pastv,
+                       L0,
+                       kvcache_precision,
+                       v_scale_zp,
+                       m_value_quant_param.groupSize,
+                       false,
+                       cpu_parallel);
 
         m_k_state->assign_internal_state(new_internal_mem_k);
         m_v_state->assign_internal_state(new_internal_mem_v);
@@ -2527,16 +2652,12 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
         // new_shape is the shape used by the original model which maybe different from BHLS, reverse here is to permute
         // BHLS to original model shape. BHLS is the stated input shape of SDPA, however internally we use LBHS for
         // KV-cache storage. real_order is used to permute the original shape to LBHS
-        auto new_memory = [&](size_t new_S) {
-            std::vector<size_t> new_shape = reverse({B, H, (L0 + L1) * 2, new_S});
-            auto real_shape = permute_axes(new_shape, real_order);
-            auto mem_desc =
-                std::make_shared<CpuBlockedMemoryDesc>(kvcache_precision, Shape(new_shape), real_shape, real_order);
-            return std::make_shared<Memory>(getEngine(), mem_desc);
-        };
-
-        auto new_internal_mem_k = new_memory(S);
-        auto new_internal_mem_v = new_memory(SV);
+        auto new_internal_mem_k =
+            std::make_shared<Memory>(getEngine(),
+                                     make_kv_cache_desc(kvcache_precision, B, H, (L0 + L1) * 2, S, order, real_order));
+        auto new_internal_mem_v =
+            std::make_shared<Memory>(getEngine(),
+                                     make_kv_cache_desc(kvcache_precision, B, H, (L0 + L1) * 2, SV, order, real_order));
 
         PlainTensor new_pastk;
         PlainTensor new_pastv;
@@ -2559,26 +2680,15 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
         m_v_state->assign_internal_state(new_internal_mem_v);
         m_k_state->assign_internal_state_max_size(2 * (L0 + L1) * B * H * S);
         m_v_state->assign_internal_state_max_size(2 * (L0 + L1) * B * H * SV);
-        if (kvcache_precision == ov::element::u8) {
+        if (is_quantized_cache(kvcache_precision)) {
             auto& old_scale_zp_k = m_k_state->get_scale_zp();
             auto& old_scale_zp_v = m_v_state->get_scale_zp();
             PlainTensor new_scale_zp_k;
             PlainTensor new_scale_zp_v;
-            auto get_scale_zp_shape = [&](const SDPAQuantParam& quant_param, const size_t hidden_states) {
-                std::vector<size_t> shape;
-                if (quant_param.isByChannel) {
-                    // round_up to group_size
-                    size_t group_nums = div_up((L0 + L1) * 2, quant_param.groupSize) * 2;
-                    shape = reverse({B, H, group_nums, hidden_states});
-                } else {
-                    shape = reverse({B, H, (L0 + L1) * 2, hidden_states / quant_param.groupSize * 2});
-                }
-                return permute_axes(shape, real_order);
-            };
-            std::vector<size_t> real_shape = get_scale_zp_shape(m_key_quant_param, S);
-            new_scale_zp_k.resize<float>(real_shape);
-            real_shape = get_scale_zp_shape(m_value_quant_param, SV);
-            new_scale_zp_v.resize<float>(real_shape);
+            new_scale_zp_k.resize<float>(
+                compute_scale_zp_shape(m_key_quant_param, S, B, H, (L0 + L1) * 2, order, real_order));
+            new_scale_zp_v.resize<float>(
+                compute_scale_zp_shape(m_value_quant_param, SV, B, H, (L0 + L1) * 2, order, real_order));
             if (L0 > 0 && !is_reset) {
                 auto update_scales_zp =
                     [&](const SDPAQuantParam& quant_param, PlainTensor& new_scale_zp, PlainTensor& old_scale_zp) {
@@ -2629,7 +2739,7 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
         };
         internal_mem_k->redefineDesc(reset_desc(S));
         internal_mem_v->redefineDesc(reset_desc(SV));
-        if (kvcache_precision == ov::element::u8) {
+        if (is_quantized_cache(kvcache_precision)) {
             auto& old_scale_zp_k = m_k_state->get_scale_zp();
             auto& old_scale_zp_v = m_v_state->get_scale_zp();
             // only dim0, dim1 need change
@@ -2682,55 +2792,46 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
             init_v.reset(v_mem);
             init_k = init_k.permute(order);
             init_v = init_v.permute(order);
-            if (kvcache_precision == ov::element::u8) {
-                auto newMemDesc = std::make_shared<CpuBlockedMemoryDesc>(
-                    ov::element::f32,
-                    ov::intel_cpu::Shape{static_cast<size_t>(parallel_get_max_threads()),
-                                         m_key_quant_param.groupSize * S});
-                auto scratchMem = context->getScratchPad()->createScratchPadMem(newMemDesc);
-                auto* temp_buffer = scratchMem->getDataAs<float>();
-                // L0 is set to 0 here because past_kv is reset by set_state API, re-initializing
-                attn_quantkv(init_k,
-                             init_v,
-                             temp_buffer,
-                             past_k,
-                             past_v,
-                             m_k_state->get_scale_zp(),
-                             m_v_state->get_scale_zp(),
-                             0,
-                             m_key_quant_param.isByChannel,
-                             m_key_quant_param.groupSize,
-                             m_value_quant_param.groupSize,
-                             cpu_parallel);
-            } else {
-                attn_memcpy(init_k, init_v, past_k, past_v, cpu_parallel);
-            }
+            // L0 is set to 0 here because past_kv is reset by set_state API, re-initializing
+            auto k_scale_zp = m_k_state->get_scale_zp();
+            auto v_scale_zp = m_v_state->get_scale_zp();
+            compress_cache(init_k,
+                           past_k,
+                           0,
+                           kvcache_precision,
+                           k_scale_zp,
+                           m_key_quant_param.groupSize,
+                           m_key_quant_param.isByChannel,
+                           cpu_parallel);
+            compress_cache(init_v,
+                           past_v,
+                           0,
+                           kvcache_precision,
+                           v_scale_zp,
+                           m_value_quant_param.groupSize,
+                           false,
+                           cpu_parallel);
         }
     }
 
-    if (kvcache_precision == ov::element::u8) {
-        // past_k's shape is BHLS, internal layout LBHS
-        // scale_zp's shape is LBHS, internal layout LBHS
-        auto newMemDesc = std::make_shared<CpuBlockedMemoryDesc>(
-            ov::element::f32,
-            ov::intel_cpu::Shape{static_cast<size_t>(parallel_get_max_threads()), m_key_quant_param.groupSize * S});
-        auto scratchMem = context->getScratchPad()->createScratchPadMem(newMemDesc);
-        auto* temp_buffer = scratchMem->getDataAs<float>();
-        attn_quantkv(cur_k,
-                     cur_v,
-                     temp_buffer,
-                     past_k,
-                     past_v,
-                     m_k_state->get_scale_zp(),
-                     m_v_state->get_scale_zp(),
-                     L0,
-                     m_key_quant_param.isByChannel,
-                     m_key_quant_param.groupSize,
-                     m_value_quant_param.groupSize,
-                     cpu_parallel);
-    } else {
-        attn_memcpy(cur_k, cur_v, past_k.slice(2, L0, L0 + L1), past_v.slice(2, L0, L0 + L1), cpu_parallel);
-    }
+    auto k_scale_zp = m_k_state->get_scale_zp();
+    auto v_scale_zp = m_v_state->get_scale_zp();
+    compress_cache(cur_k,
+                   past_k,
+                   L0,
+                   kvcache_precision,
+                   k_scale_zp,
+                   m_key_quant_param.groupSize,
+                   m_key_quant_param.isByChannel,
+                   cpu_parallel);
+    compress_cache(cur_v,
+                   past_v,
+                   L0,
+                   kvcache_precision,
+                   v_scale_zp,
+                   m_value_quant_param.groupSize,
+                   false,
+                   cpu_parallel);
 }
 
 ov::element::Type ScaledDotProductAttention::getKVCachePrecision() {
@@ -2743,9 +2844,12 @@ ov::element::Type ScaledDotProductAttention::getKVCachePrecision() {
                              rtPrecision != ov::element::bf16 &&
                              (all_of(ov::element::f16, keyCachePrecisionHint, valueCachePrecisionHint));
     kvcache_precision = enableKVCacheFP16 ? ov::element::f16 : rtPrecision;
-    bool use_int8_kv_cache_precision = (all_of(ov::element::u8, keyCachePrecisionHint, valueCachePrecisionHint));
-    if (use_int8_kv_cache_precision) {
+    bool use_int8_kv_cache = (all_of(ov::element::u8, keyCachePrecisionHint, valueCachePrecisionHint));
+    bool use_u4_kv_cache = (all_of(ov::element::u4, keyCachePrecisionHint, valueCachePrecisionHint));
+    if (use_int8_kv_cache) {
         kvcache_precision = ov::element::u8;
+    } else if (use_u4_kv_cache) {
+        kvcache_precision = ov::element::u4;
     } else {
         kvcache_precision = enableKVCacheFP16 ? ov::element::f16 : rtPrecision;
     }

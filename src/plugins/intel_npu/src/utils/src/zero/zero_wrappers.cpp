@@ -4,26 +4,103 @@
 
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
 
+#include <functional>
+
 #include "intel_npu/utils/zero/zero_api.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 
 namespace intel_npu {
 
-EventPool::EventPool(ze_device_handle_t device_handle, const ze_context_handle_t& context, uint32_t event_count)
-    : _log("EventPool", Logger::global().level()) {
+CommandQueueDesc::CommandQueueDesc() {
+    update_key();
+}
+CommandQueueDesc::CommandQueueDesc(ze_command_queue_priority_t priority,
+                                   std::optional<ze_command_queue_workload_type_t> workload,
+                                   uint32_t options,
+                                   const void* owner_tag,
+                                   bool shared_common_queue)
+    : _priority(priority),
+      _workload(workload),
+      _options(options),
+      _owner_tag(owner_tag),
+      _shared_common_queue(shared_common_queue) {
+    update_key();
+}
+void CommandQueueDesc::set_priority(ze_command_queue_priority_t priority) {
+    _priority = priority;
+    update_key();
+}
+void CommandQueueDesc::set_workload(std::optional<ze_command_queue_workload_type_t> workload) {
+    _workload = workload;
+    update_key();
+}
+bool CommandQueueDesc::operator==(const CommandQueueDesc& other) const {
+    if (_priority != other._priority || _workload != other._workload || _options != other._options ||
+        _shared_common_queue != other._shared_common_queue) {
+        return false;
+    }
+
+    const bool use_owner_tag = owner_tag_required();
+    const bool other_use_owner_tag = other.owner_tag_required();
+    if (use_owner_tag || other_use_owner_tag) {
+        if (_owner_tag == nullptr || other._owner_tag == nullptr || _owner_tag != other._owner_tag) {
+            return false;
+        }
+    }
+
+    return true;
+}
+bool CommandQueueDesc::owner_tag_required() const {
+    return (_options & ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC) != 0 || !_shared_common_queue;
+}
+void CommandQueueDesc::update_key() {
+    uint64_t hash = zero_hashing::kFnvOffsetBasis64;
+    hash = zero_hashing::hash_combine64(hash, static_cast<uint64_t>(_priority));
+    if (_workload.has_value()) {
+        hash = zero_hashing::hash_combine64(hash, 1ULL);
+        hash = zero_hashing::hash_combine64(hash, static_cast<uint64_t>(_workload.value()));
+    } else {
+        hash = zero_hashing::hash_combine64(hash, 0ULL);
+    }
+    hash = zero_hashing::hash_combine64(hash, static_cast<uint64_t>(_options));
+    hash = zero_hashing::hash_combine64(hash, static_cast<uint64_t>(_shared_common_queue));
+
+    const bool use_owner_tag = owner_tag_required();
+    if (use_owner_tag) {
+        OPENVINO_ASSERT(_owner_tag != nullptr,
+                        "owner_tag must not be null when ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC is set or "
+                        "shared_common_queue is disabled");
+        hash = zero_hashing::hash_combine64(hash, std::hash<const void*>{}(_owner_tag));
+    }
+
+    _key = hash;
+}
+
+EventPool::EventPool(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, uint32_t event_count)
+    : _init_structs(init_structs),
+      _log("EventPool", Logger::global().level()) {
     ze_event_pool_desc_t event_pool_desc = {ZE_STRUCTURE_TYPE_EVENT_POOL_DESC,
                                             nullptr,
                                             ZE_EVENT_POOL_FLAG_HOST_VISIBLE,
                                             event_count};
-    THROW_ON_FAIL_FOR_LEVELZERO("zeEventPoolCreate",
-                                zeEventPoolCreate(context, &event_pool_desc, 1, &device_handle, &_handle));
+    auto device_handle = _init_structs->getDevice();
+    THROW_ON_FAIL_FOR_LEVELZERO(
+        "zeEventPoolCreate",
+        zeEventPoolCreate(_init_structs->getContext(), &event_pool_desc, 1, &device_handle, &_handle));
 }
 EventPool::~EventPool() {
-    auto result = zeEventPoolDestroy(_handle);
-    if (ZE_RESULT_SUCCESS != result) {
-        _log.error("zeEventPoolDestroy failed %#X", uint64_t(result));
+    if (_init_structs->getContext() == nullptr || _handle == nullptr) {
+        _log.warning("Context or EventPool handle is null during destruction. EventPool might be already destroyed.");
+        _handle = nullptr;
+        return;
     }
 
-    _handle = nullptr;
+    auto result = zeEventPoolDestroy(_handle);
+    if (ZE_RESULT_SUCCESS == result) {
+        _handle = nullptr;
+    } else {
+        _log.error("zeEventPoolDestroy failed %#X", uint64_t(result));
+    }
 }
 
 Event::Event(const std::shared_ptr<EventPool>& event_pool, uint32_t event_index)
@@ -51,12 +128,17 @@ void Event::reset() const {
     THROW_ON_FAIL_FOR_LEVELZERO("zeEventHostReset", zeEventHostReset(_handle));
 }
 Event::~Event() {
-    auto result = zeEventDestroy(_handle);
-    if (ZE_RESULT_SUCCESS != result) {
-        _log.error("zeEventDestroy failed %#X", uint64_t(result));
+    if (_event_pool->getZeroContext() == nullptr || _handle == nullptr) {
+        _log.warning("Context or Event handle is null during destruction. Event might be already destroyed.");
+        return;
     }
 
-    _handle = nullptr;
+    auto result = zeEventDestroy(_handle);
+    if (ZE_RESULT_SUCCESS == result) {
+        _handle = nullptr;
+    } else {
+        _log.error("zeEventDestroy failed %#X", uint64_t(result));
+    }
 }
 
 CommandList::CommandList(const std::shared_ptr<ZeroInitStructsHolder>& init_structs)
@@ -136,12 +218,19 @@ void CommandList::close() const {
     THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListClose", zeCommandListClose(_handle));
 }
 CommandList::~CommandList() {
-    auto result = zeCommandListDestroy(_handle);
-    if (ZE_RESULT_SUCCESS != result) {
-        _log.error("zeCommandListDestroy failed %#X", uint64_t(result));
+    if (_init_structs->getContext() == nullptr || _handle == nullptr) {
+        _log.warning(
+            "Context or CommandList handle is null during destruction. CommandList might be already destroyed.");
+        _handle = nullptr;
+        return;
     }
 
-    _handle = nullptr;
+    auto result = zeCommandListDestroy(_handle);
+    if (ZE_RESULT_SUCCESS == result) {
+        _handle = nullptr;
+    } else {
+        _log.error("zeCommandListDestroy failed %#X", uint64_t(result));
+    }
 }
 void CommandList::updateMutableCommandList(uint32_t index, const void* data) const {
     ze_mutable_graph_argument_exp_desc_t desc = {};
@@ -213,18 +302,18 @@ CommandQueue::CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_st
                                              0,
                                              0,
                                              ZE_COMMAND_QUEUE_MODE_DEFAULT,
-                                             _desc.priority};
+                                             _desc.priority()};
     ze_command_queue_desc_npu_ext_t turbo_cfg = {};
     ze_command_queue_desc_npu_ext_2_t command_queue_desc = {};
 
-    if (_desc.options) {
+    if (_desc.options()) {
         if (_init_structs->getCommandQueueDdiTable().version() == ZE_MAKE_VERSION(1, 0)) {
             turbo_cfg.stype = ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC_NPU_EXT;
-            turbo_cfg.turbo = _desc.options & ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
+            turbo_cfg.turbo = _desc.options() & ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
             ze_queue_desc.pNext = &turbo_cfg;
         } else if (_init_structs->getCommandQueueDdiTable().version() > ZE_MAKE_VERSION(1, 0)) {
             command_queue_desc.stype = ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC_NPU_EXT_2;
-            command_queue_desc.options = _desc.options;
+            command_queue_desc.options = _desc.options();
             ze_queue_desc.pNext = &command_queue_desc;
         }
     }
@@ -233,12 +322,12 @@ CommandQueue::CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_st
         "zeCommandQueueCreate",
         zeCommandQueueCreate(_init_structs->getContext(), _init_structs->getDevice(), &ze_queue_desc, &_handle));
 
-    if (_desc.workload.has_value()) {
+    if (_desc.workload().has_value()) {
         try {
             if (_init_structs->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0)) {
                 THROW_ON_FAIL_FOR_LEVELZERO(
                     "zeSetWorkloadType",
-                    _init_structs->getCommandQueueDdiTable().pfnSetWorkloadType(_handle, _desc.workload.value()));
+                    _init_structs->getCommandQueueDdiTable().pfnSetWorkloadType(_handle, _desc.workload().value()));
             } else {
                 OPENVINO_THROW("The WorkloadType property is not supported by the current Driver Version!");
             }
@@ -262,12 +351,19 @@ void CommandQueue::executeCommandList(CommandList& command_list, Fence& fence) c
                                 zeCommandQueueExecuteCommandLists(_handle, 1, &command_list._handle, fence.handle()));
 }
 CommandQueue::~CommandQueue() {
-    auto result = zeCommandQueueDestroy(_handle);
-    if (ZE_RESULT_SUCCESS != result) {
-        _log.error("zeCommandQueueDestroy failed %#X", uint64_t(result));
+    if (_init_structs->getContext() == nullptr || _handle == nullptr) {
+        _log.warning(
+            "Context or CommandQueue handle is null during destruction. CommandQueue might be already destroyed.");
+        _handle = nullptr;
+        return;
     }
 
-    _handle = nullptr;
+    auto result = zeCommandQueueDestroy(_handle);
+    if (ZE_RESULT_SUCCESS == result) {
+        _handle = nullptr;
+    } else {
+        _log.error("zeCommandQueueDestroy failed %#X", uint64_t(result));
+    }
 }
 
 Fence::Fence(const std::shared_ptr<CommandQueue>& command_queue)
@@ -283,12 +379,18 @@ void Fence::hostSynchronize() const {
     THROW_ON_FAIL_FOR_LEVELZERO("zeFenceHostSynchronize", zeFenceHostSynchronize(_handle, UINT64_MAX));
 }
 Fence::~Fence() {
-    auto result = zeFenceDestroy(_handle);
-    if (ZE_RESULT_SUCCESS != result) {
-        _log.error("zeFenceDestroy failed %#X", uint64_t(result));
+    if (_command_queue->getZeroContext() == nullptr || _handle == nullptr) {
+        _log.warning("Context or Fence handle is null during destruction. Fence might be already destroyed.");
+        _handle = nullptr;
+        return;
     }
 
-    _handle = nullptr;
+    auto result = zeFenceDestroy(_handle);
+    if (ZE_RESULT_SUCCESS == result) {
+        _handle = nullptr;
+    } else {
+        _log.error("zeFenceDestroy failed %#X", uint64_t(result));
+    }
 }
 
 }  // namespace intel_npu

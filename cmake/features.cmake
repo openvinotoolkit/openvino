@@ -220,12 +220,22 @@ else()
     set(FORCE_FRONTENDS_USE_PROTOBUF OFF)
 endif()
 
+if(ENABLE_INTEL_NPU OR (ENABLE_INTEL_GPU AND GPU_RT_TYPE STREQUAL "L0"))
+    set(ENABLE_OV_ZERO_LOADER ON)
+else()
+    set(ENABLE_OV_ZERO_LOADER OFF)
+endif()
+
 #
 # Process featues
 #
 
 if(ENABLE_OPENVINO_DEBUG)
     add_definitions(-DENABLE_OPENVINO_DEBUG)
+endif()
+
+if(ENABLE_DEBUG_CAPS)
+    add_definitions(-DENABLE_DEBUG_CAPS)
 endif()
 
 if (ENABLE_SNIPPETS_DEBUG_CAPS)

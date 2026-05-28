@@ -14,7 +14,7 @@
 #include <mutex>
 namespace cldnn {
 namespace ocl {
-struct ocl_kernel_builder;
+class ocl_kernel_builder;
 struct ocl_device;
 }  // namespace ocl
 namespace ze {

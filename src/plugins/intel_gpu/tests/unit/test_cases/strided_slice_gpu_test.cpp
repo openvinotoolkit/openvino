@@ -3,6 +3,8 @@
 //
 
 #include "test_utils.h"
+#include "program_wrapper.h"
+#include "pass_manager.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/strided_slice.hpp>
@@ -2952,4 +2954,71 @@ TEST_F(strided_slice_gpu_constants, test_1x1x1x10_pos_begin_end_neg_stride2) {
 
 TEST_F(strided_slice_gpu_constants, test_1x1x1x10_neg_begin_end_neg_stride2) {
     this->test_1x1x1x10_neg_begin_end_neg_stride2(false);
+}
+
+// Verify that strided_slice with partial end_mask is NOT marked as runtime skippable.
+// Regression test: previously, the dimension validation loop did not break on the first
+// non-full-slice dimension, allowing a later full-slice dim to overwrite is_valid to true.
+TEST(strided_slice_gpu_mark_skippable, partial_end_mask_not_skippable) {
+    auto& engine = get_test_engine();
+    // Static 4D input: shape {1, 2, 8, 4}
+    auto in_layout = layout{ov::PartialShape{1, 2, 8, 4}, data_types::f32, format::bfyx};
+
+    // end_mask = {1, 1, 0, 1}: dims 0,1,3 are full-slice via mask, dim 2 has end=4 < 8 (partial)
+    std::vector<int64_t> begin_data = {0, 0, 0, 0};
+    std::vector<int64_t> end_data = {0, 0, 4, 0};
+    std::vector<int64_t> strides_data = {1, 1, 1, 1};
+    std::vector<int64_t> begin_mask = {1, 1, 0, 1};
+    std::vector<int64_t> end_mask = {1, 1, 0, 1};
+
+    topology topology;
+    topology.add(input_layout("input", in_layout));
+    topology.add(strided_slice("strided_slice", input_info("input"),
+                               begin_data, end_data, strides_data,
+                               begin_mask, end_mask, {}, {}, {}, {1, 2, 4, 4}));
+    topology.add(reorder("output", input_info("strided_slice"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    auto prog = program::build_program(engine, topology, config, false, true);
+    ASSERT_NE(prog, nullptr);
+    program_wrapper::apply_opt_pass<mark_runtime_skippable_nodes>(*prog);
+
+    auto& ss_node = prog->get_node("strided_slice");
+    // The strided_slice slices dim 2 partially, so it must NOT be runtime skippable
+    ASSERT_FALSE(ss_node.is_runtime_skippable());
+}
+
+// Verify that strided_slice with all-ones end_mask IS marked as runtime skippable.
+TEST(strided_slice_gpu_mark_skippable, full_end_mask_is_skippable) {
+    auto& engine = get_test_engine();
+    auto in_layout = layout{ov::PartialShape{1, 2, 8, 4}, data_types::f32, format::bfyx};
+
+    // end_mask = {1, 1, 1, 1}: all dims are full-slice via mask
+    std::vector<int64_t> begin_data = {0, 0, 0, 0};
+    std::vector<int64_t> end_data = {0, 0, 0, 0};
+    std::vector<int64_t> strides_data = {1, 1, 1, 1};
+    std::vector<int64_t> begin_mask = {1, 1, 1, 1};
+    std::vector<int64_t> end_mask = {1, 1, 1, 1};
+
+    topology topology;
+    topology.add(input_layout("input", in_layout));
+    topology.add(strided_slice("strided_slice", input_info("input"),
+                               begin_data, end_data, strides_data,
+                               begin_mask, end_mask, {}, {}, {}, {1, 2, 8, 4}));
+    topology.add(reorder("output", input_info("strided_slice"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    auto prog = program::build_program(engine, topology, config, false, true);
+    ASSERT_NE(prog, nullptr);
+    program_wrapper::apply_opt_pass<mark_runtime_skippable_nodes>(*prog);
+
+    auto& ss_node = prog->get_node("strided_slice");
+    // All dims are full-slice, so it should be runtime skippable
+    ASSERT_TRUE(ss_node.is_runtime_skippable());
 }

@@ -59,9 +59,11 @@ static constexpr const char* prefix = "GPU_Debug: ";
 #define GPU_DEBUG_DEFINE_MEM_LOGGER(stage) \
     cldnn::instrumentation::mem_usage_logger mem_logger{stage, ov::intel_gpu::ExecutionConfig::get_verbose() >= 2};
 
-#define GPU_DEBUG_PROFILED_STAGE(stage)                                       \
+#define GPU_DEBUG_PROFILED_STAGE(stage) \
     auto stage_prof = cldnn::instrumentation::profiled_stage<primitive_inst>( \
-        !get_config().get_dump_profiling_data_path().empty(), *this, stage)
+        !get_config().get_dump_profiling_data_path().empty() || \
+        !get_config().get_average_counters().empty(), \
+        *this, stage)
 
 #define GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(val) stage_prof.set_cache_hit(val)
 #define GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO(info) stage_prof.add_memalloc_info(info)

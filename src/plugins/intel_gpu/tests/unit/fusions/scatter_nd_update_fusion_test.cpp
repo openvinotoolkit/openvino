@@ -325,6 +325,33 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, scatter_nd_update_quantize, ::testing::Val
     scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP32_BSV32_FSV16_4D_6, 2, 3 },
 }));
 
+class scatter_nd_update_quantize_reversed_output_range : public ScatterNDUpdatePrimitiveFusingTest {};
+TEST_P(scatter_nd_update_quantize_reversed_output_range, pre_shift) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("scatter_nd_update_indices", get_indices_mem(p)),
+        data("scatter_nd_update_updates", get_mem(get_updates_layout(p), 0, 100)),
+        data("in_lo", get_mem(get_per_channel_layout(p), -2.0f)),
+        data("in_hi", get_mem(get_per_channel_layout(p), 3.0f)),
+        data("out_lo", get_mem(get_single_element_layout(p), 127.0f)),
+        data("out_hi", get_mem(get_single_element_layout(p), -127.0f)),
+        scatter_nd_update("scatter_nd_update_prim", input_info("input"), input_info("scatter_nd_update_indices"),
+                          input_info("scatter_nd_update_updates"), p.indices_rank),
+        quantize("quantize", input_info("scatter_nd_update_prim"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 255, data_types::i8),
+        reorder("reorder_bfyx", input_info("quantize"), p.input_format, data_types::f32)
+    );
+
+    tolerance = 1.f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, scatter_nd_update_quantize_reversed_output_range,
+                         ::testing::ValuesIn(std::vector<scatter_nd_update_test_params>{
+                             scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP32_4D_4, 2, 3 },
+                         }));
+
 class scatter_nd_update_scale_activation_eltwise : public ScatterNDUpdatePrimitiveFusingTest {};
 TEST_P(scatter_nd_update_scale_activation_eltwise, basic) {
     auto p = GetParam();
