@@ -13,24 +13,19 @@
 #include "openvino/core/node.hpp"
 #include "transformations_visibility.hpp"
 
-namespace ov {
-namespace op {
-namespace util {
+namespace ov::util {
 
 /**
  * @brief Extracts a subgraph bounded by the given input and output ports as a standalone model.
  * The original model is not modified; the extracted model is a deep clone.
  *
- * @param model            Source model.
  * @param subgraph_inputs  Input ports that form the subgraph boundary. Each port is replaced
  *                         by a new Parameter whose element type and partial shape match the port.
  * @param subgraph_outputs Output ports that define the subgraph results.
  * @return A new ov::Model representing the extracted subgraph.
  */
-TRANSFORMATIONS_API std::shared_ptr<ov::Model> extract_subgraph(
-    const std::shared_ptr<ov::Model>& model,
-    const std::vector<ov::Input<ov::Node>>& subgraph_inputs,
-    const std::vector<ov::Output<ov::Node>>& subgraph_outputs);
+TRANSFORMATIONS_API std::shared_ptr<ov::Model> extract_subgraph(const std::vector<ov::Input<ov::Node>>& subgraph_inputs,
+                                                                const ov::OutputVector& subgraph_outputs);
 
 /**
  * @brief Extracts a subgraph by resolving boundary ports from node friendly names.
@@ -49,6 +44,4 @@ TRANSFORMATIONS_API std::shared_ptr<ov::Model> extract_subgraph(
     const std::multimap<std::string, size_t>& subgraph_inputs,
     const std::multimap<std::string, size_t>& subgraph_outputs);
 
-}  // namespace util
-}  // namespace op
-}  // namespace ov
+}  // namespace ov::util

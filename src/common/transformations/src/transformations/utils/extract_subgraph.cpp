@@ -11,13 +11,10 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/op/parameter.hpp"
 
-namespace ov {
-namespace op {
-namespace util {
+namespace ov::util {
 
-std::shared_ptr<ov::Model> extract_subgraph(const std::shared_ptr<ov::Model>& model,
-                                            const std::vector<ov::Input<ov::Node>>& subgraph_inputs,
-                                            const std::vector<ov::Output<ov::Node>>& subgraph_outputs) {
+std::shared_ptr<ov::Model> extract_subgraph(const std::vector<ov::Input<ov::Node>>& subgraph_inputs,
+                                            const ov::OutputVector& subgraph_outputs) {
     ov::OutputVector replaced_outputs;
     ov::ParameterVector subgraph_parameters;
     subgraph_parameters.reserve(subgraph_inputs.size());
@@ -96,9 +93,7 @@ std::shared_ptr<ov::Model> extract_subgraph(const std::shared_ptr<ov::Model>& mo
                                             const std::multimap<std::string, size_t>& subgraph_inputs,
                                             const std::multimap<std::string, size_t>& subgraph_outputs) {
     auto [inputs, outputs] = resolve_subgraph_boundaries(model, subgraph_inputs, subgraph_outputs);
-    return extract_subgraph(model, inputs, outputs);
+    return extract_subgraph(inputs, outputs);
 }
 
-}  // namespace util
-}  // namespace op
-}  // namespace ov
+}  // namespace ov::util

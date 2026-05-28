@@ -6,36 +6,6 @@ Useful for inspecting, serializing, or testing a specific portion of a larger mo
 
 Once extracted, the subgraph can be serialized to IR via `ov::pass::Serialize` and reloaded independently, so subsequent investigation or reproduction work can be done on the smaller model without access to the original.
 
-## API
-
-```cpp
-#include "transformations/utils/extract_subgraph.hpp"
-```
-
-### Core overload — explicit port boundaries
-
-```cpp
-std::shared_ptr<ov::Model> ov::op::util::extract_subgraph(
-    const std::shared_ptr<ov::Model>& model,
-    const std::vector<ov::Input<ov::Node>>& subgraph_inputs,
-    const std::vector<ov::Output<ov::Node>>& subgraph_outputs);
-```
-
-Each `subgraph_inputs` entry becomes a fresh `Parameter` node in the extracted model. The extracted graph spans from those inputs to `subgraph_outputs`.
-
-### Name-based overload — look up ports by friendly name
-
-```cpp
-std::shared_ptr<ov::Model> ov::op::util::extract_subgraph(
-    const std::shared_ptr<ov::Model>& model,
-    const std::multimap<std::string, size_t>& subgraph_inputs,
-    const std::multimap<std::string, size_t>& subgraph_outputs);
-```
-
-Each multimap entry maps a node's friendly name to a port index. Multiple entries with the same name select different ports of the same node.
-
-Throws `ov::Exception` if any name is not found in the model.
-
 ## Example
 
 ```cpp

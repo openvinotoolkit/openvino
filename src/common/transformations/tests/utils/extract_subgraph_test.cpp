@@ -18,8 +18,6 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/sigmoid.hpp"
 
-namespace op_util = ov::op::util;
-
 // Builds:  param_a -> relu -> add -> result
 //                    param_b -^
 static std::shared_ptr<ov::Model> build_linear_model() {
@@ -76,7 +74,7 @@ TEST(ExtractSubgraphTest, CoreOverload_SingleOp) {
     }
     ASSERT_NE(relu_ptr, nullptr);
 
-    auto subgraph = op_util::extract_subgraph(model, {relu_ptr->input(0)}, {relu_ptr->output(0)});
+    auto subgraph = ov::util::extract_subgraph({relu_ptr->input(0)}, {relu_ptr->output(0)});
 
     // Build the expected model: param -> relu -> result
     auto expected_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4});
@@ -100,7 +98,7 @@ TEST(ExtractSubgraphTest, CoreOverload_TwoInputsOneOutput) {
     }
     ASSERT_NE(add_ptr, nullptr);
 
-    auto subgraph = op_util::extract_subgraph(model, {add_ptr->input(0), add_ptr->input(1)}, {add_ptr->output(0)});
+    auto subgraph = ov::util::extract_subgraph({add_ptr->input(0), add_ptr->input(1)}, {add_ptr->output(0)});
 
     auto p0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4});
     auto p1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4});
@@ -125,7 +123,7 @@ TEST(ExtractSubgraphTest, CoreOverload_OriginalModelUnchanged) {
     }
     ASSERT_NE(relu_ptr, nullptr);
 
-    op_util::extract_subgraph(model, {relu_ptr->input(0)}, {relu_ptr->output(0)});
+    ov::util::extract_subgraph({relu_ptr->input(0)}, {relu_ptr->output(0)});
 
     EXPECT_EQ(model->get_ordered_ops().size(), original_op_count);
     EXPECT_EQ(model->get_parameters().size(), 2u);
@@ -139,7 +137,7 @@ TEST(ExtractSubgraphTest, MultimapOverload_SingleOp) {
     const std::multimap<std::string, size_t> inputs_map = {{"Relu", 0}};
     const std::multimap<std::string, size_t> outputs_map = {{"Relu", 0}};
 
-    auto subgraph = op_util::extract_subgraph(model, inputs_map, outputs_map);
+    auto subgraph = ov::util::extract_subgraph(model, inputs_map, outputs_map);
 
     auto expected_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4});
     auto expected_relu = std::make_shared<ov::op::v0::Relu>(expected_param);
@@ -159,7 +157,7 @@ TEST(ExtractSubgraphTest, MultimapOverload_MultiInputChain) {
     const std::multimap<std::string, size_t> inputs_map = {{"Relu", 0}, {"Add", 1}};
     const std::multimap<std::string, size_t> outputs_map = {{"Add", 0}};
 
-    auto subgraph = op_util::extract_subgraph(model, inputs_map, outputs_map);
+    auto subgraph = ov::util::extract_subgraph(model, inputs_map, outputs_map);
 
     // Expected: p0 -> relu -> add(p1) -> result
     auto p0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4});
@@ -183,7 +181,7 @@ TEST(ExtractSubgraphTest, MultimapOverload_BranchingModel_BothBranches) {
     const std::multimap<std::string, size_t> inputs_map = {{"Mul", 0}, {"Mul", 1}};
     const std::multimap<std::string, size_t> outputs_map = {{"Mul", 0}};
 
-    auto subgraph = op_util::extract_subgraph(model, inputs_map, outputs_map);
+    auto subgraph = ov::util::extract_subgraph(model, inputs_map, outputs_map);
 
     auto p0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, 3});
     auto p1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, 3});
@@ -204,7 +202,7 @@ TEST(ExtractSubgraphTest, MultimapOverload_BranchingModel_SingleBranch) {
     const std::multimap<std::string, size_t> inputs_map = {{"Relu", 0}};
     const std::multimap<std::string, size_t> outputs_map = {{"Relu", 0}};
 
-    auto subgraph = op_util::extract_subgraph(model, inputs_map, outputs_map);
+    auto subgraph = ov::util::extract_subgraph(model, inputs_map, outputs_map);
 
     auto expected_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, 3});
     auto expected_relu = std::make_shared<ov::op::v0::Relu>(expected_param);
@@ -223,7 +221,7 @@ TEST(ExtractSubgraphTest, MultimapOverload_UnknownInputNameThrows) {
     const std::multimap<std::string, size_t> inputs_map = {{"NonExistentNode", 0}};
     const std::multimap<std::string, size_t> outputs_map = {{"Add", 0}};
 
-    EXPECT_THROW(op_util::extract_subgraph(model, inputs_map, outputs_map), ov::Exception);
+    EXPECT_THROW(ov::util::extract_subgraph(model, inputs_map, outputs_map), ov::Exception);
 }
 
 TEST(ExtractSubgraphTest, MultimapOverload_UnknownOutputNameThrows) {
@@ -232,5 +230,5 @@ TEST(ExtractSubgraphTest, MultimapOverload_UnknownOutputNameThrows) {
     const std::multimap<std::string, size_t> inputs_map = {{"Add", 0}};
     const std::multimap<std::string, size_t> outputs_map = {{"NonExistentNode", 0}};
 
-    EXPECT_THROW(op_util::extract_subgraph(model, inputs_map, outputs_map), ov::Exception);
+    EXPECT_THROW(ov::util::extract_subgraph(model, inputs_map, outputs_map), ov::Exception);
 }
