@@ -332,6 +332,9 @@ std::string eltwise_inst::to_string(eltwise_node const& node) {
         case eltwise_mode::bitwise_xor:
             str_mode = "bitwise_xor";
             break;
+        case eltwise_mode::atan2:
+            str_mode = "atan2";
+            break;
         default:
             str_mode = "not supported mode";
             break;
@@ -453,6 +456,7 @@ void eltwise_inst::check_inputs_count(eltwise_node const& node) {
         case eltwise_mode::bitwise_and:
         case eltwise_mode::bitwise_or:
         case eltwise_mode::bitwise_xor:
+        case eltwise_mode::atan2:
             OPENVINO_ASSERT(inputs_number == 2,
                             "Node id: ", node.id(), ". Invalid eltwise inputs number (should be equal to 2). Actual: ", inputs_number);
             break;
