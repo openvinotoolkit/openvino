@@ -36,7 +36,6 @@
 namespace ov::intel_gpu {
 using namespace ov::pass::pattern;
 using namespace ov::pass;
-#define ANY any_input()
 
 FuseMoESoftmaxRouter::FuseMoESoftmaxRouter() {
     auto routing_matmul = wrap_type<ov::op::v0::MatMul>();
@@ -46,7 +45,7 @@ FuseMoESoftmaxRouter::FuseMoESoftmaxRouter() {
     auto topk_m = wrap_type<ov::op::v11::TopK>({softmax_m, topk_k_m});
     topk_m->set_output_size(2);
 
-    auto reduce_m = wrap_type<ov::op::v1::ReduceSum>({topk_m->output(0), ANY}, consumers_count(1));
+    auto reduce_m = wrap_type<ov::op::v1::ReduceSum>({topk_m->output(0), any_input()}, consumers_count(1));
     auto norm_m = wrap_type<ov::op::v1::Divide>({topk_m->output(0), reduce_m});
     auto convert_topk_m = optional<ov::op::v0::Convert>({topk_m->output(1)});
 
@@ -73,8 +72,7 @@ FuseMoESoftmaxRouter::FuseMoESoftmaxRouter() {
         ov::copy_runtime_info(m.get_match_root(), router_node);
 
         OPENVINO_ASSERT(ov::replace_output_update_name(pattern_map.at(norm_m), router_node->output(0)), "MoERouter fusion failed");
-        const auto topk_node_m = pattern_map.at(topk_m).get_node_shared_ptr();
-        OPENVINO_ASSERT(ov::replace_output_update_name(topk_node_m->output(1), router_node->output(1)), "MoERouter fusion failed");
+        OPENVINO_ASSERT(ov::replace_output_update_name(pattern_map.at(convert_topk_m), router_node->output(1)), "MoERouter fusion failed");
         return true;
     };
 
@@ -86,7 +84,7 @@ FuseMoESigmoidRouter::FuseMoESigmoidRouter() {
     auto routing_matmul = wrap_type<ov::op::v0::MatMul>();
 
     auto sigmoid_m = wrap_type<ov::op::v0::Sigmoid>({routing_matmul});
-    auto routing_bias_m = ANY;
+    auto routing_bias_m = any_input();
     auto add_m = wrap_type<ov::op::v1::Add>({sigmoid_m, routing_bias_m}, consumers_count(1));
     auto topk_k_m = wrap_const();
     auto topk_m = wrap_type<ov::op::v11::TopK>({add_m, topk_k_m});
@@ -94,7 +92,7 @@ FuseMoESigmoidRouter::FuseMoESigmoidRouter() {
 
     auto convert_topk_m = optional<ov::op::v0::Convert>({topk_m->output(1)});
     auto gather_el_m = wrap_type<ov::op::v6::GatherElements>({sigmoid_m, convert_topk_m});
-    auto reduce_m = wrap_type<ov::op::v1::ReduceSum>({gather_el_m, ANY}, consumers_count(1));
+    auto reduce_m = wrap_type<ov::op::v1::ReduceSum>({gather_el_m, any_input()}, consumers_count(1));
 
     // Note: only scalar eps is supported for now
     auto eps_value_m = wrap_type<ov::op::v0::Constant>([](const ov::Output<ov::Node>& output) {
@@ -142,5 +140,4 @@ FuseMoERouter::FuseMoERouter() {
     add_matcher<FuseMoESigmoidRouter>();
 }
 
-#undef ANY
 }  // namespace ov::intel_gpu

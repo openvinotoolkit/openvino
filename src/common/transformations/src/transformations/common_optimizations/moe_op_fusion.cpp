@@ -92,7 +92,8 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool ha
     auto bgm_down_m = std::make_shared<pattern::op::Or>(OutputVector{bgm_down_4_m, bgm_down_6_m});
 
     auto routing_m = pattern::any_input();
-    auto routing_slice_m = pattern::optional<v8::Slice>({routing_m, pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()});
+    auto routing_slice_m = pattern::optional<v8::Slice>(
+        {routing_m, pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()});
     auto routing_transpose_m = pattern::wrap_type<v1::Transpose>({routing_slice_m, pattern::any_input()});
     auto routing_unsqueeze_m = pattern::wrap_type<v0::Unsqueeze>({routing_transpose_m, pattern::any_input()});
 

@@ -183,7 +183,6 @@ protected:
                 ov::test::CheckNumberOfNodesWithType(compiledModel, "Eltwise", expected_eltwise_count);
             }
         }
-        ov::pass::Serialize("exec.xml", "").run_on_model(std::const_pointer_cast<ov::Model>(compiledModel.get_runtime_model()));
     }
 
     void TearDown() override {

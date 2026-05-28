@@ -24,9 +24,6 @@ KeepMOE3GemmConstPrecision::KeepMOE3GemmConstPrecision() {
     auto zp_1_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
     auto zp_2_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
 
-    // MOECompressed input layout (after routing split):
-    // [hs, topk_weights, topk_indices, w0, s0, zp0, w1, s1, zp1, w2, s2, zp2, (shared...)?]
-
     // Shared expert weights
     auto sh_gate_wei_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
     auto sh_gate_zp_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
