@@ -714,7 +714,24 @@ void Pooling::initSupportedPrimitiveDescriptors() {
         };
 
         pushDesc(LayoutType::ncsp);
-        pushDesc(LayoutType::nspc);
+        const bool hasIncludePadding = !poolingAttrs.exclude_pad &&
+                                       (poolingAttrs.auto_pad ||
+                                        std::any_of(poolingAttrs.data_pad_begin.cbegin(),
+                                                    poolingAttrs.data_pad_begin.cend(),
+                                                    [](ptrdiff_t value) {
+                                                        return value != 0;
+                                                    }) ||
+                                        std::any_of(poolingAttrs.data_pad_end.cbegin(),
+                                                    poolingAttrs.data_pad_end.cend(),
+                                                    [](ptrdiff_t value) {
+                                                        return value != 0;
+                                                    }));
+        // Keep fused AvgPool+FQ on ncsp only for ACL NHWC quantized AvgPool include-padding cases.
+        const bool forceNcspAclDesc = algorithm == Algorithm::PoolingAvg && isFusedWith(Type::FakeQuantize) &&
+                                      hasIncludePadding;
+        if (!forceNcspAclDesc) {
+            pushDesc(LayoutType::nspc);
+        }
 
         return;
     }
