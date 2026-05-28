@@ -91,9 +91,9 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool ha
         {swiglu_m, down_w_m, topk_indices_m, pattern::any_input(), down_scale_m, down_zp_m});
     auto bgm_down_m = std::make_shared<pattern::op::Or>(OutputVector{bgm_down_4_m, bgm_down_6_m});
 
-    // Compact routing: Transpose → Unsqueeze
     auto routing_m = pattern::any_input();
-    auto routing_transpose_m = pattern::wrap_type<v1::Transpose>({routing_m, pattern::any_input()});
+    auto routing_slice_m = pattern::optional<v8::Slice>({routing_m, pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()});
+    auto routing_transpose_m = pattern::wrap_type<v1::Transpose>({routing_slice_m, pattern::any_input()});
     auto routing_unsqueeze_m = pattern::wrap_type<v0::Unsqueeze>({routing_transpose_m, pattern::any_input()});
 
     auto final_mul_m = pattern::wrap_type<v1::Multiply>({bgm_down_m, routing_unsqueeze_m}, pattern::consumers_count(1));

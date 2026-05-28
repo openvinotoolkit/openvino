@@ -8,16 +8,16 @@
 
 namespace ov::intel_gpu {
 
-/// Fuse softmax routing subgraph (MatMul → Softmax → TopK → Normalize → Transpose → Unsqueeze)
-/// into MoERouterFused, connecting its outputs directly to MOECompressed inputs.
+/// Fuse softmax routing subgraph (MatMul → Softmax → TopK → Normalize → Transpose)
+/// into MoERouterFused, replacing the Transpose's input with fused router output.
 class FuseMoESoftmaxRouter : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("FuseMoESoftmaxRouter");
     FuseMoESoftmaxRouter();
 };
 
-/// Fuse sigmoid+bias routing subgraph (MatMul → Sigmoid → Add → TopK → Normalize → Transpose → Unsqueeze)
-/// into MoERouterFused, connecting its outputs directly to MOECompressed inputs.
+/// Fuse sigmoid+bias routing subgraph (MatMul → Sigmoid → Add → TopK → Normalize → Transpose)
+/// into MoERouterFused, replacing the Transpose's input with fused router output.
 class FuseMoESigmoidRouter : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("FuseMoESigmoidRouter");

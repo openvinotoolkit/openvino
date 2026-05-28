@@ -11,17 +11,13 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
-#include "openvino/op/gather.hpp"
 #include "openvino/op/gather_elements.hpp"
 #include "openvino/op/matmul.hpp"
-#include "openvino/op/multiply.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/sigmoid.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/topk.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/unsqueeze.hpp"
 #include "plugin/transformations/fuse_moe_router.hpp"
 
 using namespace testing;
@@ -46,8 +42,7 @@ public:
 };
 
 static std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>>
-build_softmax_routing_for_fuse_test(const ov::Output<ov::Node>& routing_weights, size_t topk,
-                                    std::shared_ptr<ov::op::v0::Constant> per_expert_scale = nullptr) {
+build_softmax_routing_for_fuse_test(const ov::Output<ov::Node>& routing_weights, size_t topk) {
     auto softmax = std::make_shared<ov::op::v8::Softmax>(routing_weights, 1);
     auto k = op::v0::Constant::create(element::i32, Shape{}, {static_cast<int32_t>(topk)});
     auto topk_node = std::make_shared<ov::op::v11::TopK>(softmax, k, 1,
@@ -55,22 +50,12 @@ build_softmax_routing_for_fuse_test(const ov::Output<ov::Node>& routing_weights,
     auto reduce_axis = op::v0::Constant::create(element::i64, Shape{1}, {1});
     auto reduce_sum = std::make_shared<ov::op::v1::ReduceSum>(topk_node->output(0), reduce_axis, true);
     ov::Output<ov::Node> norm = std::make_shared<ov::op::v1::Divide>(topk_node->output(0), reduce_sum);
-    if (per_expert_scale) {
-        auto gather_axis = op::v0::Constant::create(element::i32, Shape{}, {0});
-        auto gathered = std::make_shared<ov::op::v8::Gather>(per_expert_scale, topk_node->output(1), gather_axis);
-        norm = std::make_shared<ov::op::v1::Multiply>(norm, gathered);
-    }
-    auto transpose_order = op::v0::Constant::create(element::i64, Shape{2}, {1, 0});
-    auto transpose = std::make_shared<ov::op::v1::Transpose>(norm, transpose_order);
-    auto unsqueeze_const = op::v0::Constant::create(element::i64, Shape{1}, {-1});
-    auto unsqueeze_moe = std::make_shared<ov::op::v0::Unsqueeze>(transpose, unsqueeze_const);
-    return {unsqueeze_moe, topk_node->output(1)};
+    return {norm, topk_node->output(1)};
 }
 
 static std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>>
 build_sigmoid_routing_for_fuse_test(const ov::Output<ov::Node>& routing_weights,
-                                    ov::element::Type data_precision, size_t number_of_experts, size_t topk,
-                                    std::shared_ptr<ov::op::v0::Constant> routed_scale = nullptr) {
+                                    ov::element::Type data_precision, size_t number_of_experts, size_t topk) {
     auto sigmoid = std::make_shared<ov::op::v0::Sigmoid>(routing_weights);
     auto bias = op::v0::Constant::create(data_precision, Shape{1, number_of_experts}, {0.1f});
     auto sig_add = std::make_shared<ov::op::v1::Add>(sigmoid, bias);
@@ -84,14 +69,7 @@ build_sigmoid_routing_for_fuse_test(const ov::Output<ov::Node>& routing_weights,
     auto eps = op::v0::Constant::create(data_precision, Shape{1, 1}, {1e-6f});
     auto add_eps = std::make_shared<ov::op::v1::Add>(reduce_sum, eps);
     ov::Output<ov::Node> norm = std::make_shared<ov::op::v1::Divide>(gather_el, add_eps);
-    if (routed_scale) {
-        norm = std::make_shared<ov::op::v1::Multiply>(norm, routed_scale);
-    }
-    auto transpose_order = op::v0::Constant::create(element::i64, Shape{2}, {1, 0});
-    auto transpose = std::make_shared<ov::op::v1::Transpose>(norm, transpose_order);
-    auto unsqueeze_const = op::v0::Constant::create(element::i64, Shape{1}, {-1});
-    auto unsqueeze_moe = std::make_shared<ov::op::v0::Unsqueeze>(transpose, unsqueeze_const);
-    return {unsqueeze_moe, convert_topk};
+    return {norm, convert_topk};
 }
 
 TEST_P(FuseMoERouterTest, CompareFunctions) {
@@ -103,7 +81,7 @@ TEST_P(FuseMoERouterTest, CompareFunctions) {
         auto routers = op::v0::Constant::create(element::f16, Shape{2048, 128}, {0.2});
         auto routing_weights = std::make_shared<ov::op::v0::MatMul>(hidden_states_reshape, routers);
 
-        auto [routing_out, topk_indices] =
+        const auto [routing_out, topk_indices] =
             routing_type == MoERoutingType::SOFTMAX
                 ? build_softmax_routing_for_fuse_test(routing_weights, 8)
                 : build_sigmoid_routing_for_fuse_test(routing_weights, element::f16, 128, 8);
@@ -148,7 +126,7 @@ TEST_F(TransformationTestsF, FuseMoERouterDifferentConfigTest) {
         auto hidden_states_reshape = std::make_shared<ov::op::v1::Reshape>(hidden_states, flatten_shape, false);
         auto routers = op::v0::Constant::create(element::f16, Shape{2048, 512}, {0.2});
         auto routing_weights = std::make_shared<ov::op::v0::MatMul>(hidden_states_reshape, routers);
-        auto [routing_out, topk_indices] = build_softmax_routing_for_fuse_test(routing_weights, 10);
+        const auto [routing_out, topk_indices] = build_softmax_routing_for_fuse_test(routing_weights, 10);
 
         auto weights_out = std::make_shared<ov::op::v0::Convert>(routing_out, element::f16);
         auto indices_out = std::make_shared<ov::op::v0::Convert>(topk_indices, element::i32);
@@ -167,74 +145,6 @@ TEST_F(TransformationTestsF, FuseMoERouterDifferentConfigTest) {
         auto router_node = std::make_shared<ov::intel_gpu::op::MoERouterFused>(ov::OutputVector{routing_weights}, router_config);
 
         auto weights_out = std::make_shared<ov::op::v0::Convert>(router_node->output(0), element::f16);
-        auto indices_out = std::make_shared<ov::op::v0::Convert>(router_node->output(1), element::i32);
-        model_ref = std::make_shared<ov::Model>(ov::OutputVector{weights_out, indices_out}, ov::ParameterVector{hidden_states});
-    }
-}
-
-TEST_F(TransformationTestsF, FuseMoERouterSoftmaxPerExpertScaleTest) {
-    {
-        auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{32, 2048});
-        auto routers = op::v0::Constant::create(element::f16, Shape{2048, 128}, {0.2});
-        auto routing_weights = std::make_shared<ov::op::v0::MatMul>(hidden_states, routers);
-
-        auto per_expert_scale = op::v0::Constant::create(element::f16, Shape{128}, {1.5f});
-        auto [routing_out, topk_indices] = build_softmax_routing_for_fuse_test(routing_weights, 8, per_expert_scale);
-
-        auto weights_out = std::make_shared<ov::op::v0::Convert>(routing_out, element::f16);
-        model = std::make_shared<ov::Model>(ov::OutputVector{weights_out}, ov::ParameterVector{hidden_states});
-        manager.register_pass<FuseMoERouter>();
-    }
-    {
-        auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{32, 2048});
-        auto routers = op::v0::Constant::create(element::f16, Shape{2048, 128}, {0.2});
-        auto routing_weights = std::make_shared<ov::op::v0::MatMul>(hidden_states, routers);
-
-        ov::intel_gpu::op::MoERouterFused::Config router_config;
-        router_config.num_expert = 128; router_config.top_k = 8;
-        auto router_node = std::make_shared<ov::intel_gpu::op::MoERouterFused>(ov::OutputVector{routing_weights}, router_config);
-
-        auto per_expert_scale = op::v0::Constant::create(element::f16, Shape{128}, {1.5f});
-        auto gather_axis = op::v0::Constant::create(element::i32, Shape{}, {0});
-        auto gathered = std::make_shared<ov::op::v8::Gather>(per_expert_scale, router_node->output(1), gather_axis);
-        auto norm_scaled = std::make_shared<ov::op::v1::Multiply>(router_node->output(0), gathered);
-
-        auto weights_out = std::make_shared<ov::op::v0::Convert>(norm_scaled, element::f16);
-        model_ref = std::make_shared<ov::Model>(ov::OutputVector{weights_out}, ov::ParameterVector{hidden_states});
-    }
-}
-
-TEST_F(TransformationTestsF, FuseMoERouterSigmoidRoutedScaleFactorTest) {
-    {
-        auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{32, 2048});
-        auto routers = op::v0::Constant::create(element::f16, Shape{2048, 128}, {0.2});
-        auto routing_weights = std::make_shared<ov::op::v0::MatMul>(hidden_states, routers);
-
-        auto scale = op::v0::Constant::create(element::f16, Shape{1, 1}, {2.5f});
-        auto [routing_out, topk_indices] = build_sigmoid_routing_for_fuse_test(routing_weights, element::f16, 128, 8, scale);
-
-        auto weights_out = std::make_shared<ov::op::v0::Convert>(routing_out, element::f16);
-        auto indices_out = std::make_shared<ov::op::v0::Convert>(topk_indices, element::i32);
-        model = std::make_shared<ov::Model>(ov::OutputVector{weights_out, indices_out}, ov::ParameterVector{hidden_states});
-        manager.register_pass<FuseMoERouter>();
-    }
-    {
-        auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{32, 2048});
-        auto routers = op::v0::Constant::create(element::f16, Shape{2048, 128}, {0.2});
-        auto routing_weights = std::make_shared<ov::op::v0::MatMul>(hidden_states, routers);
-
-        ov::intel_gpu::op::MoERouterFused::Config router_config;
-        router_config.num_expert = 128; router_config.top_k = 8;
-        router_config.routing_type = ov::intel_gpu::op::MoERouterFused::RoutingType::SIGMOID_BIAS;
-        auto routing_bias = op::v0::Constant::create(element::f16, Shape{1, 128}, {0.1f});
-        auto routing_eps = op::v0::Constant::create(element::f16, Shape{1, 1}, {1e-6f});
-        auto router_node = std::make_shared<ov::intel_gpu::op::MoERouterFused>(
-            ov::OutputVector{routing_weights, routing_bias, routing_eps}, router_config);
-
-        auto scale = op::v0::Constant::create(element::f16, Shape{1, 1}, {2.5f});
-        auto norm_scaled = std::make_shared<ov::op::v1::Multiply>(router_node->output(0), scale);
-
-        auto weights_out = std::make_shared<ov::op::v0::Convert>(norm_scaled, element::f16);
         auto indices_out = std::make_shared<ov::op::v0::Convert>(router_node->output(1), element::i32);
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{weights_out, indices_out}, ov::ParameterVector{hidden_states});
     }
