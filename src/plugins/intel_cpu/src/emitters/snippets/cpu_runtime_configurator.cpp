@@ -8,8 +8,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
-#include <sstream>
-#include <string>
 #include <utility>
 
 #include "cache/multi_cache.h"
@@ -30,6 +28,10 @@
 #ifdef OPENVINO_ARCH_ARM64
 #    include "transformations/snippets/aarch64/pass/lowered/external_repacking_adjuster.hpp"
 #    include "transformations/snippets/aarch64/pass/lowered/gemm_copy_b_loop_ports_adjuster.hpp"
+#endif
+#ifdef SNIPPETS_DEBUG_CAPS
+#    include <sstream>
+#    include <string>
 #endif
 
 namespace ov::intel_cpu {

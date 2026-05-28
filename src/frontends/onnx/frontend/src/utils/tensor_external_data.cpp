@@ -18,7 +18,7 @@ namespace detail {
 TensorExternalData::TensorExternalData(const TensorProto& tensor) {
     for (const auto& entry : tensor.external_data()) {
         if (entry.key() == "location") {
-            m_data_location = ov::util::sanitize_path(entry.value());
+            m_data_location = entry.value();
         } else if (entry.key() == "offset") {
             m_offset = std::stoull(entry.value());
         } else if (entry.key() == "length") {
@@ -41,10 +41,13 @@ TensorExternalData::TensorExternalData(const std::string& location, size_t offse
 
 Buffer<ov::MappedMemory> TensorExternalData::load_external_mmap_data(const std::filesystem::path& model_dir,
                                                                      MappedMemoryHandles cache) const {
-    const auto full_path =
-        model_dir.empty()
-            ? ov::util::make_path(m_data_location)
-            : ov::util::get_absolute_file_path(ov::util::path_join({model_dir, ov::util::make_path(m_data_location)}));
+    std::filesystem::path full_path;
+    try {
+        full_path = ov::util::sanitize_path(model_dir, ov::util::make_path(m_data_location));
+    } catch (const std::runtime_error& e) {
+        throw error::invalid_external_data{e.what()};
+    }
+
     const int64_t file_size = ov::util::file_size(full_path);
     if (file_size <= 0 || m_data_length > static_cast<uint64_t>(file_size) ||
         m_offset > static_cast<uint64_t>(file_size) - m_data_length) {
@@ -68,10 +71,12 @@ Buffer<ov::MappedMemory> TensorExternalData::load_external_mmap_data(const std::
 }
 
 Buffer<ov::AlignedBuffer> TensorExternalData::load_external_data(const std::filesystem::path& model_dir) const {
-    const auto full_path =
-        model_dir.empty()
-            ? ov::util::make_path(m_data_location)
-            : ov::util::get_absolute_file_path(ov::util::path_join({model_dir, ov::util::make_path(m_data_location)}));
+    std::filesystem::path full_path;
+    try {
+        full_path = ov::util::sanitize_path(model_dir, ov::util::make_path(m_data_location));
+    } catch (const std::runtime_error& e) {
+        throw error::invalid_external_data{e.what()};
+    }
     std::ifstream external_data_stream(full_path, std::ios::binary | std::ios::in | std::ios::ate);
 
     if (external_data_stream.fail()) {

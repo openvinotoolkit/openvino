@@ -157,21 +157,23 @@ public:
     inline CommandQueueDesc desc() const {
         return _desc;
     }
+    inline ze_context_handle_t getZeroContext() const {
+        return _init_structs->getContext();
+    }
 
 private:
     std::shared_ptr<ZeroInitStructsHolder> _init_structs;
 
     CommandQueueDesc _desc;
+    ze_command_queue_handle_t _handle = nullptr;
 
     Logger _log;
-
-    ze_command_queue_handle_t _handle = nullptr;
 };
 
 class EventPool {
 public:
     EventPool() = delete;
-    EventPool(ze_device_handle_t device_handle, const ze_context_handle_t& context, uint32_t event_count);
+    EventPool(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, uint32_t event_count);
     EventPool(const EventPool&) = delete;
     EventPool(EventPool&&) = delete;
     EventPool& operator=(const EventPool&) = delete;
@@ -180,8 +182,13 @@ public:
     inline ze_event_pool_handle_t handle() const {
         return _handle;
     }
+    inline ze_context_handle_t getZeroContext() const {
+        return _init_structs->getContext();
+    }
 
 private:
+    std::shared_ptr<ZeroInitStructsHolder> _init_structs;
+
     ze_event_pool_handle_t _handle = nullptr;
 
     Logger _log;

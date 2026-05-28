@@ -17,6 +17,7 @@
 #include "behavior/ov_infer_request/inference.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
+#include "common/zero_init_mock.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
@@ -36,22 +37,6 @@ using CompilationParams = std::tuple<std::string,  // Device name
 
 using ::testing::AllOf;
 using ::testing::HasSubstr;
-
-namespace {
-class LogCallbackGuard {
-public:
-    explicit LogCallbackGuard(const std::function<void(std::string_view)>& callback) {
-        ov::util::set_log_callback(callback);
-    }
-
-    ~LogCallbackGuard() {
-        ov::util::reset_log_callback();
-    }
-
-    LogCallbackGuard(const LogCallbackGuard&) = delete;
-    LogCallbackGuard& operator=(const LogCallbackGuard&) = delete;
-};
-}  // namespace
 
 namespace ov {
 namespace test {
@@ -2323,7 +2308,7 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRawMemoryIsDestroyedAndReallocatedAft
     internal_core.set_property(target_device, ov::log::level(ov::log::Level::DEBUG));
     {
         // don't flood console with messages from model compilation
-        LogCallbackGuard log_callback_guard(log_cb);
+        utils::LogCallbackGuard log_callback_guard(log_cb);
         ov::CompiledModel compiled_model = internal_core.compile_model(model, target_device, configuration);
         inference_request = compiled_model.create_infer_request();
     }
@@ -2337,7 +2322,7 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRawMemoryIsDestroyedAndReallocatedAft
         }
 
         {
-            LogCallbackGuard log_callback_guard(log_cb);
+            utils::LogCallbackGuard log_callback_guard(log_cb);
             inference_request.set_input_tensor(ov::Tensor{ov::element::f32, shape, input_data});
             inference_request.set_output_tensor(ov::Tensor{ov::element::f32, shape, output_data});
             inference_request.infer();
@@ -2387,7 +2372,7 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameRawMemoryMultipleTimes
     internal_core.set_property(target_device, ov::log::level(ov::log::Level::DEBUG));
     {
         // don't flood console with messages from model compilation
-        LogCallbackGuard log_callback_guard(log_cb);
+        utils::LogCallbackGuard log_callback_guard(log_cb);
         ov::CompiledModel compiled_model = internal_core.compile_model(model, target_device, configuration);
         inference_request = compiled_model.create_infer_request();
         inference_request.set_input_tensor(ov::Tensor{ov::element::f32, shape, input_data});
@@ -2401,7 +2386,7 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameRawMemoryMultipleTimes
         }
 
         {
-            LogCallbackGuard log_callback_guard(log_cb);
+            utils::LogCallbackGuard log_callback_guard(log_cb);
             inference_request.infer();
         }
 
@@ -2453,7 +2438,7 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameZeroTensorMultipleTime
     internal_core.set_property(target_device, ov::log::level(ov::log::Level::DEBUG));
     {
         // don't flood console with messages from model compilation
-        LogCallbackGuard log_callback_guard(log_cb);
+        utils::LogCallbackGuard log_callback_guard(log_cb);
         ov::CompiledModel compiled_model = internal_core.compile_model(model, target_device, configuration);
         inference_request = compiled_model.create_infer_request();
         input_tensor = inference_request.get_input_tensor();
@@ -2469,7 +2454,7 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameZeroTensorMultipleTime
         }
 
         {
-            LogCallbackGuard log_callback_guard(log_cb);
+            utils::LogCallbackGuard log_callback_guard(log_cb);
             inference_request.infer();
         }
 
@@ -2518,7 +2503,7 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameZeroHostTensorMultiple
     internal_core.set_property(target_device, ov::log::level(ov::log::Level::DEBUG));
     {
         // don't flood console with messages from model compilation
-        LogCallbackGuard log_callback_guard(log_cb);
+        utils::LogCallbackGuard log_callback_guard(log_cb);
         ov::CompiledModel compiled_model = internal_core.compile_model(model, target_device, configuration);
         inference_request = compiled_model.create_infer_request();
         inference_request.set_input_tensor(input_tensor);
@@ -2532,7 +2517,7 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameZeroHostTensorMultiple
         }
 
         {
-            LogCallbackGuard log_callback_guard(log_cb);
+            utils::LogCallbackGuard log_callback_guard(log_cb);
             inference_request.infer();
         }
 

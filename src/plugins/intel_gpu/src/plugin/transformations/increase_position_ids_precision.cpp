@@ -32,6 +32,7 @@
 #include "openvino/op/variadic_split.hpp"
 #include "ov_ops/rms.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
@@ -202,8 +203,10 @@ IncreasePositionIdsPrecisionForQwen3VL::IncreasePositionIdsPrecisionForQwen3VL()
     // Key difference from Qwen2.5-VL: Unsqueeze is decomposed to Reshape.
     auto position_ids = any_input();
     auto convert_to_i32 = wrap_type<ov::op::v0::Convert>({position_ids});
-    auto reshape_unsqueeze = wrap_type<ov::op::v1::Reshape>({convert_to_i32, wrap_type<ov::op::v0::Constant>()});
-    auto unsqueeze = wrap_type<ov::op::v0::Unsqueeze>({convert_to_i32, any_input()});
+    auto reshape_0 = optional<ov::op::v1::Reshape>({convert_to_i32, wrap_const()});
+    auto stridedslice_0 = optional<ov::op::v1::StridedSlice>({reshape_0, any_input(), any_input(), any_input()});
+    auto reshape_unsqueeze = wrap_type<ov::op::v1::Reshape>({stridedslice_0, wrap_const()});
+    auto unsqueeze = wrap_type<ov::op::v0::Unsqueeze>({stridedslice_0, any_input()});
     auto reshape_or_unsqueeze = std::make_shared<Or>(OutputVector{reshape_unsqueeze, unsqueeze});
     auto convert_to_f16 = wrap_type<ov::op::v0::Convert>({reshape_or_unsqueeze});
 

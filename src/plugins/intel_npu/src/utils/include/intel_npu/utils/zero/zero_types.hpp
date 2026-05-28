@@ -43,7 +43,7 @@ private:
     }
 
 public:
-    ze_graph_dditable_ext_t* const getImpl() {
+    ze_graph_dditable_ext_t* getImpl() {
         return _impl;
     }
 

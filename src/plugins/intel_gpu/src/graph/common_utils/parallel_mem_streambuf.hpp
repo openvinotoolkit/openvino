@@ -28,6 +28,13 @@ public:
     ParallelMemStreamBuf(const ParallelMemStreamBuf&) = delete;
     ParallelMemStreamBuf& operator=(const ParallelMemStreamBuf&) = delete;
 
+    /// Forward prefetch to the delegated ParallelReadStreamBuf if this instance
+    /// wraps a file-backed mmap. Returns false for the in-memory memcpy path,
+    /// where the data is already resident and no preloading is meaningful.
+    bool prefetch(std::streamsize size) {
+        return m_file_buf ? m_file_buf->prefetch(size) : false;
+    }
+
 protected:
     std::streamsize xsgetn(char_type* dst, std::streamsize n) override;
     int_type underflow() override;

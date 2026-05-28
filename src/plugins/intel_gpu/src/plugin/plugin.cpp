@@ -41,7 +41,6 @@
 #include "common_utils/parallel_mem_streambuf.hpp"
 #include "openvino/runtime/weightless_properties_utils.hpp"
 #include "openvino/util/file_util.hpp"
-#include "openvino/util/weights_path.hpp"
 #include "transformations/common_optimizations/dimension_tracking.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
@@ -144,7 +143,7 @@ void Plugin::transform_model(std::shared_ptr<ov::Model>& model, const ExecutionC
 }
 
 std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_ptr<const ov::Model>& model,
-                                                             const ExecutionConfig& config,
+                                                             ExecutionConfig& config,
                                                              const std::shared_ptr<RemoteContextImpl>& context) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::clone_and_transform_model");
     GPU_DEBUG_DEFINE_MEM_LOGGER("Plugin::clone_and_transform_model");
@@ -164,6 +163,17 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
     auto config_copy = config.clone();
     config_copy.finalize(context.get(), model.get());
 
+    // Propagate auto-detected kv_cache_precision from the pre-transformation finalize
+    // to the original config. This is needed because model transformations may convert
+    // 4-bit weight constants (u4/i4) to higher precision, making the detection fail
+    // during the second finalize on the transformed model.
+    if (config.get_user_properties().find(ov::hint::kv_cache_precision.name()) == config.get_user_properties().end()) {
+        auto detected_kv_prec = config_copy.get_kv_cache_precision();
+        if (detected_kv_prec != ov::element::dynamic) {
+            config.set_user_property({ov::hint::kv_cache_precision(detected_kv_prec)}, OptionVisibility::RELEASE);
+        }
+    }
+
     std::string dump_path = GPU_DEBUG_VALUE_OR(config_copy.get_dump_graphs_path(), "");
     GPU_DEBUG_IF(!dump_path.empty()) {
         auto path_base = ov::util::make_path(dump_path) / (cloned_model->get_name() + ".svg");
@@ -173,9 +183,9 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
     // Set weightless cache attribute only for non IR (e.g. onnxruntime) models
     // This is a temporary solution. A common way of handling weightless caching will be defined later.
     if (config_copy.get_enable_weightless()) {
-        const std::string& weights_path = config.get_weights_path();
+        const auto weight_path = ov::util::make_path(config.get_weights_path());
 
-        if (!ov::util::validate_weights_path(weights_path) && !is_weightless_cache_attributes_set(cloned_model))
+        if (weight_path.extension() != ".bin" && !is_weightless_cache_attributes_set(cloned_model))
             set_weightless_cache_attributes(cloned_model);
     }
 
@@ -427,9 +437,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     }
 
     if (ov::util::is_weightless_enabled(config.get_user_properties()).value_or(false)) {
-        const std::string& weights_path = config.get_weights_path();
+        const auto& weights_path = ov::util::make_path(config.get_weights_path());
 
-        if (!ov::util::validate_weights_path(weights_path)) {
+        if (weights_path.extension() != ".bin") {
             // This is non IR case, e.g. onnxruntime.
             // This may not be required. Constant nodes should have the information already.
             // This is a temporary solution. A more robust solution will be implemented in future.

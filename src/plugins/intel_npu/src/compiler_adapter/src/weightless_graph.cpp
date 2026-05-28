@@ -4,6 +4,7 @@
 
 #include "weightless_graph.hpp"
 
+#include <cinttypes>
 #include <condition_variable>
 #include <iterator>
 #include <mutex>
@@ -176,8 +177,9 @@ WeightlessGraph::WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGr
             std::move(mainMetadata),
             std::move(mainBlob),
             config,
+            /* compatibilityDescriptor = */ std::nullopt,
             blobIsPersistent,
-            true),
+            /* calledFromWeightlessGraph = */ true),
       _initsGraphDesc(initGraphDesc),
       _initBlobs(std::move(initBlobs)),
       _initsMetadata(std::move(initMetadata)),
@@ -235,13 +237,11 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
 
             totalResult += result;
 
-            std::stringstream str;
             if (blobIndex == MAIN_SCHEDULE_INDEX) {
-                str << "Main blob size " << blobSize << ", hash " << std::hex << result;
+                _wgLogger.info("Main blob size: %" PRIu64 ", hash: %x", blobSize, result);
             } else {
-                str << "Init part " << blobIndex << " blob size " << blobSize << ", hash " << std::hex << result;
+                _wgLogger.info("Init part %zu blob size %" PRIu64 ", hash: %x", blobIndex, blobSize, result);
             }
-            _wgLogger.info(str.str().c_str());
         }
 
         size_t size = utils::align_size_to_standard_page_size(blobSize);
@@ -254,7 +254,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
                 return 0;
             }
 
-            _wgLogger.info("Blob size with padding: %ld", size);
+            _wgLogger.info("Blob size with padding: %zu", size);
         }
 
         return size;
@@ -277,9 +277,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
         ++blobIndex;
     }
 
-    std::stringstream str;
-    str << "Blob size: " << totalBlobSize << ", hash: " << std::hex << totalResult;
-    _wgLogger.info(str.str().c_str());
+    _wgLogger.info("Blob size: %" PRIu64 ", hash: %x", totalBlobSize, totalResult);
 
     _wgLogger.info("Write blob to stream successfully.");
     return std::make_pair(totalBlobSize, initSizes);
@@ -595,19 +593,25 @@ void WeightlessGraph::release_init_blob(const size_t initIndex) {
 }
 
 void WeightlessGraph::release_graphs() {
-    size_t initIndex = 0;
     if (_zeGraphExt != nullptr) {
         for (auto& initGraphDesc : _initsGraphDesc) {
-            _zeGraphExt->destroyGraph(initGraphDesc);
+            if (initGraphDesc._handle) {
+                _zeGraphExt->destroyGraph(initGraphDesc);
+            }
+        }
 
-            if (!_blobIsPersistent && _initBlobs != std::nullopt && _initBlobs->at(initIndex)) {
+        _wgLogger.debug("Init graphs are destroyed");
+    }
+
+    if (!_blobIsPersistent && _initBlobs != std::nullopt) {
+        for (size_t initIndex = 0; initIndex < _initBlobs->size(); ++initIndex) {
+            if (_initBlobs->at(initIndex)) {
                 _initBlobs->at(initIndex) = ov::Tensor();
             }
-
-            initIndex++;
         }
+
+        _wgLogger.debug("Init blobs are released");
     }
-    _wgLogger.debug("Init graphs are destroyed");
 }
 
 WeightlessGraph::~WeightlessGraph() {
