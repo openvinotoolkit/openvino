@@ -4,14 +4,12 @@
 
 # This script resolves the prebuilt NPU Plugin Compiler dependency by downloading and extracting the appropriate
 # archive based on the current platform. The expected location of the archive and naming convention is as follows:
-#     vcl version: 7.7.0
-#     release: releases/unified/2026/20
 #     storage location: https://storage.openvinotoolkit.org/dependencies/thirdparty
 #     WINDOWS: 
-#         windows2022: npu_compiler_vcl_windows_2022-7_7_0-a282305.zip
+#         windows2022: npu_compiler_vcl_windows_2022-<vcl_version>-<commit_sha>.zip
 #     LINUX:
-#         ubuntu22.04: npu_compiler_vcl_ubuntu_22_04-7_7_0-a282305.tar.gz
-#         ubuntu24.04: npu_compiler_vcl_ubuntu_24_04-7_7_0-a282305.tar.gz
+#         ubuntu22.04: npu_compiler_vcl_ubuntu_22_04-<vcl_version>-<commit_sha>.tar.gz
+#         ubuntu24.04: npu_compiler_vcl_ubuntu_24_04-<vcl_version>-<commit_sha>.tar.gz
 #
 # This script replicates cmake/dependencies.cmake common OV dependency resolution logic including:
 #     THIRDPARTY_SERVER_PATH environment variable or cmake options support that allows
@@ -48,13 +46,13 @@ endfunction()
 if(ENABLE_INTEL_NPU_COMPILER)
     message(STATUS "Resolving prebuilt NPU Plugin Compiler dependencies...")
 
-    set(PLUGIN_COMPILER_VERSION_MAJOR 7)
-    set(PLUGIN_COMPILER_VERSION_MINOR 7)
+    set(PLUGIN_COMPILER_VERSION_MAJOR 8)
+    set(PLUGIN_COMPILER_VERSION_MINOR 1)
     set(PLUGIN_COMPILER_VERSION_PATCH 0)
-    set(PLUGIN_COMPILER_COMMIT_SHA a282305)
-    set(PLUGIN_COMPILER_WINDOWS_2022_CHECKSUM aa94213af3deed2aaab216c7d39e0787cff002156428a432d1395f94cf23ca6f)
-    set(PLUGIN_COMPILER_UBUNTU_22_04_CHECKSUM 789572fb15dc580484fac1b2f542842f5eb2834234410d059f0977ca14bbeb6a)
-    set(PLUGIN_COMPILER_UBUNTU_24_04_CHECKSUM faece2ee29de4905301c80d872177527c4011e98639bbed6445b70e5ce543d5f)
+    set(PLUGIN_COMPILER_COMMIT_SHA 9630b0d)
+    set(PLUGIN_COMPILER_WINDOWS_2022_CHECKSUM 73ac2bfaee4e636eafa6d78227a8105c953076b41a6640c67ce7e8c5e6381a16)
+    set(PLUGIN_COMPILER_UBUNTU_22_04_CHECKSUM NOT_BUILT)
+    set(PLUGIN_COMPILER_UBUNTU_24_04_CHECKSUM 27321827ce110d0a962c83fc810f26d4156b6c12dea9aa323523d4cdcbc63475)
 
     set(PLUGIN_COMPILER_VERSION_UNDERSCORE "${PLUGIN_COMPILER_VERSION_MAJOR}_${PLUGIN_COMPILER_VERSION_MINOR}_${PLUGIN_COMPILER_VERSION_PATCH}")
     message(STATUS "The prebuilt compiler version is ${PLUGIN_COMPILER_VERSION_MAJOR}.${PLUGIN_COMPILER_VERSION_MINOR}.${PLUGIN_COMPILER_VERSION_PATCH}.${PLUGIN_COMPILER_COMMIT_SHA}")
@@ -69,12 +67,13 @@ if(ENABLE_INTEL_NPU_COMPILER)
         set(PLUGIN_COMPILER_ARCHIVE_TYPE "ARCHIVE_WIN")
         set(PLUGIN_COMPILER_LIB_NAME "openvino_intel_npu_compiler.dll")
         set(PLUGIN_COMPILER_LOADER_LIB_NAME "openvino_intel_npu_compiler_loader.dll")
-    elseif(UNIX AND NOT APPLE)
+    elseif(UNIX AND NOT APPLE AND NOT ANDROID)
         # Get the OS name and OS version
         execute_process(COMMAND lsb_release -is OUTPUT_VARIABLE OS_NAME OUTPUT_STRIP_TRAILING_WHITESPACE)
         execute_process(COMMAND lsb_release -rs OUTPUT_VARIABLE OS_VERSION OUTPUT_STRIP_TRAILING_WHITESPACE)
 
-        if(OS_NAME STREQUAL "Ubuntu" AND (OS_VERSION STREQUAL "22.04" OR OS_VERSION STREQUAL "24.04"))
+        #if(OS_NAME STREQUAL "Ubuntu" AND (OS_VERSION STREQUAL "22.04" OR OS_VERSION STREQUAL "24.04"))
+        if(OS_NAME STREQUAL "Ubuntu" AND OS_VERSION STREQUAL "24.04")
             set(OS_FAMILY "linux")
             string(REPLACE "." "_" OS_VERSION_UNDERSCORE ${OS_VERSION})
             set(OS_UPPERCASE "UBUNTU_${OS_VERSION_UNDERSCORE}")
