@@ -347,7 +347,7 @@ CPUTargetMachine::CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, o
     jitters[ov::op::v5::HSigmoid::get_type_info_static()] = emitter_factory.from_node<jit_hsigmoid_emitter>();
     jitters[ov::op::v4::HSwish::get_type_info_static()] = emitter_factory.from_node<jit_hswish_emitter>();
     jitters[ov::intel_cpu::SwishNode::get_type_info_static()] = emitter_factory.from_node<jit_swish_emitter>();
-    jitters[ov::op::v10::IsFinite::get_type_info_static()] = emitter_factory        .from_node<jit_is_finite_emitter>();
+    jitters[ov::op::v10::IsFinite::get_type_info_static()] = emitter_factory.from_node<jit_is_finite_emitter>();
     jitters[ov::op::v10::IsInf::get_type_info_static()] = emitter_factory.from_node<jit_is_inf_emitter>();
     jitters[ov::op::v10::IsNaN::get_type_info_static()] = emitter_factory.from_node<jit_is_nan_emitter>();
     jitters[ov::op::v4::Mish::get_type_info_static()] = emitter_factory.from_node<jit_mish_emitter>();
