@@ -19,6 +19,10 @@ on:
 
 permissions: read-all
 
+env:
+  HF_TOKEN_PATH_LIN: /secrets/huggingface/token-secondary
+  HF_TOKEN_PATH_WIN: "C:\\mount\\secrets\\huggingface\\token-secondary"
+
 jobs:
   ONNX_Runtime:
     name: ONNX Runtime Integration
@@ -30,7 +34,7 @@ jobs:
         - /mount:/mount
         - /home/runner/secrets/:/secrets:ro
         - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
-      options: "-e SCCACHE_AZURE_BLOB_CONTAINER -e HF_TOKEN"
+      options: "-e SCCACHE_AZURE_BLOB_CONTAINER"
     defaults:
       run:
         shell: bash
@@ -55,6 +59,10 @@ jobs:
           echo "::add-mask::${SCCACHE_AZURE_CONNECTION_STRING}"
           echo "SCCACHE_AZURE_CONNECTION_STRING=${SCCACHE_AZURE_CONNECTION_STRING}" >> $GITHUB_ENV
           echo "✓ Connection string loaded and masked"
+
+      - name: Setup Variables
+        run: |
+          echo "HF_TOKEN_PATH=${{ runner.os == 'Linux' && env.HF_TOKEN_PATH_LIN || env.HF_TOKEN_PATH_WIN }}" >> "$GITHUB_ENV"
 
       - name: Fetch ONNX runtime version and skip tests list
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
