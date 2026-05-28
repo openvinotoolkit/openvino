@@ -196,49 +196,19 @@ public:
         }
     }
 
-    void parallel_prefault_readonly(size_t offset, size_t size) override {
-        const auto region = util::make_madvise_region(m_data, m_size, offset, size);
-
-        constexpr std::size_t prefault_threshold = 4 * 1024 * 1024;  // 4 MB
-        if (region.m_length < prefault_threshold)
+    void hint_populate(size_t offset, size_t size) override {
+        if (m_data == nullptr || offset >= m_size)
             return;
 
-        const auto fadvise_offset = static_cast<off_t>(m_file_offset + offset);
-        const auto fadvise_length = static_cast<off_t>(region.m_length - region.m_gap);
-        posix_fadvise(m_handle.get(), fadvise_offset, fadvise_length, POSIX_FADV_SEQUENTIAL);
-        posix_fadvise(m_handle.get(), fadvise_offset, fadvise_length, POSIX_FADV_WILLNEED);
+        const auto available = m_size - offset;
+        const auto effective_size = (size == auto_size) ? available : std::min(size, available);
 
-        std::atomic<std::uint64_t> populate_sink{0};  // anti optimization sink
+        const auto fadvise_off = static_cast<off_t>(m_file_offset + offset);
+        const auto fadvise_len = static_cast<off_t>(effective_size);
+        posix_fadvise(m_handle.get(), fadvise_off, fadvise_len, POSIX_FADV_SEQUENTIAL);
+        posix_fadvise(m_handle.get(), fadvise_off, fadvise_len, POSIX_FADV_WILLNEED);
 
-        const std::size_t page = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
-        const std::size_t pages = (region.m_length + page - 1) / page;
-
-        const std::size_t hw_threads = std::thread::hardware_concurrency();
-        constexpr std::size_t min_chunk_size = 1 * 1024 * 1024;  // 1 MB per thread minimum
-        constexpr std::size_t max_prefault_threads = 10;
-        const std::size_t num_threads = std::min(
-            {hw_threads, pages, max_prefault_threads, std::max<std::size_t>(1, region.m_length / min_chunk_size)});
-
-        std::vector<std::thread> threads;
-        char* const base = reinterpret_cast<char*>(region.m_address);
-
-        for (std::size_t tid = 0; tid < num_threads; ++tid) {
-            threads.emplace_back([&, tid] {
-                const std::size_t begin_page = pages * tid / num_threads;
-                const std::size_t end_page = pages * (tid + 1) / num_threads;
-                std::uint64_t local = 0;
-
-                for (std::size_t p = begin_page; p < end_page; ++p) {
-                    const std::size_t off = p * page;
-                    if (off < region.m_length) {
-                        local += static_cast<unsigned char>(base[off]);
-                    }
-                }
-                populate_sink.fetch_add(local);
-            });
-        }
-        for (auto& t : threads)
-            t.join();
+        ov::populate_pages(static_cast<char*>(m_data) + offset, effective_size);
     }
 };
 
@@ -255,5 +225,46 @@ std::shared_ptr<ov::MappedMemory> load_mmap_object(FileHandle handle, size_t off
     auto holder = std::make_shared<MapHolder>();
     holder->set_from_fd(handle, offset, size);
     return holder;
+}
+
+void populate_pages(void* data, size_t size) {
+    constexpr std::size_t prefault_threshold = 4 * 1024 * 1024;  // 4 MB
+    if (data == nullptr || size < prefault_threshold)
+        return;
+
+    const std::size_t page = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
+    const auto base_addr = reinterpret_cast<uintptr_t>(data);
+    const auto aligned_addr = (base_addr / page) * page;
+    const auto gap = base_addr - aligned_addr;
+    const auto total_length = size + gap;
+    const std::size_t pages = (total_length + page - 1) / page;
+
+    const std::size_t hw_threads = std::thread::hardware_concurrency();
+    constexpr std::size_t min_chunk_size = 1 * 1024 * 1024;  // 1 MB per thread minimum
+    constexpr std::size_t max_prefault_threads = 10;
+    const std::size_t num_threads =
+        std::min({hw_threads, pages, max_prefault_threads, std::max<std::size_t>(1, total_length / min_chunk_size)});
+
+    std::atomic<std::uint64_t> populate_sink{0};
+    std::vector<std::thread> threads;
+    char* const base = reinterpret_cast<char*>(aligned_addr);
+
+    for (std::size_t tid = 0; tid < num_threads; ++tid) {
+        threads.emplace_back([&, tid] {
+            const std::size_t begin_page = pages * tid / num_threads;
+            const std::size_t end_page = pages * (tid + 1) / num_threads;
+            std::uint64_t local = 0;
+
+            for (std::size_t p = begin_page; p < end_page; ++p) {
+                const std::size_t off = p * page;
+                if (off < total_length) {
+                    local += static_cast<unsigned char>(base[off]);
+                }
+            }
+            populate_sink.fetch_add(local);
+        });
+    }
+    for (auto& t : threads)
+        t.join();
 }
 }  // namespace ov

@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <filesystem>
 #include <iostream>
+#include <numeric>
 #include <sstream>
 
 #include "common_test_utils/common_utils.hpp"
@@ -225,5 +226,119 @@ INSTANTIATE_TEST_SUITE_P(MappedMemory,
                                                 {10, auto_size, 0, 90, 100}}),
                                             ::testing::ValuesIn(std::vector<bool>{true, false})),
                          RangedMappingTest::test_name);
+
+TEST(MappedMemory, parallel_prefault_whole_file) {
+    auto file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefault_test.bin");
+    constexpr size_t file_size = 5 * 1024 * 1024;  // 5 MB (above 4 MB threshold)
+
+    {
+        std::vector<char> data(file_size);
+        std::iota(data.begin(), data.end(), char{0});
+        std::ofstream f(file_path, std::ios::binary);
+        f.write(data.data(), data.size());
+    }
+
+    auto mapped = load_mmap_object(file_path);
+    ASSERT_NE(mapped, nullptr);
+    EXPECT_EQ(mapped->size(), file_size);
+
+    EXPECT_NO_THROW(mapped->hint_populate());
+
+    EXPECT_EQ(static_cast<unsigned char>(mapped->data()[0]), 0u);
+    EXPECT_EQ(static_cast<unsigned char>(mapped->data()[file_size - 1]),
+              static_cast<unsigned char>((file_size - 1) & 0xFF));
+
+    std::filesystem::remove(file_path);
+}
+
+TEST(MappedMemory, parallel_prefault_partial_region) {
+    auto file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefault_partial.bin");
+    constexpr size_t file_size = 8 * 1024 * 1024;  // 8 MB
+    constexpr size_t prefault_offset = 1 * 1024 * 1024;
+    constexpr size_t prefault_size = 5 * 1024 * 1024;
+
+    {
+        std::vector<char> data(file_size);
+        std::iota(data.begin(), data.end(), char{0});
+        std::ofstream f(file_path, std::ios::binary);
+        f.write(data.data(), data.size());
+    }
+
+    auto mapped = load_mmap_object(file_path);
+    ASSERT_NE(mapped, nullptr);
+
+    EXPECT_NO_THROW(mapped->hint_populate(prefault_offset, prefault_size));
+
+    EXPECT_EQ(static_cast<unsigned char>(mapped->data()[prefault_offset]),
+              static_cast<unsigned char>(prefault_offset & 0xFF));
+
+    std::filesystem::remove(file_path);
+}
+
+TEST(MappedMemory, parallel_prefault_below_threshold_is_noop) {
+    auto file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefault_small.bin");
+    constexpr size_t file_size = 1024;  // 1 KB - below threshold
+
+    {
+        std::vector<char> data(file_size, 'A');
+        std::ofstream f(file_path, std::ios::binary);
+        f.write(data.data(), data.size());
+    }
+
+    auto mapped = load_mmap_object(file_path);
+    ASSERT_NE(mapped, nullptr);
+    EXPECT_NO_THROW(mapped->hint_populate());  // no optimization
+
+    std::filesystem::remove(file_path);
+}
+
+TEST(MappedMemory, parallel_prefault_with_file_offset) {
+    auto file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefault_offset.bin");
+    constexpr size_t file_size = 10 * 1024 * 1024;  // 10 MB
+    constexpr size_t map_offset = 2 * 1024 * 1024;  // Map starting at 2 MB into file
+
+    {
+        std::vector<char> data(file_size);
+        std::iota(data.begin(), data.end(), char{0});
+        std::ofstream f(file_path, std::ios::binary);
+        f.write(data.data(), data.size());
+    }
+
+    auto mapped = load_mmap_object(file_path, map_offset);
+    ASSERT_NE(mapped, nullptr);
+    EXPECT_EQ(mapped->size(), file_size - map_offset);
+
+    EXPECT_NO_THROW(mapped->hint_populate());
+
+    EXPECT_EQ(static_cast<unsigned char>(mapped->data()[0]), static_cast<unsigned char>(map_offset & 0xFF));
+
+    std::filesystem::remove(file_path);
+}
+
+TEST(MappedMemory, hint_populate_with_both_offsets) {
+    auto file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefault_both_offsets.bin");
+    constexpr size_t file_size = 12 * 1024 * 1024;   // 12 MB
+    constexpr size_t map_offset = 2 * 1024 * 1024;   // Map starting at 2 MB into file
+    constexpr size_t pop_offset = 1 * 1024 * 1024;   // Populate starting at 1 MB into mapping
+    constexpr size_t pop_size = 5 * 1024 * 1024;     // Populate 5 MB
+
+    {
+        std::vector<char> data(file_size);
+        std::iota(data.begin(), data.end(), char{0});
+        std::ofstream f(file_path, std::ios::binary);
+        f.write(data.data(), data.size());
+    }
+
+    auto mapped = load_mmap_object(file_path, map_offset);
+    ASSERT_NE(mapped, nullptr);
+    EXPECT_EQ(mapped->size(), file_size - map_offset);
+
+    EXPECT_NO_THROW(mapped->hint_populate(pop_offset, pop_size));
+
+    EXPECT_EQ(static_cast<unsigned char>(mapped->data()[pop_offset]),
+              static_cast<unsigned char>((map_offset + pop_offset) & 0xFF));
+
+    std::filesystem::remove(file_path);
+}
 
 }  // namespace ov::test

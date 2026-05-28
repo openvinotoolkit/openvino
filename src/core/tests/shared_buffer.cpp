@@ -539,11 +539,11 @@ public:
 
     MOCK_METHOD(void, hint_evict_mock, (size_t offset, size_t size));
 
-    void parallel_prefault_readonly(size_t offset, size_t size) override {
-        parallel_prefault_readonly_mock(offset, size);
+    void hint_populate(size_t offset, size_t size) override {
+        hint_populate_mock(offset, size);
     }
 
-    MOCK_METHOD(void, parallel_prefault_readonly_mock, (size_t offset, size_t size));
+    MOCK_METHOD(void, hint_populate_mock, (size_t offset, size_t size));
 
 private:
     std::vector<char> m_data;
@@ -612,8 +612,8 @@ TEST_F(SharedBufferTest, parallel_prefault_full_mapping) {
 
     auto mock = std::make_shared<MockMappedMemory>(mmap_size);
 
-    EXPECT_CALL(*mock, parallel_prefault_readonly_mock(0u, mmap_size)).Times(1);
-    mock->parallel_prefault_readonly(0, mmap_size);
+    EXPECT_CALL(*mock, hint_populate_mock(0u, mmap_size)).Times(1);
+    mock->hint_populate(0, mmap_size);
 }
 
 TEST_F(SharedBufferTest, parallel_prefault_partial_region) {
@@ -623,7 +623,7 @@ TEST_F(SharedBufferTest, parallel_prefault_partial_region) {
 
     auto mock = std::make_shared<MockMappedMemory>(mmap_size);
 
-    EXPECT_CALL(*mock, parallel_prefault_readonly_mock(prefault_offset, prefault_size)).Times(1);
-    mock->parallel_prefault_readonly(prefault_offset, prefault_size);
+    EXPECT_CALL(*mock, hint_populate_mock(prefault_offset, prefault_size)).Times(1);
+    mock->hint_populate(prefault_offset, prefault_size);
 }
 }  // namespace ov::test

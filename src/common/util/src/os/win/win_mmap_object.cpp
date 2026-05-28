@@ -99,7 +99,7 @@ public:
 
     void hint_evict(size_t offset, size_t size) noexcept override {}
 
-    void parallel_prefault_readonly(size_t offset, size_t /*size*/) override {}
+    void hint_populate(size_t /*offset*/, size_t /*size*/) override {}
 
 private:
     void set_id(const HANDLE h, const size_t offset, const size_t size) {
@@ -180,4 +180,6 @@ std::shared_ptr<ov::MappedMemory> load_mmap_object(FileHandle handle, size_t off
     holder->set_from_handle(handle, offset, size);
     return holder;
 }
+
+void populate_pages(void* /*data*/, size_t /*size*/) {}
 }  // namespace ov

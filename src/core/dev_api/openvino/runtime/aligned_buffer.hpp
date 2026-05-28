@@ -71,13 +71,10 @@ public:
     AlignedBuffer& operator=(const AlignedBuffer&) = delete;
 
     virtual void hint_evict() noexcept;
-    virtual void parallel_prefault_readonly();
 
 protected:
     virtual void hint_evict(size_t offset, size_t size) noexcept;
-    virtual void parallel_prefault_readonly(size_t offset, size_t size);
     static void invoke_evict(AlignedBuffer& buffer, size_t offset, size_t size) noexcept;
-    static void invoke_prefault(AlignedBuffer& buffer, size_t offset, size_t size);
 
     char* m_allocated_buffer;
     char* m_aligned_buffer;

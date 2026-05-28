@@ -45,7 +45,7 @@ public:
     virtual uint64_t get_id() const noexcept = 0;
     virtual ~MappedMemory() = default;
     virtual void hint_evict(size_t offset = 0, size_t size = auto_size) noexcept = 0;
-    virtual void parallel_prefault_readonly(size_t offset = 0, size_t size = auto_size) = 0;
+    virtual void hint_populate(size_t offset = 0, size_t size = auto_size) = 0;
 };
 
 /**
@@ -73,4 +73,15 @@ std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::filesystem::path& 
  * @return MappedMemory shared ptr object which keep mmaped memory and control the lifetime.
  */
 std::shared_ptr<ov::MappedMemory> load_mmap_object(FileHandle handle, size_t offset = 0, size_t size = auto_size);
+
+/**
+ * @brief Touches memory pages in parallel to trigger page faults and populate the page cache.
+ *
+ * Spawns worker threads that each read one byte per page in their assigned range.
+ * No-op if size is below 4 MB or data is null.
+ *
+ * @param data  Pointer to the start of the memory region.
+ * @param size  Number of bytes in the region.
+ */
+void populate_pages(void* data, size_t size);
 }  // namespace ov

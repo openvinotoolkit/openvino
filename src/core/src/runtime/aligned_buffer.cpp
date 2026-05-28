@@ -65,15 +65,7 @@ void AlignedBuffer::hint_evict() noexcept {}
 
 void AlignedBuffer::hint_evict(size_t offset, size_t size) noexcept {}
 
-void AlignedBuffer::parallel_prefault_readonly() {}
-
-void AlignedBuffer::parallel_prefault_readonly(size_t offset, size_t size) {}
-
 void AlignedBuffer::invoke_evict(AlignedBuffer& buffer, size_t offset, size_t size) noexcept {
     buffer.hint_evict(offset, size);
-}
-
-void AlignedBuffer::invoke_prefault(AlignedBuffer& buffer, size_t offset, size_t size) {
-    buffer.parallel_prefault_readonly(offset, size);
 }
 }  // namespace ov
