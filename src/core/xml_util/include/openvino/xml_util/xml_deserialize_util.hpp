@@ -135,9 +135,6 @@ private:
         return std::make_unique<XmlDeserializer>(node, get_weights_provider(), opsets, extensions, variables, version);
     }
 
-    std::shared_ptr<ov::AlignedBuffer> load_weights_region(size_t offset, size_t size);
-    size_t get_available_weights_size() const;
-
     // -- DATA --
     const pugi::xml_node m_node;
     const std::shared_ptr<WeightsProvider> m_weights_provider;
