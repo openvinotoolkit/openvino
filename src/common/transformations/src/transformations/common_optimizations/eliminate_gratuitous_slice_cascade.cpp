@@ -170,9 +170,8 @@ ov::pass::EliminateGratuitousSliceCascade::EliminateGratuitousSliceCascade() {
                        stop_vals.begin(),
                        std::plus<int64_t>());
 
-        auto new_constant = std::make_shared<v0::Constant>(else_opt->add->get_element_type(),
-                                                           add_out_pshape.get_shape(),
-                                                           stop_vals);
+        auto new_constant =
+            std::make_shared<v0::Constant>(else_opt->add->get_element_type(), add_out_pshape.get_shape(), stop_vals);
         ov::copy_runtime_info({select_node, else_opt->add, else_opt->start_n, else_opt->size_n}, new_constant);
         return ov::replace_output_update_name(select_node->output(0), new_constant->output(0));
     };
