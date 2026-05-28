@@ -172,12 +172,14 @@ void ov::npuw::GQAInferRequest::infer() {
 
 ov::SoPtr<ov::ITensor> ov::npuw::GQAInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
     std::lock_guard<std::mutex> lock(m_mutex);
+    ensure_inner_request_locked();
     return m_inner_request->get_tensor(map_port_locked(port));
 }
 
 void ov::npuw::GQAInferRequest::set_tensor(const ov::Output<const ov::Node>& port,
                                            const ov::SoPtr<ov::ITensor>& tensor) {
     std::lock_guard<std::mutex> lock(m_mutex);
+    ensure_inner_request_locked();
     m_inner_request->set_tensor(map_port_locked(port), tensor);
 }
 
