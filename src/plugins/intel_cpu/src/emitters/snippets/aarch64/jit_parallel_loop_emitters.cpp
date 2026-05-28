@@ -4,14 +4,16 @@
 
 #include "jit_parallel_loop_emitters.hpp"
 
-#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64.h>
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h>
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_gen.h>
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_label.h>
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
 
 #include <algorithm>
 #include <cpu/aarch64/cpu_isa_traits.hpp>
 #include <cpu/aarch64/jit_generator.hpp>
 #include <cstddef>
 #include <cstdint>
-#include <iterator>
 #include <memory>
 #include <optional>
 #include <set>
@@ -24,6 +26,7 @@
 #include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "emitters/snippets/utils/utils.hpp"
 #include "emitters/utils.hpp"
+#include "jit_loop_base_emitters.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
 #include "snippets/emitter.hpp"
