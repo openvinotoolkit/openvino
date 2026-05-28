@@ -34,6 +34,11 @@ struct vcl_allocator_3 : vcl_allocator2_t {
         vcl_allocator_3* vclAllocator = static_cast<vcl_allocator_3*>(allocator);
         size_t alignedSize = intel_npu::utils::align_size_to_standard_page_size(size);
 
+        // Prevent integer wraparound on extremely large allocation sizes
+        if (alignedSize < size) {
+            return nullptr;
+        }
+
         uint8_t* allocatedPtr = nullptr;
         try {
             allocatedPtr = static_cast<uint8_t*>(
