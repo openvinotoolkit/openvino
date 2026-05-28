@@ -105,7 +105,7 @@ allocation_type ocl_engine::detect_usm_allocation_type(const void* memory) const
                                        : allocation_type::unknown;
 }
 
-shared_handle ocl_engine::import_external_buffer(size_t byte_size, shared_handle external_handle) {
+memory::ptr ocl_engine::import_external_buffer(const layout& layout, shared_handle external_handle) {
     OPENVINO_ASSERT(external_handle != nullptr, "[GPU] External memory handle must not be null");
     OPENVINO_ASSERT(extension_supported("cl_khr_external_memory"),
                     "[GPU] Selected OpenCL device does not advertise cl_khr_external_memory; "
@@ -131,12 +131,11 @@ shared_handle ocl_engine::import_external_buffer(size_t byte_size, shared_handle
     cl_int errcode = CL_SUCCESS;
     auto cl_ctx = static_cast<cl_context>(get_user_context());
     OPENVINO_ASSERT(cl_ctx != nullptr, "[GPU] OpenCL context is null while importing external buffer");
-
+    const auto byte_size = layout.bytes_count();
     cl_mem imported = clCreateBufferWithProperties(cl_ctx, props, CL_MEM_READ_WRITE, byte_size, nullptr, &errcode);
     OPENVINO_ASSERT(errcode == CL_SUCCESS && imported != nullptr,
                     "[GPU] Failed to import external memory handle via clCreateBufferWithProperties, error: ",
                     errcode);
-
 
     cl_platform_id platform = get_platform_id_for_device(get_cl_device());
     auto& svc_stream = downcast<ocl_stream>(get_service_stream());
@@ -147,30 +146,17 @@ shared_handle ocl_engine::import_external_buffer(size_t byte_size, shared_handle
         OPENVINO_THROW("[GPU] clEnqueueAcquireExternalMemObjectsKHR failed or unavailable, error: ", acquire_err);
     }
     clFinish(q);
-
-    return static_cast<shared_handle>(imported);
+    cl::Buffer buf(imported, true);
+    auto memory = std::make_shared<ocl::gpu_external_buffer>(this, layout, buf, nullptr);
+    clReleaseMemObject(imported);
+    return memory;
 #endif
 }
 
-void ocl_engine::release_external_handle_ref(shared_handle imported_handle) {
-    if (imported_handle != nullptr) {
-        clReleaseMemObject(static_cast<cl_mem>(imported_handle));
-    }
-}
-
-memory::ptr ocl_engine::share_external_buffer(const layout& new_layout, shared_handle handle) {
-    cl::Buffer buf(static_cast<cl_mem>(handle), true);
-    return std::make_shared<ocl::gpu_buffer>(this, new_layout, buf, nullptr, /*external_imported=*/true);
-}
-
-void ocl_engine::release_external_memory(shared_handle cl_mem_handle) {
-    if (cl_mem_handle == nullptr) {
-        return;
-    }
+void ocl_engine::release_external_memory(cl_mem mem) const {
     cl_platform_id platform = get_platform_id_for_device(get_cl_device());
     auto& opencl_stream = downcast<ocl_stream>(get_service_stream());
     cl_command_queue q = opencl_stream.get_cl_queue().get();
-    cl_mem mem = static_cast<cl_mem>(cl_mem_handle);
     // If the extension entrypoint is missing, the cl_mem refcount drop on dtor will still proceed.
     cl::ExternalMemoryHelper::release(platform, q, mem);
     clFinish(q);

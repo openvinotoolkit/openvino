@@ -150,14 +150,6 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
             return { create_usm(type, shape, TensorType::BT_USM_HOST_INTERNAL), nullptr };
         } else if (ov::intel_gpu::SharedMemType::USM_DEVICE_BUFFER == mem_type) {
             return { create_usm(type, shape, TensorType::BT_USM_DEVICE_INTERNAL), nullptr };
-        } else if (ov::intel_gpu::SharedMemType::OCL_BUFFER_FROM_HANDLE == mem_type) {
-            auto shared_handle = extract_object(params, ov::intel_gpu::mem_handle);
-            size_t byte_size = shape_size(shape) * type.size();
-            auto imported = m_engine->import_external_buffer(byte_size, shared_handle);
-
-            auto tensor = reuse_memory(type, shape, imported, TensorType::BT_BUF_SHARED_IMPORTED);
-            m_engine->release_external_handle_ref(imported);
-            return { tensor, nullptr };
         } else {
             TensorType tensor_type;
             cldnn::shared_handle mem = nullptr;
@@ -177,6 +169,9 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
                 mem = extract_object(params, ov::intel_gpu::dev_object_handle);
                 check_if_shared();
 #endif
+            } else if (ov::intel_gpu::SharedMemType::BUFFER_FROM_HANDLE == mem_type) {
+                tensor_type = TensorType::BT_BUF_SHARED_IMPORTED;
+                mem = extract_object(params, ov::intel_gpu::mem_handle);
             } else {
                 OPENVINO_THROW("[GPU] Unsupported shared object type ", mem_type);
             }

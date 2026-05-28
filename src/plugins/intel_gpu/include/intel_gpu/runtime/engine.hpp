@@ -67,13 +67,7 @@ public:
     /// Create shared memory object using user-supplied memory buffer @p buf using specified @p layout
     memory_ptr share_buffer(const layout& layout, shared_handle buf);
 
-    /// Import external OS handle into runtime buffer object and return engine-native shared handle.
-    /// Returned handle can be passed to share_buffer().
-    virtual shared_handle import_external_buffer(size_t byte_size, shared_handle external_handle);
-
-    virtual void release_external_handle_ref(shared_handle imported_handle);
-
-    virtual memory_ptr share_external_buffer(const layout& layout, shared_handle handle);
+    virtual memory_ptr import_external_buffer(const layout& layout, shared_handle external_handle);
 
     /// Create shared memory object using user-supplied USM pointer @p usm_ptr using specified @p layout
     memory_ptr share_usm(const layout& layout, shared_handle usm_ptr);

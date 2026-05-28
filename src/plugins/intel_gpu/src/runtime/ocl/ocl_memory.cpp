@@ -60,20 +60,9 @@ gpu_buffer::gpu_buffer(ocl_engine* engine,
 gpu_buffer::gpu_buffer(ocl_engine* engine,
                        const layout& new_layout,
                        const cl::Buffer& buffer,
-                       std::shared_ptr<MemoryTracker> mem_tracker,
-                       bool external_imported)
+                       std::shared_ptr<MemoryTracker> mem_tracker)
     : lockable_gpu_mem(), memory(engine, new_layout, allocation_type::cl_mem, mem_tracker)
-    , _buffer(buffer)
-    , _external_imported(external_imported) {}
-
-gpu_buffer::~gpu_buffer() {
-    if (_external_imported) {
-        auto* ocl_eng = downcast<ocl_engine>(_engine);
-        if (ocl_eng != nullptr) {
-            ocl_eng->release_external_memory(static_cast<shared_handle>(_buffer.get()));
-        }
-    }
-}
+    , _buffer(buffer) {}
 
 void* gpu_buffer::lock(const stream& stream, mem_lock_type type) {
     auto& cl_stream = downcast<const ocl_stream>(stream);
@@ -229,6 +218,11 @@ dnnl::memory gpu_buffer::get_onednn_grouped_memory(dnnl::memory::desc desc, cons
     OPENVINO_THROW("[GPU] Grouped memory is not supported for gpu_buffer.");
 }
 #endif
+
+gpu_external_buffer::~gpu_external_buffer() {
+    auto cl_engine = downcast<const ocl_engine>(_engine);
+    cl_engine->release_external_memory(static_cast<cl_mem>(_buffer.get()));
+}
 
 gpu_image2d::gpu_image2d(ocl_engine* engine, const layout& layout)
     : lockable_gpu_mem()

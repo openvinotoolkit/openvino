@@ -693,32 +693,23 @@ public:
 };
 #endif
 
-typedef CL_API_ENTRY cl_int(CL_API_CALL * PFN_clEnqueueAcquireExternalMemObjectsKHR)(
-    cl_command_queue /* command_queue */,
-    cl_uint /* num_mem_objects */,
-    const cl_mem* /* mem_objects */,
-    cl_uint /* num_events_in_wait_list */,
-    const cl_event* /* event_wait_list */,
-    cl_event* /* event */);
-
-typedef CL_API_ENTRY cl_int(CL_API_CALL * PFN_clEnqueueReleaseExternalMemObjectsKHR)(
-    cl_command_queue /* command_queue */,
-    cl_uint /* num_mem_objects */,
-    const cl_mem* /* mem_objects */,
-    cl_uint /* num_events_in_wait_list */,
-    const cl_event* /* event_wait_list */,
-    cl_event* /* event */);
-
 class ExternalMemoryHelper {
-public:
-    // Returns nullptr if the extension entrypoint is not available on the platform.
-    static PFN_clEnqueueAcquireExternalMemObjectsKHR get_acquire(cl_platform_id platform) {
-        return try_load_entrypoint<PFN_clEnqueueAcquireExternalMemObjectsKHR>(platform, "clEnqueueAcquireExternalMemObjectsKHR");
-    }
+    typedef CL_API_ENTRY cl_int(CL_API_CALL * PFN_clEnqueueAcquireExternalMemObjectsKHR)(
+        cl_command_queue /* command_queue */,
+        cl_uint /* num_mem_objects */,
+        const cl_mem* /* mem_objects */,
+        cl_uint /* num_events_in_wait_list */,
+        const cl_event* /* event_wait_list */,
+        cl_event* /* event */);
 
-    static PFN_clEnqueueReleaseExternalMemObjectsKHR get_release(cl_platform_id platform) {
-        return try_load_entrypoint<PFN_clEnqueueReleaseExternalMemObjectsKHR>(platform, "clEnqueueReleaseExternalMemObjectsKHR");
-    }
+    typedef CL_API_ENTRY cl_int(CL_API_CALL * PFN_clEnqueueReleaseExternalMemObjectsKHR)(
+        cl_command_queue /* command_queue */,
+        cl_uint /* num_mem_objects */,
+        const cl_mem* /* mem_objects */,
+        cl_uint /* num_events_in_wait_list */,
+        const cl_event* /* event_wait_list */,
+        cl_event* /* event */);
+public:
 
     static cl_int acquire(cl_platform_id platform, cl_command_queue queue, const cl_mem& mem) {
         auto pfn = get_acquire(platform);
@@ -733,6 +724,23 @@ public:
             return CL_INVALID_OPERATION;
         return pfn(queue, 1, &mem, 0, nullptr, nullptr);
     }
+private:
+    static PFN_clEnqueueAcquireExternalMemObjectsKHR get_acquire(cl_platform_id platform) {
+        static PFN_clEnqueueAcquireExternalMemObjectsKHR fn = nullptr;
+        if (!fn) {
+            fn = try_load_entrypoint<PFN_clEnqueueAcquireExternalMemObjectsKHR>(platform, "clEnqueueAcquireExternalMemObjectsKHR");
+        }
+        return fn;
+    }
+
+    static PFN_clEnqueueReleaseExternalMemObjectsKHR get_release(cl_platform_id platform) {
+        static PFN_clEnqueueReleaseExternalMemObjectsKHR fn = nullptr;
+        if (!fn) {
+            fn = try_load_entrypoint<PFN_clEnqueueReleaseExternalMemObjectsKHR>(platform, "clEnqueueReleaseExternalMemObjectsKHR");
+        }
+        return fn;
+    }
+
 };
 
 class PlatformVA : public Platform {
