@@ -99,6 +99,8 @@ public:
 
     void hint_evict(size_t offset, size_t size) noexcept override {}
 
+    void parallel_prefault_readonly(size_t offset, size_t /*size*/) override {}
+
 private:
     void set_id(const HANDLE h, const size_t offset, const size_t size) {
         if (FILE_ID_INFO info; GetFileInformationByHandleEx(h, FileIdInfo, &info, sizeof(info))) {

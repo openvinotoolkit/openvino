@@ -124,6 +124,7 @@ class MapHolder final : public MappedMemory {
     size_t m_mapped_view_size = 0;
     void* m_data = nullptr;
     size_t m_size = 0;
+    size_t m_file_offset = 0;
     uint64_t m_id = std::numeric_limits<uint64_t>::max();
     HandleHolder m_handle;
 
@@ -154,6 +155,7 @@ public:
             throw std::runtime_error("Requested mapping range exceeds file size for fd=" + std::to_string(fd));
         }
 
+        m_file_offset = offset;
         if (m_size > 0) {
             const auto& [aligned_offset, length, gap] = util::make_mmap_region(offset, m_size);
             m_mapped_view_size = length;
@@ -195,18 +197,18 @@ public:
     }
 
     void parallel_prefault_readonly(size_t offset, size_t size) override {
-        // offset clamping, auto_size, and page alignment
         const auto region = util::make_madvise_region(m_data, m_size, offset, size);
 
         constexpr std::size_t prefault_threshold = 4 * 1024 * 1024;  // 4 MB
         if (region.m_length < prefault_threshold)
             return;
 
-        posix_fadvise(m_handle.get(), static_cast<off_t>(offset), static_cast<off_t>(region.m_length), POSIX_FADV_SEQUENTIAL);
-        posix_fadvise(m_handle.get(), static_cast<off_t>(offset), static_cast<off_t>(region.m_length), POSIX_FADV_WILLNEED);
+        const auto fadvise_offset = static_cast<off_t>(m_file_offset + offset);
+        const auto fadvise_length = static_cast<off_t>(region.m_length - region.m_gap);
+        posix_fadvise(m_handle.get(), fadvise_offset, fadvise_length, POSIX_FADV_SEQUENTIAL);
+        posix_fadvise(m_handle.get(), fadvise_offset, fadvise_length, POSIX_FADV_WILLNEED);
 
-        // prevents the compiler from optimizing away the memory reads?
-        std::atomic<std::uint64_t> populate_sink{0};
+        std::atomic<std::uint64_t> populate_sink{0};  // anti optimization sink
 
         const std::size_t page = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
         const std::size_t pages = (region.m_length + page - 1) / page;
@@ -214,9 +216,8 @@ public:
         const std::size_t hw_threads = std::thread::hardware_concurrency();
         constexpr std::size_t min_chunk_size = 1 * 1024 * 1024;  // 1 MB per thread minimum
         constexpr std::size_t max_prefault_threads = 10;
-        // const std::size_t max_threads_by_size = m_size / min_chunk_size;
-        const std::size_t num_threads =
-            std::min({hw_threads, pages, max_prefault_threads, std::max<std::size_t>(1, region.m_length / min_chunk_size)});
+        const std::size_t num_threads = std::min(
+            {hw_threads, pages, max_prefault_threads, std::max<std::size_t>(1, region.m_length / min_chunk_size)});
 
         std::vector<std::thread> threads;
         char* const base = reinterpret_cast<char*>(region.m_address);

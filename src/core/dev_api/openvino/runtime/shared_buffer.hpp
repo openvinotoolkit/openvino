@@ -43,11 +43,33 @@ public:
         }
     }
 
+    virtual void parallel_prefault_readonly() override {
+        if constexpr (std::is_same_v<std::shared_ptr<ov::MappedMemory>, T>) {
+            if (m_shared_object) {
+                m_shared_object->parallel_prefault_readonly(get_offset(), m_byte_size);
+            }
+        } else if constexpr (std::is_same_v<std::shared_ptr<ov::AlignedBuffer>, T>) {
+            if (m_shared_object) {
+                invoke_prefault(*m_shared_object, get_offset(), m_byte_size);
+            }
+        } else {
+        }
+    }
+
 protected:
     virtual void hint_evict(size_t offset, size_t size) noexcept override {
         if constexpr (std::is_same_v<std::shared_ptr<ov::MappedMemory>, T>) {
             if (m_shared_object) {
                 m_shared_object->hint_evict(offset, size);
+            }
+        } else {
+        }
+    }
+
+    virtual void parallel_prefault_readonly(size_t offset, size_t size) override {
+        if constexpr (std::is_same_v<std::shared_ptr<ov::MappedMemory>, T>) {
+            if (m_shared_object) {
+                m_shared_object->parallel_prefault_readonly(offset, size);
             }
         } else {
         }
