@@ -228,6 +228,10 @@ enum class Algorithm : uint8_t {
     FullyConnectedQuantized,
     FullyConnectedQuantizedLegacy,
 
+    // GatherMatmul algorithms
+    GatherMatmulDefault,
+    GatherMatmulCompressed,
+
     // FakeQuantize algorithms
     FQCommon,
     FQQuantization,

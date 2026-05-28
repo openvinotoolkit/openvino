@@ -143,8 +143,14 @@ JitConstants MoE3GemmMicroGenerator::get_jit_constants(const kernel_impl_params&
         jit.make("USE_SLM", 1);
 
     const bool enable_silu_mul = ENABLE_MOE_MICRO_GEMM_POST_PROC_SILU_MUL;
-    if (enable_silu_mul && m_type == MoE3GemmMicroKernelType::MLP_GATE)
+    if (enable_silu_mul && m_type == MoE3GemmMicroKernelType::MLP_GATE) {
         jit.make("POST_PROC_SILU_MUL", 1);
+        if (desc->_config.activation_type == ov::op::internal::MOE::Activation_type::GEGLU_TANH) {
+            jit.make("GATE_ACT_GELU_TANH", 1);
+        } else if (desc->_config.activation_type == ov::op::internal::MOE::Activation_type::GEGLU_ERF) {
+            jit.make("GATE_ACT_GELU_ERF", 1);
+        }
+    }
 
     return jit;
 }

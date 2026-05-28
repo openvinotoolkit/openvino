@@ -2,26 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cstddef>
-#include <cstdint>
-#include <iterator>
-#include <memory>
-#include <sstream>
-#include <string>
-#include <vector>
-
-#include "openvino/core/except.hpp"
-#include "openvino/core/type.hpp"
-#include "openvino/core/type/element_type.hpp"
-#include "openvino/util/common_util.hpp"
-#include "snippets/lowered/expression.hpp"
-#include "snippets/lowered/port_connector.hpp"
-#include "snippets/op/brgemm.hpp"
-#include "snippets/op/perf_count.hpp"
 #ifdef SNIPPETS_DEBUG_CAPS
-#    include "snippets/itt.hpp"
-#    include "snippets/lowered/linear_ir.hpp"
 #    include "snippets/lowered/pass/insert_perf_count_verbose.hpp"
+
+#    include <cstddef>
+#    include <cstdint>
+#    include <iterator>
+#    include <memory>
+#    include <ostream>
+#    include <sstream>
+#    include <string>
+#    include <vector>
+
+#    include "openvino/core/except.hpp"
+#    include "openvino/core/type.hpp"
+#    include "openvino/core/type/element_type.hpp"
+#    include "openvino/util/common_util.hpp"
+#    include "snippets/itt.hpp"
+#    include "snippets/lowered/expression.hpp"
+#    include "snippets/lowered/linear_ir.hpp"
+#    include "snippets/lowered/port_connector.hpp"
+#    include "snippets/op/brgemm.hpp"
+#    include "snippets/op/perf_count.hpp"
 #    include "snippets/utils/utils.hpp"
 
 namespace ov::snippets::lowered::pass {
@@ -99,12 +101,12 @@ std::string InsertPerfCountVerbose::collect_params(const ov::snippets::lowered::
     std::stringstream ss;
     ss << m_subgraph_name << ',';
     ss << brgemm_expr->get_node()->get_friendly_name() << ',';
-    ss << ov::util::join(input_types, ";") << ',';
-    ss << ov::util::join(output_types, ";") << ',';
-    ss << ov::util::join(input_shapes, ";") << ',';
-    ss << ov::util::join(output_shapes, ";") << ',';
-    ss << ov::util::join(input_layouts, ";") << (input_layouts.empty() ? "" : ";") << ',';
-    ss << ov::util::join(output_layouts, ";") << (output_layouts.empty() ? "" : ";") << ',';
+    ss << ov::util::join<std::ostream>(input_types, ";") << ',';
+    ss << ov::util::join<std::ostream>(output_types, ";") << ',';
+    ss << ov::util::join<std::ostream>(input_shapes, ";") << ',';
+    ss << ov::util::join<std::ostream>(output_shapes, ";") << ',';
+    ss << ov::util::join<std::ostream>(input_layouts, ";") << (input_layouts.empty() ? "" : ";") << ',';
+    ss << ov::util::join<std::ostream>(output_layouts, ";") << (output_layouts.empty() ? "" : ";") << ',';
 
     const auto& in_0_desc = brgemm_expr->get_input_port_descriptor(0);
     const auto& in_1_desc = brgemm_expr->get_input_port_descriptor(1);

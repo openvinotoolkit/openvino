@@ -234,6 +234,10 @@ if(ENABLE_OPENVINO_DEBUG)
     add_definitions(-DENABLE_OPENVINO_DEBUG)
 endif()
 
+if(ENABLE_DEBUG_CAPS)
+    add_definitions(-DENABLE_DEBUG_CAPS)
+endif()
+
 if (ENABLE_SNIPPETS_DEBUG_CAPS)
     add_definitions(-DSNIPPETS_DEBUG_CAPS)
 endif()

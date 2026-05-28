@@ -489,6 +489,8 @@ std::string algToString(const Algorithm alg) {
         CASE(FullyConnectedCompressed);
         CASE(FullyConnectedQuantized);
         CASE(FullyConnectedQuantizedLegacy);
+        CASE(GatherMatmulDefault);
+        CASE(GatherMatmulCompressed);
         CASE(ROIPoolingMax);
         CASE(ROIPoolingBilinear);
         CASE(ROIAlignMax);

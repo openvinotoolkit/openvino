@@ -146,6 +146,7 @@ static constexpr Property<bool, ov::PropertyMutability::RW> disable_onednn_post_
 static constexpr Property<std::string, PropertyMutability::RW> dump_graphs_path{"GPU_DUMP_GRAPHS_PATH"};
 static constexpr Property<std::string, ov::PropertyMutability::RW> dump_profiling_data_path{"GPU_DUMP_PROFILING_DATA_PATH"};
 static constexpr Property<bool, ov::PropertyMutability::RW> dump_profiling_data_per_iter{"GPU_DUMP_PROFILING_DATA_PER_ITER"};
+static constexpr Property<std::string, ov::PropertyMutability::RW> average_counters{"GPU_AVERAGE_COUNTERS"};
 static constexpr Property<std::string, ov::PropertyMutability::RW> dump_sources_path{"GPU_DUMP_SOURCES_PATH"};
 static constexpr Property<std::string, ov::PropertyMutability::RW> dump_tensors_path{"GPU_DUMP_TENSORS_PATH"};
 static constexpr Property<std::string, ov::PropertyMutability::RW> dry_run_path{"GPU_DRY_RUN_PATH"};
@@ -185,6 +186,7 @@ static constexpr Property<bool, ov::PropertyMutability::RW> allow_bypass_xattn{"
 static constexpr Property<bool, ov::PropertyMutability::RW> network_marker{"GPU_NETWORK_MARKER"};
 static constexpr Property<bool, ov::PropertyMutability::RW> list_layers{"GPU_LIST_LAYERS"};
 static constexpr Property<bool, ov::PropertyMutability::RW> print_input_data_shapes{"GPU_PRINT_INPUT_DATA_SHAPES"};
+static constexpr Property<std::string, ov::PropertyMutability::RW> pa_mixed_route_mode{"GPU_PA_MIXED_ROUTE_MODE"};
 }  // namespace ov::intel_gpu
 
 namespace cldnn {
