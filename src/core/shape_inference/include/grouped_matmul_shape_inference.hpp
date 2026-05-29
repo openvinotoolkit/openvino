@@ -31,31 +31,31 @@ std::vector<TRShape> shape_infer(const GroupedMatMul* op,
 
     // Case 2: 3D × 3D (batched, uniform group sizes) - no offsets needed
     if (mat_a_rank == 3 && mat_b_rank == 3) {
-        const auto G_a = mat_a_shape[0];
-        const auto M = mat_a_shape[1];
-        const auto K_a = mat_a_shape[2];
-        const auto G_b = mat_b_shape[0];
-        const auto N = mat_b_shape[1];
-        const auto K_b = mat_b_shape[2];
+        const auto g_a = mat_a_shape[0];
+        const auto m = mat_a_shape[1];
+        const auto k_a = mat_a_shape[2];
+        const auto g_b = mat_b_shape[0];
+        const auto n = mat_b_shape[1];
+        const auto k_b = mat_b_shape[2];
 
-        auto merged_G = DimType();
-        auto merged_K = DimType();
+        auto merged_g = DimType();
+        auto merged_k = DimType();
         NODE_VALIDATION_CHECK(op,
-                              DimType::merge(merged_G, G_a, G_b) || G_a.is_dynamic() || G_b.is_dynamic(),
+                              DimType::merge(merged_g, g_a, g_b) || g_a.is_dynamic() || g_b.is_dynamic(),
                               "GroupedMatMul 3D×3D: batch dimension mismatch (mat_a: ",
-                              G_a,
+                              g_a,
                               ", mat_b: ",
-                              G_b,
+                              g_b,
                               ").");
         NODE_VALIDATION_CHECK(op,
-                              DimType::merge(merged_K, K_a, K_b) || K_a.is_dynamic() || K_b.is_dynamic(),
+                              DimType::merge(merged_k, k_a, k_b) || k_a.is_dynamic() || k_b.is_dynamic(),
                               "GroupedMatMul 3D×3D: inner dimension mismatch (mat_a: ",
-                              K_a,
+                              k_a,
                               ", mat_b: ",
-                              K_b,
+                              k_b,
                               ").");
 
-        return {TRShape{merged_G, M, N}};
+        return {TRShape{merged_g, m, n}};
     }
 
     // Case 1: 2D × 3D (MoE forward pass) - requires offsets
@@ -72,22 +72,22 @@ std::vector<TRShape> shape_infer(const GroupedMatMul* op,
         }
 
         const auto total_rows = mat_a_shape[0];
-        const auto K_a = mat_a_shape[1];
-        const auto G = mat_b_shape[0];
-        const auto N = mat_b_shape[1];
-        const auto K_b = mat_b_shape[2];
+        const auto k_a = mat_a_shape[1];
+        const auto g = mat_b_shape[0];
+        const auto n = mat_b_shape[1];
+        const auto k_b = mat_b_shape[2];
 
-        auto merged_K = DimType();
+        auto merged_k = DimType();
         NODE_VALIDATION_CHECK(op,
-                              DimType::merge(merged_K, K_a, K_b) || K_a.is_dynamic() || K_b.is_dynamic(),
+                              DimType::merge(merged_k, k_a, k_b) || k_a.is_dynamic() || k_b.is_dynamic(),
                               "GroupedMatMul 2D×3D: inner dimension mismatch (mat_a: ",
-                              K_a,
+                              k_a,
                               ", mat_b: ",
-                              K_b,
+                              k_b,
                               ").");
 
         // Output has same number of rows as mat_a
-        return {TRShape{total_rows, N}};
+        return {TRShape{total_rows, n}};
     }
 
     // Case 3: 2D × 2D (MoE weight gradient) - requires offsets
@@ -101,9 +101,9 @@ std::vector<TRShape> shape_infer(const GroupedMatMul* op,
                               offsets_shape.rank().is_dynamic() || offsets_shape.size() == 1,
                               "GroupedMatMul offsets must be 1D tensor.");
 
-        const auto K = mat_a_shape[0];
+        const auto k = mat_a_shape[0];
         const auto total_tokens_a = mat_a_shape[1];
-        const auto N = mat_b_shape[0];
+        const auto n = mat_b_shape[0];
         const auto total_tokens_b = mat_b_shape[1];
 
         auto merged_tokens = DimType();
@@ -116,15 +116,15 @@ std::vector<TRShape> shape_infer(const GroupedMatMul* op,
                               total_tokens_b,
                               ").");
 
-        // Output shape is (G, K, N) where G is determined by offsets
-        auto G = DimType();
+        // Output shape is (g, k, n) where g is determined by offsets
+        auto g = DimType();
         if (offsets_shape.rank().is_static() && offsets_shape[0].is_static()) {
-            G = offsets_shape[0];
+            g = offsets_shape[0];
         } else {
-            G = Dimension::dynamic();
+            g = Dimension::dynamic();
         }
 
-        return {TRShape{G, K, N}};
+        return {TRShape{g, k, n}};
     }
 
     NODE_VALIDATION_CHECK(op,
