@@ -14,8 +14,6 @@
 
 #include "plugin/transformations/fold_activation_transpose.hpp"
 
-#include <memory>
-
 using namespace testing;
 using namespace ov::intel_gpu;
 
@@ -70,18 +68,7 @@ TEST_F(TransformationTestsF, FoldActivationTranspose2) {
         manager.register_pass<FoldActivationTranspose>();
     }
     {
-        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 16, 3, 7});
-        auto order1 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 3, 1, 2});
-        auto transpose1 = std::make_shared<ov::op::v1::Transpose>(input1, order1);
-        auto swish = std::make_shared<ov::op::v4::Swish>(transpose1);
-        auto input2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 16, 3, 7});
-        auto order2 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 3, 1, 2});
-        auto transpose2 = std::make_shared<ov::op::v1::Transpose>(input2, order2);
-        auto mul = std::make_shared<ov::op::v1::Multiply>(swish, transpose2);
-        auto order3 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 1, 3, 2});
-        auto transpose3 = std::make_shared<ov::op::v1::Transpose>(mul, order3);
-
-        model_ref = std::make_shared<ov::Model>(ov::OutputVector{transpose3}, ov::ParameterVector{input1, input2});
+        model_ref = model->clone();
     }
 }
 
@@ -103,18 +90,7 @@ TEST_F(TransformationTestsF, FoldActivationTranspose3) {
         manager.register_pass<FoldActivationTranspose>();
     }
     {
-        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 16, 7, 3});
-        auto order1 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3});
-        auto transpose1 = std::make_shared<ov::op::v1::Transpose>(input1, order1);
-        auto swish = std::make_shared<ov::op::v4::Swish>(transpose1);
-        auto input2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 16, 3, 7});
-        auto order2 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 3, 1, 2});
-        auto transpose2 = std::make_shared<ov::op::v1::Transpose>(input2, order2);
-        auto mul = std::make_shared<ov::op::v1::Multiply>(swish, transpose2);
-        auto order3 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 3, 1});
-        auto transpose3 = std::make_shared<ov::op::v1::Transpose>(mul, order3);
-
-        model_ref = std::make_shared<ov::Model>(ov::OutputVector{transpose3}, ov::ParameterVector{input1, input2});
+        model_ref = model->clone();
     }
 }
 
@@ -136,18 +112,7 @@ TEST_F(TransformationTestsF, FoldActivationTranspose4) {
         manager.register_pass<FoldActivationTranspose>();
     }
     {
-        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 16, 3, 7});
-        auto order1 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 3, 1, 2});
-        auto transpose1 = std::make_shared<ov::op::v1::Transpose>(input1, order1);
-        auto swish = std::make_shared<ov::op::v4::Swish>(transpose1);
-        auto input2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 16, 7, 3});
-        auto order2 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3});
-        auto transpose2 = std::make_shared<ov::op::v1::Transpose>(input2, order2);
-        auto mul = std::make_shared<ov::op::v1::Multiply>(swish, transpose2);
-        auto order3 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 3, 1});
-        auto transpose3 = std::make_shared<ov::op::v1::Transpose>(mul, order3);
-
-        model_ref = std::make_shared<ov::Model>(ov::OutputVector{transpose3}, ov::ParameterVector{input1, input2});
+        model_ref = model->clone();
     }
 }
 
