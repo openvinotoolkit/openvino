@@ -672,6 +672,34 @@ def test_serialize_rt_info(request, tmp_path):
     os.remove(bin_path)
 
 
+def test_serialize_node_rt_info_disable_fp16(request, tmp_path):
+    # Setting rt_info["precise_0"] = "" on a node from Python simulates
+    # disabling FP16 compression. During serialization, "precise_0" is
+    # converted into a DisablePrecisionConversion attribute so the flag
+    # persists in the IR. After deserialization the key becomes
+    # "DisablePrecisionConversion_0". This test verifies the round-trip.
+    core = Core()
+    xml_path, bin_path = create_filenames_for_ir(request.node.name, tmp_path)
+
+    param = ops.parameter(PartialShape([1, 3]), dtype=np.float32, name="data")
+    relu = ops.relu(param, name="relu_node")
+    model = Model(relu, [param], "TestModel")
+
+    # Set the string-based rt_info that Python users would use
+    relu.get_rt_info()["precise_0"] = ""
+    assert "precise_0" in relu.get_rt_info()
+
+    serialize(model, xml_path, bin_path)
+    res_model = core.read_model(model=xml_path, weights=bin_path)
+
+    for op in res_model.get_ops():
+        if op.get_friendly_name() == "relu_node":
+            assert "DisablePrecisionConversion_0" in op.get_rt_info()
+
+    os.remove(xml_path)
+    os.remove(bin_path)
+
+
 def make_enum_info():
     from enum import Enum
 
