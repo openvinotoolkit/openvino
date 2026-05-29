@@ -5,6 +5,7 @@
 #include "partitioning.hpp"
 
 #include <memory>
+#include <set>
 
 #include "../logging.hpp"
 #include "../util.hpp"
@@ -910,10 +911,24 @@ void Partitioner::identifySubgraphs() {
 std::vector<std::string> Partitioner::initFunctionPipeline(FunctionPipelineType utype) {
     func_pipeline_type = utype;
 
+    std::set<std::string> selected_repeated_ids;
+    if (func_pipeline_type == FunctionPipelineType::FOLD && !cfg.get<::intel_npu::NPUW_FOLD>()) {
+        const auto fold_only_tags_vec = ov::npuw::online::util::splitByComma(cfg.get<::intel_npu::NPUW_FOLD_ONLY>());
+        const std::set<std::string> fold_only_tags(fold_only_tags_vec.begin(), fold_only_tags_vec.end());
+        if (!fold_only_tags.empty()) {
+            for (const auto& subgraph : P.subgraphs) {
+                if (!subgraph._repeated_id.empty() && fold_only_tags.count(subgraph.gettag()) > 0) {
+                    selected_repeated_ids.insert(subgraph._repeated_id);
+                }
+            }
+        }
+    }
+
     // Collect all groups of function call(s) and process them in groups
     std::map<std::string, int> idx;
     for (auto&& part_sg : P.subgraphs) {
-        if (!part_sg._repeated_id.empty()) {
+        if (!part_sg._repeated_id.empty() &&
+            (selected_repeated_ids.empty() || selected_repeated_ids.count(part_sg._repeated_id) > 0)) {
             auto pfix = "__" + std::to_string(idx[part_sg._repeated_id]++);
             const auto& fcid = func_pipeline_type == FunctionPipelineType::FOLD
                                    ? part_sg._repeated_id          // with folding, functions of the
@@ -2535,9 +2550,11 @@ void Partitioner::finalizeLinks() {
         } else {
             // A function call: find in the prototype subgraph
             auto& params = P.functions.at(sg_desc._funcall)._model->get_parameters();
-            auto& proto = func_pipeline_type == FunctionPipelineType::CWAI
-                              ? ptr  // no protos in the CWAI case..
-                              : all_functions.at(sg_desc._funcall).param_call_to_proto.at(SubgParam(sg_desc, ptr));
+            auto& func_group = all_functions.at(sg_desc._funcall);
+            // Mixed FOLD/CWAI partitionings are resolved per function group:
+            // FOLD fills param_call_to_proto, while CWAI falls back to the call-local ptr.
+            auto proto_iter = func_group.param_call_to_proto.find(SubgParam(sg_desc, ptr));
+            auto& proto = proto_iter == func_group.param_call_to_proto.end() ? ptr : proto_iter->second;
             auto param_iter = std::find(params.begin(), params.end(), proto);
             NPUW_ASSERT(param_iter != params.end());
             return std::distance(params.begin(), param_iter);
@@ -2556,9 +2573,9 @@ void Partitioner::finalizeLinks() {
         } else {
             // A function call: find in the prototype subgraph
             auto& results = P.functions.at(sg_desc._funcall)._model->get_results();
-            auto& proto = func_pipeline_type == FunctionPipelineType::CWAI
-                              ? ptr  // no protos in the CWAI case...
-                              : all_functions.at(sg_desc._funcall).result_call_to_proto.at(SubgResult(sg_desc, ptr));
+            auto& func_group = all_functions.at(sg_desc._funcall);
+            auto proto_iter = func_group.result_call_to_proto.find(SubgResult(sg_desc, ptr));
+            auto& proto = proto_iter == func_group.result_call_to_proto.end() ? ptr : proto_iter->second;
             auto result_iter = std::find(results.begin(), results.end(), proto);
             NPUW_ASSERT(result_iter != results.end());
             return std::distance(results.begin(), result_iter);
@@ -2690,11 +2707,11 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
     p.identifySubgraphs();
 
     if (!ens.repeated.empty()) {
-        if (cfg.get<::intel_npu::NPUW_FOLD>()) {
-            // Do full-featured folding
+        auto run_fold_pipeline = [&]() {
+            // Do full-featured folding.
             auto all_functions = p.initFunctionPipeline(Partitioner::FunctionPipelineType::FOLD);
 
-            // Pass 1: Register all functions and apply general transformations
+            // Pass 1: Register all functions and apply general transformations.
             // - matchRepeatedSubgraphs() populates P.functions with all function definitions
             // - Other transformations (spatial, attention, optimize, etc.) can be applied
             //   independently without cross-function dependencies
@@ -2711,7 +2728,7 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 p.saveTailDictConstants(func_group);
                 p.matchParameters(func_group);
                 p.matchResults(func_group);
-                p.matchRepeatedSubgraphs(func_group);  // This populates P.functions
+                p.matchRepeatedSubgraphs(func_group);
                 p.spatial(func_group);
                 p.attention(func_group);
                 p.optimize(func_group);
@@ -2746,7 +2763,9 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                     function._pipeline.context.erase<ov::npuw::v1::subgraphs::PartitioningCallbacks>();
                 }
             }
-        } else if (cfg.get<::intel_npu::NPUW_CWAI>()) {
+        };
+
+        auto run_cwai_pipeline = [&]() {
             // Less brutal version - just transform repeated blocks
             // into the closure forms, but don't do folding.
             // This path is likely to be removed soon (is here for
@@ -2761,9 +2780,51 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 p.createFunction(func_group);
                 p.decompressionCutOff(func_group);
             }
-        } else {
-            LOG_INFO("Note: Repeated blocks are found in the model " << model->get_friendly_name()
-                                                                     << ", but folding or eager mode are not enabled");
+        };
+
+        auto select_repeated_ids_by_tag = [&](const std::set<std::string>& tags) {
+            std::set<std::string> selected_repeated_ids;
+            for (const auto& subgraph : P.subgraphs) {
+                if (!subgraph._repeated_id.empty() && tags.count(subgraph.gettag()) > 0) {
+                    selected_repeated_ids.insert(subgraph._repeated_id);
+                }
+            }
+            return selected_repeated_ids;
+        };
+
+        const bool fold_enabled = cfg.get<::intel_npu::NPUW_FOLD>();
+        const bool cwai_enabled = cfg.get<::intel_npu::NPUW_CWAI>();
+        const auto fold_only_tags_vec = ov::npuw::online::util::splitByComma(cfg.get<::intel_npu::NPUW_FOLD_ONLY>());
+        const std::set<std::string> fold_only_tags(fold_only_tags_vec.begin(), fold_only_tags_vec.end());
+        const auto fold_only_repeated_ids =
+            fold_only_tags.empty() ? std::set<std::string>{} : select_repeated_ids_by_tag(fold_only_tags);
+        const bool fold_only_matches = !fold_only_repeated_ids.empty();
+        const bool should_run_fold = fold_enabled || fold_only_matches;
+        const bool should_run_cwai = !fold_enabled && cwai_enabled;
+
+        if (!fold_enabled) {
+            if (!fold_only_tags.empty()) {
+                if (cwai_enabled) {
+                    LOG_INFO(::intel_npu::NPUW_FOLD_ONLY().key()
+                             << " is set, so selected-tag FOLD takes precedence over " << ::intel_npu::NPUW_CWAI().key()
+                             << ".");
+                }
+                if (!fold_only_matches) {
+                    LOG_INFO("No repeated subgraphs matched " << ::intel_npu::NPUW_FOLD_ONLY().key()
+                                                              << "; repeated blocks stay unprocessed.");
+                }
+            } else if (!cwai_enabled) {
+                LOG_INFO("Note: Repeated blocks are found in the model " << model->get_friendly_name()
+                                                                         << ", but folding is not enabled");
+            }
+        }
+
+        if (should_run_fold) {
+            run_fold_pipeline();
+        }
+        if (should_run_cwai) {
+            // Selected FOLD families are already converted to funcalls, so CWAI only sees the remainder.
+            run_cwai_pipeline();
         }
     }
     p.finalizeLinks();

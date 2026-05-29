@@ -60,9 +60,7 @@ RUN dpkg --add-architecture armhf && apt-get update && \
         libavcodec-dev:armhf \
         libavformat-dev:armhf \
         libswscale-dev:armhf \
-        libgstreamer1.0-dev:armhf \
         libpython-dev:armhf \
-        libgstreamer-plugins-base1.0-dev:armhf \
         zlib1g-dev:armhf \
         nlohmann-json-dev \
         libgflags-dev:armhf \

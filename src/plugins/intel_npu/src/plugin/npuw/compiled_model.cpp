@@ -83,7 +83,8 @@ std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
 }
 
 bool can_use_weightless_flow(const ::intel_npu::Config& config) {
-    return config.get<::intel_npu::NPUW_FOLD>() || config.get<::intel_npu::NPUW_CWAI>();
+    return config.get<::intel_npu::NPUW_FOLD>() || !config.get<::intel_npu::NPUW_FOLD_ONLY>().empty() ||
+           config.get<::intel_npu::NPUW_CWAI>();
 }
 
 bool should_use_weightless_flow(const ov::AnyMap& non_npuw_props,
@@ -2407,6 +2408,7 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::partitioning::online::dump_plan, NPUW_ONLINE_DUMP_PLAN),
                           BIND(npuw::partitioning::plan, NPUW_PLAN),
                           BIND(npuw::partitioning::fold, NPUW_FOLD),
+                          BIND(npuw::partitioning::fold_only, NPUW_FOLD_ONLY),
                           BIND(npuw::partitioning::cwai, NPUW_CWAI),
                           BIND(npuw::partitioning::dyn_quant, NPUW_DQ),
                           BIND(npuw::partitioning::dyn_quant_full, NPUW_DQ_FULL),
