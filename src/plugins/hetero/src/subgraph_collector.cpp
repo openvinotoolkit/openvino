@@ -317,10 +317,17 @@ void ov::hetero::SubgraphCollector::split_cyclic_dependencies() {
     // original ov::Model (which is a DAG), but it deadlocks run()'s topological sort.  Break it by
     // peeling acyclic subgraphs (Kahn) and, for any remaining cyclic subgraph that still has an
     // internal non-boundary edge, promoting one such edge into _subgraph_inputs.  Each iteration
-    // strictly grows _subgraph_inputs (or terminates), so the loop is bounded by the total number
-    // of node-input edges.
+    // strictly grows _subgraph_inputs by exactly one (the OPENVINO_ASSERT(promoted, ...) below
+    // makes this an invariant), so the loop is bounded by the total number of promotable
+    // node-input edges, which is at most the total number of node inputs in the model.
+    size_t total_node_inputs = 0;
+    for (size_t i = 0; i < nodes_count; ++i) {
+        total_node_inputs += ordered_inputs[i].size();
+    }
     for (size_t scc_step = 0;; ++scc_step) {
-        OPENVINO_ASSERT(scc_step < nodes_count, "Subgraph SCC fallback did not converge");
+        OPENVINO_ASSERT(scc_step < total_node_inputs + 1,
+                        "Subgraph SCC fallback did not converge: exceeded node-input edge budget");
+        const size_t inputs_before_step = _subgraph_inputs.size();
         auto subgraph_ids = collect_subgraphs_ids();
 
         std::vector<SubgraphId> sg_id_by_index(nodes_count);
@@ -336,6 +343,8 @@ void ov::hetero::SubgraphCollector::split_cyclic_dependencies() {
         for (size_t i = 0; i < nodes_count; ++i) {
             all_sgs.insert(sg_id_by_index[i]);
         }
+        std::unordered_map<SubgraphId, std::unordered_set<SubgraphId>> sg_radj;
+        std::unordered_map<SubgraphId, size_t> sg_out_degree;
         for (const auto& inp : _subgraph_inputs) {
             if (is_graph_input_node(inp.get_node()))
                 continue;
@@ -345,45 +354,63 @@ void ov::hetero::SubgraphCollector::split_cyclic_dependencies() {
                 continue;
             if (sg_adj[producer_sg].insert(owner_sg).second) {
                 ++sg_in_degree[owner_sg];
+                sg_radj[owner_sg].insert(producer_sg);
+                ++sg_out_degree[producer_sg];
             }
         }
 
-        // Kahn topological peel: any subgraph that survives is part of (or downstream of) an SCC,
-        // but for the next promotion we only need ONE cyclic subgraph that still has an internal
-        // edge to cut.
-        std::queue<SubgraphId> ready;
-        std::unordered_set<SubgraphId> acyclic;
-        for (auto sg : all_sgs) {
-            if (sg_in_degree[sg] == 0) {
-                ready.push(sg);
-            }
-        }
-        while (!ready.empty()) {
-            const auto sg = ready.front();
-            ready.pop();
-            acyclic.insert(sg);
-            const auto it = sg_adj.find(sg);
-            if (it == sg_adj.end())
-                continue;
-            for (auto to : it->second) {
-                if (--sg_in_degree[to] == 0) {
-                    ready.push(to);
+        // Find subgraphs that are members of any non-trivial SCC. Forward Kahn (peel in_degree==0)
+        // discards everything upstream of the cycles; reverse Kahn restricted to the survivors
+        // (peel out_degree==0) discards everything downstream of the cycles. The intersection is
+        // exactly the SCC membership set. This matters because a tail like A <-> B -> C also
+        // survives forward Kahn (C never reaches in_degree 0 once A/B never do), and treating C
+        // as cyclic here would either (a) waste a promotion on an acyclic subgraph or (b) trip
+        // the "no internal edge" assert below when C has no same-sg edge.
+        auto peel = [&all_sgs](const std::unordered_map<SubgraphId, std::unordered_set<SubgraphId>>& adj,
+                               std::unordered_map<SubgraphId, size_t> degree) -> std::unordered_set<SubgraphId> {
+            std::queue<SubgraphId> ready;
+            std::unordered_set<SubgraphId> peeled;
+            for (auto sg : all_sgs) {
+                if (degree[sg] == 0) {
+                    ready.push(sg);
                 }
             }
+            while (!ready.empty()) {
+                const auto sg = ready.front();
+                ready.pop();
+                peeled.insert(sg);
+                const auto it = adj.find(sg);
+                if (it == adj.end())
+                    continue;
+                for (auto nb : it->second) {
+                    if (--degree[nb] == 0) {
+                        ready.push(nb);
+                    }
+                }
+            }
+            return peeled;
+        };
+        const auto forward_peeled = peel(sg_adj, sg_in_degree);
+        const auto reverse_peeled = peel(sg_radj, sg_out_degree);
+        std::unordered_set<SubgraphId> scc_members;
+        for (auto sg : all_sgs) {
+            if (!forward_peeled.count(sg) && !reverse_peeled.count(sg)) {
+                scc_members.insert(sg);
+            }
         }
 
-        if (acyclic.size() == all_sgs.size()) {
+        if (scc_members.empty()) {
             break;  // subgraph DAG is acyclic, fix-point reached.
         }
 
-        // Pick any node in any cyclic subgraph that still has a non-boundary input from the same
-        // subgraph, and promote that edge. Iterating until the SCC dissolves is correct: in the
-        // worst case the subgraph gets fully fragmented into singletons, which trivially cannot
-        // participate in a multi-subgraph SCC (the original model is a DAG).
+        // Pick any node in any SCC-member subgraph that still has a non-boundary input from the
+        // same subgraph, and promote that edge. Iterating until the SCC dissolves is correct: in
+        // the worst case the subgraph gets fully fragmented into singletons, which trivially
+        // cannot participate in a multi-subgraph SCC (the original model is a DAG).
         bool promoted = false;
         for (size_t node_idx = 0; node_idx < nodes_count && !promoted; ++node_idx) {
             const auto my_sg = sg_id_by_index[node_idx];
-            if (acyclic.count(my_sg))
+            if (!scc_members.count(my_sg))
                 continue;
             for (const auto& input : ordered_inputs[node_idx]) {
                 if (_subgraph_inputs.count(input))
@@ -402,6 +429,11 @@ void ov::hetero::SubgraphCollector::split_cyclic_dependencies() {
         OPENVINO_ASSERT(promoted,
                         "Subgraph SCC fallback found a cyclic subgraph DAG but no internal edge "
                         "to promote; this should not happen on a well-formed ov::Model.");
+        // Defensive: every iteration must grow _subgraph_inputs by at least one. If insert()
+        // ever found the edge already present (logic bug), surface it here instead of looping
+        // silently until the edge budget runs out.
+        OPENVINO_ASSERT(_subgraph_inputs.size() > inputs_before_step,
+                        "Subgraph SCC fallback promoted an edge but _subgraph_inputs did not grow");
     }
 }
 

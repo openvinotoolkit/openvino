@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <optional>
 
 #include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/test_assertions.hpp"
@@ -924,9 +925,10 @@ struct SubgraphCollectorTestParam {
     ModelFactory create_model;                        // factory to build the model under test
     std::map<std::string, std::string> affinity_map;  // node_name → device; empty = broadcast default
     std::string default_affinity;                     // used when affinity_map is empty
-    size_t expected_subgraph_count;                   // number of subgraphs from run(); 0 = skip exact-count check
-                                                      // (used when the partition shape is an implementation
-                                                      // detail but convergence/round-trip is still required)
+    // Expected number of subgraphs from run(). std::nullopt explicitly opts out of the count
+    // check; use only when the partition shape is an implementation detail but convergence and
+    // merge round-trip must still hold (e.g. SCC fallback tests).
+    std::optional<size_t> expected_subgraph_count;
     // --- optional checks (a default-constructed/empty/false value disables the check) ---
     std::vector<std::string> expected_affinities = {};                       // sorted affinity list per subgraph
     std::map<std::string, SubgraphCollector::SubgraphId> expected_ids = {};  // node_name → expected subgraph ID
@@ -993,8 +995,8 @@ TEST_P(SubgraphCollectorParamTest, split_by_affinity) {
 
     const auto& [subgraphs, mapping] = collector.run();
 
-    if (param.expected_subgraph_count > 0) {
-        ASSERT_EQ(param.expected_subgraph_count, subgraphs.size());
+    if (param.expected_subgraph_count.has_value()) {
+        ASSERT_EQ(*param.expected_subgraph_count, subgraphs.size());
     }
 
     std::map<size_t, size_t> actual_to_expected_subgraph_ids;
@@ -1716,10 +1718,10 @@ INSTANTIATE_TEST_SUITE_P(
              {"A2", "MOCK.0"}, {"B2", "MOCK.1"}, {"C2", "MOCK.1"}, {"D2", "MOCK.0"}, {"X2", "MOCK.0"},
              {"res_x1", "MOCK.0"}, {"res_x2", "MOCK.0"}},
             "",
-            // expected_subgraph_count is intentionally 0 (disabled): the SCC fallback's
-            // promotion ordering is an implementation detail; the contract under test is
-            // "run() does not assert Cannot sort subgraphs!" and "merge round-trip succeeds".
-            0,
+            // expected_subgraph_count = std::nullopt: the SCC fallback's promotion ordering is an
+            // implementation detail; the contract under test is "run() does not assert Cannot sort
+            // subgraphs!" and "merge round-trip succeeds".
+            std::nullopt,
             {},
             {},
             {},
