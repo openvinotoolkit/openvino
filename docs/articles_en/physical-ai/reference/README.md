@@ -1,5 +1,18 @@
 # Reference
 
+```{toctree}
+:hidden:
+:maxdepth: 1
+
+cli
+config-schema
+manifest-schema
+inference-api
+runtime-api
+robot-api
+camera-api
+``
+
 This section provides exact lookup material for commands, schemas, and public contracts.
 
 ## Pages

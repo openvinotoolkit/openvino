@@ -1,5 +1,22 @@
 # How-To Guides
 
+```{toctree}
+:hidden:
+:maxdepth: 2
+
+runtime/run-policy-on-robot
+runtime/use-execution-modes
+runtime/add-runtime-callbacks
+inference/load-exported-policy
+inference/use-manifest
+inference/configure-pre-post-processing
+config/write-runtime-config
+config/write-inference-config
+config/instantiate-components
+cli/run
+cli/infer
+``
+
 This section contains task-oriented guides for common runtime workflows.
 
 ## Runtime

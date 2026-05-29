@@ -1,5 +1,19 @@
 # Explanation
 
+```{toctree}
+:hidden:
+:maxdepth: 1
+
+architecture
+inference
+runtime
+configuration
+manifests
+cli
+robots
+cameras
+``
+
 This section contains short concept pages for the runtime package.
 
 Read these pages when you need the model behind the APIs rather than a step-by-step guide.
