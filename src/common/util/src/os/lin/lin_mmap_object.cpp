@@ -232,7 +232,7 @@ void populate_pages(void* data, size_t size) {
     if (data == nullptr || size < prefault_threshold)
         return;
 
-    const std::size_t page = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
+    const auto page = static_cast<size_t>(util::get_system_page_size());
     const auto base_addr = reinterpret_cast<uintptr_t>(data);
     const auto aligned_addr = (base_addr / page) * page;
     const auto gap = base_addr - aligned_addr;
