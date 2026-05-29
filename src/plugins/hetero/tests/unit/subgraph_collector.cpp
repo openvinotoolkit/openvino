@@ -545,6 +545,66 @@ std::shared_ptr<ov::Model> create_multi_hop_scc_cycle_model() {
     return std::make_shared<ov::Model>(ov::ResultVector{res_x1, res_x2}, ov::ParameterVector{in1, in2});
 }
 
+// Bridge-between-cycles topology. Two independent 2-subgraph SCCs sit on the left and right;
+// a multi-node bridge subgraph X on a third device sits between them, with one incoming edge
+// from the left SCC and one outgoing edge to the right SCC. The bridge is acyclic in the
+// subgraph DAG (it lies on a single path between the two cycles, not in any cycle itself).
+//
+// Subgraph DAG after initial partitioning:
+//
+//   A_L(M0) ↔ B_L(M1) ──► X(M2) ──► A_R(M0) ↔ B_R(M1)
+//
+// Each 2-cycle is formed without per-node cyclic inputs (the round-trip goes through nodes in
+// different subgraphs), so split_cyclic_dependencies()'s per-node fix-point loop cannot break
+// them; only the subgraph-DAG SCC fallback can. This is the structural ingredient that exposes
+// the difference between an exact SCC algorithm and a forward+reverse Kahn approximation: the
+// approximation marks X as cyclic (it survives both peels because every subgraph has both
+// incoming and outgoing edges), and the promotion loop would eventually split the bridge by
+// promoting x_bridge1 → x_bridge2. An exact SCC algorithm classifies X as a singleton SCC and
+// never touches its internal edges, preserving the bridge as a single subgraph.
+//
+// The test below asserts the latter: x_bridge1 and x_bridge2 must end up in the same subgraph
+// after run() converges.
+std::shared_ptr<ov::Model> create_bridge_between_cycles_model() {
+    // Left cycle: c_LA fuses {in_L, a_L1, a_L2} into A_L (M0); c_LB fuses {b_L1, b_L2} into B_L (M1).
+    auto in_L = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{4});
+    in_L->set_friendly_name("in_L");
+    auto c_LA = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{4}, {1.0f, 1.0f, 1.0f, 1.0f});
+    c_LA->set_friendly_name("c_LA");
+    auto c_LB = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{4}, {2.0f, 2.0f, 2.0f, 2.0f});
+    c_LB->set_friendly_name("c_LB");
+    auto a_L1 = std::make_shared<ov::op::v1::Add>(in_L, c_LA);
+    a_L1->set_friendly_name("a_L1");
+    auto b_L1 = std::make_shared<ov::op::v1::Add>(a_L1, c_LB);  // A_L → B_L edge
+    b_L1->set_friendly_name("b_L1");
+    auto b_L2 = std::make_shared<ov::op::v1::Add>(b_L1, c_LB);
+    b_L2->set_friendly_name("b_L2");
+    auto a_L2 = std::make_shared<ov::op::v1::Add>(b_L2, c_LA);  // B_L → A_L edge
+    a_L2->set_friendly_name("a_L2");
+    // Bridge: two M2 nodes connected by an internal same-sg edge (x_bridge1 → x_bridge2). This
+    // internal edge is what the buggy two-peel would wrongly promote.
+    auto x_bridge1 = std::make_shared<ov::op::v0::Abs>(a_L2);  // A_L → X edge
+    x_bridge1->set_friendly_name("x_bridge1");
+    auto x_bridge2 = std::make_shared<ov::op::v0::Abs>(x_bridge1);
+    x_bridge2->set_friendly_name("x_bridge2");
+    // Right cycle: mirror of left, fed from the bridge tail.
+    auto c_RA = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{4}, {3.0f, 3.0f, 3.0f, 3.0f});
+    c_RA->set_friendly_name("c_RA");
+    auto c_RB = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{4}, {4.0f, 4.0f, 4.0f, 4.0f});
+    c_RB->set_friendly_name("c_RB");
+    auto a_R1 = std::make_shared<ov::op::v1::Add>(x_bridge2, c_RA);  // X → A_R edge
+    a_R1->set_friendly_name("a_R1");
+    auto b_R1 = std::make_shared<ov::op::v1::Add>(a_R1, c_RB);  // A_R → B_R edge
+    b_R1->set_friendly_name("b_R1");
+    auto b_R2 = std::make_shared<ov::op::v1::Add>(b_R1, c_RB);
+    b_R2->set_friendly_name("b_R2");
+    auto a_R2 = std::make_shared<ov::op::v1::Add>(b_R2, c_RA);  // B_R → A_R edge
+    a_R2->set_friendly_name("a_R2");
+    auto res = std::make_shared<ov::op::v0::Result>(a_R2);
+    res->set_friendly_name("res");
+    return std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{in_L});
+}
+
 // Stateful model: param → read_value → add(+c1) → {result, assign(sink)}.
 // Single-device by design — exercises Subgraph::_sinks wire-through and
 // create_submodel_from_collected_subgraph()'s sink-preserving construction without
@@ -1735,3 +1795,54 @@ INSTANTIATE_TEST_SUITE_P(
         return info.param.test_name;
     });
 // clang-format on
+
+// Regression test for the SCC fallback's bridge-between-cycles handling. See the comment on
+// create_bridge_between_cycles_model() for the topology and why an exact SCC algorithm is
+// required here. The contract under test: an acyclic bridge subgraph lying between two
+// disjoint cycles in the subgraph DAG must NOT be split by the SCC fallback. The two M2 ops
+// (x_bridge1, x_bridge2) belong to one bridge subgraph in the initial partition; after run()
+// converges they must still share a subgraph. A regression that swaps the exact SCC algorithm
+// back to a two-peel (forward + reverse Kahn) over-approximation would mark the bridge as
+// cyclic and eventually promote x_bridge1 → x_bridge2 in the inner loop, splitting the bridge
+// into two singletons — which this test then catches.
+TEST(SubgraphCollectorBridgeBetweenCyclesTest, bridge_subgraph_not_split) {
+    auto model = create_bridge_between_cycles_model();
+    const std::map<std::string, std::string> affinity_by_name = {
+        {"in_L", "MOCK.0"}, {"c_LA", "MOCK.0"}, {"c_LB", "MOCK.1"},
+        {"a_L1", "MOCK.0"}, {"b_L1", "MOCK.1"}, {"b_L2", "MOCK.1"}, {"a_L2", "MOCK.0"},
+        {"x_bridge1", "MOCK.2"}, {"x_bridge2", "MOCK.2"},
+        {"c_RA", "MOCK.0"}, {"c_RB", "MOCK.1"},
+        {"a_R1", "MOCK.0"}, {"b_R1", "MOCK.1"}, {"b_R2", "MOCK.1"}, {"a_R2", "MOCK.0"},
+        {"res", "MOCK.0"},
+    };
+    SubgraphCollector::AffinitiesMap affinities;
+    for (const auto& node : model->get_ordered_ops()) {
+        const auto it = affinity_by_name.find(node->get_friendly_name());
+        ASSERT_TRUE(it != affinity_by_name.end()) << "Missing affinity for node '" << node->get_friendly_name() << "'";
+        affinities[node] = it->second;
+    }
+
+    SubgraphCollector collector(model, affinities);
+    const auto& [subgraphs, mapping] = collector.run();
+
+    // Locate which subgraph each bridge node ended up in by scanning each subgraph's submodel.
+    auto find_subgraph_containing = [&subgraphs](const std::string& node_name) -> std::optional<size_t> {
+        for (size_t i = 0; i < subgraphs.size(); ++i) {
+            const auto submodel = create_submodel_from_collected_subgraph(subgraphs[i]);
+            for (const auto& op : submodel->get_ordered_ops()) {
+                if (op->get_friendly_name() == node_name)
+                    return i;
+            }
+        }
+        return std::nullopt;
+    };
+    const auto idx_x1 = find_subgraph_containing("x_bridge1");
+    const auto idx_x2 = find_subgraph_containing("x_bridge2");
+    ASSERT_TRUE(idx_x1.has_value()) << "x_bridge1 was not found in any resulting subgraph";
+    ASSERT_TRUE(idx_x2.has_value()) << "x_bridge2 was not found in any resulting subgraph";
+    EXPECT_EQ(*idx_x1, *idx_x2)
+        << "Bridge subgraph was split: x_bridge1 ended up in subgraph " << *idx_x1
+        << " but x_bridge2 ended up in subgraph " << *idx_x2
+        << ". This indicates the SCC fallback wrongly classified the acyclic bridge as cyclic"
+        << " and promoted its internal edge.";
+}
