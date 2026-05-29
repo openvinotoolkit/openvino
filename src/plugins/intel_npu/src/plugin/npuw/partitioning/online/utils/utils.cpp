@@ -90,6 +90,27 @@ std::optional<ov::npuw::online::Isolate> ov::npuw::online::util::parseIsolate(co
     return std::optional<Isolate>{isolate};
 }
 
+std::vector<std::string> ov::npuw::online::util::splitByComma(const std::string& s) {
+    std::vector<std::string> tokens;
+    size_t pos = 0;
+    size_t start = 0;
+
+    while ((pos = s.find(',', start)) != std::string::npos) {
+        auto token = s.substr(start, pos - start);
+        if (!token.empty()) {
+            tokens.push_back(std::move(token));
+        }
+        start = pos + 1;
+    }
+
+    auto tail = s.substr(start, s.size() - start);
+    if (!tail.empty()) {
+        tokens.push_back(std::move(tail));
+    }
+
+    return tokens;
+}
+
 size_t ov::npuw::online::util::getMinGraphSize(const ::intel_npu::Config& cfg) {
     std::size_t min_size = cfg.get<::intel_npu::NPUW_ONLINE_MIN_SIZE>();
 
@@ -124,27 +145,11 @@ std::vector<ov::npuw::online::Avoid> ov::npuw::online::util::getAvoids(const ::i
         return {};
     }
 
-    std::string s = std::move(avoids_opt);
-
-    size_t pos = 0;
-    size_t start = 0;
-    std::string token;
-
-    while ((pos = s.find(',', start)) != std::string::npos) {
-        token = s.substr(start, pos - start);
+    for (const auto& token : splitByComma(avoids_opt)) {
         auto avoid_opt = util::parseAvoid(token);
-        // Check that parsing was a success
         if (avoid_opt) {
             avoids.push_back(*avoid_opt);
         }
-        start = pos + 1;
-    }
-
-    // Parse the tail
-    auto avoid_opt = util::parseAvoid(s.substr(start, s.size() - start));
-    // Check that parsing was a success
-    if (avoid_opt) {
-        avoids.push_back(*avoid_opt);
     }
 
     if (!avoids.empty()) {
@@ -169,21 +174,6 @@ std::vector<ov::npuw::online::Isolate> ov::npuw::online::util::getIsolates(const
     }
 
     std::vector<Isolate> isolates;
-
-    // Lambda to split comma-separated string into tokens
-    auto splitByComma = [](const std::string& s) {
-        std::vector<std::string> tokens;
-        size_t pos = 0;
-        size_t start = 0;
-
-        while ((pos = s.find(',', start)) != std::string::npos) {
-            tokens.push_back(s.substr(start, pos - start));
-            start = pos + 1;
-        }
-        tokens.push_back(s.substr(start, s.size() - start));  // Handle tail
-
-        return tokens;
-    };
 
     // Split input and expand presets
     std::vector<std::string> expanded_tokens;
@@ -225,26 +215,7 @@ std::vector<std::string> ov::npuw::online::util::getNoFolds(const std::string& n
         return {};
     }
 
-    std::vector<std::string> nofolds;
-    std::string s(nofolds_unparsed);
-
-    size_t pos = 0;
-    size_t start = 0;
-    std::string token;
-
-    while ((pos = s.find(',', start)) != std::string::npos) {
-        token = s.substr(start, pos - start);
-        if (!token.empty()) {
-            nofolds.push_back(token);
-        }
-        start = pos + 1;
-    }
-
-    // Parse the tail
-    std::string tail = s.substr(start, s.size() - start);
-    if (!tail.empty()) {
-        nofolds.push_back(tail);
-    }
+    auto nofolds = splitByComma(nofolds_unparsed);
 
     if (!nofolds.empty()) {
         LOG_INFO("Online partitioning will mark specified tags as non-foldable.");
@@ -264,4 +235,6 @@ ov::npuw::online::PassContext::PassContext(const ::intel_npu::Config& cfg) {
     avoids = ov::npuw::online::util::getAvoids(cfg);
     isolates = ov::npuw::online::util::getIsolates(cfg);
     nofolds = ov::npuw::online::util::getNoFolds(cfg);
+    fuse_unfolded = cfg.get<::intel_npu::NPUW_FUSE_UNFOLDED>();
+    fold_only_tags = ov::npuw::online::util::splitByComma(cfg.get<::intel_npu::NPUW_FOLD_ONLY>());
 }
