@@ -45,7 +45,7 @@ AI models, coming from the most popular model frameworks.
 Convert, optimize, and run inference utilizing the full potential of Intel® hardware.
 There are three main tools in OpenVINO to meet all your deployment needs:
 
-.. grid:: 1 1 3 3
+.. grid:: 1 2 2 4
 
    .. grid-item-card:: OpenVINO GenAI
       :link: ./openvino-workflow-generative.html
@@ -61,6 +61,11 @@ There are three main tools in OpenVINO to meet all your deployment needs:
       :link: ./model-server/ovms_what_is_openvino_model_server.html
 
       Deploy both generative and conventional AI inference on a server
+
+   .. grid-item-card:: OpenVINO Physical AI
+      :link: ./physical-ai.html
+
+      Deploy VLA models on robots
 
 |
 | For a quick ramp-up, check out the
@@ -213,5 +218,6 @@ Key Features
    HOW TO USE - GENERATIVE AI WORKFLOW <openvino-workflow-generative>
    HOW TO USE - CONVENTIONAL AI WORKFLOW <openvino-workflow>
    HOW TO USE - MODEL SERVING <model-server/ovms_what_is_openvino_model_server>
+   HOW TO USE - PHYSICAL AI <physical-ai>
    REFERENCE DOCUMENTATION <documentation>
    ABOUT OPENVINO <about-openvino>
