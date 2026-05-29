@@ -1,4 +1,4 @@
-# PhysicalAI Documentation
+# OpenVINO™ Physical AI
 
 ```{toctree}
 :hidden:

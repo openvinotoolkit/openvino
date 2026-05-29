@@ -62,8 +62,8 @@ There are three main tools in OpenVINO to meet all your deployment needs:
 
       Deploy both generative and conventional AI inference on a server
 
-   .. grid-item-card:: Physical AI Framework
-      :link: ./physical-ai/physical-ai-framework.html
+   .. grid-item-card:: OpenVINO Physical AI
+      :link: ./physical-ai.html
 
       Deploy VLA models on robots
 
