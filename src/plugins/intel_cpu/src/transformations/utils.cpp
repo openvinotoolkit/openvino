@@ -6,11 +6,13 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <optional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
+#include "low_precision/network_helper.hpp"
+#include "low_precision/resolve_precision_attribute.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
@@ -26,18 +28,12 @@
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "low_precision/network_helper.hpp"
-#include "low_precision/resolve_precision_attribute.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils/general_utils.h"
 
 using namespace ov::pass::pattern;
 
 namespace ov::intel_cpu {
-
-namespace {
-
-}  // namespace
 
 bool match_fq_mul_conv_bias_same_types(const std::shared_ptr<const ov::Node>& node, FQMulAddPattern pattern) {
     auto convMulAdd_conv = wrap_type<ov::op::v1::Convolution>();
@@ -100,7 +96,7 @@ bool match_acl_int8_conv_fq_chain(const std::shared_ptr<const ov::Node>& node) {
 }
 
 bool is_acl_supported_int8_avg_pool(const std::shared_ptr<const ov::Node>& node,
-                                                const std::vector<ov::element::Type>& defaultPrecisions) {
+                                    const std::vector<ov::element::Type>& defaultPrecisions) {
     const auto avg_pool = ov::as_type_ptr<const ov::op::util::AvgPoolBase>(node);
     if (!avg_pool) {
         return false;
