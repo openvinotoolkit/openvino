@@ -636,10 +636,9 @@ jobs:
   iGPU_RoPE_Tests:
     name: iGPU RoPE Tests
     needs: [ Build, Smart_CI, Openvino_tokenizers ]
-    uses: ./.github/workflows/job_gpu_tests.yml
+    uses: ./.github/workflows/job_gpu_rope_tests.yml
     with:
       device: 'igpu'
-      test_type: 'rope'
       runner: "[ 'self-hosted', 'igpu', 'ov-dmz-21' ]"
       runner-group: 'Intel-GPU'
       image: buildpack-deps:22.04-scm
