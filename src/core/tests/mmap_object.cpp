@@ -329,10 +329,10 @@ TEST(MappedMemory, parallel_prefault_with_file_offset) {
 
 TEST(MappedMemory, hint_populate_with_both_offsets) {
     auto file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefault_both_offsets.bin");
-    constexpr size_t file_size = 12 * 1024 * 1024;   // 12 MB
-    constexpr size_t map_offset = 2 * 1024 * 1024;   // Map starting at 2 MB into file
-    constexpr size_t pop_offset = 1 * 1024 * 1024;   // Populate starting at 1 MB into mapping
-    constexpr size_t pop_size = 5 * 1024 * 1024;     // Populate 5 MB
+    constexpr size_t file_size = 12 * 1024 * 1024;  // 12 MB
+    constexpr size_t map_offset = 2 * 1024 * 1024;  // Map starting at 2 MB into file
+    constexpr size_t pop_offset = 1 * 1024 * 1024;  // Populate starting at 1 MB into mapping
+    constexpr size_t pop_size = 5 * 1024 * 1024;    // Populate 5 MB
 
     {
         std::vector<char> data(file_size);
