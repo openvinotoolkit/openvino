@@ -12,7 +12,7 @@
 #include "openvino/core/shape.hpp"
 
 namespace ov::reference {
-namespace details {
+namespace func {
 
 /// \brief Simple 2D matmul: out = A @ B
 /// \param A Input matrix A of shape (M, K)
@@ -51,7 +51,7 @@ void simple_matmul_transposed_b(const T* A, const T* B, T* out, size_t M, size_t
     }
 }
 
-}  // namespace details
+}  // namespace func
 
 /// \brief Reference kernel for GroupedMatMul computation.
 ///
@@ -102,7 +102,7 @@ void grouped_matmul(const T* mat_a,
             // Zero the output for this group
             std::fill(out_ptr, out_ptr + out_group_stride, T{0});
 
-            details::simple_matmul_transposed_b(a_ptr, b_ptr, out_ptr, M, N, K);
+            func::simple_matmul_transposed_b(a_ptr, b_ptr, out_ptr, M, N, K);
         }
         return;
     }
@@ -129,7 +129,7 @@ void grouped_matmul(const T* mat_a,
                 const T* b_ptr = mat_b + g * mat_b_group_stride;
                 T* out_ptr = out + start * N;
 
-                details::simple_matmul_transposed_b(a_ptr, b_ptr, out_ptr, num_rows, N, K);
+                func::simple_matmul_transposed_b(a_ptr, b_ptr, out_ptr, num_rows, N, K);
             }
             start = end;
         }
