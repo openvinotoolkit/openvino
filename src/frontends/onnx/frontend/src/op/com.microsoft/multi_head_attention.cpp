@@ -463,6 +463,13 @@ ov::OutputVector multi_head_attention(const ov::frontend::onnx::Node& node) {
                      !has_past_key || is_regular_QKV,
                      "past_key and past_value are only supported in unpacked 3D case");
 
+    if (has_bias) {
+        auto bias_splits = detail::split_bias(inputs[3], Q, K, V, num_heads);
+        Q = std::make_shared<v1::Add>(Q, bias_splits[0]);
+        K = std::make_shared<v1::Add>(K, bias_splits[1]);
+        V = std::make_shared<v1::Add>(V, bias_splits[2]);
+    }
+
     // Handle KV cache
     ov::Output<ov::Node> present_key;
     ov::Output<ov::Node> present_value;
@@ -472,13 +479,6 @@ ov::OutputVector multi_head_attention(const ov::frontend::onnx::Node& node) {
         V = kv_cache_result[1];
         present_key = kv_cache_result[2];
         present_value = kv_cache_result[3];
-    }
-
-    if (has_bias) {
-        auto bias_splits = detail::split_bias(inputs[3], Q, K, V, num_heads);
-        Q = std::make_shared<v1::Add>(Q, bias_splits[0]);
-        K = std::make_shared<v1::Add>(K, bias_splits[1]);
-        V = std::make_shared<v1::Add>(V, bias_splits[2]);
     }
 
     // Prepare attention mask

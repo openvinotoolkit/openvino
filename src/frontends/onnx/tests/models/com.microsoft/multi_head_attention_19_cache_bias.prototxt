@@ -5,7 +5,7 @@ graph {
     input: "query"
     input: "key"
     input: "value"
-    input: ""
+    input: "bias"
     input: ""
     input: ""
     input: "past_key"
@@ -13,21 +13,16 @@ graph {
     output: "output"
     output: "present_key"
     output: "present_value"
-    name: "MultiHeadAttention_18_cache_unidirectional"
+    name: "MultiHeadAttention_14_cache_standard"
     op_type: "MultiHeadAttention"
     attribute {
       name: "num_heads"
       i: 2
       type: INT
     }
-    attribute {
-      name: "unidirectional"
-      i: 1
-      type: INT
-    }
     domain: "com.microsoft"
   }
-  name: "multi_head_attention_18_cache_unidirectional"
+  name: "multi_head_attention_14_cache_standard"
   input {
     name: "query"
     type { tensor_type { elem_type: 1
@@ -42,6 +37,11 @@ graph {
     name: "value"
     type { tensor_type { elem_type: 1
       shape { dim { dim_value: 1 } dim { dim_value: 2 } dim { dim_value: 6 } } } }
+  }
+  input {
+    name: "bias"
+    type { tensor_type { elem_type: 1
+      shape { dim { dim_value: 18 } } } }
   }
   input {
     name: "past_key"
