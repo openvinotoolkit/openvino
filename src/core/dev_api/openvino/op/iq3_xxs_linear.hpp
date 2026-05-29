@@ -50,6 +50,8 @@ public:
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
+    bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override;
+    bool has_evaluate() const override { return true; }
 
     const ov::Shape& get_weight_shape() const { return m_weight_shape; }
     int64_t get_block_size() const { return m_block_size; }
