@@ -1,5 +1,11 @@
 # Extra dependencies for test_llm.py (LLM quantized models)
 # These are NOT needed by test_hf_transformers.py
+#
+# Versions below are hard-pinned (==) intentionally. transformers/gptqmodel are bumped
+# deliberately, not automatically: a silent upgrade changes the GPTQ backend selection
+# (e.g. gptqmodel auto-selecting TorchFusedQuantLinear -> QUANT_TYPE "torch_fused") and the
+# generated graph, which previously broke conversion. Bump these together and re-validate
+# the opt_gptq entry in test_llm.py before raising them.
 
 transformers==5.5.3
 huggingface-hub==1.10.1
