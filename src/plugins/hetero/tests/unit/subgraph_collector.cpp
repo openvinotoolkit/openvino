@@ -1808,11 +1808,21 @@ INSTANTIATE_TEST_SUITE_P(
 TEST(SubgraphCollectorBridgeBetweenCyclesTest, bridge_subgraph_not_split) {
     auto model = create_bridge_between_cycles_model();
     const std::map<std::string, std::string> affinity_by_name = {
-        {"in_L", "MOCK.0"}, {"c_LA", "MOCK.0"}, {"c_LB", "MOCK.1"},
-        {"a_L1", "MOCK.0"}, {"b_L1", "MOCK.1"}, {"b_L2", "MOCK.1"}, {"a_L2", "MOCK.0"},
-        {"x_bridge1", "MOCK.2"}, {"x_bridge2", "MOCK.2"},
-        {"c_RA", "MOCK.0"}, {"c_RB", "MOCK.1"},
-        {"a_R1", "MOCK.0"}, {"b_R1", "MOCK.1"}, {"b_R2", "MOCK.1"}, {"a_R2", "MOCK.0"},
+        {"in_L", "MOCK.0"},
+        {"c_LA", "MOCK.0"},
+        {"c_LB", "MOCK.1"},
+        {"a_L1", "MOCK.0"},
+        {"b_L1", "MOCK.1"},
+        {"b_L2", "MOCK.1"},
+        {"a_L2", "MOCK.0"},
+        {"x_bridge1", "MOCK.2"},
+        {"x_bridge2", "MOCK.2"},
+        {"c_RA", "MOCK.0"},
+        {"c_RB", "MOCK.1"},
+        {"a_R1", "MOCK.0"},
+        {"b_R1", "MOCK.1"},
+        {"b_R2", "MOCK.1"},
+        {"a_R2", "MOCK.0"},
         {"res", "MOCK.0"},
     };
     SubgraphCollector::AffinitiesMap affinities;
@@ -1840,9 +1850,8 @@ TEST(SubgraphCollectorBridgeBetweenCyclesTest, bridge_subgraph_not_split) {
     const auto idx_x2 = find_subgraph_containing("x_bridge2");
     ASSERT_TRUE(idx_x1.has_value()) << "x_bridge1 was not found in any resulting subgraph";
     ASSERT_TRUE(idx_x2.has_value()) << "x_bridge2 was not found in any resulting subgraph";
-    EXPECT_EQ(*idx_x1, *idx_x2)
-        << "Bridge subgraph was split: x_bridge1 ended up in subgraph " << *idx_x1
-        << " but x_bridge2 ended up in subgraph " << *idx_x2
-        << ". This indicates the SCC fallback wrongly classified the acyclic bridge as cyclic"
-        << " and promoted its internal edge.";
+    EXPECT_EQ(*idx_x1, *idx_x2) << "Bridge subgraph was split: x_bridge1 ended up in subgraph " << *idx_x1
+                                << " but x_bridge2 ended up in subgraph " << *idx_x2
+                                << ". This indicates the SCC fallback wrongly classified the acyclic bridge as cyclic"
+                                << " and promoted its internal edge.";
 }

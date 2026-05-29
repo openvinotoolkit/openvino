@@ -325,8 +325,8 @@ void ov::hetero::SubgraphCollector::split_cyclic_dependencies() {
     // _subgraph_inputs. Parallel edges between the same pair of subgraphs are de-duplicated;
     // self-edges (producer_sg == owner_sg) are filtered so single-subgraph SCCs cannot arise.
     using SgAdj = std::unordered_map<SubgraphId, std::unordered_set<SubgraphId>>;
-    auto build_subgraph_adjacency = [&](const std::vector<SubgraphId>& sg_id_by_index)
-        -> std::pair<SgAdj, std::unordered_set<SubgraphId>> {
+    auto build_subgraph_adjacency =
+        [&](const std::vector<SubgraphId>& sg_id_by_index) -> std::pair<SgAdj, std::unordered_set<SubgraphId>> {
         SgAdj adj;
         std::unordered_set<SubgraphId> all_sgs;
         for (size_t i = 0; i < nodes_count; ++i) {
@@ -350,8 +350,8 @@ void ov::hetero::SubgraphCollector::split_cyclic_dependencies() {
     // A<->B -> X -> C<->D survives both peels), which would either waste a promotion on an
     // acyclic subgraph or trip the "no internal edge" assert below when the bridge subgraph has
     // no same-sg edge. The loop is iterative to avoid recursion depth issues on large partitions.
-    auto find_non_trivial_scc_members = [](const SgAdj& adj, const std::unordered_set<SubgraphId>& all_sgs)
-        -> std::unordered_set<SubgraphId> {
+    auto find_non_trivial_scc_members =
+        [](const SgAdj& adj, const std::unordered_set<SubgraphId>& all_sgs) -> std::unordered_set<SubgraphId> {
         std::unordered_set<SubgraphId> scc_members;
         std::unordered_map<SubgraphId, int> index_of;
         std::unordered_map<SubgraphId, int> lowlink;
@@ -415,8 +415,7 @@ void ov::hetero::SubgraphCollector::split_cyclic_dependencies() {
                     const auto finished = frame.v;
                     call_stack.pop_back();
                     if (!call_stack.empty()) {
-                        lowlink[call_stack.back().v] =
-                            std::min(lowlink[call_stack.back().v], lowlink[finished]);
+                        lowlink[call_stack.back().v] = std::min(lowlink[call_stack.back().v], lowlink[finished]);
                     }
                 }
             }
@@ -428,9 +427,9 @@ void ov::hetero::SubgraphCollector::split_cyclic_dependencies() {
     // that still has a non-boundary input from the same subgraph, and return that input. Returns
     // std::nullopt only if no such edge exists (which on a well-formed ov::Model means the SCC
     // claim was spurious — caller asserts on that).
-    auto find_promotable_internal_edge = [&](const std::vector<SubgraphId>& sg_id_by_index,
-                                             const std::unordered_set<SubgraphId>& scc_members)
-        -> std::optional<Input> {
+    auto find_promotable_internal_edge =
+        [&](const std::vector<SubgraphId>& sg_id_by_index,
+            const std::unordered_set<SubgraphId>& scc_members) -> std::optional<Input> {
         for (size_t node_idx = 0; node_idx < nodes_count; ++node_idx) {
             const auto my_sg = sg_id_by_index[node_idx];
             if (!scc_members.count(my_sg))
