@@ -162,19 +162,6 @@ static inline std::string getLatestVCLLog(vcl_log_handle_t logHandle) {
         }                                               \
     }
 
-const std::shared_ptr<VCLCompilerImpl> VCLCompilerImpl::getInstance() {
-    static std::mutex mutex;
-    static std::weak_ptr<VCLCompilerImpl> weak_compiler;
-
-    std::lock_guard<std::mutex> lock(mutex);
-    auto compiler = weak_compiler.lock();
-    if (!compiler) {
-        compiler = std::make_shared<VCLCompilerImpl>();
-        weak_compiler = compiler;
-    }
-    return compiler;
-}
-
 VCLCompilerImpl::VCLCompilerImpl() : _logHandle(nullptr), _logger("VCLCompilerImpl", Logger::global().level()) {
     _logger.debug("VCLCompilerImpl constructor start");
 
