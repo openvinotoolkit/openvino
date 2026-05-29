@@ -84,14 +84,6 @@ public:
 
     virtual std::optional<std::string_view> get_compatibility_descriptor() const;
 
-    /// Return the VM-runtime engine handle backing this graph, or nullptr if the graph does
-    /// not use the VM-runtime (e.g. static driver-only graphs). Used by the dynamic pipeline
-    /// to drive @c npuVMRuntimeExecute.
-    virtual _npu_vm_runtime_handle_t* get_vm_runtime_handle() const;
-
-    /// Return the number of subgraphs this graph contains. Defaults to 1 for static graphs.
-    virtual uint64_t get_num_subgraphs() const;
-
 protected:
     virtual void initialize_impl(const FilteredConfig& config);
 
