@@ -2,6 +2,7 @@
 # These are NOT needed by test_hf_transformers.py
 
 transformers==5.5.3
+kernels==0.14.1
 huggingface-hub==1.10.1
 
 # quantized model deps
