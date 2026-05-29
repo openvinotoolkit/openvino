@@ -118,7 +118,7 @@ jobs:
     uses: ./.github/workflows/job_gpu_tests.yml
     with:
       device: 'dgpu'
-      test_type: 'levelzero'
+      test_type: 'unit'
       runner: "[ 'self-hosted', 'dgpu', 'Arc-B50', 'Linux' ]"
       runner-group: 'Intel-GPU'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_dgpu }}
