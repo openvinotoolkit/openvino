@@ -4,10 +4,10 @@
 :hidden:
 :maxdepth: 2
 
-getting-started/README
-how-to/README
-explanation/README
-reference/README
+physical-ai/getting-started/README
+physical-ai/how-to/README
+physical-ai/explanation/README
+physical-ai/reference/README
 ```
 
 Physical AI provides runtime components for working with exported robot policies. The documentation is organized around the main deployment tasks and the runtime concepts behind them.
