@@ -234,7 +234,8 @@ class HintEvictTest : public ::testing::Test {
 protected:
     std::filesystem::path m_file_path;
     std::vector<uint8_t> m_expected;
-    static constexpr size_t k_hint_evict_file_size = 64 * 1024 * 2;
+    // 10 granules (10 × 64 KiB): partial_evict uses quarter = 160 KiB
+    static constexpr size_t k_hint_evict_file_size = 64 * 1024 * 10;
 
     void SetUp() override {
         m_expected.resize(k_hint_evict_file_size);
@@ -278,21 +279,24 @@ TEST_F(HintEvictTest, partial_evict_then_read_matches_original) {
     ASSERT_NE(mm, nullptr);
     ASSERT_EQ(mm->size(), k_hint_evict_file_size);
 
-    // Evict the middle half; the first and last quarters remain mapped.
     const size_t quarter = k_hint_evict_file_size / 4;
     mm->hint_evict(quarter, k_hint_evict_file_size / 2);
 
-    // All bytes — including the evicted middle — must be readable and correct.
     EXPECT_EQ(read_mapped(*mm), m_expected);
 }
 
 TEST_F(HintEvictTest, multiple_evict_cycles_are_idempotent) {
-    auto mm = load_mmap_object(m_file_path);
+    // Use a page-aligned but not granularity-aligned offset to exercise head_pad on each cycle.
+    constexpr size_t k_offset = 4096;
+    auto mm = load_mmap_object(m_file_path, k_offset, auto_size);
     ASSERT_NE(mm, nullptr);
+    ASSERT_EQ(mm->size(), k_hint_evict_file_size - k_offset);
+
+    const std::vector<uint8_t> expected_slice(m_expected.begin() + k_offset, m_expected.end());
 
     for (int cycle = 0; cycle < 3; ++cycle) {
         mm->hint_evict(0, auto_size);
-        EXPECT_EQ(read_mapped(*mm), m_expected) << "Data mismatch after evict cycle " << cycle;
+        EXPECT_EQ(read_mapped(*mm), expected_slice) << "Data mismatch after evict cycle " << cycle;
     }
 }
 

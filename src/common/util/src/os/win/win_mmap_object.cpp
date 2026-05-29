@@ -159,15 +159,19 @@ struct MmapVehRegistry {
      * @param h Pointer to the MapHolder to register (must remain valid until remove() is called)
      * @param base Base address of the MapHolder's VA reservation (used as map key)
      * @param total_va_size Total size of the VA reservation in bytes
+     * @return true if registered successfully (VEH is active); false if AddVectoredExceptionHandler failed.
      */
-    void add(MapHolder* h, char* base, size_t total_va_size) {
+    bool add(MapHolder* h, char* base, size_t total_va_size) {
         std::unique_lock lock(m_mtx);
-        const auto key = reinterpret_cast<uintptr_t>(base);
-        m_ranges[key] = Entry{h, base, total_va_size};
         if (!m_veh_handle) {
             // Register as first VEH so it runs before debugger/CRT handlers.
             m_veh_handle = ::AddVectoredExceptionHandler(1, MmapVehRegistry::veh);
+            if (!m_veh_handle) {
+                return false;
+            }
         }
+        m_ranges[reinterpret_cast<uintptr_t>(base)] = Entry{h, base, total_va_size};
+        return true;
     }
 
     /**
@@ -566,11 +570,21 @@ bool MapHolder::try_placeholder_setup(size_t aligned_offset, size_t head_pad, si
         ::VirtualFree(base + actual_map_size, 0, MEM_RELEASE);
     }
 
+    if (!MmapVehRegistry::instance().add(this, base, total_va_size)) {
+        // AddVectoredExceptionHandler failed — tear down placeholder and let caller fall back to legacy.
+        if (tail_size > 0) {
+            api.m_unmap_view_of_file2(proc, base + actual_map_size, MEM_PRESERVE_PLACEHOLDER);
+            ::VirtualFree(base + actual_map_size, 0, MEM_RELEASE);
+            m_anon_handle = HandleHolder{};
+        }
+        api.m_unmap_view_of_file2(proc, base, MEM_PRESERVE_PLACEHOLDER);
+        ::VirtualFree(base, 0, MEM_RELEASE);
+        return false;
+    }
     m_view_base = base;
     m_total_va_size = total_va_size;
     m_file_mapped_size = actual_map_size;
     m_data = base + head_pad;
-    MmapVehRegistry::instance().add(this, base, total_va_size);
     return true;
 }
 
@@ -750,11 +764,10 @@ std::pair<char*, char*> MapHolder::compute_evict_range(size_t offset, size_t siz
 
     const size_t va_end = std::min(head_pad + clamped_offset + effective_size, m_total_va_size);
 
-    // Inward gran-rounding: shrink to only cover granules fully contained in the request.
-    // Partial edge granules are skipped; the anonymous tail (m_anon_handle) is never evictable
-    // since it uses a different section object and cannot be remapped via m_handle.
-    const size_t safe_begin = util::align_size_up(va_begin_raw, gran);
-    const size_t safe_end = std::min(util::align_size_down(va_end, gran), m_file_mapped_size);
+    // Outward gran-rounding: expand to cover all granules overlapping the requested range.
+    // The anonymous tail (m_anon_handle) is never evictable — cap at m_file_mapped_size.
+    const size_t safe_begin = util::align_size_down(va_begin_raw, gran);
+    const size_t safe_end = std::min(util::align_size_up(va_end, gran), m_file_mapped_size);
     if (safe_begin >= safe_end)
         return {};
 
