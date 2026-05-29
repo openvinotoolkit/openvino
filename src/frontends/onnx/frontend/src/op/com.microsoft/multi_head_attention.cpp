@@ -471,8 +471,8 @@ ov::OutputVector multi_head_attention(const ov::frontend::onnx::Node& node) {
     }
 
     // Handle KV cache
-    ov::Output<ov::Node> present_key;
-    ov::Output<ov::Node> present_value;
+    ov::Output<ov::Node> present_key = K;
+    ov::Output<ov::Node> present_value = V;
     if (has_past_key) {
         auto kv_cache_result = detail::apply_kv_cache(K, V, inputs, has_buffer_sharing, has_cache_indirection);
         K = kv_cache_result[0];
