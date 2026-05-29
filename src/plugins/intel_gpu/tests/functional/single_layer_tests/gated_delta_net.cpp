@@ -105,16 +105,18 @@ TEST_P(GatedDeltaNetStaticTest, CompareWithTemplate) {
     }
 }
 
-// Shapes: query[B,S,H,D], key[B,S,H,D], value[B,S,H,Dv], state[B,H,D,Dv], gate[B,S,H], beta[B,S,H]
+// Shapes: query[B,S,qk_H,D], key[B,S,qk_H,D], value[B,S,v_H,Dv], state[B,v_H,D,Dv], gate[B,S,v_H], beta[B,S,v_H]
 const std::vector<std::vector<ov::Shape>> static_shapes = {
-    // B=1, S=1, H=4, D=16, Dv=16 (minimal)
+    // B=1, S=1, qk_H=4, v_H=4, D=16, Dv=16 (minimal)
     {{1, 1, 4, 16}, {1, 1, 4, 16}, {1, 1, 4, 16}, {1, 4, 16, 16}, {1, 1, 4}, {1, 1, 4}},
-    // B=1, S=1, H=32, D=128, Dv=128 (typical LLM decode)
+    // B=1, S=1, qk_H=32, v_H=32, D=128, Dv=128 (typical LLM decode)
     {{1, 1, 32, 128}, {1, 1, 32, 128}, {1, 1, 32, 128}, {1, 32, 128, 128}, {1, 1, 32}, {1, 1, 32}},
-    // B=1, S=16, H=2, D=16, Dv=32 (seq_len > 1, different D and Dv)
+    // B=1, S=16, qk_H=2, v_H=2, D=16, Dv=32 (seq_len > 1, different D and Dv)
     {{1, 16, 2, 16}, {1, 16, 2, 16}, {1, 16, 2, 32}, {1, 2, 16, 32}, {1, 16, 2}, {1, 16, 2}},
-    // B=2, S=1, H=8, D=64, Dv=64 (batch > 1)
+    // B=2, S=1, qk_H=8, v_H=8, D=64, Dv=64 (batch > 1)
     {{2, 1, 8, 64}, {2, 1, 8, 64}, {2, 1, 8, 64}, {2, 8, 64, 64}, {2, 1, 8}, {2, 1, 8}},
+    // B=1, S=4, qk_H=2, v_H=8, D=16, Dv=16 (GQA: v_H is multiple of qk_H)
+    {{1, 4, 2, 16}, {1, 4, 2, 16}, {1, 4, 8, 16}, {1, 8, 16, 16}, {1, 4, 8}, {1, 4, 8}},
 };
 
 INSTANTIATE_TEST_SUITE_P(

@@ -5,6 +5,7 @@
 #include "openvino/op/gated_delta_net.hpp"
 
 #include <cmath>
+#include <cstddef>
 
 #include "dimension_util.hpp"
 #include "gated_delta_net_shape_inference.hpp"
@@ -118,7 +119,15 @@ std::shared_ptr<ov::Node> GatedDeltaNet::clone_with_new_inputs(const ov::OutputV
 }
 
 bool GatedDeltaNet::has_evaluate() const {
-    return get_input_element_type(0) == ov::element::f32;
+    for (size_t i = 0; i < get_input_size(); i++) {
+        if (get_input_element_type(i) != ov::element::f32)
+            return false;
+    }
+    for (size_t i = 0; i < get_output_size(); i++) {
+        if (get_output_element_type(i) != ov::element::f32)
+            return false;
+    }
+    return true;
 }
 
 bool GatedDeltaNet::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
@@ -141,6 +150,13 @@ bool GatedDeltaNet::evaluate(ov::TensorVector& outputs, const ov::TensorVector& 
     const size_t D = q_shape[3];
     const size_t v_H = v_shape[2];
     const size_t Dv = v_shape[3];
+
+    OPENVINO_ASSERT(qk_H > 0 && v_H >= qk_H && v_H % qk_H == 0,
+                    "GatedDeltaNet evaluate: v_H (",
+                    v_H,
+                    ") must be a positive multiple of qk_H (",
+                    qk_H,
+                    ")");
     const size_t group_size = v_H / qk_H;
 
     outputs[0].set_shape(v_shape);
@@ -152,26 +168,41 @@ bool GatedDeltaNet::evaluate(ov::TensorVector& outputs, const ov::TensorVector& 
     const float* gate_data = static_cast<const float*>(gate_tensor.data());
     const float* beta_data = static_cast<const float*>(beta_tensor.data());
 
-    // Copy state input to output state (will be modified in-place)
     float* out_state = static_cast<float*>(outputs[1].data());
-    std::memcpy(out_state, state_tensor.data(), state_tensor.get_byte_size());
-
     float* out_data = static_cast<float*>(outputs[0].data());
     const float attn_scale = 1.0f / std::sqrt(static_cast<float>(D));
+
+    const size_t qk_stride_batch = S * qk_H * D;
+    const size_t v_stride_batch = S * v_H * Dv;
+    const size_t gate_beta_stride_batch = S * v_H;
+
+    auto dot_product = [](const float* a, const float* b, size_t n, size_t a_stride = 1) {
+        float result = 0.0f;
+        for (size_t i = 0; i < n; i++) {
+            result += a[i * a_stride] * b[i];
+        }
+        return result;
+    };
 
     for (size_t b = 0; b < B; b++) {
         for (size_t h_v = 0; h_v < v_H; h_v++) {
             const size_t h_qk = h_v / group_size;
             for (size_t d_v = 0; d_v < Dv; d_v++) {
-                // state slice: state[b, h_v, :, d_v] — D elements
+                // state slice: state[b, h_v, :, d_v] — D elements with stride Dv
                 // state layout: [B, v_H, D, Dv]
-                float* state_ptr = out_state + b * v_H * D * Dv + h_v * D * Dv + d_v;
+                const size_t state_offset = b * v_H * D * Dv + h_v * D * Dv + d_v;
+                float* state_ptr = out_state + state_offset;
+
+                // Load initial state from input
+                std::vector<float> local_state(D);
+                const float* src_state = static_cast<const float*>(state_tensor.data()) + state_offset;
+                for (size_t d = 0; d < D; d++) {
+                    local_state[d] = src_state[d * Dv];
+                }
 
                 for (size_t t = 0; t < S; t++) {
-                    // q[b, t, h_qk, :] — layout [B, S, qk_H, D]
-                    const float* q_ptr = q_data + b * S * qk_H * D + t * qk_H * D + h_qk * D;
-                    // k[b, t, h_qk, :] — layout [B, S, qk_H, D]
-                    const float* k_ptr = k_data + b * S * qk_H * D + t * qk_H * D + h_qk * D;
+                    const float* q_ptr = q_data + b * qk_stride_batch + t * qk_H * D + h_qk * D;
+                    const float* k_ptr = k_data + b * qk_stride_batch + t * qk_H * D + h_qk * D;
 
                     // L2-normalize q and k
                     std::vector<float> q_vec(q_ptr, q_ptr + D);
@@ -180,7 +211,7 @@ bool GatedDeltaNet::evaluate(ov::TensorVector& outputs, const ov::TensorVector& 
                     if (m_fuse_qk_l2norm) {
                         auto l2norm = [](std::vector<float>& vec, float eps) {
                             float sum = 0.0f;
-                            for (auto v : vec)
+                            for (const auto v : vec)
                                 sum += v * v;
                             sum = 1.0f / std::sqrt(sum + eps);
                             for (auto& v : vec)
@@ -195,37 +226,34 @@ bool GatedDeltaNet::evaluate(ov::TensorVector& outputs, const ov::TensorVector& 
                         v *= attn_scale;
 
                     // gate[b, t, h_v] — layout [B, S, v_H]
-                    float g = std::exp(gate_data[b * S * v_H + t * v_H + h_v]);
-                    // beta[b, t, h_v]
-                    float bt = beta_data[b * S * v_H + t * v_H + h_v];
+                    float g = std::exp(gate_data[b * gate_beta_stride_batch + t * v_H + h_v]);
+                    float bt = beta_data[b * gate_beta_stride_batch + t * v_H + h_v];
 
                     // Decay state: state *= g
                     for (size_t d = 0; d < D; d++) {
-                        state_ptr[d * Dv] *= g;
+                        local_state[d] *= g;
                     }
 
                     // h_k = dot(state, k)
-                    float h_k = 0.0f;
-                    for (size_t d = 0; d < D; d++) {
-                        h_k += state_ptr[d * Dv] * k_vec[d];
-                    }
+                    float h_k = dot_product(local_state.data(), k_vec.data(), D);
 
                     // delta: v_val = value[b, t, h_v, d_v] - h_k
-                    // value layout: [B, S, v_H, Dv]
-                    float v_val = v_data[b * S * v_H * Dv + t * v_H * Dv + h_v * Dv + d_v] - h_k;
+                    float v_val = v_data[b * v_stride_batch + t * v_H * Dv + h_v * Dv + d_v] - h_k;
 
                     // Update state: state += k * (v_val * beta)
                     float update_scale = v_val * bt;
                     for (size_t d = 0; d < D; d++) {
-                        state_ptr[d * Dv] += k_vec[d] * update_scale;
+                        local_state[d] += k_vec[d] * update_scale;
                     }
 
                     // Output: out[b, t, h_v, d_v] = dot(state, q)
-                    float out_val = 0.0f;
-                    for (size_t d = 0; d < D; d++) {
-                        out_val += state_ptr[d * Dv] * q_vec[d];
-                    }
-                    out_data[b * S * v_H * Dv + t * v_H * Dv + h_v * Dv + d_v] = out_val;
+                    out_data[b * v_stride_batch + t * v_H * Dv + h_v * Dv + d_v] =
+                        dot_product(local_state.data(), q_vec.data(), D);
+                }
+
+                // Write final state back
+                for (size_t d = 0; d < D; d++) {
+                    state_ptr[d * Dv] = local_state[d];
                 }
             }
         }
