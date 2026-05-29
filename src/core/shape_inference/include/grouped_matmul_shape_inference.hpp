@@ -14,30 +14,23 @@ std::vector<TRShape> shape_infer(const GroupedMatMul* op,
                                  const std::vector<TShape>& input_shapes,
                                  const ITensorAccessor& tensor_accessor = make_tensor_accessor()) {
     const auto num_inputs = input_shapes.size();
-    NODE_VALIDATION_CHECK(op, num_inputs == 2 || num_inputs == 3, "GroupedMatMul expects 2 or 3 inputs.");
+    NODE_VALIDATION_CHECK(op, num_inputs == 2 || num_inputs == 3);
 
     const auto& mat_a_shape = input_shapes[0];
     const auto& mat_b_shape = input_shapes[1];
 
-    const auto mat_a_rank = mat_a_shape.rank();
-    const auto mat_b_rank = mat_b_shape.rank();
-
     // Handle fully dynamic case
-    if (mat_a_rank.is_dynamic() || mat_b_rank.is_dynamic()) {
+    if (mat_a_shape.rank().is_dynamic() || mat_b_shape.rank().is_dynamic()) {
         return {PartialShape::dynamic()};
     }
 
-    const auto a_ndim = mat_a_shape.size();
-    const auto b_ndim = mat_b_shape.size();
+    const auto mat_a_rank = mat_a_shape.size();
+    const auto mat_b_rank = mat_b_shape.size();
 
     using DimType = typename TShape::value_type;
 
     // Case 2: 3D × 3D (batched, uniform group sizes) - no offsets needed
-    if (a_ndim == 3 && b_ndim == 3) {
-        NODE_VALIDATION_CHECK(op,
-                              num_inputs == 2,
-                              "GroupedMatMul 3D×3D case requires exactly 2 inputs (no offsets).");
-
+    if (mat_a_rank == 3 && mat_b_rank == 3) {
         const auto G_a = mat_a_shape[0];
         const auto M = mat_a_shape[1];
         const auto K_a = mat_a_shape[2];
@@ -66,7 +59,7 @@ std::vector<TRShape> shape_infer(const GroupedMatMul* op,
     }
 
     // Case 1: 2D × 3D (MoE forward pass) - requires offsets
-    if (a_ndim == 2 && b_ndim == 3) {
+    if (mat_a_rank == 2 && mat_b_rank == 3) {
         NODE_VALIDATION_CHECK(op,
                               num_inputs == 3,
                               "GroupedMatMul 2D×3D case requires offsets input.");
@@ -98,7 +91,7 @@ std::vector<TRShape> shape_infer(const GroupedMatMul* op,
     }
 
     // Case 3: 2D × 2D (MoE weight gradient) - requires offsets
-    if (a_ndim == 2 && b_ndim == 2) {
+    if (mat_a_rank == 2 && mat_b_rank == 2) {
         NODE_VALIDATION_CHECK(op,
                               num_inputs == 3,
                               "GroupedMatMul 2D×2D case requires offsets input.");
@@ -137,9 +130,9 @@ std::vector<TRShape> shape_infer(const GroupedMatMul* op,
     NODE_VALIDATION_CHECK(op,
                           false,
                           "GroupedMatMul unsupported combination: mat_a ",
-                          a_ndim,
+                          mat_a_rank,
                           "D × mat_b ",
-                          b_ndim,
+                          mat_b_rank,
                           "D. Supported: 2D×3D, 3D×3D, 2D×2D.");
 
     return {PartialShape::dynamic()};
