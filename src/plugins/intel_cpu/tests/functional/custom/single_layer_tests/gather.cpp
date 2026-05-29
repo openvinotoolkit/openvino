@@ -205,13 +205,24 @@ protected:
 };
 
 class GatherF32ToBF16OutputTestCPU : public testing::WithParamInterface<size_t>,
-                                     virtual public ov::test::SubgraphBaseTest {
+                                     virtual public ov::test::SubgraphBaseTest,
+                                     public CPUTestsBase {
 protected:
     void SetUp() override {
         const auto indicesSize = GetParam();
         targetDevice = ov::test::utils::DEVICE_CPU;
         configuration.insert({ov::hint::inference_precision.name(), ov::element::bf16});
         init_input_shapes({{{}, {{indicesSize}}}});
+
+        if (ov::with_cpu_x86_avx512f()) {
+            selectedType = "jit_avx512";
+        } else if (ov::with_cpu_x86_avx2()) {
+            selectedType = "jit_avx2";
+        } else {
+            selectedType = "ref";
+        }
+        // Set expected precision for Gather node to F32 (input precision)
+        selectedType = makeSelectedTypeStr(selectedType, ElementType::f32);
 
         std::vector<float> dataValues(64);
         for (size_t index = 0; index < dataValues.size(); ++index) {
@@ -266,6 +277,7 @@ TEST_P(GatherF32ToBF16OutputTestCPU, smoke_static_f32_input_bf16_output) {
         GTEST_SKIP();
     }
     run();
+    CheckPluginRelatedResults(compiledModel, "Gather");
 }
 
 namespace {
