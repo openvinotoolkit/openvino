@@ -4,6 +4,7 @@
 
 #include "zero_device.hpp"
 
+#include "intel_npu/common/idynamic_graph.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
@@ -185,7 +186,7 @@ ov::device::Type ZeroDevice::getDeviceType() const {
 
 std::shared_ptr<InferRequest> ZeroDevice::createInferRequest(const std::shared_ptr<const ICompiledModel>& compiledModel,
                                                              const Config& config) {
-    if (compiledModel->get_graph()->get_vm_runtime_handle() != nullptr) {
+    if (dynamic_cast<IDynamicGraph*>(compiledModel->get_graph().get())) {
         return std::make_shared<ZeroDynamicInferRequest>(_initStructs, compiledModel, config);
     }
     return std::make_shared<ZeroInferRequest>(_initStructs, compiledModel, config);
