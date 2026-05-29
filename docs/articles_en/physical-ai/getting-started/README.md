@@ -9,7 +9,7 @@ quickstart
 run-a-policy
 ```
 
-This section contains short tutorials for the first successful PhysicalAI workflows.
+This section contains short tutorials for the first successful Physical AI workflows.
 
 ## Recommended Order
 

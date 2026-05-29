@@ -1,6 +1,6 @@
 # Architecture
 
-The PhysicalAI runtime has a small set of layers with clear boundaries between exported packages, inference, runtime orchestration, and hardware IO.
+The Physical AI runtime has a small set of layers with clear boundaries between exported packages, inference, runtime orchestration, and hardware IO.
 
 ```text
 exported package

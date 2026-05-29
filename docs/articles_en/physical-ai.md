@@ -10,7 +10,7 @@ explanation/README
 reference/README
 ```
 
-PhysicalAI provides runtime components for working with exported robot policies. The documentation is organized around the main deployment tasks and the runtime concepts behind them.
+Physical AI provides runtime components for working with exported robot policies. The documentation is organized around the main deployment tasks and the runtime concepts behind them.
 
 ## Quick Links
 
