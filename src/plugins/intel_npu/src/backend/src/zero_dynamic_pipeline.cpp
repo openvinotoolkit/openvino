@@ -10,6 +10,7 @@
 #include <sstream>
 
 #include "intel_npu/common/dynamic_graph_arguments_impl.hpp"
+#include "intel_npu/common/idynamic_graph.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
@@ -66,7 +67,8 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
     }
     _logger.debug("DynamicPipeline - event pool and command queue setup completed");
 
-    uint64_t num_of_subgraphs = graph->get_num_subgraphs();
+    intel_npu::IDynamicGraph* dynamicGraph = dynamic_cast<intel_npu::IDynamicGraph*>(_graph.get());
+    uint64_t num_of_subgraphs = dynamicGraph->get_num_subgraphs();
 
     _command_lists.reserve(_batch_size);
     for (size_t i = 0; i < _batch_size; i++) {
@@ -88,10 +90,11 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
 
         size_t io_index = 0;
         for (const auto& desc : _graph->get_metadata().inputs) {
-            if (desc.isMainInputWeights) {
-                // These values were set while running the "WeightlessGraph::init" method
-                continue;
-            }
+            // DynamicPipeline does not currently support weightless model, just thrown exception.
+            OPENVINO_ASSERT(!desc.isMainInputWeights,
+                            "DynamicPipeline does not support weightless graphs (input '",
+                            desc.nameFromCompiler,
+                            "' is a main-input weight)");
 
             if (input_tensors.at(io_index).size() > 1) {
                 _logger.debug("DynamicPipeline - set args for input index: %zu", io_index);
@@ -151,7 +154,8 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
 void DynamicPipeline::push() {
     _logger.debug("push - started");
 
-    _npu_vm_runtime_handle_t* const vmRuntime = _graph->get_vm_runtime_handle();
+    intel_npu::IDynamicGraph* dynamicGraph = dynamic_cast<intel_npu::IDynamicGraph*>(_graph.get());
+    _npu_vm_runtime_handle_t* const vmRuntime = dynamicGraph->get_vm_runtime_handle();
     OPENVINO_ASSERT(vmRuntime != nullptr, "DynamicPipeline requires a valid VM runtime engine");
 
     const auto command_queue_desc = _graph->get_command_queue_desc();
@@ -254,7 +258,10 @@ void DynamicPipeline::execute_vm_runtime(_npu_vm_runtime_handle_t* vmRuntime,
     // Reset commandLists since there are tensor with new shapes or it is the first execution, can not reuse command
     // list with update
     for (auto& cmdList : commandLists) {
-        zeCommandListReset(cmdList);
+        const auto result = zeCommandListReset(cmdList);
+        if (result != ZE_RESULT_SUCCESS) {
+            OPENVINO_THROW("Failed to reset command list");
+        }
     }
 
     // Lazily create the VM execution context (owned by argsImpl, destroyed with it).
@@ -296,7 +303,9 @@ void DynamicPipeline::predict_output_shape(const IGraph& graph,
     Logger logger("DynamicPipeline::predict_output_shape", Logger::global().level());
     logger.debug("predict_output_shape - started");
 
-    _npu_vm_runtime_handle_t* const vmRuntime = graph.get_vm_runtime_handle();
+    const auto* dynamicGraph = dynamic_cast<const intel_npu::IDynamicGraph*>(&graph);
+    OPENVINO_ASSERT(dynamicGraph != nullptr, "DynamicPipeline requires IDynamicGraph");
+    _npu_vm_runtime_handle_t* const vmRuntime = dynamicGraph->get_vm_runtime_handle();
     OPENVINO_ASSERT(vmRuntime != nullptr, "predict_output_shape requires a valid VM runtime engine");
 
     std::vector<npu_vm_runtime_mem_ref_handle_t> inputs;
