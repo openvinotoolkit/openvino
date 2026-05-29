@@ -218,6 +218,6 @@ Key Features
    HOW TO USE - GENERATIVE AI WORKFLOW <openvino-workflow-generative>
    HOW TO USE - CONVENTIONAL AI WORKFLOW <openvino-workflow>
    HOW TO USE - MODEL SERVING <model-server/ovms_what_is_openvino_model_server>
-   HOW TO USE - PHYSICAL AI <physical-ai/physical-ai-framework>
+   HOW TO USE - PHYSICAL AI <physical-ai>
    REFERENCE DOCUMENTATION <documentation>
    ABOUT OPENVINO <about-openvino>
