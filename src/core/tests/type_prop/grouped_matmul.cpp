@@ -226,13 +226,13 @@ TEST_F(TypePropGroupedMatMulTest, fully_dynamic_shapes) {
 
 TEST_F(TypePropGroupedMatMulTest, case2_3d_3d_partial_dynamic) {
     const auto mat_a = std::make_shared<Parameter>(element::f32, PartialShape{3, Dimension::dynamic(), 64});
-    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{3, 64, Dimension::dynamic()});
+    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{3, 128, Dimension::dynamic()});
 
     const auto op = make_op(mat_a, mat_b);
     op->validate_and_infer_types();
 
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
-    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, Dimension::dynamic(), Dimension::dynamic()}));
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, Dimension::dynamic(), 128}));
 }
 
 }  // namespace ov::test
