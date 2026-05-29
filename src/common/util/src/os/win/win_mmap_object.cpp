@@ -131,7 +131,7 @@ struct MmapVehRegistry {
      * @brief Mutex protecting m_ranges and m_veh_handle. Shared lock for find() (concurrent faults),
      * exclusive lock for add()/remove() (registration changes).
      */
-    std::shared_mutex m_mtx{};
+    mutable std::shared_mutex m_mtx{};
     std::map<uintptr_t, Entry> m_ranges{};  // Maps VA reservation base address to MapHolder and size
     PVOID m_veh_handle{};
 
@@ -186,6 +186,17 @@ struct MmapVehRegistry {
             ::RemoveVectoredExceptionHandler(m_veh_handle);
             m_veh_handle = nullptr;
         }
+    }
+
+    /**
+     * @brief Returns true if the process-wide VEH is currently registered.
+     *
+     * Used to guard hint_evict(): eviction must not proceed if the VEH is not active,
+     * because placeholders created by evict_chunk() would trigger unhandled access violations.
+     */
+    bool has_veh() const {
+        std::shared_lock lock(m_mtx);
+        return m_veh_handle != nullptr;
     }
 
     /**
@@ -768,7 +779,10 @@ bool MapHolder::try_remap_slot(uintptr_t fault_addr) {
 }
 
 std::pair<char*, char*> MapHolder::compute_evict_range(size_t offset, size_t size) const noexcept {
-    if (!m_view_base || m_total_va_size == 0 || !PlaceholderApi::instance().m_available)
+    // Require placeholder path, API availability, and a live VEH (eviction without VEH
+    // would leave inaccessible placeholders on the next access).
+    if (!m_view_base || m_total_va_size == 0 || !PlaceholderApi::instance().m_available ||
+        !MmapVehRegistry::instance().has_veh())
         return {};
 
     // Clamp offset and size to [0, m_size) to prevent size_t overflow in subsequent arithmetic.

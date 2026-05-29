@@ -307,4 +307,42 @@ TEST_F(HintEvictTest, evict_then_read_via_file_handle_matches_original) {
     EXPECT_EQ(read_mapped(*mm), m_expected);
 }
 
+TEST_F(HintEvictTest, evict_with_anonymous_tail_matches_original) {
+    // Append extra bytes so the file size is not a multiple of the 64 KiB granularity.
+    constexpr size_t k_extra = 4096;
+    m_expected.resize(k_hint_evict_file_size + k_extra);
+    for (size_t i = k_hint_evict_file_size; i < m_expected.size(); ++i)
+        m_expected[i] = static_cast<uint8_t>(i % 251);
+    {
+        std::ofstream out(m_file_path, std::ios::binary | std::ios::trunc);
+        ASSERT_TRUE(out.is_open());
+        out.write(reinterpret_cast<const char*>(m_expected.data()), m_expected.size());
+        ASSERT_TRUE(out.good());
+    }
+
+    auto mm = load_mmap_object(m_file_path);
+    ASSERT_NE(mm, nullptr);
+    ASSERT_EQ(mm->size(), m_expected.size());
+
+    mm->hint_evict(0, auto_size);
+
+    EXPECT_EQ(read_mapped(*mm), m_expected);
+}
+
+TEST_F(HintEvictTest, evict_with_nonzero_offset_matches_original) {
+    // Use an offset that is page-aligned but NOT granularity-aligned.
+    constexpr size_t k_offset = 4096;
+    ASSERT_LT(k_offset, k_hint_evict_file_size);
+
+    auto mm = load_mmap_object(m_file_path, k_offset, auto_size);
+    ASSERT_NE(mm, nullptr);
+    ASSERT_EQ(mm->size(), k_hint_evict_file_size - k_offset);
+
+    const std::vector<uint8_t> expected_slice(m_expected.begin() + k_offset, m_expected.end());
+
+    mm->hint_evict(0, auto_size);
+
+    EXPECT_EQ(read_mapped(*mm), expected_slice);
+}
+
 }  // namespace ov::test
