@@ -278,7 +278,6 @@ void CompiledModel::configure_stream_executors() {
     if (config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
         set_task_executor(make_executor("Intel NPU plugin start inferences executor", 1));
         _resultExecutor = make_executor("Intel NPU plugin wait inferences executor", 1);
-        set_callback_executor(make_executor("Intel NPU plugin callback executor", 1));
 
         return;
     }
@@ -286,19 +285,18 @@ void CompiledModel::configure_stream_executors() {
     const auto numStreams = config.get<NUM_STREAMS>();
     if (numStreams > 0) {
         // Use a single thread for start executors to reduce contention on the shared task queue,
-        // while scaling wait and callback executors workers with num_streams to improve result fetch throughput.
+        // while scaling wait executor workers with num_streams to improve result fetch throughput.
+        // Callbacks intentionally run on wait threads.
         const size_t workers = static_cast<size_t>(numStreams);
 
         set_task_executor(make_executor("Intel NPU plugin start inferences executor", 1));
         _resultExecutor = make_executor("Intel NPU plugin wait inferences executor", workers);
-        set_callback_executor(make_executor("Intel NPU plugin callback executor", workers));
     } else if (numStreams == 0) {
         // For special case when num_streams is explicitly set to 0, start inference will happen in the same thread as
-        // the call to InferRequest::start_async, while wait and callback executors will still be created with a single
-        // worker.
+        // the call to InferRequest::start_async, while wait executor will still be created with a single worker.
+        // Callback execution is intentionally done on that wait thread.
         set_task_executor(make_executor("Intel NPU plugin start inferences executor", 0));
         _resultExecutor = make_executor("Intel NPU plugin wait inferences executor", 1);
-        set_callback_executor(nullptr);
     } else {
         // Auto mode (default): workers are created on demand. The baseline number of workers that stay alive during
         // idle periods (30 s timeout) is derived from the optimal number of parallel infer requests recommended for
@@ -309,7 +307,6 @@ void CompiledModel::configure_stream_executors() {
 
         set_task_executor(make_executor("Intel NPU plugin run inferences executor", keepWorkers, true));
         _resultExecutor = nullptr;
-        set_callback_executor(nullptr);
     }
 }
 
