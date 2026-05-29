@@ -49,6 +49,7 @@ What's New
   * OpenVINO™ GenAI extends its JavaScript API to include a Text-to-Speech pipeline and VLM samples for browser and Node.js developers.  
   * OpenVINO™ Model Server extends tool-calling support to Qwen 3.5 and 3.6 models to enable agentic AI use cases.  
   * OpenVINO™ Model Server adds streaming transcription support for speech-to-text, reducing latency for real-time voice applications.  
+  * Preview: Introducing OpenVINO Physical AI, a hardware-accelerated, production‑ready inferencing and deployment framework that standardizes how developers connect cameras, robots, models, and safety controls, reducing brittle custom harnesses and making complex systems easier to build, debug, and evolve on Intel platforms.
 
 OpenVINO™ Runtime
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
