@@ -10,9 +10,9 @@
 #include <string>
 #include <fstream>
 #include <atomic>
-#include <cctype>
-#include <limits>
+#include <mutex>
 #include "intel_gpu/runtime/execution_config.hpp"
+#include "openvino/runtime/properties.hpp"
 
 #if defined(_WIN32)
 #ifndef NOMINMAX
@@ -234,13 +234,12 @@ public:
         return memory_footprint{ _after.rss - _before.rss, _after.peak_rss - _before.peak_rss };
     }
 
-    static void set_active_device_id(const std::string& device_id) {
-        get_active_device_index() = parse_device_index(device_id);
+#if defined(_WIN32)
+    static void set_active_luid(const ov::device::LUID& luid) {
+        std::lock_guard<std::mutex> lock(get_luid_mutex());
+        get_active_luid_storage() = luid;
     }
-
-    static void set_active_sub_device_idx(uint32_t sub_device_idx) {
-        get_active_sub_device_index() = static_cast<int>(sub_device_idx);
-    }
+#endif
 
     void print_mem_usage_info() {
         auto mem_usage = get_elapsed_mem_usage();
@@ -263,10 +262,19 @@ public:
         static ComPtr<IDXGIAdapter3> selected_adapter;
         static bool initialized = false;
         static bool init_failed = false;
-        static int selected_device_index = -1;
+        static ov::device::LUID selected_luid{};
 
-        const int current_device_index = get_active_device_index().load();
-        if (initialized && selected_device_index != current_device_index) {
+        ov::device::LUID active_luid;
+        {
+            std::lock_guard<std::mutex> lock(get_luid_mutex());
+            active_luid = get_active_luid_storage();
+        }
+
+        if (is_luid_empty(active_luid)) {
+            return -1;
+        }
+
+        if (initialized && selected_luid.luid != active_luid.luid) {
             selected_adapter.Reset();
             initialized = false;
             init_failed = false;
@@ -280,26 +288,18 @@ public:
             }
 
             IDXGIAdapter *adapter = nullptr;
-            const uint32_t INTEL_PCI_VENDOR_ID = 0x8086;
             bool found_intel_adapter = false;
-            int intel_adapter_index = 0;
 
             for (UINT adapterIndex = 0; dxgi_factory->EnumAdapters(adapterIndex, &adapter) != DXGI_ERROR_NOT_FOUND; adapterIndex++) {
                 DXGI_ADAPTER_DESC desc;
                 adapter->GetDesc(&desc);
-                if (desc.VendorId == INTEL_PCI_VENDOR_ID) {
-                    // Match configured device id among Intel adapters (gpu.0/gpu.1), fallback to first Intel adapter.
-                    const bool is_target_adapter = (current_device_index < 0 && intel_adapter_index == 0) ||
-                                                   (current_device_index >= 0 && intel_adapter_index == current_device_index);
-                    if (is_target_adapter) {
-                        if (S_OK == adapter->QueryInterface(IID_PPV_ARGS(&selected_adapter))) {
-                            found_intel_adapter = true;
-                        }
-                        adapter->Release();
-                        if (found_intel_adapter)
-                            break;
+                if (match_luid(desc.AdapterLuid, active_luid)) {
+                    if (S_OK == adapter->QueryInterface(IID_PPV_ARGS(&selected_adapter))) {
+                        found_intel_adapter = true;
                     }
-                    intel_adapter_index++;
+                    adapter->Release();
+                    if (found_intel_adapter)
+                        break;
                 }
                 adapter->Release();
             }
@@ -309,25 +309,16 @@ public:
                 return -1;
             }
             initialized = true;
-            selected_device_index = current_device_index;
+            selected_luid = active_luid;
         }
 
         if (init_failed || !selected_adapter) {
             return -1;
         }
 
-        // Query VRAM usage for selected tile node when available, otherwise across all nodes.
+        // Query VRAM usage across all nodes
         int64_t total_vram_used = 0;
         const int KiB = 1024;
-
-        const int active_sub_device_idx = get_active_sub_device_index().load();
-        if (active_sub_device_idx >= 0) {
-            DXGI_QUERY_VIDEO_MEMORY_INFO info;
-            if (S_OK == selected_adapter->QueryVideoMemoryInfo(active_sub_device_idx, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &info)) {
-                return info.CurrentUsage / KiB;
-            }
-            return -1;
-        }
 
         int nodeId = 0;
         DXGI_QUERY_VIDEO_MEMORY_INFO info;
@@ -343,32 +334,29 @@ public:
     }
 
 private:
-    static int parse_device_index(const std::string& device_id) {
-        if (device_id.empty()) {
-            return -1;
-        }
-
-        size_t start = device_id.size();
-        while (start > 0 && std::isdigit(static_cast<unsigned char>(device_id[start - 1]))) {
-            start--;
-        }
-
-        if (start == device_id.size()) {
-            return -1;
-        }
-
-        return std::stoi(device_id.substr(start));
+#if defined(_WIN32)
+    static ov::device::LUID& get_active_luid_storage() {
+        static ov::device::LUID active_luid{};
+        return active_luid;
     }
 
-    static std::atomic<int>& get_active_device_index() {
-        static std::atomic<int> active_device_index{-1};
-        return active_device_index;
+    static std::mutex& get_luid_mutex() {
+        static std::mutex mtx;
+        return mtx;
     }
 
-    static std::atomic<int>& get_active_sub_device_index() {
-        static std::atomic<int> active_sub_device_index{-1};
-        return active_sub_device_index;
+    static bool is_luid_empty(const ov::device::LUID& luid) {
+        for (auto b : luid.luid) {
+            if (b != 0) return false;
+        }
+        return true;
     }
+
+    static bool match_luid(const ::LUID& dxgi_luid, const ov::device::LUID& ov_luid) {
+        // DXGI LUID: LowPart (4 bytes) + HighPart (4 bytes) = 8 bytes, same layout as ov::device::LUID
+        return std::memcmp(&dxgi_luid, ov_luid.luid.data(), sizeof(dxgi_luid)) == 0;
+    }
+#endif
 
     memory_footprint get_memory_footprint() {
         memory_footprint footprint;
