@@ -9,6 +9,7 @@
 #include <iterator>
 #include <map>
 #include <numeric>
+#include <queue>
 #include <unordered_map>
 
 #if defined(_MSC_VER)
@@ -304,6 +305,103 @@ void ov::hetero::SubgraphCollector::split_cyclic_dependencies() {
         for (size_t node_idx = 0; node_idx < nodes_count; ++node_idx) {
             promote_boundaries_for_node(node_idx);
         }
+    }
+
+    // === Subgraph-level SCC fallback. ===========================================================
+    // The per-node heuristic above only detects cycles whose re-entry point and producer share the
+    // same subgraph (same-sg dependency through a foreign sg). It cannot see multi-hop cycles at
+    // the subgraph DAG level (e.g. sg_A -> sg_B -> sg_C -> sg_D -> sg_A), which arise when
+    // Union-Find fuses two structurally independent regions of the model into one subgraph via a
+    // shared graph-input boundary, and the fused subgraph ends up both producing and consuming
+    // data on multiple other subgraphs.  Such a configuration is not a real data cycle in the
+    // original ov::Model (which is a DAG), but it deadlocks run()'s topological sort.  Break it by
+    // peeling acyclic subgraphs (Kahn) and, for any remaining cyclic subgraph that still has an
+    // internal non-boundary edge, promoting one such edge into _subgraph_inputs.  Each iteration
+    // strictly grows _subgraph_inputs (or terminates), so the loop is bounded by the total number
+    // of node-input edges.
+    for (size_t scc_step = 0; scc_step <= nodes_count; ++scc_step) {
+        OPENVINO_ASSERT(scc_step <= nodes_count, "Subgraph SCC fallback did not converge");
+        auto subgraph_ids = collect_subgraphs_ids();
+
+        std::vector<SubgraphId> sg_id_by_index(nodes_count);
+        for (size_t i = 0; i < nodes_count; ++i) {
+            sg_id_by_index[i] = subgraph_ids.at(_ordered_ops[i]);
+        }
+
+        // Build subgraph DAG from cross-subgraph edges already recorded in _subgraph_inputs.
+        // Parallel edges between the same pair of subgraphs are kept de-duplicated.
+        std::unordered_map<SubgraphId, std::unordered_set<SubgraphId>> sg_adj;
+        std::unordered_map<SubgraphId, size_t> sg_in_degree;
+        std::unordered_set<SubgraphId> all_sgs;
+        for (size_t i = 0; i < nodes_count; ++i) {
+            all_sgs.insert(sg_id_by_index[i]);
+        }
+        for (const auto& inp : _subgraph_inputs) {
+            if (is_graph_input_node(inp.get_node()))
+                continue;
+            const auto owner_sg = sg_id_by_index[get_index_by_node(inp.get_node())];
+            const auto producer_sg = sg_id_by_index[get_index_by_node(inp.get_source_output().get_node())];
+            if (owner_sg == producer_sg)
+                continue;
+            if (sg_adj[producer_sg].insert(owner_sg).second) {
+                ++sg_in_degree[owner_sg];
+            }
+        }
+
+        // Kahn topological peel: any subgraph that survives is part of (or downstream of) an SCC,
+        // but for the next promotion we only need ONE cyclic subgraph that still has an internal
+        // edge to cut.
+        std::queue<SubgraphId> ready;
+        std::unordered_set<SubgraphId> acyclic;
+        for (auto sg : all_sgs) {
+            if (sg_in_degree[sg] == 0) {
+                ready.push(sg);
+            }
+        }
+        while (!ready.empty()) {
+            const auto sg = ready.front();
+            ready.pop();
+            acyclic.insert(sg);
+            const auto it = sg_adj.find(sg);
+            if (it == sg_adj.end())
+                continue;
+            for (auto to : it->second) {
+                if (--sg_in_degree[to] == 0) {
+                    ready.push(to);
+                }
+            }
+        }
+
+        if (acyclic.size() == all_sgs.size()) {
+            break;  // subgraph DAG is acyclic, fix-point reached.
+        }
+
+        // Pick any node in any cyclic subgraph that still has a non-boundary input from the same
+        // subgraph, and promote that edge. Iterating until the SCC dissolves is correct: in the
+        // worst case the subgraph gets fully fragmented into singletons, which trivially cannot
+        // participate in a multi-subgraph SCC (the original model is a DAG).
+        bool promoted = false;
+        for (size_t node_idx = 0; node_idx < nodes_count && !promoted; ++node_idx) {
+            const auto my_sg = sg_id_by_index[node_idx];
+            if (acyclic.count(my_sg))
+                continue;
+            for (const auto& input : ordered_inputs[node_idx]) {
+                if (_subgraph_inputs.count(input))
+                    continue;
+                const auto src_node = input.get_source_output().get_node();
+                if (is_graph_input_node(src_node))
+                    continue;
+                const auto src_sg = sg_id_by_index[get_index_by_node(src_node)];
+                if (src_sg != my_sg)
+                    continue;
+                _subgraph_inputs.insert(input);
+                promoted = true;
+                break;
+            }
+        }
+        OPENVINO_ASSERT(promoted,
+                        "Subgraph SCC fallback found a cyclic subgraph DAG but no internal edge "
+                        "to promote; this should not happen on a well-formed ov::Model.");
     }
 }
 

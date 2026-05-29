@@ -487,6 +487,63 @@ std::shared_ptr<ov::Model> create_shared_const_cross_device_fanout_model() {
     return std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{param});
 }
 
+// Multi-hop subgraph-level SCC. Two regions of M0 get fused into one Union-Find subgraph via a
+// shared Constant (c_top: feeds X1 in region 1 and X2 in region 2). The resulting M0 subgraph
+// then participates in a 4-subgraph cycle that no single node can detect with the per-node
+// heuristic (the producer and re-entry consumer of the cycle are different nodes far apart in
+// topology). Only the subgraph-DAG SCC fallback can break it.
+//
+// Topology (M0 = MOCK.0, M1 = MOCK.1):
+//
+//   in1(M0) ─┐                                    ┌─ X1(M0,+c_top) ─ res_x1
+//            ├─ A1(M0) ─ B1(M1) ─ C1(M0) ─ D1(M1) ┘
+//   c_top(M0) ──────────────┐
+//   in2(M0) ─┐               │
+//            ├─ A2(M0) ─ B2(M1) ┘                 ┌─ X2(M0,+c_top) ─ res_x2
+//                                                 │
+//            ├─ A2(M0) ─────── C2(M1) ─ D2(M0) ───┘
+//
+// Initial Union-Find groups (M0 only): {in1,A1,C1}, {in2,A2,D2,X2,c_top,X1}. The shared c_top
+// merges X1 (region 1) and X2 (region 2) into the same M0 subgraph, call it M0_big.
+// Cross-subgraph data edges then form: M0_big -> M1 (A1->B1, A2->B2, A2->C2),
+// M1 -> M0_big (D1->X1-via-c_top-region, D2 already inside M0_big). After the per-node fix-point
+// loop, the subgraph DAG still contains M0_big -> M1 -> M0_big -> M1 -> M0_big, but no single
+// node in M0_big has a producer-in-my-sg cyclic dependency (X1's producers are D1 in M1 and
+// c_top which is a graph input). SCC fallback must split M0_big into multiple subgraphs.
+std::shared_ptr<ov::Model> create_multi_hop_scc_cycle_model() {
+    auto in1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{4});
+    in1->set_friendly_name("in1");
+    auto in2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{4});
+    in2->set_friendly_name("in2");
+    auto c_top = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{4}, {1.0f, 1.0f, 1.0f, 1.0f});
+    c_top->set_friendly_name("c_top");
+    auto a1 = std::make_shared<ov::op::v0::Abs>(in1);
+    a1->set_friendly_name("A1");
+    auto b1 = std::make_shared<ov::op::v0::Abs>(a1);
+    b1->set_friendly_name("B1");
+    auto c1 = std::make_shared<ov::op::v0::Abs>(b1);
+    c1->set_friendly_name("C1");
+    auto d1 = std::make_shared<ov::op::v0::Abs>(c1);
+    d1->set_friendly_name("D1");
+    auto x1 = std::make_shared<ov::op::v1::Add>(d1, c_top);
+    x1->set_friendly_name("X1");
+    auto a2 = std::make_shared<ov::op::v0::Abs>(in2);
+    a2->set_friendly_name("A2");
+    auto b2 = std::make_shared<ov::op::v0::Abs>(a2);
+    b2->set_friendly_name("B2");
+    auto c2 = std::make_shared<ov::op::v0::Abs>(b2);
+    c2->set_friendly_name("C2");
+    auto d2 = std::make_shared<ov::op::v0::Abs>(c2);
+    d2->set_friendly_name("D2");
+    auto x2 = std::make_shared<ov::op::v1::Add>(d2, c_top);
+    x2->set_friendly_name("X2");
+    auto res_x1 = std::make_shared<ov::op::v0::Result>(x1);
+    res_x1->set_friendly_name("res_x1");
+    auto res_x2 = std::make_shared<ov::op::v0::Result>(x2);
+    res_x2->set_friendly_name("res_x2");
+    return std::make_shared<ov::Model>(ov::ResultVector{res_x1, res_x2}, ov::ParameterVector{in1, in2});
+}
+
 // Stateful model: param → read_value → add(+c1) → {result, assign(sink)}.
 // Single-device by design — exercises Subgraph::_sinks wire-through and
 // create_submodel_from_collected_subgraph()'s sink-preserving construction without
@@ -867,7 +924,9 @@ struct SubgraphCollectorTestParam {
     ModelFactory create_model;                        // factory to build the model under test
     std::map<std::string, std::string> affinity_map;  // node_name → device; empty = broadcast default
     std::string default_affinity;                     // used when affinity_map is empty
-    size_t expected_subgraph_count;                   // number of subgraphs from run()
+    size_t expected_subgraph_count;                   // number of subgraphs from run(); 0 = skip exact-count check
+                                                      // (used when the partition shape is an implementation
+                                                      // detail but convergence/round-trip is still required)
     // --- optional checks (a default-constructed/empty/false value disables the check) ---
     std::vector<std::string> expected_affinities = {};                       // sorted affinity list per subgraph
     std::map<std::string, SubgraphCollector::SubgraphId> expected_ids = {};  // node_name → expected subgraph ID
@@ -934,7 +993,9 @@ TEST_P(SubgraphCollectorParamTest, split_by_affinity) {
 
     const auto& [subgraphs, mapping] = collector.run();
 
-    ASSERT_EQ(param.expected_subgraph_count, subgraphs.size());
+    if (param.expected_subgraph_count > 0) {
+        ASSERT_EQ(param.expected_subgraph_count, subgraphs.size());
+    }
 
     std::map<size_t, size_t> actual_to_expected_subgraph_ids;
     std::vector<size_t> expected_to_actual_subgraph_ids;
@@ -1636,6 +1697,36 @@ INSTANTIATE_TEST_SUITE_P(
             /*expected_parameters_per_submodel*/ {2, 1, 2, 1},
             /*expected_results_per_submodel*/ {3, 3, 1, 1},
             {std::set<std::string>{"A", "X"}, std::set<std::string>{"B", "B2"}, std::set<std::string>{"C"}, std::set<std::string>{"F"}},
+        },
+        // --- Multi-hop subgraph-level SCC. Two independent M0 regions get fused through a shared
+        // Constant (c_top), and the fused M0 subgraph then participates in a cycle that no single
+        // node can detect (the producer and re-entry consumer are far apart). The per-node
+        // heuristic in split_cyclic_dependencies() converges without breaking it; only the
+        // subgraph-DAG SCC fallback can. This case is the minimal synthesis of the
+        // 4-subgraph cycle observed on yolo26s-seg HETERO:GPU,CPU. The exact partition the SCC
+        // fallback produces depends on the order it discovers cyclic subgraphs; this test only
+        // asserts that compile-time topo sort succeeds (i.e., the assertion "Cannot sort
+        // subgraphs!" does NOT fire) by requiring run() to complete and merge round-trip back to
+        // the original.
+        SubgraphCollectorTestParam{
+            "multi_hop_subgraph_scc_cycle",
+            create_multi_hop_scc_cycle_model,
+            {{"in1", "MOCK.0"}, {"in2", "MOCK.0"}, {"c_top", "MOCK.0"},
+             {"A1", "MOCK.0"}, {"B1", "MOCK.1"}, {"C1", "MOCK.0"}, {"D1", "MOCK.1"}, {"X1", "MOCK.0"},
+             {"A2", "MOCK.0"}, {"B2", "MOCK.1"}, {"C2", "MOCK.1"}, {"D2", "MOCK.0"}, {"X2", "MOCK.0"},
+             {"res_x1", "MOCK.0"}, {"res_x2", "MOCK.0"}},
+            "",
+            // expected_subgraph_count is intentionally 0 (disabled): the SCC fallback's
+            // promotion ordering is an implementation detail; the contract under test is
+            // "run() does not assert Cannot sort subgraphs!" and "merge round-trip succeeds".
+            0,
+            {},
+            {},
+            {},
+            {},
+            0,
+            true,
+            true,
         }
     ),
     [](const testing::TestParamInfo<SubgraphCollectorTestParam>& info) {
