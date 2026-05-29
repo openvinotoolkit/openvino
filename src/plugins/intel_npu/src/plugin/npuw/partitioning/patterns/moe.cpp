@@ -399,6 +399,280 @@ GPTOSSRouter::GPTOSSRouter(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
     register_matcher(std::make_shared<opp::Matcher>(slice, "TagGPTOSSRouter"), std::move(callback));
 }
 
+/*
+    Qwen3 Expert Pattern:
+
+    Input preparation:
+        Tile -> Reshape1
+
+    Gate projection (SwiGLU gate branch):
+        Reshape1 -> MatMul_gate (with weights: Multiply -> Convert) -> Swish
+
+    Up projection (SwiGLU up branch):
+        Reshape1 -> MatMul_up  (with weights: Multiply -> Convert)
+
+    SwiGLU merge:
+        Swish + MatMul_up -> Multiply_swiglu
+
+    Down projection:
+        Multiply_swiglu -> MatMul_down (with weights: Multiply -> Convert) -> Reshape2
+
+    Output (scaled by router scores):
+        Reshape2 * router_score -> Multiply_output   <-- pattern root
+        (router_score = opp::any_input(), produced entirely by Qwen3Router)
+
+    Isolation boundary:
+    - Expert claims: Tile, Reshape1, gate/up/down MatMuls+weights, SwiGLU Multiply, Reshape2, output Multiply
+    - Router claims: Softmax, TopK, ReduceSum, Divide, ScatterElementsUpdate, Transpose, Reshape_score, Unsqueeze_score
+    - Shared shape-compute nodes (ShapeOf->Gather->Unsqueeze->Concat chains) stay outside both,
+      becoming parameter inputs at subgraph boundaries.
+*/
+Qwen3Expert::Qwen3Expert(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag) {
+    LOG_DEBUG("Qwen3Expert pattern matcher registered with tag: " << isol_tag);
+
+    // Input preparation: Tile -> Reshape
+    auto tile = opp::wrap_type<ov::op::v0::Tile>({opp::any_input(), opp::any_input()});
+    auto reshape1 = opp::wrap_type<ov::op::v1::Reshape>({tile, opp::any_input()});
+
+    // Gate projection weights: Multiply(nf4 weight, scale) -> Convert
+    auto gate_weights_multiply = opp::wrap_type<ov::op::v1::Multiply>({opp::any_input(), opp::any_input()});
+    auto gate_weights_convert = opp::wrap_type<ov::op::v0::Convert>({gate_weights_multiply});
+    // Gate MatMul + Swish activation
+    auto matmul_gate = opp::wrap_type<ov::op::v0::MatMul>({reshape1, gate_weights_convert});
+    auto swish = opp::wrap_type<ov::op::v4::Swish>({matmul_gate});
+
+    // Up projection weights: Multiply(nf4 weight, scale) -> Convert
+    auto up_weights_multiply = opp::wrap_type<ov::op::v1::Multiply>({opp::any_input(), opp::any_input()});
+    auto up_weights_convert = opp::wrap_type<ov::op::v0::Convert>({up_weights_multiply});
+    // Up MatMul
+    auto matmul_up = opp::wrap_type<ov::op::v0::MatMul>({reshape1, up_weights_convert});
+
+    // SwiGLU: gate * up
+    auto multiply_swiglu = opp::wrap_type<ov::op::v1::Multiply>({swish, matmul_up});
+
+    // Down projection weights: Multiply(nf4 weight, scale) -> Convert
+    auto down_weights_multiply = opp::wrap_type<ov::op::v1::Multiply>({opp::any_input(), opp::any_input()});
+    auto down_weights_convert = opp::wrap_type<ov::op::v0::Convert>({down_weights_multiply});
+    // Down MatMul -> Reshape
+    auto matmul_down = opp::wrap_type<ov::op::v0::MatMul>({multiply_swiglu, down_weights_convert});
+    auto reshape2 = opp::wrap_type<ov::op::v1::Reshape>({matmul_down, opp::any_input()});
+
+    // Pattern root: expert_output * router_score
+    // The router score (Unsqueeze output) is produced entirely by Qwen3Router and flows
+    // in as opp::any_input() here to avoid double-claiming shared nodes.
+    auto output_multiply = opp::wrap_type<ov::op::v1::Multiply>({reshape2, opp::any_input()});
+
+    auto node_to_gptr = snapshot->getNodeToGroupMap();
+
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+
+        auto matched_tile = node_to_output.at(tile).get_node_shared_ptr();
+        auto matched_reshape1 = node_to_output.at(reshape1).get_node_shared_ptr();
+        auto matched_gate_weights_multiply = node_to_output.at(gate_weights_multiply).get_node_shared_ptr();
+        auto matched_gate_weights_convert = node_to_output.at(gate_weights_convert).get_node_shared_ptr();
+        auto matched_matmul_gate = node_to_output.at(matmul_gate).get_node_shared_ptr();
+        auto matched_swish = node_to_output.at(swish).get_node_shared_ptr();
+        auto matched_up_weights_multiply = node_to_output.at(up_weights_multiply).get_node_shared_ptr();
+        auto matched_up_weights_convert = node_to_output.at(up_weights_convert).get_node_shared_ptr();
+        auto matched_matmul_up = node_to_output.at(matmul_up).get_node_shared_ptr();
+        auto matched_multiply_swiglu = node_to_output.at(multiply_swiglu).get_node_shared_ptr();
+        auto matched_down_weights_multiply = node_to_output.at(down_weights_multiply).get_node_shared_ptr();
+        auto matched_down_weights_convert = node_to_output.at(down_weights_convert).get_node_shared_ptr();
+        auto matched_matmul_down = node_to_output.at(matmul_down).get_node_shared_ptr();
+        auto matched_reshape2 = node_to_output.at(reshape2).get_node_shared_ptr();
+        auto matched_output_multiply = node_to_output.at(output_multiply).get_node_shared_ptr();
+
+        LOG_DEBUG("Qwen3Expert pattern matched: " << matched_tile->get_friendly_name());
+
+        // Detect decoding stage using the same middle-dims scan as GPTOSSExpert.
+        // output_multiply shape: [num_experts, ..., hidden]
+        //   Prefill: one middle dim is token_count > 1
+        //   Decoding: all middle dims are 1
+        auto output_shape = matched_output_multiply->get_output_partial_shape(0);
+        LOG_DEBUG("Qwen3 Expert Multiply output_shape: " << output_shape);
+        bool is_decoding = false;
+
+        if (output_shape.rank().is_static()) {
+            const auto rank = output_shape.rank().get_length();
+            bool found_token_dim = false;
+            for (int64_t i = 1; i < rank - 1; ++i) {
+                const auto& d = output_shape[i];
+                if (!d.is_static()) {
+                    continue;
+                }
+                const auto val = d.get_length();
+                if (val != 1) {
+                    is_decoding = false;
+                    LOG_DEBUG("Qwen3 Expert pattern matched (Prefill stage): token_count=" << val);
+                    found_token_dim = true;
+                    break;
+                }
+            }
+            if (!found_token_dim) {
+                is_decoding = true;
+                LOG_DEBUG("Qwen3 Expert pattern matched (Decoding stage): single token");
+            }
+        }
+
+        auto isolate_if_exists = [&](const std::shared_ptr<ov::Node>& node) {
+            if (node && node_to_gptr->count(node)) {
+                node_to_gptr->at(node)->isolate(isol_tag);
+            }
+        };
+
+        isolate_if_exists(matched_tile);
+        isolate_if_exists(matched_reshape1);
+        isolate_if_exists(matched_gate_weights_multiply);
+        isolate_if_exists(matched_gate_weights_convert);
+        isolate_if_exists(matched_matmul_gate);
+        isolate_if_exists(matched_swish);
+        isolate_if_exists(matched_up_weights_multiply);
+        isolate_if_exists(matched_up_weights_convert);
+        isolate_if_exists(matched_matmul_up);
+        isolate_if_exists(matched_multiply_swiglu);
+        isolate_if_exists(matched_down_weights_multiply);
+        isolate_if_exists(matched_down_weights_convert);
+        isolate_if_exists(matched_matmul_down);
+        isolate_if_exists(matched_reshape2);
+        isolate_if_exists(matched_output_multiply);
+
+        // If decoding stage, find and isolate ReduceSum after output_multiply
+        if (is_decoding) {
+            LOG_DEBUG("Qwen3 Decoding stage detected, searching for ReduceSum to isolate...");
+            std::shared_ptr<ov::Node> matched_reduce_sum = nullptr;
+
+            for (auto& output : matched_output_multiply->outputs()) {
+                for (auto& input : output.get_target_inputs()) {
+                    auto consumer = input.get_node()->shared_from_this();
+                    if (auto reduce_sum = std::dynamic_pointer_cast<ov::op::v1::ReduceSum>(consumer)) {
+                        matched_reduce_sum = reduce_sum;
+                        LOG_DEBUG("  Found ReduceSum after Multiply, isolating for decoding stage");
+                        break;
+                    }
+                }
+                if (matched_reduce_sum)
+                    break;
+            }
+
+            if (matched_reduce_sum && node_to_gptr->count(matched_reduce_sum)) {
+                node_to_gptr->at(matched_reduce_sum)->isolate(isol_tag);
+                LOG_DEBUG("  ReduceSum successfully isolated");
+            } else if (matched_reduce_sum) {
+                LOG_WARN("  ReduceSum found but not in node_to_gptr map");
+            } else {
+                LOG_WARN("  No ReduceSum found after Multiply (unexpected for decoding stage)");
+            }
+        }
+
+        return false;
+    };
+
+    register_matcher(std::make_shared<opp::Matcher>(output_multiply, "TagQwen3Expert"), std::move(callback));
+}
+
+/*
+    Qwen3 Router Pattern:
+
+    Router weights (NF4 quantized):
+        Convert(nf4_param) -> Multiply(weight, scale) -> Convert -> MatMul(input, weight)
+
+    Score computation:
+        MatMul -> Softmax -> TopK(values, indices)
+
+    Score normalization:
+        TopK(values) -> ReduceSum -> Divide(values, sum)   [renormalize over K selected]
+
+    Scatter to full expert dimension:
+        TopK(indices) + Divide(scores) -> ScatterElementsUpdate(zero_broadcast, indices, scores)
+
+    Shape to [num_experts, token_count, 1, 1] for expert broadcast:
+        ScatterElementsUpdate -> Transpose -> Reshape -> Unsqueeze   <-- pattern root
+
+    Note: The Unsqueeze output is consumed by Qwen3Expert's Multiply_output node.
+    Key difference from GPT-OSS: Softmax is BEFORE TopK (not after),
+    requiring explicit renormalization via ReduceSum->Divide.
+*/
+Qwen3Router::Qwen3Router(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag) {
+    LOG_DEBUG("Qwen3Router pattern matcher registered with tag: " << isol_tag);
+
+    // Router weights: Convert(nf4) -> Multiply(weight, scale) -> Convert -> MatMul
+    auto weights_convert_in = opp::wrap_type<ov::op::v0::Convert>({opp::any_input()});
+    auto weights_multiply = opp::wrap_type<ov::op::v1::Multiply>({weights_convert_in, opp::any_input()});
+    auto weights_convert_out = opp::wrap_type<ov::op::v0::Convert>({weights_multiply});
+    auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), weights_convert_out});
+
+    // Score: Softmax -> TopK
+    auto softmax = opp::wrap_type<ov::op::v8::Softmax>({matmul});
+    auto topk = opp::wrap_type<ov::op::v11::TopK>({softmax, opp::any_input()});
+
+    // Renormalization: TopK(values)->ReduceSum, TopK(values)/ReduceSum = Divide
+    auto reduce_sum = opp::wrap_type<ov::op::v1::ReduceSum>({topk, opp::any_input()});
+    auto divide = opp::wrap_type<ov::op::v1::Divide>({topk, reduce_sum});
+
+    // Scatter to full expert shape (pattern root = Unsqueeze)
+    auto scatter =
+        opp::wrap_type<ov::op::v12::ScatterElementsUpdate>({opp::any_input(), topk, divide, opp::any_input()});
+    auto transpose = opp::wrap_type<ov::op::v1::Transpose>({scatter, opp::any_input()});
+    auto reshape = opp::wrap_type<ov::op::v1::Reshape>({transpose, opp::any_input()});
+    auto unsqueeze = opp::wrap_type<ov::op::v0::Unsqueeze>({reshape, opp::any_input()});
+
+    auto node_to_gptr = snapshot->getNodeToGroupMap();
+
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+
+        // Validate: TopK should be MAX mode (selecting top-K experts)
+        auto matched_topk = node_to_output.at(topk).get_node_shared_ptr();
+        auto topk_node = std::dynamic_pointer_cast<ov::op::v11::TopK>(matched_topk);
+        if (!topk_node || topk_node->get_mode() != ov::op::v11::TopK::Mode::MAX) {
+            return false;
+        }
+
+        LOG_DEBUG("Qwen3Router pattern matched: " << matched_topk->get_friendly_name());
+
+        auto matched_weights_convert_in = node_to_output.at(weights_convert_in).get_node_shared_ptr();
+        auto matched_weights_multiply = node_to_output.at(weights_multiply).get_node_shared_ptr();
+        auto matched_weights_convert_out = node_to_output.at(weights_convert_out).get_node_shared_ptr();
+        auto matched_matmul = node_to_output.at(matmul).get_node_shared_ptr();
+        auto matched_softmax = node_to_output.at(softmax).get_node_shared_ptr();
+        auto matched_reduce_sum = node_to_output.at(reduce_sum).get_node_shared_ptr();
+        auto matched_divide = node_to_output.at(divide).get_node_shared_ptr();
+        auto matched_scatter = node_to_output.at(scatter).get_node_shared_ptr();
+        auto matched_transpose = node_to_output.at(transpose).get_node_shared_ptr();
+        auto matched_reshape = node_to_output.at(reshape).get_node_shared_ptr();
+        auto matched_unsqueeze = node_to_output.at(unsqueeze).get_node_shared_ptr();
+
+        // Also isolate Broadcast node that provides zero-filled base for ScatterElementsUpdate
+        auto broadcast_node = matched_scatter->input_value(0).get_node_shared_ptr();
+        auto matched_broadcast = std::dynamic_pointer_cast<ov::op::v3::Broadcast>(broadcast_node);
+
+        auto isolate_if_exists = [&](const std::shared_ptr<ov::Node>& node) {
+            if (node && node_to_gptr->count(node)) {
+                node_to_gptr->at(node)->isolate(isol_tag);
+            }
+        };
+
+        isolate_if_exists(matched_weights_convert_in);
+        isolate_if_exists(matched_weights_multiply);
+        isolate_if_exists(matched_weights_convert_out);
+        isolate_if_exists(matched_matmul);
+        isolate_if_exists(matched_softmax);
+        isolate_if_exists(matched_topk);
+        isolate_if_exists(matched_reduce_sum);
+        isolate_if_exists(matched_divide);
+        isolate_if_exists(matched_broadcast);
+        isolate_if_exists(matched_scatter);
+        isolate_if_exists(matched_transpose);
+        isolate_if_exists(matched_reshape);
+        isolate_if_exists(matched_unsqueeze);
+
+        return false;
+    };
+
+    register_matcher(std::make_shared<opp::Matcher>(unsqueeze, "TagQwen3Router"), std::move(callback));
+}
+
 }  // namespace moe
 }  // namespace patterns
 }  // namespace npuw

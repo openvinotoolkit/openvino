@@ -744,10 +744,11 @@ void Snapshot::earlyRegroup() {
         rewr.add_matcher<ov::npuw::patterns::attn::p>(shared_from_this(), isolate.tag); \
         pattern_handled = true;                                                         \
     }
-#define HNDL_MOE(p)                                                                    \
-    if (isolate.pattern == #p) {                                                       \
-        rewr.add_matcher<ov::npuw::patterns::moe::p>(shared_from_this(), isolate.tag); \
-        pattern_handled = true;                                                        \
+#define HNDL_MOE(p)                                                                                 \
+    if (isolate.pattern == #p) {                                                                    \
+        rewr.add_matcher<ov::npuw::patterns::moe::p>(shared_from_this(), isolate.tag);              \
+        pattern_handled = true;                                                                     \
+        std::cout << "Registered MOE pattern: " << #p << " with tag: " << isolate.tag << std::endl; \
     }
                 HNDL(RMSNorm);
                 HNDL(RMSNorm2);
@@ -762,6 +763,8 @@ void Snapshot::earlyRegroup() {
                 HNDL(VariadicSplit);
                 HNDL_MOE(GPTOSSExpert);
                 HNDL_MOE(GPTOSSRouter);
+                HNDL_MOE(Qwen3Expert);
+                HNDL_MOE(Qwen3Router);
                 HNDL_FAKE(FakeConvert);
                 HNDL_FAKE(FakeQuantize);
                 HNDL_ATTN(SDPA);
