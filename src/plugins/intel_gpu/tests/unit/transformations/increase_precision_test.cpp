@@ -377,7 +377,11 @@ TEST_F(TransformationTestsF, IncreasePositionIdsSliceGatherUnsqueezeRoPE) {
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
-TEST_F(TransformationTestsF, IncreasePositionIdsLTXVideo) {
+static void test_IncreasePositionIdsLTXVideo(std::shared_ptr<ov::Model>& model,
+                                             std::shared_ptr<ov::Model>& model_ref,
+                                             ov::pass::Manager& manager,
+                                             FunctionsComparator& comparator,
+                                             bool is_ltx_video) {
     // Test graph matches the post-RoPE-fusion pattern:
     //   Multiply → Add(Const) → Transpose → Reshape → Sin/Cos → T → U → B → GND → T → Concat → RoPE
     {
@@ -427,16 +431,15 @@ TEST_F(TransformationTestsF, IncreasePositionIdsLTXVideo) {
         auto cos_concat_other = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1, 64, 8}, {1.0f});
         auto cos_concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{cos_concat_other, cos_transpose2}, -1);
 
-        // RoPE with is_ltx_video = true
         ov::op::internal::RoPE::Config rope_config;
-        rope_config.is_ltx_video = true;
+        rope_config.is_ltx_video = is_ltx_video;
         rope_config.rotary_ndims = 64;
         auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{param_x, cos_concat, sin_concat}, rope_config);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{param_mul_in, param_x});
         manager.register_pass<IncreasePositionIdsPrecision>();
     }
-    {
+    if (is_ltx_video) {
         auto param_mul_in = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 64});
         auto param_x = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 64, 16});
 
@@ -488,7 +491,6 @@ TEST_F(TransformationTestsF, IncreasePositionIdsLTXVideo) {
         auto cos_concat_other = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1, 64, 8}, {1.0f});
         auto cos_concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{cos_concat_other, cos_transpose2}, -1);
 
-        // RoPE with is_ltx_video = true
         ov::op::internal::RoPE::Config rope_config;
         rope_config.is_ltx_video = true;
         rope_config.rotary_ndims = 64;
@@ -497,6 +499,14 @@ TEST_F(TransformationTestsF, IncreasePositionIdsLTXVideo) {
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{param_mul_in, param_x});
     }
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, IncreasePositionIdsLTXVideo_T) {
+    test_IncreasePositionIdsLTXVideo(model, model_ref, manager, comparator, true);
+}
+
+TEST_F(TransformationTestsF, IncreasePositionIdsLTXVideo_F) {
+    test_IncreasePositionIdsLTXVideo(model, model_ref, manager, comparator, false);
 }
 
 TEST_F(TransformationTestsF, IncreasePositionIdsPrecisionForQwen25VL) {
