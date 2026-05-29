@@ -16,13 +16,13 @@ Physical AI provides runtime components for working with exported robot policies
 
 | I want to               | Go to                                                   |
 | ----------------------- | ------------------------------------------------------- |
-| Install the package     | [Installation](getting-started/installation.md)         |
-| Run first inference     | [Quickstart](getting-started/quickstart.md)             |
-| Run a policy on a robot | [Run a Policy](getting-started/run-a-policy.md)         |
-| Write runtime YAML      | [Runtime Config](how-to/config/write-runtime-config.md) |
-| Use the runtime CLI     | [CLI Run](how-to/cli/run.md)                            |
-| Understand architecture | [Architecture](explanation/architecture.md)             |
-| Look up schemas         | [Config Schema](reference/config-schema.md)             |
+| Install the package     | [Installation](physical-ai/getting-started/installation.md)         |
+| Run first inference     | [Quickstart](physical-ai/getting-started/quickstart.md)             |
+| Run a policy on a robot | [Run a Policy](physical-ai/getting-started/run-a-policy.md)         |
+| Write runtime YAML      | [Runtime Config](physical-ai/how-to/config/write-runtime-config.md) |
+| Use the runtime CLI     | [CLI Run](physical-ai/how-to/cli/run.md)                            |
+| Understand architecture | [Architecture](physical-ai/explanation/architecture.md)             |
+| Look up schemas         | [Config Schema](physical-ai/reference/config-schema.md)             |
 
 ## Documentation Structure
 
