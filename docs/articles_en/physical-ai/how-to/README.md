@@ -15,7 +15,7 @@ config/write-inference-config
 config/instantiate-components
 cli/run
 cli/infer
-``
+```
 
 This section contains task-oriented guides for common runtime workflows.
 

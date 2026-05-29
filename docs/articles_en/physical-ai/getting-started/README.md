@@ -7,7 +7,7 @@
 installation
 quickstart
 run-a-policy
-``
+```
 
 This section contains short tutorials for the first successful PhysicalAI workflows.
 
