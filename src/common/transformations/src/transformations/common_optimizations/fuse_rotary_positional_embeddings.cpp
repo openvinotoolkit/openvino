@@ -29,6 +29,7 @@
 #include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/strided_slice.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
@@ -65,6 +66,7 @@ bool RoPEFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
 
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionFlux>(true);
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionFlux>(false);
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionLlamaCpp>();
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTNEOX>(4);
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTNEOX>(3);
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTJ>();
@@ -1319,6 +1321,172 @@ RoPEFusionLtxVideo::RoPEFusionLtxVideo() {
         ov::replace_node(root, new_node);
         register_new_node(new_node);
 
+        return true;
+    };
+
+    auto m = std::make_shared<pattern::Matcher>(result, matcher_name);
+    this->register_matcher(m, callback);
+}
+
+RoPEFusionLlamaCpp::RoPEFusionLlamaCpp() {
+    MATCHER_SCOPE(RoPEFusionLlamaCpp);
+    // llama.cpp OV serializer RoPE (stateful, rank-3 input). Interleaved (GPT-J) rotation written as an
+    // explicit 4-term complex multiply, a different topology than RoPEFusionGPTJ's neg-concat form:
+    //   even/odd = Slice(x, {0,1}, end, step=2, axis=-1)
+    //   stack    = Concat(Unsqueeze((even*cos - odd*sin), -2), Unsqueeze((even*sin + odd*cos), -2), -2)
+    //   out      = Reshape(stack, [1, -1, head_cnt, head_size])
+    // Step-2 slices => config.is_interleaved=true (verified bit-exact). Slice begin/end/step are left
+    // unconstrained below; pattern vars x_low/x_high carry the even/odd lanes. Stateless emits a
+    // different 5D-stack topology and is intentionally not matched.
+    auto x = pattern::any_input(pattern::rank_equals(3));
+    auto t_cos = pattern::any_input();
+    auto t_sin = pattern::any_input();
+
+    // Last-axis slice. Accept Slice and StridedSlice (canonicalization varies); attrs are left
+    // unconstrained here and re-validated in the callback.
+    auto x_low_slice = pattern::wrap_type<v8::Slice>(
+        {x, pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()});
+    auto x_low_strided = pattern::wrap_type<v1::StridedSlice>(
+        {x, pattern::any_input(), pattern::any_input(), pattern::any_input()});
+    auto x_low = std::make_shared<pattern::op::Or>(OutputVector{x_low_slice, x_low_strided});
+
+    auto x_high_slice = pattern::wrap_type<v8::Slice>(
+        {x, pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()});
+    auto x_high_strided = pattern::wrap_type<v1::StridedSlice>(
+        {x, pattern::any_input(), pattern::any_input(), pattern::any_input()});
+    auto x_high = std::make_shared<pattern::op::Or>(OutputVector{x_high_slice, x_high_strided});
+
+    auto mul_low_cos = pattern::wrap_type<v1::Multiply>({x_low, t_cos}, {{"auto_broadcast", "numpy"}});
+    auto mul_low_sin = pattern::wrap_type<v1::Multiply>({x_low, t_sin}, {{"auto_broadcast", "numpy"}});
+    auto mul_high_cos = pattern::wrap_type<v1::Multiply>({x_high, t_cos}, {{"auto_broadcast", "numpy"}});
+    auto mul_high_sin = pattern::wrap_type<v1::Multiply>({x_high, t_sin}, {{"auto_broadcast", "numpy"}});
+
+    // y_low = (x_low * cos) - (x_high * sin); accept Subtract or its ConvertSubtract→Add+Negate form.
+    auto neg_high_sin =
+        pattern::wrap_type<v1::Multiply>({mul_high_sin, -1.0f}, {{"auto_broadcast", "numpy"}});
+    auto sub_low_via_subtract =
+        pattern::wrap_type<v1::Subtract>({mul_low_cos, mul_high_sin}, {{"auto_broadcast", "numpy"}});
+    auto sub_low_via_add =
+        pattern::wrap_type<v1::Add>({mul_low_cos, neg_high_sin}, {{"auto_broadcast", "numpy"}});
+    auto sub_low = std::make_shared<pattern::op::Or>(OutputVector{sub_low_via_subtract, sub_low_via_add});
+
+    // y_high = (x_high * cos) + (x_low * sin)
+    auto add_high = pattern::wrap_type<v1::Add>({mul_high_cos, mul_low_sin}, {{"auto_broadcast", "numpy"}});
+
+    // Insert a singleton axis before the last one; prior passes may canonicalize Unsqueeze to Reshape.
+    auto unsq_low_via_unsq = pattern::wrap_type<v0::Unsqueeze>({sub_low, pattern::any_input()});
+    auto unsq_low_via_reshape = pattern::wrap_type<v1::Reshape>({sub_low, pattern::any_input()});
+    auto unsq_low = std::make_shared<pattern::op::Or>(OutputVector{unsq_low_via_unsq, unsq_low_via_reshape});
+
+    auto unsq_high_via_unsq = pattern::wrap_type<v0::Unsqueeze>({add_high, pattern::any_input()});
+    auto unsq_high_via_reshape = pattern::wrap_type<v1::Reshape>({add_high, pattern::any_input()});
+    auto unsq_high = std::make_shared<pattern::op::Or>(OutputVector{unsq_high_via_unsq, unsq_high_via_reshape});
+
+    auto stack = pattern::wrap_type<v0::Concat>({unsq_low, unsq_high});
+    auto result = pattern::wrap_type<v1::Reshape>({stack, pattern::any_input()});
+
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
+        auto root = m.get_match_root();
+
+        // half_ndims from x_low's last dim (whichever OR-branch matched).
+        auto find_or_branch = [&](const std::shared_ptr<ov::Node>& a,
+                                  const std::shared_ptr<ov::Node>& b) -> ov::Output<ov::Node> {
+            auto ita = pattern_map.find(a);
+            if (ita != pattern_map.end()) return ita->second;
+            auto itb = pattern_map.find(b);
+            if (itb != pattern_map.end()) return itb->second;
+            return {};
+        };
+        auto x_low_out = find_or_branch(x_low_slice, x_low_strided);
+        if (!x_low_out.get_node_shared_ptr()) {
+            return false;
+        }
+        const auto x_low_pshape = x_low_out.get_partial_shape();
+        if (!x_low_pshape.rank().is_static() || x_low_pshape[x_low_pshape.size() - 1].is_dynamic()) {
+            return false;
+        }
+        const int64_t half_ndims_val = x_low_pshape[x_low_pshape.size() - 1].get_length();
+
+        // Stack must be one rank above the final Reshape, concatenating on the next-to-last axis.
+        auto stack_node =
+            ov::as_type_ptr<v0::Concat>(pattern_map.at(stack).get_node_shared_ptr());
+        if (!stack_node) {
+            return false;
+        }
+        const auto stack_axis = stack_node->get_axis();
+        const auto stack_in_rank = stack_node->get_input_partial_shape(0).rank();
+        if (!stack_in_rank.is_static()) {
+            return false;
+        }
+        const auto reshape_out_pshape = root->get_output_partial_shape(0);
+        if (!reshape_out_pshape.rank().is_static()) {
+            return false;
+        }
+        const auto out_rank = reshape_out_pshape.rank().get_length();
+        const auto stacked_rank = stack_in_rank.get_length();
+        if (stacked_rank != out_rank + 1) {
+            return false;
+        }
+        const auto normalized_axis = stack_axis < 0 ? stack_axis + stacked_rank : stack_axis;
+        if (normalized_axis != stacked_rank - 2) {
+            return false;
+        }
+
+        ov::op::internal::RoPE::Config config;
+        config.rotary_ndims = 2ul * static_cast<size_t>(half_ndims_val);
+        // The matched slices are step-2 (even/odd lanes), i.e. GPT-J interleaved rotation, so the
+        // fused op must run in interleaved mode. Verified bit-exact against the unfused graph.
+        config.is_interleaved = true;
+
+        const auto x_value = pattern_map.at(x);
+
+        // Feed RoPE a rank-4 [seq, head_cnt, 1, head_size] input by inserting a singleton axis before
+        // the last dim, matching the rank-4 layout the other RoPE fusions produce. This keeps head_size
+        // as the innermost dimension, which plugins rely on for an efficient RoPE implementation. Pure
+        // reshape, no data movement.
+        auto singleton_shape = v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{0, 0, 1, -1});
+        auto x_expanded = std::make_shared<v1::Reshape>(x_value, singleton_shape, true);  // special_zero
+
+        OutputVector new_args;
+        new_args.push_back(x_expanded);
+        new_args.push_back(pattern_map.at(t_cos));
+        new_args.push_back(pattern_map.at(t_sin));
+
+        auto rope_node = std::make_shared<ov::op::internal::RoPE>(new_args, config);
+        // RoPE keeps the singleton-expanded rank-4 shape; reuse root's reshape target to restore the
+        // layout downstream consumers expect (e.g. KV-cache concat wants [B, L, H, S]).
+        auto new_node = std::make_shared<v1::Reshape>(rope_node, root->input_value(1), false);
+        new_node->set_friendly_name(root->get_friendly_name());
+
+        ov::NodeVector rt_from{
+            pattern_map.at(mul_low_cos).get_node_shared_ptr(),
+            pattern_map.at(mul_low_sin).get_node_shared_ptr(),
+            pattern_map.at(mul_high_cos).get_node_shared_ptr(),
+            pattern_map.at(mul_high_sin).get_node_shared_ptr(),
+            pattern_map.at(add_high).get_node_shared_ptr(),
+            pattern_map.at(stack).get_node_shared_ptr(),
+            root};
+        // OR-branch nodes — only the matched branch is present in pattern_map.
+        for (const auto& or_branch : {x_low_slice,
+                                       x_low_strided,
+                                       x_high_slice,
+                                       x_high_strided,
+                                       sub_low_via_subtract,
+                                       sub_low_via_add,
+                                       neg_high_sin,
+                                       unsq_low_via_unsq,
+                                       unsq_low_via_reshape,
+                                       unsq_high_via_unsq,
+                                       unsq_high_via_reshape}) {
+            auto it = pattern_map.find(or_branch);
+            if (it != pattern_map.end()) {
+                rt_from.push_back(it->second.get_node_shared_ptr());
+            }
+        }
+        ov::copy_runtime_info(rt_from, new_node);
+        ov::replace_node(root, new_node);
+        register_new_node(new_node);
         return true;
     };
 

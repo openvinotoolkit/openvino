@@ -22,6 +22,7 @@
 #include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/strided_slice.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/variadic_split.hpp"
@@ -2243,6 +2244,143 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTOSS_concat_axis_positive) {
                                                 {"config.gather_position_arg_id", 0}});
 
         model_ref = std::make_shared<Model>(OutputVector{rope}, ParameterVector{input, t_cos, t_sin});
+    }
+}
+
+TEST_F(TransformationTestsF, ConvertToROPE_LlamaCpp) {
+    // llama.cpp OV serializer RoPE (stateful): rank-3 x, rank-4 cos/sin -> broadcast lifts the
+    // Multiply/Unsqueeze chain so the stack is rank-5 and the final Reshape is rank-4. The fused form
+    // wraps RoPE with a singleton-axis Reshape (rank-3 -> rank-4 -> RoPE -> rank-4).
+    disable_rt_info_check();
+    const int seq_len = 7;
+    const int num_heads = 32;
+    const int ndims = 64;
+    const int half_ndims = ndims / 2;
+    using namespace ov;
+    {
+        auto x = std::make_shared<opset1::Parameter>(element::f32, PartialShape{seq_len, num_heads, ndims});
+        auto t_cos = std::make_shared<opset1::Parameter>(element::f32, PartialShape{1, seq_len, 1, half_ndims});
+        auto t_sin = std::make_shared<opset1::Parameter>(element::f32, PartialShape{1, seq_len, 1, half_ndims});
+
+        auto x_low = makeOP<opset8::Slice>({x, {0}, {half_ndims}, {1}, {-1}});
+        auto x_high = makeOP<opset8::Slice>({x, {half_ndims}, {ndims}, {1}, {-1}});
+
+        auto mul_low_cos = makeOP<opset1::Multiply>({x_low, t_cos}, {{"auto_broadcast", "numpy"}});
+        auto mul_low_sin = makeOP<opset1::Multiply>({x_low, t_sin}, {{"auto_broadcast", "numpy"}});
+        auto mul_high_cos = makeOP<opset1::Multiply>({x_high, t_cos}, {{"auto_broadcast", "numpy"}});
+        auto mul_high_sin = makeOP<opset1::Multiply>({x_high, t_sin}, {{"auto_broadcast", "numpy"}});
+
+        auto sub_low = makeOP<opset1::Subtract>({mul_low_cos, mul_high_sin}, {{"auto_broadcast", "numpy"}});
+        auto add_high = makeOP<opset1::Add>({mul_high_cos, mul_low_sin}, {{"auto_broadcast", "numpy"}});
+
+        auto unsq_low = makeOP<opset1::Unsqueeze>({sub_low, {-2}});
+        auto unsq_high = makeOP<opset1::Unsqueeze>({add_high, {-2}});
+
+        auto stack = makeOP<opset1::Concat>({unsq_low, unsq_high}, {{"axis", -2}});
+        auto reshape = makeOP<opset1::Reshape>({stack, makeConst(element::i64, Shape{4}, {1, -1, num_heads, ndims})},
+                                               {{"special_zero", false}});
+
+        model = std::make_shared<Model>(OutputVector{reshape}, ParameterVector{x, t_cos, t_sin});
+    }
+    manager.register_pass<pass::RoPEFusion>();
+    {
+        auto x = std::make_shared<opset1::Parameter>(element::f32, PartialShape{seq_len, num_heads, ndims});
+        auto t_cos = std::make_shared<opset1::Parameter>(element::f32, PartialShape{1, seq_len, 1, half_ndims});
+        auto t_sin = std::make_shared<opset1::Parameter>(element::f32, PartialShape{1, seq_len, 1, half_ndims});
+
+        auto x4 = makeOP<opset1::Reshape>({x, makeConst(element::i64, Shape{4}, {0, 0, 1, -1})},
+                                          {{"special_zero", true}});
+
+        auto rope = makeOP<op::internal::RoPE>({x4, t_cos, t_sin},
+                                               {{"config.slice_start", 0},
+                                                {"config.slice_stop", 0},
+                                                {"config.input_trans0213", false},
+                                                {"config.output_trans0213", false},
+                                                {"config.is_interleaved", true},
+                                                {"config.rotary_ndims", ndims},
+                                                {"config.is_chatglm", false},
+                                                {"config.support_2d_rope", false},
+                                                {"config.support_3d_rope", false},
+                                                {"config.is_qwen", false},
+                                                {"config.use_rope_cache", false},
+                                                {"config.is_ltx_video", false},
+                                                {"config.head_cnt", 0},
+                                                {"config.head_size", 0},
+                                                {"config.gather_position_arg_id", 0}});
+
+        auto reshape = makeOP<opset1::Reshape>({rope, makeConst(element::i64, Shape{4}, {1, -1, num_heads, ndims})},
+                                               {{"special_zero", false}});
+
+        model_ref = std::make_shared<Model>(OutputVector{reshape}, ParameterVector{x, t_cos, t_sin});
+    }
+}
+
+TEST_F(TransformationTestsF, ConvertToROPE_LlamaCpp_subtract_canonicalized_to_add) {
+    // As ConvertToROPE_LlamaCpp, but with the Subtract canonicalized to Add(_, Multiply(_, -1)) by
+    // a prior ConvertSubtractToAdd pass. The matcher must still fold it; the fused result is identical.
+    disable_rt_info_check();
+    const int seq_len = 7;
+    const int num_heads = 32;
+    const int ndims = 64;
+    const int half_ndims = ndims / 2;
+    using namespace ov;
+    {
+        auto x = std::make_shared<opset1::Parameter>(element::f32, PartialShape{seq_len, num_heads, ndims});
+        auto t_cos = std::make_shared<opset1::Parameter>(element::f32, PartialShape{1, seq_len, 1, half_ndims});
+        auto t_sin = std::make_shared<opset1::Parameter>(element::f32, PartialShape{1, seq_len, 1, half_ndims});
+
+        auto x_low = makeOP<opset8::Slice>({x, {0}, {half_ndims}, {1}, {-1}});
+        auto x_high = makeOP<opset8::Slice>({x, {half_ndims}, {ndims}, {1}, {-1}});
+
+        auto mul_low_cos = makeOP<opset1::Multiply>({x_low, t_cos}, {{"auto_broadcast", "numpy"}});
+        auto mul_low_sin = makeOP<opset1::Multiply>({x_low, t_sin}, {{"auto_broadcast", "numpy"}});
+        auto mul_high_cos = makeOP<opset1::Multiply>({x_high, t_cos}, {{"auto_broadcast", "numpy"}});
+        auto mul_high_sin = makeOP<opset1::Multiply>({x_high, t_sin}, {{"auto_broadcast", "numpy"}});
+
+        // y_low = mul_low_cos + (mul_high_sin * -1)   (canonicalized Subtract)
+        auto neg_high_sin = makeOP<opset1::Multiply>({mul_high_sin, -1.0f}, {{"auto_broadcast", "numpy"}});
+        auto sub_low = makeOP<opset1::Add>({mul_low_cos, neg_high_sin}, {{"auto_broadcast", "numpy"}});
+        auto add_high = makeOP<opset1::Add>({mul_high_cos, mul_low_sin}, {{"auto_broadcast", "numpy"}});
+
+        auto unsq_low = makeOP<opset1::Unsqueeze>({sub_low, {-2}});
+        auto unsq_high = makeOP<opset1::Unsqueeze>({add_high, {-2}});
+
+        auto stack = makeOP<opset1::Concat>({unsq_low, unsq_high}, {{"axis", -2}});
+        auto reshape = makeOP<opset1::Reshape>({stack, makeConst(element::i64, Shape{4}, {1, -1, num_heads, ndims})},
+                                               {{"special_zero", false}});
+
+        model = std::make_shared<Model>(OutputVector{reshape}, ParameterVector{x, t_cos, t_sin});
+    }
+    manager.register_pass<pass::RoPEFusion>();
+    {
+        auto x = std::make_shared<opset1::Parameter>(element::f32, PartialShape{seq_len, num_heads, ndims});
+        auto t_cos = std::make_shared<opset1::Parameter>(element::f32, PartialShape{1, seq_len, 1, half_ndims});
+        auto t_sin = std::make_shared<opset1::Parameter>(element::f32, PartialShape{1, seq_len, 1, half_ndims});
+
+        auto x4 = makeOP<opset1::Reshape>({x, makeConst(element::i64, Shape{4}, {0, 0, 1, -1})},
+                                          {{"special_zero", true}});
+
+        auto rope = makeOP<op::internal::RoPE>({x4, t_cos, t_sin},
+                                               {{"config.slice_start", 0},
+                                                {"config.slice_stop", 0},
+                                                {"config.input_trans0213", false},
+                                                {"config.output_trans0213", false},
+                                                {"config.is_interleaved", true},
+                                                {"config.rotary_ndims", ndims},
+                                                {"config.is_chatglm", false},
+                                                {"config.support_2d_rope", false},
+                                                {"config.support_3d_rope", false},
+                                                {"config.is_qwen", false},
+                                                {"config.use_rope_cache", false},
+                                                {"config.is_ltx_video", false},
+                                                {"config.head_cnt", 0},
+                                                {"config.head_size", 0},
+                                                {"config.gather_position_arg_id", 0}});
+
+        auto reshape = makeOP<opset1::Reshape>({rope, makeConst(element::i64, Shape{4}, {1, -1, num_heads, ndims})},
+                                               {{"special_zero", false}});
+
+        model_ref = std::make_shared<Model>(OutputVector{reshape}, ParameterVector{x, t_cos, t_sin});
     }
 }
 
