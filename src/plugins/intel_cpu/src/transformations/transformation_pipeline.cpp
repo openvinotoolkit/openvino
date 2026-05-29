@@ -285,77 +285,6 @@ namespace ov::intel_cpu {
 
 using const_node_ptr = const std::shared_ptr<const ov::Node>;
 
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-namespace {
-
-bool is_acl_supported_int8_avg_pool_fq_chain(const std::shared_ptr<const ov::Node>& avg_pool,
-                                             const std::shared_ptr<ov::op::v0::FakeQuantize>& fq,
-                                             const std::vector<ov::element::Type>& defaultPrecisions) {
-    if (!avg_pool || !fq) {
-        return false;
-    }
-
-    const auto avg_pool_base = ov::as_type_ptr<const ov::op::util::AvgPoolBase>(avg_pool);
-    if (!avg_pool_base) {
-        return false;
-    }
-
-    const auto& input_pshape = avg_pool->get_input_partial_shape(0);
-    if (input_pshape.is_dynamic() || input_pshape.rank().get_length() == 5) {
-        return false;
-    }
-
-    const auto dequantization = ov::pass::low_precision::NetworkHelper::getDequantization(avg_pool, defaultPrecisions);
-    if (dequantization.empty() || !any_of(dequantization.data.get_element_type(), ov::element::Type_t::u8, ov::element::Type_t::i8)) {
-        return false;
-    }
-
-    const auto resolved_precision = ov::pass::low_precision::ResolvePrecisionAttribute::getDataPrecision(fq);
-    if (resolved_precision.empty()) {
-        return false;
-    }
-
-    // ACL rejects NCHW AvgPool with CEIL rounding in the executor wrapper.
-    if (avg_pool_base->get_rounding_type() == op::RoundingType::CEIL) {
-        return false;
-    }
-
-    // CpuPool2dKernel::validate_arguments() requires matching src/dst data types.
-    return dequantization.data.get_element_type() == resolved_precision.precision;
-}
-
-bool should_skip_avg_pool_transformation_on_arm(const const_node_ptr& node,
-                                                [[maybe_unused]] const std::vector<ov::element::Type>& defaultPrecisions) {
-    const auto avg_pool = ov::as_type_ptr<const ov::op::util::AvgPoolBase>(node);
-    if (!avg_pool) {
-        return false;
-    }
-
-#if defined(OV_CPU_WITH_ACL)
-    for (const auto& consumer : avg_pool->output(0).get_target_inputs()) {
-        const auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(consumer.get_node()->shared_from_this());
-        if (!fq) {
-            continue;
-        }
-
-        const auto resolved_precision = ov::pass::low_precision::ResolvePrecisionAttribute::getDataPrecision(fq);
-        if (resolved_precision.empty() ||
-            !any_of(resolved_precision.precision, ov::element::Type_t::u8, ov::element::Type_t::i8)) {
-            continue;
-        }
-
-        if (!is_acl_supported_int8_avg_pool_fq_chain(avg_pool, fq, defaultPrecisions)) {
-            return true;
-        }
-    }
-#endif
-
-    return false;
-}
-
-}  // namespace
-#endif
-
 bool Transformations::is_decompression_multiply(const_node_ptr& node) {
     auto is_1x1_conv = [](const ov::Node* node) {
         const auto* conv = ov::as_type<const ov::op::v1::Convolution>(node);
@@ -1056,7 +985,7 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
     CPU_SET_CALLBACK_ARM(
         lptManager,
         [&defaultPrecisions](const_node_ptr& node) -> bool {
-            return should_skip_avg_pool_transformation_on_arm(node, defaultPrecisions);
+            return is_acl_supported_int8_avg_pool(node, defaultPrecisions);
         },
         AvgPoolTransformation);
     CPU_SET_CALLBACK_ARM(

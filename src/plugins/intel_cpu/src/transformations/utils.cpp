@@ -21,10 +21,13 @@
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/util/attr_types.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "low_precision/network_helper.hpp"
+#include "low_precision/resolve_precision_attribute.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils/general_utils.h"
 
@@ -94,6 +97,50 @@ bool match_acl_int8_conv_fq_chain(const std::shared_ptr<const ov::Node>& node) {
     return ov::is_type<const ov::op::v0::FakeQuantize>(node) &&
            any_of(node->get_output_element_type(0), ov::element::Type_t::u8, ov::element::Type_t::i8) &&
            (match_conv_fq_same_types(node) || match_fq_mul_conv_bias_same_types(node, FQMulAddPattern::ConvAddMul));
+}
+
+bool is_acl_supported_int8_avg_pool(const std::shared_ptr<const ov::Node>& node,
+                                                const std::vector<ov::element::Type>& defaultPrecisions) {
+    const auto avg_pool = ov::as_type_ptr<const ov::op::util::AvgPoolBase>(node);
+    if (!avg_pool) {
+        return false;
+    }
+
+    const auto& input_pshape = avg_pool->get_input_partial_shape(0);
+    if (input_pshape.is_dynamic() || input_pshape.rank().get_length() == 5) {
+        return false;
+    }
+
+    const auto dequantization = ov::pass::low_precision::NetworkHelper::getDequantization(avg_pool, defaultPrecisions);
+    if (dequantization.empty() ||
+        !any_of(dequantization.data.get_element_type(), ov::element::Type_t::u8, ov::element::Type_t::i8)) {
+        return false;
+    }
+
+    // ACL rejects NCHW AvgPool with CEIL rounding in the executor wrapper.
+    if (avg_pool->get_rounding_type() == op::RoundingType::CEIL) {
+        return false;
+    }
+
+    for (const auto& consumer : avg_pool->output(0).get_target_inputs()) {
+        const auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(consumer.get_node()->shared_from_this());
+        if (!fq) {
+            continue;
+        }
+
+        const auto resolved_precision = ov::pass::low_precision::ResolvePrecisionAttribute::getDataPrecision(fq);
+        if (resolved_precision.empty() ||
+            !any_of(resolved_precision.precision, ov::element::Type_t::u8, ov::element::Type_t::i8)) {
+            continue;
+        }
+
+        // CpuPool2dKernel::validate_arguments() requires matching src/dst data types.
+        if (dequantization.data.get_element_type() != resolved_precision.precision) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 bool match_conv_stride_oc_ic_limit(const std::shared_ptr<const ov::Node>& node,
