@@ -16,6 +16,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -101,14 +102,14 @@ ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
 
         // The matched `transpose_const` was authored for the weights tensor and may have a
         // different rank than `scale` / `zero_point` (which can be per-channel rank-1
-        // constants while the weights are rank-2). Build a perm that matches each input's
-        // rank; rank-1 per-channel constants are reshaped to rank-2 [N, 1] so that
-        // downstream consumers (e.g. DnnlPostOpsComposer in the CPU plugin) which require
-        // rank-2/3 decompression params can prepack them. Inputs with a single element
-        // are left as-is.
+        // constants while the weights are rank-2). Align each input's rank, then build a
+        // perm that matches it; rank-1 per-channel constants are unsqueezed to rank-2
+        // [N, 1] so that downstream consumers (e.g. DnnlPostOpsComposer in the CPU plugin)
+        // which require rank-2/3 decompression params can prepack them. Inputs with a
+        // single element are left as-is.
         // All inputs reaching this lambda are Constants (optionally wrapped in a Convert
         // injected by `convert_u4const_to_u8`), so their shapes are always static.
-        auto apply_transpose = [&](const ov::Output<ov::Node>& in) -> std::shared_ptr<ov::Node> {
+        auto align_and_transpose = [&](const ov::Output<ov::Node>& in) -> std::shared_ptr<ov::Node> {
             const auto& in_shape = in.get_shape();
             const auto in_rank = in_shape.size();
             if (in_rank == 0 || ov::shape_size(in_shape) == 1) {
@@ -116,24 +117,22 @@ ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
             }
             std::shared_ptr<ov::Node> node = in.get_node_shared_ptr();
             if (in_rank == 1) {
-                // Reshape rank-1 per-channel constant to rank-2 [N, 1] without inserting
-                // a runtime Reshape: only Constant inputs reach this point, optionally
-                // wrapped in a Convert injected by convert_u4const_to_u8 for u4 zero-point.
-                std::shared_ptr<ov::Node> reshaped;
-                if (auto c = ov::as_type_ptr<v0::Constant>(node)) {
-                    reshaped = std::make_shared<v0::Constant>(*c, ov::Shape{c->get_shape()[0], 1});
-                } else if (auto cvt = ov::as_type_ptr<v0::Convert>(node)) {
-                    if (auto c = ov::as_type_ptr<v0::Constant>(cvt->get_input_node_shared_ptr(0))) {
-                        auto reshaped_const = std::make_shared<v0::Constant>(*c, ov::Shape{c->get_shape()[0], 1});
-                        result_nodes.push_back(reshaped_const);
-                        reshaped = std::make_shared<v0::Convert>(reshaped_const, cvt->get_destination_type());
-                    }
+                // Promote rank-1 per-channel constant to rank-2 [N, 1] via Unsqueeze.
+                // Peel a wrapping Convert (injected by convert_u4const_to_u8 for u4 ZP)
+                // so make_try_fold can collapse Unsqueeze on the underlying Constant,
+                // then re-apply the Convert on the folded result.
+                auto wrapping_convert = ov::as_type_ptr<v0::Convert>(node);
+                auto inner = wrapping_convert ? wrapping_convert->get_input_node_shared_ptr(0) : node;
+                auto axis = v0::Constant::create(ov::element::i32, ov::Shape{}, {1});
+                auto unsqueezed = ov::op::util::make_try_fold<v0::Unsqueeze>(inner, axis);
+                result_nodes.push_back(unsqueezed);
+                if (wrapping_convert) {
+                    auto rewrapped =
+                        std::make_shared<v0::Convert>(unsqueezed, wrapping_convert->get_destination_type());
+                    result_nodes.push_back(rewrapped);
+                    return rewrapped;
                 }
-                if (!reshaped) {
-                    return node;
-                }
-                result_nodes.push_back(reshaped);
-                return reshaped;
+                return unsqueezed;
             }
             std::shared_ptr<ov::Node> perm = transpose_const;
             if (ov::shape_size(perm->get_shape()) != in_rank) {
@@ -148,10 +147,10 @@ ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
             return transposed;
         };
 
-        fc_input_b = apply_transpose(fc_input_b->output(0));
-        fc_input_scale = apply_transpose(scale->output(0));
+        fc_input_b = align_and_transpose(fc_input_b->output(0));
+        fc_input_scale = align_and_transpose(scale->output(0));
         if (with_zero_point && ov::shape_size(optional_zero_point->output(0).get_shape()) > 1) {
-            fc_input_zp = apply_transpose(optional_zero_point->output(0));
+            fc_input_zp = align_and_transpose(optional_zero_point->output(0));
         }
     }
 
