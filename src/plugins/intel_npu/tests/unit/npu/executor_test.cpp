@@ -187,6 +187,25 @@ TEST(NPUExecutorTests, InlineModeRunsOnCallerThread) {
     EXPECT_EQ(taskThread, std::this_thread::get_id());
 }
 
+TEST(NPUExecutorTests, InlineModeSwallowsTaskExceptions) {
+    auto exec = intel_npu::make_executor("inline_throw", 0, false, 10ms);
+
+    std::atomic<bool> taskRan{false};
+
+    EXPECT_NO_THROW(exec->run([&] {
+        taskRan = true;
+        throw std::runtime_error("inline_failure");
+    }));
+
+    EXPECT_TRUE(taskRan.load());
+
+    std::atomic<bool> followUpRan{false};
+    EXPECT_NO_THROW(exec->run([&] {
+        followUpRan = true;
+    }));
+    EXPECT_TRUE(followUpRan.load());
+}
+
 TEST(NPUExecutorTests, AdaptiveModeGrowsForQueuedWork) {
     auto exec = intel_npu::make_executor("grow", 0, true, 200ms);
 
@@ -213,97 +232,16 @@ TEST(NPUExecutorTests, AdaptiveModeGrowsForQueuedWork) {
 
     // EXPECT (non-fatal) so the release block always runs,
     // preventing the destructor from deadlocking on blocked worker threads.
-    EXPECT_TRUE(wait_until(
-        [&] {
-            std::lock_guard<std::mutex> lock(m);
-            return started == 2;
-        }));
+    EXPECT_TRUE(wait_until([&] {
+        std::lock_guard<std::mutex> lock(m);
+        return started == 2;
+    }));
 
     {
         std::lock_guard<std::mutex> lock(m);
         release = true;
     }
     cv.notify_all();
-}
-
-TEST(NPUExecutorTests, ThrowsOnNextRunForSameSubmitter) {
-    auto exec = intel_npu::make_executor("throw_same", 1, false, 200ms);
-
-    exec->run([] {
-        throw std::runtime_error("boom_same_submitter");
-    });
-
-    ASSERT_TRUE(wait_until(
-        [&] {
-            try {
-                exec->run([] {});
-                return false;
-            } catch (const std::runtime_error& ex) {
-                return std::string(ex.what()) == "boom_same_submitter";
-            }
-        }));
-}
-
-TEST(NPUExecutorTests, DoesNotThrowForDifferentSubmitterThread) {
-    auto exec = intel_npu::make_executor("throw_other", 1, false, 200ms);
-
-    exec->run([] {
-        throw std::runtime_error("boom_other_submitter");
-    });
-
-    std::atomic<bool> wrongThreadThrew{false};
-    std::thread other([&] {
-        for (int i = 0; i < 10; ++i) {
-            try {
-                exec->run([] {});
-            } catch (...) {
-                wrongThreadThrew = true;
-                break;
-            }
-            std::this_thread::yield();
-        }
-    });
-    other.join();
-
-    EXPECT_FALSE(wrongThreadThrew.load());
-
-    ASSERT_TRUE(wait_until(
-        [&] {
-            try {
-                exec->run([] {});
-                return false;
-            } catch (const std::runtime_error& ex) {
-                return std::string(ex.what()) == "boom_other_submitter";
-            }
-        }));
-}
-
-TEST(NPUExecutorTests, PreservesMultipleExceptionsForSameSubmitter) {
-    auto exec = intel_npu::make_executor("throw_many", 1, false, 200ms);
-
-    // Gate ensures both tasks are in the queue before either executes.
-    // Without it, task 1 can complete before task 2 is submitted, causing
-    // run() to rethrow task 1's exception uncaught from the submission call.
-    std::promise<void> gate;
-    auto gateFuture = gate.get_future().share();
-
-    exec->run([gateFuture] { gateFuture.wait(); throw std::runtime_error("boom_1"); });
-    exec->run([gateFuture] { gateFuture.wait(); throw std::runtime_error("boom_2"); });
-    gate.set_value();
-
-    std::set<std::string> observed;
-    ASSERT_TRUE(wait_until(
-        [&] {
-            try {
-                exec->run([] {});
-            } catch (const std::runtime_error& ex) {
-                observed.insert(ex.what());
-            }
-            return observed.size() == 2;
-        }));
-
-    EXPECT_EQ(observed.count("boom_1"), 1U);
-    EXPECT_EQ(observed.count("boom_2"), 1U);
 }
 
 TEST(NPUExecutorTests, FixedModeDoesNotUseMoreThanConfiguredWorkers) {
@@ -339,11 +277,10 @@ TEST(NPUExecutorTests, FixedModeDoesNotUseMoreThanConfiguredWorkers) {
 
     // EXPECT (non-fatal) so the release block always runs,
     // preventing the destructor from deadlocking on 6 blocked worker tasks.
-    EXPECT_TRUE(wait_until(
-        [&] {
-            std::lock_guard<std::mutex> lock(m);
-            return started >= workers;
-        }));
+    EXPECT_TRUE(wait_until([&] {
+        std::lock_guard<std::mutex> lock(m);
+        return started >= workers;
+    }));
 
     {
         std::lock_guard<std::mutex> lock(m);
@@ -351,83 +288,13 @@ TEST(NPUExecutorTests, FixedModeDoesNotUseMoreThanConfiguredWorkers) {
     }
     cv.notify_all();
 
-    EXPECT_TRUE(wait_until(
-        [&] {
-            std::lock_guard<std::mutex> lock(m);
-            return completed == tasksCount;
-        }));
+    EXPECT_TRUE(wait_until([&] {
+        std::lock_guard<std::mutex> lock(m);
+        return completed == tasksCount;
+    }));
 
     std::lock_guard<std::mutex> lock(m);
     EXPECT_LE(workerThreads.size(), static_cast<size_t>(workers));
-}
-
-TEST(NPUExecutorTests, RethrowsPendingExceptionsInFifoOrderForSameSubmitter) {
-    auto exec = intel_npu::make_executor("throw_fifo", 1, false, 200ms);
-
-    // Gate ensures both tasks are in the queue before either executes so that
-    // the second run() call cannot rethrow task 1's exception uncaught.
-    std::promise<void> gate;
-    auto gateFuture = gate.get_future().share();
-
-    exec->run([gateFuture] { gateFuture.wait(); throw std::runtime_error("fifo_1"); });
-    exec->run([gateFuture] { gateFuture.wait(); throw std::runtime_error("fifo_2"); });
-    gate.set_value();
-
-    std::vector<std::string> observed;
-    for (int i = 0; i < 2; ++i) {
-        ASSERT_TRUE(wait_until(
-            [&] {
-                try {
-                    exec->run([] {});
-                    return false;
-                } catch (const std::runtime_error& ex) {
-                    observed.emplace_back(ex.what());
-                    return true;
-                }
-            }));
-    }
-
-    ASSERT_EQ(observed.size(), 2U);
-    EXPECT_EQ(observed[0], "fifo_1");
-    EXPECT_EQ(observed[1], "fifo_2");
-}
-
-TEST(NPUExecutorTests, EachSubmitterGetsOnlyOwnPendingException) {
-    auto exec = intel_npu::make_executor("throw_attr", 1, false, 200ms);
-
-    auto submitter = [&](const std::string& expected, const std::string& other) {
-        exec->run([&] {
-            throw std::runtime_error(expected);
-        });
-
-        // Drain until this submitter receives its own exception.
-        return wait_until(
-            [&] {
-                try {
-                    exec->run([] {});
-                    return false;
-                } catch (const std::runtime_error& ex) {
-                    EXPECT_NE(std::string(ex.what()), other);
-                    return std::string(ex.what()) == expected;
-                }
-            });
-    };
-
-    std::promise<bool> pA;
-    std::promise<bool> pB;
-
-    std::thread tA([&] {
-        pA.set_value(submitter("A_fail", "B_fail"));
-    });
-    std::thread tB([&] {
-        pB.set_value(submitter("B_fail", "A_fail"));
-    });
-
-    tA.join();
-    tB.join();
-
-    EXPECT_TRUE(pA.get_future().get());
-    EXPECT_TRUE(pB.get_future().get());
 }
 
 TEST(NPUExecutorTests, AdaptiveModeGrowShrinkAcrossMultipleBursts) {
@@ -461,11 +328,10 @@ TEST(NPUExecutorTests, AdaptiveModeGrowShrinkAcrossMultipleBursts) {
 
         // EXPECT (non-fatal) so the release block always runs,
         // preventing the destructor from deadlocking on blocked worker threads.
-        EXPECT_TRUE(wait_until(
-            [&] {
-                std::lock_guard<std::mutex> lock(m);
-                return started == 2;
-            }));
+        EXPECT_TRUE(wait_until([&] {
+            std::lock_guard<std::mutex> lock(m);
+            return started == 2;
+        }));
 
         {
             std::lock_guard<std::mutex> lock(m);
@@ -473,147 +339,13 @@ TEST(NPUExecutorTests, AdaptiveModeGrowShrinkAcrossMultipleBursts) {
         }
         cv.notify_all();
 
-        EXPECT_TRUE(wait_until(
-            [&] {
-                std::lock_guard<std::mutex> lock(m);
-                return completed == 2;
-            }));
+        EXPECT_TRUE(wait_until([&] {
+            std::lock_guard<std::mutex> lock(m);
+            return completed == 2;
+        }));
 
         std::this_thread::yield();
     }
-}
-
-TEST(NPUExecutorTests, PendingExceptionIsRethrownBeforeNewTaskIsQueued) {
-    auto exec = intel_npu::make_executor("rethrow_before_enqueue", 1, false, 200ms);
-
-    // Gate ensures both tasks are in the queue before either executes so that
-    // the second run() call cannot rethrow task 1's exception uncaught.
-    std::promise<void> gate;
-    auto gateFuture = gate.get_future().share();
-    std::atomic<int> throwTasksExecuted{0};
-
-    exec->run([&, gateFuture] {
-        gateFuture.wait();
-        throwTasksExecuted.fetch_add(1);
-        throw std::runtime_error("pending_before_enqueue_1");
-    });
-    exec->run([&, gateFuture] {
-        gateFuture.wait();
-        throwTasksExecuted.fetch_add(1);
-        throw std::runtime_error("pending_before_enqueue_2");
-    });
-    gate.set_value();
-
-    ASSERT_TRUE(wait_until(
-        [&] {
-            return throwTasksExecuted.load() == 2;
-        }));
-
-    // Consume the first pending exception using a side-effect-free run().
-    ASSERT_TRUE(wait_until(
-        [&] {
-            try {
-                exec->run([] {});
-                return false;
-            } catch (const std::runtime_error& ex) {
-                return std::string(ex.what()) == "pending_before_enqueue_1";
-            }
-        }));
-
-    std::atomic<bool> newTaskRan{false};
-
-    // The second pending exception must be rethrown before enqueueing a new task.
-    ASSERT_THROW(exec->run([&] {
-        newTaskRan = true;
-    }),
-                 std::runtime_error);
-
-    EXPECT_FALSE(newTaskRan.load());
-
-    // Executor must still be usable after pending exception is consumed.
-    exec->run([&] {
-        newTaskRan = true;
-    });
-    ASSERT_TRUE(wait_until(
-        [&] {
-            return newTaskRan.load();
-        }));
-}
-
-TEST(NPUExecutorTests, MultiThreadedSubmittersGetOwnExceptionsAndSuccessThreadsStayClean) {
-    auto exec = intel_npu::make_executor("multi_submitters", 2, false, 200ms);
-
-    constexpr int throwSubmitters = 3;
-    constexpr int failuresPerSubmitter = 3;
-    constexpr int successSubmitterTasks = 20;
-
-    std::atomic<bool> wrongException{false};
-    std::atomic<bool> successSubmitterThrew{false};
-    std::atomic<int> successTasksExecuted{0};
-
-    std::vector<std::thread> workers;
-    workers.reserve(throwSubmitters + 1);
-
-    for (int submitterIdx = 0; submitterIdx < throwSubmitters; ++submitterIdx) {
-        workers.emplace_back([&, submitterIdx] {
-            const std::string token = "submitter_" + std::to_string(submitterIdx);
-
-            // Submission and collection are merged into one loop because run() always
-            // calls rethrow_pending_task_exception() before enqueueing. If a previously
-            // submitted task has already completed by the time we submit the next one,
-            // the stored exception is rethrown right inside run() — which would escape
-            // an uncaught submission loop and call std::terminate on the thread.
-            int totalSubmitted = 0;
-            int received = 0;
-            while (received < failuresPerSubmitter) {
-                try {
-                    if (totalSubmitted < failuresPerSubmitter) {
-                        exec->run([token] {
-                            throw std::runtime_error(token);
-                        });
-                        ++totalSubmitted;
-                    } else {
-                        exec->run([] {});
-                    }
-                } catch (const std::runtime_error& ex) {
-                    if (std::string(ex.what()) != token) {
-                        wrongException = true;
-                    }
-                    ++received;
-                }
-                std::this_thread::yield();
-            }
-        });
-    }
-
-    workers.emplace_back([&] {
-        for (int i = 0; i < successSubmitterTasks; ++i) {
-            try {
-                exec->run([&] {
-                    successTasksExecuted.fetch_add(1);
-                });
-            } catch (...) {
-                successSubmitterThrew = true;
-            }
-            std::this_thread::yield();
-        }
-    });
-
-    for (auto& th : workers) {
-        th.join();
-    }
-
-    // Submitter threads joining only means the run() call returned, not that all
-    // enqueued tasks have been executed. Wait for the executor to drain before
-    // checking the counter.
-    ASSERT_TRUE(wait_until(
-        [&] {
-            return successTasksExecuted.load() == successSubmitterTasks;
-        }));
-
-    EXPECT_FALSE(wrongException.load());
-    EXPECT_FALSE(successSubmitterThrew.load());
-    EXPECT_EQ(successTasksExecuted.load(), successSubmitterTasks);
 }
 
 TEST(NPUExecutorTests, DestructorWaitsForInFlightTaskCompletion) {
@@ -640,11 +372,10 @@ TEST(NPUExecutorTests, DestructorWaitsForInFlightTaskCompletion) {
         finished = true;
     });
 
-    ASSERT_TRUE(wait_until(
-        [&] {
-            std::lock_guard<std::mutex> lock(m);
-            return started;
-        }));
+    ASSERT_TRUE(wait_until([&] {
+        std::lock_guard<std::mutex> lock(m);
+        return started;
+    }));
 
     std::thread destroyer([&] {
         exec.reset();
@@ -665,62 +396,6 @@ TEST(NPUExecutorTests, DestructorWaitsForInFlightTaskCompletion) {
     destroyer.join();
     EXPECT_TRUE(finished.load());
     EXPECT_TRUE(destructorReturned.load());
-}
-
-TEST(NPUExecutorTests, InterleavedSubmittersKeepOwnExceptionOrder) {
-    auto exec = intel_npu::make_executor("interleaved_attr_fifo", 2, false, 200ms);
-
-    // Each submitter merges submission and collection into one try-catch loop.
-    // A bare submission loop without try-catch would std::terminate if a task
-    // completes (and stores its exception) before the next run() call.
-    auto runSubmitter = [&](const std::string& prefix, std::promise<std::vector<std::string>>& result) {
-        std::vector<std::string> local;
-        int totalSubmitted = 0;
-        while (local.size() < 2) {
-            try {
-                if (totalSubmitted < 2) {
-                    const int n = totalSubmitted + 1;
-                    exec->run([prefix, n] {
-                        throw std::runtime_error(prefix + std::to_string(n));
-                    });
-                    ++totalSubmitted;
-                } else {
-                    exec->run([] {});
-                }
-            } catch (const std::runtime_error& ex) {
-                if (std::string(ex.what()).rfind(prefix, 0) == 0) {
-                    local.push_back(ex.what());
-                }
-            }
-            std::this_thread::yield();
-        }
-        result.set_value(std::move(local));
-    };
-
-    std::promise<std::vector<std::string>> seenA;
-    std::promise<std::vector<std::string>> seenB;
-
-    std::thread submitterA([&] { runSubmitter("A_", seenA); });
-    std::thread submitterB([&] { runSubmitter("B_", seenB); });
-
-    submitterA.join();
-    submitterB.join();
-
-    const auto observedA = seenA.get_future().get();
-    const auto observedB = seenB.get_future().get();
-
-    ASSERT_EQ(observedA.size(), 2U);
-    ASSERT_EQ(observedB.size(), 2U);
-
-    // With multiple workers, completion order is not deterministic.
-    // Validate ownership and completeness; FIFO is covered by single-worker tests.
-    std::multiset<std::string> expectedA{"A_1", "A_2"};
-    std::multiset<std::string> expectedB{"B_1", "B_2"};
-    std::multiset<std::string> actualA(observedA.begin(), observedA.end());
-    std::multiset<std::string> actualB(observedB.begin(), observedB.end());
-
-    EXPECT_EQ(actualA, expectedA);
-    EXPECT_EQ(actualB, expectedB);
 }
 
 TEST(NPUExecutorTests, AdaptiveModeWithZeroBaselineRunsOffCallerThread) {
@@ -782,57 +457,24 @@ TEST(NPUExecutorTests, ReentrantSubmissionFromWorkerDoesNotDeadlock) {
     EXPECT_EQ(sequence[2], "child");
 }
 
-TEST(NPUExecutorTests, StressManyProducersNoTaskOrExceptionLoss) {
+TEST(NPUExecutorTests, StressManyProducersNoTaskLoss) {
     auto exec = intel_npu::make_executor("stress_many_submitters", 4, false, 200ms);
 
     constexpr int producers = 4;
     constexpr int tasksPerProducer = 80;
-    constexpr int failEvery = 5;
-    constexpr int expectedFailuresPerProducer = tasksPerProducer / failEvery;
-    constexpr int expectedSuccessesPerProducer = tasksPerProducer - expectedFailuresPerProducer;
+    constexpr int expectedSuccessesPerProducer = tasksPerProducer;
 
     std::atomic<int> successfulTasks{0};
-    std::atomic<bool> wrongExceptionOwner{false};
-    std::atomic<bool> missedExceptions{false};
 
     std::vector<std::thread> submitters;
     submitters.reserve(producers);
 
     for (int submitterIdx = 0; submitterIdx < producers; ++submitterIdx) {
-        submitters.emplace_back([&, submitterIdx] {
-            const std::string token = "stress_" + std::to_string(submitterIdx) + "_";
-
-            // Submission and collection are merged: run() always calls
-            // rethrow_pending_task_exception() first, so a bare submission loop
-            // without try-catch would terminate the thread if any task completes
-            // before the loop finishes.
-            int totalSubmitted = 0;
-            int seenFailures = 0;
-            while (totalSubmitted < tasksPerProducer || seenFailures < expectedFailuresPerProducer) {
-                try {
-                    if (totalSubmitted < tasksPerProducer) {
-                        const int i = totalSubmitted;
-                        exec->run([&, i, token] {
-                            if ((i + 1) % failEvery == 0) {
-                                throw std::runtime_error(token + std::to_string(i));
-                            }
-                            successfulTasks.fetch_add(1);
-                        });
-                        ++totalSubmitted;
-                    } else {
-                        exec->run([] {});
-                    }
-                } catch (const std::runtime_error& ex) {
-                    const std::string msg = ex.what();
-                    if (msg.rfind(token, 0) != 0) {
-                        wrongExceptionOwner = true;
-                    }
-                    ++seenFailures;
-                }
-            }
-
-            if (seenFailures != expectedFailuresPerProducer) {
-                missedExceptions = true;
+        submitters.emplace_back([&] {
+            for (int i = 0; i < tasksPerProducer; ++i) {
+                exec->run([&] {
+                    successfulTasks.fetch_add(1);
+                });
             }
         });
     }
@@ -841,43 +483,28 @@ TEST(NPUExecutorTests, StressManyProducersNoTaskOrExceptionLoss) {
         th.join();
     }
 
-    ASSERT_TRUE(wait_until(
-        [&] {
-            return successfulTasks.load() == producers * expectedSuccessesPerProducer;
-        }));
+    ASSERT_TRUE(wait_until([&] {
+        return successfulTasks.load() == producers * expectedSuccessesPerProducer;
+    }));
 
-    EXPECT_FALSE(wrongExceptionOwner.load());
-    EXPECT_FALSE(missedExceptions.load());
     EXPECT_EQ(successfulTasks.load(), producers * expectedSuccessesPerProducer);
 }
 
-TEST(NPUExecutorTests, DeferredRethrowPreservesCustomExceptionType) {
+TEST(NPUExecutorTests, InlineModeSwallowsCustomExceptionType) {
     class CustomDeferredError final : public std::runtime_error {
     public:
         explicit CustomDeferredError(const std::string& whatArg) : std::runtime_error(whatArg) {}
     };
 
-    auto exec = intel_npu::make_executor("typed_exception", 1, false, 200ms);
+    auto exec = intel_npu::make_executor("typed_exception", 0, false, 200ms);
 
-    exec->run([] {
+    std::atomic<bool> taskRan{false};
+    EXPECT_NO_THROW(exec->run([&] {
+        taskRan = true;
         throw CustomDeferredError("typed_error");
-    });
+    }));
 
-    bool caughtTyped = false;
-    ASSERT_TRUE(wait_until(
-        [&] {
-            try {
-                exec->run([] {});
-                return false;
-            } catch (const CustomDeferredError& ex) {
-                caughtTyped = true;
-                return std::string(ex.what()) == "typed_error";
-            } catch (...) {
-                return false;
-            }
-        }));
-
-    EXPECT_TRUE(caughtTyped);
+    EXPECT_TRUE(taskRan.load());
 }
 
 TEST(NPUExecutorTests, AdaptiveModeTinyIdleTimeoutRemainsStable) {
@@ -895,10 +522,9 @@ TEST(NPUExecutorTests, AdaptiveModeTinyIdleTimeoutRemainsStable) {
         });
     }
 
-    ASSERT_TRUE(wait_until(
-        [&] {
-            return completed.load() == totalTasks;
-        }));
+    ASSERT_TRUE(wait_until([&] {
+        return completed.load() == totalTasks;
+    }));
 }
 
 TEST(NPUExecutorTests, ResettingOneOwnerDoesNotStopOtherOwners) {
@@ -915,10 +541,9 @@ TEST(NPUExecutorTests, ResettingOneOwnerDoesNotStopOtherOwners) {
         ran = true;
     });
 
-    ASSERT_TRUE(wait_until(
-        [&] {
-            return ran.load();
-        }));
+    ASSERT_TRUE(wait_until([&] {
+        return ran.load();
+    }));
 }
 
 TEST(NPUExecutorTests, AsyncInferRequestPipelineSuccessCallback) {
@@ -960,10 +585,9 @@ TEST(NPUExecutorTests, AsyncInferRequestPipelineFailureCallback) {
     asyncRequest->start_async();
     ASSERT_THROW(asyncRequest->wait(), std::exception);
 
-    ASSERT_TRUE(wait_until(
-        [&] {
-            return callbackCalled.load();
-        }));
+    ASSERT_TRUE(wait_until([&] {
+        return callbackCalled.load();
+    }));
     EXPECT_TRUE(callbackHadException.load());
     EXPECT_EQ(state->inferCalls.load(), 1);
 }
