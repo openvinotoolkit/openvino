@@ -984,7 +984,7 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
     CPU_SET_CALLBACK_ARM(
         lptManager,
         [&defaultPrecisions](const_node_ptr& node) -> bool {
-            return is_acl_supported_int8_avg_pool(node, defaultPrecisions);
+            return is_acl_int8_avg_pool_lpt_skipped(node, defaultPrecisions);
         },
         AvgPoolTransformation);
     CPU_SET_CALLBACK_ARM(

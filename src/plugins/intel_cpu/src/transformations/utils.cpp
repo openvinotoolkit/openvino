@@ -78,6 +78,10 @@ bool match_acl_int8_pooling_fq_chain(const std::shared_ptr<const ov::Node>& node
     }
 
     const auto pool = node->get_input_node_shared_ptr(0);
+    if (pool->output(0).get_target_inputs().size() != 1) {
+        return false;
+    }
+
     const auto avg_pool = ov::as_type_ptr<const ov::op::util::AvgPoolBase>(pool);
     if (avg_pool && avg_pool->get_rounding_type() == ov::op::RoundingType::CEIL) {
         return false;
@@ -100,15 +104,16 @@ bool match_acl_int8_conv_fq_chain(const std::shared_ptr<const ov::Node>& node) {
            (match_conv_fq_same_types(node) || match_fq_mul_conv_bias_same_types(node, FQMulAddPattern::ConvAddMul));
 }
 
-bool is_acl_supported_int8_avg_pool(const std::shared_ptr<const ov::Node>& node,
-                                    const std::vector<ov::element::Type>& defaultPrecisions) {
+bool is_acl_int8_avg_pool_lpt_skipped(const std::shared_ptr<const ov::Node>& node,
+                                      const std::vector<ov::element::Type>& defaultPrecisions) {
     const auto avg_pool = ov::as_type_ptr<const ov::op::util::AvgPoolBase>(node);
     if (!avg_pool) {
         return false;
     }
 
     const auto& input_pshape = avg_pool->get_input_partial_shape(0);
-    if (input_pshape.is_dynamic() || input_pshape.rank().get_length() == 5) {
+    const auto input_rank = input_pshape.rank();
+    if (input_rank.is_dynamic() || input_rank.get_length() == 5) {
         return false;
     }
 
@@ -123,25 +128,20 @@ bool is_acl_supported_int8_avg_pool(const std::shared_ptr<const ov::Node>& node,
         return false;
     }
 
-    for (const auto& consumer : avg_pool->output(0).get_target_inputs()) {
-        const auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(consumer.get_node()->shared_from_this());
-        if (!fq) {
-            continue;
-        }
-
-        const auto resolved_precision = ov::pass::low_precision::ResolvePrecisionAttribute::getDataPrecision(fq);
-        if (resolved_precision.empty() ||
-            !any_of(resolved_precision.precision, ov::element::Type_t::u8, ov::element::Type_t::i8)) {
-            continue;
-        }
-
-        // CpuPool2dKernel::validate_arguments() requires matching src/dst data types.
-        if (dequantization.data.get_element_type() != resolved_precision.precision) {
-            return true;
-        }
+    const auto& consumers = avg_pool->output(0).get_target_inputs();
+    if (consumers.size() != 1) {
+        return false;
     }
 
-    return false;
+    const auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(consumers.begin()->get_node()->shared_from_this());
+    if (!fq) {
+        return false;
+    }
+
+    const auto resolved_precision = ov::pass::low_precision::ResolvePrecisionAttribute::getDataPrecision(fq);
+    return !resolved_precision.empty() &&
+           any_of(resolved_precision.precision, ov::element::Type_t::u8, ov::element::Type_t::i8) &&
+           dequantization.data.get_element_type() != resolved_precision.precision;
 }
 
 bool match_conv_stride_oc_ic_limit(const std::shared_ptr<const ov::Node>& node,
