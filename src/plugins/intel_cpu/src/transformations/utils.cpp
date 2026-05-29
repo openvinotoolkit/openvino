@@ -78,6 +78,11 @@ bool match_acl_int8_pooling_fq_chain(const std::shared_ptr<const ov::Node>& node
     }
 
     const auto pool = node->get_input_node_shared_ptr(0);
+    const auto avg_pool = ov::as_type_ptr<const ov::op::util::AvgPoolBase>(pool);
+    if (avg_pool && avg_pool->get_rounding_type() == ov::op::RoundingType::CEIL) {
+        return false;
+    }
+
     // returns true if Pooling-FQ chain will be fused into int8 pooling and handled by ACL executor
     return any_of(node->get_output_element_type(0), ov::element::Type_t::u8, ov::element::Type_t::i8) &&
            (ov::is_type_any_of<ov::op::v1::AvgPool, ov::op::v14::AvgPool, ov::op::v16::AvgPool>(pool) ||

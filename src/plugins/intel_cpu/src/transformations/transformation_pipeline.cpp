@@ -139,7 +139,6 @@
 #include "low_precision/low_precision.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
 #include "low_precision/network_helper.hpp"
-#include "low_precision/resolve_precision_attribute.hpp"
 #include "low_precision/rt_info/bias_attribute.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 
