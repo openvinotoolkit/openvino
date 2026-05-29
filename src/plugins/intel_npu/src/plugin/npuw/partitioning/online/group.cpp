@@ -386,6 +386,10 @@ void Group::noFold() {
     m_nofold = true;
 }
 
+void Group::unfreeze() {
+    m_frozen = false;
+}
+
 bool Group::isFrozen() const {
     return m_frozen;
 }
