@@ -10,7 +10,6 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
-#include <optional>
 #include <memory>
 #include <set>
 #include <vector>
@@ -252,10 +251,6 @@
 #    include "transformations/cpu_opset/common/op/sdpa.hpp"
 #    include "transformations/cpu_opset/common/pass/decompose_integer_divide.hpp"
 #    include "transformations/utils.hpp"
-#    if defined(OV_CPU_WITH_ACL)
-#        include "nodes/executors/acl/acl_pooling.hpp"
-#        include "nodes/executors/acl/acl_utils.hpp"
-#    endif
 #else
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "openvino/op/gru_sequence.hpp"
@@ -293,45 +288,20 @@ using const_node_ptr = const std::shared_ptr<const ov::Node>;
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 namespace {
 
-#if defined(OV_CPU_WITH_ACL)
-void copy_pool_attributes(std::vector<ptrdiff_t>& internal_attribute, const std::vector<size_t>& external_attribute) {
-    for (const auto attribute : external_attribute) {
-        internal_attribute.push_back(static_cast<ptrdiff_t>(attribute));
-    }
-}
-
-std::optional<PoolingAttrs> get_avg_pooling_attrs(const std::shared_ptr<const ov::Node>& node) {
-    const auto avg_pool = ov::as_type_ptr<const ov::op::util::AvgPoolBase>(node);
-    if (!avg_pool) {
-        return std::nullopt;
-    }
-
-    PoolingAttrs pooling_attrs;
-    pooling_attrs.algorithm = Algorithm::PoolingAvg;
-    pooling_attrs.exclude_pad = avg_pool->get_exclude_pad();
-    pooling_attrs.rounding = avg_pool->get_rounding_type();
-    copy_pool_attributes(pooling_attrs.kernel, avg_pool->get_kernel());
-    copy_pool_attributes(pooling_attrs.stride, avg_pool->get_strides());
-    if (const auto avg_pool_v16 = ov::as_type_ptr<const ov::op::v16::AvgPool>(node)) {
-        copy_pool_attributes(pooling_attrs.dilation, avg_pool_v16->get_dilations());
-    } else {
-        pooling_attrs.dilation.resize(pooling_attrs.kernel.size(), 1);
-    }
-    copy_pool_attributes(pooling_attrs.data_pad_begin, avg_pool->get_pads_begin());
-    copy_pool_attributes(pooling_attrs.data_pad_end, avg_pool->get_pads_end());
-    pooling_attrs.auto_pad = any_of(avg_pool->get_auto_pad(), ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER);
-    return pooling_attrs;
-}
-
 bool is_acl_supported_int8_avg_pool_fq_chain(const std::shared_ptr<const ov::Node>& avg_pool,
                                              const std::shared_ptr<ov::op::v0::FakeQuantize>& fq,
                                              const std::vector<ov::element::Type>& defaultPrecisions) {
-    if (!avg_pool || !fq || avg_pool->get_input_partial_shape(0).is_dynamic() || avg_pool->get_output_partial_shape(0).is_dynamic()) {
+    if (!avg_pool || !fq) {
         return false;
     }
 
-    const auto pooling_attrs = get_avg_pooling_attrs(avg_pool);
-    if (!pooling_attrs) {
+    const auto avg_pool_base = ov::as_type_ptr<const ov::op::util::AvgPoolBase>(avg_pool);
+    if (!avg_pool_base) {
+        return false;
+    }
+
+    const auto& input_pshape = avg_pool->get_input_partial_shape(0);
+    if (input_pshape.is_dynamic() || input_pshape.rank().get_length() == 5) {
         return false;
     }
 
@@ -341,39 +311,18 @@ bool is_acl_supported_int8_avg_pool_fq_chain(const std::shared_ptr<const ov::Nod
     }
 
     const auto resolved_precision = ov::pass::low_precision::ResolvePrecisionAttribute::getDataPrecision(fq);
-    if (resolved_precision.empty() || !any_of(resolved_precision.precision, ov::element::Type_t::u8, ov::element::Type_t::i8)) {
+    if (resolved_precision.empty()) {
         return false;
     }
 
-    const auto& input_shape = avg_pool->get_input_shape(0);
-    const auto& output_shape = avg_pool->get_output_shape(0);
-    if (input_shape.size() == 5U) {
+    // ACL rejects NCHW AvgPool with CEIL rounding in the executor wrapper.
+    if (avg_pool_base->get_rounding_type() == op::RoundingType::CEIL) {
         return false;
     }
 
-    constexpr auto data_layout = arm_compute::DataLayout::NCHW;
-    arm_compute::TensorInfo src_tensor_info(shapeCast(input_shape),
-                                            1,
-                                            convertToQuantizedType(precisionToAclDataType(dequantization.data.get_element_type())),
-                                            data_layout);
-    arm_compute::TensorInfo dst_tensor_info(shapeCast(output_shape),
-                                            1,
-                                            convertToQuantizedType(precisionToAclDataType(resolved_precision.precision)),
-                                            data_layout);
-
-    arm_compute::PoolingLayerInfo pool_info;
-    return AclPoolingExecutor::isSupported(src_tensor_info,
-                                           dst_tensor_info,
-                                           *pooling_attrs,
-                                           input_shape.size(),
-                                           1,
-                                           data_layout,
-                                           nullptr,
-                                           &pool_info,
-                                           nullptr,
-                                           false);
+    // CpuPool2dKernel::validate_arguments() requires matching src/dst data types.
+    return dequantization.data.get_element_type() == resolved_precision.precision;
 }
-#endif
 
 bool should_skip_avg_pool_transformation_on_arm(const const_node_ptr& node,
                                                 [[maybe_unused]] const std::vector<ov::element::Type>& defaultPrecisions) {
