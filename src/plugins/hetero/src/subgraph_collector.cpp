@@ -319,8 +319,8 @@ void ov::hetero::SubgraphCollector::split_cyclic_dependencies() {
     // internal non-boundary edge, promoting one such edge into _subgraph_inputs.  Each iteration
     // strictly grows _subgraph_inputs (or terminates), so the loop is bounded by the total number
     // of node-input edges.
-    for (size_t scc_step = 0; scc_step <= nodes_count; ++scc_step) {
-        OPENVINO_ASSERT(scc_step <= nodes_count, "Subgraph SCC fallback did not converge");
+    for (size_t scc_step = 0;; ++scc_step) {
+        OPENVINO_ASSERT(scc_step < nodes_count, "Subgraph SCC fallback did not converge");
         auto subgraph_ids = collect_subgraphs_ids();
 
         std::vector<SubgraphId> sg_id_by_index(nodes_count);
