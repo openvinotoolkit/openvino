@@ -5,11 +5,6 @@
 #include "utils.hpp"
 
 #include <cstddef>
-#include <cstdint>
-#include <memory>
-#include <optional>
-#include <string>
-#include <vector>
 
 #include "low_precision/network_helper.hpp"
 #include "low_precision/resolve_precision_attribute.hpp"
@@ -23,12 +18,12 @@
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/util/avg_pool_base.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/utils/utils.hpp"
 #include "utils/general_utils.h"
 
 using namespace ov::pass::pattern;
