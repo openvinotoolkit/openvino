@@ -49,6 +49,7 @@ What's New
   * OpenVINO™ GenAI extends its JavaScript API to include a Text-to-Speech pipeline and VLM samples for browser and Node.js developers.  
   * OpenVINO™ Model Server extends tool-calling support to Qwen 3.5 and 3.6 models to enable agentic AI use cases.  
   * OpenVINO™ Model Server adds streaming transcription support for speech-to-text, reducing latency for real-time voice applications.  
+  * Preview: Introducing OpenVINO Physical AI, a hardware-accelerated, production‑ready inferencing and deployment framework that standardizes how developers connect cameras, robots, models, and safety controls, reducing brittle custom harnesses and making complex systems easier to build, debug, and evolve on Intel platforms.
 
 OpenVINO™ Runtime
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -161,7 +162,8 @@ Limitations:
 Neural Network Compression Framework
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-* Added support for ``transpose_a`` attribute in Scale Estimation compression algorithm.  
+* Added support for ``transpose_a`` attribute in Scale Estimation compression algorithm.
+* Added INT4/INT8 weight compression support for Vision-Language-Action (VLA) with Pi0.5 model. 
 
 OpenVINO Tokenizers
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -188,6 +190,16 @@ OpenVINO™ GenAI
 * A new extensions API has been added, enabling direct loading of OpenVINO extensions within GenAI pipelines for custom operation support. 
 * The Node.js API has been updated to include support for Text2SpeechPipeline and Text2ImagePipeline, enabling speech and image generation. 
 * Whisper pipeline on NPU now supports word-level timestamps by default. 
+
+OpenVINO™ Physical AI
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+* Released OpenVINO™ Physical AI, a runtime package for deploying robot policies in real-world environments. This release packages the core deployment stack including camera capture, robot interfaces, exported-policy inference, and runtime loop integration. 
+* Introduced unified camera API supporting UVC, RealSense, Basler, and shared-camera transport workflows. 
+* Implemented robot interfaces for SO-101 and Trossen WidowX AI integrations. 
+* Enabled inference runtime for exported policies with built-in OpenVINO and ONNX backends. 
+* Provided runtime control loop with ``PolicyRuntime``, ``SyncExecution``, and ``AsyncExecution`` capabilities. 
+* Included hardware-specific extras for camera and robot integrations. 
 
 Other Changes and Known Issues
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
