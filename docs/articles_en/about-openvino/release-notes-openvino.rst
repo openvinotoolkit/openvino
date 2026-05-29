@@ -162,7 +162,8 @@ Limitations:
 Neural Network Compression Framework
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-* Added support for ``transpose_a`` attribute in Scale Estimation compression algorithm.  
+* Added support for ``transpose_a`` attribute in Scale Estimation compression algorithm.
+* Added INT4/INT8 weight compression support for Vision-Language-Action (VLA) with Pi0.5 model. 
 
 OpenVINO Tokenizers
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
