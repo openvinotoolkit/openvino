@@ -71,13 +71,6 @@ ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
         return std::make_shared<v0::Constant>(*constant, new_shape);
     };
 
-    auto convert_u4const_to_u8 = [convert_u4zp_to_u8](std::shared_ptr<ov::Node> node) -> std::shared_ptr<ov::Node> {
-        auto constant = ov::as_type_ptr<v0::Constant>(node);
-        if (constant->get_element_type() != ov::element::u4 || !convert_u4zp_to_u8)
-            return std::dynamic_pointer_cast<ov::Node>(constant);
-        return std::make_shared<v0::Convert>(node, ov::element::u8);
-    };
-
     const auto& scale =
         combine_groups(weights_block->get_anchor("mul_const", pattern_map).value().get_node_shared_ptr());
     std::shared_ptr<ov::Node> optional_zero_point = nullptr;
@@ -85,9 +78,8 @@ ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
     const bool with_zero_point = weights_block->get_anchor("sub_no_convert", pattern_map) ||
                                  weights_block->get_anchor("sub_with_convert", pattern_map);
     if (with_zero_point) {
-        // WA: Convert ZP to u8 for OneDNN case to avoid u4 reorder
-        optional_zero_point = convert_u4const_to_u8(
-            combine_groups(weights_block->get_anchor("sub_const", pattern_map).value().get_node_shared_ptr()));
+        optional_zero_point =
+            combine_groups(weights_block->get_anchor("sub_const", pattern_map).value().get_node_shared_ptr());
     }
 
     std::shared_ptr<ov::Node> fc_input_b =
@@ -106,9 +98,8 @@ ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
         // perm that matches it; rank-1 per-channel constants are unsqueezed to rank-2
         // [N, 1] so that downstream consumers (e.g. DnnlPostOpsComposer in the CPU plugin)
         // which require rank-2/3 decompression params can prepack them. Inputs with a
-        // single element are left as-is.
-        // All inputs reaching this lambda are Constants (optionally wrapped in a Convert
-        // injected by `convert_u4const_to_u8`), so their shapes are always static.
+        // single element are left as-is. All inputs reaching this lambda are bare
+        // Constants, so their shapes are always static.
         auto align_and_transpose = [&](const ov::Output<ov::Node>& in) -> std::shared_ptr<ov::Node> {
             const auto& in_shape = in.get_shape();
             const auto in_rank = in_shape.size();
@@ -117,21 +108,11 @@ ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
             }
             std::shared_ptr<ov::Node> node = in.get_node_shared_ptr();
             if (in_rank == 1) {
-                // Promote rank-1 per-channel constant to rank-2 [N, 1] via Unsqueeze.
-                // Peel a wrapping Convert (injected by convert_u4const_to_u8 for u4 ZP)
-                // so make_try_fold can collapse Unsqueeze on the underlying Constant,
-                // then re-apply the Convert on the folded result.
-                auto wrapping_convert = ov::as_type_ptr<v0::Convert>(node);
-                auto inner = wrapping_convert ? wrapping_convert->get_input_node_shared_ptr(0) : node;
+                // Promote rank-1 per-channel Constant to rank-2 [N, 1] via Unsqueeze;
+                // make_try_fold collapses it back to a Constant.
                 auto axis = v0::Constant::create(ov::element::i32, ov::Shape{}, {1});
-                auto unsqueezed = ov::op::util::make_try_fold<v0::Unsqueeze>(inner, axis);
+                auto unsqueezed = ov::op::util::make_try_fold<v0::Unsqueeze>(node, axis);
                 result_nodes.push_back(unsqueezed);
-                if (wrapping_convert) {
-                    auto rewrapped =
-                        std::make_shared<v0::Convert>(unsqueezed, wrapping_convert->get_destination_type());
-                    result_nodes.push_back(rewrapped);
-                    return rewrapped;
-                }
                 return unsqueezed;
             }
             std::shared_ptr<ov::Node> perm = transpose_const;
@@ -152,6 +133,12 @@ ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
         if (with_zero_point && ov::shape_size(optional_zero_point->output(0).get_shape()) > 1) {
             fc_input_zp = align_and_transpose(optional_zero_point->output(0));
         }
+    }
+
+    if (with_zero_point && fc_input_zp->get_element_type() == ov::element::u4 && convert_u4zp_to_u8) {
+        // WA: Convert ZP to u8 for OneDNN case to avoid u4 reorder.
+        // Applied after align_and_transpose so the lambda only deals with bare Constants.
+        fc_input_zp = std::make_shared<v0::Convert>(fc_input_zp, ov::element::u8);
     }
 
     fc_input_zp = with_zero_point ? fc_input_zp : std::make_shared<v0::Constant>(ov::element::dynamic, ov::Shape{0});
