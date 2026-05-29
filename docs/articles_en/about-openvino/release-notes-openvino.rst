@@ -192,7 +192,7 @@ OpenVINO™ GenAI
 OpenVINO™ Physical AI
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-* Released ``physicalai``, a runtime package for deploying robot policies in real-world environments. This release packages the core deployment stack including camera capture, robot interfaces, exported-policy inference, and runtime loop integration. 
+* Released OpenVINO™ Physical AI, a runtime package for deploying robot policies in real-world environments. This release packages the core deployment stack including camera capture, robot interfaces, exported-policy inference, and runtime loop integration. 
 * Introduced unified camera API supporting UVC, RealSense, Basler, and shared-camera transport workflows. 
 * Implemented robot interfaces for SO-101 and Trossen WidowX AI integrations. 
 * Enabled inference runtime for exported policies with built-in OpenVINO and ONNX backends. 
