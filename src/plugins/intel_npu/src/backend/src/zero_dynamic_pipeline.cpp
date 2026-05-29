@@ -88,10 +88,11 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
 
         size_t io_index = 0;
         for (const auto& desc : _graph->get_metadata().inputs) {
-            if (desc.isMainInputWeights) {
-                // These values were set while running the "WeightlessGraph::init" method
-                continue;
-            }
+            // DynamicPipeline does not currently support weightless model, just thrown exception.
+            OPENVINO_ASSERT(!desc.isMainInputWeights,
+                            "DynamicPipeline does not support weightless graphs (input '",
+                            desc.nameFromCompiler,
+                            "' is a main-input weight)");
 
             if (input_tensors.at(io_index).size() > 1) {
                 _logger.debug("DynamicPipeline - set args for input index: %zu", io_index);
@@ -254,7 +255,10 @@ void DynamicPipeline::execute_vm_runtime(_npu_vm_runtime_handle_t* vmRuntime,
     // Reset commandLists since there are tensor with new shapes or it is the first execution, can not reuse command
     // list with update
     for (auto& cmdList : commandLists) {
-        zeCommandListReset(cmdList);
+        const auto result = zeCommandListReset(cmdList);
+        if (result != ZE_RESULT_SUCCESS) {
+            OPENVINO_THROW("Failed to reset command list");
+        }
     }
 
     // Lazily create the VM execution context (owned by argsImpl, destroyed with it).
