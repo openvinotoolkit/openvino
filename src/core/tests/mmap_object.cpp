@@ -242,15 +242,17 @@ TEST(MappedMemory, parallel_prefault_whole_file) {
         f.write(data.data(), data.size());
     }
 
-    auto mapped = load_mmap_object(file_path);
-    ASSERT_NE(mapped, nullptr);
-    EXPECT_EQ(mapped->size(), file_size);
+    {
+        auto mapped = load_mmap_object(file_path);
+        ASSERT_NE(mapped, nullptr);
+        EXPECT_EQ(mapped->size(), file_size);
 
-    EXPECT_NO_THROW(mapped->hint_populate());
+        EXPECT_NO_THROW(mapped->hint_populate());
 
-    EXPECT_EQ(static_cast<unsigned char>(mapped->data()[0]), 0u);
-    EXPECT_EQ(static_cast<unsigned char>(mapped->data()[file_size - 1]),
-              static_cast<unsigned char>((file_size - 1) & 0xFF));
+        EXPECT_EQ(static_cast<unsigned char>(mapped->data()[0]), 0u);
+        EXPECT_EQ(static_cast<unsigned char>(mapped->data()[file_size - 1]),
+                  static_cast<unsigned char>((file_size - 1) & 0xFF));
+    }
 
     std::filesystem::remove(file_path);
 }
@@ -268,13 +270,15 @@ TEST(MappedMemory, parallel_prefault_partial_region) {
         f.write(data.data(), data.size());
     }
 
-    auto mapped = load_mmap_object(file_path);
-    ASSERT_NE(mapped, nullptr);
+    {
+        auto mapped = load_mmap_object(file_path);
+        ASSERT_NE(mapped, nullptr);
 
-    EXPECT_NO_THROW(mapped->hint_populate(prefault_offset, prefault_size));
+        EXPECT_NO_THROW(mapped->hint_populate(prefault_offset, prefault_size));
 
-    EXPECT_EQ(static_cast<unsigned char>(mapped->data()[prefault_offset]),
-              static_cast<unsigned char>(prefault_offset & 0xFF));
+        EXPECT_EQ(static_cast<unsigned char>(mapped->data()[prefault_offset]),
+                  static_cast<unsigned char>(prefault_offset & 0xFF));
+    }
 
     std::filesystem::remove(file_path);
 }
@@ -289,9 +293,11 @@ TEST(MappedMemory, parallel_prefault_below_threshold_is_noop) {
         f.write(data.data(), data.size());
     }
 
-    auto mapped = load_mmap_object(file_path);
-    ASSERT_NE(mapped, nullptr);
-    EXPECT_NO_THROW(mapped->hint_populate());  // no optimization
+    {
+        auto mapped = load_mmap_object(file_path);
+        ASSERT_NE(mapped, nullptr);
+        EXPECT_NO_THROW(mapped->hint_populate());  // no optimization
+    }
 
     std::filesystem::remove(file_path);
 }
@@ -308,13 +314,15 @@ TEST(MappedMemory, parallel_prefault_with_file_offset) {
         f.write(data.data(), data.size());
     }
 
-    auto mapped = load_mmap_object(file_path, map_offset);
-    ASSERT_NE(mapped, nullptr);
-    EXPECT_EQ(mapped->size(), file_size - map_offset);
+    {
+        auto mapped = load_mmap_object(file_path, map_offset);
+        ASSERT_NE(mapped, nullptr);
+        EXPECT_EQ(mapped->size(), file_size - map_offset);
 
-    EXPECT_NO_THROW(mapped->hint_populate());
+        EXPECT_NO_THROW(mapped->hint_populate());
 
-    EXPECT_EQ(static_cast<unsigned char>(mapped->data()[0]), static_cast<unsigned char>(map_offset & 0xFF));
+        EXPECT_EQ(static_cast<unsigned char>(mapped->data()[0]), static_cast<unsigned char>(map_offset & 0xFF));
+    }
 
     std::filesystem::remove(file_path);
 }
@@ -333,14 +341,16 @@ TEST(MappedMemory, hint_populate_with_both_offsets) {
         f.write(data.data(), data.size());
     }
 
-    auto mapped = load_mmap_object(file_path, map_offset);
-    ASSERT_NE(mapped, nullptr);
-    EXPECT_EQ(mapped->size(), file_size - map_offset);
+    {
+        auto mapped = load_mmap_object(file_path, map_offset);
+        ASSERT_NE(mapped, nullptr);
+        EXPECT_EQ(mapped->size(), file_size - map_offset);
 
-    EXPECT_NO_THROW(mapped->hint_populate(pop_offset, pop_size));
+        EXPECT_NO_THROW(mapped->hint_populate(pop_offset, pop_size));
 
-    EXPECT_EQ(static_cast<unsigned char>(mapped->data()[pop_offset]),
-              static_cast<unsigned char>((map_offset + pop_offset) & 0xFF));
+        EXPECT_EQ(static_cast<unsigned char>(mapped->data()[pop_offset]),
+                  static_cast<unsigned char>((map_offset + pop_offset) & 0xFF));
+    }
 
     std::filesystem::remove(file_path);
 }
