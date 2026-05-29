@@ -57,7 +57,7 @@ const std::shared_ptr<VCLApi> VCLApi::getInstance(const std::string& library_dir
 
     if (!instance) {
         if (library_dir.empty()) {
-            OPENVINO_THROW("VCLApi requires a valid path for initialization!");
+            OPENVINO_THROW("VCLApi instance has not been loaded yet, and no valid path was provided to load it.");
         }
         initialized_dir = library_dir;
         instance = std::make_shared<VCLApi>(library_dir);

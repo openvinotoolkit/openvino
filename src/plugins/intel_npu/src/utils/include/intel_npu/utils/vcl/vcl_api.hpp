@@ -48,7 +48,7 @@ public:
     void operator=(const VCLApi&) = delete;
     void operator=(VCLApi&&) = delete;
 
-    static const std::shared_ptr<VCLApi> getInstance(const std::string& library_dir);
+    static const std::shared_ptr<VCLApi> getInstance(const std::string& library_dir = std::string());
     std::shared_ptr<void> getLibrary() const {
         return lib;
     }
@@ -66,7 +66,7 @@ private:
 #define vcl_symbol_statement(vcl_symbol)                                                                            \
     template <typename... Args>                                                                                     \
     inline typename std::invoke_result<decltype(&::vcl_symbol), Args...>::type wrapped_##vcl_symbol(Args... args) { \
-        const auto& ptr = VCLApi::getInstance("");                                                                  \
+        const auto& ptr = VCLApi::getInstance();                                                                    \
         if (ptr->vcl_symbol == nullptr) {                                                                           \
             OPENVINO_THROW("Unsupported vcl_symbol " #vcl_symbol);                                                  \
         }                                                                                                           \
