@@ -41,14 +41,14 @@ std::vector<TRShape> shape_infer(const GroupedMatMul* op,
         auto merged_g = DimType();
         auto merged_k = DimType();
         NODE_VALIDATION_CHECK(op,
-                              DimType::merge(merged_g, g_a, g_b) || g_a.is_dynamic() || g_b.is_dynamic(),
+                              DimType::merge(merged_g, g_a, g_b),
                               "GroupedMatMul 3D×3D: batch dimension mismatch (mat_a: ",
                               g_a,
                               ", mat_b: ",
                               g_b,
                               ").");
         NODE_VALIDATION_CHECK(op,
-                              DimType::merge(merged_k, k_a, k_b) || k_a.is_dynamic() || k_b.is_dynamic(),
+                              DimType::merge(merged_k, k_a, k_b),
                               "GroupedMatMul 3D×3D: inner dimension mismatch (mat_a: ",
                               k_a,
                               ", mat_b: ",
@@ -79,7 +79,7 @@ std::vector<TRShape> shape_infer(const GroupedMatMul* op,
 
         auto merged_k = DimType();
         NODE_VALIDATION_CHECK(op,
-                              DimType::merge(merged_k, k_a, k_b) || k_a.is_dynamic() || k_b.is_dynamic(),
+                              DimType::merge(merged_k, k_a, k_b),
                               "GroupedMatMul 2D×3D: inner dimension mismatch (mat_a: ",
                               k_a,
                               ", mat_b: ",
@@ -108,13 +108,11 @@ std::vector<TRShape> shape_infer(const GroupedMatMul* op,
 
         auto merged_tokens = DimType();
         NODE_VALIDATION_CHECK(op,
-                              DimType::merge(merged_tokens, total_tokens_a, total_tokens_b) ||
-                                  total_tokens_a.is_dynamic() || total_tokens_b.is_dynamic(),
-                              "GroupedMatMul 2D×2D: shared dimension mismatch (mat_a: ",
+                              DimType::merge(merged_tokens, total_tokens_a, total_tokens_b),
+                              "GroupedMatMul 2D×2D: shared dimension mismatch mat_a: ",
                               total_tokens_a,
                               ", mat_b: ",
-                              total_tokens_b,
-                              ").");
+                              total_tokens_b);
 
         // Output shape is (g, k, n) where g is determined by offsets
         auto g = DimType();
