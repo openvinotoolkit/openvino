@@ -45,7 +45,7 @@ AI models, coming from the most popular model frameworks.
 Convert, optimize, and run inference utilizing the full potential of Intel® hardware.
 There are three main tools in OpenVINO to meet all your deployment needs:
 
-.. grid:: 1 1 3 3
+.. grid:: 1 2 2 4
 
    .. grid-item-card:: OpenVINO GenAI
       :link: ./openvino-workflow-generative.html
