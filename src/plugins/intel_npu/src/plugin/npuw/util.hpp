@@ -307,6 +307,11 @@ bool isPastKeyParam(const std::string& str);
 // Matches any past value param: contiguous or block-split.
 bool isPastValueParam(const std::string& str);
 
+// Detects DynamicQuantize scale/zp parameters for past KV cache.
+// Returns true if the parameter name matches the DQ naming pattern.
+bool isDQScaleOrZPKey(const std::string& str);
+bool isDQScaleOrZPValue(const std::string& str);
+
 // To remove input KV params that got badly matched in StatefulToStateless pass
 // in Whisper model.
 bool isRestoredPastKeyValueParam(const std::string& str);
