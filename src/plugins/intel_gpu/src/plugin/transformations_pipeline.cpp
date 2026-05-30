@@ -89,6 +89,7 @@
 #include "plugin/transformations/convert_stridedslices_to_variadicsplit.hpp"
 #include "plugin/transformations/decompose_reduce_scalar_output.hpp"
 #include "plugin/transformations/dynamic_quantize_fully_connected.hpp"
+#include "plugin/transformations/dynamic_quantize_gated_mlp.hpp"
 #include "plugin/transformations/fc_convert_fusion.hpp"
 #include "plugin/transformations/fc_horizontal_fusion.hpp"
 #include "plugin/transformations/fold_activation_transpose.hpp"
@@ -1700,6 +1701,43 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                                                                     precomputed_reduction,
                                                                                     use_gs128_for_int8_per_token,
                                                                                     use_gs128_for_linear_attention);
+            }
+
+            // Dynamic quantization for GatedMLP - disabled by default until oneDNN supports it.
+            // Enable via OV_GPU_DYNAMIC_QUANTIZE_GATED_MLP=1 environment variable.
+            const char* dq_gmlp_env = std::getenv("OV_GPU_DYNAMIC_QUANTIZE_GATED_MLP");
+            const bool enable_dq_gmlp = dq_gmlp_env && std::string(dq_gmlp_env) == "1";
+            if (enable_dq_gmlp && model_allows_group_size) {
+                pass_config->set_callback<ov::intel_gpu::DynamicQuantizeGatedMLP>([=](const_node_ptr& root) -> bool {
+                    for (size_t i = 0; i < root->get_input_node_shared_ptr(0)->get_output_size(); ++i) {
+                        if (root->get_input_node_shared_ptr(0)->get_output_element_type(i) == ov::element::Type_t::f32) {
+                            GPU_DEBUG_TRACE << root->get_friendly_name() << " GatedMLP dyn_quan is turned off: input type is not supported" << std::endl;
+                            return true;
+                        }
+                    }
+
+                    const auto& input_shape = root->get_input_partial_shape(0);
+                    const size_t input_rank = input_shape.size();
+                    if (input_rank > 3) {
+                        GPU_DEBUG_TRACE << root->get_friendly_name() << " GatedMLP dyn_quan is turned off: input rank is not supported" << std::endl;
+                        return true;
+                    }
+
+                    auto weight_shape = root->get_input_partial_shape(1);
+                    const size_t innermost_size = weight_shape[weight_shape.size() - 1].get_length();
+                    const size_t simd = 16;
+                    if (innermost_size < 32 || (innermost_size % (simd * 2) != 0)) {
+                        GPU_DEBUG_TRACE << root->get_friendly_name()
+                                        << " GatedMLP dyn_quan is turned off: inner shape is not supported "
+                                        << innermost_size << std::endl;
+                        return true;
+                    }
+
+                    return false;
+                });
+                manager.register_pass<ov::intel_gpu::DynamicQuantizeGatedMLP>(dynamic_quantization_group_size,
+                                                                              asymmetric_dyn_quant,
+                                                                              precomputed_reduction);
             }
         }
 

@@ -18,7 +18,7 @@ using GatedMLP = ov::intel_gpu::op::GatedMLP;
 namespace ov::intel_gpu {
 
 static void CreateGatedMLPOp(ProgramBuilder& p, const std::shared_ptr<ov::intel_gpu::op::GatedMLP>& op) {
-    validate_inputs_count(op, {4, 7, 10});
+    validate_inputs_count(op, {4, 10, 13});
     auto inputs = p.GetInputInfo(op);
     const auto layer_name = layer_type_name_ID(op);
 
@@ -30,35 +30,39 @@ static void CreateGatedMLPOp(ProgramBuilder& p, const std::shared_ptr<ov::intel_
     }
 
     auto prim = [&]() {
-        if (op->is_compressed_weights()) {
-            if (op->has_decompression_zero_points()) {
-                return cldnn::gated_mlp(layer_name,
-                                        cldnn::input_info(inputs[0]),
-                                        cldnn::input_info(inputs[1]),
-                                        cldnn::input_info(inputs[2]),
-                                        cldnn::input_info(inputs[3]),
-                                        cldnn::input_info(inputs[4]),
-                                        cldnn::input_info(inputs[5]),
-                                        cldnn::input_info(inputs[6]),
-                                        cldnn::input_info(inputs[7]),
-                                        cldnn::input_info(inputs[8]),
-                                        cldnn::input_info(inputs[9]),
-                                        op->get_activation(),
-                                        output_tensor,
-                                        cldnn::element_type_to_data_type(op->get_output_element_type(0)));
-            } else {
-                return cldnn::gated_mlp(layer_name,
-                                        cldnn::input_info(inputs[0]),
-                                        cldnn::input_info(inputs[1]),
-                                        cldnn::input_info(inputs[2]),
-                                        cldnn::input_info(inputs[3]),
-                                        cldnn::input_info(inputs[4]),
-                                        cldnn::input_info(inputs[5]),
-                                        cldnn::input_info(inputs[6]),
-                                        op->get_activation(),
-                                        output_tensor,
-                                        cldnn::element_type_to_data_type(op->get_output_element_type(0)));
-            }
+        if (op->has_dynamic_quantized_activation()) {
+            return cldnn::gated_mlp(layer_name,
+                                    cldnn::input_info(inputs[0]),
+                                    cldnn::input_info(inputs[1]),
+                                    cldnn::input_info(inputs[2]),
+                                    cldnn::input_info(inputs[3]),
+                                    cldnn::input_info(inputs[4]),
+                                    cldnn::input_info(inputs[5]),
+                                    cldnn::input_info(inputs[6]),
+                                    cldnn::input_info(inputs[7]),
+                                    cldnn::input_info(inputs[8]),
+                                    cldnn::input_info(inputs[9]),
+                                    cldnn::input_info(inputs[10]),
+                                    cldnn::input_info(inputs[11]),
+                                    cldnn::input_info(inputs[12]),
+                                    op->get_activation(),
+                                    output_tensor,
+                                    cldnn::element_type_to_data_type(op->get_output_element_type(0)));
+        } else if (op->is_compressed_weights()) {
+            return cldnn::gated_mlp(layer_name,
+                                    cldnn::input_info(inputs[0]),
+                                    cldnn::input_info(inputs[1]),
+                                    cldnn::input_info(inputs[2]),
+                                    cldnn::input_info(inputs[3]),
+                                    cldnn::input_info(inputs[4]),
+                                    cldnn::input_info(inputs[5]),
+                                    cldnn::input_info(inputs[6]),
+                                    cldnn::input_info(inputs[7]),
+                                    cldnn::input_info(inputs[8]),
+                                    cldnn::input_info(inputs[9]),
+                                    op->get_activation(),
+                                    output_tensor,
+                                    cldnn::element_type_to_data_type(op->get_output_element_type(0)));
         } else {
             return cldnn::gated_mlp(layer_name,
                                     cldnn::input_info(inputs[0]),

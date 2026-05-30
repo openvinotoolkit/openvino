@@ -5,6 +5,7 @@
 #include "fuse_gated_mlp.hpp"
 
 #include "intel_gpu/op/gated_mlp.hpp"
+#include "intel_gpu/op/placeholder.hpp"
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
@@ -48,7 +49,7 @@ FuseGatedMLP::FuseGatedMLP() {
         auto gate = ov::as_type_ptr<ov::op::v0::MatMul>(pm.at(mm_gate).get_node_shared_ptr());
         auto sw = ov::as_type_ptr<ov::op::v4::Swish>(pm.at(swish).get_node_shared_ptr());
         ov::NodeVector new_ops;
-
+#if 0
         // DO NOT MERGE Bisect: OV_GPU_GMLP_BISECT=N → fuse layers 0..N-1 only
         static int64_t gmlp_count = 0;
         const char* bisect_env = std::getenv("OV_GPU_GMLP_BISECT");
@@ -61,7 +62,7 @@ FuseGatedMLP::FuseGatedMLP() {
             std::cerr << "GMLP_BISECT: fusing layer " << gmlp_count << std::endl;
         }
         gmlp_count++;
-
+#endif
         if (!down || !up || !gate || !sw || transformation_callback(down))
             return false;
 
@@ -284,30 +285,21 @@ FuseGatedMLP::FuseGatedMLP() {
             down_info.weight = create_transpose(down_info.weight, down->get_friendly_name() + "/transpose_down");
 
         if (compressed_all && (has_zp_all || has_no_zp_all)) {
-            if (has_zp_all) {
-                gmlp = std::make_shared<ov::intel_gpu::op::GatedMLP>(up->input_value(0),
-                                                                      gate_info.weight,
-                                                                      up_info.weight,
-                                                                      down_info.weight,
-                                                                      gate_info.scale,
-                                                                      up_info.scale,
-                                                                      down_info.scale,
-                                                                      gate_info.zero_point,
-                                                                      up_info.zero_point,
-                                                                      down_info.zero_point,
-                                                                      ov::op::internal::GLU::GluType::Swish,
-                                                                      down->get_output_element_type(0));
-            } else {
-                gmlp = std::make_shared<ov::intel_gpu::op::GatedMLP>(up->input_value(0),
-                                                                      gate_info.weight,
-                                                                      up_info.weight,
-                                                                      down_info.weight,
-                                                                      gate_info.scale,
-                                                                      up_info.scale,
-                                                                      down_info.scale,
-                                                                      ov::op::internal::GLU::GluType::Swish,
-                                                                      down->get_output_element_type(0));
-            }
+            auto zp_gate = has_zp_all ? gate_info.zero_point : std::make_shared<ov::intel_gpu::op::Placeholder>()->output(0);
+            auto zp_up = has_zp_all ? up_info.zero_point : std::make_shared<ov::intel_gpu::op::Placeholder>()->output(0);
+            auto zp_down = has_zp_all ? down_info.zero_point : std::make_shared<ov::intel_gpu::op::Placeholder>()->output(0);
+            gmlp = std::make_shared<ov::intel_gpu::op::GatedMLP>(up->input_value(0),
+                                                                  gate_info.weight,
+                                                                  up_info.weight,
+                                                                  down_info.weight,
+                                                                  gate_info.scale,
+                                                                  up_info.scale,
+                                                                  down_info.scale,
+                                                                  zp_gate,
+                                                                  zp_up,
+                                                                  zp_down,
+                                                                  ov::op::internal::GLU::GluType::Swish,
+                                                                  down->get_output_element_type(0));
         }
 
         if (!gmlp) {

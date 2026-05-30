@@ -15,7 +15,7 @@
 #include <sstream>
 #include <fstream>
 #include <cstdlib>
-#include <sys/stat.h>
+#include <filesystem>
 
 namespace {
 
@@ -101,7 +101,7 @@ protected:
             args[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS_UP] = scale_up_mem->get_onednn_memory(scale_desc_up);
             args[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS_DOWN] = scale_down_mem->get_onednn_memory(scale_desc_down);
 
-            if (prim->has_decompression_zero_points) {
+            if (prim->decompression_zero_point_gate.is_valid()) {
                 auto zp_gate_mem = instance.dep_memory_ptr(idx++);
                 auto zp_up_mem = instance.dep_memory_ptr(idx++);
                 auto zp_down_mem = instance.dep_memory_ptr(idx++);
@@ -114,14 +114,35 @@ protected:
                 args[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS_UP] = zp_up_mem->get_onednn_memory(zp_desc_up);
                 args[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS_DOWN] = zp_down_mem->get_onednn_memory(zp_desc_down);
             }
-        }
 
+            if (prim->dynamic_quantized_activation) {
+                if (prim->activation_scale.is_valid()) {
+                    auto act_scale_mem = instance.dep_memory_ptr(idx++);
+                    dnnl::memory::desc act_scale_desc = onednn::layout_to_memory_desc_flatten(
+                        act_scale_mem->get_layout(), dnnl::memory::format_tag::ab);
+                    args[DNNL_ARG_ATTR_SCALES | DNNL_ARG_SRC] = act_scale_mem->get_onednn_memory(act_scale_desc);
+                }
+                if (prim->activation_zero_point.is_valid()) {
+                    auto act_zp_mem = instance.dep_memory_ptr(idx++);
+                    dnnl::memory::desc act_zp_desc = onednn::layout_to_memory_desc_flatten(
+                        act_zp_mem->get_layout(), dnnl::memory::format_tag::ab);
+                    args[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC] = act_zp_mem->get_onednn_memory(act_zp_desc);
+                }
+                if (prim->activation_precomputed_reduction.is_valid()) {
+                    auto act_red_mem = instance.dep_memory_ptr(idx++);
+                    dnnl::memory::desc act_red_desc = onednn::layout_to_memory_desc_flatten(
+                        act_red_mem->get_layout(), dnnl::memory::format_tag::ab);
+                    args[DNNL_ARG_ATTR_PRECOMPUTED_REDUCTIONS | DNNL_ARG_SRC] = act_red_mem->get_onednn_memory(act_red_desc);
+                }
+            }
+        }
+#if 0
         // DO NOT MERGE - Dump all gated_mlp inputs to /tmp/gmlp_dump/ when OV_GPU_GMLP_DUMP is set
         static int dump_call_count = 0;
         const char* dump_env = std::getenv("OV_GPU_GMLP_DUMP");
         if (dump_env && dump_call_count == 0) {
             const std::string dump_dir(dump_env);
-            mkdir(dump_dir.c_str(), 0755);
+            std::filesystem::create_directories(dump_dir);
 
             auto dump_mem = [&](memory::ptr mem, const std::string& name) {
                 auto& stream = instance.get_network().get_stream();
@@ -149,7 +170,7 @@ protected:
                 dump_mem(instance.dep_memory_ptr(didx++), "scale_gate");
                 dump_mem(instance.dep_memory_ptr(didx++), "scale_up");
                 dump_mem(instance.dep_memory_ptr(didx++), "scale_down");
-                if (prim->has_decompression_zero_points) {
+                if (prim->decompression_zero_point_gate.is_valid()) {
                     dump_mem(instance.dep_memory_ptr(didx++), "zp_gate");
                     dump_mem(instance.dep_memory_ptr(didx++), "zp_up");
                     dump_mem(instance.dep_memory_ptr(didx++), "zp_down");
@@ -160,7 +181,7 @@ protected:
             std::cerr << "GMLP_DUMP: dumped layer " << dump_call_count << " inputs to " << dump_dir << std::endl;
         }
         dump_call_count++;
-
+#endif
         return args;
     }
 
@@ -239,7 +260,7 @@ protected:
             set_scales(DNNL_ARG_WEIGHTS_UP, impl_params.get_input_layout(2), impl_params.get_input_layout(5));
             set_scales(DNNL_ARG_WEIGHTS_DOWN, impl_params.get_input_layout(3), impl_params.get_input_layout(6));
 
-            if (prim->has_decompression_zero_points) {
+            if (prim->decompression_zero_point_gate.is_valid()) {
                 auto set_zero_points = [&](int arg, const layout& weight_layout, const layout& zp_layout) {
                     const auto zp_dt = onednn::convert_data_type(zp_layout.data_type);
                     if (zp_layout.count() == 1) {
@@ -267,6 +288,30 @@ protected:
                 set_zero_points(DNNL_ARG_WEIGHTS_UP, impl_params.get_input_layout(2), impl_params.get_input_layout(8));
                 set_zero_points(DNNL_ARG_WEIGHTS_DOWN, impl_params.get_input_layout(3), impl_params.get_input_layout(9));
             }
+
+            // Dynamic quantized activation (src scales/zp/precomputed_reduction)
+            if (prim->dynamic_quantized_activation && prim->activation_scale.is_valid()) {
+                int act_idx = 10;  // activation_scale is at index 10
+                const auto& act_scale_layout = impl_params.get_input_layout(act_idx);
+                const auto act_scale_dt = onednn::convert_data_type(act_scale_layout.data_type);
+                const auto src_innermost = impl_params.get_input_layout(0).get_dim(impl_params.get_input_layout(0).get_partial_shape().size() - 1);
+                const auto src_scale_ngroups = act_scale_layout.get_dim(act_scale_layout.get_partial_shape().size() - 1);
+                const int64_t src_group_size = src_innermost / src_scale_ngroups;
+
+                attr->set_scales(DNNL_ARG_SRC, GROUPED, dnnl::memory::dims{1, src_group_size}, act_scale_dt);
+
+                if (prim->activation_zero_point.is_valid()) {
+                    const auto& act_zp_layout = impl_params.get_input_layout(act_idx + 1);
+                    attr->set_zero_points(DNNL_ARG_SRC, GROUPED, dnnl::memory::dims{1, src_group_size},
+                                          onednn::convert_data_type(act_zp_layout.data_type));
+                }
+
+                if (prim->activation_precomputed_reduction.is_valid()) {
+                    const auto& act_red_layout = impl_params.get_input_layout(act_idx + 2);
+                    attr->set_precomputed_reductions(DNNL_ARG_SRC, GROUPED, dnnl::memory::dims{1, src_group_size},
+                                                    onednn::convert_data_type(act_red_layout.data_type));
+                }
+            }
         }
 
         dnnl_primitive_desc_t c_pd = nullptr;
@@ -289,7 +334,7 @@ protected:
                 << " c_pd=" << c_pd
                 << " activation=" << static_cast<int>(activation)
                 << " compressed_weights=" << prim->compressed_weights
-                << " has_decompression_zero_points=" << prim->has_decompression_zero_points
+                << " has_decompression_zero_points=" << prim->decompression_zero_point_gate.is_valid()
                 << " src layout=" << impl_params.get_input_layout(0).to_short_string()
                 << " md=" << onednn::memory_desc_to_string(src_md)
                 << " wg layout=" << impl_params.get_input_layout(1).to_short_string()
