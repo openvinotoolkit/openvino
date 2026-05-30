@@ -4,13 +4,38 @@
 
 #include "gqa_compiled_model.hpp"
 
+#include <algorithm>
+#include <cctype>
 #include <utility>
 
+#include "intel_npu/config/npuw.hpp"
 #include "logging.hpp"
+#include "npuw_transformations/collapse_unqdq.hpp"
 #include "openvino/core/version.hpp"
 #include "serialization.hpp"
 
 namespace {
+
+bool is_enabled_property(const ov::AnyMap& properties, const std::string& key) {
+    const auto it = properties.find(key);
+    if (it == properties.end()) {
+        return false;
+    }
+
+    if (it->second.is<bool>()) {
+        return it->second.as<bool>();
+    }
+
+    if (it->second.is<std::string>()) {
+        auto value = it->second.as<std::string>();
+        std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) {
+            return static_cast<char>(std::toupper(ch));
+        });
+        return value == "YES" || value == "TRUE" || value == "1";
+    }
+
+    return false;
+}
 
 ov::AnyMap with_gqa_defaults(const ov::AnyMap& properties) {
     ov::AnyMap config = properties;
@@ -37,7 +62,13 @@ ov::AnyMap with_gqa_defaults(const ov::AnyMap& properties) {
 
 ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(const std::shared_ptr<ov::Model>& model,
                                                                               const ov::AnyMap& properties) {
-    return {model, with_gqa_defaults(properties)};
+    auto prepared_properties = with_gqa_defaults(properties);
+    if (is_enabled_property(prepared_properties, std::string(::intel_npu::NPUW_UNQDQ::key()))) {
+        ov::npuw::CollapseUNQDQ pass;
+        pass.run_on_model(model);
+        model->validate_nodes_and_infer_types();
+    }
+    return {model, std::move(prepared_properties)};
 }
 
 std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::GQACompiledModel::make_compiled_model(
@@ -98,9 +129,21 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::GQACompiledModel::import_mod
 
     if (vmajor != OPENVINO_VERSION_MAJOR || vminor != OPENVINO_VERSION_MINOR || vpatch != OPENVINO_VERSION_PATCH ||
         s11n_version != std::string(NPUW_SERIALIZATION_VERSION)) {
-        OPENVINO_THROW("GQA blob was serialized with a different OV version (", vmajor, '.', vminor, '.', vpatch,
-                       " / NPUW s11n ", s11n_version, "); current is ", OPENVINO_VERSION_MAJOR, '.',
-                       OPENVINO_VERSION_MINOR, '.', OPENVINO_VERSION_PATCH, " / NPUW s11n ",
+        OPENVINO_THROW("GQA blob was serialized with a different OV version (",
+                       vmajor,
+                       '.',
+                       vminor,
+                       '.',
+                       vpatch,
+                       " / NPUW s11n ",
+                       s11n_version,
+                       "); current is ",
+                       OPENVINO_VERSION_MAJOR,
+                       '.',
+                       OPENVINO_VERSION_MINOR,
+                       '.',
+                       OPENVINO_VERSION_PATCH,
+                       " / NPUW s11n ",
                        NPUW_SERIALIZATION_VERSION);
     }
 
@@ -109,7 +152,6 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::GQACompiledModel::import_mod
     // because the partitioning is already baked in and port mappings are consistent.
     return ov::npuw::CompiledModel::import_model(stream, plugin, properties);
 }
-
 
 std::shared_ptr<const ov::Model> ov::npuw::GQACompiledModel::get_runtime_model() const {
     return m_compiled_model->get_runtime_model();

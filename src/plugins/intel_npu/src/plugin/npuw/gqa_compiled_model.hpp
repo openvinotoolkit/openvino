@@ -43,9 +43,10 @@ public:
                                                                 const std::shared_ptr<const ov::IPlugin>&,
                                                                 const ov::AnyMap&)>;
 
-    static std::shared_ptr<ov::npuw::ICompiledModel> make_compiled_model(const std::shared_ptr<ov::Model>& model,
-                                                                         const std::shared_ptr<const ov::IPlugin>& plugin,
-                                                                         const ov::AnyMap& properties);
+    static std::shared_ptr<ov::npuw::ICompiledModel> make_compiled_model(
+        const std::shared_ptr<ov::Model>& model,
+        const std::shared_ptr<const ov::IPlugin>& plugin,
+        const ov::AnyMap& properties);
 
     GQACompiledModel(const std::shared_ptr<ov::Model>& model,
                      const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -53,8 +54,8 @@ public:
                      CompiledModelFactory factory = make_compiled_model);
 
     static std::shared_ptr<ov::npuw::ICompiledModel> import_model(std::istream& stream,
-                                                                   const std::shared_ptr<const ov::IPlugin>& plugin,
-                                                                   const ov::AnyMap& properties);
+                                                                  const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                                  const ov::AnyMap& properties);
 
     void export_model(std::ostream& stream) const override;
     std::shared_ptr<const ov::Model> get_runtime_model() const override;

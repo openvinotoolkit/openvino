@@ -11,9 +11,14 @@
 
 #include "gqa_compiled_model.hpp"
 #include "llm_test_helpers.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/group_query_attention.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/subtract.hpp"
 
 namespace {
 
@@ -51,6 +56,29 @@ std::shared_ptr<ov::Model> build_group_query_attention_model() {
                                 std::make_shared<ov::op::v0::Result>(gqa->output(2))};
     ov::ParameterVector params = {query, key, value, past_key, past_value, seqlens_k, total_sequence_length};
     return std::make_shared<ov::Model>(results, params, "gqa_model");
+}
+
+std::shared_ptr<ov::Model> build_unqdq_model(const ov::element::Type& input_type = ov::element::f32) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(input_type, ov::Shape{1, 4});
+    auto input_low = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {-1.0f});
+    auto input_high = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1.0f});
+    auto output_low = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.0f});
+    auto output_high = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {255.0f});
+    auto fake_quantize =
+        std::make_shared<ov::op::v0::FakeQuantize>(input, input_low, input_high, output_low, output_high, 256);
+    auto quantized_convert = std::make_shared<ov::op::v0::Convert>(fake_quantize, ov::element::u16);
+    auto dequantized_convert = std::make_shared<ov::op::v0::Convert>(quantized_convert, ov::element::f32);
+    auto zero_point = std::make_shared<ov::op::v0::Convert>(
+        ov::op::v0::Constant::create(ov::element::u16, ov::Shape{}, {128}),
+        ov::element::f32);
+    auto subtract = std::make_shared<ov::op::v1::Subtract>(dequantized_convert, zero_point);
+    auto scale = std::make_shared<ov::op::v0::Convert>(
+        ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {0.1f}),
+        ov::element::f32);
+    auto multiply = std::make_shared<ov::op::v1::Multiply>(subtract, scale);
+    return std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(multiply)},
+                                       ov::ParameterVector{input},
+                                       "gqa_unqdq_model");
 }
 
 struct CompileCall {
@@ -183,6 +211,21 @@ TEST_F(GQACompiledModelTest, PassesGqaModelThroughWithoutDecomposition) {
     // isolation and folding of GQA blocks via the NPUW_FOLD_ONLY=attn path.
     const auto& call = recorder.only_call();
     EXPECT_GT(count_ops<ov::op::internal::GroupQueryAttention>(call.model), 0u);
+}
+
+TEST_F(GQACompiledModelTest, AppliesUNQDQCleanupDuringPreparationWhenEnabled) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::GQACompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_unqdq_model(ov::element::f16), {{"NPUW_UNQDQ", "YES"}}, recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& call = recorder.only_call();
+    EXPECT_EQ(count_ops<ov::op::v1::Multiply>(call.model), 0u);
+    EXPECT_EQ(count_ops<ov::op::v1::Subtract>(call.model), 0u);
+    EXPECT_EQ(count_ops<ov::op::v0::Convert>(call.model), 1u);
+    EXPECT_EQ(count_ops<ov::op::v0::FakeQuantize>(call.model), 0u);
+    EXPECT_EQ(call.model->get_results().front()->input_value(0).get_element_type(), ov::element::f32);
 }
 
 TEST_F(GQACompiledModelTest, ForwardsPropertyAccessToInnerCompiledModel) {
