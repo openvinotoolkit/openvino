@@ -1511,6 +1511,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(ov::Plugin& 
             : parsed_config;
 
     auto compiled_model = context ? plugin.compile_model(model, context, cfg) : plugin.compile_model(model, cfg);
+    std::cout << "Model is compiled, trying to cache the compiled blob if supported by device" << std::endl;
     if (cache_content.m_cache_manager && device_supports_model_caching(plugin)) {
         try {
             // need to export network for further import from "cache"
@@ -1530,6 +1531,9 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(ov::Plugin& 
                     }
                 }
             } catch (const ov::Exception&) {
+                std::cout << "Failed to set weight sharing context to compiled model or write context, model caching "
+                             "with shared context will not be used"
+                          << std::endl;
                 // do nothing if compile model will not return it
             }
             // write compiled blob
@@ -1547,10 +1551,19 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(ov::Plugin& 
                 compiled_model->export_model(stream);
             });
         } catch (const std::ios_base::failure&) {
+            std::cout << "Failed to write cache entry, probably due to the disk full or permission issue, cache entry "
+                         "will be removed if exists"
+                      << std::endl;
             cache_content.m_cache_manager->remove_cache_entry(cache_content.m_blob_id);
         } catch (const ov::Exception&) {
+            std::cout << "Failed to write cache entry, probably due to the disk full or permission issue, cache entry "
+                         "will be removed if exists"
+                      << std::endl;
             cache_content.m_cache_manager->remove_cache_entry(cache_content.m_blob_id);
         } catch (...) {
+            std::cout << "Failed to write cache entry, probably due to the disk full or permission issue, cache entry "
+                         "will be removed if exists"
+                      << std::endl;
             cache_content.m_cache_manager->remove_cache_entry(cache_content.m_blob_id);
             throw;
         }
@@ -1568,6 +1581,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
     struct HeaderException {};
 
     OPENVINO_ASSERT(cache_content.m_cache_manager != nullptr);
+    std::cout << "Trying to load model from cache with blob id: " << cache_content.m_blob_id << std::endl;
 
     try {
         cache_content.m_cache_manager->read_cache_entry(
@@ -1593,6 +1607,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
 
                     if (header.get_file_info() != ov::ModelCache::calculate_file_info(cache_content.m_model_path)) {
                         // Original file is changed, don't use cache
+                        std::cout << "Original model file is changed" << std::endl;
                         OPENVINO_THROW("Original model file is changed");
                     }
                     if (device_supports_internal_property(plugin,
@@ -1603,6 +1618,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                         auto res = plugin.get_property(ov::internal::compiled_model_runtime_properties_supported.name(),
                                                        compiled_model_runtime_properties);
                         if (!res.as<bool>()) {
+                            std::cout << "Original model runtime properties have been changed, not supported anymore!"
+                                      << std::endl;
                             OPENVINO_THROW(
                                 "Original model runtime properties have been changed, not supported anymore!");
                         }
@@ -1612,10 +1629,12 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                                 ov::util::Version(header.get_openvino_version()),
                                 ov::util::Version(ov::get_openvino_version().buildNumber))) {
                             // Build number mismatch, don't use this cache
+                            std::cout << "Version does not match" << std::endl;
                             OPENVINO_THROW("Version does not match");
                         }
                     }
                 } catch (...) {
+                    std::cout << "Cache header is invalid" << std::endl;
                     throw HeaderException();
                 }
 
@@ -1646,7 +1665,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                             ov::internal::model_sharing_context(cache_content.m_shared_ctx->get_context()));
                     }
                 }
-
+                std::cout << "Importing model from cache" << std::endl;
                 ov::util::VariantVisitor model_importer{
                     [&](const ov::Tensor& compiled_blob) -> ov::SoPtr<ov::ICompiledModel> {
                         const ov::Tensor compiled_blob_without_header{compiled_blob,
@@ -1663,8 +1682,10 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
             });
     } catch (const HeaderException&) {
         // For these exceptions just remove old cache and set that import didn't work
+        std::cout << "Cache header is invalid" << std::endl;
         cache_content.m_cache_manager->remove_cache_entry(cache_content.m_blob_id);
     } catch (...) {
+        std::cout << "Cache entry is corrupted" << std::endl;
         cache_content.m_cache_manager->remove_cache_entry(cache_content.m_blob_id);
         // TODO: temporary disabled by #54335. In future don't throw only for new 'blob_outdated' exception
         // throw;
@@ -1672,6 +1693,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
 
     // Fallback scenario
     if (!compiled_model) {
+        std::cout << "Failed to load model from cache, fallback to compilation" << std::endl;
         OPENVINO_WARN("Could not load model from cache.");
         compiled_model = compile_model_lambda();
     }

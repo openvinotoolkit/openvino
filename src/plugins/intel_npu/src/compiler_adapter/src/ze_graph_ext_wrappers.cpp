@@ -463,6 +463,21 @@ GraphDescriptor ZeGraphExtWrappers::getGraphDescriptor(const void* blobData, siz
                                                                  _zeroInitStruct->getDevice(),
                                                                  &desc,
                                                                  &graphHandle);
+
+    if (result != ZE_RESULT_SUCCESS) {
+        std::cout << "pfnCreate2 failed with code 0x" << std::hex << uint64_t(result) << " - "
+                  << ze_result_to_description(result) << " . "
+                  << intel_npu::zeroUtils::getLatestBuildError(_zeroInitStruct->getGraphDdiTable()) << std::endl;
+    } else {
+        std::cout << "Graph created successfully with pfnCreate2. Blob data is imported to the driver, no internal "
+                     "copy is made by the driver."
+                  << std::endl;
+    }
+
+    if (!setPersistentFlag) {
+        std::cout << "Blob data is not imported to the driver, the driver will make an internal copy of the blob. "
+                  << "This may lead to increased memory usage and longer graph creation time." << std::endl;
+    }
     THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCreate2", result, _zeroInitStruct->getGraphDdiTable());
 
     return GraphDescriptor{graphHandle, setPersistentFlag};
