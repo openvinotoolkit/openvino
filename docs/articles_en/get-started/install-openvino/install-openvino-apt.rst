@@ -33,11 +33,12 @@ Step 1: Set Up the OpenVINO Toolkit APT Repository
 
          wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
 
-   b. Add this key to the system keyring:
+   b. Store this key in the dedicated keyring directory and convert it to binary format:
 
       .. code-block:: sh
 
-         sudo gpg --output /etc/apt/trusted.gpg.d/intel.gpg --dearmor GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+         sudo mkdir -p /etc/apt/keyrings
+         sudo gpg --output /etc/apt/keyrings/intel.gpg --dearmor GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
 
       .. note::
 
@@ -56,21 +57,21 @@ Step 1: Set Up the OpenVINO Toolkit APT Repository
 
          .. code-block:: sh
 
-            echo "deb https://apt.repos.intel.com/openvino ubuntu24 main" | sudo tee /etc/apt/sources.list.d/intel-openvino.list
+            echo "deb [signed-by=/etc/apt/keyrings/intel.gpg] https://apt.repos.intel.com/openvino ubuntu24 main" | sudo tee /etc/apt/sources.list.d/intel-openvino.list
 
       .. tab-item:: Ubuntu 22
          :sync: ubuntu-22
 
          .. code-block:: sh
 
-            echo "deb https://apt.repos.intel.com/openvino ubuntu22 main" | sudo tee /etc/apt/sources.list.d/intel-openvino.list
+            echo "deb [signed-by=/etc/apt/keyrings/intel.gpg] https://apt.repos.intel.com/openvino ubuntu22 main" | sudo tee /etc/apt/sources.list.d/intel-openvino.list
 
       .. tab-item:: Ubuntu 20
          :sync: ubuntu-20
 
          .. code-block:: sh
 
-            echo "deb https://apt.repos.intel.com/openvino ubuntu20 main" | sudo tee /etc/apt/sources.list.d/intel-openvino.list
+            echo "deb [signed-by=/etc/apt/keyrings/intel.gpg] https://apt.repos.intel.com/openvino ubuntu20 main" | sudo tee /etc/apt/sources.list.d/intel-openvino.list
 
 
 3. Update the list of packages via the update command:
