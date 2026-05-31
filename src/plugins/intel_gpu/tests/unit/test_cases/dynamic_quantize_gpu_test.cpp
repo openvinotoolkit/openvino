@@ -432,3 +432,15 @@ TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_kv_cache_inner_most_dim
     this->test_dynamic_quantization(false, {-1, 8, -1, 128}, {1, 8, 52, 128}, QuantizationType::Asymmetric, UINT64_MAX,
                                 data_types::i8, data_types::f16, OutputStorageType::InterleavedScalesZP, "dynamic_quantize_gpu_kv_cache", SetInnerMostDimValuesZero::Yes);
 }
+
+TEST_F(dynamic_quantization_gpu_tests, dynamic_quantize_opt_group_size_256) {
+    this->test_dynamic_quantization(false, {1, 1, 8192}, {1, 1, 8192}, QuantizationType::Symmetric, 256,
+                                data_types::i8, data_types::dynamic, OutputStorageType::Planar,
+                                "dynamic_quantize_gpu_opt");
+}
+
+TEST_F(dynamic_quantization_gpu_tests, dynamic_quantize_opt_group_size_256_precompute_sum) {
+    this->test_dynamic_quantization(false, {1, 1, 8192}, {1, 1, 8192}, QuantizationType::Symmetric, 256,
+                                data_types::i8, data_types::i8, OutputStorageType::Planar,
+                                "dynamic_quantize_gpu_opt", SetInnerMostDimValuesZero::No, PrecomputeSum::Enabled);
+}
