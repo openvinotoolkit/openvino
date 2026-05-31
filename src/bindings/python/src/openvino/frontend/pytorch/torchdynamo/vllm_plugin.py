@@ -25,6 +25,7 @@ the OV backend is not requested by the user.
 
 import logging
 import os
+import torch
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +35,23 @@ def _is_openvino_requested():
     # Cheap heuristic: rely on env vars users typically set together with
     # the openvino backend. Refined at patch-time below.
     return True  # always patch — checks happen inside patched load_model
+
+
+def _patch_basevllm_parameter():
+    """Strip __torch_function__ from BasevLLMParameter so make_fx ProxyTorchDispatchMode
+    can dispatch aten.t.default on weights without NotImplemented errors."""
+    try:
+        from vllm.model_executor.parameter import BasevLLMParameter
+    except Exception:
+        return
+    if getattr(BasevLLMParameter, "_ov_plugin_torchfn_stripped", False):
+        return
+    if hasattr(BasevLLMParameter, "__torch_function__"):
+        try:
+            del BasevLLMParameter.__torch_function__
+        except (AttributeError, TypeError):
+            BasevLLMParameter.__torch_function__ = torch.Tensor.__torch_function__
+    BasevLLMParameter._ov_plugin_torchfn_stripped = True
 
 
 def _patch_cpu_model_runner():
@@ -69,7 +87,7 @@ def _patch_cpu_model_runner():
             return
 
         logger.info("[OV plugin] Compiling model with torch.compile backend=openvino")
-        options = {"aot_autograd": True}
+        options = {"aot_autograd": False}  # unwrap fix in fx_openvino lets us avoid AOT overhead
         compiled = torch.compile(
             self.model.forward,
             backend="openvino",
@@ -111,4 +129,5 @@ def register():
     """Entry point for `vllm.general_plugins`."""
     _disable_layername()
     _force_disable_onednn()
+    _patch_basevllm_parameter()
     _patch_cpu_model_runner()

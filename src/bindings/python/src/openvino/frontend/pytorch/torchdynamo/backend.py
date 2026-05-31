@@ -127,6 +127,24 @@ def fx_openvino(subgraph, example_inputs, options=None):
                     )
                 return t
 
+            # Unwrap any vLLM Parameter subclasses on the subgraph to plain
+            # nn.Parameter instances. Otherwise ProxyTorchDispatchMode in
+            # make_fx returns NotImplemented for aten.t.default on the weight,
+            # forcing a fallback to compile_fx (= silent inductor).
+            try:
+                _to_replace = []
+                for _name, _p in list(subgraph.named_parameters(recurse=True)):
+                    if type(_p) is not torch.nn.Parameter:
+                        _to_replace.append((_name, _p))
+                for _name, _p in _to_replace:
+                    _new = torch.nn.Parameter(_p.data, requires_grad=False)
+                    _parts = _name.split(".")
+                    _mod = subgraph
+                    for _part in _parts[:-1]:
+                        _mod = getattr(_mod, _part)
+                    setattr(_mod, _parts[-1], _new)
+            except Exception:
+                pass
             with _unset_fake():
                 real_inputs = [_materialize(t) for t in example_inputs]
                 model = make_fx(
