@@ -1857,7 +1857,8 @@ TEST(activation_i32_fw_gpu, basic_yxfb_i32_funcs) {
         activation_func::relu,
         activation_func::clamp,
         activation_func::floor,
-        activation_func::abs
+        activation_func::abs,
+        activation_func::sign
     };
 
     for (auto func : funcs) {
@@ -1901,6 +1902,11 @@ TEST(activation_i32_fw_gpu, basic_yxfb_i32_funcs) {
             case activation_func::abs:
                 ASSERT_EQ(std::abs(static_cast<int32_t>(input_ptr[i])), output_ptr[i]);
                 break;
+            case activation_func::sign: {
+                const int32_t val = static_cast<int32_t>(input_ptr[i]);
+                ASSERT_EQ(val > 0 ? 1 : (val == 0 ? 0 : -1), output_ptr[i]);
+                break;
+            }
             default:
                 break;
             }

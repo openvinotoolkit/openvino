@@ -62,6 +62,12 @@ target_compile_definitions(${TARGET_NAME}
         FRONTEND_LIB_SUFFIX="${FRONTEND_NAME_SUFFIX}${OV_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}"
         )
 
+if(ENABLE_LTO AND CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 15)
+    # GCC 15's lto1 emits false-positive -Wstringop-overflow/-Wstringop-overread warnings during the LTO link phase
+    # when openvino_xml_util objects are processed. Suppress at the linker level for this test binary only.
+    target_link_options(${TARGET_NAME} PRIVATE -Wno-stringop-overflow -Wno-stringop-overread)
+endif()
+
 if(RISCV64)
     # for std::atomic_bool
     target_link_libraries(${TARGET_NAME} PRIVATE atomic)

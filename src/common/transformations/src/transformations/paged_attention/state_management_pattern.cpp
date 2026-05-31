@@ -236,7 +236,7 @@ static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> gptoss_g
     auto bitwise_and_3 = wrap_type<v13::BitwiseAnd>({bitwise_and_2, any_input()});
     auto broadcast = wrap_type<v3::Broadcast>({bitwise_and_3, any_input()});
     auto select = wrap_type<v1::Select>({broadcast, any_input(), any_input()});
-    auto mask = wrap_type<v8::Slice>({select, any_input(), any_input(), any_input(), any_input()});
+    auto mask = pattern::optional<v8::Slice>({select, any_input(), any_input(), any_input(), any_input()});
 
     return {mask, offset};
 }
