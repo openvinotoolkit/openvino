@@ -5,16 +5,29 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <utility>
 #include <vector>
 
 #include "cpu_memory.h"
 #include "emitters/snippets/input_repacker.hpp"
 #include "graph_context.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
 #include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/pass/pass.hpp"
 
 namespace ov::intel_cpu::pass {
+
+struct MatMulWeightsSource {
+    VectorDims shape;
+    VectorDims layout;
+};
+
+struct RepackedMatMulWeights {
+    MemoryPtr memory;
+    CpuBlockedMemoryDescPtr desc;
+};
 
 /**
  * @interface RepackMatMulWeights
@@ -33,7 +46,16 @@ public:
 
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
-private:
+protected:
+    [[nodiscard]] static MatMulWeightsSource get_weights_source(const std::shared_ptr<ov::Node>& matmul_node,
+                                                                const MemoryPtr& orig_src_mem_ptr);
+    [[nodiscard]] static CpuBlockedMemoryDescPtr get_src_cpu_desc(const MatMulWeightsSource& source,
+                                                                  ov::element::Type precision);
+
+    [[nodiscard]] virtual std::optional<RepackedMatMulWeights> repack(const std::shared_ptr<ov::Node>& consumer,
+                                                                      const MatMulWeightsSource& source,
+                                                                      const MemoryPtr& orig_src_mem_ptr) = 0;
+
     const GraphContext::CPtr m_context;
     ov::intel_cpu::InputRepackerMap& m_input_repackers;
     std::vector<MemoryPtr>& m_src_mem_ptrs;

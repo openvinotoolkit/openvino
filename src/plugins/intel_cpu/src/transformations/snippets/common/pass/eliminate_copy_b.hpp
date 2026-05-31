@@ -5,11 +5,13 @@
 #pragma once
 
 #include <cstddef>
+#include <memory>
 #include <set>
 #include <utility>
 
 #include "emitters/snippets/input_repacker.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/pass/pass.hpp"
 
 namespace ov::intel_cpu::pass {
@@ -24,6 +26,10 @@ namespace ov::intel_cpu::pass {
 class EliminateCopyB : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("EliminateCopyB");
+
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+
+protected:
     EliminateCopyB(ov::intel_cpu::InputRepackerMap& input_repackers,
                    bool runtime_repacking_supported,
                    std::set<size_t> compile_time_repacking_idxs = {})
@@ -31,9 +37,10 @@ public:
           m_runtime_repacking_supported(runtime_repacking_supported),
           m_compile_time_repacking_idxs(std::move(compile_time_repacking_idxs)) {}
 
-    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
-
 private:
+    [[nodiscard]] virtual std::shared_ptr<ov::Node> get_copy_b_pattern(
+        const std::shared_ptr<ov::Node>& input) const = 0;
+    [[nodiscard]] virtual bool is_supported_copy_b(const std::shared_ptr<ov::Node>& node) const = 0;
     [[nodiscard]] bool should_extract(size_t param_idx) const;
 
     ov::intel_cpu::InputRepackerMap& m_input_repackers;

@@ -1,0 +1,193 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "repack_matmul_weights.hpp"
+
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <numeric>
+#include <optional>
+#include <sstream>
+#include <string>
+
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "emitters/snippets/aarch64/kernel_executors/gemm_copy_b.hpp"
+#include "graph_context.h"
+#include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_x16p32x1b_x16_x16_neon.h"
+#include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_x32p16x1b_x32_x32_neon.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
+#include "nodes/reorder.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/utils/utils.hpp"
+#include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
+#include "transformations/snippets/common/pass/repack_matmul_weights.hpp"
+
+namespace ov::intel_cpu::pass::aarch64 {
+namespace {
+
+size_t get_packed_size(size_t N, size_t K, ov::element::Type precision) {
+    if (precision == ov::element::f16) {
+        return kai_get_rhs_packed_size_rhs_pack_kxn_x16p32x1b_x16_x16_neon(N, K);
+    }
+    if (precision == ov::element::f32) {
+        return kai_get_rhs_packed_size_rhs_pack_kxn_x32p16x1b_x32_x32_neon(N, K);
+    }
+    OPENVINO_THROW("Unsupported precision for aarch64 GEMM weights repacking: ", precision.get_type_name());
+}
+
+CpuBlockedMemoryDescPtr get_dst_cpu_desc(const VectorDims& planar_shape, ov::element::Type precision) {
+    OPENVINO_ASSERT(planar_shape.size() >= 2, "GEMM weights must have rank >= 2");
+    return std::make_shared<CpuBlockedMemoryDesc>(precision, Shape{planar_shape});
+}
+
+template <auto rhs_pack_kxn, typename UkernelT>
+void repack_matrix(size_t N,
+                   size_t K,
+                   size_t row_stride_bytes,
+                   size_t col_stride_bytes,
+                   const UkernelT& uk,
+                   const uint8_t* src,
+                   uint8_t* dst) {
+    const auto n_blk_size = ov::intel_cpu::aarch64::GemmCopyBKernelKaiConfig::get_N_blk();
+    const size_t nr = uk.get_nr();
+    const size_t kr = uk.get_kr();
+    const size_t sr = uk.get_sr();
+    const size_t n_blocks = ov::snippets::utils::div_up(N, n_blk_size);
+    for (size_t n_block = 0; n_block < n_blocks; n_block++) {
+        const size_t n_start = n_block * n_blk_size;
+        const size_t n_end = std::min(n_start + n_blk_size, N);
+        const size_t n_step = n_end - n_start;
+        const auto* src_ptr = src + n_start * col_stride_bytes;
+        const size_t packed_off = uk.get_rhs_packed_offset(n_start, K);
+        auto* dst_ptr = dst + packed_off;
+        rhs_pack_kxn(1,
+                     n_step,
+                     K,
+                     nr,
+                     kr,
+                     sr,
+                     row_stride_bytes,
+                     const_cast<uint8_t*>(src_ptr),
+                     nullptr,
+                     nullptr,
+                     dst_ptr,
+                     0,
+                     nullptr);
+    }
+}
+
+void repack_matrix(size_t N, size_t K, ov::element::Type precision, const uint8_t* src, uint8_t* dst) {
+    const auto row_stride_bytes = N * precision.size();
+    const auto col_stride_bytes = precision.size();
+    if (precision == ov::element::f16) {
+        repack_matrix<kai_run_rhs_pack_kxn_x16p32x1b_x16_x16_neon>(
+            N,
+            K,
+            row_stride_bytes,
+            col_stride_bytes,
+            ov::intel_cpu::aarch64::GemmCopyBCompiledKernelF16::ukernel,
+            src,
+            dst);
+    } else if (precision == ov::element::f32) {
+        repack_matrix<kai_run_rhs_pack_kxn_x32p16x1b_x32_x32_neon>(
+            N,
+            K,
+            row_stride_bytes,
+            col_stride_bytes,
+            ov::intel_cpu::aarch64::GemmCopyBCompiledKernelF32::ukernel,
+            src,
+            dst);
+    } else {
+        OPENVINO_THROW("Unsupported precision for aarch64 GEMM weights repacking: ", precision.get_type_name());
+    }
+}
+
+MemoryPtr prepare_weights_memory(const GraphContext::CPtr& context,
+                                 const CpuBlockedMemoryDescPtr& src_desc,
+                                 const MemoryPtr& orig_src_mem_ptr,
+                                 const CpuBlockedMemoryDescPtr& dst_desc,
+                                 ov::element::Type precision) {
+    const auto planar_shape = src_desc->getShape().getStaticDims();
+    OPENVINO_ASSERT(planar_shape.size() >= 2, "GEMM weights must have rank >= 2");
+    OPENVINO_ASSERT(std::none_of(planar_shape.begin(),
+                                 planar_shape.end(),
+                                 [](size_t dim) {
+                                     return ov::snippets::utils::is_dynamic_value(dim);
+                                 }),
+                    "Static weights are expected for aarch64 GEMM weights repacking");
+
+    const auto K = *++planar_shape.rbegin();
+    const auto N = *planar_shape.rbegin();
+    const auto packed_bytes = get_packed_size(N, K, precision);
+    OPENVINO_ASSERT(packed_bytes % precision.size() == 0, "Unexpected packed weights byte size alignment");
+    const auto batch =
+        std::accumulate(planar_shape.cbegin(), planar_shape.cend() - 2, static_cast<size_t>(1), std::multiplies<>());
+
+    std::stringstream format;
+    format << "snippets_aarch64_gemm_copy_b_" << precision.get_type_name();
+    for (const auto dim : planar_shape) {
+        format << '_' << dim;
+    }
+    format << '_' << packed_bytes;
+
+    auto create = [&]() {
+        const auto& eng = context->getEngine();
+        Memory src_mem{eng, src_desc, orig_src_mem_ptr->getData()};
+        Memory planar_mem{eng, std::make_shared<CpuBlockedMemoryDesc>(precision, Shape{planar_shape})};
+        node::Reorder::reorderData(src_mem,
+                                   planar_mem,
+                                   context->getParamsCache(),
+                                   context->getCpuParallel()->get_thread_pool());
+
+        auto dst_block = std::make_shared<DnnlMemoryBlock>(std::make_unique<MemoryBlockWithReuse>());
+        dst_block->resize(batch * packed_bytes);
+        auto dst_mem = std::make_shared<Memory>(eng, dst_desc, dst_block);
+        if (N == 0 || K == 0) {
+            return dst_mem;
+        }
+
+        const auto src_matrix_bytes = K * N * precision.size();
+        const auto* src = planar_mem.getDataAs<const uint8_t>();
+        auto* dst = dst_mem->getDataAs<uint8_t>();
+        parallel_for(batch, [&](size_t batch_idx) {
+            repack_matrix(N, K, precision, src + batch_idx * src_matrix_bytes, dst + batch_idx * packed_bytes);
+        });
+        return dst_mem;
+    };
+
+    auto weight_cache = context->getWeightsCache();
+    if (weight_cache != nullptr) {
+        const auto string_hash = format.str() + "_" + std::to_string(orig_src_mem_ptr->getSize()) + "_" +
+                                 std::to_string(reinterpret_cast<uint64_t>(orig_src_mem_ptr->getData()));
+        return MemoryPtr(*weight_cache->findOrCreate(string_hash, create));
+    }
+
+    return create();
+}
+
+}  // namespace
+
+std::optional<RepackedMatMulWeights> RepackMatMulWeights::repack(const std::shared_ptr<ov::Node>& consumer,
+                                                                 const MatMulWeightsSource& source,
+                                                                 const MemoryPtr& orig_src_mem_ptr) {
+    const auto gemm_cpu = ov::as_type_ptr<ov::intel_cpu::aarch64::GemmCPU>(consumer);
+    OPENVINO_ASSERT(gemm_cpu != nullptr, "Expected one consumer - GemmCPU");
+
+    const auto precision = gemm_cpu->get_input_element_type(1);
+    const auto src_desc = get_src_cpu_desc(source, precision);
+    const auto planar_shape = src_desc->getShape().getStaticDims();
+    const auto dst_desc = get_dst_cpu_desc(planar_shape, precision);
+    return RepackedMatMulWeights{prepare_weights_memory(m_context, src_desc, orig_src_mem_ptr, dst_desc, precision),
+                                 dst_desc};
+}
+
+}  // namespace ov::intel_cpu::pass::aarch64

@@ -4,78 +4,39 @@
 
 #include "eliminate_copy_b.hpp"
 
+#include <cstddef>
+#include <memory>
+
+#include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/itt.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "snippets/itt.hpp"
-
-#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
-
-#    include <cstddef>
-#    include <memory>
-#    include <set>
-
-#    include "openvino/cc/pass/itt.hpp"
-#    include "openvino/core/except.hpp"
-#    include "openvino/core/graph_util.hpp"
-#    include "openvino/core/model.hpp"
-#    include "openvino/core/node.hpp"
-#    include "openvino/core/type.hpp"
-#    include "openvino/itt.hpp"
-#    include "openvino/op/parameter.hpp"
-#    include "openvino/pass/pattern/matcher.hpp"
-#    include "openvino/pass/pattern/op/optional.hpp"
-#    include "openvino/pass/pattern/op/wrap_type.hpp"
-#    include "snippets/lowered/port_descriptor.hpp"
-#    include "snippets/op/rank_normalization.hpp"
-#    include "snippets/op/reorder.hpp"
-#    include "snippets/utils/utils.hpp"
-
-#    if defined(OPENVINO_ARCH_X86_64)
-#        include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
-#    elif defined(OPENVINO_ARCH_ARM64)
-#        include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
-#    endif
-
-#endif
+#include "snippets/lowered/port_descriptor.hpp"
+#include "snippets/op/rank_normalization.hpp"
+#include "snippets/op/reorder.hpp"
+#include "snippets/utils/utils.hpp"
 
 namespace ov::intel_cpu {
-namespace {
-
-#if defined(OPENVINO_ARCH_X86_64)
-bool is_supported_copy_b(const std::shared_ptr<ov::Node>& node) {
-    const auto copy_b = ov::as_type_ptr<BrgemmCopyB>(node);
-    OPENVINO_ASSERT(copy_b, "EliminateCopyB expects BrgemmCopyB node on x64");
-    // TODO [157340]: support external repacking for copyB with compensations.
-    return !copy_b->get_config().with_compensations();
-}
-#elif defined(OPENVINO_ARCH_ARM64)
-bool is_supported_copy_b(const std::shared_ptr<ov::Node>& node) {
-    OPENVINO_ASSERT(ov::is_type<aarch64::GemmCopyB>(node), "EliminateCopyB expects GemmCopyB node on aarch64");
-    return true;
-}
-#endif
-
-}  // namespace
 
 bool pass::EliminateCopyB::should_extract(size_t param_idx) const {
     return m_runtime_repacking_supported || m_compile_time_repacking_idxs.count(param_idx) > 0;
 }
 
-bool pass::EliminateCopyB::run_on_model([[maybe_unused]] const std::shared_ptr<ov::Model>& model) {
+bool pass::EliminateCopyB::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(EliminateCopyB);
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::EliminateCopyB")
 
-#if !defined(OPENVINO_ARCH_X86_64) && !defined(OPENVINO_ARCH_ARM64)
-    (void)m_input_repackers;
-    (void)m_runtime_repacking_supported;
-    (void)m_compile_time_repacking_idxs;
-    return false;
-#else
     auto m_param = ov::pass::pattern::wrap_type<ov::op::v0::Parameter>();
     auto m_rank_norm = ov::pass::pattern::optional<ov::snippets::op::RankNormalization>(m_param);
-#    if defined(OPENVINO_ARCH_X86_64)
-    auto m_copy_b = ov::pass::pattern::wrap_type<BrgemmCopyB>({m_rank_norm});
-#    else
-    auto m_copy_b = ov::pass::pattern::wrap_type<aarch64::GemmCopyB>({m_rank_norm});
-#    endif
+    auto m_copy_b = get_copy_b_pattern(m_rank_norm);
     auto matcher = std::make_shared<ov::pass::pattern::Matcher>(m_copy_b);
 
     bool status = false;
@@ -133,6 +94,5 @@ bool pass::EliminateCopyB::run_on_model([[maybe_unused]] const std::shared_ptr<o
     }
 
     return status;
-#endif
 }
 }  // namespace ov::intel_cpu
