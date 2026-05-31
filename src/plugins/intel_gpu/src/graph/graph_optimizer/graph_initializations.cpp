@@ -115,16 +115,21 @@ void graph_initializations::run(program& p) {
     for (auto& kv : forcing_map) {
         bool found_match = false;
 
+        // Try exact primitive id match first
         if (p.has_node(kv.first)) {
             p.get_node(kv.first).set_forced_impl_type(kv.second.impl_type);
             found_match = true;
             continue;
         }
 
-        if (is_pattern_key(kv.first) || !has_primitive_suffix(kv.first)) {
+        // Not an exact match - check if it's a pattern or layer-name key
+        // For these keys, only impl_type can be forced
+        const bool is_pattern_or_layer_name = is_pattern_key(kv.first) || !has_primitive_suffix(kv.first);
+        if (is_pattern_or_layer_name) {
             validate_pattern_forcing_desc(kv.first, kv.second);
         }
 
+        // Try pattern/layer-name matching
         for (auto& node_kv : p.nodes_map) {
             const auto& node_id = node_kv.first;
 
