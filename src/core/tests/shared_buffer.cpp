@@ -606,5 +606,4 @@ TEST_F(SharedBufferTest, no_call_when_mmap_object_is_null) {
         std::shared_ptr<ov::MappedMemory>{} /*null*/);
     EXPECT_NO_THROW(buffer->hint_evict());
 }
-
 }  // namespace ov::test
