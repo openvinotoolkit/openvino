@@ -1355,7 +1355,7 @@ TEST(type_prop, reshape_symbol_deducing) {
     EXPECT_TRUE(ov::symbol::are_equal(B, C));
 }
 
-// Simlete ONNX softmax converted model as a flatten->Softmax->unflatten(ShapeOf) sequence.
+// Simulate ONNX softmax converted model as a flatten->Softmax->unflatten(ShapeOf) sequence.
 // When this is followed by a Reshape back to 4D (using dims extracted from Shape(x)) and then two consecutive
 // ReduceSum(axis=-1, keepdims=false) ops, the final Reshape to [N, C, 1, 1] must infer the correct shape
 // without raising an error.
@@ -1384,7 +1384,7 @@ TEST(type_prop, reshape_after_softmax_flatten_double_reduce_sum) {
     const auto dim_3_1d = std::make_shared<Unsqueeze>(dim_3, unsq_axis);
     const auto hw_1d = std::make_shared<Unsqueeze>(hw, unsq_axis);
 
-    // OReshape: [1, 2, 4, 4] -> [1, 2, H*W] (flat for Softmax)
+    // Reshape: [1, 2, 4, 4] -> [1, 2, H*W] (flat for Softmax)
     const auto flat_shape = std::make_shared<op::v0::Concat>(OutputVector{dim_0_1d, dim_1_1d, hw_1d}, 0);
     const auto flat = std::make_shared<op::v1::Reshape>(input, flat_shape, false);
 
