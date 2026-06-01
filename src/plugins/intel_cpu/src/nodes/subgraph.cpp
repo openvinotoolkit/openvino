@@ -69,6 +69,7 @@
 #    include "emitters/snippets/riscv64/cpu_generator.hpp"
 #    include "executors/riscv64/subgraph.hpp"
 #    include "openvino/core/except.hpp"
+#    include "snippets/lowered/pass/insert_loops.hpp"
 #else
 #    include "emitters/snippets/cpu_runtime_configurator.hpp"
 #    include "snippets/lowered/pass/insert_perf_count_verbose.hpp"
@@ -80,10 +81,10 @@
 #if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
 #    include "snippets/lowered/pass/insert_perf_count_verbose.hpp"
 #    include "snippets/lowered/pass/mark_loops.hpp"
+#    include "transformations/snippets/common/pass/lowered/fuse_load_store_and_convert.hpp"
 #endif
 #if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
 #    include "snippets/pass/propagate_precision.hpp"
-#    include "transformations/snippets/common/pass/lowered/fuse_load_store_and_convert.hpp"
 #endif
 
 #if defined(OPENVINO_ARCH_X86_64)
@@ -748,6 +749,9 @@ Subgraph::getControlFlowPasses() {  // NOLINT(readability-convert-member-functio
     SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::After,
                                           ov::snippets::lowered::pass::InsertLoops,
                                           ov::intel_cpu::pass::FuseLoadStoreConvert);
+    SNIPPETS_REGISTER_PASS_RELATIVE_RISCV64(Place::After,
+                                            ov::snippets::lowered::pass::InsertLoops,
+                                            ov::intel_cpu::pass::FuseLoadStoreConvert);
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
                                            ov::snippets::lowered::pass::InsertBuffers,
                                            ov::intel_cpu::pass::InsertBrgemmCopyBuffers);
