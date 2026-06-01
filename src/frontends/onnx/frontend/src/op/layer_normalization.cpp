@@ -122,7 +122,12 @@ ov::OutputVector layer_normalization(const ov::frontend::onnx::Node& node) {
         return std::make_shared<NullNode>()->output(0);
     };
 
-    auto mean = std::make_shared<v1::ReduceMean>(data, axes, /*keep_dims=*/true);
+    // Only build the reference decomposition when Mean and/or InvStdDev are actually requested, so inference-only
+    // models that keep the extra outputs but leave them empty don't get redundant ReduceMean nodes.
+    std::shared_ptr<ov::Node> mean;
+    if (wanted(1) || wanted(2)) {
+        mean = std::make_shared<v1::ReduceMean>(data, axes, /*keep_dims=*/true);
+    }
     if (num_outputs >= 2) {
         results.push_back(wanted(1) ? mean->output(0) : null_output());
     }
