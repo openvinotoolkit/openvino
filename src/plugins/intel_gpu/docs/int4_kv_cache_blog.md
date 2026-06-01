@@ -31,11 +31,18 @@ When INT4 KV cache is enabled, keys and values are quantized from FP16 down to 4
 
 Internally, `i4` and `u4` are treated identically—the plugin normalizes `i4` to `u4` at compile time. Likewise, `u8` is normalized to `i8`. You can use either spelling when setting the property; the behavior is the same.
 
-The quantization uses **group-wise scaling**:
+The quantization scheme depends on the attention backend:
+
+**Paged Attention backend** (recommended):
 - **Keys** are quantized with per-channel scales (`BY_CHANNEL` mode, group size = 16).
 - **Values** are quantized with per-token scales (`BY_TOKEN` mode).
 
 This asymmetry is intentional. Channel-wise quantization of keys tends to preserve attention accuracy better, while token-wise quantization of values is more efficient for the decode-phase kernel.
+
+**SDPA backend** (non-paged attention):
+- Both **keys and values** are quantized with per-token scales (`BY_TOKEN` mode).
+
+The lack of per-channel key quantization in the SDPA path means accuracy impact is more likely compared to the Paged Attention path.
 
 ---
 
@@ -129,6 +136,7 @@ Quantizing the KV cache introduces more quantization error into the attention co
 
 - **Cache rotation is not supported.** Serving configurations that combine KV cache block eviction with RoPE positional correction (cache rotation) are incompatible with INT4 KV cache. This does not affect typical single-session inference or standard prefix caching.
 - **GPU plugin only.** INT4 KV cache compression is not available on the CPU plugin.
+- **By-channel key quantization requires Paged Attention.** The `BY_CHANNEL` quantization mode for keys (which offers better accuracy) is only available when using the Paged Attention backend. When running with the SDPA backend (non-paged attention), keys fall back to `BY_TOKEN` quantization, which is more likely to introduce accuracy deviation. **Paged Attention is the recommended inference flow** and should be preferred when using INT4 KV cache compression.
 
 ---
 
@@ -145,4 +153,4 @@ Quantizing the KV cache introduces more quantization error into the attention co
 
 INT4 KV cache compression is impactful when you are memory-constrained and want to serve longer contexts.
 
-Enable it with `"KV_CACHE_PRECISION": "u4"` and validate performance and accuracy on your workload.
+Enable it with `"KV_CACHE_PRECISION": "u4"` and validate performance and accuracy on your workload. For best accuracy results, use the **Paged Attention backend**, which enables by-channel key quantization. If you are on the SDPA backend, be aware that per-token quantization is used for keys as well, and accuracy impact is more likely—validate carefully before deploying.
