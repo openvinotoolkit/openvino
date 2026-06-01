@@ -1346,14 +1346,14 @@ RoPEFusionLlamaCpp::RoPEFusionLlamaCpp() {
     // unconstrained here and re-validated in the callback.
     auto x_low_slice = pattern::wrap_type<v8::Slice>(
         {x, pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()});
-    auto x_low_strided = pattern::wrap_type<v1::StridedSlice>(
-        {x, pattern::any_input(), pattern::any_input(), pattern::any_input()});
+    auto x_low_strided =
+        pattern::wrap_type<v1::StridedSlice>({x, pattern::any_input(), pattern::any_input(), pattern::any_input()});
     auto x_low = std::make_shared<pattern::op::Or>(OutputVector{x_low_slice, x_low_strided});
 
     auto x_high_slice = pattern::wrap_type<v8::Slice>(
         {x, pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()});
-    auto x_high_strided = pattern::wrap_type<v1::StridedSlice>(
-        {x, pattern::any_input(), pattern::any_input(), pattern::any_input()});
+    auto x_high_strided =
+        pattern::wrap_type<v1::StridedSlice>({x, pattern::any_input(), pattern::any_input(), pattern::any_input()});
     auto x_high = std::make_shared<pattern::op::Or>(OutputVector{x_high_slice, x_high_strided});
 
     auto mul_low_cos = pattern::wrap_type<v1::Multiply>({x_low, t_cos}, {{"auto_broadcast", "numpy"}});
@@ -1362,12 +1362,10 @@ RoPEFusionLlamaCpp::RoPEFusionLlamaCpp() {
     auto mul_high_sin = pattern::wrap_type<v1::Multiply>({x_high, t_sin}, {{"auto_broadcast", "numpy"}});
 
     // y_low = (x_low * cos) - (x_high * sin); accept Subtract or its ConvertSubtract→Add+Negate form.
-    auto neg_high_sin =
-        pattern::wrap_type<v1::Multiply>({mul_high_sin, -1.0f}, {{"auto_broadcast", "numpy"}});
+    auto neg_high_sin = pattern::wrap_type<v1::Multiply>({mul_high_sin, -1.0f}, {{"auto_broadcast", "numpy"}});
     auto sub_low_via_subtract =
         pattern::wrap_type<v1::Subtract>({mul_low_cos, mul_high_sin}, {{"auto_broadcast", "numpy"}});
-    auto sub_low_via_add =
-        pattern::wrap_type<v1::Add>({mul_low_cos, neg_high_sin}, {{"auto_broadcast", "numpy"}});
+    auto sub_low_via_add = pattern::wrap_type<v1::Add>({mul_low_cos, neg_high_sin}, {{"auto_broadcast", "numpy"}});
     auto sub_low = std::make_shared<pattern::op::Or>(OutputVector{sub_low_via_subtract, sub_low_via_add});
 
     // y_high = (x_high * cos) + (x_low * sin)
@@ -1393,9 +1391,11 @@ RoPEFusionLlamaCpp::RoPEFusionLlamaCpp() {
         auto find_or_branch = [&](const std::shared_ptr<ov::Node>& a,
                                   const std::shared_ptr<ov::Node>& b) -> ov::Output<ov::Node> {
             auto ita = pattern_map.find(a);
-            if (ita != pattern_map.end()) return ita->second;
+            if (ita != pattern_map.end())
+                return ita->second;
             auto itb = pattern_map.find(b);
-            if (itb != pattern_map.end()) return itb->second;
+            if (itb != pattern_map.end())
+                return itb->second;
             return {};
         };
         auto x_low_out = find_or_branch(x_low_slice, x_low_strided);
@@ -1409,8 +1409,7 @@ RoPEFusionLlamaCpp::RoPEFusionLlamaCpp() {
         const int64_t half_ndims_val = x_low_pshape[x_low_pshape.size() - 1].get_length();
 
         // Stack must be one rank above the final Reshape, concatenating on the next-to-last axis.
-        auto stack_node =
-            ov::as_type_ptr<v0::Concat>(pattern_map.at(stack).get_node_shared_ptr());
+        auto stack_node = ov::as_type_ptr<v0::Concat>(pattern_map.at(stack).get_node_shared_ptr());
         if (!stack_node) {
             return false;
         }
@@ -1459,26 +1458,25 @@ RoPEFusionLlamaCpp::RoPEFusionLlamaCpp() {
         auto new_node = std::make_shared<v1::Reshape>(rope_node, root->input_value(1), false);
         new_node->set_friendly_name(root->get_friendly_name());
 
-        ov::NodeVector rt_from{
-            pattern_map.at(mul_low_cos).get_node_shared_ptr(),
-            pattern_map.at(mul_low_sin).get_node_shared_ptr(),
-            pattern_map.at(mul_high_cos).get_node_shared_ptr(),
-            pattern_map.at(mul_high_sin).get_node_shared_ptr(),
-            pattern_map.at(add_high).get_node_shared_ptr(),
-            pattern_map.at(stack).get_node_shared_ptr(),
-            root};
+        ov::NodeVector rt_from{pattern_map.at(mul_low_cos).get_node_shared_ptr(),
+                               pattern_map.at(mul_low_sin).get_node_shared_ptr(),
+                               pattern_map.at(mul_high_cos).get_node_shared_ptr(),
+                               pattern_map.at(mul_high_sin).get_node_shared_ptr(),
+                               pattern_map.at(add_high).get_node_shared_ptr(),
+                               pattern_map.at(stack).get_node_shared_ptr(),
+                               root};
         // OR-branch nodes — only the matched branch is present in pattern_map.
         for (const auto& or_branch : {x_low_slice,
-                                       x_low_strided,
-                                       x_high_slice,
-                                       x_high_strided,
-                                       sub_low_via_subtract,
-                                       sub_low_via_add,
-                                       neg_high_sin,
-                                       unsq_low_via_unsq,
-                                       unsq_low_via_reshape,
-                                       unsq_high_via_unsq,
-                                       unsq_high_via_reshape}) {
+                                      x_low_strided,
+                                      x_high_slice,
+                                      x_high_strided,
+                                      sub_low_via_subtract,
+                                      sub_low_via_add,
+                                      neg_high_sin,
+                                      unsq_low_via_unsq,
+                                      unsq_low_via_reshape,
+                                      unsq_high_via_unsq,
+                                      unsq_high_via_reshape}) {
             auto it = pattern_map.find(or_branch);
             if (it != pattern_map.end()) {
                 rt_from.push_back(it->second.get_node_shared_ptr());

@@ -2288,8 +2288,8 @@ TEST_F(TransformationTestsF, ConvertToROPE_LlamaCpp) {
         auto t_cos = std::make_shared<opset1::Parameter>(element::f32, PartialShape{1, seq_len, 1, half_ndims});
         auto t_sin = std::make_shared<opset1::Parameter>(element::f32, PartialShape{1, seq_len, 1, half_ndims});
 
-        auto x4 = makeOP<opset1::Reshape>({x, makeConst(element::i64, Shape{4}, {0, 0, 1, -1})},
-                                          {{"special_zero", true}});
+        auto x4 =
+            makeOP<opset1::Reshape>({x, makeConst(element::i64, Shape{4}, {0, 0, 1, -1})}, {{"special_zero", true}});
 
         auto rope = makeOP<op::internal::RoPE>({x4, t_cos, t_sin},
                                                {{"config.slice_start", 0},
@@ -2357,8 +2357,8 @@ TEST_F(TransformationTestsF, ConvertToROPE_LlamaCpp_subtract_canonicalized_to_ad
         auto t_cos = std::make_shared<opset1::Parameter>(element::f32, PartialShape{1, seq_len, 1, half_ndims});
         auto t_sin = std::make_shared<opset1::Parameter>(element::f32, PartialShape{1, seq_len, 1, half_ndims});
 
-        auto x4 = makeOP<opset1::Reshape>({x, makeConst(element::i64, Shape{4}, {0, 0, 1, -1})},
-                                          {{"special_zero", true}});
+        auto x4 =
+            makeOP<opset1::Reshape>({x, makeConst(element::i64, Shape{4}, {0, 0, 1, -1})}, {{"special_zero", true}});
 
         auto rope = makeOP<op::internal::RoPE>({x4, t_cos, t_sin},
                                                {{"config.slice_start", 0},
