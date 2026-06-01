@@ -73,8 +73,21 @@ ov::Output<ov::Node> build_case2_indices(const ov::Output<ov::Node>& mat_a, ov::
     auto indices = std::make_shared<v3::Broadcast>(range_2d, target_shape);
 
     new_nodes.insert(new_nodes.end(),
-                     {shape_a, axis0, idx_g, idx_m, g_dim, m_dim, target_shape,
-                      g_scalar_idx, g_scalar, zero, one, range, unsqueeze_axis, range_2d, indices});
+                     {shape_a,
+                      axis0,
+                      idx_g,
+                      idx_m,
+                      g_dim,
+                      m_dim,
+                      target_shape,
+                      g_scalar_idx,
+                      g_scalar,
+                      zero,
+                      one,
+                      range,
+                      unsqueeze_axis,
+                      range_2d,
+                      indices});
     return indices;
 }
 
@@ -105,9 +118,9 @@ ov::Output<ov::Node> build_case1_indices(const ov::Output<ov::Node>& mat_a,
     auto unsqueeze_axis = v0::Constant::create(i32, ov::Shape{1}, {-1});
     auto indices = std::make_shared<v0::Unsqueeze>(idx_1d, unsqueeze_axis);
 
-    new_nodes.insert(new_nodes.end(),
-                     {offsets_i32, shape_a, axis0, t_idx, t_scalar, zero, one, positions, idx_1d, unsqueeze_axis,
-                      indices});
+    new_nodes.insert(
+        new_nodes.end(),
+        {offsets_i32, shape_a, axis0, t_idx, t_scalar, zero, one, positions, idx_1d, unsqueeze_axis, indices});
     return indices;
 }
 
@@ -166,9 +179,9 @@ ConvertGroupedMatMulToGatherMatmul::ConvertGroupedMatMulToGatherMatmul() {
 
             auto indices = build_case1_indices(mat_a, offsets, new_nodes);
 
-            auto gm = std::make_shared<GatherMatmul>(a_3d, mat_b, indices);   // [1, T, N]
+            auto gm = std::make_shared<GatherMatmul>(a_3d, mat_b, indices);  // [1, T, N]
             auto squeeze_axis = v0::Constant::create(ov::element::i32, ov::Shape{1}, {0});
-            auto out = std::make_shared<v0::Squeeze>(gm, squeeze_axis);     // [T, N]
+            auto out = std::make_shared<v0::Squeeze>(gm, squeeze_axis);  // [T, N]
 
             new_nodes.push_back(gm);
             new_nodes.push_back(squeeze_axis);

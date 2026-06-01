@@ -68,9 +68,7 @@ TEST_F(TypePropGroupedMatMulTest, case1_2d_3d_missing_offsets) {
     const auto mat_a = std::make_shared<Parameter>(element::f32, PartialShape{16, 64});
     const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{3, 128, 64});
 
-    OV_EXPECT_THROW(std::ignore = make_op(mat_a, mat_b),
-                    ov::NodeValidationFailure,
-                    HasSubstr("requires offsets"));
+    OV_EXPECT_THROW(std::ignore = make_op(mat_a, mat_b), ov::NodeValidationFailure, HasSubstr("requires offsets"));
 }
 
 // ==================== Case 2: 3D × 3D (batched) ====================
@@ -166,9 +164,7 @@ TEST_F(TypePropGroupedMatMulTest, case3_2d_2d_missing_offsets) {
     const auto mat_a = std::make_shared<Parameter>(element::f32, PartialShape{64, 16});
     const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{128, 16});
 
-    OV_EXPECT_THROW(std::ignore = make_op(mat_a, mat_b),
-                    ov::NodeValidationFailure,
-                    HasSubstr("requires offsets"));
+    OV_EXPECT_THROW(std::ignore = make_op(mat_a, mat_b), ov::NodeValidationFailure, HasSubstr("requires offsets"));
 }
 
 // ==================== Error cases ====================

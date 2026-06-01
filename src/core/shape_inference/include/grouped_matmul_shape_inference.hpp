@@ -60,9 +60,7 @@ std::vector<TRShape> shape_infer(const GroupedMatMul* op,
 
     // Case 1: 2D × 3D (MoE forward pass) - requires offsets
     if (mat_a_rank == 2 && mat_b_rank == 3) {
-        NODE_VALIDATION_CHECK(op,
-                              num_inputs == 3,
-                              "GroupedMatMul 2D×3D case requires offsets input.");
+        NODE_VALIDATION_CHECK(op, num_inputs == 3, "GroupedMatMul 2D×3D case requires offsets input.");
 
         if (num_inputs == 3) {
             const auto& offsets_shape = input_shapes[2];
@@ -92,9 +90,7 @@ std::vector<TRShape> shape_infer(const GroupedMatMul* op,
 
     // Case 3: 2D × 2D (MoE weight gradient) - requires offsets
     if (mat_a_rank == 2 && mat_b_rank == 2) {
-        NODE_VALIDATION_CHECK(op,
-                              num_inputs == 3,
-                              "GroupedMatMul 2D×2D case requires offsets input.");
+        NODE_VALIDATION_CHECK(op, num_inputs == 3, "GroupedMatMul 2D×2D case requires offsets input.");
 
         const auto& offsets_shape = input_shapes[2];
         NODE_VALIDATION_CHECK(op,
