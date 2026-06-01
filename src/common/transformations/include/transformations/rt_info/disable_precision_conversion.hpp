@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "openvino/core/attribute_adapter.hpp"
+#include "openvino/core/deprecated.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/runtime_attribute.hpp"
 #include "transformations_visibility.hpp"
@@ -28,8 +29,7 @@ TRANSFORMATIONS_API void do_not_postpone_fp16_compression(RTMap& rt_info);
  * precision.
  * @deprecated Use disable_conversion(node, element::f16) and is_conversion_disabled(node, element::f16) instead.
  */
-class TRANSFORMATIONS_API
-    __attribute__((deprecated("Use disable_conversion(node, element::f16) instead")))
+class TRANSFORMATIONS_API OV_DEPRECATED_CLASS("Use disable_conversion(node, element::f16) instead")
     DisableFP16Compression : public RuntimeAttribute {
 public:
     OPENVINO_RTTI("precise", "0", RuntimeAttribute);

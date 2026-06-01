@@ -21,6 +21,22 @@
 #    define OPENVINO_ENUM_DEPRECATED(msg) OPENVINO_DEPRECATED(msg)
 #endif
 
+//
+// OV_DEPRECATED_CLASS works on class definitions that also carry a visibility attribute
+// (__attribute__((visibility("default")))). The standard [[deprecated]] attribute cannot
+// be combined with GNU __attribute__ on class definitions in GCC, so we fall back to the
+// compiler-native form.
+//
+#ifndef OV_DEPRECATED_CLASS
+#    if defined(_MSC_VER)
+#        define OV_DEPRECATED_CLASS(msg) __declspec(deprecated(msg))
+#    elif defined(__GNUC__) || defined(__clang__)
+#        define OV_DEPRECATED_CLASS(msg) __attribute__((deprecated(msg)))
+#    else
+#        define OV_DEPRECATED_CLASS(msg)
+#    endif
+#endif
+
 // Suppress warning "-Wdeprecated-declarations" / C4996
 #if defined(__GNUC__)
 #    define OPENVINO_DO_PRAGMA(x) _Pragma(#x)
