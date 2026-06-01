@@ -1,5 +1,7 @@
 # INT4 KV Cache Compression for LLM Inference on Intel GPU: New in OpenVINO 2026.2
 
+*By Mingyu Kim and Byungil Min | June 1, 2026*
+
 Running large language models at long context lengths is memory-intensive work. Even after compressing model weights to INT4, the **KV cache** keeps growing with every new token and every prompt you push through the model. OpenVINO 2026.2 introduces INT4 KV cache compression for the GPU plugin, cutting that overhead roughly in half compared to INT8 and by two-thirds compared to FP16. This post walks through what it is, how to enable it, and what you can expect in practice.
 
 ---
