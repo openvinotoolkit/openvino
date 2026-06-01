@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <numeric>
+
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -180,6 +181,9 @@ ov::OutputVector bifurcation_detector(const ov::frontend::onnx::Node& node) {
     // Append a sentinel so the Gather source is never empty (src_len == 0) and any
     // clamped index stays in-bounds. src_safe = src ++ [-1], length src_len + 1.
     auto src_safe = std::make_shared<v0::Concat>(OutputVector{src, i64_1d(-1)}, 0);
+    // Same sentinel trick for tokens, used by the fixed-length-n suffix gather so a
+    // length-n suffix stays in-bounds even when tokens_len < n or tokens_len == 0.
+    auto tokens_safe = std::make_shared<v0::Concat>(OutputVector{tokens_out, i64_1d(-1)}, 0);
 
     // State variables, threaded across unrolled n iterations.
     ov::Output<ov::Node> suffix_idx = neg_one_scalar;
@@ -187,36 +191,38 @@ ov::OutputVector bifurcation_detector(const ov::frontend::onnx::Node& node) {
 
     for (int64_t n = min_ngram; n <= max_ngram; ++n) {
         auto n_const = i64_scalar(n);
+        // Static [0, 1, ..., n-1] offset vector. n is a compile-time constant of the
+        // unrolled loop, so this (and everything keyed only on n) is a plain constant
+        // rather than a dynamic Range, keeping the n-axis statically shaped.
+        std::vector<int64_t> j_values(static_cast<size_t>(n));
+        std::iota(j_values.begin(), j_values.end(), int64_t{0});
+        auto j_const = v0::Constant::create(element::i64, Shape{static_cast<size_t>(n)}, j_values);
 
         // n_too_large = (n > tokens_len)
         auto n_too_large = std::make_shared<v1::Greater>(n_const, tokens_len_scalar);
 
-        // ---- Build the suffix of length n, padded with -1 on the left when
-        // tokens_len < n so the downstream Equal has matching shapes. ----
-        auto raw_start = std::make_shared<v1::Subtract>(tokens_len_scalar, n_const);
-        auto start_clamped = std::make_shared<v1::Maximum>(raw_start, zero_scalar);
-        auto start_1d = std::make_shared<v0::Unsqueeze>(start_clamped, i64_axis0);
-        auto tokens_len_1d = std::make_shared<v0::Unsqueeze>(tokens_len_scalar, i64_axis0);
-        auto suffix_raw = std::make_shared<v8::Slice>(tokens_out, start_1d, tokens_len_1d, one_1d, zero_1d);
-        // pad amount = max(n - tokens_len, 0)
-        auto pad_amt_raw = std::make_shared<v1::Subtract>(n_const, tokens_len_scalar);
-        auto pad_amt = std::make_shared<v1::Maximum>(pad_amt_raw, zero_scalar);
-        auto pad_amt_1d = std::make_shared<v0::Unsqueeze>(pad_amt, i64_axis0);
-        auto sentinel_prefix = std::make_shared<v3::Broadcast>(neg_one_scalar, pad_amt_1d);
-        auto suffix_padded = std::make_shared<v0::Concat>(OutputVector{sentinel_prefix, suffix_raw}, 0);
-        // suffix_padded has length n
+        // ---- Fixed-length-n suffix via clamped gather over tokens_safe ----
+        // suffix[j] = tokens_out[(tokens_len - n) + j], j in [0, n). For tokens_len >= n
+        // these are the true last-n tokens; for tokens_len < n the clamped indices yield
+        // a bogus suffix that is masked out by n_too_large below. Statically [n]-shaped.
+        auto suffix_start = std::make_shared<v1::Subtract>(tokens_len_scalar, n_const);
+        auto suffix_idx_raw = std::make_shared<v1::Add>(suffix_start, j_const);
+        auto suffix_idx_low = std::make_shared<v1::Maximum>(suffix_idx_raw, zero_scalar);
+        auto suffix_idx_clamped = std::make_shared<v1::Minimum>(suffix_idx_low, tokens_len_scalar);
+        auto suffix_padded = std::make_shared<v8::Gather>(tokens_safe, suffix_idx_clamped, i64_axis0_scalar);
+        // suffix_padded has static length n
 
         // ---- Build sliding windows over src: windows[i,j] = src[i+j].
         // We need num_windows >= 1 to keep the Range/Gather valid even when
         // src_len < n. The result for that degenerate case is masked out by
-        // n_too_large below.
+        // n_too_large below. The j (column) axis is the static j_const, so only the
+        // num_windows (row) axis stays dynamic.
         auto num_windows_raw =
             std::make_shared<v1::Add>(std::make_shared<v1::Subtract>(src_len_scalar, n_const), one_scalar);
         auto num_windows_safe = std::make_shared<v1::Maximum>(num_windows_raw, one_scalar);
         auto i_range = std::make_shared<v4::Range>(zero_scalar, num_windows_safe, one_scalar, element::i64);
-        auto j_range = std::make_shared<v4::Range>(zero_scalar, n_const, one_scalar, element::i64);
         auto i_col = std::make_shared<v0::Unsqueeze>(i_range, i64_1d(1));
-        auto j_row = std::make_shared<v0::Unsqueeze>(j_range, i64_1d(0));
+        auto j_row = std::make_shared<v0::Unsqueeze>(j_const, i64_1d(0));
         auto idx = std::make_shared<v1::Add>(i_col, j_row);
         // Clamp into [0, src_len] (valid indices of src_safe). For src_len >= n the
         // real indices are all < src_len and are untouched; for shorter src the
