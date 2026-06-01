@@ -247,6 +247,10 @@ namespace {
 //   inverse direction (ifft / irfft / c2c inverse / c2r):
 //     0 -> "forward",                1 -> "ortho", 2 -> "backward"
 std::string norm_int_to_string(int64_t norm_int, bool inverse) {
+    PYTORCH_OP_CONVERSION_CHECK(norm_int >= 0 && norm_int <= 2,
+                                "Unsupported FFT normalization mode: ",
+                                norm_int,
+                                ". Expected one of {0, 1, 2}.");
     if (norm_int == 1) {
         return "ortho";
     }
@@ -276,8 +280,7 @@ OutputVector translate_lowered_fft(const NodeContext& context,
     // would gather the trailing 2 instead of the real frequency dim when
     // the user passes a negative ``dim``.
     Output<Node> shape;
-    Output<Node> rank_scalar;
-    std::tie(shape, rank_scalar) = get_shape_rank(context, input, true);
+    std::tie(shape, std::ignore) = get_shape_rank(context, input, true);
 
     auto complex_type_mark = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
     if (complex_type_mark) {

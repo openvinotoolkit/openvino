@@ -268,9 +268,10 @@ def ops_to_not_decompose() -> list:
         torch.ops.aten.upsample_bicubic2d.vec,
         # Attention
         torch.ops.aten.scaled_dot_product_attention.default,
-        # FFT - keep the high-level signal-domain ops; OV maps them directly
-        # to (I)RDFT/(I)DFT.  Default decomposition would split them into
-        # _fft_c2r/_fft_r2c/_fft_c2c, which have no OV translator.
+        # FFT - keep the high-level signal-domain ops undecomposed because OV
+        # maps them directly to (I)RDFT/(I)DFT, which is the preferred and most
+        # efficient export form. The lowered _fft_c2r/_fft_r2c/_fft_c2c ops are
+        # also supported by translators as fallback coverage.
         torch.ops.aten.fft_fft.default,
         torch.ops.aten.fft_fft2.default,
         torch.ops.aten.fft_fftn.default,

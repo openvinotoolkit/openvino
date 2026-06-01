@@ -71,6 +71,18 @@ def _wavernn_inputs():
     return example, inputs
 
 
+class _Wav2Vec2Wrap(torch.nn.Module):
+    # Wav2Vec2Model.forward returns (features, Optional[lengths]); lengths is
+    # None when no input lengths are provided. Drop it so the model is
+    # traceable and produces a single, comparable tensor output.
+    def __init__(self, model):
+        super().__init__()
+        self.model = model
+
+    def forward(self, waveforms):
+        return self.model(waveforms)[0]
+
+
 class _EmformerTranscriberWrap(torch.nn.Module):
     def __init__(self, rnnt):
         super().__init__()
@@ -97,11 +109,11 @@ class _Tacotron2InferWrap(torch.nn.Module):
 _W2V_DYN_DIMS = [[0, 1]]  # [batch, time]
 
 _TORCHAUDIO_REGISTRY = {
-    "WAV2VEC2_BASE":            (lambda: P.WAV2VEC2_BASE.get_model(),            _w2v_inputs,         _W2V_DYN_DIMS),
-    "WAV2VEC2_ASR_BASE_960H":   (lambda: P.WAV2VEC2_ASR_BASE_960H.get_model(),   _w2v_inputs,         _W2V_DYN_DIMS),
-    "HUBERT_BASE":              (lambda: P.HUBERT_BASE.get_model(),              _w2v_inputs,         _W2V_DYN_DIMS),
-    "WAVLM_BASE":               (lambda: P.WAVLM_BASE.get_model(),               _w2v_inputs,         _W2V_DYN_DIMS),
-    "MMS_FA":                   (lambda: P.MMS_FA.get_model(),                   _w2v_inputs,         _W2V_DYN_DIMS),
+    "WAV2VEC2_BASE":            (lambda: _Wav2Vec2Wrap(P.WAV2VEC2_BASE.get_model()),            _w2v_inputs,         _W2V_DYN_DIMS),
+    "WAV2VEC2_ASR_BASE_960H":   (lambda: _Wav2Vec2Wrap(P.WAV2VEC2_ASR_BASE_960H.get_model()),   _w2v_inputs,         _W2V_DYN_DIMS),
+    "HUBERT_BASE":              (lambda: _Wav2Vec2Wrap(P.HUBERT_BASE.get_model()),              _w2v_inputs,         _W2V_DYN_DIMS),
+    "WAVLM_BASE":               (lambda: _Wav2Vec2Wrap(P.WAVLM_BASE.get_model()),               _w2v_inputs,         _W2V_DYN_DIMS),
+    "MMS_FA":                   (lambda: _Wav2Vec2Wrap(P.MMS_FA.get_model()),                   _w2v_inputs,         _W2V_DYN_DIMS),
     "CONVTASNET_BASE_LIBRI2MIX":(lambda: P.CONVTASNET_BASE_LIBRI2MIX.get_model(),_convtasnet_inputs,  None),
     "HDEMUCS_HIGH_MUSDB":       (lambda: P.HDEMUCS_HIGH_MUSDB.get_model(),       _hdemucs_inputs,     None),
     "SQUIM_OBJECTIVE":          (lambda: P.SQUIM_OBJECTIVE.get_model(),          _squim_objective_inputs, None),
@@ -161,17 +173,6 @@ class TestTorchaudioConvertModel(TestTorchConvertModel):
             # a different shape at inference to exercise the dynamic path.
             self.inputs = inputs
         return model
-
-    def infer_fw_model(self, model_obj, inputs):
-        fw_outputs = model_obj(*[torch.from_numpy(i) for i in inputs])
-        if isinstance(fw_outputs, dict):
-            for k in fw_outputs.keys():
-                fw_outputs[k] = fw_outputs[k].numpy(force=True)
-        elif isinstance(fw_outputs, (list, tuple)):
-            fw_outputs = [o.numpy(force=True) for o in fw_outputs]
-        else:
-            fw_outputs = [fw_outputs.numpy(force=True)]
-        return fw_outputs
 
     @pytest.mark.parametrize("model_name", ["WAV2VEC2_BASE"])
     @pytest.mark.precommit
