@@ -138,8 +138,8 @@ bool is_acl_int8_avg_pool_lpt_skipped(const std::shared_ptr<const ov::Node>& nod
     }
 
     const auto resolved_precision = ov::pass::low_precision::ResolvePrecisionAttribute::getDataPrecision(fq);
-    return !resolved_precision.empty() &&
-           any_of(resolved_precision.precision, ov::element::Type_t::u8, ov::element::Type_t::i8) &&
+    return resolved_precision.empty() ||
+           !any_of(resolved_precision.precision, ov::element::Type_t::u8, ov::element::Type_t::i8) ||
            dequantization.data.get_element_type() != resolved_precision.precision;
 }
 
