@@ -4,6 +4,7 @@
 
 #include <sys/mman.h>
 
+#include <cerrno>
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
@@ -43,7 +44,7 @@ void acquire_buffer(void* reserved_buffer, size_t size, std::string* error) noex
 }
 
 void evict_buffer(void* reserved_buffer, size_t size, std::string* error) noexcept {
-    if (mprotect(reserved_buffer, size, PROT_NONE) == -1) {
+    if (mmap(reserved_buffer, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0) == MAP_FAILED) {
         if (error) {
             *error = std::string{"mprotect failed, err: "} + std::strerror(errno);
         }

@@ -49,12 +49,12 @@ void acquire_buffer(void* reserved_buffer, size_t size, std::string* error) noex
 void evict_buffer(void* reserved_buffer, size_t size, std::string* error) noexcept {
     if (VirtualFree(reserved_buffer, size, MEM_DECOMMIT) == 0) {
         if (error) {
-            *error = std::string{"VirtualFree decommit failed, err: "} + std::strerror(errno);
+            *error = std::string{"VirtualFree decommit failed, err: "} + std::to_string(GetLastError());
         }
     }
 }
 
-void release_buffer(void* reserved_buffer, size_t byte_size, std::string* error) noexcept {
+void release_buffer(void* reserved_buffer, size_t /* byte_size */, std::string* error) noexcept {
     if (VirtualFree(reserved_buffer, 0, MEM_RELEASE) == 0) {
         if (error) {
             *error = std::string{"VirtualFree release failed, err: "} + std::to_string(GetLastError());

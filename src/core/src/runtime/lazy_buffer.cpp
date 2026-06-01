@@ -6,6 +6,7 @@
 
 #include <istream>
 #include <mutex>
+#include <utility>
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/memory_util.hpp"
@@ -41,9 +42,7 @@ LazyBuffer::LazyBuffer(std::filesystem::path file_path, size_t offset, size_t by
 }
 
 LazyBuffer::~LazyBuffer() {
-    if (m_loaded.load(std::memory_order_relaxed)) {
-        util::release_buffer(m_aligned_buffer, m_byte_size);
-    }
+    util::release_buffer(m_aligned_buffer, m_byte_size);
     m_aligned_buffer = nullptr;
     m_byte_size = 0;
 }
@@ -51,21 +50,15 @@ LazyBuffer::~LazyBuffer() {
 LazyBuffer::LazyBuffer(LazyBuffer&& other) noexcept
     : AlignedBuffer(std::move(other)),
       m_file_path{std::move(other.m_file_path)},
-      m_offset{other.m_offset},
-      m_loaded{other.m_loaded.load()} {
-    other.m_loaded = false;
-    other.m_offset = 0;
-};
+      m_offset{std::exchange(other.m_offset, 0)},
+      m_loaded{other.m_loaded.exchange(false, std::memory_order_relaxed)} {}
 
 LazyBuffer& LazyBuffer::operator=(LazyBuffer&& other) noexcept {
     if (this != &other) {
         AlignedBuffer::operator=(std::move(other));
         m_file_path = std::move(other.m_file_path);
-        m_offset = other.m_offset;
-        m_loaded = other.m_loaded.load();
-
-        other.m_loaded = false;
-        other.m_offset = 0;
+        m_offset = std::exchange(other.m_offset, 0);
+        m_loaded = other.m_loaded.exchange(false, std::memory_order_relaxed);
     }
     return *this;
 }

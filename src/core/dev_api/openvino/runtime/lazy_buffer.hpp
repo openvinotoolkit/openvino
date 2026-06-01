@@ -12,9 +12,6 @@
 #include "openvino/runtime/aligned_buffer.hpp"
 
 namespace ov {
-namespace util {
-class ReservableBuffer;
-}
 
 /** \brief LazyBuffer is lazy loaded AlignedBuffer which provides a view on a file w/o memory mapping. */
 class OPENVINO_API LazyBuffer : public AlignedBuffer {
