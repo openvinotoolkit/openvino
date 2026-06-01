@@ -43,7 +43,7 @@ thread_local std::string last_enqueued_kernel_id;
 
 bool sync_after_each_kernel_enabled() {
     static const bool enabled = [] {
-        const char* value = std::getenv("OV_GPU_SYNC_EACH_KERNEL");
+        const char* value = std::getenv("OV_GPU_ZE_SYNC_EACH_KERNEL");
         return value != nullptr && std::string(value) != "0";
     }();
     return enabled;
@@ -315,7 +315,7 @@ event::ptr ze_stream::enqueue_kernel(kernel& kernel,
     if (sync_after_each_kernel_enabled()) {
         const auto status = ze::zeCommandListHostSynchronize(m_command_list, endless_wait);
         if (status != ZE_RESULT_SUCCESS) {
-            OPENVINO_THROW("[GPU] Kernel failed during OV_GPU_SYNC_EACH_KERNEL mode: ",
+            OPENVINO_THROW("[GPU] Kernel failed during OV_GPU_ZE_SYNC_EACH_KERNEL mode: ",
                            kernel.get_id(),
                            ", zeCommandListHostSynchronize status=",
                            ze_result_to_hex(status));
@@ -398,7 +398,7 @@ void ze_stream::finish() const {
                        ze_result_to_hex(status),
                        ", last enqueued kernel in this thread=",
                        last_enqueued_kernel_id.empty() ? "<unknown>" : last_enqueued_kernel_id,
-                       ". For pinpointing, rerun with OV_GPU_SYNC_EACH_KERNEL=1");
+                       ". For pinpointing, rerun with OV_GPU_ZE_SYNC_EACH_KERNEL=1");
     }
 }
 
