@@ -272,7 +272,7 @@ It ensures that it is enabled or disabled based in the current system/environmen
 ## Step 4. Link the new property to the new option
 Fourth step is to create and register the Property (which is basicly the interface to this configuration option) for both Plugin and CompiledModel (if needed) 
 ### For plugin
-npu_plugin/plugin/src/properties.cpp > function registerPluginProperties()
+npu_plugin/plugin/src/plugin_property_manager.cpp > function PluginPropertyManager::registerPluginProperties()
 ```cpp
 TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::example_property, EXAMPLE_PROPERTY);
 ```
@@ -281,15 +281,15 @@ this macro will register (if all conditions are met) a property with the name ov
 which maps to our internal configuration named EXAMPLE_PROPERTY  
 and has a simple callback function of config.get<EXAMPLE_PROPERTY>()
 ### For compiled-model (if required)
-npu_plugin/plugin/src/properties.cpp > function registerCompiledModelProperties()
+npu_plugin/plugin/src/compiled_model_property_manager.cpp > function CompiledModelPropertyManager::registerProperties()
 ```cpp
 TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::example_property, EXAMPLE_PROPERTY);
 ```
 **Explanation:**
-this macro will register (if all conditions are met) a property with the name ov::intel_npu::example_property.name()  
-which maps to our internal configuration named EXAMPLE_PROPERTY  
-and has a simple callback function of config.get<EXAMPLE_PROPERTY>()  
-**(!!) ONLY** if it has been previously explicitly set at compile time
+this macro registers the compiled-model property with the name ov::intel_npu::example_property.name()
+which maps to our internal configuration named EXAMPLE_PROPERTY
+and has a simple callback function of config.get<EXAMPLE_PROPERTY>()
+**(!!) ONLY** if it has been previously explicitly set at compile time.
 
 ## Step 5. Python bindings
 In order for the property to be property exposed in python API, add python wrapper for the new property in pyOpenvino  
@@ -327,9 +327,9 @@ Notes:
 - datatype of the property is enum ExampleType { VAL1, VAL2, VAL3 } 
 
 ## Step 2. Define and register a callback function for the new (metric) Property
-You need to register the new property and define a callback function for it, in properties.cpp.  
-For plugin: npu_plugin/plugin/src/properties.cpp > function registerPluginProperties()  
-For compiled-model: npu_plugin/plugin/src/properties.cpp > function registerCompiledModelProperties()  
+You need to register the new property and define a callback function in the owner-specific property manager.
+For plugin: npu_plugin/plugin/src/plugin_property_manager.cpp > function PluginPropertyManager::registerPluginProperties()
+For compiled-model: npu_plugin/plugin/src/compiled_model_property_manager.cpp > function CompiledModelPropertyManager::registerProperties()
 ```cpp
     REGISTER_SIMPLE_METRIC(ov::intel_npu::example_property, true, _metrics->GetDriverVersion());
 ```
@@ -361,9 +361,9 @@ By internal convention, what needs to be included in compiled-model properties g
 - compiled-model properties (with a few specific exceptions) are all READ-ONLY, for the reason that the model has already been compiled.
 This is to ensure that we only expose settings we are sure were taken into account by compiler.  
 
-To facilitate registering properties in compiled-model **ONLY** if they have been explicitly set prior to model compilation, properties.cpp offers a helper macro:
+To facilitate registering properties in compiled-model **ONLY** if they have been explicitly set prior to model compilation, property_registration.hpp provides a helper macro:
 #### TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(OPT_NAME, OPT_TYPE)
-This macro will register the provided property (OPT_NAME) to the provided option (OPT_TYPE) only if a value for it exists in the config. (default values do not live in config, but directly read from OptionsDesc)  
+This macro registers the provided property (OPT_NAME) to the provided option (OPT_TYPE) only if a value for it exists in the config. (default values do not live in config, but directly read from OptionsDesc)
 Example:  
 ```cpp
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::compilation_mode, COMPILATION_MODE);
@@ -425,4 +425,4 @@ Having skipped the option registration (in case command queue extension is not s
 <br><br>
 
 # Removing a public property
-Removing a public property can be done by removing everything added in section “How do add a new public property” step-by-step.  
+Removing a public property can be done by removing everything added in section “How do add a new public property” step-by-step.
