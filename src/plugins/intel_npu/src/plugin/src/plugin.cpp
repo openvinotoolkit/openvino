@@ -31,6 +31,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/file_util.hpp"
+#include "plugin_property_manager.hpp"
 #include "remote_context.hpp"
 #include "transformations.hpp"
 
@@ -359,7 +360,7 @@ Plugin::Plugin() : _logger("NPUPlugin", Logger::global().level()) {
 
     /// Init and register properties
     OV_ITT_TASK_NEXT(PLUGIN, "RegisterProperties");
-    _propertiesManager = std::make_unique<Properties>(PropertiesType::PLUGIN, config, metrics, _backend);
+    _propertiesManager = std::make_unique<PluginPropertyManager>(config, metrics, _backend, _logger);
 }
 
 void Plugin::set_property(const ov::AnyMap& properties) {
@@ -375,112 +376,12 @@ void Plugin::set_property(const ov::AnyMap& properties) {
     _propertiesManager->setProperty(properties);
 }
 
-ov::CompatibilityCheck Plugin::validate_compatibility_descriptor(ov::intel_npu::CompilerType compilerType,
-                                                                 const ov::AnyMap& arguments) const {
-    if (arguments.empty() || arguments.find(ov::runtime_requirements.name()) == arguments.end()) {
-        return ov::CompatibilityCheck::NOT_APPLICABLE;
-    }
-
-    const auto& runtimeRequirements = arguments.at(ov::runtime_requirements.name()).as<const std::string&>();
-    _logger.debug("Received runtime_requirements: %s length: %zu",
-                  runtimeRequirements.c_str(),
-                  runtimeRequirements.length());
-
-    // NPU Plugin's runtime requirements are captured in its metadata.
-    // For now plugin's requirements are met if metadata can be retrieved from the tensor
-    std::unique_ptr<MetadataBase> metadata = nullptr;
-    try {
-        // The plugin cares only about the string size and the metadata version check for now. Additional checks based
-        // on other metadata fields can be done following this line.
-        metadata = read_as_text(runtimeRequirements);
-    } catch (const std::exception& ex) {
-        // Unsupported version, could not read the metadata or an unknown error has occured. Report that the
-        // requirements are not met.
-        _logger.debug("Failed to read metadata from the runtime requirements. The requirements are not met. %s",
-                      ex.what());
-        return ov::CompatibilityCheck::UNSUPPORTED;
-    }
-
-    const auto descriptorView = metadata->get_compatibility_descriptor();
-    std::string compatibilityDescriptor = descriptorView.has_value() ? std::string(descriptorView.value()) : "";
-    _logger.debug("Retrieved compatibility descriptor from metadata: %s length: %zu",
-                  compatibilityDescriptor.c_str(),
-                  compatibilityDescriptor.length());
-
-    // Implement only the fallback path for now through the PLUGIN compiler type
-    std::unique_ptr<ICompilerAdapter> compiler = nullptr;
-    CompilerAdapterFactory factory;
-    try {
-        compiler = factory.getCompiler(_backend, compilerType, std::string_view{});
-
-        // Compiler can validate only if the string describes a blob compatible with the current platform
-        auto result = compiler->validate_compatibility_descriptor(compatibilityDescriptor);
-        _logger.debug("Compatibility check result: %s", result ? "met" : "not met");
-        if (result) {
-            return ov::CompatibilityCheck::SUPPORTED;
-        } else {
-            return ov::CompatibilityCheck::UNSUPPORTED;
-        }
-    } catch (const std::exception&) {
-        _logger.error("Failed to create the recommended compiler type for the compatibility check %d. The requirements "
-                      "are not met.",
-                      static_cast<int>(compilerType));
-        return ov::CompatibilityCheck::NOT_APPLICABLE;
-    }
-}
-
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
-    // Special cases that need to be treated outside of the property manager.
-    // Checking runtime requirements requires access to plugin's metadata
-    if (name == ov::compatibility_check.name()) {
-        // Reading the (dummy) property content to check if it is supported
-        // Expected to throw if the property is not supported
-        _propertiesManager->getProperty(name);
-
-        // The property was enabled based on the support of the compatibility check in the compiler adapters
-        // Use the compiler type determined for compatibility check to validate the requirements and return the result
-        auto compilerType = _propertiesManager->determineCompilerTypeForCompatibilityCheck();
-
-        // Validates both local (plugin's) requirements and device requirements
-        return validate_compatibility_descriptor(compilerType, arguments);
-    }
-
-    if (!arguments.empty()) {
-        auto npuPluginArguments = arguments;
-        exclude_model_ptr_from_map(npuPluginArguments);
-
-        // Need to create a temporary copy of the properties manager. The set of arguments we get might change the list
-        // of supported properties, but we cannot alter the global state
-        auto copyPropertiesManager = std::make_unique<Properties>(*_propertiesManager);
-        copyPropertiesManager->setProperty(npuPluginArguments);
-
-        return copyPropertiesManager->getProperty(name);
-    }
-
-    return _propertiesManager->getProperty(name);
+    return _propertiesManager->getProperty(name, arguments);
 }
 
 bool Plugin::is_property_supported(const std::string& name, const ov::AnyMap& arguments) const {
-    if (!arguments.empty()) {
-        auto npuPluginArguments = arguments;
-        exclude_model_ptr_from_map(npuPluginArguments);
-
-        // Need to create a temporary copy of the properties manager. The set of arguments we get might change the list
-        // of supported properties, but we cannot alter the global state
-        auto copyPropertiesManager = std::make_unique<Properties>(*_propertiesManager);
-
-        try {
-            copyPropertiesManager->setProperty(npuPluginArguments);
-        } catch (...) {
-            // In case of a failure during property setting, we assume the arguments are not valid and thus the
-            // supported properties cannot be reliably determined - return false in this case
-            return false;
-        }
-
-        return copyPropertiesManager->isPropertySupported(name);
-    }
-
-    return _propertiesManager->isPropertySupported(name);
+    return _propertiesManager->isPropertySupported(name, arguments);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
@@ -777,7 +678,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
             _logger.info("Blob compatibility check skipped.");
         }
         OPENVINO_ASSERT(blobSize > 0, "Parsed blob size is empty from the given stream!");
-
         ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
         ov::Tensor tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
         if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
