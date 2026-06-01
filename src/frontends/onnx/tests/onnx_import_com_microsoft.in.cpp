@@ -3456,7 +3456,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bifurcation_detector_phase1_bifurcates
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bifurcation_detector_no_pred_unique_suffix) {
-    // src=[1,2,3,4,5], cur=[1,2], prev_idx=0, no pred
+    // src=[1,2,3,4,5], cur=[1,2], prev_idx=-1, no pred
     // Phase 1: tokens = cur = [1,2]
     // Phase 2 (n=1): suffix=[2] found uniquely at idx=1; candidate=2; count==1 -> suffix_idx=2
     //         (n=2): suffix=[1,2] found uniquely at idx=0; candidate=2; count==1 -> suffix_idx=2
@@ -3577,6 +3577,56 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bifurcation_detector_ngram_exceeds_tok
     test_case.add_input<int64_t>(Shape{2}, {5, 3});
     test_case.add_input<int64_t>(Shape{}, {0});
     test_case.add_expected_output<int64_t>(Shape{2}, {5, 3});
+    test_case.add_expected_output<int64_t>(Shape{}, {-1});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bifurcation_detector_with_pred_negative_prev_idx) {
+    // src=[10,20,30,40,50], cur=[99], prev_idx=-1, pred=[10,20,99]
+    // prev_suffix_match_idx=-1 must be clamped to 0 before slicing (a raw -1 would be
+    // interpreted by Slice as an index from the end and corrupt Phase 1).
+    // Phase 1 (prev_idx->0): pred matches src at k=0,1; mismatch at k=2 -> bifur_idx=2
+    //          tokens = cur ++ pred[0:3] = [99,10,20,99]
+    // Phase 2 (n=1): suffix=[99] not in src -> suffix_idx stays -1
+    const auto model = convert_model("com.microsoft/bifurcation_detector_with_pred.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int64_t>(Shape{5}, {10, 20, 30, 40, 50});
+    test_case.add_input<int64_t>(Shape{1}, {99});
+    test_case.add_input<int64_t>(Shape{}, {-1});
+    test_case.add_input<int64_t>(Shape{3}, {10, 20, 99});
+    test_case.add_expected_output<int64_t>(Shape{4}, {99, 10, 20, 99});
+    test_case.add_expected_output<int64_t>(Shape{}, {-1});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bifurcation_detector_empty_src) {
+    // src=[] (empty), cur=[1,2], prev_idx=0, no pred
+    // Phase 1: tokens = cur = [1,2]
+    // Phase 2 (n=1,2): src_len=0 < n -> no_match for every n; the Gather over src must
+    //          stay in-bounds (regression: empty src previously produced an invalid
+    //          Gather index). suffix_idx stays at initial -1.
+    const auto model = convert_model("com.microsoft/bifurcation_detector_no_pred.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int64_t>(Shape{0}, {});
+    test_case.add_input<int64_t>(Shape{2}, {1, 2});
+    test_case.add_input<int64_t>(Shape{}, {0});
+    test_case.add_expected_output<int64_t>(Shape{2}, {1, 2});
+    test_case.add_expected_output<int64_t>(Shape{}, {-1});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bifurcation_detector_src_shorter_than_ngram) {
+    // src=[1,2,3], cur=[1,2,3,4,5,6], prev_idx=0, no pred, min_ngram=5, max_ngram=7
+    // Phase 1: tokens = cur = [1,2,3,4,5,6] (len 6)
+    // Phase 2: n=5 <= tokens_len=6 but n > src_len=3, so a length-n substring cannot
+    //          exist in src -> no_match (regression: clamped windows must not be
+    //          reported as a false match). Same for n=6,7. suffix_idx stays -1.
+    const auto model = convert_model("com.microsoft/bifurcation_detector_no_pred_ngram_5_7.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int64_t>(Shape{3}, {1, 2, 3});
+    test_case.add_input<int64_t>(Shape{6}, {1, 2, 3, 4, 5, 6});
+    test_case.add_input<int64_t>(Shape{}, {0});
+    test_case.add_expected_output<int64_t>(Shape{6}, {1, 2, 3, 4, 5, 6});
     test_case.add_expected_output<int64_t>(Shape{}, {-1});
     test_case.run();
 }

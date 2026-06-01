@@ -124,7 +124,12 @@ ov::OutputVector bifurcation_detector(const ov::frontend::onnx::Node& node) {
         tokens_out = cur;
     } else {
         const auto& pred = inputs[3];
-        auto prev_idx_scalar = squeeze_to_scalar(prev_idx);
+        auto prev_idx_raw = squeeze_to_scalar(prev_idx);
+        // Clamp prev_suffix_match_idx into [0, src_len]. A negative value (e.g. the
+        // -1 sentinel) would otherwise be interpreted by v8::Slice as an index from
+        // the end, producing wrong windows or out-of-bounds slicing.
+        auto prev_idx_clamped_low = std::make_shared<v1::Maximum>(prev_idx_raw, zero_scalar);
+        auto prev_idx_scalar = std::make_shared<v1::Minimum>(prev_idx_clamped_low, src_len_scalar);
         auto pred_shape = shape_of_i64(pred);
         auto pred_len_scalar = squeeze_to_scalar(pred_shape);
         // n = min(P, S - prev_idx); clamp to >= 0 for safety.
@@ -171,7 +176,10 @@ ov::OutputVector bifurcation_detector(const ov::frontend::onnx::Node& node) {
     // ============================================================
     auto tokens_shape = shape_of_i64(tokens_out);
     auto tokens_len_scalar = squeeze_to_scalar(tokens_shape);
-    auto src_len_minus_1 = std::make_shared<v1::Subtract>(src_len_scalar, one_scalar);
+
+    // Append a sentinel so the Gather source is never empty (src_len == 0) and any
+    // clamped index stays in-bounds. src_safe = src ++ [-1], length src_len + 1.
+    auto src_safe = std::make_shared<v0::Concat>(OutputVector{src, i64_1d(-1)}, 0);
 
     // State variables, threaded across unrolled n iterations.
     ov::Output<ov::Node> suffix_idx = neg_one_scalar;
@@ -210,8 +218,11 @@ ov::OutputVector bifurcation_detector(const ov::frontend::onnx::Node& node) {
         auto i_col = std::make_shared<v0::Unsqueeze>(i_range, i64_1d(1));
         auto j_row = std::make_shared<v0::Unsqueeze>(j_range, i64_1d(0));
         auto idx = std::make_shared<v1::Add>(i_col, j_row);
-        auto idx_clamped = std::make_shared<v1::Minimum>(idx, src_len_minus_1);
-        auto windows = std::make_shared<v8::Gather>(src, idx_clamped, i64_axis0_scalar);
+        // Clamp into [0, src_len] (valid indices of src_safe). For src_len >= n the
+        // real indices are all < src_len and are untouched; for shorter src the
+        // out-of-range entries fold onto the sentinel and are masked out below.
+        auto idx_clamped = std::make_shared<v1::Minimum>(idx, src_len_scalar);
+        auto windows = std::make_shared<v8::Gather>(src_safe, idx_clamped, i64_axis0_scalar);
 
         // ---- Per-window match: ReduceLogicalAnd over the n-axis ----
         auto suffix_broadcast = std::make_shared<v0::Unsqueeze>(suffix_padded, i64_1d(0));
@@ -233,7 +244,11 @@ ov::OutputVector bifurcation_detector(const ov::frontend::onnx::Node& node) {
         auto candidate = std::make_shared<v1::Add>(first_idx, n_const);
 
         // Decision flags
-        auto no_match = std::make_shared<v1::Equal>(count_n, zero_scalar);
+        // A length-n substring cannot exist when src_len < n, so force no_match in
+        // that case regardless of the (masked, sentinel-filled) window comparison.
+        auto src_too_short = std::make_shared<v1::Greater>(n_const, src_len_scalar);
+        auto no_match =
+            std::make_shared<v1::LogicalOr>(std::make_shared<v1::Equal>(count_n, zero_scalar), src_too_short);
         auto count_ge_2 = std::make_shared<v1::Greater>(count_n, one_scalar);
         auto out_of_range = std::make_shared<v1::GreaterEqual>(candidate, src_len_scalar);
 
