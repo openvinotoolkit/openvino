@@ -214,7 +214,7 @@ TEST(type_prop, scaled_dot_product_attention_mixed_shape_infer_5_inputs) {
     const auto op =
         std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal);
     EXPECT_EQ(op->get_output_element_type(0), element::f64);
-    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{ {2, 4}, 3, {4, 5}, {3, 7} }));
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{{2, 4}, 3, {4, 5}, {3, 7}}));
     EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
                 testing::ElementsAre(symbols[0], symbols[1], symbols[2], val_symbols[3]));
 }
