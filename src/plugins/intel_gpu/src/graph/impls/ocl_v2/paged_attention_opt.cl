@@ -676,18 +676,19 @@ KERNEL(pa_sdpa_opt)(
 
 
 #if IS_KV_COMPRESSED && IS_INT4_COMPRESSED
-            // INT4 adjacent packing: V layout [blocks, heads, block_size, packed_head+scales=68]
-            // packed_byte = head_size_idx/2, nibble = head_size_idx%2
-            // Token stride = phys_adjusted_v_head_size (68)
-            const uint packed_byte_idx = head_size_idx / 2;
-            const uint nibble_sel = head_size_idx & 1;
+            // INT4: BLOCK_READN coalesced read + shuffle for lane redistribution
+            // Each subgroup reads 16 consecutive packed bytes per token; lane k gets byte[k].
+            // Shuffle redistributes so lane k gets byte[k/2] (two head dims share one byte).
+            // Branchless nibble extraction: shift by 0 (even lane) or 4 (odd lane), mask 0x0F.
+            const uint nibble_shift = (head_size_idx & 1) << 2;
+            const uint sg_byte_base = (head_size_idx - sglid) / 2;  // subgroup-uniform: sg * 8
             VALUE_BLOCK v_vals_packed;
 
             unroll_for (uint i = 0; i < VALUE_VEC_SIZE; i++) {
-                uint token_offset = packed_block_offset + i * phys_adjusted_v_head_size + packed_byte_idx;
-                char packed_val = value_cache[token_offset];
-                MAKE_VECTOR_TYPE(char, U4_ELEMS_PER_BYTE) buff = unpack_to_char(*(uint4x2_t *)&packed_val);
-                v_vals_packed[i] = (nibble_sel == 0) ? buff.s0 : buff.s1;
+                uint token_base = packed_block_offset + i * phys_adjusted_v_head_size;
+                INPUT2_TYPE raw_byte = BLOCK_READN(INPUT2_TYPE, 1, value_cache, token_base + sg_byte_base);
+                int shuffled = _sub_group_shuffle((int)raw_byte, sglid / 2);
+                v_vals_packed[i] = (INPUT2_TYPE)((shuffled >> nibble_shift) & 0x0F);
             }
 
 #else  // !(IS_KV_COMPRESSED && IS_INT4_COMPRESSED)
@@ -745,13 +746,13 @@ KERNEL(pa_sdpa_opt)(
             }
             for (uint i = 0; i < leftovers; i++) {
 #if IS_KV_COMPRESSED && IS_INT4_COMPRESSED
-                // INT4 adjacent packing: scalar read of packed byte + nibble selection
-                const uint packed_byte_idx = head_size_idx / 2;
-                const uint nibble_sel = head_size_idx & 1;
-                uint token_offset = packed_block_offset + i * phys_adjusted_v_head_size + packed_byte_idx;
-                char packed_value = value_cache[token_offset];
-                MAKE_VECTOR_TYPE(char, U4_ELEMS_PER_BYTE) buff = unpack_to_char(*(uint4x2_t *)&packed_value);
-                INPUT2_TYPE value_packed = (nibble_sel == 0) ? buff.s0 : buff.s1;
+                // INT4: BLOCK_READN coalesced read + shuffle + branchless nibble extraction
+                const uint nibble_shift = (head_size_idx & 1) << 2;
+                const uint sg_byte_base = (head_size_idx - sglid) / 2;
+                uint token_base = packed_block_offset + i * phys_adjusted_v_head_size;
+                INPUT2_TYPE raw_byte = BLOCK_READN(INPUT2_TYPE, 1, value_cache, token_base + sg_byte_base);
+                int shuffled = _sub_group_shuffle((int)raw_byte, sglid / 2);
+                INPUT2_TYPE value_packed = (INPUT2_TYPE)((shuffled >> nibble_shift) & 0x0F);
 
 #else  // !(IS_KV_COMPRESSED && IS_INT4_COMPRESSED)
                 INPUT2_TYPE value_packed = BLOCK_READN(INPUT2_TYPE, 1, value_cache, value_offset + i * V_HEAD_SIZE);
