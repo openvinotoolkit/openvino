@@ -12,11 +12,9 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/op/batch_to_space.hpp"
-#include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/depth_to_space.hpp"
 #include "openvino/op/fake_quantize.hpp"
-#include "openvino/op/gather.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/reverse_sequence.hpp"
 #include "openvino/op/roll.hpp"
@@ -25,7 +23,8 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/binary_elementwise_arithmetic.hpp"
-#include "openvino/opsets/opset8_decl.hpp"
+#include "openvino/op/util/broadcast_base.hpp"
+#include "openvino/op/util/gather_base.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -39,17 +38,9 @@ namespace op_util = ov::op::util;
 namespace {
 bool is_data_movement_operation(const std::shared_ptr<ov::Node>& node,
                                 const std::vector<ov::DiscreteTypeInfo>& allowed_data_movement_ops) {
-    for (auto& allowed_type : allowed_data_movement_ops) {
-        if (node->get_type_info().is_castable(allowed_type))
-            return true;
-    }
-
-    return false;
-}
-
-bool is_scalar_like(const std::shared_ptr<ov::Node>& node) {
-    auto constant_op = ov::as_type_ptr<ov::opset8::Constant>(node);
-    return constant_op != nullptr && shape_size(constant_op->get_shape()) == 1;
+    return std::any_of(allowed_data_movement_ops.begin(), allowed_data_movement_ops.end(), [&](const auto& type) {
+        return node->get_type_info().is_castable(type);
+    });
 }
 }  // namespace
 
@@ -64,11 +55,8 @@ std::vector<ov::DiscreteTypeInfo> ov::pass::MoveEltwiseUpThroughDataMov::get_def
         v0::ReverseSequence::get_type_info_static(),
         v0::DepthToSpace::get_type_info_static(),
         v1::BatchToSpace::get_type_info_static(),
-        v1::Broadcast::get_type_info_static(),
-        ov::op::v3::Broadcast::get_type_info_static(),
-        v1::Gather::get_type_info_static(),
-        v7::Gather::get_type_info_static(),
-        ov::op::v8::Gather::get_type_info_static(),
+        op_util::BroadcastBase::get_type_info_static(),
+        op_util::GatherBase::get_type_info_static(),
     };
 }
 
@@ -92,7 +80,8 @@ ov::pass::MoveEltwiseUpThroughDataMovScalar::MoveEltwiseUpThroughDataMovScalar(
         }
 
         for (size_t i = 1; i < eltwise->get_input_size(); ++i) {
-            if (!is_scalar_like(eltwise->get_input_node_shared_ptr(i))) {
+            if (!ov::op::util::is_scalar_or_single_elem_constant(
+                    ov::as_type_ptr<v0::Constant>(eltwise->get_input_node_shared_ptr(i)))) {
                 return false;
             }
         }
@@ -118,9 +107,9 @@ ov::pass::MoveEltwiseUpThroughDataMovScalar::MoveEltwiseUpThroughDataMovScalar(
         // eltwise constant shape should match new input shape
         for (size_t i = 1; i < eltwise->get_input_size(); i++) {
             if (current->get_output_partial_shape(0).size() != eltwise->get_input_partial_shape(i).size()) {
-                auto old_eltwise_const = ov::as_type_ptr<ov::opset8::Constant>(eltwise->get_input_node_shared_ptr(i));
+                auto old_eltwise_const = ov::as_type_ptr<v0::Constant>(eltwise->get_input_node_shared_ptr(i));
                 if (old_eltwise_const->get_shape().size() != 0) {
-                    auto new_constant = std::make_shared<ov::opset8::Constant>(*old_eltwise_const.get(), ov::Shape{});
+                    auto new_constant = std::make_shared<v0::Constant>(*old_eltwise_const.get(), ov::Shape{});
                     ov::copy_runtime_info(old_eltwise_const, new_constant);
                     eltwise->input(i).replace_source_output(new_constant->output(0));
                 }
@@ -154,7 +143,7 @@ ov::pass::MoveEltwiseUpThroughDataMovPerChannel::MoveEltwiseUpThroughDataMovPerC
     MATCHER_SCOPE(MoveEltwiseUpThroughDataMovPerChannel);
 
     auto const_predicate = [](const ov::Output<ov::Node>& output) {
-        auto constant_op = ov::as_type_ptr<ov::opset8::Constant>(output.get_node_shared_ptr());
+        auto constant_op = ov::as_type_ptr<v0::Constant>(output.get_node_shared_ptr());
         if (!constant_op)
             return false;
 
