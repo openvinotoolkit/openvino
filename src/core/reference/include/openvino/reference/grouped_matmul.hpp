@@ -14,25 +14,6 @@
 namespace ov::reference {
 namespace func {
 
-/// @brief Simple 2D matmul: out = A @ B
-/// @param A Input matrix A of shape (M, K)
-/// @param B Input matrix B of shape (K, N)
-/// @param out Output matrix of shape (M, N) - must be pre-zeroed
-/// @param M Number of rows in A
-/// @param K Shared dimension
-/// @param N Number of columns in B
-template <typename T>
-void simple_matmul(const T* A, const T* B, T* out, size_t M, size_t K, size_t N) {
-    for (size_t i = 0; i < M; ++i) {
-        for (size_t k = 0; k < K; ++k) {
-            const T a_val = A[i * K + k];
-            for (size_t j = 0; j < N; ++j) {
-                out[i * N + j] += a_val * B[k * N + j];
-            }
-        }
-    }
-}
-
 /// @brief Simple 2D matmul with transposed B: out = A @ B^T
 /// @param A Input matrix A of shape (M, K)
 /// @param B Input matrix B of shape (N, K)  -- stored as [N, K], i.e. B transposed
@@ -53,12 +34,107 @@ void simple_matmul_transposed_b(const T* A, const T* B, T* out, size_t M, size_t
 
 }  // namespace func
 
+/// @brief 3D × 3D batched uniform groups (no offsets).
+template <typename T>
+void grouped_matmul_3d_3d(const T* mat_a,
+                           const T* mat_b,
+                           T* out,
+                           const Shape& mat_a_shape,
+                           const Shape& mat_b_shape) {
+    const size_t G = mat_a_shape[0];
+    const size_t M = mat_a_shape[1];
+    const size_t K = mat_a_shape[2];
+    const size_t N = mat_b_shape[1];  // mat_b is [G, N, K]
+
+    const size_t mat_a_group_stride = M * K;
+    const size_t mat_b_group_stride = N * K;
+    const size_t out_group_stride = M * N;
+
+    for (size_t g = 0; g < G; ++g) {
+        const T* a_ptr = mat_a + g * mat_a_group_stride;
+        const T* b_ptr = mat_b + g * mat_b_group_stride;
+        T* out_ptr = out + g * out_group_stride;
+
+        std::fill(out_ptr, out_ptr + out_group_stride, T{0});
+        func::simple_matmul_transposed_b(a_ptr, b_ptr, out_ptr, M, N, K);
+    }
+}
+
+/// @brief 2D × 3D MoE forward pass with offsets.
+template <typename T, typename TIdx>
+void grouped_matmul_2d_3d(const T* mat_a,
+                           const T* mat_b,
+                           const TIdx* offsets,
+                           T* out,
+                           const Shape& mat_a_shape,
+                           const Shape& mat_b_shape) {
+    const size_t total_rows = mat_a_shape[0];
+    const size_t K = mat_a_shape[1];
+    const size_t G = mat_b_shape[0];
+    const size_t N = mat_b_shape[1];  // mat_b is [G, N, K]
+
+    const size_t mat_b_group_stride = N * K;
+
+    std::fill(out, out + total_rows * N, T{0});
+
+    size_t start = 0;
+    for (size_t g = 0; g < G; ++g) {
+        const size_t end = static_cast<size_t>(offsets[g]);
+        const size_t num_rows = end - start;
+
+        if (num_rows > 0) {
+            const T* a_ptr = mat_a + start * K;
+            const T* b_ptr = mat_b + g * mat_b_group_stride;
+            T* out_ptr = out + start * N;
+            func::simple_matmul_transposed_b(a_ptr, b_ptr, out_ptr, num_rows, N, K);
+        }
+        start = end;
+    }
+}
+
+/// @brief 2D × 2D MoE weight gradient with offsets.
+template <typename T, typename TIdx>
+void grouped_matmul_2d_2d(const T* mat_a,
+                           const T* mat_b,
+                           const TIdx* offsets,
+                           T* out,
+                           const Shape& mat_a_shape,
+                           const Shape& mat_b_shape,
+                           size_t num_groups) {
+    const size_t K = mat_a_shape[0];
+    const size_t total_tokens = mat_a_shape[1];
+    const size_t N = mat_b_shape[0];  // mat_b is [N, total_tokens]
+
+    const size_t out_group_stride = K * N;
+
+    size_t start = 0;
+    for (size_t g = 0; g < num_groups; ++g) {
+        const size_t end = static_cast<size_t>(offsets[g]);
+        const size_t num_tokens = end - start;
+
+        T* out_ptr = out + g * out_group_stride;
+        std::fill(out_ptr, out_ptr + out_group_stride, T{0});
+
+        if (num_tokens > 0) {
+            for (size_t row = 0; row < K; ++row) {
+                for (size_t t = 0; t < num_tokens; ++t) {
+                    const T a_val = mat_a[row * total_tokens + (start + t)];
+                    for (size_t col = 0; col < N; ++col) {
+                        out_ptr[row * N + col] += a_val * mat_b[col * total_tokens + (start + t)];
+                    }
+                }
+            }
+        }
+        start = end;
+    }
+}
+
 /// @brief Reference kernel for GroupedMatMul computation.
 ///
 /// Supports three input combinations:
-/// - Case 1 (2D × 3D): MoE forward pass with offsets
-/// - Case 2 (3D × 3D): Batched uniform groups, no offsets
-/// - Case 3 (2D × 2D): MoE weight gradient with offsets
+/// - 2D × 3D: MoE forward pass with offsets
+/// - 3D × 3D: Batched uniform groups, no offsets
+/// - 2D × 2D: MoE weight gradient with offsets
 ///
 /// @tparam T Data type of input and output tensors.
 /// @tparam TIdx Data type for offset indices.
@@ -83,93 +159,12 @@ void grouped_matmul(const T* mat_a,
     const auto a_ndim = mat_a_shape.size();
     const auto b_ndim = mat_b_shape.size();
 
-    // Case 2: 3D × 3D (batched, uniform group sizes)
     if (a_ndim == 3 && b_ndim == 3) {
-        const size_t G = mat_a_shape[0];
-        const size_t M = mat_a_shape[1];
-        const size_t K = mat_a_shape[2];
-        const size_t N = mat_b_shape[1];  // mat_b is [G, N, K]
-
-        const size_t mat_a_group_stride = M * K;
-        const size_t mat_b_group_stride = N * K;
-        const size_t out_group_stride = M * N;
-
-        for (size_t g = 0; g < G; ++g) {
-            const T* a_ptr = mat_a + g * mat_a_group_stride;
-            const T* b_ptr = mat_b + g * mat_b_group_stride;
-            T* out_ptr = out + g * out_group_stride;
-
-            // Zero the output for this group
-            std::fill(out_ptr, out_ptr + out_group_stride, T{0});
-
-            func::simple_matmul_transposed_b(a_ptr, b_ptr, out_ptr, M, N, K);
-        }
-        return;
-    }
-
-    // Case 1: 2D × 3D (MoE forward pass)
-    if (a_ndim == 2 && b_ndim == 3) {
-        const size_t total_rows = mat_a_shape[0];
-        const size_t K = mat_a_shape[1];
-        const size_t G = mat_b_shape[0];
-        const size_t N = mat_b_shape[1];  // mat_b is [G, N, K]
-
-        const size_t mat_b_group_stride = N * K;
-
-        // Zero the output
-        std::fill(out, out + total_rows * N, T{0});
-
-        size_t start = 0;
-        for (size_t g = 0; g < G; ++g) {
-            const size_t end = static_cast<size_t>(offsets[g]);
-            const size_t num_rows = end - start;
-
-            if (num_rows > 0) {
-                const T* a_ptr = mat_a + start * K;
-                const T* b_ptr = mat_b + g * mat_b_group_stride;
-                T* out_ptr = out + start * N;
-
-                func::simple_matmul_transposed_b(a_ptr, b_ptr, out_ptr, num_rows, N, K);
-            }
-            start = end;
-        }
-        return;
-    }
-
-    // Case 3: 2D × 2D (MoE weight gradient)
-    if (a_ndim == 2 && b_ndim == 2) {
-        const size_t K = mat_a_shape[0];
-        const size_t total_tokens = mat_a_shape[1];
-        const size_t N = mat_b_shape[0];  // mat_b is [N, total_tokens]
-
-        const size_t out_group_stride = K * N;
-
-        size_t start = 0;
-        for (size_t g = 0; g < num_groups; ++g) {
-            const size_t end = static_cast<size_t>(offsets[g]);
-            const size_t num_tokens = end - start;
-
-            T* out_ptr = out + g * out_group_stride;
-
-            // Zero the output for this group
-            std::fill(out_ptr, out_ptr + out_group_stride, T{0});
-
-            if (num_tokens > 0) {
-                // mat_a[:, start:end] @ mat_b[:, start:end].T
-                // mat_a is (K, total_tokens), so slice along columns
-                // mat_b is (N, total_tokens), so slice along columns too
-                for (size_t row = 0; row < K; ++row) {
-                    for (size_t t = 0; t < num_tokens; ++t) {
-                        const T a_val = mat_a[row * total_tokens + (start + t)];
-                        for (size_t col = 0; col < N; ++col) {
-                            out_ptr[row * N + col] += a_val * mat_b[col * total_tokens + (start + t)];
-                        }
-                    }
-                }
-            }
-            start = end;
-        }
-        return;
+        grouped_matmul_3d_3d(mat_a, mat_b, out, mat_a_shape, mat_b_shape);
+    } else if (a_ndim == 2 && b_ndim == 3) {
+        grouped_matmul_2d_3d(mat_a, mat_b, offsets, out, mat_a_shape, mat_b_shape);
+    } else if (a_ndim == 2 && b_ndim == 2) {
+        grouped_matmul_2d_2d(mat_a, mat_b, offsets, out, mat_a_shape, mat_b_shape, num_groups);
     }
 }
 
