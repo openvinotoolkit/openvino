@@ -10,50 +10,118 @@
 
 #include "intel_npu/config/npuw.hpp"
 #include "logging.hpp"
-#include "npuw_transformations/collapse_unqdq.hpp"
 #include "openvino/core/version.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "serialization.hpp"
 
 namespace {
 
-bool is_enabled_property(const ov::AnyMap& properties, const std::string& key) {
-    const auto it = properties.find(key);
-    if (it == properties.end()) {
-        return false;
-    }
+enum class GQAModelStage {
+    unknown,
+    prefill,
+    generate,
+};
 
-    if (it->second.is<bool>()) {
-        return it->second.as<bool>();
-    }
-
-    if (it->second.is<std::string>()) {
-        auto value = it->second.as<std::string>();
-        std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) {
-            return static_cast<char>(std::toupper(ch));
-        });
-        return value == "YES" || value == "TRUE" || value == "1";
-    }
-
-    return false;
+std::string to_lower(std::string value) {
+    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) {
+        return static_cast<char>(std::tolower(ch));
+    });
+    return value;
 }
 
-ov::AnyMap with_gqa_defaults(const ov::AnyMap& properties) {
+bool is_cache_parameter_name(const std::string& name) {
+    const auto lower_name = to_lower(name);
+    return lower_name.find("past") != std::string::npos || lower_name.find("present") != std::string::npos ||
+           lower_name.find("cache") != std::string::npos;
+}
+
+GQAModelStage detect_gqa_model_stage(const std::shared_ptr<ov::Model>& model) {
+    bool saw_generate_input = false;
+    bool saw_prefill_input = false;
+
+    for (const auto& parameter : model->get_parameters()) {
+        if (is_cache_parameter_name(parameter->get_friendly_name())) {
+            continue;
+        }
+
+        const auto element_type = parameter->get_element_type();
+        if (!element_type.is_real()) {
+            continue;
+        }
+
+        const auto& partial_shape = parameter->get_partial_shape();
+        if (partial_shape.rank().is_dynamic() || partial_shape.rank().get_length() != 3) {
+            continue;
+        }
+
+        const auto& token_dim = partial_shape[1];
+        if (token_dim.is_dynamic()) {
+            continue;
+        }
+
+        const auto token_count = token_dim.get_length();
+        if (token_count == 1) {
+            saw_generate_input = true;
+        } else if (token_count > 1) {
+            saw_prefill_input = true;
+        }
+
+        if (saw_generate_input && saw_prefill_input) {
+            return GQAModelStage::unknown;
+        }
+    }
+
+    if (saw_generate_input) {
+        return GQAModelStage::generate;
+    }
+    if (saw_prefill_input) {
+        return GQAModelStage::prefill;
+    }
+    return GQAModelStage::unknown;
+}
+
+ov::AnyMap with_gqa_defaults(const std::shared_ptr<ov::Model>& model, const ov::AnyMap& properties) {
     ov::AnyMap config = properties;
+    const auto model_stage = detect_gqa_model_stage(model);
+
     if (config.count("NPUW_ONLINE_PIPELINE") == 0) {
         config["NPUW_ONLINE_PIPELINE"] = "REP";
     }
-    if (config.count("NPUW_ONLINE_ISOLATE") == 0) {
-        config["NPUW_ONLINE_ISOLATE"] = "ATTN";
+    if (config.count(std::string(::intel_npu::NPUW_DEVICES::key())) == 0) {
+        config[std::string(::intel_npu::NPUW_DEVICES::key())] = "NPU";
     }
-    if (config.count("NPUW_FOLD_ONLY") == 0) {
-        config["NPUW_FOLD_ONLY"] = "attn";
+    if (config.count(std::string(::intel_npu::NPUW_FOLD::key())) == 0) {
+        config[std::string(::intel_npu::NPUW_FOLD::key())] = "YES";
     }
-    if (config.count("NPUW_ATTN") == 0) {
-        config["NPUW_ATTN"] = "STATIC";
+    if (config.count(ov::cache_mode.name()) == 0) {
+        config[ov::cache_mode.name()] = ov::CacheMode::OPTIMIZE_SPEED;
     }
-    if (config.count("NPUW_ONLINE_KEEP_BLOCK_SIZE") == 0) {
-        // GQA isolation block: 1 GQA + 1 input Transpose + 2×(Slice+Broadcast+ShapeOf) + 1 output Transpose = 9
-        config["NPUW_ONLINE_KEEP_BLOCK_SIZE"] = "9";
+    if (config.count(std::string(::intel_npu::NPUW_UNQDQ::key())) == 0) {
+        config[std::string(::intel_npu::NPUW_UNQDQ::key())] = "YES";
+    }
+
+    if (model_stage != GQAModelStage::generate) {
+        if (config.count("NPUW_ONLINE_ISOLATE") == 0) {
+            config["NPUW_ONLINE_ISOLATE"] = "ATTN";
+        }
+        if (config.count("NPUW_FOLD_ONLY") == 0) {
+            config["NPUW_FOLD_ONLY"] = "attn";
+        }
+        if (config.count("NPUW_ATTN") == 0) {
+            config["NPUW_ATTN"] = "STATIC";
+        }
+        if (config.count("NPUW_ONLINE_KEEP_BLOCK_SIZE") == 0) {
+            // GQA isolation block: 1 GQA + 1 input Transpose + 2×(Slice+Broadcast+ShapeOf) + 1 output Transpose = 9
+            config["NPUW_ONLINE_KEEP_BLOCK_SIZE"] = "9";
+        }
+    } else {
+        if (config.count(std::string(::intel_npu::NPUW_FUNCALL_ASYNC::key())) == 0) {
+            config[std::string(::intel_npu::NPUW_FUNCALL_ASYNC::key())] = "YES";
+        }
+        if (config.count(std::string(::intel_npu::NPUW_UNFOLD_IREQS::key())) == 0) {
+            config[std::string(::intel_npu::NPUW_UNFOLD_IREQS::key())] = "YES";
+        }
+        LOG_INFO("Detected generate-style GQA model; skipping ATTN isolation defaults");
     }
     return config;
 }
@@ -62,12 +130,7 @@ ov::AnyMap with_gqa_defaults(const ov::AnyMap& properties) {
 
 ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(const std::shared_ptr<ov::Model>& model,
                                                                               const ov::AnyMap& properties) {
-    auto prepared_properties = with_gqa_defaults(properties);
-    if (is_enabled_property(prepared_properties, std::string(::intel_npu::NPUW_UNQDQ::key()))) {
-        ov::npuw::CollapseUNQDQ pass;
-        pass.run_on_model(model);
-        model->validate_nodes_and_infer_types();
-    }
+    auto prepared_properties = with_gqa_defaults(model, properties);
     return {model, std::move(prepared_properties)};
 }
 

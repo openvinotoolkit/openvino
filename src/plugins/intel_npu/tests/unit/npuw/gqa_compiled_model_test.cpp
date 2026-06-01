@@ -19,6 +19,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/runtime/properties.hpp"
 
 namespace {
 
@@ -79,6 +80,16 @@ std::shared_ptr<ov::Model> build_unqdq_model(const ov::element::Type& input_type
     return std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(multiply)},
                                        ov::ParameterVector{input},
                                        "gqa_unqdq_model");
+}
+
+std::shared_ptr<ov::Model> build_hidden_states_model(std::size_t tokens) {
+    auto input_hidden_states =
+        std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, tokens, 16});
+    input_hidden_states->set_friendly_name("input_hidden_states");
+    return std::make_shared<ov::Model>(
+        ov::ResultVector{std::make_shared<ov::op::v0::Result>(input_hidden_states)},
+        ov::ParameterVector{input_hidden_states},
+        "gqa_hidden_states_model");
 }
 
 struct CompileCall {
@@ -172,10 +183,53 @@ TEST_F(GQACompiledModelTest, AddsExpectedNpuwDefaultsBeforeInnerCompilation) {
 
     const auto& call = recorder.only_call();
     EXPECT_EQ(call.props.at("NPUW_ONLINE_PIPELINE").as<std::string>(), "REP");
+    EXPECT_EQ(call.props.at("NPUW_DEVICES").as<std::string>(), "NPU");
     EXPECT_EQ(call.props.at("NPUW_ONLINE_ISOLATE").as<std::string>(), "ATTN");
     EXPECT_EQ(call.props.at("NPUW_FOLD_ONLY").as<std::string>(), "attn");
     EXPECT_EQ(call.props.at("NPUW_ATTN").as<std::string>(), "STATIC");
     EXPECT_EQ(call.props.at("NPUW_ONLINE_KEEP_BLOCK_SIZE").as<std::string>(), "9");
+    EXPECT_EQ(call.props.at("NPUW_FOLD").as<std::string>(), "YES");
+    EXPECT_EQ(call.props.at(ov::cache_mode.name()).as<ov::CacheMode>(), ov::CacheMode::OPTIMIZE_SPEED);
+    EXPECT_EQ(call.props.at("NPUW_UNQDQ").as<std::string>(), "YES");
+    EXPECT_EQ(call.props.count("NPUW_FUNCALL_ASYNC"), 0u);
+    EXPECT_EQ(call.props.count("NPUW_UNFOLD_IREQS"), 0u);
+}
+
+TEST_F(GQACompiledModelTest, SkipsAttnIsolationDefaultsForGenerateStyleModels) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::GQACompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_hidden_states_model(1), {}, recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& call = recorder.only_call();
+    EXPECT_EQ(call.props.at("NPUW_ONLINE_PIPELINE").as<std::string>(), "REP");
+    EXPECT_EQ(call.props.at("NPUW_DEVICES").as<std::string>(), "NPU");
+    EXPECT_EQ(call.props.at("NPUW_FOLD").as<std::string>(), "YES");
+    EXPECT_EQ(call.props.at(ov::cache_mode.name()).as<ov::CacheMode>(), ov::CacheMode::OPTIMIZE_SPEED);
+    EXPECT_EQ(call.props.at("NPUW_UNQDQ").as<std::string>(), "YES");
+    EXPECT_EQ(call.props.at("NPUW_FUNCALL_ASYNC").as<std::string>(), "YES");
+    EXPECT_EQ(call.props.at("NPUW_UNFOLD_IREQS").as<std::string>(), "YES");
+    EXPECT_EQ(call.props.count("NPUW_ONLINE_ISOLATE"), 0u);
+    EXPECT_EQ(call.props.count("NPUW_FOLD_ONLY"), 0u);
+    EXPECT_EQ(call.props.count("NPUW_ATTN"), 0u);
+    EXPECT_EQ(call.props.count("NPUW_ONLINE_KEEP_BLOCK_SIZE"), 0u);
+}
+
+TEST_F(GQACompiledModelTest, KeepsAttnIsolationDefaultsForPrefillStyleModels) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::GQACompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_hidden_states_model(8), {}, recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& call = recorder.only_call();
+    EXPECT_EQ(call.props.at("NPUW_DEVICES").as<std::string>(), "NPU");
+    EXPECT_EQ(call.props.at("NPUW_ONLINE_ISOLATE").as<std::string>(), "ATTN");
+    EXPECT_EQ(call.props.at("NPUW_FOLD_ONLY").as<std::string>(), "attn");
+    EXPECT_EQ(call.props.at("NPUW_FOLD").as<std::string>(), "YES");
+    EXPECT_EQ(call.props.count("NPUW_FUNCALL_ASYNC"), 0u);
+    EXPECT_EQ(call.props.count("NPUW_UNFOLD_IREQS"), 0u);
 }
 
 TEST_F(GQACompiledModelTest, KeepsUserProvidedLowLevelOverrides) {
@@ -184,17 +238,23 @@ TEST_F(GQACompiledModelTest, KeepsUserProvidedLowLevelOverrides) {
 
     ASSERT_NO_THROW(compiled = create_compiled_model(build_llm_test_model(),
                                                      {{"NPUW_ONLINE_PIPELINE", "REG"},
+                                                      {"NPUW_DEVICES", "CPU"},
                                                       {"NPUW_ONLINE_ISOLATE", "COMPUTE"},
                                                       {"NPUW_ATTN", "STATIC"},
-                                                      {"NPUW_FOLD", "YES"}},
+                                                      {"NPUW_FOLD", "NO"},
+                                                      {"NPUW_FUNCALL_ASYNC", "NO"},
+                                                      {"NPUW_UNFOLD_IREQS", "NO"}},
                                                      recorder));
     ASSERT_NE(compiled, nullptr);
 
     const auto& call = recorder.only_call();
     EXPECT_EQ(call.props.at("NPUW_ONLINE_PIPELINE").as<std::string>(), "REG");
+    EXPECT_EQ(call.props.at("NPUW_DEVICES").as<std::string>(), "CPU");
     EXPECT_EQ(call.props.at("NPUW_ONLINE_ISOLATE").as<std::string>(), "COMPUTE");
     EXPECT_EQ(call.props.at("NPUW_ATTN").as<std::string>(), "STATIC");
-    EXPECT_EQ(call.props.at("NPUW_FOLD").as<std::string>(), "YES");
+    EXPECT_EQ(call.props.at("NPUW_FOLD").as<std::string>(), "NO");
+    EXPECT_EQ(call.props.at("NPUW_FUNCALL_ASYNC").as<std::string>(), "NO");
+    EXPECT_EQ(call.props.at("NPUW_UNFOLD_IREQS").as<std::string>(), "NO");
 }
 
 TEST_F(GQACompiledModelTest, PassesGqaModelThroughWithoutDecomposition) {
@@ -213,7 +273,7 @@ TEST_F(GQACompiledModelTest, PassesGqaModelThroughWithoutDecomposition) {
     EXPECT_GT(count_ops<ov::op::internal::GroupQueryAttention>(call.model), 0u);
 }
 
-TEST_F(GQACompiledModelTest, AppliesUNQDQCleanupDuringPreparationWhenEnabled) {
+TEST_F(GQACompiledModelTest, ForwardsUNQDQPropertyToInnerCompilation) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::GQACompiledModel> compiled;
 
@@ -221,11 +281,10 @@ TEST_F(GQACompiledModelTest, AppliesUNQDQCleanupDuringPreparationWhenEnabled) {
     ASSERT_NE(compiled, nullptr);
 
     const auto& call = recorder.only_call();
-    EXPECT_EQ(count_ops<ov::op::v1::Multiply>(call.model), 0u);
-    EXPECT_EQ(count_ops<ov::op::v1::Subtract>(call.model), 0u);
-    EXPECT_EQ(count_ops<ov::op::v0::Convert>(call.model), 1u);
-    EXPECT_EQ(count_ops<ov::op::v0::FakeQuantize>(call.model), 0u);
-    EXPECT_EQ(call.model->get_results().front()->input_value(0).get_element_type(), ov::element::f32);
+    EXPECT_EQ(call.props.at("NPUW_UNQDQ").as<std::string>(), "YES");
+    EXPECT_EQ(count_ops<ov::op::v1::Multiply>(call.model), 1u);
+    EXPECT_EQ(count_ops<ov::op::v1::Subtract>(call.model), 1u);
+    EXPECT_EQ(count_ops<ov::op::v0::FakeQuantize>(call.model), 1u);
 }
 
 TEST_F(GQACompiledModelTest, ForwardsPropertyAccessToInnerCompiledModel) {

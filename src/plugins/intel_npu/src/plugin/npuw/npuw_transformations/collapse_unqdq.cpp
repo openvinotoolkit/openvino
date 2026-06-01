@@ -11,9 +11,9 @@
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/validation_util.hpp"
-#include "openvino/op/convolution.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/convolution.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
@@ -204,8 +204,9 @@ bool rewrite_conv_to_matmul(const std::shared_ptr<ov::op::v1::Convolution>& conv
     auto transpose_back = std::make_shared<ov::op::v1::Transpose>(
         scaled_output,
         ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, std::vector<int32_t>{0, 3, 1, 2}));
-    ov::Output<ov::Node> replacement =
-        preserve_output_type(transpose_back->output(0), convolution->get_output_element_type(0), convolution->get_friendly_name());
+    ov::Output<ov::Node> replacement = preserve_output_type(transpose_back->output(0),
+                                                            convolution->get_output_element_type(0),
+                                                            convolution->get_friendly_name());
     replacement.get_node_shared_ptr()->set_friendly_name(convolution->get_friendly_name());
     ov::replace_node(convolution, ov::OutputVector{replacement});
     return true;

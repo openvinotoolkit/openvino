@@ -16,6 +16,7 @@
 #include "just_sync_infer_request.hpp"
 #include "logging.hpp"
 #include "moe/moe_subgraph.hpp"
+#include "npuw_transformations/collapse_unqdq.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
@@ -255,6 +256,11 @@ auto cfg_get(const ov::AnyMap& properties) -> typename T::ValueType {
 }
 
 void pre_load_transform(const std::shared_ptr<ov::Model>& model, const ov::AnyMap& props) {
+    if (cfg_get<::intel_npu::NPUW_UNQDQ>(props)) {
+        ov::npuw::CollapseUNQDQ pass;
+        pass.run_on_model(model);
+    }
+
     ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(model);
 
     if (cfg_get<::intel_npu::NPUW_FOLD>(props) && cfg_get<::intel_npu::NPUW_FUNCALL_FOR_ALL>(props)) {
