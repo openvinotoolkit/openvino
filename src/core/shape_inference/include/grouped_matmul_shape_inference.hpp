@@ -42,18 +42,16 @@ std::vector<TRShape> shape_infer(const GroupedMatMul* op,
         auto merged_k = DimType();
         NODE_VALIDATION_CHECK(op,
                               DimType::merge(merged_g, g_a, g_b),
-                              "GroupedMatMul 3D×3D: batch dimension mismatch (mat_a: ",
+                              "GroupedMatMul 3D×3D: batch dimension mismatch mat_a: ",
                               g_a,
                               ", mat_b: ",
-                              g_b,
-                              ").");
+                              g_b);
         NODE_VALIDATION_CHECK(op,
                               DimType::merge(merged_k, k_a, k_b),
-                              "GroupedMatMul 3D×3D: inner dimension mismatch (mat_a: ",
+                              "GroupedMatMul 3D×3D: inner dimension mismatch mat_a: ",
                               k_a,
                               ", mat_b: ",
-                              k_b,
-                              ").");
+                              k_b);
 
         return {TRShape{merged_g, m, n}};
     }
@@ -78,11 +76,10 @@ std::vector<TRShape> shape_infer(const GroupedMatMul* op,
         auto merged_k = DimType();
         NODE_VALIDATION_CHECK(op,
                               DimType::merge(merged_k, k_a, k_b),
-                              "GroupedMatMul 2D×3D: inner dimension mismatch (mat_a: ",
+                              "GroupedMatMul 2D×3D: inner dimension mismatch mat_a: ",
                               k_a,
                               ", mat_b: ",
-                              k_b,
-                              ").");
+                              k_b);
 
         // Output has same number of rows as mat_a
         return {TRShape{total_rows, n}};
