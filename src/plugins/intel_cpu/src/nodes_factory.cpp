@@ -66,6 +66,7 @@
 #include "nodes/non_zero.h"
 #include "nodes/normalize.h"
 #include "nodes/one_hot.h"
+#include "nodes/pa_kv_reorder.hpp"
 #include "nodes/pad.h"
 #include "nodes/paged_causal_conv1d.h"
 #include "nodes/paged_gated_delta_net.h"
@@ -241,6 +242,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(Subgraph, Type::Subgraph);
     INTEL_CPU_NODE(Composite, Type::SubModel);
     INTEL_CPU_NODE(ScaledDotProductAttention, Type::ScaledDotProductAttention);
+    INTEL_CPU_NODE(PaKVReorder, Type::PaKVReorder);
     INTEL_CPU_NODE(SearchSorted, Type::SearchSorted);
     INTEL_CPU_NODE(SegmentMax, Type::SegmentMax);
     INTEL_CPU_NODE(LoRA, Type::LoRA);

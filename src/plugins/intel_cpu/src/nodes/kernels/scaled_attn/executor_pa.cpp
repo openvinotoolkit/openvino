@@ -8,8 +8,10 @@
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstdint>
 #include <cstring>
+#include <limits>
 #include <memory>
 #include <type_traits>
+#include <unordered_map>
 #include <vector>
 
 #include "cpu_memory.h"
@@ -86,7 +88,7 @@ static inline void dequant(float* dst,
 
 template <typename TDST,
           ov::element::Type_t SRC_PREC,
-          std::enable_if_t<any_of(SRC_PREC, ov::element::u4, ov::element::u8), bool> = true>
+          std::enable_if_t<any_of(SRC_PREC, ov::element::i8, ov::element::u4, ov::element::u8), bool> = true>
 void dequant(TDST* dst,
              void* src,
              const size_t N,
@@ -95,17 +97,20 @@ void dequant(TDST* dst,
              const size_t group_size,
              const bool quant_bychannel) {
     // The layout for per token per head:
-    // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
-    // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
+    // i8: |scale(f32)|quantized feature(i8,idx_1)|...|quantized feature(i8,idx_S)|
+    // u8/u4: |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|...|quantized feature(u8,idx_S)|
     auto* s = reinterpret_cast<uint8_t*>(src);
-    const size_t params_offset = sizeof(float) * 2;
     constexpr size_t sub_byte_multiplier = get_sub_byte_multiplier(SRC_PREC);
+    constexpr size_t param_count = SRC_PREC == ov::element::i8 ? 1 : 2;
+    constexpr size_t params_offset = sizeof(float) * param_count;
     if (quant_bychannel) {
-        auto* p_scales = reinterpret_cast<float*>(s);
-        auto* p_zps = p_scales + K;
-        s = s + sizeof(float) * 2 * K;
         if constexpr (any_of(SRC_PREC, ov::element::u8, ov::element::u4)) {
+            auto* p_scales = reinterpret_cast<float*>(s);
+            auto* p_zps = p_scales + K;
+            s = s + sizeof(float) * 2 * K;
             attn_dequant_by_channel_kernel<TDST, SRC_PREC>(s, dst, N, K, K / sub_byte_multiplier, K, p_scales, p_zps);
+        } else {
+            OPENVINO_THROW("dequant: i8 doesn't support by-channel quantization.");
         }
     } else {
         for (size_t n = 0; n < N; n++) {
@@ -396,7 +401,10 @@ struct ScoreAggregationInfo {
     int32_t score_buf_num;          // tmp buffer number for current head
     int32_t kv_len_aligned;         // tmp buffer length for current block
 };
-
+struct QueryToQueryBiasInfo {
+    size_t qq_begin_offset = 0;  // offset into flattened qq_bias matrix
+    size_t spec_num = 0;         // number of draft tokens (matrix side length)
+};
 template <typename DATA_TYPE, ov::element::Type_t KEY_PREC, ov::element::Type_t VALUE_PREC>
 struct MHAHelper {
     // initialize once
@@ -450,6 +458,10 @@ struct MHAHelper {
     PlainTensor _token_type;                  // [total_batched_tokens], int32 — 0=text, 1=image
     std::vector<int32_t> _image_group_end;    // for image token i, the exclusive end of its group
     std::vector<int32_t> _image_group_begin;  // for image token i, the inclusive start of its group
+
+    // Speculative tree mask (qq_bias)
+    PlainTensor _qq_bias;
+    std::vector<QueryToQueryBiasInfo> _qq_bias_infos;  // Precomputed info for each sequence
 
     // Precompute image group boundaries from token_type_ids.
     // For each image token:
@@ -509,6 +521,96 @@ struct MHAHelper {
             return std::min(static_cast<size_t>(_image_group_end[q_global_idx]), cur_kv_len);
         }
         return default_ncausal;
+    }
+
+    void clear_qq_bias() {
+        _qq_bias = PlainTensor();
+        _qq_bias_infos.clear();
+    }
+
+    // Initialize per-sequence metadata for speculative query-to-query masks.
+    //
+    // qq_bias stores one flattened square mask per scheduled sequence, concatenated back-to-back.
+    // qq_bias_begins is the prefix-sum array that selects the slice for each sequence:
+    //   seq i -> qq_bias[qq_bias_begins[i] : qq_bias_begins[i + 1])
+    //
+    // Each non-empty slice must contain spec_num * spec_num elements, where spec_num is the number of
+    // speculative tokens for that sequence. A value of 1 means "keep this speculative query->key edge",
+    // and 0 means "mask it out". Empty slices are allowed and mean that the sequence has no speculative
+    // query-to-query mask for this step.
+    //
+    // Example with three scheduled sequences:
+    //   qq_bias_begins = [0, 4, 4, 13]
+    //   seq0 -> qq_bias[0:4]   -> 2 x 2 mask for 2 speculative tokens
+    //   seq1 -> qq_bias[4:4]   -> empty, so no extra query-to-query masking
+    //   seq2 -> qq_bias[4:13]  -> 3 x 3 mask for 3 speculative tokens
+    //
+    // If seq2 has:
+    //   qq_bias[4:13] = [
+    //       1, 1, 0,
+    //       1, 1, 1,
+    //       1, 0, 1
+    //   ]
+    // then for seq2:
+    //   - query_spec_idx = 0 and key_idx = past_len + 2 reads qq_bias[4 + 0 * 3 + 2] = 0, so that
+    //     speculative query cannot attend to the 3rd speculative key.
+    //   - query_spec_idx = 2 and key_idx = past_len + 1 reads qq_bias[4 + 2 * 3 + 1] = 0, so that
+    //     speculative query cannot attend to the 2nd speculative key.
+    //
+    // init_query_to_query_mask() only validates the per-sequence ranges and caches:
+    //   - qq_begin_offset: the starting offset in the flattened qq_bias tensor
+    //   - spec_num:        the square side length used later by query_to_query_is_masked()
+    // During attention, only key_idx >= past_len participates in this lookup; prompt/past KV tokens are
+    // unaffected by qq_bias.
+    void init_query_to_query_mask(const PlainTensor& qq_bias, const PlainTensor& qq_bias_begins) {
+        _qq_bias = qq_bias;
+
+        // Precompute QueryToQueryBiasInfo for each sequence
+        const auto num_seqs = qq_bias_begins.m_dims[0] - 1;
+        _qq_bias_infos.resize(num_seqs);
+
+        for (size_t batch_in_seq = 0; batch_in_seq < num_seqs; batch_in_seq++) {
+            QueryToQueryBiasInfo qq_bias_info;
+
+            const auto qq_begin = static_cast<size_t>(qq_bias_begins.ptr<int32_t>()[batch_in_seq]);
+            const auto qq_end = static_cast<size_t>(qq_bias_begins.ptr<int32_t>()[batch_in_seq + 1]);
+
+            OPENVINO_ASSERT(qq_begin <= qq_end && qq_end <= qq_bias.size(0),
+                            "PagedAttention: qq_bias_begins contains invalid range");
+
+            const auto qq_num = qq_end - qq_begin;
+            if (qq_num > 0) {
+                const auto spec_num = static_cast<size_t>(std::sqrt(static_cast<float>(qq_num)));
+
+                OPENVINO_ASSERT(spec_num * spec_num == qq_num, "PagedAttention: qq_bias range length incorrect ");
+
+                qq_bias_info.qq_begin_offset = qq_begin;
+                qq_bias_info.spec_num = spec_num;
+            }
+
+            _qq_bias_infos[batch_in_seq] = qq_bias_info;
+        }
+    }
+
+    bool query_to_query_is_masked(const QueryToQueryBiasInfo* cache,
+                                  size_t query_spec_idx,
+                                  size_t key_idx,
+                                  size_t past_len) const {
+        if (!_qq_bias || key_idx < past_len || cache == nullptr || cache->spec_num == 0) {
+            return false;
+        }
+
+        if (query_spec_idx >= cache->spec_num) {
+            return false;
+        }
+
+        const auto key_spec_idx = key_idx - past_len;
+        if (key_spec_idx >= cache->spec_num) {
+            return false;
+        }
+
+        const auto qq_off = cache->qq_begin_offset + query_spec_idx * cache->spec_num + key_spec_idx;
+        return _qq_bias.ptr<uint8_t>()[qq_off] == 0;
     }
 
     [[nodiscard]] size_t get_sliding_start_idx(size_t q_global_idx, size_t default_ncausal) const {
@@ -781,13 +883,16 @@ struct MHAHelper {
                               const PlainTensor& sinks,
                               size_t batch_in_seq = 0,
                               const std::vector<PlainTensor>& sparse_attention_mask = {},
-                              size_t q_token_start = 0) {
+                              size_t q_token_start = 0,
+                              const QueryToQueryBiasInfo* query_to_query_info_ptr = nullptr) {
         auto q_start = q_blk * _block_size;
         auto q_end = std::min(q_start + _block_size, q_len);
         auto q_cnt = q_end - q_start;
         constexpr bool q_is_xf16 = any_of(precision_of<DATA_TYPE>::value, ov::element::bf16, ov::element::f16);
         constexpr bool q_cache_is_same = precision_of<DATA_TYPE>::value == VALUE_PREC;
         auto cur_kv_len_blocks = div_up(cur_kv_len, _block_size);
+        const size_t past_len = cur_kv_len - (q_blk * _block_size + q_cnt);
+
         [[maybe_unused]] size_t sparse_scale = 1;
         [[maybe_unused]] std::function<std::pair<size_t, size_t>(size_t, size_t)> map_to_mask_idx =
             [](size_t q_blk_rt, size_t k_blk_rt) {
@@ -863,6 +968,13 @@ struct MHAHelper {
                 const auto causal_pos = cur_kv_len - q_cnt + (m - q_start) + 1;
                 const auto ncausal = get_ncausal(q_token_start + m, causal_pos, cur_kv_len);
                 auto* score = _weight.ptr<float>(ithr, h - hq_beg, m - q_start);
+                if (query_to_query_info_ptr != nullptr) {
+                    for (size_t key_idx = past_len; key_idx < cur_kv_len; key_idx++) {
+                        if (query_to_query_is_masked(query_to_query_info_ptr, m, key_idx, past_len)) {
+                            score[key_idx] = -FLT_MAX;
+                        }
+                    }
+                }
                 // dequantization of q matrix could be fused with _d_scale since softmax is done by row
                 float revised_d_scale =
                     _params.is_sage_attn
@@ -1027,10 +1139,12 @@ struct MHAHelper {
                                   float* score_output,
                                   size_t q_start_idx_score,
                                   const ScoreAggregationInfo* score_info_ptr,
-                                  size_t q_token_start = 0) {
+                                  size_t q_token_start = 0,
+                                  const QueryToQueryBiasInfo* query_to_query_info_ptr = nullptr) {
         auto q_start = q_blk * _block_size;
         auto q_end = std::min(q_start + _block_size, q_len);
         auto q_cnt = q_end - q_start;
+        const size_t past_len = cur_kv_len - (q_blk * _block_size + q_cnt);
         constexpr bool q_is_xf16 = any_of(precision_of<DATA_TYPE>::value, ov::element::bf16, ov::element::f16);
         auto cur_kv_len_blocks = div_up(cur_kv_len, _block_size);
         auto _score_stride = _weight.stride_bytes(2) / 2;
@@ -1070,6 +1184,15 @@ struct MHAHelper {
                 const auto ncausal = get_ncausal(q_token_start + m, causal_pos, cur_kv_len);
                 auto soft_in = _weight.ptr<float>(ithr, h - hq_beg, m - q_start);
                 auto score = _weight.ptr<float>(ithr, h - hq_beg, m - q_start);
+
+                // Apply qq_bias mask
+                if (query_to_query_info_ptr != nullptr) {
+                    for (size_t key_idx = past_len; key_idx < cur_kv_len; key_idx++) {
+                        if (query_to_query_is_masked(query_to_query_info_ptr, m, key_idx, past_len)) {
+                            score[key_idx] = -FLT_MAX;
+                        }
+                    }
+                }
                 PlainTensor f32_cvt;
                 if (q_is_xf16) {
                     f32_cvt.resize<float>({size_t{rnd_up(cur_kv_len, _block_size)}});
@@ -1222,6 +1345,7 @@ struct MHAHelper {
                 const auto ncausal = get_ncausal(q_token_start + pq, cur_kv_len, cur_kv_len);
                 float* score = _weight.ptr<float>(ithr, h - hq_beg, pq);
                 OPENVINO_DEBUG_ASSERT(score != nullptr, "PagedAttention: _weight buffer must be allocated");
+
                 float* alibi_lookup = nullptr;
                 float alibi_slope = 0.F;
                 if (alibi_slopes) {
@@ -1777,6 +1901,11 @@ struct MHA {
                 sub_query.resize({q_len, _helper.H, _helper.S}, q.ptr<DATA_TYPE>(batch_in_token));
                 // physical layout (B_in_tokens, H, S)
                 sub_query = sub_query.permute({1, 0, 2});
+
+                QueryToQueryBiasInfo* query_to_query_info_ptr = nullptr;
+                if (_helper._qq_bias && static_cast<size_t>(batch_in_seq) < _helper._qq_bias_infos.size()) {
+                    query_to_query_info_ptr = &_helper._qq_bias_infos[batch_in_seq];
+                }
 #    if defined(OPENVINO_ARCH_ARM64)
                 if constexpr (q_is_xf16) {
                     _helper.exec_kernel_multiple_kai(
@@ -1798,7 +1927,8 @@ struct MHA {
                         score_output,
                         q_start_idx_score,
                         score_info_ptr,
-                        static_cast<size_t>(batch_in_token));
+                        static_cast<size_t>(batch_in_token),
+                        query_to_query_info_ptr);
                 } else {
                     _helper.exec_kernel_multiple(
                         sub_query,
@@ -1822,7 +1952,8 @@ struct MHA {
                         PlainTensor(),
                         0,
                         {},
-                        static_cast<size_t>(batch_in_token));
+                        static_cast<size_t>(batch_in_token),
+                        query_to_query_info_ptr);
                 }
 #    else
                 _helper.exec_kernel_multiple(
@@ -1847,7 +1978,8 @@ struct MHA {
                     sinks,
                     batch_in_seq,
                     sparse_attention_mask,
-                    static_cast<size_t>(batch_in_token));
+                    static_cast<size_t>(batch_in_token),
+                    query_to_query_info_ptr);
 #    endif
             }
         });
@@ -1886,13 +2018,19 @@ struct MHA {
                     const PlainTensor& alibi_slopes,
                     const PlainTensor& score_aggregation_window,
                     const PlainTensor& sinks,
-                    const std::vector<PlainTensor>& sparse_attention_mask) {
+                    const std::vector<PlainTensor>& sparse_attention_mask,
+                    const PlainTensor& qq_bias,
+                    const PlainTensor& qq_bias_begins) {
         _workitems
             .reset(query, past_lens, subsequence_begins, block_indices, block_indices_begins, _helper._block_size);
         if (output_score) {
             _helper.init_score_buffers(past_lens, subsequence_begins, score_aggregation_window);
         }
-
+        if (qq_bias) {
+            _helper.init_query_to_query_mask(qq_bias, qq_bias_begins);
+        } else {
+            _helper.clear_qq_bias();
+        }
         auto nthr = static_cast<size_t>(parallel_get_max_threads());
 
         if (past_lens.m_dims[0] >= nthr || _workitems.get_reorder_max_batch_size() > 0) {
@@ -1938,6 +2076,10 @@ struct AttentionExecutor : public PagedAttentionExecutor {
 #    if defined(OPENVINO_ARCH_X86_64)
     Xattn _xatt;
 #    endif
+
+    // Scratchpads for compute_adaptive_rkv_diversity to avoid per-call allocations.
+    std::vector<float> _arkv_evict_keys;
+    std::vector<float> _arkv_scratch;
 
     explicit AttentionExecutor(const CpuParallelPtr& cpu_parallel)
         : _helper(MHAHelper<DATA_TYPE, KEY_PREC, VALUE_PREC>(cpu_parallel)),
@@ -2051,8 +2193,12 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             }
         }
 
-        OPENVINO_ASSERT(inputs[ID_QQ_BIAS]->getShape().hasZeroDims(),
-                        "CPU plugin doesn't support qq_bias (tree mask) in paged attention yet");
+        if (!inputs[ID_QQ_BIAS]->getShape().hasZeroDims()) {
+            qq_bias.reset(inputs[ID_QQ_BIAS]);
+            OPENVINO_ASSERT(!inputs[ID_QQ_BIAS_BEGINS]->getShape().hasZeroDims(),
+                            "PagedAttention: qq_bias_begins must be provided with qq_bias");
+            qq_bias_begins.reset(inputs[ID_QQ_BIAS_BEGINS]);
+        }
 
         output_emb.reset(outputs[0]);
         if (outputs.size() >= 2) {
@@ -2210,6 +2356,11 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             token_type_ids.assert_dims({B_token});
         }
 
+        if (qq_bias) {
+            qq_bias.assert_dims({0}, true);
+            qq_bias_begins.assert_dims({B_seq + 1});
+        }
+
         output_emb.assert_dims({B_token, H * SV});
         output_emb = output_emb.reshape({B_token, 1, H * SV});
 
@@ -2313,7 +2464,189 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         }
     }
 
-    void execute(const std::vector<MemoryPtr>& inputs, const std::vector<MemoryPtr> outputs) override {
+    // Compute per-block diversity scores for Adaptive R-KV cache eviction
+    // (https://arxiv.org/pdf/2505.24133v3).
+    //
+    // For each sequence in the batch:
+    //   Phase 0 – Gather only eviction-area key tokens from the paged KV cache
+    //   Phase 1 – L2-normalize each token vector (dot product → cosine similarity)
+    //   Phase 2 – Pairwise cosine similarity within the eviction area
+    //   Phase 3 – Per-row: zero diagonal, threshold below row mean
+    //   Phase 4 – Average thresholded values across all KV heads
+    //   Phase 5 – Block-sum rows and negate → diversity scores
+    //
+    // Output per sequence: [evict_blocks, evictable_size] written to output_arkv_similarity.
+    //
+    // Optimizations vs. the reference implementation:
+    //   - Only eviction-area tokens are gathered (start-area and tail skipped)
+    //   - Gathering, normalization, similarity, and block-sum are all parallelized
+    //   - Dot products / reductions / vector ops use SIMD via common.hpp helpers
+    void compute_adaptive_rkv_diversity(const PlainTensor& k_cache,
+                                        int32_t adaptive_rkv_start_size,
+                                        const PlainTensor& adaptive_rkv_evictable_sizes,
+                                        const PlainTensor& adaptive_rkv_diversity_block_set_indices,
+                                        const PlainTensor& adaptive_rkv_diversity_block_set_indices_begins,
+                                        PlainTensor& output_arkv_similarity) {
+        const size_t B_seq = adaptive_rkv_evictable_sizes.size(0);
+        const size_t Hk = _helper.Hk;
+        const size_t S = _helper.S;
+        const size_t block_size = _helper._block_size;
+        auto* output_ptr = output_arkv_similarity.ptr<float>();
+        size_t output_offset = 0;
+
+        for (size_t seq_idx = 0; seq_idx < B_seq; seq_idx++) {
+            const auto evictable_size = static_cast<size_t>(adaptive_rkv_evictable_sizes.ptr<int32_t>()[seq_idx]);
+            if (evictable_size == 0) {
+                continue;
+            }
+
+            const auto block_set_begin =
+                static_cast<size_t>(adaptive_rkv_diversity_block_set_indices_begins.ptr<int32_t>()[seq_idx]);
+            const auto block_set_end =
+                static_cast<size_t>(adaptive_rkv_diversity_block_set_indices_begins.ptr<int32_t>()[seq_idx + 1]);
+            const auto block_count = block_set_end - block_set_begin;
+            const auto token_count = block_count * block_size;
+
+            const auto start_size = static_cast<size_t>(adaptive_rkv_start_size);
+            OPENVINO_ASSERT(start_size % block_size == 0);
+            OPENVINO_ASSERT(evictable_size % block_size == 0);
+            OPENVINO_ASSERT(token_count >= start_size + evictable_size,
+                            "Adaptive RKV diversity block set is too small for requested start and eviction sizes");
+
+            // ── Phase 0: Load target data; Gather only the eviction-area key tokens. ─────────
+            // Layout: [Hk, evictable_size, S].  Only the blocks covering the
+            // eviction window [start_size, start_size + evictable_size) are
+            // retrieved; start-area and trailing blocks are skipped entirely.
+            const size_t start_blocks = start_size / block_size;
+            const size_t evict_block_count = evictable_size / block_size;
+            const size_t evict_keys_size = Hk * evictable_size * S;
+            if (_arkv_evict_keys.size() < evict_keys_size) {
+                _arkv_evict_keys.resize(evict_keys_size);
+            }
+            auto& evict_keys = _arkv_evict_keys;
+
+            _cpu_parallel->parallel_for2d(Hk, evict_block_count, [&](size_t hk, size_t eb) {
+                const auto global_block_idx = start_blocks + eb;
+                const auto block_number = static_cast<size_t>(
+                    adaptive_rkv_diversity_block_set_indices.ptr<int32_t>()[block_set_begin + global_block_idx]);
+                auto* dst = evict_keys.data() + hk * evictable_size * S + eb * block_size * S;
+
+                if constexpr (any_of(KEY_PREC, ov::element::i8, ov::element::u8, ov::element::u4)) {
+                    auto* src =
+                        k_cache.ptr<typename ov::element_type_traits<KEY_PREC>::value_type, KEY_PREC>(block_number, hk);
+                    dequant<float, KEY_PREC>(dst,
+                                             src,
+                                             block_size,
+                                             S,
+                                             block_size,
+                                             _helper._params.key_group_size,
+                                             _helper._params.quant_key_bychannel);
+                } else {
+                    auto* src = k_cache.ptr<typename ov::element_type_traits<KEY_PREC>::value_type>(block_number, hk);
+                    cvt_copy(dst, src, block_size, S, S, S);
+                }
+            });
+
+            // ── Phase 1: L2-normalize each eviction token (in-place) ──────
+            // After this step dot(row_i, row_j) == cosine_similarity(i, j).
+            constexpr float eps = std::numeric_limits<float>::epsilon();
+            _cpu_parallel->parallel_for(Hk * evictable_size, [&](size_t idx) {
+                const size_t hk_idx = idx / evictable_size;
+                const size_t t = idx % evictable_size;
+                float* row = evict_keys.data() + hk_idx * evictable_size * S + t * S;
+                float sq_sum = dot_product(row, row, S, nullptr, nullptr, nullptr, 0);
+                multiply_scalar(row, row, 1.0F / std::sqrt(sq_sum + eps), S);
+            });
+
+            // ── Phase 2–5 (fused): Cosine similarity → threshold → subtract into output ─
+            // For each block, iterate its block_size token rows. For each row,
+            // compute per-head cosine similarities, threshold below row mean,
+            // and immediately subtract (scaled by 1/Hk) into the output row.
+            // Parallelized over blocks so each thread owns its output row exclusively.
+            const float inv_hk = 1.0F / static_cast<float>(Hk);
+            const auto nthr = static_cast<size_t>(parallel_get_max_threads());
+            const size_t scratch_size = nthr * evictable_size;
+            if (_arkv_scratch.size() < scratch_size)
+                _arkv_scratch.resize(scratch_size);
+
+            float* out = output_ptr + output_offset;
+            _cpu_parallel->parallel_for(evict_block_count, [&](size_t blk) {
+                const auto ithr = static_cast<size_t>(parallel_get_thread_num());
+                float* sim_row = _arkv_scratch.data() + ithr * evictable_size;
+                float* out_row = out + blk * evictable_size;
+                std::memset(out_row, 0, evictable_size * sizeof(float));
+
+                for (size_t t = 0; t < block_size; t++) {
+                    const size_t row = blk * block_size + t;
+                    for (size_t hk_idx = 0; hk_idx < Hk; hk_idx++) {
+                        const float* head_keys = evict_keys.data() + hk_idx * evictable_size * S;
+                        const float* row_key = head_keys + row * S;
+
+                        for (size_t col = 0; col < evictable_size; col++) {
+                            sim_row[col] =
+                                (col == row)
+                                    ? 0.0F
+                                    : dot_product(row_key, head_keys + col * S, S, nullptr, nullptr, nullptr, 0);
+                        }
+
+                        float mean = reduce_sum(sim_row, evictable_size) / static_cast<float>(evictable_size);
+                        size_t i = 0;
+#    if defined(HAVE_AVX512F)
+                        {
+                            auto vmean = _mm512_set1_ps(mean);
+                            auto vnihk = _mm512_set1_ps(-inv_hk);
+                            for (; i + vec_len_f32_avx512 <= evictable_size; i += vec_len_f32_avx512) {
+                                auto vsim = _mm512_loadu_ps(sim_row + i);
+                                auto vout = _mm512_loadu_ps(out_row + i);
+                                auto mask = _mm512_cmp_ps_mask(vsim, vmean, _CMP_GE_OQ);
+                                vout = _mm512_fmadd_ps(_mm512_maskz_mov_ps(mask, vsim), vnihk, vout);
+                                _mm512_storeu_ps(out_row + i, vout);
+                            }
+                        }
+#    elif defined(HAVE_AVX2)
+                        {
+                            auto vmean = _mm256_set1_ps(mean);
+                            auto vnihk = _mm256_set1_ps(-inv_hk);
+                            auto vz = _mm256_setzero_ps();
+                            for (; i + vec_len_f32_avx2 <= evictable_size; i += vec_len_f32_avx2) {
+                                auto vsim = _mm256_loadu_ps(sim_row + i);
+                                auto vout = _mm256_loadu_ps(out_row + i);
+                                auto vcmp = _mm256_cmp_ps(vsim, vmean, _CMP_GE_OQ);
+                                vout = _mm256_fmadd_ps(_mm256_blendv_ps(vz, vsim, vcmp), vnihk, vout);
+                                _mm256_storeu_ps(out_row + i, vout);
+                            }
+                        }
+#    elif defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE)
+                        {
+                            auto sve_len = vec_len_f32_sve();
+                            svbool_t pg = svptrue_b32();
+                            auto svmean_val = svdup_n_f32(mean);
+                            auto svnihk = svdup_n_f32(-inv_hk);
+                            for (; i + sve_len <= evictable_size; i += sve_len) {
+                                svfloat32_t vsim = svld1_f32(pg, sim_row + i);
+                                svfloat32_t vout = svld1_f32(pg, out_row + i);
+                                svbool_t ge = svcmpge_f32(pg, vsim, svmean_val);
+                                svfloat32_t vt = svsel_f32(ge, vsim, svdup_n_f32(0.0f));
+                                vout = svmla_f32_z(pg, vout, vt, svnihk);
+                                svst1_f32(pg, out_row + i, vout);
+                            }
+                        }
+#    endif
+                        for (; i < evictable_size; i++) {
+                            if (sim_row[i] >= mean) {
+                                out_row[i] -= sim_row[i] * inv_hk;
+                            }
+                        }
+                    }
+                }
+            });
+            output_offset += evict_block_count * evictable_size;
+        }
+    }
+
+    void execute(const std::vector<MemoryPtr>& inputs,
+                 const std::vector<MemoryPtr> outputs,
+                 bool write_kv_cache) override {
         PlainTensor q;
         PlainTensor k;
         PlainTensor v;
@@ -2398,18 +2731,20 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             _helper.clear_token_type();
         }
 
-        if (rotated_block_indices) {
-            // Rotate kv cache currently doesn't support quantized cache.
-            // for u8 it only supports compilation but throws exception in the runtime
-            // TODO: implement u4/u8
-            rotate_kv_cache<KEY_PREC>(k_cache,
-                                      rotated_block_indices,
-                                      rotation_deltas,
-                                      rotation_trig_lut,
-                                      _helper._block_rotation_coefficient_scratch);
-        }
+        if (write_kv_cache) {
+            if (rotated_block_indices) {
+                // Rotate kv cache currently doesn't support quantized cache.
+                // for u8 it only supports compilation but throws exception in the runtime
+                // TODO: implement u4/u8
+                rotate_kv_cache<KEY_PREC>(k_cache,
+                                          rotated_block_indices,
+                                          rotation_deltas,
+                                          rotation_trig_lut,
+                                          _helper._block_rotation_coefficient_scratch);
+            }
 
-        concat_pastkv(k, v, k_cache, v_cache, past_lens, subsequence_begins, block_indices, block_indices_begins);
+            concat_pastkv(k, v, k_cache, v_cache, past_lens, subsequence_begins, block_indices, block_indices_begins);
+        }
 
         _kernel(q,
                 k_cache,
@@ -2424,7 +2759,18 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                 alibi_slopes,
                 score_aggregation_window,
                 sinks,
-                sparse_attention_mask);
+                sparse_attention_mask,
+                qq_bias,
+                qq_bias_begins);
+
+        if (adaptive_rkv_evictable_sizes && adaptive_rkv_diversity_block_set_indices) {
+            compute_adaptive_rkv_diversity(k_cache,
+                                           adaptive_rkv_start_size,
+                                           adaptive_rkv_evictable_sizes,
+                                           adaptive_rkv_diversity_block_set_indices,
+                                           adaptive_rkv_diversity_block_set_indices_begins,
+                                           output_arkv_similarity);
+        }
     }
 };
 #endif
