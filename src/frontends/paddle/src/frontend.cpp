@@ -151,7 +151,7 @@ std::istream* variant_to_stream_ptr(const ov::Any& variant, std::fstream& fs, st
         FRONT_END_INITIALIZATION_CHECK(ss && ss.good(), "Cannot open ov::tensor.");
         return &ss;
     } else if (const auto path = ov::frontend::get_path_from_any(variant)) {
-        fs.open(path.value(), std::ios::in | std::ifstream::binary);
+        fs.open(*path, std::ios::in | std::ifstream::binary);
         FRONT_END_INITIALIZATION_CHECK(fs && fs.is_open(), "Cannot open model file.");
         return &fs;
     }
@@ -372,8 +372,8 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
         return false;
 
     // Validating first path, it must contain a model
-    if (const auto path = ov::frontend::get_path_from_any(variants[0])) {
-        std::filesystem::path model_path = path.value();
+    if (auto path = ov::frontend::get_path_from_any(variants[0])) {
+        std::filesystem::path model_path = std::move(*path);
         if (ov::util::directory_exists(model_path)) {
             model_path /= "__model__";
             FRONT_END_GENERAL_CHECK(util::file_exists(model_path), "Could not open the file: ", model_path);
@@ -411,7 +411,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     if (variants.size() == 1 + extra_variants_num) {
         // The case when folder with __model__ and weight files is provided or .pdmodel file
         if (const auto path = ov::frontend::get_path_from_any(variants[0])) {
-            return std::make_shared<InputModel>(path.value().native(), m_telemetry);
+            return std::make_shared<InputModel>(*path, m_telemetry);
         }
         // The case with only model stream provided and no weights. This means model has
         // no learnable weights

@@ -7,7 +7,7 @@
 #include <gmock/gmock-matchers.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include <ze_api.h>
+#include <level_zero/ze_api.h>
 #include <ze_command_queue_npu_ext.h>
 
 #include <algorithm>

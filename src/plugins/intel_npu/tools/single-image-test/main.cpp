@@ -18,10 +18,12 @@
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
 
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <optional>
 #include <regex>
 #include <sstream>
@@ -29,6 +31,37 @@
 #include <vector>
 
 using TensorMap = std::map<std::string, ov::Tensor>;
+
+// Clamp +/-inf elements to the representable range of the buffer element type.
+template <typename T>
+static void clampInfInBuffer(T* data, size_t count) {
+    const T posMax = std::numeric_limits<T>::max();
+    const T negMin = std::numeric_limits<T>::lowest();
+    for (size_t i = 0; i < count; ++i) {
+        const float val = static_cast<float>(data[i]);
+        if (std::isinf(val)) {
+            data[i] = (val > 0.0f) ? posMax : negMin;
+        }
+    }
+}
+
+// Clamp +/-inf elements in a tensor in-place.
+// Returns true on success; returns false for unsupported (non-float) element types.
+static bool clampInfInTensor(ov::Tensor& tensor) {
+    const auto et = tensor.get_element_type();
+    const size_t count = tensor.get_size();
+    if (et == ov::element::f32) {
+        clampInfInBuffer(tensor.data<float>(), count);
+        return true;
+    } else if (et == ov::element::f16) {
+        clampInfInBuffer(tensor.data<ov::float16>(), count);
+        return true;
+    } else if (et == ov::element::bf16) {
+        clampInfInBuffer(tensor.data<ov::bfloat16>(), count);
+        return true;
+    }
+    return false;
+}
 
 struct TensorDescriptor {
     ov::element::Type precision;
@@ -360,7 +393,7 @@ void cvToOV(const cv::Mat& cvImg,
                           << n << " up to " << N << " with image data from the array: "
                           << cvImgInBatch.to_string() << std::endl;
             }
-            cv::Mat batch(static_cast<const int>(H),
+            cv::Mat batch(static_cast<int>(H),
                           static_cast<int>(W),
                           cvType,
                           dataBuffer + n * (out.size().area() * out.elemSize()));
@@ -835,6 +868,32 @@ std::map<std::string, std::string> parseConfigFile() {
 
     return config;
 }
+
+ov::AnyMap buildDeviceConfig() {
+    ov::AnyMap config;
+
+    if (!FLAGS_log_level.empty()) {
+        config[ov::log::level.name()] = FLAGS_log_level;
+    }
+
+    if (FLAGS_device == "CPU") {
+        config["LP_TRANSFORMS_MODE"] = std::string("NO");
+    }
+
+    if (FLAGS_pc) {
+        config[ov::enable_profiling.name()] = true;
+    }
+
+    if (!FLAGS_config.empty()) {
+        const auto fileConfigs = parseConfigFile();
+        for (const auto& [key, value] : fileConfigs) {
+            config[key] = value;
+        }
+    }
+
+    return config;
+}
+
 
 // This function formats performance counters in a same way as benchmark_app -pc does.
 // It is a copy-paste from $OPENVINO_HOME/samples/cpp/common/utils/include/samples/common.hpp
@@ -1925,27 +1984,8 @@ const char TEMPLATE_LIB[] = "libopenvino_template_plugin.so";
 #endif
 
 void setupOVCore(ov::Core& core) {
-    auto flagDevice = FLAGS_device;
-
     if (FLAGS_device == "TEMPLATE") {
         core.register_plugin(TEMPLATE_LIB, FLAGS_device);
-    }
-
-    if (!FLAGS_log_level.empty()) {
-        core.set_property(flagDevice, {{ov::log::level.name(), FLAGS_log_level}});
-    }
-
-    if (FLAGS_device == "CPU") {
-        core.set_property(flagDevice, {{"LP_TRANSFORMS_MODE", "NO"}});
-    }
-
-    if (FLAGS_pc) {
-        core.set_property(flagDevice, {{ov::enable_profiling.name(), true}});
-    }
-
-    if (!FLAGS_config.empty()) {
-        const auto configs = parseConfigFile();
-        core.set_property(flagDevice, {configs.begin(), configs.end()});
     }
 }
 
@@ -2484,7 +2524,7 @@ static int runSingleImageTest() {
             std::cout << "Compile model" << std::endl;
             model = ppp.build();
             printInputAndOutputsInfoShort(*model);
-            compiledModel = core.compile_model(model, FLAGS_device);
+            compiledModel = core.compile_model(model, FLAGS_device, buildDeviceConfig());
         } else {
             std::cout << "Import network " << FLAGS_network << std::endl;
 
@@ -2496,7 +2536,7 @@ static int runSingleImageTest() {
 
             std::ifstream file(FLAGS_network, std::ios_base::in | std::ios_base::binary);
             OPENVINO_ASSERT(file.is_open(), "Can't open file ", FLAGS_network, " for read");
-            compiledModel = core.import_model(file, FLAGS_device);
+            compiledModel = core.import_model(file, FLAGS_device, buildDeviceConfig());
         }
 
         auto inputInfo = compiledModel.inputs();
@@ -2756,6 +2796,32 @@ static int runSingleImageTest() {
                     auto layoutIt = outputLayouts.find(tensorName);
                     if (layoutIt != outputLayouts.end()) {
                         filteredOutputLayouts.emplace(tensorName, layoutIt->second);
+                    }
+                }
+
+                // Clamp +/-inf values in the specified output tensors before metric evaluation.
+                if (!FLAGS_clamp_inf_outputs.empty()) {
+                    const auto infClampNames = splitStringList(FLAGS_clamp_inf_outputs, ';');
+                    for (const auto& name : infClampNames) {
+                        const auto outIt = filteredOutputTensors.find(name);
+                        const auto refIt = filteredReferenceTensors.find(name);
+                        if (outIt == filteredOutputTensors.end() && refIt == filteredReferenceTensors.end()) {
+                            std::cerr << "Warning: tensor '" << name
+                                      << "' specified in --clamp_inf_outputs was not found in output tensors"
+                                      << std::endl;
+                            continue;
+                        }
+                        if (outIt != filteredOutputTensors.end()) {
+                            if (!clampInfInTensor(outIt->second)) {
+                                std::cerr << "Warning: tensor '" << name << "' has element type "
+                                          << outIt->second.get_element_type()
+                                          << " which is not supported for inf clamping, skipping" << std::endl;
+                                continue;
+                            }
+                        }
+                        if (refIt != filteredReferenceTensors.end()) {
+                            clampInfInTensor(refIt->second);
+                        }
                     }
                 }
 

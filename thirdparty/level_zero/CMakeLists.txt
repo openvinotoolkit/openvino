@@ -42,7 +42,8 @@ add_custom_command(OUTPUT "${ZE_HEADERS_STAMP_FILE}"
 add_custom_target(prepare_ze_headers ALL DEPENDS "${ZE_HEADERS_STAMP_FILE}")
 add_dependencies(ze_loader prepare_ze_headers)
 
-# Allow include patterns with and without level-zero/ prefix
+# OpenVINO prefers include pattern with level-zero pattern 
+# include pattern without level_zero/ prefix is supported for thirdparty 
 set_property(TARGET ze_loader APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES
     $<BUILD_INTERFACE:${ZE_INCLUDE_DIR}>
     $<BUILD_INTERFACE:${ZE_INCLUDE_DIR}/level_zero>

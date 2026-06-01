@@ -12,7 +12,7 @@
 #pragma once
 #endif
 
-#include <ze_api.h>
+#include <level_zero/ze_api.h>
 
 #include "zex_common.h"
 

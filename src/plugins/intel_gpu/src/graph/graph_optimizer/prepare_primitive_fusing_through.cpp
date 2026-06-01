@@ -85,16 +85,10 @@ void prepare_primitive_fusing_through::run(program& p) {
             input_node = &node->get_dependency(0);
         } else if (node->is_type<quantize>()) {
             auto& quantize_node = node->as<quantize>();
-            bool per_tensor_values = quantize_node.get_scale_shift_opt() &&
-                                     quantize_node.get_per_tensor_input_scale() &&
-                                     (quantize_node.get_per_tensor_input_shift() || !quantize_node.get_need_pre_shift()) &&
-                                     quantize_node.get_per_tensor_input_range() &&
-                                     quantize_node.get_per_tensor_output_scale() &&
-                                     (quantize_node.get_per_tensor_output_shift() || !quantize_node.get_need_post_shift()) &&
-                                     quantize_node.get_per_tensor_output_range();
 
-            if (!per_tensor_values)
+            if (!quantize_node.has_per_tensor_values() && !quantize_node.get_scale_shift_opt()) {
                 continue;
+            }
 
             input_node = &node->get_dependency(0);
         } else if (node->is_type<eltwise>()) {
@@ -133,6 +127,16 @@ void prepare_primitive_fusing_through::run(program& p) {
 
         auto new_prev = fuse_through_order[fuse_through_order.size() - 1];
         auto new_next = fuse_through_order[fuse_through_order.size() - 2];
+
+        // For per-channel quantize, allow only when the fused target's output shape
+        // matches the quantize's current input shape. This ensures per-channel
+        // parameters remain correctly broadcast-aligned at the new position.
+        if (node->is_type<quantize>() && !node->as<quantize>().has_per_tensor_values()) {
+            auto target_shape = new_prev->get_output_layout().get_partial_shape();
+            auto current_input_shape = node->get_input_layout(0).get_partial_shape();
+            if ((target_shape != current_input_shape) || target_shape.is_dynamic() || current_input_shape.is_dynamic())
+                continue;
+        }
 
         // Check broadcastable for fused eltwise's output
         if (node->is_type<eltwise>()) {

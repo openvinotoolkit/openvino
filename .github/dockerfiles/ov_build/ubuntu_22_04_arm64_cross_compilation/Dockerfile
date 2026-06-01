@@ -127,6 +127,9 @@ ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
 RUN python3.11 -m venv venv
 ENV PATH="/venv/bin:$PATH"
 
+# Install newer ninja (apt ships 1.10.1 on 22.04 which lacks --quiet)
+RUN python3 -m pip install --no-cache-dir ninja==1.13.0
+
 # Install Node
 ENV NODE_VERSION=21.7.3
 ENV NVM_DIR=/.nvm
