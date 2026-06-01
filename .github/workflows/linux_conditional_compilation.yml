@@ -160,11 +160,6 @@ jobs:
       - name: System info
         uses: ./openvino/.github/actions/system_info
 
-      - name: Install python dependencies
-        run: |
-          # For getting rid of SSL issues during model downloading for unit tests
-          python3 -m pip install certifi
-
       #
       # Build
       #
