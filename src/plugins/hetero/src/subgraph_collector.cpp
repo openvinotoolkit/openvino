@@ -68,8 +68,7 @@ ov::hetero::SubgraphCollector::SubgraphCollector(const std::shared_ptr<ov::Model
       _subgraph_inputs{},
       _subgraph_parameter_to_prev_result{} {
     init();
-    split_cyclic_dependencies();
-    _subgraph_ids = collect_subgraphs_ids();
+    _subgraph_ids = split_cyclic_dependencies();
 }
 
 bool ov::hetero::SubgraphCollector::is_graph_input_node(const ov::Node* node) const {
@@ -98,9 +97,15 @@ void ov::hetero::SubgraphCollector::init() {
     }
 }
 
-void ov::hetero::SubgraphCollector::split_cyclic_dependencies() {
+ov::hetero::SubgraphCollector::SubgraphIdsMap ov::hetero::SubgraphCollector::split_cyclic_dependencies() {
     // Iteratively detect cross-subgraph cycles (subgraph A feeds B and B feeds A) and break them
     // by promoting offending edges into _subgraph_inputs until no new boundaries are added.
+    //
+    // Returns the final SubgraphIdsMap (valid w.r.t. _subgraph_inputs at return), so the caller
+    // does not re-run collect_subgraphs_ids(). The map is also reused across loop boundaries:
+    // the per-node loop's last iteration always exits without adding boundaries (loop
+    // condition), so its `subgraph_ids` is still valid for the SCC loop's first iteration; and
+    // each SCC iteration only recomputes after it actually modified _subgraph_inputs.
     const size_t nodes_count = _ordered_ops.size();
     std::unordered_map<const ov::Node*, size_t> node_to_index;
     node_to_index.reserve(nodes_count);
@@ -161,14 +166,17 @@ void ov::hetero::SubgraphCollector::split_cyclic_dependencies() {
         return false;
     };
 
+    // Subgraph-ID state is shared across the per-node loop, the SCC loop, and the return value.
+    SubgraphIdsMap subgraph_ids;
+    std::vector<SubgraphId> subgraph_id_by_index(nodes_count);
+
     // Split cyclic dependencies.
     for (size_t prev_subgraphs = 0, cyclic_split_step = 0; prev_subgraphs != _subgraph_inputs.size();
          ++cyclic_split_step) {
         OPENVINO_ASSERT(cyclic_split_step < _ordered_ops.size(), "Cannot resolve cycles during submodels split!");
         prev_subgraphs = _subgraph_inputs.size();
-        auto subgraph_ids = collect_subgraphs_ids();
+        subgraph_ids = collect_subgraphs_ids();
 
-        std::vector<SubgraphId> subgraph_id_by_index(nodes_count);
         for (const auto& node : _ordered_ops) {
             const auto index = get_index_by_node(node.get());
             subgraph_id_by_index[index] = subgraph_ids.at(node);
@@ -520,18 +528,24 @@ void ov::hetero::SubgraphCollector::split_cyclic_dependencies() {
     for (size_t i = 0; i < nodes_count; ++i) {
         total_node_inputs += ordered_inputs[i].size();
     }
+    // subgraph_ids / subgraph_id_by_index reach this point already valid w.r.t. the current
+    // _subgraph_inputs: the per-node loop exits only when its last iteration adds no boundaries,
+    // so the ids it computed at the top of that final iteration are still in sync. Recompute
+    // only after the SCC step actually modifies _subgraph_inputs.
+    bool ids_valid = true;
     for (size_t scc_step = 0;; ++scc_step) {
         OPENVINO_ASSERT(scc_step < total_node_inputs + 1,
                         "Subgraph SCC fallback did not converge: exceeded node-input edge budget");
-        const size_t inputs_before_step = _subgraph_inputs.size();
-        auto subgraph_ids = collect_subgraphs_ids();
-
-        std::vector<SubgraphId> sg_id_by_index(nodes_count);
-        for (size_t i = 0; i < nodes_count; ++i) {
-            sg_id_by_index[i] = subgraph_ids.at(_ordered_ops[i]);
+        if (!ids_valid) {
+            subgraph_ids = collect_subgraphs_ids();
+            for (size_t i = 0; i < nodes_count; ++i) {
+                subgraph_id_by_index[i] = subgraph_ids.at(_ordered_ops[i]);
+            }
+            ids_valid = true;
         }
+        const size_t inputs_before_step = _subgraph_inputs.size();
 
-        const auto [sg_adj, all_sgs] = build_subgraph_adjacency(sg_id_by_index);
+        const auto [sg_adj, all_sgs] = build_subgraph_adjacency(subgraph_id_by_index);
         const auto scc_members = find_non_trivial_scc_members(sg_adj, all_sgs);
         if (scc_members.empty()) {
             break;  // subgraph DAG is acyclic, fix-point reached.
@@ -541,7 +555,7 @@ void ov::hetero::SubgraphCollector::split_cyclic_dependencies() {
         // edges. See isolate_one_scc_node for why a single-edge cut diverges, why entry/exit
         // cuts miss shared-Constant SCCs, and the convergence argument (the candidate always
         // exists because singleton-only SCCs are impossible on a DAG).
-        const size_t promoted = isolate_one_scc_node(sg_id_by_index, scc_members);
+        const size_t promoted = isolate_one_scc_node(subgraph_id_by_index, scc_members);
         OPENVINO_ASSERT(promoted > 0,
                         "Subgraph SCC fallback found a cyclic subgraph DAG but the chosen node "
                         "had no same-subgraph inputs to promote; helper invariant violated.");
@@ -550,7 +564,15 @@ void ov::hetero::SubgraphCollector::split_cyclic_dependencies() {
         // silently until the edge budget runs out.
         OPENVINO_ASSERT(_subgraph_inputs.size() > inputs_before_step,
                         "Subgraph SCC fallback promoted edges but _subgraph_inputs did not grow");
+        ids_valid = false;  // _subgraph_inputs grew; next iteration must rebuild ids.
     }
+
+    // Edge case: if init() produced no _subgraph_inputs at all, the per-node loop never ran and
+    // subgraph_ids is empty. Materialize the final mapping in that case.
+    if (subgraph_ids.empty()) {
+        subgraph_ids = collect_subgraphs_ids();
+    }
+    return subgraph_ids;
 }
 
 ov::hetero::SubgraphCollector::SubgraphIdsMap ov::hetero::SubgraphCollector::collect_subgraphs_ids() {

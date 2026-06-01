@@ -1907,9 +1907,14 @@ TEST(SubgraphCollectorSharedConstSccTest, scc_with_only_constant_sourced_edges_c
     auto model = create_shared_const_scc_only_const_promotable_model();
     auto model_ref = model->clone();
     const std::map<std::string, std::string> affinity_by_name = {
-        {"in", "MOCK.0"}, {"c_shared", "MOCK.0"},
-        {"A", "MOCK.0"}, {"B", "MOCK.1"}, {"C", "MOCK.0"},
-        {"D", "MOCK.1"}, {"E", "MOCK.0"}, {"F", "MOCK.1"},
+        {"in", "MOCK.0"},
+        {"c_shared", "MOCK.0"},
+        {"A", "MOCK.0"},
+        {"B", "MOCK.1"},
+        {"C", "MOCK.0"},
+        {"D", "MOCK.1"},
+        {"E", "MOCK.0"},
+        {"F", "MOCK.1"},
         {"res", "MOCK.1"},
     };
     SubgraphCollector::AffinitiesMap affinities;
