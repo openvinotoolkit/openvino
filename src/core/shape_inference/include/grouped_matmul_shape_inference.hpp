@@ -29,7 +29,7 @@ std::vector<TRShape> shape_infer(const GroupedMatMul* op,
 
     using DimType = typename TShape::value_type;
 
-    // Case 2: 3D × 3D (batched, uniform group sizes) - no offsets needed
+    // Case: 3D × 3D (batched, uniform group sizes) - no offsets needed
     if (mat_a_rank == 3 && mat_b_rank == 3) {
         const auto g_a = mat_a_shape[0];
         const auto m = mat_a_shape[1];
@@ -56,16 +56,14 @@ std::vector<TRShape> shape_infer(const GroupedMatMul* op,
         return {TRShape{merged_g, m, n}};
     }
 
-    // Case 1: 2D × 3D (MoE forward pass) - requires offsets
+    // Case: 2D × 3D (MoE forward pass) - requires offsets
     if (mat_a_rank == 2 && mat_b_rank == 3) {
         NODE_VALIDATION_CHECK(op, num_inputs == 3, "GroupedMatMul 2D×3D case requires offsets input.");
 
-        if (num_inputs == 3) {
-            const auto& offsets_shape = input_shapes[2];
-            NODE_VALIDATION_CHECK(op,
-                                  offsets_shape.rank().is_dynamic() || offsets_shape.size() == 1,
-                                  "GroupedMatMul offsets must be 1D tensor.");
-        }
+        const auto& offsets_shape = input_shapes[2];
+        NODE_VALIDATION_CHECK(op,
+                              offsets_shape.rank().is_dynamic() || offsets_shape.size() == 1,
+                              "GroupedMatMul offsets must be 1D tensor.");
 
         const auto total_rows = mat_a_shape[0];
         const auto k_a = mat_a_shape[1];
@@ -85,7 +83,7 @@ std::vector<TRShape> shape_infer(const GroupedMatMul* op,
         return {TRShape{total_rows, n}};
     }
 
-    // Case 3: 2D × 2D (MoE weight gradient) - requires offsets
+    // Case: 2D × 2D (MoE weight gradient) - requires offsets
     if (mat_a_rank == 2 && mat_b_rank == 2) {
         NODE_VALIDATION_CHECK(op, num_inputs == 3, "GroupedMatMul 2D×2D case requires offsets input.");
 
