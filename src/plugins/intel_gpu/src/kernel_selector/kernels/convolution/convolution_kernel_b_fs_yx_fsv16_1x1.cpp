@@ -164,9 +164,14 @@ KernelsPriority ConvolutionKernel_b_fs_yx_fsv16_1x1::GetKernelsPriority(const Pa
 }
 
 bool ConvolutionKernel_b_fs_yx_fsv16_1x1::Validate(const Params& p) const {
+#if OV_GPU_WITH_ZE_RT
+    DO_NOT_USE_THIS_KERNEL(p.layerID)
+#endif
+
     if (!ConvolutionKernelBase::Validate(p)) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
+
 
     const auto& params = static_cast<const convolution_params&>(p);
 
