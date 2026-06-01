@@ -4,6 +4,8 @@
 
 #include "fallback_unsupported_lp_conv_to_fp16.hpp"
 
+#include "conv_mul_add_fq_block.hpp"
+
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -19,12 +21,14 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/clamp.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
@@ -56,13 +60,6 @@ struct ConvMulAddPattern {
     std::shared_ptr<ov::Node> add;
 };
 
-struct ConvMulAddFQPattern {
-    std::shared_ptr<ov::Node> convolution;
-    std::shared_ptr<ov::Node> multiply;
-    std::shared_ptr<ov::Node> add;
-    std::shared_ptr<ov::Node> fake_quantize;
-};
-
 ConvMulAddPattern create_conv_mul_add_pattern() {
     using namespace ov::pass::pattern;
 
@@ -89,23 +86,31 @@ ConvMulAddPattern create_conv_mul_add_pattern() {
     return {conv, multiply, add};
 }
 
-ConvMulAddFQPattern create_conv_mul_add_fq_pattern() {
-    using namespace ov::pass::pattern;
+bool can_fold_multiply_scale(const std::shared_ptr<const ov::op::v1::Multiply>& mul) {
+    if (mul->get_input_size() <= 1 || mul->output(0).get_target_inputs().size() != 1) {
+        return false;
+    }
 
-    const auto conv_mul_add = create_conv_mul_add_pattern();
-    auto fake_quantize =
-        wrap_type<ov::op::v0::FakeQuantize>({conv_mul_add.add, any_input(), any_input(), any_input(), any_input()});
-    return {conv_mul_add.convolution, conv_mul_add.multiply, conv_mul_add.add, fake_quantize};
+    const auto scale_input = mul->get_input_node_shared_ptr(1);
+    if (!scale_input) {
+        return false;
+    }
+
+    if (ov::op::util::is_constant(scale_input.get())) {
+        return true;
+    }
+
+    const auto convert = ov::as_type_ptr<const ov::op::v0::Convert>(scale_input);
+    return convert && ov::op::util::is_constant(convert->input_value(0).get_node());
 }
 
 bool fallback_lp_conv_to_fp16(const std::shared_ptr<ov::op::v1::Convolution>& conv,
                               const std::shared_ptr<ov::op::v1::Multiply>& mul,
                               const std::shared_ptr<ov::op::v1::Add>& add) {
-    if (!conv || !mul || !add) {
+    if (!can_fold_multiply_scale(mul)) {
         return false;
     }
 
-    constexpr size_t scales_port = 1;
     const auto rank_value = conv->get_input_shape(1).size();
     auto [activation_f16, activation_convert] =
         ensure_fp16(conv->input_value(0), conv->get_friendly_name() + "/ActivationToFP16", conv);
@@ -113,7 +118,7 @@ bool fallback_lp_conv_to_fp16(const std::shared_ptr<ov::op::v1::Convolution>& co
     auto [weights_f16, weights_convert] =
         ensure_fp16(conv->input_value(1), conv->get_friendly_name() + "/WeightsToFP16", conv);
     auto [scales_f16, scales_convert] =
-        ensure_fp16(mul->input_value(scales_port), mul->get_friendly_name() + "/ScalesToFP16", mul);
+        ensure_fp16(mul->input_value(1), mul->get_friendly_name() + "/ScalesToFP16", mul);
 
     std::vector<int64_t> reshape_pattern(static_cast<size_t>(rank_value), 1);
     reshape_pattern[0] = -1;
@@ -142,9 +147,7 @@ bool fallback_lp_conv_to_fp16(const std::shared_ptr<ov::op::v1::Convolution>& co
     if (auto type_relaxed = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(conv_scaled)) {
         type_relaxed->set_origin_input_type(ov::element::f16, 0);
         type_relaxed->set_origin_input_type(ov::element::f16, 1);
-        if (add->get_output_element_type(0) == ov::element::f16) {
-            type_relaxed->set_overridden_output_type(ov::element::f16, 0);
-        }
+        type_relaxed->set_overridden_output_type(ov::element::f16, 0);
         conv_scaled->validate_and_infer_types();
     }
 
@@ -154,38 +157,38 @@ bool fallback_lp_conv_to_fp16(const std::shared_ptr<ov::op::v1::Convolution>& co
 }  // namespace
 
 ov::intel_cpu::FallbackUnsupportedLPConvToFP16::FallbackUnsupportedLPConvToFP16() {
-    const auto conv_mul_add_fq = create_conv_mul_add_fq_pattern();
+    auto conv_mul_add_fq = std::make_shared<ov::intel_cpu::ConvMulAddFQBlock>(false);
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        const auto conv_out_it = pattern_map.find(conv_mul_add_fq.convolution);
-        const auto mul_out_it = pattern_map.find(conv_mul_add_fq.multiply);
-        const auto add_out_it = pattern_map.find(conv_mul_add_fq.add);
-        const auto fq_out_it = pattern_map.find(conv_mul_add_fq.fake_quantize);
-        if (conv_out_it == pattern_map.end() || mul_out_it == pattern_map.end() ||
-            add_out_it == pattern_map.end() || fq_out_it == pattern_map.end()) {
+        const auto conv_out = conv_mul_add_fq->get_anchor("convolution", pattern_map);
+        const auto mul_out = conv_mul_add_fq->get_anchor("multiply", pattern_map);
+        const auto add_out = conv_mul_add_fq->get_anchor("add", pattern_map);
+        const auto fq_out = conv_mul_add_fq->get_anchor("fake_quantize", pattern_map);
+        if (!conv_out || !mul_out || !add_out || !fq_out) {
             return false;
         }
 
-        const auto conv = ov::as_type_ptr<ov::op::v1::Convolution>(conv_out_it->second.get_node_shared_ptr());
-        const auto mul = ov::as_type_ptr<ov::op::v1::Multiply>(mul_out_it->second.get_node_shared_ptr());
-        const auto add = ov::as_type_ptr<ov::op::v1::Add>(add_out_it->second.get_node_shared_ptr());
-        const auto fake_quantize = ov::as_type_ptr<ov::op::v0::FakeQuantize>(fq_out_it->second.get_node_shared_ptr());
+        const auto conv = ov::as_type_ptr<ov::op::v1::Convolution>(conv_out->get_node_shared_ptr());
+        const auto mul = ov::as_type_ptr<ov::op::v1::Multiply>(mul_out->get_node_shared_ptr());
+        const auto add = ov::as_type_ptr<ov::op::v1::Add>(add_out->get_node_shared_ptr());
+        const auto fake_quantize = ov::as_type_ptr<ov::op::v0::FakeQuantize>(fq_out->get_node_shared_ptr());
         if (!conv || !mul || !add || !fake_quantize) {
             return false;
         }
 
-        // If there's a Subtract (zero-point dequantization), always apply fallback —
-        // int8 ACL convolution executor does not support zero-point yet
+        // Keep only the simple same-type Add->FQ suffix on the ACL int8 path.
+        // Apply fallback for zero-point Subtract, Clamp->FQ, or FQ output type mismatch.
         const bool has_subtract = ov::is_type<ov::op::v1::Subtract>(conv->get_input_node_ptr(0));
-        if (!has_subtract && fake_quantize->get_output_element_type(0) == conv->get_input_element_type(0)) {
+        const bool has_clamp = ov::is_type<ov::op::v0::Clamp>(fake_quantize->get_input_node_ptr(0));
+        if (!has_subtract && !has_clamp && fake_quantize->get_output_element_type(0) == conv->get_input_element_type(0)) {
             return false;
         }
 
         return fallback_lp_conv_to_fp16(conv, mul, add);
     };
 
-    auto matcher = std::make_shared<pattern::Matcher>(conv_mul_add_fq.fake_quantize, "FallbackUnsupportedLPConvToFP16");
+    auto matcher = std::make_shared<pattern::Matcher>(conv_mul_add_fq, "FallbackUnsupportedLPConvToFP16");
     register_matcher(matcher, callback);
 
     const auto conv_mul_add = create_conv_mul_add_pattern();

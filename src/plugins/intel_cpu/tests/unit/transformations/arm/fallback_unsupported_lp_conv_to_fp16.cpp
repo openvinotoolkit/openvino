@@ -71,17 +71,35 @@ std::shared_ptr<NodeType> find_node(const std::shared_ptr<ov::Model>& model, con
     return nullptr;
 }
 
-std::shared_ptr<ov::Model> create_init_graph() {
-    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::Shape{1, 3, 16, 16});
-    auto input_convert = std::make_shared<ov::op::v0::Convert>(input, ov::element::f32);
-    auto zero_point = ov::op::v0::Constant::create(ov::element::f32, {1, 1, 1, 1}, {128.0f});
-    auto subtract = std::make_shared<ov::op::v1::Subtract>(input_convert, zero_point);
-    subtract->set_friendly_name("Subtract");
+std::shared_ptr<ov::Model> create_init_graph(bool add_zero_point = true,
+                                             bool add_clamp = true,
+                                             bool add_fake_quantize = true,
+                                             bool constant_scale = true,
+                                             ov::element::Type input_type = ov::element::u8,
+                                             ov::element::Type fq_output_type = ov::element::u8) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(input_type, ov::Shape{1, 3, 16, 16});
+    ov::ParameterVector parameters{input};
+
+    std::shared_ptr<ov::Node> activation = input;
+    if (add_zero_point) {
+        auto input_convert = std::make_shared<ov::op::v0::Convert>(input, ov::element::f32);
+        auto zero_point = ov::op::v0::Constant::create(ov::element::f32, {1, 1, 1, 1}, {128.0f});
+        auto subtract = std::make_shared<ov::op::v1::Subtract>(input_convert, zero_point);
+        subtract->set_friendly_name("Subtract");
+        activation = subtract;
+    }
 
     auto weights = ov::op::v0::Constant::create(ov::element::i8, ov::Shape{16, 3, 3, 3}, {1});
-    auto convolution = create_convolution(subtract, weights, "Convolution");
+    auto convolution = create_convolution(activation, weights, "Convolution");
 
-    auto scales = ov::op::v0::Constant::create(ov::element::f32, {1}, {0.5f});
+    std::shared_ptr<ov::Node> scales = ov::op::v0::Constant::create(ov::element::f32, {1}, {0.5f});
+    if (!constant_scale) {
+        auto scale_parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
+        scale_parameter->set_friendly_name("Scale");
+        parameters.push_back(scale_parameter);
+        scales = scale_parameter;
+    }
+
     auto multiply = std::make_shared<ov::op::v1::Multiply>(convolution, scales);
     multiply->set_friendly_name("Multiply");
 
@@ -89,16 +107,23 @@ std::shared_ptr<ov::Model> create_init_graph() {
     auto add = std::make_shared<ov::op::v1::Add>(multiply, bias);
     add->set_friendly_name("Add");
 
-    auto clamp = std::make_shared<ov::op::v0::Clamp>(add, 0.0f, 6.0f);
-    clamp->set_friendly_name("Clamp");
+    std::shared_ptr<ov::Node> output = add;
+    if (add_clamp) {
+        auto clamp = std::make_shared<ov::op::v0::Clamp>(add, 0.0f, 6.0f);
+        clamp->set_friendly_name("Clamp");
+        output = clamp;
+    }
 
-    return std::make_shared<ov::Model>(ov::OutputVector{create_fake_quantize(clamp, ov::element::u8)},
-                                       ov::ParameterVector{input});
+    if (add_fake_quantize) {
+        output = create_fake_quantize(output, fq_output_type);
+    }
+
+    return std::make_shared<ov::Model>(ov::OutputVector{output}, parameters);
 }
 
 }  // namespace
 
-TEST(FallbackUnsupportedLPConvToFP16Test, ClampBeforeFQHandledBySuffixMatcher) {
+TEST(FallbackUnsupportedLPConvToFP16Test, ClampBeforeFQZeroPoint_Applied) {
     auto model = create_init_graph();
 
     ov::pass::Manager manager;
@@ -144,4 +169,87 @@ TEST(FallbackUnsupportedLPConvToFP16Test, ClampBeforeFQHandledBySuffixMatcher) {
     ASSERT_NE(add, nullptr);
     EXPECT_EQ(add->get_friendly_name(), "Add");
     EXPECT_EQ(add->get_input_node_shared_ptr(0), convolution);
+}
+
+TEST(FallbackUnsupportedLPConvToFP16Test, SameTypeWithoutZeroPointAndWithoutClamp_Applied) {
+    auto model = create_init_graph(false, false, true, true, ov::element::u8, ov::element::u8);
+
+    ov::pass::Manager manager;
+    manager.register_pass<FallbackUnsupportedLPConvToFP16>();
+    manager.run_passes(model);
+
+    EXPECT_EQ(find_node<ov::op::v1::Multiply>(model, "Multiply"), nullptr);
+    EXPECT_NE(find_node<ov::op::v0::Convert>(model, "Convolution/ActivationToFP16"), nullptr);
+    EXPECT_NE(find_node<ov::op::v0::Convert>(model, "Multiply/ScalesToFP16"), nullptr);
+}
+
+TEST(FallbackUnsupportedLPConvToFP16Test, ClampBeforeFQSameTypeWithoutZeroPoint_Applied) {
+    auto model = create_init_graph(false, true, true, true, ov::element::u8, ov::element::u8);
+
+    ov::pass::Manager manager;
+    manager.register_pass<FallbackUnsupportedLPConvToFP16>();
+    manager.run_passes(model);
+
+    EXPECT_EQ(find_node<ov::op::v1::Multiply>(model, "Multiply"), nullptr);
+    EXPECT_NE(find_node<ov::op::v0::Convert>(model, "Convolution/ActivationToFP16"), nullptr);
+}
+
+TEST(FallbackUnsupportedLPConvToFP16Test, ClampBeforeFQNonConstantScale_NotApplied) {
+    auto model = create_init_graph(false, true, true, false, ov::element::u8, ov::element::u8);
+
+    ov::pass::Manager manager;
+    manager.register_pass<FallbackUnsupportedLPConvToFP16>();
+    manager.run_passes(model);
+
+    EXPECT_NE(find_node<ov::op::v1::Multiply>(model, "Multiply"), nullptr);
+    EXPECT_EQ(find_node<ov::op::v0::Convert>(model, "Multiply/ScalesToFP16"), nullptr);
+}
+
+TEST(FallbackUnsupportedLPConvToFP16Test, NoFQZeroPointConstantScale_Applied) {
+    auto model = create_init_graph(true, false, false);
+
+    ov::pass::Manager manager;
+    manager.register_pass<FallbackUnsupportedLPConvToFP16>();
+    manager.run_passes(model);
+
+    EXPECT_EQ(find_node<ov::op::v1::Multiply>(model, "Multiply"), nullptr);
+
+    const auto convolution = find_node<ov::op::v1::Convolution>(model, "Convolution");
+    ASSERT_NE(convolution, nullptr);
+
+    const auto activation_to_fp16 = ov::as_type_ptr<ov::op::v0::Convert>(convolution->get_input_node_shared_ptr(0));
+    ASSERT_NE(activation_to_fp16, nullptr);
+    EXPECT_EQ(activation_to_fp16->get_friendly_name(), "Convolution/ActivationToFP16");
+
+    const auto add = find_node<ov::op::v1::Add>(model, "Add");
+    ASSERT_NE(add, nullptr);
+    EXPECT_EQ(add->get_input_node_shared_ptr(0), convolution);
+}
+
+TEST(FallbackUnsupportedLPConvToFP16Test, NoFQDirectActivationConstantScale_Applied) {
+    auto model = create_init_graph(false, false, false);
+
+    ov::pass::Manager manager;
+    manager.register_pass<FallbackUnsupportedLPConvToFP16>();
+    manager.run_passes(model);
+
+    EXPECT_EQ(find_node<ov::op::v1::Multiply>(model, "Multiply"), nullptr);
+
+    const auto convolution = find_node<ov::op::v1::Convolution>(model, "Convolution");
+    ASSERT_NE(convolution, nullptr);
+
+    const auto activation_to_fp16 = ov::as_type_ptr<ov::op::v0::Convert>(convolution->get_input_node_shared_ptr(0));
+    ASSERT_NE(activation_to_fp16, nullptr);
+    EXPECT_EQ(activation_to_fp16->get_friendly_name(), "Convolution/ActivationToFP16");
+}
+
+TEST(FallbackUnsupportedLPConvToFP16Test, NoFQNonConstantScale_NotApplied) {
+    auto model = create_init_graph(true, false, false, false);
+
+    ov::pass::Manager manager;
+    manager.register_pass<FallbackUnsupportedLPConvToFP16>();
+    manager.run_passes(model);
+
+    EXPECT_NE(find_node<ov::op::v1::Multiply>(model, "Multiply"), nullptr);
+    EXPECT_EQ(find_node<ov::op::v0::Convert>(model, "Multiply/ScalesToFP16"), nullptr);
 }

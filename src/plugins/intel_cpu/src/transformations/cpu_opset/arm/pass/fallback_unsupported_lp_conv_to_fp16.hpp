@@ -21,14 +21,19 @@
  *     For the FakeQuantize case, fallback is applied when either:
  *       1. The Convolution activation comes from a Subtract, which means the zero-point
  *          path is present and the int8 ACL convolution executor is not applicable.
- *       2. FakeQuantize output precision differs from the Convolution activation precision.
+ *       2. A Clamp sits between Add and FakeQuantize, so the suffix cannot stay on the
+ *          intended ACL int8 fused path.
+ *       3. FakeQuantize output precision differs from the Convolution activation precision.
  *
- *     The second matcher is intentionally suffix-based: it rewrites the local
- *     Convolution -> Multiply -> Add fragment without requiring trailing Clamp or
- *     FakeQuantize nodes to be part of the matched subgraph.
+ *     The second matcher is intentionally local and only rewrites a suffix when its
+ *     post-convolution Multiply scale is a local constant input that can be folded
+ *     safely into the weights.
  *
- *     For that local Convolution -> Multiply -> Add matcher, the matched low-precision
- *     suffix is rewritten unconditionally once it is found.
+ *     This local rewrite is allowed even when downstream Clamp/FakeQuantize nodes remain
+ *     outside the matched subgraph, because some ARM slices still need fp16 fallback even
+ *     though the trailing requantization is represented later in the graph.
+ *
+ *     This avoids folding arbitrary non-constant Multiply inputs into the weights.
  *
  *     The rewrite moves the post-convolution dequantization scale from the output path to
  *     the Convolution weights:
@@ -72,7 +77,7 @@
  *                            |   Result    |
  *                            +-------------+
  *
- * Before (local suffix matched without trailing Clamp/FakeQuantize anchors):
+ * Before (local suffix matched without requiring trailing Clamp/FakeQuantize anchors):
  *
  * +--------------+      +---------------+
  * | Input (u8/i8)|      | Weights (i8)  |
@@ -118,6 +123,9 @@
  * +--------------+      +----------------+      +---------+--------+          v
  * | DQ Scales    | ---> | Convert (f16)  | ---> |    Reshape       |   +------+------+
  * +--------------+      +----------------+      +------------------+   |     Add     |
+ *                                                                      +------+------+
+ *                                                                             |
+ *                                                                             v
  *                                                                      +------+------+
  *                                                                             |
  *                                                                             v
