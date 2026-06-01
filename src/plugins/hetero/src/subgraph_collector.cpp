@@ -10,6 +10,7 @@
 #include <map>
 #include <numeric>
 #include <unordered_map>
+#include <unordered_set>
 
 #if defined(_MSC_VER)
 #    include <intrin.h>
