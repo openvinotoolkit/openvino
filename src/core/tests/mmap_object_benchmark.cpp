@@ -67,6 +67,7 @@ static long long bench(const std::function<void()>& fn,
                        int warmup_runs = 1,
                        int measured_runs = 5) {
     for (int i = 0; i < warmup_runs; ++i) {
+        evict_cache(path, file_size);
         fn();
         evict_cache(path, file_size);
     }
@@ -174,6 +175,7 @@ TEST_F(MmapBenchmark, DISABLED_latency_and_throughput_table) {
         tf.size_mb = mb;
         tf.size_bytes = mb * 1024 * 1024;
         tf.path = generate_test_file(tf.size_bytes);
+        evict_cache(tf.path, tf.size_bytes);  // Flush dirty pages from file generation
         files.push_back(tf);
     }
 
@@ -249,6 +251,7 @@ TEST_F(MmapBenchmark, DISABLED_partial_prefault_offset_table) {
     constexpr int runs = 5;
 
     auto file_path = generate_test_file(file_size);
+    evict_cache(file_path, file_size);  // Flush dirty pages from file generation
 
     const std::vector<size_t> offsets_mb = {0, 1, 17, 500, 700, 800};
     const std::vector<size_t> region_sizes_mb = {10, 100, 500};
