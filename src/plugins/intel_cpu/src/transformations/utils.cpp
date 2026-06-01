@@ -5,6 +5,10 @@
 #include "utils.hpp"
 
 #include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <string>
+#include <vector>
 
 #include "low_precision/network_helper.hpp"
 #include "low_precision/resolve_precision_attribute.hpp"
@@ -18,8 +22,8 @@
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/multiply.hpp"
-#include "openvino/op/util/avg_pool_base.hpp"
 #include "openvino/op/util/attr_types.hpp"
+#include "openvino/op/util/avg_pool_base.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
@@ -125,12 +129,12 @@ bool is_acl_int8_avg_pool_lpt_skipped(const std::shared_ptr<const ov::Node>& nod
 
     const auto& consumers = avg_pool->output(0).get_target_inputs();
     if (consumers.size() != 1) {
-        return false;
+        return true;
     }
 
     const auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(consumers.begin()->get_node()->shared_from_this());
     if (!fq) {
-        return false;
+        return true;
     }
 
     const auto resolved_precision = ov::pass::low_precision::ResolvePrecisionAttribute::getDataPrecision(fq);
