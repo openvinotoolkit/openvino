@@ -280,7 +280,8 @@ bool DnnlExtensionUtils::isUnarySupportedAsPostOp([[maybe_unused]] Algorithm alg
                   Algorithm::EltwiseSqrt,
                   Algorithm::EltwiseSoftRelu,
                   Algorithm::EltwiseSigmoid,
-                  Algorithm::EltwiseClamp);
+                  Algorithm::EltwiseClamp,
+                  Algorithm::EltwiseSwish);
 #elif defined(OPENVINO_ARCH_X86_64)
     return any_of(alg,
                   Algorithm::EltwiseRelu,
