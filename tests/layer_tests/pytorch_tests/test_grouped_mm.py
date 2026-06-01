@@ -36,7 +36,9 @@ class TestGroupedMM(PytorchLayerTest):
     def test_grouped_mm(self, kwargs_to_prepare_input, ie_device, precision, ir_version):
         # GPU lowers GroupedMatMul only when B is a Constant (gather_matmul kernel needs constant weights).
         if ie_device.startswith("GPU"):
-            pytest.skip("GPU requires constant weights for GroupedMatMul lowering")
+            pytest.skip("GPU requires constant weights for GroupedMatMul")
+        if ie_device == "CPU":
+            pytest.skip("CPU does not support GroupedMatMul with non-constant weights")
         self._test(*self.create_model(), ie_device, precision, ir_version,
                    kwargs_to_prepare_input=kwargs_to_prepare_input,
                    trace_model=True)
@@ -71,9 +73,11 @@ class TestGroupedMMOffsets(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
     def test_grouped_mm_offs(self, kwargs_to_prepare_input, ie_device, precision, ir_version):
-        # GPU lowers GroupedMatMul only when B is a Constant (gather_matmul kernel needs constant weights).
+        # Plugins supports GroupedMatMul only when B is a Constant (gather_matmul kernel needs constant weights).
         if ie_device.startswith("GPU"):
-            pytest.skip("GPU requires constant weights for GroupedMatMul lowering")
+            pytest.skip("GPU requires constant weights for GroupedMatMul")
+        if ie_device == "CPU":
+            pytest.skip("CPU does not support GroupedMatMul with non-constant weights and offsets")
         self._test(*self.create_model(), ie_device, precision, ir_version,
                    kwargs_to_prepare_input=kwargs_to_prepare_input,
                    trace_model=True)
