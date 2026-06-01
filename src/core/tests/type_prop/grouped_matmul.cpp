@@ -16,6 +16,37 @@ using testing::HasSubstr;
 
 class TypePropGroupedMatMulTest : public TypePropOpTest<op::v17::GroupedMatMul> {};
 
+// ==================== Default constructor ====================
+
+TEST_F(TypePropGroupedMatMulTest, default_ctor_2inputs) {
+    const auto op = make_op();
+    const auto mat_a = std::make_shared<Parameter>(element::f32, PartialShape{3, 4, 64});
+    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{3, 128, 64});
+
+    op->set_arguments(OutputVector{mat_a, mat_b});
+    op->validate_and_infer_types();
+
+    EXPECT_EQ(op->get_input_size(), 2);
+    EXPECT_EQ(op->get_output_size(), 1);
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 4, 128}));
+}
+
+TEST_F(TypePropGroupedMatMulTest, default_ctor_3inputs) {
+    const auto op = make_op();
+    const auto mat_a = std::make_shared<Parameter>(element::f32, PartialShape{16, 64});
+    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{3, 128, 64});
+    const auto offsets = std::make_shared<Parameter>(element::i32, PartialShape{3});
+
+    op->set_arguments(OutputVector{mat_a, mat_b, offsets});
+    op->validate_and_infer_types();
+
+    EXPECT_EQ(op->get_input_size(), 3);
+    EXPECT_EQ(op->get_output_size(), 1);
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{16, 128}));
+}
+
 // ==================== Case 1: 2D × 3D (MoE forward) ====================
 
 TEST_F(TypePropGroupedMatMulTest, case1_2d_3d_basic) {
