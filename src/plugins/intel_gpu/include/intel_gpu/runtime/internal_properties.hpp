@@ -154,7 +154,7 @@ static constexpr Property<DumpTensors, ov::PropertyMutability::RW> dump_tensors{
 static constexpr Property<std::vector<std::string>, ov::PropertyMutability::RW> dump_layer_names{"GPU_DUMP_LAYER_NAMES"};
 static constexpr Property<DumpFormat, ov::PropertyMutability::RW> dump_tensors_format{"GPU_DUMP_TENSORS_FORMAT"};
 static constexpr Property<std::string, ov::PropertyMutability::RW> dump_memory_pool_path{"GPU_DUMP_MEMORY_POOL_PATH"};
-static constexpr Property<bool, ov::PropertyMutability::RW> dump_memory_pool{"GPU_DUMP_MEMORY_POOL"};
+static constexpr Property<size_t, ov::PropertyMutability::RW> dump_memory_pool{"GPU_DUMP_MEMORY_POOL"};
 static constexpr Property<int32_t, ov::PropertyMutability::RW> dump_batch_limit{"GPU_DUMP_BATCH_LIMIT"};
 static constexpr Property<std::set<int64_t>, ov::PropertyMutability::RW> dump_iterations{"GPU_DUMP_ITERATIONS"};
 static constexpr Property<size_t, ov::PropertyMutability::RW> host_time_profiling{"GPU_HOST_TIME_PROFILING"};

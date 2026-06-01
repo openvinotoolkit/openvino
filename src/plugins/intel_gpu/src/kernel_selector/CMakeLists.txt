@@ -91,6 +91,12 @@ endif()
 
 ov_build_target_faster(${TARGET_NAME} PCH)
 
+if(GPU_RT_TYPE STREQUAL "SYCL")
+  # Some sources include oneDNN headers that require SYCL backend support.
+  # Without the SYCL compilation flag, the compiler will fail with "Unsupported compiler" error.
+  add_sycl_to_target(TARGET ${TARGET_NAME} SOURCES)
+endif()
+
 add_custom_command(
     TARGET ${TARGET_NAME} POST_BUILD
     COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/cache/cache.json ${TUNING_CACHE_PATH}/cache.json)
