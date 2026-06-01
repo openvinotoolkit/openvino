@@ -187,7 +187,7 @@ Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const Sh
     if (it != rtInfo.end()) {
         enforceBF16evenForGraphTail = it->second.as<bool>();
     }
-    if (is_compression_disabled(op, element::f16)) {
+    if (is_conversion_disabled(op, element::f16)) {
         keepOriginalPrecision = true;
     }
 }

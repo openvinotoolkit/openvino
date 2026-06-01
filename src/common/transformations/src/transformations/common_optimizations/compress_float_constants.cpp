@@ -185,7 +185,7 @@ CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed) {
         if (!const_node)
             return false;
 
-        if (ov::is_compression_disabled(const_node, element::f16))
+        if (ov::is_conversion_disabled(const_node, element::f16))
             return false;
 
         auto c_type = const_node->get_element_type();

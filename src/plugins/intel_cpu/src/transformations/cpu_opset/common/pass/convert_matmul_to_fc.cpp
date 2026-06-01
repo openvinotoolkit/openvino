@@ -256,8 +256,8 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
 
         fc->set_friendly_name(matmul->get_friendly_name());
         /// todo: CVS-130863 Remove after fp16_compression is copyable
-        if (ov::is_compression_disabled(matmul, element::f16)) {
-            ov::disable_compression(fc, element::f16);
+        if (ov::is_conversion_disabled(matmul, element::f16)) {
+            ov::disable_conversion(fc, element::f16);
         }
         new_ops.push_back(fc);
         ov::copy_runtime_info(matmul, new_ops);

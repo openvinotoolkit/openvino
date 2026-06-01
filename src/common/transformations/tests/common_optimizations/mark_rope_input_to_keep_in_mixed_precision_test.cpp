@@ -63,11 +63,11 @@ TEST_F(TransformationTestsF, MarkRopeInputsToKeepInMixedPrecisionTest) {
         auto concat = std::make_shared<ov::opset1::Concat>(ov::NodeVector{transpose, transpose}, -1);
         auto cos = std::make_shared<ov::opset1::Cos>(concat);
         auto sin = std::make_shared<ov::opset1::Sin>(concat);
-        disable_compression(matmul, ov::element::f16);
-        disable_compression(transpose, ov::element::f16);
-        disable_compression(concat, ov::element::f16);
-        disable_compression(cos, ov::element::f16);
-        disable_compression(sin, ov::element::f16);
+        disable_conversion(matmul, ov::element::f16);
+        disable_conversion(transpose, ov::element::f16);
+        disable_conversion(concat, ov::element::f16);
+        disable_conversion(cos, ov::element::f16);
+        disable_conversion(sin, ov::element::f16);
         ov::op::internal::RoPE::Config config;
         auto rope =
             std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{input->output(0), cos->output(0), sin->output(0)},
