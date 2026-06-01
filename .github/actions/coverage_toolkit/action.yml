@@ -132,28 +132,28 @@ inputs:
 outputs:
   dir:
     description: Artifact directory produced by collect-results.
-    value: ${{ steps.coverage.outputs.dir }}
+    value: ${{ steps.collect_results.outputs.dir }}
   artifact-dir:
     description: Artifact directory produced by collect-results.
-    value: ${{ steps.coverage.outputs['artifact-dir'] }}
+    value: ${{ steps.collect_results.outputs['artifact-dir'] }}
   artifact-name:
     description: Artifact name produced by collect-results.
-    value: ${{ steps.coverage.outputs['artifact-name'] }}
+    value: ${{ steps.collect_results.outputs['artifact-name'] }}
   upload-files-json:
     description: JSON object mapping Codecov upload keys to resolved file paths.
-    value: ${{ steps.coverage.outputs['upload-files-json'] }}
+    value: ${{ steps.resolve_uploads.outputs['upload-files-json'] || steps.resolve_upload_files.outputs['upload-files-json'] }}
   upload-matrix-json:
     description: JSON array used as the dynamic Codecov upload matrix.
-    value: ${{ steps.coverage.outputs['upload-matrix-json'] }}
+    value: ${{ steps.resolve_uploads.outputs['upload-matrix-json'] }}
   files:
     description: Comma-separated coverage files resolved by resolve-upload-files.
-    value: ${{ steps.coverage.outputs.files }}
+    value: ${{ steps.resolve_upload_files.outputs.files }}
 
 runs:
   using: composite
   steps:
-    - name: Run coverage toolkit command
-      id: coverage
+    - name: Prepare coverage toolkit environment
+      id: prepare
       shell: bash
       env:
         ACTION_PATH: ${{ github.action_path }}
@@ -192,6 +192,7 @@ runs:
       run: |
         set -euo pipefail
 
+        env_file="$(mktemp "${RUNNER_TEMP:-/tmp}/coverage-toolkit-env.XXXXXX")"
         scripts_dir="${ACTION_PATH}"
         coverage_py="${scripts_dir}/coverage.py"
         reports_py="${scripts_dir}/ci_reports.py"
@@ -199,51 +200,95 @@ runs:
 
         workspace="${INPUT_WORKSPACE:-${GITHUB_WORKSPACE}}"
         profile="${INPUT_PROFILE:-cpu}"
-        export OV_WORKSPACE="${workspace}"
-        export TEST_PROFILE="${profile}"
+
+        write_var() {
+          printf '%s=' "$1" >> "${env_file}"
+          printf '%q\n' "$2" >> "${env_file}"
+        }
+
+        write_export() {
+          printf 'export %s=' "$1" >> "${env_file}"
+          printf '%q\n' "$2" >> "${env_file}"
+        }
+
+        write_array() {
+          local name="$1"
+          shift
+          printf '%s=(' "${name}" >> "${env_file}"
+          local value
+          for value in "$@"; do
+            printf ' %q' "${value}" >> "${env_file}"
+          done
+          printf ' )\n' >> "${env_file}"
+        }
+
+        write_var scripts_dir "${scripts_dir}"
+        write_var coverage_py "${coverage_py}"
+        write_var reports_py "${reports_py}"
+        write_var requirements_file "${requirements_file}"
+        write_var workspace "${workspace}"
+        write_var profile "${profile}"
+        write_var input_suite "${INPUT_SUITE}"
+        write_var input_lane "${INPUT_LANE}"
+        write_var input_test_names "${INPUT_TEST_NAMES}"
+        write_var input_artifact_name "${INPUT_ARTIFACT_NAME}"
+        write_var input_artifact_dir "${INPUT_ARTIFACT_DIR}"
+        write_var input_selected_lanes "${INPUT_SELECTED_LANES}"
+        write_var input_selection "${INPUT_SELECTION}"
+        write_var input_summary_file "${INPUT_SUMMARY_FILE}"
+        write_var input_duration_output "${INPUT_DURATION_OUTPUT}"
+        write_var input_uploads_output_file "${INPUT_UPLOADS_OUTPUT_FILE}"
+        write_var input_artifact_group "${INPUT_ARTIFACT_GROUP}"
+        write_var input_artifact_names_json "${INPUT_ARTIFACT_NAMES_JSON}"
+        write_var input_upload_key "${INPUT_UPLOAD_KEY}"
+        write_var input_upload_file "${INPUT_UPLOAD_FILE}"
+
+        write_export OV_WORKSPACE "${workspace}"
+        write_export TEST_PROFILE "${profile}"
 
         if [[ -n "${INPUT_CONFIG_DIR}" ]]; then
-          export COVERAGE_CONFIG_DIR="${INPUT_CONFIG_DIR}"
+          write_export COVERAGE_CONFIG_DIR "${INPUT_CONFIG_DIR}"
         fi
         if [[ -n "${INPUT_BUILD_TYPE}" ]]; then
-          export CMAKE_BUILD_TYPE="${INPUT_BUILD_TYPE}"
+          write_export CMAKE_BUILD_TYPE "${INPUT_BUILD_TYPE}"
         fi
         if [[ -n "${INPUT_EXTRA_CPP_COVERAGE_DIRS}" ]]; then
-          export EXTRA_CPP_COVERAGE_DIRS="${INPUT_EXTRA_CPP_COVERAGE_DIRS}"
+          write_export EXTRA_CPP_COVERAGE_DIRS "${INPUT_EXTRA_CPP_COVERAGE_DIRS}"
         fi
         if [[ -n "${INPUT_PYTHON_PACKAGE}" ]]; then
-          export COVERAGE_PYTHON_PACKAGE="${INPUT_PYTHON_PACKAGE}"
+          write_export COVERAGE_PYTHON_PACKAGE "${INPUT_PYTHON_PACKAGE}"
         fi
         if [[ -n "${INPUT_PYTHON_INSTALLED_PACKAGE}" ]]; then
-          export COVERAGE_PYTHON_INSTALLED_PACKAGE="${INPUT_PYTHON_INSTALLED_PACKAGE}"
+          write_export COVERAGE_PYTHON_INSTALLED_PACKAGE "${INPUT_PYTHON_INSTALLED_PACKAGE}"
         fi
         if [[ -n "${INPUT_PYTHON_SOURCE_DIR}" ]]; then
-          export COVERAGE_PYTHON_SOURCE_DIR="${INPUT_PYTHON_SOURCE_DIR}"
+          write_export COVERAGE_PYTHON_SOURCE_DIR "${INPUT_PYTHON_SOURCE_DIR}"
         fi
         if [[ -n "${INPUT_PYTHON_PATH_ALIAS}" ]]; then
-          export COVERAGE_PYTHON_PATH_ALIAS="${INPUT_PYTHON_PATH_ALIAS}"
+          write_export COVERAGE_PYTHON_PATH_ALIAS "${INPUT_PYTHON_PATH_ALIAS}"
         fi
         if [[ -n "${INPUT_PYTHON_COVERAGE_OMIT}" ]]; then
-          export COVERAGE_PYTHON_OMIT="${INPUT_PYTHON_COVERAGE_OMIT}"
+          write_export COVERAGE_PYTHON_OMIT "${INPUT_PYTHON_COVERAGE_OMIT}"
         fi
         if [[ -n "${INPUT_PYTHON_TESTS_DIR}" ]]; then
-          export COVERAGE_PYTHON_TESTS_DIR="${INPUT_PYTHON_TESTS_DIR}"
+          write_export COVERAGE_PYTHON_TESTS_DIR "${INPUT_PYTHON_TESTS_DIR}"
         fi
         if [[ -n "${INPUT_PYTHON_LAYER_TESTS_DIR}" ]]; then
-          export COVERAGE_PYTHON_LAYER_TESTS_DIR="${INPUT_PYTHON_LAYER_TESTS_DIR}"
+          write_export COVERAGE_PYTHON_LAYER_TESTS_DIR "${INPUT_PYTHON_LAYER_TESTS_DIR}"
         fi
         if [[ -n "${INPUT_PYTHON_RUNTIME_EXTRA_PATHS}" ]]; then
-          export COVERAGE_PYTHON_RUNTIME_EXTRA_PATHS="${INPUT_PYTHON_RUNTIME_EXTRA_PATHS}"
+          write_export COVERAGE_PYTHON_RUNTIME_EXTRA_PATHS "${INPUT_PYTHON_RUNTIME_EXTRA_PATHS}"
         fi
         if [[ -n "${INPUT_PYTHON_WHEEL_LIB_DIR}" ]]; then
-          export COVERAGE_PYTHON_WHEEL_LIB_DIR="${INPUT_PYTHON_WHEEL_LIB_DIR}"
+          write_export COVERAGE_PYTHON_WHEEL_LIB_DIR "${INPUT_PYTHON_WHEEL_LIB_DIR}"
         fi
         if [[ -n "${INPUT_JS_DIR}" ]]; then
-          export JS_DIR="${INPUT_JS_DIR}"
+          write_export JS_DIR "${INPUT_JS_DIR}"
         fi
         if [[ -n "${INPUT_MODEL_PATH}" ]]; then
-          export MODEL_PATH="${INPUT_MODEL_PATH}"
+          write_export MODEL_PATH "${INPUT_MODEL_PATH}"
         fi
+
         coverage_common=(--workspace "${workspace}" --profile "${profile}")
         if [[ -n "${INPUT_CONFIG_DIR}" ]]; then
           coverage_common+=(--config-dir "${INPUT_CONFIG_DIR}")
@@ -252,138 +297,234 @@ runs:
           coverage_common+=(--build-type "${INPUT_BUILD_TYPE}")
         fi
 
+        validate_common=(--workspace "${workspace}")
+        if [[ -n "${INPUT_CONFIG_DIR}" ]]; then
+          validate_common+=(--config-dir "${INPUT_CONFIG_DIR}")
+        fi
+
         reports_common=()
         if [[ -n "${INPUT_CONFIG_DIR}" ]]; then
           reports_common+=(--config-dir "${INPUT_CONFIG_DIR}")
         fi
+
         selection_env=""
-        run_step=""
         case "${INPUT_SUITE}" in
           cpp)
             selection_env="CXX_TEST_NAMES"
-            run_step="run-cpp-tests"
             ;;
           python)
             selection_env="PY_TEST_NAMES"
-            run_step="run-python-tests"
             ;;
           js)
             selection_env="JS_TEST_NAMES"
-            run_step="run-js-tests"
             ;;
           "")
-            ;;
-          *)
-            if [[ "${INPUT_COMMAND}" == "run-suite" ]]; then
-              echo "Unsupported coverage suite for run-suite: ${INPUT_SUITE}" >&2
-              exit 1
-            fi
             ;;
         esac
 
         if [[ -n "${INPUT_TEST_NAMES}" && -n "${selection_env}" ]]; then
-          export "${selection_env}=${INPUT_TEST_NAMES}"
+          write_export "${selection_env}" "${INPUT_TEST_NAMES}"
         fi
 
-        if [[ "${INPUT_COMMAND}" == "install-requirements" || "${INPUT_INSTALL_REQUIREMENTS}" == "true" ]]; then
-          python3 -m pip install -r "${requirements_file}"
-        fi
+        write_array coverage_common "${coverage_common[@]}"
+        write_array validate_common "${validate_common[@]}"
+        write_array reports_common "${reports_common[@]}"
 
-        if [[ "${INPUT_COMMAND}" == "install-requirements" ]]; then
-          exit 0
-        fi
+        echo "env_file=${env_file}" >> "${GITHUB_OUTPUT}"
 
-        case "${INPUT_COMMAND}" in
-          validate-config)
-            validate_common=(--workspace "${workspace}")
-            if [[ -n "${INPUT_CONFIG_DIR}" ]]; then
-              validate_common+=(--config-dir "${INPUT_CONFIG_DIR}")
-            fi
-            python3 "${coverage_py}" validate-config "${validate_common[@]}"
-            ;;
-          run-suite)
-            if [[ -z "${run_step}" ]]; then
-              echo "run-suite requires suite=cpp, suite=python, or suite=js" >&2
-              exit 1
-            fi
-            python3 "${coverage_py}" step "${coverage_common[@]}" "${run_step}"
-            ;;
-          collect-native)
-            python3 "${coverage_py}" step "${coverage_common[@]}" collect-cpp-coverage
-            ;;
-          collect-results)
-            if [[ -z "${INPUT_SUITE}" ]]; then
-              echo "collect-results requires suite" >&2
-              exit 1
-            fi
-            lane="${INPUT_LANE:-${profile}}"
-            collect_args=(
-              --workspace "${workspace}"
-              --suite "${INPUT_SUITE}"
-              --profile "${profile}"
-              --lane "${lane}"
-              --test-names "${INPUT_TEST_NAMES}"
-              --outputs-file "${GITHUB_OUTPUT}"
-            )
-            if [[ -n "${INPUT_ARTIFACT_NAME}" ]]; then
-              collect_args+=(--artifact-name "${INPUT_ARTIFACT_NAME}")
-            fi
-            if [[ -n "${INPUT_ARTIFACT_DIR}" ]]; then
-              collect_args+=(--artifact-dir "${INPUT_ARTIFACT_DIR}")
-            fi
-            python3 "${reports_py}" collect-suite-results "${reports_common[@]}" \
-              "${collect_args[@]}"
-            ;;
-          render-summary)
-            summary_file="${INPUT_SUMMARY_FILE:-${GITHUB_STEP_SUMMARY:-}}"
-            if [[ -z "${summary_file}" ]]; then
-              echo "render-summary requires summary-file or GITHUB_STEP_SUMMARY" >&2
-              exit 1
-            fi
-            selection="${INPUT_SELECTION:-${INPUT_SELECTED_LANES:-all}}"
-            selected_lanes="${INPUT_SELECTED_LANES:-${selection}}"
-            python3 "${reports_py}" render-summary "${reports_common[@]}" \
-              --workspace "${workspace}" \
-              --summary-file "${summary_file}" \
-              --selection "${selection}" \
-              --selected-lanes "${selected_lanes}"
-            ;;
-          merge-durations)
-            duration_output="${INPUT_DURATION_OUTPUT:-${workspace}/coverage-test-durations-all.csv}"
-            python3 "${reports_py}" merge-durations "${reports_common[@]}" \
-              --workspace "${workspace}" \
-              --output "${duration_output}"
-            ;;
-          resolve-uploads)
-            uploads_output_file="${INPUT_UPLOADS_OUTPUT_FILE:-${GITHUB_OUTPUT:-}}"
-            if [[ -z "${uploads_output_file}" ]]; then
-              echo "resolve-uploads requires uploads-output-file or GITHUB_OUTPUT" >&2
-              exit 1
-            fi
-            python3 "${reports_py}" resolve-uploads "${reports_common[@]}" \
-              --workspace "${workspace}" \
-              --output-file "${uploads_output_file}"
-            ;;
-          resolve-upload-files)
-            uploads_output_file="${INPUT_UPLOADS_OUTPUT_FILE:-${GITHUB_OUTPUT:-}}"
-            if [[ -z "${uploads_output_file}" ]]; then
-              echo "resolve-upload-files requires uploads-output-file or GITHUB_OUTPUT" >&2
-              exit 1
-            fi
-            if [[ -z "${INPUT_ARTIFACT_GROUP}" || -z "${INPUT_UPLOAD_FILE}" ]]; then
-              echo "resolve-upload-files requires artifact-group and upload-file" >&2
-              exit 1
-            fi
-            python3 "${reports_py}" resolve-upload-files \
-              --workspace "${workspace}" \
-              --artifact-group "${INPUT_ARTIFACT_GROUP}" \
-              --artifact-names-json "${INPUT_ARTIFACT_NAMES_JSON}" \
-              --upload-key "${INPUT_UPLOAD_KEY}" \
-              --file "${INPUT_UPLOAD_FILE}" \
-              --output-file "${uploads_output_file}"
-            ;;
-          *)
-            echo "Unsupported coverage toolkit command: ${INPUT_COMMAND}" >&2
-            exit 1
-            ;;
-        esac
+    - name: Reject unsupported run-suite suite
+      if: ${{ inputs.command == 'run-suite' && inputs.suite != '' && inputs.suite != 'cpp' && inputs.suite != 'python' && inputs.suite != 'js' }}
+      shell: bash
+      env:
+        INPUT_SUITE: ${{ inputs.suite }}
+      run: |
+        echo "Unsupported coverage suite for run-suite: ${INPUT_SUITE}" >&2
+        exit 1
+
+    - name: Install coverage toolkit requirements
+      if: ${{ inputs.command == 'install-requirements' || inputs.install-requirements == 'true' }}
+      shell: bash
+      env:
+        COVERAGE_TOOLKIT_ENV_FILE: ${{ steps.prepare.outputs.env_file }}
+      run: |
+        set -euo pipefail
+        source "${COVERAGE_TOOLKIT_ENV_FILE}"
+        python3 -m pip install -r "${requirements_file}"
+
+    - name: Validate coverage config
+      if: ${{ inputs.command == 'validate-config' }}
+      shell: bash
+      env:
+        COVERAGE_TOOLKIT_ENV_FILE: ${{ steps.prepare.outputs.env_file }}
+      run: |
+        set -euo pipefail
+        source "${COVERAGE_TOOLKIT_ENV_FILE}"
+        python3 "${coverage_py}" validate-config "${validate_common[@]}"
+
+    - name: Require run-suite suite
+      if: ${{ inputs.command == 'run-suite' && inputs.suite == '' }}
+      shell: bash
+      run: |
+        echo "run-suite requires suite=cpp, suite=python, or suite=js" >&2
+        exit 1
+
+    - name: Run suite (C++)
+      if: ${{ inputs.command == 'run-suite' && inputs.suite == 'cpp' }}
+      shell: bash
+      env:
+        COVERAGE_TOOLKIT_ENV_FILE: ${{ steps.prepare.outputs.env_file }}
+      run: |
+        set -euo pipefail
+        source "${COVERAGE_TOOLKIT_ENV_FILE}"
+        python3 "${coverage_py}" step "${coverage_common[@]}" run-cpp-tests
+
+    - name: Run suite (Python)
+      if: ${{ inputs.command == 'run-suite' && inputs.suite == 'python' }}
+      shell: bash
+      env:
+        COVERAGE_TOOLKIT_ENV_FILE: ${{ steps.prepare.outputs.env_file }}
+      run: |
+        set -euo pipefail
+        source "${COVERAGE_TOOLKIT_ENV_FILE}"
+        python3 "${coverage_py}" step "${coverage_common[@]}" run-python-tests
+
+    - name: Run suite (JavaScript)
+      if: ${{ inputs.command == 'run-suite' && inputs.suite == 'js' }}
+      shell: bash
+      env:
+        COVERAGE_TOOLKIT_ENV_FILE: ${{ steps.prepare.outputs.env_file }}
+      run: |
+        set -euo pipefail
+        source "${COVERAGE_TOOLKIT_ENV_FILE}"
+        python3 "${coverage_py}" step "${coverage_common[@]}" run-js-tests
+
+    - name: Collect native coverage
+      if: ${{ inputs.command == 'collect-native' }}
+      shell: bash
+      env:
+        COVERAGE_TOOLKIT_ENV_FILE: ${{ steps.prepare.outputs.env_file }}
+      run: |
+        set -euo pipefail
+        source "${COVERAGE_TOOLKIT_ENV_FILE}"
+        python3 "${coverage_py}" step "${coverage_common[@]}" collect-cpp-coverage
+
+    - name: Require collect-results suite
+      if: ${{ inputs.command == 'collect-results' && inputs.suite == '' }}
+      shell: bash
+      run: |
+        echo "collect-results requires suite" >&2
+        exit 1
+
+    - name: Collect suite results
+      id: collect_results
+      if: ${{ inputs.command == 'collect-results' && inputs.suite != '' }}
+      shell: bash
+      env:
+        COVERAGE_TOOLKIT_ENV_FILE: ${{ steps.prepare.outputs.env_file }}
+      run: |
+        set -euo pipefail
+        source "${COVERAGE_TOOLKIT_ENV_FILE}"
+        lane="${input_lane:-${profile}}"
+        collect_args=(
+          --workspace "${workspace}"
+          --suite "${input_suite}"
+          --profile "${profile}"
+          --lane "${lane}"
+          --test-names "${input_test_names}"
+          --outputs-file "${GITHUB_OUTPUT}"
+        )
+        if [[ -n "${input_artifact_name}" ]]; then
+          collect_args+=(--artifact-name "${input_artifact_name}")
+        fi
+        if [[ -n "${input_artifact_dir}" ]]; then
+          collect_args+=(--artifact-dir "${input_artifact_dir}")
+        fi
+        python3 "${reports_py}" collect-suite-results "${reports_common[@]}" \
+          "${collect_args[@]}"
+
+    - name: Render summary
+      if: ${{ inputs.command == 'render-summary' }}
+      shell: bash
+      env:
+        COVERAGE_TOOLKIT_ENV_FILE: ${{ steps.prepare.outputs.env_file }}
+      run: |
+        set -euo pipefail
+        source "${COVERAGE_TOOLKIT_ENV_FILE}"
+        summary_file="${input_summary_file:-${GITHUB_STEP_SUMMARY:-}}"
+        if [[ -z "${summary_file}" ]]; then
+          echo "render-summary requires summary-file or GITHUB_STEP_SUMMARY" >&2
+          exit 1
+        fi
+        selection="${input_selection:-${input_selected_lanes:-all}}"
+        selected_lanes="${input_selected_lanes:-${selection}}"
+        python3 "${reports_py}" render-summary "${reports_common[@]}" \
+          --workspace "${workspace}" \
+          --summary-file "${summary_file}" \
+          --selection "${selection}" \
+          --selected-lanes "${selected_lanes}"
+
+    - name: Merge durations
+      if: ${{ inputs.command == 'merge-durations' }}
+      shell: bash
+      env:
+        COVERAGE_TOOLKIT_ENV_FILE: ${{ steps.prepare.outputs.env_file }}
+      run: |
+        set -euo pipefail
+        source "${COVERAGE_TOOLKIT_ENV_FILE}"
+        duration_output="${input_duration_output:-${workspace}/coverage-test-durations-all.csv}"
+        python3 "${reports_py}" merge-durations "${reports_common[@]}" \
+          --workspace "${workspace}" \
+          --output "${duration_output}"
+
+    - name: Resolve uploads
+      id: resolve_uploads
+      if: ${{ inputs.command == 'resolve-uploads' }}
+      shell: bash
+      env:
+        COVERAGE_TOOLKIT_ENV_FILE: ${{ steps.prepare.outputs.env_file }}
+      run: |
+        set -euo pipefail
+        source "${COVERAGE_TOOLKIT_ENV_FILE}"
+        uploads_output_file="${input_uploads_output_file:-${GITHUB_OUTPUT:-}}"
+        if [[ -z "${uploads_output_file}" ]]; then
+          echo "resolve-uploads requires uploads-output-file or GITHUB_OUTPUT" >&2
+          exit 1
+        fi
+        python3 "${reports_py}" resolve-uploads "${reports_common[@]}" \
+          --workspace "${workspace}" \
+          --output-file "${uploads_output_file}"
+
+    - name: Resolve upload files
+      id: resolve_upload_files
+      if: ${{ inputs.command == 'resolve-upload-files' }}
+      shell: bash
+      env:
+        COVERAGE_TOOLKIT_ENV_FILE: ${{ steps.prepare.outputs.env_file }}
+      run: |
+        set -euo pipefail
+        source "${COVERAGE_TOOLKIT_ENV_FILE}"
+        uploads_output_file="${input_uploads_output_file:-${GITHUB_OUTPUT:-}}"
+        if [[ -z "${uploads_output_file}" ]]; then
+          echo "resolve-upload-files requires uploads-output-file or GITHUB_OUTPUT" >&2
+          exit 1
+        fi
+        if [[ -z "${input_artifact_group}" || -z "${input_upload_file}" ]]; then
+          echo "resolve-upload-files requires artifact-group and upload-file" >&2
+          exit 1
+        fi
+        python3 "${reports_py}" resolve-upload-files \
+          --workspace "${workspace}" \
+          --artifact-group "${input_artifact_group}" \
+          --artifact-names-json "${input_artifact_names_json}" \
+          --upload-key "${input_upload_key}" \
+          --file "${input_upload_file}" \
+          --output-file "${uploads_output_file}"
+
+    - name: Reject unsupported command
+      if: ${{ !contains(fromJSON('["install-requirements","validate-config","run-suite","collect-native","collect-results","render-summary","merge-durations","resolve-uploads","resolve-upload-files"]'), inputs.command) }}
+      shell: bash
+      env:
+        INPUT_COMMAND: ${{ inputs.command }}
+      run: |
+        echo "Unsupported coverage toolkit command: ${INPUT_COMMAND}" >&2
+        exit 1
