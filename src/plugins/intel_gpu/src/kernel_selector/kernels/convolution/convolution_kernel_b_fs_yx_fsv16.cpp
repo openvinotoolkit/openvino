@@ -169,7 +169,6 @@ bool ConvolutionKernel_b_fs_yx_fsv16::Validate(const Params& p) const {
     DO_NOT_USE_THIS_KERNEL(p.layerID);
 #endif
 
-
     if (!ConvolutionKernelBase::Validate(p) || !ConvolutionCheckInput(p)) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
