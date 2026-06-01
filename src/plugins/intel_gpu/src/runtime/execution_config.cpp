@@ -247,7 +247,6 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
         }
     };
 
-    bool auto_enable_4bit_kv = false;
     // Trace MatMul weight input through the decompression subgraph
     // (Convert→Subtract→Multiply→Reshape→Convert→Constant) to check for 4-bit weights.
     auto has_4bit_matmul_weights = [](const std::shared_ptr<Node>& op) -> bool {
@@ -270,24 +269,29 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
     for (const auto& op : ops) {
         process_op(op);
 
-        if (auto_enable_4bit_kv && !has_4bit_weights && has_4bit_matmul_weights(op)) {
+        if (!has_4bit_weights && has_4bit_matmul_weights(op)) {
             has_4bit_weights = true;
         }
     }
 
-    auto is_auxiliary_kv_update_model = [](const ov::Model& model) {
-        if (model.get_rt_info().count("auxiliary_kv_update_model")) {
-            return model.get_rt_info<ov::Any>("auxiliary_kv_update_model").template as<bool>();
-        }
-        return false;
+    // Auxiliary KV-update model (e.g. EAGLE3 reorder graph) has no PA op and no 4-bit MatMul,
+    // so the auto-detection branches below can't see the main model's effective precision.
+    // genai stamps it into rt_info["real_kv_cache_precision"] — honor it here so the auxiliary
+    // graph compiles against the same cache layout as the main PA model.
+    auto get_auxiliary_kv_cache_precision = [](const ov::Model& model) -> ov::element::Type {
+        const auto& rt = model.get_rt_info();
+        auto prec_it = rt.find("auxiliary_kv_cache_precision");
+        return prec_it == rt.end() ? ov::element::dynamic : prec_it->second.as<ov::element::Type>();
     };
     if (!is_set_by_user(ov::hint::kv_cache_precision) || get_kv_cache_precision() == ov::element::dynamic) {
-        if (is_paged_attention_model && has_4bit_weights &&
-            m_key_cache_quant_mode != ov::internal::CacheQuantMode::BY_TOKEN) {
+        const auto auxiliary_kv_prec = get_auxiliary_kv_cache_precision(model);
+        if (auxiliary_kv_prec != ov::element::dynamic) {
+            m_kv_cache_precision = auxiliary_kv_prec;
+        } else if (is_paged_attention_model && has_4bit_weights && m_key_cache_quant_mode != ov::internal::CacheQuantMode::BY_TOKEN) {
             // Enable 4-bit KV-cache compression for PA models with 4-bit compressed weights
             m_kv_cache_precision = ov::element::u4;
             GPU_DEBUG_INFO << "[Info] 4-bit weights detected. Setting KV-cache precision to u4." << std::endl;
-        } else if (is_paged_attention_model || !info.supports_immad || is_auxiliary_kv_update_model(model) ) {
+        } else if (is_paged_attention_model || !info.supports_immad) {
             // Enable KV-cache compression by default for:
             // 1) Non-systolic platforms in case of SDPA-based models
             // 2) For any platforms in case of PagedAttention-based model
