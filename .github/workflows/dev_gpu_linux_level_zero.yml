@@ -13,12 +13,9 @@ on:
       - synchronize
       - reopened
       - ready_for_review
-    paths:
-      - '.github/workflows/dev_gpu_linux_level_zero.yml'
-      - 'src/plugins/intel_gpu/**'
 
 concurrency:
-  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-linux-gpu-l0-dev
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-linux-gpu-level-zero-dev
   cancel-in-progress: true
 
 permissions: read-all
@@ -49,7 +46,7 @@ jobs:
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
-          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*,.github/workflows/ci-doctor.lock.yml'
 
       - name: Show affected components
         run: |
@@ -69,7 +66,7 @@ jobs:
       - name: Set mock output images if pipeline should be skipped
         if: ${{ needs.smart_ci.outputs.skip_workflow == 'True' }}
         id: mock_image
-        run: echo "images={\"ov_test\":{\"ubuntu_24_04_x64\":\"mock\"},\"ov_build\":{\"ubuntu_24_04_x64\":\"mock\"}}" >> "$GITHUB_OUTPUT"
+        run: echo "images={\"ov_test\":{\"ubuntu_24_04_x64\":\"mock\",\"ubuntu_24_04_x64_dgpu\":\"mock\"},\"ov_build\":{\"ubuntu_24_04_x64\":\"mock\"}}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout
         if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
@@ -82,13 +79,14 @@ jobs:
         with:
           images: |
             ov_build/ubuntu_24_04_x64
+            ov_test/ubuntu_24_04_x64_dgpu
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
 
   Build:
     needs: [Docker, Smart_CI]
-    if: "!needs.smart_ci.outputs.skip_workflow"
+    if: "!needs.smart_ci.outputs.skip_workflow && fromJSON(needs.smart_ci.outputs.affected_components).GPU"
     uses: ./.github/workflows/job_build_linux.yml
     with:
       runner: 'aks-linux-16-cores-32gb'
@@ -112,3 +110,31 @@ jobs:
             -DCPACK_GENERATOR=TGZ
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
             -DGPU_RT_TYPE=L0
+
+  Arc_B50_dGPU:
+    name: Arc B50 dGPU Tests Level Zero
+    needs: [ Build, Docker, Smart_CI ]
+    if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
+    uses: ./.github/workflows/job_gpu_tests.yml
+    with:
+      device: 'dgpu'
+      test_type: 'unit'
+      runner: "[ 'self-hosted', 'dgpu', 'Arc-B50', 'Linux' ]"
+      runner-group: 'Intel-GPU'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_dgpu }}
+      options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129"
+      test_filter: '*fully_connected*'
+
+  Overall_Status:
+    name: ci/gha_overall_status_dev_gpu_linux_level_zero
+    needs: [ Smart_CI, Docker, Build, Arc_B50_dGPU ]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check status of all jobs
+        if: >-
+          ${{
+            contains(needs.*.result, 'failure') ||
+            contains(needs.*.result, 'cancelled')
+          }}
+        run: exit 1
