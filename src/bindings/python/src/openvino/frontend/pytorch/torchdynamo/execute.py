@@ -598,20 +598,7 @@ def openvino_execute(
                     pa_tensor = _pa_inputs_by_pos[n]
                     break
             if pa_tensor is not None:
-                import openvino as _ov_pb
-                _et_p = inp.get_element_type()
-                _pt_dtype = None
-                if hasattr(pa_tensor, 'get_element_type'):
-                    _pt_dtype = pa_tensor.get_element_type()
-                if _pt_dtype is not None and _pt_dtype == _et_p:
-                    _call_kwargs[inp] = pa_tensor
-                elif hasattr(pa_tensor, 'data') and not isinstance(pa_tensor, np.ndarray) and _et_p == _ov_pb.Type.f16:
-                    _arr = np.asarray(pa_tensor.data).astype(np.float16)
-                    _call_kwargs[inp] = _arr
-                elif _et_p == _ov_pb.Type.f16 and hasattr(pa_tensor, 'dtype') and pa_tensor.dtype != np.float16:
-                    _call_kwargs[inp] = np.ascontiguousarray(pa_tensor).astype(np.float16)
-                else:
-                    _call_kwargs[inp] = pa_tensor
+                _call_kwargs[inp] = pa_tensor
                 if _dbg_vals:
                     with open("/tmp/ov_bind_vals.log", "a") as _fbv:
                         try:
@@ -624,18 +611,7 @@ def openvino_execute(
                         except Exception as _e:
                             _fbv.write(f"BIND {n} err: {_e}\n")
             else:
-                _np_t = ov_inputs[_tensor_pos]
-                _et = inp.get_element_type()
-                import openvino as _ov_b
-                if hasattr(_np_t, 'dtype'):
-                    if _et == _ov_b.Type.f16 and _np_t.dtype != np.float16:
-                        _np_t = np.ascontiguousarray(_np_t).astype(np.float16)
-                    elif _et == _ov_b.Type.bf16 and _np_t.dtype != np.uint16:
-                        _f32 = np.ascontiguousarray(_np_t).astype(np.float32)
-                        _u32 = _f32.view(np.uint32)
-                        _bf = ((_u32 + 0x8000) >> 16).astype(np.uint16).reshape(_f32.shape)
-                        _np_t = _ov_b.Tensor(_bf, _bf.shape, _ov_b.Type.bf16)
-                _call_kwargs[inp] = _np_t
+                _call_kwargs[inp] = ov_inputs[_tensor_pos]
                 _tensor_pos += 1
         if _pr_ot: _t_b = _t_ot.perf_counter()
         _ti_s = _t_ot.perf_counter()
@@ -649,25 +625,6 @@ def openvino_execute(
             with open("/tmp/ov_infer_prof.log", "a") as _fp_ot:
                 _fp_ot.write(f"bind={1000*(_t_a-_t_bind_s):.2f}ms dict_build={1000*(_t_b-_t_a):.2f}ms infer={1000*(_t_c-_ti_s):.2f}ms\n")
     else:
-        # Coerce dtypes to match each compiled.input's element_type (numpy → f16/bf16)
-        import openvino as _ov_b2
-        _coerced = []
-        for _i, _np_t in enumerate(ov_inputs):
-            if _i >= len(compiled.inputs):
-                _coerced.append(_np_t); continue
-            _et = compiled.inputs[_i].get_element_type()
-            if hasattr(_np_t, 'dtype'):
-                if _et == _ov_b2.Type.f16 and _np_t.dtype != np.float16:
-                    _coerced.append(np.ascontiguousarray(_np_t).astype(np.float16))
-                    continue
-                elif _et == _ov_b2.Type.bf16 and _np_t.dtype != np.uint16:
-                    _f32 = np.ascontiguousarray(_np_t).astype(np.float32)
-                    _u32 = _f32.view(np.uint32)
-                    _bf = ((_u32 + 0x8000) >> 16).astype(np.uint16).reshape(_f32.shape)
-                    _coerced.append(_ov_b2.Tensor(_bf, _bf.shape, _ov_b2.Type.bf16))
-                    continue
-            _coerced.append(_np_t)
-        ov_inputs = _coerced
         _ti2_s = _t_ot.perf_counter()
         res = req.infer(ov_inputs, share_inputs=True, share_outputs=False)
         _ti2_e = _t_ot.perf_counter()
