@@ -8,10 +8,6 @@
 
 #include "openvino/util/common_util.hpp"
 
-#include <sstream>
-
-#include "openvino/util/common_util.hpp"
-
 namespace {
 const std::string& get_postponed_fp16_compression_tag() {
     static const std::string postponed_fp16_compression_tag("postponed_fp16_compression");

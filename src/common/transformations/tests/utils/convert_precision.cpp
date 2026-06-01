@@ -77,8 +77,8 @@
 #include "openvino/pass/visualize_tree.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
-#include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/rt_info/disable_precision_conversion.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/rt_info/original_precision_attribute.hpp"
 #include "transformations/utils/utils.hpp"
 
