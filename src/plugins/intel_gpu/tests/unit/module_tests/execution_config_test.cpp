@@ -246,3 +246,20 @@ TEST(execution_config, kv_cache_4bit_by_token_throws) {
 
     ASSERT_ANY_THROW(config.finalize(ctx.get(), model.get()));
 }
+
+// Verify that a model without MOE3GemmFusedCompressed does NOT enable oneDNN
+// unless the GPU supports IMMAD or the user sets it explicitly.
+TEST(execution_config, no_moe3gemm_does_not_force_onednn) {
+    auto& engine = get_test_engine();
+    auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+    auto model = make_pa_matmul_model(ov::element::f32);
+
+    ExecutionConfig config;
+    config.finalize(ctx.get(), model.get());
+
+    // On IMMAD hardware oneDNN is auto-enabled anyway, so skip the assertion there.
+    const auto& info = engine.get_device_info();
+    if (!info.supports_immad) {
+        ASSERT_FALSE(config.get_use_onednn());
+    }
+}
