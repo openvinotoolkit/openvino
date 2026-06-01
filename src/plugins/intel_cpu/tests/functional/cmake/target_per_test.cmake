@@ -22,7 +22,7 @@ function(create_target_per_test_for_directory TEST_DIR TARGET_PREFIX)
 if(X86_64)
     list(APPEND REQUIRED_OBJECT_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/utils/x64/filter_cpu_info.cpp)
-elseif(ARM OR AARCH64)
+elseif(AARCH64)
     list(APPEND REQUIRED_OBJECT_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/utils/arm/filter_cpu_info.cpp)
 elseif(RISCV64)
@@ -66,7 +66,7 @@ endif()
     # find all the source files with the name of a class file
     if(X86_64)
         file(GLOB_RECURSE LIST_OF_TEST_ARCH_INSTANCES ${TEST_DIR}/instances/x64/${TEST_CLASS_FILE_NAME})
-    elseif(ARM OR AARCH64)
+    elseif(AARCH64)
         file(GLOB_RECURSE LIST_OF_TEST_ARCH_INSTANCES ${TEST_DIR}/instances/arm/${TEST_CLASS_FILE_NAME})
     elseif(RISCV64)
         file(GLOB_RECURSE LIST_OF_TEST_ARCH_INSTANCES ${TEST_DIR}/instances/riscv64/${TEST_CLASS_FILE_NAME})

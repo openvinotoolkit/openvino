@@ -16,10 +16,7 @@ using namespace testing;
 using namespace ov;
 using namespace ov::intel_cpu;
 
-#if defined(OPENVINO_ARCH_ARM) && defined(__linux__)
-using ov::intel_cpu::configure_arm_linux_threads;
-#endif
-#if (defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)) && defined(__APPLE__)
+#if (defined(OPENVINO_ARCH_ARM64)) && defined(__APPLE__)
 using ov::intel_cpu::configure_apple_threads;
 #endif
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_RISCV64)
@@ -356,31 +353,7 @@ TEST_F(ModelPreferThreadsIntegrationTest, x86_hybrid_fp32_main_cores_only) {
 
 #endif
 
-#if defined(OPENVINO_ARCH_ARM) && defined(__linux__)
-TEST_F(ModelPreferThreadsIntegrationTest, arm_linux_throughput_unknown_and_mem_limited) {
-    std::vector<std::vector<int>> proc_type_table = {{8, 4, 4, 0, 0, 0, 0}};
-    auto model = make_dummy_model();
-    Config config;
-    config.modelType = Config::ModelType::CNN;
-    config.modelPreferThreads = -1;
-
-    int result = get_model_prefer_threads(0, proc_type_table, model, config, 1, 2.0f);
-    EXPECT_GE(config.modelPreferThreadsThroughput, 1);
-    EXPECT_EQ(result, config.modelPreferThreadsThroughput);
-}
-
-TEST_F(ModelPreferThreadsIntegrationTest, direct_arm_linux_throughput_branches) {
-    Config config;
-    std::vector<std::vector<int>> proc_type_table = {{8, 4, 4, 0, 0, 0, 0}};
-    ov::MemBandwidthPressure tolerance;
-    // UNKNOWN should allow high throughput when compute-limited
-    tolerance.max_mem_tolerance = ov::MemBandwidthPressure::UNKNOWN;
-    configure_arm_linux_threads(config, proc_type_table, tolerance, false, false);
-    EXPECT_GE(config.modelPreferThreadsThroughput, 1);
-}
-#endif
-
-#if (defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)) && defined(__APPLE__)
+#if (defined(OPENVINO_ARCH_ARM64)) && defined(__APPLE__)
 TEST_F(ModelPreferThreadsIntegrationTest, apple_size_one_special_latency_choice) {
     std::vector<std::vector<int>> proc_type_table = {{10, 6, 4, 0, 0, 0, 0}};
     auto model = make_dummy_model();
