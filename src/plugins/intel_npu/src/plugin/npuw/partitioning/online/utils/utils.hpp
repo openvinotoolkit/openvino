@@ -43,6 +43,8 @@ struct PassContext {
     std::vector<Avoid> avoids;
     std::vector<Isolate> isolates;
     std::vector<std::string> nofolds;
+    bool fuse_unfolded = false;
+    std::vector<std::string> fold_only_tags;
     const ov::npuw::v1::subgraphs::PatternRegistry* subgraph_patterns = nullptr;
 };
 
@@ -79,6 +81,7 @@ std::string getMetaDesc(const std::shared_ptr<ov::Node>& ov_node);
 std::optional<Avoid> parseAvoid(const std::string& s);
 std::optional<Isolate> parseIsolate(const std::string& s);
 std::tuple<PatternType, std::string, std::string> parse(const std::string& s);
+std::vector<std::string> splitByComma(const std::string& s);
 
 size_t getMinGraphSize(const ::intel_npu::Config& cfg);
 size_t getMinRepBlocks(const ::intel_npu::Config& cfg);

@@ -37,6 +37,31 @@ bool starts_with(const std::string& str, const std::string& prefix);
 
 std::string fmt(std::size_t number, std::size_t total);
 
+// Matches the three DynamicQuantize decomposition implementations declared in
+// kv_cache_compressed.hpp.
+enum class DynamicQuantDecomposeMode {
+    // V1: handcrafted symmetric-style path, i8 range [-127, 127].
+    HandcraftedSymmetricI8 = 1,
+
+    // V2: ONNX DynamicQuantizeLinear-style path, u8 range [0, 255].
+    OnnxDynamicQuantizeLinear = 2,
+
+    // V3: compiler pattern-style path. i8 requests are materialized as u8
+    // storage for the asymmetric decomposition branch.
+    CompilerPatternI8 = 3,
+};
+
+struct DynamicQuantStorageTypes {
+    ov::element::Type quantized_data_type = ov::element::dynamic;
+    ov::element::Type zero_point_type = ov::element::dynamic;
+    ov::element::Type scale_type = ov::element::f32;
+};
+
+DynamicQuantStorageTypes resolve_dynamic_quant_storage_types(DynamicQuantDecomposeMode decompose_mode,
+                                                             bool is_symmetric,
+                                                             const ov::element::Type& quant_dt,
+                                                             const ov::element::Type& scale_dt = ov::element::f32);
+
 struct UnpackOptions {
     bool bUseOvParallelFor;
     size_t nPartitions;  // if 0 we use 64 elements step in parallel for, otherwise  target workload is dynamically

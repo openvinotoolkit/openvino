@@ -59,6 +59,25 @@ bool ov::npuw::util::is_set(const std::size_t sub_idx,
     return false;
 }
 
+ov::npuw::util::DynamicQuantStorageTypes ov::npuw::util::resolve_dynamic_quant_storage_types(
+    DynamicQuantDecomposeMode decompose_mode,
+    bool is_symmetric,
+    const ov::element::Type& quant_dt,
+    const ov::element::Type& scale_dt) {
+    DynamicQuantStorageTypes resolved;
+    resolved.quantized_data_type = quant_dt;
+    resolved.zero_point_type = is_symmetric ? ov::element::dynamic : quant_dt;
+    resolved.scale_type = scale_dt;
+
+    if (!is_symmetric && decompose_mode == DynamicQuantDecomposeMode::CompilerPatternI8 &&
+        quant_dt == ov::element::i8) {
+        resolved.quantized_data_type = ov::element::u8;
+        resolved.zero_point_type = ov::element::u8;
+    }
+
+    return resolved;
+}
+
 namespace {
 inline uint8_t hi4(uint8_t x) {
     return x >> 4;
