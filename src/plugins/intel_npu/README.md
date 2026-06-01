@@ -199,7 +199,7 @@ The following properties are supported (may differ based on current system confi
 | `ov::hint::performance_mode`/</br>`PERFORMANCE_HINT` | RW | Sets the performance profile used to determine default values of Tiles/DMAs/NIREQs.</br>Default values for each profile are documented below. | `THROUGHPUT`/</br>`LATENCY`/</br>`UNDEFINED` | `UNDEFINED` |
 | `ov::hint::num_requests`/</br>`PERFORMANCE_HINT_NUM_REQUESTS` | RW | Sets the number of outstanding inference requests. | `[0-]` | `1` |
 | `ov::hint::model_priority`/</br>`MODEL_PRIORITY` | RW | Assigns a priority for the model execution. | `LOW`/</br>`MEDIUM`/</br>`HIGH` | `MEDIUM` |
-| `ov::hint::enable_cpu_pinning`/</br>`ENABLE_CPU_PINNING` | RW | Allows CPU threads pinning during inference. | `YES`/ `NO` /</br>`NO` 
+| `ov::hint::enable_cpu_pinning`/</br>`ENABLE_CPU_PINNING` | RW | This property is deprecated and has no effect on the NPU Plugin. It will be removed in the OpenVINO 2027.0 release. | `YES`/ `NO` /</br>`NO` 
 | `ov::log::level`/</br>`LOG_LEVEL` | RW |  Sets the log level for NPU Plugin. An environment variable is also made available to expose logs from early initialization phase: OV_NPU_LOG_LEVEL. | `LOG_NONE`/</br>`LOG_ERROR`/</br>`LOG_WARNING`/</br>`LOG_INFO`/</br>`LOG_DEBUG`/</br>`LOG_TRACE` |  `LOG_NONE` |
 | `ov::cache_dir`/</br>`CACHE_DIR` | RW | Folder path to be used by the OpenVINO cache. | Any string pointing towards a valid directory path | empty |
 | `ov::cache_encryption_callbacks`/</br>`CACHE_ENCRYPTION_CALLBACKS` | WO | Encryption/Decryption functions called when exporting or reading the blob. | ov::EncryptionCallbacks structures populated with any function respecting signature `std::string(const std::string&)` for both encryption and decryption callbacks | ov::EncryptionCallbacks{nullptr, nullptr} |
@@ -209,7 +209,6 @@ The following properties are supported (may differ based on current system confi
 | `ov::device::uuid`/</br> | RO | Returns the Universal Unique ID of the NPU device. | `N/A`| `N/A` |
 | `ov::device::architecture`/</br>`DEVICE_ARCHITECTURE` | RO | Returns the platform information. | `N/A`| `N/A` |
 | `ov::device::full_name`/</br>`FULL_DEVICE_NAME` | RO | Returns the full name of the NPU device. | `N/A`| `N/A` |
-| `ov::internal::exclusive_async_requests`/</br>`EXCLUSIVE_ASYNC_REQUESTS` | RW | Allows to use exclusive task executor for asynchronous infer requests. | `YES`/ `NO`| `NO` |
 | `ov::device::type`/</br>`DEVICE_TYPE` | RO | Returns the type of device, discrete or integrated. | `DISCRETE` /</br>`INTEGRATED` | `N/A` |
 | `ov::device::gops`/</br>`DEVICE_GOPS` | RO | Returns the Giga OPS per second count (GFLOPS or GIOPS) for a set of precisions supported by specified device. | `N/A`| `N/A` |
 | `ov::device::pci_info`/</br>`DEVICE_PCI_INFO` | RO | Returns the PCI bus information of device. See PCIInfo struct definition for details | `N/A`| `N/A` |
