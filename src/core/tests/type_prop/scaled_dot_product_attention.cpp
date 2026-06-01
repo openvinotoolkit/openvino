@@ -123,7 +123,7 @@ TEST(type_prop, scaled_dot_product_attention_static_3_inputs_extra_batch) {
 
     const auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, causal);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
-    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 7, 3, 6}));
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{7, 3, 6}));
 }
 
 TEST(type_prop, scaled_dot_product_attention_static_3_inputs_extra_batch_causal_true) {
@@ -214,7 +214,7 @@ TEST(type_prop, scaled_dot_product_attention_mixed_shape_infer_5_inputs) {
     const auto op =
         std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal);
     EXPECT_EQ(op->get_output_element_type(0), element::f64);
-    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{4, 3, {4, 5}, {3, 7}}));
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{ {2, 4}, 3, {4, 5}, {3, 7} }));
     EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
                 testing::ElementsAre(symbols[0], symbols[1], symbols[2], val_symbols[3]));
 }
@@ -230,7 +230,7 @@ TEST(type_prop, scaled_dot_product_attention_mixed_shape_infer_5_inputs_ignore_a
     const auto op =
         std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal);
     EXPECT_EQ(op->get_output_element_type(0), element::f64);
-    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{4, 3, {1, 5}, {3, 7}}));
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{ {1, 4}, 3, {1, 5}, {3, 7} }));
 }
 
 TEST(type_prop, scaled_dot_product_attention_infer_5_dynamic_attn_partial) {
@@ -273,7 +273,7 @@ TEST(type_prop, scaled_dot_product_attention_mixed_shape_infer_4_inputs) {
 
     const auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, causal);
     EXPECT_EQ(op->get_output_element_type(0), element::f64);
-    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{{2, 4}, 4, {4, 5}, {3, 7}}));
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{{1, 4}, 4, {4, 5}, {3, 7}}));
 }
 
 TEST(type_prop, scaled_dot_product_attention_type_infer_5_inputs) {
