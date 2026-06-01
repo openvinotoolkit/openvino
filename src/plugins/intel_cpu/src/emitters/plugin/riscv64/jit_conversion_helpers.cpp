@@ -4,12 +4,12 @@
 
 #include "jit_conversion_helpers.hpp"
 
+#include <cstddef>
 #include <nodes/kernels/riscv64/cpu_isa_traits.hpp>
 #include <nodes/kernels/riscv64/jit_generator.hpp>
 #include <utility>
 #include <vector>
 
-#include "common/utils.hpp"
 #include "emitters/plugin/riscv64/jit_emitter.hpp"
 #include "emitters/utils.hpp"
 #include "openvino/core/type/element_type.hpp"

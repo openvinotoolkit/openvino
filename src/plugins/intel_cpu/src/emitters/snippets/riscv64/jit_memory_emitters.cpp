@@ -30,6 +30,7 @@
 #include "utils.hpp"
 #include "utils/general_utils.h"
 #include "xbyak_riscv/xbyak_riscv.hpp"
+#include "xbyak_riscv/xbyak_riscv_csr.hpp"
 
 namespace ov::intel_cpu::riscv64 {
 

@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <nodes/kernels/riscv64/jit_generator.hpp>
 #include <vector>
 
