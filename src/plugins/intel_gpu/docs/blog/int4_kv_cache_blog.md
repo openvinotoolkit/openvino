@@ -76,6 +76,8 @@ python tools/llm_bench/benchmark.py \
 
 The numbers below were measured with **Llama-3-8B-Instruct** on an **Intel Arc B580** (discrete GPU, Linux). KV cache sizes are consistent among different model weight precision.
 
+*DISCLAIMER: The impact may vary depending on the system, model and usage.*
+
 ### 8k-token prompt
 
 | KV Cache Precision | KV Cache Size | vs FP16 |
@@ -103,6 +105,8 @@ The practical implication: a context length that exhausts available DDR at INT8 
 Memory savings translate into performance on IO-bound case because less IO is required to generate a token.
 
 The following results were measured with **Llama-3.1-8B-Instruct** on an **Intel Arc B390 integrated GPU** (with 9600 MT/s DDR), measuring decode latency per output token.(Prefill is excluded)
+
+*DISCLAIMER: The impact may vary depending on the system, model and usage.*
 
 ### 16k-token prompt
 
