@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "intel_npu/common/dynamic_graph_arguments.hpp"
+#include "intel_npu/common/dynamic_arguments.hpp"
 #include "intel_npu/common/network_metadata.hpp"
 #include "zero_pipeline.hpp"
 
@@ -12,7 +12,7 @@ namespace intel_npu {
 
 class DynamicPipeline final : public IPipeline {
     struct PipelinedCommandLists {
-        mutable GraphArguments _binding;
+        DynamicArguments  _binding;
 
         std::vector<std::unique_ptr<CommandList>> _commandLists;
         // Store command list handles to pass it to ExecutionEngine
@@ -48,7 +48,7 @@ class DynamicPipeline final : public IPipeline {
             return _commandListHandles;
         }
 
-        GraphArguments& getBinding() {
+        DynamicArguments& getBinding() {
             return _binding;
         }
 
@@ -106,12 +106,12 @@ public:
     /// pipeline is constructed -- in particular from the first inference's predict_shapes
     /// path, which runs prior to lazy pipeline creation in prepare_inputs().
     static void predict_output_shape(const IGraph& graph,
-                                     std::vector<MemRefType>& inputs,
-                                     std::vector<MemRefType>& outputs);
+                                     std::vector<DynamicMemRefType>& inputs,
+                                     std::vector<DynamicMemRefType>& outputs);
 
 private:
     void execute_vm_runtime(_npu_vm_runtime_handle_t* vmRuntime,
-                            GraphArguments& args,
+                            DynamicArguments& args,
                             std::vector<ze_command_list_handle_t>& commandLists,
                             ze_command_queue_handle_t commandQueue,
                             ze_fence_handle_t fence,

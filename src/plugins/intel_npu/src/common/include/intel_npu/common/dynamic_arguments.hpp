@@ -15,7 +15,7 @@
 #include "openvino/runtime/itensor.hpp"
 
 namespace intel_npu {
-struct MemRefType {
+struct DynamicMemRefType {
     const void* _basePtr;
     const void* _data;
     int64_t _offset;
@@ -24,9 +24,9 @@ struct MemRefType {
     int64_t _dimsCount;
     std::shared_ptr<void> _impl;
 
-    MemRefType() : _basePtr(nullptr), _data(nullptr), _offset(0), _sizes(), _strides(), _dimsCount(0) {}
+    DynamicMemRefType() : _basePtr(nullptr), _data(nullptr), _offset(0), _sizes(), _strides(), _dimsCount(0) {}
 
-    MemRefType(const void* basePtr,
+    DynamicMemRefType(const void* basePtr,
                const void* data,
                int64_t offset,
                const std::vector<int64_t>& sizes,
@@ -44,14 +44,14 @@ struct MemRefType {
     void setStrides(const ov::Strides& strides, int32_t elementSize = 1);
     void set(const void* basePtr, int64_t offset, std::shared_ptr<ov::ITensor> tensor);
     void updateStride();
-    bool compare(const MemRefType& memref);
-    friend std::ostream& operator<<(std::ostream& os, const MemRefType& memRef);
+    bool compare(const DynamicMemRefType& memref);
+    friend std::ostream& operator<<(std::ostream& os, const DynamicMemRefType& memRef);
     std::string toString();
 };
 
-struct GraphArguments {
-    std::vector<MemRefType> _inputs;
-    std::vector<MemRefType> _outputs;
+struct DynamicArguments {
+    std::vector<DynamicMemRefType> _inputs;
+    std::vector<DynamicMemRefType> _outputs;
     std::shared_ptr<void> _impl;
 
     void setArgumentProperties(uint32_t argi,

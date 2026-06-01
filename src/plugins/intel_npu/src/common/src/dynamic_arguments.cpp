@@ -2,17 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_npu/common/dynamic_graph_arguments.hpp"
+#include "intel_npu/common/dynamic_arguments.hpp"
 
 #include <sstream>
 
 namespace intel_npu {
 
-void MemRefType::setArg(const void* arg) {
+void DynamicMemRefType::setArg(const void* arg) {
     _basePtr = _data = arg;
 }
 
-void MemRefType::setSize(const ov::Shape& shape) {
+void DynamicMemRefType::setSize(const ov::Shape& shape) {
     // Note: check difference between shape from compiler and shape from IR.
     if (_dimsCount == 0) {
         _dimsCount = static_cast<uint32_t>(shape.size());
@@ -30,7 +30,7 @@ void MemRefType::setSize(const ov::Shape& shape) {
     }
 }
 
-void MemRefType::setStrides(const ov::Strides& strides, int32_t elementSize) {
+void DynamicMemRefType::setStrides(const ov::Strides& strides, int32_t elementSize) {
     if (_dimsCount == 0) {
         OPENVINO_THROW("Dimension count is zero, shall call setSize before setStrides");
     } else if (_dimsCount != static_cast<int64_t>(strides.size())) {
@@ -45,7 +45,7 @@ void MemRefType::setStrides(const ov::Strides& strides, int32_t elementSize) {
     }
 }
 
-void MemRefType::set(const void* arg, int64_t offset, std::shared_ptr<ov::ITensor> tensor) {
+void DynamicMemRefType::set(const void* arg, int64_t offset, std::shared_ptr<ov::ITensor> tensor) {
     _basePtr = _data = arg;
     _offset = offset;
     if (_dimsCount == 0) {
@@ -70,7 +70,7 @@ void MemRefType::set(const void* arg, int64_t offset, std::shared_ptr<ov::ITenso
     }
 }
 
-void MemRefType::updateStride() {
+void DynamicMemRefType::updateStride() {
     // Note: NCHW layout style
     uint64_t stride = 1;
     for (int64_t i = _dimsCount - 1; i >= 0; --i) {
@@ -80,7 +80,7 @@ void MemRefType::updateStride() {
 }
 
 // The comparision only checks shape and strides now
-bool MemRefType::compare(const MemRefType& memref) {
+bool DynamicMemRefType::compare(const DynamicMemRefType& memref) {
     if (memref._dimsCount != _dimsCount || _sizes.size() != memref._sizes.size() ||
         _strides.size() != memref._strides.size())
         return false;
@@ -95,7 +95,7 @@ bool MemRefType::compare(const MemRefType& memref) {
     return true;
 }
 
-std::ostream& operator<<(std::ostream& os, const MemRefType& memRef) {
+std::ostream& operator<<(std::ostream& os, const DynamicMemRefType& memRef) {
     os << "BasePtr: " << memRef._basePtr << ", Data: " << memRef._data << ", Offset: " << memRef._offset
        << ", Sizes: [";
     for (int64_t size : memRef._sizes) {
@@ -110,17 +110,17 @@ std::ostream& operator<<(std::ostream& os, const MemRefType& memRef) {
     return os;
 }
 
-std::string MemRefType::toString() {
+std::string DynamicMemRefType::toString() {
     std::stringstream stream;
     stream << *this;
     return stream.str();
 }
 
-void GraphArguments::setArgumentProperties(uint32_t argi,
+void DynamicMemRefType::setArgumentProperties(uint32_t argi,
                                            const void* argv,
                                            const ov::Shape& sizes,
                                            const std::vector<size_t>& strides) {
-    auto assign_slot = [&](MemRefType& slot) {
+    auto assign_slot = [&](DynamicMemRefType& slot) {
         slot._basePtr = slot._data = const_cast<void*>(argv);
         if (slot._dimsCount == 0) {
             slot._dimsCount = static_cast<int64_t>(sizes.size());
