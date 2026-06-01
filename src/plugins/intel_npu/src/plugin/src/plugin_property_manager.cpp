@@ -186,7 +186,7 @@ void PluginPropertyManager::registerProperties() const {
 
     registerPluginProperties();
 
-    REGISTER_CUSTOM_METRIC(_properties, ov::supported_properties, true, [&](const Config&) {
+    register_custom_metric(_properties, ov::supported_properties, true, [&](const Config&) {
         return _supportedProperties;
     });
 
@@ -198,111 +198,93 @@ void PluginPropertyManager::registerProperties() const {
 }
 
 void PluginPropertyManager::registerPluginProperties() const {
-    TRY_REGISTER_SIMPLE_PROPERTY(_config, _properties, ov::enable_profiling, PERF_COUNT);
-    TRY_REGISTER_SIMPLE_PROPERTY(_config, _properties, ov::hint::performance_mode, PERFORMANCE_HINT);
-    TRY_REGISTER_SIMPLE_PROPERTY(_config, _properties, ov::hint::execution_mode, EXECUTION_MODE_HINT);
-    TRY_REGISTER_SIMPLE_PROPERTY(_config, _properties, ov::hint::num_requests, PERFORMANCE_HINT_NUM_REQUESTS);
-    TRY_REGISTER_SIMPLE_PROPERTY(_config, _properties, ov::compilation_num_threads, COMPILATION_NUM_THREADS);
-    TRY_REGISTER_SIMPLE_PROPERTY(_config, _properties, ov::hint::inference_precision, INFERENCE_PRECISION_HINT);
-    TRY_REGISTER_SIMPLE_PROPERTY(_config, _properties, ov::log::level, LOG_LEVEL);
-    TRY_REGISTER_SIMPLE_PROPERTY(_config, _properties, ov::cache_dir, CACHE_DIR);
-    TRY_REGISTER_SIMPLE_PROPERTY(_config, _properties, ov::cache_mode, CACHE_MODE);
-    TRY_REGISTER_SIMPLE_PROPERTY(_config, _properties, ov::hint::compiled_blob, COMPILED_BLOB);
-    TRY_REGISTER_SIMPLE_PROPERTY(_config, _properties, ov::device::id, DEVICE_ID);
-    TRY_REGISTER_SIMPLE_PROPERTY(_config, _properties, ov::num_streams, NUM_STREAMS);
-    TRY_REGISTER_SIMPLE_PROPERTY(_config, _properties, ov::weights_path, WEIGHTS_PATH);
-    TRY_REGISTER_SIMPLE_PROPERTY(_config, _properties, ov::intel_npu::compilation_mode_params, COMPILATION_MODE_PARAMS);
-    TRY_REGISTER_SIMPLE_PROPERTY(_config, _properties, ov::intel_npu::dma_engines, DMA_ENGINES);
-    TRY_REGISTER_SIMPLE_PROPERTY(_config, _properties, ov::intel_npu::tiles, TILES);
-    TRY_REGISTER_SIMPLE_PROPERTY(_config, _properties, ov::intel_npu::compilation_mode, COMPILATION_MODE);
-    TRY_REGISTER_SIMPLE_PROPERTY(_config, _properties, ov::intel_npu::compiler_type, COMPILER_TYPE);
-    TRY_REGISTER_SIMPLE_PROPERTY(_config, _properties, ov::intel_npu::platform, PLATFORM);
-    TRY_REGISTER_SIMPLE_PROPERTY(_config, _properties, ov::intel_npu::create_executor, CREATE_EXECUTOR);
-    TRY_REGISTER_SIMPLE_PROPERTY(_config, _properties, ov::intel_npu::dynamic_shape_to_static, DYNAMIC_SHAPE_TO_STATIC);
-    TRY_REGISTER_SIMPLE_PROPERTY(_config, _properties, ov::intel_npu::profiling_type, PROFILING_TYPE);
-    TRY_REGISTER_SIMPLE_PROPERTY(_config,
-                                 _properties,
-                                 ov::intel_npu::backend_compilation_params,
-                                 BACKEND_COMPILATION_PARAMS);
-    TRY_REGISTER_SIMPLE_PROPERTY(_config, _properties, ov::intel_npu::batch_mode, BATCH_MODE);
-    TRY_REGISTER_SIMPLE_PROPERTY(_config, _properties, ov::intel_npu::turbo, TURBO);
-    TRY_REGISTER_SIMPLE_PROPERTY(_config, _properties, ov::hint::model_priority, MODEL_PRIORITY);
-    TRY_REGISTER_SIMPLE_PROPERTY(_config, _properties, ov::intel_npu::bypass_umd_caching, BYPASS_UMD_CACHING);
-    TRY_REGISTER_SIMPLE_PROPERTY(_config, _properties, ov::intel_npu::defer_weights_load, DEFER_WEIGHTS_LOAD);
-    TRY_REGISTER_SIMPLE_PROPERTY(_config,
-                                 _properties,
-                                 ov::intel_npu::compiler_dynamic_quantization,
-                                 COMPILER_DYNAMIC_QUANTIZATION);
-    TRY_REGISTER_SIMPLE_PROPERTY(_config, _properties, ov::intel_npu::qdq_optimization, QDQ_OPTIMIZATION);
-    TRY_REGISTER_SIMPLE_PROPERTY(_config,
-                                 _properties,
-                                 ov::intel_npu::qdq_optimization_aggressive,
-                                 QDQ_OPTIMIZATION_AGGRESSIVE);
-    TRY_REGISTER_SIMPLE_PROPERTY(_config, _properties, ov::intel_npu::disable_version_check, DISABLE_VERSION_CHECK);
-    TRY_REGISTER_SIMPLE_PROPERTY(_config, _properties, ov::intel_npu::export_raw_blob, EXPORT_RAW_BLOB);
-    TRY_REGISTER_SIMPLE_PROPERTY(_config, _properties, ov::intel_npu::import_raw_blob, IMPORT_RAW_BLOB);
-    TRY_REGISTER_SIMPLE_PROPERTY(_config,
-                                 _properties,
-                                 ov::intel_npu::batch_compiler_mode_settings,
-                                 BATCH_COMPILER_MODE_SETTINGS);
+    try_register_simple_property<PERF_COUNT>(_config, _properties, ov::enable_profiling);
+    try_register_simple_property<PERFORMANCE_HINT>(_config, _properties, ov::hint::performance_mode);
+    try_register_simple_property<EXECUTION_MODE_HINT>(_config, _properties, ov::hint::execution_mode);
+    try_register_simple_property<PERFORMANCE_HINT_NUM_REQUESTS>(_config, _properties, ov::hint::num_requests);
+    try_register_simple_property<COMPILATION_NUM_THREADS>(_config, _properties, ov::compilation_num_threads);
+    try_register_simple_property<INFERENCE_PRECISION_HINT>(_config, _properties, ov::hint::inference_precision);
+    try_register_simple_property<LOG_LEVEL>(_config, _properties, ov::log::level);
+    try_register_simple_property<CACHE_DIR>(_config, _properties, ov::cache_dir);
+    try_register_simple_property<CACHE_MODE>(_config, _properties, ov::cache_mode);
+    try_register_simple_property<COMPILED_BLOB>(_config, _properties, ov::hint::compiled_blob);
+    try_register_simple_property<DEVICE_ID>(_config, _properties, ov::device::id);
+    try_register_simple_property<NUM_STREAMS>(_config, _properties, ov::num_streams);
+    try_register_simple_property<WEIGHTS_PATH>(_config, _properties, ov::weights_path);
+    try_register_simple_property<COMPILATION_MODE_PARAMS>(_config, _properties, ov::intel_npu::compilation_mode_params);
+    try_register_simple_property<DMA_ENGINES>(_config, _properties, ov::intel_npu::dma_engines);
+    try_register_simple_property<TILES>(_config, _properties, ov::intel_npu::tiles);
+    try_register_simple_property<COMPILATION_MODE>(_config, _properties, ov::intel_npu::compilation_mode);
+    try_register_simple_property<COMPILER_TYPE>(_config, _properties, ov::intel_npu::compiler_type);
+    try_register_simple_property<PLATFORM>(_config, _properties, ov::intel_npu::platform);
+    try_register_simple_property<CREATE_EXECUTOR>(_config, _properties, ov::intel_npu::create_executor);
+    try_register_simple_property<DYNAMIC_SHAPE_TO_STATIC>(_config, _properties, ov::intel_npu::dynamic_shape_to_static);
+    try_register_simple_property<PROFILING_TYPE>(_config, _properties, ov::intel_npu::profiling_type);
+    try_register_simple_property<BACKEND_COMPILATION_PARAMS>(_config,
+                                                             _properties,
+                                                             ov::intel_npu::backend_compilation_params);
+    try_register_simple_property<BATCH_MODE>(_config, _properties, ov::intel_npu::batch_mode);
+    try_register_simple_property<TURBO>(_config, _properties, ov::intel_npu::turbo);
+    try_register_simple_property<MODEL_PRIORITY>(_config, _properties, ov::hint::model_priority);
+    try_register_simple_property<BYPASS_UMD_CACHING>(_config, _properties, ov::intel_npu::bypass_umd_caching);
+    try_register_simple_property<DEFER_WEIGHTS_LOAD>(_config, _properties, ov::intel_npu::defer_weights_load);
+    try_register_simple_property<COMPILER_DYNAMIC_QUANTIZATION>(_config,
+                                                                _properties,
+                                                                ov::intel_npu::compiler_dynamic_quantization);
+    try_register_simple_property<QDQ_OPTIMIZATION>(_config, _properties, ov::intel_npu::qdq_optimization);
+    try_register_simple_property<QDQ_OPTIMIZATION_AGGRESSIVE>(_config,
+                                                              _properties,
+                                                              ov::intel_npu::qdq_optimization_aggressive);
+    try_register_simple_property<DISABLE_VERSION_CHECK>(_config, _properties, ov::intel_npu::disable_version_check);
+    try_register_simple_property<EXPORT_RAW_BLOB>(_config, _properties, ov::intel_npu::export_raw_blob);
+    try_register_simple_property<IMPORT_RAW_BLOB>(_config, _properties, ov::intel_npu::import_raw_blob);
+    try_register_simple_property<BATCH_COMPILER_MODE_SETTINGS>(_config,
+                                                               _properties,
+                                                               ov::intel_npu::batch_compiler_mode_settings);
     OPENVINO_SUPPRESS_DEPRECATED_START
-    TRY_REGISTER_SIMPLE_PROPERTY(_config, _properties, ov::hint::enable_cpu_pinning, ENABLE_CPU_PINNING);
+    try_register_simple_property<ENABLE_CPU_PINNING>(_config, _properties, ov::hint::enable_cpu_pinning);
     OPENVINO_SUPPRESS_DEPRECATED_END
-    TRY_REGISTER_SIMPLE_PROPERTY(_config, _properties, ov::workload_type, WORKLOAD_TYPE);
-    TRY_REGISTER_SIMPLE_PROPERTY(_config, _properties, ov::enable_weightless, ENABLE_WEIGHTLESS);
-    TRY_REGISTER_SIMPLE_PROPERTY(_config,
-                                 _properties,
-                                 ov::intel_npu::separate_weights_version,
-                                 SEPARATE_WEIGHTS_VERSION);
-    TRY_REGISTER_SIMPLE_PROPERTY(_config,
-                                 _properties,
-                                 ov::intel_npu::model_serializer_version,
-                                 MODEL_SERIALIZER_VERSION);
-    TRY_REGISTER_SIMPLE_PROPERTY(_config, _properties, ov::intel_npu::enable_strides_for, ENABLE_STRIDES_FOR);
-    TRY_REGISTER_SIMPLE_PROPERTY(_config,
-                                 _properties,
-                                 ov::intel_npu::disable_idle_memory_prunning,
-                                 DISABLE_IDLE_MEMORY_PRUNING);
-    TRY_REGISTER_SIMPLE_PROPERTY(_config, _properties, ov::intel_npu::shared_common_queue, SHARED_COMMON_QUEUE);
+    try_register_simple_property<WORKLOAD_TYPE>(_config, _properties, ov::workload_type);
+    try_register_simple_property<ENABLE_WEIGHTLESS>(_config, _properties, ov::enable_weightless);
+    try_register_simple_property<SEPARATE_WEIGHTS_VERSION>(_config,
+                                                           _properties,
+                                                           ov::intel_npu::separate_weights_version);
+    try_register_simple_property<MODEL_SERIALIZER_VERSION>(_config,
+                                                           _properties,
+                                                           ov::intel_npu::model_serializer_version);
+    try_register_simple_property<ENABLE_STRIDES_FOR>(_config, _properties, ov::intel_npu::enable_strides_for);
+    try_register_simple_property<DISABLE_IDLE_MEMORY_PRUNING>(_config,
+                                                              _properties,
+                                                              ov::intel_npu::disable_idle_memory_prunning);
+    try_register_simple_property<SHARED_COMMON_QUEUE>(_config, _properties, ov::intel_npu::shared_common_queue);
 
-    TRY_REGISTER_CUSTOMFUNC_PROPERTY(
-        _config,
-        _properties,
-        ov::intel_npu::stepping,
-        STEPPING,
-        [&](const Config& config) {
-            if (!config.has<STEPPING>()) {
-                try {
-                    const auto specifiedDeviceName = get_specified_device_name(config);
-                    return static_cast<int64_t>(_metrics->GetSteppingNumber(specifiedDeviceName));
-                } catch (...) {
-                    _logger.warning("Metrics GetSteppingNumber failed to get value from device.");
-                }
+    try_register_customfunc_property(_config, _properties, ov::intel_npu::stepping, [&](const Config& config) {
+        if (!config.has<STEPPING>()) {
+            try {
+                const auto specifiedDeviceName = get_specified_device_name(config);
+                return static_cast<int64_t>(_metrics->GetSteppingNumber(specifiedDeviceName));
+            } catch (...) {
+                _logger.warning("Metrics GetSteppingNumber failed to get value from device.");
             }
-            return config.get<STEPPING>();
-        });
-    TRY_REGISTER_CUSTOMFUNC_PROPERTY(
-        _config,
-        _properties,
-        ov::intel_npu::max_tiles,
-        MAX_TILES,
-        [&](const Config& config) {
-            if (!config.has<MAX_TILES>()) {
-                try {
-                    const auto specifiedDeviceName = get_specified_device_name(config);
-                    return static_cast<int64_t>(_metrics->GetMaxTiles(specifiedDeviceName));
-                } catch (...) {
-                    _logger.warning("Metrics GetMaxTiles failed to get value from device.");
-                }
+        }
+        return config.get<STEPPING>();
+    });
+    try_register_customfunc_property(_config, _properties, ov::intel_npu::max_tiles, [&](const Config& config) {
+        if (!config.has<MAX_TILES>()) {
+            try {
+                const auto specifiedDeviceName = get_specified_device_name(config);
+                return static_cast<int64_t>(_metrics->GetMaxTiles(specifiedDeviceName));
+            } catch (...) {
+                _logger.warning("Metrics GetMaxTiles failed to get value from device.");
             }
             return config.get<MAX_TILES>();
-        });
+        }
+    });
 
-    TRY_REGISTER_VARPUB_PROPERTY(
+    try_register_varpub_property<RUN_INFERENCES_SEQUENTIALLY>(
         _config,
         _properties,
         ov::intel_npu::run_inferences_sequentially,
-        RUN_INFERENCES_SEQUENTIALLY,
         [&] {
             if (_backend && _backend->getInitStructs()) {
                 if (_backend->getInitStructs()->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1)) {
@@ -311,115 +293,102 @@ void PluginPropertyManager::registerPluginProperties() const {
             }
             return false;
         }());
-    TRY_REGISTER_CUSTOM_PROPERTY(_config,
+    try_register_custom_property(_config,
                                  _properties,
                                  ov::compatibility_check,
-                                 COMPATIBILITY_CHECK,
                                  true,
                                  ov::PropertyMutability::RO,
                                  [](const Config&) {
                                      return false;
                                  });
-    TRY_REGISTER_CUSTOM_PROPERTY(_config,
+    try_register_custom_property(_config,
                                  _properties,
                                  ov::cache_encryption_callbacks,
-                                 CACHE_ENCRYPTION_CALLBACKS,
                                  true,
                                  ov::PropertyMutability::WO,
                                  [](const Config&) {
                                      return ov::EncryptionCallbacks{nullptr, nullptr};
                                  });
-    FORCE_REGISTER_CUSTOM_PROPERTY(_properties,
-                                   ov::hint::model,
-                                   MODEL_PTR,
-                                   true,
-                                   ov::PropertyMutability::RO,
-                                   [](const Config&) {
-                                       return std::shared_ptr<const ov::Model>(nullptr);
-                                   });
+    force_register_custom_property(_properties, ov::hint::model, true, ov::PropertyMutability::RO, [](const Config&) {
+        return std::shared_ptr<const ov::Model>(nullptr);
+    });
 
     for_each_exposed_npuw_option([&](auto tag) {
         using Opt = typename decltype(tag)::type;
-        TRY_REGISTER_NPUW_OPTION_PROPERTY(_config, _properties, Opt);
+        try_register_npuw_option_property<Opt>(_config, _properties);
     });
 
     if (_metrics != nullptr) {
-        REGISTER_SIMPLE_METRIC(_properties, ov::available_devices, true, _metrics->GetAvailableDevicesNames());
-        REGISTER_SIMPLE_METRIC(_properties, ov::device::capabilities, true, _metrics->GetOptimizationCapabilities());
-        REGISTER_SIMPLE_METRIC(_properties,
-                               ov::optimal_number_of_infer_requests,
-                               true,
-                               utils::getOptimalNumberOfInferRequestsInParallel(
-                                   utils::getCompilationPlatform(
-                                       config.get<PLATFORM>(),
-                                       _backend == nullptr ? config.get<DEVICE_ID>()
-                                                           : _backend->getDevice(config.get<DEVICE_ID>())->getName(),
-                                       _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames()),
-                                   config.get<PERFORMANCE_HINT>()));
-        REGISTER_SIMPLE_METRIC(_properties,
+        register_simple_metric(_properties, ov::available_devices, true, _metrics->GetAvailableDevicesNames());
+        register_simple_metric(_properties, ov::device::capabilities, true, _metrics->GetOptimizationCapabilities());
+        register_simple_metric(_properties, ov::optimal_number_of_infer_requests, true, [&](const Config& config) {
+            return utils::getOptimalNumberOfInferRequestsInParallel(
+                utils::getCompilationPlatform(
+                    config.get<PLATFORM>(),
+                    _backend == nullptr ? config.get<DEVICE_ID>()
+                                        : _backend->getDevice(config.get<DEVICE_ID>())->getName(),
+                    _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames()),
+                config.get<PERFORMANCE_HINT>());
+        });
+        register_simple_metric(_properties,
                                ov::range_for_async_infer_requests,
                                true,
                                _metrics->GetRangeForAsyncInferRequest());
-        REGISTER_SIMPLE_METRIC(_properties, ov::range_for_streams, true, _metrics->GetRangeForStreams());
-        REGISTER_SIMPLE_METRIC(_properties,
-                               ov::device::pci_info,
-                               true,
-                               _metrics->GetPciInfo(get_specified_device_name(config)));
-        REGISTER_SIMPLE_METRIC(_properties,
-                               ov::device::gops,
-                               true,
-                               _metrics->GetGops(get_specified_device_name(config)));
-        REGISTER_SIMPLE_METRIC(_properties,
-                               ov::device::type,
-                               true,
-                               _metrics->GetDeviceType(get_specified_device_name(config)));
-        REGISTER_CUSTOM_METRIC(_properties, ov::internal::supported_properties, false, [&](const Config&) {
+        register_simple_metric(_properties, ov::range_for_streams, true, _metrics->GetRangeForStreams());
+        register_simple_metric(_properties, ov::device::pci_info, true, [&](const Config& config) {
+            return _metrics->GetPciInfo(get_specified_device_name(config));
+        });
+        register_simple_metric(_properties, ov::device::gops, true, [&](const Config& config) {
+            return _metrics->GetGops(get_specified_device_name(config));
+        });
+        register_simple_metric(_properties, ov::device::type, true, [&](const Config& config) {
+            return _metrics->GetDeviceType(get_specified_device_name(config));
+        });
+        register_custom_metric(_properties, ov::internal::supported_properties, false, [&](const Config&) {
             return _internalSupportedProperties;
         });
-        REGISTER_SIMPLE_METRIC(_properties, ov::internal::cache_header_alignment, false, utils::STANDARD_PAGE_SIZE);
-        REGISTER_SIMPLE_METRIC(_properties,
-                               ov::intel_npu::device_alloc_mem_size,
-                               true,
-                               _metrics->GetDeviceAllocMemSize(get_specified_device_name(config)));
-        REGISTER_SIMPLE_METRIC(_properties,
-                               ov::intel_npu::device_total_mem_size,
-                               true,
-                               _metrics->GetDeviceTotalMemSize(get_specified_device_name(config)));
-        REGISTER_SIMPLE_METRIC(_properties, ov::intel_npu::driver_version, true, _metrics->GetDriverVersion());
-        REGISTER_SIMPLE_METRIC(_properties, ov::intel_npu::backend_name, false, _metrics->GetBackendName());
-        REGISTER_CUSTOM_METRIC(_properties,
+        register_simple_metric(_properties, ov::internal::cache_header_alignment, false, utils::STANDARD_PAGE_SIZE);
+        register_simple_metric(_properties, ov::intel_npu::device_alloc_mem_size, true, [&](const Config& config) {
+            return _metrics->GetDeviceAllocMemSize(get_specified_device_name(config));
+        });
+        register_simple_metric(_properties, ov::intel_npu::device_total_mem_size, true, [&](const Config& config) {
+            return _metrics->GetDeviceTotalMemSize(get_specified_device_name(config));
+        });
+        register_simple_metric(_properties, ov::intel_npu::driver_version, true, _metrics->GetDriverVersion());
+        register_simple_metric(_properties, ov::intel_npu::backend_name, false, _metrics->GetBackendName());
+        register_custom_metric(_properties,
                                ov::device::architecture,
                                !_metrics->GetAvailableDevicesNames().empty(),
                                [&](const Config& config) {
                                    const auto specifiedDeviceName = get_specified_device_name(config);
                                    return _metrics->GetDeviceArchitecture(specifiedDeviceName);
                                });
-        REGISTER_CUSTOM_METRIC(_properties,
+        register_custom_metric(_properties,
                                ov::device::full_name,
                                !_metrics->GetAvailableDevicesNames().empty(),
                                [&](const Config& config) {
                                    const auto specifiedDeviceName = get_specified_device_name(config);
                                    return _metrics->GetFullDeviceName(specifiedDeviceName);
                                });
-        REGISTER_CUSTOM_METRIC(_properties,
+        register_custom_metric(_properties,
                                ov::device::luid,
                                _backend == nullptr ? false : _backend->isLUIDExtSupported(),
                                [&](const Config& config) {
                                    const auto specifiedDeviceName = get_specified_device_name(config);
                                    return _metrics->GetDeviceLUID(specifiedDeviceName);
                                });
-        REGISTER_CUSTOM_METRIC(_properties, ov::device::uuid, true, [&](const Config& config) {
+        register_custom_metric(_properties, ov::device::uuid, true, [&](const Config& config) {
             const auto specifiedDeviceName = get_specified_device_name(config);
             auto devUuid = _metrics->GetDeviceUuid(specifiedDeviceName);
             return decltype(ov::device::uuid)::value_type{devUuid};
         });
-        REGISTER_CUSTOM_METRIC(_properties, ov::execution_devices, true, [&](const Config& config) {
+        register_custom_metric(_properties, ov::execution_devices, true, [&](const Config& config) {
             if (_metrics->GetAvailableDevicesNames().size() > 1) {
                 return std::string("NPU." + config.get<DEVICE_ID>());
             }
             return std::string("NPU");
         });
-        REGISTER_CUSTOM_METRIC(_properties, ov::intel_npu::compiler_version, true, [&](const Config& config) {
+        register_custom_metric(_properties, ov::intel_npu::compiler_version, true, [&](const Config& config) {
             auto compilerType = config.get<COMPILER_TYPE>();
             auto deviceId = config.get<DEVICE_ID>();
             auto device = utils::getDeviceById(_backend, deviceId);
@@ -434,7 +403,7 @@ void PluginPropertyManager::registerPluginProperties() const {
 
             return dummyCompiler->get_version();
         });
-        REGISTER_CUSTOM_METRIC(_properties, ov::internal::caching_properties, false, [&](const Config&) {
+        register_custom_metric(_properties, ov::internal::caching_properties, false, [&](const Config&) {
             std::vector<ov::PropertyName> caching_props{};
             for (auto prop : _cachingProperties) {
                 if (_config.isAvailable(prop)) {
@@ -759,9 +728,9 @@ FilteredConfig PluginPropertyManager::getConfigWithCompilerPropertiesDisabled(co
             const auto optionMode = updatedConfig.getOpt(key).mode();
 
             if (optionMode == OptionMode::CompileTime) {
-                logger.info(
-                    "Config key '%s' is recognized as a compiler option, will not be used for current configuration.",
-                    key.c_str());
+                logger.info("Config key '%s' is recognized as a compiler option, will not be used for current "
+                            "configuration.",
+                            key.c_str());
                 continue;
             }
 

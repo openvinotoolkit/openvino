@@ -7,6 +7,7 @@
 #include <sstream>
 
 #include "intel_npu/config/options.hpp"
+#include "intel_npu/utils/utils.hpp"
 #include "metadata.hpp"
 
 namespace intel_npu {
@@ -100,153 +101,133 @@ void CompiledModelPropertyManager::registerProperties() {
     _supportedProperties.clear();
 
     OPENVINO_SUPPRESS_DEPRECATED_START
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY(_config, _properties, ov::hint::enable_cpu_pinning, ENABLE_CPU_PINNING);
+    try_register_compiled_model_property<ENABLE_CPU_PINNING>(_config, _properties, ov::hint::enable_cpu_pinning);
     OPENVINO_SUPPRESS_DEPRECATED_END
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY(_config, _properties, ov::log::level, LOG_LEVEL);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY(_config, _properties, ov::loaded_from_cache, LOADED_FROM_CACHE);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY(_config, _properties, ov::hint::performance_mode, PERFORMANCE_HINT);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY(_config, _properties, ov::hint::execution_mode, EXECUTION_MODE_HINT);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY(_config, _properties, ov::hint::num_requests, PERFORMANCE_HINT_NUM_REQUESTS);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY(_config, _properties, ov::compilation_num_threads, COMPILATION_NUM_THREADS);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY(_config, _properties, ov::hint::inference_precision, INFERENCE_PRECISION_HINT);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY(_config, _properties, ov::cache_mode, CACHE_MODE);
+    try_register_compiled_model_property<LOG_LEVEL>(_config, _properties, ov::log::level);
+    try_register_compiled_model_property<LOADED_FROM_CACHE>(_config, _properties, ov::loaded_from_cache);
+    try_register_compiled_model_property<PERFORMANCE_HINT>(_config, _properties, ov::hint::performance_mode);
+    try_register_compiled_model_property<EXECUTION_MODE_HINT>(_config, _properties, ov::hint::execution_mode);
+    try_register_compiled_model_property<PERFORMANCE_HINT_NUM_REQUESTS>(_config, _properties, ov::hint::num_requests);
+    try_register_compiled_model_property<COMPILATION_NUM_THREADS>(_config, _properties, ov::compilation_num_threads);
+    try_register_compiled_model_property<INFERENCE_PRECISION_HINT>(_config, _properties, ov::hint::inference_precision);
+    try_register_compiled_model_property<CACHE_MODE>(_config, _properties, ov::cache_mode);
 
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(_config, _properties, ov::num_streams, NUM_STREAMS);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(_config, _properties, ov::intel_npu::compiler_type, COMPILER_TYPE);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(_config, _properties, ov::intel_npu::compiler_version, COMPILER_VERSION);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(_config, _properties, ov::weights_path, WEIGHTS_PATH);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(_config, _properties, ov::cache_dir, CACHE_DIR);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(_config, _properties, ov::enable_profiling, PERF_COUNT);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(_config, _properties, ov::intel_npu::profiling_type, PROFILING_TYPE);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(_config, _properties, ov::intel_npu::turbo, TURBO);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(_config,
-                                              _properties,
-                                              ov::intel_npu::compilation_mode_params,
-                                              COMPILATION_MODE_PARAMS);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(_config, _properties, ov::intel_npu::dma_engines, DMA_ENGINES);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(_config, _properties, ov::intel_npu::tiles, TILES);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(_config, _properties, ov::intel_npu::compilation_mode, COMPILATION_MODE);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(_config, _properties, ov::intel_npu::platform, PLATFORM);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(_config,
-                                              _properties,
-                                              ov::intel_npu::dynamic_shape_to_static,
-                                              DYNAMIC_SHAPE_TO_STATIC);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(_config,
-                                              _properties,
-                                              ov::intel_npu::backend_compilation_params,
-                                              BACKEND_COMPILATION_PARAMS);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(_config,
-                                              _properties,
-                                              ov::intel_npu::bypass_umd_caching,
-                                              BYPASS_UMD_CACHING);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(_config,
-                                              _properties,
-                                              ov::intel_npu::defer_weights_load,
-                                              DEFER_WEIGHTS_LOAD);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(_config,
-                                              _properties,
-                                              ov::intel_npu::compiler_dynamic_quantization,
-                                              COMPILER_DYNAMIC_QUANTIZATION);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(_config, _properties, ov::intel_npu::qdq_optimization, QDQ_OPTIMIZATION);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(_config,
-                                              _properties,
-                                              ov::intel_npu::qdq_optimization_aggressive,
-                                              QDQ_OPTIMIZATION_AGGRESSIVE);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(_config,
-                                              _properties,
-                                              ov::intel_npu::disable_version_check,
-                                              DISABLE_VERSION_CHECK);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(_config, _properties, ov::intel_npu::export_raw_blob, EXPORT_RAW_BLOB);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(_config, _properties, ov::intel_npu::import_raw_blob, IMPORT_RAW_BLOB);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(_config,
-                                              _properties,
-                                              ov::intel_npu::batch_compiler_mode_settings,
-                                              BATCH_COMPILER_MODE_SETTINGS);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(_config,
-                                              _properties,
-                                              ov::intel_npu::run_inferences_sequentially,
-                                              RUN_INFERENCES_SEQUENTIALLY);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(_config, _properties, ov::enable_weightless, ENABLE_WEIGHTLESS);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(_config,
-                                              _properties,
-                                              ov::intel_npu::separate_weights_version,
-                                              SEPARATE_WEIGHTS_VERSION);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(_config,
-                                              _properties,
-                                              ov::intel_npu::enable_strides_for,
-                                              ENABLE_STRIDES_FOR);
+    try_register_compiled_model_property_ifset<NUM_STREAMS>(_config, _properties, ov::num_streams);
+    try_register_compiled_model_property_ifset<COMPILER_TYPE>(_config, _properties, ov::intel_npu::compiler_type);
+    try_register_compiled_model_property_ifset<COMPILER_VERSION>(_config, _properties, ov::intel_npu::compiler_version);
+    try_register_compiled_model_property_ifset<WEIGHTS_PATH>(_config, _properties, ov::weights_path);
+    try_register_compiled_model_property_ifset<CACHE_DIR>(_config, _properties, ov::cache_dir);
+    try_register_compiled_model_property_ifset<PERF_COUNT>(_config, _properties, ov::enable_profiling);
+    try_register_compiled_model_property_ifset<PROFILING_TYPE>(_config, _properties, ov::intel_npu::profiling_type);
+    try_register_compiled_model_property_ifset<TURBO>(_config, _properties, ov::intel_npu::turbo);
+    try_register_compiled_model_property_ifset<COMPILATION_MODE_PARAMS>(_config,
+                                                                        _properties,
+                                                                        ov::intel_npu::compilation_mode_params);
+    try_register_compiled_model_property_ifset<DMA_ENGINES>(_config, _properties, ov::intel_npu::dma_engines);
+    try_register_compiled_model_property_ifset<TILES>(_config, _properties, ov::intel_npu::tiles);
+    try_register_compiled_model_property_ifset<COMPILATION_MODE>(_config, _properties, ov::intel_npu::compilation_mode);
+    try_register_compiled_model_property_ifset<PLATFORM>(_config, _properties, ov::intel_npu::platform);
+    try_register_compiled_model_property_ifset<DYNAMIC_SHAPE_TO_STATIC>(_config,
+                                                                        _properties,
+                                                                        ov::intel_npu::dynamic_shape_to_static);
+    try_register_compiled_model_property_ifset<BACKEND_COMPILATION_PARAMS>(_config,
+                                                                           _properties,
+                                                                           ov::intel_npu::backend_compilation_params);
+    try_register_compiled_model_property_ifset<BYPASS_UMD_CACHING>(_config,
+                                                                   _properties,
+                                                                   ov::intel_npu::bypass_umd_caching);
+    try_register_compiled_model_property_ifset<DEFER_WEIGHTS_LOAD>(_config,
+                                                                   _properties,
+                                                                   ov::intel_npu::defer_weights_load);
+    try_register_compiled_model_property_ifset<COMPILER_DYNAMIC_QUANTIZATION>(
+        _config,
+        _properties,
+        ov::intel_npu::compiler_dynamic_quantization);
+    try_register_compiled_model_property_ifset<QDQ_OPTIMIZATION>(_config, _properties, ov::intel_npu::qdq_optimization);
+    try_register_compiled_model_property_ifset<QDQ_OPTIMIZATION_AGGRESSIVE>(_config,
+                                                                            _properties,
+                                                                            ov::intel_npu::qdq_optimization_aggressive);
+    try_register_compiled_model_property_ifset<DISABLE_VERSION_CHECK>(_config,
+                                                                      _properties,
+                                                                      ov::intel_npu::disable_version_check);
+    try_register_compiled_model_property_ifset<EXPORT_RAW_BLOB>(_config, _properties, ov::intel_npu::export_raw_blob);
+    try_register_compiled_model_property_ifset<IMPORT_RAW_BLOB>(_config, _properties, ov::intel_npu::import_raw_blob);
+    try_register_compiled_model_property_ifset<BATCH_COMPILER_MODE_SETTINGS>(
+        _config,
+        _properties,
+        ov::intel_npu::batch_compiler_mode_settings);
+    try_register_compiled_model_property_ifset<RUN_INFERENCES_SEQUENTIALLY>(_config,
+                                                                            _properties,
+                                                                            ov::intel_npu::run_inferences_sequentially);
+    try_register_compiled_model_property_ifset<ENABLE_WEIGHTLESS>(_config, _properties, ov::enable_weightless);
+    try_register_compiled_model_property_ifset<SEPARATE_WEIGHTS_VERSION>(_config,
+                                                                         _properties,
+                                                                         ov::intel_npu::separate_weights_version);
+    try_register_compiled_model_property_ifset<ENABLE_STRIDES_FOR>(_config,
+                                                                   _properties,
+                                                                   ov::intel_npu::enable_strides_for);
 
-    TRY_REGISTER_CUSTOM_PROPERTY(_config,
+    try_register_custom_property(_config,
                                  _properties,
                                  ov::intel_npu::batch_mode,
-                                 BATCH_MODE,
                                  false,
                                  ov::PropertyMutability::RO,
                                  [](const Config& config) {
                                      return config.get<BATCH_MODE>();
                                  });
-    TRY_REGISTER_CUSTOM_PROPERTY(_config,
+    try_register_custom_property(_config,
                                  _properties,
                                  ov::intel_npu::shared_common_queue,
-                                 SHARED_COMMON_QUEUE,
                                  false,
                                  ov::PropertyMutability::RO,
                                  [](const Config& config) {
                                      return config.get<SHARED_COMMON_QUEUE>();
                                  });
-    TRY_REGISTER_CUSTOM_PROPERTY(_config,
+    try_register_custom_property(_config,
                                  _properties,
                                  ov::hint::model_priority,
-                                 MODEL_PRIORITY,
                                  true,
                                  ov::PropertyMutability::RW,
                                  [](const Config& config) {
                                      return config.get<MODEL_PRIORITY>();
                                  });
-    TRY_REGISTER_CUSTOM_PROPERTY(_config,
+    try_register_custom_property(_config,
                                  _properties,
                                  ov::workload_type,
-                                 WORKLOAD_TYPE,
                                  true,
                                  ov::PropertyMutability::RW,
                                  [](const Config& config) {
                                      return config.get<WORKLOAD_TYPE>();
                                  });
-    TRY_REGISTER_CUSTOM_PROPERTY(_config,
+    try_register_custom_property(_config,
                                  _properties,
                                  ov::cache_encryption_callbacks,
-                                 CACHE_ENCRYPTION_CALLBACKS,
                                  true,
                                  ov::PropertyMutability::WO,
                                  [](const Config&) {
                                      return ov::EncryptionCallbacks{nullptr, nullptr};
                                  });
 
-    FORCE_REGISTER_CUSTOM_PROPERTY(_properties,
-                                   ov::hint::model,
-                                   MODEL_PTR,
-                                   true,
-                                   ov::PropertyMutability::RO,
-                                   [](const Config&) {
-                                       return std::shared_ptr<const ov::Model>(nullptr);
-                                   });
-    REGISTER_CUSTOM_METRIC(_properties, ov::model_name, true, [this](const Config&) {
+    force_register_custom_property(_properties, ov::hint::model, true, ov::PropertyMutability::RO, [](const Config&) {
+        return std::shared_ptr<const ov::Model>(nullptr);
+    });
+    register_custom_metric(_properties, ov::model_name, true, [this](const Config&) {
         OPENVINO_ASSERT(_graph != nullptr, "Missing graph");
         return ov::Any(_graph->get_metadata().name);
     });
-    REGISTER_CUSTOM_METRIC(_properties, ov::optimal_number_of_infer_requests, true, [](const Config& config) {
+    register_custom_metric(_properties, ov::optimal_number_of_infer_requests, true, [](const Config& config) {
         return ov::Any(
             utils::getOptimalNumberOfInferRequestsInParallel(config.get<PLATFORM>(), config.get<PERFORMANCE_HINT>()));
     });
-    REGISTER_CUSTOM_METRIC(_properties, ov::execution_devices, true, [](const Config&) {
+    register_custom_metric(_properties, ov::execution_devices, true, [](const Config&) {
         return ov::Any(std::string("NPU"));
     });
     if (_config.isAvailable(ov::runtime_requirements.name())) {
-        REGISTER_CUSTOM_METRIC(_properties, ov::runtime_requirements, true, [this](const Config&) {
+        register_custom_metric(_properties, ov::runtime_requirements, true, [this](const Config&) {
             return ov::Any(buildRuntimeRequirements());
         });
     }
-    REGISTER_CUSTOM_METRIC(_properties, ov::supported_properties, true, [this](const Config&) {
+    register_custom_metric(_properties, ov::supported_properties, true, [this](const Config&) {
         return ov::Any(_supportedProperties);
     });
 
