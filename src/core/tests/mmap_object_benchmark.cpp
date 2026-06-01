@@ -90,32 +90,44 @@ static double throughput_mbs(size_t size_mb, long long ms) {
 static void strategy_hint_populate(const std::filesystem::path& path, size_t file_size) {
     auto mapped = load_mmap_object(path);
     mapped->hint_populate();
+    constexpr size_t chunk_size = 128 * 1024 * 1024;  // 128 MB chunks
+    std::vector<char> buffer(std::min(chunk_size, file_size));
     volatile char sink = 0;
-    const char* data = mapped->data();
-    for (size_t i = 0; i < file_size; i += 4096) {
-        sink += data[i];
+    for (size_t offset = 0; offset < file_size; offset += chunk_size) {
+        const size_t copy_size = std::min(chunk_size, file_size - offset);
+        std::memcpy(buffer.data(), mapped->data() + offset, copy_size);
+        // Sample multiple positions to prevent memcpy optimization
+        sink += buffer[0] + buffer[copy_size / 2] + buffer[copy_size - 1];
     }
 }
 
 // Strategy: mmap + no prefault (sequential page fault)
 static void strategy_no_prefault(const std::filesystem::path& path, size_t file_size) {
     auto mapped = load_mmap_object(path);
+    // Copy in chunks to support large files without excessive memory allocation
+    constexpr size_t chunk_size = 128 * 1024 * 1024;  // 128 MB chunks
+    std::vector<char> buffer(std::min(chunk_size, file_size));
     volatile char sink = 0;
-    const char* data = mapped->data();
-    for (size_t i = 0; i < file_size; i += 4096) {
-        sink += data[i];
+    for (size_t offset = 0; offset < file_size; offset += chunk_size) {
+        const size_t copy_size = std::min(chunk_size, file_size - offset);
+        std::memcpy(buffer.data(), mapped->data() + offset, copy_size);
+        // Sample multiple positions to prevent memcpy optimization
+        sink += buffer[0] + buffer[copy_size / 2] + buffer[copy_size - 1];
     }
 }
 
 // Strategy: sequential read via ifstream
 static void strategy_ifstream_read(const std::filesystem::path& path, size_t /*file_size*/) {
     std::ifstream f(path, std::ios::binary);
-    std::vector<char> buffer(4096);
+    constexpr size_t chunk_size = 128 * 1024 * 1024;  // 128 MB chunks
+    std::vector<char> read_buffer(chunk_size);
+    std::vector<char> copy_buffer(chunk_size);
     volatile char sink = 0;
-    while (f.read(buffer.data(), static_cast<std::streamsize>(buffer.size())) || f.gcount() > 0) {
-        for (std::streamsize i = 0; i < f.gcount(); i += 1024) {
-            sink += buffer[i];
-        }
+    while (f.read(read_buffer.data(), static_cast<std::streamsize>(read_buffer.size())) || f.gcount() > 0) {
+        const auto count = static_cast<size_t>(f.gcount());
+        std::memcpy(copy_buffer.data(), read_buffer.data(), count);
+        // Sample multiple positions to prevent memcpy optimization
+        sink += copy_buffer[0] + copy_buffer[count / 2] + copy_buffer[count - 1];
     }
 }
 
@@ -126,11 +138,16 @@ static void strategy_hint_populate_partial(const std::filesystem::path& path,
                                            size_t size) {
     auto mapped = load_mmap_object(path);
     mapped->hint_populate(offset, size);
+    const auto total_copy_size = std::min(size, mapped->size() - offset);
+    // Copy in chunks to support large regions
+    constexpr size_t chunk_size = 128 * 1024 * 1024;  // 128 MB chunks
+    std::vector<char> buffer(std::min(chunk_size, total_copy_size));
     volatile char sink = 0;
-    const char* data = mapped->data();
-    const auto end = std::min(offset + size, mapped->size());
-    for (size_t i = offset; i < end; i += 4096) {
-        sink += data[i];
+    for (size_t i = 0; i < total_copy_size; i += chunk_size) {
+        const size_t copy_size = std::min(chunk_size, total_copy_size - i);
+        std::memcpy(buffer.data(), mapped->data() + offset + i, copy_size);
+        // Sample multiple positions to prevent memcpy optimization
+        sink += buffer[0] + buffer[copy_size / 2] + buffer[copy_size - 1];
     }
 }
 
@@ -226,7 +243,7 @@ TEST_F(MmapBenchmark, DISABLED_latency_and_throughput_table) {
 }
 
 TEST_F(MmapBenchmark, DISABLED_partial_prefault_offset_table) {
-    constexpr size_t file_size_mb = 1000;
+    constexpr size_t file_size_mb = 1200;
     constexpr size_t file_size = file_size_mb * 1024 * 1024;
     constexpr int warmup = 1;
     constexpr int runs = 5;
@@ -236,22 +253,16 @@ TEST_F(MmapBenchmark, DISABLED_partial_prefault_offset_table) {
     const std::vector<size_t> offsets_mb = {0, 1, 17, 500, 700, 800};
     const std::vector<size_t> region_sizes_mb = {10, 100, 500};
 
-    printf("\n--- partial prefault: hint_populate with offset ---\n");
-    printf("  %-14s", "offset \\ size");
-    for (size_t s : region_sizes_mb)
-        printf(" | %9zu MB", s);
-    printf("\n  %s\n", std::string(14 + region_sizes_mb.size() * 14, '-').c_str());
-
-    for (size_t off_mb : offsets_mb) {
-        printf("  %-14zu", off_mb);
-        for (size_t sz_mb : region_sizes_mb) {
-            const size_t off_bytes = off_mb * 1024 * 1024;
-            const size_t sz_bytes = sz_mb * 1024 * 1024;
-            if (off_bytes + sz_bytes > file_size) {
-                printf(" |    (exceeds)");
+    // Pre-compute all results[size_idx][offset_idx]; -1 means "exceeds"
+    std::vector<std::vector<long long>> results(region_sizes_mb.size(),
+                                                std::vector<long long>(offsets_mb.size(), -1));
+    for (size_t si = 0; si < region_sizes_mb.size(); ++si) {
+        for (size_t oi = 0; oi < offsets_mb.size(); ++oi) {
+            const size_t off_bytes = offsets_mb[oi] * 1024 * 1024;
+            const size_t sz_bytes = region_sizes_mb[si] * 1024 * 1024;
+            if (off_bytes + sz_bytes > file_size)
                 continue;
-            }
-            long long t = bench(
+            results[si][oi] = bench(
                 [&]() {
                     strategy_hint_populate_partial(file_path, file_size, off_bytes, sz_bytes);
                 },
@@ -259,7 +270,23 @@ TEST_F(MmapBenchmark, DISABLED_partial_prefault_offset_table) {
                 file_size,
                 warmup,
                 runs);
-            printf(" | %7lld ms", t);
+        }
+    }
+
+    // Print: sizes as rows, offsets as columns
+    printf("\n--- partial prefault: hint_populate with offset ---\n");
+    printf("  %-14s", "size \\ offset");
+    for (size_t off_mb : offsets_mb)
+        printf(" | %7zu MB", off_mb);
+    printf("\n  %s\n", std::string(14 + offsets_mb.size() * 14, '-').c_str());
+
+    for (size_t si = 0; si < region_sizes_mb.size(); ++si) {
+        printf("  %-14zu", region_sizes_mb[si]);
+        for (size_t oi = 0; oi < offsets_mb.size(); ++oi) {
+            if (results[si][oi] < 0)
+                printf(" |    (exceeds)");
+            else
+                printf(" | %7lld ms", results[si][oi]);
         }
         printf("\n");
     }
