@@ -9,7 +9,6 @@
 #include <iterator>
 #include <map>
 #include <numeric>
-#include <optional>
 #include <unordered_map>
 
 #if defined(_MSC_VER)
@@ -308,18 +307,29 @@ void ov::hetero::SubgraphCollector::split_cyclic_dependencies() {
     }
 
     // === Subgraph-level SCC fallback. ===========================================================
-    // The per-node heuristic above only detects cycles whose re-entry point and producer share the
-    // same subgraph (same-sg dependency through a foreign sg). It cannot see multi-hop cycles at
-    // the subgraph DAG level (e.g. sg_A -> sg_B -> sg_C -> sg_D -> sg_A), which arise when
-    // Union-Find fuses two structurally independent regions of the model into one subgraph via a
-    // shared graph-input boundary, and the fused subgraph ends up both producing and consuming
-    // data on multiple other subgraphs.  Such a configuration is not a real data cycle in the
-    // original ov::Model (which is a DAG), but it deadlocks run()'s topological sort.  Break it
-    // by identifying non-trivial SCCs in the subgraph DAG and, for each cyclic subgraph that
-    // still has an internal non-boundary edge, promoting one such edge into _subgraph_inputs.
-    // Each iteration strictly grows _subgraph_inputs by exactly one (the OPENVINO_ASSERT below
-    // makes this an invariant), so the loop is bounded by the total number of promotable
-    // node-input edges, which is at most the total number of node inputs in the model.
+    // The per-node heuristic above only detects cycles whose re-entry point sits on a node whose
+    // own cyc_dep bitset is non-empty (same-sg data flows back through a foreign sg into that
+    // node's inputs). Two classes of subgraph-DAG cycles fall outside its scope, and both are
+    // first-class cases this fallback exists to handle -- neither is exceptional:
+    //
+    //   (a) Multi-hop subgraph-DAG cycles (sg_A -> sg_B -> sg_C -> sg_D -> sg_A) where the
+    //       producer and re-entry consumer are several subgraphs apart and no single node sees
+    //       its own sg on the cycle.
+    //   (b) Shared-graph-input cycles, where a Constant (or other graph input) fans out to
+    //       multiple consumers that Union-Find fuses into a single subgraph, and that fused
+    //       subgraph then both produces and consumes data on the same neighbor subgraph. The
+    //       cut edge here is an input of the foreign-sg node, not of the same-sg node whose
+    //       cyc_dep is non-empty, so Phase 4b cannot promote it by construction.
+    //
+    // Both arise from Union-Find merging structurally independent regions via shared inputs.
+    // The ov::Model itself is a DAG; the cycle is purely an artifact of subgraph fusion that
+    // run()'s topological sort cannot resolve.
+    //
+    // Break the cycle by identifying non-trivial SCCs in the subgraph DAG and, per iteration,
+    // isolating one node out of some SCC-member Union-Find component by promoting all of its
+    // same-sg input edges to boundary (see isolate_one_scc_node for the rationale and the
+    // convergence argument). The loop is bounded by the total number of node-input edges; in
+    // practice it converges in ~#SCC iterations.
 
     // Helper 1: build the subgraph DAG from cross-subgraph edges already recorded in
     // _subgraph_inputs. Parallel edges between the same pair of subgraphs are de-duplicated;
@@ -423,29 +433,87 @@ void ov::hetero::SubgraphCollector::split_cyclic_dependencies() {
         return scc_members;
     };
 
-    // Helper 3: scan in topological order for the first node living in an SCC-member subgraph
-    // that still has a non-boundary input from the same subgraph, and return that input. Returns
-    // std::nullopt only if no such edge exists (which on a well-formed ov::Model means the SCC
-    // claim was spurious — caller asserts on that).
-    auto find_promotable_internal_edge =
-        [&](const std::vector<SubgraphId>& sg_id_by_index,
-            const std::unordered_set<SubgraphId>& scc_members) -> std::optional<Input> {
-        for (size_t node_idx = 0; node_idx < nodes_count; ++node_idx) {
-            const auto my_sg = sg_id_by_index[node_idx];
+    // Helper 3: isolate one Union-Find node from its SCC member by promoting ALL its
+    // same-subgraph non-boundary input edges into _subgraph_inputs. Returns the number of
+    // edges promoted (1 .. node's input arity).
+    //
+    // Rationale (why this works and the simpler alternatives don't):
+    //   * Promoting a single same-sg input edge per iteration diverges: the chosen node still
+    //     re-merges into the SCC via its OTHER same-sg inputs in the next collect_subgraphs_ids
+    //     round, and "first-input-wins" union-find keeps it in the same component. Observed on
+    //     yolo26s-seg: SCC member count grew 4 -> 26 across iterations.
+    //   * Promoting only edges at entry/exit points of SCC members misses the common
+    //     "shared-Constant fuses regions" case: S = {c_shared, a, b, c, ...} where c_shared is
+    //     a Constant unioning multiple consumers. c_shared has no same-sg consumers in OTHER
+    //     SCC members (its consumers are all in S), so it is neither an entry nor an exit, and
+    //     the only same-sg input that would break the cycle — (a <- c_shared) — is skipped.
+    //   * Dissolving a whole SCC-member subgraph at once explodes the partition. On
+    //     yolo26s-seg the GPU mainland S has 428 nodes / 449 internal edges; full dissolution
+    //     produces ~450 subgraphs and breaks downstream compile_model.
+    //
+    // The "isolate one node" cut is the minimum needed: by promoting all of n's same-sg
+    // inputs, n becomes a Union-Find root on the next round, severed from every upstream node
+    // in S (including shared-Constant connectors). Each iteration thus strictly reduces the
+    // size of some SCC member by 1 (n moves to its own singleton component).
+    //
+    // Convergence:
+    //   * In any non-trivial SCC (size > 1) of the subgraph DAG, at least one member is not a
+    //     Union-Find singleton: if ALL members were singletons, the SCC-DAG cycle
+    //     sg_X1 -> ... -> sg_Xk -> sg_X1 would unfold into a node-level cycle
+    //     x1 -> ... -> xk -> x1 in the original ov::Model, which is a DAG.
+    //   * A non-singleton Union-Find component of size m has exactly m-1 unification edges,
+    //     i.e. m-1 non-boundary input edges, so at least one node in it has a same-sg input.
+    //   * Each iteration isolates one such node, strictly reducing the total non-singleton
+    //     mass of SCC members. The loop therefore terminates in at most nodes_count iterations
+    //     and well within the total_node_inputs edge budget.
+    //
+    // Target selection: among all candidate nodes (in any SCC member with >= 1 same-sg input),
+    // we pick the one with the fewest same-sg inputs (ties broken by topological order, i.e.
+    // smaller index). This minimizes per-iteration boundary growth and tends to cut near
+    // shared connectors first.
+    auto isolate_one_scc_node = [&](const std::vector<SubgraphId>& sg_id_by_index,
+                                    const std::unordered_set<SubgraphId>& scc_members) -> size_t {
+        bool have_target = false;
+        size_t target_idx = 0;
+        size_t target_same_sg_inputs = 0;
+        for (size_t i = 0; i < nodes_count; ++i) {
+            const auto my_sg = sg_id_by_index[i];
             if (!scc_members.count(my_sg))
                 continue;
-            for (const auto& input : ordered_inputs[node_idx]) {
+            size_t same_sg_inputs = 0;
+            for (const auto& input : ordered_inputs[i]) {
                 if (_subgraph_inputs.count(input))
                     continue;
-                const auto src_node = input.get_source_output().get_node();
-                if (is_graph_input_node(src_node))
+                const auto src_idx = get_index_by_node(input.get_source_output().get_node());
+                if (sg_id_by_index[src_idx] != my_sg)
                     continue;
-                if (sg_id_by_index[get_index_by_node(src_node)] != my_sg)
-                    continue;
-                return input;
+                ++same_sg_inputs;
+            }
+            if (same_sg_inputs == 0)
+                continue;
+            if (!have_target || same_sg_inputs < target_same_sg_inputs) {
+                have_target = true;
+                target_idx = i;
+                target_same_sg_inputs = same_sg_inputs;
             }
         }
-        return std::nullopt;
+        OPENVINO_ASSERT(have_target,
+                        "Subgraph SCC fallback found a cyclic subgraph DAG but every node in "
+                        "every SCC member is a Union-Find singleton; that would require a "
+                        "node-level cycle in the original ov::Model, which is impossible on a DAG.");
+
+        size_t promoted = 0;
+        const auto target_sg = sg_id_by_index[target_idx];
+        for (const auto& input : ordered_inputs[target_idx]) {
+            if (_subgraph_inputs.count(input))
+                continue;
+            const auto src_idx = get_index_by_node(input.get_source_output().get_node());
+            if (sg_id_by_index[src_idx] != target_sg)
+                continue;
+            _subgraph_inputs.insert(input);
+            ++promoted;
+        }
+        return promoted;
     };
 
     size_t total_node_inputs = 0;
@@ -469,20 +537,19 @@ void ov::hetero::SubgraphCollector::split_cyclic_dependencies() {
             break;  // subgraph DAG is acyclic, fix-point reached.
         }
 
-        // Pick any node in any SCC-member subgraph that still has a non-boundary input from the
-        // same subgraph, and promote that edge. Iterating until the SCC dissolves is correct: in
-        // the worst case the subgraph gets fully fragmented into singletons, which trivially
-        // cannot participate in a multi-subgraph SCC (the original model is a DAG).
-        const auto promoted_edge = find_promotable_internal_edge(sg_id_by_index, scc_members);
-        OPENVINO_ASSERT(promoted_edge.has_value(),
-                        "Subgraph SCC fallback found a cyclic subgraph DAG but no internal edge "
-                        "to promote; this should not happen on a well-formed ov::Model.");
-        _subgraph_inputs.insert(*promoted_edge);
-        // Defensive: every iteration must grow _subgraph_inputs by at least one. If insert()
-        // ever found the edge already present (logic bug), surface it here instead of looping
+        // Isolate one Union-Find node from any SCC member by promoting ALL its same-sg input
+        // edges. See isolate_one_scc_node for why a single-edge cut diverges, why entry/exit
+        // cuts miss shared-Constant SCCs, and the convergence argument (the candidate always
+        // exists because singleton-only SCCs are impossible on a DAG).
+        const size_t promoted = isolate_one_scc_node(sg_id_by_index, scc_members);
+        OPENVINO_ASSERT(promoted > 0,
+                        "Subgraph SCC fallback found a cyclic subgraph DAG but the chosen node "
+                        "had no same-subgraph inputs to promote; helper invariant violated.");
+        // Defensive: each iteration must grow _subgraph_inputs strictly. If insert() ever found
+        // all promoted edges already present (logic bug), surface it here instead of looping
         // silently until the edge budget runs out.
         OPENVINO_ASSERT(_subgraph_inputs.size() > inputs_before_step,
-                        "Subgraph SCC fallback promoted an edge but _subgraph_inputs did not grow");
+                        "Subgraph SCC fallback promoted edges but _subgraph_inputs did not grow");
     }
 }
 

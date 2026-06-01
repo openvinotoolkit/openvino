@@ -605,6 +605,45 @@ std::shared_ptr<ov::Model> create_bridge_between_cycles_model() {
     return std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{in_L});
 }
 
+// Subgraph-DAG SCC where the only same-subgraph promotable edges have a Constant producer.
+// A shared M0 Constant `c_shared` is consumed by three M0 nodes (A, C, E) which are interleaved
+// with three independent M1 nodes (B, D, F). The interleaving forms two 2-cycles in the
+// subgraph DAG (M0_big <-> sg_B and M0_big <-> sg_D), both incident to the fused M0_big
+// subgraph; every M0_big internal edge whose other endpoint is not foreign-sg ends up being a
+// Constant -> consumer edge (c_shared -> A, c_shared -> C, c_shared -> E). This is the exact
+// shape of the failure reproduced on yolo26s-seg: the SCC fallback finds a cyclic subgraph,
+// but every candidate same-sg edge has a graph-input producer. The earlier implementation
+// filtered those out and tripped the "no internal edge to promote" assert.
+//
+// Topology (M0 = MOCK.0, M1 = MOCK.1):
+//
+//   in(M0) --> A(M0,+c_shared) --> B(M1) --> C(M0,+c_shared) --> D(M1) --> E(M0,+c_shared) --> F(M1) --> res
+//                 ^               (M1)              ^               (M1)              ^         (M1)
+//                 |                                 |                                 |
+//                 +--- c_shared(M0) ----------------+---------------------------------+
+//
+std::shared_ptr<ov::Model> create_shared_const_scc_only_const_promotable_model() {
+    auto in_node = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{4});
+    in_node->set_friendly_name("in");
+    auto c_shared = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{4}, {1.0f, 1.0f, 1.0f, 1.0f});
+    c_shared->set_friendly_name("c_shared");
+    auto A = std::make_shared<ov::op::v1::Add>(in_node, c_shared);
+    A->set_friendly_name("A");
+    auto B = std::make_shared<ov::op::v0::Abs>(A);
+    B->set_friendly_name("B");
+    auto C = std::make_shared<ov::op::v1::Add>(B, c_shared);
+    C->set_friendly_name("C");
+    auto D = std::make_shared<ov::op::v0::Abs>(C);
+    D->set_friendly_name("D");
+    auto E = std::make_shared<ov::op::v1::Add>(D, c_shared);
+    E->set_friendly_name("E");
+    auto F = std::make_shared<ov::op::v0::Abs>(E);
+    F->set_friendly_name("F");
+    auto res = std::make_shared<ov::op::v0::Result>(F);
+    res->set_friendly_name("res");
+    return std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{in_node});
+}
+
 // Stateful model: param → read_value → add(+c1) → {result, assign(sink)}.
 // Single-device by design — exercises Subgraph::_sinks wire-through and
 // create_submodel_from_collected_subgraph()'s sink-preserving construction without
@@ -1855,3 +1894,44 @@ TEST(SubgraphCollectorBridgeBetweenCyclesTest, bridge_subgraph_not_split) {
                                 << ". This indicates the SCC fallback wrongly classified the acyclic bridge as cyclic"
                                 << " and promoted its internal edge.";
 }
+
+// Regression test for the SCC fallback when every promotable same-subgraph edge has a
+// Constant producer. See create_shared_const_scc_only_const_promotable_model() for the
+// topology. The earlier implementation skipped any candidate edge whose source was a graph
+// input (Constant/Parameter), so when an SCC consisted entirely of nodes whose only same-sg
+// inputs came from a shared Constant, find_promotable_internal_edge() returned nullopt and
+// the SCC fallback fired "no internal edge to promote". This is the exact failure mode
+// reproduced on yolo26s-seg with HETERO:GPU,CPU. The contract under test: run() converges
+// (no assert), and merge round-trip succeeds.
+TEST(SubgraphCollectorSharedConstSccTest, scc_with_only_constant_sourced_edges_converges) {
+    auto model = create_shared_const_scc_only_const_promotable_model();
+    auto model_ref = model->clone();
+    const std::map<std::string, std::string> affinity_by_name = {
+        {"in", "MOCK.0"}, {"c_shared", "MOCK.0"},
+        {"A", "MOCK.0"}, {"B", "MOCK.1"}, {"C", "MOCK.0"},
+        {"D", "MOCK.1"}, {"E", "MOCK.0"}, {"F", "MOCK.1"},
+        {"res", "MOCK.1"},
+    };
+    SubgraphCollector::AffinitiesMap affinities;
+    for (const auto& node : model->get_ordered_ops()) {
+        const auto it = affinity_by_name.find(node->get_friendly_name());
+        ASSERT_TRUE(it != affinity_by_name.end()) << "Missing affinity for node '" << node->get_friendly_name() << "'";
+        affinities[node] = it->second;
+    }
+
+    SubgraphCollector collector(model, affinities);
+    // Must not assert "no internal edge to promote".
+    const auto& [subgraphs, mapping] = collector.run();
+    ASSERT_FALSE(subgraphs.empty());
+
+    // Merge round-trip: gluing the submodels back together must reproduce the original model.
+    std::vector<std::shared_ptr<ov::Model>> submodels;
+    submodels.reserve(subgraphs.size());
+    for (const auto& sg : subgraphs)
+        submodels.push_back(create_submodel_from_collected_subgraph(sg));
+    OV_ASSERT_NO_THROW(ov::hetero::merge_submodels(submodels, mapping._submodels_input_to_prev_output));
+    ASSERT_EQ(1u, submodels.size());
+    const auto cmp_result = compare_functions(model_ref, submodels[0]);
+    EXPECT_TRUE(cmp_result.first) << cmp_result.second;
+}
+
