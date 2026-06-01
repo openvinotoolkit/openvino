@@ -1,6 +1,7 @@
 name: Code coverage
 run-name: ${{ github.event_name == 'schedule' && 'Code coverage - Nightly' || 'Code coverage' }}
 on:
+  pull_request:
   schedule:
     # run daily at 00:00 UTC
     - cron: '0 0 * * *'
