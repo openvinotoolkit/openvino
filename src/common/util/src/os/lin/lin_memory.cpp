@@ -20,4 +20,8 @@ void aligned_free(void* ptr) noexcept {
     std::free(ptr);
 }
 
+bool is_mmap_memory(const void* data) noexcept {
+    return data != nullptr;
+}
+
 }  // namespace ov::util

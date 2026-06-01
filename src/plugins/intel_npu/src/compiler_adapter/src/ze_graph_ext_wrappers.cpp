@@ -15,6 +15,7 @@
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/partial_shape.hpp"
+#include "openvino/util/memory.hpp"
 
 namespace {
 using namespace intel_npu;
@@ -364,6 +365,13 @@ std::unordered_set<std::string> ZeGraphExtWrappers::queryGraph(SerializedIR seri
 bool ZeGraphExtWrappers::canCpuVaBeImported(const void* data, size_t size) const {
     if (_graphExtVersion < ZE_MAKE_VERSION(1, 13) ||
         !utils::memory_and_size_aligned_to_standard_page_size(data, size)) {
+        return false;
+    }
+
+    // ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT requires the VA to be backed by an OS-managed memory section.
+    // On Windows this means MEM_MAPPED (MapViewOfFile/MapViewOfFile3); MEM_PRIVATE heap allocations are
+    // rejected by the driver with ZE_RESULT_ERROR_INVALID_ARGUMENT.
+    if (!ov::util::is_mmap_memory(data)) {
         return false;
     }
 

@@ -74,4 +74,19 @@ void* aligned_alloc(size_t size, size_t alignment) noexcept;
  */
 void aligned_free(void* ptr) noexcept;
 
+/**
+ * @brief Returns true if the memory at @p data is backed by an mmap region
+ * rather than a private heap (sbrk) allocation.
+ *
+ * On Windows, uses VirtualQuery: MEM_MAPPED regions (MapViewOfFile / MapViewOfFile3)
+ * return true; MEM_PRIVATE regions (heap, VirtualAlloc) return false.
+ *
+ * On Linux, returns true for any non-null pointer: the NPU Level Zero driver
+ * accepts all memory types as a standard OS allocation on this platform.
+ *
+ * @param data  Pointer to query. Must not be null.
+ * @return true if the memory was allocated via mmap (or its platform equivalent).
+ */
+bool is_mmap_memory(const void* data) noexcept;
+
 }  // namespace ov::util
