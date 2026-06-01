@@ -42,4 +42,10 @@ inline std::ostream& operator<<(std::ostream& os, const runtime_types& type) {
     return os;
 }
 
+/// @brief Get default engine type
+engine_types get_default_engine_type();
+
+/// @brief Get default runtime type
+runtime_types get_default_runtime_type();
+
 }  // namespace cldnn

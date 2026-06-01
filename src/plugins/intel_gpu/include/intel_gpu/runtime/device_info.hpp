@@ -123,7 +123,8 @@ struct device_info {
     bool has_separate_cache;                    ///< Does the target hardware has separate cache for usm_device and usm_host
 
     bool supports_cp_offload;                   ///< [L0] Does the command queue support copy offload
-    bool supports_counter_based_events;                    ///< [L0] Does the target runtime support counter based events
+    bool supports_counter_based_events;         ///< [L0] Does the target runtime support counter based events
+    bool supports_leo;                          ///< [L0] Does the device support Level Zero - OpenCL interoperability (LEO)
 
     std::vector<size_t> supported_simd_sizes;   ///< List of SIMD sizes supported by current device and compiler
 

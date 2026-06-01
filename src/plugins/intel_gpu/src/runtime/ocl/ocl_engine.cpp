@@ -253,7 +253,9 @@ bool ocl_engine::is_the_same_buffer(const memory& mem1, const memory& mem2) {
                 reinterpret_cast<const ocl::gpu_usm&>(mem2).get_buffer());
 }
 
-void* ocl_engine::get_user_context() const {
+void* ocl_engine::get_user_context(runtime_types rt_type) const {
+    OPENVINO_ASSERT(rt_type == runtime_types::ocl,
+        "[GPU] OCL engine can only provide OCL context but requested context for ", rt_type);
     auto& cl_device = downcast<ocl_device>(*_device);
     return static_cast<void*>(cl_device.get_context().get());
 }
