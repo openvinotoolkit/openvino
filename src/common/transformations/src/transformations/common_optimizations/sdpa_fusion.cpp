@@ -26,6 +26,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -152,6 +153,7 @@ bool SDPAFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
     ov::pass::SymbolicOptimizations symbolic_optimizations(false, get_pass_config());
     auto symbolic_ctx_manager = symbolic_optimizations.get_manager();
     symbolic_ctx_manager->register_pass<ov::pass::SDPAFusionMatcher>();
+    symbolic_ctx_manager->register_pass<ov::pass::SDPASplitAttentionFusionMatcher>();
     symbolic_ctx_manager->register_pass<ov::pass::SDPAFusionMatcherSinks>();
     symbolic_ctx_manager->register_pass<ov::pass::SDPAReshapeFusion>();
     return symbolic_optimizations.run_on_model(model);
@@ -629,6 +631,197 @@ SDPAFusionMatcherSinks::SDPAFusionMatcherSinks() {
     };
 
     auto m = std::make_shared<Matcher>(qkv, "SDPAFusionMatcherSinks");
+    this->register_matcher(m, callback);
+}
+
+SDPASplitAttentionFusionMatcher::SDPASplitAttentionFusionMatcher() {
+    MATCHER_SCOPE(SDPASplitAttentionFusionMatcher);
+
+    // Match the "split-attention" pattern; see header documentation.
+    auto q_input = any_input();
+    auto k_cache_input = any_input();
+    auto k_new_input = any_input();
+    auto v_cache_input = any_input();
+    auto v_new_input = any_input();
+    auto mask_input = any_input();
+
+    auto qk_cache = wrap_type<v0::MatMul>({q_input, k_cache_input}, consumers_count(1));
+    auto qk_new = wrap_type<v0::MatMul>({q_input, k_new_input}, consumers_count(1));
+
+    auto scores_concat = wrap_type<v0::Concat>({qk_cache, qk_new}, consumers_count(1));
+    auto masked_scores = wrap_type<v1::Add>({scores_concat, mask_input}, consumers_count(1));
+    auto softmax = wrap_type<v8::Softmax>({masked_scores}, consumers_count(1));
+
+    auto split_axis = any_input();
+    auto split_sizes = any_input();
+    auto vsplit = wrap_type<v1::VariadicSplit>({softmax, split_axis, split_sizes});
+
+    // VariadicSplit has multiple outputs; the v0::MatMul wrap cannot easily express
+    // "use output 0/1 of vsplit", so the first MatMul input is matched as any_input and
+    // verified explicitly in the callback below.
+    auto attn_cache = wrap_type<v0::MatMul>({any_input(), v_cache_input});
+    auto attn_new = wrap_type<v0::MatMul>({any_input(), v_new_input});
+    auto output_add = wrap_type<v1::Add>({attn_cache, attn_new});
+
+    ov::matcher_pass_callback callback = [=](Matcher& m) {
+        if (transformation_callback(m.get_match_root())) {
+            return false;
+        }
+
+        auto add_node = ov::as_type_ptr<v1::Add>(m.get_match_root());
+        if (!add_node) {
+            return false;
+        }
+
+        auto matmul_cache = ov::as_type_ptr<v0::MatMul>(add_node->input_value(0).get_node_shared_ptr());
+        auto matmul_new = ov::as_type_ptr<v0::MatMul>(add_node->input_value(1).get_node_shared_ptr());
+        if (!matmul_cache || !matmul_new) {
+            return false;
+        }
+
+        // Both V matmuls' first input must come from the same VariadicSplit (output 0 and 1).
+        auto cache_src = matmul_cache->input_value(0);
+        auto new_src = matmul_new->input_value(0);
+        auto vsplit_node = ov::as_type_ptr<v1::VariadicSplit>(cache_src.get_node_shared_ptr());
+        if (!vsplit_node || vsplit_node != ov::as_type_ptr<v1::VariadicSplit>(new_src.get_node_shared_ptr())) {
+            return false;
+        }
+        if (cache_src.get_index() != 0 || new_src.get_index() != 1) {
+            return false;
+        }
+
+        auto softmax_node = ov::as_type_ptr<v8::Softmax>(vsplit_node->input_value(0).get_node_shared_ptr());
+        if (!softmax_node) {
+            return false;
+        }
+
+        // Softmax must be on the last axis.
+        auto sm_rank = softmax_node->get_output_partial_shape(0).rank();
+        if (sm_rank.is_dynamic()) {
+            return false;
+        }
+        auto sm_axis = softmax_node->get_axis();
+        if (sm_axis < 0) {
+            sm_axis += sm_rank.get_length();
+        }
+        if (sm_axis != sm_rank.get_length() - 1) {
+            return false;
+        }
+
+        auto mask_add_node = ov::as_type_ptr<v1::Add>(softmax_node->input_value(0).get_node_shared_ptr());
+        if (!mask_add_node) {
+            return false;
+        }
+
+        auto concat_node = ov::as_type_ptr<v0::Concat>(mask_add_node->input_value(0).get_node_shared_ptr());
+        if (!concat_node || concat_node->get_input_size() != 2) {
+            return false;
+        }
+        auto concat_rank = concat_node->get_output_partial_shape(0).rank();
+        if (concat_rank.is_dynamic()) {
+            return false;
+        }
+        auto concat_axis = concat_node->get_axis();
+        if (concat_axis < 0) {
+            concat_axis += concat_rank.get_length();
+        }
+        if (concat_axis != concat_rank.get_length() - 1) {
+            return false;
+        }
+
+        auto qk_cache_node = ov::as_type_ptr<v0::MatMul>(concat_node->input_value(0).get_node_shared_ptr());
+        auto qk_new_node = ov::as_type_ptr<v0::MatMul>(concat_node->input_value(1).get_node_shared_ptr());
+        if (!qk_cache_node || !qk_new_node) {
+            return false;
+        }
+
+        // Both QK matmuls must share the same Q and agree on transpose flags.
+        if (qk_cache_node->input_value(0) != qk_new_node->input_value(0)) {
+            return false;
+        }
+        if (qk_cache_node->get_transpose_a() || qk_new_node->get_transpose_a()) {
+            return false;
+        }
+        if (qk_cache_node->get_transpose_b() != qk_new_node->get_transpose_b()) {
+            return false;
+        }
+        if (matmul_cache->get_transpose_a() || matmul_new->get_transpose_a()) {
+            return false;
+        }
+        if (matmul_cache->get_transpose_b() != matmul_new->get_transpose_b()) {
+            return false;
+        }
+
+        auto Q = qk_cache_node->input_value(0);
+        auto K_cache = qk_cache_node->input_value(1);
+        auto K_new = qk_new_node->input_value(1);
+        auto V_cache = matmul_cache->input_value(1);
+        auto V_new = matmul_new->input_value(1);
+        auto mask_value = mask_add_node->input_value(1);
+
+        // Require static 4D ranks for predictable layout reasoning.
+        for (const auto& in : {Q, K_cache, K_new, V_cache, V_new}) {
+            const auto& ps = in.get_partial_shape();
+            if (ps.rank().is_dynamic() || ps.rank().get_length() != 4) {
+                return false;
+            }
+        }
+
+        // Interpret MatMul transpose flags as a physical-layout hint:
+        //   qk transpose_b == true; K stored as [B,H,S,D] (standard); MatMul performs Q ┬╖ K^T.
+        //   qk transpose_b == false; K stored as [B,H,D,S] (already K^T in memory).
+        //   attn transpose_b == true; V stored as [B,H,D,S]; MatMul performs probs ┬╖ V^T.
+        //   attn transpose_b == false; V stored as [B,H,S,D] (standard).
+        const bool k_is_transposed = !qk_cache_node->get_transpose_b();
+        const bool v_is_transposed = matmul_cache->get_transpose_b();
+
+        // Concat along the physical sequence axis of each input, then add an explicit
+        // Transpose to bring it to the [B,H,S,D] layout expected by v13::SDPA.
+        const int64_t k_concat_axis = k_is_transposed ? 3 : 2;
+        const int64_t v_concat_axis = v_is_transposed ? 3 : 2;
+
+        auto k_concat = std::make_shared<v0::Concat>(ov::OutputVector{K_cache, K_new}, k_concat_axis);
+        auto v_concat = std::make_shared<v0::Concat>(ov::OutputVector{V_cache, V_new}, v_concat_axis);
+
+        std::shared_ptr<ov::Node> k_input = k_concat;
+        std::shared_ptr<ov::Node> v_input = v_concat;
+
+        ov::NodeVector new_nodes{k_concat, v_concat};
+        auto add_transpose = [&new_nodes](std::shared_ptr<ov::Node>& target) {
+            auto perm = v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 1, 3, 2});
+            auto transpose = std::make_shared<v1::Transpose>(target, perm);
+            new_nodes.push_back(perm);
+            new_nodes.push_back(transpose);
+            target = transpose;
+        };
+        if (k_is_transposed) {
+            add_transpose(k_input);
+        }
+        if (v_is_transposed) {
+            add_transpose(v_input);
+        }
+
+        // Scale = 1.0: the matched pattern has no explicit scale node; any scaling is
+        // assumed to be baked into Q by the model (e.g. Gemma's query_pre_attn_scalar).
+        auto scale_const = v0::Constant::create(Q.get_element_type(), ov::Shape{}, {1.0f});
+        new_nodes.push_back(scale_const);
+
+        auto sdpa = std::make_shared<v13::ScaledDotProductAttention>(Q,
+                                                                     k_input,
+                                                                     v_input,
+                                                                     mask_value,
+                                                                     scale_const,
+                                                                     /*is_causal=*/false);
+        new_nodes.push_back(sdpa);
+
+        sdpa->set_friendly_name(add_node->get_friendly_name());
+        ov::copy_runtime_info(m.get_matched_nodes(), new_nodes);
+        ov::replace_node(add_node, sdpa);
+
+        return true;
+    };
+
+    auto m = std::make_shared<Matcher>(output_add, matcher_name);
     this->register_matcher(m, callback);
 }
 
