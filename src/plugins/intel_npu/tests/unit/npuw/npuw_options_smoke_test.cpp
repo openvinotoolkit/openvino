@@ -100,6 +100,7 @@ std::vector<Case> make_cases() {
         string_case<::intel_npu::NPUW_ONLINE_DUMP_PLAN>("NPUW_ONLINE_DUMP_PLAN", "/tmp/plan.xml", "/tmp/plan.xml"),
         string_case<::intel_npu::NPUW_PLAN>("NPUW_PLAN", "/tmp/plan.xml", "/tmp/plan.xml"),
         bool_case<::intel_npu::NPUW_FOLD>("NPUW_FOLD", "YES", true),
+        string_case<::intel_npu::NPUW_FOLD_ONLY>("NPUW_FOLD_ONLY", "attn,compute", "attn,compute"),
         bool_case<::intel_npu::NPUW_CWAI>("NPUW_CWAI", "YES", true),
         bool_case<::intel_npu::NPUW_DQ>("NPUW_DQ", "YES", true),
         bool_case<::intel_npu::NPUW_DQ_FULL>("NPUW_DQ_FULL", "NO", false),
