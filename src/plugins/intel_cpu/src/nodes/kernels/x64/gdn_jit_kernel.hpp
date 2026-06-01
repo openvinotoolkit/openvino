@@ -114,15 +114,15 @@ private:
 
     // Buffer-based helpers for qk_head_size > 128
     void l2norm_buffer_compute_scale_native_xf16(const Xbyak::Reg64& reg_buffer,
-                                                   const Xbyak::Xmm& xmm_eps,
-                                                   const Xbyak::Xmm& xmm_scale_out,
-                                                   int num_regs,
-                                                   int num_chunks);
+                                                 const Xbyak::Xmm& xmm_eps,
+                                                 const Xbyak::Xmm& xmm_scale_out,
+                                                 int num_regs,
+                                                 int num_chunks);
     void scale_buffer_native_xf16(const Xbyak::Reg64& reg_buffer,
-                                   const Xbyak::Xmm& xmm_scale,
-                                   Vmm* vmm_temp,
-                                   int num_regs,
-                                   int num_chunks);
+                                  const Xbyak::Xmm& xmm_scale,
+                                  Vmm* vmm_temp,
+                                  int num_regs,
+                                  int num_chunks);
 
     void reduce_zmm_f32_to_xmm_scalar(const Xbyak::Zmm& zmm_src,
                                       const Xbyak::Xmm& xmm_dst,

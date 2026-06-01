@@ -145,7 +145,10 @@ void jit_gdn_kernel<isa>::scale_vector_native_xf16(Vmm* vmm_array, const Xbyak::
             vmulps(v_aux1, v_aux1, v_aux2);
             vcvtneps2bf16(Xbyak::Ymm(x_tmp1.getIdx()), v_aux1);
 
-            vinsertf32x8(Xbyak::Zmm(vmm_array[i].getIdx()), Xbyak::Zmm(x_tmp0.getIdx()), Xbyak::Ymm(x_tmp1.getIdx()), 1);
+            vinsertf32x8(Xbyak::Zmm(vmm_array[i].getIdx()),
+                         Xbyak::Zmm(x_tmp0.getIdx()),
+                         Xbyak::Ymm(x_tmp1.getIdx()),
+                         1);
         }
         return;
     }
@@ -245,10 +248,10 @@ void jit_gdn_kernel<isa>::l2norm_inplace_native_xf16(Vmm* vmm_array, const Xbyak
 
 template <cpu_isa_t isa>
 void jit_gdn_kernel<isa>::l2norm_buffer_compute_scale_native_xf16(const Xbyak::Reg64& reg_buffer,
-                                                                    const Xbyak::Xmm& xmm_eps,
-                                                                    const Xbyak::Xmm& xmm_scale_out,
-                                                                    int num_regs,
-                                                                    int num_chunks) {
+                                                                  const Xbyak::Xmm& xmm_eps,
+                                                                  const Xbyak::Xmm& xmm_scale_out,
+                                                                  int num_regs,
+                                                                  int num_chunks) {
     // Compute L2 norm scale: 1/sqrt(sum(x^2) + eps)
     // Accumulates across all chunks from buffer, returns scale factor
     uni_vpxor(v_aux0, v_aux0, v_aux0);
@@ -298,10 +301,10 @@ void jit_gdn_kernel<isa>::l2norm_buffer_compute_scale_native_xf16(const Xbyak::R
 
 template <cpu_isa_t isa>
 void jit_gdn_kernel<isa>::scale_buffer_native_xf16(const Xbyak::Reg64& reg_buffer,
-                                                     const Xbyak::Xmm& xmm_scale,
-                                                     Vmm* vmm_temp,
-                                                     int num_regs,
-                                                     int num_chunks) {
+                                                   const Xbyak::Xmm& xmm_scale,
+                                                   Vmm* vmm_temp,
+                                                   int num_regs,
+                                                   int num_chunks) {
     // Scale all chunks of a buffer by a scalar
     for (int chunk = 0; chunk < num_chunks; chunk++) {
         const int chunk_start = chunk * MAX_REGS_PER_VEC;

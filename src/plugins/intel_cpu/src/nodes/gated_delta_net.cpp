@@ -6,7 +6,6 @@
 
 #include <common/utils.hpp>
 #include <cstddef>
-#include <cmath>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
@@ -25,8 +24,8 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/gated_delta_net.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
-#include "utils/plain_tensor.hpp"
 #include "utils/general_utils.h"
+#include "utils/plain_tensor.hpp"
 #if defined(OPENVINO_ARCH_X86_64)
 #    include "cpu_parallel.hpp"
 #    include "kernels/x64/gdn_jit_kernel.hpp"
@@ -58,9 +57,8 @@ struct GatedDeltaNetKey {
     }
 
     bool operator==(const GatedDeltaNetKey& rhs) const {
-        return precision == rhs.precision && qk_head_size == rhs.qk_head_size &&
-               fuse_qk_l2norm == rhs.fuse_qk_l2norm && q_l2_norm_eps == rhs.q_l2_norm_eps &&
-               k_l2_norm_eps == rhs.k_l2_norm_eps;
+        return precision == rhs.precision && qk_head_size == rhs.qk_head_size && fuse_qk_l2norm == rhs.fuse_qk_l2norm &&
+               q_l2_norm_eps == rhs.q_l2_norm_eps && k_l2_norm_eps == rhs.k_l2_norm_eps;
     }
 };
 
@@ -181,7 +179,7 @@ void GatedDeltaNet::initSupportedPrimitiveDescriptors() {
         (mayiuse(avx512_core_bf16) || mayiuse(avx512_core_fp16)) && headSize % 32 == 0) {
         implType = impl_desc_type::jit_avx512;
     }
-    
+
     std::vector<PortConfigurator> inPortConfigs;
     for (size_t i = 0; i < getParentEdges().size(); ++i) {
         inPortConfigs.emplace_back(LayoutType::ncsp, dataPrecision, getInputShapeAtPort(i), false, -1);
@@ -198,17 +196,17 @@ void GatedDeltaNet::createPrimitive() {
     auto headSize = *(queryDims.end() - 1);
     // if head_size is not multiple of 32, fallbacks to intrinsic kernel
     bool enableJit = ov::intel_cpu::any_of(precision, ov::element::f16, ov::element::bf16) &&
-                      (mayiuse(avx512_core_bf16) || mayiuse(avx512_core_fp16)) && headSize % 32 == 0;
+                     (mayiuse(avx512_core_bf16) || mayiuse(avx512_core_fp16)) && headSize % 32 == 0;
 #if defined(OPENVINO_ARCH_X86_64)
     if (enableJit) {
         GatedDeltaNetKey key{precision, headSize, m_fuse_qk_l2norm, m_q_l2_norm_eps, m_k_l2_norm_eps};
 
         auto builder = [&](const GatedDeltaNetKey& compile_key) -> std::shared_ptr<kernel::JitKernelBase> {
             return kernel::create_gdn_jit_kernel(compile_key.precision,
-                                                compile_key.qk_head_size,
-                                                compile_key.fuse_qk_l2norm,
-                                                compile_key.q_l2_norm_eps,
-                                                compile_key.k_l2_norm_eps);
+                                                 compile_key.qk_head_size,
+                                                 compile_key.fuse_qk_l2norm,
+                                                 compile_key.q_l2_norm_eps,
+                                                 compile_key.k_l2_norm_eps);
         };
 
         auto cache = context->getParamsCache();
