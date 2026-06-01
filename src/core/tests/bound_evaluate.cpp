@@ -9,6 +9,7 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/convert_like.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/util/framework_node.hpp"
 
@@ -85,4 +86,27 @@ TEST(BoundEvaluatorTest, no_exception_on_single_bound) {
     EXPECT_EQ(o_[0], 0);
     OV_ASSERT_NO_THROW(sub->evaluate_upper(output));
     EXPECT_EQ(o_[0], 10);
+}
+
+// ConvertLike must propagate value bounds (like its v0::Convert sibling), so that a
+// ConvertLike(ShapeOf(static), like) node yields a concrete bound during value propagation. Without it,
+// bounds-based shape inference (e.g. v8::Slice `stop`) leaves downstream shapes dynamic even when the
+// value is statically determinable.
+TEST(BoundEvaluatorTest, convert_like_propagates_bounds_from_shape_of) {
+    const auto data = std::make_shared<Parameter>(element::f32, PartialShape{1, 128, 4, 128});
+    const auto shape_of = std::make_shared<ShapeOf>(data);  // i64: [1, 128, 4, 128]
+    const auto like = Constant::create(element::i32, Shape{4}, {0, 0, 0, 0});
+    const auto convert_like = std::make_shared<op::v1::ConvertLike>(shape_of, like);
+
+    const auto bounds = ov::util::evaluate_both_bounds(convert_like);
+    ASSERT_TRUE(static_cast<bool>(bounds.first));
+    ASSERT_TRUE(static_cast<bool>(bounds.second));
+    EXPECT_EQ(bounds.first.get_element_type(), element::i32);
+    EXPECT_EQ(bounds.second.get_element_type(), element::i32);
+
+    const auto* lower = bounds.first.data<int32_t>();
+    const auto* upper = bounds.second.data<int32_t>();
+    const std::vector<int32_t> expected{1, 128, 4, 128};
+    EXPECT_EQ(std::vector<int32_t>(lower, lower + 4), expected);
+    EXPECT_EQ(std::vector<int32_t>(upper, upper + 4), expected);
 }

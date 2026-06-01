@@ -28,6 +28,9 @@ public:
 
     bool constant_fold(OutputVector& output_values, const OutputVector& input_values) override;
     bool can_constant_fold(const OutputVector& inputs_values) const override;
+    bool evaluate_lower(TensorVector& outputs) const override;
+    bool evaluate_upper(TensorVector& outputs) const override;
+    bool evaluate_symbol(TensorSymbolVector& output_symbols) const override;
 };
 }  // namespace v1
 }  // namespace op

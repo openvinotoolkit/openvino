@@ -46,6 +46,20 @@ bool ConvertLike::constant_fold(OutputVector& output_values, const OutputVector&
     return false;
 }
 
+bool ConvertLike::evaluate_lower(TensorVector& outputs) const {
+    // ConvertLike(data, like) is Convert(data, like.element_type); reuse Convert's bound evaluation so the
+    // value bounds propagate through this node (otherwise downstream bounds-based shape inference stalls).
+    return v0::Convert(input_value(0), get_output_element_type(0)).evaluate_lower(outputs);
+}
+
+bool ConvertLike::evaluate_upper(TensorVector& outputs) const {
+    return v0::Convert(input_value(0), get_output_element_type(0)).evaluate_upper(outputs);
+}
+
+bool ConvertLike::evaluate_symbol(TensorSymbolVector& output_symbols) const {
+    return v0::Convert(input_value(0), get_output_element_type(0)).evaluate_symbol(output_symbols);
+}
+
 }  // namespace v1
 }  // namespace op
 }  // namespace ov
