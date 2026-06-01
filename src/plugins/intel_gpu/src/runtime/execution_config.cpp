@@ -30,6 +30,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/weightless_properties_utils.hpp"
 #include "ov_ops/dynamic_quantize.hpp"
+#include "intel_gpu/op/moe_3gemm_fused_compressed.hpp"
 #include "ov_ops/rms.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -217,6 +218,16 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
         // Onednn only support on Gen12 (XeLP) and later architectures
         if ((ov::is_type<ov::op::v5::LSTMSequence>(op) || ov::is_type<ov::op::v5::GRUSequence>(op)) &&
             info.arch >= cldnn::gpu_arch::xe_lp) {
+            m_use_onednn = true;
+        }
+
+        // MOE3GemmFusedCompressed uses oneDNN GEMMs internally and requires an
+        // in-order queue.  The transformation pass is already gated on
+        // get_use_onednn() (see transformations_pipeline.cpp), but the genai
+        // modeling layer can construct this op directly in the graph, bypassing
+        // the transformation pipeline.  Detect it here so oneDNN (and thus the
+        // in-order queue) is enabled regardless of how the op was created.
+        if (ov::is_type<ov::intel_gpu::op::MOE3GemmFusedCompressed>(op)) {
             m_use_onednn = true;
         }
 
