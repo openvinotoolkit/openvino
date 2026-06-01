@@ -30,7 +30,7 @@
 #include "openvino/core/log.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
-#include "properties.hpp"
+#include "plugin_property_manager.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "zero_backend.hpp"
 
@@ -49,7 +49,7 @@ protected:
     std::shared_ptr<::intel_npu::OptionsDesc> options = std::make_shared<::intel_npu::OptionsDesc>();
     ::intel_npu::FilteredConfig npu_config = ::intel_npu::FilteredConfig(options);
     ov::SoPtr<::intel_npu::IEngineBackend> backend;
-    std::unique_ptr<::intel_npu::Properties> propertiesManager;
+    std::unique_ptr<::intel_npu::PluginPropertyManager> propertiesManager;
 
     std::string configuration;
     std::string targetDevice;
@@ -181,7 +181,8 @@ public:
             }
         }
 
-        propertiesManager = std::make_unique<Properties>(PropertiesType::PLUGIN, npu_config, metrics, backend);
+        propertiesManager =
+            std::make_unique<PluginPropertyManager>(npu_config, metrics, backend, ::intel_npu::Logger::global());
     }
 
     void TearDown() override {
