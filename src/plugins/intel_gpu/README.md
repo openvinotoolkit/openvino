@@ -63,7 +63,7 @@ This contents explain the internal implementation of dynamic shape support in th
 * [OpenCL Runtime issues troubleshooting](./docs/gpu_plugin_driver_troubleshooting.md)
 
 ## Blog posting
-* [INT4 KV Cache Compression for LLM Inference on Intel GPU: New in OpenVINO 2026.2](./docs/blog/int4_kv_cache_blog.md)
+* [INT4 KV Cache Compression for LLM Inference on Intel GPU: New in OpenVINO 2026.2](./docs/blog/int4_kv_cache_support_in_2026_2.md)
 
 ## Attached licenses
 
