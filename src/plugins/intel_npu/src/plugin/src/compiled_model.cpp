@@ -9,6 +9,7 @@
 #include <string_view>
 
 #include "async_infer_request.hpp"
+#include "compiled_model_property_manager.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/options.hpp"
@@ -46,7 +47,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     }
 
     OV_ITT_TASK_CHAIN(COMPILED_MODEL, itt::domains::NPUPlugin, "CompiledModel::CompiledModel", "initialize_properties");
-    _propertiesManager = std::make_unique<Properties>(PropertiesType::COMPILED_MODEL, localConfig);
+    _propertiesManager = std::make_unique<CompiledModelPropertyManager>(localConfig, _graph, _batchSize, _logger);
 
     configure_stream_executors();
 
@@ -221,43 +222,6 @@ void CompiledModel::set_property(const ov::AnyMap& properties) {
 }
 
 ov::Any CompiledModel::get_property(const std::string& name) const {
-    // special cases
-    if (name == ov::model_name.name()) {
-        OPENVINO_ASSERT(_graph != nullptr, "Missing graph");
-        return _graph->get_metadata().name;
-    } else if (name == ov::runtime_requirements.name()) {
-        // Reading the (dummy) property content to check if it is supported
-        _propertiesManager->getProperty(name);
-
-        auto compatibilityDescriptor = _graph->get_compatibility_descriptor();
-        if (compatibilityDescriptor.has_value()) {
-            const auto descriptorView = compatibilityDescriptor.value();
-            _logger.debug("Runtime requirements from the graph %.*s length: %zu",
-                          static_cast<int>(descriptorView.size()),
-                          descriptorView.data(),
-                          descriptorView.size());
-        }
-
-        std::ostringstream requirementsString;
-        Metadata<CURRENT_METADATA_VERSION>(
-            0,  // no real blob
-            CURRENT_OPENVINO_VERSION,
-            std::nullopt,  // weightless blobs are not supported
-            _batchSize,
-            std::nullopt,  // input_layouts are not relevant for the compatibility check
-            std::nullopt,  // output_layouts are not relevant for the compatibility check
-            std::nullopt,  // skip compiler version as well since it is already included in runtime requirements string
-            std::nullopt,  // skip encrypted blob size since it is not relevant for the compatibility check
-            compatibilityDescriptor)
-            .write_as_text(requirementsString);
-        _logger.debug("Runtime requirements string: %s length: %zu",
-                      requirementsString.str().c_str(),
-                      requirementsString.str().length());
-
-        return requirementsString.str();
-    }
-
-    // default behaviour
     return _propertiesManager->getProperty(name);
 }
 
