@@ -107,24 +107,24 @@ bool is_acl_int8_avg_pool_lpt_skipped(const std::shared_ptr<const ov::Node>& nod
                                       const std::vector<ov::element::Type>& defaultPrecisions) {
     const auto avg_pool = ov::as_type_ptr<const ov::op::util::AvgPoolBase>(node);
     if (!avg_pool) {
-        return false;
+        return true;
     }
 
     const auto& input_pshape = avg_pool->get_input_partial_shape(0);
     const auto input_rank = input_pshape.rank();
     if (input_rank.is_dynamic() || input_rank.get_length() == 5) {
-        return false;
+        return true;
     }
 
     const auto dequantization = ov::pass::low_precision::NetworkHelper::getDequantization(avg_pool, defaultPrecisions);
     if (dequantization.empty() ||
         !any_of(dequantization.data.get_element_type(), ov::element::Type_t::u8, ov::element::Type_t::i8)) {
-        return false;
+        return true;
     }
 
     // ACL rejects NCHW AvgPool with CEIL rounding in the executor wrapper.
     if (avg_pool->get_rounding_type() == op::RoundingType::CEIL) {
-        return false;
+        return true;
     }
 
     const auto& consumers = avg_pool->output(0).get_target_inputs();
