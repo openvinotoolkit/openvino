@@ -12,8 +12,10 @@ bool ov::pass::ConvertLegacyPrecisionAttribute::run_on_model(const std::shared_p
     RUN_ON_MODEL_SCOPE(ConvertLegacyPrecisionAttribute);
     bool changed = false;
     for (const auto& node : model->get_ordered_ops()) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         if (node->get_rt_info().count(DisableFP16Compression::get_type_info_static())) {
             node->get_rt_info().erase(DisableFP16Compression::get_type_info_static());  // remove legacy attribute
+            OPENVINO_SUPPRESS_DEPRECATED_END
             disable_conversion(node, element::f16);
             changed = true;
         }

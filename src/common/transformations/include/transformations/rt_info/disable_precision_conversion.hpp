@@ -26,8 +26,11 @@ TRANSFORMATIONS_API void do_not_postpone_fp16_compression(RTMap& rt_info);
  * @brief DisableFP16Compression class represents runtime info attribute that marks operation
  * as prohibited to convert to lower precision (e.g. to FP16) and they should be inferred precisely in the original
  * precision.
+ * @deprecated Use disable_conversion(node, element::f16) and is_conversion_disabled(node, element::f16) instead.
  */
-class TRANSFORMATIONS_API DisableFP16Compression : public RuntimeAttribute {
+class TRANSFORMATIONS_API
+    __attribute__((deprecated("Use disable_conversion(node, element::f16) instead")))
+    DisableFP16Compression : public RuntimeAttribute {
 public:
     OPENVINO_RTTI("precise", "0", RuntimeAttribute);
 

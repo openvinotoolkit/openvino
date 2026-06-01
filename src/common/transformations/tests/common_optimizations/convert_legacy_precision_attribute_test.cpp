@@ -17,6 +17,8 @@
 #include "openvino/pass/manager.hpp"
 #include "transformations/rt_info/disable_precision_conversion.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 namespace ov::test {
 
 TEST(ConvertLegacyPrecisionAttributeTest, basic_migration) {
@@ -98,3 +100,5 @@ TEST(ConvertLegacyPrecisionAttributeTest, multiple_nodes) {
 }
 
 }  // namespace ov::test
+
+OPENVINO_SUPPRESS_DEPRECATED_END
