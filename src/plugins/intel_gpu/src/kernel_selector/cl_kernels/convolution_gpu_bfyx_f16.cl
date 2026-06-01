@@ -72,6 +72,7 @@ KERNEL(convolution_bfyx_f16)(
     int groups_per_sub_group = 1;
     if (prev_group_leftover < 16)
         groups_per_sub_group += ((FEATURE_SLICE_SIZE - prev_group_leftover - 1) / FILTER_OFM_NUM) + 1;
+    const uint my_group = group + (sglid / FILTER_OFM_NUM);
 #else
     const int group = 0;
     const int groups_per_sub_group = 1;
@@ -158,8 +159,6 @@ KERNEL(convolution_bfyx_f16)(
 #if GROUPED
     for (uint g = group; g < group + groups_per_sub_group; g++) {
         const uint my_group = group + (sglid / FILTER_OFM_NUM);
-        if (groups_per_sub_group > 1 && g != my_group)
-            continue;
         const uint in_split_offset = g * input_fs_pitch * (FILTER_IFM_NUM / FEATURE_SLICE_SIZE);
         const uint filter_split_offset = g * FILTER_GROUPS_PITCH;
         const uint filter_offset = (feature_block % (FILTER_OFM_NUM / FEATURE_SLICE_SIZE)) * filter_os_pitch;
@@ -306,7 +305,34 @@ KERNEL(convolution_bfyx_f16)(
                                                                     icb * filter_is_pitch +
                                                                     kh * filter_y_pitch +
                                                                     kw * filter_x_pitch +
-                                                                    8 * filter_isv_pitch);
+                                                                   8 * filter_isv_pitch);
+#if GROUPED
+                    if (groups_per_sub_group > 1) {
+                            uint correct_lane = sglid % FILTER_OFM_NUM;
+                            wei0.s0 = sub_group_shuffle(wei0.s0, correct_lane);
+                            wei0.s1 = sub_group_shuffle(wei0.s1, correct_lane);
+                            wei0.s2 = sub_group_shuffle(wei0.s2, correct_lane);
+                            wei0.s3 = sub_group_shuffle(wei0.s3, correct_lane);
+                            wei0.s4 = sub_group_shuffle(wei0.s4, correct_lane);
+                            wei0.s5 = sub_group_shuffle(wei0.s5, correct_lane);
+                            wei0.s6 = sub_group_shuffle(wei0.s6, correct_lane);
+                            wei0.s7 = sub_group_shuffle(wei0.s7, correct_lane);
+                            wei1.s0 = sub_group_shuffle(wei1.s0, correct_lane);
+                            wei1.s1 = sub_group_shuffle(wei1.s1, correct_lane);
+                            wei1.s2 = sub_group_shuffle(wei1.s2, correct_lane);
+                            wei1.s3 = sub_group_shuffle(wei1.s3, correct_lane);
+                            wei1.s4 = sub_group_shuffle(wei1.s4, correct_lane);
+                            wei1.s5 = sub_group_shuffle(wei1.s5, correct_lane);
+                            wei1.s6 = sub_group_shuffle(wei1.s6, correct_lane);
+                            wei1.s7 = sub_group_shuffle(wei1.s7, correct_lane);
+
+                            // Zero weights for lanes not in this group
+                            if (g != my_group) {
+                                wei0 = (FILTER_TYPE8)(0);
+                                wei1 = (FILTER_TYPE8)(0);
+                            }
+                    }
+#endif
                     const vec_t src0  = GET_SRC(src, 0);
                     const vec_t src1  = GET_SRC(src, 1);
                     const vec_t src2  = GET_SRC(src, 2);
