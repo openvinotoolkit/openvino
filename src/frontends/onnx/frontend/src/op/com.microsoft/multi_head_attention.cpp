@@ -51,7 +51,7 @@ using ov::frontend::onnx::attention::get_dimensions;
 // Reshape 3D input (batch, seq, num_heads * head_size) to 4D (batch, num_heads, seq, head_size)
 ov::Output<ov::Node> reshape_3d_to_4d(const ov::Output<ov::Node>& input, int64_t num_heads) {
     // Reshape to (batch, seq, num_heads, head_size)
-    auto reshape_pattern = v0::Constant::create(ov::element::i64, ov::Shape{4}, {0ll, 0ll, num_heads, -1ll});
+    auto reshape_pattern = v0::Constant::create<int64_t>(ov::element::i64, ov::Shape{4}, {0, 0, num_heads, -1});
     auto reshaped = std::make_shared<v1::Reshape>(input, reshape_pattern, true);
     // Transpose to (batch, num_heads, seq, head_size)
     auto perm = v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3});
@@ -90,7 +90,7 @@ OutputVector split_bias(const Output<ov::Node>& bias,
     auto variadic_split = std::make_shared<v1::VariadicSplit>(bias, axis_node, split_lengths_node);
 
     auto outputs = variadic_split->outputs();
-    auto reshape_pattern = v0::Constant::create(ov::element::i64, ov::Shape{4}, {1ll, num_heads, 1ll, -1ll});
+    auto reshape_pattern = v0::Constant::create<int64_t>(ov::element::i64, ov::Shape{4}, {1, num_heads, 1, -1});
     outputs[0] = std::make_shared<v1::Reshape>(outputs[0], reshape_pattern, false);
     outputs[1] = std::make_shared<v1::Reshape>(outputs[1], reshape_pattern, false);
     outputs[2] = std::make_shared<v1::Reshape>(outputs[2], reshape_pattern, false);
