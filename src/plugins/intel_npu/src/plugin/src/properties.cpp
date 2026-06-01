@@ -10,6 +10,7 @@
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
+#include "property_registration.hpp"
 
 namespace {
 
@@ -168,34 +169,36 @@ namespace intel_npu {
  * @note The macro ensures that compiled model properties are marked read-only unless the configuration lacks the
  * specified option type.
  */
-#define TRY_REGISTER_SIMPLE_PROPERTY(OPT_NAME, OPT_TYPE)                                                \
-    do {                                                                                                \
-        std::string o_name = OPT_NAME.name();                                                           \
-        if (_config.isAvailable(o_name)) {                                                              \
-            bool isPublic = _config.getOpt(o_name).isPublic();                                          \
-            ov::PropertyMutability isMutable = _config.getOpt(o_name).mutability();                     \
-            if (_pType == PropertiesType::COMPILED_MODEL) {                                             \
-                isMutable = ov::PropertyMutability::RO;                                                 \
-            }                                                                                           \
-            _properties.emplace(o_name, std::make_tuple(isPublic, isMutable, [](const Config& config) { \
-                                    return config.get<OPT_TYPE>();                                      \
-                                }));                                                                    \
-        }                                                                                               \
+#define TRY_REGISTER_SIMPLE_PROPERTY(OPT_NAME, OPT_TYPE)                                                    \
+    do {                                                                                                    \
+        std::string o_name = OPT_NAME.name();                                                               \
+        if (_config.isAvailable(o_name)) {                                                                  \
+            bool isPublic = _config.getOpt(o_name).isPublic();                                              \
+            ov::PropertyMutability isMutable = _config.getOpt(o_name).mutability();                         \
+            if (_pType == PropertiesType::COMPILED_MODEL) {                                                 \
+                isMutable = ov::PropertyMutability::RO;                                                     \
+            }                                                                                               \
+            _properties.emplace(o_name,                                                                     \
+                                make_property_descriptor(isPublic, isMutable, [](const Config& config) {   \
+                                    return config.get<OPT_TYPE>();                                          \
+                                }));                                                                        \
+        }                                                                                                   \
     } while (0)
 
-#define TRY_REGISTER_NPUW_OPTION_PROPERTY(OPT_TYPE)                                                     \
-    do {                                                                                                \
-        std::string o_name = std::string(OPT_TYPE::key());                                              \
-        if (_config.isAvailable(o_name)) {                                                              \
-            bool isPublic = _config.getOpt(o_name).isPublic();                                          \
-            ov::PropertyMutability isMutable = _config.getOpt(o_name).mutability();                     \
-            if (_pType == PropertiesType::COMPILED_MODEL) {                                             \
-                isMutable = ov::PropertyMutability::RO;                                                 \
-            }                                                                                           \
-            _properties.emplace(o_name, std::make_tuple(isPublic, isMutable, [](const Config& config) { \
-                                    return config.get<OPT_TYPE>();                                      \
-                                }));                                                                    \
-        }                                                                                               \
+#define TRY_REGISTER_NPUW_OPTION_PROPERTY(OPT_TYPE)                                                         \
+    do {                                                                                                    \
+        std::string o_name = std::string(OPT_TYPE::key());                                                 \
+        if (_config.isAvailable(o_name)) {                                                                  \
+            bool isPublic = _config.getOpt(o_name).isPublic();                                              \
+            ov::PropertyMutability isMutable = _config.getOpt(o_name).mutability();                         \
+            if (_pType == PropertiesType::COMPILED_MODEL) {                                                 \
+                isMutable = ov::PropertyMutability::RO;                                                     \
+            }                                                                                               \
+            _properties.emplace(o_name,                                                                     \
+                                make_property_descriptor(isPublic, isMutable, [](const Config& config) {   \
+                                    return config.get<OPT_TYPE>();                                          \
+                                }));                                                                        \
+        }                                                                                                   \
     } while (0)
 
 /**
@@ -228,23 +231,24 @@ namespace intel_npu {
  * specified option type.
  * @note ***** TO BE USED FOR COMPILED_MODEL ONLY ***** It forces the property public!
  */
-#define TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(OPT_NAME, OPT_TYPE)                                   \
-    do {                                                                                                \
-        std::string o_name = OPT_NAME.name();                                                           \
-        if (!_config.has(o_name)) {                                                                     \
-            break;                                                                                      \
-        }                                                                                               \
-        if (_config.isAvailable(o_name)) {                                                              \
-            bool isPublic = _config.getOpt(o_name).isPublic();                                          \
-            ov::PropertyMutability isMutable = _config.getOpt(o_name).mutability();                     \
-            if (_pType == PropertiesType::COMPILED_MODEL) {                                             \
-                isMutable = ov::PropertyMutability::RO;                                                 \
-                isPublic = true;                                                                        \
-            }                                                                                           \
-            _properties.emplace(o_name, std::make_tuple(isPublic, isMutable, [](const Config& config) { \
-                                    return config.get<OPT_TYPE>();                                      \
-                                }));                                                                    \
-        }                                                                                               \
+#define TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(OPT_NAME, OPT_TYPE)                                       \
+    do {                                                                                                    \
+        std::string o_name = OPT_NAME.name();                                                               \
+        if (!_config.has(o_name)) {                                                                         \
+            break;                                                                                          \
+        }                                                                                                   \
+        if (_config.isAvailable(o_name)) {                                                                  \
+            bool isPublic = _config.getOpt(o_name).isPublic();                                              \
+            ov::PropertyMutability isMutable = _config.getOpt(o_name).mutability();                         \
+            if (_pType == PropertiesType::COMPILED_MODEL) {                                                 \
+                isMutable = ov::PropertyMutability::RO;                                                     \
+                isPublic = true;                                                                            \
+            }                                                                                               \
+            _properties.emplace(o_name,                                                                     \
+                                make_property_descriptor(isPublic, isMutable, [](const Config& config) {   \
+                                    return config.get<OPT_TYPE>();                                          \
+                                }));                                                                        \
+        }                                                                                                   \
     } while (0)
 
 /**
@@ -261,18 +265,20 @@ namespace intel_npu {
  * @details
  * @see TRY_REGISTER_SIMPLE_PROPERTY
  */
-#define TRY_REGISTER_VARPUB_PROPERTY(OPT_NAME, OPT_TYPE, PROP_VISIBILITY)                                      \
-    do {                                                                                                       \
-        std::string o_name = OPT_NAME.name();                                                                  \
-        if (_config.isAvailable(o_name)) {                                                                     \
-            ov::PropertyMutability isMutable = _config.getOpt(o_name).mutability();                            \
-            if (_pType == PropertiesType::COMPILED_MODEL) {                                                    \
-                isMutable = ov::PropertyMutability::RO;                                                        \
-            }                                                                                                  \
-            _properties.emplace(o_name, std::make_tuple(PROP_VISIBILITY, isMutable, [](const Config& config) { \
-                                    return config.get<OPT_TYPE>();                                             \
-                                }));                                                                           \
-        }                                                                                                      \
+#define TRY_REGISTER_VARPUB_PROPERTY(OPT_NAME, OPT_TYPE, PROP_VISIBILITY)                          \
+    do {                                                                                           \
+        std::string o_name = OPT_NAME.name();                                                      \
+        if (_config.isAvailable(o_name)) {                                                         \
+            ov::PropertyMutability isMutable = _config.getOpt(o_name).mutability();                \
+            if (_pType == PropertiesType::COMPILED_MODEL) {                                        \
+                isMutable = ov::PropertyMutability::RO;                                            \
+            }                                                                                       \
+            _properties.emplace(o_name,                                                             \
+                                make_property_descriptor(PROP_VISIBILITY, isMutable,                \
+                                                         [](const Config& config) {                 \
+                                                             return config.get<OPT_TYPE>();         \
+                                                         }));                                        \
+        }                                                                                           \
     } while (0)
 
 /**
@@ -288,17 +294,17 @@ namespace intel_npu {
  * @details
  * @see TRY_REGISTER_SIMPLE_PROPERTY
  */
-#define TRY_REGISTER_CUSTOMFUNC_PROPERTY(OPT_NAME, OPT_TYPE, PROP_RETFUNC)                   \
-    do {                                                                                     \
-        std::string o_name = OPT_NAME.name();                                                \
-        if (_config.isAvailable(o_name)) {                                                   \
-            bool isPublic = _config.getOpt(o_name).isPublic();                               \
-            ov::PropertyMutability isMutable = _config.getOpt(o_name).mutability();          \
-            if (_pType == PropertiesType::COMPILED_MODEL) {                                  \
-                isMutable = ov::PropertyMutability::RO;                                      \
-            }                                                                                \
-            _properties.emplace(o_name, std::make_tuple(isPublic, isMutable, PROP_RETFUNC)); \
-        }                                                                                    \
+#define TRY_REGISTER_CUSTOMFUNC_PROPERTY(OPT_NAME, OPT_TYPE, PROP_RETFUNC)                       \
+    do {                                                                                         \
+        std::string o_name = OPT_NAME.name();                                                    \
+        if (_config.isAvailable(o_name)) {                                                       \
+            bool isPublic = _config.getOpt(o_name).isPublic();                                   \
+            ov::PropertyMutability isMutable = _config.getOpt(o_name).mutability();              \
+            if (_pType == PropertiesType::COMPILED_MODEL) {                                      \
+                isMutable = ov::PropertyMutability::RO;                                          \
+            }                                                                                     \
+            _properties.emplace(o_name, make_property_descriptor(isPublic, isMutable, PROP_RETFUNC)); \
+        }                                                                                         \
     } while (0)
 
 /**
@@ -322,12 +328,13 @@ namespace intel_npu {
  * @note This macro does not offer any compiled-model specific checks, such as
  * if the config options this property maps to has actual value, nor it enforces RO, like previous macros.
  */
-#define TRY_REGISTER_CUSTOM_PROPERTY(OPT_NAME, OPT_TYPE, PROP_VISIBILITY, PROP_MUTABILITY, PROP_RETFUNC)  \
-    do {                                                                                                  \
-        std::string o_name = OPT_NAME.name();                                                             \
-        if (_config.isAvailable(o_name)) {                                                                \
-            _properties.emplace(o_name, std::make_tuple(PROP_VISIBILITY, PROP_MUTABILITY, PROP_RETFUNC)); \
-        }                                                                                                 \
+#define TRY_REGISTER_CUSTOM_PROPERTY(OPT_NAME, OPT_TYPE, PROP_VISIBILITY, PROP_MUTABILITY, PROP_RETFUNC) \
+    do {                                                                                                 \
+        std::string o_name = OPT_NAME.name();                                                            \
+        if (_config.isAvailable(o_name)) {                                                               \
+            _properties.emplace(o_name,                                                                   \
+                                make_property_descriptor(PROP_VISIBILITY, PROP_MUTABILITY, PROP_RETFUNC)); \
+        }                                                                                                \
     } while (0)
 
 /**
@@ -348,9 +355,10 @@ namespace intel_npu {
  * @note This macro does not offer any compiled-model specific checks, such as
  * if the config options this property maps to has actual value, nor it enforces RO, like previous macros.
  */
-#define FORCE_REGISTER_CUSTOM_PROPERTY(OPT_NAME, OPT_TYPE, PROP_VISIBILITY, PROP_MUTABILITY, PROP_RETFUNC)     \
-    do {                                                                                                       \
-        _properties.emplace(OPT_NAME.name(), std::make_tuple(PROP_VISIBILITY, PROP_MUTABILITY, PROP_RETFUNC)); \
+#define FORCE_REGISTER_CUSTOM_PROPERTY(OPT_NAME, OPT_TYPE, PROP_VISIBILITY, PROP_MUTABILITY, PROP_RETFUNC) \
+    do {                                                                                                   \
+        _properties.emplace(OPT_NAME.name(),                                                               \
+                            make_property_descriptor(PROP_VISIBILITY, PROP_MUTABILITY, PROP_RETFUNC));    \
     } while (0)
 
 /**
@@ -371,13 +379,12 @@ namespace intel_npu {
  *
  * @note This macro does not offer any compiled-model specific checks
  */
-#define REGISTER_SIMPLE_METRIC(PROP_NAME, PROP_VISIBILITY, PROP_RETVAL)                                      \
-    do {                                                                                                     \
-        _properties.emplace(                                                                                 \
-            PROP_NAME.name(),                                                                                \
-            std::make_tuple(PROP_VISIBILITY, ov::PropertyMutability::RO, [&](const Config& config) -> auto { \
-                return PROP_RETVAL;                                                                          \
-            }));                                                                                             \
+#define REGISTER_SIMPLE_METRIC(PROP_NAME, PROP_VISIBILITY, PROP_RETVAL)                                 \
+    do {                                                                                                \
+        _properties.emplace(                                                                            \
+            PROP_NAME.name(),                                                                           \
+            make_property_descriptor(PROP_VISIBILITY, ov::PropertyMutability::RO,                       \
+                                     [&](const Config& config) -> auto { return PROP_RETVAL; }));      \
     } while (0)
 
 /**
@@ -397,10 +404,11 @@ namespace intel_npu {
  * @note This macro does not offer any compiled-model specific checks
  */
 // Macro for defining metrics with custom return function
-#define REGISTER_CUSTOM_METRIC(PROP_NAME, PROP_VISIBILITY, PROP_RETFUNC)                                 \
-    do {                                                                                                 \
-        _properties.emplace(PROP_NAME.name(),                                                            \
-                            std::make_tuple(PROP_VISIBILITY, ov::PropertyMutability::RO, PROP_RETFUNC)); \
+#define REGISTER_CUSTOM_METRIC(PROP_NAME, PROP_VISIBILITY, PROP_RETFUNC)                           \
+    do {                                                                                            \
+        _properties.emplace(PROP_NAME.name(),                                                       \
+                            make_property_descriptor(PROP_VISIBILITY, ov::PropertyMutability::RO,  \
+                                                     PROP_RETFUNC));                                \
     } while (0)
 
 // Local helper function for appending platform name to the config
@@ -502,8 +510,8 @@ void Properties::registerProperties() {
     // 3. Populate supported properties list
     // ========
     for (auto& property : _properties) {
-        if (std::get<0>(property.second)) {
-            _supportedProperties.emplace_back(ov::PropertyName(property.first, std::get<1>(property.second)));
+        if (property.second.isPublic) {
+            _supportedProperties.emplace_back(ov::PropertyName(property.first, property.second.mutability));
         }
     }
 }
@@ -937,12 +945,12 @@ ov::Any Properties::getProperty(const std::string& name) {
 
     auto&& configIterator = _properties.find(name);
     if (configIterator != _properties.cend()) {
-        if (std::get<1>(configIterator->second) == ov::PropertyMutability::WO) {
+        if (configIterator->second.mutability == ov::PropertyMutability::WO) {
             _logger.warning("Trying to get WRITE-ONLY property: %s. Returning empty `ov::Any` object",
                             name.c_str());  // throw OV exception instead
             return ov::Any();
         }
-        return std::get<2>(configIterator->second)(_config);
+        return configIterator->second.get(_config);
     }
     try {
         return _config.getInternal(name);
@@ -1030,7 +1038,7 @@ void Properties::setProperty(const ov::AnyMap& properties) {
                 OPENVINO_THROW("Unsupported configuration key: ", value.first);
             }
         } else {
-            if (std::get<1>(_properties[value.first]) == ov::PropertyMutability::RO) {
+            if (_properties[value.first].mutability == ov::PropertyMutability::RO) {
                 OPENVINO_THROW("READ-ONLY configuration key: ", value.first);
             } else if (value.first == ov::cache_encryption_callbacks.name()) {
                 special_cfgs_to_set.emplace(value.first, value.second);

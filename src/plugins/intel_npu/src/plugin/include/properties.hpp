@@ -8,6 +8,7 @@
 #include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "metrics.hpp"
+#include "property_registration.hpp"
 
 namespace intel_npu {
 
@@ -86,8 +87,7 @@ private:
         std::string currentlyUsedPlatform;
         bool compilerConfigsFilteredByCompiler;
         bool compatibilityCheckFiltered;
-        std::map<std::string, std::tuple<bool, ov::PropertyMutability, std::function<ov::Any(const Config&)>>>
-            properties;
+        std::map<std::string, PropertyDescriptor> properties;
         std::vector<ov::PropertyName> supportedProperties;
     };
 
@@ -108,8 +108,7 @@ private:
     // Boolean to signal that compatibility check was already filtered by compiler support
     bool _compatibilityCheckFiltered = false;
 
-    // properties map: {name -> [supported, mutable, eval function]}
-    std::map<std::string, std::tuple<bool, ov::PropertyMutability, std::function<ov::Any(const Config&)>>> _properties;
+    std::map<std::string, PropertyDescriptor> _properties;
     std::vector<ov::PropertyName> _supportedProperties;
 
     // The compatibility_check property is supported only in case at least one of the compilers (CID or CIP) supports it
