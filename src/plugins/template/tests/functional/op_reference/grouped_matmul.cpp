@@ -183,6 +183,46 @@ std::vector<GroupedMatMulParams> generateParams() {
         std::vector<T>{1, 0, 0, 2, 2, 2, 6, 6},                            // expected
         "2D_3D_3experts_varying_tokens" + type_suffix));
 
+    // Case: 2D × 2D - 2 groups, equal split (2 tokens each)
+    // mat_a: [K=2, total_tokens=4] = [[1,2,3,4],[5,6,7,8]]
+    // mat_b: [N=2, total_tokens=4] = [[1,2,3,4],[5,6,7,8]]  (stored transposed)
+    // offsets: [2, 4]  ->  group 0: tokens 0:2,  group 1: tokens 2:4
+    //
+    // Group 0: mat_a[:,0:2] @ mat_b[:,0:2].T = [[1,2],[5,6]] @ [[1,5],[2,6]] = [[5,17],[17,61]]
+    // Group 1: mat_a[:,2:4] @ mat_b[:,2:4].T = [[3,4],[7,8]] @ [[3,7],[4,8]] = [[25,53],[53,113]]
+    params.push_back(GroupedMatMulParams(
+        Shape{2, 4},                                                       // mat_a: (K=2, total_tokens=4)
+        Shape{2, 4},                                                       // mat_b: (N=2, total_tokens=4)
+        Shape{2},                                                          // offsets: [2, 4]
+        Shape{2, 2, 2},                                                    // output: (G=2, K=2, N=2)
+        ET,
+        element::i32,
+        std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8},                            // mat_a
+        std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8},                            // mat_b
+        std::vector<int32_t>{2, 4},                                        // offsets
+        std::vector<T>{5, 17, 17, 61, 25, 53, 53, 113},                    // expected
+        "2D_2D_2groups_equal_split" + type_suffix));
+
+    // Case: 2D × 2D - 2 groups, unequal split (1 + 2 tokens)
+    // mat_a: [K=2, total_tokens=3] = [[1,2,3],[4,5,6]]
+    // mat_b: [N=2, total_tokens=3] = [[1,2,3],[4,5,6]]  (stored transposed)
+    // offsets: [1, 3]  ->  group 0: tokens 0:1,  group 1: tokens 1:3
+    //
+    // Group 0: [[1],[4]] @ [[1,4]] = [[1,4],[4,16]]
+    // Group 1: [[2,3],[5,6]] @ [[2,5],[3,6]] = [[13,28],[28,61]]
+    params.push_back(GroupedMatMulParams(
+        Shape{2, 3},                                                       // mat_a: (K=2, total_tokens=3)
+        Shape{2, 3},                                                       // mat_b: (N=2, total_tokens=3)
+        Shape{2},                                                          // offsets: [1, 3]
+        Shape{2, 2, 2},                                                    // output: (G=2, K=2, N=2)
+        ET,
+        element::i32,
+        std::vector<T>{1, 2, 3, 4, 5, 6},                                  // mat_a
+        std::vector<T>{1, 2, 3, 4, 5, 6},                                  // mat_b
+        std::vector<int32_t>{1, 3},                                        // offsets
+        std::vector<T>{1, 4, 4, 16, 13, 28, 28, 61},                       // expected
+        "2D_2D_2groups_unequal_split" + type_suffix));
+
     return params;
 }
 

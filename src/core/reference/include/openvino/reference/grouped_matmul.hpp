@@ -12,15 +12,15 @@
 #include "openvino/core/shape.hpp"
 
 namespace ov::reference {
-namespace details {
+namespace func {
 
-/// \brief Simple 2D matmul: out = A @ B
-/// \param A Input matrix A of shape (M, K)
-/// \param B Input matrix B of shape (K, N)
-/// \param out Output matrix of shape (M, N) - must be pre-zeroed
-/// \param M Number of rows in A
-/// \param K Shared dimension
-/// \param N Number of columns in B
+/// @brief Simple 2D matmul: out = A @ B
+/// @param A Input matrix A of shape (M, K)
+/// @param B Input matrix B of shape (K, N)
+/// @param out Output matrix of shape (M, N) - must be pre-zeroed
+/// @param M Number of rows in A
+/// @param K Shared dimension
+/// @param N Number of columns in B
 template <typename T>
 void simple_matmul(const T* A, const T* B, T* out, size_t M, size_t K, size_t N) {
     for (size_t i = 0; i < M; ++i) {
@@ -33,13 +33,13 @@ void simple_matmul(const T* A, const T* B, T* out, size_t M, size_t K, size_t N)
     }
 }
 
-/// \brief Simple 2D matmul with transposed B: out = A @ B^T
-/// \param A Input matrix A of shape (M, K)
-/// \param B Input matrix B of shape (N, K)  -- stored as [N, K], i.e. B transposed
-/// \param out Output matrix of shape (M, N) - must be pre-zeroed
-/// \param M Number of rows in A
-/// \param N Number of rows in B (= columns in the logical B^T)
-/// \param K Shared dimension
+/// @brief Simple 2D matmul with transposed B: out = A @ B^T
+/// @param A Input matrix A of shape (M, K)
+/// @param B Input matrix B of shape (N, K)  -- stored as [N, K], i.e. B transposed
+/// @param out Output matrix of shape (M, N) - must be pre-zeroed
+/// @param M Number of rows in A
+/// @param N Number of rows in B (= columns in the logical B^T)
+/// @param K Shared dimension
 template <typename T>
 void simple_matmul_transposed_b(const T* A, const T* B, T* out, size_t M, size_t N, size_t K) {
     for (size_t i = 0; i < M; ++i) {
@@ -51,26 +51,26 @@ void simple_matmul_transposed_b(const T* A, const T* B, T* out, size_t M, size_t
     }
 }
 
-}  // namespace details
+}  // namespace func
 
-/// \brief Reference kernel for GroupedMatMul computation.
+/// @brief Reference kernel for GroupedMatMul computation.
 ///
 /// Supports three input combinations:
 /// - Case 1 (2D × 3D): MoE forward pass with offsets
 /// - Case 2 (3D × 3D): Batched uniform groups, no offsets
 /// - Case 3 (2D × 2D): MoE weight gradient with offsets
 ///
-/// \tparam T Data type of input and output tensors.
-/// \tparam TIdx Data type for offset indices.
+/// @tparam T Data type of input and output tensors.
+/// @tparam TIdx Data type for offset indices.
 ///
-/// \param mat_a Pointer to first input tensor.
-/// \param mat_b Pointer to second input tensor.
-/// \param offsets Pointer to offsets tensor (nullptr for 3D×3D case).
-/// \param out Pointer to output tensor (pre-allocated).
-/// \param mat_a_shape Shape of mat_a.
-/// \param mat_b_shape Shape of mat_b.
-/// \param out_shape Shape of output.
-/// \param num_groups Number of groups (inferred from offsets or mat_b).
+/// @param mat_a Pointer to first input tensor.
+/// @param mat_b Pointer to second input tensor.
+/// @param offsets Pointer to offsets tensor (nullptr for 3D×3D case).
+/// @param out Pointer to output tensor (pre-allocated).
+/// @param mat_a_shape Shape of mat_a.
+/// @param mat_b_shape Shape of mat_b.
+/// @param out_shape Shape of output.
+/// @param num_groups Number of groups (inferred from offsets or mat_b).
 template <typename T, typename TIdx = int32_t>
 void grouped_matmul(const T* mat_a,
                     const T* mat_b,
@@ -102,7 +102,7 @@ void grouped_matmul(const T* mat_a,
             // Zero the output for this group
             std::fill(out_ptr, out_ptr + out_group_stride, T{0});
 
-            details::simple_matmul_transposed_b(a_ptr, b_ptr, out_ptr, M, N, K);
+            func::simple_matmul_transposed_b(a_ptr, b_ptr, out_ptr, M, N, K);
         }
         return;
     }
@@ -129,7 +129,7 @@ void grouped_matmul(const T* mat_a,
                 const T* b_ptr = mat_b + g * mat_b_group_stride;
                 T* out_ptr = out + start * N;
 
-                details::simple_matmul_transposed_b(a_ptr, b_ptr, out_ptr, num_rows, N, K);
+                func::simple_matmul_transposed_b(a_ptr, b_ptr, out_ptr, num_rows, N, K);
             }
             start = end;
         }
