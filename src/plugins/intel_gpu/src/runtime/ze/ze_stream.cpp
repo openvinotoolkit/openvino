@@ -279,7 +279,6 @@ event::ptr ze_stream::enqueue_kernel(kernel& kernel,
                                      const kernel_arguments_data& /* args */,
                                      std::vector<event::ptr> const& deps,
                                      bool is_output) {
-    std::cout << "[GPU] Enqueue kernel: " << kernel.get_id() << std::endl;
     last_enqueued_kernel_id = kernel.get_id();
 
     auto& ze_kernel = downcast<ze::ze_kernel>(kernel);
