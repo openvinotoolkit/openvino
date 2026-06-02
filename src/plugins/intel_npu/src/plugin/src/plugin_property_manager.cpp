@@ -318,8 +318,12 @@ void PluginPropertyManager::registerPluginProperties() const {
     });
 
     if (_metrics != nullptr) {
-        register_simple_metric(_properties, ov::available_devices, true, _metrics->GetAvailableDevicesNames());
-        register_simple_metric(_properties, ov::device::capabilities, true, _metrics->GetOptimizationCapabilities());
+        register_simple_metric(_properties, ov::available_devices, true, [&](const Config&) {
+            return _metrics->GetAvailableDevicesNames();
+        });
+        register_simple_metric(_properties, ov::device::capabilities, true, [&](const Config&) {
+            return _metrics->GetOptimizationCapabilities();
+        });
         register_simple_metric(_properties, ov::optimal_number_of_infer_requests, true, [&](const Config& config) {
             return static_cast<uint32_t>(getOptimalNumberOfInferRequestsInParallel(add_platform_to_the_config(
                 config,
@@ -329,8 +333,12 @@ void PluginPropertyManager::registerPluginProperties() const {
                                         : _backend->getDevice(config.get<DEVICE_ID>())->getName(),
                     _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames()))));
         });
-        register_simple_metric(_properties, ov::range_for_async_infer_requests, true, _metrics->GetRangeForAsyncInferRequest());
-        register_simple_metric(_properties, ov::range_for_streams, true, _metrics->GetRangeForStreams());
+        register_simple_metric(_properties, ov::range_for_async_infer_requests, true, [&](const Config&) {
+            return _metrics->GetRangeForAsyncInferRequest();
+        });
+        register_simple_metric(_properties, ov::range_for_streams, true, [&](const Config&) {
+            return _metrics->GetRangeForStreams();
+        });
         register_simple_metric(_properties, ov::device::pci_info, true, [&](const Config& config) {
             return _metrics->GetPciInfo(get_specified_device_name(config));
         });
@@ -343,15 +351,21 @@ void PluginPropertyManager::registerPluginProperties() const {
         register_custom_metric(_properties, ov::internal::supported_properties, false, [&](const Config&) {
             return _internalSupportedProperties;
         });
-        register_simple_metric(_properties, ov::internal::cache_header_alignment, false, utils::STANDARD_PAGE_SIZE);
+        register_simple_metric(_properties, ov::internal::cache_header_alignment, false, [&](const Config&) {
+            return utils::STANDARD_PAGE_SIZE;
+        });
         register_simple_metric(_properties, ov::intel_npu::device_alloc_mem_size, true, [&](const Config& config) {
             return _metrics->GetDeviceAllocMemSize(get_specified_device_name(config));
         });
         register_simple_metric(_properties, ov::intel_npu::device_total_mem_size, true, [&](const Config& config) {
             return _metrics->GetDeviceTotalMemSize(get_specified_device_name(config));
         });
-        register_simple_metric(_properties, ov::intel_npu::driver_version, true, _metrics->GetDriverVersion());
-        register_simple_metric(_properties, ov::intel_npu::backend_name, false, _metrics->GetBackendName());
+        register_simple_metric(_properties, ov::intel_npu::driver_version, true, [&](const Config&) {
+            return _metrics->GetDriverVersion();
+        });
+        register_simple_metric(_properties, ov::intel_npu::backend_name, false, [&](const Config&) {
+            return _metrics->GetBackendName();
+        });
         register_custom_metric(_properties, ov::device::architecture,
                                !_metrics->GetAvailableDevicesNames().empty(),
                                [&](const Config& config) {
