@@ -220,7 +220,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     std::shared_ptr<ov::Node> qga_output;
     if (use_default_mask) {
         qga_output = register_new_node<v13::ScaledDotProductAttention>(Q, K, V, true);
-    } else {   
+    } else {
         if (scale != 1.0f) {
             auto scale_node = register_new_node(v0::Constant::create(T, Shape{}, {scale}));
             qga_output = register_new_node<v13::ScaledDotProductAttention>(Q, K, V, mask, scale_node, false);
