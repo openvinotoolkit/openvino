@@ -190,44 +190,99 @@ protected:
         auto attr = impl_params.attrs_onednn;
         auto prim = impl_params.typed_desc<gated_mlp>();
 
-        auto to_2d_md = [](const layout& l, const char* tensor_name) {
-            const auto& ps = l.get_partial_shape();
-            OPENVINO_ASSERT(ps.rank().is_static() && ps.rank().get_length() >= 2,
-                            "[GPU] gated_mlp expects rank >= 2 for ", tensor_name);
-            OPENVINO_ASSERT(ps.is_static(),
-                            "[GPU] gated_mlp expects static shape for ", tensor_name,
-                            " at oneDNN primitive descriptor creation");
+        // Determine format tags based on input rank.
+        // oneDNN gated_mlp only supports 2D and 3D (fake-3D), unlike FC which supports up to 6D.
+        // oneDNN gated_mlp ref kernel only supports 2D and 3D (fake-3D), micro_horz only supports 2D.
+        // src/dst use the identity permutation tag, weights transpose the last two dims.
+        auto input_layout = impl_params.get_input_layout(0);
+        auto output_layout = impl_params.get_output_layout(0);
 
-            const auto shape = ps.to_shape();
-            const auto inner = static_cast<dnnl::memory::dim>(shape.back());
-            const auto outer = static_cast<dnnl::memory::dim>(ov::shape_size(shape) / shape.back());
-            return dnnl::memory::desc({outer, inner}, onednn::convert_data_type(l.data_type), dnnl::memory::format_tag::ab);
+        // Set to 1 to force 2D flattening for debugging with micro_horz-only oneDNN branches.
+#define FORCE_FLAT_2D 0
+        dnnl::memory::format_tag target_fmt;
+        dnnl::memory::format_tag weights_fmt;
+#if FORCE_FLAT_2D
+        // Force all inputs to 2D for micro_horz-only oneDNN branches
+        target_fmt = dnnl::memory::format_tag::ab;
+        weights_fmt = dnnl::memory::format_tag::ba;
+        auto flatten_to_2d = [](layout l) {
+            const auto shape = l.get_partial_shape().to_shape();
+            const auto inner = shape.back();
+            const auto outer = ov::shape_size(shape) / inner;
+            l.set_partial_shape(ov::PartialShape{static_cast<int64_t>(outer), static_cast<int64_t>(inner)});
+            return l;
+        };
+        input_layout = flatten_to_2d(input_layout);
+        output_layout = flatten_to_2d(output_layout);
+#else
+        const size_t orig_rank = input_layout.get_partial_shape().size();
+        if (orig_rank == 3) {
+            target_fmt = dnnl::memory::format_tag::abc;
+            weights_fmt = dnnl::memory::format_tag::acb;
+        } else {
+            target_fmt = dnnl::memory::format_tag::ab;
+            weights_fmt = dnnl::memory::format_tag::ba;
+        }
+        // Flatten src/dst to 2D for ranks other than 3
+        if (orig_rank != 3) {
+            auto flatten_to_2d = [](layout l) {
+                const auto shape = l.get_partial_shape().to_shape();
+                const auto inner = shape.back();
+                const auto outer = ov::shape_size(shape) / inner;
+                l.set_partial_shape(ov::PartialShape{static_cast<int64_t>(outer), static_cast<int64_t>(inner)});
+                return l;
+            };
+            input_layout = flatten_to_2d(input_layout);
+            output_layout = flatten_to_2d(output_layout);
+        }
+#endif
+
+        // Expand weights to match input rank (after potential flattening) — prepend 1s like FC does
+        const size_t input_rank = input_layout.get_partial_shape().size();
+        auto expand_weights_layout = [&](const layout& wl) {
+            auto wl_expanded = wl;
+            auto wps = wl.get_partial_shape();
+            const size_t weights_rank = wps.size();
+            if (weights_rank < input_rank) {
+                ov::PartialShape new_wps;
+                for (size_t i = 0; i < (input_rank - weights_rank); i++)
+                    new_wps.push_back(1);
+                for (size_t i = 0; i < weights_rank; i++)
+                    new_wps.push_back(wps[i]);
+                wl_expanded.set_partial_shape(new_wps);
+                wl_expanded.format = input_layout.format;
+            }
+            return wl_expanded;
         };
 
-        // Weights are [OC, IC] in OpenVINO but oneDNN expects [IC, OC] in ba format.
-        // {inner, outer} with ba gives the same physical layout as {outer, inner} with ab.
-        auto to_2d_weight_md = [](const layout& l, const char* tensor_name) {
-            const auto& ps = l.get_partial_shape();
-            OPENVINO_ASSERT(ps.rank().is_static() && ps.rank().get_length() >= 2,
-                            "[GPU] gated_mlp expects rank >= 2 for ", tensor_name);
-            OPENVINO_ASSERT(ps.is_static(),
-                            "[GPU] gated_mlp expects static shape for ", tensor_name,
-                            " at oneDNN primitive descriptor creation");
+        auto wg_layout = expand_weights_layout(impl_params.get_input_layout(1));
+        auto wu_layout = expand_weights_layout(impl_params.get_input_layout(2));
+        auto wd_layout = expand_weights_layout(impl_params.get_input_layout(3));
 
-            const auto shape = ps.to_shape();
-            const auto inner = static_cast<dnnl::memory::dim>(shape.back());
-            const auto outer = static_cast<dnnl::memory::dim>(ov::shape_size(shape) / shape.back());
-            return dnnl::memory::desc({inner, outer}, onednn::convert_data_type(l.data_type), dnnl::memory::format_tag::ba);
+        dnnl::memory::desc src_md = onednn::layout_to_memory_desc(input_layout, target_fmt);
+        dnnl::memory::desc dst_md = onednn::layout_to_memory_desc(output_layout, target_fmt);
+
+        auto make_weight_md = [&](const layout& wl) {
+            if (wl.data_padding
+                && format::is_default_format(wl.format)
+                && (wl.data_type == data_types::i4 || wl.data_type == data_types::u4)) {
+                return onednn::layout_to_memory_desc_strides(wl, weights_fmt);
+            }
+            return onednn::layout_to_memory_desc(wl, weights_fmt);
         };
 
-        auto src_md = to_2d_md(impl_params.get_input_layout(0), "src");
-        auto wg_md = to_2d_weight_md(impl_params.get_input_layout(1), "weights_gate");
-        auto wu_md = to_2d_weight_md(impl_params.get_input_layout(2), "weights_up");
-        auto wd_md = to_2d_weight_md(impl_params.get_input_layout(3), "weights_down");
-        auto dst_md = to_2d_md(impl_params.get_output_layout(0), "dst");
+        auto wg_md = make_weight_md(wg_layout);
+        auto wu_md = make_weight_md(wu_layout);
+        auto wd_md = make_weight_md(wd_layout);
 
         if (prim->compressed_weights) {
-            static constexpr int GROUPED = 3;
+            // Compute scale/zp masks based on ndims, matching FC pattern:
+            // 2D: PER_OC=2 (0b10), GROUPED=3 (0b11)
+            // 3D: PER_OC=4 (0b100), GROUPED=7 (0b111)
+            const int ndims = src_md.get_dims().size();
+            const int shift_size = std::max(ndims - 2, 0);
+            const int per_oc_mask = PER_OC << shift_size;
+            const int grouped_mask = (1 << ndims) - 1;
 
             attr->set_fpmath_mode(dnnl::fpmath_mode::any, true);
 
@@ -248,9 +303,9 @@ protected:
                 const auto group_size = ifm / ngroups;
 
                 if (ngroups == 1) {
-                    attr->set_scales(arg, PER_OC, dnnl::memory::dims{}, scale_dt);
+                    attr->set_scales(arg, per_oc_mask, dnnl::memory::dims{}, scale_dt);
                 } else {
-                    attr->set_scales(arg, GROUPED, dnnl::memory::dims{group_size, 1}, scale_dt);
+                    attr->set_scales(arg, grouped_mask, dnnl::memory::dims{group_size, 1}, scale_dt);
                 }
             };
 
@@ -276,9 +331,9 @@ protected:
                     const auto group_size = ifm / ngroups;
 
                     if (ngroups == 1) {
-                        attr->set_zero_points(arg, PER_OC, dnnl::memory::dims{}, zp_dt);
+                        attr->set_zero_points(arg, per_oc_mask, dnnl::memory::dims{}, zp_dt);
                     } else {
-                        attr->set_zero_points(arg, GROUPED, dnnl::memory::dims{group_size, 1}, zp_dt);
+                        attr->set_zero_points(arg, grouped_mask, dnnl::memory::dims{group_size, 1}, zp_dt);
                     }
                 };
 
@@ -296,17 +351,17 @@ protected:
                 const auto src_scale_ngroups = act_scale_layout.get_dim(act_scale_layout.get_partial_shape().size() - 1);
                 const int64_t src_group_size = src_innermost / src_scale_ngroups;
 
-                attr->set_scales(DNNL_ARG_SRC, GROUPED, dnnl::memory::dims{1, src_group_size}, act_scale_dt);
+                attr->set_scales(DNNL_ARG_SRC, grouped_mask, dnnl::memory::dims{1, src_group_size}, act_scale_dt);
 
                 if (prim->activation_zero_point.is_valid()) {
                     const auto& act_zp_layout = impl_params.get_input_layout(act_idx + 1);
-                    attr->set_zero_points(DNNL_ARG_SRC, GROUPED, dnnl::memory::dims{1, src_group_size},
+                    attr->set_zero_points(DNNL_ARG_SRC, grouped_mask, dnnl::memory::dims{1, src_group_size},
                                           onednn::convert_data_type(act_zp_layout.data_type));
                 }
 
                 if (prim->activation_precomputed_reduction.is_valid()) {
                     const auto& act_red_layout = impl_params.get_input_layout(act_idx + 2);
-                    attr->set_precomputed_reductions(DNNL_ARG_SRC, GROUPED, dnnl::memory::dims{1, src_group_size},
+                    attr->set_precomputed_reductions(DNNL_ARG_SRC, grouped_mask, dnnl::memory::dims{1, src_group_size},
                                                     onednn::convert_data_type(act_red_layout.data_type));
                 }
             }
