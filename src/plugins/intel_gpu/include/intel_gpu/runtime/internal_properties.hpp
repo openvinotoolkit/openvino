@@ -133,6 +133,7 @@ static constexpr Property<ImplForcingMap, PropertyMutability::RW> force_implemen
 static constexpr Property<std::string, PropertyMutability::RW> config_file{"CONFIG_FILE"};
 static constexpr Property<float, PropertyMutability::RW> buffers_preallocation_ratio{"GPU_BUFFERS_PREALLOCATION_RATIO"};
 static constexpr Property<size_t, PropertyMutability::RW> max_kernels_per_batch{"GPU_MAX_KERNELS_PER_BATCH"};
+static constexpr Property<size_t, PropertyMutability::RW> moe_offload_ratio{"MOE_OFFLOAD_RATIO"};
 static constexpr Property<bool, PropertyMutability::RW> use_onednn{"GPU_USE_ONEDNN"};
 static constexpr Property<bool, PropertyMutability::RW> use_cm{"GPU_USE_CM"};
 

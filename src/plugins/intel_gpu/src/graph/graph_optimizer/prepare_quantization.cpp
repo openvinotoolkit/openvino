@@ -635,6 +635,10 @@ static void optimize_moe_gemm_decompression_parameters(moe_gemm_node& node, prog
 
 static void optimize_moe_3gemm_fused_decompression_parameters(moe_node& node, program& p) {
     auto prim = node.get_primitive();
+    if (prim->_lru_expert_num > 0) {
+        // OTD routed weights are backed by resident-size allocations; reorders would materialize full logical tensors.
+        return;
+    }
     const auto& cfg = prim->_config;
     // Routed-expert scales at 3/6/9 (gate/up/down); zp at +1 when has_zp.
     constexpr std::array<size_t, 3> routed_scale_indices{3u, 6u, 9u};
