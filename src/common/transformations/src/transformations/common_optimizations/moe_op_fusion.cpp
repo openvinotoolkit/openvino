@@ -152,6 +152,45 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool ha
         const bool is_compressed = is_gate_compressed;
 
         if (is_compressed) {
+            // Pre-check MOECompressed fusion requirements: gate/up/down must have consistent:
+            // 1. Weight element type
+            // 2. Group size
+
+            // Check 1: Weight element type (compression precision)
+            if ((gate_w.get_element_type() != up_w.get_element_type()) ||
+                (gate_w.get_element_type() != down_w.get_element_type())) {
+                return false;  // Mixed precision detected
+            }
+
+            // Check 2: Group size consistency
+            const auto gate_scale_shape = pm.at(gate_scale_m).get_partial_shape().to_shape();
+            const auto up_scale_shape = pm.at(up_scale_m).get_partial_shape().to_shape();
+            const auto down_scale_shape = pm.at(down_scale_m).get_partial_shape().to_shape();
+
+            const size_t gate_num_groups = (gate_scale_shape.size() >= 3) ? gate_scale_shape[2] : 1;
+            const size_t up_num_groups = (up_scale_shape.size() >= 3) ? up_scale_shape[2] : 1;
+            const size_t down_num_groups = (down_scale_shape.size() >= 3) ? down_scale_shape[2] : 1;
+
+            const size_t gate_K = weight_logical_K(gate_w.get_partial_shape().to_shape());
+            const size_t up_K = weight_logical_K(up_w.get_partial_shape().to_shape());
+            const size_t down_K = weight_logical_K(down_w.get_partial_shape().to_shape());
+
+            auto group_size_or_per_channel = [](size_t K, size_t num_groups) -> size_t {
+                return (num_groups <= 1) ? std::numeric_limits<size_t>::max() : (K / num_groups);
+            };
+
+            const size_t gate_gs = group_size_or_per_channel(gate_K, gate_num_groups);
+            const size_t up_gs = group_size_or_per_channel(up_K, up_num_groups);
+            const size_t down_gs = group_size_or_per_channel(down_K, down_num_groups);
+
+            // Either all per-channel OR all same grouped quantization
+            if ((gate_gs != up_gs) || (gate_gs != down_gs)) {
+                return false;
+            }
+
+            const size_t unified_gs = gate_gs;
+
+            // All checks passed. Proceed with fusion.
             // Build MOECompressed with 12 inputs: hidden, routing, topk,
             // gate_w, gate_scale, gate_zp, up_w, up_scale, up_zp, down_w, down_scale, down_zp
             ov::OutputVector moe_inputs = {
@@ -169,22 +208,15 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool ha
                 pm.at(down_zp_m),
             };
 
-            // Populate compressed config from weight shapes
-            auto wei_partial_shape = gate_w.get_partial_shape();
-            OPENVINO_ASSERT(wei_partial_shape.is_static(), "MOE weight shape should be static.");
-            auto weight_shape = wei_partial_shape.to_shape();
+            // Populate compressed config from weight shapes (reuse values from pre-checks)
+            auto weight_shape = gate_w.get_partial_shape().to_shape();
 
             auto topk_shape = topk_indices.get_partial_shape();
             OPENVINO_ASSERT(topk_shape[1].is_static(), "K dimension in moe topk input should be static.");
 
-            // group_size derived from down-scale; weight_logical_K handles rank-3/4.
-            const auto gate_K = weight_logical_K(weight_shape);
-            const auto down_K = weight_logical_K(pm.at(down_w_m).get_partial_shape().to_shape());
-            const auto down_scale_shape = pm.at(down_scale_m).get_partial_shape().to_shape();
-            const size_t down_num_groups = (down_scale_shape.size() >= 3) ? down_scale_shape[2] : 1;
-            const size_t group_size =
-                (down_num_groups <= 1) ? std::numeric_limits<size_t>::max() : (down_K / down_num_groups);
-            // dynamic-typed zp = symmetric placeholder.
+            // Use unified values from pre-checks
+            const size_t group_size = unified_gs;
+            // Determine zp status from gate (all three are guaranteed to have same weight type at this point)
             const bool has_zp = pm.at(gate_zp_m).get_element_type() != ov::element::dynamic;
 
             MOECompressed::Config compressed_config{
