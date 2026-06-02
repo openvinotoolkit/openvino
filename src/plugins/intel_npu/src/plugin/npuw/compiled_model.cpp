@@ -1951,6 +1951,21 @@ void ov::npuw::CompiledModel::dump_subgraph_model(std::size_t id,
         return;  // MoE experts don't have a single model to dump
     }
 
+    // Dump MoE downstream model if present (the shape-reduced model passed to compile)
+    if (const auto* moe_downstream =
+            ov::npuw::moe::get_compiled_downstream(m_compiled_submodels[id].pipeline.context)) {
+        LOG_INFO("NOTE: Subgraph[" << id << "] has MoE downstream mechanism.");
+        if (moe_downstream->_model_to_compile) {
+            std::string downstream_model_name = format_subgraph_name(id, funcall) + "_moe_downstream.xml";
+            std::string downstream_model_dump_path = ov::util::path_join({dump_dir, downstream_model_name}).string();
+            ov::save_model(moe_downstream->_model_to_compile, downstream_model_dump_path);
+            LOG_INFO("Wrote " << downstream_model_dump_path);
+        } else {
+            LOG_WARN("MoE downstream model already compiled and cleared, cannot dump");
+        }
+        return;
+    }
+
     const auto model_to_dump = m_compiled_submodels[real_id].model;
     if (!model_to_dump) {
         LOG_WARN("Model is null, cannot dump Subgraph[" << id << "]");
@@ -2032,6 +2047,9 @@ void ov::npuw::CompiledModel::dump_subgraph_composition(const std::vector<ov::np
             } else {
                 base_subgraphs.push_back(base_name + ".xml");
             }
+        } else if (ov::npuw::moe::get_compiled_downstream(m_compiled_submodels[real_id].pipeline.context) != nullptr) {
+            base_subgraphs.push_back(base_name + ".xml");
+            moe_subgraphs.push_back(base_name + "_moe_downstream.xml");
         } else {
             base_subgraphs.push_back(base_name + ".xml");
 
