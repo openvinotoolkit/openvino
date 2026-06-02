@@ -25,6 +25,12 @@ public:
 
 bool has_input(const std::shared_ptr<ov::Model>& model, const std::string& name);
 
+// Returns true for a non-autoregressive (bidirectional encoder, e.g. BERT) text-embedding
+// model: one that has ScaledDotProductAttention but NO autoregressive KV-cache concat pattern
+// (Concat->Broadcast->Reshape on the SDPA key input) that the Qwen3-Embedding-style path needs.
+// Used to route encoder embedders to the dedicated, KV/RoPE-free embedding path.
+bool is_encoder_embedding_model(const std::shared_ptr<ov::Model>& model);
+
 // clang-format off
 }  // namespace ov
 // clang-format on
