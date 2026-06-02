@@ -5,6 +5,7 @@
 #include "openvino/runtime/single_file_storage.hpp"
 
 #include "openvino/runtime/aligned_buffer.hpp"
+#include "openvino/runtime/mmap_tensor.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "openvino/util/parallel_read_streambuf.hpp"
@@ -253,11 +254,13 @@ void SingleFileStorage::read_cache_entry(const std::string& blob_id, bool enable
     if (std::filesystem::exists(m_file_path) && has_blob_id(cid)) {
         const auto& [blob_pos, blob_size, model_name] = m_blob_index[cid];
         if (enable_mmap) {
-            CompiledBlobVariant compiled_blob{std::in_place_index<0>,
-                                              read_tensor_data(m_file_path,
-                                                               element::u8,
-                                                               {static_cast<PartialShape::value_type>(blob_size)},
-                                                               blob_pos)};
+            // Disable placeholder on windows until fix provided in CVS-187957, to be compatible with NPU zero-copy
+            auto mapped = ov::load_mmap_object(m_file_path, blob_pos, blob_size, /*no_placeholder=*/true);
+            CompiledBlobVariant compiled_blob{
+                std::in_place_index<0>,
+                ov::read_tensor_data_mmap_impl(std::move(mapped),
+                                               element::u8,
+                                               PartialShape{static_cast<PartialShape::value_type>(blob_size)})};
             reader(compiled_blob);
         } else {
             // Use parallel file I/O to saturate NVMe bandwidth instead of single-threaded ifstream.

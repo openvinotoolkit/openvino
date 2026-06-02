@@ -281,7 +281,7 @@ public:
     MapHolder() = default;
     ~MapHolder() override;
 
-    void set(const std::filesystem::path& path, size_t offset, size_t size);
+    void set(const std::filesystem::path& path, size_t offset, size_t size, bool no_placeholder = false);
     void set_from_handle(FileHandle handle, size_t offset, size_t size);
     bool try_remap_slot(uintptr_t fault_addr);
 
@@ -313,7 +313,7 @@ private:
     void set_id(HANDLE h, size_t offset, size_t size);
 
     /** @brief Core setup shared by set() and set_from_handle(). */
-    void setup(HANDLE file_handle, size_t offset, size_t size);
+    void setup(HANDLE file_handle, size_t offset, size_t size, bool no_placeholder);
 
     /** @brief Try to establish the placeholder mapping.
      *  Returns true on success; caller falls back to legacy path on false.
@@ -639,7 +639,7 @@ void MapHolder::legacy_setup(size_t aligned_offset, size_t head_pad, size_t size
     }
 }
 
-void MapHolder::setup(HANDLE file_handle, size_t offset, size_t size) {
+void MapHolder::setup(HANDLE file_handle, size_t offset, size_t size, bool no_placeholder) {
     LARGE_INTEGER file_size_li{};
     if (!::GetFileSizeEx(file_handle, &file_size_li)) {
         throw std::runtime_error{"GetFileSizeEx failed: " + std::to_string(::GetLastError())};
@@ -669,13 +669,14 @@ void MapHolder::setup(HANDLE file_handle, size_t offset, size_t size) {
         throw std::runtime_error{"CreateFileMappingW failed: " + std::to_string(::GetLastError())};
     }
 
-    // Prefer placeholder path for real RSS reduction; fall back to legacy.
-    if (!try_placeholder_setup(m_aligned_offset, head_pad, total_va_size, file_size)) {
+    // When no_placeholder is set, skip the placeholder/VEH path to guarantee a single uniform AllocationBase
+    // (required for NPU zero-copy blob import). Otherwise prefer placeholder for RSS reduction.
+    if (no_placeholder || !try_placeholder_setup(m_aligned_offset, head_pad, total_va_size, file_size)) {
         legacy_setup(m_aligned_offset, head_pad, m_size);
     }
 }
 
-void MapHolder::set(const std::filesystem::path& path, size_t offset, size_t size) {
+void MapHolder::set(const std::filesystem::path& path, size_t offset, size_t size, bool no_placeholder) {
     auto fh = ::CreateFileW(path.c_str(),
                             GENERIC_READ,
                             FILE_SHARE_READ | FILE_SHARE_DELETE,
@@ -689,7 +690,7 @@ void MapHolder::set(const std::filesystem::path& path, size_t offset, size_t siz
     }
 
     HandleHolder fh_holder{fh};
-    setup(fh, offset, size);
+    setup(fh, offset, size, no_placeholder);
     // Keep the file handle alive so the section object can always resolve page faults
     // back to the original file data, even if the caller deletes or renames the file.
     // FILE_SHARE_DELETE allows std::filesystem::remove() to succeed while the mapping is alive.
@@ -713,7 +714,7 @@ void MapHolder::set_from_handle(FileHandle handle, size_t offset, size_t size) {
         throw std::runtime_error{"DuplicateHandle failed: " + std::to_string(::GetLastError())};
     }
     HandleHolder owned{dup};
-    setup(owned.get(), offset, size);
+    setup(owned.get(), offset, size, false);
     // owned goes out of scope here: file handle closed.
     // m_handle (section object) keeps the file data accessible independently.
 }
@@ -887,9 +888,12 @@ void MapHolder::hint_evict(size_t offset, size_t size) noexcept {
     }
 }
 
-std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::filesystem::path& path, size_t offset, size_t size) {
+std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::filesystem::path& path,
+                                                   size_t offset,
+                                                   size_t size,
+                                                   bool no_placeholder) {
     auto holder = std::make_shared<MapHolder>();
-    holder->set(path, offset, size);
+    holder->set(path, offset, size, no_placeholder);
     return holder;
 }
 
