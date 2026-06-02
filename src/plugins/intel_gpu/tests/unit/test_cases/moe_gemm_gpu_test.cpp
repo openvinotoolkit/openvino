@@ -11,7 +11,7 @@
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/moe_gemm.hpp>
 #include <intel_gpu/primitives/fully_connected.hpp>
-#include "intel_gpu/op/moe_compressed.hpp"
+#include "ov_ops/moe_compressed.hpp"
 
 using namespace cldnn;
 using namespace ov::intel_gpu;
@@ -274,7 +274,7 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
 
     void create_weight_data_and_topology(T& p, topology& topo, std::vector<ov::float16>& experts_data_f16, std::vector<uint8_t>& experts_data_quant,
                          std::vector<ov::float16>& scales_data, std::vector<ov::float16>& zp_data_f16, std::vector<uint8_t>& zp_data, bool is_weight_compressed) {
-        ov::intel_gpu::op::MOECompressed::Config moe_config;
+        ov::op::internal::MOECompressed::Config moe_config;
         moe_config.top_k = p.num_experts_per_token;
         moe_config.num_expert = p.num_total_experts;
         moe_config.has_batch_dim = !p.is_pa;
@@ -337,9 +337,11 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
             }
             quantize_4bit(experts_data_f16, experts_data_quant, p.weight_dt, p.num_total_experts, p.out_N, p.hidden_size, p.scale_group_size, p.weight_symmetric_quant, scales_data, zp_data_f16, zp_data);
             set_values(experts_mem, experts_data_quant);
-            auto scale_shape = num_scale_groups > 1 ? ov::PartialShape{ov::Dimension(p.num_total_experts), ov::Dimension(num_scale_groups), ov::Dimension(p.out_N), ov::Dimension(1)} :
+            // Logical [E, N, G]; physical E×G×N from transpose_weight_scales matches byfx.
+            auto scale_shape = num_scale_groups > 1 ? ov::PartialShape{ov::Dimension(p.num_total_experts), ov::Dimension(p.out_N), ov::Dimension(num_scale_groups), ov::Dimension(1)} :
                                                     ov::PartialShape{ov::Dimension(p.num_total_experts), ov::Dimension(p.out_N), ov::Dimension(1)};
-            auto scale_layout = layout{scale_shape, data_types::f16, format::bfyx};
+            auto scale_format = num_scale_groups > 1 ? format::byfx : format::bfyx;
+            auto scale_layout = layout{scale_shape, data_types::f16, scale_format};
             auto scale_mem = engine.allocate_memory(scale_layout);
             std::vector<ov::float16> scales_data_transposed(scales_data.size());
             transpose_weight_scales(scales_data, scales_data_transposed, p.num_total_experts, num_scale_groups, p.out_N);
@@ -350,9 +352,11 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
             topo.add(moe_experts_prim);
             topo.add(moe_experts_scale_prim);
             if (!p.weight_symmetric_quant) {
-                auto zp_shape = num_scale_groups > 1 ? ov::PartialShape{ov::Dimension(p.num_total_experts), ov::Dimension(num_scale_groups), ov::Dimension(p.out_N), ov::Dimension(1)} :
+                // Match scale layout convention: [E, N, G, 1] byfx for grouped quantization.
+                auto zp_shape = num_scale_groups > 1 ? ov::PartialShape{ov::Dimension(p.num_total_experts), ov::Dimension(p.out_N), ov::Dimension(num_scale_groups), ov::Dimension(1)} :
                                                        ov::PartialShape{ov::Dimension(p.num_total_experts), ov::Dimension(p.out_N), ov::Dimension(1)};
-                auto zp_layout = layout{zp_shape, p.weight_dt, format::bfyx};
+                auto zp_format = num_scale_groups > 1 ? format::byfx : format::bfyx;
+                auto zp_layout = layout{zp_shape, p.weight_dt, zp_format};
                 auto zp_mem = engine.allocate_memory(zp_layout);
                 set_values(zp_mem, zp_data);
                 auto moe_experts_zp_prim = data("moe_experts_zp", zp_mem);

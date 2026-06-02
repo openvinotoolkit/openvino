@@ -22,19 +22,19 @@ class TRANSFORMATIONS_API MoeOpFusion;
 class ov::pass::Convert2GatherMatmulMoeBlockToMoeOp : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("Convert2GatherMatmulMoeBlockToMoeOp");
-    Convert2GatherMatmulMoeBlockToMoeOp(size_t has_batch_dim = 1);
+    Convert2GatherMatmulMoeBlockToMoeOp(bool has_batch_dim = true);
 };
 
 class ov::pass::Convert3GatherMatmulMoeBlockToMoeOp : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("Convert3GatherMatmulMoeBlockToMoeOp");
-    Convert3GatherMatmulMoeBlockToMoeOp(size_t has_batch_dim = 1);
+    Convert3GatherMatmulMoeBlockToMoeOp(bool has_batch_dim = true);
 };
 
 class ov::pass::MoeOpFusion : public ov::pass::GraphRewrite {
 public:
     OPENVINO_GRAPH_REWRITE_RTTI("MoeOpFusion");
-    MoeOpFusion(size_t has_batch_dim = 1) {
+    MoeOpFusion(bool has_batch_dim = true) {
         add_matcher<ov::pass::Convert2GatherMatmulMoeBlockToMoeOp>(has_batch_dim);
         add_matcher<ov::pass::Convert3GatherMatmulMoeBlockToMoeOp>(has_batch_dim);
     }

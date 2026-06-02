@@ -8,6 +8,7 @@
 #include "../logging.hpp"
 #include "../util.hpp"
 #include "openvino/core/partial_shape.hpp"
+#include "openvino/op/add.hpp"
 
 namespace {
 
@@ -33,17 +34,19 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             new_shape = ov::PartialShape({1, input_size, input.get_partial_shape()[2]});
         } else if (input_name.find("attention_mask") != std::string::npos) {
             new_shape = ov::PartialShape({1, kvcache_size});
-            if (lhs_seq_size && kvcache_size > 4)
+            if (lhs_seq_size && !is_prefill)
                 // NB: for whisper kvcache model attn mask should be size + 1
                 new_shape = ov::PartialShape({1, kvcache_size + 1});
         } else if (input_name.find("position_ids") != std::string::npos) {
             const auto partial_shape_size = input.get_partial_shape().size();
-            // NB: Regular LLM uses 2D shapes, Qwen2.5 VL/Omni uses 3D shapes
+            // NB: Regular LLM uses 2D shapes, Qwen2.5 VL/Omni, Qwen3.5 VL use 3D shapes
             // The first dimension (3) represents the three components of position encoding: time, height, and width
             // enabling alignment across multimodal inputs like text, audio, and video
+            // Update: Qwen3.5 has first dimension = 4.
             NPUW_ASSERT(partial_shape_size == 3u || partial_shape_size == 2u);
-            new_shape =
-                partial_shape_size == 3u ? ov::PartialShape({3, 1, input_size}) : ov::PartialShape({1, input_size});
+            auto first_dim_value = input.get_partial_shape()[0];
+            new_shape = partial_shape_size == 3u ? ov::PartialShape({first_dim_value, 1, input_size})
+                                                 : ov::PartialShape({1, input_size});
         } else if (input_name.find("cache_position") != std::string::npos) {
             // NB: Whisper case
             new_shape = ov::PartialShape({1});
@@ -61,6 +64,55 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             new_shape = ov::PartialShape({input.get_partial_shape()[0], lora_rank});
         } else if (ov::npuw::util::matchLoRAMatMulBString(input_name)) {
             new_shape = ov::PartialShape({input.get_partial_shape()[0], lora_rank});
+        } else if (input_name.find("per_layer_inputs") != std::string::npos) {
+            // NB: Gemma4 per-layer embedding feature.
+            // Shape is [batch, seq_len, num_layers, projection_dim].
+            // seq_len (dim 1) should match input_size (tokens being processed),
+            // while num_layers (dim 2) and projection_dim (dim 3) are model constants.
+            // These may be dynamic in the parameter's partial_shape itself, so fall back to
+            // reading them from the sibling input of the Add node that consumes this parameter
+            // (the other branch always carries a fully static shape, e.g. f32[1,S,42,256]).
+            const auto& partial_shape = input.get_partial_shape();
+            NPUW_ASSERT(partial_shape.size() == 4u);
+            ov::Dimension num_layers = partial_shape[2];
+            ov::Dimension proj_dim = partial_shape[3];
+            if (!num_layers.is_static() || !proj_dim.is_static()) {
+                for (const auto& target : input.get_target_inputs()) {
+                    const auto* node = target.get_node();
+                    if (!ov::is_type<ov::op::v1::Add>(node)) {
+                        continue;
+                    }
+                    for (size_t i = 0; i < node->get_input_size(); ++i) {
+                        if (i == target.get_index()) {
+                            continue;
+                        }
+                        const auto sibling_shape = node->input(i).get_partial_shape();
+                        if (sibling_shape.size() != 4u) {
+                            continue;
+                        }
+                        if (!num_layers.is_static() && sibling_shape[2].is_static()) {
+                            num_layers = sibling_shape[2];
+                        }
+                        if (!proj_dim.is_static() && sibling_shape[3].is_static()) {
+                            proj_dim = sibling_shape[3];
+                        }
+                    }
+                    if (num_layers.is_static() && proj_dim.is_static()) {
+                        break;
+                    }
+                }
+            }
+            NPUW_ASSERT(num_layers.is_static());  // num_layers must be resolved
+            NPUW_ASSERT(proj_dim.is_static());    // projection_dim must be resolved
+            new_shape = ov::PartialShape({1, input_size, num_layers, proj_dim});
+        } else if (ov::npuw::util::matchLinCacheString(input_name)) {
+            const auto& partial_shape = input.get_partial_shape();
+            new_shape = partial_shape;
+            // NOTE: Batch axes of KVCache and Linear Cache have same positions, however
+            //       need to track that this assumption holds in future versions.
+            const auto& shape_batch_dim = partial_shape[kv_axes_position.batch];
+            NPUW_ASSERT(shape_batch_dim.is_dynamic() || shape_batch_dim.get_length() <= 1);
+            new_shape[kv_axes_position.batch] = 1;  // batch_dim
         } else {
             const auto& partial_shape = input.get_partial_shape();
             new_shape = partial_shape;

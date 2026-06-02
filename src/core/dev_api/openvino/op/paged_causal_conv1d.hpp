@@ -21,13 +21,14 @@ public:
     /// \brief Constructs a PagedCausalConv1D operation.
     ///
     /// \param input_embeds Input embeddings [batch_size_in_tokens, hidden_size].
-    /// \param conv_state_table Block table containing conv_cache states [num_blocks, hidden_size, kernel_size].
+    /// \param conv_state_table Physical block table containing conv_cache states
+    ///        [num_physical_blocks, hidden_size, kernel_size].
     /// \param conv_weight Convolution weight [out_channels, hidden_size/group_size, conv_kernel_size].
     /// \param conv_bias Convolution bias [out_channels] or [0] (empty = no bias).
     /// \param subsequence_begins Start indices of tokens from current sequences [batch_size_in_sequences+1],
     ///        element type i32 or i64.
-    /// \param la_block_indices Block index along 0-th dim in conv_state table [num_blocks],
-    ///        element type i32 or i64.
+    /// \param la_block_indices Logical block slots containing physical indices along 0-th dim in conv_state table
+    ///        [num_logical_blocks], element type i32 or i64.
     /// \param la_block_indices_begins Defines how block indices are split among sequences [batch_size_in_sequences+1],
     ///        element type i32 or i64.
     /// \param processed_tokens Number of tokens already handled per sequence [batch_size_in_sequences],

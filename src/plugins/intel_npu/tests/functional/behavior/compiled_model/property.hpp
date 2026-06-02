@@ -10,6 +10,7 @@
 
 #include "behavior/compiled_model/properties.hpp"
 #include "common/npu_test_env_cfg.hpp"
+#include "common/utils.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "openvino/core/log.hpp"
@@ -18,20 +19,6 @@
 using namespace ov::test::behavior;
 
 namespace {
-
-class LogCallbackGuard {
-public:
-    explicit LogCallbackGuard(const std::function<void(std::string_view)>& callback) {
-        ov::util::set_log_callback(callback);
-    }
-
-    ~LogCallbackGuard() {
-        ov::util::reset_log_callback();
-    }
-
-    LogCallbackGuard(const LogCallbackGuard&) = delete;
-    LogCallbackGuard& operator=(const LogCallbackGuard&) = delete;
-};
 
 bool has_non_negative_numeric_suffix(const std::string& value) {
     const auto dot_pos = value.find('.');
@@ -250,6 +237,27 @@ TEST_P(ClassPluginPropertiesTestSuite4NPU, CanNotSetGetInexistentProperty) {
                  ov::Exception);  // Expect to throw due to unsupported config
 }
 
+using ClassPluginPropertiesTestSuite5NPU = ClassExecutableNetworkGetPropertiesTestNPU;
+
+TEST_P(ClassPluginPropertiesTestSuite5NPU, CanSetMutablePropertiesToCompiledModel) {
+    // ie.set_property won't call plugin Engine::SetConfig due to empty string-ov::Plugin map from core_impl
+    // workaround to overcome this is to call first ie.get_property which calls get_plugin() from core_impl and
+    // populates plugin map
+    std::vector<ov::PropertyName> properties;
+    OV_ASSERT_NO_THROW(properties = ie.get_property(deviceName, ov::supported_properties));
+
+    OV_ASSERT_NO_THROW(ie.set_property(deviceName, {{configKey, configValue}}));
+
+    OV_ASSERT_NO_THROW(ov::CompiledModel compiled_model1 =
+                           ie.compile_model(model, deviceName, {{configKey, configValue}}));
+
+    ov::CompiledModel compiled_model2;
+
+    OV_ASSERT_NO_THROW(compiled_model2 = ie.compile_model(model, deviceName));
+
+    OV_ASSERT_NO_THROW(compiled_model2.set_property({{configKey, configValue}}));
+}
+
 using ClassExecutableNetworkInvalidDeviceIDTestSuite = ClassExecutableNetworkGetPropertiesTestNPU;
 
 TEST_P(ClassExecutableNetworkInvalidDeviceIDTestSuite, InvalidNPUdeviceIDTest) {
@@ -368,7 +376,7 @@ TEST_P(CheckCompilerTypeProperty, CheckLogAfterSettingExtraConfigToGetProperty) 
 
     auto compiler_type = ov::intel_npu::CompilerType::PLUGIN;
     {
-        LogCallbackGuard log_callback_guard(log_cb);
+        ov::test::utils::LogCallbackGuard log_callback_guard(log_cb);
         compiler_type = core.get_property(
             deviceName,
             ov::intel_npu::compiler_type,
@@ -397,7 +405,7 @@ TEST_P(CheckCompilerTypeProperty, CheckLogAfterGettingPropertyWithExtraConfig) {
     };
 
     {
-        LogCallbackGuard log_callback_guard(log_cb);
+        ov::test::utils::LogCallbackGuard log_callback_guard(log_cb);
         OV_ASSERT_NO_THROW(core.get_property(deviceName,
                                              ov::intel_npu::defer_weights_load,
                                              {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}));
@@ -408,7 +416,7 @@ TEST_P(CheckCompilerTypeProperty, CheckLogAfterGettingPropertyWithExtraConfig) {
     logs.clear();
 
     {
-        LogCallbackGuard log_callback_guard(log_cb);
+        ov::test::utils::LogCallbackGuard log_callback_guard(log_cb);
         OV_ASSERT_NO_THROW(core.get_property(deviceName,
                                              ov::intel_npu::defer_weights_load,
                                              {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
@@ -433,7 +441,7 @@ TEST_P(CheckCompilerTypeProperty, SetRuntimeProperty) {
     };
 
     {
-        LogCallbackGuard log_callback_guard(log_cb);
+        ov::test::utils::LogCallbackGuard log_callback_guard(log_cb);
         OV_ASSERT_NO_THROW(
             core.set_property(deviceName, ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)));
         OV_ASSERT_NO_THROW(core.get_property(deviceName, ov::intel_npu::defer_weights_load));
@@ -444,7 +452,7 @@ TEST_P(CheckCompilerTypeProperty, SetRuntimeProperty) {
     logs.clear();
 
     {
-        LogCallbackGuard log_callback_guard(log_cb);
+        ov::test::utils::LogCallbackGuard log_callback_guard(log_cb);
         OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::intel_npu::qdq_optimization(true)));
     }
 
@@ -466,7 +474,7 @@ TEST_P(CheckCompilerTypeProperty, SetCompilerPropertyForDifferentCompiler) {
     };
 
     {
-        LogCallbackGuard log_callback_guard(log_cb);
+        ov::test::utils::LogCallbackGuard log_callback_guard(log_cb);
         OV_ASSERT_NO_THROW(
             core.set_property(deviceName, ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)));
         OV_ASSERT_NO_THROW(core.get_property(deviceName, ov::intel_npu::defer_weights_load));
@@ -476,7 +484,7 @@ TEST_P(CheckCompilerTypeProperty, SetCompilerPropertyForDifferentCompiler) {
     logs.clear();
 
     {
-        LogCallbackGuard log_callback_guard(log_cb);
+        ov::test::utils::LogCallbackGuard log_callback_guard(log_cb);
         OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::intel_npu::qdq_optimization(true)));
     }
     ASSERT_NE(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
@@ -484,7 +492,7 @@ TEST_P(CheckCompilerTypeProperty, SetCompilerPropertyForDifferentCompiler) {
     logs.clear();
 
     {
-        LogCallbackGuard log_callback_guard(log_cb);
+        ov::test::utils::LogCallbackGuard log_callback_guard(log_cb);
         OV_ASSERT_NO_THROW(
             core.set_property(deviceName, ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)));
     }
@@ -494,7 +502,7 @@ TEST_P(CheckCompilerTypeProperty, SetCompilerPropertyForDifferentCompiler) {
     logs.clear();
 
     {
-        LogCallbackGuard log_callback_guard(log_cb);
+        ov::test::utils::LogCallbackGuard log_callback_guard(log_cb);
         OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::intel_npu::qdq_optimization(true)));
     }
     ASSERT_NE(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
@@ -517,7 +525,7 @@ TEST_P(CheckCompilerTypeProperty, GetCompilerVersion) {
     OV_ASSERT_NO_THROW(
         core.set_property(deviceName, ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)));
     {
-        LogCallbackGuard log_callback_guard(log_cb);
+        ov::test::utils::LogCallbackGuard log_callback_guard(log_cb);
         OV_ASSERT_NO_THROW(core.get_property(deviceName, ov::intel_npu::compiler_version));
     }
     ASSERT_NE(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
@@ -528,7 +536,7 @@ TEST_P(CheckCompilerTypeProperty, GetCompilerVersion) {
     OV_ASSERT_NO_THROW(
         core.set_property(deviceName, ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)));
     {
-        LogCallbackGuard log_callback_guard(log_cb);
+        ov::test::utils::LogCallbackGuard log_callback_guard(log_cb);
         OV_ASSERT_NO_THROW(core.get_property(deviceName, ov::intel_npu::compiler_version));
     }
     ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
@@ -537,7 +545,7 @@ TEST_P(CheckCompilerTypeProperty, GetCompilerVersion) {
     logs.clear();
 
     {
-        LogCallbackGuard log_callback_guard(log_cb);
+        ov::test::utils::LogCallbackGuard log_callback_guard(log_cb);
         OV_ASSERT_NO_THROW(core.get_property(deviceName,
                                              ov::intel_npu::compiler_version,
                                              {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}));
@@ -617,7 +625,7 @@ TEST_P(CheckCompilerPropertyWhenImporting, ExpectedNoThrowFromImportWithCompiler
     };
 
     {
-        LogCallbackGuard log_callback_guard(log_cb);
+        ov::test::utils::LogCallbackGuard log_callback_guard(log_cb);
         core_import.set_property(deviceName, ov::log::level(ov::log::Level::INFO));
         OV_ASSERT_NO_THROW(
             core_import.import_model(export_stream, deviceName, {{ov::intel_npu::qdq_optimization(true)}}));
@@ -701,7 +709,7 @@ TEST_P(CheckCompilerPropertyWhenImporting, CheckImportWithCompilerProperty) {
     };
 
     {
-        LogCallbackGuard log_callback_guard(log_cb);
+        ov::test::utils::LogCallbackGuard log_callback_guard(log_cb);
         OV_ASSERT_NO_THROW(
             core_for_importing.import_model(export_stream,
                                             deviceName,
@@ -741,7 +749,7 @@ TEST_P(CheckCompilerPropertyWhenImporting, CheckImportWithCompilerPropertyAfterC
     };
 
     {
-        LogCallbackGuard log_callback_guard(log_cb);
+        ov::test::utils::LogCallbackGuard log_callback_guard(log_cb);
         OV_ASSERT_NO_THROW(core.import_model(export_stream,
                                              deviceName,
                                              {{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
@@ -757,6 +765,123 @@ TEST_P(CheckCompilerPropertyWhenImporting, CheckImportWithCompilerPropertyAfterC
     ASSERT_NE(logs.find("Config key 'NPU_QDQ_OPTIMIZATION' is recognized as a compiler option, will not be used for "
                         "current configuration."),
               std::string::npos);
+}
+
+using CheckCpuPinning = ClassExecutableNetworkGetPropertiesTestNPU;
+
+TEST_P(CheckCpuPinning, CheckCompileModelWithCpuPinningFromSetProperty) {
+    std::string logs;
+    std::mutex logs_mutex;
+    ov::Core core;
+    ov::CompiledModel compiled_model;
+
+    ov::log::Level previous_log_level = ov::log::Level::NO;
+    OV_ASSERT_NO_THROW(previous_log_level = core.get_property(deviceName, ov::log::level));
+    core.set_property(deviceName, ov::log::level(ov::log::Level::INFO));
+
+    // Keep this std::function alive while logging is active.
+    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
+        std::lock_guard<std::mutex> lock(logs_mutex);
+        logs.append(msg);
+        logs.push_back('\n');
+    };
+
+    {
+        ov::test::utils::LogCallbackGuard log_callback_guard(log_cb);
+        OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::hint::enable_cpu_pinning(true)));
+        OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, deviceName));
+    }
+    OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::log::level(previous_log_level)));
+
+    bool enable_cpu_pinning = false;
+    OV_ASSERT_NO_THROW(enable_cpu_pinning = compiled_model.get_property(ov::hint::enable_cpu_pinning));
+    ASSERT_TRUE(enable_cpu_pinning);
+
+    std::vector<ov::PropertyName> core_supported_properties;
+    OV_ASSERT_NO_THROW(core_supported_properties = core.get_property(deviceName, ov::supported_properties));
+    ASSERT_EQ(std::find(core_supported_properties.cbegin(),
+                        core_supported_properties.cend(),
+                        ov::hint::enable_cpu_pinning.name()),
+              core_supported_properties.cend());
+
+    std::vector<ov::PropertyName> compiled_supported_properties;
+    OV_ASSERT_NO_THROW(compiled_supported_properties = compiled_model.get_property(ov::supported_properties));
+    ASSERT_EQ(std::find(compiled_supported_properties.cbegin(),
+                        compiled_supported_properties.cend(),
+                        ov::hint::enable_cpu_pinning.name()),
+              compiled_supported_properties.cend());
+
+    ASSERT_NE(logs.find("The \"ENABLE_CPU_PINNING\" property is deprecated and has no effect on the NPU Plugin."),
+              std::string::npos);
+}
+
+TEST_P(CheckCpuPinning, CheckCompileModelWithCpuPinningFromCompileProperty) {
+    std::string logs;
+    std::mutex logs_mutex;
+    ov::Core core;
+    ov::CompiledModel compiled_model;
+
+    ov::log::Level previous_log_level = ov::log::Level::NO;
+    OV_ASSERT_NO_THROW(previous_log_level = core.get_property(deviceName, ov::log::level));
+    core.set_property(deviceName, ov::log::level(ov::log::Level::INFO));
+
+    // Keep this std::function alive while logging is active.
+    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
+        std::lock_guard<std::mutex> lock(logs_mutex);
+        logs.append(msg);
+        logs.push_back('\n');
+    };
+
+    {
+        ov::test::utils::LogCallbackGuard log_callback_guard(log_cb);
+        OV_ASSERT_NO_THROW(compiled_model =
+                               core.compile_model(model, deviceName, {ov::hint::enable_cpu_pinning(true)}));
+    }
+    OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::log::level(previous_log_level)));
+
+    bool enable_cpu_pinning = false;
+    OV_ASSERT_NO_THROW(enable_cpu_pinning = compiled_model.get_property(ov::hint::enable_cpu_pinning));
+    ASSERT_TRUE(enable_cpu_pinning);
+
+    std::vector<ov::PropertyName> core_supported_properties;
+    OV_ASSERT_NO_THROW(core_supported_properties = core.get_property(deviceName, ov::supported_properties));
+    ASSERT_EQ(std::find(core_supported_properties.cbegin(),
+                        core_supported_properties.cend(),
+                        ov::hint::enable_cpu_pinning.name()),
+              core_supported_properties.cend());
+
+    std::vector<ov::PropertyName> compiled_supported_properties;
+    OV_ASSERT_NO_THROW(compiled_supported_properties = compiled_model.get_property(ov::supported_properties));
+    ASSERT_EQ(std::find(compiled_supported_properties.cbegin(),
+                        compiled_supported_properties.cend(),
+                        ov::hint::enable_cpu_pinning.name()),
+              compiled_supported_properties.cend());
+
+    ASSERT_NE(logs.find("The \"ENABLE_CPU_PINNING\" property is deprecated and has no effect on the NPU Plugin."),
+              std::string::npos);
+}
+
+using CheckSecureCompilationFlag = ClassExecutableNetworkGetPropertiesTestNPU;
+
+TEST_P(CheckSecureCompilationFlag, EncryptionCallbacksForOlderDriverThrows) {
+    ov::Core core;
+    ov::AnyMap configuration = {{configKey, configValue},
+                                ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)};
+    if (::intel_npu::ZeroInitStructsHolder::getInstance()->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 17)) {
+        OV_EXPECT_THROW(core.compile_model(model, deviceName, configuration),
+                        ov::Exception,
+                        testing::HasSubstr(
+                            "Secure compilation was requested, but the current driver version does not support it."));
+        core.set_property(deviceName, configuration);
+        OV_EXPECT_THROW(core.compile_model(model, deviceName, {}),
+                        ov::Exception,
+                        testing::HasSubstr(
+                            "Secure compilation was requested, but the current driver version does not support it."));
+    } else {
+        OV_ASSERT_NO_THROW(core.compile_model(model, deviceName, configuration));
+        core.set_property(deviceName, configuration);
+        OV_ASSERT_NO_THROW(core.compile_model(model, deviceName, {}));
+    }
 }
 
 }  // namespace

@@ -236,11 +236,14 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraphQuantization(
         transformed_weights_shape.insert(transformed_weights_shape.begin() + in_channel_idx + 1, group_size);
     }
 
-    // Step 1: Generate FP32 weights for real quantization
-    auto fp32_weights_tensor =
-        ov::test::utils::create_and_fill_tensor(ov::element::f32,
-                                                transformed_weights_shape,
-                                                ov::test::utils::InputGenerateData(1, 6, 8, seed));
+    // mt19937 distribution: gtest's LCG repeats every k_range, collapsing per-group min/max diversity.
+    const float fp32_min = -0.1f;
+    const float fp32_max = 0.1f;
+    auto fp32_weights_tensor = ov::test::utils::create_and_fill_tensor_real_distribution(ov::element::f32,
+                                                                                         transformed_weights_shape,
+                                                                                         fp32_min,
+                                                                                         fp32_max,
+                                                                                         static_cast<int>(seed));
 
     // Calculate quantization parameters
     const auto qmin = weights_precision == ov::element::u2   ? 0.0f

@@ -54,6 +54,7 @@ uint32_t GetNumberOfInputs(EltwiseMode m) {
         case EltwiseMode::BITWISE_AND:
         case EltwiseMode::BITWISE_OR:
         case EltwiseMode::BITWISE_XOR:
+        case EltwiseMode::ATAN2:
             return 2;
         case EltwiseMode::SQRT:
         case EltwiseMode::RSQRT:
@@ -241,14 +242,17 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
                 auto input_0_type = params.inputs[0].GetDType();
                 auto input_1_type = params.inputs[1].GetDType();
 
+                auto is_integer_type = [](kernel_selector::Datatype type) {
+                    return type == kernel_selector::Datatype::INT8 || type == kernel_selector::Datatype::UINT8 ||
+                           type == kernel_selector::Datatype::INT16 || type == kernel_selector::Datatype::UINT16 ||
+                           type == kernel_selector::Datatype::INT32 || type == kernel_selector::Datatype::UINT32 ||
+                           type == kernel_selector::Datatype::INT64;
+                };
+
                 // input_0 == int
-                if (input_0_type == kernel_selector::Datatype::INT8 ||
-                    input_0_type == kernel_selector::Datatype::INT32 ||
-                    input_0_type == kernel_selector::Datatype::INT64) {
+                if (is_integer_type(input_0_type)) {
                     // input_0 == int && input_1 == int
-                    if (input_1_type == kernel_selector::Datatype::INT8 ||
-                        input_1_type == kernel_selector::Datatype::INT32 ||
-                        input_1_type == kernel_selector::Datatype::INT64) {
+                    if (is_integer_type(input_1_type)) {
                         if (ew.mode == EltwiseMode::MODULU)
                             op += input0_str + " % " + input1_str;
                         else
@@ -257,9 +261,7 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
                         // input_0 == int && input_1 != int
                         op += cast_type + "f" + mode + "(convert_float(" + input0_str + "), " + input1_str + ")";
                     }
-                } else if (input_1_type == kernel_selector::Datatype::INT8 ||
-                           input_1_type == kernel_selector::Datatype::INT32 ||
-                           input_1_type == kernel_selector::Datatype::INT64) {
+                } else if (is_integer_type(input_1_type)) {
                     // input_0 != int && input_1 == int
                     op += cast_type + "f" + mode + "(" + input0_str + ", convert_float(" + input1_str + "))";
                 } else {
@@ -269,6 +271,10 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
             } break;
             case EltwiseMode::POW:
                 op += cast_type + "pow(" + input0_str + ", " + input1_str + ")";
+                break;
+            case EltwiseMode::ATAN2:
+                // input0 = y (lhs of atan2), input1 = x (rhs).
+                op += cast_type + "atan2(" + input0_str + ", " + input1_str + ")";
                 break;
             case EltwiseMode::SQRT:
                 op += cast_type + "sqrt(" + input0_str + ")";

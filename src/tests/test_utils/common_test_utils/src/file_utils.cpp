@@ -174,6 +174,10 @@ std::string getModelFromTestModelZoo(const std::string& relModelPath) {
     return ov::util::path_join({getExecutableDirectory(), relModelPath}).string();
 }
 
+std::string getModelFromTestModelZoo(const std::filesystem::path& relModelPath) {
+    return ov::util::path_to_string(ov::util::make_path(getExecutableDirectory()) / relModelPath);
+}
+
 std::string getRelativePath(const std::string& from, const std::string& to) {
     auto split_path = [](const std::string& path) -> std::vector<std::string> {
         std::string sep{FileTraits<char>::file_separator};

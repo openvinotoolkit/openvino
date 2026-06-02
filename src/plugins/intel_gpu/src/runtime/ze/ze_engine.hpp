@@ -20,6 +20,7 @@ public:
     ze_engine(const device::ptr dev, runtime_types runtime_type);
     engine_types type() const override { return engine_types::ze; };
     runtime_types runtime_type() const override { return runtime_types::ze; };
+    backend_types backend_type() const override { return backend_types::ze; };
 
     memory_ptr allocate_memory(const layout& layout, allocation_type type, bool reset = true) override;
     memory_ptr reinterpret_handle(const layout& new_layout, shared_mem_params params) override;
@@ -32,9 +33,9 @@ public:
     allocation_type get_default_allocation_type() const override { return allocation_type::usm_device; }
     allocation_type detect_usm_allocation_type(const void* memory) const override;
 
-    const ze_context_handle_t get_context() const;
-    const ze_driver_handle_t get_driver() const;
-    const ze_device_handle_t get_device() const;
+    ze_context_handle_t get_context() const;
+    ze_driver_handle_t get_driver() const;
+    ze_device_handle_t get_device() const;
 
     stream_ptr create_stream(const ExecutionConfig& config) const override;
     stream_ptr create_stream(const ExecutionConfig& config, void *handle) const override;

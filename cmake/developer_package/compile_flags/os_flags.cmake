@@ -156,6 +156,7 @@ else()
 
     # This enables all the warnings about constructions that some users consider questionable, and that are easy to avoid
     ov_add_compiler_flags(-Wall)
+    ov_add_compiler_flags(-Wignored-qualifiers)
     # Warn if an undefined identifier is evaluated in an #if directive. Such identifiers are replaced with zero.
     ov_add_compiler_flags(-Wundef)
 

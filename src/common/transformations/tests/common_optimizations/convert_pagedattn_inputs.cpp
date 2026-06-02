@@ -9,7 +9,13 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/paged_attention.hpp"
+#include "openvino/op/paged_causal_conv1d.hpp"
+#include "openvino/op/paged_gated_delta_net.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "transformations/convert_precision.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/utils/gen_pattern.hpp"
 
 using namespace ov::test;
@@ -389,5 +395,142 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvertPagedAttnInputsTest,
                                             ::testing::Values(true, false),
                                             ::testing::Values(true, false)),
                          ConvertPagedAttnInputsTest::getTestCaseName);
+
+class ConvertPagedAttnInputsStateTableTest : public testing::Test {};
+
+// The tests bellow replicate the behavior of ConvertPagedAttnInputs pass in a GPU pipeline.
+// Testing it in isolation does not really make sense because in a real pipeline the model is
+// different and it's important to replicate the same conditions that a model is going through.
+// TODO: consider moving ConvertPagedAttnInputs above in the pipeline so we avoid taking into account
+// the ConvertPrecision pass that much.
+TEST_F(ConvertPagedAttnInputsStateTableTest, ConvertPagedCausalConv1DInputsPrecision) {
+    auto input_embeds = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, 256});
+    auto conv_state_table = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{-1, 256, 4});
+    conv_state_table->set_friendly_name("conv_state_table.0");
+    ov::enable_keep_const_precision(conv_state_table);
+    auto conv_weight = std::make_shared<v0::Parameter>(element::f32, PartialShape{256, 1, 4});
+    auto conv_bias = std::make_shared<v0::Parameter>(element::f32, PartialShape{256});
+    auto subsequence_begins = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    auto block_indices = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    auto block_indices_begins = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    auto past_lens = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    auto cache_interval = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+
+    auto paged_conv = std::make_shared<op::internal::PagedCausalConv1D>(input_embeds,
+                                                                        conv_state_table,
+                                                                        conv_weight,
+                                                                        conv_bias,
+                                                                        subsequence_begins,
+                                                                        block_indices,
+                                                                        block_indices_begins,
+                                                                        past_lens,
+                                                                        cache_interval);
+    auto local_model = std::make_shared<Model>(OutputVector{paged_conv},
+                                               ParameterVector{input_embeds,
+                                                               conv_state_table,
+                                                               conv_weight,
+                                                               conv_bias,
+                                                               subsequence_begins,
+                                                               block_indices,
+                                                               block_indices_begins,
+                                                               past_lens,
+                                                               cache_interval});
+
+    // Replicate GPU pipeline: clear keep_const_precision on all nodes
+    for (auto& node : local_model->get_ops()) {
+        ov::disable_keep_const_precision(node);
+    }
+
+    ov::pass::ConvertPagedAttnInputs::KVCacheConfig cacheConfig;
+    cacheConfig.inferencePrecision = ov::element::f16;
+
+    ov::pass::Manager local_manager;
+
+    precisions_map fp_convert_precision_map = {{ov::element::f64, ov::element::f32},
+                                               {ov::element::f32, ov::element::f16}};
+    type_to_fuse_map empty_fuse_map = {};
+    local_manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
+                                                            empty_fuse_map,
+                                                            /*keep_precision_sensitive_in_fp32*/ true,
+                                                            /*convert_input_output_precision*/ false,
+                                                            /*store_original_precision_as_rt_attribute*/ true);
+
+    auto update_paged_attention_shape_func =
+        [](const ov::element::Type&, const bool, const size_t, int64_t&, int64_t&) {};
+    local_manager.register_pass<ov::pass::ConvertPagedAttnInputs>(cacheConfig, update_paged_attention_shape_func);
+    local_manager.run_passes(local_model);
+
+    // Verify no Convert node between Parameter and PagedCausalConv1D
+    EXPECT_TRUE(ov::is_type<v0::Parameter>(paged_conv->get_input_node_shared_ptr(1)));
+    EXPECT_EQ(conv_state_table->get_element_type(), ov::element::f16);
+}
+
+TEST_F(ConvertPagedAttnInputsStateTableTest, ConvertPagedGatedDeltaNetPrecision) {
+    auto query = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, 64});
+    auto key = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, 64});
+    auto value = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, 64});
+    auto gated_delta_state_table = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{-1, 2, 64, 64});
+    gated_delta_state_table->set_friendly_name("gated_delta_state_table.0");
+    enable_keep_const_precision(gated_delta_state_table);
+    auto gate = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2});
+    auto beta = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2});
+    auto subsequence_begins = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    auto block_indices = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    auto block_indices_begins = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    auto past_lens = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    auto cache_interval = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+
+    auto paged_gdn = std::make_shared<op::internal::PagedGatedDeltaNet>(query,
+                                                                        key,
+                                                                        value,
+                                                                        gated_delta_state_table,
+                                                                        gate,
+                                                                        beta,
+                                                                        subsequence_begins,
+                                                                        block_indices,
+                                                                        block_indices_begins,
+                                                                        past_lens,
+                                                                        cache_interval);
+    auto local_model = std::make_shared<Model>(OutputVector{paged_gdn},
+                                               ParameterVector{query,
+                                                               key,
+                                                               value,
+                                                               gated_delta_state_table,
+                                                               gate,
+                                                               beta,
+                                                               subsequence_begins,
+                                                               block_indices,
+                                                               block_indices_begins,
+                                                               past_lens,
+                                                               cache_interval});
+
+    // Replicate GPU pipeline: clear keep_const_precision on all nodes
+    for (auto& node : local_model->get_ops()) {
+        ov::disable_keep_const_precision(node);
+    }
+
+    ov::pass::ConvertPagedAttnInputs::KVCacheConfig cacheConfig;
+    cacheConfig.inferencePrecision = ov::element::f16;
+
+    ov::pass::Manager local_manager;
+
+    precisions_map fp_convert_precision_map = {{ov::element::f64, ov::element::f32},
+                                               {ov::element::f32, ov::element::f16}};
+    type_to_fuse_map empty_fuse_map = {};
+    local_manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
+                                                            empty_fuse_map,
+                                                            /*keep_precision_sensitive_in_fp32*/ true,
+                                                            /*convert_input_output_precision*/ false,
+                                                            /*store_original_precision_as_rt_attribute*/ true);
+
+    auto update_paged_attention_shape_func =
+        [](const ov::element::Type&, const bool, const size_t, int64_t&, int64_t&) {};
+    local_manager.register_pass<ov::pass::ConvertPagedAttnInputs>(cacheConfig, update_paged_attention_shape_func);
+    local_manager.run_passes(local_model);
+
+    // Verify no Convert node between Parameter and PagedGatedDeltaNet
+    EXPECT_TRUE(ov::is_type<v0::Parameter>(paged_gdn->get_input_node_shared_ptr(3)));
+    EXPECT_EQ(gated_delta_state_table->get_element_type(), ov::element::f16);
+}
 
 }  // namespace

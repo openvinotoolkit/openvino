@@ -618,18 +618,23 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
     // ========================================================================
     LOG_DEBUG("Using traditional broadcast computation (DISABLED loop-based) - materializes K/V broadcast");
 
-    // Broadcast K and V tiles from kv_num_heads to num_heads
-    auto [k_broadcast, v_broadcast] = broadcast_kv_tiles(f32_nodes.k_tile_f32,
-                                                         f32_nodes.v_tile_f32,
-                                                         batch,
-                                                         num_heads,
-                                                         kv_num_heads,
-                                                         tile_size,
-                                                         head_dim);
     if (fused_flash_attention) {
-        // Execute fused flash attention node
-        results = execute_fused_flash_attention(f32_nodes, f32_nodes.q_f32, k_broadcast, v_broadcast, is_final_tile);
+        // Execute fused flash attention node MHA, GQA
+        results = execute_fused_flash_attention(f32_nodes,
+                                                f32_nodes.q_f32,
+                                                f32_nodes.k_tile_f32,
+                                                f32_nodes.v_tile_f32,
+                                                is_final_tile);
     } else {
+        // Broadcast K and V tiles from kv_num_heads to num_heads
+        auto [k_broadcast, v_broadcast] = broadcast_kv_tiles(f32_nodes.k_tile_f32,
+                                                             f32_nodes.v_tile_f32,
+                                                             batch,
+                                                             num_heads,
+                                                             kv_num_heads,
+                                                             tile_size,
+                                                             head_dim);
+
         // Execute flash attention algorithm with broadcasted K/V
         results = execute_host_flash_attention(f32_nodes,
                                                f32_nodes.q_f32,  // Q: original 4D

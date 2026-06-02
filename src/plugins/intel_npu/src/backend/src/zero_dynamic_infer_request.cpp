@@ -43,6 +43,8 @@ void ZeroDynamicInferRequest::sync_zero_tensor_with_graph(const ZeroInferRequest
         auto& levelZeroTensor =
             foundPort.is_input() ? get_level_zero_input(foundPort.idx) : _levelZeroOutputTensors.at(foundPort.idx);
 
+        auto originallevelZeroTensor = levelZeroTensor;
+
         try {
             _logger.debug("sync_zero_tensor_with_graph - create zero tensor");
             OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "create zero tensor");
@@ -70,12 +72,14 @@ void ZeroDynamicInferRequest::sync_zero_tensor_with_graph(const ZeroInferRequest
         }
 
         if (_pipelineIsCreated && !_dynamicBatchValueChanged) {
-            _logger.debug("sync_zero_tensor_with_graph - update command list");
+            _logger.debug("sync_zero_tensor_with_graph - update graph arguments");
 
             OPENVINO_ASSERT(levelZeroTensor->data(), "Empty buffer");
 
             OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "update_graph_arguments");
-            if (levelZeroTensor->get_byte_size() != tensor->get_byte_size()) {
+            if (originallevelZeroTensor != nullptr && originallevelZeroTensor->get_shape() != tensor->get_shape()) {
+                _logger.debug("sync_zero_tensor_with_graph - update graph arguments with user tensor pointer since "
+                              "shape is changed");
                 _pipeline->update_graph_arguments(foundPort.is_input()
                                                       ? _metadata.inputs.at(foundPort.idx).indexUsedByDriver
                                                       : _metadata.outputs.at(foundPort.idx).indexUsedByDriver,
@@ -84,6 +88,8 @@ void ZeroDynamicInferRequest::sync_zero_tensor_with_graph(const ZeroInferRequest
                 _isTensorChanged = true;
             } else {
                 // This L0 tensor shall have same info with user tensor
+                _logger.debug("sync_zero_tensor_with_graph - update graph arguments without user tensor pointer since "
+                              "shape is not changed");
                 _pipeline->update_graph_arguments(foundPort.is_input()
                                                       ? _metadata.inputs.at(foundPort.idx).indexUsedByDriver
                                                       : _metadata.outputs.at(foundPort.idx).indexUsedByDriver,
@@ -109,6 +115,7 @@ void ZeroDynamicInferRequest::sync_zero_tensors_with_graph(const ZeroInferReques
         get_level_zero_inputs(foundPort.idx).resize(tensors.size());
 
         for (size_t i = 0; i < tensors.size(); i++) {
+            auto originalLevelZeroTensor = get_level_zero_input(foundPort.idx, i);
             try {
                 _logger.debug("sync_zero_tensors_with_graph - create zero tensor");
                 OV_ITT_TASK_NEXT(ZERO_SET_TENSORS, "create_zero_tensor");
@@ -126,11 +133,22 @@ void ZeroDynamicInferRequest::sync_zero_tensors_with_graph(const ZeroInferReques
             if (_pipelineIsCreated && !_dynamicBatchValueChanged) {
                 OPENVINO_ASSERT(get_level_zero_input(foundPort.idx, i)->data(), "Empty buffer");
                 OV_ITT_TASK_NEXT(ZERO_SET_TENSORS, "update_graph_arguments");
-                _pipeline->update_graph_arguments(_metadata.inputs.at(foundPort.idx).indexUsedByDriver,
-                                                  get_level_zero_input(foundPort.idx, i),
-                                                  i,
-                                                  tensors.at(i)._ptr);
-                _isTensorChanged = true;
+                if (originalLevelZeroTensor != nullptr &&
+                    originalLevelZeroTensor->get_shape() != tensors.at(i)->get_shape()) {
+                    _logger.debug(
+                        "set_tensors - update graph arguments with user tensor pointer since shape is changed");
+                    _pipeline->update_graph_arguments(_metadata.inputs.at(foundPort.idx).indexUsedByDriver,
+                                                      get_level_zero_input(foundPort.idx, i),
+                                                      i,
+                                                      tensors.at(i)._ptr);
+                    _isTensorChanged = true;
+                } else {
+                    _logger.debug(
+                        "set_tensors - update graph arguments without user tensor pointer since shape is not changed");
+                    _pipeline->update_graph_arguments(_metadata.inputs.at(foundPort.idx).indexUsedByDriver,
+                                                      get_level_zero_input(foundPort.idx, i),
+                                                      i);
+                }
             }
         }
     }

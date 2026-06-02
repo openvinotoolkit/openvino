@@ -60,9 +60,7 @@ RUN dpkg --add-architecture armhf && apt-get update && \
         libavcodec-dev:armhf \
         libavformat-dev:armhf \
         libswscale-dev:armhf \
-        libgstreamer1.0-dev:armhf \
         libpython-dev:armhf \
-        libgstreamer-plugins-base1.0-dev:armhf \
         zlib1g-dev:armhf \
         nlohmann-json-dev \
         libgflags-dev:armhf \
@@ -249,5 +247,8 @@ RUN python3 -m pip install --upgrade pip==${PIP_VERSION} && \
 # Using venv here because other methods to switch the default Python break both system and wheels build
 RUN python3.11 -m venv venv
 ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
+
+# Install newer ninja (apt ships older version on debian 10 lacking --quiet)
+RUN python3 -m pip install --no-cache-dir ninja==1.13.0
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}

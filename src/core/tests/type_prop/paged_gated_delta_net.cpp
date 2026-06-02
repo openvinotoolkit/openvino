@@ -516,7 +516,37 @@ TEST_F(TypePropPagedGatedDeltaNetTest, overlapping_dim_ranges_compatible) {
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{-1, {4, 6}, {16, 32}}));
 }
 
-TEST_F(TypePropPagedGatedDeltaNetTest, mixed_float_types_incompatible) {
+TEST_F(TypePropPagedGatedDeltaNetTest, state_float_type_independent_from_main_inputs) {
+    const auto query = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 8});
+    const auto key = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 8});
+    const auto value = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 16});
+    const auto state = std::make_shared<op::v0::Parameter>(element::f16, Shape{5, 4, 16, 8});
+    const auto gate = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4});
+    const auto beta = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4});
+    const auto subsequence_begins = std::make_shared<op::v0::Parameter>(element::i32, Shape{3});
+    const auto la_block_indices = std::make_shared<op::v0::Parameter>(element::i32, Shape{5});
+    const auto la_block_indices_begins = std::make_shared<op::v0::Parameter>(element::i32, Shape{3});
+    const auto processed_tokens = std::make_shared<op::v0::Parameter>(element::i32, Shape{2});
+    const auto cache_interval = std::make_shared<op::v0::Parameter>(element::i32, Shape{2});
+
+    const auto op = make_op(OutputVector{query,
+                                         key,
+                                         value,
+                                         state,
+                                         gate,
+                                         beta,
+                                         subsequence_begins,
+                                         la_block_indices,
+                                         la_block_indices_begins,
+                                         processed_tokens,
+                                         cache_interval});
+
+    EXPECT_EQ(op->get_output_size(), 1);
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape(Shape{10, 4, 16}));
+}
+
+TEST_F(TypePropPagedGatedDeltaNetTest, float_type_mismatch_among_query_key_value_gate_beta) {
     const auto query = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 8});
     const auto key = std::make_shared<op::v0::Parameter>(element::f16, Shape{10, 4, 8});
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 16});
@@ -541,7 +571,8 @@ TEST_F(TypePropPagedGatedDeltaNetTest, mixed_float_types_incompatible) {
                                                        processed_tokens,
                                                        cache_interval}),
                     NodeValidationFailure,
-                    testing::HasSubstr("have the same element type"));
+                    testing::HasSubstr("PagedGatedDeltaNet expects query, key, value, gate, and beta to have the "
+                                       "same element type."));
 }
 
 TEST_F(TypePropPagedGatedDeltaNetTest, i64_integer_inputs) {
