@@ -5,7 +5,6 @@
 #include "kleidiai_mm.hpp"
 
 #include <algorithm>
-#include <bitset>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -69,79 +68,6 @@ bool MatMulKleidiAIExecutor::supports(const FCConfig& config) {
     return config.descs.at(ARG_WEI)->getPrecision() == element::f32 ||
            useDynamicQuantizationImpl(config.attrs, config.descs.at(ARG_WEI));
 }
-
-namespace {
-// TODO: OffsetHelper is common util function. Move it to some common location
-class OffsetHelper {
-public:
-    static OffsetHelper createOffsetHelper(const MemoryPtr& mem) {
-        static const VectorDims empty_dims;
-        std::bitset<2> broadcast_mask;
-        if (nullptr == mem || mem->getDesc().empty()) {
-            return {nullptr, empty_dims, broadcast_mask, 0};
-        }
-        return createOffsetHelper(*mem);
-    }
-
-    static OffsetHelper createOffsetHelper(const IMemory& mem) {
-        std::bitset<2> broadcast_mask;
-        auto* base_ptr = static_cast<uint8_t*>(mem.getData());
-        auto desc = mem.getDescWithType<BlockedMemoryDesc>();
-        const auto& strides = desc->getStrides();
-        const auto prc = desc->getPrecision();
-        const auto& shape = desc->getShape().getStaticDims();
-        for (size_t i = 0; i < shape.size() && i < 2; i++) {
-            if (shape[i] == 1) {
-                broadcast_mask.set(i);
-            }
-        }
-        return {base_ptr, strides, broadcast_mask, prc.bitwidth()};
-    }
-
-    void* operator()(size_t i0) const {
-        if (!m_base_ptr) {
-            return nullptr;
-        }
-        if (m_broadcast_mask.test(0)) {
-            i0 = 0;
-        }
-        const size_t offset_bits = i0 * m_strides[0] * m_num_bits;
-        const size_t offset = div_up(offset_bits, 8);  // 8 bits in byte
-        return m_base_ptr + offset;
-    }
-
-    void* operator()(size_t i0, size_t i1) const {
-        if (!m_base_ptr) {
-            return nullptr;
-        }
-        if (m_broadcast_mask.test(0)) {
-            i0 = 0;
-        }
-        if (m_broadcast_mask.test(1)) {
-            i1 = 0;
-        }
-        const size_t offset_bits = i0 * m_strides[0] * m_num_bits + i1 * m_strides[1] * m_num_bits;
-        const size_t offset = div_up(offset_bits, 8);  // 8 bits in byte
-        return m_base_ptr + offset;
-    }
-
-    [[nodiscard]] void* get_base() const {
-        return m_base_ptr;
-    }
-
-private:
-    OffsetHelper(uint8_t* base_ptr, const VectorDims& strides, std::bitset<2> broadcast_mask, size_t num_bits)
-        : m_base_ptr(base_ptr),
-          m_strides(strides),
-          m_num_bits(num_bits),
-          m_broadcast_mask(broadcast_mask) {}
-
-    uint8_t* m_base_ptr = nullptr;
-    const VectorDims& m_strides;
-    size_t m_num_bits;
-    std::bitset<2> m_broadcast_mask;
-};
-}  // namespace
 
 MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
                                                const MemoryArgs& memory,
@@ -302,9 +228,9 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
                                                      0,
                                                      &params);
         }
-        // Create scratchpad to initialize memory for LHS in update()
-        scratchPad = context->getScratchPad();
     }
+    // Create scratchpad to initialize memory for LHS in update()
+    scratchPad = context->getScratchPad();
 }
 
 void MatMulKleidiAIExecutor::setKaiExecutorImplAsGatherMatmul() {
@@ -338,26 +264,27 @@ bool MatMulKleidiAIExecutor::update(const MemoryArgs& memory) {
         M = outDims[0];
     }
     // Assign LHS memory
+    size_t totalScratchpadSize = 0;
+    if (KaiExecutorImpl == IMPL_TYPE::GatherMatmul) {
+        const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+        const auto srcPrc = srcDesc->getPrecision();
+        const auto dstPrc = dstDesc->getPrecision();
+        m_tmpInputDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(srcPrc, Shape({M, K}));
+        m_tmpOutputDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(dstPrc, Shape({M, N}));
+        auto srcSize = rnd_up(m_tmpInputDesc->getCurrentMemSize(), 64);  // 64 bytes is the cache line size
+        auto dstSize = rnd_up(m_tmpOutputDesc->getCurrentMemSize(), 64);
+        totalScratchpadSize = srcSize + dstSize;
+    }
     if (useDynamicQuant) {
         const size_t _m_blocks = (M + BLOCK_SIZE_M_LOWP - 1) / BLOCK_SIZE_M_LOWP;
         packedlhs_block_in_bytes = kai_get_lhs_packed_size_lhs_quant_pack_qai8dxp_f32(BLOCK_SIZE_M_LOWP, K, mr, kr, sr);
         lhsPackedSize = packedlhs_block_in_bytes * _m_blocks;
-        if (KaiExecutorImpl == IMPL_TYPE::GatherMatmul) {
-            const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
-            const auto srcPrc = srcDesc->getPrecision();
-            const auto dstPrc = dstDesc->getPrecision();
-            m_tmpInputDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(srcPrc, Shape({M, K}));
-            m_tmpOutputDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(dstPrc, Shape({M, N}));
-            lhsPackedSize = rnd_up(lhsPackedSize, 64);
-            auto srcSize = rnd_up(m_tmpInputDesc->getCurrentMemSize(), 64);  // 64 bytes is the cache line size
-            auto dstSize = rnd_up(m_tmpOutputDesc->getCurrentMemSize(), 64);
-            const size_t totalSize = lhsPackedSize + srcSize + dstSize;
-            auto lhsPackedDesc = std::make_shared<CpuBlockedMemoryDesc>(i8, Shape({totalSize}));
-            lhsPackedMem = scratchPad->createScratchPadMem(lhsPackedDesc);
-        } else {
-            auto lhsPackedDesc = std::make_shared<CpuBlockedMemoryDesc>(i8, Shape({lhsPackedSize}));
-            lhsPackedMem = scratchPad->createScratchPadMem(lhsPackedDesc);
-        }
+        lhsPackedSize = rnd_up(lhsPackedSize, 64);
+        totalScratchpadSize += lhsPackedSize;
+    }
+    if (totalScratchpadSize > 0) {
+        auto lhsPackedDesc = std::make_shared<CpuBlockedMemoryDesc>(i8, Shape({totalScratchpadSize}));
+        lhsPackedMem = scratchPad->createScratchPadMem(lhsPackedDesc);
     }
     return true;
 }
