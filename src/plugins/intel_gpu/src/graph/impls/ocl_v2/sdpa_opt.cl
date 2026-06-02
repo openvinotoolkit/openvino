@@ -1085,33 +1085,117 @@ inline SEQ_RANGE FUNC(calc_sliding_window_seq_range)(const SEQ_RANGE default_seq
 #endif
 
 #if HAS_TOKEN_TYPE_IDS
-    // Bidirectional attention for image token groups (e.g. Gemma3 VLM):
-    // Compute per-lane effective causal limit to extend the visible range for image tokens
-    // This is a REFERENCE implementation.
+// Cooperative wg search for the first zero idx in token_type_ids.
+#define FIND_FIRST_ZERO_IDX_WG_TEMPLATE(CLEAR_VAL, REDUCTION_OP, ADVANCE_EXPRESSION, EDGE_CASE_CHECK, INIT_IDX) \
+        const int sgid = get_sub_group_id();                                                                    \
+        const int sglid = get_sub_group_local_id();                                                             \
+        const int lid = get_local_linear_id();                                                                  \
+        const int num_of_work_items = get_num_sub_groups()*get_sub_group_size();                                \
+                                                                                                                \
+        const int base = start_idx;                                                                             \
+        int idx_this_thread = INIT_IDX;                                                                         \
+        int block_first_idx = CLEAR_VAL;                                                                        \
+        bool work_group_should_contine_loop = true;                                                             \
+        while (work_group_should_contine_loop) {                                                                \
+            const bool is_zero = idx_this_thread EDGE_CASE_CHECK ? token_type_ids[idx_this_thread] == 0 : true; \
+            int min_idx_this_subgroup = sub_group_reduce_##REDUCTION_OP(is_zero ? idx_this_thread : CLEAR_VAL); \
+                                                                                                                \
+            if( sglid == 0 )                                                                                    \
+                reduction_buffer[sgid] = min_idx_this_subgroup;                                                 \
+                                                                                                                \
+            barrier(CLK_LOCAL_MEM_FENCE);                                                                       \
+                                                                                                                \
+            int reduce_val = CLEAR_VAL;                                                                         \
+            for(int idx = sglid; idx < SUBGROUPS_PER_WG; idx += SUBGROUP_SIZE) {                                \
+                reduce_val = REDUCTION_OP(reduce_val, reduction_buffer[idx]);                                   \
+            }                                                                                                   \
+                                                                                                                \
+            block_first_idx = sub_group_reduce_##REDUCTION_OP(reduce_val);                                      \
+            idx_this_thread ADVANCE_EXPRESSION num_of_work_items;                                               \
+            work_group_should_contine_loop = (block_first_idx == CLEAR_VAL);                                    \
+        }                                                                                                       \
+        return block_first_idx;
+
+
+    inline int FUNC(find_first_zero_to_the_right_wg)(const __global int* token_type_ids, 
+                            __local int* reduction_buffer, int start_idx, int seq_len) {
+        FIND_FIRST_ZERO_IDX_WG_TEMPLATE(INT_MAX, min, +=, < seq_len, base + lid)
+    }
+
+    inline int FUNC(find_first_zero_to_the_left_wg)(const __global int* token_type_ids, 
+                            __local int* reduction_buffer, int start_idx, int seq_len) {
+        FIND_FIRST_ZERO_IDX_WG_TEMPLATE(INT_MIN, max, -=, >= 0, base - num_of_work_items + lid)
+    }
+
+    // Function calculates the range of bidirectional mask for this work item.
     inline SEQ_RANGE FUNC(calc_bi_dir_seq_range)(
-                            const __global int* token_type_ids,
-                            const int seq_len,
-                            const SEQ_RANGE default_seq_range) {
+                            const __global int* token_type_ids, 
+                            __local int* reduction_buffer,
+                            const int seq_len, 
+                            const SEQ_RANGE default_seq_range,
+                            bool begin_needed) {
+
+        // For this wg, each subgroup's work item min and max seq idx
+        // will be in the range of:
+        // [default_seq_range.subgroup_max - SUBGROUP_SIZE, default_seq_range.subgroup_max]
+        // So we can safetly assume that wg have to check:
+        // 1) where ends token group starting from default_seq_range.subgroup_max
+        // 2) where begins token group starting from default_seq_range.subgroup_max - SUBGROUP_SIZE
+        // becasue it will be the same for all work items.
+        // Wg will simply cooperatively calculate the first idx for which the token_type_id
+        // is equal to zero to the left and right from the above range.
+
+        // Optimization assumptions:
+        // 1) default_block_range_end - default_block_range_begin <= SUBGROUP_SIZE
+        // 2) all subgroups work on the same default_block_range
+
+        const int default_block_range_begin = max(0, default_seq_range.subgroup_max - SUBGROUP_SIZE);
+        const int default_block_range_end = default_seq_range.subgroup_max;
+        int found_block_range_end = default_block_range_end;
+        int found_block_range_begin = default_block_range_begin;
+
+        // block cooperative search for token group end
+        if (token_type_ids[default_block_range_end - 1] == 1) {
+            found_block_range_end = FUNC_CALL(find_first_zero_to_the_right_wg)(token_type_ids, reduction_buffer, default_block_range_end, seq_len);
+        }
+
+        // block cooperative search for token group start
+        if (token_type_ids[default_block_range_begin] == 1 && begin_needed) {
+            found_block_range_begin = FUNC_CALL(find_first_zero_to_the_left_wg)(token_type_ids, reduction_buffer, default_block_range_begin - 1, seq_len) + 1;
+        }
+
         int token_group_end = default_seq_range.max;
         int token_group_begin = default_seq_range.max;
 
+        // Special case: image group is less than subgroup size.
         if (token_type_ids[token_group_end] == 1) {
             int new_group_end = token_group_end + 1;
-            while (new_group_end < seq_len && token_type_ids[new_group_end] == 1) {
+            while (new_group_end < default_block_range_end && token_type_ids[new_group_end] == 1) {
                 new_group_end++;
             }
             token_group_end = new_group_end - 1;
 
-            int new_group_begin = token_group_begin - 1;
-            while (new_group_begin >= 0 && token_type_ids[new_group_begin] == 1) {
-                new_group_begin--;
+            if (token_group_end == (default_block_range_end - 1)) {
+                token_group_end = found_block_range_end - 1;
             }
-            token_group_begin = new_group_begin + 1;
+
+            if (begin_needed) {
+                int new_group_begin = token_group_begin - 1;
+                while (new_group_begin >= default_block_range_begin && token_type_ids[new_group_begin] == 1) {
+                    new_group_begin--;
+                }
+                token_group_begin = new_group_begin + 1;
+
+                if (token_group_begin == default_block_range_begin) {
+                    token_group_begin = found_block_range_begin;
+                }
+            }
         }
+
         SEQ_RANGE range;
         range.min = token_group_begin;
         range.max = token_group_end;
-        range.subgroup_max = sub_group_reduce_max(token_group_end) + 1;
+        range.subgroup_max = found_block_range_end;
         return range;
     }
 #endif
@@ -1220,6 +1304,18 @@ KERNEL(sdpa_opt)(
     __local SOFTMAX_ACCUMULATOR_TYPE slm_max_val_cur[TARGET_SEQ_LEN_BLOCK_SIZE];
 #endif
 
+#ifdef HAS_TOKEN_TYPE_IDS
+    // NOTE: if allocation of reduce_buffer causes SLM spill, 
+    // we can reuse any other big enough allocated buffer.
+    // Having separate buffer makes the code easier to understand.
+    __local int reduce_buffer[SUBGROUPS_PER_WG];
+
+
+#if SUBGROUPS_PER_WG * SUBGROUP_SIZE != SEQ_LEN_PARTITION_SIZE
+    #error "sdpa_opt.cl: Unsupported configuration with token type ids. SUBGROUPS_PER_WG * SUBGROUP_SIZE must be equal to SEQ_LEN_PARTITION_SIZE."
+#endif
+#endif
+
 #if IS_PAGED_ATTENTION
     const uint block_start_pos = blocked_indexes_start[target_seq_dim];
     const uint block_end_pos = blocked_indexes_end[target_seq_dim];
@@ -1234,9 +1330,11 @@ KERNEL(sdpa_opt)(
 
     #if IS_PAGED_ATTENTION
         #if HAS_TOKEN_TYPE_IDS
-            const SEQ_RANGE bi_dir_range = FUNC_CALL(calc_bi_dir_seq_range)(token_type_ids,
-                                                                            SOURCE_SEQ_LEN,
-                                                                            default_this_work_item_seq_range);
+            const SEQ_RANGE bi_dir_range = FUNC_CALL(calc_bi_dir_seq_range)(token_type_ids, 
+                                                                            reduce_buffer,
+                                                                            SOURCE_SEQ_LEN, 
+                                                                            default_this_work_item_seq_range,
+                                                                            SLIDING_WINDOW_SIZE != 0);
             this_work_item_seq_range_temp = bi_dir_range;
         #endif //< HAS_TOKEN_TYPE_IDS
 

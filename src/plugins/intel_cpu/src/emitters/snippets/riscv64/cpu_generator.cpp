@@ -64,6 +64,7 @@
 #include "openvino/op/prelu.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/round.hpp"
+#include "openvino/op/select.hpp"
 #include "openvino/op/sigmoid.hpp"
 #include "openvino/op/softsign.hpp"
 #include "openvino/op/sqrt.hpp"
@@ -105,8 +106,10 @@
 
 #ifdef SNIPPETS_DEBUG_CAPS
 #    include "emitters/snippets/riscv64/jit_debug_emitter.hpp"
+#    include "emitters/snippets/riscv64/jit_perf_count_chrono_emitters.hpp"
 #    include "emitters/snippets/riscv64/jit_segfault_detector_emitter.hpp"
 #    include "emitters/snippets/riscv64/verbose.hpp"
+#    include "snippets/op/perf_count.hpp"
 #endif
 
 #define CREATE_GELU_V7_EMITTER(e_type_erf, e_type_tanh)                                           \
@@ -300,8 +303,16 @@ CPUTargetMachine::CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, o
     jitters[snippets::op::KernelDynamic::get_type_info_static()] =
         emitter_factory.from_expr<jit_kernel_dynamic_emitter>();
 
+#ifdef SNIPPETS_DEBUG_CAPS
+    jitters[snippets::op::PerfCountBegin::get_type_info_static()] =
+        emitter_factory.from_expr<jit_perf_count_chrono_start_emitter>();
+    jitters[snippets::op::PerfCountEnd::get_type_info_static()] =
+        emitter_factory.from_expr<jit_perf_count_chrono_end_emitter>();
+#endif
+
     // fused operations
     jitters[intel_cpu::FusedMulAdd::get_type_info_static()] = emitter_factory.from_node<jit_mul_add_emitter>();
+    jitters[op::v1::Select::get_type_info_static()] = emitter_factory.from_node<jit_select_emitter>();
 
     // binary operations
     jitters[op::v1::Add::get_type_info_static()] = emitter_factory.from_node<jit_add_emitter>();
@@ -361,7 +372,9 @@ CPUTargetMachine::CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, o
 
 std::shared_ptr<ov::snippets::TargetMachine> CPUTargetMachine::clone() const {
     const auto cloned = std::make_shared<CPUTargetMachine>(isa, compiled_kernel_cache);
-    cloned->configurator = std::make_shared<ov::snippets::RuntimeConfigurator>(*configurator);
+    const auto cpu_config = std::dynamic_pointer_cast<CPURuntimeConfigurator>(configurator);
+    OPENVINO_ASSERT(cpu_config, "Expected CPURuntimeConfigurator in CPUTargetMachine::clone()");
+    cloned->configurator = std::make_shared<CPURuntimeConfigurator>(*cpu_config);
 #ifdef SNIPPETS_DEBUG_CAPS
     cloned->debug_config = debug_config;
 #endif
@@ -458,7 +471,9 @@ bool CPUGenerator::uses_precompiled_kernel([[maybe_unused]] const std::shared_pt
     bool need = false;
 #ifdef SNIPPETS_DEBUG_CAPS
     const auto cpu_target_machine = std::dynamic_pointer_cast<CPUTargetMachine>(target);
-    need = need || (cpu_target_machine && cpu_target_machine->debug_config.enable_segfault_detector);
+    need = need || (cpu_target_machine && cpu_target_machine->debug_config.enable_segfault_detector) ||
+           std::dynamic_pointer_cast<jit_perf_count_chrono_start_emitter>(e) ||
+           std::dynamic_pointer_cast<jit_perf_count_chrono_end_emitter>(e);
 #endif
     return need;
 }
