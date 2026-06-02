@@ -2566,7 +2566,6 @@ KERNEL(sdpa_opt)(
             }
         }
     }
-    barrier(CLK_LOCAL_MEM_FENCE);
 #endif
 
     // Combine results from multiple SGs and store to output buffer
