@@ -352,8 +352,9 @@ TEST(type_prop, scaled_dot_product_unsupported_key_shape) {
     OV_EXPECT_THROW(
         auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, causal),
         AssertFailure,
-        testing::HasSubstr("Key input shape not compatible with other inputs."));
+        testing::HasSubstr("Attention mask input shape not compatible with other inputs."));
 }
+
 TEST(type_prop, scaled_dot_product_unsupported_value_shape) {
     const auto query = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 3, 4});
     const auto key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 5, 4});
@@ -364,7 +365,7 @@ TEST(type_prop, scaled_dot_product_unsupported_value_shape) {
     OV_EXPECT_THROW(
         auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, causal),
         AssertFailure,
-        testing::HasSubstr("Value input shape not compatible with other inputs."));
+        testing::HasSubstr("Attention mask input shape not compatible with other inputs."));
 }
 
 TEST(type_prop, scaled_dot_product_unsupported_attention_shape) {
