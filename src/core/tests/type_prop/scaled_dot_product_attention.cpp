@@ -230,7 +230,7 @@ TEST(type_prop, scaled_dot_product_attention_mixed_shape_infer_5_inputs_ignore_a
     const auto op =
         std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal);
     EXPECT_EQ(op->get_output_element_type(0), element::f64);
-    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{ {1, 4}, 3, {1, 5}, {3, 7} }));
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{{1, 4}, 3, {1, 5}, {3, 7}}));
 }
 
 TEST(type_prop, scaled_dot_product_attention_infer_5_dynamic_attn_partial) {
