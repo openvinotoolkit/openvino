@@ -81,6 +81,59 @@ inline PageAlignedRegion make_madvise_region(const void* data, size_t mapping_si
 }
 }  // namespace util
 
+namespace {
+/**
+ * @brief Touches memory pages in parallel to trigger page faults and populate the page cache.
+ *
+ * Spawns worker threads that each read one byte per page in their assigned range.
+ * No-op if data is null or size is below 4 MB. Below that threshold the overhead of spawning
+ * threads exceeds the benefit.
+ *
+ * @param data  Pointer to the start of the memory region.
+ * @param size  Number of bytes in the region.
+ */
+void populate_pages(void* data, size_t size) {
+    constexpr std::size_t prefault_threshold = 4 * 1024 * 1024;  // 4 MB
+    if (data == nullptr || size < prefault_threshold)
+        return;
+
+    const auto page = static_cast<size_t>(util::get_system_page_size());
+    const auto base_addr = reinterpret_cast<uintptr_t>(data);
+    const auto aligned_addr = (base_addr / page) * page;
+    const auto gap = base_addr - aligned_addr;
+    const auto total_length = size + gap;
+    const std::size_t pages = (total_length + page - 1) / page;
+
+    const std::size_t hw_threads = std::thread::hardware_concurrency();
+    constexpr std::size_t min_chunk_size = 1 * 1024 * 1024;  // 1 MB per thread minimum
+    constexpr std::size_t max_prefault_threads = 10;
+    const std::size_t num_threads =
+        std::min({hw_threads, pages, max_prefault_threads, std::max<std::size_t>(1, total_length / min_chunk_size)});
+
+    std::atomic<std::uint64_t> populate_sink{0};
+    std::vector<std::thread> threads;
+    char* const base = reinterpret_cast<char*>(aligned_addr);
+
+    for (std::size_t tid = 0; tid < num_threads; ++tid) {
+        threads.emplace_back([&, tid] {
+            const std::size_t begin_page = pages * tid / num_threads;
+            const std::size_t end_page = pages * (tid + 1) / num_threads;
+            std::uint64_t local = 0;
+
+            for (std::size_t p = begin_page; p < end_page; ++p) {
+                const std::size_t off = p * page;
+                if (off < total_length) {
+                    local += static_cast<unsigned char>(base[off]);
+                }
+            }
+            populate_sink.fetch_add(local);
+        });
+    }
+    for (auto& t : threads)
+        t.join();
+}
+}  // namespace
+
 class HandleHolder {
     int m_handle = -1;
     void reset() noexcept {
@@ -225,46 +278,5 @@ std::shared_ptr<ov::MappedMemory> load_mmap_object(FileHandle handle, size_t off
     auto holder = std::make_shared<MapHolder>();
     holder->set_from_fd(handle, offset, size);
     return holder;
-}
-
-void populate_pages(void* data, size_t size) {
-    constexpr std::size_t prefault_threshold = 4 * 1024 * 1024;  // 4 MB
-    if (data == nullptr || size < prefault_threshold)
-        return;
-
-    const auto page = static_cast<size_t>(util::get_system_page_size());
-    const auto base_addr = reinterpret_cast<uintptr_t>(data);
-    const auto aligned_addr = (base_addr / page) * page;
-    const auto gap = base_addr - aligned_addr;
-    const auto total_length = size + gap;
-    const std::size_t pages = (total_length + page - 1) / page;
-
-    const std::size_t hw_threads = std::thread::hardware_concurrency();
-    constexpr std::size_t min_chunk_size = 1 * 1024 * 1024;  // 1 MB per thread minimum
-    constexpr std::size_t max_prefault_threads = 10;
-    const std::size_t num_threads =
-        std::min({hw_threads, pages, max_prefault_threads, std::max<std::size_t>(1, total_length / min_chunk_size)});
-
-    std::atomic<std::uint64_t> populate_sink{0};
-    std::vector<std::thread> threads;
-    char* const base = reinterpret_cast<char*>(aligned_addr);
-
-    for (std::size_t tid = 0; tid < num_threads; ++tid) {
-        threads.emplace_back([&, tid] {
-            const std::size_t begin_page = pages * tid / num_threads;
-            const std::size_t end_page = pages * (tid + 1) / num_threads;
-            std::uint64_t local = 0;
-
-            for (std::size_t p = begin_page; p < end_page; ++p) {
-                const std::size_t off = p * page;
-                if (off < total_length) {
-                    local += static_cast<unsigned char>(base[off]);
-                }
-            }
-            populate_sink.fetch_add(local);
-        });
-    }
-    for (auto& t : threads)
-        t.join();
 }
 }  // namespace ov
