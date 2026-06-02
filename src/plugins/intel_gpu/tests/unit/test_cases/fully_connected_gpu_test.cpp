@@ -4104,8 +4104,8 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
     // INF appears at all, so any FP16 intermediate overflow is caught unconditionally.
     //
     // Parameter design:
-    //   input [-2, 2]  → dq_scale ~ 0.016  → int_acc typical ~1400
-    //   ds [-60, 60]   → combined_scale ~ 0.94  → TRUE result ~1300 < 65504 (FP16 safe)
+    //   input [0.25, 2]  -> dq_scale ~ 0.016  -> high positive int_acc (reduced cancellation)
+    //   ds [30, 60]      -> combined_scale ~ 0.7  -> TRUE result still far below 65504 (FP16 safe)
     //   FP16 intermediate: convert_half(1400) * 60 = 84000 > 65504 → overflow in old code
     //   FP32 path: float(1400) * 0.016 * 60 = 1344 → no overflow
     //
@@ -4127,17 +4127,17 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         auto weights_mem = engine.allocate_memory({ {ofm_num, ifm_num}, data_types::u4, format::bfyx });
         auto scale_mem = engine.allocate_memory({ {ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx });
 
-        // Small activations [-2, 2]: dq_scale ~ 0.016, int_acc ~1400.
+        // Positive activations [0.25, 2]: dq_scale ~ 0.016, high positive int_acc.
         // True result (float) = 1400 * 0.016 * 60 ~ 1344 << 65504 — always FP16-safe.
         // FP16 intermediate: convert_half(1400) * 60 = 84000 > 65504 — overflows in old code.
-        auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -2.0f, 2.0f);
+        auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, 0.25f, 2.0f);
         set_values(input_mem, input_data);
 
         auto weigths_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 15);
         set_values(weights_mem, weigths_data);
 
-        // Large decompression scales [-60, 60] to trigger intermediate overflow in FP16 path.
-        auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -60.0f, 60.0f);
+        // Large positive decompression scales [30, 60] to keep stress deterministic.
+        auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, 30.0f, 60.0f);
         set_values(scale_mem, scale_data);
 
         auto in_layout = is_dynamic ? layout{ dyn_input_ps, data_types::f16, format::bfyx }
@@ -4205,20 +4205,30 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         ASSERT_EQ(inf_count, 0u) << "Output contains " << inf_count
             << " INF values - FP16 intermediate overflow detected";
 
+        size_t ref_inf_count = 0, ref_nan_count = 0;
+        for (size_t i = 0; i < ref_ptr.size(); i++) {
+            float ref_v = static_cast<float>(ref_ptr[i]);
+            if (std::isinf(ref_v))
+                ref_inf_count++;
+            if (std::isnan(ref_v))
+                ref_nan_count++;
+        }
+        ASSERT_EQ(ref_nan_count, 0u) << "Reference output contains NaN";
+        ASSERT_EQ(ref_inf_count, 0u) << "Reference output contains INF";
+
         float max_diff = 0.f;
         float avg = 0.f;
         size_t count = 0;
         for (size_t i = 0; i < ref_ptr.size(); ++i) {
             float ref_val = static_cast<float>(ref_ptr[i]);
             float test_val = static_cast<float>(output_ptr[i]);
-            if (std::isinf(ref_val) || std::isinf(test_val))
-                continue;
             auto abs_diff = std::abs(ref_val - test_val);
             if (max_diff < abs_diff)
                 max_diff = abs_diff;
             avg += abs_diff;
             count++;
         }
+        ASSERT_GT(count, 0u) << "No finite elements were compared";
         GPU_DEBUG_LOG << "---> strict_int4 count: " << count << ", max_diff:" << max_diff
                       << ", avg_diff: " << (count > 0 ? avg / count : 0.f) << std::endl;
         ASSERT_LT(max_diff, 512) << "max_diff = " << max_diff;
@@ -4230,9 +4240,9 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
     // With large modified_calc_buff, this intermediate exceeds FP16 max (65504) → INF.
     //
     // Parameter design:
-    //   weights [0,255] UINT8, zp=0 → effective range [0,255], large int_acc
-    //   input [-0.5, 0.5] → dq_scale ~ 0.004 → int_acc ~690K >> 65504 (OLD: convert_half → INF)
-    //   ds [-4, 4]         → TRUE result = 690K * 0.004 * 4 ~ 10K << 65504 (FIXED: FP32, safe)
+    //   weights [0,255] UINT8, zp=0 -> effective range [0,255], large int_acc
+    //   input [0.25, 0.5] -> dq_scale ~ 0.004 -> high positive int_acc >> 65504 (OLD: convert_half -> INF)
+    //   ds [2, 4]          -> TRUE result stays << 65504 (FIXED: FP32, safe)
     //   FP16 intermediate (old): convert_half(690K) = INF → INF * ds = INF
     //   FP32 path (fixed):  float(690K) * 0.004 * 4 = 10K — well within FP16 range
     void test_compressed_int8_per_token_dyn_quan_strict_no_inf(bool is_dynamic, long int batch_num) {
@@ -4249,19 +4259,19 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         auto weights_mem = engine.allocate_memory({ {ofm_num, ifm_num}, data_types::u8, format::bfyx });
         auto scale_mem = engine.allocate_memory({ {ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx });
 
-        // Small activations: dq_scale = 0.5/127 ~ 0.004.
+        // Positive activations: dq_scale = 0.5/127 ~ 0.004.
         // INT8 weights [0,255] produce large int_acc ~690K >> 65504 per group.
         // True result = 690K * 0.004 * 4 ~ 10K << 65504: always FP16-safe.
         // Old code: convert_half(690K) = INF → NaN cascade.
-        auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -0.5f, 0.5f);
+        auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, 0.25f, 0.5f);
         set_values(input_mem, input_data);
 
         // UINT8 weights [0, 255]: large range ensures int_acc >> 65504.
         auto weights_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num, 0, 255);
         set_values(weights_mem, weights_data);
 
-        // Small ds [-4, 4]: keeps true result safe while int_acc is large.
-        auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -4.0f, 4.0f);
+        // Positive ds [2, 4]: keeps true result safe while avoiding cancellation.
+        auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, 2.0f, 4.0f);
         set_values(scale_mem, scale_data);
 
         auto in_layout = is_dynamic ? layout{ dyn_input_ps, data_types::f16, format::bfyx }
@@ -4330,20 +4340,30 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         ASSERT_EQ(inf_count, 0u) << "Output contains " << inf_count
             << " INF values — INT8 PER_TOKEN FP16 intermediate overflow detected";
 
+        size_t ref_inf_count = 0, ref_nan_count = 0;
+        for (size_t i = 0; i < ref_ptr.size(); i++) {
+            float ref_v = static_cast<float>(ref_ptr[i]);
+            if (std::isinf(ref_v))
+                ref_inf_count++;
+            if (std::isnan(ref_v))
+                ref_nan_count++;
+        }
+        ASSERT_EQ(ref_nan_count, 0u) << "Reference output contains NaN";
+        ASSERT_EQ(ref_inf_count, 0u) << "Reference output contains INF";
+
         float max_diff = 0.f;
         float avg = 0.f;
         size_t count = 0;
         for (size_t i = 0; i < ref_ptr.size(); ++i) {
             float ref_val = static_cast<float>(ref_ptr[i]);
             float test_val = static_cast<float>(output_ptr[i]);
-            if (std::isinf(ref_val) || std::isinf(test_val))
-                continue;
             auto abs_diff = std::abs(ref_val - test_val);
             if (max_diff < abs_diff)
                 max_diff = abs_diff;
             avg += abs_diff;
             count++;
         }
+        ASSERT_GT(count, 0u) << "No finite elements were compared";
         GPU_DEBUG_LOG << "---> strict_int8_per_token count: " << count << ", max_diff:" << max_diff
                       << ", avg_diff: " << (count > 0 ? avg / count : 0.f) << std::endl;
         ASSERT_LT(max_diff, 512) << "max_diff = " << max_diff;
