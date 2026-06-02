@@ -41,7 +41,7 @@ pass::TFLQuantizeConvert::TFLQuantizeConvert() {
         if (!convert)
             return false;
         auto type = convert->get_destination_type();
-        if (type != element::f32)
+        if (!type.is_real())
             return false;
         auto tfl_quantize = ov::as_type_ptr<TFLQuantize>(tfl_quantize_node);
         if (!tfl_quantize)
@@ -49,7 +49,7 @@ pass::TFLQuantizeConvert::TFLQuantizeConvert() {
 
         const auto replace_f32_convert = [](const std::shared_ptr<v0::Convert>& consumer_convert,
                                             const std::shared_ptr<TFLQuantize>& producer) -> bool {
-            if (!consumer_convert || consumer_convert->get_destination_type() != element::f32)
+            if (!consumer_convert || !consumer_convert->get_destination_type().is_real())
                 return false;
             consumer_convert->input(0).replace_source_output(producer->output(0));
             consumer_convert->output(0).replace(producer->output(0));
@@ -176,7 +176,7 @@ pass::TFLQuantizeReplacer::TFLQuantizeReplacer() {
         const auto is_constant =
             ov::is_type<v0::Constant>(tfl_quantize->get_input_node_shared_ptr(0));  // for Constant case
 
-        FRONT_END_GENERAL_CHECK(in_type == out_type || in_type == element::f32 || out_type == element::f32,
+        FRONT_END_GENERAL_CHECK(in_type == out_type || in_type.is_real() || out_type.is_real(),
                                 "TFLQuantized types do not match: in_type = ",
                                 in_type,
                                 " out_type = ",
@@ -195,14 +195,18 @@ pass::TFLQuantizeReplacer::TFLQuantizeReplacer() {
         const auto& scale_node = v0::Constant::create(element::f32, scale_shape, scale);
 
         if (is_constant) {
+            // Dequantize constant weights directly into the requested floating type (f32 for typical
+            // models, f16 for fully float16 models) so the produced constant matches the consuming op.
+            const auto deq_type = out_type.is_real() ? out_type : element::f32;
+            const auto& const_scale = v0::Constant::create(deq_type, scale_shape, scale);
             fuse_zp_to_weights(output, zp, zp_shape);
             ov::Output<ov::Node> zp_input;
             if (std::any_of(zp.begin(), zp.end(), [](const int64_t& i) {
                     return i != 0;
                 })) {
-                zp_input = zp_node;
+                zp_input = v0::Constant::create(deq_type, zp_shape, zp);
             }
-            output = ov::decomposition::low_precision_dequantize(output, scale_node, zp_input);
+            output = ov::decomposition::low_precision_dequantize(output, const_scale, zp_input);
             tfl_quantize->output(0).replace(output);
             return true;
         }
