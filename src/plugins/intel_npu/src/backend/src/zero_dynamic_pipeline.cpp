@@ -202,7 +202,7 @@ void DynamicPipeline::push() {
 }
 
 void DynamicPipeline::execute_vm_runtime(_npu_vm_runtime_handle_t* vmRuntime,
-                                         DynamicMemRefType& args,
+                                         DynamicArguments& args,
                                          std::vector<ze_command_list_handle_t>& commandLists,
                                          ze_command_queue_handle_t commandQueue,
                                          ze_fence_handle_t fence,
