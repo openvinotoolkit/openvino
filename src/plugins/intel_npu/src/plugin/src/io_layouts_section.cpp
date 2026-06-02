@@ -14,7 +14,8 @@ IOLayoutsSection::IOLayoutsSection(const std::vector<ov::Layout>& input_layouts,
                                    const std::vector<ov::Layout>& output_layouts)
     : ISection(PredefinedSectionType::IO_LAYOUTS),
       m_input_layouts(std::move(input_layouts)),
-      m_output_layouts(std::move(output_layouts)) {}
+      m_output_layouts(std::move(output_layouts)),
+      m_logger("IOLayoutsSection", Logger::global().level()) {}
 
 void IOLayoutsSection::write(BlobWriterInterface& writer) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "IOLayoutsSection::write");

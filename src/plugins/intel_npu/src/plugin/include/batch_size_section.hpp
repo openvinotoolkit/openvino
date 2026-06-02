@@ -23,6 +23,8 @@ public:
 
 private:
     int64_t m_batch_size;
+
+    Logger m_logger;
 };
 
 }  // namespace intel_npu

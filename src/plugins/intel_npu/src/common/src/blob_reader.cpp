@@ -43,21 +43,28 @@ BlobReaderInterface::BlobReaderInterface(
                     m_section_end,
                     ". Limit: ",
                     npu_region_size);
+    m_logger.debug("Created a new BlobReaderInterface. Boundaries: [%lu, %lu)", m_section_start, m_section_end);
 }
 
 void BlobReaderInterface::copy_data_from_source(char* destination, const size_t size) {
+    m_logger.trace("Reading and copying %lu bytes", size);
+
     m_cursor += size;
     OPENVINO_ASSERT(m_cursor <= m_section_end, "A section reader attempted to read beyond its own boundaries");
     std::memcpy(destination, m_source.get().data<const char>() + m_cursor - size, size);
 }
 
 const void* BlobReaderInterface::interpret_data_from_source(const size_t size) {
+    m_logger.trace("Reading without copying %lu bytes", size);
+
     m_cursor += size;
     OPENVINO_ASSERT(m_cursor <= m_section_end, "A section reader attempted to read beyond its own boundaries");
     return reinterpret_cast<const void*>(m_source.get().data<char>() + m_cursor - size);
 }
 
 ov::Tensor BlobReaderInterface::get_roi_tensor(const size_t size) {
+    m_logger.trace("Extracting an RoI tensor of %lu bytes", size);
+
     m_cursor += size;
     OPENVINO_ASSERT(m_cursor <= m_section_end, "A section reader attempted to read beyond its own boundaries");
     return ov::Tensor(m_source, ov::Coordinate{m_cursor - size}, ov::Coordinate{m_cursor});
@@ -100,6 +107,7 @@ BlobReader::BlobReader() : m_logger("BlobReader", Logger::global().level()) {
 void BlobReader::register_reader(const SectionType type,
                                  std::function<std::shared_ptr<ISection>(BlobReaderInterface&)> reader) {
     m_readers[type] = reader;
+    m_logger.debug("Registered a reader for section type %lu", type);
 }
 
 std::shared_ptr<ISection> BlobReader::retrieve_section(const SectionID& id) {
@@ -129,6 +137,7 @@ BlobReader::retrieve_sections_same_type(const SectionType type) {
 void BlobReader::read(const ov::Tensor& source,
                       const std::unordered_map<CRE::Token, std::shared_ptr<ICapability>>& plugin_capabilities) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "BlobReader::read");
+    m_logger.debug("Starting to parse a blob");
 
     if (!m_parsed_sections.empty()) {
         m_logger.warning("The same BlobReader object was used to read a blob more than once. This operation is "
@@ -142,6 +151,7 @@ void BlobReader::read(const ov::Tensor& source,
 
     // Read the size of the NPU region
     size_t npu_region_size = get_npu_region_size(source);
+    m_logger.trace("NPU region size: %lu", npu_region_size);
     size_t cursor = MAGIC_BYTES.size() + sizeof(FORMAT_VERSION) + sizeof(npu_region_size);
 
     // Step 1: Read the table of offsets. First, get the location and size of the table from the region of
@@ -163,7 +173,7 @@ void BlobReader::read(const ov::Tensor& source,
     std::memcpy(reinterpret_cast<char*>(&offsets_table_size),
                 source.data<const char>() + cursor,
                 sizeof(offsets_table_size));
-    cursor = move_cursor_with_bound_checking(cursor + sizeof(offsets_table_size), npu_region_size);
+    m_logger.trace("Offsets table location %lu; size %lu", offsets_table_location, offsets_table_size);
 
     cursor = move_cursor_with_bound_checking(offsets_table_location, npu_region_size);
 
@@ -175,6 +185,7 @@ void BlobReader::read(const ov::Tensor& source,
     OffsetsTable offsets_table = std::dynamic_pointer_cast<OffsetsTableSection>(
                                      m_parsed_sections.at(PredefinedSectionType::OFFSETS_TABLE).at(FIRST_INSTANCE_ID))
                                      ->get_table();
+    m_logger.debug("Parsed the table of offsets");
 
     // Step 2: Look for the CRE and evaluate it
     std::optional<uint64_t> cre_location = offsets_table.lookup_offset(CRE_SECTION_ID);
@@ -190,6 +201,7 @@ void BlobReader::read(const ov::Tensor& source,
             ->get_cre()
             .check_compatibility(plugin_capabilities);
     OPENVINO_ASSERT(is_compatible, "The imported model is not compatible");
+    m_logger.debug("CRE evaluation passed");
 
     // Step 3: Parse all known sections
     size_t number_of_sections_encountered = 0;
@@ -215,8 +227,18 @@ void BlobReader::read(const ov::Tensor& source,
 
         const size_t next_section_location = cursor + section_length.value();
 
+        m_logger.trace("Found section ID (%lu, %lu) at offset %lu, length %lu",
+                       section_id.value().type,
+                       section_id.value().type_instance,
+                       cursor,
+                       section_length.value());
+
         // Read the section if we have a reader for it. Otherwise, skip it.
         if (m_readers.count(section_id.value().type)) {
+            m_logger.debug("Parsing section type ID %lu, instance ID %lu",
+                           section_id.value().type,
+                           section_id.value().type_instance);
+
             interface =
                 BlobReaderInterface(source, cursor, section_length.value(), npu_region_size, plugin_capabilities);
             m_parsed_sections[section_id.value().type][section_id.value().type_instance] =
@@ -224,6 +246,8 @@ void BlobReader::read(const ov::Tensor& source,
             m_parsed_sections[section_id.value().type][section_id.value().type_instance]->set_section_type_instance(
                 section_id.value().type_instance);
             m_parsed_sections_order.push_back(section_id.value());
+        } else {
+            m_logger.debug("No section reader found for section type %lu. Skipping", section_id.value().type);
         }
 
         cursor = move_cursor_with_bound_checking(next_section_location, npu_region_size);

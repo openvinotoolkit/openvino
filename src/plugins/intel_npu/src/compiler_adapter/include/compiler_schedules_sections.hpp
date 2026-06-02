@@ -26,6 +26,8 @@ public:
 private:
     std::shared_ptr<Graph> m_graph;
     ov::Tensor m_main_schedule;
+
+    Logger m_logger;
 };
 
 class ELFInitSchedulesSection final : public ISection {
@@ -45,6 +47,8 @@ public:
 private:
     std::shared_ptr<WeightlessGraph> m_weightless_graph;
     std::vector<ov::Tensor> m_init_schedules;
+
+    Logger m_logger;
 };
 
 }  // namespace intel_npu

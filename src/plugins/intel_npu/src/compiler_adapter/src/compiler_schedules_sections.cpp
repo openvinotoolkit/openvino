@@ -13,7 +13,8 @@ namespace intel_npu {
 
 ELFMainScheduleSection::ELFMainScheduleSection(const std::shared_ptr<Graph>& graph)
     : ISection(PredefinedSectionType::ELF_MAIN_SCHEDULE),
-      m_graph(graph) {}
+      m_graph(graph),
+      m_logger("ELFMainScheduleSection", Logger::global().level()) {}
 
 ELFMainScheduleSection::ELFMainScheduleSection(ov::Tensor main_schedule)
     : ISection(PredefinedSectionType::ELF_MAIN_SCHEDULE),
@@ -56,7 +57,8 @@ std::shared_ptr<ISection> ELFMainScheduleSection::read(BlobReaderInterface& blob
 
 ELFInitSchedulesSection::ELFInitSchedulesSection(const std::shared_ptr<WeightlessGraph>& weightless_graph)
     : ISection(PredefinedSectionType::ELF_INIT_SCHEDULES),
-      m_weightless_graph(weightless_graph) {}
+      m_weightless_graph(weightless_graph),
+      m_logger("ELFInitSchedulesSection", Logger::global().level()) {}
 
 ELFInitSchedulesSection::ELFInitSchedulesSection(std::vector<ov::Tensor>& init_schedules)
     : ISection(PredefinedSectionType::ELF_INIT_SCHEDULES),
@@ -100,6 +102,7 @@ std::vector<ov::Tensor> ELFInitSchedulesSection::get_schedules() const {
 
 std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReaderInterface& blob_reader) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "ELFInitSchedulesSection::read");
+    Logger logger("ELFInitSchedulesSection", Logger::global().level());
 
     const size_t section_length = blob_reader.get_section_length();
 
@@ -112,6 +115,8 @@ std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReaderInterface& blo
         ". Section length: ",
         section_length);
 
+    logger.debug("Parsed number of init schedules: %lu", number_of_inits);
+
     size_t total_init_sizes = 0;
     std::vector<uint64_t> init_sizes;
     uint64_t value;
@@ -119,6 +124,8 @@ std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReaderInterface& blo
         blob_reader.copy_data_from_source(reinterpret_cast<char*>(&value), sizeof(value));
         init_sizes.push_back(value);
         total_init_sizes += value;
+
+        logger.debug("Init schedule parsed size: %lu", value);
     }
 
     OPENVINO_ASSERT(total_init_sizes < blob_reader.get_section_length(),
