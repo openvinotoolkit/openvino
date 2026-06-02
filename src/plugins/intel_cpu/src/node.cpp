@@ -1703,7 +1703,7 @@ std::pair<std::vector<float>, std::vector<float>> Node::getScalesAndShifts(const
         auto constBlob = constInputNode->getMemoryPtr();
         const auto elementsCount = constBlob->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
         buffer.resize(elementsCount);
-        cpu_convert(constBlob->getData(),
+        cpu_parallel_convert(constBlob->getData(),
                     buffer.data(),
                     DnnlExtensionUtils::DataTypeToElementType(constBlob->getDataType()),
                     ov::element::f32,

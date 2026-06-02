@@ -74,7 +74,7 @@ void ROIAlignRotated::executeImpl() {
     const size_t batch_indices_size = getSrcMemoryAtPort(2)->getShape().getElementsCount();
 
     std::vector<int64_t> batch_indices_vec_scaled_up(batch_indices_size);
-    cpu_convert(getSrcMemoryAtPort(2)->getData(),
+    cpu_parallel_convert(getSrcMemoryAtPort(2)->getData(),
                 batch_indices_vec_scaled_up.data(),
                 getSrcMemoryAtPort(2)->getPrecision(),
                 ov::element::i64,
