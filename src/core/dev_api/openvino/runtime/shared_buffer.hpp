@@ -16,13 +16,6 @@ create_base_descriptor(size_t id, size_t offset, const std::shared_ptr<ov::Align
 
 namespace detail {
 OPENVINO_API std::shared_ptr<IBufferDescriptor> create_mmap_descriptor(const std::shared_ptr<ov::MappedMemory>& mmap);
-
-template <typename U>
-struct is_aligned_buffer_ptr : std::false_type {};
-template <typename U>
-struct is_aligned_buffer_ptr<std::shared_ptr<U>> : std::is_base_of<ov::AlignedBuffer, U> {};
-template <typename U>
-static constexpr bool is_aligned_buffer_ptr_v = is_aligned_buffer_ptr<U>::value;
 }  // namespace detail
 
 template <typename T>
@@ -51,6 +44,13 @@ public:
     }
 
 protected:
+    template <typename U>
+    struct is_aligned_buffer_ptr : std::false_type {};
+    template <typename U>
+    struct is_aligned_buffer_ptr<std::shared_ptr<U>> : std::is_base_of<ov::AlignedBuffer, U> {};
+    template <typename U>
+    static constexpr bool is_aligned_buffer_ptr_v = is_aligned_buffer_ptr<U>::value;
+
     virtual void hint_evict(size_t offset, size_t size) noexcept override {
         if constexpr (std::is_same_v<std::shared_ptr<ov::MappedMemory>, T>) {
             if (m_shared_object) {
@@ -61,7 +61,7 @@ protected:
     }
 
     void hint_prefetch() const override {
-        if constexpr (detail::is_aligned_buffer_ptr_v<T>) {
+        if constexpr (is_aligned_buffer_ptr_v<T>) {
             if (this->m_shared_object) {
                 AlignedBuffer::invoke_hint_prefetch(*this->m_shared_object);
             }
@@ -127,7 +127,7 @@ class SharedBuffer : public SharedBufferBase<T> {
     static std::shared_ptr<IBufferDescriptor> get_or_make_descriptor(const T& shared_object) {
         if constexpr (std::is_same_v<T, std::shared_ptr<ov::MappedMemory>>) {
             return detail::create_mmap_descriptor(shared_object);
-        } else if constexpr (detail::is_aligned_buffer_ptr_v<T>) {
+        } else if constexpr (SharedBufferBase<T>::template is_aligned_buffer_ptr_v<T>) {
             return shared_object ? shared_object->get_descriptor() : nullptr;
         } else {
             return nullptr;
