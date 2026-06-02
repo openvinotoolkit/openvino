@@ -132,12 +132,34 @@ void ov::frontend::tensorflow_lite::apply_quantization(ov::Output<ov::Node>& out
     return;
 }
 
+namespace {
+// Returns f16/bf16 if any non-TFLQuantize sibling input already carries that
+// half-precision activation type; otherwise element::dynamic. Used to keep a
+// constant weight dequantized to the activation precision (e.g. fp16 MatMul)
+// instead of forcing an unnecessary fp32 cast.
+ov::element::Type detect_half_precision_sibling(const ov::OutputVector& inputs) {
+    for (const auto& in : inputs) {
+        if (ov::is_type<ov::frontend::tensorflow_lite::TFLQuantize>(in.get_node_shared_ptr()))
+            continue;
+        const auto& t = in.get_element_type();
+        if (t == ov::element::f16 || t == ov::element::bf16)
+            return t;
+    }
+    return ov::element::dynamic;
+}
+}  // namespace
+
 void ov::frontend::tensorflow_lite::dequantize_inputs(OutputVector& deq_inputs) {
+    const auto half_sibling = detect_half_precision_sibling(deq_inputs);
     for (auto& deq_input : deq_inputs) {
-        auto input = deq_input.get_node_shared_ptr();
+        const auto input = deq_input.get_node_shared_ptr();
         if (!ov::is_type<ov::frontend::tensorflow_lite::TFLQuantize>(input))
             continue;
-        deq_input = std::make_shared<opset10::Convert>(deq_input, element::f32);
+        const bool weight_is_constant =
+            input->get_input_size() > 0 && ov::is_type<opset10::Constant>(input->get_input_node_shared_ptr(0));
+        const auto target =
+            (half_sibling != element::dynamic && weight_is_constant) ? half_sibling : element::f32;
+        deq_input = std::make_shared<opset10::Convert>(deq_input, target);
     }
 }
 

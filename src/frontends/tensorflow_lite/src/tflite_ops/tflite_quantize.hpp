@@ -15,7 +15,7 @@ namespace ov {
 namespace frontend {
 namespace tensorflow_lite {
 
-class TFLQuantize : public ov::frontend::tensorflow::InternalOperation {
+class TENSORFLOW_LITE_FRONTEND_API TFLQuantize : public ov::frontend::tensorflow::InternalOperation {
 public:
     OPENVINO_OP("TFLQuantize", "ov::frontend::tensorflow_lite::util", ov::frontend::tensorflow::InternalOperation);
 

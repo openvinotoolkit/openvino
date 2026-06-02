@@ -72,6 +72,7 @@ else()
 endif()
 
 get_target_property(TENSORFLOW_LITE_FRONTEND_SRC_DIR openvino_tensorflow_lite_frontend SOURCE_DIR)
+target_link_libraries(${TARGET_NAME} PRIVATE openvino::frontend::tensorflow_common)
 
 add_subdirectory(standalone_build)
 add_dependencies(${TARGET_NAME} tensorflow_lite_fe_standalone_build_test)
