@@ -600,7 +600,7 @@ void Reorder::reorderData(const IMemory& input,
                 tmpBuff.resize(output.getSize());
 
                 const auto outPrc = DnnlExtensionUtils::DataTypeToElementType(output.getDataType());
-                cpu_convert(data,
+                cpu_parallel_convert(data,
                             tmpBuff.data(),
                             DnnlExtensionUtils::DataTypeToElementType(input.getDataType()),
                             outPrc,
