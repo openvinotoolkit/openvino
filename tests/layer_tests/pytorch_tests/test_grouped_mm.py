@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
+import openvino as ov
 
 from pytorch_layer_test_class import PytorchLayerTest
 
@@ -117,9 +118,12 @@ class TestGroupedMMConstWeights(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_grouped_mm_const_b(self, a_shape, b_shape, ie_device, precision, ir_version):
-        # GPU `gather_matmul` kernel is f16-only (DPAS).
-        if ie_device.startswith("GPU") and precision == "FP32":
-            pytest.skip("GPU gather_matmul kernel does not support f32 activations/weights")
+        if ie_device.startswith("GPU"):
+            caps = ov.Core().get_property(ie_device, ov.properties.device.capabilities)
+            if "GPU_HW_MATMUL" not in caps:
+                pytest.skip("not supported on GPU without GPU_HW_MATMUL (immad)")
+            if precision == "FP32":
+                pytest.skip("GPU gather_matmul kernel does not support FP32")
         self._test(*self.create_model(b_shape=b_shape), ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"a_shape": a_shape},
                    trace_model=True)
@@ -157,9 +161,12 @@ class TestGroupedMMOffsetsConstWeights(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_grouped_mm_offs_const_b(self, total_tokens, k, n, offsets, ie_device, precision, ir_version):
-        # GPU `gather_matmul` kernel is f16-only (DPAS).
-        if ie_device.startswith("GPU") and precision == "FP32":
-            pytest.skip("GPU gather_matmul kernel does not support f32 activations/weights")
+        if ie_device.startswith("GPU"):
+            caps = ov.Core().get_property(ie_device, ov.properties.device.capabilities)
+            if "GPU_HW_MATMUL" not in caps:
+                pytest.skip("not supported on GPU without GPU_HW_MATMUL (immad)")
+            if precision == "FP32":
+                pytest.skip("GPU gather_matmul kernel does not support FP32")
         self._test(*self.create_model(k=k, n=n, num_groups=len(offsets)),
                    ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"total_tokens": total_tokens, "offsets": offsets, "k": k},
