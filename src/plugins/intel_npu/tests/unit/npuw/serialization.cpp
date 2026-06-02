@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <limits>
 
 #include "attention.hpp"
 #include "common_test_utils/file_utils.hpp"
@@ -86,6 +87,8 @@ void expect_pyramid_attention_equal(const ov::npuw::compiled::PyramidAttention& 
     EXPECT_EQ(expected.query_size, actual.query_size);
     EXPECT_EQ(expected.full_context_size, actual.full_context_size);
     EXPECT_EQ(expected._context_lengths, actual._context_lengths);
+    EXPECT_EQ(expected.past_key_block_global_param_indices, actual.past_key_block_global_param_indices);
+    EXPECT_EQ(expected.past_value_block_global_param_indices, actual.past_value_block_global_param_indices);
     ASSERT_EQ(expected._attention_infos.size(), actual._attention_infos.size());
     for (std::size_t i = 0; i < expected._attention_infos.size(); ++i) {
         const auto& lhs = expected._attention_infos[i];
@@ -98,6 +101,10 @@ void expect_pyramid_attention_equal(const ov::npuw::compiled::PyramidAttention& 
             EXPECT_EQ(lhs.params[j].idx, rhs.params[j].idx);
             EXPECT_EQ(lhs.params[j].dim, rhs.params[j].dim);
         }
+        EXPECT_EQ(lhs.past_key_block_port_map, rhs.past_key_block_port_map);
+        EXPECT_EQ(lhs.past_value_block_port_map, rhs.past_value_block_port_map);
+        EXPECT_EQ(lhs.past_key_block_port_set, rhs.past_key_block_port_set);
+        EXPECT_EQ(lhs.past_value_block_port_set, rhs.past_value_block_port_set);
     }
 }
 
@@ -532,6 +539,52 @@ TEST(SerializationTest, OVTypes_PyramidAttention) {
     info2.mask_idx = 5;
     info2.query_size = 16;
     info2.context_length = 64;
+
+    var._attention_infos = {info1, info2};
+
+    ov::npuw::compiled::PyramidAttention res;
+
+    std::stringstream ss;
+
+    write(ss, var);
+    read(ss, res);
+
+    expect_pyramid_attention_equal(var, res);
+}
+
+TEST(SerializationTest, OVTypes_PyramidAttention_BlockMode) {
+    using namespace ov::npuw::s11n;
+
+    ov::npuw::compiled::PyramidAttention var;
+    var.query_size = 16;
+    var.full_context_size = 128;
+    var._context_lengths = {16, 32, 64, 128};
+    var.past_key_block_global_param_indices = {10, 11, 12};
+    var.past_value_block_global_param_indices = {20, 21, 22};
+
+    ov::npuw::compiled::PyramidAttentionInfo info1;
+    info1.mask_idx = 4;
+    info1.query_size = 16;
+    info1.context_length = 32;
+    info1.past_key_block_port_map = {{10, std::numeric_limits<size_t>::max()},
+                                     {11, std::numeric_limits<size_t>::max()},
+                                     {12, std::numeric_limits<size_t>::max()}};
+    info1.past_value_block_port_map = {{20, std::numeric_limits<size_t>::max()},
+                                       {21, std::numeric_limits<size_t>::max()},
+                                       {22, std::numeric_limits<size_t>::max()}};
+
+    ov::npuw::compiled::PyramidAttentionInfo info2;
+    info2.mask_idx = 5;
+    info2.query_size = 16;
+    info2.context_length = 64;
+    info2.past_key_block_port_map = {{10, 0},
+                                     {11, std::numeric_limits<size_t>::max()},
+                                     {12, std::numeric_limits<size_t>::max()}};
+    info2.past_value_block_port_map = {{20, 1},
+                                       {21, std::numeric_limits<size_t>::max()},
+                                       {22, std::numeric_limits<size_t>::max()}};
+    info2.past_key_block_port_set = {0};
+    info2.past_value_block_port_set = {1};
 
     var._attention_infos = {info1, info2};
 

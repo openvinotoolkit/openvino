@@ -743,6 +743,8 @@ static void build_sdpa_param_mapping(HostFlashAttention& hfa,
                 LOG_DEBUG("  Found " << kv_name << " block[" << i << "] at parameter index " << idx);
                 if (i == 0)
                     hfa._sdpa_param_index_map[past_id] = idx;  // backward-compat single-block entry
+            } else {
+                LOG_WARN("Could not extract parameter from " << kv_name << " Concat input[" << i << "]");
             }
         }
         if (auto param = extract_param(concat_node->get_input_node_shared_ptr(n - 1))) {
