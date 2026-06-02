@@ -1773,8 +1773,11 @@ TEST(prepare_buffer_fusing, in_place_onednn_concat_multi_user_safe_type) {
 
     auto input_memory  = engine.allocate_memory(in_layout);
     auto input_memory2 = engine.allocate_memory(in_layout2);
-    std::vector<float> d1(16 * 4 * 4, 1.0f);
-    std::vector<float> d2(16 * 4 * 4, 2.0f);
+    // Natural-number sequences (0, 1, 2 … N-1) so any buffer-overlap or aliasing bug
+    // produces a wrong value at a specific position rather than going unnoticed.
+    const size_t N = 16 * 4 * 4;  // 256
+    std::vector<float> d1(N), d2(N);
+    for (size_t i = 0; i < N; i++) { d1[i] = static_cast<float>(i); d2[i] = static_cast<float>(i); }
     set_values(input_memory,  d1);
     set_values(input_memory2, d2);
 
@@ -1787,26 +1790,27 @@ TEST(prepare_buffer_fusing, in_place_onednn_concat_multi_user_safe_type) {
     const auto& concat_node = network.get_primitive("concat")->get_node();
     ASSERT_TRUE(concat_node.can_be_optimized());
 
-    // out_concat = [shared_r(1.0f) | other_r(2.0f)] along feature axis
+    // out_concat = [shared_r(0..N-1) | other_r(0..N-1)] along feature axis
     auto out_concat_mem = output.at("out_concat").get_memory();
     cldnn::mem_lock<float> concat_ptr(out_concat_mem, get_test_stream());
-    ASSERT_EQ(concat_ptr.size(), 512u);
-    for (size_t i = 0; i < 256; i++)
-        ASSERT_EQ(concat_ptr[i], 1.0f) << "out_concat mismatch at index " << i;
-    for (size_t i = 256; i < 512; i++)
-        ASSERT_EQ(concat_ptr[i], 2.0f) << "out_concat mismatch at index " << i;
+    ASSERT_EQ(concat_ptr.size(), 2 * N);
+    for (size_t i = 0; i < N; i++)
+        ASSERT_NEAR(concat_ptr[i],     static_cast<float>(i), 1e-3f) << "out_concat first half mismatch at index " << i;
+    for (size_t i = 0; i < N; i++)
+        ASSERT_NEAR(concat_ptr[N + i], static_cast<float>(i), 1e-3f) << "out_concat second half mismatch at index " << i;
 
-    // out_act1 = relu(shared_r) = relu(1.0f) = 1.0f
+    // out_act1 = relu(shared_r) = relu(0..N-1) = 0..N-1 (all non-negative)
     auto out_act1_mem = output.at("out_act1").get_memory();
     cldnn::mem_lock<float> act1_ptr(out_act1_mem, get_test_stream());
     for (size_t i = 0; i < act1_ptr.size(); i++)
-        ASSERT_EQ(act1_ptr[i], 1.0f) << "out_act1 mismatch at index " << i;
+        ASSERT_NEAR(act1_ptr[i], static_cast<float>(i), 1e-3f) << "out_act1 mismatch at index " << i;
 
-    // out_act2 = clamp(shared_r, 0, 1) = clamp(1.0f, 0, 1) = 1.0f
+    // out_act2 = clamp(shared_r, 0, 1): index 0 → 0.0f, indices 1..N-1 → 1.0f
     auto out_act2_mem = output.at("out_act2").get_memory();
     cldnn::mem_lock<float> act2_ptr(out_act2_mem, get_test_stream());
-    for (size_t i = 0; i < act2_ptr.size(); i++)
-        ASSERT_EQ(act2_ptr[i], 1.0f) << "out_act2 mismatch at index " << i;
+    ASSERT_NEAR(act2_ptr[0], 0.0f, 1e-3f) << "out_act2 mismatch at index 0";
+    for (size_t i = 1; i < act2_ptr.size(); i++)
+        ASSERT_NEAR(act2_ptr[i], 1.0f, 1e-3f) << "out_act2 mismatch at index " << i;
 }
 
 // Verifies that convolution is recognised as a safe-reader type in
