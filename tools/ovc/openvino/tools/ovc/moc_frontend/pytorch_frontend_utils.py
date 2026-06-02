@@ -253,10 +253,19 @@ def get_pytorch_decoder_for_model_on_disk(argv, args):
         return False
 
     inputs = prepare_torch_inputs(example_inputs)
+    # SECURITY: torch.jit.load / torch.export.load unpickle, so a malicious
+    # archive can execute arbitrary code. Mitigations:
+    #   1. _is_pytorch_zip() above rejects anything that isn't a ZIP with
+    #      PyTorch-specific entries, shrinking the attack surface.
+    #   2. input_model comes from the OVC CLI / Python API; the trust
+    #      boundary is the caller, who already has code-exec on this host.
+    #   3. neither torch.jit.load nor torch.export.load supports a
+    #      weights_only / safe mode for TorchScript / older PT2 archives.
+    log.warning("Loading PyTorch model from '%s'. PyTorch archives are deserialized via pickle; only load model files you trust.", input_model)
 
     # attempt to load scripted model
     try:
-        model = torch.jit.load(input_model)
+        model = torch.jit.load(input_model) # nosec B614 - see note above
         model.eval()
         decoder = TorchScriptPythonDecoder(
             model,
@@ -271,7 +280,7 @@ def get_pytorch_decoder_for_model_on_disk(argv, args):
 
     # attempt to load exported model
     try:
-        exported_program = torch.export.load(input_model)
+        exported_program = torch.export.load(input_model) # nosec B614 - see note above
         if isinstance(exported_program, torch.export.ExportedProgram):
             argv.input_model = TorchFXPythonDecoder.from_exported_program(exported_program)
             argv.framework = 'pytorch'
