@@ -9,6 +9,9 @@
 #include <string>
 
 #include "backends_registry.hpp"
+#include "intel_npu/common/cre.hpp"
+#include "intel_npu/common/icapability.hpp"
+#include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "metadata.hpp"
@@ -61,6 +64,10 @@ public:
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                     const ov::AnyMap& properties) const override;
 
+    void register_capability(const std::shared_ptr<ICapability>& capability) const;
+
+    std::unordered_map<CRE::Token, std::shared_ptr<ICapability>> get_capabilities() const;
+
 private:
     void update_log_level(const ov::AnyMap& properties) const;
 
@@ -72,13 +79,10 @@ private:
      * will be one or multiple weights initialization schedules found there as well.
      *
      * @param tensorBig Contains the whole binary object.
-     * @param metadata Parsed metadata at the end of the blob. Can be nullptr if compatibility checks were disabled.
      * @param properties Configuration taking the form of an "ov::AnyMap".
      * @return A compiled model
      */
-    std::shared_ptr<ov::ICompiledModel> parse(const ov::Tensor& tensorBig,
-                                              std::unique_ptr<MetadataBase> metadata,
-                                              const ov::AnyMap& properties) const;
+    std::shared_ptr<ov::ICompiledModel> parse(const ov::Tensor& tensorBig, const ov::AnyMap& properties) const;
 
     ov::CompatibilityCheck validate_compatibility_descriptor(ov::intel_npu::CompilerType compilerType,
                                                              const ov::AnyMap& arguments) const;
@@ -91,6 +95,8 @@ private:
 
     mutable Logger _logger;
     std::unique_ptr<Properties> _propertiesManager;
+
+    mutable std::unordered_map<CRE::Token, std::shared_ptr<ICapability>> _capabilities;
 
     static std::atomic<int> _compiledModelLoadCounter;
 };

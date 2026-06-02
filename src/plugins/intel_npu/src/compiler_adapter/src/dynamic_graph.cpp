@@ -463,7 +463,7 @@ DynamicGraph::DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroIni
     initialize(config);
 }
 
-std::pair<uint64_t, std::optional<std::vector<uint64_t>>> DynamicGraph::export_blob(std::ostream& stream) const {
+uint64_t DynamicGraph::export_main_blob(std::ostream& stream) const {
     const uint8_t* blobPtr = nullptr;
     size_t blobSize = 0;
 
@@ -489,7 +489,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> DynamicGraph::export_b
 
     if (!stream) {
         _logger.error("Write blob to stream failed. Blob is broken!");
-        return std::make_pair(0, std::nullopt);
+        return 0;
     }
 
     if (_logger.level() >= ov::log::Level::INFO) {
@@ -507,12 +507,12 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> DynamicGraph::export_b
         std::fill_n(std::ostream_iterator<char>(stream), paddingSize, 0);
         if (!stream) {
             _logger.error("Write padding to stream failed. Blob is broken!");
-            return std::make_pair(0, std::nullopt);
+            return 0;
         }
         _logger.info("Blob size with padding: %zu", size);
     }
     _logger.info("Write blob to stream successfully.");
-    return std::make_pair(size, std::nullopt);
+    return size;
 }
 
 const NetworkMetadata& DynamicGraph::get_metadata() const {
