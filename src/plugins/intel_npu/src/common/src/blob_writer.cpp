@@ -24,14 +24,18 @@ BlobWriterInterface::BlobWriterInterface(std::ostream& stream, const std::stream
     : m_stream(stream),
       m_stream_npu_region_start(stream_npu_region_start),
       m_stream_current_section_start(stream.tellp()),
-      m_logger("BlobWriterInterface", Logger::global().level()) {}
+      m_logger("BlobWriterInterface", Logger::global().level()) {
+    m_logger.debug("Created a new BlobWriterInterface. Section start: %lu", m_stream_current_section_start);
+}
 
 void BlobWriterInterface::write(const void* source, const size_t size) {
     OPENVINO_ASSERT(m_stream.get().good(), "Invalid stream before \"write\" operation");
+    m_logger.trace("Writing %lu bytes", size);
     m_stream.get().write(reinterpret_cast<const char*>(source), size);
 }
 
 void BlobWriterInterface::add_padding(const size_t size) {
+    m_logger.trace("Adding %lu bytes of padding", size);
     if (size > 0) {
         std::fill_n(std::ostream_iterator<char>(m_stream.get()), size, 0);
     }
@@ -71,13 +75,13 @@ void BlobWriterInterface::seek_to_the_end() {
     m_stream.get().seekp(0, std::ios_base::end);
 }
 
-BlobWriter::BlobWriter() : m_logger("BlobWriter", Logger::global().level()) {}
+BlobWriter::BlobWriter() : m_logger("BlobWriter", Logger::global().level()) {
+    m_logger.debug("BlobWriter built from scratch");
+}
 
 BlobWriter::BlobWriter(const std::shared_ptr<BlobReader>& blob_reader)
     : m_logger("BlobWriter", Logger::global().level()) {
-    // TODO review the class const qualifiers
-    const auto cre_section = blob_reader->retrieve_section(CRE_SECTION_ID);
-    OPENVINO_ASSERT(cre_section != nullptr, "The CRE section was not found within the BlobReader");
+    m_logger.debug("Building the BlobWriter using the contents of a BlobReader");
 
     for (const SectionID& section_id : blob_reader->m_parsed_sections_order) {
         // The CRE & offsets table sections are added by the write() method after writing all registered sections
@@ -87,6 +91,7 @@ BlobWriter::BlobWriter(const std::shared_ptr<BlobReader>& blob_reader)
             "By convention, the offsets table and CRE sections should not be found within the parsed sections order "
             "attribute");
         register_section_from_blob_reader(blob_reader->retrieve_section(section_id));
+        m_logger.debug("Registered section type ID %lu, instance ID %lu", section_id.type, section_id.type_instance);
     }
 }
 
@@ -106,12 +111,17 @@ SectionTypeInstance BlobWriter::register_section(const std::shared_ptr<ISection>
     section->set_section_type_instance(type_instance_id);
     m_registered_sections.push(section);
 
+    m_logger.debug("Registered section type ID %lu, instance ID %lu", section_type, type_instance_id);
+
     return type_instance_id;
 }
 
 CRE BlobWriter::build_cre() const {
+    m_logger.debug("Filling the CRE");
+
     CRE cre({CRE::AND});
     cre.append_to_expression(CRE::PredefinedCapabilityToken::CRE_EVALUATION);
+    m_logger.debug("Added the CRE_EVALUATION token to the CRE");
 
     // Go through all sections to find out the tokens that are needed. There may be a many-to-many mapping between
     // section types and capabilities in the future. The switch case here should not imply that one-to-many is the only
@@ -124,16 +134,17 @@ CRE BlobWriter::build_cre() const {
         switch (section->get_section_type()) {
         case PredefinedSectionType::ELF_MAIN_SCHEDULE: {
             cre.append_to_expression(CRE::PredefinedCapabilityToken::ELF_SCHEDULE);
+            m_logger.debug("Added the ELF_SCHEDULE token to the CRE");
             break;
         }
         case PredefinedSectionType::ELF_INIT_SCHEDULES:
             cre.append_to_expression(CRE::PredefinedCapabilityToken::WEIGHTS_SEPARATION);
+            m_logger.debug("Added the WEIGHTS_SEPARATION token to the CRE");
             break;
         case PredefinedSectionType::BATCH_SIZE:
             cre.append_to_expression(CRE::PredefinedCapabilityToken::BATCHING);
+            m_logger.debug("Added the BATCHING token to the CRE");
             break;
-            // default:
-            // break;
         }
     }
 
@@ -162,6 +173,10 @@ void BlobWriter::write_section(std::ostream& stream,
                                const std::shared_ptr<ISection>& section,
                                const std::streampos stream_npu_region_start,
                                OffsetsTable& offsets_table) const {
+    m_logger.debug("Writting section type ID %lu, instance ID %lu",
+                   section->get_section_type(),
+                   section->get_section_type_instance());
+
     stream.seekp(0, std::ios_base::end);
     const uint64_t offset = get_offset_relative_to_npu_region(stream, stream_npu_region_start);
     BlobWriterInterface blob_writer_interface(stream, stream_npu_region_start);
@@ -180,6 +195,7 @@ void BlobWriter::write_section(std::ostream& stream,
 
 void BlobWriter::write(std::ostream& stream) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "BlobWriter::write");
+    m_logger.debug("Starting to write to a stream");
 
     // Operate on this copy instead of the attribute. This is necessary to ensure write idempotency by keeping the
     // attributes unchanged.
@@ -239,6 +255,9 @@ void BlobWriter::write(std::ostream& stream) const {
     stream.write(reinterpret_cast<const char*>(&npu_region_size), sizeof(npu_region_size));
     stream.write(reinterpret_cast<const char*>(&offsets_table_location), sizeof(offsets_table_location));
     stream.write(reinterpret_cast<const char*>(&offsets_table_size), sizeof(offsets_table_size));
+
+    m_logger.trace("NPU region size %lu", npu_region_size);
+    m_logger.trace("Offsets table location %lu; size %lu", offsets_table_location, offsets_table_size);
 }
 
 }  // namespace intel_npu

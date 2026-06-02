@@ -26,6 +26,8 @@ public:
 private:
     std::vector<ov::Layout> m_input_layouts;
     std::vector<ov::Layout> m_output_layouts;
+
+    Logger m_logger;
 };
 
 }  // namespace intel_npu

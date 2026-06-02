@@ -14,7 +14,8 @@ IOLayoutsSection::IOLayoutsSection(const std::vector<ov::Layout>& input_layouts,
                                    const std::vector<ov::Layout>& output_layouts)
     : ISection(PredefinedSectionType::IO_LAYOUTS),
       m_input_layouts(std::move(input_layouts)),
-      m_output_layouts(std::move(output_layouts)) {}
+      m_output_layouts(std::move(output_layouts)),
+      m_logger("IOLayoutsSection", Logger::global().level()) {}
 
 void IOLayoutsSection::write(BlobWriterInterface& writer) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "IOLayoutsSection::write");
@@ -24,12 +25,18 @@ void IOLayoutsSection::write(BlobWriterInterface& writer) {
     writer.write(&number_of_input_layouts, sizeof(number_of_input_layouts));
     writer.write(&number_of_output_layouts, sizeof(number_of_output_layouts));
 
+    m_logger.debug("Writting %lu input layouts and %lu output layouts",
+                   number_of_input_layouts,
+                   number_of_output_layouts);
+
     const auto write_layouts = [&](const std::vector<ov::Layout>& layouts) {
         for (const ov::Layout& layout : layouts) {
             const std::string layout_string = layout.to_string();
             const uint16_t string_length = static_cast<uint16_t>(layout_string.size());
             writer.write(&string_length, sizeof(string_length));
             writer.write(layout_string.c_str(), string_length);
+
+            m_logger.trace("Layout %s written", layout_string);
         }
     };
 
@@ -47,6 +54,7 @@ std::vector<ov::Layout> IOLayoutsSection::get_output_layouts() const {
 
 std::shared_ptr<ISection> IOLayoutsSection::read(BlobReaderInterface& blob_reader) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "IOLayoutsSection::read");
+    const Logger logger("IOLayoutsSection", Logger::global().level());
 
     const size_t section_length = blob_reader.get_section_length();
     OPENVINO_ASSERT(section_length >= 2 * sizeof(uint64_t),
@@ -62,7 +70,7 @@ std::shared_ptr<ISection> IOLayoutsSection::read(BlobReaderInterface& blob_reade
     blob_reader.copy_data_from_source(reinterpret_cast<char*>(&number_of_output_layouts),
                                       sizeof(number_of_output_layouts));
 
-    const Logger logger("IOLayoutsSection", Logger::global().level());
+    logger.debug("Reading %lu input layouts and %lu output layouts", number_of_input_layouts, number_of_output_layouts);
 
     const auto read_n_layouts = [&](const uint64_t number_of_layouts, const char* logger_addition) {
         std::vector<ov::Layout> layouts;
@@ -75,17 +83,18 @@ std::shared_ptr<ISection> IOLayoutsSection::read(BlobReaderInterface& blob_reade
         for (uint64_t layout_index = 0; layout_index < number_of_layouts; ++layout_index) {
             blob_reader.copy_data_from_source(reinterpret_cast<char*>(&string_length), sizeof(string_length));
 
-            std::string layoutString(string_length, 0);
-            blob_reader.copy_data_from_source(const_cast<char*>(layoutString.c_str()), string_length);
+            std::string layout_string(string_length, 0);
+            blob_reader.copy_data_from_source(const_cast<char*>(layout_string.c_str()), string_length);
 
             try {
-                layouts.push_back(ov::Layout(std::move(layoutString)));
+                layouts.push_back(ov::Layout(std::move(layout_string)));
+                logger.trace("Read layout %s", layout_string);
             } catch (const ov::Exception&) {
                 logger.warning("Error encountered while constructing an ov::Layout object. %s index: %d. Value "
                                "read from blob: %s. A default value will be used instead.",
                                logger_addition,
                                layout_index,
-                               layoutString.c_str());
+                               layout_string.c_str());
                 layouts.push_back(ov::Layout());
             }
         }

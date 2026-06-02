@@ -38,18 +38,23 @@ void InvalidCRE::create(const char* file,
     throw InvalidCRE(make_what(file, line, check_string, context_info, explanation));
 }
 
-CRE::CRE() {}
+// TODO use the logger more after modifying the algorithm
+CRE::CRE() : m_logger("CRE", Logger::global().level()) {}
 
-CRE::CRE(const std::vector<Token>& expression) : m_expression(expression) {}
+CRE::CRE(const std::vector<Token>& expression) : m_expression(expression), m_logger("CRE", Logger::global().level()) {}
 
 void CRE::append_to_expression(const CRE::Token requirement_token) {
     OPENVINO_ASSERT(!RESERVED_TOKENS.count(requirement_token),
                     "Appending subexpressions should be done through the \"vector\" API");
     m_expression.push_back(requirement_token);
+
+    m_logger.trace("Appended token %u", requirement_token);
 }
 
 void CRE::append_to_expression(const std::vector<CRE::Token>& requirement_tokens) {
     m_expression.insert(m_expression.end(), requirement_tokens.begin(), requirement_tokens.end());
+
+    m_logger.trace("Appended subexpression");
 }
 
 size_t CRE::get_expression_length() const {
@@ -159,12 +164,17 @@ bool CRE::check_compatibility(const std::unordered_map<CRE::Token, std::shared_p
     return result;
 }
 
-CRESection::CRESection(const CRE& cre) : ISection(PredefinedSectionType::CRE), m_cre(cre) {}
+CRESection::CRESection(const CRE& cre)
+    : ISection(PredefinedSectionType::CRE),
+      m_cre(cre),
+      m_logger("CRESection", Logger::global().level()) {}
 
 void CRESection::write(BlobWriterInterface& writer) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CRESection::write");
 
     writer.write(m_cre.get_expression().data(), m_cre.get_expression_length() * sizeof(CRE::Token));
+
+    m_logger.debug("%lu tokens written", m_cre.get_expression_length());
 }
 
 CRE CRESection::get_cre() const {
@@ -173,6 +183,7 @@ CRE CRESection::get_cre() const {
 
 std::shared_ptr<ISection> CRESection::read(BlobReaderInterface& blob_reader) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CRESection::read");
+    Logger logger("CRESection", Logger::global().level());
 
     const size_t section_length = blob_reader.get_section_length();
     OPENVINO_ASSERT(section_length % sizeof(CRE::Token) == 0,
@@ -184,6 +195,8 @@ std::shared_ptr<ISection> CRESection::read(BlobReaderInterface& blob_reader) {
     OPENVINO_ASSERT(number_of_tokens != 0,
                     "Read \"0\" as the number of CRE tokens. This value is invalid since at least one token (the CRE "
                     "capability) is expected");
+
+    logger.debug("Reading %lu tokens", number_of_tokens);
 
     std::vector<CRE::Token> tokens(number_of_tokens);
     blob_reader.copy_data_from_source(reinterpret_cast<char*>(tokens.data()), number_of_tokens * sizeof(CRE::Token));

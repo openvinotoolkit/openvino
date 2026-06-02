@@ -17,7 +17,7 @@ namespace intel_npu {
  */
 class OffsetsTable final {
 public:
-    OffsetsTable() = default;
+    OffsetsTable();
 
     void add_entry(const SectionID id, const uint64_t offset, const uint64_t length);
 
@@ -44,6 +44,8 @@ private:
      * @brief From offsets to section IDs.
      */
     std::unordered_map<uint64_t, SectionID> m_reversed_table;
+
+    Logger m_logger;
 };
 
 class OffsetsTableSection final : public ISection {
@@ -58,6 +60,8 @@ public:
 
 private:
     OffsetsTable m_offsets_table;
+
+    Logger m_logger;
 };
 
 }  // namespace intel_npu

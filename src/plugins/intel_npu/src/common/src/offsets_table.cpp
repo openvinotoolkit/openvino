@@ -10,6 +10,8 @@
 
 namespace intel_npu {
 
+OffsetsTable::OffsetsTable() : m_logger("OffsetsTable", Logger::global().level()) {}
+
 void OffsetsTable::add_entry(const SectionID id, const uint64_t offset, const uint64_t length) {
     // TODO maybe add some message when failing
     // "Section ID already existing in the table: printf(id)"
@@ -19,6 +21,12 @@ void OffsetsTable::add_entry(const SectionID id, const uint64_t offset, const ui
                     offset,
                     ". ID: ",
                     id);
+
+    m_logger.debug("New entry added: section ID (%lu, %lu), offset %lu, length %lu",
+                   id.type,
+                   id.type_instance,
+                   offset,
+                   length);
 
     m_table[id] = std::make_pair<>(offset, length);
     m_reversed_table[offset] = id;
@@ -63,10 +71,13 @@ bool OffsetsTable::empty() const {
 
 OffsetsTableSection::OffsetsTableSection(const OffsetsTable& offsets_table)
     : ISection(PredefinedSectionType::OFFSETS_TABLE),
-      m_offsets_table(offsets_table) {}
+      m_offsets_table(offsets_table),
+      m_logger("OffsetsTableSection", Logger::global().level()) {}
 
 void OffsetsTableSection::write(BlobWriterInterface& writer) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "OffsetsTableSection::write");
+
+    m_logger.debug("Writting %lu entries", m_offsets_table.get_number_of_entries());
 
     for (const auto& [key, value] : m_offsets_table.m_table) {
         // Section type ID, Section instanfce type ID, offset, length
@@ -74,6 +85,12 @@ void OffsetsTableSection::write(BlobWriterInterface& writer) {
         writer.write(&key.type_instance, sizeof(key.type_instance));
         writer.write(&value.first, sizeof(value.first));
         writer.write(&value.second, sizeof(value.second));
+
+        m_logger.trace("Entry written: section ID (%lu, %lu), offset %lu, length %lu",
+                       key.type,
+                       key.type_instance,
+                       value.first,
+                       value.second);
     }
 }
 
@@ -83,6 +100,7 @@ OffsetsTable OffsetsTableSection::get_table() const {
 
 std::shared_ptr<ISection> OffsetsTableSection::read(BlobReaderInterface& blob_reader) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "OffsetsTableSection::read");
+    Logger logger("OffsetsTableSection", Logger::global().level());
 
     const size_t section_length = blob_reader.get_section_length();
     const size_t entry_size = OffsetsTable::get_entry_size();
@@ -100,12 +118,16 @@ std::shared_ptr<ISection> OffsetsTableSection::read(BlobReaderInterface& blob_re
     uint64_t offset;
     uint64_t length;
 
+    logger.debug("Reading %lu entries", number_of_sections_in_table);
+
     while (number_of_sections_in_table--) {
         blob_reader.copy_data_from_source(reinterpret_cast<char*>(&type), sizeof(type));
         blob_reader.copy_data_from_source(reinterpret_cast<char*>(&type_instance), sizeof(type_instance));
         blob_reader.copy_data_from_source(reinterpret_cast<char*>(&offset), sizeof(offset));
         blob_reader.copy_data_from_source(reinterpret_cast<char*>(&length), sizeof(length));
         offsets_table.add_entry(SectionID(type, type_instance), offset, length);
+
+        logger.trace("Read entry: section ID (%lu, %lu), offset %lu, length %lu", type, type_instance, offset, length);
     }
 
     return std::make_shared<OffsetsTableSection>(std::move(offsets_table));

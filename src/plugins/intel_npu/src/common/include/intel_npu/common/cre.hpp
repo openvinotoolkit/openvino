@@ -96,6 +96,8 @@ private:
                   const Delimiter end_delimiter);
 
     std::vector<Token> m_expression;
+
+    Logger m_logger;
 };
 
 class CRESection final : public ISection {
@@ -110,6 +112,8 @@ public:
 
 private:
     CRE m_cre;
+
+    Logger m_logger;
 };
 
 }  // namespace intel_npu

@@ -13,11 +13,13 @@ namespace intel_npu {
 
 ELFMainScheduleSection::ELFMainScheduleSection(const std::shared_ptr<Graph>& graph)
     : ISection(PredefinedSectionType::ELF_MAIN_SCHEDULE),
-      m_graph(graph) {}
+      m_graph(graph),
+      m_logger("ELFMainScheduleSection", Logger::global().level()) {}
 
 ELFMainScheduleSection::ELFMainScheduleSection(ov::Tensor main_schedule)
     : ISection(PredefinedSectionType::ELF_MAIN_SCHEDULE),
-      m_main_schedule(main_schedule) {}
+      m_main_schedule(main_schedule),
+      m_logger("ELFMainScheduleSection", Logger::global().level()) {}
 
 void ELFMainScheduleSection::write(BlobWriterInterface& writer) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "ELFMainScheduleSection::write");
@@ -29,6 +31,8 @@ void ELFMainScheduleSection::write(BlobWriterInterface& writer) {
     const size_t offset = writer.get_offset_relative_to_npu_region();
     const size_t padding_size = utils::align_size_to_standard_page_size(offset) - offset;
     writer.add_padding(padding_size);
+
+    m_logger.debug("Added %lu padding to offset %lu", padding_size, offset);
 
     m_graph->export_main_blob(writer.m_stream.get());
 }
@@ -44,11 +48,14 @@ ov::Tensor ELFMainScheduleSection::get_schedule() const {
 
 std::shared_ptr<ISection> ELFMainScheduleSection::read(BlobReaderInterface& blob_reader) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "ELFMainScheduleSection::read");
+    const Logger logger("ELFMainScheduleSection", Logger::global().level());
 
     // Skip the first padding region
     const size_t offset = blob_reader.get_offset_relative_to_npu_region();
     const size_t padding_size = utils::align_size_to_standard_page_size(offset) - offset;
     blob_reader.interpret_data_from_source(padding_size);  // moves the cursor
+
+    logger.debug("Skipped %lu padding from offset %lu", padding_size, offset);
 
     return std::make_shared<ELFMainScheduleSection>(
         blob_reader.get_roi_tensor(blob_reader.get_section_length() - padding_size));
@@ -56,17 +63,21 @@ std::shared_ptr<ISection> ELFMainScheduleSection::read(BlobReaderInterface& blob
 
 ELFInitSchedulesSection::ELFInitSchedulesSection(const std::shared_ptr<WeightlessGraph>& weightless_graph)
     : ISection(PredefinedSectionType::ELF_INIT_SCHEDULES),
-      m_weightless_graph(weightless_graph) {}
+      m_weightless_graph(weightless_graph),
+      m_logger("ELFInitSchedulesSection", Logger::global().level()) {}
 
 ELFInitSchedulesSection::ELFInitSchedulesSection(std::vector<ov::Tensor>& init_schedules)
     : ISection(PredefinedSectionType::ELF_INIT_SCHEDULES),
-      m_init_schedules(std::move(init_schedules)) {}
+      m_init_schedules(std::move(init_schedules)),
+      m_logger("ELFInitSchedulesSection", Logger::global().level()) {}
 
 void ELFInitSchedulesSection::write(BlobWriterInterface& writer) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "ELFInitSchedulesSection::write");
 
     const uint64_t number_of_inits = m_weightless_graph->get_number_of_inits();
     writer.write(&number_of_inits, sizeof(number_of_inits));
+
+    m_logger.debug("Writting %lu init schedules", number_of_inits);
 
     // Placeholder until we get the sizes written in the stream
     const auto will_get_to_this_later = writer.get_offset_relative_to_current_section();
@@ -86,6 +97,7 @@ void ELFInitSchedulesSection::write(BlobWriterInterface& writer) {
     writer.move_cursor_relative_to_current_section(will_get_to_this_later);
     for (const uint64_t init_size : init_sizes) {
         writer.write(&init_size, sizeof(init_size));
+        m_logger.debug("Init size %lu written", init_size);
     }
 }
 
@@ -100,6 +112,7 @@ std::vector<ov::Tensor> ELFInitSchedulesSection::get_schedules() const {
 
 std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReaderInterface& blob_reader) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "ELFInitSchedulesSection::read");
+    Logger logger("ELFInitSchedulesSection", Logger::global().level());
 
     const size_t section_length = blob_reader.get_section_length();
 
@@ -112,6 +125,8 @@ std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReaderInterface& blo
         ". Section length: ",
         section_length);
 
+    logger.debug("Parsed number of init schedules: %lu", number_of_inits);
+
     size_t total_init_sizes = 0;
     std::vector<uint64_t> init_sizes;
     uint64_t value;
@@ -119,6 +134,8 @@ std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReaderInterface& blo
         blob_reader.copy_data_from_source(reinterpret_cast<char*>(&value), sizeof(value));
         init_sizes.push_back(value);
         total_init_sizes += value;
+
+        logger.debug("Init schedule parsed size: %lu", value);
     }
 
     OPENVINO_ASSERT(total_init_sizes < blob_reader.get_section_length(),
