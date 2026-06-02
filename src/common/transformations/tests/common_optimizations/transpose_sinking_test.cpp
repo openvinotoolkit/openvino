@@ -155,6 +155,57 @@ INSTANTIATE_TEST_SUITE_P(TransformationTest,
                                                                  {2, 3},
                                                                  {0, 1}}));
 
+TEST(TransposeSinkingCommon, TransposeFQTransposeFuse) {
+    std::shared_ptr<Model> f;
+    std::shared_ptr<Model> f_ref;
+
+    {
+        auto input = std::make_shared<opset6::Parameter>(element::f32, PartialShape{1, 3, 4, 5});
+
+        auto first_order = std::make_shared<opset6::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 2, 3, 1});
+        auto first_transpose = std::make_shared<opset6::Transpose>(input, first_order);
+
+        auto i_low = std::make_shared<opset6::Constant>(element::f32, Shape{1, 1, 1, 3}, std::vector<float>{0.f, 1.f, 2.f});
+        auto i_high = std::make_shared<opset6::Constant>(element::f32, Shape{1, 1, 1, 3}, std::vector<float>{3.f, 4.f, 5.f});
+        auto o_low = std::make_shared<opset6::Constant>(element::f32, Shape{1, 1, 1, 3}, std::vector<float>{0.f, 1.f, 2.f});
+        auto o_high = std::make_shared<opset6::Constant>(element::f32, Shape{1, 1, 1, 3}, std::vector<float>{3.f, 4.f, 5.f});
+        auto fq = std::make_shared<opset6::FakeQuantize>(first_transpose, i_low, i_high, o_low, o_high, 256);
+
+        auto second_order = std::make_shared<opset6::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 1, 2});
+        auto second_transpose = std::make_shared<opset6::Transpose>(fq, second_order);
+
+        f = std::make_shared<ov::Model>(OutputVector{second_transpose}, ParameterVector{input});
+    }
+
+    {
+        auto input = std::make_shared<opset6::Parameter>(element::f32, PartialShape{1, 3, 4, 5});
+
+        auto i_low = std::make_shared<opset6::Constant>(element::f32, Shape{1, 3, 1, 1}, std::vector<float>{0.f, 1.f, 2.f});
+        auto i_high = std::make_shared<opset6::Constant>(element::f32, Shape{1, 3, 1, 1}, std::vector<float>{3.f, 4.f, 5.f});
+        auto o_low = std::make_shared<opset6::Constant>(element::f32, Shape{1, 3, 1, 1}, std::vector<float>{0.f, 1.f, 2.f});
+        auto o_high = std::make_shared<opset6::Constant>(element::f32, Shape{1, 3, 1, 1}, std::vector<float>{3.f, 4.f, 5.f});
+        auto fq = std::make_shared<opset6::FakeQuantize>(input, i_low, i_high, o_low, o_high, 256);
+
+        f_ref = std::make_shared<ov::Model>(OutputVector{fq}, ParameterVector{input});
+    }
+
+    auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
+    pass::Manager manager;
+    manager.register_pass<ov::pass::InitUniqueNames>(unh);
+    manager.register_pass<ov::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::TransposeSinking>();
+    manager.register_pass<ov::pass::CheckUniqueNames>(unh);
+    manager.run_passes(f);
+    OV_ASSERT_NO_THROW(check_rt_info(f));
+
+    auto fc = FunctionsComparator::no_default()
+                  .enable(FunctionsComparator::NODES)
+                  .enable(FunctionsComparator::PRECISIONS)
+                  .enable(FunctionsComparator::CONST_VALUES);
+    auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
+}
+
 struct TransposeReduceParams {
     // given params
     PartialShape transpose_input_shape;
