@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 
+#include "llm_compiled_model_utils.hpp"
 #include "llm_test_helpers.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
@@ -853,6 +854,54 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, TextEmbedOptionCompilesEmbeddingDecod
                                                      recorder));
     ASSERT_NE(compiled, nullptr);
     EXPECT_GE(recorder.calls().size(), 1u);
+    EXPECT_NE(recorder.find_suffix("_prefill"), nullptr);
+}
+
+// is_encoder_embedding_model: a bidirectional encoder (BERT) embedding model has SDPA but no
+// autoregressive KV-cache concat pattern, so it must be classified as an encoder. The
+// autoregressive embedding decoder must NOT be classified as an encoder.
+TEST_F(LLMCompiledModelFactoryOptionsTest, IsEncoderEmbeddingModelDistinguishesBertFromDecoder) {
+    EXPECT_TRUE(ov::npuw::util::is_encoder_embedding_model(build_embedding_model()));
+    EXPECT_FALSE(ov::npuw::util::is_encoder_embedding_model(build_embedding_decoder_model()));
+}
+
+// get_max_position_embeddings: the BERT test config uses a learned absolute position table of
+// size 512; the helper must read it back from the position_embeddings Gather weight.
+TEST_F(LLMCompiledModelFactoryOptionsTest, GetMaxPositionEmbeddingsReadsBertTableSize) {
+    const auto max_pos = ov::npuw::util::get_max_position_embeddings(build_embedding_model());
+    ASSERT_TRUE(max_pos.has_value());
+    EXPECT_EQ(*max_pos, 512u);
+}
+
+// A bidirectional encoder embedding model has no autoregressive generate step. It must compile
+// the prefill (whole-sequence) model only and skip the generate/KV-cache variants entirely.
+TEST_F(LLMCompiledModelFactoryOptionsTest, TextEmbedEncoderCompilesPrefillOnly) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_embedding_model(),
+                                                     {{"NPUW_TEXT_EMBED", "YES"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+    EXPECT_NE(recorder.find_suffix("_prefill"), nullptr);
+    // No generate variant should be produced for an encoder embedding model.
+    EXPECT_EQ(recorder.count_suffix("_generate"), 0u);
+}
+
+// The default NPUW_LLM_MAX_PROMPT_LEN is sized for LLMs and can exceed a BERT encoder's
+// max_position_embeddings (512). The encoder path must clamp the static sequence length to the
+// position table size so the model compiles out of the box instead of failing with a
+// position/token embedding shape mismatch.
+TEST_F(LLMCompiledModelFactoryOptionsTest, TextEmbedEncoderClampsPromptLenToMaxPositionEmbeddings) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    // 1024 > BERT max_position_embeddings (512): must not throw, must clamp.
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_embedding_model(),
+                                                     {{"NPUW_TEXT_EMBED", "YES"},
+                                                      {"NPUW_LLM_MAX_PROMPT_LEN", "1024"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
     EXPECT_NE(recorder.find_suffix("_prefill"), nullptr);
 }
 
