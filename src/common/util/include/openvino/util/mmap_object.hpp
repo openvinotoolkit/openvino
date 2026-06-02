@@ -45,7 +45,7 @@ public:
     virtual uint64_t get_id() const noexcept = 0;
     virtual ~MappedMemory() = default;
     virtual void hint_evict(size_t offset = 0, size_t size = auto_size) noexcept = 0;
-    virtual void hint_populate(size_t offset = 0, size_t size = auto_size) = 0;
+    virtual void hint_prefetch(size_t offset = 0, size_t size = auto_size) = 0;
 };
 
 /**

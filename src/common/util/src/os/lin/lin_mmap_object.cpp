@@ -196,7 +196,7 @@ public:
         }
     }
 
-    void hint_populate(size_t offset, size_t size) override {
+    void hint_prefetch(size_t offset, size_t size) override {
         if (m_data == nullptr || offset >= m_size)
             return;
 
