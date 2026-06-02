@@ -341,7 +341,7 @@ sycl_device::sycl_device(const ::sycl::device dev, const ::sycl::context& ctx, c
 , _info(init_device_info(dev, ctx))
 , _mem_caps(init_memory_caps(dev, _info))
 , _is_initialized(true)
-, _usm_helper(new ::sycl::UsmHelper(_context, _device, use_unified_shared_memory())) {
+{
 }
 
 bool sycl_device::is_same(const device::ptr other) {

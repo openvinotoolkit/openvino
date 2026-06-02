@@ -322,21 +322,21 @@ gpu_usm::gpu_usm(sycl_engine* engine, const layout& new_layout, const ::sycl::Us
     : lockable_gpu_mem()
     , memory(engine, new_layout, type, mem_tracker)
     , _buffer(buffer)
-    , _host_buffer(engine->get_usm_helper()) {
+    , _host_buffer(engine->get_sycl_context(), engine->get_sycl_device()) {
 }
 
 gpu_usm::gpu_usm(sycl_engine* engine, const layout& new_layout, const ::sycl::UsmMemory& buffer, std::shared_ptr<MemoryTracker> mem_tracker)
     : lockable_gpu_mem()
     , memory(engine, new_layout, detect_allocation_type(engine, buffer), mem_tracker)
     , _buffer(buffer)
-    , _host_buffer(engine->get_usm_helper()) {
+    , _host_buffer(engine->get_sycl_context(), engine->get_sycl_device()) {
 }
 
 gpu_usm::gpu_usm(sycl_engine* engine, const layout& layout, allocation_type type)
     : lockable_gpu_mem()
     , memory(engine, layout, type, nullptr)
-    , _buffer(engine->get_usm_helper())
-    , _host_buffer(engine->get_usm_helper()) {
+    , _buffer(engine->get_sycl_context(), engine->get_sycl_device())
+    , _host_buffer(engine->get_sycl_context(), engine->get_sycl_device()) {
     auto actual_bytes_count = _bytes_count;
     if (actual_bytes_count == 0)
         actual_bytes_count = 1;
@@ -369,8 +369,8 @@ void* gpu_usm::lock(const stream& stream, mem_lock_type type) {
             GPU_DEBUG_LOG << "Copy usm_device buffer to host buffer." << std::endl;
             _host_buffer.allocateHost(_bytes_count);
             try {
-                sycl_stream.get_usm_helper().enqueue_memcpy(const_cast<sycl::sycl_stream&>(sycl_stream).get_sycl_queue(),
-                                                            _host_buffer.get(), _buffer.get(), _bytes_count);
+                auto ev = const_cast<sycl::sycl_stream&>(sycl_stream).get_sycl_queue().memcpy(_host_buffer.get(), _buffer.get(), _bytes_count);
+                ev.wait_and_throw();
             } catch (::sycl::exception const& err) {
                 OPENVINO_THROW(SYCL_ERR_MSG_FMT(err));
             }
@@ -402,7 +402,7 @@ event::ptr gpu_usm::fill(stream& stream, unsigned char pattern, const std::vecto
     auto& sycl_stream = downcast<sycl::sycl_stream>(stream);
     try {
         auto sycl_dep_events = utils::get_sycl_events(dep_events);
-        auto ev  = sycl_stream.get_usm_helper().enqueue_fill_mem(sycl_stream.get_sycl_queue(), _buffer.get(), pattern, _bytes_count, sycl_dep_events);
+        auto ev = sycl_stream.get_sycl_queue().fill(_buffer.get(), static_cast<std::byte>(pattern), _bytes_count, sycl_dep_events);
 
         if (blocking) {
             ev.wait_and_throw();
@@ -428,7 +428,7 @@ event::ptr gpu_usm::copy_from(stream& stream, const void* data_ptr, size_t src_o
     auto dst_ptr = reinterpret_cast<char*>(buffer_ptr()) + dst_offset;
 
     try {
-        auto ev = sycl_stream.get_usm_helper().enqueue_memcpy(sycl_stream.get_sycl_queue(), dst_ptr, src_ptr, size);
+        auto ev = sycl_stream.get_sycl_queue().memcpy(dst_ptr, src_ptr, size);
         if (blocking) {
             ev.wait_and_throw();
             return nullptr;
@@ -457,7 +457,7 @@ event::ptr gpu_usm::copy_from(stream& stream, const memory& src_mem, size_t src_
         auto dst_ptr = reinterpret_cast<char*>(buffer_ptr()) + dst_offset;
 
         try {
-            auto ev = sycl_stream.get_usm_helper().enqueue_memcpy(sycl_stream.get_sycl_queue(), dst_ptr, src_ptr, size);
+            auto ev = sycl_stream.get_sycl_queue().memcpy(dst_ptr, src_ptr, size);
             if (blocking) {
                 ev.wait_and_throw();
                 return nullptr;
@@ -486,7 +486,7 @@ event::ptr gpu_usm::copy_to(stream& stream, void* data_ptr, size_t src_offset, s
     auto dst_ptr = reinterpret_cast<char*>(data_ptr) + dst_offset;
 
     try {
-        auto ev = sycl_stream.get_usm_helper().enqueue_memcpy(sycl_stream.get_sycl_queue(), dst_ptr, src_ptr, size);
+        auto ev = sycl_stream.get_sycl_queue().memcpy(dst_ptr, src_ptr, size);
         if (blocking) {
             ev.wait_and_throw();
             return nullptr;
@@ -524,7 +524,7 @@ shared_mem_params gpu_usm::get_internal_params() const {
 }
 
 allocation_type gpu_usm::detect_allocation_type(const sycl::sycl_engine* engine, const void* mem_ptr) {
-    auto sycl_alloc_type = engine->get_usm_helper().get_usm_allocation_type(mem_ptr);
+    auto sycl_alloc_type = ::sycl::get_pointer_type(mem_ptr, engine->get_sycl_context());
 
     allocation_type res;
     switch (sycl_alloc_type) {

@@ -79,12 +79,6 @@ const ::sycl::device& sycl_engine::get_sycl_device() const {
     return sycl_device->get_device();
 }
 
-const ::sycl::UsmHelper& sycl_engine::get_usm_helper() const {
-    auto sycl_device = std::dynamic_pointer_cast<sycl::sycl_device>(_device);
-    OPENVINO_ASSERT(sycl_device, "[GPU] Invalid device type for sycl_engine");
-    return sycl_device->get_usm_helper();
-}
-
 allocation_type sycl_engine::detect_usm_allocation_type(const void* memory) const {
     if (use_unified_shared_memory()) {
         return sycl::gpu_usm::detect_allocation_type(this, memory);
@@ -133,7 +127,7 @@ memory::ptr sycl_engine::create_subbuffer(const memory& memory, const layout& ne
             auto& new_buf = downcast<const sycl::gpu_usm>(memory);
             auto ptr = new_buf.get_buffer().get();
             ptr = static_cast<char*>(ptr) + byte_offset;
-            ::sycl::UsmMemory sub_buffer(get_usm_helper(), ptr, new_layout.bytes_count(), byte_offset);
+            ::sycl::UsmMemory sub_buffer(get_sycl_context(), get_sycl_device(), ptr, new_layout.bytes_count(), byte_offset);
 
             return std::make_shared<sycl::gpu_usm>(this,
                                          new_layout,
