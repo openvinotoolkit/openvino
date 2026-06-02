@@ -247,7 +247,7 @@ TEST(MappedMemory, parallel_prefault_whole_file) {
         ASSERT_NE(mapped, nullptr);
         EXPECT_EQ(mapped->size(), file_size);
 
-        EXPECT_NO_THROW(mapped->hint_populate());
+        EXPECT_NO_THROW(mapped->hint_prefetch());
 
         EXPECT_EQ(static_cast<unsigned char>(mapped->data()[0]), 0u);
         EXPECT_EQ(static_cast<unsigned char>(mapped->data()[file_size - 1]),
@@ -274,7 +274,7 @@ TEST(MappedMemory, parallel_prefault_partial_region) {
         auto mapped = load_mmap_object(file_path);
         ASSERT_NE(mapped, nullptr);
 
-        EXPECT_NO_THROW(mapped->hint_populate(prefault_offset, prefault_size));
+        EXPECT_NO_THROW(mapped->hint_prefetch(prefault_offset, prefault_size));
 
         EXPECT_EQ(static_cast<unsigned char>(mapped->data()[prefault_offset]),
                   static_cast<unsigned char>(prefault_offset & 0xFF));
@@ -296,7 +296,7 @@ TEST(MappedMemory, parallel_prefault_below_threshold_is_noop) {
     {
         auto mapped = load_mmap_object(file_path);
         ASSERT_NE(mapped, nullptr);
-        EXPECT_NO_THROW(mapped->hint_populate());  // no optimization
+        EXPECT_NO_THROW(mapped->hint_prefetch());  // no optimization
     }
 
     std::filesystem::remove(file_path);
@@ -319,7 +319,7 @@ TEST(MappedMemory, parallel_prefault_with_file_offset) {
         ASSERT_NE(mapped, nullptr);
         EXPECT_EQ(mapped->size(), file_size - map_offset);
 
-        EXPECT_NO_THROW(mapped->hint_populate());
+        EXPECT_NO_THROW(mapped->hint_prefetch());
 
         EXPECT_EQ(static_cast<unsigned char>(mapped->data()[0]), static_cast<unsigned char>(map_offset & 0xFF));
     }
@@ -327,7 +327,7 @@ TEST(MappedMemory, parallel_prefault_with_file_offset) {
     std::filesystem::remove(file_path);
 }
 
-TEST(MappedMemory, hint_populate_with_both_offsets) {
+TEST(MappedMemory, hint_prefetch_with_both_offsets) {
     auto file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefault_both_offsets.bin");
     constexpr size_t file_size = 12 * 1024 * 1024;  // 12 MB
     constexpr size_t map_offset = 2 * 1024 * 1024;  // Map starting at 2 MB into file
@@ -346,7 +346,7 @@ TEST(MappedMemory, hint_populate_with_both_offsets) {
         ASSERT_NE(mapped, nullptr);
         EXPECT_EQ(mapped->size(), file_size - map_offset);
 
-        EXPECT_NO_THROW(mapped->hint_populate(pop_offset, pop_size));
+        EXPECT_NO_THROW(mapped->hint_prefetch(pop_offset, pop_size));
 
         EXPECT_EQ(static_cast<unsigned char>(mapped->data()[pop_offset]),
                   static_cast<unsigned char>((map_offset + pop_offset) & 0xFF));
