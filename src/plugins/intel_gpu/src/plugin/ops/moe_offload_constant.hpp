@@ -90,11 +90,13 @@ inline partial_upload_desc try_prepare_partial_upload(ProgramBuilder& p,
                                                       const cldnn::layout& const_layout) {
     partial_upload_desc desc;
 
-    const size_t otd_expert_num = p.get_config().get_moe_offload_max_experts();
-    const bool partial_moe_const_upload = otd_expert_num > 0 && is_moe_related_constant(op);
+    const size_t otd_ratio = p.get_config().get_moe_offload_ratio();
+    const bool partial_moe_const_upload = otd_ratio > 0 && is_moe_related_constant(op);
     if (!partial_moe_const_upload || const_layout.bytes_count() == 0 || const_shape.empty() || const_shape[0] == 0) {
         return desc;
     }
+
+    const size_t otd_expert_num = std::max<size_t>(1, const_shape[0] * otd_ratio / 100);
 
     desc.enabled = true;
     desc.upload_shape = const_shape;

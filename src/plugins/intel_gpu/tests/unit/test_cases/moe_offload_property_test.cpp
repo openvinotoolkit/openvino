@@ -11,9 +11,9 @@ using namespace tests;
 TEST(moe_offload_property_test, execution_config_roundtrip) {
     auto config = get_test_default_config(get_test_engine());
 
-    ASSERT_EQ(config.get_moe_offload_max_experts(), 0U);
+    ASSERT_EQ(config.get_moe_offload_ratio(), 0U);
 
-    config.set_property(ov::intel_gpu::moe_offload_max_experts(48));
+    config.set_property(ov::intel_gpu::moe_offload_ratio(37));
 
-    ASSERT_EQ(config.get_moe_offload_max_experts(), 48U);
+    ASSERT_EQ(config.get_moe_offload_ratio(), 37U);
 }

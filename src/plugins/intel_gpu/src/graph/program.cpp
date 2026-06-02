@@ -725,7 +725,7 @@ void program::transfer_memory_to_device() {
         // TODO: Do we need finish call here? Maybe call it in network::execute() ?
         get_stream().finish();
     };
-    auto otd = _config.get_moe_offload_max_experts();
+    auto otd = _config.get_moe_offload_ratio();
     for (auto& node : processing_order) {
         if (node->is_shape_infer_dep()) {
             continue;

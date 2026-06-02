@@ -46,7 +46,8 @@ static void CreateMOE3GemmFusedCompressedOp(ProgramBuilder& p, const std::shared
     const auto& config = op->get_config();
     const auto& model = p.get_model();
     std::string weights_path;
-    const size_t lru_expert_num = p.get_config().get_moe_offload_max_experts();
+    const size_t otd_ratio = p.get_config().get_moe_offload_ratio();
+    const size_t lru_expert_num = otd_ratio > 0 ? std::max<size_t>(1, static_cast<size_t>(config.num_expert) * otd_ratio / 100) : 0;
     const bool otd_enabled = lru_expert_num > 0;
     if (otd_enabled) {
         const auto& rt = model->get_rt_info();
