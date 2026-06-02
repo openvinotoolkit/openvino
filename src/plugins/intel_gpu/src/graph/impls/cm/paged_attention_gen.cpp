@@ -387,7 +387,7 @@ JitConstants PagedAttentionGeneratorMultiToken::get_jit_constants(const kernel_i
 
 DispatchDataFunc PagedAttentionGeneratorMultiToken::get_dispatch_data_func() const {
     constexpr size_t wg_size = PagedAttentionGeneratorMultiToken::_wg_size;
-    return DispatchDataFunc{[wg_size](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+    return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
         auto& wgs = kd.params.workGroups;
         auto& scalars = kd.params.scalars;
         auto desc = params.typed_desc<paged_attention>();
