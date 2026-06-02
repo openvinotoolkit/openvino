@@ -44,7 +44,7 @@ endif()
 # Set default GPU runtime to OCL
 set(OV_GPU_DEFAULT_RT "OCL")
 if (ENABLE_INTEL_GPU)
-    ov_option_enum (GPU_RT_TYPE "Type of GPU runtime. Supported value: OCL and L0" ${OV_GPU_DEFAULT_RT} ALLOWED_VALUES L0 OCL)
+    ov_option_enum (GPU_RT_TYPE "Type of GPU runtime. Supported value: OCL, L0 and SYCL" ${OV_GPU_DEFAULT_RT} ALLOWED_VALUES L0 OCL SYCL)
 endif()
 
 ov_dependent_option (ENABLE_ONEDNN_FOR_GPU "Enable oneDNN with GPU support" ${ENABLE_ONEDNN_FOR_GPU_DEFAULT} "ENABLE_INTEL_GPU" OFF)
@@ -232,6 +232,10 @@ endif()
 
 if(ENABLE_OPENVINO_DEBUG)
     add_definitions(-DENABLE_OPENVINO_DEBUG)
+endif()
+
+if(ENABLE_DEBUG_CAPS)
+    add_definitions(-DENABLE_DEBUG_CAPS)
 endif()
 
 if (ENABLE_SNIPPETS_DEBUG_CAPS)

@@ -66,14 +66,22 @@ ze_result_t set_kernel_arg(ze_kernel_handle_t& kernel, uint32_t idx, cldnn::memo
     if (!mem)
         return ZE_RESULT_ERROR_INVALID_ARGUMENT;
 
-    OPENVINO_ASSERT(memory_capabilities::is_usm_type(mem->get_allocation_type()), "Unsupported alloc type");
-    const auto& buf = std::dynamic_pointer_cast<const ze::gpu_usm>(mem)->get_buffer();
-    auto mem_type = std::dynamic_pointer_cast<const ze::gpu_usm>(mem)->get_allocation_type();
-    GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel << " set arg (" << mem_type << ") " << idx
+    if (mem->get_layout().format.is_image_2d()) {
+        auto &image = downcast<const ze::gpu_image2d>(*mem);
+        auto handle = image.get_handle();
+        GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel << " set arg (image) " << idx << " mem: " << handle << " size: " << mem->size() << std::endl;
+        return ze::zeKernelSetArgumentValue(kernel, idx, sizeof(handle), &handle);
+    } else if (memory_capabilities::is_usm_type(mem->get_allocation_type())) {
+        auto &usm = downcast<const ze::gpu_usm>(*mem);
+        const auto& buf = usm.get_buffer();
+        auto mem_type = usm.get_allocation_type();
+        GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel << " set arg (" << mem_type << ") " << idx
                             << " mem: " << buf.get() << " size: " << mem->size() << std::endl;
-
-    auto ptr = buf.get();
-    return ze::zeKernelSetArgumentValue(kernel, idx, sizeof(ptr), &ptr);
+        auto ptr = buf.get();
+        return ze::zeKernelSetArgumentValue(kernel, idx, sizeof(ptr), &ptr);
+    } else {
+        return ZE_RESULT_ERROR_INVALID_ARGUMENT;
+    }
 }
 
 void set_arguments_impl(ze_kernel_handle_t kernel,

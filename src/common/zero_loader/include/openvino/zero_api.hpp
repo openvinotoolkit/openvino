@@ -9,8 +9,6 @@
 
 #include <memory>
 
-#include "openvino/core/except.hpp"
-
 namespace ov {
 
 // clang-format off
@@ -86,6 +84,11 @@ namespace ov {
     symbol_statement(zeCommandListCreateImmediate)            \
     symbol_statement(zeKernelSetGroupSize)                    \
     symbol_statement(zeCommandListAppendLaunchKernel)         \
+    symbol_statement(zeImageCreate)                           \
+    symbol_statement(zeImageDestroy)                          \
+    symbol_statement(zeCommandListAppendImageCopy)            \
+    symbol_statement(zeCommandListAppendImageCopyFromMemory)  \
+    symbol_statement(zeCommandListAppendImageCopyToMemory)    \
     symbol_statement(zeDeviceGetStatus)
 
 /**
@@ -133,9 +136,9 @@ private:
 #define symbol_statement(symbol)                                                                            \
     template <typename... Args>                                                                             \
     inline typename std::invoke_result<decltype(&::symbol), Args...>::type wrapped_##symbol(Args... args) { \
-        const auto& ptr = ZeroApi::get_instance();                                                           \
+        const auto& ptr = ZeroApi::get_instance();                                                          \
         if (ptr->symbol == nullptr) {                                                                       \
-            OPENVINO_THROW("Unsupported symbol " #symbol);                                                  \
+            return ZE_RESULT_ERROR_UNSUPPORTED_FEATURE;                                                     \
         }                                                                                                   \
         return ptr->symbol(std::forward<Args>(args)...);                                                    \
     }

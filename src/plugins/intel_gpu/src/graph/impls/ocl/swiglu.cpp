@@ -45,6 +45,7 @@ struct swiglu_impl : typed_primitive_impl_ocl<swiglu> {
         params.clamp_max = primitive->clamp_max;
         params.swish_beta = primitive->swish_beta;
         params.up_add_val = primitive->up_add_val;
+        params.scale_factor = primitive->scale_factor;
         return params;
     }
 
