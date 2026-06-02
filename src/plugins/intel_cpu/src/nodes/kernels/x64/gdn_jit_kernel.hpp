@@ -30,6 +30,7 @@ struct jit_gdn_compile_params {
 
 struct jit_gdn_call_args {
     uint8_t* state;
+    size_t v_block;
     const uint8_t* key_seq;
     const uint8_t* query_seq;
     const uint8_t* value_seq;
@@ -68,6 +69,7 @@ private:
     const Xbyak::Reg64 reg_key_seq = r13;
     const Xbyak::Reg64 reg_query_seq = r14;
     const Xbyak::Reg64 reg_value_seq = r15;
+    const Xbyak::Reg64 reg_v_idx = rdx;
     const Xbyak::Reg64 reg_aux = r11;
     const Xbyak::Reg64 reg_gate_seq = rsi;
     const Xbyak::Reg64 reg_beta_seq = rdi;

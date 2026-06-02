@@ -4,6 +4,7 @@
 
 #include "gated_delta_net.h"
 
+#include <algorithm>
 #include <common/utils.hpp>
 #include <cstddef>
 #include <memory>
@@ -81,45 +82,59 @@ void recurrent_linear_attn_jit(const ov::intel_cpu::PlainTensor& query,
     const size_t K = query.m_dims[3];
     const size_t v_heads = value.m_dims[2];
     const size_t V = value.m_dims[3];
+    constexpr size_t jit_v_tile = 8;
     const auto data_prc = query.m_dt;
     const size_t elem_size = ov::element::Type(data_prc).size();
     const size_t group_size = v_heads / qk_heads;
-    cpu_parallel->parallel_for3d(B, v_heads, V, [&](size_t i_b, size_t i_h, size_t i_v) {
+    const size_t v_tiles = (V + jit_v_tile - 1) / jit_v_tile;
+    const size_t state_tile_size = jit_v_tile * K * elem_size;
+    const size_t thread_buffer_size = (jit_v_tile + 2) * K * elem_size;
+    cpu_parallel->parallel_for3d(B, v_heads, v_tiles, [&](size_t i_b, size_t i_h, size_t i_v_tile) {
         const size_t tid = parallel_get_thread_num();
-        // Use correct precision for state buffer based on data type
-        uint8_t* state_buffer = temp_buffer + tid * 3 * K * elem_size;
-        uint8_t* b_k = temp_buffer + tid * 3 * K * elem_size + K * elem_size;
-        uint8_t* b_q = temp_buffer + tid * 3 * K * elem_size + 2 * K * elem_size;
+        const size_t i_v_begin = i_v_tile * jit_v_tile;
+        const size_t current_v_block = std::min(jit_v_tile, V - i_v_begin);
+
+        // Per-thread layout: [state tile][key tmp][query tmp]
+        uint8_t* state_buffer = temp_buffer + tid * thread_buffer_size;
+        uint8_t* b_k = state_buffer + state_tile_size;
+        uint8_t* b_q = b_k + K * elem_size;
 
         const size_t hk = i_h / group_size;
         auto* q_ptr = query.ptr_v(i_b, 0, hk);
         auto* k_ptr = key.ptr_v(i_b, 0, hk);
-        auto* v_ptr = value.ptr_v(i_b, 0, i_h, i_v);
-        auto* out_ptr = output_attn.ptr_v(i_b, 0, i_h, i_v);
+        auto* v_ptr = value.ptr_v(i_b, 0, i_h, i_v_begin);
+        auto* out_ptr = output_attn.ptr_v(i_b, 0, i_h, i_v_begin);
 
         auto* gate_ptr = gate.ptr_v(i_b, 0, i_h);
         auto* beta_ptr = beta.ptr_v(i_b, 0, i_h);
 
-        // Copy initial state in the correct precision
+        // Copy initial state tile in the correct precision
         if (data_prc == ov::element::f16) {
-            ov::float16* init_state_f16 = reinterpret_cast<ov::float16*>(state_buffer);
-            for (size_t j = 0; j < K; j++) {
-                init_state_f16[j] = recurrent_state.at<ov::float16>({i_b, i_h, j, i_v});
+            auto* init_state_f16 = reinterpret_cast<ov::float16*>(state_buffer);
+            for (size_t v_idx = 0; v_idx < current_v_block; v_idx++) {
+                for (size_t j = 0; j < K; j++) {
+                    init_state_f16[v_idx * K + j] = recurrent_state.at<ov::float16>({i_b, i_h, j, i_v_begin + v_idx});
+                }
             }
         } else if (data_prc == ov::element::bf16) {
-            ov::bfloat16* init_state_bf16 = reinterpret_cast<ov::bfloat16*>(state_buffer);
-            for (size_t j = 0; j < K; j++) {
-                init_state_bf16[j] = recurrent_state.at<ov::bfloat16>({i_b, i_h, j, i_v});
+            auto* init_state_bf16 = reinterpret_cast<ov::bfloat16*>(state_buffer);
+            for (size_t v_idx = 0; v_idx < current_v_block; v_idx++) {
+                for (size_t j = 0; j < K; j++) {
+                    init_state_bf16[v_idx * K + j] = recurrent_state.at<ov::bfloat16>({i_b, i_h, j, i_v_begin + v_idx});
+                }
             }
         } else {
-            float* init_state_f32 = reinterpret_cast<float*>(state_buffer);
-            for (size_t j = 0; j < K; j++) {
-                init_state_f32[j] = recurrent_state.at<float>({i_b, i_h, j, i_v});
+            auto* init_state_f32 = reinterpret_cast<float*>(state_buffer);
+            for (size_t v_idx = 0; v_idx < current_v_block; v_idx++) {
+                for (size_t j = 0; j < K; j++) {
+                    init_state_f32[v_idx * K + j] = recurrent_state.at<float>({i_b, i_h, j, i_v_begin + v_idx});
+                }
             }
         }
 
         kernel::jit_gdn_call_args args{};
         args.state = state_buffer;
+        args.v_block = current_v_block;
         args.key_seq = reinterpret_cast<const uint8_t*>(k_ptr);
         args.query_seq = reinterpret_cast<const uint8_t*>(q_ptr);
         args.value_seq = reinterpret_cast<const uint8_t*>(v_ptr);
@@ -134,21 +149,30 @@ void recurrent_linear_attn_jit(const ov::intel_cpu::PlainTensor& query,
         args.query_tmp = b_q;
         args.output_seq = reinterpret_cast<uint8_t*>(out_ptr);
         (*jit_kernel)(&args);
-        // Copy final state back in the correct precision
+
+        // Copy final state tile back in the correct precision
         if (data_prc == ov::element::f16) {
-            ov::float16* final_state_f16 = reinterpret_cast<ov::float16*>(state_buffer);
-            for (size_t j = 0; j < K; j++) {
-                output_recurrent_state.at<ov::float16>({i_b, i_h, j, i_v}) = final_state_f16[j];
+            auto* final_state_f16 = reinterpret_cast<ov::float16*>(state_buffer);
+            for (size_t v_idx = 0; v_idx < current_v_block; v_idx++) {
+                for (size_t j = 0; j < K; j++) {
+                    output_recurrent_state.at<ov::float16>({i_b, i_h, j, i_v_begin + v_idx}) =
+                        final_state_f16[v_idx * K + j];
+                }
             }
         } else if (data_prc == ov::element::bf16) {
-            ov::bfloat16* final_state_bf16 = reinterpret_cast<ov::bfloat16*>(state_buffer);
-            for (size_t j = 0; j < K; j++) {
-                output_recurrent_state.at<ov::bfloat16>({i_b, i_h, j, i_v}) = final_state_bf16[j];
+            auto* final_state_bf16 = reinterpret_cast<ov::bfloat16*>(state_buffer);
+            for (size_t v_idx = 0; v_idx < current_v_block; v_idx++) {
+                for (size_t j = 0; j < K; j++) {
+                    output_recurrent_state.at<ov::bfloat16>({i_b, i_h, j, i_v_begin + v_idx}) =
+                        final_state_bf16[v_idx * K + j];
+                }
             }
         } else {
-            float* final_state_f32 = reinterpret_cast<float*>(state_buffer);
-            for (size_t j = 0; j < K; j++) {
-                output_recurrent_state.at<float>({i_b, i_h, j, i_v}) = final_state_f32[j];
+            auto* final_state_f32 = reinterpret_cast<float*>(state_buffer);
+            for (size_t v_idx = 0; v_idx < current_v_block; v_idx++) {
+                for (size_t j = 0; j < K; j++) {
+                    output_recurrent_state.at<float>({i_b, i_h, j, i_v_begin + v_idx}) = final_state_f32[v_idx * K + j];
+                }
             }
         }
     });
@@ -216,11 +240,12 @@ void GatedDeltaNet::createPrimitive() {
 #endif
 
     const auto numWorkerThreads = context->getCpuParallel()->get_num_worker_threads();
+    constexpr size_t jit_v_tile = 8;
     // Fallback recurrent_linear_attn uses float scratchpad; keep model/output precision unchanged.
     const auto scratchPrecision = m_gdnJitKernel ? precision : ov::element::f32;
     auto newMemDesc = std::make_shared<CpuBlockedMemoryDesc>(
         scratchPrecision,
-        ov::intel_cpu::Shape{static_cast<size_t>(numWorkerThreads), 3 * headSize});
+        ov::intel_cpu::Shape{static_cast<size_t>(numWorkerThreads), (m_gdnJitKernel ? (jit_v_tile + 2) : 3) * headSize});
     m_tmpInpBuffer = context->getScratchPad()->createScratchPadMem(newMemDesc);
 }
 

@@ -345,19 +345,12 @@ void jit_gdn_kernel<isa>::generate() {
 
     this->preamble();
 
+    Xbyak::Label l_v_loop;
+    Xbyak::Label l_next_v;
     Xbyak::Label l_t_loop;
     Xbyak::Label l_end;
 
     mov(reg_args, abi_param1);
-
-    mov(reg_state, ptr[reg_args + GET_OFF(state)]);
-    mov(reg_key_seq, ptr[reg_args + GET_OFF(key_seq)]);
-    mov(reg_query_seq, ptr[reg_args + GET_OFF(query_seq)]);
-    mov(reg_value_seq, ptr[reg_args + GET_OFF(value_seq)]);
-    mov(reg_gate_seq, ptr[reg_args + GET_OFF(gate_seq)]);
-    mov(reg_beta_seq, ptr[reg_args + GET_OFF(beta_seq)]);
-    mov(reg_out_seq, ptr[reg_args + GET_OFF(output_seq)]);
-    mov(reg_t, ptr[reg_args + GET_OFF(t_size)]);
 
     // Determine if we use registers or temp buffers
     const size_t qk = m_jcp.qk_head_size;
@@ -368,20 +361,46 @@ void jit_gdn_kernel<isa>::generate() {
     // One-time setup
     exp_injector->load_table_addr();
 
-    if (use_registers) {
-        // Load H once at kernel start (persistent across timesteps)
-        load_vector_native_xf16(const_cast<Vmm*>(v_h), reg_state, num_regs);
-    } else {
-        // For large head_size, H stays in state buffer
-        mov(reg_key_tmp, ptr[reg_args + GET_OFF(key_tmp)]);
-        mov(reg_query_tmp, ptr[reg_args + GET_OFF(query_tmp)]);
-    }
+    xor_(reg_v_idx, reg_v_idx);
 
-    test(reg_t, reg_t);
-    jz(l_end, T_NEAR);
-
-    L(l_t_loop);
+    L(l_v_loop);
     {
+        cmp(reg_v_idx, ptr[reg_args + GET_OFF(v_block)]);
+        jge(l_end, T_NEAR);
+
+        mov(reg_state, ptr[reg_args + GET_OFF(state)]);
+        mov(reg_aux2, reg_v_idx);
+        imul(reg_aux2, reg_aux2, static_cast<int>(m_jcp.qk_head_size * m_jcp.data_prc.size()));
+        add(reg_state, reg_aux2);
+
+        mov(reg_key_seq, ptr[reg_args + GET_OFF(key_seq)]);
+        mov(reg_query_seq, ptr[reg_args + GET_OFF(query_seq)]);
+        mov(reg_gate_seq, ptr[reg_args + GET_OFF(gate_seq)]);
+        mov(reg_beta_seq, ptr[reg_args + GET_OFF(beta_seq)]);
+
+        mov(reg_value_seq, ptr[reg_args + GET_OFF(value_seq)]);
+        mov(reg_out_seq, ptr[reg_args + GET_OFF(output_seq)]);
+        mov(reg_aux2, reg_v_idx);
+        imul(reg_aux2, reg_aux2, static_cast<int>(m_jcp.data_prc.size()));
+        add(reg_value_seq, reg_aux2);
+        add(reg_out_seq, reg_aux2);
+
+        mov(reg_t, ptr[reg_args + GET_OFF(t_size)]);
+
+        if (use_registers) {
+            // Load H for current V lane
+            load_vector_native_xf16(const_cast<Vmm*>(v_h), reg_state, num_regs);
+        } else {
+            // For large head_size, H stays in state buffer
+            mov(reg_key_tmp, ptr[reg_args + GET_OFF(key_tmp)]);
+            mov(reg_query_tmp, ptr[reg_args + GET_OFF(query_tmp)]);
+        }
+
+        test(reg_t, reg_t);
+        jz(l_next_v, T_NEAR);
+
+        L(l_t_loop);
+        {
         // Reload scalar constants each iteration
         mov(reg_aux.cvt32(), float2int(m_jcp.k_l2_norm_eps));
         vmovd(x_eps_k, reg_aux.cvt32());
@@ -588,17 +607,21 @@ void jit_gdn_kernel<isa>::generate() {
         imul(reg_aux2, reg_aux2, m_jcp.data_prc.size());
         add(reg_out_seq, reg_aux2);
 
-        dec(reg_t);
-        jnz(l_t_loop, T_NEAR);
+            dec(reg_t);
+            jnz(l_t_loop, T_NEAR);
+        }
+
+        if (use_registers) {
+            // Store H back for current V lane
+            store_vector_native_xf16(reg_state, const_cast<Vmm*>(v_h), num_regs);
+        }
+
+        L(l_next_v);
+        inc(reg_v_idx);
+        jmp(l_v_loop, T_NEAR);
     }
 
     L(l_end);
-
-    if (use_registers) {
-        // Store H back to state
-        store_vector_native_xf16(reg_state, const_cast<Vmm*>(v_h), num_regs);
-    }
-    // For large head_size, H is already in state buffer
 
     this->postamble();
 
