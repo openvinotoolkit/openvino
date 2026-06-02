@@ -247,7 +247,7 @@ void Transpose::createPrimitive() {
         performAsReorder = true;
     }
 
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM64)
     // Avoid using reference implementation of non-fp32 reorders on arm platforms
     if (prec != ov::element::f32) {
         performAsReorder = false;

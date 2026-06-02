@@ -444,7 +444,7 @@ void CPUTestsBase::updateSelectedType(const std::string& primitiveType,
 ov::element::Type
 CPUTestsBase::deduce_expected_precision(const ov::element::Type& opPrecision,
                                         const ov::AnyMap& configuration) {
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM64)
     return opPrecision;
 #endif
 #if defined(OPENVINO_ARCH_RISCV64)
