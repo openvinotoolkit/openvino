@@ -669,8 +669,11 @@ void ov::npuw::LLMCompiledModel::compile_generate_model_variants(
         LOG_DEBUG("Successfully compiled generate variant with size: " << kv_size);
     }
 
-    // Keep the original compiled model for backward compatibility (using the largest size)
-    m_kvcache_compiled = m_generate_compiled_variants.back();
+    // Keep the original compiled model for backward compatibility (using the largest size).
+    // Encoder embedding models have no generate variants (prefill-only); leave it null.
+    if (!m_generate_compiled_variants.empty()) {
+        m_kvcache_compiled = m_generate_compiled_variants.back();
+    }
 }
 
 ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
@@ -919,8 +922,16 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     }
     LOG_DEBUG("Make kvcache model with static shapes");
 
-    // Create generate model variants with different sizes
-    auto generate_model_variants = create_generate_model_variants(kvcache_model, axes, whisper_lhs_seq_size);
+    // Create generate model variants with different sizes.
+    // A bidirectional encoder embedding model has no autoregressive generate step (no KV cache,
+    // no single-token decode), so the seq_len=1 generate graph is invalid for it and must not be
+    // built/compiled. Only the (whole-sequence) prefill model is used at inference time.
+    std::vector<std::shared_ptr<ov::Model>> generate_model_variants;
+    if (!m_is_encoder_embedding) {
+        generate_model_variants = create_generate_model_variants(kvcache_model, axes, whisper_lhs_seq_size);
+    } else {
+        LOG_DEBUG("Encoder embedding model: skipping generate model variants (prefill-only).");
+    }
 
     if (lm_head_model) {
         LOG_DEBUG("Shared LM head: slice the prefill output");
@@ -1323,9 +1334,11 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& raw_stream, const ov::n
         write_model_meta(raw_stream);
     }
 
-    // Serialize bank name
-    const auto& kv_bank = m_kvcache_compiled->get_weights_bank();
+    // Serialize bank name.
+    // Encoder embedding models are prefill-only (no kvcache/generate compiled model), so use the
+    // prefill model's weight bank; otherwise prefill and kvcache must share the same bank.
     const auto& p_bank = m_prefill_compiled->get_weights_bank();
+    const auto& kv_bank = m_kvcache_compiled ? m_kvcache_compiled->get_weights_bank() : p_bank;
     NPUW_ASSERT(kv_bank && p_bank && kv_bank == p_bank && "Prefill and KVCache models' weight bank should be shared!");
     auto stream = Stream::writer(raw_stream);
     auto bank_name = kv_bank->get_name();
@@ -1416,7 +1429,10 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
             auto bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
             stream&* bank;
 
-            compiled->m_kvcache_compiled->set_weights_bank(bank);
+            // Encoder embedding models are prefill-only: no kvcache/generate compiled models.
+            if (compiled->m_kvcache_compiled) {
+                compiled->m_kvcache_compiled->set_weights_bank(bank);
+            }
             for (const auto& compiled_variant : compiled->m_generate_compiled_variants) {
                 compiled_variant->set_weights_bank(bank);
                 compiled_variant->reconstruct_closure();
