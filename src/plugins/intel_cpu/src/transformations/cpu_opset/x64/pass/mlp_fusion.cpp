@@ -56,7 +56,11 @@ ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
     using ov::op::v4::Swish;
     using ov::op::v7::Gelu;
 
-    auto input = any_input(rank_equals(3));
+    // Accept rank-2 (vLLM-style flattened [B*S, H]) and rank-3 ([B, S, H]).
+    auto input = any_input([](const ov::Output<ov::Node>& o) {
+        auto r = o.get_partial_shape().rank();
+        return r.is_static() && (r.get_length() == 2 || r.get_length() == 3);
+    });
 
     auto gate_proj_weight_compressed = wrap_type<Constant>();  // [up_size, down_size]
     auto gate_proj_weight = wrap_type<Convert>(gate_proj_weight_compressed, {{"destination_type", "f32"}});
