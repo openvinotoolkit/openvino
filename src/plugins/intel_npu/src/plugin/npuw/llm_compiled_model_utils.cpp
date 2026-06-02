@@ -21,13 +21,20 @@ bool ov::npuw::util::is_encoder_embedding_model(const std::shared_ptr<ov::Model>
     // key input of SDPA to come through a Reshape <- Broadcast (GQA KV-cache concat) pattern.
     // A bidirectional encoder (BERT) has SDPA but lacks this pattern, so it is NOT autoregressive.
     auto has_kv_concat_pattern = [](const std::shared_ptr<ov::Node>& sdpa) -> bool {
-        // Key input is at index 1: Concat -> Broadcast -> Reshape -> SDPA
+        // Key input is at index 1: Concat -> Broadcast -> Reshape -> SDPA.
+        // Must match ReConstructEmbeddingModel::check_kv_concat_nodes exactly, including the
+        // Concat on the Broadcast's shape input (index 1) — otherwise an encoder graph with a
+        // Reshape<-Broadcast on the SDPA key could be misclassified as autoregressive.
         auto reshape_node = sdpa->input(1).get_source_output().get_node();
         if (reshape_node == nullptr || strstr(reshape_node->get_type_name(), "Reshape") == nullptr) {
             return false;
         }
         auto broadcast_node = reshape_node->input(0).get_source_output().get_node();
         if (broadcast_node == nullptr || strstr(broadcast_node->get_type_name(), "Broadcast") == nullptr) {
+            return false;
+        }
+        auto concat_node = broadcast_node->input(1).get_source_output().get_node();
+        if (concat_node == nullptr || strstr(concat_node->get_type_name(), "Concat") == nullptr) {
             return false;
         }
         return true;
