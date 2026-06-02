@@ -1939,4 +1939,3 @@ TEST(SubgraphCollectorSharedConstSccTest, scc_with_only_constant_sourced_edges_c
     const auto cmp_result = compare_functions(model_ref, submodels[0]);
     EXPECT_TRUE(cmp_result.first) << cmp_result.second;
 }
-
